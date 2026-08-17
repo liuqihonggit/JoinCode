@@ -42,7 +42,8 @@ public sealed partial class PreToolUseHookMiddleware : ServiceEntity, IToolExecu
                 if (hookResult.Outcome == HookOutcome.Blocking)
                 {
                     _logger?.LogInformation("[PreToolUseHook] Hook 阻止工具执行: {ToolName}, Message={Message}", context.ToolName, hookResult.Message);
-                    throw PermissionDeniedException.ToolDenied(context.ToolName, hookResult.Message ?? "Hook 阻止了工具执行");
+                    context.Deny(hookResult.Message ?? "Hook 阻止了工具执行");
+                    return;
                 }
             }
         }

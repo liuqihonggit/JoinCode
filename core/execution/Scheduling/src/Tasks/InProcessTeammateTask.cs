@@ -44,7 +44,7 @@ public sealed class TeammateState
 public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInProcessTeammateTaskExecutor
 {
     private readonly IAgentLifecycleManager _agentLifecycleManager;
-    private readonly IAgentMessageBroker _messageBroker;
+    private readonly IMailbox _messageBroker;
     [Inject] private readonly ILogger<InProcessTeammateTaskExecutor>? _logger;
     [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     private readonly IClockService _clock;
@@ -58,7 +58,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
 
     public InProcessTeammateTaskExecutor(
         IAgentLifecycleManager agentLifecycleManager,
-        IAgentMessageBroker messageBroker,
+        IMailbox messageBroker,
         ILogger<InProcessTeammateTaskExecutor>? logger = null,
         ILoggerFactory? loggerFactory = null,
         ITelemetryService? telemetryService = null,
@@ -256,7 +256,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
             await channel.Writer.WriteAsync(message, ct).ConfigureAwait(false);
         }
 
-        return await _messageBroker.SendMessageAsync(teammateId, message, ct).ConfigureAwait(false);
+        return await _messageBroker.SendAsync(teammateId, message, ct).ConfigureAwait(false);
     }
 
     public async Task<IEnumerable<string>> GetActiveTeammatesAsync(CancellationToken ct = default)
@@ -527,7 +527,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
                 Content = content
             };
 
-            await _messageBroker.SendMessageAsync("coordinator", message).ConfigureAwait(false);
+            await _messageBroker.SendAsync("coordinator", message).ConfigureAwait(false);
 
             _logger?.LogDebug("Teammate {TeammateId} sent idle notification", teammateId);
         }

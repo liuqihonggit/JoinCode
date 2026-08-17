@@ -56,20 +56,6 @@ public class ExceptionServiceTests {
     }
 
     [Fact]
-    public void HandleException_PermissionDeniedException_ShouldReturnPermissionError() {
-        // Arrange
-        var exception = PermissionDeniedException.ToolDenied("test-tool", "Test deny reason");
-
-        // Act
-        var result = _exceptionService.HandleException(exception);
-
-        // Assert
-        Assert.False(result.Success);
-        Assert.Contains("权限错误", result.ErrorMessage);
-        Assert.Equal(global::JoinCode.Abstractions.Exceptions.ErrorCode.PermissionToolDenied.ToValue(), result.ErrorType);
-    }
-
-    [Fact]
     public void HandleException_WorkflowException_ShouldReturnWorkflowError() {
         // Arrange
         var exception = new WorkflowException("Test workflow error");
@@ -342,31 +328,6 @@ public class ExceptionServiceTests {
         Assert.Equal(1, exception.Result?.ExitCode);
         Assert.Equal("python", exception.Result?.Language);
         Assert.True(exception.IsRetryable);
-    }
-
-    [Fact]
-    public void PermissionDeniedException_ToolDenied_ShouldCreateToolDeniedException() {
-        // Arrange & Act
-        var exception = PermissionDeniedException.ToolDenied("test-tool", "Not allowed", "test-agent");
-
-        // Assert
-        Assert.Equal(global::JoinCode.Abstractions.Exceptions.ErrorCode.PermissionToolDenied.ToValue(), exception.ErrorCode);
-        Assert.Equal(PermissionResourceType.Tool, exception.ResourceType);
-        Assert.Equal("test-tool", exception.ResourceName);
-        Assert.Equal("test-agent", exception.Principal);
-        Assert.Equal("Not allowed", exception.DenyReason);
-        Assert.False(exception.IsRetryable);
-    }
-
-    [Fact]
-    public void PermissionDeniedException_PathDenied_ShouldCreatePathDeniedException() {
-        // Arrange & Act
-        var exception = PermissionDeniedException.PathDenied("/secret/path", "Access denied");
-
-        // Assert
-        Assert.Equal(global::JoinCode.Abstractions.Exceptions.ErrorCode.PermissionPathDenied.ToValue(), exception.ErrorCode);
-        Assert.Equal(PermissionResourceType.Path, exception.ResourceType);
-        Assert.Equal("/secret/path", exception.ResourceName);
     }
 
     [Fact]

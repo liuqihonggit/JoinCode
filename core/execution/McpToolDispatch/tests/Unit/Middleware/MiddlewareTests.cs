@@ -28,8 +28,8 @@ public class PermissionCheckMiddlewareTests
     {
         var logger = NullLogger<PermissionCheckMiddleware>.Instance;
         var interceptor = new Mock<IPermissionCheckingInterceptor>();
-        interceptor.Setup(i => i.CheckPermissionOrThrowAsync(It.IsAny<ToolInvokeContext>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+        interceptor.Setup(i => i.CheckPermissionAsync(It.IsAny<ToolInvokeContext>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(PermissionCheckOutcome.Allowed);
 
         var middleware = new PermissionCheckMiddleware(interceptor.Object, logger);
         var context = new ToolExecutionContext
@@ -49,16 +49,16 @@ public class PermissionCheckMiddlewareTests
         }, CancellationToken.None);
 
         nextCalled.Should().BeTrue();
-        interceptor.Verify(i => i.CheckPermissionOrThrowAsync(It.IsAny<ToolInvokeContext>(), It.IsAny<CancellationToken>()), Times.Once);
+        interceptor.Verify(i => i.CheckPermissionAsync(It.IsAny<ToolInvokeContext>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public async Task InvokeAsync_InterceptorThrows_ThrowsPermissionDenied()
+    public async Task InvokeAsync_InterceptorDenies_SetsDeniedResultAndShortCircuits()
     {
         var logger = NullLogger<PermissionCheckMiddleware>.Instance;
         var interceptor = new Mock<IPermissionCheckingInterceptor>();
-        interceptor.Setup(i => i.CheckPermissionOrThrowAsync(It.IsAny<ToolInvokeContext>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new PermissionDeniedException(PermissionResourceType.Tool, "bash", "denied"));
+        interceptor.Setup(i => i.CheckPermissionAsync(It.IsAny<ToolInvokeContext>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(PermissionCheckOutcome.Denied("denied"));
 
         var middleware = new PermissionCheckMiddleware(interceptor.Object, logger);
         var context = new ToolExecutionContext
@@ -67,8 +67,13 @@ public class PermissionCheckMiddlewareTests
             Arguments = []
         };
 
-        var act = () => middleware.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
-        await act.Should().ThrowAsync<PermissionDeniedException>();
+        var nextCalled = false;
+        await middleware.InvokeAsync(context, (_, _) => { nextCalled = true; return Task.CompletedTask; }, CancellationToken.None);
+
+        nextCalled.Should().BeFalse();
+        context.PermissionDecision.Should().Be(PermissionDecision.Denied);
+        context.Result.Should().NotBeNull();
+        context.Result!.IsError.Should().BeTrue();
     }
 }
 
@@ -121,7 +126,7 @@ public class AgentRestrictionMiddlewareTests
     }
 
     [Fact]
-    public async Task InvokeAsync_ToolNotAllowed_ThrowsPermissionDenied()
+    public async Task InvokeAsync_ToolNotAllowed_SetsDeniedResultAndShortCircuits()
     {
         var logger = NullLogger<AgentRestrictionMiddleware>.Instance;
         var restrictions = new Mock<IAgentToolRestrictions>();
@@ -135,8 +140,13 @@ public class AgentRestrictionMiddlewareTests
             AgentMode = PermissionMode.Auto
         };
 
-        var act = () => middleware.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
-        await act.Should().ThrowAsync<PermissionDeniedException>();
+        var nextCalled = false;
+        await middleware.InvokeAsync(context, (_, _) => { nextCalled = true; return Task.CompletedTask; }, CancellationToken.None);
+
+        nextCalled.Should().BeFalse();
+        context.PermissionDecision.Should().Be(PermissionDecision.Denied);
+        context.Result.Should().NotBeNull();
+        context.Result!.IsError.Should().BeTrue();
     }
 }
 
@@ -192,7 +202,7 @@ public class RemotePolicyMiddlewareTests
     }
 
     [Fact]
-    public async Task InvokeAsync_PolicyDenies_ThrowsPermissionDenied()
+    public async Task InvokeAsync_PolicyDenies_SetsDeniedResultAndShortCircuits()
     {
         var logger = NullLogger<RemotePolicyMiddleware>.Instance;
         var policyService = new Mock<IRemotePolicyService>();
@@ -206,8 +216,13 @@ public class RemotePolicyMiddlewareTests
             Arguments = []
         };
 
-        var act = () => middleware.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
-        await act.Should().ThrowAsync<PermissionDeniedException>();
+        var nextCalled = false;
+        await middleware.InvokeAsync(context, (_, _) => { nextCalled = true; return Task.CompletedTask; }, CancellationToken.None);
+
+        nextCalled.Should().BeFalse();
+        context.PermissionDecision.Should().Be(PermissionDecision.Denied);
+        context.Result.Should().NotBeNull();
+        context.Result!.IsError.Should().BeTrue();
     }
 }
 
@@ -260,7 +275,7 @@ public class FeatureFlagMiddlewareTests
     }
 
     [Fact]
-    public async Task InvokeAsync_FeatureDisabled_ThrowsPermissionDenied()
+    public async Task InvokeAsync_FeatureDisabled_SetsDeniedResultAndShortCircuits()
     {
         var logger = NullLogger<FeatureFlagMiddleware>.Instance;
         var featureService = new Mock<IFeatureFlagService>();
@@ -274,7 +289,12 @@ public class FeatureFlagMiddlewareTests
             Arguments = []
         };
 
-        var act = () => middleware.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
-        await act.Should().ThrowAsync<PermissionDeniedException>();
+        var nextCalled = false;
+        await middleware.InvokeAsync(context, (_, _) => { nextCalled = true; return Task.CompletedTask; }, CancellationToken.None);
+
+        nextCalled.Should().BeFalse();
+        context.PermissionDecision.Should().Be(PermissionDecision.Denied);
+        context.Result.Should().NotBeNull();
+        context.Result!.IsError.Should().BeTrue();
     }
 }

@@ -13,6 +13,7 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
     private readonly IToolRegistry _toolRegistry;
     private readonly ITelemetryService? _telemetryService;
     private readonly IToolPermissionManager _permissionManager;
+    private readonly IPermissionConfirmationHandler? _confirmationHandler;
     [Inject] private readonly ILogger<PermissionAwareToolExecutor> _logger;
     private readonly MiddlewarePipeline<ToolExecutionContext> _pipeline;
 
@@ -26,12 +27,14 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
         MiddlewarePipeline<ToolExecutionContext> pipeline,
         IToolPermissionManager permissionManager,
         ITelemetryService? telemetryService = null,
+        IPermissionConfirmationHandler? confirmationHandler = null,
         ILogger<PermissionAwareToolExecutor>? logger = null)
     {
         _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
         _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
         _permissionManager = permissionManager ?? throw new ArgumentNullException(nameof(permissionManager));
         _telemetryService = telemetryService;
+        _confirmationHandler = confirmationHandler;
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -84,6 +87,11 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
         {
             await _pipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
 
+            if (context.PermissionDecision == PermissionDecision.PendingConfirmation)
+            {
+                return await HandlePendingConfirmationAsync(toolName, arguments, handler, onProgress, currentMode, span, executionEntity, context, cancellationToken).ConfigureAwait(false);
+            }
+
             if (context.Result is not null)
             {
                 CompleteExecutionEntity(context);
@@ -106,23 +114,6 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
             executionEntity.IsError = true;
             throw;
         }
-        catch (PermissionDeniedException)
-        {
-            _logger.LogWarning(L.T(StringKey.ToolExecPermissionDeniedLog, toolName));
-            span?.SetStatus(TelemetryStatusCode.Error, "Permission denied");
-            RecordPermissionDenied(toolName);
-            executionEntity.LifecycleState = EntityLifecycle.Completed;
-            executionEntity.CompletedAt = DateTime.UtcNow;
-            executionEntity.IsError = true;
-            RaiseToolExecutionCompleted(toolName, null, arguments, "permission_denied");
-            throw;
-        }
-        catch (PermissionPendingConfirmationException)
-        {
-            _logger.LogInformation(L.T(StringKey.ToolExecNeedsConfirmLog, toolName));
-            span?.SetStatus(TelemetryStatusCode.Error, "Pending confirmation");
-            throw;
-        }
         catch (Exception ex)
         {
             _logger.LogError(ex, L.T(StringKey.ToolExecFailedLog, toolName));
@@ -135,6 +126,71 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
             RaiseToolExecutionCompleted(toolName, exceptionError, arguments, ex.Message);
             return exceptionError;
         }
+    }
+
+    /// <summary>
+    /// 处理权限待确认 — 调用 IPermissionConfirmationHandler.Confirm,用户允许则重新执行管道
+    /// 确认逻辑统一在此处,QueryEngine 和 ChatToolOrchestrator 两条路径都经过这里
+    /// </summary>
+    private async Task<ToolResult> HandlePendingConfirmationAsync(
+        string toolName,
+        Dictionary<string, JsonElement> arguments,
+        IToolHandler handler,
+        ToolProgressCallback? onProgress,
+        PermissionMode currentMode,
+        ITelemetrySpan? span,
+        ToolExecutionEntity executionEntity,
+        ToolExecutionContext context,
+        CancellationToken cancellationToken)
+    {
+        if (_confirmationHandler is null)
+        {
+            _logger.LogWarning("无确认处理器,工具权限待确认作为拒绝返回: {ToolName}", toolName);
+            var noHandlerError = context.Result ?? CreateErrorResult($"工具 '{toolName}' 需要确认但无确认处理器");
+            CompleteExecutionEntity(context);
+            RaiseToolExecutionCompleted(toolName, noHandlerError, arguments);
+            return noHandlerError;
+        }
+
+        var prompt = context.PermissionConfirmationPrompt ?? "需要确认";
+        var action = _confirmationHandler.Confirm(toolName, prompt);
+
+        if (action != PermissionConfirmAction.Allow && action != PermissionConfirmAction.AlwaysAllow)
+        {
+            _logger.LogWarning("用户拒绝工具执行: {ToolName}", toolName);
+            var deniedError = CreateErrorResult($"用户拒绝工具执行: {toolName}");
+            CompleteExecutionEntity(context);
+            RaiseToolExecutionCompleted(toolName, deniedError, arguments);
+            return deniedError;
+        }
+
+        _logger.LogInformation("用户确认允许工具执行: {ToolName}", toolName);
+
+        var retryContext = new ToolExecutionContext
+        {
+            ToolName = toolName,
+            Arguments = arguments,
+            Handler = handler,
+            OnProgress = onProgress,
+            AgentMode = currentMode,
+            Span = span,
+            ExecutionEntity = executionEntity,
+        };
+
+        await _pipeline.ExecuteAsync(retryContext, cancellationToken).ConfigureAwait(false);
+
+        if (retryContext.Result is not null)
+        {
+            CompleteExecutionEntity(retryContext);
+            RaiseToolExecutionCompleted(toolName, retryContext.Result, arguments);
+            return retryContext.Result;
+        }
+
+        _logger.LogError("Tool {ToolName} retry pipeline completed without result", toolName);
+        var retryNoResultError = CreateErrorResult($"Tool '{toolName}' execution produced no result.");
+        CompleteExecutionEntity(retryContext);
+        RaiseToolExecutionCompleted(toolName, retryNoResultError, arguments);
+        return retryNoResultError;
     }
 
     private void RecordPermissionDenied(string toolName)

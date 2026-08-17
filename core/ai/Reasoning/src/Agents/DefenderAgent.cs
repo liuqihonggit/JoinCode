@@ -10,7 +10,7 @@ public sealed class DefenderAgent : ReasoningAgent
         "审查所有已验证项和假定，如果控方证据不足或存在漏洞，提出质疑和反驳证据。" +
         "输出JSON格式：{\"counterEvidence\":[{\"content\":\"...\",\"source\":\"...\",\"trustLevel\":\"Moderate\",\"weight\":1.0}],\"doubts\":[\"质疑1\",\"质疑2\"]}";
 
-    public DefenderAgent(IQueryEngine queryEngine, ILogger<DefenderAgent> logger, IChatClient? chatClient = null, IAgentMessageBroker? messageBroker = null)
+    public DefenderAgent(IQueryEngine queryEngine, ILogger<DefenderAgent> logger, IChatClient? chatClient = null, IMailbox? messageBroker = null)
         : base(queryEngine, logger, AgentRole.Defender, "辩方Agent", chatClient, messageBroker) { }
 
     public override async Task<AgentAction> ReasonAsync(ReasoningContext context, CancellationToken ct)

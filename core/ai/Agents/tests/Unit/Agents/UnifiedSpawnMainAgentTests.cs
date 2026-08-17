@@ -106,7 +106,7 @@ public sealed class UnifiedSpawnMainAgentTests
     [Fact]
     public async Task RegisterMessage_IsMainAgent_SkipsRegister()
     {
-        var messageBroker = new Mock<IAgentMessageBroker>();
+        var messageBroker = new Mock<IMailbox>();
         var contextAccessor = new Mock<ISubAgentContextAccessor>();
         var mw = new RegisterMessageMiddleware(messageBroker.Object, contextAccessor.Object, NullLogger<RegisterMessageMiddleware>.Instance);
 

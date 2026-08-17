@@ -10,7 +10,7 @@ public class ParallelExecutionEngineTests
     private readonly Mock<IQueryEngine> _queryEngineMock;
     private readonly Mock<IAgentLifecycleManager> _lifecycleManagerMock;
     private readonly Mock<IAgentWorktreeManager> _worktreeManagerMock;
-    private readonly Mock<IAgentMessageBroker> _messageBrokerMock;
+    private readonly Mock<IMailbox> _messageBrokerMock;
     private readonly Mock<IAgentExecutionEngine> _executionEngineMock;
 
     public ParallelExecutionEngineTests()
@@ -18,7 +18,7 @@ public class ParallelExecutionEngineTests
         _queryEngineMock = new Mock<IQueryEngine>();
         _lifecycleManagerMock = new Mock<IAgentLifecycleManager>();
         _worktreeManagerMock = new Mock<IAgentWorktreeManager>();
-        _messageBrokerMock = new Mock<IAgentMessageBroker>();
+        _messageBrokerMock = new Mock<IMailbox>();
         _executionEngineMock = new Mock<IAgentExecutionEngine>();
     }
 

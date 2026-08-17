@@ -9,7 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)app\JoinCode\JoinCode.csproj" />
-
+    <ProjectReference Include="$(RepoRoot)app\JoinCodeTui\JoinCodeTui.csproj" />
   </ItemGroup>
 
   <!-- Core.Tests.Terminal 依赖（去重：JoinCode 已在上面） -->

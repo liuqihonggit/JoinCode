@@ -36,7 +36,6 @@ public sealed partial class ExceptionService : ServiceEntity, IExceptionService 
             ConfigurationException configEx => ($"配置错误 [{configEx.ErrorCode}]: {configEx.Message}", configEx.ErrorCode),
             ApiException apiEx => ($"API 错误 [{apiEx.ErrorCode}]: {apiEx.Message}", apiEx.ErrorCode),
             CodeExecutionException codeEx => ($"代码执行错误 [{codeEx.ErrorCode}]: {codeEx.Message}", codeEx.ErrorCode),
-            PermissionDeniedException permEx => ($"权限错误 [{permEx.ErrorCode}]: {permEx.Message}", permEx.ErrorCode),
             WorkflowException workflowEx => ($"工作流错误 [{workflowEx.ErrorCode}]: {workflowEx.Message}", workflowEx.ErrorCode),
             OperationCanceledException => ("操作已取消", global::JoinCode.Abstractions.Exceptions.ErrorCode.OperationCancelled.ToValue()),
             _ => ($"发生意外错误: {ex.Message}", global::JoinCode.Abstractions.Exceptions.ErrorCode.General.ToValue())

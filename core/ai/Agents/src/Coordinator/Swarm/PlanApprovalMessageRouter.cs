@@ -9,7 +9,7 @@ namespace Core.Agents.Coordinator;
 [Register]
 public sealed partial class PlanApprovalMessageRouter : ServiceEntity
 {
-    private readonly IAgentMessageBroker _messageBroker;
+    private readonly IMailbox _messageBroker;
     private readonly IPlanModeManager _planModeManager;
     private readonly IToolPermissionManager? _permissionManager;
     [Inject] private readonly ILogger<PlanApprovalMessageRouter>? _logger;
@@ -18,7 +18,7 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity
     private Task? _leaderRoutingTask;
 
     public PlanApprovalMessageRouter(
-        IAgentMessageBroker messageBroker,
+        IMailbox messageBroker,
         IPlanModeManager planModeManager,
         IToolPermissionManager? permissionManager = null,
         ILogger<PlanApprovalMessageRouter>? logger = null,
@@ -86,7 +86,7 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity
     {
         try
         {
-            await foreach (var message in _messageBroker.ReadMessagesAsync(coordinatorAgentId, ct).ConfigureAwait(false))
+            await foreach (var message in _messageBroker.ReceiveAsync(coordinatorAgentId, ct).ConfigureAwait(false))
             {
                 if (ct.IsCancellationRequested) break;
 
@@ -112,7 +112,7 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity
     {
         try
         {
-            await foreach (var message in _messageBroker.ReadMessagesAsync(teammateAgentId).ConfigureAwait(false))
+            await foreach (var message in _messageBroker.ReceiveAsync(teammateAgentId).ConfigureAwait(false))
             {
                 if (message.MessageType == TeammateMessageType.PlanApprovalResponse.ToValue())
                 {
@@ -176,7 +176,7 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity
                 Content = responseContent
             };
 
-            await _messageBroker.SendMessageAsync(message.FromAgentId, responseMessage, ct).ConfigureAwait(false);
+            await _messageBroker.SendAsync(message.FromAgentId, responseMessage, ct).ConfigureAwait(false);
 
             _logger?.LogInformation(
                 "Plan 审批已自动批准: RequestId={RequestId}, To={ToId}, PermissionMode={Mode}",

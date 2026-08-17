@@ -74,6 +74,7 @@ public static partial class ServiceRegistration
                 .Use(sp.GetRequiredService<McpToolRegistry.ToolHealthScoringMiddleware>())
                 .Use(sp.GetRequiredService<McpToolRegistry.PostToolUseHookMiddleware>())
                 .Use(sp.GetRequiredService<McpToolRegistry.ToolExecutionMiddleware>())
+                .WithShortCircuit(ctx => ctx.IsShortCircuited)
                 .Build();
         });
 

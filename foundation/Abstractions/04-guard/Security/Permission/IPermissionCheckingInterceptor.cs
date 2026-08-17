@@ -6,7 +6,7 @@ namespace JoinCode.Abstractions.Security.Permission;
 public interface IPermissionCheckingInterceptor : IDisposable
 {
     /// <summary>
-    /// 检查权限并在被拒绝时抛出异常
+    /// 检查权限并返回决策结果 — 中间件管道用返回值传递权限决策,不抛异常
     /// </summary>
-    Task CheckPermissionOrThrowAsync(ToolInvokeContext context, CancellationToken cancellationToken = default);
+    Task<PermissionCheckOutcome> CheckPermissionAsync(ToolInvokeContext context, CancellationToken cancellationToken = default);
 }

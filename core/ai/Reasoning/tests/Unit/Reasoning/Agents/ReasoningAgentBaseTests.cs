@@ -149,7 +149,7 @@ public sealed class ReasoningAgentBaseTests
     {
         public override string SystemPrompt => "你是测试Agent";
 
-        public TestAgent(ILogger logger, IChatClient? chatClient = null, IAgentMessageBroker? messageBroker = null)
+        public TestAgent(ILogger logger, IChatClient? chatClient = null, IMailbox? messageBroker = null)
             : base(new FakeQueryEngine(), logger, AgentRole.Prosecutor, "测试Agent", chatClient, messageBroker) { }
 
         public override Task<AgentAction> ReasonAsync(ReasoningContext context, CancellationToken ct)

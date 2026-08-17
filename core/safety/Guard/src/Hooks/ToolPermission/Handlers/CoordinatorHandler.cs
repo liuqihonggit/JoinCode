@@ -94,7 +94,7 @@ public sealed partial class CoordinatorHandler : ServiceEntity
         }
         catch (WorkflowException)
         {
-            // 权限系统自身的业务异常（含 PermissionDeniedException）— 是明确决策而非故障，
+            // 权限系统自身的业务异常 — 是明确决策而非故障，
             // 不降级为对话框，向上传播保留原始语义
             throw;
         }

@@ -104,7 +104,7 @@ internal sealed class FakeToolCollection : IToolCollection
     public bool Remove(string name) => false;
 }
 
-internal sealed class FakeMessageBroker : IAgentMessageBroker
+internal sealed class FakeMessageBroker : IMailbox
 {
     public List<CoordinatorMessage> SentMessages { get; } = [];
     public List<CoordinatorMessage> BroadcastMessages { get; } = [];
@@ -113,7 +113,7 @@ internal sealed class FakeMessageBroker : IAgentMessageBroker
 
     public void UnregisterAgent(string agentId) { }
 
-    public Task<bool> SendMessageAsync(string agentId, CoordinatorMessage message, CancellationToken cancellationToken = default)
+    public Task<bool> SendAsync(string agentId, CoordinatorMessage message, CancellationToken cancellationToken = default)
     {
         SentMessages.Add(message);
         return Task.FromResult(true);
@@ -125,7 +125,7 @@ internal sealed class FakeMessageBroker : IAgentMessageBroker
         return Task.CompletedTask;
     }
 
-    public IAsyncEnumerable<CoordinatorMessage> ReadMessagesAsync(string agentId, CancellationToken cancellationToken = default)
+    public IAsyncEnumerable<CoordinatorMessage> ReceiveAsync(string agentId, CancellationToken cancellationToken = default)
     {
         return AsyncEnumerable.Empty<CoordinatorMessage>();
     }

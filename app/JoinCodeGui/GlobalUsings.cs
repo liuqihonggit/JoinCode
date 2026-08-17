@@ -19,6 +19,7 @@ global using JoinCode.Abstractions.Models.Diff;
 global using JoinCode.Abstractions.Models.Interactive;
 global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.Configuration.AppData;
+global using IO.FileSystem;
 
 // GUI ViewModel 层 DTO（SlashCommandItem 等）
 global using JoinCode.Gui.ViewModels;

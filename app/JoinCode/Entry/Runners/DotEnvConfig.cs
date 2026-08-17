@@ -21,7 +21,7 @@ internal sealed class DotEnvConfig
 
         try
         {
-            var content = System.IO.File.ReadAllText(filePath);
+            var content = SafeFileIO.ReadAllText(filePath);
             var json = System.Text.Json.JsonDocument.Parse(content);
 
             if (!json.RootElement.TryGetProperty("env", out var envObj))

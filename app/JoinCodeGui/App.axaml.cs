@@ -82,7 +82,7 @@ public sealed partial class App : Application
         {
             var dir = Path.Combine(AppContext.BaseDirectory, "dumps");
             Directory.CreateDirectory(dir);
-            System.IO.File.AppendAllText(
+            SafeFileIO.AppendAllText(
                 Path.Combine(dir, "startup_timing.log"),
                 $"{DateTime.Now:HH:mm:ss.fff} {message}\n");
         }
@@ -99,7 +99,7 @@ public sealed partial class App : Application
         {
             var dir = Path.Combine(AppContext.BaseDirectory, "dumps");
             Directory.CreateDirectory(dir);
-            File.WriteAllText(
+            SafeFileIO.WriteAllText(
                 Path.Combine(dir, $"crash_{DateTime.Now:yyyyMMdd_HHmmss}.log"),
                 $"{DateTime.Now:O}\n{ex}");
         }

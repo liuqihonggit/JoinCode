@@ -253,7 +253,7 @@ internal static class TuiModeRunner
         {
             var dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "jcctui_diag");
             System.IO.Directory.CreateDirectory(dir);
-            System.IO.File.AppendAllText(
+            SafeFileIO.AppendAllText(
                 System.IO.Path.Combine(dir, "run.log"),
                 $"[{DateTime.Now:HH:mm:ss.fff}] {message}\n");
         }

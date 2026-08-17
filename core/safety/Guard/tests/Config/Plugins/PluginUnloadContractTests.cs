@@ -85,7 +85,8 @@ public sealed class PluginUnloadContractTests
         public override string Name => "contract-violating";
         public override string Version => "1.0.0";
         public override string Description => "测试用-契约违反";
-        public override OperationResult Load(IServiceCollection services) => OperationResult.Ok();
+        public override Task<OperationResult> LoadAsync(PluginContext ctx, CancellationToken cancellationToken = default)
+            => Task.FromResult(OperationResult.Ok());
         public override Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
             => Task.FromResult(OperationResult.Ok());
         public override PluginUnloadContract ValidateUnloadContract() => PluginUnloadContract.Invalid("测试违规");
@@ -97,7 +98,8 @@ public sealed class PluginUnloadContractTests
         public override string Name => "contract-valid";
         public override string Version => "1.0.0";
         public override string Description => "测试用-契约通过";
-        public override OperationResult Load(IServiceCollection services) => OperationResult.Ok();
+        public override Task<OperationResult> LoadAsync(PluginContext ctx, CancellationToken cancellationToken = default)
+            => Task.FromResult(OperationResult.Ok());
         public override Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
             => Task.FromResult(OperationResult.Ok());
     }

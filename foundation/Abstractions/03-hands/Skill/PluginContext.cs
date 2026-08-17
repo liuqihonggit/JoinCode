@@ -44,8 +44,12 @@ public sealed class PluginContext
         _undoChain.Add(new NonEmptyUndo(disposable.Dispose));
     }
 
-    /// <summary>获取 IServiceCollection — 兼容旧 Load(IServiceCollection) 签名</summary>
-    internal IServiceCollection GetLegacyServices() => _services;
+    /// <summary>批量配置 DI 服务 — 收敛入口,插件不直接持有 IServiceCollection</summary>
+    public void ConfigureServices(Action<IServiceCollection> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+        configure(_services);
+    }
 
     /// <summary>获取撤销链(逆序) — PluginManager 卸载时调用</summary>
     internal IReadOnlyList<NonEmptyUndo> GetUndoChain() => _undoChain;

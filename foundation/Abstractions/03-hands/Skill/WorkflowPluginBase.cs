@@ -31,14 +31,9 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
     /// <summary>插件描述 — 子类实现</summary>
     public abstract string Description { get; }
 
-    /// <summary>加载插件 - 注册服务 — 子类覆写(旧签名,兼容)</summary>
-    /// <para>新插件应覆写 LoadAsync(PluginContext) 代替</para>
-    public virtual OperationResult Load(IServiceCollection services) => OperationResult.Ok();
-
-    /// <summary>加载插件(新签名) — 副作用唯一入口 PluginContext,对齐 Cordis ctx</summary>
-    /// <para>默认转调旧 Load 做兼容;新插件覆写此方法用 ctx.RegisterService/Effect 注册副作用</para>
-    public virtual Task<OperationResult> LoadAsync(PluginContext ctx, CancellationToken cancellationToken = default)
-        => Task.FromResult(Load(ctx.GetLegacyServices()));
+    /// <summary>加载插件 — 副作用唯一入口 PluginContext,对齐 Cordis ctx</summary>
+    /// <para>子类覆写,通过 ctx.RegisterService/ConfigureServices/Effect 注册副作用</para>
+    public abstract Task<OperationResult> LoadAsync(PluginContext ctx, CancellationToken cancellationToken = default);
 
     /// <summary>初始化插件 - 获取服务依赖 — 子类实现</summary>
     public abstract Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default);

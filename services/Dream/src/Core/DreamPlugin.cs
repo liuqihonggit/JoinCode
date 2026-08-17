@@ -16,10 +16,10 @@ public sealed partial class DreamPlugin : WorkflowPluginBase, ICommandRegistrati
     public override string Version => "1.0.0";
     public override string Description => "JoinCode 记忆整合插件";
 
-    public override OperationResult Load(IServiceCollection services)
+    public override Task<OperationResult> LoadAsync(PluginContext ctx, CancellationToken cancellationToken = default)
     {
-        services.AddDreamPluginServices();
-        return OperationResult.Ok();
+        ctx.ConfigureServices(static s => s.AddDreamPluginServices());
+        return Task.FromResult(OperationResult.Ok());
     }
 
     public override async Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default)

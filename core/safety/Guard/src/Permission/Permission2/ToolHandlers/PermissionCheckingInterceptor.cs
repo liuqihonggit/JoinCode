@@ -89,10 +89,6 @@ public sealed partial class PermissionCheckingInterceptor : ServiceEntity, IPerm
                 context.ToolName, context.RequestId);
             throw;
         }
-        catch (PermissionDeniedException)
-        {
-            throw;
-        }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "权限检查时发生异常: Tool={ToolName}, RequestId={RequestId}",

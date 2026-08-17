@@ -56,7 +56,6 @@ public sealed partial class PermissionCheckMiddleware : ServiceEntity, IToolExec
                 }
                 _logger.LogInformation("工具需要确认: Tool={ToolName}, Prompt={Prompt}", context.ToolName, outcome.ConfirmationPrompt);
                 context.RequireConfirmation(outcome.ConfirmationPrompt ?? "需要确认", ruleContent);
-                await next(context, ct).ConfigureAwait(false);
                 break;
         }
     }

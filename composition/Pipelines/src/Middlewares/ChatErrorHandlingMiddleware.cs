@@ -64,7 +64,7 @@ internal sealed partial class ChatErrorHandlingMiddleware : ServiceEntity, Core.
 
     /// <summary>
     /// 将原始异常分类转换：
-    /// 1. 已带错误码的 WorkflowException 子类（ApiException/ConfigurationException/PermissionDeniedException 等）原样保留类型
+    /// 1. 已带错误码的 WorkflowException 子类（ApiException/ConfigurationException 等）原样保留类型
     /// 2. 纯 HTTP/超时类异常转换为带友好消息的 ApiException
     /// 3. 其余异常转换为 WorkflowExecution 通用 ApiException
     /// </summary>

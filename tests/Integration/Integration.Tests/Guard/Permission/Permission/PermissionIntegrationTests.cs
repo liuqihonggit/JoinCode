@@ -95,14 +95,14 @@ public class PermissionIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task ExecuteToolAsync_WithPermissionManager_DangerousTool_ShouldThrowPermissionPendingConfirmationException()
+    public async Task ExecuteToolAsync_WithPermissionManager_DangerousTool_ShouldReturnError()
     {
         var mockHandler = CreateMockToolHandler("file_delete", "Delete file tool");
         await _registryWithPermission.RegisterToolAsync(mockHandler.Object).ConfigureAwait(true);
 
-        var act = async () => await _permissionExecutor.ExecuteAsync("file_delete", new Dictionary<string, JsonElement>()).ConfigureAwait(true);
+        var result = await _permissionExecutor.ExecuteAsync("file_delete", new Dictionary<string, JsonElement>()).ConfigureAwait(true);
 
-        await act.Should().ThrowAsync<PermissionPendingConfirmationException>().ConfigureAwait(true);
+        result.IsError.Should().BeTrue();
     }
 
     [Fact]
@@ -177,9 +177,9 @@ public class PermissionIntegrationTests : IAsyncDisposable
         var mockHandler = CreateMockToolHandler("expired_tool", "Expired tool");
         await _registryWithPermission.RegisterToolAsync(mockHandler.Object).ConfigureAwait(true);
 
-        var act = async () => await _permissionExecutor.ExecuteAsync("expired_tool", new Dictionary<string, JsonElement>()).ConfigureAwait(true);
+        var result = await _permissionExecutor.ExecuteAsync("expired_tool", new Dictionary<string, JsonElement>()).ConfigureAwait(true);
 
-        await act.Should().ThrowAsync<PermissionPendingConfirmationException>().ConfigureAwait(true);
+        result.IsError.Should().BeTrue();
     }
 
     [Fact]
@@ -193,9 +193,9 @@ public class PermissionIntegrationTests : IAsyncDisposable
             ["command"] = JsonDocument.Parse("\"rm -rf /\"").RootElement
         };
 
-        var act = async () => await _permissionExecutor.ExecuteAsync(ShellToolNameConstants.Bash, arguments).ConfigureAwait(true);
+        var result = await _permissionExecutor.ExecuteAsync(ShellToolNameConstants.Bash, arguments).ConfigureAwait(true);
 
-        await act.Should().ThrowAsync<PermissionDeniedException>().ConfigureAwait(true);
+        result.IsError.Should().BeTrue();
     }
 
     [Fact]
@@ -209,9 +209,9 @@ public class PermissionIntegrationTests : IAsyncDisposable
             ["path"] = JsonSerializer.SerializeToElement("C:\\Windows\\system32\\test.txt")
         };
 
-        var act = async () => await _permissionExecutor.ExecuteAsync(FileToolNameConstants.FileWrite, arguments).ConfigureAwait(true);
+        var result = await _permissionExecutor.ExecuteAsync(FileToolNameConstants.FileWrite, arguments).ConfigureAwait(true);
 
-        await act.Should().ThrowAsync<PermissionPendingConfirmationException>().ConfigureAwait(true);
+        result.IsError.Should().BeTrue();
     }
 
     #endregion
@@ -247,9 +247,9 @@ public class PermissionIntegrationTests : IAsyncDisposable
         var mockHandler = CreateMockToolHandler("unknown_custom_tool", "Unknown tool");
         await _registryWithPermission.RegisterToolAsync(mockHandler.Object).ConfigureAwait(true);
 
-        var act = async () => await _permissionExecutor.ExecuteAsync("unknown_custom_tool", new Dictionary<string, JsonElement>()).ConfigureAwait(true);
+        var result = await _permissionExecutor.ExecuteAsync("unknown_custom_tool", new Dictionary<string, JsonElement>()).ConfigureAwait(true);
 
-        await act.Should().ThrowAsync<PermissionPendingConfirmationException>().ConfigureAwait(true);
+        result.IsError.Should().BeTrue();
     }
 
     [Fact]
@@ -302,9 +302,9 @@ public class PermissionIntegrationTests : IAsyncDisposable
         var mockHandler = CreateMockToolHandler(FileToolNameConstants.FileWrite, "Write tool");
         await _registryWithPermission.RegisterToolAsync(mockHandler.Object).ConfigureAwait(true);
 
-        var act = async () => await _permissionExecutor.ExecuteAsync(FileToolNameConstants.FileWrite, new Dictionary<string, JsonElement>()).ConfigureAwait(true);
+        var result = await _permissionExecutor.ExecuteAsync(FileToolNameConstants.FileWrite, new Dictionary<string, JsonElement>()).ConfigureAwait(true);
 
-        await act.Should().ThrowAsync<PermissionPendingConfirmationException>().ConfigureAwait(true);
+        result.IsError.Should().BeTrue();
     }
 
     [Fact]
@@ -327,8 +327,8 @@ public class PermissionIntegrationTests : IAsyncDisposable
         var readResult = await _permissionExecutor.ExecuteAsync(FileToolNameConstants.FileRead, new Dictionary<string, JsonElement>()).ConfigureAwait(true);
         readResult.IsError.Should().BeFalse();
 
-        var deleteAct = async () => await _permissionExecutor.ExecuteAsync("file_delete", new Dictionary<string, JsonElement>()).ConfigureAwait(true);
-        await deleteAct.Should().ThrowAsync<PermissionPendingConfirmationException>().ConfigureAwait(true);
+        var deleteResult = await _permissionExecutor.ExecuteAsync("file_delete", new Dictionary<string, JsonElement>()).ConfigureAwait(true);
+        deleteResult.IsError.Should().BeTrue();
     }
 
     [Fact]
@@ -350,8 +350,8 @@ public class PermissionIntegrationTests : IAsyncDisposable
         result1.IsError.Should().BeFalse();
 
         await _permissionManager.SetPermissionModeAsync(PermissionMode.Ask).ConfigureAwait(true);
-        var act = async () => await _permissionExecutor.ExecuteAsync("custom_test_tool", new Dictionary<string, JsonElement>()).ConfigureAwait(true);
-        await act.Should().ThrowAsync<PermissionPendingConfirmationException>().ConfigureAwait(true);
+        var result2 = await _permissionExecutor.ExecuteAsync("custom_test_tool", new Dictionary<string, JsonElement>()).ConfigureAwait(true);
+        result2.IsError.Should().BeTrue();
 
         await _permissionManager.SetPermissionModeAsync(PermissionMode.Bypass).ConfigureAwait(true);
         var result3 = await _permissionExecutor.ExecuteAsync("custom_test_tool", new Dictionary<string, JsonElement>()).ConfigureAwait(true);
@@ -360,10 +360,10 @@ public class PermissionIntegrationTests : IAsyncDisposable
 
     #endregion
 
-    #region PermissionDeniedException Flow Tests
+    #region Permission Denied Flow Tests
 
     [Fact]
-    public async Task EndToEnd_BlockedTool_ShouldThrowPermissionDeniedException()
+    public async Task EndToEnd_BlockedTool_ShouldReturnError()
     {
         var mockHandler = CreateMockToolHandler("blocked_tool", "Blocked tool");
         // 使用 FakeTimeProvider 推进时间使权限过期，替代 Task.Delay
@@ -374,29 +374,23 @@ public class PermissionIntegrationTests : IAsyncDisposable
 
         await _permissionManager.SetPermissionModeAsync(PermissionMode.Ask).ConfigureAwait(true);
 
-        var act = async () => await _permissionExecutor.ExecuteAsync("blocked_tool", new Dictionary<string, JsonElement>()).ConfigureAwait(true);
+        var result = await _permissionExecutor.ExecuteAsync("blocked_tool", new Dictionary<string, JsonElement>()).ConfigureAwait(true);
 
-        await act.Should().ThrowAsync<PermissionPendingConfirmationException>().ConfigureAwait(true);
+        result.IsError.Should().BeTrue();
     }
 
     [Fact]
-    public async Task EndToEnd_PermissionException_ShouldContainCorrectInfo()
+    public async Task EndToEnd_PermissionError_ShouldContainCorrectInfo()
     {
         var mockHandler = CreateMockToolHandler("sensitive_tool", "Sensitive tool");
         await _registryWithPermission.RegisterToolAsync(mockHandler.Object).ConfigureAwait(true);
 
         await _permissionManager.SetPermissionModeAsync(PermissionMode.Ask).ConfigureAwait(true);
 
-        try
-        {
-            await _permissionExecutor.ExecuteAsync("sensitive_tool", new Dictionary<string, JsonElement>()).ConfigureAwait(true);
-            Assert.Fail("Expected exception was not thrown");
-        }
-        catch (PermissionPendingConfirmationException ex)
-        {
-            ex.ToolName.Should().Be("sensitive_tool");
-            ex.ConfirmationPrompt.Should().NotBeNullOrEmpty();
-        }
+        var result = await _permissionExecutor.ExecuteAsync("sensitive_tool", new Dictionary<string, JsonElement>()).ConfigureAwait(true);
+
+        result.IsError.Should().BeTrue();
+        result.Content.Should().NotBeEmpty();
     }
 
     #endregion
@@ -450,24 +444,13 @@ public class PermissionIntegrationTests : IAsyncDisposable
             .Select(_ => _permissionExecutor.ExecuteAsync(FileToolNameConstants.FileRead, new Dictionary<string, JsonElement>()));
 
         var dangerousTasks = Enumerable.Range(0, 25)
-            .Select(_ => Task.Run(async () =>
-            {
-                try
-                {
-                    await _permissionExecutor.ExecuteAsync("file_delete", new Dictionary<string, JsonElement>()).ConfigureAwait(true);
-                    return false;
-                }
-                catch (PermissionPendingConfirmationException)
-                {
-                    return true;
-                }
-            }));
+            .Select(_ => _permissionExecutor.ExecuteAsync("file_delete", new Dictionary<string, JsonElement>()));
 
         var safeResults = await Task.WhenAll(safeTasks).ConfigureAwait(true);
         var dangerousResults = await Task.WhenAll(dangerousTasks).ConfigureAwait(true);
 
         safeResults.Should().AllSatisfy(r => r.IsError.Should().BeFalse());
-        dangerousResults.Should().AllSatisfy(r => r.Should().BeTrue());
+        dangerousResults.Should().AllSatisfy(r => r.IsError.Should().BeTrue());
     }
 
     #endregion
@@ -515,8 +498,8 @@ public class PermissionIntegrationTests : IAsyncDisposable
         result1.IsError.Should().BeFalse();
 
         await _permissionManager.SetPermissionModeAsync(PermissionMode.Ask).ConfigureAwait(true);
-        var act = async () => await _permissionExecutor.ExecuteAsync("reevaluated_tool", new Dictionary<string, JsonElement>()).ConfigureAwait(true);
-        await act.Should().ThrowAsync<PermissionPendingConfirmationException>().ConfigureAwait(true);
+        var result2 = await _permissionExecutor.ExecuteAsync("reevaluated_tool", new Dictionary<string, JsonElement>()).ConfigureAwait(true);
+        result2.IsError.Should().BeTrue();
     }
 
     #endregion

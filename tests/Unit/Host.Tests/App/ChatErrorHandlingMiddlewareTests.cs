@@ -6,18 +6,6 @@
 public sealed class ChatErrorHandlingMiddlewareTests
 {
     [Fact]
-    public void ClassifyException_WorkflowException_ShouldPreserveType()
-    {
-        var original = new JoinCode.Abstractions.Exceptions.PermissionDeniedException(
-            JoinCode.Abstractions.Exceptions.PermissionResourceType.Tool, "bash", "not allowed");
-
-        var result = JoinCode.Pipelines.Middlewares.ChatErrorHandlingMiddleware.ClassifyException(original);
-
-        Assert.Same(original, result);
-        Assert.IsType<JoinCode.Abstractions.Exceptions.PermissionDeniedException>(result);
-    }
-
-    [Fact]
     public void ClassifyException_ConfigurationException_ShouldPreserveType()
     {
         var original = JoinCode.Abstractions.Exceptions.ConfigurationException.Missing("JCC_API_KEY");

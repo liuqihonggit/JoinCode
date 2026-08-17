@@ -52,6 +52,7 @@ global using Microsoft.Extensions.Logging.Console;
 global using Microsoft.Extensions.Options;
 global using Moq;
 global using PermissionResult = JoinCode.Abstractions.Security.PermissionResult;
+global using PermissionDecision = Core.Hooks.ToolPermission.PermissionDecision;
 global using System.ComponentModel.DataAnnotations;
 global using System.Text.Json;
 global using System.Runtime.CompilerServices;

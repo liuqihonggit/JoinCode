@@ -40,6 +40,16 @@ namespace AotSafety.Generator
             true,
             "FileStream 构造函数直接访问磁盘，测试中无法替换为内存实现.使用 IFileSystem.CreateStream 替代.");
 
+        private static readonly DiagnosticDescriptor RuleFileShareNotReadWrite = new(
+            "JCC9006",
+            "文件IO: FileStream 必须使用 FileShare.ReadWrite 避免并发读写冲突",
+            "FileStream 的 FileShare 参数为 '{0}'，应使用 FileShare.ReadWrite 避免并发读写冲突。",
+            "FileSystemAbstraction",
+            DiagnosticSeverity.Error,
+            true,
+            "所有 FileStream 必须显式指定 FileShare.ReadWrite.不指定时默认 FileShare.None，会导致并发读取时写入失败（UnauthorizedAccessException）." +
+            "正确: new FileStream(path, mode, access, FileShare.ReadWrite) 或 fs.CreateStream(path, mode, access, FileShare.ReadWrite).");
+
         private static readonly DiagnosticDescriptor RuleDirectHttpClient = new(
             "JCC9003",
             "HTTP: 直接 new HttpClient() 应使用 IHttpClientProvider 抽象",
@@ -166,7 +176,7 @@ namespace AotSafety.Generator
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
             ImmutableArray.Create(
                 RuleFileTooLong,
-                RuleDirectFileIO, RuleDirectFileStream,
+                RuleDirectFileIO, RuleDirectFileStream, RuleFileShareNotReadWrite,
                 RuleDirectHttpClient, RuleDirectPhysicalFileSystem, RuleDirectFileSystemWatcher,
                 RuleTooManyFilesInFolder, RuleMixedFilesAndFolders,
                 RulePublicMemberMissingXmlDoc,
@@ -283,7 +293,57 @@ namespace AotSafety.Generator
             if (typeName is "FileStream" or "System.IO.FileStream")
             {
                 ctx.ReportDiagnostic(Diagnostic.Create(RuleDirectFileStream, objectCreation.GetLocation()));
+                AnalyzeFileShareParameter(ctx, objectCreation);
             }
+        }
+
+        /// <summary>
+        /// JCC9006: 检测 FileStream 构造的 FileShare 参数是否为 ReadWrite
+        /// </summary>
+        private static void AnalyzeFileShareParameter(SyntaxNodeAnalysisContext ctx, ObjectCreationExpressionSyntax objectCreation)
+        {
+            var argumentList = objectCreation.ArgumentList;
+            if (argumentList is null) return;
+
+            var arguments = argumentList.Arguments;
+            if (arguments.Count == 0) return;
+
+            ArgumentSyntax? shareArg = null;
+            foreach (var arg in arguments)
+            {
+                if (arg.NameColon is { } nameColon && nameColon.Name.Identifier.ValueText == "share")
+                {
+                    shareArg = arg;
+                    break;
+                }
+            }
+
+            if (shareArg is null)
+            {
+                var positionalArgs = arguments.Where(a => a.NameColon is null).ToList();
+                if (positionalArgs.Count >= 4)
+                {
+                    shareArg = positionalArgs[3];
+                }
+            }
+
+            if (shareArg is null)
+            {
+                ctx.ReportDiagnostic(Diagnostic.Create(RuleFileShareNotReadWrite, objectCreation.GetLocation(), "未指定(默认None)"));
+                return;
+            }
+
+            var constantValue = ctx.SemanticModel.GetConstantValue(shareArg.Expression);
+            if (constantValue.HasValue && constantValue.Value is int shareValue)
+            {
+                if ((shareValue & 3) == 3) return;
+                ctx.ReportDiagnostic(Diagnostic.Create(RuleFileShareNotReadWrite, shareArg.GetLocation(), shareValue.ToString()));
+                return;
+            }
+
+            var exprText = shareArg.Expression.ToString();
+            if (exprText.Contains("ReadWrite")) return;
+            ctx.ReportDiagnostic(Diagnostic.Create(RuleFileShareNotReadWrite, shareArg.GetLocation(), exprText));
         }
 
         private static void AnalyzeAbstractionBypass(SyntaxNodeAnalysisContext ctx)

@@ -176,8 +176,8 @@ public interface ITuiComponent
 {
     View TerminalView { get; }              // Terminal.Gui View
     void OnQueueChanged(QueueSnapshot s);   // 队列状态驱动
-    void OnAgentOutput(AgentOutputChunk c); // Agent 输出驱动
     void OnResize(int cols, int rows);      // 尺寸事件驱动
+    // 注: OnAgentOutput 已移除 — Agent 输出改用 TuiModeRunner.ChunkToText 映射 + OutputView.AppendLine 显示
 }
 ```
 
@@ -207,7 +207,7 @@ app.Run(root.TerminalView);
 // 1. stdin 事件 → 解析 → CommandQueue.Enqueue
 // 2. Timer 事件 → Mailbox 轮询 → CommandQueue.Enqueue
 // 3. CommandQueue 变化 → QueuedCommandsView.OnQueueChanged
-// 4. Agent 输出 → OutputView.OnAgentOutput（经 Application.Invoke）
+// 4. Agent 输出 → TuiModeRunner.ChunkToText 映射 → OutputView.AppendLine（经 painter.Invoke）
 ```
 
 ### 4.2 议题 3：优先级队列 + 投递中组件

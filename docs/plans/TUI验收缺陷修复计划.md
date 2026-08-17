@@ -60,7 +60,7 @@
 #### P1-2: PresentationAdapterFactory 硬编码 CLI
 - **位置**: `app/JoinCode/Adapters/PresentationAdapterFactory.cs:22`
 - **现象**: `CreateForCurrentEnvironment` 永远返回 `PresentationMode.Cli`
-- **后果**: 工厂模式名存实亡，无法按环境自动选择表示层
+- **评估结论**: ✅ **非缺陷** — 工厂注释已明确"仅 CLI 模式"，TUI/GUI 是独立 exe 不经过此工厂，硬编码 CLI 是正确设计
 
 #### P1-3: 命令执行/代码编辑/会话管理全缺
 - **现象**: TUI 目前只能"聊天"，不能"干活"

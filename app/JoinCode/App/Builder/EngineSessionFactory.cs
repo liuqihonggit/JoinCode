@@ -137,7 +137,7 @@ public sealed class EngineSessionFactory
 
                 var httpProvider = HttpClientProviderFactory.Create();
                 var changeNotifier = services.GetService<IConfigChangeNotifier>();
-                var fetcher = new ModelListFetcher(httpProvider, services.GetService<ILogger<ModelListFetcher>>());
+                var fetcher = new ModelListFetcher(httpProvider, fs, services.GetService<ILogger<ModelListFetcher>>());
                 var writer = new SettingsJsonModelWriter(fs, changeNotifier, services.GetService<ILogger<SettingsJsonModelWriter>>());
                 var startupService = new ModelFetchStartupService(fetcher, writer, services.GetService<ILogger<ModelFetchStartupService>>());
 

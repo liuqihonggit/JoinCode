@@ -7,39 +7,43 @@ namespace IO.FileSystem;
 public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
 {
     // === File 写操作 ===
+    // 统一原则：所有写操作用 FileShare.ReadWrite，允许并发读取者，避免跨进程/同进程读-写冲突。写-写互斥由调用方的 Named Mutex 保护。
 
     /// <inheritdoc />
     public async Task WriteAllTextAsync(string path, string contents, CancellationToken cancellationToken = default)
     {
-        await File.WriteAllTextAsync(path, contents, cancellationToken).ConfigureAwait(false);
+        await WriteAllTextWithShareAsync(path, contents, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public async Task WriteAllTextAsync(string path, string contents, Encoding encoding, CancellationToken cancellationToken = default)
     {
-        await File.WriteAllTextAsync(path, contents, encoding, cancellationToken).ConfigureAwait(false);
+        await WriteAllTextWithShareAsync(path, contents, encoding, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public void WriteAllText(string path, string contents)
-        => File.WriteAllText(path, contents);
+        => WriteAllTextWithShare(path, contents, Encoding.UTF8);
 
     /// <inheritdoc />
     public void WriteAllText(string path, string contents, Encoding encoding)
-        => File.WriteAllText(path, contents, encoding);
+        => WriteAllTextWithShare(path, contents, encoding);
 
     /// <inheritdoc />
     public async Task WriteAllBytesAsync(string path, byte[] bytes, CancellationToken cancellationToken = default)
     {
-        await File.WriteAllBytesAsync(path, bytes, cancellationToken).ConfigureAwait(false);
+        await using var stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
+        await stream.WriteAsync(bytes.AsMemory(0, bytes.Length), cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public void WriteAllBytes(string path, byte[] bytes)
-        => File.WriteAllBytes(path, bytes);
+    {
+        using var stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
+        stream.Write(bytes, 0, bytes.Length);
+    }
 
     /// <inheritdoc />
-    /// <remarks>使用 FileShare.ReadWrite 允许并发读取者，避免跨进程读-写冲突。写-写互斥由调用方的 Named Mutex 保护。</remarks>
     public async Task AppendAllTextAsync(string path, string contents, CancellationToken cancellationToken = default)
     {
         await AppendAllTextWithShareAsync(path, contents, cancellationToken).ConfigureAwait(false);
@@ -55,9 +59,9 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
     }
 
     // === File 读操作 ===
+    // 统一原则：所有读操作用 FileShare.ReadWrite，允许并发写入者，避免跨进程/同进程读-写冲突。
 
     /// <inheritdoc />
-    /// <remarks>使用 FileShare.ReadWrite 允许并发写入者，避免跨进程读-写冲突。</remarks>
     public async Task<string> ReadAllTextAsync(string path, CancellationToken cancellationToken = default)
     {
         return await ReadAllTextWithShareAsync(path, cancellationToken).ConfigureAwait(false);
@@ -71,14 +75,13 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
 
     /// <inheritdoc />
     public string ReadAllText(string path)
-        => File.ReadAllText(path);
+        => ReadAllTextWithShare(path, Encoding.UTF8);
 
     /// <inheritdoc />
     public string ReadAllText(string path, Encoding encoding)
-        => File.ReadAllText(path, encoding);
+        => ReadAllTextWithShare(path, encoding);
 
     /// <inheritdoc />
-    /// <remarks>使用 FileShare.ReadWrite 允许并发写入者，避免跨进程读-写冲突。</remarks>
     public async Task<string[]> ReadAllLinesAsync(string path, CancellationToken cancellationToken = default)
     {
         return await ReadAllLinesWithShareAsync(path, cancellationToken).ConfigureAwait(false);
@@ -86,17 +89,34 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
 
     /// <inheritdoc />
     public string[] ReadAllLines(string path)
-        => File.ReadAllLines(path);
+    {
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        using var reader = new StreamReader(stream);
+        var lines = new List<string>();
+        while (reader.ReadLine() is { } line)
+        {
+            lines.Add(line);
+        }
+        return lines.ToArray();
+    }
 
     /// <inheritdoc />
     public async Task<byte[]> ReadAllBytesAsync(string path, CancellationToken cancellationToken = default)
     {
-        return await File.ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(false);
+        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms, cancellationToken).ConfigureAwait(false);
+        return ms.ToArray();
     }
 
     /// <inheritdoc />
     public byte[] ReadAllBytes(string path)
-        => File.ReadAllBytes(path);
+    {
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        using var ms = new MemoryStream();
+        stream.CopyTo(ms);
+        return ms.ToArray();
+    }
 
     // === File 存在/删除/移动/复制 ===
 
@@ -120,11 +140,11 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
 
     /// <inheritdoc />
     public Stream OpenRead(string path)
-        => File.OpenRead(path);
+        => new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
     /// <inheritdoc />
     public Stream Open(string path, FileMode mode)
-        => File.Open(path, mode);
+        => new FileStream(path, mode, FileAccess.ReadWrite, FileShare.ReadWrite);
 
     /// <inheritdoc />
     public Stream CreateStream(string path, FileMode mode, FileAccess access, FileShare share)
@@ -234,6 +254,39 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
         => new PhysicalFileSystemWatcher(path, filter);
 
     // === 跨进程安全的文件 I/O ===
+    // 所有辅助方法统一用 FileShare.ReadWrite，允许并发读写，避免跨进程/同进程读-写冲突。
+
+    /// <summary>
+    /// 同步写入全部文本 — FileShare.ReadWrite 允许并发读取者
+    /// </summary>
+    private static void WriteAllTextWithShare(string path, string contents, Encoding encoding)
+    {
+        using var stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
+        using var writer = new StreamWriter(stream, encoding);
+        writer.Write(contents);
+        writer.Flush();
+    }
+
+    /// <summary>
+    /// 异步写入全部文本 — FileShare.ReadWrite 允许并发读取者
+    /// </summary>
+    private static async Task WriteAllTextWithShareAsync(string path, string contents, Encoding encoding, CancellationToken cancellationToken)
+    {
+        await using var stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
+        await using var writer = new StreamWriter(stream, encoding);
+        await writer.WriteAsync(contents.AsMemory(), cancellationToken).ConfigureAwait(false);
+        await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 同步读取全部文本 — FileShare.ReadWrite 允许并发写入者
+    /// </summary>
+    private static string ReadAllTextWithShare(string path, Encoding encoding)
+    {
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        using var reader = new StreamReader(stream, encoding);
+        return reader.ReadToEnd();
+    }
 
     /// <summary>
     /// 追加写入 — FileShare.ReadWrite 允许并发读取者

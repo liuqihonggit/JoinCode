@@ -3,16 +3,19 @@ namespace Core.Configuration.ModelFetch;
 /// <summary>
 /// 模型列表远程拉取器实现 — 并行请求各供应商 modelsEndpoint，解析返回的模型 id 列表
 /// 认证方式根据 protocol 字段决定：openai-compatible 用 Bearer，anthropic 用 x-api-key
+/// API Key 优先级：环境变量 > auth.json（按供应商名）
 /// 单个供应商失败不影响其他供应商
 /// </summary>
 public sealed class ModelListFetcher : IModelListFetcher
 {
     private readonly IHttpClientProvider _httpClientProvider;
+    private readonly IFileSystem _fs;
     private readonly ILogger<ModelListFetcher>? _logger;
 
-    public ModelListFetcher(IHttpClientProvider httpClientProvider, ILogger<ModelListFetcher>? logger = null)
+    public ModelListFetcher(IHttpClientProvider httpClientProvider, IFileSystem fs, ILogger<ModelListFetcher>? logger = null)
     {
         _httpClientProvider = httpClientProvider;
+        _fs = fs;
         _logger = logger;
     }
 
@@ -24,6 +27,8 @@ public sealed class ModelListFetcher : IModelListFetcher
         IReadOnlyDictionary<string, ProfileSettings> vendor,
         CancellationToken cancellationToken = default)
     {
+        var authKeys = await LoadAuthKeysAsync(cancellationToken).ConfigureAwait(false);
+
         var tasks = new List<Task<(string Profile, IReadOnlyList<string>? Models)>>(vendor.Count);
 
         foreach (var (profile, settings) in vendor)
@@ -31,7 +36,7 @@ public sealed class ModelListFetcher : IModelListFetcher
             if (string.IsNullOrEmpty(settings.Endpoint) || string.IsNullOrEmpty(settings.ModelsEndpoint))
                 continue;
 
-            var apiKey = ResolveApiKey(settings);
+            var apiKey = ResolveApiKey(settings, authKeys);
             if (string.IsNullOrEmpty(apiKey))
             {
                 _logger?.LogWarning("[ModelListFetcher] 跳过 {Profile}：未配置 API Key", profile);
@@ -92,13 +97,50 @@ public sealed class ModelListFetcher : IModelListFetcher
         return $"{baseUrl}/{relative}";
     }
 
-    private static string? ResolveApiKey(ProfileSettings settings)
+    /// <summary>
+    /// 加载 auth.json — 供应商名 → API Key 映射（一次性读取，所有供应商共享）
+    /// </summary>
+    private async Task<Dictionary<string, string>> LoadAuthKeysAsync(CancellationToken cancellationToken)
+    {
+        var settingsPath = SettingsLoader.GetUserSettingsPath();
+        var authPath = Path.Combine(Path.GetDirectoryName(settingsPath)!, AppDataConstants.AuthFileName);
+        if (!_fs.FileExists(authPath))
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        try
+        {
+            var json = await _fs.ReadAllTextAsync(authPath, cancellationToken).ConfigureAwait(false);
+            using var doc = JsonDocument.Parse(json);
+            var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var prop in doc.RootElement.EnumerateObject())
+            {
+                if (prop.Value.ValueKind == JsonValueKind.String)
+                {
+                    var value = prop.Value.GetString();
+                    if (!string.IsNullOrEmpty(value))
+                        dict[prop.Name] = value;
+                }
+            }
+            return dict;
+        }
+        catch
+        {
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    /// <summary>
+    /// 解析 API Key — 优先级1: 环境变量，优先级2: auth.json（按供应商名）
+    /// </summary>
+    private static string? ResolveApiKey(ProfileSettings settings, IReadOnlyDictionary<string, string> authKeys)
     {
         if (!string.IsNullOrEmpty(settings.ApiKeyEnvVar))
         {
             var key = Environment.GetEnvironmentVariable(settings.ApiKeyEnvVar);
             if (!string.IsNullOrEmpty(key)) return key;
         }
+        if (!string.IsNullOrEmpty(settings.Provider) && authKeys.TryGetValue(settings.Provider, out var authKey))
+            return authKey;
         return null;
     }
 

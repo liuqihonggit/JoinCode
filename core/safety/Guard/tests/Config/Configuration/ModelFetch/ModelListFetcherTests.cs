@@ -1,7 +1,7 @@
 namespace Core.Configuration.ModelFetch.Tests;
 
 /// <summary>
-/// ModelListFetcher 单元测试 — 验证并行拉取、跳过逻辑、认证分派、失败容错
+/// ModelListFetcher 单元测试 — 验证并行拉取、跳过逻辑、认证分派、失败容错、auth.json 读取
 /// </summary>
 public class ModelListFetcherTests
 {
@@ -17,7 +17,7 @@ public class ModelListFetcherTests
         };
 
         var handler = new LambdaHandler(_ => Ok("""{"data":[{"id":"gpt-4o"},{"id":"gpt-5"}]}"""));
-        var fetcher = new ModelListFetcher(CreateProvider(handler));
+        var fetcher = new ModelListFetcher(CreateProvider(handler), CreateFileSystem());
 
         var result = await fetcher.FetchAllAsync(vendor);
 
@@ -34,7 +34,7 @@ public class ModelListFetcherTests
             ["no-endpoint"] = new() { Provider = "test", Protocol = "openai-compatible", Endpoint = null, ModelsEndpoint = "models", ApiKeyEnvVar = TestApiKeyEnv }
         };
 
-        var fetcher = new ModelListFetcher(CreateProvider(new LambdaHandler(_ => Ok("{}"))));
+        var fetcher = new ModelListFetcher(CreateProvider(new LambdaHandler(_ => Ok("{}"))), CreateFileSystem());
 
         var result = await fetcher.FetchAllAsync(vendor);
 
@@ -50,7 +50,7 @@ public class ModelListFetcherTests
             ["no-models-endpoint"] = new() { Provider = "test", Protocol = "openai-compatible", Endpoint = "https://example.com", ModelsEndpoint = null, ApiKeyEnvVar = TestApiKeyEnv }
         };
 
-        var fetcher = new ModelListFetcher(CreateProvider(new LambdaHandler(_ => Ok("{}"))));
+        var fetcher = new ModelListFetcher(CreateProvider(new LambdaHandler(_ => Ok("{}"))), CreateFileSystem());
 
         var result = await fetcher.FetchAllAsync(vendor);
 
@@ -66,7 +66,7 @@ public class ModelListFetcherTests
             ["no-key"] = new() { Provider = "test", Protocol = "openai-compatible", Endpoint = "https://example.com", ModelsEndpoint = "models", ApiKeyEnvVar = TestApiKeyEnv }
         };
 
-        var fetcher = new ModelListFetcher(CreateProvider(new LambdaHandler(_ => Ok("{}"))));
+        var fetcher = new ModelListFetcher(CreateProvider(new LambdaHandler(_ => Ok("{}"))), CreateFileSystem());
 
         var result = await fetcher.FetchAllAsync(vendor);
 
@@ -83,7 +83,7 @@ public class ModelListFetcherTests
         };
 
         var handler = new LambdaHandler(_ => new HttpResponseMessage(HttpStatusCode.InternalServerError));
-        var fetcher = new ModelListFetcher(CreateProvider(handler));
+        var fetcher = new ModelListFetcher(CreateProvider(handler), CreateFileSystem());
 
         var result = await fetcher.FetchAllAsync(vendor);
 
@@ -101,7 +101,7 @@ public class ModelListFetcherTests
 
         HttpRequestMessage? captured = null;
         var handler = new LambdaHandler(req => { captured = req; return Ok("""{"data":[{"id":"claude-sonnet-4-6"}]}"""); });
-        var fetcher = new ModelListFetcher(CreateProvider(handler));
+        var fetcher = new ModelListFetcher(CreateProvider(handler), CreateFileSystem());
 
         var result = await fetcher.FetchAllAsync(vendor);
 
@@ -122,7 +122,7 @@ public class ModelListFetcherTests
 
         HttpRequestMessage? captured = null;
         var handler = new LambdaHandler(req => { captured = req; return Ok("""{"data":[{"id":"gpt-4o"}]}"""); });
-        var fetcher = new ModelListFetcher(CreateProvider(handler));
+        var fetcher = new ModelListFetcher(CreateProvider(handler), CreateFileSystem());
 
         var result = await fetcher.FetchAllAsync(vendor);
 
@@ -145,7 +145,7 @@ public class ModelListFetcherTests
         var handler = new LambdaHandler(req => req.RequestUri!.ToString().Contains("openai")
             ? Ok("""{"data":[{"id":"gpt-4o"}]}""")
             : Ok("""{"data":[{"id":"agnes-2.0-flash"}]}"""));
-        var fetcher = new ModelListFetcher(CreateProvider(handler));
+        var fetcher = new ModelListFetcher(CreateProvider(handler), CreateFileSystem());
 
         var result = await fetcher.FetchAllAsync(vendor);
 
@@ -154,11 +154,39 @@ public class ModelListFetcherTests
         result["agnes"].Should().Equal(["agnes-2.0-flash"]);
     }
 
+    [Fact]
+    public async Task FetchAllAsync_AuthJsonApiKey_UsedWhenEnvVarMissing()
+    {
+        using var env = new EnvScope(TestApiKeyEnv, null);
+        var vendor = new Dictionary<string, ProfileSettings>
+        {
+            ["sensenova"] = new() { Provider = "sensenova", Protocol = "openai-compatible", Endpoint = "https://token.sensenova.cn/v1", ModelsEndpoint = "models", ApiKeyEnvVar = TestApiKeyEnv }
+        };
+
+        var authJson = """{"sensenova":"sk-from-auth-json"}""";
+        var handler = new LambdaHandler(_ => Ok("""{"data":[{"id":"sensenova-6.7"}]}"""));
+        var fetcher = new ModelListFetcher(CreateProvider(handler), CreateFileSystem(authExists: true, authContent: authJson));
+
+        var result = await fetcher.FetchAllAsync(vendor);
+
+        result.Should().ContainKey("sensenova");
+        result["sensenova"].Should().Equal(["sensenova-6.7"]);
+    }
+
     private static IHttpClientProvider CreateProvider(HttpMessageHandler handler)
     {
         var client = new HttpClient(handler);
         var mock = new Mock<IHttpClientProvider>();
         mock.Setup(x => x.GetClient()).Returns(client);
+        return mock.Object;
+    }
+
+    private static IFileSystem CreateFileSystem(bool authExists = false, string? authContent = null)
+    {
+        var mock = new Mock<IFileSystem>();
+        mock.Setup(x => x.FileExists(It.IsAny<string>())).Returns(authExists);
+        if (authExists && authContent is not null)
+            mock.Setup(x => x.ReadAllTextAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(authContent);
         return mock.Object;
     }
 

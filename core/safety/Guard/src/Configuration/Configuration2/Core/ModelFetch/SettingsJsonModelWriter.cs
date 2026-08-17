@@ -1,7 +1,8 @@
 namespace Core.Configuration.ModelFetch;
 
 /// <summary>
-/// settings.json 模型列表写回器 — 直接操作 SettingsJson 对象，用 SettingsLoader.SaveSettingsAsync 保存
+/// settings.json 模型列表写回器 — 直接操作 SettingsJson 对象，用 ConfigIndentedJsonContext 序列化保证类型一致性
+/// 写入用 FileShare.ReadWrite 避免与 jcc 内部并发的文件读取冲突
 /// 写回前调用 IConfigChangeNotifier.MarkInternalWrite 防抖，避免自身写入触发循环刷新
 /// </summary>
 public sealed class SettingsJsonModelWriter
@@ -54,9 +55,22 @@ public sealed class SettingsJsonModelWriter
             AutoFetchModels = settings.AutoFetchModels,
         };
 
+        var json = JsonSerializer.Serialize(newSettings, ConfigIndentedJsonContext.Default.SettingsJson);
         var settingsPath = SettingsLoader.GetUserSettingsPath();
+
         _changeNotifier?.MarkInternalWrite(settingsPath);
-        await SettingsLoader.SaveSettingsAsync(_fs, SettingSource.UserSettings, newSettings, cancellationToken: cancellationToken).ConfigureAwait(false);
+        await WriteWithSharedAccessAsync(settingsPath, json, cancellationToken).ConfigureAwait(false);
         _logger?.LogInformation("[SettingsJsonModelWriter] 已更新 {Count} 个供应商的模型列表", updates.Count);
+    }
+
+    /// <summary>
+    /// 用 FileShare.ReadWrite 写入 — 允许其他线程同时读取，避免与 jcc 内部并发冲突
+    /// </summary>
+    private async Task WriteWithSharedAccessAsync(string path, string content, CancellationToken cancellationToken)
+    {
+        using var stream = _fs.CreateStream(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
+        using var writer = new StreamWriter(stream);
+        await writer.WriteAsync(content.AsMemory(), cancellationToken).ConfigureAwait(false);
+        await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
     }
 }

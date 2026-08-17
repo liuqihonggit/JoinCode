@@ -24,6 +24,12 @@ public sealed class SettingsJson
     public CurrentSettings? Current { get; init; }
 
     /// <summary>
+    /// 是否在启动时自动从远程拉取各供应商模型列表 — 默认 true。false 时跳过拉取（离线环境）。
+    /// </summary>
+    [JsonPropertyName("autoFetchModels")]
+    public bool AutoFetchModels { get; init; } = true;
+
+    /// <summary>
     /// 合并两个 SettingsJson（低优先级 + 高优先级）
     /// vendor 字典合并（高优先级覆盖同键），current 递归合并
     /// </summary>
@@ -36,6 +42,7 @@ public sealed class SettingsJson
         {
             Vendor = MergeVendorDictionaries(baseSettings.Vendor, overrideSettings.Vendor),
             Current = CurrentSettings.Merge(baseSettings.Current, overrideSettings.Current),
+            AutoFetchModels = overrideSettings.AutoFetchModels,
         };
     }
 
@@ -706,4 +713,8 @@ public sealed class ProfileSettings
     /// <summary>该供应商可用的模型列表 — 配置大于内置，GUI 下拉由此驱动</summary>
     [JsonPropertyName("models")]
     public List<ModelItemConfig>? Models { get; init; }
+
+    /// <summary>模型列表拉取端点相对路径（如 "models"、"v1/models"）— 拼接 endpoint 得到完整 URL。null 表示不拉取。</summary>
+    [JsonPropertyName("modelsEndpoint")]
+    public string? ModelsEndpoint { get; init; }
 }

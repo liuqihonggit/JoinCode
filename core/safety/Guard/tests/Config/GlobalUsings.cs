@@ -22,6 +22,7 @@ global using JoinCode.Abstractions.Utils;
 global using JoinCode.Abstractions.Entity;
 global using Core.Configuration;
 global using Core.Configuration.Providers;
+global using Core.Configuration.ModelFetch;
 global using Core.Configuration.Remote;
 global using Core.Hooks.Configuration;
 global using Core.Hooks.Events;

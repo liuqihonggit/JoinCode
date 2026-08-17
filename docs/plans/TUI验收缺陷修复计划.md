@@ -12,7 +12,7 @@
 
 **总体判定: ✅ P0+P1+P2 全部修复** — 渲染抽象优秀，P0 链路断裂已修复，P1 功能缺失已补齐，P2 体验缺陷已优化。
 
-当前 TUI 状态：P0-P2 全部修复，测试覆盖 122 个 TUI 测试全绿。
+当前 TUI 状态：P0-P2 全部修复，测试覆盖 134 个 TUI 测试全绿。
 
 ### 1.1 八大模块覆盖现状
 
@@ -20,8 +20,8 @@
 |---|---|---|---|
 | 1. TUI 交互 | 🟢 已修复 | 5层布局✅、F1-F5✅、鼠标✅、滚动✅(ListView替代Label)、resize✅(Monitor已接入) | P2 ✅ |
 | 2. AI 对话 | 🟢 已修复 | ChunkFormatter 覆盖全部11种chunk类型✅ | P0 ✅ |
-| 3. 代码理解 | 🟡 部分 | /shell /build /test 可用，grep/diff/符号浏览待补 | P1 |
-| 4. 代码编辑 | 🟡 部分 | /save 保存会话，patch 预览/应用/撤销待补 | P1 |
+| 3. 代码理解 | 🟢 已修复 | /grep /diff /files /open 可用✅ | P1 ✅ |
+| 4. 代码编辑 | 🟢 已修复 | /patch 预览 /apply 应用 /undo 撤销✅ | P1 ✅ |
 | 5. 命令执行 | 🟢 已修复 | /shell /build /test 命令执行回显✅ | P1 ✅ |
 | 6. 工具调用 | 🟢 已修复 | PermissionDialogView 已接入，权限闭环✅ | P0 ✅ |
 | 7. 会话管理 | 🟢 已修复 | /history 显示历史✅、/save 保存会话✅ | P1 ✅ |

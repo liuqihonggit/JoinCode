@@ -89,7 +89,7 @@ public static class FileLineCounter
     private static int CountLines(string filePath)
     {
         var count = 0;
-        using var reader = new StreamReader(filePath);
+        using var reader = new StreamReader(SafeFileIO.OpenRead(filePath));
         while (reader.ReadLine() is not null)
         {
             count++;

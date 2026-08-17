@@ -6,6 +6,7 @@ global using System.Linq;
 global using System.Text.Json;
 global using System.Threading;
 global using System.Threading.Tasks;
+global using IO.FileSystem;
 global using Microsoft.CodeAnalysis;
 global using Microsoft.CodeAnalysis.CodeActions;
 global using Microsoft.CodeAnalysis.CodeFixes;

@@ -14,6 +14,10 @@ public static class SafeFileIO
         return reader.ReadToEnd();
     }
 
+    /// <summary>打开文件流用于读取 — FileShare.ReadWrite 允许并发写入者</summary>
+    public static Stream OpenRead(string path)
+        => new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+
     /// <summary>写入全部文本 — FileShare.ReadWrite 允许并发读取者</summary>
     public static void WriteAllText(string path, string content)
     {

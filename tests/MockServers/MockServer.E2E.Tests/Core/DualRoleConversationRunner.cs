@@ -1175,7 +1175,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
           }
         }
         """;
-        System.IO.File.WriteAllText(System.IO.Path.Combine(stateDir, "settings.json"), settingsJson);
+        IO.FileSystem.SafeFileIO.WriteAllText(System.IO.Path.Combine(stateDir, "settings.json"), settingsJson);
     }
 
     private string ResolveExeFromArtifactsBin(string exeName)

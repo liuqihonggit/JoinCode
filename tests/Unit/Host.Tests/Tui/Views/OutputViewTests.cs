@@ -18,6 +18,7 @@ public class OutputViewTests
     {
         var view = new OutputView();
         view.AppendLine("👤 hello");
+        view.Flush();
 
         var lines = view.GetLines();
         Assert.Single(lines);
@@ -29,6 +30,7 @@ public class OutputViewTests
     {
         var view = new OutputView();
         view.AppendText("line1\nline2\nline3");
+        view.Flush();
 
         var lines = view.GetLines();
         Assert.Equal(3, lines.Count);
@@ -54,6 +56,7 @@ public class OutputViewTests
         var view = new OutputView();
         for (var i = 0; i < 10005; i++)
             view.AppendLine($"line{i}");
+        view.Flush();
 
         var lines = view.GetLines();
         Assert.Equal(10000, lines.Count);

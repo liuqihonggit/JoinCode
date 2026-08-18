@@ -344,7 +344,7 @@ internal static class TuiModeRunner
                     var text = ChunkFormatter.ChunkToText(chunk);
                     if (!string.IsNullOrEmpty(text))
                     {
-                        outputView.AppendLine(text);
+                        outputView.AppendText(text);
                     }
                 }
                 chunkSw.Stop();

@@ -27,6 +27,7 @@ global using Terminal.Gui.ViewBase;
 global using Terminal.Gui.Views;
 global using Terminal.Gui.Drawing;
 global using Terminal.Gui.Editor;
+global using Terminal.Gui.Input;
 global using GuiColor = Terminal.Gui.Drawing.Color;
 global using GuiAttribute = Terminal.Gui.Drawing.Attribute;
 global using GuiTextStyle = Terminal.Gui.Drawing.TextStyle;

@@ -53,6 +53,13 @@ public sealed class OutputView : ITuiComponent
             GutterOptions = GutterOptions.None,
         };
 
+        // 中文右键菜单
+        _editor.ContextMenu = new PopoverMenu(new MenuItem[]
+        {
+            new(_editor, Command.Copy, "复制"),
+            new(_editor, Command.SelectAll, "全选"),
+        });
+
         _container.Add(_editor);
     }
 

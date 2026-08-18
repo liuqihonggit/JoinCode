@@ -2,15 +2,16 @@ namespace JoinCode.Tui.Views;
 
 /// <summary>
 /// 输入框组件 — 用户输入命令的 TUI 入口。
-/// 对齐 claude code 的 PromptInput 组件。
+/// 多行 Editor 输入：Ctrl+Enter 发送，Enter 换行，Tab 补全，Ctrl+Up/Down 历史导航。
 /// </summary>
 public sealed class PromptView : ITuiComponent
 {
     private readonly CommandQueue _queue;
     private readonly View _container;
     private readonly Label _promptLabel;
-    private readonly TextField _textField;
+    private readonly Editor _editor;
     private readonly CommandHistory _history = new();
+    private const int InputHeight = 3;
 
     /// <summary>
     /// 创建 PromptView。
@@ -23,7 +24,7 @@ public sealed class PromptView : ITuiComponent
         _container = new View
         {
             Width = Dim.Fill(),
-            Height = 1,
+            Height = InputHeight,
             CanFocus = true,
         };
 
@@ -32,28 +33,34 @@ public sealed class PromptView : ITuiComponent
             Text = "> ",
             X = 0,
             Y = 0,
+            Height = 1,
         };
 
-        _textField = new TextField
+        _editor = new Editor
         {
             X = Pos.Right(_promptLabel),
             Y = 0,
             Width = Dim.Fill(),
-            Height = 1,
+            Height = Dim.Fill(),
+            ReadOnly = false,
+            Multiline = true,
+            WordWrap = true,
+            ViewportSettings = ViewportSettingsFlags.None,
+            GutterOptions = GutterOptions.None,
         };
 
-        _textField.KeyDown += OnKeyDown;
-        _container.Add(_promptLabel, _textField);
+        _editor.KeyDown += OnKeyDown;
+        _container.Add(_promptLabel, _editor);
     }
 
     /// <inheritdoc />
     public View TerminalView => _container;
 
     /// <summary>当前输入文本。</summary>
-    public string InputText => _textField.Text.ToString();
+    public string InputText => _editor.Text ?? string.Empty;
 
     /// <summary>输入框焦点。</summary>
-    public void SetFocus() => _textField.SetFocus();
+    public void SetFocus() => _editor.SetFocus();
 
     /// <inheritdoc />
     public void OnQueueChanged(QueueSnapshot snapshot)
@@ -68,33 +75,45 @@ public sealed class PromptView : ITuiComponent
 
     private void OnKeyDown(object? sender, TuiKey key)
     {
-        if (key == TuiKey.Enter)
+        // Ctrl+Enter 发送
+        if (key == TuiKey.Enter.WithCtrl)
         {
-            var text = _textField.Text.ToString();
+            var text = _editor.Text;
             if (!string.IsNullOrWhiteSpace(text))
             {
                 _queue.Enqueue(new QueuedCommand(text, CommandOrigin.User, QueuePriority.Next));
                 _history.Add(text);
-                _textField.Text = "";
+                _editor.Text = "";
             }
+            key.Handled = true;
         }
+        // Tab 补全
         else if (key == TuiKey.Tab)
         {
-            var text = _textField.Text.ToString() ?? string.Empty;
+            var text = _editor.Text ?? string.Empty;
             var completed = TabCompleter.Complete(text);
             if (completed is not null)
-                _textField.Text = completed;
+            {
+                _editor.Text = completed;
+            }
+            key.Handled = true;
         }
-        else if (key == TuiKey.CursorUp)
+        // Ctrl+Up 历史导航
+        else if (key == TuiKey.CursorUp.WithCtrl)
         {
             var prev = _history.NavigateUp();
             if (prev is not null)
-                _textField.Text = prev;
+            {
+                _editor.Text = prev;
+            }
+            key.Handled = true;
         }
-        else if (key == TuiKey.CursorDown)
+        // Ctrl+Down 历史导航
+        else if (key == TuiKey.CursorDown.WithCtrl)
         {
             var next = _history.NavigateDown();
-            _textField.Text = next ?? string.Empty;
+            _editor.Text = next ?? string.Empty;
+            key.Handled = true;
         }
     }
 }

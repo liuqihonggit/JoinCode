@@ -51,7 +51,7 @@ public sealed class RootView : View
             X = 0,
             Y = Pos.Bottom(_toolBarArea),
             Width = Dim.Fill(),
-            Height = Dim.Fill(2),
+            Height = Dim.Fill(4),
         };
 
         _promptArea = new View
@@ -59,7 +59,7 @@ public sealed class RootView : View
             X = 0,
             Y = Pos.Bottom(_contentArea),
             Width = Dim.Fill(),
-            Height = 1,
+            Height = 3,
             CanFocus = true,
         };
 

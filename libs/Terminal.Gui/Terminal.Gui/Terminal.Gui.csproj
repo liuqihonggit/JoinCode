@@ -9,6 +9,12 @@
     <!-- =================================================================== -->
     <PropertyGroup>
         <AssemblyName>Terminal.Gui</AssemblyName>
+        <!-- 强制版本 2.4.0 匹配 Terminal.Gui.Editor NuGet 包依赖（覆盖 GitVersion 自动版本） -->
+        <GitVersionSkip>true</GitVersionSkip>
+        <Version>2.4.0</Version>
+        <AssemblyVersion>2.4.0.0</AssemblyVersion>
+        <FileVersion>2.4.0.0</FileVersion>
+        <InformationalVersion>2.4.0</InformationalVersion>
     </PropertyGroup>
 
     <!-- =================================================================== -->

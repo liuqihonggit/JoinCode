@@ -52,6 +52,9 @@ public sealed class PromptView : ITuiComponent
         // Ctrl+Enter 绑定到 Command.Accept（发送），不干扰 Editor 默认命令路由
         _editor.KeyBindings.Add(TuiKey.Enter.WithCtrl, Command.Accept);
         _editor.Accepted += OnAccepted;
+        // 显式绑定 Backspace/Delete（Editor 2.4.1 默认绑定可能缺失）
+        _editor.KeyBindings.Add(TuiKey.Backspace, Command.DeleteCharLeft);
+        _editor.KeyBindings.Add(TuiKey.Delete, Command.DeleteCharRight);
         // Tab 和历史导航用 KeyDown 事件（只拦截特定键，不影响 Backspace 等默认键）
         _editor.KeyDown += OnKeyDown;
 

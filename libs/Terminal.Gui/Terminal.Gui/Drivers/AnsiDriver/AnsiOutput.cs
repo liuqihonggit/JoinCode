@@ -277,10 +277,75 @@ public class AnsiOutput : OutputBase, IOutput
     public override void Write (IOutputBuffer buffer)
     {
         _lastBuffer = buffer;
+        _batchMode = true;
         base.Write (buffer);
+        _batchMode = false;
+
+        // Flush any remaining deferred cursor moves
+        if (_pendingCursorMoves.Length > 0)
+        {
+            Write (_pendingCursorMoves.AsSpan ());
+            _pendingCursorMoves.Clear ();
+        }
+    }
+
+    /// <summary>
+    ///     PERF: Write pre-encoded UTF-8 bytes directly to the terminal.
+    ///     In batch mode, merges deferred cursor moves with cell content into one WriteFile.
+    ///     This is the hot-path write — zero string/byte[] allocation, zero encoding.
+    /// </summary>
+    protected override void Write (ReadOnlySpan<byte> output)
+    {
+        base.Write (output);
+
+        try
+        {
+            switch (_platform)
+            {
+                case AnsiPlatform.WindowsVT:
+                    if (_batchMode && _pendingCursorMoves.Length > 0)
+                    {
+                        _pendingCursorMoves.AppendBytes (output);
+                        _windowsVTOutput!.Write (_pendingCursorMoves.AsSpan ());
+                        _pendingCursorMoves.Clear ();
+                    }
+                    else
+                    {
+                        _windowsVTOutput!.Write (output);
+                    }
+
+                    break;
+
+                case AnsiPlatform.UnixRaw:
+                    if (_batchMode && _pendingCursorMoves.Length > 0)
+                    {
+                        _pendingCursorMoves.AppendBytes (output);
+                        UnixIOHelper.TryWriteStdout (_pendingCursorMoves.AsSpan ().ToArray ());
+                        _pendingCursorMoves.Clear ();
+                    }
+                    else
+                    {
+                        UnixIOHelper.TryWriteStdout (output.ToArray ());
+                    }
+
+                    return;
+
+                case AnsiPlatform.Degraded:
+                default:
+                    break;
+            }
+        }
+        catch (Exception)
+        {
+            // ignore for unit tests
+        }
     }
 
     private Cursor _currentCursor;
+
+    // PERF: Batch mode — defer cursor-move sequences to merge with cell content, reducing WriteFile P/Invoke count
+    private readonly Utf8Buffer _pendingCursorMoves = new ();
+    private bool _batchMode;
 
     /// <inheritdoc/>
     public Cursor GetCursor () => _currentCursor;
@@ -334,7 +399,17 @@ public class AnsiOutput : OutputBase, IOutput
         // In inline mode, App.Screen.Y is the terminal row where the inline region starts.
         // Adding it shifts rendering down so buffer row 0 maps to the correct terminal row.
         int inlineRowOffset = AppScreenGetter?.Invoke ().Y ?? 0;
-        Write (EscSeqUtils.CSI_SetCursorPosition (row + 1 + inlineRowOffset, col + 1));
+
+        if (_batchMode)
+        {
+            // PERF: Defer cursor-move to _pendingCursorMoves (Utf8Buffer); merges with subsequent cell content
+            // into a single WriteFile P/Invoke instead of one per cursor move.
+            _pendingCursorMoves.AppendAscii (EscSeqUtils.CSI_SetCursorPosition (row + 1 + inlineRowOffset, col + 1));
+        }
+        else
+        {
+            Write (EscSeqUtils.CSI_SetCursorPosition (row + 1 + inlineRowOffset, col + 1));
+        }
 
         return true;
     }

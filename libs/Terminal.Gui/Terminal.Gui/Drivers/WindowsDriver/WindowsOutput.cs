@@ -464,12 +464,12 @@ internal partial class WindowsOutput : OutputBase, IOutput
     }
 
     /// <inheritdoc/>
-    protected override void AppendOrWriteAttribute (StringBuilder output, Attribute attr, TextStyle redrawTextStyle)
+    protected override void AppendOrWriteAttribute (Utf8Buffer output, Attribute attr, TextStyle redrawTextStyle)
     {
         if (Force16Colors && IsLegacyConsole)
         {
             // Legacy Windows console doesn't support ANSI — use Win32 API directly
-            Write (output);
+            Write (output.AsSpan ());
             output.Clear ();
             var as16ColorInt = (ushort)((int)attr.Foreground.GetClosestNamedColor16 () | ((int)attr.Background.GetClosestNamedColor16 () << 4));
             SetConsoleTextAttribute (_screenBuffer, as16ColorInt);

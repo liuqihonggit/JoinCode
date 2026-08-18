@@ -11,7 +11,7 @@ internal static class TuiModeRunner
     internal static async Task RunAsync(WorkflowConfig config, IServiceProvider services, CancellationToken cancellationToken = default)
     {
         using var app = Application.Create();
-        Application.MaximumIterationsPerSecond = 200;
+        Application.MaximumIterationsPerSecond = 60;
         app.Init();
         WriteDiag($"[TUI] app.Init done, Initialized={app.Initialized}");
 
@@ -344,7 +344,7 @@ internal static class TuiModeRunner
                     var text = ChunkFormatter.ChunkToText(chunk);
                     if (!string.IsNullOrEmpty(text))
                     {
-                        outputView.AppendLine(text);
+                        outputView.AppendText(text);
                     }
                 }
                 chunkSw.Stop();

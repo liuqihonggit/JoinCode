@@ -482,3 +482,13 @@ FodyWeavers.xsd
 *.msp
 # Deleted/moved file backups
 .xxx/
+
+# Terminal.Gui local source (ProjectReference for perf optimization)
+# Exclude .git, build output, and nuget cache from the cloned repo
+libs/Terminal.Gui/.git/
+libs/Terminal.Gui/**/bin/
+libs/Terminal.Gui/**/obj/
+libs/Terminal.Gui/**/Debug/
+libs/Terminal.Gui/**/Release/
+libs/Terminal.Gui/artifacts/
+libs/Terminal.Gui/.nuget/

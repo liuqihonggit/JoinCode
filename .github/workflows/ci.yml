@@ -29,6 +29,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v5
@@ -144,6 +146,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
       - name: Test - Infra (Services)
@@ -232,6 +236,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
       - name: Test - Hands (ToolHandlers)
@@ -306,6 +312,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
       - name: Test - Agents
@@ -352,6 +360,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
       - name: Test - Llm
@@ -427,6 +437,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
       - name: Integration Tests - Brain + Clock
@@ -453,6 +465,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
       - name: Integration Tests - Guard + Vault
@@ -479,6 +493,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
       - name: Integration Tests - Hands + Host + McpTools
@@ -505,6 +521,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
       - name: Integration Tests - PrefixCache
@@ -531,6 +549,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
       - name: E2E Tests
@@ -557,6 +577,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
       - name: E2E Tests
@@ -583,6 +605,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
       - name: E2E Tests
@@ -609,6 +633,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
       - name: E2E Tests
@@ -635,6 +661,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
       - name: E2E Tests
@@ -661,6 +689,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
       - name: E2E Tests
@@ -687,6 +717,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
       - name: E2E Tests
@@ -713,6 +745,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
       - name: E2E Tests
@@ -739,6 +773,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
       - name: E2E Tests
@@ -765,6 +801,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
       - name: E2E Tests
@@ -791,6 +829,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
       - name: E2E Tests
@@ -817,6 +857,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
       - name: E2E Tests
@@ -843,6 +885,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
       - name: E2E - MCP Integration
@@ -1091,6 +1135,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - uses: ./.github/actions/setup-test-env
       - name: E2E - Cluster Integration

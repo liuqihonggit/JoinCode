@@ -21,6 +21,7 @@ jobs:
         with:
           ref: dev
           fetch-depth: 0
+          submodules: recursive
 
       - name: Create PR dev -> main
         env:
@@ -48,6 +49,7 @@ jobs:
         with:
           ref: dev
           fetch-depth: 0
+          submodules: recursive
 
       - name: Revert last commit on dev
         env:

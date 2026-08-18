@@ -1,0 +1,8 @@
+[submodule "libs/Editor"]
+	path = libs/Editor
+	url = git@github.com:liuqihonggit/Editor.git
+	branch = develop
+[submodule "libs/Terminal.Gui"]
+	path = libs/Terminal.Gui
+	url = git@github.com:liuqihonggit/Terminal.Gui.git
+	branch = develop

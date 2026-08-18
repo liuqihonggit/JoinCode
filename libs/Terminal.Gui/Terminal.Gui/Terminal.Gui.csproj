@@ -156,7 +156,7 @@
         <SymbolPackageFormat>snupkg</SymbolPackageFormat>
         <!-- Publish the repository URL in the built .nupkg (in the NuSpec <Repository> element) -->
         <PublishRepositoryUrl>true</PublishRepositoryUrl>
-        <GitRepositoryRemoteName>upstream</GitRepositoryRemoteName>
+        <GitRepositoryRemoteName>origin</GitRepositoryRemoteName>
         <!-- Embed source files that are not tracked by the source control manager in the PDB -->
         <EmbedUntrackedSources>true</EmbedUntrackedSources>
         <EnableSourceLink>true</EnableSourceLink>

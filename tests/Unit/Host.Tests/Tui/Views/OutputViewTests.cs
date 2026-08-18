@@ -53,7 +53,7 @@ public class OutputViewTests
     [Fact]
     public void MaxLines_Exceeded_OldestRemoved()
     {
-        var view = new OutputView();
+        var view = new OutputView(maxLines: 10000);
         for (var i = 0; i < 10005; i++)
             view.AppendLine($"line{i}");
         view.Flush();

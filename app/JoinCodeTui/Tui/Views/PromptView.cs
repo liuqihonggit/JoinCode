@@ -44,12 +44,17 @@ public sealed class PromptView : ITuiComponent
             Height = Dim.Fill(),
             ReadOnly = false,
             Multiline = true,
-            WordWrap = true,
-            ViewportSettings = ViewportSettingsFlags.None,
+            WordWrap = false,
+            ViewportSettings = ViewportSettingsFlags.HasScrollBars,
             GutterOptions = GutterOptions.None,
         };
 
+        // Ctrl+Enter 绑定到 Command.Accept（发送），不干扰 Editor 默认命令路由
+        _editor.KeyBindings.Add(TuiKey.Enter.WithCtrl, Command.Accept);
+        _editor.Accepted += OnAccepted;
+        // Tab 和历史导航用 KeyDown 事件（只拦截特定键，不影响 Backspace 等默认键）
         _editor.KeyDown += OnKeyDown;
+
         _container.Add(_promptLabel, _editor);
     }
 
@@ -73,22 +78,21 @@ public sealed class PromptView : ITuiComponent
         _container.Width = Dim.Fill();
     }
 
+    private void OnAccepted(object? sender, CommandEventArgs e)
+    {
+        var text = _editor.Text;
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            _queue.Enqueue(new QueuedCommand(text, CommandOrigin.User, QueuePriority.Next));
+            _history.Add(text);
+            _editor.Text = "";
+        }
+    }
+
     private void OnKeyDown(object? sender, TuiKey key)
     {
-        // Ctrl+Enter 发送
-        if (key == TuiKey.Enter.WithCtrl)
-        {
-            var text = _editor.Text;
-            if (!string.IsNullOrWhiteSpace(text))
-            {
-                _queue.Enqueue(new QueuedCommand(text, CommandOrigin.User, QueuePriority.Next));
-                _history.Add(text);
-                _editor.Text = "";
-            }
-            key.Handled = true;
-        }
         // Tab 补全
-        else if (key == TuiKey.Tab)
+        if (key == TuiKey.Tab)
         {
             var text = _editor.Text ?? string.Empty;
             var completed = TabCompleter.Complete(text);

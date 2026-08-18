@@ -11,7 +11,7 @@ internal static class TuiModeRunner
     internal static async Task RunAsync(WorkflowConfig config, IServiceProvider services, CancellationToken cancellationToken = default)
     {
         using var app = Application.Create();
-        Application.MaximumIterationsPerSecond = 200;
+        Application.MaximumIterationsPerSecond = 60;
         app.Init();
         WriteDiag($"[TUI] app.Init done, Initialized={app.Initialized}");
 

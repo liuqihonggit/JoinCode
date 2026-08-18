@@ -1,0 +1,383 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- 
+    Microsoft ResX Schema 
+    
+    Version 2.0
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
+    associated with the data types.
+    
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+                
+    There are any number of "resheader" rows that contain simple 
+    name/value pairs.
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
+    mimetype set.
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
+    extensible. For a given mimetype the value must be set accordingly:
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
+    read any of the formats listed below.
+    
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+    
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array 
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="fdDirectory" xml:space="preserve">
+    <value>Directory</value>
+  </data>
+  <data name="fdFile" xml:space="preserve">
+    <value>File</value>
+  </data>
+  <data name="fdSave" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="fdSaveAs" xml:space="preserve">
+    <value>Save as</value>
+  </data>
+  <data name="fdOpen" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="fdSelectFolder" xml:space="preserve">
+    <value>Select folder</value>
+  </data>
+  <data name="fdSelectMixed" xml:space="preserve">
+    <value>Select Mixed</value>
+  </data>
+  <data name="wzBack" xml:space="preserve">
+    <value>_Back</value>
+  </data>
+  <data name="wzFinish" xml:space="preserve">
+    <value>Fi_nish</value>
+  </data>
+  <data name="wzNext" xml:space="preserve">
+    <value>_Next...</value>
+  </data>
+  <data name="fdDirectoryAlreadyExistsFeedback" xml:space="preserve">
+    <value>Directory already exists with that name</value>
+    <comment>When trying to save a file with a name already taken by a directory</comment>
+  </data>
+  <data name="fdDirectoryMustExistFeedback" xml:space="preserve">
+    <value>Must select an existing directory</value>
+  </data>
+  <data name="fdFileAlreadyExistsFeedback" xml:space="preserve">
+    <value>File already exists with that name</value>
+  </data>
+  <data name="fdFileMustExistFeedback" xml:space="preserve">
+    <value>Must select an existing file</value>
+    <comment>When trying to save a directory with a name already used by a file</comment>
+  </data>
+  <data name="fdFilename" xml:space="preserve">
+    <value>Filename</value>
+  </data>
+  <data name="fdFileOrDirectoryMustExistFeedback" xml:space="preserve">
+    <value>Must select an existing file or directory</value>
+  </data>
+  <data name="fdModified" xml:space="preserve">
+    <value>Modified</value>
+  </data>
+  <data name="fdPathCaption" xml:space="preserve">
+    <value>_Enter Path</value>
+  </data>
+  <data name="fdSize" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="fdType" xml:space="preserve">
+    <value>Type</value>
+  </data>
+  <data name="fdWrongFileTypeFeedback" xml:space="preserve">
+    <value>Wrong file type</value>
+    <comment>When trying to open/save a file that does not match the provided filter (e.g. csv)</comment>
+  </data>
+  <data name="fdAnyFiles" xml:space="preserve">
+    <value>Any Files</value>
+    <comment>Describes an AllowedType that matches anything</comment>
+  </data>
+  <data name="fdDeleteBody" xml:space="preserve">
+    <value>Are you sure you want to delete '{0}'? This operation is permanent</value>
+  </data>
+  <data name="fdDeleteFailedTitle" xml:space="preserve">
+    <value>Delete Failed</value>
+  </data>
+  <data name="fdDeleteTitle" xml:space="preserve">
+    <value>Delete {0}</value>
+  </data>
+  <data name="fdNewFailed" xml:space="preserve">
+    <value>New Failed</value>
+  </data>
+  <data name="fdPathTraversalError" xml:space="preserve">
+    <value>Name must not contain path separators or navigate outside the current directory.</value>
+  </data>
+  <data name="fdNewTitle" xml:space="preserve">
+    <value>New Folder</value>
+  </data>
+  <data name="btnNo" xml:space="preserve">
+    <value>_No</value>
+  </data>
+  <data name="fdRenameFailedTitle" xml:space="preserve">
+    <value>Rename Failed</value>
+  </data>
+  <data name="fdRenamePrompt" xml:space="preserve">
+    <value>Name:</value>
+  </data>
+  <data name="fdRenameTitle" xml:space="preserve">
+    <value>Rename</value>
+  </data>
+  <data name="btnYes" xml:space="preserve">
+    <value>_Yes</value>
+  </data>
+  <data name="fdExisting" xml:space="preserve">
+    <value>Existing</value>
+  </data>
+  <data name="btnOpen" xml:space="preserve">
+    <value>O_pen</value>
+  </data>
+  <data name="btnSave" xml:space="preserve">
+    <value>_Save</value>
+  </data>
+  <data name="btnSaveAs" xml:space="preserve">
+    <value>Save _as</value>
+  </data>
+  <data name="btnOk" xml:space="preserve">
+    <value>_OK</value>
+  </data>
+  <data name="btnCancel" xml:space="preserve">
+    <value>_Cancel</value>
+  </data>
+  <data name="fdCtxDelete" xml:space="preserve">
+    <value>_Delete</value>
+  </data>
+  <data name="fdCtxHide" xml:space="preserve">
+    <value>_Hide {0}</value>
+  </data>
+  <data name="fdCtxNew" xml:space="preserve">
+    <value>_New</value>
+  </data>
+  <data name="fdCtxRename" xml:space="preserve">
+    <value>_Rename</value>
+  </data>
+  <data name="fdCtxSortAsc" xml:space="preserve">
+    <value>_Sort {0} ASC</value>
+  </data>
+  <data name="fdCtxSortDesc" xml:space="preserve">
+    <value>_Sort {0} DESC</value>
+  </data>
+  <data name="dpTitle" xml:space="preserve">
+    <value>Date Picker</value>
+  </data>
+  <data name="charMapCPInfoDlgTitle" xml:space="preserve">
+    <value>Getting Codepoint Information</value>
+  </data>
+  <data name="charMapCopyGlyph" xml:space="preserve">
+    <value>Copy _Glyph</value>
+  </data>
+  <data name="charMapCopyCP" xml:space="preserve">
+    <value>Copy Code_point</value>
+  </data>
+  <data name="charMapInfoDlgInfoLabel" xml:space="preserve">
+    <value>Codepoint Information from</value>
+  </data>
+  <data name="error" xml:space="preserve">
+    <value>Error</value>
+  </data>
+  <data name="failedGetting" xml:space="preserve">
+    <value>failed getting</value>
+  </data>
+  <data name="cmdOpen" xml:space="preserve">
+    <value>_Open...</value>
+  </data>
+  <data name="cmdSave" xml:space="preserve">
+    <value>_Save</value>
+  </data>
+  <data name="cmdSaveAs" xml:space="preserve">
+    <value>Save _As...</value>
+  </data>
+  <data name="cmdCut" xml:space="preserve">
+    <value>Cu_t</value>
+  </data>
+  <data name="cmdCopy" xml:space="preserve">
+    <value>_Copy</value>
+  </data>
+  <data name="cmdPaste" xml:space="preserve">
+    <value>_Paste</value>
+  </data>
+  <data name="cmdSelectAll" xml:space="preserve">
+    <value>_Select all</value>
+  </data>
+  <data name="cmdNew" xml:space="preserve">
+    <value>_New</value>
+  </data>
+  <data name="cmdOpen_Help" xml:space="preserve">
+    <value>Open a file</value>
+  </data>
+  <data name="cmdQuit_Help" xml:space="preserve">
+    <value>Exit the application</value>
+  </data>
+  <data name="cmdSaveAs_Help" xml:space="preserve">
+    <value>Save file as</value>
+  </data>
+  <data name="cmdCut_Help" xml:space="preserve">
+    <value>Cut to clipboard</value>
+  </data>
+  <data name="cmdCopy_Help" xml:space="preserve">
+    <value>Copy to clipboard</value>
+  </data>
+  <data name="cmdSelectAll_Help" xml:space="preserve">
+    <value>Select all</value>
+  </data>
+  <data name="cmdNew_Help" xml:space="preserve">
+    <value>New file</value>
+  </data>
+  <data name="fdTree" xml:space="preserve">
+    <value>_Tree</value>
+    <comment>Show/Hide Tree View</comment>
+  </data>
+  <data name="fdSearchCaption" xml:space="preserve">
+    <value>_Find</value>
+  </data>
+  <data name="cmdPaste_Help" xml:space="preserve">
+    <value>Paste from clipboard</value>
+  </data>
+  <data name="cmdQuit" xml:space="preserve">
+    <value>E_xit</value>
+  </data>
+  <data name="cmdClose" xml:space="preserve">
+    <value>_Close</value>
+  </data>
+  <data name="cmdFind" xml:space="preserve">
+    <value>_Find</value>
+  </data>
+  <data name="menuFile" xml:space="preserve">
+    <value>_File</value>
+  </data>
+  <data name="menuEdit" xml:space="preserve">
+    <value>_Edit</value>
+  </data>
+  <data name="menuHelp" xml:space="preserve">
+    <value>_Help</value>
+  </data>
+  <data name="cmdSave_Help" xml:space="preserve">
+    <value>Save file</value>
+  </data>
+  <data name="cmdUndo" xml:space="preserve">
+    <value>_Undo</value>
+  </data>
+  <data name="cmdUndo_Help" xml:space="preserve">
+    <value>Undo last action</value>
+  </data>
+  <data name="cmdRedo" xml:space="preserve">
+    <value>_Redo</value>
+  </data>
+  <data name="cmdRedo_Help" xml:space="preserve">
+    <value>Redo last action</value>
+  </data>
+  <data name="cmdDeleteAll" xml:space="preserve">
+    <value>_Delete All</value>
+  </data>
+  <data name="cmdDeleteAll_Help" xml:space="preserve">
+    <value>Delete all</value>
+  </data>
+  <data name="cmdEdit" xml:space="preserve">
+    <value>_Edit</value>
+  </data>
+  <data name="cmdEdit_Help" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+  <data name="cmdClose_Help" xml:space="preserve">
+    <value>Close</value>
+  </data>
+</root>

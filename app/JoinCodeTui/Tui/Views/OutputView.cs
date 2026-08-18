@@ -14,7 +14,7 @@ public sealed class OutputView : ITuiComponent
     private readonly ConcurrentQueue<string> _pending = new();
     private long _lastFlushTicks;
     private const int MaxLines = 10000;
-    private const int FlushIntervalMs = 50;
+    private const int FlushIntervalMs = 100;
 
     /// <summary>
     /// 创建 OutputView。
@@ -75,7 +75,7 @@ public sealed class OutputView : ITuiComponent
 
     /// <summary>
     /// 批量刷新 — 在 MainLoop.Iteration 回调中调用。
-    /// Suspend → 批量 Add → Resume → SetNeedsDraw 一次。节流 50ms。
+    /// Suspend → 批量 Add → Resume → SetNeedsDraw 一次。节流 100ms。
     /// </summary>
     public void Flush()
     {

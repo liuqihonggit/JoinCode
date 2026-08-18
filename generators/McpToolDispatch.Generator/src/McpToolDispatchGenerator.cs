@@ -519,6 +519,9 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
 
     private static void GenerateRegisterAllMethod(StringBuilder sb, List<HandlerInfo> handlers)
     {
+        const int BatchCount = 16;
+        var batchSize = (handlers.Count + BatchCount - 1) / BatchCount;
+
         sb.AppendLine($"    public static async Task<IMcpToolRegistry> RegisterAllMcpToolDispatchAsync(");
         sb.AppendLine("        this IMcpToolRegistry registry,");
         sb.AppendLine("        IServiceProvider serviceProvider,");
@@ -527,17 +530,17 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         sb.AppendLine("        var logger = serviceProvider.GetService<ILogger<IMcpToolRegistry>>();");
         sb.AppendLine("        var initialCount = await registry.GetCountAsync(cancellationToken);");
         sb.AppendLine();
+        sb.AppendLine("        // 分批并行注册：16 组分批，每组串行注册，减少 async 状态机开销（296 Task → 16 Task）");
+        sb.AppendLine("        var batchTasks = new Task[]");
+        sb.AppendLine("        {");
 
-        var handlerIndex = 0;
-        foreach (var handler in handlers)
+        for (var i = 0; i < BatchCount && i * batchSize < handlers.Count; i++)
         {
-            handlerIndex++;
-            var optionalArg = handler.Optional ? "true" : "false";
-            sb.AppendLine($"        Diag.WriteLine(\"[{handlerIndex}/{handlers.Count}] Registering {handler.DisplayName}...\");");
-            sb.AppendLine($"        await Register{handler.TypeName}ToolsAsync(registry, serviceProvider, logger, cancellationToken, {optionalArg});");
-            sb.AppendLine($"        Diag.WriteLine(\"[{handlerIndex}/{handlers.Count}] {handler.DisplayName} done\");");
+            sb.AppendLine($"            BatchRegister{i}Async(registry, serviceProvider, logger, cancellationToken),");
         }
 
+        sb.AppendLine("        };");
+        sb.AppendLine("        await Task.WhenAll(batchTasks).ConfigureAwait(false);");
         sb.AppendLine();
         sb.AppendLine("        var finalCount = await registry.GetCountAsync(cancellationToken);");
         sb.AppendLine("        var totalRegistered = finalCount - initialCount;");
@@ -545,6 +548,29 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine("        return registry;");
         sb.AppendLine("    }");
+
+        for (var i = 0; i < BatchCount && i * batchSize < handlers.Count; i++)
+        {
+            var start = i * batchSize;
+            var end = Math.Min(start + batchSize, handlers.Count);
+
+            sb.AppendLine();
+            sb.AppendLine($"    private static async Task BatchRegister{i}Async(");
+            sb.AppendLine("        IMcpToolRegistry registry,");
+            sb.AppendLine("        IServiceProvider serviceProvider,");
+            sb.AppendLine("        ILogger<IMcpToolRegistry>? logger,");
+            sb.AppendLine("        CancellationToken cancellationToken)");
+            sb.AppendLine("    {");
+
+            for (var j = start; j < end; j++)
+            {
+                var handler = handlers[j];
+                var optionalArg = handler.Optional ? "true" : "false";
+                sb.AppendLine($"        await Register{handler.TypeName}ToolsAsync(registry, serviceProvider, logger, cancellationToken, {optionalArg}).ConfigureAwait(false);");
+            }
+
+            sb.AppendLine("    }");
+        }
     }
 
     private static void GeneratePerHandlerRegisterMethods(StringBuilder sb, List<HandlerInfo> handlers)

@@ -10,6 +10,7 @@ public sealed class PromptView : ITuiComponent
     private readonly View _container;
     private readonly Label _promptLabel;
     private readonly TextField _textField;
+    private readonly CommandHistory _history = new();
 
     /// <summary>
     /// 创建 PromptView。
@@ -73,8 +74,27 @@ public sealed class PromptView : ITuiComponent
             if (!string.IsNullOrWhiteSpace(text))
             {
                 _queue.Enqueue(new QueuedCommand(text, CommandOrigin.User, QueuePriority.Next));
+                _history.Add(text);
                 _textField.Text = "";
             }
+        }
+        else if (key == TuiKey.Tab)
+        {
+            var text = _textField.Text.ToString() ?? string.Empty;
+            var completed = TabCompleter.Complete(text);
+            if (completed is not null)
+                _textField.Text = completed;
+        }
+        else if (key == TuiKey.CursorUp)
+        {
+            var prev = _history.NavigateUp();
+            if (prev is not null)
+                _textField.Text = prev;
+        }
+        else if (key == TuiKey.CursorDown)
+        {
+            var next = _history.NavigateDown();
+            _textField.Text = next ?? string.Empty;
         }
     }
 }

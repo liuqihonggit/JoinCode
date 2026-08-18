@@ -1,0 +1,2 @@
+View [Visible=True, CanFocus=False]
+  ListView [Visible=True, CanFocus=True]

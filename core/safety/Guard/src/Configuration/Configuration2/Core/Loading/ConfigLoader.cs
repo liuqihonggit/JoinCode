@@ -68,7 +68,7 @@ public class ConfigLoader {
     /// </summary>
     public async Task<WorkflowConfig> LoadConfigAsync(IFileSystem fs, CancellationToken cancellationToken = default) {
         try {
-            // Step 1: 并行加载多源配置 + 规则文件
+            // Step 1: 并行加载多源配置 + 规则文件 + auth.json（4 路并行 I/O）
             var projectDir = fs.GetCurrentDirectory();
             var settingsTask = SettingsLoader.LoadAllSourcesAsync(
                 fs,
@@ -78,10 +78,12 @@ public class ConfigLoader {
             var projectRulesTask = rulesLoader.LoadRulesAsync(projectDir, cancellationToken);
             var externalRulesLoader = new ExternalRulesLoader(fs);
             var externalRulesTask = externalRulesLoader.LoadProjectRulesAsync(projectDir, cancellationToken);
+            var authTask = LoadAuthFileAsync(fs, cancellationToken);
 
-            await Task.WhenAll(settingsTask, projectRulesTask, externalRulesTask).ConfigureAwait(false);
+            await Task.WhenAll(settingsTask, projectRulesTask, externalRulesTask, authTask).ConfigureAwait(false);
 
             var settings = await settingsTask.ConfigureAwait(false);
+            var preloadedAuthData = await authTask.ConfigureAwait(false);
 
             // Step 1.5: 将 SettingsJson.Vendor 模型数据灌入 ModelConfigLoader（唯一数据入口）
             if (_modelConfigLoader is not null)
@@ -102,9 +104,9 @@ public class ConfigLoader {
             // Step 4: 环境变量覆盖（Provider/Model/Endpoint 等，不含 API Key）
             _settingsMapper.ApplyEnvOverrides(config, settings);
 
-            // Step 5: 统一 API Key 解析（auth.json → JCC_API_KEY → Provider 专属变量）
+            // Step 5: 统一 API Key 解析（auth.json → JCC_API_KEY → Provider 专属变量）— auth.json 已在 Step 1 预读
             config.Provider.ApiKey = await ResolveApiKeyAsync(
-                config.Provider.Vendor, config.Provider.Definition, fs, cancellationToken).ConfigureAwait(false);
+                config.Provider.Vendor, config.Provider.Definition, fs, cancellationToken, preloadedAuthData).ConfigureAwait(false);
 
             // Step 6: 规则赋值
             config.ProjectRules = await projectRulesTask.ConfigureAwait(false);
@@ -171,10 +173,12 @@ public class ConfigLoader {
     /// 统一 API Key 解析 — 按优先级从低到高: auth.json → JCC_API_KEY → Provider 专属环境变量
     /// 对齐 TS 版: 环境变量 > auth.json > apiKeyHelper
     /// </summary>
-    public async Task<string> ResolveApiKeyAsync(string provider, IProviderDefinition? definition, IFileSystem fs, CancellationToken cancellationToken = default)
+    public async Task<string> ResolveApiKeyAsync(string provider, IProviderDefinition? definition, IFileSystem fs, CancellationToken cancellationToken = default, Dictionary<string, string>? preloadedAuthData = null)
     {
-        // 优先级 1 (最低): auth.json
-        var apiKey = await LoadApiKeyFromJccAsync(provider, fs, cancellationToken).ConfigureAwait(false);
+        // 优先级 1 (最低): auth.json（若调用方已预读则直接用，避免重复 I/O）
+        var apiKey = preloadedAuthData is not null
+            ? ResolveApiKeyFromAuth(preloadedAuthData, provider)
+            : await LoadApiKeyFromJccAsync(provider, fs, cancellationToken).ConfigureAwait(false);
 
         // 优先级 2: JCC_API_KEY 环境变量
         var jccApiKey = Environment.GetEnvironmentVariable(JccEnvVar.ApiKey.ToValue());
@@ -193,39 +197,51 @@ public class ConfigLoader {
     }
 
     /// <summary>
+    /// 读取 auth.json 文件内容 — 供并行预加载使用，与 settings/rules 并行避免串行 I/O
+    /// </summary>
+    private static async Task<Dictionary<string, string>?> LoadAuthFileAsync(IFileSystem fs, CancellationToken cancellationToken)
+    {
+        var authPath = WorkflowConstants.Paths.AuthFilePath;
+        if (!fs.FileExists(authPath)) return null;
+        try
+        {
+            var json = await fs.ReadAllTextAsync(authPath, cancellationToken).ConfigureAwait(false);
+            return JsonSerializer.Deserialize(json, ConfigJsonContext.Default.DictionaryStringString);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// 从已加载的 auth 数据中解析指定 provider 的 API Key（同步，无 I/O）
+    /// </summary>
+    private string ResolveApiKeyFromAuth(Dictionary<string, string>? authData, string provider)
+    {
+        if (authData is null || !authData.TryGetValue(provider, out var apiKey))
+            return string.Empty;
+
+        // Azure 等复合格式：auth.json 中存储的是 JSON 对象而非纯 API Key
+        var definition = _registry.TryGet(provider);
+        if (definition is not null && definition.IsCompoundAuthFormat(apiKey))
+        {
+            var compoundData = JsonSerializer.Deserialize(apiKey, ConfigJsonContext.Default.DictionaryStringString);
+            return definition.ExtractApiKeyFromCompound(apiKey)
+                ?? compoundData?.GetValueOrDefault("apiKey", string.Empty)
+                ?? string.Empty;
+        }
+
+        return apiKey;
+    }
+
+    /// <summary>
     /// 从 ~/.jcc/auth.json 加载指定 provider 的 API Key
     /// </summary>
     public async Task<string> LoadApiKeyFromJccAsync(string provider, IFileSystem fs, CancellationToken cancellationToken = default)
     {
-        var authPath = WorkflowConstants.Paths.AuthFilePath;
-
-        if (!fs.FileExists(authPath))
-            return string.Empty;
-
-        try
-        {
-            var json = await fs.ReadAllTextAsync(authPath, cancellationToken).ConfigureAwait(false);
-            var authData = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.DictionaryStringString);
-
-            if (authData is null || !authData.TryGetValue(provider, out var apiKey))
-                return string.Empty;
-
-            // Azure 等复合格式：auth.json 中存储的是 JSON 对象而非纯 API Key
-            var definition = _registry.TryGet(provider);
-            if (definition is not null && definition.IsCompoundAuthFormat(apiKey))
-            {
-                var compoundData = JsonSerializer.Deserialize(apiKey, ConfigJsonContext.Default.DictionaryStringString);
-                return definition.ExtractApiKeyFromCompound(apiKey)
-                    ?? compoundData?.GetValueOrDefault("apiKey", string.Empty)
-                    ?? string.Empty;
-            }
-
-            return apiKey;
-        }
-        catch
-        {
-            return string.Empty;
-        }
+        var authData = await LoadAuthFileAsync(fs, cancellationToken).ConfigureAwait(false);
+        return ResolveApiKeyFromAuth(authData, provider);
     }
 
     /// <summary>

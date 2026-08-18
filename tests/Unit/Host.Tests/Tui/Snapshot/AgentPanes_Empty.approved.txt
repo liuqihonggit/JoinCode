@@ -1,0 +1,3 @@
+View [Visible=False, CanFocus=False]
+  Label [Visible=True, CanFocus=False]
+  View [Visible=True, CanFocus=False]

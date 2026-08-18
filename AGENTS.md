@@ -643,7 +643,7 @@ $psi.WorkingDirectory = "D:\project\{当前分支名}"
 |----------|--------|------|
 | `JCC_ENDPOINT` | `http://localhost:9901` | API 端点（⚠️ 不要带 `/v1`，jcc 内部会自动拼接 `chat/completions`） |
 | `JCC_API_KEY` | `sk-test-1234567890` | API 密钥（MockServer 不校验，任意值即可） |
-| `JCC_VENDOR` | `openai` | LLM 供应商（openai/anthropic/deepseek/sensenova） |
+| `JCC_VENDOR` | `openai` | LLM 供应商（openai/anthropic/deepseek/sensenova/agnes） |
 | `JCC_MODEL_ID` | `gpt-4o` | 模型 ID（MockServer 不校验，任意值即可） |
 
 **3. 诊断：查看 MockServer 请求记录**
@@ -772,16 +772,20 @@ public ConversationMode Mode => Turns.Count == 1
   - CI 必须通过才允许合并
   - **⛔ dirty PR 不触发 CI**：`mergeable_state=dirty`（分支与 main 有冲突）时 GitHub 不会运行 CI。必须先在分支上 `git merge origin/main` 解决冲突并推送，CI 才会触发
   - **CI 重试**：`gh run rerun <run-id> --failed` 只重试失败的 job（不加 `--failed` 也是默认只重试失败项）
-  - **⚠️ auto-merge BLOCKED 排查清单**（2026-07-30 踩坑记录）：
-    1. **根因**：Branch protection 的 required status checks 名称与 CI workflow 实际 job 名称不匹配 → GitHub 认为该 required check 永远未完成 → PR 永远 `mergeStateStatus: BLOCKED` → auto-merge 永远不触发
-    2. **典型案例**：protection 配了 `McpToolHandlers`（旧名），CI 实际是 `McpToolDispatch`（新名），差一个词就导致所有 PR 永远无法 auto-merge
-    3. **触发场景**：重命名 CI job、删除/重建保护分支、修改 workflow 文件名后未同步更新 branch protection
-    4. **诊断命令**：
+  - **⚠️ auto-merge BLOCKED 排查清单**（2026-07-30 踩坑记录，2026-08-18 修正区分正常/异常）：
+    1. **先区分正常 vs 异常 BLOCKED**（最关键一步，跳过会误判）：
+       - 诊断命令：`gh pr view {number} --json mergeable,mergeStateStatus,statusCheckRollup --jq '{mergeable:.mergeable, state:.mergeStateStatus, checks:[.statusCheckRollup[] | {name:.name, status:.status, conclusion:.conclusion}]}'`
+       - **正常 BLOCKED**（无需处理）：`mergeable=MERGEABLE` 且存在 `status=IN_PROGRESS` 或 `status=PENDING` 的 check → CI 正在运行，等全部通过后 auto-merge 自动触发。其他 `needs: build` 的 job 在 build 完成前不会出现在 checks 列表中，**不要因为"实际 check 数 < required check 数"就判定为名称不匹配**
+       - **异常 BLOCKED**（需修复）：所有 check 的 `conclusion` 均非 null（全部完成）且无 `IN_PROGRESS`/`PENDING`，但 `mergeStateStatus` 仍为 `BLOCKED` → 这才是 check 名称不匹配
+    2. **异常 BLOCKED 根因**：Branch protection 的 required status checks 名称与 CI workflow 实际 job 名称不匹配 → GitHub 认为该 required check 永远未完成 → PR 永远 `mergeStateStatus: BLOCKED` → auto-merge 永远不触发
+    3. **典型案例**：protection 配了 `McpToolHandlers`（旧名），CI 实际是 `McpToolDispatch`（新名），差一个词就导致所有 PR 永远无法 auto-merge
+    4. **触发场景**：重命名 CI job、删除/重建保护分支、修改 workflow 文件名后未同步更新 branch protection
+    5. **异常 BLOCKED 诊断命令**（仅在确认异常后执行）：
        - `gh api repos/{owner}/{repo}/branches/main/protection --jq '.required_status_checks.contexts'` — 查看保护规则要求的 check 名称
        - `gh pr checks {number}` — 查看 PR 实际的 check 名称
        - 对比两者，找出不匹配的名称
-    5. **修复命令**：构造 JSON body 调用 `gh api -X PUT repos/{owner}/{repo}/branches/main/protection -H "Accept: application/vnd.github+json" --input protection_update.json`（需要 `restrictions: null` 字段，否则 422）
-    6. **预防**：每次重命名 CI job 后，必须同步更新 branch protection 的 required status checks
+    6. **修复命令**：构造 JSON body 调用 `gh api -X PUT repos/{owner}/{repo}/branches/main/protection -H "Accept: application/vnd.github+json" --input protection_update.json`（需要 `restrictions: null` 字段，否则 422）
+    7. **预防**：每次重命名 CI job 后，必须同步更新 branch protection 的 required status checks
 
 ## 用户说的E2E
 

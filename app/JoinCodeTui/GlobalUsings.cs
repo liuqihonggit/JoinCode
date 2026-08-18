@@ -6,6 +6,8 @@ global using JoinCode.Abstractions.LLM;
 global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.LLM.Execution;
 global using JoinCode.Abstractions.Models.Agent;
+global using JoinCode.Abstractions.Security;
+global using JoinCode.Abstractions.Security.Permission;
 global using IO.FileSystem;
 
 // App Builder (EngineSessionFactory)
@@ -17,6 +19,7 @@ global using JoinCode.Queue;
 // FrozenDictionary
 global using System.Collections.Frozen;
 global using System.Collections.ObjectModel;
+global using System.Text;
 
 // TUI 渲染层 — Terminal.Gui v2
 global using Terminal.Gui.App;
@@ -28,5 +31,7 @@ global using GuiAttribute = Terminal.Gui.Drawing.Attribute;
 global using GuiTextStyle = Terminal.Gui.Drawing.TextStyle;
 global using JoinCode.Tui.Rendering;
 global using JoinCode.Tui.Views;
+global using JoinCode.Tui.Commands;
 global using JoinCode.Tui.Pipes;
+global using JoinCode.Tui.Diagnostics;
 global using TuiKey = Terminal.Gui.Input.Key;

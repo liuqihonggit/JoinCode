@@ -12,6 +12,9 @@ public sealed class StatusBarView : ITuiComponent
     private int _queueCount;
     private string _agentStatus = "";
     private int _sessionId = 1;
+    private string _model = "(未配置)";
+    private bool _connected;
+    private long _tokenCount;
 
     /// <summary>
     /// 创建 StatusBarView。
@@ -64,6 +67,27 @@ public sealed class StatusBarView : ITuiComponent
         RefreshDisplay();
     }
 
+    /// <summary>设置当前模型名称。</summary>
+    public void SetModel(string model)
+    {
+        _model = string.IsNullOrEmpty(model) ? "(未配置)" : model;
+        RefreshDisplay();
+    }
+
+    /// <summary>设置连接状态。</summary>
+    public void SetConnected(bool connected)
+    {
+        _connected = connected;
+        RefreshDisplay();
+    }
+
+    /// <summary>设置 Token 用量。</summary>
+    public void SetTokenCount(long count)
+    {
+        _tokenCount = count;
+        RefreshDisplay();
+    }
+
     /// <inheritdoc />
     public void OnQueueChanged(QueueSnapshot snapshot)
     {
@@ -79,8 +103,10 @@ public sealed class StatusBarView : ITuiComponent
 
     private void RefreshDisplay()
     {
+        var conn = _connected ? "●" : "○";
         var queuePart = _queueCount > 0 ? $" │ 队列:{_queueCount}" : "";
         var agentPart = string.IsNullOrEmpty(_agentStatus) ? "" : $" │ {_agentStatus}";
-        _statusLabel.Text = $"⚡ AgentOS v1.0 │ {_mode}{queuePart}{agentPart} │ Session: #{_sessionId:D3}";
+        var tokenPart = _tokenCount > 0 ? $" │ Token:{_tokenCount}" : "";
+        _statusLabel.Text = $"{conn} AgentOS v1.0 │ {_model} │ {_mode}{queuePart}{agentPart}{tokenPart} │ Session: #{_sessionId:D3}";
     }
 }

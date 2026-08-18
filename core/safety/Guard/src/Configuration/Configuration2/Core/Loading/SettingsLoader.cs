@@ -30,20 +30,29 @@ public static class SettingsLoader
             (SettingSource.PolicySettings, () => LoadPolicySettingsAsync(fs, cancellationToken)),
         };
 
-        foreach (var (source, loader) in sources)
+        // 并行加载所有源（独立文件 I/O 并行），然后按优先级顺序合并（单线程，保证覆盖语义正确）
+        var loadTasks = sources.Select(async s =>
         {
+            SettingsJson? result = null;
             try
             {
-                var settings = await loader().ConfigureAwait(false);
-                if (settings is not null)
-                {
-                    merged = SettingsMapper.Merge(merged, settings);
-                }
+                result = await s.Loader().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 // 单个来源加载失败不影响其他来源
                 logger?.LogWarning(ex, "Failed to load settings from source");
+            }
+            return (s.Source, result);
+        }).ToArray();
+
+        await Task.WhenAll(loadTasks).ConfigureAwait(false);
+
+        foreach (var (_, settings) in loadTasks.Select(t => t.Result))
+        {
+            if (settings is not null)
+            {
+                merged = SettingsMapper.Merge(merged, settings);
             }
         }
 

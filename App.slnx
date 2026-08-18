@@ -2,7 +2,6 @@
   <Folder Name="/app/">
     <Project Path="app/Sdk/Sdk.csproj" />
     <Project Path="app/JoinCode/JoinCode.csproj" />
-    <Project Path="app/JoinCodeTui/JoinCodeTui.csproj" />
     <Project Path="composition/Pipelines/src/Pipelines.csproj" />
   </Folder>
   <Folder Name="/tests/Unit/">

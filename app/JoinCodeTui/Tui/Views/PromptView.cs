@@ -11,6 +11,7 @@ public sealed class PromptView : ITuiComponent
     private readonly Label _promptLabel;
     private readonly Editor _editor;
     private readonly CommandHistory _history = new();
+    private IReadOnlyList<string> _slashCommands = [];
     private const int InputHeight = 3;
 
     /// <summary>
@@ -64,6 +65,9 @@ public sealed class PromptView : ITuiComponent
     /// <summary>当前输入文本。</summary>
     public string InputText => _editor.Text ?? string.Empty;
 
+    /// <summary>设置斜杠命令列表（用于 Tab 补全，从底层 ISlashCommandCatalog 获取）。</summary>
+    public void SetSlashCommands(IReadOnlyList<string> commands) => _slashCommands = commands ?? [];
+
     /// <summary>输入框焦点。</summary>
     public void SetFocus() => _editor.SetFocus();
 
@@ -95,7 +99,7 @@ public sealed class PromptView : ITuiComponent
         if (key == TuiKey.Tab)
         {
             var text = _editor.Text ?? string.Empty;
-            var completed = TabCompleter.Complete(text);
+            var completed = TabCompleter.Complete(text, _slashCommands);
             if (completed is not null)
             {
                 _editor.Text = completed;

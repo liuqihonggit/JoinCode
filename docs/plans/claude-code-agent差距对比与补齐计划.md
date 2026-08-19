@@ -290,13 +290,27 @@
 
 #### 缺失项 20: CLAUDE_CODE_SUBAGENT_MODEL 环境变量
 
-- **状态**: ⬜ 未验证
+- **状态**: ✅ 已实现(2026-08-19)
 - **claude code 位置**: `src/utils/model/agent.ts`
 - **描述**: 全局环境变量覆盖所有 subagent 模型。
 - **价值**: 低 — 测试/调试用
-- **我们现状**: 需验证是否有等价环境变量。
-- **验证方法**: 查环境变量覆盖逻辑。
-- **设计方案**: (待验证后填写)
+- **已实现**: `JCC_SUBAGENT_MODEL` 环境变量 + inherit 关键字 + Bedrock 跨区域前缀继承,commit `325db9a8f`
+
+#### 缺失项 21: inherit 关键字 + Bedrock 跨区域前缀继承
+
+- **状态**: ✅ 已实现(2026-08-19)
+- **claude code 位置**: `src/utils/model/agent.ts` (getDefaultSubagentModel + getBedrockRegionPrefix + applyBedrockRegionPrefix)
+- **描述**: 
+  - `inherit` 关键字: 子代理显式继承父线程模型(对齐 claude code 默认 'inherit')
+  - Bedrock 跨区域前缀: 父模型有 us/eu/apac/global 前缀时,子代理 alias 模型继承相同前缀(IAM 权限区域限定)
+- **价值**: 中 — Bedrock 用户必需 + 配置可读性
+- **已实现**: commit `325db9a8f`
+  - `SubAgentModelResolver` (Abstractions 层,Brain/Agents 共用)
+  - `BedrockModelHelper` (Abstractions 层,纯字符串处理)
+  - `VendorKind.Bedrock` 枚举值
+  - `ContextSetupMiddleware` 集成 `IModelConfigLoader` 判断 provider
+  - `AgentDefinitionProvider` inherit 小写归一化
+  - 92 个新增测试
 
 #### 缺失项 22: color/effort 字段
 

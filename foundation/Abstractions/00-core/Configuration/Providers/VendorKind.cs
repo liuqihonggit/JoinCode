@@ -13,5 +13,6 @@ public enum VendorKind
     [EnumValue("deepseek")] DeepSeek = 2,
     [EnumValue("azure")] Azure = 3,
     [EnumValue("agnes")] Agnes = 4,
-    [EnumValue("sensenova")] Sensenova = 5
+    [EnumValue("sensenova")] Sensenova = 5,
+    [EnumValue("bedrock")] Bedrock = 6
 }

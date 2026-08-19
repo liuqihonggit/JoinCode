@@ -316,7 +316,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
             Description = GetStringFromData(result.Data, "description", "desc"),
             Tools = GetStringListFromData(result.Data, "tools", "allowed_tools"),
             DisallowedTools = GetStringListFromData(result.Data, "disallowed_tools", "denied_tools"),
-            ModelName = GetStringFromData(result.Data, "model", "model_name"),
+            ModelName = NormalizeModelName(GetStringFromData(result.Data, "model", "model_name")),
             Temperature = GetFloatFromData(result.Data, "temperature"),
             MaxTokens = GetIntFromData(result.Data, "max_tokens"),
             IsBackground = GetBoolFromData(result.Data, "is_background", "background"),
@@ -352,6 +352,20 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         }
 
         return fileName;
+    }
+
+    /// <summary>
+    /// 归一化模型名称 — 对齐 claude code AgentJsonSchema model.transform
+    /// <para>"inherit" 不区分大小写归一化为小写 "inherit",其他值原样返回</para>
+    /// <para>避免配置写 "Inherit"/"INHERIT" 时解析失败</para>
+    /// </summary>
+    private static string? NormalizeModelName(string? model)
+    {
+        if (string.IsNullOrWhiteSpace(model))
+            return model;
+        return SubAgentModelResolver.IsInheritKeyword(model)
+            ? SubAgentModelResolver.DefaultSubagentModel
+            : model;
     }
 
     private static string? GetStringFromData(Dictionary<string, System.Text.Json.JsonElement> data, params string[] keys)

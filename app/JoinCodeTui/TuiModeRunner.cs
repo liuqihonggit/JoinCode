@@ -58,6 +58,26 @@ internal static class TuiModeRunner
 
         statusBar.SetConnected(queryEngine is not null);
 
+        // 底层命令系统 — 转发斜杠命令到底层 CmdMap，不自己实现一套
+        var commandRegistry = services.GetService<ChatCommandRegistry>() ?? new ChatCommandRegistry();
+        if (services.GetService<ChatCommandRegistry>() is null)
+            GeneratedCommandRegistration.RegisterAllChatCommands(commandRegistry);
+        var toolRegistry = services.GetService<IToolRegistry>();
+        var cmdMap = toolRegistry is not null ? new CmdMap(commandRegistry, toolRegistry) : null;
+
+        // CommandServices — 从 DI 获取所有服务，供底层命令使用
+        var commandServices = BuildCommandServices(services, commandRegistry, toolRegistry);
+        var commandServiceProvider = new CommandServiceProvider(commandServices, services);
+
+        // Tab 补全命令列表 — 从 ISlashCommandCatalog 获取（源码生成器生成的命令元数据）
+        var slashCatalog = services.GetService<ISlashCommandCatalog>();
+        var slashCommands = slashCatalog?.Commands
+            .Where(c => !c.IsHidden && c.IsEnabled)
+            .Select(c => c.Name)
+            .OrderBy(n => n)
+            .ToArray() as IReadOnlyList<string> ?? [];
+        promptView.SetSlashCommands(slashCommands);
+
         var registry = new PipeRegistry();
         var mainPipe = new MessagePipe("main", "AI Assistant", isMain: true);
         registry.Register(mainPipe);
@@ -160,7 +180,7 @@ internal static class TuiModeRunner
         };
 
         var processingCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var processingTask = ProcessQueueAsync(queue, mainPipe, outputView, queryEngine, chatHistory, app.RequestStop, painter, permissionDialog, permissionManager, processingCts.Token);
+        var processingTask = ProcessQueueAsync(queue, mainPipe, outputView, queryEngine, chatHistory, app.RequestStop, painter, permissionDialog, permissionManager, cmdMap, commandRegistry, commandServiceProvider, statusBar, toolBar, processingCts.Token);
 
         var focusSet = false;
         var lastQueueCount = -1;
@@ -226,6 +246,11 @@ internal static class TuiModeRunner
         TerminalPainter painter,
         PermissionDialogView permissionDialog,
         IToolPermissionManager? permissionManager,
+        CmdMap? cmdMap,
+        ChatCommandRegistry commandRegistry,
+        IServiceProvider commandServiceProvider,
+        StatusBarView statusBar,
+        ToolBarView toolBar,
         CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
@@ -237,83 +262,10 @@ internal static class TuiModeRunner
                 continue;
             }
 
-            if (string.Equals(cmd.Content, "/exit", StringComparison.OrdinalIgnoreCase))
+            // 斜杠命令 — 转发到底层 CmdMap，不自己实现一套
+            if (cmd.Content.Length > 0 && cmd.Content[0] == '/')
             {
-                requestStop();
-                return;
-            }
-
-            var slashResult = TuiCommandProcessor.Process(cmd.Content, chatHistory);
-            if (slashResult.IsHandled)
-            {
-                if (!string.IsNullOrEmpty(slashResult.Output))
-                {
-                    outputView.AppendLine(slashResult.Output);
-                }
-                switch (slashResult.Action)
-                {
-                    case TuiCommandAction.Exit:
-                        requestStop();
-                        return;
-                    case TuiCommandAction.ClearOutput:
-                        painter.Invoke(() => outputView.Clear());
-                        break;
-                    case TuiCommandAction.ExecuteShell:
-                        await ExecuteShellAsync(slashResult.ShellCommand!, outputView, cancellationToken).ConfigureAwait(false);
-                        break;
-                    case TuiCommandAction.ExecuteBuild:
-                        await ExecuteShellAsync("dotnet build", outputView, cancellationToken).ConfigureAwait(false);
-                        break;
-                    case TuiCommandAction.ExecuteTest:
-                        await ExecuteShellAsync("dotnet test", outputView, cancellationToken).ConfigureAwait(false);
-                        break;
-                    case TuiCommandAction.SaveSession:
-                        SaveSession(chatHistory, outputView, painter);
-                        break;
-                    case TuiCommandAction.ExecuteGrep:
-                        await ExecuteShellAsync($"findstr /s /i /n \"{slashResult.ShellCommand}\" *.cs *.md *.json", outputView, cancellationToken).ConfigureAwait(false);
-                        break;
-                    case TuiCommandAction.ExecuteDiff:
-                        await ExecuteShellAsync("git diff", outputView, cancellationToken).ConfigureAwait(false);
-                        break;
-                    case TuiCommandAction.ExecuteFiles:
-                        await ExecuteShellAsync($"dir /s /b {slashResult.ShellCommand}", outputView, cancellationToken).ConfigureAwait(false);
-                        break;
-                    case TuiCommandAction.ExecuteOpen:
-                        OpenFile(slashResult.ShellCommand!, outputView, painter);
-                        break;
-                    case TuiCommandAction.ExecutePatch:
-                        OpenFile(slashResult.ShellCommand!, outputView, painter);
-                        break;
-                    case TuiCommandAction.ExecuteApply:
-                        await ExecuteShellAsync($"git apply {slashResult.ShellCommand}", outputView, cancellationToken).ConfigureAwait(false);
-                        break;
-                    case TuiCommandAction.ExecuteUndo:
-                        await ExecuteShellAsync("git checkout .", outputView, cancellationToken).ConfigureAwait(false);
-                        break;
-                    case TuiCommandAction.ExecuteLoad:
-                        OpenFile(slashResult.ShellCommand!, outputView, painter);
-                        break;
-                    case TuiCommandAction.ShowConfig:
-                        ShowConfig(outputView, painter);
-                        break;
-                    case TuiCommandAction.ShowModel:
-                        ShowModel(outputView, painter);
-                        break;
-                    case TuiCommandAction.SetModel:
-                        outputView.AppendLine($"  ⚠️ 运行时切换模型需重启 jcctui，请设置环境变量 JCC_MODEL_ID={slashResult.ShellCommand} 后重新启动");
-                        break;
-                    case TuiCommandAction.ListSessions:
-                        ListSessions(outputView, painter);
-                        break;
-                    case TuiCommandAction.ShowTokens:
-                        ShowTokens(chatHistory, outputView, painter);
-                        break;
-                    case TuiCommandAction.ClearHistory:
-                        chatHistory.Clear();
-                        outputView.AppendLine("  🗑️ 聊天历史已清空");
-                        break;
-                }
+                await HandleSlashCommandAsync(cmd.Content, cmdMap, commandRegistry, commandServiceProvider, outputView, requestStop, painter, permissionDialog, cancellationToken).ConfigureAwait(false);
                 continue;
             }
 
@@ -336,7 +288,9 @@ internal static class TuiModeRunner
 
             try
             {
+                painter.Invoke(() => toolBar.SetRunning(true));
                 var chunkCount = 0;
+                long totalTokens = 0;
                 var chunkSw = System.Diagnostics.Stopwatch.StartNew();
                 await foreach (var chunk in queryEngine.QueryAsync(cmd.Content, chatHistory, cancellationToken).ConfigureAwait(false))
                 {
@@ -346,9 +300,13 @@ internal static class TuiModeRunner
                     {
                         outputView.AppendText(text);
                     }
+                    if (chunk.Usage is not null)
+                        totalTokens += chunk.Usage.TotalTokens;
                 }
                 chunkSw.Stop();
                 PerfTap.Log("chunk-loop-total", chunkSw.ElapsedMilliseconds, $"chunks={chunkCount} cmd={cmd.Content[..Math.Min(50, cmd.Content.Length)]}");
+                if (totalTokens > 0)
+                    painter.Invoke(() => statusBar.SetTokenCount(totalTokens));
             }
             catch (OperationCanceledException) { break; }
             catch (PermissionPendingConfirmationException ex)
@@ -376,203 +334,159 @@ internal static class TuiModeRunner
             {
                 outputView.AppendLine($"  [错误] {ex.Message}");
             }
+            finally
+            {
+                painter.Invoke(() => toolBar.SetRunning(false));
+            }
         }
     }
 
     /// <summary>
-    /// 执行 shell 命令并将输出显示到 OutputView。
+    /// 转发斜杠命令到底层 CmdMap — 解析、路由、执行、捕获输出。
     /// </summary>
-    private static async Task ExecuteShellAsync(
-        string command,
+    private static async Task HandleSlashCommandAsync(
+        string input,
+        CmdMap? cmdMap,
+        ChatCommandRegistry commandRegistry,
+        IServiceProvider commandServiceProvider,
         OutputView outputView,
+        Action requestStop,
+        TerminalPainter painter,
+        PermissionDialogView permissionDialog,
         CancellationToken cancellationToken)
     {
-        var psi = new System.Diagnostics.ProcessStartInfo
+        var parseResult = commandRegistry.Parse(input);
+        if (!parseResult.IsSuccess)
         {
-            FileName = "cmd.exe",
-            Arguments = $"/c {command}",
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true,
+            outputView.AppendLine($"  ❌ 解析失败: {parseResult.ErrorMessage}");
+            return;
+        }
+
+        var commandName = parseResult.CommandName;
+        if (commandName is null) return;
+
+        // 路由 — 先查斜杠命令，再查 MCP 工具
+        CmdDescriptor? descriptor = null;
+        if (cmdMap is not null)
+        {
+            try
+            {
+                descriptor = await cmdMap.ResolveAsync(commandName, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                outputView.AppendLine($"  ❌ 命令路由失败: {ex.Message}");
+                return;
+            }
+        }
+
+        var command = descriptor?.SlashCommand;
+        if (command is null)
+        {
+            outputView.AppendLine($"  ❌ 未知命令: /{commandName}（输入 /help 查看可用命令）");
+            return;
+        }
+
+        // 构造上下文 — 注入 TUI 的 UI 回调
+        var context = new ChatCommandContext
+        {
+            Arguments = parseResult.Arguments,
+            CancellationToken = cancellationToken,
+            Services = commandServiceProvider,
+            ClearScreen = () => painter.Invoke(() => outputView.Clear()),
+            Confirm = msg =>
+            {
+                // 用 TUI 权限对话框做确认
+                Task<bool>? dialogTask = null;
+                painter.Invoke(() => dialogTask = permissionDialog.ShowAsync("确认", msg, cancellationToken));
+                var result = dialogTask!.GetAwaiter().GetResult();
+                painter.Invoke(() => permissionDialog.Hide());
+                return result;
+            },
+            Prompt = msg =>
+            {
+                // TUI 简化输入：非交互环境返回 null
+                return null;
+            },
+            ReadPassword = _ => string.Empty,
         };
 
+        // 捕获命令输出 — 重定向 TerminalHelper.Out 到 StringBuilder
+        var commandOutput = new StringBuilder();
+        var originalOut = System.Console.Out;
+        using var commandWriter = new System.IO.StringWriter(commandOutput);
         try
         {
-            using var proc = new System.Diagnostics.Process { StartInfo = psi };
-            proc.Start();
-            var outputTask = ReadStreamAsync(proc.StandardOutput, outputView, cancellationToken);
-            var errorTask = ReadStreamAsync(proc.StandardError, outputView, cancellationToken);
-            await proc.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
-            await Task.WhenAll(outputTask, errorTask).ConfigureAwait(false);
-            var exitCode = proc.ExitCode;
-            outputView.AppendLine($"  [退出码 {exitCode}]");
+            System.Console.SetOut(commandWriter);
+            var result = await command.ExecuteAsync(context).ConfigureAwait(false);
+            if (!result.ShouldContinue)
+                requestStop();
         }
         catch (Exception ex)
         {
-            outputView.AppendLine($"  [执行失败] {ex.Message}");
+            outputView.AppendLine($"  ❌ 命令执行失败: {ex.Message}");
         }
-    }
-
-    private static async Task ReadStreamAsync(
-        System.IO.StreamReader reader,
-        OutputView outputView,
-        CancellationToken cancellationToken)
-    {
-        var lineCount = 0;
-        var totalSw = System.Diagnostics.Stopwatch.StartNew();
-        string? line;
-        while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) is not null)
+        finally
         {
-            lineCount++;
-            outputView.AppendLine($"  {line}");
+            System.Console.SetOut(originalOut);
+            commandWriter.Flush();
         }
-        totalSw.Stop();
-        PerfTap.Log("shell-read-total", totalSw.ElapsedMilliseconds, $"lines={lineCount}");
+
+        var outputText = commandOutput.ToString();
+        if (!string.IsNullOrWhiteSpace(outputText))
+            outputView.AppendLine(outputText.TrimEnd());
     }
 
     /// <summary>
-    /// 保存聊天历史到文件。
+    /// 从 DI 构造 CommandServices — 供底层命令获取服务。
     /// </summary>
-    private static void SaveSession(MessageList history, OutputView outputView, TerminalPainter painter)
+    private static CommandServices BuildCommandServices(
+        IServiceProvider services,
+        ChatCommandRegistry commandRegistry,
+        IToolRegistry? toolRegistry)
     {
-        try
-        {
-            var dir = System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), ".jcctui");
-            System.IO.Directory.CreateDirectory(dir);
-            var path = System.IO.Path.Combine(dir, $"session_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
-            var sb = new StringBuilder();
-            for (var i = 0; i < history.Count; i++)
-            {
-                var msg = history[i];
-                var role = msg.Role switch
-                {
-                    MessageRole.User => "User",
-                    MessageRole.Assistant => "Assistant",
-                    MessageRole.System => "System",
-                    _ => "Tool",
-                };
-                sb.Append($"[{role}] {msg.Content}\n");
-            }
-            System.IO.File.WriteAllText(path, sb.ToString());
-            outputView.AppendLine($"  💾 已保存到 {path}");
-        }
-        catch (Exception ex)
-        {
-            outputView.AppendLine($"  [保存失败] {ex.Message}");
-        }
-    }
+        var fs = services.GetService<IFileSystem>() ?? IO.FileSystem.FileSystemFactory.Create();
+        var chatService = services.GetService<IChatService>()!;
+        var codeService = services.GetService<ICodeService>()!;
+        var planService = services.GetService<IPlanService>()!;
 
-    /// <summary>
-    /// 显示文件内容到 OutputView。
-    /// </summary>
-    private static void OpenFile(string filePath, OutputView outputView, TerminalPainter painter)
-    {
-        try
+        return new CommandServices
         {
-            if (!System.IO.File.Exists(filePath))
-            {
-                outputView.AppendLine($"  [文件不存在] {filePath}");
-                return;
-            }
-            var content = System.IO.File.ReadAllText(filePath);
-            var lines = content.Split('\n');
-            var maxLines = 200;
-            var displayCount = Math.Min(lines.Length, maxLines);
-            for (var i = 0; i < displayCount; i++)
-            {
-                var line = lines[i].TrimEnd('\r');
-                var captured = line;
-                outputView.AppendLine($"  {captured}");
-            }
-            if (lines.Length > maxLines)
-                outputView.AppendLine($"  ... ({lines.Length} 行，仅显示前 {maxLines} 行)");
-        }
-        catch (Exception ex)
-        {
-            outputView.AppendLine($"  [打开失败] {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// 显示当前配置信息。
-    /// </summary>
-    private static void ShowConfig(OutputView outputView, TerminalPainter painter)
-    {
-        var endpoint = Environment.GetEnvironmentVariable("JCC_ENDPOINT") ?? "(未设置)";
-        var vendor = Environment.GetEnvironmentVariable("JCC_VENDOR") ?? "(未设置)";
-        var model = Environment.GetEnvironmentVariable("JCC_MODEL_ID") ?? "(未设置)";
-        var apiKey = Environment.GetEnvironmentVariable("JCC_API_KEY");
-        var keyDisplay = string.IsNullOrEmpty(apiKey) ? "(未设置)" : $"{apiKey[..Math.Min(4, apiKey.Length)]}****";
-        outputView.AppendLine("  ⚙️ 当前配置:");
-        outputView.AppendLine($"    Endpoint: {endpoint}");
-        outputView.AppendLine($"    Vendor:   {vendor}");
-        outputView.AppendLine($"    Model:    {model}");
-        outputView.AppendLine($"    API Key:  {keyDisplay}");
-    }
-
-    /// <summary>
-    /// 显示当前模型信息。
-    /// </summary>
-    private static void ShowModel(OutputView outputView, TerminalPainter painter)
-    {
-        var model = Environment.GetEnvironmentVariable("JCC_MODEL_ID") ?? "(未设置)";
-        var vendor = Environment.GetEnvironmentVariable("JCC_VENDOR") ?? "(未设置)";
-        outputView.AppendLine($"  🤖 模型: {model}");
-        outputView.AppendLine($"  🏷️ 供应商: {vendor}");
-    }
-
-    /// <summary>
-    /// 列出 .jcctui/ 目录下的已保存会话。
-    /// </summary>
-    private static void ListSessions(OutputView outputView, TerminalPainter painter)
-    {
-        try
-        {
-            var dir = System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), ".jcctui");
-            if (!System.IO.Directory.Exists(dir))
-            {
-                outputView.AppendLine("  📋 无已保存会话（.jcctui/ 目录不存在）");
-                return;
-            }
-            var files = System.IO.Directory.GetFiles(dir, "session_*.txt");
-            if (files.Length == 0)
-            {
-                outputView.AppendLine("  📋 无已保存会话");
-                return;
-            }
-            outputView.AppendLine("  📋 已保存会话:");
-            foreach (var file in files)
-            {
-                var name = System.IO.Path.GetFileName(file);
-                var time = System.IO.File.GetLastWriteTime(file).ToString("yyyy-MM-dd HH:mm");
-                var capturedName = name;
-                var capturedTime = time;
-                outputView.AppendLine($"    {capturedName} ({capturedTime})");
-            }
-        }
-        catch (Exception ex)
-        {
-            outputView.AppendLine($"  [列出失败] {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// 显示聊天历史中的 Token 用量统计。
-    /// </summary>
-    private static void ShowTokens(MessageList history, OutputView outputView, TerminalPainter painter)
-    {
-        long totalTokens = 0;
-        var msgCount = 0;
-        foreach (var msg in history)
-        {
-            msgCount++;
-            if (msg.TokenUsage is not null)
-                totalTokens += msg.TokenUsage.TotalTokens;
-        }
-        outputView.AppendLine("  🔢 Token 用量:");
-        outputView.AppendLine($"    消息数: {msgCount}");
-        outputView.AppendLine($"    总 Token: {totalTokens}");
+            ChatService = chatService,
+            CodeService = codeService,
+            PlanService = planService,
+            FileSystem = fs,
+            ServiceProvider = services,
+            ToolRegistry = toolRegistry,
+            CommandRegistry = commandRegistry,
+            GoalEngine = services.GetService<IGoalEngine>(),
+            GoalRegistry = services.GetService<IGoalRegistry>(),
+            CronTaskStore = services.GetService<ICronTaskStore>(),
+            SimpleModeService = services.GetService<ISimpleModeService>(),
+            BriefModeService = services.GetService<IBriefModeService>(),
+            HookConfigurationManager = services.GetService<IHookConfigurationManager>(),
+            PluginManager = services.GetService<IPluginManager>(),
+            WorkflowConfig = services.GetService<WorkflowConfig>(),
+            ExecutionSettingsProvider = services.GetService<IExecutionSettingsProvider>(),
+            MemoryManagementService = services.GetService<IMemoryManagementService>(),
+            TaskService = services.GetService<ITaskService>(),
+            TodoService = services.GetService<ITodoService>(),
+            UsageTracker = services.GetService<IUsageTracker>(),
+            PermissionManager = services.GetService<IAgentPermissionManager>(),
+            ThinkingStore = services.GetService<IThinkingStore>(),
+            RateLimitTracker = services.GetService<IRateLimitTracker>(),
+            WorkflowTaskExecutor = services.GetService<IWorkflowTaskExecutor>(),
+            ClipboardService = services.GetService<IClipboardService>(),
+            WorkspaceService = services.GetService<IWorkspaceService>(),
+            FileOperationTracker = services.GetService<IFileOperationTracker>(),
+            SessionTagService = services.GetService<ISessionTagService>(),
+            WebService = services.GetService<IWebService>(),
+            CostTracker = services.GetService<Core.CostTracking.CostTracker>(),
+            TokenStorage = services.GetService<ITokenStorage>(),
+            PkceGenerator = services.GetService<IPkceGenerator>(),
+            WorktreeService = services.GetService<IAgentWorktreeService>(),
+            BridgeClient = services.GetService<BridgeClient>(),
+        };
     }
 
     private static void WriteDiag(string message)

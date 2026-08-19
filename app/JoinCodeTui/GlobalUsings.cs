@@ -8,10 +8,34 @@ global using JoinCode.Abstractions.LLM.Execution;
 global using JoinCode.Abstractions.Models.Agent;
 global using JoinCode.Abstractions.Security;
 global using JoinCode.Abstractions.Security.Permission;
+global using JoinCode.Abstractions.Tools;
 global using IO.FileSystem;
 
 // App Builder (EngineSessionFactory)
 global using JoinCode.App.Builder;
+
+// 底层命令系统 — CmdMap/ChatCommandRegistry/CommandServices（转发斜杠命令，不自己实现一套）
+global using JoinCode.ChatCommands;
+global using JoinCode.Abstractions.Cmd;
+global using JoinCode.Abstractions.Configuration.Execution;
+global using JoinCode.Abstractions.Interfaces.Scheduling;
+global using Core.CostTracking;
+global using Core.Goal;
+global using Core.Hooks.Configuration;
+global using Core.Memdir;
+global using Core.Permission;
+global using Core.Plugins;
+global using Core.Query;
+global using Core.Scheduling.Cron;
+global using Core.Scheduling.Tasks;
+global using Core.Security.Services;
+global using Core.Bridge;
+global using Services.Api;
+global using Services.OAuth;
+global using Services.Shell;
+global using Services.Web;
+global using JoinCode.Services;
+global using Tools.Shell;
 
 // Queue (CommandQueue/QueueSnapshot)
 global using JoinCode.Queue;

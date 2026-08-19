@@ -36,23 +36,35 @@ public partial class SystemPromptProviderOptions
     /// 判断 agent 指定的 model alias 是否匹配父模型 tier
     /// <para>对齐 claude code aliasMatchesParentTier — 避免 Vertex 用户从 Opus 4.6 降级到默认 Opus</para>
     /// <para>alias = "opus" 且 parentModel 含 "opus" → true(用父模型,避免降级)</para>
+    /// <para>委托给 SubAgentModelResolver.AliasMatchesParentTier 保持单一真相源</para>
     /// </summary>
     public static bool ModelAliasMatchesParentTier(string? alias, string parentModel)
-    {
-        if (string.IsNullOrWhiteSpace(alias) || string.IsNullOrWhiteSpace(parentModel))
-            return false;
+        => SubAgentModelResolver.AliasMatchesParentTier(alias, parentModel);
 
-        var aliasLower = alias.ToLowerInvariant();
-        var parentLower = parentModel.ToLowerInvariant();
+    /// <summary>
+    /// 子代理默认模型关键字 — 对齐 claude code getDefaultSubagentModel
+    /// <para>返回 "inherit" 表示子代理默认继承父线程模型</para>
+    /// </summary>
+    public const string DefaultSubagentModel = SubAgentModelResolver.DefaultSubagentModel;
 
-        return aliasLower switch
-        {
-            "opus" => parentLower.Contains("opus"),
-            "sonnet" => parentLower.Contains("sonnet"),
-            "haiku" => parentLower.Contains("haiku"),
-            _ => false,
-        };
-    }
+    /// <summary>
+    /// 判断模型字符串是否是 inherit 关键字 — 对齐 claude code agentModelWithExp === 'inherit'
+    /// <para>不区分大小写: "inherit"、"Inherit"、"INHERIT" 均返回 true</para>
+    /// <para>null/空白 返回 false</para>
+    /// <para>委托给 SubAgentModelResolver.IsInheritKeyword 保持单一真相源</para>
+    /// </summary>
+    public static bool IsInheritKeyword(string? model)
+        => SubAgentModelResolver.IsInheritKeyword(model);
+
+    /// <summary>
+    /// 获取子代理模型显示文本 — 对齐 claude code getAgentModelDisplay
+    /// <para>null/空 → "Inherit from parent (default)"</para>
+    /// <para>"inherit" → "Inherit from parent"</para>
+    /// <para>其他 → 首字母大写</para>
+    /// <para>委托给 SubAgentModelResolver.GetAgentModelDisplay 保持单一真相源</para>
+    /// </summary>
+    public static string GetAgentModelDisplay(string? model)
+        => SubAgentModelResolver.GetAgentModelDisplay(model);
 
     #endregion
 

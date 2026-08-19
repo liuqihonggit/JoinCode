@@ -8,16 +8,18 @@ namespace Core.Agents;
 public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 
-    public ContextSetupMiddleware(ISubAgentContextAccessor subAgentContextAccessor, IFileStateCache? fileStateCache = null, ISkillService? skillService = null, ILogger<ContextSetupMiddleware>? logger = null)
+    public ContextSetupMiddleware(ISubAgentContextAccessor subAgentContextAccessor, IFileStateCache? fileStateCache = null, ISkillService? skillService = null, IModelConfigLoader? modelConfigLoader = null, ILogger<ContextSetupMiddleware>? logger = null)
     {
         _subAgentContextAccessor = subAgentContextAccessor;
         _fileStateCache = fileStateCache;
         _skillService = skillService;
+        _modelConfigLoader = modelConfigLoader;
         _logger = logger;
     }
     [Inject] private readonly IFileStateCache? _fileStateCache;
     [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     [Inject] private readonly ISkillService? _skillService;
+    [Inject] private readonly IModelConfigLoader? _modelConfigLoader;
     [Inject] private readonly ILogger<ContextSetupMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
@@ -45,9 +47,7 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
             Role = context.SpawnOptions.Role,
             Variant = context.SpawnOptions.Variant,
             AdditionalInstructions = context.SpawnOptions.Prompt,
-            ModelName = Environment.GetEnvironmentVariable("JCC_SUBAGENT_MODEL")
-                ?? context.SpawnOptions.Model
-                ?? context.Definition?.ModelName,
+            ModelName = ResolveSubagentModel(context),
             Temperature = context.Definition?.Temperature ?? 0.7f,
             DisplayName = context.SpawnOptions.Name ?? context.SpawnOptions.Description,
             SystemPrompt = context.SystemPrompt,
@@ -73,6 +73,63 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
         context.ResolvedSubOptions = subOptions;
 
         await next(context, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 解析子代理最终生效模型 — 对齐 claude code getAgentModel
+    /// <para>优先级链: JCC_SUBAGENT_MODEL 环境变量 > SpawnOptions.Model > Definition.ModelName > inherit/父级模型</para>
+    /// <para>"inherit" 关键字(不区分大小写)显式继承父线程模型,对齐 claude code getDefaultSubagentModel</para>
+    /// <para>null/空 也视为继承父级(隐式 inherit,与 ClaudeCode 默认 'inherit' 语义一致)</para>
+    /// <para>Bedrock 跨区域前缀继承: 若父模型有区域前缀且 provider 是 Bedrock,子代理模型继承相同前缀</para>
+    /// </summary>
+    private string? ResolveSubagentModel(UnifiedSpawnContext context)
+    {
+        var envModel = Environment.GetEnvironmentVariable("JCC_SUBAGENT_MODEL");
+        if (!string.IsNullOrEmpty(envModel))
+            return envModel;
+
+        var parentModel = GetParentModel();
+        var (parentRegionPrefix, isBedrockProvider) = AnalyzeParentProvider(parentModel);
+
+        return SubAgentModelResolver.ResolveModelWithBedrock(
+            context.SpawnOptions?.Model,
+            context.Definition?.ModelName,
+            parentModel,
+            parentRegionPrefix,
+            isBedrockProvider);
+    }
+
+    /// <summary>
+    /// 获取父线程(主代理)模型 ID — 从 SubAgentContext.CacheSafeParams.ModelId 读取
+    /// </summary>
+    private string? GetParentModel()
+    {
+        return _subAgentContextAccessor.Current?.CacheSafeParams?.ModelId;
+    }
+
+    /// <summary>
+    /// 分析父模型对应的 provider — 提取 Bedrock 区域前缀并判断是否是 Bedrock
+    /// <para>对齐 claude code getBedrockRegionPrefix(parentModel) + getAPIProvider() === 'bedrock'</para>
+    /// <para>无 IModelConfigLoader 或父模型未识别 provider 时,isBedrockProvider=false(不应用前缀)</para>
+    /// </summary>
+    private (string? parentRegionPrefix, bool isBedrockProvider) AnalyzeParentProvider(string? parentModel)
+    {
+        if (string.IsNullOrEmpty(parentModel))
+            return (null, false);
+
+        var parentRegionPrefix = BedrockModelHelper.GetBedrockRegionPrefix(parentModel);
+        if (parentRegionPrefix is null)
+            return (null, false);
+
+        if (_modelConfigLoader is null)
+            return (parentRegionPrefix, false);
+
+        var providerName = _modelConfigLoader.FindProviderByModelId(parentModel);
+        if (string.IsNullOrEmpty(providerName))
+            return (parentRegionPrefix, false);
+
+        var vendor = VendorKindExtensions.FromValue(providerName);
+        return (parentRegionPrefix, vendor == VendorKind.Bedrock);
     }
 
     /// <summary>

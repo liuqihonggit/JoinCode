@@ -36,10 +36,11 @@ public static class PerfTap
     }
 
     /// <summary>
-    /// 记录慢操作（>0ms 即记录）。
+    /// 记录慢操作（>10ms 才记录，避免大量微秒级日志）。
     /// </summary>
     public static void LogIfSlow(string label, long elapsedMs, string? extra = null)
     {
+        if (elapsedMs < 10) return;
         Log(label, elapsedMs, extra);
     }
 

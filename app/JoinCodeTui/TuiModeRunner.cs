@@ -180,7 +180,7 @@ internal static class TuiModeRunner
         };
 
         var processingCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var processingTask = ProcessQueueAsync(queue, mainPipe, outputView, queryEngine, chatHistory, app.RequestStop, painter, permissionDialog, permissionManager, cmdMap, commandRegistry, commandServiceProvider, processingCts.Token);
+        var processingTask = ProcessQueueAsync(queue, mainPipe, outputView, queryEngine, chatHistory, app.RequestStop, painter, permissionDialog, permissionManager, cmdMap, commandRegistry, commandServiceProvider, statusBar, toolBar, processingCts.Token);
 
         var focusSet = false;
         var lastQueueCount = -1;
@@ -249,6 +249,8 @@ internal static class TuiModeRunner
         CmdMap? cmdMap,
         ChatCommandRegistry commandRegistry,
         IServiceProvider commandServiceProvider,
+        StatusBarView statusBar,
+        ToolBarView toolBar,
         CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
@@ -263,7 +265,7 @@ internal static class TuiModeRunner
             // 斜杠命令 — 转发到底层 CmdMap，不自己实现一套
             if (cmd.Content.Length > 0 && cmd.Content[0] == '/')
             {
-                await HandleSlashCommandAsync(cmd.Content, cmdMap, commandRegistry, commandServiceProvider, outputView, requestStop, painter, cancellationToken).ConfigureAwait(false);
+                await HandleSlashCommandAsync(cmd.Content, cmdMap, commandRegistry, commandServiceProvider, outputView, requestStop, painter, permissionDialog, cancellationToken).ConfigureAwait(false);
                 continue;
             }
 
@@ -286,7 +288,9 @@ internal static class TuiModeRunner
 
             try
             {
+                painter.Invoke(() => toolBar.SetRunning(true));
                 var chunkCount = 0;
+                long totalTokens = 0;
                 var chunkSw = System.Diagnostics.Stopwatch.StartNew();
                 await foreach (var chunk in queryEngine.QueryAsync(cmd.Content, chatHistory, cancellationToken).ConfigureAwait(false))
                 {
@@ -296,9 +300,13 @@ internal static class TuiModeRunner
                     {
                         outputView.AppendText(text);
                     }
+                    if (chunk.Usage is not null)
+                        totalTokens += chunk.Usage.TotalTokens;
                 }
                 chunkSw.Stop();
                 PerfTap.Log("chunk-loop-total", chunkSw.ElapsedMilliseconds, $"chunks={chunkCount} cmd={cmd.Content[..Math.Min(50, cmd.Content.Length)]}");
+                if (totalTokens > 0)
+                    painter.Invoke(() => statusBar.SetTokenCount(totalTokens));
             }
             catch (OperationCanceledException) { break; }
             catch (PermissionPendingConfirmationException ex)
@@ -326,6 +334,10 @@ internal static class TuiModeRunner
             {
                 outputView.AppendLine($"  [错误] {ex.Message}");
             }
+            finally
+            {
+                painter.Invoke(() => toolBar.SetRunning(false));
+            }
         }
     }
 
@@ -340,6 +352,7 @@ internal static class TuiModeRunner
         OutputView outputView,
         Action requestStop,
         TerminalPainter painter,
+        PermissionDialogView permissionDialog,
         CancellationToken cancellationToken)
     {
         var parseResult = commandRegistry.Parse(input);
@@ -383,8 +396,12 @@ internal static class TuiModeRunner
             ClearScreen = () => painter.Invoke(() => outputView.Clear()),
             Confirm = msg =>
             {
-                // TUI 简化确认：非交互环境默认拒绝
-                return false;
+                // 用 TUI 权限对话框做确认
+                Task<bool>? dialogTask = null;
+                painter.Invoke(() => dialogTask = permissionDialog.ShowAsync("确认", msg, cancellationToken));
+                var result = dialogTask!.GetAwaiter().GetResult();
+                painter.Invoke(() => permissionDialog.Hide());
+                return result;
             },
             Prompt = msg =>
             {

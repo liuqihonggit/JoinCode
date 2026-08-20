@@ -24,6 +24,17 @@ public sealed class AnthropicQueryService : QueryServiceBase
     {
         var request = await CreateAnthropicRequest(chatHistory, executionSettings, stream: false, kernel).ConfigureAwait(false);
         var response = await SendAnthropicRequestAsync(request, cancellationToken).ConfigureAwait(false);
+
+        // 两阶段工具加载: 非流式检测 tool_description_request → 发送第二次请求
+        var firstContent = response.Content.FirstOrDefault(c => c.Type == AnthropicContentBlockType.Text)?.Text ?? string.Empty;
+        if (firstContent.Contains("tool_description_request") && kernel != null)
+        {
+            Logger?.LogDebug("[WIRE] Anthropic 非流式收到 tool_description_request, 发送第二次请求");
+            var secondRequest = CreateSecondAnthropicRequestWithDescriptions(request, firstContent, kernel);
+            var secondResponse = await SendAnthropicRequestAsync(secondRequest, cancellationToken).ConfigureAwait(false);
+            return ConvertAnthropicResponseToApiMessages(secondResponse);
+        }
+
         return ConvertAnthropicResponseToApiMessages(response);
     }
 

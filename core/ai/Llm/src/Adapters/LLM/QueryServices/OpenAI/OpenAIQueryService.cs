@@ -28,6 +28,17 @@ public class OpenAIQueryService : QueryServiceBase
         var request = CreateRequest(chatHistory, executionSettings, stream: false, kernel);
         var response = await SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
         Logger?.LogDebug("[WIRE {CallId}] 非流式响应 | choices={ChoiceCount}", CallTrace.CurrentId, response.Choices.Count);
+
+        // 两阶段工具加载: 非流式检测 tool_description_request → 发送第二次请求
+        var firstContent = response.Choices.FirstOrDefault()?.Message?.Content ?? string.Empty;
+        if (firstContent.Contains("tool_description_request") && kernel != null)
+        {
+            Logger?.LogDebug("[WIRE {CallId}] 非流式收到 tool_description_request, 发送第二次请求", CallTrace.CurrentId);
+            var secondRequest = CreateSecondRequestWithDescriptions(request, firstContent, kernel);
+            var secondResponse = await SendRequestAsync(secondRequest, cancellationToken).ConfigureAwait(false);
+            return secondResponse.Choices.Select(c => ConvertToApiMessage(c, secondResponse.Usage)).ToList();
+        }
+
         return response.Choices.Select(c => ConvertToApiMessage(c, response.Usage)).ToList();
     }
 

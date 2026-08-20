@@ -581,9 +581,6 @@ public class ResponsesQueryService : QueryServiceBase
         var json = JsonSerializer.Serialize(request, NativeJsonContext.Default.ResponsesRequest);
         var endpoint = GetChatEndpoint(Config);
 
-        Console.Error.WriteLine($"[WIRE-REQ] {endpoint} tools={request.Tools?.Count ?? 0} toolGroups={request.ToolGroups?.Count ?? 0} len={json.Length}");
-        Console.Error.WriteLine($"[WIRE-REQ-BODY] {json}");
-
         var response = await SendWithResilienceAsync(json, endpoint, "LLM.Responses", cancellationToken,
             HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
 

@@ -6,7 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Structura.Dag;
 using Infrastructure.Time;
 
-public sealed class GoalGraphEngineTests
+public sealed partial class GoalGraphEngineTests
 {
     /// <summary>
     /// 创建 Mock IChatClient — Agent 节点测试时需额外配置 GetChatCompletionService

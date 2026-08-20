@@ -18,6 +18,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity
     [Inject] private readonly IClockService _clock;
     [Inject] private readonly IServiceProvider _serviceProvider;
     [Inject] private readonly IAgentService? _agentService = null!;
+    [Inject] private readonly ICaptainDispatchGuard? _dispatchGuard = null!;
     [Inject] private readonly IGoalUserInteraction? _userInteraction = null;
     [Inject] private readonly IGoalNodeInspector? _nodeInspector = null;
     [Inject] private readonly IGoalConflictMessenger? _conflictMessenger = null;
@@ -44,6 +45,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity
         _nodeInspector = nodeInspector ?? serviceProvider.GetService<IGoalNodeInspector>();
         _conflictMessenger = conflictMessenger ?? serviceProvider.GetService<IGoalConflictMessenger>();
         _agentService = serviceProvider.GetService<IAgentService>();
+        _dispatchGuard = serviceProvider.GetService<ICaptainDispatchGuard>();
     }
 
     public void RegisterFunction(string nodeId, Func<NodeContext, Task<NodeResult>> fn)
@@ -401,6 +403,18 @@ public sealed partial class GoalGraphEngine : ServiceEntity
             FreshContext = payload.FreshContext,
             SystemPrompt = payload.SystemPrompt,
         };
+
+        // T2.2: 派发前查热点表 — 热点文件契约改队长自己揽不派Worker
+        if (_dispatchGuard is not null && payload.OwnedFiles is { Length: > 0 })
+        {
+            var decision = _dispatchGuard.CheckBeforeDispatch(payload.OwnedFiles);
+            if (decision.ShouldCaptainHandle)
+            {
+                _logger?.LogInformation("[GoalGraph] {NodeId}({Name}): 热点文件契约改，队长自己揽 — {Reason}，热点文件: {Files}",
+                    nodeId, payload.Name, decision.Reason, string.Join(", ", decision.HotSpotFiles));
+                spawnOptions = spawnOptions with { Role = AgentRole.Coordinator };
+            }
+        }
 
         var totalTokens = 0;
         var totalTurns = 0;

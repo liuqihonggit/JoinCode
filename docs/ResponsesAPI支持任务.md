@@ -15,37 +15,49 @@
 
 ## 任务拆分(TDD 渐进式)
 
-### 任务R1:ProtocolKind 加 OpenAiResponses 枚举
+### 任务R1:ProtocolKind 加 OpenAiResponses 枚举 ✅
 - `[EnumValue("responses")] OpenAiResponses = 4`
 - 全量重建(源码生成器)
+- 提交: 3e390a731
 
-### 任务R2:Responses API DTO + JsonContext
+### 任务R2:Responses API DTO + JsonContext ✅
 - ResponsesRequest(model/input/instructions/stream/temperature/top_p/max_output_tokens/tools/tool_choice/reasoning)
 - ResponsesResponse(id/object/model/output/usage/status/output_text)
 - ResponsesOutputItem(type/message/reasoning/function_call)
 - ResponsesUsage(input_tokens/output_tokens)
-- 流式事件 DTO(ResponseStreamEvent)
-- NativeJsonContext 注册
+- NativeJsonContext 注册,7 个序列化往返测试
+- 提交: cde5290c4
 
-### 任务R3:ResponsesQueryService 实现
+### 任务R3:ResponsesQueryService 实现 ✅
 - 继承 QueryServiceBase
-- CreateRequest:MessageList → ResponsesRequest(input + instructions)
+- CreateRequest:MessageList → ResponsesRequest(input + instructions),AOT 安全(字符串拼接,无 JsonNode)
 - 非流式:POST /responses → 反序列化 ResponsesResponse → ApiMessage
 - 流式:解析 SSE event(response.output_text.delta 等) → StreamEvent
 - 复用 SendWithResilienceAsync
+- 21 个单元测试全通过
+- 提交: 8cc95a57e
 
-### 任务R4:QueryServiceFactory 分派
+### 任务R4:QueryServiceFactory 分派 ✅
 - ProtocolKind.OpenAiResponses → ResponsesQueryService
+- 提交: d8d3a1989
 
-### 任务R5:协议端点支持 responses
-- OpenAiCompatibleProviderDefinition.GetChatEndpoint:ProtocolKind=Responses → "responses"
-- ProviderDefinitionRegistry:protocol "responses" → OpenAiCompatibleProviderDefinition
+### 任务R5:协议端点支持 responses ✅
+- OpenAiCompatibleProviderDefinition.GetChatEndpoint:config.ProtocolKind=Responses → "responses"
+- FallbackProviderDefinition + OpenAICompatibleProviderDefinitionBase 同步
+- ProviderDefinitionRegistry:protocol "responses" → OpenAiCompatibleProviderDefinition(else 分支已覆盖)
+- 提交: b8b528047
 
-### 任务R6:Azure 硬编码修复(协议自由切换)
-- ProviderDefinitionRegistry:Azure 也从 settings.json 读 protocol,不硬编码覆盖
-- Azure 默认仍 AzureProviderDefinition,但可配 protocol 切换
+### 任务R6:Azure 硬编码修复(协议自由切换) ✅
+- ProviderDefinitionRegistry:Azure 未在 settings.json 配置时才回退到内置 AzureProviderDefinition
+- Azure 可配 protocol 切换协议(配置大于代码)
+- 3 个新测试验证:未配回退 / 配了不覆盖 / responses 协议端点
+- 提交: d3af7ac0a
 
-### 任务R7:文档 + 全量测试
+### 任务R7:文档 + 全量测试 ✅
+- Llm.Tests: 351 通过
+- Guard.Config.Tests: 858 通过
+- Brain.Context.Tests: 755 通过
+- 总计 1964 测试全通过
 
 ## 核心原则
 - 配置大于代码:protocol:"responses" 即走 Responses API

@@ -33,11 +33,9 @@ public sealed class ContractChangeNotificationRouter : IContractChangeNotificati
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
         ArgumentException.ThrowIfNullOrWhiteSpace(notification);
 
-        if (_queues.TryGetValue(agentId, out var queue))
-        {
-            queue.Enqueue(notification);
-            _logger?.LogDebug("[ContractRoute] 通知已塞入 {AgentId} 的队列", agentId);
-        }
+        var queue = _queues.GetOrAdd(agentId, _ => new ConcurrentQueue<string>());
+        queue.Enqueue(notification);
+        _logger?.LogDebug("[ContractRoute] 通知已塞入 {AgentId} 的队列", agentId);
     }
 
     /// <summary>

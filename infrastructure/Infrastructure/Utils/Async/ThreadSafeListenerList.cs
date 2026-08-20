@@ -45,6 +45,17 @@ public sealed class ThreadSafeListenerList<T>
         }
     }
 
+    public int Count
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _listeners.Count;
+            }
+        }
+    }
+
     private void Unsubscribe(T listener)
     {
         lock (_lock)

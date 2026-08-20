@@ -11,6 +11,7 @@ public sealed partial class ForkSpawnMiddleware : ServiceEntity, IForkMiddleware
     private readonly IAgentWorktreeManager? _worktreeManager;
     private readonly IMailboxPoller? _mailboxPoller;
     private readonly JoinCode.Abstractions.Interfaces.IFileStateCache? _fileStateCache;
+    private readonly IHotSpotSpawnIntegration? _hotSpotIntegration;
     [Inject] private readonly ILogger<ForkSpawnMiddleware>? _logger;
     [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     [Inject] private readonly IClockService _clock;
@@ -21,6 +22,7 @@ public sealed partial class ForkSpawnMiddleware : ServiceEntity, IForkMiddleware
         IAgentWorktreeManager? worktreeManager = null,
         IMailboxPoller? mailboxPoller = null,
         JoinCode.Abstractions.Interfaces.IFileStateCache? fileStateCache = null,
+        IHotSpotSpawnIntegration? hotSpotIntegration = null,
         ILogger<ForkSpawnMiddleware>? logger = null,
         ISubAgentContextAccessor? subAgentContextAccessor = null,
         IClockService? clock = null)
@@ -30,6 +32,7 @@ public sealed partial class ForkSpawnMiddleware : ServiceEntity, IForkMiddleware
         _worktreeManager = worktreeManager;
         _mailboxPoller = mailboxPoller;
         _fileStateCache = fileStateCache;
+        _hotSpotIntegration = hotSpotIntegration;
         _logger = logger;
         _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
         _clock = clock ?? SystemClockService.Instance;
@@ -111,6 +114,17 @@ public sealed partial class ForkSpawnMiddleware : ServiceEntity, IForkMiddleware
 
         // 邮箱轮询
         StartMailboxPollingIfNeeded(agent.ObjectId.UniqueId, context.Options.ParentSessionId);
+
+        // 热点集成 — 注册文件写入监听器 + 设置契约变更通知队列
+        if (_hotSpotIntegration is not null)
+        {
+            var captainId = _subAgentContextAccessor.Current?.AgentId ?? "main";
+            _hotSpotIntegration.EnsureListenersRegistered(captainId);
+            if (agent is AgentBase agentBase)
+            {
+                agentBase.ContractChangeNotifications = _hotSpotIntegration.GetOrCreateNotificationQueue(agent.ObjectId.UniqueId);
+            }
+        }
 
         _logger?.LogInformation("Fork {ForkId} created for parent session {ParentSessionId}",
             context.ForkId, context.Options.ParentSessionId);

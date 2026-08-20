@@ -15,4 +15,6 @@ public sealed class FileWriteListenerRegistry : IFileWriteListenerRegistry
         ArgumentNullException.ThrowIfNull(e);
         _listeners.Notify(l => l.OnFileWrite(e));
     }
+
+    public int ListenerCount => _listeners.Count;
 }

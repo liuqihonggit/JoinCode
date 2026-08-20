@@ -1,0 +1,58 @@
+# Responses API 支持任务 + 协议自由切换
+
+## 需求
+1. 每个供应商可自由切换协议(修 Azure 硬编码)
+2. 支持 Responses API(DeepSeek-V4-Flash 原生支持,OpenAI 新协议)
+3. 所有模型都支持 Responses API(协议层,配置选择)
+
+## Responses API 格式(DeepSeek 官方,对齐 OpenAI)
+- 端点:`POST /responses`(base_url `https://api.deepseek.com`)
+- 请求:`model` + `input`(字符串或 item 列表) + `instructions`(system) + `stream` + `temperature` + `top_p` + `max_output_tokens` + `tools` + `tool_choice` + `reasoning`(effort)
+- 响应:`output` 数组(message/reasoning/function_call items) + `output_text` 便捷字段 + `usage`(input_tokens/output_tokens)
+- 流式:语义化 SSE 事件(`response.created` / `response.output_text.delta` / `response.completed`),**无 `data: [DONE]`**
+- 无状态:不支持 previous_response_id/store/background
+- 认证:`Authorization: Bearer`(同 OpenAI)
+
+## 任务拆分(TDD 渐进式)
+
+### 任务R1:ProtocolKind 加 OpenAiResponses 枚举
+- `[EnumValue("responses")] OpenAiResponses = 4`
+- 全量重建(源码生成器)
+
+### 任务R2:Responses API DTO + JsonContext
+- ResponsesRequest(model/input/instructions/stream/temperature/top_p/max_output_tokens/tools/tool_choice/reasoning)
+- ResponsesResponse(id/object/model/output/usage/status/output_text)
+- ResponsesOutputItem(type/message/reasoning/function_call)
+- ResponsesUsage(input_tokens/output_tokens)
+- 流式事件 DTO(ResponseStreamEvent)
+- NativeJsonContext 注册
+
+### 任务R3:ResponsesQueryService 实现
+- 继承 QueryServiceBase
+- CreateRequest:MessageList → ResponsesRequest(input + instructions)
+- 非流式:POST /responses → 反序列化 ResponsesResponse → ApiMessage
+- 流式:解析 SSE event(response.output_text.delta 等) → StreamEvent
+- 复用 SendWithResilienceAsync
+
+### 任务R4:QueryServiceFactory 分派
+- ProtocolKind.OpenAiResponses → ResponsesQueryService
+
+### 任务R5:协议端点支持 responses
+- OpenAiCompatibleProviderDefinition.GetChatEndpoint:ProtocolKind=Responses → "responses"
+- ProviderDefinitionRegistry:protocol "responses" → OpenAiCompatibleProviderDefinition
+
+### 任务R6:Azure 硬编码修复(协议自由切换)
+- ProviderDefinitionRegistry:Azure 也从 settings.json 读 protocol,不硬编码覆盖
+- Azure 默认仍 AzureProviderDefinition,但可配 protocol 切换
+
+### 任务R7:文档 + 全量测试
+
+## 核心原则
+- 配置大于代码:protocol:"responses" 即走 Responses API
+- 所有供应商可选 responses 协议(配置驱动)
+- Responses API 无状态,不实现 previous_response_id/store
+
+<!-- 🤖 Auto Decision: 2026-08-20 -->
+<!-- 决策: Responses API 作为独立 ProtocolKind.OpenAiResponses,而非复用 OpenAiCompatible -->
+<!-- 原因: 请求/响应/流式格式完全不同(input vs messages,output vs choices,event SSE vs data SSE),复用会增加条件分支复杂度 -->
+<!-- 替代方案: 在 OpenAIQueryService 内按协议分支(违反单一职责,不采用) -->

@@ -13,17 +13,18 @@ public sealed class CommandRewriterRegistryTest
         var registry = new CommandRewriterRegistry();
 
         var rewriters = registry.GetRewriters();
+        rewriters.Should().Contain(r => r.Name == "HeredocRewriter");
         rewriters.Should().Contain(r => r.Name == "GhPrBodyRewriter");
         rewriters.Should().Contain(r => r.Name == "GhTimeoutRewriter");
         rewriters.Should().Contain(r => r.Name == "VpnRouteRewriter");
     }
 
     [Fact]
-    public void Constructor_RegistersExactlyThreeDefaultRewriters()
+    public void Constructor_RegistersExactlyFourDefaultRewriters()
     {
         var registry = new CommandRewriterRegistry();
 
-        registry.GetRewriters().Should().HaveCount(3);
+        registry.GetRewriters().Should().HaveCount(4);
     }
 
     // === Register ===
@@ -37,7 +38,7 @@ public sealed class CommandRewriterRegistryTest
         registry.Register(custom);
 
         registry.GetRewriters().Should().Contain(custom);
-        registry.GetRewriters().Should().HaveCount(4);
+        registry.GetRewriters().Should().HaveCount(5);
     }
 
     [Fact]
@@ -60,7 +61,7 @@ public sealed class CommandRewriterRegistryTest
         registry.Register(r1);
         registry.Register(r2);
 
-        registry.GetRewriters().Should().HaveCount(5);
+        registry.GetRewriters().Should().HaveCount(6);
     }
 
     // === Rewrite — 无匹配 ===

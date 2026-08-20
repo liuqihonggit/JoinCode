@@ -26,6 +26,7 @@ public sealed partial class CommandRewriterRegistry : ServiceEntity
     /// </summary>
     private void RegisterDefaultRewriters()
     {
+        Register(new Rewriters.HeredocRewriter());
         Register(new Rewriters.GhPrBodyRewriter());
         Register(new Rewriters.GhTimeoutRewriter());
         Register(new Rewriters.VpnRouteRewriter());

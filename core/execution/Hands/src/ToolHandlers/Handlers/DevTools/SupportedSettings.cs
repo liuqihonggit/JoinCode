@@ -26,12 +26,12 @@ public static class SupportedSettings
                 Description = "按键绑定模式",
                 Options = ["default", "vim"],
             },
-            ["verbose"] = new()
+            ["debuglog"] = new()
             {
                 Source = "global",
                 Type = "boolean",
                 Description = "显示详细调试输出",
-                AppStateKey = "verbose",
+                AppStateKey = "debuglog",
             },
             ["preferredNotifChannel"] = new()
             {

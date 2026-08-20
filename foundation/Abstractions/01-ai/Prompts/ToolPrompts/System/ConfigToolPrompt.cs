@@ -75,7 +75,7 @@ public static class ConfigToolPrompt
 - 获取主题：{{ ""setting"": ""theme"" }}
 - 设置深色主题：{{ ""setting"": ""theme"", ""value"": ""dark"" }}
 - 启用 vim 模式：{{ ""setting"": ""editorMode"", ""value"": ""vim"" }}
-- 启用详细模式：{{ ""setting"": ""verbose"", ""value"": true }}
+- 启用调试日志：{{ ""setting"": ""debuglog"", ""value"": true }}
 - 更改模型：{{ ""setting"": ""model"", ""value"": ""opus"" }}
 - 更改权限模式：{{ ""setting"": ""permissions.defaultMode"", ""value"": ""plan"" }}
 ";

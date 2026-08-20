@@ -65,9 +65,9 @@ public sealed class ToolDiagnosticMessageTests
     [Fact]
     public void BuildUnknownSettingMessage_SubstringMatch_SuggestsCandidate()
     {
-        var msg = ConfigToolHandlers.BuildUnknownSettingMessage("verb");
+        var msg = ConfigToolHandlers.BuildUnknownSettingMessage("deb");
 
         msg.Should().Contain("你是不是想用");
-        msg.Should().Contain("verbose");
+        msg.Should().Contain("debuglog");
     }
 }

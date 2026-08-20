@@ -120,6 +120,9 @@ public sealed class KestrelMockServer : IHttpMockServer
                          : requestJson.RootElement.TryGetProperty("system", out _) ? "anthropic"
                          : "openai";
             Console.WriteLine($"[{_serverName}]   Protocol: {protocol}, Prefix length: {prefixForLog.Length} chars");
+            var prefixReadable = prefixForLog.Replace('\x00', '|').Replace('\x01', ':');
+            var prefixPreview = prefixReadable.Length > 500 ? prefixReadable[..500] + "..." : prefixReadable;
+            Console.WriteLine($"[{_serverName}]   Prefix content: {prefixPreview}");
 
             var messagesPreview = ExtractMessagesPreview(requestJson.RootElement);
             if (messagesPreview.Count > 0)
@@ -344,24 +347,29 @@ public sealed class KestrelMockServer : IHttpMockServer
             sb.AppendLine();
 
             var requestJson = JsonDocument.Parse(body);
-            sb.AppendLine("## Conversation Prefix");
+            sb.AppendLine($"## Conversation Prefix (full) — turn {requestIndex}");
             var prefix = TokenEstimator.ExtractConversationPrefix(requestJson.RootElement);
-            sb.AppendLine(prefix.Length > 200 ? prefix[..200] + "..." : prefix);
+            var prefixReadable = prefix.Replace('\x00', '\n').Replace('\x01', ':');
+            sb.AppendLine($"<prefix turn=\"{requestIndex}\" length=\"{prefix.Length}\">");
+            sb.AppendLine(prefixReadable);
+            sb.AppendLine("</prefix>");
             sb.AppendLine($"(prefix length: {prefix.Length} chars)");
             sb.AppendLine();
 
             if (requestJson.RootElement.TryGetProperty("instructions", out var instructions) &&
                 instructions.ValueKind == JsonValueKind.String)
             {
-                sb.AppendLine("## Instructions");
+                sb.AppendLine($"## Instructions (full) — turn {requestIndex}");
+                sb.AppendLine($"<instructions turn=\"{requestIndex}\">");
                 var instrText = instructions.GetString() ?? "";
-                var instrPreview = instrText.Length > 300 ? instrText[..300] + "..." : instrText;
-                sb.AppendLine(instrPreview);
+                sb.AppendLine(instrText);
+                sb.AppendLine("</instructions>");
                 sb.AppendLine($"  (length: {instrText.Length} chars)");
                 sb.AppendLine();
             }
 
-            sb.AppendLine("## Messages");
+            sb.AppendLine($"## Messages — turn {requestIndex}");
+            sb.AppendLine($"<messages turn=\"{requestIndex}\">");
             if (requestJson.RootElement.TryGetProperty("messages", out var messages))
             {
                 foreach (var msg in messages.EnumerateArray())
@@ -389,10 +397,14 @@ public sealed class KestrelMockServer : IHttpMockServer
                     sb.AppendLine($"  (content length: {content.Length} chars)");
                 }
             }
+            sb.AppendLine("</messages>");
+            sb.AppendLine();
 
             sb.AppendLine();
-            sb.AppendLine("## Raw Request Body");
+            sb.AppendLine($"## Raw Request Body — turn {requestIndex}");
+            sb.AppendLine($"<raw-body turn=\"{requestIndex}\">");
             sb.AppendLine(body);
+            sb.AppendLine("</raw-body>");
 
             IO.FileSystem.SafeFileIO.WriteAllText(filePath, sb.ToString());
             Console.WriteLine($"[{_serverName}]   Dumped: {filePath}");

@@ -76,6 +76,13 @@ public class AgentBase : Entity, IAgent
     public JoinCode.Abstractions.Interfaces.IAgentInputForwardQueue? InputForwardQueue { get; set; }
 
     /// <summary>
+    /// T5.0: 契约变更通知队列 — 每轮 LLM 调用前消费，收到 ContractChanged 后通知 Worker 已同步主干
+    /// 外部（MailboxPoller/AgentCoordinator）负责往队列里塞通知，AgentBase.DrainPendingUserInputs 消费
+    /// null 表示未接入契约变更通知（默认）
+    /// </summary>
+    public ConcurrentQueue<string>? ContractChangeNotifications { get; set; }
+
+    /// <summary>
     /// 输出 channel 管理器 — AgentBase.ExecuteStreamAsync 中统一写入，前台拉取显示
     /// null 表示不支持输出 channel（默认）；由 AgentServiceImpl 在创建子代理后注入
     /// 主代理和子代理都通过此属性统一输出，在父类 AgentBase 上一处实现
@@ -533,14 +540,33 @@ public class AgentBase : Entity, IAgent
     /// </summary>
     protected void DrainPendingUserInputs(MessageList chatHistory)
     {
-        if (InputForwardQueue is null) return;
-        var pendingInputs = InputForwardQueue.TryDrain(UniqueId);
-        if (pendingInputs.Count == 0) return;
-        foreach (var input in pendingInputs)
+        if (InputForwardQueue is not null)
         {
-            chatHistory.AddUserMessage($"[用户追加输入] {input}");
+            var pendingInputs = InputForwardQueue.TryDrain(UniqueId);
+            if (pendingInputs.Count > 0)
+            {
+                foreach (var input in pendingInputs)
+                {
+                    chatHistory.AddUserMessage($"[用户追加输入] {input}");
+                }
+                _logger?.LogInformation("[Agent {AgentId}] 消费 {Count} 条用户转发输入", UniqueId, pendingInputs.Count);
+            }
         }
-        _logger?.LogInformation("[Agent {AgentId}] 消费 {Count} 条用户转发输入", UniqueId, pendingInputs.Count);
+
+        // T5.0: 消费契约变更通知 — 收到 ContractChanged 后通知 Worker 已同步主干，继续工作
+        if (ContractChangeNotifications is not null)
+        {
+            var changeCount = 0;
+            while (ContractChangeNotifications.TryDequeue(out var changeContent))
+            {
+                chatHistory.AddUserMessage($"[契约变更通知] 队长已改热文件并 push: {changeContent}。已同步主干，请继续你的任务，保留本地半成品。");
+                changeCount++;
+            }
+            if (changeCount > 0)
+            {
+                _logger?.LogInformation("[Agent {AgentId}] 消费 {Count} 条契约变更通知", UniqueId, changeCount);
+            }
+        }
     }
 
     /// <summary>

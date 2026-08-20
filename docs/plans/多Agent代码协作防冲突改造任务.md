@@ -12,8 +12,8 @@
 2. **编译走消息队列**（`BuildQueueService` 已实现 bash 拦截），不需要专职 CompileWorker 角色
 3. **热点识别取代文件锁**（文件锁死锁高），用"上报+计数阈值+队长收口"替代 `FileLock`/`BatchLock`
 4. **广播复用现有 IMailbox 邮箱**，不新建 Broadcaster 类
-5. **核心文件变就广播**（`[CoreFile]` 标记区分），不做双版本编译检测
-6. **队长改核心文件连带改所有调用点**（完整修复，秘书执行），队员只同步不修复，避免重复劳动+冲突循环
+5. **热文件变就广播**（热文件检测区分），不做双版本编译检测
+6. **队长改热文件连带改所有调用点**（完整修复，秘书执行），队员只同步不修复，避免重复劳动+冲突循环
 7. **队长秘书**：常驻 subAgent（复用 Teammate 变体），做杂活+记任务，队长专注决策
 8. **任务派发复用现有 TodoWrite DAG + GoalGraphEngine**，不新建队列类
 9. **角色权限**：先定权限矩阵（tools/disallowedTools 白名单+参数范围），再由权限系统过滤，push 限制是其中一条规则
@@ -24,18 +24,23 @@
 
 ## 二、改造任务清单（按依赖排序）
 
-### 阶段 0：基础枚举与标记
+### 阶段 0：基础枚举与热文件检测
 
 #### T0.3 ModifyIntent 枚举
 - **新建** `foundation/Abstractions/00-core/Models/Agent/ModifyIntent.cs`：`{ InternalChange, ContractChange }` + `[EnumValue]`
 - 热点识别的双意图基础，源码生成器自动生成 Extensions
 - 验证：编译 Foundation.slnx + 枚举往返测试
 
-#### T0.4 静态核心文件标记
-- **新建** `CoreFileAttribute.cs` + `ICoreFileRegistry` + `CoreFileRegistry` 实现
-- `[CoreFile]` 特性标记 Entity/Enum/Constant/Interface/Configuration/BaseAbstract
-- `ICoreFileRegistry.IsCoreFile(path)`/`GetAllCoreFiles()`，`FrozenSet<string>` 缓存，源码生成器扫描收集
-- 验证：编译 + 标记文件查询测试
+#### T0.4 热文件检测器（通用，不限语言）
+- **新建** `IHotFileDetector` + `HotFileDetector` 实现
+- **启发式规则判断** `IsHotFile(path)`，通用支持 C#/Java/Python/JS/Go 等（不依赖目标项目的源码标记）
+- 检测规则：
+  - **目录约定**：`abstractions/`、`contracts/`、`foundation/`、`interfaces/`、`api/` 下的文件
+  - **命名约定**：`I*.cs`（接口）、`*Enum*`、`*Constant*`、`*Base*`、`*Abstract*`、`__init__.py`、`index.ts`、`package-info.java`
+  - **配置文件**：`*.json`/`*.yaml`/`*.toml` 配置、`settings.*`
+  - **可配扩展**：用户/队长可配置额外热文件路径/模式（项目级 `.jcc/hotfiles.json`）
+- `FrozenSet<string>` 缓存常用规则结果，线程安全
+- 验证：编译 + 各语言热文件检测测试（C# 接口/Java 枚举/Python `__init__.py`/JS `index.ts`）
 
 #### T0.5 移除 FileLock/BatchLock，用热点识别替代
 - **改造**：移除/弱化现有 `infrastructure/Infrastructure/AsyncFileLock/` 的 `FileLock`/`BatchLock` 使用
@@ -59,7 +64,7 @@
 #### T1.3 HotSpotTracker
 - **新建** `IHotSpotTracker` + `HotSpotTracker` 实现
 - 双计数器：`contract_claim_count`/`internal_claim_count`（集合大小）
-- 核心和非核心**统一计数阈值**判断（核心文件阈值=1 即归队长，非核心阈值=3，可配）
+- 核心和非核心**统一计数阈值**判断（热文件阈值=1 即归队长，非核心阈值=3，可配）
 - `internal_claim_count` 不触发热点（允许并行内部改）
 - 队长修改不计入认领集合；会话结束清空
 
@@ -75,11 +80,11 @@
 - 验证：编译 + 枚举测试
 
 #### T1.6 执行中实时上报（新增）
-- Worker 执行过程中遇到要改核心文件 → 实时通过 `IMailbox` 发 `IntentReport` 给队长
-- 与 T1.2 的启动时上报互补：启动时上报计划 + 执行中遇到核心文件实时上报
+- Worker 执行过程中遇到要改热文件 → 实时通过 `IMailbox` 发 `IntentReport` 给队长
+- 与 T1.2 的启动时上报互补：启动时上报计划 + 执行中遇到热文件实时上报
 
 #### T1.7 文件监控兜底（新增）
-- 文件系统事件监听（带防抖窗口）：发现 Worker 私自改核心文件未上报 → 告警/阻断
+- 文件系统事件监听（带防抖窗口）：发现 Worker 私自改热文件未上报 → 告警/阻断
 - 仅用于兜底纠错，不增加认领计数（PRD：上报制而非磁盘触发）
 
 ---
@@ -99,13 +104,13 @@
 
 #### T2.4 队长秘书（新增）
 - 常驻 subAgent，复用 `ExecutorVariant.Teammate` 变体 + system prompt 定义秘书职责
-- 职责（杂活）：队长改核心文件时找所有调用点+批量改+跑编译自检；整理任务表(DAG)；发广播邮件；记录任务状态
+- 职责（杂活）：队长改热文件时找所有调用点+批量改+跑编译自检；整理任务表(DAG)；发广播邮件；记录任务状态
 - 通信：队长通过 `IMailbox` 给秘书派活，秘书做完回结果
 - 任务记忆：复用 `TodoWrite` DAG + `GoalState` 持久化
 - 队长启动时 spawn 秘书常驻
 
-#### T2.5 队长改核心文件连带改所有调用点（新增）
-- 队长改核心文件（接口/枚举/公共签名）时，**用 CodeSemanticSearch + grep 找所有调用点，批量改**（完整修复）
+#### T2.5 队长改热文件连带改所有调用点（新增）
+- 队长改热文件（接口/枚举/公共签名）时，**用 CodeSemanticSearch + grep 找所有调用点，批量改**（完整修复）
 - 秘书执行此杂活（T2.4）
 - 队长改完接口+所有调用点 → 自检编译通过 → push → 广播
 - 队员 pull 同步 → 编译已通过（队长已修复调用点）→ 继续自己任务，不重复修复
@@ -124,11 +129,11 @@
 
 ### 阶段 4：契约变更广播
 
-#### T4.0 队长 push 核心文件后广播（合并原 T4.1+T4.3+T4.4）
-- 队长 push 核心文件后 → 秘书通过 `IMailbox.SendAsync` 给依赖 Worker 发 `ContractChanged` 消息
-- **核心文件变就广播**（`[CoreFile]` 标记区分），非核心不广播
+#### T4.0 队长 push 热文件后广播（合并原 T4.1+T4.3+T4.4）
+- 队长 push 热文件后 → 秘书通过 `IMailbox.SendAsync` 给依赖 Worker 发 `ContractChanged` 消息
+- **热文件变就广播**（热文件检测区分），非热文件不广播
 - **定向投递**给依赖该文件的 Worker，不全局广播
-- 不做双版本编译检测（T4.1 删）——核心文件变就广播，队员同步后自己编译验证
+- 不做双版本编译检测（T4.1 删）——热文件变就广播，队员同步后自己编译验证
 - 复用现有 `IMailbox`，不新建 Broadcaster 类
 
 ---
@@ -158,8 +163,8 @@
 
 #### T7.1 延迟邮件数据模型
 - `DeferredMail { To, Subject, Body, OpenAfterTurns, Marker, CreatedAt }`
-- `MailMarker` 枚举 `{ CoreFileConflict, TestFileConflict, ResourceRefChange }`
-- Marker 分类便于队员判断优先级（核心文件冲突/测试文件冲突/资源引用变更）
+- `MailMarker` 枚举 `{ HotFileConflict, TestFileConflict, ResourceRefChange }`
+- Marker 分类便于队员判断优先级（热文件冲突/测试文件冲突/资源引用变更）
 
 #### T7.2 IDeferredMailService 延迟投递
 - 延迟投递：邮件标记"将在 N 轮后自动打开，或任务结束之后注入"（默认 N=20）
@@ -185,9 +190,9 @@
 
 #### T8.2 任务表/任务清单文档生成（保留并深化）
 - 从 GoalEngine 分解结果产出结构化任务表.md，**深化方向**（用户确认）：
-  - 任务表字段：任务编号/描述/**涉及文件**/**修改意图**/**负责角色**/依赖/**验证方式**/**是否涉及核心文件/热点标注**
+  - 任务表字段：任务编号/描述/**涉及文件**/**修改意图**/**负责角色**/依赖/**验证方式**/**是否涉及热文件/热点标注**
   - **增量更新**：任务状态变化时更新文档（非一次性生成）
-  - **热点识别集成**：标注哪些任务涉及核心文件/热点，队长提前收口
+  - **热点识别集成**：标注哪些任务涉及热文件/热点，队长提前收口
 - 任务表作为 T9.2 worktree 决策的输入（LLM 读任务表判断 enableWorktree）
 
 #### T8.3 goal 命令与任务派发联动
@@ -200,10 +205,10 @@
 
 #### T9.2 LLM 决策 + Variant==Code 自动开 worktree（两层）
 - **现状缺口**：只有 cluster_expand 模板显式设 `IsolationMode=Worktree`（`GoalGraphTemplates.cs:520`），其他 5 个预置模板（refactor/bugfix/research/codereview/testgen）默认 `None` 不开 worktree；`GoalNodePayload.IsolationMode` 默认 `None`（`GoalNodePayload.cs:21`）
-- **第一层 LLM 全局决策**：`/goal <任务>` → LLM 分解任务填 TODO → LLM 根据任务难度（TODO 数量/涉及核心文件数/预估并行度）判断 `enableWorktree` 全局开关
+- **第一层 LLM 全局决策**：`/goal <任务>` → LLM 分解任务填 TODO → LLM 根据任务难度（TODO 数量/涉及热文件数/预估并行度）判断 `enableWorktree` 全局开关
   - 开启 = 任务大，多 agent 并行 + 各自 worktree 物理隔离
   - 不开启 = 小任务，单 agent 顺序执行即可
-  - 选择权交给 LLM，阈值可配（如 TODO≥3 或涉及核心文件≥1 才开）
+  - 选择权交给 LLM，阈值可配（如 TODO≥3 或涉及热文件≥1 才开）
 - **第二层节点类型自动判断**：若全局开，则按 `Variant==Code` 的改代码节点开 worktree，`Explore`（只读探索）/`Coordinator`（审查协调）不开
   - 规则：`IsolationMode = (enableWorktree && Variant == ExecutorVariant.Code) ? Worktree : None`
   - 依据：探索/审查只读不改，开 worktree 纯浪费；改代码节点需要物理隔离防冲突
@@ -218,7 +223,7 @@
 
 - jcc 权限系统已完善：`AgentDefinitionProvider` 为每个角色/变体定义 `Tools` 白名单 + `DisallowedTools` 黑名单，`AgentRestrictionMiddleware` + `PermissionAwareToolExecutor` + `ToolFilterPolicy` 三层过滤
 - **push 限制**：T6.0 串行合并已隐含"队长独占 push，Worker 不 push"（Worker 产出进合并队列不直接 push），如需显式可在 Worker `DisallowedTools` 加 `GitPush`（工具级，已有能力）
-- **核心文件限制**：由热点识别系统（T1.3/T1.4）+ `[CoreFile]` 标记（T0.4）运行时动态限制，不进静态权限矩阵
+- **热文件限制**：由热点识别系统（T1.3/T1.4）+ 热文件检测（T0.4）运行时动态限制，不进静态权限矩阵
 - **秘书权限**：复用 subagent 变体 profile 机制，队长赋予杂活工具（T2.4 覆盖）
 - 不新建参数级/文件路径级权限框架
 - **标记已完成，无新任务**
@@ -244,12 +249,12 @@
 | 1 | 等磁盘文件被修改后再统计热点 | 任务上报携带修改意图即统计热度 |
 | 2 | Worker 本地直接调用 dotnet build 绕过队列 | 全部编译提交 BuildQueueService |
 | 3 | 队长分发广播消息（亲自发） | 秘书通过 IMailbox 发广播 |
-| 4 | 内部/注释改动触发广播 | 核心文件变才广播（[CoreFile] 标记） |
+| 4 | 内部/注释改动触发广播 | 热文件变才广播（热文件检测） |
 | 5 | 多 Agent 并行合并到主干 | 队长串行合并，一次一个 |
 | 6 | Worker 直接 push 到主干 | Worker 只读主干，仅队长可 push |
 | 7 | 队长编译未通过就 push 并广播 | 队长自检通过后才能 push |
 | 8 | 契约热点触发后一刀切禁止 Worker 所有修改、作废内部半成品 | 仅回收契约修改权限，内部修改允许继续，保留内部半成品 |
-| 9 | 队长只改接口不改调用点（让队员擦屁股） | 队长改核心文件连带改所有调用点（完整修复） |
+| 9 | 队长只改接口不改调用点（让队员擦屁股） | 队长改热文件连带改所有调用点（完整修复） |
 | 10 | 用文件锁防并发写（死锁高） | 用热点识别+队长收口+worktree 隔离替代 |
 
 ---
@@ -259,7 +264,7 @@
 | 风险 | 应对 |
 |------|------|
 | 移除 FileLock 后并发写防护依赖热点识别准确性 | 文件监控兜底（T1.7）+ worktree 物理隔离 + 串行合并 |
-| 队长改核心文件连带改调用点工作量大 | 秘书执行（T2.4），用 CodeSemanticSearch 自动找调用点 |
+| 队长改热文件连带改调用点工作量大 | 秘书执行（T2.4），用 CodeSemanticSearch 自动找调用点 |
 | 热'点阈值需调参（核心=1，非核心=3） | 配置化，会话级可调 |
 | 多 Agent 并发上报意图线程安全 | `ConcurrentDictionary` + 集合大小作 claim_count |
 | 队员间通信（延迟邮件"队员发给队员"） | 中央邮箱解耦：subAgent → 中央邮箱 → subAgent，复用现有 IMailbox，零扩展 |
@@ -275,7 +280,7 @@
 | 任务 | 内容 | 角色 |
 |------|------|------|
 | T0.3 | ModifyIntent 枚举（InternalChange/ContractChange） | 基础枚举 |
-| T0.4 | [CoreFile] 标记 + ICoreFileRegistry | 基础标记 |
+| T0.4 | IHotFileDetector 热文件检测（通用不限语言） | 基础检测 |
 | T1.1 | FileModifyIntent 数据模型 | 数据载体 |
 | T1.2 | IntentCollector（收集上报） | 收集器 |
 | T1.3 | HotSpotTracker（双计数器+阈值） | 识别器 |
@@ -302,7 +307,7 @@
 | T2.1 | 扩展 mainAgent（热点检查+契约收口+push校验） | 队长能力 |
 | T2.2 | 复用 TodoWrite DAG + GoalGraphEngine 派发 | 派发机制 |
 | T2.4 | 队长秘书（常驻 subAgent） | 队长助手 |
-| T2.5 | 队长改核心文件连带改所有调用点 | 秘书执行 |
+| T2.5 | 队长改热文件连带改所有调用点 | 秘书执行 |
 
 **内聚理由**：T2.1 队长核心能力，T2.2 派发机制，T2.4 秘书常驻，T2.5 秘书执行连带改——都是"队长"主题。
 
@@ -345,7 +350,7 @@ A（热点识别核心） → B（通信） → C（队长派发） → D（同�
 E（延迟邮件，相对独立，可在 A 之后任意插入）
 ```
 
-- **A 必须最先**：T0.4 [CoreFile] 标记被 B/C/F 依赖
+- **A 必须最先**：T0.4 热文件检测被 B/C/F 依赖
 - **E 相对独立**：可在 A 之后任意插入
 - **F 依赖 C**：T9.2 worktree 决策依赖 T2.2 派发机制
 - 每单元独立编译+测试+提交，单元内任务一起重构
@@ -356,7 +361,25 @@ E（延迟邮件，相对独立，可在 A 之后任意插入）
 
 ## 六、业务闭环
 
-Worker 上报双意图 → 热点识别（取代文件锁）→ 多人抢契约则队长收口、多人改内部自由并行 → 队长改核心文件连带改所有调用点（完整修复）+ 自检 + push → 核心文件变广播给依赖 Worker → Worker pull 同步保留内部半成品 → 编译走消息队列防资源爆炸 → 队长串行合并防冲突爆炸。
+### 核心流程：串行-并行-串行-并行交替
+
+```
+① 串行：subAgent 上报要改什么（双意图：InternalChange/ContractChange）
+② 串行：队长先改热文件（连带改所有调用点，完整修复）+ 自检 + push
+③ 并行：队员 pull 同步主干 → 各自改剩下的（内部修改自由并行）
+④ 串行：队员完成 → 产出进合并队列 → 队长串行合并（一次一个，编译校验）
+⑤ 并行：下一批任务派发（DAG 就绪批次并行）
+... 循环
+```
+
+- **串行段**：上报收集、队长改热文件、队长串行合并——需要全局协调，串行防冲突
+- **并行段**：队员改内部、下一批任务——worktree 物理隔离，并行提效
+- 热点识别决定"哪些归队长串行改"（热文件契约改）vs"哪些队员并行改"（内部改）
+- 编译走消息队列防资源爆炸，worktree 隔离防文件冲突
+
+### 一句话闭环
+
+Worker 上报双意图 → 热点识别（取代文件锁）→ 热文件契约改队长串行收口、内部改队员自由并行 → 队长改热文件连带改所有调用点（完整修复）+ 自检 + push → 热文件变广播给依赖 Worker → Worker pull 同步保留内部半成品 → 编译走消息队列防资源爆炸 → 队长串行合并防冲突爆炸。
 
 ---
 
@@ -375,7 +398,7 @@ Worker 上报双意图 → 热点识别（取代文件锁）→ 多人抢契约�
 <!-- 原因: 用户逐条对齐,文件锁死锁高用热点识别替代,编译已实现bash拦截,队长太忙配秘书 -->
 <!-- 验证: 全部任务逐条对齐完成,进入实施 -->
 
-<!-- 🤖 Auto Decision: 2026-08-20 T7/T8/T9.2/T10.0/T11.1 对齐完成 -->
-<!-- 决策: T7.1-T7.3保留(中央邮箱解耦零扩展), T8.1删(6字段已精美), T8.2深化(涉及文件/修改意图/负责角色/依赖/验证/热点标注+增量更新+热点集成), T8.3保留, T9.2两层(LLM全局决策enableWorktree+Variant==Code自动开), T10.0删(权限已完善,push限制工具级,核心文件限制交热点识别), T11.1删(语义不符,Agent协作归DAG) -->
-<!-- 原因: 用户逐条确认,中央邮箱已解耦不需要扩展路由,6字段设计精美,worktree改代码才开探索审查不开,权限系统已完善不新建框架,超图建模工具链非Agent协作 -->
-<!-- 验证: 文档更新提交,全部任务对齐完成,可进入阶段0代码实施 -->
+<!-- 🤖 Auto Decision: 2026-08-20 T0.4 改为热文件检测 + 串行-并行流程 -->
+<!-- 决策: 删[CoreFile]特性标记+源码生成器扫描(C#专属不通用), 改为IHotFileDetector启发式规则检测(目录/命名/配置/可配,通用不限语言); "核心文件"统一改"热文件"; MailMarker.CoreFileConflict改HotFileConflict; 业务闭环加串行-并行-串行-并行交替流程 -->
+<!-- 原因: jcc是通用agent不支持Java/Python的源码标记,用热文件检测替代; 用户明确串行(队长改热文件)-并行(队员改内部)-串行(合并)-并行(下一批)交替 -->
+<!-- 验证: 文档更新,全部[CoreFile]引用已清除,待提交 -->

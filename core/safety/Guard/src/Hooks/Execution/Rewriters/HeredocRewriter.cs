@@ -7,7 +7,10 @@ namespace Core.Hooks.Execution.Rewriters;
 /// 因为 PowerShell 不支持 HEREDOC 语法。本改写器自动检测并转换为等效的双引号字符串。
 /// </para>
 /// <para>
-/// 支持的模式：
+/// 环境过滤：Bash 原生支持 HEREDOC，不转换；PowerShell/Cmd 不支持，需要转换。
+/// </para>
+/// <para>
+/// 支持的模式（仅非 Bash 环境）：
 /// 1. $(cat &lt;&lt;'EOF'\n...\nEOF) → "..."
 /// 2. $(cat &lt;&lt;EOF\n...\nEOF) → "..."
 /// 3. &lt;&lt;'EOF'\n...\nEOF → "..."
@@ -49,6 +52,12 @@ public sealed class HeredocRewriter : ICommandRewriter
     /// <inheritdoc/>
     public string Rewrite(string command, IReadOnlyDictionary<string, object> context)
     {
+        // Bash 原生支持 HEREDOC，不需要转换
+        if (IsBashShell(context))
+        {
+            return command;
+        }
+
         var result = command;
 
         // 先处理 $(cat <<'EOF'...EOF) 模式 — 命令替换内不加外层双引号（避免嵌套）
@@ -65,7 +74,7 @@ public sealed class HeredocRewriter : ICommandRewriter
             return "\"" + EscapeForDoubleQuotedString(content) + "\"";
         });
 
-        // 最后转义剩余的孤立 << 标记 — PowerShell 解析为重定向操作符导致命令失败
+        // 最后转义剩余的孤立 << 标记 — PowerShell/Cmd 解析为重定向操作符导致命令失败
         if (result.Contains("<<"))
         {
             result = result.Replace("<<", "`<`<");
@@ -78,6 +87,16 @@ public sealed class HeredocRewriter : ICommandRewriter
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// 判断当前 shell 是否为 Bash — Bash 原生支持 HEREDOC，无需转换
+    /// </summary>
+    private static bool IsBashShell(IReadOnlyDictionary<string, object> context)
+    {
+        return context.TryGetValue("ShellKind", out var kindObj)
+            && kindObj is SystemActuatorKind kind
+            && kind == SystemActuatorKind.Bash;
     }
 
     /// <summary>

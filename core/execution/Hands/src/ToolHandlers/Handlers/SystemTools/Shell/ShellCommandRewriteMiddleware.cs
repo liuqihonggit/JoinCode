@@ -30,7 +30,13 @@ public sealed partial class ShellCommandRewriteMiddleware : ServiceEntity, IShel
         // 改写命令
         if (!string.IsNullOrEmpty(context.Command))
         {
-            var result = _rewriterRegistry.Rewrite(context.Command);
+#pragma warning disable JCC1001 // context 字典仅运行时传参，不参与 AOT 序列化
+            var rewriteContext = new Dictionary<string, object>
+            {
+                ["ShellKind"] = context.Provider.Kind
+            };
+#pragma warning restore JCC1001
+            var result = _rewriterRegistry.Rewrite(context.Command, rewriteContext);
             if (result.WasRewritten)
             {
                 _logger?.LogWarning(

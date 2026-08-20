@@ -181,6 +181,63 @@ public sealed class HeredocRewriterTest
         result.Should().Contain("`<`<");
     }
 
+    // === 环境过滤 — Bash 不转换，PowerShell/Cmd 转换 ===
+
+    [Fact]
+    public void Rewrite_BashShell_HeredocNotConverted()
+    {
+        var command = "cat <<'EOF'\nline1\nline2\nEOF";
+        var bashContext = new Dictionary<string, object>
+        {
+            ["ShellKind"] = SystemActuatorKind.Bash
+        };
+
+        var result = _rewriter.Rewrite(command, bashContext);
+
+        result.Should().Be(command);
+    }
+
+    [Fact]
+    public void Rewrite_BashShell_IsolatedMarkerNotEscaped()
+    {
+        var command = "echo \"<< test\"";
+        var bashContext = new Dictionary<string, object>
+        {
+            ["ShellKind"] = SystemActuatorKind.Bash
+        };
+
+        var result = _rewriter.Rewrite(command, bashContext);
+
+        result.Should().Be(command);
+        result.Should().Contain("<<");
+    }
+
+    [Fact]
+    public void Rewrite_PowerShellShell_HeredocConverted()
+    {
+        var command = "cat <<'EOF'\nline1\nline2\nEOF";
+        var pwshContext = new Dictionary<string, object>
+        {
+            ["ShellKind"] = SystemActuatorKind.PowerShell
+        };
+
+        var result = _rewriter.Rewrite(command, pwshContext);
+
+        result.Should().Contain("\"line1\nline2\"");
+        result.Should().NotContain("<<'EOF'");
+    }
+
+    [Fact]
+    public void Rewrite_EmptyContext_DefaultsToConversion()
+    {
+        var command = "cat <<'EOF'\nline1\nEOF";
+
+        var result = _rewriter.Rewrite(command, FrozenDictionary<string, object>.Empty);
+
+        result.Should().NotContain("<<'EOF'");
+        result.Should().Contain("line1");
+    }
+
     // === 优先级和名称 ===
 
     [Fact]

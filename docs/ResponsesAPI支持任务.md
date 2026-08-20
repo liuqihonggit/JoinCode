@@ -121,3 +121,49 @@
 ### ⚠️ 后续待办
 - 真实 DeepSeek API(非 MockServer)端到端验证 tool_description_request 两阶段加载链路
 - 确认 `max_output_tokens` 截断时 FinishReason 是否应标记为 `length`(当前为 stop,待真实 API 行为确认)
+
+## 真实 API 验证(2026-08-21) — Responses 协议链路修复
+
+### 触发场景
+用户配置了真实 DeepSeek key,运行 jcc.exe 调用工具时报 400 Bad Request。诊断出两处**协议错误**:
+
+### 根因1 ✅ 已修复: 工具结果必须用 function_call_output item
+- **错误格式**(会 400): `{"type":"message","role":"tool","content":[{"type":"input_text","text":"..."}]}`
+- **正确格式**: `{"type":"function_call_output","call_id":"...","output":"..."}`
+- **修复**: `CreateRequest` 历史循环 — tool 消息 → `function_call_output` item(call_id 从 ToolCallId metadata 读,output=content);assistant 带 ToolCalls/AllToolCalls → `function_call` item(call_id/name/arguments),然后 continue(工具轮 assistant content=null 安全);新增辅助方法 `AppendItem`/`AppendFunctionCallOutput`
+- **测试**: 3 个红测试(工具历史/带 reasoning 的历史/工具+reasoning 组合) → 绿
+
+### 根因2 ✅ 已修复: thinking 模式必须回传 reasoning_text
+- **错误**: DeepSeek 报 `The reasoning_text in the thinking mode must be passed back to the API.`(缺失时 400)
+- **正确格式**: `{"type":"reasoning","content":[{"type":"reasoning_text","text":"..."}]}`
+- **修复**: 
+  - 响应侧: `MessageMetadataKey` 新增 `[EnumValue("ReasoningText")] ReasoningText`;`ConvertToApiMessages` 非流式累积 reasoning item → assistant metadata;流式 `response.reasoning_text.delta` 用 `reasoningAccumulator` 累积,终局事件(completed/incomplete)写入 metadata
+  - 请求侧: `CreateRequest` 读 assistant metadata 的 ReasoningText → 输出 `reasoning` item(在 function_call 之前)
+- **测试**: 5 个红测试(非流式/无 reasoning 时缺键/带工具调用/流式累积/请求回传) → 绿
+
+### 手工 curl 逐项验证(确认根因)
+| 场景 | 结果 |
+|------|------|
+| tool_groups 单独 | 200(DeepSeek 忽略) |
+| 全字段组合(instructions+reasoning+tool_choice+tools+tool_groups) | 200 |
+| stream=true | 200 |
+| 290 工具全量(66KB/198KB 请求体) | 200(非大小问题) |
+| `role=tool` message | **400** ❌ |
+| function_call+function_call_output 无 reasoning | **400** ❌ |
+| 带 reasoning item | **200** ✅ |
+
+### 真实 API 结果
+- ✅ DeepSeek(Responses 协议)单轮工具调用链路跑通:Grep 工具执行成功返回 4 个文件,无 400
+- ✅ sensenova(openai-compatible)多轮工具循环跑通:Grep 定位 → file_snip_lines 读取 → 输出答案,历史正确回传
+- ✅ agnes(openai-compatible)对话连通
+- 验证后移除临时诊断日志 `[WIRE-REQ]`/`[WIRE-REQ-BODY]`/`[WIRE-ERR]`
+
+### 提交
+- 38362c52d: 响应侧非流式 reasoning 存入 assistant metadata
+- 4ff0731b1: 流式 reasoning_text.delta 累积
+- 01e961975: 请求侧工具历史转 function_call/function_call_output/reasoning items
+- 05b8c760c: 移除调试日志
+
+### ⚠️ 后续待办
+- Responses 协议多轮工具循环真实 API 验证未完成(用户暂停 DeepSeek 测试,key 已 401),多轮历史转换由单元测试覆盖
+- 真实 DeepSeek API 端到端验证 tool_description_request 两阶段加载链路

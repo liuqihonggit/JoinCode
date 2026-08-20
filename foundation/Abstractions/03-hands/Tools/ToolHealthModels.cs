@@ -37,6 +37,37 @@ public sealed class ToolHealthRecord
 }
 
 /// <summary>
+/// 工具健康监控扩展方法 — 提供错误追踪判断能力（合并自 ToolErrorTracker）
+/// </summary>
+public static class ToolHealthMonitorExtensions
+{
+    /// <summary>
+    /// 判断工具是否应该自动修正 — 连续失败次数达到阈值
+    /// </summary>
+    public static async Task<bool> ShouldAutoFixAsync(
+        this IToolHealthMonitor monitor,
+        string toolName,
+        int threshold = 3,
+        CancellationToken ct = default)
+    {
+        var record = await monitor.GetRecordAsync(toolName, ct).ConfigureAwait(false);
+        return record is not null && record.ConsecutiveFailures >= threshold;
+    }
+
+    /// <summary>
+    /// 获取工具错误次数（= ConsecutiveFailures）
+    /// </summary>
+    public static async Task<int> GetErrorCountAsync(
+        this IToolHealthMonitor monitor,
+        string toolName,
+        CancellationToken ct = default)
+    {
+        var record = await monitor.GetRecordAsync(toolName, ct).ConfigureAwait(false);
+        return record?.ConsecutiveFailures ?? 0;
+    }
+}
+
+/// <summary>
 /// 工具评分配置 — 控制奖惩幅度、提示词阈值、时间衰减率
 /// </summary>
 public sealed class ToolScoreConfig

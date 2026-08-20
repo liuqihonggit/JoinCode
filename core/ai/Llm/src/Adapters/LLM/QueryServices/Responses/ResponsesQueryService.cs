@@ -49,6 +49,7 @@ public class ResponsesQueryService : QueryServiceBase
         var isFirstChunk = true;
         string? currentEvent = null;
         string? descRequestContent = null;
+        var descRequestAccumulator = new StringBuilder();
 
         string? line;
         while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
@@ -98,9 +99,11 @@ public class ResponsesQueryService : QueryServiceBase
                 case "response.output_text.delta":
                     {
                         var delta = eventJson.TryGetProperty("delta", out var deltaProp) ? deltaProp.GetString() ?? string.Empty : string.Empty;
-                        if (delta.Contains("tool_description_request") && kernel != null)
+                        descRequestAccumulator.Append(delta);
+                        var accumulated = descRequestAccumulator.ToString();
+                        if (kernel != null && accumulated.Contains("tool_description_request") && accumulated.TrimEnd().EndsWith('}'))
                         {
-                            descRequestContent = delta;
+                            descRequestContent = accumulated;
                             break;
                         }
                         if (isFirstChunk)
@@ -403,11 +406,20 @@ public class ResponsesQueryService : QueryServiceBase
     internal static ResponsesRequest CreateSecondResponsesRequestWithDescriptions(
         ResponsesRequest originalRequest, string descRequestContent, IChatClient kernel)
     {
-        var doc = JsonDocument.Parse(descRequestContent);
-        var toolNames = doc.RootElement.GetProperty("tools").EnumerateArray()
-            .Select(t => t.GetString() ?? "")
-            .Where(s => !string.IsNullOrEmpty(s))
-            .ToHashSet(StringComparer.Ordinal);
+        HashSet<string> toolNames;
+        try
+        {
+            var doc = JsonDocument.Parse(descRequestContent);
+            toolNames = doc.RootElement.GetProperty("tools").EnumerateArray()
+                .Select(t => t.GetString() ?? "")
+                .Where(s => !string.IsNullOrEmpty(s))
+                .ToHashSet(StringComparer.Ordinal);
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidOperationException(
+                $"Failed to parse tool_description_request JSON: {ex.Message} | Content: {descRequestContent[..Math.Min(descRequestContent.Length, 200)]}", ex);
+        }
 
         var descriptions = new List<ResponsesTool>();
         foreach (var pluginName in kernel.Plugins.PluginNames)

@@ -426,11 +426,20 @@ public sealed class AnthropicQueryService : QueryServiceBase
     internal static AnthropicMessagesRequest CreateSecondAnthropicRequestWithDescriptions(
         AnthropicMessagesRequest originalRequest, string descRequestContent, IChatClient kernel)
     {
-        var doc = JsonDocument.Parse(descRequestContent);
-        var toolNames = doc.RootElement.GetProperty("tools").EnumerateArray()
-            .Select(t => t.GetString() ?? "")
-            .Where(s => !string.IsNullOrEmpty(s))
-            .ToHashSet(StringComparer.Ordinal);
+        HashSet<string> toolNames;
+        try
+        {
+            var doc = JsonDocument.Parse(descRequestContent);
+            toolNames = doc.RootElement.GetProperty("tools").EnumerateArray()
+                .Select(t => t.GetString() ?? "")
+                .Where(s => !string.IsNullOrEmpty(s))
+                .ToHashSet(StringComparer.Ordinal);
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidOperationException(
+                $"Failed to parse tool_description_request JSON: {ex.Message} | Content: {descRequestContent[..Math.Min(descRequestContent.Length, 200)]}", ex);
+        }
 
         var descriptions = new List<AnthropicToolDefinition>();
         foreach (var pluginName in kernel.Plugins.PluginNames)
@@ -704,6 +713,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
         FrozenDictionary<string, JsonElement>? thinkingDeltaMetadata = null;
 
         string? descRequestContent = null;
+        var descRequestAccumulator = new StringBuilder();
         string? line;
         while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
         {
@@ -834,9 +844,11 @@ public sealed class AnthropicQueryService : QueryServiceBase
                         }
                         else if (delta.Type == AnthropicDeltaType.TextDelta && delta.Text != null)
                         {
-                            if (delta.Text.Contains("tool_description_request") && kernel != null)
+                            descRequestAccumulator.Append(delta.Text);
+                            var accumulated = descRequestAccumulator.ToString();
+                            if (kernel != null && accumulated.Contains("tool_description_request") && accumulated.TrimEnd().EndsWith('}'))
                             {
-                                descRequestContent = delta.Text;
+                                descRequestContent = accumulated;
                                 break;
                             }
                             yield return new StreamEvent(MessageRole.Assistant, delta.Text, modelName, textDeltaMetadata);

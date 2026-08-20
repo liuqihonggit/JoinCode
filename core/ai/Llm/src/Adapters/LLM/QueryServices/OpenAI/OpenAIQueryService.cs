@@ -55,6 +55,7 @@ public class OpenAIQueryService : QueryServiceBase
 
         var toolCallAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
         var isFirstChunk = true;
+        var descRequestAccumulator = new StringBuilder();
 
         await foreach (var chunk in responseStream)
         {
@@ -83,10 +84,14 @@ public class OpenAIQueryService : QueryServiceBase
             var role = ConvertRole(choice.Delta?.Role);
 
             // 两阶段工具加载: 检测 tool_description_request → 构建工具描述 → 发送第二次请求
-            if (content.Contains("tool_description_request") && kernel != null)
+            // 支持分多 delta 发送: 累积 content,检测累积内容是否包含完整 tool_description_request JSON
+            if (!string.IsNullOrEmpty(content))
+                descRequestAccumulator.Append(content);
+            var accumulatedContent = descRequestAccumulator.ToString();
+            if (kernel != null && accumulatedContent.Contains("tool_description_request") && accumulatedContent.TrimEnd().EndsWith('}'))
             {
                 Logger?.LogDebug("[WIRE {CallId}] 收到 tool_description_request, 发送第二次请求", CallTrace.CurrentId);
-                var secondRequest = CreateSecondRequestWithDescriptions(request, content, kernel);
+                var secondRequest = CreateSecondRequestWithDescriptions(request, accumulatedContent, kernel);
                 var secondStream = SendStreamingRequestAsync(secondRequest, cancellationToken);
                 var secondAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
                 var secondFirstChunk = true;
@@ -377,11 +382,20 @@ public class OpenAIQueryService : QueryServiceBase
     internal static OpenAIChatRequest CreateSecondRequestWithDescriptions(
         OpenAIChatRequest originalRequest, string descRequestContent, IChatClient kernel)
     {
-        var doc = JsonDocument.Parse(descRequestContent);
-        var toolNames = doc.RootElement.GetProperty("tools").EnumerateArray()
-            .Select(t => t.GetString() ?? "")
-            .Where(s => !string.IsNullOrEmpty(s))
-            .ToHashSet(StringComparer.Ordinal);
+        HashSet<string> toolNames;
+        try
+        {
+            var doc = JsonDocument.Parse(descRequestContent);
+            toolNames = doc.RootElement.GetProperty("tools").EnumerateArray()
+                .Select(t => t.GetString() ?? "")
+                .Where(s => !string.IsNullOrEmpty(s))
+                .ToHashSet(StringComparer.Ordinal);
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidOperationException(
+                $"Failed to parse tool_description_request JSON: {ex.Message} | Content: {descRequestContent[..Math.Min(descRequestContent.Length, 200)]}", ex);
+        }
 
         var descriptions = new List<OpenAITool>();
         foreach (var pluginName in kernel.Plugins.PluginNames)

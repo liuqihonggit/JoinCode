@@ -222,6 +222,94 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
+    public void CreateRequest_ToolHistory_EmitsFunctionCallAndFunctionCallOutputItems()
+    {
+        // DeepSeek Responses API: 工具调用历史须用 function_call + function_call_output items, 而非 role=tool message
+        var service = CreateService();
+        var assistantMeta = new Dictionary<string, JsonElement>
+        {
+            ["ToolCalls"] = JsonElementHelper.FromJson("[{\"Id\":\"call-1\",\"Name\":\"grep\",\"Arguments\":\"{\\\"q\\\":\\\"x\\\"}\"}]")
+        };
+        var toolMeta = new Dictionary<string, JsonElement>
+        {
+            ["ToolCallId"] = JsonElementHelper.FromString("call-1"),
+            ["ToolName"] = JsonElementHelper.FromString("grep")
+        };
+        var history = new MessageList
+        {
+            new(MessageRole.User, "search x"),
+            new(MessageRole.Assistant, null, assistantMeta),
+            new(MessageRole.Tool, "found file", toolMeta)
+        };
+
+        var request = service.CreateRequest(history, null, stream: false, null);
+
+        var input = request.Input.GetRawText();
+        input.Should().Contain("\"type\":\"function_call\"", "assistant 工具调用应转 function_call item");
+        input.Should().Contain("\"call_id\":\"call-1\"");
+        input.Should().Contain("\"name\":\"grep\"");
+        input.Should().Contain("\"arguments\":\"{\\\"q\\\":\\\"x\\\"}\"");
+        input.Should().Contain("\"type\":\"function_call_output\"", "tool 结果应转 function_call_output item");
+        input.Should().Contain("\"call_id\":\"call-1\"");
+        input.Should().Contain("\"output\":\"found file\"");
+        input.Should().NotContain("\"role\":\"tool\"", "禁止使用 Chat Completions 的 role=tool 格式");
+    }
+
+    [Fact]
+    public void CreateRequest_AssistantWithReasoning_EmitsReasoningItem()
+    {
+        // thinking 模式: assistant 的 reasoning 必须以 reasoning item 回传, 否则 DeepSeek 400
+        var service = CreateService();
+        var assistantMeta = new Dictionary<string, JsonElement>
+        {
+            ["ReasoningText"] = JsonElementHelper.FromString("Let me think about this carefully.")
+        };
+        var history = new MessageList
+        {
+            new(MessageRole.User, "search x"),
+            new(MessageRole.Assistant, "found it", assistantMeta)
+        };
+
+        var request = service.CreateRequest(history, null, stream: false, null);
+
+        var input = request.Input.GetRawText();
+        input.Should().Contain("\"type\":\"reasoning\"", "assistant 的 reasoning 应回传为 reasoning item");
+        input.Should().Contain("\"type\":\"reasoning_text\"");
+        input.Should().Contain("\"text\":\"Let me think about this carefully.\"");
+    }
+
+    [Fact]
+    public void CreateRequest_ToolCallHistoryWithReasoning_EmitsReasoningThenFunctionCallItems()
+    {
+        // 工具调用轮: reasoning item 在 function_call 之前回传, 顺序对齐 DeepSeek 输出结构
+        var service = CreateService();
+        var assistantMeta = new Dictionary<string, JsonElement>
+        {
+            ["ReasoningText"] = JsonElementHelper.FromString("I should use grep."),
+            ["ToolCalls"] = JsonElementHelper.FromJson("[{\"Id\":\"call-2\",\"Name\":\"grep\",\"Arguments\":\"{}\"}]")
+        };
+        var toolMeta = new Dictionary<string, JsonElement>
+        {
+            ["ToolCallId"] = JsonElementHelper.FromString("call-2"),
+            ["ToolName"] = JsonElementHelper.FromString("grep")
+        };
+        var history = new MessageList
+        {
+            new(MessageRole.User, "search"),
+            new(MessageRole.Assistant, null, assistantMeta),
+            new(MessageRole.Tool, "result", toolMeta)
+        };
+
+        var request = service.CreateRequest(history, null, stream: false, null);
+
+        var input = request.Input.GetRawText();
+        var reasoningIdx = input.IndexOf("\"type\":\"reasoning\"", StringComparison.Ordinal);
+        var functionCallIdx = input.IndexOf("\"type\":\"function_call\"", StringComparison.Ordinal);
+        reasoningIdx.Should().BeGreaterThan(-1);
+        functionCallIdx.Should().BeGreaterThan(reasoningIdx, "reasoning item 应在 function_call 之前");
+    }
+
+    [Fact]
     public void CreateRequest_SpecialCharactersInContent_EscapedProperly()
     {
         var service = CreateService();

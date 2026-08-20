@@ -318,6 +318,43 @@ public class ResponsesQueryService : QueryServiceBase
                 instructions = string.IsNullOrEmpty(instructions) ? msg.Content : instructions + "\n" + msg.Content;
                 continue;
             }
+
+            if (msg.Role == MessageRole.Tool)
+            {
+                AppendFunctionCallOutput(inputSb, msg, ref firstInput);
+                continue;
+            }
+
+            if (msg.Role == MessageRole.Assistant && msg.Metadata is not null)
+            {
+                if (msg.Metadata.TryGetValue(MessageMetadataKeyConstants.ReasoningText, out var reasoningProp)
+                    && reasoningProp.ValueKind == JsonValueKind.String)
+                {
+                    AppendItem(inputSb, ref firstInput);
+                    inputSb.Append("{\"type\":\"reasoning\",\"content\":[{\"type\":\"reasoning_text\",\"text\":\"")
+                        .Append(EscapeJsonString(reasoningProp.GetString() ?? string.Empty)).Append("\"}]}");
+                }
+
+                if (msg.Metadata.TryGetValue(MessageMetadataKeyConstants.ToolCalls, out var toolCallsProp)
+                    || msg.Metadata.TryGetValue("AllToolCalls", out toolCallsProp))
+                {
+                    if (toolCallsProp.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var tc in toolCallsProp.EnumerateArray())
+                        {
+                            var id = tc.TryGetProperty("Id", out var idProp) ? idProp.GetString() ?? "" : "";
+                            var name = tc.TryGetProperty("Name", out var nameProp) ? nameProp.GetString() ?? "" : "";
+                            var args = tc.TryGetProperty("Arguments", out var argsProp) ? argsProp.GetString() ?? "{}" : "{}";
+                            AppendItem(inputSb, ref firstInput);
+                            inputSb.Append("{\"type\":\"function_call\",\"call_id\":\"").Append(EscapeJsonString(id))
+                                .Append("\",\"name\":\"").Append(EscapeJsonString(name))
+                                .Append("\",\"arguments\":\"").Append(EscapeJsonString(args)).Append("\"}");
+                        }
+                        continue;
+                    }
+                }
+            }
+
             if (!firstInput) inputSb.Append(',');
             firstInput = false;
             var role = ConvertRoleToString(msg.Role);
@@ -513,6 +550,26 @@ public class ResponsesQueryService : QueryServiceBase
             }
         }
         return sb.ToString();
+    }
+
+    /// <summary>输入数组前置分隔符 — 首个 item 前不加逗号</summary>
+    private static void AppendItem(StringBuilder sb, ref bool firstInput)
+    {
+        if (!firstInput) sb.Append(',');
+        firstInput = false;
+    }
+
+    /// <summary>Tool 结果消息 → function_call_output item（Responses API 官方格式，非 role=tool message）</summary>
+    private static void AppendFunctionCallOutput(StringBuilder sb, ApiMessage msg, ref bool firstInput)
+    {
+        var callId = msg.Metadata is not null
+            && msg.Metadata.TryGetValue(MessageMetadataKeyConstants.ToolCallId, out var idProp)
+            && idProp.ValueKind == JsonValueKind.String
+            ? idProp.GetString() ?? string.Empty
+            : string.Empty;
+        AppendItem(sb, ref firstInput);
+        sb.Append("{\"type\":\"function_call_output\",\"call_id\":\"").Append(EscapeJsonString(callId))
+            .Append("\",\"output\":\"").Append(EscapeJsonString(msg.Content ?? string.Empty)).Append("\"}");
     }
 
     #endregion

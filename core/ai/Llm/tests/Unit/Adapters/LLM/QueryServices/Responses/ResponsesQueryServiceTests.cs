@@ -238,6 +238,31 @@ public class ResponsesQueryServiceTests
     #region ConvertToApiMessages
 
     [Fact]
+    public async Task Stream_ReasoningDelta_AccumulatedInFinalMetadata()
+    {
+        // thinking 模式下流式 reasoning_text.delta 应累积到终局事件的 ReasoningText metadata
+        var sse =
+            "event: response.reasoning_text.delta\ndata: {\"delta\":\"Let me think\"}\n\n" +
+            "event: response.reasoning_text.delta\ndata: {\"delta\":\" about this.\"}\n\n" +
+            "event: response.output_text.delta\ndata: {\"delta\":\"Answer\"}\n\n" +
+            "event: response.completed\ndata: {\"response\":{\"id\":\"resp-9\",\"status\":\"completed\",\"usage\":{\"input_tokens\":10,\"output_tokens\":20}}}\n\n";
+        var service = CreateStreamingService(sse);
+
+        var history = new MessageList { new(MessageRole.User, "hi") };
+        var events = new List<StreamEvent>();
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await foreach (var evt in service.GetStreamEventContentsAsync(history, cancellationToken: cts.Token))
+        {
+            events.Add(evt);
+        }
+
+        var final = events[^1];
+        final.Metadata!.Should().ContainKey("ReasoningText", "流式 reasoning 应累积到终局 metadata");
+        final.Metadata!["ReasoningText"].GetString().Should().Be("Let me think about this.");
+    }
+
+    [Fact]
     public void ConvertToApiMessages_ReasoningItem_StoredInAssistantMetadata()
     {
         // DeepSeek thinking 模式下响应含 reasoning item，必须存入 metadata 供下轮回传

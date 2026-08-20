@@ -46,6 +46,7 @@ public class ResponsesQueryService : QueryServiceBase
         using var reader = new StreamReader(stream, Encoding.UTF8);
 
         var toolCallAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
+        var reasoningAccumulator = new StringBuilder();
         var isFirstChunk = true;
         string? currentEvent = null;
         string? descRequestContent = null;
@@ -123,6 +124,7 @@ public class ResponsesQueryService : QueryServiceBase
                     {
                         var delta = eventJson.TryGetProperty("delta", out var deltaProp) ? deltaProp.GetString() ?? string.Empty : string.Empty;
                         metadata["reasoning_content"] = JsonElementHelper.FromBoolean(true);
+                        if (delta.Length > 0) reasoningAccumulator.Append(delta);
                         yield return new StreamEvent(MessageRole.Assistant, delta, modelId, metadata);
                         break;
                     }
@@ -169,6 +171,10 @@ public class ResponsesQueryService : QueryServiceBase
                                 .ToList();
                             metadata["AllToolCalls"] = ToolCallEntry.ToToolCallsJson(entries);
                             metadata["FinishReason"] = JsonElementHelper.FromString("tool_calls");
+                        }
+                        if (reasoningAccumulator.Length > 0)
+                        {
+                            metadata[MessageMetadataKeyConstants.ReasoningText] = JsonElementHelper.FromString(reasoningAccumulator.ToString());
                         }
                         yield return new StreamEvent(MessageRole.Assistant, string.Empty, modelId, metadata);
                         yield break;

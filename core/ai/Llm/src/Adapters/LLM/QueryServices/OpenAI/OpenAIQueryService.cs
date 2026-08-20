@@ -174,6 +174,11 @@ public class OpenAIQueryService : QueryServiceBase
             request.ReasoningEffort = ChatOptions.EffortToReasoningEffort(settings.EffortLevel.Value);
         }
 
+        if (settings?.ThinkingEnabled == true)
+        {
+            request.Thinking = new OpenAIThinkingOptions { Type = "enabled" };
+        }
+
         if (settings?.ToolChoice == ToolChoice.AutoInvoke && kernel != null)
         {
             var tools = BuildToolsFromKernel(kernel);

@@ -84,6 +84,30 @@ public class OpenAIQueryServiceTests
     }
 
     [Fact]
+    public void CreateRequest_ThinkingEnabled_SetsThinkingField()
+    {
+        var service = CreateService();
+        var options = new ChatOptions { ThinkingEnabled = true };
+
+        var request = service.CreateRequest(new MessageList(), options, stream: false, null);
+
+        request.Thinking.Should().NotBeNull();
+        request.Thinking!.Type.Should().Be("enabled",
+            "DeepSeek V4 通过 thinking type enabled 开启思考模式");
+    }
+
+    [Fact]
+    public void CreateRequest_ThinkingDisabled_DoesNotSetThinking()
+    {
+        var service = CreateService();
+        var options = new ChatOptions { ThinkingEnabled = false };
+
+        var request = service.CreateRequest(new MessageList(), options, stream: false, null);
+
+        request.Thinking.Should().BeNull("ThinkingEnabled=false 时不发 thinking 字段");
+    }
+
+    [Fact]
     public void CreateRequest_ToolChoiceAutoWithKernel_BuildsTools()
     {
         var service = CreateService();

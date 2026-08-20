@@ -434,7 +434,7 @@ Worker 上报双意图 → 热点识别（取代文件锁）→ 热文件契约�
 
 ## 八、实施进度与集成说明
 
-### 已完成组件（纯新增，127测试全绿，零破坏）
+### 已完成组件（纯新增，137测试全绿，零破坏）
 
 | 单元 | 任务 | 组件 | 测试数 |
 |------|------|------|--------|
@@ -450,6 +450,8 @@ Worker 上报双意图 → 热点识别（取代文件锁）→ 热文件契约�
 | B | T1.7 | IHotFileWatchdog + HotFileWatchdog | 8 |
 | B | T4.0 | IContractChangeBroadcaster + 实现 | 6 |
 | C | T2.1 | ICaptainDispatchGuard + CaptainDispatchGuard | 5 |
+| C | T2.5 | ICallSiteFinder + CallSiteFinder + CodeCallSite | 3 |
+| D | T6.0 | IMergeQueueService + MergeQueueService | 7 |
 | E | T7.1 | DeferredMail + MailMarker | — |
 | E | T7.2 | IDeferredMailService + DeferredMailService | 7 |
 | E | T7.3 | 定向投递（零扩展，复用 IMailbox） | — |
@@ -464,11 +466,9 @@ Worker 上报双意图 → 热点识别（取代文件锁）→ 热文件契约�
 |------|--------|----------|------|
 | T2.2 | GoalGraphEngine.ExecuteViaAgentServiceAsync 节点执行器 | `composition/Clock/src/Goal/Core/GoalGraphEngine.cs:390-403` | 中（改节点执行从自执行→派发sub-agent） |
 | T2.4 | mainAgent 启动时 spawn 秘书常驻 | `core/ai/Agents/src/Coordinator/Core/AgentCoordinator.cs` | 中（加秘书spawn逻辑） |
-| T2.5 | 秘书执行连带改调用点 | 新增秘书工具（CodeSemanticSearch+grep批量改） | 低（纯新增工具） |
 | T5.0 | Worker 主循环每轮查邮箱 | Worker 主循环代码（待定位） | 中（加邮箱检查点） |
-| T6.0 | 队长串行处理合并队列 | 新增合并队列服务（复用 WorktreeMergeService） | 低（纯新增服务） |
 | T8.3 | goal→任务表→派发联动 | `GoalGraphEngine` 接入 ITeamManager 建团队 | 中（改GoalGraphEngine） |
 
 ### 集成顺序建议
 
-1. **T6.0 合并队列**（纯新增服务，低风险）→ 2. **T2.5 秘书工具**（纯新增，低风险）→ 3. **T2.2 DAG派发**（改GoalGraphEngine，中风险）→ 4. **T8.3 goal联动**（改GoalGraphEngine，中风险）→ 5. **T2.4 秘书spawn**（改AgentCoordinator，中风险）→ 6. **T5.0 Worker同步**（改Worker主循环，中风险）
+1. **T2.2 DAG派发**（改GoalGraphEngine，中风险）→ 2. **T8.3 goal联动**（改GoalGraphEngine，中风险）→ 3. **T2.4 秘书spawn**（改AgentCoordinator，中风险）→ 4. **T5.0 Worker同步**（改Worker主循环，中风险）

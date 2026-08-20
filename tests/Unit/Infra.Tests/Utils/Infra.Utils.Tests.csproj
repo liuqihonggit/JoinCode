@@ -24,6 +24,7 @@
     <Compile Include="..\Text\**\*.cs" />
     <Compile Include="..\Resilience\**\*.cs" />
     <Compile Include="..\Entity\**\*.cs" />
+    <Compile Include="..\HotSpot\**\*.cs" />
     <Compile Include="..\GlobalUsings.cs" Link="GlobalUsings.cs" />
   </ItemGroup>
 

@@ -167,3 +167,16 @@
 ### ⚠️ 后续待办
 - Responses 协议多轮工具循环真实 API 验证未完成(用户暂停 DeepSeek 测试,key 已 401),多轮历史转换由单元测试覆盖
 - 真实 DeepSeek API 端到端验证 tool_description_request 两阶段加载链路
+
+## 真实 API 多轮验证完成(2026-08-21 第二轮,新 key)
+
+用户提供新 DeepSeek key 后完成 **Responses 协议多轮工具循环**真实 API 验证:
+
+- ✅ **2 轮工具循环**: Grep 搜索 `ReasoningText` → Read 读取文件前 2 行,成功输出,无 400
+- ✅ **3 轮工具循环**: Grep 搜索 `ResponsesQueryServiceTests` → Read 前 3 行 → 再 Grep `SendRequestAsync` → 全部成功
+- ✅ 验证了多轮累积历史(多个 function_call_output + reasoning 回传)在真实 API 下正常,修复完整生效
+- 测试后移除临时诊断日志,工作区干净(Llm.Tests 380 全绿)
+
+**遗留待办更新**:
+- ~~Responses 多轮工具循环真实 API 验证~~ → ✅ 已验证通过(2026-08-21)
+- 真实 DeepSeek API 端到端验证 tool_description_request 两阶段加载链路(仍需配置 MCP 工具触发 ToolSearch)

@@ -22,6 +22,7 @@
     <Project Path="tests/MockServers/Sync.Integration.Tests/Sync.Integration.Tests.csproj" />
     <Project Path="tests/MockServers/Anthropic.MockServer/Anthropic.MockServer.csproj" />
     <Project Path="tests/MockServers/DeepSeek.MockServer/DeepSeek.MockServer.csproj" />
+    <Project Path="tests/MockServers/Responses.MockServer/Responses.MockServer.csproj" />
     <Project Path="tests/MockServers/Mcp.MockServer/Mcp.MockServer.csproj" />
   </Folder>
   <Folder Name="/foundation/">

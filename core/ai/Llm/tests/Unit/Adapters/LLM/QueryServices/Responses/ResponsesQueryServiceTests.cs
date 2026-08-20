@@ -238,6 +238,93 @@ public class ResponsesQueryServiceTests
     #region ConvertToApiMessages
 
     [Fact]
+    public void ConvertToApiMessages_ReasoningItem_StoredInAssistantMetadata()
+    {
+        // DeepSeek thinking 模式下响应含 reasoning item，必须存入 metadata 供下轮回传
+        var response = new ResponsesResponse
+        {
+            Id = "resp-r1",
+            Output =
+            [
+                new ResponsesOutputItem
+                {
+                    Type = "reasoning",
+                    Content =
+                    [
+                        new ResponsesContent { Type = "reasoning_text", Text = "I need to search for the file." },
+                        new ResponsesContent { Type = "reasoning_text", Text = "Let me use grep." }
+                    ]
+                },
+                new ResponsesOutputItem
+                {
+                    Type = "message",
+                    Role = "assistant",
+                    Content = [new ResponsesContent { Type = "output_text", Text = "Found it." }]
+                }
+            ]
+        };
+
+        var messages = ResponsesQueryService.ConvertToApiMessages(response);
+
+        messages.Should().ContainSingle();
+        messages[0].Content.Should().Be("Found it.");
+        messages[0].Metadata!.Should().ContainKey("ReasoningText", "reasoning 内容应存入 assistant 消息 metadata");
+        messages[0].Metadata!["ReasoningText"].GetString().Should().Be("I need to search for the file.Let me use grep.");
+    }
+
+    [Fact]
+    public void ConvertToApiMessages_NoReasoning_NoReasoningTextKey()
+    {
+        var response = new ResponsesResponse
+        {
+            Id = "resp-r2",
+            Output =
+            [
+                new ResponsesOutputItem
+                {
+                    Type = "message",
+                    Role = "assistant",
+                    Content = [new ResponsesContent { Type = "output_text", Text = "Plain" }]
+                }
+            ]
+        };
+
+        var messages = ResponsesQueryService.ConvertToApiMessages(response);
+
+        messages[0].Metadata!.Should().NotContainKey("ReasoningText");
+    }
+
+    [Fact]
+    public void ConvertToApiMessages_ReasoningWithToolCalls_StoredInToolCallsMetadata()
+    {
+        var response = new ResponsesResponse
+        {
+            Id = "resp-r3",
+            Output =
+            [
+                new ResponsesOutputItem
+                {
+                    Type = "reasoning",
+                    Content = [new ResponsesContent { Type = "reasoning_text", Text = "thinking about it" }]
+                },
+                new ResponsesOutputItem
+                {
+                    Type = "function_call",
+                    CallId = "call-9",
+                    Name = "grep",
+                    Arguments = "{\"q\":\"x\"}"
+                }
+            ]
+        };
+
+        var messages = ResponsesQueryService.ConvertToApiMessages(response);
+
+        messages.Should().ContainSingle();
+        messages[0].Metadata!.Should().ContainKey("AllToolCalls");
+        messages[0].Metadata!["ReasoningText"].GetString().Should().Be("thinking about it");
+    }
+
+    [Fact]
     public void ConvertToApiMessages_TextResponse_ReturnsAssistantMessageWithText()
     {
         var response = new ResponsesResponse

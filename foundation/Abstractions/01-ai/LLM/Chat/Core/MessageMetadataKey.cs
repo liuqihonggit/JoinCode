@@ -15,6 +15,9 @@ public enum MessageMetadataKey
     /// <summary>Tool 消息的工具名称</summary>
     [EnumValue("ToolName")] ToolName,
 
+    /// <summary>Assistant 思考过程文本 — Responses API thinking 模式需回传</summary>
+    [EnumValue("ReasoningText")] ReasoningText,
+
     /// <summary>消息时间戳 — ISO 8601 格式</summary>
     [EnumValue("timestamp")] Timestamp,
 }

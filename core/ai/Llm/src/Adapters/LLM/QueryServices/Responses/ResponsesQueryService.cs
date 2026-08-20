@@ -518,6 +518,9 @@ public class ResponsesQueryService : QueryServiceBase
         var json = JsonSerializer.Serialize(request, NativeJsonContext.Default.ResponsesRequest);
         var endpoint = GetChatEndpoint(Config);
 
+        Console.Error.WriteLine($"[WIRE-REQ] {endpoint} tools={request.Tools?.Count ?? 0} toolGroups={request.ToolGroups?.Count ?? 0} len={json.Length}");
+        Console.Error.WriteLine($"[WIRE-REQ-BODY] {json}");
+
         var response = await SendWithResilienceAsync(json, endpoint, "LLM.Responses", cancellationToken,
             HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
 
@@ -559,10 +562,19 @@ public class ResponsesQueryService : QueryServiceBase
 
         var toolCalls = new List<ToolCallEntry>();
         var textContent = new StringBuilder();
+        var reasoningContent = new StringBuilder();
 
         foreach (var item in response.Output)
         {
-            if (item.Type == "message" && item.Content is not null)
+            if (item.Type == "reasoning" && item.Content is not null)
+            {
+                foreach (var content in item.Content)
+                {
+                    if (!string.IsNullOrEmpty(content.Text))
+                        reasoningContent.Append(content.Text);
+                }
+            }
+            else if (item.Type == "message" && item.Content is not null)
             {
                 foreach (var content in item.Content)
                 {
@@ -579,6 +591,11 @@ public class ResponsesQueryService : QueryServiceBase
                     Arguments = item.Arguments ?? ""
                 });
             }
+        }
+
+        if (reasoningContent.Length > 0)
+        {
+            metadata[MessageMetadataKeyConstants.ReasoningText] = JsonElementHelper.FromString(reasoningContent.ToString());
         }
 
         if (toolCalls.Count > 0)

@@ -469,3 +469,42 @@ Worker 上报双意图 → 热点识别（取代文件锁）→ 热文件契约�
 ### 集成顺序（已全部完成）
 
 1. ✅ **T2.2 DAG派发** → 2. ✅ **T8.3 goal联动** → 3. ✅ **T2.4 秘书spawn** → 4. ✅ **T5.0 Worker同步**
+
+---
+
+## 九、链路打通修复（7个断裂点全部修复，19+7=26新测试，1750全量测试零破坏）
+
+### 断裂点0: HotFileDetector 编译缓存目录过滤 ✅
+- **问题**: HotFileDetector 无 bin/obj/.vs/node_modules 过滤，编译缓存文件误判为热文件
+- **修复**: 加编译缓存目录排除规则（10测试验证）
+
+### 断裂点1+2+3: IFileWriteListener 监听器链路 ✅
+- **问题**: IntentReporter fire-and-forget 无生产调用方；FileToolHandlers 写文件不触发意图上报
+- **修复**: 新增 IFileWriteListener 接口 + FileWriteListenerRegistry + IntentReportFileWriteListener；FileToolHandlers 全部8个写入方法加 NotifyFileWrite（write/edit/delete/edit-regex/insert-lines/delete-lines/batch-edit/apply-patch）；ApplyPatchResult 加 ModifiedFilePaths 结构化路径字段
+- **链路**: Worker改文件 → FileToolHandlers.NotifyFileWrite → FileWriteListenerRegistry.Notify → IntentReportFileWriteListener → IntentCollector → HotSpotTracker
+
+### 断裂点4+5: ContractChangeBroadcastListener + Router ✅
+- **问题**: ContractChangeBroadcaster 只发文本不执行 git pull；ContractChangeNotifications 队列无人塞数据
+- **修复**: 新增 ContractChangeBroadcastListener（队长改热文件自动广播+塞队列）+ ContractChangeNotificationRouter（桥接邮箱到Worker队列）；修复 EnqueueNotification 队列不存在时通知丢失 bug（TryGetValue → GetOrAdd）
+- **链路**: 队长改热文件 → ContractChangeBroadcastListener → ContractChangeNotificationRouter.EnqueueNotifications → Worker.ContractChangeNotifications 队列
+
+### 断裂点6: Worker 收到通知后 git pull --rebase ✅
+- **实现**: 软通知模式 — 通知文本写"请 git pull --rebase 同步主干后继续"，AgentBase.DrainPendingUserInputs 消费时塞入 chatHistory，LLM 看到提示后自己执行 git pull
+
+### Worker spawn 热点集成 ✅
+- **新增**: IHotSpotSpawnIntegration 聚合服务 + HotSpotSpawnIntegration 实现
+- **接入**: ForkSpawnMiddleware 加可选依赖 IHotSpotSpawnIntegration?，spawn 后调 EnsureListenersRegistered + GetOrCreateNotificationQueue 赋值给 agent.ContractChangeNotifications
+- **测试**: 7新测试验证幂等注册、队列获取、全链路
+
+### 全量测试验证 ✅
+- Infra.Utils.Tests: 459测试全绿
+- Clock.Tests: 415测试全绿
+- Agents.Tests: 493测试全绿
+- Hands.ToolHandlers.Tests: 383测试全绿
+- **总计 1750 测试全绿，零破坏**
+
+<!-- 🤖 Auto Decision: 2026-08-20 -->
+<!-- 决策: 用 IHotSpotSpawnIntegration 聚合服务封装6个依赖，ForkSpawnMiddleware 只加1个可选参数 -->
+<!-- 原因: 遵循规则5（参数传递传父类/接口），避免构造函数参数膨胀 -->
+<!-- 替代方案: 在 ForkSpawnMiddleware 加6个可选参数（臃肿，违反规则5）-->
+<!-- 验证: 编译通过，1750测试全绿 ✅ -->

@@ -762,7 +762,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
                 var isMcp = spec.Name.Contains('.');
                 if (isMcp)
                 {
-                    _deferredTools.Add(new DeferredToolInfo(spec.Name, spec.Description, spec.InputSchemaJson, isMcp: true));
+                    _deferredTools.Add(new DeferredToolInfo(spec.Name, spec.Description, spec.InputSchemaJson, isMcp: true, spec.Category, spec.GroupName));
                 }
             }
 

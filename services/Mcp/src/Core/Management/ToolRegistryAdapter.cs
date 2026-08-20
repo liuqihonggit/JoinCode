@@ -31,14 +31,14 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
         _logger?.LogDebug("MCP tool registered via adapter: {ToolName}", handler.Name);
     }
 
-    public async Task RegisterToolAsync(string name, string description, ToolSchema inputSchema, ToolHandler handler, CancellationToken cancellationToken = default, ToolKind kind = ToolKind.System, string? groupName = null, ToolTimeoutPolicy? timeoutPolicy = null)
+    public async Task RegisterToolAsync(string name, string description, ToolSchema inputSchema, ToolHandler handler, CancellationToken cancellationToken = default, ToolKind kind = ToolKind.System, string? groupName = null, ToolTimeoutPolicy? timeoutPolicy = null, string? category = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(name);
         ArgumentException.ThrowIfNullOrEmpty(description);
         ArgumentNullException.ThrowIfNull(inputSchema);
         ArgumentNullException.ThrowIfNull(handler);
 
-        var delegateHandler = new DelegateToolHandler(name, description, inputSchema, handler, kind, groupName, timeoutPolicy);
+        var delegateHandler = new DelegateToolHandler(name, description, inputSchema, handler, kind, groupName, timeoutPolicy, category);
         await _toolRegistry.RegisterToolAsync(delegateHandler, cancellationToken);
     }
 

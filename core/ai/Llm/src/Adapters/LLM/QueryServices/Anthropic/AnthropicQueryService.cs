@@ -484,10 +484,19 @@ public sealed class AnthropicQueryService : QueryServiceBase
         return deferredTools.Select(t => new AnthropicToolDefinition
         {
             Name = t.Name,
-            Description = ToolPromptRegistration.GetDetailedDescription(t.Name) ?? t.Description,
+            Description = BuildDeferredToolDescription(t),
             InputSchema = null,
             DeferLoading = true
         }).ToList();
+    }
+
+    private static string BuildDeferredToolDescription(DeferredToolInfo t)
+    {
+        var path = t.Category is not null
+            ? $"{t.Category}{(t.GroupName is not null ? $"[{t.GroupName}]" : string.Empty)}"
+            : (t.GroupName is not null ? t.GroupName : "其他");
+        var baseDesc = ToolPromptRegistration.GetDetailedDescription(t.Name) ?? t.Description;
+        return $"[{path}] {baseDesc}";
     }
 
     private static AnthropicToolDefinition BuildToolSearchToolDefinition()
@@ -495,7 +504,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
         return new AnthropicToolDefinition
         {
             Name = SystemToolName.ToolSearch.ToValue(),
-            Description = "Search for deferred tools by name or keyword. Use 'select:ToolName1,ToolName2' to directly select tools, or enter keywords to search. Deferred tools are loaded on-demand to save context window space.",
+            Description = "Search for deferred tools by name or keyword. Use 'select:ToolName1,ToolName2' to directly select tools, 'map[主分组]' to browse a category, 'map[主分组][子分组]' to browse a sub-group, 'list_groups' to list all groups, or enter keywords to search. Deferred tools are loaded on-demand to save context window space.",
             InputSchema = new AnthropicInputSchema
             {
                 Type = "object",
@@ -553,6 +562,9 @@ public sealed class AnthropicQueryService : QueryServiceBase
     {
         var json = JsonSerializer.Serialize(request, AnthropicJsonContext.Default.AnthropicMessagesRequest);
         var endpoint = GetChatEndpoint(Config);
+
+        Logger?.LogDebug("[WIRE] Anthropic 非流式请求体字节数={Bytes} | tools={ToolCount} | tool_groups={GroupCount}",
+            Encoding.UTF8.GetByteCount(json), request.Tools?.Count ?? 0, request.ToolGroups?.Count ?? 0);
 
         var response = await SendWithResilienceAsync(json, endpoint, "LLM.Anthropic.ChatCompletion", cancellationToken,
             HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
@@ -693,6 +705,9 @@ public sealed class AnthropicQueryService : QueryServiceBase
     {
         var json = JsonSerializer.Serialize(request, AnthropicJsonContext.Default.AnthropicMessagesRequest);
         var endpoint = GetChatEndpoint(Config);
+
+        Logger?.LogDebug("[WIRE] Anthropic 流式请求体字节数={Bytes} | tools={ToolCount} | tool_groups={GroupCount}",
+            Encoding.UTF8.GetByteCount(json), request.Tools?.Count ?? 0, request.ToolGroups?.Count ?? 0);
 
         var response = await SendWithResilienceAsync(json, endpoint, "LLM.Anthropic.StreamingChatCompletion", cancellationToken,
             HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);

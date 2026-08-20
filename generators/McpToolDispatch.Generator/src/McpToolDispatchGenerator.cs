@@ -95,7 +95,10 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
                             {
                                 var toolName = toolAttribute.ConstructorArguments.ElementAtOrDefault(0).Value as string ?? method.Name;
                                 var toolDescription = toolAttribute.ConstructorArguments.ElementAtOrDefault(1).Value as string ?? method.Name;
-                                var toolCategory = toolAttribute.ConstructorArguments.ElementAtOrDefault(2).Value as string ?? "other";
+                                var hasExplicitCategory = toolAttribute.ConstructorArguments.Length > 2;
+                                var toolCategory = hasExplicitCategory
+                                    ? (toolAttribute.ConstructorArguments.ElementAtOrDefault(2).Value as string ?? "other")
+                                    : null;
 
                                 var concurrencySafe = false;
                                 var toolKind = (string?)null;
@@ -719,8 +722,9 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         var effectiveKind = tool.Kind ?? handler.Kind;
         var effectiveGroupName = tool.GroupName ?? handler.GroupName;
         var groupNameArg = effectiveGroupName is not null ? $"\"{EscapeString(effectiveGroupName)}\"" : "null";
+        var effectiveCategory = tool.Category ?? handler.DisplayName;
         var timeoutPolicyArg = handler.TimeoutPolicy;
-        sb.AppendLine($"                cancellationToken, kind: ToolKindExtensions.FromValue(\"{EscapeString(effectiveKind)}\") ?? ToolKind.System, groupName: {groupNameArg}, timeoutPolicy: ToolTimeoutPolicy.{timeoutPolicyArg});");
+        sb.AppendLine($"                cancellationToken, kind: ToolKindExtensions.FromValue(\"{EscapeString(effectiveKind)}\") ?? ToolKind.System, groupName: {groupNameArg}, timeoutPolicy: ToolTimeoutPolicy.{timeoutPolicyArg}, category: \"{EscapeString(effectiveCategory)}\");");
         sb.AppendLine("        }");
     }
 
@@ -751,8 +755,9 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
                 var effectiveGroupName = tool.GroupName ?? handler.GroupName;
                 var groupNameStr = effectiveGroupName is not null ? $"\"{EscapeString(effectiveGroupName)}\"" : "null";
                 var kindExpr = $"ToolKindExtensions.FromValue(\"{EscapeString(effectiveKind)}\") ?? ToolKind.System";
-                sb.AppendLine($"        if (!categories.ContainsKey(\"{displayName}\")) categories[\"{displayName}\"] = new List<ToolCategoryEntry>();");
-                sb.AppendLine($"        categories[\"{displayName}\"].Add(new ToolCategoryEntry {{ Name = \"{toolName}\", Description = \"{toolDesc}\", Kind = {kindExpr}, GroupName = {groupNameStr} }});");
+                var effectiveCategory = EscapeString(tool.Category ?? handler.DisplayName);
+                sb.AppendLine($"        if (!categories.ContainsKey(\"{effectiveCategory}\")) categories[\"{effectiveCategory}\"] = new List<ToolCategoryEntry>();");
+                sb.AppendLine($"        categories[\"{effectiveCategory}\"].Add(new ToolCategoryEntry {{ Name = \"{toolName}\", Description = \"{toolDesc}\", Kind = {kindExpr}, GroupName = {groupNameStr} }});");
             }
 
             sb.AppendLine();
@@ -835,7 +840,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
     {
         public string Name { get; }
         public string Description { get; }
-        public string Category { get; }
+        public string? Category { get; }
         public string MethodName { get; }
         public List<ParamInfo> Parameters { get; }
         public string ReturnTypeName { get; }
@@ -860,7 +865,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         /// </summary>
         public string? GroupName { get; }
 
-        public ToolMethodInfo(string name, string description, string category, string methodName, List<ParamInfo> parameters, string returnTypeName, Dictionary<string, string> optionsTypeNames, bool hasProgressCallback, bool concurrencySafe, string? kind, string? groupName)
+        public ToolMethodInfo(string name, string description, string? category, string methodName, List<ParamInfo> parameters, string returnTypeName, Dictionary<string, string> optionsTypeNames, bool hasProgressCallback, bool concurrencySafe, string? kind, string? groupName)
         {
             Name = name;
             Description = description;

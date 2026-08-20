@@ -13,9 +13,10 @@ public sealed class DelegateToolHandler : IToolHandler
     public ToolSchema InputSchema { get; }
     public ToolKind Kind { get; }
     public string? GroupName { get; }
+    public string? Category { get; }
     public ToolTimeoutPolicy TimeoutPolicy { get; }
 
-    public DelegateToolHandler(string name, string description, ToolSchema inputSchema, ToolHandler handler, ToolKind kind = ToolKind.System, string? groupName = null, ToolTimeoutPolicy? timeoutPolicy = null)
+    public DelegateToolHandler(string name, string description, ToolSchema inputSchema, ToolHandler handler, ToolKind kind = ToolKind.System, string? groupName = null, ToolTimeoutPolicy? timeoutPolicy = null, string? category = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(name);
         ArgumentException.ThrowIfNullOrEmpty(description);
@@ -27,6 +28,7 @@ public sealed class DelegateToolHandler : IToolHandler
         InputSchema = inputSchema;
         Kind = kind;
         GroupName = groupName;
+        Category = category;
         TimeoutPolicy = timeoutPolicy ?? ToolTimeoutPolicy.None;
         _handler = handler;
     }

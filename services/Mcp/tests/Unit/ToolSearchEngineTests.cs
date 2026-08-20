@@ -87,4 +87,63 @@ public sealed class ToolSearchEngineTests
         var result = engine.Search("anything");
         result.MatchedToolNames.Should().BeEmpty();
     }
+
+    private static DeferredToolInfo GroupedTool(string name, string category, string? groupName, string? desc = null) =>
+        new(name, desc, null, isMcp: true, category, groupName);
+
+    [Fact]
+    public void Search_MapCategory_ListsAllToolsInCategory()
+    {
+        var engine = new ToolSearchEngine([
+            GroupedTool("file_read", "file", "io"),
+            GroupedTool("file_write", "file", "io"),
+            GroupedTool("web_fetch", "web", "http"),
+        ]);
+        var result = engine.Search("map[file]");
+        result.MatchedToolNames.Should().BeEquivalentTo(["file_read", "file_write"]);
+    }
+
+    [Fact]
+    public void Search_MapCategoryGroup_ListsToolsInGroup()
+    {
+        var engine = new ToolSearchEngine([
+            GroupedTool("file_read", "file", "io"),
+            GroupedTool("file_write", "file", "io"),
+            GroupedTool("web_fetch", "file", "http"),
+        ]);
+        var result = engine.Search("map[file][io]");
+        result.MatchedToolNames.Should().BeEquivalentTo(["file_read", "file_write"]);
+    }
+
+    [Fact]
+    public void Search_MapCategoryGroupTool_ExactMatch()
+    {
+        var engine = new ToolSearchEngine([
+            GroupedTool("file_read", "file", "io"),
+            GroupedTool("file_write", "file", "io"),
+        ]);
+        var result = engine.Search("map[file][io][file_read]");
+        result.MatchedToolNames.Should().BeEquivalentTo(["file_read"]);
+    }
+
+    [Fact]
+    public void Search_MapNoMatch_ReturnsEmpty()
+    {
+        var engine = new ToolSearchEngine([GroupedTool("file_read", "file", "io")]);
+        var result = engine.Search("map[web]");
+        result.MatchedToolNames.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Search_ListGroups_ReturnsDistinctHierarchy()
+    {
+        var engine = new ToolSearchEngine([
+            GroupedTool("file_read", "file", "io"),
+            GroupedTool("file_write", "file", "io"),
+            GroupedTool("web_fetch", "web", "http"),
+            GroupedTool("web_open", "web", null),
+        ]);
+        var result = engine.Search("list_groups");
+        result.MatchedToolNames.Should().BeEquivalentTo(["file/io", "web/http", "web"]);
+    }
 }

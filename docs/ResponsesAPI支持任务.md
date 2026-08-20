@@ -204,3 +204,47 @@
 
 ### 遗留观察
 - `SessionController.PostProcessMainAgentAsync` 在模型仅工具调用无文本输出时,`AddAssistantMessageAsync` 收到空白串抛 `ThrowIfNullOrWhiteSpace`(被 catch 记录,不影响主链路)。app 层测试受 JoinCodeTui 缺 libs 编译阻塞,未修复(用户明确不处理 TUI,聚焦底层)
+
+## 工具分组导航设计 (2026-08-21)
+
+### 用户设计
+- 系统工具暴露, MCP 函数需要搜索 (已有: ToolKind.System 始终注入 / ToolKind.Mcp 按需搜索)
+- 工具搜索采用两级分组导航: 主分组(ToolCategory) → 子分组(GroupName) → 工具名
+- 用户明确: map[分组1] map[分组2] map[mcp函数名] 三级下钻
+- 两者结合: 系统提示词给一级/二级层级骨架, tool_search 支持 map[...] 路径语法下钻到工具详情
+
+### 决策 (用户确认)
+- 主分组数据源: 特性加标记 — IToolHandler 增加 Category 属性, 生成器从 [McpToolDispatch(ToolCategory.Xxx)] 的 CategoryEnum 解析写入
+- 分组粒度: 两级 — ToolCategory 主分组 + GroupName 子分组
+- 展示格式: 分层文本展示 (对齐飞书 aily SkillHub: 分类浏览 + 搜索 + 详情)
+- 参考飞书 aily: 技能商店 = 分类浏览 + 搜索 + 详情
+
+### 实现清单
+- [ ] IToolHandler 增加 Category 属性
+- [ ] DelegateToolHandler / RemoteMcpToolDispatch / SlashToMcpAdapter 补 Category
+- [ ] 生成器注册时传 category
+- [ ] DeferredToolInfo 增加 GroupName/Category
+- [ ] ToolSearchEngine 支持 map[...] 三级下钻
+- [ ] ToolSearchToolHandlers 分层文本输出
+- [ ] 系统提示词工具骨架 (一级/二级层级)
+
+### 工具分组实现与验证 (2026-08-21)
+
+#### 实现
+- IToolHandler 增加 Category(主分组) 属性, IToolRegistry.RegisterToolAsync 增加 category 参数
+- 生成器修复: 工具级 category 优先([McpTool] 第三参数), 否则类级 [McpToolDispatch(ToolCategory.Xxx)] DisplayName
+  - 修复前: 生成器解析了工具级 category 却忽略, 全用类级 DisplayName 分组(粒度粗)
+  - 修复后: tool.Category ?? handler.DisplayName, Workflow 工具正确细分 execution/code/chat 等
+- ToolSearchEngine 支持三级下钻: map[主分组] / map[主分组][子分组] / map[主分组][子分组][工具名], list_groups 列全部分组
+- DeferredToolInfo/ToolSpec/ToolInfo 增加 Category/GroupName, 系统提示词骨架带分组路径
+- 覆盖: 301(Composition) + 16(Agents) = 317 个工具 100% 分组, 47 个主分组
+
+#### 真实 API 验证 (sensenova + Mcp.MockServer)
+- list_groups → 50 个分组
+- map[mcp] → 22 个 MCP 工具 (分层文本 [mcp] 工具名: 描述)
+- mcp_connect(mock) → map[mcp_client] → 5 个远程工具 (mcp__mock__echo/add/uppercase/reverse/length)
+- map[code] → 2 个工具级细分工具 (mcp_ai_workflow_workflow_generate_code/analyze_code), 证明工具级 category 优先生效
+
+#### 测试
+- Mcp.Tests 145 / McpToolDispatch.Tests 204 / Composition.Tests 81 / Hands.Tests 56 / Brain.Context.Tests 755 / Llm.Tests 380 全绿
+- 新增: ToolSearchEngine map[...] 5 测试, ToolSearchToolHandlers MCP 工具发现 2 测试

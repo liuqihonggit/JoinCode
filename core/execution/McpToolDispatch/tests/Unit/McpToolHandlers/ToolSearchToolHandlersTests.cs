@@ -47,6 +47,51 @@ public class ToolSearchToolHandlersTests
     }
 
     [Fact]
+    public async Task SearchToolsAsync_McpTool_IsDiscoverable()
+    {
+        var mcpHandler = new Mock<IToolHandler>();
+        mcpHandler.SetupGet(x => x.Description).Returns("Remote MCP echo tool");
+        mcpHandler.SetupGet(x => x.Kind).Returns(ToolKind.Mcp);
+        var dict = new Dictionary<string, IToolHandler> { { "mcp__remote_echo", mcpHandler.Object } };
+        _toolRegistry.Setup(x => x.GetAllToolsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(dict);
+
+        var result = await _handler.SearchToolsAsync("echo", cancellationToken: CancellationToken.None).ConfigureAwait(true);
+
+        Assert.False(result.IsError);
+        Assert.Contains("mcp__remote_echo", result.GetTextContent());
+        Assert.Contains("Remote MCP echo tool", result.GetTextContent());
+    }
+
+    [Fact]
+    public async Task SearchToolsAsync_McpToolExactMatch_RanksFirst()
+    {
+        var mcpHandler = new Mock<IToolHandler>();
+        mcpHandler.SetupGet(x => x.Description).Returns("Remote MCP read tool");
+        mcpHandler.SetupGet(x => x.Kind).Returns(ToolKind.Mcp);
+        var systemHandler = new Mock<IToolHandler>();
+        systemHandler.SetupGet(x => x.Description).Returns("Local file read");
+        systemHandler.SetupGet(x => x.Kind).Returns(ToolKind.System);
+        var dict = new Dictionary<string, IToolHandler>
+        {
+            { "file_read", systemHandler.Object },
+            { "mcp__db_read", mcpHandler.Object },
+        };
+        _toolRegistry.Setup(x => x.GetAllToolsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(dict);
+
+        var result = await _handler.SearchToolsAsync("read", cancellationToken: CancellationToken.None).ConfigureAwait(true);
+
+        Assert.False(result.IsError);
+        var text = result.GetTextContent();
+        var mcpIndex = text.IndexOf("mcp__db_read", StringComparison.Ordinal);
+        var sysIndex = text.IndexOf("file_read", StringComparison.Ordinal);
+        Assert.True(mcpIndex >= 0, "MCP tool should be found");
+        Assert.True(sysIndex >= 0, "System tool should be found");
+        Assert.True(mcpIndex < sysIndex, $"MCP tool 'mcp__db_read' (index {mcpIndex}) should rank before System tool 'file_read' (index {sysIndex})");
+    }
+
+    [Fact]
     public async Task SearchToolsAsync_RegistryThrows_ReturnsError()
     {
         _toolRegistry.Setup(x => x.GetAllToolsAsync(It.IsAny<CancellationToken>()))

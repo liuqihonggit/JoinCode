@@ -59,6 +59,24 @@
 - Brain.Context.Tests: 755 通过
 - 总计 1964 测试全通过
 
+## E2E 验证(2026-08-20)
+
+### Responses.MockServer
+- 新增 `tests/MockServers/Responses.MockServer/` 项目,返回 Responses API 格式
+- 非流式:`output` 数组 + `output_text` 便捷字段 ✅
+- 流式 SSE:`response.created` → `response.output_text.delta`(逐词) → `response.completed` ✅
+- 工具调用流式:`response.output_item.added` → `response.function_call_arguments.delta` → `response.completed` ✅
+
+### jcc.exe E2E
+- ✅ jcc.exe 正确读取 `protocol: "responses"` 配置
+- ✅ jcc.exe 连接到正确端点 `/responses`(非 `/chat/completions`)
+- ✅ 供应商/模型/端点配置正确(deepseek + deepseek-v4-flash + localhost:port)
+- ⚠️ 流式降级为非流式(`StreamingFallbackDecorator` 在 Responses 协议下降级走了 `/chat/completions`)
+
+### ⚠️ 后续待办
+- `StreamingFallbackDecorator` 协议感知:流式失败降级时应走同一协议端点(`/responses`),而非硬编码 `/chat/completions`
+- `ResponsesQueryService.GetStreamEventContentsAsync` 流式解析与 `StreamingFallbackDecorator` 集成调试
+
 ## 核心原则
 - 配置大于代码:protocol:"responses" 即走 Responses API
 - 所有供应商可选 responses 协议(配置驱动)

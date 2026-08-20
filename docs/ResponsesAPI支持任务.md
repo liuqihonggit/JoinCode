@@ -68,14 +68,15 @@
 - 工具调用流式:`response.output_item.added` → `response.function_call_arguments.delta` → `response.completed` ✅
 
 ### jcc.exe E2E
-- ✅ jcc.exe 正确读取 `protocol: "responses"` 配置
+- ✅ jcc.exe 正确读取 `JCC_PROTOCOL=responses` 环境变量
 - ✅ jcc.exe 连接到正确端点 `/responses`(非 `/chat/completions`)
 - ✅ 供应商/模型/端点配置正确(deepseek + deepseek-v4-flash + localhost:port)
-- ⚠️ 流式降级为非流式(`StreamingFallbackDecorator` 在 Responses 协议下降级走了 `/chat/completions`)
+- ✅ 流式 SSE 事件正确解析(11 chunks,无降级)
+- ✅ 完整对话链路:文本响应 → 工具调用 → 跟进文本
+- ✅ SettingsMapper 修复:优先从 settings.json profile 读取 protocol,不被 Definition.Protocol 覆盖
 
 ### ⚠️ 后续待办
-- `StreamingFallbackDecorator` 协议感知:流式失败降级时应走同一协议端点(`/responses`),而非硬编码 `/chat/completions`
-- `ResponsesQueryService.GetStreamEventContentsAsync` 流式解析与 `StreamingFallbackDecorator` 集成调试
+- `JCC_APP_DATA_FOLDER` 环境变量与 `ConfigLoader.LoadSettingsJsonAsync` 的路径解析链路需排查(settings.json 在自定义目录下未被加载)
 
 ## 核心原则
 - 配置大于代码:protocol:"responses" 即走 Responses API

@@ -36,7 +36,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
     {
         var request = await CreateAnthropicRequest(chatHistory, executionSettings, stream: true, kernel).ConfigureAwait(false);
         var isFirstChunk = true;
-        await foreach (var msg in SendAnthropicStreamingRequestAsync(request, cancellationToken).ConfigureAwait(false))
+        await foreach (var msg in SendAnthropicStreamingRequestAsync(request, kernel, cancellationToken).ConfigureAwait(false))
         {
             if (isFirstChunk)
             {
@@ -409,6 +409,56 @@ public sealed class AnthropicQueryService : QueryServiceBase
         return (tools, toolGroups);
     }
 
+    /// <summary>
+    /// 两阶段工具加载 — 解析 tool_description_request,构建第二次 Anthropic 请求(含 tool_descriptions)
+    /// </summary>
+    private static AnthropicMessagesRequest CreateSecondAnthropicRequestWithDescriptions(
+        AnthropicMessagesRequest originalRequest, string descRequestContent, IChatClient kernel)
+    {
+        var doc = JsonDocument.Parse(descRequestContent);
+        var toolNames = doc.RootElement.GetProperty("tools").EnumerateArray()
+            .Select(t => t.GetString() ?? "")
+            .Where(s => !string.IsNullOrEmpty(s))
+            .ToHashSet(StringComparer.Ordinal);
+
+        var descriptions = new List<AnthropicToolDefinition>();
+        foreach (var pluginName in kernel.Plugins.PluginNames)
+        {
+            var plugin = kernel.Plugins.GetPlugin(pluginName);
+            if (plugin is not IToolGroup group)
+                continue;
+            foreach (var function in group.Functions)
+            {
+                if (toolNames.Contains(function.Name))
+                {
+                    descriptions.Add(new AnthropicToolDefinition
+                    {
+                        Name = function.Name,
+                        Description = ToolPromptRegistration.GetDetailedDescription(function.Name) ?? function.Description,
+                        InputSchema = BuildAnthropicInputSchema(function.Parameters)
+                    });
+                }
+            }
+        }
+
+        return new AnthropicMessagesRequest
+        {
+            Model = originalRequest.Model,
+            Messages = originalRequest.Messages,
+            MaxTokens = originalRequest.MaxTokens,
+            System = originalRequest.System,
+            Stream = originalRequest.Stream,
+            Temperature = originalRequest.Temperature,
+            TopP = originalRequest.TopP,
+            Tools = originalRequest.Tools,
+            ToolChoice = originalRequest.ToolChoice,
+            ToolGroups = originalRequest.ToolGroups,
+            Thinking = originalRequest.Thinking,
+            ContextManagement = originalRequest.ContextManagement,
+            ToolDescriptions = descriptions
+        };
+    }
+
     private static List<AnthropicToolDefinition> BuildDeferredToolDefinitions(IEnumerable<DeferredToolInfo> deferredTools)
     {
         return deferredTools.Select(t => new AnthropicToolDefinition
@@ -618,6 +668,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
 
     private async IAsyncEnumerable<StreamEvent> SendAnthropicStreamingRequestAsync(
         AnthropicMessagesRequest request,
+        IChatClient? kernel,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var json = JsonSerializer.Serialize(request, AnthropicJsonContext.Default.AnthropicMessagesRequest);
@@ -641,6 +692,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
         FrozenDictionary<string, JsonElement>? textDeltaMetadata = null;
         FrozenDictionary<string, JsonElement>? thinkingDeltaMetadata = null;
 
+        string? descRequestContent = null;
         string? line;
         while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
         {
@@ -771,6 +823,11 @@ public sealed class AnthropicQueryService : QueryServiceBase
                         }
                         else if (delta.Type == AnthropicDeltaType.TextDelta && delta.Text != null)
                         {
+                            if (delta.Text.Contains("tool_description_request") && kernel != null)
+                            {
+                                descRequestContent = delta.Text;
+                                break;
+                            }
                             yield return new StreamEvent(MessageRole.Assistant, delta.Text, modelName, textDeltaMetadata);
                         }
                         else if (delta.Type == AnthropicDeltaType.InputJsonDelta && delta.PartialJson != null)
@@ -854,6 +911,19 @@ public sealed class AnthropicQueryService : QueryServiceBase
 
                 case AnthropicStreamingEventType.MessageStop:
                     yield break;
+            }
+
+            if (descRequestContent is not null) break;
+        }
+
+        // 两阶段工具加载: 检测到 tool_description_request → 构建第二次请求(含 tool_descriptions)
+        if (descRequestContent is not null && kernel != null)
+        {
+            Logger?.LogDebug("[WIRE] Anthropic 收到 tool_description_request, 发送第二次请求");
+            var secondRequest = CreateSecondAnthropicRequestWithDescriptions(request, descRequestContent, kernel);
+            await foreach (var msg in SendAnthropicStreamingRequestAsync(secondRequest, null, cancellationToken).ConfigureAwait(false))
+            {
+                yield return msg;
             }
         }
     }

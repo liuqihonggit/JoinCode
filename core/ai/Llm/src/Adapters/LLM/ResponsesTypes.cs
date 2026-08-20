@@ -50,6 +50,13 @@ internal sealed class ResponsesRequest
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<OpenAIToolGroup>? ToolGroups { get; set; }
 
+    /// <summary>
+    /// 两阶段工具加载 — 工具完整描述（第二次请求发送，响应 tool_description_request 后）
+    /// </summary>
+    [JsonPropertyName("tool_descriptions")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<ResponsesTool>? ToolDescriptions { get; set; }
+
     [JsonPropertyName("reasoning")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ResponsesReasoning? Reasoning { get; set; }

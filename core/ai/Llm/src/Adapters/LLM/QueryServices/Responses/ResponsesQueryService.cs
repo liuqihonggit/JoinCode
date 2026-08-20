@@ -48,6 +48,7 @@ public class ResponsesQueryService : QueryServiceBase
         var toolCallAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
         var isFirstChunk = true;
         string? currentEvent = null;
+        string? descRequestContent = null;
 
         string? line;
         while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
@@ -83,6 +84,11 @@ public class ResponsesQueryService : QueryServiceBase
                 case "response.output_text.delta":
                     {
                         var delta = eventJson.TryGetProperty("delta", out var deltaProp) ? deltaProp.GetString() ?? string.Empty : string.Empty;
+                        if (delta.Contains("tool_description_request") && kernel != null)
+                        {
+                            descRequestContent = delta;
+                            break;
+                        }
                         if (isFirstChunk)
                         {
                             isFirstChunk = false;
@@ -155,6 +161,100 @@ public class ResponsesQueryService : QueryServiceBase
                             ? errProp.GetRawText() : "unknown error";
                         throw new InvalidOperationException($"Responses API failed: {error}");
                     }
+            }
+
+            if (descRequestContent is not null) break;
+        }
+
+        // 两阶段工具加载: 检测到 tool_description_request → 构建第二次请求(含 tool_descriptions)
+        if (descRequestContent is not null && kernel != null)
+        {
+            Logger?.LogDebug("[WIRE] Responses 收到 tool_description_request, 发送第二次请求");
+            var secondRequest = CreateSecondResponsesRequestWithDescriptions(request, descRequestContent, kernel);
+            var secondJson = JsonSerializer.Serialize(secondRequest, NativeJsonContext.Default.ResponsesRequest);
+            var secondEndpoint = GetChatEndpoint(Config);
+            var secondResponse = await SendWithResilienceAsync(secondJson, secondEndpoint, "LLM.ResponsesStreaming2", cancellationToken,
+                HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
+            secondResponse.EnsureSuccessStatusCode();
+            ExtractRateLimitHeaders(secondResponse);
+            var secondStream = await secondResponse.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+            using var secondReader = new StreamReader(secondStream, Encoding.UTF8);
+            var secondAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
+            string? secondCurrentEvent = null;
+            string? sLine;
+            while ((sLine = await secondReader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
+            {
+                if (cancellationToken.IsCancellationRequested) yield break;
+                if (sLine.StartsWith("event: ")) { secondCurrentEvent = sLine[7..].Trim(); continue; }
+                if (!sLine.StartsWith("data: ")) continue;
+                var sData = sLine[6..];
+                if (string.IsNullOrEmpty(sData) || secondCurrentEvent is null) continue;
+
+                JsonElement sEventJson;
+                try { sEventJson = JsonDocument.Parse(sData).RootElement; }
+                catch (Exception ex) when (ex is JsonException or FormatException) { continue; }
+
+                var sMeta = new Dictionary<string, JsonElement>();
+                switch (secondCurrentEvent)
+                {
+                    case "response.output_text.delta":
+                        {
+                            var sDelta = sEventJson.TryGetProperty("delta", out var d) ? d.GetString() ?? "" : "";
+                            yield return new StreamEvent(MessageRole.Assistant, sDelta, modelId, sMeta);
+                            break;
+                        }
+                    case "response.reasoning_text.delta":
+                        {
+                            var sDelta = sEventJson.TryGetProperty("delta", out var d) ? d.GetString() ?? "" : "";
+                            sMeta["reasoning_content"] = JsonElementHelper.FromBoolean(true);
+                            yield return new StreamEvent(MessageRole.Assistant, sDelta, modelId, sMeta);
+                            break;
+                        }
+                    case "response.function_call_arguments.delta":
+                        {
+                            if (sEventJson.TryGetProperty("item_id", out var itemIdProp))
+                            {
+                                var itemId = itemIdProp.GetString() ?? "";
+                                var idx = itemId.GetHashCode() & 0x7FFFFFFF;
+                                var sDelta = sEventJson.TryGetProperty("delta", out var d) ? d.GetString() ?? "" : "";
+                                if (secondAccumulator.TryGetValue(idx, out var ex)) ex.Arguments.Append(sDelta);
+                            }
+                            break;
+                        }
+                    case "response.output_item.added":
+                        {
+                            if (sEventJson.TryGetProperty("item", out var itemProp) && itemProp.TryGetProperty("type", out var typeProp))
+                            {
+                                if (typeProp.GetString() == "function_call")
+                                {
+                                    var callId = itemProp.TryGetProperty("call_id", out var c) ? c.GetString() ?? "" : "";
+                                    var name = itemProp.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                                    var idx = (itemProp.TryGetProperty("id", out var i) ? i.GetString() ?? "" : "").GetHashCode() & 0x7FFFFFFF;
+                                    secondAccumulator[idx] = (callId, name, new StringBuilder());
+                                }
+                            }
+                            break;
+                        }
+                    case "response.completed":
+                        {
+                            if (sEventJson.TryGetProperty("response", out var respProp) && respProp.TryGetProperty("usage", out var usageProp))
+                            {
+                                var tu = BuildTokenUsage(usageProp);
+                                sMeta["FinishReason"] = JsonElementHelper.FromString("stop");
+                                sMeta["Usage"] = JsonElementHelper.FromObject(tu, NativeJsonContext.Default.TokenUsage);
+                            }
+                            if (secondAccumulator.Count > 0)
+                            {
+                                var entries = secondAccumulator
+                                    .Select(kv => new ToolCallEntry { Id = kv.Value.Id, Name = kv.Value.Name, Arguments = kv.Value.Arguments.ToString() })
+                                    .ToList();
+                                sMeta["AllToolCalls"] = ToolCallEntry.ToToolCallsJson(entries);
+                                sMeta["FinishReason"] = JsonElementHelper.FromString("tool_calls");
+                            }
+                            yield return new StreamEvent(MessageRole.Assistant, string.Empty, modelId, sMeta);
+                            yield break;
+                        }
+                }
             }
         }
     }
@@ -265,6 +365,56 @@ public class ResponsesQueryService : QueryServiceBase
         }
 
         return (tools, toolGroups);
+    }
+
+    /// <summary>
+    /// 两阶段工具加载 — 解析 tool_description_request,构建第二次 Responses 请求(含 tool_descriptions)
+    /// </summary>
+    private static ResponsesRequest CreateSecondResponsesRequestWithDescriptions(
+        ResponsesRequest originalRequest, string descRequestContent, IChatClient kernel)
+    {
+        var doc = JsonDocument.Parse(descRequestContent);
+        var toolNames = doc.RootElement.GetProperty("tools").EnumerateArray()
+            .Select(t => t.GetString() ?? "")
+            .Where(s => !string.IsNullOrEmpty(s))
+            .ToHashSet(StringComparer.Ordinal);
+
+        var descriptions = new List<ResponsesTool>();
+        foreach (var pluginName in kernel.Plugins.PluginNames)
+        {
+            var plugin = kernel.Plugins.GetPlugin(pluginName);
+            if (plugin is not IToolGroup group)
+                continue;
+            foreach (var function in group.Functions)
+            {
+                if (toolNames.Contains(function.Name))
+                {
+                    descriptions.Add(new ResponsesTool
+                    {
+                        Type = "function",
+                        Name = function.Name,
+                        Description = ToolPromptRegistration.GetDetailedDescription(function.Name) ?? function.Description,
+                        Parameters = BuildParameters(function.Parameters)
+                    });
+                }
+            }
+        }
+
+        return new ResponsesRequest
+        {
+            Model = originalRequest.Model,
+            Input = originalRequest.Input,
+            Instructions = originalRequest.Instructions,
+            Stream = originalRequest.Stream,
+            Temperature = originalRequest.Temperature,
+            TopP = originalRequest.TopP,
+            MaxOutputTokens = originalRequest.MaxOutputTokens,
+            Tools = originalRequest.Tools,
+            ToolChoice = originalRequest.ToolChoice,
+            ToolGroups = originalRequest.ToolGroups,
+            Reasoning = originalRequest.Reasoning,
+            ToolDescriptions = descriptions
+        };
     }
 
     private static JsonElement? BuildParameters(IReadOnlyList<IToolParam> parameters)

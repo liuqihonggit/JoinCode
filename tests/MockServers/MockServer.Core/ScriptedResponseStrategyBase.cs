@@ -142,4 +142,18 @@ public abstract class ScriptedResponseStrategyBase : IResponseStrategy
     /// </summary>
     public virtual string BuildStreamFinalChunk(string id, CacheStats cacheStats)
         => BuildStreamChunk(id, "", true);
+
+    /// <summary>
+    /// 两阶段工具加载 — 查看当前轮次的 tool_calls,请求这些工具的完整描述。
+    /// 只请求当前轮次需要的工具,不是全部 304 个。
+    /// </summary>
+    public virtual string? BuildToolDescriptionRequest(JsonElement request)
+    {
+        var turn = CurrentTurn;
+        if (turn.ToolCalls is null or { Count: 0 }) return null;
+
+        var toolNames = turn.ToolCalls.Select(tc => tc.ToolName).Distinct().ToList();
+        var toolsJson = string.Join(",", toolNames.Select(n => $"\"{n}\""));
+        return $$"""{"type":"tool_description_request","tools":[{{toolsJson}}]}""";
+    }
 }

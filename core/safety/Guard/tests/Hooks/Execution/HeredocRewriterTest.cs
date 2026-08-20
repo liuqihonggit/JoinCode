@@ -137,6 +137,50 @@ public sealed class HeredocRewriterTest
         result.Should().NotContain("$(cat");
     }
 
+    // === 孤立 << 标记检测和转义 ===
+
+    [Fact]
+    public void CanRewrite_IsolatedHeredocMarker_ReturnsTrue()
+    {
+        var command = "gh pr create --body \"text with <<'EOF' example\"";
+
+        _rewriter.CanRewrite(command).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Rewrite_IsolatedHeredocMarker_EscapesForPowerShell()
+    {
+        var command = "echo \"<< test\"";
+
+        var result = _rewriter.Rewrite(command, FrozenDictionary<string, object>.Empty);
+
+        result.Should().NotContain("<<");
+        result.Should().Contain("`<`<");
+    }
+
+    [Fact]
+    public void Rewrite_LegitimateHeredocNotDoubleEscaped()
+    {
+        var command = "$(cat <<'EOF'\nline1\nEOF)";
+
+        var result = _rewriter.Rewrite(command, FrozenDictionary<string, object>.Empty);
+
+        result.Should().Be("line1");
+        result.Should().NotContain("`<`<");
+    }
+
+    [Fact]
+    public void Rewrite_MixedLegitimateAndIsolated_BothHandled()
+    {
+        var command = "$(cat <<'EOF'\nline1\nEOF) && echo \"<< done\"";
+
+        var result = _rewriter.Rewrite(command, FrozenDictionary<string, object>.Empty);
+
+        result.Should().Contain("line1");
+        result.Should().NotContain("<<");
+        result.Should().Contain("`<`<");
+    }
+
     // === 优先级和名称 ===
 
     [Fact]

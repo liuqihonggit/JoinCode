@@ -11,6 +11,7 @@ namespace Core.Hooks.Execution.Rewriters;
 /// 1. $(cat &lt;&lt;'EOF'\n...\nEOF) → "..."
 /// 2. $(cat &lt;&lt;EOF\n...\nEOF) → "..."
 /// 3. &lt;&lt;'EOF'\n...\nEOF → "..."
+/// 4. 孤立的 &lt;&lt; 标记（非合法 HEREDOC）→ 转义为 PowerShell 安全形式 `&lt;`&lt;
 /// </para>
 /// </summary>
 public sealed class HeredocRewriter : ICommandRewriter
@@ -42,7 +43,7 @@ public sealed class HeredocRewriter : ICommandRewriter
     /// <inheritdoc/>
     public bool CanRewrite(string command)
     {
-        return HeredocInCommandSubstitution.IsMatch(command) || StandaloneHeredoc.IsMatch(command);
+        return command.Contains("<<");
     }
 
     /// <inheritdoc/>
@@ -63,6 +64,13 @@ public sealed class HeredocRewriter : ICommandRewriter
             var content = m.Groups[2].Value;
             return "\"" + EscapeForDoubleQuotedString(content) + "\"";
         });
+
+        // 最后转义剩余的孤立 << 标记 — PowerShell 解析为重定向操作符导致命令失败
+        if (result.Contains("<<"))
+        {
+            result = result.Replace("<<", "`<`<");
+            _logger?.LogWarning("检测到孤立的 << 标记，已转义为 PowerShell 安全形式");
+        }
 
         if (result != command)
         {

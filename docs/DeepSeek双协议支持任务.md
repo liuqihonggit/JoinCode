@@ -57,3 +57,62 @@ DeepSeek 官方同时支持 OpenAI 兼容协议和 Anthropic 兼容协议。让�
 <!-- 决策: 新增 AnthropicCompatibleProviderDefinition 通用类,而非改造原 AnthropicProviderDefinition -->
 <!-- 原因: 对齐 OpenAiCompatibleProviderDefinition 的通用化模式,保持架构对称,原类可保留为 Anthropic 供应商特化 -->
 <!-- 替代方案: 直接改造原类(风险:破坏现有 Anthropic 测试基线) -->
+
+## 完成状态(2026-08-20)
+
+| 任务 | 状态 | 提交 |
+|------|------|------|
+| 任务1: AnthropicCompatibleProviderDefinition 通用类 | ✅ 完成 | dfd3ea6e4 |
+| 任务2: Registry 分派 + anthropicBeta 配置 | ✅ 完成 | 0d9b53eac |
+| 任务3: OpenAIChatRequest thinking 字段 | ✅ 完成 | 0c139689a |
+| 任务4: ChatOptions.ThinkingEnabled + CreateRequest | ✅ 完成 | 2578b6ab2 |
+| 任务5: 文档 + E2E | 🟡 文档完成,E2E 待后续(MockServer 需扩展 Anthropic 协议模拟) |
+
+## settings.json 配置示例(双协议可切换)
+
+### DeepSeek 走 OpenAI 兼容协议(默认)
+```json
+"deepseek": {
+    "provider": "deepseek",
+    "protocol": "openai-compatible",
+    "endpoint": "https://api.deepseek.com",
+    "apiKeyEnvVar": "DEEPSEEK_API_KEY",
+    "model": "deepseek-v4-pro"
+}
+```
+
+### DeepSeek 走 Anthropic 兼容协议
+```json
+"deepseek": {
+    "provider": "deepseek",
+    "protocol": "anthropic",
+    "endpoint": "https://api.deepseek.com/anthropic",
+    "apiKeyEnvVar": "DEEPSEEK_API_KEY",
+    "model": "deepseek-v4-pro",
+    "anthropicBeta": "prompt-caching-2024-07-31"
+}
+```
+
+切换协议只需改 `protocol` 和 `endpoint` 两行,配置大于代码。
+
+## 自主决策记录
+
+<!-- 🤖 Auto Decision: 2026-08-20 任务1 -->
+<!-- 决策: 新增 AnthropicCompatibleProviderDefinition 通用类,而非改造原 AnthropicProviderDefinition -->
+<!-- 原因: 对齐 OpenAiCompatibleProviderDefinition 的通用化模式,保持架构对称 -->
+<!-- 验证: 22 个单元测试全通过 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-20 任务2 -->
+<!-- 决策: anthropicBeta 头可配置,Anthropic 供应商未配回退默认,DeepSeek 未配不发 -->
+<!-- 原因: 配置大于代码,DeepSeek 的 /anthropic 端点不一定支持 Anthropic 全部 beta 特性 -->
+<!-- 验证: 8 个分派测试全通过 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-20 任务4 -->
+<!-- 决策: ChatOptions 加 ThinkingEnabled 开关,上层决定是否开启 -->
+<!-- 原因: CreateRequest 只负责发送,供应商能力判断由上层做,职责分离 -->
+<!-- 验证: 2 个 CreateRequest 测试全通过 ✅ -->
+
+## ⚠️ 后续待办
+- E2E 测试: MockServer 需扩展 Anthropic 协议(/v1/messages)模拟,验证 DeepSeek 走 Anthropic 协议的完整链路
+- 上层接入: AppState.ThinkingEnabled → ChatOptions.ThinkingEnabled 的映射(在构造 ChatOptions 的地方)
+- 原 AnthropicProviderDefinition 类清理: Registry 已不使用,评估是否删除或保留为兼容

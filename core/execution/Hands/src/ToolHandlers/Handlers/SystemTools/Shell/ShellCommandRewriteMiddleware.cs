@@ -33,7 +33,7 @@ public sealed partial class ShellCommandRewriteMiddleware : ServiceEntity, IShel
             var result = _rewriterRegistry.Rewrite(context.Command);
             if (result.WasRewritten)
             {
-                _logger?.LogInformation(
+                _logger?.LogWarning(
                     "Shell 命令已改写: {Original} → {Rewritten} (改写器: {Rewriter})",
                     result.OriginalCommand,
                     result.RewrittenCommand,

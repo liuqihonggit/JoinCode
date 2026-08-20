@@ -58,7 +58,7 @@ public sealed class HeredocRewriterTest
 
         var result = _rewriter.Rewrite(command, FrozenDictionary<string, object>.Empty);
 
-        result.Should().Contain("\"## Summary\n- change 1\"");
+        result.Should().Contain("## Summary\n- change 1");
         result.Should().NotContain("<<'EOF'");
         result.Should().NotContain("$(cat");
     }
@@ -111,7 +111,7 @@ public sealed class HeredocRewriterTest
 
         var result = _rewriter.Rewrite(command, FrozenDictionary<string, object>.Empty);
 
-        result.Should().Contain("\"line1\nline2\nline3\"");
+        result.Should().Contain("line1\nline2\nline3");
     }
 
     [Fact]
@@ -121,7 +121,7 @@ public sealed class HeredocRewriterTest
 
         var result = _rewriter.Rewrite(command, FrozenDictionary<string, object>.Empty);
 
-        result.Should().Contain("\"content\"");
+        result.Should().Contain("content");
         result.Should().NotContain("<<'END'");
     }
 

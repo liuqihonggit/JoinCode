@@ -50,14 +50,14 @@ public sealed class HeredocRewriter : ICommandRewriter
     {
         var result = command;
 
-        // 先处理 $(cat <<'EOF'...EOF) 模式 — 转换为双引号字符串
+        // 先处理 $(cat <<'EOF'...EOF) 模式 — 命令替换内不加外层双引号（避免嵌套）
         result = HeredocInCommandSubstitution.Replace(result, static m =>
         {
             var content = m.Groups[2].Value;
-            return "\"" + EscapeForDoubleQuotedString(content) + "\"";
+            return EscapeForDoubleQuotedString(content);
         });
 
-        // 再处理独立 HEREDOC 模式
+        // 再处理独立 HEREDOC 模式 — 加外层双引号
         result = StandaloneHeredoc.Replace(result, static m =>
         {
             var content = m.Groups[2].Value;

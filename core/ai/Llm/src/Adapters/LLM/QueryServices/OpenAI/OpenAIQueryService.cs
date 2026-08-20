@@ -181,11 +181,15 @@ public class OpenAIQueryService : QueryServiceBase
 
         if (settings?.ToolChoice == ToolChoice.AutoInvoke && kernel != null)
         {
-            var tools = BuildToolsFromKernel(kernel);
+            var (tools, toolGroups) = BuildToolsFromKernel(kernel);
             if (tools.Count > 0)
             {
                 request.Tools = tools;
                 request.ToolChoice = "auto";
+            }
+            if (toolGroups.Count > 0)
+            {
+                request.ToolGroups = toolGroups;
             }
         }
 
@@ -232,19 +236,47 @@ public class OpenAIQueryService : QueryServiceBase
         return msg;
     }
 
-    private static List<OpenAITool> BuildToolsFromKernel(IChatClient kernel)
+    /// <summary>
+    /// 构建工具列表 — 两阶段加载：core_tools 发完整 schema，mcp_tools 发分组+名称
+    /// 其他 group name 向后兼容，发完整 schema
+    /// </summary>
+    private static (List<OpenAITool> Tools, List<OpenAIToolGroup> ToolGroups) BuildToolsFromKernel(IChatClient kernel)
     {
-        return EnumerateToolFunctions(kernel)
-            .Select(function => new OpenAITool
+        var tools = new List<OpenAITool>();
+        var toolGroups = new List<OpenAIToolGroup>();
+
+        foreach (var pluginName in kernel.Plugins.PluginNames)
+        {
+            var plugin = kernel.Plugins.GetPlugin(pluginName);
+            if (plugin is not IToolGroup group)
+                continue;
+
+            if (group.Name == ToolGroupNameConstants.McpTools)
             {
-                Function = new OpenAIFunctionDefinition
+                toolGroups.Add(new OpenAIToolGroup
                 {
-                    Name = function.Name,
-                    Description = ToolPromptRegistration.GetDetailedDescription(function.Name) ?? function.Description,
-                    Parameters = BuildParameters(function.Parameters)
+                    Name = group.Name,
+                    Tools = group.Functions.Select(f => f.Name).ToList()
+                });
+            }
+            else
+            {
+                foreach (var function in group.Functions)
+                {
+                    tools.Add(new OpenAITool
+                    {
+                        Function = new OpenAIFunctionDefinition
+                        {
+                            Name = function.Name,
+                            Description = ToolPromptRegistration.GetDetailedDescription(function.Name) ?? function.Description,
+                            Parameters = BuildParameters(function.Parameters)
+                        }
+                    });
                 }
-            })
-            .ToList();
+            }
+        }
+
+        return (tools, toolGroups);
     }
 
     private static OpenAIFunctionParameters BuildParameters(IReadOnlyList<IToolParam> parameters)

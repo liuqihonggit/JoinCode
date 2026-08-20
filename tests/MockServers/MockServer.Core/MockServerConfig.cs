@@ -15,6 +15,13 @@ public sealed class MockServerConfig : MockServerConfigBase<MockServerConfig>
     /// </summary>
     public string DefaultResponse { get; set; } = "Mock response (script exhausted).";
 
+    /// <summary>
+    /// 强制思考链回传校验（Responses 协议）— 模拟真实 DeepSeek 行为:
+    /// thinking 模式下请求历史含 assistant 消息但缺失 reasoning item 回传时返回 400。
+    /// 仅对 Responses 协议（含 input 字段）生效，默认关闭避免影响现有测试。
+    /// </summary>
+    public bool EnforceThinkingRoundTrip { get; set; }
+
     protected override JsonTypeInfo<MockServerConfig> JsonTypeInfo => MockServerJsonContext.Default.MockServerConfig;
     protected override string LogPrefix => "[MockServer]";
     protected override string ConfigNotFoundMessage => "MockServer 配置文件不存在: {0}";

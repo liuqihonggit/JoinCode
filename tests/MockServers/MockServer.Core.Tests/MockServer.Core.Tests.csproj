@@ -25,6 +25,7 @@
     <ProjectReference Include="$(RepoRoot)tests\MockServers\OpenAI.MockServer\OpenAI.MockServer.csproj" />
     <ProjectReference Include="$(RepoRoot)tests\MockServers\Anthropic.MockServer\Anthropic.MockServer.csproj" />
     <ProjectReference Include="$(RepoRoot)tests\MockServers\DeepSeek.MockServer\DeepSeek.MockServer.csproj" />
+    <ProjectReference Include="$(RepoRoot)tests\MockServers\Responses.MockServer\Responses.MockServer.csproj" />
   </ItemGroup>
 
 </Project>

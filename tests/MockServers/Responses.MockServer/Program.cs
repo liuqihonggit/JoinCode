@@ -16,7 +16,7 @@ public sealed class Program
         Console.WriteLine($"[Responses.MockServer] Requested Port: {port}");
         Console.WriteLine($"[Responses.MockServer] Scripted turns: {config.ScriptedTurns.Count}");
 
-        var strategy = new ResponsesResponseStrategy(config.ScriptedTurns, config.DefaultResponse);
+        var strategy = new ResponsesResponseStrategy(config.ScriptedTurns, config.DefaultResponse, config.EnforceThinkingRoundTrip);
         var cacheSimulator = new PrefixCacheSimulator(
             TokenEstimator.ExtractConversationPrefix,
             TokenEstimator.EstimateFromMessages);

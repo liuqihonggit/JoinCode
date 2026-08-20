@@ -7,11 +7,85 @@ namespace Responses.MockServer;
 /// </summary>
 public sealed class ResponsesResponseStrategy : ScriptedResponseStrategyBase
 {
-    public ResponsesResponseStrategy(List<ScriptedTurn>? turns, string defaultResponse)
-        : base(turns, defaultResponse) { }
+    private readonly bool _enforceThinkingRoundTrip;
+
+    public ResponsesResponseStrategy(List<ScriptedTurn>? turns, string defaultResponse, bool enforceThinkingRoundTrip = false)
+        : base(turns, defaultResponse)
+    {
+        _enforceThinkingRoundTrip = enforceThinkingRoundTrip;
+    }
+
+    /// <summary>
+    /// 模拟真实 DeepSeek 思考链回传校验 — 400 错误文案
+    /// </summary>
+    private const string ThinkingRoundTripError = "The reasoning_text in the thinking mode must be passed back to the API.";
+
+    /// <summary>
+    /// 模拟真实 DeepSeek 行为: thinking 模式下历史含 assistant 消息但缺失 reasoning 回传 → 400。
+    /// 仅在 EnforceThinkingRoundTrip 开启且为 Responses 协议请求时生效。
+    /// </summary>
+    public override int GetHttpStatusCode(JsonElement request)
+    {
+        if (!_enforceThinkingRoundTrip)
+            return base.GetHttpStatusCode(request);
+
+        if (request.TryGetProperty("reasoning", out var reasoningProp) && reasoningProp.ValueKind == JsonValueKind.Object)
+        {
+            if (HasMissingReasoningRoundTrip(request))
+                return 400;
+        }
+
+        return base.GetHttpStatusCode(request);
+    }
+
+    /// <summary>
+    /// 判定请求历史是否缺失 reasoning 回传:
+    /// input 中存在 assistant message 但没有任何 reasoning item。
+    /// </summary>
+    private static bool HasMissingReasoningRoundTrip(JsonElement request)
+    {
+        if (!request.TryGetProperty("input", out var inputProp) || inputProp.ValueKind != JsonValueKind.Array)
+            return false;
+
+        var hasAssistantMessage = false;
+        var hasReasoningItem = false;
+
+        foreach (var item in inputProp.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Object) continue;
+            var type = item.TryGetProperty("type", out var typeProp) ? typeProp.GetString() : null;
+
+            if (type == "reasoning")
+            {
+                hasReasoningItem = true;
+            }
+            else if (type == "message"
+                     && item.TryGetProperty("role", out var roleProp)
+                     && roleProp.GetString() == "assistant")
+            {
+                hasAssistantMessage = true;
+            }
+        }
+
+        return hasAssistantMessage && !hasReasoningItem;
+    }
 
     public override string BuildResponse(JsonElement request, CacheStats cacheStats)
     {
+        if (GetHttpStatusCode(request) == 400)
+        {
+            return $$"""
+            {
+                "error": {
+                    "type": "invalid_request_error",
+                    "message": "{{ThinkingRoundTripError}}",
+                    "param": null,
+                    "code": null
+                }
+            }
+            """;
+        }
+
         var turn = CurrentTurn;
         var text = turn.TextResponse ?? DefaultResponse;
 

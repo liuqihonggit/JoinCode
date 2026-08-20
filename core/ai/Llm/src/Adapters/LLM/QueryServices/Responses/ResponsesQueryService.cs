@@ -36,6 +36,8 @@ public class ResponsesQueryService : QueryServiceBase
         var json = JsonSerializer.Serialize(request, NativeJsonContext.Default.ResponsesRequest);
         var endpoint = GetChatEndpoint(Config);
 
+        Diag.WriteLine($"[WIRE] Responses 流式请求体字节数={Encoding.UTF8.GetByteCount(json)} | reasoning={request.Reasoning?.Effort ?? "off"} | {endpoint}");
+
         var response = await SendWithResilienceAsync(json, endpoint, "LLM.ResponsesStreaming", cancellationToken,
             HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
 
@@ -580,6 +582,8 @@ public class ResponsesQueryService : QueryServiceBase
     {
         var json = JsonSerializer.Serialize(request, NativeJsonContext.Default.ResponsesRequest);
         var endpoint = GetChatEndpoint(Config);
+
+        Diag.WriteLine($"[WIRE] Responses 非流式请求体字节数={Encoding.UTF8.GetByteCount(json)} | reasoning={request.Reasoning?.Effort ?? "off"} | {endpoint}");
 
         var response = await SendWithResilienceAsync(json, endpoint, "LLM.Responses", cancellationToken,
             HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);

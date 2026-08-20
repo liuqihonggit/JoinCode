@@ -248,3 +248,32 @@
 #### 测试
 - Mcp.Tests 145 / McpToolDispatch.Tests 204 / Composition.Tests 81 / Hands.Tests 56 / Brain.Context.Tests 755 / Llm.Tests 380 全绿
 - 新增: ToolSearchEngine map[...] 5 测试, ToolSearchToolHandlers MCP 工具发现 2 测试
+
+### 思考链回传校验 MockServer 模拟 (2026-08-21)
+
+#### 需求
+真实 DeepSeek 接 Responses 协议时, thinking 模式下必须回传 reasoning_text, 缺失则 API 报 400:
+- 错误: The reasoning_text in the thinking mode must be passed back to the API.
+- 正确: input 中带 {\"type\":\"reasoning\",\"content\":[{\"type\":\"reasoning_text\",\"text\":\"...\"}]} item
+
+#### 实现
+- MockServerConfig 新增 EnforceThinkingRoundTrip 开关 (snake_case: enforce_thinking_round_trip)
+- ResponsesResponseStrategy 新增校验:
+  - GetHttpStatusCode override: 请求声明 reasoning(thinking 模式) + input 含 assistant message 但无 reasoning item → 400
+  - BuildResponse override: 400 时返回真实 DeepSeek 错误格式 {error:{type:invalid_request_error,message:...}}
+- Program.cs 传递配置开关; 仅对 Responses 协议(含 input 字段)生效, 默认关闭不破坏现有测试
+
+#### 统一 Diag 日志
+- 所有 LLM QueryService 的请求体字节数日志统一用 Diag (受 JCC_DEBUGLOG/--debuglog 控制):
+  - OpenAIQueryService: 非流式/流式请求体字节数={UTF8 bytes} | tools={count} | endpoint
+  - AnthropicQueryService: 同格式 + tool_groups 计数
+  - ResponsesQueryService: 同格式 + reasoning={effort}
+  - Azure/Agnes 继承 OpenAI, 自动获得
+- 字节数是网络出口最准确指标, 优于 token 估算
+
+#### 验证
+- 单元测试: MockServer.Core.Tests 新增 5 个 (缺 reasoning→400 / 带 reasoning→200 / 无 thinking→200 / 开关关闭→200 / 400错误body) 共 67 全绿
+- 真实 HTTP 验证 (Responses.MockServer --port 18091):
+  - thinking + reasoning 回传 → 200
+  - thinking + 缺 reasoning 回传 → 400 ✓
+- Llm.Tests 380 / MockServer.E2E.Tests 6 全绿

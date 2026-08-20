@@ -473,6 +473,8 @@ public class OpenAIQueryService : QueryServiceBase
         var json = JsonSerializer.Serialize(request, NativeJsonContext.Default.OpenAIChatRequest);
         var endpoint = GetChatEndpoint(Config);
 
+        Diag.WriteLine($"[WIRE {CallTrace.CurrentId}] 非流式请求体字节数={Encoding.UTF8.GetByteCount(json)} | tools={request.Tools?.Count ?? 0} | {endpoint}");
+
         var response = await SendWithResilienceAsync(json, endpoint, "LLM.ChatCompletion", cancellationToken,
             HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
 
@@ -505,6 +507,8 @@ public class OpenAIQueryService : QueryServiceBase
     {
         var json = JsonSerializer.Serialize(request, NativeJsonContext.Default.OpenAIChatRequest);
         var endpoint = GetChatEndpoint(Config);
+
+        Diag.WriteLine($"[WIRE {CallTrace.CurrentId}] 流式请求体字节数={Encoding.UTF8.GetByteCount(json)} | tools={request.Tools?.Count ?? 0} | {endpoint}");
 
         var response = await SendWithResilienceAsync(json, endpoint, "LLM.StreamingChatCompletion", cancellationToken,
             HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);

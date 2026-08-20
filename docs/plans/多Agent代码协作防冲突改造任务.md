@@ -429,3 +429,46 @@ Worker 上报双意图 → 热点识别（取代文件锁）→ 热文件契约�
 <!-- 原因: 用户指出/goal现状是"四不像"(既不像单agent loop也不像能处理大型任务图+文件冲突); 现有team MCP已有完整组件(ITeamManager+IMailbox+TeammateInitService), /goal只需接入而非重造; 用户不喜欢加参数; 共享组件让两边错误一起修 -->
 <!-- 替代方案: 新建/team斜杠命令(用户否决,想改造/goal); /goal加--collab参数(用户否决,不喜欢参数) -->
 <!-- 验证: 待编译+提交 -->
+
+---
+
+## 八、实施进度与集成说明
+
+### 已完成组件（纯新增，127测试全绿，零破坏）
+
+| 单元 | 任务 | 组件 | 测试数 |
+|------|------|------|--------|
+| A | T0.3 | ModifyIntent 枚举 | — |
+| A | T0.4 | IHotFileDetector + HotFileDetector | 37 |
+| A | T1.1 | FileModifyIntent DTO | — |
+| A | T1.2 | IIntentCollector + IntentCollector | 12 |
+| A | T1.3 | IHotSpotTracker + HotSpotTracker | 15 |
+| A | T1.4 | IHotSpotResolutionPolicy + 实现 | 7 |
+| A | T0.5 | FileLock 职责调整（文档） | — |
+| B | T1.5 | TeammateMessageType 扩展4类型 | — |
+| B | T1.6 | IIntentReporter + IntentReporter | 7 |
+| B | T1.7 | IHotFileWatchdog + HotFileWatchdog | 8 |
+| B | T4.0 | IContractChangeBroadcaster + 实现 | 6 |
+| C | T2.1 | ICaptainDispatchGuard + CaptainDispatchGuard | 5 |
+| E | T7.1 | DeferredMail + MailMarker | — |
+| E | T7.2 | IDeferredMailService + DeferredMailService | 7 |
+| E | T7.3 | 定向投递（零扩展，复用 IMailbox） | — |
+| F | T9.2 | IWorktreeDecisionPolicy + WorktreeDecisionPolicy | 16 |
+| F | T8.2 | ITaskTableGenerator + TaskTableGenerator | 7 |
+
+### 待集成任务（需改现有核心代码接入执行流）
+
+> ⚠️ 以下任务涉及改现有核心代码（GoalGraphEngine/Worker主循环/mainAgent派发），风险较高，需用户确认后逐个集成。
+
+| 任务 | 集成点 | 改动文件 | 风险 |
+|------|--------|----------|------|
+| T2.2 | GoalGraphEngine.ExecuteViaAgentServiceAsync 节点执行器 | `composition/Clock/src/Goal/Core/GoalGraphEngine.cs:390-403` | 中（改节点执行从自执行→派发sub-agent） |
+| T2.4 | mainAgent 启动时 spawn 秘书常驻 | `core/ai/Agents/src/Coordinator/Core/AgentCoordinator.cs` | 中（加秘书spawn逻辑） |
+| T2.5 | 秘书执行连带改调用点 | 新增秘书工具（CodeSemanticSearch+grep批量改） | 低（纯新增工具） |
+| T5.0 | Worker 主循环每轮查邮箱 | Worker 主循环代码（待定位） | 中（加邮箱检查点） |
+| T6.0 | 队长串行处理合并队列 | 新增合并队列服务（复用 WorktreeMergeService） | 低（纯新增服务） |
+| T8.3 | goal→任务表→派发联动 | `GoalGraphEngine` 接入 ITeamManager 建团队 | 中（改GoalGraphEngine） |
+
+### 集成顺序建议
+
+1. **T6.0 合并队列**（纯新增服务，低风险）→ 2. **T2.5 秘书工具**（纯新增，低风险）→ 3. **T2.2 DAG派发**（改GoalGraphEngine，中风险）→ 4. **T8.3 goal联动**（改GoalGraphEngine，中风险）→ 5. **T2.4 秘书spawn**（改AgentCoordinator，中风险）→ 6. **T5.0 Worker同步**（改Worker主循环，中风险）

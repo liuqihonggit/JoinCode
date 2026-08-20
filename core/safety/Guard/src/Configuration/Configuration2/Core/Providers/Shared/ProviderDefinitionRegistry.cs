@@ -16,7 +16,8 @@ public sealed class ProviderDefinitionRegistry : IProviderDefinitionRegistry
 
         ApplyVendorFromSettings(dict, modelConfigLoader, fs);
 
-        dict["azure"] = new AzureProviderDefinition(modelConfigLoader);
+        if (!dict.ContainsKey("azure"))
+            dict["azure"] = new AzureProviderDefinition(modelConfigLoader);
 
         _definitions = dict.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
     }

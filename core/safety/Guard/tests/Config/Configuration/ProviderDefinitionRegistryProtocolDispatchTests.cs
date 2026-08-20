@@ -160,4 +160,48 @@ public class ProviderDefinitionRegistryProtocolDispatchTests
     }
 
     #endregion
+
+    #region Azure 硬编码修复验证(配置大于代码)
+
+    [Fact]
+    public void Azure_WithoutSettingsConfig_ShouldFallbackToAzureProviderDefinition()
+    {
+        var json = """{"vendor":{"deepseek":{"protocol":"openai-compatible"}}}""";
+        var registry = new ProviderDefinitionRegistry(CreateLoader(), CreateFs(json));
+
+        var def = registry.TryGet("azure");
+
+        def.Should().NotBeNull();
+        def!.Protocol.Should().Be(ProtocolKind.Azure,
+            "settings.json 未配 azure 时回退到内置 AzureProviderDefinition");
+    }
+
+    [Fact]
+    public void Azure_WithSettingsConfig_ShouldUseConfiguredProtocol_NotOverwritten()
+    {
+        var json = """{"vendor":{"azure":{"protocol":"openai-compatible","endpoint":"https://my-azure-proxy.com","apiKeyEnvVar":"AZURE_OPENAI_API_KEY"}}}""";
+        var registry = new ProviderDefinitionRegistry(CreateLoader(), CreateFs(json));
+
+        var def = registry.TryGet("azure")!;
+
+        def.Protocol.Should().Be(ProtocolKind.OpenAiCompatible,
+            "settings.json 配了 azure 时不被内置 AzureProviderDefinition 覆盖,配置大于代码");
+        def.ProviderName.Should().Be("azure");
+    }
+
+    [Fact]
+    public void Azure_WithResponsesProtocol_ShouldUseOpenAiCompatibleWithResponsesEndpoint()
+    {
+        var json = """{"vendor":{"azure":{"protocol":"responses","endpoint":"https://my-azure-proxy.com","apiKeyEnvVar":"AZURE_OPENAI_API_KEY"}}}""";
+        var registry = new ProviderDefinitionRegistry(CreateLoader(), CreateFs(json));
+
+        var def = registry.TryGet("azure")!;
+
+        def.Protocol.Should().Be(ProtocolKind.OpenAiCompatible,
+            "responses 协议通过 OpenAiCompatibleProviderDefinition 实现,GetChatEndpoint 按 config.ProtocolKind 分派");
+        var config = new ProviderConfig { Endpoint = "https://my-azure-proxy.com", Protocol = "responses" };
+        def.GetChatEndpoint(config).Should().Be("responses");
+    }
+
+    #endregion
 }

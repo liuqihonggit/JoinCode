@@ -115,6 +115,12 @@ public sealed class KestrelMockServer : IHttpMockServer
 
             Console.WriteLine($"[{_serverName}]   Cache: {(cacheStats.CacheReadTokens > 0 ? "HIT" : "MISS")} (creation={cacheStats.CacheCreationTokens}, read={cacheStats.CacheReadTokens}, input={cacheStats.InputTokens})");
 
+            var prefixForLog = TokenEstimator.ExtractConversationPrefix(requestJson.RootElement);
+            var protocol = requestJson.RootElement.TryGetProperty("input", out _) ? "responses"
+                         : requestJson.RootElement.TryGetProperty("system", out _) ? "anthropic"
+                         : "openai";
+            Console.WriteLine($"[{_serverName}]   Protocol: {protocol}, Prefix length: {prefixForLog.Length} chars");
+
             var messagesPreview = ExtractMessagesPreview(requestJson.RootElement);
             if (messagesPreview.Count > 0)
             {
@@ -180,7 +186,7 @@ public sealed class KestrelMockServer : IHttpMockServer
                 if (_responseStrategy.HasToolCalls())
                 {
                     Console.WriteLine($"[{_serverName}]   Response: tool call stream");
-                    var toolCallStream = _responseStrategy.BuildStreamToolCallResponse(id);
+                    var toolCallStream = _responseStrategy.BuildStreamToolCallResponse(id, cacheStats);
                     await ctx.Response.WriteAsync(toolCallStream, ctx.RequestAborted);
                     await ctx.Response.Body.FlushAsync(ctx.RequestAborted);
                 }
@@ -338,16 +344,41 @@ public sealed class KestrelMockServer : IHttpMockServer
             sb.AppendLine();
 
             var requestJson = JsonDocument.Parse(body);
-            sb.AppendLine("## System Prefix");
-            var prefix = TokenEstimator.ExtractSystemPrefix(requestJson.RootElement);
+            sb.AppendLine("## Conversation Prefix");
+            var prefix = TokenEstimator.ExtractConversationPrefix(requestJson.RootElement);
             sb.AppendLine(prefix.Length > 200 ? prefix[..200] + "..." : prefix);
             sb.AppendLine($"(prefix length: {prefix.Length} chars)");
             sb.AppendLine();
+
+            if (requestJson.RootElement.TryGetProperty("instructions", out var instructions) &&
+                instructions.ValueKind == JsonValueKind.String)
+            {
+                sb.AppendLine("## Instructions");
+                var instrText = instructions.GetString() ?? "";
+                var instrPreview = instrText.Length > 300 ? instrText[..300] + "..." : instrText;
+                sb.AppendLine(instrPreview);
+                sb.AppendLine($"  (length: {instrText.Length} chars)");
+                sb.AppendLine();
+            }
 
             sb.AppendLine("## Messages");
             if (requestJson.RootElement.TryGetProperty("messages", out var messages))
             {
                 foreach (var msg in messages.EnumerateArray())
+                {
+                    var role = msg.TryGetProperty("role", out var r) ? r.GetString() ?? "?" : "?";
+                    var content = msg.TryGetProperty("content", out var c)
+                        ? c.ValueKind == JsonValueKind.String ? c.GetString() ?? "" : c.GetRawText()
+                        : "";
+                    var preview = content.Length > 300 ? content[..300] + "..." : content;
+                    sb.AppendLine($"[{role}] {preview}");
+                    sb.AppendLine($"  (content length: {content.Length} chars)");
+                }
+            }
+
+            if (requestJson.RootElement.TryGetProperty("input", out var input))
+            {
+                foreach (var msg in input.EnumerateArray())
                 {
                     var role = msg.TryGetProperty("role", out var r) ? r.GetString() ?? "?" : "?";
                     var content = msg.TryGetProperty("content", out var c)
@@ -375,16 +406,39 @@ public sealed class KestrelMockServer : IHttpMockServer
     private static List<string> ExtractMessagesPreview(JsonElement request)
     {
         var lines = new List<string>();
-        if (!request.TryGetProperty("messages", out var messages)) return lines;
 
-        foreach (var msg in messages.EnumerateArray())
+        if (request.TryGetProperty("instructions", out var instructions) &&
+            instructions.ValueKind == JsonValueKind.String)
         {
-            var role = msg.TryGetProperty("role", out var r) ? r.GetString() ?? "?" : "?";
-            var content = msg.TryGetProperty("content", out var c)
-                ? c.ValueKind == JsonValueKind.String ? c.GetString() ?? "" : c.GetRawText()
-                : "";
-            var preview = content.Length > 100 ? content[..100] + "..." : content;
-            lines.Add($"[{role}] {preview} ({content.Length} chars)");
+            var text = instructions.GetString() ?? "";
+            var preview = text.Length > 100 ? text[..100] + "..." : text;
+            lines.Add($"[instructions] {preview} ({text.Length} chars)");
+        }
+
+        if (request.TryGetProperty("messages", out var messages))
+        {
+            foreach (var msg in messages.EnumerateArray())
+            {
+                var role = msg.TryGetProperty("role", out var r) ? r.GetString() ?? "?" : "?";
+                var content = msg.TryGetProperty("content", out var c)
+                    ? c.ValueKind == JsonValueKind.String ? c.GetString() ?? "" : c.GetRawText()
+                    : "";
+                var preview = content.Length > 100 ? content[..100] + "..." : content;
+                lines.Add($"[{role}] {preview} ({content.Length} chars)");
+            }
+        }
+
+        if (request.TryGetProperty("input", out var input))
+        {
+            foreach (var msg in input.EnumerateArray())
+            {
+                var role = msg.TryGetProperty("role", out var r) ? r.GetString() ?? "?" : "?";
+                var content = msg.TryGetProperty("content", out var c)
+                    ? c.ValueKind == JsonValueKind.String ? c.GetString() ?? "" : c.GetRawText()
+                    : "";
+                var preview = content.Length > 100 ? content[..100] + "..." : content;
+                lines.Add($"[{role}] {preview} ({content.Length} chars)");
+            }
         }
 
         return lines;

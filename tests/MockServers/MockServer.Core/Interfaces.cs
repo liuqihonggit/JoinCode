@@ -54,7 +54,7 @@ public interface IResponseStrategy
     /// <summary>
     /// 构建工具调用的流式响应（一次性返回完整工具调用流）
     /// </summary>
-    string BuildStreamToolCallResponse(string id) => "";
+    string BuildStreamToolCallResponse(string id, CacheStats cacheStats) => "";
 
     /// <summary>
     /// 当前轮次是否有思考内容（reasoning/thinking）

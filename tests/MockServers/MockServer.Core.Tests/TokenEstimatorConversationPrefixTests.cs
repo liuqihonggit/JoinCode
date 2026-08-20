@@ -119,4 +119,66 @@ public sealed class TokenEstimatorConversationPrefixTests
 
         prefix.Should().BeEmpty();
     }
+
+    // === Responses API 格式 (input 数组 + instructions 字段) ===
+
+    [Fact]
+    public void ResponsesFormat_InstructionsPlusInput_PrefixIncludesBoth()
+    {
+        var json = """{"instructions":"SYS","input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"Hello"}]}]}""";
+        var req = JsonDocument.Parse(json).RootElement.Clone();
+
+        var prefix = TokenEstimator.ExtractConversationPrefix(req);
+
+        prefix.Should().Contain("SYS");
+        prefix.Should().Contain("Hello");
+        prefix.IndexOf("SYS", StringComparison.Ordinal).Should().BeLessThan(prefix.IndexOf("Hello", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ResponsesFormat_InputOnly_PrefixIncludesInputContent()
+    {
+        var json = """{"input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"echo hello"}]}]}""";
+        var req = JsonDocument.Parse(json).RootElement.Clone();
+
+        var prefix = TokenEstimator.ExtractConversationPrefix(req);
+
+        prefix.Should().Contain("echo hello");
+    }
+
+    [Fact]
+    public void ResponsesFormat_MultiTurn_PrefixGrows()
+    {
+        var turn1Json = """{"instructions":"SYS","input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"q1"}]}]}""";
+        var turn2Json = """{"instructions":"SYS","input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"q1"}]},{"type":"message","role":"assistant","content":[{"type":"output_text","text":"a1"}]},{"type":"message","role":"user","content":[{"type":"input_text","text":"q2"}]}]}""";
+
+        var prefix1 = TokenEstimator.ExtractConversationPrefix(JsonDocument.Parse(turn1Json).RootElement.Clone());
+        var prefix2 = TokenEstimator.ExtractConversationPrefix(JsonDocument.Parse(turn2Json).RootElement.Clone());
+
+        prefix2.StartsWith(prefix1, StringComparison.Ordinal).Should().BeTrue(
+            "Responses API 多轮对话 Turn 2 前缀应以 Turn 1 为前缀");
+        prefix2.Length.Should().BeGreaterThan(prefix1.Length);
+    }
+
+    [Fact]
+    public void ResponsesFormat_EstimateFromMessages_ReturnsNonZero()
+    {
+        var json = """{"instructions":"You are helpful.","input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"echo hello"}]}]}""";
+        var req = JsonDocument.Parse(json).RootElement.Clone();
+
+        var tokens = TokenEstimator.EstimateFromMessages(req);
+
+        tokens.Should().BeGreaterThan(0, "Responses API 请求应估算出非零 token 数");
+    }
+
+    [Fact]
+    public void ResponsesFormat_AssistantOutputText_ExtractedAsPrefix()
+    {
+        var json = """{"input":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":"response text"}]}]}""";
+        var req = JsonDocument.Parse(json).RootElement.Clone();
+
+        var prefix = TokenEstimator.ExtractConversationPrefix(req);
+
+        prefix.Should().Contain("response text");
+    }
 }

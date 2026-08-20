@@ -35,6 +35,25 @@ public static class TokenEstimator
             }
         }
 
+        if (request.TryGetProperty("instructions", out var instructions) &&
+            instructions.ValueKind == JsonValueKind.String)
+        {
+            totalChars += instructions.GetString()?.Length ?? 0;
+        }
+
+        if (request.TryGetProperty("input", out var input))
+        {
+            foreach (var msg in input.EnumerateArray())
+            {
+                if (msg.TryGetProperty("content", out var content))
+                {
+                    totalChars += content.ValueKind == JsonValueKind.String
+                        ? content.GetString()?.Length ?? 0
+                        : content.GetRawText().Length;
+                }
+            }
+        }
+
         return totalChars / 4;
     }
 
@@ -120,6 +139,25 @@ public static class TokenEstimator
             }
         }
 
+        // 3. Responses API: 追加 input 数组内容 (跳过 system 角色避免重复)
+        if (request.TryGetProperty("input", out var input))
+        {
+            foreach (var msg in input.EnumerateArray())
+            {
+                var role = msg.TryGetProperty("role", out var r) ? r.GetString() ?? "" : "";
+                if (role == "system") continue; // system 已在前面处理
+
+                var contentText = ExtractContentText(msg.TryGetProperty("content", out var c) ? c : default);
+                if (!string.IsNullOrEmpty(contentText))
+                {
+                    sb.Append(role);
+                    sb.Append('\x01');
+                    sb.Append(contentText);
+                    sb.Append('\x00');
+                }
+            }
+        }
+
         return sb.ToString();
     }
 
@@ -128,6 +166,12 @@ public static class TokenEstimator
     /// </summary>
     private static string ExtractSystemText(JsonElement request)
     {
+        if (request.TryGetProperty("instructions", out var instructions) &&
+            instructions.ValueKind == JsonValueKind.String)
+        {
+            return instructions.GetString() ?? "";
+        }
+
         if (request.TryGetProperty("system", out var system))
         {
             if (system.ValueKind == JsonValueKind.Array)
@@ -151,6 +195,19 @@ public static class TokenEstimator
         if (request.TryGetProperty("messages", out var messages))
         {
             foreach (var msg in messages.EnumerateArray())
+            {
+                if (msg.TryGetProperty("role", out var role) &&
+                    role.GetString() == "system" &&
+                    msg.TryGetProperty("content", out var content))
+                {
+                    return ExtractContentText(content);
+                }
+            }
+        }
+
+        if (request.TryGetProperty("input", out var input))
+        {
+            foreach (var msg in input.EnumerateArray())
             {
                 if (msg.TryGetProperty("role", out var role) &&
                     role.GetString() == "system" &&

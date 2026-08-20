@@ -27,7 +27,10 @@ public sealed class ResponsesResponseStrategy : ScriptedResponseStrategyBase
                 "output": [{{toolCallsJson}}],
                 "usage": {
                     "input_tokens": {{cacheStats.InputTokens}},
-                    "output_tokens": {{cacheStats.OutputTokens}}
+                    "output_tokens": {{cacheStats.OutputTokens}},
+                    "input_tokens_details": {
+                        "cached_tokens": {{cacheStats.CacheReadTokens}}
+                    }
                 }
             }
             """;
@@ -47,7 +50,10 @@ public sealed class ResponsesResponseStrategy : ScriptedResponseStrategyBase
             "output_text": "{{EscapeJsonString(text)}}",
             "usage": {
                 "input_tokens": {{cacheStats.InputTokens}},
-                "output_tokens": {{cacheStats.OutputTokens}}
+                "output_tokens": {{cacheStats.OutputTokens}},
+                "input_tokens_details": {
+                    "cached_tokens": {{cacheStats.CacheReadTokens}}
+                }
             }
         }
         """;
@@ -71,7 +77,7 @@ public sealed class ResponsesResponseStrategy : ScriptedResponseStrategyBase
         ArgumentException.ThrowIfNullOrEmpty(id);
         ArgumentNullException.ThrowIfNull(cacheStats);
 
-        return $"event: response.completed\ndata: {{\"response\":{{\"id\":\"{id}\",\"object\":\"response\",\"status\":\"completed\",\"usage\":{{\"input_tokens\":{cacheStats.InputTokens},\"output_tokens\":{cacheStats.OutputTokens}}}}}}}\n\n";
+        return $"event: response.completed\ndata: {{\"response\":{{\"id\":\"{id}\",\"object\":\"response\",\"status\":\"completed\",\"usage\":{{\"input_tokens\":{cacheStats.InputTokens},\"output_tokens\":{cacheStats.OutputTokens},\"input_tokens_details\":{{\"cached_tokens\":{cacheStats.CacheReadTokens}}}}}}}}}\n\n";
     }
 
     public override string BuildToolCallResponse(JsonElement request, CacheStats cacheStats)
@@ -89,13 +95,16 @@ public sealed class ResponsesResponseStrategy : ScriptedResponseStrategyBase
             "output": [{{toolCallsJson}}],
             "usage": {
                 "input_tokens": {{cacheStats.InputTokens}},
-                "output_tokens": {{cacheStats.OutputTokens}}
+                "output_tokens": {{cacheStats.OutputTokens}},
+                "input_tokens_details": {
+                    "cached_tokens": {{cacheStats.CacheReadTokens}}
+                }
             }
         }
         """;
     }
 
-    public override string BuildStreamToolCallResponse(string id)
+    public override string BuildStreamToolCallResponse(string id, CacheStats cacheStats)
     {
         var turn = CurrentTurn;
         var toolCalls = turn.ToolCalls ?? [];
@@ -108,7 +117,7 @@ public sealed class ResponsesResponseStrategy : ScriptedResponseStrategyBase
             sb.Append($"event: response.function_call_arguments.delta\ndata: {{\"item_id\":\"fc_{callId}\",\"delta\":\"{EscapeJsonString(tc.Arguments)}\"}}\n\n");
         }
 
-        sb.Append($"event: response.completed\ndata: {{\"response\":{{\"id\":\"{id}\",\"object\":\"response\",\"status\":\"completed\",\"usage\":{{\"input_tokens\":0,\"output_tokens\":0}}}}}}\n\n");
+        sb.Append($"event: response.completed\ndata: {{\"response\":{{\"id\":\"{id}\",\"object\":\"response\",\"status\":\"completed\",\"usage\":{{\"input_tokens\":{cacheStats.InputTokens},\"output_tokens\":{cacheStats.OutputTokens},\"input_tokens_details\":{{\"cached_tokens\":{cacheStats.CacheReadTokens}}}}}}}}}\n\n");
         return sb.ToString();
     }
 

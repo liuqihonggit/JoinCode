@@ -86,7 +86,7 @@ public sealed class DeepSeekResponseStrategy : ScriptedResponseStrategyBase
         """;
     }
 
-    public override string BuildStreamToolCallResponse(string id)
+    public override string BuildStreamToolCallResponse(string id, CacheStats cacheStats)
     {
         var turn = CurrentTurn;
         var toolCalls = turn.ToolCalls ?? [];

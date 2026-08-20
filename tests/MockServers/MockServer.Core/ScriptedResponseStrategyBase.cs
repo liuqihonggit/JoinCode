@@ -120,7 +120,7 @@ public abstract class ScriptedResponseStrategyBase : IResponseStrategy
     public abstract string BuildStreamChunk(string id, string content, bool isLast);
     public abstract string? BuildStreamPreamble(string id);
     public abstract string BuildToolCallResponse(JsonElement request, CacheStats cacheStats);
-    public abstract string BuildStreamToolCallResponse(string id);
+    public abstract string BuildStreamToolCallResponse(string id, CacheStats cacheStats);
     public abstract string BuildStreamThinkingResponse(string id);
 
     /// <summary>

@@ -181,4 +181,54 @@ public sealed class TokenEstimatorConversationPrefixTests
 
         prefix.Should().Contain("response text");
     }
+
+    // === Tools 定义计入 token 估算和前缀 ===
+
+    [Fact]
+    public void ToolsDefinition_IncludedInTokenEstimate()
+    {
+        var jsonNoTools = """{"messages":[{"role":"user","content":"hello"}]}""";
+        var jsonWithTools = """{"messages":[{"role":"user","content":"hello"}],"tools":[{"type":"function","function":{"name":"read","description":"read a file"}}]}""";
+
+        var tokensNoTools = TokenEstimator.EstimateFromMessages(JsonDocument.Parse(jsonNoTools).RootElement.Clone());
+        var tokensWithTools = TokenEstimator.EstimateFromMessages(JsonDocument.Parse(jsonWithTools).RootElement.Clone());
+
+        tokensWithTools.Should().BeGreaterThan(tokensNoTools,
+            "tools 定义应计入 token 估算");
+    }
+
+    [Fact]
+    public void ToolsDefinition_IncludedInPrefix()
+    {
+        var json = """{"messages":[{"role":"user","content":"hello"}],"tools":[{"type":"function","function":{"name":"read","description":"read a file"}}]}""";
+        var req = JsonDocument.Parse(json).RootElement.Clone();
+
+        var prefix = TokenEstimator.ExtractConversationPrefix(req);
+
+        prefix.Should().Contain("read", "tools 定义应包含在前缀中");
+        prefix.Should().Contain("read a file");
+    }
+
+    [Fact]
+    public void SameToolsSameMessages_PrefixEqual()
+    {
+        var json = """{"messages":[{"role":"user","content":"hello"}],"tools":[{"type":"function","function":{"name":"read"}}]}""";
+
+        var prefix1 = TokenEstimator.ExtractConversationPrefix(JsonDocument.Parse(json).RootElement.Clone());
+        var prefix2 = TokenEstimator.ExtractConversationPrefix(JsonDocument.Parse(json).RootElement.Clone());
+
+        prefix1.Should().Be(prefix2);
+    }
+
+    [Fact]
+    public void DifferentTools_PrefixDifferent()
+    {
+        var json1 = """{"messages":[{"role":"user","content":"hello"}],"tools":[{"type":"function","function":{"name":"read"}}]}""";
+        var json2 = """{"messages":[{"role":"user","content":"hello"}],"tools":[{"type":"function","function":{"name":"write"}}]}""";
+
+        var prefix1 = TokenEstimator.ExtractConversationPrefix(JsonDocument.Parse(json1).RootElement.Clone());
+        var prefix2 = TokenEstimator.ExtractConversationPrefix(JsonDocument.Parse(json2).RootElement.Clone());
+
+        prefix1.Should().NotBe(prefix2, "不同 tools 定义应产生不同前缀");
+    }
 }

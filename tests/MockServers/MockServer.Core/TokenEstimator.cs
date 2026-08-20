@@ -54,6 +54,14 @@ public static class TokenEstimator
             }
         }
 
+        if (request.TryGetProperty("tools", out var tools))
+        {
+            foreach (var tool in tools.EnumerateArray())
+            {
+                totalChars += tool.GetRawText().Length;
+            }
+        }
+
         return totalChars / 4;
     }
 
@@ -120,7 +128,19 @@ public static class TokenEstimator
             sb.Append('\x00');
         }
 
-        // 2. 追加所有消息内容 (按顺序, 跳过 system 角色消息避免重复)
+        // 2. 追加 tools 定义 (工具定义在多轮对话中保持不变, 放在 messages 之前确保前缀稳定增长)
+        if (request.TryGetProperty("tools", out var tools))
+        {
+            sb.Append("tools");
+            sb.Append('\x01');
+            foreach (var tool in tools.EnumerateArray())
+            {
+                sb.Append(tool.GetRawText());
+                sb.Append('\x00');
+            }
+        }
+
+        // 3. 追加所有消息内容 (按顺序, 跳过 system 角色消息避免重复)
         if (request.TryGetProperty("messages", out var messages))
         {
             foreach (var msg in messages.EnumerateArray())
@@ -139,7 +159,7 @@ public static class TokenEstimator
             }
         }
 
-        // 3. Responses API: 追加 input 数组内容 (跳过 system 角色避免重复)
+        // 4. Responses API: 追加 input 数组内容 (跳过 system 角色避免重复)
         if (request.TryGetProperty("input", out var input))
         {
             foreach (var msg in input.EnumerateArray())

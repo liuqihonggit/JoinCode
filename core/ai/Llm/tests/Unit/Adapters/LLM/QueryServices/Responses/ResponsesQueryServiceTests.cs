@@ -1,5 +1,7 @@
 namespace Llm.Tests.Adapters.LLM.QueryServices.Responses;
 
+using System.Net;
+using System.Text;
 using System.Text.Json;
 using Api.LLM.QueryServices;
 using Api.LLM.QueryServices.Responses;
@@ -396,6 +398,123 @@ public class ResponsesQueryServiceTests
         messages[0].Content.Should().BeNull("有 tool_calls 时 content 置 null");
         messages[0].Metadata!.Should().ContainKey("AllToolCalls");
         messages[0].Metadata!["FinishReason"].GetString().Should().Be("tool_calls");
+    }
+
+    #endregion
+
+    #region 流式事件解析
+
+    /// <summary>用 mock SSE 流构建服务 — 验证流式终结事件解析</summary>
+    private static ResponsesQueryService CreateStreamingService(string sseBody)
+    {
+        var kind = ProtocolKind.OpenAiResponses;
+        var config = new ProviderConfig
+        {
+            Vendor = "openai",
+            ApiKey = "sk-test",
+            ModelId = "gpt-4o",
+            Definition = new FallbackProviderDefinition(kind)
+        };
+
+        var handler = new MockResponsesStreamingHandler(sseBody);
+        var httpClient = new HttpClient(handler) { BaseAddress = new Uri("http://localhost:9901/") };
+        return new ResponsesQueryService(config, httpClient);
+    }
+
+    [Fact]
+    public async Task Stream_IncompleteEvent_YieldsFinalMetadataWithUsage()
+    {
+        // 官方协议: 终结事件有三个(completed/incomplete/failed)，incomplete 出现在 max_output_tokens 截断
+        var sse =
+            "event: response.output_text.delta\ndata: {\"delta\":\"Hello\"}\n\n" +
+            "event: response.incomplete\ndata: {\"response\":{\"id\":\"resp-1\",\"status\":\"incomplete\",\"incomplete_details\":{\"reason\":\"max_output_tokens\"},\"usage\":{\"input_tokens\":10,\"output_tokens\":20}}}\n\n";
+        var service = CreateStreamingService(sse);
+
+        var history = new MessageList { new(MessageRole.User, "hi") };
+        var events = new List<StreamEvent>();
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await foreach (var evt in service.GetStreamEventContentsAsync(history, cancellationToken: cts.Token))
+        {
+            events.Add(evt);
+        }
+
+        events.Should().NotBeEmpty("应收到文本增量事件");
+        var final = events[^1];
+        final.Content.Should().Be("");
+        final.Metadata.Should().ContainKey("Usage", "incomplete 事件应携带 usage 收尾");
+        var usage = final.Metadata!["Usage"].Deserialize<TokenUsage>(NativeJsonContext.Default.TokenUsage);
+        usage.Should().NotBeNull();
+        usage!.PromptTokens.Should().Be(10);
+        usage.CompletionTokens.Should().Be(20);
+    }
+
+    [Fact]
+    public async Task Stream_IncompleteEvent_WithToolCalls_FlushesAccumulatedToolCalls()
+    {
+        // incomplete 截断时已累积的 function_call arguments 应被刷出，避免丢失
+        var sse =
+            "event: response.output_item.added\ndata: {\"item\":{\"type\":\"function_call\",\"id\":\"fc_1\",\"call_id\":\"call-1\",\"name\":\"get_weather\",\"arguments\":\"\"}}\n\n" +
+            "event: response.function_call_arguments.delta\ndata: {\"item_id\":\"fc_1\",\"delta\":\"{\\\"city\\\":\\\"SF\\\"}\"}\n\n" +
+            "event: response.incomplete\ndata: {\"response\":{\"id\":\"resp-2\",\"status\":\"incomplete\",\"incomplete_details\":{\"reason\":\"max_output_tokens\"},\"usage\":{\"input_tokens\":10,\"output_tokens\":20}}}\n\n";
+        var service = CreateStreamingService(sse);
+
+        var history = new MessageList { new(MessageRole.User, "hi") };
+        var events = new List<StreamEvent>();
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await foreach (var evt in service.GetStreamEventContentsAsync(history, cancellationToken: cts.Token))
+        {
+            events.Add(evt);
+        }
+
+        var final = events[^1];
+        final.Metadata.Should().ContainKey("AllToolCalls", "incomplete 截断时应刷出已累积的工具调用");
+        final.Metadata!["FinishReason"].GetString().Should().Be("tool_calls");
+        final.Metadata!["AllToolCalls"].GetRawText().Should().Contain("get_weather");
+    }
+
+    [Fact]
+    public async Task Stream_DataWithoutEventPrefix_UsesTypeFieldFallback()
+    {
+        // 某些服务端/网关只发 data: 不带 event: 前缀，事件类型在 data 的 type 字段中
+        var sse =
+            "data: {\"type\":\"response.output_text.delta\",\"delta\":\"Hello\"}\n\n" +
+            "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp-1\",\"status\":\"completed\",\"usage\":{\"input_tokens\":10,\"output_tokens\":20}}}\n\n";
+        var service = CreateStreamingService(sse);
+
+        var history = new MessageList { new(MessageRole.User, "hi") };
+        var events = new List<StreamEvent>();
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await foreach (var evt in service.GetStreamEventContentsAsync(history, cancellationToken: cts.Token))
+        {
+            events.Add(evt);
+        }
+
+        events.Should().NotBeEmpty("无 event 前缀时应通过 data.type 容错解析");
+        events[0].Content.Should().Be("Hello");
+        events[^1].Metadata.Should().ContainKey("Usage", "无前缀时 completed 事件应正常收尾");
+    }
+
+    private sealed class MockResponsesStreamingHandler : DelegatingHandler
+    {
+        private readonly string _sseBody;
+
+        public MockResponsesStreamingHandler(string sseBody) : base(new HttpClientHandler())
+        {
+            _sseBody = sseBody;
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var content = new StringContent(_sseBody, Encoding.UTF8, "text/event-stream");
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = content
+            };
+            return Task.FromResult(response);
+        }
     }
 
     #endregion

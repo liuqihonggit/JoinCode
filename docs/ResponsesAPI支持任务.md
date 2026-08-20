@@ -87,3 +87,37 @@
 <!-- 决策: Responses API 作为独立 ProtocolKind.OpenAiResponses,而非复用 OpenAiCompatible -->
 <!-- 原因: 请求/响应/流式格式完全不同(input vs messages,output vs choices,event SSE vs data SSE),复用会增加条件分支复杂度 -->
 <!-- 替代方案: 在 OpenAIQueryService 内按协议分支(违反单一职责,不采用) -->
+
+## 协议核查(2026-08-21) — 三个缺口调查结论
+
+用户提供的自研 Responses API 封装设计存在两处协议错误,项目现有实现反而更接近官方规范:
+- **tool 格式**: 用户设计用 Chat Completions 嵌套 `{"type":"function","function":{...}}`;Responses API 官方是**扁平格式** `{"type":"function","name":...,"description":...,"parameters":{...}}`,项目 `ResponsesTool` 正确 ✅
+- **input item**: 用户设计 `{role, content}` 缺 `type`;官方 item 必须带 `{"type":"message","role":...,"content":[{"type":"input_text"/"output_text","text":...}]}`,项目 `CreateRequest` 正确构建 ✅
+
+项目实现经逐项核对后确认存在 3 个缺口,本轮已全部处理:
+
+### 缺口1 ✅ 已修复: response.incomplete 终结事件未处理
+- **现象**: 流式 switch 只处理 `response.completed`/`response.failed`;当 `max_output_tokens` 截断时服务端发 `response.incomplete`,当前实现静默结束流,丢失 usage 和已累积的 tool_calls
+- **修复**: switch 合并 `case "response.completed": case "response.incomplete":`(主循环 + 两阶段加载第二段循环),FinishReason="stop"(无 tool) / "tool_calls"(有 tool),usage 从 `response.usage` 提取,`yield break`
+- **测试**: 2 个红测试(纯文本 + 工具调用截断) → 修复后绿
+
+### 缺口2 ✅ 已评估: tool_groups 仅 MockServer 有效 — 设计决策,不改代码
+- **现象**: `tool_groups` + `tool_description_request` 是自定义协议,真实 DeepSeek API 忽略这两个字段
+- **结论**: **非协议错误,是两阶段工具加载的设计权衡**:
+  - `OpenAITypes.cs` 注释明确"真实 LLM API 忽略此字段"
+  - 系统提示词 `ToolsSection.cs` 说明:真实 API 下 MCP 工具不内联进 `tools` 数组,而是通过 **ToolSearch** 按需加载(模型调用 `tool_search` 系统工具 → 返回 `tool_description_request` → QueryService 检测到后发第二次请求补齐 tool schema)
+  - `tool_groups` 只把工具分组传给 MockServer,让模拟环境免去 ToolSearch 往返
+- **决策**: 保留现状,不修改代码。两阶段加载已在 c4514f51a 落地,与 MockServer 的 tool_groups 各司其职
+- **待验证**: 真实 DeepSeek API 端到端 ToolSearch 链路尚未实测(缺 API key),列为后续集成测试项
+
+### 缺口3 ✅ 已修复: SSE 无 event: 前缀时无容错
+- **现象**: 解析依赖 `event: xxx` 前缀;若服务端/网关只发 `data: {...}`(data 内含 `type` 字段),当前实现丢弃所有事件
+- **修复**: 每个 data 行解析后,优先从 `data.type` 字段推断事件类型(官方完整格式 data 均带 type),无 type 时回退到 `event:` 前缀。兼容两种格式
+- **测试**: 1 个红测试(纯 data 无前缀流) → 修复后绿
+
+### 验证
+- Llm.Tests: 355 全通过(含新增 3 个流式测试)
+
+### ⚠️ 后续待办
+- 真实 DeepSeek API(非 MockServer)端到端验证 tool_description_request 两阶段加载链路
+- 确认 `max_output_tokens` 截断时 FinishReason 是否应标记为 `length`(当前为 stop,待真实 API 行为确认)

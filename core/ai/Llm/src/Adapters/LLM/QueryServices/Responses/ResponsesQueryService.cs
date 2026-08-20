@@ -64,7 +64,7 @@ public class ResponsesQueryService : QueryServiceBase
             if (!line.StartsWith("data: ")) continue;
             var data = line[6..];
 
-            if (string.IsNullOrEmpty(data) || currentEvent is null) continue;
+            if (string.IsNullOrEmpty(data)) continue;
 
             JsonElement eventJson;
             try
@@ -74,6 +74,20 @@ public class ResponsesQueryService : QueryServiceBase
             catch (Exception ex) when (ex is JsonException or FormatException)
             {
                 Logger?.LogWarning(ex, "Responses API event 反序列化失败, 跳过");
+                continue;
+            }
+
+            // 事件类型解析: 优先 data 内 type 字段(无 event: 前缀的容错), 回退到 event: 前缀
+            if (eventJson.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+            if (eventJson.TryGetProperty("type", out var eventTypeProp) && eventTypeProp.ValueKind == JsonValueKind.String)
+            {
+                currentEvent = eventTypeProp.GetString();
+            }
+            else if (currentEvent is null)
+            {
                 continue;
             }
 
@@ -137,6 +151,7 @@ public class ResponsesQueryService : QueryServiceBase
                         break;
                     }
                 case "response.completed":
+                case "response.incomplete":
                     {
                         if (eventJson.TryGetProperty("response", out var respProp) && respProp.TryGetProperty("usage", out var usageProp))
                         {
@@ -188,11 +203,25 @@ public class ResponsesQueryService : QueryServiceBase
                 if (sLine.StartsWith("event: ")) { secondCurrentEvent = sLine[7..].Trim(); continue; }
                 if (!sLine.StartsWith("data: ")) continue;
                 var sData = sLine[6..];
-                if (string.IsNullOrEmpty(sData) || secondCurrentEvent is null) continue;
+                if (string.IsNullOrEmpty(sData)) continue;
 
                 JsonElement sEventJson;
                 try { sEventJson = JsonDocument.Parse(sData).RootElement; }
                 catch (Exception ex) when (ex is JsonException or FormatException) { continue; }
+
+                // 事件类型解析: 优先 data 内 type 字段(无 event: 前缀的容错), 回退到 event: 前缀
+                if (sEventJson.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
+                if (sEventJson.TryGetProperty("type", out var sEventTypeProp) && sEventTypeProp.ValueKind == JsonValueKind.String)
+                {
+                    secondCurrentEvent = sEventTypeProp.GetString();
+                }
+                else if (secondCurrentEvent is null)
+                {
+                    continue;
+                }
 
                 var sMeta = new Dictionary<string, JsonElement>();
                 switch (secondCurrentEvent)
@@ -236,6 +265,7 @@ public class ResponsesQueryService : QueryServiceBase
                             break;
                         }
                     case "response.completed":
+                    case "response.incomplete":
                         {
                             if (sEventJson.TryGetProperty("response", out var respProp) && respProp.TryGetProperty("usage", out var usageProp))
                             {

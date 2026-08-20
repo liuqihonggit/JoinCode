@@ -56,11 +56,12 @@
 - `FrozenSet<string>` 缓存常用规则结果，线程安全
 - 验证：编译 + 各语言热文件检测测试（C# 接口/Java 枚举/Python `__init__.py`/JS `index.ts`）
 
-#### T0.5 移除 FileLock/BatchLock，用热点识别替代
-- **改造**：移除/弱化现有 `infrastructure/Infrastructure/AsyncFileLock/` 的 `FileLock`/`BatchLock` 使用
-- 文件并发写防护改为"热点识别+队长收口"（阶段1）+ worktree 物理隔离
+#### T0.5 FileLock 职责调整（保留单进程并发保护，多Agent冲突走热点识别）
+- **调研结论**：FileLock/BatchLock 用于 FileWriter/FileEditor/DreamTaskPersistence/HighWaterMarkManager 等**单进程内文件操作并发保护**（防数据损坏），不是多Agent协作冲突防护
+- **不删代码**：FileLock 保留用于单进程内并发写保护（防数据损坏），这是技术层面的正确用途
+- **职责边界**：多Agent协作的文件冲突防护改用"热点识别+队长收口+worktree物理隔离"（T0.3-T1.4 已实现），不走 FileLock
 - **保留** `BuildQueueService` 编译队列锁（防并发编译炸资源，这是资源防护非文件冲突防护）
-- 验证：编译 + 确认无 FileLock 死锁路径
+- 验证：确认 FileLock 仅用于单进程并发写，不用于多Agent冲突防护
 
 ---
 

@@ -14,7 +14,7 @@ public class ApiKeySaveLoadTests
         if (string.Equals(provider, "azure", StringComparison.OrdinalIgnoreCase))
             return new AzureProviderDefinition(ModelLoader);
         if (string.Equals(provider, "anthropic", StringComparison.OrdinalIgnoreCase))
-            return new AnthropicProviderDefinition(ModelLoader, provider, "ANTHROPIC_API_KEY");
+            return new AnthropicCompatibleProviderDefinition(ModelLoader, provider, "ANTHROPIC_API_KEY");
         return new OpenAiCompatibleProviderDefinition(ModelLoader, provider,
             provider.ToLowerInvariant() switch
             {

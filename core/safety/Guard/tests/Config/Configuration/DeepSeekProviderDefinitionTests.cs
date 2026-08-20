@@ -304,7 +304,7 @@ public class DeepSeekProviderDefinitionTests : IDisposable
     [Fact]
     public void AnthropicProviderDefinition_CanBeConstructedForAnthropic()
     {
-        var definition = new AnthropicProviderDefinition(_modelConfigLoader, "anthropic", "ANTHROPIC_API_KEY");
+        var definition = new AnthropicCompatibleProviderDefinition(_modelConfigLoader, "anthropic", "ANTHROPIC_API_KEY");
 
         definition.Should().NotBeNull();
         definition.ProviderName.Should().Be("anthropic");

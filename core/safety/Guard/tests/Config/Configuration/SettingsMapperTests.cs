@@ -345,7 +345,7 @@ public class SettingsMapperTests
             _definitions = new Dictionary<string, IProviderDefinition>(StringComparer.OrdinalIgnoreCase)
             {
                 ["openai"] = new OpenAiCompatibleProviderDefinition(loader, "openai", "OPENAI_API_KEY"),
-                ["anthropic"] = new AnthropicProviderDefinition(loader, "anthropic", "ANTHROPIC_API_KEY"),
+                ["anthropic"] = new AnthropicCompatibleProviderDefinition(loader, "anthropic", "ANTHROPIC_API_KEY"),
                 ["deepseek"] = new OpenAiCompatibleProviderDefinition(loader, "deepseek", "DEEPSEEK_API_KEY"),
                 ["azure"] = new AzureProviderDefinition(loader),
             };

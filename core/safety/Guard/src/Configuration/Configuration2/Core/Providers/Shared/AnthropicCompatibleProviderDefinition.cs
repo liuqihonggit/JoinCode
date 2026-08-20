@@ -19,7 +19,7 @@ public sealed class AnthropicCompatibleProviderDefinition : IProviderDefinition
     /// </summary>
     private const string DefaultAnthropicBeta = "prompt-caching-2024-07-31,prompt-caching-scope-2026-01-05,context-management-2025-06-27";
 
-    public AnthropicCompatibleProviderDefinition(IModelConfigLoader modelConfigLoader, string providerName, string? apiKeyEnvVar = null, string? anthropicBeta = null)
+    public AnthropicCompatibleProviderDefinition(IModelConfigLoader modelConfigLoader, string providerName = "anthropic", string? apiKeyEnvVar = null, string? anthropicBeta = null)
     {
         _modelConfigLoader = modelConfigLoader;
         _providerName = providerName;

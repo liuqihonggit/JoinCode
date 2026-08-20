@@ -116,12 +116,15 @@ public sealed class McpInitModule : IAppModule
                 return;
 
             var bridge = new McpToolBridge(toolRegistry);
-            var plugin = await bridge.CreatePluginAsync(cancellationToken).ConfigureAwait(false);
+            var plugins = await bridge.CreatePluginAsync(cancellationToken).ConfigureAwait(false);
 
-            chatClient.Plugins.Remove("mcp_tools");
-            chatClient.Plugins.Add(plugin);
+            chatClient.Plugins.Remove(ToolGroupNameConstants.CoreTools);
+            chatClient.Plugins.Remove(ToolGroupNameConstants.McpTools);
+            foreach (var p in plugins)
+                chatClient.Plugins.Add(p);
 
-            logger?.LogDebug("[MCP] kernel.Plugins 已刷新，{Count} 个工具", plugin.Functions.Count());
+            var totalCount = plugins.Sum(p => p.Functions.Count());
+            logger?.LogDebug("[MCP] kernel.Plugins 已刷新，{GroupCount} 组 {Count} 个工具", plugins.Count, totalCount);
         }
         catch (Exception ex)
         {

@@ -16,6 +16,7 @@ namespace Api.LLM;
 [JsonSerializable(typeof(OpenAIParameterProperty))]
 [JsonSerializable(typeof(OpenAIToolCall))]
 [JsonSerializable(typeof(OpenAIToolCallFunction))]
+[JsonSerializable(typeof(OpenAIThinkingOptions))]
 [JsonSerializable(typeof(TokenUsage))]
 [JsonSerializable(typeof(List<OpenAIToolCall>))]
 internal partial class NativeJsonContext : JsonSerializerContext;

@@ -51,6 +51,13 @@ internal sealed class OpenAIChatRequest
     [JsonPropertyName("reasoning_effort")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ReasoningEffort { get; set; }
+
+    /// <summary>
+    /// 思考模式开关 — DeepSeek V4 扩展字段,thinking:{"type":"enabled"} 开启思考模式
+    /// </summary>
+    [JsonPropertyName("thinking")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public OpenAIThinkingOptions? Thinking { get; set; }
 }
 
 /// <summary>
@@ -254,4 +261,13 @@ internal sealed class OpenAIToolCallFunction
     [JsonPropertyName("arguments")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Arguments { get; set; }
+}
+
+/// <summary>
+/// DeepSeek V4 思考模式选项 — thinking:{"type":"enabled"} 开启思考模式
+/// </summary>
+internal sealed class OpenAIThinkingOptions
+{
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = string.Empty;
 }

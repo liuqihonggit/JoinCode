@@ -53,7 +53,7 @@ public static class EnvOverrideApplier
                 [profileName] = new ProfileSettings
                 {
                     Provider = !string.IsNullOrEmpty(envVendor) ? envVendor : existingProfile?.Provider,
-                    Protocol = inferredProtocol ?? existingProfile?.Protocol,
+                    Protocol = existingProfile?.Protocol ?? inferredProtocol,
                     ApiKeyEnvVar = inferredApiKeyEnvVar ?? existingProfile?.ApiKeyEnvVar,
                     Model = !string.IsNullOrEmpty(envModelId) ? envModelId : existingProfile?.Model,
                     Endpoint = !string.IsNullOrEmpty(envEndpoint) ? envEndpoint : existingProfile?.Endpoint,

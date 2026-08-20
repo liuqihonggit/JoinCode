@@ -31,7 +31,7 @@ public sealed class ProviderDefinitionRegistry : IProviderDefinitionRegistry
 
     private static void ApplyVendorFromSettings(Dictionary<string, IProviderDefinition> dict, IModelConfigLoader modelConfigLoader, IFileSystem? fs)
     {
-        var settingsPath = AppDataConstants.Paths.SettingsFilePath;
+        var settingsPath = Path.Combine(WorkflowConstants.Paths.JccDirectory, AppDataConstants.SettingsFileName);
 
         var fileSystem = fs ?? new IO.FileSystem.PhysicalFileSystem();
         if (!fileSystem.FileExists(settingsPath))

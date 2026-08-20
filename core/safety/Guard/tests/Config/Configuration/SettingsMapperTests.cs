@@ -146,6 +146,53 @@ public class SettingsMapperTests
     }
 
     [Fact]
+    public void Given_vendor含responses协议_When_ToWorkflowConfig_Then_Protocol为responses()
+    {
+        var settings = new SettingsJson
+        {
+            Vendor = new Dictionary<string, ProfileSettings>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["deepseek"] = new ProfileSettings
+                {
+                    Provider = "deepseek",
+                    Protocol = "responses",
+                    Endpoint = "http://localhost:18092",
+                    Model = "deepseek-v4-flash"
+                },
+            },
+            Current = new CurrentSettings { Profile = "deepseek" },
+        };
+
+        var config = _mapper.ToWorkflowConfig(settings);
+        config.Provider.Vendor.Should().Be("deepseek");
+        config.Provider.Protocol.Should().Be("responses",
+            "settings.json 配了 protocol:responses 时不应被 definition.Protocol 覆盖(配置大于代码)");
+        config.Provider.ProtocolKind.Should().Be(ProtocolKind.OpenAiResponses);
+    }
+
+    [Fact]
+    public void Given_vendor未配protocol_When_ToWorkflowConfig_Then_回退到Definition协议()
+    {
+        var settings = new SettingsJson
+        {
+            Vendor = new Dictionary<string, ProfileSettings>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["deepseek"] = new ProfileSettings
+                {
+                    Provider = "deepseek",
+                    Model = "deepseek-v4-flash"
+                },
+            },
+            Current = new CurrentSettings { Profile = "deepseek" },
+        };
+
+        var config = _mapper.ToWorkflowConfig(settings);
+        config.Provider.Vendor.Should().Be("deepseek");
+        config.Provider.Protocol.Should().Be(ProtocolKind.OpenAiCompatible.ToValue(),
+            "settings.json 未配 protocol 时回退到 definition.Protocol 默认值");
+    }
+
+    [Fact]
     public void Given_环境变量JCC_MODEL_ID_When_EnvOverrideApplier_Then_VendorProfileModel被覆盖()
     {
         var settings = new SettingsJson

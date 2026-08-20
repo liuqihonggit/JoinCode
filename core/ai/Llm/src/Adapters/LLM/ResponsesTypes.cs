@@ -43,6 +43,13 @@ internal sealed class ResponsesRequest
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ToolChoice { get; set; }
 
+    /// <summary>
+    /// 两阶段工具加载 — MCP 工具分组（只有组名+工具名，不含完整 schema）
+    /// </summary>
+    [JsonPropertyName("tool_groups")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<OpenAIToolGroup>? ToolGroups { get; set; }
+
     [JsonPropertyName("reasoning")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ResponsesReasoning? Reasoning { get; set; }

@@ -35,6 +35,13 @@ internal sealed class AnthropicMessagesRequest
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public AnthropicToolChoice? ToolChoice { get; set; }
 
+    /// <summary>
+    /// 两阶段工具加载 — MCP 工具分组（只有组名+工具名，不含完整 schema）
+    /// </summary>
+    [JsonPropertyName("tool_groups")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<OpenAIToolGroup>? ToolGroups { get; set; }
+
     [JsonPropertyName("thinking")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public AnthropicThinkingConfig? Thinking { get; set; }

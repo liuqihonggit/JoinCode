@@ -85,8 +85,8 @@ public sealed class AnthropicQueryService : QueryServiceBase
 
         if (settings?.ToolChoice == ToolChoice.AutoInvoke && kernel != null)
         {
-            var allTools = BuildAnthropicToolsFromKernel(kernel);
-            if (allTools.Count > 0)
+            var (allTools, toolGroups) = BuildAnthropicToolsFromKernel(kernel);
+            if (allTools.Count > 0 || toolGroups.Count > 0)
             {
                 var deferredToolInfos = settings.DeferredTools;
                 var discoveredTools = settings.DiscoveredTools;
@@ -135,6 +135,11 @@ public sealed class AnthropicQueryService : QueryServiceBase
                 else
                 {
                     request.Tools = allTools;
+                }
+
+                if (toolGroups.Count > 0)
+                {
+                    request.ToolGroups = toolGroups;
                 }
 
                 request.ToolChoice = AnthropicToolChoice.Auto;
@@ -365,16 +370,43 @@ public sealed class AnthropicQueryService : QueryServiceBase
         };
     }
 
-    private static List<AnthropicToolDefinition> BuildAnthropicToolsFromKernel(IChatClient kernel)
+    /// <summary>
+    /// 构建工具列表 — 两阶段加载：core_tools 发完整 schema，mcp_tools 发分组+名称
+    /// </summary>
+    private static (List<AnthropicToolDefinition> Tools, List<OpenAIToolGroup> ToolGroups) BuildAnthropicToolsFromKernel(IChatClient kernel)
     {
-        return EnumerateToolFunctions(kernel)
-            .Select(function => new AnthropicToolDefinition
+        var tools = new List<AnthropicToolDefinition>();
+        var toolGroups = new List<OpenAIToolGroup>();
+
+        foreach (var pluginName in kernel.Plugins.PluginNames)
+        {
+            var plugin = kernel.Plugins.GetPlugin(pluginName);
+            if (plugin is not IToolGroup group)
+                continue;
+
+            if (group.Name == ToolGroupNameConstants.McpTools)
             {
-                Name = function.Name,
-                Description = ToolPromptRegistration.GetDetailedDescription(function.Name) ?? function.Description,
-                InputSchema = BuildAnthropicInputSchema(function.Parameters)
-            })
-            .ToList();
+                toolGroups.Add(new OpenAIToolGroup
+                {
+                    Name = group.Name,
+                    Tools = group.Functions.Select(f => f.Name).ToList()
+                });
+            }
+            else
+            {
+                foreach (var function in group.Functions)
+                {
+                    tools.Add(new AnthropicToolDefinition
+                    {
+                        Name = function.Name,
+                        Description = ToolPromptRegistration.GetDetailedDescription(function.Name) ?? function.Description,
+                        InputSchema = BuildAnthropicInputSchema(function.Parameters)
+                    });
+                }
+            }
+        }
+
+        return (tools, toolGroups);
     }
 
     private static List<AnthropicToolDefinition> BuildDeferredToolDefinitions(IEnumerable<DeferredToolInfo> deferredTools)

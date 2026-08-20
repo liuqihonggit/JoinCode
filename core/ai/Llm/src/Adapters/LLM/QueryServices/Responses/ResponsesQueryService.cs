@@ -212,28 +212,59 @@ public class ResponsesQueryService : QueryServiceBase
 
         if (settings?.ToolChoice == ToolChoice.AutoInvoke && kernel != null)
         {
-            var tools = BuildToolsFromKernel(kernel);
+            var (tools, toolGroups) = BuildToolsFromKernel(kernel);
             if (tools.Count > 0)
             {
                 request.Tools = tools;
                 request.ToolChoice = "auto";
+            }
+            if (toolGroups.Count > 0)
+            {
+                request.ToolGroups = toolGroups;
             }
         }
 
         return request;
     }
 
-    private static List<ResponsesTool> BuildToolsFromKernel(IChatClient kernel)
+    /// <summary>
+    /// 构建工具列表 — 两阶段加载：core_tools 发完整 schema，mcp_tools 发分组+名称
+    /// </summary>
+    private static (List<ResponsesTool> Tools, List<OpenAIToolGroup> ToolGroups) BuildToolsFromKernel(IChatClient kernel)
     {
-        return EnumerateToolFunctions(kernel)
-            .Select(function => new ResponsesTool
+        var tools = new List<ResponsesTool>();
+        var toolGroups = new List<OpenAIToolGroup>();
+
+        foreach (var pluginName in kernel.Plugins.PluginNames)
+        {
+            var plugin = kernel.Plugins.GetPlugin(pluginName);
+            if (plugin is not IToolGroup group)
+                continue;
+
+            if (group.Name == ToolGroupNameConstants.McpTools)
             {
-                Type = "function",
-                Name = function.Name,
-                Description = ToolPromptRegistration.GetDetailedDescription(function.Name) ?? function.Description,
-                Parameters = BuildParameters(function.Parameters)
-            })
-            .ToList();
+                toolGroups.Add(new OpenAIToolGroup
+                {
+                    Name = group.Name,
+                    Tools = group.Functions.Select(f => f.Name).ToList()
+                });
+            }
+            else
+            {
+                foreach (var function in group.Functions)
+                {
+                    tools.Add(new ResponsesTool
+                    {
+                        Type = "function",
+                        Name = function.Name,
+                        Description = ToolPromptRegistration.GetDetailedDescription(function.Name) ?? function.Description,
+                        Parameters = BuildParameters(function.Parameters)
+                    });
+                }
+            }
+        }
+
+        return (tools, toolGroups);
     }
 
     private static JsonElement? BuildParameters(IReadOnlyList<IToolParam> parameters)

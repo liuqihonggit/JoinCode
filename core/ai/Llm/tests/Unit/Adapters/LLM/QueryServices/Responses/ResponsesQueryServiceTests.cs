@@ -518,4 +518,134 @@ public class ResponsesQueryServiceTests
     }
 
     #endregion
+
+    #region Two-Phase Tool Loading — BuildToolsFromKernel
+
+    [Fact]
+    public void BuildToolsFromKernel_OnlyCoreTools_ToolsPopulated_ToolGroupsEmpty()
+    {
+        var kernel = new ChatClient(new Mock<IQueryService>().Object);
+        kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.CoreTools, [
+            new ToolDef("read", "Read a file"),
+            new ToolDef("write", "Write a file")
+        ]));
+
+        var (tools, toolGroups) = ResponsesQueryService.BuildToolsFromKernel(kernel);
+
+        tools.Should().HaveCount(2);
+        tools.Select(t => t.Name).Should().Contain(["read", "write"]);
+        toolGroups.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void BuildToolsFromKernel_OnlyMcpTools_ToolsEmpty_ToolGroupsPopulated()
+    {
+        var kernel = new ChatClient(new Mock<IQueryService>().Object);
+        kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
+            new ToolDef("mcp.server1.tool1", "MCP tool 1"),
+            new ToolDef("mcp.server2.tool2", "MCP tool 2")
+        ]));
+
+        var (tools, toolGroups) = ResponsesQueryService.BuildToolsFromKernel(kernel);
+
+        tools.Should().BeEmpty();
+        toolGroups.Should().ContainSingle();
+        toolGroups[0].Name.Should().Be(ToolGroupNameConstants.McpTools);
+        toolGroups[0].Tools.Should().Contain(["mcp.server1.tool1", "mcp.server2.tool2"]);
+    }
+
+    [Fact]
+    public void BuildToolsFromKernel_MixedTools_CoreToolsInTools_McpToolsInGroups()
+    {
+        var kernel = new ChatClient(new Mock<IQueryService>().Object);
+        kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.CoreTools, [
+            new ToolDef("read", "Read a file")
+        ]));
+        kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
+            new ToolDef("mcp.tool1", "MCP tool 1")
+        ]));
+
+        var (tools, toolGroups) = ResponsesQueryService.BuildToolsFromKernel(kernel);
+
+        tools.Should().ContainSingle();
+        tools[0].Name.Should().Be("read");
+        toolGroups.Should().ContainSingle();
+        toolGroups[0].Name.Should().Be(ToolGroupNameConstants.McpTools);
+        toolGroups[0].Tools.Should().ContainSingle().Which.Should().Be("mcp.tool1");
+    }
+
+    #endregion
+
+    #region Two-Phase Tool Loading — CreateSecondResponsesRequestWithDescriptions
+
+    [Fact]
+    public void CreateSecondResponsesRequestWithDescriptions_ValidToolNames_BuildsDescriptions()
+    {
+        var kernel = new ChatClient(new Mock<IQueryService>().Object);
+        kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
+            new ToolDef("mcp.tool1", "MCP tool 1"),
+            new ToolDef("mcp.tool2", "MCP tool 2")
+        ]));
+
+        var originalRequest = new ResponsesRequest
+        {
+            Model = "gpt-4o",
+            Stream = true
+        };
+        var descRequestContent = """{"tools":["mcp.tool1","mcp.tool2"]}""";
+
+        var secondRequest = ResponsesQueryService.CreateSecondResponsesRequestWithDescriptions(originalRequest, descRequestContent, kernel);
+
+        secondRequest.ToolDescriptions.Should().HaveCount(2);
+        secondRequest.ToolDescriptions!.Select(t => t.Name).Should().Contain(["mcp.tool1", "mcp.tool2"]);
+        secondRequest.Model.Should().Be("gpt-4o");
+        secondRequest.Stream.Should().BeTrue();
+    }
+
+    [Fact]
+    public void CreateSecondResponsesRequestWithDescriptions_UnknownToolNames_DescriptionsEmpty()
+    {
+        var kernel = new ChatClient(new Mock<IQueryService>().Object);
+        kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
+            new ToolDef("mcp.tool1", "MCP tool 1")
+        ]));
+
+        var originalRequest = new ResponsesRequest { Model = "gpt-4o" };
+        var descRequestContent = """{"tools":["nonexistent.tool"]}""";
+
+        var secondRequest = ResponsesQueryService.CreateSecondResponsesRequestWithDescriptions(originalRequest, descRequestContent, kernel);
+
+        secondRequest.ToolDescriptions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void CreateSecondResponsesRequestWithDescriptions_PreservesOriginalFields()
+    {
+        var kernel = new ChatClient(new Mock<IQueryService>().Object);
+        kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
+            new ToolDef("mcp.tool1", "MCP tool 1")
+        ]));
+
+        var originalRequest = new ResponsesRequest
+        {
+            Model = "gpt-4o",
+            Stream = true,
+            Temperature = 0.7f,
+            MaxOutputTokens = 1000,
+            Tools = [new ResponsesTool { Type = "function", Name = "read" }],
+            ToolGroups = [new OpenAIToolGroup { Name = "mcp_tools", Tools = ["mcp.tool1"] }]
+        };
+        var descRequestContent = """{"tools":["mcp.tool1"]}""";
+
+        var secondRequest = ResponsesQueryService.CreateSecondResponsesRequestWithDescriptions(originalRequest, descRequestContent, kernel);
+
+        secondRequest.Model.Should().Be("gpt-4o");
+        secondRequest.Temperature.Should().Be(0.7f);
+        secondRequest.MaxOutputTokens.Should().Be(1000);
+        secondRequest.Tools.Should().BeSameAs(originalRequest.Tools);
+        secondRequest.ToolGroups.Should().BeSameAs(originalRequest.ToolGroups);
+        secondRequest.ToolDescriptions.Should().ContainSingle();
+    }
+
+    #endregion
 }

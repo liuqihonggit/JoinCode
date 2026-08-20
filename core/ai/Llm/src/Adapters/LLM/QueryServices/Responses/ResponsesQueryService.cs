@@ -360,7 +360,7 @@ public class ResponsesQueryService : QueryServiceBase
     /// <summary>
     /// 构建工具列表 — 两阶段加载：core_tools 发完整 schema，mcp_tools 发分组+名称
     /// </summary>
-    private static (List<ResponsesTool> Tools, List<OpenAIToolGroup> ToolGroups) BuildToolsFromKernel(IChatClient kernel)
+    internal static (List<ResponsesTool> Tools, List<OpenAIToolGroup> ToolGroups) BuildToolsFromKernel(IChatClient kernel)
     {
         var tools = new List<ResponsesTool>();
         var toolGroups = new List<OpenAIToolGroup>();
@@ -400,7 +400,7 @@ public class ResponsesQueryService : QueryServiceBase
     /// <summary>
     /// 两阶段工具加载 — 解析 tool_description_request,构建第二次 Responses 请求(含 tool_descriptions)
     /// </summary>
-    private static ResponsesRequest CreateSecondResponsesRequestWithDescriptions(
+    internal static ResponsesRequest CreateSecondResponsesRequestWithDescriptions(
         ResponsesRequest originalRequest, string descRequestContent, IChatClient kernel)
     {
         var doc = JsonDocument.Parse(descRequestContent);

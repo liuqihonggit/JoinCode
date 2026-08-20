@@ -19,6 +19,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity
     [Inject] private readonly IServiceProvider _serviceProvider;
     [Inject] private readonly IAgentService? _agentService = null!;
     [Inject] private readonly ICaptainDispatchGuard? _dispatchGuard = null!;
+    [Inject] private readonly ITeamManager? _teamManager = null!;
     [Inject] private readonly IGoalUserInteraction? _userInteraction = null;
     [Inject] private readonly IGoalNodeInspector? _nodeInspector = null;
     [Inject] private readonly IGoalConflictMessenger? _conflictMessenger = null;
@@ -46,6 +47,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity
         _conflictMessenger = conflictMessenger ?? serviceProvider.GetService<IGoalConflictMessenger>();
         _agentService = serviceProvider.GetService<IAgentService>();
         _dispatchGuard = serviceProvider.GetService<ICaptainDispatchGuard>();
+        _teamManager = serviceProvider.GetService<ITeamManager>();
     }
 
     public void RegisterFunction(string nodeId, Func<NodeContext, Task<NodeResult>> fn)
@@ -67,6 +69,28 @@ public sealed partial class GoalGraphEngine : ServiceEntity
             StateLock = new SemaphoreSlim(1, 1),
             Clock = _clock,
         };
+
+        // T8.3: 接入 team 组件 — 图执行开始时建团队，节点派发的 sub-agent 加入此团队
+        if (_teamManager is not null)
+        {
+            try
+            {
+                var teamResult = await _teamManager.CreateTeamAsync(
+                    teamName: $"goal-{goalState.GoalId}",
+                    description: goalState.Objective,
+                    initialMembers: null,
+                    ct).ConfigureAwait(false);
+                if (teamResult.Success && teamResult.Data is not null)
+                {
+                    context.TeamId = teamResult.Data.TeamId;
+                    _logger?.LogInformation("[GoalGraph] 团队已创建: {TeamId} ({TeamName})", context.TeamId, teamResult.Data.TeamName);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning("[GoalGraph] 建团队失败，退化为单 Agent 模式: {Message}", ex.Message);
+            }
+        }
 
         context.ReadyQueue.Enqueue(graph.StartNodeId);
 
@@ -420,9 +444,24 @@ public sealed partial class GoalGraphEngine : ServiceEntity
         var totalTurns = 0;
         var lastOutput = string.Empty;
         var responseBuilder = new System.Text.StringBuilder();
+        var teamMemberAdded = false;
 
         await foreach (var chunk in _agentService!.RunAgentStreamAsync(spawnOptions, ct).ConfigureAwait(false))
         {
+            // T8.3: 首个 chunk 拿到 agentId 后加入团队
+            if (!teamMemberAdded && context.TeamId is not null && !string.IsNullOrEmpty(chunk.AgentId))
+            {
+                teamMemberAdded = true;
+                try
+                {
+                    await _teamManager!.AddTeamMemberAsync(context.TeamId, chunk.AgentId, ct).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning("[GoalGraph] 加入团队失败: {Message}", ex.Message);
+                }
+            }
+
             if (chunk.Type == AgentStreamChunkType.Content)
             {
                 responseBuilder.Append(chunk.Content);

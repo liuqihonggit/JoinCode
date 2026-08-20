@@ -48,9 +48,31 @@ internal sealed class OpenAIChatRequest
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ToolChoice { get; set; }
 
+    /// <summary>
+    /// 两阶段工具加载 — MCP 工具分组（只有组名+工具名，不含完整 schema）
+    /// LLM 通过 ToolSearch 按需加载完整描述。null 时不序列化，真实 LLM API 忽略此字段。
+    /// </summary>
+    [JsonPropertyName("tool_groups")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<OpenAIToolGroup>? ToolGroups { get; set; }
+
+    /// <summary>
+    /// 两阶段工具加载 — 工具完整描述（第二次请求发送，响应 tool_description_request 后）
+    /// </summary>
+    [JsonPropertyName("tool_descriptions")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<OpenAITool>? ToolDescriptions { get; set; }
+
     [JsonPropertyName("reasoning_effort")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ReasoningEffort { get; set; }
+
+    /// <summary>
+    /// 思考模式开关 — DeepSeek V4 扩展字段,thinking:{"type":"enabled"} 开启思考模式
+    /// </summary>
+    [JsonPropertyName("thinking")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public OpenAIThinkingOptions? Thinking { get; set; }
 }
 
 /// <summary>
@@ -254,4 +276,25 @@ internal sealed class OpenAIToolCallFunction
     [JsonPropertyName("arguments")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Arguments { get; set; }
+}
+
+/// <summary>
+/// DeepSeek V4 思考模式选项 — thinking:{"type":"enabled"} 开启思考模式
+/// </summary>
+internal sealed class OpenAIThinkingOptions
+{
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// 两阶段工具加载 — MCP 工具分组（只有组名+工具名，不含完整 schema）
+/// </summary>
+internal sealed class OpenAIToolGroup
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("tools")]
+    public List<string> Tools { get; set; } = new();
 }

@@ -48,6 +48,7 @@ public sealed partial class ChatOptionsFactory : ServiceEntity, IChatOptionsFact
             DiscoveredTools = discoveredTools,
             DeferredTools = deferredTools.Any() ? deferredTools.ToList() : null,
             EffortLevel = effortLevel,
+            ThinkingEnabled = _executionSettingsProvider?.ThinkingEnabled ?? false,
             FastMode = fastMode,
             FastModelId = fastModelId,
             ExtensionData = extensionData,

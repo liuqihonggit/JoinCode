@@ -19,6 +19,14 @@ public class ToolInfo
     [JsonPropertyName("annotations")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ToolAnnotations? Annotations { get; init; }
+
+    [JsonPropertyName("category")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Category { get; init; }
+
+    [JsonPropertyName("groupName")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? GroupName { get; init; }
 }
 
 /// <summary>

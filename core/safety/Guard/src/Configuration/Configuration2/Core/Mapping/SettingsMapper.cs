@@ -63,7 +63,11 @@ public sealed partial class SettingsMapper : ServiceEntity
 
             config.Provider.Endpoint ??= newDefinition.DefaultEndpoint;
             config.Provider.Definition = newDefinition;
-            config.Provider.Protocol = newDefinition.Protocol.ToValue();
+            // Protocol — ApplyProfileFromVendor 已从 settings.json profile 设置(配置大于代码)
+            // 仅当 profile 未配 protocol 时回退到 definition 的默认协议
+            var profileProtocol = GetProfileProtocol(envProvider, settings);
+            if (string.IsNullOrEmpty(profileProtocol))
+                config.Provider.Protocol = newDefinition.Protocol.ToValue();
 
             // 仅当 ModelId 未被显式设置时，使用新 Provider 的默认模型
             if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(JccEnvVar.ModelId.ToValue())))
@@ -165,7 +169,11 @@ public sealed partial class SettingsMapper : ServiceEntity
         {
             config.Provider.Endpoint ??= definition.DefaultEndpoint;
             config.Provider.Definition = definition;
-            config.Provider.Protocol = definition.Protocol.ToValue();
+            // Protocol — 优先从 profile 读取(配置大于代码),回退到 Provider 定义
+            if (!string.IsNullOrEmpty(profile?.Protocol))
+                config.Provider.Protocol = profile.Protocol;
+            else
+                config.Provider.Protocol = definition.Protocol.ToValue();
         }
 
         // Model ID — 优先从 profile 读取，回退到 Provider 定义默认模型
@@ -253,7 +261,24 @@ public sealed partial class SettingsMapper : ServiceEntity
         if (!string.IsNullOrEmpty(profile.Endpoint))
             config.Provider.Endpoint = profile.Endpoint;
 
+        if (!string.IsNullOrEmpty(profile.Protocol))
+            config.Provider.Protocol = profile.Protocol;
+
         config.CurrentProfile = vendor;
+    }
+
+    /// <summary>从 settings.json 的 vendor 节点读取指定供应商的 protocol 配置</summary>
+    private static string? GetProfileProtocol(string vendor, SettingsJson? settings)
+    {
+        if (settings is null)
+        {
+            var fs = new IO.FileSystem.PhysicalFileSystem();
+            settings = ConfigLoader.LoadSettingsJsonAsync(fs).GetAwaiter().GetResult();
+        }
+
+        if (settings?.Vendor is null || !settings.Vendor.TryGetValue(vendor, out var profile))
+            return null;
+        return profile.Protocol;
     }
 
     private static void ApplyToolScoreSettings(WorkflowConfig config, SettingsJson? settings)

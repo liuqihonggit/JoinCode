@@ -16,7 +16,7 @@ public partial class ToolSearchToolHandlers
 
     [McpTool(SystemToolNameConstants.ToolSearch, "Search available tools by keyword or exact selection", "system")]
     public async Task<ToolResult> SearchToolsAsync(
-        [McpToolParameter("Search query: keyword search, 'select:Name1,Name2' for exact selection, '+name' for must-include")] string query,
+        [McpToolParameter("Search query: keyword search, 'select:Name1,Name2' for exact selection, '+name' for must-include, 'map[主分组]'/'map[主分组][子分组]'/'map[主分组][子分组][工具名]' to drill into groups, 'list_groups' to list all groups")] string query,
         [McpToolParameter("Maximum number of results (optional, default 10)", Required = false)] int? max_results = 10,
         CancellationToken cancellationToken = default)
     {
@@ -26,7 +26,9 @@ public partial class ToolSearchToolHandlers
         try
         {
             var allTools = await _toolRegistry.GetAllToolsAsync(cancellationToken).ConfigureAwait(false);
-            var deferredTools = allTools.Select(t => new DeferredToolInfo(t.Key, t.Value.Description, null, false)).ToList();
+            var deferredTools = allTools
+                .Select(t => new DeferredToolInfo(t.Key, t.Value.Description, null, t.Value.Kind == ToolKind.Mcp, t.Value.Category, t.Value.GroupName))
+                .ToList();
             var engine = new ToolSearchEngine(deferredTools);
             var result = engine.Search(query, max_results ?? 10);
 
@@ -41,12 +43,32 @@ public partial class ToolSearchToolHandlers
             }
             else
             {
-                foreach (var name in result.MatchedToolNames)
+                if (query.StartsWith("map[", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (allTools.TryGetValue(name, out var tool))
-                        response.AppendLine($"- {name}: {tool.Description}");
-                    else
-                        response.AppendLine($"- {name}: no description");
+                    foreach (var name in result.MatchedToolNames)
+                    {
+                        if (allTools.TryGetValue(name, out var tool))
+                        {
+                            var path = tool.Category is not null
+                                ? $"{tool.Category}{(tool.GroupName is not null ? $"[{tool.GroupName}]" : string.Empty)}"
+                                : (tool.GroupName is not null ? tool.GroupName : "其他");
+                            response.AppendLine($"[{path}] {name}: {tool.Description}");
+                        }
+                        else
+                        {
+                            response.AppendLine($"- {name}: no description");
+                        }
+                    }
+                }
+                else
+                {
+                    foreach (var name in result.MatchedToolNames)
+                    {
+                        if (allTools.TryGetValue(name, out var tool))
+                            response.AppendLine($"- {name}: {tool.Description}");
+                        else
+                            response.AppendLine($"- {name}: no description");
+                    }
                 }
 
                 response.AppendLine();

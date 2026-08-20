@@ -35,6 +35,33 @@ public static class TokenEstimator
             }
         }
 
+        if (request.TryGetProperty("instructions", out var instructions) &&
+            instructions.ValueKind == JsonValueKind.String)
+        {
+            totalChars += instructions.GetString()?.Length ?? 0;
+        }
+
+        if (request.TryGetProperty("input", out var input))
+        {
+            foreach (var msg in input.EnumerateArray())
+            {
+                if (msg.TryGetProperty("content", out var content))
+                {
+                    totalChars += content.ValueKind == JsonValueKind.String
+                        ? content.GetString()?.Length ?? 0
+                        : content.GetRawText().Length;
+                }
+            }
+        }
+
+        if (request.TryGetProperty("tools", out var tools))
+        {
+            foreach (var tool in tools.EnumerateArray())
+            {
+                totalChars += tool.GetRawText().Length;
+            }
+        }
+
         return totalChars / 4;
     }
 
@@ -101,10 +128,41 @@ public static class TokenEstimator
             sb.Append('\x00');
         }
 
-        // 2. 追加所有消息内容 (按顺序, 跳过 system 角色消息避免重复)
+        // 2. 追加 tools 定义 (工具定义在多轮对话中保持不变, 放在 messages 之前确保前缀稳定增长)
+        if (request.TryGetProperty("tools", out var tools))
+        {
+            sb.Append("tools");
+            sb.Append('\x01');
+            foreach (var tool in tools.EnumerateArray())
+            {
+                sb.Append(tool.GetRawText());
+                sb.Append('\x00');
+            }
+        }
+
+        // 3. 追加所有消息内容 (按顺序, 跳过 system 角色消息避免重复)
         if (request.TryGetProperty("messages", out var messages))
         {
             foreach (var msg in messages.EnumerateArray())
+            {
+                var role = msg.TryGetProperty("role", out var r) ? r.GetString() ?? "" : "";
+                if (role == "system") continue; // system 已在前面处理
+
+                var contentText = ExtractContentText(msg.TryGetProperty("content", out var c) ? c : default);
+                if (!string.IsNullOrEmpty(contentText))
+                {
+                    sb.Append(role);
+                    sb.Append('\x01');
+                    sb.Append(contentText);
+                    sb.Append('\x00');
+                }
+            }
+        }
+
+        // 4. Responses API: 追加 input 数组内容 (跳过 system 角色避免重复)
+        if (request.TryGetProperty("input", out var input))
+        {
+            foreach (var msg in input.EnumerateArray())
             {
                 var role = msg.TryGetProperty("role", out var r) ? r.GetString() ?? "" : "";
                 if (role == "system") continue; // system 已在前面处理
@@ -128,6 +186,12 @@ public static class TokenEstimator
     /// </summary>
     private static string ExtractSystemText(JsonElement request)
     {
+        if (request.TryGetProperty("instructions", out var instructions) &&
+            instructions.ValueKind == JsonValueKind.String)
+        {
+            return instructions.GetString() ?? "";
+        }
+
         if (request.TryGetProperty("system", out var system))
         {
             if (system.ValueKind == JsonValueKind.Array)
@@ -151,6 +215,19 @@ public static class TokenEstimator
         if (request.TryGetProperty("messages", out var messages))
         {
             foreach (var msg in messages.EnumerateArray())
+            {
+                if (msg.TryGetProperty("role", out var role) &&
+                    role.GetString() == "system" &&
+                    msg.TryGetProperty("content", out var content))
+                {
+                    return ExtractContentText(content);
+                }
+            }
+        }
+
+        if (request.TryGetProperty("input", out var input))
+        {
+            foreach (var msg in input.EnumerateArray())
             {
                 if (msg.TryGetProperty("role", out var role) &&
                     role.GetString() == "system" &&

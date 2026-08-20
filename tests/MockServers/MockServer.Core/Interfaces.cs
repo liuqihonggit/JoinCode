@@ -54,7 +54,7 @@ public interface IResponseStrategy
     /// <summary>
     /// 构建工具调用的流式响应（一次性返回完整工具调用流）
     /// </summary>
-    string BuildStreamToolCallResponse(string id) => "";
+    string BuildStreamToolCallResponse(string id, CacheStats cacheStats) => "";
 
     /// <summary>
     /// 当前轮次是否有思考内容（reasoning/thinking）
@@ -65,6 +65,14 @@ public interface IResponseStrategy
     /// 构建思考内容的流式响应（一次性返回完整思考流）
     /// </summary>
     string BuildStreamThinkingResponse(string id) => "";
+
+    /// <summary>
+    /// 两阶段工具加载 — 构建工具描述请求。
+    /// 当请求包含 tool_groups（只有分组没有完整 schema）时调用。
+    /// 返回 JSON: {"type":"tool_description_request","tools":["read","bash"]}
+    /// 返回 null 表示不需要两阶段加载（请求已包含完整 tools）。
+    /// </summary>
+    string? BuildToolDescriptionRequest(JsonElement request) => null;
 }
 
 public interface IHttpMockServer : IAsyncDisposable

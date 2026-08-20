@@ -63,4 +63,32 @@ public sealed partial class ExecutionSettingsProvider : ServiceEntity, IExecutio
     public float? Temperature { get; set; }
     public int? MaxTokens { get; set; }
 
+    // 思考模式开关 — 从 settings.json 的 alwaysThinkingEnabled 懒加载（双变量模式，对齐 EffortLevel）
+    private bool _thinkingEnabled;
+    private bool _isThinkingLoaded;
+
+    public bool ThinkingEnabled
+    {
+        get
+        {
+            if (!_isThinkingLoaded)
+            {
+                _thinkingEnabled = LoadPersistedThinkingEnabled();
+                _isThinkingLoaded = true;
+            }
+            return _thinkingEnabled;
+        }
+        set
+        {
+            _thinkingEnabled = value;
+            _isThinkingLoaded = true;
+        }
+    }
+
+    private bool LoadPersistedThinkingEnabled()
+    {
+        var persisted = ConfigLoader.LoadSettingFromSettingsJson("alwaysThinkingEnabled", _fs);
+        return string.Equals(persisted, "true", StringComparison.OrdinalIgnoreCase);
+    }
+
 }

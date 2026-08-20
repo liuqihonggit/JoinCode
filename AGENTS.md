@@ -634,7 +634,7 @@ $psi.UseShellExecute = $false
 $psi.WorkingDirectory = "D:\project\{当前分支名}"
 [System.Diagnostics.Process]::Start($psi)
 # --await 20: 20秒超时自动关闭（超时返回1234，正常完成不受影响）
-# --verbose: 启用诊断输出（[WIRE] [STEP] [READY] 等）
+# --debuglog: 启用诊断输出（[WIRE] [STEP] [READY] 等）
 ```
 
 **jcc 环境变量参数表**

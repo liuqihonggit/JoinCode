@@ -54,14 +54,14 @@ public sealed partial class LocalToolRegistry : IToolRegistry
         }
     }
 
-    public async Task RegisterToolAsync(string name, string description, ToolSchema inputSchema, ToolHandler handler, CancellationToken cancellationToken = default, ToolKind kind = ToolKind.System, string? groupName = null, ToolTimeoutPolicy? timeoutPolicy = null)
+    public async Task RegisterToolAsync(string name, string description, ToolSchema inputSchema, ToolHandler handler, CancellationToken cancellationToken = default, ToolKind kind = ToolKind.System, string? groupName = null, ToolTimeoutPolicy? timeoutPolicy = null, string? category = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(name);
         ArgumentException.ThrowIfNullOrEmpty(description);
         ArgumentNullException.ThrowIfNull(inputSchema);
         ArgumentNullException.ThrowIfNull(handler);
 
-        await RegisterToolAsync(new DelegateToolHandler(name, description, inputSchema, handler, kind, groupName, timeoutPolicy), cancellationToken).ConfigureAwait(false);
+        await RegisterToolAsync(new DelegateToolHandler(name, description, inputSchema, handler, kind, groupName, timeoutPolicy, category), cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<bool> UnregisterToolAsync(string toolName, CancellationToken cancellationToken = default)
@@ -207,7 +207,9 @@ public sealed partial class LocalToolRegistry : IToolRegistry
         {
             Name = handler.Name,
             Description = handler.Description,
-            InputSchema = handler.InputSchema
+            InputSchema = handler.InputSchema,
+            Category = handler.Category,
+            GroupName = handler.GroupName
         };
     }
 
@@ -218,7 +220,9 @@ public sealed partial class LocalToolRegistry : IToolRegistry
             {
                 Name = kvp.Value.Name,
                 Description = kvp.Value.Description,
-                InputSchema = kvp.Value.InputSchema
+                InputSchema = kvp.Value.InputSchema,
+                Category = kvp.Value.Category,
+                GroupName = kvp.Value.GroupName
             })
             .ToList();
     }

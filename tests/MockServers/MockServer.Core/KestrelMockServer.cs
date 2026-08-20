@@ -115,6 +115,15 @@ public sealed class KestrelMockServer : IHttpMockServer
 
             Console.WriteLine($"[{_serverName}]   Cache: {(cacheStats.CacheReadTokens > 0 ? "HIT" : "MISS")} (creation={cacheStats.CacheCreationTokens}, read={cacheStats.CacheReadTokens}, input={cacheStats.InputTokens})");
 
+            var prefixForLog = TokenEstimator.ExtractConversationPrefix(requestJson.RootElement);
+            var protocol = requestJson.RootElement.TryGetProperty("input", out _) ? "responses"
+                         : requestJson.RootElement.TryGetProperty("system", out _) ? "anthropic"
+                         : "openai";
+            Console.WriteLine($"[{_serverName}]   Protocol: {protocol}, Prefix length: {prefixForLog.Length} chars");
+            var prefixReadable = prefixForLog.Replace('\x00', '|').Replace('\x01', ':');
+            var prefixPreview = prefixReadable.Length > 500 ? prefixReadable[..500] + "..." : prefixReadable;
+            Console.WriteLine($"[{_serverName}]   Prefix content: {prefixPreview}");
+
             var messagesPreview = ExtractMessagesPreview(requestJson.RootElement);
             if (messagesPreview.Count > 0)
             {
@@ -141,6 +150,44 @@ public sealed class KestrelMockServer : IHttpMockServer
             }
 
             _responseStrategy.OnRequestStarted(requestJson.RootElement);
+
+            // 两阶段工具加载: 首次请求只有 tool_groups(分组),没有 tool_descriptions(完整描述)
+            // → 返回 tool_description_request,请求当前轮次需要的工具描述
+            // 流式请求: 包装成 SSE 格式(用 BuildStreamChunk),客户端在流式解析中检测 tool_description_request
+            // 非流式请求: 直接返回 JSON
+            if (requestJson.RootElement.TryGetProperty("tool_groups", out _) &&
+                !requestJson.RootElement.TryGetProperty("tool_descriptions", out _))
+            {
+                var descRequest = _responseStrategy.BuildToolDescriptionRequest(requestJson.RootElement);
+                if (descRequest is not null)
+                {
+                    Console.WriteLine($"[{_serverName}]   Response: tool_description_request (two-phase loading)");
+                    var isDescStream = requestJson.RootElement.TryGetProperty("stream", out var descStreamProp)
+                        && descStreamProp.ValueKind == JsonValueKind.True;
+
+                    if (isDescStream)
+                    {
+                        ctx.Response.StatusCode = 200;
+                        ctx.Response.ContentType = "text/event-stream";
+                        var descId = $"chatcmpl-{Guid.NewGuid():N}";
+                        var preamble = _responseStrategy.BuildStreamPreamble(descId);
+                        if (preamble is not null)
+                            await ctx.Response.WriteAsync(preamble, ctx.RequestAborted);
+                        await ctx.Response.WriteAsync(_responseStrategy.BuildStreamChunk(descId, descRequest, false), ctx.RequestAborted);
+                        var emptyStats = new CacheStats { CacheCreationTokens = 0, CacheReadTokens = 0, InputTokens = 0, OutputTokens = 0 };
+                        await ctx.Response.WriteAsync(_responseStrategy.BuildStreamFinalChunk(descId, emptyStats), ctx.RequestAborted);
+                        await ctx.Response.WriteAsync("data: [DONE]\n\n", ctx.RequestAborted);
+                    }
+                    else
+                    {
+                        ctx.Response.StatusCode = 200;
+                        ctx.Response.ContentType = "application/json";
+                        await ctx.Response.WriteAsync(descRequest, ctx.RequestAborted);
+                    }
+                    Console.WriteLine($"[{_serverName}] === Request #{requestIndex} complete ===");
+                    return;
+                }
+            }
 
             var statusCode = _responseStrategy.GetHttpStatusCode(requestJson.RootElement);
             if (statusCode != 200)
@@ -180,7 +227,7 @@ public sealed class KestrelMockServer : IHttpMockServer
                 if (_responseStrategy.HasToolCalls())
                 {
                     Console.WriteLine($"[{_serverName}]   Response: tool call stream");
-                    var toolCallStream = _responseStrategy.BuildStreamToolCallResponse(id);
+                    var toolCallStream = _responseStrategy.BuildStreamToolCallResponse(id, cacheStats);
                     await ctx.Response.WriteAsync(toolCallStream, ctx.RequestAborted);
                     await ctx.Response.Body.FlushAsync(ctx.RequestAborted);
                 }
@@ -338,13 +385,29 @@ public sealed class KestrelMockServer : IHttpMockServer
             sb.AppendLine();
 
             var requestJson = JsonDocument.Parse(body);
-            sb.AppendLine("## System Prefix");
-            var prefix = TokenEstimator.ExtractSystemPrefix(requestJson.RootElement);
-            sb.AppendLine(prefix.Length > 200 ? prefix[..200] + "..." : prefix);
+            sb.AppendLine($"## Conversation Prefix (full) — turn {requestIndex}");
+            var prefix = TokenEstimator.ExtractConversationPrefix(requestJson.RootElement);
+            var prefixReadable = prefix.Replace('\x00', '\n').Replace('\x01', ':');
+            sb.AppendLine($"<prefix turn=\"{requestIndex}\" length=\"{prefix.Length}\">");
+            sb.AppendLine(prefixReadable);
+            sb.AppendLine("</prefix>");
             sb.AppendLine($"(prefix length: {prefix.Length} chars)");
             sb.AppendLine();
 
-            sb.AppendLine("## Messages");
+            if (requestJson.RootElement.TryGetProperty("instructions", out var instructions) &&
+                instructions.ValueKind == JsonValueKind.String)
+            {
+                sb.AppendLine($"## Instructions (full) — turn {requestIndex}");
+                sb.AppendLine($"<instructions turn=\"{requestIndex}\">");
+                var instrText = instructions.GetString() ?? "";
+                sb.AppendLine(instrText);
+                sb.AppendLine("</instructions>");
+                sb.AppendLine($"  (length: {instrText.Length} chars)");
+                sb.AppendLine();
+            }
+
+            sb.AppendLine($"## Messages — turn {requestIndex}");
+            sb.AppendLine($"<messages turn=\"{requestIndex}\">");
             if (requestJson.RootElement.TryGetProperty("messages", out var messages))
             {
                 foreach (var msg in messages.EnumerateArray())
@@ -359,9 +422,27 @@ public sealed class KestrelMockServer : IHttpMockServer
                 }
             }
 
+            if (requestJson.RootElement.TryGetProperty("input", out var input))
+            {
+                foreach (var msg in input.EnumerateArray())
+                {
+                    var role = msg.TryGetProperty("role", out var r) ? r.GetString() ?? "?" : "?";
+                    var content = msg.TryGetProperty("content", out var c)
+                        ? c.ValueKind == JsonValueKind.String ? c.GetString() ?? "" : c.GetRawText()
+                        : "";
+                    var preview = content.Length > 300 ? content[..300] + "..." : content;
+                    sb.AppendLine($"[{role}] {preview}");
+                    sb.AppendLine($"  (content length: {content.Length} chars)");
+                }
+            }
+            sb.AppendLine("</messages>");
             sb.AppendLine();
-            sb.AppendLine("## Raw Request Body");
+
+            sb.AppendLine();
+            sb.AppendLine($"## Raw Request Body — turn {requestIndex}");
+            sb.AppendLine($"<raw-body turn=\"{requestIndex}\">");
             sb.AppendLine(body);
+            sb.AppendLine("</raw-body>");
 
             IO.FileSystem.SafeFileIO.WriteAllText(filePath, sb.ToString());
             Console.WriteLine($"[{_serverName}]   Dumped: {filePath}");
@@ -375,16 +456,39 @@ public sealed class KestrelMockServer : IHttpMockServer
     private static List<string> ExtractMessagesPreview(JsonElement request)
     {
         var lines = new List<string>();
-        if (!request.TryGetProperty("messages", out var messages)) return lines;
 
-        foreach (var msg in messages.EnumerateArray())
+        if (request.TryGetProperty("instructions", out var instructions) &&
+            instructions.ValueKind == JsonValueKind.String)
         {
-            var role = msg.TryGetProperty("role", out var r) ? r.GetString() ?? "?" : "?";
-            var content = msg.TryGetProperty("content", out var c)
-                ? c.ValueKind == JsonValueKind.String ? c.GetString() ?? "" : c.GetRawText()
-                : "";
-            var preview = content.Length > 100 ? content[..100] + "..." : content;
-            lines.Add($"[{role}] {preview} ({content.Length} chars)");
+            var text = instructions.GetString() ?? "";
+            var preview = text.Length > 100 ? text[..100] + "..." : text;
+            lines.Add($"[instructions] {preview} ({text.Length} chars)");
+        }
+
+        if (request.TryGetProperty("messages", out var messages))
+        {
+            foreach (var msg in messages.EnumerateArray())
+            {
+                var role = msg.TryGetProperty("role", out var r) ? r.GetString() ?? "?" : "?";
+                var content = msg.TryGetProperty("content", out var c)
+                    ? c.ValueKind == JsonValueKind.String ? c.GetString() ?? "" : c.GetRawText()
+                    : "";
+                var preview = content.Length > 100 ? content[..100] + "..." : content;
+                lines.Add($"[{role}] {preview} ({content.Length} chars)");
+            }
+        }
+
+        if (request.TryGetProperty("input", out var input))
+        {
+            foreach (var msg in input.EnumerateArray())
+            {
+                var role = msg.TryGetProperty("role", out var r) ? r.GetString() ?? "?" : "?";
+                var content = msg.TryGetProperty("content", out var c)
+                    ? c.ValueKind == JsonValueKind.String ? c.GetString() ?? "" : c.GetRawText()
+                    : "";
+                var preview = content.Length > 100 ? content[..100] + "..." : content;
+                lines.Add($"[{role}] {preview} ({content.Length} chars)");
+            }
         }
 
         return lines;

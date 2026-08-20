@@ -93,7 +93,7 @@ public enum CliArg
     [CliOption(JccCliArgConstants.Yes, "-y", "跳过所有确认提示（等价于 --no-confirm，对齐架构指南 AX 模式）", Category = "权限", Example = "jcc -y -p \"hello\"")]
     Yes,
 
-    [CliOption(JccCliArgConstants.Force, "", "强制执行：跳过权限检查和确认（等价于 --dangerously-skip-permissions 的轻量版）", Category = "权限", RiskLevel = "dangerous")]
+    [CliOption(JccCliArgConstants.Force, "", "强制执行：跳过权限检查和确认（等价于 --bypass 的轻量版）", Category = "权限", RiskLevel = "dangerous")]
     Force,
 
     [CliOption(JccCliArgConstants.Quiet, "-q", "静默模式：只输出错误信息，抑制正常输出", Category = "输出")]

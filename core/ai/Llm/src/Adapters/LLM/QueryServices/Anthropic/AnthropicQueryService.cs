@@ -24,6 +24,17 @@ public sealed class AnthropicQueryService : QueryServiceBase
     {
         var request = await CreateAnthropicRequest(chatHistory, executionSettings, stream: false, kernel).ConfigureAwait(false);
         var response = await SendAnthropicRequestAsync(request, cancellationToken).ConfigureAwait(false);
+
+        // 两阶段工具加载: 非流式检测 tool_description_request → 发送第二次请求
+        var firstContent = response.Content.FirstOrDefault(c => c.Type == AnthropicContentBlockType.Text)?.Text ?? string.Empty;
+        if (firstContent.Contains("tool_description_request") && kernel != null)
+        {
+            Logger?.LogDebug("[WIRE] Anthropic 非流式收到 tool_description_request, 发送第二次请求");
+            var secondRequest = CreateSecondAnthropicRequestWithDescriptions(request, firstContent, kernel);
+            var secondResponse = await SendAnthropicRequestAsync(secondRequest, cancellationToken).ConfigureAwait(false);
+            return ConvertAnthropicResponseToApiMessages(secondResponse);
+        }
+
         return ConvertAnthropicResponseToApiMessages(response);
     }
 
@@ -36,7 +47,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
     {
         var request = await CreateAnthropicRequest(chatHistory, executionSettings, stream: true, kernel).ConfigureAwait(false);
         var isFirstChunk = true;
-        await foreach (var msg in SendAnthropicStreamingRequestAsync(request, cancellationToken).ConfigureAwait(false))
+        await foreach (var msg in SendAnthropicStreamingRequestAsync(request, kernel, cancellationToken).ConfigureAwait(false))
         {
             if (isFirstChunk)
             {
@@ -85,8 +96,8 @@ public sealed class AnthropicQueryService : QueryServiceBase
 
         if (settings?.ToolChoice == ToolChoice.AutoInvoke && kernel != null)
         {
-            var allTools = BuildAnthropicToolsFromKernel(kernel);
-            if (allTools.Count > 0)
+            var (allTools, toolGroups) = BuildAnthropicToolsFromKernel(kernel);
+            if (allTools.Count > 0 || toolGroups.Count > 0)
             {
                 var deferredToolInfos = settings.DeferredTools;
                 var discoveredTools = settings.DiscoveredTools;
@@ -135,6 +146,11 @@ public sealed class AnthropicQueryService : QueryServiceBase
                 else
                 {
                     request.Tools = allTools;
+                }
+
+                if (toolGroups.Count > 0)
+                {
+                    request.ToolGroups = toolGroups;
                 }
 
                 request.ToolChoice = AnthropicToolChoice.Auto;
@@ -365,16 +381,102 @@ public sealed class AnthropicQueryService : QueryServiceBase
         };
     }
 
-    private static List<AnthropicToolDefinition> BuildAnthropicToolsFromKernel(IChatClient kernel)
+    /// <summary>
+    /// 构建工具列表 — 两阶段加载：core_tools 发完整 schema，mcp_tools 发分组+名称
+    /// </summary>
+    internal static (List<AnthropicToolDefinition> Tools, List<OpenAIToolGroup> ToolGroups) BuildAnthropicToolsFromKernel(IChatClient kernel)
     {
-        return EnumerateToolFunctions(kernel)
-            .Select(function => new AnthropicToolDefinition
+        var tools = new List<AnthropicToolDefinition>();
+        var toolGroups = new List<OpenAIToolGroup>();
+
+        foreach (var pluginName in kernel.Plugins.PluginNames)
+        {
+            var plugin = kernel.Plugins.GetPlugin(pluginName);
+            if (plugin is not IToolGroup group)
+                continue;
+
+            if (group.Name == ToolGroupNameConstants.McpTools)
             {
-                Name = function.Name,
-                Description = ToolPromptRegistration.GetDetailedDescription(function.Name) ?? function.Description,
-                InputSchema = BuildAnthropicInputSchema(function.Parameters)
-            })
-            .ToList();
+                toolGroups.Add(new OpenAIToolGroup
+                {
+                    Name = group.Name,
+                    Tools = group.Functions.Select(f => f.Name).ToList()
+                });
+            }
+            else
+            {
+                foreach (var function in group.Functions)
+                {
+                    tools.Add(new AnthropicToolDefinition
+                    {
+                        Name = function.Name,
+                        Description = ToolPromptRegistration.GetDetailedDescription(function.Name) ?? function.Description,
+                        InputSchema = BuildAnthropicInputSchema(function.Parameters)
+                    });
+                }
+            }
+        }
+
+        return (tools, toolGroups);
+    }
+
+    /// <summary>
+    /// 两阶段工具加载 — 解析 tool_description_request,构建第二次 Anthropic 请求(含 tool_descriptions)
+    /// </summary>
+    internal static AnthropicMessagesRequest CreateSecondAnthropicRequestWithDescriptions(
+        AnthropicMessagesRequest originalRequest, string descRequestContent, IChatClient kernel)
+    {
+        HashSet<string> toolNames;
+        try
+        {
+            var doc = JsonDocument.Parse(descRequestContent);
+            toolNames = doc.RootElement.GetProperty("tools").EnumerateArray()
+                .Select(t => t.GetString() ?? "")
+                .Where(s => !string.IsNullOrEmpty(s))
+                .ToHashSet(StringComparer.Ordinal);
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidOperationException(
+                $"Failed to parse tool_description_request JSON: {ex.Message} | Content: {descRequestContent[..Math.Min(descRequestContent.Length, 200)]}", ex);
+        }
+
+        var descriptions = new List<AnthropicToolDefinition>();
+        foreach (var pluginName in kernel.Plugins.PluginNames)
+        {
+            var plugin = kernel.Plugins.GetPlugin(pluginName);
+            if (plugin is not IToolGroup group)
+                continue;
+            foreach (var function in group.Functions)
+            {
+                if (toolNames.Contains(function.Name))
+                {
+                    descriptions.Add(new AnthropicToolDefinition
+                    {
+                        Name = function.Name,
+                        Description = ToolPromptRegistration.GetDetailedDescription(function.Name) ?? function.Description,
+                        InputSchema = BuildAnthropicInputSchema(function.Parameters)
+                    });
+                }
+            }
+        }
+
+        return new AnthropicMessagesRequest
+        {
+            Model = originalRequest.Model,
+            Messages = originalRequest.Messages,
+            MaxTokens = originalRequest.MaxTokens,
+            System = originalRequest.System,
+            Stream = originalRequest.Stream,
+            Temperature = originalRequest.Temperature,
+            TopP = originalRequest.TopP,
+            Tools = originalRequest.Tools,
+            ToolChoice = originalRequest.ToolChoice,
+            ToolGroups = originalRequest.ToolGroups,
+            Thinking = originalRequest.Thinking,
+            ContextManagement = originalRequest.ContextManagement,
+            ToolDescriptions = descriptions
+        };
     }
 
     private static List<AnthropicToolDefinition> BuildDeferredToolDefinitions(IEnumerable<DeferredToolInfo> deferredTools)
@@ -382,10 +484,19 @@ public sealed class AnthropicQueryService : QueryServiceBase
         return deferredTools.Select(t => new AnthropicToolDefinition
         {
             Name = t.Name,
-            Description = ToolPromptRegistration.GetDetailedDescription(t.Name) ?? t.Description,
+            Description = BuildDeferredToolDescription(t),
             InputSchema = null,
             DeferLoading = true
         }).ToList();
+    }
+
+    private static string BuildDeferredToolDescription(DeferredToolInfo t)
+    {
+        var path = t.Category is not null
+            ? $"{t.Category}{(t.GroupName is not null ? $"[{t.GroupName}]" : string.Empty)}"
+            : (t.GroupName is not null ? t.GroupName : "其他");
+        var baseDesc = ToolPromptRegistration.GetDetailedDescription(t.Name) ?? t.Description;
+        return $"[{path}] {baseDesc}";
     }
 
     private static AnthropicToolDefinition BuildToolSearchToolDefinition()
@@ -393,7 +504,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
         return new AnthropicToolDefinition
         {
             Name = SystemToolName.ToolSearch.ToValue(),
-            Description = "Search for deferred tools by name or keyword. Use 'select:ToolName1,ToolName2' to directly select tools, or enter keywords to search. Deferred tools are loaded on-demand to save context window space.",
+            Description = "Search for deferred tools by name or keyword. Use 'select:ToolName1,ToolName2' to directly select tools, 'map[主分组]' to browse a category, 'map[主分组][子分组]' to browse a sub-group, 'list_groups' to list all groups, or enter keywords to search. Deferred tools are loaded on-demand to save context window space.",
             InputSchema = new AnthropicInputSchema
             {
                 Type = "object",
@@ -451,6 +562,9 @@ public sealed class AnthropicQueryService : QueryServiceBase
     {
         var json = JsonSerializer.Serialize(request, AnthropicJsonContext.Default.AnthropicMessagesRequest);
         var endpoint = GetChatEndpoint(Config);
+
+        Logger?.LogDebug("[WIRE] Anthropic 非流式请求体字节数={Bytes} | tools={ToolCount} | tool_groups={GroupCount}",
+            Encoding.UTF8.GetByteCount(json), request.Tools?.Count ?? 0, request.ToolGroups?.Count ?? 0);
 
         var response = await SendWithResilienceAsync(json, endpoint, "LLM.Anthropic.ChatCompletion", cancellationToken,
             HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
@@ -586,10 +700,14 @@ public sealed class AnthropicQueryService : QueryServiceBase
 
     private async IAsyncEnumerable<StreamEvent> SendAnthropicStreamingRequestAsync(
         AnthropicMessagesRequest request,
+        IChatClient? kernel,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var json = JsonSerializer.Serialize(request, AnthropicJsonContext.Default.AnthropicMessagesRequest);
         var endpoint = GetChatEndpoint(Config);
+
+        Logger?.LogDebug("[WIRE] Anthropic 流式请求体字节数={Bytes} | tools={ToolCount} | tool_groups={GroupCount}",
+            Encoding.UTF8.GetByteCount(json), request.Tools?.Count ?? 0, request.ToolGroups?.Count ?? 0);
 
         var response = await SendWithResilienceAsync(json, endpoint, "LLM.Anthropic.StreamingChatCompletion", cancellationToken,
             HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
@@ -609,6 +727,8 @@ public sealed class AnthropicQueryService : QueryServiceBase
         FrozenDictionary<string, JsonElement>? textDeltaMetadata = null;
         FrozenDictionary<string, JsonElement>? thinkingDeltaMetadata = null;
 
+        string? descRequestContent = null;
+        var descRequestAccumulator = new StringBuilder();
         string? line;
         while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
         {
@@ -739,6 +859,13 @@ public sealed class AnthropicQueryService : QueryServiceBase
                         }
                         else if (delta.Type == AnthropicDeltaType.TextDelta && delta.Text != null)
                         {
+                            descRequestAccumulator.Append(delta.Text);
+                            var accumulated = descRequestAccumulator.ToString();
+                            if (kernel != null && accumulated.Contains("tool_description_request") && accumulated.TrimEnd().EndsWith('}'))
+                            {
+                                descRequestContent = accumulated;
+                                break;
+                            }
                             yield return new StreamEvent(MessageRole.Assistant, delta.Text, modelName, textDeltaMetadata);
                         }
                         else if (delta.Type == AnthropicDeltaType.InputJsonDelta && delta.PartialJson != null)
@@ -822,6 +949,19 @@ public sealed class AnthropicQueryService : QueryServiceBase
 
                 case AnthropicStreamingEventType.MessageStop:
                     yield break;
+            }
+
+            if (descRequestContent is not null) break;
+        }
+
+        // 两阶段工具加载: 检测到 tool_description_request → 构建第二次请求(含 tool_descriptions)
+        if (descRequestContent is not null && kernel != null)
+        {
+            Logger?.LogDebug("[WIRE] Anthropic 收到 tool_description_request, 发送第二次请求");
+            var secondRequest = CreateSecondAnthropicRequestWithDescriptions(request, descRequestContent, kernel);
+            await foreach (var msg in SendAnthropicStreamingRequestAsync(secondRequest, null, cancellationToken).ConfigureAwait(false))
+            {
+                yield return msg;
             }
         }
     }

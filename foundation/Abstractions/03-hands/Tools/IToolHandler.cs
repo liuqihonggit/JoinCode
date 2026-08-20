@@ -41,6 +41,12 @@ public interface IToolHandler
     string? GroupName { get; }
 
     /// <summary>
+    /// 主分组名 — 来自 [McpToolDispatch(ToolCategory.Xxx)] 特性标记
+    /// 用于两级分组导航: map[主分组][子分组][工具名]
+    /// </summary>
+    string? Category { get; }
+
+    /// <summary>
     /// 超时策略 — 由源码生成器从 ToolHandlerGroupBase 继承链读取
     /// 决定绝对超时上限、是否 kill、是否支持续期
     /// </summary>

@@ -203,6 +203,15 @@ public class FallbackProviderDefinitionTests
         definition.GetChatEndpoint(config).Should().BeEmpty();
     }
 
+    [Fact]
+    public void GetChatEndpoint_OpenAiResponses_ReturnsResponsesPath()
+    {
+        var definition = new FallbackProviderDefinition(ProtocolKind.OpenAiResponses);
+        var config = new ProviderConfig { Vendor = "deepseek", Protocol = "responses" };
+
+        definition.GetChatEndpoint(config).Should().Be("responses");
+    }
+
     #endregion
 
     #region ConfigureHttpClient

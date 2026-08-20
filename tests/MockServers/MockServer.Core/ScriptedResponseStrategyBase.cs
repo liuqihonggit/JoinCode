@@ -29,16 +29,29 @@ public abstract class ScriptedResponseStrategyBase : IResponseStrategy
     }
 
     /// <summary>
-    /// 请求开始时调用 — 消费一个脚本轮次并缓存
+    /// 请求开始时调用 — 消费一个脚本轮次并缓存。
+    /// 两阶段工具加载首次请求(tool_groups 且无 tool_descriptions)时,仅当当前轮次有 ToolCalls
+    /// 则 peek(不推进索引),供 BuildToolDescriptionRequest 使用;第二次请求(tool_descriptions)
+    /// 才真正消费该轮次,返回带 tool_call 的响应。无 ToolCalls 的轮次直接消费。
     /// </summary>
     public virtual void OnRequestStarted(JsonElement request)
     {
         lock (_lock)
         {
+            var isTwoPhaseProbe = request.TryGetProperty("tool_groups", out _) &&
+                                  !request.TryGetProperty("tool_descriptions", out _);
             if (_turnIndex < _turns.Count)
-                _currentTurn = _turns[_turnIndex++];
+            {
+                var turn = _turns[_turnIndex];
+                var shouldPeek = isTwoPhaseProbe && turn.ToolCalls is { Count: > 0 };
+                _currentTurn = turn;
+                if (!shouldPeek)
+                    _turnIndex++;
+            }
             else
+            {
                 _currentTurn = new ScriptedTurn { TextResponse = DefaultResponse };
+            }
         }
     }
 
@@ -120,7 +133,7 @@ public abstract class ScriptedResponseStrategyBase : IResponseStrategy
     public abstract string BuildStreamChunk(string id, string content, bool isLast);
     public abstract string? BuildStreamPreamble(string id);
     public abstract string BuildToolCallResponse(JsonElement request, CacheStats cacheStats);
-    public abstract string BuildStreamToolCallResponse(string id);
+    public abstract string BuildStreamToolCallResponse(string id, CacheStats cacheStats);
     public abstract string BuildStreamThinkingResponse(string id);
 
     /// <summary>
@@ -142,4 +155,18 @@ public abstract class ScriptedResponseStrategyBase : IResponseStrategy
     /// </summary>
     public virtual string BuildStreamFinalChunk(string id, CacheStats cacheStats)
         => BuildStreamChunk(id, "", true);
+
+    /// <summary>
+    /// 两阶段工具加载 — 查看当前轮次的 tool_calls,请求这些工具的完整描述。
+    /// 只请求当前轮次需要的工具,不是全部 304 个。
+    /// </summary>
+    public virtual string? BuildToolDescriptionRequest(JsonElement request)
+    {
+        var turn = CurrentTurn;
+        if (turn.ToolCalls is null or { Count: 0 }) return null;
+
+        var toolNames = turn.ToolCalls.Select(tc => tc.ToolName).Distinct().ToList();
+        var toolsJson = string.Join(",", toolNames.Select(n => $"\"{n}\""));
+        return $$"""{"type":"tool_description_request","tools":[{{toolsJson}}]}""";
+    }
 }

@@ -29,7 +29,7 @@ public sealed class ScriptedResponseStrategyBaseTests
         public override string BuildStreamChunk(string id, string content, bool isLast) => "";
         public override string? BuildStreamPreamble(string id) => null;
         public override string BuildToolCallResponse(JsonElement request, CacheStats cacheStats) => "{}";
-        public override string BuildStreamToolCallResponse(string id) => "";
+        public override string BuildStreamToolCallResponse(string id, CacheStats cacheStats) => "";
         public override string BuildStreamThinkingResponse(string id) => "";
     }
 

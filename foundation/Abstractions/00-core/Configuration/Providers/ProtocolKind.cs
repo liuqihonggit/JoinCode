@@ -11,5 +11,6 @@ public enum ProtocolKind
     [EnumValue("openai-compatible")] OpenAiCompatible = 0,
     [EnumValue("anthropic")] Anthropic = 1,
     [EnumValue("azure")] Azure = 2,
-    [EnumValue("agnes")] Agnes = 3
+    [EnumValue("agnes")] Agnes = 3,
+    [EnumValue("responses")] OpenAiResponses = 4
 }

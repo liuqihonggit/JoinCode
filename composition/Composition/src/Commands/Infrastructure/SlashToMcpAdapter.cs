@@ -24,6 +24,7 @@ public sealed class SlashToMcpAdapter : IToolHandler
     public string Description => _command.Description;
     public ToolKind Kind => _kind;
     public string? GroupName => "slash";
+    public string? Category => "skill";
     public ToolTimeoutPolicy TimeoutPolicy => ToolTimeoutPolicy.None;
 
     /// <summary>

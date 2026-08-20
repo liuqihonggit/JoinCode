@@ -269,7 +269,7 @@ public static class DebugLogRenderer
         var entries = debugBuffer.GetRecent(100);
         if (entries.Count == 0)
         {
-            sb.AppendLine($"  {TerminalColors.Muted}无日志记录（启用 --verbose 可捕获更多日志）{AnsiStyleConstants.Reset}");
+            sb.AppendLine($"  {TerminalColors.Muted}无日志记录（启用 --debuglog 可捕获更多日志）{AnsiStyleConstants.Reset}");
             sb.AppendLine();
             return;
         }

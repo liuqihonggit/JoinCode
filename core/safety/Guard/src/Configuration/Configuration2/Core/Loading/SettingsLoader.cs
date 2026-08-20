@@ -145,22 +145,13 @@ public static class SettingsLoader
 
     /// <summary>
     /// 获取用户全局设置路径
-    /// AppDataFolder 为绝对路径时直接使用（测试隔离场景）;
+    /// 优先使用 JCC_APP_DATA_FOLDER 环境变量覆盖(测试隔离场景);
+    /// AppDataFolder 为绝对路径时直接使用;
     /// 否则拼接 {UserProfile}/{AppDataFolder}/{SettingsFileName}
     /// </summary>
     public static string GetUserSettingsPath()
     {
-        var appDataFolder = AppDataConstants.AppDataFolder;
-        var settingsFileName = AppDataConstants.SettingsFileName;
-
-        // 绝对路径: 直接使用（测试隔离时 AppDataFolder 被设为临时目录绝对路径）
-        if (Path.IsPathRooted(appDataFolder))
-            return Path.Combine(appDataFolder, settingsFileName);
-
-        return Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            appDataFolder,
-            settingsFileName);
+        return Path.Combine(WorkflowConstants.Paths.JccDirectory, AppDataConstants.SettingsFileName);
     }
 
     /// <summary>

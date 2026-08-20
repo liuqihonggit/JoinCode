@@ -15,6 +15,7 @@ internal sealed class RemoteMcpToolDispatch : IToolHandler
     public ToolSchema InputSchema => _tool.InputSchema;
     public ToolKind Kind => ToolKind.Mcp;
     public string? GroupName { get; }
+    public string? Category { get; } = "mcp_client";
     public ToolTimeoutPolicy TimeoutPolicy => ToolTimeoutPolicy.None;
 
     public RemoteMcpToolDispatch(string clientId, IMcpClient client, ToolInfo tool, string? groupName = null)

@@ -28,7 +28,9 @@ public sealed partial class McpToolSyncBridge : ServiceEntity
             var toolSpecs = allToolInfos.Select(t => new ToolSpec(
                 t.Name,
                 t.Description,
-                SerializeToolSchema(t.InputSchema)
+                SerializeToolSchema(t.InputSchema),
+                t.Category,
+                t.GroupName
             )).ToList();
 
             await _contextManager.UpdateToolSpecsAsync(toolSpecs, cancellationToken).ConfigureAwait(false);

@@ -22,7 +22,7 @@ public sealed class ProviderDefinitionPolymorphismTests
     [Fact]
     public void Anthropic_RequiresInteractiveEndpoint_ShouldBeFalse()
     {
-        IProviderDefinition def = new Core.Configuration.Providers.AnthropicProviderDefinition(ModelConfigLoader);
+        IProviderDefinition def = new Core.Configuration.Providers.AnthropicCompatibleProviderDefinition(ModelConfigLoader);
         def.RequiresInteractiveEndpoint.Should().BeFalse();
     }
 
@@ -102,7 +102,7 @@ public sealed class ProviderDefinitionPolymorphismTests
     [Fact]
     public void Anthropic_SupportsWebSearch_ShouldBeTrue()
     {
-        IProviderDefinition def = new Core.Configuration.Providers.AnthropicProviderDefinition(ModelConfigLoader);
+        IProviderDefinition def = new Core.Configuration.Providers.AnthropicCompatibleProviderDefinition(ModelConfigLoader);
         def.SupportsWebSearch.Should().BeTrue();
     }
 
@@ -146,7 +146,7 @@ public sealed class ProviderDefinitionPolymorphismTests
     [Fact]
     public void Anthropic_GetBaseUrl_WithoutEndpoint_ShouldUseDefault()
     {
-        var def = new Core.Configuration.Providers.AnthropicProviderDefinition(ModelConfigLoader);
+        var def = new Core.Configuration.Providers.AnthropicCompatibleProviderDefinition(ModelConfigLoader);
         var config = new ProviderConfig();
         def.GetBaseUrl(config).Should().Be("https://api.anthropic.com/");
     }

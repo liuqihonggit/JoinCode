@@ -34,6 +34,8 @@ public abstract class OpenAICompatibleProviderDefinitionBase : IProviderDefiniti
 
     public virtual string GetChatEndpoint(ProviderConfig config)
     {
+        if (config.ProtocolKind == ProtocolKind.OpenAiResponses)
+            return "responses";
         if (!string.IsNullOrEmpty(config.Endpoint) && config.Endpoint.TrimEnd('/').EndsWith(ChatCompletionsPath, StringComparison.OrdinalIgnoreCase))
             return string.Empty;
         return ChatCompletionsPath;

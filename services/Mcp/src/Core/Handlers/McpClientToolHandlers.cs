@@ -137,6 +137,11 @@ public partial class McpClientToolHandlers : IAsyncDisposable
             if (_deps.ToolRegistry is not null)
             {
                 _deps.ToolRegistry.RegisterRemoteClient(connection_name, client);
+                var syncResult = await _deps.ToolRegistry.SyncRemoteToolsAsync(connection_name, cancellationToken).ConfigureAwait(false);
+                if (!syncResult.Success)
+                {
+                    _logger?.LogWarning("MCP 服务器 '{ConnectionName}' 连接成功但同步工具失败: {Error}", connection_name, syncResult.ErrorMessage);
+                }
             }
 
             var response = new System.Text.StringBuilder();

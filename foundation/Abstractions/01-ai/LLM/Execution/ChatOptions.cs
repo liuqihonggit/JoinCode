@@ -19,6 +19,12 @@ public sealed class ChatOptions
     public EffortLevel? EffortLevel { get; init; }
 
     /// <summary>
+    /// 思考模式开关 — DeepSeek V4 等模型通过 thinking:{"type":"enabled"} 显式开启思考模式
+    /// 由上层基于 AppState.ThinkingEnabled 和供应商能力决定是否开启
+    /// </summary>
+    public bool ThinkingEnabled { get; init; }
+
+    /// <summary>
     /// 快速模式: 启用后使用更小/更快的模型
     /// 通过 ExtensionData["model"] 传递快速模型 ID
     /// </summary>

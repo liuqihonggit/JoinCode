@@ -1,4 +1,12 @@
 global using JoinCode.Abstractions.Prompts;
+global using JoinCode.Abstractions.Tools;
+global using JoinCode.Abstractions.Mcp.Registry;
+global using JoinCode.Abstractions.Mcp.Client;
+global using JoinCode.Abstractions.Models;
+global using JoinCode.Abstractions.Utils;
+global using System.Collections.Frozen;
+global using Microsoft.Extensions.Logging.Abstractions;
+global using McpToolDispatch;
 global using JoinCode.Transport;
 global using McpProtocol;
 global using McpProtocol.Contracts;

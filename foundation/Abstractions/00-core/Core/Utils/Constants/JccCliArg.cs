@@ -65,7 +65,7 @@ public enum JccCliArg
     [EnumValue("--permission-mode")]
     PermissionMode,
 
-    [EnumValue("--dangerously-skip-permissions")]
+    [EnumValue("--bypass")]
     DangerouslySkipPermissions,
 
     [EnumValue("--allowed-tools")]

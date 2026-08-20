@@ -173,6 +173,37 @@ public class DeepSeekProviderDefinitionTests : IDisposable
         fullUrl.Should().Be("https://api.deepseek.com/chat/completions");
     }
 
+    [Fact]
+    public void DeepSeek_GetChatEndpoint_ResponsesProtocol_ReturnsResponsesPath()
+    {
+        var config = new ProviderConfig
+        {
+            Endpoint = "https://api.deepseek.com",
+            Protocol = "responses"
+        };
+
+        var chatEndpoint = _definition.GetChatEndpoint(config);
+
+        chatEndpoint.Should().Be("responses");
+    }
+
+    [Fact]
+    public void DeepSeek_FullUrl_ResponsesProtocol_ComposesResponsesEndpoint()
+    {
+        var config = new ProviderConfig
+        {
+            Endpoint = "https://api.deepseek.com",
+            Protocol = "responses"
+        };
+
+        var baseUrl = _definition.GetBaseUrl(config);
+        var chatEndpoint = _definition.GetChatEndpoint(config);
+
+        var fullUrl = new Uri(new Uri(baseUrl), chatEndpoint).AbsoluteUri;
+
+        fullUrl.Should().Be("https://api.deepseek.com/responses");
+    }
+
     #endregion
 
     #region HttpClient 配置验证
@@ -304,7 +335,7 @@ public class DeepSeekProviderDefinitionTests : IDisposable
     [Fact]
     public void AnthropicProviderDefinition_CanBeConstructedForAnthropic()
     {
-        var definition = new AnthropicProviderDefinition(_modelConfigLoader, "anthropic", "ANTHROPIC_API_KEY");
+        var definition = new AnthropicCompatibleProviderDefinition(_modelConfigLoader, "anthropic", "ANTHROPIC_API_KEY");
 
         definition.Should().NotBeNull();
         definition.ProviderName.Should().Be("anthropic");

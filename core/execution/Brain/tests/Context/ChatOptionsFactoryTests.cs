@@ -48,4 +48,27 @@ public sealed class ChatOptionsFactoryTests
         options.Temperature.Should().Be(LlmParameters.Chat.Temperature);
         options.MaxTokens.Should().Be(LlmParameters.Chat.MaxTokens);
     }
+
+    [Fact]
+    public void Create_WithProviderThinkingEnabled_SetsThinkingEnabled()
+    {
+        var provider = new Mock<IExecutionSettingsProvider>();
+        provider.Setup(p => p.ThinkingEnabled).Returns(true);
+
+        var options = CreateFactory(provider.Object).Create();
+
+        options.ThinkingEnabled.Should().BeTrue(
+            "provider.ThinkingEnabled=true 时映射到 ChatOptions.ThinkingEnabled,DeepSeek V4 据此发 thinking 字段");
+    }
+
+    [Fact]
+    public void Create_WithoutProviderThinkingEnabled_DefaultsFalse()
+    {
+        var provider = new Mock<IExecutionSettingsProvider>();
+        provider.Setup(p => p.ThinkingEnabled).Returns(false);
+
+        var options = CreateFactory(provider.Object).Create();
+
+        options.ThinkingEnabled.Should().BeFalse();
+    }
 }

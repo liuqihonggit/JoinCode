@@ -121,4 +121,39 @@ public class NativeJsonContextTests
         deserialized.TotalTokens.Should().Be(15);
         deserialized.CacheCreationInputTokens.Should().Be(1);
     }
+
+    [Fact]
+    public void OpenAIChatRequest_WithThinking_SerializesThinkingField()
+    {
+        var request = new OpenAIChatRequest
+        {
+            Model = "deepseek-v4-pro",
+            Messages = [new OpenAIApiMessage { Role = "user", Content = "hi" }],
+            Thinking = new OpenAIThinkingOptions { Type = "enabled" }
+        };
+
+        var json = JsonSerializer.Serialize(request, NativeJsonContext.Default.OpenAIChatRequest);
+
+        json.Should().Contain("\"thinking\"");
+        json.Should().Contain("\"type\":\"enabled\"");
+
+        var deserialized = JsonSerializer.Deserialize(json, NativeJsonContext.Default.OpenAIChatRequest);
+        deserialized!.Thinking.Should().NotBeNull();
+        deserialized.Thinking!.Type.Should().Be("enabled");
+    }
+
+    [Fact]
+    public void OpenAIChatRequest_WithoutThinking_DoesNotSerializeThinkingField()
+    {
+        var request = new OpenAIChatRequest
+        {
+            Model = "deepseek-v4-pro",
+            Messages = [new OpenAIApiMessage { Role = "user", Content = "hi" }]
+        };
+
+        var json = JsonSerializer.Serialize(request, NativeJsonContext.Default.OpenAIChatRequest);
+
+        json.Should().NotContain("\"thinking\"",
+            "Thinking 为 null 时不应序列化,JsonIgnore WhenWritingNull");
+    }
 }

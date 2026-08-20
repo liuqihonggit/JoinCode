@@ -180,3 +180,27 @@
 **遗留待办更新**:
 - ~~Responses 多轮工具循环真实 API 验证~~ → ✅ 已验证通过(2026-08-21)
 - 真实 DeepSeek API 端到端验证 tool_description_request 两阶段加载链路(仍需配置 MCP 工具触发 ToolSearch)
+
+## MCP ToolSearch 链路验证与修复(2026-08-21)
+
+### 触发场景
+用 sensenova + Mcp.MockServer(http://localhost:18090) 验证 MCP 工具两阶段加载,发现 ToolSearch 搜不到 MCP 工具。
+
+### Bug: mcp_connect 连接后未同步远程工具
+- **现象**: `mcp_connect` 成功连接后,`tool_search` 搜索 "echo" 返回"未找到匹配的工具"("共有 311 个已注册的工具可用"),但 `mcp_list_tools` 能列出 5 个工具、`mcp_call_tool` 能正常调用
+- **根因**: `ToolSearchToolHandlers` 用 `_toolRegistry.GetAllToolsAsync()` 搜索(本地注册表),而 `mcp_connect`(`McpClientToolHandlers.McpConnectAsync`)连接后只调 `RegisterRemoteClient` → `RemoteClientManager.RegisterClientAsync`,**未触发 `SyncToolsAsync`**,远程工具从未注册进 `_toolRegistry`。`SyncToolsAsync` 仅在重连/收到通知时调用(RemoteClientManager:251/69)
+- **修复**: `McpConnectAsync` 连接成功后调用 `SyncRemoteToolsAsync(connection_name)`,把远程工具同步进注册表(工具名格式 `mcp__{clientId}__{toolName}`)
+- **测试**: 红测试(连接成功→应同步)→ 修复 → 绿;Mcp.Tests 140 全绿
+- **提交**: bfce3368c
+
+### 真实 API 验证(sensenova + Mcp.MockServer)
+```
+[Tool] mcp_connect → 连接成功 (mock, JoinCode.Mcp.MockServer 1.0.0)
+[Tool] ToolSearch (echo) → 找到 mcp__mock__echo: Echo back the input message (匹配 1 个工具, 共 316 个)
+[Tool] mcp_call_tool → echo 回显 hello-mcp 成功
+```
+- ✅ 修复前: ToolSearch "未找到匹配的工具";修复后: 找到 `mcp__mock__echo` 并成功调用
+- ✅ 完整链路验证: 网络通讯(MCP Streamable HTTP) + 工具搜索(ToolSearch) + MCP 工具调用(mcp_call_tool) 全部正常
+
+### 遗留观察
+- `SessionController.PostProcessMainAgentAsync` 在模型仅工具调用无文本输出时,`AddAssistantMessageAsync` 收到空白串抛 `ThrowIfNullOrWhiteSpace`(被 catch 记录,不影响主链路)。app 层测试受 JoinCodeTui 缺 libs 编译阻塞,未修复(用户明确不处理 TUI,聚焦底层)

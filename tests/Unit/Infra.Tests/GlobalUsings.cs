@@ -15,6 +15,7 @@ global using Core.Utils;
 global using JoinCode.Abstractions.Utils;
 global using Core.Services;
 global using JoinCode.Abstractions.Models;
+global using JoinCode.Abstractions.Models.Agent;
 global using FluentAssertions;
 global using IO.Services;
 global using IO;

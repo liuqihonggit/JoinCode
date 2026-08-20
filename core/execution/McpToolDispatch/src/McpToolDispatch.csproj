@@ -11,6 +11,7 @@
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)foundation\Abstractions\Abstractions.csproj" />
     <ProjectReference Include="$(RepoRoot)infrastructure\Infrastructure\Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)core\safety\Guard\src\Guard.csproj" />
   </ItemGroup>
 
   <ItemGroup>

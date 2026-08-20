@@ -26,6 +26,17 @@ public sealed partial class ToolFixHookRegistry : ServiceEntity
         _healthMonitor = healthMonitor ?? throw new ArgumentNullException(nameof(healthMonitor));
         _logger = logger;
         _threshold = threshold;
+        RegisterDefaultFixHooks();
+    }
+
+    /// <summary>
+    /// 注册默认修正器 — GhPrBodyFixHook + JsonFixHook + GhTimeoutFixHook
+    /// </summary>
+    private void RegisterDefaultFixHooks()
+    {
+        Register(new FixHooks.GhPrBodyFixHook());
+        Register(new FixHooks.JsonFixHook());
+        Register(new FixHooks.GhTimeoutFixHook());
     }
 
     /// <summary>

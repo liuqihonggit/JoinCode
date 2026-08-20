@@ -66,7 +66,19 @@ public sealed class ToolFixHookRegistryTest
         registry.Register(h1);
         registry.Register(h2);
 
-        registry.GetHooks().Should().HaveCount(2);
+        // 3个默认修正器 + 2个手动注册 = 5
+        registry.GetHooks().Should().HaveCount(5);
+    }
+
+    [Fact]
+    public void Constructor_DefaultFixHooks_AutoRegistered()
+    {
+        var registry = new ToolFixHookRegistry(_healthMonitor.Object);
+
+        var hooks = registry.GetHooks();
+        hooks.Should().Contain(h => h.Name == "GhPrBodyFixHook");
+        hooks.Should().Contain(h => h.Name == "JsonFixHook");
+        hooks.Should().Contain(h => h.Name == "GhTimeoutFixHook");
     }
 
     // === TryFixAsync — 阈值 ===

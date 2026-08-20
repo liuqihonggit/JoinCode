@@ -7,6 +7,13 @@
 [ChatCommand(Name = ChatCommandNameConstants.InstallGitHubApp, Description = "设置 Claude GitHub Actions 工作流", Usage = "/install-github-app", Category = ChatCommandCategory.Tools)]
 public sealed class InstallGitHubAppCommand : ChatCommandBase
 {
+    private readonly IGitHubCommandRunner? _gitHubRunner;
+
+    public InstallGitHubAppCommand(IGitHubCommandRunner? gitHubRunner = null)
+    {
+        _gitHubRunner = gitHubRunner;
+    }
+
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var ct = context.CancellationToken;
@@ -84,12 +91,12 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
     /// <summary>
     /// 检查 GitHub CLI 是否安装且已认证
     /// </summary>
-    private static async Task<GitHubCheckResult> CheckGitHubCliAsync(CancellationToken ct)
+    private async Task<GitHubCheckResult> CheckGitHubCliAsync(CancellationToken ct)
     {
         TerminalHelper.WriteLine("正在检查 GitHub CLI 安装...");
 
         // 检查 gh 是否安装
-        var ghCheck = await RunShellCommandAsync("gh --version", ct).ConfigureAwait(false);
+        var ghCheck = await RunShellCommandAsync("gh --version", ct, _gitHubRunner).ConfigureAwait(false);
         if (!ghCheck.Success)
         {
             return GitHubCheckResult.Fail(
@@ -98,7 +105,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
         }
 
         // 检查认证状态
-        var authCheck = await RunShellCommandAsync("gh auth status", ct).ConfigureAwait(false);
+        var authCheck = await RunShellCommandAsync("gh auth status", ct, _gitHubRunner).ConfigureAwait(false);
         if (!authCheck.Success)
         {
             return GitHubCheckResult.Fail(
@@ -121,7 +128,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
     /// <summary>
     /// 获取当前 Git 仓库的 GitHub 仓库名
     /// </summary>
-    private static async Task<string?> GetCurrentRepoAsync(CancellationToken ct)
+    private async Task<string?> GetCurrentRepoAsync(CancellationToken ct)
     {
         var result = await RunShellCommandAsync("git remote get-url origin", ct).ConfigureAwait(false);
         if (!result.Success) return null;
@@ -338,7 +345,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
     /// <summary>
     /// 执行 GitHub Actions 设置
     /// </summary>
-    private static async Task<GitHubSetupResult> SetupGitHubActionsAsync(
+    private async Task<GitHubSetupResult> SetupGitHubActionsAsync(
         string repoName,
         List<string> workflows,
         string secretName,
@@ -394,16 +401,16 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
     /// <summary>
     /// 验证仓库是否存在且有权限
     /// </summary>
-    private static async Task<bool> VerifyRepoAsync(string repoName, CancellationToken ct)
+    private async Task<bool> VerifyRepoAsync(string repoName, CancellationToken ct)
     {
-        var result = await RunShellCommandAsync($"gh api repos/{repoName} --jq .permissions.admin", ct).ConfigureAwait(false);
+        var result = await RunShellCommandAsync($"gh api repos/{repoName} --jq .permissions.admin", ct, _gitHubRunner).ConfigureAwait(false);
         return result.Success && result.Output.Trim() == "true";
     }
 
     /// <summary>
     /// 创建工作流分支和文件
     /// </summary>
-    private static async Task<bool> CreateWorkflowBranchAsync(
+    private async Task<bool> CreateWorkflowBranchAsync(
         string repoName,
         List<string> workflows,
         string secretName,
@@ -411,7 +418,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
         CancellationToken ct)
     {
         // 获取默认分支
-        var branchResult = await RunShellCommandAsync($"gh api repos/{repoName} --jq .default_branch", ct).ConfigureAwait(false);
+        var branchResult = await RunShellCommandAsync($"gh api repos/{repoName} --jq .default_branch", ct, _gitHubRunner).ConfigureAwait(false);
         if (!branchResult.Success) return false;
 
         var defaultBranch = branchResult.Output.Trim();
@@ -421,7 +428,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
         // 获取默认分支的 SHA
         var shaResult = await RunShellCommandAsync(
             $"gh api repos/{repoName}/git/ref/heads/{defaultBranch} --jq .object.sha",
-            ct).ConfigureAwait(false);
+            ct, _gitHubRunner).ConfigureAwait(false);
         if (!shaResult.Success) return false;
 
         var sha = shaResult.Output.Trim();
@@ -429,7 +436,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
         // 创建新分支
         var createBranch = await RunShellCommandAsync(
             $"gh api repos/{repoName}/git/refs -f ref=refs/heads/{newBranch} -f sha={sha}",
-            ct).ConfigureAwait(false);
+            ct, _gitHubRunner).ConfigureAwait(false);
         if (!createBranch.Success) return false;
 
         // 创建工作流文件
@@ -440,7 +447,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
 
             var createFile = await RunShellCommandAsync(
                 $"gh api repos/{repoName}/contents/.github/workflows/{fileName} -X PUT -f message=\"Add {workflow} workflow\" -f content=\"{base64Content}\" -f branch={newBranch}",
-                ct).ConfigureAwait(false);
+                ct, _gitHubRunner).ConfigureAwait(false);
 
             if (!createFile.Success) return false;
         }
@@ -506,22 +513,22 @@ jobs:
     /// <summary>
     /// 设置 GitHub Secret
     /// </summary>
-    private static async Task<bool> SetSecretAsync(string repoName, string secretName, string secretValue, CancellationToken ct)
+    private async Task<bool> SetSecretAsync(string repoName, string secretName, string secretValue, CancellationToken ct)
     {
         var result = await RunShellCommandAsync(
             $"gh secret set {secretName} --body \"{secretValue}\" --repo {repoName}",
-            ct).ConfigureAwait(false);
+            ct, _gitHubRunner).ConfigureAwait(false);
         return result.Success;
     }
 
     /// <summary>
     /// 打开 Pull Request 页面
     /// </summary>
-    private static async Task OpenPullRequestAsync(string repoName, CancellationToken ct)
+    private async Task OpenPullRequestAsync(string repoName, CancellationToken ct)
     {
         _ = await RunShellCommandAsync(
             $"gh browse repos/{repoName}/compare/add-claude-github-actions",
-            ct).ConfigureAwait(false);
+            ct, _gitHubRunner).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -567,12 +574,22 @@ jobs:
     }
 
     /// <summary>
-    /// 执行 Shell 命令
+    /// 执行 Shell 命令 — 当命令是 gh 开头且有 GitHubCommandRunner 时，走统一执行器（获得重试+编码处理）
     /// </summary>
-    private static async Task<ShellResult> RunShellCommandAsync(string command, CancellationToken ct, IProcessService? processService = null)
+    private static async Task<ShellResult> RunShellCommandAsync(string command, CancellationToken ct, IGitHubCommandRunner? gitHubRunner = null, IProcessService? processService = null)
     {
         try
         {
+            // gh 命令走 GitHubCommandRunner 统一执行器（重试 + 环境变量 + 编码处理）
+            if (gitHubRunner is not null && command.StartsWith("gh ", StringComparison.OrdinalIgnoreCase))
+            {
+                var ghArgs = command[3..];
+                var ghResult = await gitHubRunner.ExecuteAsync(ghArgs, null, ct).ConfigureAwait(false);
+                return ghResult.Success
+                    ? ShellResult.Ok(ghResult.Output)
+                    : ShellResult.Fail(ghResult.Error);
+            }
+
             if (processService is not null)
             {
                 var options = new ProcessOptions

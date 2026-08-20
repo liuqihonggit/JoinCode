@@ -43,6 +43,7 @@ internal sealed class FallbackProviderDefinition : IProviderDefinition
     {
         ProtocolKind.Anthropic => "v1/messages",
         ProtocolKind.Azure => $"chat/completions?api-version={config.ApiVersion}",
+        ProtocolKind.OpenAiResponses => "responses",
         _ => !string.IsNullOrEmpty(config.Endpoint) && config.Endpoint.TrimEnd('/').EndsWith("chat/completions", StringComparison.OrdinalIgnoreCase)
             ? string.Empty
             : "chat/completions"

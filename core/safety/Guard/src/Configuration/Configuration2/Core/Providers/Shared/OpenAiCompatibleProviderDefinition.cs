@@ -33,6 +33,8 @@ public sealed class OpenAiCompatibleProviderDefinition : IProviderDefinition
 
     public string GetChatEndpoint(ProviderConfig config)
     {
+        if (config.ProtocolKind == ProtocolKind.OpenAiResponses)
+            return "responses";
         if (!string.IsNullOrEmpty(config.Endpoint) && config.Endpoint.TrimEnd('/').EndsWith("chat/completions", StringComparison.OrdinalIgnoreCase))
             return string.Empty;
         return "chat/completions";

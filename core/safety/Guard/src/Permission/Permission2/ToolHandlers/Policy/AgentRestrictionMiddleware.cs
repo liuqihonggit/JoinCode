@@ -55,7 +55,7 @@ public sealed partial class AgentRestrictionMiddleware : ServiceEntity, IPermiss
         {
             var deniedTools = _agentToolRestrictions.GetDeniedTools(agentMode);
             var hint = deniedTools.Contains(context.ToolName)
-                ? $" [调试: 工具 '{context.ToolName}' 在 {agentMode} 模式下被限制。--trust只跳过目录信任，不改变权限模式。需要 --dangerously-skip-permissions 或 --permission-mode {PermissionMode.Bypass.ToValue()} 或设置 JCC_PERMISSION_MODE={PermissionMode.Bypass.ToValue()}]"
+                ? $" [调试: 工具 '{context.ToolName}' 在 {agentMode} 模式下被限制。--trust只跳过目录信任，不改变权限模式。需要 --bypass 或 --permission-mode {PermissionMode.Bypass.ToValue()} 或设置 JCC_PERMISSION_MODE={PermissionMode.Bypass.ToValue()}]"
                 : "";
             context.Result = ToolPermissionCheckResult.Rejected($"工具 '{context.ToolName}' 在当前权限模式下不被允许{hint}");
             return Task.CompletedTask;

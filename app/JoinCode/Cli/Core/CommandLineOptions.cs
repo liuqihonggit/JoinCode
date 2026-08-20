@@ -101,10 +101,9 @@ public class CommandLineOptions {
     public string? PermissionMode { get; set; }
 
     /// <summary>
-    /// 跳过所有权限检查（--dangerously-skip-permissions 参数）
+    /// 跳过所有权限检查（--bypass 参数）
     /// 等价于 --permission-mode bypass 的快捷方式
     /// 在 ParseArgs 中映射到 JCC_PERMISSION_MODE=bypass 环境变量
-    /// 对齐 TS: claude --dangerously-skip-permissions
     /// </summary>
     public bool DangerouslySkipPermissions { get; set; }
 
@@ -205,7 +204,7 @@ public class CommandLineOptions {
 
     /// <summary>
     /// 强制执行（--force 参数）— 跳过权限检查和确认
-    /// 等价于 --dangerously-skip-permissions 的轻量版
+    /// 等价于 --bypass 的轻量版
     /// 对齐架构指南安全设计：dangerous 级操作需复核，--force 跳过复核
     /// </summary>
     public bool Force { get; set; }

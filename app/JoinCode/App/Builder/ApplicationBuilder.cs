@@ -311,7 +311,7 @@ public sealed class ApplicationBuilder
 
         // 视角1 #6 + #9: CLI 参数 → JCC_PERMISSION_MODE 环境变量
         // 决策: 复用 PermissionChecker.TryGetPermissionModeFromEnv 现有逻辑，不修改 PermissionChecker 构造函数
-        // --dangerously-skip-permissions 等价于 --permission-mode bypass
+        // --bypass 等价于 --permission-mode bypass
         // 两者同时存在时 --permission-mode 优先（更具体）
         var permissionModeFromCli = !string.IsNullOrEmpty(options.PermissionMode)
             ? options.PermissionMode
@@ -359,7 +359,7 @@ public sealed class ApplicationBuilder
             Core.Utils.TestEnvironmentDetector.ForceNonInteractive = true;
         }
 
-        // --force 等价于 --dangerously-skip-permissions（对齐架构指南安全设计）
+        // --force 等价于 --bypass（对齐架构指南安全设计）
         if (options.Force)
         {
             options.DangerouslySkipPermissions = true;

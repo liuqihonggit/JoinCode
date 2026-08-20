@@ -21,11 +21,11 @@ public sealed class DoctorCommand : ChatCommandBase
         sb.AppendLine($"  安装路径: {installPath}");
 
         sb.AppendLine("\n[.NET 运行时]");
-        var dotnetVersion = Environment.Version;
-        sb.AppendLine($"  版本: {dotnetVersion}");
-        sb.AppendLine($"  框架: {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}");
-        sb.AppendLine($"  OS: {System.Runtime.InteropServices.RuntimeInformation.OSDescription}");
-        sb.AppendLine($"  架构: {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}");
+        var snapshot = JoinCode.Abstractions.Utils.EnvironmentSnapshot.CaptureQuick();
+        sb.AppendLine($"  版本: {snapshot.RuntimeVersion}");
+        sb.AppendLine($"  框架: {snapshot.FrameworkDescription}");
+        sb.AppendLine($"  OS: {snapshot.OsDescription}");
+        sb.AppendLine($"  架构: {snapshot.ProcessArchitecture}");
 
         sb.AppendLine("\n[Git]");
         var gitCheck = await RunCommandAsync("git", ["--version"], context.CancellationToken).ConfigureAwait(false);

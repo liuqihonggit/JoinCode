@@ -4,7 +4,7 @@
     <AssemblyName>JoinCode.Guard.Hooks.Tests</AssemblyName>
     <Description>JoinCode Guard Hooks 子系统单元测试（Hooks + Permission）</Description>
     <RunSettingsFilePath>$(MSBuildProjectDirectory)\.runsettings</RunSettingsFilePath>
-    <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012;CS0618</NoWarn>
+    <NoWarn>$(NoWarn);JCC1001;JCC1002;JCC3007;JCC3010;JCC3011;JCC3012;CS0618</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)core\safety\Guard\src\Guard.csproj" />

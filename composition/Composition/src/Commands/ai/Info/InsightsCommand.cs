@@ -468,48 +468,41 @@ public sealed class InsightsCommand : ChatCommandBase
     }
 
     /// <summary>
-    /// 解析 LLM 返回的 Facet JSON — 对齐 TS isValidSessionFacets 校验
+    /// 解析 LLM 返回的 Facet JSON — 融合 LlmJsonHelper 宽容体系
+    /// <para>
+    /// LlmJsonHelper.Deserialize 内置三层纵深防御：
+    /// 1. ExtractJsonBlock（自动剥除 markdown ```json fence）
+    /// 2. ExtractInlineJson（回退：第一个 { 到最后一个 }）
+    /// 3. RepairJson（语法修复：尾随逗号/单引号/未加引号键/截断等）
+    /// 4. JsonLenientCoercer（类型强制转换）
+    /// </para>
     /// </summary>
     private static SessionFacets? ParseFacetResponse(string response, string sessionId)
     {
-        try
+        var facet = LlmJsonHelper.Deserialize(response, SessionFacetsJsonContext.Default.SessionFacets, out _);
+        if (facet is null) return null;
+
+        // 确保 SessionId 正确 — SessionFacets 是 sealed class，不能使用 with
+        if (facet.SessionId != sessionId)
         {
-            // 清理 markdown fences
-            var json = response.Trim();
-            if (json.StartsWith("```json")) json = json[7..];
-            if (json.StartsWith("```")) json = json[3..];
-            if (json.EndsWith("```")) json = json[..^3];
-            json = json.Trim();
-
-            var facet = JsonSerializer.Deserialize(json, SessionFacetsJsonContext.Default.SessionFacets);
-            if (facet is null) return null;
-
-            // 确保 SessionId 正确 — SessionFacets 是 sealed class，不能使用 with
-            if (facet.SessionId != sessionId)
+            return new SessionFacets
             {
-                return new SessionFacets
-                {
-                    SessionId = sessionId,
-                    UnderlyingGoal = facet.UnderlyingGoal,
-                    GoalCategories = facet.GoalCategories,
-                    Outcome = facet.Outcome,
-                    UserSatisfactionCounts = facet.UserSatisfactionCounts,
-                    ClaudeHelpfulness = facet.ClaudeHelpfulness,
-                    SessionType = facet.SessionType,
-                    FrictionCounts = facet.FrictionCounts,
-                    FrictionDetail = facet.FrictionDetail,
-                    PrimarySuccess = facet.PrimarySuccess,
-                    BriefSummary = facet.BriefSummary,
-                    UserInstructionsToClaude = facet.UserInstructionsToClaude,
-                };
-            }
+                SessionId = sessionId,
+                UnderlyingGoal = facet.UnderlyingGoal,
+                GoalCategories = facet.GoalCategories,
+                Outcome = facet.Outcome,
+                UserSatisfactionCounts = facet.UserSatisfactionCounts,
+                ClaudeHelpfulness = facet.ClaudeHelpfulness,
+                SessionType = facet.SessionType,
+                FrictionCounts = facet.FrictionCounts,
+                FrictionDetail = facet.FrictionDetail,
+                PrimarySuccess = facet.PrimarySuccess,
+                BriefSummary = facet.BriefSummary,
+                UserInstructionsToClaude = facet.UserInstructionsToClaude,
+            };
+        }
 
-            return facet;
-        }
-        catch
-        {
-            return null;
-        }
+        return facet;
     }
 
     /// <summary>

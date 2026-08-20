@@ -11,17 +11,20 @@ public static class EnvironmentSection {
 
         var additionalInfo = PromptConfigSnapshot.Current.AdditionalEnvInfo;
 
-        var cwd = fs.GetCurrentDirectory();
-        var isGitRepo = fs.DirectoryExists(fs.CombinePath(cwd, ".git"));
-        var consoleEncoding = System.Console.OutputEncoding?.WebName ?? "unknown";
-        var isUtf8 = consoleEncoding.Equals("utf-8", StringComparison.OrdinalIgnoreCase);
+        // 使用 EnvironmentSnapshot 统一采集环境信息（消除重复）
+        var snapshot = EnvironmentSnapshot.CaptureQuick(fs);
 
         var items = new List<string> {
-            $"工作目录: {cwd}",
-            $"Git仓库: {(isGitRepo ? "是" : "否")}",
-            $"平台: {RuntimeInformation.OSDescription}",
-            $"控制台编码: {consoleEncoding}{(isUtf8 ? "" : " (非UTF-8，中文输出可能乱码)")}"
+            $"工作目录: {snapshot.WorkingDirectory}",
+            $"Git仓库: {(snapshot.IsGitRepo ? "是" : "否")}",
+            $"平台: {snapshot.OsDescription}",
         };
+
+        if (snapshot.ConsoleEncoding is not null)
+        {
+            var isUtf8 = snapshot.ConsoleEncoding.Equals("utf-8", StringComparison.OrdinalIgnoreCase);
+            items.Add($"控制台编码: {snapshot.ConsoleEncoding}{(isUtf8 ? "" : " (非UTF-8，中文输出可能乱码)")}");
+        }
 
         var devTools = DetectDevTools();
         if (devTools.Count > 0)

@@ -13,13 +13,13 @@ public sealed class VersionCommand : ChatCommandBase
     {
         var assemblyVersion = typeof(VersionCommand).Assembly.GetName().Version;
         var appVersion = assemblyVersion?.ToString() ?? "1.0.0";
-        var runtimeVersion = Environment.Version.ToString();
+        var snapshot = JoinCode.Abstractions.Utils.EnvironmentSnapshot.CaptureQuick();
 
         TerminalHelper.WriteLine($"{TerminalColors.Primary}JoinCode{AnsiStyleConstants.Reset}");
         TerminalHelper.WriteLine($"  版本: {appVersion}");
-        TerminalHelper.WriteLine($"  运行时: .NET {runtimeVersion}");
-        TerminalHelper.WriteLine($"  架构: {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}");
-        TerminalHelper.WriteLine($"  OS: {System.Runtime.InteropServices.RuntimeInformation.OSDescription}");
+        TerminalHelper.WriteLine($"  运行时: {snapshot.FrameworkDescription} (.NET {snapshot.RuntimeVersion})");
+        TerminalHelper.WriteLine($"  架构: {snapshot.ProcessArchitecture}");
+        TerminalHelper.WriteLine($"  OS: {snapshot.OsDescription}");
 
         return Task.FromResult(ChatCommandResult.Continue());
     }

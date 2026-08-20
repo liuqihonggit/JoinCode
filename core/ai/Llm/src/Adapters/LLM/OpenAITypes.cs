@@ -56,6 +56,13 @@ internal sealed class OpenAIChatRequest
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<OpenAIToolGroup>? ToolGroups { get; set; }
 
+    /// <summary>
+    /// 两阶段工具加载 — 工具完整描述（第二次请求发送，响应 tool_description_request 后）
+    /// </summary>
+    [JsonPropertyName("tool_descriptions")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<OpenAITool>? ToolDescriptions { get; set; }
+
     [JsonPropertyName("reasoning_effort")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ReasoningEffort { get; set; }

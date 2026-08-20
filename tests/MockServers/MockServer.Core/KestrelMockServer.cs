@@ -153,6 +153,8 @@ public sealed class KestrelMockServer : IHttpMockServer
 
             // 两阶段工具加载: 首次请求只有 tool_groups(分组),没有 tool_descriptions(完整描述)
             // → 返回 tool_description_request,请求当前轮次需要的工具描述
+            // 流式请求: 包装成 SSE 格式(用 BuildStreamChunk),客户端在流式解析中检测 tool_description_request
+            // 非流式请求: 直接返回 JSON
             if (requestJson.RootElement.TryGetProperty("tool_groups", out _) &&
                 !requestJson.RootElement.TryGetProperty("tool_descriptions", out _))
             {
@@ -160,9 +162,28 @@ public sealed class KestrelMockServer : IHttpMockServer
                 if (descRequest is not null)
                 {
                     Console.WriteLine($"[{_serverName}]   Response: tool_description_request (two-phase loading)");
-                    ctx.Response.StatusCode = 200;
-                    ctx.Response.ContentType = "application/json";
-                    await ctx.Response.WriteAsync(descRequest, ctx.RequestAborted);
+                    var isDescStream = requestJson.RootElement.TryGetProperty("stream", out var descStreamProp)
+                        && descStreamProp.ValueKind == JsonValueKind.True;
+
+                    if (isDescStream)
+                    {
+                        ctx.Response.StatusCode = 200;
+                        ctx.Response.ContentType = "text/event-stream";
+                        var descId = $"chatcmpl-{Guid.NewGuid():N}";
+                        var preamble = _responseStrategy.BuildStreamPreamble(descId);
+                        if (preamble is not null)
+                            await ctx.Response.WriteAsync(preamble, ctx.RequestAborted);
+                        await ctx.Response.WriteAsync(_responseStrategy.BuildStreamChunk(descId, descRequest, false), ctx.RequestAborted);
+                        var emptyStats = new CacheStats { CacheCreationTokens = 0, CacheReadTokens = 0, InputTokens = 0, OutputTokens = 0 };
+                        await ctx.Response.WriteAsync(_responseStrategy.BuildStreamFinalChunk(descId, emptyStats), ctx.RequestAborted);
+                        await ctx.Response.WriteAsync("data: [DONE]\n\n", ctx.RequestAborted);
+                    }
+                    else
+                    {
+                        ctx.Response.StatusCode = 200;
+                        ctx.Response.ContentType = "application/json";
+                        await ctx.Response.WriteAsync(descRequest, ctx.RequestAborted);
+                    }
                     Console.WriteLine($"[{_serverName}] === Request #{requestIndex} complete ===");
                     return;
                 }

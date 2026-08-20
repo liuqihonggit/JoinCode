@@ -71,6 +71,87 @@ public class OpenAIQueryService : QueryServiceBase
             var content = choice.Delta?.Content ?? string.Empty;
             var role = ConvertRole(choice.Delta?.Role);
 
+            // 两阶段工具加载: 检测 tool_description_request → 构建工具描述 → 发送第二次请求
+            if (content.Contains("tool_description_request") && kernel != null)
+            {
+                Logger?.LogDebug("[WIRE {CallId}] 收到 tool_description_request, 发送第二次请求", CallTrace.CurrentId);
+                var secondRequest = CreateSecondRequestWithDescriptions(request, content, kernel);
+                var secondStream = SendStreamingRequestAsync(secondRequest, cancellationToken);
+                var secondAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
+                var secondFirstChunk = true;
+
+                await foreach (var sc in secondStream)
+                {
+                    if (sc.Choices.Count == 0)
+                    {
+                        if (sc.Usage is null) continue;
+                        var tu = BuildTokenUsage(sc.Usage);
+                        var um = new Dictionary<string, JsonElement>
+                        {
+                            ["Id"] = JsonElementHelper.FromString(sc.Id),
+                            ["FinishReason"] = JsonElementHelper.FromString(OpenAIFinishReasonConstants.Stop),
+                            ["Created"] = JsonElementHelper.FromInt64(sc.Created),
+                            ["Usage"] = JsonElementHelper.FromObject(tu, NativeJsonContext.Default.TokenUsage)
+                        };
+                        yield return new StreamEvent(MessageRole.Assistant, string.Empty, sc.Model, um);
+                        continue;
+                    }
+
+                    var sc2 = sc.Choices[0];
+                    var scContent = sc2.Delta?.Content ?? string.Empty;
+                    var scRole = ConvertRole(sc2.Delta?.Role);
+
+                    if (sc2.Delta?.ToolCalls != null)
+                    {
+                        foreach (var tc in sc2.Delta.ToolCalls)
+                        {
+                            var idx = tc.Index ?? 0;
+                            if (!string.IsNullOrEmpty(tc.Id))
+                                secondAccumulator[idx] = (tc.Id, tc.Function?.Name ?? "", new StringBuilder());
+                            if (tc.Function?.Arguments != null && secondAccumulator.TryGetValue(idx, out var ex))
+                                ex.Arguments.Append(tc.Function.Arguments);
+                        }
+                    }
+
+                    var scMeta = new Dictionary<string, JsonElement>
+                    {
+                        ["Id"] = JsonElementHelper.FromString(sc.Id),
+                        ["FinishReason"] = JsonElementHelper.FromString(sc2.FinishReason),
+                        ["Created"] = JsonElementHelper.FromInt64(sc.Created)
+                    };
+
+                    if (sc.Usage is not null)
+                    {
+                        var tu = BuildTokenUsage(sc.Usage);
+                        scMeta["Usage"] = JsonElementHelper.FromObject(tu, NativeJsonContext.Default.TokenUsage);
+                    }
+
+                    if (sc2.Delta?.ReasoningContent != null)
+                        scMeta["reasoning_content"] = JsonElementHelper.FromBoolean(true);
+
+                    if (sc2.FinishReason == OpenAIFinishReasonConstants.ToolCalls && secondAccumulator.Count > 0)
+                    {
+                        var entries = secondAccumulator
+                            .OrderBy(kv => kv.Key)
+                            .Select(kv => new ToolCallEntry { Id = kv.Value.Id, Name = kv.Value.Name, Arguments = kv.Value.Arguments.ToString() })
+                            .ToList();
+                        scMeta["AllToolCalls"] = ToolCallEntry.ToToolCallsJson(entries);
+                    }
+
+                    var scStreamContent = sc2.Delta?.ReasoningContent ?? scContent;
+                    if (secondFirstChunk)
+                    {
+                        secondFirstChunk = false;
+                        var rlh = GetLastRateLimitHeaders();
+                        if (rlh != null)
+                            foreach (var kvp in rlh)
+                                scMeta[$"ratelimit_{kvp.Key}"] = JsonElementHelper.FromString(kvp.Value);
+                    }
+                    yield return new StreamEvent(scRole, scStreamContent, sc.Model, scMeta);
+                }
+                yield break;
+            }
+
             if (choice.Delta?.ToolCalls != null)
             {
                 foreach (var tc in choice.Delta.ToolCalls)
@@ -277,6 +358,61 @@ public class OpenAIQueryService : QueryServiceBase
         }
 
         return (tools, toolGroups);
+    }
+
+    /// <summary>
+    /// 两阶段工具加载 — 解析 tool_description_request,构建第二次请求(含 tool_descriptions)
+    /// </summary>
+    private static OpenAIChatRequest CreateSecondRequestWithDescriptions(
+        OpenAIChatRequest originalRequest, string descRequestContent, IChatClient kernel)
+    {
+        var doc = JsonDocument.Parse(descRequestContent);
+        var toolNames = doc.RootElement.GetProperty("tools").EnumerateArray()
+            .Select(t => t.GetString() ?? "")
+            .Where(s => !string.IsNullOrEmpty(s))
+            .ToHashSet(StringComparer.Ordinal);
+
+        var descriptions = new List<OpenAITool>();
+        foreach (var pluginName in kernel.Plugins.PluginNames)
+        {
+            var plugin = kernel.Plugins.GetPlugin(pluginName);
+            if (plugin is not IToolGroup group)
+                continue;
+            foreach (var function in group.Functions)
+            {
+                if (toolNames.Contains(function.Name))
+                {
+                    descriptions.Add(new OpenAITool
+                    {
+                        Function = new OpenAIFunctionDefinition
+                        {
+                            Name = function.Name,
+                            Description = ToolPromptRegistration.GetDetailedDescription(function.Name) ?? function.Description,
+                            Parameters = BuildParameters(function.Parameters)
+                        }
+                    });
+                }
+            }
+        }
+
+        return new OpenAIChatRequest
+        {
+            Model = originalRequest.Model,
+            Messages = originalRequest.Messages,
+            Stream = originalRequest.Stream,
+            StreamOptions = originalRequest.StreamOptions,
+            Temperature = originalRequest.Temperature,
+            MaxTokens = originalRequest.MaxTokens,
+            TopP = originalRequest.TopP,
+            FrequencyPenalty = originalRequest.FrequencyPenalty,
+            PresencePenalty = originalRequest.PresencePenalty,
+            Tools = originalRequest.Tools,
+            ToolChoice = originalRequest.ToolChoice,
+            ToolGroups = originalRequest.ToolGroups,
+            ReasoningEffort = originalRequest.ReasoningEffort,
+            Thinking = originalRequest.Thinking,
+            ToolDescriptions = descriptions
+        };
     }
 
     private static OpenAIFunctionParameters BuildParameters(IReadOnlyList<IToolParam> parameters)

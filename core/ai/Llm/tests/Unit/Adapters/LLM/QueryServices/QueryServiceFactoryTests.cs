@@ -3,6 +3,7 @@ using Api.LLM.QueryServices.Agnes;
 using Api.LLM.QueryServices.Anthropic;
 using Api.LLM.QueryServices.Azure;
 using Api.LLM.QueryServices.OpenAI;
+using Api.LLM.QueryServices.Responses;
 
 namespace Llm.Tests.Adapters.LLM.QueryServices;
 
@@ -24,6 +25,8 @@ public sealed class QueryServiceFactoryTests
     [InlineData("anthropic", "anthropic", typeof(AnthropicQueryService))]
     [InlineData("agnes", "agnes", typeof(AgnesQueryService))]
     [InlineData("deepseek", "openai-compatible", typeof(OpenAIQueryService))]
+    [InlineData("deepseek", "responses", typeof(ResponsesQueryService))]
+    [InlineData("openai", "responses", typeof(ResponsesQueryService))]
     [InlineData("unknown", "openai-compatible", typeof(OpenAIQueryService))]
     public void Create_WithProviderKind_ReturnsExpectedType(string provider, string protocol, Type expectedType)
     {

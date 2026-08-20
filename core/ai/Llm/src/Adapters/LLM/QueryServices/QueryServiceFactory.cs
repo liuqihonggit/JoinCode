@@ -4,6 +4,7 @@ using Api.LLM.QueryServices.Agnes;
 using Api.LLM.QueryServices.Anthropic;
 using Api.LLM.QueryServices.Azure;
 using Api.LLM.QueryServices.OpenAI;
+using Api.LLM.QueryServices.Responses;
 
 /// <summary>
 /// QueryService 工厂 — 按 ProviderKind 分派到对应派生类
@@ -37,6 +38,7 @@ public sealed class QueryServiceFactory : IQueryServiceFactory
             ProtocolKind.Anthropic => new AnthropicQueryService(config, httpClient, logger, fileSystem, resilientExecutor),
             ProtocolKind.Azure => new AzureQueryService(config, httpClient, logger, fileSystem, resilientExecutor),
             ProtocolKind.Agnes => new AgnesQueryService(config, httpClient, logger, fileSystem, resilientExecutor),
+            ProtocolKind.OpenAiResponses => new ResponsesQueryService(config, httpClient, logger, fileSystem, resilientExecutor),
             // OpenAiCompatible / 未知 — 默认走 OpenAI 兼容协议
             _ => new OpenAIQueryService(config, httpClient, logger, fileSystem, resilientExecutor)
         };

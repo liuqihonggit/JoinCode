@@ -12,12 +12,30 @@ public sealed class AnthropicCompatibleProviderDefinition : IProviderDefinition
     private readonly IModelConfigLoader _modelConfigLoader;
     private readonly string _providerName;
     private readonly string? _apiKeyEnvVar;
+    private readonly string? _anthropicBeta;
 
-    public AnthropicCompatibleProviderDefinition(IModelConfigLoader modelConfigLoader, string providerName, string? apiKeyEnvVar = null)
+    /// <summary>
+    /// Anthropic 协议默认 beta 特性串 — Anthropic 供应商未配置时回退使用,保持 prompt caching 等特性兼容
+    /// </summary>
+    private const string DefaultAnthropicBeta = "prompt-caching-2024-07-31,prompt-caching-scope-2026-01-05,context-management-2025-06-27";
+
+    public AnthropicCompatibleProviderDefinition(IModelConfigLoader modelConfigLoader, string providerName, string? apiKeyEnvVar = null, string? anthropicBeta = null)
     {
         _modelConfigLoader = modelConfigLoader;
         _providerName = providerName;
         _apiKeyEnvVar = apiKeyEnvVar;
+        _anthropicBeta = ResolveAnthropicBeta(anthropicBeta);
+    }
+
+    /// <summary>
+    /// 解析 anthropic-beta 头值 — 用户配置优先,Anthropic 供应商未配置回退默认,其他供应商未配置则不发(安全)
+    /// </summary>
+    private string? ResolveAnthropicBeta(string? configured)
+    {
+        if (configured is not null) return configured;
+        if (string.Equals(_providerName, "anthropic", StringComparison.OrdinalIgnoreCase))
+            return DefaultAnthropicBeta;
+        return null;
     }
 
     public VendorKind Vendor => VendorKindExtensions.FromValue(_providerName) ?? VendorKind.Anthropic;
@@ -49,7 +67,7 @@ public sealed class AnthropicCompatibleProviderDefinition : IProviderDefinition
 
     /// <summary>
     /// 配置 HttpClient — Anthropic 协议固有认证头(x-api-key + anthropic-version)
-    /// 注意:不发 anthropic-beta 头,因为 DeepSeek 等 Anthropic 兼容端点不一定支持 Anthropic 的 beta 特性
+    /// anthropic-beta 头按配置发送:用户配置 > Anthropic 供应商默认 > 其他供应商不发(避免 DeepSeek 等不支持的特性报错)
     /// </summary>
     public void ConfigureHttpClient(HttpClient client, ProviderConfig config)
     {
@@ -57,6 +75,8 @@ public sealed class AnthropicCompatibleProviderDefinition : IProviderDefinition
         {
             client.DefaultRequestHeaders.Add("x-api-key", config.ApiKey);
             client.DefaultRequestHeaders.Add("anthropic-version", "2024-10-22");
+            if (_anthropicBeta is not null)
+                client.DefaultRequestHeaders.Add("anthropic-beta", _anthropicBeta);
         }
     }
 

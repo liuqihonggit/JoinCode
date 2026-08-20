@@ -51,9 +51,10 @@ public sealed class ProviderDefinitionRegistry : IProviderDefinitionRegistry
 
                 var protocol = profileNode["protocol"]?.GetValue<string>() ?? "openai-compatible";
                 var apiKeyEnvVar = profileNode["apiKeyEnvVar"]?.GetValue<string>();
+                var anthropicBeta = profileNode["anthropicBeta"]?.GetValue<string>();
 
                 dict[vendorName] = string.Equals(protocol, "anthropic", StringComparison.OrdinalIgnoreCase)
-                    ? new AnthropicProviderDefinition(modelConfigLoader, vendorName, apiKeyEnvVar)
+                    ? new AnthropicCompatibleProviderDefinition(modelConfigLoader, vendorName, apiKeyEnvVar, anthropicBeta)
                     : new OpenAiCompatibleProviderDefinition(modelConfigLoader, vendorName, apiKeyEnvVar);
             }
         }

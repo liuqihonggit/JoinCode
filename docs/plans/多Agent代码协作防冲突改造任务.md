@@ -19,6 +19,20 @@
 9. **角色权限**：先定权限矩阵（tools/disallowedTools 白名单+参数范围），再由权限系统过滤，push 限制是其中一条规则
 10. **worktree 路径复用现状**（`.jcc/worktrees/{agentId}` + 分支 `worktree-{agentId}`），不改
 11. **worktree 开启两层决策**：LLM 全局决策 `enableWorktree`（任务难度）+ 节点类型自动判断（`Variant==Code` 开、`Explore`/`Coordinator` 不开），探索/审查只读不改不开 worktree
+12. **改造 /goal 为多Agent协作任务图引擎**（不新建命令、不加参数），复用现有 team MCP 组件，/goal 与 team MCP **共享底层组件，改一处两边都修**。单Agent = 团队只有1人的退化情况。现状 /goal 是"四不像"（既不像单agent loop，也不像能处理大型任务图+文件冲突），改造后明确为多Agent协作引擎
+
+### 共享组件清单（/goal 与 team MCP 复用，改一处两边都修）
+
+| 组件 | 路径 | 职责 | 改造方向 |
+|------|------|------|----------|
+| `ITeamManager`/`TeamManager` | `core/ai/Agents/src/Coordinator/Team/` | 团队/成员/消息管理（内存） | /goal 分解任务后建团队，节点派发给团队成员 |
+| `IMailbox`/`TeammateMailboxService` | `core/ai/Agents/src/Coordinator/Core/Messaging/` | 中央邮箱（定向投递+跨进程） | 意图上报/契约广播/延迟邮件全走此通道 |
+| `ITeammateInitService`/`TeammateInitService` | `core/ai/Agents/src/Coordinator/Team/` | teammate 上下文构建（团队+其他成员+允许路径） | /goal 派发节点时构建 sub-agent 的团队上下文 |
+| `AgentWorktreeManager` | `core/ai/Agents/src/Coordinator/Core/Lifecycle/` | worktree 创建/清理 | T9.2 两层决策后按需创建 worktree |
+| `ISubAgentCoordinator`/`AgentCoordinator` | `core/ai/Agents/src/Coordinator/Core/` | sub-agent 派生/停止/观察 | /goal 节点执行器调用 SpawnSubAgentAsync 派发 |
+| `GoalGraphEngine` | `composition/Clock/src/Goal/Core/` | DAG 执行（DrainReadyBatch 就绪批次并行） | /goal 主引擎，节点执行从"自执行"改为"派发 sub-agent" |
+| `WorktreeMergeService` | `core/ai/Agents/src/Services/Support/` | worktree 合并 | T6.0 队长串行合并复用 |
+| `BuildQueueService` | `core/execution/Hands/src/Build/` | 编译队列（跨进程串行） | 所有 Agent 共享，已实现 |
 
 ---
 
@@ -182,7 +196,11 @@
 
 ---
 
-### 阶段 8：goal 命令改造
+### 阶段 8：goal 命令改造（改造 /goal 为多Agent协作引擎）
+
+> **改造方向**（用户确认）：/goal 从"单Agent DAG loop"升级为"多Agent协作任务图引擎+文件冲突防护"。不加参数、不新建命令，/goal 直接就是多Agent协作的（单Agent = 团队只有1人的退化情况）。复用上方共享组件清单的 team MCP 组件，/goal 与 team MCP 共享底层，改一处两边都修。
+>
+> **核心改动点**：`GoalGraphEngine.ExecuteViaAgentServiceAsync`（`GoalGraphEngine.cs:390-403`）的节点执行器，从"当前 agent 自执行"改为"通过 `ISubAgentCoordinator.SpawnSubAgentAsync` 派发 sub-agent + `ITeamManager` 建团队 + `ITeammateInitService` 构建上下文"。单Agent任务时团队只有队长1人，退化为自执行。
 
 #### T8.1 GoalSpecPromptBuilder（维持现状，无新任务）
 - 现有固定 6 字段（Outcome/Verification/Constraints/Boundaries/IterationLog/FailureCircuit）设计已精美，维持现状
@@ -195,8 +213,10 @@
   - **热点识别集成**：标注哪些任务涉及热文件/热点，队长提前收口
 - 任务表作为 T9.2 worktree 决策的输入（LLM 读任务表判断 enableWorktree）
 
-#### T8.3 goal 命令与任务派发联动
+#### T8.3 goal 命令与任务派发联动（接入 team 组件）
 - goal 分解后 → 生成任务表.md → 队长读取 → T2.2 派发 Worker
+- **接入 team 组件**：`GoalGraphEngine` 节点执行器调用 `ITeamManager.CreateTeamAsync` 建团队 → `ISubAgentCoordinator.SpawnSubAgentAsync` 派发节点为 sub-agent → `ITeammateInitService.BuildInitContextAsync` 构建每个 sub-agent 的团队上下文（团队ID+其他成员+允许路径）
+- **共享组件**：/goal 与 team MCP 共用 `ITeamManager`/`IMailbox`/`ITeammateInitService`，改一处两边都修
 - 参考 Kimi `/goal next` 任务队列模式（当前完成自动开始下一个）
 
 ---
@@ -402,3 +422,9 @@ Worker 上报双意图 → 热点识别（取代文件锁）→ 热文件契约�
 <!-- 决策: 删[CoreFile]特性标记+源码生成器扫描(C#专属不通用), 改为IHotFileDetector启发式规则检测(目录/命名/配置/可配,通用不限语言); "核心文件"统一改"热文件"; MailMarker.CoreFileConflict改HotFileConflict; 业务闭环加串行-并行-串行-并行交替流程 -->
 <!-- 原因: jcc是通用agent不支持Java/Python的源码标记,用热文件检测替代; 用户明确串行(队长改热文件)-并行(队员改内部)-串行(合并)-并行(下一批)交替 -->
 <!-- 验证: 文档更新,全部[CoreFile]引用已清除,待提交 -->
+
+<!-- 🤖 Auto Decision: 2026-08-20 改造 /goal 为多Agent协作引擎 -->
+<!-- 决策: 不新建/team斜杠命令、不加参数, 改造/goal本身从"单Agent DAG loop"升级为"多Agent协作任务图引擎+文件冲突防护"; 复用现有team MCP组件(ITeamManager/IMailbox/ITeammateInitService等), /goal与team MCP共享底层组件改一处两边都修; 单Agent=团队只有1人的退化情况 -->
+<!-- 原因: 用户指出/goal现状是"四不像"(既不像单agent loop也不像能处理大型任务图+文件冲突); 现有team MCP已有完整组件(ITeamManager+IMailbox+TeammateInitService), /goal只需接入而非重造; 用户不喜欢加参数; 共享组件让两边错误一起修 -->
+<!-- 替代方案: 新建/team斜杠命令(用户否决,想改造/goal); /goal加--collab参数(用户否决,不喜欢参数) -->
+<!-- 验证: 待编译+提交 -->

@@ -83,4 +83,52 @@ public sealed class FileWriteIntentReportChainTests
         intents[0].Intent.Should().Be(ModifyIntent.InternalChange);
         tracker.IsHotSpot("src/bin/IFoo.cs").Should().BeFalse();
     }
+
+    [Theory]
+    [InlineData("edit-regex")]
+    [InlineData("insert-lines")]
+    [InlineData("delete-lines")]
+    [InlineData("batch-edit")]
+    [InlineData("apply-patch")]
+    public void Chain_AllWriteOperations_ShouldTriggerIntentReport(string operation)
+    {
+        var (collector, tracker, registry, _) = Setup();
+        const string hotFile = "src/Abstractions/IBar.cs";
+
+        registry.Notify(new FileWriteEventArgs { FilePath = hotFile, Operation = operation, AgentId = "worker-1" });
+
+        var intents = collector.GetIntents(hotFile);
+        intents.Should().HaveCount(1);
+        intents[0].WorkerId.Should().Be("worker-1");
+        intents[0].Intent.Should().Be(ModifyIntent.ContractChange);
+        tracker.IsHotSpot(hotFile).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Chain_BatchEditMultipleFiles_ShouldReportAllPaths()
+    {
+        var (collector, tracker, registry, _) = Setup();
+
+        registry.Notify(new FileWriteEventArgs { FilePath = "src/Abstractions/IA.cs", Operation = "batch-edit", AgentId = "worker-1" });
+        registry.Notify(new FileWriteEventArgs { FilePath = "src/Abstractions/IB.cs", Operation = "batch-edit", AgentId = "worker-1" });
+
+        collector.GetIntents("src/Abstractions/IA.cs").Should().HaveCount(1);
+        collector.GetIntents("src/Abstractions/IB.cs").Should().HaveCount(1);
+        tracker.IsHotSpot("src/Abstractions/IA.cs").Should().BeTrue();
+        tracker.IsHotSpot("src/Abstractions/IB.cs").Should().BeTrue();
+    }
+
+    [Fact]
+    public void Chain_ApplyPatchMultipleFiles_ShouldReportAllModifiedPaths()
+    {
+        var (collector, tracker, registry, _) = Setup();
+
+        registry.Notify(new FileWriteEventArgs { FilePath = "src/Abstractions/IA.cs", Operation = "apply-patch", AgentId = "worker-1" });
+        registry.Notify(new FileWriteEventArgs { FilePath = "src/Abstractions/IB.cs", Operation = "apply-patch", AgentId = "worker-1" });
+        registry.Notify(new FileWriteEventArgs { FilePath = "src/Abstractions/IC.cs", Operation = "apply-patch", AgentId = "worker-2" });
+
+        tracker.IsHotSpot("src/Abstractions/IA.cs").Should().BeTrue();
+        tracker.IsHotSpot("src/Abstractions/IB.cs").Should().BeTrue();
+        tracker.GetHotSpotInfo("src/Abstractions/IC.cs").ContractClaimCount.Should().Be(1);
+    }
 }

@@ -23,6 +23,7 @@ public sealed partial class ApplyPatchLogic : ServiceEntity
             return ApplyPatchResult.FailureResult("No valid hunks found in patch");
 
         var details = new List<string>();
+        var modifiedPaths = new List<string>();
         var filesModified = 0;
         var failures = 0;
 
@@ -72,6 +73,7 @@ public sealed partial class ApplyPatchLogic : ServiceEntity
             {
                 var newContent = string.Join("\n", modifiedLines);
                 await _fs.WriteAllTextAsync(filePath, newContent, cancellationToken).ConfigureAwait(false);
+                modifiedPaths.Add(filePath);
             }
 
             var verb = dryRun ? "Would modify" : "Modified";
@@ -80,9 +82,9 @@ public sealed partial class ApplyPatchLogic : ServiceEntity
         }
 
         if (failures > 0)
-            return ApplyPatchResult.PartialResult(filesModified, failures, details, dryRun);
+            return ApplyPatchResult.PartialResult(filesModified, failures, details, dryRun, modifiedPaths);
 
-        return ApplyPatchResult.SuccessResult(filesModified, details, dryRun);
+        return ApplyPatchResult.SuccessResult(filesModified, details, dryRun, modifiedPaths);
     }
 
     internal static List<PatchHunk> ParsePatch(string patch)

@@ -828,6 +828,7 @@ public partial class FileToolHandlers : IDisposable
         response.AppendLine($"File edited: {result.FilePath}");
         response.AppendLine($"Replaced {result.ReplaceCount} occurrence(s)");
 
+        NotifyFileWrite(result.FilePath, "edit-regex");
         RecordFileMetrics(FileOperationType.EditRegex, FileOperationResult.Ok);
         return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
@@ -890,6 +891,7 @@ public partial class FileToolHandlers : IDisposable
         response.AppendLine($"Content inserted: {result.FilePath}");
         response.AppendLine($"Inserted {result.ReplacedLinesCount} line(s) after line {after_line}");
 
+        NotifyFileWrite(result.FilePath, "insert-lines");
         RecordFileMetrics(FileOperationType.InsertLines, FileOperationResult.Ok);
         return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
@@ -952,6 +954,7 @@ public partial class FileToolHandlers : IDisposable
         response.AppendLine($"Lines deleted: {result.FilePath}");
         response.AppendLine($"Deleted {result.ReplacedLinesCount} line(s) ({result.StartLine}-{result.EndLine})");
 
+        NotifyFileWrite(result.FilePath, "delete-lines");
         RecordFileMetrics(FileOperationType.DeleteLines, FileOperationResult.Ok);
         return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
@@ -1018,6 +1021,7 @@ public partial class FileToolHandlers : IDisposable
             if (item.Result.Success)
             {
                 successCount++;
+                NotifyFileWrite(item.FilePath, "batch-edit");
                 response.AppendLine($"  {StatusSymbol.Tick.ToValue()} {item.FilePath} ({item.Result.ReplaceCount} replacement(s))");
             }
             else
@@ -1969,6 +1973,10 @@ public partial class FileToolHandlers : IDisposable
             ? $"Dry run: {result.FilesWouldModify} file(s) would be modified"
             : $"Applied patch: {result.FilesModified} file(s) modified";
         var detailText = result.Details.Count > 0 ? "\n" + string.Join("\n", result.Details) : "";
+        foreach (var modifiedPath in result.ModifiedFilePaths)
+        {
+            NotifyFileWrite(modifiedPath, "apply-patch");
+        }
         return ToolResultBuilder.Success().WithText(summary + detailText).Build();
     }
 

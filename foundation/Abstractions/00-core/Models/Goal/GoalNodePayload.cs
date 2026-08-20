@@ -19,6 +19,13 @@ public sealed class GoalNodePayload
     public ExecutorVariant? Variant { get; init; }
 
     public AgentIsolationMode IsolationMode { get; init; } = AgentIsolationMode.None;
+
+    /// <summary>
+    /// 任务声明拥有的文件（计划修改的文件）— 复用于热点识别
+    /// null 或空数组表示不声明拥有文件（不触发热点检查）
+    /// </summary>
+    public string[]? OwnedFiles { get; init; }
+
     public string? SystemPrompt { get; init; }
     public string? Instruction { get; init; }
     public bool FreshContext { get; init; }

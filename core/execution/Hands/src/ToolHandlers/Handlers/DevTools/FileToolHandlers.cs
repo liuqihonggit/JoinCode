@@ -40,6 +40,7 @@ public partial class FileToolHandlers : IDisposable
     private readonly FileOperationConfig _fileOperationConfig;
     private readonly ITeamMemSecretGuard? _teamMemSecretGuard;
     private readonly IFileReadListenerRegistry? _fileReadListenerRegistry;
+    private readonly IFileWriteListenerRegistry? _fileWriteListenerRegistry;
     private readonly ILspDiagnosticProvider? _lspDiagnosticProvider;
     private readonly IFileSystem _fs;
     private readonly ApplyPatchLogic? _applyPatchLogic;
@@ -70,9 +71,27 @@ public partial class FileToolHandlers : IDisposable
         _fileOperationConfig = context?.FileOperationConfig ?? new FileOperationConfig();
         _teamMemSecretGuard = context?.TeamMemSecretGuard;
         _fileReadListenerRegistry = context?.FileReadListenerRegistry;
+        _fileWriteListenerRegistry = context?.FileWriteListenerRegistry;
         _lspDiagnosticProvider = context?.LspDiagnosticProvider;
         _applyPatchLogic = context?.ApplyPatchLogic;
         _subAgentContextAccessor = context?.SubAgentContextAccessor;
+    }
+
+    /// <summary>
+    /// 通知文件写入监听器 — Worker 改文件时触发意图上报
+    /// </summary>
+    private void NotifyFileWrite(string filePath, string operation)
+    {
+        if (_fileWriteListenerRegistry is null) return;
+        var agentId = _subAgentContextAccessor?.Current?.AgentId ?? "main";
+        try
+        {
+            _fileWriteListenerRegistry.Notify(new FileWriteEventArgs { FilePath = filePath, Operation = operation, AgentId = agentId });
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning("通知文件写入监听器失败: {Message}", ex.Message);
+        }
     }
 
     [McpTool(FileToolNameConstants.FileRead, "Read a file from the local filesystem", "file", ConcurrencySafe = true)]
@@ -437,6 +456,7 @@ public partial class FileToolHandlers : IDisposable
         NotifyLspFileChange(result.FilePath, content);
 
         RecordFileMetrics(FileOperationType.Write, FileOperationResult.Ok);
+        NotifyFileWrite(result.FilePath, "write");
         return toolResult;
     }
 
@@ -637,6 +657,7 @@ public partial class FileToolHandlers : IDisposable
         NotifyLspFileChange(result.FilePath, null);
 
         RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Ok);
+        NotifyFileWrite(result.FilePath, "edit");
         return toolResult;
     }
 
@@ -678,6 +699,7 @@ public partial class FileToolHandlers : IDisposable
         }
 
         RecordFileMetrics(FileOperationType.Delete, FileOperationResult.Ok);
+        NotifyFileWrite(file_path, "delete");
         return ToolResultBuilder.Success().WithText($"File deleted: {file_path}").Build();
     }
 
@@ -806,6 +828,7 @@ public partial class FileToolHandlers : IDisposable
         response.AppendLine($"File edited: {result.FilePath}");
         response.AppendLine($"Replaced {result.ReplaceCount} occurrence(s)");
 
+        NotifyFileWrite(result.FilePath, "edit-regex");
         RecordFileMetrics(FileOperationType.EditRegex, FileOperationResult.Ok);
         return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
@@ -868,6 +891,7 @@ public partial class FileToolHandlers : IDisposable
         response.AppendLine($"Content inserted: {result.FilePath}");
         response.AppendLine($"Inserted {result.ReplacedLinesCount} line(s) after line {after_line}");
 
+        NotifyFileWrite(result.FilePath, "insert-lines");
         RecordFileMetrics(FileOperationType.InsertLines, FileOperationResult.Ok);
         return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
@@ -930,6 +954,7 @@ public partial class FileToolHandlers : IDisposable
         response.AppendLine($"Lines deleted: {result.FilePath}");
         response.AppendLine($"Deleted {result.ReplacedLinesCount} line(s) ({result.StartLine}-{result.EndLine})");
 
+        NotifyFileWrite(result.FilePath, "delete-lines");
         RecordFileMetrics(FileOperationType.DeleteLines, FileOperationResult.Ok);
         return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
@@ -996,6 +1021,7 @@ public partial class FileToolHandlers : IDisposable
             if (item.Result.Success)
             {
                 successCount++;
+                NotifyFileWrite(item.FilePath, "batch-edit");
                 response.AppendLine($"  {StatusSymbol.Tick.ToValue()} {item.FilePath} ({item.Result.ReplaceCount} replacement(s))");
             }
             else
@@ -1947,6 +1973,10 @@ public partial class FileToolHandlers : IDisposable
             ? $"Dry run: {result.FilesWouldModify} file(s) would be modified"
             : $"Applied patch: {result.FilesModified} file(s) modified";
         var detailText = result.Details.Count > 0 ? "\n" + string.Join("\n", result.Details) : "";
+        foreach (var modifiedPath in result.ModifiedFilePaths)
+        {
+            NotifyFileWrite(modifiedPath, "apply-patch");
+        }
         return ToolResultBuilder.Success().WithText(summary + detailText).Build();
     }
 

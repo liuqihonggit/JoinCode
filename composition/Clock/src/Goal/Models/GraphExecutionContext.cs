@@ -34,6 +34,12 @@ internal sealed class GraphExecutionContext
     /// </summary>
     public int TotalTokensConsumed { get; set; }
 
+    /// <summary>
+    /// T8.3: 团队 ID — /goal 接入 team 组件后，图执行期间创建的团队 ID
+    /// null 表示未接入团队（单 Agent 退化模式）
+    /// </summary>
+    public string? TeamId { get; set; }
+
     public bool AreAllUpstreamsCompleted(string nodeId)
     {
         if (!Graph.Dag.Nodes.TryGetValue(nodeId, out var node))

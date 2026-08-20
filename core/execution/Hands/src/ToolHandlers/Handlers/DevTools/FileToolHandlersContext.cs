@@ -14,6 +14,7 @@ public sealed record FileToolHandlersContext(
     FileOperationConfig? FileOperationConfig = null,
     ITeamMemSecretGuard? TeamMemSecretGuard = null,
     IFileReadListenerRegistry? FileReadListenerRegistry = null,
+    IFileWriteListenerRegistry? FileWriteListenerRegistry = null,
     ILspDiagnosticProvider? LspDiagnosticProvider = null,
     ApplyPatchLogic? ApplyPatchLogic = null,
     ISubAgentContextAccessor? SubAgentContextAccessor = null)
@@ -29,6 +30,7 @@ public sealed record FileToolHandlersContext(
         FileOperationConfig: sp.GetService<FileOperationConfig>(),
         TeamMemSecretGuard: sp.GetService<ITeamMemSecretGuard>(),
         FileReadListenerRegistry: sp.GetService<IFileReadListenerRegistry>(),
+        FileWriteListenerRegistry: sp.GetService<IFileWriteListenerRegistry>(),
         LspDiagnosticProvider: sp.GetService<ILspDiagnosticProvider>(),
         ApplyPatchLogic: sp.GetService<ApplyPatchLogic>(),
         SubAgentContextAccessor: sp.GetService<ISubAgentContextAccessor>());

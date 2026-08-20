@@ -15,7 +15,11 @@ public enum TeammateMessageType
     [EnumValue("team_permission_update")] TeamPermissionUpdate,
     [EnumValue("mode_set_request")] ModeSetRequest,
     [EnumValue("plan_approval_request")] PlanApprovalRequest,
-    [EnumValue("plan_approval_response")] PlanApprovalResponse
+    [EnumValue("plan_approval_response")] PlanApprovalResponse,
+    [EnumValue("intent_report")] IntentReport,
+    [EnumValue("contract_changed")] ContractChanged,
+    [EnumValue("force_sync")] ForceSync,
+    [EnumValue("deferred_mail")] DeferredMail
 }
 
 /// <summary>

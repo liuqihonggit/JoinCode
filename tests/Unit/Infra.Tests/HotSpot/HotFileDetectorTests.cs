@@ -126,4 +126,26 @@ public sealed class HotFileDetectorTests
 
         _sut.DetectHotFiles(paths).Should().HaveCount(2);
     }
+
+    [Theory]
+    [InlineData("src/bin/IFoo.cs", "bin目录下的接口文件应排除")]
+    [InlineData("src/obj/Abstractions/IBar.cs", "obj目录下的接口文件应排除")]
+    [InlineData("artifacts/bin/Release/IFoo.cs", "artifacts目录下的接口文件应排除")]
+    [InlineData("node_modules/shared/ICommon.cs", "node_modules下的接口文件应排除")]
+    [InlineData(".git/config.json", ".git目录下的配置文件应排除")]
+    [InlineData(".vs/solution.json", ".vs目录下的配置文件应排除")]
+    [InlineData("build/outputs/Constants.java", "build目录下的常量文件应排除")]
+    [InlineData("dist/IFoo.cs", "dist目录下的接口文件应排除")]
+    [InlineData("target/classes/Constants.class", "target目录应排除")]
+    public void IsHotFile_ExcludedDirectories_ShouldReturnFalse(string path, string description)
+    {
+        _sut.IsHotFile(path).Should().BeFalse(description);
+    }
+
+    [Fact]
+    public void IsHotFile_SourceDirectoryNotExcluded_ShouldStillDetect()
+    {
+        _sut.IsHotFile("src/Abstractions/IFoo.cs").Should().BeTrue();
+        _sut.IsHotFile("foundation/Contracts/IBar.cs").Should().BeTrue();
+    }
 }

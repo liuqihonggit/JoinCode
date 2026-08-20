@@ -20,6 +20,12 @@ public sealed class HotFileDetector : IHotFileDetector
     private static readonly FrozenSet<string> DefaultConfigExtensions = FrozenSet.Create(
         StringComparer.OrdinalIgnoreCase, ".json", ".yaml", ".yml", ".toml");
 
+    private static readonly FrozenSet<string> ExcludedDirectories = FrozenSet.Create(
+        StringComparer.OrdinalIgnoreCase,
+        "bin", "obj", ".vs", ".vscode", ".idea", ".git", ".svn",
+        "node_modules", "__pycache__", ".gradle", "build", "dist", "target",
+        "artifacts", ".codegraph", ".jcc");
+
     public HotFileDetector() : this(null, null) { }
 
     public HotFileDetector(
@@ -40,6 +46,10 @@ public sealed class HotFileDetector : IHotFileDetector
             return false;
 
         var normalized = filePath.Replace('\\', '/');
+
+        if (IsExcludedPath(normalized))
+            return false;
+
         var fileName = GetFileName(normalized);
         var extension = GetExtension(fileName);
 
@@ -90,6 +100,20 @@ public sealed class HotFileDetector : IHotFileDetector
         foreach (var part in parts)
         {
             if (_hotDirectoryKeywords.Contains(part))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// 检查路径是否在排除目录中（bin/obj/.vs/node_modules 等编译/缓存目录）
+    /// </summary>
+    private static bool IsExcludedPath(string normalizedPath)
+    {
+        var parts = normalizedPath.Split('/');
+        foreach (var part in parts)
+        {
+            if (ExcludedDirectories.Contains(part))
                 return true;
         }
         return false;

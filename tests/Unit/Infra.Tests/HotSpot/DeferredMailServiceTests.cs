@@ -1,0 +1,88 @@
+namespace Infra.Tests.HotSpot;
+
+using Infrastructure.HotSpot;
+using JoinCode.Abstractions.Interfaces;
+using JoinCode.Abstractions.Models.Agent;
+
+public sealed class DeferredMailServiceTests
+{
+    private readonly IDeferredMailService _sut = new DeferredMailService();
+
+    private static DeferredMail MakeMail(string to, int turns = 3, MailMarker marker = MailMarker.ResourceRefChange) =>
+        new() { To = to, From = "captain", Subject = "test", Body = "body", OpenAfterTurns = turns, Marker = marker, CreatedAt = DateTimeOffset.UtcNow };
+
+    [Fact]
+    public async Task DeferThenTick_MaturedAfterNTurns_ShouldReturnMail()
+    {
+        await _sut.DeferAsync(MakeMail("w1", turns: 3));
+
+        _sut.TickTurns("w1").Should().BeEmpty();
+        _sut.TickTurns("w1").Should().BeEmpty();
+        var matured = _sut.TickTurns("w1");
+
+        matured.Should().HaveCount(1);
+        _sut.GetPending("w1").Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task DeferThenTick_Default20Turns_ShouldMatureAfter20()
+    {
+        await _sut.DeferAsync(MakeMail("w1", turns: 20));
+
+        for (int i = 0; i < 19; i++)
+            _sut.TickTurns("w1").Should().BeEmpty($"第{i+1}轮不应到期");
+
+        _sut.TickTurns("w1").Should().HaveCount(1, "第20轮到期");
+    }
+
+    [Fact]
+    public async Task FlushOnTaskEnd_ShouldReturnAllPendingAndClear()
+    {
+        await _sut.DeferAsync(MakeMail("w1", turns: 100));
+        await _sut.DeferAsync(MakeMail("w1", turns: 100));
+
+        var all = _sut.FlushOnTaskEnd("w1");
+
+        all.Should().HaveCount(2);
+        _sut.GetPending("w1").Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetPending_ShouldReturnNotMaturedMails()
+    {
+        await _sut.DeferAsync(MakeMail("w1", turns: 5));
+        await _sut.DeferAsync(MakeMail("w1", turns: 10));
+
+        _sut.GetPending("w1").Should().HaveCount(2);
+        _sut.TickTurns("w1");
+        _sut.GetPending("w1").Should().HaveCount(2, "Tick不移除未到期邮件");
+    }
+
+    [Fact]
+    public async Task MultipleAgents_ShouldBeIsolated()
+    {
+        await _sut.DeferAsync(MakeMail("w1", turns: 1));
+        await _sut.DeferAsync(MakeMail("w2", turns: 1));
+
+        _sut.TickTurns("w1").Should().HaveCount(1);
+        _sut.TickTurns("w2").Should().HaveCount(1);
+        _sut.GetPending("w1").Should().BeEmpty();
+        _sut.GetPending("w2").Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task TickTurns_NoMails_ShouldReturnEmpty()
+    {
+        _sut.TickTurns("nonexistent").Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task HighPriorityMail_ShouldBeMarkedCorrectly()
+    {
+        await _sut.DeferAsync(MakeMail("w1", turns: 1, marker: MailMarker.HotFileConflict));
+
+        var matured = _sut.TickTurns("w1");
+        matured[0].IsHighPriority.Should().BeTrue();
+        matured[0].Marker.Should().Be(MailMarker.HotFileConflict);
+    }
+}

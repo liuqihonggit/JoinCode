@@ -29,16 +29,29 @@ public abstract class ScriptedResponseStrategyBase : IResponseStrategy
     }
 
     /// <summary>
-    /// 请求开始时调用 — 消费一个脚本轮次并缓存
+    /// 请求开始时调用 — 消费一个脚本轮次并缓存。
+    /// 两阶段工具加载首次请求(tool_groups 且无 tool_descriptions)时,仅当当前轮次有 ToolCalls
+    /// 则 peek(不推进索引),供 BuildToolDescriptionRequest 使用;第二次请求(tool_descriptions)
+    /// 才真正消费该轮次,返回带 tool_call 的响应。无 ToolCalls 的轮次直接消费。
     /// </summary>
     public virtual void OnRequestStarted(JsonElement request)
     {
         lock (_lock)
         {
+            var isTwoPhaseProbe = request.TryGetProperty("tool_groups", out _) &&
+                                  !request.TryGetProperty("tool_descriptions", out _);
             if (_turnIndex < _turns.Count)
-                _currentTurn = _turns[_turnIndex++];
+            {
+                var turn = _turns[_turnIndex];
+                var shouldPeek = isTwoPhaseProbe && turn.ToolCalls is { Count: > 0 };
+                _currentTurn = turn;
+                if (!shouldPeek)
+                    _turnIndex++;
+            }
             else
+            {
                 _currentTurn = new ScriptedTurn { TextResponse = DefaultResponse };
+            }
         }
     }
 

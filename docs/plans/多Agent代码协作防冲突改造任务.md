@@ -434,7 +434,7 @@ Worker 上报双意图 → 热点识别（取代文件锁）→ 热文件契约�
 
 ## 八、实施进度与集成说明
 
-### 已完成组件（纯新增，137测试全绿，零破坏）
+### 已完成组件（纯新增 + 集成，150测试全绿，零破坏）
 
 | 单元 | 任务 | 组件 | 测试数 |
 |------|------|------|--------|
@@ -450,25 +450,22 @@ Worker 上报双意图 → 热点识别（取代文件锁）→ 热文件契约�
 | B | T1.7 | IHotFileWatchdog + HotFileWatchdog | 8 |
 | B | T4.0 | IContractChangeBroadcaster + 实现 | 6 |
 | C | T2.1 | ICaptainDispatchGuard + CaptainDispatchGuard | 5 |
+| C | T2.2 | GoalGraphEngine 派发接入热点守卫 | 3 |
+| C | T2.4 | AgentCoordinator EnsureSecretaryAsync 秘书常驻 | 6 |
 | C | T2.5 | ICallSiteFinder + CallSiteFinder + CodeCallSite | 3 |
+| D | T5.0 | AgentBase ContractChangeNotifications 队列消费 | 5 |
 | D | T6.0 | IMergeQueueService + MergeQueueService | 7 |
 | E | T7.1 | DeferredMail + MailMarker | — |
 | E | T7.2 | IDeferredMailService + DeferredMailService | 7 |
 | E | T7.3 | 定向投递（零扩展，复用 IMailbox） | — |
-| F | T9.2 | IWorktreeDecisionPolicy + WorktreeDecisionPolicy | 16 |
 | F | T8.2 | ITaskTableGenerator + TaskTableGenerator | 7 |
+| F | T8.3 | GoalGraphEngine 接入 ITeamManager 建团队 | 3 |
+| F | T9.2 | IWorktreeDecisionPolicy + WorktreeDecisionPolicy | 16 |
 
-### 待集成任务（需改现有核心代码接入执行流）
+### 待集成任务
 
-> ⚠️ 以下任务涉及改现有核心代码（GoalGraphEngine/Worker主循环/mainAgent派发），风险较高，需用户确认后逐个集成。
+✅ **全部完成** — 所有纯新增组件和集成任务已实现，150测试全绿，零破坏。
 
-| 任务 | 集成点 | 改动文件 | 风险 |
-|------|--------|----------|------|
-| T2.2 | GoalGraphEngine.ExecuteViaAgentServiceAsync 节点执行器 | `composition/Clock/src/Goal/Core/GoalGraphEngine.cs:390-403` | 中（改节点执行从自执行→派发sub-agent） |
-| T2.4 | mainAgent 启动时 spawn 秘书常驻 | `core/ai/Agents/src/Coordinator/Core/AgentCoordinator.cs` | 中（加秘书spawn逻辑） |
-| T5.0 | Worker 主循环每轮查邮箱 | Worker 主循环代码（待定位） | 中（加邮箱检查点） |
-| T8.3 | goal→任务表→派发联动 | `GoalGraphEngine` 接入 ITeamManager 建团队 | 中（改GoalGraphEngine） |
+### 集成顺序（已全部完成）
 
-### 集成顺序建议
-
-1. **T2.2 DAG派发**（改GoalGraphEngine，中风险）→ 2. **T8.3 goal联动**（改GoalGraphEngine，中风险）→ 3. **T2.4 秘书spawn**（改AgentCoordinator，中风险）→ 4. **T5.0 Worker同步**（改Worker主循环，中风险）
+1. ✅ **T2.2 DAG派发** → 2. ✅ **T8.3 goal联动** → 3. ✅ **T2.4 秘书spawn** → 4. ✅ **T5.0 Worker同步**

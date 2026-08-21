@@ -41,6 +41,7 @@ public static class ModelListMerger
                     Id = remoteId,
                     CanonicalId = remoteId,
                     DisplayName = GenerateDisplayName(remoteId),
+                    Capabilities = InferCapabilities(remoteId),
                 });
             }
         }
@@ -62,5 +63,37 @@ public static class ModelListMerger
     {
         if (s.Length == 0) return s;
         return char.ToUpperInvariant(s[0]) + s[1..];
+    }
+
+    /// <summary>
+    /// 从模型 ID 推断模态能力 — API /models 端点只返回 ID，需根据命名约定推断
+    /// <para>"vision" → ReadImage | ReadGif（视觉模型可读图片和动图）</para>
+    /// <para>"pro"/"reasoner"/"r1" → Thinking（推理模型）</para>
+    /// <para>"flash" → FastMode（快速模型）</para>
+    /// <para>所有模型基础: Text | ToolUse</para>
+    /// </summary>
+    private static ModelCapabilitiesConfig InferCapabilities(string modelId)
+    {
+        var id = modelId.AsSpan();
+        var modalities = ModelModalityKind.Text | ModelModalityKind.ToolUse;
+        var thinkingMode = false;
+
+        if (id.Contains("vision", StringComparison.OrdinalIgnoreCase))
+            modalities |= ModelModalityKind.ReadImage | ModelModalityKind.ReadGif;
+
+        if (id.Contains("pro", StringComparison.OrdinalIgnoreCase) ||
+            id.Contains("reasoner", StringComparison.OrdinalIgnoreCase) ||
+            id.Contains("r1", StringComparison.OrdinalIgnoreCase))
+        {
+            modalities |= ModelModalityKind.Thinking;
+            thinkingMode = true;
+        }
+
+        return new ModelCapabilitiesConfig
+        {
+            FastMode = id.Contains("flash", StringComparison.OrdinalIgnoreCase),
+            ThinkingMode = thinkingMode,
+            Modalities = modalities,
+        };
     }
 }

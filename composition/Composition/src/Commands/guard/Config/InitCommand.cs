@@ -79,10 +79,9 @@ public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : 
 
         if (!fs.FileExists(settingsFile))
         {
-            var defaultModel = _modelConfigLoader?.GetDefaultModelId("deepseek") is { Length: > 0 } m ? m : "deepseek-v4-flash";
-            var settingsJson = BuildDefaultSettingsJson(defaultModel);
+            var settingsJson = BuildDefaultSettingsJson();
             await fs.WriteAllTextAsync(settingsFile, settingsJson, context.CancellationToken).ConfigureAwait(false);
-            TerminalHelper.WriteLine("  ✓ 创建 settings.json");
+            TerminalHelper.WriteLine("  ✓ 创建 settings.json (骨架 — 模型列表将由 AutoFetchModels 启动时拉取)");
         }
         else
         {
@@ -97,46 +96,32 @@ public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : 
     }
 
     /// <summary>
-    /// 构建默认 settings.json — 含 DeepSeek 供应商预设和模型列表
-    /// 模型: deepseek-v4-flash (0731) / deepseek-v4-pro (0813) / deepseek-v4-flash-vision-exp (视觉实验)
-    /// 视觉模型支持 JPEG/PNG/GIF/WebP 图片输入，通过 OpenAI 兼容 image_url content block 发送
+    /// 构建默认 settings.json 骨架 — 仅含供应商连接信息，不含模型列表
+    /// 模型列表由启动时 AutoFetchModels 从 {endpoint}/{modelsEndpoint} 自动拉取填充
+    /// 两条路径: deepseek (openai-compatible) + deepseek-anthropic (anthropic 协议, api.deepseek.com/anthropic)
+    /// 配置大于代码: 具体模型信息由 API 拉取，代码只留基础结构
     /// </summary>
-    private static string BuildDefaultSettingsJson(string defaultModel)
+    private static string BuildDefaultSettingsJson()
     {
-        return $$"""
+        return """
         {
           "vendor": {
             "deepseek": {
               "provider": "deepseek",
               "protocol": "openai-compatible",
-              "model": "{{defaultModel}}",
               "endpoint": "https://api.deepseek.com",
               "apiKeyEnvVar": "DEEPSEEK_API_KEY",
-              "models": [
-                {
-                  "id": "deepseek-v4-flash",
-                  "displayName": "DeepSeek V4 Flash",
-                  "contextWindow": 128000,
-                  "description": "DeepSeek V4 Flash (0731) — 快速通用模型",
-                  "capabilities": { "fastMode": true, "modalities": ["text", "toolUse"] }
-                },
-                {
-                  "id": "deepseek-v4-pro",
-                  "displayName": "DeepSeek V4 Pro",
-                  "contextWindow": 128000,
-                  "description": "DeepSeek V4 Pro (0813) — 深度推理模型",
-                  "capabilities": { "thinkingMode": true, "modalities": ["text", "thinking", "toolUse"] }
-                },
-                {
-                  "id": "deepseek-v4-flash-vision-exp",
-                  "displayName": "DeepSeek V4 Flash Vision (Exp)",
-                  "contextWindow": 128000,
-                  "description": "DeepSeek V4 Flash 视觉实验模型 — 支持 JPEG/PNG/GIF/WebP 图片输入",
-                  "capabilities": { "fastMode": true, "modalities": ["text", "readImage", "readGif", "toolUse"] }
-                }
-              ]
+              "modelsEndpoint": "models"
+            },
+            "deepseek-anthropic": {
+              "provider": "deepseek",
+              "protocol": "anthropic",
+              "endpoint": "https://api.deepseek.com/anthropic",
+              "apiKeyEnvVar": "DEEPSEEK_API_KEY",
+              "modelsEndpoint": "v1/models"
             }
           },
+          "autoFetchModels": true,
           "current": { "profile": "deepseek" }
         }
         """;

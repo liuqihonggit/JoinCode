@@ -62,19 +62,22 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
         {
             var summaries = new List<TranscriptSummary>();
 
-            foreach (var file in _fs.EnumerateFiles(_sessionsDirectory, "*.jsonl", SearchOption.TopDirectoryOnly))
+            foreach (var dir in _fs.EnumerateDirectories(_sessionsDirectory, "*", SearchOption.TopDirectoryOnly))
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 try
                 {
-                    var sessionId = Path.GetFileNameWithoutExtension(file);
+                    var sessionId = Path.GetFileName(dir);
                     if (string.IsNullOrEmpty(sessionId)) continue;
+
+                    var transcriptPath = Path.Combine(dir, "transcript.jsonl");
+                    if (!_fs.FileExists(transcriptPath)) continue;
 
                     var lineCount = 0;
                     string? lastLine = null;
 
-                    using var stream = _fs.CreateStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                    using var stream = _fs.CreateStream(transcriptPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                     using var reader = new StreamReader(stream);
 
                     while (reader.ReadLine() is { } line)
@@ -106,16 +109,16 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
                     summaries.Add(new TranscriptSummary
                     {
                         SessionId = sessionId,
-                        CreatedAt = _fs.GetCreationTimeUtc(file),
-                        LastModifiedAt = _fs.GetLastWriteTimeUtc(file),
+                        CreatedAt = _fs.GetCreationTimeUtc(dir),
+                        LastModifiedAt = _fs.GetLastWriteTimeUtc(transcriptPath),
                         MessageCount = lineCount,
                         LastMessagePreview = preview
                     });
                 }
                 catch (Exception ex)
                 {
-                    // 跳过不可读文件，保留日志可见性
-                    _logger?.LogWarning(ex, "TranscriptService: 跳过不可读会话文件");
+                    // 跳过不可读目录，保留日志可见性
+                    _logger?.LogWarning(ex, "TranscriptService: 跳过不可读会话目录");
                 }
             }
 
@@ -137,21 +140,21 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
 
-        var filePath = GetTranscriptPath(sessionId);
-        if (!_fs.FileExists(filePath))
+        var sessionDir = GetSessionDir(sessionId);
+        if (!_fs.DirectoryExists(sessionDir))
         {
             return Task.FromResult(false);
         }
 
         try
         {
-            _fs.DeleteFile(filePath);
-            _logger?.LogInformation("Transcript deleted for session {SessionId}", sessionId);
+            _fs.DeleteDirectory(sessionDir, recursive: true);
+            _logger?.LogInformation("Session directory deleted for {SessionId}", sessionId);
             return Task.FromResult(true);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _logger?.LogError(ex, "Failed to delete transcript for session {SessionId}", sessionId);
+            _logger?.LogError(ex, "Failed to delete session directory for {SessionId}", sessionId);
             return Task.FromResult(false);
         }
     }
@@ -259,7 +262,61 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
     private string GetTranscriptPath(string sessionId)
     {
         TranscriptFileWriter.ValidateId(sessionId, nameof(sessionId));
-        return Path.Combine(_sessionsDirectory, $"{sessionId}.jsonl");
+        return Path.Combine(_sessionsDirectory, sessionId, "transcript.jsonl");
+    }
+
+    private string GetSessionDir(string sessionId)
+    {
+        TranscriptFileWriter.ValidateId(sessionId, nameof(sessionId));
+        return Path.Combine(_sessionsDirectory, sessionId);
+    }
+
+    private string GetMetaPath(string sessionId)
+    {
+        TranscriptFileWriter.ValidateId(sessionId, nameof(sessionId));
+        return Path.Combine(_sessionsDirectory, sessionId, "meta.json");
+    }
+
+    /// <summary>
+    /// 保存会话信息到 {sessionId}/meta.json — 统一入口,替代 SessionData 直写
+    /// </summary>
+    public async Task SaveSessionInfoAsync(string sessionId, SessionInfo info, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        ArgumentNullException.ThrowIfNull(info);
+
+        var metaPath = GetMetaPath(sessionId);
+        var dir = GetSessionDir(sessionId);
+        if (!_fs.DirectoryExists(dir))
+        {
+            DirectoryHelper.EnsureDirectoryExists(_fs, dir);
+        }
+
+        var infoWithId = info with { Id = sessionId };
+        var json = JsonSerializer.Serialize(infoWithId, TranscriptJsonContext.Default.SessionInfo);
+        await _fs.WriteAllTextAsync(metaPath, json, cancellationToken).ConfigureAwait(false);
+        _logger?.LogDebug("Session info saved for {SessionId}", sessionId);
+    }
+
+    /// <summary>
+    /// 加载会话信息 — 不存在或损坏返回 null
+    /// </summary>
+    public async Task<SessionInfo?> GetSessionInfoAsync(string sessionId, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        var metaPath = GetMetaPath(sessionId);
+        if (!_fs.FileExists(metaPath)) return null;
+
+        try
+        {
+            var json = await _fs.ReadAllTextAsync(metaPath, cancellationToken).ConfigureAwait(false);
+            return JsonSerializer.Deserialize(json, TranscriptJsonContext.Default.SessionInfo);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger?.LogWarning(ex, "Failed to read session info for {SessionId}", sessionId);
+            return null;
+        }
     }
 
     protected override void OnDispose() => _writer.Dispose();

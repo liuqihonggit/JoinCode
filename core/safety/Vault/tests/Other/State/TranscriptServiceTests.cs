@@ -18,7 +18,7 @@ public sealed class TranscriptServiceTests : IDisposable
 
         await _service.AppendEntryAsync("session-1", entry).ConfigureAwait(true);
 
-        var filePath = "/test/transcript/session-1.jsonl";
+        var filePath = "/test/transcript/session-1/transcript.jsonl";
         Assert.True(_fs.FileExists(filePath));
 
         var lines = await _fs.ReadAllLinesAsync(filePath).ConfigureAwait(true);
@@ -76,7 +76,7 @@ public sealed class TranscriptServiceTests : IDisposable
     [Fact]
     public async Task LoadTranscriptAsync_Should_Skip_Malformed_Lines()
     {
-        var filePath = "/test/transcript/malformed.jsonl";
+        var filePath = "/test/transcript/malformed/transcript.jsonl";
         await _fs.WriteAllTextAsync(filePath, "not json\n{\"sessionId\":\"s\",\"role\":\"user\",\"content\":\"ok\",\"timestamp\":\"2025-01-01T00:00:00Z\"}\n\n").ConfigureAwait(true);
 
         var transcript = await _service.LoadTranscriptAsync("malformed").ConfigureAwait(true);
@@ -117,7 +117,7 @@ public sealed class TranscriptServiceTests : IDisposable
         await _service.AppendEntryAsync("older", NewEntry("user", "old")).ConfigureAwait(true);
 
         // 等待时间戳变化 - 使用 SpinWait 替代 Task.Delay 反模式
-        var olderTime = _fs.GetLastWriteTimeUtc("/test/transcript/older.jsonl");
+        var olderTime = _fs.GetLastWriteTimeUtc("/test/transcript/older/transcript.jsonl");
         SpinWait.SpinUntil(() => DateTime.UtcNow > olderTime, TimeSpan.FromMilliseconds(100));
 
         await _service.AppendEntryAsync("newer", NewEntry("user", "new")).ConfigureAwait(true);
@@ -189,6 +189,42 @@ public sealed class TranscriptServiceTests : IDisposable
         Assert.Single(summaries);
         Assert.NotNull(summaries[0].LastMessagePreview);
         Assert.True(summaries[0].LastMessagePreview!.Length <= 84);
+    }
+
+    [Fact]
+    public async Task SaveSessionInfoAsync_Should_Create_Meta_File_And_Roundtrip()
+    {
+        var info = new SessionInfo { Id = "meta-1", ProjectPath = "/proj", CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) };
+
+        await _service.SaveSessionInfoAsync("meta-1", info).ConfigureAwait(true);
+
+        var loaded = await _service.GetSessionInfoAsync("meta-1").ConfigureAwait(true);
+        Assert.NotNull(loaded);
+        Assert.Equal("meta-1", loaded!.Id);
+        Assert.Equal("/proj", loaded.ProjectPath);
+        Assert.Equal(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), loaded.CreatedAt);
+    }
+
+    [Fact]
+    public async Task GetSessionInfoAsync_Should_Return_Null_For_Nonexistent()
+    {
+        var info = await _service.GetSessionInfoAsync("no-meta-session").ConfigureAwait(true);
+        Assert.Null(info);
+    }
+
+    [Fact]
+    public async Task DeleteTranscriptAsync_Should_Remove_Session_Directory()
+    {
+        await _service.AppendEntryAsync("dir-delete", NewEntry("user", "bye")).ConfigureAwait(true);
+        await _service.SaveSessionInfoAsync("dir-delete", new SessionInfo { Id = "dir-delete", ProjectPath = "/p", CreatedAt = DateTime.UtcNow }).ConfigureAwait(true);
+
+        Assert.True(await _service.TranscriptExistsAsync("dir-delete").ConfigureAwait(true));
+
+        var deleted = await _service.DeleteTranscriptAsync("dir-delete").ConfigureAwait(true);
+
+        Assert.True(deleted);
+        Assert.False(await _service.TranscriptExistsAsync("dir-delete").ConfigureAwait(true));
+        Assert.Null(await _service.GetSessionInfoAsync("dir-delete").ConfigureAwait(true));
     }
 
     private static TranscriptEntry NewEntry(string role, string content, string sessionId = "test")

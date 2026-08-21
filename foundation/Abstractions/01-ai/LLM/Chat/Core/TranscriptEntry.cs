@@ -63,4 +63,5 @@ public sealed class TranscriptSummary
 [JsonSerializable(typeof(TranscriptSummary))]
 [JsonSerializable(typeof(List<TranscriptEntry>))]
 [JsonSerializable(typeof(List<TranscriptSummary>))]
+[JsonSerializable(typeof(SessionInfo))]
 public sealed partial class TranscriptJsonContext : JsonSerializerContext;

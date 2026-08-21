@@ -113,7 +113,7 @@ public sealed class ThinkingResponseParsingTests
         var msg = JsonSerializer.Deserialize(json, NativeJsonContext.Default.OpenAIApiMessage);
 
         msg.Should().NotBeNull();
-        msg!.Content.Should().Be("The answer is 42");
+        msg!.Content!.Text.Should().Be("The answer is 42");
         msg.ReasoningContent.Should().Be("I calculated this by...");
     }
 

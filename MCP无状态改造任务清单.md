@@ -22,16 +22,19 @@
 - [x] P0.4 握手版本协商:服务器返回版本不支持则抛 McpProtocolException
 - [x] P0.5 测试:HttpTransportOptionsTests 6 个测试全绿,全量 151 测试全绿,0 破坏
 
-### P4 归档旧协议
-- [ ] P4.1 SseClientTransport/SseTransport/McpSseClient 移到 `.xxx/`
-- [ ] P4.2 从 McpClientFactory/McpbLoader/McpClientToolHandlers 移除 Sse 引用
-- [ ] P4.3 McpClientTransportType.Sse 枚举值标记废弃(不删,源码生成器)
-- [ ] P4.4 McpClientOptionsBuilder.UseSse() 标记废弃
+### P4 归档旧协议 [已完成 ✅]
+- [x] P4.1 SseClientTransport/SseTransport/McpSseClient 移到 `services/Mcp/.xxx/`(加 .del 后缀)
+- [x] P4.2 从 McpClientFactory/McpbLoader/McpClientToolHandlers 移除 Sse 引用(8 处)
+- [x] P4.3 McpClientTransportType.Sse 枚举值移除(生成器全量重建)
+- [x] P4.4 McpClientOptionsBuilder.UseSse() 移除
+- [x] P4.5 McpbLoader "sse" 自动迁移到 Http(无缝过渡)
+- [x] P4.6 全链路编译通过(Foundation→Mcp→Composition),151 测试全绿
 
-### P1 Streamable HTTP 客户端补全
-- [ ] P1.1 HTTP DELETE 终止会话(StopAsync 时发送)
-- [ ] P1.2 GET + `Last-Event-ID` 重连(SSE 流断线恢复)
-- [ ] P1.3 404 自动 re-initialize
+### P1 Streamable HTTP 客户端补全 [已完成 ✅]
+- [x] P1.1 HTTP DELETE 终止会话(StopAsync 时发送 DELETE + MCP-Session-Id)
+- [x] P1.2 GET + `Last-Event-ID` 重连(OpenSseStreamAsync + _lastEventId 记录)
+- [x] P1.3 404 SessionExpired 事件(上层可监听重新握手)
+- [x] P1.4 151 测试全绿,0 破坏
 
 ### P2 无状态模式显式化
 - [ ] P2.1 `HttpTransportOptions.StatelessMode` 开关

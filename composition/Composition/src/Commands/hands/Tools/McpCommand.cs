@@ -216,7 +216,7 @@ public sealed class McpCommand : ChatCommandBase
 
         if (McpTransportTypeExtensions.FromValue(transport) is null)
         {
-            string[] validTransports = [McpTransportTypeConstants.Stdio, McpTransportTypeConstants.Sse, McpTransportTypeConstants.Http, McpTransportTypeConstants.WebSocket];
+            string[] validTransports = [McpTransportTypeConstants.Stdio, McpTransportTypeConstants.Http, McpTransportTypeConstants.WebSocket];
             TerminalHelper.WriteLine($"{TerminalColors.Error}不支持的传输类型: {transport}，支持: {string.Join(", ", validTransports)}{AnsiStyleConstants.Reset}");
             return;
         }

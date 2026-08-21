@@ -59,7 +59,6 @@ public sealed class McpServerConnectionConfigBuilder
     public McpServerConnectionConfigBuilder WithName(string name) { _name = name; return this; }
     public McpServerConnectionConfigBuilder WithEndpoint(string endpoint) { _endpoint = endpoint; return this; }
     public McpServerConnectionConfigBuilder UseStdio() { _transportType = McpClientTransportType.Stdio; return this; }
-    public McpServerConnectionConfigBuilder UseSse() { _transportType = McpClientTransportType.Sse; return this; }
     public McpServerConnectionConfigBuilder UseHttp() { _transportType = McpClientTransportType.Http; return this; }
     public McpServerConnectionConfigBuilder UseWebSocket() { _transportType = McpClientTransportType.WebSocket; return this; }
     public McpServerConnectionConfigBuilder WithTransportType(McpClientTransportType transportType) { _transportType = transportType; return this; }

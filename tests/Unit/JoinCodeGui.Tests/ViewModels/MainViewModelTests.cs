@@ -1073,6 +1073,71 @@ public class MainViewModelTests
         }
 
         [Fact]
+        public async Task Send_WithUsageInDoneEvent_ShowsRealTokenCount()
+        {
+            // G2 对齐 TUI：状态栏显示引擎上报的真实 token 用量（而非字符估算）
+            var session = new UsageReportingSession(totalTokens: 1234);
+            var vm = new MainViewModel(session, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
+
+            vm.InputText = "hi";
+            await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
+
+            vm.TokenUsageText.Should().Be("Token:1,234");
+        }
+
+        /// <summary>上报真实用量的假会话 — Done 事件携带 TokenUsage（G2）</summary>
+        internal sealed class UsageReportingSession : IJccChatSession
+        {
+            private readonly int _totalTokens;
+            public UsageReportingSession(int totalTokens) => _totalTokens = totalTokens;
+
+            public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
+            public Func<QuestionItem, Task<AskUserQuestionResult>>? AskUserQuestionDialogCallback { get; set; }
+            public bool IsReady => true;
+            public string CurrentVendor => "fake";
+            public string CurrentModelId => "fake-model";
+            public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; }
+                = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["fake"] = ["fake-model"]
+                };
+            public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+            {
+                yield return ChatStreamEvent.Text("回复内容");
+                yield return ChatStreamEvent.Done(new TokenUsage(1000, _totalTokens - 1000));
+                await Task.CompletedTask;
+            }
+            public Task<string> ExecuteSlashCommandAsync(string input, CancellationToken cancellationToken = default)
+                => Task.FromResult(string.Empty);
+            public Task<IReadOnlyList<ApiMessageRecord>> GetMessagesAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult<IReadOnlyList<ApiMessageRecord>>([]);
+            public Task ClearHistoryAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult(new RewindResult());
+            public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task SetVendorAsync(string vendor, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public void RefreshVendorModelMap() { }
+            public void SwitchSession(string sessionId) { }
+            public Task LoadHistoryAsync(IReadOnlyList<(MessageRole Role, string Content)> messages, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public EffortLevel EffortLevel => EffortLevel.Auto;
+            public Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public float? Temperature => null;
+            public int? MaxTokens => null;
+            public Task SetTemperatureAsync(float temperature, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task SetMaxTokensAsync(int maxTokens, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands() => [];
+            public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
+            public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
+            public Task SetThemeAsync(JoinCode.Abstractions.UI.ThemeKind theme, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public event EventHandler<JoinCode.Abstractions.UI.ThemeKind>? ThemeChanged { add { } remove { } }
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
+
+        [Fact]
         public void ThinkingMessage_ToggleCollapsesAndRevealsBody()
         {
             var vm = CreateVm();

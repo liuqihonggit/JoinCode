@@ -158,8 +158,12 @@
     StreamAsync 零调用、输出回显）。GUI 324 全绿、TUI 135 全绿、Host.Tests 985 全绿。
   - ⚠️ 已知边界：需要 Confirm 确认的命令在 GUI 中默认拒绝（回调未接弹窗）；/exit 的 onExitRequested
     在 GUI 中未接窗口关闭——两者留待 G 阶段后续按需补齐。
-- [ ] **G2** 真实 token 用量：消费流事件中的 Usage，替换字符估算
-  - 流事件已有数据源（对齐 TUI TuiModeRunner.cs:303-309），显示到底部状态栏
+- [x] **G2** 真实 token 用量：消费流事件中的 Usage，替换字符估算
+  - **完成（2026-08-22）**：`ChatStreamEvent` 的 Complete/Done 事件已携带 `TokenUsage`（此前 VM
+    未处理该事件类型直接丢弃）。新增 `TokenUsageText` 属性，SendAsync 累加 `evt.Usage.TotalTokens`，
+    状态栏新增一列显示 "Token:N"（千位分隔）；引擎未上报时显示空串（保留输入框字符估算不变）。
+  - 测试：`Send_WithUsageInDoneEvent_ShowsRealTokenCount`（红→绿）。GUI 325 全绿。
+  - 位置：`MainViewModel.cs` SendAsync + `MainWindow.axaml` 状态栏
 - [ ] **G3** 接线 Markdown 渲染：MarkdownView/MarkdownParser/DiffViewer 已实现未引用，接入消息区替代纯文本
 - [ ] **G4** 输出环形缓冲/内存防护：ObservableCollection 无上限，长会话需淘汰策略
 - [ ] **G5** 命令队列预览（可选）：GUI 阻塞模型下价值减弱，评估是否需要

@@ -358,6 +358,13 @@ public sealed partial class MainViewModel : ViewModelBase
     /// <summary>估算 token 数（中文约 1.6 字符/token，英文约 4 字符/token，取保守下限 4）</summary>
     public int EstimatedTokens => TotalChars / 4;
 
+    /// <summary>
+    /// 本轮真实 token 用量文案（如 "Token:1,234"）— 来自引擎 Complete 事件上报的 Usage，
+    /// 对齐 TUI statusBar.SetTokenCount；空串表示引擎未上报。
+    /// </summary>
+    [ObservableProperty]
+    private string _tokenUsageText = string.Empty;
+
     public MainViewModel(IJccChatSession? session = null, Persistence.GuiSessionStore? store = null, Persistence.GuiPreferencesStore? preferencesStore = null, IModelConfigLoader? modelConfigLoader = null)
     {
         _modelConfigLoader = modelConfigLoader ?? new ModelConfigLoader();
@@ -1280,6 +1287,7 @@ public sealed partial class MainViewModel : ViewModelBase
 
             var builder = new StringBuilder();
             var thinkingBuilder = new StringBuilder();
+            long totalTokens = 0;
             ChatUiMessage? currentThinking = null;
             ChatUiMessage? currentToolCall = null;
             await foreach (var evt in _session.StreamAsync(message, _sendCts.Token))
@@ -1350,6 +1358,11 @@ public sealed partial class MainViewModel : ViewModelBase
                         });
                         currentToolCall = null;
                         break;
+                    case ChatStreamEventType.Complete:
+                        // G2 对齐 TUI：消费引擎上报的真实 token 用量（Done/Complete 事件携带）
+                        if (evt.Usage is not null)
+                            totalTokens += evt.Usage.TotalTokens;
+                        break;
                 }
             }
 
@@ -1364,6 +1377,8 @@ public sealed partial class MainViewModel : ViewModelBase
 
             assistant.Content = builder.ToString();
             assistant.IsStreaming = false;
+            // 状态栏展示本轮真实 token 用量（引擎未上报时保留空串，不显示估算值）
+            TokenUsageText = totalTokens > 0 ? $"Token:{totalTokens:N0}" : string.Empty;
             StatusText = "就绪";
         }
         catch (OperationCanceledException)

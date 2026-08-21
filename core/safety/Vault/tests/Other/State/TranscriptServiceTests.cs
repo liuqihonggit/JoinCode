@@ -227,6 +227,33 @@ public sealed class TranscriptServiceTests : IDisposable
         Assert.Null(await _service.GetSessionInfoAsync("dir-delete").ConfigureAwait(true));
     }
 
+    [Fact]
+    public async Task MigrateLegacyAsync_Should_Move_Flat_Jsonl_To_SessionDirectory()
+    {
+        var flatPath = "/test/transcript/legacy-migrate-1.jsonl";
+        await _fs.WriteAllTextAsync(flatPath, "{\"sessionId\":\"legacy-migrate-1\",\"role\":\"user\",\"content\":\"old-data\",\"timestamp\":\"2025-01-01T00:00:00Z\"}\n").ConfigureAwait(true);
+
+        await _service.MigrateLegacyAsync().ConfigureAwait(true);
+
+        var newPath = "/test/transcript/legacy-migrate-1/transcript.jsonl";
+        Assert.True(_fs.FileExists(newPath));
+        var content = await _fs.ReadAllTextAsync(newPath).ConfigureAwait(true);
+        Assert.Contains("old-data", content);
+    }
+
+    [Fact]
+    public async Task MigrateLegacyAsync_Should_Be_Idempotent()
+    {
+        var flatPath = "/test/transcript/legacy-migrate-2.jsonl";
+        await _fs.WriteAllTextAsync(flatPath, "{\"sessionId\":\"legacy-migrate-2\",\"role\":\"user\",\"content\":\"data\",\"timestamp\":\"2025-01-01T00:00:00Z\"}\n").ConfigureAwait(true);
+
+        await _service.MigrateLegacyAsync().ConfigureAwait(true);
+        await _service.MigrateLegacyAsync().ConfigureAwait(true);
+
+        var newPath = "/test/transcript/legacy-migrate-2/transcript.jsonl";
+        Assert.True(_fs.FileExists(newPath));
+    }
+
     private static TranscriptEntry NewEntry(string role, string content, string sessionId = "test")
     {
         return new TranscriptEntry

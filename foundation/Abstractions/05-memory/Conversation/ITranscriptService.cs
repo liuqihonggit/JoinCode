@@ -46,6 +46,12 @@ public interface ITranscriptService
     /// 加载会话信息 — 不存在返回 null
     /// </summary>
     Task<SessionInfo?> GetSessionInfoAsync(string sessionId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 迁移旧扁平格式(.jsonl 直接在 sessions 根目录)到每会话子目录格式 — 幂等,不删旧文件
+    /// 修复路径重构后现有扁平 .jsonl 扫不到的 regression
+    /// </summary>
+    Task MigrateLegacyAsync(CancellationToken cancellationToken = default);
 }
 
 /// <summary>

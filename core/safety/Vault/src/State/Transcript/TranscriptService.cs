@@ -319,5 +319,39 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
         }
     }
 
+    /// <summary>
+    /// 迁移旧扁平 .jsonl(直接在 sessions 根目录)到每会话子目录 {id}/transcript.jsonl — 幂等,不删旧文件
+    /// </summary>
+    public async Task MigrateLegacyAsync(CancellationToken cancellationToken = default)
+    {
+        if (!_fs.DirectoryExists(_sessionsDirectory)) return;
+
+        foreach (var file in _fs.EnumerateFiles(_sessionsDirectory, "*.jsonl", SearchOption.TopDirectoryOnly))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var sessionId = Path.GetFileNameWithoutExtension(file);
+            if (string.IsNullOrEmpty(sessionId)) continue;
+
+            try
+            {
+                var newDir = GetSessionDir(sessionId);
+                var newPath = Path.Combine(newDir, "transcript.jsonl");
+                if (_fs.FileExists(newPath)) continue; // 幂等
+
+                if (!_fs.DirectoryExists(newDir))
+                {
+                    DirectoryHelper.EnsureDirectoryExists(_fs, newDir);
+                }
+                var content = await _fs.ReadAllTextAsync(file, cancellationToken).ConfigureAwait(false);
+                await _fs.WriteAllTextAsync(newPath, content, cancellationToken).ConfigureAwait(false);
+                _logger?.LogInformation("Migrated legacy transcript {SessionId} to session directory", sessionId);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger?.LogWarning(ex, "Failed to migrate legacy transcript {SessionId}", sessionId);
+            }
+        }
+    }
+
     protected override void OnDispose() => _writer.Dispose();
 }

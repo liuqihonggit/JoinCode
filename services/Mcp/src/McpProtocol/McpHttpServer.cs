@@ -182,6 +182,7 @@ public sealed class McpHttpServer : IDisposable
         ctx.Response.SendChunked = true;
 
         var eventQueue = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        var eventId = 0;
         void OnNotification(object? s, McpServerNotificationEventArgs e)
         {
             var notification = new JsonRpcNotification { Method = e.Method };
@@ -200,6 +201,8 @@ public sealed class McpHttpServer : IDisposable
             {
                 if (eventQueue.TryDequeue(out var json))
                 {
+                    eventId++;
+                    await writer.WriteLineAsync($"id: {eventId}").ConfigureAwait(false);
                     await writer.WriteLineAsync($"data: {json}").ConfigureAwait(false);
                     await writer.WriteLineAsync().ConfigureAwait(false);
                     await writer.FlushAsync(ct).ConfigureAwait(false);

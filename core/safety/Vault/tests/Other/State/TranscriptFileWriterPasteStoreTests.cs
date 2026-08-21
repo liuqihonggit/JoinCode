@@ -71,7 +71,7 @@ public sealed class TranscriptFileWriterPasteStoreTests : IDisposable
         _pasteStore.Setup(p => p.RetrievePastedText(hash)).Returns(originalContent);
 
         var filePath = Path.Combine(_tempDir, "resolve.jsonl");
-        var line = $$"""{"sessionId":"s1","role":"user","content":"","contentHash":"{{hash}}","timestamp":"2026-07-30T00:00:00Z"}""" + "\n";
+        var line = $$"""[{"sessionId":"s1","role":"user","content":"","contentHash":"{{hash}}","timestamp":"2026-07-30T00:00:00Z"}]""";
         _fs.WriteAllText(filePath, line);
 
         var loaded = await _writer.LoadTranscriptAsync(filePath);
@@ -87,7 +87,7 @@ public sealed class TranscriptFileWriterPasteStoreTests : IDisposable
         _pasteStore.Setup(p => p.RetrievePastedText(hash)).Returns((string?)null);
 
         var filePath = Path.Combine(_tempDir, "missing.jsonl");
-        var line = $$"""{"sessionId":"s1","role":"user","content":"","contentHash":"{{hash}}","timestamp":"2026-07-30T00:00:00Z"}""" + "\n";
+        var line = $$"""[{"sessionId":"s1","role":"user","content":"","contentHash":"{{hash}}","timestamp":"2026-07-30T00:00:00Z"}]""";
         _fs.WriteAllText(filePath, line);
 
         var loaded = await _writer.LoadTranscriptAsync(filePath);

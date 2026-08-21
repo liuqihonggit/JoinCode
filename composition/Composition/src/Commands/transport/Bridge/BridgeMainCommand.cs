@@ -12,7 +12,6 @@ public sealed class BridgeMainCommand
     private const string PolicyActionAllowRemoteControl = "allow_remote_control";
     private const string ConfigKeyRemoteDialogSeen = "remoteDialogSeen";
     private const string TokenProviderAnthropic = "anthropic";
-    private const string EnvJccApiKey = "JCC_API_KEY";
     private const string EnvOAuthToken = "CLAUDE_CODE_OAUTH_TOKEN";
     private const string EnvSessionAccessToken = "CLAUDE_CODE_SESSION_ACCESS_TOKEN";
 
@@ -235,16 +234,12 @@ public sealed class BridgeMainCommand
 
     /// <summary>
     /// 获取访问令牌 — 对齐 TS 端: getBridgeAccessToken()
-    /// 优先级: JCC_API_KEY env → OAuth Token Storage(未过期) → CLAUDE_CODE_OAUTH_TOKEN env → CLAUDE_CODE_SESSION_ACCESS_TOKEN env
+    /// 优先级: OAuth Token Storage(未过期) → CLAUDE_CODE_OAUTH_TOKEN env → CLAUDE_CODE_SESSION_ACCESS_TOKEN env
     /// 决策: Token 过期不自动刷新，回退到环境变量（避免在命令入口触发 OAuth 流程）
     /// </summary>
     internal async Task<string?> GetAccessTokenAsync(CancellationToken ct = default)
     {
-        // 1. 环境变量 JCC_API_KEY
-        var envToken = Environment.GetEnvironmentVariable(EnvJccApiKey);
-        if (!string.IsNullOrEmpty(envToken)) return envToken;
-
-        // 2. OAuth Token Storage（未过期）
+        // 1. OAuth Token Storage（未过期）
         if (_tokenStorage is not null)
         {
             try

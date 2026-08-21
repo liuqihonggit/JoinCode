@@ -214,7 +214,7 @@ public sealed class BridgeSubprocessHandle : IAsyncDisposable
     public async Task UpdateAccessTokenAsync(string newToken, CancellationToken ct = default)
     {
         AccessToken = newToken;
-        var message = $"{{\"type\":\"update_environment_variables\",\"variables\":{{\"JCC_API_KEY\":\"{newToken}\"}}}}\n";
+        var message = $"{{\"type\":\"update_environment_variables\",\"variables\":{{\"CLAUDE_CODE_SESSION_ACCESS_TOKEN\":\"{newToken}\"}}}}\n";
         await WriteStdinAsync(message, ct).ConfigureAwait(false);
         _logger?.LogDebug("[SubprocessHandle] 令牌已刷新: {SessionId}", SessionId);
     }
@@ -720,7 +720,6 @@ public sealed class BridgeSubprocessSpawner
 
         if (options.AccessToken is not null)
         {
-            env["JCC_API_KEY"] = options.AccessToken;
             // 对齐 TS 端: CLAUDE_CODE_SESSION_ACCESS_TOKEN
             env["CLAUDE_CODE_SESSION_ACCESS_TOKEN"] = options.AccessToken;
         }

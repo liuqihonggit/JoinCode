@@ -10,7 +10,6 @@ public enum JccEnvVar
     [EnumValue("JCC_MODEL_ID")] ModelId,
     [EnumValue("JCC_ENDPOINT")] Endpoint,
     [EnumValue("JCC_PROFILE")] Profile,
-    [EnumValue("JCC_API_KEY")] ApiKey,
     [EnumValue("JCC_API_VERSION")] ApiVersion,
     [EnumValue("JCC_ORGANIZATION_ID")] OrganizationId,
     [EnumValue("JCC_ENABLE_OAUTH")] EnableOAuth,

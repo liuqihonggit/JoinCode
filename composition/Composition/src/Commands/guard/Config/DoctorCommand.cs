@@ -152,8 +152,7 @@ public sealed class DoctorCommand : ChatCommandBase
 
         var endpoint = Environment.GetEnvironmentVariable(JccEnvVarConstants.Endpoint);
 
-        var apiKey = ResolveProviderDefinition(context, provider)?.ResolveApiKeyFromEnv()
-            ?? Environment.GetEnvironmentVariable(JccEnvVarConstants.ApiKey);
+        var apiKey = ResolveProviderDefinition(context, provider)?.ResolveApiKeyFromEnv();
 
         if (string.IsNullOrEmpty(apiKey))
         {

@@ -61,7 +61,7 @@ public class AgentCoordinatorSecretaryTests
     public async Task EnsureSecretary_ShouldSpawnTeammateVariantAgent()
     {
         var fakeAgent = new AgentBase("等待队长指令", null, _queryEngineMock.Object, null);
-        _lifecycleManagerMock.Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>()))
+        _lifecycleManagerMock.Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
             .ReturnsAsync(fakeAgent);
 
         var secretaryId = await _coordinator.EnsureSecretaryAsync("captain-1");
@@ -77,14 +77,14 @@ public class AgentCoordinatorSecretaryTests
     public async Task EnsureSecretary_CalledTwice_ShouldNotRespawn()
     {
         var fakeAgent = new AgentBase("等待队长指令", null, _queryEngineMock.Object, null);
-        _lifecycleManagerMock.Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>()))
+        _lifecycleManagerMock.Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
             .ReturnsAsync(fakeAgent);
 
         var id1 = await _coordinator.EnsureSecretaryAsync("captain-1");
         var id2 = await _coordinator.EnsureSecretaryAsync("captain-1");
 
         id1.Should().Be(id2);
-        _lifecycleManagerMock.Verify(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>()), Times.Once);
+        _lifecycleManagerMock.Verify(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()), Times.Once);
     }
 
     [Fact]
@@ -92,7 +92,7 @@ public class AgentCoordinatorSecretaryTests
     {
         var agent1 = new AgentBase("等待队长指令", null, _queryEngineMock.Object, null);
         var agent2 = new AgentBase("等待队长指令", null, _queryEngineMock.Object, null);
-        _lifecycleManagerMock.SetupSequence(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>()))
+        _lifecycleManagerMock.SetupSequence(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
             .ReturnsAsync(agent1)
             .ReturnsAsync(agent2);
 
@@ -100,7 +100,7 @@ public class AgentCoordinatorSecretaryTests
         var id2 = await _coordinator.EnsureSecretaryAsync("captain-B");
 
         id1.Should().NotBe(id2);
-        _lifecycleManagerMock.Verify(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+        _lifecycleManagerMock.Verify(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()), Times.Exactly(2));
     }
 
     [Fact]
@@ -120,7 +120,7 @@ public class AgentCoordinatorSecretaryTests
     public async Task GetSecretaryId_WhenSpawned_ShouldReturnId()
     {
         var fakeAgent = new AgentBase("等待队长指令", null, _queryEngineMock.Object, null);
-        _lifecycleManagerMock.Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>()))
+        _lifecycleManagerMock.Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
             .ReturnsAsync(fakeAgent);
 
         var spawnedId = await _coordinator.EnsureSecretaryAsync("captain-1");

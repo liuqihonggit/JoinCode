@@ -45,7 +45,7 @@ public class ForkSubAgentManagerTests
         };
 
         _lifecycleManagerMock
-            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
             .ReturnsAsync(agent);
         _lifecycleManagerMock
             .Setup(x => x.ExecuteAsync(agent, It.IsAny<CancellationToken>()))
@@ -81,7 +81,7 @@ public class ForkSubAgentManagerTests
         };
 
         _lifecycleManagerMock
-            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
             .ReturnsAsync(agent);
         _lifecycleManagerMock
             .Setup(x => x.ExecuteAsync(agent, It.IsAny<CancellationToken>()))
@@ -116,7 +116,7 @@ public class ForkSubAgentManagerTests
         };
 
         _lifecycleManagerMock
-            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
             .ReturnsAsync(agent);
         _lifecycleManagerMock
             .Setup(x => x.ExecuteAsync(agent, It.IsAny<CancellationToken>()))
@@ -177,7 +177,7 @@ public class ForkSubAgentManagerTests
         };
 
         _lifecycleManagerMock
-            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
             .ReturnsAsync(agent);
         _lifecycleManagerMock
             .Setup(x => x.ExecuteAsync(agent, It.IsAny<CancellationToken>()))
@@ -226,7 +226,7 @@ public class ForkSubAgentManagerTests
         var agent = new AgentBase("Background task that throws", null, queryEngineMock.Object, null);
 
         _lifecycleManagerMock
-            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
             .ReturnsAsync(agent);
 
         // ExecuteAsync 抛出 FormatException(模拟 JSON 解析错误导致子代理同步失败)

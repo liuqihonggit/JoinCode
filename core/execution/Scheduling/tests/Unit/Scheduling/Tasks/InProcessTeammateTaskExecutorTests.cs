@@ -31,7 +31,7 @@ public class InProcessTeammateTaskExecutorTests
         };
 
         _lifecycleManagerMock
-            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
             .ReturnsAsync(agent);
         _lifecycleManagerMock
             .Setup(x => x.ExecuteAsync(agent, It.IsAny<CancellationToken>()))
@@ -70,7 +70,7 @@ public class InProcessTeammateTaskExecutorTests
         };
 
         _lifecycleManagerMock
-            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
             .ReturnsAsync(agent);
         _lifecycleManagerMock
             .Setup(x => x.ExecuteAsync(agent, It.IsAny<CancellationToken>()))
@@ -114,7 +114,7 @@ public class InProcessTeammateTaskExecutorTests
         };
 
         _lifecycleManagerMock
-            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
             .ReturnsAsync(agent);
         _lifecycleManagerMock
             .Setup(x => x.ExecuteAsync(agent, It.IsAny<CancellationToken>()))
@@ -188,7 +188,7 @@ public class InProcessTeammateTaskExecutorTests
 
         var executeCallCount = 0;
         _lifecycleManagerMock
-            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
             .ReturnsAsync(agent);
         _lifecycleManagerMock
             .Setup(x => x.ExecuteAsync(It.IsAny<IAgent>(), It.IsAny<CancellationToken>()))

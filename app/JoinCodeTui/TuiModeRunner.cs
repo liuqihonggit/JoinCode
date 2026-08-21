@@ -308,6 +308,7 @@ internal static class TuiModeRunner
             // 记录命令执行前历史快照 — QueryAsync 会先 AddUserMessage 再跑管道，
             // 权限批准后需裁剪回此点再重发（B7 防上下文重复）
             var historySnapshotCount = chatHistory.Count;
+            var permissionRetryCount = 0;
             var cmdCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             currentQueryCts.Value = cmdCts;
             try
@@ -339,20 +340,29 @@ internal static class TuiModeRunner
             }
             catch (PermissionPendingConfirmationException ex)
             {
-                Task<bool>? dialogTask = null;
+                // T3 重试上限 — 超限不再弹窗，报错终止本轮（对齐 GUI MaxPermissionRetries）
+                if (permissionRetryCount >= MaxPermissionRetries)
+                {
+                    outputView.AppendLine($"  [错误] 权限确认重试次数超限: {ex.ToolName}");
+                    continue;
+                }
+
+                PermissionConfirmAction? decision = null;
                 painter.Invoke(() =>
                 {
-                    dialogTask = permissionDialog.ShowAsync(ex.ToolName, ex.ConfirmationPrompt, cancellationToken);
+                    decision = permissionDialog.ShowWithDecisionAsync(ex.ToolName, ex.ConfirmationPrompt, cancellationToken).GetAwaiter().GetResult();
                 });
-                var allowed = dialogTask!.GetAwaiter().GetResult();
                 painter.Invoke(() => permissionDialog.Hide());
 
-                if (allowed)
+                if (decision is { } d && d != PermissionConfirmAction.Deny)
                 {
-                    permissionManager?.ApproveToolTemporarily(ex.ToolName, TimeSpan.FromMinutes(5));
+                    var duration = GetApprovalDuration(d);
+                    permissionManager?.ApproveToolTemporarily(ex.ToolName, duration);
                     // 撤回本轮（用户消息+部分回复已入历史）再重发，避免上下文重复
                     RewindToSnapshot(chatHistory, historySnapshotCount);
-                    outputView.AppendLine($"  [允许] {ex.ToolName}");
+                    permissionRetryCount++;
+                    var label = d == PermissionConfirmAction.AlwaysAllow ? "始终允许" : "允许";
+                    outputView.AppendLine($"  [{label}] {ex.ToolName}（{duration.TotalMinutes:N0} 分钟）");
                     queue.Enqueue(new QueuedCommand(cmd.Content, CommandOrigin.User, QueuePriority.Now));
                 }
                 else
@@ -383,6 +393,20 @@ internal static class TuiModeRunner
         while (history.Count > snapshotCount)
             history.RemoveAt(history.Count - 1);
     }
+
+    /// <summary>权限重试上限（T3 对齐 GUI MaxPermissionRetries）— 超限不再弹窗重发，防止无限循环</summary>
+    internal const int MaxPermissionRetries = 3;
+
+    /// <summary>
+    /// 权限决策 → 批准时长映射（T3 对齐 GUI JccChatSession 语义）：
+    /// 允许一次 = 5 分钟临时批准；始终允许 = 24 小时会话级；拒绝 = 零时长。
+    /// </summary>
+    internal static TimeSpan GetApprovalDuration(PermissionConfirmAction decision) => decision switch
+    {
+        PermissionConfirmAction.AlwaysAllow => TimeSpan.FromHours(24),
+        PermissionConfirmAction.Allow => TimeSpan.FromMinutes(5),
+        _ => TimeSpan.Zero,
+    };
 
     /// <summary>
     /// 从引擎消息记录重建 TUI 本地历史（T1）— 斜杠命令可能改变引擎上下文

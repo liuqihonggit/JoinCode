@@ -211,7 +211,15 @@
   - 测试：Parser 6 + DialogView 6 + Service 校验 6 = 18 个新增。TUI 156 全绿。
   - 冒烟：jcctui --await 启动正常，extraModules 注入未破坏 DI（诊断日志 session created → app.Run）。
   - 位置：`JoinCodeTui/{Interaction,Tui/Tui,Hosting}` + `Program.cs`
-- [ ] **T3** 权限三档决策："始终允许"=24小时会话级（对齐 JccChatSession.cs:26-29 常量语义）；重试上限3次
+- [x] **T3** 权限三档决策："始终允许"=24小时会话级（对齐 JccChatSession.cs:26-29 常量语义）；重试上限3次
+  - **完成（2026-08-22）**：
+    ① `PermissionDialogView` 升级三档按钮：允许一次(y) / **始终允许(a)** / 拒绝(n)；
+    ② 新增 `ShowWithDecisionAsync` 返回 Abstractions 层 `PermissionConfirmAction`
+    （TUI 不引用 GUI 专属 PermissionConfirmationDecision），旧 `ShowAsync`(bool) 保留供 slash confirm 复用；
+    ③ `GetApprovalDuration` 映射：Allow=5min / AlwaysAllow=24h / Deny=Zero（对齐 GUI 常量）；
+    ④ `MaxPermissionRetries=3` 重试上限——超限报错终止本轮，不再无限弹窗循环。
+  - 测试：映射 4 + 对话框三档 4 = 8 个新增。TUI 164 全绿。
+  - 位置：`PermissionDialogView.cs` + `TuiModeRunner.cs`
 - [ ] **T4** 设置能力：至少支持温度/MaxTokens/Effort 写回 ExecutionSettingsProvider（对齐 GUI WriteBackTemperatureAndMaxTokens）
 - [ ] **T5** 供应商/模型运行时切换（可选：文件驱动界面规则7的 TUI 形态）
 
@@ -279,3 +287,9 @@ init 会把 .gitmodules URL 改写为 gitee 回退源，提交前需 `git checko
 <!-- 原因: TUI DI 不含 CliModule(Mock 根因);Console.ReadLine 会破坏 Terminal.Gui 全屏渲染;Permission 语义是布尔确认不承载多选 -->
 <!-- 替代方案: 给 SlashCommandRunner 的 prompt 回调做终端问答(放弃: prompt 是 /commit 自由输入回调,与结构化问答语义不同)-->
 <!-- 验证: Parser/DialogView/Service 共18测试全绿 + jcctui 冒烟 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-22 (T3) -->
+<!-- 决策: TUI 权限决策枚举用 Abstractions 层 PermissionConfirmAction,而非 GUI 的 PermissionConfirmationDecision -->
+<!-- 原因: JoinCodeTui 不引用 JoinCodeGui,GUI 枚举不可达;两枚举三值语义相同,Abstractions 版是正确共享层 -->
+<!-- 替代方案: 把 GUI 枚举上移 Abstractions（放弃: 动 GUI 公共 API 面,收益仅为命名统一）-->
+<!-- 验证: 映射+对话框8测试全绿,TUI 164 全绿 ✅ -->

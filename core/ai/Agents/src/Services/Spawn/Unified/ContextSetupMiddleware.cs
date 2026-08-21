@@ -56,6 +56,7 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
             PreloadSkills = context.Definition?.Skills,
             PermissionMode = context.Definition?.PermissionMode,
             InitialPrompt = context.Definition?.InitialPrompt,
+            CriticalSystemReminder = context.Definition?.CriticalSystemReminder,
             InitialMessageList = initialMessageList,
             WorktreePath = context.SpawnOptions.Cwd ?? _subAgentContextAccessor.Current?.WorktreePath,
             SubagentName = context.SpawnOptions.Name ?? context.Definition?.DisplayId,

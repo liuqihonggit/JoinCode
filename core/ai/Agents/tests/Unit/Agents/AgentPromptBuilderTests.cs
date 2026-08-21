@@ -70,8 +70,9 @@ public sealed class AgentPromptBuilderTests
     }
 
     [Fact]
-    public async Task BuildSystemPromptAsync_WithCriticalSystemReminder_InjectsReminder()
+    public async Task BuildSystemPromptAsync_WithCriticalSystemReminder_NotInSystemPrompt()
     {
+        // CriticalSystemReminder 改为每轮注入消息流(对齐 claude code),不在 system prompt 中
         var definition = new JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition
         {
             Role = AgentRole.Executor,
@@ -85,7 +86,7 @@ public sealed class AgentPromptBuilderTests
         var result = await builder.BuildSystemPromptAsync(
             ExecutorVariant.Code.ToValue(), "test task", null);
 
-        result.Should().Contain("<critical>STAY FOCUSED</critical>");
+        result.Should().NotContain("<critical>STAY FOCUSED</critical>");
     }
 
     [Fact]

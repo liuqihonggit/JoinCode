@@ -176,12 +176,28 @@
   - 测试：删除按钮移除消息 + 复制按钮反馈态 + Markdown 冒烟 3 个新增 headless 测试，
     FontSizeSlider/Constructor 回归测试改指新控件。GUI 328 全绿。
   - 位置：`MainWindow.axaml(.cs)`
-- [ ] **G4** 输出环形缓冲/内存防护：ObservableCollection 无上限，长会话需淘汰策略
-- [ ] **G5** 命令队列预览（可选）：GUI 阻塞模型下价值减弱，评估是否需要
+- [x] **G4** 输出环形缓冲/内存防护：ObservableCollection 无上限，长会话需淘汰策略
+  - **完成（2026-08-22）**：`MainViewModel.MaxVisibleMessages = 500` 硬上限，
+    OnMessagesChanged 内超限 `RemoveAt(0)` 裁剪最旧（Remove 事件重入同步维护助手计数器，无双重递减）。
+    仅裁剪 UI 显示层；引擎上下文由 /compact 管理；TUI 端 OutputView 已有 2048 行环形缓冲无需改动。
+  - 测试：超限裁剪 + 计数器一致性 2 个新增测试。GUI 331 全绿。位置：`MainViewModel.cs`
+- [x] **G5** 命令队列预览（可选）— **决策：不做（N/A）**
+  - GUI 为阻塞模型（IsBusy 挡发送、无排队队列），不存在"待执行命令"可预览；
+    TUI 的 QueuedCommandsView 已覆盖其自身队列场景。强行加 UI = 加法思维反模式。
 
 ## 四、修 TUI 阶段（补 GUI 有的能力）
 
-- [ ] **T1** 会话持久化/resume：共享 `~/.jcc/sessions/*.json`，列表/恢复灌入引擎（对齐 GUI GuiSessionStore + LoadHistoryAsync 语义）
+- [x] **T1** 会话持久化/resume：共享 `~/.jcc/sessions/*.json`，列表/恢复灌入引擎（对齐 GUI GuiSessionStore + LoadHistoryAsync 语义）
+  - **完成（2026-08-22）**：存储层复用 CLI ResumeCommand 天然读写 `~/.jcc/sessions/*.json`
+    （GUI/TUI/CLI 三端同一命令链路 `/resume` → `LoadSessionMessagesAsync` 灌引擎，零新存储代码）。
+    补齐的缺口是**命令后 UI 历史同步**：
+    ① TUI `SyncHistoryFromEngine(MessageList, ApiMessageRecord[])` — ReplaceAll 原子重建本地 chatHistory
+    （角色 FromValue 映射，未识别回退 Tool），HandleSlashCommandAsync 执行成功后经 painter.Invoke 接线；
+    ② GUI `ReloadMessagesFromEngineAsync(echo)` — 重读 GetMessagesAsync 重建消息列表，
+    ⚙️ 命令回显保留末尾（角色回退 User）。/resume /clear /compact 全部受益。
+  - 测试：HistorySyncTests 3 个（映射/清空/未知角色）+ GUI 重读测试 1 个。
+    TUI 138 全绿、GUI 331 全绿。
+  - 位置：`TuiModeRunner.cs` + `MainViewModel.cs`
 - [ ] **T2** AskUserQuestion：Prompt 回调从返回 null 改为终端交互问答（单选/多选/自由输入）
 - [ ] **T3** 权限三档决策："始终允许"=24小时会话级（对齐 JccChatSession.cs:26-29 常量语义）；重试上限3次
 - [ ] **T4** 设置能力：至少支持温度/MaxTokens/Effort 写回 ExecutionSettingsProvider（对齐 GUI WriteBackTemperatureAndMaxTokens）
@@ -236,3 +252,12 @@ init 会把 .gitmodules URL 改写为 gitee 回退源，提交前需 `git checko
 <!-- 决策: 分三阶段执行（bug→GUI→TUI），每项独立编译+测试+提交 -->
 <!-- 原因: B1 是权限安全缺陷优先级最高；GUI 补斜杠执行是用户可感知的最大行为差异 -->
 <!-- 替代方案: 双向并行子智能体（放弃，避免同仓库冲突且无法逐项验证）-->
+
+<!-- 🤖 Auto Decision: 2026-08-22 (T1+G4) -->
+<!-- 决策1: T1 不新建 TUI 存储层，复用 CLI ResumeCommand 读写 ~/.jcc/sessions + 补 UI 历史同步钩子 -->
+<!-- 原因1: 三端同一命令链路=消除两套实现的正解；GUI 的 GuiSessionStore 是 GUI 内会话列表管理，语义不同不合并 -->
+<!-- 替代方案1: 抽取共享 SessionStore 到 app/JoinCode（放弃：大迁移风险晚节不保，格式已天然互通）-->
+<!-- 决策2: G4 上限裁剪放 CollectionChanged 处理器而非每个 Add 调用点 -->
+<!-- 原因2: 单一收口点覆盖全部路径（发送/恢复/导入），RemoveAt 重入同步维护计数器 -->
+<!-- 替代方案2: 封装 AppendMessage 统一入口（放弃：需改 10+ 调用点，收益相同）-->
+<!-- 验证: GUI 331 全绿 + TUI 138 全绿 ✅ -->

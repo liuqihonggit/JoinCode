@@ -277,7 +277,7 @@ internal static class TuiModeRunner
             // 斜杠命令 — 转发到共享 SlashCommandRunner（与 GUI 同一执行链路）
             if (cmd.Content.Length > 0 && cmd.Content[0] == '/')
             {
-                await HandleSlashCommandAsync(cmd.Content, services, outputView, requestStop, painter, permissionDialog, cancellationToken).ConfigureAwait(false);
+                await HandleSlashCommandAsync(cmd.Content, services, outputView, chatHistory, requestStop, painter, permissionDialog, cancellationToken).ConfigureAwait(false);
                 continue;
             }
 
@@ -379,12 +379,30 @@ internal static class TuiModeRunner
     }
 
     /// <summary>
+    /// 从引擎消息记录重建 TUI 本地历史（T1）— 斜杠命令可能改变引擎上下文
+    /// （/resume 装入历史、/clear 清空、/compact 压缩摘要），本地 chatHistory 需与引擎
+    /// 保持一致，否则后续对话 LLM 收不到恢复的历史。角色字符串经生成的 FromValue 映射，
+    /// 未识别角色回退 Tool（与 GUI ReloadMessagesFromEngineAsync 的 User 回退互补覆盖）。
+    /// </summary>
+    internal static void SyncHistoryFromEngine(MessageList history, IReadOnlyList<ApiMessageRecord> records)
+    {
+        var rebuilt = new List<ApiMessage>(records.Count);
+        foreach (var record in records)
+        {
+            var role = MessageRoleExtensions.FromValue(record.Role) ?? MessageRole.Tool;
+            rebuilt.Add(new ApiMessage(role, record.Content));
+        }
+        history.ReplaceAll(rebuilt);
+    }
+
+    /// <summary>
     /// 转发斜杠命令到底层 CmdMap — 委托共享 <see cref="SlashCommandRunner"/>（与 GUI 同一执行链路）。
     /// </summary>
     private static async Task HandleSlashCommandAsync(
         string input,
         IServiceProvider services,
         OutputView outputView,
+        MessageList history,
         Action requestStop,
         TerminalPainter painter,
         PermissionDialogView permissionDialog,
@@ -409,6 +427,25 @@ internal static class TuiModeRunner
 
         if (!string.IsNullOrWhiteSpace(result.Output))
             outputView.AppendLine(result.Output);
+
+        // T1：命令可能改变引擎上下文（/resume 装入历史、/clear 清空、/compact 压缩），
+        // 重读引擎消息重建本地 chatHistory，保证后续对话 LLM 收到正确上下文
+        if (result.Handled)
+        {
+            try
+            {
+                var chat = services.GetService<Abstractions.Interfaces.IChatService>();
+                if (chat is not null)
+                {
+                    var records = await chat.GetMessageListAsync(cancellationToken).ConfigureAwait(false);
+                    painter.Invoke(() => SyncHistoryFromEngine(history, records));
+                }
+            }
+            catch (Exception syncEx)
+            {
+                WriteDiag($"[T1] history sync failed: {syncEx.Message}");
+            }
+        }
     }
 
     private static void WriteDiag(string message)

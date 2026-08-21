@@ -98,6 +98,47 @@ public sealed class PermissionDialogTests
         var decision = await ShowDialogAndClickAsync("拒绝");
         Assert.Equal(PermissionConfirmationDecision.Deny, decision);
     }
+
+    /// <summary>
+    /// 关窗兜底契约 — 不点任何按钮直接关闭窗口（模拟用户点标题栏 ✕ / Alt+F4），
+    /// ShowDialog 必须返回 Deny（拒绝）。Avalonia 对未设置 _dialogResult 的关窗返回
+    /// default(TResult)，该兜底成立的前提是 PermissionConfirmationDecision 枚举首值为
+    /// Deny(=0)。若有人调整枚举顺序，本测试立即红灯，防止"关窗=批准"安全漏洞回归。
+    /// </summary>
+    [AvaloniaFact]
+    public async Task CloseWindowWithoutClicking_ReturnsDeny()
+    {
+        var host = new Window { Width = 200, Height = 200 };
+        host.Show();
+        try
+        {
+            var request = new PermissionConfirmationRequest("bash", "运行命令 echo hi？", "req-close", "rule-content");
+            var dialog = new PermissionDialog(request);
+            var resultTask = dialog.ShowDialog<PermissionConfirmationDecision>(host);
+
+            // 等弹窗挂载完成后直接关闭（不点击任何决策按钮）
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            dialog.Close();
+
+            var decision = await resultTask;
+            Assert.Equal(PermissionConfirmationDecision.Deny, decision);
+        }
+        finally
+        {
+            host.Close();
+        }
+    }
+
+    /// <summary>
+    /// 枚举契约钉死 — Deny 必须是 PermissionConfirmationDecision 的默认值(=0)。
+    /// 与上一测试互为双保险：Headless 测试验证运行时行为，本测试在纯枚举层面
+    /// 阻断"重排枚举成员导致默认值漂移"的重构事故。
+    /// </summary>
+    [Fact]
+    public void DefaultDecision_MustBeDeny()
+    {
+        Assert.Equal(PermissionConfirmationDecision.Deny, default(PermissionConfirmationDecision));
+    }
 }
 
 /// <summary>为测试断言补一个小的断言扩展（避免引入额外断言库依赖）</summary>

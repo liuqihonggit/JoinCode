@@ -76,8 +76,14 @@
 
 ## 二、修 Bug 阶段（最高优先级）
 
-- [ ] **B1** 权限弹窗关窗=null 落入"批准"分支 → 应兜底为拒绝
-  - 位置：`app\JoinCodeGui\Hosting\JccChatSession.cs:386` 附近，`ShowDialog` 返回 null 时加 `null == Deny` 兜底
+- [x] **B1** 权限弹窗关窗=null 落入"批准"分支 → 应兜底为拒绝
+  - **结论（2026-08-22）：误报，无需改代码**。查证 Avalonia 11.x `Window.ShowCore` 源码：
+    `tcs.SetResult((TResult)(_dialogResult ?? default(TResult)!))` — 未点按钮直接关窗返回 `default(TResult)`，
+    而 `PermissionConfirmationDecision` 枚举首值为 `Deny`(=0)，故"关窗=拒绝"成立。
+  - **风险**：安全性依赖"枚举首值必须是 Deny"的隐式契约。已加 2 个回归测试钉死：
+    `PermissionDialogTests.CloseWindowWithoutClicking_ReturnsDeny`（Headless 关窗验证运行时行为）
+    + `DefaultDecision_MustBeDeny`（纯枚举层面阻断重排事故）。若有人调整枚举顺序立即红灯。
+  - 位置：`app\JoinCodeGui\Views\MainWindow.axaml.cs:140`、`Hosting\PermissionConfirmation.cs:19`
 - [ ] **B2** GUI `StreamingEnabled` 开关无效（拨了没用）
   - 位置：`SettingsPanelView.axaml` + `MainViewModel.SendAsync` 从不读取 → 接线或移除
 - [ ] **B3** GUI `FontSize` 滑块无效（消息区硬编码13号字）

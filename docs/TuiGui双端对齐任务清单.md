@@ -231,7 +231,19 @@
   （源码生成器全量重建）。
   - 测试：8 个新增（元数据+写回/查询/清除/无效值）。Host.Tests 全量 **1022 全绿**。
   - 位置：`SamplingCommand.cs` + `ChatCommandName.cs`
-- [ ] **T5** 供应商/模型运行时切换（可选：文件驱动界面规则7的 TUI 形态）
+- [x] **T5** 供应商/模型运行时切换（可选：文件驱动界面规则7的 TUI 形态）
+  - **完成（2026-08-22）**：
+    ① 模型切换零新增——CLI `/model [id|default|info]` 已完整实现（内存 SetPrimaryModel +
+    settings.json 持久化 + fast-mode 自动关 + effort 自动降级），TUI 经共享 runner 免费获得；
+    ② 供应商切换新增共享 ChatCommand **`/vendor [名称|list]`**（`VendorCommand.cs`）：
+    无参=列出全部（VendorKind 枚举唯一数据源，规则7）+ 当前标记；切换对齐 GUI
+    `SetVendorAsync` 语义——WorkflowConfig.Provider.Vendor 内存切换 + 默认模型跟随
+    （IModelCatalog.GetDefaultModelForProvider + fastMode.SetPrimaryModel）+
+    settings.json `profile` 键持久化；无效名拒绝改动；同供应商 no-op。
+    三端可达：CLI 注册表 / TUI+GUI 经共享 SlashCommandRunner。
+  - 测试：6 个新增（元数据/列表/切换+持久化配置/无效拒绝/同值no-op）。
+    Host.Tests 全量 **1028 全绿**、GUI 331 全绿。
+  - 位置：`VendorCommand.cs` + `ChatCommandName.cs`
 
 ## 五、清理决策清单（做之前先问用户）
 
@@ -309,3 +321,22 @@ init 会把 .gitmodules URL 改写为 gitee 回退源，提交前需 `git checko
 <!-- 原因: 三端同享一份实现(CLI注册表/TUI与GUI经共享runner),符合消除两套实现原则;GUI 面板已有 session 方法路径不冲突 -->
 <!-- 替代方案: TUI FooterTab Settings 页签做交互面板(放弃: 工作量大且只服务 TUI 一端,后续可选补充)-->
 <!-- 验证: SamplingCommandTests 8绿,Host.Tests 全量 1022 全绿 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-22 (T5) -->
+<!-- 决策: /vendor 列表数据源用 Enum.GetValues<VendorKind>() 而非新建 providers 配置文件节点 -->
+<!-- 原因: VendorKind 枚举+[EnumValue] 已是供应商唯一数据源(规则3枚举唯一数据源),models.json 的 providers 节点驱动的是模型列表非供应商清单 -->
+<!-- 替代方案: 读 models.json providers 键（放弃: 与枚举双源冲突，违反单一数据源原则）-->
+<!-- 决策2: T5 整体走"共享 ChatCommand"路线而非 TUI 专属 UI -->
+<!-- 验证: VendorCommandTests 6绿 + 全量 1028/331 全绿 ✅ -->
+
+---
+
+## 任务完成总结（2026-08-22）
+
+全部任务 B1-B8 / G1-G5 / T1-T5 完成。本轮（PR #125 合并后）新增提交：
+T1+G4（615e50062）→ T2（0d234dc11）→ T3（74e58a8a4）→ T4（e74984f02）→ T5。
+
+最终测试基线：Host.Tests **1028** 全绿、JoinCodeGui.Tests **331** 全绿。
+架构收获：斜杠命令/权限/问答/采样/供应商五大能力全部收敛到"共享命令层+UI 适配层"模式，
+消除两端独立实现。遗留提醒：⚠️ GUI 权限弹窗 Confirm 场景默认拒绝（G1 边界）、
+⚠️ /exit 的 GUI onExitRequested 未接窗口关闭、⚠️ B8 曾污染真实 settings.json 建议人工核查。

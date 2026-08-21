@@ -53,6 +53,7 @@ public enum ChatCommandName
 
     // 配置
     [EnumValue("config")] Config,
+    [EnumValue("vendor")] Vendor,
     [EnumValue("theme")] Theme,
     [EnumValue("color")] Color,
     [EnumValue("vim")] Vim,

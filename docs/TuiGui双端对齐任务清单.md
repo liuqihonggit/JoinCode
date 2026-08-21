@@ -220,7 +220,17 @@
     ④ `MaxPermissionRetries=3` 重试上限——超限报错终止本轮，不再无限弹窗循环。
   - 测试：映射 4 + 对话框三档 4 = 8 个新增。TUI 164 全绿。
   - 位置：`PermissionDialogView.cs` + `TuiModeRunner.cs`
-- [ ] **T4** 设置能力：至少支持温度/MaxTokens/Effort 写回 ExecutionSettingsProvider（对齐 GUI WriteBackTemperatureAndMaxTokens）
+- [x] **T4** 设置能力：至少支持温度/MaxTokens/Effort 写回 ExecutionSettingsProvider（对齐 GUI WriteBackTemperatureAndMaxTokens）
+  - **完成（2026-08-22）**：
+    ① Effort 零新增——CLI `/effort` 已写 `settingsProvider.EffortLevel`，TUI 经共享 SlashCommandRunner 免费获得；
+    ② 温度/MaxTokens 新增共享 ChatCommand **`/sampling [温度] [最大Token|unset]`**
+    （`Commands/ai/Model/SamplingCommand.cs`）：无参=查询当前值、unset=清除覆盖回退引擎默认、
+    温度校验 0-2、只给温度不动 MaxTokens（对齐 GUI 滑块独立语义）；写回 `IExecutionSettingsProvider`
+    内存生效，ChatOptionsFactory 下次创建即用（对齐 CLI 不持久化约定）。
+  - 三端可达：TUI/GUI 走共享 runner；CLI 注册表自动含新命令。ChatCommandName 枚举加 Sampling
+  （源码生成器全量重建）。
+  - 测试：8 个新增（元数据+写回/查询/清除/无效值）。Host.Tests 全量 **1022 全绿**。
+  - 位置：`SamplingCommand.cs` + `ChatCommandName.cs`
 - [ ] **T5** 供应商/模型运行时切换（可选：文件驱动界面规则7的 TUI 形态）
 
 ## 五、清理决策清单（做之前先问用户）
@@ -293,3 +303,9 @@ init 会把 .gitmodules URL 改写为 gitee 回退源，提交前需 `git checko
 <!-- 原因: JoinCodeTui 不引用 JoinCodeGui,GUI 枚举不可达;两枚举三值语义相同,Abstractions 版是正确共享层 -->
 <!-- 替代方案: 把 GUI 枚举上移 Abstractions（放弃: 动 GUI 公共 API 面,收益仅为命名统一）-->
 <!-- 验证: 映射+对话框8测试全绿,TUI 164 全绿 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-22 (T4) -->
+<!-- 决策: 温度/MaxTokens 做成共享 ChatCommand /sampling 而非 TUI 专属设置面板 -->
+<!-- 原因: 三端同享一份实现(CLI注册表/TUI与GUI经共享runner),符合消除两套实现原则;GUI 面板已有 session 方法路径不冲突 -->
+<!-- 替代方案: TUI FooterTab Settings 页签做交互面板(放弃: 工作量大且只服务 TUI 一端,后续可选补充)-->
+<!-- 验证: SamplingCommandTests 8绿,Host.Tests 全量 1022 全绿 ✅ -->

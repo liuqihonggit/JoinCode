@@ -23,6 +23,7 @@ public enum ChatCommandName
     [EnumValue("model")] Model,
     [EnumValue("fast")] Fast,
     [EnumValue("effort")] Effort,
+    [EnumValue("sampling")] Sampling,
     [EnumValue("thinkback")] Thinkback,
     [EnumValue("passes")] Passes,
     [EnumValue("output-style")] OutputStyle,

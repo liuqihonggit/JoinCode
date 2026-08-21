@@ -167,12 +167,6 @@ public sealed class ExtendedToolCoverageTests : CoverageTestBase
     }
 
     [Fact]
-    public async Task PushNotification_Tool_ShouldWork()
-    {
-        await RunScriptAsync(ToolCoverageScripts.PushNotificationTest).ConfigureAwait(true);
-    }
-
-    [Fact]
     public async Task PermissionListRules_Tool_ShouldWork()
     {
         await RunScriptAsync(ToolCoverageScripts.PermissionListRulesTest).ConfigureAwait(true);

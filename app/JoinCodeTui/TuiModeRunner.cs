@@ -25,6 +25,7 @@ internal static class TuiModeRunner
         var promptView = new PromptView(queue);
         var footerTab = new FooterTabView();
         var permissionDialog = new PermissionDialogView();
+        var askUserDialog = new AskUserDialogView();
         var queuedCommands = new QueuedCommandsView(queue);
         var agentPanes = new AgentPanesView();
         var resizeMonitor = new TerminalResizeMonitor();
@@ -40,6 +41,7 @@ internal static class TuiModeRunner
         root.SetPrompt(promptView);
         root.SetFooter(footerTab);
         root.AddComponent(permissionDialog);
+        root.AddComponent(askUserDialog);
         root.AddComponent(queuedCommands);
         root.AddComponent(agentPanes);
 
@@ -55,6 +57,10 @@ internal static class TuiModeRunner
         var queryEngine = services.GetService<IQueryEngine>();
         var permissionManager = services.GetService<IToolPermissionManager>();
         var chatHistory = new MessageList();
+
+        // T2：绑定 TUI 问答通道 — ask_user_question 工具经此在 TUI 主循环弹对话框
+        services.GetService<Interaction.TerminalGuiInteractiveService>()?
+            .Attach(painter, askUserDialog);
 
         statusBar.SetConnected(queryEngine is not null);
 

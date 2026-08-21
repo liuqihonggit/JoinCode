@@ -16,7 +16,10 @@ internal static class Program
         try
         {
             WriteDiag("[Main] CreateGuiSessionAsync start");
-            var result = EngineSessionFactory.CreateGuiSessionAsync(cancellationToken: awaitCts.Token).GetAwaiter().GetResult();
+            // T2：注入 TUI 交互模块 — ask_user_question 走 Terminal.Gui 对话框而非 Core Mock
+            var result = EngineSessionFactory.CreateGuiSessionAsync(
+                extraModules: [new Hosting.TuiInteractionModule()],
+                cancellationToken: awaitCts.Token).GetAwaiter().GetResult();
             WriteDiag("[Main] session created, starting TuiModeRunner");
             try
             {

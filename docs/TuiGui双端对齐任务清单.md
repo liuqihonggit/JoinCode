@@ -198,7 +198,19 @@
   - 测试：HistorySyncTests 3 个（映射/清空/未知角色）+ GUI 重读测试 1 个。
     TUI 138 全绿、GUI 331 全绿。
   - 位置：`TuiModeRunner.cs` + `MainViewModel.cs`
-- [ ] **T2** AskUserQuestion：Prompt 回调从返回 null 改为终端交互问答（单选/多选/自由输入）
+- [x] **T2** AskUserQuestion：Prompt 回调从返回 null 改为终端交互问答（单选/多选/自由输入）
+  - **完成（2026-08-22）**：根因是 TUI DI 不含 CliModule（Program.cs 注释明示），ask_user_question 工具
+    落到 Core 层 Mock InteractiveService——用户从未被真正提问，AI 拿到假答案。
+  - 修复（对齐 GUI GuiInteractionModule 覆盖模式）：
+    ① `TuiInteractionModule`(Order=80) 注册 TerminalGuiInteractiveService 覆盖 Mock；
+    ② `TerminalGuiInteractiveService`：校验语义对齐 CLI（空问题/最多4问/选项2-4/重复标签），
+    经 painter.Invoke 切 TUI 主循环弹对话框，未绑定 UI 时显式失败（绝不静默替用户作答）；
+    ③ `AskUserDialogView`：Header/问题/选项渲染 + TextField 序号输入 + 确定/取消按钮，
+    无效输入不关窗重试提示；无选项时自由输入；
+    ④ `AskUserSelectionParser` 纯函数解析（1-based、0=取消、多选逗号去重）。
+  - 测试：Parser 6 + DialogView 6 + Service 校验 6 = 18 个新增。TUI 156 全绿。
+  - 冒烟：jcctui --await 启动正常，extraModules 注入未破坏 DI（诊断日志 session created → app.Run）。
+  - 位置：`JoinCodeTui/{Interaction,Tui/Tui,Hosting}` + `Program.cs`
 - [ ] **T3** 权限三档决策："始终允许"=24小时会话级（对齐 JccChatSession.cs:26-29 常量语义）；重试上限3次
 - [ ] **T4** 设置能力：至少支持温度/MaxTokens/Effort 写回 ExecutionSettingsProvider（对齐 GUI WriteBackTemperatureAndMaxTokens）
 - [ ] **T5** 供应商/模型运行时切换（可选：文件驱动界面规则7的 TUI 形态）
@@ -261,3 +273,9 @@ init 会把 .gitmodules URL 改写为 gitee 回退源，提交前需 `git checko
 <!-- 原因2: 单一收口点覆盖全部路径（发送/恢复/导入），RemoveAt 重入同步维护计数器 -->
 <!-- 替代方案2: 封装 AppendMessage 统一入口（放弃：需改 10+ 调用点，收益相同）-->
 <!-- 验证: GUI 331 全绿 + TUI 138 全绿 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-22 (T2) -->
+<!-- 决策: AskUserQuestion 走独立 TuiInteractionModule+对话框视图,而非复用 PermissionDialogView 或 CLI TerminalInteractiveService -->
+<!-- 原因: TUI DI 不含 CliModule(Mock 根因);Console.ReadLine 会破坏 Terminal.Gui 全屏渲染;Permission 语义是布尔确认不承载多选 -->
+<!-- 替代方案: 给 SlashCommandRunner 的 prompt 回调做终端问答(放弃: prompt 是 /commit 自由输入回调,与结构化问答语义不同)-->
+<!-- 验证: Parser/DialogView/Service 共18测试全绿 + jcctui 冒烟 ✅ -->

@@ -62,5 +62,9 @@ public sealed record SessionInfo
 {
     public string Id { get; init; } = string.Empty;
     public string ProjectPath { get; init; } = string.Empty;
+    public string ProjectName { get; init; } = string.Empty;
+    public string BranchName { get; init; } = string.Empty;
+    public string ModelId { get; init; } = string.Empty;
+    public string Vendor { get; init; } = string.Empty;
     public DateTime CreatedAt { get; init; }
 }

@@ -2,7 +2,7 @@ namespace JoinCode.Abstractions.Interfaces;
 
 public interface IAgentLifecycleManager
 {
-    Task<IAgent> SpawnSubAgentAsync(string task, SubAgentOptions? options = null, CancellationToken cancellationToken = default);
+    Task<IAgent> SpawnSubAgentAsync(string task, SubAgentOptions? options = null, CancellationToken cancellationToken = default, string? parentSessionId = null);
     Task<IReadOnlyList<IAgent>> SpawnSubAgentsAsync(IEnumerable<string> tasks, SubAgentOptions? options = null, CancellationToken cancellationToken = default);
     Task<SubAgentResult> ExecuteAsync(IAgent agent, CancellationToken cancellationToken = default);
     Task<bool> PauseAgentAsync(string agentId, CancellationToken ct = default);

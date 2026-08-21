@@ -37,6 +37,11 @@ public sealed class UnifiedSpawnContext : PipelineContextBase
     /// </summary>
     public bool IsMainAgent { get; init; }
 
+    /// <summary>
+    /// 父会话 ID — 非空时子代理 ID 派生为 {父会话ID}-sub-{NN},可读层次化
+    /// </summary>
+    public string? ParentSessionId { get; init; }
+
     // ═══════════════════════════════════════════════════════════
     // 中间产物（set）
     // ═══════════════════════════════════════════════════════════

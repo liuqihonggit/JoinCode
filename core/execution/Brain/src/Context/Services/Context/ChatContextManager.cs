@@ -68,7 +68,8 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// <summary>切换会话 — 按 sessionId 隔离对话历史，切回时自动恢复对应桶</summary>
     public void SwitchSession(string sessionId)
     {
-        _sessionId = sessionId ?? "default";
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        _sessionId = sessionId;
     }
 
     private string _staticSystemPrompt = string.Empty;

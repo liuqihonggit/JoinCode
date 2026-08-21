@@ -109,8 +109,9 @@ public class AgentBase : Entity, IAgent
         string? goalId = null,
         string? graphNodeId = null,
         ObjectId sessionId = default,
-        IChatContextManager? contextManager = null)
-        : base(ObjectType.Agent, sessionId)
+        IChatContextManager? contextManager = null,
+        string? customUniqueId = null)
+        : base(ObjectType.Agent, sessionId, customUniqueId: customUniqueId)
     {
         Task = task;
         Name = name ?? UniqueId;

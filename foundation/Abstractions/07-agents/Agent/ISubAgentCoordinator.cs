@@ -8,7 +8,7 @@ public interface ISubAgentCoordinator
     /// <summary>
     /// 创建子代理
     /// </summary>
-    Task<IAgent> SpawnSubAgentAsync(string task, SubAgentOptions? options = null, CancellationToken cancellationToken = default);
+    Task<IAgent> SpawnSubAgentAsync(string task, SubAgentOptions? options = null, CancellationToken cancellationToken = default, string? parentSessionId = null);
 
     /// <summary>
     /// 并行执行多个子代理

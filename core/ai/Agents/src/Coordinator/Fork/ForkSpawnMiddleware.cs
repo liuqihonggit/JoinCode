@@ -86,7 +86,7 @@ public sealed partial class ForkSpawnMiddleware : ServiceEntity, IForkMiddleware
         context.AgentOptions = agentOptions;
 
         var agent = await _lifecycleManager.SpawnSubAgentAsync(
-            forkDirective, agentOptions, ct).ConfigureAwait(false);
+            forkDirective, agentOptions, ct, context.Options.ParentSessionId).ConfigureAwait(false);
 
         _messageBroker.RegisterAgent(agent.ObjectId.UniqueId, context.Options.ParentSessionId);
 

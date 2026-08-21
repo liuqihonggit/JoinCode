@@ -292,6 +292,10 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
         }
 
         var infoWithId = info with { Id = sessionId };
+        if (string.IsNullOrEmpty(infoWithId.ProjectName) && !string.IsNullOrEmpty(infoWithId.ProjectPath))
+        {
+            infoWithId = infoWithId with { ProjectName = Path.GetFileName(infoWithId.ProjectPath) };
+        }
         var json = JsonSerializer.Serialize(infoWithId, TranscriptJsonContext.Default.SessionInfo);
         await _fs.WriteAllTextAsync(metaPath, json, cancellationToken).ConfigureAwait(false);
         _logger?.LogDebug("Session info saved for {SessionId}", sessionId);

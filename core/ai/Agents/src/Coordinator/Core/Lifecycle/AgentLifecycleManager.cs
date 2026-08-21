@@ -28,8 +28,14 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     /// <summary>
     /// 生成子Agent
     /// </summary>
-    public Task<IAgent> SpawnSubAgentAsync(string task, SubAgentOptions? options = null, CancellationToken cancellationToken = default)
+    public Task<IAgent> SpawnSubAgentAsync(string task, SubAgentOptions? options = null, CancellationToken cancellationToken = default, string? parentSessionId = null)
     {
+        string? customUniqueId = null;
+        if (!string.IsNullOrEmpty(parentSessionId))
+        {
+            var counter = Interlocked.Increment(ref _agentCounter);
+            customUniqueId = $"{parentSessionId}-sub-{counter:D2}";
+        }
         var agent = AgentFactory.Create(
             task,
             options,
@@ -42,7 +48,8 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
             freshContext: options?.FreshContext ?? false,
             tokenBudget: options?.TokenBudget,
             goalId: options?.GoalId,
-            graphNodeId: options?.GraphNodeId);
+            graphNodeId: options?.GraphNodeId,
+            customUniqueId: customUniqueId);
         var agentId = agent.ObjectId.UniqueId;
 
         _subAgents[agentId] = agent;

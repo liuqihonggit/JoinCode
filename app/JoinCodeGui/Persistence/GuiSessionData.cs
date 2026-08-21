@@ -13,6 +13,10 @@ public sealed class GuiSessionData
 
     public string CustomTitle { get; set; } = string.Empty;
 
+    public string ModelId { get; set; } = string.Empty;
+
+    public string Vendor { get; set; } = string.Empty;
+
     public DateTime CreatedAt { get; set; }
 
     public List<GuiSessionMessage> Messages { get; set; } = [];

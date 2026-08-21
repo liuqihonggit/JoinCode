@@ -45,9 +45,11 @@ public abstract class Entity : IDisposable, ICloneableEntity
 
     private bool _disposed;
 
-    protected Entity(ObjectType type, ObjectId sessionId = default, string? displayName = null, bool registerToSessionRouter = true)
+    protected Entity(ObjectType type, ObjectId sessionId = default, string? displayName = null, bool registerToSessionRouter = true, string? customUniqueId = null)
     {
-        ObjectId = new ObjectId(type, displayName);
+        ObjectId = customUniqueId is not null
+            ? new ObjectId(type, customUniqueId, displayName)
+            : new ObjectId(type, displayName);
         SessionId = sessionId.IsEmpty ? (SessionContext.Current ?? ObjectId) : sessionId;
         CreatedAt = DateTime.UtcNow;
         LastActivityAt = CreatedAt;

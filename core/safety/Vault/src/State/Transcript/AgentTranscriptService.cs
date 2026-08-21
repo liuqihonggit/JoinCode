@@ -62,7 +62,7 @@ public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abs
         await _metaLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            EnsureAgentDirectoryExists(sessionId);
+            EnsureAgentDirectoryExists(sessionId, metadata.AgentId);
             var filePath = GetAgentMetadataPath(sessionId, metadata.AgentId);
             var json = JsonSerializer.Serialize(metadata, AgentMetadataJsonContext.Default.AgentMetadata);
             await _fs.WriteAllTextAsync(filePath, json, cancellationToken).ConfigureAwait(false);
@@ -103,22 +103,26 @@ public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abs
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
 
-        var dir = Path.Combine(_sessionsDirectory, sessionId, "subagents");
-        if (!_fs.DirectoryExists(dir))
-        {
-            return [];
-        }
-
         try
         {
-            var metaFiles = _fs.GetFiles(dir, "*.meta.json", SearchOption.TopDirectoryOnly);
-            var results = new List<JoinCode.Abstractions.Interfaces.AgentMetadata>(metaFiles.Length);
-
-            foreach (var filePath in metaFiles)
+            var subagentsDir = Path.Combine(_sessionsDirectory, sessionId, "subagents");
+            if (!_fs.DirectoryExists(subagentsDir))
             {
+                return [];
+            }
+
+            var agentDirs = _fs.EnumerateDirectories(subagentsDir, "*", SearchOption.TopDirectoryOnly);
+            var results = new List<JoinCode.Abstractions.Interfaces.AgentMetadata>();
+
+            foreach (var agentDir in agentDirs)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var metaPath = Path.Combine(agentDir, "meta.json");
+                if (!_fs.FileExists(metaPath)) continue;
+
                 try
                 {
-                    var metadata = await _fs.ReadAndDeserializeAsync(filePath, AgentMetadataJsonContext.Default.AgentMetadata, cancellationToken).ConfigureAwait(false);
+                    var metadata = await _fs.ReadAndDeserializeAsync(metaPath, AgentMetadataJsonContext.Default.AgentMetadata, cancellationToken).ConfigureAwait(false);
                     if (metadata is not null)
                     {
                         results.Add(metadata);
@@ -126,7 +130,7 @@ public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abs
                 }
                 catch (JsonException ex)
                 {
-                    _logger?.LogWarning(ex, "Skipping malformed metadata file: {FilePath}", filePath);
+                    _logger?.LogWarning(ex, "Skipping malformed metadata file: {FilePath}", metaPath);
                 }
             }
 
@@ -143,19 +147,19 @@ public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abs
     {
         TranscriptFileWriter.ValidateId(sessionId, nameof(sessionId));
         TranscriptFileWriter.ValidateId(agentId, nameof(agentId));
-        return Path.Combine(_sessionsDirectory, sessionId, "subagents", $"agent-{agentId}.json");
+        return Path.Combine(_sessionsDirectory, sessionId, "subagents", agentId, "transcript.json");
     }
 
     private string GetAgentMetadataPath(string sessionId, string agentId)
     {
         TranscriptFileWriter.ValidateId(sessionId, nameof(sessionId));
         TranscriptFileWriter.ValidateId(agentId, nameof(agentId));
-        return Path.Combine(_sessionsDirectory, sessionId, "subagents", $"agent-{agentId}.meta.json");
+        return Path.Combine(_sessionsDirectory, sessionId, "subagents", agentId, "meta.json");
     }
 
-    private void EnsureAgentDirectoryExists(string sessionId)
+    private void EnsureAgentDirectoryExists(string sessionId, string agentId)
     {
-        var dir = Path.Combine(_sessionsDirectory, sessionId, "subagents");
+        var dir = Path.Combine(_sessionsDirectory, sessionId, "subagents", agentId);
         DirectoryHelper.EnsureDirectoryExists(_fs, dir);
     }
 

@@ -230,6 +230,8 @@ public sealed class GuiSessionStore
             {
                 Id = session.Id,
                 ProjectPath = session.ProjectPath,
+                ModelId = session.ModelId,
+                Vendor = session.Vendor,
                 CreatedAt = session.CreatedAt == default ? DateTime.UtcNow : session.CreatedAt
             }).GetAwaiter().GetResult();
 

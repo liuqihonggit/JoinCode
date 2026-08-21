@@ -73,7 +73,7 @@ public sealed class CliSession
 
         _sessionEntity = new Session();
         _sessionObjectId = _sessionEntity.ObjectId;
-        _sessionId = _sessionObjectId.UniqueId;
+        _sessionId = SessionIdGenerator.Generate();
 
         _optionalServices?.GoalEngine?.SetSessionId(_sessionId);
         _optionalServices?.GoalRegistry?.SetSessionId(_sessionId);

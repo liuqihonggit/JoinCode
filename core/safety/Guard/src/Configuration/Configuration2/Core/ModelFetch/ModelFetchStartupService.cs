@@ -54,13 +54,41 @@ public sealed class ModelFetchStartupService
             }
 
             if (updates.Count > 0)
-                await _writer.WriteAsync(settings, updates, cancellationToken).ConfigureAwait(false);
+                await WriteWithRetryAsync(settings, updates, cancellationToken).ConfigureAwait(false);
 
             _logger?.LogInformation("[ModelFetchStartupService] 模型列表拉取完成，更新了 {Count} 个供应商", updates.Count);
         }
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "[ModelFetchStartupService] 模型列表拉取失败，不影响启动");
+        }
+    }
+
+    /// <summary>
+    /// 写回 settings.json — 对文件锁异常重试一次，提供简洁错误信息
+    /// </summary>
+    private async Task WriteWithRetryAsync(
+        SettingsJson settings,
+        IReadOnlyDictionary<string, List<ModelItemConfig>> updates,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _writer.WriteAsync(settings, updates, cancellationToken).ConfigureAwait(false);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            _logger?.LogWarning("[ModelFetchStartupService] settings.json 写入被拒（文件锁），500ms 后重试一次");
+            await Task.Delay(500, cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await _writer.WriteAsync(settings, updates, cancellationToken).ConfigureAwait(false);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                var path = SettingsLoader.GetUserSettingsPath();
+                _logger?.LogWarning("[ModelFetchStartupService] settings.json 写入仍被拒，跳过本次更新 | 路径: {Path} | 不影响启动", path);
+            }
         }
     }
 }

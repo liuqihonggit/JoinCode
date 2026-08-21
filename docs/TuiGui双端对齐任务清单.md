@@ -164,7 +164,18 @@
     状态栏新增一列显示 "Token:N"（千位分隔）；引擎未上报时显示空串（保留输入框字符估算不变）。
   - 测试：`Send_WithUsageInDoneEvent_ShowsRealTokenCount`（红→绿）。GUI 325 全绿。
   - 位置：`MainViewModel.cs` SendAsync + `MainWindow.axaml` 状态栏
-- [ ] **G3** 接线 Markdown 渲染：MarkdownView/MarkdownParser/DiffViewer 已实现未引用，接入消息区替代纯文本
+- [x] **G3** 接线 Markdown 渲染：MarkdownView/MarkdownParser/DiffViewer 已实现未引用，接入消息区替代纯文本
+  - **完成（2026-08-22）**：消息区从单个只读 TextEditor 重构为 ItemsControl 单条消息卡片模板化渲染：
+    ① 正文非流式时经 MarkdownView 渲染（标题/代码块/列表/表格/引用），流式期间降级纯文本避免逐 token 重建控件树；
+    ② 工具启动卡片显示名称+等宽参数，工具结果显示文本+DiffViewer（StructuredPatch 驱动）；
+    ③ 思考气泡折叠提示接 ToggleThinkingCommand；
+    ④ **四孤立命令全部激活**（B4 兑现）：📋 CopyMessage / ✕ RemoveMessage / 🧠 ToggleThinking /
+    ↻ Regenerate（TopBar 原有）；
+    ⑤ 搜索直接过滤 ItemsSource=FilteredMessages；字号滑块联动 BaseFontSize；自动滚动改 ScrollViewer.ScrollToEnd。
+  - 移除死路径：xshd 高亮加载、OnRemoveClick 孤儿方法、AllMessagesText 显示分支（保留导出/复制用途）。
+  - 测试：删除按钮移除消息 + 复制按钮反馈态 + Markdown 冒烟 3 个新增 headless 测试，
+    FontSizeSlider/Constructor 回归测试改指新控件。GUI 328 全绿。
+  - 位置：`MainWindow.axaml(.cs)`
 - [ ] **G4** 输出环形缓冲/内存防护：ObservableCollection 无上限，长会话需淘汰策略
 - [ ] **G5** 命令队列预览（可选）：GUI 阻塞模型下价值减弱，评估是否需要
 

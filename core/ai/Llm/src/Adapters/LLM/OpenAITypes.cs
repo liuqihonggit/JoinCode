@@ -85,6 +85,56 @@ internal sealed class OpenAIStreamOptions
     public bool IncludeUsage { get; set; }
 }
 
+/// <summary>
+/// OpenAI 消息内容 — 支持 string 或 List&lt;OpenAIContentPart&gt; 两种形态
+/// 对齐 AnthropicMessageContent — 纯文本时序列化为 string，多模态时序列化为 content part 数组
+/// 使用 JsonConverter 实现 AOT 兼容的多态序列化（DeepSeek vision / OpenAI vision 等多模态模型）
+/// </summary>
+[JsonConverter(typeof(OpenAIMessageContentConverter))]
+internal sealed class OpenAIMessageContent
+{
+    public string? Text { get; init; }
+    public List<OpenAIContentPart>? Parts { get; init; }
+
+    public static implicit operator OpenAIMessageContent?(string? text) =>
+        text is null ? null : new() { Text = text };
+
+    public static implicit operator OpenAIMessageContent?(List<OpenAIContentPart> parts) =>
+        new() { Parts = parts };
+}
+
+/// <summary>
+/// OpenAI content part — 多模态内容块，type=text 时填 Text，type=image_url 时填 ImageUrl
+/// 对齐 OpenAI Chat Completions content block 格式（DeepSeek vision 兼容）
+/// </summary>
+internal sealed class OpenAIContentPart
+{
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = "text";
+
+    [JsonPropertyName("text")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Text { get; set; }
+
+    [JsonPropertyName("image_url")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public OpenAIImageUrl? ImageUrl { get; set; }
+}
+
+/// <summary>
+/// OpenAI image_url — url 为 data:image/xxx;base64,... 内联格式或 http(s) 外链
+/// </summary>
+internal sealed class OpenAIImageUrl
+{
+    [JsonPropertyName("url")]
+    public string Url { get; set; } = string.Empty;
+
+    /// <summary>detail 级别 — low/high/original/auto，DeepSeek vision 支持</summary>
+    [JsonPropertyName("detail")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Detail { get; set; }
+}
+
 internal sealed class OpenAIApiMessage
 {
     [JsonPropertyName("role")]
@@ -92,7 +142,7 @@ internal sealed class OpenAIApiMessage
 
     [JsonPropertyName("content")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Content { get; set; }
+    public OpenAIMessageContent? Content { get; set; }
 
     [JsonPropertyName("reasoning_content")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -297,4 +347,60 @@ internal sealed class OpenAIToolGroup
 
     [JsonPropertyName("tools")]
     public List<string> Tools { get; set; } = new();
+}
+
+/// <summary>
+/// OpenAIMessageContent 的 AOT 兼容序列化转换器
+/// 序列化：Text 非空 → 写字符串，Parts 非空 → 写 content part 数组
+/// 反序列化：JSON 字符串 → Text，JSON 数组 → Parts
+/// 对齐 AnthropicMessageContentConverter — 支持 OpenAI/DeepSeek vision 多模态 content
+/// </summary>
+internal sealed class OpenAIMessageContentConverter : JsonConverter<OpenAIMessageContent?>
+{
+    public override OpenAIMessageContent? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType == JsonTokenType.String)
+            return new OpenAIMessageContent { Text = reader.GetString() };
+
+        if (reader.TokenType == JsonTokenType.StartArray)
+        {
+            var parts = new List<OpenAIContentPart>();
+            using var doc = JsonDocument.ParseValue(ref reader);
+            foreach (var element in doc.RootElement.EnumerateArray())
+            {
+                var part = element.Deserialize(NativeJsonContext.Default.OpenAIContentPart);
+                if (part is not null)
+                    parts.Add(part);
+            }
+            return new OpenAIMessageContent { Parts = parts };
+        }
+
+        return null;
+    }
+
+    public override void Write(Utf8JsonWriter writer, OpenAIMessageContent? value, JsonSerializerOptions options)
+    {
+        if (value is null)
+        {
+            writer.WriteNullValue();
+            return;
+        }
+
+        if (value.Text is not null)
+        {
+            writer.WriteStringValue(value.Text);
+            return;
+        }
+
+        if (value.Parts is not null)
+        {
+            writer.WriteStartArray();
+            foreach (var part in value.Parts)
+                JsonSerializer.Serialize(writer, part, NativeJsonContext.Default.OpenAIContentPart);
+            writer.WriteEndArray();
+            return;
+        }
+
+        writer.WriteNullValue();
+    }
 }

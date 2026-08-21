@@ -168,7 +168,7 @@ public class OpenAIQueryServiceTests
         var result = OpenAIQueryService.ConvertToOpenAIMessage(message);
 
         result.Role.Should().Be("user");
-        result.Content.Should().Be("hello");
+        result.Content?.Text.Should().Be("hello");
     }
 
     [Fact]
@@ -179,7 +179,7 @@ public class OpenAIQueryServiceTests
         var result = OpenAIQueryService.ConvertToOpenAIMessage(message);
 
         result.Role.Should().Be("assistant");
-        result.Content.Should().Be("hi there");
+        result.Content?.Text.Should().Be("hi there");
     }
 
     [Fact]
@@ -212,7 +212,7 @@ public class OpenAIQueryServiceTests
         result.Role.Should().Be("tool");
         result.ToolCallId.Should().Be("call-1");
         result.Name.Should().Be("ToolA");
-        result.Content.Should().Be("result");
+        result.Content?.Text.Should().Be("result");
     }
 
     #endregion
@@ -433,6 +433,55 @@ public class OpenAIQueryServiceTests
         secondRequest.Tools.Should().BeSameAs(originalRequest.Tools);
         secondRequest.ToolGroups.Should().BeSameAs(originalRequest.ToolGroups);
         secondRequest.ToolDescriptions.Should().ContainSingle();
+    }
+
+    #endregion
+
+    #region ConvertToOpenAIMessage — 多模态 ContentBlocks → image_url
+
+    [Fact]
+    public void ConvertToOpenAIMessage_ImageContentBlock_ConvertsToImageUrlPart()
+    {
+        var msg = new ApiMessage(MessageRole.User, "What is in this image?")
+        {
+            ContentBlocks = [new ToolContent { Type = ToolContentType.Image, Data = "iVBORw0KGgo=", MimeType = "image/png" }]
+        };
+
+        var result = OpenAIQueryService.ConvertToOpenAIMessage(msg);
+
+        result.Content!.Parts.Should().NotBeNull();
+        result.Content.Parts!.Should().HaveCount(2);
+        result.Content.Parts[0].Type.Should().Be("text");
+        result.Content.Parts[0].Text.Should().Be("What is in this image?");
+        result.Content.Parts[1].Type.Should().Be("image_url");
+        result.Content.Parts[1].ImageUrl!.Url.Should().Be("data:image/png;base64,iVBORw0KGgo=");
+    }
+
+    [Fact]
+    public void ConvertToOpenAIMessage_TextOnly_NoContentBlocks_SerializesAsString()
+    {
+        var msg = new ApiMessage(MessageRole.User, "plain text");
+
+        var result = OpenAIQueryService.ConvertToOpenAIMessage(msg);
+
+        result.Content!.Text.Should().Be("plain text");
+        result.Content.Parts.Should().BeNull();
+    }
+
+    [Fact]
+    public void ConvertToOpenAIMessage_TextContentBlock_AddsTextPart()
+    {
+        var msg = new ApiMessage(MessageRole.User, "prefix")
+        {
+            ContentBlocks = [new ToolContent { Type = ToolContentType.Text, Text = "block text" }]
+        };
+
+        var result = OpenAIQueryService.ConvertToOpenAIMessage(msg);
+
+        result.Content!.Parts.Should().NotBeNull();
+        result.Content.Parts!.Should().HaveCount(2);
+        result.Content.Parts[0].Text.Should().Be("prefix");
+        result.Content.Parts[1].Text.Should().Be("block text");
     }
 
     #endregion

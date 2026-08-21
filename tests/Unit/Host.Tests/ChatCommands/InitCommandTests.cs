@@ -86,6 +86,9 @@ public sealed class InitCommandTests
         rulesContent.Should().Contain("项目规则");
         var settingsContent = fs.ReadAllText(expectedSettingsFile);
         settingsContent.Should().Contain("deepseek");
+        settingsContent.Should().Contain("deepseek-v4-flash-vision-exp", "应含 DeepSeek 视觉多模态模型");
+        settingsContent.Should().Contain("readImage", "视觉模型应声明 readImage 模态能力");
+        settingsContent.Should().Contain("deepseek-v4-pro", "应含 DeepSeek V4 Pro 推理模型");
     }
 
     [Fact]

@@ -79,16 +79,9 @@ public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : 
 
         if (!fs.FileExists(settingsFile))
         {
-            var defaultModel = _modelConfigLoader?.GetDefaultModelId("deepseek") ?? "deepseek-chat";
-            var sb = new StringBuilder();
-            sb.AppendLine("{");
-            sb.AppendLine("  // 项目级 Provider（覆盖全局配置）");
-            sb.AppendLine("  \"provider\": \"deepseek\",");
-            sb.AppendLine();
-            sb.AppendLine("  // 项目级模型 ID");
-            sb.AppendLine($"  \"model\": \"{defaultModel}\"");
-            sb.Append('}');
-            await fs.WriteAllTextAsync(settingsFile, sb.ToString(), context.CancellationToken).ConfigureAwait(false);
+            var defaultModel = _modelConfigLoader?.GetDefaultModelId("deepseek") is { Length: > 0 } m ? m : "deepseek-v4-flash";
+            var settingsJson = BuildDefaultSettingsJson(defaultModel);
+            await fs.WriteAllTextAsync(settingsFile, settingsJson, context.CancellationToken).ConfigureAwait(false);
             TerminalHelper.WriteLine("  ✓ 创建 settings.json");
         }
         else
@@ -103,10 +96,56 @@ public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : 
         TerminalHelper.WriteLine("使用 /init (不带quick) 让AI分析代码库并生成详细规则");
     }
 
+    /// <summary>
+    /// 构建默认 settings.json — 含 DeepSeek 供应商预设和模型列表
+    /// 模型: deepseek-v4-flash (0731) / deepseek-v4-pro (0813) / deepseek-v4-flash-vision-exp (视觉实验)
+    /// 视觉模型支持 JPEG/PNG/GIF/WebP 图片输入，通过 OpenAI 兼容 image_url content block 发送
+    /// </summary>
+    private static string BuildDefaultSettingsJson(string defaultModel)
+    {
+        return $$"""
+        {
+          "vendor": {
+            "deepseek": {
+              "provider": "deepseek",
+              "protocol": "openai-compatible",
+              "model": "{{defaultModel}}",
+              "endpoint": "https://api.deepseek.com",
+              "apiKeyEnvVar": "DEEPSEEK_API_KEY",
+              "models": [
+                {
+                  "id": "deepseek-v4-flash",
+                  "displayName": "DeepSeek V4 Flash",
+                  "contextWindow": 128000,
+                  "description": "DeepSeek V4 Flash (0731) — 快速通用模型",
+                  "capabilities": { "fastMode": true, "modalities": ["text", "toolUse"] }
+                },
+                {
+                  "id": "deepseek-v4-pro",
+                  "displayName": "DeepSeek V4 Pro",
+                  "contextWindow": 128000,
+                  "description": "DeepSeek V4 Pro (0813) — 深度推理模型",
+                  "capabilities": { "thinkingMode": true, "modalities": ["text", "thinking", "toolUse"] }
+                },
+                {
+                  "id": "deepseek-v4-flash-vision-exp",
+                  "displayName": "DeepSeek V4 Flash Vision (Exp)",
+                  "contextWindow": 128000,
+                  "description": "DeepSeek V4 Flash 视觉实验模型 — 支持 JPEG/PNG/GIF/WebP 图片输入",
+                  "capabilities": { "fastMode": true, "modalities": ["text", "readImage", "readGif", "toolUse"] }
+                }
+              ]
+            }
+          },
+          "current": { "profile": "deepseek" }
+        }
+        """;
+    }
+
     private static void EnsureJccDirectory(string cwd, IFileSystem fs)
     {
         var jccDir = Path.Combine(cwd, AppDataConstants.AppDataFolder);
-        if (!fs.DirectoryExists(jccDir))
+        if (fs.DirectoryExists(jccDir))
         {
             DirectoryHelper.EnsureDirectoryExists(fs, jccDir);
             TerminalHelper.WriteLine("  ✓ 创建 .jcc/ 目录");

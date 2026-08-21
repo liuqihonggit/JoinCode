@@ -30,7 +30,7 @@ public class OpenAIQueryService : QueryServiceBase
         Logger?.LogDebug("[WIRE {CallId}] 非流式响应 | choices={ChoiceCount}", CallTrace.CurrentId, response.Choices.Count);
 
         // 两阶段工具加载: 非流式检测 tool_description_request → 发送第二次请求
-        var firstContent = response.Choices.FirstOrDefault()?.Message?.Content ?? string.Empty;
+        var firstContent = response.Choices.FirstOrDefault()?.Message?.Content?.Text ?? string.Empty;
         if (firstContent.Contains("tool_description_request") && kernel != null)
         {
             Logger?.LogDebug("[WIRE {CallId}] 非流式收到 tool_description_request, 发送第二次请求", CallTrace.CurrentId);
@@ -80,7 +80,7 @@ public class OpenAIQueryService : QueryServiceBase
             }
 
             var choice = chunk.Choices[0];
-            var content = choice.Delta?.Content ?? string.Empty;
+            var content = choice.Delta?.Content?.Text ?? string.Empty;
             var role = ConvertRole(choice.Delta?.Role);
 
             // 两阶段工具加载: 检测 tool_description_request → 构建工具描述 → 发送第二次请求
@@ -114,7 +114,7 @@ public class OpenAIQueryService : QueryServiceBase
                     }
 
                     var sc2 = sc.Choices[0];
-                    var scContent = sc2.Delta?.Content ?? string.Empty;
+                    var scContent = sc2.Delta?.Content?.Text ?? string.Empty;
                     var scRole = ConvertRole(sc2.Delta?.Role);
 
                     if (sc2.Delta?.ToolCalls != null)
@@ -328,6 +328,35 @@ public class OpenAIQueryService : QueryServiceBase
             {
                 msg.Name = toolName;
             }
+        }
+
+        // 多模态内容块 — 对齐 AnthropicQueryService:340，将 Image block 转为 OpenAI image_url content part
+        // DeepSeek vision / OpenAI vision 等多模态模型通过 image_url 接收图片
+        // tool_calls 消息保持 Content=null，其余角色有 ContentBlocks 时构建 content part 数组
+        if (m.ContentBlocks is { Count: > 0 } && msg.ToolCalls is null)
+        {
+            var parts = new List<OpenAIContentPart>();
+            if (!string.IsNullOrEmpty(content))
+                parts.Add(new OpenAIContentPart { Type = "text", Text = content });
+
+            foreach (var block in m.ContentBlocks)
+            {
+                if (block.Type == ToolContentType.Image && !string.IsNullOrEmpty(block.Data) && !string.IsNullOrEmpty(block.MimeType))
+                {
+                    parts.Add(new OpenAIContentPart
+                    {
+                        Type = "image_url",
+                        ImageUrl = new OpenAIImageUrl { Url = $"data:{block.MimeType};base64,{block.Data}" }
+                    });
+                }
+                else if (block.Type == ToolContentType.Text && !string.IsNullOrEmpty(block.Text))
+                {
+                    parts.Add(new OpenAIContentPart { Type = "text", Text = block.Text });
+                }
+            }
+
+            if (parts.Count > 0)
+                msg.Content = parts;
         }
 
         return msg;
@@ -556,7 +585,7 @@ public class OpenAIQueryService : QueryServiceBase
                 if (chunk.Choices.Count > 0)
                 {
                     var choice = chunk.Choices[0];
-                    if (!string.IsNullOrEmpty(choice.Delta?.Content)) contentChunks++;
+                    if (!string.IsNullOrEmpty(choice.Delta?.Content?.Text)) contentChunks++;
                     if (choice.Delta?.ToolCalls != null && choice.Delta.ToolCalls.Count > 0) toolCallChunks++;
                 }
                 yield return chunk;
@@ -600,7 +629,7 @@ public class OpenAIQueryService : QueryServiceBase
 
         return new ApiMessage(
             ConvertRole(choice.Message.Role),
-            choice.Message.Content,
+            choice.Message.Content?.Text,
             metadata);
     }
 

@@ -109,8 +109,11 @@
 <!-- 原因: 死代码根因是渲染架构(TextEditor平铺)不支持单条消息交互,单独修需先建ItemsControl模板=G3本体 -->
 <!-- 替代方案: 删除OnRemoveClick死代码(放弃,G3马上要用)-->
 <!-- 验证: 编译通过 ✅ -->
-- [ ] **B5** TUI StatusBar 队列计数段死路径（`TerminalPainter.NotifyQueueChanged` 全项目零调用，"队列：N"永不更新）
-  - 位置：`TerminalPainter.cs:66-78`、`StatusBarView.cs:92-96`；主循环快照处接线或删除该段
+- [x] **B5** TUI StatusBar 队列计数段死路径（`TerminalPainter.NotifyQueueChanged` 全项目零调用，"队列：N"永不更新）
+  - **修复（2026-08-22）**：`TuiModeRunner.cs` 主循环快照 diff 处 `queuedCommands.OnQueueChanged(snapshot)`
+    → `painter.NotifyQueueChanged(snapshot)`，广播给全部注册组件。
+  - 测试：`QueueBroadcastTests`（StatusBarView 队列段显示 + painter 广播链路），TUI 全部 133 测试绿。
+  - 备注：需先初始化 git 子模块 `libs/Terminal.Gui`、`libs/Editor`（本机此前未 init 导致 TUI 无法编译）
 - [ ] **B6** TUI F3"Stop"实为退出整个程序（无"中断但不退出"通道）
   - 位置：`TuiModeRunner.cs:113-114,177`；应改为取消当前 CTS
 - [ ] **B7** TUI 权限批准后重发原文导致上下文重复

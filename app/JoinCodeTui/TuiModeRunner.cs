@@ -213,7 +213,9 @@ internal static class TuiModeRunner
             if (snapshot.All.Count != lastQueueCount)
             {
                 lastQueueCount = snapshot.All.Count;
-                queuedCommands.OnQueueChanged(snapshot);
+                // 经 painter 广播给全部注册组件（状态栏"队列:N"段/工具栏等），
+                // 直调单个视图会绕过其余组件导致死路径（曾致状态栏队列计数永不更新）
+                painter.NotifyQueueChanged(snapshot);
             }
             iterSw2.Stop();
             if (iterSw2.ElapsedMilliseconds > 5)

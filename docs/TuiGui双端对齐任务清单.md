@@ -94,8 +94,10 @@
     + `Send_WhenStreamingDisabled_AssistantContentHiddenUntilComplete`（关流式隐藏），
     门控流式假会话 + 事件驱动观察（JCC3010 禁止 Task.Delay 轮询）。
   - 位置：`app\JoinCodeGui\ViewModels\MainViewModel.cs` SendAsync
-- [ ] **B3** GUI `FontSize` 滑块无效（消息区硬编码13号字）
-  - 位置：`MainWindow.axaml:112` TextEditor FontSize 未绑定 prefs
+- [x] **B3** GUI `FontSize` 滑块无效（消息区硬编码13号字）
+  - **修复（2026-08-22）**：`MainWindow.axaml:112` TextEditor `FontSize="13"` → `FontSize="{Binding FontSize}"`，
+    设置面板滑块即时生效（VM 属性已持久化到 gui-preferences.json，无需额外改动）。
+  - 测试：`MainWindowRegressionTests.FontSizeSlider_Change_UpdatesMessageTextEditor`（Headless 真窗口断言字号联动）
 - [ ] **B4** GUI `OnRemoveClick` 无 XAML 引用（消息删除不可达）
   - 位置：`MainWindow.axaml.cs:405-411`
 - [ ] **B5** TUI StatusBar 队列计数段死路径（`TerminalPainter.NotifyQueueChanged` 全项目零调用，"队列：N"永不更新）

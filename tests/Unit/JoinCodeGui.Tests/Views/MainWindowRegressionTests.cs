@@ -169,6 +169,27 @@ public sealed class MainWindowRegressionTests
         Assert.True((bool)isEnabled.GetValue(timer)!);
     }
 
+    /// <summary>
+    /// 消息字号联动 — 设置面板滑块调整 vm.FontSize 后，消息区 TextEditor 的实际字号必须跟随。
+    /// 回归背景：曾硬编码 FontSize="13" 导致设置面板字号滑块拨了无效（B3）。
+    /// </summary>
+    [AvaloniaFact]
+    public void FontSizeSlider_Change_UpdatesMessageTextEditor()
+    {
+        var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
+        var win = new MainWindow { DataContext = vm };
+        win.Show();
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+
+        var editor = win.FindControl<AvaloniaEdit.TextEditor>("MessageTextEditor")!;
+        Assert.Equal(vm.FontSize, editor.FontSize);
+
+        vm.FontSize = 18;
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal(18, editor.FontSize);
+    }
+
     /// <summary>流式抛异常的假会话，用于真实窗口上验证错误 toast</summary>
     private sealed class ThrowingSession : IJccChatSession
     {

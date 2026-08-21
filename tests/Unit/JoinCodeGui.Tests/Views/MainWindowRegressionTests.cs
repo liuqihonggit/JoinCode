@@ -206,6 +206,9 @@ public sealed class MainWindowRegressionTests
                 ["fake"] = ["fake-model"]
             };
         public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<string> ExecuteSlashCommandAsync(string input, CancellationToken cancellationToken = default)
+            => Task.FromResult(string.Empty);
+
         public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             yield return ChatStreamEvent.Done();

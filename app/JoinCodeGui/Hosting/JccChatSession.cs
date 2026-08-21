@@ -344,6 +344,16 @@ internal sealed class JccChatSession : IJccChatSession
         => StreamWithPermissionRetryAsync(message, cancellationToken);
 
     /// <summary>
+    /// 执行斜杠命令 — 委托共享 <see cref="SlashCommandRunner"/>（与 TUI 同一链路）。
+    /// Confirm 回调暂未接 UI（默认拒绝），需要确认的命令会收到拒绝提示。
+    /// </summary>
+    public async Task<string> ExecuteSlashCommandAsync(string input, CancellationToken cancellationToken = default)
+    {
+        var result = await SlashCommandRunner.RunAsync(input, _services, cancellationToken: cancellationToken).ConfigureAwait(false);
+        return result.Output;
+    }
+
+    /// <summary>
     /// 带权限确认闭环的事件流：引擎抛出 <see cref="PermissionPendingConfirmationException"/>
     /// 时调用 <see cref="PermissionConfirmationHandler"/> 获取用户决策；
     /// Allow/AlwaysAllow → 临时批准工具 + 撤回本轮（用户消息已在 ChatPreprocessor 入上下文，

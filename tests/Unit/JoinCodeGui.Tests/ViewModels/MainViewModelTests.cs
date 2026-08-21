@@ -1055,6 +1055,24 @@ public class MainViewModelTests
         }
 
         [Fact]
+        public async Task Send_WithSlashInput_RoutesToCommandExecutorNotChat()
+        {
+            var session = new CommandRecordingSession();
+            var vm = new MainViewModel(session, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
+
+            vm.InputText = "/help";
+            await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
+
+            // 命令路由到执行器，不进聊天流（对齐 TUI：/help 执行命令而非发给 LLM）
+            session.ExecutedCommands.Should().Contain("/help");
+            session.StreamedMessages.Should().BeEmpty("斜杠输入不应作为聊天消息发送给 LLM");
+
+            // 输出以系统消息回显，包含命令与输出内容
+            vm.Messages.Should().Contain(m => m.Role == MessageRole.System && m.Content.Contains("命令输出内容"));
+            vm.IsBusy.Should().BeFalse();
+        }
+
+        [Fact]
         public void ThinkingMessage_ToggleCollapsesAndRevealsBody()
         {
             var vm = CreateVm();
@@ -1191,6 +1209,9 @@ public class MainViewModelTests
                     ["fake"] = ["fake-model"]
                 };
             public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task<string> ExecuteSlashCommandAsync(string input, CancellationToken cancellationToken = default)
+                => Task.FromResult(string.Empty);
+
             public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
             {
                 yield return ChatStreamEvent.Done();
@@ -1250,6 +1271,9 @@ public class MainViewModelTests
                     ["fake"] = ["fake-model"]
                 };
             public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task<string> ExecuteSlashCommandAsync(string input, CancellationToken cancellationToken = default)
+                => Task.FromResult(string.Empty);
+
             public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
             {
                 yield return ChatStreamEvent.Done();
@@ -1309,6 +1333,9 @@ public class MainViewModelTests
             public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
             public Func<QuestionItem, Task<AskUserQuestionResult>>? AskUserQuestionDialogCallback { get; set; }
             public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task<string> ExecuteSlashCommandAsync(string input, CancellationToken cancellationToken = default)
+                => Task.FromResult(string.Empty);
+
             public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
             {
                 yield return ChatStreamEvent.Done();
@@ -1357,6 +1384,9 @@ public class MainViewModelTests
                     ["fake"] = ["fake-model"]
                 };
             public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task<string> ExecuteSlashCommandAsync(string input, CancellationToken cancellationToken = default)
+                => Task.FromResult(string.Empty);
+
             public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
             {
                 yield return ChatStreamEvent.Text("收到：" + message);
@@ -1415,12 +1445,73 @@ public class MainViewModelTests
                     ["fake"] = ["fake-model"]
                 };
             public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task<string> ExecuteSlashCommandAsync(string input, CancellationToken cancellationToken = default)
+                => Task.FromResult(string.Empty);
+
             public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
             {
                 yield return ChatStreamEvent.Text("第一段");
                 await _gate.Task.WaitAsync(cancellationToken);
                 yield return ChatStreamEvent.Text("第二段");
                 yield return ChatStreamEvent.Done();
+            }
+            public Task<IReadOnlyList<ApiMessageRecord>> GetMessagesAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult<IReadOnlyList<ApiMessageRecord>>([]);
+            public Task ClearHistoryAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult(new RewindResult());
+            public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task SetVendorAsync(string vendor, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public void RefreshVendorModelMap() { }
+            public void SwitchSession(string sessionId) { }
+            public Task LoadHistoryAsync(IReadOnlyList<(MessageRole Role, string Content)> messages, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public EffortLevel EffortLevel => EffortLevel.Auto;
+            public Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public float? Temperature => null;
+            public int? MaxTokens => null;
+            public Task SetTemperatureAsync(float temperature, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task SetMaxTokensAsync(int maxTokens, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands() => [];
+            public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
+            public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
+            public Task SetThemeAsync(JoinCode.Abstractions.UI.ThemeKind theme, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public event EventHandler<JoinCode.Abstractions.UI.ThemeKind>? ThemeChanged { add { } remove { } }
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
+
+        /// <summary>记录斜杠命令调用的假会话 — 验证 / 前缀输入路由到命令执行器而非聊天流（G1）</summary>
+        internal sealed class CommandRecordingSession : IJccChatSession
+        {
+            public List<string> ExecutedCommands { get; } = [];
+            public List<string> StreamedMessages { get; } = [];
+            public string CommandOutput { get; set; } = "命令输出内容";
+
+            public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
+            public Func<QuestionItem, Task<AskUserQuestionResult>>? AskUserQuestionDialogCallback { get; set; }
+            public bool IsReady => true;
+            public string CurrentVendor => "fake";
+            public string CurrentModelId => "fake-model";
+            public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; }
+                = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["fake"] = ["fake-model"]
+                };
+            public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+            public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+            {
+                StreamedMessages.Add(message);
+                yield return ChatStreamEvent.Text("收到：" + message);
+                yield return ChatStreamEvent.Done();
+                await Task.CompletedTask;
+            }
+            public Task<string> ExecuteSlashCommandAsync(string input, CancellationToken cancellationToken = default)
+            {
+                ExecutedCommands.Add(input);
+                return Task.FromResult(CommandOutput);
             }
             public Task<IReadOnlyList<ApiMessageRecord>> GetMessagesAsync(CancellationToken cancellationToken = default)
                 => Task.FromResult<IReadOnlyList<ApiMessageRecord>>([]);

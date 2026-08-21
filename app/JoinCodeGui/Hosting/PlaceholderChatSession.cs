@@ -149,11 +149,14 @@ internal sealed class PlaceholderChatSession : IJccChatSession
     public Task InitializeAsync(CancellationToken cancellationToken = default)
         => Task.CompletedTask;
 
+    /// <summary>占位会话无引擎命令系统 — 斜杠命令返回提示文案（G1 对齐接口契约）</summary>
+    public Task<string> ExecuteSlashCommandAsync(string input, CancellationToken cancellationToken = default)
+        => Task.FromResult("（Mock 引擎不支持斜杠命令执行，连接真实引擎后可用）");
+
     public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(
         string message,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
-        foreach (var ch in "让我先分析一下你的问题。")
+    {        foreach (var ch in "让我先分析一下你的问题。")
         {
             cancellationToken.ThrowIfCancellationRequested();
             await Task.Yield();

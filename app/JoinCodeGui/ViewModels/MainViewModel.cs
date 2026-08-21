@@ -1220,6 +1220,33 @@ public sealed partial class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(CanStop));
         try
         {
+            // 斜杠命令路由（G1 对齐 TUI）：/ 前缀走命令执行链路，不进聊天流
+            if (message.StartsWith('/'))
+            {
+                Messages.Add(new ChatUiMessage
+                {
+                    Role = MessageRole.System,
+                    Content = $"⚙️ {message}",
+                    Timestamp = DateTime.Now
+                });
+                string output;
+                try
+                {
+                    output = await _session.ExecuteSlashCommandAsync(message, _sendCts.Token);
+                }
+                catch (Exception ex)
+                {
+                    output = $"命令执行失败: {ex.Message}";
+                    WriteErrorLog(ex);
+                }
+                var commandEcho = Messages[^1];
+                commandEcho.Content = string.IsNullOrWhiteSpace(output)
+                    ? commandEcho.Content + "\n（无输出）"
+                    : $"{commandEcho.Content}\n{output}";
+                StatusText = "就绪";
+                return;
+            }
+
             // 应用编辑后的系统提示词（对齐 CLI --system-prompt：经 IChatService.SetSystemPromptAsync）
             if (!string.IsNullOrWhiteSpace(SystemPrompt))
             {

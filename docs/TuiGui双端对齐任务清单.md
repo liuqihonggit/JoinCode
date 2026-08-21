@@ -146,9 +146,18 @@
 
 ## 三、修 GUI 阶段（补 TUI 有的能力）
 
-- [ ] **G1** 斜杠命令真实执行链路（最大缺口）：InputText 以 `/` 开头时路由到命令系统而非聊天
-  - 参考 TUI：commandRegistry.Parse → cmdMap.ResolveAsync → ChatCommandContext 回调 → Console.Out 捕获回显
-  - GUI 侧需在 `MainViewModel.SendAsync` 入口拦截 `/` 前缀，经 IJccChatSession 新增 ExecuteCommandAsync 门面
+- [x] **G1** 斜杠命令真实执行链路（最大缺口）：InputText 以 `/` 开头时路由到命令系统而非聊天
+  - **完成（2026-08-22）**：
+    ① 新增共享执行器 `app\JoinCode\Cli\Commands\SlashCommandRunner.cs`（解析→CmdMap 路由→
+    ChatCommandContext 构造→Console.Out 捕获），UI 差异经回调注入（Confirm/Prompt/ClearScreen 等）；
+    ② TuiModeRunner 重构复用 runner，删除自带的 BuildCommandServices/HandleSlashCommandAsync 重复实现
+    （消除两套实现）；
+    ③ `IJccChatSession` 新增 `ExecuteSlashCommandAsync`；JccChatSession 委托 runner；Placeholder 返回提示文案；
+    ④ MainViewModel.SendAsync 拦截 `/` 前缀 → 系统消息回显"⚙️ 命令 + 输出"，不进聊天流。
+  - 测试：`Send_WithSlashInput_RoutesToCommandExecutorNotChat`（红→绿：命令路由到执行器、
+    StreamAsync 零调用、输出回显）。GUI 324 全绿、TUI 135 全绿、Host.Tests 985 全绿。
+  - ⚠️ 已知边界：需要 Confirm 确认的命令在 GUI 中默认拒绝（回调未接弹窗）；/exit 的 onExitRequested
+    在 GUI 中未接窗口关闭——两者留待 G 阶段后续按需补齐。
 - [ ] **G2** 真实 token 用量：消费流事件中的 Usage，替换字符估算
   - 流事件已有数据源（对齐 TUI TuiModeRunner.cs:303-309），显示到底部状态栏
 - [ ] **G3** 接线 Markdown 渲染：MarkdownView/MarkdownParser/DiffViewer 已实现未引用，接入消息区替代纯文本

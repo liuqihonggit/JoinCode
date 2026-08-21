@@ -18,6 +18,7 @@ global using McpBridge;
 global using JoinCode.Abstractions.Models.Diff;
 global using JoinCode.Abstractions.Models.Interactive;
 global using JoinCode.Abstractions.Interfaces;
+global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.Configuration.AppData;
 global using IO.FileSystem;
 

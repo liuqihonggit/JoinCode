@@ -18,6 +18,12 @@ public interface IJccChatSession : IAsyncDisposable
     /// <summary>引擎会话是否就绪（可发送消息）</summary>
     bool IsReady { get; }
 
+    /// <summary>
+    /// 引擎的会话存储统一入口 — 供 GUI GuiSessionStore 切换到 .jsonl + 子目录格式,
+    /// 与 CLI --continue 共享同一会话文件。引擎未组装时返回 null(GUI 用旧 .json 兜底)。
+    /// </summary>
+    ITranscriptService? TranscriptService { get; }
+
     /// <summary>初始化引擎会话（加载配置 + 组装 DI + 解析 IChatService）</summary>
     Task InitializeAsync(CancellationToken cancellationToken = default);
 

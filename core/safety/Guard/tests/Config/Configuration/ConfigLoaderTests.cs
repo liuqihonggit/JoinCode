@@ -128,12 +128,11 @@ public class ConfigLoaderTests : IDisposable {
         // 设置环境变量覆盖 Provider 和 ModelId
         Environment.SetEnvironmentVariable(JccEnvVarConstants.Vendor, "anthropic");
         Environment.SetEnvironmentVariable(JccEnvVarConstants.ModelId, "claude-opus-4-7-20250701");
-        // 清除 Provider 专属环境变量，让 JCC_API_KEY 生效
-        Environment.SetEnvironmentVariable(ProviderEnvVarConstants.AnthropicApiKey, null);
+        // 清除其他 Provider 专属环境变量，让 ANTHROPIC_API_KEY 生效
         Environment.SetEnvironmentVariable(ProviderEnvVarConstants.AgnesApiKey, null);
         Environment.SetEnvironmentVariable(ProviderEnvVarConstants.OpenAiApiKey, null);
         var realKey = TestConfiguration.GetRealApiKey();
-        Environment.SetEnvironmentVariable(JccEnvVarConstants.ApiKey, realKey);
+        Environment.SetEnvironmentVariable(ProviderEnvVarConstants.AnthropicApiKey, realKey);
 
         var config = await _loader.LoadConfigAsync(_fs).ConfigureAwait(true);
 
@@ -158,16 +157,14 @@ public class ConfigLoaderTests : IDisposable {
     }
 
     [Fact]
-    public async Task LoadConfig_ProviderEnvOverridesJccApiKey()
+    public async Task LoadConfig_ProviderEnvKeyUsed()
     {
-        // Provider 专属环境变量优先级高于 JCC_API_KEY
+        // Provider 专属环境变量提供 API Key
         var realKey = TestConfiguration.GetRealApiKey();
-        Environment.SetEnvironmentVariable(JccEnvVarConstants.ApiKey, "jcc-key-should-be-overridden");
         Environment.SetEnvironmentVariable(ProviderEnvVarConstants.OpenAiApiKey, realKey);
 
         var config = await _loader.LoadConfigAsync(_fs).ConfigureAwait(true);
 
-        // Provider 专属环境变量应覆盖 JCC_API_KEY
         Assert.Equal(realKey, config.Provider.ApiKey);
     }
 

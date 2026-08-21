@@ -12,7 +12,7 @@ public static class CliErrorCatalog
     public static CliStructuredError AuthApiKeyMissing(string? provider = null) =>
         new("AUTH_API_KEY_MISSING",
             $"API Key 缺失{(provider is not null ? $"（供应商: {provider}）" : "")}",
-            "请设置环境变量 JCC_API_KEY 或在 ~/.jcc/auth.json 中配置",
+            "请设置供应商专属环境变量（如 OPENAI_API_KEY）或在 ~/.jcc/auth.json 中配置",
             retryable: false);
 
     /// <summary>API Key 无效或过期</summary>

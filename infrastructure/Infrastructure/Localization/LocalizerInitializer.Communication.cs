@@ -83,7 +83,7 @@ public static partial class LocalizerInitializer
         zhEntries[StringKey.SendUserFileFailed] = "发送文件失败: {0}";
 
         // === RemoteTriggerToolHandlers ===
-        defaultEntries[StringKey.RemoteTriggerServiceNotConfigured] = "Remote trigger service not configured. Please set JCC_ENDPOINT and JCC_API_KEY environment variables.";
+        defaultEntries[StringKey.RemoteTriggerServiceNotConfigured] = "Remote trigger service not configured. Please set JCC_ENDPOINT and provider-specific API key environment variables.";
         defaultEntries[StringKey.RemoteTriggerUnknownAction] = "Unknown action: {0}, supported: list/get/create/update/run";
         defaultEntries[StringKey.RemoteTriggerActionRequiresId] = "{0} action requires trigger_id";
         defaultEntries[StringKey.RemoteTriggerHeader] = "Remote Trigger - {0}";
@@ -92,7 +92,7 @@ public static partial class LocalizerInitializer
         defaultEntries[StringKey.RemoteTriggerFailedLog] = "Remote trigger operation failed";
         defaultEntries[StringKey.RemoteTriggerFailed] = "Remote trigger operation failed: {0}";
 
-        zhEntries[StringKey.RemoteTriggerServiceNotConfigured] = "远程触发器服务未配置。请设置 JCC_ENDPOINT 和 JCC_API_KEY 环境变量。";
+        zhEntries[StringKey.RemoteTriggerServiceNotConfigured] = "远程触发器服务未配置。请设置 JCC_ENDPOINT 和供应商专属 API Key 环境变量。";
         zhEntries[StringKey.RemoteTriggerUnknownAction] = "未知操作: {0}，支持: list/get/create/update/run";
         zhEntries[StringKey.RemoteTriggerActionRequiresId] = "{0} 操作需要指定 trigger_id";
         zhEntries[StringKey.RemoteTriggerHeader] = "远程触发器 - {0}";

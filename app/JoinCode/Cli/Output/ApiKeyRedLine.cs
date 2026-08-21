@@ -3,7 +3,7 @@ namespace JoinCode.Cli.Output;
 /// <summary>
 /// 密钥红线检查器 — 对齐架构指南安全设计
 /// 核心原则: 禁止在命令行参数中传递 API Key（会被 ps/top/进程列表暴露）
-/// 正确做法: 使用环境变量 export JCC_API_KEY=xxx 或 auth.json
+/// 正确做法: 使用供应商专属环境变量（如 OPENAI_API_KEY=xxx）或 auth.json
 /// </summary>
 public static class ApiKeyRedLine
 {
@@ -45,7 +45,7 @@ public static class ApiKeyRedLine
                 {
                     return $"检测到命令行参数 '{args[i]}' 可能包含 API Key。"
                          + "禁止在命令行中传递密钥（会被 ps/top/进程列表暴露）。"
-                         + "请使用环境变量: export JCC_API_KEY=xxx，或在 ~/.jcc/auth.json 中配置。";
+                         + "请使用供应商专属环境变量（如 OPENAI_API_KEY=xxx），或在 ~/.jcc/auth.json 中配置。";
                 }
             }
 
@@ -59,7 +59,7 @@ public static class ApiKeyRedLine
                     {
                         return $"检测到命令行参数值 '{value[..Math.Min(8, value.Length)]}...' 可能是 API Key。"
                              + "禁止在命令行中传递密钥。"
-                             + "请使用环境变量: export JCC_API_KEY=xxx，或在 ~/.jcc/auth.json 中配置。";
+                             + "请使用供应商专属环境变量（如 OPENAI_API_KEY=xxx），或在 ~/.jcc/auth.json 中配置。";
                     }
                 }
             }

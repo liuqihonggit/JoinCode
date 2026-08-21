@@ -684,7 +684,7 @@ public static partial class LocalizerInitializer
         defaultEntries[StringKey.OnboardingWelcomeHint] = "Press Enter to continue";
         defaultEntries[StringKey.OnboardingApiKeyTitle] = "API Key Setup";
         defaultEntries[StringKey.OnboardingApiKeyInstruction] = "Set your API key via environment variable:";
-        defaultEntries[StringKey.OnboardingApiKeyExample] = "export JCC_API_KEY=your-key";
+        defaultEntries[StringKey.OnboardingApiKeyExample] = "export OPENAI_API_KEY=your-key";
         defaultEntries[StringKey.OnboardingApiKeyHint] = "Press Enter to continue";
         defaultEntries[StringKey.OnboardingSecurityTitle] = "Security Notice";
         defaultEntries[StringKey.OnboardingSecurityWarning1] = "AI may make mistakes. Always review changes.";
@@ -704,7 +704,7 @@ public static partial class LocalizerInitializer
         zhEntries[StringKey.OnboardingWelcomeHint] = "按 Enter 继续";
         zhEntries[StringKey.OnboardingApiKeyTitle] = "API 密钥设置";
         zhEntries[StringKey.OnboardingApiKeyInstruction] = "通过环境变量设置 API 密钥：";
-        zhEntries[StringKey.OnboardingApiKeyExample] = "export JCC_API_KEY=your-key";
+        zhEntries[StringKey.OnboardingApiKeyExample] = "export OPENAI_API_KEY=your-key";
         zhEntries[StringKey.OnboardingApiKeyHint] = "按 Enter 继续";
         zhEntries[StringKey.OnboardingSecurityTitle] = "安全提示";
         zhEntries[StringKey.OnboardingSecurityWarning1] = "AI 可能会犯错，请务必审查更改";

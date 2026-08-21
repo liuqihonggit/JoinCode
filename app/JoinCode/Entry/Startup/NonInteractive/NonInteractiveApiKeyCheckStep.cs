@@ -12,10 +12,10 @@ internal sealed partial class NonInteractiveApiKeyCheckStep : ServiceEntity, IMi
             // 视角2 #24: 改用 ErrorConsole 渲染 + 添加配置方法提示
             App.ErrorConsole.ApiError("未配置 API Key，LLM 调用将失败");
             Cli.TerminalHelper.WriteError("  配置方法:");
-            Cli.TerminalHelper.WriteError("    1. 环境变量: set JCC_API_KEY=sk-xxx");
+            Cli.TerminalHelper.WriteError("    1. 环境变量: set DEEPSEEK_API_KEY=sk-xxx (按供应商设置)");
             Cli.TerminalHelper.WriteError("    2. 配置文件: .env/api.json");
             Cli.TerminalHelper.WriteError("    3. 交互模式运行 /init 命令");
-            Cli.TerminalHelper.WriteError("  支持的环境变量: JCC_API_KEY / OPENAI_API_KEY / ANTHROPIC_API_KEY / AZURE_OPENAI_API_KEY");
+            Cli.TerminalHelper.WriteError("  支持的环境变量: OPENAI_API_KEY / DEEPSEEK_API_KEY / ANTHROPIC_API_KEY / AZURE_OPENAI_API_KEY");
             context.ExitCode = (int)ExitCode.ApiKeyMissing;
             Diag.WriteLine("[STEP] ApiKeyCheck failed: missing API key, aborting pipeline");
             return;

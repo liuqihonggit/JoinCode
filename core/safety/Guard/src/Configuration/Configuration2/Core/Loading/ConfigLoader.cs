@@ -108,7 +108,7 @@ public class ConfigLoader {
             // Step 4: 环境变量覆盖（Provider/Model/Endpoint 等，不含 API Key）
             _settingsMapper.ApplyEnvOverrides(config, settings);
 
-            // Step 5: 统一 API Key 解析（auth.json → JCC_API_KEY → Provider 专属变量）— auth.json 已在 Step 1 预读
+            // Step 5: 统一 API Key 解析（auth.json → Provider 专属变量）— auth.json 已在 Step 1 预读
             config.Provider.ApiKey = await ResolveApiKeyAsync(
                 config.Provider.Vendor, config.Provider.Definition, fs, cancellationToken, preloadedAuthData).ConfigureAwait(false);
 
@@ -122,7 +122,7 @@ public class ConfigLoader {
             {
                 throw new ConfigurationException(
                     $"Provider '{config.Provider.Vendor}' 配置无效: 缺少 API Key。" +
-                    $"请设置环境变量 {definition.ApiKeyEnvironmentVariable ?? "JCC_API_KEY"}" +
+                    $"请设置环境变量 {definition.ApiKeyEnvironmentVariable ?? "供应商专属变量"}" +
                     $" 或在 {WorkflowConstants.Paths.AuthFilePath} 中添加 '{config.Provider.Vendor}' 键。");
             }
 
@@ -172,30 +172,64 @@ public class ConfigLoader {
     }
 
     /// <summary>
-    /// 统一 API Key 解析 — 按优先级从低到高: auth.json → JCC_API_KEY → Provider 专属环境变量
-    /// 对齐 TS 版: 环境变量 > auth.json > apiKeyHelper
+    /// 统一 API Key 解析 — 按优先级从低到高: auth.json → Provider 专属环境变量
     /// </summary>
     public async Task<string> ResolveApiKeyAsync(string provider, IProviderDefinition? definition, IFileSystem fs, CancellationToken cancellationToken = default, Dictionary<string, string>? preloadedAuthData = null)
     {
+        var sources = new List<(string Source, string Key)>(2);
+
         // 优先级 1 (最低): auth.json（若调用方已预读则直接用，避免重复 I/O）
         var apiKey = preloadedAuthData is not null
             ? ResolveApiKeyFromAuth(preloadedAuthData, provider)
             : await LoadApiKeyFromJccAsync(provider, fs, cancellationToken).ConfigureAwait(false);
+        if (!string.IsNullOrEmpty(apiKey))
+            sources.Add(("auth.json", apiKey));
 
-        // 优先级 2: JCC_API_KEY 环境变量
-        var jccApiKey = Environment.GetEnvironmentVariable(JccEnvVar.ApiKey.ToValue());
-        if (!string.IsNullOrEmpty(jccApiKey))
-            apiKey = jccApiKey;
-
-        // 优先级 3 (最高): Provider 专属环境变量（如 OPENAI_API_KEY）
+        // 优先级 2 (最高): Provider 专属环境变量（如 DEEPSEEK_API_KEY、OPENAI_API_KEY）
+        string? providerEnvVarName = null;
         if (definition is not null)
         {
             var providerApiKey = definition.ResolveApiKeyFromEnv();
             if (!string.IsNullOrEmpty(providerApiKey))
+            {
+                providerEnvVarName = definition.ApiKeyEnvironmentVariable ?? "provider-specific";
+                sources.Add(($"{providerEnvVarName} 环境变量", providerApiKey));
                 apiKey = providerApiKey;
+            }
         }
 
+        WarnOnApiKeyConflict(provider, sources);
+
         return apiKey;
+    }
+
+    /// <summary>
+    /// 当多个 API Key 来源同时设置且值不同时，输出警告 — 避免静默覆盖导致 401 难以排查
+    /// </summary>
+    private static void WarnOnApiKeyConflict(string provider, List<(string Source, string Key)> sources)
+    {
+        if (sources.Count <= 1) return;
+
+        var distinctKeys = sources.Select(s => s.Key).Distinct(StringComparer.Ordinal).ToList();
+        if (distinctKeys.Count == 1) return;
+
+        var used = sources[^1];
+        var maskedKey = MaskKey(used.Key);
+        var overridden = sources[..^1];
+
+        var overriddenDesc = string.Join(", ", overridden.Select(s => $"{s.Source}({MaskKey(s.Key)})"));
+        Diag.WriteLifecycle($"[WARN] API Key 来源冲突 | provider={provider} | 已设置 {sources.Count} 个来源: {overriddenDesc} → 最终使用 {used.Source}({maskedKey})");
+        Diag.WriteLifecycle($"[WARN] 若遇到 401 认证失败，请检查 {used.Source} 是否有效，或清除冲突的环境变量");
+    }
+
+    /// <summary>
+    /// 脱敏 API Key — 仅显示前 8 位和后 4 位，中间用 ... 替代
+    /// </summary>
+    private static string MaskKey(string key)
+    {
+        if (string.IsNullOrEmpty(key)) return "<empty>";
+        if (key.Length <= 12) return $"{key[..4]}...";
+        return $"{key[..8]}...{key[^4..]}";
     }
 
     /// <summary>

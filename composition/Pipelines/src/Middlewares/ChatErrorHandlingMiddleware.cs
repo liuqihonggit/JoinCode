@@ -78,7 +78,7 @@ internal sealed partial class ChatErrorHandlingMiddleware : ServiceEntity, Core.
             var statusCode = (int?)httpEx.StatusCode;
             return statusCode switch
             {
-                401 => ApiException.Authentication(GetEndpointHint(ex), "API Key 无效或已过期。请检查 JCC_API_KEY 配置。"),
+                401 => ApiException.Authentication(GetEndpointHint(ex), "API Key 无效或已过期。请检查供应商专属环境变量（如 OPENAI_API_KEY、DEEPSEEK_API_KEY）配置。"),
                 403 => new ApiException("API 访问被拒绝。请检查账户权限和 API Key 配置。", ex, statusCode: 403, errorCode: ErrorCode.ApiAuthorization.ToValue()),
                 429 => ApiException.RateLimit(GetEndpointHint(ex)),
                 >= 500 => ApiException.ResponseError(GetEndpointHint(ex), statusCode ?? 500, ex.Message),

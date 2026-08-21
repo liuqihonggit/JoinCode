@@ -12,13 +12,14 @@
 > 💡 **为什么选 JoinCode？**
 >
 > - **🚀 原生性能** — NativeAOT 编译为单文件原生二进制，无 JIT、无 GC 暂停、无运行时依赖，冷启动毫秒级
-> - **🧠 多模型适配** — DeepSeek / OpenAI / Anthropic / Azure / SenseNova / Agnes 开箱即用，兼容 OpenAI API 协议（源码支持 6 个供应商，当前配置 5 个、41 个预置模型条目）
+> - **🧠 多模型适配** — DeepSeek / OpenAI / Anthropic / Azure / SenseNova / Agnes 开箱即用，兼容 OpenAI Chat Completions / Anthropic Messages / OpenAI Responses 三种协议
 > - **🔧 丰富内置工具** — Shell 执行、文件操作、Web 请求、代码索引（TreeSitter AST）、浏览器自动化、技能系统
-> - **🔌 MCP 协议** — 完整的 Model Context Protocol 客户端实现，无限扩展自定义工具
-> - **🛡️ 生产级容错** — LLM 宽容处理（LlmJsonHelper 统一门控 + JSON 修复/参数归一化/类型转换/工具名归一化 + Trace 日志）、三级死循环干预、前缀缓存优化
+> - **🔌 MCP 协议** — 完整的 Model Context Protocol 客户端实现，两阶段工具加载（core_tools/mcp_tools 分组按需拉取），无限扩展自定义工具
+> - **🛡️ 生产级容错** — LLM 宽容处理（LlmJsonHelper 统一门控 + JSON 修复/参数归一化/类型转换/工具名归一化 + Trace 日志）、三级死循环干预、前缀缓存优化、工具惯性错误修正体系（gh 命令统一执行器 + Shell 管道自动改写 + 错误达阈值自动触发修正 Hook）
 > - **⚖️ 结构化推理** — `/falv` 三权分立推理引擎（控方→辩方→法官），DAG 证据链 + 双预算控制
+> - **🎯 多 Agent 协作** — `/goal` 多 Agent 任务图引擎，热点识别取代文件锁，22 组件防冲突改造
+> - **🖥️ 多模式界面** — CLI 交互式 REPL + 非交互式脚本 + TUI 全屏界面（Terminal.Gui v2，多行输入 + Editor 组件 + 斜杠命令转发到底层 CmdMap）
 > - **📦 零微软 AI 依赖** — 拒绝所有不支持 NativeAOT 的微软 AI SDK，从协议层自建 LLM 适配
-> - **🖥️ 终端优先** — 为活在命令行里的开发者设计，交互式 REPL + 非交互式脚本双模式
 
 ---
 
@@ -226,16 +227,39 @@ jcc --trust -p "解释这个代码库的架构"
 # 交互模式（REPL）
 jcc --trust
 
+# TUI 模式（Terminal.Gui v2 全屏交互界面，支持多行输入、Editor 组件、斜杠命令转发）
+jcc --trust --tui
+
 # 指定模型
 jcc --trust -m gpt-4o
+
+# 跳过所有权限检查（替代旧 --dangerously-skip-permissions，等价于 --permission-mode bypass）
+jcc --bypass -p "批量重构"
 
 # 查看帮助
 jcc --help
 
-# 诊断模式（输出详细日志）
-$env:JCC_VERBOSE = "1"
+# 诊断模式（输出详细日志 [WIRE] [STEP] [READY] 等）
+jcc --debuglog -p "你好"
+# 或通过环境变量
+$env:JCC_DEBUGLOG = "1"
 jcc -p "你好"
 ```
+
+**常用 CLI 参数速查**：
+
+| 参数 | 说明 |
+|------|------|
+| `--trust` | 信任当前目录（跳过目录信任确认） |
+| `-p / --prompt <text>` | 非交互模式单次对话 |
+| `-m / --model <id>` | 指定模型 ID 或别名 |
+| `--tui` | 启动 TUI 全屏界面（Terminal.Gui v2） |
+| `--bypass` | 跳过所有权限检查（等价 `--permission-mode bypass`，替代旧 `--dangerously-skip-permissions`） |
+| `--permission-mode <mode>` | 权限模式：`plan` / `auto` / `ask` / `bypass` |
+| `--debuglog` / `-d` | 启用调试日志（等效 `JCC_DEBUGLOG=1`） |
+| `--await <seconds>` | 非交互模式超时自动关闭（超时返回 1234） |
+| `--doctor` | 医生模式：监控病人进程并自动修复 |
+| `--non-interactive` | 从 stdin 读取，输出到 stdout |
 
 ### 1.5 常用斜杠命令
 
@@ -293,6 +317,36 @@ jcc -p "你好"
 - 七层 slnx 隔离架构，严格按依赖顺序编译，零循环依赖
 - 14 条中间件管道（Chat/Permission/Shell/Web/Skill……），洋葱模型 + 手动注册强调顺序
 
+### 2.7 多 Agent 协作（PR #121）
+
+- **`/goal` 任务图引擎**：基于 PRD v2.1 改造为多 Agent 协作任务图，复用 team MCP 共享组件
+- **热点识别取代文件锁**：`HotFileDetector` + `IntentCollector` + `HotSpotTracker` 识别冲突文件，`HotSpotResolutionPolicy` 决策
+- **契约变更广播**：`ContractChangeBroadcaster` + `ContractChangeNotificationRouter` 桥接邮箱到 Worker 队列，软通知模式含 `git pull` 提示
+- **队长派发 + 合并队列**：`CaptainDispatchGuard` + `CallSiteFinder` + `MergeQueueService` + `DeferredMailService`
+- 22 个纯新增组件 + 4 个集成任务 + 7 个断裂点修复，3300+ 测试零破坏
+
+### 2.8 TUI 全屏界面（PR #110/#116/#118）
+
+- **Terminal.Gui v2 声明式布局**：`--tui` 启动，7 个视图组件（RootView/PromptView/OutputView/StatusBarView/QueuedCommandsView/AgentPanesView/PermissionDialogView）
+- **Editor 组件多行输入**：`Ctrl+Enter` 发送，`Enter` 换行，`Ctrl+Up/Down` 历史导航，输出区支持文本选择复制 + WordWrap 软换行 + 行级环形缓冲（默认 2048 行可配置）
+- **斜杠命令统一转发**：TUI 不再有两套命令系统，全部转发到底层 `CmdMap`（`ChatCommandRegistry` + `CmdMap` + `CommandServices`），`TabCompleter` 从源码生成器获取命令列表
+- **性能优化**：启动并行化降 37%，去反射扫描启动 -70%，全管线 UTF-8 + batch mode 写终端 -83%，`LayoutAndDraw` -58%
+
+### 2.9 LLM 协议与工具加载（PR #122）
+
+- **三协议支持**：`openai-compatible`（Chat Completions）/ `anthropic`（Messages）/ `responses`（OpenAI Responses API，`JCC_PROTOCOL=responses` 走 `/responses` 端点）
+- **两阶段工具加载**：`McpToolBridge` 按 `ToolKind` 分组（core_tools/mcp_tools），QueryService 检测 `tool_description_request` 并发送第二次请求，系统提示词告知 LLM 按需加载
+- **DeepSeek thinking 模式**：`ChatOptions.ThinkingEnabled` → `OpenAIChatRequest.thinking` 字段，settings.json `alwaysThinkingEnabled` 配置或环境变量启用
+- **AnthropicCompatible 通用类**：支持任意供应商走 Anthropic 协议（如 SenseNova 中转 Claude）
+- **子代理模型 inherit 关键字**：`JCC_SUBAGENT_MODEL` 环境变量 > `SpawnOptions.Model` > `Definition.ModelName` > `inherit`/父级模型，Bedrock 跨区域前缀继承
+
+### 2.10 工具惯性错误修正体系（PR #119）
+
+- **gh 命令统一执行器**：`IGitHubCommandRunner` + `GitHubCommandRunner`（含重试）
+- **命令改写器**：`ICommandRewriter` + `CommandRewriterRegistry`，Shell 管道自动改写 gh 命令（`HeredocRewriter` 优先级 200 自动检测 HEREDOC 并转换为双引号字符串）
+- **工具修正 Hook**：`IToolFixHook` + `ToolFixHookRegistry`，错误达阈值自动触发修正器
+- **模型 ID 错误记录**：`ToolHealthRecord` 添加 `ModelId` 字段，按模型 ID 过滤工具健康度
+
 ---
 
 ## 3. 架构与方法论
@@ -309,6 +363,8 @@ jcc -p "你好"
 
 #### 3.1.1 /goal 命令
 
+`/goal` 已升级为**多 Agent 协作任务图引擎**（PR #121），基于 PRD v2.1 改造，复用 team MCP 共享组件：
+
 ```
 /goal
 目标 (Outcome)： [最终要达成的具体状态，最好有数字指标，如 p95 延迟降到 120ms 以下]
@@ -318,6 +374,13 @@ jcc -p "你好"
 迭代与记录： [每次尝试后记录改动和结果（如更新 `EXPERIMENTS.md`）]
 失败熔断： [如果遇到特定障碍无法推进，请停止并报告已尝试的路径和原因]
 ```
+
+**多 Agent 协作机制**：
+
+- **热点识别取代文件锁**：`HotFileDetector` 识别冲突文件，`IntentCollector` 收集修改意图，`HotSpotTracker` 追踪热点，`HotSpotResolutionPolicy` 决策冲突解决策略
+- **契约变更广播**：`ContractChangeBroadcaster` 广播契约变更，`ContractChangeNotificationRouter` 桥接邮箱到 Worker 队列，软通知模式含 `git pull` 提示
+- **队长派发 + 合并队列**：`CaptainDispatchGuard` 守卫队长派发，`CallSiteFinder` 定位调用点，`MergeQueueService` 合并队列，`DeferredMailService` 延迟邮件
+- **22 组件防冲突**：17 个纯新增组件 + 4 个集成任务 + 7 个断裂点修复，3300+ 测试零破坏
 
 #### 3.1.2 /falv 命令
 
@@ -843,7 +906,7 @@ DependencyInjection/ DI注册
 
 | 生成器 | 路径 | 用途 | 使用范围 |
 |--------|------|------|---------|
-| AotSafety.Generator | `generators/AotSafety.Generator/` | AOT 安全分析器 | 全局（根 Directory.Build.props） |
+| AotSafety.Generator | `generators/AotSafety.Generator/` | AOT 安全分析器 + 代码组织规则（JCC9006 强制 `FileShare.ReadWrite`、JCC5002 禁止循环内 `+=` 拼字符串、层依赖审计、抽象层绕过检测） | 全局（根 Directory.Build.props） |
 | CodeFixes | `generators/CodeFixes/` | JCC 代码修复 | 全局（根 Directory.Build.props） |
 | EnumMetadata.Generator | `generators/EnumMetadata.Generator/` | 枚举元数据（[EnumValue] → XxxConstants + XxxExtensions）+ SettingsMerge | 几乎所有组件 |
 | McpToolDispatch.Generator | `generators/McpToolDispatch.Generator/` | MCP 工具处理器注册 + [Register] DI 注册 + Command 注册 | McpToolDispatch, Agents, Composition, Dream, JoinCode 及所有用 [Register] 的组件 |
@@ -852,6 +915,13 @@ DependencyInjection/ DI注册
 | ToolPrompt.Generator | `generators/ToolPrompt.Generator/` | 工具提示生成 | Hands |
 | CliOption.Generator | `generators/CliOption.Generator/` | CLI 选项绑定 | Bridge, Dream, JoinCode |
 | AppModule.Generator | `generators/AppModule.Generator/` | 应用模块注册 | JoinCode |
+
+**分析器铁律**：
+
+| 规则 | 说明 | 触发场景 |
+|------|------|----------|
+| `JCC5002` | 循环内禁止 `+=` 拼字符串，流式追加用 `StringBuilder` | 性能热点循环 |
+| `JCC9006` | `FileStream` 构造必须用 `FileShare.ReadWrite`（避免跨进程读写冲突） | 所有 `new FileStream(...)` 调用，`PhysicalFileSystem`/`SafeFileIO` 已豁免 |
 
 ### 6.7 Host 项目 (`app/JoinCode/`)
 

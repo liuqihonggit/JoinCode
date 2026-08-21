@@ -376,7 +376,18 @@ chcp 65001
 
 1. **✅ 非交互模式测试** — `jcc --trust -p "提示词"` 或 `echo "提示词" | jcc --trust --non-interactive`
 2. **✅ 交互式 REPL 测试** — 用 `Register-ObjectEvent` + `BeginOutputReadLine` 异步捕获 stdout，通过 `StandardInput.WriteLine` 发送命令
-3. **⚠️ Mock 测试** — 使用 MockServer 进程提供模拟 AI 响应，通过 `JCC_ENDPOINT` 环境变量指向 MockServer
+3. **✅ TUI 模式测试** — `jcc --trust --tui` 启动 Terminal.Gui v2 全屏界面（多行输入 `Ctrl+Enter` 发送，斜杠命令转发到底层 CmdMap）
+4. **⚠️ Mock 测试** — 使用 MockServer 进程提供模拟 AI 响应，通过 `JCC_ENDPOINT` 环境变量指向 MockServer
+
+**常用 CLI 参数**：
+
+| 参数 | 说明 |
+|------|------|
+| `--trust` | 信任当前目录（跳过目录信任确认） |
+| `--bypass` | 跳过所有权限检查（替代旧 `--dangerously-skip-permissions`，等价 `--permission-mode bypass`） |
+| `--tui` | 启动 TUI 全屏界面（Terminal.Gui v2） |
+| `--debuglog` / `-d` | 启用调试日志（等效 `JCC_DEBUGLOG=1`） |
+| `--await <seconds>` | 非交互模式超时自动关闭（超时返回 1234） |
 
 ### .NET FileMode.Append 陷阱
 
@@ -533,6 +544,7 @@ dotnet test App.slnx -c Release /p:SkipLocalPack=true --filter "Category!=Integr
   await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
   ```
 - 分析器铁律：`JCC5002` — 循环内禁止 `+=` 拼字符串，流式追加用 `StringBuilder`。
+- 分析器铁律：`JCC9006` — `FileStream` 构造必须用 `FileShare.ReadWrite`（避免跨进程读写冲突），`PhysicalFileSystem`/`SafeFileIO` 已豁免。
 - 命令本身不检查 `CanExecute` 就执行命令体（`execute(parameter)` 无条件调用）——So 若需在命令内拦截"运行中"，应在命令体开头显式 `if (IsBusy) return;`。
 
 #### Avalonia XAML 专属坑（2026-08-06 实战）
@@ -645,6 +657,10 @@ $psi.WorkingDirectory = "D:\project\{当前分支名}"
 | `JCC_API_KEY` | `sk-test-1234567890` | API 密钥（MockServer 不校验，任意值即可） |
 | `JCC_VENDOR` | `openai` | LLM 供应商（openai/anthropic/deepseek/sensenova/agnes） |
 | `JCC_MODEL_ID` | `gpt-4o` | 模型 ID（MockServer 不校验，任意值即可） |
+| `JCC_PROTOCOL` | `responses` | LLM 协议覆盖（`openai-compatible`/`anthropic`/`responses`），不设置则用供应商配置的默认协议 |
+| `JCC_SUBAGENT_MODEL` | `gpt-4o-mini` | 子代理模型全局覆盖（优先级最高，高于 SpawnOptions.Model 和 Agent 定义文件） |
+| `JCC_PERMISSION_MODE` | `bypass` | 权限模式（plan/auto/ask/bypass），等价于 `--permission-mode` 参数 |
+| `JCC_DEBUGLOG` | `1` | 启用调试日志（等效 `--debuglog` 参数） |
 
 **3. 诊断：查看 MockServer 请求记录**
 

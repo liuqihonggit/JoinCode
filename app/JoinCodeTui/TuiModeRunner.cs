@@ -90,6 +90,8 @@ internal static class TuiModeRunner
         };
 
         var startTime = DateTime.UtcNow;
+        // 当前正在执行的查询 CTS 容器 — 工具栏 Stop 与处理循环共享（B6：停止当前生成而非退出程序）
+        var currentQueryCts = new System.Runtime.CompilerServices.StrongBox<CancellationTokenSource?>(null);
         toolBar.ActionRequested += action =>
         {
             painter.Invoke(() =>
@@ -111,8 +113,27 @@ internal static class TuiModeRunner
                         });
                         break;
                     case ToolBarAction.Stop:
-                        app.RequestStop();
+                    {
+                        var cts = currentQueryCts.Value;
+                        if (cts is not null && !cts.IsCancellationRequested && !cts.Token.IsCancellationRequested)
+                        {
+                            try
+                            {
+                                cts.Cancel();
+                                outputView.AppendLine("⏹ 已请求停止当前生成");
+                            }
+                            catch (ObjectDisposedException)
+                            {
+                                // 命令恰在此时完成并释放 CTS — 视为无进行中任务
+                                outputView.AppendLine("⏹ 当前没有正在进行的生成（/exit 退出程序）");
+                            }
+                        }
+                        else
+                        {
+                            outputView.AppendLine("⏹ 当前没有正在进行的生成（/exit 退出程序）");
+                        }
                         break;
+                    }
                     case ToolBarAction.Chat:
                         outputView.AppendLine("💬 Chat 模式 — 对话输出在此显示");
                         break;
@@ -180,7 +201,7 @@ internal static class TuiModeRunner
         };
 
         var processingCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var processingTask = ProcessQueueAsync(queue, mainPipe, outputView, queryEngine, chatHistory, app.RequestStop, painter, permissionDialog, permissionManager, cmdMap, commandRegistry, commandServiceProvider, statusBar, toolBar, processingCts.Token);
+        var processingTask = ProcessQueueAsync(queue, mainPipe, outputView, queryEngine, chatHistory, app.RequestStop, painter, permissionDialog, permissionManager, cmdMap, commandRegistry, commandServiceProvider, statusBar, toolBar, currentQueryCts, processingCts.Token);
 
         var focusSet = false;
         var lastQueueCount = -1;
@@ -253,6 +274,7 @@ internal static class TuiModeRunner
         IServiceProvider commandServiceProvider,
         StatusBarView statusBar,
         ToolBarView toolBar,
+        System.Runtime.CompilerServices.StrongBox<CancellationTokenSource?> currentQueryCts,
         CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
@@ -288,13 +310,16 @@ internal static class TuiModeRunner
                 continue;
             }
 
+            // 每条命令独立 CTS（链接到处理器令牌）— Stop 只取消当前生成，不杀队列循环
+            var cmdCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            currentQueryCts.Value = cmdCts;
             try
             {
                 painter.Invoke(() => toolBar.SetRunning(true));
                 var chunkCount = 0;
                 long totalTokens = 0;
                 var chunkSw = System.Diagnostics.Stopwatch.StartNew();
-                await foreach (var chunk in queryEngine.QueryAsync(cmd.Content, chatHistory, cancellationToken).ConfigureAwait(false))
+                await foreach (var chunk in queryEngine.QueryAsync(cmd.Content, chatHistory, cmdCts.Token).ConfigureAwait(false))
                 {
                     chunkCount++;
                     var text = ChunkFormatter.ChunkToText(chunk);
@@ -310,7 +335,11 @@ internal static class TuiModeRunner
                 if (totalTokens > 0)
                     painter.Invoke(() => statusBar.SetTokenCount(totalTokens));
             }
-            catch (OperationCanceledException) { break; }
+            catch (OperationCanceledException)
+            {
+                // 用户主动停止当前生成 — 队列继续处理后续命令，不退出程序
+                outputView.AppendLine("  ⏹ 已停止当前生成");
+            }
             catch (PermissionPendingConfirmationException ex)
             {
                 Task<bool>? dialogTask = null;
@@ -338,6 +367,9 @@ internal static class TuiModeRunner
             }
             finally
             {
+                // 先清空引用再释放 — Stop 按钮读到 null 即报"没有正在进行的生成"，避免对已释放实例 Cancel
+                currentQueryCts.Value = null;
+                cmdCts.Dispose();
                 painter.Invoke(() => toolBar.SetRunning(false));
             }
         }

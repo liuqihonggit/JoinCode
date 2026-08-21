@@ -114,8 +114,14 @@
     → `painter.NotifyQueueChanged(snapshot)`，广播给全部注册组件。
   - 测试：`QueueBroadcastTests`（StatusBarView 队列段显示 + painter 广播链路），TUI 全部 133 测试绿。
   - 备注：需先初始化 git 子模块 `libs/Terminal.Gui`、`libs/Editor`（本机此前未 init 导致 TUI 无法编译）
-- [ ] **B6** TUI F3"Stop"实为退出整个程序（无"中断但不退出"通道）
-  - 位置：`TuiModeRunner.cs:113-114,177`；应改为取消当前 CTS
+- [x] **B6** TUI F3"Stop"实为退出整个程序（无"中断但不退出"通道）
+  - **修复（2026-08-22）**：工具栏标签本就承诺"停止当前任务"，实现却 `app.RequestStop()`。
+  - 改动：① 每条命令独立链接 CTS（`currentQueryCts` StrongBox 容器在工具栏闭包与处理循环间共享）；
+    ② Stop → 取消当前查询，输出"已请求停止当前生成"；空闲时提示"/exit 退出"；
+    ③ OCE 捕获从 `break`（杀队列循环）改为输出后继续下一条命令；
+    ④ finally 先置 null 再 Dispose + Stop 端 ObjectDisposedException 防护（消除竞态）。
+  - 对齐 GUI Esc 停止语义；程序退出仍走 /exit。
+  - 验证：编译通过 + TUI 全部 133 测试绿。
 - [ ] **B7** TUI 权限批准后重发原文导致上下文重复
   - 位置：`TuiModeRunner.cs:326`；对齐 GUI 的 Rewind 语义或改为工具级批准后继续
 - [ ] **B8**（存量缺陷，与对齐工作无关，基线即失败）JoinCodeGui.Tests 中 7 个模型列表测试失败

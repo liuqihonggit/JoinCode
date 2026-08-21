@@ -13,6 +13,7 @@ namespace JoinCode.Gui.Tests.Converters;
 /// UiConverters 单元测试 — 验证 5 个值转换器的输出正确性。
 /// 转换器直接驱动 XAML 绑定的颜色/透明度/高亮，错误的转换会导致界面显示异常。
 /// </summary>
+[Collection("GuiUiSequential")]
 public sealed class UiConvertersTests
 {
     private static readonly CultureInfo C = CultureInfo.InvariantCulture;

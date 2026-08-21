@@ -12,6 +12,7 @@ namespace JoinCode.Gui.Tests.Markdown;
 /// <summary>
 /// DiffViewer 渲染测试 — 验证双列行号（旧/新）、增删着色、多 hunk 渲染、空状态。
 /// </summary>
+[Collection("GuiUiSequential")]
 public sealed class DiffViewerTests
 {
     private static DiffViewer Render(StructuredPatchHunk[]? hunks)

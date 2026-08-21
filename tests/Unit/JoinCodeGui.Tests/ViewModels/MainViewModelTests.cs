@@ -322,7 +322,8 @@ public class MainViewModelTests
     [Fact]
     public void PlaceholderMode_ShowsLoadingStatus()
     {
-        var vm = new MainViewModel(null, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
+        // 注入 fixture 目录 loader — 占位会话从 VM 的 _modelConfigLoader 构建供应商预览（B8 密闭化）
+        var vm = new MainViewModel(null, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"), JoinCode.Gui.Tests.Hosting.JccChatSessionAssemblyTests.CreateFedLoader());
         vm.IsMockConnection.Should().BeTrue("未注入会话时处于 Mock 占位");
         vm.StatusText.Should().Be("正在加载引擎…");
         vm.IsEngineLoaded.Should().BeFalse("引擎未加载完成");

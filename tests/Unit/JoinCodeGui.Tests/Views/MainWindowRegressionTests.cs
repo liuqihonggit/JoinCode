@@ -20,6 +20,7 @@ namespace JoinCode.Gui.Tests.Views;
 /// 且真实窗口上发送消息不会因自动滚动回调抛 NRE（曾因直接调用 AvaloniaXamlLoader.Load 导致字段为 null）。
 /// 同时验证 Enter/Shift+Enter 的发送/换行语义。
 /// </summary>
+[Collection("GuiUiSequential")]
 public sealed class MainWindowRegressionTests
 {
     [AvaloniaFact]

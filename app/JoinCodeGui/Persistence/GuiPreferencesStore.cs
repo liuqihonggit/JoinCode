@@ -24,6 +24,10 @@ public sealed class GuiPreferencesStore
     /// <summary>偏好文件完整路径</summary>
     public string FilePath => _filePath;
 
+    /// <summary>底层文件系统抽象 — 生产 PhysicalFileSystem，测试 InMemoryFileSystem。
+    /// 供 MainViewModel 派生 ConfigurationService，保证测试不读写真实 ~/.jcc/settings.json。</summary>
+    public IFileSystem FileSystem => _fs;
+
     /// <summary>加载偏好；文件不存在或损坏返回默认值，不抛异常（不阻塞 UI 启动）</summary>
     public GuiPreferences Load()
     {

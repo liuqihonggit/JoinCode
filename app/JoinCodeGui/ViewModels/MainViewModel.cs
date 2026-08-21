@@ -221,10 +221,19 @@ public sealed partial class MainViewModel : ViewModelBase
         if (!string.IsNullOrWhiteSpace(current)
             && source.All(id => !string.Equals(id, current, StringComparison.OrdinalIgnoreCase)))
         {
-            var modelProvider = _modelConfigLoader.FindProviderByModelId(current);
-            if (modelProvider is null || string.Equals(modelProvider, provider, StringComparison.OrdinalIgnoreCase))
+            // 归属判定优先用会话 VendorModelMap（测试/占位场景 _modelConfigLoader 可能为空）：
+            // 当前模型已存在于其他供应商的目录 → 属于旧供应商残留，不追加（防跨供应商污染）
+            var ownedByOtherVendor = map.Any(kvp =>
+                !string.Equals(kvp.Key, provider, StringComparison.OrdinalIgnoreCase)
+                && kvp.Value is not null
+                && kvp.Value.Contains(current, StringComparer.OrdinalIgnoreCase));
+            if (!ownedByOtherVendor)
             {
-                source.Add(current);
+                var modelProvider = _modelConfigLoader.FindProviderByModelId(current);
+                if (modelProvider is null || string.Equals(modelProvider, provider, StringComparison.OrdinalIgnoreCase))
+                {
+                    source.Add(current);
+                }
             }
         }
         ModelOptions.Clear();
@@ -353,7 +362,9 @@ public sealed partial class MainViewModel : ViewModelBase
     {
         _modelConfigLoader = modelConfigLoader ?? new ModelConfigLoader();
         _realSession = session;
-        _configService = new Core.Configuration.ConfigurationService(new IO.FileSystem.PhysicalFileSystem());
+        // 配置服务的文件系统跟随 preferencesStore：生产传 null → PhysicalFileSystem；
+        // 测试传 InMemory store → 全程密闭，不读写真实 ~/.jcc/settings.json（防并行测试互扰+污染用户配置）
+        _configService = new Core.Configuration.ConfigurationService(preferencesStore?.FileSystem ?? new IO.FileSystem.PhysicalFileSystem());
         _session = session ?? new Hosting.PlaceholderChatSession(_configService, _modelConfigLoader);
         _sessionStore = store ?? new Persistence.GuiSessionStore(new IO.FileSystem.PhysicalFileSystem());
         _preferencesStore = preferencesStore ?? new Persistence.GuiPreferencesStore(new IO.FileSystem.PhysicalFileSystem());

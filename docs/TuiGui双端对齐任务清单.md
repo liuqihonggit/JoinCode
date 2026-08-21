@@ -129,14 +129,20 @@
     （裁剪回快照点）；③ 批准分支先 Rewind 再重发——对齐 GUI `RewindLastTurnAsync` 语义。
   - 测试：`PermissionRewindTests`（裁剪生效 + 空增量 NoOp），TUI 135 测试全绿。
   - 备注：拒绝路径保持原样（GUI 拒绝也会保留错误结果入上下文）。
-- [ ] **B8**（存量缺陷，与对齐工作无关，基线即失败）JoinCodeGui.Tests 模型列表测试失败
-  - 稳定失败（基线验证 7 个，与本分支改动无关）：
-    `JccChatSessionAssemblyTests.ModelSurface_VendorModelMap_*`、`SetModelAsync_PersistsModelToSettingsJson`、
-    `MainViewModelTests.ModelOptions_DoesNotCrossContaminateModelsFromOtherProviders`、`PlaceholderMode_ShowsLoadingStatus`
-  - 根因初判：依赖本机 `models.json` 内容/路径，测试环境与预期不一致
-  - **套件级偶发失败**：全量跑时另有 0~4 个主题/渲染/温度测试随机失败
-    （LightThemeFrame/ToggleThemeVm/TemperatureAndMaxTokens 等），单测过滤后全部通过，
-    且失败集逐次漂移 → 测试间共享状态泄漏（Avalonia headless Application 静态态或 GuiPalette 静态缓存），需专项排查
+- [x] **B8**（存量缺陷）JoinCodeGui.Tests 模型列表测试失败
+  - **修复（2026-08-22）**，两类根因：
+    **① 稳定失败 7 个**：测试依赖本机 `~/.jcc/settings.json` 的 vendor 目录内容，
+    空 DI/占位会话下 ModelConfigLoader 从未灌入 → map 为空。
+    修复：测试密闭化——`CreateFedLoader()` fixture 灌入镜像生产配置的目录数据
+    （DumpAllData/MultipleInstances/ModelSurface_* 三兄弟 + PlaceholderMode 注入 fed loader）。
+    **② 套件级偶发失败**：三重根因全部修复——
+    a. VM 构造硬编码 PhysicalFileSystem 的 ConfigurationService → 并行测试读写真实
+       settings.json 互扰+污染用户配置；改为跟随 preferencesStore.FileSystem（测试 InMemory 全程密闭）
+    b. Avalonia headless 跨类并行竞态（IFontManagerImpl 定位失败等）→ 新增
+       `GuiUiSequential` 集合，7 个 AvaloniaFact 测试类串行执行
+    c. ToggleThemeVm 裸构造异步读真实 theme 键晚到覆盖断言 → 改 InMemory 构造
+  - 验证：GUI 套件 **5 连跑全绿（323×5）**；Host.Tests 985 全绿。
+  - ⚠️ 遗留提醒：修复前的测试曾向真实 `~/.jcc/settings.json` 写入 profile/theme 键，建议人工检查该文件。
 
 ## 三、修 GUI 阶段（补 TUI 有的能力）
 
@@ -178,8 +184,9 @@
 | B5 TUI 队列计数死路径 | 已修（改经 painter 广播） | 33f99af13 |
 | B6 TUI Stop 退出程序 | 已修（每命令 CTS，对齐 GUI Esc 语义） | 417f4f247 |
 | B7 TUI 权限重发重复上下文 | 已修（RewindToSnapshot 对齐 GUI Rewind） | b3066ef42 |
+| B8 存量 models.json 缺陷+套件偶发 | 已修（密闭化 fixture + InMemory 配置 + 串行集合 + theme 竞态） | 见下次提交 |
 
-验证：Host.Tests 985 全绿；JoinCodeGui.Tests 312~315/323 绿（8 个失败均为存量 models.json 缺陷 + 套件级偶发，见 B8）。
+验证：Host.Tests 985 全绿；JoinCodeGui.Tests **323 全绿 × 5 连跑**（此前基线 7 稳定失败+随机漂移失败）。
 环境备注：本机需 `git submodule update --init` 初始化 libs/Terminal.Gui 与 libs/Editor 才能编译 TUI；
 init 会把 .gitmodules URL 改写为 gitee 回退源，提交前需 `git checkout -- .gitmodules` 还原。
 

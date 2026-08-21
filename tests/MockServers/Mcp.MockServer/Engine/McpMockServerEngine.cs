@@ -4,7 +4,7 @@ using Mcp.MockServer.Models;
 
 /// <summary>
 /// MCP JSON-RPC 请求处理器 — 解析 JSON-RPC 消息并返回响应
-/// 对齐 MCP 协议规范: https://spec.modelcontextprotocol.io/specification/2024-11-05/
+/// 对齐 MCP 协议规范: https://spec.modelcontextprotocol.io/specification/2025-11-25/
 /// </summary>
 public sealed class McpMockServerEngine
 {

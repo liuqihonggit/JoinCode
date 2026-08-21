@@ -443,8 +443,15 @@
 | `8f4b6bd1f` | #7 Skills 预加载 | ✅ 完全实现 | ContextSetupMiddleware ISkillService 加载到 InitialMessageList,3/3测试 |
 | `7d8c0c2e7` | #1 工具集限制 | ✅ 完全实现 | Coordinator Profile AllowedTools 限制,2/2测试 |
 | `ec9151d11` | #17 插件 agent 安全限制 | ✅ 完全实现 | Cordis 可逆效应+连带卸载+传递依赖,11/11测试 |
+| `7f38e1858` | #14 AgentTypeSpecParser 链路接入 | ✅ 完全实现 | AgentValidationMiddleware 解析 SubagentType 填充 ResolvedPrimaryType+AllowedAgentTypes,AgentHandoffMiddleware 用主类型显示,3/3测试 |
+| `89115070f` | #18 criticalSystemReminder 每轮注入 | ✅ 完全实现 | 从 system prompt 移到 AgentBase ExecuteAsync/ExecuteStreamAsync 每轮注入 user message,3/3测试 |
 
 ### 最终统计
 
-- **23 项缺失清单**: ✅ 23 项全部实现
+- **23 项缺失清单**: ✅ 23 项全部实现(含链路接入修复)
 - **核心机制对齐度**: ~98%(从 65% 提升)
+
+<!-- 🤖 Auto Decision: 2026-08-21 -->
+<!-- 决策: #14 AgentTypeSpecParser 接入 spawn 路径 + #18 criticalSystemReminder 改为每轮注入 -->
+<!-- 原因: 文档标记"已实现"但实际链路断裂 — #14 解析器生产零调用,#18 注入到 system prompt 而非每轮消息流 -->
+<!-- 验证: 查 Claude Code 源码确认两项真实存在(allowedAgentTypes + criticalSystemReminder_EXPERIMENTAL re-injected at every user turn),修复后 #14 15/15测试 #18 9/9测试 ✅ -->

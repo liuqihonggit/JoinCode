@@ -1,6 +1,18 @@
 namespace AsyncFileLock;
 
 /// <summary>
+/// 紧凑 JSON 选项 — WriteIndented=false,用于 JSONL 单行序列化(TranscriptJsonContext 默认带缩进,多行)
+/// </summary>
+internal static class LinkVerificationJsonOptions
+{
+    public static readonly JsonSerializerOptions Compact = new JsonSerializerOptions(TranscriptJsonContext.Default.Options)
+    {
+        WriteIndented = false,
+        TypeInfoResolver = TranscriptJsonContext.Default.Options.TypeInfoResolver
+    };
+}
+
+/// <summary>
 /// 多链路验证测试 — 每条链路验证一个关键的并发文件操作场景
 /// 链路ID格式: LINK-{NNN}
 ///
@@ -221,7 +233,7 @@ public sealed class LinkVerificationTests : IAsyncLifetime
                     Content = $"task-{taskId}-entry-{i}",
                     Timestamp = DateTime.UtcNow
                 };
-                var line = JsonSerializer.Serialize(entry, TranscriptJsonContext.Default.TranscriptEntry);
+                var line = JsonSerializer.Serialize(entry, LinkVerificationJsonOptions.Compact);
                 await _fs.AppendAllTextAsync(filePath, line + "\n").ConfigureAwait(true);
             }
         }

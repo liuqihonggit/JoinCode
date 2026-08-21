@@ -31,7 +31,8 @@ public sealed partial class LifecycleSpawnMiddleware : ServiceEntity, IUnifiedSp
         }
 
         var subOptions = context.ResolvedSubOptions ?? context.SubOptions;
-        var agent = await _lifecycleManager.SpawnSubAgentAsync(context.Task, subOptions, context.CancellationToken).ConfigureAwait(false);
+        var parentSessionId = context.ParentSessionId ?? _subAgentContextAccessor.Current?.SessionId;
+        var agent = await _lifecycleManager.SpawnSubAgentAsync(context.Task, subOptions, context.CancellationToken, parentSessionId).ConfigureAwait(false);
         context.Agent = agent;
 
         if (context.SpawnOptions is not null)
@@ -40,7 +41,7 @@ public sealed partial class LifecycleSpawnMiddleware : ServiceEntity, IUnifiedSp
             if (concreteAgent.Context is not null)
             {
                 concreteAgent.Context.ParentAgentId = _subAgentContextAccessor.Current?.AgentId;
-                concreteAgent.Context.SessionId = "default";
+                concreteAgent.Context.SessionId = parentSessionId ?? concreteAgent.SessionId.UniqueId;
             }
         }
 

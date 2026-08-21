@@ -74,13 +74,14 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
 
     #region Agent 生命周期管理（含协调逻辑）
 
-    public async Task<IAgent> SpawnSubAgentAsync(string task, SubAgentOptions? options = null, CancellationToken cancellationToken = default)
+    public async Task<IAgent> SpawnSubAgentAsync(string task, SubAgentOptions? options = null, CancellationToken cancellationToken = default, string? parentSessionId = null)
     {
         var ctx = new UnifiedSpawnContext
         {
             Task = task,
             SubOptions = options,
             CancellationToken = cancellationToken,
+            ParentSessionId = parentSessionId,
         };
         await _spawnPipeline.ExecuteAsync(ctx, cancellationToken).ConfigureAwait(false);
 

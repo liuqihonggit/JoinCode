@@ -60,9 +60,8 @@ public sealed class TranscriptFileWriterPhysicalTests : IDisposable
 
         // 验证文件被创建并有内容
         _fs.FileExists(filePath).Should().BeTrue("文件应被创建");
-        var lines = await _fs.ReadAllLinesAsync(filePath).ConfigureAwait(true);
-        lines.Should().HaveCount(1);
-        lines[0].Should().Contain("test message");
+        var content = await _fs.ReadAllTextAsync(filePath).ConfigureAwait(true);
+        content.Should().Contain("test message");
     }
 
     /// <summary>

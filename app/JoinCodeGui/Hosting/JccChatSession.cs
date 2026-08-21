@@ -111,6 +111,9 @@ internal sealed class JccChatSession : IJccChatSession
 
     public bool IsReady => true;
 
+    /// <inheritdoc />
+    public ITranscriptService? TranscriptService => _services.GetService<ITranscriptService>();
+
     /// <summary>当前供应商名称（deepseek/openai/azure/anthropic/agnes/sensenova）</summary>
     public string CurrentVendor => _config.Provider.Vendor;
 

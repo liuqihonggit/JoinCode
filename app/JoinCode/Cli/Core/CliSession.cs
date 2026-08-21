@@ -73,7 +73,7 @@ public sealed class CliSession
 
         _sessionEntity = new Session();
         _sessionObjectId = _sessionEntity.ObjectId;
-        _sessionId = _sessionObjectId.UniqueId;
+        _sessionId = SessionIdGenerator.Generate();
 
         _optionalServices?.GoalEngine?.SetSessionId(_sessionId);
         _optionalServices?.GoalRegistry?.SetSessionId(_sessionId);
@@ -204,6 +204,25 @@ public sealed class CliSession
         var userCommands = await loader.LoadUserCommandsAsync(cancellationToken).ConfigureAwait(false);
         foreach (var cmd in projectCommands) _commandRegistry.Register(new CustomChatCommand(cmd));
         foreach (var cmd in userCommands) _commandRegistry.Register(new CustomChatCommand(cmd));
+
+        if (_optionalServices?.TranscriptService is { } transcriptSvc)
+        {
+            try
+            {
+                await transcriptSvc.SaveSessionInfoAsync(_sessionId, new SessionInfo
+                {
+                    Id = _sessionId,
+                    ProjectPath = workingDir,
+                    ModelId = Environment.GetEnvironmentVariable("JCC_MODEL_ID") ?? string.Empty,
+                    Vendor = Environment.GetEnvironmentVariable("JCC_VENDOR") ?? string.Empty,
+                    CreatedAt = _sessionStartedAt
+                }, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger?.LogWarning(ex, "[CliSession] 保存 SessionInfo 失败");
+            }
+        }
     }
 
     /// <summary>

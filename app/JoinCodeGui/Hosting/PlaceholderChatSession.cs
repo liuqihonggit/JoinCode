@@ -27,6 +27,9 @@ internal sealed class PlaceholderChatSession : IJccChatSession
 
     public bool IsReady => true;
 
+    /// <inheritdoc />
+    public ITranscriptService? TranscriptService => null;
+
     /// <summary>占位会话当前供应商 — 从 settings.json 读取,回退 deepseek</summary>
     public string CurrentVendor { get; }
 

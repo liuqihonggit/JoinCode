@@ -29,11 +29,12 @@ public static class AgentFactory
         string? goalId = null,
         string? graphNodeId = null,
         ObjectId sessionId = default,
-        IChatContextManager? contextManager = null)
+        IChatContextManager? contextManager = null,
+        string? customUniqueId = null)
     {
         return new AgentBase(
             task, options, queryEngine, logger, clock, name, role, variant,
             parentObjectId, systemPrompt, instruction, freshContext, tokenBudget,
-            goalId, graphNodeId, sessionId, contextManager);
+            goalId, graphNodeId, sessionId, contextManager, customUniqueId);
     }
 }

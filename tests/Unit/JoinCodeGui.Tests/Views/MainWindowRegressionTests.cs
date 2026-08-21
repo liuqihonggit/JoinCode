@@ -198,6 +198,7 @@ public sealed class MainWindowRegressionTests
         public Func<QuestionItem, Task<AskUserQuestionResult>>? AskUserQuestionDialogCallback { get; set; }
 
         public bool IsReady => true;
+        public ITranscriptService? TranscriptService => null;
         public string CurrentVendor => "fake";
         public string CurrentModelId => "fake-model";
         public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; }

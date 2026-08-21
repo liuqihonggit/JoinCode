@@ -145,7 +145,7 @@ public class WorkflowTaskExecutorTests
         };
 
         _lifecycleManagerMock
-            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
             .ReturnsAsync(agent);
         _lifecycleManagerMock
             .Setup(x => x.ExecuteAsync(agent, It.IsAny<CancellationToken>()))
@@ -174,7 +174,7 @@ public class WorkflowTaskExecutorTests
 
         result.Status.Should().Be(TaskExecutionStatus.Completed);
         _lifecycleManagerMock.Verify(
-            x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>()),
+            x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()),
             Times.Once);
         _lifecycleManagerMock.Verify(
             x => x.DisposeAgentAsync(agent.ObjectId.UniqueId, It.IsAny<CancellationToken>()),

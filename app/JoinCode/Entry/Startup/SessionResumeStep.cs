@@ -4,6 +4,7 @@ namespace JoinCode.Entry;
 /// 会话恢复中间件 — 处理 --continue 和 --resume CLI 参数
 /// 在 SessionInitStep 之后执行，加载历史会话消息到 ChatService
 /// 对齐 TS: claude --continue / claude --resume
+/// 统一入口: 通过 ITranscriptService 读取 {sessionId}/transcript.jsonl,不再直读 .json
 /// </summary>
 [Register]
 internal sealed partial class SessionResumeStep : ServiceEntity, IMiddleware<StartupContext>
@@ -29,15 +30,20 @@ internal sealed partial class SessionResumeStep : ServiceEntity, IMiddleware<Sta
             return;
         }
 
-        var fs = context.FileSystem;
-        var sessionsDir = WorkflowConstants.Paths.SessionsDirectory;
+        var transcriptService = context.Host.Services.GetService<ITranscriptService>();
+        if (transcriptService is null)
+        {
+            Diag.WriteLine("[STEP] SessionResume skipped: ITranscriptService not available");
+            await next(context, ct);
+            return;
+        }
 
-        // 加载目标 SessionData
-        var sessionData = options.ContinueSession
-            ? await LoadMostRecentSessionAsync(sessionsDir, fs, ct).ConfigureAwait(false)
-            : await LoadSessionByIdOrTitleAsync(sessionsDir, options.ResumeSessionId ?? throw new InvalidOperationException("ResumeSessionId required"), fs, ct).ConfigureAwait(false);
+        // 找目标会话 ID
+        var sessionId = options.ContinueSession
+            ? await FindMostRecentSessionIdAsync(transcriptService, ct).ConfigureAwait(false)
+            : await FindSessionByIdOrTitleAsync(transcriptService, options.ResumeSessionId ?? throw new InvalidOperationException("ResumeSessionId required"), ct).ConfigureAwait(false);
 
-        if (sessionData is null)
+        if (sessionId is null)
         {
             var hint = options.ContinueSession
                 ? "无历史会话可恢复，将启动新会话"
@@ -48,93 +54,67 @@ internal sealed partial class SessionResumeStep : ServiceEntity, IMiddleware<Sta
             return;
         }
 
+        // 加载历史消息 — 过滤非消息条目(custom-title/content-replacement/agent-name 等 Type 非空)
+        var entries = await transcriptService.LoadTranscriptAsync(sessionId, ct).ConfigureAwait(false);
+        var messages = entries
+            .Where(e => string.IsNullOrEmpty(e.Type) && (e.Role == "user" || e.Role == "assistant"))
+            .Select(e => new ApiMessageRecord { Role = e.Role, Content = e.Content })
+            .ToList();
+
         // 加载历史消息到 ChatService
         var chatService = context.Host.Services.GetRequiredService<IChatService>();
-        var messages = sessionData.Messages.Select(m => new ApiMessageRecord
-        {
-            Role = m.Role,
-            Content = m.Content
-        }).ToList();
-
         await chatService.LoadSessionMessagesAsync(messages, ct).ConfigureAwait(false);
 
-        session.OverrideSessionId(sessionData.Id);
+        session.OverrideSessionId(sessionId);
 
-        var title = string.IsNullOrEmpty(sessionData.CustomTitle) ? sessionData.Id : sessionData.CustomTitle;
-        Cli.TerminalHelper.WriteLine($"已恢复会话: {title} ({sessionData.Messages.Count} 条消息)");
-        Diag.WriteLine($"[STEP] SessionResume: restored {sessionData.Id} with {sessionData.Messages.Count} messages");
+        var customTitle = await transcriptService.GetCustomTitleAsync(sessionId, ct).ConfigureAwait(false);
+        var title = string.IsNullOrEmpty(customTitle) ? sessionId : customTitle;
+        Cli.TerminalHelper.WriteLine($"已恢复会话: {title} ({messages.Count} 条消息)");
+        Diag.WriteLine($"[STEP] SessionResume: restored {sessionId} with {messages.Count} messages");
 
         await next(context, ct);
     }
 
     /// <summary>
-    /// 加载最近的会话（按 LastModified 排序）— 对齐 TS --continue 自动选择 last conversation
+    /// 加载最近的会话 — 对齐 TS --continue 自动选择 last conversation
     /// </summary>
-    private static async Task<SessionData?> LoadMostRecentSessionAsync(string sessionsDir, IFileSystem fs, CancellationToken ct)
+    private static async Task<string?> FindMostRecentSessionIdAsync(ITranscriptService service, CancellationToken ct)
     {
-        if (!fs.DirectoryExists(sessionsDir))
-            return null;
-
-        var files = fs.GetFiles(sessionsDir, "*.json", SearchOption.TopDirectoryOnly);
-        var mostRecent = files
-            .Select(f => new { Path = f, LastModified = fs.GetLastWriteTime(f) })
-            .OrderByDescending(x => x.LastModified)
-            .FirstOrDefault();
-
-        if (mostRecent is null)
-            return null;
-
-        return await ReadSessionDataAsync(mostRecent.Path, fs, ct).ConfigureAwait(false);
+        var summaries = await service.ListTranscriptsAsync(limit: 1, ct).ConfigureAwait(false);
+        return summaries.Count > 0 ? summaries[0].SessionId : null;
     }
 
     /// <summary>
-    /// 按 sessionId 精确匹配或 customTitle 模糊匹配加载会话
+    /// 按 sessionId 精确匹配或 customTitle 模糊匹配查找会话
     /// 对齐 TS: resume.tsx call 函数 — UUID → customTitle
     /// </summary>
-    private static async Task<SessionData?> LoadSessionByIdOrTitleAsync(string sessionsDir, string searchTerm, IFileSystem fs, CancellationToken ct)
+    private static async Task<string?> FindSessionByIdOrTitleAsync(ITranscriptService service, string searchTerm, CancellationToken ct)
     {
-        if (!fs.DirectoryExists(sessionsDir))
-            return null;
-
         // 1. UUID 精确匹配
-        var sessionPath = Path.Combine(sessionsDir, $"{searchTerm}.json");
-        if (fs.FileExists(sessionPath))
+        try
         {
-            return await ReadSessionDataAsync(sessionPath, fs, ct).ConfigureAwait(false);
+            if (await service.TranscriptExistsAsync(searchTerm, ct).ConfigureAwait(false))
+            {
+                return searchTerm;
+            }
+        }
+        catch (ArgumentException)
+        {
+            // searchTerm 含非法字符，跳过精确匹配
+            Diag.WriteLine($"[STEP] SessionResume: searchTerm '{searchTerm}' contains invalid chars, skip exact match");
         }
 
         // 2. customTitle 模糊匹配（大小写不敏感）
-        var files = fs.GetFiles(sessionsDir, "*.json", SearchOption.TopDirectoryOnly);
-        foreach (var file in files)
+        var summaries = await service.ListTranscriptsAsync(limit: 100, ct).ConfigureAwait(false);
+        foreach (var summary in summaries)
         {
-            var data = await ReadSessionDataAsync(file, fs, ct).ConfigureAwait(false);
-            if (data is null || string.IsNullOrEmpty(data.CustomTitle))
-                continue;
-
-            if (data.CustomTitle.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
-                return data;
+            var title = await service.GetCustomTitleAsync(summary.SessionId, ct).ConfigureAwait(false);
+            if (!string.IsNullOrEmpty(title) && title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+            {
+                return summary.SessionId;
+            }
         }
 
         return null;
-    }
-
-    /// <summary>
-    /// 读取并反序列化会话文件
-    /// 损坏文件显式警告用户后返回 null（跳过该文件），避免误导为"会话不存在"
-    /// </summary>
-    private static async Task<SessionData?> ReadSessionDataAsync(string filePath, IFileSystem fs, CancellationToken ct)
-    {
-        try
-        {
-            var json = await fs.ReadAllTextAsync(filePath, ct).ConfigureAwait(false);
-            return JsonSerializer.Deserialize(json, CliJsonContext.Default.SessionData);
-        }
-        catch (Exception ex)
-        {
-            Diag.WriteLine($"[STEP] SessionResume: failed to read {filePath}: {ex.Message}");
-            Cli.TerminalHelper.WriteLine($"⚠ 跳过损坏的会话文件: {filePath}");
-            Cli.TerminalHelper.WriteLine($"  原因: {ex.Message}");
-            return null;
-        }
     }
 }

@@ -1266,6 +1266,7 @@ public class MainViewModelTests
             public Func<QuestionItem, Task<AskUserQuestionResult>>? AskUserQuestionDialogCallback { get; set; }
 
             public bool IsReady => true;
+            public ITranscriptService? TranscriptService => null;
             public string CurrentVendor => "fake";
             public string CurrentModelId => "fake-model";
             public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; }
@@ -1328,6 +1329,7 @@ public class MainViewModelTests
             public Func<QuestionItem, Task<AskUserQuestionResult>>? AskUserQuestionDialogCallback { get; set; }
 
             public bool IsReady => true;
+            public ITranscriptService? TranscriptService => null;
             public string CurrentVendor => "fake";
             public string CurrentModelId => "fake-model";
             public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; }
@@ -1387,6 +1389,7 @@ public class MainViewModelTests
         private sealed class CrossContaminationSession : IJccChatSession
         {
             public bool IsReady => true;
+            public ITranscriptService? TranscriptService => null;
             public string CurrentVendor => "sensenova";
             public string CurrentModelId => "sensenova-6.7-flash-lite";
             public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; }
@@ -1441,6 +1444,7 @@ public class MainViewModelTests
             public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
             public Func<QuestionItem, Task<AskUserQuestionResult>>? AskUserQuestionDialogCallback { get; set; }
             public bool IsReady => true;
+            public ITranscriptService? TranscriptService => null;
             public string CurrentVendor => "fake";
             public string CurrentModelId => "fake-model";
             public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; }

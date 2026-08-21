@@ -477,6 +477,15 @@ public sealed partial class MainViewModel : ViewModelBase
         // 订阅 settings.json theme 变更（外部 CLI /theme 驱动 GUI 热重载）+ 从 settings.json 读主题
         session.ThemeChanged += OnThemeChanged;
         LoadThemeFromSettings();
+
+        // 引擎就绪后注入 ITranscriptService,切换到统一入口(.jsonl + 子目录,与 CLI --continue 共享)
+        // 构造时 LoadPersistedSessions 用旧 .json 兜底,此处切换后重新加载刷新侧边栏
+        if (session.TranscriptService is not null)
+        {
+            _sessionStore.SetTranscriptService(session.TranscriptService);
+            Sessions.Clear();
+            LoadPersistedSessions();
+        }
     }
 
     /// <summary>启动 settings.json 文件监控（热重载）— 文件变更时自动刷新供应商/模型列表</summary>

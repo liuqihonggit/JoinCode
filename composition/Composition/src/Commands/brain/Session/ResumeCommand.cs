@@ -47,18 +47,28 @@ public sealed class ResumeCommand : ChatCommandBase
     /// </summary>
     private async Task ResumeWithArgumentAsync(string searchTerm, ChatCommandContext context)
     {
+        var transcriptService = ChatCommandBase.GetService<ITranscriptService>(context, typeof(ITranscriptService));
+
         // L3.1: 先尝试 UUID 精确匹配
-        var sessionPath = Path.Combine(SessionsPath, $"{searchTerm}.json");
-        var fs = context.GetCommandServices().FileSystem;
-        if (fs.FileExists(sessionPath))
+        if (transcriptService is not null)
         {
-            await ResumeSessionAsync(searchTerm, context, ResumeEntrypoint.SlashCommandSessionId);
-            return;
+            try
+            {
+                if (await transcriptService.TranscriptExistsAsync(searchTerm, context.CancellationToken).ConfigureAwait(false))
+                {
+                    await ResumeSessionAsync(searchTerm, context, ResumeEntrypoint.SlashCommandSessionId);
+                    return;
+                }
+            }
+            catch (ArgumentException)
+            {
+                TerminalHelper.WriteLine($"[ResumeCommand] '{searchTerm}' 含非法字符，跳过精确匹配");
+            }
         }
 
         // L3.1: 尝试自定义标题搜索
         // 对齐 TS: searchSessionsByCustomTitle — 大小写不敏感匹配
-        var titleMatches = await SearchByCustomTitleAsync(searchTerm, context.CancellationToken, context.GetCommandServices().FileSystem, context.Services?.GetService<ILogger<ResumeCommand>>()).ConfigureAwait(false);
+        var titleMatches = await SearchByCustomTitleAsync(searchTerm, context.CancellationToken, transcriptService, context.Services?.GetService<ILogger<ResumeCommand>>()).ConfigureAwait(false);
 
         if (titleMatches.Count == 0)
         {
@@ -96,47 +106,46 @@ public sealed class ResumeCommand : ChatCommandBase
     /// 按自定义标题搜索会话
     /// 对齐 TS: sessionStorage.ts searchSessionsByCustomTitle
     /// </summary>
-    private async Task<List<SessionLiteData>> SearchByCustomTitleAsync(string searchTerm, CancellationToken cancellationToken, IFileSystem fs, ILogger? logger = null)
+    private async Task<List<SessionLiteData>> SearchByCustomTitleAsync(string searchTerm, CancellationToken cancellationToken, ITranscriptService? transcriptService, ILogger? logger = null)
     {
-        if (!fs.DirectoryExists(SessionsPath))
+        if (transcriptService is null)
         {
             return [];
         }
 
         var results = new List<SessionLiteData>();
-        var sessionFiles = fs.GetFiles(SessionsPath, "*.json", SearchOption.TopDirectoryOnly);
+        var summaries = await transcriptService.ListTranscriptsAsync(limit: 100, cancellationToken).ConfigureAwait(false);
 
-        foreach (var file in sessionFiles)
+        foreach (var summary in summaries)
         {
             try
             {
-                var json = await fs.ReadAllTextAsync(file, cancellationToken).ConfigureAwait(false);
-                var session = JsonSerializer.Deserialize(json, CliJsonContext.Default.SessionData);
-                if (session is null || string.IsNullOrEmpty(session.CustomTitle))
+                var title = await transcriptService.GetCustomTitleAsync(summary.SessionId, cancellationToken).ConfigureAwait(false);
+                if (string.IsNullOrEmpty(title))
                 {
                     continue;
                 }
 
                 // 大小写不敏感匹配：精确匹配优先
-                if (session.CustomTitle.Equals(searchTerm, StringComparison.OrdinalIgnoreCase) ||
-                    session.CustomTitle.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+                if (title.Equals(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                    title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
                 {
-                    var lastModified = fs.GetLastWriteTime(file);
+                    var info = await transcriptService.GetSessionInfoAsync(summary.SessionId, cancellationToken).ConfigureAwait(false);
                     results.Add(new SessionLiteData
                     {
-                        Id = session.Id,
-                        ProjectPath = session.ProjectPath,
-                        CustomTitle = session.CustomTitle,
-                        CreatedAt = session.CreatedAt,
-                        LastModified = lastModified,
-                        FilePath = file
+                        Id = summary.SessionId,
+                        ProjectPath = info?.ProjectPath ?? string.Empty,
+                        CustomTitle = title,
+                        CreatedAt = info?.CreatedAt ?? summary.CreatedAt,
+                        LastModified = summary.LastModifiedAt,
+                        FilePath = string.Empty
                     });
                 }
             }
             catch (Exception ex)
             {
-                // 跳过无法解析的文件
-                logger?.LogWarning(ex, "会话文件解析失败");
+                // 跳过无法解析的会话
+                logger?.LogWarning(ex, "会话标题搜索失败: {SessionId}", summary.SessionId);
             }
         }
 
@@ -158,8 +167,9 @@ public sealed class ResumeCommand : ChatCommandBase
     {
         var currentSessionId = context.SessionId;
 
-        // L3.3: Lite 日志加载 — 只读取文件 stat 信息，不读内容
-        var liteEntries = LoadLiteSessions(showAllProjects, context.GetCommandServices().FileSystem, context.Services?.GetService<ILogger<ResumeCommand>>());
+        // L3.3: Lite 日志加载 — 只读取会话 stat 信息，不读内容
+        var transcriptService = ChatCommandBase.GetService<ITranscriptService>(context, typeof(ITranscriptService));
+        var liteEntries = await LoadLiteSessionsAsync(showAllProjects, transcriptService, context.Services?.GetService<ILogger<ResumeCommand>>()).ConfigureAwait(false);
 
         // 过滤可恢复会话：排除当前会话
         // 对齐 TS: filterResumableSessions — 排除 sidechain + 当前会话
@@ -269,47 +279,44 @@ public sealed class ResumeCommand : ChatCommandBase
     }
 
     /// <summary>
-    /// L3.3: Lite 日志加载 — 只读取文件 stat 信息
+    /// L3.3: Lite 日志加载 — 只读取会话 stat 信息
     /// 对齐 TS: isLiteLog / getStatOnlyLogsForWorktrees
+    /// 统一入口: 通过 ITranscriptService.ListTranscriptsAsync + GetSessionInfoAsync + GetCustomTitleAsync
     /// </summary>
-    private List<SessionLiteData> LoadLiteSessions(bool showAllProjects, IFileSystem fs, ILogger? logger = null)
+    private async Task<List<SessionLiteData>> LoadLiteSessionsAsync(bool showAllProjects, ITranscriptService? transcriptService, ILogger? logger = null)
     {
-        if (!fs.DirectoryExists(SessionsPath))
+        if (transcriptService is null)
         {
             return [];
         }
 
-        var files = fs.GetFiles(SessionsPath, "*.json", SearchOption.TopDirectoryOnly);
+        var summaries = await transcriptService.ListTranscriptsAsync(limit: 100).ConfigureAwait(false);
         var entries = new List<SessionLiteData>();
 
-        foreach (var file in files)
+        foreach (var summary in summaries)
         {
-            var sessionId = Path.GetFileNameWithoutExtension(file);
-
-            // Lite 模式：只读 stat，不读内容
             var lite = new SessionLiteData
             {
-                Id = sessionId,
-                LastModified = fs.GetLastWriteTime(file),
-                FilePath = file
+                Id = summary.SessionId,
+                LastModified = summary.LastModifiedAt,
+                FilePath = string.Empty
             };
 
-            // 尝试快速读取 customTitle（仅读头部少量数据）
+            // 读取 customTitle 和 ProjectPath
             try
             {
-                var json = fs.ReadAllText(file);
-                var session = JsonSerializer.Deserialize(json, CliJsonContext.Default.SessionData);
-                if (session is not null)
+                lite.CustomTitle = await transcriptService.GetCustomTitleAsync(summary.SessionId).ConfigureAwait(false) ?? string.Empty;
+                var info = await transcriptService.GetSessionInfoAsync(summary.SessionId).ConfigureAwait(false);
+                if (info is not null)
                 {
-                    lite.ProjectPath = session.ProjectPath ?? string.Empty;
-                    lite.CustomTitle = session.CustomTitle ?? string.Empty;
-                    lite.CreatedAt = session.CreatedAt;
+                    lite.ProjectPath = info.ProjectPath;
+                    lite.CreatedAt = info.CreatedAt;
                 }
             }
             catch (Exception ex)
             {
                 // 无法解析 → 仅保留 stat 信息
-                logger?.LogWarning(ex, "Lite会话数据解析失败");
+                logger?.LogWarning(ex, "Lite会话数据解析失败: {SessionId}", summary.SessionId);
             }
 
             // L3.4: 全项目过滤
@@ -341,10 +348,14 @@ public sealed class ResumeCommand : ChatCommandBase
     /// </summary>
     private async Task ResumeSessionAsync(string sessionId, ChatCommandContext context, ResumeEntrypoint entrypoint)
     {
-        var sessionPath = Path.Combine(SessionsPath, $"{sessionId}.json");
+        var transcriptService = ChatCommandBase.GetService<ITranscriptService>(context, typeof(ITranscriptService));
+        if (transcriptService is null)
+        {
+            TerminalHelper.WriteLine($"{TerminalColors.Error}ITranscriptService 不可用，无法恢复会话{AnsiStyleConstants.Reset}");
+            return;
+        }
 
-        var fs = context.GetCommandServices().FileSystem;
-        if (!fs.FileExists(sessionPath))
+        if (!await transcriptService.TranscriptExistsAsync(sessionId, context.CancellationToken).ConfigureAwait(false))
         {
             // 对齐 TS: ResumeResult.sessionNotFound
             TerminalHelper.WriteLine($"{TerminalColors.Error}{string.Format(L.T(StringKey.HostResumeSessionNotFound), sessionId)}{AnsiStyleConstants.Reset}");
@@ -357,24 +368,23 @@ public sealed class ResumeCommand : ChatCommandBase
 
         try
         {
-            var json = await fs.ReadAllTextAsync(sessionPath, context.CancellationToken).ConfigureAwait(false);
-            var session = JsonSerializer.Deserialize(json, CliJsonContext.Default.SessionData);
+            var entries = await transcriptService.LoadTranscriptAsync(sessionId, context.CancellationToken).ConfigureAwait(false);
+            var messages = entries
+                .Where(e => string.IsNullOrEmpty(e.Type) && (e.Role == "user" || e.Role == "assistant"))
+                .Select(e => new ApiMessageRecord { Role = e.Role, Content = e.Content })
+                .ToList();
 
-            if (session is null)
-            {
-                TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.HostResumeParseError)}{AnsiStyleConstants.Reset}");
-                return;
-            }
-
-            if (session.Messages is null || session.Messages.Count == 0)
+            if (messages.Count == 0)
             {
                 TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.HostResumeNoMessages)}{AnsiStyleConstants.Reset}");
                 return;
             }
 
-            // 跨项目恢复检查
+            // 跨项目恢复检查 — 从 SessionInfo 获取 ProjectPath
             // 对齐 TS: checkCrossProjectResume
-            var crossProjectResult = await CheckCrossProjectResumeAsync(session, context, context.Services?.GetService<ILogger<ResumeCommand>>());
+            var info = await transcriptService.GetSessionInfoAsync(sessionId, context.CancellationToken).ConfigureAwait(false);
+            var projectPath = info?.ProjectPath ?? string.Empty;
+            var crossProjectResult = await CheckCrossProjectResumeAsync(projectPath, context, context.Services?.GetService<ILogger<ResumeCommand>>());
             if (crossProjectResult.IsCrossProject && !crossProjectResult.IsSameRepoWorktree)
             {
                 // 不同项目 — 生成命令并复制到剪贴板
@@ -399,20 +409,17 @@ public sealed class ResumeCommand : ChatCommandBase
             }
 
             // 同项目 — 直接恢复
-            var messages = session.Messages.Select(m => new ApiMessageRecord
-            {
-                Role = m.Role,
-                Content = m.Content
-            }).ToList();
-
             await context.GetCommandServices().ChatService.LoadSessionMessagesAsync(messages, context.CancellationToken).ConfigureAwait(false);
 
-            var title = string.IsNullOrEmpty(session.CustomTitle) ? sessionId : session.CustomTitle;
+            var customTitle = await transcriptService.GetCustomTitleAsync(sessionId, context.CancellationToken).ConfigureAwait(false);
+            var title = string.IsNullOrEmpty(customTitle) ? sessionId : customTitle;
             TerminalHelper.WriteLine($"{TerminalColors.Success}{string.Format(L.T(StringKey.HostResumeRestored), title)}{AnsiStyleConstants.Reset}");
-            TerminalHelper.WriteLine(string.Format(L.T(StringKey.HostResumeMessageCount), session.Messages.Count));
+            TerminalHelper.WriteLine(string.Format(L.T(StringKey.HostResumeMessageCount), messages.Count));
 
-            var recentMessages = session.Messages.TakeLast(3);
-            foreach (var msg in recentMessages)
+            var recentEntries = entries
+                .Where(e => string.IsNullOrEmpty(e.Type) && (e.Role == "user" || e.Role == "assistant"))
+                .TakeLast(3);
+            foreach (var msg in recentEntries)
             {
                 var role = msg.Role switch
                 {
@@ -444,18 +451,18 @@ public sealed class ResumeCommand : ChatCommandBase
     /// 跨项目恢复检查
     /// 对齐 TS: checkCrossProjectResume
     /// </summary>
-    private static async Task<CrossProjectResumeResult> CheckCrossProjectResumeAsync(SessionData session, ChatCommandContext context, ILogger? logger = null)
+    private static async Task<CrossProjectResumeResult> CheckCrossProjectResumeAsync(string projectPath, ChatCommandContext context, ILogger? logger = null)
     {
         var currentCwd = Environment.CurrentDirectory;
 
         // 会话无项目路径信息 → 视为同项目
-        if (string.IsNullOrEmpty(session.ProjectPath))
+        if (string.IsNullOrEmpty(projectPath))
         {
             return CrossProjectResumeResult.SameProject();
         }
 
         // 同目录 → 直接恢复
-        if (string.Equals(session.ProjectPath, currentCwd, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(projectPath, currentCwd, StringComparison.OrdinalIgnoreCase))
         {
             return CrossProjectResumeResult.SameProject();
         }
@@ -469,12 +476,12 @@ public sealed class ResumeCommand : ChatCommandBase
                 var worktreePaths = await worktreeService.ListWorktreesAsync(cancellationToken: context.CancellationToken).ConfigureAwait(false);
 
                 var isSameRepo = worktreePaths.Any(wt =>
-                    string.Equals(wt, session.ProjectPath, StringComparison.OrdinalIgnoreCase) ||
-                    session.ProjectPath.StartsWith(wt + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
+                    string.Equals(wt, projectPath, StringComparison.OrdinalIgnoreCase) ||
+                    projectPath.StartsWith(wt + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
 
                 if (isSameRepo)
                 {
-                    return CrossProjectResumeResult.SameRepoWorktree(session.ProjectPath);
+                    return CrossProjectResumeResult.SameRepoWorktree(projectPath);
                 }
             }
             catch (Exception ex)
@@ -485,7 +492,7 @@ public sealed class ResumeCommand : ChatCommandBase
         }
 
         // 不同项目 → 生成命令
-        return CrossProjectResumeResult.DifferentProject(session.ProjectPath);
+        return CrossProjectResumeResult.DifferentProject(projectPath);
     }
 
     private static string GetTimeAgo(DateTime dateTime)

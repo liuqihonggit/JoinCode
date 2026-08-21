@@ -51,71 +51,73 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
         return await _writer.LoadTranscriptAsync(filePath, cancellationToken).ConfigureAwait(false);
     }
 
-    public Task<IReadOnlyList<TranscriptSummary>> ListTranscriptsAsync(int limit = 20, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<TranscriptSummary>> ListTranscriptsAsync(int limit = 20, CancellationToken cancellationToken = default)
     {
         if (!_fs.DirectoryExists(_sessionsDirectory))
         {
-            return Task.FromResult<IReadOnlyList<TranscriptSummary>>(Array.Empty<TranscriptSummary>());
+            return Array.Empty<TranscriptSummary>();
         }
 
         try
         {
             var summaries = new List<TranscriptSummary>();
 
-            foreach (var file in _fs.EnumerateFiles(_sessionsDirectory, "*.jsonl", SearchOption.TopDirectoryOnly))
+            foreach (var dir in _fs.EnumerateDirectories(_sessionsDirectory, "*", SearchOption.TopDirectoryOnly))
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 try
                 {
-                    var sessionId = Path.GetFileNameWithoutExtension(file);
+                    var sessionId = Path.GetFileName(dir);
                     if (string.IsNullOrEmpty(sessionId)) continue;
 
-                    var lineCount = 0;
-                    string? lastLine = null;
+                    var transcriptPath = Path.Combine(dir, "transcript.json");
+                    if (!_fs.FileExists(transcriptPath)) continue;
 
-                    using var stream = _fs.CreateStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                    using var reader = new StreamReader(stream);
-
-                    while (reader.ReadLine() is { } line)
-                    {
-                        if (string.IsNullOrWhiteSpace(line)) continue;
-                        lineCount++;
-                        lastLine = line;
-                    }
-
+                    int entryCount = 0;
                     string? preview = null;
-                    if (lastLine is not null)
+
+                    try
                     {
-                        try
+                        using var stream = _fs.CreateStream(transcriptPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                        using var reader = new StreamReader(stream);
+                        var json = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+                        if (!string.IsNullOrWhiteSpace(json))
                         {
-                            var lastEntry = JsonSerializer.Deserialize(lastLine, TranscriptJsonContext.Default.TranscriptEntry);
-                            preview = lastEntry?.Content;
-                            if (preview is not null && preview.Length > 80)
+                            var entries = JsonSerializer.Deserialize(json, TranscriptJsonContext.Default.ListTranscriptEntry);
+                            if (entries is not null)
                             {
-                                preview = preview[..80] + "...";
+                                entryCount = entries.Count;
+                                if (entries.Count > 0)
+                                {
+                                    preview = entries[^1].Content;
+                                    if (preview is not null && preview.Length > 80)
+                                    {
+                                        preview = preview[..80] + "...";
+                                    }
+                                }
                             }
                         }
-                        catch (Exception ex)
-                        {
-                            // preview extraction 非关键，保留日志可见性
-                            _logger?.LogDebug(ex, "TranscriptService: 上次摘要预览提取失败");
-                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // preview extraction 非关键，保留日志可见性
+                        _logger?.LogDebug(ex, "TranscriptService: 会话摘要读取失败");
                     }
 
                     summaries.Add(new TranscriptSummary
                     {
                         SessionId = sessionId,
-                        CreatedAt = _fs.GetCreationTimeUtc(file),
-                        LastModifiedAt = _fs.GetLastWriteTimeUtc(file),
-                        MessageCount = lineCount,
+                        CreatedAt = _fs.GetCreationTimeUtc(dir),
+                        LastModifiedAt = _fs.GetLastWriteTimeUtc(transcriptPath),
+                        MessageCount = entryCount,
                         LastMessagePreview = preview
                     });
                 }
                 catch (Exception ex)
                 {
-                    // 跳过不可读文件，保留日志可见性
-                    _logger?.LogWarning(ex, "TranscriptService: 跳过不可读会话文件");
+                    // 跳过不可读目录，保留日志可见性
+                    _logger?.LogWarning(ex, "TranscriptService: 跳过不可读会话目录");
                 }
             }
 
@@ -124,12 +126,12 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
                 .Take(limit)
                 .ToList();
 
-            return Task.FromResult<IReadOnlyList<TranscriptSummary>>(result);
+            return result;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger?.LogError(ex, "Failed to list transcripts");
-            return Task.FromResult<IReadOnlyList<TranscriptSummary>>(Array.Empty<TranscriptSummary>());
+            return Array.Empty<TranscriptSummary>();
         }
     }
 
@@ -137,21 +139,21 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
 
-        var filePath = GetTranscriptPath(sessionId);
-        if (!_fs.FileExists(filePath))
+        var sessionDir = GetSessionDir(sessionId);
+        if (!_fs.DirectoryExists(sessionDir))
         {
             return Task.FromResult(false);
         }
 
         try
         {
-            _fs.DeleteFile(filePath);
-            _logger?.LogInformation("Transcript deleted for session {SessionId}", sessionId);
+            _fs.DeleteDirectory(sessionDir, recursive: true);
+            _logger?.LogInformation("Session directory deleted for {SessionId}", sessionId);
             return Task.FromResult(true);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _logger?.LogError(ex, "Failed to delete transcript for session {SessionId}", sessionId);
+            _logger?.LogError(ex, "Failed to delete session directory for {SessionId}", sessionId);
             return Task.FromResult(false);
         }
     }
@@ -259,7 +261,117 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
     private string GetTranscriptPath(string sessionId)
     {
         TranscriptFileWriter.ValidateId(sessionId, nameof(sessionId));
-        return Path.Combine(_sessionsDirectory, $"{sessionId}.jsonl");
+        return Path.Combine(_sessionsDirectory, sessionId, "transcript.json");
+    }
+
+    private string GetSessionDir(string sessionId)
+    {
+        TranscriptFileWriter.ValidateId(sessionId, nameof(sessionId));
+        return Path.Combine(_sessionsDirectory, sessionId);
+    }
+
+    private string GetMetaPath(string sessionId)
+    {
+        TranscriptFileWriter.ValidateId(sessionId, nameof(sessionId));
+        return Path.Combine(_sessionsDirectory, sessionId, "meta.json");
+    }
+
+    /// <summary>
+    /// 保存会话信息到 {sessionId}/meta.json — 统一入口,替代 SessionData 直写
+    /// </summary>
+    public async Task SaveSessionInfoAsync(string sessionId, SessionInfo info, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        ArgumentNullException.ThrowIfNull(info);
+
+        var metaPath = GetMetaPath(sessionId);
+        var dir = GetSessionDir(sessionId);
+        if (!_fs.DirectoryExists(dir))
+        {
+            DirectoryHelper.EnsureDirectoryExists(_fs, dir);
+        }
+
+        var infoWithId = info with { Id = sessionId };
+        if (string.IsNullOrEmpty(infoWithId.ProjectName) && !string.IsNullOrEmpty(infoWithId.ProjectPath))
+        {
+            infoWithId = infoWithId with { ProjectName = Path.GetFileName(infoWithId.ProjectPath) };
+        }
+        var json = JsonSerializer.Serialize(infoWithId, TranscriptJsonContext.Default.SessionInfo);
+        await _fs.WriteAllTextAsync(metaPath, json, cancellationToken).ConfigureAwait(false);
+        _logger?.LogDebug("Session info saved for {SessionId}", sessionId);
+    }
+
+    /// <summary>
+    /// 加载会话信息 — 不存在或损坏返回 null
+    /// </summary>
+    public async Task<SessionInfo?> GetSessionInfoAsync(string sessionId, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        var metaPath = GetMetaPath(sessionId);
+        if (!_fs.FileExists(metaPath)) return null;
+
+        try
+        {
+            var json = await _fs.ReadAllTextAsync(metaPath, cancellationToken).ConfigureAwait(false);
+            return JsonSerializer.Deserialize(json, TranscriptJsonContext.Default.SessionInfo);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger?.LogWarning(ex, "Failed to read session info for {SessionId}", sessionId);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// 迁移旧扁平 .jsonl(直接在 sessions 根目录)到每会话子目录 {id}/transcript.json — 幂等,不删旧文件
+    /// 旧格式为 JSONL(每行一个 JSON),新格式为 JSON 数组(带缩进,人类可读)
+    /// </summary>
+    public async Task MigrateLegacyAsync(CancellationToken cancellationToken = default)
+    {
+        if (!_fs.DirectoryExists(_sessionsDirectory)) return;
+
+        foreach (var file in _fs.EnumerateFiles(_sessionsDirectory, "*.jsonl", SearchOption.TopDirectoryOnly))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var sessionId = Path.GetFileNameWithoutExtension(file);
+            if (string.IsNullOrEmpty(sessionId)) continue;
+
+            try
+            {
+                var newDir = GetSessionDir(sessionId);
+                var newPath = Path.Combine(newDir, "transcript.json");
+                if (_fs.FileExists(newPath)) continue; // 幂等
+
+                // 读旧 JSONL(逐行解析)转 JSON 数组
+                var lines = await _fs.ReadAllLinesAsync(file, cancellationToken).ConfigureAwait(false);
+                var entries = new List<TranscriptEntry>(lines.Length);
+                foreach (var line in lines)
+                {
+                    if (string.IsNullOrWhiteSpace(line)) continue;
+                    try
+                    {
+                        var entry = JsonSerializer.Deserialize(line, TranscriptJsonContext.Default.TranscriptEntry);
+                        if (entry is not null) entries.Add(entry);
+                    }
+                    catch (JsonException ex)
+                    {
+                        _logger?.LogWarning(ex, "Skipping malformed line in legacy transcript {SessionId}", sessionId);
+                    }
+                }
+
+                if (!_fs.DirectoryExists(newDir))
+                {
+                    DirectoryHelper.EnsureDirectoryExists(_fs, newDir);
+                }
+                var json = JsonSerializer.Serialize(entries, TranscriptJsonContext.Default.ListTranscriptEntry);
+                await _fs.WriteAllTextAsync(newPath, json, cancellationToken).ConfigureAwait(false);
+                _logger?.LogInformation("Migrated legacy transcript {SessionId} to session directory (jsonl→json)", sessionId);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger?.LogWarning(ex, "Failed to migrate legacy transcript {SessionId}", sessionId);
+            }
+        }
     }
 
     protected override void OnDispose() => _writer.Dispose();

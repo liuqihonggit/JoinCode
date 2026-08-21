@@ -61,11 +61,47 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
     /// </summary>
     public int CleanupOldSessionFiles(int maxAgeDays = 30)
     {
-        return CleanupFilesInDirectory(
-            Path.Combine(JccDir, AppDataConstants.SessionsFolderName),
+        var sessionsDir = Path.Combine(JccDir, AppDataConstants.SessionsFolderName);
+
+        var total = CleanupFilesInDirectory(
+            sessionsDir,
             maxAgeDays,
             ["*.jsonl", "*.cast"],
             includeSubDirPattern: AppDataConstants.ToolResultsFolderName);
+
+        // 清理过期的会话子目录(每会话一文件夹格式 {id}/)
+        total += CleanupSessionDirectories(sessionsDir, maxAgeDays);
+
+        return total;
+    }
+
+    /// <summary>
+    /// 清理过期的会话子目录 — 每会话一文件夹格式,目录 mtime 超过 maxAgeDays 则整个删除
+    /// </summary>
+    private int CleanupSessionDirectories(string sessionsDir, int maxAgeDays)
+    {
+        if (!_fs.DirectoryExists(sessionsDir)) return 0;
+
+        var cutoff = _clock.GetUtcNow().AddDays(-maxAgeDays);
+        var deleted = 0;
+
+        foreach (var dir in _fs.EnumerateDirectories(sessionsDir, "*", SearchOption.TopDirectoryOnly))
+        {
+            try
+            {
+                if (_fs.GetDirectoryLastWriteTimeUtc(dir) < cutoff)
+                {
+                    _fs.DeleteDirectory(dir, recursive: true);
+                    deleted++;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogDebug(ex, "删除过期会话目录失败: {Path}", dir);
+            }
+        }
+
+        return deleted;
     }
 
     /// <summary>

@@ -311,6 +311,9 @@ internal static class TuiModeRunner
             }
 
             // 每条命令独立 CTS（链接到处理器令牌）— Stop 只取消当前生成，不杀队列循环
+            // 记录命令执行前历史快照 — QueryAsync 会先 AddUserMessage 再跑管道，
+            // 权限批准后需裁剪回此点再重发（B7 防上下文重复）
+            var historySnapshotCount = chatHistory.Count;
             var cmdCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             currentQueryCts.Value = cmdCts;
             try
@@ -353,6 +356,8 @@ internal static class TuiModeRunner
                 if (allowed)
                 {
                     permissionManager?.ApproveToolTemporarily(ex.ToolName, TimeSpan.FromMinutes(5));
+                    // 撤回本轮（用户消息+部分回复已入历史）再重发，避免上下文重复
+                    RewindToSnapshot(chatHistory, historySnapshotCount);
                     outputView.AppendLine($"  [允许] {ex.ToolName}");
                     queue.Enqueue(new QueuedCommand(cmd.Content, CommandOrigin.User, QueuePriority.Now));
                 }
@@ -373,6 +378,16 @@ internal static class TuiModeRunner
                 painter.Invoke(() => toolBar.SetRunning(false));
             }
         }
+    }
+
+    /// <summary>
+    /// 裁剪 chatHistory 回快照点 — 权限批准后重发前调用，撤回本轮已入历史的
+    /// 用户消息+部分助手/工具消息，避免重发造成上下文重复（对齐 GUI RewindLastTurnAsync 语义）。
+    /// </summary>
+    internal static void RewindToSnapshot(MessageList history, int snapshotCount)
+    {
+        while (history.Count > snapshotCount)
+            history.RemoveAt(history.Count - 1);
     }
 
     /// <summary>

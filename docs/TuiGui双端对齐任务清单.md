@@ -122,8 +122,13 @@
     ④ finally 先置 null 再 Dispose + Stop 端 ObjectDisposedException 防护（消除竞态）。
   - 对齐 GUI Esc 停止语义；程序退出仍走 /exit。
   - 验证：编译通过 + TUI 全部 133 测试绿。
-- [ ] **B7** TUI 权限批准后重发原文导致上下文重复
-  - 位置：`TuiModeRunner.cs:326`；对齐 GUI 的 Rewind 语义或改为工具级批准后继续
+- [x] **B7** TUI 权限批准后重发原文导致上下文重复
+  - **修复（2026-08-22）**：根因 `QueryEngine.QueryAsync`（core\execution\Brain\src\Query\Query2\TokenBudget\QueryEngine.cs:134）
+    在管道执行前就 AddUserMessage，权限异常抛出时本轮消息已入历史，重发即二次追加。
+  - 改动：① 命令执行前记录 `historySnapshotCount`；② 新增 `TuiModeRunner.RewindToSnapshot`
+    （裁剪回快照点）；③ 批准分支先 Rewind 再重发——对齐 GUI `RewindLastTurnAsync` 语义。
+  - 测试：`PermissionRewindTests`（裁剪生效 + 空增量 NoOp），TUI 135 测试全绿。
+  - 备注：拒绝路径保持原样（GUI 拒绝也会保留错误结果入上下文）。
 - [ ] **B8**（存量缺陷，与对齐工作无关，基线即失败）JoinCodeGui.Tests 中 7 个模型列表测试失败
   - 现象：`JccChatSessionAssemblyTests.ModelSurface_VendorModelMap_*`、`SetModelAsync_PersistsModelToSettingsJson`、
     `MainViewModelTests.ModelOptions_DoesNotCrossContaminateModelsFromOtherProviders`、`PlaceholderMode_ShowsLoadingStatus`

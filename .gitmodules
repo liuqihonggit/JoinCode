@@ -6,3 +6,7 @@
 	path = libs/Terminal.Gui
 	url = git@github.com:liuqihonggit/Terminal.Gui.git
 	branch = develop
+[remote "submodule.libs/Editor"]
+	url = git@gitee.com:JJbox/Editor.git
+[remote "submodule.libs/Terminal.Gui"]
+	url = git@gitee.com:JJbox/Terminal.Gui.git

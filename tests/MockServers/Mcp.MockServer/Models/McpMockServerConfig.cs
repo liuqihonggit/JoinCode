@@ -12,7 +12,7 @@ public sealed class McpMockServerConfig : MockServerConfigBase<McpMockServerConf
     public string ServerVersion { get; set; } = "1.0.0";
 
     /// <summary>MCP 协议版本</summary>
-    public string ProtocolVersion { get; set; } = "2024-11-05";
+    public string ProtocolVersion { get; set; } = "2025-11-25";
 
     /// <summary>Mock 工具列表</summary>
     public List<McpToolDefinition> Tools { get; set; } = [];

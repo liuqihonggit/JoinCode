@@ -76,8 +76,7 @@ public sealed partial class McpbLoader : ServiceEntity
         var server = manifest.Server;
         var transportType = server.Type?.ToLowerInvariant() switch
         {
-            "sse" => McpClientTransportType.Sse,
-            "http" or "streamable-http" => McpClientTransportType.Http,
+            "sse" or "http" or "streamable-http" => McpClientTransportType.Http,
             "websocket" or "ws" => McpClientTransportType.WebSocket,
             _ => McpClientTransportType.Stdio
         };

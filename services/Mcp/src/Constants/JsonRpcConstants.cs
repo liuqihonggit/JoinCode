@@ -8,7 +8,16 @@ public static class JsonRpc
 
 public static class McpProtocolVersion
 {
-    public const string Current = "2024-11-05";
+    public const string V2024_11_05 = "2024-11-05";
+    public const string V2025_03_26 = "2025-03-26";
+    public const string V2025_06_18 = "2025-06-18";
+    public const string V2025_11_25 = "2025-11-25";
+
+    public const string Current = V2025_11_25;
+
+    public static readonly FrozenSet<string> Supported = FrozenSet.Create(
+        StringComparer.Ordinal,
+        V2025_11_25, V2025_06_18, V2025_03_26);
 }
 
 public static class ErrorCodes

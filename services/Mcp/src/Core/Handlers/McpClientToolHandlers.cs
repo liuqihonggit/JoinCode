@@ -119,7 +119,6 @@ public partial class McpClientToolHandlers : IAsyncDisposable
                 client = config.TransportType switch
                 {
                     McpClientTransportType.Stdio => new McpStdioClient(config, logger: _logger),
-                    McpClientTransportType.Sse => new McpSseClient(config, logger: _logger),
                     McpClientTransportType.Http => new McpHttpClient(config, logger: _logger),
                     McpClientTransportType.WebSocket => new McpWebSocketClient(config, logger: _logger),
                     _ => throw new NotSupportedException(L.T(StringKey.UnsupportedTransportType, transport_type))
@@ -593,7 +592,6 @@ public partial class McpClientToolHandlers : IAsyncDisposable
         return transportType.ToLowerInvariant() switch
         {
             McpTransportTypeConstants.Stdio => McpClientTransportType.Stdio,
-            McpTransportTypeConstants.Sse => McpClientTransportType.Sse,
             McpTransportTypeConstants.Http => McpClientTransportType.Http,
             McpTransportTypeConstants.WebSocket => McpClientTransportType.WebSocket,
             _ => throw new ArgumentException(L.T(StringKey.UnsupportedTransportType, transportType))

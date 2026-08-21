@@ -12,6 +12,7 @@ public sealed partial class HttpTransport : TransportBase, IMcpTransport
     private readonly HttpClient _httpClient;
     private readonly IMcpAuthProvider? _authProvider;
     private string? _sessionId;
+    private string? _lastEventId;
 
     private const int PostTimeoutMs = 60000;
     private const string StreamableHttpAccept = "application/json, text/event-stream";
@@ -24,6 +25,12 @@ public sealed partial class HttpTransport : TransportBase, IMcpTransport
 
     /// <summary>Step-Up 认证检测事件</summary>
     public event EventHandler<StepUpDetectedEventArgs>? StepUpDetected;
+
+    /// <summary>会话过期事件(404) — 上层应重新握手,对齐 2025-11-25 规范 Session Management</summary>
+    public event EventHandler<EventArgs>? SessionExpired;
+
+    /// <summary>运行时是否无状态(StatelessMode 显式开启 或 服务器未分配 MCP-Session-Id)</summary>
+    public bool IsStateless => _options.StatelessMode || string.IsNullOrEmpty(_sessionId);
 
     public HttpTransport(HttpTransportOptions options, IMcpAuthProvider? authProvider = null, ILogger<HttpTransport>? logger = null)
     {
@@ -85,6 +92,8 @@ public sealed partial class HttpTransport : TransportBase, IMcpTransport
             request.Headers.TryAddWithoutValidation("Mcp-Session-Id", _sessionId);
         }
 
+        request.Headers.TryAddWithoutValidation("MCP-Protocol-Version", _options.ProtocolVersion);
+
         var combinedHeaders = await GetCombinedHeadersAsync(ct).ConfigureAwait(false);
         foreach (var (key, value) in combinedHeaders)
         {
@@ -96,8 +105,13 @@ public sealed partial class HttpTransport : TransportBase, IMcpTransport
 
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
+            var wasStateful = !string.IsNullOrEmpty(_sessionId);
             _sessionId = null;
-            _logger?.LogWarning("MCP 会话过期，下次请求将重新建立");
+            _logger?.LogWarning("MCP 会话过期(404),下次请求将重新握手");
+            if (wasStateful)
+            {
+                SessionExpired?.Invoke(this, EventArgs.Empty);
+            }
         }
 
         var stepUpScope = StepUpDetector.DetectStepUp(response, _authProvider);
@@ -113,6 +127,10 @@ public sealed partial class HttpTransport : TransportBase, IMcpTransport
         {
             _sessionId = sessionIds.FirstOrDefault();
             _logger?.LogDebug("MCP 会话 ID: {SessionId}", _sessionId);
+        }
+        else if (!_options.StatelessMode)
+        {
+            _logger?.LogInformation("服务器未分配 MCP-Session-Id,以无状态模式运行");
         }
 
         var contentType = response.Content.Headers.ContentType?.MediaType;
@@ -162,8 +180,34 @@ public sealed partial class HttpTransport : TransportBase, IMcpTransport
     {
         if (!IsRunning) return;
         IsRunning = false;
+
+        if (!string.IsNullOrEmpty(_sessionId))
+        {
+            await SendDeleteSessionAsync(ct).ConfigureAwait(false);
+        }
+
         await GracefulStopAsync(ct).ConfigureAwait(false);
         _logger?.LogInformation("HTTP 传输已停止");
+    }
+
+    /// <summary>
+    /// 发送 HTTP DELETE 终止会话 — 对齐 2025-11-25 规范 Session Management:
+    /// 客户端 SHOULD 发送 DELETE + MCP-Session-Id 显式终止会话
+    /// </summary>
+    private async Task SendDeleteSessionAsync(CancellationToken ct)
+    {
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Delete, _options.Endpoint);
+            request.Headers.TryAddWithoutValidation("MCP-Protocol-Version", _options.ProtocolVersion);
+            request.Headers.TryAddWithoutValidation("Mcp-Session-Id", _sessionId);
+            using var response = await _httpClient.SendAsync(request, ct).ConfigureAwait(false);
+            _logger?.LogDebug("DELETE 会话终止响应: {StatusCode}", response.StatusCode);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "DELETE 会话终止失败");
+        }
     }
 
     /// <summary>
@@ -177,6 +221,10 @@ public sealed partial class HttpTransport : TransportBase, IMcpTransport
 
             await foreach (var sseEvent in SseStreamParser.ParseAsync(stream, cancellationToken).ConfigureAwait(false))
             {
+                if (!string.IsNullOrEmpty(sseEvent.Id))
+                {
+                    _lastEventId = sseEvent.Id;
+                }
                 var message = ParseMessage(sseEvent.Data);
                 if (message is not null)
                 {
@@ -193,6 +241,34 @@ public sealed partial class HttpTransport : TransportBase, IMcpTransport
             _logger?.LogWarning(ex, "SSE 响应流处理异常");
             OnErrorOccurred(ex);
         }
+    }
+
+    /// <summary>
+    /// 通过 GET 打开 SSE 流 — 对齐 2025-11-25 规范:客户端 MAY GET 开 SSE 流接收服务端推送,
+    /// 断线后用 Last-Event-ID 重连恢复。服务器 MAY 用 Last-Event-ID 重放丢失消息。
+    /// </summary>
+    public async Task OpenSseStreamAsync(CancellationToken cancellationToken = default)
+    {
+        if (!IsRunning) return;
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, _options.Endpoint);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
+        request.Headers.TryAddWithoutValidation("MCP-Protocol-Version", _options.ProtocolVersion);
+        if (!string.IsNullOrEmpty(_sessionId))
+        {
+            request.Headers.TryAddWithoutValidation("Mcp-Session-Id", _sessionId);
+        }
+        if (!string.IsNullOrEmpty(_lastEventId))
+        {
+            request.Headers.TryAddWithoutValidation("Last-Event-ID", _lastEventId);
+        }
+
+        using var response = await _httpClient.SendAsync(
+            request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+
+        response.EnsureSuccessStatusCode();
+
+        await ProcessSseResponseAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
     private static JsonRpcMessage? ParseMessage(string json)
@@ -291,4 +367,10 @@ public sealed partial class HttpTransportOptions
 
     /// <summary>服务器 URL — 传递给 headersHelper 的 CLAUDE_CODE_MCP_SERVER_URL 环境变量</summary>
     public string ServerUrl { get; init; } = string.Empty;
+
+    /// <summary>MCP 协议版本 — 对齐 2025-11-25 规范 MCP-Protocol-Version 头部</summary>
+    public string ProtocolVersion { get; init; } = McpProtocolVersion.Current;
+
+    /// <summary>无状态模式 — 对齐 2025-11-25:客户端不期望 session,服务器未分配 MCP-Session-Id 时自动无状态</summary>
+    public bool StatelessMode { get; init; }
 }

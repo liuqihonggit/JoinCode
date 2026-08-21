@@ -14,7 +14,6 @@ public class McpServerConnectionConfig
 public enum McpClientTransportType
 {
     [EnumValue("stdio")] Stdio,
-    [EnumValue("sse")] Sse,
     [EnumValue("http")] Http,
     [EnumValue("websocket")] WebSocket,
 }

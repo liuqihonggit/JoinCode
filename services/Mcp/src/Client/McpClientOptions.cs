@@ -5,7 +5,7 @@ public class McpClientOptions
 {
     public string ClientName { get; init; } = "JoinCode.McpClient";
     public string ClientVersion { get; init; } = "1.0.0";
-    public string ProtocolVersion { get; init; } = "2024-11-05";
+    public string ProtocolVersion { get; init; } = McpProtocolVersion.Current;
     public int RequestTimeoutSeconds { get; init; } = 60;
     public int MaxRetries { get; init; } = 3;
     public int RetryDelayMs { get; init; } = WorkflowConstants.Retry.DefaultRetryDelayMs;
@@ -15,7 +15,7 @@ public sealed class McpClientOptionsBuilder
 {
     private string _clientName = "JoinCode.McpClient";
     private string _clientVersion = "1.0.0";
-    private string _protocolVersion = "2024-11-05";
+    private string _protocolVersion = McpProtocolVersion.Current;
     private int _requestTimeoutSeconds = 60;
     private int _maxRetries = 3;
     private int _retryDelayMs = WorkflowConstants.Retry.DefaultRetryDelayMs;
@@ -59,7 +59,6 @@ public sealed class McpServerConnectionConfigBuilder
     public McpServerConnectionConfigBuilder WithName(string name) { _name = name; return this; }
     public McpServerConnectionConfigBuilder WithEndpoint(string endpoint) { _endpoint = endpoint; return this; }
     public McpServerConnectionConfigBuilder UseStdio() { _transportType = McpClientTransportType.Stdio; return this; }
-    public McpServerConnectionConfigBuilder UseSse() { _transportType = McpClientTransportType.Sse; return this; }
     public McpServerConnectionConfigBuilder UseHttp() { _transportType = McpClientTransportType.Http; return this; }
     public McpServerConnectionConfigBuilder UseWebSocket() { _transportType = McpClientTransportType.WebSocket; return this; }
     public McpServerConnectionConfigBuilder WithTransportType(McpClientTransportType transportType) { _transportType = transportType; return this; }

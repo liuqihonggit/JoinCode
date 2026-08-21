@@ -25,6 +25,7 @@ internal static class TuiModeRunner
         var promptView = new PromptView(queue);
         var footerTab = new FooterTabView();
         var permissionDialog = new PermissionDialogView();
+        var askUserDialog = new AskUserDialogView();
         var queuedCommands = new QueuedCommandsView(queue);
         var agentPanes = new AgentPanesView();
         var resizeMonitor = new TerminalResizeMonitor();
@@ -40,6 +41,7 @@ internal static class TuiModeRunner
         root.SetPrompt(promptView);
         root.SetFooter(footerTab);
         root.AddComponent(permissionDialog);
+        root.AddComponent(askUserDialog);
         root.AddComponent(queuedCommands);
         root.AddComponent(agentPanes);
 
@@ -55,6 +57,10 @@ internal static class TuiModeRunner
         var queryEngine = services.GetService<IQueryEngine>();
         var permissionManager = services.GetService<IToolPermissionManager>();
         var chatHistory = new MessageList();
+
+        // T2：绑定 TUI 问答通道 — ask_user_question 工具经此在 TUI 主循环弹对话框
+        services.GetService<Interaction.TerminalGuiInteractiveService>()?
+            .Attach(painter, askUserDialog);
 
         statusBar.SetConnected(queryEngine is not null);
 
@@ -277,7 +283,7 @@ internal static class TuiModeRunner
             // 斜杠命令 — 转发到共享 SlashCommandRunner（与 GUI 同一执行链路）
             if (cmd.Content.Length > 0 && cmd.Content[0] == '/')
             {
-                await HandleSlashCommandAsync(cmd.Content, services, outputView, requestStop, painter, permissionDialog, cancellationToken).ConfigureAwait(false);
+                await HandleSlashCommandAsync(cmd.Content, services, outputView, chatHistory, requestStop, painter, permissionDialog, cancellationToken).ConfigureAwait(false);
                 continue;
             }
 
@@ -302,6 +308,7 @@ internal static class TuiModeRunner
             // 记录命令执行前历史快照 — QueryAsync 会先 AddUserMessage 再跑管道，
             // 权限批准后需裁剪回此点再重发（B7 防上下文重复）
             var historySnapshotCount = chatHistory.Count;
+            var permissionRetryCount = 0;
             var cmdCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             currentQueryCts.Value = cmdCts;
             try
@@ -333,20 +340,29 @@ internal static class TuiModeRunner
             }
             catch (PermissionPendingConfirmationException ex)
             {
-                Task<bool>? dialogTask = null;
+                // T3 重试上限 — 超限不再弹窗，报错终止本轮（对齐 GUI MaxPermissionRetries）
+                if (permissionRetryCount >= MaxPermissionRetries)
+                {
+                    outputView.AppendLine($"  [错误] 权限确认重试次数超限: {ex.ToolName}");
+                    continue;
+                }
+
+                PermissionConfirmAction? decision = null;
                 painter.Invoke(() =>
                 {
-                    dialogTask = permissionDialog.ShowAsync(ex.ToolName, ex.ConfirmationPrompt, cancellationToken);
+                    decision = permissionDialog.ShowWithDecisionAsync(ex.ToolName, ex.ConfirmationPrompt, cancellationToken).GetAwaiter().GetResult();
                 });
-                var allowed = dialogTask!.GetAwaiter().GetResult();
                 painter.Invoke(() => permissionDialog.Hide());
 
-                if (allowed)
+                if (decision is { } d && d != PermissionConfirmAction.Deny)
                 {
-                    permissionManager?.ApproveToolTemporarily(ex.ToolName, TimeSpan.FromMinutes(5));
+                    var duration = GetApprovalDuration(d);
+                    permissionManager?.ApproveToolTemporarily(ex.ToolName, duration);
                     // 撤回本轮（用户消息+部分回复已入历史）再重发，避免上下文重复
                     RewindToSnapshot(chatHistory, historySnapshotCount);
-                    outputView.AppendLine($"  [允许] {ex.ToolName}");
+                    permissionRetryCount++;
+                    var label = d == PermissionConfirmAction.AlwaysAllow ? "始终允许" : "允许";
+                    outputView.AppendLine($"  [{label}] {ex.ToolName}（{duration.TotalMinutes:N0} 分钟）");
                     queue.Enqueue(new QueuedCommand(cmd.Content, CommandOrigin.User, QueuePriority.Now));
                 }
                 else
@@ -378,6 +394,37 @@ internal static class TuiModeRunner
             history.RemoveAt(history.Count - 1);
     }
 
+    /// <summary>权限重试上限（T3 对齐 GUI MaxPermissionRetries）— 超限不再弹窗重发，防止无限循环</summary>
+    internal const int MaxPermissionRetries = 3;
+
+    /// <summary>
+    /// 权限决策 → 批准时长映射（T3 对齐 GUI JccChatSession 语义）：
+    /// 允许一次 = 5 分钟临时批准；始终允许 = 24 小时会话级；拒绝 = 零时长。
+    /// </summary>
+    internal static TimeSpan GetApprovalDuration(PermissionConfirmAction decision) => decision switch
+    {
+        PermissionConfirmAction.AlwaysAllow => TimeSpan.FromHours(24),
+        PermissionConfirmAction.Allow => TimeSpan.FromMinutes(5),
+        _ => TimeSpan.Zero,
+    };
+
+    /// <summary>
+    /// 从引擎消息记录重建 TUI 本地历史（T1）— 斜杠命令可能改变引擎上下文
+    /// （/resume 装入历史、/clear 清空、/compact 压缩摘要），本地 chatHistory 需与引擎
+    /// 保持一致，否则后续对话 LLM 收不到恢复的历史。角色字符串经生成的 FromValue 映射，
+    /// 未识别角色回退 Tool（与 GUI ReloadMessagesFromEngineAsync 的 User 回退互补覆盖）。
+    /// </summary>
+    internal static void SyncHistoryFromEngine(MessageList history, IReadOnlyList<ApiMessageRecord> records)
+    {
+        var rebuilt = new List<ApiMessage>(records.Count);
+        foreach (var record in records)
+        {
+            var role = MessageRoleExtensions.FromValue(record.Role) ?? MessageRole.Tool;
+            rebuilt.Add(new ApiMessage(role, record.Content));
+        }
+        history.ReplaceAll(rebuilt);
+    }
+
     /// <summary>
     /// 转发斜杠命令到底层 CmdMap — 委托共享 <see cref="SlashCommandRunner"/>（与 GUI 同一执行链路）。
     /// </summary>
@@ -385,6 +432,7 @@ internal static class TuiModeRunner
         string input,
         IServiceProvider services,
         OutputView outputView,
+        MessageList history,
         Action requestStop,
         TerminalPainter painter,
         PermissionDialogView permissionDialog,
@@ -409,6 +457,25 @@ internal static class TuiModeRunner
 
         if (!string.IsNullOrWhiteSpace(result.Output))
             outputView.AppendLine(result.Output);
+
+        // T1：命令可能改变引擎上下文（/resume 装入历史、/clear 清空、/compact 压缩），
+        // 重读引擎消息重建本地 chatHistory，保证后续对话 LLM 收到正确上下文
+        if (result.Handled)
+        {
+            try
+            {
+                var chat = services.GetService<Abstractions.Interfaces.IChatService>();
+                if (chat is not null)
+                {
+                    var records = await chat.GetMessageListAsync(cancellationToken).ConfigureAwait(false);
+                    painter.Invoke(() => SyncHistoryFromEngine(history, records));
+                }
+            }
+            catch (Exception syncEx)
+            {
+                WriteDiag($"[T1] history sync failed: {syncEx.Message}");
+            }
+        }
     }
 
     private static void WriteDiag(string message)

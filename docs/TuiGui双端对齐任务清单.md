@@ -164,17 +164,86 @@
     状态栏新增一列显示 "Token:N"（千位分隔）；引擎未上报时显示空串（保留输入框字符估算不变）。
   - 测试：`Send_WithUsageInDoneEvent_ShowsRealTokenCount`（红→绿）。GUI 325 全绿。
   - 位置：`MainViewModel.cs` SendAsync + `MainWindow.axaml` 状态栏
-- [ ] **G3** 接线 Markdown 渲染：MarkdownView/MarkdownParser/DiffViewer 已实现未引用，接入消息区替代纯文本
-- [ ] **G4** 输出环形缓冲/内存防护：ObservableCollection 无上限，长会话需淘汰策略
-- [ ] **G5** 命令队列预览（可选）：GUI 阻塞模型下价值减弱，评估是否需要
+- [x] **G3** 接线 Markdown 渲染：MarkdownView/MarkdownParser/DiffViewer 已实现未引用，接入消息区替代纯文本
+  - **完成（2026-08-22）**：消息区从单个只读 TextEditor 重构为 ItemsControl 单条消息卡片模板化渲染：
+    ① 正文非流式时经 MarkdownView 渲染（标题/代码块/列表/表格/引用），流式期间降级纯文本避免逐 token 重建控件树；
+    ② 工具启动卡片显示名称+等宽参数，工具结果显示文本+DiffViewer（StructuredPatch 驱动）；
+    ③ 思考气泡折叠提示接 ToggleThinkingCommand；
+    ④ **四孤立命令全部激活**（B4 兑现）：📋 CopyMessage / ✕ RemoveMessage / 🧠 ToggleThinking /
+    ↻ Regenerate（TopBar 原有）；
+    ⑤ 搜索直接过滤 ItemsSource=FilteredMessages；字号滑块联动 BaseFontSize；自动滚动改 ScrollViewer.ScrollToEnd。
+  - 移除死路径：xshd 高亮加载、OnRemoveClick 孤儿方法、AllMessagesText 显示分支（保留导出/复制用途）。
+  - 测试：删除按钮移除消息 + 复制按钮反馈态 + Markdown 冒烟 3 个新增 headless 测试，
+    FontSizeSlider/Constructor 回归测试改指新控件。GUI 328 全绿。
+  - 位置：`MainWindow.axaml(.cs)`
+- [x] **G4** 输出环形缓冲/内存防护：ObservableCollection 无上限，长会话需淘汰策略
+  - **完成（2026-08-22）**：`MainViewModel.MaxVisibleMessages = 500` 硬上限，
+    OnMessagesChanged 内超限 `RemoveAt(0)` 裁剪最旧（Remove 事件重入同步维护助手计数器，无双重递减）。
+    仅裁剪 UI 显示层；引擎上下文由 /compact 管理；TUI 端 OutputView 已有 2048 行环形缓冲无需改动。
+  - 测试：超限裁剪 + 计数器一致性 2 个新增测试。GUI 331 全绿。位置：`MainViewModel.cs`
+- [x] **G5** 命令队列预览（可选）— **决策：不做（N/A）**
+  - GUI 为阻塞模型（IsBusy 挡发送、无排队队列），不存在"待执行命令"可预览；
+    TUI 的 QueuedCommandsView 已覆盖其自身队列场景。强行加 UI = 加法思维反模式。
 
 ## 四、修 TUI 阶段（补 GUI 有的能力）
 
-- [ ] **T1** 会话持久化/resume：共享 `~/.jcc/sessions/*.json`，列表/恢复灌入引擎（对齐 GUI GuiSessionStore + LoadHistoryAsync 语义）
-- [ ] **T2** AskUserQuestion：Prompt 回调从返回 null 改为终端交互问答（单选/多选/自由输入）
-- [ ] **T3** 权限三档决策："始终允许"=24小时会话级（对齐 JccChatSession.cs:26-29 常量语义）；重试上限3次
-- [ ] **T4** 设置能力：至少支持温度/MaxTokens/Effort 写回 ExecutionSettingsProvider（对齐 GUI WriteBackTemperatureAndMaxTokens）
-- [ ] **T5** 供应商/模型运行时切换（可选：文件驱动界面规则7的 TUI 形态）
+- [x] **T1** 会话持久化/resume：共享 `~/.jcc/sessions/*.json`，列表/恢复灌入引擎（对齐 GUI GuiSessionStore + LoadHistoryAsync 语义）
+  - **完成（2026-08-22）**：存储层复用 CLI ResumeCommand 天然读写 `~/.jcc/sessions/*.json`
+    （GUI/TUI/CLI 三端同一命令链路 `/resume` → `LoadSessionMessagesAsync` 灌引擎，零新存储代码）。
+    补齐的缺口是**命令后 UI 历史同步**：
+    ① TUI `SyncHistoryFromEngine(MessageList, ApiMessageRecord[])` — ReplaceAll 原子重建本地 chatHistory
+    （角色 FromValue 映射，未识别回退 Tool），HandleSlashCommandAsync 执行成功后经 painter.Invoke 接线；
+    ② GUI `ReloadMessagesFromEngineAsync(echo)` — 重读 GetMessagesAsync 重建消息列表，
+    ⚙️ 命令回显保留末尾（角色回退 User）。/resume /clear /compact 全部受益。
+  - 测试：HistorySyncTests 3 个（映射/清空/未知角色）+ GUI 重读测试 1 个。
+    TUI 138 全绿、GUI 331 全绿。
+  - 位置：`TuiModeRunner.cs` + `MainViewModel.cs`
+- [x] **T2** AskUserQuestion：Prompt 回调从返回 null 改为终端交互问答（单选/多选/自由输入）
+  - **完成（2026-08-22）**：根因是 TUI DI 不含 CliModule（Program.cs 注释明示），ask_user_question 工具
+    落到 Core 层 Mock InteractiveService——用户从未被真正提问，AI 拿到假答案。
+  - 修复（对齐 GUI GuiInteractionModule 覆盖模式）：
+    ① `TuiInteractionModule`(Order=80) 注册 TerminalGuiInteractiveService 覆盖 Mock；
+    ② `TerminalGuiInteractiveService`：校验语义对齐 CLI（空问题/最多4问/选项2-4/重复标签），
+    经 painter.Invoke 切 TUI 主循环弹对话框，未绑定 UI 时显式失败（绝不静默替用户作答）；
+    ③ `AskUserDialogView`：Header/问题/选项渲染 + TextField 序号输入 + 确定/取消按钮，
+    无效输入不关窗重试提示；无选项时自由输入；
+    ④ `AskUserSelectionParser` 纯函数解析（1-based、0=取消、多选逗号去重）。
+  - 测试：Parser 6 + DialogView 6 + Service 校验 6 = 18 个新增。TUI 156 全绿。
+  - 冒烟：jcctui --await 启动正常，extraModules 注入未破坏 DI（诊断日志 session created → app.Run）。
+  - 位置：`JoinCodeTui/{Interaction,Tui/Tui,Hosting}` + `Program.cs`
+- [x] **T3** 权限三档决策："始终允许"=24小时会话级（对齐 JccChatSession.cs:26-29 常量语义）；重试上限3次
+  - **完成（2026-08-22）**：
+    ① `PermissionDialogView` 升级三档按钮：允许一次(y) / **始终允许(a)** / 拒绝(n)；
+    ② 新增 `ShowWithDecisionAsync` 返回 Abstractions 层 `PermissionConfirmAction`
+    （TUI 不引用 GUI 专属 PermissionConfirmationDecision），旧 `ShowAsync`(bool) 保留供 slash confirm 复用；
+    ③ `GetApprovalDuration` 映射：Allow=5min / AlwaysAllow=24h / Deny=Zero（对齐 GUI 常量）；
+    ④ `MaxPermissionRetries=3` 重试上限——超限报错终止本轮，不再无限弹窗循环。
+  - 测试：映射 4 + 对话框三档 4 = 8 个新增。TUI 164 全绿。
+  - 位置：`PermissionDialogView.cs` + `TuiModeRunner.cs`
+- [x] **T4** 设置能力：至少支持温度/MaxTokens/Effort 写回 ExecutionSettingsProvider（对齐 GUI WriteBackTemperatureAndMaxTokens）
+  - **完成（2026-08-22）**：
+    ① Effort 零新增——CLI `/effort` 已写 `settingsProvider.EffortLevel`，TUI 经共享 SlashCommandRunner 免费获得；
+    ② 温度/MaxTokens 新增共享 ChatCommand **`/sampling [温度] [最大Token|unset]`**
+    （`Commands/ai/Model/SamplingCommand.cs`）：无参=查询当前值、unset=清除覆盖回退引擎默认、
+    温度校验 0-2、只给温度不动 MaxTokens（对齐 GUI 滑块独立语义）；写回 `IExecutionSettingsProvider`
+    内存生效，ChatOptionsFactory 下次创建即用（对齐 CLI 不持久化约定）。
+  - 三端可达：TUI/GUI 走共享 runner；CLI 注册表自动含新命令。ChatCommandName 枚举加 Sampling
+  （源码生成器全量重建）。
+  - 测试：8 个新增（元数据+写回/查询/清除/无效值）。Host.Tests 全量 **1022 全绿**。
+  - 位置：`SamplingCommand.cs` + `ChatCommandName.cs`
+- [x] **T5** 供应商/模型运行时切换（可选：文件驱动界面规则7的 TUI 形态）
+  - **完成（2026-08-22）**：
+    ① 模型切换零新增——CLI `/model [id|default|info]` 已完整实现（内存 SetPrimaryModel +
+    settings.json 持久化 + fast-mode 自动关 + effort 自动降级），TUI 经共享 runner 免费获得；
+    ② 供应商切换新增共享 ChatCommand **`/vendor [名称|list]`**（`VendorCommand.cs`）：
+    无参=列出全部（VendorKind 枚举唯一数据源，规则7）+ 当前标记；切换对齐 GUI
+    `SetVendorAsync` 语义——WorkflowConfig.Provider.Vendor 内存切换 + 默认模型跟随
+    （IModelCatalog.GetDefaultModelForProvider + fastMode.SetPrimaryModel）+
+    settings.json `profile` 键持久化；无效名拒绝改动；同供应商 no-op。
+    三端可达：CLI 注册表 / TUI+GUI 经共享 SlashCommandRunner。
+  - 测试：6 个新增（元数据/列表/切换+持久化配置/无效拒绝/同值no-op）。
+    Host.Tests 全量 **1028 全绿**、GUI 331 全绿。
+  - 位置：`VendorCommand.cs` + `ChatCommandName.cs`
 
 ## 五、清理决策清单（做之前先问用户）
 
@@ -225,3 +294,49 @@ init 会把 .gitmodules URL 改写为 gitee 回退源，提交前需 `git checko
 <!-- 决策: 分三阶段执行（bug→GUI→TUI），每项独立编译+测试+提交 -->
 <!-- 原因: B1 是权限安全缺陷优先级最高；GUI 补斜杠执行是用户可感知的最大行为差异 -->
 <!-- 替代方案: 双向并行子智能体（放弃，避免同仓库冲突且无法逐项验证）-->
+
+<!-- 🤖 Auto Decision: 2026-08-22 (T1+G4) -->
+<!-- 决策1: T1 不新建 TUI 存储层，复用 CLI ResumeCommand 读写 ~/.jcc/sessions + 补 UI 历史同步钩子 -->
+<!-- 原因1: 三端同一命令链路=消除两套实现的正解；GUI 的 GuiSessionStore 是 GUI 内会话列表管理，语义不同不合并 -->
+<!-- 替代方案1: 抽取共享 SessionStore 到 app/JoinCode（放弃：大迁移风险晚节不保，格式已天然互通）-->
+<!-- 决策2: G4 上限裁剪放 CollectionChanged 处理器而非每个 Add 调用点 -->
+<!-- 原因2: 单一收口点覆盖全部路径（发送/恢复/导入），RemoveAt 重入同步维护计数器 -->
+<!-- 替代方案2: 封装 AppendMessage 统一入口（放弃：需改 10+ 调用点，收益相同）-->
+<!-- 验证: GUI 331 全绿 + TUI 138 全绿 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-22 (T2) -->
+<!-- 决策: AskUserQuestion 走独立 TuiInteractionModule+对话框视图,而非复用 PermissionDialogView 或 CLI TerminalInteractiveService -->
+<!-- 原因: TUI DI 不含 CliModule(Mock 根因);Console.ReadLine 会破坏 Terminal.Gui 全屏渲染;Permission 语义是布尔确认不承载多选 -->
+<!-- 替代方案: 给 SlashCommandRunner 的 prompt 回调做终端问答(放弃: prompt 是 /commit 自由输入回调,与结构化问答语义不同)-->
+<!-- 验证: Parser/DialogView/Service 共18测试全绿 + jcctui 冒烟 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-22 (T3) -->
+<!-- 决策: TUI 权限决策枚举用 Abstractions 层 PermissionConfirmAction,而非 GUI 的 PermissionConfirmationDecision -->
+<!-- 原因: JoinCodeTui 不引用 JoinCodeGui,GUI 枚举不可达;两枚举三值语义相同,Abstractions 版是正确共享层 -->
+<!-- 替代方案: 把 GUI 枚举上移 Abstractions（放弃: 动 GUI 公共 API 面,收益仅为命名统一）-->
+<!-- 验证: 映射+对话框8测试全绿,TUI 164 全绿 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-22 (T4) -->
+<!-- 决策: 温度/MaxTokens 做成共享 ChatCommand /sampling 而非 TUI 专属设置面板 -->
+<!-- 原因: 三端同享一份实现(CLI注册表/TUI与GUI经共享runner),符合消除两套实现原则;GUI 面板已有 session 方法路径不冲突 -->
+<!-- 替代方案: TUI FooterTab Settings 页签做交互面板(放弃: 工作量大且只服务 TUI 一端,后续可选补充)-->
+<!-- 验证: SamplingCommandTests 8绿,Host.Tests 全量 1022 全绿 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-22 (T5) -->
+<!-- 决策: /vendor 列表数据源用 Enum.GetValues<VendorKind>() 而非新建 providers 配置文件节点 -->
+<!-- 原因: VendorKind 枚举+[EnumValue] 已是供应商唯一数据源(规则3枚举唯一数据源),models.json 的 providers 节点驱动的是模型列表非供应商清单 -->
+<!-- 替代方案: 读 models.json providers 键（放弃: 与枚举双源冲突，违反单一数据源原则）-->
+<!-- 决策2: T5 整体走"共享 ChatCommand"路线而非 TUI 专属 UI -->
+<!-- 验证: VendorCommandTests 6绿 + 全量 1028/331 全绿 ✅ -->
+
+---
+
+## 任务完成总结（2026-08-22）
+
+全部任务 B1-B8 / G1-G5 / T1-T5 完成。本轮（PR #125 合并后）新增提交：
+T1+G4（615e50062）→ T2（0d234dc11）→ T3（74e58a8a4）→ T4（e74984f02）→ T5。
+
+最终测试基线：Host.Tests **1028** 全绿、JoinCodeGui.Tests **331** 全绿。
+架构收获：斜杠命令/权限/问答/采样/供应商五大能力全部收敛到"共享命令层+UI 适配层"模式，
+消除两端独立实现。遗留提醒：⚠️ GUI 权限弹窗 Confirm 场景默认拒绝（G1 边界）、
+⚠️ /exit 的 GUI onExitRequested 未接窗口关闭、⚠️ B8 曾污染真实 settings.json 建议人工核查。

@@ -65,6 +65,7 @@ global using JoinCode.Tui;
 global using Host.Tests.Tui.Rendering;
 global using Terminal.Gui.App;
 global using Terminal.Gui.ViewBase;
+global using Terminal.Gui.Views;
 global using JoinCode.Cli.Interaction;
 global using JoinCode.Abstractions.Models.Interactive;
 global using IMcpClient = JoinCode.Abstractions.Mcp.Client.IMcpClient;

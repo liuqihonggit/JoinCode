@@ -318,6 +318,15 @@ public sealed partial class MainViewModel : ViewModelBase
     /// <summary>Assistant 消息计数器（CanRegenerate O(1) 查找，由 OnMessagesChanged 维护）</summary>
     private int _assistantMessageCount;
 
+    /// <summary>
+    /// UI 消息列表硬上限（G4 内存防护）— 长会话/批量恢复历史时防止集合无限增长。
+    /// 仅裁剪显示层，引擎上下文由 /compact 机制管理；TUI 端对应 OutputView 的 2048 行环形缓冲。
+    /// </summary>
+    public const int MaxVisibleMessages = 500;
+
+    /// <summary>测试可见的助手消息计数（与 _assistantMessageCount 同源，供一致性断言）</summary>
+    internal int AssistantMessageCountForTest => _assistantMessageCount;
+
     /// <summary>消息条数（随集合变化更新，驱动 UI 计数显示）</summary>
     public int MessageCount => Messages.Count;
 
@@ -326,6 +335,37 @@ public sealed partial class MainViewModel : ViewModelBase
 
     /// <summary>会话累计字符数（含输入与回复，粗略 token 估算用）</summary>
     public int TotalChars => Messages.Sum(m => m.Content.Length);
+
+    /// <summary>
+    /// 从引擎上下文重读历史并重建消息列表（T1）— 斜杠命令可能改变引擎会话状态
+    /// （/resume 装入历史、/clear 清空、/compact 压缩摘要），UI 列表需与引擎保持一致。
+    /// 刷新失败仅记日志，不影响命令本身的回显。
+    /// </summary>
+    /// <param name="echoToKeep">保留在列表末尾的命令回显消息</param>
+    private async Task ReloadMessagesFromEngineAsync(ChatUiMessage echoToKeep)
+    {
+        try
+        {
+            var records = await _session.GetMessagesAsync(_sendCts?.Token ?? CancellationToken.None);
+            Messages.Clear();
+            foreach (var record in records)
+            {
+                if (string.IsNullOrWhiteSpace(record.Content))
+                    continue;
+                Messages.Add(new ChatUiMessage
+                {
+                    Role = MessageRoleExtensions.FromValue(record.Role) ?? MessageRole.User,
+                    Content = record.Content,
+                    Timestamp = record.Timestamp.ToLocalTime()
+                });
+            }
+            Messages.Add(echoToKeep);
+        }
+        catch (Exception ex)
+        {
+            WriteErrorLog(ex);
+        }
+    }
 
     /// <summary>会话导出为文本（`角色 时间: 内容` 格式，供复制/下载）</summary>
     public string ExportSessionText
@@ -798,6 +838,11 @@ public sealed partial class MainViewModel : ViewModelBase
                     if (m.Role == MessageRole.Assistant) _assistantMessageCount++;
         }
 
+        // G4 内存防护：超出上限裁剪最旧消息。RemoveAt 触发的 Remove 事件同步重入本处理器，
+        // 计数器随 OldItems 递减，此处无需重复扣减
+        while (Messages.Count > MaxVisibleMessages)
+            Messages.RemoveAt(0);
+
         OnPropertyChanged(nameof(MessageCount));
         OnPropertyChanged(nameof(HasMessages));
         OnPropertyChanged(nameof(CanRegenerate));
@@ -1259,6 +1304,9 @@ public sealed partial class MainViewModel : ViewModelBase
                 commandEcho.Content = string.IsNullOrWhiteSpace(output)
                     ? commandEcho.Content + "\n（无输出）"
                     : $"{commandEcho.Content}\n{output}";
+                // T1：命令可能改变引擎上下文（/resume 装入历史、/clear 清空、/compact 压缩），
+                // 重读引擎历史刷新消息列表，否则恢复的会话在界面不可见；命令回显保留在末尾
+                await ReloadMessagesFromEngineAsync(commandEcho);
                 StatusText = "就绪";
                 return;
             }

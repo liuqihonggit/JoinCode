@@ -1,8 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.VisualTree;
-using AvaloniaEdit.Highlighting;
-using AvaloniaEdit.Highlighting.Xshd;
 
 using JoinCode.Abstractions.Models.Interactive;
 using JoinCode.Gui.Theming;
@@ -12,6 +10,7 @@ namespace JoinCode.Gui.Views;
 
 /// <summary>
 /// 主窗口 code-behind — 仅承载视图逻辑（输入回车发送、新消息自动滚动到底、错误 toast 显示）。
+/// 消息区为 ItemsControl 模板化渲染（G3）：Markdown 正文 + 单条复制/删除/思考折叠命令。
 /// 业务均走 ViewModel。
 /// </summary>
 public sealed partial class MainWindow : Window
@@ -23,9 +22,6 @@ public sealed partial class MainWindow : Window
     private System.Threading.CancellationTokenSource? _errorToastFadeCts;
 
     private bool _autoScrollEnabled = true;
-
-    /// <summary>TextEditor 内部 ScrollViewer 引用 — 延迟到模板应用后查找</summary>
-    private ScrollViewer? _textEditorScroll;
 
     private static readonly TimeSpan ErrorToastDuration = TimeSpan.FromSeconds(5);
 
@@ -61,33 +57,6 @@ public sealed partial class MainWindow : Window
         _toolTimer.Tick += OnToolTimerTick;
         SizeChanged += OnWindowSizeChanged;
         Closed += OnWindowClosed;
-        if (MessageTextEditor is not null)
-        {
-            MessageTextEditor.TemplateApplied += OnTextEditorTemplateApplied;
-            LoadChatHighlighting();
-        }
-    }
-
-    /// <summary>从嵌入资源加载聊天消息语法高亮定义（角色头行/工具标签/diff着色）</summary>
-    private void LoadChatHighlighting()
-    {
-        var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-        using var stream = assembly.GetManifestResourceStream("JoinCode.Gui.Assets.ChatHighlighting.xshd");
-        if (stream is not null)
-        {
-            var definition = HighlightingLoader.Load(
-                System.Xml.XmlReader.Create(stream),
-                HighlightingManager.Instance);
-            MessageTextEditor!.SyntaxHighlighting = definition;
-        }
-    }
-
-    /// <summary>TextEditor 模板应用后查找内部 ScrollViewer 并订阅滚动事件</summary>
-    private void OnTextEditorTemplateApplied(object? sender, Avalonia.Controls.Primitives.TemplateAppliedEventArgs e)
-    {
-        _textEditorScroll = MessageTextEditor?.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
-        if (_textEditorScroll is not null)
-            _textEditorScroll.ScrollChanged += OnMessageScrollChanged;
     }
 
     private void OnWindowClosed(object? sender, EventArgs e)
@@ -99,10 +68,6 @@ public sealed partial class MainWindow : Window
         _toolTimer.Stop();
         _toolTimer.Tick -= OnToolTimerTick;
         SizeChanged -= OnWindowSizeChanged;
-        if (_textEditorScroll is not null)
-            _textEditorScroll.ScrollChanged -= OnMessageScrollChanged;
-        if (MessageTextEditor is not null)
-            MessageTextEditor.TemplateApplied -= OnTextEditorTemplateApplied;
         _toastCts?.Cancel();
         _errorToastFadeCts?.Cancel();
         if (_vm is not null)
@@ -127,8 +92,6 @@ public sealed partial class MainWindow : Window
             _vm.Messages.CollectionChanged += OnMessagesChanged;
             _vm.PropertyChanged += OnVmPropertyChanged;
             _vm.ScrollToBottomRequested += OnScrollToBottomRequested;
-            if (MessageTextEditor is not null)
-                MessageTextEditor.Document.Text = _vm.AllMessagesText;
         }
     }
 
@@ -235,20 +198,8 @@ public sealed partial class MainWindow : Window
             else
                 _toolTimer.Stop();
         }
-        else if (e.PropertyName == nameof(MainViewModel.AllMessagesText))
-        {
-            if (MessageTextEditor is not null)
-            {
-                var text = _vm!.AllMessagesText;
-                var shouldScroll = _autoScrollEnabled;
-                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                {
-                    MessageTextEditor.Document.Text = text;
-                    if (shouldScroll)
-                        MessageTextEditor.ScrollToLine(MessageTextEditor.Document.LineCount);
-                });
-            }
-        }
+        // G3：消息区改为 ItemsControl 模板化渲染，FilteredMessages 绑定自动更新，
+        // AllMessagesText 仅保留导出/复制用途，不再驱动显示
     }
 
     /// <summary>窗口尺寸变化时重算斜杠面板位置</summary>
@@ -370,14 +321,14 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    /// <summary>新消息加入时，若未上滑浏览则自动滚动到底部</summary>
+    /// <summary>新消息加入时，若未上滑浏览则自动滚动到底部（G3：ScrollViewer 化）</summary>
     private void OnMessagesChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {
         if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add
             && _autoScrollEnabled
-            && MessageTextEditor is not null)
+            && MessageScrollViewer is not null)
         {
-            MessageTextEditor.ScrollToLine(MessageTextEditor.Document.LineCount);
+            MessageScrollViewer.ScrollToEnd();
         }
     }
 
@@ -396,17 +347,7 @@ public sealed partial class MainWindow : Window
     /// <summary>VM 请求滚动到底部时执行 UI 滚动操作</summary>
     private void OnScrollToBottomRequested()
     {
-        if (MessageTextEditor is not null)
-            MessageTextEditor.ScrollToLine(MessageTextEditor.Document.LineCount);
+        MessageScrollViewer?.ScrollToEnd();
         _autoScrollEnabled = true;
-    }
-
-    /// <summary>点击删除按钮：从会话中移除该消息</summary>
-    private void OnRemoveClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        if (sender is Button { Tag: ChatUiMessage message } && DataContext is MainViewModel vm)
-        {
-            vm.RemoveMessageCommand.Execute(message);
-        }
     }
 }

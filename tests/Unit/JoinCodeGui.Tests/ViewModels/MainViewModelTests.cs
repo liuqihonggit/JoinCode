@@ -748,6 +748,36 @@ public class MainViewModelTests
         }
 
         [Fact]
+        public void Messages_ExceedingCap_TrimsOldest()
+        {
+            // G4 内存防护：长会话/批量恢复历史时 UI 集合无上限增长 → 超过上限裁剪最旧消息
+            var vm = CreateVm();
+            for (var i = 0; i < 505; i++)
+                vm.Messages.Add(new ChatUiMessage { Role = MessageRole.User, Content = $"m{i}", Timestamp = DateTime.Now });
+
+            vm.Messages.Count.Should().BeLessThanOrEqualTo(MainViewModel.MaxVisibleMessages,
+                "UI 消息列表应有硬上限防止内存无限增长");
+            vm.Messages.Should().NotContain(m => m.Content == "m0", "最旧的消息应被优先裁剪");
+            vm.Messages.Last().Content.Should().Be("m504", "最新消息必须保留");
+        }
+
+        [Fact]
+        public void Messages_TrimsKeepAssistantCountConsistent()
+        {
+            // 裁剪掉助手消息后 CanRegenerate 计数器必须同步递减（否则撤回按钮状态错乱）
+            var vm = CreateVm();
+            for (var i = 0; i < 503; i++)
+                vm.Messages.Add(new ChatUiMessage { Role = MessageRole.User, Content = $"u{i}", Timestamp = DateTime.Now });
+            vm.Messages.Add(new ChatUiMessage { Role = MessageRole.Assistant, Content = "a0", Timestamp = DateTime.Now });
+            vm.Messages.Add(new ChatUiMessage { Role = MessageRole.Assistant, Content = "a1", Timestamp = DateTime.Now });
+
+            vm.Messages.Count.Should().BeLessThanOrEqualTo(MainViewModel.MaxVisibleMessages);
+            vm.AssistantMessageCountForTest.Should().Be(
+                vm.Messages.Count(m => m.Role == MessageRole.Assistant),
+                "内部计数器应与可见助手消息数一致");
+        }
+
+        [Fact]
         public void ResetSettings_RestoresDefaults()
         {
             var vm = CreateVm();
@@ -1070,6 +1100,33 @@ public class MainViewModelTests
             // 输出以系统消息回显，包含命令与输出内容
             vm.Messages.Should().Contain(m => m.Role == MessageRole.System && m.Content.Contains("命令输出内容"));
             vm.IsBusy.Should().BeFalse();
+        }
+
+        [Fact]
+        public async Task Send_WithSlashCommand_ReloadsMutatedEngineMessages()
+        {
+            // T1 对齐：/resume 装入历史、/clear 清空后，GUI 消息列表必须重读引擎上下文刷新，
+            // 否则恢复的会话在界面不可见（命令只在引擎层生效）
+            var session = new CommandRecordingSession();
+            session.EngineMessages =
+            [
+                new ApiMessageRecord { Role = "user", Content = "旧问题" },
+                new ApiMessageRecord { Role = "assistant", Content = "旧回答" },
+            ];
+            var vm = new MainViewModel(session, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
+
+            vm.InputText = "/resume abc";
+            await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
+
+            vm.Messages.Should().Contain(m => m.Role == MessageRole.User && m.Content == "旧问题",
+                "恢复的历史用户消息应回显到消息列表");
+            vm.Messages.Should().Contain(m => m.Role == MessageRole.Assistant && m.Content == "旧回答",
+                "恢复的历史助手消息应回显到消息列表");
+
+            // ⚙️ 命令回显保留在最底部 — 用户仍能看到命令执行结果
+            var echo = vm.Messages.Last();
+            echo.Role.Should().Be(MessageRole.System);
+            echo.Content.Should().Contain("/resume");
         }
 
         [Fact]
@@ -1558,6 +1615,9 @@ public class MainViewModelTests
             public List<string> StreamedMessages { get; } = [];
             public string CommandOutput { get; set; } = "命令输出内容";
 
+            /// <summary>引擎侧消息快照 — GetMessagesAsync 返回此列表（模拟 /resume 后的引擎上下文）</summary>
+            public List<ApiMessageRecord> EngineMessages { get; set; } = [];
+
             public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
             public Func<QuestionItem, Task<AskUserQuestionResult>>? AskUserQuestionDialogCallback { get; set; }
             public bool IsReady => true;
@@ -1583,7 +1643,7 @@ public class MainViewModelTests
                 return Task.FromResult(CommandOutput);
             }
             public Task<IReadOnlyList<ApiMessageRecord>> GetMessagesAsync(CancellationToken cancellationToken = default)
-                => Task.FromResult<IReadOnlyList<ApiMessageRecord>>([]);
+                => Task.FromResult<IReadOnlyList<ApiMessageRecord>>(EngineMessages.ToList());
             public Task ClearHistoryAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
             public Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default)
                 => Task.FromResult(new RewindResult());

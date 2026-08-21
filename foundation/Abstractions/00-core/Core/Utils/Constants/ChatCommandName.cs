@@ -23,6 +23,7 @@ public enum ChatCommandName
     [EnumValue("model")] Model,
     [EnumValue("fast")] Fast,
     [EnumValue("effort")] Effort,
+    [EnumValue("sampling")] Sampling,
     [EnumValue("thinkback")] Thinkback,
     [EnumValue("passes")] Passes,
     [EnumValue("output-style")] OutputStyle,
@@ -52,6 +53,7 @@ public enum ChatCommandName
 
     // 配置
     [EnumValue("config")] Config,
+    [EnumValue("vendor")] Vendor,
     [EnumValue("theme")] Theme,
     [EnumValue("color")] Color,
     [EnumValue("vim")] Vim,

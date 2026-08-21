@@ -52,7 +52,7 @@ internal sealed class TranscriptFileWriter : IDisposable
     }
 
     /// <summary>
-    /// 追加单条记录到 JSONL 文件
+    /// 追加单条记录到 JSON 文件(整存整取:读旧数组+追加+写新数组)
     /// </summary>
     public async Task AppendEntryAsync(string filePath, TranscriptEntry entry, CancellationToken cancellationToken = default)
     {
@@ -64,9 +64,9 @@ internal sealed class TranscriptFileWriter : IDisposable
         try
         {
             EnsureDirectoryExists(Path.GetDirectoryName(filePath));
-            EnsureFileExists(filePath);
-            var line = JsonSerializer.Serialize(entryToWrite, TranscriptJsonContext.Default.TranscriptEntry);
-            await _fs.AppendAllTextAsync(filePath, line + '\n', cancellationToken).ConfigureAwait(false);
+            var entries = await ReadJsonAsync(filePath, cancellationToken).ConfigureAwait(false);
+            entries.Add(entryToWrite);
+            await WriteJsonAsync(filePath, entries, cancellationToken).ConfigureAwait(false);
         }
         catch (UnauthorizedAccessException)
         {
@@ -79,7 +79,7 @@ internal sealed class TranscriptFileWriter : IDisposable
     }
 
     /// <summary>
-    /// 追加多条记录到 JSONL 文件
+    /// 追加多条记录到 JSON 文件(整存整取:读旧数组+追加+写新数组)
     /// </summary>
     public async Task AppendEntriesAsync(string filePath, IReadOnlyList<TranscriptEntry> entries, CancellationToken cancellationToken = default)
     {
@@ -92,17 +92,12 @@ internal sealed class TranscriptFileWriter : IDisposable
         try
         {
             EnsureDirectoryExists(Path.GetDirectoryName(filePath));
-            EnsureFileExists(filePath);
-
-            var sb = new StringBuilder();
+            var existing = await ReadJsonAsync(filePath, cancellationToken).ConfigureAwait(false);
             foreach (var entry in entries)
             {
-                var entryToWrite = MaybeOffloadToPasteStore(entry);
-                var line = JsonSerializer.Serialize(entryToWrite, TranscriptJsonContext.Default.TranscriptEntry);
-                sb.AppendLine(line);
+                existing.Add(MaybeOffloadToPasteStore(entry));
             }
-
-            await _fs.AppendAllTextAsync(filePath, sb.ToString(), cancellationToken).ConfigureAwait(false);
+            await WriteJsonAsync(filePath, existing, cancellationToken).ConfigureAwait(false);
             _logger?.LogDebug("{Count} transcript entries appended to {FilePath}", entries.Count, filePath);
         }
         catch (UnauthorizedAccessException)
@@ -116,7 +111,7 @@ internal sealed class TranscriptFileWriter : IDisposable
     }
 
     /// <summary>
-    /// 从 JSONL 文件加载所有记录
+    /// 从 JSON 文件加载所有记录(整存整取:一次反序列化为数组)
     /// </summary>
     public async Task<IReadOnlyList<TranscriptEntry>> LoadTranscriptAsync(string filePath, CancellationToken cancellationToken = default)
     {
@@ -127,27 +122,7 @@ internal sealed class TranscriptFileWriter : IDisposable
 
         try
         {
-            var lines = await ReadAllLinesWithWriteShareAsync(filePath, cancellationToken).ConfigureAwait(false);
-            var entries = new List<TranscriptEntry>(lines.Length);
-
-            foreach (var line in lines)
-            {
-                if (string.IsNullOrWhiteSpace(line)) continue;
-
-                try
-                {
-                    var entry = JsonSerializer.Deserialize(line, TranscriptJsonContext.Default.TranscriptEntry);
-                    if (entry is not null)
-                    {
-                        entries.Add(ResolveFromPasteStore(entry));
-                    }
-                }
-                catch (JsonException ex)
-                {
-                    _logger?.LogWarning(ex, "Skipping malformed transcript line in {FilePath}", filePath);
-                }
-            }
-
+            var entries = await ReadJsonAsync(filePath, cancellationToken).ConfigureAwait(false);
             return entries;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -155,6 +130,32 @@ internal sealed class TranscriptFileWriter : IDisposable
             _logger?.LogError(ex, "Failed to load transcript from {FilePath}", filePath);
             return Array.Empty<TranscriptEntry>();
         }
+    }
+
+    /// <summary>读 JSON 文件为 List(不存在返回空列表)</summary>
+    private async Task<List<TranscriptEntry>> ReadJsonAsync(string filePath, CancellationToken cancellationToken)
+    {
+        if (!_fs.FileExists(filePath)) return new List<TranscriptEntry>();
+
+        var json = await ReadAllTextWithWriteShareAsync(filePath, cancellationToken).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(json)) return new List<TranscriptEntry>();
+
+        var entries = JsonSerializer.Deserialize(json, TranscriptJsonContext.Default.ListTranscriptEntry);
+        if (entries is null) return new List<TranscriptEntry>();
+
+        var result = new List<TranscriptEntry>(entries.Count);
+        foreach (var e in entries)
+        {
+            result.Add(ResolveFromPasteStore(e));
+        }
+        return result;
+    }
+
+    /// <summary>写 List 为 JSON 文件(带缩进,人类可读)</summary>
+    private async Task WriteJsonAsync(string filePath, List<TranscriptEntry> entries, CancellationToken cancellationToken)
+    {
+        var json = JsonSerializer.Serialize(entries, TranscriptJsonContext.Default.ListTranscriptEntry);
+        await _fs.WriteAllTextAsync(filePath, json, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -180,13 +181,13 @@ internal sealed class TranscriptFileWriter : IDisposable
     }
 
     /// <summary>
-    /// 用 FileShare.ReadWrite 读取所有行 — 允许并发写入者，避免 ReadAllLinesAsync 的 FileShare.Read 阻止写入
+    /// 用 FileShare.ReadWrite 读取所有文本 — 允许并发写入者,避免 ReadAllTextAsync 的 FileShare.Read 阻止写入
     /// </summary>
-    private async Task<string[]> ReadAllLinesWithWriteShareAsync(string filePath, CancellationToken cancellationToken)
+    private async Task<string> ReadAllTextWithWriteShareAsync(string filePath, CancellationToken cancellationToken)
     {
         try
         {
-            return await _fs.ReadAllLinesAsync(filePath, cancellationToken).ConfigureAwait(false);
+            return await _fs.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
         }
         catch (UnauthorizedAccessException)
         {
@@ -194,16 +195,11 @@ internal sealed class TranscriptFileWriter : IDisposable
             {
                 await using var stream = _fs.CreateStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                 using var reader = new StreamReader(stream);
-                var lines = new List<string>();
-                while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
-                {
-                    lines.Add(line);
-                }
-                return lines.ToArray();
+                return await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
             }
             catch (FileNotFoundException)
             {
-                return [];
+                return string.Empty;
             }
         }
     }

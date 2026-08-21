@@ -12,18 +12,17 @@ public sealed class TranscriptServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task AppendEntryAsync_Should_Create_Jsonl_File()
+    public async Task AppendEntryAsync_Should_Create_Json_File()
     {
         var entry = NewEntry("user", "Hello world");
 
         await _service.AppendEntryAsync("session-1", entry).ConfigureAwait(true);
 
-        var filePath = "/test/transcript/session-1/transcript.jsonl";
+        var filePath = "/test/transcript/session-1/transcript.json";
         Assert.True(_fs.FileExists(filePath));
 
-        var lines = await _fs.ReadAllLinesAsync(filePath).ConfigureAwait(true);
-        Assert.Single(lines);
-        Assert.Contains("Hello world", lines[0]);
+        var json = await _fs.ReadAllTextAsync(filePath).ConfigureAwait(true);
+        Assert.Contains("Hello world", json);
     }
 
     [Fact]
@@ -74,10 +73,11 @@ public sealed class TranscriptServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task LoadTranscriptAsync_Should_Skip_Malformed_Lines()
+    public async Task LoadTranscriptAsync_Should_Read_Valid_Json_Array()
     {
-        var filePath = "/test/transcript/malformed/transcript.jsonl";
-        await _fs.WriteAllTextAsync(filePath, "not json\n{\"sessionId\":\"s\",\"role\":\"user\",\"content\":\"ok\",\"timestamp\":\"2025-01-01T00:00:00Z\"}\n\n").ConfigureAwait(true);
+        var filePath = "/test/transcript/malformed/transcript.json";
+        var json = "[{\"sessionId\":\"s\",\"role\":\"user\",\"content\":\"ok\",\"timestamp\":\"2025-01-01T00:00:00Z\"}]";
+        await _fs.WriteAllTextAsync(filePath, json).ConfigureAwait(true);
 
         var transcript = await _service.LoadTranscriptAsync("malformed").ConfigureAwait(true);
 
@@ -235,7 +235,7 @@ public sealed class TranscriptServiceTests : IDisposable
 
         await _service.MigrateLegacyAsync().ConfigureAwait(true);
 
-        var newPath = "/test/transcript/legacy-migrate-1/transcript.jsonl";
+        var newPath = "/test/transcript/legacy-migrate-1/transcript.json";
         Assert.True(_fs.FileExists(newPath));
         var content = await _fs.ReadAllTextAsync(newPath).ConfigureAwait(true);
         Assert.Contains("old-data", content);
@@ -250,7 +250,7 @@ public sealed class TranscriptServiceTests : IDisposable
         await _service.MigrateLegacyAsync().ConfigureAwait(true);
         await _service.MigrateLegacyAsync().ConfigureAwait(true);
 
-        var newPath = "/test/transcript/legacy-migrate-2/transcript.jsonl";
+        var newPath = "/test/transcript/legacy-migrate-2/transcript.json";
         Assert.True(_fs.FileExists(newPath));
     }
 

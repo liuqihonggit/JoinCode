@@ -129,11 +129,14 @@
     （裁剪回快照点）；③ 批准分支先 Rewind 再重发——对齐 GUI `RewindLastTurnAsync` 语义。
   - 测试：`PermissionRewindTests`（裁剪生效 + 空增量 NoOp），TUI 135 测试全绿。
   - 备注：拒绝路径保持原样（GUI 拒绝也会保留错误结果入上下文）。
-- [ ] **B8**（存量缺陷，与对齐工作无关，基线即失败）JoinCodeGui.Tests 中 7 个模型列表测试失败
-  - 现象：`JccChatSessionAssemblyTests.ModelSurface_VendorModelMap_*`、`SetModelAsync_PersistsModelToSettingsJson`、
+- [ ] **B8**（存量缺陷，与对齐工作无关，基线即失败）JoinCodeGui.Tests 模型列表测试失败
+  - 稳定失败（基线验证 7 个，与本分支改动无关）：
+    `JccChatSessionAssemblyTests.ModelSurface_VendorModelMap_*`、`SetModelAsync_PersistsModelToSettingsJson`、
     `MainViewModelTests.ModelOptions_DoesNotCrossContaminateModelsFromOtherProviders`、`PlaceholderMode_ShowsLoadingStatus`
-  - 根因初判：依赖本机 `models.json` 内容，测试环境与预期不一致（2026-08-22 基线验证 7/320 失败，与改动无关）
-  - 待办：排查 GuiJsonContext/models.json 路径解析在测试环境的回退行为
+  - 根因初判：依赖本机 `models.json` 内容/路径，测试环境与预期不一致
+  - **套件级偶发失败**：全量跑时另有 0~4 个主题/渲染/温度测试随机失败
+    （LightThemeFrame/ToggleThemeVm/TemperatureAndMaxTokens 等），单测过滤后全部通过，
+    且失败集逐次漂移 → 测试间共享状态泄漏（Avalonia headless Application 静态态或 GuiPalette 静态缓存），需专项排查
 
 ## 三、修 GUI 阶段（补 TUI 有的能力）
 
@@ -163,6 +166,34 @@
 ---
 
 ## 决策记录
+
+### 修 Bug 阶段小结（2026-08-22 完成）
+
+| 项 | 结果 | 提交 |
+|----|------|------|
+| B1 关窗兜底 | 查证为误报，加契约测试钉死 | dfcc27d2f |
+| B2 StreamingEnabled + 流式可见性 | 已修（占位先入列表+门控刷新+插入保序） | 81d2fc130 |
+| B3 FontSize 硬编码 | 已修（Binding） | b79e6acf2 |
+| B4 单条消息命令孤立 | 并入 G3（TextEditor 平铺渲染不支持单条交互） | 3cd9bc05c |
+| B5 TUI 队列计数死路径 | 已修（改经 painter 广播） | 33f99af13 |
+| B6 TUI Stop 退出程序 | 已修（每命令 CTS，对齐 GUI Esc 语义） | 417f4f247 |
+| B7 TUI 权限重发重复上下文 | 已修（RewindToSnapshot 对齐 GUI Rewind） | b3066ef42 |
+
+验证：Host.Tests 985 全绿；JoinCodeGui.Tests 312~315/323 绿（8 个失败均为存量 models.json 缺陷 + 套件级偶发，见 B8）。
+环境备注：本机需 `git submodule update --init` 初始化 libs/Terminal.Gui 与 libs/Editor 才能编译 TUI；
+init 会把 .gitmodules URL 改写为 gitee 回退源，提交前需 `git checkout -- .gitmodules` 还原。
+
+<!-- 🤖 Auto Decision: 2026-08-22 -->
+<!-- 决策: B2顺带修复流式输出不可见缺陷(assistant循环后才Add导致逐token更新无视觉效果) -->
+<!-- 原因: 两缺陷同根因,占位消息先入列表是StreamingEnabled生效的前提 -->
+<!-- 替代方案: 仅门控Content赋值(放弃,流式依旧不可见)-->
+<!-- 验证: 编译通过,新增2测试绿,GUI套件无回归 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-22 -->
+<!-- 决策: B5/B6/B7采用"机制单测+一行接线"模式而非全链路红测试 -->
+<!-- 原因: TuiModeRunner主循环依赖Terminal.Gui Application.Run,无法headless单测;机制层(painter广播/裁剪语义)已钉死 -->
+<!-- 替代方案: 重构ProcessQueueAsync为可注入(放弃,超出bug修复范围,留待T阶段)-->
+<!-- 验证: 编译通过,TUI 135测试全绿,Host.Tests 985全绿 ✅ -->
 
 <!-- 🤖 Auto Decision: 2026-08-22 -->
 <!-- 决策: 分三阶段执行（bug→GUI→TUI），每项独立编译+测试+提交 -->

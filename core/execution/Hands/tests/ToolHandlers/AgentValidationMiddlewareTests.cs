@@ -69,4 +69,40 @@ public class AgentValidationMiddlewareTests
         diagnostic.Details.Should().ContainSingle(d => d.Key == "field" && d.Value == "prompt");
         diagnostic.Suggestions.Should().ContainSingle();
     }
+
+    [Fact]
+    public async Task SubagentType_WithComma_ParsesPrimaryTypeAndAllowedTypes()
+    {
+        var sut = new AgentValidationMiddleware();
+        var context = new AgentToolContext { Description = "test agent", Prompt = "do something", SubagentType = "worker,researcher" };
+
+        await sut.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
+
+        context.ResolvedPrimaryType.Should().Be("worker");
+        context.AllowedAgentTypes.Should().BeEquivalentTo(new[] { "worker", "researcher" });
+    }
+
+    [Fact]
+    public async Task SubagentType_SingleType_DoesNotParseAllowedTypes()
+    {
+        var sut = new AgentValidationMiddleware();
+        var context = new AgentToolContext { Description = "test agent", Prompt = "do something", SubagentType = "worker" };
+
+        await sut.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
+
+        context.ResolvedPrimaryType.Should().BeNull();
+        context.AllowedAgentTypes.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task SubagentType_Null_DoesNotParse()
+    {
+        var sut = new AgentValidationMiddleware();
+        var context = new AgentToolContext { Description = "test agent", Prompt = "do something" };
+
+        await sut.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
+
+        context.ResolvedPrimaryType.Should().BeNull();
+        context.AllowedAgentTypes.Should().BeNull();
+    }
 }

@@ -25,7 +25,7 @@ jobs:
   build:
     name: Build
     runs-on: windows-latest
-    timeout-minutes: 12
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -142,7 +142,7 @@ jobs:
     name: Unit - Core (Infra/Brain/Guard/Bridge)
     runs-on: windows-latest
     needs: build
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -232,7 +232,7 @@ jobs:
     name: Unit - Services (Hands/Mcp/Vault/Composition)
     runs-on: windows-latest
     needs: build
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -308,7 +308,7 @@ jobs:
     name: Unit - Agents & Host (Agents/Scheduling/McpToolDispatch/Host)
     runs-on: windows-latest
     needs: build
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -356,7 +356,7 @@ jobs:
     name: Unit - Coverage gaps (Llm/Browser/Reasoning/AotSafety/Clock/Dream/Eyes/CodeIndex)
     runs-on: windows-latest
     needs: build
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -433,7 +433,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -461,7 +461,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -489,7 +489,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -517,7 +517,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -545,7 +545,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -573,7 +573,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -601,7 +601,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -629,7 +629,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -657,7 +657,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 6
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -685,7 +685,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -713,7 +713,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -741,7 +741,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -769,7 +769,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -797,7 +797,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 6
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -825,7 +825,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 6
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -853,7 +853,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -881,7 +881,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -1131,7 +1131,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v5

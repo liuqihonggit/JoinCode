@@ -53,9 +53,10 @@ public sealed partial class AgentHandoffMiddleware : ServiceEntity, IAgentToolMi
         responseBuilder.AppendLine($"Agent ID: {context.AgentId}");
         responseBuilder.AppendLine($"Description: {context.Description}");
 
-        if (!string.IsNullOrEmpty(context.SubagentType))
+        var displayType = context.ResolvedPrimaryType ?? context.SubagentType;
+        if (!string.IsNullOrEmpty(displayType))
         {
-            responseBuilder.AppendLine($"Type: {context.SubagentType}");
+            responseBuilder.AppendLine($"Type: {displayType}");
         }
 
         // 对齐 TS: worktree 信息输出 — 当 agent 使用 worktree 隔离时输出路径和分支

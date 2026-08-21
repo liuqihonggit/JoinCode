@@ -114,12 +114,6 @@ public sealed partial class AgentPromptBuilder : ServiceEntity, JoinCode.Abstrac
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(definition?.CriticalSystemReminder))
-        {
-            sb.AppendLine();
-            sb.AppendLine(definition.CriticalSystemReminder);
-        }
-
         return sb.ToString();
     }
 

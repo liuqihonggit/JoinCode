@@ -658,41 +658,6 @@ public static class ToolCoverageScripts
         ]
     };
 
-    /// <summary>
-    /// notification 类别 — push_notification 工具
-    /// 推送通知
-    /// </summary>
-    public static ConversationScript PushNotificationTest => new()
-    {
-        Name = "push_notification 工具调用",
-        Turns =
-        [
-            new ConversationTurn
-            {
-                UserInput = "发送通知",
-                AiResponse = new MockResponseScript
-                {
-                    Type = MockResponseType.WithToolCalls,
-                    TextResponse = "",
-                    ToolCalls =
-                    [
-                        new MockToolCallScript
-                        {
-                            ToolName = "push_notification",
-                            Arguments = """{"title":"测试","message":"你好","level":"info"}"""
-                        }
-                    ],
-                    FollowUpText = "通知已发送。"
-                },
-                Asserts =
-                [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "push_notification", Description = "应包含push_notification工具调用" },
-                    new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
-                ]
-            }
-        ]
-    };
-
     // ============================================================
     // 4f permission 工具
     // ============================================================

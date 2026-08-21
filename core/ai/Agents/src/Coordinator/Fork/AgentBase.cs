@@ -227,6 +227,13 @@ public class AgentBase : Entity, IAgent
                 chatHistory.AddUserMessage(Options.InitialPrompt);
             }
 
+            // 每轮重注入 criticalSystemReminder — 对齐 claude code re-injected at every user turn
+            // 作为 user message 注入到消息流,保持紧迫感(如 verification agent 的 "CRITICAL: VERIFICATION-ONLY")
+            if (!string.IsNullOrWhiteSpace(Options.CriticalSystemReminder))
+            {
+                chatHistory.AddUserMessage(Options.CriticalSystemReminder);
+            }
+
             var responseBuilder = new StringBuilder();
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
@@ -388,6 +395,12 @@ public class AgentBase : Entity, IAgent
         if (!string.IsNullOrWhiteSpace(Options.InitialPrompt))
         {
             chatHistory.AddUserMessage(Options.InitialPrompt);
+        }
+
+        // 每轮重注入 criticalSystemReminder — 对齐 claude code re-injected at every user turn
+        if (!string.IsNullOrWhiteSpace(Options.CriticalSystemReminder))
+        {
+            chatHistory.AddUserMessage(Options.CriticalSystemReminder);
         }
 
         var responseBuilder = new StringBuilder();

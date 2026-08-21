@@ -72,7 +72,7 @@ public static class ModelListMerger
     /// <para>"flash" → FastMode（快速模型）</para>
     /// <para>所有模型基础: Text | ToolUse</para>
     /// </summary>
-    private static ModelCapabilitiesConfig InferCapabilities(string modelId)
+    public static ModelCapabilitiesConfig InferCapabilities(string modelId)
     {
         var id = modelId.AsSpan();
         var modalities = ModelModalityKind.Text | ModelModalityKind.ToolUse;

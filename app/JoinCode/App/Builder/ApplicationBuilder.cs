@@ -395,21 +395,21 @@ public sealed class ApplicationBuilder
     /// <summary>
     /// 加载配置 — 含 DotEnv 回退
     /// </summary>
-    public static async Task<WorkflowConfig> LoadConfigAsync(CommandLineOptions options, IFileSystem fs)
+    public static async Task<WorkflowConfig> LoadConfigAsync(CommandLineOptions options, IFileSystem fs, IModelConfigLoader? modelConfigLoader = null)
     {
         var dotEnv = GetDotEnv();
         WorkflowConfig config;
 
         try
         {
-            config = await new Core.Configuration.ConfigLoader().LoadConfigAsync(fs);
+            config = await new Core.Configuration.ConfigLoader(modelConfigLoader: modelConfigLoader).LoadConfigAsync(fs);
         }
         catch (ConfigurationException ex) when (ex.Message.Contains("API Key"))
         {
             if (dotEnv is not null)
             {
                 await dotEnv.ApplyToConfigAsync(fs);
-                config = await new Core.Configuration.ConfigLoader().LoadConfigAsync(fs);
+                config = await new Core.Configuration.ConfigLoader(modelConfigLoader: modelConfigLoader).LoadConfigAsync(fs);
             }
             else
             {
@@ -417,15 +417,17 @@ public sealed class ApplicationBuilder
             }
         }
 
+        var registry = new Core.Configuration.Providers.ProviderDefinitionRegistry(modelConfigLoader ?? new ModelConfigLoader());
+
         if (dotEnv is not null)
         {
-            dotEnv.ApplyToMemory(config, new Core.Configuration.Providers.ProviderDefinitionRegistry(new ModelConfigLoader()));
+            dotEnv.ApplyToMemory(config, registry);
         }
 
         // 环境变量优先级最高 — 无论 dotEnv 是否存在，都必须应用环境变量覆盖
         // 修复: 之前 ApplyEnvOverrides 只在 dotEnv != null 时调用，
         // 导致无 .env/api.json 时 JCC_ENDPOINT/JCC_MODEL_ID 等环境变量不生效
-        new Core.Configuration.SettingsMapper(new Core.Configuration.Providers.ProviderDefinitionRegistry(new ModelConfigLoader())).ApplyEnvOverrides(config);
+        new Core.Configuration.SettingsMapper(registry).ApplyEnvOverrides(config);
 
         // --model 已在 ParseArgs 阶段转为 JCC_MODEL_ID 环境变量，由 EnvOverrideApplier + ApplyEnvOverrides 统一处理
         if (options.IsPipeMode)

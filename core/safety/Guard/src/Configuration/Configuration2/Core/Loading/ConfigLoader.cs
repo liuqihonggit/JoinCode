@@ -98,6 +98,10 @@ public class ConfigLoader {
             // Step 2.5: 环境变量覆盖 SettingsJson — 集中启动参数解析（JCC_VENDOR/MODEL_ID/ENDPOINT/PROFILE）
             settings = EnvOverrideApplier.Apply(settings);
 
+            // Step 2.6: 环境变量指定的模型可能不在 settings.json models 列表中（如 JCC_MODEL_ID 指定新模型）
+            // 此时 ModelConfigLoader 中没有该模型的模态信息，需从模型 ID 推断并补注册
+            EnsureEnvModelInConfig(settings);
+
             // Step 3: SettingsJson → WorkflowConfig（JSON 反序列化映射）
             var config = _settingsMapper.ToWorkflowConfig(settings);
 
@@ -500,4 +504,34 @@ public class ConfigLoader {
     }
 
     #endregion
+
+    /// <summary>
+    /// 确保环境变量指定的模型在 ModelConfigLoader 中注册
+    /// <para>JCC_MODEL_ID 可能指定一个不在 settings.json models 列表中的新模型（如 AutoFetchModels 尚未完成）</para>
+    /// <para>此时从模型 ID 推断模态能力并补注册，避免模态校验误报</para>
+    /// </summary>
+    private void EnsureEnvModelInConfig(SettingsJson settings)
+    {
+        if (_modelConfigLoader is null) return;
+        if (settings.Vendor is null || settings.Current?.Profile is not { Length: > 0 } profile) return;
+        if (!settings.Vendor.TryGetValue(profile, out var profileSettings)) return;
+
+        var modelId = profileSettings.Model;
+        if (string.IsNullOrEmpty(modelId)) return;
+
+        if (_modelConfigLoader.FindModel(profile, modelId) is not null) return;
+
+        var providers = VendorModelMapper.BuildProviders(settings);
+        if (providers.TryGetValue(profile, out var providerConfig))
+        {
+            providerConfig.Models.Add(new ModelItemConfig
+            {
+                Id = modelId,
+                CanonicalId = modelId,
+                DisplayName = modelId,
+                Capabilities = Core.Configuration.ModelFetch.ModelListMerger.InferCapabilities(modelId),
+            });
+            _modelConfigLoader.ApplyProviders(providers);
+        }
+    }
 }

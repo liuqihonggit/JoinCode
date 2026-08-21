@@ -8,15 +8,18 @@ public sealed class ModelFetchStartupService
 {
     private readonly IModelListFetcher _fetcher;
     private readonly SettingsJsonModelWriter _writer;
+    private readonly ISettingsChangeApplier? _settingsChangeApplier;
     private readonly ILogger<ModelFetchStartupService>? _logger;
 
     public ModelFetchStartupService(
         IModelListFetcher fetcher,
         SettingsJsonModelWriter writer,
+        ISettingsChangeApplier? settingsChangeApplier = null,
         ILogger<ModelFetchStartupService>? logger = null)
     {
         _fetcher = fetcher;
         _writer = writer;
+        _settingsChangeApplier = settingsChangeApplier;
         _logger = logger;
     }
 
@@ -75,6 +78,7 @@ public sealed class ModelFetchStartupService
         try
         {
             await _writer.WriteAsync(settings, updates, cancellationToken).ConfigureAwait(false);
+            await RefreshInMemoryConfigAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (UnauthorizedAccessException)
         {
@@ -83,12 +87,31 @@ public sealed class ModelFetchStartupService
             try
             {
                 await _writer.WriteAsync(settings, updates, cancellationToken).ConfigureAwait(false);
+                await RefreshInMemoryConfigAsync(cancellationToken).ConfigureAwait(false);
             }
             catch (UnauthorizedAccessException)
             {
                 var path = SettingsLoader.GetUserSettingsPath();
                 _logger?.LogWarning("[ModelFetchStartupService] settings.json 写入仍被拒，跳过本次更新 | 路径: {Path} | 不影响启动", path);
             }
+        }
+    }
+
+    /// <summary>
+    /// 刷新内存配置 — MarkInternalWrite 抑制了文件监听事件，需显式触发 SettingsChangeApplier 重载
+    /// 否则 ModelConfigLoader 内存缓存不更新，导致模态校验误报
+    /// </summary>
+    private async Task RefreshInMemoryConfigAsync(CancellationToken cancellationToken)
+    {
+        if (_settingsChangeApplier is null) return;
+        try
+        {
+            await _settingsChangeApplier.ApplySettingsChangeAsync(cancellationToken).ConfigureAwait(false);
+            _logger?.LogInformation("[ModelFetchStartupService] 内存配置已刷新");
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "[ModelFetchStartupService] 内存配置刷新失败，不影响启动");
         }
     }
 }

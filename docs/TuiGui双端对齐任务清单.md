@@ -98,8 +98,17 @@
   - **修复（2026-08-22）**：`MainWindow.axaml:112` TextEditor `FontSize="13"` → `FontSize="{Binding FontSize}"`，
     设置面板滑块即时生效（VM 属性已持久化到 gui-preferences.json，无需额外改动）。
   - 测试：`MainWindowRegressionTests.FontSizeSlider_Change_UpdatesMessageTextEditor`（Headless 真窗口断言字号联动）
-- [ ] **B4** GUI `OnRemoveClick` 无 XAML 引用（消息删除不可达）
-  - 位置：`MainWindow.axaml.cs:405-411`
+- [x] **B4** GUI `OnRemoveClick` 无 XAML 引用（消息删除不可达）→ **并入 G3 处理**
+  - 查证（2026-08-22）：`CopyMessageCommand`/`ToggleThinkingCommand`/`RemoveMessageCommand`/`RegenerateCommand`
+    四个命令均无 XAML 引用。根因：消息区是单个只读 TextEditor 平铺 AllMessagesText，
+    不存在单条消息的视觉模板，✕/复制/折叠按钮无处安放。
+  - 决策：不在 TextEditor 架构上打补丁，等 G3（Markdown/ItemsControl 单条消息模板重构）
+    一并接线全部四命令。OnRemoveClick 保留为死代码至 G3 落地。
+<!-- 🤖 Auto Decision: 2026-08-22 -->
+<!-- 决策: B4并入G3而非单独修 -->
+<!-- 原因: 死代码根因是渲染架构(TextEditor平铺)不支持单条消息交互,单独修需先建ItemsControl模板=G3本体 -->
+<!-- 替代方案: 删除OnRemoveClick死代码(放弃,G3马上要用)-->
+<!-- 验证: 编译通过 ✅ -->
 - [ ] **B5** TUI StatusBar 队列计数段死路径（`TerminalPainter.NotifyQueueChanged` 全项目零调用，"队列：N"永不更新）
   - 位置：`TerminalPainter.cs:66-78`、`StatusBarView.cs:92-96`；主循环快照处接线或删除该段
 - [ ] **B6** TUI F3"Stop"实为退出整个程序（无"中断但不退出"通道）

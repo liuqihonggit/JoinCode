@@ -29,6 +29,9 @@ public sealed partial class HttpTransport : TransportBase, IMcpTransport
     /// <summary>会话过期事件(404) — 上层应重新握手,对齐 2025-11-25 规范 Session Management</summary>
     public event EventHandler<EventArgs>? SessionExpired;
 
+    /// <summary>运行时是否无状态(StatelessMode 显式开启 或 服务器未分配 MCP-Session-Id)</summary>
+    public bool IsStateless => _options.StatelessMode || string.IsNullOrEmpty(_sessionId);
+
     public HttpTransport(HttpTransportOptions options, IMcpAuthProvider? authProvider = null, ILogger<HttpTransport>? logger = null)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
@@ -124,6 +127,10 @@ public sealed partial class HttpTransport : TransportBase, IMcpTransport
         {
             _sessionId = sessionIds.FirstOrDefault();
             _logger?.LogDebug("MCP 会话 ID: {SessionId}", _sessionId);
+        }
+        else if (!_options.StatelessMode)
+        {
+            _logger?.LogInformation("服务器未分配 MCP-Session-Id,以无状态模式运行");
         }
 
         var contentType = response.Content.Headers.ContentType?.MediaType;
@@ -363,4 +370,7 @@ public sealed partial class HttpTransportOptions
 
     /// <summary>MCP 协议版本 — 对齐 2025-11-25 规范 MCP-Protocol-Version 头部</summary>
     public string ProtocolVersion { get; init; } = McpProtocolVersion.Current;
+
+    /// <summary>无状态模式 — 对齐 2025-11-25:客户端不期望 session,服务器未分配 MCP-Session-Id 时自动无状态</summary>
+    public bool StatelessMode { get; init; }
 }

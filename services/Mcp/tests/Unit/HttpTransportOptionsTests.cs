@@ -48,4 +48,27 @@ public class HttpTransportOptionsTests
     {
         McpProtocolVersion.Supported.Should().NotContain(McpProtocolVersion.V2024_11_05);
     }
+
+    [Fact]
+    public void StatelessMode_Default_IsFalse()
+    {
+        var options = new HttpTransportOptions();
+        options.StatelessMode.Should().BeFalse();
+    }
+
+    [Fact]
+    public void HttpTransport_IsStateless_WhenStatelessMode_True()
+    {
+        var options = new HttpTransportOptions { Endpoint = "http://localhost:9999", StatelessMode = true };
+        var transport = new HttpTransport(options);
+        transport.IsStateless.Should().BeTrue();
+    }
+
+    [Fact]
+    public void HttpTransport_IsStateless_WhenNoSession_True()
+    {
+        var options = new HttpTransportOptions { Endpoint = "http://localhost:9999" };
+        var transport = new HttpTransport(options);
+        transport.IsStateless.Should().BeTrue();
+    }
 }

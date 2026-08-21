@@ -12,6 +12,7 @@ global using McpProtocol;
 global using McpProtocol.Contracts;
 global using JoinCode.Abstractions.Mcp.Protocol;
 global using McpClient;
+global using McpClient.Transports;
 global using McpToolRegistry;
 global using System.Text.Json;
 global using FluentAssertions;

@@ -5,7 +5,7 @@ public class McpClientOptions
 {
     public string ClientName { get; init; } = "JoinCode.McpClient";
     public string ClientVersion { get; init; } = "1.0.0";
-    public string ProtocolVersion { get; init; } = "2024-11-05";
+    public string ProtocolVersion { get; init; } = McpProtocolVersion.Current;
     public int RequestTimeoutSeconds { get; init; } = 60;
     public int MaxRetries { get; init; } = 3;
     public int RetryDelayMs { get; init; } = WorkflowConstants.Retry.DefaultRetryDelayMs;
@@ -15,7 +15,7 @@ public sealed class McpClientOptionsBuilder
 {
     private string _clientName = "JoinCode.McpClient";
     private string _clientVersion = "1.0.0";
-    private string _protocolVersion = "2024-11-05";
+    private string _protocolVersion = McpProtocolVersion.Current;
     private int _requestTimeoutSeconds = 60;
     private int _maxRetries = 3;
     private int _retryDelayMs = WorkflowConstants.Retry.DefaultRetryDelayMs;

@@ -85,6 +85,8 @@ public sealed partial class HttpTransport : TransportBase, IMcpTransport
             request.Headers.TryAddWithoutValidation("Mcp-Session-Id", _sessionId);
         }
 
+        request.Headers.TryAddWithoutValidation("MCP-Protocol-Version", _options.ProtocolVersion);
+
         var combinedHeaders = await GetCombinedHeadersAsync(ct).ConfigureAwait(false);
         foreach (var (key, value) in combinedHeaders)
         {
@@ -291,4 +293,7 @@ public sealed partial class HttpTransportOptions
 
     /// <summary>服务器 URL — 传递给 headersHelper 的 CLAUDE_CODE_MCP_SERVER_URL 环境变量</summary>
     public string ServerUrl { get; init; } = string.Empty;
+
+    /// <summary>MCP 协议版本 — 对齐 2025-11-25 规范 MCP-Protocol-Version 头部</summary>
+    public string ProtocolVersion { get; init; } = McpProtocolVersion.Current;
 }

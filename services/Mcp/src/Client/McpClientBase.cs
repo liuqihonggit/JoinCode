@@ -227,6 +227,12 @@ public abstract class McpClientBase : IMcpClient
             throw new McpProtocolException("[MCP015] 无法解析初始化响应");
         }
 
+        if (!McpProtocolVersion.Supported.Contains(result.ProtocolVersion))
+        {
+            throw new McpProtocolException(
+                $"[MCP018] 服务器返回不支持的协议版本: {result.ProtocolVersion}, 本端支持: {string.Join(", ", McpProtocolVersion.Supported)}");
+        }
+
         _serverInfo = result.ServerInfo;
         _serverCapabilities = result.Capabilities;
 

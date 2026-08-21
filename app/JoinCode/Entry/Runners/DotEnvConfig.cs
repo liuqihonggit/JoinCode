@@ -50,12 +50,6 @@ internal sealed class DotEnvConfig
                 config.ApiKey = authTokenVal.GetString();
             }
 
-            // JCC_API_KEY 通用回退
-            if (config.ApiKey is null && envObj.TryGetProperty("JCC_API_KEY", out var jccKeyVal) && jccKeyVal.ValueKind == System.Text.Json.JsonValueKind.String)
-            {
-                config.ApiKey = jccKeyVal.GetString();
-            }
-
             // JCC_VENDOR 显式指定
             if (envObj.TryGetProperty("JCC_VENDOR", out var providerVal) && providerVal.ValueKind == System.Text.Json.JsonValueKind.String)
                 config.Vendor = providerVal.GetString();

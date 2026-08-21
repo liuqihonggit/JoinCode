@@ -98,4 +98,89 @@ public class ModelListMergerTests
         result[0].Id.Should().Be("GPT-4O");
         result[0].DisplayName.Should().Be("GPT-4o");
     }
+
+    [Fact]
+    public void Merge_NewVisionModel_InfersReadImageModality()
+    {
+        var remote = new List<string> { "deepseek-v4-flash-vision-exp" };
+
+        var result = ModelListMerger.Merge(null, remote);
+
+        result.Should().HaveCount(1);
+        result[0].Capabilities.Modalities.HasFlag(ModelModalityKind.ReadImage).Should().BeTrue("vision 模型应推断 ReadImage 模态");
+        result[0].Capabilities.Modalities.HasFlag(ModelModalityKind.ReadGif).Should().BeTrue("vision 模型应推断 ReadGif 模态");
+        result[0].Capabilities.Modalities.HasFlag(ModelModalityKind.Text).Should().BeTrue("所有模型应有 Text 基础模态");
+        result[0].Capabilities.Modalities.HasFlag(ModelModalityKind.ToolUse).Should().BeTrue("所有模型应有 ToolUse 基础模态");
+    }
+
+    [Fact]
+    public void Merge_NewProModel_InfersThinkingModality()
+    {
+        var remote = new List<string> { "deepseek-v4-pro" };
+
+        var result = ModelListMerger.Merge(null, remote);
+
+        result.Should().HaveCount(1);
+        result[0].Capabilities.Modalities.HasFlag(ModelModalityKind.Thinking).Should().BeTrue("pro 模型应推断 Thinking 模态");
+        result[0].Capabilities.ThinkingMode.Should().BeTrue("pro 模型应启用 ThinkingMode");
+    }
+
+    [Fact]
+    public void Merge_NewReasonerModel_InfersThinkingModality()
+    {
+        var remote = new List<string> { "deepseek-reasoner" };
+
+        var result = ModelListMerger.Merge(null, remote);
+
+        result.Should().HaveCount(1);
+        result[0].Capabilities.Modalities.HasFlag(ModelModalityKind.Thinking).Should().BeTrue("reasoner 模型应推断 Thinking 模态");
+        result[0].Capabilities.ThinkingMode.Should().BeTrue("reasoner 模型应启用 ThinkingMode");
+    }
+
+    [Fact]
+    public void Merge_NewFlashModel_InfersFastMode()
+    {
+        var remote = new List<string> { "deepseek-v4-flash" };
+
+        var result = ModelListMerger.Merge(null, remote);
+
+        result.Should().HaveCount(1);
+        result[0].Capabilities.FastMode.Should().BeTrue("flash 模型应启用 FastMode");
+    }
+
+    [Fact]
+    public void Merge_NewPlainModel_OnlyTextAndToolUse()
+    {
+        var remote = new List<string> { "deepseek-chat" };
+
+        var result = ModelListMerger.Merge(null, remote);
+
+        result.Should().HaveCount(1);
+        result[0].Capabilities.Modalities.Should().Be(ModelModalityKind.Text | ModelModalityKind.ToolUse, "普通模型应只有 Text | ToolUse 基础模态");
+        result[0].Capabilities.ThinkingMode.Should().BeFalse("普通模型不应启用 ThinkingMode");
+    }
+
+    [Fact]
+    public void Merge_ExistingModelWithManualModalities_PreservesLocalModalities()
+    {
+        var local = new List<ModelItemConfig>
+        {
+            new()
+            {
+                Id = "deepseek-v4-flash-vision-exp",
+                DisplayName = "DeepSeek V4 Flash Vision",
+                Capabilities = new ModelCapabilitiesConfig
+                {
+                    Modalities = ModelModalityKind.Text | ModelModalityKind.ReadImage | ModelModalityKind.ToolUse,
+                    FastMode = true,
+                }
+            }
+        };
+        var remote = new List<string> { "deepseek-v4-flash-vision-exp" };
+
+        var result = ModelListMerger.Merge(local, remote);
+
+        result.Should().HaveCount(1);
+        result[0].Capabilities.Modalities.Should().Be(ModelModalityKind.Text | ModelModalityKind.ReadImage | ModelModalityKind.ToolUse, "本地已有模态应保留，不被推断覆盖");
+    }
 }

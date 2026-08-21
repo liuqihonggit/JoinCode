@@ -641,7 +641,7 @@ $psi = [System.Diagnostics.ProcessStartInfo]::new()
 $psi.FileName = "D:\project\{当前分支名}\artifacts\bin\JoinCode\Release\net10.0\jcc.exe"
 $psi.Arguments = "--trust --await 20 -p `"echo hello`""
 $psi.EnvironmentVariables["JCC_ENDPOINT"] = "http://localhost:9901"
-$psi.EnvironmentVariables["JCC_API_KEY"] = "sk-test-1234567890"
+$psi.EnvironmentVariables["OPENAI_API_KEY"] = "sk-test-1234567890"
 $psi.EnvironmentVariables["JCC_VENDOR"] = "openai"
 $psi.EnvironmentVariables["JCC_MODEL_ID"] = "gpt-4o"
 $psi.UseShellExecute = $false
@@ -656,7 +656,7 @@ $psi.WorkingDirectory = "D:\project\{当前分支名}"
 | 环境变量 | 示例值 | 说明 |
 |----------|--------|------|
 | `JCC_ENDPOINT` | `http://localhost:9901` | API 端点（⚠️ 不要带 `/v1`，jcc 内部会自动拼接 `chat/completions`） |
-| `JCC_API_KEY` | `sk-test-1234567890` | API 密钥（MockServer 不校验，任意值即可） |
+| `OPENAI_API_KEY` | `sk-test-1234567890` | API 密钥（MockServer 不校验，任意值即可） |
 | `JCC_VENDOR` | `openai` | LLM 供应商（openai/anthropic/deepseek/sensenova/agnes） |
 | `JCC_MODEL_ID` | `gpt-4o` | 模型 ID（MockServer 不校验，任意值即可） |
 | `JCC_PROTOCOL` | `responses` | LLM 协议覆盖（`openai-compatible`/`anthropic`/`responses`），不设置则用供应商配置的默认协议 |

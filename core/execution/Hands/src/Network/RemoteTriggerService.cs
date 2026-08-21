@@ -89,9 +89,6 @@ public sealed partial class RemoteTriggerService : ServiceEntity, IRemoteTrigger
 
     private async Task<string?> GetAuthTokenAsync(CancellationToken ct)
     {
-        var envKey = Environment.GetEnvironmentVariable(JccEnvVar.ApiKey.ToValue());
-        if (!string.IsNullOrEmpty(envKey)) return envKey;
-
         if (_configService != null)
         {
             try

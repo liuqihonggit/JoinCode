@@ -85,7 +85,13 @@ public sealed class InitCommandTests
         var rulesContent = fs.ReadAllText(expectedRulesFile);
         rulesContent.Should().Contain("项目规则");
         var settingsContent = fs.ReadAllText(expectedSettingsFile);
-        settingsContent.Should().Contain("deepseek");
+        settingsContent.Should().Contain("deepseek", "应含 deepseek 供应商 profile");
+        settingsContent.Should().Contain("deepseek-anthropic", "应含 deepseek-anthropic profile (Anthropic 协议)");
+        settingsContent.Should().Contain("modelsEndpoint", "骨架应含 modelsEndpoint 供 AutoFetchModels 拉取");
+        settingsContent.Should().Contain("autoFetchModels", "骨架应启用 autoFetchModels");
+        settingsContent.Should().Contain("https://api.deepseek.com", "应含 DeepSeek API 端点");
+        settingsContent.Should().NotContain("deepseek-v4-flash-vision-exp", "骨架不应硬编码模型 — 由 AutoFetchModels 拉取");
+        settingsContent.Should().NotContain("readImage", "骨架不应硬编码模态 — 由 ModelListMerger 推断");
     }
 
     [Fact]

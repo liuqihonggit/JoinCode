@@ -32,6 +32,7 @@ global using IPsPermissionChecker = JoinCode.Abstractions.Security.Shell.PowerSh
 global using IPsDestructiveCommandChecker = JoinCode.Abstractions.Security.Shell.PowerShell.IPsDestructiveCommandChecker;
 global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.Utils;
+global using JoinCode.Abstractions.Utils.Diagnostics;
 global using JoinCode.Abstractions.Utils.Text;
 global using JoinCode.Abstractions.Utils.Web;
 global using Core.Configuration;

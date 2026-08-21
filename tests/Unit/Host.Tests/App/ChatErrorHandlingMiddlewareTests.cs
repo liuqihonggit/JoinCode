@@ -8,7 +8,7 @@ public sealed class ChatErrorHandlingMiddlewareTests
     [Fact]
     public void ClassifyException_ConfigurationException_ShouldPreserveType()
     {
-        var original = JoinCode.Abstractions.Exceptions.ConfigurationException.Missing("JCC_API_KEY");
+        var original = JoinCode.Abstractions.Exceptions.ConfigurationException.Missing("OPENAI_API_KEY");
 
         var result = JoinCode.Pipelines.Middlewares.ChatErrorHandlingMiddleware.ClassifyException(original);
 

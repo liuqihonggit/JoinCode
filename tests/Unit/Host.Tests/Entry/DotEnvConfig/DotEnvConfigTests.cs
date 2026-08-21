@@ -90,20 +90,6 @@ public sealed class DotEnvConfigTests
     }
 
     [Fact]
-    public void LoadFrom_JccApiKey_SetsApiKeyWithoutProvider()
-    {
-        var json = """{"env":{"JCC_API_KEY":"jcc-key"}}""";
-        var path = WriteTempFile(json);
-
-        var config = DotEnvConfig.LoadFrom(path, registry: CreateMockRegistry());
-
-        config.Should().NotBeNull();
-        config!.ApiKey.Should().Be("jcc-key");
-        config!.Vendor.Should().BeNull();
-        Cleanup();
-    }
-
-    [Fact]
     public void LoadFrom_AzureEndpoint_SetsEndpoint()
     {
         var json = """{"env":{"AZURE_OPENAI_API_KEY":"azure-key","AZURE_OPENAI_ENDPOINT":"https://my.openai.azure.com"}}""";

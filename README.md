@@ -58,7 +58,6 @@ dotnet build App.slnx -c Release --no-incremental
 
 | 环境变量 | 必填 | 说明 | 示例 |
 |----------|------|------|------|
-| `JCC_API_KEY` | 是 | API 密钥 | `sk-xxxxxxxx` |
 | `JCC_VENDOR` | 否 | 供应商名称（默认 `deepseek`） | `deepseek` / `openai` / `anthropic` / `azure` / `sensenova` / `agnes` |
 | `JCC_MODEL_ID` | 否 | 模型 ID（默认 `deepseek-v4-flash`） | `deepseek-v4-flash` / `gpt-4o` / `claude-opus-5-20250815` / `sensenova-6.7-flash-lite` / `agnes-2.0-flash` |
 | `JCC_ENDPOINT` | 否 | API 端点（默认使用 Provider 内置地址） | `http://localhost:9901` |
@@ -214,9 +213,8 @@ jcc --trust
 从低到高：
 
 1. `~/.jcc/auth.json` 中的 `"deepseek"` 字段
-2. `JCC_API_KEY` 环境变量
-3. `DEEPSEEK_API_KEY` 环境变量（最高优先级）
-4. 回退：`OPENAI_API_KEY` 环境变量
+2. `DEEPSEEK_API_KEY` 环境变量（最高优先级）
+3. 回退：`OPENAI_API_KEY` 环境变量
 
 ### 1.4 运行
 

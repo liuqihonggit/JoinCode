@@ -92,7 +92,8 @@ public sealed class EngineSessionFactory
     {
         await new Entry.StartupWorkflow().EnsureConfigFilesExistAsync(fs).ConfigureAwait(false);
 
-        var config = await ApplicationBuilder.LoadConfigAsync(options, fs).ConfigureAwait(false);
+        var modelConfigLoader = new ModelConfigLoader();
+        var config = await ApplicationBuilder.LoadConfigAsync(options, fs, modelConfigLoader).ConfigureAwait(false);
 
         if (clearPipeEndpoint)
             config.PipeEndpoint = null;
@@ -102,6 +103,8 @@ public sealed class EngineSessionFactory
         var host = builder.BuildHost(config, options);
 
         await builder.ConfigureModulesAsync(host.Services).ConfigureAwait(false);
+
+        SyncModelConfigToDi(host.Services, modelConfigLoader);
 
         Core.DependencyInjection.ShellCapabilityInitializer.Initialize(
             fs, host.Services.GetService<ILogger<EngineSessionFactory>>());
@@ -117,6 +120,20 @@ public sealed class EngineSessionFactory
             Config = config,
             Host = host,
         };
+    }
+
+    /// <summary>
+    /// 将预创建的 ModelConfigLoader 数据同步到 DI 单例
+    /// <para>LoadConfigAsync 在 DI 容器构建前运行，用独立 ModelConfigLoader 实例加载 providers</para>
+    /// <para>DI 容器构建后 IModelConfigLoader 单例为空，需将 providers 数据灌入 DI 单例</para>
+    /// <para>否则 SessionController.DetectModalityMismatch 从 DI 获取空实例，导致模态校验误报</para>
+    /// </summary>
+    private static void SyncModelConfigToDi(IServiceProvider services, IModelConfigLoader source)
+    {
+        var diModelConfigLoader = services.GetService<IModelConfigLoader>();
+        if (diModelConfigLoader is null || diModelConfigLoader == source) return;
+
+        diModelConfigLoader.ApplyProviders(source.Config.Providers);
     }
 
     /// <summary>
@@ -139,7 +156,7 @@ public sealed class EngineSessionFactory
                 var changeNotifier = services.GetService<IConfigChangeNotifier>();
                 var fetcher = new ModelListFetcher(httpProvider, fs, services.GetService<ILogger<ModelListFetcher>>());
                 var writer = new SettingsJsonModelWriter(fs, changeNotifier, services.GetService<ILogger<SettingsJsonModelWriter>>());
-                var startupService = new ModelFetchStartupService(fetcher, writer, services.GetService<ILogger<ModelFetchStartupService>>());
+                var startupService = new ModelFetchStartupService(fetcher, writer, services.GetService<ISettingsChangeApplier>(), services.GetService<ILogger<ModelFetchStartupService>>());
 
                 await startupService.ExecuteAsync(settings, cancellationToken).ConfigureAwait(false);
             }

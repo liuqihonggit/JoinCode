@@ -258,8 +258,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
         };
 
         // 检查是否已有本地 API Key
-        var existingKey = Environment.GetEnvironmentVariable(ProviderEnvVar.AnthropicApiKey.ToValue())
-            ?? Environment.GetEnvironmentVariable(JccEnvVar.ApiKey.ToValue());
+        var existingKey = Environment.GetEnvironmentVariable(ProviderEnvVar.AnthropicApiKey.ToValue());
         if (!string.IsNullOrEmpty(existingKey))
         {
             // 使用 Add + 反转构建顺序，避免 Insert(0, item) 的 O(n) 移动

@@ -28,7 +28,7 @@ public sealed class QueryServiceRoleConversionTests
         var result = OpenAIQueryService.ConvertToOpenAIMessage(msg);
 
         result.Role.Should().Be("system");
-        result.Content.Should().Be("# 使用Agent工具");
+        result.Content!.Text.Should().Be("# 使用Agent工具");
     }
 
     /// <summary>
@@ -42,7 +42,7 @@ public sealed class QueryServiceRoleConversionTests
         var result = OpenAIQueryService.ConvertToOpenAIMessage(msg);
 
         result.Role.Should().Be("system");
-        result.Content.Should().Be("静态系统提示词");
+        result.Content!.Text.Should().Be("静态系统提示词");
     }
 
     /// <summary>
@@ -77,7 +77,7 @@ public sealed class QueryServiceRoleConversionTests
         var result = OpenAIQueryService.ConvertToOpenAIMessage(msg);
 
         result.Role.Should().Be("user");
-        result.Content.Should().Be("用户输入");
+        result.Content!.Text.Should().Be("用户输入");
     }
 
     /// <summary>

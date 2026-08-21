@@ -31,8 +31,7 @@ internal static class DreamEntryPoint
         {
             var config = new ProviderConfig();
             var envProvider = Environment.GetEnvironmentVariable(JccEnvVar.Vendor.ToValue());
-            var envApiKey = Environment.GetEnvironmentVariable(JccEnvVar.ApiKey.ToValue())
-                ?? Environment.GetEnvironmentVariable(ProviderEnvVar.OpenAiApiKey.ToValue());
+            var envApiKey = Environment.GetEnvironmentVariable(ProviderEnvVar.OpenAiApiKey.ToValue());
             var envModelId = Environment.GetEnvironmentVariable(JccEnvVar.ModelId.ToValue());
             var envEndpoint = Environment.GetEnvironmentVariable(JccEnvVar.Endpoint.ToValue());
 
@@ -162,7 +161,7 @@ internal static class DreamEntryPoint
         Console.WriteLine();
         Console.WriteLine("Environment Variables:");
         Console.WriteLine("  JCC_VENDOR     LLM vendor (openai/azure/anthropic/deepseek/sensenova)");
-        Console.WriteLine("  JCC_API_KEY     API key");
+        Console.WriteLine("  <PROVIDER>_API_KEY  Provider-specific API key (e.g. OPENAI_API_KEY, DEEPSEEK_API_KEY)");
         Console.WriteLine("  JCC_MODEL_ID    Model ID");
         Console.WriteLine("  JCC_ENDPOINT    API endpoint");
     }

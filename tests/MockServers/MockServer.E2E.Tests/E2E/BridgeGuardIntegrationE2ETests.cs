@@ -52,7 +52,6 @@ public sealed class BridgeGuardIntegrationE2ETests : IAsyncLifetime
             envVars: new Dictionary<string, string?>
             {
                 ["JCC_BRIDGE_MODE"] = "1",
-                ["JCC_API_KEY"] = null,
                 ["CLAUDE_CODE_OAUTH_TOKEN"] = null,
                 ["CLAUDE_CODE_SESSION_ACCESS_TOKEN"] = null,
             },
@@ -65,7 +64,7 @@ public sealed class BridgeGuardIntegrationE2ETests : IAsyncLifetime
     }
 
     /// <summary>
-    /// JCC_BRIDGE_MODE=1 + JCC_API_KEY 设置时，
+    /// JCC_BRIDGE_MODE=1 + CLAUDE_CODE_SESSION_ACCESS_TOKEN 设置时，
     /// Guard 检查应全部通过（fail-open 策略 + env token），
     /// 进入 BridgeMain.RunAsync 后会因 API 不可达失败，但不应在 Guard 阶段失败
     /// </summary>
@@ -76,7 +75,7 @@ public sealed class BridgeGuardIntegrationE2ETests : IAsyncLifetime
             envVars: new Dictionary<string, string?>
             {
                 ["JCC_BRIDGE_MODE"] = "1",
-                ["JCC_API_KEY"] = "test-token-xxx",
+                ["CLAUDE_CODE_SESSION_ACCESS_TOKEN"] = "test-token-xxx",
                 ["JCC_API_BASE_URL"] = "http://localhost:1", // 不可达端口，加速失败
             },
             args: [],

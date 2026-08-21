@@ -111,9 +111,10 @@ public sealed class BridgeMainCommandGuardIntegrationTests
     // ============================================================
 
     [Fact]
-    public async Task GetAccessTokenAsync_EnvVarTakesPrecedence_OverStoredToken()
+    public async Task GetAccessTokenAsync_WhenStoredTokenValid_PrefersStoredOverEnvVar()
     {
-        Environment.SetEnvironmentVariable("JCC_API_KEY", "env-token-xxx");
+        Environment.SetEnvironmentVariable("CLAUDE_CODE_SESSION_ACCESS_TOKEN", "env-token-xxx");
+        Environment.SetEnvironmentVariable("CLAUDE_CODE_OAUTH_TOKEN", null);
         try
         {
             var tokenMock = new Mock<ITokenStorage>();
@@ -129,21 +130,19 @@ public sealed class BridgeMainCommandGuardIntegrationTests
 
             var result = await command.GetAccessTokenAsync(CancellationToken.None).ConfigureAwait(true);
 
-            result.Should().Be("env-token-xxx");
-            tokenMock.Verify(t => t.LoadTokenAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+            result.Should().Be("stored-token");
         }
         finally
         {
-            Environment.SetEnvironmentVariable("JCC_API_KEY", null);
+            Environment.SetEnvironmentVariable("CLAUDE_CODE_SESSION_ACCESS_TOKEN", null);
         }
     }
 
     [Fact]
     public async Task GetAccessTokenAsync_WhenNoEnvVar_LoadsFromTokenStorage()
     {
-        Environment.SetEnvironmentVariable("JCC_API_KEY", null);
-        Environment.SetEnvironmentVariable("CLAUDE_CODE_OAUTH_TOKEN", null);
         Environment.SetEnvironmentVariable("CLAUDE_CODE_SESSION_ACCESS_TOKEN", null);
+        Environment.SetEnvironmentVariable("CLAUDE_CODE_OAUTH_TOKEN", null);
         try
         {
             var tokenMock = new Mock<ITokenStorage>();
@@ -166,14 +165,13 @@ public sealed class BridgeMainCommandGuardIntegrationTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("JCC_API_KEY", null);
+            Environment.SetEnvironmentVariable("CLAUDE_CODE_SESSION_ACCESS_TOKEN", null);
         }
     }
 
     [Fact]
     public async Task GetAccessTokenAsync_WhenTokenExpired_ReturnsNull_Then_FallsBackToOAuthEnv()
     {
-        Environment.SetEnvironmentVariable("JCC_API_KEY", null);
         Environment.SetEnvironmentVariable("CLAUDE_CODE_OAUTH_TOKEN", "oauth-env-fallback");
         Environment.SetEnvironmentVariable("CLAUDE_CODE_SESSION_ACCESS_TOKEN", null);
         try
@@ -202,7 +200,6 @@ public sealed class BridgeMainCommandGuardIntegrationTests
     [Fact]
     public async Task GetAccessTokenAsync_WhenTokenStorageNull_FallsBackToOAuthEnvVar()
     {
-        Environment.SetEnvironmentVariable("JCC_API_KEY", null);
         Environment.SetEnvironmentVariable("CLAUDE_CODE_OAUTH_TOKEN", "fallback-from-env");
         Environment.SetEnvironmentVariable("CLAUDE_CODE_SESSION_ACCESS_TOKEN", null);
         try
@@ -289,7 +286,7 @@ public sealed class BridgeMainCommandGuardIntegrationTests
     [Fact]
     public async Task BuildDeps_PassesMarkRemoteDialogSeen_ToBridgeMainDeps()
     {
-        Environment.SetEnvironmentVariable("JCC_API_KEY", "test-token-for-deps");
+        Environment.SetEnvironmentVariable("CLAUDE_CODE_SESSION_ACCESS_TOKEN", "test-token-for-deps");
         try
         {
             var configMock = new Mock<IConfigurationService>();
@@ -302,7 +299,7 @@ public sealed class BridgeMainCommandGuardIntegrationTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("JCC_API_KEY", null);
+            Environment.SetEnvironmentVariable("CLAUDE_CODE_SESSION_ACCESS_TOKEN", null);
         }
     }
 }

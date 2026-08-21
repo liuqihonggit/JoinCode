@@ -104,7 +104,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
         var envVars = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["JCC_ENDPOINT"] = $"http://localhost:{_mockServerPort}",
-            ["JCC_API_KEY"] = "sk-test-1234567890",
+            ["OPENAI_API_KEY"] = "sk-test-1234567890",
             ["JCC_VENDOR"] = providerValue,
             ["JCC_MODEL_ID"] = modelId,
             [apiKeyEnvVar] = "sk-test-1234567890",
@@ -236,7 +236,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
             var envVars = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["JCC_ENDPOINT"] = $"http://localhost:{_mockServerPort}",
-                ["JCC_API_KEY"] = "sk-test-1234567890",
+                ["OPENAI_API_KEY"] = "sk-test-1234567890",
                 ["JCC_VENDOR"] = providerValue,
                 ["JCC_MODEL_ID"] = modelId,
                 [apiKeyEnvVar] = "sk-test-1234567890",

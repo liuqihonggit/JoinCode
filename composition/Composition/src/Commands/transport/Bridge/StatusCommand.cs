@@ -31,11 +31,9 @@ public sealed class StatusCommand : ChatCommandBase
             ?? VendorKind.OpenAi.ToValue();
         var providerName = ResolveModelCatalog(context).GetProviderDisplayName(provider);
 
-        // 多态：通过 IProviderDefinition.ResolveApiKeyFromEnv 消除 VendorKind switch
-        // 优先级：JccEnvVar.ApiKey 全局 > Provider 专属 env var（由各 ProviderDefinition 自己决定）
+        // 多态：通过 IProviderDefinition.ResolveApiKeyFromEnv 获取供应商专属 API Key
         var providerDefinition = ResolveProviderDefinition(context, provider);
-        var apiKey = Environment.GetEnvironmentVariable(JccEnvVar.ApiKey.ToValue())
-            ?? providerDefinition?.ResolveApiKeyFromEnv();
+        var apiKey = providerDefinition?.ResolveApiKeyFromEnv();
 
         var executionSettings = services.ExecutionSettingsProvider;
         var effortLevel = executionSettings?.EffortLevel.ToValue() ?? "";

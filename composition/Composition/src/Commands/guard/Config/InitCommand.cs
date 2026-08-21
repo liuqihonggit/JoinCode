@@ -79,17 +79,9 @@ public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : 
 
         if (!fs.FileExists(settingsFile))
         {
-            var defaultModel = _modelConfigLoader?.GetDefaultModelId("deepseek") ?? "deepseek-chat";
-            var sb = new StringBuilder();
-            sb.AppendLine("{");
-            sb.AppendLine("  // 项目级 Provider（覆盖全局配置）");
-            sb.AppendLine("  \"provider\": \"deepseek\",");
-            sb.AppendLine();
-            sb.AppendLine("  // 项目级模型 ID");
-            sb.AppendLine($"  \"model\": \"{defaultModel}\"");
-            sb.Append('}');
-            await fs.WriteAllTextAsync(settingsFile, sb.ToString(), context.CancellationToken).ConfigureAwait(false);
-            TerminalHelper.WriteLine("  ✓ 创建 settings.json");
+            var settingsJson = BuildDefaultSettingsJson();
+            await fs.WriteAllTextAsync(settingsFile, settingsJson, context.CancellationToken).ConfigureAwait(false);
+            TerminalHelper.WriteLine("  ✓ 创建 settings.json (骨架 — 模型列表将由 AutoFetchModels 启动时拉取)");
         }
         else
         {
@@ -103,10 +95,42 @@ public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : 
         TerminalHelper.WriteLine("使用 /init (不带quick) 让AI分析代码库并生成详细规则");
     }
 
+    /// <summary>
+    /// 构建默认 settings.json 骨架 — 仅含供应商连接信息，不含模型列表
+    /// 模型列表由启动时 AutoFetchModels 从 {endpoint}/{modelsEndpoint} 自动拉取填充
+    /// 两条路径: deepseek (openai-compatible) + deepseek-anthropic (anthropic 协议, api.deepseek.com/anthropic)
+    /// 配置大于代码: 具体模型信息由 API 拉取，代码只留基础结构
+    /// </summary>
+    private static string BuildDefaultSettingsJson()
+    {
+        return """
+        {
+          "vendor": {
+            "deepseek": {
+              "provider": "deepseek",
+              "protocol": "openai-compatible",
+              "endpoint": "https://api.deepseek.com",
+              "apiKeyEnvVar": "DEEPSEEK_API_KEY",
+              "modelsEndpoint": "models"
+            },
+            "deepseek-anthropic": {
+              "provider": "deepseek",
+              "protocol": "anthropic",
+              "endpoint": "https://api.deepseek.com/anthropic",
+              "apiKeyEnvVar": "DEEPSEEK_API_KEY",
+              "modelsEndpoint": "v1/models"
+            }
+          },
+          "autoFetchModels": true,
+          "current": { "profile": "deepseek" }
+        }
+        """;
+    }
+
     private static void EnsureJccDirectory(string cwd, IFileSystem fs)
     {
         var jccDir = Path.Combine(cwd, AppDataConstants.AppDataFolder);
-        if (!fs.DirectoryExists(jccDir))
+        if (fs.DirectoryExists(jccDir))
         {
             DirectoryHelper.EnsureDirectoryExists(fs, jccDir);
             TerminalHelper.WriteLine("  ✓ 创建 .jcc/ 目录");

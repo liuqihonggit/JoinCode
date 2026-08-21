@@ -47,7 +47,7 @@ public sealed partial class PipeQueryService : IQueryService
             if (chunk.Choices.Count == 0) continue;
 
             var choice = chunk.Choices[0];
-            var content = choice.Delta?.Content ?? string.Empty;
+            var content = choice.Delta?.Content?.Text ?? string.Empty;
             var role = ConvertRole(choice.Delta?.Role);
 
             // 检测流式 tool_calls
@@ -214,7 +214,7 @@ public sealed partial class PipeQueryService : IQueryService
                 Name = tc.Function?.Name ?? "",
                 Arguments = tc.Function?.Arguments ?? "{}"
             }).ToList();
-            return new ApiMessage(role, message.Content,
+            return new ApiMessage(role, message.Content?.Text,
                 new Dictionary<string, JsonElement>
                 {
                     ["FinishReason"] = JsonElementHelper.FromString(choice.FinishReason),
@@ -222,7 +222,7 @@ public sealed partial class PipeQueryService : IQueryService
                 });
         }
 
-        return new ApiMessage(role, message.Content,
+        return new ApiMessage(role, message.Content?.Text,
             new Dictionary<string, JsonElement> { ["FinishReason"] = JsonElementHelper.FromString(choice.FinishReason) });
     }
 

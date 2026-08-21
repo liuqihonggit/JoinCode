@@ -13,7 +13,6 @@ public class ConfigLoaderTests : IDisposable {
     private readonly string? _originalAppDataFolder;
     private readonly string? _originalProvider;
     private readonly string? _originalModelId;
-    private readonly string? _originalApiKey;
     private readonly string? _originalAgnesApiKey;
     private readonly string? _originalOpenAiApiKey;
     private readonly string? _originalCodeExecutionTimeout;
@@ -26,7 +25,6 @@ public class ConfigLoaderTests : IDisposable {
         _originalAppDataFolder = Environment.GetEnvironmentVariable(JccEnvVarConstants.AppDataFolder);
         _originalProvider = Environment.GetEnvironmentVariable(JccEnvVarConstants.Vendor);
         _originalModelId = Environment.GetEnvironmentVariable(JccEnvVarConstants.ModelId);
-        _originalApiKey = Environment.GetEnvironmentVariable(JccEnvVarConstants.ApiKey);
         _originalAgnesApiKey = Environment.GetEnvironmentVariable(ProviderEnvVarConstants.AgnesApiKey);
         _originalOpenAiApiKey = Environment.GetEnvironmentVariable(ProviderEnvVarConstants.OpenAiApiKey);
         _originalCodeExecutionTimeout = Environment.GetEnvironmentVariable(JccEnvVarConstants.CodeExecutionTimeout);
@@ -57,7 +55,6 @@ public class ConfigLoaderTests : IDisposable {
         Environment.SetEnvironmentVariable(JccEnvVarConstants.AppDataFolder, _originalAppDataFolder);
         Environment.SetEnvironmentVariable(JccEnvVarConstants.Vendor, _originalProvider);
         Environment.SetEnvironmentVariable(JccEnvVarConstants.ModelId, _originalModelId);
-        Environment.SetEnvironmentVariable(JccEnvVarConstants.ApiKey, _originalApiKey);
         Environment.SetEnvironmentVariable(ProviderEnvVarConstants.AgnesApiKey, _originalAgnesApiKey);
         Environment.SetEnvironmentVariable(ProviderEnvVarConstants.OpenAiApiKey, _originalOpenAiApiKey);
         Environment.SetEnvironmentVariable(JccEnvVarConstants.CodeExecutionTimeout, _originalCodeExecutionTimeout);
@@ -75,7 +72,6 @@ public class ConfigLoaderTests : IDisposable {
         // 使用真实 API Key（从环境变量或 ~/.jcc/auth.json 读取）
         var realKey = TestConfiguration.GetRealApiKey();
         Environment.SetEnvironmentVariable(ProviderEnvVarConstants.OpenAiApiKey, realKey);
-        Environment.SetEnvironmentVariable(JccEnvVarConstants.ApiKey, null);
 
         var config = await _loader.LoadConfigAsync(_fs).ConfigureAwait(true);
 
@@ -88,7 +84,6 @@ public class ConfigLoaderTests : IDisposable {
     {
         var realKey = TestConfiguration.GetRealApiKey();
         Environment.SetEnvironmentVariable(ProviderEnvVarConstants.OpenAiApiKey, realKey);
-        Environment.SetEnvironmentVariable(JccEnvVarConstants.ApiKey, null);
 
         var config = await _loader.LoadConfigAsync(_fs).ConfigureAwait(true);
 
@@ -100,7 +95,6 @@ public class ConfigLoaderTests : IDisposable {
     public async Task LoadConfig_ShouldHaveDefaultCodeExecutionConfig() {
         var realKey = TestConfiguration.GetRealApiKey();
         Environment.SetEnvironmentVariable(ProviderEnvVarConstants.OpenAiApiKey, realKey);
-        Environment.SetEnvironmentVariable(JccEnvVarConstants.ApiKey, null);
 
         var config = await _loader.LoadConfigAsync(_fs).ConfigureAwait(true);
 
@@ -115,7 +109,6 @@ public class ConfigLoaderTests : IDisposable {
     {
         var realKey = TestConfiguration.GetRealApiKey();
         Environment.SetEnvironmentVariable(ProviderEnvVarConstants.OpenAiApiKey, realKey);
-        Environment.SetEnvironmentVariable(JccEnvVarConstants.ApiKey, null);
 
         var config = await _loader.LoadConfigAsync(_fs).ConfigureAwait(true);
 
@@ -128,12 +121,11 @@ public class ConfigLoaderTests : IDisposable {
         // 设置环境变量覆盖 Provider 和 ModelId
         Environment.SetEnvironmentVariable(JccEnvVarConstants.Vendor, "anthropic");
         Environment.SetEnvironmentVariable(JccEnvVarConstants.ModelId, "claude-opus-4-7-20250701");
-        // 清除 Provider 专属环境变量，让 JCC_API_KEY 生效
-        Environment.SetEnvironmentVariable(ProviderEnvVarConstants.AnthropicApiKey, null);
+        // 清除其他 Provider 专属环境变量，让 ANTHROPIC_API_KEY 生效
         Environment.SetEnvironmentVariable(ProviderEnvVarConstants.AgnesApiKey, null);
         Environment.SetEnvironmentVariable(ProviderEnvVarConstants.OpenAiApiKey, null);
         var realKey = TestConfiguration.GetRealApiKey();
-        Environment.SetEnvironmentVariable(JccEnvVarConstants.ApiKey, realKey);
+        Environment.SetEnvironmentVariable(ProviderEnvVarConstants.AnthropicApiKey, realKey);
 
         var config = await _loader.LoadConfigAsync(_fs).ConfigureAwait(true);
 
@@ -149,7 +141,6 @@ public class ConfigLoaderTests : IDisposable {
         Environment.SetEnvironmentVariable(JccEnvVarConstants.CodeExecutionMaxMemory, "512");
         var realKey = TestConfiguration.GetRealApiKey();
         Environment.SetEnvironmentVariable(ProviderEnvVarConstants.OpenAiApiKey, realKey);
-        Environment.SetEnvironmentVariable(JccEnvVarConstants.ApiKey, null);
 
         var config = await _loader.LoadConfigAsync(_fs).ConfigureAwait(true);
 
@@ -158,16 +149,14 @@ public class ConfigLoaderTests : IDisposable {
     }
 
     [Fact]
-    public async Task LoadConfig_ProviderEnvOverridesJccApiKey()
+    public async Task LoadConfig_ProviderEnvKeyUsed()
     {
-        // Provider 专属环境变量优先级高于 JCC_API_KEY
+        // Provider 专属环境变量提供 API Key
         var realKey = TestConfiguration.GetRealApiKey();
-        Environment.SetEnvironmentVariable(JccEnvVarConstants.ApiKey, "jcc-key-should-be-overridden");
         Environment.SetEnvironmentVariable(ProviderEnvVarConstants.OpenAiApiKey, realKey);
 
         var config = await _loader.LoadConfigAsync(_fs).ConfigureAwait(true);
 
-        // Provider 专属环境变量应覆盖 JCC_API_KEY
         Assert.Equal(realKey, config.Provider.ApiKey);
     }
 

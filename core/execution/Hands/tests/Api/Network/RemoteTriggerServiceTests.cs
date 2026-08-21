@@ -92,10 +92,13 @@ public sealed class RemoteTriggerServiceTests
     {
         _handler.SetResponse(request => new HttpResponseMessage(HttpStatusCode.OK));
         Environment.SetEnvironmentVariable(JccEnvVar.Endpoint.ToValue(), "http://localhost:9999");
-        Environment.SetEnvironmentVariable(JccEnvVar.ApiKey.ToValue(), "sk-test");
+        var configMock = new Mock<IConfigurationService>();
+        configMock.Setup(c => c.GetAsync("api.key", It.IsAny<CancellationToken>()))
+            .ReturnsAsync("sk-test");
+        var service = new RemoteTriggerService(_httpClient, configMock.Object);
         try
         {
-            await _service.ExecuteAsync(TriggerAction.List).ConfigureAwait(true);
+            await service.ExecuteAsync(TriggerAction.List).ConfigureAwait(true);
 
             _handler.LastRequest!.Headers.Authorization.Should().NotBeNull();
             _handler.LastRequest.Headers.Authorization!.Scheme.Should().Be("Bearer");
@@ -104,7 +107,6 @@ public sealed class RemoteTriggerServiceTests
         finally
         {
             Environment.SetEnvironmentVariable(JccEnvVar.Endpoint.ToValue(), null);
-            Environment.SetEnvironmentVariable(JccEnvVar.ApiKey.ToValue(), null);
         }
     }
 

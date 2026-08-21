@@ -156,4 +156,56 @@ public class NativeJsonContextTests
         json.Should().NotContain("\"thinking\"",
             "Thinking 为 null 时不应序列化,JsonIgnore WhenWritingNull");
     }
+
+    [Fact]
+    public void OpenAIApiMessage_TextContent_SerializesContentAsString()
+    {
+        var msg = new OpenAIApiMessage { Role = "user", Content = "hello" };
+
+        var json = JsonSerializer.Serialize(msg, NativeJsonContext.Default.OpenAIApiMessage);
+
+        json.Should().Contain("\"content\":\"hello\"");
+        json.Should().NotContain("\"type\":\"text\"", "纯文本时 content 应为 string 而非数组");
+    }
+
+    [Fact]
+    public void OpenAIApiMessage_MultimodalContent_SerializesAsArrayWithImageUrl()
+    {
+        var msg = new OpenAIApiMessage
+        {
+            Role = "user",
+            Content = new List<OpenAIContentPart>
+            {
+                new() { Type = "text", Text = "What is this?" },
+                new() { Type = "image_url", ImageUrl = new OpenAIImageUrl { Url = "data:image/png;base64,iVBOR" } }
+            }
+        };
+
+        var json = JsonSerializer.Serialize(msg, NativeJsonContext.Default.OpenAIApiMessage);
+
+        json.Should().Contain("\"type\":\"image_url\"");
+        json.Should().Contain("\"image_url\":{\"url\":\"data:image/png;base64,iVBOR\"}");
+        json.Should().Contain("\"type\":\"text\",\"text\":\"What is this?\"");
+    }
+
+    [Fact]
+    public void OpenAIApiMessage_MultimodalContent_RoundTripsImageUrlPart()
+    {
+        var msg = new OpenAIApiMessage
+        {
+            Role = "user",
+            Content = new List<OpenAIContentPart>
+            {
+                new() { Type = "image_url", ImageUrl = new OpenAIImageUrl { Url = "data:image/jpeg;base64,abc" } }
+            }
+        };
+
+        var json = JsonSerializer.Serialize(msg, NativeJsonContext.Default.OpenAIApiMessage);
+        var deserialized = JsonSerializer.Deserialize(json, NativeJsonContext.Default.OpenAIApiMessage);
+
+        deserialized!.Content!.Parts.Should().NotBeNull();
+        deserialized.Content.Parts!.Should().ContainSingle();
+        deserialized.Content.Parts[0].Type.Should().Be("image_url");
+        deserialized.Content.Parts[0].ImageUrl!.Url.Should().Be("data:image/jpeg;base64,abc");
+    }
 }

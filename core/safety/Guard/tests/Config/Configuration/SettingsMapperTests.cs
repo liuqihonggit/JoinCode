@@ -224,7 +224,6 @@ public class SettingsMapperTests
         config.Provider.ModelId = testModelId;
         Environment.SetEnvironmentVariable(JccEnvVar.Vendor.ToValue(), null);
         Environment.SetEnvironmentVariable(JccEnvVar.ModelId.ToValue(), null);
-        Environment.SetEnvironmentVariable(JccEnvVar.ApiKey.ToValue(), null);
         Environment.SetEnvironmentVariable(JccEnvVar.Endpoint.ToValue(), null);
 
         _mapper.ApplyEnvOverrides(config);

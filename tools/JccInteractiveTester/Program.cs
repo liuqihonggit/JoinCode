@@ -29,7 +29,7 @@ internal static class Program
         };
 
         psi.EnvironmentVariables["JCC_ENDPOINT"] = "https://apihub.agnes-ai.com/v1";
-        psi.EnvironmentVariables["JCC_API_KEY"] = "sk-EiRSNKFnB9wJihmwJdVIVejHEW6UYUwEbKlgK4nC3WPw7tUL";
+        psi.EnvironmentVariables["AGNES_API_KEY"] = "sk-EiRSNKFnB9wJihmwJdVIVejHEW6UYUwEbKlgK4nC3WPw7tUL";
         psi.EnvironmentVariables["JCC_VENDOR"] = "agnes";
         psi.EnvironmentVariables["JCC_MODEL_ID"] = "agnes-2.0-flash";
 

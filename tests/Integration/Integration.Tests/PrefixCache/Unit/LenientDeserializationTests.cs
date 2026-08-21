@@ -18,7 +18,7 @@ public sealed class LenientDeserializationTests
         result!.Id.Should().Be("chatcmpl-123");
         result.Model.Should().Be("deepseek-v4-flash");
         result.Choices.Should().HaveCount(1);
-        result.Choices[0].Message.Content.Should().Be("Hello");
+        result.Choices[0].Message.Content!.Text.Should().Be("Hello");
     }
 
     [Fact]
@@ -45,7 +45,7 @@ public sealed class LenientDeserializationTests
 
         result.Should().NotBeNull();
         result!.Id.Should().Be("chatcmpl-123");
-        result.Choices[0].Message.Content.Should().Be("Hello");
+        result.Choices[0].Message.Content!.Text.Should().Be("Hello");
     }
 
     [Fact]
@@ -68,7 +68,7 @@ public sealed class LenientDeserializationTests
         var result = JsonSerializer.Deserialize(json, NativeJsonContext.Default.OpenAIChatResponse);
 
         result.Should().NotBeNull();
-        result!.Choices[0].Message.Content.Should().Be("Hello");
+        result!.Choices[0].Message.Content!.Text.Should().Be("Hello");
     }
 
     #endregion

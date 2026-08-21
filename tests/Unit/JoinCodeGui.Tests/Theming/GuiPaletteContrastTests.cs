@@ -5,8 +5,10 @@ using FluentAssertions;
 
 using JoinCode.Abstractions.LLM.Chat;
 using JoinCode.Gui.Converters;
+using JoinCode.Gui.Persistence;
 using JoinCode.Gui.Theming;
 using JoinCode.Gui.ViewModels;
+using IO.FileSystem;
 
 namespace JoinCode.Gui.Tests.Theming;
 
@@ -14,6 +16,7 @@ namespace JoinCode.Gui.Tests.Theming;
 /// GuiPalette 配色合规性测试 —— 用 WCAG 相对亮度计算所有"文字/背景"语义对对比度，
 /// 校验 ≥ 4.5:1（AA 普通文字）。防止出现黑字配深底之类的低对比配色侵入。
 /// </summary>
+[Collection("GuiUiSequential")]
 public class GuiPaletteContrastTests
 {
     /// <summary>普通文字最低对比度（WCAG AA）</summary>
@@ -178,7 +181,9 @@ public class GuiPaletteContrastTests
     [Fact]
     public void ToggleThemeVm_FlipsIsDarkTheme()
     {
-        var vm = new MainViewModel();
+        // InMemory store → ConfigurationService 走内存文件系统，LoadThemeFromSettings 读到 Auto
+        // 提前返回，不会异步覆盖 IsDarkTheme（B8：裸构造读真实 settings.json 的 theme 键导致偶发翻转）
+        var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         vm.IsDarkTheme.Should().BeTrue();
 
         vm.ToggleThemeCommand.Execute(null);

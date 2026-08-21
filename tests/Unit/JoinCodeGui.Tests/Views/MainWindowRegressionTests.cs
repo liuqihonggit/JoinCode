@@ -20,6 +20,7 @@ namespace JoinCode.Gui.Tests.Views;
 /// 且真实窗口上发送消息不会因自动滚动回调抛 NRE（曾因直接调用 AvaloniaXamlLoader.Load 导致字段为 null）。
 /// 同时验证 Enter/Shift+Enter 的发送/换行语义。
 /// </summary>
+[Collection("GuiUiSequential")]
 public sealed class MainWindowRegressionTests
 {
     [AvaloniaFact]
@@ -169,6 +170,27 @@ public sealed class MainWindowRegressionTests
         Assert.True((bool)isEnabled.GetValue(timer)!);
     }
 
+    /// <summary>
+    /// 消息字号联动 — 设置面板滑块调整 vm.FontSize 后，消息区 TextEditor 的实际字号必须跟随。
+    /// 回归背景：曾硬编码 FontSize="13" 导致设置面板字号滑块拨了无效（B3）。
+    /// </summary>
+    [AvaloniaFact]
+    public void FontSizeSlider_Change_UpdatesMessageTextEditor()
+    {
+        var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
+        var win = new MainWindow { DataContext = vm };
+        win.Show();
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+
+        var editor = win.FindControl<AvaloniaEdit.TextEditor>("MessageTextEditor")!;
+        Assert.Equal(vm.FontSize, editor.FontSize);
+
+        vm.FontSize = 18;
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal(18, editor.FontSize);
+    }
+
     /// <summary>流式抛异常的假会话，用于真实窗口上验证错误 toast</summary>
     private sealed class ThrowingSession : IJccChatSession
     {
@@ -184,6 +206,9 @@ public sealed class MainWindowRegressionTests
                 ["fake"] = ["fake-model"]
             };
         public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<string> ExecuteSlashCommandAsync(string input, CancellationToken cancellationToken = default)
+            => Task.FromResult(string.Empty);
+
         public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             yield return ChatStreamEvent.Done();

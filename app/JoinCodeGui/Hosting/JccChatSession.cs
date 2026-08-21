@@ -186,7 +186,13 @@ internal sealed class JccChatSession : IJccChatSession
             throw new System.ArgumentException("模型 ID 不能为空", nameof(modelId));
         _config.Provider.ModelId = modelId;
 
-        // 持久化 vendor[profile].model
+        // 双写：平铺键 "model" 对齐 CLI ModelCommand.ApplyModelSwitchAsync（configService 缓存+磁盘，
+        // DoctorCommand 等跨前端消费方可见）；嵌套键 vendor[profile].model 是 SettingsMapper
+        // 启动读取的唯一模型来源，两者缺一不可。
+        var configService = _services.GetService<IConfigurationService>();
+        if (configService is not null)
+            await configService.SetAsync("model", modelId, cancellationToken).ConfigureAwait(false);
+
         await UpdateVendorProfileModelAsync(modelId, cancellationToken).ConfigureAwait(false);
     }
 
@@ -336,6 +342,16 @@ internal sealed class JccChatSession : IJccChatSession
         string message,
         CancellationToken cancellationToken = default)
         => StreamWithPermissionRetryAsync(message, cancellationToken);
+
+    /// <summary>
+    /// 执行斜杠命令 — 委托共享 <see cref="SlashCommandRunner"/>（与 TUI 同一链路）。
+    /// Confirm 回调暂未接 UI（默认拒绝），需要确认的命令会收到拒绝提示。
+    /// </summary>
+    public async Task<string> ExecuteSlashCommandAsync(string input, CancellationToken cancellationToken = default)
+    {
+        var result = await SlashCommandRunner.RunAsync(input, _services, cancellationToken: cancellationToken).ConfigureAwait(false);
+        return result.Output;
+    }
 
     /// <summary>
     /// 带权限确认闭环的事件流：引擎抛出 <see cref="PermissionPendingConfirmationException"/>

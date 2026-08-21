@@ -28,49 +28,37 @@ public class JccChatSessionAssemblyTests
     [Fact]
     public void VendorModelMap_DumpAllData()
     {
-        var session = new PlaceholderChatSession();
+        // 密闭化：目录数据由测试 fixture 灌入（对齐生产 settings.json vendor 节的真实清单），
+        // 不再依赖本机 ~/.jcc/settings.json 内容（B8 修复：环境差异导致基线必失败）
+        var session = new PlaceholderChatSession(modelConfigLoader: CreateFedLoader());
         var map = session.VendorModelMap;
 
         map.Keys.Should().BeEquivalentTo(["anthropic", "openai", "deepseek", "agnes", "sensenova"]);
         map.Count.Should().Be(5);
 
-        map["deepseek"].Should().BeEquivalentTo(["deepseek-v4-flash", "deepseek-v4-pro"]);
+        map["deepseek"].Should().BeEquivalentTo(FixtureDeepseek);
         map["deepseek"].Count.Should().Be(2);
 
-        map["openai"].Should().BeEquivalentTo([
-            "gpt-4o-mini", "gpt-4o",
-            "gpt-4.1-nano", "gpt-4.1-mini", "gpt-4.1", "o4-mini", "o3-mini", "o3",
-            "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna",
-            "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.4-image-2",
-            "gpt-audio", "gpt-audio-mini", "o3-pro"
-        ]);
+        map["openai"].Should().BeEquivalentTo(FixtureOpenai);
         map["openai"].Count.Should().Be(18);
 
-        map["anthropic"].Should().BeEquivalentTo([
-            "claude-opus-4-7-20250701", "claude-opus-4-6-20250514", "claude-opus-4-5-20251101",
-            "claude-sonnet-4-6-20250514", "claude-haiku-4-5-20251001",
-            "claude-opus-5-20250815", "claude-sonnet-5-20250815", "claude-fable-5-20250815",
-            "claude-opus-4-8-20250715"
-        ]);
+        map["anthropic"].Should().BeEquivalentTo(FixtureAnthropic);
         map["anthropic"].Count.Should().Be(9);
 
-        map["agnes"].Should().BeEquivalentTo([
-            "agnes-2.0-flash", "agnes-image-2.0-flash", "agnes-image-2.1-flash", "agnes-video-v2.0"
-        ]);
+        map["agnes"].Should().BeEquivalentTo(FixtureAgnes);
         map["agnes"].Count.Should().Be(4);
 
-        map["sensenova"].Should().BeEquivalentTo([
-            "sensenova-6.7-flash-lite", "sensenova-u1-fast", "deepseek-v4-flash"
-        ]);
+        map["sensenova"].Should().BeEquivalentTo(FixtureSensenova);
         map["sensenova"].Count.Should().Be(3);
     }
 
     [Fact]
     public void VendorModelMap_MultipleInstances_AreIdentical()
     {
-        var s1 = new PlaceholderChatSession();
-        var s2 = new PlaceholderChatSession();
-        var s3 = new PlaceholderChatSession();
+        var loader = CreateFedLoader();
+        var s1 = new PlaceholderChatSession(modelConfigLoader: loader);
+        var s2 = new PlaceholderChatSession(modelConfigLoader: loader);
+        var s3 = new PlaceholderChatSession(modelConfigLoader: loader);
 
         s1.VendorModelMap.Keys.Should().BeEquivalentTo(s2.VendorModelMap.Keys);
         s2.VendorModelMap.Keys.Should().BeEquivalentTo(s3.VendorModelMap.Keys);
@@ -82,11 +70,52 @@ public class JccChatSessionAssemblyTests
         }
     }
 
+    // ===== 模型目录 fixture — 镜像生产 settings.json vendor 节的真实清单（B8 密闭化）=====
+
+    private static readonly string[] FixtureDeepseek = ["deepseek-v4-flash", "deepseek-v4-pro"];
+
+    private static readonly string[] FixtureOpenai =
+    [
+        "gpt-4o-mini", "gpt-4o",
+        "gpt-4.1-nano", "gpt-4.1-mini", "gpt-4.1", "o4-mini", "o3-mini", "o3",
+        "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna",
+        "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.4-image-2",
+        "gpt-audio", "gpt-audio-mini", "o3-pro"
+    ];
+
+    private static readonly string[] FixtureAnthropic =
+    [
+        "claude-opus-4-7-20250701", "claude-opus-4-6-20250514", "claude-opus-4-5-20251101",
+        "claude-sonnet-4-6-20250514", "claude-haiku-4-5-20251001",
+        "claude-opus-5-20250815", "claude-sonnet-5-20250815", "claude-fable-5-20250815",
+        "claude-opus-4-8-20250715"
+    ];
+
+    private static readonly string[] FixtureAgnes =
+        ["agnes-2.0-flash", "agnes-image-2.0-flash", "agnes-image-2.1-flash", "agnes-video-v2.0"];
+
+    private static readonly string[] FixtureSensenova =
+        ["sensenova-6.7-flash-lite", "sensenova-u1-fast", "deepseek-v4-flash"];
+
+    /// <summary>构建灌入 fixture 目录的 ModelConfigLoader — 会话/VM 测试共用的确定性数据源</summary>
+    internal static JoinCode.Abstractions.Configuration.Llm.ModelConfigLoader CreateFedLoader()
+    {
+        var loader = new JoinCode.Abstractions.Configuration.Llm.ModelConfigLoader();
+        loader.ApplyProviders(new Dictionary<string, JoinCode.Abstractions.Configuration.Llm.ModelProviderConfig>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["openai"] = new() { DefaultModelId = "gpt-5.6-sol", Models = [.. FixtureOpenai.Select(id => new JoinCode.Abstractions.Configuration.Llm.ModelItemConfig { Id = id })] },
+            ["anthropic"] = new() { DefaultModelId = "claude-sonnet-5-20250815", Models = [.. FixtureAnthropic.Select(id => new JoinCode.Abstractions.Configuration.Llm.ModelItemConfig { Id = id })] },
+            ["deepseek"] = new() { DefaultModelId = "deepseek-v4-pro", Models = [.. FixtureDeepseek.Select(id => new JoinCode.Abstractions.Configuration.Llm.ModelItemConfig { Id = id })] },
+            ["agnes"] = new() { DefaultModelId = "agnes-2.0-flash", Models = [.. FixtureAgnes.Select(id => new JoinCode.Abstractions.Configuration.Llm.ModelItemConfig { Id = id })] },
+            ["sensenova"] = new() { DefaultModelId = "sensenova-6.7-flash-lite", Models = [.. FixtureSensenova.Select(id => new JoinCode.Abstractions.Configuration.Llm.ModelItemConfig { Id = id })] },
+        });
+        return loader;
+    }
+
     /// <summary>
     /// 组装引擎会话所需的完整 DI（与 Jcc 一致）：AiWorkflowServices + 共享管道 + ChatService 注册。
     /// </summary>
-    private static IServiceProvider BuildEngineProvider()
-    {
+    private static IServiceProvider BuildEngineProvider()    {
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddSingleton<IConfiguration>(
@@ -153,6 +182,7 @@ public class JccChatSessionAssemblyTests
     [Fact]
     public void ModelSurface_VendorModelMap_ComesFromSharedModelConfigLoader()
     {
+        var loader = CreateFedLoader();
         var config = new WorkflowConfig
         {
             Provider = new ProviderConfig
@@ -164,9 +194,9 @@ public class JccChatSessionAssemblyTests
         var session = new JccChatSession(
             new ServiceCollection().BuildServiceProvider(),
             null!,
-            config);
+            config,
+            modelConfigLoader: loader);
 
-        var loader = new JoinCode.Abstractions.Configuration.Llm.ModelConfigLoader();
         var expected = loader.GetModels("openai").Select(m => m.Id).ToArray();
 
         session.VendorModelMap["openai"].Should().BeEquivalentTo(expected);
@@ -188,7 +218,8 @@ public class JccChatSessionAssemblyTests
         var session = new JccChatSession(
             new ServiceCollection().BuildServiceProvider(),
             null!,
-            config);
+            config,
+            modelConfigLoader: CreateFedLoader());
 
         session.VendorModelMap["openai"].Should().NotContain("sensenova-6.7-flash-lite");
     }
@@ -207,7 +238,8 @@ public class JccChatSessionAssemblyTests
         var session = new JccChatSession(
             new ServiceCollection().BuildServiceProvider(),
             null!,
-            config);
+            config,
+            modelConfigLoader: CreateFedLoader());
 
         session.VendorModelMap["openai"].Count(m => m == "gpt-4o").Should().Be(1);
     }

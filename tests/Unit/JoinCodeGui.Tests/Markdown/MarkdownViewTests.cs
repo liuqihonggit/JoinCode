@@ -17,6 +17,7 @@ namespace JoinCode.Gui.Tests.Markdown;
 /// 断言各 Markdown 块被渲染为对应控件（标题/段落/代码块/列表/表格/引用/分隔线）。
 /// 验证模型 → 控件树链路（区别于仅解析模型的单元测试）。
 /// </summary>
+[Collection("GuiUiSequential")]
 public sealed class MarkdownViewTests
 {
     /// <summary>从 TextBlock 提取全部文本（含 Inlines 内的 Run/嵌套 Span）</summary>

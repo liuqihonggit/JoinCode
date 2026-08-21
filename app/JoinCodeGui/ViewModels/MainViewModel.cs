@@ -221,10 +221,19 @@ public sealed partial class MainViewModel : ViewModelBase
         if (!string.IsNullOrWhiteSpace(current)
             && source.All(id => !string.Equals(id, current, StringComparison.OrdinalIgnoreCase)))
         {
-            var modelProvider = _modelConfigLoader.FindProviderByModelId(current);
-            if (modelProvider is null || string.Equals(modelProvider, provider, StringComparison.OrdinalIgnoreCase))
+            // 归属判定优先用会话 VendorModelMap（测试/占位场景 _modelConfigLoader 可能为空）：
+            // 当前模型已存在于其他供应商的目录 → 属于旧供应商残留，不追加（防跨供应商污染）
+            var ownedByOtherVendor = map.Any(kvp =>
+                !string.Equals(kvp.Key, provider, StringComparison.OrdinalIgnoreCase)
+                && kvp.Value is not null
+                && kvp.Value.Contains(current, StringComparer.OrdinalIgnoreCase));
+            if (!ownedByOtherVendor)
             {
-                source.Add(current);
+                var modelProvider = _modelConfigLoader.FindProviderByModelId(current);
+                if (modelProvider is null || string.Equals(modelProvider, provider, StringComparison.OrdinalIgnoreCase))
+                {
+                    source.Add(current);
+                }
             }
         }
         ModelOptions.Clear();
@@ -349,11 +358,20 @@ public sealed partial class MainViewModel : ViewModelBase
     /// <summary>估算 token 数（中文约 1.6 字符/token，英文约 4 字符/token，取保守下限 4）</summary>
     public int EstimatedTokens => TotalChars / 4;
 
+    /// <summary>
+    /// 本轮真实 token 用量文案（如 "Token:1,234"）— 来自引擎 Complete 事件上报的 Usage，
+    /// 对齐 TUI statusBar.SetTokenCount；空串表示引擎未上报。
+    /// </summary>
+    [ObservableProperty]
+    private string _tokenUsageText = string.Empty;
+
     public MainViewModel(IJccChatSession? session = null, Persistence.GuiSessionStore? store = null, Persistence.GuiPreferencesStore? preferencesStore = null, IModelConfigLoader? modelConfigLoader = null)
     {
         _modelConfigLoader = modelConfigLoader ?? new ModelConfigLoader();
         _realSession = session;
-        _configService = new Core.Configuration.ConfigurationService(new IO.FileSystem.PhysicalFileSystem());
+        // 配置服务的文件系统跟随 preferencesStore：生产传 null → PhysicalFileSystem；
+        // 测试传 InMemory store → 全程密闭，不读写真实 ~/.jcc/settings.json（防并行测试互扰+污染用户配置）
+        _configService = new Core.Configuration.ConfigurationService(preferencesStore?.FileSystem ?? new IO.FileSystem.PhysicalFileSystem());
         _session = session ?? new Hosting.PlaceholderChatSession(_configService, _modelConfigLoader);
         _sessionStore = store ?? new Persistence.GuiSessionStore(new IO.FileSystem.PhysicalFileSystem());
         _preferencesStore = preferencesStore ?? new Persistence.GuiPreferencesStore(new IO.FileSystem.PhysicalFileSystem());
@@ -1209,6 +1227,33 @@ public sealed partial class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(CanStop));
         try
         {
+            // 斜杠命令路由（G1 对齐 TUI）：/ 前缀走命令执行链路，不进聊天流
+            if (message.StartsWith('/'))
+            {
+                Messages.Add(new ChatUiMessage
+                {
+                    Role = MessageRole.System,
+                    Content = $"⚙️ {message}",
+                    Timestamp = DateTime.Now
+                });
+                string output;
+                try
+                {
+                    output = await _session.ExecuteSlashCommandAsync(message, _sendCts.Token);
+                }
+                catch (Exception ex)
+                {
+                    output = $"命令执行失败: {ex.Message}";
+                    WriteErrorLog(ex);
+                }
+                var commandEcho = Messages[^1];
+                commandEcho.Content = string.IsNullOrWhiteSpace(output)
+                    ? commandEcho.Content + "\n（无输出）"
+                    : $"{commandEcho.Content}\n{output}";
+                StatusText = "就绪";
+                return;
+            }
+
             // 应用编辑后的系统提示词（对齐 CLI --system-prompt：经 IChatService.SetSystemPromptAsync）
             if (!string.IsNullOrWhiteSpace(SystemPrompt))
             {
@@ -1223,6 +1268,8 @@ public sealed partial class MainViewModel : ViewModelBase
             });
             RenameActiveSessionTo(message);
 
+            // 助手消息先入列表（流式占位），循环内实时刷新 Content 才能被 AllMessagesText 感知；
+            // 思考/工具卡片经 InsertBeforeAssistant 插到占位之前，保持"过程在前、回复在后"的视觉顺序
             var assistant = new ChatUiMessage
             {
                 Role = MessageRole.Assistant,
@@ -1230,9 +1277,17 @@ public sealed partial class MainViewModel : ViewModelBase
                 Timestamp = DateTime.Now,
                 IsStreaming = true
             };
+            Messages.Add(assistant);
+            var assistantIndex = Messages.Count - 1;
+            void InsertBeforeAssistant(ChatUiMessage msg)
+            {
+                Messages.Insert(assistantIndex, msg);
+                assistantIndex++;
+            }
 
             var builder = new StringBuilder();
             var thinkingBuilder = new StringBuilder();
+            long totalTokens = 0;
             ChatUiMessage? currentThinking = null;
             ChatUiMessage? currentToolCall = null;
             await foreach (var evt in _session.StreamAsync(message, _sendCts.Token))
@@ -1243,7 +1298,8 @@ public sealed partial class MainViewModel : ViewModelBase
                         if (evt.Content is not null)
                         {
                             builder.Append(evt.Content);
-                            assistant.Content = builder.ToString();
+                            if (StreamingEnabled)
+                                assistant.Content = builder.ToString();
                         }
                         break;
                     case ChatStreamEventType.Thinking:
@@ -1257,9 +1313,10 @@ public sealed partial class MainViewModel : ViewModelBase
                                 Timestamp = DateTime.Now,
                                 Kind = ChatUiMessageKind.Thinking
                             };
-                            Messages.Add(currentThinking);
+                            InsertBeforeAssistant(currentThinking);
                         }
-                        currentThinking.Content = thinkingBuilder.ToString();
+                        if (StreamingEnabled)
+                            currentThinking.Content = thinkingBuilder.ToString();
                         break;
                     case ChatStreamEventType.ToolCallStart:
                         currentToolCall = new ChatUiMessage
@@ -1274,7 +1331,7 @@ public sealed partial class MainViewModel : ViewModelBase
                             IsToolRunning = true
                         };
                         currentToolCall.RefreshElapsed();
-                        Messages.Add(currentToolCall);
+                        InsertBeforeAssistant(currentToolCall);
                         break;
                     case ChatStreamEventType.ToolProgress:
                         if (currentToolCall is not null && evt.ProgressMessage is not null)
@@ -1288,7 +1345,7 @@ public sealed partial class MainViewModel : ViewModelBase
                             currentToolCall.IsToolRunning = false;
                             currentToolCall.RefreshElapsed();
                         }
-                        Messages.Add(new ChatUiMessage
+                        InsertBeforeAssistant(new ChatUiMessage
                         {
                             Role = MessageRole.Assistant,
                             Content = string.Empty,
@@ -1301,18 +1358,27 @@ public sealed partial class MainViewModel : ViewModelBase
                         });
                         currentToolCall = null;
                         break;
+                    case ChatStreamEventType.Complete:
+                        // G2 对齐 TUI：消费引擎上报的真实 token 用量（Done/Complete 事件携带）
+                        if (evt.Usage is not null)
+                            totalTokens += evt.Usage.TotalTokens;
+                        break;
                 }
             }
 
+            // 最终一次性赋值：流式开启时为幂等收尾；关闭时这是唯一的内容填充点。
+            // 空思考气泡在此移除（关闭流式时思考内容也到此处才可见）。
             if (currentThinking is not null)
             {
+                currentThinking.Content = thinkingBuilder.ToString();
                 if (string.IsNullOrWhiteSpace(currentThinking.Content))
                     Messages.Remove(currentThinking);
             }
 
             assistant.Content = builder.ToString();
             assistant.IsStreaming = false;
-            Messages.Add(assistant);
+            // 状态栏展示本轮真实 token 用量（引擎未上报时保留空串，不显示估算值）
+            TokenUsageText = totalTokens > 0 ? $"Token:{totalTokens:N0}" : string.Empty;
             StatusText = "就绪";
         }
         catch (OperationCanceledException)
@@ -1329,6 +1395,11 @@ public sealed partial class MainViewModel : ViewModelBase
             ErrorToastText = ex.Message;
             StatusText = "就绪";
             WriteErrorLog(ex);
+            foreach (var m in Messages)
+            {
+                if (m.IsStreaming)
+                    m.IsStreaming = false;
+            }
         }
         finally
         {

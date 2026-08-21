@@ -26,3 +26,6 @@ global using JoinCode.Gui.ViewModels;
 
 // GUI 斜杠命令核心逻辑（Trie 前缀树、光标解析、匹配排序）
 global using JoinCode.Gui.SlashCommands;
+
+// 共享斜杠命令执行器（与 TUI 同一链路）
+global using JoinCode.Cli.Commands;

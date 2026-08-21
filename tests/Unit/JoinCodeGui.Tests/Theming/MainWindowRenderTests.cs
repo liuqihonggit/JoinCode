@@ -19,6 +19,7 @@ namespace JoinCode.Gui.Tests.Theming;
 /// 断言：① 窗口/侧栏/输入栏平均亮度在暗色显著低于亮色；② 侧栏像素符合语义配色。
 /// 验证浅色切换在像素级真实生效（区别于仅转换器计算）。调试时帧图保存到 <c>dumps/</c> 目录供人工核对。
 /// </summary>
+[Collection("GuiUiSequential")]
 public sealed class MainWindowRenderTests
 {
     private const double BrightThreshold = 170;

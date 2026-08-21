@@ -14,6 +14,9 @@ global using IO.FileSystem;
 // App Builder (EngineSessionFactory)
 global using JoinCode.App.Builder;
 
+// 共享斜杠命令执行器（与 GUI 同一链路）
+global using JoinCode.Cli.Commands;
+
 // 底层命令系统 — CmdMap/ChatCommandRegistry/CommandServices（转发斜杠命令，不自己实现一套）
 global using JoinCode.ChatCommands;
 global using JoinCode.Abstractions.Cmd;

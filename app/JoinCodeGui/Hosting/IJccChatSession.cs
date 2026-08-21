@@ -25,6 +25,12 @@ public interface IJccChatSession : IAsyncDisposable
     IAsyncEnumerable<ChatStreamEvent> StreamAsync(string message, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 执行斜杠命令（G1 对齐 TUI）：解析 → CmdMap 路由（斜杠命令→MCP 工具）→ 捕获输出。
+    /// 返回命令输出文本；未知命令返回带提示的错误文案。非 / 前缀输入行为未定义。
+    /// </summary>
+    Task<string> ExecuteSlashCommandAsync(string input, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 权限确认回调 — 引擎抛出 <c>PermissionPendingConfirmationException</c> 时由网关调用。
     /// UI 注入后返回决策；为 null 时网关默认拒绝（等价于 Deny）。
     /// 决策为 Allow/AlwaysAllow 时网关自动批准工具并重发同一条消息完成闭环。

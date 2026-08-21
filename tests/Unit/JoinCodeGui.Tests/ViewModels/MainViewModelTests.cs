@@ -986,6 +986,74 @@ public class MainViewModelTests
         }
 
         [Fact]
+        public async Task Send_WhileStreaming_AssistantMessageVisibleWithPartialContent()
+        {
+            var session = new GatedStreamingSession();
+            var vm = new MainViewModel(session, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
+            vm.InputText = "hi";
+
+            // 事件驱动观察：助手消息进入列表或内容刷新时检查"流式首段已可见"
+            var observed = new TaskCompletionSource<ChatUiMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+            void Probe()
+            {
+                var m = vm.Messages.FirstOrDefault(x => x.Role == MessageRole.Assistant && x.IsStreaming && x.Content == "第一段");
+                if (m is not null)
+                    observed.TrySetResult(m);
+            }
+            vm.Messages.CollectionChanged += (_, _) => Probe();
+            vm.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(MainViewModel.AllMessagesText))
+                    Probe();
+            };
+
+            var sendTask = Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
+
+            // 流式中途：助手消息应已在消息列表中且携带首段内容（流式输出对用户可见）
+            var assistant = await observed.Task.WaitAsync(TimeSpan.FromSeconds(3));
+            assistant.Should().NotBeNull("流式过程中助手消息应已加入消息列表且内容实时刷新");
+
+            session.ReleaseGate();
+            await sendTask;
+
+            vm.Messages.Last(m => m.Role == MessageRole.Assistant).Content.Should().Be("第一段第二段");
+        }
+
+        [Fact]
+        public async Task Send_WhenStreamingDisabled_AssistantContentHiddenUntilComplete()
+        {
+            var session = new GatedStreamingSession();
+            var vm = new MainViewModel(session, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
+            vm.StreamingEnabled = false;
+            vm.InputText = "hi";
+
+            // 事件驱动观察：助手消息加入列表即触发（关闭流式时内容应保持为空）
+            var appeared = new TaskCompletionSource<ChatUiMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+            vm.Messages.CollectionChanged += (_, e) =>
+            {
+                if (e.NewItems is null)
+                    return;
+                foreach (ChatUiMessage m in e.NewItems)
+                {
+                    if (m.Role == MessageRole.Assistant && m.IsStreaming)
+                        appeared.TrySetResult(m);
+                }
+            };
+
+            var sendTask = Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
+
+            // 关闭流式：助手消息占位出现但内容保持为空，直到流结束后一次性填充
+            var assistant = await appeared.Task.WaitAsync(TimeSpan.FromSeconds(3));
+            assistant.Should().NotBeNull("关闭流式时助手消息仍应以占位形式出现");
+            assistant.Content.Should().BeEmpty("关闭流式时生成中的内容不应实时显示");
+
+            session.ReleaseGate();
+            await sendTask;
+
+            vm.Messages.Last(m => m.Role == MessageRole.Assistant).Content.Should().Be("第一段第二段");
+        }
+
+        [Fact]
         public void ThinkingMessage_ToggleCollapsesAndRevealsBody()
         {
             var vm = CreateVm();
@@ -1308,6 +1376,61 @@ public class MainViewModelTests
                 LoadHistoryCalls.Add(messages);
                 return Task.CompletedTask;
             }
+            public EffortLevel EffortLevel => EffortLevel.Auto;
+            public Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public float? Temperature => null;
+            public int? MaxTokens => null;
+            public Task SetTemperatureAsync(float temperature, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task SetMaxTokensAsync(int maxTokens, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands() => [];
+            public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
+            public Task<JoinCode.Abstractions.UI.ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult(JoinCode.Abstractions.UI.ThemeKind.Auto);
+            public Task SetThemeAsync(JoinCode.Abstractions.UI.ThemeKind theme, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public event EventHandler<JoinCode.Abstractions.UI.ThemeKind>? ThemeChanged { add { } remove { } }
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
+
+        /// <summary>
+        /// 门控流式假会话 — 先产出"第一段"，等待测试放行闸门后再产出"第二段"+Done，
+        /// 用于在流式中途冻结引擎、观察 UI 的即时状态。
+        /// </summary>
+        private sealed class GatedStreamingSession : IJccChatSession
+        {
+            private readonly TaskCompletionSource _gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public void ReleaseGate() => _gate.TrySetResult();
+
+            public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
+            public Func<QuestionItem, Task<AskUserQuestionResult>>? AskUserQuestionDialogCallback { get; set; }
+            public bool IsReady => true;
+            public string CurrentVendor => "fake";
+            public string CurrentModelId => "fake-model";
+            public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; }
+                = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["fake"] = ["fake-model"]
+                };
+            public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+            {
+                yield return ChatStreamEvent.Text("第一段");
+                await _gate.Task.WaitAsync(cancellationToken);
+                yield return ChatStreamEvent.Text("第二段");
+                yield return ChatStreamEvent.Done();
+            }
+            public Task<IReadOnlyList<ApiMessageRecord>> GetMessagesAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult<IReadOnlyList<ApiMessageRecord>>([]);
+            public Task ClearHistoryAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default)
+                => Task.FromResult(new RewindResult());
+            public Task SetModelAsync(string modelId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task SetVendorAsync(string vendor, CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public void RefreshVendorModelMap() { }
+            public void SwitchSession(string sessionId) { }
+            public Task LoadHistoryAsync(IReadOnlyList<(MessageRole Role, string Content)> messages, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public EffortLevel EffortLevel => EffortLevel.Auto;
             public Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default) => Task.CompletedTask;
             public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default) => Task.CompletedTask;

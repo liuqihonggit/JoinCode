@@ -1223,6 +1223,8 @@ public sealed partial class MainViewModel : ViewModelBase
             });
             RenameActiveSessionTo(message);
 
+            // 助手消息先入列表（流式占位），循环内实时刷新 Content 才能被 AllMessagesText 感知；
+            // 思考/工具卡片经 InsertBeforeAssistant 插到占位之前，保持"过程在前、回复在后"的视觉顺序
             var assistant = new ChatUiMessage
             {
                 Role = MessageRole.Assistant,
@@ -1230,6 +1232,13 @@ public sealed partial class MainViewModel : ViewModelBase
                 Timestamp = DateTime.Now,
                 IsStreaming = true
             };
+            Messages.Add(assistant);
+            var assistantIndex = Messages.Count - 1;
+            void InsertBeforeAssistant(ChatUiMessage msg)
+            {
+                Messages.Insert(assistantIndex, msg);
+                assistantIndex++;
+            }
 
             var builder = new StringBuilder();
             var thinkingBuilder = new StringBuilder();
@@ -1243,7 +1252,8 @@ public sealed partial class MainViewModel : ViewModelBase
                         if (evt.Content is not null)
                         {
                             builder.Append(evt.Content);
-                            assistant.Content = builder.ToString();
+                            if (StreamingEnabled)
+                                assistant.Content = builder.ToString();
                         }
                         break;
                     case ChatStreamEventType.Thinking:
@@ -1257,9 +1267,10 @@ public sealed partial class MainViewModel : ViewModelBase
                                 Timestamp = DateTime.Now,
                                 Kind = ChatUiMessageKind.Thinking
                             };
-                            Messages.Add(currentThinking);
+                            InsertBeforeAssistant(currentThinking);
                         }
-                        currentThinking.Content = thinkingBuilder.ToString();
+                        if (StreamingEnabled)
+                            currentThinking.Content = thinkingBuilder.ToString();
                         break;
                     case ChatStreamEventType.ToolCallStart:
                         currentToolCall = new ChatUiMessage
@@ -1274,7 +1285,7 @@ public sealed partial class MainViewModel : ViewModelBase
                             IsToolRunning = true
                         };
                         currentToolCall.RefreshElapsed();
-                        Messages.Add(currentToolCall);
+                        InsertBeforeAssistant(currentToolCall);
                         break;
                     case ChatStreamEventType.ToolProgress:
                         if (currentToolCall is not null && evt.ProgressMessage is not null)
@@ -1288,7 +1299,7 @@ public sealed partial class MainViewModel : ViewModelBase
                             currentToolCall.IsToolRunning = false;
                             currentToolCall.RefreshElapsed();
                         }
-                        Messages.Add(new ChatUiMessage
+                        InsertBeforeAssistant(new ChatUiMessage
                         {
                             Role = MessageRole.Assistant,
                             Content = string.Empty,
@@ -1304,15 +1315,17 @@ public sealed partial class MainViewModel : ViewModelBase
                 }
             }
 
+            // 最终一次性赋值：流式开启时为幂等收尾；关闭时这是唯一的内容填充点。
+            // 空思考气泡在此移除（关闭流式时思考内容也到此处才可见）。
             if (currentThinking is not null)
             {
+                currentThinking.Content = thinkingBuilder.ToString();
                 if (string.IsNullOrWhiteSpace(currentThinking.Content))
                     Messages.Remove(currentThinking);
             }
 
             assistant.Content = builder.ToString();
             assistant.IsStreaming = false;
-            Messages.Add(assistant);
             StatusText = "就绪";
         }
         catch (OperationCanceledException)
@@ -1329,6 +1342,11 @@ public sealed partial class MainViewModel : ViewModelBase
             ErrorToastText = ex.Message;
             StatusText = "就绪";
             WriteErrorLog(ex);
+            foreach (var m in Messages)
+            {
+                if (m.IsStreaming)
+                    m.IsStreaming = false;
+            }
         }
         finally
         {

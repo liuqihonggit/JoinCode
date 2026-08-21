@@ -84,8 +84,16 @@
     `PermissionDialogTests.CloseWindowWithoutClicking_ReturnsDeny`（Headless 关窗验证运行时行为）
     + `DefaultDecision_MustBeDeny`（纯枚举层面阻断重排事故）。若有人调整枚举顺序立即红灯。
   - 位置：`app\JoinCodeGui\Views\MainWindow.axaml.cs:140`、`Hosting\PermissionConfirmation.cs:19`
-- [ ] **B2** GUI `StreamingEnabled` 开关无效（拨了没用）
-  - 位置：`SettingsPanelView.axaml` + `MainViewModel.SendAsync` 从不读取 → 接线或移除
+- [x] **B2** GUI `StreamingEnabled` 开关无效（拨了没用）
+  - **修复（2026-08-22）**：`MainViewModel.SendAsync` 消费该开关。顺带发现并修复更根本的缺陷：
+    流式期间 assistant 消息从未加入 Messages（循环结束才 Add），逐 token 更新完全不可见。
+  - 改动：① 助手消息先入列表作流式占位；② Content/Thinking 实时刷新受 `StreamingEnabled` 门控
+    （关闭=完成后一次性填充）；③ 思考/工具卡片经 `InsertBeforeAssistant` 插到占位之前，
+    保持"过程在前、回复在后"视觉顺序；④ 异常路径补 `IsStreaming=false` 清理（占位消息现在会留在列表中）。
+  - 测试：`Send_WhileStreaming_AssistantMessageVisibleWithPartialContent`（流式中途可见）
+    + `Send_WhenStreamingDisabled_AssistantContentHiddenUntilComplete`（关流式隐藏），
+    门控流式假会话 + 事件驱动观察（JCC3010 禁止 Task.Delay 轮询）。
+  - 位置：`app\JoinCodeGui\ViewModels\MainViewModel.cs` SendAsync
 - [ ] **B3** GUI `FontSize` 滑块无效（消息区硬编码13号字）
   - 位置：`MainWindow.axaml:112` TextEditor FontSize 未绑定 prefs
 - [ ] **B4** GUI `OnRemoveClick` 无 XAML 引用（消息删除不可达）
@@ -96,6 +104,11 @@
   - 位置：`TuiModeRunner.cs:113-114,177`；应改为取消当前 CTS
 - [ ] **B7** TUI 权限批准后重发原文导致上下文重复
   - 位置：`TuiModeRunner.cs:326`；对齐 GUI 的 Rewind 语义或改为工具级批准后继续
+- [ ] **B8**（存量缺陷，与对齐工作无关，基线即失败）JoinCodeGui.Tests 中 7 个模型列表测试失败
+  - 现象：`JccChatSessionAssemblyTests.ModelSurface_VendorModelMap_*`、`SetModelAsync_PersistsModelToSettingsJson`、
+    `MainViewModelTests.ModelOptions_DoesNotCrossContaminateModelsFromOtherProviders`、`PlaceholderMode_ShowsLoadingStatus`
+  - 根因初判：依赖本机 `models.json` 内容，测试环境与预期不一致（2026-08-22 基线验证 7/320 失败，与改动无关）
+  - 待办：排查 GuiJsonContext/models.json 路径解析在测试环境的回退行为
 
 ## 三、修 GUI 阶段（补 TUI 有的能力）
 

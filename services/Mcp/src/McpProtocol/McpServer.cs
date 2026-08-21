@@ -121,7 +121,7 @@ public class McpServer : IMcpServer
         }
     }
 
-    private async Task<JsonRpcResponse?> ProcessMessageAsync(string json, CancellationToken cancellationToken)
+    internal async Task<JsonRpcResponse?> ProcessMessageAsync(string json, CancellationToken cancellationToken)
     {
         JsonRpcRequest? request = null;
         try

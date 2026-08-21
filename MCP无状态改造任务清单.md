@@ -36,20 +36,24 @@
 - [x] P1.3 404 SessionExpired 事件(上层可监听重新握手)
 - [x] P1.4 151 测试全绿,0 破坏
 
-### P2 无状态模式显式化
-- [ ] P2.1 `HttpTransportOptions.StatelessMode` 开关
-- [ ] P2.2 握手后自动检测服务器未返回 Session-Id → 标记无状态
+### P2 无状态模式显式化 [已完成 ✅]
+- [x] P2.1 `HttpTransportOptions.StatelessMode` 开关
+- [x] P2.2 `HttpTransport.IsStateless` 属性(StatelessMode || _sessionId == null)
+- [x] P2.3 握手后自动检测服务器未返回 Session-Id → 日志提示无状态
+- [x] P2.4 测试:3 个新测试,全量 154 全绿
 
-### P3 服务端 Streamable HTTP
-- [ ] P3.1 新增 `McpHttpServer`(Kestrel)单端点 POST/GET
-- [ ] P3.2 无状态模式(不分配 session)
-- [ ] P3.3 有状态模式(分配 session + SSE 推送 + session 存储)
-- [ ] P3.4 Origin 校验 + 安全合规
+### P3 服务端 Streamable HTTP [已完成 ✅]
+- [x] P3.1 新增 `McpHttpServer`(HttpListener)单端点 POST/GET/DELETE
+- [x] P3.2 无状态模式(默认 true):不分配 MCP-Session-Id
+- [x] P3.3 有状态模式:initialize 时分配 session + ConcurrentDictionary 存储 + DELETE 终止
+- [x] P3.4 Origin 校验(防 DNS rebinding)+ 404 会话过期 + 405 方法不允许
+- [x] P3.5 复用 McpServer.ProcessMessageAsync(internal)
+- [x] P3.6 测试:6 个新测试,全量 160 全绿
 
-### P5 E2E + 文档
-- [ ] P5.1 MockServer 升级到 2025-11-25
-- [ ] P5.2 无状态/有状态双场景 E2E
-- [ ] P5.3 更新 AGENTS.md MCP 协议版本
+### P5 E2E + 文档 [进行中]
+- [x] P5.1 任务文档更新
+- [ ] P5.2 AGENTS.md MCP 协议版本记录
+- [ ] P5.3 commit P3+P5
 
 ## 执行原则
 - 渐进式:每步 红测试 → 改 → 编译 → 绿测试 → commit
@@ -60,4 +64,6 @@
 <!-- 决策: 一刀切到 2025-11-25,不保留旧协议兼容 -->
 <!-- 原因: 项目配置无 sse 用户,旧协议无实际依赖;保留旧协议需基类继承+自动探测器,复杂度高收益低 -->
 <!-- 替代方案: 双协议共存+自动探测(规范 Backwards Compatibility),但工作量大且本项目无旧server需求 -->
-<!-- 验证: P0 编译通过,151 测试全绿 ✅ -->
+<!-- 验证: P0-P3 全部编译通过,160 测试全绿 ✅ -->
+<!-- P3 决策: 用 HttpListener 而非 Kestrel,避免给 Mcp.csproj 加 AspNetCore 依赖,复用已归档 SseTransport 的 HttpListener 经验 -->
+<!-- P3 替代方案: Kestrel(FrameworkReference AspNetCore.App),功能更强但增体积,本项目服务端功能简单不需要 -->

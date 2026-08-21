@@ -22,6 +22,20 @@ public sealed class AgentToolContext
     /// </summary>
     public string? SubagentType { get; init; }
 
+    /// <summary>
+    /// 解析后的主类型 — 当 SubagentType 含逗号(如 "worker,researcher")时,取第一个作为实际 spawn 类型
+    /// <para>对齐 claude code AgentTypeSpecParser.Parse.PrimaryType</para>
+    /// <para>由 AgentValidationMiddleware 解析填充,后续中间件用此值替代原始 SubagentType</para>
+    /// </summary>
+    public string? ResolvedPrimaryType { get; set; }
+
+    /// <summary>
+    /// 允许子代理 spawn 的类型列表 — 当 SubagentType 含逗号时解析出
+    /// <para>对齐 claude code allowedAgentTypes: 限制该 agent 只能 spawn 这些类型的子代理</para>
+    /// <para>由 AgentValidationMiddleware 解析填充</para>
+    /// </summary>
+    public IReadOnlyList<string>? AllowedAgentTypes { get; set; }
+
     public AgentRole SubagentRole { get; init; } = AgentRole.Executor;
 
     public ExecutorVariant? SubagentVariant { get; init; }

@@ -84,7 +84,7 @@ public sealed class McpHttpServer : IDisposable
                     await HandlePostAsync(ctx, ct).ConfigureAwait(false);
                     break;
                 case "GET":
-                    HandleGet(ctx);
+                    await HandleGetAsync(ctx, ct).ConfigureAwait(false);
                     break;
                 case "DELETE":
                     HandleDelete(ctx);
@@ -158,11 +158,63 @@ public sealed class McpHttpServer : IDisposable
         ctx.Response.Close();
     }
 
-    private static void HandleGet(HttpListenerContext ctx)
+    private async Task HandleGetAsync(HttpListenerContext ctx, CancellationToken ct)
     {
-        // 最小实现:不支持 GET SSE 推送,返回 405
-        // 完整实现可在此开 SSE 流推送服务端通知(有状态模式)
-        ctx.Response.StatusCode = 405;
+        // 无状态模式或无 session → 不支持 GET SSE 推送
+        var sessionId = ctx.Request.Headers["Mcp-Session-Id"];
+        if (_statelessMode || string.IsNullOrEmpty(sessionId))
+        {
+            ctx.Response.StatusCode = 405;
+            ctx.Response.Close();
+            return;
+        }
+
+        if (!_sessions.ContainsKey(sessionId))
+        {
+            ctx.Response.StatusCode = 404;
+            ctx.Response.Close();
+            return;
+        }
+
+        // 开 SSE 流推送服务端通知 — 对齐 2025-11-25 规范
+        ctx.Response.ContentType = "text/event-stream";
+        ctx.Response.Headers["Cache-Control"] = "no-cache";
+        ctx.Response.SendChunked = true;
+
+        var eventQueue = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        void OnNotification(object? s, McpServerNotificationEventArgs e)
+        {
+            var notification = new JsonRpcNotification { Method = e.Method };
+            eventQueue.Enqueue(McpJsonSerializer.Serialize(notification));
+        }
+
+        _server.NotificationReceived += OnNotification;
+        try
+        {
+            using var writer = new StreamWriter(ctx.Response.OutputStream, Encoding.UTF8);
+            writer.AutoFlush = true;
+            await writer.WriteLineAsync("retry: 3000").ConfigureAwait(false);
+            await writer.FlushAsync(ct).ConfigureAwait(false);
+
+            while (!ct.IsCancellationRequested)
+            {
+                if (eventQueue.TryDequeue(out var json))
+                {
+                    await writer.WriteLineAsync($"data: {json}").ConfigureAwait(false);
+                    await writer.WriteLineAsync().ConfigureAwait(false);
+                    await writer.FlushAsync(ct).ConfigureAwait(false);
+                }
+                else
+                {
+                    await Task.Delay(100, ct).ConfigureAwait(false);
+                }
+            }
+        }
+        catch (OperationCanceledException) { }
+        finally
+        {
+            _server.NotificationReceived -= OnNotification;
+        }
         ctx.Response.Close();
     }
 

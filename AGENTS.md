@@ -422,6 +422,7 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 | **InvariantGlobalization** | `true`，Release 模式 Exe 项目强制 |
 | **全球化策略** | 渐进式双语（中英文），遇到全球化问题时逐步实现，不必一次性处理完 |
 | **IsAotCompatible** | 所有源码项目已标记 |
+| **MCP 协议版本** | `2025-11-25`（Streamable HTTP）— 旧 `2024-11-05` + SseClientTransport/SseTransport 已归档到 `services/Mcp/.xxx/`；客户端 `HttpTransport` + 服务端 `McpHttpServer`（HttpListener，无状态/有状态双模式）；`MCP-Protocol-Version` 头握手协商，`MCP-Session-Id` 不分配=无状态 |
 
 ### 核心技术选型
 
@@ -430,6 +431,7 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 | **System.Linq** | LINQ | 标准库，通过 `Directory.Build.props` 全局 `using System.Linq`，所有源码项目自动引用 |
 | **MiddlewarePipeline\<TContext\>** | Task 管道 | `Infrastructure.Pipeline` — DI 注入中间件集合，支持 PreHook/PostHook、异常捕获/传播两种模式 |
 | **StreamMiddlewarePipeline\<TContext, TEvent\>** | 流式管道 | 同上，返回 `IAsyncEnumerable<TEvent>`，流式场景异常默认传播 |
+| **McpHttpServer** | MCP Streamable HTTP 服务端 | `services/Mcp/src/McpProtocol/McpHttpServer.cs` — HttpListener 实现，无状态（不分配 Session-Id）/有状态（分配+DELETE 终止）双模式，GET 开 SSE 推送 NotificationReceived |
 
 ***
 

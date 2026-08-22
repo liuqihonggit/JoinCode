@@ -24,6 +24,18 @@ public static partial class StringKey
     public const string ToolSearchFailedLog = "ToolSearchFailedLog";
     public const string ToolSearchResultTitle = "ToolSearchResultTitle";
 
+    // === ModelSearchToolHandlers ===
+    public const string ModelSearchQueryCannotBeEmpty = "ModelSearchQueryCannotBeEmpty";
+    public const string ModelSearchNoMatch = "ModelSearchNoMatch";
+    public const string ModelSearchRegisteredCount = "ModelSearchRegisteredCount";
+    public const string ModelSearchMatchedCount = "ModelSearchMatchedCount";
+    public const string ModelSearchFailed = "ModelSearchFailed";
+    public const string ModelSearchFailedLog = "ModelSearchFailedLog";
+    public const string ModelSearchResultTitle = "ModelSearchResultTitle";
+    public const string ModelSearchGroupListHeader = "ModelSearchGroupListHeader";
+    public const string ModelSearchModelListHeader = "ModelSearchModelListHeader";
+    public const string ModelSearchHint = "ModelSearchHint";
+
     // === SkillToolHandlers ===
     public const string SkillNameCannotBeEmpty = "SkillNameCannotBeEmpty";
     public const string SkillNotFound = "SkillNotFound";

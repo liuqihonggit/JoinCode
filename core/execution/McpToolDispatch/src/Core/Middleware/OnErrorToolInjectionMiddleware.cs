@@ -54,6 +54,7 @@ public sealed partial class OnErrorToolInjectionMiddleware : ServiceEntity, IToo
                 {
                     sb.AppendLine(BuildToolSchemaJson(tool));
                 }
+                _logger?.LogInformation("已注入错误修复建议到上下文（含历史分析+OnError工具+链路推荐），{Count} 个修复工具", relevantTools.Count);
             }
         }
 
@@ -72,8 +73,6 @@ public sealed partial class OnErrorToolInjectionMiddleware : ServiceEntity, IToo
         {
             InjectedMessages = [.. (context.Result.InjectedMessages ?? []), injection]
         };
-
-        _logger?.LogDebug("已注入错误修复建议到上下文（含历史分析+OnError工具+链路推荐）");
     }
 
     /// <summary>

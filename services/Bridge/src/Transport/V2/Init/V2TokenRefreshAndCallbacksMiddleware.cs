@@ -79,14 +79,14 @@ internal sealed partial class V2TokenRefreshAndCallbacksMiddleware : ServiceEnti
         transport.Connect();
 
         // 设置全局桥句柄
-        var handle = new EnvLessBridgeHandle(
-            new BridgeEnvLessSessionContext
+        var handle = new V2BridgeHandle(
+            new V2BridgeSessionContext
             {
                 Session = new BridgeSessionInfo { SessionId = sessionId, EnvironmentId = string.Empty, SessionIngressUrl = credentials.ApiBaseUrl },
                 State = state,
                 Parameters = parameters,
             },
-            new BridgeEnvLessTransportContext
+            new V2BridgeTransportContext
             {
                 Transport = transport,
                 HttpClient = ctx.HttpClient,

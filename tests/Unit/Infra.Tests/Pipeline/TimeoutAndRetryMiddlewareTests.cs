@@ -75,8 +75,9 @@ public sealed class TimeoutAndRetryMiddlewareTests
     }
 
     [Fact]
-    public async Task Retry_FailsThenSucceeds_RetriesCorrectTimes()
+    public async Task Retry_Passthrough_FailsThenSucceeds_ThrowsImmediately()
     {
+        // 降级为透传：第一次失败直接抛，不重试（重试交给 Gateway）
         var ctx = new TestRetryContext { MaxRetries = 3 };
         var attempt = 0;
         var pipeline = new PipelineBuilder<TestRetryContext>()
@@ -84,15 +85,16 @@ public sealed class TimeoutAndRetryMiddlewareTests
             .Use(new FailThenSucceedMiddleware(2, () => attempt++))
             .Build();
 
-        await pipeline.ExecuteAsync(ctx, CancellationToken.None).ConfigureAwait(true);
+        var act = async () => await pipeline.ExecuteAsync(ctx, CancellationToken.None).ConfigureAwait(true);
 
-        ctx.RetryCount.Should().Be(2);
-        ctx.LastError.Should().BeNull();
+        await act.Should().ThrowAsync<InvalidOperationException>().ConfigureAwait(true);
+        ctx.RetryCount.Should().Be(0);
     }
 
     [Fact]
-    public async Task Retry_ExceedsMaxRetries_ThrowsLastError()
+    public async Task Retry_Passthrough_AlwaysFails_ThrowsImmediately()
     {
+        // 降级为透传：第一次失败直接抛，RetryCount=0
         var ctx = new TestRetryContext { MaxRetries = 2 };
         var pipeline = new PipelineBuilder<TestRetryContext>()
             .Use(new RetryMiddleware<TestRetryContext>())
@@ -102,7 +104,7 @@ public sealed class TimeoutAndRetryMiddlewareTests
         var act = async () => await pipeline.ExecuteAsync(ctx, CancellationToken.None).ConfigureAwait(true);
 
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("always fail").ConfigureAwait(true);
-        ctx.RetryCount.Should().Be(2);
+        ctx.RetryCount.Should().Be(0);
     }
 
     [Fact]
@@ -167,8 +169,9 @@ public sealed class TimeoutAndRetryMiddlewareTests
     }
 
     [Fact]
-    public async Task FixedRetry_FailsThenSucceeds_Retries()
+    public async Task FixedRetry_Passthrough_FailsThenSucceeds_ThrowsImmediately()
     {
+        // 降级为透传：第一次失败直接抛，不重试
         var attempt = 0;
         var pipeline = new PipelineBuilder<SimpleContext>()
             .Use(new FixedRetryMiddleware<SimpleContext>(3, ex => ex is InvalidOperationException))
@@ -176,9 +179,9 @@ public sealed class TimeoutAndRetryMiddlewareTests
             .Build();
 
         var ctx = new SimpleContext();
-        await pipeline.ExecuteAsync(ctx, CancellationToken.None).ConfigureAwait(true);
+        var act = async () => await pipeline.ExecuteAsync(ctx, CancellationToken.None).ConfigureAwait(true);
 
-        ctx.Log.Should().Contain("success");
+        await act.Should().ThrowAsync<InvalidOperationException>().ConfigureAwait(true);
     }
 
     [Fact]

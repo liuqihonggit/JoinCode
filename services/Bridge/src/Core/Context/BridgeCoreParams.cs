@@ -107,7 +107,7 @@ public sealed class BridgeCoreParams
 /// <summary>
 /// v2 env-less 桥核心参数 — 对齐 TS 端 remoteBridgeCore.ts EnvLessBridgeParams
 /// </summary>
-public sealed class BridgeEnvLessParams
+public sealed class V2BridgeParams
 {
     /// <summary>API 基础 URL</summary>
     public required string BaseUrl { get; init; }

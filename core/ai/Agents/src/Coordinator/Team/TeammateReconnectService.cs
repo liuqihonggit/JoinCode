@@ -4,8 +4,8 @@ namespace Core.Agents.Coordinator;
 public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.Abstractions.Interfaces.ITeammateReconnectService
 {
     private const int MaxReconnectAttempts = 5;
-    private const int InitialBackoffMs = 1000;
-    private const int MaxBackoffMs = 30000;
+    private const int InitialBackoffMs = 2000;
+    private const int MaxBackoffMs = 300000;
 
     private readonly ITeamManager _teamManager;
     private readonly IAgentLifecycleManager _lifecycleManager;

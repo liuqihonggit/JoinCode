@@ -10,12 +10,13 @@ public sealed class ResilientHttpClientProvider : IResilientHttpClientProvider
     public ResilientHttpClientProvider(
         IHttpClientProvider inner,
         ResiliencePolicy? policy = null,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        INetworkConnectivityService? networkService = null)
     {
         _inner = inner ?? throw new ArgumentNullException(nameof(inner));
         _policy = policy ?? ResiliencePolicy.HttpDefault("default");
         _logger = logger;
-        _executor = new ResilientHttpExecutor(_policy, logger);
+        _executor = new ResilientHttpExecutor(_policy, logger, networkService);
     }
 
     public ResilientHttpExecutor Executor => _executor;

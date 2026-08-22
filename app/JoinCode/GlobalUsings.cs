@@ -56,6 +56,7 @@ global using Core.Configuration;
 global using Core.Configuration.Providers;
 global using Core.Configuration.ModelFetch;
 global using Infrastructure.Http;
+global using Infrastructure.Configuration;
 global using JoinCode.Abstractions.Http;
 global using Core.Context;
 global using Core.Context.Modality;

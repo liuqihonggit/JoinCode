@@ -42,6 +42,7 @@ global using JoinCode.Abstractions.Utils.Diagnostics;
 global using JoinCode.Abstractions.Models.ErrorRecovery;
 global using JoinCode.Abstractions.Pipeline;
 global using JoinCode.Abstractions.Security;
+global using JoinCode.Abstractions.Network;
 global using JoinCode.Abstractions.Security.Permission;
 global using JoinCode.Abstractions.Security.Shell;
 global using Core.Bridge;

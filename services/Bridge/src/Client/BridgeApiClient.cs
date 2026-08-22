@@ -434,7 +434,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     }
 
     /// <summary>
-    /// 带重试的请求发送 - 指数退避重试逻辑
+    /// 请求发送 — 降级为透传，网络重试统一由 ResilientHttpExecutor (Gateway) 处理，避免嵌套放大打爆服务器
     /// </summary>
     /// <typeparam name="T">响应类型</typeparam>
     /// <param name="sendFunc">实际发送函数</param>
@@ -445,29 +445,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(sendFunc);
-
-        var maxRetries = _options.MaxRetries;
-        var baseDelayMs = _options.RetryBaseDelayMs;
-
-        for (var attempt = 0; ; attempt++)
-        {
-            try
-            {
-                return await sendFunc(ct).ConfigureAwait(false);
-            }
-            catch (HttpRequestException ex) when (attempt < maxRetries)
-            {
-                var delayMs = (int)Math.Min(baseDelayMs * Math.Pow(2, attempt), WorkflowConstants.Retry.MaxDelayMs);
-                var jitter = Random.Shared.Next(0, (int)(delayMs * 0.1));
-                var totalDelay = delayMs + jitter;
-
-                _logger?.LogWarning(
-                    "[BridgeApiClient] 请求失败（第 {Attempt}/{MaxRetries} 次），{DelayMs}ms 后重试: {Error}",
-                    attempt + 1, maxRetries, totalDelay, ex.Message);
-
-                await Task.Delay(totalDelay, ct).ConfigureAwait(false);
-            }
-        }
+        return await sendFunc(ct).ConfigureAwait(false);
     }
 
     /// <summary>

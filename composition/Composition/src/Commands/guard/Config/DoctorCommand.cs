@@ -69,6 +69,9 @@ public sealed class DoctorCommand : ChatCommandBase
             sb.AppendLine($"  {drive.Name} {status} - 可用: {freeSpaceGB:F1} GB / 总计: {totalSpaceGB:F1} GB ({usedPercent:F1}% 已用)");
         }
 
+        sb.AppendLine("\n[网络状态]");
+        AppendNetworkStatus(sb, context);
+
         sb.AppendLine("\n[API 连接]");
         await AppendApiConnectionAsync(sb, context).ConfigureAwait(false);
 
@@ -135,6 +138,40 @@ public sealed class DoctorCommand : ChatCommandBase
     {
         var registry = ChatCommandBase.GetService<IProviderDefinitionRegistry>(context, typeof(IProviderDefinitionRegistry));
         return registry?.TryGet(provider);
+    }
+
+    private static void AppendNetworkStatus(StringBuilder sb, ChatCommandContext context)
+    {
+        var networkService = ChatCommandBase.GetService<INetworkConnectivityService>(context, typeof(INetworkConnectivityService));
+        if (networkService is null)
+        {
+            sb.AppendLine("  网络检测服务不可用");
+            return;
+        }
+
+        var state = networkService.CurrentState;
+        var stateText = state switch
+        {
+            NetworkConnectivityState.Online => $"{TerminalColors.Success}在线{AnsiStyleConstants.Reset}",
+            NetworkConnectivityState.OnlineWithVpn => $"{TerminalColors.Success}在线 (VPN){AnsiStyleConstants.Reset}",
+            NetworkConnectivityState.OnlineWithProxy => $"{TerminalColors.Success}在线 (代理){AnsiStyleConstants.Reset}",
+            _ => $"{TerminalColors.Error}离线{AnsiStyleConstants.Reset}",
+        };
+        sb.AppendLine($"  状态: {stateText}");
+        sb.AppendLine($"  VPN: {(networkService.IsVpnActive() ? "活跃" : "未检测到")}");
+
+        var route = networkService.GetCurrentRoute();
+        sb.AppendLine($"  路由: {route.Type}");
+
+        var interfaces = networkService.GetActiveInterfaces();
+        if (interfaces.Count > 0)
+        {
+            sb.AppendLine($"  活跃接口 ({interfaces.Count}):");
+            foreach (var iface in interfaces)
+            {
+                sb.AppendLine($"    {iface.Name} [{iface.Kind}] {(iface.IsUp ? "UP" : "DOWN")}");
+            }
+        }
     }
 
     private static async Task AppendApiConnectionAsync(StringBuilder sb, ChatCommandContext context)

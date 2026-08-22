@@ -96,9 +96,21 @@ public static partial class ServiceRegistration
         var resilienceEnabled = Environment.GetEnvironmentVariable("JCC_RESILIENCE_ENABLED") is not "0";
         if (!resilienceEnabled) return null;
 
-        var policy = ResiliencePolicy.LlmDefault("LLM");
         var logger = sp.GetService<ILogger<ResilientHttpExecutor>>();
-        return new ResilientHttpExecutor(policy, logger);
+        var networkService = sp.GetService<INetworkConnectivityService>();
+        var retryOptions = sp.GetService<IOptions<NetworkRetryOptions>>()?.Value;
+
+        // 用统一配置创建 24h 预算驱动 policy；无配置则 fallback 到 LlmDefault
+        var policy = retryOptions is not null
+            ? new ResiliencePolicy
+            {
+                Name = "LLM",
+                OperationTimeout = TimeSpan.FromSeconds(30),
+                Retry = retryOptions.ToRetryConfig(),
+            }
+            : ResiliencePolicy.LlmDefault("LLM");
+
+        return new ResilientHttpExecutor(policy, logger, networkService);
     }
 
     /// <summary>

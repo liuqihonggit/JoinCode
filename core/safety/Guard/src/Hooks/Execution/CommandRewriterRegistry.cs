@@ -14,10 +14,12 @@ public sealed partial class CommandRewriterRegistry : ServiceEntity
 {
     private readonly List<ICommandRewriter> _rewriters = [];
     [Inject] private readonly ILogger<CommandRewriterRegistry>? _logger;
+    private readonly INetworkConnectivityService? _networkService;
 
-    public CommandRewriterRegistry(ILogger<CommandRewriterRegistry>? logger = null)
+    public CommandRewriterRegistry(ILogger<CommandRewriterRegistry>? logger = null, INetworkConnectivityService? networkService = null)
     {
         _logger = logger;
+        _networkService = networkService;
         RegisterDefaultRewriters();
     }
 
@@ -29,7 +31,7 @@ public sealed partial class CommandRewriterRegistry : ServiceEntity
         Register(new Rewriters.HeredocRewriter());
         Register(new Rewriters.GhPrBodyRewriter());
         Register(new Rewriters.GhTimeoutRewriter());
-        Register(new Rewriters.VpnRouteRewriter());
+        Register(new Rewriters.VpnRouteRewriter(networkService: _networkService));
     }
 
     /// <summary>

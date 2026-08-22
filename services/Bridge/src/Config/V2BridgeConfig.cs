@@ -5,7 +5,7 @@ namespace Core.Bridge;
 /// Env-less 桥配置 — 对齐 TS 端 envLessBridgeConfig.ts EnvLessBridgeConfig
 /// 定义 v2 路径（无环境层）的所有计时参数
 /// </summary>
-public sealed class BridgeEnvLessConfig
+public sealed class V2BridgeConfig
 {
     /// <summary>初始化重试最大次数 — 默认 3</summary>
     [JsonPropertyName("init_retry_max_attempts")]
@@ -60,13 +60,13 @@ public sealed class BridgeEnvLessConfig
     public bool ShouldShowAppUpgradeMessage { get; init; } = false;
 
     /// <summary>默认配置 — 每次返回新实例防止篡改</summary>
-    public static BridgeEnvLessConfig Defaults => new();
+    public static V2BridgeConfig Defaults => new();
 
     /// <summary>
     /// 验证配置 — 对齐 TS 端 Zod schema 验证
     /// 任何一个字段不合法，整个配置回退到默认值（整体拒绝策略）
     /// </summary>
-    public static BridgeEnvLessConfig Validate(BridgeEnvLessConfig config)
+    public static V2BridgeConfig Validate(V2BridgeConfig config)
     {
         ArgumentNullException.ThrowIfNull(config);
 
@@ -90,7 +90,7 @@ public sealed class BridgeEnvLessConfig
     /// 获取配置 — 对齐 TS 端 getEnvLessBridgeConfig()
     /// 从环境变量读取并验证，验证失败回退到默认值
     /// </summary>
-    public static BridgeEnvLessConfig GetConfig()
+    public static V2BridgeConfig GetConfig()
     {
         var config = ReadFromEnvironment();
         return Validate(config);
@@ -121,9 +121,9 @@ public sealed class BridgeEnvLessConfig
     }
 
     /// <summary>从环境变量读取配置</summary>
-    private static BridgeEnvLessConfig ReadFromEnvironment()
+    private static V2BridgeConfig ReadFromEnvironment()
     {
-        return new BridgeEnvLessConfig
+        return new V2BridgeConfig
         {
             InitRetryMaxAttempts = TryGetEnvInt("JCC_BRIDGE_INIT_RETRY_MAX", out var p1) ? p1 : 3,
             InitRetryBaseDelayMs = TryGetEnvInt("JCC_BRIDGE_INIT_RETRY_BASE_MS", out var p2) ? p2 : 500,

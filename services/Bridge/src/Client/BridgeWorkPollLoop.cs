@@ -58,18 +58,22 @@ public sealed class BridgeWorkPollLoop : IAsyncDisposable
     /// </summary>
     public event EventHandler<BridgePollErrorEventArgs>? HeartbeatFatal;
 
+    private readonly INetworkConnectivityService? _networkService;
+
     public BridgeWorkPollLoop(
         BridgeApiClient apiClient,
         BridgeWorkPollOptions? options = null,
         ILogger? logger = null,
         CapacityWakeService? capacityWake = null,
-        IClockService? clock = null)
+        IClockService? clock = null,
+        INetworkConnectivityService? networkService = null)
     {
         _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
         _options = options ?? new BridgeWorkPollOptions();
         _logger = logger;
         _capacityWake = capacityWake;
         _clock = clock ?? SystemClockService.Instance;
+        _networkService = networkService;
         _recentPostedUUIDs = new BoundedUUIDSet(_options.UuidDedupBufferSize);
         _recentInboundUUIDs = new BoundedUUIDSet(_options.UuidDedupBufferSize);
         _lastErrorTime = DateTime.MinValue;
@@ -525,8 +529,11 @@ public sealed class BridgeWorkPollLoop : IAsyncDisposable
             "[BridgeWorkPollLoop] 收到工作: WorkId={WorkId}, SessionId={SessionId}",
             work.WorkId, work.SessionId);
 
+        // V1/V2 切换前确保网络可用(统一入口)
+        await BridgeRuntimeGate.WaitForNetworkAsync(_networkService, _logger, ct).ConfigureAwait(false);
+
         // 解码工作密钥 — 对齐 TS 端 decodeWorkSecret(work.secret)
-        bool useCcrV2 = false;
+        bool? secretUseCodeSessions = null;
         string? ingressToken = work.SessionIngressToken;
         string? apiBaseUrl = work.ApiBaseUrl;
 
@@ -535,7 +542,7 @@ public sealed class BridgeWorkPollLoop : IAsyncDisposable
             try
             {
                 var secret = BridgeWorkSecretDecoder.DecodeWorkSecret(work.Secret);
-                useCcrV2 = secret.UseCodeSessions;
+                secretUseCodeSessions = secret.UseCodeSessions;
                 ingressToken = secret.SessionIngressToken;
                 apiBaseUrl = secret.ApiBaseUrl;
             }
@@ -555,12 +562,8 @@ public sealed class BridgeWorkPollLoop : IAsyncDisposable
             }
         }
 
-        // 环境变量覆盖 — 对齐 TS 端 CLAUDE_BRIDGE_USE_CCR_V2
-        var envOverride = Environment.GetEnvironmentVariable("CLAUDE_BRIDGE_USE_CCR_V2");
-        if (envOverride is "1" or "true" or "TRUE")
-        {
-            useCcrV2 = true;
-        }
+        // 统一 V1/V2 决策 — 对齐 TS 端 secret.use_code_sessions || CLAUDE_BRIDGE_USE_CCR_V2
+        var useCcrV2 = BridgeRuntimeGate.ShouldUseCcrV2(secretUseCodeSessions);
 
         // 确认工作 — 对齐 TS 端 acknowledgeWork(envId, work.id, secret.session_ingress_token)
         if (_environmentId is not null)

@@ -61,23 +61,28 @@ public sealed partial class BridgeMain : IAsyncDisposable
     /// <summary>环境密钥</summary>
     public string? EnvironmentSecret { get; private set; }
 
+    private readonly INetworkConnectivityService? _networkService;
+
     public BridgeMain(
         BridgeMainDeps deps,
         MiddlewarePipeline<HandleWorkContext>? handleWorkPipeline = null,
         MiddlewarePipeline<ShutdownContext>? shutdownPipeline = null,
         MiddlewarePipeline<BridgeRunContext>? runPipeline = null,
         ILogger? logger = null,
-        IClockService? clock = null)
+        IClockService? clock = null,
+        INetworkConnectivityService? networkService = null,
+        TimeSpan? giveUpThreshold = null)
     {
         _deps = deps ?? throw new ArgumentNullException(nameof(deps));
         _logger = logger;
         _fs = deps.FileSystem;
         _telemetry = deps.TelemetryService;
         _clock = clock ?? SystemClockService.Instance;
-        _backoff = new BridgeBackoffStrategy(_clock, _logger);
+        _backoff = new BridgeBackoffStrategy(_clock, _logger, giveUpThreshold);
         _handleWorkPipeline = handleWorkPipeline;
         _shutdownPipeline = shutdownPipeline;
         _runPipeline = runPipeline;
+        _networkService = networkService;
     }
 
     /// <summary>
@@ -1375,12 +1380,14 @@ public sealed partial class BridgeMain : IAsyncDisposable
 
         // ===== P0-2: CCR v2 路径 — 对齐 TS 端 use_code_sessions =====
         // TS 端: if (secret.use_code_sessions === true || isEnvTruthy(CLAUDE_BRIDGE_USE_CCR_V2))
+        // V1/V2 切换前确保网络可用(统一入口)
+        await BridgeRuntimeGate.WaitForNetworkAsync(_networkService, _logger, ct).ConfigureAwait(false);
+
         var useCcrV2 = false;
         int? workerEpoch = null;
         string sdkUrl;
 
-        var forceCcrV2 = Environment.GetEnvironmentVariable("CLAUDE_BRIDGE_USE_CCR_V2") is "1" or "true";
-        if ((secret?.UseCodeSessions == true || forceCcrV2) && secretApiBaseUrl is not null && sessionIngressToken is not null)
+        if (BridgeRuntimeGate.ShouldUseCcrV2(secret?.UseCodeSessions) && secretApiBaseUrl is not null && sessionIngressToken is not null)
         {
             // CCR v2: buildCCRv2SdkUrl + registerWorker（最多2次重试）
             sdkUrl = BridgeWorkSecretDecoder.BuildCCRv2SdkUrl(secretApiBaseUrl, work.SessionId);

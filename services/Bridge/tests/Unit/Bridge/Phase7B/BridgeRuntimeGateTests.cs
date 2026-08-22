@@ -22,10 +22,10 @@ public sealed class BridgeRuntimeGateTests
     }
 
     [Fact]
-    public void IsEnvLessBridgeEnabled_Default_ReturnsFalse()
+    public void IsV2BridgeEnabled_Default_ReturnsFalse()
     {
         BridgeRuntimeGate.Reset();
-        var result = BridgeRuntimeGate.IsEnvLessBridgeEnabled();
+        var result = BridgeRuntimeGate.IsV2BridgeEnabled();
         Assert.False(result);
     }
 

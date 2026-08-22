@@ -9,7 +9,7 @@ public static class BridgeRuntimeGate
 {
     private static volatile bool _initialized;
     private static volatile bool _bridgeEnabled = true; // 默认启用
-    private static volatile bool _envLessBridgeEnabled;
+    private static volatile bool _v2BridgeEnabled;
     private static volatile bool _cseShimEnabled = true; // 默认启用
     private static volatile bool _ccrAutoConnectDefault = true;
     private static volatile bool _ccrMirrorEnabled;
@@ -24,7 +24,7 @@ public static class BridgeRuntimeGate
         ArgumentNullException.ThrowIfNull(config);
 
         _bridgeEnabled = config.Enabled;
-        _envLessBridgeEnabled = false; // v2 env-less 默认关闭
+        _v2BridgeEnabled = false; // v2 env-less 默认关闭
         _cseShimEnabled = true; // cse_ shim 默认启用
         _ccrAutoConnectDefault = true;
         _ccrMirrorEnabled = false;
@@ -76,10 +76,10 @@ public static class BridgeRuntimeGate
     /// <summary>
     /// v2 env-less 路径是否启用 — 对齐 TS 端 isEnvLessBridgeEnabled()
     /// </summary>
-    public static bool IsEnvLessBridgeEnabled()
+    public static bool IsV2BridgeEnabled()
     {
         if (!_initialized) return false;
-        return _envLessBridgeEnabled;
+        return _v2BridgeEnabled;
     }
 
     /// <summary>
@@ -94,6 +94,58 @@ public static class BridgeRuntimeGate
 
     /// <summary>设置 CCR v2 开关（用于测试或特性标志）</summary>
     public static void SetCcrV2Enabled(bool enabled) => _useCcrV2 = enabled;
+
+    /// <summary>
+    /// 解析是否使用 CCR v2 — 综合 secret 标志 + 环境变量覆盖,统一 V1/V2 决策入口
+    /// 对齐 TS 端: secret.use_code_sessions || CLAUDE_BRIDGE_USE_CCR_V2
+    /// </summary>
+    /// <param name="secretUseCodeSessions">work 密钥中的 UseCodeSessions 标志(无密钥传 null)</param>
+    /// <returns>true=V2(env-less), false=V1(env-based)</returns>
+    public static bool ShouldUseCcrV2(bool? secretUseCodeSessions = null)
+    {
+        if (secretUseCodeSessions == true) return true;
+        var envOverride = Environment.GetEnvironmentVariable("CLAUDE_BRIDGE_USE_CCR_V2");
+        return envOverride is "1" or "true" or "TRUE";
+    }
+
+    /// <summary>
+    /// 等待网络恢复 — V1/V2 切换前统一网络检查,网络不可用时阻塞等待(带 30s 超时)
+    /// 三处切换点(BridgeGate/BridgeMain/BridgeWorkPollLoop)统一调用此方法,消除重复
+    /// </summary>
+    public static async Task WaitForNetworkAsync(
+        INetworkConnectivityService? networkService,
+        ILogger? logger,
+        CancellationToken ct)
+    {
+        if (networkService is null) return;
+        if (networkService.IsNetworkAvailable()) return;
+
+        logger?.LogWarning("Bridge V1/V2 切换:网络不可用,等待恢复...");
+
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        EventHandler<NetworkConnectivityChangedEventArgs> handler = (_, e) =>
+        {
+            if (e.CurrentState != NetworkConnectivityState.Offline) tcs.TrySetResult(true);
+        };
+        networkService.StateChanged += handler;
+        try
+        {
+            if (!networkService.IsNetworkAvailable())
+            {
+                await tcs.Task.WaitAsync(TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
+            }
+        }
+        catch (TimeoutException)
+        {
+            logger?.LogWarning("Bridge V1/V2 切换:等待网络恢复超时(30s),继续切换");
+        }
+        finally
+        {
+            networkService.StateChanged -= handler;
+        }
+
+        logger?.LogInformation("Bridge V1/V2 切换:网络已恢复");
+    }
 
     /// <summary>
     /// cse_ shim 是否启用 — 对齐 TS 端 isCseShimEnabled()
@@ -133,7 +185,7 @@ public static class BridgeRuntimeGate
     }
 
     /// <summary>设置 env-less 门控（用于测试或特性标志）</summary>
-    public static void SetEnvLessBridgeEnabled(bool enabled) => _envLessBridgeEnabled = enabled;
+    public static void SetV2BridgeEnabled(bool enabled) => _v2BridgeEnabled = enabled;
 
     /// <summary>设置 cse_ shim 开关（用于测试或特性标志）</summary>
     public static void SetCseShimEnabled(bool enabled) => _cseShimEnabled = enabled;
@@ -146,7 +198,7 @@ public static class BridgeRuntimeGate
     {
         _initialized = false;
         _bridgeEnabled = true;
-        _envLessBridgeEnabled = false;
+        _v2BridgeEnabled = false;
         _cseShimEnabled = true;
         _ccrAutoConnectDefault = true;
         _ccrMirrorEnabled = false;

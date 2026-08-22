@@ -118,6 +118,7 @@ public static class BridgeInit
     /// <param name="v1Pipeline">V1 初始化管道（DI 注入）</param>
     /// <param name="v2Pipeline">V2 初始化管道（DI 注入）</param>
     /// <param name="clock">时钟服务（可选，默认使用系统时钟）</param>
+    /// <param name="networkService">网络连接性服务（可选，用于 V1/V2 切换前网络检查）</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>桥句柄，失败返回 null</returns>
     public static async Task<IReplBridgeHandle?> InitReplBridgeAsync(
@@ -133,6 +134,7 @@ public static class BridgeInit
         MiddlewarePipeline<V1BridgeInitContext>? v1Pipeline = null,
         MiddlewarePipeline<V2BridgeInitContext>? v2Pipeline = null,
         IClockService? clock = null,
+        INetworkConnectivityService? networkService = null,
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -146,7 +148,7 @@ public static class BridgeInit
             .Use(new BridgeGateExpiredTokenMiddleware())
             .Use(new BridgeGatePolicyMiddleware())
             .Use(new BridgeGateOrgUUIDMiddleware())
-            .Use(new BridgeGateCoreDispatchMiddleware())
+            .Use(new BridgeGateCoreDispatchMiddleware(networkService))
             .Build();
 
         var gateCtx = new BridgeInitGateContext

@@ -2,6 +2,13 @@ namespace Core.Bridge.Gate;
 
 public sealed class BridgeGateCoreDispatchMiddleware : IBridgeInitGateMiddleware
 {
+    private readonly INetworkConnectivityService? _networkService;
+
+    public BridgeGateCoreDispatchMiddleware(INetworkConnectivityService? networkService = null)
+    {
+        _networkService = networkService;
+    }
+
     public async Task InvokeAsync(BridgeInitGateContext ctx, MiddlewareDelegate<BridgeInitGateContext> next, CancellationToken ct)
     {
         var title = BridgeInit.DeriveSessionTitle(ctx.Options);
@@ -21,9 +28,11 @@ public sealed class BridgeGateCoreDispatchMiddleware : IBridgeInitGateMiddleware
 
         var useCcrV2 = BridgeRuntimeGate.IsCcrV2Enabled();
 
+        await BridgeRuntimeGate.WaitForNetworkAsync(_networkService, ctx.Logger, ct).ConfigureAwait(false);
+
         if (useCcrV2)
         {
-            var envLessParams = new BridgeEnvLessParams
+            var envLessParams = new V2BridgeParams
             {
                 BaseUrl = baseUrl,
                 OrgUUID = orgUUID,
@@ -44,7 +53,7 @@ public sealed class BridgeGateCoreDispatchMiddleware : IBridgeInitGateMiddleware
                 GetTrustedDeviceToken = ctx.Options.GetTrustedDeviceToken,
             };
 
-            ctx.Handle = await BridgeRemoteCore.InitEnvLessBridgeCoreAsync(
+            ctx.Handle = await BridgeRemoteCore.InitV2BridgeCoreAsync(
                 envLessParams, httpClient, transportFactory, ctx.V2Pipeline ?? throw new InvalidOperationException("V2Pipeline is not set."), ctx.Logger, ct).ConfigureAwait(false);
         }
         else

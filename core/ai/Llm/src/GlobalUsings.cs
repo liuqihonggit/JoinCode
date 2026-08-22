@@ -33,3 +33,5 @@ global using System.Text.Json;
 global using System.Text.Json.Serialization;
 global using System.IO.Pipes;
 global using JoinCode.Abstractions.Entity;
+global using Infrastructure.Configuration;
+global using JoinCode.Abstractions.Network;

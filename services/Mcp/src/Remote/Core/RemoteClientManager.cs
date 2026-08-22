@@ -9,8 +9,8 @@ namespace McpToolRegistry;
 public sealed partial class RemoteClientManager : IRemoteClientManager
 {
     private const int MaxReconnectAttempts = 5;
-    private const int InitialBackoffMs = 1000;
-    private const int MaxBackoffMs = 30000;
+    private const int InitialBackoffMs = 2000;
+    private const int MaxBackoffMs = 300000;
 
     private readonly Dictionary<string, McpClientEntry> _remoteClients = new();
     private readonly Dictionary<string, List<ToolSpec>> _lastKnownToolSpecs = new();
@@ -21,6 +21,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
     [Inject] private readonly IClockService _clock;
     private readonly McpReconnectAcceptLevel _acceptLevel;
     private readonly MiddlewarePipeline<RemoteSyncContext>? _syncPipeline;
+    private readonly INetworkConnectivityService? _networkService;
 
     public event EventHandler<ToolsListChangedEventArgs>? ToolsListChanged;
     public event EventHandler<ResourcesListChangedEventArgs>? ResourcesListChanged;
@@ -32,7 +33,8 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
         ILoggerFactory? loggerFactory = null,
         McpReconnectAcceptLevel acceptLevel = McpReconnectAcceptLevel.IdentityOnly,
         IEnumerable<IRemoteSyncMiddleware>? syncMiddlewares = null,
-        IClockService? clock = null)
+        IClockService? clock = null,
+        INetworkConnectivityService? networkService = null)
     {
         ArgumentNullException.ThrowIfNull(toolRegistry);
         ArgumentNullException.ThrowIfNull(logger);
@@ -41,6 +43,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
         _acceptLevel = acceptLevel;
+        _networkService = networkService;
 
         if (syncMiddlewares is not null && loggerFactory is not null)
         {
@@ -138,6 +141,41 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
         _ = Task.Run(() => ReconnectWithBackoffAsync(clientId, args.TransportType));
     }
 
+    /// <summary>
+    /// 等待网络恢复 — 网络不可用时阻塞等待(带 30s 超时),恢复后继续重连
+    /// </summary>
+    private async Task WaitForNetworkAsync(CancellationToken ct)
+    {
+        if (_networkService is null) return;
+        if (_networkService.IsNetworkAvailable()) return;
+
+        _logger.LogWarning("远程客户端重连:网络不可用,等待恢复...");
+
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        EventHandler<NetworkConnectivityChangedEventArgs> handler = (_, e) =>
+        {
+            if (e.CurrentState != NetworkConnectivityState.Offline) tcs.TrySetResult(true);
+        };
+        _networkService.StateChanged += handler;
+        try
+        {
+            if (!_networkService.IsNetworkAvailable())
+            {
+                await tcs.Task.WaitAsync(TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
+            }
+        }
+        catch (TimeoutException)
+        {
+            _logger.LogWarning("远程客户端重连:等待网络恢复超时(30s),继续重连");
+        }
+        finally
+        {
+            _networkService.StateChanged -= handler;
+        }
+
+        _logger.LogInformation("远程客户端重连:网络已恢复");
+    }
+
     private async Task ReconnectWithBackoffAsync(string clientId, string transportType)
     {
         await _remoteClientsLock.WaitAsync();
@@ -194,6 +232,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
                         return;
                     }
 
+                    await WaitForNetworkAsync(reconnectCts.Token).ConfigureAwait(false);
                     var backoff = new ExponentialBackoff(
                         TimeSpan.FromMilliseconds(InitialBackoffMs),
                         TimeSpan.FromMilliseconds(MaxBackoffMs));

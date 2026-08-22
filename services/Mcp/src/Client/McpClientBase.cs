@@ -256,35 +256,9 @@ public abstract class McpClientBase : IMcpClient
 
     private async Task<JsonRpcResponse> SendRequestWithRetryAsync(JsonRpcRequest request, CancellationToken cancellationToken)
     {
-        int attempt = 0;
-        Exception? lastException = null;
-
-        while (attempt < _options.MaxRetries)
-        {
-            try
-            {
-                using var cts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, TimeSpan.FromSeconds(_options.RequestTimeoutSeconds));
-
-                return await SendRequestAsync(request, cts.Token).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                lastException = ex;
-                attempt++;
-                _logger?.LogWarning(ex, "请求失败，尝试 {Attempt}/{MaxRetries}", attempt, _options.MaxRetries);
-
-                if (attempt < _options.MaxRetries)
-                {
-                    await Task.Delay(_options.RetryDelayMs * attempt, cancellationToken).ConfigureAwait(false);
-                }
-            }
-        }
-
-        throw new McpProtocolException($"[MCP018] 请求在 {_options.MaxRetries} 次尝试后失败", lastException ?? throw new InvalidOperationException("No exception after retries."));
+        // 降级为透传 — 网络重试统一由 ResilientHttpExecutor (Gateway) 处理，避免嵌套放大；保留单次请求 timeout
+        using var cts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, TimeSpan.FromSeconds(_options.RequestTimeoutSeconds));
+        return await SendRequestAsync(request, cts.Token).ConfigureAwait(false);
     }
 
     public async Task<OperationResult<IReadOnlyList<ToolInfo>>> ListToolsAsync(CancellationToken cancellationToken = default)

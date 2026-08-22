@@ -7,11 +7,13 @@ public sealed class ResilientHttpExecutor
     private readonly ResiliencePolicy _policy;
     private readonly UnifiedCircuitBreaker? _circuitBreaker;
     private readonly ILogger? _logger;
+    private readonly INetworkConnectivityService? _networkService;
 
-    public ResilientHttpExecutor(ResiliencePolicy policy, ILogger? logger = null)
+    public ResilientHttpExecutor(ResiliencePolicy policy, ILogger? logger = null, INetworkConnectivityService? networkService = null)
     {
         _policy = policy ?? throw new ArgumentNullException(nameof(policy));
         _logger = logger;
+        _networkService = networkService;
 
         if (policy.CircuitBreaker is not null)
         {
@@ -52,8 +54,10 @@ public sealed class ResilientHttpExecutor
         }
 
         var effectiveCt = totalTimeoutCts?.Token ?? ct;
+        var retry = _policy.Retry;
+        var hasBudget = retry?.TotalBudget is not null;
 
-        if (_policy.Retry is null || _policy.Retry.MaxRetries <= 0)
+        if (retry is null || (retry.MaxRetries <= 0 && !hasBudget))
         {
             try
             {
@@ -76,37 +80,15 @@ public sealed class ResilientHttpExecutor
             }
         }
 
-        var retry = _policy.Retry;
-        var attempt = 0;
-
-        while (true)
+        try
         {
-            try
-            {
-                var response = await ExecuteOnceAsync(operation, operationName, effectiveCt).ConfigureAwait(false);
-                _circuitBreaker?.RecordSuccess();
-                return response;
-            }
-            catch (OperationCanceledException ex) when (IsUserCancellation(ex, ct))
-            {
-                throw;
-            }
-            catch (Exception ex) when (attempt < retry.MaxRetries && ShouldRetry(ex, retry))
-            {
-                attempt++;
-                var delay = CalculateDelay(attempt, retry);
-
-                Diag.WriteLine($"[{_policy.Name}:RETRY] {operationName} 失败 (尝试 {attempt}/{retry.MaxRetries}), {delay.TotalMilliseconds}ms 后重试 | {ex.GetType().Name}: {ex.InnerException?.Message ?? ex.Message}");
-
-                await Task.Delay(delay, ct).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                _circuitBreaker?.RecordFailure();
-                _logger?.LogError("[{Policy}:RETRY:106] {Operation} 最终失败 (尝试 {Attempt}) | {ExType}: {Message}",
-                    _policy.Name, operationName, attempt + 1, ex.GetType().Name, ex.Message);
-                throw;
-            }
+            return await ExecuteRetryLoopAsync(
+                ect => ExecuteOnceAsync(operation, operationName, ect),
+                operationName, retry!, ct, effectiveCt).ConfigureAwait(false);
+        }
+        finally
+        {
+            totalTimeoutCts?.Dispose();
         }
     }
 
@@ -133,8 +115,10 @@ public sealed class ResilientHttpExecutor
         }
 
         var effectiveCt = totalTimeoutCts?.Token ?? ct;
+        var retry = _policy.Retry;
+        var hasBudget = retry?.TotalBudget is not null;
 
-        if (_policy.Retry is null || _policy.Retry.MaxRetries <= 0)
+        if (retry is null || (retry.MaxRetries <= 0 && !hasBudget))
         {
             try
             {
@@ -157,14 +141,45 @@ public sealed class ResilientHttpExecutor
             }
         }
 
-        var retry = _policy.Retry;
+        try
+        {
+            return await ExecuteRetryLoopAsync(
+                operation, operationName, retry!, ct, effectiveCt).ConfigureAwait(false);
+        }
+        finally
+        {
+            totalTimeoutCts?.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// 统一重试循环 — 支持 TotalBudget 预算驱动（24h）和 MaxRetries 驱动（向后兼容）
+    /// <para>预算模式：Stopwatch 计时，网络不可用时暂停计时，预算耗尽抛 NetworkRetryBudgetExhaustedException</para>
+    /// <para>MaxRetries 模式：重试次数达上限抛最终异常</para>
+    /// </summary>
+    private async Task<T> ExecuteRetryLoopAsync<T>(
+        Func<CancellationToken, Task<T>> executeOnce,
+        string operationName,
+        RetryConfig retry,
+        CancellationToken ct,
+        CancellationToken effectiveCt)
+    {
+        var budget = retry.TotalBudget;
+        var sw = budget.HasValue ? Stopwatch.StartNew() : null;
         var attempt = 0;
+        var maxLabel = budget.HasValue ? "∞" : retry.MaxRetries.ToString();
 
         while (true)
         {
+            if (sw is not null && sw.Elapsed >= budget!.Value)
+            {
+                throw new NetworkRetryBudgetExhaustedException(
+                    $"[{_policy.Name}] 重试预算耗尽 (尝试 {attempt} 次, 实际 {sw.Elapsed.TotalMilliseconds:F0}ms)");
+            }
+
             try
             {
-                var result = await operation(effectiveCt).ConfigureAwait(false);
+                var result = await executeOnce(effectiveCt).ConfigureAwait(false);
                 _circuitBreaker?.RecordSuccess();
                 return result;
             }
@@ -172,23 +187,74 @@ public sealed class ResilientHttpExecutor
             {
                 throw;
             }
-            catch (Exception ex) when (attempt < retry.MaxRetries && ShouldRetry(ex, retry))
+            catch (Exception ex) when (ShouldRetry(ex, retry) && (budget.HasValue || attempt < retry.MaxRetries))
             {
                 attempt++;
                 var delay = CalculateDelay(attempt, retry);
 
-                Diag.WriteLine($"[{_policy.Name}:RETRY] {operationName} 失败 (尝试 {attempt}/{retry.MaxRetries}), {delay.TotalMilliseconds}ms 后重试 | {ex.GetType().Name}: {ex.InnerException?.Message ?? ex.Message}");
+                Diag.WriteLine($"[{_policy.Name}:RETRY] {operationName} 失败 (尝试 {attempt}/{maxLabel}), {delay.TotalMilliseconds}ms 后重试 | {ex.GetType().Name}: {ex.InnerException?.Message ?? ex.Message}");
+
+                if (retry.PauseBudgetOnNetworkUnavailable && sw is not null
+                    && _networkService is not null && !_networkService.IsNetworkAvailable())
+                {
+                    sw.Stop();
+                    await WaitForNetworkAsync(effectiveCt, null).ConfigureAwait(false);
+                    sw.Start();
+                }
+                else
+                {
+                    await WaitForNetworkAsync(effectiveCt, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                }
 
                 await Task.Delay(delay, ct).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 _circuitBreaker?.RecordFailure();
-                _logger?.LogError("[{Policy}:RETRY:188] {Operation} 最终失败 (尝试 {Attempt}) | {ExType}: {Message}",
+                _logger?.LogError("[{Policy}:RETRY] {Operation} 最终失败 (尝试 {Attempt}) | {ExType}: {Message}",
                     _policy.Name, operationName, attempt + 1, ex.GetType().Name, ex.Message);
                 throw;
             }
         }
+    }
+
+    /// <summary>
+    /// 等待网络恢复 — 网络不可用时阻塞等待，恢复后继续
+    /// <para>timeout=null：无限等待（预算模式，由 TotalBudget 约束）</para>
+    /// <para>timeout=30s：超时后不抛异常，让重试逻辑处理（MaxRetries 模式）</para>
+    /// </summary>
+    private async Task WaitForNetworkAsync(CancellationToken ct, TimeSpan? timeout = null)
+    {
+        if (_networkService is null) return;
+        if (_networkService.IsNetworkAvailable()) return;
+
+        _logger?.LogWarning("[{Policy}] 网络不可用,等待恢复...", _policy.Name);
+
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        EventHandler<NetworkConnectivityChangedEventArgs> handler = (_, e) =>
+        {
+            if (e.CurrentState != NetworkConnectivityState.Offline) tcs.TrySetResult(true);
+        };
+        _networkService.StateChanged += handler;
+        try
+        {
+            if (!_networkService.IsNetworkAvailable())
+            {
+                var waitTimeout = timeout ?? TimeSpan.MaxValue;
+                await tcs.Task.WaitAsync(waitTimeout, ct).ConfigureAwait(false);
+            }
+        }
+        catch (TimeoutException)
+        {
+            _logger?.LogWarning("[{Policy}] 等待网络恢复超时({Timeout}),继续重试",
+                _policy.Name, timeout?.TotalSeconds.ToString("F0") + "s" ?? "∞");
+        }
+        finally
+        {
+            _networkService.StateChanged -= handler;
+        }
+
+        _logger?.LogInformation("[{Policy}] 网络已恢复", _policy.Name);
     }
 
     private async Task<HttpResponseMessage> ExecuteOnceAsync(

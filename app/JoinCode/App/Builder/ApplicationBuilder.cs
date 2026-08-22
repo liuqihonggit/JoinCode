@@ -55,6 +55,7 @@ public sealed class ApplicationBuilder
                 // 视角1 #3: 后配置 PermissionConfig，合并 --allowed-tools / --disallowed-tools CLI 参数
                 // 决策: 使用 IOptions 后配置模式，在 Guard 模块的默认配置之后追加，不破坏封装
                 // 替代方案已否决: 修改 Guard 模块接口（破坏组件边界）
+                services.AddOptions<NetworkRetryOptions>();
                 services.AddOptions<PermissionConfig>()
                     .Configure<CommandLineOptions>((permConfig, cliOptions) =>
                     {

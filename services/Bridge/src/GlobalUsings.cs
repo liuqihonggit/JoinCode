@@ -5,6 +5,7 @@ global using JoinCode.Abstractions.Clock;
 global using JoinCode.Abstractions.Configuration.AppData;
 global using JoinCode.Abstractions.Configuration.Execution;
 global using JoinCode.Abstractions.Interfaces;
+global using JoinCode.Abstractions.Network;
 global using JoinCode.Abstractions.Execution;
 global using ExecutionContext = JoinCode.Abstractions.Execution.ExecutionContext;
 global using JoinCode.Abstractions.Models;

@@ -141,7 +141,7 @@
 - 类型：feat / fix / refactor / docs / test / chore
 - 示例：`git commit -m "feat: 添加工具搜索功能 | 决策: 优先查MCP记忆再查互联网"`
 - **⛔ 禁止包含分支名**：commit 消息中禁止出现 W1/W2/feature-xxx 等分支标识，描述必须说明"做了什么"而非"在哪个分支"
-- **⛔ 禁止包含无意义标记**：commit 消息禁止包含 `#数字`（会被 GitHub 自动关联为 PR/Issue 引用）、纯序号、临时标记等
+- **⛔ 禁止包含无意义标记**：commit 消息禁止包含 PR/Issue 编号引用（会被 GitHub 自动关联）、纯序号、临时标记等
 
 ## 🔄 工作流程
 

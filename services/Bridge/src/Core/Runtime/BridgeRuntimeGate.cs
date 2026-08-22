@@ -96,6 +96,58 @@ public static class BridgeRuntimeGate
     public static void SetCcrV2Enabled(bool enabled) => _useCcrV2 = enabled;
 
     /// <summary>
+    /// 解析是否使用 CCR v2 — 综合 secret 标志 + 环境变量覆盖,统一 V1/V2 决策入口
+    /// 对齐 TS 端: secret.use_code_sessions || CLAUDE_BRIDGE_USE_CCR_V2
+    /// </summary>
+    /// <param name="secretUseCodeSessions">work 密钥中的 UseCodeSessions 标志(无密钥传 null)</param>
+    /// <returns>true=V2(env-less), false=V1(env-based)</returns>
+    public static bool ShouldUseCcrV2(bool? secretUseCodeSessions = null)
+    {
+        if (secretUseCodeSessions == true) return true;
+        var envOverride = Environment.GetEnvironmentVariable("CLAUDE_BRIDGE_USE_CCR_V2");
+        return envOverride is "1" or "true" or "TRUE";
+    }
+
+    /// <summary>
+    /// 等待网络恢复 — V1/V2 切换前统一网络检查,网络不可用时阻塞等待(带 30s 超时)
+    /// 三处切换点(BridgeGate/BridgeMain/BridgeWorkPollLoop)统一调用此方法,消除重复
+    /// </summary>
+    public static async Task WaitForNetworkAsync(
+        INetworkConnectivityService? networkService,
+        ILogger? logger,
+        CancellationToken ct)
+    {
+        if (networkService is null) return;
+        if (networkService.IsNetworkAvailable()) return;
+
+        logger?.LogWarning("Bridge V1/V2 切换:网络不可用,等待恢复...");
+
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        EventHandler<NetworkConnectivityChangedEventArgs> handler = (_, e) =>
+        {
+            if (e.CurrentState != NetworkConnectivityState.Offline) tcs.TrySetResult(true);
+        };
+        networkService.StateChanged += handler;
+        try
+        {
+            if (!networkService.IsNetworkAvailable())
+            {
+                await tcs.Task.WaitAsync(TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
+            }
+        }
+        catch (TimeoutException)
+        {
+            logger?.LogWarning("Bridge V1/V2 切换:等待网络恢复超时(30s),继续切换");
+        }
+        finally
+        {
+            networkService.StateChanged -= handler;
+        }
+
+        logger?.LogInformation("Bridge V1/V2 切换:网络已恢复");
+    }
+
+    /// <summary>
     /// cse_ shim 是否启用 — 对齐 TS 端 isCseShimEnabled()
     /// </summary>
     public static bool IsCseShimEnabled()

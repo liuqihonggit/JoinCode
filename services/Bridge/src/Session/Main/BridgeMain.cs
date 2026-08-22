@@ -85,41 +85,6 @@ public sealed partial class BridgeMain : IAsyncDisposable
     }
 
     /// <summary>
-    /// 等待网络恢复 — V1/V2 切换前确保网络可用,网络不可用时阻塞等待(带 30s 超时)
-    /// </summary>
-    private async Task WaitForNetworkAsync(CancellationToken ct)
-    {
-        if (_networkService is null) return;
-        if (_networkService.IsNetworkAvailable()) return;
-
-        _logger?.LogWarning("BridgeMain V1/V2 切换:网络不可用,等待恢复...");
-
-        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        EventHandler<NetworkConnectivityChangedEventArgs> handler = (_, e) =>
-        {
-            if (e.CurrentState != NetworkConnectivityState.Offline) tcs.TrySetResult(true);
-        };
-        _networkService.StateChanged += handler;
-        try
-        {
-            if (!_networkService.IsNetworkAvailable())
-            {
-                await tcs.Task.WaitAsync(TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
-            }
-        }
-        catch (TimeoutException)
-        {
-            _logger?.LogWarning("BridgeMain V1/V2 切换:等待网络恢复超时(30s),继续切换");
-        }
-        finally
-        {
-            _networkService.StateChanged -= handler;
-        }
-
-        _logger?.LogInformation("BridgeMain V1/V2 切换:网络已恢复");
-    }
-
-    /// <summary>
     /// 验证 HTTPS URL — RunAsync/RunHeadlessAsync 共享
     /// </summary>
     /// <returns>null 表示通过，否则返回错误消息</returns>
@@ -1414,15 +1379,14 @@ public sealed partial class BridgeMain : IAsyncDisposable
 
         // ===== P0-2: CCR v2 路径 — 对齐 TS 端 use_code_sessions =====
         // TS 端: if (secret.use_code_sessions === true || isEnvTruthy(CLAUDE_BRIDGE_USE_CCR_V2))
-        // V1/V2 切换前确保网络可用
-        await WaitForNetworkAsync(ct).ConfigureAwait(false);
+        // V1/V2 切换前确保网络可用(统一入口)
+        await BridgeRuntimeGate.WaitForNetworkAsync(_networkService, _logger, ct).ConfigureAwait(false);
 
         var useCcrV2 = false;
         int? workerEpoch = null;
         string sdkUrl;
 
-        var forceCcrV2 = Environment.GetEnvironmentVariable("CLAUDE_BRIDGE_USE_CCR_V2") is "1" or "true";
-        if ((secret?.UseCodeSessions == true || forceCcrV2) && secretApiBaseUrl is not null && sessionIngressToken is not null)
+        if (BridgeRuntimeGate.ShouldUseCcrV2(secret?.UseCodeSessions) && secretApiBaseUrl is not null && sessionIngressToken is not null)
         {
             // CCR v2: buildCCRv2SdkUrl + registerWorker（最多2次重试）
             sdkUrl = BridgeWorkSecretDecoder.BuildCCRv2SdkUrl(secretApiBaseUrl, work.SessionId);

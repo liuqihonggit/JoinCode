@@ -529,11 +529,11 @@ public sealed class BridgeWorkPollLoop : IAsyncDisposable
             "[BridgeWorkPollLoop] 收到工作: WorkId={WorkId}, SessionId={SessionId}",
             work.WorkId, work.SessionId);
 
-        // V1/V2 切换前确保网络可用
-        await WaitForNetworkAsync(ct).ConfigureAwait(false);
+        // V1/V2 切换前确保网络可用(统一入口)
+        await BridgeRuntimeGate.WaitForNetworkAsync(_networkService, _logger, ct).ConfigureAwait(false);
 
         // 解码工作密钥 — 对齐 TS 端 decodeWorkSecret(work.secret)
-        bool useCcrV2 = false;
+        bool? secretUseCodeSessions = null;
         string? ingressToken = work.SessionIngressToken;
         string? apiBaseUrl = work.ApiBaseUrl;
 
@@ -542,7 +542,7 @@ public sealed class BridgeWorkPollLoop : IAsyncDisposable
             try
             {
                 var secret = BridgeWorkSecretDecoder.DecodeWorkSecret(work.Secret);
-                useCcrV2 = secret.UseCodeSessions;
+                secretUseCodeSessions = secret.UseCodeSessions;
                 ingressToken = secret.SessionIngressToken;
                 apiBaseUrl = secret.ApiBaseUrl;
             }
@@ -562,12 +562,8 @@ public sealed class BridgeWorkPollLoop : IAsyncDisposable
             }
         }
 
-        // 环境变量覆盖 — 对齐 TS 端 CLAUDE_BRIDGE_USE_CCR_V2
-        var envOverride = Environment.GetEnvironmentVariable("CLAUDE_BRIDGE_USE_CCR_V2");
-        if (envOverride is "1" or "true" or "TRUE")
-        {
-            useCcrV2 = true;
-        }
+        // 统一 V1/V2 决策 — 对齐 TS 端 secret.use_code_sessions || CLAUDE_BRIDGE_USE_CCR_V2
+        var useCcrV2 = BridgeRuntimeGate.ShouldUseCcrV2(secretUseCodeSessions);
 
         // 确认工作 — 对齐 TS 端 acknowledgeWork(envId, work.id, secret.session_ingress_token)
         if (_environmentId is not null)
@@ -598,41 +594,6 @@ public sealed class BridgeWorkPollLoop : IAsyncDisposable
             useCcrV2));
 
         StateChanged?.Invoke(this, new BridgePollStateEventArgs("working"));
-    }
-
-    /// <summary>
-    /// 等待网络恢复 — V1/V2 切换前确保网络可用,网络不可用时阻塞等待(带 30s 超时)
-    /// </summary>
-    private async Task WaitForNetworkAsync(CancellationToken ct)
-    {
-        if (_networkService is null) return;
-        if (_networkService.IsNetworkAvailable()) return;
-
-        _logger?.LogWarning("[BridgeWorkPollLoop] V1/V2 切换:网络不可用,等待恢复...");
-
-        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        EventHandler<NetworkConnectivityChangedEventArgs> handler = (_, e) =>
-        {
-            if (e.CurrentState != NetworkConnectivityState.Offline) tcs.TrySetResult(true);
-        };
-        _networkService.StateChanged += handler;
-        try
-        {
-            if (!_networkService.IsNetworkAvailable())
-            {
-                await tcs.Task.WaitAsync(TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
-            }
-        }
-        catch (TimeoutException)
-        {
-            _logger?.LogWarning("[BridgeWorkPollLoop] V1/V2 切换:等待网络恢复超时(30s),继续切换");
-        }
-        finally
-        {
-            _networkService.StateChanged -= handler;
-        }
-
-        _logger?.LogInformation("[BridgeWorkPollLoop] V1/V2 切换:网络已恢复");
     }
 
     /// <summary>

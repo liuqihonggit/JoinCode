@@ -34,7 +34,7 @@ public static class ModalityMismatchScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "ModelSearch", Description = "模态不匹配时应调用ModelSearch查找模型" },
+                    new OutputAssert { Type = AssertType.ToolCallSucceeded, Expected = "ModelSearch", Description = "模态不匹配时应调用ModelSearch查找模型" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
                     new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "不应有错误" },
                 ]
@@ -69,7 +69,7 @@ public static class ModalityMismatchScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "ModelSearch", Description = "视频识别不匹配时应调用ModelSearch查找模型" },
+                    new OutputAssert { Type = AssertType.ToolCallSucceeded, Expected = "ModelSearch", Description = "视频识别不匹配时应调用ModelSearch查找模型" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
                     new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "不应有错误" },
                 ]
@@ -105,7 +105,7 @@ public static class ModalityMismatchScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "ModelSearch", Description = "图片识别不匹配时应调用ModelSearch查找模型" },
+                    new OutputAssert { Type = AssertType.ToolCallSucceeded, Expected = "ModelSearch", Description = "图片识别不匹配时应调用ModelSearch查找模型" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
                     new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "不应有错误" },
                 ]
@@ -142,7 +142,7 @@ public static class ModalityMismatchScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "ModelSearch", Description = "应调用ModelSearch查找模型" },
+                    new OutputAssert { Type = AssertType.ToolCallSucceeded, Expected = "ModelSearch", Description = "应调用ModelSearch查找模型" },
                 ]
             }
         ],
@@ -210,7 +210,7 @@ public static class ModalityMismatchScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "ModelSearch", Description = "识图不匹配时应调用ModelSearch查找识图模型" },
+                    new OutputAssert { Type = AssertType.ToolCallSucceeded, Expected = "ModelSearch", Description = "识图不匹配时应调用ModelSearch查找识图模型" },
                 ]
             }
         ],

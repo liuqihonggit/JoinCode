@@ -2,11 +2,11 @@ namespace McpToolDispatch;
 
 /// <summary>
 /// 模型查找工具处理器 — 按功能→型号渐进式展开模型表。
-/// <para>Kind=OnError：不在首次提示词暴露，模态不匹配报错时动态注入。</para>
+/// <para>Kind=System：始终暴露给 LLM，模态不匹配时 LLM 可直接调用查找支持目标功能的模型。</para>
 /// <para>语法对齐 ToolSearch：list_groups / map[功能Key] / map[功能Key][vendor] / 关键词</para>
 /// <para>数据源 IModelConfigLoader.Config.Providers → ModelSearchEntry 列表</para>
 /// </summary>
-[McpToolDispatch(SystemToolNameConstants.ModelSearch, Kind = ToolKind.OnError)]
+[McpToolDispatch(SystemToolNameConstants.ModelSearch, Kind = ToolKind.System)]
 public partial class ModelSearchToolHandlers
 {
     private readonly IModelConfigLoader _modelConfigLoader;

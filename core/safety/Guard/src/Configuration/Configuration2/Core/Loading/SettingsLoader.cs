@@ -91,7 +91,7 @@ public static class SettingsLoader
               "provider": "anthropic",
               "protocol": "anthropic",
               "model": "claude-opus-5-20250815",
-              "endpoint": "https://token.sensenova.cn/v1",
+              "endpoint": "https://api.anthropic.com",
               "apiKeyEnvVar": "ANTHROPIC_API_KEY",
               "models": [],
               "modelsEndpoint": "models"
@@ -101,6 +101,15 @@ public static class SettingsLoader
               "protocol": "openai-compatible",
               "model": "deepseek-v4-flash",
               "endpoint": "https://api.deepseek.com",
+              "apiKeyEnvVar": "DEEPSEEK_API_KEY",
+              "models": [],
+              "modelsEndpoint": "models"
+            },
+            "deepseek-anthropic": {
+              "provider": "deepseek",
+              "protocol": "anthropic",
+              "model": "deepseek-v4-flash",
+              "endpoint": "https://api.deepseek.com/anthropic",
               "apiKeyEnvVar": "DEEPSEEK_API_KEY",
               "models": [],
               "modelsEndpoint": "models"

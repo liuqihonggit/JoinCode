@@ -965,12 +965,12 @@ public ConversationMode Mode => Turns.Count == 1
 
 **根因**：加新特性/新层/新策略看似"安全"，实际增加复杂度。减法才是正道——去掉不必要的中间层。
 
-### 反例5：依赖模型 ID 字符串推断模态而非显式注册
+### 反例5：依赖模型 ID 字符串推断模态而非显式注册（配置大于代码）
 
 | ❌ 禁止 | ✅ 正确 |
 |---------|---------|
-| `JCC_MODEL_ID` 指定未注册模型，依赖 `InferCapabilities` 从 ID 含 `vision` 推断识图 | 在 `settings.json` 的 `vendor.{provider}.models` 显式注册模型描述（含 `Capabilities.Modalities`） |
-| 识图模型 ID 含 `image` 不含 `vision`（如 `agnes-image-2.0-flash`），静默推断失败仍发请求 | 严格模式默认抛 `ConfigurationException[GRD016]`，提示注册或设 `JCC_ALLOW_UNKNOWN_MODEL=1` |
-| 把 `InferCapabilities` 当作"万能兜底" | `InferCapabilities` 仅保留给 `AutoFetchModels` 的 `Merge`（远程 /models 只返回 ID 必须推断）|
+| 代码里硬编码模型 ID 字符串模式推断模态（如含 `vision`→识图） | `settings.json` 的 `vendor.{provider}.models` 显式注册模型描述（含 `Capabilities.Modalities`） |
+| `JCC_MODEL_ID` 指定未注册模型时静默推断补注册 | 无条件抛 `ConfigurationException[GRD016]`，要求用户先在 settings.json 注册 |
+| `AutoFetchModels` 远程拉取新模型时从 ID 推断模态 | 远程新模型模态留默认（`Text`），用户在 settings.json 手动配置需要的模态 |
 
-**根因**：启发式推断基于命名约定，有盲区（`image`/`claude`/`gpt-4o` 等实际识图但 ID 无 `vision`）。2026-08-22 改为默认严格模式，`JCC_ALLOW_UNKNOWN_MODEL=1` 保留旧行为供临时测试新模型。定位文件：`ConfigLoader.cs:582 EnsureEnvModelInConfig`、`ModelListMerger.cs:75 InferCapabilities`。
+**根因**：启发式推断基于命名约定，有盲区（`image`/`claude`/`gpt-4o` 等实际识图但 ID 无 `vision`）。2026-08-22 删除 `InferCapabilities` 硬编码，`EnsureEnvModelInConfig` 无条件报错，`Merge` 远程新模型模态留默认。配置大于代码，模态能力由 settings.json 显式配置。定位文件：`ConfigLoader.cs:582 EnsureEnvModelInConfig`、`ModelListMerger.cs:39 Merge`。

@@ -264,4 +264,41 @@ public sealed class ResilientHttpExecutorTests
         result.StatusCode.Should().Be(HttpStatusCode.OK);
         attempt.Should().Be(5);
     }
+
+    /// <summary>
+    /// 集成测试 — 验证 Gateway 包裹透传操作时无重试放大（1:1 调用，无嵌套）
+    /// </summary>
+    [Fact]
+    public async Task ExecuteAsync_GatewayWithPassthrough_NoRetryAmplification()
+    {
+        var policy = new ResiliencePolicy
+        {
+            Name = "integration",
+            OperationTimeout = TimeSpan.FromSeconds(5),
+            Retry = new RetryConfig
+            {
+                TotalBudget = TimeSpan.FromMilliseconds(500),
+                BaseDelay = TimeSpan.FromMilliseconds(10),
+                MaxDelay = TimeSpan.FromMilliseconds(50),
+                Strategy = BackoffStrategy.Fixed,
+            },
+        };
+
+        var executor = new ResilientHttpExecutor(policy);
+        var gatewayAttempts = 0;
+        var passthroughCalls = 0;
+
+        await Assert.ThrowsAsync<NetworkRetryBudgetExhaustedException>(() =>
+            executor.ExecuteAsync(
+                _ =>
+                {
+                    gatewayAttempts++;
+                    passthroughCalls++;
+                    throw new HttpRequestException("fail");
+                },
+                "integration-op"));
+
+        gatewayAttempts.Should().BeGreaterThan(3);
+        passthroughCalls.Should().Be(gatewayAttempts);
+    }
 }

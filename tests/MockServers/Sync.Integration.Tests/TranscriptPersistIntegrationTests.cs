@@ -68,8 +68,8 @@ public sealed class TranscriptPersistIntegrationTests : IAsyncLifetime
         services.AddTestPipelines();
 
         _serviceProvider = services.BuildServiceProvider();
-        // 引擎 sessionId 同源初始化 — 对齐 EngineSessionFactory（SwitchSession 注入真实 ID）
-        _serviceProvider.GetRequiredService<IChatContextManager>().SwitchSession($"t6-e2e-{Guid.NewGuid():N}"[..24]);
+        // 引擎 sessionId 同源初始化 — T10 五段式工厂（{日期}-{项目}-{分支}-parent-{seq}）
+        _serviceProvider.GetRequiredService<IChatContextManager>().SwitchSession(Core.Utils.SessionIdFactory.CreateParent());
         return _serviceProvider;
     }
 
@@ -92,6 +92,9 @@ public sealed class TranscriptPersistIntegrationTests : IAsyncLifetime
             entries.Should().Contain(e => e.Role == "user" && e.Content.Contains("T6 落盘冒烟"));
             entries.Should().Contain(e => e.Role == "assistant");
             entries.All(e => e.SessionId == sessionId).Should().BeTrue();
+
+            // T10：磁盘目录必须是五段式真实 ID，禁止 default/乱格式
+            sessionId.Should().MatchRegex(@"^\d{8}-\d{4}-.+-parent-\d+$");
         }
     }
 

@@ -73,7 +73,7 @@ public static class SessionIdFactory
         }
     }
 
-    /// <summary>清理路径非法字符</summary>
+    /// <summary>清理非法字符 — 剔除路径非法字符与点号（TranscriptFileWriter.ValidateId 白名单仅允许字母数字-_）</summary>
     private static string SanitizeForPath(string? value)
     {
         if (string.IsNullOrEmpty(value))
@@ -82,7 +82,7 @@ public static class SessionIdFactory
         var sb = new System.Text.StringBuilder(value.Length);
         foreach (var c in value)
         {
-            if (Array.IndexOf(invalid, c) < 0)
+            if (Array.IndexOf(invalid, c) < 0 && c != '.')
                 sb.Append(c);
         }
         return sb.ToString();

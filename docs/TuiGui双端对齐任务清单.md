@@ -458,3 +458,12 @@ T1+G4（615e50062）→ T2（0d234dc11）→ T3（74e58a8a4）→ T4（e74984f02
 <!-- 替代方案: 逐处生成新 ID(放弃:每次调用新建 git 进程+碎片化);required 强制注入(放弃:28 处消费方改造面过大) -->
 <!-- 附带修复: TranscriptMiddleware 子代理 transcript 写死 default 会话 → 挂当前引擎会话 -->
 <!-- 验证: Host.Tests 1041 / GUI 332 全绿;脚本先单文件验证再推广 ✅ -->
+
+## T10 补丁：E2E 断言五段式 + 点号清洗（2026-08-22）
+
+- TranscriptPersistIntegrationTests 改用 SessionIdFactory.CreateParent() 并断言
+  磁盘目录匹配 ^\\d{8}-\\d{4}-.+-parent-\\d+$（禁止 default/乱格式回归）。
+- 发现并修复：项目名含点（Sync.Integration.Tests）触发 ValidateId 拒绝 →
+  SanitizeForPath 剔除 '.'（ValidateId 安全校验保持严格不动）。
+- 磁盘实证：20260822-1706-net100-w4-parent-174 五段式目录落盘 ✅。
+  Host.Tests **1041** / GUI **332** / E2E **2** 全绿。

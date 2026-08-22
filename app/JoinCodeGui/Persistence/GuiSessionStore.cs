@@ -198,35 +198,16 @@ public sealed class GuiSessionStore
     }
 
     /// <summary>
-    /// 通过 ITranscriptService 保存会话(统一入口,覆盖语义)。
-    /// 先 Delete 清空旧 transcript,再 AppendEntries 写入新消息,再 SaveSessionInfo + SaveCustomTitle。
+    /// 通过 ITranscriptService 保存会话（T8 收敛语义：只存元数据，不写消息）。
+    /// 消息落盘由引擎 TranscriptPersistMiddleware 增量写入 {sessionId}/transcript.json，
+    /// 此前本方法的 Delete+Append 全量覆盖与引擎增量并存会产生重复条目（双写根因）。
     /// </summary>
     private bool SaveViaTranscriptService(GuiSessionData session)
     {
         try
         {
-            // 先 Delete 清空旧(幂等,不存在不报错)
-            _transcriptService!.DeleteTranscriptAsync(session.Id).GetAwaiter().GetResult();
-
-            // 追加消息条目
-            if (session.Messages is { Count: > 0 } messages)
-            {
-                var entries = new List<TranscriptEntry>(messages.Count);
-                foreach (var m in messages)
-                {
-                    entries.Add(new TranscriptEntry
-                    {
-                        SessionId = session.Id,
-                        Role = m.Role,
-                        Content = m.Content,
-                        Timestamp = m.Timestamp
-                    });
-                }
-                _transcriptService.AppendEntriesAsync(session.Id, entries).GetAwaiter().GetResult();
-            }
-
             // 保存会话元数据
-            _transcriptService.SaveSessionInfoAsync(session.Id, new SessionInfo
+            _transcriptService!.SaveSessionInfoAsync(session.Id, new SessionInfo
             {
                 Id = session.Id,
                 ProjectPath = session.ProjectPath,

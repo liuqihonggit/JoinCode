@@ -1145,6 +1145,7 @@ public class MainViewModelTests
         /// <summary>上报真实用量的假会话 — Done 事件携带 TokenUsage（G2）</summary>
         internal sealed class UsageReportingSession : IJccChatSession
         {
+            public ITranscriptService? TranscriptService => null;
             private readonly int _totalTokens;
             public UsageReportingSession(int totalTokens) => _totalTokens = totalTokens;
 
@@ -1556,6 +1557,7 @@ public class MainViewModelTests
         /// </summary>
         private sealed class GatedStreamingSession : IJccChatSession
         {
+            public ITranscriptService? TranscriptService => null;
             private readonly TaskCompletionSource _gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             public void ReleaseGate() => _gate.TrySetResult();
@@ -1611,6 +1613,7 @@ public class MainViewModelTests
         /// <summary>记录斜杠命令调用的假会话 — 验证 / 前缀输入路由到命令执行器而非聊天流（G1）</summary>
         internal sealed class CommandRecordingSession : IJccChatSession
         {
+            public ITranscriptService? TranscriptService => null;
             public List<string> ExecutedCommands { get; } = [];
             public List<string> StreamedMessages { get; } = [];
             public string CommandOutput { get; set; } = "命令输出内容";

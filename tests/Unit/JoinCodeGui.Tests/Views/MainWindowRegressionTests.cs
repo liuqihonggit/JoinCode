@@ -272,6 +272,7 @@ public sealed class MainWindowRegressionTests
     /// <summary>静态回复假会话（供模板渲染测试挂载消息）</summary>
     private sealed class StaticReplySession : IJccChatSession
     {
+        public ITranscriptService? TranscriptService => null;
         public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
         public Func<QuestionItem, Task<AskUserQuestionResult>>? AskUserQuestionDialogCallback { get; set; }
         public bool IsReady => true;

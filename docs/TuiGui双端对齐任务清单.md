@@ -398,3 +398,21 @@ T1+G4（615e50062）→ T2（0d234dc11）→ T3（74e58a8a4）→ T4（e74984f02
 
 提交：T6=b9d791938，T7=本次。测试基线：Host.Tests 1036 / GUI 331 / Brain.Context 760 / E2E 2。
 遗留提醒：⚠️ GUI GuiSessionStore.SaveActiveSession 仍全量覆盖写 transcript（与引擎增量并存可能重复），待 GUI 会话管理迁移统一入口；⚠️ 扁平 session-*.jsonl 旧文件待 MigrateLegacyAsync 清理验证。
+
+## T8 完成：GUI 双写收敛（2026-08-22）
+
+- [x] **T8** GUI transcript 双写收敛 — SaveViaTranscriptService 移除 Delete+Append
+  消息覆盖段，只存 SessionInfo 元数据 + CustomTitle 标题；消息落盘唯一责任方=
+  引擎 TranscriptPersistMiddleware。回退路径（无 ITranscriptService 的扁平 .json，
+  测试隔离兼容）保持不变。
+- 附带修复：重编暴露三个测试桩（StaticReplySession/UsageReportingSession/
+  GatedStreamingSession/CommandRecordingSession）缺 IJccChatSession.TranscriptService
+  实现——此前 GUI 测试一直跑旧 DLL 掩盖源码破损（stale DLL 教训再次验证：改接口后必须全量重编所有消费工程）。
+- 测试：GuiSessionStoreTests +1（TranscriptBacked_Save 断言 Never Delete/Never Append/
+  Once Meta/Once Title）。GUI **332 全绿**。
+
+<!-- 🤖 Auto Decision: 2026-08-22 (T8) -->
+<!-- 决策: GUI 统一路径 Save 只存元数据不碰消息;回退扁平 .json 路径原样保留 -->
+<!-- 原因: 引擎中间件已增量写入同一文件,GUI 覆盖语义(Delete+Append)与 append-only 冲突,每轮双写+抖动 -->
+<!-- 替代方案: 删除整个回退路径(放弃:测试隔离依赖它,InMemoryFileSystem 无引擎) -->
+<!-- 验证: TranscriptBacked_Save 红转绿 + GUI 332 全绿 ✅ -->

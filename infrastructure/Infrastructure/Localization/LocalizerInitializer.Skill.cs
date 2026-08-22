@@ -46,6 +46,29 @@ public static partial class LocalizerInitializer
         zhEntries[StringKey.ToolSearchFailedLog] = "工具搜索失败";
         zhEntries[StringKey.ToolSearchResultTitle] = "工具搜索结果 (查询: {0})";
 
+        // === ModelSearchToolHandlers ===
+        defaultEntries[StringKey.ModelSearchQueryCannotBeEmpty] = "model search query cannot be empty";
+        defaultEntries[StringKey.ModelSearchNoMatch] = "No matching models found.";
+        defaultEntries[StringKey.ModelSearchRegisteredCount] = "Registered models: {0}";
+        defaultEntries[StringKey.ModelSearchMatchedCount] = "Matched {0} / {1} models";
+        defaultEntries[StringKey.ModelSearchFailed] = "Model search failed: {0}";
+        defaultEntries[StringKey.ModelSearchFailedLog] = "Model search failed";
+        defaultEntries[StringKey.ModelSearchResultTitle] = "[ModelSearch] query: {0}";
+        defaultEntries[StringKey.ModelSearchGroupListHeader] = "Available capability groups (use map[capabilityKey] to drill down):";
+        defaultEntries[StringKey.ModelSearchModelListHeader] = "Matching models (format: vendor/modelId (DisplayName), use Agent tool model param to spawn sub-agent):";
+        defaultEntries[StringKey.ModelSearchHint] = "Hint: use list_groups to view all capability groups, then map[capabilityKey] to drill down.";
+
+        zhEntries[StringKey.ModelSearchQueryCannotBeEmpty] = "模型查找查询不能为空";
+        zhEntries[StringKey.ModelSearchNoMatch] = "未找到匹配的模型。";
+        zhEntries[StringKey.ModelSearchRegisteredCount] = "已注册模型总数: {0}";
+        zhEntries[StringKey.ModelSearchMatchedCount] = "匹配 {0} / {1} 个模型";
+        zhEntries[StringKey.ModelSearchFailed] = "模型查找失败: {0}";
+        zhEntries[StringKey.ModelSearchFailedLog] = "ModelSearch 查找失败: {0}";
+        zhEntries[StringKey.ModelSearchResultTitle] = "[ModelSearch] 查询: {0}";
+        zhEntries[StringKey.ModelSearchGroupListHeader] = "可用功能分组（用 map[功能Key] 下钻查看支持该功能的模型）:";
+        zhEntries[StringKey.ModelSearchModelListHeader] = "匹配模型（格式: vendor/modelId (DisplayName)，用 Agent 工具的 model 参数指定 modelId 创建子代理）:";
+        zhEntries[StringKey.ModelSearchHint] = "提示: 用 list_groups 查看所有功能分组，再用 map[功能Key] 下钻。";
+
         // === SkillToolHandlers ===
         defaultEntries[StringKey.SkillNameCannotBeEmpty] = "Skill name cannot be empty";
         defaultEntries[StringKey.SkillNotFound] = "Skill not found: {0}";

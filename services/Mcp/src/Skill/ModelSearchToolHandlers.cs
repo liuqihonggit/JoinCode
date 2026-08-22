@@ -25,7 +25,7 @@ public partial class ModelSearchToolHandlers
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(query))
-            return Task.FromResult(ToolResultBuilder.Error().WithText("模型查找查询不能为空").Build());
+            return Task.FromResult(ToolResultBuilder.Error().WithText(L.T(StringKey.ModelSearchQueryCannotBeEmpty)).Build());
 
         try
         {
@@ -34,27 +34,27 @@ public partial class ModelSearchToolHandlers
             var result = engine.Search(query, max_results ?? 20);
 
             var response = new StringBuilder();
-            response.AppendLine($"[ModelSearch] 查询: {query}");
+            response.AppendLine(L.T(StringKey.ModelSearchResultTitle, query));
             response.AppendLine();
 
             if (result.Lines.Count == 0)
             {
-                response.AppendLine("未找到匹配的模型。");
-                response.AppendLine($"已注册模型总数: {entries.Count}");
-                response.AppendLine("提示: 用 list_groups 查看所有功能分组，再用 map[功能Key] 下钻。");
+                response.AppendLine(L.T(StringKey.ModelSearchNoMatch));
+                response.AppendLine(L.T(StringKey.ModelSearchRegisteredCount, entries.Count));
+                response.AppendLine(L.T(StringKey.ModelSearchHint));
             }
             else
             {
                 if (result.IsGroupList)
                 {
-                    response.AppendLine("可用功能分组（用 map[功能Key] 下钻查看支持该功能的模型）:");
+                    response.AppendLine(L.T(StringKey.ModelSearchGroupListHeader));
                     response.AppendLine();
                     foreach (var line in result.Lines)
                         response.AppendLine($"  {line}");
                 }
                 else if (result.IsModelList)
                 {
-                    response.AppendLine("匹配模型（格式: vendor/modelId (DisplayName)，用 Agent 工具的 model 参数指定 modelId 创建子代理）:");
+                    response.AppendLine(L.T(StringKey.ModelSearchModelListHeader));
                     response.AppendLine();
                     foreach (var line in result.Lines)
                         response.AppendLine($"  {line}");
@@ -66,7 +66,7 @@ public partial class ModelSearchToolHandlers
                 }
 
                 response.AppendLine();
-                response.AppendLine($"匹配 {result.Lines.Count} / {entries.Count} 个模型");
+                response.AppendLine(L.T(StringKey.ModelSearchMatchedCount, result.Lines.Count, entries.Count));
             }
 
             return Task.FromResult(ToolResultBuilder.Success().WithText(response.ToString()).Build());
@@ -74,8 +74,8 @@ public partial class ModelSearchToolHandlers
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "ModelSearch 查找失败: {Query}", query);
-            return Task.FromResult(ToolResultBuilder.Error().WithText($"模型查找失败: {ex.Message}").Build());
+            _logger?.LogError(ex, L.T(StringKey.ModelSearchFailedLog), query);
+            return Task.FromResult(ToolResultBuilder.Error().WithText(L.T(StringKey.ModelSearchFailed, ex.Message)).Build());
         }
     }
 

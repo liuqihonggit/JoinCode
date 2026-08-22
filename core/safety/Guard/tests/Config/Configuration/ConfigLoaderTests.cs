@@ -13,6 +13,7 @@ public class ConfigLoaderTests : IDisposable {
     private readonly string? _originalAppDataFolder;
     private readonly string? _originalProvider;
     private readonly string? _originalModelId;
+    private readonly string? _originalAllowUnknownModel;
     private readonly string? _originalAgnesApiKey;
     private readonly string? _originalOpenAiApiKey;
     private readonly string? _originalCodeExecutionTimeout;
@@ -25,6 +26,7 @@ public class ConfigLoaderTests : IDisposable {
         _originalAppDataFolder = Environment.GetEnvironmentVariable(JccEnvVarConstants.AppDataFolder);
         _originalProvider = Environment.GetEnvironmentVariable(JccEnvVarConstants.Vendor);
         _originalModelId = Environment.GetEnvironmentVariable(JccEnvVarConstants.ModelId);
+        _originalAllowUnknownModel = Environment.GetEnvironmentVariable(JccEnvVarConstants.AllowUnknownModel);
         _originalAgnesApiKey = Environment.GetEnvironmentVariable(ProviderEnvVarConstants.AgnesApiKey);
         _originalOpenAiApiKey = Environment.GetEnvironmentVariable(ProviderEnvVarConstants.OpenAiApiKey);
         _originalCodeExecutionTimeout = Environment.GetEnvironmentVariable(JccEnvVarConstants.CodeExecutionTimeout);
@@ -55,6 +57,7 @@ public class ConfigLoaderTests : IDisposable {
         Environment.SetEnvironmentVariable(JccEnvVarConstants.AppDataFolder, _originalAppDataFolder);
         Environment.SetEnvironmentVariable(JccEnvVarConstants.Vendor, _originalProvider);
         Environment.SetEnvironmentVariable(JccEnvVarConstants.ModelId, _originalModelId);
+        Environment.SetEnvironmentVariable(JccEnvVarConstants.AllowUnknownModel, _originalAllowUnknownModel);
         Environment.SetEnvironmentVariable(ProviderEnvVarConstants.AgnesApiKey, _originalAgnesApiKey);
         Environment.SetEnvironmentVariable(ProviderEnvVarConstants.OpenAiApiKey, _originalOpenAiApiKey);
         Environment.SetEnvironmentVariable(JccEnvVarConstants.CodeExecutionTimeout, _originalCodeExecutionTimeout);
@@ -161,15 +164,61 @@ public class ConfigLoaderTests : IDisposable {
     }
 
     /// <summary>
+    /// JCC_MODEL_ID 指定未在 settings.json models 列表注册的模型 → 严格模式抛 ConfigurationException[GRD016]
+    /// </summary>
+    [Fact]
+    public async Task LoadConfig_UnknownModelId_ThrowsConfigurationException()
+    {
+        Environment.SetEnvironmentVariable(JccEnvVarConstants.ModelId, "gpt-5-turbo-test-unregistered");
+        Environment.SetEnvironmentVariable(JccEnvVarConstants.AllowUnknownModel, null);
+        var realKey = TestConfiguration.GetRealApiKey();
+        Environment.SetEnvironmentVariable(ProviderEnvVarConstants.OpenAiApiKey, realKey);
+
+        var sharedModelLoader = new ModelConfigLoader();
+        var registry = new TestProviderDefinitionRegistry(sharedModelLoader);
+        var loader = new ConfigLoader(registry: registry, modelConfigLoader: sharedModelLoader);
+
+        var ex = await Assert.ThrowsAsync<ConfigurationException>(() => loader.LoadConfigAsync(_fs));
+
+        Assert.Contains("[GRD016]", ex.Message);
+        Assert.Contains("gpt-5-turbo-test-unregistered", ex.Message);
+    }
+
+    /// <summary>
+    /// JCC_ALLOW_UNKNOWN_MODEL=1 → 保留旧行为(推断补注册),不抛异常,模型 ID 正常传递
+    /// </summary>
+    [Fact]
+    public async Task LoadConfig_UnknownModelId_WithAllowUnknownModel_FallsBackToInfer()
+    {
+        Environment.SetEnvironmentVariable(JccEnvVarConstants.ModelId, "gpt-5-vision-test-unregistered");
+        Environment.SetEnvironmentVariable(JccEnvVarConstants.AllowUnknownModel, "1");
+        var realKey = TestConfiguration.GetRealApiKey();
+        Environment.SetEnvironmentVariable(ProviderEnvVarConstants.OpenAiApiKey, realKey);
+
+        var sharedModelLoader = new ModelConfigLoader();
+        var registry = new TestProviderDefinitionRegistry(sharedModelLoader);
+        var loader = new ConfigLoader(registry: registry, modelConfigLoader: sharedModelLoader);
+
+        var config = await loader.LoadConfigAsync(_fs).ConfigureAwait(true);
+
+        Assert.Equal("gpt-5-vision-test-unregistered", config.Provider.ModelId);
+    }
+
+    /// <summary>
     /// 测试专用 Provider 注册表 — 不依赖全局 settings.json，注册所有测试需要的 Provider
     /// </summary>
     private sealed class TestProviderDefinitionRegistry : IProviderDefinitionRegistry
     {
         private readonly Dictionary<string, IProviderDefinition> _definitions;
 
-        public TestProviderDefinitionRegistry()
+        public TestProviderDefinitionRegistry() : this(new ModelConfigLoader()) {}
+
+        /// <summary>
+        /// 用外部传入的 ModelConfigLoader 构造 — 用于 EnsureEnvModelInConfig 测试，
+        /// 使 ConfigLoader._modelConfigLoader 与 ProviderDefinition 共享同一实例
+        /// </summary>
+        public TestProviderDefinitionRegistry(IModelConfigLoader loader)
         {
-            var loader = new ModelConfigLoader();
             _definitions = new Dictionary<string, IProviderDefinition>(StringComparer.OrdinalIgnoreCase)
             {
                 ["openai"] = new OpenAiCompatibleProviderDefinition(loader, "openai", "OPENAI_API_KEY"),

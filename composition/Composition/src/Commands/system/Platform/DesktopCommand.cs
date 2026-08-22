@@ -1,4 +1,4 @@
-﻿
+
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Desktop, Description = "将会话转移到桌面应用", Usage = "/desktop", Category = ChatCommandCategory.Platform, Aliases = ["app"], IsHidden = true)]
@@ -20,7 +20,7 @@ public sealed class DesktopCommand : ChatCommandBase
             return ChatCommandResult.Continue();
         }
 
-        var sessionId = context.SessionId ?? "default";
+        var sessionId = context.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;
         var success = await handoffService.HandoffToDesktopAsync(sessionId).ConfigureAwait(false);
 
         if (success)

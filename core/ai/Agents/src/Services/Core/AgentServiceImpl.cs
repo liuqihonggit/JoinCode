@@ -328,7 +328,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         if (_transcriptService is null)
             throw new InvalidOperationException("[AGT009] IAgentTranscriptService 未注册，无法恢复代理");
 
-        var sessionId = options.SessionId ?? "default";
+        var sessionId = options.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;
 
         var metadata = await _transcriptService.LoadMetadataAsync(sessionId, options.AgentId, cancellationToken).ConfigureAwait(false);
         if (metadata is null)

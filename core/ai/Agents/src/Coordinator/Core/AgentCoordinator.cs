@@ -750,7 +750,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
 
         var subAgentContext = _subAgentContextAccessor.Current;
         var agentType = subAgentContext?.Role.ToValue() ?? "executor";
-        var sessionId = subAgentContext?.SessionId ?? "default";
+        var sessionId = subAgentContext?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;
 
         var context = new SubagentStopHookContext
         {

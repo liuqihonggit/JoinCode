@@ -168,7 +168,7 @@ internal sealed class TaskExecutor
             MaxIterations = 50,
             EnableThinking = options.VerboseLogging,
             ContentReplacementState = _subAgentContextAccessor.Current?.ContentReplacementState?.Clone(),
-            SessionId = _subAgentContextAccessor.Current?.SessionId ?? "default",
+            SessionId = _subAgentContextAccessor.Current?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId,
         };
     }
 

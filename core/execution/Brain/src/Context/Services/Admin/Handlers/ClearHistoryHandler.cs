@@ -34,7 +34,7 @@ public sealed partial class ClearHistoryHandler : ServiceEntity, IChatAdminOpera
     {
         try
         {
-            var sessionId = (context.ContextManager is ChatContextManager cm) ? cm.SessionId : "default";
+            var sessionId = (context.ContextManager is ChatContextManager cm) ? cm.SessionId : global::Core.Utils.SessionIdFactory.DefaultSessionId;
 
             await _hookHelper.ExecuteSessionEndHookAsync(sessionId, "clear", ct).ConfigureAwait(false);
 

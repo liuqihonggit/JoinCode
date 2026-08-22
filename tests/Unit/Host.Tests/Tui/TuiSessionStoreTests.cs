@@ -27,8 +27,8 @@ public sealed class TuiSessionStoreTests
         var dir = Path.Combine(Path.GetTempPath(), "tuitest-proj");
         var (store, _) = Create(dir, new DateTime(2026, 8, 22, 7, 12, 0, DateTimeKind.Utc));
 
-        // 非 git 目录 → 分支回退 no-branch；格式对齐 CLI SessionIdGenerator
-        store.SessionId.Should().MatchRegex(@"^20260822-0712-tuitest-proj-no-branch$");
+        // 非 git 目录 → 分支回退 no-branch；T10 五段式末段为 ObjectId 全局递增数
+        store.SessionId.Should().MatchRegex(@"^20260822-0712-tuitest-proj-no-branch-parent-\d+$");
     }
 
     [Fact]

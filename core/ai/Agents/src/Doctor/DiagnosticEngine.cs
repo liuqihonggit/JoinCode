@@ -156,7 +156,7 @@ public sealed class DiagnosticEngine
 
     private DiagnosticReport? EvaluateLoopDetected(DiagnosticEvent evt)
     {
-        var sessionId = evt.SessionId ?? "default";
+        var sessionId = evt.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;
         var key = (evt.PatientId, sessionId);
         var count = _loopCountBySession.GetValueOrDefault(key) + 1;
         _loopCountBySession[key] = count;

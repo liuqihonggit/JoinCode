@@ -103,7 +103,8 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         _contextWindowResolver = options?.ContextWindowResolver ?? new DefaultContextWindowResolver();
         _metaStore = options?.MetaStore;
         _sessionStats = options?.SessionStats;
-        _sessionId = options?.SessionId ?? "default";
+        // T10：无显式会话时用进程主 ID（五段式真 ID），禁止 "default" 字面量落盘
+        _sessionId = options?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;
         _telemetryService = options?.TelemetryService;
         _clock = options?.Clock ?? SystemClockService.Instance;
         _providerBaseUrl = options?.ProviderBaseUrl;

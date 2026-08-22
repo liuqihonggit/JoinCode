@@ -22,7 +22,7 @@ public sealed class ChatInitContext
     /// <summary>
     /// 会话 ID — 由 ContextLoadMiddleware 设置
     /// </summary>
-    public string SessionId { get; set; } = "default";
+    public string SessionId { get; set; } = global::Core.Utils.SessionIdFactory.DefaultSessionId;
 
     /// <summary>
     /// 会话成本持久化 — 由 CostRestoreMiddleware 设置，供 ChatInitializer 后续使用

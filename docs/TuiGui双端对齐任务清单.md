@@ -437,3 +437,24 @@ T1+G4（615e50062）→ T2（0d234dc11）→ T3（74e58a8a4）→ T4（e74984f02
 <!-- 原因: 同一机制激活 /commit /worktree 等全部确认类命令,而非只修 /exit 一个点(减法思维:不新增机制,补齐既有机制的 GUI 实现) -->
 <!-- 替代方案: GUI 判定非交互直接退出(放弃:绕过确认有误触风险,且 /commit 会静默放行危险操作) -->
 <!-- 验证: ExitCommand 5/5 绿 + GUI 332 全绿 + settings.json 无污染 ✅ -->
+
+## T10 完成：sessionId 五段式统一 + 消灭 default 兜底（2026-08-22）
+
+- [x] **T10** 用户规范落地：{日期}-{项目名}-{分支}-parent-{ObjectId全局递增数}
+  ① 新建 SessionIdFactory（Infrastructure.Utils）— CreateParent 五段式生成 +
+  DefaultSessionId 进程级单例（Lazy 首次生成）；git 分支/项目名进程内缓存。
+  ② 全库消除 sessionId 的 "default" 字面量兜底 — 脚本扫描 26 文件 27 处
+  （根源 ChatContextManager 构造 + TranscriptMiddleware 写死 default 致子代理全落
+  default/subagents/ 的 bug 一并修复），统一替换为 global::Core.Utils.SessionIdFactory.
+  DefaultSessionId；global:: 修饰解决 Core.Agents.Coordinator.Core 命名遮蔽。
+  ③ SessionIdGenerator.Generate 委托工厂，消除双实现。
+  磁盘治理：新会话全部五段式；历史 default/、session-*、GUID 目录为存量数据按红线保留不删。
+- 测试：SessionIdGeneratorTests 3（格式/全局递增/同分钟去重）+ TuiSessionStoreTests 断言更新。
+  Host.Tests **1041 全绿**、GUI 332 全绿。
+
+<!-- 🤖 Auto Decision: 2026-08-22 (T10) -->
+<!-- 决策: 进程级 DefaultSessionId 单例替代散布的 "default" 字面量;子代理 agentId 本体不改(目录层级 subagents/+IsSidechain 已表达父子) -->
+<!-- 原因: 用户明确禁止 default 兜底;单例保证无显式会话组件共享同一真实 ID,比较逻辑(ctx.SessionId != "default")语义平滑迁移 -->
+<!-- 替代方案: 逐处生成新 ID(放弃:每次调用新建 git 进程+碎片化);required 强制注入(放弃:28 处消费方改造面过大) -->
+<!-- 附带修复: TranscriptMiddleware 子代理 transcript 写死 default 会话 → 挂当前引擎会话 -->
+<!-- 验证: Host.Tests 1041 / GUI 332 全绿;脚本先单文件验证再推广 ✅ -->

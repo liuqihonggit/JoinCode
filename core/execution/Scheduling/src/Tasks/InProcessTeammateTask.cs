@@ -143,7 +143,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
                 AdditionalInstructions = definition.AdditionalInstructions,
                 MaxIterations = definition.MaxIterations,
                 ContentReplacementState = _subAgentContextAccessor.Current?.ContentReplacementState?.Clone(),
-                SessionId = _subAgentContextAccessor.Current?.SessionId ?? "default",
+                SessionId = _subAgentContextAccessor.Current?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId,
             };
 
             var agent = await _agentLifecycleManager.SpawnSubAgentAsync(definition.Task, options, ct).ConfigureAwait(false);
@@ -156,7 +156,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
                 }
             }
 
-            var sessionId = definition.ParentSessionId ?? _subAgentContextAccessor.Current?.SessionId ?? "default";
+            var sessionId = definition.ParentSessionId ?? _subAgentContextAccessor.Current?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;
             _messageBroker.RegisterAgent(definition.TeammateId, sessionId);
 
             StartMailboxPollingIfNeeded(definition.TeammateId);
@@ -370,7 +370,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
             Variant = ExecutorVariant.Teammate,
             Task = definition.Task,
             ParentAgentId = _subAgentContextAccessor.Current?.AgentId,
-            SessionId = definition.ParentSessionId ?? _subAgentContextAccessor.Current?.SessionId ?? "default",
+            SessionId = definition.ParentSessionId ?? _subAgentContextAccessor.Current?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId,
             TeamId = state.Context.TeamId,
             SubagentName = state.Context.AgentName,
             IsBuiltIn = true,

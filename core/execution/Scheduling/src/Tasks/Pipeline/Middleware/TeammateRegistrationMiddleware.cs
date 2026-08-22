@@ -23,7 +23,7 @@ public sealed partial class TeammateRegistrationMiddleware : ServiceEntity, ITea
     {
         var definition = ctx.Definition;
 
-        var sessionId = definition.ParentSessionId ?? _subAgentContextAccessor.Current?.SessionId ?? "default";
+        var sessionId = definition.ParentSessionId ?? _subAgentContextAccessor.Current?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;
         _messageBroker.RegisterAgent(definition.TeammateId, sessionId);
 
         StartMailboxPollingIfNeeded(definition.TeammateId);

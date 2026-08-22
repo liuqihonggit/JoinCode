@@ -37,7 +37,7 @@ public sealed partial class AgentForkMiddleware : ServiceEntity, IAgentToolMiddl
         var forkManager = _forkManager ?? throw new InvalidOperationException("ForkManager not available.");
 
         // 执行 fork 路径
-        var sessionId = _subAgentContextAccessor.Current?.SessionId ?? "default";
+        var sessionId = _subAgentContextAccessor.Current?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;
         var parentCacheSafeParams = _subAgentContextAccessor.Current?.CacheSafeParams;
 
         var forkOptions = new ForkOptions

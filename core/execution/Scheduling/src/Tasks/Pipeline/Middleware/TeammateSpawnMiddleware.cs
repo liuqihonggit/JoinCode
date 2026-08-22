@@ -26,7 +26,7 @@ public sealed partial class TeammateSpawnMiddleware : ServiceEntity, ITeammateEx
             AdditionalInstructions = definition.AdditionalInstructions,
             MaxIterations = definition.MaxIterations,
             ContentReplacementState = _subAgentContextAccessor.Current?.ContentReplacementState?.Clone(),
-            SessionId = _subAgentContextAccessor.Current?.SessionId ?? "default",
+            SessionId = _subAgentContextAccessor.Current?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId,
         };
 
         var agent = await _agentLifecycleManager.SpawnSubAgentAsync(definition.Task, options, ct).ConfigureAwait(false);

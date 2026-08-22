@@ -399,7 +399,7 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
         {
             AdditionalInstructions = step.Variant.HasValue ? $"Agent type: {step.Variant.Value.ToValue()}" : (step.Role != default ? $"Agent role: {step.Role.ToValue()}" : null),
             ContentReplacementState = _subAgentContextAccessor.Current?.ContentReplacementState?.Clone(),
-            SessionId = _subAgentContextAccessor.Current?.SessionId ?? "default",
+            SessionId = _subAgentContextAccessor.Current?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId,
         };
 
         var agent = await _agentLifecycleManager.SpawnSubAgentAsync(description, options, ct).ConfigureAwait(false);

@@ -6,17 +6,16 @@ namespace Core.Configuration.ModelFetch;
 public static class ModelListMerger
 {
     /// <summary>
-    /// 智能合并本地模型列表与远程 id 列表
-    /// <para>远程有本地无 → 新增（用 id 生成默认 DisplayName，Capabilities 留默认）</para>
+    /// 智能合并本地模型列表与远程模型信息
+    /// <para>远程有本地无 → 新增（用远程元数据完整填充: Description/ContextWindow/Modalities）</para>
     /// <para>远程无本地有 → 删除</para>
-    /// <para>远程有本地有 → 保留本地元数据（Capabilities/DisplayName/ContextWindow 等）</para>
+    /// <para>远程有本地有 → 保留本地元数据，仅补全缺失字段（ContextWindow==0 或 Description=="" 时用远程补）</para>
     /// </summary>
-    public static List<ModelItemConfig> Merge(List<ModelItemConfig>? localModels, IReadOnlyList<string> remoteIds)
+    public static List<ModelItemConfig> Merge(List<ModelItemConfig>? localModels, IReadOnlyList<RemoteModelInfo> remoteModels)
     {
-        if (remoteIds.Count == 0)
+        if (remoteModels.Count == 0)
             return localModels ?? [];
 
-        var remoteSet = new HashSet<string>(remoteIds, StringComparer.OrdinalIgnoreCase);
         var localById = new Dictionary<string, ModelItemConfig>(StringComparer.OrdinalIgnoreCase);
         if (localModels is not null)
         {
@@ -27,25 +26,47 @@ public static class ModelListMerger
             }
         }
 
-        var result = new List<ModelItemConfig>(remoteIds.Count);
-        foreach (var remoteId in remoteIds)
+        var result = new List<ModelItemConfig>(remoteModels.Count);
+        foreach (var remote in remoteModels)
         {
-            if (localById.TryGetValue(remoteId, out var local))
-            {
-                result.Add(local);
-            }
+            if (string.IsNullOrEmpty(remote.Id))
+                continue;
+            if (localById.TryGetValue(remote.Id, out var local))
+                result.Add(SupplementLocal(local, remote));
             else
-            {
-                result.Add(new ModelItemConfig
-                {
-                    Id = remoteId,
-                    CanonicalId = remoteId,
-                    DisplayName = GenerateDisplayName(remoteId),
-                    Capabilities = InferCapabilities(remoteId),
-                });
-            }
+                result.Add(BuildFromRemote(remote));
         }
         return result;
+    }
+
+    /// <summary>
+    /// 用远程元数据补全本地缺失字段 — ContextWindow==0 用远程补，Description=="" 用远程补
+    /// <para>其余字段（Capabilities/DisplayName/Aliases 等）保留用户手动值，不被覆盖</para>
+    /// </summary>
+    private static ModelItemConfig SupplementLocal(ModelItemConfig local, RemoteModelInfo remote)
+    {
+        if (local.ContextWindow == 0 && remote.ContextLength > 0)
+            local.ContextWindow = remote.ContextLength;
+        if (string.IsNullOrEmpty(local.Description) && !string.IsNullOrEmpty(remote.Description))
+            local.Description = remote.Description;
+        return local;
+    }
+
+    /// <summary>
+    /// 从远程模型信息构建本地配置 — 新增模型，用远程元数据填充 Description/ContextWindow
+    /// <para>Capabilities 留默认（模态由用户在 settings.json 显式配置，不从 API 或 ID 推断）</para>
+    /// </summary>
+    private static ModelItemConfig BuildFromRemote(RemoteModelInfo remote)
+    {
+        return new ModelItemConfig
+        {
+            Id = remote.Id,
+            CanonicalId = remote.Id,
+            DisplayName = GenerateDisplayName(remote.Id),
+            ContextWindow = remote.ContextLength,
+            Description = remote.Description,
+            Capabilities = new ModelCapabilitiesConfig(),
+        };
     }
 
     /// <summary>
@@ -63,37 +84,5 @@ public static class ModelListMerger
     {
         if (s.Length == 0) return s;
         return char.ToUpperInvariant(s[0]) + s[1..];
-    }
-
-    /// <summary>
-    /// 从模型 ID 推断模态能力 — API /models 端点只返回 ID，需根据命名约定推断
-    /// <para>"vision" → ReadImage | ReadGif（视觉模型可读图片和动图）</para>
-    /// <para>"pro"/"reasoner"/"r1" → Thinking（推理模型）</para>
-    /// <para>"flash" → FastMode（快速模型）</para>
-    /// <para>所有模型基础: Text | ToolUse</para>
-    /// </summary>
-    public static ModelCapabilitiesConfig InferCapabilities(string modelId)
-    {
-        var id = modelId.AsSpan();
-        var modalities = ModelModalityKind.Text | ModelModalityKind.ToolUse;
-        var thinkingMode = false;
-
-        if (id.Contains("vision", StringComparison.OrdinalIgnoreCase))
-            modalities |= ModelModalityKind.ReadImage | ModelModalityKind.ReadGif;
-
-        if (id.Contains("pro", StringComparison.OrdinalIgnoreCase) ||
-            id.Contains("reasoner", StringComparison.OrdinalIgnoreCase) ||
-            id.Contains("r1", StringComparison.OrdinalIgnoreCase))
-        {
-            modalities |= ModelModalityKind.Thinking;
-            thinkingMode = true;
-        }
-
-        return new ModelCapabilitiesConfig
-        {
-            FastMode = id.Contains("flash", StringComparison.OrdinalIgnoreCase),
-            ThinkingMode = thinkingMode,
-            Modalities = modalities,
-        };
     }
 }

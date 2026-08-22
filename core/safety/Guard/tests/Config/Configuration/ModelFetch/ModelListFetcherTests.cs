@@ -22,7 +22,7 @@ public class ModelListFetcherTests
         var result = await fetcher.FetchAllAsync(vendor);
 
         result.Should().ContainKey("openai");
-        result["openai"].Should().Equal(["gpt-4o", "gpt-5"]);
+        result["openai"].Select(x => x.Id).Should().Equal(["gpt-4o", "gpt-5"]);
     }
 
     [Fact]
@@ -150,8 +150,8 @@ public class ModelListFetcherTests
         var result = await fetcher.FetchAllAsync(vendor);
 
         result.Should().HaveCount(2);
-        result["openai"].Should().Equal(["gpt-4o"]);
-        result["agnes"].Should().Equal(["agnes-2.0-flash"]);
+        result["openai"].Select(x => x.Id).Should().Equal(["gpt-4o"]);
+        result["agnes"].Select(x => x.Id).Should().Equal(["agnes-2.0-flash"]);
     }
 
     [Fact]
@@ -170,7 +170,33 @@ public class ModelListFetcherTests
         var result = await fetcher.FetchAllAsync(vendor);
 
         result.Should().ContainKey("sensenova");
-        result["sensenova"].Should().Equal(["sensenova-6.7"]);
+        result["sensenova"].Select(x => x.Id).Should().Equal(["sensenova-6.7"]);
+    }
+
+    [Fact]
+    public async Task FetchAllAsync_ResponseWithFullMetadata_ParsesAllFields()
+    {
+        using var env = new EnvScope(TestApiKeyEnv, "sk-test");
+        var vendor = new Dictionary<string, ProfileSettings>
+        {
+            ["sensenova"] = new() { Provider = "sensenova", Protocol = "openai-compatible", Endpoint = "https://token.sensenova.cn/v1", ModelsEndpoint = "models", ApiKeyEnvVar = TestApiKeyEnv }
+        };
+
+        const string json = """{"data":[{"id":"sensenova-6.8-flash-lite","description":"lightweight multimodal","context_length":262144,"max_output_length":65536,"input_modalities":["text","image"],"output_modalities":["text"],"supported_features":["tools","json_mode","reasoning"]}]}""";
+        var handler = new LambdaHandler(_ => Ok(json));
+        var fetcher = new ModelListFetcher(CreateProvider(handler), CreateFileSystem());
+
+        var result = await fetcher.FetchAllAsync(vendor);
+
+        result.Should().ContainKey("sensenova");
+        var model = result["sensenova"].Should().HaveCount(1).And.Subject.First();
+        model.Id.Should().Be("sensenova-6.8-flash-lite");
+        model.Description.Should().Be("lightweight multimodal");
+        model.ContextLength.Should().Be(262144);
+        model.MaxOutputLength.Should().Be(65536);
+        model.InputModalities.Should().Equal(["text", "image"]);
+        model.OutputModalities.Should().Equal(["text"]);
+        model.SupportedFeatures.Should().Equal(["tools", "json_mode", "reasoning"]);
     }
 
     private static IHttpClientProvider CreateProvider(HttpMessageHandler handler)

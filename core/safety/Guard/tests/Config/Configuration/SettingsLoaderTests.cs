@@ -135,7 +135,7 @@ public class SettingsLoaderTests : IDisposable
     #region 场景2: 无配置文件时返回默认值
 
     [Fact]
-    public async Task Given_无任何配置文件_When_加载全部_Then_返回空SettingsJson()
+    public async Task Given_无任何配置文件_When_加载全部_Then_返回默认骨架()
     {
         // Given: 无配置文件
 
@@ -144,7 +144,13 @@ public class SettingsLoaderTests : IDisposable
 
         // Then
         result.Should().NotBeNull();
-        result.Current.Should().BeNull();
+        result.Vendor.Should().NotBeNull();
+        result.Vendor!.Should().ContainKey("sensenova");
+        result.Vendor!.Should().ContainKey("openai");
+        result.Vendor!.Should().ContainKey("anthropic");
+        result.Vendor!.Should().ContainKey("deepseek");
+        result.Vendor!.Should().ContainKey("agnes");
+        result.AutoFetchModels.Should().BeTrue();
     }
 
     #endregion
@@ -246,6 +252,46 @@ public class SettingsLoaderTests : IDisposable
         result.Current.Permissions!.Allow.Should().Contain("Bash(npm test)");
         result.Current.Permissions.Allow.Should().Contain("ReadFile");
         result.Current.Permissions.DefaultMode.Should().Be("autoAccept");
+    }
+
+    #endregion
+
+    #region 场景6: 空文件自动创建默认骨架
+
+    /// <summary>
+    /// 用户 settings.json 存在但为空(0字节) → 自动写入默认骨架并返回
+    /// 骨架含所有5个供应商的预设入口点,models 数组留空由 AutoFetchModels 填充
+    /// </summary>
+    [Fact]
+    public async Task Given_用户设置文件为空_When_加载用户设置_Then_返回默认骨架并写入磁盘()
+    {
+        // Given: 用户设置文件存在但为空(0字节)
+        var userPath = GetUserSettingsPath();
+        var dir = Path.GetDirectoryName(userPath);
+        if (!string.IsNullOrEmpty(dir)) _fs.CreateDirectory(dir);
+        await _fs.WriteAllTextAsync(userPath, "").ConfigureAwait(true);
+        _fs.GetFileLength(userPath).Should().Be(0);
+
+        // When
+        var result = await SettingsLoader.LoadUserSettingsAsync(_fs).ConfigureAwait(true);
+
+        // Then
+        result.Should().NotBeNull();
+        result!.Vendor.Should().NotBeNull();
+        result.Vendor!.Should().ContainKey("sensenova");
+        result.Vendor!.Should().ContainKey("openai");
+        result.Vendor!.Should().ContainKey("anthropic");
+        result.Vendor!.Should().ContainKey("deepseek");
+        result.Vendor!.Should().ContainKey("agnes");
+        result.AutoFetchModels.Should().BeTrue();
+
+        // 验证骨架已写入磁盘
+        var written = await _fs.ReadAllTextAsync(userPath, CancellationToken.None).ConfigureAwait(true);
+        written.Should().NotBeNullOrWhiteSpace();
+        var parsed = JsonSerializer.Deserialize<SettingsJson>(written, ConfigJsonContext.Default.SettingsJson);
+        parsed.Should().NotBeNull();
+        parsed!.Vendor.Should().NotBeNull();
+        parsed.Vendor!.Should().ContainKey("sensenova");
     }
 
     #endregion

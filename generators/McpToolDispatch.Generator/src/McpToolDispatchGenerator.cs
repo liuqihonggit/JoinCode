@@ -775,8 +775,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         sb.AppendLine("        var visible = new Dictionary<string, List<ToolCategoryEntry>>(StringComparer.OrdinalIgnoreCase);");
         sb.AppendLine("        foreach (var kvp in all)");
         sb.AppendLine("        {");
-        sb.AppendLine("            var filtered = kvp.Value.Where(t => t.Kind != ToolKind.OnError).ToList();");
-        sb.AppendLine("            if (filtered.Count > 0) visible[kvp.Key] = filtered;");
+        sb.AppendLine("            if (kvp.Value.Count > 0) visible[kvp.Key] = kvp.Value;");
         sb.AppendLine("        }");
         sb.AppendLine("        return visible;");
         sb.AppendLine("    }");

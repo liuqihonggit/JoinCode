@@ -5,6 +5,9 @@ namespace Core.Configuration.ModelFetch.Tests;
 /// </summary>
 public class ModelListMergerTests
 {
+    /// <summary>构造仅有 Id 的远程模型信息 — 用于不需要元数据的测试</summary>
+    private static RemoteModelInfo Remote(string id) => new() { Id = id };
+
     [Fact]
     public void Merge_RemoteHasNewModel_AddsWithGeneratedDisplayName()
     {
@@ -12,7 +15,7 @@ public class ModelListMergerTests
         {
             new() { Id = "gpt-4o", DisplayName = "GPT-4o", ContextWindow = 128000 }
         };
-        var remote = new List<string> { "gpt-4o", "gpt-5" };
+        IReadOnlyList<RemoteModelInfo> remote = [Remote("gpt-4o"), Remote("gpt-5")];
 
         var result = ModelListMerger.Merge(local, remote);
 
@@ -32,7 +35,7 @@ public class ModelListMergerTests
             new() { Id = "gpt-4o", DisplayName = "GPT-4o" },
             new() { Id = "old-model", DisplayName = "Old" }
         };
-        var remote = new List<string> { "gpt-4o" };
+        IReadOnlyList<RemoteModelInfo> remote = [Remote("gpt-4o")];
 
         var result = ModelListMerger.Merge(local, remote);
 
@@ -47,7 +50,7 @@ public class ModelListMergerTests
         {
             new() { Id = "gpt-4o", DisplayName = "GPT-4o", ContextWindow = 128000, Description = "多模态模型" }
         };
-        var remote = new List<string> { "gpt-4o" };
+        IReadOnlyList<RemoteModelInfo> remote = [Remote("gpt-4o")];
 
         var result = ModelListMerger.Merge(local, remote);
 
@@ -65,7 +68,7 @@ public class ModelListMergerTests
             new() { Id = "gpt-4o", DisplayName = "GPT-4o" }
         };
 
-        var result = ModelListMerger.Merge(local, Array.Empty<string>());
+        var result = ModelListMerger.Merge(local, Array.Empty<RemoteModelInfo>());
 
         result.Should().HaveCount(1);
         result[0].Id.Should().Be("gpt-4o");
@@ -74,7 +77,7 @@ public class ModelListMergerTests
     [Fact]
     public void Merge_NullLocal_AllNewWithGeneratedNames()
     {
-        var remote = new List<string> { "gpt-4o", "gpt-5" };
+        IReadOnlyList<RemoteModelInfo> remote = [Remote("gpt-4o"), Remote("gpt-5")];
 
         var result = ModelListMerger.Merge(null, remote);
 
@@ -90,7 +93,7 @@ public class ModelListMergerTests
         {
             new() { Id = "GPT-4O", DisplayName = "GPT-4o" }
         };
-        var remote = new List<string> { "gpt-4o" };
+        IReadOnlyList<RemoteModelInfo> remote = [Remote("gpt-4o")];
 
         var result = ModelListMerger.Merge(local, remote);
 
@@ -99,65 +102,23 @@ public class ModelListMergerTests
         result[0].DisplayName.Should().Be("GPT-4o");
     }
 
-    [Fact]
-    public void Merge_NewVisionModel_InfersReadImageModality()
+    /// <summary>
+    /// 远程新模型不从 ID 推断模态 — 配置大于代码，模态能力由用户在 settings.json 显式配置
+    /// </summary>
+    [Theory]
+    [InlineData("deepseek-v4-flash-vision-exp", "含 vision 不应推断 ReadImage")]
+    [InlineData("deepseek-v4-pro", "含 pro 不应推断 Thinking")]
+    [InlineData("deepseek-reasoner", "含 reasoner 不应推断 Thinking")]
+    public void Merge_NewModel_DoesNotInferModalitiesFromId(string remoteId, string reason)
     {
-        var remote = new List<string> { "deepseek-v4-flash-vision-exp" };
+        IReadOnlyList<RemoteModelInfo> remote = [Remote(remoteId)];
 
         var result = ModelListMerger.Merge(null, remote);
 
         result.Should().HaveCount(1);
-        result[0].Capabilities.Modalities.HasFlag(ModelModalityKind.ReadImage).Should().BeTrue("vision 模型应推断 ReadImage 模态");
-        result[0].Capabilities.Modalities.HasFlag(ModelModalityKind.ReadGif).Should().BeTrue("vision 模型应推断 ReadGif 模态");
-        result[0].Capabilities.Modalities.HasFlag(ModelModalityKind.Text).Should().BeTrue("所有模型应有 Text 基础模态");
-        result[0].Capabilities.Modalities.HasFlag(ModelModalityKind.ToolUse).Should().BeTrue("所有模型应有 ToolUse 基础模态");
-    }
-
-    [Fact]
-    public void Merge_NewProModel_InfersThinkingModality()
-    {
-        var remote = new List<string> { "deepseek-v4-pro" };
-
-        var result = ModelListMerger.Merge(null, remote);
-
-        result.Should().HaveCount(1);
-        result[0].Capabilities.Modalities.HasFlag(ModelModalityKind.Thinking).Should().BeTrue("pro 模型应推断 Thinking 模态");
-        result[0].Capabilities.ThinkingMode.Should().BeTrue("pro 模型应启用 ThinkingMode");
-    }
-
-    [Fact]
-    public void Merge_NewReasonerModel_InfersThinkingModality()
-    {
-        var remote = new List<string> { "deepseek-reasoner" };
-
-        var result = ModelListMerger.Merge(null, remote);
-
-        result.Should().HaveCount(1);
-        result[0].Capabilities.Modalities.HasFlag(ModelModalityKind.Thinking).Should().BeTrue("reasoner 模型应推断 Thinking 模态");
-        result[0].Capabilities.ThinkingMode.Should().BeTrue("reasoner 模型应启用 ThinkingMode");
-    }
-
-    [Fact]
-    public void Merge_NewFlashModel_InfersFastMode()
-    {
-        var remote = new List<string> { "deepseek-v4-flash" };
-
-        var result = ModelListMerger.Merge(null, remote);
-
-        result.Should().HaveCount(1);
-        result[0].Capabilities.FastMode.Should().BeTrue("flash 模型应启用 FastMode");
-    }
-
-    [Fact]
-    public void Merge_NewPlainModel_OnlyTextAndToolUse()
-    {
-        var remote = new List<string> { "deepseek-chat" };
-
-        var result = ModelListMerger.Merge(null, remote);
-
-        result.Should().HaveCount(1);
-        result[0].Capabilities.Modalities.Should().Be(ModelModalityKind.Text | ModelModalityKind.ToolUse, "普通模型应只有 Text | ToolUse 基础模态");
-        result[0].Capabilities.ThinkingMode.Should().BeFalse("普通模型不应启用 ThinkingMode");
+        result[0].Capabilities.Modalities.Should().NotHaveFlag(ModelModalityKind.ReadImage, reason);
+        result[0].Capabilities.Modalities.Should().NotHaveFlag(ModelModalityKind.ReadGif, reason);
+        result[0].Capabilities.Modalities.Should().NotHaveFlag(ModelModalityKind.Thinking, reason);
     }
 
     [Fact]
@@ -176,11 +137,74 @@ public class ModelListMergerTests
                 }
             }
         };
-        var remote = new List<string> { "deepseek-v4-flash-vision-exp" };
+        IReadOnlyList<RemoteModelInfo> remote = [Remote("deepseek-v4-flash-vision-exp")];
 
         var result = ModelListMerger.Merge(local, remote);
 
         result.Should().HaveCount(1);
         result[0].Capabilities.Modalities.Should().Be(ModelModalityKind.Text | ModelModalityKind.ReadImage | ModelModalityKind.ToolUse, "本地已有模态应保留，不被推断覆盖");
+    }
+
+    [Fact]
+    public void Merge_NewModelWithRemoteMetadata_FillsDescriptionAndContextWindow()
+    {
+        IReadOnlyList<RemoteModelInfo> remote =
+        [
+            new()
+            {
+                Id = "glm-5.2",
+                Description = "GLM-5.2 flagship model",
+                ContextLength = 1048576,
+                MaxOutputLength = 131072,
+                InputModalities = ["text"],
+                OutputModalities = ["text"],
+                SupportedFeatures = ["tools", "reasoning"],
+            }
+        ];
+
+        var result = ModelListMerger.Merge(null, remote);
+
+        result.Should().HaveCount(1);
+        result[0].Id.Should().Be("glm-5.2");
+        result[0].Description.Should().Be("GLM-5.2 flagship model");
+        result[0].ContextWindow.Should().Be(1048576);
+    }
+
+    [Fact]
+    public void Merge_ExistingModelWithZeroContextWindow_SupplementsFromRemote()
+    {
+        var local = new List<ModelItemConfig>
+        {
+            new() { Id = "glm-5.2", DisplayName = "Glm 5.2", ContextWindow = 0, Description = "本地描述" }
+        };
+        IReadOnlyList<RemoteModelInfo> remote =
+        [
+            new() { Id = "glm-5.2", Description = "远程描述", ContextLength = 1048576 }
+        ];
+
+        var result = ModelListMerger.Merge(local, remote);
+
+        result.Should().HaveCount(1);
+        result[0].ContextWindow.Should().Be(1048576, "本地 ContextWindow==0 应被远程补全");
+        result[0].Description.Should().Be("本地描述", "本地已有描述应保留，不被远程覆盖");
+    }
+
+    [Fact]
+    public void Merge_ExistingModelWithEmptyDescription_SupplementsFromRemote()
+    {
+        var local = new List<ModelItemConfig>
+        {
+            new() { Id = "glm-5.2", DisplayName = "Glm 5.2", ContextWindow = 200000, Description = "" }
+        };
+        IReadOnlyList<RemoteModelInfo> remote =
+        [
+            new() { Id = "glm-5.2", Description = "远程描述", ContextLength = 1048576 }
+        ];
+
+        var result = ModelListMerger.Merge(local, remote);
+
+        result.Should().HaveCount(1);
+        result[0].Description.Should().Be("远程描述", "本地 Description 为空应被远程补全");
+        result[0].ContextWindow.Should().Be(200000, "本地已有 ContextWindow 应保留，不被远程覆盖");
     }
 }

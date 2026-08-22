@@ -119,6 +119,7 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime
     {
         var stateDir = Path.Combine(Path.GetTempPath(), $"jcc_cluster_e2e_{Guid.NewGuid():N}");
         Directory.CreateDirectory(stateDir);
+        E2eSettingsJsonHelper.WriteSettingsJsonToStateDir(stateDir);
 
         var args = $"--trust --await {awaitSeconds} -p \"{prompt}\"";
 

@@ -77,7 +77,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
         var stateDir = _fs.CombinePath(Path.GetTempPath(), $"jcc_test_{Guid.NewGuid():N}");
         _fs.CreateDirectory(stateDir);
         _stateFilePath = _fs.CombinePath(stateDir, "workflow_state.json");
-        WriteSettingsJsonToStateDir(stateDir);
+        E2eSettingsJsonHelper.WriteSettingsJsonToStateDir(stateDir);
 
         var providerValue = _activeProvider switch
         {
@@ -1158,26 +1158,6 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
         return ResolveExeFromArtifactsBin("jcc.exe");
     }
 
-    /// <summary>
-    /// 在 stateDir 写入含完整 vendor 节点的 settings.json — 让 ProviderDefinitionRegistry 能注册所有供应商
-    /// E2E 隔离的 AppData 目录无用户 settings.json，需测试 setup 提供，否则 registry 只有 azure
-    /// </summary>
-    private static void WriteSettingsJsonToStateDir(string stateDir)
-    {
-        var settingsJson = """
-        {
-          "vendor": {
-            "openai": { "protocol": "openai-compatible", "apiKeyEnvVar": "OPENAI_API_KEY" },
-            "anthropic": { "protocol": "anthropic", "apiKeyEnvVar": "ANTHROPIC_API_KEY" },
-            "deepseek": { "protocol": "openai-compatible", "apiKeyEnvVar": "DEEPSEEK_API_KEY" },
-            "agnes": { "protocol": "openai-compatible", "apiKeyEnvVar": "AGNES_API_KEY" },
-            "sensenova": { "protocol": "openai-compatible", "apiKeyEnvVar": "SENSENOVA_API_KEY" }
-          }
-        }
-        """;
-        IO.FileSystem.SafeFileIO.WriteAllText(System.IO.Path.Combine(stateDir, "settings.json"), settingsJson);
-    }
-
     private string ResolveExeFromArtifactsBin(string exeName)
     {
         var baseDir = AppContext.BaseDirectory;
@@ -1267,7 +1247,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
         try
         {
             var files = _fs.GetFiles(rootDir, exeName, SearchOption.AllDirectories);
-            return files.FirstOrDefault();
+            return files.OrderByDescending(System.IO.File.GetLastWriteTime).FirstOrDefault();
         }
         catch (Exception ex)
         {

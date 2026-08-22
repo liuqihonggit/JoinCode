@@ -29,9 +29,18 @@ public sealed partial class OnErrorToolInjectionMiddleware : ServiceEntity, IToo
 
     public async Task InvokeAsync(ToolExecutionContext context, MiddlewareDelegate<ToolExecutionContext> next, CancellationToken ct)
     {
-        await next(context, ct).ConfigureAwait(false);
+        try
+        {
+            await next(context, ct).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (context.Result is { IsError: true })
+        {
+        }
 
-        if (context.Result is null || !context.Result.IsError) return;
+        if (context.Result is null || !context.Result.IsError)
+        {
+            return;
+        }
 
         var sb = new StringBuilder(1024);
 
@@ -42,18 +51,19 @@ public sealed partial class OnErrorToolInjectionMiddleware : ServiceEntity, IToo
         if (historyAnalysis is not null)
             sb.AppendLine(historyAnalysis);
 
-        // OnError 工具推荐
+        // OnError 工具推荐 — 强行注入完整 schema（渐进式暴露：从自行探索变成强行注入单个）
         var onErrorTools = await _registry.GetToolsByKindAsync(ToolKind.OnError, ct).ConfigureAwait(false);
         if (onErrorTools.Count > 0)
         {
             var relevantTools = FindRelevantOnErrorTools(context.ToolName, onErrorTools);
             if (relevantTools.Count > 0)
             {
-                sb.AppendLine("以下修复工具可用：");
+                sb.AppendLine("以下修复工具可用（完整定义如下，可直接调用）：");
                 foreach (var tool in relevantTools.Values)
                 {
-                    sb.AppendLine($"- {tool.Name}: {tool.Description}");
+                    sb.AppendLine(BuildToolSchemaJson(tool));
                 }
+                _logger?.LogInformation("已注入错误修复schema到上下文，{Count} 个修复工具", relevantTools.Count);
             }
         }
 
@@ -72,8 +82,6 @@ public sealed partial class OnErrorToolInjectionMiddleware : ServiceEntity, IToo
         {
             InjectedMessages = [.. (context.Result.InjectedMessages ?? []), injection]
         };
-
-        _logger?.LogDebug("已注入错误修复建议到上下文（含历史分析+OnError工具+链路推荐）");
     }
 
     /// <summary>
@@ -175,6 +183,28 @@ public sealed partial class OnErrorToolInjectionMiddleware : ServiceEntity, IToo
             .Where(w => w.Length > 3)
             .Take(10)
             .ToArray();
+    }
+
+    /// <summary>
+    /// 构建工具完整 schema JSON — 格式对齐 OpenAI function calling tool 定义
+    /// </summary>
+    private static string BuildToolSchemaJson(IToolHandler tool)
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = false }))
+        {
+            writer.WriteStartObject();
+            writer.WriteString("type", "function");
+            writer.WritePropertyName("function");
+            writer.WriteStartObject();
+            writer.WriteString("name", tool.Name);
+            writer.WriteString("description", tool.Description);
+            writer.WritePropertyName("parameters");
+            JsonSerializer.Serialize(writer, tool.InputSchema, ContractsJsonContext.Default.ToolSchema);
+            writer.WriteEndObject();
+            writer.WriteEndObject();
+        }
+        return Encoding.UTF8.GetString(stream.ToArray());
     }
 
     private static Dictionary<string, IToolHandler> FindRelevantOnErrorTools(

@@ -60,21 +60,129 @@ public static class SettingsLoader
     }
 
     /// <summary>
+    /// 构建默认 settings.json 骨架 — 含所有5个供应商的预设入口点,models 数组留空
+    /// 模型列表由启动时 AutoFetchModels 从 {endpoint}/{modelsEndpoint} 自动拉取填充
+    /// 供应商端点来源: README 供应商表 + ModelListFetcher 测试数据
+    /// </summary>
+    public static string BuildDefaultSettingsJson()
+    {
+        return """
+        {
+          "vendor": {
+            "sensenova": {
+              "provider": "sensenova",
+              "protocol": "openai-compatible",
+              "model": "sensenova-6.8-flash-lite",
+              "endpoint": "https://token.sensenova.cn/v1",
+              "apiKeyEnvVar": "SENSENOVA_API_KEY",
+              "models": [],
+              "modelsEndpoint": "models"
+            },
+            "openai": {
+              "provider": "openai",
+              "protocol": "openai-compatible",
+              "model": "gpt-5.6-sol",
+              "endpoint": "https://api.openai.com/v1",
+              "apiKeyEnvVar": "OPENAI_API_KEY",
+              "models": [],
+              "modelsEndpoint": "models"
+            },
+            "anthropic": {
+              "provider": "anthropic",
+              "protocol": "anthropic",
+              "model": "claude-opus-5-20250815",
+              "endpoint": "https://api.anthropic.com",
+              "apiKeyEnvVar": "ANTHROPIC_API_KEY",
+              "models": [],
+              "modelsEndpoint": "models"
+            },
+            "deepseek": {
+              "provider": "deepseek",
+              "protocol": "openai-compatible",
+              "model": "deepseek-v4-flash",
+              "endpoint": "https://api.deepseek.com",
+              "apiKeyEnvVar": "DEEPSEEK_API_KEY",
+              "models": [],
+              "modelsEndpoint": "models"
+            },
+            "deepseek-anthropic": {
+              "provider": "deepseek",
+              "protocol": "anthropic",
+              "model": "deepseek-v4-flash",
+              "endpoint": "https://api.deepseek.com/anthropic",
+              "apiKeyEnvVar": "DEEPSEEK_API_KEY",
+              "models": [],
+              "modelsEndpoint": "models"
+            },
+            "agnes": {
+              "provider": "agnes",
+              "protocol": "openai-compatible",
+              "model": "agnes-2.0-flash",
+              "endpoint": "https://apihub.agnes-ai.com/v1",
+              "apiKeyEnvVar": "AGNES_API_KEY",
+              "models": [],
+              "modelsEndpoint": "models"
+            }
+          },
+          "autoFetchModels": true,
+          "current": { "profile": "sensenova" }
+        }
+        """;
+    }
+
+    /// <summary>
     /// 加载用户全局设置: ~/.jcc/settings.json
+    /// 文件不存在或为空(0字节)时自动创建默认骨架
     /// </summary>
     public static async Task<SettingsJson?> LoadUserSettingsAsync(IFileSystem fs, CancellationToken cancellationToken = default)
     {
         var path = GetUserSettingsPath();
-        return await LoadSettingsFileAsync(fs, path, cancellationToken).ConfigureAwait(false);
+        var result = await LoadSettingsFileAsync(fs, path, cancellationToken).ConfigureAwait(false);
+        if (result is not null)
+            return result;
+
+        // 文件不存在或为空 → 自动创建默认骨架
+        if (fs.FileExists(path) && fs.GetFileLength(path) > 0)
+            return null; // 文件存在但非空,解析失败,返回 null
+
+        var skeletonJson = BuildDefaultSettingsJson();
+        var skeleton = JsonSerializer.Deserialize(skeletonJson, ConfigJsonContext.Default.SettingsJson);
+        if (skeleton is null)
+            return null;
+
+        var directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(directory))
+            DirectoryHelper.EnsureDirectoryExists(fs, directory);
+
+        await fs.WriteAllTextAsync(path, skeletonJson, cancellationToken).ConfigureAwait(false);
+        return skeleton;
     }
 
     /// <summary>
     /// 同步加载用户全局设置 — 用于 Configure 回调等不支持 async 的场景
+    /// 文件不存在或为空(0字节)时自动创建默认骨架
     /// </summary>
     public static SettingsJson? LoadUserSettings(IFileSystem fs)
     {
         var path = GetUserSettingsPath();
-        return LoadSettingsFileSync(fs, path);
+        var result = LoadSettingsFileSync(fs, path);
+        if (result is not null)
+            return result;
+
+        if (fs.FileExists(path) && fs.GetFileLength(path) > 0)
+            return null;
+
+        var skeletonJson = BuildDefaultSettingsJson();
+        var skeleton = JsonSerializer.Deserialize(skeletonJson, ConfigJsonContext.Default.SettingsJson);
+        if (skeleton is null)
+            return null;
+
+        var directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(directory))
+            DirectoryHelper.EnsureDirectoryExists(fs, directory);
+
+        fs.WriteAllText(path, skeletonJson);
+        return skeleton;
     }
 
     /// <summary>

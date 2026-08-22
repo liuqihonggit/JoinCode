@@ -2,6 +2,11 @@ namespace Infrastructure.Utils.Resilience;
 
 public sealed class CircuitBreakerOpenException(string message) : Exception(message);
 
+/// <summary>
+/// 24h 重试预算耗尽异常 — TotalBudget 驱动模式下，重试总时长超过预算时抛出
+/// </summary>
+public sealed class NetworkRetryBudgetExhaustedException(string message) : Exception(message);
+
 public enum BackoffStrategy
 {
     Fixed,
@@ -21,6 +26,17 @@ public sealed class RetryConfig
     public BackoffStrategy Strategy { get; init; } = BackoffStrategy.ExponentialWithJitter;
 
     public Func<Exception, bool>? ShouldRetry { get; init; }
+
+    /// <summary>
+    /// 重试总预算 — 设置后优先于 MaxRetries 驱动重试循环，预算耗尽抛 NetworkRetryBudgetExhaustedException
+    /// <para>默认 null：回退到 MaxRetries 驱动（向后兼容）</para>
+    /// </summary>
+    public TimeSpan? TotalBudget { get; init; }
+
+    /// <summary>
+    /// 网络不可用时是否暂停预算计时 — true 时网络中断期间不消耗 TotalBudget，恢复后继续
+    /// </summary>
+    public bool PauseBudgetOnNetworkUnavailable { get; init; } = true;
 
     internal static readonly RetryConfig Default = new();
 }

@@ -176,4 +176,92 @@ public sealed class ResilientHttpExecutorTests
 
         executor.CircuitBreaker!.ConsecutiveFailures.Should().Be(0);
     }
+
+    [Fact]
+    public async Task ExecuteAsync_TotalBudgetExhausted_ThrowsBudgetExhaustedException()
+    {
+        var policy = new ResiliencePolicy
+        {
+            Name = "test",
+            OperationTimeout = TimeSpan.FromSeconds(5),
+            Retry = new RetryConfig
+            {
+                TotalBudget = TimeSpan.FromMilliseconds(100),
+                BaseDelay = TimeSpan.FromMilliseconds(10),
+                MaxDelay = TimeSpan.FromMilliseconds(50),
+                Strategy = BackoffStrategy.Fixed,
+            },
+        };
+
+        var executor = new ResilientHttpExecutor(policy);
+
+        await Assert.ThrowsAsync<NetworkRetryBudgetExhaustedException>(() =>
+            executor.ExecuteAsync(
+                _ => throw new HttpRequestException("always fail"),
+                "test-op"));
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_TotalBudget_ExceedsMaxRetries()
+    {
+        var policy = new ResiliencePolicy
+        {
+            Name = "test",
+            OperationTimeout = TimeSpan.FromSeconds(5),
+            Retry = new RetryConfig
+            {
+                MaxRetries = 2,
+                TotalBudget = TimeSpan.FromSeconds(3),
+                BaseDelay = TimeSpan.FromMilliseconds(10),
+                MaxDelay = TimeSpan.FromMilliseconds(50),
+                Strategy = BackoffStrategy.Fixed,
+            },
+        };
+
+        var executor = new ResilientHttpExecutor(policy);
+        var attempt = 0;
+
+        await Assert.ThrowsAsync<NetworkRetryBudgetExhaustedException>(() =>
+            executor.ExecuteAsync(
+                _ =>
+                {
+                    attempt++;
+                    throw new HttpRequestException("always fail");
+                },
+                "test-op"));
+
+        attempt.Should().BeGreaterThan(2);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithinBudget_RetriesUntilSuccess()
+    {
+        var policy = new ResiliencePolicy
+        {
+            Name = "test",
+            OperationTimeout = TimeSpan.FromSeconds(5),
+            Retry = new RetryConfig
+            {
+                TotalBudget = TimeSpan.FromSeconds(10),
+                BaseDelay = TimeSpan.FromMilliseconds(10),
+                MaxDelay = TimeSpan.FromMilliseconds(50),
+                Strategy = BackoffStrategy.Fixed,
+            },
+        };
+
+        var executor = new ResilientHttpExecutor(policy);
+        var attempt = 0;
+
+        var result = await executor.ExecuteAsync(
+            _ =>
+            {
+                attempt++;
+                if (attempt < 5) throw new HttpRequestException("fail");
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+            },
+            "test-op");
+
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
+        attempt.Should().Be(5);
+    }
 }

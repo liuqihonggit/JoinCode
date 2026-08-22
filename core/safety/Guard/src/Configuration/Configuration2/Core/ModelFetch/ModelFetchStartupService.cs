@@ -68,31 +68,33 @@ public sealed class ModelFetchStartupService
     }
 
     /// <summary>
-    /// 写回 settings.json — 对文件锁异常重试一次，提供简洁错误信息
+    /// 写回 settings.json — 对文件锁异常重试最多3次（间隔递增），记录 HResult 辅助诊断锁源
+    /// <para>常见 HResult: -2147024891=ACCESS_DENIED(5, 权限/Defender扫描), -2147024864=SHARING_VIOLATION(32, 被独占)</para>
     /// </summary>
     private async Task WriteWithRetryAsync(
         SettingsJson settings,
         IReadOnlyDictionary<string, List<ModelItemConfig>> updates,
         CancellationToken cancellationToken)
     {
-        try
+        var delays = new[] { 500, 1000, 1500 };
+        for (var attempt = 0; ; attempt++)
         {
-            await _writer.WriteAsync(settings, updates, cancellationToken).ConfigureAwait(false);
-            await RefreshInMemoryConfigAsync(cancellationToken).ConfigureAwait(false);
-        }
-        catch (UnauthorizedAccessException)
-        {
-            _logger?.LogWarning("[ModelFetchStartupService] settings.json 写入被拒（文件锁），500ms 后重试一次");
-            await Task.Delay(500, cancellationToken).ConfigureAwait(false);
             try
             {
                 await _writer.WriteAsync(settings, updates, cancellationToken).ConfigureAwait(false);
                 await RefreshInMemoryConfigAsync(cancellationToken).ConfigureAwait(false);
+                return;
             }
-            catch (UnauthorizedAccessException)
+            catch (UnauthorizedAccessException ex)
             {
-                var path = SettingsLoader.GetUserSettingsPath();
-                _logger?.LogWarning("[ModelFetchStartupService] settings.json 写入仍被拒，跳过本次更新 | 路径: {Path} | 不影响启动", path);
+                if (attempt >= delays.Length)
+                {
+                    var path = SettingsLoader.GetUserSettingsPath();
+                    _logger?.LogWarning(ex, "[ModelFetchStartupService] settings.json 写入仍被拒（HResult={HResult}），跳过本次更新 | 路径: {Path} | 不影响启动", ex.HResult, path);
+                    return;
+                }
+                _logger?.LogWarning(ex, "[ModelFetchStartupService] settings.json 写入被拒（HResult={HResult}），{Delay}ms 后重试（第{Attempt}次）", ex.HResult, delays[attempt], attempt + 1);
+                await Task.Delay(delays[attempt], cancellationToken).ConfigureAwait(false);
             }
         }
     }

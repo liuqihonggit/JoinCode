@@ -100,10 +100,10 @@ public static class SettingsLoader
               "provider": "deepseek",
               "protocol": "openai-compatible",
               "model": "deepseek-v4-flash",
-              "endpoint": "",
+              "endpoint": "https://api.deepseek.com",
               "apiKeyEnvVar": "DEEPSEEK_API_KEY",
               "models": [],
-              "modelsEndpoint": ""
+              "modelsEndpoint": "models"
             },
             "agnes": {
               "provider": "agnes",

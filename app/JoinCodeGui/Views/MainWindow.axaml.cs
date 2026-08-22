@@ -83,17 +83,34 @@ public sealed partial class MainWindow : Window
             _vm.Messages.CollectionChanged -= OnMessagesChanged;
             _vm.PropertyChanged -= OnVmPropertyChanged;
             _vm.ScrollToBottomRequested -= OnScrollToBottomRequested;
+            _vm.ExitRequested -= OnExitRequested;
         }
         _vm = DataContext as MainViewModel;
         if (_vm is not null)
         {
             _vm.PermissionConfirmCallback = ShowPermissionDialogAsync;
             _vm.AskUserQuestionCallback = ShowAskUserQuestionDialogAsync;
+            _vm.SlashConfirmHandler = ShowConfirmDialog;
+            _vm.ExitRequested += OnExitRequested;
             _vm.Messages.CollectionChanged += OnMessagesChanged;
             _vm.PropertyChanged += OnVmPropertyChanged;
             _vm.ScrollToBottomRequested += OnScrollToBottomRequested;
         }
     }
+
+    /// <summary>T9：斜杠命令确认回调 — 弹极简确认窗；后台线程经 UI 线程同步等待（对齐 TUI painter.Invoke 模式）</summary>
+    private bool ShowConfirmDialog(string message)
+    {
+        var task = Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
+        {
+            var dialog = new ConfirmDialogWindow(message);
+            return await dialog.ShowDialog<bool?>(this);
+        });
+        return task.GetAwaiter().GetResult() == true;
+    }
+
+    /// <summary>T9：/exit 确认通过 → 关闭主窗口</summary>
+    private void OnExitRequested() => Close();
 
     /// <summary>权限确认回调：弹出确认框并把用户决策返回给网关；关闭窗口等价于拒绝</summary>
     private async Task<Hosting.PermissionConfirmationDecision> ShowPermissionDialogAsync(

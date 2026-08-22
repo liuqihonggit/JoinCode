@@ -416,3 +416,24 @@ T1+G4（615e50062）→ T2（0d234dc11）→ T3（74e58a8a4）→ T4（e74984f02
 <!-- 原因: 引擎中间件已增量写入同一文件,GUI 覆盖语义(Delete+Append)与 append-only 冲突,每轮双写+抖动 -->
 <!-- 替代方案: 删除整个回退路径(放弃:测试隔离依赖它,InMemoryFileSystem 无引擎) -->
 <!-- 验证: TranscriptBacked_Save 红转绿 + GUI 332 全绿 ✅ -->
+
+## T9 完成：GUI 确认弹窗 + /exit 接线（2026-08-22）
+
+- [x] **T9** 消化两项 G1 遗留：
+  ① ExitCommand 改造 — context.Confirm 注入回调优先（UI 差异注入机制），回退 CLI
+  终端 y/N；非交互且无回调时保持直接退出语义。
+  ② GUI 确认链路全通 — IJccChatSession 加 SlashConfirmHandler 属性 + ExitRequested
+  事件；JccChatSession 传 confirm/onExitRequested 给共享 runner；MainViewModel 转发；
+  MainWindow 注入 ShowConfirmDialog（新建极简 ConfirmDialogWindow，
+  Dispatcher.UIThread.InvokeAsync 后台线程同步等待，对齐 TUI painter.Invoke 模式）+
+  订阅 ExitRequested 关窗。/commit、/worktree 的确认场景同时被激活。
+- 附带核查：B8 settings.json 污染 — 当前 ~/.jcc/settings.json 仅含 vendor/current/
+  autoFetchModels 正常键，**无残留** ✅；扁平 session-*.jsonl 迁移验证 — 6 个旧会话
+  均已生成 {sessionId}/transcript.json（幂等设计保留旧文件）✅。
+- 测试：ExitCommandTests +2（确认通过→Exit/拒绝→Continue）。GUI **332 全绿**。
+
+<!-- 🤖 Auto Decision: 2026-08-22 (T9) -->
+<!-- 决策: /exit 在 GUI 走真实确认弹窗而非跳过;复用 ChatCommandContext.Confirm 既有注入点 -->
+<!-- 原因: 同一机制激活 /commit /worktree 等全部确认类命令,而非只修 /exit 一个点(减法思维:不新增机制,补齐既有机制的 GUI 实现) -->
+<!-- 替代方案: GUI 判定非交互直接退出(放弃:绕过确认有误触风险,且 /commit 会静默放行危险操作) -->
+<!-- 验证: ExitCommand 5/5 绿 + GUI 332 全绿 + settings.json 无污染 ✅ -->

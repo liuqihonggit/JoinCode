@@ -89,6 +89,11 @@ internal sealed class PlaceholderChatSession : IJccChatSession
     /// <summary>占位会话不触发 AskUserQuestion，保留回调供 UI 注入（无实际效果）</summary>
     public Func<QuestionItem, Task<AskUserQuestionResult>>? AskUserQuestionDialogCallback { get; set; }
 
+    /// <summary>T9：占位会话无确认 UI，默认拒绝；事件不会触发</summary>
+    public Func<string, bool>? SlashConfirmHandler { get; set; }
+
+    public event Action? ExitRequested { add { } remove { } }
+
     public async Task SetModelAsync(string modelId, CancellationToken cancellationToken = default)
     {
         if (_configService is not null)

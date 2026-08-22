@@ -88,7 +88,7 @@ public sealed class BridgeMainCommand
         }
 
         // 5. 运行 BridgeMain
-        await using var bridgeMain = new BridgeMain(deps);
+        await using var bridgeMain = new BridgeMain(deps, networkService: _services?.GetService<INetworkConnectivityService>());
 
         // 6. 注册信号处理 — 对齐 TS 端: SIGINT/SIGTERM
         var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);

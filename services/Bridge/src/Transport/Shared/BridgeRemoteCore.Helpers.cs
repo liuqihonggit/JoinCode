@@ -36,8 +36,8 @@ public static partial class BridgeRemoteCore
     #region withRetry
 
     /// <summary>
-    /// 带指数退避+抖动的重试 — 对齐 TS 端 withRetry
-    /// TS 端语义: fn 返回 null 时重试，非 null 立即返回；耗尽重试返回 null
+    /// 请求发送 — 降级为透传，网络重试统一由 ResilientHttpExecutor (Gateway) 处理，避免嵌套放大
+    /// <para>原语义: fn 返回 null 时重试；降级后: 单次执行，null 直接返回</para>
     /// </summary>
     public static async Task<T?> WithRetryAsync<T>(
         Func<Task<T?>> fn,
@@ -49,29 +49,8 @@ public static partial class BridgeRemoteCore
         CancellationToken ct = default) where T : class
     {
         ArgumentNullException.ThrowIfNull(fn);
-
-        for (var attempt = 1; attempt <= maxAttempts; attempt++)
-        {
-            ct.ThrowIfCancellationRequested();
-
-            var result = await fn().ConfigureAwait(false);
-            if (result is not null) return result;
-
-            if (attempt < maxAttempts)
-            {
-                // 指数退避: baseDelay * 2^(attempt-1)
-                var delay = baseDelayMs * (1 << (attempt - 1));
-                delay = Math.Min(delay, maxDelayMs);
-
-                // 抖动: 在 [1-jitter, 1+jitter] 范围内随机
-                var jitter = 1.0 + (Random.Shared.NextDouble() * 2.0 - 1.0) * jitterFraction;
-                var actualDelay = (int)(delay * jitter);
-
-                await Task.Delay(actualDelay, ct).ConfigureAwait(false);
-            }
-        }
-
-        return null;
+        ct.ThrowIfCancellationRequested();
+        return await fn().ConfigureAwait(false);
     }
 
     #endregion

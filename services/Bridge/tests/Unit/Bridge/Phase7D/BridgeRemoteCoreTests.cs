@@ -21,8 +21,9 @@ public sealed class BridgeRemoteCoreTests
     }
 
     [Fact]
-    public async Task WithRetry_SucceedsOnSecondAttempt_ReturnsResult()
+    public async Task WithRetry_Passthrough_FirstNull_ReturnsNull()
     {
+        // 降级为透传后：单次执行，第一次 null 直接返回 null，不重试（重试交给 Gateway）
         var callCount = 0;
         var result = await BridgeRemoteCore.WithRetryAsync<string>(
             () => { callCount++; return Task.FromResult<string?>(callCount < 2 ? null : "ok"); },
@@ -31,8 +32,8 @@ public sealed class BridgeRemoteCoreTests
             baseDelayMs: 10,
             maxDelayMs: 100,
             jitterFraction: 0).ConfigureAwait(true);
-        Assert.Equal("ok", result);
-        Assert.Equal(2, callCount);
+        Assert.Null(result);
+        Assert.Equal(1, callCount);
     }
 
     [Fact]

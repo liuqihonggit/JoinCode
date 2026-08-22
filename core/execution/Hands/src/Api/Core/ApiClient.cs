@@ -240,15 +240,7 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
 
         try
         {
-            return await _retryPolicy.ExecuteAsync(
-                operation,
-                onRetry: (attempt, delay, ex) =>
-                {
-                    _logger?.LogWarning(ex,
-                        "[ApiClient] 请求重试 - 路径: {Path}, 尝试: {Attempt}, 延迟: {Delay}ms",
-                        request.Path, attempt, delay.TotalMilliseconds);
-                },
-                cancellationToken: cancellationToken).ConfigureAwait(false);
+            return await operation(cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (_options.FallbackEndpoints is { Count: > 0 } && ex is not OperationCanceledException)
         {

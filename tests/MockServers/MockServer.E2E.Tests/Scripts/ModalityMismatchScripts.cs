@@ -2,13 +2,13 @@ namespace MockServer.E2E.Tests.Scripts;
 
 /// <summary>
 /// 模态不匹配拦截 E2E 测试脚本 — 验证完整链路：
-/// 媒介意图检测 → 注入系统提示 → AskUserQuestion → Agent 子代理 → 结果返回
+/// 媒介意图检测 → 注入标准报错文本 → ModelSearch 查找模型 → Agent 子代理 → 结果返回
 /// </summary>
 public static class ModalityMismatchScripts
 {
     /// <summary>
     /// 图片生成意图 — gpt-4o 不支持 GenerateImage
-    /// MockServer 模拟 LLM 收到注入提示后调用 AskUserQuestion
+    /// MockServer 模拟 LLM 收到报错后调用 ModelSearch 查找支持图片生成的模型
     /// </summary>
     public static ConversationScript ImageGenerationMismatch => new()
     {
@@ -26,15 +26,15 @@ public static class ModalityMismatchScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "AskUserQuestion",
-                            Arguments = """{"questions":"[{\"question\":\"当前模型 gpt-4o 不支持图片生成。如何处理？\",\"header\":\"模态处理\",\"options\":[{\"label\":\"自动委托\",\"description\":\"用支持图片生成的模型创建子代理\"},{\"label\":\"手工指定模型\",\"description\":\"从支持图片生成的模型列表中选择\"},{\"label\":\"不允许\",\"description\":\"取消操作\"},{\"label\":\"用户输入内容\",\"description\":\"自由输入文本说明\"}]}"}"""
+                            ToolName = "ModelSearch",
+                            Arguments = """{"query":"map[generateImage]"}"""
                         }
                     ],
-                    FollowUpText = "好的，我将用支持图片生成的模型创建子代理来处理。"
+                    FollowUpText = "已找到支持图片生成的模型，将创建子代理执行。"
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "AskUserQuestion", Description = "模态不匹配时应调用AskUserQuestion" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "ModelSearch", Description = "模态不匹配时应调用ModelSearch查找模型" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
                     new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "不应有错误" },
                 ]
@@ -61,15 +61,15 @@ public static class ModalityMismatchScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "AskUserQuestion",
-                            Arguments = """{"questions":"[{\"question\":\"当前模型 gpt-4o 不支持视频识别。如何处理？\",\"header\":\"模态处理\",\"options\":[{\"label\":\"自动委托\",\"description\":\"用支持视频识别的模型创建子代理\"},{\"label\":\"手工指定模型\",\"description\":\"从支持视频识别的模型列表中选择\"},{\"label\":\"不允许\",\"description\":\"取消操作\"},{\"label\":\"用户输入内容\",\"description\":\"自由输入文本说明\"}]}"}"""
+                            ToolName = "ModelSearch",
+                            Arguments = """{"query":"map[readVideo]"}"""
                         }
                     ],
-                    FollowUpText = "好的，我将用支持视频识别的模型创建子代理来处理。"
+                    FollowUpText = "已找到支持视频识别的模型，将创建子代理执行。"
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "AskUserQuestion", Description = "视频识别不匹配时应调用AskUserQuestion" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "ModelSearch", Description = "视频识别不匹配时应调用ModelSearch查找模型" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
                     new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "不应有错误" },
                 ]
@@ -78,13 +78,49 @@ public static class ModalityMismatchScripts
     };
 
     /// <summary>
-    /// Agent 子代理完整链路 — 单轮模拟：AskUserQuestion → Agent 工具
-    /// MockServer 先返回 AskUserQuestion 工具调用，FollowUpText 返回 Agent 工具调用
+    /// 图片识别意图 — gpt-4o（纯文本配置）不支持 ReadImage
+    /// MockServer 模拟 LLM 收到报错后调用 ModelSearch 查找支持图片识别的模型
+    /// </summary>
+    public static ConversationScript ImageRecognitionMismatch => new()
+    {
+        Name = "模态不匹配-图片识别意图",
+        Turns =
+        [
+            new ConversationTurn
+            {
+                UserInput = "帮我看这张图片里有什么内容",
+                AiResponse = new MockResponseScript
+                {
+                    Type = MockResponseType.WithToolCalls,
+                    TextResponse = "",
+                    ToolCalls =
+                    [
+                        new MockToolCallScript
+                        {
+                            ToolName = "ModelSearch",
+                            Arguments = """{"query":"map[readImage]"}"""
+                        }
+                    ],
+                    FollowUpText = "已找到支持图片识别的模型，将创建子代理执行。"
+                },
+                Asserts =
+                [
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "ModelSearch", Description = "图片识别不匹配时应调用ModelSearch查找模型" },
+                    new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
+                    new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "不应有错误" },
+                ]
+            }
+        ]
+    };
+
+    /// <summary>
+    /// Agent 子代理完整链路 — 单轮模拟：ModelSearch → Agent 工具
+    /// MockServer 先返回 ModelSearch 工具调用，FollowUpText 返回 Agent 工具调用
     /// ExtraTextResponses 提供子代理的 LLM 调用和最终跟进
     /// </summary>
     public static ConversationScript ModalityMismatchWithAgentSpawn => new()
     {
-        Name = "模态不匹配-完整Agent子代理链路",
+        Name = "模态不匹配-完整ModelSearch到Agent子代理链路",
         Turns =
         [
             new ConversationTurn
@@ -98,15 +134,15 @@ public static class ModalityMismatchScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "AskUserQuestion",
-                            Arguments = """{"questions":"[{\"question\":\"当前模型 gpt-4o 不支持图片生成。如何处理？\",\"header\":\"模态处理\",\"options\":[{\"label\":\"自动委托\",\"description\":\"用支持图片生成的模型创建子代理\"},{\"label\":\"手工指定模型\",\"description\":\"从支持图片生成的模型列表中选择\"},{\"label\":\"不允许\",\"description\":\"取消操作\"},{\"label\":\"用户输入内容\",\"description\":\"自由输入文本说明\"}]}"}"""
+                            ToolName = "ModelSearch",
+                            Arguments = """{"query":"map[generateImage]"}"""
                         }
                     ],
                     FollowUpText = null
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "AskUserQuestion", Description = "应调用AskUserQuestion询问用户" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "ModelSearch", Description = "应调用ModelSearch查找模型" },
                 ]
             }
         ],

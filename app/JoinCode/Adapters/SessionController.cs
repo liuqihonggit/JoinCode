@@ -276,23 +276,9 @@ public sealed class SessionController
         var missing = detection.DetectedModalities & ~modelModalities;
         if (missing == ModelModalityKind.None) return null;
 
-        var missingDesc = FormatMissingModalities(missing);
+        var missingDesc = ModalityMismatchMessageBuilder.FormatMissingModalities(missing);
         var keywordsDesc = string.Join(", ", detection.MatchedKeywords);
-        return $"[模态不匹配提示] 当前模型 {modelId} 不支持 {missingDesc}（检测到用户意图: {keywordsDesc}）。";
-    }
-
-    private static string FormatMissingModalities(ModelModalityKind missing)
-    {
-        var parts = new List<string>();
-        if (missing.HasFlag(ModelModalityKind.ReadImage)) parts.Add("图片识别");
-        if (missing.HasFlag(ModelModalityKind.ReadGif)) parts.Add("动图识别");
-        if (missing.HasFlag(ModelModalityKind.ReadVideo)) parts.Add("视频识别");
-        if (missing.HasFlag(ModelModalityKind.ReadAudio)) parts.Add("音频识别");
-        if (missing.HasFlag(ModelModalityKind.ReadPdf)) parts.Add("PDF识别");
-        if (missing.HasFlag(ModelModalityKind.GenerateImage)) parts.Add("图片生成");
-        if (missing.HasFlag(ModelModalityKind.GenerateVideo)) parts.Add("视频生成");
-        if (missing.HasFlag(ModelModalityKind.GenerateAudio)) parts.Add("音频生成");
-        return string.Join("、", parts);
+        return ModalityMismatchMessageBuilder.Build(modelId, missing, missingDesc, keywordsDesc);
     }
 
     /// <summary>

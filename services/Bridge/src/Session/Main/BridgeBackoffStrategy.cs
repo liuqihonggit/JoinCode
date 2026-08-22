@@ -5,7 +5,7 @@ namespace Core.Bridge;
 /// 连接错误: 初始 2s，上限 120s
 /// 通用错误: 初始 500ms，上限 30s
 /// 互斥重置: 切换错误类型时重置另一个轨道
-/// 放弃阈值: 10 分钟
+/// 放弃阈值: 24h (可配置，默认 24h)
 /// </summary>
 public sealed class BridgeBackoffStrategy
 {
@@ -17,11 +17,13 @@ public sealed class BridgeBackoffStrategy
     private DateTime _firstErrorTime;
     private DateTime _lastErrorTime;
     private bool _lastErrorWasConnError;
+    private readonly TimeSpan _giveUpThreshold;
 
-    public BridgeBackoffStrategy(IClockService clock, ILogger? logger = null)
+    public BridgeBackoffStrategy(IClockService clock, ILogger? logger = null, TimeSpan? giveUpThreshold = null)
     {
         _clock = clock;
         _logger = logger;
+        _giveUpThreshold = giveUpThreshold ?? TimeSpan.FromHours(24);
     }
 
     /// <summary>是否处于错误状态</summary>
@@ -65,9 +67,9 @@ public sealed class BridgeBackoffStrategy
             return true;
         }
 
-        // 放弃阈值: 10 分钟
+        // 放弃阈值: 可配置，默认 24h
         var totalErrorMs = (now - _firstErrorTime).TotalMilliseconds;
-        if (totalErrorMs > 600_000)
+        if (totalErrorMs > _giveUpThreshold.TotalMilliseconds)
         {
             onFatalExit?.Invoke();
             return false;

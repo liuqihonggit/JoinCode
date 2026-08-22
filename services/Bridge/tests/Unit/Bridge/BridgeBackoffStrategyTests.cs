@@ -7,8 +7,8 @@ namespace Bridge.Tests;
 /// </summary>
 public sealed class BridgeBackoffStrategyTests
 {
-    private static BridgeBackoffStrategy CreateSut(FakeClockService? clock = null) =>
-        new(clock ?? new FakeClockService(), NullLogger.Instance);
+    private static BridgeBackoffStrategy CreateSut(FakeClockService? clock = null, TimeSpan? giveUpThreshold = null) =>
+        new(clock ?? new FakeClockService(), NullLogger.Instance, giveUpThreshold);
 
     [Fact]
     public void Constructor_InitialState_IsNotInErrorState()
@@ -125,7 +125,7 @@ public sealed class BridgeBackoffStrategyTests
     public async Task HandleErrorAsync_GivesUpAfterTenMinutes()
     {
         var clock = new FakeClockService(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
-        var sut = CreateSut(clock);
+        var sut = CreateSut(clock, TimeSpan.FromMinutes(10));  // 显式 10 分钟阈值
         var fatalCalled = false;
 
         using (var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(50)))
@@ -141,6 +141,28 @@ public sealed class BridgeBackoffStrategyTests
 
         shouldContinue.Should().BeFalse();
         fatalCalled.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task HandleErrorAsync_DefaultThreshold_DoesNotGiveUpAfterTenMinutes()
+    {
+        var clock = new FakeClockService(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+        var sut = CreateSut(clock);  // 默认 24h 阈值
+
+        using (var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(50)))
+        {
+            try { await sut.HandleErrorAsync(new HttpRequestException(), ct: cts.Token).ConfigureAwait(true); }
+            catch (OperationCanceledException) { }
+        }
+
+        // 推进 11 分钟，默认 24h 阈值不应放弃
+        clock.Advance(TimeSpan.FromMinutes(11));
+
+        var fatalCalled = false;
+        var shouldContinue = await sut.HandleErrorAsync(new HttpRequestException(), onFatalExit: () => fatalCalled = true, ct: CancellationToken.None).ConfigureAwait(true);
+
+        shouldContinue.Should().BeTrue();
+        fatalCalled.Should().BeFalse();
     }
 
     [Fact]

@@ -456,6 +456,7 @@ public sealed class ApplicationBuilder
         Cli.TerminalHelper.WriteLine("环境变量:");
         Cli.TerminalHelper.WriteLine("  JCC_VENDOR            LLM 供应商 (openai/azure/anthropic/deepseek/sensenova)");
         Cli.TerminalHelper.WriteLine("  JCC_MODEL_ID           模型 ID");
+        Cli.TerminalHelper.WriteLine("  JCC_ALLOW_UNKNOWN_MODEL  允许未在 settings.json 注册的模型 (1=从 ID 推断模态,默认严格报错)");
         Cli.TerminalHelper.WriteLine("  JCC_ENDPOINT           API 端点");
         Cli.TerminalHelper.NewLine();
         Cli.TerminalHelper.WriteLine("  OPENAI_API_KEY          OpenAI API Key");

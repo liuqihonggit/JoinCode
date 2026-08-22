@@ -42,17 +42,17 @@ public sealed partial class OnErrorToolInjectionMiddleware : ServiceEntity, IToo
         if (historyAnalysis is not null)
             sb.AppendLine(historyAnalysis);
 
-        // OnError 工具推荐
+        // OnError 工具推荐 — 强行注入完整 schema（渐进式暴露：从自行探索变成强行注入单个）
         var onErrorTools = await _registry.GetToolsByKindAsync(ToolKind.OnError, ct).ConfigureAwait(false);
         if (onErrorTools.Count > 0)
         {
             var relevantTools = FindRelevantOnErrorTools(context.ToolName, onErrorTools);
             if (relevantTools.Count > 0)
             {
-                sb.AppendLine("以下修复工具可用：");
+                sb.AppendLine("以下修复工具可用（完整定义如下，可直接调用）：");
                 foreach (var tool in relevantTools.Values)
                 {
-                    sb.AppendLine($"- {tool.Name}: {tool.Description}");
+                    sb.AppendLine(BuildToolSchemaJson(tool));
                 }
             }
         }
@@ -175,6 +175,28 @@ public sealed partial class OnErrorToolInjectionMiddleware : ServiceEntity, IToo
             .Where(w => w.Length > 3)
             .Take(10)
             .ToArray();
+    }
+
+    /// <summary>
+    /// 构建工具完整 schema JSON — 格式对齐 OpenAI function calling tool 定义
+    /// </summary>
+    private static string BuildToolSchemaJson(IToolHandler tool)
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = false }))
+        {
+            writer.WriteStartObject();
+            writer.WriteString("type", "function");
+            writer.WritePropertyName("function");
+            writer.WriteStartObject();
+            writer.WriteString("name", tool.Name);
+            writer.WriteString("description", tool.Description);
+            writer.WritePropertyName("parameters");
+            JsonSerializer.Serialize(writer, tool.InputSchema, ContractsJsonContext.Default.ToolSchema);
+            writer.WriteEndObject();
+            writer.WriteEndObject();
+        }
+        return Encoding.UTF8.GetString(stream.ToArray());
     }
 
     private static Dictionary<string, IToolHandler> FindRelevantOnErrorTools(

@@ -82,7 +82,7 @@ namespace Core.Bridge;
 [JsonSerializable(typeof(List<BridgeInboundAttachment>))]
 [JsonSerializable(typeof(BridgeStatusInfo))]
 [JsonSerializable(typeof(BridgePollIntervalConfig))]
-[JsonSerializable(typeof(BridgeEnvLessConfig))]
+[JsonSerializable(typeof(V2BridgeConfig))]
 [JsonSerializable(typeof(BridgeRemoteCredentials))]
 [JsonSerializable(typeof(ConcurrentSessionRecord))]
 // BridgeNdjsonActivity, BridgeNdjsonActivityType 已迁移到 JoinCode.Transport.Bridge (NdjsonActivity, NdjsonActivityType)

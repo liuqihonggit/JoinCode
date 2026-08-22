@@ -55,7 +55,7 @@ public sealed class BridgeRemoteCoreTests
     [Fact]
     public void EnvLessBridgeParams_Defaults_AreSet()
     {
-        var params_ = new BridgeEnvLessParams
+        var params_ = new V2BridgeParams
         {
             BaseUrl = "https://api.example.com",
             OrgUUID = "org-123",

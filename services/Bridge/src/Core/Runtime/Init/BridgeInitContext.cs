@@ -52,11 +52,11 @@ public sealed class V1BridgeInitContext : ITokenValidationContext, INullCheckCon
 /// </summary>
 public sealed class V2BridgeInitContext : ITokenValidationContext, INullCheckContext
 {
-    public required BridgeEnvLessParams Parameters { get; init; }
+    public required V2BridgeParams Parameters { get; init; }
     public required HttpClient HttpClient { get; init; }
     public required IReplBridgeTransportFactory TransportFactory { get; init; }
     public ILogger? Logger { get; init; }
-    public BridgeEnvLessConfig Config { get; init; } = BridgeEnvLessConfig.GetConfig();
+    public V2BridgeConfig Config { get; init; } = V2BridgeConfig.GetConfig();
 
     public string? AccessToken { get; set; }
     public string? SessionId { get; set; }

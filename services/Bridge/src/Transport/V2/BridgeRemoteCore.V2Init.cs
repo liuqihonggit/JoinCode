@@ -13,8 +13,8 @@ public static partial class BridgeRemoteCore
     /// 初始化 Env-less 桥核心 — 对齐 TS 端 initEnvLessBridgeCore
     /// 通过中间件管道执行，消除 try-catch 样板代码
     /// </summary>
-    public static async Task<IReplBridgeHandle?> InitEnvLessBridgeCoreAsync(
-        BridgeEnvLessParams parameters,
+    public static async Task<IReplBridgeHandle?> InitV2BridgeCoreAsync(
+        V2BridgeParams parameters,
         HttpClient httpClient,
         IReplBridgeTransportFactory transportFactory,
         MiddlewarePipeline<V2BridgeInitContext> pipeline,

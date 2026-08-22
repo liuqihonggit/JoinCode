@@ -9,7 +9,7 @@ public static class BridgeRuntimeGate
 {
     private static volatile bool _initialized;
     private static volatile bool _bridgeEnabled = true; // 默认启用
-    private static volatile bool _envLessBridgeEnabled;
+    private static volatile bool _v2BridgeEnabled;
     private static volatile bool _cseShimEnabled = true; // 默认启用
     private static volatile bool _ccrAutoConnectDefault = true;
     private static volatile bool _ccrMirrorEnabled;
@@ -24,7 +24,7 @@ public static class BridgeRuntimeGate
         ArgumentNullException.ThrowIfNull(config);
 
         _bridgeEnabled = config.Enabled;
-        _envLessBridgeEnabled = false; // v2 env-less 默认关闭
+        _v2BridgeEnabled = false; // v2 env-less 默认关闭
         _cseShimEnabled = true; // cse_ shim 默认启用
         _ccrAutoConnectDefault = true;
         _ccrMirrorEnabled = false;
@@ -76,10 +76,10 @@ public static class BridgeRuntimeGate
     /// <summary>
     /// v2 env-less 路径是否启用 — 对齐 TS 端 isEnvLessBridgeEnabled()
     /// </summary>
-    public static bool IsEnvLessBridgeEnabled()
+    public static bool IsV2BridgeEnabled()
     {
         if (!_initialized) return false;
-        return _envLessBridgeEnabled;
+        return _v2BridgeEnabled;
     }
 
     /// <summary>
@@ -133,7 +133,7 @@ public static class BridgeRuntimeGate
     }
 
     /// <summary>设置 env-less 门控（用于测试或特性标志）</summary>
-    public static void SetEnvLessBridgeEnabled(bool enabled) => _envLessBridgeEnabled = enabled;
+    public static void SetV2BridgeEnabled(bool enabled) => _v2BridgeEnabled = enabled;
 
     /// <summary>设置 cse_ shim 开关（用于测试或特性标志）</summary>
     public static void SetCseShimEnabled(bool enabled) => _cseShimEnabled = enabled;
@@ -146,7 +146,7 @@ public static class BridgeRuntimeGate
     {
         _initialized = false;
         _bridgeEnabled = true;
-        _envLessBridgeEnabled = false;
+        _v2BridgeEnabled = false;
         _cseShimEnabled = true;
         _ccrAutoConnectDefault = true;
         _ccrMirrorEnabled = false;

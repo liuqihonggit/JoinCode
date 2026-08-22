@@ -1,12 +1,12 @@
 
 namespace Bridge.Tests.Phase7D;
 
-public sealed class BridgeEnvLessConfigTests
+public sealed class V2BridgeConfigTests
 {
     [Fact]
     public void Defaults_HasExpectedValues()
     {
-        var config = BridgeEnvLessConfig.Defaults;
+        var config = V2BridgeConfig.Defaults;
 
         Assert.Equal(3, config.InitRetryMaxAttempts);
         Assert.Equal(500, config.InitRetryBaseDelayMs);
@@ -26,8 +26,8 @@ public sealed class BridgeEnvLessConfigTests
     [Fact]
     public void Defaults_ReturnsNewInstance_EachTime()
     {
-        var a = BridgeEnvLessConfig.Defaults;
-        var b = BridgeEnvLessConfig.Defaults;
+        var a = V2BridgeConfig.Defaults;
+        var b = V2BridgeConfig.Defaults;
         Assert.NotSame(a, b);
     }
 
@@ -35,29 +35,29 @@ public sealed class BridgeEnvLessConfigTests
     public void Validate_InvalidConfig_ReturnsDefaults()
     {
         // InitRetryMaxAttempts < 1 非法
-        var config = new BridgeEnvLessConfig { InitRetryMaxAttempts = 0 };
-        var result = BridgeEnvLessConfig.Validate(config);
-        Assert.Equal(BridgeEnvLessConfig.Defaults.InitRetryMaxAttempts, result.InitRetryMaxAttempts);
+        var config = new V2BridgeConfig { InitRetryMaxAttempts = 0 };
+        var result = V2BridgeConfig.Validate(config);
+        Assert.Equal(V2BridgeConfig.Defaults.InitRetryMaxAttempts, result.InitRetryMaxAttempts);
     }
 
     [Fact]
     public void Validate_HttpTimeoutBelowMin_ReturnsDefaults()
     {
-        var config = new BridgeEnvLessConfig { HttpTimeoutMs = 100 };
-        var result = BridgeEnvLessConfig.Validate(config);
-        Assert.Equal(BridgeEnvLessConfig.Defaults.HttpTimeoutMs, result.HttpTimeoutMs);
+        var config = new V2BridgeConfig { HttpTimeoutMs = 100 };
+        var result = V2BridgeConfig.Validate(config);
+        Assert.Equal(V2BridgeConfig.Defaults.HttpTimeoutMs, result.HttpTimeoutMs);
     }
 
     [Fact]
     public void Validate_NullConfig_Throws()
     {
-        Assert.Throws<ArgumentNullException>(() => BridgeEnvLessConfig.Validate(null!));
+        Assert.Throws<ArgumentNullException>(() => V2BridgeConfig.Validate(null!));
     }
 
     [Fact]
     public void GetConfig_ReturnsValidConfig()
     {
-        var config = BridgeEnvLessConfig.GetConfig();
+        var config = V2BridgeConfig.GetConfig();
         Assert.NotNull(config);
         Assert.True(config.HttpTimeoutMs > 0);
     }
@@ -66,7 +66,7 @@ public sealed class BridgeEnvLessConfigTests
     public void CheckMinVersion_Default_ReturnsNull()
     {
         // 默认 min_version="0.0.0"，任何版本都满足
-        var result = BridgeEnvLessConfig.CheckMinVersion("1.0.0");
+        var result = V2BridgeConfig.CheckMinVersion("1.0.0");
         Assert.Null(result);
     }
 }

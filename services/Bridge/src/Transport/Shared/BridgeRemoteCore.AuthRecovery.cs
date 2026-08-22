@@ -11,9 +11,9 @@ public static partial class BridgeRemoteCore
     /// </summary>
     internal static async Task RecoverFromAuthFailureAsync(
         string sessionId,
-        BridgeEnvLessParams parameters,
+        V2BridgeParams parameters,
         HttpClient httpClient,
-        BridgeEnvLessConfig config,
+        V2BridgeConfig config,
         ILogger? logger,
         IReplBridgeTransport oldTransport,
         IReplBridgeTransportFactory transportFactory,
@@ -96,8 +96,8 @@ public static partial class BridgeRemoteCore
     internal static async Task RebuildTransportAsync(
         BridgeRemoteCredentials fresh,
         string sessionId,
-        BridgeEnvLessParams parameters,
-        BridgeEnvLessConfig config,
+        V2BridgeParams parameters,
+        V2BridgeConfig config,
         ILogger? logger,
         IReplBridgeTransport oldTransport,
         IReplBridgeTransportFactory transportFactory,
@@ -150,8 +150,8 @@ public static partial class BridgeRemoteCore
     internal static void WireTransportCallbacks(
         IReplBridgeTransport transport,
         string sessionId,
-        BridgeEnvLessParams parameters,
-        BridgeEnvLessConfig config,
+        V2BridgeParams parameters,
+        V2BridgeConfig config,
         ILogger? logger,
         BridgeInitState state,
         IReplBridgeTransportFactory transportFactory,

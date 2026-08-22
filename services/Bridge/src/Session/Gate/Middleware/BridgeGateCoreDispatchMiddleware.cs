@@ -23,7 +23,7 @@ public sealed class BridgeGateCoreDispatchMiddleware : IBridgeInitGateMiddleware
 
         if (useCcrV2)
         {
-            var envLessParams = new BridgeEnvLessParams
+            var envLessParams = new V2BridgeParams
             {
                 BaseUrl = baseUrl,
                 OrgUUID = orgUUID,
@@ -44,7 +44,7 @@ public sealed class BridgeGateCoreDispatchMiddleware : IBridgeInitGateMiddleware
                 GetTrustedDeviceToken = ctx.Options.GetTrustedDeviceToken,
             };
 
-            ctx.Handle = await BridgeRemoteCore.InitEnvLessBridgeCoreAsync(
+            ctx.Handle = await BridgeRemoteCore.InitV2BridgeCoreAsync(
                 envLessParams, httpClient, transportFactory, ctx.V2Pipeline ?? throw new InvalidOperationException("V2Pipeline is not set."), ctx.Logger, ct).ConfigureAwait(false);
         }
         else

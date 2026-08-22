@@ -4,12 +4,12 @@ namespace Core.Bridge;
 /// <summary>
 /// Env-less 桥句柄实现 — 对齐 TS 端 ReplBridgeHandle
 /// </summary>
-internal sealed class EnvLessBridgeHandle : IReplBridgeHandle
+internal sealed class V2BridgeHandle : IReplBridgeHandle
 {
     private readonly IReplBridgeTransport _transport;
-    private readonly BridgeEnvLessParams _params;
+    private readonly V2BridgeParams _params;
     private readonly HttpClient _httpClient;
-    private readonly BridgeEnvLessConfig _config;
+    private readonly V2BridgeConfig _config;
     private readonly ILogger? _logger;
     private readonly CancellationTokenSource _disposeCts = new();
     private readonly BridgeInitState _state;
@@ -21,9 +21,9 @@ internal sealed class EnvLessBridgeHandle : IReplBridgeHandle
     public string SessionIngressUrl { get; }
     public BridgeState State => _bridgeState;
 
-    public EnvLessBridgeHandle(
-        BridgeEnvLessSessionContext sessionContext,
-        BridgeEnvLessTransportContext transportContext,
+    public V2BridgeHandle(
+        V2BridgeSessionContext sessionContext,
+        V2BridgeTransportContext transportContext,
         ILogger? logger = null)
     {
         SessionId = sessionContext.Session.SessionId;

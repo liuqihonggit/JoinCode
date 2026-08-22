@@ -3,7 +3,7 @@ namespace Core.Bridge;
 /// <summary>
 /// Env-less 桥会话上下文 — 聚合会话标识 + 初始化状态 + 核心参数
 /// </summary>
-internal sealed record BridgeEnvLessSessionContext
+internal sealed record V2BridgeSessionContext
 {
     /// <summary>
     /// 会话标识聚合
@@ -18,5 +18,5 @@ internal sealed record BridgeEnvLessSessionContext
     /// <summary>
     /// v2 env-less 桥核心参数
     /// </summary>
-    public required BridgeEnvLessParams Parameters { get; init; }
+    public required V2BridgeParams Parameters { get; init; }
 }

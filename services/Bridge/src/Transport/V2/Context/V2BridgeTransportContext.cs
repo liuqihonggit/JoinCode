@@ -3,7 +3,7 @@ namespace Core.Bridge;
 /// <summary>
 /// Env-less 桥传输上下文 — 聚合传输层 + HTTP 客户端 + 配置 + 令牌刷新调度器
 /// </summary>
-internal sealed record BridgeEnvLessTransportContext
+internal sealed record V2BridgeTransportContext
 {
     /// <summary>
     /// REPL 桥传输
@@ -18,7 +18,7 @@ internal sealed record BridgeEnvLessTransportContext
     /// <summary>
     /// Env-less 桥配置
     /// </summary>
-    public required BridgeEnvLessConfig Config { get; init; }
+    public required V2BridgeConfig Config { get; init; }
 
     /// <summary>
     /// 令牌刷新调度器

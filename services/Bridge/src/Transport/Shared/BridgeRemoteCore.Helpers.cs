@@ -9,7 +9,7 @@ public static partial class BridgeRemoteCore
     /// 获取 bridge 凭证并注入受信设备令牌 — 对齐 TS 端 remoteBridgeCore.ts fetchRemoteCredentials 包装器
     /// </summary>
     internal static async Task<BridgeRemoteCredentials?> FetchCredentialsWithDeviceTokenAsync(
-        string sessionId, BridgeEnvLessParams parameters, int httpTimeoutMs,
+        string sessionId, V2BridgeParams parameters, int httpTimeoutMs,
         HttpClient httpClient, string accessToken, CancellationToken ct, ILogger? logger = null)
     {
         string? trustedDeviceToken = null;

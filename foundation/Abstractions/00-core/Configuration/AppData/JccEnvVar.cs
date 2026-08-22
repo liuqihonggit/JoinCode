@@ -83,6 +83,12 @@ public enum JccEnvVar
     [EnumValue("JCC_PERMISSION_MODE")] PermissionMode,
 
     /// <summary>
+    /// 允许 JCC_MODEL_ID 指定未在 settings.json models 列表中注册的模型 —
+    /// 设为 1 时回退到从模型 ID 推断模态能力并补注册（旧行为）；默认严格模式抛 ConfigurationException
+    /// </summary>
+    [EnumValue("JCC_ALLOW_UNKNOWN_MODEL")] AllowUnknownModel,
+
+    /// <summary>
     /// 文件系统后端模式 — Physical（默认，真实磁盘）/ InMemory（纯内存，0磁盘IO，调试/E2E测试用）
     /// </summary>
     [EnumValue("JCC_FILE_SYSTEM_MODE")] FileSystemMode,

@@ -89,6 +89,7 @@ public sealed partial class DoctorBootstrapE2ETests : IAsyncLifetime
     {
         var stateDir = Path.Combine(Path.GetTempPath(), $"jcc_doctor_e2e_{Guid.NewGuid():N}");
         Directory.CreateDirectory(stateDir);
+        E2eSettingsJsonHelper.WriteSettingsJsonToStateDir(stateDir);
 
         var args = "--trust --doctor";
         if (awaitSeconds > 0)

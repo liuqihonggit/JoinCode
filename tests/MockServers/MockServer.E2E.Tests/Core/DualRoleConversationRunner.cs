@@ -77,7 +77,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
         var stateDir = _fs.CombinePath(Path.GetTempPath(), $"jcc_test_{Guid.NewGuid():N}");
         _fs.CreateDirectory(stateDir);
         _stateFilePath = _fs.CombinePath(stateDir, "workflow_state.json");
-        WriteSettingsJsonToStateDir(stateDir);
+        E2eSettingsJsonHelper.WriteSettingsJsonToStateDir(stateDir);
 
         var providerValue = _activeProvider switch
         {
@@ -1156,57 +1156,6 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
     private string ResolveExecutablePath()
     {
         return ResolveExeFromArtifactsBin("jcc.exe");
-    }
-
-    /// <summary>
-    /// 在 stateDir 写入含完整 vendor 节点的 settings.json — 让 ProviderDefinitionRegistry 能注册所有供应商
-    /// E2E 隔离的 AppData 目录无用户 settings.json，需测试 setup 提供，否则 registry 只有 azure
-    /// </summary>
-    private static void WriteSettingsJsonToStateDir(string stateDir)
-    {
-        var settingsJson = """
-        {
-          "vendor": {
-            "openai": {
-              "protocol": "openai-compatible",
-              "apiKeyEnvVar": "OPENAI_API_KEY",
-              "models": [
-                { "id": "gpt-4o", "displayName": "GPT-4o", "capabilities": { "modalities": ["text"] } },
-                { "id": "gpt-4o-mini", "displayName": "GPT-4o Mini", "capabilities": { "modalities": ["text"] } }
-              ]
-            },
-            "anthropic": {
-              "protocol": "anthropic",
-              "apiKeyEnvVar": "ANTHROPIC_API_KEY",
-              "models": [
-                { "id": "claude-3-5-sonnet", "displayName": "Claude 3.5 Sonnet", "capabilities": { "modalities": ["text"] } }
-              ]
-            },
-            "deepseek": {
-              "protocol": "openai-compatible",
-              "apiKeyEnvVar": "DEEPSEEK_API_KEY",
-              "models": [
-                { "id": "deepseek-chat", "displayName": "DeepSeek Chat", "capabilities": { "modalities": ["text"] } }
-              ]
-            },
-            "agnes": {
-              "protocol": "openai-compatible",
-              "apiKeyEnvVar": "AGNES_API_KEY",
-              "models": [
-                { "id": "agnes-image-2.0-flash", "displayName": "Agnes Image 2.0 Flash", "capabilities": { "modalities": ["text", "readImage"] } }
-              ]
-            },
-            "sensenova": {
-              "protocol": "openai-compatible",
-              "apiKeyEnvVar": "SENSENOVA_API_KEY",
-              "models": [
-                { "id": "sensenova-v5", "displayName": "SenseNova V5", "capabilities": { "modalities": ["text"] } }
-              ]
-            }
-          }
-        }
-        """;
-        IO.FileSystem.SafeFileIO.WriteAllText(System.IO.Path.Combine(stateDir, "settings.json"), settingsJson);
     }
 
     private string ResolveExeFromArtifactsBin(string exeName)

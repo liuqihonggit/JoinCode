@@ -23,6 +23,7 @@ public sealed partial class ConnectionManager : IConnectionManager
     private Task? _reconnectTask;
     private int _reconnectAttemptCount;
     private int _isDisposed;
+    private readonly INetworkConnectivityService? _networkService;
 
     public TransportConnectionState ConnectionState => _connectionState;
 
@@ -69,10 +70,12 @@ public sealed partial class ConnectionManager : IConnectionManager
 
     public ConnectionManager(
         TransportConfiguration config,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        INetworkConnectivityService? networkService = null)
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _logger = logger;
+        _networkService = networkService;
         _connectionState = TransportConnectionState.Disconnected;
         _currentProtocol = config.PreferredProtocol;
         _stateLock = new SemaphoreSlim(1, 1);
@@ -236,6 +239,41 @@ public sealed partial class ConnectionManager : IConnectionManager
     }
 
     /// <summary>
+    /// 等待网络恢复 — 网络不可用时阻塞等待(带 30s 超时),恢复后继续重连
+    /// </summary>
+    private async Task WaitForNetworkAsync(CancellationToken ct)
+    {
+        if (_networkService is null) return;
+        if (_networkService.IsNetworkAvailable()) return;
+
+        _logger?.LogWarning("[ConnectionManager] 网络不可用,等待恢复...");
+
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        EventHandler<NetworkConnectivityChangedEventArgs> handler = (_, e) =>
+        {
+            if (e.CurrentState != NetworkConnectivityState.Offline) tcs.TrySetResult(true);
+        };
+        _networkService.StateChanged += handler;
+        try
+        {
+            if (!_networkService.IsNetworkAvailable())
+            {
+                await tcs.Task.WaitAsync(TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
+            }
+        }
+        catch (TimeoutException)
+        {
+            _logger?.LogWarning("[ConnectionManager] 等待网络恢复超时(30s),继续重连");
+        }
+        finally
+        {
+            _networkService.StateChanged -= handler;
+        }
+
+        _logger?.LogInformation("[ConnectionManager] 网络已恢复");
+    }
+
+    /// <summary>
     /// 重连循环
     /// </summary>
     private async Task RunReconnectLoopAsync(CancellationToken cancellationToken)
@@ -255,6 +293,7 @@ public sealed partial class ConnectionManager : IConnectionManager
 
             try
             {
+                await WaitForNetworkAsync(cancellationToken).ConfigureAwait(false);
                 await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
 
                 await InitializeTransportAsync(cancellationToken).ConfigureAwait(false);

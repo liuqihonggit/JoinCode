@@ -39,7 +39,7 @@ public sealed partial class ContentReplacementMiddleware : ServiceEntity, IQuery
         if (state is null)
             return;
 
-        var sessionId = context.Options?.SessionId ?? "default";
+        var sessionId = context.Options?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;
         var neverPersistTools = context.Options?.NeverPersistTools;
 
         var (budgeted, newlyReplaced) = await contentReplacementService.ApplyToolResultBudgetAsync(

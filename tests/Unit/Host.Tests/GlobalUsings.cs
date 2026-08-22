@@ -62,6 +62,7 @@ global using JoinCode.Tui.Rendering;
 global using JoinCode.Tui.Views;
 global using JoinCode.Tui.Commands;
 global using JoinCode.Tui;
+global using JoinCode.Tui.Session;
 global using Host.Tests.Tui.Rendering;
 global using Terminal.Gui.App;
 global using Terminal.Gui.ViewBase;

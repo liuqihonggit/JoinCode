@@ -115,7 +115,7 @@ public sealed partial class ToolExecutionHandler : ServiceEntity, IToolExecution
         var effectiveToolResult = toolResultText;
         if (!toolError && !string.IsNullOrEmpty(toolResultText))
         {
-            var sessionId = (_contextManager is ChatContextManager cm) ? cm.SessionId : "default";
+            var sessionId = (_contextManager is ChatContextManager cm) ? cm.SessionId : global::Core.Utils.SessionIdFactory.DefaultSessionId;
             var replacement = _services?.ContentReplacer?.MaybePersistLargeToolResult(
                 toolName, toolCallId ?? string.Empty, toolResultText, sessionId);
             if (replacement is not null)
@@ -131,7 +131,7 @@ public sealed partial class ToolExecutionHandler : ServiceEntity, IToolExecution
         // per-message 预算控制
         if (context.ToolUseContext.ContentReplacementState is not null && _services?.ContentReplacer is not null)
         {
-            var sessionId = (_contextManager is ChatContextManager cm) ? cm.SessionId : "default";
+            var sessionId = (_contextManager is ChatContextManager cm) ? cm.SessionId : global::Core.Utils.SessionIdFactory.DefaultSessionId;
             var messageList = await _contextManager.GetMessageListAsync(cancellationToken).ConfigureAwait(false);
             var budgetResult = await _services.ContentReplacer.ApplyBudgetAsync(
                 messageList, context.ToolUseContext.ContentReplacementState, sessionId,

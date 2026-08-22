@@ -79,7 +79,7 @@ public sealed partial class AgentPromptBuilder : ServiceEntity, JoinCode.Abstrac
         if (_subAgentContextAccessor.Current is not null && ResolvedTeammateInitService is not null)
         {
             var currentCtx = _subAgentContextAccessor.Current;
-            if (!string.IsNullOrWhiteSpace(currentCtx.SessionId) && currentCtx.SessionId != "default")
+            if (!string.IsNullOrWhiteSpace(currentCtx.SessionId) && currentCtx.SessionId != global::Core.Utils.SessionIdFactory.DefaultSessionId)
             {
                 try
                 {

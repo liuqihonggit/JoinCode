@@ -50,6 +50,56 @@ public class ExitCommandTests
             Core.Utils.TestEnvironmentDetector.ForceNonInteractive = originalForce;
         }
     }
+
+    // === T9：GUI 确认回调注入 — ExitCommand 优先读 context.Confirm（UI 差异注入机制） ===
+
+    [Fact]
+    public async Task ExecuteAsync_ConfirmApproved_ReturnsExit()
+    {
+        string? receivedMessage = null;
+        var cmd = new ExitCommand();
+        var context = new ChatCommandContext
+        {
+            Arguments = "",
+            CancellationToken = CancellationToken.None,
+            Confirm = message => { receivedMessage = message; return true; },
+            Services = new CommandServiceProvider(new CommandServices
+            {
+                ChatService = Mock.Of<IChatService>(),
+                CodeService = Mock.Of<ICodeService>(),
+                PlanService = Mock.Of<IPlanService>(),
+                FileSystem = TestFileSystem.Current,
+            }),
+        };
+
+        var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
+
+        result.ShouldContinue.Should().BeFalse("用户确认后应退出");
+        receivedMessage.Should().NotBeNullOrEmpty("确认回调应收到提示文案");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ConfirmDeclined_ReturnsContinue()
+    {
+        var cmd = new ExitCommand();
+        var context = new ChatCommandContext
+        {
+            Arguments = "",
+            CancellationToken = CancellationToken.None,
+            Confirm = _ => false,
+            Services = new CommandServiceProvider(new CommandServices
+            {
+                ChatService = Mock.Of<IChatService>(),
+                CodeService = Mock.Of<ICodeService>(),
+                PlanService = Mock.Of<IPlanService>(),
+                FileSystem = TestFileSystem.Current,
+            }),
+        };
+
+        var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
+
+        result.ShouldContinue.Should().BeTrue("用户拒绝后应留在程序");
+    }
 }
 
 /// <summary>

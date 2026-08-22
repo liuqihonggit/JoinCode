@@ -30,7 +30,7 @@ public sealed partial class ContextLoadMiddleware : ServiceEntity, IChatInitMidd
         await context.ContextManager.LoadContextAsync(ct).ConfigureAwait(false);
 
         // 设置 SessionId — 供后续中间件使用
-        context.SessionId = (context.ContextManager is ChatContextManager cm) ? cm.SessionId : "default";
+        context.SessionId = (context.ContextManager is ChatContextManager cm) ? cm.SessionId : global::Core.Utils.SessionIdFactory.DefaultSessionId;
 
         // 初始化内容替换状态 — 功能开关关闭时返回 null，query 会跳过整个预算执行
         // 有历史消息时走重建路径，保证恢复会话时 prompt cache 一致性

@@ -1145,6 +1145,11 @@ public class MainViewModelTests
         /// <summary>上报真实用量的假会话 — Done 事件携带 TokenUsage（G2）</summary>
         internal sealed class UsageReportingSession : IJccChatSession
         {
+            public ITranscriptService? TranscriptService => null;
+#pragma warning disable CS0067
+            public event Action? ExitRequested;
+#pragma warning restore CS0067
+            public Func<string, bool>? SlashConfirmHandler { get; set; }
             private readonly int _totalTokens;
             public UsageReportingSession(int totalTokens) => _totalTokens = totalTokens;
 
@@ -1324,6 +1329,10 @@ public class MainViewModelTests
 
             public bool IsReady => true;
             public ITranscriptService? TranscriptService => null;
+#pragma warning disable CS0067
+            public event Action? ExitRequested;
+#pragma warning restore CS0067
+            public Func<string, bool>? SlashConfirmHandler { get; set; }
             public string CurrentVendor => "fake";
             public string CurrentModelId => "fake-model";
             public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; }
@@ -1387,6 +1396,10 @@ public class MainViewModelTests
 
             public bool IsReady => true;
             public ITranscriptService? TranscriptService => null;
+#pragma warning disable CS0067
+            public event Action? ExitRequested;
+#pragma warning restore CS0067
+            public Func<string, bool>? SlashConfirmHandler { get; set; }
             public string CurrentVendor => "fake";
             public string CurrentModelId => "fake-model";
             public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; }
@@ -1447,6 +1460,10 @@ public class MainViewModelTests
         {
             public bool IsReady => true;
             public ITranscriptService? TranscriptService => null;
+#pragma warning disable CS0067
+            public event Action? ExitRequested;
+#pragma warning restore CS0067
+            public Func<string, bool>? SlashConfirmHandler { get; set; }
             public string CurrentVendor => "sensenova";
             public string CurrentModelId => "sensenova-6.7-flash-lite";
             public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; }
@@ -1502,6 +1519,10 @@ public class MainViewModelTests
             public Func<QuestionItem, Task<AskUserQuestionResult>>? AskUserQuestionDialogCallback { get; set; }
             public bool IsReady => true;
             public ITranscriptService? TranscriptService => null;
+#pragma warning disable CS0067
+            public event Action? ExitRequested;
+#pragma warning restore CS0067
+            public Func<string, bool>? SlashConfirmHandler { get; set; }
             public string CurrentVendor => "fake";
             public string CurrentModelId => "fake-model";
             public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; }
@@ -1556,6 +1577,11 @@ public class MainViewModelTests
         /// </summary>
         private sealed class GatedStreamingSession : IJccChatSession
         {
+            public ITranscriptService? TranscriptService => null;
+#pragma warning disable CS0067
+            public event Action? ExitRequested;
+#pragma warning restore CS0067
+            public Func<string, bool>? SlashConfirmHandler { get; set; }
             private readonly TaskCompletionSource _gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             public void ReleaseGate() => _gate.TrySetResult();
@@ -1611,6 +1637,11 @@ public class MainViewModelTests
         /// <summary>记录斜杠命令调用的假会话 — 验证 / 前缀输入路由到命令执行器而非聊天流（G1）</summary>
         internal sealed class CommandRecordingSession : IJccChatSession
         {
+            public ITranscriptService? TranscriptService => null;
+#pragma warning disable CS0067
+            public event Action? ExitRequested;
+#pragma warning restore CS0067
+            public Func<string, bool>? SlashConfirmHandler { get; set; }
             public List<string> ExecutedCommands { get; } = [];
             public List<string> StreamedMessages { get; } = [];
             public string CommandOutput { get; set; } = "命令输出内容";

@@ -1,4 +1,4 @@
-﻿
+
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Buddy, Description = "查看你的伙伴精灵", Usage = "/buddy", Category = ChatCommandCategory.Agent, IsHidden = true)]
@@ -11,7 +11,7 @@ public sealed class BuddyCommand : ChatCommandBase
         if (buddyService is null)
             return Task.FromResult(ChatCommandResult.Continue());
 
-        var userId = context.SessionId ?? "default";
+        var userId = context.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;
         var buddy = buddyService.GetBuddy(userId);
 
         TerminalHelper.WriteLine(buddy.AsciiArt);

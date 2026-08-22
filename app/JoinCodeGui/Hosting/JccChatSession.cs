@@ -348,11 +348,20 @@ internal sealed class JccChatSession : IJccChatSession
 
     /// <summary>
     /// 执行斜杠命令 — 委托共享 <see cref="SlashCommandRunner"/>（与 TUI 同一链路）。
-    /// Confirm 回调暂未接 UI（默认拒绝），需要确认的命令会收到拒绝提示。
+    /// T9：确认回调经 SlashConfirmHandler 注入（GUI 弹窗），退出请求经 ExitRequested 事件上浮。
     /// </summary>
+    public Func<string, bool>? SlashConfirmHandler { get; set; }
+
+    public event Action? ExitRequested;
+
     public async Task<string> ExecuteSlashCommandAsync(string input, CancellationToken cancellationToken = default)
     {
-        var result = await SlashCommandRunner.RunAsync(input, _services, cancellationToken: cancellationToken).ConfigureAwait(false);
+        var result = await SlashCommandRunner.RunAsync(
+            input,
+            _services,
+            confirm: message => SlashConfirmHandler?.Invoke(message) ?? false,
+            onExitRequested: () => ExitRequested?.Invoke(),
+            cancellationToken: cancellationToken).ConfigureAwait(false);
         return result.Output;
     }
 

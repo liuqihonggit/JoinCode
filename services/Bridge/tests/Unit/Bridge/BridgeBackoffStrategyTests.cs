@@ -68,7 +68,8 @@ public sealed class BridgeBackoffStrategyTests
         var clock = new FakeClockService();
         var sut = CreateSut(clock);
 
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => sut.HandleErrorAsync(new InvalidOperationException("boom"), ct: cts.Token)).ConfigureAwait(true);
 
         sut.IsInErrorState.Should().BeTrue();

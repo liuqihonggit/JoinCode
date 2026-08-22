@@ -13,6 +13,12 @@ public sealed class StartupContext
     public CliSession? Session { get; set; }
 
     /// <summary>
+    /// 引擎会话 ID — 由 SessionInitStep 从 IChatContextManager 读取并回填，
+    /// 后续步骤（SessionResumeStep 等）复用；null 表示尚未初始化
+    /// </summary>
+    public string? SessionId { get; set; }
+
+    /// <summary>
     /// 非交互模式的提示词 — 由 PromptStep 设置，由 ExecuteStep 消费
     /// </summary>
     public string? NonInteractivePrompt { get; set; }

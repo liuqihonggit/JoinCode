@@ -340,3 +340,130 @@ T1+G4（615e50062）→ T2（0d234dc11）→ T3（74e58a8a4）→ T4（e74984f02
 架构收获：斜杠命令/权限/问答/采样/供应商五大能力全部收敛到"共享命令层+UI 适配层"模式，
 消除两端独立实现。遗留提醒：⚠️ GUI 权限弹窗 Confirm 场景默认拒绝（G1 边界）、
 ⚠️ /exit 的 GUI onExitRequested 未接窗口关闭、⚠️ B8 曾污染真实 settings.json 建议人工核查。
+
+## 追加任务：会话隔离审查结论 + T6/T7（2026-08-22）
+
+审查结论：底层机制（ChatContextManager 桶隔离 + ITranscriptService 统一入口）三端已统一，
+差距在 TUI 未接线：零持久化（对话退出即丢）、无会话切换。
+
+- [x] **T6** 会话持久化 — **架构升级：transcript 落盘下沉到引擎管道**（用户确认方向后
+  从"TUI 自建 TuiSessionStore 写盘"改为三端统一方案）：
+  ① 新增 `TranscriptPersistMiddleware : IChatMiddleware`（Brain）— 流结束后取
+  CurrentMessageCount 快照差量增量 AppendEntries 到 {sessionId}/transcript.json，
+  OnError=Continue + worker 进程守卫（对齐原 CliSession 守卫）；挂载到生产
+  PipelineComposition 与测试 TestPipelineRegistration 的 Chat 管道。
+  ② sessionId 统一：EngineSessionFactory 工厂生成一次 → SwitchSession 注入引擎 +
+  Result.SessionId 暴露；CliSession 构造接参同源；SessionResumeStep 补
+  SwitchSession（修复 resume 只改写盘目标而引擎桶仍 default 的深层不一致）。
+  ③ 消除双写：删除 CliSession.AppendTranscriptEntriesAsync 手动落盘；
+  TuiModeRunner 撤回手写接线，TuiSessionStore 收缩为仅 meta.json 元数据。
+  ④ 落盘结构保持用户后台设计不变：sessions/{sessionId}/transcript.json 主对话 +
+  subagents/{agentId}/transcript.json 树状子代理（AgentTranscriptService 原链路）。
+  测试：中间件单测 5 + E2E 集成 2（MockServer 真实管道验证两轮增量无重复）+
+  TuiSessionStore 2。Host.Tests **1031 全绿**、GUI 331 全绿、Brain.Context 760 全绿。
+- [x] **T7** TUI 会话切换 — store 扩展 ListSessionsAsync/TryResolveTarget（纯函数：
+  1-based 序号或原始 ID 直通）/SwitchToAsync（引擎桶 SwitchSession+本地 SessionId 更新）；
+  TuiModeRunner 内建 `/sessions` 命令（共享 registry 前拦截）：无参=list 列出最近 20 个
+  （含消息数/预览/当前标记），`/sessions <序号|ID>` → 读目标 transcript（过滤元数据条目）
+  → 先切桶再灌入（对齐 SessionResumeStep 顺序）→ 清屏重绘；Tab 补全注入 "sessions"；
+  工具栏 New/F1 开新会话（SessionIdGenerator 分钟偏移防同分钟冲突）。
+  测试：store 5 个新增。Host.Tests **1036 全绿**、Brain.Context 760、E2E 2 全绿。
+
+<!-- 🤖 Auto Decision: 2026-08-22 (T6 架构升级) -->
+<!-- 决策: transcript 落盘从"三端各自手写"下沉为引擎管道中间件 TranscriptPersistMiddleware -->
+<!-- 原因: 用户质疑自建 TuiSessionStore 重复造轮子;查证 CLI=CliSession手动/GUI=GuiSessionStore覆盖/TUI无 三套并存,违反单一实现原则 -->
+<!-- 替代方案: 复用 GUI GuiSessionStore(放弃:其 Delete+Append 全量覆盖语义与 append-only 冲突);维持三套(放弃:未收敛) -->
+<!-- 关键修复: SessionResumeStep 只 OverrideSessionId 不切引擎桶的深层不一致 → 补 SwitchSession -->
+<!-- 验证: E2E 两轮增量无重复 + Host.Tests 1031 / GUI 331 / Brain.Context 760 全绿 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-22 (T6 sessionId 统一) -->
+<!-- 决策: EngineSessionFactory 工厂生成一次 sessionId,引擎 SwitchSession + Result.SessionId 暴露,CliSession 构造接参 -->
+<!-- 原因: 中间件以 contextManager.SessionId 为唯一落盘键,此前 CLI/GUI/TUI 各自管理(GUID/Generate/default)必然分裂 -->
+<!-- 替代方案: 各端继续自带 ID 并在写盘时传参(放弃:中间件无法感知调用方 ID,回到三套老路) -->
+<!-- 验证: 编译三端通过 + 全量回归绿 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-22 (T7) -->
+<!-- 决策: /sessions 为 TUI 内建命令而非共享 ChatCommand;切换语义=SwitchSession+LoadSessionMessages 灌入而非纯桶切换 -->
+<!-- 原因: 切换需要 UI 编排(清屏重绘/本地 history 重建)且共享 registry 无此命令;灌入链路与 /resume 完全同源,三端行为一致 -->
+<!-- 替代方案: 新增共享 ChatCommand(放弃:GUI 会话列表已是独立 UI,TUI 再走命令层反而绕路);内存多桶并行(放弃:TUI 单会话模型,YAGNI) -->
+<!-- 验证: store 9 测试绿 + Host.Tests 1036 / Brain.Context 760 / E2E 2 全绿 + jcctui 冒烟 ✅ -->
+
+## T6/T7 完成总结（2026-08-22）
+
+会话隔离审查 → 架构升级闭环：
+1. **落盘责任收敛**：TranscriptPersistMiddleware 统一三端 transcript 增量写入（消除 CLI 手动/GUI 覆盖/TUI 缺失 三套并存）
+2. **sessionId 同源**：EngineSessionFactory 工厂唯一生成，引擎桶+调用方一致
+3. **resume 桶修复**：SessionResumeStep 补 SwitchSession（此前灌 default 桶的深层 bug）
+4. **TUI 补齐**：持久化免费获得 + /sessions 切换 + New 开新会话
+
+提交：T6=b9d791938，T7=本次。测试基线：Host.Tests 1036 / GUI 331 / Brain.Context 760 / E2E 2。
+遗留提醒：⚠️ GUI GuiSessionStore.SaveActiveSession 仍全量覆盖写 transcript（与引擎增量并存可能重复），待 GUI 会话管理迁移统一入口；⚠️ 扁平 session-*.jsonl 旧文件待 MigrateLegacyAsync 清理验证。
+
+## T8 完成：GUI 双写收敛（2026-08-22）
+
+- [x] **T8** GUI transcript 双写收敛 — SaveViaTranscriptService 移除 Delete+Append
+  消息覆盖段，只存 SessionInfo 元数据 + CustomTitle 标题；消息落盘唯一责任方=
+  引擎 TranscriptPersistMiddleware。回退路径（无 ITranscriptService 的扁平 .json，
+  测试隔离兼容）保持不变。
+- 附带修复：重编暴露三个测试桩（StaticReplySession/UsageReportingSession/
+  GatedStreamingSession/CommandRecordingSession）缺 IJccChatSession.TranscriptService
+  实现——此前 GUI 测试一直跑旧 DLL 掩盖源码破损（stale DLL 教训再次验证：改接口后必须全量重编所有消费工程）。
+- 测试：GuiSessionStoreTests +1（TranscriptBacked_Save 断言 Never Delete/Never Append/
+  Once Meta/Once Title）。GUI **332 全绿**。
+
+<!-- 🤖 Auto Decision: 2026-08-22 (T8) -->
+<!-- 决策: GUI 统一路径 Save 只存元数据不碰消息;回退扁平 .json 路径原样保留 -->
+<!-- 原因: 引擎中间件已增量写入同一文件,GUI 覆盖语义(Delete+Append)与 append-only 冲突,每轮双写+抖动 -->
+<!-- 替代方案: 删除整个回退路径(放弃:测试隔离依赖它,InMemoryFileSystem 无引擎) -->
+<!-- 验证: TranscriptBacked_Save 红转绿 + GUI 332 全绿 ✅ -->
+
+## T9 完成：GUI 确认弹窗 + /exit 接线（2026-08-22）
+
+- [x] **T9** 消化两项 G1 遗留：
+  ① ExitCommand 改造 — context.Confirm 注入回调优先（UI 差异注入机制），回退 CLI
+  终端 y/N；非交互且无回调时保持直接退出语义。
+  ② GUI 确认链路全通 — IJccChatSession 加 SlashConfirmHandler 属性 + ExitRequested
+  事件；JccChatSession 传 confirm/onExitRequested 给共享 runner；MainViewModel 转发；
+  MainWindow 注入 ShowConfirmDialog（新建极简 ConfirmDialogWindow，
+  Dispatcher.UIThread.InvokeAsync 后台线程同步等待，对齐 TUI painter.Invoke 模式）+
+  订阅 ExitRequested 关窗。/commit、/worktree 的确认场景同时被激活。
+- 附带核查：B8 settings.json 污染 — 当前 ~/.jcc/settings.json 仅含 vendor/current/
+  autoFetchModels 正常键，**无残留** ✅；扁平 session-*.jsonl 迁移验证 — 6 个旧会话
+  均已生成 {sessionId}/transcript.json（幂等设计保留旧文件）✅。
+- 测试：ExitCommandTests +2（确认通过→Exit/拒绝→Continue）。GUI **332 全绿**。
+
+<!-- 🤖 Auto Decision: 2026-08-22 (T9) -->
+<!-- 决策: /exit 在 GUI 走真实确认弹窗而非跳过;复用 ChatCommandContext.Confirm 既有注入点 -->
+<!-- 原因: 同一机制激活 /commit /worktree 等全部确认类命令,而非只修 /exit 一个点(减法思维:不新增机制,补齐既有机制的 GUI 实现) -->
+<!-- 替代方案: GUI 判定非交互直接退出(放弃:绕过确认有误触风险,且 /commit 会静默放行危险操作) -->
+<!-- 验证: ExitCommand 5/5 绿 + GUI 332 全绿 + settings.json 无污染 ✅ -->
+
+## T10 完成：sessionId 五段式统一 + 消灭 default 兜底（2026-08-22）
+
+- [x] **T10** 用户规范落地：{日期}-{项目名}-{分支}-parent-{ObjectId全局递增数}
+  ① 新建 SessionIdFactory（Infrastructure.Utils）— CreateParent 五段式生成 +
+  DefaultSessionId 进程级单例（Lazy 首次生成）；git 分支/项目名进程内缓存。
+  ② 全库消除 sessionId 的 "default" 字面量兜底 — 脚本扫描 26 文件 27 处
+  （根源 ChatContextManager 构造 + TranscriptMiddleware 写死 default 致子代理全落
+  default/subagents/ 的 bug 一并修复），统一替换为 global::Core.Utils.SessionIdFactory.
+  DefaultSessionId；global:: 修饰解决 Core.Agents.Coordinator.Core 命名遮蔽。
+  ③ SessionIdGenerator.Generate 委托工厂，消除双实现。
+  磁盘治理：新会话全部五段式；历史 default/、session-*、GUID 目录为存量数据按红线保留不删。
+- 测试：SessionIdGeneratorTests 3（格式/全局递增/同分钟去重）+ TuiSessionStoreTests 断言更新。
+  Host.Tests **1041 全绿**、GUI 332 全绿。
+
+<!-- 🤖 Auto Decision: 2026-08-22 (T10) -->
+<!-- 决策: 进程级 DefaultSessionId 单例替代散布的 "default" 字面量;子代理 agentId 本体不改(目录层级 subagents/+IsSidechain 已表达父子) -->
+<!-- 原因: 用户明确禁止 default 兜底;单例保证无显式会话组件共享同一真实 ID,比较逻辑(ctx.SessionId != "default")语义平滑迁移 -->
+<!-- 替代方案: 逐处生成新 ID(放弃:每次调用新建 git 进程+碎片化);required 强制注入(放弃:28 处消费方改造面过大) -->
+<!-- 附带修复: TranscriptMiddleware 子代理 transcript 写死 default 会话 → 挂当前引擎会话 -->
+<!-- 验证: Host.Tests 1041 / GUI 332 全绿;脚本先单文件验证再推广 ✅ -->
+
+## T10 补丁：E2E 断言五段式 + 点号清洗（2026-08-22）
+
+- TranscriptPersistIntegrationTests 改用 SessionIdFactory.CreateParent() 并断言
+  磁盘目录匹配 ^\\d{8}-\\d{4}-.+-parent-\\d+$（禁止 default/乱格式回归）。
+- 发现并修复：项目名含点（Sync.Integration.Tests）触发 ValidateId 拒绝 →
+  SanitizeForPath 剔除 '.'（ValidateId 安全校验保持严格不动）。
+- 磁盘实证：20260822-1706-net100-w4-parent-174 五段式目录落盘 ✅。
+  Host.Tests **1041** / GUI **332** / E2E **2** 全绿。

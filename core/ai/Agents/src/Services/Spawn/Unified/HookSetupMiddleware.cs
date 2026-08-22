@@ -33,7 +33,7 @@ public sealed partial class HookSetupMiddleware : ServiceEntity, IUnifiedSpawnMi
         if (definition?.Hooks is null || definition.Hooks.Count == 0)
             return;
 
-        var sessionId = "default";
+        var sessionId = global::Core.Utils.SessionIdFactory.DefaultSessionId;
 
         try
         {

@@ -37,6 +37,17 @@ public interface IJccChatSession : IAsyncDisposable
     Task<string> ExecuteSlashCommandAsync(string input, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 斜杠命令确认回调（T9）— /exit、/commit 等需要确认的命令经此获取用户决策。
+    /// UI 注入后弹确认框；为 null 时默认拒绝（等价取消）。
+    /// </summary>
+    Func<string, bool>? SlashConfirmHandler { get; set; }
+
+    /// <summary>
+    /// 退出请求事件（T9）— /exit 确认通过后触发，UI 层订阅并关闭窗口。
+    /// </summary>
+    event Action? ExitRequested;
+
+    /// <summary>
     /// 权限确认回调 — 引擎抛出 <c>PermissionPendingConfirmationException</c> 时由网关调用。
     /// UI 注入后返回决策；为 null 时网关默认拒绝（等价于 Deny）。
     /// 决策为 Allow/AlwaysAllow 时网关自动批准工具并重发同一条消息完成闭环。

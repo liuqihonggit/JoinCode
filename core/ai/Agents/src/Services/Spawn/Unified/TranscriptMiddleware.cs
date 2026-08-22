@@ -9,13 +9,15 @@ namespace Core.Agents;
 public sealed partial class TranscriptMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 
-    public TranscriptMiddleware(IClockService clock, IAgentTranscriptService? transcriptService = null, ILogger<TranscriptMiddleware>? logger = null)
+    public TranscriptMiddleware(IClockService clock, IChatContextManager? contextManager = null, IAgentTranscriptService? transcriptService = null, ILogger<TranscriptMiddleware>? logger = null)
     {
         _clock = clock;
         _transcriptService = transcriptService;
+        _contextManager = contextManager;
         _logger = logger;
     }
     [Inject] private readonly IAgentTranscriptService? _transcriptService;
+    [Inject] private readonly IChatContextManager? _contextManager;
     [Inject] private readonly ILogger<TranscriptMiddleware>? _logger;
     [Inject] private readonly IClockService _clock;
 
@@ -29,20 +31,23 @@ public sealed partial class TranscriptMiddleware : ServiceEntity, IUnifiedSpawnM
             return;
         }
 
+        // T10：挂到当前引擎会话 — 此前写死 "default" 致子代理全部落入 default/subagents/，
+        // 与主会话脱钩；现取 IChatContextManager.SessionId（引擎唯一数据源）
+        var ownerSessionId = _contextManager?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;
         var userPrompt = context.SpawnOptions?.Prompt ?? context.SpawnOptions?.Description ?? context.Task;
-        await AppendTranscriptEntryAsync(context.AgentId, "system", context.SystemPrompt, ct).ConfigureAwait(false);
-        await AppendTranscriptEntryAsync(context.AgentId, "user", userPrompt, ct).ConfigureAwait(false);
+        await AppendTranscriptEntryAsync(ownerSessionId, context.AgentId, "system", context.SystemPrompt, ct).ConfigureAwait(false);
+        await AppendTranscriptEntryAsync(ownerSessionId, context.AgentId, "user", userPrompt, ct).ConfigureAwait(false);
 
         await next(context, ct).ConfigureAwait(false);
     }
 
-    private async Task AppendTranscriptEntryAsync(string agentId, string role, string content, CancellationToken cancellationToken)
+    private async Task AppendTranscriptEntryAsync(string ownerSessionId, string agentId, string role, string content, CancellationToken cancellationToken)
     {
         try
         {
-            await (_transcriptService ?? throw new InvalidOperationException("TranscriptService not available")).AppendEntryAsync("default", agentId, new TranscriptEntry
+            await (_transcriptService ?? throw new InvalidOperationException("TranscriptService not available")).AppendEntryAsync(ownerSessionId, agentId, new TranscriptEntry
             {
-                SessionId = "default",
+                SessionId = ownerSessionId,
                 Role = role,
                 Content = content,
                 Timestamp = _clock.GetUtcNow(),

@@ -8,5 +8,5 @@ internal sealed partial class ChatInitTelemetryHook : TelemetryPostHook<Core.Con
 {
     public ChatInitTelemetryHook(ITelemetryService? telemetryService)
         : base(telemetryService, "chat.init.count", "Chat initialization count",
-            tagFactory: ctx => new() { ["source"] = ctx.SessionId != "default" ? "resume" : "startup" }) { }
+            tagFactory: ctx => new() { ["source"] = ctx.SessionId != global::Core.Utils.SessionIdFactory.DefaultSessionId ? "resume" : "startup" }) { }
 }

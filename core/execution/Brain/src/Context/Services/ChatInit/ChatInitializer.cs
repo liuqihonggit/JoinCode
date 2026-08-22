@@ -56,5 +56,5 @@ public sealed partial class ChatInitializer : ServiceEntity, IChatInitializer
     /// <summary>
     /// 获取会话 ID
     /// </summary>
-    public string GetSessionId() => (_contextManager is ChatContextManager cm) ? cm.SessionId : "default";
+    public string GetSessionId() => (_contextManager is ChatContextManager cm) ? cm.SessionId : global::Core.Utils.SessionIdFactory.DefaultSessionId;
 }

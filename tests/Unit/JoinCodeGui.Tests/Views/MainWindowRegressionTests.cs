@@ -272,6 +272,11 @@ public sealed class MainWindowRegressionTests
     /// <summary>静态回复假会话（供模板渲染测试挂载消息）</summary>
     private sealed class StaticReplySession : IJccChatSession
     {
+        public ITranscriptService? TranscriptService => null;
+        public Func<string, bool>? SlashConfirmHandler { get; set; }
+#pragma warning disable CS0067
+        public event Action? ExitRequested;
+#pragma warning restore CS0067
         public Func<PermissionConfirmationRequest, Task<PermissionConfirmationDecision>>? PermissionConfirmationHandler { get; set; }
         public Func<QuestionItem, Task<AskUserQuestionResult>>? AskUserQuestionDialogCallback { get; set; }
         public bool IsReady => true;
@@ -325,6 +330,10 @@ public sealed class MainWindowRegressionTests
 
         public bool IsReady => true;
         public ITranscriptService? TranscriptService => null;
+        public Func<string, bool>? SlashConfirmHandler { get; set; }
+#pragma warning disable CS0067
+        public event Action? ExitRequested;
+#pragma warning restore CS0067
         public string CurrentVendor => "fake";
         public string CurrentModelId => "fake-model";
         public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; }

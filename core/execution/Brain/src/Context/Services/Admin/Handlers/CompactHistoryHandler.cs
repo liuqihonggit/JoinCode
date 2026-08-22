@@ -74,7 +74,7 @@ public sealed partial class CompactHistoryHandler : ServiceEntity, IChatAdminOpe
             _promptManager.ClearCache();
             await _promptManager.ClearRemindersAsync(ct).ConfigureAwait(false);
 
-            var sessionId = (context.ContextManager is ChatContextManager cm) ? cm.SessionId : "default";
+            var sessionId = (context.ContextManager is ChatContextManager cm) ? cm.SessionId : global::Core.Utils.SessionIdFactory.DefaultSessionId;
             await _hookHelper.ExecuteSessionStartHookAsync(sessionId, "compact", ct).ConfigureAwait(false);
         }
         catch (Exception ex)

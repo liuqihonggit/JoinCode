@@ -18,6 +18,13 @@ public sealed class EngineSessionFactory
         /// <summary>工作流配置 — CLI/GUI 读写 Vendor/ModelId 的共享实例</summary>
         public required WorkflowConfig Config { get; init; }
 
+        /// <summary>
+        /// 引擎会话 ID — 工厂统一生成并已 SwitchSession 注入 IChatContextManager，
+        /// transcript 落盘/内存桶/meta 全部以此为准；调用方（CliSession 等）复用此值，
+        /// 禁止各自再 Generate 造成双源分裂（对齐"sessionId 唯一数据源=引擎"原则）
+        /// </summary>
+        public required string SessionId { get; init; }
+
         /// <summary>Host 实例 — 调用方负责 Dispose</summary>
         public required IHost Host { get; init; }
     }
@@ -104,6 +111,12 @@ public sealed class EngineSessionFactory
 
         await builder.ConfigureModulesAsync(host.Services).ConfigureAwait(false);
 
+        // 统一会话 ID — 工厂生成一次，引擎内存桶 + transcript 落盘 + 调用方（CliSession 等）三方同源。
+        // 此前 CLI/GUI/TUI 各自管理 sessionId（CLI=CliSession.Generate、GUI=GUID、TUI=引擎 default），
+        // transcript 落盘下沉到 TranscriptPersistMiddleware 后，sessionId 唯一数据源必须是引擎
+        var engineSessionId = SessionIdGenerator.Generate();
+        host.Services.GetService<IChatContextManager>()?.SwitchSession(engineSessionId);
+
         SyncModelConfigToDi(host.Services, modelConfigLoader);
 
         Core.DependencyInjection.ShellCapabilityInitializer.Initialize(
@@ -118,6 +131,7 @@ public sealed class EngineSessionFactory
             Services = host.Services,
             ChatService = chatService,
             Config = config,
+            SessionId = engineSessionId,
             Host = host,
         };
     }

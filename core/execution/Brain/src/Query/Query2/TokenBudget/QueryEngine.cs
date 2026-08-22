@@ -542,7 +542,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
         // MaybePersistLargeToolResult 是即时持久化（非预算机制），在添加历史时调用
         if (context.ContentReplacementService is not null && !result.IsError && !string.IsNullOrEmpty(toolResultText))
         {
-            var sessionId = _currentOptions?.SessionId ?? "default";
+            var sessionId = _currentOptions?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;
             var replacement = context.ContentReplacementService.MaybePersistLargeToolResult(
                 toolCall.ToolName, toolCall.ToolCallId ?? string.Empty, toolResultText, sessionId);
             if (replacement is not null)

@@ -417,6 +417,9 @@ public sealed partial class MainViewModel : ViewModelBase
         _preferencesStore = preferencesStore ?? new Persistence.GuiPreferencesStore(new IO.FileSystem.PhysicalFileSystem());
         _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
         _session.AskUserQuestionDialogCallback = AskUserQuestionCallback;
+        // T9：斜杠命令确认/退出 — handler 由 View 注入（弹确认框），退出事件转发给 View 关窗
+        _session.SlashConfirmHandler = message => SlashConfirmHandler?.Invoke(message) ?? false;
+        _session.ExitRequested += () => ExitRequested?.Invoke();
         _selectedEffort = _session.EffortLevel.ToValue();
         Messages.CollectionChanged += OnMessagesChanged;
         LoadPersistedSessions();
@@ -1744,6 +1747,17 @@ public sealed partial class MainViewModel : ViewModelBase
 
     /// <summary>请求滚动到底部（由 View 订阅执行实际 ScrollToLine UI 操作）</summary>
     public event Action? ScrollToBottomRequested;
+
+    /// <summary>
+    /// T9：退出请求 — /exit 确认通过后触发，MainWindow 订阅并 Close()。
+    /// </summary>
+    public event Action? ExitRequested;
+
+    /// <summary>
+    /// T9：斜杠命令确认框回调 — 由 MainWindow 注入（弹确认窗）。
+    /// 未注入时默认拒绝（/exit /commit 等确认类命令取消执行）。
+    /// </summary>
+    public Func<string, bool>? SlashConfirmHandler { get; set; }
 
     /// <summary>跳到最新消息（回底按钮命令）</summary>
     [RelayCommand]

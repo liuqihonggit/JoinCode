@@ -1,3 +1,5 @@
+using JoinCode.Abstractions.Entity;
+
 namespace JoinCode.Cli;
 
 /// <summary>
@@ -14,15 +16,8 @@ public static class SessionIdGenerator
     /// <returns>可读的会话 ID,如 20260822-1512-myproject-w2</returns>
     public static string Generate(string? workingDirectory = null, DateTime? createdAt = null)
     {
-        var now = createdAt ?? DateTime.UtcNow;
-        var dir = workingDirectory ?? Environment.CurrentDirectory;
-        var projectName = SanitizeForPath(Path.GetFileName(dir));
-        if (string.IsNullOrEmpty(projectName))
-            projectName = "unknown";
-        var branch = SanitizeForPath(GetCurrentBranch(dir));
-        if (string.IsNullOrEmpty(branch))
-            branch = "no-branch";
-        return $"{now:yyyyMMdd-HHmm}-{projectName}-{branch}";
+        // T10：委托统一工厂 — 五段式 {日期}-{项目名}-{分支}-parent-{ObjectId全局递增数}
+        return global::Core.Utils.SessionIdFactory.CreateParent(workingDirectory, createdAt);
     }
 
     /// <summary>获取当前 git 分支名 — 失败返回 null</summary>

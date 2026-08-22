@@ -54,7 +54,8 @@ public sealed class CliSession
         IFileSystem fs,
         CliServiceContext? optionalServices = null,
         IClockService? clock = null,
-        ILogger<CliSession>? logger = null)
+        ILogger<CliSession>? logger = null,
+        string? sessionId = null)
     {
         _clock = clock ?? SystemClockService.Instance;
         _logger = logger;
@@ -73,7 +74,8 @@ public sealed class CliSession
 
         _sessionEntity = new Session();
         _sessionObjectId = _sessionEntity.ObjectId;
-        _sessionId = SessionIdGenerator.Generate();
+        // T6：sessionId 唯一数据源=引擎（EngineSessionFactory 统一生成），外部传入保持同源；独立构造回退自生成
+        _sessionId = sessionId ?? SessionIdGenerator.Generate();
 
         _optionalServices?.GoalEngine?.SetSessionId(_sessionId);
         _optionalServices?.GoalRegistry?.SetSessionId(_sessionId);
@@ -404,7 +406,8 @@ public sealed class CliSession
         {
             TerminalHelper.NewLine();
             LastResponse = result.Response;
-            await AppendTranscriptEntriesAsync(input, LastResponse, result.RequestTimestamp, cancellationToken).ConfigureAwait(false);
+            // T6：transcript 写入已下沉引擎 TranscriptPersistMiddleware（增量含工具轮次），
+            // 此处不再手动 AppendEntries 双写；sessionId 同源由构造函数注入保证
         }
         else if (result.TimedOut)
         {
@@ -440,27 +443,5 @@ public sealed class CliSession
         Diag.WriteLine($"[CliSession] StreamResponseAsync done: succeeded={result.Succeeded}, responseLen={result.Response.Length}");
     }
 
-    private async Task AppendTranscriptEntriesAsync(string userInput, string assistantResponse, DateTime timestamp, CancellationToken cancellationToken)
-    {
-        if (_optionalServices?.TranscriptService is null) return;
-
-        // Worker 进程不写主 session 文件 — 只写 AgentTranscriptService 的独立文件
-        var agentRole = Environment.GetEnvironmentVariable(JccEnvVar.AgentRole.ToValue());
-        if (string.Equals(agentRole, "worker", StringComparison.OrdinalIgnoreCase)) return;
-
-        try
-        {
-            var entries = new TranscriptEntry[]
-            {
-                new() { SessionId = _sessionId, Role = "user", Content = userInput, Timestamp = timestamp },
-                new() { SessionId = _sessionId, Role = "assistant", Content = assistantResponse, Timestamp = _clock.GetUtcNow() }
-            };
-            await _optionalServices.TranscriptService.AppendEntriesAsync(_sessionId, entries, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "Transcript 写入失败");
-        }
-    }
 
 }

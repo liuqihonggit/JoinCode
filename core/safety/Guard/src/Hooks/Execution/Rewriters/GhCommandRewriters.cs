@@ -159,12 +159,12 @@ public sealed class GhTimeoutRewriter : ICommandRewriter
 public sealed class VpnRouteRewriter : ICommandRewriter
 {
     private readonly ILogger<VpnRouteRewriter>? _logger;
-    private readonly bool _vpnDetected;
+    private readonly INetworkConnectivityService? _networkService;
 
-    public VpnRouteRewriter(ILogger<VpnRouteRewriter>? logger = null)
+    public VpnRouteRewriter(ILogger<VpnRouteRewriter>? logger = null, INetworkConnectivityService? networkService = null)
     {
         _logger = logger;
-        _vpnDetected = DetectVpn();
+        _networkService = networkService;
     }
 
     /// <inheritdoc/>
@@ -176,8 +176,8 @@ public sealed class VpnRouteRewriter : ICommandRewriter
     /// <inheritdoc/>
     public bool CanRewrite(string command)
     {
-        // 只在网络相关命令上生效
-        if (!_vpnDetected) return false;
+        // 只在网络相关命令上生效(实时查询 VPN 状态)
+        if (!IsVpnActive()) return false;
 
         var normalized = command.TrimStart();
         return normalized.StartsWith("gh ", StringComparison.OrdinalIgnoreCase)
@@ -216,7 +216,12 @@ public sealed class VpnRouteRewriter : ICommandRewriter
     }
 
     /// <summary>
-    /// 检测 VPN 状态
+    /// 实时查询 VPN 是否活跃 — 优先使用注入的 INetworkConnectivityService,fallback 到静态检测
+    /// </summary>
+    private bool IsVpnActive() => _networkService?.IsVpnActive() ?? DetectVpn();
+
+    /// <summary>
+    /// 静态 VPN 检测(fallback) — 进程名 + 环境变量
     /// </summary>
     private static bool DetectVpn()
     {

@@ -13,6 +13,7 @@ global using JoinCode.Abstractions.Models.Policy;
 global using JoinCode.Abstractions.Pipeline;
 global using JoinCode.Abstractions.Prompts;
 global using JoinCode.Abstractions.Security;
+global using JoinCode.Abstractions.Network;
 global using JoinCode.Abstractions.Security.Sandbox;
 global using JoinCode.Abstractions.Security.Scanning;
 global using JoinCode.Abstractions.Security.Shell;

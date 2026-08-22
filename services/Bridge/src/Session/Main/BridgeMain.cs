@@ -70,14 +70,15 @@ public sealed partial class BridgeMain : IAsyncDisposable
         MiddlewarePipeline<BridgeRunContext>? runPipeline = null,
         ILogger? logger = null,
         IClockService? clock = null,
-        INetworkConnectivityService? networkService = null)
+        INetworkConnectivityService? networkService = null,
+        TimeSpan? giveUpThreshold = null)
     {
         _deps = deps ?? throw new ArgumentNullException(nameof(deps));
         _logger = logger;
         _fs = deps.FileSystem;
         _telemetry = deps.TelemetryService;
         _clock = clock ?? SystemClockService.Instance;
-        _backoff = new BridgeBackoffStrategy(_clock, _logger);
+        _backoff = new BridgeBackoffStrategy(_clock, _logger, giveUpThreshold);
         _handleWorkPipeline = handleWorkPipeline;
         _shutdownPipeline = shutdownPipeline;
         _runPipeline = runPipeline;

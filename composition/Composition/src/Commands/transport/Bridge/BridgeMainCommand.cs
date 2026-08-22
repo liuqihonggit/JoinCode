@@ -87,8 +87,11 @@ public sealed class BridgeMainCommand
             return 1;
         }
 
-        // 5. 运行 BridgeMain
-        await using var bridgeMain = new BridgeMain(deps, networkService: _services?.GetService<INetworkConnectivityService>());
+        // 5. 运行 BridgeMain — 从统一配置取 giveUpThreshold 传入
+        var retryOptions = _services?.GetService<IOptions<NetworkRetryOptions>>()?.Value;
+        await using var bridgeMain = new BridgeMain(deps,
+            networkService: _services?.GetService<INetworkConnectivityService>(),
+            giveUpThreshold: retryOptions?.TotalBudget);
 
         // 6. 注册信号处理 — 对齐 TS 端: SIGINT/SIGTERM
         var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);

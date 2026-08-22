@@ -95,7 +95,8 @@ public sealed class UnifiedSpawnMainAgentTests
     {
         var clock = new Mock<JoinCode.Abstractions.Clock.IClockService>();
         var transcriptService = new Mock<IAgentTranscriptService>();
-        var mw = new TranscriptMiddleware(clock.Object, transcriptService.Object);
+        // T10：构造新增 IChatContextManager 参数（子代理挂当前引擎会话）；主代理路径不触达
+        var mw = new TranscriptMiddleware(clock.Object, contextManager: null, transcriptService: transcriptService.Object);
 
         var ctx = CreateMainAgentContext();
         await mw.InvokeAsync(ctx, NoopNext, default);

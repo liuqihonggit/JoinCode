@@ -183,6 +183,74 @@ public static class ModalityMismatchScripts
     };
 
     /// <summary>
+    /// 识图完整链路 — ModelSearch(map[readImage]) → Agent 子代理(识图模型) → 看图片内容
+    /// 纯文本模型收到识图任务 → 预检不匹配 → LLM 调用 ModelSearch 找识图模型 → Agent 子代理执行识图
+    /// </summary>
+    public static ConversationScript ImageRecognitionWithAgentSpawn => new()
+    {
+        Name = "模态不匹配-识图完整ModelSearch到Agent子代理链路",
+        Turns =
+        [
+            new ConversationTurn
+            {
+                UserInput = "帮我看这张图片里有什么内容",
+                AiResponse = new MockResponseScript
+                {
+                    Type = MockResponseType.WithToolCalls,
+                    TextResponse = "",
+                    ToolCalls =
+                    [
+                        new MockToolCallScript
+                        {
+                            ToolName = "ModelSearch",
+                            Arguments = """{"query":"map[readImage]"}"""
+                        }
+                    ],
+                    FollowUpText = null
+                },
+                Asserts =
+                [
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "ModelSearch", Description = "识图不匹配时应调用ModelSearch查找识图模型" },
+                ]
+            }
+        ],
+        MockServerExtraTurns =
+        [
+            new ConversationTurn
+            {
+                UserInput = "",
+                AiResponse = new MockResponseScript
+                {
+                    Type = MockResponseType.WithToolCalls,
+                    TextResponse = "",
+                    ToolCalls =
+                    [
+                        new MockToolCallScript
+                        {
+                            ToolName = "Agent",
+                            Arguments = """{"description":"识别图片内容","prompt":"看这张图片里有什么","model":"agnes-image-2.0-flash"}"""
+                        }
+                    ],
+                    FollowUpText = null
+                }
+            },
+            new ConversationTurn
+            {
+                UserInput = "",
+                AiResponse = new MockResponseScript
+                {
+                    Type = MockResponseType.TextOnly,
+                    TextResponse = "任务完成。图片识别子代理已返回结果：图片里是一只橘猫趴在窗台上晒太阳。"
+                }
+            }
+        ],
+        MockServerExtraTextResponses =
+        [
+            "图片里是一只橘猫趴在窗台上晒太阳，毛色温暖柔和。"
+        ]
+    };
+
+    /// <summary>
     /// 纯文本消息不应触发模态不匹配 — 验证无注入提示时正常对话
     /// </summary>
     public static ConversationScript NoMismatchForTextOnly => new()

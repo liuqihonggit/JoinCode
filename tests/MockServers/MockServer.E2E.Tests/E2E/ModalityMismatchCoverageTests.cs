@@ -32,6 +32,15 @@ public sealed class ModalityMismatchCoverageTests : CoverageTestBase
         await RunScriptAsync(ModalityMismatchScripts.ModalityMismatchWithAgentSpawn).ConfigureAwait(true);
     }
 
+    /// <summary>
+    /// 识图完整链路 — 纯文本模型 + 识图任务 → ModelSearch(map[readImage]) → Agent(识图模型) → 看图片内容
+    /// </summary>
+    [Fact]
+    public async Task ImageRecognitionWithAgentSpawn_ShouldCallAgentTool()
+    {
+        await RunScriptAsync(ModalityMismatchScripts.ImageRecognitionWithAgentSpawn).ConfigureAwait(true);
+    }
+
     [Fact]
     public async Task NoMismatchForTextOnly_ShouldNotInjectPrompt()
     {

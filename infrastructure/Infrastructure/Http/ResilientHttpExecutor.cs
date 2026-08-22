@@ -7,11 +7,13 @@ public sealed class ResilientHttpExecutor
     private readonly ResiliencePolicy _policy;
     private readonly UnifiedCircuitBreaker? _circuitBreaker;
     private readonly ILogger? _logger;
+    private readonly INetworkConnectivityService? _networkService;
 
-    public ResilientHttpExecutor(ResiliencePolicy policy, ILogger? logger = null)
+    public ResilientHttpExecutor(ResiliencePolicy policy, ILogger? logger = null, INetworkConnectivityService? networkService = null)
     {
         _policy = policy ?? throw new ArgumentNullException(nameof(policy));
         _logger = logger;
+        _networkService = networkService;
 
         if (policy.CircuitBreaker is not null)
         {
@@ -98,6 +100,7 @@ public sealed class ResilientHttpExecutor
 
                 Diag.WriteLine($"[{_policy.Name}:RETRY] {operationName} 失败 (尝试 {attempt}/{retry.MaxRetries}), {delay.TotalMilliseconds}ms 后重试 | {ex.GetType().Name}: {ex.InnerException?.Message ?? ex.Message}");
 
+                await WaitForNetworkAsync(effectiveCt).ConfigureAwait(false);
                 await Task.Delay(delay, ct).ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -179,6 +182,7 @@ public sealed class ResilientHttpExecutor
 
                 Diag.WriteLine($"[{_policy.Name}:RETRY] {operationName} 失败 (尝试 {attempt}/{retry.MaxRetries}), {delay.TotalMilliseconds}ms 后重试 | {ex.GetType().Name}: {ex.InnerException?.Message ?? ex.Message}");
 
+                await WaitForNetworkAsync(effectiveCt).ConfigureAwait(false);
                 await Task.Delay(delay, ct).ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -189,6 +193,41 @@ public sealed class ResilientHttpExecutor
                 throw;
             }
         }
+    }
+
+    /// <summary>
+    /// 等待网络恢复 — 网络不可用时阻塞等待(带 30s 超时),恢复后继续重试;超时不抛异常(让重试逻辑处理)
+    /// </summary>
+    private async Task WaitForNetworkAsync(CancellationToken ct)
+    {
+        if (_networkService is null) return;
+        if (_networkService.IsNetworkAvailable()) return;
+
+        _logger?.LogWarning("[{Policy}] 网络不可用,等待恢复...", _policy.Name);
+
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        EventHandler<NetworkConnectivityChangedEventArgs> handler = (_, e) =>
+        {
+            if (e.CurrentState != NetworkConnectivityState.Offline) tcs.TrySetResult(true);
+        };
+        _networkService.StateChanged += handler;
+        try
+        {
+            if (!_networkService.IsNetworkAvailable())
+            {
+                await tcs.Task.WaitAsync(TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
+            }
+        }
+        catch (TimeoutException)
+        {
+            _logger?.LogWarning("[{Policy}] 等待网络恢复超时(30s),继续重试", _policy.Name);
+        }
+        finally
+        {
+            _networkService.StateChanged -= handler;
+        }
+
+        _logger?.LogInformation("[{Policy}] 网络已恢复", _policy.Name);
     }
 
     private async Task<HttpResponseMessage> ExecuteOnceAsync(

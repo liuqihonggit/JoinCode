@@ -11,11 +11,11 @@ public sealed class ReconnectPolicy
     /// <summary>最大重试次数</summary>
     public int MaxAttempts { get; init; } = 5;
 
-    /// <summary>初始退避时间（毫秒）</summary>
-    public int InitialBackoffMs { get; init; } = 1000;
+    /// <summary>初始退避时间（毫秒）— 对齐 Gateway NetworkRetryOptions.ReconnectBaseDelay</summary>
+    public int InitialBackoffMs { get; init; } = 2000;
 
-    /// <summary>最大退避时间（毫秒）</summary>
-    public int MaxBackoffMs { get; init; } = 30000;
+    /// <summary>最大退避时间（毫秒）— 对齐 Gateway NetworkRetryOptions.ReconnectMaxDelay</summary>
+    public int MaxBackoffMs { get; init; } = 300000;
 
     /// <summary>
     /// 根据重试次数等待退避时间

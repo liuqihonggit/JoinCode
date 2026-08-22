@@ -9,8 +9,8 @@ namespace McpToolRegistry;
 public sealed partial class RemoteClientManager : IRemoteClientManager
 {
     private const int MaxReconnectAttempts = 5;
-    private const int InitialBackoffMs = 1000;
-    private const int MaxBackoffMs = 30000;
+    private const int InitialBackoffMs = 2000;
+    private const int MaxBackoffMs = 300000;
 
     private readonly Dictionary<string, McpClientEntry> _remoteClients = new();
     private readonly Dictionary<string, List<ToolSpec>> _lastKnownToolSpecs = new();

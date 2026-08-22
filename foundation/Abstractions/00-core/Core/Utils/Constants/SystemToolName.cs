@@ -140,4 +140,12 @@ public enum SystemToolName
     [EnumValue("build_output")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     BuildOutput,
+
+    /// <summary>
+    /// 模型查找工具 — 按功能→型号渐进式展开模型表，模态不匹配报错时动态暴露。
+    /// 语法对齐 ToolSearch：list_groups / map[功能Key] / map[功能Key][vendor] / 关键词
+    /// </summary>
+    [EnumValue("ModelSearch")]
+    [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    ModelSearch,
 }

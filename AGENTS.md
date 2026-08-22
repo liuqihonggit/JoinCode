@@ -141,7 +141,7 @@
 - 类型：feat / fix / refactor / docs / test / chore
 - 示例：`git commit -m "feat: 添加工具搜索功能 | 决策: 优先查MCP记忆再查互联网"`
 - **⛔ 禁止包含分支名**：commit 消息中禁止出现 W1/W2/feature-xxx 等分支标识，描述必须说明"做了什么"而非"在哪个分支"
-- **⛔ 禁止包含无意义标记**：commit 消息禁止包含 `#数字`（会被 GitHub 自动关联为 PR/Issue 引用）、纯序号、临时标记等
+- **⛔ 禁止包含无意义标记**：commit 消息禁止包含 PR/Issue 编号引用（会被 GitHub 自动关联）、纯序号、临时标记等
 
 ## 🔄 工作流程
 
@@ -964,3 +964,13 @@ public ConversationMode Mode => Turns.Count == 1
 | 加 FileShare 降级策略层 | 用 FileShare.ReadWrite + Named Mutex 一步到位 |
 
 **根因**：加新特性/新层/新策略看似"安全"，实际增加复杂度。减法才是正道——去掉不必要的中间层。
+
+### 反例5：依赖模型 ID 字符串推断模态而非显式注册（配置大于代码）
+
+| ❌ 禁止 | ✅ 正确 |
+|---------|---------|
+| 代码里硬编码模型 ID 字符串模式推断模态（如含 `vision`→识图） | `settings.json` 的 `vendor.{provider}.models` 显式注册模型描述（含 `Capabilities.Modalities`） |
+| `JCC_MODEL_ID` 指定未注册模型时静默推断补注册 | 无条件抛 `ConfigurationException[GRD016]`，要求用户先在 settings.json 注册 |
+| `AutoFetchModels` 远程拉取新模型时从 ID 推断模态 | 远程新模型模态留默认（`Text`），用户在 settings.json 手动配置需要的模态 |
+
+**根因**：启发式推断基于命名约定，有盲区（`image`/`claude`/`gpt-4o` 等实际识图但 ID 无 `vision`）。2026-08-22 删除 `InferCapabilities` 硬编码，`EnsureEnvModelInConfig` 无条件报错，`Merge` 远程新模型模态留默认。配置大于代码，模态能力由 settings.json 显式配置。定位文件：`ConfigLoader.cs:582 EnsureEnvModelInConfig`、`ModelListMerger.cs:39 Merge`。

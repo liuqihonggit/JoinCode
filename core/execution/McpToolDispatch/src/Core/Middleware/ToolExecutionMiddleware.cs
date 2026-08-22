@@ -31,11 +31,24 @@ public sealed partial class ToolExecutionMiddleware : ServiceEntity, IToolExecut
         }
 
         _logger.LogDebug(L.T(StringKey.ToolExecStartLog, context.ToolName));
-        var result = await context.Handler.ExecuteAsync(
-            context.Arguments, ct, context.OnProgress).ConfigureAwait(false);
-        _logger.LogInformation(L.T(StringKey.ToolExecSuccessLog, context.ToolName));
-        context.Span?.SetStatus(TelemetryStatusCode.Ok);
-        context.Result = result;
+        try
+        {
+            var result = await context.Handler.ExecuteAsync(
+                context.Arguments, ct, context.OnProgress).ConfigureAwait(false);
+            _logger.LogInformation(L.T(StringKey.ToolExecSuccessLog, context.ToolName));
+            context.Span?.SetStatus(TelemetryStatusCode.Ok);
+            context.Result = result;
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, L.T(StringKey.ToolExecFailedLog, context.ToolName));
+            context.Result = new ToolResult
+            {
+                Content = [new ToolContent { Type = ToolContentType.Text, Text = $"{ex.GetType().Name}: {ex.Message}" }],
+                IsError = true
+            };
+        }
 
         await next(context, ct).ConfigureAwait(false);
     }

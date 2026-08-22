@@ -576,8 +576,8 @@ public class ConfigLoader {
 
     /// <summary>
     /// 确保环境变量指定的模型在 ModelConfigLoader 中注册
-    /// <para>JCC_MODEL_ID 可能指定一个不在 settings.json models 列表中的新模型（如 AutoFetchModels 尚未完成）</para>
-    /// <para>此时从模型 ID 推断模态能力并补注册，避免模态校验误报</para>
+    /// <para>JCC_MODEL_ID 指定的模型必须已在 settings.json 的 vendor.{profile}.models 列表中注册</para>
+    /// <para>未注册时无条件抛 ConfigurationException[GRD016] — 配置大于代码，不从模型 ID 推断模态</para>
     /// </summary>
     private void EnsureEnvModelInConfig(SettingsJson settings)
     {
@@ -590,17 +590,10 @@ public class ConfigLoader {
 
         if (_modelConfigLoader.FindModel(profile, modelId) is not null) return;
 
-        var providers = VendorModelMapper.BuildProviders(settings);
-        if (providers.TryGetValue(profile, out var providerConfig))
-        {
-            providerConfig.Models.Add(new ModelItemConfig
-            {
-                Id = modelId,
-                CanonicalId = modelId,
-                DisplayName = modelId,
-                Capabilities = Core.Configuration.ModelFetch.ModelListMerger.InferCapabilities(modelId),
-            });
-            _modelConfigLoader.ApplyProviders(providers);
-        }
+        throw new ConfigurationException(
+            $"[GRD016] 模型 '{modelId}' 未在 settings.json 的 vendor.{profile}.models 列表中注册。" +
+            $"请在 settings.json 中添加该模型的描述（含 Capabilities/Modalities）后重试。",
+            configurationKey: $"{profile}.models[{modelId}]",
+            configurationValue: modelId);
     }
 }

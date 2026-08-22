@@ -1167,11 +1167,42 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
         var settingsJson = """
         {
           "vendor": {
-            "openai": { "protocol": "openai-compatible", "apiKeyEnvVar": "OPENAI_API_KEY" },
-            "anthropic": { "protocol": "anthropic", "apiKeyEnvVar": "ANTHROPIC_API_KEY" },
-            "deepseek": { "protocol": "openai-compatible", "apiKeyEnvVar": "DEEPSEEK_API_KEY" },
-            "agnes": { "protocol": "openai-compatible", "apiKeyEnvVar": "AGNES_API_KEY" },
-            "sensenova": { "protocol": "openai-compatible", "apiKeyEnvVar": "SENSENOVA_API_KEY" }
+            "openai": {
+              "protocol": "openai-compatible",
+              "apiKeyEnvVar": "OPENAI_API_KEY",
+              "models": [
+                { "id": "gpt-4o", "displayName": "GPT-4o", "capabilities": { "modalities": ["text"] } },
+                { "id": "gpt-4o-mini", "displayName": "GPT-4o Mini", "capabilities": { "modalities": ["text"] } }
+              ]
+            },
+            "anthropic": {
+              "protocol": "anthropic",
+              "apiKeyEnvVar": "ANTHROPIC_API_KEY",
+              "models": [
+                { "id": "claude-3-5-sonnet", "displayName": "Claude 3.5 Sonnet", "capabilities": { "modalities": ["text"] } }
+              ]
+            },
+            "deepseek": {
+              "protocol": "openai-compatible",
+              "apiKeyEnvVar": "DEEPSEEK_API_KEY",
+              "models": [
+                { "id": "deepseek-chat", "displayName": "DeepSeek Chat", "capabilities": { "modalities": ["text"] } }
+              ]
+            },
+            "agnes": {
+              "protocol": "openai-compatible",
+              "apiKeyEnvVar": "AGNES_API_KEY",
+              "models": [
+                { "id": "agnes-image-2.0-flash", "displayName": "Agnes Image 2.0 Flash", "capabilities": { "modalities": ["text", "readImage"] } }
+              ]
+            },
+            "sensenova": {
+              "protocol": "openai-compatible",
+              "apiKeyEnvVar": "SENSENOVA_API_KEY",
+              "models": [
+                { "id": "sensenova-v5", "displayName": "SenseNova V5", "capabilities": { "modalities": ["text"] } }
+              ]
+            }
           }
         }
         """;
@@ -1267,7 +1298,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
         try
         {
             var files = _fs.GetFiles(rootDir, exeName, SearchOption.AllDirectories);
-            return files.FirstOrDefault();
+            return files.OrderByDescending(System.IO.File.GetLastWriteTime).FirstOrDefault();
         }
         catch (Exception ex)
         {

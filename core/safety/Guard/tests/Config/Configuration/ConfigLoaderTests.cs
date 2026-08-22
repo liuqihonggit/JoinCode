@@ -181,6 +181,54 @@ public class ConfigLoaderTests : IDisposable {
     }
 
     /// <summary>
+    /// models 列表为空且 autoFetchModels=true → 跳过 GRD016 检查
+    /// 首次运行时骨架 models 为空,AutoFetchModels 会在后台异步拉取填充
+    /// </summary>
+    [Fact]
+    public async Task LoadConfig_EmptyModelsWithAutoFetch_ShouldNotThrow()
+    {
+        // Given: settings.json 中 models 为空，autoFetchModels=true
+        var settingsJson = new SettingsJson
+        {
+            Vendor = new Dictionary<string, ProfileSettings>
+            {
+                ["openai"] = new ProfileSettings
+                {
+                    Provider = "openai",
+                    Protocol = "openai-compatible",
+                    Endpoint = "https://api.openai.com/v1",
+                    ApiKeyEnvVar = "OPENAI_API_KEY",
+                    Model = "gpt-5-turbo-test-unregistered",
+                    Models = new List<ModelItemConfig>(),
+                    ModelsEndpoint = "models",
+                },
+            },
+            Current = new CurrentSettings { Profile = "openai" },
+            AutoFetchModels = true,
+        };
+
+        var path = AppDataConstants.Paths.SettingsFilePath;
+        var dir = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(dir)) _fs.CreateDirectory(dir);
+        var json = JsonSerializer.Serialize(settingsJson, ConfigIndentedJsonContext.Default.SettingsJson);
+        _fs.WriteAllText(path, json);
+
+        Environment.SetEnvironmentVariable(JccEnvVarConstants.ModelId, "gpt-5-turbo-test-unregistered");
+        var realKey = TestConfiguration.GetRealApiKey();
+        Environment.SetEnvironmentVariable(ProviderEnvVarConstants.OpenAiApiKey, realKey);
+
+        var sharedModelLoader = new ModelConfigLoader();
+        var registry = new TestProviderDefinitionRegistry(sharedModelLoader);
+        var loader = new ConfigLoader(registry: registry, modelConfigLoader: sharedModelLoader);
+
+        // When & Then: 不应抛 GRD016 异常
+        var config = await loader.LoadConfigAsync(_fs).ConfigureAwait(true);
+        config.Should().NotBeNull();
+        config.Provider.Vendor.Should().Be("openai");
+        config.Provider.ModelId.Should().Be("gpt-5-turbo-test-unregistered");
+    }
+
+    /// <summary>
     /// 测试专用 Provider 注册表 — 不依赖全局 settings.json，注册所有测试需要的 Provider
     /// </summary>
     private sealed class TestProviderDefinitionRegistry : IProviderDefinitionRegistry

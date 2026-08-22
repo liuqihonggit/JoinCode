@@ -96,35 +96,12 @@ public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : 
     }
 
     /// <summary>
-    /// 构建默认 settings.json 骨架 — 仅含供应商连接信息，不含模型列表
-    /// 模型列表由启动时 AutoFetchModels 从 {endpoint}/{modelsEndpoint} 自动拉取填充
-    /// 两条路径: deepseek (openai-compatible) + deepseek-anthropic (anthropic 协议, api.deepseek.com/anthropic)
-    /// 配置大于代码: 具体模型信息由 API 拉取，代码只留基础结构
+    /// 构建默认 settings.json 骨架 — 复用 SettingsLoader 的共享实现
+    /// 含所有5个供应商的预设入口点,models 数组留空由 AutoFetchModels 填充
     /// </summary>
     private static string BuildDefaultSettingsJson()
     {
-        return """
-        {
-          "vendor": {
-            "deepseek": {
-              "provider": "deepseek",
-              "protocol": "openai-compatible",
-              "endpoint": "https://api.deepseek.com",
-              "apiKeyEnvVar": "DEEPSEEK_API_KEY",
-              "modelsEndpoint": "models"
-            },
-            "deepseek-anthropic": {
-              "provider": "deepseek",
-              "protocol": "anthropic",
-              "endpoint": "https://api.deepseek.com/anthropic",
-              "apiKeyEnvVar": "DEEPSEEK_API_KEY",
-              "modelsEndpoint": "v1/models"
-            }
-          },
-          "autoFetchModels": true,
-          "current": { "profile": "deepseek" }
-        }
-        """;
+        return Core.Configuration.SettingsLoader.BuildDefaultSettingsJson();
     }
 
     private static void EnsureJccDirectory(string cwd, IFileSystem fs)

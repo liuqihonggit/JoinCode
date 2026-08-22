@@ -57,6 +57,7 @@ public static class EnvOverrideApplier
                     ApiKeyEnvVar = inferredApiKeyEnvVar ?? existingProfile?.ApiKeyEnvVar,
                     Model = !string.IsNullOrEmpty(envModelId) ? envModelId : existingProfile?.Model,
                     Endpoint = !string.IsNullOrEmpty(envEndpoint) ? envEndpoint : existingProfile?.Endpoint,
+                    Models = existingProfile?.Models,
                 },
             };
         }

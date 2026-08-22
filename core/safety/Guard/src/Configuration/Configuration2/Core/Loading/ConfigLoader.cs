@@ -578,6 +578,7 @@ public class ConfigLoader {
     /// 确保环境变量指定的模型在 ModelConfigLoader 中注册
     /// <para>JCC_MODEL_ID 指定的模型必须已在 settings.json 的 vendor.{profile}.models 列表中注册</para>
     /// <para>未注册时无条件抛 ConfigurationException[GRD016] — 配置大于代码，不从模型 ID 推断模态</para>
+    /// <para>例外: models 列表为空且 autoFetchModels=true 时跳过检查 — 首次运行时骨架 models 为空，由 AutoFetchModels 异步填充</para>
     /// </summary>
     private void EnsureEnvModelInConfig(SettingsJson settings)
     {
@@ -589,6 +590,11 @@ public class ConfigLoader {
         if (string.IsNullOrEmpty(modelId)) return;
 
         if (_modelConfigLoader.FindModel(profile, modelId) is not null) return;
+
+        // 首次运行: models 为空或 null 且启用自动拉取 → 跳过 GRD016，由 AutoFetchModels 异步填充
+        // 注意: EnvOverrideApplier.Apply 合并 ProfileSettings 时可能将 Models 置 null
+        if ((profileSettings.Models is null || profileSettings.Models.Count == 0) && settings.AutoFetchModels)
+            return;
 
         throw new ConfigurationException(
             $"[GRD016] 模型 '{modelId}' 未在 settings.json 的 vendor.{profile}.models 列表中注册。" +

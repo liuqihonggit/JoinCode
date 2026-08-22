@@ -61,6 +61,10 @@ internal sealed partial class SessionResumeStep : ServiceEntity, IMiddleware<Sta
             .Select(e => new ApiMessageRecord { Role = e.Role, Content = e.Content })
             .ToList();
 
+        // T6：先切引擎桶再灌入 — 此前只 OverrideSessionId（写盘目标）而引擎桶仍是 default，
+        // transcript 落盘下沉引擎管道后必须 SwitchSession 才能续写到恢复的会话文件
+        context.Host.Services.GetService<IChatContextManager>()?.SwitchSession(sessionId);
+
         // 加载历史消息到 ChatService
         var chatService = context.Host.Services.GetRequiredService<IChatService>();
         await chatService.LoadSessionMessagesAsync(messages, ct).ConfigureAwait(false);

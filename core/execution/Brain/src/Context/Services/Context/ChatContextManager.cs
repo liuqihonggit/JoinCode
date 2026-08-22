@@ -65,6 +65,9 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public string SessionId => _sessionId;
 
+    /// <summary>当前对话日志条目数 — transcript 增量持久化的快照基准</summary>
+    public int CurrentMessageCount => Log.Count;
+
     /// <summary>切换会话 — 按 sessionId 隔离对话历史，切回时自动恢复对应桶</summary>
     public void SwitchSession(string sessionId)
     {

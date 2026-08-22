@@ -58,6 +58,22 @@ internal static class TuiModeRunner
         var permissionManager = services.GetService<IToolPermissionManager>();
         var chatHistory = new MessageList();
 
+        // T6：会话元信息 — transcript 消息落盘已下沉到引擎 TranscriptPersistMiddleware（三端统一），
+        // TUI 此处只写 meta.json 元数据；sessionId 由引擎 IChatContextManager 管理
+        var transcriptService = services.GetService<ITranscriptService>();
+        if (transcriptService is not null)
+        {
+            var sessionStore = new Session.TuiSessionStore(transcriptService);
+            try
+            {
+                await sessionStore.SaveMetaAsync(config, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                WriteDiag($"[TUI] SaveMetaAsync failed: {ex.Message}");
+            }
+        }
+
         // T2：绑定 TUI 问答通道 — ask_user_question 工具经此在 TUI 主循环弹对话框
         services.GetService<Interaction.TerminalGuiInteractiveService>()?
             .Attach(painter, askUserDialog);

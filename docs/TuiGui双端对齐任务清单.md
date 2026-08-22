@@ -340,3 +340,41 @@ T1+G4（615e50062）→ T2（0d234dc11）→ T3（74e58a8a4）→ T4（e74984f02
 架构收获：斜杠命令/权限/问答/采样/供应商五大能力全部收敛到"共享命令层+UI 适配层"模式，
 消除两端独立实现。遗留提醒：⚠️ GUI 权限弹窗 Confirm 场景默认拒绝（G1 边界）、
 ⚠️ /exit 的 GUI onExitRequested 未接窗口关闭、⚠️ B8 曾污染真实 settings.json 建议人工核查。
+
+## 追加任务：会话隔离审查结论 + T6/T7（2026-08-22）
+
+审查结论：底层机制（ChatContextManager 桶隔离 + ITranscriptService 统一入口）三端已统一，
+差距在 TUI 未接线：零持久化（对话退出即丢）、无会话切换。
+
+- [x] **T6** 会话持久化 — **架构升级：transcript 落盘下沉到引擎管道**（用户确认方向后
+  从"TUI 自建 TuiSessionStore 写盘"改为三端统一方案）：
+  ① 新增 `TranscriptPersistMiddleware : IChatMiddleware`（Brain）— 流结束后取
+  CurrentMessageCount 快照差量增量 AppendEntries 到 {sessionId}/transcript.json，
+  OnError=Continue + worker 进程守卫（对齐原 CliSession 守卫）；挂载到生产
+  PipelineComposition 与测试 TestPipelineRegistration 的 Chat 管道。
+  ② sessionId 统一：EngineSessionFactory 工厂生成一次 → SwitchSession 注入引擎 +
+  Result.SessionId 暴露；CliSession 构造接参同源；SessionResumeStep 补
+  SwitchSession（修复 resume 只改写盘目标而引擎桶仍 default 的深层不一致）。
+  ③ 消除双写：删除 CliSession.AppendTranscriptEntriesAsync 手动落盘；
+  TuiModeRunner 撤回手写接线，TuiSessionStore 收缩为仅 meta.json 元数据。
+  ④ 落盘结构保持用户后台设计不变：sessions/{sessionId}/transcript.json 主对话 +
+  subagents/{agentId}/transcript.json 树状子代理（AgentTranscriptService 原链路）。
+  测试：中间件单测 5 + E2E 集成 2（MockServer 真实管道验证两轮增量无重复）+
+  TuiSessionStore 2。Host.Tests **1031 全绿**、GUI 331 全绿、Brain.Context 760 全绿。
+- [ ] **T7** TUI 会话切换 — 内建 /sessions 命令：无参列出最近 20 个（ListTranscriptsAsync）、
+  /sessions <序号> 加载该会话灌入引擎（LoadSessionMessagesAsync 与 /resume 同链路）+
+  本地 ReplaceAll 重绘 + CurrentSessionId 切换（后续轮次续写目标会话文件，对齐 CLI
+  --continue 语义）；工具栏 New 按钮同步开新会话 ID。
+
+<!-- 🤖 Auto Decision: 2026-08-22 (T6 架构升级) -->
+<!-- 决策: transcript 落盘从"三端各自手写"下沉为引擎管道中间件 TranscriptPersistMiddleware -->
+<!-- 原因: 用户质疑自建 TuiSessionStore 重复造轮子;查证 CLI=CliSession手动/GUI=GuiSessionStore覆盖/TUI无 三套并存,违反单一实现原则 -->
+<!-- 替代方案: 复用 GUI GuiSessionStore(放弃:其 Delete+Append 全量覆盖语义与 append-only 冲突);维持三套(放弃:未收敛) -->
+<!-- 关键修复: SessionResumeStep 只 OverrideSessionId 不切引擎桶的深层不一致 → 补 SwitchSession -->
+<!-- 验证: E2E 两轮增量无重复 + Host.Tests 1031 / GUI 331 / Brain.Context 760 全绿 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-22 (T6 sessionId 统一) -->
+<!-- 决策: EngineSessionFactory 工厂生成一次 sessionId,引擎 SwitchSession + Result.SessionId 暴露,CliSession 构造接参 -->
+<!-- 原因: 中间件以 contextManager.SessionId 为唯一落盘键,此前 CLI/GUI/TUI 各自管理(GUID/Generate/default)必然分裂 -->
+<!-- 替代方案: 各端继续自带 ID 并在写盘时传参(放弃:中间件无法感知调用方 ID,回到三套老路) -->
+<!-- 验证: 编译三端通过 + 全量回归绿 ✅ -->

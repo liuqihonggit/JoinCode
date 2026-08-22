@@ -8,6 +8,11 @@ public interface IChatContextManager
     /// </summary>
     string SessionId { get; }
 
+    /// <summary>
+    /// 当前对话日志条目数 — 供 transcript 增量持久化取快照差量（进入轮次时记录，结束时取 [start..]）
+    /// </summary>
+    int CurrentMessageCount { get; }
+
     /// <summary>切换会话 — 按 sessionId 隔离对话历史，切回时自动恢复对应桶</summary>
     void SwitchSession(string sessionId);
 

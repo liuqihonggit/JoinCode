@@ -70,7 +70,10 @@ internal sealed partial class SessionInitStep : ServiceEntity, IMiddleware<Start
         await StartCodeIndexServiceAsync(host.Services, ct);
 
         var services = Cli.CliServiceContext.FromServiceProvider(host.Services, goalEngine, cronTaskStore: cronTaskStore, workflowConfig: context.Config);
-        var session = new CliSession(chatService, codeService, planService, toolRegistry, host.Services.GetRequiredService<IFileSystem>(), services);
+        // T6：sessionId 同源 — 复用引擎工厂生成的 ID（transcript 落盘已下沉引擎管道，双方必须一致）
+        var engineSessionId = context.SessionId ?? host.Services.GetService<IChatContextManager>()?.SessionId;
+        context.SessionId = engineSessionId;
+        var session = new CliSession(chatService, codeService, planService, toolRegistry, host.Services.GetRequiredService<IFileSystem>(), services, sessionId: engineSessionId);
         await session.InitializeAsync(ct);
 
         context.Session = session;

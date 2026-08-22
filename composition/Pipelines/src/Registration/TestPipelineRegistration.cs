@@ -30,6 +30,7 @@ public static class TestPipelineRegistration
                 .Use(sp.GetRequiredService<ProcessUsageMiddleware>())
                 .Use(sp.GetRequiredService<CleanupInjectionsMiddleware>())
                 .Use(sp.GetRequiredService<SaveContextMiddleware>())
+                .Use(sp.GetRequiredService<TranscriptPersistMiddleware>())
                 .WithHooks(sp)
                 .Build());
 

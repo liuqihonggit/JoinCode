@@ -361,10 +361,13 @@ T1+G4（615e50062）→ T2（0d234dc11）→ T3（74e58a8a4）→ T4（e74984f02
   subagents/{agentId}/transcript.json 树状子代理（AgentTranscriptService 原链路）。
   测试：中间件单测 5 + E2E 集成 2（MockServer 真实管道验证两轮增量无重复）+
   TuiSessionStore 2。Host.Tests **1031 全绿**、GUI 331 全绿、Brain.Context 760 全绿。
-- [ ] **T7** TUI 会话切换 — 内建 /sessions 命令：无参列出最近 20 个（ListTranscriptsAsync）、
-  /sessions <序号> 加载该会话灌入引擎（LoadSessionMessagesAsync 与 /resume 同链路）+
-  本地 ReplaceAll 重绘 + CurrentSessionId 切换（后续轮次续写目标会话文件，对齐 CLI
-  --continue 语义）；工具栏 New 按钮同步开新会话 ID。
+- [x] **T7** TUI 会话切换 — store 扩展 ListSessionsAsync/TryResolveTarget（纯函数：
+  1-based 序号或原始 ID 直通）/SwitchToAsync（引擎桶 SwitchSession+本地 SessionId 更新）；
+  TuiModeRunner 内建 `/sessions` 命令（共享 registry 前拦截）：无参=list 列出最近 20 个
+  （含消息数/预览/当前标记），`/sessions <序号|ID>` → 读目标 transcript（过滤元数据条目）
+  → 先切桶再灌入（对齐 SessionResumeStep 顺序）→ 清屏重绘；Tab 补全注入 "sessions"；
+  工具栏 New/F1 开新会话（SessionIdGenerator 分钟偏移防同分钟冲突）。
+  测试：store 5 个新增。Host.Tests **1036 全绿**、Brain.Context 760、E2E 2 全绿。
 
 <!-- 🤖 Auto Decision: 2026-08-22 (T6 架构升级) -->
 <!-- 决策: transcript 落盘从"三端各自手写"下沉为引擎管道中间件 TranscriptPersistMiddleware -->
@@ -378,3 +381,20 @@ T1+G4（615e50062）→ T2（0d234dc11）→ T3（74e58a8a4）→ T4（e74984f02
 <!-- 原因: 中间件以 contextManager.SessionId 为唯一落盘键,此前 CLI/GUI/TUI 各自管理(GUID/Generate/default)必然分裂 -->
 <!-- 替代方案: 各端继续自带 ID 并在写盘时传参(放弃:中间件无法感知调用方 ID,回到三套老路) -->
 <!-- 验证: 编译三端通过 + 全量回归绿 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-22 (T7) -->
+<!-- 决策: /sessions 为 TUI 内建命令而非共享 ChatCommand;切换语义=SwitchSession+LoadSessionMessages 灌入而非纯桶切换 -->
+<!-- 原因: 切换需要 UI 编排(清屏重绘/本地 history 重建)且共享 registry 无此命令;灌入链路与 /resume 完全同源,三端行为一致 -->
+<!-- 替代方案: 新增共享 ChatCommand(放弃:GUI 会话列表已是独立 UI,TUI 再走命令层反而绕路);内存多桶并行(放弃:TUI 单会话模型,YAGNI) -->
+<!-- 验证: store 9 测试绿 + Host.Tests 1036 / Brain.Context 760 / E2E 2 全绿 + jcctui 冒烟 ✅ -->
+
+## T6/T7 完成总结（2026-08-22）
+
+会话隔离审查 → 架构升级闭环：
+1. **落盘责任收敛**：TranscriptPersistMiddleware 统一三端 transcript 增量写入（消除 CLI 手动/GUI 覆盖/TUI 缺失 三套并存）
+2. **sessionId 同源**：EngineSessionFactory 工厂唯一生成，引擎桶+调用方一致
+3. **resume 桶修复**：SessionResumeStep 补 SwitchSession（此前灌 default 桶的深层 bug）
+4. **TUI 补齐**：持久化免费获得 + /sessions 切换 + New 开新会话
+
+提交：T6=b9d791938，T7=本次。测试基线：Host.Tests 1036 / GUI 331 / Brain.Context 760 / E2E 2。
+遗留提醒：⚠️ GUI GuiSessionStore.SaveActiveSession 仍全量覆盖写 transcript（与引擎增量并存可能重复），待 GUI 会话管理迁移统一入口；⚠️ 扁平 session-*.jsonl 旧文件待 MigrateLegacyAsync 清理验证。

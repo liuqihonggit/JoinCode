@@ -58,12 +58,13 @@ internal static class TuiModeRunner
         var permissionManager = services.GetService<IToolPermissionManager>();
         var chatHistory = new MessageList();
 
-        // T6：会话元信息 — transcript 消息落盘已下沉到引擎 TranscriptPersistMiddleware（三端统一），
-        // TUI 此处只写 meta.json 元数据；sessionId 由引擎 IChatContextManager 管理
-        var transcriptService = services.GetService<ITranscriptService>();
-        if (transcriptService is not null)
+        // T6/T7：会话存储 — transcript 消息落盘已下沉到引擎 TranscriptPersistMiddleware（三端统一），
+        // store 负责 meta.json 元数据 + /sessions 切换编排；sessionId 唯一数据源=引擎 IChatContextManager
+        var sessionStore = services.GetService<ITranscriptService>() is { } transcriptService2
+            ? new Session.TuiSessionStore(transcriptService2)
+            : null;
+        if (sessionStore is not null)
         {
-            var sessionStore = new Session.TuiSessionStore(transcriptService);
             try
             {
                 await sessionStore.SaveMetaAsync(config, cancellationToken).ConfigureAwait(false);
@@ -88,7 +89,9 @@ internal static class TuiModeRunner
             .Select(c => c.Name)
             .OrderBy(n => n)
             .ToArray() as IReadOnlyList<string> ?? [];
-        promptView.SetSlashCommands(slashCommands);
+        // T7：/sessions 为 TUI 内建命令（不在共享 registry），注入 Tab 补全列表
+        var allSlashCommands = slashCommands.Append("sessions").OrderBy(n => n).ToArray() as IReadOnlyList<string>;
+        promptView.SetSlashCommands(allSlashCommands);
 
         var registry = new PipeRegistry();
         var mainPipe = new MessagePipe("main", "AI Assistant", isMain: true);
@@ -113,6 +116,25 @@ internal static class TuiModeRunner
                     case ToolBarAction.New:
                         outputView.Clear();
                         chatHistory.Clear();
+                        // T7：开新会话 — 引擎切到全新桶，此后 transcript 写入新会话文件
+                        if (sessionStore is not null)
+                        {
+                            var freshId = JoinCode.Cli.SessionIdGenerator.Generate(null, DateTime.UtcNow.AddMinutes(sessionStore.NewSessionSequence++));
+                            _ = Task.Run(async () =>
+                            {
+                                try
+                                {
+                                    var mgr = services.GetService<IChatContextManager>();
+                                    var chat = services.GetService<Abstractions.Interfaces.IChatService>();
+                                    if (mgr is not null && chat is not null)
+                                        await sessionStore.SwitchToAsync(mgr, chat, freshId).ConfigureAwait(false);
+                                }
+                                catch (Exception switchEx)
+                                {
+                                    WriteDiag($"[T7] New session switch failed: {switchEx.Message}");
+                                }
+                            });
+                        }
                         outputView.AppendLine("⚡ 新会话已创建");
                         break;
                     case ToolBarAction.Pause:
@@ -213,7 +235,7 @@ internal static class TuiModeRunner
         };
 
         var processingCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var processingTask = ProcessQueueAsync(queue, mainPipe, outputView, queryEngine, chatHistory, app.RequestStop, painter, permissionDialog, permissionManager, services, statusBar, toolBar, currentQueryCts, processingCts.Token);
+        var processingTask = ProcessQueueAsync(queue, mainPipe, outputView, queryEngine, chatHistory, app.RequestStop, painter, permissionDialog, permissionManager, services, statusBar, toolBar, currentQueryCts, sessionStore, processingCts.Token);
 
         var focusSet = false;
         var lastQueueCount = -1;
@@ -285,6 +307,7 @@ internal static class TuiModeRunner
         StatusBarView statusBar,
         ToolBarView toolBar,
         System.Runtime.CompilerServices.StrongBox<CancellationTokenSource?> currentQueryCts,
+        Session.TuiSessionStore? sessionStore,
         CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
@@ -299,7 +322,7 @@ internal static class TuiModeRunner
             // 斜杠命令 — 转发到共享 SlashCommandRunner（与 GUI 同一执行链路）
             if (cmd.Content.Length > 0 && cmd.Content[0] == '/')
             {
-                await HandleSlashCommandAsync(cmd.Content, services, outputView, chatHistory, requestStop, painter, permissionDialog, cancellationToken).ConfigureAwait(false);
+                await HandleSlashCommandAsync(cmd.Content, services, outputView, chatHistory, requestStop, painter, permissionDialog, sessionStore, cancellationToken).ConfigureAwait(false);
                 continue;
             }
 
@@ -443,6 +466,7 @@ internal static class TuiModeRunner
 
     /// <summary>
     /// 转发斜杠命令到底层 CmdMap — 委托共享 <see cref="SlashCommandRunner"/>（与 GUI 同一执行链路）。
+    /// /sessions 为 TUI 内建命令（T7），在共享 registry 之前拦截。
     /// </summary>
     private static async Task HandleSlashCommandAsync(
         string input,
@@ -452,8 +476,16 @@ internal static class TuiModeRunner
         Action requestStop,
         TerminalPainter painter,
         PermissionDialogView permissionDialog,
+        Session.TuiSessionStore? sessionStore,
         CancellationToken cancellationToken)
     {
+        // T7：/sessions 会话切换 — 引擎桶 SwitchSession + 历史灌入 + 本地重绘
+        if (sessionStore is not null && input.TrimStart().StartsWith("/sessions", StringComparison.OrdinalIgnoreCase))
+        {
+            await HandleSessionsCommandAsync(input, sessionStore, services, outputView, history, painter, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         var result = await SlashCommandRunner.RunAsync(
             input,
             services,
@@ -492,6 +524,84 @@ internal static class TuiModeRunner
                 WriteDiag($"[T1] history sync failed: {syncEx.Message}");
             }
         }
+    }
+
+    /// <summary>
+    /// /sessions 会话切换编排（T7）— 无参列出最近会话；/sessions &lt;序号|ID&gt; 切换：
+    /// 引擎桶 SwitchSession → transcript 历史灌入（LoadSessionMessagesAsync 与 /resume 同链路）
+    /// → 本地 chatHistory 重建重绘。此后引擎中间件自动续写目标会话文件。
+    /// </summary>
+    private static async Task HandleSessionsCommandAsync(
+        string input,
+        Session.TuiSessionStore sessionStore,
+        IServiceProvider services,
+        OutputView outputView,
+        MessageList history,
+        TerminalPainter painter,
+        CancellationToken cancellationToken)
+    {
+        var argument = input.TrimStart()["/sessions".Length..].Trim();
+        var summaries = await sessionStore.ListSessionsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        if (string.IsNullOrEmpty(argument) || argument is "list" or "ls")
+        {
+            outputView.AppendLine("=== 最近会话 ===");
+            foreach (var (summary, idx) in summaries.Select((s, i) => (s, i)))
+            {
+                var marker = summary.SessionId == sessionStore.SessionId ? " ← 当前" : string.Empty;
+                var preview = summary.LastMessagePreview is { Length: > 40 } p ? p[..40] + "…" : summary.LastMessagePreview ?? string.Empty;
+                outputView.AppendLine($"  [{idx + 1}] {summary.SessionId} ({summary.MessageCount} 条){marker}");
+                if (!string.IsNullOrEmpty(preview))
+                    outputView.AppendLine($"      {preview}");
+            }
+            return;
+        }
+
+        if (!Session.TuiSessionStore.TryResolveTarget(argument, summaries, out var targetId))
+        {
+            outputView.AppendLine($"[错误] 无法解析目标: {argument}（序号 1-{summaries.Count} 或完整 sessionId）");
+            return;
+        }
+
+        if (targetId == sessionStore.SessionId)
+        {
+            outputView.AppendLine($"当前已是该会话: {targetId}");
+            return;
+        }
+
+        var transcriptService = services.GetService<Abstractions.Interfaces.ITranscriptService>();
+        var ctxMgr = services.GetService<IChatContextManager>();
+        var chat = services.GetService<Abstractions.Interfaces.IChatService>();
+        if (transcriptService is null || ctxMgr is null || chat is null)
+        {
+            outputView.AppendLine("[错误] 会话服务未就绪");
+            return;
+        }
+
+        // 1. 读目标会话历史（过滤元数据条目，对齐 SessionResumeStep 过滤规则）
+        var entries = await transcriptService.LoadTranscriptAsync(targetId, cancellationToken).ConfigureAwait(false);
+        var records = entries
+            .Where(e => string.IsNullOrEmpty(e.Type) && (e.Role == "user" || e.Role == "assistant"))
+            .Select(e => new ApiMessageRecord { Role = e.Role, Content = e.Content })
+            .ToList();
+
+        // 2. 切引擎桶 → 灌入历史 → 本地重建（顺序对齐 SessionResumeStep：先切桶再灌入）
+        await sessionStore.SwitchToAsync(ctxMgr, chat, targetId, cancellationToken).ConfigureAwait(false);
+        await chat.LoadSessionMessagesAsync(records, cancellationToken).ConfigureAwait(false);
+        painter.Invoke(() =>
+        {
+            SyncHistoryFromEngine(history, records);
+            outputView.Clear();
+            outputView.AppendLine($"🔄 已切换会话: {targetId}（{records.Count} 条消息）");
+            foreach (var message in history)
+            {
+                if (message.Role == MessageRole.User && !string.IsNullOrEmpty(message.Content))
+                    outputView.AppendLine($"👤 {message.Content}");
+                else if (message.Role == MessageRole.Assistant && !string.IsNullOrEmpty(message.Content))
+                    outputView.AppendLine($"🤖 {message.Content}");
+            }
+        });
+        WriteDiag($"[T7] session switched to {targetId}, {records.Count} messages loaded");
     }
 
     private static void WriteDiag(string message)

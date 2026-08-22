@@ -48,4 +48,75 @@ public sealed class TuiSessionStoreTests
                 && info.Vendor == "anthropic"),
             It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    // === T7：会话切换 ===
+
+    [Fact]
+    public async Task ListSessionsAsync_DelegatesToTranscriptService()
+    {
+        var (store, transcript) = Create();
+        var summaries = new List<TranscriptSummary> { new() { SessionId = "s1", MessageCount = 3 } };
+        transcript.Setup(t => t.ListTranscriptsAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(summaries);
+
+        var result = await store.ListSessionsAsync();
+
+        result.Should().HaveCount(1);
+        result[0].SessionId.Should().Be("s1");
+        transcript.Verify(t => t.ListTranscriptsAsync(20, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public void TryResolveTarget_ByIndex_ReturnsSummaryAtPosition()
+    {
+        var summaries = new[]
+        {
+            new TranscriptSummary { SessionId = "aaa" },
+            new TranscriptSummary { SessionId = "bbb" },
+            new TranscriptSummary { SessionId = "ccc" },
+        };
+
+        var ok = TuiSessionStore.TryResolveTarget("2", summaries, out var target);
+
+        ok.Should().BeTrue();
+        target.Should().Be("bbb", "序号 1-based 对齐用户直觉");
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("99")]
+    [InlineData("")]
+    public void TryResolveTarget_IndexOutOfRange_ReturnsFalse(string arg)
+    {
+        var summaries = new[] { new TranscriptSummary { SessionId = "aaa" } };
+
+        var ok = TuiSessionStore.TryResolveTarget(arg, summaries, out _);
+
+        ok.Should().BeFalse();
+    }
+
+    [Fact]
+    public void TryResolveTarget_RawId_PassesThrough()
+    {
+        var summaries = new[] { new TranscriptSummary { SessionId = "aaa" } };
+
+        var ok = TuiSessionStore.TryResolveTarget("20260822-1200-myproj-main", summaries, out var target);
+
+        ok.Should().BeTrue();
+        target.Should().Be("20260822-1200-myproj-main");
+    }
+
+    [Fact]
+    public async Task SwitchToAsync_SwitchesEngineBucketAndUpdatesCurrentId()
+    {
+        var (store, _) = Create();
+        var ctxMgr = new Mock<IChatContextManager>();
+        var chatService = new Mock<IChatService>();
+
+        await store.SwitchToAsync(ctxMgr.Object, chatService.Object, "target-session");
+
+        store.SessionId.Should().Be("target-session");
+        ctxMgr.Verify(c => c.SwitchSession("target-session"), Times.Once);
+        chatService.VerifyNoOtherCalls();
+    }
 }

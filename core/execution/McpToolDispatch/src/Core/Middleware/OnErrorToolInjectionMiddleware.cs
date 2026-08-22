@@ -29,9 +29,18 @@ public sealed partial class OnErrorToolInjectionMiddleware : ServiceEntity, IToo
 
     public async Task InvokeAsync(ToolExecutionContext context, MiddlewareDelegate<ToolExecutionContext> next, CancellationToken ct)
     {
-        await next(context, ct).ConfigureAwait(false);
+        try
+        {
+            await next(context, ct).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (context.Result is { IsError: true })
+        {
+        }
 
-        if (context.Result is null || !context.Result.IsError) return;
+        if (context.Result is null || !context.Result.IsError)
+        {
+            return;
+        }
 
         var sb = new StringBuilder(1024);
 
@@ -54,7 +63,7 @@ public sealed partial class OnErrorToolInjectionMiddleware : ServiceEntity, IToo
                 {
                     sb.AppendLine(BuildToolSchemaJson(tool));
                 }
-                _logger?.LogInformation("已注入错误修复建议到上下文（含历史分析+OnError工具+链路推荐），{Count} 个修复工具", relevantTools.Count);
+                _logger?.LogInformation("已注入错误修复schema到上下文，{Count} 个修复工具", relevantTools.Count);
             }
         }
 

@@ -197,7 +197,7 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
     {
         if (!_tasks.TryGetValue(taskId, out var entry)) return Task.FromResult(false);
 
-        if (entry.Context is not null && entry.Status is TaskExecutionStatus.Pending or TaskExecutionStatus.Running)
+        if (entry.Context is not null && BackgroundTaskStateTransitions.CanCancel(entry.Status))
         {
             try { entry.Context.Kill(); }
             catch (Exception ex) { _logger?.LogDebug(ex, "杀死后台任务进程失败: {TaskId}", taskId); }
@@ -216,7 +216,7 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
         if (!_tasks.TryGetValue(taskId, out var entry))
             throw new InvalidOperationException($"Background task not found: {taskId}");
 
-        while (entry.Status is TaskExecutionStatus.Pending or TaskExecutionStatus.Running)
+        while (BackgroundTaskStateTransitions.CanCancel(entry.Status))
         {
             await Task.Delay(100, cancellationToken).ConfigureAwait(false);
         }
@@ -281,7 +281,7 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
 
         var agentTaskIds = _tasks.Values
-            .Where(t => t.AgentId == agentId && t.Status is TaskExecutionStatus.Pending or TaskExecutionStatus.Running)
+            .Where(t => t.AgentId == agentId && BackgroundTaskStateTransitions.CanCancel(t.Status))
             .Select(t => t.TaskId)
             .ToList();
 
@@ -312,7 +312,7 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
     public Task<int> KillAllRunningAsync(CancellationToken cancellationToken = default)
     {
         var runningTasks = _tasks.Values
-            .Where(t => t.Status is TaskExecutionStatus.Pending or TaskExecutionStatus.Running)
+            .Where(t => BackgroundTaskStateTransitions.CanCancel(t.Status))
             .ToList();
 
         var killedCount = 0;
@@ -340,7 +340,7 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
     {
         foreach (var entry in _tasks.Values)
         {
-            if (entry.Context is not null && entry.Status is TaskExecutionStatus.Pending or TaskExecutionStatus.Running)
+            if (entry.Context is not null && BackgroundTaskStateTransitions.CanCancel(entry.Status))
             {
                 try { entry.Context.Kill(); }
                 catch (Exception ex) { _logger?.LogDebug(ex, "DisposeAsync 时终止后台任务进程失败"); }

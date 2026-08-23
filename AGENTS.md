@@ -921,6 +921,25 @@ public ConversationMode Mode => Turns.Count == 1
 - **热重载**：配置文件变更时通过 `IConfigChangeNotifier` 触发 `OnPropertyChanged(nameof(XxxOptions))` 驱动界面刷新（见规则3双变量切换模式）
 - **测试桩**：测试 mock session 实现 `AvailableProviders` 返回固定列表（如 `["fake"]`），不依赖真实配置文件
 
+### 规则8：循环检测器状态机设计风格（推荐）
+
+> **来源**：2026-08-23 熵减检测器状态机改造，用户推荐的代码风格
+
+- **状态机模式**：检测器内部用显式状态枚举 + switch 表达式实现状态转换，不用隐式 `if-else` + 标志变量
+  - 状态定义：`enum XxxDetectionState { Monitoring, Suspected, Confirmed }`
+  - 转换驱动：`Record(input)` 方法内 `_state switch { ... }` 链式流转
+  - 每次返回的结果携带 `State` 字段，调用方可观察当前状态
+- **时间窗口二次确认（去抖）**：检测器触发后不立即干预，进入 `Suspected` 状态等待二次确认
+  - 确认窗口内（如5s）再次触发 → `Confirmed`（确认为真死循环）
+  - 窗口超时 → 复位到 `Monitoring`（误报消除）
+  - 时钟通过 `Func<DateTimeOffset>? clock = null` 注入，测试可控、生产用 `DateTimeOffset.UtcNow`
+- **配置统一到 Options 子配置类**：检测器所有参数集中到 `LoopInterventionOptions` 的子配置类（如 `ShannonEntropyConfig`），不散落在构造函数默认值
+  - 配置类属性有默认值（系统默认配置）
+  - `InformationEntropyGuardian` 从 `LoopInterventionOptions` 统一创建所有检测器（生产路径）
+  - 测试可直接传入检测器实例（测试路径，保留构造函数默认值）
+- **干预层显式状态枚举**：干预级别用 `enum InterventionLevel { None, Soft, Hard, Compact }` + 决策方法 `ClassifyIntervention(count)`，不用 `if-else` 链
+- **适用范围**：所有循环/异常检测器（OutputLoop、LogicFingerprint、ToolCallSequence、ShannonEntropy）及干预中间件
+
 ## ⚠️ 反例清单（踩过的坑，禁止再犯）
 
 ### 反例1：不优先查阅 AGENTS.md 已有文档

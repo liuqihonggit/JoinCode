@@ -12,8 +12,8 @@ using JoinCode.Gui.ViewModels;
 namespace JoinCode.Gui.Views;
 
 /// <summary>
-/// 底部升起式斜杠补全面板 — 由 MainWindow 放在主列覆盖层（VerticalAlignment=Bottom），
-/// 锚定输入栏正上方，不参与消息区布局（覆盖层方案，避免挤占消息列表空间）。
+/// 底部升起式斜杠补全面板 — 由 MainWindow 放在输入栏正上方的布局行（与输入栏同列约束），
+/// 左右边缘天然对齐、物理零重叠；关闭时 IsVisible=False 零占位，打开时将消息区向上顶起。
 /// 开合动画为 Task.Delay 步进插值（经 UI 线程同步上下文回投，headless 与桌面行为一致）；
 /// 点击候选项触发 <see cref="Completed"/> 事件，由宿主回焦输入框。
 /// </summary>

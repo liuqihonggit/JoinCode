@@ -47,9 +47,9 @@
     <!-- ===== Column 0：侧边栏 ===== -->
     <local:SidebarView Grid.Column="0" />
 
-    <!-- ===== Column 1：主区（四行布局 + 补全面板覆盖层） ===== -->
+    <!-- ===== Column 1：主区（五行布局：顶栏/消息区/补全面板/输入栏/状态栏 — 面板与输入栏同列约束，天然对齐零重叠） ===== -->
     <Grid Grid.Column="1">
-      <Grid RowDefinitions="Auto,*,Auto,Auto">
+      <Grid RowDefinitions="Auto,*,Auto,Auto,Auto">
 
       <!-- Row 0：顶部工具栏 -->
       <local:TopBarView Grid.Row="0" />
@@ -109,7 +109,7 @@
             <!-- 消息列表（FilteredMessages 驱动，搜索即过滤） -->
             <ScrollViewer x:Name="MessageScrollViewer" IsVisible="{Binding HasMessages}"
                           ScrollChanged="OnMessageScrollChanged">
-              <ItemsControl x:Name="MessageItems" ItemsSource="{Binding FilteredMessages}" Margin="8,5">
+              <ItemsControl x:Name="MessageItems" ItemsSource="{Binding FilteredMessages}" Margin="12,6">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
                     <Border Classes="msgCard">
@@ -228,11 +228,16 @@
         <local:SettingsPanelView Grid.Column="1" IsVisible="{Binding IsSettingsPanelOpen}" ClipToBounds="True" />
       </Grid>
 
-      <!-- Row 2：底部输入栏 -->
-      <local:InputBarView Grid.Row="2" x:Name="InputBar" />
+      <!-- Row 2：斜杠补全面板（布局行 — 关闭时 IsVisible=False 零占位；ClipToBounds 裁剪升起动画的越界位移） -->
+      <Panel Grid.Row="2" ClipToBounds="True">
+        <local:SlashPaletteView x:Name="SlashPalette" Completed="OnSlashPaletteCompleted" />
+      </Panel>
 
-      <!-- Row 3：状态栏 -->
-      <Border Grid.Row="3" Padding="12,5" Background="{DynamicResource GuiStatusBarBackground}"
+      <!-- Row 3：底部输入栏 -->
+      <local:InputBarView Grid.Row="3" x:Name="InputBar" />
+
+      <!-- Row 4：状态栏 -->
+      <Border Grid.Row="4" Padding="12,5" Background="{DynamicResource GuiStatusBarBackground}"
               BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,1,0,0">
         <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto">
           <TextBlock Text="{Binding Sessions.Count, StringFormat='{}会话 {0}', FallbackValue='会话 0'}" Foreground="{DynamicResource GuiMutedText}" FontSize="11" />
@@ -255,10 +260,6 @@
         </Grid>
       </Border>
       </Grid>
-
-      <!-- 覆盖层：底部升起式斜杠补全面板（不参与消息区/输入栏布局，锚定输入栏正上方） -->
-      <local:SlashPaletteView x:Name="SlashPalette" VerticalAlignment="Bottom" Margin="10,0,10,100"
-                              Completed="OnSlashPaletteCompleted" />
     </Grid>
   </Grid>
 </Window>

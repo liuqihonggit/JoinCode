@@ -76,6 +76,9 @@ public static class GuiPalette
         /// <summary>消息卡片悬停态背景</summary>
         public string CardHover { get; init; } = "#242429";
 
+        /// <summary>输入栏内嵌 composer 卡片表面色（无边框 TextBox + 发送按钮的承载卡片）</summary>
+        public string ComposerBackground { get; init; } = "#202020";
+
         /// <summary>遍历全部 token 值，供对比度校验与资源注入使用。</summary>
         public IEnumerable<string> AllTokens()
         {
@@ -125,6 +128,7 @@ public static class GuiPalette
             yield return AccentSubtleHover;
             yield return AccentHover;
             yield return CardHover;
+            yield return ComposerBackground;
         }
     }
 
@@ -176,7 +180,8 @@ public static class GuiPalette
         AccentSubtle = "#dce9f8",
         AccentSubtleHover = "#cfe0f5",
         AccentHover = "#2f7fd4",
-        CardHover = "#e9e9e9"
+        CardHover = "#e9e9e9",
+        ComposerBackground = "#ffffff"
     };
 
     /// <summary>获取指定主题的配色方案。</summary>
@@ -261,7 +266,8 @@ public static class GuiPalette
         yield return ("GuiAccentSubtle", s.AccentSubtle);
         yield return ("GuiAccentSubtleHover", s.AccentSubtleHover);
         yield return ("GuiAccentHover", s.AccentHover);
-        yield return ("GuiCardHover", s.CardHover);
+            yield return ("GuiCardHover", s.CardHover);
+            yield return ("GuiComposerBackground", s.ComposerBackground);
     }
 
     /// <summary>解析十六进制色为不可变画刷（供资源和转换器共用）。</summary>

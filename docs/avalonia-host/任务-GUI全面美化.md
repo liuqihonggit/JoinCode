@@ -30,6 +30,11 @@ Slash 补全面板改造完成（a0a2d71e8）后，用户要求"全部做剩下�
 | B1 | 消息卡片：角色色条（MsgBarBrushConverter）+ 悬停显现操作按钮 + 圆角 10 | ✅ |
 | B2 | 编译 + 截图核对 + 全量测试（335 全绿）+ 提交 B | ✅ |
 | C1 | 设置面板：卡片分组 + 数值徽章 + ToggleSwitch + 关闭按钮（336 全绿） | ✅ |
+| D1 | 红测试：补全面板边缘与输入栏几何对齐断言 + 发送按钮嵌入卡片断言 | ✅ |
+| D2 | 补全面板重构：覆盖层(魔法 margin) → 布局行（与输入栏同列约束，物理零重叠） | ✅ |
+| D3 | InputBar 重构：composer 卡片内嵌无边框 TextBox + 发送按钮嵌入卡片右下 | ✅ |
+| D4 | 全局对齐：消息列表边距 12 与栏节奏统一；面板内容 padding 对齐 12 | ✅ |
+| D5 | 编译 + 绿测试 + 截图核对 + 提交 D（338 全绿） | ✅ |
 
 ## 踩坑记录
 
@@ -39,6 +44,8 @@ Slash 补全面板改造完成（a0a2d71e8）后，用户要求"全部做剩下�
 | MainWindow 旧自定义 Button 模板覆盖新全局样式 | Window.Styles 局部样式优先级高于 App.Styles | 删除旧模板块，消除两套实现 |
 | 会话卡片悬停态不生效 | Background 是转换器绑定（本地值），样式 Setter 无法覆盖 | 改 Classes.selected 类绑定 + 样式定义背景 |
 | 截图像素断言颜色对不上 | CaptureRenderedFrame 是 RGBA 字节序，按 BGRA 读反了 | 按 [R,G,B,A] 读；亮暗主题角色色不同需参数化 |
+| 补全面板压住输入栏一半且左右错位 10px | 覆盖层方案用魔法 margin(10,0,10,100) 猜输入栏高度，代码隐藏 SizeChanged 同步边距 | 布局行方案：面板与输入栏同列约束（Row2/Row3），对齐由布局系统保证，删除全部定位代码 |
+| 几何断言 TransformToVisual 编译错 | Avalonia 11 返回 Matrix?（非 Point?） | `.GetValueOrDefault().Transform(new Point(0,0))` 取窗口坐标 |
 
 <!-- 🤖 Auto Decision: 2026-08-23 -->
 <!-- 决策: 共享控件样式放编译型 GuiControlStyles.axaml(Styles 子类) 而非 App.axaml -->
@@ -51,6 +58,18 @@ Slash 补全面板改造完成（a0a2d71e8）后，用户要求"全部做剩下�
 <!-- 原因: 零 VM 侵入；工具/思考/角色三档配色集中在转换器，主题切换随 DynamicResource 同步刷新 -->
 <!-- 替代方案: ChatUiMessage.BarBrush 属性（主题切换后旧消息画刷过期，不采用）-->
 <!-- 验证: 暗 #4DA6FF/亮 #1A6BC0 像素断言通过 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-24 -->
+<!-- 决策: 补全面板从覆盖层改为布局行（MainWindow Row2，与输入栏 Row3 同列约束），仅上圆角+无下边框与输入栏融合 -->
+<!-- 原因: 覆盖层魔法 margin 无法保证对齐（实测错位 10px+重叠）；同列约束让对齐成为布局系统不变量而非代码维护的约定；打开时消息区自然上顶符合"往上冒"语义 -->
+<!-- 替代方案: TransformBounds 动态计算锚定（仍需监听尺寸变化同步，脆弱不采用）-->
+<!-- 验证: 几何断言 |Left差|≤0.75 && Bottom≤Top+0.75 通过，338 测试全绿 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-24 -->
+<!-- 决策: 发送按钮嵌入 composer 卡片内部右下（TextBox 透明无边框 + :focus-within 点亮卡片边框），新增 ComposerBackground token -->
+<!-- 原因: 用户明确要求"发送按钮嵌入发送栏内部右边靠齐"；现代聊天输入区范式（ChatGPT/Claude），动作行与输入区同一卡片视觉聚合 -->
+<!-- 替代方案: 按钮悬浮 TextBox 右侧 overlay（遮挡文本，不采用）-->
+<!-- 验证: Composer_SendButtonEmbeddedInCard 几何断言通过 ✅ -->
 
 ## 涉及文件树
 

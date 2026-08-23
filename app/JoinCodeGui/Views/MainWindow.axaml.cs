@@ -58,19 +58,7 @@ public sealed partial class MainWindow : Window
         _statusBlinkTimer.Tick += OnStatusBlinkTick;
         _toolTimer.Tick += OnToolTimerTick;
         Closed += OnWindowClosed;
-        if (InputBar is not null)
-            InputBar.SizeChanged += OnInputBarSizeChanged;
         AddHandler(PointerPressedEvent, OnGlobalPointerPressed, RoutingStrategies.Tunnel);
-    }
-
-    /// <summary>输入栏尺寸变化 → 同步补全面板底边距（面板锚定输入栏正上方）</summary>
-    private void OnInputBarSizeChanged(object? sender, Avalonia.Controls.SizeChangedEventArgs e)
-    {
-        if (SlashPalette is null || InputBar is null)
-            return;
-        var h = InputBar.Bounds.Height;
-        if (h > 0)
-            SlashPalette.Margin = new Avalonia.Thickness(10, 0, 10, h + 8);
     }
 
     /// <summary>点击候选项完成补全 → 回焦输入框</summary>
@@ -95,8 +83,6 @@ public sealed partial class MainWindow : Window
         _statusBlinkTimer.Tick -= OnStatusBlinkTick;
         _toolTimer.Stop();
         _toolTimer.Tick -= OnToolTimerTick;
-        if (InputBar is not null)
-            InputBar.SizeChanged -= OnInputBarSizeChanged;
         RemoveHandler(PointerPressedEvent, OnGlobalPointerPressed);
         _toastCts?.Cancel();
         _errorToastFadeCts?.Cancel();

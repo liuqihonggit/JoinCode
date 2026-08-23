@@ -13,5 +13,5 @@ public sealed record StructuredTaskEntry
     public required string Description { get; init; }
     public string? Result { get; init; }
     public List<TaskPossibility> Possibilities { get; init; } = new();
-    public string Status { get; init; } = TaskStatusConstants.Pending;
+    public string Status { get; init; } = TaskExecutionStatusConstants.Pending;
 }

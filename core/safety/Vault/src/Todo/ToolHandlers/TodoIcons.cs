@@ -22,10 +22,10 @@ internal static class TodoIcons
 
     public static readonly FrozenDictionary<string, string> TaskStatusIcons = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
-        [TaskStatusConstants.Completed] = StatusSymbolConstants.Tick,
-        [TaskStatusConstants.InProgress] = StatusSymbolConstants.Refresh,
-        [TaskStatusConstants.Pending] = StatusSymbolConstants.Circle,
-        [TaskStatusConstants.Stopped] = StatusSymbolConstants.Stop
+        [TaskExecutionStatusConstants.Completed] = StatusSymbolConstants.Tick,
+        [TaskExecutionStatusConstants.Running] = StatusSymbolConstants.Refresh,
+        [TaskExecutionStatusConstants.Pending] = StatusSymbolConstants.Circle,
+        [TaskExecutionStatusConstants.Stopped] = StatusSymbolConstants.Stop
     }.ToFrozenDictionary();
 
     public static readonly FrozenSet<string> ValidPriorities = new HashSet<string>(StringComparer.OrdinalIgnoreCase)

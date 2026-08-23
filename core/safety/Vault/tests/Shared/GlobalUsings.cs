@@ -42,7 +42,7 @@ global using Services.UserInteraction;
 global using State;
 global using System.Collections.Immutable;
 global using StreamEvent = JoinCode.Abstractions.LLM.Chat.StreamEvent;
-global using TaskState = JoinCode.Abstractions.Models.Task.TaskStatus;
+global using TaskState = JoinCode.Abstractions.State.TaskExecutionStatus;
 global using Testing.Common;
 global using Testing.Common.Services;
 global using Core.Tests.Fakes;

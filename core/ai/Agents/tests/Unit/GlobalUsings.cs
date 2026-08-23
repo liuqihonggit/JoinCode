@@ -68,7 +68,7 @@ global using IMcpClient = JoinCode.Abstractions.Mcp.Client.IMcpClient;
 global using McpClient;
 global using McpResource = JoinCode.Abstractions.Mcp.Protocol.McpResource;
 global using TaskItem = JoinCode.Abstractions.Models.Task.TaskItem;
-global using TaskState = JoinCode.Abstractions.Models.Task.TaskStatus;
+global using TaskState = JoinCode.Abstractions.State.TaskExecutionStatus;
 global using CompressionContentType = JoinCode.Abstractions.Interfaces.Context.ContentType;
 global using Microsoft.Extensions.Options;
 global using Microsoft.Extensions.Time.Testing;

@@ -397,7 +397,7 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
     /// <inheritdoc />
     public async Task<IReadOnlyList<RunningTaskInfo>> GetRunningTasksAsync(CancellationToken cancellationToken = default)
     {
-        var result = await ListTasksAsync(TaskState.InProgress.ToStateString(), null, null, 100, 0, cancellationToken).ConfigureAwait(false);
+        var result = await ListTasksAsync(TaskState.Running.ToStateString(), null, null, 100, 0, cancellationToken).ConfigureAwait(false);
 
         return result.Tasks.Select(t => new RunningTaskInfo
         {

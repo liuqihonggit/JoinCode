@@ -137,17 +137,17 @@ public sealed record FileTaskMetadata
 }
 
 /// <summary>
-/// 任务状态转换帮助类 — 委托给 TaskStatusExtensions（源码生成器自动生成）
+/// 任务状态转换帮助类 — 委托给 TaskExecutionStatusExtensions（源码生成器自动生成）
 /// </summary>
 public static class TaskStateConverter
 {
     /// <summary>
     /// 将 TaskState 枚举转换为小写字符串
     /// </summary>
-    public static string ToStateString(this TaskState state) => JoinCode.Abstractions.Models.Task.TaskStatusExtensions.ToValue((JoinCode.Abstractions.Models.Task.TaskStatus)state) ?? JoinCode.Abstractions.Models.Task.TaskStatusConstants.Pending;
+    public static string ToStateString(this TaskState state) => JoinCode.Abstractions.State.TaskExecutionStatusExtensions.ToValue((JoinCode.Abstractions.State.TaskExecutionStatus)state) ?? JoinCode.Abstractions.State.TaskExecutionStatusConstants.Pending;
 
     /// <summary>
     /// 将状态字符串转换为 TaskState 枚举
     /// </summary>
-    public static TaskState ToTaskState(this string? state) => (TaskState)(JoinCode.Abstractions.Models.Task.TaskStatusExtensions.FromValue(state) ?? JoinCode.Abstractions.Models.Task.TaskStatus.Pending);
+    public static TaskState ToTaskState(this string? state) => (TaskState)(JoinCode.Abstractions.State.TaskExecutionStatusExtensions.FromValue(state) ?? JoinCode.Abstractions.State.TaskExecutionStatus.Pending);
 }

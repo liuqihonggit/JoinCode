@@ -8,7 +8,7 @@ public sealed record TaskItem
     public required string Id { get; init; }
     public required string Title { get; init; }
     public string? Description { get; init; }
-    public string Status { get; init; } = TaskStatusConstants.Pending;
+    public string Status { get; init; } = TaskExecutionStatusConstants.Pending;
     public TodoPriority Priority { get; init; } = TodoPriority.Medium;
     public string? Assignee { get; init; }
     public DateTime? DueDate { get; init; }

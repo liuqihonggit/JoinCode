@@ -326,7 +326,10 @@ public enum TaskExecutionStatus
     [EnumValue("waitingForDependency")] WaitingForDependency = 6,
 
     /// <summary>就绪（依赖已满足，等待调度）</summary>
-    [EnumValue("ready")] Ready = 7
+    [EnumValue("ready")] Ready = 7,
+
+    /// <summary>已停止（手动停止，非正常完成）</summary>
+    [EnumValue("stopped")] Stopped = 8
 }
 
 /// <summary>
@@ -335,10 +338,10 @@ public enum TaskExecutionStatus
 public static class TaskExecutionStatusHelper
 {
     /// <summary>
-    /// 是否处于终态（Completed/Failed/Cancelled）— 不可再转换（除重试外）
+    /// 是否处于终态（Completed/Failed/Cancelled/Stopped）— 不可再转换（除重试外）
     /// </summary>
     public static bool IsTerminal(this TaskExecutionStatus status)
-        => status is TaskExecutionStatus.Completed or TaskExecutionStatus.Failed or TaskExecutionStatus.Cancelled;
+        => status is TaskExecutionStatus.Completed or TaskExecutionStatus.Failed or TaskExecutionStatus.Cancelled or TaskExecutionStatus.Stopped;
 
     /// <summary>
     /// 是否处于活跃态（Running/Ready/WaitingForDependency）— 正在执行或即将执行

@@ -34,7 +34,7 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
             Id = taskId,
             Title = title,
             Description = description,
-            Status = TaskStatusConstants.Pending,
+            Status = TaskExecutionStatusConstants.Pending,
             Priority = TodoPriorityExtensions.FromValue(priority) ?? TodoPriority.Medium,
             Assignee = assignee,
             DueDate = dueDate,
@@ -122,7 +122,7 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
 
         var updatedTask = task with
         {
-            Status = TaskStatusConstants.Stopped
+            Status = TaskExecutionStatusConstants.Stopped
         };
 
         _tasks[taskId] = updatedTask;
@@ -193,7 +193,7 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
 
         if (_taskStateMachines.TryGetValue(taskId, out var stateMachine))
         {
-            stateMachine.TryTransitionTo(TaskState.WaitingForDependencies);
+            stateMachine.TryTransitionTo(TaskState.WaitingForDependency);
             UpdateTaskStatusFromStateMachine(taskId, stateMachine);
         }
 
@@ -232,7 +232,7 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
             return Task.FromResult(false);
         }
 
-        if (task.Status != TaskStatusConstants.Pending && task.Status != TaskStatusConstants.WaitingForDependencies)
+        if (task.Status != TaskExecutionStatusConstants.Pending && task.Status != TaskExecutionStatusConstants.WaitingForDependency)
         {
             return Task.FromResult(false);
         }
@@ -244,7 +244,7 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
         {
             if (_tasks.TryGetValue(dep.FromId, out var dependsOnTask))
             {
-                if (dependsOnTask.Status != TaskStatusConstants.Completed)
+                if (dependsOnTask.Status != TaskExecutionStatusConstants.Completed)
                 {
                     return Task.FromResult(false);
                 }
@@ -263,9 +263,9 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
 
         var hasBlockingDependencies = _dag.Edges.Values
             .Where(e => e.ToId == taskId && e.Label == TaskDependencyType.Blocks.ToValue())
-            .Any(e => _tasks.TryGetValue(e.FromId, out var t) && t.Status != TaskStatusConstants.Completed);
+            .Any(e => _tasks.TryGetValue(e.FromId, out var t) && t.Status != TaskExecutionStatusConstants.Completed);
 
-        if (!hasBlockingDependencies && stateMachine.CurrentState == TaskState.WaitingForDependencies)
+        if (!hasBlockingDependencies && stateMachine.CurrentState == TaskState.WaitingForDependency)
         {
             stateMachine.TryTransitionTo(TaskState.Pending);
             UpdateTaskStatusFromStateMachine(taskId, stateMachine);
@@ -274,7 +274,7 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
 
     private void UpdateTaskStatusFromStateMachine(string taskId, TaskStateMachine stateMachine)
     {
-        var status = TaskStatusExtensions.ToValue((JoinCode.Abstractions.Models.Task.TaskStatus)stateMachine.CurrentState) ?? TaskStatusConstants.Pending;
+        var status = TaskExecutionStatusExtensions.ToValue((JoinCode.Abstractions.State.TaskExecutionStatus)stateMachine.CurrentState) ?? TaskExecutionStatusConstants.Pending;
 
         if (_tasks.TryGetValue(taskId, out var task))
         {
@@ -289,14 +289,14 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
             return Task.FromResult(false);
         }
 
-        if (task.Status != TaskStatusConstants.InProgress && task.Status != TaskStatusConstants.Pending && task.Status != TaskStatusConstants.WaitingForDependencies)
+        if (task.Status != TaskExecutionStatusConstants.Running && task.Status != TaskExecutionStatusConstants.Pending && task.Status != TaskExecutionStatusConstants.WaitingForDependency)
         {
             return Task.FromResult(false);
         }
 
         var updatedTask = task with
         {
-            Status = TaskStatusConstants.Stopped
+            Status = TaskExecutionStatusConstants.Stopped
         };
 
         _tasks[taskId] = updatedTask;
@@ -312,7 +312,7 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
     public Task<IReadOnlyList<RunningTaskInfo>> GetRunningTasksAsync(CancellationToken cancellationToken = default)
     {
         var runningTasks = _tasks.Values
-            .Where(t => t.Status == TaskStatusConstants.InProgress)
+            .Where(t => t.Status == TaskExecutionStatusConstants.Running)
             .Select(t => new RunningTaskInfo
             {
                 Id = t.Id,

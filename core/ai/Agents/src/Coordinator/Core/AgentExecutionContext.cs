@@ -36,19 +36,33 @@ public sealed class AgentExecutionContext
     public int RetryCount { get; set; }
 
     /// <summary>
-    /// 是否成功
+    /// 执行结果 — 归纳原 IsSuccess(bool?)+IsCancelled(bool) 的合法组合
+    /// <para>消除 IsSuccess=true&amp;IsCancelled=true 非法组合</para>
     /// </summary>
-    public bool? IsSuccess { get; set; }
-
-    /// <summary>
-    /// 是否被取消
-    /// </summary>
-    public bool IsCancelled { get; set; }
+    public AgentOutcome Outcome { get; set; } = AgentOutcome.Pending;
 
     /// <summary>
     /// 执行模式
     /// </summary>
     public ExecutionMode ExecutionMode { get; set; } = ExecutionMode.Single;
+}
+
+/// <summary>
+/// Agent 执行结果 — 归纳原 IsSuccess(bool?)+IsCancelled(bool)
+/// </summary>
+public enum AgentOutcome
+{
+    /// <summary>未完成 — 原 IsSuccess=null, IsCancelled=false</summary>
+    [EnumValue("pending")] Pending,
+
+    /// <summary>成功 — 原 IsSuccess=true, IsCancelled=false</summary>
+    [EnumValue("succeeded")] Succeeded,
+
+    /// <summary>失败 — 原 IsSuccess=false, IsCancelled=false</summary>
+    [EnumValue("failed")] Failed,
+
+    /// <summary>已取消 — 原 IsCancelled=true</summary>
+    [EnumValue("cancelled")] Cancelled
 }
 
 /// <summary>

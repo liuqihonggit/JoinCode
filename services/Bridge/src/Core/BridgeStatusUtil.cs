@@ -122,32 +122,18 @@ public static class BridgeStatusUtil
     }
 
     /// <summary>
-    /// 根据连接状态推导状态标签和颜色 — 对齐 TS 端 getBridgeStatus
+    /// 根据 Bridge 状态枚举推导状态标签和颜色 — 对齐 TS 端 getBridgeStatus
+    /// <para>状态枚举是唯一数据源，消除 4-bool 参数的 16 种组合中仅 5 种合法的隐式约束</para>
     /// </summary>
-    public static BridgeStatusInfo GetBridgeStatus(bool error, bool connected, bool sessionActive, bool reconnecting)
+    public static BridgeStatusInfo GetBridgeStatus(BridgeStatusState state) => state switch
     {
-        if (error)
-        {
-            return new BridgeStatusInfo { Label = "Bridge Error", Color = "error" };
-        }
-
-        if (reconnecting)
-        {
-            return new BridgeStatusInfo { Label = "Reconnecting", Color = "warning" };
-        }
-
-        if (!connected)
-        {
-            return new BridgeStatusInfo { Label = "Disconnected", Color = "error" };
-        }
-
-        if (sessionActive)
-        {
-            return new BridgeStatusInfo { Label = "Active", Color = "success" };
-        }
-
-        return new BridgeStatusInfo { Label = "Connected", Color = "success" };
-    }
+        BridgeStatusState.Failed       => new BridgeStatusInfo { Label = "Bridge Error",  Color = "error" },
+        BridgeStatusState.Reconnecting => new BridgeStatusInfo { Label = "Reconnecting",  Color = "warning" },
+        BridgeStatusState.Idle         => new BridgeStatusInfo { Label = "Disconnected", Color = "error" },
+        BridgeStatusState.Titled       => new BridgeStatusInfo { Label = "Active",        Color = "success" },
+        BridgeStatusState.Attached     => new BridgeStatusInfo { Label = "Connected",    Color = "success" },
+        _ => throw new ArgumentOutOfRangeException(nameof(state), state, "未知的 Bridge 状态"),
+    };
 
     /// <summary>
     /// idle 状态底部文本

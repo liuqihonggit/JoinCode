@@ -15,7 +15,7 @@ public class TaskStateMachineTests
 
     [Theory]
     [InlineData(TaskState.Pending)]
-    [InlineData(TaskState.InProgress)]
+    [InlineData(TaskState.Running)]
     [InlineData(TaskState.Completed)]
     public void Constructor_WithSpecificState_ShouldSetThatState(TaskState initialState)
     {
@@ -27,16 +27,16 @@ public class TaskStateMachineTests
     }
 
     [Theory]
-    [InlineData(TaskState.Pending, TaskState.InProgress)]
-    [InlineData(TaskState.Pending, TaskState.WaitingForDependencies)]
+    [InlineData(TaskState.Pending, TaskState.Running)]
+    [InlineData(TaskState.Pending, TaskState.WaitingForDependency)]
     [InlineData(TaskState.Pending, TaskState.Cancelled)]
-    [InlineData(TaskState.WaitingForDependencies, TaskState.InProgress)]
-    [InlineData(TaskState.WaitingForDependencies, TaskState.Cancelled)]
-    [InlineData(TaskState.InProgress, TaskState.Paused)]
-    [InlineData(TaskState.InProgress, TaskState.Completed)]
-    [InlineData(TaskState.InProgress, TaskState.Failed)]
-    [InlineData(TaskState.InProgress, TaskState.Stopped)]
-    [InlineData(TaskState.Paused, TaskState.InProgress)]
+    [InlineData(TaskState.WaitingForDependency, TaskState.Running)]
+    [InlineData(TaskState.WaitingForDependency, TaskState.Cancelled)]
+    [InlineData(TaskState.Running, TaskState.Paused)]
+    [InlineData(TaskState.Running, TaskState.Completed)]
+    [InlineData(TaskState.Running, TaskState.Failed)]
+    [InlineData(TaskState.Running, TaskState.Stopped)]
+    [InlineData(TaskState.Paused, TaskState.Running)]
     [InlineData(TaskState.Paused, TaskState.Cancelled)]
     public void TryTransitionTo_WithValidTransition_ShouldReturnTrue(TaskState fromState, TaskState toState)
     {
@@ -54,10 +54,10 @@ public class TaskStateMachineTests
     [Theory]
     [InlineData(TaskState.Pending, TaskState.Completed)]
     [InlineData(TaskState.Pending, TaskState.Failed)]
-    [InlineData(TaskState.InProgress, TaskState.Pending)]
-    [InlineData(TaskState.Completed, TaskState.InProgress)]
+    [InlineData(TaskState.Running, TaskState.Pending)]
+    [InlineData(TaskState.Completed, TaskState.Running)]
     [InlineData(TaskState.Failed, TaskState.Pending)]
-    [InlineData(TaskState.Cancelled, TaskState.InProgress)]
+    [InlineData(TaskState.Cancelled, TaskState.Running)]
     public void TryTransitionTo_WithInvalidTransition_ShouldReturnFalse(TaskState fromState, TaskState toState)
     {
         // Arrange
@@ -75,14 +75,14 @@ public class TaskStateMachineTests
     public void TryTransitionTo_SameState_ShouldReturnTrue()
     {
         // Arrange
-        var stateMachine = new TaskStateMachine(TaskState.InProgress);
+        var stateMachine = new TaskStateMachine(TaskState.Running);
 
         // Act
-        var result = stateMachine.TryTransitionTo(TaskState.InProgress);
+        var result = stateMachine.TryTransitionTo(TaskState.Running);
 
         // Assert
         result.Should().BeTrue();
-        stateMachine.CurrentState.Should().Be(TaskState.InProgress);
+        stateMachine.CurrentState.Should().Be(TaskState.Running);
     }
 
     [Fact]
@@ -107,12 +107,12 @@ public class TaskStateMachineTests
         stateMachine.StateChanged += (sender, args) => capturedArgs = args;
 
         // Act
-        stateMachine.TryTransitionTo(TaskState.InProgress);
+        stateMachine.TryTransitionTo(TaskState.Running);
 
         // Assert
         capturedArgs.Should().NotBeNull();
         capturedArgs!.OldState.Should().Be(TaskState.Pending);
-        capturedArgs.NewState.Should().Be(TaskState.InProgress);
+        capturedArgs.NewState.Should().Be(TaskState.Running);
     }
 
     [Fact]
@@ -124,16 +124,16 @@ public class TaskStateMachineTests
         stateMachine.StateChanged += (sender, args) => eventTriggered = true;
 
         // Act
-        stateMachine.TryTransitionTo(TaskState.InProgress);
+        stateMachine.TryTransitionTo(TaskState.Running);
 
         // Assert
         eventTriggered.Should().BeFalse();
     }
 
     [Theory]
-    [InlineData(TaskState.Pending, TaskState.InProgress, true)]
+    [InlineData(TaskState.Pending, TaskState.Running, true)]
     [InlineData(TaskState.Pending, TaskState.Completed, false)]
-    [InlineData(TaskState.InProgress, TaskState.Completed, true)]
+    [InlineData(TaskState.Running, TaskState.Completed, true)]
     public void CanTransitionTo_ShouldReturnExpectedResult(TaskState fromState, TaskState toState, bool expected)
     {
         // Arrange
@@ -156,8 +156,8 @@ public class TaskStateMachineTests
         var validStates = stateMachine.GetValidNextStates();
 
         // Assert
-        validStates.Should().Contain(TaskState.WaitingForDependencies);
-        validStates.Should().Contain(TaskState.InProgress);
+        validStates.Should().Contain(TaskState.WaitingForDependency);
+        validStates.Should().Contain(TaskState.Running);
         validStates.Should().Contain(TaskState.Cancelled);
         validStates.Should().HaveCount(3);
     }
@@ -181,7 +181,7 @@ public class TaskStateMachineTests
     [InlineData(TaskState.Cancelled, true)]
     [InlineData(TaskState.Stopped, true)]
     [InlineData(TaskState.Pending, false)]
-    [InlineData(TaskState.InProgress, false)]
+    [InlineData(TaskState.Running, false)]
     [InlineData(TaskState.Paused, false)]
     public void IsTerminalState_ShouldReturnExpectedResult(TaskState state, bool expected)
     {
@@ -197,8 +197,8 @@ public class TaskStateMachineTests
 
     [Theory]
     [InlineData(TaskState.Pending, true)]
-    [InlineData(TaskState.WaitingForDependencies, true)]
-    [InlineData(TaskState.InProgress, false)]
+    [InlineData(TaskState.WaitingForDependency, true)]
+    [InlineData(TaskState.Running, false)]
     [InlineData(TaskState.Completed, false)]
     public void CanExecute_ShouldReturnExpectedResult(TaskState state, bool expected)
     {
@@ -221,20 +221,20 @@ public class TaskStateMachineTests
         stateMachine.StateChanged += (sender, args) => states.Add(args.NewState);
 
         // Act
-        stateMachine.TryTransitionTo(TaskState.WaitingForDependencies);
-        stateMachine.TryTransitionTo(TaskState.InProgress);
+        stateMachine.TryTransitionTo(TaskState.WaitingForDependency);
+        stateMachine.TryTransitionTo(TaskState.Running);
         stateMachine.TryTransitionTo(TaskState.Paused);
-        stateMachine.TryTransitionTo(TaskState.InProgress);
+        stateMachine.TryTransitionTo(TaskState.Running);
         stateMachine.TryTransitionTo(TaskState.Completed);
 
         // Assert
         stateMachine.CurrentState.Should().Be(TaskState.Completed);
         states.Should().Equal(new[]
         {
-            TaskState.WaitingForDependencies,
-            TaskState.InProgress,
+            TaskState.WaitingForDependency,
+            TaskState.Running,
             TaskState.Paused,
-            TaskState.InProgress,
+            TaskState.Running,
             TaskState.Completed
         });
     }
@@ -246,23 +246,23 @@ public class TaskStateMachineTests
         var stateMachine = new TaskStateMachine(TaskState.Pending);
 
         // Act & Assert - 完整工作流
-        stateMachine.TryTransitionTo(TaskState.WaitingForDependencies).Should().BeTrue();
-        stateMachine.CurrentState.Should().Be(TaskState.WaitingForDependencies);
+        stateMachine.TryTransitionTo(TaskState.WaitingForDependency).Should().BeTrue();
+        stateMachine.CurrentState.Should().Be(TaskState.WaitingForDependency);
 
-        stateMachine.TryTransitionTo(TaskState.InProgress).Should().BeTrue();
-        stateMachine.CurrentState.Should().Be(TaskState.InProgress);
+        stateMachine.TryTransitionTo(TaskState.Running).Should().BeTrue();
+        stateMachine.CurrentState.Should().Be(TaskState.Running);
 
         stateMachine.TryTransitionTo(TaskState.Paused).Should().BeTrue();
         stateMachine.CurrentState.Should().Be(TaskState.Paused);
 
-        stateMachine.TryTransitionTo(TaskState.InProgress).Should().BeTrue();
-        stateMachine.CurrentState.Should().Be(TaskState.InProgress);
+        stateMachine.TryTransitionTo(TaskState.Running).Should().BeTrue();
+        stateMachine.CurrentState.Should().Be(TaskState.Running);
 
         stateMachine.TryTransitionTo(TaskState.Completed).Should().BeTrue();
         stateMachine.CurrentState.Should().Be(TaskState.Completed);
 
         // 终态不能再转换
-        stateMachine.TryTransitionTo(TaskState.InProgress).Should().BeFalse();
+        stateMachine.TryTransitionTo(TaskState.Running).Should().BeFalse();
         stateMachine.CurrentState.Should().Be(TaskState.Completed);
     }
 
@@ -273,7 +273,7 @@ public class TaskStateMachineTests
         var stateMachine = new TaskStateMachine(TaskState.Pending);
 
         // Act
-        stateMachine.TryTransitionTo(TaskState.InProgress).Should().BeTrue();
+        stateMachine.TryTransitionTo(TaskState.Running).Should().BeTrue();
         stateMachine.TryTransitionTo(TaskState.Failed).Should().BeTrue();
 
         // Assert
@@ -300,7 +300,7 @@ public class TaskStateMachineTests
     {
         // Arrange
         var stateMachine = new TaskStateMachine(TaskState.Pending);
-        stateMachine.TryTransitionTo(TaskState.InProgress).Should().BeTrue();
+        stateMachine.TryTransitionTo(TaskState.Running).Should().BeTrue();
         stateMachine.TryTransitionTo(TaskState.Paused).Should().BeTrue();
 
         // Act
@@ -315,7 +315,7 @@ public class TaskStateMachineTests
     {
         // Arrange
         var previousState = TaskState.Pending;
-        var newState = TaskState.InProgress;
+        var newState = TaskState.Running;
         var beforeTime = DateTime.UtcNow.AddMilliseconds(-10);
 
         // Act

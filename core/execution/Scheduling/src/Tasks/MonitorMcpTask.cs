@@ -31,7 +31,7 @@ public sealed partial class McpMonitorStatus
     public DateTime? LastEventAt { get; init; }
 }
 
-public enum MonitorState { [EnumValue("starting")] Starting, [EnumValue("running")] Running, [EnumValue("paused")] Paused, [EnumValue("stopped")] Stopped, [EnumValue("error")] Error }
+public enum MonitorState { [EnumValue("starting")] Starting = 0, [EnumValue("running")] Running = 1, [EnumValue("stopped")] Stopped = 3, [EnumValue("error")] Error = 4 }
 
 public sealed partial class McpMonitorEventArgs : EventArgs
 {

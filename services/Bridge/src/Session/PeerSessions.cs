@@ -144,10 +144,18 @@ public sealed partial class PeerSessionManager : IAsyncDisposable
     /// <param name="ct">取消令牌</param>
     public async Task MarkConnectedAsync(string sessionId, CancellationToken ct = default)
     {
-                using (await _stateLock.LockAsync(ct).ConfigureAwait(false))
+        using (await _stateLock.LockAsync(ct).ConfigureAwait(false))
         {
             if (_sessions.TryGetValue(sessionId, out var session))
             {
+                if (session.Status != PeerSessionStatus.Connecting)
+                {
+                    _logger?.LogDebug(
+                        "[PeerSessionManager] 对等会话已非 Connecting 状态,跳过: {SessionId}, 当前: {Status}",
+                        sessionId, session.Status);
+                    return;
+                }
+
                 session.Status = PeerSessionStatus.Connected;
 
                 _logger?.LogInformation(

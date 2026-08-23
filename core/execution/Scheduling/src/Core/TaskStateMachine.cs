@@ -34,7 +34,7 @@ public sealed class TaskStateMachine
 
     public bool CanExecute()
     {
-        return CurrentState is TaskState.Pending or TaskState.WaitingForDependencies;
+        return CurrentState is TaskState.Pending or TaskState.WaitingForDependency;
     }
 
     private void OnStateChanged(object? sender, StateChangedEventArgs<TaskState> e)
@@ -48,18 +48,18 @@ public sealed class TaskStateMachine
         {
             [TaskState.Pending] = new HashSet<TaskState>
             {
-                TaskState.WaitingForDependencies,
-                TaskState.InProgress,
+                TaskState.WaitingForDependency,
+                TaskState.Running,
                 TaskState.Cancelled
             }.ToFrozenSet(),
 
-            [TaskState.WaitingForDependencies] = new HashSet<TaskState>
+            [TaskState.WaitingForDependency] = new HashSet<TaskState>
             {
-                TaskState.InProgress,
+                TaskState.Running,
                 TaskState.Cancelled
             }.ToFrozenSet(),
 
-            [TaskState.InProgress] = new HashSet<TaskState>
+            [TaskState.Running] = new HashSet<TaskState>
             {
                 TaskState.Paused,
                 TaskState.Completed,
@@ -69,7 +69,7 @@ public sealed class TaskStateMachine
 
             [TaskState.Paused] = new HashSet<TaskState>
             {
-                TaskState.InProgress,
+                TaskState.Running,
                 TaskState.Cancelled
             }.ToFrozenSet(),
 

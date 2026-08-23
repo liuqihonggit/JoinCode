@@ -25,50 +25,43 @@ public enum PluginFiberState
 /// <summary>
 /// Fiber 状态机 — 非法转换抛 InvalidOperationException[INF-FIBER-ILLEGAL]
 /// <para>对齐 Cordis:状态机约束插件生命周期,非法转换立即报错而非静默继续</para>
+/// <para>内部复用 StateMachine&lt;TState&gt; 基础设施,消除手写锁/转换表/事件重复逻辑</para>
 /// </summary>
 public sealed class PluginFiber
 {
-    private PluginFiberState _state = PluginFiberState.Pending;
-    private readonly object _lock = new();
+    private static readonly FrozenDictionary<PluginFiberState, FrozenSet<PluginFiberState>> Transitions = CreateTransitionTable();
+    private readonly StateMachine<PluginFiberState> _stateMachine = new(Transitions, PluginFiberState.Pending);
 
     /// <summary>当前状态</summary>
-    public PluginFiberState State => _state;
+    public PluginFiberState State => _stateMachine.CurrentState;
 
     /// <summary>转换状态 — 非法转换抛 InvalidOperationException</summary>
     public void TransitionTo(PluginFiberState next)
     {
-        lock (_lock)
+        try
         {
-            if (!IsValidTransition(_state, next))
-            {
-                throw new InvalidOperationException(
-                    $"[INF-FIBER-ILLEGAL] 非法状态转换: {_state} → {next}");
-            }
-            _state = next;
+            _stateMachine.TransitionTo(next);
+        }
+        catch (InvalidOperationException)
+        {
+            throw new InvalidOperationException(
+                $"[INF-FIBER-ILLEGAL] 非法状态转换: {_stateMachine.CurrentState} → {next}");
         }
     }
 
     /// <summary>尝试转换状态 — 非法转换返回 false(不抛)</summary>
-    public bool TryTransitionTo(PluginFiberState next)
-    {
-        lock (_lock)
-        {
-            if (!IsValidTransition(_state, next)) return false;
-            _state = next;
-            return true;
-        }
-    }
+    public bool TryTransitionTo(PluginFiberState next) => _stateMachine.TryTransitionTo(next);
 
-    private static bool IsValidTransition(PluginFiberState from, PluginFiberState to) => (from, to) switch
+    private static FrozenDictionary<PluginFiberState, FrozenSet<PluginFiberState>> CreateTransitionTable()
     {
-        (PluginFiberState.Pending, PluginFiberState.Loading) => true,
-        (PluginFiberState.Loading, PluginFiberState.Active) => true,
-        (PluginFiberState.Loading, PluginFiberState.Failed) => true,
-        (PluginFiberState.Pending, PluginFiberState.Unloading) => true,
-        (PluginFiberState.Active, PluginFiberState.Unloading) => true,
-        (PluginFiberState.Failed, PluginFiberState.Unloading) => true,
-        (PluginFiberState.Unloading, PluginFiberState.Disposed) => true,
-        (PluginFiberState.Failed, PluginFiberState.Disposed) => true,
-        _ => false,
-    };
+        return new Dictionary<PluginFiberState, FrozenSet<PluginFiberState>>
+        {
+            [PluginFiberState.Pending] = FrozenSet.Create(PluginFiberState.Loading, PluginFiberState.Unloading),
+            [PluginFiberState.Loading] = FrozenSet.Create(PluginFiberState.Active, PluginFiberState.Failed),
+            [PluginFiberState.Active] = FrozenSet.Create(PluginFiberState.Unloading),
+            [PluginFiberState.Failed] = FrozenSet.Create(PluginFiberState.Unloading, PluginFiberState.Disposed),
+            [PluginFiberState.Unloading] = FrozenSet.Create(PluginFiberState.Disposed),
+            [PluginFiberState.Disposed] = FrozenSet<PluginFiberState>.Empty,
+        }.ToFrozenDictionary();
+    }
 }

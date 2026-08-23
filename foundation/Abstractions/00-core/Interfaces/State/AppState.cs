@@ -326,7 +326,10 @@ public enum TaskExecutionStatus
     [EnumValue("waitingForDependency")] WaitingForDependency = 6,
 
     /// <summary>就绪（依赖已满足，等待调度）</summary>
-    [EnumValue("ready")] Ready = 7
+    [EnumValue("ready")] Ready = 7,
+
+    /// <summary>已停止（手动停止，非正常完成）</summary>
+    [EnumValue("stopped")] Stopped = 8
 }
 
 /// <summary>
@@ -335,10 +338,10 @@ public enum TaskExecutionStatus
 public static class TaskExecutionStatusHelper
 {
     /// <summary>
-    /// 是否处于终态（Completed/Failed/Cancelled）— 不可再转换（除重试外）
+    /// 是否处于终态（Completed/Failed/Cancelled/Stopped）— 不可再转换（除重试外）
     /// </summary>
     public static bool IsTerminal(this TaskExecutionStatus status)
-        => status is TaskExecutionStatus.Completed or TaskExecutionStatus.Failed or TaskExecutionStatus.Cancelled;
+        => status is TaskExecutionStatus.Completed or TaskExecutionStatus.Failed or TaskExecutionStatus.Cancelled or TaskExecutionStatus.Stopped;
 
     /// <summary>
     /// 是否处于活跃态（Running/Ready/WaitingForDependency）— 正在执行或即将执行
@@ -569,54 +572,28 @@ public enum McpConnectionStatus
 }
 
 /// <summary>
+/// Bridge 生命周期状态 — 归纳原 IsEnabled/IsConnected 两个 bool 的合法组合
+/// <para>消除 IsEnabled=false&amp;IsConnected=true 非法组合，状态唯一数据源</para>
+/// </summary>
+public enum BridgeLifecycleState
+{
+    /// <summary>未启用 — IsEnabled=false</summary>
+    [EnumValue("disabled")] Disabled,
+    /// <summary>已启用未连接 — IsEnabled=true, IsConnected=false</summary>
+    [EnumValue("enabled")] Enabled,
+    /// <summary>已连接 — IsEnabled=true, IsConnected=true</summary>
+    [EnumValue("connected")] Connected
+}
+
+/// <summary>
 /// Bridge 状态
 /// </summary>
 public sealed record BridgeState
 {
     /// <summary>
-    /// 是否启用 Bridge
+    /// Bridge 生命周期状态
     /// </summary>
-    public bool IsEnabled { get; init; }
-
-    /// <summary>
-    /// 是否已连接
-    /// </summary>
-    public bool IsConnected { get; init; }
-
-    /// <summary>
-    /// 是否正在重连
-    /// </summary>
-    public bool IsReconnecting { get; init; }
-
-    /// <summary>
-    /// 连接 URL
-    /// </summary>
-    public string? ConnectUrl { get; init; }
-
-    /// <summary>
-    /// 会话 URL
-    /// </summary>
-    public string? SessionUrl { get; init; }
-
-    /// <summary>
-    /// 环境 ID
-    /// </summary>
-    public string? EnvironmentId { get; init; }
-
-    /// <summary>
-    /// 会话 ID
-    /// </summary>
-    public string? SessionId { get; init; }
-
-    /// <summary>
-    /// 最后错误信息
-    /// </summary>
-    public string? LastError { get; init; }
-
-    /// <summary>
-    /// 是否仅出站模式
-    /// </summary>
-    public bool IsOutboundOnly { get; init; }
+    public BridgeLifecycleState Lifecycle { get; init; } = BridgeLifecycleState.Disabled;
 }
 
 /// <summary>

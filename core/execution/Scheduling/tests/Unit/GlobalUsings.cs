@@ -38,7 +38,7 @@ global using Microsoft.Extensions.Options;
 global using Microsoft.Extensions.Time.Testing;
 global using Moq;
 global using System.Runtime.CompilerServices;
-global using TaskState = JoinCode.Abstractions.Models.Task.TaskStatus;
+global using TaskState = JoinCode.Abstractions.State.TaskExecutionStatus;
 global using TodoPriority = JoinCode.Abstractions.Models.Todo.TodoPriority;
 global using Testing.Common;
 global using Testing.Common.Services;

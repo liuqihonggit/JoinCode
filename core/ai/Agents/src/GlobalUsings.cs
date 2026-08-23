@@ -28,7 +28,7 @@ global using JoinCode.Abstractions.Models.Plan;
 global using JoinCode.Abstractions.Models.Runtime;
 global using JoinCode.Abstractions.Models.Task;
 global using JoinCode.Abstractions.Models.Todo;
-global using TaskStatus = JoinCode.Abstractions.Models.Task.TaskStatus;
+global using TaskStatus = JoinCode.Abstractions.State.TaskExecutionStatus;
 global using JoinCode.Abstractions.Models.Telemetry;
 global using JoinCode.Abstractions.Prompts;
 global using JoinCode.Abstractions.Security;

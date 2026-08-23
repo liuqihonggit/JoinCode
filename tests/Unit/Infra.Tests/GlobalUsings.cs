@@ -35,6 +35,7 @@ global using JoinCode.Abstractions.Http;
 global using JoinCode.Abstractions.Network;
 global using Infrastructure.Http;
 global using Infrastructure.Network;
+global using Infrastructure.Configuration;
 global using Infrastructure.Pipeline;
 global using Infrastructure.Subprocess;
 global using Infrastructure.Utils.Resilience;

@@ -34,7 +34,8 @@ public sealed class GuardianJournalIntegrationTests
             outputLoopDetector: new OutputLoopDetector(
                 minPatternLength: 100, checkInterval: 100, requiredRepeats: 100, cooldownChars: 0),
             shannonEntropyDetector: new ShannonEntropyDetector(
-                windowSize: 10, declineThreshold: 3, minEntropyDelta: 0.001),
+                windowSize: 10, declineThreshold: 3, minEntropyDelta: 0.001,
+                confirmationWindow: TimeSpan.FromSeconds(5)),
             journal: journal);
 
         guardian.SetContext("test-session", 1, 0);
@@ -43,12 +44,14 @@ public sealed class GuardianJournalIntegrationTests
         var medium = string.Concat(Enumerable.Range(0, 5).SelectMany(i => new string((char)('a' + i), 8)));
         var low = new string('a', 30) + new string('b', 10);
         var veryLow = new string('a', 90) + new string('b', 10);
+        var evenLower = new string('a', 500) + new string('b', 10);
 
         guardian.CheckTextLoop(high);
         guardian.CheckTextLoop(medium);
         guardian.CheckTextLoop(low);
+        guardian.CheckTextLoop(veryLow);
 
-        var result = guardian.CheckTextLoop(veryLow);
+        var result = guardian.CheckTextLoop(evenLower);
 
         Assert.NotNull(result);
         Assert.Contains("信息熵减", result.Reason);

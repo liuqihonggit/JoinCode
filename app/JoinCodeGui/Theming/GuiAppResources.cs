@@ -15,6 +15,8 @@ public static class GuiAppResources
     public static void Register(Application app)
     {
         app.Styles.Add(new FluentTheme());
+        // 共享控件样式（设计语言单一数据源）：必须在 FluentTheme 之后追加以覆盖默认外观
+        app.Styles.Add(new GuiControlStyles());
         app.Resources["GuiMonoFont"] = new Avalonia.Media.FontFamily("Consolas,Cascadia Mono,Menlo,monospace");
         app.Resources["GuiPopupShadow"] = new Avalonia.Media.BoxShadows(Avalonia.Media.BoxShadow.Parse("0 6 16 0 #90000000"));
         // 底部升起式补全面板专用：向上弥散的环境阴影（面板从输入栏背后向上滑出，阴影朝上）

@@ -64,6 +64,18 @@ public static class GuiPalette
         /// <summary>补全面板选中行背景 — accent 蓝的低饱和暗色调，选中态醒目但不刺眼</summary>
         public string PaletteSelectedRow { get; init; } = "#2c3a4d";
 
+        /// <summary>accent 淡底（主操作弱化态/药丸建议/模型徽章）</summary>
+        public string AccentSubtle { get; init; } = "#1c2e44";
+
+        /// <summary>accent 淡底悬停态</summary>
+        public string AccentSubtleHover { get; init; } = "#243a55";
+
+        /// <summary>primary 按钮（accent 实底）悬停态</summary>
+        public string AccentHover { get; init; } = "#63b1ff";
+
+        /// <summary>消息卡片悬停态背景</summary>
+        public string CardHover { get; init; } = "#242429";
+
         /// <summary>遍历全部 token 值，供对比度校验与资源注入使用。</summary>
         public IEnumerable<string> AllTokens()
         {
@@ -109,6 +121,10 @@ public static class GuiPalette
             yield return ToastForeground;
             yield return PopupBackground;
             yield return PaletteSelectedRow;
+            yield return AccentSubtle;
+            yield return AccentSubtleHover;
+            yield return AccentHover;
+            yield return CardHover;
         }
     }
 
@@ -156,7 +172,11 @@ public static class GuiPalette
         SlashMatched = "#B35C00",
         ToastForeground = "#FFFFFF",
         PopupBackground = "#ffffff",
-        PaletteSelectedRow = "#d8e4f2"
+        PaletteSelectedRow = "#d8e4f2",
+        AccentSubtle = "#dce9f8",
+        AccentSubtleHover = "#cfe0f5",
+        AccentHover = "#2f7fd4",
+        CardHover = "#e9e9e9"
     };
 
     /// <summary>获取指定主题的配色方案。</summary>
@@ -238,6 +258,10 @@ public static class GuiPalette
         yield return ("GuiToastForeground", s.ToastForeground);
         yield return ("GuiPopupBackground", s.PopupBackground);
         yield return ("GuiPaletteSelectedRow", s.PaletteSelectedRow);
+        yield return ("GuiAccentSubtle", s.AccentSubtle);
+        yield return ("GuiAccentSubtleHover", s.AccentSubtleHover);
+        yield return ("GuiAccentHover", s.AccentHover);
+        yield return ("GuiCardHover", s.CardHover);
     }
 
     /// <summary>解析十六进制色为不可变画刷（供资源和转换器共用）。</summary>

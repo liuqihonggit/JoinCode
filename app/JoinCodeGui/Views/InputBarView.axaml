@@ -6,14 +6,15 @@
              xmlns:vm="using:JoinCode.Gui.ViewModels"
              x:Class="JoinCode.Gui.Views.InputBarView"
              x:DataType="vm:MainViewModel">
-  <Border Padding="10" Background="{DynamicResource GuiInputBarBackground}" ClipToBounds="True">
-    <StackPanel Spacing="6">
-      <Grid ColumnDefinitions="*,Auto,Auto">
+  <Border Padding="12,9" Background="{DynamicResource GuiInputBarBackground}"
+          BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,1,0,0" ClipToBounds="True">
+    <StackPanel Spacing="7">
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
         <TextBox x:Name="InputTextBox" Text="{Binding InputText}" Watermark="输入消息，Enter 发送 / Shift+Enter 换行…"
-                 IsEnabled="{Binding !IsBusy}" AcceptsReturn="True" MaxLines="5"
-                 TextWrapping="Wrap" />
+                 IsEnabled="{Binding !IsBusy}" AcceptsReturn="True" MaxLines="5" MinHeight="38"
+                 CornerRadius="8" Padding="10,7" TextWrapping="Wrap" />
         <TextBlock Grid.Column="1" Foreground="{Binding IsInputTooLong, Converter={StaticResource BoolToWarnBrush}}"
-                   FontSize="11" VerticalAlignment="Bottom" Margin="8,0"
+                   FontSize="11" VerticalAlignment="Bottom" Margin="2,0"
                    ToolTip.Tip="{Binding MaxInputChars, StringFormat='{}建议上限 {0} 字符'}">
           <TextBlock.Text>
             <MultiBinding StringFormat="{} {0} / {1}">
@@ -22,15 +23,20 @@
             </MultiBinding>
           </TextBlock.Text>
         </TextBlock>
-        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
-          <Button Content="停止" Command="{Binding StopGeneratingCommand}" IsVisible="{Binding CanStop}" />
-          <Button Content="发送" Command="{Binding SendCommand}" IsEnabled="{Binding !IsBusy}" />
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+          <Button Classes="ghost" Content="停止" Padding="12,6" CornerRadius="8"
+                  Foreground="{DynamicResource GuiWarnText}"
+                  Command="{Binding StopGeneratingCommand}" IsVisible="{Binding CanStop}" />
+          <Button Classes="primary" Content="发送" Padding="16,6" CornerRadius="8" MinWidth="84"
+                  Command="{Binding SendCommand}" IsEnabled="{Binding !IsBusy}" />
         </StackPanel>
       </Grid>
 
-      <StackPanel Orientation="Horizontal" Spacing="4">
-        <Button Content="─ 分隔线" Command="{Binding InsertDividerCommand}" FontSize="11" Padding="8,3" />
-        <Button Content="⏱ 时间戳" Command="{Binding InsertTimestampCommand}" FontSize="11" Padding="8,3" />
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <Button Classes="ghost" Content="─ 分隔线" FontSize="11" Padding="9,3" MinHeight="0"
+                Command="{Binding InsertDividerCommand}" />
+        <Button Classes="ghost" Content="⏱ 时间戳" FontSize="11" Padding="9,3" MinHeight="0"
+                Command="{Binding InsertTimestampCommand}" />
       </StackPanel>
     </StackPanel>
   </Border>

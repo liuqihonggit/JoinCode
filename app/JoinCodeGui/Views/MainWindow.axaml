@@ -66,34 +66,38 @@
 
         <!-- Column 0：消息内容（搜索栏 + 消息列表） -->
         <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto">
-          <!-- 搜索栏 -->
-          <Border Grid.Row="0" Padding="10,6" Background="{DynamicResource GuiSearchBarBackground}">
-            <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto">
-              <TextBox Text="{Binding SearchText}" Watermark="搜索消息…" FontSize="12" Padding="6,2"
-                       VerticalAlignment="Center" />
-              <TextBlock Grid.Column="1" Text=" 🔍" VerticalAlignment="Center"
-                         IsVisible="{Binding IsSearching}" />
-              <TextBlock Grid.Column="2" Text="{Binding MessageCount, StringFormat='{} 消息 {0}'}"
-                         Foreground="{DynamicResource GuiMutedText}" FontSize="12" VerticalAlignment="Center" Margin="14,0" />
-              <TextBlock Grid.Column="3" Text="{Binding EstimatedTokens, StringFormat='{} 约 {0} tokens'}"
-                         Foreground="{DynamicResource GuiMutedText}" FontSize="12" VerticalAlignment="Center" />
-              <TextBlock Grid.Column="4" Text="{Binding TotalChars, StringFormat='{} {0} 字符'}"
-                         Foreground="{DynamicResource GuiMutedText}" FontSize="12" VerticalAlignment="Center" Margin="14,0" />
-              <Button Grid.Column="5" Content="⧉ 导出" Command="{Binding CopySessionExportCommand}"
-                      FontSize="11" Padding="8,3" IsEnabled="{Binding HasMessages}"
+          <!-- 搜索栏：紧凑布局（搜索框固定宽 + 统计右对齐） -->
+          <Border Grid.Row="0" Padding="12,6" Background="{DynamicResource GuiSearchBarBackground}"
+                  BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+              <TextBox Text="{Binding SearchText}" Watermark="搜索消息…" FontSize="12" Width="340"
+                       HorizontalAlignment="Left" VerticalAlignment="Center" MinHeight="0" Padding="8,4" />
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12"
+                          HorizontalAlignment="Right" VerticalAlignment="Center">
+                <TextBlock Text="🔍" FontSize="11" VerticalAlignment="Center"
+                           Foreground="{DynamicResource GuiAccentText}" IsVisible="{Binding IsSearching}" />
+                <TextBlock Text="{Binding MessageCount, StringFormat='{}消息 {0}'}"
+                           Foreground="{DynamicResource GuiMutedText}" FontSize="11" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding EstimatedTokens, StringFormat='{}约 {0} tokens'}"
+                           Foreground="{DynamicResource GuiMutedText}" FontSize="11" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding TotalChars, StringFormat='{}{0} 字符'}"
+                           Foreground="{DynamicResource GuiMutedText}" FontSize="11" VerticalAlignment="Center" />
+              </StackPanel>
+              <Button Grid.Column="2" Classes="ghost" Content="⧉ 导出" Command="{Binding CopySessionExportCommand}"
+                      FontSize="11" Padding="9,3" MinHeight="0" IsEnabled="{Binding HasMessages}"
                       ToolTip.Tip="复制会话为文本" />
             </Grid>
           </Border>
           <!-- 消息列表区：单条消息卡片化（G3 接线 Markdown 渲染 + 复制/删除/思考折叠命令） -->
           <Panel Grid.Row="1" ClipToBounds="True">
-            <StackPanel x:Name="EmptyState" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8"
+            <StackPanel x:Name="EmptyState" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="10"
                         IsVisible="{Binding !HasMessages}">
-              <TextBlock Text="👋" FontSize="40" HorizontalAlignment="Center" />
-              <TextBlock Text="开始与 JoinCode 对话" FontSize="18" FontWeight="SemiBold"
-                         HorizontalAlignment="Center" Foreground="{DynamicResource GuiPrimaryText}" />
-              <TextBlock Text="在下方输入消息，Enter 发送" FontSize="13"
-                         HorizontalAlignment="Center" Foreground="{DynamicResource GuiMutedText}" />
-              <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,10,0,0"
+              <TextBlock Text="👋" FontSize="44" HorizontalAlignment="Center" />
+              <TextBlock Text="开始与 JoinCode 对话" FontSize="20" FontWeight="SemiBold"
+                          HorizontalAlignment="Center" Foreground="{DynamicResource GuiPrimaryText}" />
+              <TextBlock Text="在下方输入消息，Enter 发送" FontSize="12.5"
+                          HorizontalAlignment="Center" Foreground="{DynamicResource GuiMutedText}" />
+              <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,12,0,0"
                           HorizontalAlignment="Center">
                 <ItemsControl ItemsSource="{Binding SuggestedPrompts}">
                   <ItemsControl.ItemsPanel>
@@ -101,8 +105,9 @@
                   </ItemsControl.ItemsPanel>
                   <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                      <Button Content="{Binding}" Command="{Binding DataContext.UseSuggestionCommand, ElementName=Root}"
-                              CommandParameter="{Binding}" FontSize="11" Padding="10,5" />
+                      <Button Classes="pill accentSubtle" FontWeight="Normal" FontSize="12" Padding="14,6"
+                              Content="{Binding}" Command="{Binding DataContext.UseSuggestionCommand, ElementName=Root}"
+                              CommandParameter="{Binding}" />
                     </DataTemplate>
                   </ItemsControl.ItemTemplate>
                 </ItemsControl>
@@ -198,9 +203,12 @@
               </Grid>
             </Border>
           </Panel>
-          <Button Grid.Row="2" x:Name="BackToBottomButton" Content="↓ 跳到最新"
-                  HorizontalAlignment="Center" FontSize="11" Padding="12,6"
-                  IsVisible="{Binding IsBackToBottomVisible}" Background="{DynamicResource GuiSessionHighlight}"
+          <Button Grid.Row="2" x:Name="BackToBottomButton" Classes="pill" Content="↓ 跳到最新"
+                  HorizontalAlignment="Center" FontSize="11" Padding="14,6"
+                  IsVisible="{Binding IsBackToBottomVisible}"
+                  Background="{DynamicResource GuiPopupBackground}"
+                  BorderBrush="{DynamicResource GuiDivider}"
+                  Foreground="{DynamicResource GuiPrimaryText}"
                   Command="{Binding ScrollToBottomCommand}" />
         </Grid>
 
@@ -212,21 +220,26 @@
       <local:InputBarView Grid.Row="2" x:Name="InputBar" />
 
       <!-- Row 3：状态栏 -->
-      <Border Grid.Row="3" Padding="12,4" Background="{DynamicResource GuiStatusBarBackground}">
-        <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto">
+      <Border Grid.Row="3" Padding="12,5" Background="{DynamicResource GuiStatusBarBackground}"
+              BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,1,0,0">
+        <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto">
           <TextBlock Text="{Binding Sessions.Count, StringFormat='{}会话 {0}', FallbackValue='会话 0'}" Foreground="{DynamicResource GuiMutedText}" FontSize="11" />
           <TextBlock Grid.Column="1" Text="{Binding MessageCount, StringFormat='{}  · 消息 {0}', FallbackValue='  · 消息 0'}"
                      Foreground="{DynamicResource GuiMutedText}" FontSize="11" Margin="10,0" />
           <TextBlock Grid.Column="2" Text="{Binding TokenUsageText, FallbackValue=''}"
                      Foreground="{DynamicResource GuiMutedText}" FontSize="11" Margin="10,0,0,0" />
-          <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" HorizontalAlignment="Right">
+          <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" HorizontalAlignment="Right">
             <TextBlock x:Name="StatusDot" Text="●" FontSize="12" Foreground="{Binding StatusKind, Converter={StaticResource StatusToBrush}}"
                        VerticalAlignment="Center" />
             <TextBlock Text="{Binding StatusText, FallbackValue='未连接'}" Foreground="{DynamicResource GuiSecondaryText}" FontSize="11" VerticalAlignment="Center"
                        TextTrimming="CharacterEllipsis" />
           </StackPanel>
-          <TextBlock Grid.Column="5" Text="{Binding SelectedModel, FallbackValue=''}" Foreground="{DynamicResource GuiAccentText}" FontSize="11"
-                     TextTrimming="CharacterEllipsis" Margin="10,0,0,0" />
+          <Border Grid.Column="4" CornerRadius="10" Padding="9,2" Margin="10,0,0,0"
+                  Background="{DynamicResource GuiAccentSubtle}" VerticalAlignment="Center"
+                  IsVisible="{Binding SelectedModel, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+            <TextBlock Text="{Binding SelectedModel, FallbackValue=''}" Foreground="{DynamicResource GuiAccentText}" FontSize="11"
+                       TextTrimming="CharacterEllipsis" MaxLines="1" />
+          </Border>
         </Grid>
       </Border>
       </Grid>

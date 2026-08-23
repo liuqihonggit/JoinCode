@@ -180,7 +180,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
             var result = await _lifecycleManager.ExecuteAsync(agent, cancellationToken).ConfigureAwait(false);
 
             context.LastExecutionEnd = _clock.GetUtcNow();
-            context.IsSuccess = result.IsSuccess;
+            context.Outcome = result.IsSuccess ? AgentOutcome.Succeeded : AgentOutcome.Failed;
 
             if (result.IsSuccess)
             {
@@ -196,7 +196,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         catch (Exception ex)
         {
             context.LastExecutionEnd = _clock.GetUtcNow();
-            context.IsSuccess = false;
+            context.Outcome = AgentOutcome.Failed;
             _logger?.LogError(ex, "[AgentCoordinator] Agent {AgentId} 执行异常", agent.ObjectId.UniqueId);
             throw;
         }
@@ -220,7 +220,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
 
         if (_executionContexts.TryGetValue(agentId, out var context))
         {
-            context.IsCancelled = true;
+            context.Outcome = AgentOutcome.Cancelled;
         }
 
         return await _lifecycleManager.CancelAgentAsync(agentId, ct).ConfigureAwait(false);
@@ -232,7 +232,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
 
         foreach (var context in _executionContexts.Values)
         {
-            context.IsCancelled = true;
+            context.Outcome = AgentOutcome.Cancelled;
         }
 
         await _lifecycleManager.CancelAllAsync(ct).ConfigureAwait(false);
@@ -272,7 +272,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
 
         if (result != null)
         {
-            context.IsSuccess = result.IsSuccess;
+            context.Outcome = result.IsSuccess ? AgentOutcome.Succeeded : AgentOutcome.Failed;
             if (result.IsSuccess)
             {
                 _logger?.LogInformation("[AgentCoordinator] Agent {AgentId} 重试成功", agentId);
@@ -588,7 +588,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
 
         if (_executionContexts.TryGetValue(agentId, out var context))
         {
-            context.IsCancelled = true;
+            context.Outcome = AgentOutcome.Cancelled;
         }
 
         return await _lifecycleManager.CancelAgentAsync(agentId, cancellationToken).ConfigureAwait(false);
@@ -650,14 +650,14 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     public ExecutionStatistics GetExecutionStatistics()
     {
         var contexts = _executionContexts.Values.ToList();
-        var completedContexts = contexts.Where(c => c.IsSuccess.HasValue).ToList();
+        var completedContexts = contexts.Where(c => c.Outcome != AgentOutcome.Pending).ToList();
 
         return new ExecutionStatistics
         {
             TotalAgents = contexts.Count,
-            SuccessfulAgents = completedContexts.Count(c => c.IsSuccess == true),
-            FailedAgents = completedContexts.Count(c => c.IsSuccess == false),
-            CancelledAgents = contexts.Count(c => c.IsCancelled),
+            SuccessfulAgents = completedContexts.Count(c => c.Outcome == AgentOutcome.Succeeded),
+            FailedAgents = completedContexts.Count(c => c.Outcome == AgentOutcome.Failed),
+            CancelledAgents = contexts.Count(c => c.Outcome == AgentOutcome.Cancelled),
             TotalRetries = contexts.Sum(c => c.RetryCount),
             AverageExecutionTimeMs = CalculateAverageExecutionTime(contexts),
             ParallelExecutions = contexts.Count(c => c.ExecutionMode == ExecutionMode.Parallel),

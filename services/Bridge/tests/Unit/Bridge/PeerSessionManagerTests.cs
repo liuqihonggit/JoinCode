@@ -179,6 +179,27 @@ public sealed class PeerSessionManagerTests : IAsyncDisposable
 
         await sut.DisposeAsync().ConfigureAwait(true);
     }
+
+    [Fact]
+    public async Task MarkConnectedAsync_OnAlreadyConnected_ShouldBeIdempotent_NoDuplicateEvent()
+    {
+        // Arrange
+        var sut = CreateSut();
+        var session = await sut.CreatePeerSessionAsync("local-008", "remote-008").ConfigureAwait(true);
+        await sut.MarkConnectedAsync(session.SessionId).ConfigureAwait(true);
+
+        var eventCount = 0;
+        sut.PeerSessionConnected += (_, _) => eventCount++;
+
+        // Act — 对已 Connected 的会话再次标记，应幂等不触发事件
+        await sut.MarkConnectedAsync(session.SessionId).ConfigureAwait(true);
+
+        // Assert
+        eventCount.Should().Be(0);
+        session.Status.Should().Be(PeerSessionStatus.Connected);
+
+        await sut.DisposeAsync().ConfigureAwait(true);
+    }
 }
 
 public sealed class PeerSessionRouterTests

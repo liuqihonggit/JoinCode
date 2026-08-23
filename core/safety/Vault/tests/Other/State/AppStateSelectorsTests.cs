@@ -403,7 +403,7 @@ public sealed class AppStateSelectorsTests : IDisposable
                     new McpServerState { Name = "server-2", Status = McpConnectionStatus.Disconnected }),
                 AvailableTools = ImmutableList.Create("read_file", "write_file")
             },
-            Bridge = new BridgeState { IsConnected = true, IsEnabled = true },
+            Bridge = new BridgeState { Lifecycle = BridgeLifecycleState.Connected },
             Permission = new PermissionState
             {
                 PermissionMode = PermissionMode.Auto,

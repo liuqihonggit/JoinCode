@@ -274,7 +274,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     public IStoreSelector<AppState, bool> SelectBridgeConnected()
     {
         RecordSelectorMetrics("bridge", "bridgeConnected");
-        return _store.Select(state => state.Bridge.IsConnected);
+        return _store.Select(state => state.Bridge.Lifecycle == BridgeLifecycleState.Connected);
     }
 
     /// <summary>
@@ -283,7 +283,7 @@ public sealed partial class AppStateSelectors : ServiceEntity
     public IStoreSelector<AppState, bool> SelectBridgeEnabled()
     {
         RecordSelectorMetrics("bridge", "bridgeEnabled");
-        return _store.Select(state => state.Bridge.IsEnabled);
+        return _store.Select(state => state.Bridge.Lifecycle != BridgeLifecycleState.Disabled);
     }
 
     #endregion

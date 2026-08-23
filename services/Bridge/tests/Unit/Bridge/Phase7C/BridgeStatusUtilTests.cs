@@ -65,27 +65,6 @@ public sealed class BridgeStatusUtilTests
     }
 
     [Fact]
-    public void GetBridgeStatus_Error_ReturnsErrorStatus()
-    {
-        var status = BridgeStatusUtil.GetBridgeStatus(error: true, connected: false, sessionActive: false, reconnecting: false);
-        Assert.Equal("error", status.Color);
-    }
-
-    [Fact]
-    public void GetBridgeStatus_Reconnecting_ReturnsWarningStatus()
-    {
-        var status = BridgeStatusUtil.GetBridgeStatus(error: false, connected: true, sessionActive: false, reconnecting: true);
-        Assert.Equal("warning", status.Color);
-    }
-
-    [Fact]
-    public void GetBridgeStatus_ActiveSession_ReturnsSuccessStatus()
-    {
-        var status = BridgeStatusUtil.GetBridgeStatus(error: false, connected: true, sessionActive: true, reconnecting: false);
-        Assert.Equal("success", status.Color);
-    }
-
-    [Fact]
     public void WrapWithOsc8Link_ContainsEscapes()
     {
         var result = BridgeStatusUtil.WrapWithOsc8Link("click me", "https://example.com");
@@ -102,5 +81,18 @@ public sealed class BridgeStatusUtilTests
         Assert.Equal("titled", BridgeStatusState.Titled.ToValue());
         Assert.Equal("reconnecting", BridgeStatusState.Reconnecting.ToValue());
         Assert.Equal("failed", BridgeStatusState.Failed.ToValue());
+    }
+
+    [Theory]
+    [InlineData(BridgeStatusState.Failed, "Bridge Error", "error")]
+    [InlineData(BridgeStatusState.Reconnecting, "Reconnecting", "warning")]
+    [InlineData(BridgeStatusState.Idle, "Disconnected", "error")]
+    [InlineData(BridgeStatusState.Titled, "Active", "success")]
+    [InlineData(BridgeStatusState.Attached, "Connected", "success")]
+    public void GetBridgeStatus_ByState_ReturnsExpectedInfo(BridgeStatusState state, string expectedLabel, string expectedColor)
+    {
+        var status = BridgeStatusUtil.GetBridgeStatus(state);
+        Assert.Equal(expectedLabel, status.Label);
+        Assert.Equal(expectedColor, status.Color);
     }
 }

@@ -1,7 +1,7 @@
 namespace Core.Hooks.Execution.Interception.Guards;
 
 /// <summary>
-/// GitHub PR Body 守卫 — 为 gh pr create 自动补全 --body 参数(对齐 <see cref="Core.Hooks.Execution.Rewriters.GhPrBodyRewriter"/>)
+/// GitHub PR Body 守卫 — 为 gh pr create 自动补全 --body 参数(迁移自旧 GhPrBodyRewriter)
 /// <para>
 /// 解决问题:LLM 调用 gh pr create 时经常忘记写 body,导致 PR 描述为空。
 /// 检测到缺 --body 时返回 <see cref="CommandDecision.Rewrite"/> 补全参数。

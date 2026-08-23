@@ -1,7 +1,7 @@
 namespace Core.Hooks.Execution.Interception.Guards;
 
 /// <summary>
-/// HEREDOC 守卫 — 检测命令中的 HEREDOC 语法,自动转换为双引号多行字符串(对齐 <see cref="Core.Hooks.Execution.Rewriters.HeredocRewriter"/>)
+/// HEREDOC 守卫 — 检测命令中的 HEREDOC 语法,自动转换为双引号多行字符串(迁移自旧 HeredocRewriter)
 /// <para>
 /// 解决问题:LLM 在 PowerShell 环境中使用 HEREDOC(cat &lt;&lt;'EOF'...EOF)会失败,
 /// 因为 PowerShell 不支持 HEREDOC 语法。本守卫自动检测并转换为等效的双引号字符串。

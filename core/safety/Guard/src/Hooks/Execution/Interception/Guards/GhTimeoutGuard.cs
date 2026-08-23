@@ -1,7 +1,7 @@
 namespace Core.Hooks.Execution.Interception.Guards;
 
 /// <summary>
-/// gh 命令超时守卫 — 记录 gh 命令日志,放行(对齐 <see cref="Core.Hooks.Execution.Rewriters.GhTimeoutRewriter"/>)
+/// gh 命令超时守卫 — 记录 gh 命令日志,放行(迁移自旧 GhTimeoutRewriter)
 /// <para>
 /// 迁移自 GhTimeoutRewriter(Priority=50)。原改写器仅记录日志不改写,此处保留行为。
 /// </para>

@@ -1,7 +1,7 @@
 namespace Core.Hooks.Execution.Interception.Guards;
 
 /// <summary>
-/// VPN 路由守卫 — VPN 激活时为 git/curl 命令自动添加代理(对齐 <see cref="Core.Hooks.Execution.Rewriters.VpnRouteRewriter"/>)
+/// VPN 路由守卫 — VPN 激活时为 git/curl 命令自动添加代理(迁移自旧 VpnRouteRewriter)
 /// <para>
 /// 解决问题:VPN 开启时网络请求需要走代理。检测到 VPN 激活且命令为 git/curl 时,
 /// 从上下文读取 proxy_url 并返回 <see cref="CommandDecision.Rewrite"/> 加代理。

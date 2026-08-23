@@ -1,7 +1,7 @@
 namespace Tools.Shell;
 
 /// <summary>
-/// Shell 命令拦截中间件 — 统一调度守卫链和拦截器链,替代 <see cref="ShellCommandRewriteMiddleware"/>
+/// Shell 命令拦截中间件 — 统一调度守卫链和拦截器链,替代旧 ShellCommandRewriteMiddleware
 /// <para>
 /// 集成位置:ShellValidationMiddleware 之后、ShellPathGateMiddleware 之前(与原 Rewrite 中间件同槽位)
 /// 调用 <see cref="CommandInterceptionDispatcher"/> 统一处理:
@@ -11,7 +11,7 @@ namespace Tools.Shell;
 /// </list>
 /// </para>
 /// <para>
-/// Sed/Build 有状态拦截暂保留独立中间件(阶段C 暂缓),在管道后续槽位执行。
+/// Sed/Build 有状态拦截保留独立中间件(阶段C 不迁移),在管道后续槽位执行。
 /// </para>
 /// </summary>
 [Register]

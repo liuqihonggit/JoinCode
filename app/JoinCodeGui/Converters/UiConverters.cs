@@ -7,6 +7,28 @@ using JoinCode.Gui.Theming;
 namespace JoinCode.Gui.Converters;
 
 /// <summary>
+/// (IsUser, Kind) → 消息卡片色条/角色名颜色：工具消息用工具色、思考用紫色、其余按角色蓝/淡青。
+/// 取自身份配色，随主题切换。
+/// </summary>
+public sealed class MsgBarBrushConverter : IMultiValueConverter
+{
+    public object Convert(IList<object?> values, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
+    {
+        var s = GuiPalette.Current;
+        if (values.Count >= 2 && values[1] is ViewModels.ChatUiMessageKind kind)
+        {
+            if (kind is ViewModels.ChatUiMessageKind.ToolCall or ViewModels.ChatUiMessageKind.ToolResult)
+                return GuiPalette.ToBrush(s.ToolLabel);
+            if (kind == ViewModels.ChatUiMessageKind.Thinking)
+                return GuiPalette.ToBrush(s.ThinkingLabel);
+        }
+        return values.Count >= 1 && values[0] is true
+            ? GuiPalette.ToBrush(s.RoleUser)
+            : GuiPalette.ToBrush(s.RoleAssistant);
+    }
+}
+
+/// <summary>
 /// 布尔 → 角色标签色：User 蓝色，Assistant 淡青。颜色取自身份配色，随主题切换。
 /// </summary>
 public sealed class BoolToRoleBrushConverter : IValueConverter

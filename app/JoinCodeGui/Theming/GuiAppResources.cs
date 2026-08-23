@@ -39,6 +39,7 @@ public static class GuiAppResources
         var dict = new ResourceDictionary
         {
             ["BoolToRoleBrush"] = new Converters.BoolToRoleBrushConverter(),
+            ["MsgBarBrush"] = new Converters.MsgBarBrushConverter(),
             ["BoolToSessHighlight"] = new Converters.BoolToSessionHighlightConverter(),
             ["StatusToBrush"] = new Converters.StatusToBrushConverter(),
             ["BoolToWarnBrush"] = new Converters.BoolToWarnBrushConverter(),

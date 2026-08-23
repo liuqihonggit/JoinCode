@@ -13,38 +13,31 @@
         MinWidth="800" MinHeight="600"
         Title="JoinCode Ava">
   <Window.Styles>
-    <Style Selector="local|MainWindow Button">
-      <Setter Property="Background" Value="{DynamicResource GuiButtonBackground}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource GuiButtonBorder}" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="Foreground" Value="{DynamicResource GuiButtonForeground}" />
-      <Setter Property="CornerRadius" Value="5" />
-      <Setter Property="Padding" Value="10,5" />
-      <Setter Property="Template">
-        <ControlTemplate TargetType="Button">
-          <Border Name="root"
-                  Background="{TemplateBinding Background}"
-                  BorderBrush="{TemplateBinding BorderBrush}"
-                  BorderThickness="{TemplateBinding BorderThickness}"
-                  CornerRadius="{TemplateBinding CornerRadius}"
-                  Padding="{TemplateBinding Padding}">
-            <ContentPresenter Name="PART_ContentPresenter"
-                              Content="{TemplateBinding Content}"
-                              ContentTemplate="{TemplateBinding ContentTemplate}"
-                              HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
-                              VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
-          </Border>
-        </ControlTemplate>
+    <!-- 消息卡片：圆角 10，悬停换色 + 操作按钮悬停显现（GuiControlStyles 提供全局按钮基础样式） -->
+    <Style Selector="Border.msgCard">
+      <Setter Property="Background" Value="{DynamicResource GuiSearchBarBackground}" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="12,8" />
+      <Setter Property="Margin" Value="0,2" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.12" />
+        </Transitions>
       </Setter>
     </Style>
-    <Style Selector="local|MainWindow Button:pointerover">
-      <Setter Property="Background" Value="{DynamicResource GuiButtonHover}" />
+    <Style Selector="Border.msgCard:pointerover">
+      <Setter Property="Background" Value="{DynamicResource GuiCardHover}" />
     </Style>
-    <Style Selector="local|MainWindow Button:pressed">
-      <Setter Property="Background" Value="{DynamicResource GuiButtonPressed}" />
+    <Style Selector="Border.msgCard StackPanel.actions">
+      <Setter Property="Opacity" Value="0" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <DoubleTransition Property="Opacity" Duration="0:0:0.12" />
+        </Transitions>
+      </Setter>
     </Style>
-    <Style Selector="local|MainWindow Button:disabled">
-      <Setter Property="Opacity" Value="0.5" />
+    <Style Selector="Border.msgCard:pointerover StackPanel.actions">
+      <Setter Property="Opacity" Value="1" />
     </Style>
   </Window.Styles>
 
@@ -116,62 +109,81 @@
             <!-- 消息列表（FilteredMessages 驱动，搜索即过滤） -->
             <ScrollViewer x:Name="MessageScrollViewer" IsVisible="{Binding HasMessages}"
                           ScrollChanged="OnMessageScrollChanged">
-              <ItemsControl x:Name="MessageItems" ItemsSource="{Binding FilteredMessages}" Margin="6,4">
+              <ItemsControl x:Name="MessageItems" ItemsSource="{Binding FilteredMessages}" Margin="8,5">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
-                    <Border Margin="0,2" Padding="8,5" CornerRadius="6"
-                            Background="{DynamicResource GuiSearchBarBackground}">
-                      <StackPanel Spacing="3">
-                        <!-- 头行：角色+时间 / 类型标签 / 操作按钮 -->
-                        <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
-                          <TextBlock Text="{Binding RoleLabel}" FontWeight="SemiBold" FontSize="12"
-                                     Foreground="{DynamicResource GuiAccentText}" />
-                          <TextBlock Grid.Column="1" Text="{Binding Timestamp, StringFormat=' {} · HH:mm:ss'}"
-                                     FontSize="11" Foreground="{DynamicResource GuiMutedText}" />
-                          <TextBlock Grid.Column="2" Text="{Binding KindLabel}" FontSize="11"
-                                     Foreground="{DynamicResource GuiSecondaryText}" Margin="8,0,0,0" />
-                          <Button Grid.Column="3" Content="📋" FontSize="10" Padding="4,1"
-                                  Background="Transparent" BorderThickness="0" ToolTip.Tip="复制本条"
-                                  Command="{Binding DataContext.CopyMessageCommand, ElementName=Root}"
+                    <Border Classes="msgCard">
+                      <Grid ColumnDefinitions="Auto,*">
+                        <!-- 角色色条：工具=工具色/思考=紫/用户=蓝/AI=淡青 -->
+                        <Rectangle Grid.Column="0" Width="3" RadiusX="1.5" RadiusY="1.5"
+                                   VerticalAlignment="Stretch" Margin="0,2,11,2">
+                          <Rectangle.Fill>
+                            <MultiBinding Converter="{StaticResource MsgBarBrush}">
+                              <Binding Path="IsUser" />
+                              <Binding Path="Kind" />
+                            </MultiBinding>
+                          </Rectangle.Fill>
+                        </Rectangle>
+                        <StackPanel Grid.Column="1" Spacing="4">
+                          <!-- 头行：角色+时间 / 类型标签 / 悬停操作按钮 -->
+                          <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                            <TextBlock Text="{Binding RoleLabel}" FontWeight="SemiBold" FontSize="12">
+                              <TextBlock.Foreground>
+                                <MultiBinding Converter="{StaticResource MsgBarBrush}">
+                                  <Binding Path="IsUser" />
+                                  <Binding Path="Kind" />
+                                </MultiBinding>
+                              </TextBlock.Foreground>
+                            </TextBlock>
+                            <TextBlock Grid.Column="1" Text="{Binding Timestamp, StringFormat=' {} · HH:mm:ss'}"
+                                       FontSize="10.5" Foreground="{DynamicResource GuiMutedText}" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="2" Text="{Binding KindLabel}" FontSize="11"
+                                       Foreground="{DynamicResource GuiMutedText}" Margin="8,0,0,0"
+                                       VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="3" Classes="actions" Orientation="Horizontal" Spacing="2">
+                              <Button Classes="ghost" Content="📋" FontSize="10" Padding="5,2" MinHeight="0"
+                                      ToolTip.Tip="复制本条"
+                                      Command="{Binding DataContext.CopyMessageCommand, ElementName=Root}"
+                                      CommandParameter="{Binding}" />
+                              <Button Classes="ghost" Content="✕" FontSize="10" Padding="5,2" MinHeight="0"
+                                      ToolTip.Tip="删除本条"
+                                      Command="{Binding DataContext.RemoveMessageCommand, ElementName=Root}"
+                                      CommandParameter="{Binding}" />
+                            </StackPanel>
+                          </Grid>
+                          <!-- 思考折叠提示 -->
+                          <Button IsVisible="{Binding IsThinkingCollapsed}" Content="{Binding ThinkingSummary}"
+                                  FontSize="11" Padding="0" Classes="ghost" HorizontalAlignment="Left"
+                                  Command="{Binding DataContext.ToggleThinkingCommand, ElementName=Root}"
                                   CommandParameter="{Binding}" />
-                          <Button Grid.Column="4" Content="✕" FontSize="10" Padding="4,1"
-                                  Background="Transparent" BorderThickness="0" ToolTip.Tip="删除本条"
-                                  Command="{Binding DataContext.RemoveMessageCommand, ElementName=Root}"
-                                  CommandParameter="{Binding}" />
-                        </Grid>
-                        <!-- 思考折叠提示 -->
-                        <Button IsVisible="{Binding IsThinkingCollapsed}" Content="{Binding ThinkingSummary}"
-                                FontSize="11" Padding="0" Background="Transparent" BorderThickness="0"
-                                HorizontalAlignment="Left" Foreground="{DynamicResource GuiMutedText}"
-                                Command="{Binding DataContext.ToggleThinkingCommand, ElementName=Root}"
-                                CommandParameter="{Binding}" />
-                        <!-- 正文区（工具启动/结果/折叠思考各自定制；其余 Markdown 渲染） -->
-                        <Panel IsVisible="{Binding ShowBody}">
-                          <!-- 工具调用启动：名称+参数（等宽） -->
-                          <StackPanel IsVisible="{Binding IsToolCallStart}" Spacing="2">
-                            <TextBlock Text="{Binding ToolName}" FontSize="12" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource GuiPrimaryText}" />
-                            <SelectableTextBlock Text="{Binding ToolArguments}" FontFamily="Consolas" FontSize="11"
-                                                 TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
-                                                 MaxLines="4" Foreground="{DynamicResource GuiSecondaryText}" />
-                          </StackPanel>
-                          <!-- 工具结果：结果文本 + diff -->
-                          <StackPanel IsVisible="{Binding IsToolResultMessage}" Spacing="3">
-                            <TextBlock Text="{Binding ToolResultText}" FontSize="11" TextWrapping="Wrap"
-                                       TextTrimming="CharacterEllipsis" MaxLines="6"
-                                       Foreground="{DynamicResource GuiSecondaryText}" />
-                            <md:DiffViewer Hunks="{Binding StructuredPatch}" IsVisible="{Binding HasDiff}" />
-                          </StackPanel>
-                          <!-- 通用正文：流式期间纯文本（避免逐 token 重建控件树），完成后 Markdown 渲染 -->
-                          <Panel IsVisible="{Binding !IsToolCall}">
-                            <SelectableTextBlock Text="{Binding DisplayText}" FontSize="{Binding DataContext.FontSize, ElementName=Root}"
-                                                 TextWrapping="Wrap" Foreground="{DynamicResource GuiPrimaryText}"
-                                                 IsVisible="{Binding IsStreaming}" />
-                            <md:MarkdownView Markdown="{Binding DisplayText}" IsVisible="{Binding !IsStreaming}"
-                                             BaseFontSize="{Binding DataContext.FontSize, ElementName=Root}" />
+                          <!-- 正文区（工具启动/结果/折叠思考各自定制；其余 Markdown 渲染） -->
+                          <Panel IsVisible="{Binding ShowBody}">
+                            <!-- 工具调用启动：名称+参数（等宽） -->
+                            <StackPanel IsVisible="{Binding IsToolCallStart}" Spacing="2">
+                              <TextBlock Text="{Binding ToolName}" FontSize="12" FontWeight="SemiBold"
+                                         Foreground="{DynamicResource GuiPrimaryText}" />
+                              <SelectableTextBlock Text="{Binding ToolArguments}" FontFamily="{DynamicResource GuiMonoFont}" FontSize="11"
+                                                   TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
+                                                   MaxLines="4" Foreground="{DynamicResource GuiSecondaryText}" />
+                            </StackPanel>
+                            <!-- 工具结果：结果文本 + diff -->
+                            <StackPanel IsVisible="{Binding IsToolResultMessage}" Spacing="3">
+                              <TextBlock Text="{Binding ToolResultText}" FontSize="11" TextWrapping="Wrap"
+                                         TextTrimming="CharacterEllipsis" MaxLines="6"
+                                         Foreground="{DynamicResource GuiSecondaryText}" />
+                              <md:DiffViewer Hunks="{Binding StructuredPatch}" IsVisible="{Binding HasDiff}" />
+                            </StackPanel>
+                            <!-- 通用正文：流式期间纯文本（避免逐 token 重建控件树），完成后 Markdown 渲染 -->
+                            <Panel IsVisible="{Binding !IsToolCall}">
+                              <SelectableTextBlock Text="{Binding DisplayText}" FontSize="{Binding DataContext.FontSize, ElementName=Root}"
+                                                   TextWrapping="Wrap" Foreground="{DynamicResource GuiPrimaryText}"
+                                                   IsVisible="{Binding IsStreaming}" />
+                              <md:MarkdownView Markdown="{Binding DisplayText}" IsVisible="{Binding !IsStreaming}"
+                                               BaseFontSize="{Binding DataContext.FontSize, ElementName=Root}" />
+                            </Panel>
                           </Panel>
-                        </Panel>
-                      </StackPanel>
+                        </StackPanel>
+                      </Grid>
                     </Border>
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>

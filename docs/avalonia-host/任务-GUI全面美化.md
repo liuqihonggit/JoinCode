@@ -20,15 +20,36 @@ Slash 补全面板改造完成（a0a2d71e8）后，用户要求"全部做剩下�
 
 | 步骤 | 内容 | 状态 |
 |------|------|------|
-| A1 | token：AccentSubtle/AccentHover/AccentSubtleHover/CardHover + 共享控件样式 GuiControlStyles.axaml | ⏳ |
-| A2 | TopBar：ghost 按钮统一 + 分组 + 底部分隔线 | ⏳ |
-| A3 | Sidebar：会话卡片悬停态 + 删除按钮悬停显现 + 新建对话 accentSubtle | ⏳ |
-| A4 | InputBar：圆角输入框 + primary 发送按钮 + ghost 快捷按钮 | ⏳ |
-| A5 | SearchBar 紧凑布局 + StatusBar 模型药丸 | ⏳ |
-| A6 | EmptyState 药丸建议 + BackToBottom 浮动药丸 | ⏳ |
-| A7 | 编译 + 截图核对 + 提交 A（界面骨架） | ⏳ |
-| B1 | 消息卡片：角色色条（MsgBarBrushConverter）+ 悬停显现操作按钮 + 圆角 10 | ⏳ |
-| B2 | 编译 + 截图核对 + 全量测试 + 提交 B（消息区） | ⏳ |
+| A1 | token：AccentSubtle/AccentHover/AccentSubtleHover/CardHover + 共享控件样式 GuiControlStyles.axaml | ✅ |
+| A2 | TopBar：ghost 按钮统一 + 分组 + 底部分隔线 | ✅ |
+| A3 | Sidebar：会话卡片悬停态 + 删除按钮悬停显现 + 新建对话 accentSubtle | ✅ |
+| A4 | InputBar：圆角输入框 + primary 发送按钮 + ghost 快捷按钮 | ✅ |
+| A5 | SearchBar 紧凑布局 + StatusBar 模型药丸 | ✅ |
+| A6 | EmptyState 药丸建议 + BackToBottom 浮动药丸 | ✅ |
+| A7 | 编译 + 截图核对 + 提交 A（28525f866 界面骨架） | ✅ |
+| B1 | 消息卡片：角色色条（MsgBarBrushConverter）+ 悬停显现操作按钮 + 圆角 10 | ✅ |
+| B2 | 编译 + 截图核对 + 全量测试（335 全绿）+ 提交 B | ✅ |
+
+## 踩坑记录
+
+| 坑 | 根因 | 解法 |
+|----|------|------|
+| AvaloniaXamlLoader.Load(Uri) 编译错误 IL2026 | 动态 XAML 加载破坏 NativeAOT 裁剪（项目强制 AOT） | 编译型 Styles 类（x:Class + partial class : Styles） |
+| MainWindow 旧自定义 Button 模板覆盖新全局样式 | Window.Styles 局部样式优先级高于 App.Styles | 删除旧模板块，消除两套实现 |
+| 会话卡片悬停态不生效 | Background 是转换器绑定（本地值），样式 Setter 无法覆盖 | 改 Classes.selected 类绑定 + 样式定义背景 |
+| 截图像素断言颜色对不上 | CaptureRenderedFrame 是 RGBA 字节序，按 BGRA 读反了 | 按 [R,G,B,A] 读；亮暗主题角色色不同需参数化 |
+
+<!-- 🤖 Auto Decision: 2026-08-23 -->
+<!-- 决策: 共享控件样式放编译型 GuiControlStyles.axaml(Styles 子类) 而非 App.axaml -->
+<!-- 原因: 真实 App 与 headless 测试共用 GuiAppResources.Register 单一入口；编译型类规避 IL2026 AOT 裁剪错误 -->
+<!-- 替代方案: App.axaml 内联（测试宿主 VisualTestApp 不加载 App.axaml，两处漂移，不采用）-->
+<!-- 验证: 335 测试全绿，暗/亮截图核对 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-23 -->
+<!-- 决策: 消息卡片角色色条用 IMultiValueConverter(IsUser+Kind) 而非 VM 计算属性 -->
+<!-- 原因: 零 VM 侵入；工具/思考/角色三档配色集中在转换器，主题切换随 DynamicResource 同步刷新 -->
+<!-- 替代方案: ChatUiMessage.BarBrush 属性（主题切换后旧消息画刷过期，不采用）-->
+<!-- 验证: 暗 #4DA6FF/亮 #1A6BC0 像素断言通过 ✅ -->
 
 ## 涉及文件树
 

@@ -32,13 +32,21 @@ public sealed class InformationEntropyGuardian : ServiceEntity, IOutputLoopDetec
         LogicFingerprintDetector? logicFingerprintDetector = null,
         ToolCallSequenceDetector? toolCallSequenceDetector = null,
         ShannonEntropyDetector? shannonEntropyDetector = null,
+        ShannonEntropyConfig? shannonEntropyConfig = null,
         LoopDiagnosticJournal? journal = null,
         ILogger? logger = null)
     {
         _outputLoopDetector = outputLoopDetector ?? new OutputLoopDetector();
         _logicFingerprintDetector = logicFingerprintDetector ?? new LogicFingerprintDetector();
         _toolCallSequenceDetector = toolCallSequenceDetector ?? new ToolCallSequenceDetector();
-        _shannonEntropyDetector = shannonEntropyDetector ?? new ShannonEntropyDetector();
+
+        var entropyConfig = shannonEntropyConfig ?? new ShannonEntropyConfig();
+        _shannonEntropyDetector = shannonEntropyDetector ?? new ShannonEntropyDetector(
+            entropyConfig.WindowSize,
+            entropyConfig.DeclineThreshold,
+            entropyConfig.MinEntropyDelta,
+            entropyConfig.ConfirmationWindow);
+
         _journal = journal ?? new LoopDiagnosticJournal(logger: logger);
         _logger = logger;
     }

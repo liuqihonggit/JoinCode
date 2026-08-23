@@ -10,7 +10,8 @@ public sealed class InformationEntropyGuardianTests
         toolCallSequenceDetector: new ToolCallSequenceDetector(
             windowSize: 6, minPatternLength: 2, requiredRepeats: 3),
         shannonEntropyDetector: new ShannonEntropyDetector(
-            windowSize: 10, declineThreshold: 4, minEntropyDelta: 0.05));
+            windowSize: 10, declineThreshold: 4, minEntropyDelta: 0.05,
+            confirmationWindow: TimeSpan.FromSeconds(5)));
 
     [Fact]
     public void Detect_OutputLoopTriggered_ReturnsLoopResult()
@@ -205,18 +206,21 @@ public sealed class InformationEntropyGuardianTests
             outputLoopDetector: new OutputLoopDetector(
                 minPatternLength: 100, checkInterval: 100, requiredRepeats: 100, cooldownChars: 0),
             shannonEntropyDetector: new ShannonEntropyDetector(
-                windowSize: 10, declineThreshold: 3, minEntropyDelta: 0.001));
+                windowSize: 10, declineThreshold: 3, minEntropyDelta: 0.001,
+                confirmationWindow: TimeSpan.FromSeconds(5)));
 
         var high = string.Concat(Enumerable.Range(0, 26).SelectMany(i => new string((char)('a' + i), 4)));
         var medium = string.Concat(Enumerable.Range(0, 5).SelectMany(i => new string((char)('a' + i), 8)));
         var low = new string('a', 30) + new string('b', 10);
         var veryLow = new string('a', 90) + new string('b', 10);
+        var evenLower = new string('a', 500) + new string('b', 10);
 
         guardian.CheckTextLoop(high);
         guardian.CheckTextLoop(medium);
         guardian.CheckTextLoop(low);
+        guardian.CheckTextLoop(veryLow);
 
-        var result = guardian.CheckTextLoop(veryLow);
+        var result = guardian.CheckTextLoop(evenLower);
 
         Assert.NotNull(result);
         Assert.Contains("信息熵减", result.Reason);
@@ -227,7 +231,8 @@ public sealed class InformationEntropyGuardianTests
     {
         var guardian = new InformationEntropyGuardian(
             shannonEntropyDetector: new ShannonEntropyDetector(
-                windowSize: 10, declineThreshold: 3, minEntropyDelta: 0.001));
+                windowSize: 10, declineThreshold: 3, minEntropyDelta: 0.001,
+                confirmationWindow: TimeSpan.FromSeconds(5)));
 
         var high = string.Concat(Enumerable.Range(0, 26).SelectMany(i => new string((char)('a' + i), 4)));
         var medium = string.Concat(Enumerable.Range(0, 5).SelectMany(i => new string((char)('a' + i), 8)));

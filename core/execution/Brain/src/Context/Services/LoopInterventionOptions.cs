@@ -44,6 +44,33 @@ public sealed partial class LoopInterventionOptions : ServiceEntity
     /// 默认5：允许5次空响应后注入系统提示词催促，第6次强制结束
     /// </summary>
     public int MaxConsecutiveEmptyResponse { get; set; } = 5;
+
+    /// <summary>
+    /// Shannon 熵减检测器配置 — 含时间窗口二次确认参数
+    /// </summary>
+    public ShannonEntropyConfig ShannonEntropy { get; set; } = new();
+}
+
+/// <summary>
+/// Shannon 熵减检测器配置 — 集中管理所有熵减检测参数
+/// 属性提供系统默认值，检测器构造函数从本配置显式读取参数
+/// </summary>
+public sealed class ShannonEntropyConfig
+{
+    /// <summary>熵值历史窗口大小</summary>
+    public int WindowSize { get; set; } = 10;
+
+    /// <summary>连续下降轮数阈值（连续 DeclineThreshold 轮熵递减则进入 Suspected 状态）</summary>
+    public int DeclineThreshold { get; set; } = 4;
+
+    /// <summary>最小熵差阈值（相邻轮熵差需超过此值才算"下降"）</summary>
+    public double MinEntropyDelta { get; set; } = 0.05;
+
+    /// <summary>
+    /// 二次确认时间窗口 — Suspected 状态下在此窗口内再次触发则确认死循环
+    /// 窗口超时则复位到 Monitoring（误报消除）
+    /// </summary>
+    public TimeSpan ConfirmationWindow { get; set; } = TimeSpan.FromSeconds(5);
 }
 
 public sealed class LoopInterventionOptionsBuilder

@@ -3,6 +3,24 @@ using JoinCode.Abstractions.Attributes;
 namespace Core.Context;
 
 /// <summary>
+/// 干预级别状态机 — 按触发次数分类干预策略
+/// </summary>
+public enum InterventionLevel
+{
+    /// <summary>无干预 — 透传事件流</summary>
+    None,
+
+    /// <summary>Level 1 软干预 — 注入提示词，流继续</summary>
+    Soft,
+
+    /// <summary>Level 2 硬截断 — 撤回+降温度+重连</summary>
+    Hard,
+
+    /// <summary>Level 3 上下文压缩 — 压缩或重置上下文</summary>
+    Compact
+}
+
+/// <summary>
 /// 循环干预中间件 — 拦截 LoopDetected 事件，按漏斗级别执行干预策略
 /// Level 1(第1~HardTruncateThreshold-1次): 软干预，注入提示词，流继续
 /// Level 2(第HardTruncateThreshold~CompactThreshold-1次): 硬截断，撤回+降温度+重连
@@ -58,25 +76,16 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
                     ? AdjustTriggerCountForProgress(loopTriggerCount)
                     : loopTriggerCount;
 
-                if (effectiveTriggerCount >= _options.CompactThreshold)
-                {
-                    _logger?.LogWarning("[LoopInterventionMiddleware] Level 3 上下文压缩，第{N}次循环触发(有效{E})，任务推进={P}",
-                        loopTriggerCount, effectiveTriggerCount, hasProgressed);
-                    yield return ChatStreamEvent.Text(_options.HardTruncatePrompt);
-                    break;
-                }
+                var (level, prompt, shouldBreak) = ClassifyIntervention(effectiveTriggerCount);
 
-                if (effectiveTriggerCount >= _options.HardTruncateThreshold)
-                {
-                    _logger?.LogWarning("[LoopInterventionMiddleware] Level 2 硬截断，第{N}次循环触发(有效{E})，任务推进={P}",
-                        loopTriggerCount, effectiveTriggerCount, hasProgressed);
-                    yield return ChatStreamEvent.Text(_options.HardTruncatePrompt);
-                    break;
-                }
+                _logger?.LogWarning("[LoopInterventionMiddleware] {Level} 干预，第{N}次循环触发(有效{E})，任务推进={P}",
+                    level, loopTriggerCount, effectiveTriggerCount, hasProgressed);
 
-                _logger?.LogWarning("[LoopInterventionMiddleware] Level 1 软干预，第{N}次循环触发，任务推进={P}，注入提示词后流继续",
-                    loopTriggerCount, hasProgressed);
-                yield return ChatStreamEvent.Text(_options.SoftIntervenePrompt);
+                yield return ChatStreamEvent.Text(prompt);
+
+                if (shouldBreak)
+                    break;
+
                 continue;
             }
 
@@ -282,5 +291,20 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
     private int AdjustTriggerCountForProgress(int loopTriggerCount)
     {
         return Math.Max(1, loopTriggerCount - _options.ProgressDiscount);
+    }
+
+    /// <summary>
+    /// 按有效触发次数分类干预级别 — 状态机决策核心
+    /// </summary>
+    /// <returns>(干预级别, 注入提示词, 是否中断事件流)</returns>
+    private (InterventionLevel Level, string Prompt, bool ShouldBreak) ClassifyIntervention(int effectiveTriggerCount)
+    {
+        if (effectiveTriggerCount >= _options.CompactThreshold)
+            return (InterventionLevel.Compact, _options.HardTruncatePrompt, true);
+
+        if (effectiveTriggerCount >= _options.HardTruncateThreshold)
+            return (InterventionLevel.Hard, _options.HardTruncatePrompt, true);
+
+        return (InterventionLevel.Soft, _options.SoftIntervenePrompt, false);
     }
 }

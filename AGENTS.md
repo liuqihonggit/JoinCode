@@ -42,8 +42,20 @@
      - 删除 = 无法回滚 = 灾难性后果
      - 丢失审计追踪，无法追溯历史
      - 违反渐进式安全原则
-    - **✅ 唯一正确做法：移动到 `.xxx/` 目录**
-      - 格式: `.xxx/{原文件名}.{原后缀}.{时间戳}.del`
+    - **✅ 唯一正确做法：移动到项目根目录 `.xxx/` 目录**
+      - **目标位置**：统一移到 `{RepoRoot}\.xxx\`（如 `D:\project\w3\.xxx\`），**禁止**移到子目录下的 `.xxx/`
+      - **命令**：用 `Move-Item`，**禁止**用 `git mv`（git mv 会 staged 移动记录，且子目录 .xxx 不在 gitignore 中会污染编译）
+      - **格式**：`.xxx/{原文件名}.{原后缀}.{时间戳}.del`（如 `ICommandRewriter.cs.20260824.del`）
+      - **.xxx 在 .gitignore 中**：归档文件不被 git 跟踪，原文件显示为 `D`(deleted)，commit 记录删除
+      - **移走后必须修复引用**（否则编译失败 CS1574/CS0246）：
+        1. XML 注释中 `<see cref="旧类名"/>` → 改为文字描述（如 `迁移自旧 XxxRewriter`）
+        2. `GlobalUsings.cs` 中旧命名空间 → 删除该 `global using` 行
+        3. 旧测试文件也一并移走（引用旧类的测试同样归档）
+      - **完整示例**：
+        ```powershell
+        New-Item -ItemType Directory -Force -Path "D:\project\w3\.xxx" | Out-Null
+        Move-Item "core/safety/Guard/src/Hooks/Execution/ICommandRewriter.cs" "D:\project\w3\.xxx\ICommandRewriter.cs.20260824.del"
+        ```
    
 2. **❌ 禁止使用命令行文本工具直接修改源码文件**
    

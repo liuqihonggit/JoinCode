@@ -1187,20 +1187,3 @@ jobs:
           path: |
             **/e2e-cluster.trx
           retention-days: 7
-
-  auto-merge:
-    name: Auto Merge
-    runs-on: ubuntu-latest
-    needs: [unit-test-group-1a, unit-test-group-1b, unit-test-group-2, unit-test-group-3, unit-test-group-4, integration-brain-clock, integration-guard-vault, integration-hands-host-mcp, integration-prefixcache, e2e-conversation, e2e-multi-provider, e2e-file-tools, e2e-agent-tools, e2e-chatcmd-basic, e2e-chatcmd-code-a1, e2e-chatcmd-code-a2, e2e-chatcmd-code-b1, e2e-chatcmd-code-b2, e2e-chatcmd-extended, e2e-chatcmd-auth, e2e-errors-permission, e2e-mcp-smoke, e2e-cluster]
-    if: github.event_name == 'pull_request'
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-      - name: Enable auto-merge
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          PR_NUMBER=${{ github.event.pull_request.number }}
-          echo "Enabling auto-merge for PR #$PR_NUMBER"
-          gh pr merge "$PR_NUMBER" --auto --squash --repo ${{ github.repository }}

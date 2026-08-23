@@ -49,6 +49,15 @@ public sealed partial class LoopInterventionOptions : ServiceEntity
     /// Shannon 熵减检测器配置 — 含时间窗口二次确认参数
     /// </summary>
     public ShannonEntropyConfig ShannonEntropy { get; set; } = new();
+
+    /// <summary>输出循环检测器配置</summary>
+    public OutputLoopConfig OutputLoop { get; set; } = new();
+
+    /// <summary>逻辑指纹检测器配置</summary>
+    public LogicFingerprintConfig LogicFingerprint { get; set; } = new();
+
+    /// <summary>工具调用序列检测器配置</summary>
+    public ToolCallSequenceConfig ToolCallSequence { get; set; } = new();
 }
 
 /// <summary>
@@ -71,6 +80,63 @@ public sealed class ShannonEntropyConfig
     /// 窗口超时则复位到 Monitoring（误报消除）
     /// </summary>
     public TimeSpan ConfirmationWindow { get; set; } = TimeSpan.FromSeconds(5);
+}
+
+/// <summary>
+/// 输出循环检测器配置 — 尾部子串重复检测参数
+/// </summary>
+public sealed class OutputLoopConfig
+{
+    /// <summary>检测窗口大小</summary>
+    public int WindowSize { get; set; } = 2000;
+
+    /// <summary>最小重复模式长度</summary>
+    public int MinPatternLength { get; set; } = 10;
+
+    /// <summary>最大重复模式长度</summary>
+    public int MaxPatternLength { get; set; } = 500;
+
+    /// <summary>触发所需的最少重复次数</summary>
+    public int RequiredRepeats { get; set; } = 10;
+
+    /// <summary>检查间隔（字符数）</summary>
+    public int CheckInterval { get; set; } = 50;
+
+    /// <summary>冷却期字符数</summary>
+    public int CooldownChars { get; set; } = 500;
+}
+
+/// <summary>
+/// 逻辑指纹检测器配置 — 前缀+后缀hash循环检测参数
+/// </summary>
+public sealed class LogicFingerprintConfig
+{
+    /// <summary>指纹前缀长度</summary>
+    public int FingerprintPrefixLen { get; set; } = 200;
+
+    /// <summary>指纹后缀长度</summary>
+    public int FingerprintSuffixLen { get; set; } = 200;
+
+    /// <summary>滑动窗口大小</summary>
+    public int WindowSize { get; set; } = 5;
+
+    /// <summary>命中阈值</summary>
+    public int HitThreshold { get; set; } = 4;
+}
+
+/// <summary>
+/// 工具调用序列检测器配置 — 工具名+参数指纹重复检测参数
+/// </summary>
+public sealed class ToolCallSequenceConfig
+{
+    /// <summary>滑动窗口大小</summary>
+    public int WindowSize { get; set; } = 6;
+
+    /// <summary>最小模式长度</summary>
+    public int MinPatternLength { get; set; } = 3;
+
+    /// <summary>触发所需的最少重复次数</summary>
+    public int RequiredRepeats { get; set; } = 4;
 }
 
 public sealed class LoopInterventionOptionsBuilder

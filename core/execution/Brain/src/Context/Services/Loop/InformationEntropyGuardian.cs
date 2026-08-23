@@ -28,24 +28,32 @@ public sealed class InformationEntropyGuardian : ServiceEntity, IOutputLoopDetec
     private int _lastSbCheckLength;
 
     public InformationEntropyGuardian(
+        LoopInterventionOptions? options = null,
         OutputLoopDetector? outputLoopDetector = null,
         LogicFingerprintDetector? logicFingerprintDetector = null,
         ToolCallSequenceDetector? toolCallSequenceDetector = null,
         ShannonEntropyDetector? shannonEntropyDetector = null,
-        ShannonEntropyConfig? shannonEntropyConfig = null,
         LoopDiagnosticJournal? journal = null,
         ILogger? logger = null)
     {
-        _outputLoopDetector = outputLoopDetector ?? new OutputLoopDetector();
-        _logicFingerprintDetector = logicFingerprintDetector ?? new LogicFingerprintDetector();
-        _toolCallSequenceDetector = toolCallSequenceDetector ?? new ToolCallSequenceDetector();
+        var opts = options ?? new LoopInterventionOptions();
 
-        var entropyConfig = shannonEntropyConfig ?? new ShannonEntropyConfig();
+        var ol = opts.OutputLoop;
+        _outputLoopDetector = outputLoopDetector ?? new OutputLoopDetector(
+            ol.WindowSize, ol.MinPatternLength, ol.MaxPatternLength,
+            ol.RequiredRepeats, ol.CheckInterval, ol.CooldownChars);
+
+        var lf = opts.LogicFingerprint;
+        _logicFingerprintDetector = logicFingerprintDetector ?? new LogicFingerprintDetector(
+            lf.FingerprintPrefixLen, lf.FingerprintSuffixLen, lf.WindowSize, lf.HitThreshold);
+
+        var tc = opts.ToolCallSequence;
+        _toolCallSequenceDetector = toolCallSequenceDetector ?? new ToolCallSequenceDetector(
+            tc.WindowSize, tc.MinPatternLength, tc.RequiredRepeats);
+
+        var se = opts.ShannonEntropy;
         _shannonEntropyDetector = shannonEntropyDetector ?? new ShannonEntropyDetector(
-            entropyConfig.WindowSize,
-            entropyConfig.DeclineThreshold,
-            entropyConfig.MinEntropyDelta,
-            entropyConfig.ConfirmationWindow);
+            se.WindowSize, se.DeclineThreshold, se.MinEntropyDelta, se.ConfirmationWindow);
 
         _journal = journal ?? new LoopDiagnosticJournal(logger: logger);
         _logger = logger;

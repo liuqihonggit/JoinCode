@@ -1,66 +1,66 @@
-namespace Core.Hooks.Execution.Rewriters;
+namespace Core.Hooks.Execution.Interception.Guards;
 
 /// <summary>
-/// HEREDOC 改写器 — 检测命令中的 HEREDOC 语法，自动转换为双引号多行字符串
+/// HEREDOC 守卫 — 检测命令中的 HEREDOC 语法,自动转换为双引号多行字符串(迁移自旧 HeredocRewriter)
 /// <para>
-/// 解决问题：AI/LLM 在 PowerShell 环境中使用 HEREDOC（cat &lt;&lt;'EOF'...EOF）会失败，
-/// 因为 PowerShell 不支持 HEREDOC 语法。本改写器自动检测并转换为等效的双引号字符串。
+/// 解决问题:LLM 在 PowerShell 环境中使用 HEREDOC(cat &lt;&lt;'EOF'...EOF)会失败,
+/// 因为 PowerShell 不支持 HEREDOC 语法。本守卫自动检测并转换为等效的双引号字符串。
 /// </para>
 /// <para>
-/// 环境过滤：Bash 原生支持 HEREDOC，不转换；PowerShell/Cmd 不支持，需要转换。
+/// 环境过滤:Bash 原生支持 HEREDOC,不转换;PowerShell/Cmd 不支持,需要转换。
 /// </para>
 /// <para>
-/// 支持的模式（仅非 Bash 环境）：
-/// 1. $(cat &lt;&lt;'EOF'\n...\nEOF) → "..."
-/// 2. $(cat &lt;&lt;EOF\n...\nEOF) → "..."
-/// 3. &lt;&lt;'EOF'\n...\nEOF → "..."
-/// 4. 孤立的 &lt;&lt; 标记（非合法 HEREDOC）→ 转义为 PowerShell 安全形式 `&lt;`&lt;
+/// 迁移自 HeredocRewriter(Priority=200)。
 /// </para>
 /// </summary>
-public sealed class HeredocRewriter : ICommandRewriter
+[Register]
+public sealed partial class HeredocGuard : ICommandGuard
 {
-    private readonly ILogger<HeredocRewriter>? _logger;
+    [Inject] private readonly ILogger<HeredocGuard>? _logger;
 
     // 匹配 $(cat <<'DELIMITER'\ncontent\nDELIMITER) 或 $(cat <<DELIMITER\ncontent\nDELIMITER)
-    // 支持单引号、双引号、无引号分隔符
     private static readonly Regex HeredocInCommandSubstitution = new(
         @"\$\(\s*cat\s*<<-?['""]?(\w+)['""]?\s*\r?\n(.*?)\r?\n\s*\1\s*\)",
         RegexOptions.Singleline | RegexOptions.Compiled);
 
-    // 匹配独立的 HEREDOC：<<'DELIMITER'\ncontent\nDELIMITER
+    // 匹配独立的 HEREDOC:<<'DELIMITER'\ncontent\nDELIMITER
     private static readonly Regex StandaloneHeredoc = new(
         @"<<-?['""]?(\w+)['""]?\s*\r?\n(.*?)\r?\n\s*\1",
         RegexOptions.Singleline | RegexOptions.Compiled);
 
-    public HeredocRewriter(ILogger<HeredocRewriter>? logger = null)
+    /// <summary>
+    /// 构造 HEREDOC 守卫
+    /// </summary>
+    /// <param name="logger">日志器(可选)</param>
+    public HeredocGuard(ILogger<HeredocGuard>? logger = null)
     {
         _logger = logger;
     }
 
     /// <inheritdoc/>
-    public string Name => "HeredocRewriter";
+    public string Name => "HeredocGuard";
 
     /// <inheritdoc/>
     public int Priority => 200;
 
     /// <inheritdoc/>
-    public bool CanRewrite(string command)
+    public bool CanHandle(string command, IReadOnlyDictionary<string, object> context)
     {
         return command.Contains("<<");
     }
 
     /// <inheritdoc/>
-    public string Rewrite(string command, IReadOnlyDictionary<string, object> context)
+    public CommandDecision Evaluate(string command, IReadOnlyDictionary<string, object> context)
     {
-        // Bash 原生支持 HEREDOC，不需要转换
+        // Bash 原生支持 HEREDOC,不需要转换
         if (IsBashShell(context))
         {
-            return command;
+            return new CommandDecision.Allow();
         }
 
         var result = command;
 
-        // 先处理 $(cat <<'EOF'...EOF) 模式 — 命令替换内不加外层双引号（避免嵌套）
+        // 先处理 $(cat <<'EOF'...EOF) 模式 — 命令替换内不加外层双引号(避免嵌套)
         result = HeredocInCommandSubstitution.Replace(result, static m =>
         {
             var content = m.Groups[2].Value;
@@ -78,19 +78,20 @@ public sealed class HeredocRewriter : ICommandRewriter
         if (result.Contains("<<"))
         {
             result = result.Replace("<<", "`<`<");
-            _logger?.LogWarning("检测到孤立的 << 标记，已转义为 PowerShell 安全形式");
+            _logger?.LogWarning("检测到孤立的 << 标记,已转义为 PowerShell 安全形式");
         }
 
-        if (result != command)
+        if (result == command)
         {
-            _logger?.LogInformation("HEREDOC 已改写为双引号字符串");
+            return new CommandDecision.Allow();
         }
 
-        return result;
+        _logger?.LogInformation("HEREDOC 已改写为双引号字符串");
+        return new CommandDecision.Rewrite(result, "HEREDOC 转换");
     }
 
     /// <summary>
-    /// 判断当前 shell 是否为 Bash — Bash 原生支持 HEREDOC，无需转换
+    /// 判断当前 shell 是否为 Bash — Bash 原生支持 HEREDOC,无需转换
     /// </summary>
     private static bool IsBashShell(IReadOnlyDictionary<string, object> context)
     {

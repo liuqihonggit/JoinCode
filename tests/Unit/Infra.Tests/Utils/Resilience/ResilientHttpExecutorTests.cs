@@ -267,21 +267,17 @@ public sealed class ResilientHttpExecutorTests
 
     /// <summary>
     /// 集成测试 — 验证 Gateway 包裹透传操作时无重试放大（1:1 调用，无嵌套）
+    /// <para>重试配置从 NetworkRetryOptions.ToTestRetryConfig 派生，共用生产策略/开关，避免改了生产没改测试</para>
     /// </summary>
     [Fact]
     public async Task ExecuteAsync_GatewayWithPassthrough_NoRetryAmplification()
     {
+        var retryOptions = new NetworkRetryOptions();
         var policy = new ResiliencePolicy
         {
             Name = "integration",
             OperationTimeout = TimeSpan.FromSeconds(5),
-            Retry = new RetryConfig
-            {
-                TotalBudget = TimeSpan.FromMilliseconds(500),
-                BaseDelay = TimeSpan.FromMilliseconds(10),
-                MaxDelay = TimeSpan.FromMilliseconds(50),
-                Strategy = BackoffStrategy.Fixed,
-            },
+            Retry = retryOptions.ToTestRetryConfig(TimeSpan.FromSeconds(2), TimeSpan.FromMilliseconds(100)),
         };
 
         var executor = new ResilientHttpExecutor(policy);
@@ -298,7 +294,7 @@ public sealed class ResilientHttpExecutorTests
                 },
                 "integration-op"));
 
-        gatewayAttempts.Should().BeGreaterThan(3);
+        gatewayAttempts.Should().BeGreaterThan(5);
         passthroughCalls.Should().Be(gatewayAttempts);
     }
 }

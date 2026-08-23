@@ -247,7 +247,7 @@ public static class PipelineComposition
                 .Use(sp.GetRequiredService<CrashSnapshotMiddleware<ShellPipelineContext>>())
                 .Use(sp.GetRequiredService<AbsoluteTimeoutMiddleware>())
                 .Use(sp.GetRequiredService<ShellValidationMiddleware>())
-                .Use(sp.GetRequiredService<ShellCommandRewriteMiddleware>())
+                .Use(sp.GetRequiredService<ShellCommandInterceptionMiddleware>())
                 .Use(sp.GetRequiredService<ShellPathGateMiddleware>())
                 .Use(sp.GetRequiredService<ShellClassificationMiddleware>())
                 .Use(sp.GetRequiredService<ShellSedInterceptMiddleware>())

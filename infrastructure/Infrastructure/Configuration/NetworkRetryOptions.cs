@@ -49,6 +49,23 @@ public sealed class NetworkRetryOptions
     /// </summary>
     public (TimeSpan BaseDelay, TimeSpan MaxDelay) ToReconnectParams() => (ReconnectBaseDelay, ReconnectMaxDelay);
 
+    /// <summary>
+    /// 创建测试用重试配置 — 共用生产的策略和开关，时间参数由调用方指定（对齐生产量级，高负载不敏感）
+    /// <para>生产配置改 Strategy/PauseBudgetOnNetworkUnavailable 时，测试自动同步，避免改了生产没改测试</para>
+    /// <para>建议 BaseDelay >= 100ms（高负载下 Task.Delay 偏差占比 &lt; 100%，重试次数稳定）</para>
+    /// </summary>
+    /// <param name="totalBudget">测试重试预算（建议 >= 2s）</param>
+    /// <param name="baseDelay">测试基础延迟（建议 >= 100ms，对齐生产量级）</param>
+    /// <param name="maxDelay">测试最大延迟（默认 baseDelay*5，至少 500ms）</param>
+    public RetryConfig ToTestRetryConfig(TimeSpan totalBudget, TimeSpan baseDelay, TimeSpan? maxDelay = null) => new()
+    {
+        TotalBudget = totalBudget,
+        BaseDelay = baseDelay,
+        MaxDelay = maxDelay ?? TimeSpan.FromMilliseconds(Math.Max(baseDelay.TotalMilliseconds * 5, 500)),
+        Strategy = ParseStrategy(Strategy),
+        PauseBudgetOnNetworkUnavailable = PauseBudgetOnNetworkUnavailable,
+    };
+
     private static BackoffStrategy ParseStrategy(string s) => s switch
     {
         "Fixed" => BackoffStrategy.Fixed,

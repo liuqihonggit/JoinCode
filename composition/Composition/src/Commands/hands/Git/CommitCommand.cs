@@ -10,8 +10,34 @@ public sealed class CommitCommand : ChatCommandBase
     private static readonly FrozenSet<string> SecretFilePatterns = FrozenSet.Create(
         ".env", "credentials", "secret", "password", "apikey", "token");
 
+    /// <summary>
+    /// 渐进式披露 — 已读说明的会话状态(key: sessionId, value: 确认时间)
+    /// <para>首次 /commit 返回说明不执行,二次 /commit(60s 内)确认执行。对齐 sed 两阶段确认模式。</para>
+    /// </summary>
+    private static readonly ConcurrentDictionary<string, DateTime> ReadConfirmedSessions = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// 读说明确认窗口 — 60s 内有效(对齐 sed SedConfirmationWindow)
+    /// </summary>
+    private static readonly TimeSpan ConfirmationWindow = TimeSpan.FromSeconds(60);
+
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
+        // 渐进式披露:首次调用返回说明不执行,二次确认执行(SessionId 为空时跳过,兼容测试)
+        var sessionId = context.SessionId;
+        if (!string.IsNullOrEmpty(sessionId))
+        {
+            if (!IsReadConfirmed(sessionId))
+            {
+                ShowUsageDisclosure();
+                MarkReadConfirmed(sessionId);
+                TerminalHelper.WriteLine($"{TerminalColors.Muted}\n再次调用 /commit 确认执行(60s 内有效)。{AnsiStyleConstants.Reset}");
+                return ChatCommandResult.Continue();
+            }
+            // 已读确认,清除状态,继续执行
+            ReadConfirmedSessions.TryRemove(sessionId, out _);
+        }
+
         TerminalHelper.WriteLine($"{TerminalColors.Muted}正在创建提交...{AnsiStyleConstants.Reset}");
 
         var fs = context.GetCommandServices().FileSystem;
@@ -170,5 +196,48 @@ public sealed class CommitCommand : ChatCommandBase
             ChatCommandBase.HandleError("执行Git命令", ex);
             return string.Empty;
         }
+    }
+
+    /// <summary>
+    /// 是否已读说明确认(60s 窗口内)
+    /// </summary>
+    private static bool IsReadConfirmed(string sessionId)
+    {
+        if (ReadConfirmedSessions.TryGetValue(sessionId, out var confirmedAt))
+        {
+            if (DateTime.UtcNow - confirmedAt <= ConfirmationWindow)
+                return true;
+            ReadConfirmedSessions.TryRemove(sessionId, out _);
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// 标记已读说明确认
+    /// </summary>
+    private static void MarkReadConfirmed(string sessionId)
+    {
+        ReadConfirmedSessions[sessionId] = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// 显示使用说明(渐进式披露)— 包含减法诚实原则
+    /// </summary>
+    private static void ShowUsageDisclosure()
+    {
+        TerminalHelper.WriteLine($"{TerminalColors.Warning}=== /commit 使用说明(渐进式披露)==={AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine("/commit 创建 Git 提交,自动执行:");
+        TerminalHelper.WriteLine("  1. 敏感文件检测(.env/credentials/secret/password/apikey/token 禁止提交)");
+        TerminalHelper.WriteLine("  2. 提交信息生成(基于 git diff)");
+        TerminalHelper.WriteLine("  3. 用户确认");
+        TerminalHelper.WriteLine("  4. git add -A + git commit -m \"msg\"");
+        TerminalHelper.WriteLine();
+        TerminalHelper.WriteLine($"{TerminalColors.Warning}提交信息规范(减法诚实原则):{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine("  - 禁止\"已移除\"括号噪声:用户明确移除某物后,禁止写\"新增 X(无 Y)\"");
+        TerminalHelper.WriteLine("  - 只描述实际新增/修改的内容,不提已消失之物");
+        TerminalHelper.WriteLine("  - 格式: 类型: 描述(feat/fix/refactor/docs/test/chore)");
+        TerminalHelper.WriteLine("  - 禁止包含分支名、PR/Issue 编号、无意义标记");
+        TerminalHelper.WriteLine();
+        TerminalHelper.WriteLine("用法: /commit [可选提交信息]");
     }
 }

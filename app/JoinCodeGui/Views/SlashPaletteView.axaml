@@ -1,0 +1,116 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             xmlns:vm="using:JoinCode.Gui.ViewModels"
+             x:Class="JoinCode.Gui.Views.SlashPaletteView"
+             x:DataType="vm:MainViewModel">
+  <UserControl.Styles>
+    <!-- 候选行容器：圆角卡片，悬停/选中态 -->
+    <Style Selector="ListBoxItem">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource GuiPrimaryText}" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="MinHeight" Value="34" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Margin" Value="6,1" />
+    </Style>
+    <!-- 模板级覆盖：Fluent 主题选中/悬停背景由模板 ContentPresenter 控制，仅设 ListBoxItem.Background 不生效 -->
+    <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource GuiButtonHover}" />
+    </Style>
+    <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource GuiPaletteSelectedRow}" />
+    </Style>
+    <Style Selector="ListBoxItem:selected">
+      <Setter Property="Background" Value="{DynamicResource GuiPaletteSelectedRow}" />
+      <Setter Property="Foreground" Value="{DynamicResource GuiPrimaryText}" />
+    </Style>
+    <!-- 选中行右侧的回车提示（默认隐藏，仅选中态显示） -->
+    <Style Selector="ListBoxItem TextBlock.enterHint">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <Style Selector="ListBoxItem:selected TextBlock.enterHint">
+      <Setter Property="IsVisible" Value="True" />
+    </Style>
+  </UserControl.Styles>
+
+  <!-- 底部升起式补全面板：IsVisible 管布局占位；开合动画由 code-behind 驱动。
+       本视图由 MainWindow 放在主列覆盖层（VerticalAlignment=Bottom），不挤占消息区布局。 -->
+  <Border x:Name="PaletteRoot"
+          MaxHeight="330"
+          CornerRadius="12"
+          Background="{DynamicResource GuiPopupBackground}"
+          BorderBrush="{DynamicResource GuiDivider}"
+          BorderThickness="1"
+          BoxShadow="{DynamicResource GuiPaletteShadowUp}"
+          IsVisible="False"
+          Opacity="0"
+          IsHitTestVisible="False">
+    <Border CornerRadius="11" ClipToBounds="True">
+      <Grid RowDefinitions="Auto,Auto,*,Auto,Auto">
+        <!-- 头部：模式徽章 + 匹配计数 -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="14,8,12,6">
+          <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+            <Rectangle Width="3" Height="13" RadiusX="1.5" RadiusY="1.5"
+                       Fill="{DynamicResource GuiAccentText}" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding SlashModeLabel}" FontSize="12" FontWeight="SemiBold"
+                       Foreground="{DynamicResource GuiAccentText}" VerticalAlignment="Center" />
+          </StackPanel>
+          <TextBlock Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" FontSize="11"
+                     Foreground="{DynamicResource GuiMutedText}"
+                     Text="{Binding SlashSuggestions.Count, StringFormat='{}{0} 个匹配'}" />
+        </Grid>
+        <Rectangle Grid.Row="1" Height="1" Fill="{DynamicResource GuiDivider}" Margin="10,0" />
+
+        <!-- 候选列表：命令名等宽字体 + 匹配前缀高亮 + 描述 + 选中回车提示 -->
+        <ListBox Grid.Row="2" x:Name="PaletteList"
+                 ItemsSource="{Binding SlashSuggestions}"
+                 SelectedIndex="{Binding SlashSelectedIndex}"
+                 Background="Transparent" Padding="0,4" BorderThickness="0"
+                 Focusable="False"
+                 ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:SlashCommandItem">
+              <Border Padding="11,5" CornerRadius="8">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                  <StackPanel Orientation="Horizontal" Spacing="0" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding MatchedPart}" FontFamily="{DynamicResource GuiMonoFont}"
+                               FontSize="13.5" FontWeight="SemiBold"
+                               Foreground="{DynamicResource GuiSlashMatched}" />
+                    <TextBlock Text="{Binding RemainingPart}" FontFamily="{DynamicResource GuiMonoFont}"
+                               FontSize="13.5"
+                               Foreground="{DynamicResource GuiPrimaryText}" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="1" Text="{Binding Description}" FontSize="12" Margin="16,0,8,0"
+                             VerticalAlignment="Center"
+                             Foreground="{DynamicResource GuiMutedText}"
+                             TextTrimming="CharacterEllipsis"
+                             ToolTip.Tip="{Binding Usage}" />
+                  <TextBlock Grid.Column="2" Classes="enterHint" Text="↵ Tab" FontSize="11"
+                             VerticalAlignment="Center"
+                             Foreground="{DynamicResource GuiAccentText}" Margin="4,0,0,0" />
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+
+        <Rectangle Grid.Row="3" Height="1" Fill="{DynamicResource GuiDivider}" Margin="10,0" />
+        <!-- 底部键盘提示条 -->
+        <Border Grid.Row="4" Padding="14,6,14,7">
+          <StackPanel Orientation="Horizontal" Spacing="14">
+            <TextBlock Text="↑↓ 选择" FontSize="11" FontFamily="{DynamicResource GuiMonoFont}"
+                       Foreground="{DynamicResource GuiMutedText}" />
+            <TextBlock Text="Tab 补全" FontSize="11" FontFamily="{DynamicResource GuiMonoFont}"
+                       Foreground="{DynamicResource GuiMutedText}" />
+            <TextBlock Text="Esc 关闭" FontSize="11" FontFamily="{DynamicResource GuiMonoFont}"
+                       Foreground="{DynamicResource GuiMutedText}" />
+          </StackPanel>
+        </Border>
+      </Grid>
+    </Border>
+  </Border>
+</UserControl>

@@ -1,5 +1,7 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 
 using JoinCode.Abstractions.Models.Interactive;
@@ -55,8 +57,34 @@ public sealed partial class MainWindow : Window
         _errorToastTimer.Tick += OnErrorToastTimerTick;
         _statusBlinkTimer.Tick += OnStatusBlinkTick;
         _toolTimer.Tick += OnToolTimerTick;
-        SizeChanged += OnWindowSizeChanged;
         Closed += OnWindowClosed;
+        if (InputBar is not null)
+            InputBar.SizeChanged += OnInputBarSizeChanged;
+        AddHandler(PointerPressedEvent, OnGlobalPointerPressed, RoutingStrategies.Tunnel);
+    }
+
+    /// <summary>输入栏尺寸变化 → 同步补全面板底边距（面板锚定输入栏正上方）</summary>
+    private void OnInputBarSizeChanged(object? sender, Avalonia.Controls.SizeChangedEventArgs e)
+    {
+        if (SlashPalette is null || InputBar is null)
+            return;
+        var h = InputBar.Bounds.Height;
+        if (h > 0)
+            SlashPalette.Margin = new Avalonia.Thickness(10, 0, 10, h + 8);
+    }
+
+    /// <summary>点击候选项完成补全 → 回焦输入框</summary>
+    private void OnSlashPaletteCompleted(object? sender, RoutedEventArgs e) => InputBar?.FocusInput();
+
+    /// <summary>全局按下捕获：补全面板打开时，点击面板外区域收起面板</summary>
+    private void OnGlobalPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (_vm is not { IsSlashPopupOpen: true } || SlashPalette is null)
+            return;
+        var hit = this.InputHitTest(e.GetCurrentPoint(this).Position) as Visual;
+        if (hit is not null && (ReferenceEquals(hit, SlashPalette) || this.GetVisualDescendants().Contains(hit)))
+            return;
+        _vm.CloseSlashPopup();
     }
 
     private void OnWindowClosed(object? sender, EventArgs e)
@@ -67,7 +95,9 @@ public sealed partial class MainWindow : Window
         _statusBlinkTimer.Tick -= OnStatusBlinkTick;
         _toolTimer.Stop();
         _toolTimer.Tick -= OnToolTimerTick;
-        SizeChanged -= OnWindowSizeChanged;
+        if (InputBar is not null)
+            InputBar.SizeChanged -= OnInputBarSizeChanged;
+        RemoveHandler(PointerPressedEvent, OnGlobalPointerPressed);
         _toastCts?.Cancel();
         _errorToastFadeCts?.Cancel();
         if (_vm is not null)
@@ -218,9 +248,6 @@ public sealed partial class MainWindow : Window
         // G3：消息区改为 ItemsControl 模板化渲染，FilteredMessages 绑定自动更新，
         // AllMessagesText 仅保留导出/复制用途，不再驱动显示
     }
-
-    /// <summary>窗口尺寸变化时重算斜杠面板位置</summary>
-    private void OnWindowSizeChanged(object? sender, Avalonia.Controls.SizeChangedEventArgs e) => InputBar?.RepositionSlashPopup();
 
     /// <summary>根据当前 StatusKind 启停状态点闪烁：Busy 闪烁，Ready/Error 停止并恢复不透明</summary>
     private void UpdateStatusBlink()

@@ -630,6 +630,15 @@ public sealed partial class MainViewModel : ViewModelBase
     /// <summary>斜杠命令补全下拉是否打开（解析触发且有匹配命令时）</summary>
     public bool IsSlashPopupOpen => _slashParseResult.ShouldComplete && SlashSuggestions.Count > 0;
 
+    /// <summary>补全面板头部模式徽章文本（命令/参数/文件/工具四模式）</summary>
+    public string SlashModeLabel => _slashParseResult.Mode switch
+    {
+        SlashCompletionMode.Argument => "参数补全",
+        SlashCompletionMode.File => "文件补全",
+        SlashCompletionMode.Tool => "工具补全",
+        _ => "斜杠命令"
+    };
+
     /// <summary>斜杠建议当前选中索引（↑↓ 导航）</summary>
     [ObservableProperty]
     private int _slashSelectedIndex = -1;
@@ -681,7 +690,7 @@ public sealed partial class MainViewModel : ViewModelBase
             SlashSuggestions.Add(item);
         }
         SlashSelectedIndex = SlashSuggestions.Count > 0 ? 0 : -1;
-        OnPropertyChanged(nameof(IsSlashPopupOpen));
+        NotifySlashPanelChanged();
     }
 
     /// <summary>刷新命令参数补全候选 — 由 CommandArgumentProvider 按命令名提供参数列表</summary>
@@ -699,7 +708,7 @@ public sealed partial class MainViewModel : ViewModelBase
             SlashSuggestions.Add(item);
         }
         SlashSelectedIndex = SlashSuggestions.Count > 0 ? 0 : -1;
-        OnPropertyChanged(nameof(IsSlashPopupOpen));
+        NotifySlashPanelChanged();
     }
 
     /// <summary>刷新文件补全候选 — 由 FileCompletionProvider 扫描当前工作目录</summary>
@@ -728,7 +737,14 @@ public sealed partial class MainViewModel : ViewModelBase
             SlashSuggestions.Add(item);
         }
         SlashSelectedIndex = SlashSuggestions.Count > 0 ? 0 : -1;
+        NotifySlashPanelChanged();
+    }
+
+    /// <summary>补全面板状态通知归纳 — 开关与模式徽章同步变更（规则6：消除 4 处重复 OnPropertyChanged）</summary>
+    private void NotifySlashPanelChanged()
+    {
         OnPropertyChanged(nameof(IsSlashPopupOpen));
+        OnPropertyChanged(nameof(SlashModeLabel));
     }
 
     /// <summary>清空斜杠建议并关闭面板</summary>
@@ -737,7 +753,7 @@ public sealed partial class MainViewModel : ViewModelBase
         _slashParseResult = SlashParseResult.None;
         SlashSuggestions.Clear();
         SlashSelectedIndex = -1;
-        OnPropertyChanged(nameof(IsSlashPopupOpen));
+        NotifySlashPanelChanged();
     }
 
     /// <summary>关闭斜杠补全面板（Esc 调用，不清空输入框文本）</summary>

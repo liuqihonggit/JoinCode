@@ -58,6 +58,12 @@ public static class GuiPalette
         public string SlashMatched { get; init; } = "#E89A3C";
         public string ToastForeground { get; init; } = "#FFFFFF";
 
+        /// <summary>弹层背景（补全面板等浮层）— 比窗口底色略抬升制造层次</summary>
+        public string PopupBackground { get; init; } = "#232327";
+
+        /// <summary>补全面板选中行背景 — accent 蓝的低饱和暗色调，选中态醒目但不刺眼</summary>
+        public string PaletteSelectedRow { get; init; } = "#2c3a4d";
+
         /// <summary>遍历全部 token 值，供对比度校验与资源注入使用。</summary>
         public IEnumerable<string> AllTokens()
         {
@@ -101,6 +107,8 @@ public static class GuiPalette
             yield return ToastShadow;
             yield return SlashMatched;
             yield return ToastForeground;
+            yield return PopupBackground;
+            yield return PaletteSelectedRow;
         }
     }
 
@@ -146,7 +154,9 @@ public static class GuiPalette
         ToastError = "#c62828",
         ToastShadow = "#90000000",
         SlashMatched = "#B35C00",
-        ToastForeground = "#FFFFFF"
+        ToastForeground = "#FFFFFF",
+        PopupBackground = "#ffffff",
+        PaletteSelectedRow = "#d8e4f2"
     };
 
     /// <summary>获取指定主题的配色方案。</summary>
@@ -226,6 +236,8 @@ public static class GuiPalette
         yield return ("GuiToastShadow", s.ToastShadow);
         yield return ("GuiSlashMatched", s.SlashMatched);
         yield return ("GuiToastForeground", s.ToastForeground);
+        yield return ("GuiPopupBackground", s.PopupBackground);
+        yield return ("GuiPaletteSelectedRow", s.PaletteSelectedRow);
     }
 
     /// <summary>解析十六进制色为不可变画刷（供资源和转换器共用）。</summary>

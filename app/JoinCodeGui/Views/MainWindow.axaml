@@ -54,8 +54,9 @@
     <!-- ===== Column 0：侧边栏 ===== -->
     <local:SidebarView Grid.Column="0" />
 
-    <!-- ===== Column 1：主区 ===== -->
-    <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto,Auto">
+    <!-- ===== Column 1：主区（四行布局 + 补全面板覆盖层） ===== -->
+    <Grid Grid.Column="1">
+      <Grid RowDefinitions="Auto,*,Auto,Auto">
 
       <!-- Row 0：顶部工具栏 -->
       <local:TopBarView Grid.Row="0" />
@@ -228,6 +229,11 @@
                      TextTrimming="CharacterEllipsis" Margin="10,0,0,0" />
         </Grid>
       </Border>
+      </Grid>
+
+      <!-- 覆盖层：底部升起式斜杠补全面板（不参与消息区/输入栏布局，锚定输入栏正上方） -->
+      <local:SlashPaletteView x:Name="SlashPalette" VerticalAlignment="Bottom" Margin="10,0,10,100"
+                              Completed="OnSlashPaletteCompleted" />
     </Grid>
   </Grid>
 </Window>

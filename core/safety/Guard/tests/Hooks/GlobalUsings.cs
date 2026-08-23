@@ -26,6 +26,7 @@ global using Core.Configuration.Remote;
 global using Core.Hooks.Configuration;
 global using Core.Hooks.Events;
 global using Core.Hooks.Execution;
+global using Core.Hooks.Execution.Interception;
 global using Core.Hooks.Execution.Rewriters;
 global using JoinCode.Abstractions.Hooks.Session;
 global using Core.Hooks.Session;

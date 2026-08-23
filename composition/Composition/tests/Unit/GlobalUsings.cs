@@ -83,3 +83,5 @@ global using Tools.Handlers;
 global using Testing.Common;
 global using Testing.Common.Services;
 global using Xunit.Abstractions;
+global using JoinCode.ChatCommands;
+global using FluentAssertions;

@@ -168,4 +168,24 @@ public sealed class WorkSecretStoreTests : IDisposable
         var stored = await sut.GetAsync(created.SecretId).ConfigureAwait(true);
         stored!.IsRevoked.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task Lifecycle_ShouldReflectState_Correctly()
+    {
+        // Arrange
+        var sut = CreateSut();
+        var created = await sut.CreateAsync("api-key", "secret-value").ConfigureAwait(true);
+
+        // 初始 → Active
+        created.Lifecycle.Should().Be(SecretLifecycle.Active);
+
+        // 轮换后 → Rotated
+        await sut.RotateAsync(created.SecretId, "new-value").ConfigureAwait(true);
+        created.Lifecycle.Should().Be(SecretLifecycle.Rotated);
+
+        // 新密钥 → Active
+        var created2 = await sut.CreateAsync("api-key-2", "secret-value-2").ConfigureAwait(true);
+        await sut.RevokeAsync(created2.SecretId).ConfigureAwait(true);
+        created2.Lifecycle.Should().Be(SecretLifecycle.Revoked);
+    }
 }

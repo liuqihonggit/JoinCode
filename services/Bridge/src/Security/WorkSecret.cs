@@ -6,6 +6,22 @@ using JoinCode.Abstractions.State;
 namespace Core.Bridge;
 
 /// <summary>
+/// 工作密钥生命周期状态 — 归纳 IsRevoked/IsRotated 两个 bool 的隐式约束
+/// <para>Active: 可用; Revoked: 已撤销; Rotated: 已轮换(被新密钥替代); Expired: 已过期</para>
+/// </summary>
+public enum SecretLifecycle
+{
+    /// <summary>活跃 — 未撤销未轮换</summary>
+    [EnumValue("active")] Active,
+    /// <summary>已撤销 — 不可轮换不可验证</summary>
+    [EnumValue("revoked")] Revoked,
+    /// <summary>已轮换 — 被新密钥替代</summary>
+    [EnumValue("rotated")] Rotated,
+    /// <summary>已过期 — 超过 ExpiresAt</summary>
+    [EnumValue("expired")] Expired,
+}
+
+/// <summary>
 /// 工作密钥条目 - 记录加密的 API 密钥或工作秘密
 /// </summary>
 public sealed partial class WorkSecretEntry
@@ -43,6 +59,15 @@ public sealed partial class WorkSecretEntry
     [JsonPropertyName("rotatedToSecretId")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? RotatedToSecretId { get; set; }
+
+    /// <summary>
+    /// 生命周期状态 — 归纳 IsRevoked/IsRotated 的计算属性
+    /// <para>优先级: Revoked > Rotated > Active（撤销比轮换更"终态"）</para>
+    /// </summary>
+    [JsonIgnore]
+    public SecretLifecycle Lifecycle => IsRevoked ? SecretLifecycle.Revoked
+        : IsRotated ? SecretLifecycle.Rotated
+        : SecretLifecycle.Active;
 }
 
 /// <summary>

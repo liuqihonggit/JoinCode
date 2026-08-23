@@ -272,7 +272,7 @@ public sealed partial class BridgeSessionRunner : IAsyncDisposable
                 throw new KeyNotFoundException($"[BRG009] 会话不存在: {sessionId}");
             }
 
-            if (session.Status == BridgeSessionStatus.Closed)
+            if (!BridgeSessionTransitions.CanStop(session.Status))
             {
                 _logger?.LogWarning("[SessionRunner] 会话已关闭: {SessionId}", sessionId);
                 return;
@@ -311,7 +311,7 @@ public sealed partial class BridgeSessionRunner : IAsyncDisposable
                 throw new KeyNotFoundException($"[BRG010] 会话不存在: {sessionId}");
             }
 
-            if (session.Status != BridgeSessionStatus.Active && session.Status != BridgeSessionStatus.Idle)
+            if (!BridgeSessionTransitions.CanSuspend(session.Status))
             {
                 _logger?.LogWarning("[SessionRunner] 无法挂起非活跃/空闲会话: {SessionId}, 状态: {Status}", sessionId, session.Status);
                 return;
@@ -347,7 +347,7 @@ public sealed partial class BridgeSessionRunner : IAsyncDisposable
                 throw new KeyNotFoundException($"[BRG011] 会话不存在: {sessionId}");
             }
 
-            if (session.Status != BridgeSessionStatus.Suspended)
+            if (!BridgeSessionTransitions.CanResume(session.Status))
             {
                 _logger?.LogWarning("[SessionRunner] 无法恢复非挂起会话: {SessionId}, 状态: {Status}", sessionId, session.Status);
                 return;
@@ -421,7 +421,7 @@ public sealed partial class BridgeSessionRunner : IAsyncDisposable
         var session = GetSession(snapshot.SessionId);
         if (session is null) return null;
 
-        if (session.Status == BridgeSessionStatus.Closed)
+        if (!BridgeSessionTransitions.CanRestore(session.Status))
         {
             return null;
         }
@@ -484,7 +484,7 @@ public sealed partial class BridgeSessionRunner : IAsyncDisposable
                 return false;
             }
 
-            if (session.Status == BridgeSessionStatus.Closed)
+            if (!BridgeSessionTransitions.CanKeepAlive(session.Status))
             {
                 _logger?.LogWarning("[SessionRunner] KeepAlive 失败，会话已关闭: {SessionId}", sessionId);
                 return false;
@@ -525,7 +525,7 @@ public sealed partial class BridgeSessionRunner : IAsyncDisposable
             var now = _timeProvider.GetUtcNow();
             var timeout = _configuration.SessionTimeout;
             var expiredSessionIds = _sessions.Values
-                .Where(s => s.Status != BridgeSessionStatus.Closed
+                .Where(s => !BridgeSessionTransitions.IsTerminal(s.Status)
                     && now - s.LastActiveAt > timeout)
                 .Select(s => s.SessionId)
                 .ToList();
@@ -554,7 +554,7 @@ public sealed partial class BridgeSessionRunner : IAsyncDisposable
 
             // 移除已关闭的会话
             var closedSessionIds = _sessions.Values
-                .Where(s => s.Status == BridgeSessionStatus.Closed)
+                .Where(s => BridgeSessionTransitions.IsTerminal(s.Status))
                 .Select(s => s.SessionId)
                 .ToList();
 

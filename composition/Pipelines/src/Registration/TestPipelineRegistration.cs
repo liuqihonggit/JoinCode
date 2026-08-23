@@ -184,6 +184,7 @@ public static class TestPipelineRegistration
             new PipelineBuilder<ShellPipelineContext>()
                 .Use(sp.GetRequiredService<AbsoluteTimeoutMiddleware>())
                 .Use(sp.GetRequiredService<ShellValidationMiddleware>())
+                .Use(sp.GetRequiredService<ShellCommandInterceptionMiddleware>())
                 .Use(sp.GetRequiredService<ShellPathGateMiddleware>())
                 .Use(sp.GetRequiredService<ShellClassificationMiddleware>())
                 .Use(sp.GetRequiredService<ShellSedInterceptMiddleware>())

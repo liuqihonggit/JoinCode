@@ -3,11 +3,14 @@ namespace Core.Agents.Coordinator;
 
 /// <summary>
 /// Agent状态机 - 管理Agent的生命周期和状态转换
+/// <para>内部复用 StateMachine&lt;TState&gt; 基础设施,消除手写 switch 转换表/锁/事件重复逻辑</para>
 /// </summary>
 [Register]
 [AllowSkipEntity("实现 IAsyncDisposable，与 Entity 的 IDisposable 冲突")]
 public sealed partial class AgentStateMachine 
 {
+    private static readonly FrozenDictionary<TaskExecutionStatus, FrozenSet<TaskExecutionStatus>> Transitions = CreateTransitionTable();
+
     private readonly ILogger? _logger;
     private readonly ConcurrentDictionary<string, AgentStateContext> _states;
     [Inject] private readonly IClockService _clock;
@@ -27,7 +30,7 @@ public sealed partial class AgentStateMachine
     public void RegisterAgent(string agentId, string task, SubAgentOptions? options = null)
     {
         var now = _clock.GetUtcNow();
-        var context = new AgentStateContext(agentId, task, options, now);
+        var context = new AgentStateContext(agentId, task, options, now, _clock);
         _states[agentId] = context;
         _logger?.LogDebug("[AgentStateMachine] Agent {AgentId} 已注册，初始状态: {State}", agentId, context.CurrentState);
     }
@@ -46,16 +49,15 @@ public sealed partial class AgentStateMachine
         await context.Lock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            if (!CanTransition(context.CurrentState, newState))
+            if (!context.StateMachine.TryTransitionTo(newState))
             {
                 _logger?.LogWarning("[AgentStateMachine] Agent {AgentId} 无法从 {CurrentState} 转换到 {NewState}",
                     agentId, context.CurrentState, newState);
                 return false;
             }
 
-            var oldState = context.CurrentState;
+            var oldState = context.LastTransitionFrom;
             var now = _clock.GetUtcNow();
-            context.CurrentState = newState;
             context.LastTransitionTime = now;
             context.TransitionHistory.Add(new StateTransition(oldState, newState, now, reason));
 
@@ -183,26 +185,32 @@ public sealed partial class AgentStateMachine
         return _states.TryRemove(agentId, out _);
     }
 
-    /// <summary>
-    /// 检查是否可以状态转换
-    /// </summary>
-    private static bool CanTransition(TaskExecutionStatus currentState, TaskExecutionStatus newState)
-    {
-        return currentState switch
-        {
-            TaskExecutionStatus.Pending => newState is TaskExecutionStatus.Running or TaskExecutionStatus.Cancelled,
-            TaskExecutionStatus.Running => newState is TaskExecutionStatus.Paused or TaskExecutionStatus.Completed or TaskExecutionStatus.Failed or TaskExecutionStatus.Cancelled,
-            TaskExecutionStatus.Paused => newState is TaskExecutionStatus.Running or TaskExecutionStatus.Cancelled,
-            TaskExecutionStatus.Completed => newState is TaskExecutionStatus.Running, // 允许重试
-            TaskExecutionStatus.Failed => newState is TaskExecutionStatus.Running or TaskExecutionStatus.Cancelled, // 允许重试
-            TaskExecutionStatus.Cancelled => false, // 终止状态，不可转换
-            _ => false
-        };
-    }
-
     private static bool IsFinalState(TaskExecutionStatus state)
     {
         return state.IsTerminal();
+    }
+
+    internal static FrozenDictionary<TaskExecutionStatus, FrozenSet<TaskExecutionStatus>> GetTransitions() => Transitions;
+
+    private static FrozenDictionary<TaskExecutionStatus, FrozenSet<TaskExecutionStatus>> CreateTransitionTable()
+    {
+        return new Dictionary<TaskExecutionStatus, FrozenSet<TaskExecutionStatus>>
+        {
+            [TaskExecutionStatus.Pending] = FrozenSet.Create(
+                TaskExecutionStatus.Running, TaskExecutionStatus.Cancelled),
+            [TaskExecutionStatus.Running] = FrozenSet.Create(
+                TaskExecutionStatus.Paused, TaskExecutionStatus.Completed,
+                TaskExecutionStatus.Failed, TaskExecutionStatus.Cancelled),
+            [TaskExecutionStatus.Paused] = FrozenSet.Create(
+                TaskExecutionStatus.Running, TaskExecutionStatus.Cancelled),
+            [TaskExecutionStatus.Completed] = FrozenSet.Create(
+                TaskExecutionStatus.Running), // 允许重试
+            [TaskExecutionStatus.Failed] = FrozenSet.Create(
+                TaskExecutionStatus.Running, TaskExecutionStatus.Cancelled), // 允许重试
+            [TaskExecutionStatus.Cancelled] = FrozenSet<TaskExecutionStatus>.Empty, // 终止状态
+            [TaskExecutionStatus.WaitingForDependency] = FrozenSet<TaskExecutionStatus>.Empty,
+            [TaskExecutionStatus.Ready] = FrozenSet<TaskExecutionStatus>.Empty,
+        }.ToFrozenDictionary();
     }
 }
 
@@ -211,27 +219,40 @@ public sealed partial class AgentStateMachine
 /// </summary>
 public sealed class AgentStateContext : IAsyncDisposable
 {
+    private readonly StateMachine<TaskExecutionStatus> _stateMachine;
+
     public string AgentId { get; }
     public string Task { get; }
     public SubAgentOptions Options { get; }
-    public TaskExecutionStatus CurrentState { get; set; }
+    public TaskExecutionStatus CurrentState => _stateMachine.CurrentState;
     public DateTime CreatedAt { get; }
     public DateTime? StartedAt { get; set; }
     public DateTime? CompletedAt { get; set; }
     public DateTime LastTransitionTime { get; set; }
     public List<StateTransition> TransitionHistory { get; }
     public SemaphoreSlim Lock { get; }
+    internal TaskExecutionStatus LastTransitionFrom { get; private set; }
 
-    public AgentStateContext(string agentId, string task,  SubAgentOptions? options, DateTime createdAt)
+    internal StateMachine<TaskExecutionStatus> StateMachine => _stateMachine;
+
+    public AgentStateContext(string agentId, string task, SubAgentOptions? options, DateTime createdAt, IClockService? clock = null)
     {
         AgentId = agentId;
         Task = task;
         Options = options ?? new SubAgentOptions();
-        CurrentState = TaskExecutionStatus.Pending;
         CreatedAt = createdAt;
         LastTransitionTime = createdAt;
+        LastTransitionFrom = TaskExecutionStatus.Pending;
         TransitionHistory = new List<StateTransition>();
         Lock = new SemaphoreSlim(1, 1);
+        _stateMachine = new StateMachine<TaskExecutionStatus>(
+            AgentStateMachine.GetTransitions(), TaskExecutionStatus.Pending, clock);
+        _stateMachine.StateChanged += OnStateChanged;
+    }
+
+    private void OnStateChanged(object? sender, StateChangedEventArgs<TaskExecutionStatus> e)
+    {
+        LastTransitionFrom = e.OldState;
     }
 
     public async ValueTask DisposeAsync()

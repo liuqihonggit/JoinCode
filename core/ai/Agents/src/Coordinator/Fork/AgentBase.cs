@@ -59,7 +59,6 @@ public class AgentBase : Entity, IAgent
     public string? ErrorMessage { get; set; }
     public string[]? Routes { get; set; }
 
-    protected bool _isPaused;
     protected int _executionCount;
 
     /// <summary>
@@ -132,7 +131,6 @@ public class AgentBase : Entity, IAgent
         _cts = new CancellationTokenSource();
         _pauseLock = new SemaphoreSlim(1, 1);
         Status = TaskExecutionStatus.Pending;
-        _isPaused = false;
         _executionCount = 0;
         ContextManager = contextManager;
         Context = new SubAgentContext
@@ -242,7 +240,7 @@ public class AgentBase : Entity, IAgent
 
             await foreach (var chunk in _queryEngine.QueryAsync(prompt, chatHistory, queryOptions, linkedToken))
             {
-                if (_isPaused)
+                if (Status == TaskExecutionStatus.Paused)
                 {
                     _logger?.LogInformation("[{AgentType} {AgentId}] 进入暂停等待状态", GetType().Name, UniqueId);
                     var pauseStart = _clock.GetUtcNow();
@@ -258,7 +256,6 @@ public class AgentBase : Entity, IAgent
                     catch (TimeoutException)
                     {
                         _logger?.LogWarning("[{AgentType} {AgentId}] 暂停等待超时（30秒），自动恢复执行", GetType().Name, UniqueId);
-                        _isPaused = false;
                         Status = TaskExecutionStatus.Running;
                     }
                 }
@@ -416,7 +413,7 @@ public class AgentBase : Entity, IAgent
 
         await foreach (var chunk in queryStream.ConfigureAwait(false))
         {
-            if (_isPaused)
+            if (Status == TaskExecutionStatus.Paused)
             {
                 try
                 {
@@ -425,7 +422,6 @@ public class AgentBase : Entity, IAgent
                 }
                 catch (TimeoutException)
                 {
-                    _isPaused = false;
                     Status = TaskExecutionStatus.Running;
                 }
             }
@@ -507,7 +503,6 @@ public class AgentBase : Entity, IAgent
     {
         if (Status == TaskExecutionStatus.Running)
         {
-            _isPaused = true;
             Status = TaskExecutionStatus.Paused;
             _logger?.LogInformation("[{AgentType} {AgentId}] 任务已暂停，等待恢复信号", GetType().Name, UniqueId);
         }
@@ -520,7 +515,6 @@ public class AgentBase : Entity, IAgent
     {
         if (Status == TaskExecutionStatus.Paused)
         {
-            _isPaused = false;
             Status = TaskExecutionStatus.Running;
             _logger?.LogInformation("[{AgentType} {AgentId}] 任务已恢复，释放暂停锁", GetType().Name, UniqueId);
         }
@@ -541,7 +535,6 @@ public class AgentBase : Entity, IAgent
     /// </summary>
     public virtual void Reset()
     {
-        _isPaused = false;
         Status = TaskExecutionStatus.Pending;
         StartedAt = null;
         CompletedAt = null;

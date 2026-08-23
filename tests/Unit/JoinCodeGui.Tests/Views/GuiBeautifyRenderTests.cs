@@ -132,4 +132,33 @@ public sealed class GuiBeautifyRenderTests
         SavePng(light, Path.Combine(dump, "messages-light.png"));
         Assert.True(HasUserBarPixel(light, 0x1A, 0x6B, 0xC0), "亮色主题帧应存在用户角色蓝 #1A6BC0 像素（角色色条/标签未渲染？）");
     }
+
+    [AvaloniaFact]
+    public void SettingsPanel_SavesFrameForReview()
+    {
+        var dump = DumpDir();
+        GuiPalette.CurrentVariant = GuiPalette.GuiThemeVariant.Dark;
+        var win = new MainWindow
+        {
+            DataContext = CreateVm(),
+            Width = 980,
+            Height = 680,
+            RequestedThemeVariant = Avalonia.Styling.ThemeVariant.Dark
+        };
+        win.Show();
+        try
+        {
+            var vm = (MainViewModel)win.DataContext!;
+            vm.ToggleSettingsPanelCommand.Execute(null); // 打开右侧设置抽屉
+            Dispatcher.UIThread.RunJobs();
+            var frame = win.CaptureRenderedFrame()
+                ?? throw new InvalidOperationException("CaptureRenderedFrame 返回 null");
+            SavePng(frame, Path.Combine(dump, "settings-dark.png"));
+            Assert.True(File.Exists(Path.Combine(dump, "settings-dark.png")), "设置面板帧图应已保存供人工核对");
+        }
+        finally
+        {
+            win.Close();
+        }
+    }
 }

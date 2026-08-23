@@ -1,19 +1,23 @@
+using System;
+
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Threading;
 
 using JoinCode.Gui.ViewModels;
 
 namespace JoinCode.Gui.Views;
 
 /// <summary>
-/// 底部输入栏 UserControl — 输入框 + 字符计数 + 停止/发送按钮 +
-/// 斜杠命令补全 Popup + 分隔线/时间戳快捷按钮。
-/// 键盘事件（Enter 发送/Up-Down 历史导航/斜杠补全导航）和防抖计时器在本组件内处理。
+/// 底部输入栏 UserControl — 输入框 + 字符计数 + 停止/发送按钮 + 分隔线/时间戳快捷按钮。
+/// 斜杠补全面板在 <see cref="SlashPaletteView"/>（MainWindow 覆盖层）；本组件负责
+/// 键盘事件（Enter 发送/Up-Down 历史导航/补全导航）与 30ms 输入防抖。
 /// </summary>
 public sealed partial class InputBarView : UserControl
 {
     /// <summary>斜杠命令补全防抖计时器 — 30ms 内多次输入/光标变化合并为一次刷新</summary>
-    private readonly Avalonia.Threading.DispatcherTimer _slashDebounceTimer = new()
+    private readonly DispatcherTimer _slashDebounceTimer = new()
     {
         Interval = TimeSpan.FromMilliseconds(30)
     };
@@ -25,10 +29,7 @@ public sealed partial class InputBarView : UserControl
         InitializeComponent();
         _slashDebounceTimer.Tick += OnSlashDebounceTick;
         if (InputTextBox is not null)
-        {
-            InputTextBox.AddHandler(InputElement.KeyDownEvent, OnInputKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
-            InputTextBox.SizeChanged += OnInputSizeChanged;
-        }
+            InputTextBox.AddHandler(InputElement.KeyDownEvent, OnInputKeyDown, RoutingStrategies.Tunnel);
     }
 
     /// <summary>当前 MainViewModel（供外部访问）</summary>
@@ -65,34 +66,10 @@ public sealed partial class InputBarView : UserControl
             return;
         _vm.InputCaretIndex = InputTextBox.CaretIndex;
         _vm.RefreshSlashSuggestions();
-        UpdateSlashPopupWidth();
     }
 
-    /// <summary>输入框尺寸变化时同步补全面板宽度</summary>
-    private void OnInputSizeChanged(object? sender, Avalonia.Controls.SizeChangedEventArgs e) => UpdateSlashPopupWidth();
-
-    /// <summary>补全面板宽度对齐输入框实际宽度</summary>
-    private void UpdateSlashPopupWidth()
-    {
-        if (SlashPopupBorder is null || InputTextBox is null)
-            return;
-        var width = InputTextBox.Bounds.Width;
-        if (width > 0)
-            SlashPopupBorder.Width = width;
-    }
-
-    /// <summary>强制 Popup 重新计算位置 — 通过微调 VerticalOffset 触发内部位置更新</summary>
-    public void RepositionSlashPopup()
-    {
-        if (SlashPopup is not { IsOpen: true } popup)
-            return;
-        var offset = popup.VerticalOffset;
-        popup.VerticalOffset = offset + 0.1;
-        popup.VerticalOffset = offset;
-    }
-
-    /// <summary>聚焦输入框并把光标移到末尾（命令补全后调用）</summary>
-    private void FocusInputEnd()
+    /// <summary>聚焦输入框并把光标移到末尾（命令补全后由宿主调用）</summary>
+    public void FocusInput()
     {
         if (InputTextBox is null)
             return;
@@ -123,7 +100,7 @@ public sealed partial class InputBarView : UserControl
             {
                 e.Handled = true;
                 vm.CompleteSlashSuggestion();
-                FocusInputEnd();
+                FocusInput();
                 return;
             }
             if (e.Key == Key.Escape)
@@ -176,10 +153,7 @@ public sealed partial class InputBarView : UserControl
         if (_vm is not null)
             _vm.PropertyChanged -= OnVmPropertyChanged;
         if (InputTextBox is not null)
-        {
             InputTextBox.RemoveHandler(InputElement.KeyDownEvent, OnInputKeyDown);
-            InputTextBox.SizeChanged -= OnInputSizeChanged;
-        }
         base.OnDetachedFromVisualTree(e);
     }
 }

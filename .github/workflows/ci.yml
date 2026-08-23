@@ -138,11 +138,11 @@ jobs:
             !**/runtimes/osx/
           retention-days: 1
 
-  unit-test-group-1:
-    name: Unit - Core (Infra/Brain/Guard/Bridge)
+  unit-test-group-1a:
+    name: Unit - Infra + Brain
     runs-on: windows-latest
     needs: build
-    timeout-minutes: 15
+    timeout-minutes: 8
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -192,6 +192,26 @@ jobs:
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
           --logger "trx;LogFileName=brain-other-tests.trx"
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: unit-test-results-group-1a
+          path: '**/*.trx'
+          retention-days: 7
+
+  unit-test-group-1b:
+    name: Unit - Guard + Bridge
+    runs-on: windows-latest
+    needs: build
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: ./.github/actions/setup-test-env
       - name: Test - Guard (Security)
         run: >
           dotnet test core/safety/Guard/tests/Security/Guard.Security.Tests.csproj
@@ -224,7 +244,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: unit-test-results-group-1
+          name: unit-test-results-group-1b
           path: '**/*.trx'
           retention-days: 7
 
@@ -232,7 +252,7 @@ jobs:
     name: Unit - Services (Hands/Mcp/Vault/Composition)
     runs-on: windows-latest
     needs: build
-    timeout-minutes: 15
+    timeout-minutes: 8
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -308,7 +328,7 @@ jobs:
     name: Unit - Agents & Host (Agents/Scheduling/McpToolDispatch/Host)
     runs-on: windows-latest
     needs: build
-    timeout-minutes: 15
+    timeout-minutes: 8
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -356,7 +376,7 @@ jobs:
     name: Unit - Coverage gaps (Llm/Browser/Reasoning/AotSafety/Clock/Dream/Eyes/CodeIndex)
     runs-on: windows-latest
     needs: build
-    timeout-minutes: 15
+    timeout-minutes: 8
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -433,7 +453,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 15
+    timeout-minutes: 8
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -461,7 +481,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 15
+    timeout-minutes: 8
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -489,7 +509,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 15
+    timeout-minutes: 8
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -517,7 +537,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 15
+    timeout-minutes: 8
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -545,7 +565,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 15
+    timeout-minutes: 8
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -573,7 +593,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 15
+    timeout-minutes: 8
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -601,7 +621,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 15
+    timeout-minutes: 8
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -629,7 +649,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 15
+    timeout-minutes: 8
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -657,7 +677,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 15
+    timeout-minutes: 8
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -685,7 +705,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 15
+    timeout-minutes: 8
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -713,7 +733,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 15
+    timeout-minutes: 8
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -741,7 +761,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 15
+    timeout-minutes: 8
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -769,7 +789,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 15
+    timeout-minutes: 8
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -797,7 +817,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 15
+    timeout-minutes: 8
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -825,7 +845,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 15
+    timeout-minutes: 8
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -853,7 +873,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 15
+    timeout-minutes: 8
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -881,7 +901,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 15
+    timeout-minutes: 8
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -1143,7 +1163,7 @@ jobs:
     runs-on: windows-latest
     needs: build
 
-    timeout-minutes: 15
+    timeout-minutes: 8
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -1171,7 +1191,7 @@ jobs:
   auto-merge:
     name: Auto Merge
     runs-on: ubuntu-latest
-    needs: [unit-test-group-1, unit-test-group-2, unit-test-group-3, unit-test-group-4, integration-brain-clock, integration-guard-vault, integration-hands-host-mcp, integration-prefixcache, e2e-conversation, e2e-multi-provider, e2e-file-tools, e2e-agent-tools, e2e-chatcmd-basic, e2e-chatcmd-code-a1, e2e-chatcmd-code-a2, e2e-chatcmd-code-b1, e2e-chatcmd-code-b2, e2e-chatcmd-extended, e2e-chatcmd-auth, e2e-errors-permission, e2e-mcp-smoke, e2e-cluster]
+    needs: [unit-test-group-1a, unit-test-group-1b, unit-test-group-2, unit-test-group-3, unit-test-group-4, integration-brain-clock, integration-guard-vault, integration-hands-host-mcp, integration-prefixcache, e2e-conversation, e2e-multi-provider, e2e-file-tools, e2e-agent-tools, e2e-chatcmd-basic, e2e-chatcmd-code-a1, e2e-chatcmd-code-a2, e2e-chatcmd-code-b1, e2e-chatcmd-code-b2, e2e-chatcmd-extended, e2e-chatcmd-auth, e2e-errors-permission, e2e-mcp-smoke, e2e-cluster]
     if: github.event_name == 'pull_request'
     permissions:
       contents: write

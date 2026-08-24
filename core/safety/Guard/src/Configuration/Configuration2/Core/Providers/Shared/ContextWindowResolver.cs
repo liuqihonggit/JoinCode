@@ -33,7 +33,7 @@ public sealed partial class ContextWindowResolver : ServiceEntity, IContextWindo
     public int ResolveCurrentContextWindow()
     {
         // 1. 环境变量覆盖（对齐 TS CLAUDE_CODE_MAX_CONTEXT_TOKENS）
-        var envOverride = Environment.GetEnvironmentVariable("JCC_MAX_CONTEXT_TOKENS");
+        var envOverride = Environment.GetEnvironmentVariable(JccEnvVarConstants.MaxContextTokens);
         if (!string.IsNullOrWhiteSpace(envOverride) && int.TryParse(envOverride, out var envValue) && envValue > 0)
             return envValue;
 
@@ -66,7 +66,7 @@ public sealed partial class ContextWindowResolver : ServiceEntity, IContextWindo
     private string ResolveCurrentProvider()
     {
         return _config?.Provider?.Vendor
-            ?? Environment.GetEnvironmentVariable("JCC_VENDOR")
-            ?? "openai";
+            ?? Environment.GetEnvironmentVariable(JccEnvVarConstants.Vendor)
+            ?? VendorKindConstants.OpenAi;
     }
 }

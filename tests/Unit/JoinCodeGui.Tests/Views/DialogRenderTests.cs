@@ -140,8 +140,23 @@ public sealed class DialogRenderTests
             Path.Combine(dump, "askuser-light.png"));
         ask.Close();
 
+        var perm = new PermissionDialog(new JoinCode.Gui.Hosting.PermissionConfirmationRequest(
+            "Bash", "允许在当前目录执行 shell 命令？", "req-1",
+            "rule: bash.execute\nscope: workdir\nmode: confirm"))
+        {
+            RequestedThemeVariant = light
+        };
+        perm.Show();
+        Dispatcher.UIThread.RunJobs();
+        await Task.Delay(50);
+        Dispatcher.UIThread.RunJobs();
+        SavePng(perm.CaptureRenderedFrame() ?? throw new InvalidOperationException("capture null"),
+            Path.Combine(dump, "permission-light.png"));
+        perm.Close();
+
         Assert.True(File.Exists(Path.Combine(dump, "confirm-light.png")), "亮色确认对话框帧应已保存");
         Assert.True(File.Exists(Path.Combine(dump, "askuser-light.png")), "亮色提问对话框帧应已保存");
+        Assert.True(File.Exists(Path.Combine(dump, "permission-light.png")), "亮色权限对话框帧应已保存");
     }
 
     [AvaloniaFact]

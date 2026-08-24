@@ -44,6 +44,7 @@ Slash 补全面板改造完成（a0a2d71e8）后，用户要求"全部做剩下�
 | H1 | 主题图标字形修复：☾ 缺字形渲染成 "C" → FontFamily=Segoe UI Symbol（截图验证 ☀ 正常） | ✅ |
 | H2 | 亮色对话框帧补充（对话框需显式 RequestedThemeVariant，继承宿主默认 Dark）+ 连接 ComboBox 空数据 placeholder（345 全绿） | ✅ |
 | I1 | Markdown 代码块 + Diff 增/删行背景 token 化（CodeBlockBackground/DiffAddedBackground/DiffRemovedBackground），修亮色主题黑底黑字不可读（345 全绿） | ✅ |
+| J1 | PermissionDialog 亮色帧补充 — 三对话框 × 双主题截图矩阵全部人工核对（345 全绿） | ✅ |
 
 ## 踩坑记录
 
@@ -90,24 +91,51 @@ Slash 补全面板改造完成（a0a2d71e8）后，用户要求"全部做剩下�
 <!-- 替代方案: 自定义滚动条样式（过度设计，不采用）-->
 <!-- 验证: SlashPalette_KeyboardNavigationScrollsToLastItem 红转绿，339 测试全绿 ✅ -->
 
+<!-- 🤖 Auto Decision: 2026-08-24 -->
+<!-- 决策: 主题切换图标 ☾/☀ 用双 TextBlock + IsVisible 绑定 IsDarkTheme，字形显式 FontFamily=Segoe UI Symbol -->
+<!-- 原因: 旧实现 Content 硬编码 ☾ 不随主题切换（用户报告的 bug）；默认字体缺 U+263E 字形被 fallback 渲染成 "C" -->
+<!-- 替代方案: 转换器返回字符串（同样可行但双 TextBlock 零代码更直观）-->
+<!-- 验证: ThemeToggle_IconSwitchesWithTheme 断言 + theme-icon 帧人工核对 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-24 -->
+<!-- 决策: 对话框按钮体系统一：确认=取消ghost/确定primary；权限=拒绝warn ghost/允许ghost/始终允许primary；提问=选项默认实底+取消ghost/确认primary -->
+<!-- 原因: 三对话框此前无背景token/按钮样式混乱；主操作统一 primary 右侧、危险操作 warn 色，与主窗口设计语言一致 -->
+<!-- 替代方案: 选项按钮用 ghost（静态无边界可点击性弱，不采用）-->
+<!-- 验证: 三对话框 × 双主题 6 张帧图人工核对 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-24 -->
+<!-- 决策: 侧栏底部状态从硬编码"本地引擎待接入"改为绑定 StatusText/StatusToBrush（与主状态栏同源） -->
+<!-- 原因: 引擎加载后仍显示占位文案是错误信息；单一数据源消除两处状态显示漂移 -->
+<!-- 替代方案: 删除侧栏底部状态栏（信息重复，但保留侧栏完整性更好）-->
+<!-- 验证: SidebarStatus_BindsRealEngineStatus_NotHardcoded 断言通过 ✅ -->
+
 ## 涉及文件树
 
 ```
 app/JoinCodeGui/
 ├── Theming/
-│   ├── GuiPalette.cs            [改] +4 token
+│   ├── GuiPalette.cs            [改] +8 token（Composer/CodeBlock/DiffAdded/DiffRemoved/AccentSubtle 等）
 │   ├── GuiAppResources.cs       [改] 挂载 GuiControlStyles
 │   └── GuiControlStyles.axaml   [新] 共享控件样式（App 与 headless 测试共用）
 ├── Converters/
 │   └── UiConverters.cs          [改] +MsgBarBrushConverter（MultiBinding IsUser+Kind）
+├── Markdown/
+│   ├── MarkdownView.cs          [改] 代码块背景 token 化
+│   └── DiffViewer.cs            [改] 增/删行背景 token 化
 └── Views/
-    ├── TopBarView.axaml         [改] ghost 分组
-    ├── SidebarView.axaml        [改] 会话卡片类名化
-    ├── InputBarView.axaml       [改] primary 发送
-    └── MainWindow.axaml         [改] 搜索栏/状态栏/EmptyState/消息卡片模板
+    ├── TopBarView.axaml         [改] ghost 分组 + 主题图标 ☾/☀ 联动 + ComboBox placeholder
+    ├── SidebarView.axaml        [改] 会话卡片类名化 + 底部状态绑定真实引擎状态
+    ├── InputBarView.axaml       [改] composer 卡片（发送按钮内嵌右下）
+    ├── SlashPaletteView.axaml   [改] 布局行锚定 + 上圆角融合 + 滚动修复
+    ├── ConfirmDialogWindow.axaml [改] 问号徽章 + 主题化 + 按钮体系
+    ├── PermissionDialog.axaml   [改] 盾徽 + mono 规则卡片 + 三档按钮
+    ├── AskUserQuestionDialog.axaml(.cs) [改] 选项默认样式 + composer 输入框
+    └── MainWindow.axaml         [改] 五行布局/搜索栏/状态栏/EmptyState/消息卡片模板
 tests/Unit/JoinCodeGui.Tests/
 └── Views/
-    └── GuiBeautifyRenderTests.cs [新] 带消息截图基线（暗/亮 + EmptyState）
+    ├── GuiBeautifyRenderTests.cs    [新] 消息卡片/设置面板/侧栏状态截图基线
+    ├── SlashPaletteRenderTests.cs   [改] 几何对齐断言 + 滚动导航断言
+    └── DialogRenderTests.cs         [新] 主题图标断言 + 三对话框 × 双主题帧图
 docs/avalonia-host/
-└── 任务-GUI全面美化.md           [新] 本文档
+└── 任务-GUI全面美化.md               [新] 本文档
 ```

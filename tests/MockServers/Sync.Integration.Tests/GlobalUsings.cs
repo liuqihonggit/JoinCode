@@ -27,6 +27,7 @@ global using IO.FileSystem;
 global using JoinCode.Abstractions.Mcp.Registry;
 global using Microsoft.Extensions.Configuration;
 global using Microsoft.Extensions.DependencyInjection;
+global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using Microsoft.Extensions.Logging;
 global using System.Text.Json.Serialization;
 global using System.Text.Json;

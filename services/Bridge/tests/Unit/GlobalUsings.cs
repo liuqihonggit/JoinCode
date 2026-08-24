@@ -22,6 +22,7 @@ global using Core.Bridge.Models;
 global using Core.Bridge;
 global using Core.Bridge.Handlers;
 global using Microsoft.Extensions.DependencyInjection;
+global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using Microsoft.Extensions.Logging.Abstractions;
 global using Microsoft.Extensions.Options;
 global using Microsoft.Extensions.Time.Testing;

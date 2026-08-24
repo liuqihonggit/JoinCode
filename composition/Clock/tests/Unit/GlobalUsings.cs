@@ -30,6 +30,7 @@ global using JoinCode.Clock.DependencyInjection;
 
 global using Infrastructure.Localization;
 global using Microsoft.Extensions.DependencyInjection;
+global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using Microsoft.Extensions.Logging.Abstractions;
 global using Microsoft.Extensions.Options;
 global using Moq;

@@ -84,6 +84,7 @@ global using ElicitMode = JoinCode.Abstractions.Mcp.Protocol.ElicitMode;
 global using ElicitModeConstants = JoinCode.Abstractions.Mcp.Protocol.ElicitModeConstants;
 global using Microsoft.Extensions.Configuration;
 global using Microsoft.Extensions.DependencyInjection;
+global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using System.Collections.Frozen;
 global using System.IO;
 global using System.Net;

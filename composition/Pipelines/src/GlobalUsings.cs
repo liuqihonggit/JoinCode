@@ -19,6 +19,7 @@ global using JoinCode.Abstractions.Pipeline;
 global using JoinCode.Abstractions.Utils.Diagnostics;
 global using JoinCode.Abstractions.Models.ErrorRecovery;
 global using Microsoft.Extensions.DependencyInjection;
+global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using Microsoft.Extensions.Logging;
 global using Services.Web;
 global using Tools.Shell;

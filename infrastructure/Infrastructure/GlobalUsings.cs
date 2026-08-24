@@ -51,6 +51,7 @@ global using IO.FileSystem;
 global using IO.Services;
 global using Microsoft.Extensions.DependencyInjection.Extensions;
 global using Microsoft.Extensions.DependencyInjection;
+global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using Microsoft.Extensions.Http;
 global using Microsoft.Extensions.FileSystemGlobbing;
 global using Microsoft.Extensions.FileSystemGlobbing.Abstractions;

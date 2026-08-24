@@ -11,6 +11,38 @@ namespace Core.Configuration;
 public static class EnvOverrideApplier
 {
     /// <summary>
+    /// vendor → 协议推断表 — 仅 anthropic/azure 有专属协议，其余默认 OpenAiCompatible
+    /// 查表替代 if-else 链: O(1) 查找, AOT 零分配, key 用编译期常量 VendorKindConstants
+    /// 用 FrozenDictionary.Create 显式传 OrdinalIgnoreCase 比较器(ToFrozenDictionary 无参版会丢失比较器)
+    /// </summary>
+    private static readonly FrozenDictionary<string, ProtocolKind> ProtocolByVendor =
+        FrozenDictionary.Create(
+            StringComparer.OrdinalIgnoreCase,
+            new KeyValuePair<string, ProtocolKind>[]
+            {
+                new(VendorKindConstants.Anthropic, ProtocolKind.Anthropic),
+                new(VendorKindConstants.Azure, ProtocolKind.Azure),
+            });
+
+    /// <summary>
+    /// vendor → API Key 环境变量名推断表 — 6 个供应商有映射, bedrock/未知返回 null
+    /// 查表替代 if-else 链: O(1) 查找, AOT 零分配, key/value 用编译期常量
+    /// 用 FrozenDictionary.Create 显式传 OrdinalIgnoreCase 比较器
+    /// </summary>
+    private static readonly FrozenDictionary<string, string> ApiKeyEnvVarByVendor =
+        FrozenDictionary.Create(
+            StringComparer.OrdinalIgnoreCase,
+            new KeyValuePair<string, string>[]
+            {
+                new(VendorKindConstants.OpenAi, ProviderEnvVarConstants.OpenAiApiKey),
+                new(VendorKindConstants.Anthropic, ProviderEnvVarConstants.AnthropicApiKey),
+                new(VendorKindConstants.Azure, ProviderEnvVarConstants.AzureOpenAiApiKey),
+                new(VendorKindConstants.DeepSeek, ProviderEnvVarConstants.DeepSeekApiKey),
+                new(VendorKindConstants.Agnes, ProviderEnvVarConstants.AgnesApiKey),
+                new(VendorKindConstants.Sensenova, ProviderEnvVarConstants.SenseNovaApiKey),
+            });
+
+    /// <summary>
     /// 用 JCC_* 环境变量覆盖 SettingsJson 字段,返回新 SettingsJson(不可变,用 Merge 生成)。
     /// JCC_VENDOR → 设置 current.profile + 写入 vendor[vendor] 预设
     /// JCC_MODEL_ID → 覆盖 vendor[current.profile].model
@@ -78,36 +110,22 @@ public static class EnvOverrideApplier
     }
 
     /// <summary>
-    /// 根据 vendor 名推断协议 — anthropic 用专属协议，azure 用 azure 协议，其余 openai-compatible
+    /// 根据 vendor 名推断协议 — 查表: anthropic/azure 有专属协议，其余 openai-compatible
     /// </summary>
-    private static string? InferProtocol(string? vendor)
+    internal static string? InferProtocol(string? vendor)
     {
         if (string.IsNullOrEmpty(vendor)) return null;
-        if (string.Equals(vendor, "anthropic", StringComparison.OrdinalIgnoreCase))
-            return ProtocolKind.Anthropic.ToValue();
-        if (string.Equals(vendor, "azure", StringComparison.OrdinalIgnoreCase))
-            return ProtocolKind.Azure.ToValue();
-        return ProtocolKind.OpenAiCompatible.ToValue();
+        return (ProtocolByVendor.TryGetValue(vendor, out var protocol)
+            ? protocol
+            : ProtocolKind.OpenAiCompatible).ToValue();
     }
 
     /// <summary>
-    /// 根据 vendor 名推断 API Key 环境变量名 — 让 ProviderDefinitionRegistry 能匹配环境变量
+    /// 根据 vendor 名推断 API Key 环境变量名 — 查表: 6 个供应商有映射, 其余返回 null
     /// </summary>
-    private static string? InferApiKeyEnvVar(string? vendor)
+    internal static string? InferApiKeyEnvVar(string? vendor)
     {
         if (string.IsNullOrEmpty(vendor)) return null;
-        if (string.Equals(vendor, "openai", StringComparison.OrdinalIgnoreCase))
-            return ProviderEnvVar.OpenAiApiKey.ToValue();
-        if (string.Equals(vendor, "anthropic", StringComparison.OrdinalIgnoreCase))
-            return ProviderEnvVar.AnthropicApiKey.ToValue();
-        if (string.Equals(vendor, "azure", StringComparison.OrdinalIgnoreCase))
-            return ProviderEnvVar.AzureOpenAiApiKey.ToValue();
-        if (string.Equals(vendor, "deepseek", StringComparison.OrdinalIgnoreCase))
-            return ProviderEnvVar.DeepSeekApiKey.ToValue();
-        if (string.Equals(vendor, "agnes", StringComparison.OrdinalIgnoreCase))
-            return ProviderEnvVar.AgnesApiKey.ToValue();
-        if (string.Equals(vendor, "sensenova", StringComparison.OrdinalIgnoreCase))
-            return ProviderEnvVar.SenseNovaApiKey.ToValue();
-        return null;
+        return ApiKeyEnvVarByVendor.TryGetValue(vendor, out var envVar) ? envVar : null;
     }
 }

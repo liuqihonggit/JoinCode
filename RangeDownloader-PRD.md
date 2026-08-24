@@ -496,3 +496,14 @@ public sealed record DownloadProgress(
 <!-- 决策: 下载器放 Infrastructure/Network/Downloader/,不挂 [Register],纯基建 -->
 <!-- 原因: 用户要求独立做不接入,Infrastructure 层有现成 HttpClient 基础,不污染 Abstractions -->
 <!-- 替代方案: 放 core/execution/Hands(接入主链路,违反"不接入"要求) / 放 Abstractions(过度暴露,违反"基建先行") -->
+
+<!-- 🤖 Auto Decision: 2026-08-25 T2 状态机 -->
+<!-- 决策: 状态机按操作校验前置状态(IsAllowed(current, op)),不按目标状态(CanTransition(current, desired)) -->
+<!-- 原因: Start 和 Resume 都转 Downloading,按目标状态无法区分;按操作精确控制每个方法的前置条件 -->
+<!-- 替代方案: 按目标状态校验(简单但语义模糊,Start 从 Paused 会误判合法) -->
+<!-- 验证: 32 个单元测试全部通过 ✅ (合法转换12 + 非法转换17 + 终态3 + 并发1) -->
+
+<!-- 🤖 Auto Decision: 2026-08-25 T2 枚举化 -->
+<!-- 决策: 定义 DownloadOperation 枚举 + [EnumValue],测试用 Enum.GetValues 遍历,消除硬编码字符串 -->
+<!-- 原因: AGENTS.md 规定有限集合必须枚举化,禁止消费方硬编码字符串操作名 -->
+<!-- 验证: 编译通过,0 警告 ✅ -->

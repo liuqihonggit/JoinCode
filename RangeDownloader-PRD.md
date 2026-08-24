@@ -463,15 +463,15 @@ public sealed record DownloadProgress(
 
 | 步骤 | 内容 | 状态 |
 |------|------|------|
-| T1 | DTO + 接口 + 枚举 + JsonContext(纯数据结构,无需 TDD) | ⬜ |
-| T2 | 🔴DownloadStateMachine 红测试 → 🟢实现(转换校验+线程安全) → 编译 → 提交 | ⬜ |
-| T3 | 🔴ChunkPlanner 红测试 → 🟢实现 → 编译 → 提交 | ⬜ |
-| T4 | 🔴MetadataStore 红测试 → 🟢实现 → 编译 → 提交 | ⬜ |
-| T5 | 🔴RangeSupportProbe 红测试 → 🟢实现 → 编译 → 提交 | ⬜ |
-| T6 | 🔴ChunkDownloader 红测试 → 🟢实现 → 编译 → 提交 | ⬜ |
-| T7 | 🔴DownloadSession 红测试(Pause/Resume/Cancel/Wait 状态流转) → 🟢实现 → 编译 → 提交 | ⬜ |
-| T8 | 🔴RangeDownloader 红测试(单线程/多线程/续传/合并) → 🟢实现 → 编译 → 提交 | ⬜ |
-| T9 | 全量编译验证(Infrastructure.slnx Debug) → 提交 | ⬜ |
+| T1 | DTO + 接口 + 枚举 + JsonContext(纯数据结构,无需 TDD) | ✅ |
+| T2 | 🔴DownloadStateMachine 红测试 → 🟢实现(转换校验+线程安全) → 编译 → 提交 | ✅ |
+| T3 | 🔴ChunkPlanner 红测试 → 🟢实现 → 编译 → 提交 | ✅ |
+| T4 | 🔴MetadataStore 红测试 → 🟢实现 → 编译 → 提交 | ✅ |
+| T5 | 🔴RangeSupportProbe 红测试 → 🟢实现 → 编译 → 提交 | ✅ |
+| T6 | 🔴ChunkDownloader 红测试 → 🟢实现 → 编译 → 提交 | ✅ |
+| T7 | 🔴DownloadSession 红测试(Pause/Resume/Cancel/Wait 状态流转) → 🟢实现 → 编译 → 提交 | ✅ |
+| T8 | 🔴RangeDownloader 红测试(单线程/多线程/续传/合并) → 🟢实现 → 编译 → 提交 | ✅ |
+| T9 | 全量编译验证(Infrastructure.slnx Debug) → 提交 | ✅ |
 
 ## 8. 风险与对策
 
@@ -507,3 +507,13 @@ public sealed record DownloadProgress(
 <!-- 决策: 定义 DownloadOperation 枚举 + [EnumValue],测试用 Enum.GetValues 遍历,消除硬编码字符串 -->
 <!-- 原因: AGENTS.md 规定有限集合必须枚举化,禁止消费方硬编码字符串操作名 -->
 <!-- 验证: 编译通过,0 警告 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-25 T7+T8 后台执行 -->
+<!-- 决策: StartAsync 用 Task.Run(RunDownloadAsync) 在线程池执行,不阻塞调用线程 -->
+<!-- 原因: RunDownloadAsync 内 PLINQ 的 .GetAwaiter().GetResult() 会同步阻塞,若在主线程执行则 Cancel 无法介入 -->
+<!-- 替代方案: 用 SemaphoreSlim+Task.WhenAll 替代 PLINQ(但 PRD 要求 PLINQ,且 PLINQ 在线程池线程上阻塞是安全的) -->
+<!-- 验证: 78 个单元测试全通过 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-25 T9 全量编译 -->
+<!-- 决策: Infrastructure.slnx Debug 全量编译通过,0 警告 0 错误 -->
+<!-- 验证: 78 个单元测试全通过(状态机32+规划14+元数据12+探测8+分片7+集成5) ✅ -->

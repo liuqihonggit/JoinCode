@@ -76,9 +76,9 @@ internal sealed class FallbackProviderDefinition : IProviderDefinition
 
     private string ProtocolToConfigKey() => _protocol switch
     {
-        ProtocolKind.Anthropic => "anthropic",
-        ProtocolKind.Agnes => "agnes",
-        ProtocolKind.Azure => "openai",
-        _ => "openai"
+        ProtocolKind.Anthropic => VendorKindConstants.Anthropic,
+        ProtocolKind.Agnes => VendorKindConstants.Agnes,
+        ProtocolKind.Azure => VendorKindConstants.OpenAi,
+        _ => VendorKindConstants.OpenAi
     };
 }

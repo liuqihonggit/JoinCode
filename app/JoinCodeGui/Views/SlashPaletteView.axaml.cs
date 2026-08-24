@@ -6,6 +6,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media.Transformation;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 
 using JoinCode.Gui.ViewModels;
 
@@ -136,8 +137,29 @@ public sealed partial class SlashPaletteView : UserControl
     {
         if (_vm is not { SlashSelectedIndex: >= 0 } vm || PaletteList is null)
             return;
-        if (vm.SlashSelectedIndex < vm.SlashSuggestions.Count)
-            PaletteList.ScrollIntoView(vm.SlashSuggestions[vm.SlashSelectedIndex]);
+        if (vm.SlashSelectedIndex >= vm.SlashSuggestions.Count)
+            return;
+        PaletteList.ScrollIntoView(vm.SlashSuggestions[vm.SlashSelectedIndex]);
+        // ScrollIntoView 对末项可能差数像素（margin/padding 舍入），布局完成后几何校正确保完全可见
+        var index = vm.SlashSelectedIndex;
+        Dispatcher.UIThread.Post(() => EnsureContainerFullyVisible(index), DispatcherPriority.Loaded);
+    }
+
+    /// <summary>几何校正：把选中容器完整滚入视口（顶部溢出上滚 / 底部溢出下滚）</summary>
+    private void EnsureContainerFullyVisible(int index)
+    {
+        if (PaletteList?.ContainerFromIndex(index) is not Visual container)
+            return;
+        var scroll = PaletteList.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
+        if (scroll is null || scroll.Extent.Height <= scroll.Viewport.Height)
+            return;
+        var top = (container.TransformToVisual(scroll) ?? default).Transform(default).Y;
+        var bottom = top + container.Bounds.Height;
+        double dy = top < 0 ? top
+            : bottom > scroll.Viewport.Height ? bottom - scroll.Viewport.Height
+            : 0;
+        if (Math.Abs(dy) > 0.5)
+            scroll.Offset = new Vector(scroll.Offset.X, scroll.Offset.Y + dy);
     }
 
     /// <summary>点击候选项：补全并通知宿主回焦输入框</summary>

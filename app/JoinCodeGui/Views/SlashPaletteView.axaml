@@ -65,13 +65,15 @@
         </Grid>
         <Rectangle Grid.Row="1" Height="1" Fill="{DynamicResource GuiDivider}" Margin="10,0" />
 
-        <!-- 候选列表：命令名等宽字体 + 匹配前缀高亮 + 描述 + 选中回车提示 -->
+        <!-- 候选列表：命令名等宽字体 + 匹配前缀高亮 + 描述 + 选中回车提示。
+             VerticalScrollBarVisibility=Hidden：滚动条隐藏但滚动可用（Disabled 会完全禁用滚动，
+             导致键盘导航到视口外候选项时列表不跟随 — 缺陷复现于 SlashPalette_KeyboardNavigationScrollsToLastItem） -->
         <ListBox Grid.Row="2" x:Name="PaletteList"
                  ItemsSource="{Binding SlashSuggestions}"
                  SelectedIndex="{Binding SlashSelectedIndex}"
                  Background="Transparent" Padding="0,4" BorderThickness="0"
                  Focusable="False"
-                 ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                 ScrollViewer.VerticalScrollBarVisibility="Hidden"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
           <ListBox.ItemTemplate>
             <DataTemplate x:DataType="vm:SlashCommandItem">

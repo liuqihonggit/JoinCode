@@ -223,6 +223,49 @@ public sealed class SlashPaletteRenderTests
     }
 
     [AvaloniaFact]
+    public async Task SlashPalette_KeyboardNavigationScrollsToLastItem()
+    {
+        var win = OpenWindow(dark: true);
+        try
+        {
+            await TriggerSlashAsync(win);
+            var vm = (MainViewModel)win.DataContext!;
+            var list = win.GetVisualDescendants().OfType<ListBox>().First(x => x.Name == "PaletteList");
+
+            // 真实键盘管线：连按 ↓ 走 InputBar KeyDown → vm.SlashNavigate → ScrollIntoView
+            for (int i = 0; i < vm.SlashSuggestions.Count - 1; i++)
+            {
+                var tb = win.GetVisualDescendants().OfType<TextBox>().First(x => x.Name == "InputTextBox");
+                tb.RaiseEvent(new Avalonia.Input.KeyEventArgs
+                {
+                    RoutedEvent = Avalonia.Input.InputElement.KeyDownEvent,
+                    Key = Avalonia.Input.Key.Down
+                });
+                Dispatcher.UIThread.RunJobs();
+            }
+
+            Assert.Equal(vm.SlashSuggestions.Count - 1, vm.SlashSelectedIndex);
+
+            // 滚动必须发生：Disabled 模式下 ScrollViewer 完全禁用滚动（Offset 恒 0）→ 红
+            var scroll = list.GetVisualDescendants().OfType<ScrollViewer>().First();
+            Assert.True(scroll.Offset.Y > 0,
+                $"导航到最后一项后 Offset.Y={scroll.Offset.Y}，列表未滚动（VerticalScrollBarVisibility=Disabled 禁用了滚动？）");
+
+            // 最后一项必须完整落在列表视口内（用户能看到选中项）
+            var lastContainer = list.ContainerFromIndex(vm.SlashSuggestions.Count - 1);
+            Assert.NotNull(lastContainer);
+            var listRect = BoundsInWindow(list);
+            var itemRect = BoundsInWindow(lastContainer!);
+            Assert.True(itemRect.Top >= listRect.Top - 0.75 && itemRect.Bottom <= listRect.Bottom + 0.75,
+                $"最后一项 [{itemRect.Top:F1},{itemRect.Bottom:F1}] 超出列表视口 [{listRect.Top:F1},{listRect.Bottom:F1}]，选中项不可见");
+        }
+        finally
+        {
+            win.Close();
+        }
+    }
+
+    [AvaloniaFact]
     public async Task SlashPalette_LightTheme_SavesFrameForReview()
     {
         var dump = DumpDir();

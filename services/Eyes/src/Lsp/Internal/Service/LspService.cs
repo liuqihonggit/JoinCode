@@ -1,7 +1,7 @@
 namespace Services.Lsp;
 
 [Register(typeof(ILspService), ServiceLifetime.Singleton)]
-public sealed partial class LspService : ILspService
+public sealed partial class LspService : ServiceEntity, ILspService
 {
     private const int MaxLspFileSizeBytes = 10_000_000;
 
@@ -13,7 +13,7 @@ public sealed partial class LspService : ILspService
     private readonly ITelemetryService? _telemetryService;
     private readonly SemaphoreSlim _initLock = new(1, 1);
     private int _isInitialized;
-    private int _isDisposed;
+    private int _asyncDisposed;
 
     /// <summary>
     /// 初始化 LspService
@@ -25,6 +25,7 @@ public sealed partial class LspService : ILspService
         LspEngineContext engineContext,
         LspServiceDeps? deps = null,
         ILogger<LspService>? logger = null)
+        : base(nameof(LspService))
     {
         ArgumentNullException.ThrowIfNull(engineContext);
         ArgumentNullException.ThrowIfNull(engineContext.LspManager);
@@ -281,11 +282,17 @@ public sealed partial class LspService : ILspService
         await _lspManager.CloseFileAsync(filePath, cancellationToken).ConfigureAwait(false);
     }
 
-    public async ValueTask DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1) return;
 
         await _lspManager.DisposeAsync().ConfigureAwait(false);
+        Dispose();
+    }
+
+    protected override void OnDispose()
+    {
+        if (_asyncDisposed == 1) return;
         _initLock.Dispose();
     }
 

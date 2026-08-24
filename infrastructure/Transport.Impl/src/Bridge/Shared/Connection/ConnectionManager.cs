@@ -8,7 +8,7 @@ namespace JoinCode.Transport.Bridge;
 /// 连接管理器 - 管理传输连接生命周期和重连逻辑
 /// </summary>
 [Register(typeof(IConnectionManager), ServiceLifetime.Singleton)]
-public sealed partial class ConnectionManager : IConnectionManager
+public sealed partial class ConnectionManager : ServiceEntity, IConnectionManager
 {
     private readonly ILogger? _logger;
     private readonly TransportConfiguration _config;
@@ -21,7 +21,7 @@ public sealed partial class ConnectionManager : IConnectionManager
     private CancellationTokenSource? _reconnectCts;
     private Task? _reconnectTask;
     private int _reconnectAttemptCount;
-    private int _isDisposed;
+    private int _asyncDisposed;
     private readonly INetworkConnectivityService? _networkService;
 
     public TransportConnectionState ConnectionState => _connectionState;
@@ -71,6 +71,7 @@ public sealed partial class ConnectionManager : IConnectionManager
         TransportConfiguration config,
         ILogger? logger = null,
         INetworkConnectivityService? networkService = null)
+        : base(nameof(ConnectionManager))
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _logger = logger;
@@ -328,14 +329,20 @@ public sealed partial class ConnectionManager : IConnectionManager
                 _config.MaxReconnectDelayMs));
     }
 
-    public async ValueTask DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _isDisposed, 1) == 1)
+        if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1)
         {
             return;
         }
 
         await StopAsync().ConfigureAwait(false);
+        Dispose();
+    }
+
+    protected override void OnDispose()
+    {
+        if (_asyncDisposed == 1) return;
         _reconnectCts?.Dispose();
         _stateLock.Dispose();
     }

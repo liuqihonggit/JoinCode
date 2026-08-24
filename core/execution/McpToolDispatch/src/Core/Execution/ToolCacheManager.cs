@@ -27,7 +27,7 @@ public static class ToolCacheKeys
 /// <summary>
 /// 工具缓存管理器 - 负责工具信息的缓存策略和失效机制
 /// </summary>
-[Register]
+[Register(typeof(ToolCacheManager), ServiceLifetime.Singleton)]
 public sealed partial class ToolCacheManager : ServiceEntity
 {
     private readonly IMemoryCache _cache;

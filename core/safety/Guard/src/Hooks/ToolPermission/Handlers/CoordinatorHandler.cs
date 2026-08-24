@@ -50,7 +50,7 @@ public sealed record CoordinatorPermissionParams
 /// 2. 然后尝试分类器（慢速、推理 - 仅 bash）
 /// 3. 如果都未解决，返回 null 让调用者回退到交互式对话框
 /// </summary>
-[Register]
+[Register(typeof(CoordinatorHandler), ServiceLifetime.Singleton)]
 public sealed partial class CoordinatorHandler : ServiceEntity
 {
     private readonly ILogger<CoordinatorHandler>? _logger;

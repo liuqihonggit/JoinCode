@@ -2,7 +2,7 @@ using JoinCode.Abstractions.Attributes;
 
 namespace McpToolDispatch;
 
-[Register]
+[Register(typeof(McpClientToolDeps), ServiceLifetime.Singleton)]
 public sealed record McpClientToolDeps(
     McpOAuthService? OAuthService = null,
     IMcpOutputStorage? OutputStorage = null,

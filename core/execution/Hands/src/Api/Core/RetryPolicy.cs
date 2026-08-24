@@ -6,7 +6,7 @@ namespace Services.Api;
 /// <summary>
 /// 重试策略配置
 /// </summary>
-[Register]
+[Register(typeof(RetryPolicyOptions), ServiceLifetime.Singleton)]
 public sealed record RetryPolicyOptions
 {
     /// <summary>
@@ -114,7 +114,7 @@ public sealed record RetryPolicyOptions
 /// <summary>
 /// 重试策略执行器
 /// </summary>
-[Register]
+[Register(typeof(RetryPolicy), ServiceLifetime.Singleton)]
 public sealed partial class RetryPolicy : ServiceEntity
 {
     private readonly RetryPolicyOptions _options;

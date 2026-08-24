@@ -2,7 +2,7 @@ using JoinCode.Abstractions.Attributes;
 
 namespace Core.Prompts;
 
-[Register]
+[Register(typeof(FileContextTracker), ServiceLifetime.Singleton)]
 public sealed partial class FileContextTracker : ServiceEntity
 {
     private volatile FrozenSet<string> _currentFilePaths = FrozenSet<string>.Empty;

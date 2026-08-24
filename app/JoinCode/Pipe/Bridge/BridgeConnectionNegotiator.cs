@@ -8,7 +8,7 @@ public sealed class BridgeNegotiationResult
     public IReadOnlyList<string> CommonCapabilities { get; init; } = Array.Empty<string>();
 }
 
-[Register]
+[Register(typeof(BridgeConnectionNegotiator), ServiceLifetime.Singleton)]
 public sealed partial class BridgeConnectionNegotiator : ServiceEntity
 {
     private static readonly FrozenSet<string> SupportedVersions = new HashSet<string>(StringComparer.Ordinal)

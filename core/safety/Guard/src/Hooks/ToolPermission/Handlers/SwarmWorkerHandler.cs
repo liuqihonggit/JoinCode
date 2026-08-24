@@ -12,7 +12,7 @@ public sealed record SwarmWorkerPermissionParams
     public ICommandClassifier? Classifier { get; init; }
 }
 
-[Register]
+[Register(typeof(SwarmWorkerHandler), ServiceLifetime.Singleton)]
 public sealed partial class SwarmWorkerHandler : ServiceEntity
 {
     private readonly ILogger<SwarmWorkerHandler>? _logger;

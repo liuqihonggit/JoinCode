@@ -41,7 +41,7 @@ public sealed partial class BridgeSessionDisplay
 /// Bridge UI 服务 - 生成 QR 码数据和会话列表展示
 /// 注意: 不得依赖 BridgeServer,否则会形成 DI 循环依赖 (BridgeServer → BridgeServerSession → BridgeUIService → BridgeServer)
 /// </summary>
-[Register]
+[Register(typeof(BridgeUIService), ServiceLifetime.Singleton)]
 public sealed partial class BridgeUIService : ServiceEntity
 {
     private readonly ILogger<BridgeUIService>? _logger;

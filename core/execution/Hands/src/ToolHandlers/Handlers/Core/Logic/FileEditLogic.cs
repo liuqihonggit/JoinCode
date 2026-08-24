@@ -2,7 +2,7 @@ namespace Tools.Handlers;
 
 public record BatchEditResult(string FilePath, FileEditResult Result);
 
-[Register]
+[Register(typeof(FileEditLogic), ServiceLifetime.Singleton)]
 public sealed partial class FileEditLogic : ServiceEntity
 {
 

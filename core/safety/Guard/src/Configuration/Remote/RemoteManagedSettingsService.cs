@@ -1,7 +1,8 @@
 
 namespace Core.Configuration.Remote;
 
-[Register]
+[Register(typeof(RemoteCacheRefreshServiceBase<ManagedSetting>), ServiceLifetime.Singleton)]
+[Register(typeof(IRemoteSettingsService), ServiceLifetime.Singleton)]
 public sealed partial class RemoteManagedSettingsService : RemoteCacheRefreshServiceBase<ManagedSetting>, IRemoteSettingsService
 {
     private static readonly RemoteSettingsJsonContext JsonContext = RemoteSettingsJsonContext.Default;

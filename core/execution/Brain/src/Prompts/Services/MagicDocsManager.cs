@@ -6,7 +6,8 @@ namespace Core.Prompts.Services;
 /// 对齐 TS magicDocs.ts::trackedMagicDocs + registerFileReadListener
 /// 核心消费点：MagicDocsPromptTemplate.BuildMagicDocsUpdatePrompt()
 /// </summary>
-[Register]
+[Register(typeof(IFileReadListener), ServiceLifetime.Singleton)]
+[Register(typeof(IPostSamplingCallback), ServiceLifetime.Singleton)]
 public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener, IPostSamplingCallback
 {
     private readonly IFileSystem _fileSystem;

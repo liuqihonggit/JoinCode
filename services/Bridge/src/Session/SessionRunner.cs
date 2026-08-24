@@ -66,7 +66,7 @@ public sealed class BridgeSession
 /// <summary>
 /// Bridge 会话配置
 /// </summary>
-[Register]
+[Register(typeof(BridgeSessionConfiguration), ServiceLifetime.Singleton)]
 [AllowSkipEntity("实现 IAsyncDisposable，与 Entity 的 IDisposable 冲突")]
 public sealed partial class BridgeSessionConfiguration 
 {
@@ -91,7 +91,7 @@ public sealed partial class BridgeSessionConfiguration
 /// <summary>
 /// Bridge 会话工厂 - 创建新的会话实例
 /// </summary>
-[Register]
+[Register(typeof(BridgeSessionFactory), ServiceLifetime.Singleton)]
 [AllowSkipEntity("实现 IAsyncDisposable，与 Entity 的 IDisposable 冲突")]
 public sealed partial class BridgeSessionFactory 
 {
@@ -129,7 +129,7 @@ public sealed partial class BridgeSessionFactory
 /// Bridge 会话运行器 - 管理会话生命周期
 /// 对标 Claude Code 的 sessionRunner.ts 和 createSession.ts
 /// </summary>
-[Register]
+[Register(typeof(BridgeSessionRunner), ServiceLifetime.Singleton)]
 public sealed partial class BridgeSessionRunner : IAsyncDisposable
 {
     private readonly ConcurrentDictionary<string, BridgeSession> _sessions;

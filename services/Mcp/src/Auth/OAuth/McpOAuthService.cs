@@ -3,7 +3,7 @@ using JoinCode.Abstractions.Attributes;
 
 namespace McpClient;
 
-[Register]
+[Register(typeof(McpOAuthService), ServiceLifetime.Singleton)]
 public sealed partial class McpOAuthService : ServiceEntity
 {
     private readonly McpOAuthOptions _options;

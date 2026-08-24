@@ -3,7 +3,7 @@ namespace Core.Prompts;
 /// <summary>
 /// 系统提示词构建器 - 负责组合所有提示词部分
 /// </summary>
-[Register]
+[Register(typeof(SystemPromptBuilder), ServiceLifetime.Singleton)]
 public sealed partial class SystemPromptBuilder : ServiceEntity {
     private readonly List<SystemPromptSection> _sections = [];
     private readonly Dictionary<string, string?> _cache = [];

@@ -6,7 +6,8 @@ using Structura.Dag;
 
 // IGoalEngine 接口已移至 JoinCode.Abstractions.Interfaces.Scheduling
 
-[Register]
+[Register(typeof(IGoalEngine), ServiceLifetime.Singleton)]
+[Register(typeof(IAgentRunner), ServiceLifetime.Singleton)]
 public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDisposable
 {
     private readonly IChatClient _kernel;

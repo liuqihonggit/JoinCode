@@ -1,7 +1,7 @@
 
 namespace Core.Agents.Coordinator;
 
-[Register]
+[Register(typeof(SwarmPermissionMessageRouter), ServiceLifetime.Singleton)]
 public sealed partial class SwarmPermissionMessageRouter : ServiceEntity
 {
     private readonly IMailbox _messageBroker;

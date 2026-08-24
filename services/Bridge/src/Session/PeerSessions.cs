@@ -38,7 +38,7 @@ public sealed partial class PeerSession
 /// <summary>
 /// 对等会话管理器 - 管理 Bridge 节点间的 P2P 会话
 /// </summary>
-[Register]
+[Register(typeof(PeerSessionManager), ServiceLifetime.Singleton)]
 public sealed partial class PeerSessionManager : IAsyncDisposable
 {
     private readonly ILogger<PeerSessionManager>? _logger;

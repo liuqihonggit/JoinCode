@@ -18,7 +18,7 @@ public sealed record InteractivePermissionParams
     public IAutoModeClassifier? AutoModeClassifier { get; init; }
 }
 
-[Register]
+[Register(typeof(InteractiveHandler), ServiceLifetime.Singleton)]
 public sealed partial class InteractiveHandler : ServiceEntity
 {
     private readonly ILogger<InteractiveHandler>? _logger;

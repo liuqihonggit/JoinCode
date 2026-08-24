@@ -5,7 +5,7 @@ namespace Core.Scheduling;
 /// <summary>
 /// 聚合任务文件操作所需的全部依赖，简化 FileBasedTaskService 构造函数参数
 /// </summary>
-[Register]
+[Register(typeof(TaskFileOperations), ServiceLifetime.Singleton)]
 public sealed record TaskFileOperations(
     IFileOperationService FileOperationService,
     ITaskFileWriter TaskFileWriter,

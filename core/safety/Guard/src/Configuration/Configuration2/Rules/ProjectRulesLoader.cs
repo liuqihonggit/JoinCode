@@ -1,7 +1,7 @@
 
 namespace Core.Configuration;
 
-[Register]
+[Register(typeof(ProjectRulesLoader), ServiceLifetime.Singleton)]
 public sealed partial class ProjectRulesLoader : ServiceEntity {
     private readonly IFileSystem _fs;
     private readonly ILogger<ProjectRulesLoader>? _logger;

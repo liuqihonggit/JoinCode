@@ -3,7 +3,7 @@ using JoinCode.Abstractions.Attributes;
 
 namespace Core.DependencyInjection;
 
-[Register]
+[Register(typeof(McpToolSyncBridge), ServiceLifetime.Singleton)]
 public sealed partial class McpToolSyncBridge : ServiceEntity
 {
     private readonly IToolRegistry _toolRegistry;

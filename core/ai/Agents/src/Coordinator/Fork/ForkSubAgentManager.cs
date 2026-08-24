@@ -5,7 +5,7 @@ namespace Core.Agents.Coordinator;
 /// <summary>
 /// Fork 管理器依赖项 — 聚合非管道服务，减少构造函数参数
 /// </summary>
-[Register]
+[Register(typeof(ForkManagerDependencies), ServiceLifetime.Singleton)]
 public sealed record ForkManagerDependencies(
     IAgentLifecycleManager LifecycleManager,
     IMailbox MessageBroker,
@@ -13,7 +13,7 @@ public sealed record ForkManagerDependencies(
     IMailboxPoller? MailboxPoller = null,
     ITelemetryService? TelemetryService = null);
 
-[Register]
+[Register(typeof(IForkSubAgentManager), ServiceLifetime.Singleton)]
 [AllowSkipEntity("实现 IAsyncDisposable，与 ServiceEntity 的 IDisposable 冲突，保留异步释放模式")]
 public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDisposable
 {

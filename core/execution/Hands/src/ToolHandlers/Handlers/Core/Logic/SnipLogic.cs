@@ -2,7 +2,7 @@ namespace Tools.Handlers;
 
 public record SnipPreview(string FilePath, long FileSize, int TotalLines, string PreviewContent);
 
-[Register]
+[Register(typeof(SnipLogic), ServiceLifetime.Singleton)]
 public sealed partial class SnipLogic : ServiceEntity
 {
 

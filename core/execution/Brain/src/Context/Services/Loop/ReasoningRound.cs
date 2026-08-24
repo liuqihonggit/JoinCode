@@ -42,7 +42,7 @@ public sealed record ReasoningRound
 /// <summary>
 /// 推理轮次记录器 — 用无锁 RingBuffer 存储最近 N 轮记录,支持快照查询
 /// </summary>
-[Register]
+[Register(typeof(ReasoningRoundRecorder), ServiceLifetime.Singleton)]
 public sealed class ReasoningRoundRecorder
 {
     private readonly RingBuffer<ReasoningRound> _rounds;

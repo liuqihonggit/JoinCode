@@ -1,6 +1,7 @@
 namespace Core.Memdir;
 
-[Register]
+[Register(typeof(ConfigPersistentServiceBase<EditorMode>), ServiceLifetime.Singleton)]
+[Register(typeof(IEditorModeService), ServiceLifetime.Singleton)]
 public sealed partial class EditorModeService : ConfigPersistentServiceBase<EditorMode>, IEditorModeService
 {
     public EditorModeService(IConfigurationService? configService = null)

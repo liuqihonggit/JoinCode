@@ -47,7 +47,7 @@ public sealed record SubAgentSummaryResult(SubAgentSummaryStatus Status, string?
 /// <para>当子智能体输出超过剩余预算时，调 ISubAgentSummaryClient（LLM）压成 ≤预算 的连贯摘要。</para>
 /// <para>失败时返回 Failed，调用方应走 L3 落盘指针兜底。</para>
 /// </summary>
-[Register]
+[Register(typeof(SubAgentSummaryGenerator), ServiceLifetime.Singleton)]
 public sealed partial class SubAgentSummaryGenerator : ServiceEntity
 {
     private readonly ILogger<SubAgentSummaryGenerator>? _logger;

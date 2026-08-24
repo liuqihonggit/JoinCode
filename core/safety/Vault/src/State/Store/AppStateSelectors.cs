@@ -5,7 +5,7 @@ namespace State;
 /// AppState 常用选择器
 /// 提供类型安全的派生状态选择
 /// </summary>
-[Register]
+[Register(typeof(AppStateSelectors), ServiceLifetime.Singleton)]
 public sealed partial class AppStateSelectors : ServiceEntity
 {
 

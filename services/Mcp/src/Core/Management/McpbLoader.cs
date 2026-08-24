@@ -5,7 +5,7 @@ namespace McpClient;
 /// MCPB 包加载器 — 通过管道中间件加载 .mcpb/.dxt 包
 /// 管道: 验证 → 哈希 → 缓存检查 → 解压 → 解析清单
 /// </summary>
-[Register]
+[Register(typeof(McpbLoader), ServiceLifetime.Singleton)]
 public sealed partial class McpbLoader : ServiceEntity
 {
     private readonly MiddlewarePipeline<McpbLoadContext> _pipeline;

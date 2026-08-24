@@ -5,7 +5,7 @@ namespace Services.Lsp;
 /// <summary>
 /// LspService 核心引擎依赖聚合
 /// </summary>
-[Register]
+[Register(typeof(LspEngineContext), ServiceLifetime.Singleton)]
 public sealed partial class LspEngineContext : ServiceEntity
 {
     /// <summary>
@@ -30,7 +30,7 @@ public sealed partial class LspEngineContext : ServiceEntity
 /// <summary>
 /// LspService 可选依赖聚合
 /// </summary>
-[Register]
+[Register(typeof(LspServiceDeps), ServiceLifetime.Singleton)]
 public sealed record LspServiceDeps(
     IFileOperationService? FileOperationService = null,
     IFileSystem? FileSystem = null,

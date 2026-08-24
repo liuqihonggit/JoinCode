@@ -2,7 +2,7 @@ using JoinCode.Abstractions.Attributes;
 
 namespace Core.Skills;
 
-[Register]
+[Register(typeof(SkillOptions), ServiceLifetime.Singleton)]
 public sealed record SkillOptions
 {
     public string SkillsDirectory { get; init; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), AppDataConstants.AppDataFolder, "skills");

@@ -5,7 +5,7 @@ namespace Core.Context;
 /// <summary>
 /// QueryLoopMiddleware 的可选服务聚合 — 减少构造函数参数注入
 /// </summary>
-[Register]
+[Register(typeof(QueryLoopServices), ServiceLifetime.Singleton)]
 public sealed record QueryLoopServices(
     IChatContentReplacer? ContentReplacer = null,
     IChatFileContextService? FileContextService = null,

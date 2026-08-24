@@ -5,7 +5,7 @@ namespace Core.Configuration;
 /// 将 SettingsJson + 环境变量覆盖映射到 WorkflowConfig
 /// 优先级: 环境变量 > SettingsJson 字段 > Provider 定义默认值 > 内置默认值
 /// </summary>
-[Register]
+[Register(typeof(SettingsMapper), ServiceLifetime.Singleton)]
 public sealed partial class SettingsMapper : ServiceEntity
 {
     private readonly IProviderDefinitionRegistry _registry;

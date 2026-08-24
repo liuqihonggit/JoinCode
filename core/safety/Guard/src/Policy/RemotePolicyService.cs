@@ -1,7 +1,8 @@
 
 namespace Core.Policy;
 
-[Register]
+[Register(typeof(RemoteCacheRefreshServiceBase<PolicyRule>), ServiceLifetime.Singleton)]
+[Register(typeof(JoinCode.Abstractions.Interfaces.IRemotePolicyService), ServiceLifetime.Singleton)]
 [Register(typeof(JoinCode.Abstractions.Interfaces.IRemotePolicyService), ServiceLifetime.Singleton)]
 public sealed partial class RemotePolicyService : RemoteCacheRefreshServiceBase<PolicyRule>, JoinCode.Abstractions.Interfaces.IRemotePolicyService
 {

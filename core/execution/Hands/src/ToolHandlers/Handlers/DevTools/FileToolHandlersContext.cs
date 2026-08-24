@@ -2,7 +2,7 @@ using JoinCode.Abstractions.Attributes;
 
 namespace Tools.Handlers;
 
-[Register]
+[Register(typeof(FileToolHandlersContext), ServiceLifetime.Singleton)]
 public sealed record FileToolHandlersContext(
     ISandboxManager? SandboxManager = null,
     ITelemetryService? TelemetryService = null,

@@ -5,7 +5,7 @@ namespace Infrastructure.ReaperScheduler;
 /// 替代 BackgroundEntityReaperService, 整合 EntityReaper + ShellProcessWatchdog 为扫描策略
 /// 空闲时才扫描, Agent 活跃时不扫描, 避免竞争
 /// </summary>
-[Register]
+[Register(typeof(ReaperScheduler), ServiceLifetime.Singleton)]
 public sealed partial class ReaperScheduler : IDisposable
 {
     private readonly BlockingCollection<bool> _signals = new(1);

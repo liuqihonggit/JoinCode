@@ -2,7 +2,7 @@ using JoinCode.Abstractions.Attributes;
 
 namespace JoinCode.Abstractions.CodeIndex;
 
-[Register]
+[Register(typeof(CodeIndexOptions), ServiceLifetime.Singleton)]
 [AllowSkipEntity("record 类型，不适合继承 ServiceEntity 基类")]
 public sealed record CodeIndexOptions
 {

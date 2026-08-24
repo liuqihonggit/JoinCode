@@ -16,7 +16,7 @@ public sealed partial class BridgeSessionListData
 /// <summary>
 /// 桥接服务器 - 与 IDE 扩展通信
 /// </summary>
-[Register]
+[Register(typeof(BridgeServer), ServiceLifetime.Singleton)]
 public sealed partial class BridgeServer : ServiceEntity, IDisposable
 {
     private readonly HttpListener _httpListener;

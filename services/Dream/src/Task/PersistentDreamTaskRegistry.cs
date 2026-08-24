@@ -4,7 +4,7 @@ namespace JoinCode.Dream.Persistence;
 /// <summary>
 /// 持久化的做梦任务注册表
 /// </summary>
-[Register]
+[Register(typeof(IDreamTaskRegistry), ServiceLifetime.Singleton)]
 [AllowSkipEntity("实现 IAsyncDisposable，与 ServiceEntity 的 IDisposable 冲突，保留异步释放模式")]
 public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IAsyncDisposable
 {

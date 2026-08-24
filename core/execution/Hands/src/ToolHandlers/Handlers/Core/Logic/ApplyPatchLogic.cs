@@ -1,6 +1,6 @@
 namespace Tools.Handlers;
 
-[Register]
+[Register(typeof(ApplyPatchLogic), ServiceLifetime.Singleton)]
 public sealed partial class ApplyPatchLogic : ServiceEntity
 {
 

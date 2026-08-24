@@ -5,7 +5,7 @@ namespace Core.Prompts.Services;
 /// 通过 SystemReminderManager 注入 Agent/Skill 列表到 system-reminder 标签
 /// 增量机制：只发送新增/移除的列表项，避免重复注入
 /// </summary>
-[Register]
+[Register(typeof(ToolListingService), ServiceLifetime.Singleton)]
 public sealed partial class ToolListingService : ServiceEntity
 {
 

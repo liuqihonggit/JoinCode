@@ -2,7 +2,7 @@ using JoinCode.Abstractions.Attributes;
 
 namespace JoinCode.CodeIndex;
 
-[Register]
+[Register(typeof(FileWatcherIntegration), ServiceLifetime.Singleton)]
 public sealed partial class FileWatcherIntegration : IAsyncDisposable
 {
     private readonly ICodeIndexer _indexer;

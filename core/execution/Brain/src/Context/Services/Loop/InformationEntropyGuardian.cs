@@ -12,7 +12,8 @@ namespace Core.Context;
 ///   Layer4: ShannonEntropyDetector   — Shannon信息熵持续下降（字符分布趋于集中,最昂贵）
 /// 触发时通过 LoopDiagnosticJournal 记录追踪链，供医生模式回溯分析
 /// </summary>
-[Register]
+[Register(typeof(IOutputLoopDetector), ServiceLifetime.Singleton)]
+[Register(typeof(ILoopDetectionStrategy), ServiceLifetime.Singleton)]
 public sealed class InformationEntropyGuardian : ServiceEntity, IOutputLoopDetector, ILoopDetectionStrategy
 {
     private readonly OutputLoopDetector _outputLoopDetector;

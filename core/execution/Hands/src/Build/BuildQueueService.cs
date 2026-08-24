@@ -6,7 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 /// 编译队列服务 — 编译请求串行化 + 结果缓冲区
 /// 核心特性：串行执行 + 结果缓冲区（源码指纹失效）+ 防睡眠
 /// </summary>
-[Register]
+[Register(typeof(IBuildQueueService), ServiceLifetime.Singleton)]
 [AllowSkipEntity("实现 IAsyncDisposable，与 ServiceEntity 的 IDisposable 冲突，保留异步释放模式")]
 public sealed partial class BuildQueueService : IBuildQueueService
 {

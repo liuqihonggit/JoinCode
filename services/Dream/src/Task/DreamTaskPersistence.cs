@@ -38,7 +38,7 @@ public interface IDreamTaskPersistence
 /// <summary>
 /// JSON文件持久化实现
 /// </summary>
-[Register]
+[Register(typeof(IDreamTaskPersistence), ServiceLifetime.Singleton)]
 [AllowSkipEntity("实现 IAsyncDisposable，与 ServiceEntity 的 IDisposable 冲突，保留异步释放模式")]
 public sealed partial class JsonFileDreamTaskPersistence : IDreamTaskPersistence, IAsyncDisposable
 {

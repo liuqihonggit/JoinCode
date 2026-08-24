@@ -7,7 +7,7 @@ namespace JoinCode.Transport.Bridge;
 /// <summary>
 /// 连接管理器 - 管理传输连接生命周期和重连逻辑
 /// </summary>
-[Register]
+[Register(typeof(IConnectionManager), ServiceLifetime.Singleton)]
 [AllowSkipEntity("实现 IAsyncDisposable，与 ServiceEntity 的 IDisposable 冲突，保留异步释放模式")]
 public sealed partial class ConnectionManager : IConnectionManager
 {

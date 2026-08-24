@@ -7,7 +7,7 @@ namespace JoinCode.CodeIndex;
 /// 按 repo_id 隔离管理 FileWatcherIntegration 实例
 /// 注册仓库时自动启动 watcher，注销时自动停止
 /// </summary>
-[Register]
+[Register(typeof(FileWatcherIntegrationRegistry), ServiceLifetime.Singleton)]
 public sealed class FileWatcherIntegrationRegistry : IAsyncDisposable
 {
     private readonly ICodeIndexerRegistry _registry;

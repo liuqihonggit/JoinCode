@@ -4,7 +4,7 @@ namespace State;
 /// 配置变更同步服务 — 订阅 IConfigurationService.SettingChanged 事件，将变更同步到 AppState
 /// 对齐 TS 版 ConfigTool 中 context.setAppState({ [appStateKey]: finalValue }) 的热更新机制
 /// </summary>
-[Register]
+[Register(typeof(AppStateSettingSyncService), ServiceLifetime.Singleton)]
 public sealed partial class AppStateSettingSyncService : ServiceEntity, IDisposable
 {
     private readonly IConfigurationService _configurationService;

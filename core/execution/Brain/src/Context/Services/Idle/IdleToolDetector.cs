@@ -1,6 +1,6 @@
 namespace Core.Context;
 
-[Register]
+[Register(typeof(IdleToolDetector), ServiceLifetime.Singleton)]
 public sealed partial class IdleToolDetector : ServiceEntity
 {
     private int _consecutiveNoToolRounds;

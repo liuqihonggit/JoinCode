@@ -27,7 +27,7 @@ public sealed record DispatchOutcome(string FinalCommand, ToolResult? ShortCircu
 /// </list>
 /// </para>
 /// </summary>
-[Register]
+[Register(typeof(CommandInterceptionDispatcher), ServiceLifetime.Singleton)]
 public sealed partial class CommandInterceptionDispatcher : ServiceEntity
 {
     private readonly ICommandGuard[] _guards;

@@ -1,7 +1,7 @@
-﻿
+
 namespace Core.Telemetry;
 
-[Register]
+[Register(typeof(ITelemetryService), ServiceLifetime.Singleton)]
 [AllowSkipEntity("实现 IAsyncDisposable，与 Entity 的 IDisposable 冲突")]
 public sealed partial class TelemetryService : ITelemetryService
 {

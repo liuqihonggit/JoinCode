@@ -4,7 +4,7 @@ namespace Core.Scheduling;
 /// <summary>
 /// 并行执行引擎 - 负责实际调度和执行任务
 /// </summary>
-[Register]
+[Register(typeof(ParallelExecutionEngine), ServiceLifetime.Singleton)]
 public sealed partial class ParallelExecutionEngine : IAsyncDisposable
 {
     private readonly ToolPortingScheduler _scheduler;

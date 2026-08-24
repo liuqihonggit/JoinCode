@@ -1,6 +1,6 @@
 namespace Services.CodeIndex;
 
-[Register]
+[Register(typeof(LspIntegration), ServiceLifetime.Singleton)]
 public sealed partial class LspIntegration : ServiceEntity, IDisposable
 {
     private readonly ICodeIndexer _indexer;

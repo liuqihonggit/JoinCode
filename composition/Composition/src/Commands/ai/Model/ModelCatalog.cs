@@ -1,7 +1,7 @@
 
 namespace JoinCode.ChatCommands;
 
-[Register]
+[Register(typeof(IModelCatalog), ServiceLifetime.Singleton)]
 public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry, IModelConfigLoader? modelConfigLoader = null) : ServiceEntity, IModelCatalog
 {
     private readonly IProviderDefinitionRegistry _registry = registry;

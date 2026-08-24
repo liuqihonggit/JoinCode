@@ -1,7 +1,7 @@
 
 namespace McpClient;
 
-[Register]
+[Register(typeof(McpOfficialRegistry), ServiceLifetime.Singleton)]
 public sealed partial class McpOfficialRegistry : ServiceEntity
 {
     private readonly IResilientHttpClientProvider _resilientProvider;

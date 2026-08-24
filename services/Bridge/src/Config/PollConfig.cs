@@ -45,7 +45,7 @@ public sealed partial class PollConfig
 /// <summary>
 /// 轮询配置管理器 - 管理动态轮询配置，支持指数退避和抖动
 /// </summary>
-[Register]
+[Register(typeof(PollConfigManager), ServiceLifetime.Singleton)]
 public sealed partial class PollConfigManager : ServiceEntity, IDisposable
 {
     private readonly ILogger<PollConfigManager>? _logger;

@@ -1,7 +1,7 @@
 namespace Core.Agents.ToolHandlers;
 
 [McpToolDispatch(ToolCategory.Agent, Optional = true)]
-[Register]
+[Register(typeof(BuiltInAgentToolHandlers), ServiceLifetime.Singleton)]
 public partial class BuiltInAgentToolHandlers : ServiceEntity
 {
 

@@ -8,7 +8,7 @@ using Structura.Dag;
 /// <summary>
 /// Goal Graph 执行引擎 — 事件驱动队列 + 条件路由 + 回退重激活
 /// </summary>
-[Register]
+[Register(typeof(GoalGraphEngine), ServiceLifetime.Singleton)]
 public sealed partial class GoalGraphEngine : ServiceEntity
 {
     private readonly IChatClient _kernel;

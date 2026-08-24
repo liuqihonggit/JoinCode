@@ -25,7 +25,7 @@ public sealed partial class SwarmPermissionUpdateData
     public required PermissionBehavior Action { get; init; }
 }
 
-[Register]
+[Register(typeof(ISwarmPermissionCallbacks), ServiceLifetime.Singleton)]
 [Register(typeof(ISwarmPermissionCallbacks), ServiceLifetime.Singleton)]
 public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwarmPermissionCallbacks
 {

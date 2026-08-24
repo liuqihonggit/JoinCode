@@ -2,7 +2,7 @@ namespace JoinCode.Pipe;
 
 using JoinCode.Abstractions.Attributes;
 
-[Register]
+[Register(typeof(BridgeHeartbeatService), ServiceLifetime.Singleton)]
 public sealed partial class BridgeHeartbeatService : ServiceEntity
 {
     private readonly TimeSpan _interval;

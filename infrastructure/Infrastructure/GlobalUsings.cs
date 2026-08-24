@@ -27,6 +27,7 @@ global using JoinCode.Abstractions.Network;
 global using Infrastructure.Network.Downloader;
 global using Infrastructure.Network.Downloader.Planning;
 global using Infrastructure.Network.Downloader.StateMachine;
+global using Infrastructure.Network.Downloader.Metadata;
 global using JoinCode.Abstractions.Security.Shell;
 global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.Localization;

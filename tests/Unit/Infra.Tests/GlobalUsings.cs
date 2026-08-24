@@ -38,6 +38,7 @@ global using Infrastructure.Network;
 global using Infrastructure.Network.Downloader;
 global using Infrastructure.Network.Downloader.Planning;
 global using Infrastructure.Network.Downloader.StateMachine;
+global using Infrastructure.Network.Downloader.Metadata;
 global using Infrastructure.Configuration;
 global using Infrastructure.Pipeline;
 global using Infrastructure.Subprocess;

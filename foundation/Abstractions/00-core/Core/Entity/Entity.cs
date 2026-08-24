@@ -6,7 +6,7 @@ namespace JoinCode.Abstractions.Entity;
 /// 加一个共同属性只改此处，不需要改所有子类
 /// SessionId 为空表示自身即会话根（如 Session 实体），否则为所属会话的 ObjectId
 /// </summary>
-public abstract class Entity : IDisposable, ICloneableEntity
+public abstract class Entity : IDisposable, IAsyncDisposable, ICloneableEntity
 {
     public ObjectId ObjectId { get; }
     /// <summary>所属会话 ObjectId — 空表示自身即会话根，所有 Entity 不跨会话</summary>
@@ -73,6 +73,16 @@ public abstract class Entity : IDisposable, ICloneableEntity
         if (SessionRouter.TryGetScope(SessionId, out var scope))
             scope.Unregister(ObjectId);
         GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// 异步释放 — 默认委托给 Dispose()，需要真正异步清理的子类覆写此方法
+    /// <para>子类覆写时应在异步清理完成后调用 Dispose() 以完成 Entity 生命周期注销</para>
+    /// </summary>
+    public virtual ValueTask DisposeAsync()
+    {
+        Dispose();
+        return ValueTask.CompletedTask;
     }
 
     /// <summary>

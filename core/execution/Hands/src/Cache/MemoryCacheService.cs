@@ -1,7 +1,7 @@
 
 namespace Services.Cache;
 
-[Register]
+[Register(typeof(ICacheService), ServiceLifetime.Singleton)]
 public partial class MemoryCacheService : ServiceEntity, ICacheService, IDisposable {
     private MemoryCache _cache;
     private readonly ILogger<MemoryCacheService>? _logger;

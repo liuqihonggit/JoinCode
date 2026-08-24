@@ -1,6 +1,6 @@
 namespace JoinCode.CodeIndex;
 
-[Register]
+[Register(typeof(ICodeIndexer), ServiceLifetime.Singleton)]
 public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposable
 {
     private readonly InMemoryIndexStore _store;

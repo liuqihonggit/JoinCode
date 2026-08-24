@@ -1,6 +1,6 @@
 namespace JoinCode.Dream.Pipeline;
 
-[Register]
+[Register(typeof(IDreamMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class DreamSessionScanMiddleware : ServiceEntity, IDreamMiddleware
 {
     private readonly ISessionScanner _sessionScanner;

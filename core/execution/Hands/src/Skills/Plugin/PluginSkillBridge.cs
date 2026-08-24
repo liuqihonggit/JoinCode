@@ -1,7 +1,7 @@
 
 namespace Core.Skills.Plugin;
 
-[Register]
+[Register(typeof(IPluginSkillBridge), ServiceLifetime.Singleton)]
 public sealed partial class PluginSkillBridge : ServiceEntity, IPluginSkillBridge
 {
     private readonly IPluginManager _pluginManager;

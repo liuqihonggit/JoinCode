@@ -1,7 +1,7 @@
 
 namespace Core.Services;
 
-[Register]
+[Register(typeof(IMcpService), ServiceLifetime.Singleton)]
 public sealed partial class McpService : ServiceEntity, IMcpService
 {
 

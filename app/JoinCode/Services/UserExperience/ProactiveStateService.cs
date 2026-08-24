@@ -2,7 +2,7 @@ using JoinCode.Abstractions.Attributes;
 
 namespace IO.Services;
 
-[Register]
+[Register(typeof(IProactiveStateService), ServiceLifetime.Singleton)]
 public sealed partial class ProactiveStateService : ServiceEntity, IProactiveStateService
 {
     private bool _active;

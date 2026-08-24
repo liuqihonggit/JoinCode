@@ -5,7 +5,7 @@ namespace JoinCode.Entry;
 /// 在 SessionResumeStep 之后执行，确保会话恢复后再应用提示词覆盖
 /// 对齐 TS: claude --system-prompt / claude --append-system-prompt
 /// </summary>
-[Register]
+[Register(typeof(IMiddleware<StartupContext>), ServiceLifetime.Singleton)]
 internal sealed partial class SystemPromptApplyStep : ServiceEntity, IMiddleware<StartupContext>
 {
 

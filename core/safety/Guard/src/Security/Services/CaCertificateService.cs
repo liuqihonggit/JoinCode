@@ -14,7 +14,7 @@ public sealed partial class CaCertificateOptions
     public bool UseSystemStore { get; init; } = true;
 }
 
-[Register]
+[Register(typeof(ICaCertificateService), ServiceLifetime.Singleton)]
 public sealed partial class CaCertificateService : ServiceEntity, ICaCertificateService
 {
     private readonly IFileSystem _fs;

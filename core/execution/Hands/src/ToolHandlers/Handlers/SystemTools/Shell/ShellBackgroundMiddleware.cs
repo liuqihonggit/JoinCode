@@ -5,7 +5,7 @@ namespace Tools.Shell;
 /// 当 background=true 时，先启动 SystemActuatorCommandContext，再立即转后台并注册到后台任务服务
 /// 统一走 SystemActuatorCommandContext 路径，复用溢出文件机制，不再独立启动新进程
 /// </summary>
-[Register]
+[Register(typeof(IShellMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ShellBackgroundMiddleware : ServiceEntity, IShellMiddleware
 {
 

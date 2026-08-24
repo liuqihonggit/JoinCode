@@ -1,6 +1,6 @@
 namespace Core.Security.Services;
 
-[Register]
+[Register(typeof(IHttpProxyService), ServiceLifetime.Singleton)]
 public sealed partial class HttpProxyService : ServiceEntity, IHttpProxyService
 {
     private readonly ILogger<HttpProxyService>? _logger;

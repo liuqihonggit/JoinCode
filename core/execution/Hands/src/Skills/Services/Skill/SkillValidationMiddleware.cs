@@ -3,7 +3,7 @@ namespace Core.Skills;
 /// <summary>
 /// 技能参数验证中间件 — 检查必填参数是否提供
 /// </summary>
-[Register]
+[Register(typeof(ISkillMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class SkillValidationMiddleware : ServiceEntity, ISkillMiddleware
 {
     /// <inheritdoc />

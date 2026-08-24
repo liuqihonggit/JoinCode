@@ -2,7 +2,7 @@ namespace Core.Security.Sandbox.Providers;
 
 using JoinCode.Abstractions.Security.Sandbox;
 
-[Register]
+[Register(typeof(SandboxProviderBase), ServiceLifetime.Singleton)]
 public sealed partial class SoftSandboxProvider : SandboxProviderBase
 {
     public override SandboxType SandboxType => SandboxType.Soft;

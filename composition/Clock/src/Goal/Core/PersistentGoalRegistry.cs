@@ -5,7 +5,7 @@ namespace Core.Goal;
 /// 多目标注册表 — 管理多个 GoalEngine 实例，支持多 goal 并发和持久化恢复。
 /// 对齐 PersistentDreamTaskRegistry 模式：内存缓存 + 持久化 + 启动恢复。
 /// </summary>
-[Register]
+[Register(typeof(IGoalRegistry), ServiceLifetime.Singleton)]
 public sealed partial class PersistentGoalRegistry : IGoalRegistry
 {
     private readonly Dictionary<string, GoalEngine> _engines = new();

@@ -1,4 +1,4 @@
-﻿
+
 using JoinCode.Abstractions.State;
 
 namespace Core.Bridge;
@@ -79,7 +79,7 @@ public interface ITrustedDeviceStore : IStore
 /// <summary>
 /// 受信任设备存储 - 基于 ConcurrentDictionary 的线程安全内存实现
 /// </summary>
-[Register]
+[Register(typeof(ITrustedDeviceStore), ServiceLifetime.Singleton)]
 public sealed partial class TrustedDeviceStore : ServiceEntity, ITrustedDeviceStore
 {
     private readonly ConcurrentDictionary<string, TrustedDeviceEntry> _devices;

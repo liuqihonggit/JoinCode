@@ -2,7 +2,7 @@ using JoinCode.Abstractions.Attributes;
 
 namespace IO.Services;
 
-[Register]
+[Register(typeof(IMobileConnectService), ServiceLifetime.Singleton)]
 public sealed partial class MobileConnectService : ServiceEntity, IMobileConnectService, IDisposable
 {
     private System.Net.Sockets.TcpListener? _tcpListener;

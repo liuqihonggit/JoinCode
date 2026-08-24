@@ -2,7 +2,7 @@ using JoinCode.Abstractions.Attributes;
 
 namespace Core.Configuration;
 
-[Register]
+[Register(typeof(IFastModeService), ServiceLifetime.Singleton)]
 public sealed partial class FastModeService : ServiceEntity, IFastModeService, IDisposable
 {
     private readonly object _lock = new();

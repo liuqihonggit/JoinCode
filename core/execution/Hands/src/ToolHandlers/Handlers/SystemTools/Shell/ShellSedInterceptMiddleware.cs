@@ -4,7 +4,7 @@ namespace Tools.Shell;
 /// Shell sed 编辑拦截中间件 — 对齐 TS SedEditPermissionRequest 预览-确认-应用流程
 /// 首次 sed -i 返回预览，存储预计算结果；二次调用确认后写入
 /// </summary>
-[Register]
+[Register(typeof(IShellMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellMiddleware
 {
 

@@ -1,6 +1,6 @@
 namespace Core.Memdir;
 
-[Register]
+[Register(typeof(IThinkingStore), ServiceLifetime.Singleton)]
 public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisposable
 {
     private readonly ConcurrentDictionary<string, List<ThinkingEntry>> _entries = new(StringComparer.OrdinalIgnoreCase);

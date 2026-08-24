@@ -5,7 +5,7 @@ namespace Tools.Shell;
 /// 同步等待模式：提交编译后等待结果，30s 超时提示 AI 自行决策
 /// 缓存命中直接返回结果，同命令编译中共享结果
 /// </summary>
-[Register]
+[Register(typeof(IShellMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ShellBuildInterceptMiddleware : ServiceEntity, IShellMiddleware
 {
 

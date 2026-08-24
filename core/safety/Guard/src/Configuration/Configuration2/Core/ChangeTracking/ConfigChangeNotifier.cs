@@ -1,6 +1,6 @@
 namespace Core.Configuration;
 
-[Register]
+[Register(typeof(IConfigChangeNotifier), ServiceLifetime.Singleton)]
 public sealed partial class ConfigChangeNotifier : ServiceEntity, IConfigChangeNotifier, IDisposable
 {
 

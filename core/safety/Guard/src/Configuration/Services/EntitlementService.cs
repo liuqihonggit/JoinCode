@@ -6,7 +6,7 @@ namespace Core.Configuration;
 /// 功能权限服务默认实现 — 对齐 TS isBriefEntitled()/isBriefEnabled()
 /// 开源项目默认允许所有功能，通过 JCC_BRIEF 环境变量控制
 /// </summary>
-[Register]
+[Register(typeof(IEntitlementService), ServiceLifetime.Singleton)]
 public sealed partial class EntitlementService : ServiceEntity, IEntitlementService
 {
     private readonly IBriefModeService _briefModeService;

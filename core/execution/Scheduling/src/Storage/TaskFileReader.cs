@@ -4,7 +4,7 @@ namespace Core.Scheduling;
 /// <summary>
 /// 任务文件读取工具类
 /// </summary>
-[Register]
+[Register(typeof(ITaskFileReader), ServiceLifetime.Singleton)]
 public sealed partial class TaskFileReader : ServiceEntity, ITaskFileReader
 {
 

@@ -7,7 +7,7 @@ namespace IO;
 /// LRU-based file state cache that tracks file reads for write-before-read validation.
 /// Mirrors TS FileStateCache with normalized path keys and size limits.
 /// </summary>
-[Register]
+[Register(typeof(IFileStateCache), ServiceLifetime.Singleton)]
 public sealed partial class FileStateCache : ServiceEntity, IFileStateCache
 {
     private const int DefaultMaxEntries = 100;

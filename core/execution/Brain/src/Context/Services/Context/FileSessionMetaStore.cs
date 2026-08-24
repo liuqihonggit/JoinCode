@@ -2,7 +2,7 @@ using JoinCode.Abstractions.Attributes;
 
 namespace Core.Context;
 
-[Register]
+[Register(typeof(ISessionMetaStore), ServiceLifetime.Singleton)]
 public sealed partial class FileSessionMetaStore : ServiceEntity, ISessionMetaStore
 {
     private readonly string _directoryPath;

@@ -2,7 +2,7 @@ using JoinCode.Abstractions.Attributes;
 
 namespace IO.Services;
 
-[Register]
+[Register(typeof(IChromeIntegrationService), ServiceLifetime.Singleton)]
 public sealed partial class ChromeIntegrationService : ServiceEntity, IChromeIntegrationService, IDisposable
 {
     private bool _isConnected;

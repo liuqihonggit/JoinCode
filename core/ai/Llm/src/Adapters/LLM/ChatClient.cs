@@ -1,7 +1,7 @@
 
 namespace Api.LLM;
 
-[Register]
+[Register(typeof(IChatClient), ServiceLifetime.Singleton)]
 public sealed partial class ChatClient : ServiceEntity, IChatClient
 {
     private readonly IQueryService _chatCompletionService;

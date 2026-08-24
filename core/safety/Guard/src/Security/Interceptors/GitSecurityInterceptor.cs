@@ -1,7 +1,7 @@
 
 namespace Core.Security.Interceptors;
 
-[Register]
+[Register(typeof(IGitSecurityInterceptor), ServiceLifetime.Singleton)]
 public sealed partial class GitSecurityInterceptor : ServiceEntity, IGitSecurityInterceptor
 {
     private readonly IGitDiffProvider _diffProvider;

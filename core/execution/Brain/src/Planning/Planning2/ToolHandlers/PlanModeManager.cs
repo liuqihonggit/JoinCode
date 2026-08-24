@@ -4,7 +4,7 @@ namespace Core.Planning;
 /// <summary>
 /// 计划模式管理器实现
 /// </summary>
-[Register]
+[Register(typeof(IPlanModeManager), ServiceLifetime.Singleton)]
 public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
 {
     private readonly ConcurrentDictionary<string, PlanState> _plans = new();

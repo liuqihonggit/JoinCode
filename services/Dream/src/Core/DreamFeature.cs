@@ -6,7 +6,7 @@ using JoinCode.Dream.Pipeline;
 /// <summary>
 /// 做梦功能实现 - 记忆整合功能
 /// </summary>
-[Register]
+[Register(typeof(IDreamFeature), ServiceLifetime.Singleton)]
 public sealed partial class DreamFeature : ServiceEntity, IDreamFeature
 {
     private readonly IChatCompletionClient _chatCompletionClient;

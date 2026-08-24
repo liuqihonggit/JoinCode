@@ -11,7 +11,7 @@ namespace Core.Hooks.Execution.Interception.Guards;
 /// 不拦截 git 其他子命令(status/add/push 等),仅 commit。
 /// </para>
 /// </summary>
-[Register]
+[Register(typeof(ICommandGuard), ServiceLifetime.Singleton)]
 public sealed partial class GitCommitGuard : ICommandGuard
 {
     /// <summary>

@@ -1,7 +1,7 @@
 
 namespace Core.Context.Collapse;
 
-[Register]
+[Register(typeof(IContextCollapseService), ServiceLifetime.Singleton)]
 public sealed partial class ContextCollapseService : ServiceEntity, IContextCollapseService
 {
     private readonly ILogger<ContextCollapseService>? _logger;

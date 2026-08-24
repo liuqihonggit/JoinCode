@@ -12,7 +12,7 @@ public sealed partial class SyncFileEntry
     public required string Source { get; init; }
 }
 
-[Register]
+[Register(typeof(ITeamMemorySyncService), ServiceLifetime.Singleton)]
 public sealed partial class TeamMemorySyncService : ServiceEntity, ITeamMemorySyncService
 {
     private readonly ILogger<TeamMemorySyncService>? _logger;

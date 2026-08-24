@@ -9,7 +9,7 @@ namespace Core.Context;
 /// 全量覆盖、TUI 无持久化），下沉到引擎管道后三端自动获得统一增量语义。
 /// OnError=Continue：落盘失败不影响对话继续执行。
 /// </summary>
-[Register]
+[Register(typeof(IChatMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class TranscriptPersistMiddleware : ServiceEntity, IChatMiddleware
 {
     private readonly ITranscriptService? _transcriptService;

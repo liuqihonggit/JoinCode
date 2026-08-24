@@ -2,7 +2,7 @@ using JoinCode.Abstractions.Attributes;
 
 namespace IO.Services;
 
-[Register]
+[Register(typeof(IDesktopHandoffService), ServiceLifetime.Singleton)]
 public sealed partial class DesktopHandoffService : ServiceEntity, IDesktopHandoffService
 {
     private readonly IProcessService _processService;

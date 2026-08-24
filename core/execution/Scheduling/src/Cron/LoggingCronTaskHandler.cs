@@ -3,7 +3,7 @@ namespace Core.Scheduling.Cron;
 /// <summary>
 /// 默认 Cron 任务触发处理器 — 记录日志
 /// </summary>
-[Register]
+[Register(typeof(ICronTaskHandler), ServiceLifetime.Singleton)]
 public sealed partial class LoggingCronTaskHandler : ServiceEntity, ICronTaskHandler
 {
     private readonly ILogger<CronScheduler> _logger;

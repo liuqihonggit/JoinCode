@@ -6,7 +6,7 @@ namespace Core.Permission;
 /// 路径级权限检查器 — 对齐 TS checkReadPermissionForTool 9步决策链
 /// 检查文件读写操作的路径级权限（工作目录、规则匹配、内部路径白名单等）
 /// </summary>
-[Register]
+[Register(typeof(IPathPermissionChecker), ServiceLifetime.Singleton)]
 public sealed partial class PathPermissionChecker : ServiceEntity, IPathPermissionChecker
 {
     private readonly string _workingDirectory;

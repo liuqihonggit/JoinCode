@@ -1,7 +1,7 @@
 
 namespace Core.Utils;
 
-[Register]
+[Register(typeof(IExceptionService), ServiceLifetime.Singleton)]
 public sealed partial class ExceptionService : ServiceEntity, IExceptionService {
 
     public ExceptionService(ILogger<ExceptionService> logger, ITelemetryService? telemetryService = null)

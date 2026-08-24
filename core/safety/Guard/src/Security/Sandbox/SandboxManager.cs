@@ -6,7 +6,7 @@ using Ipc;
 using Providers;
 using AbstractionsSandboxExecutionResult = JoinCode.Abstractions.Security.Sandbox.SandboxExecutionResult;
 
-[Register]
+[Register(typeof(ISandboxManager), ServiceLifetime.Singleton)]
 public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDisposable
 {
     private readonly FrozenDictionary<SandboxType, ISandboxProvider> _providers;

@@ -5,7 +5,7 @@ namespace McpToolRegistry;
 /// 支持黑名单（用户主动禁用）、降权（额外扣分）、超图评分（关联工具共享评分空间）
 /// 设计原则：永远不禁用工具，失败多次只注入提示词，由LLM自行决策是否换工具
 /// </summary>
-[Register]
+[Register(typeof(IToolExecutionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ToolHealthScoringMiddleware : ServiceEntity, IToolExecutionMiddleware
 {
     private readonly ToolHealthMonitor _monitor;

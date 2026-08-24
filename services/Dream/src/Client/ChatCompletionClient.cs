@@ -4,7 +4,7 @@ namespace JoinCode.Dream.Services;
 /// <summary>
 /// 聊天完成客户端实现 - 包装 IQueryService
 /// </summary>
-[Register]
+[Register(typeof(IChatCompletionClient), ServiceLifetime.Singleton)]
 public sealed partial class ChatCompletionClient : ServiceEntity, IChatCompletionClient
 {
     private readonly IChatClient _kernel;

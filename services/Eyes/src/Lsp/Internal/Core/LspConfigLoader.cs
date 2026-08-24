@@ -112,7 +112,7 @@ public sealed record LspServerConfigEntry
 /// <summary>
 /// LSP 配置加载器实现
 /// </summary>
-[Register]
+[Register(typeof(ILspConfigLoader), ServiceLifetime.Singleton)]
 public sealed partial class LspConfigLoader : ServiceEntity, ILspConfigLoader
 {
 

@@ -4,7 +4,7 @@ namespace Services.Web;
 /// HTTP获取中间件 — 执行HTTP请求并处理重定向安全策略
 /// Order=400 在域名检查之后执行，包含重定向递归和egress代理检测
 /// </summary>
-[Register]
+[Register(typeof(IWebMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class WebFetchMiddleware : ServiceEntity, IWebMiddleware
 {
 

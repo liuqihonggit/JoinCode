@@ -5,7 +5,7 @@ namespace Infrastructure.Shell;
 /// <summary>
 /// Shell 工具门控服务 — 对齐 TS isPowerShellToolEnabled()
 /// </summary>
-[Register]
+[Register(typeof(IShellToolGateService), ServiceLifetime.Singleton)]
 public sealed class ShellToolGateService : ServiceEntity, IShellToolGateService
 {
     private readonly bool _cachedResult;

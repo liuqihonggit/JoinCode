@@ -2,7 +2,7 @@ using JoinCode.Abstractions.Attributes;
 
 namespace IO.Services;
 
-[Register]
+[Register(typeof(IBuddyService), ServiceLifetime.Singleton)]
 public sealed partial class BuddyService : ServiceEntity, IBuddyService
 {
     private static readonly string[] Species = new[] { "duck", "goose", "blob", "cat", "dragon", "octopus", "owl", "penguin", "turtle", "snail", "ghost", "axolotl", "capybara", "cactus", "robot", "rabbit", "mushroom", "chonk" };

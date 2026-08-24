@@ -5,7 +5,7 @@ namespace Core.Context;
 /// <summary>
 /// 移除系统提醒操作处理器
 /// </summary>
-[Register]
+[Register(typeof(IChatAdminOperationHandler), ServiceLifetime.Singleton)]
 public sealed partial class RemoveSystemReminderHandler : ServiceEntity, IChatAdminOperationHandler
 {
     private readonly IChatPromptManager _promptManager;

@@ -47,7 +47,7 @@ public interface IOAuthClient
 /// <summary>
 /// OAuth 客户端实现
 /// </summary>
-[Register]
+[Register(typeof(IOAuthClient), ServiceLifetime.Singleton)]
 public sealed partial class OAuthClient : ServiceEntity, IOAuthClient
 {
     private readonly HttpClient _httpClient;

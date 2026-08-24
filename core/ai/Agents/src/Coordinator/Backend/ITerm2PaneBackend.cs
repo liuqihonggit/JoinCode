@@ -1,6 +1,6 @@
 namespace Core.Agents.Coordinator;
 
-[Register]
+[Register(typeof(JoinCode.Abstractions.Interfaces.IPaneBackend), ServiceLifetime.Singleton)]
 public sealed partial class ITerm2PaneBackend : ServiceEntity, JoinCode.Abstractions.Interfaces.IPaneBackend
 {
     private readonly ILogger<ITerm2PaneBackend>? _logger;

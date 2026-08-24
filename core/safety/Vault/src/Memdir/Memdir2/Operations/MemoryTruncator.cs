@@ -49,7 +49,7 @@ public sealed record TruncationThreshold
 /// <summary>
 /// 记忆截断器实现
 /// </summary>
-[Register]
+[Register(typeof(IMemoryTruncator), ServiceLifetime.Singleton)]
 public sealed partial class MemoryTruncator : ServiceEntity, IMemoryTruncator
 {
     private readonly ILogger<MemoryTruncator>? _logger;

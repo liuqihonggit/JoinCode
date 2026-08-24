@@ -3,7 +3,7 @@ namespace JoinCode.Cli;
 /// <summary>
 /// 信任目录管理器 — CLI 简化版，实现 ITrustFolderManager
 /// </summary>
-[Register]
+[Register(typeof(ITrustFolderManager), ServiceLifetime.Singleton)]
 public sealed partial class TrustFolderManager : ServiceEntity, ITrustFolderManager
 {
     private readonly string _trustedFoldersPath;

@@ -6,7 +6,7 @@ namespace McpToolDispatch;
 /// 支持黑名单（用户主动禁用）、降权（额外扣分）配置
 /// 设计原则：永远不禁用工具，连续失败只注入提示词提醒LLM换策略
 /// </summary>
-[Register]
+[Register(typeof(IToolHealthMonitor), ServiceLifetime.Singleton)]
 public sealed class ToolHealthMonitor : ServiceEntity, IToolHealthMonitor, IDisposable
 {
     private readonly ILogger<ToolHealthMonitor>? _logger;

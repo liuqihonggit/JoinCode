@@ -17,7 +17,7 @@ public sealed partial class ToolDenyRule
     public bool IsRegex { get; init; }
 }
 
-[Register]
+[Register(typeof(IToolPermissionFilter), ServiceLifetime.Singleton)]
 public sealed partial class ToolPermissionFilter : ServiceEntity, IToolPermissionFilter
 {
     private readonly ConcurrentDictionary<string, ToolDenyRule> _denyRules;

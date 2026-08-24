@@ -4,7 +4,7 @@ namespace Tools.Handlers;
 /// Agent Fork 判断中间件 — 当 subagent_type 为空且 ForkManager 可用时，走 fork 路径
 /// 对齐 TS: 省略 subagent_type 时 fork 自己，继承完整对话上下文
 /// </summary>
-[Register]
+[Register(typeof(IAgentToolMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class AgentForkMiddleware : ServiceEntity, IAgentToolMiddleware
 {
 

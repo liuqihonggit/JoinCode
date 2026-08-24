@@ -3,7 +3,7 @@ namespace JoinCode.Entry;
 /// <summary>
 /// 供应商配置中间件 — 配置无效时展示供应商菜单
 /// </summary>
-[Register]
+[Register(typeof(IMiddleware<StartupContext>), ServiceLifetime.Singleton)]
 internal sealed partial class ProviderSetupStep : ServiceEntity, IMiddleware<StartupContext>
 {
     private readonly IProviderDefinitionRegistry _registry;

@@ -1,6 +1,6 @@
 namespace Core.Security.Services;
 
-[Register]
+[Register(typeof(IMtlsService), ServiceLifetime.Singleton)]
 public sealed partial class MtlsService : ServiceEntity, IMtlsService
 {
     private readonly IFileSystem _fs;

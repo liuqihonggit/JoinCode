@@ -5,7 +5,7 @@ namespace Tools;
 /// 支持的Schema关键字: type, required, properties, additionalProperties,
 /// minLength, maxLength, minimum, maximum, minItems, maxItems, items, enum
 /// </summary>
-[Register]
+[Register(typeof(IJsonSchemaValidator), ServiceLifetime.Singleton)]
 public sealed partial class SimpleJsonSchemaValidator : ServiceEntity, IJsonSchemaValidator
 {
     /// <summary>

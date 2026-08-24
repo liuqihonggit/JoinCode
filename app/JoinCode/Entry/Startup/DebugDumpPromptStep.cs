@@ -7,7 +7,7 @@ namespace JoinCode.Entry;
 /// 决策: 用位标志枚举 DebugDumpSection，支持用户选择组合（如 i+p = Init|Prompt）
 /// 交互解析支持: 字母组合(ip)、单词(init prompt)、数字(17)、分隔符(i,p / i+p / i p)
 /// </summary>
-[Register]
+[Register(typeof(IMiddleware<StartupContext>), ServiceLifetime.Singleton)]
 internal sealed partial class DebugDumpPromptStep : ServiceEntity, IMiddleware<StartupContext>
 {
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct)

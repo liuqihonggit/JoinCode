@@ -2,7 +2,7 @@ using JoinCode.Abstractions.Attributes;
 
 namespace IO.Services;
 
-[Register]
+[Register(typeof(IIdeIntegrationService), ServiceLifetime.Singleton)]
 public sealed partial class IdeIntegrationService : ServiceEntity, IIdeIntegrationService
 {
     private IdeInfo? _currentConnection;

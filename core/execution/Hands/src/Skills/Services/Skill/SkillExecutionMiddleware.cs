@@ -3,7 +3,7 @@ namespace Core.Skills;
 /// <summary>
 /// 技能步骤执行中间件 — 执行技能步骤（Tool/Prompt/Loop）
 /// </summary>
-[Register]
+[Register(typeof(ISkillMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class SkillExecutionMiddleware : ServiceEntity, ISkillMiddleware
 {
     private readonly IQueryEngine _queryEngine;

@@ -3,7 +3,7 @@ namespace Core.Goal;
 
 using Structura.Dag;
 
-[Register]
+[Register(typeof(IClusterPlanValidator), ServiceLifetime.Singleton)]
 public sealed partial class ClusterPlanValidator : ServiceEntity, IClusterPlanValidator
 {
     private const int MaxSubTasks = 8;

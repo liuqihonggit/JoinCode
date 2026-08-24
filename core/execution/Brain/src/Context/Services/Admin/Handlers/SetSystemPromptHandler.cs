@@ -5,7 +5,7 @@ namespace Core.Context;
 /// <summary>
 /// 设置系统提示词操作处理器
 /// </summary>
-[Register]
+[Register(typeof(IChatAdminOperationHandler), ServiceLifetime.Singleton)]
 public sealed partial class SetSystemPromptHandler : ServiceEntity, IChatAdminOperationHandler
 {
 

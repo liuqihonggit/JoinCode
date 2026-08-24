@@ -7,7 +7,7 @@ using JoinCode.Abstractions.Pipeline;
 /// V1 设置工作轮询循环 + 传输回调 — 对齐 TS 端 §7-§10
 /// 这是 V1 初始化最复杂的步骤，包含 lambda 回调和事件订阅
 /// </summary>
-[Register]
+[Register(typeof(IMiddleware<V1BridgeInitContext>), ServiceLifetime.Singleton)]
 internal sealed partial class V1WorkPollSetupMiddleware : ServiceEntity, IMiddleware<V1BridgeInitContext>
 {
 

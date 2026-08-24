@@ -2,7 +2,7 @@ using JoinCode.Abstractions.Attributes;
 
 namespace IO.Services;
 
-[Register]
+[Register(typeof(IMcpAuthPersistenceService), ServiceLifetime.Singleton)]
 public sealed partial class McpAuthPersistenceService : ServiceEntity, IMcpAuthPersistenceService
 {
     private readonly IConfigurationService? _configService;

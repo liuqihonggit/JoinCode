@@ -5,7 +5,7 @@ namespace Core.Security.Services;
 /// 子智能体交接安全分类器 — 对齐 TS classifyHandoffIfNeeded
 /// 基于 AutoModeClassifier 的规则引擎，审查子智能体整体执行过程
 /// </summary>
-[Register]
+[Register(typeof(IHandoffClassifier), ServiceLifetime.Singleton)]
 public sealed partial class HandoffClassifier : ServiceEntity, IHandoffClassifier
 {
     private readonly IAutoModeClassifier _autoModeClassifier;

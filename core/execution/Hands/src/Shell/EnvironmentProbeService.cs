@@ -4,7 +4,7 @@ namespace Tools;
 /// 环境探测服务 — 探测运行环境能力，为Shell工具提供执行器选择依据
 /// 5分钟缓存，IFileSystem抽象，路径归一化
 /// </summary>
-[Register]
+[Register(typeof(IEnvironmentProbeService), ServiceLifetime.Singleton)]
 public sealed class EnvironmentProbeService : ServiceEntity, IEnvironmentProbeService
 {
     private readonly ILogger<EnvironmentProbeService>? _logger;

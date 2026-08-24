@@ -6,7 +6,7 @@ namespace Core.Context;
 /// 清理注入中间件 — 清理预处理阶段注入的关键词和同义词
 /// OnError=Continue：清理失败不影响管道继续执行
 /// </summary>
-[Register]
+[Register(typeof(IChatMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class CleanupInjectionsMiddleware : ServiceEntity, IChatMiddleware
 {
 

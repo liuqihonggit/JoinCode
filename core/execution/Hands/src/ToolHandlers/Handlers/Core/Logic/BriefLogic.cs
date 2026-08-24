@@ -1,6 +1,6 @@
 namespace Tools.Handlers;
 
-[Register]
+[Register(typeof(IBriefService), ServiceLifetime.Singleton)]
 public sealed partial class BriefLogic : ServiceEntity, IBriefService
 {
 

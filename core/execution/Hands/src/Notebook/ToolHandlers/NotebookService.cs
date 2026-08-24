@@ -4,7 +4,7 @@ namespace Services.Notebook;
 /// <summary>
 /// Notebook服务实现
 /// </summary>
-[Register]
+[Register(typeof(INotebookService), ServiceLifetime.Singleton)]
 public sealed partial class NotebookService : ServiceEntity, INotebookService
 {
 

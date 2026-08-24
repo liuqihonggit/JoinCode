@@ -18,7 +18,7 @@ public sealed partial class PluginHookDefinition
     public string? Condition { get; init; }
 }
 
-[Register]
+[Register(typeof(IPluginHookInjector), ServiceLifetime.Singleton)]
 public sealed partial class PluginHookInjector : ServiceEntity, IPluginHookInjector
 {
     private readonly IPluginManager _pluginManager;

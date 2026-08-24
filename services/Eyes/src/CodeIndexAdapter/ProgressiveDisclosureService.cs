@@ -1,6 +1,6 @@
 namespace Services.CodeIndex;
 
-[Register]
+[Register(typeof(IProgressiveDisclosure), ServiceLifetime.Singleton)]
 public sealed partial class ProgressiveDisclosureService : ServiceEntity, IProgressiveDisclosure
 {
     private readonly ICodeIndexer _indexer;

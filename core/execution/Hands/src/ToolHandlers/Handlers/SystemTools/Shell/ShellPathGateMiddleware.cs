@@ -3,7 +3,7 @@ namespace Tools.Shell;
 /// <summary>
 /// Shell 路径门控中间件 — 根据当前平台和目标执行器类型转换路径格式
 /// </summary>
-[Register]
+[Register(typeof(IShellMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ShellPathGateMiddleware : ServiceEntity, IShellMiddleware
 {
 

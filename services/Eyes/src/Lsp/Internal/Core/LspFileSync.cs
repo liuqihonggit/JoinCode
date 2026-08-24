@@ -6,7 +6,7 @@ namespace Services.Lsp.Internal;
 /// LSP 文件同步实现
 /// 对齐 TS LSPServerManager 的 changeFile/saveFile/openFile/closeFile
 /// </summary>
-[Register]
+[Register(typeof(ILspFileSync), ServiceLifetime.Singleton)]
 public sealed partial class LspFileSync : ServiceEntity, ILspFileSync
 {
 

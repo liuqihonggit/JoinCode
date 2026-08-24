@@ -2,7 +2,7 @@ using JoinCode.Abstractions.Attributes;
 
 namespace Core.Skills.Discovery;
 
-[Register]
+[Register(typeof(ISkillDiscoveryService), ServiceLifetime.Singleton)]
 public sealed partial class SkillDiscoveryService : ServiceEntity, ISkillDiscoveryService
 {
     private readonly SkillDiscoveryOptions _options;

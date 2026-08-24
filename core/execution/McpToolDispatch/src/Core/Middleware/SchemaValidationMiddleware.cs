@@ -4,7 +4,7 @@ namespace McpToolRegistry;
 /// <summary>
 /// Schema 校验中间件 — Order=300 — 验证工具参数是否符合 InputSchema
 /// </summary>
-[Register]
+[Register(typeof(IToolExecutionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class SchemaValidationMiddleware : ServiceEntity, IToolExecutionMiddleware
 {
 

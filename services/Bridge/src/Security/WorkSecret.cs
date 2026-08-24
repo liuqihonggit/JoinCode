@@ -1,4 +1,4 @@
-﻿
+
 using JoinCode.Abstractions.Attributes;
 
 using JoinCode.Abstractions.State;
@@ -95,7 +95,7 @@ public interface IWorkSecretStore : IStore
 /// 工作密钥存储 - 基于 ConcurrentDictionary 的线程安全内存实现
 /// 使用 AES-GCM 加密密钥值，兼容 NativeAOT
 /// </summary>
-[Register]
+[Register(typeof(IWorkSecretStore), ServiceLifetime.Singleton)]
 public sealed partial class WorkSecretStore : ServiceEntity, IWorkSecretStore, IDisposable
 {
     private readonly ConcurrentDictionary<string, WorkSecretEntry> _secrets;

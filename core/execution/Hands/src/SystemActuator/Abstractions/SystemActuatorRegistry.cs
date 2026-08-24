@@ -4,7 +4,7 @@ namespace Services.SystemActuator;
 /// 系统执行器注册表 — 合并原 ShellCapabilityCache + ShellProviderFactory + ShellBackgroundTaskService
 /// 按 Kind 查找执行器 + 统一管理跨执行器的后台任务
 /// </summary>
-[Register]
+[Register(typeof(ISystemActuatorRegistry), ServiceLifetime.Singleton)]
 public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IAsyncDisposable
 {
     private static FrozenDictionary<SystemActuatorKind, Func<RegistryDeps, ISystemActuator>>? _factories;

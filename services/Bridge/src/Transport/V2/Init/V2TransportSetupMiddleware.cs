@@ -6,7 +6,7 @@ using JoinCode.Abstractions.Pipeline;
 /// <summary>
 /// V2 建立传输 — 对齐 TS 端: createV2Transport
 /// </summary>
-[Register]
+[Register(typeof(IMiddleware<V2BridgeInitContext>), ServiceLifetime.Singleton)]
 internal sealed partial class V2TransportSetupMiddleware : ServiceEntity, IMiddleware<V2BridgeInitContext>
 {
 

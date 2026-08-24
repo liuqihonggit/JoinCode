@@ -201,7 +201,7 @@ public interface IUsageTracker
 /// <summary>
 /// Token 使用量追踪器实现
 /// </summary>
-[Register]
+[Register(typeof(IUsageTracker), ServiceLifetime.Singleton)]
 public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDisposable
 {
     private readonly ConcurrentBag<TokenUsageRecord> _usageRecords;

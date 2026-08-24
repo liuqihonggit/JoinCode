@@ -50,7 +50,7 @@ public interface IHookEventBroadcaster
 /// <summary>
 /// 钩子事件广播器实现
 /// </summary>
-[Register]
+[Register(typeof(IHookEventBroadcaster), ServiceLifetime.Singleton)]
 public sealed partial class HookEventBroadcaster : ServiceEntity, IHookEventBroadcaster
 {
     private readonly ConcurrentBag<Action<HookExecutionEvent>> _handlers = new();

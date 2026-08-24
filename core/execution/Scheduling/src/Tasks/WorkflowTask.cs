@@ -72,7 +72,7 @@ public sealed partial class StepStatus
     public TimeSpan? Duration { get; init; }
 }
 
-[Register]
+[Register(typeof(IWorkflowTaskExecutor), ServiceLifetime.Singleton)]
 public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskExecutor
 {
     private readonly IToolExecutionGateway _toolExecutionGateway;

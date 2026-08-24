@@ -5,7 +5,7 @@ namespace Core.Context;
 /// <summary>
 /// 添加系统提醒操作处理器
 /// </summary>
-[Register]
+[Register(typeof(IChatAdminOperationHandler), ServiceLifetime.Singleton)]
 public sealed partial class AddSystemReminderHandler : ServiceEntity, IChatAdminOperationHandler
 {
     private readonly IChatPromptManager _promptManager;

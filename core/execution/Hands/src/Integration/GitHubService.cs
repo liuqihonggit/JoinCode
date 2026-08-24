@@ -1,6 +1,6 @@
 namespace IO.Services;
 
-[Register]
+[Register(typeof(IGitHubService), ServiceLifetime.Singleton)]
 public sealed partial class GitHubService : ServiceEntity, IGitHubService
 {
     private readonly HttpClient _httpClient;

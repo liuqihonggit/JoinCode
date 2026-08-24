@@ -5,7 +5,7 @@ namespace Core.Context;
 /// 通过中间件管道执行初始化步骤，构造函数参数从 8 个减少到 3 个
 /// 提取自 ChatService.InitializeCoreAsync + OnConfigChanged
 /// </summary>
-[Register]
+[Register(typeof(IChatInitializer), ServiceLifetime.Singleton)]
 public sealed partial class ChatInitializer : ServiceEntity, IChatInitializer
 {
     private readonly MiddlewarePipeline<ChatInitContext> _pipeline;

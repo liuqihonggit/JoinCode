@@ -4,7 +4,7 @@ namespace Core.Permission;
 /// <summary>
 /// 权限检查器 - 通过中间件管道管理工具执行权限
 /// </summary>
-[Register]
+[Register(typeof(IPermissionChecker), ServiceLifetime.Singleton)]
 public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecker
 {
     private readonly MiddlewarePipeline<PermissionCheckContext> _pipeline;

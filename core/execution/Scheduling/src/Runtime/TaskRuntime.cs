@@ -2,7 +2,7 @@ namespace Core.Scheduling.Runtime;
 
 using JoinCode.Abstractions.Attributes;
 
-[Register]
+[Register(typeof(ITaskRuntime), ServiceLifetime.Singleton)]
 public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposable
 {
     private readonly ConcurrentDictionary<string, RuntimeTask> _tasks = new();

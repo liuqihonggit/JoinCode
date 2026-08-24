@@ -21,7 +21,7 @@ public interface ILspManager : IAsyncDisposable
     IReadOnlyDictionary<string, ILspServerInstance> GetAllServers();
 }
 
-[Register]
+[Register(typeof(ILspManager), ServiceLifetime.Singleton)]
 public sealed partial class LspManager : ILspManager
 {
 

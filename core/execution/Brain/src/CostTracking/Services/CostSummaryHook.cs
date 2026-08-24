@@ -6,7 +6,7 @@ public interface ICostSummaryHook
     Task PrintSummaryOnExitAsync(CancellationToken ct = default);
 }
 
-[Register]
+[Register(typeof(ICostSummaryHook), ServiceLifetime.Singleton)]
 public sealed partial class CostSummaryHook : ServiceEntity, ICostSummaryHook
 {
 

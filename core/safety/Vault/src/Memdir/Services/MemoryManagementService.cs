@@ -303,7 +303,7 @@ public sealed record MemoryHealthReport
 /// <summary>
 /// 内存管理服务实现
 /// </summary>
-[Register]
+[Register(typeof(IMemoryManagementService), ServiceLifetime.Singleton)]
 public sealed partial class MemoryManagementService : ServiceEntity, IMemoryManagementService, IDisposable
 {
     private readonly MemoryStore _memoryStore;

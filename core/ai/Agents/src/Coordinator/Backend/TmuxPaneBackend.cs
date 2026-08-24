@@ -1,6 +1,6 @@
 namespace Core.Agents.Coordinator;
 
-[Register]
+[Register(typeof(JoinCode.Abstractions.Interfaces.IPaneBackend), ServiceLifetime.Singleton)]
 public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractions.Interfaces.IPaneBackend
 {
     private static readonly string[] TmuxColorMap =

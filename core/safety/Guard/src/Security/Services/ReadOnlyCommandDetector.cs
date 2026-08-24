@@ -6,7 +6,7 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// 只读命令检测器实现 — 深度对齐 TS readOnlyValidation.ts
 /// 核心功能: 白名单标志验证 + 正则验证 + 变量扩展检测 + git 沙箱逃逸防护
 /// </summary>
-[Register]
+[Register(typeof(IReadOnlyCommandDetector), ServiceLifetime.Singleton)]
 public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCommandDetector
 {
     /// <summary>

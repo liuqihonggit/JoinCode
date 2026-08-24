@@ -4,7 +4,7 @@ namespace Core.Context;
 /// 聊天选项工厂 — 负责创建 ChatOptions（执行设置）
 /// 提取自 ChatService.CreateExecutionSettings
 /// </summary>
-[Register]
+[Register(typeof(IChatOptionsFactory), ServiceLifetime.Singleton)]
 public sealed partial class ChatOptionsFactory : ServiceEntity, IChatOptionsFactory
 {
 

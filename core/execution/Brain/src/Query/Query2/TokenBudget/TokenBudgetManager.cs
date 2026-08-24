@@ -4,7 +4,7 @@ namespace Core.Query;
 /// <summary>
 /// Token预算管理器实现
 /// </summary>
-[Register]
+[Register(typeof(ITokenBudgetManager), ServiceLifetime.Singleton)]
 public partial class TokenBudgetManager : ITokenBudgetManager, IAsyncDisposable
 {
     private readonly AsyncLock _lock = new();

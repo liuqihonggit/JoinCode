@@ -4,7 +4,7 @@ namespace Services.Web;
 /// 内容处理中间件 — 二进制持久化、HTML转Markdown、内容截断
 /// Order=500 在HTTP获取之后执行
 /// </summary>
-[Register]
+[Register(typeof(IWebMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class WebContentProcessingMiddleware : ServiceEntity, IWebMiddleware
 {
     private const int MaxMarkdownLength = 100_000;

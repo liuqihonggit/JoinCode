@@ -2,7 +2,7 @@ using JoinCode.Abstractions.Interfaces;
 
 namespace McpClient;
 
-[Register]
+[Register(typeof(IElicitationHandler), ServiceLifetime.Singleton)]
 public sealed partial class InteractiveElicitationHandler : ServiceEntity, IElicitationHandler
 {
     private readonly IUserInteractionService _userInteraction;

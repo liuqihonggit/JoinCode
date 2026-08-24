@@ -6,7 +6,7 @@ namespace McpToolRegistry;
 /// 触发条件：ToolHealthMonitor.ConsecutiveFailures 达到阈值（默认3次）
 /// 修正方式：按优先级遍历 IToolFixHook，将修正建议注入到结果的 InjectedMessages 中
 /// </summary>
-[Register]
+[Register(typeof(IToolExecutionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ToolFixHookMiddleware : ServiceEntity, IToolExecutionMiddleware
 {
     private readonly Core.Hooks.Execution.ToolFixHookRegistry _fixHookRegistry;

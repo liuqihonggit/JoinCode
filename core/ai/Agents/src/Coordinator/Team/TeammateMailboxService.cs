@@ -1,6 +1,6 @@
 namespace Core.Agents.Coordinator;
 
-[Register]
+[Register(typeof(ITeammateMailboxService), ServiceLifetime.Singleton)]
 public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMailboxService, IDisposable
 {
     private readonly IFileSystem _fs;

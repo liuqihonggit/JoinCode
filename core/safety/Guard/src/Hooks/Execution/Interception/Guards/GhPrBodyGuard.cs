@@ -10,7 +10,7 @@ namespace Core.Hooks.Execution.Interception.Guards;
 /// 迁移自 GhPrBodyRewriter(Priority=100)。
 /// </para>
 /// </summary>
-[Register]
+[Register(typeof(ICommandGuard), ServiceLifetime.Singleton)]
 public sealed partial class GhPrBodyGuard : ICommandGuard
 {
     private readonly ILogger<GhPrBodyGuard>? _logger;

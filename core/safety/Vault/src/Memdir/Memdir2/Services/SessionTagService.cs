@@ -1,7 +1,7 @@
 
 namespace Core.Memdir;
 
-[Register]
+[Register(typeof(ISessionTagService), ServiceLifetime.Singleton)]
 public sealed partial class SessionTagService : ServiceEntity, ISessionTagService, IDisposable
 {
     private readonly ConcurrentDictionary<string, HashSet<string>> _tags = new(StringComparer.OrdinalIgnoreCase);

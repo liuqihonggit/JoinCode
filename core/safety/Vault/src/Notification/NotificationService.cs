@@ -1,7 +1,7 @@
 
 namespace Services.Notification;
 
-[Register]
+[Register(typeof(INotificationService), ServiceLifetime.Singleton)]
 public partial class NotificationService : ServiceEntity, INotificationService
 {
     private readonly ILogger<NotificationService>? _logger;

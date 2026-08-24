@@ -6,7 +6,7 @@ namespace Core.Context.Compact;
 /// 核心只保留策略调度和阈值判断
 /// 遥测统一在管道 Post 回调中执行
 /// </summary>
-[Register]
+[Register(typeof(ICompactService), ServiceLifetime.Singleton)]
 public sealed partial class AutoCompactService : ServiceEntity, ICompactService
 {
     private readonly MiddlewarePipeline<CompactContext> _compactPipeline;

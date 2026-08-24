@@ -3,7 +3,7 @@ namespace Core.Goal;
 
 using JoinCode.Abstractions.Models.Goal;
 
-[Register]
+[Register(typeof(IDecomposabilityAnalyzer), ServiceLifetime.Singleton)]
 public sealed partial class DecomposabilityAnalyzer : ServiceEntity, IDecomposabilityAnalyzer
 {
     private readonly IChatClient _kernel;

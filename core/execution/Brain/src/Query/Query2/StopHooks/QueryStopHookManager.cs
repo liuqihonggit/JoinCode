@@ -31,7 +31,7 @@ public sealed partial class StopHookResult
     public static StopHookResult Stop(string? message = null) => new() { ShouldStop = true, Message = message };
 }
 
-[Register]
+[Register(typeof(IQueryStopHookManager), ServiceLifetime.Singleton)]
 public sealed partial class QueryStopHookManager : ServiceEntity, IQueryStopHookManager
 {
     private readonly ConcurrentDictionary<string, IQueryStopHook> _hooks;

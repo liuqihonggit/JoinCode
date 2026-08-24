@@ -5,7 +5,7 @@ namespace Core.Agents;
 /// Agent 记忆服务实现 — 对齐 TS agentMemory.ts + agentMemorySnapshot.ts
 /// 管理三种作用域记忆（user/project/local）和快照机制
 /// </summary>
-[Register]
+[Register(typeof(IAgentMemoryService), ServiceLifetime.Singleton)]
 public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryService
 {
     private const string AgentMemorySubdir = "agent-memory";

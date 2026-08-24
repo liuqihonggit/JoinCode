@@ -8,7 +8,7 @@ namespace JoinCode.Entry;
 ///   [DONE]  — 单次用户输入处理完成
 ///   [EXIT]  — 进程即将退出
 /// </summary>
-[Register]
+[Register(typeof(IMiddleware<StartupContext>), ServiceLifetime.Singleton)]
 internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupContext>
 {
     private static readonly TimeSpan AliveInterval = TimeSpan.FromSeconds(2);

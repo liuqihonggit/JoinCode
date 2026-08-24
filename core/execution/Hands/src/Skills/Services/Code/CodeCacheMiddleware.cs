@@ -3,7 +3,7 @@ namespace Core.Skills;
 /// <summary>
 /// 代码缓存中间件 — Generate/Analyze 操作的缓存检查与写入
 /// </summary>
-[Register]
+[Register(typeof(ICodeMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class CodeCacheMiddleware : ServiceEntity, ICodeMiddleware
 {
 

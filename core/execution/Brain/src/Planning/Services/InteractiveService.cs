@@ -1,7 +1,7 @@
 
 namespace Core.Planning;
 
-[Register]
+[Register(typeof(IInteractiveService), ServiceLifetime.Singleton)]
 public sealed partial class InteractiveService : ServiceEntity, IInteractiveService
 {
 

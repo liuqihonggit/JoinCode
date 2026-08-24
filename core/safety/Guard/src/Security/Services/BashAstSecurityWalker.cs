@@ -3,7 +3,7 @@ using TreeSitter;
 
 namespace JoinCode.Abstractions.Security.Shell;
 
-[Register]
+[Register(typeof(IBashAstSecurityWalker), ServiceLifetime.Singleton)]
 public sealed partial class BashAstSecurityWalker : ServiceEntity, IBashAstSecurityWalker, IDisposable
 {
     private const string CmdsubPlaceholder = "__CMDSUB_OUTPUT__";

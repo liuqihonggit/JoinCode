@@ -5,7 +5,7 @@ public interface ILspPassiveFeedback
     void RegisterNotificationHandlers(ILspManager manager);
 }
 
-[Register]
+[Register(typeof(ILspPassiveFeedback), ServiceLifetime.Singleton)]
 public sealed partial class LspPassiveFeedback : ServiceEntity, ILspPassiveFeedback
 {
 

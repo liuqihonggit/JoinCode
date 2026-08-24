@@ -4,7 +4,7 @@ namespace McpToolRegistry;
 /// <summary>
 /// 远程策略检查中间件 — Order=600 — 检查远程策略是否允许工具执行
 /// </summary>
-[Register]
+[Register(typeof(IToolExecutionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class RemotePolicyMiddleware : ServiceEntity, IToolExecutionMiddleware
 {
 

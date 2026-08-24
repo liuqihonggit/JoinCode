@@ -1,7 +1,7 @@
 
 namespace Core.Security.Scanners;
 
-[Register]
+[Register(typeof(IGitSecretScanner), ServiceLifetime.Singleton)]
 public sealed partial class GitSecretScanner : ServiceEntity, IGitSecretScanner
 {
 

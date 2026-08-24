@@ -2,7 +2,7 @@ using JoinCode.Abstractions.Attributes;
 
 namespace Core.CostTracking;
 
-[Register]
+[Register(typeof(ICostTracker), ServiceLifetime.Singleton)]
 public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
 {
     private readonly ConcurrentDictionary<string, ModelCostInfo> _modelCosts;

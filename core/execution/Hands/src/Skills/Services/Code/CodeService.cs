@@ -4,7 +4,7 @@ namespace Core.Skills;
 /// <summary>
 /// 代码服务 — 通过中间件管道执行代码生成、分析、执行操作
 /// </summary>
-[Register]
+[Register(typeof(ICodeService), ServiceLifetime.Singleton)]
 public sealed partial class CodeService : ServiceEntity, ICodeService
 {
     private readonly MiddlewarePipeline<CodeContext> _pipeline;

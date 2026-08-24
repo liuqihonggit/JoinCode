@@ -1,7 +1,7 @@
 
 namespace Core.Planning;
 
-[Register]
+[Register(typeof(IPlanService), ServiceLifetime.Singleton)]
 public partial class PlanService : ServiceEntity, IPlanService {
     private readonly IChatClient _kernel;
     private readonly IExceptionService _exceptionService;

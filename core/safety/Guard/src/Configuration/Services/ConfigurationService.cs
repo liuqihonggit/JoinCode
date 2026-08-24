@@ -7,7 +7,7 @@ namespace Core.Configuration;
 /// 配置服务实现 - 内存缓存 + 磁盘持久化 + 变更通知
 /// 对齐 TS 版 ConfigTool: 双存储源(global/settings) + appStateKey 热更新同步
 /// </summary>
-[Register]
+[Register(typeof(IConfigurationService), ServiceLifetime.Singleton)]
 public sealed partial class ConfigurationService : ServiceEntity, IConfigurationService
 {
     private readonly ConcurrentDictionary<string, string> _configurations = new();

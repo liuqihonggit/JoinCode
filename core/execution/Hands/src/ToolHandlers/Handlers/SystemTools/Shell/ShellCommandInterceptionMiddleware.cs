@@ -14,7 +14,7 @@ namespace Tools.Shell;
 /// Sed/Build 有状态拦截保留独立中间件(阶段C 不迁移),在管道后续槽位执行。
 /// </para>
 /// </summary>
-[Register]
+[Register(typeof(IShellMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ShellCommandInterceptionMiddleware : ServiceEntity, IShellMiddleware
 {
     private readonly CommandInterceptionDispatcher _dispatcher;

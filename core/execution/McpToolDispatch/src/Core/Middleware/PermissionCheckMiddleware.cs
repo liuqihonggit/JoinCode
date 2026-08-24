@@ -4,7 +4,7 @@ namespace McpToolRegistry;
 /// <summary>
 /// 权限检查中间件 — Order=500 — 检查工具执行权限
 /// </summary>
-[Register]
+[Register(typeof(IToolExecutionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class PermissionCheckMiddleware : ServiceEntity, IToolExecutionMiddleware
 {
 

@@ -3,7 +3,7 @@ using JoinCode.Abstractions.Attributes;
 
 namespace IO.Services;
 
-[Register]
+[Register(typeof(IPeerDiscoveryService), ServiceLifetime.Singleton)]
 public sealed partial class PeerDiscoveryService : ServiceEntity, IPeerDiscoveryService
 {
     private readonly ConcurrentDictionary<string, PeerInfo> _peers = new(StringComparer.Ordinal);

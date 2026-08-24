@@ -3,7 +3,7 @@ namespace Core.Agents;
 /// <summary>
 /// 代理摘要服务实现
 /// </summary>
-[Register]
+[Register(typeof(IAgentSummaryService), ServiceLifetime.Singleton)]
 public sealed partial class AgentSummaryService : ServiceEntity, IAgentSummaryService
 {
 

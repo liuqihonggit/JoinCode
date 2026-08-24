@@ -17,7 +17,7 @@ public sealed record QueryEngineOptions(
 /// 参考Claude Code的QueryEngine实现
 /// 可选依赖通过 IQueryMiddleware 中间件管道注入，构造函数仅保留核心依赖
 /// </summary>
-[Register]
+[Register(typeof(IQueryEngine), ServiceLifetime.Singleton)]
 public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
 {
     private readonly IChatClient _kernel;

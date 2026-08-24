@@ -31,7 +31,7 @@ public sealed record ScoredMemory(MemoryEntry Memory, double RelevanceScore);
 /// AI 相关性选择器实现
 /// 使用关键词匹配和语义相似度计算
 /// </summary>
-[Register]
+[Register(typeof(IMemoryRelevanceSelector), ServiceLifetime.Singleton)]
 public sealed partial class MemoryRelevanceSelector : ServiceEntity, IMemoryRelevanceSelector
 {
 

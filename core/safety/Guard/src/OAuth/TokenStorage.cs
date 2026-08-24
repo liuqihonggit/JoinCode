@@ -57,7 +57,7 @@ public sealed record OAuthToken
 /// <summary>
 /// Token 存储实现
 /// </summary>
-[Register]
+[Register(typeof(ITokenStorage), ServiceLifetime.Singleton)]
 public sealed partial class TokenStorage : ServiceEntity, ITokenStorage
 {
     private readonly string _storagePath;

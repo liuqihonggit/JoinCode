@@ -27,7 +27,7 @@ public sealed partial class ClusterPlanApprovalHookResult
     public static ClusterPlanApprovalHookResult Block(string? message = null) => new() { ShouldProceed = false, Message = message };
 }
 
-[Register]
+[Register(typeof(IClusterPlanApprovalHookManager), ServiceLifetime.Singleton)]
 public sealed partial class ClusterPlanApprovalHookManager : ServiceEntity, IClusterPlanApprovalHookManager
 {
     private readonly IHookOrchestrator _orchestrator;

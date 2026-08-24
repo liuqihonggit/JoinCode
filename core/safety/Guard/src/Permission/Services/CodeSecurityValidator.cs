@@ -1,7 +1,7 @@
 
 namespace Core.Permission;
 
-[Register]
+[Register(typeof(ICodeSecurityValidator), ServiceLifetime.Singleton)]
 public sealed partial class CodeSecurityValidator : ServiceEntity, ICodeSecurityValidator
 {
     private readonly ICommandClassifier _commandClassifier;

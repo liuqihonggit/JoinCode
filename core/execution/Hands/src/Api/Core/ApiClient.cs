@@ -18,7 +18,7 @@ public sealed record ApiClientOptions
     public IReadOnlyList<string>? FallbackEndpoints { get; init; }
 }
 
-[Register]
+[Register(typeof(IApiClient), ServiceLifetime.Singleton)]
 public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
 {
     private HttpClient _httpClient;

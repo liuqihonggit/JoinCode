@@ -4,7 +4,7 @@ namespace Memdir.Services;
 /// 会话扫描器 — 扫描 ~/.jcc/sessions/ 下所有 .jsonl 会话文件，提取洞察元数据
 /// 对齐 TS insights.ts scanAllSessions + logToSessionMeta + extractToolStats
 /// </summary>
-[Register]
+[Register(typeof(IInsightSessionScanner), ServiceLifetime.Singleton)]
 public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScanner
 {
     private readonly string _sessionsDirectory;

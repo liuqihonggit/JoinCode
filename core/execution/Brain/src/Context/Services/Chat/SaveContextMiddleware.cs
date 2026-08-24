@@ -6,7 +6,7 @@ namespace Core.Context;
 /// 保存上下文中间件 — 持久化聊天上下文到存储
 /// OnError=Continue：保存失败不影响管道继续执行
 /// </summary>
-[Register]
+[Register(typeof(IChatMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class SaveContextMiddleware : ServiceEntity, IChatMiddleware
 {
 

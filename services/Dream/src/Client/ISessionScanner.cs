@@ -22,7 +22,7 @@ public interface ISessionScanner
 /// <summary>
 /// 默认会话扫描器实现
 /// </summary>
-[Register]
+[Register(typeof(ISessionScanner), ServiceLifetime.Singleton)]
 public sealed partial class DefaultSessionScanner : ServiceEntity, ISessionScanner
 {
     private readonly string _projectDir;

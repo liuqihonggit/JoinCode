@@ -1,6 +1,6 @@
 namespace Core.Hooks.ToolPermission;
 
-[Register]
+[Register(typeof(IPermissionHookExecutor), ServiceLifetime.Singleton)]
 public sealed partial class PermissionHookExecutor : ServiceEntity, IPermissionHookExecutor
 {
 

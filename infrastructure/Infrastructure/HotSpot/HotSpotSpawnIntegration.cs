@@ -3,7 +3,7 @@ namespace Infrastructure.HotSpot;
 /// <summary>
 /// 热点 spawn 集成服务实现 — Worker spawn 时注册文件写入监听器 + 获取契约变更通知队列
 /// </summary>
-[Register]
+[Register(typeof(IHotSpotSpawnIntegration), ServiceLifetime.Singleton)]
 public sealed partial class HotSpotSpawnIntegration : IHotSpotSpawnIntegration
 {
     private readonly IFileWriteListenerRegistry _registry;

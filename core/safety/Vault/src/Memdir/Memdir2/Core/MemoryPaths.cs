@@ -36,7 +36,7 @@ public interface IMemoryPaths
 /// <summary>
 /// 记忆路径管理实现
 /// </summary>
-[Register]
+[Register(typeof(IMemoryPaths), ServiceLifetime.Singleton)]
 public sealed partial class MemoryPaths : ServiceEntity, IMemoryPaths
 {
     private static readonly FrozenDictionary<MemoryType, string> TypeDirectoryNames =
@@ -131,7 +131,7 @@ public interface ITeamMemoryPaths
 /// <summary>
 /// 团队记忆路径管理实现
 /// </summary>
-[Register]
+[Register(typeof(ITeamMemoryPaths), ServiceLifetime.Singleton)]
 public sealed partial class TeamMemoryPaths : ServiceEntity, ITeamMemoryPaths
 {
     private readonly string _baseDirectory;

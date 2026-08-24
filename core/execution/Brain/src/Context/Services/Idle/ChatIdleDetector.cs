@@ -4,7 +4,7 @@ namespace Core.Context;
 /// 聊天空闲检测器 — 负责检测工具空闲轮次并注入提醒
 /// 提取自 ChatService.HandleIdleDetectionAsync + DetectToolUsageAsync
 /// </summary>
-[Register]
+[Register(typeof(IChatIdleDetector), ServiceLifetime.Singleton)]
 public sealed partial class ChatIdleDetector : ServiceEntity, IChatIdleDetector
 {
 

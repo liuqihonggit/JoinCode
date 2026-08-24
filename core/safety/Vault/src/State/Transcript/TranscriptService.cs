@@ -1,6 +1,6 @@
 namespace State;
 
-[Register]
+[Register(typeof(ITranscriptService), ServiceLifetime.Singleton)]
 public sealed partial class TranscriptService : ServiceEntity, ITranscriptService, IDisposable
 {
     private readonly string _sessionsDirectory;

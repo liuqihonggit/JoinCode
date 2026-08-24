@@ -5,7 +5,7 @@ namespace Core.Context;
 /// <summary>
 /// 初始化操作处理器
 /// </summary>
-[Register]
+[Register(typeof(IChatAdminOperationHandler), ServiceLifetime.Singleton)]
 public sealed partial class InitializeHandler : ServiceEntity, IChatAdminOperationHandler
 {
 

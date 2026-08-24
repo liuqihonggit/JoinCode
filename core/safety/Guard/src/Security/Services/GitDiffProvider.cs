@@ -1,7 +1,7 @@
 
 namespace Core.Security.Services;
 
-[Register]
+[Register(typeof(IGitDiffProvider), ServiceLifetime.Singleton)]
 public sealed partial class GitDiffProvider : ServiceEntity, IGitDiffProvider
 {
 

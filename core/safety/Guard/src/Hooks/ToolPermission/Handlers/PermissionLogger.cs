@@ -5,7 +5,7 @@ namespace Core.Hooks.ToolPermission;
 /// 权限日志记录器实现
 /// 集中处理所有权限决策的分析/遥测日志记录
 /// </summary>
-[Register]
+[Register(typeof(IPermissionLogger), ServiceLifetime.Singleton)]
 public sealed partial class PermissionLogger : ServiceEntity, IPermissionLogger
 {
 

@@ -1,7 +1,7 @@
 
 namespace Core.Context.Compact;
 
-[Register]
+[Register(typeof(IReactiveCompactService), ServiceLifetime.Singleton)]
 public sealed partial class ReactiveCompactService : ServiceEntity, IReactiveCompactService
 {
     private const string PromptTooLongPrefix = "prompt_too_long";

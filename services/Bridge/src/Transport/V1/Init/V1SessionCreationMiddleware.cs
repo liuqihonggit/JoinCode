@@ -6,7 +6,7 @@ using JoinCode.Abstractions.Pipeline;
 /// <summary>
 /// V1 创建会话 — 对齐 TS 端: createSession
 /// </summary>
-[Register]
+[Register(typeof(IMiddleware<V1BridgeInitContext>), ServiceLifetime.Singleton)]
 internal sealed partial class V1SessionCreationMiddleware : ServiceEntity, IMiddleware<V1BridgeInitContext>
 {
 

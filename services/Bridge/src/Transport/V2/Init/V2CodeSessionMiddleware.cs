@@ -6,7 +6,7 @@ using JoinCode.Abstractions.Pipeline;
 /// <summary>
 /// V2 创建 code session — 对齐 TS 端: createCodeSession
 /// </summary>
-[Register]
+[Register(typeof(IMiddleware<V2BridgeInitContext>), ServiceLifetime.Singleton)]
 internal sealed partial class V2CodeSessionMiddleware : ServiceEntity, IMiddleware<V2BridgeInitContext>
 {
 

@@ -2,7 +2,7 @@ using JoinCode.Abstractions.Attributes;
 
 namespace IO.Services;
 
-[Register]
+[Register(typeof(IAssistantModeService), ServiceLifetime.Singleton)]
 public sealed partial class AssistantModeService : ServiceEntity, IAssistantModeService
 {
     public bool IsAssistantMode => IsAssistantModeEnabled;

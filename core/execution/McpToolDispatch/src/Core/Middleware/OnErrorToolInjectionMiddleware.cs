@@ -5,7 +5,7 @@ namespace McpToolRegistry;
 /// OnError工具不出现在首次系统提示词，仅留函数名；首次报错时弹出工具说明让LLM选择
 /// 增强功能：历史修复分析 — 从健康记录中提取同类工具的失败模式，提前给出建议
 /// </summary>
-[Register]
+[Register(typeof(IToolExecutionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class OnErrorToolInjectionMiddleware : ServiceEntity, IToolExecutionMiddleware
 {
     private readonly IToolRegistry _registry;

@@ -1,7 +1,7 @@
 
 namespace Core.Skills;
 
-[Register]
+[Register(typeof(ICodeSandboxService), ServiceLifetime.Singleton)]
 public sealed partial class CodeSandboxService : ServiceEntity, ICodeSandboxService
 {
     private readonly IFileOperationService _fileOperationService;

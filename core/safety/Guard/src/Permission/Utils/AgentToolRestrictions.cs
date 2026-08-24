@@ -1,6 +1,6 @@
 namespace Core.Utils;
 
-[Register]
+[Register(typeof(IAgentToolRestrictions), ServiceLifetime.Singleton)]
 public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRestrictions
 {
     private readonly FrozenSet<string> _autoAllowed;

@@ -1,6 +1,6 @@
 namespace JoinCode.Entry;
 
-[Register]
+[Register(typeof(IMiddleware<StartupContext>), ServiceLifetime.Singleton)]
 internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddleware<StartupContext>
 {
 

@@ -22,7 +22,7 @@ public sealed partial class StopHookResult
     public static StopHookResult Stop(string? message = null) => new() { ShouldStop = true, Message = message };
 }
 
-[Register]
+[Register(typeof(IStopHookManager), ServiceLifetime.Singleton)]
 public sealed partial class StopHookManager : ServiceEntity, IStopHookManager
 {
     private readonly IHookOrchestrator _orchestrator;

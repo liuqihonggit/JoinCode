@@ -3,7 +3,7 @@ namespace Core.Skills;
 /// <summary>
 /// 代码沙箱执行中间件 — Execute 操作的沙箱执行
 /// </summary>
-[Register]
+[Register(typeof(ICodeMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class CodeSandboxMiddleware : ServiceEntity, ICodeMiddleware
 {
     private readonly ICodeSandboxService _sandboxService;

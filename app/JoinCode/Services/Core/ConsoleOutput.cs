@@ -3,7 +3,7 @@ namespace JoinCode.Services;
 /// <summary>
 /// 控制台输出 — 纯 CLI 模式，无 TUI 依赖
 /// </summary>
-[Register]
+[Register(typeof(IConsoleOutput), ServiceLifetime.Singleton)]
 public sealed partial class ConsoleOutput : ServiceEntity, IConsoleOutput
 {
     private readonly ILogger<ConsoleOutput>? _logger;

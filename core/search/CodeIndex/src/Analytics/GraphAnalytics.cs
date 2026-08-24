@@ -7,7 +7,7 @@ namespace JoinCode.CodeIndex.Analytics;
 /// 社区检测: 标签传播; 枢纽分析: 度排序; 死代码: 无调用方检测
 /// 环检测/拓扑排序: 构建 Dag&lt;string&gt; 委托 Structura 算法
 /// </summary>
-[Register]
+[Register(typeof(IGraphAnalytics), ServiceLifetime.Singleton)]
 public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics
 {
     private readonly InMemoryIndexStore _store;

@@ -4,7 +4,7 @@ namespace Tools.Handlers;
 /// Agent 流式执行中间件 — 前台模式使用 RunAgentStreamAsync 流式执行子智能体
 /// 对齐 TS runAgent AsyncGenerator
 /// </summary>
-[Register]
+[Register(typeof(IAgentToolMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class AgentStreamExecutionMiddleware : ServiceEntity, IAgentToolMiddleware
 {
 

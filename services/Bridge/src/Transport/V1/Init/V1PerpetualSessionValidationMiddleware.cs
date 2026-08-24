@@ -7,7 +7,7 @@ using JoinCode.Abstractions.Pipeline;
 /// V1 Perpetual 模式: 验证已有会话是否存活 — 对齐 TS 端: getBridgeSession
 /// best-effort: 验证失败不阻塞主流程
 /// </summary>
-[Register]
+[Register(typeof(IMiddleware<V1BridgeInitContext>), ServiceLifetime.Singleton)]
 internal sealed partial class V1PerpetualSessionValidationMiddleware : ServiceEntity, IMiddleware<V1BridgeInitContext>
 {
     public ErrorBehavior OnError => ErrorBehavior.Continue;

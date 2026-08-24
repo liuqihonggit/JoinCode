@@ -5,7 +5,7 @@ namespace Core.Agents.Coordinator;
 /// 团队管理器实现
 /// 使用单一锁保护成员和消息操作，消除多锁排序风险
 /// </summary>
-[Register]
+[Register(typeof(ITeamManager), ServiceLifetime.Singleton)]
 public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposable
 {
     private readonly ConcurrentDictionary<string, TeamInfo> _teams = new();

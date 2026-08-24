@@ -1,6 +1,6 @@
 namespace Services.Api;
 
-[Register]
+[Register(typeof(IRateLimitTracker), ServiceLifetime.Singleton)]
 public sealed partial class RateLimitTracker : ServiceEntity, IRateLimitTracker
 {
     private volatile RateLimitSnapshot? _snapshot;

@@ -4,7 +4,7 @@ namespace Core.Scheduling;
 /// <summary>
 /// 任务文件写入工具类
 /// </summary>
-[Register]
+[Register(typeof(ITaskFileWriter), ServiceLifetime.Singleton)]
 public sealed partial class TaskFileWriter : ServiceEntity, ITaskFileWriter
 {
 

@@ -2,7 +2,7 @@ using JoinCode.Abstractions.Attributes;
 
 namespace IO.Services;
 
-[Register]
+[Register(typeof(IReplService), ServiceLifetime.Singleton)]
 public sealed partial class ReplService : ServiceEntity, IReplService
 {
     private volatile bool _replModeEnabled;

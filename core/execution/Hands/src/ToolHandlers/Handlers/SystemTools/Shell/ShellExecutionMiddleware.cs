@@ -4,7 +4,7 @@ namespace Tools.Shell;
 /// Shell 命令执行中间件 — 核心执行逻辑
 /// 启动命令进程、注册后台化事件、注册前台任务、等待结果
 /// </summary>
-[Register]
+[Register(typeof(IShellMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ShellExecutionMiddleware : ServiceEntity, IShellMiddleware
 {
 

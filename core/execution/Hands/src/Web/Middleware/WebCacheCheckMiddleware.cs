@@ -4,7 +4,7 @@ namespace Services.Web;
 /// 缓存检查中间件 — 查询URL缓存，命中时短路管道直接返回
 /// Order=200 在验证之后执行
 /// </summary>
-[Register]
+[Register(typeof(IWebMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class WebCacheCheckMiddleware : ServiceEntity, IWebMiddleware
 {
 

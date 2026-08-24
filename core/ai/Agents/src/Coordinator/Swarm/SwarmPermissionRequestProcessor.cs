@@ -6,7 +6,7 @@ public interface ISwarmPermissionRequestProcessor
     Task ProcessRequestAsync(SwarmPermissionRequestData requestData, CancellationToken ct = default);
 }
 
-[Register]
+[Register(typeof(ISwarmPermissionRequestProcessor), ServiceLifetime.Singleton)]
 public sealed partial class SwarmPermissionRequestProcessor : ServiceEntity, ISwarmPermissionRequestProcessor
 {
     private readonly IMailbox _messageBroker;

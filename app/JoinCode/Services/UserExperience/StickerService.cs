@@ -2,7 +2,7 @@ using JoinCode.Abstractions.Attributes;
 
 namespace IO.Services;
 
-[Register]
+[Register(typeof(IStickerService), ServiceLifetime.Singleton)]
 public sealed partial class StickerService : ServiceEntity, IStickerService
 {
     private const string StickerPageUrl = "https://jcc.dev/stickers";

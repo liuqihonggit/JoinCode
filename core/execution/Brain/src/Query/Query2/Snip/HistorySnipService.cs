@@ -32,7 +32,7 @@ public sealed class SnipResult
     public int RemainingTokens { get; init; }
 }
 
-[Register]
+[Register(typeof(IHistorySnipService), ServiceLifetime.Singleton)]
 public sealed partial class HistorySnipService : ServiceEntity, IHistorySnipService
 {
     private const int EstimatedCharsPerToken = 4;

@@ -1,6 +1,6 @@
 namespace Core.Hooks.Lifecycle;
 
-[Register]
+[Register(typeof(ISubagentStopHookManager), ServiceLifetime.Singleton)]
 public sealed partial class SubagentStopHookManager : ServiceEntity, ISubagentStopHookManager
 {
     private readonly IHookOrchestrator _orchestrator;

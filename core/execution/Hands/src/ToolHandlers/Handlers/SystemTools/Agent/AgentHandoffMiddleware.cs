@@ -5,7 +5,7 @@ namespace Tools.Handlers;
 /// 对齐 TS classifyHandoffIfNeeded — 在 auto 模式下审查子智能体的操作是否违反安全策略
 /// 对齐 TS cleanupWorktreeIfNeeded — 输出 worktree 信息（worktreePath/branch）
 /// </summary>
-[Register]
+[Register(typeof(IAgentToolMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class AgentHandoffMiddleware : ServiceEntity, IAgentToolMiddleware
 {
 

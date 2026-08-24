@@ -20,7 +20,7 @@ public sealed record SkillOptions
     public static SkillOptions FromConfig(WorkflowConfig? config) => new(config);
 }
 
-[Register]
+[Register(typeof(ISkillService), ServiceLifetime.Singleton)]
 public sealed partial class SkillService : ServiceEntity, ISkillService, IDisposable
 {
     private readonly SkillOptions _options;

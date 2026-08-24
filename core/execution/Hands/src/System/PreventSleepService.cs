@@ -1,7 +1,7 @@
 
 namespace Services.SystemPower;
 
-[Register]
+[Register(typeof(IPreventSleepService), ServiceLifetime.Singleton)]
 public sealed partial class PreventSleepService : ServiceEntity, IPreventSleepService
 {
 

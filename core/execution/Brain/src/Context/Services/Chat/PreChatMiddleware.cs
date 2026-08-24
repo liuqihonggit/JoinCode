@@ -7,7 +7,7 @@ namespace Core.Context;
 /// 对应原 ChatService.PrepareSendContextAsync + yield PromptInjectionInfo
 /// 遥测已统一到管道 onPreExecute/onPostExecute 回调
 /// </summary>
-[Register]
+[Register(typeof(IChatMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class PreChatMiddleware : ServiceEntity, IChatMiddleware
 {
 

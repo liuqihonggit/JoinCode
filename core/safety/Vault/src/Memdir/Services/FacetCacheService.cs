@@ -4,7 +4,7 @@ namespace Memdir.Services;
 /// Facet 缓存服务 — 对齐 TS insights.ts loadCachedFacets + saveFacets
 /// 缓存路径: ~/.jcc/usage-data/facets/{sessionId}.json
 /// </summary>
-[Register]
+[Register(typeof(IFacetCacheService), ServiceLifetime.Singleton)]
 public sealed partial class FacetCacheService : ServiceEntity, IFacetCacheService
 {
     private readonly string _facetsDirectory;

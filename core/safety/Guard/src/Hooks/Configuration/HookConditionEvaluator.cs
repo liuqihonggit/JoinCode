@@ -13,7 +13,7 @@ public interface IHookConditionEvaluator
         CancellationToken cancellationToken = default);
 }
 
-[Register]
+[Register(typeof(IHookConditionEvaluator), ServiceLifetime.Singleton)]
 public sealed partial class HookConditionEvaluator : ServiceEntity, IHookConditionEvaluator
 {
     private readonly ILogger<HookConditionEvaluator>? _logger;

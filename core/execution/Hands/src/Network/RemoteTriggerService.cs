@@ -1,6 +1,6 @@
 namespace IO.Services;
 
-[Register]
+[Register(typeof(IRemoteTriggerService), ServiceLifetime.Singleton)]
 public sealed partial class RemoteTriggerService : ServiceEntity, IRemoteTriggerService
 {
     private readonly HttpClient _httpClient;

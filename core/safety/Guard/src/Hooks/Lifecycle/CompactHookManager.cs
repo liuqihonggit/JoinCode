@@ -1,6 +1,6 @@
 namespace Core.Hooks.Lifecycle;
 
-[Register]
+[Register(typeof(ICompactHookManager), ServiceLifetime.Singleton)]
 public sealed partial class CompactHookManager : ServiceEntity, ICompactHookManager
 {
     private readonly IHookOrchestrator _orchestrator;

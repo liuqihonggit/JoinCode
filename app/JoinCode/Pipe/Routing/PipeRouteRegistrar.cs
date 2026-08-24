@@ -1,7 +1,7 @@
 
 namespace JoinCode.Pipe;
 
-[Register]
+[Register(typeof(IPipeRouteRegistrar), ServiceLifetime.Singleton)]
 public sealed partial class PipeRouteRegistrar : ServiceEntity, IPipeRouteRegistrar
 {
     private readonly CodeSessionApiHandler _codeSessionHandler;

@@ -26,7 +26,7 @@ public sealed partial class SwarmPermissionUpdateData
 }
 
 [Register]
-[Register]
+[Register(typeof(ISwarmPermissionCallbacks), ServiceLifetime.Singleton)]
 public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwarmPermissionCallbacks
 {
     private readonly IMailbox _messageBroker;

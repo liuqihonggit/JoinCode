@@ -1,7 +1,7 @@
 
 namespace Core.CostTracking;
 
-[Register]
+[Register(typeof(IAnalyticsService), ServiceLifetime.Singleton)]
 public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService, IDisposable
 {
     private readonly ConcurrentQueue<AnalyticsEvent> _events = new();

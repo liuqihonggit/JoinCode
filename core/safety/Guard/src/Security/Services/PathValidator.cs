@@ -5,7 +5,7 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// <summary>
 /// 路径验证器实现
 /// </summary>
-[Register]
+[Register(typeof(IPathValidator), ServiceLifetime.Singleton)]
 public sealed partial class PathValidator : ServiceEntity, IPathValidator
 {
     // 路径逃逸模式字典

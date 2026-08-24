@@ -15,7 +15,7 @@ internal sealed record SummaryTemplateData(
     string ErrorDetailsText,
     string PendingText);
 
-[Register]
+[Register(typeof(IAwaySummaryService), ServiceLifetime.Singleton)]
 public sealed partial class AwaySummaryService : ServiceEntity, IAwaySummaryService, IDisposable
 {
     private readonly AwaySummaryOptions _options;

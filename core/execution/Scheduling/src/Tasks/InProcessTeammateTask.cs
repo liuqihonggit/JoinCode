@@ -40,7 +40,7 @@ public sealed class TeammateState
     public int TurnCount { get; set; }
 }
 
-[Register]
+[Register(typeof(IInProcessTeammateTaskExecutor), ServiceLifetime.Singleton)]
 public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInProcessTeammateTaskExecutor
 {
     private readonly IAgentLifecycleManager _agentLifecycleManager;

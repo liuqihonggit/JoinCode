@@ -4,7 +4,7 @@ namespace Core.Configuration;
 /// <summary>
 /// 简要模式服务实现
 /// </summary>
-[Register]
+[Register(typeof(IBriefModeService), ServiceLifetime.Singleton)]
 public partial class BriefModeService : ServiceEntity, IBriefModeService
 {
 

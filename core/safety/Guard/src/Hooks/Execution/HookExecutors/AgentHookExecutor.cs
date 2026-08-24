@@ -75,7 +75,7 @@ public sealed partial class AgentHookExecutor : HookExecutorBase<AgentHook>
         var fullPrompt = BuildAgentPrompt(prompt, input);
 
         // 使用小型快速模型（如果未指定）
-        var model = hook.Model ?? _modelConfigLoader.GetDefaultModelId("anthropic");
+        var model = hook.Model ?? _modelConfigLoader.GetDefaultModelId(VendorKindConstants.Anthropic);
 
         // 调用代理服务 — 未注册时返回非阻塞错误（不阻断 DI 链路）
         if (_agentService is null)

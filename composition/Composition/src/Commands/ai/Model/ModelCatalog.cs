@@ -54,12 +54,12 @@ public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry, I
 
     public string GetDefaultModelForProvider(string provider)
     {
-        return _registry.TryGet(provider)?.DefaultModelId ?? _modelConfigLoader?.GetDefaultModelId("openai") ?? "gpt-4o";
+        return _registry.TryGet(provider)?.DefaultModelId ?? _modelConfigLoader?.GetDefaultModelId(VendorKindConstants.OpenAi) ?? "gpt-4o";
     }
 
     public string GetDefaultFastModelForProvider(string provider)
     {
-        return _registry.TryGet(provider)?.DefaultFastModelId ?? _modelConfigLoader?.GetDefaultFastModelId("openai") ?? "gpt-4o-mini";
+        return _registry.TryGet(provider)?.DefaultFastModelId ?? _modelConfigLoader?.GetDefaultFastModelId(VendorKindConstants.OpenAi) ?? "gpt-4o-mini";
     }
 
     public ModelEntry[] EnsureCurrentModelInList(ModelEntry[] models, string currentModelId)

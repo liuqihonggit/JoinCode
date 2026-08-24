@@ -200,7 +200,7 @@ public class ConfigLoader {
         else
         {
             // 回退: definition 为 null（无 settings.json）时，根据 provider 名推断 API Key 环境变量名
-            var inferredEnvVar = InferApiKeyEnvVar(provider);
+            var inferredEnvVar = EnvOverrideApplier.InferApiKeyEnvVar(provider);
             if (inferredEnvVar is not null)
             {
                 var envValue = Environment.GetEnvironmentVariable(inferredEnvVar);
@@ -215,27 +215,6 @@ public class ConfigLoader {
         WarnOnApiKeyConflict(provider, sources);
 
         return apiKey;
-    }
-
-    /// <summary>
-    /// 根据 vendor 名推断 API Key 环境变量名 — 当 settings.json 不存在、ProviderDefinitionRegistry 为空时使用
-    /// </summary>
-    private static string? InferApiKeyEnvVar(string? vendor)
-    {
-        if (string.IsNullOrEmpty(vendor)) return null;
-        if (string.Equals(vendor, "openai", StringComparison.OrdinalIgnoreCase))
-            return ProviderEnvVar.OpenAiApiKey.ToValue();
-        if (string.Equals(vendor, "anthropic", StringComparison.OrdinalIgnoreCase))
-            return ProviderEnvVar.AnthropicApiKey.ToValue();
-        if (string.Equals(vendor, "azure", StringComparison.OrdinalIgnoreCase))
-            return ProviderEnvVar.AzureOpenAiApiKey.ToValue();
-        if (string.Equals(vendor, "deepseek", StringComparison.OrdinalIgnoreCase))
-            return ProviderEnvVar.DeepSeekApiKey.ToValue();
-        if (string.Equals(vendor, "agnes", StringComparison.OrdinalIgnoreCase))
-            return ProviderEnvVar.AgnesApiKey.ToValue();
-        if (string.Equals(vendor, "sensenova", StringComparison.OrdinalIgnoreCase))
-            return ProviderEnvVar.SenseNovaApiKey.ToValue();
-        return null;
     }
 
     /// <summary>

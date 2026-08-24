@@ -19,7 +19,7 @@ public sealed class AnthropicCompatibleProviderDefinition : IProviderDefinition
     /// </summary>
     private const string DefaultAnthropicBeta = "prompt-caching-2024-07-31,prompt-caching-scope-2026-01-05,context-management-2025-06-27";
 
-    public AnthropicCompatibleProviderDefinition(IModelConfigLoader modelConfigLoader, string providerName = "anthropic", string? apiKeyEnvVar = null, string? anthropicBeta = null)
+    public AnthropicCompatibleProviderDefinition(IModelConfigLoader modelConfigLoader, string providerName = VendorKindConstants.Anthropic, string? apiKeyEnvVar = null, string? anthropicBeta = null)
     {
         _modelConfigLoader = modelConfigLoader;
         _providerName = providerName;
@@ -33,7 +33,7 @@ public sealed class AnthropicCompatibleProviderDefinition : IProviderDefinition
     private string? ResolveAnthropicBeta(string? configured)
     {
         if (configured is not null) return configured;
-        if (string.Equals(_providerName, "anthropic", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(_providerName, VendorKindConstants.Anthropic, StringComparison.OrdinalIgnoreCase))
             return DefaultAnthropicBeta;
         return null;
     }
@@ -55,7 +55,7 @@ public sealed class AnthropicCompatibleProviderDefinition : IProviderDefinition
     {
         if (!string.IsNullOrEmpty(config.Endpoint))
             return config.Endpoint.TrimEnd('/') + "/";
-        if (string.Equals(_providerName, "anthropic", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(_providerName, VendorKindConstants.Anthropic, StringComparison.OrdinalIgnoreCase))
             return "https://api.anthropic.com/";
         throw new InvalidOperationException(
             $"供应商 '{_providerName}' 使用 Anthropic 协议但未配置 endpoint。" +

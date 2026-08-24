@@ -1,7 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Media;
 using JoinCode.Abstractions.Models.Interactive;
-using JoinCode.Gui.Theming;
 
 namespace JoinCode.Gui.Views;
 
@@ -31,8 +30,6 @@ public sealed partial class AskUserQuestionDialog : Window
         HeaderBlock.Text = question.Header;
         QuestionBlock.Text = question.Question;
 
-        var palette = GuiPalette.Current;
-
         for (int i = 0; i < question.Options.Count; i++)
         {
             var idx = i;
@@ -41,17 +38,18 @@ public sealed partial class AskUserQuestionDialog : Window
                 ? opt.Label
                 : $"{opt.Label} — {opt.Description}";
 
-            var btn = CreateOptionButton(display, palette);
+            var btn = CreateOptionButton(display);
             btn.Click += (_, _) => OnOptionSelected(idx);
             OptionsPanel.Children.Add(btn);
         }
 
-        var freeInputBtn = CreateOptionButton("用户输入内容（自由输入）", palette);
+        var freeInputBtn = CreateOptionButton("用户输入内容（自由输入）");
         freeInputBtn.Click += (_, _) => OnFreeInputSelected();
         OptionsPanel.Children.Add(freeInputBtn);
     }
 
-    private static Button CreateOptionButton(string text, GuiPalette.Scheme palette)
+    /// <summary>选项按钮 — 默认按钮样式（实底+边框保证静态可点击性），主题联动走 DynamicResource</summary>
+    private static Button CreateOptionButton(string text)
     {
         return new Button
         {
@@ -61,8 +59,7 @@ public sealed partial class AskUserQuestionDialog : Window
             HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Left,
             FontSize = 13,
             Padding = new Avalonia.Thickness(10, 8),
-            Foreground = GuiPalette.ToBrush(palette.ButtonForeground),
-            Background = GuiPalette.ToBrush(palette.ButtonBackground),
+            CornerRadius = new Avalonia.CornerRadius(8),
         };
     }
 

@@ -26,10 +26,12 @@ namespace JoinCode.Gui.Tests.Views;
 [Collection("GuiUiSequential")]
 public sealed class GuiBeautifyRenderTests
 {
-    /// <summary>创建注入 InMemoryFileSystem 会话存储的 ViewModel — 占位会话避免后台引擎加载</summary>
+    /// <summary>创建注入 InMemoryFileSystem 会话存储的 ViewModel — 占位会话避免后台引擎加载；
+    /// preferencesStore 同样 InMemory 隔离（否则占位会话读真实 ~/.jcc/settings.json 的 theme 覆盖测试主题）</summary>
     private static MainViewModel CreateVm() => new(
         new JoinCode.Gui.Hosting.PlaceholderChatSession(),
-        new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"));
+        new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"),
+        new JoinCode.Gui.Persistence.GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
 
     /// <summary>注入四类样例消息（覆盖角色色条全部分支）</summary>
     private static void SeedMessages(MainViewModel vm)

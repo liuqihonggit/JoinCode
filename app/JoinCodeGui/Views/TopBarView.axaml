@@ -10,8 +10,14 @@
           BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,0,1" ClipToBounds="True">
     <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,*,Auto,Auto" ColumnSpacing="8">
       <!-- 左组：主题 / 会话操作（ghost 统一视觉） -->
-      <ToggleButton Classes="ghost" Padding="9,5" Content="☾" FontSize="13"
-                    Command="{Binding ToggleThemeCommand}" ToolTip.Tip="切换深浅主题" />
+      <!-- 主题切换：图标随主题切换（暗色显月亮/亮色显太阳），点击切换 -->
+      <ToggleButton Classes="ghost" Padding="9,5" FontSize="13"
+                    Command="{Binding ToggleThemeCommand}" ToolTip.Tip="切换深浅主题">
+        <Panel>
+          <TextBlock Text="☾" IsVisible="{Binding IsDarkTheme}" />
+          <TextBlock Text="☀" IsVisible="{Binding !IsDarkTheme}" />
+        </Panel>
+      </ToggleButton>
       <Button Grid.Column="1" Classes="ghost" Content="↻ 重新生成" Command="{Binding RegenerateLastReplyCommand}"
               IsEnabled="{Binding CanRegenerate}" ToolTip.Tip="撤回上一轮并重新生成" />
       <Button Grid.Column="2" Classes="ghost" Content="清空" Command="{Binding ClearHistoryCommand}"

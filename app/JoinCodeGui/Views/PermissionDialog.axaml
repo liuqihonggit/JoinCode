@@ -8,31 +8,45 @@
         x:Class="JoinCode.Gui.Views.PermissionDialog"
         x:DataType="hosting:PermissionConfirmationRequest"
         Title="权限确认"
-        MinWidth="400" MaxWidth="560"
+        MinWidth="420" MaxWidth="560"
         SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
-  <StackPanel Margin="20" Spacing="14">
-    <TextBlock Text="{Binding ToolName, StringFormat='工具「{0}」请求执行权限'}"
-               FontSize="15" FontWeight="SemiBold"
-               Foreground="{DynamicResource GuiPrimaryText}"
-               TextWrapping="Wrap" />
+        CanResize="False"
+        Background="{DynamicResource GuiWindowBackground}">
+  <StackPanel Margin="20" Spacing="12">
+    <!-- 标题行：warn 色盾徽 + 请求标题 -->
+    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+      <Border CornerRadius="16" Width="32" Height="32"
+              Background="{DynamicResource GuiAccentSubtle}" VerticalAlignment="Top">
+        <TextBlock Text="🛡" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+      </Border>
+      <TextBlock Grid.Column="1" Text="{Binding ToolName, StringFormat='工具「{0}」请求执行权限'}"
+                 FontSize="14" FontWeight="SemiBold"
+                 Foreground="{DynamicResource GuiPrimaryText}"
+                 TextWrapping="Wrap" VerticalAlignment="Center" />
+    </Grid>
     <TextBlock Text="{Binding ConfirmationPrompt}"
                FontSize="13"
                Foreground="{DynamicResource GuiSecondaryText}"
                TextWrapping="Wrap" />
-    <TextBlock Text="{Binding RuleContent}"
-               FontSize="11"
-               Foreground="{DynamicResource GuiMutedText}"
-               TextWrapping="Wrap"
-               FontFamily="{DynamicResource GuiMonoFont}"
-               IsVisible="{Binding HasRuleContent}" />
-    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
-      <Button Content="拒绝" MinWidth="88"
+    <!-- 规则内容：mono 等宽卡片（弱化背景承载原始规则文本） -->
+    <Border IsVisible="{Binding HasRuleContent}" CornerRadius="8" Padding="10,8"
+            Background="{DynamicResource GuiSearchBarBackground}"
+            BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1">
+      <TextBlock Text="{Binding RuleContent}"
+                 FontSize="11"
+                 Foreground="{DynamicResource GuiMutedText}"
+                 TextWrapping="Wrap"
+                 FontFamily="{DynamicResource GuiMonoFont}" />
+    </Border>
+    <!-- 按钮行：拒绝（warn ghost）/ 允许本次（ghost）/ 始终允许（primary） -->
+    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+      <Button Content="拒绝" MinWidth="88" Padding="12,6" CornerRadius="8"
+              Classes="ghost" Foreground="{DynamicResource GuiWarnText}"
               Command="{Binding DenyCommand, RelativeSource={RelativeSource AncestorType=local:PermissionDialog}}" />
-      <Button Content="允许本次" MinWidth="88"
+      <Button Content="允许本次" MinWidth="88" Padding="12,6" CornerRadius="8" Classes="ghost"
               Command="{Binding AllowCommand, RelativeSource={RelativeSource AncestorType=local:PermissionDialog}}" />
-      <Button Content="始终允许" MinWidth="88"
+      <Button Content="始终允许" MinWidth="88" Padding="12,6" CornerRadius="8" Classes="primary"
               Command="{Binding AlwaysAllowCommand, RelativeSource={RelativeSource AncestorType=local:PermissionDialog}}" />
     </StackPanel>
   </StackPanel>

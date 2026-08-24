@@ -28,10 +28,12 @@ namespace JoinCode.Gui.Tests.Views;
 [Collection("GuiUiSequential")]
 public sealed class SlashPaletteRenderTests
 {
-    /// <summary>创建注入 InMemoryFileSystem 会话存储的 ViewModel — 传入就绪占位会话避免后台引擎加载（IsBusy 抑制补全）</summary>
+    /// <summary>创建注入 InMemoryFileSystem 会话存储的 ViewModel — 传入就绪占位会话避免后台引擎加载（IsBusy 抑制补全）；
+    /// preferencesStore 同样 InMemory 隔离（否则 Placeholder 会话读真实 ~/.jcc/settings.json 的 theme 覆盖测试主题）</summary>
     private static MainViewModel CreateVm() => new(
         new JoinCode.Gui.Hosting.PlaceholderChatSession(),
-        new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"));
+        new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"),
+        new JoinCode.Gui.Persistence.GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
 
     /// <summary>定位仓库根目录（向上找 Gui.slnx），dumps 输出到 {root}/dumps/gui-slash/</summary>
     private static string DumpDir()

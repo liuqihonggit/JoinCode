@@ -36,6 +36,10 @@ Slash 补全面板改造完成（a0a2d71e8）后，用户要求"全部做剩下�
 | D4 | 全局对齐：消息列表边距 12 与栏节奏统一；面板内容 padding 对齐 12 | ✅ |
 | D5 | 编译 + 绿测试 + 截图核对 + 提交 D（338 全绿） | ✅ |
 | E1 | 缺陷驱动：↓ 导航到末项列表不滚动（红测试复现）→ Disabled→Hidden + 几何校正（339 全绿） | ✅ |
+| F1 | 主题切换图标随主题切换（☾/☀ 双 TextBlock + IsDarkTheme 绑定） | ✅ |
+| F2 | 三对话框统一设计语言：确认(问号徽章+ghost/primary)、权限(盾徽+mono规则卡片+三档按钮)、提问(选项默认样式) | ✅ |
+| F3 | 截图验证：DialogRenderTests 4 测试 + confirm/permission/askuser 暗色帧人工核对 | ✅ |
+| F4 | 测试隔离修复：4 个截图测试补传 GuiPreferencesStore(InMemory)，杜绝真实 settings.json 主题覆盖（343 全绿） | ✅ |
 
 ## 踩坑记录
 
@@ -48,6 +52,7 @@ Slash 补全面板改造完成（a0a2d71e8）后，用户要求"全部做剩下�
 | 补全面板压住输入栏一半且左右错位 10px | 覆盖层方案用魔法 margin(10,0,10,100) 猜输入栏高度，代码隐藏 SizeChanged 同步边距 | 布局行方案：面板与输入栏同列约束（Row2/Row3），对齐由布局系统保证，删除全部定位代码 |
 | 几何断言 TransformToVisual 编译错 | Avalonia 11 返回 Matrix?（非 Point?） | `.GetValueOrDefault().Transform(new Point(0,0))` 取窗口坐标 |
 | ↓ 导航到末项列表不滚动 | ScrollViewer.VerticalScrollBarVisibility=Disabled 在 Avalonia 中是**完全禁用滚动**（非隐藏滚动条），ScrollIntoView 失效 Offset 恒 0 | 改 Hidden（滚动条隐藏但滚动可用）；另 ScrollIntoView 对末项差 4px（margin/padding 舍入），Dispatcher.Post(Loaded) 几何校正兜底 |
+| 截图测试突然全挂（窗口全亮 243.6） | 用户验收时切了主题 → 持久化到真实 ~/.jcc/settings.json；4 个截图测试的 CreateVm 漏传 GuiPreferencesStore → 占位会话经 ConfigurationService 读真实主题 → UIThread.Post 异步覆盖窗口主题（且时序竞争 flaky） | CreateVm 统一补传 GuiPreferencesStore(InMemory)——配置服务的 FileSystem 跟随 preferencesStore（构造函数既有设计），测试配置读写全部隔离 |
 
 <!-- 🤖 Auto Decision: 2026-08-23 -->
 <!-- 决策: 共享控件样式放编译型 GuiControlStyles.axaml(Styles 子类) 而非 App.axaml -->

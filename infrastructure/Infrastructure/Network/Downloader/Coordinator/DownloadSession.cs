@@ -157,7 +157,7 @@ internal sealed class DownloadSession : IDownloadSession
             if (pendingChunks.Count == 0)
                 return await MergeAndCompleteAsync(ct).ConfigureAwait(false);
 
-            var results = DownloadChunksParallel(pendingChunks, ct);
+            var results = await DownloadChunksParallelAsync(pendingChunks, ct).ConfigureAwait(false);
 
             var failed = results.FirstOrDefault(r => !r.Success);
             if (failed is not null)
@@ -182,16 +182,30 @@ internal sealed class DownloadSession : IDownloadSession
         }
     }
 
-    private ChunkDownloadResult[] DownloadChunksParallel(List<DownloadChunk> chunks, CancellationToken ct)
+    /// <summary>
+    /// AIO 并发下载分片 — Task.WhenAll + SemaphoreSlim 限流,0 线程阻塞
+    /// <para>替代 PLINQ + .GetAwaiter().GetResult()(BIO),用真异步并发避免线程池浪费</para>
+    /// <para>SemaphoreSlim.WaitAsync 限制并发度=MaxThreads,不阻塞线程</para>
+    /// </summary>
+    private async Task<ChunkDownloadResult[]> DownloadChunksParallelAsync(
+        List<DownloadChunk> chunks, CancellationToken ct)
     {
-        return chunks
-            .AsParallel()
-            .WithDegreeOfParallelism(_options.MaxThreads)
-            .Select(chunk => _chunkDownloader
-                .DownloadAsync(_url, chunk, GetPartPath(chunk.Index), ct)
-                .GetAwaiter()
-                .GetResult())
-            .ToArray();
+        using var semaphore = new SemaphoreSlim(_options.MaxThreads, _options.MaxThreads);
+        var tasks = chunks.Select(async chunk =>
+        {
+            await semaphore.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                return await _chunkDownloader
+                    .DownloadAsync(_url, chunk, GetPartPath(chunk.Index), ct)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        });
+        return await Task.WhenAll(tasks).ConfigureAwait(false);
     }
 
     private bool LoadOrPlanChunks(RangeSupportResult probe)

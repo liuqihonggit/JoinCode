@@ -108,20 +108,23 @@
 4. 定期(每 64KB 或 1s)更新元数据 `downloaded` 字段
 5. 写完标记 `completed = true`
 
-### 3.5 FR-5: 多线程协调下载(PLINQ)
+### 3.5 FR-5: 多线程协调下载(AIO)
 
 **输入**: URL + 文件路径 + `DownloadOptions`  
 **逻辑**:
 1. 探测 Range 支持 → 获取 `ContentLength`
 2. 检查 `.meta.json` → 恢复或新建分片计划
 3. 过滤未 completed 的分片
-4. **PLINQ 并发**:
+4. **AIO 异步并发**(0 线程阻塞,IOCP 回调):
    ```csharp
-   var results = pendingChunks
-       .AsParallel()
-       .WithDegreeOfParallelism(options.MaxThreads)
-       .Select(chunk => chunkDownloader.DownloadAsync(chunk, ct))
-       .ToArray();
+   using var sem = new SemaphoreSlim(maxThreads);
+   var tasks = pendingChunks.Select(async chunk =>
+   {
+       await sem.WaitAsync(ct);
+       try { return await chunkDownloader.DownloadAsync(chunk, ct); }
+       finally { sem.Release(); }
+   });
+   var results = await Task.WhenAll(tasks);
    ```
 5. 所有分片完成 → 合并 `.part` 文件为目标文件(按 index 顺序拼接)
 6. 删除 `.meta.json` 和 `.part` 文件
@@ -173,7 +176,7 @@
 |------|------|
 | **目标框架** | net10.0 |
 | **AOT 兼容** | `IsAotCompatible=true`,用 `JsonSerializerContext` 源码生成器,禁 `dynamic`/反射 emit |
-| **并发规范** | PLINQ `.AsParallel().WithDegreeOfParallelism(n)`,禁 `Parallel.For/ForEach`(`PerformanceRules.cs:89`) |
+| **并发规范** | AIO: `Task.WhenAll` + `SemaphoreSlim.WaitAsync` 限流,0 线程阻塞(禁 PLINQ `.GetAwaiter().GetResult()` BIO 模式) |
 | **文件 IO** | `FileStream` 用 `FileShare.ReadWrite`(`JCC9006`),临时文件用 `.part` 后缀 |
 | **字符串** | 禁循环内 `+=` 拼(`JCC5002`),用 `StringBuilder` |
 | **容器** | 分片查找用 `FrozenDictionary`/`Dictionary`,禁 `List.Contains` |
@@ -517,3 +520,9 @@ public sealed record DownloadProgress(
 <!-- 🤖 Auto Decision: 2026-08-25 T9 全量编译 -->
 <!-- 决策: Infrastructure.slnx Debug 全量编译通过,0 警告 0 错误 -->
 <!-- 验证: 78 个单元测试全通过(状态机32+规划14+元数据12+探测8+分片7+集成5) ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-25 AIO 重构 -->
+<!-- 决策: DownloadChunksParallel 从 BIO(PLINQ + .GetAwaiter().GetResult()) 改为 AIO(Task.WhenAll + SemaphoreSlim.WaitAsync) -->
+<!-- 原因: PLINQ 的 .GetAwaiter().GetResult() 同步阻塞线程,MaxThreads=8 占 8 线程阻塞,浪费线程池;AIO 0 线程阻塞,IOCP 回调,可扩展 -->
+<!-- 替代方案: 保持 PLINQ(BIO,简单但浪费线程) / 混合(单线程AIO+多线程BIO,复杂度增加不值) -->
+<!-- 验证: 78 个单元测试全通过,行为不变 ✅ -->

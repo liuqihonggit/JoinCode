@@ -89,10 +89,10 @@
         </ItemsControl>
       </StackPanel>
     </ScrollViewer>
-    <!-- 底部状态：绑定真实引擎状态（StatusText/StatusKind），与主窗口状态栏同源同高（Padding 对齐 12,5） -->
-    <Border Grid.Row="2" x:Name="SidebarStatusBar" Padding="12,5" Background="{DynamicResource GuiStatusBarBackground}"
+    <!-- 底部状态：绑定真实引擎状态（StatusText/StatusKind），与主窗口状态栏同源同高（固定 30 防内容撑高错位） -->
+    <Border Grid.Row="2" x:Name="SidebarStatusBar" Height="30" Padding="12,0" Background="{DynamicResource GuiStatusBarBackground}"
             BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,1,0,0">
-      <StackPanel Orientation="Horizontal" Spacing="6">
+      <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
         <TextBlock Text="●" FontSize="12" Foreground="{Binding StatusKind, Converter={StaticResource StatusToBrush}}"
                    VerticalAlignment="Center" />
         <TextBlock Text="{Binding StatusText, FallbackValue='未连接'}" FontSize="11"

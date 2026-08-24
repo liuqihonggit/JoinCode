@@ -231,10 +231,37 @@ public sealed class GuiBeautifyRenderTests
             var mainBar = win.GetVisualDescendants().OfType<Border>()
                 .First(b => b.Name == "MainStatusBar");
 
+            var sidebarRect = BoundsInWindow(sidebarBar);
+            var mainRect = BoundsInWindow(mainBar);
+
             // 两条状态栏必须等高（横向分隔线连续，否则侧栏/主区交界出现台阶错位）
-            var diff = Math.Abs(sidebarBar.Bounds.Height - mainBar.Bounds.Height);
+            var diff = Math.Abs(sidebarRect.Height - mainRect.Height);
             Assert.True(diff <= 0.75,
-                $"侧栏状态栏高 {sidebarBar.Bounds.Height:F1} 与主状态栏高 {mainBar.Bounds.Height:F1} 不等（差 {diff:F1}px），横向分隔线错位");
+                $"侧栏状态栏高 {sidebarRect.Height:F1} 与主状态栏高 {mainRect.Height:F1} 不等（差 {diff:F1}px），横向分隔线错位");
+
+            // 等高还不够 — 顶边必须同一水平线（底边贴窗口底由 Grid Stretch 保证）
+            var topDiff = Math.Abs(sidebarRect.Top - mainRect.Top);
+            Assert.True(topDiff <= 0.75,
+                $"侧栏状态栏顶 {sidebarRect.Top:F1} 与主状态栏顶 {mainRect.Top:F1} 不在同一水平线（差 {topDiff:F1}px）");
+
+            // 文字基线对齐 — 容器对齐但内容未垂直居中时文字仍会错位（用户可见的"差一点点"）
+            var sideText = sidebarBar.GetVisualDescendants().OfType<TextBlock>()
+                .First(t => t.Text == ((MainViewModel)win.DataContext!).StatusText);
+            var mainText = mainBar.GetVisualDescendants().OfType<TextBlock>().First();
+            var textDiff = Math.Abs(BoundsInWindow(sideText).Top - BoundsInWindow(mainText).Top);
+            Assert.True(textDiff <= 0.75,
+                $"侧栏状态文字顶 {BoundsInWindow(sideText).Top:F1} 与主状态栏文字顶 {BoundsInWindow(mainText).Top:F1} 错位 {textDiff:F1}px（内容未垂直居中？）");
+
+            // 真实环境场景：模型徽章显示（SelectedModel 非空）— 徽章高 19px 会撑高主状态栏产生台阶
+            var vm2 = (MainViewModel)win.DataContext!;
+            vm2.SelectedModel = "sensenova-6.8-flash-lite";
+            Dispatcher.UIThread.RunJobs();
+            var sideRect2 = BoundsInWindow(win.GetVisualDescendants().OfType<Border>()
+                .First(b => b.Name == "SidebarStatusBar"));
+            var mainRect2 = BoundsInWindow(mainBar);
+            var diff2 = Math.Abs(sideRect2.Height - mainRect2.Height);
+            Assert.True(diff2 <= 0.75,
+                $"模型徽章显示后主状态栏高 {mainRect2.Height:F1} vs 侧栏 {sideRect2.Height:F1}（差 {diff2:F1}px）— 徽章撑高了状态栏");
         }
         finally
         {

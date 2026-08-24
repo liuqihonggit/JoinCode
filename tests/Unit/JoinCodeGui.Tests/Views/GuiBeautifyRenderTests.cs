@@ -166,6 +166,50 @@ public sealed class GuiBeautifyRenderTests
         }
     }
 
+    /// <summary>把控件边界换算到窗口坐标</summary>
+    private static Avalonia.Rect BoundsInWindow(Avalonia.Visual v)
+    {
+        var root = (Avalonia.Visual)(v.GetVisualRoot() ?? throw new InvalidOperationException("控件不在视觉树中"));
+        var topLeft = (v.TransformToVisual(root) ?? throw new InvalidOperationException("坐标换算失败"))
+            .Transform(default);
+        return new Avalonia.Rect(topLeft, v.Bounds.Size);
+    }
+
+    [AvaloniaFact]
+    public void TopBar_ConnectionAndModelCombos_AreAdjacent()
+    {
+        GuiPalette.CurrentVariant = GuiPalette.GuiThemeVariant.Dark;
+        var win = new MainWindow
+        {
+            DataContext = CreateVm(),
+            Width = 980,
+            Height = 680,
+            RequestedThemeVariant = Avalonia.Styling.ThemeVariant.Dark
+        };
+        win.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+
+            // 顶栏可见下拉：连接 + 模型（引擎就绪态均可见）
+            var combos = win.GetVisualDescendants().OfType<ComboBox>()
+                .Where(c => c.IsVisible && c.Bounds.Width > 0)
+                .Select(c => (Combo: c, Rect: BoundsInWindow(c)))
+                .OrderBy(pair => pair.Rect.Left)
+                .ToList();
+            Assert.True(combos.Count >= 2, $"顶栏应有两个可见下拉，实际 {combos.Count}");
+
+            // 最右侧两个下拉 = 连接 + 模型：必须紧靠（间距 ≤ ColumnSpacing 8 + 亚像素容差）
+            var gap = combos[^1].Rect.Left - combos[^2].Rect.Right;
+            Assert.True(gap <= 8.75,
+                $"连接与模型下拉间距 {gap:F1}px 未紧靠（中间被 * 弹性列拉开？）");
+        }
+        finally
+        {
+            win.Close();
+        }
+    }
+
     [AvaloniaFact]
     public void SidebarStatus_BindsRealEngineStatus_NotHardcoded()
     {

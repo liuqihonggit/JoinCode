@@ -45,6 +45,7 @@ Slash 补全面板改造完成（a0a2d71e8）后，用户要求"全部做剩下�
 | H2 | 亮色对话框帧补充（对话框需显式 RequestedThemeVariant，继承宿主默认 Dark）+ 连接 ComboBox 空数据 placeholder（345 全绿） | ✅ |
 | I1 | Markdown 代码块 + Diff 增/删行背景 token 化（CodeBlockBackground/DiffAddedBackground/DiffRemovedBackground），修亮色主题黑底黑字不可读（345 全绿） | ✅ |
 | J1 | PermissionDialog 亮色帧补充 — 三对话框 × 双主题截图矩阵全部人工核对（345 全绿） | ✅ |
+| K1 | TopBar 两下拉紧靠：`*,*` 双弹性列致 97px 空隙（红测试量化）→ 相邻 Auto 列 + 单 `*` 空隙推右组（346 全绿） | ✅ |
 
 ## 踩坑记录
 
@@ -108,6 +109,12 @@ Slash 补全面板改造完成（a0a2d71e8）后，用户要求"全部做剩下�
 <!-- 原因: 引擎加载后仍显示占位文案是错误信息；单一数据源消除两处状态显示漂移 -->
 <!-- 替代方案: 删除侧栏底部状态栏（信息重复，但保留侧栏完整性更好）-->
 <!-- 验证: SidebarStatus_BindsRealEngineStatus_NotHardcoded 断言通过 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-25 -->
+<!-- 决策: TopBar 右组布局从 `*,*` 双弹性列改为相邻 Auto 列（连接+模型紧靠 8px）+ 单 `*` 弹性空隙推右 -->
+<!-- 原因: 双 * 列平分中间区域致两下拉相距 97px（用户截图反馈"不紧靠"）；全部 Grid 网格定位无绝对定位；ComboBox 宽度 Min/MaxWidth 夹紧防选择内容跳动 -->
+<!-- 替代方案: DockPanel 右停靠（Grid 已是全项目范式，保持一致）-->
+<!-- 验证: TopBar_ConnectionAndModelCombos_AreAdjacent 红转绿（97px→8px），346 测试全绿 ✅ -->
 
 ## 涉及文件树
 

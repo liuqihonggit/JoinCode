@@ -70,6 +70,7 @@ global using JoinCode.Abstractions.Utils.Text;
 global using JoinCode.Abstractions.Utils.Diagnostics;
 global using JoinCode.Abstractions.Diagnostics;
 global using Microsoft.Extensions.DependencyInjection;
+global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using System.Collections.Frozen;
 global using System.Collections.Immutable;
 global using System.ComponentModel.DataAnnotations;

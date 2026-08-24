@@ -180,9 +180,10 @@ public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCo
         var baseCommand = tokens[0];
 
         // 在白名单中查找匹配的命令配置（支持1/2/3-token键，如 "git config --get"）
+        // 优化: 用 string.Concat 直拼替代 Take().ToArray() + Join, 避免数组分配(热路径每命令检测)
         if (!CommandAllowlist.TryGetValue(baseCommand, out var config)
-            && !CommandAllowlist.TryGetValue(string.Join(" ", tokens.Take(2).ToArray()), out config)
-            && !CommandAllowlist.TryGetValue(string.Join(" ", tokens.Take(3).ToArray()), out config))
+            && !CommandAllowlist.TryGetValue(TwoTokenKey(tokens), out config)
+            && !CommandAllowlist.TryGetValue(ThreeTokenKey(tokens), out config))
         {
             return false;
         }
@@ -476,6 +477,19 @@ public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCo
 
         return false;
     }
+
+    /// <summary>
+    /// 构造 2-token 查找键 — 用 string.Concat 直拼避免 Take().ToArray() 数组分配
+    /// </summary>
+    private static string TwoTokenKey(List<string> tokens)
+        => tokens.Count >= 2 ? string.Concat(tokens[0], " ", tokens[1]) : tokens[0];
+
+    /// <summary>
+    /// 构造 3-token 查找键 — 用 string.Concat 直拼避免 Take().ToArray() 数组分配
+    /// </summary>
+    private static string ThreeTokenKey(List<string> tokens)
+        => tokens.Count >= 3 ? string.Concat(tokens[0], " ", tokens[1], " ", tokens[2])
+        : TwoTokenKey(tokens);
 
     /// <summary>
     /// 分割命令为 token

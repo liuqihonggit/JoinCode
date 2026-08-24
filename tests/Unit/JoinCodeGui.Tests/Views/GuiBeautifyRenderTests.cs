@@ -2,6 +2,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 
 using Avalonia;
@@ -10,6 +11,7 @@ using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 
 using JoinCode.Abstractions.LLM.Chat;
 using JoinCode.Gui.Persistence;
@@ -157,6 +159,38 @@ public sealed class GuiBeautifyRenderTests
                 ?? throw new InvalidOperationException("CaptureRenderedFrame 返回 null");
             SavePng(frame, Path.Combine(dump, "settings-dark.png"));
             Assert.True(File.Exists(Path.Combine(dump, "settings-dark.png")), "设置面板帧图应已保存供人工核对");
+        }
+        finally
+        {
+            win.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public void SidebarStatus_BindsRealEngineStatus_NotHardcoded()
+    {
+        GuiPalette.CurrentVariant = GuiPalette.GuiThemeVariant.Dark;
+        var win = new MainWindow
+        {
+            DataContext = CreateVm(),
+            Width = 980,
+            Height = 680,
+            RequestedThemeVariant = Avalonia.Styling.ThemeVariant.Dark
+        };
+        win.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+            var vm = (MainViewModel)win.DataContext!;
+
+            // 硬编码占位文案必须消失（引擎加载后仍显示"本地引擎待接入"是错误信息）
+            Assert.DoesNotContain(win.GetVisualDescendants().OfType<TextBlock>(),
+                t => t.Text == "本地引擎待接入");
+
+            // 侧栏底部状态文本必须与 VM.StatusText 同源
+            var sidebarStatus = win.GetVisualDescendants().OfType<TextBlock>()
+                .Where(t => t.Text == vm.StatusText).ToList();
+            Assert.NotEmpty(sidebarStatus);
         }
         finally
         {

@@ -40,6 +40,7 @@ Slash 补全面板改造完成（a0a2d71e8）后，用户要求"全部做剩下�
 | F2 | 三对话框统一设计语言：确认(问号徽章+ghost/primary)、权限(盾徽+mono规则卡片+三档按钮)、提问(选项默认样式) | ✅ |
 | F3 | 截图验证：DialogRenderTests 4 测试 + confirm/permission/askuser 暗色帧人工核对 | ✅ |
 | F4 | 测试隔离修复：4 个截图测试补传 GuiPreferencesStore(InMemory)，杜绝真实 settings.json 主题覆盖（343 全绿） | ✅ |
+| G1 | 侧栏底部状态绑定真实 VM 状态（修硬编码"本地引擎待接入"bug）+ 会话列表标签对齐 + closeBtn 走 ghost 类（344 全绿） | ✅ |
 
 ## 踩坑记录
 

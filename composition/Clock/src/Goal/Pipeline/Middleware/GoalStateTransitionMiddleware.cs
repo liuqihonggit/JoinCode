@@ -5,7 +5,7 @@ using JoinCode.Abstractions.Pipeline;
 /// <summary>
 /// 状态变更中间件 — 根据操作类型执行状态转换
 /// </summary>
-[Register(typeof(IGoalLifecycleMiddleware))]
+[Register(typeof(IGoalLifecycleMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class GoalStateTransitionMiddleware : ServiceEntity, IGoalLifecycleMiddleware
 {
 

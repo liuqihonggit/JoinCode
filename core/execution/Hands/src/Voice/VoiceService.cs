@@ -1,8 +1,8 @@
 
 namespace Services.Voice;
 
-[Register(typeof(IVoiceService))]
-[Register(typeof(JoinCode.Abstractions.Interfaces.IVoiceService))]
+[Register(typeof(IVoiceService), ServiceLifetime.Singleton)]
+[Register(typeof(JoinCode.Abstractions.Interfaces.IVoiceService), ServiceLifetime.Singleton)]
 public sealed partial class VoiceService : ServiceEntity, IVoiceService, JoinCode.Abstractions.Interfaces.IVoiceService, IDisposable
 {
     private readonly VoiceOptions _options;

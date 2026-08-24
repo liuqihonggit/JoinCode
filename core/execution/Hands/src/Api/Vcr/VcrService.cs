@@ -1,8 +1,8 @@
 
 namespace Services.Api.Vcr;
 
-[Register(typeof(IVcrService))]
-[Register(typeof(JoinCode.Abstractions.Interfaces.IVcrService))]
+[Register(typeof(IVcrService), ServiceLifetime.Singleton)]
+[Register(typeof(JoinCode.Abstractions.Interfaces.IVcrService), ServiceLifetime.Singleton)]
 public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Abstractions.Interfaces.IVcrService, IDisposable
 {
     private readonly VcrOptions _options;

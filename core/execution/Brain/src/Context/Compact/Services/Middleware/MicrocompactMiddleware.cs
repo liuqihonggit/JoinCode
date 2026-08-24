@@ -5,7 +5,7 @@ namespace Core.Context.Compact;
 /// <summary>
 /// 微压缩中间件 — 时间间隔压缩 + 工具结果清理
 /// </summary>
-[Register(typeof(ICompactMiddleware))]
+[Register(typeof(ICompactMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class MicrocompactMiddleware : ServiceEntity, ICompactMiddleware
 {
 

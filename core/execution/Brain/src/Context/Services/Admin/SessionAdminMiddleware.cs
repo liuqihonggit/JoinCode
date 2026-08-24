@@ -4,7 +4,7 @@ namespace Core.Context;
 /// 会话管理中间件 — 操作分派层，通过 IChatAdminOperationHandler 策略模式分发
 /// 每个 Handler 只注入自己需要的服务，替代原来的 11 路 switch + 8 个服务注入
 /// </summary>
-[Register(typeof(IChatAdminMiddleware))]
+[Register(typeof(IChatAdminMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class SessionAdminMiddleware : ServiceEntity, IChatAdminMiddleware
 {
     private readonly Dictionary<ChatAdminOperation, IChatAdminOperationHandler> _handlers;

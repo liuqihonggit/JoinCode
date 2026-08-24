@@ -5,7 +5,7 @@ namespace Core.Hooks.Execution;
 /// LLM 提示钩子执行器
 /// 使用 LLM 验证工具调用
 /// </summary>
-[Register(typeof(IHookExecutor))]
+[Register(typeof(IHookExecutor), ServiceLifetime.Singleton)]
 public sealed partial class PromptHookExecutor : HookExecutorBase<PromptHook>
 {
     private readonly ILLMService? _llmService;

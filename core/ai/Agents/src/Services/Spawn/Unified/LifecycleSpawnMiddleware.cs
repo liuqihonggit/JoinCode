@@ -6,7 +6,7 @@ namespace Core.Agents;
 /// 路径 A：用 ResolvedSubOptions 调用 Spawn，并设置 ParentAgentId/SessionId
 /// 路径 B：用 SubOptions 调用 Spawn
 /// </summary>
-[Register(typeof(IUnifiedSpawnMiddleware))]
+[Register(typeof(IUnifiedSpawnMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class LifecycleSpawnMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 

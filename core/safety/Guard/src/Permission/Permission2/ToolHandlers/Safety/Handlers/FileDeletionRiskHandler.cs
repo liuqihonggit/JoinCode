@@ -6,7 +6,7 @@ namespace Core.Permission;
 /// Auto 模式: 拒绝 + 引导使用 Move-Item 移动到 .xxx/ 目录
 /// Ask 模式: 提示确认 + 建议移动到 .xxx/ 目录
 /// </summary>
-[Register(typeof(ICommandRiskHandler))]
+[Register(typeof(ICommandRiskHandler), ServiceLifetime.Singleton)]
 public sealed partial class FileDeletionRiskHandler : DeletionRiskHandlerBase
 {
     /// <inheritdoc />

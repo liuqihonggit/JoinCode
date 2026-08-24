@@ -7,7 +7,7 @@ using JoinCode.Abstractions.Models.Goal;
 /// <summary>
 /// 节点间冲突消息队列 — 每节点独立 Channel，非阻塞入队/拉取。
 /// </summary>
-[Register(typeof(IGoalConflictMessenger))]
+[Register(typeof(IGoalConflictMessenger), ServiceLifetime.Singleton)]
 public sealed partial class GoalConflictMessenger : ServiceEntity, IGoalConflictMessenger
 {
     private readonly ConcurrentDictionary<string, Channel<ConflictMessage>> _channels = new(StringComparer.Ordinal);

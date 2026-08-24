@@ -4,7 +4,7 @@ namespace Core.Agents.Coordinator;
 /// 子代理用户输入转发队列实现 — 基于 Channel&lt;string&gt;，每 agent 一个独立队列
 /// 独立于 AgentMessageBroker，不干扰权限响应路由
 /// </summary>
-[Register(typeof(JoinCode.Abstractions.Interfaces.IAgentInputForwardQueue))]
+[Register(typeof(JoinCode.Abstractions.Interfaces.IAgentInputForwardQueue), ServiceLifetime.Singleton)]
 public sealed partial class AgentInputForwardQueue : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentInputForwardQueue
 {
     private readonly ConcurrentDictionary<string, Channel<string>> _queues;

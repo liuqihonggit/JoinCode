@@ -23,7 +23,7 @@ public interface IConfirmationGate
 /// 确认门控实例 — 消除静态字段串扰，支持多会话隔离。
 /// 注册为 Singleton：当前单会话 CLI 够用；多会话场景改为 Scoped + 会话级 scope。
 /// </summary>
-[Register(typeof(IConfirmationGate))]
+[Register(typeof(IConfirmationGate), ServiceLifetime.Singleton)]
 internal sealed class ConfirmationGate : IConfirmationGate
 {
     private volatile bool _pending;

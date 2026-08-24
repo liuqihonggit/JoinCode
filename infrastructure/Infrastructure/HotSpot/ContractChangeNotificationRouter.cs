@@ -5,7 +5,7 @@ namespace Infrastructure.HotSpot;
 /// 队长广播 ContractChanged 时，往目标 Worker 的队列塞通知
 /// Worker 的 AgentBase.ContractChangeNotifications 指向此路由器管理的队列
 /// </summary>
-[Register(typeof(IContractChangeNotificationRouter))]
+[Register(typeof(IContractChangeNotificationRouter), ServiceLifetime.Singleton)]
 public sealed class ContractChangeNotificationRouter : IContractChangeNotificationRouter
 {
     private readonly ConcurrentDictionary<string, ConcurrentQueue<string>> _queues = new(StringComparer.OrdinalIgnoreCase);

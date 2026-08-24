@@ -5,7 +5,7 @@ namespace Core.Query;
 /// <summary>
 /// USD 预算中间件 — 每次迭代前检查 USD 预算是否超限
 /// </summary>
-[Register(typeof(IQueryMiddleware))]
+[Register(typeof(IQueryMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class UsdBudgetMiddleware : ServiceEntity, IQueryMiddleware
 {
 

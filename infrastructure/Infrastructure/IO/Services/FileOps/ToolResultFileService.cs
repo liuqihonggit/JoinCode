@@ -1,6 +1,6 @@
 namespace Infrastructure.IO;
 
-[Register(typeof(JoinCode.Abstractions.LLM.Chat.IToolResultFileService))]
+[Register(typeof(JoinCode.Abstractions.LLM.Chat.IToolResultFileService), ServiceLifetime.Singleton)]
 public sealed partial class ToolResultFileService : ServiceEntity, JoinCode.Abstractions.LLM.Chat.IToolResultFileService
 {
     private readonly ILogger<ToolResultFileService>? _logger;

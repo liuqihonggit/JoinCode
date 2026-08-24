@@ -1,6 +1,6 @@
 namespace Api;
 
-[Register(typeof(IToolGroupFactory))]
+[Register(typeof(IToolGroupFactory), ServiceLifetime.Singleton)]
 public sealed partial class ToolGroupFactory : ServiceEntity, IToolGroupFactory
 {
     public IToolGroup CreateFromObject(object instance, string pluginName)

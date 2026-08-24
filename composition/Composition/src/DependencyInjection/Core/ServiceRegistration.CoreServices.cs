@@ -13,7 +13,7 @@ public static partial class ServiceRegistration
 
         // Chat/ChatAdmin/ChatInit 管道 — 由 [RegisterMiddleware] + [Register(IPipelineHook)] + 生成器自动注册
 
-        // IStore<AppState> — [Register(typeof(IStore<AppState>))] 自动注册（AppStateStore）
+        // IStore<AppState> — [Register(typeof(IStore<AppState>), ServiceLifetime.Singleton)] 自动注册（AppStateStore）
 
         services.AddApiClientServices();
 

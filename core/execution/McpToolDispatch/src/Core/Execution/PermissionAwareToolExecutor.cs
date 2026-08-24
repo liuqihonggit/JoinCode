@@ -7,7 +7,7 @@ namespace McpToolRegistry;
 /// 管道: 参数修复 → 必填参数校验 → Schema校验 → Agent限制 → 权限检查 → 远程策略 → FeatureFlag → 执行
 /// 权限模式统一从 IToolPermissionManager 获取，不再自行维护
 /// </summary>
-[Register(typeof(IToolExecutionGateway))]
+[Register(typeof(IToolExecutionGateway), ServiceLifetime.Singleton)]
 public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolExecutionGateway
 {
     private readonly IToolRegistry _toolRegistry;

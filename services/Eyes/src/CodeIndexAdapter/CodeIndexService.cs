@@ -2,7 +2,7 @@ using JoinCode.Abstractions.Attributes;
 
 namespace Services.CodeIndex;
 
-[Register(typeof(IHostedService))]
+[Register(typeof(IHostedService), ServiceLifetime.Singleton)]
 public sealed partial class CodeIndexService : IHostedService, IAsyncDisposable
 {
     private readonly ICodeIndexer _indexer;

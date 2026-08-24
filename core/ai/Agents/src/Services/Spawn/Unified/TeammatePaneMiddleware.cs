@@ -5,7 +5,7 @@ namespace Core.Agents;
 /// 合并自路径 B 的 SpawnCoordTeammatePaneMiddleware
 /// 主代理 no-op
 /// </summary>
-[Register(typeof(IUnifiedSpawnMiddleware))]
+[Register(typeof(IUnifiedSpawnMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class TeammatePaneMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 

@@ -1,7 +1,7 @@
 
 namespace Core.Prompts.Utils;
 
-[Register(typeof(ISynonymMap))]
+[Register(typeof(ISynonymMap), ServiceLifetime.Singleton)]
 public sealed partial class SynonymMap : ServiceEntity, ISynonymMap
 {
     private readonly FrozenDictionary<string, string> _map;

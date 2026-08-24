@@ -3,7 +3,7 @@ namespace Core.Prompts;
 /// <summary>
 /// 系统提醒管理器 - 管理对话中的动态提醒
 /// </summary>
-[Register(typeof(ISystemReminderManager))]
+[Register(typeof(ISystemReminderManager), ServiceLifetime.Singleton)]
 public sealed partial class SystemReminderManager : ISystemReminderManager, IAsyncDisposable {
     private readonly Dictionary<string, SystemReminder> _reminders = new(StringComparer.Ordinal);
     private readonly AsyncLock _lock = new();

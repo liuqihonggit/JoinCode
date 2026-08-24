@@ -3,7 +3,7 @@ using JoinCode.Abstractions.Pipeline;
 
 namespace JoinCode.App.Middlewares;
 
-[Register(typeof(IPipelinePostHook<SkillContext>))]
+[Register(typeof(IPipelinePostHook<SkillContext>), ServiceLifetime.Singleton)]
 internal sealed partial class SkillTelemetryHook : TelemetryPostHook<SkillContext>
 {
     public SkillTelemetryHook(ITelemetryService? telemetryService)

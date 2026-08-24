@@ -5,7 +5,7 @@ namespace Core.Permission;
 /// Shell 删除命令检测器 — 检测 Shell/PowerShell 中的文件删除命令（rm/del/Remove-Item 等）
 /// 利用已有的 IDestructiveCommandDetector 检测 CommandRisk.FileDeletion 风险
 /// </summary>
-[Register(typeof(IDeleteOperationDetector))]
+[Register(typeof(IDeleteOperationDetector), ServiceLifetime.Singleton)]
 public sealed partial class ShellDeleteDetector : ServiceEntity, IDeleteOperationDetector
 {
     private static readonly FrozenSet<string> DeleteToolNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)

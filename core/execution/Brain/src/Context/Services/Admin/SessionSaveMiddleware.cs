@@ -6,7 +6,7 @@ namespace Core.Context;
 /// 会话保存中间件 — 管理操作完成后统一保存上下文
 /// 无业务服务依赖，仅使用 context.ContextManager
 /// </summary>
-[Register(typeof(IChatAdminMiddleware))]
+[Register(typeof(IChatAdminMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class SessionSaveMiddleware : ServiceEntity, IChatAdminMiddleware
 {
 

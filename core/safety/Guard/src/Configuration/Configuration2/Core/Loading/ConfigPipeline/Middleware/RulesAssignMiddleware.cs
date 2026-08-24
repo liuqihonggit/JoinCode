@@ -3,7 +3,7 @@ namespace Core.Configuration.ConfigPipeline;
 /// <summary>
 /// Step 6: 规则赋值
 /// </summary>
-[Register(typeof(IConfigLoadMiddleware))]
+[Register(typeof(IConfigLoadMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class RulesAssignMiddleware : ServiceEntity, IConfigLoadMiddleware
 {
 

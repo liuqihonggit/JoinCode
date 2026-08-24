@@ -4,7 +4,7 @@ namespace Core.Agents;
 /// 元数据保存中间件 — 保存 Agent 元数据到 Transcript
 /// 合并自路径 A 的 MetadataMiddleware
 /// </summary>
-[Register(typeof(IUnifiedSpawnMiddleware))]
+[Register(typeof(IUnifiedSpawnMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class MetadataMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 

@@ -5,7 +5,7 @@ namespace Core.Context.Compact;
 /// <summary>
 /// 压缩钩子中间件 — 执行 pre-compact / post-compact hooks
 /// </summary>
-[Register(typeof(ICompactMiddleware))]
+[Register(typeof(ICompactMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class CompactHookMiddleware : ServiceEntity, ICompactMiddleware
 {
 

@@ -1,6 +1,6 @@
 namespace Core.Agents.Coordinator;
 
-[Register(typeof(JoinCode.Abstractions.Interfaces.ITeammateLayoutManager))]
+[Register(typeof(JoinCode.Abstractions.Interfaces.ITeammateLayoutManager), ServiceLifetime.Singleton)]
 public sealed partial class TeammateLayoutManager : ServiceEntity, JoinCode.Abstractions.Interfaces.ITeammateLayoutManager
 {
     private static readonly string[] AgentColors =

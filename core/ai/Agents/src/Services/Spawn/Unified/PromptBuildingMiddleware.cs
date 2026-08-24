@@ -4,7 +4,7 @@ namespace Core.Agents;
 /// 提示构建中间件 — 构建系统提示词并加载记忆
 /// 统一管道版本：主代理 no-op，路径 B（SubOptions 模式）no-op
 /// </summary>
-[Register(typeof(IUnifiedSpawnMiddleware))]
+[Register(typeof(IUnifiedSpawnMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class PromptBuildingMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 

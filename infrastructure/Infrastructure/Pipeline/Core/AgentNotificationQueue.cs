@@ -1,6 +1,6 @@
 namespace Infrastructure.Pipeline;
 
-[Register(typeof(JoinCode.Abstractions.Interfaces.IAgentNotificationQueue))]
+[Register(typeof(JoinCode.Abstractions.Interfaces.IAgentNotificationQueue), ServiceLifetime.Singleton)]
 public sealed partial class AgentNotificationQueue : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentNotificationQueue
 {
     private readonly ConcurrentQueue<JoinCode.Abstractions.Interfaces.QueuedNotification> _queue = new();

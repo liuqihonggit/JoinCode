@@ -1,6 +1,6 @@
 namespace Core.Agents.Coordinator;
 
-[Register(typeof(IAgentDisposeMiddleware))]
+[Register(typeof(IAgentDisposeMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class DisposeWorktreeCleanupMiddleware : ServiceEntity, IAgentDisposeMiddleware
 {
 

@@ -5,7 +5,7 @@ using JoinCode.Abstractions.Pipeline;
 /// <summary>
 /// 引擎控制中间件 — Start/Resume 时标记启动循环，Clear/MarkCompleted/MarkUnmet 时标记取消循环
 /// </summary>
-[Register(typeof(IGoalLifecycleMiddleware))]
+[Register(typeof(IGoalLifecycleMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class GoalEngineControlMiddleware : ServiceEntity, IGoalLifecycleMiddleware
 {
 

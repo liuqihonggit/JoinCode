@@ -4,7 +4,7 @@ namespace Core.Agents;
 /// 注册消息通道中间件 — 注册 Agent 消息通道 + 初始化 Teammate 钩子
 /// 合并自路径 B 的 SpawnCoordRegisterMessageMiddleware
 /// </summary>
-[Register(typeof(IUnifiedSpawnMiddleware))]
+[Register(typeof(IUnifiedSpawnMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class RegisterMessageMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 

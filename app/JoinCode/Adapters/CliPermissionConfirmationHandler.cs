@@ -4,7 +4,7 @@ namespace JoinCode.Adapters;
 /// CLI 权限确认处理器 — ^ 提示符交互式确认
 /// 输入通过 ReplLoopStep 的 readTask 单通道路由，避免 stdin 竞争
 /// </summary>
-[Register(typeof(IPermissionConfirmationHandler))]
+[Register(typeof(IPermissionConfirmationHandler), ServiceLifetime.Singleton)]
 public sealed class CliPermissionConfirmationHandler : IPermissionConfirmationHandler
 {
     private readonly IToolPermissionManager? _permissionManager;

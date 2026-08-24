@@ -3,7 +3,7 @@ using JoinCode.Abstractions.Pipeline;
 
 namespace JoinCode.App.Middlewares;
 
-[Register(typeof(IPipelinePostHook<AgentDisposeContext>))]
+[Register(typeof(IPipelinePostHook<AgentDisposeContext>), ServiceLifetime.Singleton)]
 internal sealed partial class AgentDisposeTelemetryHook : TelemetryPostHook<AgentDisposeContext>
 {
     public AgentDisposeTelemetryHook(ITelemetryService? telemetryService)

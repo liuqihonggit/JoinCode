@@ -1,8 +1,8 @@
 
 namespace Core.Skills.Search;
 
-[Register(typeof(ISkillSearchService))]
-[Register(typeof(JoinCode.Abstractions.Interfaces.ISkillSearchService))]
+[Register(typeof(ISkillSearchService), ServiceLifetime.Singleton)]
+[Register(typeof(JoinCode.Abstractions.Interfaces.ISkillSearchService), ServiceLifetime.Singleton)]
 public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchService, JoinCode.Abstractions.Interfaces.ISkillSearchService
 {
     private readonly ISkillService _skillService;

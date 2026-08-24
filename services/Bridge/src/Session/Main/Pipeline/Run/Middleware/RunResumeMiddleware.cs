@@ -1,6 +1,6 @@
 namespace Core.Bridge;
 
-[Register(typeof(IBridgeRunMiddleware))]
+[Register(typeof(IBridgeRunMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class RunResumeMiddleware : ServiceEntity, IBridgeRunMiddleware
 {
 

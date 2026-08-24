@@ -3,7 +3,7 @@ namespace Core.Agents.Worktree;
 /// <summary>
 /// Worktree 会话保存中间件 — 保存会话 + 遥测记录
 /// </summary>
-[Register(typeof(IWorktreeCreateMiddleware))]
+[Register(typeof(IWorktreeCreateMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class WorktreeSessionSaveMiddleware : ServiceEntity, IWorktreeCreateMiddleware
 {
 

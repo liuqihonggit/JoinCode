@@ -1,7 +1,7 @@
 
 namespace Core.Configuration.ConfigPipeline;
 
-[Register(typeof(IConfigLoadMiddleware))]
+[Register(typeof(IConfigLoadMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ApiKeyResolveMiddleware : ServiceEntity, IConfigLoadMiddleware
 {
     private readonly IFileSystem _fs;

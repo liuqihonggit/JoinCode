@@ -7,7 +7,7 @@ using JoinCode.Abstractions.Models.Goal;
 /// 目标节点检查器 — 统一实现健康检查 + 循环观察 + 质量评分。
 /// 合并原 GoalLoopObserver（循环观察）+ GoalNodeHealthChecker（健康检查）+ GoalQualityScorer（评分）。
 /// </summary>
-[Register(typeof(IGoalNodeInspector))]
+[Register(typeof(IGoalNodeInspector), ServiceLifetime.Singleton)]
 public sealed partial class GoalNodeInspector : ServiceEntity, IGoalNodeInspector
 {
     private const int DeadLoopMaxIterations = 10;

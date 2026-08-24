@@ -3,7 +3,7 @@ namespace Core.Configuration.ConfigPipeline;
 /// <summary>
 /// Step 7: 验证 Provider 配置 — Provider 必须有 API Key
 /// </summary>
-[Register(typeof(IConfigLoadMiddleware))]
+[Register(typeof(IConfigLoadMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ProviderValidationMiddleware : ServiceEntity, IConfigLoadMiddleware
 {
     private readonly IProviderDefinitionRegistry _registry;

@@ -1,6 +1,6 @@
 namespace State;
 
-[Register(typeof(JoinCode.Abstractions.Interfaces.IAgentTranscriptService))]
+[Register(typeof(JoinCode.Abstractions.Interfaces.IAgentTranscriptService), ServiceLifetime.Singleton)]
 public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentTranscriptService, IDisposable
 {
     private readonly string _sessionsDirectory;

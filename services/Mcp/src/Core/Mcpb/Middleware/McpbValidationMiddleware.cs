@@ -3,7 +3,7 @@ namespace McpClient.Mcpb;
 /// <summary>
 /// MCPB 参数验证中间件 — 检查源路径有效性，URL 源时下载到临时文件
 /// </summary>
-[Register(typeof(IMcpbMiddleware))]
+[Register(typeof(IMcpbMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class McpbValidationMiddleware : ServiceEntity, IMcpbMiddleware
 {
 

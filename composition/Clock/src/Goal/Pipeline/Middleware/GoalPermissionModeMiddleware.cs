@@ -5,7 +5,7 @@ using JoinCode.Abstractions.Pipeline;
 /// <summary>
 /// 权限模式中间件 — Start 时切换 Auto，Clear/MarkCompleted/MarkUnmet 时恢复
 /// </summary>
-[Register(typeof(IGoalLifecycleMiddleware))]
+[Register(typeof(IGoalLifecycleMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class GoalPermissionModeMiddleware : ServiceEntity, IGoalLifecycleMiddleware
 {
 

@@ -14,7 +14,7 @@ public interface ITelemetryRecorder
 /// <summary>
 /// 遥测记录器 — 记录每轮对话的消息列表快照到遥测系统
 /// </summary>
-[Register(typeof(ITelemetryRecorder))]
+[Register(typeof(ITelemetryRecorder), ServiceLifetime.Singleton)]
 public sealed partial class TelemetryRecorder : ServiceEntity, ITelemetryRecorder
 {
     private readonly ITelemetryService? _telemetryService;

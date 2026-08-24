@@ -1,6 +1,6 @@
 namespace Core.Agents;
 
-[Register(typeof(IWorktreeMergeService))]
+[Register(typeof(IWorktreeMergeService), ServiceLifetime.Singleton)]
 public sealed partial class WorktreeMergeService : ServiceEntity, IWorktreeMergeService
 {
 

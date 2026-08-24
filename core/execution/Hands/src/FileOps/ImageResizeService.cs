@@ -4,7 +4,7 @@ namespace Infrastructure.IO;
 /// 图片降采样服务 — 包装 ImageResizer 静态方法，实现 IImageResizeService
 /// 对齐 TS maybeResizeAndDownsampleImageBuffer
 /// </summary>
-[Register(typeof(JoinCode.Abstractions.LLM.Chat.IImageResizeService))]
+[Register(typeof(JoinCode.Abstractions.LLM.Chat.IImageResizeService), ServiceLifetime.Singleton)]
 public sealed partial class ImageResizeService : ServiceEntity, JoinCode.Abstractions.LLM.Chat.IImageResizeService
 {
 

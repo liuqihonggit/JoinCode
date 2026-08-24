@@ -4,7 +4,7 @@ namespace Infrastructure.HotSpot;
 /// 热点处置策略实现 — 基于 HotSpotTracker 判断，生成队长接管+Worker通知决策
 /// 纯逻辑不执行实际通知，执行由中间件接入
 /// </summary>
-[Register(typeof(IHotSpotResolutionPolicy))]
+[Register(typeof(IHotSpotResolutionPolicy), ServiceLifetime.Singleton)]
 public sealed class HotSpotResolutionPolicy : IHotSpotResolutionPolicy
 {
     private readonly IHotSpotTracker _hotSpotTracker;

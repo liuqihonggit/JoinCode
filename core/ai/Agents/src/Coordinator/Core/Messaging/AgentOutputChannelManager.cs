@@ -5,7 +5,7 @@ namespace Core.Agents.Coordinator.Core.Messaging;
 /// 所有 Agent 的流式输出写入同一个 channel，前台通过 ReadAllAsync 拉取
 /// /switch 命令通过 AgentOutputDisplayMode 过滤，不匹配的 chunk 跳过不显示
 /// </summary>
-[Register(typeof(JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager))]
+[Register(typeof(JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager), ServiceLifetime.Singleton)]
 public sealed partial class AgentOutputChannelManager : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager
 {
     private readonly System.Threading.Channels.Channel<JoinCode.Abstractions.Interfaces.AgentOutputChunk> _outputChannel =

@@ -5,7 +5,7 @@ namespace Core.Agents;
 /// 合并自路径 A 的 TranscriptMiddleware
 /// 主代理 no-op
 /// </summary>
-[Register(typeof(IUnifiedSpawnMiddleware))]
+[Register(typeof(IUnifiedSpawnMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class TranscriptMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 

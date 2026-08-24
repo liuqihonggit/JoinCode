@@ -42,7 +42,7 @@ public sealed partial class McpMonitorEventArgs : EventArgs
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
 }
 
-[Register(typeof(IMonitorMcpTaskExecutor))]
+[Register(typeof(IMonitorMcpTaskExecutor), ServiceLifetime.Singleton)]
 public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IAsyncDisposable
 {
     private readonly IMcpToolRegistry _mcpToolRegistry;

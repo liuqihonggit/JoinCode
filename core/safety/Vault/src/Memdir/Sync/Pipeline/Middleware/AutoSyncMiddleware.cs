@@ -5,7 +5,7 @@ using JoinCode.Abstractions.Pipeline;
 /// <summary>
 /// 自动同步中间件 — 启动定时同步
 /// </summary>
-[Register(typeof(ISyncStartMiddleware))]
+[Register(typeof(ISyncStartMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class AutoSyncMiddleware : ServiceEntity, ISyncStartMiddleware
 {
 

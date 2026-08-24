@@ -3,7 +3,7 @@ namespace Core.Agents.Worktree;
 /// <summary>
 /// Worktree Git 根查找中间件 — 查找 Git 仓库根目录
 /// </summary>
-[Register(typeof(IWorktreeCreateMiddleware))]
+[Register(typeof(IWorktreeCreateMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class WorktreeGitRootMiddleware : ServiceEntity, IWorktreeCreateMiddleware
 {
 

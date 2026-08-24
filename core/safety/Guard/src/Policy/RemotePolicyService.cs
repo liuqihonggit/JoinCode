@@ -2,7 +2,7 @@
 namespace Core.Policy;
 
 [Register]
-[Register(typeof(JoinCode.Abstractions.Interfaces.IRemotePolicyService))]
+[Register(typeof(JoinCode.Abstractions.Interfaces.IRemotePolicyService), ServiceLifetime.Singleton)]
 public sealed partial class RemotePolicyService : RemoteCacheRefreshServiceBase<PolicyRule>, JoinCode.Abstractions.Interfaces.IRemotePolicyService
 {
     private static readonly PolicyJsonContext JsonContext = PolicyJsonContext.Default;

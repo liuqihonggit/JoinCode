@@ -4,7 +4,7 @@ namespace Infrastructure.HotSpot;
 /// 热文件监控兜底实现 — 热文件被改但未上报意图则告警
 /// 队长改热文件不告警（队长有权改）；不增加认领计数
 /// </summary>
-[Register(typeof(IHotFileWatchdog))]
+[Register(typeof(IHotFileWatchdog), ServiceLifetime.Singleton)]
 public sealed class HotFileWatchdog : IHotFileWatchdog
 {
     private readonly IHotFileDetector _hotFileDetector;

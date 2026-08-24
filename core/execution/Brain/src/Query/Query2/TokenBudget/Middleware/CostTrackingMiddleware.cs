@@ -5,7 +5,7 @@ namespace Core.Query;
 /// <summary>
 /// 成本追踪中间件 — 每次 LLM 调用后追踪 Token 使用量和成本
 /// </summary>
-[Register(typeof(IQueryMiddleware))]
+[Register(typeof(IQueryMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class CostTrackingMiddleware : ServiceEntity, IQueryMiddleware
 {
     private readonly ITokenCostTracker _costTracker;

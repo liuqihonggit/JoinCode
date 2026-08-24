@@ -25,7 +25,7 @@ public sealed partial class UsdBudgetAlertEventArgs : EventArgs
     public required string Message { get; init; }
 }
 
-[Register(typeof(IUsdBudgetManager))]
+[Register(typeof(IUsdBudgetManager), ServiceLifetime.Singleton)]
 public sealed partial class UsdBudgetManager : IUsdBudgetManager, IAsyncDisposable
 {
     private readonly AsyncLock _lock = new();

@@ -6,7 +6,7 @@ using JoinCode.Abstractions.Interfaces;
 /// Goal 层用户交互服务 — 带超时的权限询问
 /// 封装 IInteractiveService，1分钟超时后协调者自动接管
 /// </summary>
-[Register(typeof(IGoalUserInteraction))]
+[Register(typeof(IGoalUserInteraction), ServiceLifetime.Singleton)]
 public sealed class GoalUserInteractionService : ServiceEntity, IGoalUserInteraction
 {
     private readonly IInteractiveService _interactiveService;

@@ -5,7 +5,7 @@ namespace Core.Agents;
 /// 统一降级策略：失败记日志警告并继续（不抛 [AGT011]）
 /// 主代理 no-op
 /// </summary>
-[Register(typeof(IUnifiedSpawnMiddleware))]
+[Register(typeof(IUnifiedSpawnMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class WorktreeSpawnMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 

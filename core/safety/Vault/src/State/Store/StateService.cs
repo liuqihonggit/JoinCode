@@ -5,8 +5,8 @@ namespace State;
 /// 纯内存状态服务 — 对齐 Claude Code 原版：AppState 是纯内存响应式状态，不做 SQLite 持久化。
 /// 原版 TS 代码中 AppState 是临时状态，随进程消亡；对话历史通过 JSONL transcript 文件持久化。
 /// </summary>
-[Register(typeof(StateService))]
-[Register(typeof(IStateService))]
+[Register(typeof(StateService), ServiceLifetime.Singleton)]
+[Register(typeof(IStateService), ServiceLifetime.Singleton)]
 public sealed partial class StateService : ServiceEntity, IStateService, IDisposable
 {
     private readonly ConcurrentDictionary<string, SessionState> _fallbackStorage = new();

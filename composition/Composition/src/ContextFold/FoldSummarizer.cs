@@ -5,7 +5,7 @@ namespace JoinCode.Composition.ContextFold;
 /// <para>在 Composition 层实现，注入 IChatClient（Abstractions），调 LLM 生成 head 摘要。</para>
 /// <para>对齐 SubAgentSummaryClient 的调用模式：GetChatCompletionService → GetApiMessageContentsAsync。</para>
 /// </summary>
-[Register(typeof(IFoldSummarizer))]
+[Register(typeof(IFoldSummarizer), ServiceLifetime.Singleton)]
 public sealed partial class FoldSummarizer : ServiceEntity, IFoldSummarizer
 {
     private readonly ILogger<FoldSummarizer>? _logger;

@@ -4,7 +4,7 @@ namespace Infrastructure.Housekeeping;
 /// 后台家政清理服务 — 对齐 TS startBackgroundHousekeeping / cleanupOldMessageFilesInBackground
 /// 聚合调度所有 CleanupOld* 方法，延迟执行+循环清理
 /// </summary>
-[Register(typeof(IHousekeepingService))]
+[Register(typeof(IHousekeepingService), ServiceLifetime.Singleton)]
 public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingService
 {
 

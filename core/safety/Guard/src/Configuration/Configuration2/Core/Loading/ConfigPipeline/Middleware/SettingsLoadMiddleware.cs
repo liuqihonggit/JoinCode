@@ -3,7 +3,7 @@ namespace Core.Configuration.ConfigPipeline;
 /// <summary>
 /// Step 1: 并行加载多源配置 + 规则文件
 /// </summary>
-[Register(typeof(IConfigLoadMiddleware))]
+[Register(typeof(IConfigLoadMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class SettingsLoadMiddleware : ServiceEntity, IConfigLoadMiddleware
 {
 

@@ -1,6 +1,6 @@
 namespace Core.Agents;
 
-[Register(typeof(JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider))]
+[Register(typeof(JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider), ServiceLifetime.Singleton)]
 public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider
 {
 

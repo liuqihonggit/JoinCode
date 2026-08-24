@@ -5,7 +5,7 @@ using JoinCode.Abstractions.Pipeline;
 /// <summary>
 /// 远程文件扫描中间件 — 从远程存储读取文件索引并填充 RemoteEntries
 /// </summary>
-[Register(typeof(ISyncStartMiddleware))]
+[Register(typeof(ISyncStartMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class RemoteScanMiddleware : ServiceEntity, ISyncStartMiddleware
 {
 

@@ -4,7 +4,7 @@ namespace Core.Agents.Coordinator;
 /// Fork 执行中间件 — 执行子智能体并处理结果；后台模式仅标记，由 Manager 启动后台任务
 /// 对齐 TS: cleanupWorktreeIfNeeded — fork 完成后清理 worktree
 /// </summary>
-[Register(typeof(IForkMiddleware))]
+[Register(typeof(IForkMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ForkExecutionMiddleware : ServiceEntity, IForkMiddleware
 {
 

@@ -5,7 +5,7 @@ namespace Core.Hooks.Execution;
 /// 代理验证钩子执行器
 /// 使用专门的验证代理进行工具调用验证
 /// </summary>
-[Register(typeof(IHookExecutor))]
+[Register(typeof(IHookExecutor), ServiceLifetime.Singleton)]
 public sealed partial class AgentHookExecutor : HookExecutorBase<AgentHook>
 {
     private readonly IAgentService? _agentService;

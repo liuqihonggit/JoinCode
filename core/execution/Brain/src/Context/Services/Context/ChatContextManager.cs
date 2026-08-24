@@ -28,7 +28,7 @@ public sealed record ChatContextOptions
     public string? ProviderBaseUrl { get; init; }
 }
 
-[Register(typeof(IChatContextManager))]
+[Register(typeof(IChatContextManager), ServiceLifetime.Singleton)]
 public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
 {
     private readonly IStateService _stateService;

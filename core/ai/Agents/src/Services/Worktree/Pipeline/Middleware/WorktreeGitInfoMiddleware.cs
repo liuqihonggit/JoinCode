@@ -4,7 +4,7 @@ namespace Core.Agents.Worktree;
 /// Worktree Git 信息获取中间件 — 获取当前分支、HEAD commit SHA，以及基础分支
 /// 对齐 TS getOrCreateWorktree：本地已有 origin ref 时跳过 fetch（大仓库节省 6-8s）
 /// </summary>
-[Register(typeof(IWorktreeCreateMiddleware))]
+[Register(typeof(IWorktreeCreateMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class WorktreeGitInfoMiddleware : ServiceEntity, IWorktreeCreateMiddleware
 {
 

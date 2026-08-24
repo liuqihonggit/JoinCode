@@ -7,7 +7,7 @@ namespace IO;
 /// 文件操作服务实现，提供文件读写功能
 /// 作为 FileReader、FileWriter、FileEditor 的外观
 /// </summary>
-[Register(typeof(IFileOperationService))]
+[Register(typeof(IFileOperationService), ServiceLifetime.Singleton)]
 public sealed partial class FileOperationService : ServiceEntity, IFileOperationService
 {
     private readonly IFileSystem _fs;

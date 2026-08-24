@@ -5,7 +5,7 @@ namespace Core.Permission;
 /// 分类器中间件 — Auto/Default 模式下使用工具过滤器和分类器判断权限
 /// Default 模式描述为"根据配置自动判断是否需要确认"，因此也使用分类器自动批准只读/安全写入工具
 /// </summary>
-[Register(typeof(IPermissionMiddleware))]
+[Register(typeof(IPermissionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class AutoClassifierMiddleware : ServiceEntity, IPermissionMiddleware
 {
     private readonly IToolPermissionFilter? _toolPermissionFilter;

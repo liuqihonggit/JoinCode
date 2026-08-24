@@ -4,7 +4,7 @@ namespace Core.Permission;
 /// <summary>
 /// 权限提升风险处理器 — CommandRisk.PrivilegeEscalation 的拦截策略
 /// </summary>
-[Register(typeof(ICommandRiskHandler))]
+[Register(typeof(ICommandRiskHandler), ServiceLifetime.Singleton)]
 public sealed partial class PrivilegeEscalationRiskHandler : SimpleCommandRiskHandler
 {
     /// <inheritdoc />

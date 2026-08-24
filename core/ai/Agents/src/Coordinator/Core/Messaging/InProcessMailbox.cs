@@ -1,6 +1,6 @@
 namespace Core.Agents.Coordinator;
 
-[Register(typeof(IMailbox))]
+[Register(typeof(IMailbox), ServiceLifetime.Singleton)]
 public sealed partial class InProcessMailbox : ServiceEntity, IMailbox
 {
     private readonly ILogger? _logger;

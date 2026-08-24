@@ -3,7 +3,7 @@ namespace Core.Agents.Worktree;
 /// <summary>
 /// Worktree 参数验证中间件 — 检查 AgentId 有效性
 /// </summary>
-[Register(typeof(IWorktreeCreateMiddleware))]
+[Register(typeof(IWorktreeCreateMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class WorktreeValidationMiddleware : ServiceEntity, IWorktreeCreateMiddleware
 {
 

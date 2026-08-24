@@ -5,7 +5,7 @@ using JoinCode.Abstractions.Pipeline;
 /// <summary>
 /// 启动完成中间件 — 标记运行状态、记录日志和指标
 /// </summary>
-[Register(typeof(ISyncStartMiddleware))]
+[Register(typeof(ISyncStartMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class StartCompletionMiddleware : ServiceEntity, ISyncStartMiddleware
 {
 

@@ -2,7 +2,7 @@ namespace Core.Scheduling.Tasks;
 
 using JoinCode.Abstractions.Pipeline;
 
-[Register(typeof(ITeammateExecutionMiddleware))]
+[Register(typeof(ITeammateExecutionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class TeammateValidationMiddleware : ServiceEntity, ITeammateExecutionMiddleware
 {
 

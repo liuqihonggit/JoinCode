@@ -4,7 +4,7 @@ namespace Core.Agents;
 /// MCP 服务器初始化中间件 — 初始化 Agent 定义中的 MCP 服务器
 /// 合并自路径 A 的 McpSetupMiddleware
 /// </summary>
-[Register(typeof(IUnifiedSpawnMiddleware))]
+[Register(typeof(IUnifiedSpawnMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class McpSetupMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 

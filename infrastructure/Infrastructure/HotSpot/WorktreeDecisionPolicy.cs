@@ -5,7 +5,7 @@ namespace Infrastructure.HotSpot;
 /// 第一层：TODO>=3 或涉及热文件>=1 或并行度>=2 才开 worktree
 /// 第二层：全局开 + Variant==Code 才开，Explore/Plan/Search 等只读不开
 /// </summary>
-[Register(typeof(IWorktreeDecisionPolicy))]
+[Register(typeof(IWorktreeDecisionPolicy), ServiceLifetime.Singleton)]
 public sealed class WorktreeDecisionPolicy : IWorktreeDecisionPolicy
 {
     private readonly int _todoThreshold;

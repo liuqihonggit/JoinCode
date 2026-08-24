@@ -5,7 +5,7 @@ namespace Core.Context.Compact;
 /// <summary>
 /// 上下文折叠中间件 — 实验性功能，折叠旧上下文
 /// </summary>
-[Register(typeof(ICompactMiddleware))]
+[Register(typeof(ICompactMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ContextCollapseMiddleware : ServiceEntity, ICompactMiddleware
 {
 

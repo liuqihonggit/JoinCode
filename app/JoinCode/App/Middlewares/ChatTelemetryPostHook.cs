@@ -6,7 +6,7 @@ namespace JoinCode.App.Middlewares;
 /// <summary>
 /// Chat 管道 Post Hook — 遥测 Dispose Span + 指标记录
 /// </summary>
-[Register(typeof(IPipelinePostHook<Core.Context.ChatMiddlewareContext>))]
+[Register(typeof(IPipelinePostHook<Core.Context.ChatMiddlewareContext>), ServiceLifetime.Singleton)]
 internal sealed partial class ChatTelemetryPostHook : ServiceEntity, IPipelinePostHook<Core.Context.ChatMiddlewareContext>
 {
     private readonly ITelemetryService? _telemetryService;

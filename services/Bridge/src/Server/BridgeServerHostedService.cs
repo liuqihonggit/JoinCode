@@ -6,7 +6,7 @@ namespace Core.Bridge;
 /// <summary>
 /// Bridge 服务器托管服务 - 跟随主机生命周期自动启停
 /// </summary>
-[Register(typeof(IHostedService))]
+[Register(typeof(IHostedService), ServiceLifetime.Singleton)]
 public sealed partial class BridgeServerHostedService : IHostedService, IAsyncDisposable
 {
     private readonly BridgeServer _bridgeServer;

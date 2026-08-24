@@ -4,7 +4,7 @@ namespace Core.Permission;
 /// <summary>
 /// 强制操作风险处理器 — CommandRisk.ForceOperation 的拦截策略
 /// </summary>
-[Register(typeof(ICommandRiskHandler))]
+[Register(typeof(ICommandRiskHandler), ServiceLifetime.Singleton)]
 public sealed partial class ForceOperationRiskHandler : SimpleCommandRiskHandler
 {
     /// <inheritdoc />

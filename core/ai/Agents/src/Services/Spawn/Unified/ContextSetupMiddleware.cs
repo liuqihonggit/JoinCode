@@ -4,7 +4,7 @@ namespace Core.Agents;
 /// 上下文构建中间件 — 构建 SubAgentOptions（不含 Spawn 调用，Spawn 移到 LifecycleSpawnMiddleware）
 /// 统一管道版本：主代理 no-op，路径 B（SubOptions 已存在）no-op
 /// </summary>
-[Register(typeof(IUnifiedSpawnMiddleware))]
+[Register(typeof(IUnifiedSpawnMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 

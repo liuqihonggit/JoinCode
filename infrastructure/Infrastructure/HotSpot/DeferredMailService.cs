@@ -4,7 +4,7 @@ namespace Infrastructure.HotSpot;
 /// 延迟邮件服务实现 — ConcurrentDictionary + per-agent lock 线程安全
 /// 轮次计数到期或任务结束注入时投递
 /// </summary>
-[Register(typeof(IDeferredMailService))]
+[Register(typeof(IDeferredMailService), ServiceLifetime.Singleton)]
 public sealed class DeferredMailService : IDeferredMailService
 {
     private readonly ConcurrentDictionary<string, List<DeferredMailEntry>> _pending = new();

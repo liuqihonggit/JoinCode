@@ -4,7 +4,7 @@ namespace Core.Agents;
 /// Hook 注册中间件 — 注册 Agent 定义中的 Hooks
 /// 合并自路径 A 的 HookSetupMiddleware
 /// </summary>
-[Register(typeof(IUnifiedSpawnMiddleware))]
+[Register(typeof(IUnifiedSpawnMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class HookSetupMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 

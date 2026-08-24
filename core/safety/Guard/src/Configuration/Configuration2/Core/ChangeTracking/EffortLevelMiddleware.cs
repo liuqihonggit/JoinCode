@@ -3,7 +3,7 @@ namespace Core.Configuration;
 /// <summary>
 /// EffortLevel 更新中间件 — 对齐 TS 版 effortChanged 逻辑
 /// </summary>
-[Register(typeof(ISettingsMiddleware))]
+[Register(typeof(ISettingsMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class EffortLevelMiddleware : ServiceEntity, ISettingsMiddleware
 {
 

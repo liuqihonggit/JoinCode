@@ -1,8 +1,8 @@
 
 namespace Core.Agents;
 
-[Register(typeof(IAgentWorktreeService))]
-[Register(typeof(IWorktreePipelineOperations))]
+[Register(typeof(IAgentWorktreeService), ServiceLifetime.Singleton)]
+[Register(typeof(IWorktreePipelineOperations), ServiceLifetime.Singleton)]
 public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorktreePipelineOperations, IAsyncDisposable {
     private readonly ILogger<AgentWorktreeService>? _logger;
     private readonly IClockService _clock;

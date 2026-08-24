@@ -9,7 +9,7 @@ namespace Core.Context;
 /// 优先级：动态关键词（DynamicKeywordConfigService，~/.jcc/keyword-sections.json）→ 硬编码关键词（UserPromptKeywordAnalyzer，fallback）
 /// 未命中时记录 miss 事件，供后台 Agent 分析优化词表
 /// </summary>
-[Register(typeof(IAnalyzePreprocessMiddleware))]
+[Register(typeof(IAnalyzePreprocessMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class KeywordInjectionMiddleware : ServiceEntity, IAnalyzePreprocessMiddleware
 {
 

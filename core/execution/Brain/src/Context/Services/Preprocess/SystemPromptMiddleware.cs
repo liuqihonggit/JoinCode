@@ -5,7 +5,7 @@ namespace Core.Context;
 /// <summary>
 /// 系统提示构建中间件 — 构建分区系统提示（静态前缀 + 动态后缀）
 /// </summary>
-[Register(typeof(IPreparePreprocessMiddleware))]
+[Register(typeof(IPreparePreprocessMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class SystemPromptMiddleware : ServiceEntity, IPreparePreprocessMiddleware
 {
 

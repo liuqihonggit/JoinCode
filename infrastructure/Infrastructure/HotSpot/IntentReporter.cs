@@ -4,7 +4,7 @@ namespace Infrastructure.HotSpot;
 /// 意图上报器实现 — 收集到 IntentCollector + 热文件契约改发 IMailbox 通知队长
 /// 纯新增服务，Worker 执行流在单元C接入时调用
 /// </summary>
-[Register(typeof(IIntentReporter))]
+[Register(typeof(IIntentReporter), ServiceLifetime.Singleton)]
 public sealed class IntentReporter : IIntentReporter
 {
     private readonly IIntentCollector _intentCollector;

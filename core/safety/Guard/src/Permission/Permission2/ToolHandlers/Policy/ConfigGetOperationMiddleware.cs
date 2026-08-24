@@ -5,7 +5,7 @@ namespace Core.Permission;
 /// Config GET 操作中间件 — Default 模式下自动批准 Config GET 操作
 /// 对齐 TS 版 ConfigTool.checkPermissions: GET 操作自动允许
 /// </summary>
-[Register(typeof(IPermissionMiddleware))]
+[Register(typeof(IPermissionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ConfigGetOperationMiddleware : ServiceEntity, IPermissionMiddleware
 {
     /// <inheritdoc />

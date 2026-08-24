@@ -3,7 +3,7 @@ namespace Infrastructure.IO.Services.FileOps;
 /// <summary>
 /// 文件写入监听器注册中心的线程安全实现
 /// </summary>
-[Register(typeof(IFileWriteListenerRegistry))]
+[Register(typeof(IFileWriteListenerRegistry), ServiceLifetime.Singleton)]
 public sealed class FileWriteListenerRegistry : IFileWriteListenerRegistry
 {
     private readonly ThreadSafeListenerList<IFileWriteListener> _listeners = new();

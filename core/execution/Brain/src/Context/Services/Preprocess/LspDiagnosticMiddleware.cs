@@ -5,7 +5,7 @@ namespace Core.Context;
 /// <summary>
 /// LSP 诊断注入中间件 — 检查待处理的 LSP 诊断并注入提醒
 /// </summary>
-[Register(typeof(IPreparePreprocessMiddleware))]
+[Register(typeof(IPreparePreprocessMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class LspDiagnosticMiddleware : ServiceEntity, IPreparePreprocessMiddleware
 {
 

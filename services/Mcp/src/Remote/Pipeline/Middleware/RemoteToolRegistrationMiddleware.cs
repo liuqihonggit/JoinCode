@@ -5,7 +5,7 @@ using JoinCode.Abstractions.Pipeline;
 /// <summary>
 /// 工具注册中间件 — 仅 Tools 操作：注册工具到 ToolRegistry 并更新缓存
 /// </summary>
-[Register(typeof(IRemoteSyncMiddleware))]
+[Register(typeof(IRemoteSyncMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class RemoteToolRegistrationMiddleware : ServiceEntity, IRemoteSyncMiddleware
 {
 

@@ -3,7 +3,7 @@ using JoinCode.Abstractions.Attributes;
 
 namespace Core.DependencyInjection;
 
-[Register(typeof(IHostedService))]
+[Register(typeof(IHostedService), ServiceLifetime.Singleton)]
 public sealed partial class TeamMemorySyncHostedService : ServiceEntity, IHostedService
 {
     private readonly global::Memdir.Sync.ITeamMemorySyncService _syncService;

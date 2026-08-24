@@ -3,7 +3,7 @@ namespace Infrastructure.Cache;
 /// <summary>
 /// 图片路径缓存实现 — 对齐 TS: clearStoredImagePaths
 /// </summary>
-[Register(typeof(JoinCode.Abstractions.Interfaces.Cache.IImageStore))]
+[Register(typeof(JoinCode.Abstractions.Interfaces.Cache.IImageStore), ServiceLifetime.Singleton)]
 public sealed partial class ImageStore : ServiceEntity, JoinCode.Abstractions.Interfaces.Cache.IImageStore
 {
     private readonly Dictionary<int, string> _paths = new();

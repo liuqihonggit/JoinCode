@@ -6,7 +6,7 @@ namespace Core.Context;
 /// 上下文加载中间件 — 加载聊天上下文并初始化内容替换状态
 /// 对齐 TS REPL.tsx: provisionContentReplacementState(initialMessages, initialContentReplacements)
 /// </summary>
-[Register(typeof(IChatInitMiddleware))]
+[Register(typeof(IChatInitMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ContextLoadMiddleware : ServiceEntity, IChatInitMiddleware
 {
 

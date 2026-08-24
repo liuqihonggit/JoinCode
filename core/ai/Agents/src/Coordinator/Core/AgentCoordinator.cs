@@ -6,8 +6,8 @@ namespace Core.Agents.Coordinator;
 /// Agent协调器 - 提供高级协调功能，包括重试策略、断路器模式、资源清理等
 /// 职责：协调 IAgentLifecycleManager、IAgentWorktreeManager、IMailbox、IAgentExecutionEngine
 /// </summary>
-[Register(typeof(ISubAgentCoordinator))]
-[Register(typeof(ITeammateObserver))]
+[Register(typeof(ISubAgentCoordinator), ServiceLifetime.Singleton)]
+[Register(typeof(ITeammateObserver), ServiceLifetime.Singleton)]
 public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinator, ITeammateObserver
 {
     private readonly IAgentLifecycleManager _lifecycleManager;

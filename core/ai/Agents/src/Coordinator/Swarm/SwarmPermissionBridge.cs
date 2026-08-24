@@ -40,7 +40,7 @@ public sealed partial class PermissionSyncEventArgs : EventArgs
     public DateTime Timestamp { get; init; }
 }
 
-[Register(typeof(ISwarmPermissionBridge))]
+[Register(typeof(ISwarmPermissionBridge), ServiceLifetime.Singleton)]
 public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermissionBridge, IDisposable
 {
     private readonly IMailbox _messageBroker;

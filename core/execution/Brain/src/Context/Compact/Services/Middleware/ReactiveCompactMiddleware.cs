@@ -5,7 +5,7 @@ namespace Core.Context.Compact;
 /// <summary>
 /// 响应式压缩中间件 — 处理 prompt-too-long 等错误触发的压缩
 /// </summary>
-[Register(typeof(ICompactMiddleware))]
+[Register(typeof(ICompactMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ReactiveCompactMiddleware : ServiceEntity, ICompactMiddleware
 {
 

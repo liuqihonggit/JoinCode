@@ -5,7 +5,7 @@ namespace Core.Permission;
 /// 路径权限中间件 — Default/Auto 模式下进行完整路径级权限检查
 /// 对齐 TS checkReadPermissionForTool / checkWritePermissionForTool
 /// </summary>
-[Register(typeof(IPermissionMiddleware))]
+[Register(typeof(IPermissionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class PathPermissionMiddleware : ServiceEntity, IPermissionMiddleware
 {
     private readonly IPathPermissionChecker? _pathPermissionChecker;

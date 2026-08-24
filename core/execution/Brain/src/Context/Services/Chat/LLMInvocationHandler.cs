@@ -30,7 +30,7 @@ public interface ILLMInvocationHandler
 /// <summary>
 /// LLM 调用处理器 — 封装LLM流式调用、块处理、首token延迟追踪、对话转储
 /// </summary>
-[Register(typeof(ILLMInvocationHandler))]
+[Register(typeof(ILLMInvocationHandler), ServiceLifetime.Singleton)]
 public sealed partial class LLMInvocationHandler : ServiceEntity, ILLMInvocationHandler
 {
     private readonly IChatClient _kernel;

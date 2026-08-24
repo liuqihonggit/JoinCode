@@ -14,7 +14,7 @@ public sealed record AgentServiceDependencies(
     JoinCode.Abstractions.Interfaces.IAgentInputForwardQueue? InputForwardQueue = null,
     JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? OutputChannelManager = null);
 
-[Register(typeof(JoinCode.Abstractions.Interfaces.IAgentService))]
+[Register(typeof(JoinCode.Abstractions.Interfaces.IAgentService), ServiceLifetime.Singleton)]
 public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentService, IDisposable
 {
 

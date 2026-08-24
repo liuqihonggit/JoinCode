@@ -5,7 +5,7 @@ namespace Core.Agents;
 /// 合并自路径 B 的 SpawnCoordPermissionRoutingMiddleware
 /// 主代理保留（作为 Leader 需启动权限路由）
 /// </summary>
-[Register(typeof(IUnifiedSpawnMiddleware))]
+[Register(typeof(IUnifiedSpawnMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class PermissionRoutingMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 

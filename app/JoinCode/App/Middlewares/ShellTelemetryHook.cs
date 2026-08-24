@@ -3,7 +3,7 @@ using JoinCode.Abstractions.Pipeline;
 
 namespace JoinCode.App.Middlewares;
 
-[Register(typeof(IPipelinePostHook<ShellPipelineContext>))]
+[Register(typeof(IPipelinePostHook<ShellPipelineContext>), ServiceLifetime.Singleton)]
 internal sealed partial class ShellTelemetryHook : TelemetryPostHook<ShellPipelineContext>
 {
     public ShellTelemetryHook(ITelemetryService? telemetryService)

@@ -2,7 +2,7 @@ namespace Core.Bridge;
 
 using JoinCode.Abstractions.Pipeline;
 
-[Register(typeof(IShutdownMiddleware))]
+[Register(typeof(IShutdownMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ShutdownSubprocessesMiddleware : ServiceEntity, IShutdownMiddleware
 {
 

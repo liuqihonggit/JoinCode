@@ -3,7 +3,7 @@ namespace Core.Agents.Worktree;
 /// <summary>
 /// Worktree 创建中间件 — git worktree add + 可选稀疏检出（失败回滚）
 /// </summary>
-[Register(typeof(IWorktreeCreateMiddleware))]
+[Register(typeof(IWorktreeCreateMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class WorktreeCreateMiddleware : ServiceEntity, IWorktreeCreateMiddleware
 {
 

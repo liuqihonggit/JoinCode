@@ -6,7 +6,7 @@ namespace Core.Context;
 /// 配置变更监控中间件 — 启动配置文件变更监控并处理变更事件
 /// 同时实现 IAsyncDisposable，由 DI 容器在应用关闭时自动释放资源
 /// </summary>
-[Register(typeof(IChatInitMiddleware))]
+[Register(typeof(IChatInitMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ConfigChangeStartMiddleware : IChatInitMiddleware, IAsyncDisposable
 {
 

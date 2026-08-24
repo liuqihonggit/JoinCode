@@ -3,7 +3,7 @@ namespace Infrastructure.Cache;
 /// <summary>
 /// 仓库检测缓存实现 — 对齐 TS: clearRepositoryCaches
 /// </summary>
-[Register(typeof(JoinCode.Abstractions.Interfaces.Cache.IRepositoryCache))]
+[Register(typeof(JoinCode.Abstractions.Interfaces.Cache.IRepositoryCache), ServiceLifetime.Singleton)]
 public sealed partial class RepositoryCache : ServiceEntity, JoinCode.Abstractions.Interfaces.Cache.IRepositoryCache
 {
     private readonly Dictionary<string, bool> _cache = new(StringComparer.OrdinalIgnoreCase);

@@ -1,6 +1,6 @@
 namespace Core.Agents.Coordinator;
 
-[Register(typeof(JoinCode.Abstractions.Interfaces.ITeammateReconnectService))]
+[Register(typeof(JoinCode.Abstractions.Interfaces.ITeammateReconnectService), ServiceLifetime.Singleton)]
 public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.Abstractions.Interfaces.ITeammateReconnectService
 {
     private const int MaxReconnectAttempts = 5;

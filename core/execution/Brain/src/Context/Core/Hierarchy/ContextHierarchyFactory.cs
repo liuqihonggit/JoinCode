@@ -1,6 +1,6 @@
 namespace Core.Context;
 
-[Register(typeof(IContextHierarchyFactory))]
+[Register(typeof(IContextHierarchyFactory), ServiceLifetime.Singleton)]
 public sealed partial class ContextHierarchyFactory : ServiceEntity, IContextHierarchyFactory
 {
 

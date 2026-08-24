@@ -6,7 +6,7 @@ namespace Services.Web;
 /// 域名黑名单预检服务
 /// 对齐TS版 checkDomainBlocklist — 调用 api.anthropic.com 检查域名安全性
 /// </summary>
-[Register(typeof(IDomainBlocklistChecker))]
+[Register(typeof(IDomainBlocklistChecker), ServiceLifetime.Singleton)]
 public sealed partial class DomainBlocklistChecker : ServiceEntity, IDomainBlocklistChecker
 {
     private const string BlocklistApiUrl = "https://api.anthropic.com/api/web/domain_info?domain=";

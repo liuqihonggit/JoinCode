@@ -2,7 +2,7 @@ namespace Core.Bridge;
 
 using JoinCode.Abstractions.Pipeline;
 
-[Register(typeof(IHandleWorkMiddleware))]
+[Register(typeof(IHandleWorkMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class WorkSpawnMiddleware : ServiceEntity, IHandleWorkMiddleware
 {
 

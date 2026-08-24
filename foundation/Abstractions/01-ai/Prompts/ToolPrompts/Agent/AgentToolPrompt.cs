@@ -144,7 +144,7 @@ assistant: ""我将使用 {AgentToolNameConstants.Agent} 工具启动 greeting-r
 ";
 
         // 代理列表部分
-        var agentListSection = $"可用代理类型及其可访问的工具：\n{string.Join("\n", effectiveAgents.Select(FormatAgentLine).ToArray())}";
+        var agentListSection = $"可用代理类型及其可访问的工具：\n{string.Join("\n", effectiveAgents.Select(FormatAgentLine))}";
 
         // 共享核心提示词
         var shared = $@"启动新代理自主处理复杂的多步骤任务。

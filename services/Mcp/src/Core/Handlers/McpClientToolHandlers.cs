@@ -6,14 +6,16 @@ namespace McpToolDispatch;
 /// MCP 客户端工具处理器 - 提供与远程 MCP 服务器交互的能力
 /// </summary>
 [McpToolDispatch(ToolCategory.McpClient)]
-public partial class McpClientToolHandlers : IAsyncDisposable
+public partial class McpClientToolHandlers : ServiceEntity
 {
     private readonly Dictionary<string, IMcpClient> _clients = new();
     private readonly ILogger<McpClientToolHandlers>? _logger;
     private readonly SemaphoreSlim _clientLock = new(1, 1);
     private readonly McpClientToolDeps _deps;
+    private int _asyncDisposed;
 
     public McpClientToolHandlers(McpClientToolDeps? deps = null, ILogger<McpClientToolHandlers>? logger = null)
+        : base(nameof(McpClientToolHandlers))
     {
         _deps = deps ?? new McpClientToolDeps();
         _logger = logger;
@@ -598,11 +600,19 @@ public partial class McpClientToolHandlers : IAsyncDisposable
         };
     }
 
-    public async ValueTask DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1) return;
+
         var tasks = _clients.Values.Select(client => client.DisposeAsync().AsTask());
         await Task.WhenAll(tasks).ConfigureAwait(false);
         _clients.Clear();
+        Dispose();
+    }
+
+    protected override void OnDispose()
+    {
+        if (_asyncDisposed == 1) return;
         _clientLock.Dispose();
     }
 

@@ -7,7 +7,7 @@ namespace JoinCode.ChatCommands;
 [ChatCommand(Name = ChatCommandNameConstants.Execute, Description = "执行代码", Usage = "/execute <代码>", Category = ChatCommandCategory.Code)]
 public sealed partial class ExecuteCommand : ChatCommandBase
 {
-    [Inject] private readonly ILogger<ExecuteCommand>? _logger;
+    private readonly ILogger<ExecuteCommand>? _logger;
     public ExecuteCommand(ILogger<ExecuteCommand>? logger = null)
     {
         _logger = logger;

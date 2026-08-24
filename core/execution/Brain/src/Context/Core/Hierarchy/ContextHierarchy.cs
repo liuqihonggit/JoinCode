@@ -12,7 +12,7 @@ public sealed partial class ContextHierarchy : ServiceEntity, IContextHierarchy,
     private readonly List<IContextLayer> _layers = new();
     private readonly Dictionary<ContextLayerType, IContextLayer> _layerDict = new();
     private readonly SemaphoreSlim _lock;
-    [Inject] private readonly ILogger<ContextHierarchy>? _logger;
+    private readonly ILogger<ContextHierarchy>? _logger;
     private readonly ContextHierarchyOptions _options;
 
     /// <inheritdoc />

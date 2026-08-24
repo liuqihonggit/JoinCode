@@ -3,7 +3,7 @@ namespace JoinCode.Cli;
 /// <summary>
 /// Onboarding 流程控制器 - 管理步骤导航、状态持久化和完成追踪
 /// </summary>
-[Register]
+[Register(typeof(IOnboardingService), ServiceLifetime.Singleton)]
 public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardingService, IDisposable
 {
     private const int TotalStepCount = 4;

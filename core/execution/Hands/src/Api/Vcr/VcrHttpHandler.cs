@@ -5,7 +5,7 @@ public sealed partial class VcrHttpHandler : DelegatingHandler
 {
     private readonly IVcrService _vcrService;
     private readonly VcrOptions _options;
-    [Inject] private readonly ILogger<VcrHttpHandler>? _logger;
+    private readonly ILogger<VcrHttpHandler>? _logger;
     private string _currentCassetteName = string.Empty;
 
     public VcrHttpHandler(

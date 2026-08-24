@@ -11,7 +11,7 @@ using JoinCode.Abstractions.Prompts.ToolPrompts;
 /// <para>- 响应式协效应: Changed 事件通知消费方缓存失效</para>
 /// <para>- Theorem 63 (Ordering): 卸载提供者时，先连带卸载所有依赖方，最后卸载提供者本身</para>
 /// </summary>
-[Register(typeof(IPluginAgentLoader))]
+[Register(typeof(IPluginAgentLoader), ServiceLifetime.Singleton)]
 public sealed class PluginAgentLoader : ServiceEntity, IPluginAgentLoader
 {
     private FrozenDictionary<string, (AgentDefinition Def, string PluginName)> _pluginAgents

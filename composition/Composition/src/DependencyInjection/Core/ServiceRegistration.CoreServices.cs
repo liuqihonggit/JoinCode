@@ -13,7 +13,7 @@ public static partial class ServiceRegistration
 
         // Chat/ChatAdmin/ChatInit 管道 — 由 [RegisterMiddleware] + [Register(IPipelineHook)] + 生成器自动注册
 
-        // IStore<AppState> — [Register(typeof(IStore<AppState>))] 自动注册（AppStateStore）
+        // IStore<AppState> — [Register(typeof(IStore<AppState>), ServiceLifetime.Singleton)] 自动注册（AppStateStore）
 
         services.AddApiClientServices();
 
@@ -54,7 +54,7 @@ public static partial class ServiceRegistration
             .ValidateOnStart();
 
         // FileOperationConfig — 直接注册供 FileOperationService 构造函数使用
-        // （FileOperationService 有手动构造函数，不使用 [Inject] 生成器）
+        // （FileOperationService 有手动构造函数，不使用 生成器）
         services.AddSingleton(sp =>
         {
             var options = sp.GetRequiredService<IOptions<FileOperationConfig>>();

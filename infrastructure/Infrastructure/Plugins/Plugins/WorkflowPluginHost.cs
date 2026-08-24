@@ -4,14 +4,13 @@ namespace Core.Plugins;
 /// <summary>
 /// 工作流插件宿主 - 管理 IWorkflowPlugin 的生命周期和服务容器
 /// </summary>
-public sealed class WorkflowPluginHost : IDisposable
+public sealed class WorkflowPluginHost : PluginResourceBase
 {
     private readonly IServiceCollection _pluginServices;
     private ServiceProvider? _pluginServiceProvider;
     private readonly IWorkflowPlugin _plugin;
     private readonly ILogger? _logger;
     private readonly ICommandRegistry? _sharedCommandRegistry;
-    private bool _isDisposed;
 
     public string PluginName => _plugin.Name;
     public string Version => _plugin.Version;
@@ -27,6 +26,7 @@ public sealed class WorkflowPluginHost : IDisposable
         IFileOperationService? fileOperationService = null,
         ICommandRegistry? commandRegistry = null,
         ILogger? logger = null)
+        : base(plugin.Name, PluginResourceKind.Hook, plugin.Name)
     {
         _plugin = plugin;
         _logger = logger;
@@ -50,7 +50,7 @@ public sealed class WorkflowPluginHost : IDisposable
     /// </summary>
     public async Task<OperationResult> LoadAsync(CancellationToken cancellationToken = default)
     {
-        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
+        EnsureAlive();
 
         try
         {
@@ -84,7 +84,7 @@ public sealed class WorkflowPluginHost : IDisposable
     /// </summary>
     public async Task<OperationResult> InitializeAsync(CancellationToken cancellationToken = default)
     {
-        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
+        EnsureAlive();
 
         if (_pluginServiceProvider == null)
         {
@@ -129,7 +129,7 @@ public sealed class WorkflowPluginHost : IDisposable
     /// </summary>
     public PluginUnloadResult Unload()
     {
-        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
+        EnsureAlive();
 
         try
         {
@@ -179,10 +179,8 @@ public sealed class WorkflowPluginHost : IDisposable
         return _pluginServiceProvider.GetRequiredService<T>();
     }
 
-    public void Dispose()
+    protected override void OnResourceDispose()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _isDisposed)) return;
-
         if (_plugin is IDisposable disposable)
         {
             disposable.Dispose();

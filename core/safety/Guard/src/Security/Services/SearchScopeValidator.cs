@@ -5,7 +5,8 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// 使用 FrozenSet/FrozenDictionary 实现高效忽略大小写匹配
 /// 支持热重载：通过 ISearchScopeReloadable 接口动态更新额外配置
 /// </summary>
-[Register]
+[Register(typeof(ISearchScopeValidator), ServiceLifetime.Singleton)]
+[Register(typeof(ISearchScopeReloadable), ServiceLifetime.Singleton)]
 public sealed partial class SearchScopeValidator : ServiceEntity, ISearchScopeValidator, ISearchScopeReloadable
 {
     private static readonly FrozenSet<string> SearchCommands = FrozenSet.Create(

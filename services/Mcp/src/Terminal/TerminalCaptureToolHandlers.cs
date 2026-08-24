@@ -5,7 +5,7 @@ namespace McpToolDispatch;
 [McpToolDispatch(ToolCategory.Terminal, Optional = true)]
 public partial class TerminalCaptureToolHandlers
 {
-    [Inject] private readonly ILogger<TerminalCaptureToolHandlers>? _logger;
+    private readonly ILogger<TerminalCaptureToolHandlers>? _logger;
     private readonly ITerminalCaptureService? _captureService;
 
     public TerminalCaptureToolHandlers(ILogger<TerminalCaptureToolHandlers>? logger = null, ITerminalCaptureService? captureService = null)

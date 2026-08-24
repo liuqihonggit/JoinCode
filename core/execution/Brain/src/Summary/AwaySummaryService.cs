@@ -15,11 +15,11 @@ internal sealed record SummaryTemplateData(
     string ErrorDetailsText,
     string PendingText);
 
-[Register]
+[Register(typeof(IAwaySummaryService), ServiceLifetime.Singleton)]
 public sealed partial class AwaySummaryService : ServiceEntity, IAwaySummaryService, IDisposable
 {
     private readonly AwaySummaryOptions _options;
-    [Inject] private readonly ILogger<AwaySummaryService>? _logger;
+    private readonly ILogger<AwaySummaryService>? _logger;
     private readonly IClockService _clock;
     private readonly SemaphoreSlim _eventLock = new(1, 1);
     private readonly ConcurrentQueue<AwayEvent> _events = new();

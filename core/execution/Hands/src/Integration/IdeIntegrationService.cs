@@ -2,14 +2,14 @@ using JoinCode.Abstractions.Attributes;
 
 namespace IO.Services;
 
-[Register]
+[Register(typeof(IIdeIntegrationService), ServiceLifetime.Singleton)]
 public sealed partial class IdeIntegrationService : ServiceEntity, IIdeIntegrationService
 {
     private IdeInfo? _currentConnection;
     private string? _currentFilePath;
     private readonly IFileSystem _fs;
     private readonly IProcessService _processService;
-    [Inject] private readonly ILogger<IdeIntegrationService>? _logger;
+    private readonly ILogger<IdeIntegrationService>? _logger;
 
     private static readonly FrozenDictionary<IdeType, IdeDetectionConfig> DetectionConfigs =
         new Dictionary<IdeType, IdeDetectionConfig>

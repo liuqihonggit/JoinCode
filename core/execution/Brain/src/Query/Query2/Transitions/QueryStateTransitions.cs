@@ -23,7 +23,7 @@ public interface IQueryStateTransitions
     event EventHandler<StateChangedEventArgs<QueryState>>? StateChanged;
 }
 
-[Register(typeof(IQueryStateTransitions))]
+[Register(typeof(IQueryStateTransitions), ServiceLifetime.Singleton)]
 public sealed partial class QueryStateTransitions : ServiceEntity, IQueryStateTransitions
 {
     private static readonly FrozenDictionary<QueryState, FrozenSet<QueryState>> TransitionTable = CreateTransitionTable();

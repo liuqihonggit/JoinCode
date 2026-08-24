@@ -1,8 +1,7 @@
 
 namespace Core.Ssh;
 
-[Register]
-[AllowSkipEntity("实现 IAsyncDisposable，与 Entity 的 IDisposable 冲突")]
+[Register(typeof(ISshSessionManager), ServiceLifetime.Singleton)]
 public sealed partial class SshSessionManager : ISshSessionManager
 {
 
@@ -13,9 +12,9 @@ public sealed partial class SshSessionManager : ISshSessionManager
         _telemetryService = telemetryService;
     }
     private readonly ConcurrentDictionary<string, SshSession> _sessions = new();
-    [Inject] private readonly ILogger<SshSessionManager>? _logger;
-    [Inject] private readonly IFileSystem _fs;
-    [Inject] private readonly ITelemetryService? _telemetryService;
+    private readonly ILogger<SshSessionManager>? _logger;
+    private readonly IFileSystem _fs;
+    private readonly ITelemetryService? _telemetryService;
     private readonly SemaphoreSlim _stateLock = new(1, 1);
     private int _isDisposed;
 

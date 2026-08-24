@@ -6,13 +6,12 @@ namespace Core.Bridge;
 /// 传输管理器 - 协调连接管理和消息路由
 /// 作为 ConnectionManager 和 StringMessageRouter 的外观
 /// </summary>
-[Register]
-[AllowSkipEntity("实现 IAsyncDisposable，与 ServiceEntity 的 IDisposable 冲突，保留异步释放模式")]
+[Register(typeof(ITransportManager), ServiceLifetime.Singleton)]
 public sealed partial class TransportManager : ITransportManager
 {
     private readonly IConnectionManager _connectionManager;
     private readonly IMessageRouter _messageRouter;
-    [Inject] private readonly ILogger<TransportManager>? _logger;
+    private readonly ILogger<TransportManager>? _logger;
 
     public TransportConnectionState ConnectionState => _connectionManager.ConnectionState;
     public TransportProtocol CurrentProtocol => _connectionManager.CurrentProtocol;

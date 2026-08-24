@@ -4,7 +4,7 @@ namespace Services.Notebook;
 /// <summary>
 /// Notebook服务实现
 /// </summary>
-[Register]
+[Register(typeof(INotebookService), ServiceLifetime.Singleton)]
 public sealed partial class NotebookService : ServiceEntity, INotebookService
 {
 
@@ -15,10 +15,10 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService
         _fileHistoryService = fileHistoryService;
         _telemetryService = telemetryService;
     }
-    [Inject] private readonly IFileOperationService _fileOperationService;
-    [Inject] private readonly IFileSystem _fs;
-    [Inject] private readonly IFileHistoryService? _fileHistoryService;
-    [Inject] private readonly ITelemetryService? _telemetryService;
+    private readonly IFileOperationService _fileOperationService;
+    private readonly IFileSystem _fs;
+    private readonly IFileHistoryService? _fileHistoryService;
+    private readonly ITelemetryService? _telemetryService;
 
     /// <inheritdoc />
     public async Task<NotebookDocument?> LoadAsync(string filePath, CancellationToken cancellationToken = default)

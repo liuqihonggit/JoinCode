@@ -2,14 +2,14 @@ using JoinCode.Abstractions.Attributes;
 
 namespace Core.CostTracking;
 
-[Register]
+[Register(typeof(ICostTracker), ServiceLifetime.Singleton)]
 public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
 {
     private readonly ConcurrentDictionary<string, ModelCostInfo> _modelCosts;
     private readonly ConcurrentBag<TokenUsageRecord> _usageRecords;
     private readonly ConcurrentDictionary<string, List<TokenUsageRecord>> _sessionIndex;
     private readonly string _storagePath;
-    [Inject] private readonly ILogger<CostTracker>? _logger;
+    private readonly ILogger<CostTracker>? _logger;
     private readonly IFileOperationService _fileOperationService;
     private readonly ITelemetryService? _telemetryService;
     private readonly SemaphoreSlim _budgetLock;

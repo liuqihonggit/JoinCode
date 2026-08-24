@@ -3,7 +3,7 @@ namespace Tools.Shell;
 /// <summary>
 /// Shell 路径门控中间件 — 根据当前平台和目标执行器类型转换路径格式
 /// </summary>
-[Register]
+[Register(typeof(IShellMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ShellPathGateMiddleware : ServiceEntity, IShellMiddleware
 {
 
@@ -12,8 +12,8 @@ public sealed partial class ShellPathGateMiddleware : ServiceEntity, IShellMiddl
         _probeService = probeService;
         _logger = logger;
     }
-    [Inject] private readonly IEnvironmentProbeService _probeService;
-    [Inject] private readonly ILogger<ShellPathGateMiddleware>? _logger;
+    private readonly IEnvironmentProbeService _probeService;
+    private readonly ILogger<ShellPathGateMiddleware>? _logger;
 
     /// <inheritdoc />
     public Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct)

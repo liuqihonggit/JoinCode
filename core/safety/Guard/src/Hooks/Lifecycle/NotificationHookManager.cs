@@ -13,11 +13,11 @@ public sealed partial class NotificationHookContext
     public Dictionary<string, JsonElement> Data { get; init; } = new();
 }
 
-[Register]
+[Register(typeof(INotificationHookManager), ServiceLifetime.Singleton)]
 public sealed partial class NotificationHookManager : ServiceEntity, INotificationHookManager
 {
     private readonly IHookOrchestrator _orchestrator;
-    [Inject] private readonly ILogger<NotificationHookManager>? _logger;
+    private readonly ILogger<NotificationHookManager>? _logger;
     private readonly ITelemetryService? _telemetryService;
 
     public NotificationHookManager(IHookOrchestrator orchestrator, ILogger<NotificationHookManager>? logger = null, ITelemetryService? telemetryService = null)

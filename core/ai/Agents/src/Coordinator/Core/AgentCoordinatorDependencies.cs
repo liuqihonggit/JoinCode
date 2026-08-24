@@ -5,7 +5,7 @@ namespace Core.Agents.Coordinator;
 /// <summary>
 /// AgentCoordinator 核心依赖聚合 — 5 个必需服务
 /// </summary>
-[Register]
+[Register(typeof(AgentCoreDependencies), ServiceLifetime.Singleton)]
 public sealed record AgentCoreDependencies(
     IAgentLifecycleManager LifecycleManager,
     IAgentWorktreeManager WorktreeManager,
@@ -17,7 +17,7 @@ public sealed record AgentCoreDependencies(
 /// AgentCoordinator 权限路由依赖聚合 — 1 个可选服务
 /// PermissionRouter 和 PlanApprovalRouter 已移至 SpawnCoordPermissionRoutingMiddleware
 /// </summary>
-[Register]
+[Register(typeof(AgentPermissionDependencies), ServiceLifetime.Singleton)]
 public sealed record AgentPermissionDependencies(
     ISwarmPermissionBridge? PermissionBridge = null);
 
@@ -27,6 +27,6 @@ public sealed record AgentPermissionDependencies(
 /// SystemActuatorRegistry 已移至 DisposeShellTasksMiddleware
 /// LayoutManager 已移至 SpawnCoordTeammatePaneMiddleware + DisposePaneMiddleware
 /// </summary>
-[Register]
+[Register(typeof(AgentTeamDependencies), ServiceLifetime.Singleton)]
 public sealed record AgentTeamDependencies(
     JoinCode.Abstractions.Interfaces.ITeammateReconnectService? ReconnectService = null);

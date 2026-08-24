@@ -3,7 +3,7 @@ namespace Infrastructure.Cache;
 /// <summary>
 /// 会话环境变量缓存实现 — 对齐 TS: clearSessionEnvVars
 /// </summary>
-[Register(typeof(JoinCode.Abstractions.Interfaces.Cache.ISessionEnvVars))]
+[Register(typeof(JoinCode.Abstractions.Interfaces.Cache.ISessionEnvVars), ServiceLifetime.Singleton)]
 public sealed partial class SessionEnvVarsCache : ServiceEntity, JoinCode.Abstractions.Interfaces.Cache.ISessionEnvVars
 {
     private readonly Dictionary<string, string> _vars = new(StringComparer.OrdinalIgnoreCase);

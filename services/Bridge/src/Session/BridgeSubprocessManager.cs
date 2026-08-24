@@ -8,7 +8,7 @@ namespace Core.Bridge;
 /// 封装子进程的生命周期和通信接口
 /// 通过 IProcessService.StartInteractiveAsync 创建进程，支持 JCC_PROCESS_MODE 环境变量切换
 /// </summary>
-public sealed class BridgeSubprocessHandle : IAsyncDisposable
+public sealed class BridgeSubprocessHandle : PluginResourceBase
 {
     private readonly IInteractiveProcess _process;
     private readonly ResilientSubprocess? _resilientSubprocess;
@@ -19,13 +19,13 @@ public sealed class BridgeSubprocessHandle : IAsyncDisposable
     private readonly ILogger? _logger;
     private readonly CancellationTokenSource _readCts;
     private Task? _stdoutReadTask;
-    private int _isDisposed;
+    private bool _asyncDisposed;
     private int _sigkillSent;
     private StreamWriter? _transcriptStream;
     private bool _firstUserMessageSeen; // 对齐 TS 端 firstUserMessageSeen — 标题获取一次性回调
 
     /// <summary>会话 ID</summary>
-    public string SessionId { get; }
+    public new string SessionId { get; }
 
     /// <summary>进程退出 Promise — 对齐 TS 端 done</summary>
     public Task<BridgeSubprocessStatus> Done => _doneTcs.Task;
@@ -82,6 +82,7 @@ public sealed class BridgeSubprocessHandle : IAsyncDisposable
     /// 私有构造 — 通过 CreateAsync 工厂方法创建
     /// </summary>
     private BridgeSubprocessHandle(IInteractiveProcess process, BridgeSubprocessOptions options, ILogger? logger, ResilientSubprocess? resilientSubprocess = null)
+        : base("Bridge", PluginResourceKind.Hook, options.SessionId)
     {
         _process = process;
         _resilientSubprocess = resilientSubprocess;
@@ -439,12 +440,10 @@ public sealed class BridgeSubprocessHandle : IAsyncDisposable
         queue.Enqueue(item);
     }
 
-    public async ValueTask DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _isDisposed, 1) == 1)
-        {
-            return;
-        }
+        if (_asyncDisposed) return;
+        _asyncDisposed = true;
 
         // 取消读取任务
         await _readCts.CancelAsync().ConfigureAwait(false);
@@ -510,6 +509,21 @@ public sealed class BridgeSubprocessHandle : IAsyncDisposable
         {
             _logger?.LogWarning(ex, "[BridgeSubprocessManager] transcript 流释放失败");
         }
+
+        // 触发 Entity 生命周期注销（ObjectId/SessionRouter）
+        Dispose();
+    }
+
+    protected override void OnResourceDispose()
+    {
+        if (_asyncDisposed) return; // 异步释放已完成，跳过同步清理
+
+        // 同步 best-effort 清理 — 仅在直接调用 Dispose() 时执行
+        try { _readCts.Cancel(); } catch (Exception ex) { _logger?.LogWarning(ex, "[BridgeSubprocessHandle] 同步释放: Cancel 失败"); }
+        try { if (!_process.HasExited) Kill(); } catch (Exception ex) { _logger?.LogWarning(ex, "[BridgeSubprocessHandle] 同步释放: Kill 失败"); }
+        try { _readCts.Dispose(); } catch (Exception ex) { _logger?.LogWarning(ex, "[BridgeSubprocessHandle] 同步释放: CTS.Dispose 失败"); }
+        try { _stdinLock.Dispose(); } catch (Exception ex) { _logger?.LogWarning(ex, "[BridgeSubprocessHandle] 同步释放: stdinLock.Dispose 失败"); }
+        try { _transcriptStream?.Dispose(); _transcriptStream = null; } catch (Exception ex) { _logger?.LogWarning(ex, "[BridgeSubprocessHandle] 同步释放: transcript 失败"); }
     }
 }
 

@@ -4,7 +4,7 @@ namespace Core.Agents.Worktree;
 /// Worktree 恢复中间件 — 检查现有 worktree 是否可恢复，命中时短路
 /// 对齐 TS readWorktreeHeadSha：直接读取 .git 指针文件获取 HEAD SHA（无子进程，~15ms 优化）
 /// </summary>
-[Register(typeof(IWorktreeCreateMiddleware))]
+[Register(typeof(IWorktreeCreateMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class WorktreeRecoveryMiddleware : ServiceEntity, IWorktreeCreateMiddleware
 {
 
@@ -15,10 +15,10 @@ public sealed partial class WorktreeRecoveryMiddleware : ServiceEntity, IWorktre
         _clock = clock;
         _logger = logger;
     }
-    [Inject] private readonly IFileOperationService _fs;
-    [Inject] private readonly ILogger<WorktreeRecoveryMiddleware>? _logger;
-    [Inject] private readonly Lazy<IWorktreePipelineOperations> _worktreeService;
-    [Inject] private readonly IClockService _clock;
+    private readonly IFileOperationService _fs;
+    private readonly ILogger<WorktreeRecoveryMiddleware>? _logger;
+    private readonly Lazy<IWorktreePipelineOperations> _worktreeService;
+    private readonly IClockService _clock;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

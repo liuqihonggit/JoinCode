@@ -5,7 +5,7 @@ namespace Core.Scheduling;
 /// 内存任务服务实现（仅用于测试和简单场景）
 /// 生产环境应使用 FileBasedTaskService（支持跨进程/多智能体协作）
 /// </summary>
-[Register] // 注册为自身类型，不注册为 ITaskService
+[Register(typeof(TaskService), ServiceLifetime.Singleton)]
 public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposable
 {
 
@@ -16,7 +16,7 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
     private readonly ConcurrentDictionary<string, TaskItem> _tasks = new();
     private readonly ConcurrentDictionary<string, TaskStateMachine> _taskStateMachines = new();
     private readonly ConcurrentDag<string> _dag = new();
-    [Inject] private readonly ITelemetryService? _telemetryService;
+    private readonly ITelemetryService? _telemetryService;
     private int _taskCounter;
 
     public Task<OperationResult<TaskItem?>> CreateTaskAsync(

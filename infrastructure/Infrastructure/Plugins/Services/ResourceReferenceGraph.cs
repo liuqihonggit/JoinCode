@@ -5,7 +5,7 @@ namespace Core.Plugins;
 /// <para>线程安全:ConcurrentDictionary 存储引用关系</para>
 /// <para>连带卸载:GetConsumers 返回引用方插件列表,框架通知放弃引用</para>
 /// </summary>
-[Register(typeof(IResourceReferenceGraph))]
+[Register(typeof(IResourceReferenceGraph), ServiceLifetime.Singleton)]
 public sealed class ResourceReferenceGraph : IResourceReferenceGraph
 {
     private readonly ConcurrentDictionary<(ObjectId Consumer, ObjectId Target), ResourceReference> _references = new();

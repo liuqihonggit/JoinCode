@@ -4,7 +4,7 @@ namespace Infrastructure.HotSpot;
 /// 契约变更广播器实现 — 热文件变就通过 IMailbox 定向发给依赖 Worker
 /// 非热文件不广播；复用现有 IMailbox 不新建 Broadcaster
 /// </summary>
-[Register(typeof(IContractChangeBroadcaster))]
+[Register(typeof(IContractChangeBroadcaster), ServiceLifetime.Singleton)]
 public sealed class ContractChangeBroadcaster : IContractChangeBroadcaster
 {
     private readonly IHotFileDetector _hotFileDetector;

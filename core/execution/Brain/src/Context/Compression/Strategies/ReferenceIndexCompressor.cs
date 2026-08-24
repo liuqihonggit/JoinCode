@@ -4,7 +4,7 @@ namespace Core.Context.Compression;
 /// <summary>
 /// 引用索引压缩策略
 /// </summary>
-[Register(JoinCode.Abstractions.Attributes.ServiceLifetime.Transient)]
+[Register(typeof(ICompressionStrategy), ServiceLifetime.Transient)]
 public sealed partial class ReferenceIndexCompressor : CompressionStrategyBase
 {
     public override string Name => "ReferenceIndexCompressor";

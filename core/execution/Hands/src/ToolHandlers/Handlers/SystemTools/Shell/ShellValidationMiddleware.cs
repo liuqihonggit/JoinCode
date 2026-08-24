@@ -3,7 +3,7 @@ namespace Tools.Shell;
 /// <summary>
 /// Shell 命令参数验证中间件 — 检查命令、超时、工作目录等参数的有效性
 /// </summary>
-[Register]
+[Register(typeof(IShellMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ShellValidationMiddleware : ServiceEntity, IShellMiddleware
 {
     /// <inheritdoc />

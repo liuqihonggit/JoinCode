@@ -2,7 +2,7 @@ namespace Core.Scheduling.Tasks;
 
 using JoinCode.Abstractions.Pipeline;
 
-[Register(typeof(ITeammateExecutionMiddleware))]
+[Register(typeof(ITeammateExecutionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class TeammateContinuousModeMiddleware : ServiceEntity, ITeammateExecutionMiddleware
 {
 
@@ -11,8 +11,8 @@ public sealed partial class TeammateContinuousModeMiddleware : ServiceEntity, IT
         _clock = clock;
         _logger = logger;
     }
-    [Inject] private readonly ILogger<TeammateContinuousModeMiddleware>? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<TeammateContinuousModeMiddleware>? _logger;
+    private readonly IClockService _clock;
 
 
     public Task InvokeAsync(TeammateExecutionContext ctx, MiddlewareDelegate<TeammateExecutionContext> next, CancellationToken ct)

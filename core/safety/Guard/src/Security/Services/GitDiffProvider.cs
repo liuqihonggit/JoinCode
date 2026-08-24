@@ -1,7 +1,7 @@
 
 namespace Core.Security.Services;
 
-[Register]
+[Register(typeof(IGitDiffProvider), ServiceLifetime.Singleton)]
 public sealed partial class GitDiffProvider : ServiceEntity, IGitDiffProvider
 {
 
@@ -10,8 +10,8 @@ public sealed partial class GitDiffProvider : ServiceEntity, IGitDiffProvider
         _logger = logger;
         _gitRunner = gitRunner;
     }
-    [Inject] private readonly ILogger<GitDiffProvider> _logger;
-    [Inject] private readonly IGitCommandRunner _gitRunner;
+    private readonly ILogger<GitDiffProvider> _logger;
+    private readonly IGitCommandRunner _gitRunner;
 
     public async Task<IReadOnlyList<string>> GetStagedFileNamesAsync(string workingDirectory, CancellationToken ct = default)
     {

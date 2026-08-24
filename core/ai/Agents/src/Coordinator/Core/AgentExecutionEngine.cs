@@ -1,10 +1,10 @@
-﻿
+
 namespace Core.Agents.Coordinator;
 
 /// <summary>
 /// Agent 执行引擎 - 负责执行策略（并行/串行）
 /// </summary>
-[Register]
+[Register(typeof(IAgentExecutionEngine), ServiceLifetime.Singleton)]
 public sealed partial class AgentExecutionEngine : ServiceEntity, IAgentExecutionEngine
 {
     private readonly IAgentLifecycleManager _lifecycleManager;

@@ -32,7 +32,7 @@ public class DefaultBootstrapGuardTests
     {
         var guard = CreateGuard();
         var request = CreateRequest(
-            originalContent: "[Register(typeof(IFoo))]\npublic class Foo { }",
+            originalContent: "[Register(typeof(IFoo), ServiceLifetime.Singleton)]\npublic class Foo { }",
             proposedContent: "public class Foo { }"
         );
 

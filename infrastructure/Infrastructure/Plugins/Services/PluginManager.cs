@@ -1,7 +1,7 @@
 
 namespace Core.Plugins;
 
-[Register]
+[Register(typeof(IPluginManager), ServiceLifetime.Singleton)]
 public sealed partial class PluginManager : ServiceEntity, IPluginManager
 {
     private readonly ConcurrentDictionary<string, WorkflowPluginHost> _workflowPlugins = new();
@@ -10,7 +10,7 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
     private readonly ILoggerFactory? _loggerFactory;
     private readonly IFileOperationService? _fileOperationService;
     private readonly ICommandRegistry? _commandRegistry;
-    [Inject] private readonly ILogger<PluginManager>? _logger;
+    private readonly ILogger<PluginManager>? _logger;
     private readonly IServiceProvider? _serviceProvider;
     private readonly ITelemetryService? _telemetryService;
     private readonly IFileSystem _fs;

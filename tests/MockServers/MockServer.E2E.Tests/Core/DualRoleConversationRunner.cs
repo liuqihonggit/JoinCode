@@ -81,10 +81,10 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
 
         var providerValue = _activeProvider switch
         {
-            VendorKind.OpenAi => "openai",
-            VendorKind.Anthropic => "anthropic",
-            VendorKind.DeepSeek => "deepseek",
-            _ => "openai"
+            VendorKind.OpenAi => VendorKind.OpenAi.ToValue(),
+            VendorKind.Anthropic => VendorKind.Anthropic.ToValue(),
+            VendorKind.DeepSeek => VendorKind.DeepSeek.ToValue(),
+            _ => VendorKind.OpenAi.ToValue()
         };
         var modelId = _activeProvider switch
         {
@@ -214,10 +214,10 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
             var exePath = ResolveExecutablePath();
             var providerValue = _activeProvider switch
             {
-                VendorKind.OpenAi => "openai",
-                VendorKind.Anthropic => "anthropic",
-                VendorKind.DeepSeek => "deepseek",
-                _ => "openai"
+                VendorKind.OpenAi => VendorKind.OpenAi.ToValue(),
+                VendorKind.Anthropic => VendorKind.Anthropic.ToValue(),
+                VendorKind.DeepSeek => VendorKind.DeepSeek.ToValue(),
+                _ => VendorKind.OpenAi.ToValue()
             };
             var modelId = _activeProvider switch
             {

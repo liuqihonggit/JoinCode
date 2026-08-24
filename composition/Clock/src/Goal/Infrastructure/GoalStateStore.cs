@@ -8,12 +8,12 @@ using JoinCode.Abstractions.Models.Goal;
 /// 目标状态持久化存储 — JSON 文件实现，按 sessionId 隔离，原子写入，AOT 兼容。
 /// 路径: {baseDir}/{sessionId}/{goalId}.json
 /// </summary>
-[Register]
+[Register(typeof(IGoalStateStore), ServiceLifetime.Singleton)]
 public sealed class GoalStateStore : IGoalStateStore
 {
     private readonly string _baseDir;
     private readonly IFileSystem _fs;
-    [Inject] private readonly ILogger<GoalStateStore>? _logger = null;
+    private readonly ILogger<GoalStateStore>? _logger = null;
 
     public GoalStateStore(IFileSystem fs, string? baseDir = null, ILogger<GoalStateStore>? logger = null)
     {

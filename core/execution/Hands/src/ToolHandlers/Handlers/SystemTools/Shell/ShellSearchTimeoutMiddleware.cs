@@ -5,7 +5,7 @@ namespace Tools.Shell;
 /// 防止搜索范围意外过大时长时间卡顿
 /// 仅在用户未显式指定超时时生效
 /// </summary>
-[Register]
+[Register(typeof(IShellMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ShellSearchTimeoutMiddleware : ServiceEntity, IShellMiddleware
 {
     private static readonly FrozenSet<string> SearchCommands = FrozenSet.Create(

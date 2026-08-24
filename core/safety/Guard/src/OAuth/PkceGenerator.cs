@@ -48,7 +48,7 @@ public sealed record PkceParameters
 /// PKCE 生成器实现
 /// 使用 S256 方法
 /// </summary>
-[Register]
+[Register(typeof(IPkceGenerator), ServiceLifetime.Singleton)]
 public sealed partial class PkceGenerator : ServiceEntity, IPkceGenerator
 {
     private const int MinVerifierLength = 43;

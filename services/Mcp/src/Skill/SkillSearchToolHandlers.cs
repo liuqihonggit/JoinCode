@@ -6,7 +6,7 @@ namespace McpToolDispatch;
 public sealed partial class SkillSearchToolHandlers
 {
     private readonly JoinCode.Abstractions.Interfaces.ISkillSearchService _searchService;
-    [Inject] private readonly ILogger<SkillSearchToolHandlers>? _logger;
+    private readonly ILogger<SkillSearchToolHandlers>? _logger;
 
     public SkillSearchToolHandlers(JoinCode.Abstractions.Interfaces.ISkillSearchService searchService, ILogger<SkillSearchToolHandlers>? logger = null)
     {

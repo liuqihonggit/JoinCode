@@ -68,7 +68,7 @@ public sealed partial class LspServerInstance : ILspServerInstance
     private static readonly FrozenDictionary<LspServerState, FrozenSet<LspServerState>> Transitions = CreateTransitionTable();
 
     private readonly LspInstanceConfig _config;
-    [Inject] private readonly ILogger<LspServerInstance> _logger;
+    private readonly ILogger<LspServerInstance> _logger;
     private readonly LspClient _client;
     private readonly StateMachine<LspServerState> _stateMachine;
 

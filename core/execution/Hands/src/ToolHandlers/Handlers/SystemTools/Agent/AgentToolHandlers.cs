@@ -43,8 +43,8 @@ public partial class AgentToolHandlers
     private readonly MiddlewarePipeline<AgentToolContext> _pipeline;
     private readonly IAgentService _agentService;
     private readonly IAgentService? _coordinator;
-    [Inject] private readonly ILogger<AgentToolHandlers>? _logger;
-    [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly ILogger<AgentToolHandlers>? _logger;
+    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     private readonly ITelemetryService? _telemetryService;
     private readonly IServiceProvider? _serviceProvider;
     private readonly ITeamManager? _teamManager;

@@ -5,7 +5,7 @@ namespace Core.Permission;
 /// 工具列表权限中间件 — 检查自动批准/拒绝工具列表
 /// Default/Auto/Plan 模式下均生效
 /// </summary>
-[Register(typeof(IPermissionMiddleware))]
+[Register(typeof(IPermissionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ToolListPermissionMiddleware : ServiceEntity, IPermissionMiddleware
 {
     /// <inheritdoc />

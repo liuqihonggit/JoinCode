@@ -4,11 +4,11 @@ namespace Core.Permission;
 /// <summary>
 /// 权限管理器实现，提供线程安全的权限检查和缓存机制
 /// </summary>
-[Register]
+[Register(typeof(IToolPermissionManager), ServiceLifetime.Singleton)]
 public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDisposable
 {
     private readonly PermissionChecker _permissionChecker;
-    [Inject] private readonly ILogger<PermissionManager>? _logger;
+    private readonly ILogger<PermissionManager>? _logger;
     private readonly ConcurrentDictionary<string, DateTimeOffset> _approvedTools;
     private readonly AsyncLock _modeLock = new();
     private readonly PermissionConfig _config;

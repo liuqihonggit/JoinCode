@@ -16,7 +16,7 @@ public sealed class CodeSessionRecord
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
-[Register]
+[Register(typeof(CodeSessionRepo), ServiceLifetime.Singleton)]
 public sealed partial class CodeSessionRepo : ServiceEntity
 {
     private readonly ConcurrentDictionary<string, CodeSessionRecord> _store = new(StringComparer.Ordinal);

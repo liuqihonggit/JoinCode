@@ -5,7 +5,7 @@ namespace Tools.Shell;
 /// 同步等待模式：提交编译后等待结果，30s 超时提示 AI 自行决策
 /// 缓存命中直接返回结果，同命令编译中共享结果
 /// </summary>
-[Register]
+[Register(typeof(IShellMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ShellBuildInterceptMiddleware : ServiceEntity, IShellMiddleware
 {
 
@@ -17,9 +17,9 @@ public sealed partial class ShellBuildInterceptMiddleware : ServiceEntity, IShel
     }
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
 
-    [Inject] private readonly IBuildQueueService _buildQueueService;
-    [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
-    [Inject] private readonly IClockService _clock;
+    private readonly IBuildQueueService _buildQueueService;
+    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly IClockService _clock;
 
     /// <inheritdoc />
 

@@ -70,6 +70,7 @@ global using IMcpClient = JoinCode.Abstractions.Mcp.Client.IMcpClient;
 global using McpClient;
 global using Microsoft.Extensions.Caching.Memory;
 global using Microsoft.Extensions.DependencyInjection;
+global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using Microsoft.Extensions.Options;
 global using Services.Api;
 global using Services.Api.Vcr;

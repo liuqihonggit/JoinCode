@@ -6,14 +6,14 @@ public interface ISwarmPermissionRequestProcessor
     Task ProcessRequestAsync(SwarmPermissionRequestData requestData, CancellationToken ct = default);
 }
 
-[Register]
+[Register(typeof(ISwarmPermissionRequestProcessor), ServiceLifetime.Singleton)]
 public sealed partial class SwarmPermissionRequestProcessor : ServiceEntity, ISwarmPermissionRequestProcessor
 {
     private readonly IMailbox _messageBroker;
     private readonly IAgentPermissionManager _permissionManager;
     private readonly SwarmPermissionCallbackService _callbackService;
-    [Inject] private readonly ILogger<SwarmPermissionRequestProcessor>? _logger;
-    [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly ILogger<SwarmPermissionRequestProcessor>? _logger;
+    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
 
     public SwarmPermissionRequestProcessor(
         IMailbox messageBroker,

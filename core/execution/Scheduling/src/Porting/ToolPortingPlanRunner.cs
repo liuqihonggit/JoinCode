@@ -4,11 +4,11 @@ namespace Core.Scheduling;
 /// <summary>
 /// 工具移植计划运行器 - 用于执行和监控工具移植并行计划
 /// </summary>
-[Register]
+[Register(typeof(ToolPortingPlanRunner), ServiceLifetime.Singleton)]
 public sealed partial class ToolPortingPlanRunner : ServiceEntity
 {
     private readonly ParallelExecutionEngine _executionEngine;
-    [Inject] private readonly ILogger<ToolPortingPlanRunner>? _logger;
+    private readonly ILogger<ToolPortingPlanRunner>? _logger;
     private readonly IClockService _clock;
     private readonly StringBuilder _executionLog = new();
     private readonly ConcurrentQueue<PlanExecutionRecord> _executionHistory = new();

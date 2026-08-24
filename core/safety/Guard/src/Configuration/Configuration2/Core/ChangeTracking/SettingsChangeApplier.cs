@@ -4,13 +4,13 @@ namespace Core.Configuration;
 /// 设置变更应用器 — 对齐 TS 版 applySettingsChange
 /// 当 settings.json 变更时，通过中间件管道重新加载设置并更新相关服务状态
 /// </summary>
-[Register]
+[Register(typeof(ISettingsChangeApplier), ServiceLifetime.Singleton)]
 public sealed partial class SettingsChangeApplier : ServiceEntity, ISettingsChangeApplier, IDisposable
 {
     private readonly IConfigChangeNotifier _configChangeNotifier;
     private readonly MiddlewarePipeline<SettingsContext> _pipeline;
     private readonly IFileSystem _fs;
-    [Inject] private readonly ILogger<SettingsChangeApplier>? _logger;
+    private readonly ILogger<SettingsChangeApplier>? _logger;
     private readonly ITelemetryService? _telemetryService;
     private readonly CancellationTokenSource _disposeCts = new();
     private int _isDisposed;

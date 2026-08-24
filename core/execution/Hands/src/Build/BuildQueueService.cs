@@ -6,14 +6,13 @@ using System.Diagnostics.CodeAnalysis;
 /// 编译队列服务 — 编译请求串行化 + 结果缓冲区
 /// 核心特性：串行执行 + 结果缓冲区（源码指纹失效）+ 防睡眠
 /// </summary>
-[Register]
-[AllowSkipEntity("实现 IAsyncDisposable，与 ServiceEntity 的 IDisposable 冲突，保留异步释放模式")]
+[Register(typeof(IBuildQueueService), ServiceLifetime.Singleton)]
 public sealed partial class BuildQueueService : IBuildQueueService
 {
-    [Inject] private readonly ISystemActuatorRegistry _actuatorRegistry;
-    [Inject] private readonly IFileSystem _fs;
-    [Inject] private readonly IPreventSleepService? _preventSleepService;
-    [Inject] private readonly ILogger<BuildQueueService>? _logger;
+    private readonly ISystemActuatorRegistry _actuatorRegistry;
+    private readonly IFileSystem _fs;
+    private readonly IPreventSleepService? _preventSleepService;
+    private readonly ILogger<BuildQueueService>? _logger;
 
     private const string DefaultCrossProcessLockFileName = "JoinCode.Build.lock";
     private const string GitDirName = ".git";

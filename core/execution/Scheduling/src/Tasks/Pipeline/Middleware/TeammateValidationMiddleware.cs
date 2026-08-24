@@ -2,7 +2,7 @@ namespace Core.Scheduling.Tasks;
 
 using JoinCode.Abstractions.Pipeline;
 
-[Register(typeof(ITeammateExecutionMiddleware))]
+[Register(typeof(ITeammateExecutionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class TeammateValidationMiddleware : ServiceEntity, ITeammateExecutionMiddleware
 {
 
@@ -10,7 +10,7 @@ public sealed partial class TeammateValidationMiddleware : ServiceEntity, ITeamm
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<TeammateValidationMiddleware>? _logger;
+    private readonly ILogger<TeammateValidationMiddleware>? _logger;
 
 
     public Task InvokeAsync(TeammateExecutionContext ctx, MiddlewareDelegate<TeammateExecutionContext> next, CancellationToken ct)

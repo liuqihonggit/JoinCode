@@ -5,7 +5,7 @@ namespace Core.Agents;
 /// <summary>
 /// AgentServiceImpl 可选依赖聚合 — 4 个可选服务封装为单个参数
 /// </summary>
-[Register]
+[Register(typeof(AgentServiceDependencies), ServiceLifetime.Singleton)]
 public sealed record AgentServiceDependencies(
     JoinCode.Abstractions.Interfaces.IAgentTranscriptService? TranscriptService = null,
     IMailbox? MessageBroker = null,
@@ -14,7 +14,7 @@ public sealed record AgentServiceDependencies(
     JoinCode.Abstractions.Interfaces.IAgentInputForwardQueue? InputForwardQueue = null,
     JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? OutputChannelManager = null);
 
-[Register(typeof(JoinCode.Abstractions.Interfaces.IAgentService))]
+[Register(typeof(JoinCode.Abstractions.Interfaces.IAgentService), ServiceLifetime.Singleton)]
 public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentService, IDisposable
 {
 
@@ -28,9 +28,9 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     private readonly SwarmPermissionCallbackService? _permissionCallbackService;
     private readonly JoinCode.Abstractions.Interfaces.IAgentMcpServerManager? _mcpServerManager;
     private readonly JoinCode.Abstractions.Interfaces.IAgentNotificationQueue? _notificationQueue;
-    [Inject] private readonly ILogger<AgentServiceImpl>? _logger;
-    [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<AgentServiceImpl>? _logger;
+    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly IClockService _clock;
     private readonly Infrastructure.Pipeline.MiddlewarePipeline<UnifiedSpawnContext> _spawnPipeline;
     private readonly ConcurrentDictionary<string, TaskCompletionSource<JoinCode.Abstractions.Interfaces.AgentResult>> _completionSources;
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _backgroundCts;

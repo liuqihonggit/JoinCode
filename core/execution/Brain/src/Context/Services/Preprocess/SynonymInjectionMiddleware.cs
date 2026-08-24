@@ -5,12 +5,12 @@ namespace Core.Context;
 /// <summary>
 /// 同义词注入中间件 — 检测同义词并注入补充上下文
 /// </summary>
-[Register(typeof(IAnalyzePreprocessMiddleware))]
+[Register(typeof(IAnalyzePreprocessMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class SynonymInjectionMiddleware : ServiceEntity, IAnalyzePreprocessMiddleware
 {
     private readonly ISynonymMap _synonymMap;
     private readonly ISystemReminderManager _reminderManager;
-    [Inject] private readonly ILogger<SynonymInjectionMiddleware>? _logger;
+    private readonly ILogger<SynonymInjectionMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

@@ -5,7 +5,7 @@ namespace Core.Context.Compact;
 /// 通过 context_management 请求参数让 Anthropic API 在服务端自动清理工具结果
 /// 不破坏 prompt cache，优于客户端 microcompact
 /// </summary>
-[Register]
+[Register(typeof(IApiContextManagementService), ServiceLifetime.Singleton)]
 public sealed partial class ApiContextManagementService : ServiceEntity, IApiContextManagementService
 {
     // 对齐 TS: DEFAULT_MAX_INPUT_TOKENS / DEFAULT_TARGET_INPUT_TOKENS

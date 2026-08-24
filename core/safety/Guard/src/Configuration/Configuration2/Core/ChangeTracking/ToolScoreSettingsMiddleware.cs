@@ -4,7 +4,7 @@ namespace Core.Configuration;
 /// 工具评分热重载中间件 — settings.json 变更时更新黑名单、降权、超边配置
 /// 双变量切换模式：构建新快照 → 原子替换引用，读取端无锁
 /// </summary>
-[Register(typeof(ISettingsMiddleware))]
+[Register(typeof(ISettingsMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ToolScoreSettingsMiddleware : ServiceEntity, ISettingsMiddleware
 {
 
@@ -15,10 +15,10 @@ public sealed partial class ToolScoreSettingsMiddleware : ServiceEntity, ISettin
         _searchScopeReloadable = searchScopeReloadable;
         _logger = logger;
     }
-    [Inject] private readonly IToolHealthMonitor? _healthMonitor;
-    [Inject] private readonly IHyperedgeReloadable? _hyperedgeReloadable;
-    [Inject] private readonly ISearchScopeReloadable? _searchScopeReloadable;
-    [Inject] private readonly ILogger<ToolScoreSettingsMiddleware>? _logger;
+    private readonly IToolHealthMonitor? _healthMonitor;
+    private readonly IHyperedgeReloadable? _hyperedgeReloadable;
+    private readonly ISearchScopeReloadable? _searchScopeReloadable;
+    private readonly ILogger<ToolScoreSettingsMiddleware>? _logger;
 
     /// <inheritdoc />
     public ErrorBehavior OnError => ErrorBehavior.Continue;

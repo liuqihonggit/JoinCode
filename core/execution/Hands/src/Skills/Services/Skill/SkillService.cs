@@ -2,7 +2,7 @@ using JoinCode.Abstractions.Attributes;
 
 namespace Core.Skills;
 
-[Register]
+[Register(typeof(SkillOptions), ServiceLifetime.Singleton)]
 public sealed record SkillOptions
 {
     public string SkillsDirectory { get; init; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), AppDataConstants.AppDataFolder, "skills");
@@ -20,7 +20,7 @@ public sealed record SkillOptions
     public static SkillOptions FromConfig(WorkflowConfig? config) => new(config);
 }
 
-[Register]
+[Register(typeof(ISkillService), ServiceLifetime.Singleton)]
 public sealed partial class SkillService : ServiceEntity, ISkillService, IDisposable
 {
     private readonly SkillOptions _options;

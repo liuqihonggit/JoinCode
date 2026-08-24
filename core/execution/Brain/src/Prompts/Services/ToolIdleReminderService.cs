@@ -23,7 +23,7 @@ public sealed partial class ToolIdleReminderConfig
     }
 }
 
-[Register]
+[Register(typeof(IToolIdleReminderService), ServiceLifetime.Singleton)]
 public sealed partial class ToolIdleReminderService : ServiceEntity, IToolIdleReminderService
 {
     private readonly Dictionary<string, int> _turnsSinceLastUse = [];

@@ -1,14 +1,14 @@
 
 namespace Core.Agents.Coordinator;
 
-[Register(typeof(ITeammateInitService))]
+[Register(typeof(ITeammateInitService), ServiceLifetime.Singleton)]
 public sealed partial class TeammateInitService : ServiceEntity, ITeammateInitService
 {
     private readonly ITeamManager _teamManager;
     private readonly ISessionHookManager? _sessionHookManager;
     private readonly IMailbox? _messageBroker;
     private readonly ILogger? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly IClockService _clock;
 
     public TeammateInitService(
         ITeamManager teamManager,

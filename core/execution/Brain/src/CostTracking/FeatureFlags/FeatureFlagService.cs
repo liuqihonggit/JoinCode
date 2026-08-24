@@ -7,7 +7,8 @@ public sealed partial class FeatureFlagResponse
     public DateTime? FetchedAt { get; set; }
 }
 
-[Register]
+[Register(typeof(RemoteCacheRefreshServiceBase<FeatureFlag>), ServiceLifetime.Singleton)]
+[Register(typeof(IFeatureFlagService), ServiceLifetime.Singleton)]
 public sealed partial class FeatureFlagService : RemoteCacheRefreshServiceBase<FeatureFlag>, IFeatureFlagService
 {
     private static readonly FeatureFlagJsonContext JsonContext = FeatureFlagJsonContext.Default;

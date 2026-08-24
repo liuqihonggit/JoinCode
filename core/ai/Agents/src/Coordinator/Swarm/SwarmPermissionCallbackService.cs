@@ -25,13 +25,13 @@ public sealed partial class SwarmPermissionUpdateData
     public required PermissionBehavior Action { get; init; }
 }
 
-[Register]
-[Register]
+[Register(typeof(ISwarmPermissionCallbacks), ServiceLifetime.Singleton)]
+[Register(typeof(ISwarmPermissionCallbacks), ServiceLifetime.Singleton)]
 public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwarmPermissionCallbacks
 {
     private readonly IMailbox _messageBroker;
-    [Inject] private readonly ILogger<SwarmPermissionCallbackService>? _logger;
-    [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly ILogger<SwarmPermissionCallbackService>? _logger;
+    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     private readonly ConcurrentDictionary<string, SwarmPermissionCallback> _pendingCallbacks;
     private readonly ConcurrentDictionary<string, SwarmPermissionRequest> _pendingRequests;
 

@@ -6,7 +6,7 @@ namespace Core.Utils;
 /// <summary>
 /// Agent权限管理器实现
 /// </summary>
-[Register]
+[Register(typeof(IAgentPermissionManager), ServiceLifetime.Singleton)]
 public sealed partial class AgentPermissionManager : IAgentPermissionManager, IAsyncDisposable
 {
     private readonly Dictionary<string, AgentPermissionRule> _rules = new(StringComparer.Ordinal);

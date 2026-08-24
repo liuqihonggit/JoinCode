@@ -4,8 +4,8 @@ namespace JoinCode.Dream;
 /// <summary>
 /// Dream 插件入口 - 记忆整合功能插件
 /// </summary>
-[Register(typeof(IWorkflowPlugin))]
-[Register(typeof(ICommandRegistrationHook))]
+[Register(typeof(IWorkflowPlugin), ServiceLifetime.Singleton)]
+[Register(typeof(ICommandRegistrationHook), ServiceLifetime.Singleton)]
 public sealed partial class DreamPlugin : WorkflowPluginBase, ICommandRegistrationHook
 {
     private readonly List<string> _registeredCommandNames = new();

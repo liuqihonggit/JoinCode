@@ -15,12 +15,12 @@ public interface IBackgroundNotificationHandler
 /// <summary>
 /// 后台通知处理器 — 从通知队列获取后台代理完成的通知并注入对话历史
 /// </summary>
-[Register(typeof(IBackgroundNotificationHandler))]
+[Register(typeof(IBackgroundNotificationHandler), ServiceLifetime.Singleton)]
 public sealed partial class BackgroundNotificationHandler : ServiceEntity, IBackgroundNotificationHandler
 {
     private readonly IAgentNotificationQueue? _notificationQueue;
     private readonly IChatContextManager _contextManager;
-    [Inject] private readonly ILogger<BackgroundNotificationHandler>? _logger;
+    private readonly ILogger<BackgroundNotificationHandler>? _logger;
 
     public BackgroundNotificationHandler(
         IChatContextManager contextManager,

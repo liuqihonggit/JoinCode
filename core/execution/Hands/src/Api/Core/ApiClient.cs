@@ -18,13 +18,13 @@ public sealed record ApiClientOptions
     public IReadOnlyList<string>? FallbackEndpoints { get; init; }
 }
 
-[Register]
+[Register(typeof(IApiClient), ServiceLifetime.Singleton)]
 public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
 {
     private HttpClient _httpClient;
     private readonly RetryPolicy _retryPolicy;
     private readonly ApiClientOptions _options;
-    [Inject] private readonly ILogger<ApiClient>? _logger;
+    private readonly ILogger<ApiClient>? _logger;
     private readonly INetworkConnectivityService? _networkService;
     private readonly IMtlsService? _mtlsService;
     private readonly IHttpProxyService? _httpProxyService;

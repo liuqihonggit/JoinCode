@@ -4,7 +4,7 @@ namespace Tools.Handlers;
 /// Agent 后台 Spawn 中间件 — 当 RunInBackground=true 时，使用 SpawnAgentAsync 启动后台代理
 /// 对齐 TS: 后台模式 fire-and-forget
 /// </summary>
-[Register]
+[Register(typeof(IAgentToolMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class AgentBackgroundSpawnMiddleware : ServiceEntity, IAgentToolMiddleware
 {
 
@@ -13,8 +13,8 @@ public sealed partial class AgentBackgroundSpawnMiddleware : ServiceEntity, IAge
         _agentService = agentService;
         _telemetryService = telemetryService;
     }
-    [Inject] private readonly IAgentService _agentService;
-    [Inject] private readonly ITelemetryService? _telemetryService;
+    private readonly IAgentService _agentService;
+    private readonly ITelemetryService? _telemetryService;
 
     /// <inheritdoc />
     public int Order => 300;

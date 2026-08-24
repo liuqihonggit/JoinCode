@@ -1,6 +1,6 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
-[Register(typeof(ISessionStats))]
+[Register(typeof(ISessionStats), ServiceLifetime.Singleton)]
 public sealed partial class SessionStats : ServiceEntity, ISessionStats
 {
     public long CarryoverCacheHitTokens { get; private set; }

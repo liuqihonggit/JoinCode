@@ -5,7 +5,7 @@ namespace McpToolDispatch;
 [McpToolDispatch(ToolCategory.Repl, Optional = true)]
 public partial class ReplToolHandlers : LongRunningGroup
 {
-    [Inject] private readonly ILogger<ReplToolHandlers>? _logger;
+    private readonly ILogger<ReplToolHandlers>? _logger;
     private readonly IReplService? _replService;
 
     public ReplToolHandlers(ILogger<ReplToolHandlers>? logger = null, IReplService? replService = null)

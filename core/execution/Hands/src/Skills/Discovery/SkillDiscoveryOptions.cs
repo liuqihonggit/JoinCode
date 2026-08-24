@@ -2,7 +2,7 @@ using JoinCode.Abstractions.Attributes;
 
 namespace Core.Skills.Discovery;
 
-[Register]
+[Register(typeof(SkillDiscoveryOptions), ServiceLifetime.Singleton)]
 public sealed partial class SkillDiscoveryOptions : ServiceEntity
 {
     public string SkillsDirectory { get; init; } = Path.Combine(

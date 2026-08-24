@@ -7,7 +7,7 @@ namespace Core.Configuration.Providers;
 /// 上下文窗口大小解析器 — 对齐 TS getContextWindowForModel 纯函数式设计
 /// 每次调用实时解析当前模型的上下文窗口大小，不缓存状态
 /// </summary>
-[Register]
+[Register(typeof(IContextWindowResolver), ServiceLifetime.Singleton)]
 public sealed partial class ContextWindowResolver : ServiceEntity, IContextWindowResolver
 {
     private readonly IFastModeService _fastModeService;

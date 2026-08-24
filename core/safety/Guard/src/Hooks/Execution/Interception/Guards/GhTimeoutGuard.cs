@@ -6,10 +6,10 @@ namespace Core.Hooks.Execution.Interception.Guards;
 /// 迁移自 GhTimeoutRewriter(Priority=50)。原改写器仅记录日志不改写,此处保留行为。
 /// </para>
 /// </summary>
-[Register]
+[Register(typeof(ICommandGuard), ServiceLifetime.Singleton)]
 public sealed partial class GhTimeoutGuard : ICommandGuard
 {
-    [Inject] private readonly ILogger<GhTimeoutGuard>? _logger;
+    private readonly ILogger<GhTimeoutGuard>? _logger;
 
     /// <summary>
     /// 构造 gh 超时守卫

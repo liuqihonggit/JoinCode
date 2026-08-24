@@ -5,7 +5,7 @@ namespace Core.Agents;
 /// 合并自路径 B 的 SpawnCoordTeammatePaneMiddleware
 /// 主代理 no-op
 /// </summary>
-[Register(typeof(IUnifiedSpawnMiddleware))]
+[Register(typeof(IUnifiedSpawnMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class TeammatePaneMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 
@@ -15,9 +15,9 @@ public sealed partial class TeammatePaneMiddleware : ServiceEntity, IUnifiedSpaw
         _logger = logger;
         _layoutManager = layoutManager;
     }
-    [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
-    [Inject] private readonly ITeammateLayoutManager? _layoutManager;
-    [Inject] private readonly ILogger<TeammatePaneMiddleware> _logger;
+    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly ITeammateLayoutManager? _layoutManager;
+    private readonly ILogger<TeammatePaneMiddleware> _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

@@ -31,8 +31,8 @@ public class CronToolHandlers
 
     private readonly ICronTaskStore _taskStore;
     private readonly ICronSchedulerRef? _schedulerRef;
-    [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
-    [Inject] private readonly IClockService _clock;
+    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly IClockService _clock;
 
     public CronToolHandlers(ICronTaskStore taskStore, ICronSchedulerRef? schedulerRef = null, ISubAgentContextAccessor? subAgentContextAccessor = null, IClockService? clock = null)
     {

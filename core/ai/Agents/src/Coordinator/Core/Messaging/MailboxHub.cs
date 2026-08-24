@@ -5,13 +5,12 @@ namespace Core.Agents.Coordinator;
 /// 对齐 claude code 的 teammateMailbox + AgentTool 双模式设计。
 /// 渐进式引入：消费者可选用 MailboxHub 替代直接调用 IMailbox 或 ITeammateMailboxService。
 /// </summary>
-[Register]
-[AllowSkipEntity("邮箱中枢是路由组件，无独立生命周期，不需要 Entity 追踪")]
+[Register(typeof(MailboxHub), ServiceLifetime.Singleton)]
 public sealed partial class MailboxHub
 {
     private readonly IMailbox _inProcess;
     private readonly ITeammateMailboxService? _fileMailbox;
-    [Inject] private readonly ILogger<MailboxHub>? _logger;
+    private readonly ILogger<MailboxHub>? _logger;
 
     /// <summary>
     /// 创建 MailboxHub。

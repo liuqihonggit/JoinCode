@@ -5,7 +5,7 @@ namespace Core.Agents.Coordinator;
 /// <summary>
 /// Fork 管理器依赖项 — 聚合非管道服务，减少构造函数参数
 /// </summary>
-[Register]
+[Register(typeof(ForkManagerDependencies), ServiceLifetime.Singleton)]
 public sealed record ForkManagerDependencies(
     IAgentLifecycleManager LifecycleManager,
     IMailbox MessageBroker,
@@ -13,8 +13,7 @@ public sealed record ForkManagerDependencies(
     IMailboxPoller? MailboxPoller = null,
     ITelemetryService? TelemetryService = null);
 
-[Register]
-[AllowSkipEntity("实现 IAsyncDisposable，与 ServiceEntity 的 IDisposable 冲突，保留异步释放模式")]
+[Register(typeof(IForkSubAgentManager), ServiceLifetime.Singleton)]
 public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDisposable
 {
     private sealed class ForkEntry
@@ -46,8 +45,8 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
 
     private readonly MiddlewarePipeline<ForkContext> _pipeline;
     private readonly ForkManagerDependencies _deps;
-    [Inject] private readonly ILogger<ForkSubAgentManager>? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<ForkSubAgentManager>? _logger;
+    private readonly IClockService _clock;
     private readonly ConcurrentDictionary<string, ForkEntry> _entries;
     private readonly ConcurrentDictionary<string, Dictionary<string, string>> _sharedCache;
     private readonly SemaphoreSlim _lock;

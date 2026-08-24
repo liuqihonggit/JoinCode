@@ -59,7 +59,7 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
 {
     private readonly SemaphoreSlim _lock;
     private readonly IFileSystem _fs;
-    [Inject] private readonly ILogger<HookConfigurationManager>? _logger;
+    private readonly ILogger<HookConfigurationManager>? _logger;
     private readonly ConcurrentDictionary<HookSource, IHookConfigurationProvider> _providers;
     private readonly ConcurrentDictionary<string, HookConfigurationGroup> _cache;
 

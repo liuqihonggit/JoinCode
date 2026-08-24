@@ -4,7 +4,7 @@ namespace Core.Planning;
 /// <summary>
 /// 计划模式管理器实现
 /// </summary>
-[Register]
+[Register(typeof(IPlanModeManager), ServiceLifetime.Singleton)]
 public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
 {
     private readonly ConcurrentDictionary<string, PlanState> _plans = new();
@@ -16,7 +16,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     private readonly IFileSystem _fs;
     private readonly IClockService _clock;
     private readonly ILogger<PlanModeManager>? _logger;
-    [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     private int _planCounter;
 
     private readonly SessionPlanState _fallbackState = new();

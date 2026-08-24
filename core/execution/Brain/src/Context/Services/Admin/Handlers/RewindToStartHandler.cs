@@ -3,7 +3,7 @@ namespace Core.Context;
 /// <summary>
 /// 撤回到初始状态操作处理器
 /// </summary>
-[Register]
+[Register(typeof(IChatAdminOperationHandler), ServiceLifetime.Singleton)]
 public sealed partial class RewindToStartHandler : ServiceEntity, IChatAdminOperationHandler
 {
     private readonly ISessionStats _sessionStats;

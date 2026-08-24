@@ -7,7 +7,7 @@ namespace JoinCode.App.Middlewares;
 /// <summary>
 /// Chat 管道 Pre Hook — 遥测 StartSpan + UserPromptSubmit Hook 拦截
 /// </summary>
-[Register(typeof(IPipelinePreHook<Core.Context.ChatMiddlewareContext>))]
+[Register(typeof(IPipelinePreHook<Core.Context.ChatMiddlewareContext>), ServiceLifetime.Singleton)]
 internal sealed partial class ChatTelemetryPreHook : ServiceEntity, IPipelinePreHook<Core.Context.ChatMiddlewareContext>
 {
     private readonly ITelemetryService? _telemetryService;

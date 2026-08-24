@@ -1,7 +1,7 @@
 
 namespace Core.Context.Compact;
 
-[Register]
+[Register(typeof(IMessageGroupingService), ServiceLifetime.Singleton)]
 public sealed partial class MessageGroupingService : ServiceEntity, IMessageGroupingService
 {
     public IReadOnlyList<IReadOnlyList<ApiMessage>> GroupMessagesByApiRound(IReadOnlyList<ApiMessage> messages)

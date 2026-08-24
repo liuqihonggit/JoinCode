@@ -26,7 +26,7 @@ public enum InterventionLevel
 /// Level 2(第HardTruncateThreshold~CompactThreshold-1次): 硬截断，撤回+降温度+重连
 /// Level 3(第CompactThreshold次+/重连失败): 上下文压缩，无人值守
 /// </summary>
-[Register]
+[Register(typeof(IChatMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMiddleware
 {
     private readonly IChatClient _kernel;
@@ -34,7 +34,7 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
     private readonly IChatStreamChunkProcessor _chunkProcessor;
     private readonly ITaskProgressTracker? _progressTracker;
     private readonly LoopInterventionOptions _options;
-    [Inject] private readonly ILogger<LoopInterventionMiddleware>? _logger;
+    private readonly ILogger<LoopInterventionMiddleware>? _logger;
 
 
     public LoopInterventionMiddleware(

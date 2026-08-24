@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Hooks;
 
 /// <summary>
@@ -214,10 +214,11 @@ public sealed record AsyncHookResponse
 /// <summary>
 /// 异步钩子注册表实现 — 基于 MapRegistry
 /// </summary>
-[Register]
+[Register(typeof(MapRegistry<string, PendingAsyncHook>), ServiceLifetime.Singleton)]
+[Register(typeof(IAsyncHookRegistry), ServiceLifetime.Singleton)]
 public sealed partial class AsyncHookRegistry : MapRegistry<string, PendingAsyncHook>, IAsyncHookRegistry
 {
-    [Inject] private readonly ILogger<AsyncHookRegistry>? _logger;
+    private readonly ILogger<AsyncHookRegistry>? _logger;
 
     public AsyncHookRegistry(ILogger<AsyncHookRegistry>? logger = null) => _logger = logger;
 

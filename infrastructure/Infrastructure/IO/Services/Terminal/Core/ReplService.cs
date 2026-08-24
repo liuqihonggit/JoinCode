@@ -2,14 +2,14 @@ using JoinCode.Abstractions.Attributes;
 
 namespace IO.Services;
 
-[Register]
+[Register(typeof(IReplService), ServiceLifetime.Singleton)]
 public sealed partial class ReplService : ServiceEntity, IReplService
 {
     private volatile bool _replModeEnabled;
     private readonly IFileSystem _fs;
     private readonly IProcessService _processService;
-    [Inject] private readonly ILogger<ReplService>? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<ReplService>? _logger;
+    private readonly IClockService _clock;
 
     private static readonly string[] s_hiddenTools =
     new[] {

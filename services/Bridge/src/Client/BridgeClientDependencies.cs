@@ -3,7 +3,7 @@ namespace Core.Bridge;
 
 using JoinCode.Abstractions.Attributes;
 
-[Register]
+[Register(typeof(BridgeClientSession), ServiceLifetime.Singleton)]
 public sealed record BridgeClientSession(
     BridgeJwtService? JwtService = null,
     PollConfigManager? PollConfigManager = null,

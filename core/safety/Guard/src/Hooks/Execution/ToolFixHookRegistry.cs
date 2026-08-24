@@ -10,7 +10,7 @@ namespace Core.Hooks.Execution;
 /// 4. 记录修正日志
 /// </para>
 /// </summary>
-[Register]
+[Register(typeof(ToolFixHookRegistry), ServiceLifetime.Singleton)]
 public sealed partial class ToolFixHookRegistry : ServiceEntity
 {
     private readonly List<IToolFixHook> _hooks = [];

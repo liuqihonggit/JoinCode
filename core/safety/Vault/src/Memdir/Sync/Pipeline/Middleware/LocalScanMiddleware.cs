@@ -5,7 +5,7 @@ using JoinCode.Abstractions.Pipeline;
 /// <summary>
 /// 本地文件扫描中间件 — 扫描 WatchPath 下的文件并填充 LocalEntries
 /// </summary>
-[Register(typeof(ISyncStartMiddleware))]
+[Register(typeof(ISyncStartMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class LocalScanMiddleware : ServiceEntity, ISyncStartMiddleware
 {
 
@@ -13,7 +13,7 @@ public sealed partial class LocalScanMiddleware : ServiceEntity, ISyncStartMiddl
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<LocalScanMiddleware>? _logger;
+    private readonly ILogger<LocalScanMiddleware>? _logger;
 
 
     public Task InvokeAsync(SyncStartContext ctx, MiddlewareDelegate<SyncStartContext> next, CancellationToken ct)

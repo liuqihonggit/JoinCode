@@ -1,9 +1,9 @@
 namespace Core.Agents.Coordinator;
 
-[Register]
+[Register(typeof(JoinCode.Abstractions.Interfaces.IPaneBackend), ServiceLifetime.Singleton)]
 public sealed partial class ITerm2PaneBackend : ServiceEntity, JoinCode.Abstractions.Interfaces.IPaneBackend
 {
-    [Inject] private readonly ILogger<ITerm2PaneBackend>? _logger;
+    private readonly ILogger<ITerm2PaneBackend>? _logger;
     private readonly IProcessService _processService;
     private readonly Dictionary<string, string> _paneSessions = new(StringComparer.Ordinal);
     private int _paneCounter;

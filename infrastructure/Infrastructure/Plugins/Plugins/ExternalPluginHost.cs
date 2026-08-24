@@ -4,12 +4,11 @@ namespace Core.Plugins;
 /// <summary>
 /// 外部exe进程插件宿主 - 管理独立进程的生命周期
 /// </summary>
-public sealed class ExternalPluginHost : IDisposable
+public sealed class ExternalPluginHost : PluginResourceBase
 {
     private readonly Process _process;
     private readonly string _pluginName;
     private readonly ILogger? _logger;
-    private bool _isDisposed;
     private bool _isUnloaded;
     private bool _wasForceKilled;
 
@@ -22,6 +21,7 @@ public sealed class ExternalPluginHost : IDisposable
     public bool WasForceKilled => _wasForceKilled;
 
     public ExternalPluginHost(string pluginName, Process process, string exePath, ILogger? logger = null)
+        : base(pluginName, PluginResourceKind.Hook, pluginName)
     {
         _pluginName = pluginName;
         _process = process;
@@ -34,7 +34,7 @@ public sealed class ExternalPluginHost : IDisposable
     /// </summary>
     public async Task SendMessageAsync(string message, CancellationToken cancellationToken = default)
     {
-        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
+        EnsureAlive();
 
         if (_process.HasExited)
         {
@@ -58,7 +58,7 @@ public sealed class ExternalPluginHost : IDisposable
     /// </summary>
     public async Task<string?> ReadMessageAsync(CancellationToken cancellationToken = default)
     {
-        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
+        EnsureAlive();
 
         if (_process.HasExited)
         {
@@ -86,13 +86,18 @@ public sealed class ExternalPluginHost : IDisposable
     /// </summary>
     public PluginUnloadResult Unload()
     {
-        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
+        EnsureAlive();
 
         if (_isUnloaded)
         {
             return PluginUnloadResult.AlreadyUnloaded(_pluginName);
         }
 
+        return UnloadCore();
+    }
+
+    private PluginUnloadResult UnloadCore()
+    {
         _isUnloaded = true;
 
         try
@@ -119,13 +124,11 @@ public sealed class ExternalPluginHost : IDisposable
         }
     }
 
-    public void Dispose()
+    protected override void OnResourceDispose()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _isDisposed)) return;
-
         if (!_isUnloaded)
         {
-            Unload();
+            UnloadCore();
         }
 
         try

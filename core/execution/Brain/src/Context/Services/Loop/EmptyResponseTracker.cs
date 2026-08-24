@@ -8,7 +8,7 @@ namespace Core.Context;
 /// 与 InformationEntropyGuardian 同级，作为内核组件供 CLI 和 GUI 共享
 /// 重置时机：用户输入新对话 / LLM从无声变有声
 /// </summary>
-[Register]
+[Register(typeof(IEmptyResponseTracker), ServiceLifetime.Singleton)]
 public sealed class EmptyResponseTracker : ServiceEntity, IEmptyResponseTracker
 {
     private readonly int _maxConsecutiveEmpty;

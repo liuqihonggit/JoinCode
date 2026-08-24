@@ -47,12 +47,12 @@ public interface IOAuthClient
 /// <summary>
 /// OAuth 客户端实现
 /// </summary>
-[Register]
+[Register(typeof(IOAuthClient), ServiceLifetime.Singleton)]
 public sealed partial class OAuthClient : ServiceEntity, IOAuthClient
 {
     private readonly HttpClient _httpClient;
-    [Inject] private readonly ILogger<OAuthClient>? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<OAuthClient>? _logger;
+    private readonly IClockService _clock;
 
     public OAuthClient(HttpClient httpClient, ILogger<OAuthClient>? logger = null, IClockService? clock = null)
     {

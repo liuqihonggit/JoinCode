@@ -1,11 +1,11 @@
 
 namespace Core.Memdir;
 
-[Register]
+[Register(typeof(IFileOperationTracker), ServiceLifetime.Singleton)]
 public sealed partial class FileOperationTracker : ServiceEntity, IFileOperationTracker
 {
     private readonly List<FileOperationEntry> _entries = [];
-    [Inject] private readonly ILogger<FileOperationTracker>? _logger;
+    private readonly ILogger<FileOperationTracker>? _logger;
 
     public FileOperationTracker(ILogger<FileOperationTracker>? logger = null)
     {

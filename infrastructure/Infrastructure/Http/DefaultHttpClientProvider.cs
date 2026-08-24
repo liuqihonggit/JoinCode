@@ -6,7 +6,7 @@ namespace Infrastructure.Http;
 /// <para>DI 容器构建后注入 IHttpClientFactory（通过 services.AddHttpClient() 启用）</para>
 /// <para>DI 容器构建前的场景（HttpClientProviderFactory.Create()）使用无参构造函数 fallback</para>
 /// </summary>
-[Register(typeof(IHttpClientProvider))]
+[Register(typeof(IHttpClientProvider), ServiceLifetime.Singleton)]
 public sealed partial class DefaultHttpClientProvider : ServiceEntity, IHttpClientProvider
 {
     private readonly IHttpClientFactory? _factory;

@@ -4,8 +4,7 @@ namespace Core.DependencyInjection;
 /// Sync 层的 SystemPromptProviderOptions 子类 — 桥接 [Register] 自动注册
 /// <para>从 WorkflowConfig + 可选 DI 服务推导所有提示词配置属性</para>
 /// </summary>
-[Register]
-[AllowSkipEntity("已有基类 SystemPromptProviderOptions，C# 单继承冲突")]
+[Register(typeof(Core.Prompts.SystemPromptProviderOptions), ServiceLifetime.Singleton)]
 public sealed partial class SyncSystemPromptProviderOptions : Core.Prompts.SystemPromptProviderOptions
 {
     /// <summary>

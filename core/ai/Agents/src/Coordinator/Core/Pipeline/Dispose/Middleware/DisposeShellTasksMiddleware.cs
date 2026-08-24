@@ -1,6 +1,6 @@
 namespace Core.Agents.Coordinator;
 
-[Register(typeof(IAgentDisposeMiddleware))]
+[Register(typeof(IAgentDisposeMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class DisposeShellTasksMiddleware : ServiceEntity, IAgentDisposeMiddleware
 {
 
@@ -9,8 +9,8 @@ public sealed partial class DisposeShellTasksMiddleware : ServiceEntity, IAgentD
         _logger = logger;
         _actuatorRegistry = actuatorRegistry;
     }
-    [Inject] private readonly ISystemActuatorRegistry? _actuatorRegistry;
-    [Inject] private readonly ILogger<DisposeShellTasksMiddleware> _logger;
+    private readonly ISystemActuatorRegistry? _actuatorRegistry;
+    private readonly ILogger<DisposeShellTasksMiddleware> _logger;
 
     public async Task InvokeAsync(AgentDisposeContext ctx, MiddlewareDelegate<AgentDisposeContext> next, CancellationToken ct)
     {

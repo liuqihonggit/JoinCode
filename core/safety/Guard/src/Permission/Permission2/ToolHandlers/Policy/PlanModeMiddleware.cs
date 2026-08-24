@@ -4,7 +4,7 @@ namespace Core.Permission;
 /// <summary>
 /// Plan 模式中间件 — Plan 模式下读取操作自动批准，写入操作需确认
 /// </summary>
-[Register(typeof(IPermissionMiddleware))]
+[Register(typeof(IPermissionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class PlanModeMiddleware : ServiceEntity, IPermissionMiddleware
 {
     /// <inheritdoc />

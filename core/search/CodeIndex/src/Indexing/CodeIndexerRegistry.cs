@@ -5,7 +5,7 @@ namespace JoinCode.CodeIndex;
 /// 每个仓库拥有独立的 InMemoryIndexStore + CodeIndexer
 /// 通过 RepoRegistered/RepoUnregistered 事件通知订阅方（如 FileWatcherIntegrationRegistry）
 /// </summary>
-[Register(typeof(ICodeIndexerRegistry))]
+[Register(typeof(ICodeIndexerRegistry), ServiceLifetime.Singleton)]
 public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, IDisposable
 {
     private readonly IFileSystem _fs;

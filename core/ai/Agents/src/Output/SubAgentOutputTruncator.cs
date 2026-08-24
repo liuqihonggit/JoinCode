@@ -5,14 +5,14 @@ namespace Core.Agents;
 /// <para>当子智能体输出超过主智能体剩余预算时，完整落盘到 .xxx/subagent/，只返回指针+概要（不半截）。</para>
 /// <para>对齐 openCode Truncate.output，但去掉半截预览，只给指针，要看就 read 全文。</para>
 /// </summary>
-[Register]
+[Register(typeof(SubAgentOutputTruncator), ServiceLifetime.Singleton)]
 public sealed partial class SubAgentOutputTruncator : ServiceEntity
 {
     private const int CharsPerToken = 4;
     private const string ArchiveSubdir = ".xxx";
     private const string ArchiveLeaf = "subagent";
 
-    [Inject] private readonly ILogger<SubAgentOutputTruncator> _logger;
+    private readonly ILogger<SubAgentOutputTruncator> _logger;
     private readonly IFileSystem _fs;
     private readonly string _archiveDir;
 

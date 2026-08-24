@@ -40,13 +40,13 @@ public sealed partial class PermissionSyncEventArgs : EventArgs
     public DateTime Timestamp { get; init; }
 }
 
-[Register(typeof(ISwarmPermissionBridge))]
+[Register(typeof(ISwarmPermissionBridge), ServiceLifetime.Singleton)]
 public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermissionBridge, IDisposable
 {
     private readonly IMailbox _messageBroker;
     private readonly IAgentPermissionManager _permissionManager;
-    [Inject] private readonly ILogger<SwarmPermissionBridge>? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<SwarmPermissionBridge>? _logger;
+    private readonly IClockService _clock;
     private readonly ITelemetryService? _telemetryService;
     private readonly ConcurrentDictionary<string, PermissionSyncState> _permissionStates;
     private readonly AsyncLock _lock = new();

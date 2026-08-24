@@ -7,7 +7,7 @@ using JoinCode.Abstractions.Attributes;
 /// 文件存储的 Cron 任务存储实现
 /// 锁内只做内存操作和JSON序列化（快），文件I/O（慢）在锁外执行
 /// </summary>
-[Register]
+[Register(typeof(ICronTaskStore), ServiceLifetime.Singleton)]
 public sealed partial class FileCronTaskStore : ServiceEntity, ICronTaskStore, IDisposable
 {
     private string _filePath;

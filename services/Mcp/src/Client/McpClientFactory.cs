@@ -1,7 +1,7 @@
 
 namespace McpClient;
 
-[Register]
+[Register(typeof(IMcpClientFactory), ServiceLifetime.Singleton)]
 public sealed partial class McpClientFactory : ServiceEntity, IMcpClientFactory
 {
     public IMcpClient CreateClient(McpServerConnectionConfig config, ILogger? logger = null)

@@ -5,7 +5,7 @@ namespace Core.Memdir;
 /// <summary>
 /// MemoryManagementService 的可选服务聚合 — 减少构造函数参数注入
 /// </summary>
-[Register]
+[Register(typeof(MemoryOptionalServices), ServiceLifetime.Singleton)]
 public sealed record MemoryOptionalServices(
     IMemorySearchHistoryService? SearchHistoryService = null,
     IAssistantDailyLogService? DailyLogService = null,

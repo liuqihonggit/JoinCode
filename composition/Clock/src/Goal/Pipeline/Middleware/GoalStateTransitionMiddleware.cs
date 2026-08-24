@@ -5,7 +5,7 @@ using JoinCode.Abstractions.Pipeline;
 /// <summary>
 /// 状态变更中间件 — 根据操作类型执行状态转换
 /// </summary>
-[Register(typeof(IGoalLifecycleMiddleware))]
+[Register(typeof(IGoalLifecycleMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class GoalStateTransitionMiddleware : ServiceEntity, IGoalLifecycleMiddleware
 {
 
@@ -13,7 +13,7 @@ public sealed partial class GoalStateTransitionMiddleware : ServiceEntity, IGoal
     {
         _clock = clock;
     }
-    [Inject] private readonly IClockService _clock;
+    private readonly IClockService _clock;
 
 
     public Task InvokeAsync(GoalLifecycleContext ctx, MiddlewareDelegate<GoalLifecycleContext> next, CancellationToken ct)

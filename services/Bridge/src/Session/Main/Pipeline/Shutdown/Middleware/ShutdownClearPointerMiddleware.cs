@@ -2,7 +2,7 @@ namespace Core.Bridge;
 
 using JoinCode.Abstractions.Pipeline;
 
-[Register(typeof(IShutdownMiddleware))]
+[Register(typeof(IShutdownMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ShutdownClearPointerMiddleware : ServiceEntity, IShutdownMiddleware
 {
 
@@ -10,7 +10,7 @@ public sealed partial class ShutdownClearPointerMiddleware : ServiceEntity, IShu
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<ShutdownClearPointerMiddleware>? _logger;
+    private readonly ILogger<ShutdownClearPointerMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

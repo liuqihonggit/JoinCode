@@ -87,7 +87,7 @@ public static class ConfigToolPrompt
         var options = config.GetOptions != null ? config.GetOptions() : config.Options;
         if (options is { Length: > 0 })
         {
-            return string.Join(", ", options.Select(o => $"\"{o}\"").ToArray());
+            return string.Join(", ", options.Select(o => $"\"{o}\""));
         }
 
         return "";

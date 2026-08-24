@@ -4,7 +4,7 @@ namespace Infrastructure.HotSpot;
 /// 合并队列服务实现 — 队长串行处理Worker产出
 /// 编译校验和合并通过回调注入（实际接入时绑定 BuildQueueService + WorktreeMergeService）
 /// </summary>
-[Register(typeof(IMergeQueueService))]
+[Register(typeof(IMergeQueueService), ServiceLifetime.Singleton)]
 public sealed class MergeQueueService : IMergeQueueService
 {
     private readonly ConcurrentQueue<MergeQueueItem> _queue = new();

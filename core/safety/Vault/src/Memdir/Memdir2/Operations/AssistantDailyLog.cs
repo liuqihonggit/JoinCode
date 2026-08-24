@@ -168,7 +168,7 @@ public interface IAssistantDailyLogService : IDisposable
 /// 以追加式写入方式管理每日日志，每天一个文件，
 /// 存储在用户记忆目录下的 daily-logs 子目录中
 /// </summary>
-[Register]
+[Register(typeof(IAssistantDailyLogService), ServiceLifetime.Singleton)]
 public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistantDailyLogService, IDisposable
 {
     private const string DailyLogsDirectoryName = "daily-logs";
@@ -177,8 +177,8 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
     private readonly MemoryStore _memoryStore;
     private readonly IMemoryPaths _memoryPaths;
     private readonly IFileOperationService _fileOperationService;
-    [Inject] private readonly ILogger<AssistantDailyLogService>? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<AssistantDailyLogService>? _logger;
+    private readonly IClockService _clock;
     private readonly SemaphoreSlim _writeLock;
 
     public AssistantDailyLogService(

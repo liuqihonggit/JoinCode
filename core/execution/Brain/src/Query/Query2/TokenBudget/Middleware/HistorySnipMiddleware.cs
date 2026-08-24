@@ -5,7 +5,7 @@ namespace Core.Query;
 /// <summary>
 /// 历史裁剪中间件 — 每次工具调用后检查是否需要裁剪对话历史
 /// </summary>
-[Register(typeof(IQueryMiddleware))]
+[Register(typeof(IQueryMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class HistorySnipMiddleware : ServiceEntity, IQueryMiddleware
 {
 
@@ -14,8 +14,8 @@ public sealed partial class HistorySnipMiddleware : ServiceEntity, IQueryMiddlew
         _historySnipService = historySnipService;
         _tokenBudgetManager = tokenBudgetManager;
     }
-    [Inject] private readonly IHistorySnipService? _historySnipService;
-    [Inject] private readonly ITokenBudgetManager? _tokenBudgetManager;
+    private readonly IHistorySnipService? _historySnipService;
+    private readonly ITokenBudgetManager? _tokenBudgetManager;
 
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;

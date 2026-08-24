@@ -4,7 +4,7 @@ namespace Core.Agents;
 /// 上下文构建中间件 — 构建 SubAgentOptions（不含 Spawn 调用，Spawn 移到 LifecycleSpawnMiddleware）
 /// 统一管道版本：主代理 no-op，路径 B（SubOptions 已存在）no-op
 /// </summary>
-[Register(typeof(IUnifiedSpawnMiddleware))]
+[Register(typeof(IUnifiedSpawnMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 
@@ -16,11 +16,11 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
         _modelConfigLoader = modelConfigLoader;
         _logger = logger;
     }
-    [Inject] private readonly IFileStateCache? _fileStateCache;
-    [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
-    [Inject] private readonly ISkillService? _skillService;
-    [Inject] private readonly IModelConfigLoader? _modelConfigLoader;
-    [Inject] private readonly ILogger<ContextSetupMiddleware>? _logger;
+    private readonly IFileStateCache? _fileStateCache;
+    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly ISkillService? _skillService;
+    private readonly IModelConfigLoader? _modelConfigLoader;
+    private readonly ILogger<ContextSetupMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 

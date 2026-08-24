@@ -1,6 +1,7 @@
 namespace Core.Memdir;
 
-[Register]
+[Register(typeof(ConfigPersistentServiceBase<string>), ServiceLifetime.Singleton)]
+[Register(typeof(IAdvisorService), ServiceLifetime.Singleton)]
 public sealed partial class AdvisorService : ConfigPersistentServiceBase<string>, IAdvisorService
 {
     private const string NoneValue = "";

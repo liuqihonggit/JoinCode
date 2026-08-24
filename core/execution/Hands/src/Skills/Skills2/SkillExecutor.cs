@@ -8,7 +8,7 @@ public sealed partial class SkillExecutor
 {
     private readonly IQueryEngine _queryEngine;
     private readonly IToolExecutionGateway _toolExecutionGateway;
-    [Inject] private readonly ILogger<SkillExecutor>? _logger;
+    private readonly ILogger<SkillExecutor>? _logger;
     private readonly Dictionary<string, JsonElement> _variables;
     private readonly IVariableResolver _variableResolver;
 

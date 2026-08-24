@@ -1,10 +1,10 @@
 namespace Core.Hooks.Lifecycle;
 
-[Register]
+[Register(typeof(ISessionStartHookManager), ServiceLifetime.Singleton)]
 public sealed partial class SessionStartHookManager : ServiceEntity, ISessionStartHookManager
 {
     private readonly IHookOrchestrator _orchestrator;
-    [Inject] private readonly ILogger<SessionStartHookManager>? _logger;
+    private readonly ILogger<SessionStartHookManager>? _logger;
     private readonly ITelemetryService? _telemetryService;
 
     public SessionStartHookManager(IHookOrchestrator orchestrator, ILogger<SessionStartHookManager>? logger = null, ITelemetryService? telemetryService = null)

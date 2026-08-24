@@ -6,7 +6,7 @@ namespace Core.Scheduling;
 public sealed partial class ToolPortingScheduler
 {
     private readonly ParallelTaskScheduler _scheduler;
-    [Inject] private readonly ILogger<ToolPortingScheduler>? _logger;
+    private readonly ILogger<ToolPortingScheduler>? _logger;
 
     public ToolPortingScheduler(ILogger<ToolPortingScheduler>? logger = null)
     {

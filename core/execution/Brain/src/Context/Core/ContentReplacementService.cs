@@ -52,11 +52,11 @@ public interface IContentReplacementService
         IReadOnlyList<ContentReplacementRecord> sidechainRecords);
 }
 
-[Register]
+[Register(typeof(IContentReplacementService), ServiceLifetime.Singleton)]
 public sealed partial class ContentReplacementService : ServiceEntity, IContentReplacementService
 {
     private readonly IToolResultFileService _fileService;
-    [Inject] private readonly ILogger<ContentReplacementService>? _logger;
+    private readonly ILogger<ContentReplacementService>? _logger;
     private readonly bool _enabled;
     private readonly int _maxToolResultsPerMessageChars;
 

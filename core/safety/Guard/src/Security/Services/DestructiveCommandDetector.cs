@@ -5,7 +5,7 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// <summary>
 /// 破坏性命令检测器实现
 /// </summary>
-[Register]
+[Register(typeof(IDestructiveCommandDetector), ServiceLifetime.Singleton)]
 public sealed partial class DestructiveCommandDetector : ServiceEntity, IDestructiveCommandDetector
 {
     // 破坏性命令字典 - 命令名 -> 风险类型

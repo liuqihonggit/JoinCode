@@ -1,6 +1,6 @@
 namespace Core.Configuration;
 
-[Register]
+[Register(typeof(IConfigChangeNotifier), ServiceLifetime.Singleton)]
 public sealed partial class ConfigChangeNotifier : ServiceEntity, IConfigChangeNotifier, IDisposable
 {
 
@@ -10,9 +10,9 @@ public sealed partial class ConfigChangeNotifier : ServiceEntity, IConfigChangeN
         _logger = logger;
         _telemetryService = telemetryService;
     }
-    [Inject] private readonly IFileSystem _fs;
-    [Inject] private readonly ILogger<ConfigChangeNotifier>? _logger;
-    [Inject] private readonly ITelemetryService? _telemetryService;
+    private readonly IFileSystem _fs;
+    private readonly ILogger<ConfigChangeNotifier>? _logger;
+    private readonly ITelemetryService? _telemetryService;
     private readonly List<IFileSystemWatcher> _watchers = [];
     private readonly HashSet<string> _monitoredDirs = [];
     private bool _disposed;

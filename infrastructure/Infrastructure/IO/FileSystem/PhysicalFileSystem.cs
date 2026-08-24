@@ -3,7 +3,7 @@ namespace IO.FileSystem;
 /// <summary>
 /// 物理文件系统实现 — 直接委托给 System.IO.File / System.IO.Directory
 /// </summary>
-[Register]
+[Register(typeof(IFileSystem), ServiceLifetime.Singleton)]
 public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
 {
     // === File 写操作 ===

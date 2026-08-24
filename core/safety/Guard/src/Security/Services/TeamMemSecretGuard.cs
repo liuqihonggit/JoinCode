@@ -5,7 +5,7 @@ namespace Core.Security.Services;
 /// 团队记忆密钥守卫实现
 /// 对齐 TS: teamMemSecretGuard.ts
 /// </summary>
-[Register]
+[Register(typeof(ITeamMemSecretGuard), ServiceLifetime.Singleton)]
 public sealed partial class TeamMemSecretGuard : ServiceEntity, ITeamMemSecretGuard
 {
     private readonly string? _teamMemDirectory;

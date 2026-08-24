@@ -4,7 +4,7 @@ namespace Core.Agents;
 /// 定义解析中间件 — 从 IAgentRoleRegistry 获取角色档案，回退到 IAgentDefinitionProvider
 /// 统一管道版本：主代理 no-op，路径 B（SubOptions 模式）no-op
 /// </summary>
-[Register(typeof(IUnifiedSpawnMiddleware))]
+[Register(typeof(IUnifiedSpawnMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class DefinitionResolutionMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 
@@ -13,8 +13,8 @@ public sealed partial class DefinitionResolutionMiddleware : ServiceEntity, IUni
         _roleRegistry = roleRegistry;
         _definitionProvider = definitionProvider;
     }
-    [Inject] private readonly IAgentRoleRegistry _roleRegistry;
-    [Inject] private readonly IAgentDefinitionProvider? _definitionProvider;
+    private readonly IAgentRoleRegistry _roleRegistry;
+    private readonly IAgentDefinitionProvider? _definitionProvider;
 
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 

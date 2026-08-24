@@ -3,7 +3,7 @@ namespace JoinCode.Entry;
 /// <summary>
 /// 会话初始化中间件 — 创建 CliSession 并初始化
 /// </summary>
-[Register]
+[Register(typeof(IMiddleware<StartupContext>), ServiceLifetime.Singleton)]
 internal sealed partial class SessionInitStep : ServiceEntity, IMiddleware<StartupContext>
 {
 

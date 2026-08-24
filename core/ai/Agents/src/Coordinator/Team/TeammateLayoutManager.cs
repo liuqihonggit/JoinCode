@@ -1,6 +1,6 @@
 namespace Core.Agents.Coordinator;
 
-[Register(typeof(JoinCode.Abstractions.Interfaces.ITeammateLayoutManager))]
+[Register(typeof(JoinCode.Abstractions.Interfaces.ITeammateLayoutManager), ServiceLifetime.Singleton)]
 public sealed partial class TeammateLayoutManager : ServiceEntity, JoinCode.Abstractions.Interfaces.ITeammateLayoutManager
 {
     private static readonly string[] AgentColors =
@@ -11,7 +11,7 @@ public sealed partial class TeammateLayoutManager : ServiceEntity, JoinCode.Abst
      };
 
     private readonly JoinCode.Abstractions.Interfaces.IPaneBackend _backend;
-    [Inject] private readonly ILogger<TeammateLayoutManager>? _logger;
+    private readonly ILogger<TeammateLayoutManager>? _logger;
     private readonly Dictionary<string, string> _teammateColors = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _teammatePanes = new(StringComparer.Ordinal);
     private readonly SemaphoreSlim _lock = new(1, 1);

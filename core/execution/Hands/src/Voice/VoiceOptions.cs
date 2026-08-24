@@ -1,7 +1,7 @@
 
 namespace Services.Voice;
 
-[Register]
+[Register(typeof(VoiceOptions), ServiceLifetime.Singleton)]
 public sealed partial class VoiceOptions : ServiceEntity
 {
     public SttBackend Backend { get; init; } = SttBackend.WhisperApi;

@@ -1,10 +1,10 @@
 namespace Core.Hooks.Lifecycle;
 
-[Register]
+[Register(typeof(ISubagentStopHookManager), ServiceLifetime.Singleton)]
 public sealed partial class SubagentStopHookManager : ServiceEntity, ISubagentStopHookManager
 {
     private readonly IHookOrchestrator _orchestrator;
-    [Inject] private readonly ILogger<SubagentStopHookManager>? _logger;
+    private readonly ILogger<SubagentStopHookManager>? _logger;
     private readonly ITelemetryService? _telemetryService;
     private static readonly TimeSpan HookTimeout = TimeSpan.FromSeconds(60);
 

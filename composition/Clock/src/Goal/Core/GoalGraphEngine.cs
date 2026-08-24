@@ -8,21 +8,21 @@ using Structura.Dag;
 /// <summary>
 /// Goal Graph 执行引擎 — 事件驱动队列 + 条件路由 + 回退重激活
 /// </summary>
-[Register]
+[Register(typeof(GoalGraphEngine), ServiceLifetime.Singleton)]
 public sealed partial class GoalGraphEngine : ServiceEntity
 {
     private readonly IChatClient _kernel;
     private readonly IGoalEvaluator _evaluator;
     private readonly IGoalHeartbeat _heartbeat;
-    [Inject] private readonly ILogger<GoalGraphEngine>? _logger;
-    [Inject] private readonly IClockService _clock;
-    [Inject] private readonly IServiceProvider _serviceProvider;
-    [Inject] private readonly IAgentService? _agentService = null!;
-    [Inject] private readonly ICaptainDispatchGuard? _dispatchGuard = null!;
-    [Inject] private readonly ITeamManager? _teamManager = null!;
-    [Inject] private readonly IGoalUserInteraction? _userInteraction = null;
-    [Inject] private readonly IGoalNodeInspector? _nodeInspector = null;
-    [Inject] private readonly IGoalConflictMessenger? _conflictMessenger = null;
+    private readonly ILogger<GoalGraphEngine>? _logger;
+    private readonly IClockService _clock;
+    private readonly IServiceProvider _serviceProvider;
+    private readonly IAgentService? _agentService = null!;
+    private readonly ICaptainDispatchGuard? _dispatchGuard = null!;
+    private readonly ITeamManager? _teamManager = null!;
+    private readonly IGoalUserInteraction? _userInteraction = null;
+    private readonly IGoalNodeInspector? _nodeInspector = null;
+    private readonly IGoalConflictMessenger? _conflictMessenger = null;
     private readonly Dictionary<string, Func<NodeContext, Task<NodeResult>>> _functionRegistry = new(StringComparer.Ordinal);
 
     public GoalGraphEngine(

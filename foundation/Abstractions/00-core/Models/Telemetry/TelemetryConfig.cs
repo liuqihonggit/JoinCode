@@ -3,8 +3,7 @@ using JoinCode.Abstractions.Attributes;
 namespace JoinCode.Abstractions.Models.Telemetry;
 
 
-[Register]
-[AllowSkipEntity("无状态配置类，通过 FromEnvironment() 创建，不需要 ObjectId 追踪")]
+[Register(typeof(TelemetryConfig), ServiceLifetime.Singleton)]
 public sealed class TelemetryConfig
 {
     public static TelemetryConfig FromEnvironment()

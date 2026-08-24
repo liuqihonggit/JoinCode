@@ -28,7 +28,7 @@ public sealed class RequestScope : IRequestScope
 /// <summary>
 /// 请求 Scope 工厂实现
 /// </summary>
-[Register(typeof(IRequestScopeFactory))]
+[Register(typeof(IRequestScopeFactory), ServiceLifetime.Singleton)]
 public sealed partial class RequestScopeFactory : ServiceEntity, IRequestScopeFactory
 {
 
@@ -36,7 +36,7 @@ public sealed partial class RequestScopeFactory : ServiceEntity, IRequestScopeFa
     {
         _scopeFactory = scopeFactory;
     }
-    [Inject] private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IServiceScopeFactory _scopeFactory;
 
     public IRequestScope CreateScope()
         => new RequestScope(_scopeFactory.CreateScope());

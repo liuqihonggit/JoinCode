@@ -201,12 +201,12 @@ public interface IUsageTracker
 /// <summary>
 /// Token 使用量追踪器实现
 /// </summary>
-[Register]
+[Register(typeof(IUsageTracker), ServiceLifetime.Singleton)]
 public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDisposable
 {
     private readonly ConcurrentBag<TokenUsageRecord> _usageRecords;
     private readonly ConcurrentDictionary<string, List<TokenUsageRecord>> _sessionIndex;
-    [Inject] private readonly ILogger<UsageTracker>? _logger;
+    private readonly ILogger<UsageTracker>? _logger;
     private readonly ICostTracker? _costTracker;
     private readonly IModelConfigLoader _modelConfigLoader;
 

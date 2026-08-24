@@ -303,13 +303,13 @@ public sealed record MemoryHealthReport
 /// <summary>
 /// 内存管理服务实现
 /// </summary>
-[Register]
+[Register(typeof(IMemoryManagementService), ServiceLifetime.Singleton)]
 public sealed partial class MemoryManagementService : ServiceEntity, IMemoryManagementService, IDisposable
 {
     private readonly MemoryStore _memoryStore;
     private readonly Dictionary<(string TeamId, string Path), TeamMemoryPath> _teamMemoryPaths = new();
     private readonly SemaphoreSlim _skillLock;
-    [Inject] private readonly ILogger<MemoryManagementService>? _logger;
+    private readonly ILogger<MemoryManagementService>? _logger;
     private readonly IClockService _clock;
     private readonly MemoryOptionalServices? _optional;
 

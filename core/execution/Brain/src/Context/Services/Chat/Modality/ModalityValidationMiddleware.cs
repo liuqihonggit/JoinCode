@@ -8,7 +8,7 @@ namespace Core.Context.Modality;
 /// <para>3. 降级策略：纯文本验证 → web 工具找 OCR(≤5次) → 请求用户接管(AskUserQuestion)</para>
 /// <para>管道位置：TokenBudget 之后、PreChat 之前</para>
 /// </summary>
-[Register]
+[Register(typeof(IChatMiddleware), ServiceLifetime.Singleton)]
 public sealed class ModalityValidationMiddleware : IChatMiddleware
 {
     private readonly IModelConfigLoader _modelConfigLoader;

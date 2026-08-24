@@ -4,7 +4,7 @@ namespace Core.Agents;
 /// Hook 注册中间件 — 注册 Agent 定义中的 Hooks
 /// 合并自路径 A 的 HookSetupMiddleware
 /// </summary>
-[Register(typeof(IUnifiedSpawnMiddleware))]
+[Register(typeof(IUnifiedSpawnMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class HookSetupMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 
@@ -13,8 +13,8 @@ public sealed partial class HookSetupMiddleware : ServiceEntity, IUnifiedSpawnMi
         _sessionHookManager = sessionHookManager;
         _logger = logger;
     }
-    [Inject] private readonly ISessionHookManager? _sessionHookManager;
-    [Inject] private readonly ILogger<HookSetupMiddleware>? _logger;
+    private readonly ISessionHookManager? _sessionHookManager;
+    private readonly ILogger<HookSetupMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

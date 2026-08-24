@@ -1,7 +1,7 @@
 
 namespace Core.Planning;
 
-[Register]
+[Register(typeof(IInteractiveService), ServiceLifetime.Singleton)]
 public sealed partial class InteractiveService : ServiceEntity, IInteractiveService
 {
 
@@ -9,7 +9,7 @@ public sealed partial class InteractiveService : ServiceEntity, IInteractiveServ
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<InteractiveService>? _logger;
+    private readonly ILogger<InteractiveService>? _logger;
 
     public Task<AskUserQuestionResult> AskUserQuestionAsync(string question, List<string>? options = null, bool multiSelect = false, CancellationToken cancellationToken = default)
     {

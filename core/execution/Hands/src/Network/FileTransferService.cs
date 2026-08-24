@@ -2,10 +2,10 @@ using JoinCode.Abstractions.Attributes;
 
 namespace IO.Services;
 
-[Register]
+[Register(typeof(IFileTransferService), ServiceLifetime.Singleton)]
 public sealed partial class FileTransferService : ServiceEntity, IFileTransferService
 {
-    [Inject] private readonly ILogger<FileTransferService>? _logger;
+    private readonly ILogger<FileTransferService>? _logger;
     private readonly IFileSystem _fs;
 
     public FileTransferService(IFileSystem fs, ILogger<FileTransferService>? logger = null)

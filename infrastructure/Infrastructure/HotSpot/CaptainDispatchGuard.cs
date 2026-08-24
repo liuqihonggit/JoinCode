@@ -4,7 +4,7 @@ namespace Infrastructure.HotSpot;
 /// 队长派发守卫实现 — 派发前查热点表，热点文件契约改队长自己揽
 /// 纯逻辑不执行实际派发
 /// </summary>
-[Register(typeof(ICaptainDispatchGuard))]
+[Register(typeof(ICaptainDispatchGuard), ServiceLifetime.Singleton)]
 public sealed class CaptainDispatchGuard : ICaptainDispatchGuard
 {
     private readonly IHotSpotTracker _hotSpotTracker;

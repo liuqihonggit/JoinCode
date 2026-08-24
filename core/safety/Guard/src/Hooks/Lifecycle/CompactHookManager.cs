@@ -1,10 +1,10 @@
 namespace Core.Hooks.Lifecycle;
 
-[Register]
+[Register(typeof(ICompactHookManager), ServiceLifetime.Singleton)]
 public sealed partial class CompactHookManager : ServiceEntity, ICompactHookManager
 {
     private readonly IHookOrchestrator _orchestrator;
-    [Inject] private readonly ILogger<CompactHookManager>? _logger;
+    private readonly ILogger<CompactHookManager>? _logger;
     private readonly ITelemetryService? _telemetryService;
 
     public CompactHookManager(IHookOrchestrator orchestrator, ILogger<CompactHookManager>? logger = null, ITelemetryService? telemetryService = null)

@@ -26,7 +26,7 @@ public enum SecurityClassification { [EnumValue("safe")] Safe, [EnumValue("lowRi
 [JsonConverter(typeof(JsonStringEnumConverter<SecurityAction>))]
 public enum SecurityAction { [EnumValue("autoApprove")] AutoApprove, [EnumValue("requireConfirmation")] RequireConfirmation, [EnumValue("requireApproval")] RequireApproval, [EnumValue("block")] Block }
 
-[Register]
+[Register(typeof(IAutoModeClassifier), ServiceLifetime.Singleton)]
 public sealed partial class AutoModeClassifier : ServiceEntity, IAutoModeClassifier
 {
     private static readonly string[] DangerousCommandPatterns =
@@ -49,7 +49,7 @@ public sealed partial class AutoModeClassifier : ServiceEntity, IAutoModeClassif
     private static readonly FrozenSet<OperationType> WriteOperationTypes = FrozenSet.Create(
         OperationType.Write, OperationType.Edit, OperationType.Create, OperationType.Delete);
 
-    [Inject] private readonly ILogger<AutoModeClassifier>? _logger;
+    private readonly ILogger<AutoModeClassifier>? _logger;
     private readonly ITelemetryService? _telemetryService;
 
     public AutoModeClassifier(ILogger<AutoModeClassifier>? logger = null, ITelemetryService? telemetryService = null)

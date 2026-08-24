@@ -4,7 +4,7 @@ namespace Core.Agents;
 /// 记录上下文中间件 — 记录 SpawnedAt 时间戳 + 创建 AgentExecutionContext
 /// 合并自路径 B 的 SpawnCoordRecordContextMiddleware
 /// </summary>
-[Register(typeof(IUnifiedSpawnMiddleware))]
+[Register(typeof(IUnifiedSpawnMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class RecordContextMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 
@@ -12,7 +12,7 @@ public sealed partial class RecordContextMiddleware : ServiceEntity, IUnifiedSpa
     {
         _clock = clock;
     }
-    [Inject] private readonly IClockService _clock;
+    private readonly IClockService _clock;
 
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 

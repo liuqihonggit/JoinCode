@@ -4,8 +4,7 @@ using Infrastructure.Pipeline;
 
 namespace McpToolRegistry;
 
-[Register]
-[AllowSkipEntity("实现 IAsyncDisposable，与 ServiceEntity 的 IDisposable 冲突，保留异步释放模式")]
+[Register(typeof(IRemoteClientManager), ServiceLifetime.Singleton)]
 public sealed partial class RemoteClientManager : IRemoteClientManager
 {
     private const int MaxReconnectAttempts = 5;
@@ -17,8 +16,8 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
     private readonly Dictionary<string, CancellationTokenSource> _reconnectCtsMap = new();
     private readonly SemaphoreSlim _remoteClientsLock = new(1, 1);
     private readonly IToolRegistry _toolRegistry;
-    [Inject] private readonly ILogger<RemoteClientManager> _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<RemoteClientManager> _logger;
+    private readonly IClockService _clock;
     private readonly McpReconnectAcceptLevel _acceptLevel;
     private readonly MiddlewarePipeline<RemoteSyncContext>? _syncPipeline;
     private readonly INetworkConnectivityService? _networkService;

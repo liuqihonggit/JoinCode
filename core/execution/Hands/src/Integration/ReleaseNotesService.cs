@@ -1,6 +1,6 @@
 namespace IO.Services;
 
-[Register]
+[Register(typeof(IReleaseNotesService), ServiceLifetime.Singleton)]
 public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesService, IDisposable
 {
     private readonly HttpClient _httpClient;

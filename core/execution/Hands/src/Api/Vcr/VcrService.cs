@@ -1,12 +1,12 @@
 
 namespace Services.Api.Vcr;
 
-[Register(typeof(IVcrService))]
-[Register(typeof(JoinCode.Abstractions.Interfaces.IVcrService))]
+[Register(typeof(IVcrService), ServiceLifetime.Singleton)]
+[Register(typeof(JoinCode.Abstractions.Interfaces.IVcrService), ServiceLifetime.Singleton)]
 public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Abstractions.Interfaces.IVcrService, IDisposable
 {
     private readonly VcrOptions _options;
-    [Inject] private readonly ILogger<VcrService>? _logger;
+    private readonly ILogger<VcrService>? _logger;
     private readonly IFileSystem _fs;
     private readonly SemaphoreSlim _fileLock = new(1, 1);
     private readonly ConcurrentDictionary<string, VcrCassette> _cassetteCache = new(StringComparer.OrdinalIgnoreCase);

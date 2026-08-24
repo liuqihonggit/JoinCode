@@ -5,11 +5,11 @@ namespace Core.Hooks.Execution;
 /// HTTP 钩子执行器
 /// 发送 HTTP POST 请求到外部服务
 /// </summary>
-[Register(typeof(IHookExecutor))]
+[Register(typeof(IHookExecutor), ServiceLifetime.Singleton)]
 public sealed partial class HttpHookExecutor : HookExecutorBase<HttpHook>
 {
     private readonly IHttpClientFactory? _httpClientFactory;
-    [Inject] private readonly IClockService _clock;
+    private readonly IClockService _clock;
 
     public HttpHookExecutor(
         IHttpClientFactory? httpClientFactory = null,

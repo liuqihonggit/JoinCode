@@ -1,12 +1,12 @@
 
 namespace Core.Skills.Plugin;
 
-[Register]
+[Register(typeof(IPluginSkillBridge), ServiceLifetime.Singleton)]
 public sealed partial class PluginSkillBridge : ServiceEntity, IPluginSkillBridge
 {
     private readonly IPluginManager _pluginManager;
     private readonly ISkillService _skillService;
-    [Inject] private readonly ILogger<PluginSkillBridge>? _logger;
+    private readonly ILogger<PluginSkillBridge>? _logger;
     private readonly ConcurrentDictionary<string, List<string>> _pluginSkillMap;
     private bool _isDisposed;
 

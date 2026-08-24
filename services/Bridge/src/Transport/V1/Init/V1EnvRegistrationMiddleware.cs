@@ -6,7 +6,7 @@ using JoinCode.Abstractions.Pipeline;
 /// <summary>
 /// V1 注册 Bridge 环境 — 对齐 TS 端: registerBridgeEnvironment
 /// </summary>
-[Register]
+[Register(typeof(IMiddleware<V1BridgeInitContext>), ServiceLifetime.Singleton)]
 internal sealed partial class V1EnvRegistrationMiddleware : ServiceEntity, IMiddleware<V1BridgeInitContext>
 {
 

@@ -5,7 +5,7 @@ namespace Core.Agents;
 /// Agent 记忆服务实现 — 对齐 TS agentMemory.ts + agentMemorySnapshot.ts
 /// 管理三种作用域记忆（user/project/local）和快照机制
 /// </summary>
-[Register]
+[Register(typeof(IAgentMemoryService), ServiceLifetime.Singleton)]
 public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryService
 {
     private const string AgentMemorySubdir = "agent-memory";
@@ -25,7 +25,7 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
     /// </summary>
     private const int MaxEntrypointBytes = 25_000;
 
-    [Inject] private readonly ILogger<AgentMemoryService> _logger;
+    private readonly ILogger<AgentMemoryService> _logger;
     private readonly IFileSystem _fs;
     private readonly string _memoryBase;   // ~/.jcc
     private readonly string _cwd;          // 当前工作目录

@@ -4,7 +4,7 @@ namespace McpClient;
 public sealed partial class McpSecureTokenStorage
 {
     private readonly IFileSystem _fs;
-    [Inject] private readonly ILogger<McpSecureTokenStorage>? _logger;
+    private readonly ILogger<McpSecureTokenStorage>? _logger;
     private readonly string _storagePath;
     private readonly byte[] _encryptionKey;
 

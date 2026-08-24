@@ -1,9 +1,9 @@
 namespace Core.Security.Services;
 
-[Register]
+[Register(typeof(IHttpProxyService), ServiceLifetime.Singleton)]
 public sealed partial class HttpProxyService : ServiceEntity, IHttpProxyService
 {
-    [Inject] private readonly ILogger<HttpProxyService>? _logger;
+    private readonly ILogger<HttpProxyService>? _logger;
     private readonly ITelemetryService? _telemetryService;
     private readonly ProxyOptions? _currentSettings;
 

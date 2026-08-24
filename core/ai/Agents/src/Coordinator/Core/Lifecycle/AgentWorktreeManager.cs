@@ -4,13 +4,13 @@ namespace Core.Agents.Coordinator;
 /// Agent Worktree 管理器 - 负责 Worktree 的创建和清理
 /// 对齐 TS: worktree isolation — 创建/清理时触发 WorktreeCreate/WorktreeRemove hook
 /// </summary>
-[Register]
+[Register(typeof(IAgentWorktreeManager), ServiceLifetime.Singleton)]
 public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktreeManager
 {
     private readonly IAgentWorktreeService? _worktreeService;
     private readonly IHookOrchestrator? _hookOrchestrator;
     private readonly ILogger? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly IClockService _clock;
     private readonly ConcurrentDictionary<string, AgentWorktreeSession> _worktreeSessions;
     private readonly bool _enableWorktreeIsolation;
 

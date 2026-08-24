@@ -6,7 +6,7 @@ namespace McpToolDispatch;
 public sealed partial class VcrToolHandlers
 {
     private readonly IVcrService _vcrService;
-    [Inject] private readonly ILogger<VcrToolHandlers>? _logger;
+    private readonly ILogger<VcrToolHandlers>? _logger;
 
     public VcrToolHandlers(IVcrService vcrService, ILogger<VcrToolHandlers>? logger = null)
     {

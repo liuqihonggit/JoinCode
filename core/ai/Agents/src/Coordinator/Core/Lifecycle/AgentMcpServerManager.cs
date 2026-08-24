@@ -3,11 +3,11 @@ namespace Core.Agents.Coordinator;
 /// <summary>
 /// Agent MCP 服务器管理器 - 负责 Agent 级别的 MCP 服务器初始化和清理
 /// </summary>
-[Register(typeof(JoinCode.Abstractions.Interfaces.IAgentMcpServerManager))]
+[Register(typeof(JoinCode.Abstractions.Interfaces.IAgentMcpServerManager), ServiceLifetime.Singleton)]
 public sealed partial class AgentMcpServerManager : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentMcpServerManager
 {
     private readonly IRemoteClientManager _remoteClientManager;
-    [Inject] private readonly ILogger<AgentMcpServerManager>? _logger;
+    private readonly ILogger<AgentMcpServerManager>? _logger;
     private readonly ConcurrentDictionary<string, List<string>> _agentClients = new(StringComparer.Ordinal);
     private readonly IMcpAuthConfigProvider? _authConfigProvider;
     private readonly IMcpClientFactory? _mcpClientFactory;

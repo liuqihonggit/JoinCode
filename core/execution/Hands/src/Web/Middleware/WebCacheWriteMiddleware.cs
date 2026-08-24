@@ -4,7 +4,7 @@ namespace Services.Web;
 /// 缓存写入中间件 — 将处理后的内容写入缓存
 /// Order=600 在内容处理之后执行
 /// </summary>
-[Register]
+[Register(typeof(IWebMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class WebCacheWriteMiddleware : ServiceEntity, IWebMiddleware
 {
 
@@ -12,7 +12,7 @@ public sealed partial class WebCacheWriteMiddleware : ServiceEntity, IWebMiddlew
     {
         _cache = cache;
     }
-    [Inject] private readonly IWebFetchCache _cache;
+    private readonly IWebFetchCache _cache;
 
     /// <inheritdoc />
 

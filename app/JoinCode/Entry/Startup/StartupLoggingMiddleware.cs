@@ -4,7 +4,7 @@ namespace JoinCode.Entry;
 /// 启动日志中间件 — 记录每个启动步骤的耗时，统一捕获异常
 /// 横切关注点示例：通过 Order = int.MinValue 排在最外层，包裹所有后续中间件
 /// </summary>
-[Register]
+[Register(typeof(IMiddleware<StartupContext>), ServiceLifetime.Singleton)]
 internal sealed partial class StartupLoggingMiddleware : ServiceEntity, IMiddleware<StartupContext>
 {
 

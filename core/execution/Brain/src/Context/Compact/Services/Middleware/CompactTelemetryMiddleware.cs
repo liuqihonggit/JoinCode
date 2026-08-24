@@ -1,6 +1,6 @@
 namespace Core.Context.Compact;
 
-[Register(typeof(ICompactMiddleware))]
+[Register(typeof(ICompactMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class CompactTelemetryMiddleware : ServiceEntity, ICompactMiddleware
 {
     private readonly ITelemetryService? _telemetryService;

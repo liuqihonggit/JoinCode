@@ -2,7 +2,7 @@ using JoinCode.Abstractions.Attributes;
 
 namespace Core.Configuration;
 
-[Register]
+[Register(typeof(IFastModeService), ServiceLifetime.Singleton)]
 public sealed partial class FastModeService : ServiceEntity, IFastModeService, IDisposable
 {
     private readonly object _lock = new();
@@ -11,7 +11,7 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
     private string _primaryModelId;
     private Timer? _cooldownTimer;
     private readonly TimeSpan _cooldownDuration;
-    [Inject] private readonly ILogger<FastModeService>? _logger;
+    private readonly ILogger<FastModeService>? _logger;
 
     public bool IsFastModeActive
     {

@@ -8,7 +8,7 @@ public sealed partial class ToolExecutor
 {
     private readonly IToolRegistry _toolRegistry;
     private readonly IToolExecutionGateway _toolExecutionGateway;
-    [Inject] private readonly ILogger<ToolExecutor>? _logger;
+    private readonly ILogger<ToolExecutor>? _logger;
 
     public ToolExecutor(IToolRegistry toolRegistry, IToolExecutionGateway toolExecutionGateway, ILogger<ToolExecutor>? logger = null)
     {

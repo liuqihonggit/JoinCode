@@ -12,11 +12,11 @@ public sealed partial class SyncFileEntry
     public required string Source { get; init; }
 }
 
-[Register]
+[Register(typeof(ITeamMemorySyncService), ServiceLifetime.Singleton)]
 public sealed partial class TeamMemorySyncService : ServiceEntity, ITeamMemorySyncService
 {
-    [Inject] private readonly ILogger<TeamMemorySyncService>? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<TeamMemorySyncService>? _logger;
+    private readonly IClockService _clock;
     private readonly ITelemetryService? _telemetryService;
     private readonly TeamMemorySyncOptions _options;
     private readonly IFileOperationService _fileOperationService;

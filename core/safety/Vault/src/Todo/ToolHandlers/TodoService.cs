@@ -2,7 +2,7 @@ using Structura.Dag;
 
 namespace Services.Todo;
 
-[Register]
+[Register(typeof(ITodoService), ServiceLifetime.Singleton)]
 public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposable
 {
 
@@ -12,9 +12,9 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
         _taskRuntime = taskRuntime;
         _telemetryService = telemetryService;
     }
-    [Inject] private readonly ITaskRuntime? _taskRuntime;
-    [Inject] private readonly ITelemetryService? _telemetryService;
-    [Inject] private readonly IClockService _clock;
+    private readonly ITaskRuntime? _taskRuntime;
+    private readonly ITelemetryService? _telemetryService;
+    private readonly IClockService _clock;
     private readonly ConcurrentDag<TodoItem> _todoDag = new();
 
     public async Task<TodoServiceResult> WriteTodosAsync(List<TodoItemInput> todos, CancellationToken cancellationToken = default)

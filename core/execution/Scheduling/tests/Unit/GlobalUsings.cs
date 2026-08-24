@@ -33,6 +33,7 @@ global using JoinCode.Abstractions.Mcp.Protocol;
 global using McpResource = JoinCode.Abstractions.Mcp.Protocol.McpResource;
 global using JoinCode.Abstractions.Mcp.Registry;
 global using Microsoft.Extensions.DependencyInjection;
+global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using Microsoft.Extensions.Logging.Abstractions;
 global using Microsoft.Extensions.Options;
 global using Microsoft.Extensions.Time.Testing;

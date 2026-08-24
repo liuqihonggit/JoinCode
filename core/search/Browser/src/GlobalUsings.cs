@@ -6,6 +6,7 @@ global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.Localization;
 global using JoinCode.Abstractions.Models;
 global using Microsoft.Extensions.DependencyInjection;
+global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using Microsoft.Extensions.Logging;
 global using PuppeteerSharp;
 global using JoinCode.Abstractions.Entity;

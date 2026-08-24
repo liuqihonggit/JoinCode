@@ -1,10 +1,10 @@
 namespace Services.CodeIndex;
 
-[Register]
+[Register(typeof(IProgressiveDisclosure), ServiceLifetime.Singleton)]
 public sealed partial class ProgressiveDisclosureService : ServiceEntity, IProgressiveDisclosure
 {
     private readonly ICodeIndexer _indexer;
-    [Inject] private readonly ILogger<ProgressiveDisclosureService>? _logger;
+    private readonly ILogger<ProgressiveDisclosureService>? _logger;
     private readonly IFileSystem _fs;
 
     public ProgressiveDisclosureService(ICodeIndexer indexer, IFileSystem fs, ILogger<ProgressiveDisclosureService>? logger = null)

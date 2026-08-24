@@ -4,7 +4,7 @@ namespace Tools.Shell;
 /// Shell 输出格式化中间件 — 处理执行结果的输出格式化
 /// 包括中断检测、图片输出检测、输出构建、命令语义解释
 /// </summary>
-[Register]
+[Register(typeof(IShellMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddleware
 {
 
@@ -12,7 +12,7 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
     {
         _telemetryService = telemetryService;
     }
-    [Inject] private readonly ITelemetryService? _telemetryService;
+    private readonly ITelemetryService? _telemetryService;
 
     /// <inheritdoc />
 

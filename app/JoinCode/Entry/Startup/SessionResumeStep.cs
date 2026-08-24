@@ -6,7 +6,7 @@ namespace JoinCode.Entry;
 /// 对齐 TS: claude --continue / claude --resume
 /// 统一入口: 通过 ITranscriptService 读取 {sessionId}/transcript.jsonl,不再直读 .json
 /// </summary>
-[Register]
+[Register(typeof(IMiddleware<StartupContext>), ServiceLifetime.Singleton)]
 internal sealed partial class SessionResumeStep : ServiceEntity, IMiddleware<StartupContext>
 {
 

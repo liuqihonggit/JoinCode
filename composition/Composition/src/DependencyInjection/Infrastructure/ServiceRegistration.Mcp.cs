@@ -79,7 +79,7 @@ public static partial class ServiceRegistration
                 .Build();
         });
 
-        // IToolExecutionGateway — [Register(typeof(IToolExecutionGateway))] 自动注册（PermissionAwareToolExecutor）
+        // IToolExecutionGateway — [Register(typeof(IToolExecutionGateway), ServiceLifetime.Singleton)] 自动注册（PermissionAwareToolExecutor）
         // IToolCategoryProvider — [Register] 自动注册（GeneratedToolCategoryProvider）
         // PromptConfig — [Register] 自动注册（DI 构造函数接收 IToolCategoryProvider）
 

@@ -5,7 +5,7 @@ namespace Core.Context;
 /// <summary>
 /// 会话 Hook 辅助服务 — ClearHistory/CompactHistory 共用的 SessionStart/SessionEnd Hook 执行逻辑
 /// </summary>
-[Register]
+[Register(typeof(SessionHookHelper), ServiceLifetime.Singleton)]
 public sealed partial class SessionHookHelper : ServiceEntity
 {
 
@@ -15,9 +15,9 @@ public sealed partial class SessionHookHelper : ServiceEntity
         _hookOrchestrator = hookOrchestrator;
         _logger = logger;
     }
-    [Inject] private readonly ISessionStartHookManager? _sessionStartHookManager;
-    [Inject] private readonly IHookOrchestrator? _hookOrchestrator;
-    [Inject] private readonly ILogger<SessionHookHelper>? _logger;
+    private readonly ISessionStartHookManager? _sessionStartHookManager;
+    private readonly IHookOrchestrator? _hookOrchestrator;
+    private readonly ILogger<SessionHookHelper>? _logger;
 
     /// <summary>
     /// 执行 SessionStart Hook — 对齐 TS processSessionStartHooks

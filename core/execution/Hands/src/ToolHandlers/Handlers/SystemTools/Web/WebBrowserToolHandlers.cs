@@ -9,7 +9,7 @@ public partial class WebBrowserToolHandlers
 {
     private readonly IWebService _webService;
     private readonly IBrowserAutomationService _browserService;
-    [Inject] private readonly ILogger<WebBrowserToolHandlers>? _logger;
+    private readonly ILogger<WebBrowserToolHandlers>? _logger;
 
     public WebBrowserToolHandlers(
         IWebService webService,

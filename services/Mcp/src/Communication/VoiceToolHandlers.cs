@@ -6,7 +6,7 @@ namespace McpToolDispatch;
 public sealed partial class VoiceToolHandlers
 {
     private readonly IVoiceService _voiceService;
-    [Inject] private readonly ILogger<VoiceToolHandlers>? _logger;
+    private readonly ILogger<VoiceToolHandlers>? _logger;
 
     public VoiceToolHandlers(IVoiceService voiceService, ILogger<VoiceToolHandlers>? logger = null)
     {

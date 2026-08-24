@@ -3,7 +3,7 @@ namespace Core.Agents.Coordinator;
 /// <summary>
 /// Fork 权限同步中间件 — 同步子智能体权限到权限桥
 /// </summary>
-[Register(typeof(IForkMiddleware))]
+[Register(typeof(IForkMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ForkPermissionMiddleware : ServiceEntity, IForkMiddleware
 {
 
@@ -12,8 +12,8 @@ public sealed partial class ForkPermissionMiddleware : ServiceEntity, IForkMiddl
         _permissionBridge = permissionBridge;
         _logger = logger;
     }
-    [Inject] private readonly ISwarmPermissionBridge? _permissionBridge;
-    [Inject] private readonly ILogger<ForkPermissionMiddleware>? _logger;
+    private readonly ISwarmPermissionBridge? _permissionBridge;
+    private readonly ILogger<ForkPermissionMiddleware>? _logger;
 
     /// <summary>权限同步在 Spawn 之后</summary>
 

@@ -4,7 +4,7 @@ namespace Tools.Handlers;
 /// Agent Fork 判断中间件 — 当 subagent_type 为空且 ForkManager 可用时，走 fork 路径
 /// 对齐 TS: 省略 subagent_type 时 fork 自己，继承完整对话上下文
 /// </summary>
-[Register]
+[Register(typeof(IAgentToolMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class AgentForkMiddleware : ServiceEntity, IAgentToolMiddleware
 {
 
@@ -14,9 +14,9 @@ public sealed partial class AgentForkMiddleware : ServiceEntity, IAgentToolMiddl
         _forkManager = forkManager;
         _telemetryService = telemetryService;
     }
-    [Inject] private readonly IForkSubAgentManager? _forkManager;
-    [Inject] private readonly ITelemetryService? _telemetryService;
-    [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly IForkSubAgentManager? _forkManager;
+    private readonly ITelemetryService? _telemetryService;
+    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
 
     /// <inheritdoc />
     public int Order => 200;

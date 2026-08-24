@@ -14,7 +14,7 @@ public sealed class DiminishingReturnsResult
     public int ConsecutiveLowValueIterations { get; init; }
 }
 
-[Register]
+[Register(typeof(IDiminishingReturnsDetector), ServiceLifetime.Singleton)]
 public sealed partial class DiminishingReturnsDetector : ServiceEntity, IDiminishingReturnsDetector
 {
     private const double LowValueThreshold = 0.1;

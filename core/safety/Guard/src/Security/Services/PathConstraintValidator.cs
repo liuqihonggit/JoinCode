@@ -6,7 +6,7 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// 路径约束验证器实现 — 对齐 TS pathValidation.ts
 /// 核心功能: 34个命令的路径提取 + 操作类型映射 + 危险路径检查 + 重定向验证
 /// </summary>
-[Register]
+[Register(typeof(IPathConstraintValidator), ServiceLifetime.Singleton)]
 public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstraintValidator
 {
     /// <summary>
@@ -129,7 +129,7 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
     private static readonly Regex ShellExpansionPattern = new(
         @"\$[A-Za-z_]|%[A-Za-z_]%|\$\{", RegexOptions.Compiled);
 
-    [Inject] private readonly IPathValidator _pathValidator;
+    private readonly IPathValidator _pathValidator;
 
     public PathConstraintValidator(IPathValidator pathValidator)
     {

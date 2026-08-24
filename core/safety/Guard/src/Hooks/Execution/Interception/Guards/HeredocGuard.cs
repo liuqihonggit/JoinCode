@@ -13,10 +13,10 @@ namespace Core.Hooks.Execution.Interception.Guards;
 /// 迁移自 HeredocRewriter(Priority=200)。
 /// </para>
 /// </summary>
-[Register]
+[Register(typeof(ICommandGuard), ServiceLifetime.Singleton)]
 public sealed partial class HeredocGuard : ICommandGuard
 {
-    [Inject] private readonly ILogger<HeredocGuard>? _logger;
+    private readonly ILogger<HeredocGuard>? _logger;
 
     // 匹配 $(cat <<'DELIMITER'\ncontent\nDELIMITER) 或 $(cat <<DELIMITER\ncontent\nDELIMITER)
     private static readonly Regex HeredocInCommandSubstitution = new(

@@ -6,7 +6,7 @@ namespace McpToolDispatch;
 public partial class VerifyPlanExecutionToolHandlers
 {
     private readonly IPlanService _planService;
-    [Inject] private readonly ILogger<VerifyPlanExecutionToolHandlers>? _logger;
+    private readonly ILogger<VerifyPlanExecutionToolHandlers>? _logger;
 
     public VerifyPlanExecutionToolHandlers(IPlanService planService, ILogger<VerifyPlanExecutionToolHandlers>? logger = null)
     {

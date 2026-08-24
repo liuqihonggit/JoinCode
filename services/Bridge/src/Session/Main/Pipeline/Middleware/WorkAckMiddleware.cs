@@ -2,7 +2,7 @@ namespace Core.Bridge;
 
 using JoinCode.Abstractions.Pipeline;
 
-[Register(typeof(IHandleWorkMiddleware))]
+[Register(typeof(IHandleWorkMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class WorkAckMiddleware : ServiceEntity, IHandleWorkMiddleware
 {
 
@@ -11,8 +11,8 @@ public sealed partial class WorkAckMiddleware : ServiceEntity, IHandleWorkMiddle
         _apiClient = apiClient;
         _logger = logger;
     }
-    [Inject] private readonly ILogger<WorkAckMiddleware>? _logger;
-    [Inject] private readonly BridgeApiClient _apiClient;
+    private readonly ILogger<WorkAckMiddleware>? _logger;
+    private readonly BridgeApiClient _apiClient;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

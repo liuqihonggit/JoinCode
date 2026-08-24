@@ -5,7 +5,7 @@ using JoinCode.Abstractions.Pipeline;
 /// <summary>
 /// 文件监控中间件 — 初始化 IFileSystemWatcher
 /// </summary>
-[Register(typeof(ISyncStartMiddleware))]
+[Register(typeof(ISyncStartMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class FileWatcherMiddleware : ServiceEntity, ISyncStartMiddleware
 {
 

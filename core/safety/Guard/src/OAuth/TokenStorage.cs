@@ -57,11 +57,11 @@ public sealed record OAuthToken
 /// <summary>
 /// Token 存储实现
 /// </summary>
-[Register]
+[Register(typeof(ITokenStorage), ServiceLifetime.Singleton)]
 public sealed partial class TokenStorage : ServiceEntity, ITokenStorage
 {
     private readonly string _storagePath;
-    [Inject] private readonly ILogger<TokenStorage>? _logger;
+    private readonly ILogger<TokenStorage>? _logger;
     private readonly IFileSystem _fs;
 
     public TokenStorage(IFileSystem fs, string? storagePath = null, ILogger<TokenStorage>? logger = null)

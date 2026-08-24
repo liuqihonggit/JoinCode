@@ -4,11 +4,11 @@ namespace Memdir.Services;
 /// Facet 缓存服务 — 对齐 TS insights.ts loadCachedFacets + saveFacets
 /// 缓存路径: ~/.jcc/usage-data/facets/{sessionId}.json
 /// </summary>
-[Register]
+[Register(typeof(IFacetCacheService), ServiceLifetime.Singleton)]
 public sealed partial class FacetCacheService : ServiceEntity, IFacetCacheService
 {
     private readonly string _facetsDirectory;
-    [Inject] private readonly ILogger<FacetCacheService>? _logger;
+    private readonly ILogger<FacetCacheService>? _logger;
     private readonly IFileSystem _fs;
 
     public FacetCacheService(IFileSystem fs, string? facetsDirectory = null, ILogger<FacetCacheService>? logger = null)

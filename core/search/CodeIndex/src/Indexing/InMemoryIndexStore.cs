@@ -7,7 +7,7 @@ namespace JoinCode.CodeIndex.Persistence;
 /// 全量内存构造,ReaderWriterLockSlim 保护并发读写
 /// 数据结构: 符号索引(按 fqn/name/file/kind 多维检索) + 调用图 + 依赖图 + 项目依赖 + 文件追踪
 /// </summary>
-[Register]
+[Register(typeof(InMemoryIndexStore), ServiceLifetime.Singleton)]
 public sealed partial class InMemoryIndexStore : ServiceEntity, IDisposable
 {
     private readonly ReaderWriterLockSlim _lock = new(LockRecursionPolicy.SupportsRecursion);

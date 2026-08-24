@@ -43,7 +43,7 @@ public sealed record SkillsReloadedData
 /// 消息处理器上下文
 /// 封装处理消息所需的依赖，避免参数爆炸
 /// </summary>
-[Register]
+[Register(typeof(MessageHandlerContext), ServiceLifetime.Singleton)]
 public sealed record MessageHandlerContext(
     IPlanService? PlanService = null,
     IChatService? ChatService = null,
@@ -464,7 +464,7 @@ public sealed class PingHandler : IMessageHandler
 /// 消息处理器协调器
 /// 统一协调所有消息的处理
 /// </summary>
-[Register]
+[Register(typeof(MessageHandlerCoordinator), ServiceLifetime.Singleton)]
 public sealed partial class MessageHandlerCoordinator : ServiceEntity
 {
     private readonly MessageHandlerRegistry _registry;

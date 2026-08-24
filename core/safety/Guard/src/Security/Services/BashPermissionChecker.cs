@@ -2,7 +2,7 @@ using JoinCode.Abstractions.Attributes;
 
 namespace JoinCode.Abstractions.Security.Shell;
 
-[Register]
+[Register(typeof(IBashPermissionChecker), ServiceLifetime.Singleton)]
 public sealed partial class BashPermissionChecker : ServiceEntity, IBashPermissionChecker
 {
 
@@ -12,9 +12,9 @@ public sealed partial class BashPermissionChecker : ServiceEntity, IBashPermissi
         _pathConstraintValidator = pathConstraintValidator;
         _readOnlyDetector = readOnlyDetector;
     }
-    [Inject] private readonly IBashSecurityValidator _securityValidator;
-    [Inject] private readonly IPathConstraintValidator _pathConstraintValidator;
-    [Inject] private readonly IReadOnlyCommandDetector _readOnlyDetector;
+    private readonly IBashSecurityValidator _securityValidator;
+    private readonly IPathConstraintValidator _pathConstraintValidator;
+    private readonly IReadOnlyCommandDetector _readOnlyDetector;
 
     private const int MaxSubcommandsForSecurityCheck = 50;
 

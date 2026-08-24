@@ -4,11 +4,11 @@ namespace McpToolRegistry;
 /// <summary>
 /// 参数修复中间件 — Order=100 — 修复工具调用参数中的常见问题
 /// </summary>
-[Register]
+[Register(typeof(IToolExecutionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ArgumentRepairMiddleware : ServiceEntity, IToolExecutionMiddleware
 {
 
-    [Inject] private readonly ILogger<ArgumentRepairMiddleware> _logger;
+    private readonly ILogger<ArgumentRepairMiddleware> _logger;
 
     public ArgumentRepairMiddleware(ILogger<ArgumentRepairMiddleware> logger)
     {

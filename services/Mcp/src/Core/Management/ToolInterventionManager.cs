@@ -4,7 +4,7 @@ namespace McpToolDispatch;
 /// 工具干预管理器 — 读取干预配置，支持运行时添加/移除干预规则
 /// Blacklist→工具不注册; Downgrade→Score扣分; Redirect→注入替代建议
 /// </summary>
-[Register]
+[Register(typeof(ToolInterventionManager), ServiceLifetime.Singleton)]
 public sealed class ToolInterventionManager : ServiceEntity
 {
     private readonly ILogger<ToolInterventionManager>? _logger;

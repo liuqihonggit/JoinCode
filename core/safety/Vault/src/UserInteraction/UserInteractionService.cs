@@ -5,7 +5,7 @@ namespace Services.UserInteraction;
 /// 用户交互服务默认实现（Headless/SDK 模式）
 /// TUI 模式下由 Terminal 渲染层直接处理用户交互，不经过此服务
 /// </summary>
-[Register]
+[Register(typeof(IUserInteractionService), ServiceLifetime.Singleton)]
 public sealed partial class UserInteractionService : ServiceEntity, IUserInteractionService
 {
 
@@ -14,8 +14,8 @@ public sealed partial class UserInteractionService : ServiceEntity, IUserInterac
         _logger = logger;
         _telemetryService = telemetryService;
     }
-    [Inject] private readonly ILogger<UserInteractionService>? _logger;
-    [Inject] private readonly ITelemetryService? _telemetryService;
+    private readonly ILogger<UserInteractionService>? _logger;
+    private readonly ITelemetryService? _telemetryService;
 
     /// <summary>
     /// 询问用户问题

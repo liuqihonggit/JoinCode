@@ -1,6 +1,6 @@
 namespace Core.Agents;
 
-[Register(typeof(IWorktreeMergeService))]
+[Register(typeof(IWorktreeMergeService), ServiceLifetime.Singleton)]
 public sealed partial class WorktreeMergeService : ServiceEntity, IWorktreeMergeService
 {
 
@@ -10,9 +10,9 @@ public sealed partial class WorktreeMergeService : ServiceEntity, IWorktreeMerge
         _fileSystem = fileSystem;
         _logger = logger;
     }
-    [Inject] private readonly ILogger<WorktreeMergeService>? _logger;
-    [Inject] private readonly IGitCommandRunner _gitRunner;
-    [Inject] private readonly IFileSystem _fileSystem;
+    private readonly ILogger<WorktreeMergeService>? _logger;
+    private readonly IGitCommandRunner _gitRunner;
+    private readonly IFileSystem _fileSystem;
 
     public async Task<WorktreeMergeResult> MergeToTargetAsync(
         string sourceWorktreePath,

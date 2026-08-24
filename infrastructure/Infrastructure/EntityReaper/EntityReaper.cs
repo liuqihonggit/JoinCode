@@ -4,11 +4,11 @@ namespace Infrastructure.EntityReaper;
 /// 实体回收器 — 定期扫描 ObjectIdManager 中可回收/超时/泄漏的 Entity
 /// 独立于 HousekeepingService（文件清理），专注于内存中 Entity 的生命周期管理
 /// </summary>
-[Register(typeof(IEntityReaper))]
+[Register(typeof(IEntityReaper), ServiceLifetime.Singleton)]
 public sealed partial class EntityReaper : IEntityReaper, IScanStrategy
 {
-    [Inject] private readonly IClockService _clock;
-    [Inject] private readonly ILogger<EntityReaper>? _logger;
+    private readonly IClockService _clock;
+    private readonly ILogger<EntityReaper>? _logger;
 
     private readonly EntityReaperConfig _config;
 

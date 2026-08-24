@@ -1,6 +1,6 @@
 namespace Core.Agents.Coordinator;
 
-[Register]
+[Register(typeof(JoinCode.Abstractions.Interfaces.IPaneBackend), ServiceLifetime.Singleton)]
 public sealed partial class InProcessPaneBackend : ServiceEntity, JoinCode.Abstractions.Interfaces.IPaneBackend
 {
     public JoinCode.Abstractions.Interfaces.BackendType BackendType => JoinCode.Abstractions.Interfaces.BackendType.InProcess;

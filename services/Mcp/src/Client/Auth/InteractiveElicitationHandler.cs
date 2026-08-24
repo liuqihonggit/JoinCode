@@ -2,11 +2,11 @@ using JoinCode.Abstractions.Interfaces;
 
 namespace McpClient;
 
-[Register]
+[Register(typeof(IElicitationHandler), ServiceLifetime.Singleton)]
 public sealed partial class InteractiveElicitationHandler : ServiceEntity, IElicitationHandler
 {
     private readonly IUserInteractionService _userInteraction;
-    [Inject] private readonly ILogger<InteractiveElicitationHandler>? _logger;
+    private readonly ILogger<InteractiveElicitationHandler>? _logger;
     private readonly SemaphoreSlim _queueLock = new(1, 1);
 
     public InteractiveElicitationHandler(

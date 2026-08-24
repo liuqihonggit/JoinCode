@@ -2,7 +2,7 @@ namespace Core.Bridge;
 
 using JoinCode.Abstractions.Pipeline;
 
-[Register(typeof(IHandleWorkMiddleware))]
+[Register(typeof(IHandleWorkMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class WorkCapacityCheckMiddleware : ServiceEntity, IHandleWorkMiddleware
 {
 
@@ -10,7 +10,7 @@ public sealed partial class WorkCapacityCheckMiddleware : ServiceEntity, IHandle
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<WorkCapacityCheckMiddleware>? _logger;
+    private readonly ILogger<WorkCapacityCheckMiddleware>? _logger;
 
 
     public async Task InvokeAsync(HandleWorkContext ctx, MiddlewareDelegate<HandleWorkContext> next, CancellationToken ct)

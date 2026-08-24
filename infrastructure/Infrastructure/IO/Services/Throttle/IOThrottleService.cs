@@ -8,7 +8,7 @@ namespace IO.Services;
 public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
 {
     private readonly IOThrottleOptions _options;
-    [Inject] private readonly ILogger<IOThrottleService>? _logger;
+    private readonly ILogger<IOThrottleService>? _logger;
     private readonly ITelemetryService? _telemetryService;
     private readonly IClockService _clock;
 

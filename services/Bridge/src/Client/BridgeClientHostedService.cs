@@ -3,12 +3,12 @@ using JoinCode.Abstractions.Attributes;
 
 namespace Core.Bridge;
 
-[Register(typeof(IHostedService))]
+[Register(typeof(IHostedService), ServiceLifetime.Singleton)]
 public sealed partial class BridgeClientHostedService : IHostedService, IAsyncDisposable
 {
     private readonly BridgeClient _bridgeClient;
     private readonly BridgeConfig _config;
-    [Inject] private readonly ILogger<BridgeClientHostedService>? _logger;
+    private readonly ILogger<BridgeClientHostedService>? _logger;
     private readonly CancellationTokenSource _cts = new();
 
     public BridgeClientHostedService(

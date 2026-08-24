@@ -3,7 +3,7 @@ namespace Infrastructure.IO;
 /// <summary>
 /// 物理控制台输出 — 直接使用 System.Console
 /// </summary>
-[Register(typeof(IConsoleOutput))]
+[Register(typeof(IConsoleOutput), ServiceLifetime.Singleton)]
 public sealed partial class PhysicalConsoleOutput : ServiceEntity, IConsoleOutput
 {
     public void WriteLine(string message) => System.Console.WriteLine(message);

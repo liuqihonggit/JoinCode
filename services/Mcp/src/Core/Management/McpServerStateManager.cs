@@ -4,7 +4,7 @@ namespace McpClient;
 public sealed partial class McpServerStateManager
 {
     private readonly IFileSystem _fs;
-    [Inject] private readonly ILogger<McpServerStateManager>? _logger;
+    private readonly ILogger<McpServerStateManager>? _logger;
     private readonly string _stateFilePath;
     private readonly SemaphoreSlim _lock = new(1, 1);
     private HashSet<string> _disabledServers = new(StringComparer.OrdinalIgnoreCase);

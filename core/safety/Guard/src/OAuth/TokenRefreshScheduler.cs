@@ -52,11 +52,11 @@ public sealed partial class TokenRefreshEventArgs : EventArgs
 /// <summary>
 /// Token 刷新调度器实现
 /// </summary>
-[Register(typeof(ITokenRefreshScheduler))]
+[Register(typeof(ITokenRefreshScheduler), ServiceLifetime.Singleton)]
 public sealed partial class TokenRefreshScheduler : ServiceEntity, ITokenRefreshScheduler, IDisposable
 {
-    [Inject] private readonly ILogger<TokenRefreshScheduler>? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<TokenRefreshScheduler>? _logger;
+    private readonly IClockService _clock;
     private readonly ConcurrentDictionary<string, TokenMonitor> _monitors = new();
     private readonly TimeSpan _refreshBuffer;
 

@@ -5,7 +5,7 @@ using JoinCode.Abstractions.Pipeline;
 /// <summary>
 /// 漂移检测中间件 — 仅 Tools 操作：检测工具漂移并决策重连策略
 /// </summary>
-[Register(typeof(IRemoteSyncMiddleware))]
+[Register(typeof(IRemoteSyncMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class RemoteDriftDetectionMiddleware : ServiceEntity, IRemoteSyncMiddleware
 {
 
@@ -13,7 +13,7 @@ public sealed partial class RemoteDriftDetectionMiddleware : ServiceEntity, IRem
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<RemoteDriftDetectionMiddleware> _logger;
+    private readonly ILogger<RemoteDriftDetectionMiddleware> _logger;
 
 
     public Task InvokeAsync(RemoteSyncContext ctx, MiddlewareDelegate<RemoteSyncContext> next, CancellationToken ct)

@@ -5,7 +5,7 @@ namespace Core.Query;
 /// <summary>
 /// Token 预算中间件 — 每次 LLM 调用后消耗 Token 预算
 /// </summary>
-[Register(typeof(IQueryMiddleware))]
+[Register(typeof(IQueryMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class TokenBudgetMiddleware : ServiceEntity, IQueryMiddleware
 {
 
@@ -13,7 +13,7 @@ public sealed partial class TokenBudgetMiddleware : ServiceEntity, IQueryMiddlew
     {
         _tokenBudgetManager = tokenBudgetManager;
     }
-    [Inject] private readonly ITokenBudgetManager? _tokenBudgetManager;
+    private readonly ITokenBudgetManager? _tokenBudgetManager;
 
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;

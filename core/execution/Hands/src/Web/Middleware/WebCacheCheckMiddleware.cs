@@ -4,7 +4,7 @@ namespace Services.Web;
 /// 缓存检查中间件 — 查询URL缓存，命中时短路管道直接返回
 /// Order=200 在验证之后执行
 /// </summary>
-[Register]
+[Register(typeof(IWebMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class WebCacheCheckMiddleware : ServiceEntity, IWebMiddleware
 {
 
@@ -13,8 +13,8 @@ public sealed partial class WebCacheCheckMiddleware : ServiceEntity, IWebMiddlew
         _cache = cache;
         _telemetryService = telemetryService;
     }
-    [Inject] private readonly IWebFetchCache _cache;
-    [Inject] private readonly ITelemetryService? _telemetryService;
+    private readonly IWebFetchCache _cache;
+    private readonly ITelemetryService? _telemetryService;
 
     /// <inheritdoc />
 

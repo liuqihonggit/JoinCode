@@ -19,11 +19,11 @@ public sealed partial class RemoteAgentTaskDefinition
     public int MaxRetries { get; init; } = 3;
 }
 
-[Register]
+[Register(typeof(IRemoteAgentTaskExecutor), ServiceLifetime.Singleton)]
 public sealed partial class RemoteAgentTaskExecutor : ServiceEntity, IRemoteAgentTaskExecutor
 {
     private readonly HttpClient _httpClient;
-    [Inject] private readonly ILogger<RemoteAgentTaskExecutor>? _logger;
+    private readonly ILogger<RemoteAgentTaskExecutor>? _logger;
     private readonly ITelemetryService? _telemetryService;
     private readonly IClockService _clock;
 

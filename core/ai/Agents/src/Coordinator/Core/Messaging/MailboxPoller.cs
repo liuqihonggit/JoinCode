@@ -1,13 +1,12 @@
 namespace Core.Agents.Coordinator;
 
-[Register]
-[AllowSkipEntity("实现 IAsyncDisposable，与 ServiceEntity 的 IDisposable 冲突，保留异步释放模式")]
+[Register(typeof(IMailboxPoller), ServiceLifetime.Singleton)]
 public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable
 {
     private readonly ITeammateMailboxService _mailboxService;
     private readonly IMailbox _messageBroker;
     private readonly IMailboxMessageSink? _messageSink;
-    [Inject] private readonly ILogger<MailboxPoller>? _logger;
+    private readonly ILogger<MailboxPoller>? _logger;
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _pollingAgents;
     private readonly TimeSpan _pollInterval;
     private int _isDisposed;

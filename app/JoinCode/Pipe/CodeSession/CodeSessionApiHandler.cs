@@ -26,7 +26,7 @@ public sealed class CodeSessionApiResponse
     public string? Error { get; init; }
 }
 
-[Register]
+[Register(typeof(CodeSessionApiHandler), ServiceLifetime.Singleton)]
 public sealed partial class CodeSessionApiHandler : ServiceEntity
 {
     private readonly CodeSessionManager _manager;

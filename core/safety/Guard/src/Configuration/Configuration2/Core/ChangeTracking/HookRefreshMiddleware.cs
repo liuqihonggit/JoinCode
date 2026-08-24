@@ -3,7 +3,7 @@ namespace Core.Configuration;
 /// <summary>
 /// Hook 配置刷新中间件 — 对齐 TS 版 updateHooksConfigSnapshot()
 /// </summary>
-[Register(typeof(ISettingsMiddleware))]
+[Register(typeof(ISettingsMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class HookRefreshMiddleware : ServiceEntity, ISettingsMiddleware
 {
 
@@ -11,7 +11,7 @@ public sealed partial class HookRefreshMiddleware : ServiceEntity, ISettingsMidd
     {
         _hookConfigurationManager = hookConfigurationManager;
     }
-    [Inject] private readonly IHookConfigurationManager? _hookConfigurationManager;
+    private readonly IHookConfigurationManager? _hookConfigurationManager;
 
     /// <inheritdoc />
 

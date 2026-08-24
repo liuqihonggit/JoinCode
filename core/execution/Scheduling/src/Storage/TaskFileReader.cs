@@ -4,7 +4,7 @@ namespace Core.Scheduling;
 /// <summary>
 /// 任务文件读取工具类
 /// </summary>
-[Register]
+[Register(typeof(ITaskFileReader), ServiceLifetime.Singleton)]
 public sealed partial class TaskFileReader : ServiceEntity, ITaskFileReader
 {
 
@@ -12,7 +12,7 @@ public sealed partial class TaskFileReader : ServiceEntity, ITaskFileReader
     {
         _fileOperationService = fileOperationService;
     }
-    [Inject] private readonly IFileOperationService _fileOperationService;
+    private readonly IFileOperationService _fileOperationService;
 
     /// <summary>
     /// 读取单个任务文件

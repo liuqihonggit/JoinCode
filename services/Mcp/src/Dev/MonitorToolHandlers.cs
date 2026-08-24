@@ -6,7 +6,7 @@ namespace McpToolDispatch;
 public partial class MonitorToolHandlers
 {
     private readonly IMcpToolRegistry _toolRegistry;
-    [Inject] private readonly ILogger<MonitorToolHandlers>? _logger;
+    private readonly ILogger<MonitorToolHandlers>? _logger;
 
     public MonitorToolHandlers(IMcpToolRegistry toolRegistry, ILogger<MonitorToolHandlers>? logger = null)
     {

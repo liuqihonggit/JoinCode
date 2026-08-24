@@ -2,7 +2,7 @@ namespace Core.Bridge;
 
 using JoinCode.Abstractions.Pipeline;
 
-[Register(typeof(IShutdownMiddleware))]
+[Register(typeof(IShutdownMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ShutdownCancelLoopMiddleware : ServiceEntity, IShutdownMiddleware
 {
 
@@ -10,7 +10,7 @@ public sealed partial class ShutdownCancelLoopMiddleware : ServiceEntity, IShutd
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<ShutdownCancelLoopMiddleware>? _logger;
+    private readonly ILogger<ShutdownCancelLoopMiddleware>? _logger;
 
 
     public async Task InvokeAsync(ShutdownContext ctx, MiddlewareDelegate<ShutdownContext> next, CancellationToken ct)

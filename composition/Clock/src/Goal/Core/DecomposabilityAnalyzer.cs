@@ -3,11 +3,11 @@ namespace Core.Goal;
 
 using JoinCode.Abstractions.Models.Goal;
 
-[Register]
+[Register(typeof(IDecomposabilityAnalyzer), ServiceLifetime.Singleton)]
 public sealed partial class DecomposabilityAnalyzer : ServiceEntity, IDecomposabilityAnalyzer
 {
     private readonly IChatClient _kernel;
-    [Inject] private readonly ILogger<DecomposabilityAnalyzer>? _logger;
+    private readonly ILogger<DecomposabilityAnalyzer>? _logger;
 
     public DecomposabilityAnalyzer(IChatClient kernel, ILogger<DecomposabilityAnalyzer>? logger = null)
     {

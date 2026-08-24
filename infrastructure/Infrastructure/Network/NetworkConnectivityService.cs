@@ -9,10 +9,10 @@ namespace Infrastructure.Network;
 /// 多流:一台机器可同时有多个活跃接口(以太网+WiFi+VPN隧道),GetActiveInterfaces 返回全部
 /// </para>
 /// </summary>
-[Register(typeof(INetworkConnectivityService))]
+[Register(typeof(INetworkConnectivityService), ServiceLifetime.Singleton)]
 public sealed partial class NetworkConnectivityService : ServiceEntity, INetworkConnectivityService
 {
-    [Inject] private readonly ILogger<NetworkConnectivityService>? _logger;
+    private readonly ILogger<NetworkConnectivityService>? _logger;
     private readonly Func<IReadOnlyList<NetworkInterfaceInfo>> _interfaceProvider;
     private readonly Func<bool> _vpnProcessDetector;
     private readonly Func<bool> _proxyEnvDetector;

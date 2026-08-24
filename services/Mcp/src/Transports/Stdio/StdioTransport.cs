@@ -8,7 +8,7 @@ public sealed partial class StdioTransport : TransportBase, IMcpTransport
 {
     private readonly TextReader _input;
     private readonly TextWriter _output;
-    [Inject] private readonly ILogger<StdioTransport>? _logger;
+    private readonly ILogger<StdioTransport>? _logger;
 
     /// <summary>IMcpTransport: 收到 JSON-RPC 消息</summary>
     public event EventHandler<McpMessageReceivedEventArgs>? MessageReceived;

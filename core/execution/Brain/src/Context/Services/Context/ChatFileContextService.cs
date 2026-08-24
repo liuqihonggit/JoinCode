@@ -4,7 +4,7 @@ namespace Core.Context;
 /// 聊天文件上下文服务 — 负责文件路径提取、上下文更新和消息列表转储
 /// 提取自 ChatService.UpdateFileContext + DumpMessageList
 /// </summary>
-[Register]
+[Register(typeof(IChatFileContextService), ServiceLifetime.Singleton)]
 public sealed partial class ChatFileContextService : ServiceEntity, IChatFileContextService
 {
 
@@ -14,9 +14,9 @@ public sealed partial class ChatFileContextService : ServiceEntity, IChatFileCon
         _fs = fs;
         _logger = logger;
     }
-    [Inject] private readonly FileContextTracker _fileContext;
-    [Inject] private readonly IFileSystem _fs;
-    [Inject] private readonly ILogger<ChatFileContextService>? _logger;
+    private readonly FileContextTracker _fileContext;
+    private readonly IFileSystem _fs;
+    private readonly ILogger<ChatFileContextService>? _logger;
 
     /// <summary>
     /// 从用户消息中提取文件路径并更新文件上下文

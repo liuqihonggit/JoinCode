@@ -3,11 +3,11 @@ using JoinCode.Abstractions.Attributes;
 
 namespace IO.Services;
 
-[Register]
+[Register(typeof(IPeerDiscoveryService), ServiceLifetime.Singleton)]
 public sealed partial class PeerDiscoveryService : ServiceEntity, IPeerDiscoveryService
 {
     private readonly ConcurrentDictionary<string, PeerInfo> _peers = new(StringComparer.Ordinal);
-    [Inject] private readonly ILogger<PeerDiscoveryService>? _logger;
+    private readonly ILogger<PeerDiscoveryService>? _logger;
 
     public event EventHandler<PeerInfo>? PeerConnected;
     public event EventHandler<string>? PeerDisconnected;

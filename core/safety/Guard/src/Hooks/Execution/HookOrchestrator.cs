@@ -20,7 +20,8 @@ public interface IHookOrchestratorInternal : IHookOrchestrator
 /// <summary>
 /// 钩子编排器实现
 /// </summary>
-[Register]
+[Register(typeof(IHookOrchestratorInternal), ServiceLifetime.Singleton)]
+[Register(typeof(IHookOrchestrator), ServiceLifetime.Singleton)]
 public sealed partial class HookOrchestrator : ServiceEntity, IHookOrchestratorInternal
 {
     private readonly IHookConfigurationManager _configurationManager;
@@ -29,7 +30,7 @@ public sealed partial class HookOrchestrator : ServiceEntity, IHookOrchestratorI
     private readonly IHookEventBroadcaster _eventBroadcaster;
     private readonly IAsyncHookRegistry _asyncHookRegistry;
     private readonly IHookConditionEvaluator _conditionEvaluator;
-    [Inject] private readonly ILogger<HookOrchestrator>? _logger;
+    private readonly ILogger<HookOrchestrator>? _logger;
 
     public HookOrchestrator(
         IHookConfigurationManager configurationManager,

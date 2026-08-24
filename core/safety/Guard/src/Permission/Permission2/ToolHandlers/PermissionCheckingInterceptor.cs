@@ -4,12 +4,12 @@ namespace Core.Permission;
 /// <summary>
 /// 权限检查拦截器 - 在工具调用前进行权限验证
 /// </summary>
-[Register]
+[Register(typeof(IPermissionCheckingInterceptor), ServiceLifetime.Singleton)]
 public sealed partial class PermissionCheckingInterceptor : ServiceEntity, IPermissionCheckingInterceptor, IDisposable
 {
     private readonly IToolPermissionManager _permissionManager;
-    [Inject] private readonly ILogger<PermissionCheckingInterceptor>? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<PermissionCheckingInterceptor>? _logger;
+    private readonly IClockService _clock;
     private readonly IToolPermissionFilter? _toolPermissionFilter;
     private bool _disposed;
 

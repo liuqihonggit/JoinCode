@@ -5,7 +5,7 @@ namespace Services.Web;
 /// Order=150 在 URL 验证(100)之后、缓存检查(200)之前执行
 /// 对齐 Reasonix web_fetch SSRF 防护：在 DNS 解析后检查解析后的 IP 地址
 /// </summary>
-[Register]
+[Register(typeof(IWebMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class WebSsrfGuardMiddleware : ServiceEntity, IWebMiddleware
 {
 
@@ -13,7 +13,7 @@ public sealed partial class WebSsrfGuardMiddleware : ServiceEntity, IWebMiddlewa
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<WebSsrfGuardMiddleware>? _logger;
+    private readonly ILogger<WebSsrfGuardMiddleware>? _logger;
 
     /// <inheritdoc />
 

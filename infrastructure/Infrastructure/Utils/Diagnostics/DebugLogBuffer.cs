@@ -3,7 +3,7 @@ namespace Infrastructure.Utils.Diagnostics;
 /// <summary>
 /// 调试日志缓冲区 — 订阅 Diag.DiagnosticLineWritten 事件，捕获诊断输出到环形缓冲区
 /// </summary>
-[Register(typeof(IDebugLogBuffer))]
+[Register(typeof(IDebugLogBuffer), ServiceLifetime.Singleton)]
 public sealed partial class DebugLogBuffer : IDebugLogBuffer
 {
     private readonly ConcurrentQueue<DebugLogEntry> _entries = new();

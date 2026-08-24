@@ -5,7 +5,7 @@ namespace Infrastructure.HotSpot;
 /// 通用支持 C#/Java/Python/JS/Go 等，纯路径模式匹配不读文件系统
 /// 规则：目录约定 + 命名约定 + 配置文件 + 可配扩展
 /// </summary>
-[Register(typeof(IHotFileDetector))]
+[Register(typeof(IHotFileDetector), ServiceLifetime.Singleton)]
 public sealed class HotFileDetector : IHotFileDetector
 {
     private readonly FrozenSet<string> _hotDirectoryKeywords;

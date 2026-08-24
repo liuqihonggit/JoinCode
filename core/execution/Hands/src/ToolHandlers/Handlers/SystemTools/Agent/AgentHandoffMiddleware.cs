@@ -5,7 +5,7 @@ namespace Tools.Handlers;
 /// 对齐 TS classifyHandoffIfNeeded — 在 auto 模式下审查子智能体的操作是否违反安全策略
 /// 对齐 TS cleanupWorktreeIfNeeded — 输出 worktree 信息（worktreePath/branch）
 /// </summary>
-[Register]
+[Register(typeof(IAgentToolMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class AgentHandoffMiddleware : ServiceEntity, IAgentToolMiddleware
 {
 
@@ -16,10 +16,10 @@ public sealed partial class AgentHandoffMiddleware : ServiceEntity, IAgentToolMi
         _telemetryService = telemetryService;
         _logger = logger;
     }
-    [Inject] private readonly IHandoffClassifier? _handoffClassifier;
-    [Inject] private readonly JoinCode.Abstractions.Interfaces.IAgentWorktreeManager? _worktreeManager;
-    [Inject] private readonly ITelemetryService? _telemetryService;
-    [Inject] private readonly ILogger<AgentHandoffMiddleware>? _logger;
+    private readonly IHandoffClassifier? _handoffClassifier;
+    private readonly JoinCode.Abstractions.Interfaces.IAgentWorktreeManager? _worktreeManager;
+    private readonly ITelemetryService? _telemetryService;
+    private readonly ILogger<AgentHandoffMiddleware>? _logger;
 
     /// <inheritdoc />
     public int Order => 500;

@@ -1,10 +1,10 @@
 
 namespace Core.Configuration;
 
-[Register]
+[Register(typeof(ProjectRulesLoader), ServiceLifetime.Singleton)]
 public sealed partial class ProjectRulesLoader : ServiceEntity {
     private readonly IFileSystem _fs;
-    [Inject] private readonly ILogger<ProjectRulesLoader>? _logger;
+    private readonly ILogger<ProjectRulesLoader>? _logger;
     private readonly ITelemetryService? _telemetryService;
 
     private static string[] GetRulesFilePaths() => [

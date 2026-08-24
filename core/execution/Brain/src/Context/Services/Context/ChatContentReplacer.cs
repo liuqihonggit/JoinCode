@@ -25,7 +25,7 @@ public sealed record ContentReplacementResult
 /// 聊天内容替换处理器 — 对齐 TS maybePersistLargeToolResult + applyToolResultBudget
 /// 负责超大工具结果持久化、per-message 预算检查、transcript 记录
 /// </summary>
-[Register]
+[Register(typeof(IChatContentReplacer), ServiceLifetime.Singleton)]
 public sealed partial class ChatContentReplacer : ServiceEntity, IChatContentReplacer
 {
 
@@ -35,9 +35,9 @@ public sealed partial class ChatContentReplacer : ServiceEntity, IChatContentRep
         _transcriptService = transcriptService;
         _logger = logger;
     }
-    [Inject] private readonly IContentReplacementService? _contentReplacementService;
-    [Inject] private readonly ITranscriptService? _transcriptService;
-    [Inject] private readonly ILogger<ChatContentReplacer>? _logger;
+    private readonly IContentReplacementService? _contentReplacementService;
+    private readonly ITranscriptService? _transcriptService;
+    private readonly ILogger<ChatContentReplacer>? _logger;
 
     /// <summary>
     /// 对齐 TS provisionContentReplacementState — 初始化内容替换状态

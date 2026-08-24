@@ -5,13 +5,13 @@ namespace McpToolRegistry;
 /// Agent 工具限制检查中间件 — Order=400 — 检查当前 Agent 模式是否允许使用该工具。
 /// 内部通过 IToolFilterPolicy 统一 3 层过滤检查（对齐 claude code filterToolsForAgent）。
 /// </summary>
-[Register]
+[Register(typeof(IToolExecutionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class AgentRestrictionMiddleware : ServiceEntity, IToolExecutionMiddleware
 {
 
     private readonly IAgentToolRestrictions? _agentToolRestrictions;
     private readonly IToolFilterPolicy? _toolFilterPolicy;
-    [Inject] private readonly ILogger<AgentRestrictionMiddleware> _logger;
+    private readonly ILogger<AgentRestrictionMiddleware> _logger;
 
     public AgentRestrictionMiddleware(
         IAgentToolRestrictions? agentToolRestrictions,

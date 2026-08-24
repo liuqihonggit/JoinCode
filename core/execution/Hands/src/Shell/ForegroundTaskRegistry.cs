@@ -3,7 +3,8 @@ namespace Services.Shell;
 /// <summary>
 /// 前台任务注册表实现 — 基于 MapRegistry，对齐 TS registerForeground/backgroundAll
 /// </summary>
-[Register]
+[Register(typeof(MapRegistry<string, ISystemActuatorCommandContext>), ServiceLifetime.Singleton)]
+[Register(typeof(IForegroundTaskRegistry), ServiceLifetime.Singleton)]
 public sealed partial class ForegroundTaskRegistry : MapRegistry<string, ISystemActuatorCommandContext>, IForegroundTaskRegistry
 {
 
@@ -11,7 +12,7 @@ public sealed partial class ForegroundTaskRegistry : MapRegistry<string, ISystem
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<ForegroundTaskRegistry>? _logger;
+    private readonly ILogger<ForegroundTaskRegistry>? _logger;
 
     /// <inheritdoc />
     public void Register(ISystemActuatorCommandContext context)

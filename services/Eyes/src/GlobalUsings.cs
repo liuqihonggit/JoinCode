@@ -20,6 +20,7 @@ global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.Utils;
 global using Infrastructure.Utils.IO;
 global using Microsoft.Extensions.DependencyInjection;
+global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using Microsoft.Extensions.Hosting;
 global using Services.Lsp;
 global using Services.Lsp.Internal;

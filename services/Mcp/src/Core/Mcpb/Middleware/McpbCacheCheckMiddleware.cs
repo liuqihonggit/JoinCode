@@ -3,7 +3,7 @@ namespace McpClient.Mcpb;
 /// <summary>
 /// MCPB 缓存检查中间件 — 检查解压目录是否存在且未过期，命中时短路
 /// </summary>
-[Register(typeof(IMcpbMiddleware))]
+[Register(typeof(IMcpbMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class McpbCacheCheckMiddleware : ServiceEntity, IMcpbMiddleware
 {
 
@@ -11,7 +11,7 @@ public sealed partial class McpbCacheCheckMiddleware : ServiceEntity, IMcpbMiddl
     {
         _fs = fs;
     }
-    [Inject] private readonly IFileSystem _fs;
+    private readonly IFileSystem _fs;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

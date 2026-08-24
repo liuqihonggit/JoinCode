@@ -6,7 +6,7 @@ namespace McpToolDispatch;
 public partial class ToolSearchToolHandlers
 {
     private readonly IMcpToolRegistry _toolRegistry;
-    [Inject] private readonly ILogger<ToolSearchToolHandlers>? _logger;
+    private readonly ILogger<ToolSearchToolHandlers>? _logger;
 
     public ToolSearchToolHandlers(IMcpToolRegistry toolRegistry, ILogger<ToolSearchToolHandlers>? logger = null)
     {

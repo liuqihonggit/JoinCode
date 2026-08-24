@@ -1,6 +1,6 @@
 namespace IO.Services;
 
-[Register]
+[Register(typeof(IUpgradeService), ServiceLifetime.Singleton)]
 public sealed partial class UpgradeService : ServiceEntity, IUpgradeService
 {
     private readonly HttpClient _httpClient;

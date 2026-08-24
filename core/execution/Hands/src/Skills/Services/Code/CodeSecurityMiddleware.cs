@@ -3,7 +3,7 @@ namespace Core.Skills;
 /// <summary>
 /// 代码安全验证中间件 — Execute 操作的安全检查
 /// </summary>
-[Register]
+[Register(typeof(ICodeMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class CodeSecurityMiddleware : ServiceEntity, ICodeMiddleware
 {
 
@@ -11,7 +11,7 @@ public sealed partial class CodeSecurityMiddleware : ServiceEntity, ICodeMiddlew
     {
         _securityValidator = securityValidator;
     }
-    [Inject] private readonly ICodeSecurityValidator _securityValidator;
+    private readonly ICodeSecurityValidator _securityValidator;
 
     /// <inheritdoc />
 

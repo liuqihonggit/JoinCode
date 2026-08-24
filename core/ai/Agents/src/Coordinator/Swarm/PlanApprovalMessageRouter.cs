@@ -6,14 +6,14 @@ namespace Core.Agents.Coordinator;
 /// Leader 侧: 检测 plan_approval_request → 自动批准 → 发送 plan_approval_response
 /// Teammate 侧: 检测 plan_approval_response → 调用 IPlanModeManager.HandlePlanApprovalResponseAsync
 /// </summary>
-[Register]
+[Register(typeof(PlanApprovalMessageRouter), ServiceLifetime.Singleton)]
 public sealed partial class PlanApprovalMessageRouter : ServiceEntity
 {
     private readonly IMailbox _messageBroker;
     private readonly IPlanModeManager _planModeManager;
     private readonly IToolPermissionManager? _permissionManager;
-    [Inject] private readonly ILogger<PlanApprovalMessageRouter>? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<PlanApprovalMessageRouter>? _logger;
+    private readonly IClockService _clock;
     private CancellationTokenSource? _leaderCts;
     private Task? _leaderRoutingTask;
 

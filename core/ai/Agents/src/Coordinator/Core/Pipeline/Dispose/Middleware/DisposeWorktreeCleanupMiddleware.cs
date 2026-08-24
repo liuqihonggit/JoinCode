@@ -1,6 +1,6 @@
 namespace Core.Agents.Coordinator;
 
-[Register(typeof(IAgentDisposeMiddleware))]
+[Register(typeof(IAgentDisposeMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class DisposeWorktreeCleanupMiddleware : ServiceEntity, IAgentDisposeMiddleware
 {
 
@@ -9,8 +9,8 @@ public sealed partial class DisposeWorktreeCleanupMiddleware : ServiceEntity, IA
         _worktreeManager = worktreeManager;
         _logger = logger;
     }
-    [Inject] private readonly IAgentWorktreeManager _worktreeManager;
-    [Inject] private readonly ILogger<DisposeWorktreeCleanupMiddleware> _logger;
+    private readonly IAgentWorktreeManager _worktreeManager;
+    private readonly ILogger<DisposeWorktreeCleanupMiddleware> _logger;
 
     public async Task InvokeAsync(AgentDisposeContext ctx, MiddlewareDelegate<AgentDisposeContext> next, CancellationToken ct)
     {

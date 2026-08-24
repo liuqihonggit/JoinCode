@@ -8,7 +8,7 @@ namespace McpClient;
 public sealed partial class McpOAuthMetadataDiscovery
 {
     private readonly HttpClient _httpClient;
-    [Inject] private readonly ILogger<McpOAuthMetadataDiscovery>? _logger;
+    private readonly ILogger<McpOAuthMetadataDiscovery>? _logger;
 
     // RFC 9728: Protected Resource Metadata well-known 路径
     private const string PrmWellKnownPath = "/.well-known/oauth-protected-resource";

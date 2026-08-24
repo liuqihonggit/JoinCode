@@ -5,10 +5,10 @@ namespace JoinCode.Browser;
 /// 对齐TS版 WebBrowserTool 的 screenshot/evaluate 能力
 /// 仅在安装此包后通过 DI 注册替代 NoOpBrowserAutomationService
 /// </summary>
-[Register]
+[Register(typeof(IBrowserAutomationService), ServiceLifetime.Singleton)]
 public sealed partial class PuppeteerBrowserAutomationService : IBrowserAutomationService, IAsyncDisposable
 {
-    [Inject] private readonly ILogger<PuppeteerBrowserAutomationService> _logger;
+    private readonly ILogger<PuppeteerBrowserAutomationService> _logger;
     private IBrowser? _browser;
     private bool _initialized;
     private bool _initializing;

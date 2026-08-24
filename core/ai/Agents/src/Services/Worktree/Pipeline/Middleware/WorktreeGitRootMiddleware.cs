@@ -3,7 +3,7 @@ namespace Core.Agents.Worktree;
 /// <summary>
 /// Worktree Git 根查找中间件 — 查找 Git 仓库根目录
 /// </summary>
-[Register(typeof(IWorktreeCreateMiddleware))]
+[Register(typeof(IWorktreeCreateMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class WorktreeGitRootMiddleware : ServiceEntity, IWorktreeCreateMiddleware
 {
 
@@ -12,8 +12,8 @@ public sealed partial class WorktreeGitRootMiddleware : ServiceEntity, IWorktree
         _fs = fs;
         _logger = logger;
     }
-    [Inject] private readonly IFileOperationService _fs;
-    [Inject] private readonly ILogger<WorktreeGitRootMiddleware>? _logger;
+    private readonly IFileOperationService _fs;
+    private readonly ILogger<WorktreeGitRootMiddleware>? _logger;
 
 
     public async Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct)

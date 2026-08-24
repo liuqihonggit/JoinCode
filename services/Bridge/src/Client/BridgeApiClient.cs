@@ -170,7 +170,7 @@ public sealed partial class BridgeFatalError : Exception
 /// <summary>
 /// Bridge API 选项 - 远程 API 通信配置
 /// </summary>
-[Register]
+[Register(typeof(BridgeApiOptions), ServiceLifetime.Singleton)]
 public sealed partial class BridgeApiOptions : ServiceEntity
 {
     /// <summary>默认重试次数</summary>
@@ -250,7 +250,7 @@ public sealed partial class BridgeApiOptions : ServiceEntity
 /// Bridge API 客户端 - 远程 Bridge API 通信客户端
 /// 使用 JsonSerializer + JsonContext 实现 AOT 兼容的 JSON 序列化
 /// </summary>
-[Register]
+[Register(typeof(BridgeApiClient), ServiceLifetime.Singleton)]
 public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
 {
     /// <summary>对齐 TS 端 anthropic-beta header — 与 BridgeSessionApi.BetaHeader 一致</summary>
@@ -258,7 +258,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
 
     private readonly HttpClient _httpClient;
     private readonly BridgeApiOptions _options;
-    [Inject] private readonly ILogger<BridgeApiClient>? _logger;
+    private readonly ILogger<BridgeApiClient>? _logger;
     private int _isDisposed;
 
     /// <summary>

@@ -2,11 +2,11 @@ namespace Tools.Handlers;
 
 public record SnipPreview(string FilePath, long FileSize, int TotalLines, string PreviewContent);
 
-[Register]
+[Register(typeof(SnipLogic), ServiceLifetime.Singleton)]
 public sealed partial class SnipLogic : ServiceEntity
 {
 
-    [Inject] private readonly IFileSystem _fs;
+    private readonly IFileSystem _fs;
 
     public SnipLogic(IFileSystem fs)
     {

@@ -12,10 +12,10 @@ public sealed record SwarmWorkerPermissionParams
     public ICommandClassifier? Classifier { get; init; }
 }
 
-[Register]
+[Register(typeof(SwarmWorkerHandler), ServiceLifetime.Singleton)]
 public sealed partial class SwarmWorkerHandler : ServiceEntity
 {
-    [Inject] private readonly ILogger<SwarmWorkerHandler>? _logger;
+    private readonly ILogger<SwarmWorkerHandler>? _logger;
     private readonly ISwarmPermissionCallbacks? _injectedCallbacks;
 
     private static readonly TimeSpan LeaderResponseTimeout = TimeSpan.FromSeconds(30);

@@ -7,7 +7,7 @@ namespace Core.Context;
 /// 写入位置: .jcc/diag/{sessionId}/{timestamp}.jsonl
 /// OnError=Continue：日志记录失败不影响管道继续执行
 /// </summary>
-[Register]
+[Register(typeof(IChatMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class DiagnosticLogRecorder : ServiceEntity, IChatMiddleware
 {
 
@@ -16,8 +16,8 @@ public sealed partial class DiagnosticLogRecorder : ServiceEntity, IChatMiddlewa
         _fs = fs;
         _logger = logger;
     }
-    [Inject] private readonly IFileSystem _fs;
-    [Inject] private readonly ILogger<DiagnosticLogRecorder>? _logger;
+    private readonly IFileSystem _fs;
+    private readonly ILogger<DiagnosticLogRecorder>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

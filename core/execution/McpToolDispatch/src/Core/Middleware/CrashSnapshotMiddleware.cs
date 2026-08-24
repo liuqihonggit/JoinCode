@@ -5,7 +5,7 @@ namespace McpToolRegistry;
 /// OnError=Continue：捕获异常后记录快照，不中断管道，异常继续传播给外层
 /// 零侵入：所有经过管道的异常自动被记录，无需修改任何组件
 /// </summary>
-[Register]
+[Register(typeof(IToolExecutionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class CrashSnapshotMiddleware : ServiceEntity, IToolExecutionMiddleware
 {
     private readonly ICrashSnapshotStore _store;

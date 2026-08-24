@@ -11,7 +11,7 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
     private readonly ISearchService _searchService;
     private readonly IFileOperationService _fileOperationService;
     private readonly ICodeIndexer? _codeIndexer;
-    [Inject] private readonly ILogger<ReferenceResolver>? _logger;
+    private readonly ILogger<ReferenceResolver>? _logger;
 
     // 目录别名映射表
     private static readonly FrozenDictionary<string, string[]> DirectoryAliases = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)

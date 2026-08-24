@@ -5,7 +5,7 @@ namespace Infrastructure.HotSpot;
 /// 热文件 contract_claim>=1 即归队长；非热文件 contract_claim>=3 才触发
 /// internal_claim 不触发；队长修改不计入认领集合
 /// </summary>
-[Register(typeof(IHotSpotTracker))]
+[Register(typeof(IHotSpotTracker), ServiceLifetime.Singleton)]
 public sealed class HotSpotTracker : IHotSpotTracker
 {
     private readonly IIntentCollector _intentCollector;

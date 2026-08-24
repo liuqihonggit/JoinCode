@@ -1,6 +1,6 @@
 namespace JoinCode.Pipe;
 
-[Register]
+[Register(typeof(CodeSessionManager), ServiceLifetime.Singleton)]
 public sealed partial class CodeSessionManager : ServiceEntity
 {
     private readonly CodeSessionRepo _repo;

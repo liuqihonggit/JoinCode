@@ -1,10 +1,10 @@
 
 namespace Core.Context.Collapse;
 
-[Register]
+[Register(typeof(IContextCollapseService), ServiceLifetime.Singleton)]
 public sealed partial class ContextCollapseService : ServiceEntity, IContextCollapseService
 {
-    [Inject] private readonly ILogger<ContextCollapseService>? _logger;
+    private readonly ILogger<ContextCollapseService>? _logger;
     private readonly SemaphoreSlim _collapseLock = new(1, 1);
 
     public ContextCollapseService(ILogger<ContextCollapseService>? logger = null)

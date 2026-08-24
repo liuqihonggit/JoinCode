@@ -1,7 +1,7 @@
 
 namespace Core.Utils;
 
-[Register]
+[Register(typeof(IExceptionService), ServiceLifetime.Singleton)]
 public sealed partial class ExceptionService : ServiceEntity, IExceptionService {
 
     public ExceptionService(ILogger<ExceptionService> logger, ITelemetryService? telemetryService = null)
@@ -9,8 +9,8 @@ public sealed partial class ExceptionService : ServiceEntity, IExceptionService 
         _logger = logger;
         _telemetryService = telemetryService;
     }
-    [Inject] private readonly ILogger<ExceptionService> _logger;
-    [Inject] private readonly ITelemetryService? _telemetryService;
+    private readonly ILogger<ExceptionService> _logger;
+    private readonly ITelemetryService? _telemetryService;
 
     public OperationResult<T> HandleException<T>(Exception ex) {
         _logger.LogError(ex, "发生异常: {ErrorCode} - {Message}", GetErrorCode(ex), ex.Message);

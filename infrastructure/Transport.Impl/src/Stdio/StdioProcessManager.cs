@@ -12,7 +12,7 @@ public sealed partial class StdioProcessManager : IAsyncDisposable
     private StreamWriter? _stdinWriter;
     private StreamReader? _stdoutReader;
     private StreamReader? _stderrReader;
-    [Inject] private readonly ILogger<StdioProcessManager>? _logger;
+    private readonly ILogger<StdioProcessManager>? _logger;
     private readonly BufferedChannel _outputChannel = new();
     private readonly BufferedChannel _errorChannel = new();
     private CancellationTokenSource? _readCts;

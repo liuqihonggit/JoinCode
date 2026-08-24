@@ -4,13 +4,13 @@ namespace Core.Scheduling;
 /// <summary>
 /// 并行执行引擎 - 负责实际调度和执行任务
 /// </summary>
-[Register]
+[Register(typeof(ParallelExecutionEngine), ServiceLifetime.Singleton)]
 public sealed partial class ParallelExecutionEngine : IAsyncDisposable
 {
     private readonly ToolPortingScheduler _scheduler;
     private readonly ISubAgentCoordinator? _agentCoordinator;
-    [Inject] private readonly ILogger<ParallelExecutionEngine>? _logger;
-    [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly ILogger<ParallelExecutionEngine>? _logger;
+    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     private readonly CancellationTokenSource _cts;
     private readonly ConcurrentDictionary<string, AgentExecutionRecord> _agentExecutionRecords = new();
     private bool _disposed;

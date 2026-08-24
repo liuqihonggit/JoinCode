@@ -5,7 +5,7 @@ namespace Core.Query;
 /// <summary>
 /// 空闲提醒中间件 — 每次迭代后记录助手轮次
 /// </summary>
-[Register(typeof(IQueryMiddleware))]
+[Register(typeof(IQueryMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class IdleReminderMiddleware : ServiceEntity, IQueryMiddleware
 {
 
@@ -13,7 +13,7 @@ public sealed partial class IdleReminderMiddleware : ServiceEntity, IQueryMiddle
     {
         _toolIdleReminder = toolIdleReminder;
     }
-    [Inject] private readonly IToolIdleReminderService? _toolIdleReminder;
+    private readonly IToolIdleReminderService? _toolIdleReminder;
 
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;

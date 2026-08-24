@@ -8,7 +8,7 @@ namespace Core.Context;
 /// 职责已拆分到: BackgroundNotificationHandler / LLMInvocationHandler / ToolExecutionHandler / InformationEntropyGuardian / TelemetryRecorder
 /// 支持流式工具执行：对齐 TS StreamingToolExecutor，流式期间收到 tool_use block 立即执行
 /// </summary>
-[Register]
+[Register(typeof(IChatMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware {
     private const int MaxToolCallIterations = 128;
 
@@ -22,7 +22,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
     private readonly ILoopDetectionStrategy _loopDetectionStrategy;
     private readonly IToolConcurrencyClassifier? _concurrencyClassifier;
     private readonly ToolExecutionSettings? _toolExecutionSettings;
-    [Inject] private readonly ILogger<QueryLoopMiddleware>? _logger;
+    private readonly ILogger<QueryLoopMiddleware>? _logger;
 
     public QueryLoopMiddleware(
         IBackgroundNotificationHandler notificationHandler,

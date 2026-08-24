@@ -4,7 +4,7 @@ namespace Services.Web;
 /// HTML 转 Markdown 转换器 - 使用 ReverseMarkdown.Aot 库
 /// 对齐 TS 版 turndown 库的 DOM 遍历转换方式
 /// </summary>
-[Register]
+[Register(typeof(IHtmlToMarkdownConverter), ServiceLifetime.Singleton)]
 public sealed partial class HtmlToMarkdownConverter : ServiceEntity, IHtmlToMarkdownConverter
 {
     private readonly Converter _converter;

@@ -6,7 +6,7 @@ namespace Core.Context.Compact;
 /// 对齐 TS extractMemories.ts
 /// 核心消费链路：ExtractMemoriesSection.BuildExtractAutoOnlyPrompt/BuildExtractCombinedPrompt() → IForkSubAgentManager.ForkAsync()
 /// </summary>
-[Register]
+[Register(typeof(IPostSamplingCallback), ServiceLifetime.Singleton)]
 public sealed partial class ExtractMemoriesCallback : ServiceEntity, IPostSamplingCallback
 {
 

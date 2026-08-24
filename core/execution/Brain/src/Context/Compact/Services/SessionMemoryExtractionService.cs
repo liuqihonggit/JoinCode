@@ -5,7 +5,7 @@ namespace Core.Context.Compact;
 /// 会话记忆提取服务实现 — 对齐 TS sessionMemory.ts::extractSessionMemory
 /// 核心消费点：SessionMemoryPromptTemplate.BuildSessionMemoryUpdatePrompt()
 /// </summary>
-[Register]
+[Register(typeof(ISessionMemoryExtractionService), ServiceLifetime.Singleton)]
 public sealed partial class SessionMemoryExtractionService : ServiceEntity, ISessionMemoryExtractionService
 {
     private readonly ISessionMemoryCompactService _compactService;

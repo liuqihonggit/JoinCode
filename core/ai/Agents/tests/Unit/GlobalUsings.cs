@@ -61,6 +61,7 @@ global using Infrastructure.Localization;
 global using IO;
 global using Microsoft.Extensions.Caching.Memory;
 global using Microsoft.Extensions.DependencyInjection;
+global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using Microsoft.Extensions.Logging.Abstractions;
 global using McpToolDispatch;
 global using JoinCode.Abstractions.Mcp.Registry;

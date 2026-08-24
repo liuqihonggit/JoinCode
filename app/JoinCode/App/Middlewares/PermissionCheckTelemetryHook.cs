@@ -3,7 +3,7 @@ using JoinCode.Abstractions.Pipeline;
 
 namespace JoinCode.App.Middlewares;
 
-[Register(typeof(IPipelinePostHook<PermissionCheckContext>))]
+[Register(typeof(IPipelinePostHook<PermissionCheckContext>), ServiceLifetime.Singleton)]
 internal sealed partial class PermissionCheckTelemetryHook : TelemetryPostHook<PermissionCheckContext>
 {
     public PermissionCheckTelemetryHook(ITelemetryService? telemetryService)

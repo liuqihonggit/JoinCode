@@ -8,7 +8,7 @@ namespace McpClient.Transports;
 public sealed partial class HttpTransport : TransportBase, IMcpTransport
 {
     private readonly HttpTransportOptions _options;
-    [Inject] private readonly ILogger<HttpTransport>? _logger;
+    private readonly ILogger<HttpTransport>? _logger;
     private readonly HttpClient _httpClient;
     private readonly IMcpAuthProvider? _authProvider;
     private string? _sessionId;

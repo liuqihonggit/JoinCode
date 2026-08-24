@@ -3,11 +3,11 @@ using JoinCode.Abstractions.Attributes;
 
 namespace IO.Services;
 
-[Register]
+[Register(typeof(IClipboardService), ServiceLifetime.Singleton)]
 public sealed partial class ClipboardService : ServiceEntity, IClipboardService
 {
-    [Inject] private readonly ILogger<ClipboardService>? _logger;
-    [Inject] private readonly IProcessService _processService;
+    private readonly ILogger<ClipboardService>? _logger;
+    private readonly IProcessService _processService;
 
     public ClipboardService(IProcessService processService, ILogger<ClipboardService>? logger = null)
     {

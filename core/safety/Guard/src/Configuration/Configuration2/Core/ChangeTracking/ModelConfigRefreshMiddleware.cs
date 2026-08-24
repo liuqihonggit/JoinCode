@@ -5,7 +5,7 @@ namespace Core.Configuration;
 /// 模型配置刷新中间件 — settings.json 变更时将 Vendor 数据灌入 ModelConfigLoader
 /// 数据流：settings.json → SettingsReloadMiddleware → VendorModelMapper → ModelConfigLoader.ApplyProviders
 /// </summary>
-[Register(typeof(ISettingsMiddleware))]
+[Register(typeof(ISettingsMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ModelConfigRefreshMiddleware : ServiceEntity, ISettingsMiddleware
 {
     private readonly IModelConfigLoader _modelConfigLoader;

@@ -4,7 +4,7 @@ namespace McpClient;
 public sealed partial class McpDynamicClientRegistration
 {
     private readonly HttpClient _httpClient;
-    [Inject] private readonly ILogger<McpDynamicClientRegistration>? _logger;
+    private readonly ILogger<McpDynamicClientRegistration>? _logger;
 
     public McpDynamicClientRegistration(HttpClient? httpClient = null, ILogger<McpDynamicClientRegistration>? logger = null)
     {

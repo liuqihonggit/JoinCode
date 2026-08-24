@@ -15,12 +15,12 @@ public sealed partial class SessionCostData
     public required DateTime SavedAt { get; init; }
 }
 
-[Register]
+[Register(typeof(ISessionCostPersistence), ServiceLifetime.Singleton)]
 public sealed partial class SessionCostPersistence : ServiceEntity, ISessionCostPersistence
 {
     private readonly IFileOperationService _fileOperationService;
     private readonly string _storageDirectory;
-    [Inject] private readonly ILogger<SessionCostPersistence>? _logger;
+    private readonly ILogger<SessionCostPersistence>? _logger;
     private readonly IClockService _clock;
     private readonly CostTracker _costTracker;
     private readonly ITelemetryService? _telemetryService;

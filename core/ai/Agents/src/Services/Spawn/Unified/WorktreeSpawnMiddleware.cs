@@ -5,7 +5,7 @@ namespace Core.Agents;
 /// 统一降级策略：失败记日志警告并继续（不抛 [AGT011]）
 /// 主代理 no-op
 /// </summary>
-[Register(typeof(IUnifiedSpawnMiddleware))]
+[Register(typeof(IUnifiedSpawnMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class WorktreeSpawnMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 
@@ -18,9 +18,9 @@ public sealed partial class WorktreeSpawnMiddleware : ServiceEntity, IUnifiedSpa
         _worktreeManager = worktreeManager;
         _logger = logger;
     }
-    [Inject] private readonly IAgentWorktreeService? _worktreeService;
-    [Inject] private readonly IAgentWorktreeManager? _worktreeManager;
-    [Inject] private readonly ILogger<WorktreeSpawnMiddleware>? _logger;
+    private readonly IAgentWorktreeService? _worktreeService;
+    private readonly IAgentWorktreeManager? _worktreeManager;
+    private readonly ILogger<WorktreeSpawnMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

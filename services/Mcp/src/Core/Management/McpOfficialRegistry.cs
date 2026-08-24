@@ -1,11 +1,11 @@
 
 namespace McpClient;
 
-[Register]
+[Register(typeof(McpOfficialRegistry), ServiceLifetime.Singleton)]
 public sealed partial class McpOfficialRegistry : ServiceEntity
 {
     private readonly IResilientHttpClientProvider _resilientProvider;
-    [Inject] private readonly ILogger<McpOfficialRegistry>? _logger;
+    private readonly ILogger<McpOfficialRegistry>? _logger;
 
     private const string DefaultRegistryUrl = "https://registry.modelcontextprotocol.io";
 

@@ -46,6 +46,7 @@ global using JoinCode.ChatCommands;
 global using JoinCode.Services;
 global using Core.CostTracking;
 global using Microsoft.Extensions.DependencyInjection;
+global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 
 global using System.Runtime.CompilerServices;
 

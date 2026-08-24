@@ -6,7 +6,7 @@ using JoinCode.Abstractions.Pipeline;
 /// <summary>
 /// V2 获取 bridge 凭证 — 对齐 TS 端: fetchRemoteCredentials
 /// </summary>
-[Register]
+[Register(typeof(IMiddleware<V2BridgeInitContext>), ServiceLifetime.Singleton)]
 internal sealed partial class V2CredentialsMiddleware : ServiceEntity, IMiddleware<V2BridgeInitContext>
 {
 

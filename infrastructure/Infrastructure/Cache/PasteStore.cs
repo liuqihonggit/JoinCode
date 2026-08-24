@@ -7,7 +7,7 @@ namespace Infrastructure.Cache;
 /// 粘贴内容缓存实现 — 对齐 TS pasteStore.ts
 /// 内容寻址持久化缓存：SHA-256 前 16 位作为文件名，存储在 paste-cache/ 目录
 /// </summary>
-[Register(typeof(JoinCode.Abstractions.Interfaces.Cache.IPasteStore))]
+[Register(typeof(JoinCode.Abstractions.Interfaces.Cache.IPasteStore), ServiceLifetime.Singleton)]
 public sealed partial class PasteStore : ServiceEntity, JoinCode.Abstractions.Interfaces.Cache.IPasteStore
 {
 
@@ -16,8 +16,8 @@ public sealed partial class PasteStore : ServiceEntity, JoinCode.Abstractions.In
         _fs = fs;
         _logger = logger;
     }
-    [Inject] private readonly IFileSystem _fs;
-    [Inject] private readonly ILogger<PasteStore>? _logger;
+    private readonly IFileSystem _fs;
+    private readonly ILogger<PasteStore>? _logger;
 
     private static readonly string PasteCacheDir = Path.Combine(
         WorkflowConstants.Paths.JccDirectory, "paste-cache");

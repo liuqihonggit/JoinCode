@@ -1,6 +1,6 @@
 namespace JoinCode.Entry;
 
-[Register]
+[Register(typeof(IMiddleware<StartupContext>), ServiceLifetime.Singleton)]
 internal sealed partial class NonInteractiveApiKeyCheckStep : ServiceEntity, IMiddleware<StartupContext>
 {
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct)

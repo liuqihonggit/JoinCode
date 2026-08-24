@@ -2,7 +2,7 @@ namespace Core.Bridge;
 
 using JoinCode.Abstractions.Pipeline;
 
-[Register(typeof(IHandleWorkMiddleware))]
+[Register(typeof(IHandleWorkMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class WorkSecretDecodeMiddleware : ServiceEntity, IHandleWorkMiddleware
 {
 
@@ -10,7 +10,7 @@ public sealed partial class WorkSecretDecodeMiddleware : ServiceEntity, IHandleW
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<WorkSecretDecodeMiddleware>? _logger;
+    private readonly ILogger<WorkSecretDecodeMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

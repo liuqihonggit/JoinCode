@@ -5,7 +5,7 @@ using JoinCode.Abstractions.Pipeline;
 /// <summary>
 /// 心跳控制中间件 — Pause/Clear/MarkCompleted/MarkUnmet 时重置心跳
 /// </summary>
-[Register(typeof(IGoalLifecycleMiddleware))]
+[Register(typeof(IGoalLifecycleMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class GoalHeartbeatControlMiddleware : ServiceEntity, IGoalLifecycleMiddleware
 {
 

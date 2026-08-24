@@ -8,14 +8,14 @@ namespace Core.Context.Compact;
 ///   1. 时间间隔压缩：最后一条助手消息距今超过阈值（默认60分钟）时自动触发
 ///   2. 普通微压缩：无时间条件，直接清除旧工具结果内容
 /// </summary>
-[Register]
+[Register(typeof(IMicrocompactService), ServiceLifetime.Singleton)]
 public sealed partial class MicrocompactService : ServiceEntity, IMicrocompactService {
 
     public MicrocompactService(IClockService clock)
     {
         _clock = clock;
     }
-    [Inject] private readonly IClockService _clock;
+    private readonly IClockService _clock;
 
     /// <summary>粗略估算：每4字节≈1个token（英文为主时约4字符/token）</summary>
     private const int BytesPerToken = 4;

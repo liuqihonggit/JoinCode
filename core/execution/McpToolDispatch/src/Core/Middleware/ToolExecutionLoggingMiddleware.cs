@@ -1,6 +1,6 @@
 namespace McpToolRegistry;
 
-[Register]
+[Register(typeof(IToolExecutionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ToolExecutionLoggingMiddleware : ServiceEntity, IToolExecutionMiddleware
 {
     private readonly ILogger<ToolExecutionLoggingMiddleware> _logger;

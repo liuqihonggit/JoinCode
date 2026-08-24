@@ -6,7 +6,7 @@ namespace McpToolDispatch;
 public sealed partial class PolicyToolHandlers
 {
     private readonly IRemotePolicyService _policyService;
-    [Inject] private readonly ILogger<PolicyToolHandlers>? _logger;
+    private readonly ILogger<PolicyToolHandlers>? _logger;
 
     public PolicyToolHandlers(IRemotePolicyService policyService, ILogger<PolicyToolHandlers>? logger = null)
     {

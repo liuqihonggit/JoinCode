@@ -4,7 +4,7 @@ namespace McpToolDispatch;
 /// 工具模板服务 — 从 ~/.jcc/tool-templates/ 加载模板，动态创建并注册工具
 /// 支持三种执行类型: shell（命令行）、mcp_call（调用 MCP 服务器）
 /// </summary>
-[Register]
+[Register(typeof(IToolTemplateService), ServiceLifetime.Singleton)]
 public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, IDisposable
 {
     private readonly IFileSystem _fs;

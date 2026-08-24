@@ -4,7 +4,7 @@ namespace Core.Agents;
 /// 注册消息通道中间件 — 注册 Agent 消息通道 + 初始化 Teammate 钩子
 /// 合并自路径 B 的 SpawnCoordRegisterMessageMiddleware
 /// </summary>
-[Register(typeof(IUnifiedSpawnMiddleware))]
+[Register(typeof(IUnifiedSpawnMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class RegisterMessageMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 
@@ -16,11 +16,11 @@ public sealed partial class RegisterMessageMiddleware : ServiceEntity, IUnifiedS
         _teammateInitService = teammateInitService;
         _serviceProvider = serviceProvider;
     }
-    [Inject] private readonly IMailbox _messageBroker;
-    [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
-    [Inject] private readonly ILogger<RegisterMessageMiddleware> _logger;
-    [Inject] private readonly ITeammateInitService? _teammateInitService;
-    [Inject] private readonly IServiceProvider? _serviceProvider;
+    private readonly IMailbox _messageBroker;
+    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly ILogger<RegisterMessageMiddleware> _logger;
+    private readonly ITeammateInitService? _teammateInitService;
+    private readonly IServiceProvider? _serviceProvider;
 
     private ITeammateInitService? ResolvedTeammateInitService => _teammateInitService ?? _serviceProvider?.GetService(typeof(ITeammateInitService)) as ITeammateInitService;
 

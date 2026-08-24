@@ -6,7 +6,7 @@ using JoinCode.Abstractions.Pipeline;
 /// <summary>
 /// V2 JWT 刷新调度器 + 传输回调 + 连接 — 对齐 TS 端 §5-§8
 /// </summary>
-[Register]
+[Register(typeof(IMiddleware<V2BridgeInitContext>), ServiceLifetime.Singleton)]
 internal sealed partial class V2TokenRefreshAndCallbacksMiddleware : ServiceEntity, IMiddleware<V2BridgeInitContext>
 {
 

@@ -5,7 +5,7 @@ namespace Core.Context;
 /// <summary>
 /// 加载历史消息操作处理器
 /// </summary>
-[Register]
+[Register(typeof(IChatAdminOperationHandler), ServiceLifetime.Singleton)]
 public sealed partial class LoadSessionMessagesHandler : ServiceEntity, IChatAdminOperationHandler
 {
 
@@ -13,7 +13,7 @@ public sealed partial class LoadSessionMessagesHandler : ServiceEntity, IChatAdm
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<LoadSessionMessagesHandler>? _logger;
+    private readonly ILogger<LoadSessionMessagesHandler>? _logger;
 
     public ChatAdminOperation Operation => ChatAdminOperation.LoadSessionMessages;
 

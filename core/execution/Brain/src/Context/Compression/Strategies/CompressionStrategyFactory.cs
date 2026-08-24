@@ -4,7 +4,7 @@ namespace Core.Context.Compression;
 /// <summary>
 /// 压缩策略工厂实现
 /// </summary>
-[Register]
+[Register(typeof(ICompressionStrategyFactory), ServiceLifetime.Singleton)]
 public partial class CompressionStrategyFactory : ServiceEntity, ICompressionStrategyFactory
 {
     private readonly Dictionary<string, ICompressionStrategy> _strategies;

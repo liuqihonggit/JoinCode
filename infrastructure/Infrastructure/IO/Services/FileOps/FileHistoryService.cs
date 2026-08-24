@@ -7,10 +7,10 @@ namespace IO;
 /// Backs up files before writes to {AppData}/{FileHistoryFolderName}/{sessionId}/{hash}@v{version}.
 /// Uses SHA256 hash of file path as backup filename for privacy and cross-platform safety.
 /// </summary>
-[Register]
+[Register(typeof(IFileHistoryService), ServiceLifetime.Singleton)]
 public sealed partial class FileHistoryService : ServiceEntity, IFileHistoryService
 {
-    [Inject] private readonly ILogger<FileHistoryService>? _logger;
+    private readonly ILogger<FileHistoryService>? _logger;
     private readonly IFileSystem _fs;
     private readonly string _baseDir;
     private readonly string _sessionId;

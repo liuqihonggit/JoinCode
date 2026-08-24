@@ -1,12 +1,12 @@
 
 namespace Core.Security.Interceptors;
 
-[Register]
+[Register(typeof(IGitSecurityInterceptor), ServiceLifetime.Singleton)]
 public sealed partial class GitSecurityInterceptor : ServiceEntity, IGitSecurityInterceptor
 {
     private readonly IGitDiffProvider _diffProvider;
     private readonly IGitSecretScanner _scanner;
-    [Inject] private readonly ILogger<GitSecurityInterceptor> _logger;
+    private readonly ILogger<GitSecurityInterceptor> _logger;
 
     private static readonly HashSet<string> ScannedTools =
     [

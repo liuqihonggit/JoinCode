@@ -9,7 +9,7 @@ public sealed partial class CronSchedulerService : IWorkflowService, IAsyncDispo
     private readonly ICronTaskStore _taskStore;
     private readonly ServiceMessageBus _messageBus;
     private readonly INotificationService? _notificationService;
-    [Inject] private readonly ILogger<CronSchedulerService>? _logger;
+    private readonly ILogger<CronSchedulerService>? _logger;
     private CronScheduler? _scheduler;
     private CancellationTokenSource? _cts;
 

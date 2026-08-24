@@ -6,7 +6,7 @@ namespace McpToolDispatch;
 public partial class CtxInspectToolHandlers
 {
     private readonly IChatContextManager _contextManager;
-    [Inject] private readonly ILogger<CtxInspectToolHandlers>? _logger;
+    private readonly ILogger<CtxInspectToolHandlers>? _logger;
 
     public CtxInspectToolHandlers(IChatContextManager contextManager, ILogger<CtxInspectToolHandlers>? logger = null)
     {

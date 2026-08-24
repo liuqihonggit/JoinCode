@@ -10,7 +10,7 @@ namespace IO.ProcessService;
 /// 4. 重试机制（指数退避，解决网络超时问题）
 /// </para>
 /// </summary>
-[Register]
+[Register(typeof(IGitHubCommandRunner), ServiceLifetime.Singleton)]
 public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandRunner
 {
     private readonly IProcessService _processService;

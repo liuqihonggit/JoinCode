@@ -5,7 +5,7 @@ namespace Core.Query;
 /// <summary>
 /// 状态转换中间件 — 查询开始前和完成后转换查询状态
 /// </summary>
-[Register(typeof(IQueryMiddleware))]
+[Register(typeof(IQueryMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class StateTransitionMiddleware : ServiceEntity, IQueryMiddleware
 {
 
@@ -13,7 +13,7 @@ public sealed partial class StateTransitionMiddleware : ServiceEntity, IQueryMid
     {
         _stateTransitions = stateTransitions;
     }
-    [Inject] private readonly IQueryStateTransitions? _stateTransitions;
+    private readonly IQueryStateTransitions? _stateTransitions;
 
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;

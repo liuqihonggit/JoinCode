@@ -1,11 +1,11 @@
 
 namespace Core.Goal;
 
-[Register]
+[Register(typeof(IGoalEvaluator), ServiceLifetime.Singleton)]
 public sealed partial class GoalEvaluator : ServiceEntity, IGoalEvaluator
 {
     private readonly IChatClient _kernel;
-    [Inject] private readonly ILogger<GoalEvaluator>? _logger;
+    private readonly ILogger<GoalEvaluator>? _logger;
 
     public GoalEvaluator(IChatClient kernel, ILogger<GoalEvaluator>? logger = null)
     {

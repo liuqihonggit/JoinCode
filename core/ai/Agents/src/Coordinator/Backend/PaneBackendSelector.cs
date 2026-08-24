@@ -4,7 +4,7 @@ namespace Core.Agents.Coordinator;
 /// 终端面板后端选择器 — 运行时自动选择可用的后端（Tmux > iTerm2 > InProcess）
 /// <para>桥接 [Register] 自动注册与运行时条件选择逻辑</para>
 /// </summary>
-[Register(typeof(JoinCode.Abstractions.Interfaces.IPaneBackend))]
+[Register(typeof(JoinCode.Abstractions.Interfaces.IPaneBackend), ServiceLifetime.Singleton)]
 public sealed partial class PaneBackendSelector : ServiceEntity, JoinCode.Abstractions.Interfaces.IPaneBackend
 {
     private readonly JoinCode.Abstractions.Interfaces.IPaneBackend _backend;

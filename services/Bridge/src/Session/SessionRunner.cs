@@ -66,8 +66,7 @@ public sealed class BridgeSession
 /// <summary>
 /// Bridge 会话配置
 /// </summary>
-[Register]
-[AllowSkipEntity("实现 IAsyncDisposable，与 Entity 的 IDisposable 冲突")]
+[Register(typeof(BridgeSessionConfiguration), ServiceLifetime.Singleton)]
 public sealed partial class BridgeSessionConfiguration 
 {
     /// <summary>会话超时时间（默认 30 分钟）</summary>
@@ -91,8 +90,7 @@ public sealed partial class BridgeSessionConfiguration
 /// <summary>
 /// Bridge 会话工厂 - 创建新的会话实例
 /// </summary>
-[Register]
-[AllowSkipEntity("实现 IAsyncDisposable，与 Entity 的 IDisposable 冲突")]
+[Register(typeof(BridgeSessionFactory), ServiceLifetime.Singleton)]
 public sealed partial class BridgeSessionFactory 
 {
     private readonly TimeProvider _timeProvider;
@@ -129,8 +127,8 @@ public sealed partial class BridgeSessionFactory
 /// Bridge 会话运行器 - 管理会话生命周期
 /// 对标 Claude Code 的 sessionRunner.ts 和 createSession.ts
 /// </summary>
-[Register]
-public sealed partial class BridgeSessionRunner : IAsyncDisposable
+[Register(typeof(BridgeSessionRunner), ServiceLifetime.Singleton)]
+public sealed partial class BridgeSessionRunner : ServiceEntity
 {
     private readonly ConcurrentDictionary<string, BridgeSession> _sessions;
     private readonly ConcurrentDictionary<string, string> _clientIdToSessionId;
@@ -142,7 +140,7 @@ public sealed partial class BridgeSessionRunner : IAsyncDisposable
 
     private CancellationTokenSource? _cleanupCts;
     private Task? _cleanupTask;
-    private int _isDisposed;
+    private int _asyncDisposed;
 
     /// <summary>会话状态变更事件</summary>
     public event EventHandler<BridgeSessionStateChangedEventArgs>? SessionStateChanged;
@@ -155,6 +153,7 @@ public sealed partial class BridgeSessionRunner : IAsyncDisposable
         BridgeSessionConfiguration? configuration = null,
         ILogger? logger = null,
         TimeProvider? timeProvider = null)
+        : base(nameof(BridgeSessionRunner))
     {
         _sessionFactory = sessionFactory ?? throw new ArgumentNullException(nameof(sessionFactory));
         _configuration = configuration ?? new BridgeSessionConfiguration();
@@ -604,14 +603,20 @@ public sealed partial class BridgeSessionRunner : IAsyncDisposable
     }
 
     /// <inheritdoc />
-    public async ValueTask DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _isDisposed, 1) == 1)
+        if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1)
         {
             return;
         }
 
         await StopAsync().ConfigureAwait(false);
+        Dispose();
+    }
+
+    protected override void OnDispose()
+    {
+        if (_asyncDisposed == 1) return;
         _lock.Dispose();
     }
 }

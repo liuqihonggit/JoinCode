@@ -7,7 +7,7 @@ namespace JoinCode.ChatCommands;
 [ChatCommand(Name = ChatCommandNameConstants.Analyze, Description = "分析代码", Usage = "/analyze <代码>", Category = ChatCommandCategory.Code, ExposeToMcp = true)]
 public sealed partial class AnalyzeCommand : ChatCommandBase
 {
-    [Inject] private readonly ILogger<AnalyzeCommand>? _logger;
+    private readonly ILogger<AnalyzeCommand>? _logger;
     public AnalyzeCommand(ILogger<AnalyzeCommand>? logger = null)
     {
         _logger = logger;

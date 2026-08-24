@@ -7,7 +7,7 @@ using JoinCode.Abstractions.Pipeline;
 /// V1 Perpetual 模式: 读取崩溃恢复指针 — 对齐 TS 端: readBridgePointer
 /// best-effort: 读取失败不阻塞主流程
 /// </summary>
-[Register]
+[Register(typeof(IMiddleware<V1BridgeInitContext>), ServiceLifetime.Singleton)]
 internal sealed partial class V1PerpetualPointerMiddleware : ServiceEntity, IMiddleware<V1BridgeInitContext>
 {
     public ErrorBehavior OnError => ErrorBehavior.Continue;

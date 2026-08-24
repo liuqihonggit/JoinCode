@@ -1,12 +1,12 @@
 namespace Core.Agents.Coordinator;
 
-[Register]
+[Register(typeof(ITeammateMailboxService), ServiceLifetime.Singleton)]
 public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMailboxService, IDisposable
 {
     private readonly IFileSystem _fs;
     private readonly string _mailboxRoot;
-    [Inject] private readonly ILogger<TeammateMailboxService>? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<TeammateMailboxService>? _logger;
+    private readonly IClockService _clock;
     private readonly SemaphoreSlim _writeLock;
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _agentLocks;
     private readonly ConcurrentDictionary<string, MailboxReadCursor> _cursors;

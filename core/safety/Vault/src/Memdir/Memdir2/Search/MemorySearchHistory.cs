@@ -120,13 +120,13 @@ public interface IMemorySearchHistoryService : IDisposable
 /// 维护搜索历史队列，并基于历史查询从 MemoryStore 中
 /// 检索相关的过往对话记忆，构建上下文提示
 /// </summary>
-[Register]
+[Register(typeof(IMemorySearchHistoryService), ServiceLifetime.Singleton)]
 public sealed partial class MemorySearchHistoryService : ServiceEntity, IMemorySearchHistoryService, IDisposable
 {
     private const int MaxHistorySize = 100;
 
     private readonly MemoryStore _memoryStore;
-    [Inject] private readonly ILogger<MemorySearchHistoryService>? _logger;
+    private readonly ILogger<MemorySearchHistoryService>? _logger;
     private readonly IClockService _clock;
     private readonly AsyncLock _historyLock = new();
 

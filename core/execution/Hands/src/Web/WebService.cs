@@ -5,7 +5,7 @@ namespace Services.Web;
 /// 对齐TS版 WebFetchTool/utils.ts 的核心逻辑
 /// FetchAsync 通过中间件管道执行，SearchAsync 直接实现
 /// </summary>
-[Register]
+[Register(typeof(IWebService), ServiceLifetime.Singleton)]
 public sealed partial class WebService : ServiceEntity, IWebService
 {
     private readonly MiddlewarePipeline<WebContext> _pipeline;
@@ -13,8 +13,8 @@ public sealed partial class WebService : ServiceEntity, IWebService
     private readonly ITelemetryService? _telemetryService;
     private readonly IQueryService? _queryService;
     private readonly ProviderConfig? _providerConfig;
-    [Inject] private readonly ILogger<WebService>? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<WebService>? _logger;
+    private readonly IClockService _clock;
 
     public WebService(
         MiddlewarePipeline<WebContext> pipeline,

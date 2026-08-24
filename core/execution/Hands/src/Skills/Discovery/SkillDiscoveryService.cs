@@ -2,13 +2,13 @@ using JoinCode.Abstractions.Attributes;
 
 namespace Core.Skills.Discovery;
 
-[Register]
+[Register(typeof(ISkillDiscoveryService), ServiceLifetime.Singleton)]
 public sealed partial class SkillDiscoveryService : ServiceEntity, ISkillDiscoveryService
 {
     private readonly SkillDiscoveryOptions _options;
     private readonly IFileOperationService _files;
     private readonly IFileSystem _fs;
-    [Inject] private readonly ILogger<SkillDiscoveryService>? _logger;
+    private readonly ILogger<SkillDiscoveryService>? _logger;
     private readonly ConcurrentDictionary<string, DiscoveredSkill> _discoveredSkills;
     private readonly SemaphoreSlim _discoveryLock;
     private IFileSystemWatcher? _watcher;

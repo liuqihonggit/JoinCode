@@ -27,6 +27,7 @@ global using Core.Scheduling.Cron;
 global using Core.Utils;
 global using Infrastructure.Pipeline;
 global using Microsoft.Extensions.DependencyInjection;
+global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using Microsoft.Extensions.Logging;
 global using Services.Notification;
 global using System.Collections.Frozen;

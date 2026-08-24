@@ -7,13 +7,13 @@ using JoinCode.Abstractions.Attributes;
 /// Bridge 客户端 - 模仿 Claude Code 的 replBridge.ts 架构
 /// 实现消息轮询循环、消息去重、Echo 过滤和重连逻辑
 /// </summary>
-[Register]
+[Register(typeof(BridgeClient), ServiceLifetime.Singleton)]
 public sealed partial class BridgeClient : IAsyncDisposable
 {
     private readonly ITransportManager _transportManager;
     private readonly MessageHandlerCoordinator _messageHandler;
     private readonly BoundedUUIDSet _processedMessageIds;
-    [Inject] private readonly ILogger<BridgeClient>? _logger;
+    private readonly ILogger<BridgeClient>? _logger;
     private readonly IClockService _clock;
     private readonly BridgeClientOptions _options;
     private readonly BridgeJwtService? _jwtService;
@@ -527,8 +527,7 @@ public sealed partial class BridgeClient : IAsyncDisposable
 /// <summary>
 /// Bridge 客户端选项
 /// </summary>
-[Register]
-[AllowSkipEntity("实现 IAsyncDisposable，与 Entity 的 IDisposable 冲突")]
+[Register(typeof(BridgeClientOptions), ServiceLifetime.Singleton)]
 public partial class BridgeClientOptions 
 {
     // 默认配置常量

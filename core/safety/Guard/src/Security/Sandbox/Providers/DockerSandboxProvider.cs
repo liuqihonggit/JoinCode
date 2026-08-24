@@ -2,7 +2,7 @@ namespace Core.Security.Sandbox.Providers;
 
 using JoinCode.Abstractions.Security.Sandbox;
 
-[Register]
+[Register(typeof(SandboxProviderBase), ServiceLifetime.Singleton)]
 public sealed partial class DockerSandboxProvider : SandboxProviderBase
 {
     private readonly IProcessService _processService;

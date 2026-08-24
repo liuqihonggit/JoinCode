@@ -8,11 +8,11 @@ namespace Core.Prompts.Utils;
 /// <summary>
 /// 动态关键词词表服务 — 从 ~/.jcc/keyword-sections.json 加载关键词配置，支持文件监控热加载
 /// </summary>
-[Register(typeof(IDynamicKeywordConfigService))]
+[Register(typeof(IDynamicKeywordConfigService), ServiceLifetime.Singleton)]
 public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynamicKeywordConfigService, IDisposable
 {
     private readonly IFileSystem _fs;
-    [Inject] private readonly ILogger<DynamicKeywordConfigService>? _logger;
+    private readonly ILogger<DynamicKeywordConfigService>? _logger;
 
     private readonly SemaphoreSlim _reloadLock = new(1, 1);
     private volatile DynamicKeywordConfig _config = new();

@@ -7,7 +7,7 @@ using JoinCode.Abstractions.Pipeline;
 /// V1 写入崩溃恢复指针 — 对齐 TS 端: writeBridgePointer
 /// best-effort: 写入失败不阻塞主流程
 /// </summary>
-[Register]
+[Register(typeof(IMiddleware<V1BridgeInitContext>), ServiceLifetime.Singleton)]
 internal sealed partial class V1PointerWriteMiddleware : ServiceEntity, IMiddleware<V1BridgeInitContext>
 {
     public ErrorBehavior OnError => ErrorBehavior.Continue;

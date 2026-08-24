@@ -3,7 +3,7 @@ namespace JoinCode.Entry;
 /// <summary>
 /// 退出清理中间件 — 打印成本摘要、触发停止 Hook
 /// </summary>
-[Register]
+[Register(typeof(IMiddleware<StartupContext>), ServiceLifetime.Singleton)]
 internal sealed partial class ExitCleanupStep : ServiceEntity, IMiddleware<StartupContext>
 {
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct)

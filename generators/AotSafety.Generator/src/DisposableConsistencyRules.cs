@@ -54,12 +54,14 @@ namespace AotSafety.Generator
             var symbol = ctx.SemanticModel.GetDeclaredSymbol(typeDecl) as INamedTypeSymbol;
             if (symbol is null) return;
 
+            if (symbol.IsAbstract) return;
+
             var idisposableType = ctx.Compilation.GetTypeByMetadataName("System.IDisposable");
             var iasyncDisposableType = ctx.Compilation.GetTypeByMetadataName("System.IAsyncDisposable");
             if (idisposableType is null || iasyncDisposableType is null) return;
 
-            var implementsIDisposable = symbol.AllInterfaces.Contains(idisposableType, SymbolEqualityComparer.Default);
-            var implementsIAsyncDisposable = symbol.AllInterfaces.Contains(iasyncDisposableType, SymbolEqualityComparer.Default);
+            var implementsIDisposable = symbol.Interfaces.Contains(idisposableType, SymbolEqualityComparer.Default);
+            var implementsIAsyncDisposable = symbol.Interfaces.Contains(iasyncDisposableType, SymbolEqualityComparer.Default);
 
             if (implementsIDisposable && implementsIAsyncDisposable)
             {

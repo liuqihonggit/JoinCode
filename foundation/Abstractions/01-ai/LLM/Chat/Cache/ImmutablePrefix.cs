@@ -80,7 +80,7 @@ public sealed class ImmutablePrefix
     private string ComputeFingerprint()
     {
         var toolSpecsHash = ContentHash.ComputeToolSpecs(_toolSpecsOrder.Select(name => _toolSpecs[name]).ToList());
-        var fewShotsBlob = string.Join("|", _fewShots.Select(s => $"{s.Role}:{s.Content}").ToArray());
+        var fewShotsBlob = string.Join("|", _fewShots.Select(s => $"{s.Role}:{s.Content}"));
         return ContentHash.Compute($"{System}|{toolSpecsHash}|{fewShotsBlob}");
     }
 }

@@ -5,7 +5,7 @@ using JoinCode.Abstractions.Pipeline;
 /// <summary>
 /// 启动完成中间件 — 标记运行状态、记录日志和指标
 /// </summary>
-[Register(typeof(ISyncStartMiddleware))]
+[Register(typeof(ISyncStartMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class StartCompletionMiddleware : ServiceEntity, ISyncStartMiddleware
 {
 
@@ -14,8 +14,8 @@ public sealed partial class StartCompletionMiddleware : ServiceEntity, ISyncStar
         _logger = logger;
         _telemetryService = telemetryService;
     }
-    [Inject] private readonly ILogger<StartCompletionMiddleware>? _logger;
-    [Inject] private readonly ITelemetryService? _telemetryService;
+    private readonly ILogger<StartCompletionMiddleware>? _logger;
+    private readonly ITelemetryService? _telemetryService;
 
 
     public Task InvokeAsync(SyncStartContext ctx, MiddlewareDelegate<SyncStartContext> next, CancellationToken ct)

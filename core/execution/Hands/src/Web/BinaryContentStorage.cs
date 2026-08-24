@@ -4,11 +4,11 @@ namespace Services.Web;
 /// 二进制内容持久化 — 对齐TS版 mcpOutputStorage.ts 的 persistBinaryContent
 /// 将二进制响应（PDF、图片等）的原始字节保存到 {sessionDir}/tool-results/{persistId}.{ext}
 /// </summary>
-[Register(typeof(IBinaryContentStorage))]
+[Register(typeof(IBinaryContentStorage), ServiceLifetime.Singleton)]
 public sealed partial class BinaryContentStorage : ServiceEntity, IBinaryContentStorage
 {
-    [Inject] private readonly ILogger<BinaryContentStorage>? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<BinaryContentStorage>? _logger;
+    private readonly IClockService _clock;
     private readonly IFileSystem _fs;
 
     public BinaryContentStorage(IFileSystem fs, ILogger<BinaryContentStorage>? logger = null, IClockService? clock = null)

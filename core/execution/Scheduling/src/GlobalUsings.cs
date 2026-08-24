@@ -40,6 +40,7 @@ global using Infrastructure.Utils.System;
 global using IMcpClient = JoinCode.Abstractions.Mcp.Client.IMcpClient;
 global using JoinCode.Abstractions.Mcp.Registry;
 global using Microsoft.Extensions.DependencyInjection;
+global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using Microsoft.Extensions.Logging;
 global using Microsoft.Extensions.Options;
 global using System.Collections.Frozen;

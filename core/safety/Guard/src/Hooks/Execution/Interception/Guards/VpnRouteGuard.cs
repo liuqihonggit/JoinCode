@@ -10,11 +10,11 @@ namespace Core.Hooks.Execution.Interception.Guards;
 /// 迁移自 VpnRouteRewriter(Priority=30)。
 /// </para>
 /// </summary>
-[Register]
+[Register(typeof(ICommandGuard), ServiceLifetime.Singleton)]
 public sealed partial class VpnRouteGuard : ICommandGuard
 {
-    [Inject] private readonly ILogger<VpnRouteGuard>? _logger;
-    [Inject] private readonly INetworkConnectivityService? _networkService;
+    private readonly ILogger<VpnRouteGuard>? _logger;
+    private readonly INetworkConnectivityService? _networkService;
 
     /// <summary>
     /// 构造 VPN 路由守卫

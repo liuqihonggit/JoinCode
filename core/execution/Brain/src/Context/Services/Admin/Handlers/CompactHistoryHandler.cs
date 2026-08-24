@@ -5,7 +5,7 @@ namespace Core.Context;
 /// <summary>
 /// 压缩历史操作处理器 — 对齐 TS: compact 后 SessionStart Hook
 /// </summary>
-[Register]
+[Register(typeof(IChatAdminOperationHandler), ServiceLifetime.Singleton)]
 public sealed partial class CompactHistoryHandler : ServiceEntity, IChatAdminOperationHandler
 {
     private readonly IChatPromptManager _promptManager;

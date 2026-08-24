@@ -8,7 +8,7 @@ using JoinCode.Abstractions.Models.Agent;
 /// Agent 角色注册表 — 管理 AgentRoleProfile 的注册和查询
 /// 内置 Profile 在静态构造时注册，用户/项目自定义 Profile 通过 IAgentDefinitionProvider 运行时追加
 /// </summary>
-[Register(typeof(IAgentRoleRegistry))]
+[Register(typeof(IAgentRoleRegistry), ServiceLifetime.Singleton)]
 public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
 {
     private readonly IAgentDefinitionProvider? _definitionProvider;

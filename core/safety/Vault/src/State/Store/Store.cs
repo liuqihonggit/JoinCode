@@ -10,7 +10,7 @@ public partial class Store<TState> : IStore<TState>, IDisposable where TState : 
     private TState _currentState;
     private ImmutableHashSet<StateChangedHandler<TState>> _subscribers = ImmutableHashSet<StateChangedHandler<TState>>.Empty;
     private readonly IStorePersistence<TState>? _persistence;
-    [Inject] private readonly ILogger<Store<TState>>? _logger;
+    private readonly ILogger<Store<TState>>? _logger;
     private readonly CancellationTokenSource _disposeCts = new();
     private int _disposed;
 

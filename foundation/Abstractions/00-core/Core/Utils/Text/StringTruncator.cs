@@ -2,11 +2,13 @@ namespace JoinCode.Abstractions.Utils.Text;
 
 public static class StringTruncator
 {
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static string Truncate(string text, int maxLength)
     {
         return Truncate(text, maxLength, "...", suffixWithinLimit: true);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static string Truncate(string text, int maxLength, string suffix, bool suffixWithinLimit = true)
     {
         if (string.IsNullOrEmpty(text) || text.Length <= maxLength) return text;
@@ -19,11 +21,13 @@ public static class StringTruncator
         return string.Concat(text.AsSpan(0, maxLength), suffix);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static string TruncateMiddle(string text, int maxLength)
     {
         return TruncateMiddle(text, maxLength, "...");
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static string TruncateMiddle(string text, int maxLength, string ellipsis)
     {
         if (string.IsNullOrEmpty(text) || text.Length <= maxLength) return text;
@@ -33,6 +37,7 @@ public static class StringTruncator
         return string.Concat(text.AsSpan(0, half), ellipsis, text.AsSpan(text.Length - half));
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int CountLines(ReadOnlySpan<char> text)
     {
         if (text.IsEmpty) return 0;

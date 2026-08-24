@@ -2,7 +2,7 @@ using JoinCode.Abstractions.Attributes;
 
 namespace IO.Services;
 
-[Register]
+[Register(typeof(IChromeIntegrationService), ServiceLifetime.Singleton)]
 public sealed partial class ChromeIntegrationService : ServiceEntity, IChromeIntegrationService, IDisposable
 {
     private bool _isConnected;
@@ -10,7 +10,7 @@ public sealed partial class ChromeIntegrationService : ServiceEntity, IChromeInt
     private bool _initialized;
     private readonly SemaphoreSlim _initLock = new(1, 1);
     private readonly IProcessService _processService;
-    [Inject] private readonly ILogger<ChromeIntegrationService>? _logger;
+    private readonly ILogger<ChromeIntegrationService>? _logger;
     private readonly IConfigurationService? _configService;
 
     public ChromeIntegrationService(

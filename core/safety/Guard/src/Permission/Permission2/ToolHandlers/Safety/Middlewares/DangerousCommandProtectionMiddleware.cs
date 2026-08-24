@@ -9,7 +9,7 @@ namespace Core.Permission;
 /// Plan 模式: 拒绝所有危险命令
 /// 同时支持 IDeleteOperationDetector 检测非 Shell 工具的删除操作（如 file_delete）
 /// </summary>
-[Register(typeof(IPermissionMiddleware))]
+[Register(typeof(IPermissionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity, IPermissionMiddleware
 {
     private readonly IDestructiveCommandDetector? _destructiveCommandDetector;

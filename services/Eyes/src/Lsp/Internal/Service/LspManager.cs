@@ -21,11 +21,12 @@ public interface ILspManager : IAsyncDisposable
     IReadOnlyDictionary<string, ILspServerInstance> GetAllServers();
 }
 
-[Register]
-public sealed partial class LspManager : ILspManager
+[Register(typeof(ILspManager), ServiceLifetime.Singleton)]
+public sealed partial class LspManager : ServiceEntity, ILspManager
 {
 
     public LspManager(ILogger<LspManager> logger, IFileSystem fs, IProcessService processService, IFileOperationService? fileOperationService = null, ILspPassiveFeedback? passiveFeedback = null)
+        : base(nameof(LspManager))
     {
         _logger = logger;
         _fs = fs;
@@ -38,14 +39,14 @@ public sealed partial class LspManager : ILspManager
     private readonly ConcurrentDictionary<string, LspServerInstance> _servers = new();
     private readonly Dictionary<string, List<string>> _extensionMap = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, string> _openedFiles = new();
-    [Inject] private readonly ILogger<LspManager> _logger;
-    [Inject] private readonly IFileOperationService? _fileOperationService;
-    [Inject] private readonly ILspPassiveFeedback? _passiveFeedback;
-    [Inject] private readonly IFileSystem _fs;
-    [Inject] private readonly IProcessService _processService;
+    private readonly ILogger<LspManager> _logger;
+    private readonly IFileOperationService? _fileOperationService;
+    private readonly ILspPassiveFeedback? _passiveFeedback;
+    private readonly IFileSystem _fs;
+    private readonly IProcessService _processService;
     private readonly SemaphoreSlim _initLock = new(1, 1);
     private int _isInitialized;
-    private int _isDisposed;
+    private int _asyncDisposed;
 
     public bool IsInitialized => Volatile.Read(ref _isInitialized) == 1;
 
@@ -281,9 +282,9 @@ public sealed partial class LspManager : ILspManager
         return _servers.ToDictionary(kvp => kvp.Key, kvp => (ILspServerInstance)kvp.Value);
     }
 
-    public async ValueTask DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1) return;
 
         await ShutdownAsync().ConfigureAwait(false);
 
@@ -291,6 +292,12 @@ public sealed partial class LspManager : ILspManager
         await Task.WhenAll(tasks).ConfigureAwait(false);
 
         _servers.Clear();
+        Dispose();
+    }
+
+    protected override void OnDispose()
+    {
+        if (_asyncDisposed == 1) return;
         _initLock.Dispose();
     }
 }

@@ -4,7 +4,7 @@ namespace Core.Context;
 /// 聊天选项工厂 — 负责创建 ChatOptions（执行设置）
 /// 提取自 ChatService.CreateExecutionSettings
 /// </summary>
-[Register]
+[Register(typeof(IChatOptionsFactory), ServiceLifetime.Singleton)]
 public sealed partial class ChatOptionsFactory : ServiceEntity, IChatOptionsFactory
 {
 
@@ -14,9 +14,9 @@ public sealed partial class ChatOptionsFactory : ServiceEntity, IChatOptionsFact
         _executionSettingsProvider = executionSettingsProvider;
         _apiContextManagementService = apiContextManagementService;
     }
-    [Inject] private readonly IChatContextManager _contextManager;
-    [Inject] private readonly IExecutionSettingsProvider? _executionSettingsProvider;
-    [Inject] private readonly IApiContextManagementService? _apiContextManagementService;
+    private readonly IChatContextManager _contextManager;
+    private readonly IExecutionSettingsProvider? _executionSettingsProvider;
+    private readonly IApiContextManagementService? _apiContextManagementService;
 
     /// <summary>
     /// 创建当前会话的 ChatOptions

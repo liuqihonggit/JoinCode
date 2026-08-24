@@ -1,6 +1,6 @@
 namespace Core.Agents.Coordinator;
 
-[Register(typeof(JoinCode.Abstractions.Interfaces.ITeammateReconnectService))]
+[Register(typeof(JoinCode.Abstractions.Interfaces.ITeammateReconnectService), ServiceLifetime.Singleton)]
 public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.Abstractions.Interfaces.ITeammateReconnectService
 {
     private const int MaxReconnectAttempts = 5;
@@ -9,7 +9,7 @@ public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.A
 
     private readonly ITeamManager _teamManager;
     private readonly IAgentLifecycleManager _lifecycleManager;
-    [Inject] private readonly ILogger<TeammateReconnectService>? _logger;
+    private readonly ILogger<TeammateReconnectService>? _logger;
     private readonly ConcurrentDictionary<string, int> _reconnectAttempts = new(StringComparer.Ordinal);
 
     public TeammateReconnectService(

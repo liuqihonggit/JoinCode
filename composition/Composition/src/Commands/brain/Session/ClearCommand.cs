@@ -8,7 +8,7 @@ namespace JoinCode.ChatCommands;
 [ChatCommand(Name = ChatCommandNameConstants.Clear, Description = "清空聊天历史并释放上下文", Usage = "/clear", Aliases = ["reset", "new", "cls"], Category = ChatCommandCategory.Session)]
 public sealed partial class ClearCommand : ChatCommandBase
 {
-    [Inject] private readonly ILogger<ClearCommand>? _logger;
+    private readonly ILogger<ClearCommand>? _logger;
 
     public override string Name => ChatCommandNameConstants.Clear;
     public override string Description => "清空聊天历史并释放上下文";

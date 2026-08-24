@@ -5,7 +5,7 @@ namespace Core.Context;
 /// <summary>
 /// 会话启动 Hook 中间件 — 执行会话启动 Hook，允许外部逻辑阻止会话启动
 /// </summary>
-[Register(typeof(IChatInitMiddleware))]
+[Register(typeof(IChatInitMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class SessionStartHookMiddleware : ServiceEntity, IChatInitMiddleware
 {
 
@@ -14,8 +14,8 @@ public sealed partial class SessionStartHookMiddleware : ServiceEntity, IChatIni
         _sessionStartHookManager = sessionStartHookManager;
         _logger = logger;
     }
-    [Inject] private readonly ISessionStartHookManager? _sessionStartHookManager;
-    [Inject] private readonly ILogger<SessionStartHookMiddleware>? _logger;
+    private readonly ISessionStartHookManager? _sessionStartHookManager;
+    private readonly ILogger<SessionStartHookMiddleware>? _logger;
 
     /// <summary>会话 Hook 在配置监控之后</summary>
 

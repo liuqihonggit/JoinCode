@@ -68,6 +68,7 @@ public abstract class PluginResourceBase : Entity, IPluginHeartbeat
     /// 心跳检测 — 使用此资源前调用,如果提供者已死亡则抛 PluginDeadException
     /// <para>惰性检测:每次跨插件调用时检测,读 volatile bool 纳秒级</para>
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void EnsureAlive()
     {
         if (!IsAlive)

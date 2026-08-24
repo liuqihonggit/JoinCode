@@ -4,13 +4,13 @@ namespace Core.Memdir;
 /// <summary>
 /// 内存存储 - 持久化记忆管理
 /// </summary>
-[Register]
+[Register(typeof(MemoryStore), ServiceLifetime.Singleton)]
 public sealed partial class MemoryStore : ServiceEntity, IDisposable
 {
     private readonly ConcurrentDictionary<string, MemoryEntry> _memories;
     private readonly string _storagePath;
-    [Inject] private readonly ILogger<MemoryStore>? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<MemoryStore>? _logger;
+    private readonly IClockService _clock;
     private readonly IFileOperationService _fileOperationService;
     private readonly CancellationTokenSource _disposeCts = new();
 

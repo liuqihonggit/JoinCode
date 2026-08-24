@@ -27,7 +27,7 @@ public interface IMemoryAgeCalculator
 /// 记忆老化计算器实现
 /// 使用指数衰减模型
 /// </summary>
-[Register]
+[Register(typeof(IMemoryAgeCalculator), ServiceLifetime.Singleton)]
 public sealed partial class MemoryAgeCalculator : ServiceEntity, IMemoryAgeCalculator
 {
     private readonly MemoryAgeOptions _options;

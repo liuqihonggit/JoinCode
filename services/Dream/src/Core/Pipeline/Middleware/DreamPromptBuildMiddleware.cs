@@ -1,6 +1,6 @@
 namespace JoinCode.Dream.Pipeline;
 
-[Register]
+[Register(typeof(IDreamMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class DreamPromptBuildMiddleware : ServiceEntity, IDreamMiddleware
 {
     public Task InvokeAsync(DreamContext ctx, MiddlewareDelegate<DreamContext> next, CancellationToken ct)

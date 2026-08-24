@@ -4,7 +4,7 @@ namespace Core.Configuration;
 /// <summary>
 /// 简要模式服务实现
 /// </summary>
-[Register]
+[Register(typeof(IBriefModeService), ServiceLifetime.Singleton)]
 public partial class BriefModeService : ServiceEntity, IBriefModeService
 {
 
@@ -15,7 +15,7 @@ public partial class BriefModeService : ServiceEntity, IBriefModeService
     private bool _isEnabled;
     private DateTime? _enabledAt;
     private bool _userMsgOptIn;
-    [Inject] private readonly IClockService _clock;
+    private readonly IClockService _clock;
 
     public bool IsEnabled => _isEnabled;
 

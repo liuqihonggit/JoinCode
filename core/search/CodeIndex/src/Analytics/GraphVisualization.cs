@@ -3,7 +3,7 @@ namespace JoinCode.CodeIndex.Analytics;
 /// <summary>
 /// 图可视化实现 — 导出为 DOT(Graphviz) 和 HTML(D3.js 力导向图)
 /// </summary>
-[Register]
+[Register(typeof(IGraphVisualization), ServiceLifetime.Singleton)]
 public sealed class GraphVisualization : ServiceEntity, IGraphVisualization
 {
     private readonly InMemoryIndexStore _store;

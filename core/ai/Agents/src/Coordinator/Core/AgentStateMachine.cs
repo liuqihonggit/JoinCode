@@ -5,15 +5,14 @@ namespace Core.Agents.Coordinator;
 /// Agent状态机 - 管理Agent的生命周期和状态转换
 /// <para>内部复用 StateMachine&lt;TState&gt; 基础设施,消除手写 switch 转换表/锁/事件重复逻辑</para>
 /// </summary>
-[Register]
-[AllowSkipEntity("实现 IAsyncDisposable，与 Entity 的 IDisposable 冲突")]
+[Register(typeof(AgentStateMachine), ServiceLifetime.Singleton)]
 public sealed partial class AgentStateMachine 
 {
     private static readonly FrozenDictionary<TaskExecutionStatus, FrozenSet<TaskExecutionStatus>> Transitions = CreateTransitionTable();
 
     private readonly ILogger? _logger;
     private readonly ConcurrentDictionary<string, AgentStateContext> _states;
-    [Inject] private readonly IClockService _clock;
+    private readonly IClockService _clock;
 
     internal event EventHandler<AgentStateChangedEventArgs>? StateChanged;
 

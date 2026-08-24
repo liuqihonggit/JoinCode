@@ -3,7 +3,7 @@ namespace Infrastructure.HotSpot;
 /// <summary>
 /// 任务表生成器实现 — 产出 Markdown 表格，含热点标注列
 /// </summary>
-[Register(typeof(ITaskTableGenerator))]
+[Register(typeof(ITaskTableGenerator), ServiceLifetime.Singleton)]
 public sealed class TaskTableGenerator : ITaskTableGenerator
 {
     public string Generate(IReadOnlyList<TaskTableEntry> entries)

@@ -4,7 +4,7 @@ namespace Core.Context;
 /// 聊天提示词管理器 — 负责系统提示词构建、提醒管理和提示词重建
 /// 提取自 ChatService 中的 _systemPromptBuilder + _reminderManager 使用逻辑
 /// </summary>
-[Register(typeof(IChatPromptManager))]
+[Register(typeof(IChatPromptManager), ServiceLifetime.Singleton)]
 public sealed partial class ChatPromptManager : ServiceEntity, IChatPromptManager
 {
 
@@ -14,9 +14,9 @@ public sealed partial class ChatPromptManager : ServiceEntity, IChatPromptManage
         _reminderManager = reminderManager;
         _logger = logger;
     }
-    [Inject] private readonly SystemPromptBuilder _systemPromptBuilder;
-    [Inject] private readonly ISystemReminderManager _reminderManager;
-    [Inject] private readonly ILogger<ChatPromptManager>? _logger;
+    private readonly SystemPromptBuilder _systemPromptBuilder;
+    private readonly ISystemReminderManager _reminderManager;
+    private readonly ILogger<ChatPromptManager>? _logger;
 
     /// <summary>
     /// 获取分区后的静态前缀（用于清空/压缩后重建系统提示词）

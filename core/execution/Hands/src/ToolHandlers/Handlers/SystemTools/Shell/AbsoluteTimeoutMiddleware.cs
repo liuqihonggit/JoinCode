@@ -7,7 +7,7 @@ namespace Tools.Shell;
 /// 超时后设置 IsError=true 的 ToolResult，触发 OnErrorToolInjectionMiddleware 注入续期工具
 /// 配置: ShellExecutionConfig.AbsoluteTimeoutSeconds 覆盖默认120s，0=禁用
 /// </summary>
-[Register]
+[Register(typeof(IShellMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class AbsoluteTimeoutMiddleware : ServiceEntity, IShellMiddleware
 {
     private readonly ShellExecutionConfig _config;

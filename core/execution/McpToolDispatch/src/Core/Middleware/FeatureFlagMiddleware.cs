@@ -4,12 +4,12 @@ namespace McpToolRegistry;
 /// <summary>
 /// FeatureFlag 检查中间件 — Order=700 — 检查工具是否被 FeatureFlag 禁用
 /// </summary>
-[Register]
+[Register(typeof(IToolExecutionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class FeatureFlagMiddleware : ServiceEntity, IToolExecutionMiddleware
 {
 
     private readonly IFeatureFlagService? _featureFlagService;
-    [Inject] private readonly ILogger<FeatureFlagMiddleware> _logger;
+    private readonly ILogger<FeatureFlagMiddleware> _logger;
 
     public FeatureFlagMiddleware(
         IFeatureFlagService? featureFlagService,

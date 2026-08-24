@@ -2,11 +2,11 @@ using JoinCode.Abstractions.Attributes;
 
 namespace IO.Services;
 
-[Register]
+[Register(typeof(IDesktopHandoffService), ServiceLifetime.Singleton)]
 public sealed partial class DesktopHandoffService : ServiceEntity, IDesktopHandoffService
 {
     private readonly IProcessService _processService;
-    [Inject] private readonly ILogger<DesktopHandoffService>? _logger;
+    private readonly ILogger<DesktopHandoffService>? _logger;
 
     public DesktopHandoffService(IProcessService processService, ILogger<DesktopHandoffService>? logger = null)
     {

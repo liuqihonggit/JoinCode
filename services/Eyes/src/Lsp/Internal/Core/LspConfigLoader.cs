@@ -112,7 +112,7 @@ public sealed record LspServerConfigEntry
 /// <summary>
 /// LSP 配置加载器实现
 /// </summary>
-[Register]
+[Register(typeof(ILspConfigLoader), ServiceLifetime.Singleton)]
 public sealed partial class LspConfigLoader : ServiceEntity, ILspConfigLoader
 {
 
@@ -121,8 +121,8 @@ public sealed partial class LspConfigLoader : ServiceEntity, ILspConfigLoader
         _fs = fs;
         _logger = logger;
     }
-    [Inject] private readonly ILogger<LspConfigLoader>? _logger;
-    [Inject] private readonly IFileSystem _fs;
+    private readonly ILogger<LspConfigLoader>? _logger;
+    private readonly IFileSystem _fs;
 
     /// <inheritdoc />
     public async Task<IEnumerable<LspServerConfigEntry>> LoadAsync(string? configPath = null, CancellationToken cancellationToken = default)

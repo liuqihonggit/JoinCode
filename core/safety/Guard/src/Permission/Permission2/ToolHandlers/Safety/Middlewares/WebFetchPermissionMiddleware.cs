@@ -6,7 +6,7 @@ namespace Core.Permission;
 /// 优先级: 预批准域名→deny规则→ask规则→allow规则(含RuleContent)→默认ask
 /// 对齐 TS 版 WebFetchTool.checkPermissions
 /// </summary>
-[Register(typeof(IPermissionMiddleware))]
+[Register(typeof(IPermissionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class WebFetchPermissionMiddleware : ServiceEntity, IPermissionMiddleware
 {
     /// <inheritdoc />

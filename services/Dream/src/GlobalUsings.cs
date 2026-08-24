@@ -17,6 +17,7 @@ global using JoinCode.Abstractions.Utils;
 global using Infrastructure.Pipeline;
 global using Core.Utils;
 global using Microsoft.Extensions.DependencyInjection;
+global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using Microsoft.Extensions.Hosting;
 global using JoinCode.Dream.Commands;
 global using JoinCode.Dream.Persistence;

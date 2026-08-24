@@ -4,7 +4,7 @@ namespace Infrastructure.HotSpot;
 /// 意图收集器实现 — ConcurrentDictionary + per-key lock 线程安全
 /// 按 filePath 索引意图，支持多 Worker 并发上报和清理
 /// </summary>
-[Register(typeof(IIntentCollector))]
+[Register(typeof(IIntentCollector), ServiceLifetime.Singleton)]
 public sealed class IntentCollector : IIntentCollector
 {
     private readonly ConcurrentDictionary<string, List<FileModifyIntent>> _intentsByFile = new();

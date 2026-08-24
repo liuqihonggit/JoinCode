@@ -6,7 +6,7 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// 只读命令检测器实现 — 深度对齐 TS readOnlyValidation.ts
 /// 核心功能: 白名单标志验证 + 正则验证 + 变量扩展检测 + git 沙箱逃逸防护
 /// </summary>
-[Register]
+[Register(typeof(IReadOnlyCommandDetector), ServiceLifetime.Singleton)]
 public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCommandDetector
 {
     /// <summary>
@@ -481,12 +481,14 @@ public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCo
     /// <summary>
     /// 构造 2-token 查找键 — 用 string.Concat 直拼避免 Take().ToArray() 数组分配
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static string TwoTokenKey(List<string> tokens)
         => tokens.Count >= 2 ? string.Concat(tokens[0], " ", tokens[1]) : tokens[0];
 
     /// <summary>
     /// 构造 3-token 查找键 — 用 string.Concat 直拼避免 Take().ToArray() 数组分配
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static string ThreeTokenKey(List<string> tokens)
         => tokens.Count >= 3 ? string.Concat(tokens[0], " ", tokens[1], " ", tokens[2])
         : TwoTokenKey(tokens);

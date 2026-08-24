@@ -67,8 +67,8 @@ public sealed record CronSchedulerOptions
 /// <summary>
 /// Cron 调度器实现
 /// </summary>
-[Register(typeof(ICronScheduler))]
-[Register(typeof(ICronSchedulerRef))]
+[Register(typeof(ICronScheduler), ServiceLifetime.Singleton)]
+[Register(typeof(ICronSchedulerRef), ServiceLifetime.Singleton)]
 public sealed partial class CronScheduler : ICronScheduler, ICronSchedulerRef, IAsyncDisposable
 {
     private readonly CronSchedulerOptions _options;

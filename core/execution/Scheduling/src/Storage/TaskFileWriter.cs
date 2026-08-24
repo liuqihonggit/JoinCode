@@ -4,7 +4,7 @@ namespace Core.Scheduling;
 /// <summary>
 /// 任务文件写入工具类
 /// </summary>
-[Register]
+[Register(typeof(ITaskFileWriter), ServiceLifetime.Singleton)]
 public sealed partial class TaskFileWriter : ServiceEntity, ITaskFileWriter
 {
 
@@ -13,7 +13,7 @@ public sealed partial class TaskFileWriter : ServiceEntity, ITaskFileWriter
         _fileOperationService = fileOperationService;
         _logger = logger;
     }
-    [Inject] private readonly IFileOperationService _fileOperationService;
+    private readonly IFileOperationService _fileOperationService;
     private readonly ILogger<TaskFileWriter>? _logger;
 
     /// <summary>

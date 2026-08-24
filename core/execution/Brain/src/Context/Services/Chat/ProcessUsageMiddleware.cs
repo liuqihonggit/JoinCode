@@ -6,7 +6,7 @@ namespace Core.Context;
 /// 用量处理中间件 — 处理 Token 用量统计
 /// OnError=Continue：用量处理失败不影响管道继续执行
 /// </summary>
-[Register]
+[Register(typeof(IChatMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ProcessUsageMiddleware : ServiceEntity, IChatMiddleware
 {
 
@@ -15,8 +15,8 @@ public sealed partial class ProcessUsageMiddleware : ServiceEntity, IChatMiddlew
         _usageProcessor = usageProcessor;
         _logger = logger;
     }
-    [Inject] private readonly IChatUsageProcessor _usageProcessor;
-    [Inject] private readonly ILogger<ProcessUsageMiddleware>? _logger;
+    private readonly IChatUsageProcessor _usageProcessor;
+    private readonly ILogger<ProcessUsageMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

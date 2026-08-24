@@ -6,7 +6,7 @@ namespace Core.Prompts.Templates.System;
 /// 对齐 TS promptSuggestion.ts::executePromptSuggestion
 /// 核心消费链路：PromptSuggestionFilter.SuggestionPrompt → IForkSubAgentManager.ForkAsync() → PromptSuggestionFilter.ShouldFilterSuggestion()
 /// </summary>
-[Register]
+[Register(typeof(IPostSamplingCallback), ServiceLifetime.Singleton)]
 public sealed partial class PromptSuggestionCallback : ServiceEntity, IPostSamplingCallback
 {
     private readonly IForkSubAgentManager? _forkManager;

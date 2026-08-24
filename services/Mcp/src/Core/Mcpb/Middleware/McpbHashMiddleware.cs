@@ -3,7 +3,7 @@ namespace McpClient.Mcpb;
 /// <summary>
 /// MCPB 哈希计算中间件 — 计算文件内容哈希，确定解压目标路径
 /// </summary>
-[Register(typeof(IMcpbMiddleware))]
+[Register(typeof(IMcpbMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class McpbHashMiddleware : ServiceEntity, IMcpbMiddleware
 {
 
@@ -11,7 +11,7 @@ public sealed partial class McpbHashMiddleware : ServiceEntity, IMcpbMiddleware
     {
         _fs = fs;
     }
-    [Inject] private readonly IFileSystem _fs;
+    private readonly IFileSystem _fs;
 
 
     public async Task InvokeAsync(McpbLoadContext context, MiddlewareDelegate<McpbLoadContext> next, CancellationToken ct)

@@ -5,7 +5,7 @@ using JoinCode.Abstractions.Pipeline;
 /// <summary>
 /// 状态校验中间件 — 根据操作类型校验当前状态是否允许该操作
 /// </summary>
-[Register(typeof(IGoalLifecycleMiddleware))]
+[Register(typeof(IGoalLifecycleMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class GoalStateValidationMiddleware : ServiceEntity, IGoalLifecycleMiddleware
 {
 

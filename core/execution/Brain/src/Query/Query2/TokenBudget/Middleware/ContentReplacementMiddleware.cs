@@ -5,7 +5,7 @@ namespace Core.Query;
 /// <summary>
 /// 内容替换中间件 — 工具调用结果处理时执行内容替换和预算检查
 /// </summary>
-[Register(typeof(IQueryMiddleware))]
+[Register(typeof(IQueryMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ContentReplacementMiddleware : ServiceEntity, IQueryMiddleware
 {
 
@@ -13,7 +13,7 @@ public sealed partial class ContentReplacementMiddleware : ServiceEntity, IQuery
     {
         _contentReplacementService = contentReplacementService;
     }
-    [Inject] private readonly IContentReplacementService? _contentReplacementService;
+    private readonly IContentReplacementService? _contentReplacementService;
 
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;

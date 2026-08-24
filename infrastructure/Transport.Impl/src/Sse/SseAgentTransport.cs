@@ -37,7 +37,7 @@ public sealed partial class SseAgentTransport : IAgentTransport
 {
     private readonly SseTransportConfig _config;
     private readonly HttpClient _httpClient;
-    [Inject] private readonly ILogger<SseAgentTransport>? _logger;
+    private readonly ILogger<SseAgentTransport>? _logger;
     private readonly BufferedChannel _outputChannel = new();
     private readonly BufferedChannel _errorChannel = new();
     private readonly CancellationTokenSource _disposeCts = new();

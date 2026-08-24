@@ -1,7 +1,7 @@
 
 namespace Core.Context.Compact;
 
-[Register]
+[Register(typeof(ISessionMemoryCompactService), ServiceLifetime.Singleton)]
 public sealed partial class SessionMemoryCompactService : ServiceEntity, ISessionMemoryCompactService
 {
     private static readonly string SessionMemorySubdir = AppDataConstants.AppDataFolder;

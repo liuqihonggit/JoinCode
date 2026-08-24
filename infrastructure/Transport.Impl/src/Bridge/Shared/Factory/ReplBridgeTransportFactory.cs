@@ -3,7 +3,7 @@ namespace JoinCode.Transport.Bridge;
 /// <summary>
 /// 传输层工厂实现 — 创建 v1/v2 传输实例
 /// </summary>
-[Register]
+[Register(typeof(IReplBridgeTransportFactory), ServiceLifetime.Singleton)]
 public sealed partial class DefaultReplBridgeTransportFactory : ServiceEntity, IReplBridgeTransportFactory
 {
     /// <inheritdoc />

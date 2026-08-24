@@ -35,7 +35,8 @@ public interface ILspDiagnosticRegistry : IRegistry
     int PendingCount { get; }
 }
 
-[Register(typeof(ILspDiagnosticRegistry)), Register(typeof(JoinCode.Abstractions.Interfaces.Lsp.ILspDiagnosticProvider))]
+[Register(typeof(ILspDiagnosticRegistry), ServiceLifetime.Singleton)]
+[Register(typeof(JoinCode.Abstractions.Interfaces.Lsp.ILspDiagnosticProvider), ServiceLifetime.Singleton)]
 public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosticRegistry, JoinCode.Abstractions.Interfaces.Lsp.ILspDiagnosticProvider
 {
 
@@ -47,7 +48,7 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
     private const int MaxTotalDiagnostics = 30;
     private const int MaxDeliveredFiles = 500;
 
-    [Inject] private readonly IClockService _clock;
+    private readonly IClockService _clock;
     private readonly object _lock = new();
     private readonly Dictionary<string, LspPendingDiagnostic> _pending = new();
     private readonly LinkedList<string> _deliveredLru = new();

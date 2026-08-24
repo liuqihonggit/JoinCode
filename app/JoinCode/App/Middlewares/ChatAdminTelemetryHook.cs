@@ -3,7 +3,7 @@ using JoinCode.Abstractions.Pipeline;
 
 namespace JoinCode.App.Middlewares;
 
-[Register(typeof(IPipelinePostHook<Core.Context.ChatAdminContext>))]
+[Register(typeof(IPipelinePostHook<Core.Context.ChatAdminContext>), ServiceLifetime.Singleton)]
 internal sealed partial class ChatAdminTelemetryHook : TelemetryPostHook<Core.Context.ChatAdminContext>
 {
     public ChatAdminTelemetryHook(ITelemetryService? telemetryService)

@@ -15,6 +15,7 @@ global using Infrastructure.Pipeline;
 global using Structura.Dag;
 global using Microsoft.Extensions.Logging;
 global using Microsoft.Extensions.DependencyInjection;
+global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using System.Collections.Frozen;
 global using System.Text.Json;
 global using System.Text.Json.Serialization;

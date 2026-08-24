@@ -3,7 +3,7 @@ namespace Core.Agents.Worktree;
 /// <summary>
 /// Worktree 配置复制中间件 — 复制配置文件 + .worktreeinclude + hooks 路径 + 符号链接（全部 best-effort）
 /// </summary>
-[Register(typeof(IWorktreeCreateMiddleware))]
+[Register(typeof(IWorktreeCreateMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class WorktreeConfigMiddleware : ServiceEntity, IWorktreeCreateMiddleware
 {
 
@@ -13,9 +13,9 @@ public sealed partial class WorktreeConfigMiddleware : ServiceEntity, IWorktreeC
         _worktreeService = worktreeService;
         _logger = logger;
     }
-    [Inject] private readonly IFileOperationService _fs;
-    [Inject] private readonly Lazy<IWorktreePipelineOperations> _worktreeService;
-    [Inject] private readonly ILogger<WorktreeConfigMiddleware>? _logger;
+    private readonly IFileOperationService _fs;
+    private readonly Lazy<IWorktreePipelineOperations> _worktreeService;
+    private readonly ILogger<WorktreeConfigMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

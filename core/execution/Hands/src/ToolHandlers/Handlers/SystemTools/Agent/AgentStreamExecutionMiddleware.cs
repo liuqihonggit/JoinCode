@@ -4,7 +4,7 @@ namespace Tools.Handlers;
 /// Agent 流式执行中间件 — 前台模式使用 RunAgentStreamAsync 流式执行子智能体
 /// 对齐 TS runAgent AsyncGenerator
 /// </summary>
-[Register]
+[Register(typeof(IAgentToolMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class AgentStreamExecutionMiddleware : ServiceEntity, IAgentToolMiddleware
 {
 
@@ -15,10 +15,10 @@ public sealed partial class AgentStreamExecutionMiddleware : ServiceEntity, IAge
         _telemetryService = telemetryService;
         _outputChannelManager = outputChannelManager;
     }
-    [Inject] private readonly IAgentService _agentService;
-    [Inject] private readonly ILogger<AgentStreamExecutionMiddleware>? _logger;
-    [Inject] private readonly ITelemetryService? _telemetryService;
-    [Inject] private readonly JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? _outputChannelManager;
+    private readonly IAgentService _agentService;
+    private readonly ILogger<AgentStreamExecutionMiddleware>? _logger;
+    private readonly ITelemetryService? _telemetryService;
+    private readonly JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? _outputChannelManager;
 
     /// <inheritdoc />
     public int Order => 400;

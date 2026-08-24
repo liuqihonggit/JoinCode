@@ -2,12 +2,12 @@ namespace Core.Scheduling.Runtime;
 
 using JoinCode.Abstractions.Attributes;
 
-[Register]
+[Register(typeof(ITaskRuntime), ServiceLifetime.Singleton)]
 public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposable
 {
     private readonly ConcurrentDictionary<string, RuntimeTask> _tasks = new();
     private readonly ConcurrentDag<string> _dag = new();
-    [Inject] private readonly ILogger<TaskRuntime>? _logger;
+    private readonly ILogger<TaskRuntime>? _logger;
     private readonly IClockService _clock;
     private readonly TaskRuntimeDeps _deps;
     private readonly AsyncLock _persistLock = new();

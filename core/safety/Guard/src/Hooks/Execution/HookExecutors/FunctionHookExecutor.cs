@@ -4,7 +4,7 @@ namespace Core.Hooks.Execution;
 /// <summary>
 /// 函数回调钩子执行器
 /// </summary>
-[Register(typeof(IHookExecutor))]
+[Register(typeof(IHookExecutor), ServiceLifetime.Singleton)]
 public sealed partial class FunctionHookExecutor : HookExecutorBase<FunctionHook>
 {
     public FunctionHookExecutor(ILogger<FunctionHookExecutor>? logger = null)
@@ -66,7 +66,7 @@ public sealed partial class FunctionHookExecutor : HookExecutorBase<FunctionHook
 /// <summary>
 /// 回调钩子执行器（内部使用）
 /// </summary>
-[Register(typeof(IHookExecutor))]
+[Register(typeof(IHookExecutor), ServiceLifetime.Singleton)]
 public sealed partial class CallbackHookExecutor : HookExecutorBase<CallbackHook>
 {
     public CallbackHookExecutor(ILogger<CallbackHookExecutor>? logger = null)

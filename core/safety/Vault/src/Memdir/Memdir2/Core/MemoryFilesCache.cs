@@ -3,7 +3,7 @@ namespace Vault.Memdir.Memdir.Core;
 /// <summary>
 /// 记忆文件缓存实现 — 对齐 TS: resetGetMemoryFilesCache
 /// </summary>
-[Register(typeof(JoinCode.Abstractions.Interfaces.Cache.IMemoryFilesCache))]
+[Register(typeof(JoinCode.Abstractions.Interfaces.Cache.IMemoryFilesCache), ServiceLifetime.Singleton)]
 public sealed partial class MemoryFilesCache : ServiceEntity, JoinCode.Abstractions.Interfaces.Cache.IMemoryFilesCache
 {
     private readonly Dictionary<string, IReadOnlyList<string>> _cache = new(StringComparer.OrdinalIgnoreCase);

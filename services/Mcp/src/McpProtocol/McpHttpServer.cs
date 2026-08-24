@@ -5,7 +5,7 @@ namespace McpProtocol;
 /// 支持无状态(不分配 session)和有状态(分配 MCP-Session-Id + session 存储)双模式。
 /// 复用 McpServer.ProcessMessageAsync 处理 JSON-RPC 消息。使用 HttpListener(无需 AspNetCore 依赖)。
 /// </summary>
-public sealed class McpHttpServer : IDisposable
+public sealed class McpHttpServer : ServiceEntity
 {
     private readonly McpServer _server;
     private readonly HttpListener _listener;
@@ -22,6 +22,7 @@ public sealed class McpHttpServer : IDisposable
     /// <param name="statelessMode">无状态模式(默认 true):不分配 MCP-Session-Id,每个请求自包含</param>
     /// <param name="allowedOrigins">允许的 Origin 列表(Origin 校验防 DNS rebinding);null/空则允许所有</param>
     public McpHttpServer(McpServer server, string prefix, bool statelessMode = true, IEnumerable<string>? allowedOrigins = null)
+        : base(nameof(McpHttpServer))
     {
         _server = server ?? throw new ArgumentNullException(nameof(server));
         if (string.IsNullOrWhiteSpace(prefix)) throw new ArgumentException("监听前缀不能为空", nameof(prefix));
@@ -257,7 +258,7 @@ public sealed class McpHttpServer : IDisposable
         return await reader.ReadToEndAsync(ct).ConfigureAwait(false);
     }
 
-    public void Dispose()
+    protected override void OnDispose()
     {
         Stop();
         _cts?.Dispose();

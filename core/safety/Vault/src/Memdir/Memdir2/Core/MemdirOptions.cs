@@ -5,7 +5,7 @@ namespace Core.Memdir;
 /// <summary>
 /// Memdir 组件配置选项
 /// </summary>
-[Register]
+[Register(typeof(MemdirOptions), ServiceLifetime.Singleton)]
 public sealed partial class MemdirOptions : ServiceEntity
 {
     /// <summary>

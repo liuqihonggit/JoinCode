@@ -5,7 +5,7 @@ namespace Core.Context;
 /// OnError=Propagate：记录快照后异常继续传播，由 ChatErrorHandlingMiddleware 统一分类
 /// 零侵入：所有经过 Chat 管道的异常自动被记录，无需修改任何组件
 /// </summary>
-[Register]
+[Register(typeof(IChatMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class StreamCrashSnapshotMiddleware : ServiceEntity, IChatMiddleware
 {
     private readonly ICrashSnapshotStore _store;

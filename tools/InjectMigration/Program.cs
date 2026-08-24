@@ -193,7 +193,7 @@ sealed class InjectMigrationRewriter(
                 var matchingParam = ctorParamNames.FirstOrDefault(pn => fieldName == "_" + pn || fieldName == pn);
                 if (matchingParam != null && !existingInjectFields.Contains(fieldName))
                 {
-                    // 给字段添加 [Inject] 特性
+                    // 给字段添加 特性
                     var injectAttr = SyntaxFactory.Attribute(SyntaxFactory.IdentifierName("Inject"));
                     var attrList = SyntaxFactory.AttributeList(SyntaxFactory.SingletonSeparatedList(injectAttr));
                     var newField = field.AddAttributeLists(attrList);

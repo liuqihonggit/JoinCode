@@ -2,7 +2,7 @@ namespace Core.Bridge;
 
 using JoinCode.Abstractions.Pipeline;
 
-[Register(typeof(IHandleWorkMiddleware))]
+[Register(typeof(IHandleWorkMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class WorkWorktreeMiddleware : ServiceEntity, IHandleWorkMiddleware
 {
 
@@ -11,8 +11,8 @@ public sealed partial class WorkWorktreeMiddleware : ServiceEntity, IHandleWorkM
         _logger = logger;
         _worktreeService = worktreeService;
     }
-    [Inject] private readonly ILogger<WorkWorktreeMiddleware>? _logger;
-    [Inject] private readonly IAgentWorktreeService? _worktreeService;
+    private readonly ILogger<WorkWorktreeMiddleware>? _logger;
+    private readonly IAgentWorktreeService? _worktreeService;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

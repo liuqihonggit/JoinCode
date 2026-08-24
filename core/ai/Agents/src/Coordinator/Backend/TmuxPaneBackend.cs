@@ -1,6 +1,6 @@
 namespace Core.Agents.Coordinator;
 
-[Register]
+[Register(typeof(JoinCode.Abstractions.Interfaces.IPaneBackend), ServiceLifetime.Singleton)]
 public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractions.Interfaces.IPaneBackend
 {
     private static readonly string[] TmuxColorMap =
@@ -9,7 +9,7 @@ public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractio
         "colour131", "colour75", "colour114", "colour221"
      };
 
-    [Inject] private readonly ILogger<TmuxPaneBackend>? _logger;
+    private readonly ILogger<TmuxPaneBackend>? _logger;
     private readonly IProcessService _processService;
     private readonly SemaphoreSlim _creationLock = new(1, 1);
     private readonly HashSet<string> _managedPanes = new(StringComparer.Ordinal);

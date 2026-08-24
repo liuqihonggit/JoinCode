@@ -4,7 +4,7 @@ namespace Services.Web;
 /// HTTP获取中间件 — 执行HTTP请求并处理重定向安全策略
 /// Order=400 在域名检查之后执行，包含重定向递归和egress代理检测
 /// </summary>
-[Register]
+[Register(typeof(IWebMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class WebFetchMiddleware : ServiceEntity, IWebMiddleware
 {
 
@@ -15,7 +15,7 @@ public sealed partial class WebFetchMiddleware : ServiceEntity, IWebMiddleware
     private const int MaxRedirects = 10;
     private const int MaxHttpContentLength = 10 * 1024 * 1024;
 
-    [Inject] private readonly IApiClient _apiClient;
+    private readonly IApiClient _apiClient;
 
     /// <inheritdoc />
 

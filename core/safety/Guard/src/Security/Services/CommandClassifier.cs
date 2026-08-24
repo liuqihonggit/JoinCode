@@ -1,6 +1,6 @@
 namespace JoinCode.Abstractions.Security.Shell;
 
-[Register]
+[Register(typeof(ICommandClassifier), ServiceLifetime.Singleton)]
 public sealed partial class CommandClassifier : ServiceEntity, ICommandClassifier
 {
     private readonly IPathValidator _pathValidator;

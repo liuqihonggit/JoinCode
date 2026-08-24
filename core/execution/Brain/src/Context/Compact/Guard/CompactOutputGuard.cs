@@ -28,7 +28,7 @@ public sealed record CompactGuardResult
     public string? DiagnosticInfo { get; init; }
 }
 
-[Register]
+[Register(typeof(CompactOutputGuard), ServiceLifetime.Singleton)]
 public sealed class CompactOutputGuard : ServiceEntity
 {
     private readonly ILogger<CompactOutputGuard>? _logger;

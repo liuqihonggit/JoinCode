@@ -6,7 +6,7 @@ namespace McpToolDispatch;
 public partial class PushNotificationToolHandlers
 {
     private readonly INotificationService? _notificationService;
-    [Inject] private readonly ILogger<PushNotificationToolHandlers>? _logger;
+    private readonly ILogger<PushNotificationToolHandlers>? _logger;
 
     public PushNotificationToolHandlers(
         INotificationService? notificationService = null,

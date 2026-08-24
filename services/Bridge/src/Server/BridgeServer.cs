@@ -16,12 +16,12 @@ public sealed partial class BridgeSessionListData
 /// <summary>
 /// 桥接服务器 - 与 IDE 扩展通信
 /// </summary>
-[Register]
+[Register(typeof(BridgeServer), ServiceLifetime.Singleton)]
 public sealed partial class BridgeServer : ServiceEntity, IDisposable
 {
     private readonly HttpListener _httpListener;
     private readonly ConcurrentDictionary<string, WebSocket> _clients;
-    [Inject] private readonly ILogger<BridgeServer>? _logger;
+    private readonly ILogger<BridgeServer>? _logger;
     private readonly IClockService _clock;
     private readonly IFileOperationService _fileOperationService;
     private readonly CancellationTokenSource _cts;

@@ -50,6 +50,7 @@ public sealed class StateMachine<TState> where TState : struct, Enum
 
     public event EventHandler<StateChangedEventArgs<TState>>? StateChanged;
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool CanTransitionTo(TState from, TState to)
     {
         if (from.Equals(to))

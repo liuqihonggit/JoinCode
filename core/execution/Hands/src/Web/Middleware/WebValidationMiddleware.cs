@@ -4,7 +4,7 @@ namespace Services.Web;
 /// URL验证中间件 — 检查URL格式合法性并升级为HTTPS
 /// Order=100 确保最先执行，验证失败时短路管道
 /// </summary>
-[Register]
+[Register(typeof(IWebMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class WebValidationMiddleware : ServiceEntity, IWebMiddleware
 {
     private const int MaxUrlLength = 2000;

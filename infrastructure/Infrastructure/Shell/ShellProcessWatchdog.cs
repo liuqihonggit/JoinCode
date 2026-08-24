@@ -6,7 +6,7 @@ namespace Infrastructure.Shell;
 /// Shell 进程看护服务 — 周期性检测僵尸进程
 /// 在 Windows 上额外监听系统睡眠/唤醒事件，唤醒后立即检查
 /// </summary>
-[Register]
+[Register(typeof(IShellProcessWatchdog), ServiceLifetime.Singleton)]
 public sealed class ShellProcessWatchdog : ServiceEntity, IShellProcessWatchdog
 {
     private readonly ConcurrentDictionary<int, Action<int>> _callbacks = new();

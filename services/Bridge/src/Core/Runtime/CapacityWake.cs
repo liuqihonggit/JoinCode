@@ -6,8 +6,7 @@ using JoinCode.Abstractions.Attributes;
 /// <summary>
 /// 容量唤醒选项 - 自动伸缩配置
 /// </summary>
-[Register]
-[AllowSkipEntity("实现 IAsyncDisposable，与 Entity 的 IDisposable 冲突")]
+[Register(typeof(CapacityWakeOptions), ServiceLifetime.Singleton)]
 public sealed partial class CapacityWakeOptions 
 {
     public const int DefaultMinInstances = 1;
@@ -98,11 +97,11 @@ public sealed partial class CapacityChangedEventArgs : EventArgs
 /// 容量唤醒服务 - 监控负载并自动伸缩实例数
 /// 基于负载指标自动扩容/缩容，确保系统在合理容量范围内运行
 /// </summary>
-[Register]
+[Register(typeof(CapacityWakeService), ServiceLifetime.Singleton)]
 public sealed partial class CapacityWakeService : IAsyncDisposable
 {
     private readonly CapacityWakeOptions _options;
-    [Inject] private readonly ILogger<CapacityWakeService>? _logger;
+    private readonly ILogger<CapacityWakeService>? _logger;
     private readonly SemaphoreSlim _stateLock;
 
     private CancellationTokenSource? _monitorCts;

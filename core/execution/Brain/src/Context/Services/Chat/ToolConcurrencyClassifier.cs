@@ -23,12 +23,12 @@ public interface IToolConcurrencyClassifier
 /// 工具并发安全分类器实现 — 对齐 TS 各工具的 isConcurrencySafe() 方法
 /// 静态分类由源码生成器生成 SafeToolNames（通过 DI 注入），动态分类（Bash 只读判断）由委托注入
 /// </summary>
-[Register(typeof(IToolConcurrencyClassifier))]
+[Register(typeof(IToolConcurrencyClassifier), ServiceLifetime.Singleton)]
 public sealed partial class ToolConcurrencyClassifier : ServiceEntity, IToolConcurrencyClassifier
 {
     private readonly FrozenSet<string> _safeToolNames;
     private readonly Func<string, bool>? _isCommandReadOnly;
-    [Inject] private readonly ILogger<ToolConcurrencyClassifier>? _logger;
+    private readonly ILogger<ToolConcurrencyClassifier>? _logger;
 
     /// <summary>
     /// 初始化并发安全分类器

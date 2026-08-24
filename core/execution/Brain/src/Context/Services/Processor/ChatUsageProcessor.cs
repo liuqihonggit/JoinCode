@@ -4,7 +4,7 @@ namespace Core.Context;
 /// 聊天用量处理器 — 从 ChatService 提取
 /// 负责费率限制提取、成本计算、Usage 处理、指标记录
 /// </summary>
-[Register]
+[Register(typeof(IChatUsageProcessor), ServiceLifetime.Singleton)]
 public sealed partial class ChatUsageProcessor : ServiceEntity, IChatUsageProcessor
 {
     private readonly ISessionStats _sessionStats;
@@ -12,7 +12,7 @@ public sealed partial class ChatUsageProcessor : ServiceEntity, IChatUsageProces
     private readonly ICostTracker? _costTracker;
     private readonly IRateLimitTracker? _rateLimitTracker;
     private readonly ModelPricingTable _pricingTable;
-    [Inject] private readonly ILogger<ChatUsageProcessor>? _logger;
+    private readonly ILogger<ChatUsageProcessor>? _logger;
 
     /// <summary>
     /// 初始化用量处理器

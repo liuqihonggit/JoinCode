@@ -50,12 +50,12 @@ public interface IHookEventBroadcaster
 /// <summary>
 /// 钩子事件广播器实现
 /// </summary>
-[Register]
+[Register(typeof(IHookEventBroadcaster), ServiceLifetime.Singleton)]
 public sealed partial class HookEventBroadcaster : ServiceEntity, IHookEventBroadcaster
 {
     private readonly ConcurrentBag<Action<HookExecutionEvent>> _handlers = new();
     private readonly ConcurrentQueue<HookExecutionEvent> _pendingEvents = new();
-    [Inject] private readonly ILogger<HookEventBroadcaster>? _logger;
+    private readonly ILogger<HookEventBroadcaster>? _logger;
 
     private const int MaxPendingEvents = 100;
     private bool _allEventsEnabled = false;

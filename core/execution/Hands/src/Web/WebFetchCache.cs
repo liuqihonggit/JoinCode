@@ -4,7 +4,7 @@ namespace Services.Web;
 /// WebFetch专用LRU缓存，15分钟TTL，50MB大小上限
 /// 对齐TS版 URL_CACHE + DOMAIN_CHECK_CACHE
 /// </summary>
-[Register(typeof(IWebFetchCache))]
+[Register(typeof(IWebFetchCache), ServiceLifetime.Singleton)]
 public sealed partial class WebFetchCache : ServiceEntity, IWebFetchCache, IDisposable
 {
     private const int MaxCacheSizeBytes = 50 * 1024 * 1024; // 50MB
@@ -14,7 +14,7 @@ public sealed partial class WebFetchCache : ServiceEntity, IWebFetchCache, IDisp
 
     private readonly MemoryCache _urlCache;
     private readonly MemoryCache _domainCheckCache;
-    [Inject] private readonly ILogger<WebFetchCache>? _logger;
+    private readonly ILogger<WebFetchCache>? _logger;
 
     public WebFetchCache(ILogger<WebFetchCache>? logger = null)
     {

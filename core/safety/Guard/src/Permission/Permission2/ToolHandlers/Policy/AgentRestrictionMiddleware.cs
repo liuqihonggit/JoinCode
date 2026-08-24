@@ -5,7 +5,7 @@ namespace Core.Permission;
 /// Agent 工具限制中间件 — Default 模式下检查 Agent 工具限制。
 /// 内部通过 IToolFilterPolicy 统一 3 层过滤检查（对齐 claude code filterToolsForAgent）。
 /// </summary>
-[Register(typeof(IPermissionMiddleware))]
+[Register(typeof(IPermissionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class AgentRestrictionMiddleware : ServiceEntity, IPermissionMiddleware
 {
     private readonly IAgentToolRestrictions? _agentToolRestrictions;

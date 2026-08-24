@@ -5,7 +5,7 @@ namespace Core.Permission;
 /// 早期路径拒绝中间件 — Default 模式下在 autoApprovedTools 之前检查路径级 deny 规则
 /// 防止路径级 deny 规则被工具级 auto-approved 绕过
 /// </summary>
-[Register(typeof(IPermissionMiddleware))]
+[Register(typeof(IPermissionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class EarlyPathDenyMiddleware : ServiceEntity, IPermissionMiddleware
 {
     private readonly IPathPermissionChecker? _pathPermissionChecker;

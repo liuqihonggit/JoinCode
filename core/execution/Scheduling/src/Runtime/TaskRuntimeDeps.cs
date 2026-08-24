@@ -5,7 +5,7 @@ using JoinCode.Abstractions.Attributes;
 /// <summary>
 /// TaskRuntime 可选依赖聚合
 /// </summary>
-[Register]
+[Register(typeof(TaskRuntimeDeps), ServiceLifetime.Singleton)]
 public sealed record TaskRuntimeDeps(
     IFileOperationService? FileOperationService = null,
     string? PersistenceDirectory = null,

@@ -3,7 +3,7 @@ namespace Core.Configuration;
 public sealed partial class ExternalRulesLoader
 {
     private readonly IFileSystem _fs;
-    [Inject] private readonly ILogger<ExternalRulesLoader>? _logger;
+    private readonly ILogger<ExternalRulesLoader>? _logger;
 
     private static readonly string[] ProjectRulesDirs = new[] { 
         Path.Combine(".trae", "rules"),

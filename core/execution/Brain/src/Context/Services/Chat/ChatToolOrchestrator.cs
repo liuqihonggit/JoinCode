@@ -43,14 +43,14 @@ public sealed record ToolCallResult
 /// 工具调用编排器 — 从 ChatService.StreamWithEventsAsync 提取
 /// 负责权限检查、Hook 编排、工具执行
 /// </summary>
-[Register]
+[Register(typeof(IChatToolOrchestrator), ServiceLifetime.Singleton)]
 public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrchestrator
 {
     private readonly IToolRegistry? _toolRegistry;
     private readonly IToolExecutionGateway? _toolExecutionGateway;
     private readonly ICmdMap? _cmdMap;
     private readonly IServiceProvider? _serviceProvider;
-    [Inject] private readonly ILogger<ChatToolOrchestrator>? _logger;
+    private readonly ILogger<ChatToolOrchestrator>? _logger;
 
     /// <summary>
     /// 初始化工具编排器

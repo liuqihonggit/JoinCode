@@ -2,13 +2,13 @@ using JoinCode.Abstractions.Attributes;
 
 namespace IO.Services;
 
-[Register]
+[Register(typeof(IProactiveStateService), ServiceLifetime.Singleton)]
 public sealed partial class ProactiveStateService : ServiceEntity, IProactiveStateService
 {
     private bool _active;
     private bool _paused;
     private bool _contextBlocked;
-    [Inject] private readonly ILogger<ProactiveStateService>? _logger;
+    private readonly ILogger<ProactiveStateService>? _logger;
     private event EventHandler? _stateChanged;
 
     public ProactiveStateService(ILogger<ProactiveStateService>? logger = null)

@@ -4,13 +4,13 @@ namespace Infrastructure.IO.Services.FileOps;
 /// <summary>
 /// Search service implementation - provides Glob and Grep search capabilities
 /// </summary>
-[Register]
+[Register(typeof(ISearchService), ServiceLifetime.Singleton)]
 public sealed partial class SearchService : ServiceEntity, ISearchService
 {
-    [Inject] private readonly ILogger<SearchService>? _logger;
-    [Inject] private readonly IFileOperationService _fileOperationService;
-    [Inject] private readonly ITelemetryService? _telemetryService;
-    [Inject] private readonly IFileSystem _fs;
+    private readonly ILogger<SearchService>? _logger;
+    private readonly IFileOperationService _fileOperationService;
+    private readonly ITelemetryService? _telemetryService;
+    private readonly IFileSystem _fs;
 
     public SearchService(
         IFileOperationService fileOperationService,

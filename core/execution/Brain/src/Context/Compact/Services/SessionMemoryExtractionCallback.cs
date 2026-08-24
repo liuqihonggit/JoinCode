@@ -6,7 +6,7 @@ namespace Core.Context.Compact;
 /// 对齐 TS sessionMemory.ts::extractSessionMemory
 /// 核心消费链路：ISessionMemoryExtractionService.BuildExtractionPromptAsync() → IForkSubAgentManager.ForkAsync()
 /// </summary>
-[Register]
+[Register(typeof(IPostSamplingCallback), ServiceLifetime.Singleton)]
 public sealed partial class SessionMemoryExtractionCallback : ServiceEntity, IPostSamplingCallback
 {
 

@@ -5,7 +5,7 @@ namespace McpToolDispatch;
 /// 算法: 最终评分 = (1 - Σ权重) × 独立评分 + Σ(超边权重 × 超边共享评分)
 /// 定时更新超边共享评分（每小时），支持从配置文件热加载超边定义
 /// </summary>
-[Register]
+[Register(typeof(IHyperedgeReloadable), ServiceLifetime.Singleton)]
 public sealed class ToolHypergraphScorer : ServiceEntity, IHyperedgeReloadable, IDisposable
 {
     private readonly ILogger<ToolHypergraphScorer>? _logger;

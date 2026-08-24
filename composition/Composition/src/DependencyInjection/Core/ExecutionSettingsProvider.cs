@@ -6,7 +6,7 @@ namespace Core.DependencyInjection;
 /// 执行设置提供者 — 对齐 CLI JoinCode.Services.ExecutionSettingsProvider（已下沉共享层）。
 /// 从 settings.json 懒加载持久化的 effortLevel，供 ChatOptionsFactory / EffortLevelMiddleware 消费。
 /// </summary>
-[Register(typeof(IExecutionSettingsProvider))]
+[Register(typeof(IExecutionSettingsProvider), ServiceLifetime.Singleton)]
 public sealed partial class ExecutionSettingsProvider : ServiceEntity, IExecutionSettingsProvider
 {
     private readonly WorkflowConfig _config;

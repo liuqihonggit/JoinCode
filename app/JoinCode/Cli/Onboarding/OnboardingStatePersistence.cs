@@ -3,7 +3,7 @@ namespace JoinCode.Cli;
 /// <summary>
 /// Onboarding 完成状态持久化 - 使用 JSON 文件存储完成标记，兼容 NativeAOT
 /// </summary>
-[Register]
+[Register(typeof(OnboardingStatePersistence), ServiceLifetime.Singleton)]
 public sealed partial class OnboardingStatePersistence : ServiceEntity
 {
     private readonly string _filePath;

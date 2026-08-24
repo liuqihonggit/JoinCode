@@ -7,7 +7,7 @@ namespace JoinCode.Entry;
 /// 决策: --json 模式下自动关闭（DebugDumpPromptStep 已处理，此处双重保险）
 /// 复用 DebugLogRenderer，按 DebugDumpChoice 位标志组合渲染对应部分
 /// </summary>
-[Register]
+[Register(typeof(IMiddleware<StartupContext>), ServiceLifetime.Singleton)]
 internal sealed partial class InitDebugDumpStep : ServiceEntity, IMiddleware<StartupContext>
 {
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct)

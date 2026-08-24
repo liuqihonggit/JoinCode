@@ -6,10 +6,10 @@ namespace Infrastructure.IO;
 /// 图片类型走 base64 内联路径（ImageBlock），不经过此服务
 /// 静态辅助方法见 JoinCode.Abstractions.LLM.Chat.McpBinaryHelper
 /// </summary>
-[Register(typeof(JoinCode.Abstractions.LLM.Chat.IMcpOutputStorage))]
+[Register(typeof(JoinCode.Abstractions.LLM.Chat.IMcpOutputStorage), ServiceLifetime.Singleton)]
 public sealed partial class McpOutputStorage : ServiceEntity, JoinCode.Abstractions.LLM.Chat.IMcpOutputStorage
 {
-    [Inject] private readonly ILogger<McpOutputStorage>? _logger;
+    private readonly ILogger<McpOutputStorage>? _logger;
     private readonly IFileSystem _fs;
     private readonly string _baseDir;
 

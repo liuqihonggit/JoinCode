@@ -276,8 +276,8 @@ public sealed class ResilientHttpExecutorTests
         var policy = new ResiliencePolicy
         {
             Name = "integration",
-            OperationTimeout = TimeSpan.FromSeconds(5),
-            Retry = retryOptions.ToTestRetryConfig(TimeSpan.FromSeconds(2), TimeSpan.FromMilliseconds(100)),
+            OperationTimeout = TimeSpan.FromSeconds(10),
+            Retry = retryOptions.ToTestRetryConfig(TimeSpan.FromSeconds(8), TimeSpan.FromMilliseconds(100)),
         };
 
         var executor = new ResilientHttpExecutor(policy);
@@ -294,7 +294,7 @@ public sealed class ResilientHttpExecutorTests
                 },
                 "integration-op"));
 
-        gatewayAttempts.Should().BeGreaterThan(5);
+        gatewayAttempts.Should().BeGreaterThanOrEqualTo(16);
         passthroughCalls.Should().Be(gatewayAttempts);
     }
 }

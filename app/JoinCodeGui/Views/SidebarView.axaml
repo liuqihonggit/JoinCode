@@ -43,7 +43,7 @@
   <Grid RowDefinitions="Auto,*,Auto"
         Background="{DynamicResource GuiSidebarBackground}" ClipToBounds="True">
     <!-- 头部 -->
-    <StackPanel Grid.Row="0" Spacing="12" Margin="12,14,12,4">
+    <StackPanel Grid.Row="0" Spacing="12" Margin="12,12,12,4">
       <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
         <TextBlock Text="◆" FontSize="17" Foreground="{DynamicResource GuiAccentText}" VerticalAlignment="Center" />
         <TextBlock Text="JoinCode Ava" FontSize="15" FontWeight="Bold"
@@ -89,11 +89,11 @@
         </ItemsControl>
       </StackPanel>
     </ScrollViewer>
-    <!-- 底部状态：绑定真实引擎状态（StatusText/StatusKind），与主窗口状态栏同源 -->
-    <Border Grid.Row="2" Padding="14,10" Background="{DynamicResource GuiStatusBarBackground}"
+    <!-- 底部状态：绑定真实引擎状态（StatusText/StatusKind），与主窗口状态栏同源同高（Padding 对齐 12,5） -->
+    <Border Grid.Row="2" x:Name="SidebarStatusBar" Padding="12,5" Background="{DynamicResource GuiStatusBarBackground}"
             BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,1,0,0">
       <StackPanel Orientation="Horizontal" Spacing="6">
-        <TextBlock Text="●" FontSize="10" Foreground="{Binding StatusKind, Converter={StaticResource StatusToBrush}}"
+        <TextBlock Text="●" FontSize="12" Foreground="{Binding StatusKind, Converter={StaticResource StatusToBrush}}"
                    VerticalAlignment="Center" />
         <TextBlock Text="{Binding StatusText, FallbackValue='未连接'}" FontSize="11"
                    Foreground="{DynamicResource GuiMutedText}" VerticalAlignment="Center"

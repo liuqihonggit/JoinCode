@@ -236,8 +236,8 @@
       <!-- Row 3：底部输入栏 -->
       <local:InputBarView Grid.Row="3" x:Name="InputBar" />
 
-      <!-- Row 4：状态栏 -->
-      <Border Grid.Row="4" Padding="12,5" Background="{DynamicResource GuiStatusBarBackground}"
+      <!-- Row 4：状态栏（与侧栏底部状态栏同高，横向分隔线连续） -->
+      <Border Grid.Row="4" x:Name="MainStatusBar" Padding="12,5" Background="{DynamicResource GuiStatusBarBackground}"
               BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,1,0,0">
         <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto">
           <TextBlock Text="{Binding Sessions.Count, StringFormat='{}会话 {0}', FallbackValue='会话 0'}" Foreground="{DynamicResource GuiMutedText}" FontSize="11" />

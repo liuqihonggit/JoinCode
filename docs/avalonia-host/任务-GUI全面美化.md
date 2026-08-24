@@ -46,6 +46,7 @@ Slash 补全面板改造完成（a0a2d71e8）后，用户要求"全部做剩下�
 | I1 | Markdown 代码块 + Diff 增/删行背景 token 化（CodeBlockBackground/DiffAddedBackground/DiffRemovedBackground），修亮色主题黑底黑字不可读（345 全绿） | ✅ |
 | J1 | PermissionDialog 亮色帧补充 — 三对话框 × 双主题截图矩阵全部人工核对（345 全绿） | ✅ |
 | K1 | TopBar 两下拉紧靠：`*,*` 双弹性列致 97px 空隙（红测试量化）→ 相邻 Auto 列 + 单 `*` 空隙推右组（346 全绿） | ✅ |
+| L1 | 状态栏横向对齐：侧栏底部 Padding 14,10→12,5 + 状态点 10→12 与主状态栏等高（红测试差 1px→0，347 全绿）；设置抽屉 14→12 / 侧栏头部 14→12 / SlashPalette 分隔线 10→12 扫尾 | ✅ |
 
 ## 踩坑记录
 

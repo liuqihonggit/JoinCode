@@ -63,7 +63,7 @@
                      Foreground="{DynamicResource GuiMutedText}"
                      Text="{Binding SlashSuggestions.Count, StringFormat='{}{0} 个匹配'}" />
         </Grid>
-        <Rectangle Grid.Row="1" Height="1" Fill="{DynamicResource GuiDivider}" Margin="10,0" />
+        <Rectangle Grid.Row="1" Height="1" Fill="{DynamicResource GuiDivider}" Margin="12,0" />
 
         <!-- 候选列表：命令名等宽字体 + 匹配前缀高亮 + 描述 + 选中回车提示。
              VerticalScrollBarVisibility=Hidden：滚动条隐藏但滚动可用（Disabled 会完全禁用滚动，
@@ -101,7 +101,7 @@
           </ListBox.ItemTemplate>
         </ListBox>
 
-        <Rectangle Grid.Row="3" Height="1" Fill="{DynamicResource GuiDivider}" Margin="10,0" />
+        <Rectangle Grid.Row="3" Height="1" Fill="{DynamicResource GuiDivider}" Margin="12,0" />
         <!-- 底部键盘提示条 -->
         <Border Grid.Row="4" Padding="12,6,12,7">
           <StackPanel Orientation="Horizontal" Spacing="14">

@@ -211,6 +211,38 @@ public sealed class GuiBeautifyRenderTests
     }
 
     [AvaloniaFact]
+    public void StatusBar_HeightAligned_AcrossSidebarAndMain()
+    {
+        GuiPalette.CurrentVariant = GuiPalette.GuiThemeVariant.Dark;
+        var win = new MainWindow
+        {
+            DataContext = CreateVm(),
+            Width = 980,
+            Height = 680,
+            RequestedThemeVariant = Avalonia.Styling.ThemeVariant.Dark
+        };
+        win.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+
+            var sidebarBar = win.GetVisualDescendants().OfType<Border>()
+                .First(b => b.Name == "SidebarStatusBar");
+            var mainBar = win.GetVisualDescendants().OfType<Border>()
+                .First(b => b.Name == "MainStatusBar");
+
+            // 两条状态栏必须等高（横向分隔线连续，否则侧栏/主区交界出现台阶错位）
+            var diff = Math.Abs(sidebarBar.Bounds.Height - mainBar.Bounds.Height);
+            Assert.True(diff <= 0.75,
+                $"侧栏状态栏高 {sidebarBar.Bounds.Height:F1} 与主状态栏高 {mainBar.Bounds.Height:F1} 不等（差 {diff:F1}px），横向分隔线错位");
+        }
+        finally
+        {
+            win.Close();
+        }
+    }
+
+    [AvaloniaFact]
     public void SidebarStatus_BindsRealEngineStatus_NotHardcoded()
     {
         GuiPalette.CurrentVariant = GuiPalette.GuiThemeVariant.Dark;

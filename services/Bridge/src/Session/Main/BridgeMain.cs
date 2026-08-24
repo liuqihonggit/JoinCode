@@ -5,7 +5,7 @@ namespace Core.Bridge;
 /// Bridge 独立进程编排器 — 对齐 TS 端 bridgeMain.ts
 /// 核心职责: 参数解析 → OAuth认证 → 环境注册 → 工作轮询 → 子进程管理 → 优雅关闭
 /// </summary>
-public sealed partial class BridgeMain : IAsyncDisposable
+public sealed partial class BridgeMain : ServiceEntity
 {
     private static readonly FrozenSet<string> ValidPermissionModes = FrozenSet.Create(
         StringComparer.OrdinalIgnoreCase, "default", "plan", "auto-accept", "bubble");
@@ -26,7 +26,7 @@ public sealed partial class BridgeMain : IAsyncDisposable
     // 生命周期
     private CancellationTokenSource? _loopCts;
     private Task? _loopTask;
-    private int _isDisposed;
+    private int _asyncDisposed;
     private int _isShuttingDown;
     private bool _isResuming; // 对齐 TS 端: resume 模式标记 — 可恢复关闭时跳过 archive+deregister
     private bool _fatalExit; // 对齐 TS 端: fatalExit — 致命错误后跳过 resume 提示
@@ -72,6 +72,7 @@ public sealed partial class BridgeMain : IAsyncDisposable
         IClockService? clock = null,
         INetworkConnectivityService? networkService = null,
         TimeSpan? giveUpThreshold = null)
+        : base(nameof(BridgeMain))
     {
         _deps = deps ?? throw new ArgumentNullException(nameof(deps));
         _logger = logger;

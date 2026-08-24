@@ -4,7 +4,7 @@ namespace Core.Bridge;
 /// Bridge 工作轮询循环 — 对齐 TS 端 startWorkPollLoop
 /// 实现: 注册环境 → 轮询工作 → 确认工作 → 连接传输 → 心跳保活 → 拆卸清理
 /// </summary>
-public sealed class BridgeWorkPollLoop : IAsyncDisposable
+public sealed class BridgeWorkPollLoop : ServiceEntity
 {
     private readonly BridgeApiClient _apiClient;
     private readonly ILogger? _logger;
@@ -15,7 +15,7 @@ public sealed class BridgeWorkPollLoop : IAsyncDisposable
     private CancellationTokenSource? _loopCts;
     private Task? _loopTask;
     private volatile int _isRunning;
-    private int _isDisposed;
+    private int _asyncDisposed;
 
     // 环境状态
     private string? _environmentId;
@@ -67,6 +67,7 @@ public sealed class BridgeWorkPollLoop : IAsyncDisposable
         CapacityWakeService? capacityWake = null,
         IClockService? clock = null,
         INetworkConnectivityService? networkService = null)
+        : base(nameof(BridgeWorkPollLoop))
     {
         _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
         _options = options ?? new BridgeWorkPollOptions();
@@ -652,9 +653,9 @@ public sealed class BridgeWorkPollLoop : IAsyncDisposable
 
     #endregion
 
-    public async ValueTask DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _isDisposed, 1) == 1)
+        if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1)
         {
             return;
         }
@@ -663,6 +664,7 @@ public sealed class BridgeWorkPollLoop : IAsyncDisposable
         _loopCts?.Dispose();
         await _recentPostedUUIDs.DisposeAsync().ConfigureAwait(false);
         await _recentInboundUUIDs.DisposeAsync().ConfigureAwait(false);
+        Dispose();
     }
 }
 

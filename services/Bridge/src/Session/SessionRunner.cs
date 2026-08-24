@@ -128,7 +128,7 @@ public sealed partial class BridgeSessionFactory
 /// 对标 Claude Code 的 sessionRunner.ts 和 createSession.ts
 /// </summary>
 [Register(typeof(BridgeSessionRunner), ServiceLifetime.Singleton)]
-public sealed partial class BridgeSessionRunner : IAsyncDisposable
+public sealed partial class BridgeSessionRunner : ServiceEntity
 {
     private readonly ConcurrentDictionary<string, BridgeSession> _sessions;
     private readonly ConcurrentDictionary<string, string> _clientIdToSessionId;
@@ -140,7 +140,7 @@ public sealed partial class BridgeSessionRunner : IAsyncDisposable
 
     private CancellationTokenSource? _cleanupCts;
     private Task? _cleanupTask;
-    private int _isDisposed;
+    private int _asyncDisposed;
 
     /// <summary>会话状态变更事件</summary>
     public event EventHandler<BridgeSessionStateChangedEventArgs>? SessionStateChanged;
@@ -153,6 +153,7 @@ public sealed partial class BridgeSessionRunner : IAsyncDisposable
         BridgeSessionConfiguration? configuration = null,
         ILogger? logger = null,
         TimeProvider? timeProvider = null)
+        : base(nameof(BridgeSessionRunner))
     {
         _sessionFactory = sessionFactory ?? throw new ArgumentNullException(nameof(sessionFactory));
         _configuration = configuration ?? new BridgeSessionConfiguration();
@@ -602,14 +603,20 @@ public sealed partial class BridgeSessionRunner : IAsyncDisposable
     }
 
     /// <inheritdoc />
-    public async ValueTask DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _isDisposed, 1) == 1)
+        if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1)
         {
             return;
         }
 
         await StopAsync().ConfigureAwait(false);
+        Dispose();
+    }
+
+    protected override void OnDispose()
+    {
+        if (_asyncDisposed == 1) return;
         _lock.Dispose();
     }
 }

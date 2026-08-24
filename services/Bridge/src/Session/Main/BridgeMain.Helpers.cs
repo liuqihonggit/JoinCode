@@ -423,18 +423,23 @@ public sealed partial class BridgeMain
     [GeneratedRegex(@"\s+")]
     private static partial Regex WhitespaceRegex();
 
-    public async ValueTask DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _isDisposed, 1) == 1)
+        if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1)
         {
             return;
         }
 
         await ShutdownAsync().ConfigureAwait(false);
+        Dispose();
+    }
 
+    protected override void OnDispose()
+    {
+        if (_asyncDisposed == 1) return;
         _loopCts?.Dispose();
         _pointerRefreshTimer?.Dispose();
-        _tokenRefresh?.DisposeAsync().GetAwaiter().GetResult(); // 对齐 TS 端: tokenRefresh.cancelAll()
+        _tokenRefresh?.DisposeAsync().GetAwaiter().GetResult();
         _cleanupLock.Dispose();
     }
 

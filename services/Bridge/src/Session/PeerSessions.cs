@@ -39,18 +39,19 @@ public sealed partial class PeerSession
 /// 对等会话管理器 - 管理 Bridge 节点间的 P2P 会话
 /// </summary>
 [Register(typeof(PeerSessionManager), ServiceLifetime.Singleton)]
-public sealed partial class PeerSessionManager : IAsyncDisposable
+public sealed partial class PeerSessionManager : ServiceEntity
 {
     private readonly ILogger<PeerSessionManager>? _logger;
     private readonly ConcurrentDictionary<string, PeerSession> _sessions;
     private readonly AsyncLock _stateLock = new();
-    private int _isDisposed;
+    private int _asyncDisposed;
 
     public event EventHandler<PeerSessionEventArgs>? PeerSessionConnected;
     public event EventHandler<PeerSessionEventArgs>? PeerSessionDisconnected;
     public event EventHandler<PeerMessageEventArgs>? PeerMessageSent;
 
     public PeerSessionManager(ILogger<PeerSessionManager>? logger = null)
+        : base(nameof(PeerSessionManager))
     {
         _logger = logger;
         _sessions = new ConcurrentDictionary<string, PeerSession>();
@@ -73,7 +74,7 @@ public sealed partial class PeerSessionManager : IAsyncDisposable
 
                 using (await _stateLock.LockAsync(ct).ConfigureAwait(false))
         {
-            ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
+            ObjectDisposedException.ThrowIf(_asyncDisposed != 0, this);
 
             var session = new PeerSession
             {
@@ -201,9 +202,9 @@ public sealed partial class PeerSessionManager : IAsyncDisposable
         await Task.CompletedTask.ConfigureAwait(false);
     }
 
-    public async ValueTask DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _isDisposed, 1) == 1)
+        if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1)
         {
             return;
         }
@@ -214,9 +215,15 @@ public sealed partial class PeerSessionManager : IAsyncDisposable
         }
 
         _sessions.Clear();
-        _stateLock.Dispose();
+        Dispose();
 
         _logger?.LogInformation("[PeerSessionManager] 已释放所有对等会话");
+    }
+
+    protected override void OnDispose()
+    {
+        if (_asyncDisposed == 1) return;
+        _stateLock.Dispose();
     }
 }
 

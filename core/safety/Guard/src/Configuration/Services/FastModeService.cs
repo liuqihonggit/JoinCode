@@ -38,8 +38,8 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
         IModelConfigLoader? modelConfigLoader = null)
     {
         var loader = modelConfigLoader ?? new ModelConfigLoader();
-        _primaryModelId = config?.Provider?.ModelId ?? loader.GetDefaultModelId("openai");
-        _fastModelId = fastModelId ?? loader.GetDefaultFastModelId("openai");
+        _primaryModelId = config?.Provider?.ModelId ?? loader.GetDefaultModelId(VendorKindConstants.OpenAi);
+        _fastModelId = fastModelId ?? loader.GetDefaultFastModelId(VendorKindConstants.OpenAi);
         _cooldownDuration = cooldownDuration ?? TimeSpan.FromMinutes(5);
         _logger = logger;
     }

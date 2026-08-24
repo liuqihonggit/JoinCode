@@ -37,21 +37,22 @@
   </UserControl.Styles>
 
   <!-- 底部升起式补全面板：IsVisible 管布局占位；开合动画由 code-behind 驱动。
-       本视图由 MainWindow 放在主列覆盖层（VerticalAlignment=Bottom），不挤占消息区布局。 -->
+       本视图由 MainWindow 放在输入栏正上方的布局行（同列约束 → 左右边缘天然对齐、物理零重叠）；
+       仅上圆角 + 无下边框，与下方输入栏融合为连续表面。 -->
   <Border x:Name="PaletteRoot"
           MaxHeight="330"
-          CornerRadius="12"
+          CornerRadius="12,12,0,0"
           Background="{DynamicResource GuiPopupBackground}"
           BorderBrush="{DynamicResource GuiDivider}"
-          BorderThickness="1"
+          BorderThickness="1,1,1,0"
           BoxShadow="{DynamicResource GuiPaletteShadowUp}"
           IsVisible="False"
           Opacity="0"
           IsHitTestVisible="False">
     <Border CornerRadius="11" ClipToBounds="True">
       <Grid RowDefinitions="Auto,Auto,*,Auto,Auto">
-        <!-- 头部：模式徽章 + 匹配计数 -->
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="14,8,12,6">
+        <!-- 头部：模式徽章 + 匹配计数（左右 padding 12 与输入栏节奏一致） -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="12,8,12,6">
           <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
             <Rectangle Width="3" Height="13" RadiusX="1.5" RadiusY="1.5"
                        Fill="{DynamicResource GuiAccentText}" VerticalAlignment="Center" />
@@ -62,15 +63,17 @@
                      Foreground="{DynamicResource GuiMutedText}"
                      Text="{Binding SlashSuggestions.Count, StringFormat='{}{0} 个匹配'}" />
         </Grid>
-        <Rectangle Grid.Row="1" Height="1" Fill="{DynamicResource GuiDivider}" Margin="10,0" />
+        <Rectangle Grid.Row="1" Height="1" Fill="{DynamicResource GuiDivider}" Margin="12,0" />
 
-        <!-- 候选列表：命令名等宽字体 + 匹配前缀高亮 + 描述 + 选中回车提示 -->
+        <!-- 候选列表：命令名等宽字体 + 匹配前缀高亮 + 描述 + 选中回车提示。
+             VerticalScrollBarVisibility=Hidden：滚动条隐藏但滚动可用（Disabled 会完全禁用滚动，
+             导致键盘导航到视口外候选项时列表不跟随 — 缺陷复现于 SlashPalette_KeyboardNavigationScrollsToLastItem） -->
         <ListBox Grid.Row="2" x:Name="PaletteList"
                  ItemsSource="{Binding SlashSuggestions}"
                  SelectedIndex="{Binding SlashSelectedIndex}"
                  Background="Transparent" Padding="0,4" BorderThickness="0"
                  Focusable="False"
-                 ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                 ScrollViewer.VerticalScrollBarVisibility="Hidden"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
           <ListBox.ItemTemplate>
             <DataTemplate x:DataType="vm:SlashCommandItem">
@@ -98,9 +101,9 @@
           </ListBox.ItemTemplate>
         </ListBox>
 
-        <Rectangle Grid.Row="3" Height="1" Fill="{DynamicResource GuiDivider}" Margin="10,0" />
+        <Rectangle Grid.Row="3" Height="1" Fill="{DynamicResource GuiDivider}" Margin="12,0" />
         <!-- 底部键盘提示条 -->
-        <Border Grid.Row="4" Padding="14,6,14,7">
+        <Border Grid.Row="4" Padding="12,6,12,7">
           <StackPanel Orientation="Horizontal" Spacing="14">
             <TextBlock Text="↑↓ 选择" FontSize="11" FontFamily="{DynamicResource GuiMonoFont}"
                        Foreground="{DynamicResource GuiMutedText}" />

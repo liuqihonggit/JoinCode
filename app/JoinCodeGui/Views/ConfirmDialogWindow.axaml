@@ -2,15 +2,29 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="JoinCode.Gui.Views.ConfirmDialogWindow"
         Title="确认"
-        Width="360" SizeToContent="Height"
+        Width="380" SizeToContent="Height"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
-        ShowInTaskbar="False">
-  <StackPanel Margin="16" Spacing="14">
-    <TextBlock x:Name="MessageText" TextWrapping="Wrap" />
-    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
-      <Button x:Name="OkButton" Content="确定" MinWidth="80" Click="OnOkClick" />
-      <Button x:Name="CancelButton" Content="取消" MinWidth="80" Click="OnCancelClick" />
+        ShowInTaskbar="False"
+        Background="{DynamicResource GuiWindowBackground}">
+  <StackPanel Margin="20" Spacing="16">
+    <!-- 标题行：accent 圆形问号徽章 + 消息正文 -->
+    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+      <Border CornerRadius="16" Width="32" Height="32"
+              Background="{DynamicResource GuiAccentSubtle}" VerticalAlignment="Top">
+        <TextBlock Text="?" FontSize="15" FontWeight="SemiBold"
+                   Foreground="{DynamicResource GuiAccentText}"
+                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+      </Border>
+      <TextBlock x:Name="MessageText" Grid.Column="1" TextWrapping="Wrap" FontSize="13.5"
+                 Foreground="{DynamicResource GuiPrimaryText}" VerticalAlignment="Center" />
+    </Grid>
+    <!-- 按钮行：取消（ghost）在左 / 确定（primary）在右 -->
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button x:Name="CancelButton" Classes="ghost" Content="取消" MinWidth="80"
+              Padding="12,6" CornerRadius="8" Click="OnCancelClick" />
+      <Button x:Name="OkButton" Classes="primary" Content="确定" MinWidth="80"
+              Padding="12,6" CornerRadius="8" Click="OnOkClick" />
     </StackPanel>
   </StackPanel>
 </Window>

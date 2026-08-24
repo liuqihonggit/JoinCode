@@ -10,9 +10,10 @@ using JoinCode.Gui.ViewModels;
 namespace JoinCode.Gui.Views;
 
 /// <summary>
-/// 底部输入栏 UserControl — 输入框 + 字符计数 + 停止/发送按钮 + 分隔线/时间戳快捷按钮。
-/// 斜杠补全面板在 <see cref="SlashPaletteView"/>（MainWindow 覆盖层）；本组件负责
-/// 键盘事件（Enter 发送/Up-Down 历史导航/补全导航）与 30ms 输入防抖。
+/// 底部输入栏 UserControl — composer 卡片（透明无边框 TextBox 内嵌 + 发送按钮嵌入卡片右下）
+/// + 字符计数 + 停止/发送按钮 + 分隔线/时间戳快捷按钮。
+/// 斜杠补全面板在 <see cref="SlashPaletteView"/>（MainWindow 布局行，位于本组件正上方同列）；
+/// 本组件负责键盘事件（Enter 发送/Up-Down 历史导航/补全导航）与 30ms 输入防抖。
 /// </summary>
 public sealed partial class InputBarView : UserControl
 {

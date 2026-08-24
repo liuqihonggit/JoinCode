@@ -102,8 +102,8 @@ public sealed class DiffViewer : StackPanel
     {
         var (prefix, foreground, background) = line.Type switch
         {
-            PatchLineType.Added => ("+", ToBrush(scheme.SuccessText), ToBrush("#1a2e22")),
-            PatchLineType.Removed => ("-", ToBrush(scheme.ErrorText), ToBrush("#2e1a1a")),
+            PatchLineType.Added => ("+", ToBrush(scheme.SuccessText), ToBrush(scheme.DiffAddedBackground)),
+            PatchLineType.Removed => ("-", ToBrush(scheme.ErrorText), ToBrush(scheme.DiffRemovedBackground)),
             _ => (" ", ToBrush(scheme.SecondaryText), Brushes.Transparent)
         };
 

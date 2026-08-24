@@ -6,41 +6,56 @@
              xmlns:vm="using:JoinCode.Gui.ViewModels"
              x:Class="JoinCode.Gui.Views.TopBarView"
              x:DataType="vm:MainViewModel">
-  <Border Padding="10,8" Background="{DynamicResource GuiTopBarBackground}" ClipToBounds="True">
-    <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,*,Auto,Auto" ColumnSpacing="10">
-      <ToggleButton Content="🌙" Command="{Binding ToggleThemeCommand}" ToolTip.Tip="切换深浅主题" />
-      <Button Grid.Column="1" Content="↻ 重新生成" Command="{Binding RegenerateLastReplyCommand}"
-              IsEnabled="{Binding CanRegenerate}" FontSize="11" ToolTip.Tip="撤回上一轮并重新生成" />
-      <Button Grid.Column="2" Content="🗑 清空" Command="{Binding ClearHistoryCommand}"
-              IsEnabled="{Binding HasMessages}" />
-      <Button Grid.Column="3" Content="⊘ 全部重置" Command="{Binding ClearAllSessionsCommand}"
-              FontSize="11" />
-      <ComboBox Grid.Column="4" ItemsSource="{Binding ConnectionOptions}" SelectedItem="{Binding SelectedConnection}"
-                IsVisible="{Binding IsEngineLoaded}"
-                HorizontalAlignment="Stretch" ToolTip.Tip="当前供应商（从 models.json 读取）">
+  <Border Padding="12,7" Background="{DynamicResource GuiTopBarBackground}"
+          BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,0,1" ClipToBounds="True">
+    <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto,Auto,Auto" ColumnSpacing="8">
+      <!-- 左组：主题 / 会话操作（ghost 统一视觉） -->
+      <!-- 主题切换：图标随主题切换（暗色显月亮/亮色显太阳），点击切换。
+           Segoe UI Symbol 提供 ☾☀ 完整字形（默认字体缺字形会把 ☾ 渲染成 "C"） -->
+      <ToggleButton Classes="ghost" Padding="9,5" FontSize="13"
+                    Command="{Binding ToggleThemeCommand}" ToolTip.Tip="切换深浅主题">
+        <Panel>
+          <TextBlock Text="☾" FontFamily="Segoe UI Symbol" IsVisible="{Binding IsDarkTheme}" />
+          <TextBlock Text="☀" FontFamily="Segoe UI Symbol" IsVisible="{Binding !IsDarkTheme}" />
+        </Panel>
+      </ToggleButton>
+      <Button Grid.Column="1" Classes="ghost" Content="↻ 重新生成" Command="{Binding RegenerateLastReplyCommand}"
+              IsEnabled="{Binding CanRegenerate}" ToolTip.Tip="撤回上一轮并重新生成" />
+      <Button Grid.Column="2" Classes="ghost" Content="清空" Command="{Binding ClearHistoryCommand}"
+              IsEnabled="{Binding HasMessages}" ToolTip.Tip="清空当前会话消息" />
+      <Button Grid.Column="3" Classes="ghost" Content="全部重置" Command="{Binding ClearAllSessionsCommand}"
+              ToolTip.Tip="清空全部会话并重置" />
+      <!-- Column 4：* 弹性空隙 — 把右组（连接+模型+Ⓘ+⚙）推到最右且两下拉紧靠相邻 -->
+      <ComboBox Grid.Column="5" ItemsSource="{Binding ConnectionOptions}" SelectedItem="{Binding SelectedConnection}"
+                IsVisible="{Binding IsEngineLoaded}" MinWidth="130" MaxWidth="200"
+                PlaceholderText="选择供应商"
+                ToolTip.Tip="当前供应商（从 models.json 读取）">
         <ComboBox.ItemTemplate>
           <DataTemplate x:DataType="vm:ConnectionOptionItem">
             <TextBlock Text="{Binding DisplayText}" TextTrimming="CharacterEllipsis" />
           </DataTemplate>
         </ComboBox.ItemTemplate>
       </ComboBox>
-      <ComboBox Grid.Column="5" ItemsSource="{Binding ModelOptions}" SelectedItem="{Binding SelectedModelOption}"
-                IsVisible="{Binding IsEngineLoaded}"
-                PlaceholderText="选择模型" HorizontalAlignment="Stretch">
+      <ComboBox Grid.Column="6" ItemsSource="{Binding ModelOptions}" SelectedItem="{Binding SelectedModelOption}"
+                IsVisible="{Binding IsEngineLoaded}" MinWidth="170" MaxWidth="260"
+                PlaceholderText="选择模型">
         <ComboBox.ItemTemplate>
           <DataTemplate x:DataType="vm:ModelOptionItem">
             <StackPanel Orientation="Horizontal" Spacing="4">
               <TextBlock Text="{Binding ModalityTags}" FontSize="10" VerticalAlignment="Center"
+                         Foreground="{DynamicResource GuiMutedText}"
                          IsVisible="{Binding ModalityTags, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
               <TextBlock Text="{Binding DisplayText}" TextTrimming="CharacterEllipsis" />
             </StackPanel>
           </DataTemplate>
         </ComboBox.ItemTemplate>
       </ComboBox>
-      <ToggleButton Grid.Column="6" Content="🧪" Command="{Binding ToggleMockCommand}"
+      <ToggleButton Grid.Column="7" Classes="ghost" Padding="9,5" Content="Ⓘ" FontSize="12"
+                    Command="{Binding ToggleMockCommand}"
                     IsChecked="{Binding IsMockConnection, Mode=OneWay}"
                     ToolTip.Tip="切换 Mock 演示引擎（本地验证用）" />
-      <Button Grid.Column="7" Content="⛭" ToolTip.Tip="设置面板" Command="{Binding ToggleSettingsPanelCommand}" />
+      <Button Grid.Column="8" Classes="ghost" Padding="9,5" Content="⚙" FontSize="13"
+              ToolTip.Tip="设置面板" Command="{Binding ToggleSettingsPanelCommand}" />
     </Grid>
   </Border>
 </UserControl>

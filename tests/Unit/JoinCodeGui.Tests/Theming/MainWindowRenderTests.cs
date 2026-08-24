@@ -28,7 +28,8 @@ public sealed class MainWindowRenderTests
     /// <summary>创建注入 InMemoryFileSystem 会话存储的 ViewModel — 避免测试污染真实 ~/.jcc/sessions</summary>
     private static MainViewModel CreateVm() => new(
         null,
-        new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"));
+        new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"),
+        new JoinCode.Gui.Persistence.GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
 
     /// <summary>捕获指定主题下的 MainWindow 渲染帧，返回 (WriteableBitmap, 三区域平均亮度)。</summary>
     private static (WriteableBitmap Bmp, double Sidebar, double Input, double Full) Capture(bool dark)

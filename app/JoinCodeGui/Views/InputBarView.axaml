@@ -6,32 +6,51 @@
              xmlns:vm="using:JoinCode.Gui.ViewModels"
              x:Class="JoinCode.Gui.Views.InputBarView"
              x:DataType="vm:MainViewModel">
-  <Border Padding="10" Background="{DynamicResource GuiInputBarBackground}" ClipToBounds="True">
-    <StackPanel Spacing="6">
-      <Grid ColumnDefinitions="*,Auto,Auto">
-        <TextBox x:Name="InputTextBox" Text="{Binding InputText}" Watermark="输入消息，Enter 发送 / Shift+Enter 换行…"
-                 IsEnabled="{Binding !IsBusy}" AcceptsReturn="True" MaxLines="5"
-                 TextWrapping="Wrap" />
-        <TextBlock Grid.Column="1" Foreground="{Binding IsInputTooLong, Converter={StaticResource BoolToWarnBrush}}"
-                   FontSize="11" VerticalAlignment="Bottom" Margin="8,0"
-                   ToolTip.Tip="{Binding MaxInputChars, StringFormat='{}建议上限 {0} 字符'}">
-          <TextBlock.Text>
-            <MultiBinding StringFormat="{} {0} / {1}">
-              <Binding Path="CharsCount" />
-              <Binding Path="MaxInputChars" />
-            </MultiBinding>
-          </TextBlock.Text>
-        </TextBlock>
-        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
-          <Button Content="停止" Command="{Binding StopGeneratingCommand}" IsVisible="{Binding CanStop}" />
-          <Button Content="发送" Command="{Binding SendCommand}" IsEnabled="{Binding !IsBusy}" />
-        </StackPanel>
-      </Grid>
+  <UserControl.Styles>
+    <!-- composer 卡片聚焦态：无边框 TextBox 获焦时点亮承载卡片边框 -->
+    <Style Selector="Border.composer:focus-within">
+      <Setter Property="BorderBrush" Value="{DynamicResource GuiAccentText}" />
+    </Style>
+  </UserControl.Styles>
 
-      <StackPanel Orientation="Horizontal" Spacing="4">
-        <Button Content="─ 分隔线" Command="{Binding InsertDividerCommand}" FontSize="11" Padding="8,3" />
-        <Button Content="⏱ 时间戳" Command="{Binding InsertTimestampCommand}" FontSize="11" Padding="8,3" />
+  <Border Padding="12,8" Background="{DynamicResource GuiInputBarBackground}"
+          BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,1,0,0">
+    <!-- composer 卡片：TextBox 透明无边框内嵌，发送按钮嵌入卡片内部右下（现代聊天输入区范式） -->
+    <Border x:Name="ComposerBox" Classes="composer" CornerRadius="10"
+            Background="{DynamicResource GuiComposerBackground}"
+            BorderBrush="{DynamicResource GuiDivider}" BorderThickness="1">
+      <StackPanel>
+        <TextBox x:Name="InputTextBox" Text="{Binding InputText}" Watermark="输入消息，Enter 发送 / Shift+Enter 换行…"
+                 IsEnabled="{Binding !IsBusy}" AcceptsReturn="True" MaxLines="5" MinHeight="38"
+                 BorderThickness="0" Background="Transparent" Padding="11,8,11,2"
+                 TextWrapping="Wrap" />
+        <!-- 动作行：快捷插入 | 字符计数(右对齐) | 停止+发送 -->
+        <Grid ColumnDefinitions="Auto,*,Auto" Margin="7,2,7,7">
+          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+            <Button Classes="ghost" Content="─ 分隔线" FontSize="11" Padding="9,3" MinHeight="0"
+                    Command="{Binding InsertDividerCommand}" />
+            <Button Classes="ghost" Content="⏱ 时间戳" FontSize="11" Padding="9,3" MinHeight="0"
+                    Command="{Binding InsertTimestampCommand}" />
+          </StackPanel>
+          <TextBlock Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8,0"
+                     FontSize="11" Foreground="{Binding IsInputTooLong, Converter={StaticResource BoolToWarnBrush}}"
+                     ToolTip.Tip="{Binding MaxInputChars, StringFormat='{}建议上限 {0} 字符'}">
+            <TextBlock.Text>
+              <MultiBinding StringFormat="{}{0} / {1}">
+                <Binding Path="CharsCount" />
+                <Binding Path="MaxInputChars" />
+              </MultiBinding>
+            </TextBlock.Text>
+          </TextBlock>
+          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+            <Button Classes="ghost" Content="停止" Padding="12,6" CornerRadius="8"
+                    Foreground="{DynamicResource GuiWarnText}"
+                    Command="{Binding StopGeneratingCommand}" IsVisible="{Binding CanStop}" />
+            <Button Classes="primary" Content="发送" Padding="16,6" CornerRadius="8" MinWidth="84"
+                    Command="{Binding SendCommand}" IsEnabled="{Binding !IsBusy}" />
+          </StackPanel>
+        </Grid>
       </StackPanel>
-    </StackPanel>
+    </Border>
   </Border>
 </UserControl>

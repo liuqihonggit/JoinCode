@@ -1,0 +1,101 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="JoinCode.Gui.Theming.GuiControlStyles">
+  <!--
+    共享控件样式 — 设计语言单一数据源（真实 App 与 headless 测试经 GuiAppResources.Register 共用）。
+    规范：圆角 控件6/卡片10/浮层12/药丸16；按钮分级 默认/ghost/primary/accentSubtle/pill。
+  -->
+
+  <!-- ===== Button 默认：实底 + 主题边框，悬停/按下反馈 ===== -->
+  <Style Selector="Button">
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="11,5" />
+    <Setter Property="MinHeight" Value="30" />
+    <Setter Property="Background" Value="{DynamicResource GuiButtonBackground}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource GuiButtonBorder}" />
+    <Setter Property="Foreground" Value="{DynamicResource GuiButtonForeground}" />
+  </Style>
+  <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource GuiButtonHover}" />
+  </Style>
+  <Style Selector="Button:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource GuiButtonPressed}" />
+  </Style>
+
+  <!-- ===== ghost 幽灵按钮：透明底无边框，悬停浮起（工具栏低频操作） ===== -->
+  <Style Selector="Button.ghost, ToggleButton.ghost">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource GuiSecondaryText}" />
+  </Style>
+  <Style Selector="Button.ghost:pointerover /template/ ContentPresenter#PART_ContentPresenter,
+                   ToggleButton.ghost:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource GuiButtonHover}" />
+  </Style>
+  <Style Selector="Button.ghost:pointerover, ToggleButton.ghost:pointerover">
+    <Setter Property="Foreground" Value="{DynamicResource GuiPrimaryText}" />
+  </Style>
+  <Style Selector="ToggleButton.ghost:checked /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource GuiAccentSubtle}" />
+  </Style>
+  <Style Selector="ToggleButton.ghost:checked">
+    <Setter Property="Foreground" Value="{DynamicResource GuiAccentText}" />
+  </Style>
+
+  <!-- ===== primary 主操作按钮：accent 实底白字（发送） ===== -->
+  <Style Selector="Button.primary">
+    <Setter Property="Background" Value="{DynamicResource GuiAccentText}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource GuiToastForeground}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="Button.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource GuiAccentHover}" />
+  </Style>
+  <Style Selector="Button.primary:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource GuiAccentText}" />
+  </Style>
+
+  <!-- ===== accentSubtle 强调淡底：accent 12% 底 + accent 字（新建对话/建议药丸/模型徽章） ===== -->
+  <Style Selector="Button.accentSubtle">
+    <Setter Property="Background" Value="{DynamicResource GuiAccentSubtle}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource GuiAccentText}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="Button.accentSubtle:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource GuiAccentSubtleHover}" />
+  </Style>
+  <Style Selector="Button.accentSubtle:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource GuiAccentSubtle}" />
+  </Style>
+
+  <!-- ===== pill 药丸形（建议/浮动按钮） ===== -->
+  <Style Selector="Button.pill">
+    <Setter Property="CornerRadius" Value="16" />
+    <Setter Property="Padding" Value="14,6" />
+  </Style>
+
+  <!-- ===== TextBox：圆角 + 聚焦 accent 边框 ===== -->
+  <Style Selector="TextBox">
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="MinHeight" Value="30" />
+    <Setter Property="Padding" Value="8,5" />
+  </Style>
+  <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
+    <Setter Property="BorderBrush" Value="{DynamicResource GuiAccentText}" />
+  </Style>
+
+  <!-- ===== ComboBox：圆角对齐 ===== -->
+  <Style Selector="ComboBox">
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="MinHeight" Value="30" />
+  </Style>
+
+  <!-- ===== ToggleButton 基础（主题切换等） ===== -->
+  <Style Selector="ToggleButton">
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="11,5" />
+    <Setter Property="MinHeight" Value="30" />
+  </Style>
+</Styles>

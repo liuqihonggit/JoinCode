@@ -25,17 +25,16 @@
              IsVisible="False"
              FontSize="13"
              Foreground="{DynamicResource GuiPrimaryText}"
-             Background="{DynamicResource GuiInputBarBackground}" />
-    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
-      <Button Content="取消" MinWidth="88"
-              x:Name="CancelButton"
-              Foreground="{DynamicResource GuiButtonForeground}"
-              Background="{DynamicResource GuiButtonBackground}" />
-      <Button Content="确认" MinWidth="88"
+             Background="{DynamicResource GuiComposerBackground}"
+             CornerRadius="8" Padding="10,8" />
+    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+      <Button Content="取消" MinWidth="88" Padding="12,6" CornerRadius="8"
+              Classes="ghost"
+              x:Name="CancelButton" />
+      <Button Content="确认" MinWidth="88" Padding="12,6" CornerRadius="8"
+              Classes="primary"
               x:Name="ConfirmFreeInputButton"
-              IsVisible="False"
-              Foreground="{DynamicResource GuiAccentText}"
-              Background="{DynamicResource GuiButtonBackground}" />
+              IsVisible="False" />
     </StackPanel>
   </StackPanel>
 </Window>

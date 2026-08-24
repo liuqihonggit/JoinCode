@@ -83,7 +83,7 @@ public interface ITrustedDeviceStore : IStore
 public sealed partial class TrustedDeviceStore : ServiceEntity, ITrustedDeviceStore
 {
     private readonly ConcurrentDictionary<string, TrustedDeviceEntry> _devices;
-    [Inject] private readonly ILogger<TrustedDeviceStore>? _logger;
+    private readonly ILogger<TrustedDeviceStore>? _logger;
 
     public TrustedDeviceStore(ILogger<TrustedDeviceStore>? logger = null)
     {

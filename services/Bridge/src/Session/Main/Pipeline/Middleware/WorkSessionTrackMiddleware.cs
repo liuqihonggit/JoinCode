@@ -11,8 +11,8 @@ public sealed partial class WorkSessionTrackMiddleware : ServiceEntity, IHandleW
         _clock = clock;
         _logger = logger;
     }
-    [Inject] private readonly ILogger<WorkSessionTrackMiddleware>? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<WorkSessionTrackMiddleware>? _logger;
+    private readonly IClockService _clock;
 
 
     public Task InvokeAsync(HandleWorkContext ctx, MiddlewareDelegate<HandleWorkContext> next, CancellationToken ct)

@@ -7,7 +7,7 @@ public sealed partial class StdioAgentTransport : IAgentTransport
 {
     private readonly StdioProcessManager _processManager;
     private readonly StdioProcessConfig _config;
-    [Inject] private readonly ILogger<StdioAgentTransport>? _logger;
+    private readonly ILogger<StdioAgentTransport>? _logger;
     private TransportState _state;
 
     public string TransportType => "stdio";

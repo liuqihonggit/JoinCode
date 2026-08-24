@@ -20,7 +20,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     private readonly ITeammateMailboxService? _mailboxService;
     private readonly IServiceProvider? _serviceProvider;
     private readonly IClockService _clock;
-    [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     private readonly ILogger<TeamManager>? _logger;
     private int _teamCounter;
     private int _messageCounter;

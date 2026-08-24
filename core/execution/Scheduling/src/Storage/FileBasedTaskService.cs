@@ -12,7 +12,7 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
     private readonly HighWaterMarkManager _highWaterMarkManager;
     private readonly ITaskFileWriter _taskFileWriter;
     private readonly ITaskFileReader _taskFileReader;
-    [Inject] private readonly ILogger<FileBasedTaskService>? _logger;
+    private readonly ILogger<FileBasedTaskService>? _logger;
     private readonly IFileOperationService _fileOperationService;
     private readonly SemaphoreSlim _initLock;
     private bool _initialized;

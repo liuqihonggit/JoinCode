@@ -16,7 +16,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     private readonly IFileSystem _fs;
     private readonly IClockService _clock;
     private readonly ILogger<PlanModeManager>? _logger;
-    [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     private int _planCounter;
 
     private readonly SessionPlanState _fallbackState = new();

@@ -4,7 +4,7 @@ namespace Services.Notification;
 [Register]
 public partial class NotificationService : ServiceEntity, INotificationService
 {
-    [Inject] private readonly ILogger<NotificationService>? _logger;
+    private readonly ILogger<NotificationService>? _logger;
     private readonly ITelemetryService? _telemetryService;
     private readonly bool _isWindows;
     private readonly bool _isTestEnvironment;
@@ -125,7 +125,7 @@ public sealed partial class NotificationSentEventArgs : EventArgs
 /// </summary>
 public partial class ConsoleNotificationService : INotificationService
 {
-    [Inject] private readonly ILogger<ConsoleNotificationService>? _logger;
+    private readonly ILogger<ConsoleNotificationService>? _logger;
 
     public ConsoleNotificationService(ILogger<ConsoleNotificationService>? logger = null)
     {

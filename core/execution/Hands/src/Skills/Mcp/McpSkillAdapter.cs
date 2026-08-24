@@ -4,7 +4,7 @@ namespace Core.Skills.Mcp;
 public sealed partial class McpSkillAdapter
 {
     private readonly IMcpClient _client;
-    [Inject] private readonly ILogger<McpSkillAdapter>? _logger;
+    private readonly ILogger<McpSkillAdapter>? _logger;
 
     public McpSkillAdapter(IMcpClient client, ILogger<McpSkillAdapter>? logger = null)
     {

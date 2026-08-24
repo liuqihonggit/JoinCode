@@ -17,10 +17,10 @@ public sealed partial class ConfigChangeStartMiddleware : IChatInitMiddleware, I
         _settingsChangeApplier = settingsChangeApplier;
         _logger = logger;
     }
-    [Inject] private readonly IConfigChangeNotifier? _configChangeNotifier;
-    [Inject] private readonly IFileSystem _fs;
-    [Inject] private readonly ISettingsChangeApplier? _settingsChangeApplier;
-    [Inject] private readonly ILogger<ConfigChangeStartMiddleware>? _logger;
+    private readonly IConfigChangeNotifier? _configChangeNotifier;
+    private readonly IFileSystem _fs;
+    private readonly ISettingsChangeApplier? _settingsChangeApplier;
+    private readonly ILogger<ConfigChangeStartMiddleware>? _logger;
     private readonly CancellationTokenSource _disposeCts = new();
     private int _disposed;
 

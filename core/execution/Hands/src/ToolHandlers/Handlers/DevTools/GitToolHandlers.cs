@@ -6,8 +6,8 @@ namespace Tools.Handlers;
 [McpToolDispatch(ToolCategory.Git)]
 public partial class GitToolHandlers
 {
-    [Inject] private readonly ILogger<GitToolHandlers>? _logger;
-    [Inject] private readonly IGitCommandRunner _gitRunner;
+    private readonly ILogger<GitToolHandlers>? _logger;
+    private readonly IGitCommandRunner _gitRunner;
     private readonly IGitSecurityInterceptor? _securityInterceptor;
     private readonly ITelemetryService? _telemetryService;
     private readonly IFileSystem _fs;

@@ -9,7 +9,7 @@ public sealed partial class CodeIndexService : IHostedService, IAsyncDisposable
     private readonly FileWatcherIntegration? _watcher;
     private readonly LspIntegration? _lspIntegration;
     private readonly CodeIndexOptions _options;
-    [Inject] private readonly ILogger<CodeIndexService>? _logger;
+    private readonly ILogger<CodeIndexService>? _logger;
     private int _disposed;
 
     public CodeIndexService(

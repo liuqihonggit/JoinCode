@@ -9,7 +9,7 @@ namespace Core.Hooks.Execution.Interception.Guards;
 [Register]
 public sealed partial class GhTimeoutGuard : ICommandGuard
 {
-    [Inject] private readonly ILogger<GhTimeoutGuard>? _logger;
+    private readonly ILogger<GhTimeoutGuard>? _logger;
 
     /// <summary>
     /// 构造 gh 超时守卫

@@ -4,7 +4,7 @@ namespace Services.Cache;
 [Register]
 public partial class MemoryCacheService : ServiceEntity, ICacheService, IDisposable {
     private MemoryCache _cache;
-    [Inject] private readonly ILogger<MemoryCacheService>? _logger;
+    private readonly ILogger<MemoryCacheService>? _logger;
     private readonly ITelemetryService? _telemetryService;
     private readonly MemoryCacheEntryOptions _defaultEntryOptions;
 

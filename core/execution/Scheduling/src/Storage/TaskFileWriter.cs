@@ -13,7 +13,7 @@ public sealed partial class TaskFileWriter : ServiceEntity, ITaskFileWriter
         _fileOperationService = fileOperationService;
         _logger = logger;
     }
-    [Inject] private readonly IFileOperationService _fileOperationService;
+    private readonly IFileOperationService _fileOperationService;
     private readonly ILogger<TaskFileWriter>? _logger;
 
     /// <summary>

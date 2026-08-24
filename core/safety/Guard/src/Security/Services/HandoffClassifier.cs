@@ -9,7 +9,7 @@ namespace Core.Security.Services;
 public sealed partial class HandoffClassifier : ServiceEntity, IHandoffClassifier
 {
     private readonly IAutoModeClassifier _autoModeClassifier;
-    [Inject] private readonly ILogger<HandoffClassifier>? _logger;
+    private readonly ILogger<HandoffClassifier>? _logger;
 
     public HandoffClassifier(IAutoModeClassifier autoModeClassifier, ILogger<HandoffClassifier>? logger = null)
     {

@@ -26,15 +26,15 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
         _contextManager = contextManager;
         _promptBuilder = promptBuilder;
     }
-    [Inject] private readonly IAgentService _agentService;
-    [Inject] private readonly IAgentRoleRegistry _roleRegistry;
-    [Inject] private readonly ILogger<BuiltInAgentToolHandlers>? _logger;
-    [Inject] private readonly ITelemetryService? _telemetryService;
-    [Inject] private readonly SubAgentOutputTruncator? _outputTruncator;
-    [Inject] private readonly SubAgentSummaryGenerator? _summaryGenerator;
-    [Inject] private readonly SubAgentConfig? _subAgentConfig;
-    [Inject] private readonly IChatContextManager? _contextManager;
-    [Inject] private readonly JoinCode.Abstractions.Interfaces.IAgentPromptBuilder? _promptBuilder;
+    private readonly IAgentService _agentService;
+    private readonly IAgentRoleRegistry _roleRegistry;
+    private readonly ILogger<BuiltInAgentToolHandlers>? _logger;
+    private readonly ITelemetryService? _telemetryService;
+    private readonly SubAgentOutputTruncator? _outputTruncator;
+    private readonly SubAgentSummaryGenerator? _summaryGenerator;
+    private readonly SubAgentConfig? _subAgentConfig;
+    private readonly IChatContextManager? _contextManager;
+    private readonly JoinCode.Abstractions.Interfaces.IAgentPromptBuilder? _promptBuilder;
 
     private const int DefaultOutputTokenBudget = 50_000;
 

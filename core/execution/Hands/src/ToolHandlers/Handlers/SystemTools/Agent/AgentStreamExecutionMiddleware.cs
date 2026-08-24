@@ -15,10 +15,10 @@ public sealed partial class AgentStreamExecutionMiddleware : ServiceEntity, IAge
         _telemetryService = telemetryService;
         _outputChannelManager = outputChannelManager;
     }
-    [Inject] private readonly IAgentService _agentService;
-    [Inject] private readonly ILogger<AgentStreamExecutionMiddleware>? _logger;
-    [Inject] private readonly ITelemetryService? _telemetryService;
-    [Inject] private readonly JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? _outputChannelManager;
+    private readonly IAgentService _agentService;
+    private readonly ILogger<AgentStreamExecutionMiddleware>? _logger;
+    private readonly ITelemetryService? _telemetryService;
+    private readonly JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? _outputChannelManager;
 
     /// <inheritdoc />
     public int Order => 400;

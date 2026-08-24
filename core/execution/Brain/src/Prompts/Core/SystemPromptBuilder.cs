@@ -8,7 +8,7 @@ public sealed partial class SystemPromptBuilder : ServiceEntity {
     private readonly List<SystemPromptSection> _sections = [];
     private readonly Dictionary<string, string?> _cache = [];
     private readonly Dictionary<string, string?> _dynamicCache = [];
-    [Inject] private readonly ILogger<SystemPromptBuilder>? _logger;
+    private readonly ILogger<SystemPromptBuilder>? _logger;
 
     public SystemPromptBuilder(ILogger<SystemPromptBuilder>? logger = null, ISystemPromptProvider? provider = null) {
         _logger = logger;

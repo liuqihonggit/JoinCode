@@ -24,7 +24,7 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
         _askDenied = MergeWithOverrides(ToolSecuritySets.AskDeniedTools, overrides, PermissionMode.Ask.ToValue(), allow: false);
     }
 
-    [Inject] private readonly ITelemetryService? _telemetryService;
+    private readonly ITelemetryService? _telemetryService;
 
     public IReadOnlySet<string> GetAllowedTools(PermissionMode mode)
     {

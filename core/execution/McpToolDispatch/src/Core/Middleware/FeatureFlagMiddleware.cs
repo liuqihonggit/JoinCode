@@ -9,7 +9,7 @@ public sealed partial class FeatureFlagMiddleware : ServiceEntity, IToolExecutio
 {
 
     private readonly IFeatureFlagService? _featureFlagService;
-    [Inject] private readonly ILogger<FeatureFlagMiddleware> _logger;
+    private readonly ILogger<FeatureFlagMiddleware> _logger;
 
     public FeatureFlagMiddleware(
         IFeatureFlagService? featureFlagService,

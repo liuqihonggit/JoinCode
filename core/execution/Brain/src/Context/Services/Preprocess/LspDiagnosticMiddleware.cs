@@ -15,9 +15,9 @@ public sealed partial class LspDiagnosticMiddleware : ServiceEntity, IPreparePre
         _contextManager = contextManager;
         _lspDiagnosticProvider = lspDiagnosticProvider;
     }
-    [Inject] private readonly JoinCode.Abstractions.Interfaces.Lsp.ILspDiagnosticProvider? _lspDiagnosticProvider;
-    [Inject] private readonly ISystemReminderManager _reminderManager;
-    [Inject] private readonly IChatContextManager _contextManager;
+    private readonly JoinCode.Abstractions.Interfaces.Lsp.ILspDiagnosticProvider? _lspDiagnosticProvider;
+    private readonly ISystemReminderManager _reminderManager;
+    private readonly IChatContextManager _contextManager;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

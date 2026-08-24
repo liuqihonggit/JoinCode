@@ -17,10 +17,10 @@ public sealed partial class LspFileSync : ServiceEntity, ILspFileSync
         _logger = logger;
         _telemetryService = telemetryService;
     }
-    [Inject] private readonly ILspManager _lspManager;
-    [Inject] private readonly ILogger<LspFileSync>? _logger;
-    [Inject] private readonly ITelemetryService? _telemetryService;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILspManager _lspManager;
+    private readonly ILogger<LspFileSync>? _logger;
+    private readonly ITelemetryService? _telemetryService;
+    private readonly IClockService _clock;
     private readonly ConcurrentDictionary<string, OpenDocumentInfo> _openDocuments = new();
 
     public event EventHandler<DocumentChangedEventArgs>? DocumentChanged;

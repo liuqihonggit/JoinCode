@@ -7,7 +7,7 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
     private readonly string _storagePath;
     private readonly IFileOperationService _fileOperationService;
     private readonly IFileSystem _fs;
-    [Inject] private readonly ILogger<ThinkingStore>? _logger;
+    private readonly ILogger<ThinkingStore>? _logger;
     private readonly IClockService _clock;
     private readonly SemaphoreSlim _saveLock = new(1, 1);
     private readonly CancellationTokenSource _disposeCts = new();

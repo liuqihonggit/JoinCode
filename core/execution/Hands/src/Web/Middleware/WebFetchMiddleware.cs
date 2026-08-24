@@ -15,7 +15,7 @@ public sealed partial class WebFetchMiddleware : ServiceEntity, IWebMiddleware
     private const int MaxRedirects = 10;
     private const int MaxHttpContentLength = 10 * 1024 * 1024;
 
-    [Inject] private readonly IApiClient _apiClient;
+    private readonly IApiClient _apiClient;
 
     /// <inheritdoc />
 

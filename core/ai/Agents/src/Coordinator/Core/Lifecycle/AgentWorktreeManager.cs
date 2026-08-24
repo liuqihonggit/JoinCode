@@ -10,7 +10,7 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
     private readonly IAgentWorktreeService? _worktreeService;
     private readonly IHookOrchestrator? _hookOrchestrator;
     private readonly ILogger? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly IClockService _clock;
     private readonly ConcurrentDictionary<string, AgentWorktreeSession> _worktreeSessions;
     private readonly bool _enableWorktreeIsolation;
 

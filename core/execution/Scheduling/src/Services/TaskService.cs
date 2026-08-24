@@ -16,7 +16,7 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
     private readonly ConcurrentDictionary<string, TaskItem> _tasks = new();
     private readonly ConcurrentDictionary<string, TaskStateMachine> _taskStateMachines = new();
     private readonly ConcurrentDag<string> _dag = new();
-    [Inject] private readonly ITelemetryService? _telemetryService;
+    private readonly ITelemetryService? _telemetryService;
     private int _taskCounter;
 
     public Task<OperationResult<TaskItem?>> CreateTaskAsync(

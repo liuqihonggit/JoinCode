@@ -22,7 +22,7 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
     private readonly ILoopDetectionStrategy _loopDetectionStrategy;
     private readonly IToolConcurrencyClassifier? _concurrencyClassifier;
     private readonly ToolExecutionSettings? _toolExecutionSettings;
-    [Inject] private readonly ILogger<QueryLoopMiddleware>? _logger;
+    private readonly ILogger<QueryLoopMiddleware>? _logger;
 
     public QueryLoopMiddleware(
         IBackgroundNotificationHandler notificationHandler,

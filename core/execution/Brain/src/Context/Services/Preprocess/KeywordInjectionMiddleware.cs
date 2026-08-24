@@ -20,10 +20,10 @@ public sealed partial class KeywordInjectionMiddleware : ServiceEntity, IAnalyze
         _fs = fs;
         _logger = logger;
     }
-    [Inject] private readonly ISystemReminderManager _reminderManager;
-    [Inject] private readonly IDynamicKeywordConfigService _dynamicKeywordService;
-    [Inject] private readonly IFileSystem _fs;
-    [Inject] private readonly ILogger<KeywordInjectionMiddleware>? _logger;
+    private readonly ISystemReminderManager _reminderManager;
+    private readonly IDynamicKeywordConfigService _dynamicKeywordService;
+    private readonly IFileSystem _fs;
+    private readonly ILogger<KeywordInjectionMiddleware>? _logger;
 
     private const string MissLogFileName = "keyword-misses.jsonl";
     private const int MaxMissLogSize = 1024 * 1024;

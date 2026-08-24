@@ -8,7 +8,7 @@ public sealed partial class WebSocketTransport : TransportBase, IMcpTransport
 {
     private readonly McpServerConnectionConfig _config;
     private readonly IMcpAuthProvider? _authProvider;
-    [Inject] private readonly ILogger<WebSocketTransport>? _logger;
+    private readonly ILogger<WebSocketTransport>? _logger;
     private readonly SemaphoreSlim _receiveLock = new(1, 1);
     private System.Net.WebSockets.ClientWebSocket? _ws;
 

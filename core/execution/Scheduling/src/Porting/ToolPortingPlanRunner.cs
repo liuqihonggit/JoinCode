@@ -8,7 +8,7 @@ namespace Core.Scheduling;
 public sealed partial class ToolPortingPlanRunner : ServiceEntity
 {
     private readonly ParallelExecutionEngine _executionEngine;
-    [Inject] private readonly ILogger<ToolPortingPlanRunner>? _logger;
+    private readonly ILogger<ToolPortingPlanRunner>? _logger;
     private readonly IClockService _clock;
     private readonly StringBuilder _executionLog = new();
     private readonly ConcurrentQueue<PlanExecutionRecord> _executionHistory = new();

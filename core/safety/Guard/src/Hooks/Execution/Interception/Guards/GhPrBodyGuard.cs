@@ -13,7 +13,7 @@ namespace Core.Hooks.Execution.Interception.Guards;
 [Register]
 public sealed partial class GhPrBodyGuard : ICommandGuard
 {
-    [Inject] private readonly ILogger<GhPrBodyGuard>? _logger;
+    private readonly ILogger<GhPrBodyGuard>? _logger;
 
     /// <summary>
     /// 构造 gh pr body 守卫

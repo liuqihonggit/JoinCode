@@ -15,8 +15,8 @@ public sealed partial class ProcessUsageMiddleware : ServiceEntity, IChatMiddlew
         _usageProcessor = usageProcessor;
         _logger = logger;
     }
-    [Inject] private readonly IChatUsageProcessor _usageProcessor;
-    [Inject] private readonly ILogger<ProcessUsageMiddleware>? _logger;
+    private readonly IChatUsageProcessor _usageProcessor;
+    private readonly ILogger<ProcessUsageMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

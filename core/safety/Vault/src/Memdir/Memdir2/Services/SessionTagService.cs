@@ -7,7 +7,7 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
     private readonly ConcurrentDictionary<string, HashSet<string>> _tags = new(StringComparer.OrdinalIgnoreCase);
     private readonly string _storagePath;
     private readonly IFileOperationService _fileOperationService;
-    [Inject] private readonly ILogger<SessionTagService>? _logger;
+    private readonly ILogger<SessionTagService>? _logger;
     private readonly SemaphoreSlim _saveLock = new(1, 1);
     private readonly CancellationTokenSource _disposeCts = new();
 

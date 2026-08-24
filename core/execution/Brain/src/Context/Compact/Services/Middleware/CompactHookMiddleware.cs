@@ -14,8 +14,8 @@ public sealed partial class CompactHookMiddleware : ServiceEntity, ICompactMiddl
         _microcompactService = microcompactService;
         _compactHookManager = compactHookManager;
     }
-    [Inject] private readonly IMicrocompactService _microcompactService;
-    [Inject] private readonly ICompactHookManager? _compactHookManager;
+    private readonly IMicrocompactService _microcompactService;
+    private readonly ICompactHookManager? _compactHookManager;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

@@ -12,7 +12,7 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
     {
         _fs = fs;
     }
-    [Inject] private readonly IFileSystem? _fs;
+    private readonly IFileSystem? _fs;
 
     /// <summary>
     /// 待确认的 sed 编辑 — 对齐 TS _simulatedSedEdit

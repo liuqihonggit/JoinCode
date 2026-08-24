@@ -53,7 +53,7 @@ public sealed record CoordinatorPermissionParams
 [Register]
 public sealed partial class CoordinatorHandler : ServiceEntity
 {
-    [Inject] private readonly ILogger<CoordinatorHandler>? _logger;
+    private readonly ILogger<CoordinatorHandler>? _logger;
 
     public CoordinatorHandler(ILogger<CoordinatorHandler>? logger = null)
     {

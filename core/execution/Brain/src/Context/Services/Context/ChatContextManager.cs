@@ -32,7 +32,7 @@ public sealed record ChatContextOptions
 public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
 {
     private readonly IStateService _stateService;
-    [Inject] private readonly ILogger<ChatContextManager> _logger;
+    private readonly ILogger<ChatContextManager> _logger;
     private readonly SemaphoreSlim _lock;
     private readonly ContextFoldExecutor? _foldExecutor;
     private readonly ContextFoldThresholds _thresholds;

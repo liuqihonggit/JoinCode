@@ -5,8 +5,8 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
 {
     private readonly IFileSystem _fs;
     private readonly string _mailboxRoot;
-    [Inject] private readonly ILogger<TeammateMailboxService>? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<TeammateMailboxService>? _logger;
+    private readonly IClockService _clock;
     private readonly SemaphoreSlim _writeLock;
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _agentLocks;
     private readonly ConcurrentDictionary<string, MailboxReadCursor> _cursors;

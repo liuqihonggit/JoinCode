@@ -6,7 +6,7 @@ namespace Core.Skills.Search;
 public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchService, JoinCode.Abstractions.Interfaces.ISkillSearchService
 {
     private readonly ISkillService _skillService;
-    [Inject] private readonly ILogger<SkillSearchService>? _logger;
+    private readonly ILogger<SkillSearchService>? _logger;
     private readonly ConcurrentDictionary<string, FrozenSet<string>> _tagIndex = new();
     private readonly ConcurrentDictionary<string, string> _nameIndex = new(StringComparer.OrdinalIgnoreCase);
     private DateTime _lastIndexTime = DateTime.MinValue;

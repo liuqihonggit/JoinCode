@@ -52,7 +52,7 @@ public sealed record TruncationThreshold
 [Register]
 public sealed partial class MemoryTruncator : ServiceEntity, IMemoryTruncator
 {
-    [Inject] private readonly ILogger<MemoryTruncator>? _logger;
+    private readonly ILogger<MemoryTruncator>? _logger;
 
     public MemoryTruncator(ILogger<MemoryTruncator>? logger = null)
     {

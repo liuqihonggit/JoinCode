@@ -70,7 +70,7 @@ public sealed partial class ChatStreamChunkProcessor : ServiceEntity, IChatStrea
 {
     private readonly IOutputLoopDetector _loopDetector;
     private readonly IChatUsageProcessor _usageProcessor;
-    [Inject] private readonly ILogger<ChatStreamChunkProcessor>? _logger;
+    private readonly ILogger<ChatStreamChunkProcessor>? _logger;
 
     /// <summary>
     /// 初始化流式块处理器

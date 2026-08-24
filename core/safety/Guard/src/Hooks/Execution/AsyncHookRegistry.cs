@@ -217,7 +217,7 @@ public sealed record AsyncHookResponse
 [Register]
 public sealed partial class AsyncHookRegistry : MapRegistry<string, PendingAsyncHook>, IAsyncHookRegistry
 {
-    [Inject] private readonly ILogger<AsyncHookRegistry>? _logger;
+    private readonly ILogger<AsyncHookRegistry>? _logger;
 
     public AsyncHookRegistry(ILogger<AsyncHookRegistry>? logger = null) => _logger = logger;
 

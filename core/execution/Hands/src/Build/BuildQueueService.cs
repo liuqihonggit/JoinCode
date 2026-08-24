@@ -10,10 +10,10 @@ using System.Diagnostics.CodeAnalysis;
 [AllowSkipEntity("实现 IAsyncDisposable，与 ServiceEntity 的 IDisposable 冲突，保留异步释放模式")]
 public sealed partial class BuildQueueService : IBuildQueueService
 {
-    [Inject] private readonly ISystemActuatorRegistry _actuatorRegistry;
-    [Inject] private readonly IFileSystem _fs;
-    [Inject] private readonly IPreventSleepService? _preventSleepService;
-    [Inject] private readonly ILogger<BuildQueueService>? _logger;
+    private readonly ISystemActuatorRegistry _actuatorRegistry;
+    private readonly IFileSystem _fs;
+    private readonly IPreventSleepService? _preventSleepService;
+    private readonly ILogger<BuildQueueService>? _logger;
 
     private const string DefaultCrossProcessLockFileName = "JoinCode.Build.lock";
     private const string GitDirName = ".git";

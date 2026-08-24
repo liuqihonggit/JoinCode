@@ -12,7 +12,7 @@ public sealed partial class TransportManager : ITransportManager
 {
     private readonly IConnectionManager _connectionManager;
     private readonly IMessageRouter _messageRouter;
-    [Inject] private readonly ILogger<TransportManager>? _logger;
+    private readonly ILogger<TransportManager>? _logger;
 
     public TransportConnectionState ConnectionState => _connectionManager.ConnectionState;
     public TransportProtocol CurrentProtocol => _connectionManager.CurrentProtocol;

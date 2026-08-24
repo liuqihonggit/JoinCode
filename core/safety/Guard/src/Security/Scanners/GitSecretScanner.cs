@@ -9,7 +9,7 @@ public sealed partial class GitSecretScanner : ServiceEntity, IGitSecretScanner
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<GitSecretScanner> _logger;
+    private readonly ILogger<GitSecretScanner> _logger;
 
     public Task<ScanResult> ScanFileNamesAsync(IReadOnlyList<string> stagedFiles, CancellationToken ct = default)
     {

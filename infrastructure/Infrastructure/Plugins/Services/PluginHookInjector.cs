@@ -22,7 +22,7 @@ public sealed partial class PluginHookDefinition
 public sealed partial class PluginHookInjector : ServiceEntity, IPluginHookInjector
 {
     private readonly IPluginManager _pluginManager;
-    [Inject] private readonly ILogger<PluginHookInjector>? _logger;
+    private readonly ILogger<PluginHookInjector>? _logger;
     private readonly ITelemetryService? _telemetryService;
     private readonly ConcurrentDictionary<string, List<PluginHookDefinition>> _injectedHooks;
 

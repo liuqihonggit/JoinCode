@@ -8,7 +8,7 @@ namespace JoinCode.Browser;
 [Register]
 public sealed partial class PuppeteerBrowserAutomationService : IBrowserAutomationService, IAsyncDisposable
 {
-    [Inject] private readonly ILogger<PuppeteerBrowserAutomationService> _logger;
+    private readonly ILogger<PuppeteerBrowserAutomationService> _logger;
     private IBrowser? _browser;
     private bool _initialized;
     private bool _initializing;

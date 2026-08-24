@@ -9,7 +9,7 @@ namespace McpToolDispatch;
 public partial class McpClientToolHandlers : IAsyncDisposable
 {
     private readonly Dictionary<string, IMcpClient> _clients = new();
-    [Inject] private readonly ILogger<McpClientToolHandlers>? _logger;
+    private readonly ILogger<McpClientToolHandlers>? _logger;
     private readonly SemaphoreSlim _clientLock = new(1, 1);
     private readonly McpClientToolDeps _deps;
 

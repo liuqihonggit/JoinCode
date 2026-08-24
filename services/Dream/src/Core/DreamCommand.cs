@@ -9,7 +9,7 @@ namespace JoinCode.Dream.Commands;
 public sealed partial class DreamCommand : PluginResourceBase, ICommand
 {
     private readonly IDreamFeature _dreamFeature;
-    [Inject] private readonly ILogger<DreamCommand>? _logger;
+    private readonly ILogger<DreamCommand>? _logger;
 
     public DreamCommand(
         string ownerPluginName,
@@ -88,7 +88,7 @@ public sealed partial class DreamCommand : PluginResourceBase, ICommand
 public sealed partial class DreamTasksCommand : PluginResourceBase, ICommand
 {
     private readonly IDreamFeature _dreamFeature;
-    [Inject] private readonly ILogger<DreamTasksCommand>? _logger;
+    private readonly ILogger<DreamTasksCommand>? _logger;
 
     public DreamTasksCommand(
         string ownerPluginName,

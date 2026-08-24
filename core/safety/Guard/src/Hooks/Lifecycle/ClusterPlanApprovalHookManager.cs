@@ -31,7 +31,7 @@ public sealed partial class ClusterPlanApprovalHookResult
 public sealed partial class ClusterPlanApprovalHookManager : ServiceEntity, IClusterPlanApprovalHookManager
 {
     private readonly IHookOrchestrator _orchestrator;
-    [Inject] private readonly ILogger<ClusterPlanApprovalHookManager>? _logger;
+    private readonly ILogger<ClusterPlanApprovalHookManager>? _logger;
 
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(60);
 

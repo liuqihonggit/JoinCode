@@ -15,8 +15,8 @@ public sealed partial class ContextLoadMiddleware : ServiceEntity, IChatInitMidd
         _contentReplacer = contentReplacer;
         _logger = logger;
     }
-    [Inject] private readonly IChatContentReplacer _contentReplacer;
-    [Inject] private readonly ILogger<ContextLoadMiddleware>? _logger;
+    private readonly IChatContentReplacer _contentReplacer;
+    private readonly ILogger<ContextLoadMiddleware>? _logger;
 
     /// <summary>上下文加载最先执行</summary>
 

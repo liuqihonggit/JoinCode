@@ -9,7 +9,7 @@ public sealed partial class BriefLogic : ServiceEntity, IBriefService
         _fs = fs;
     }
     private const long DefaultMaxAttachmentSize = 10 * 1024 * 1024;
-    [Inject] private readonly IFileSystem _fs;
+    private readonly IFileSystem _fs;
 
     public BriefSendResult ValidateAttachment(string filePath, long? maxSizeBytes = null)
     {

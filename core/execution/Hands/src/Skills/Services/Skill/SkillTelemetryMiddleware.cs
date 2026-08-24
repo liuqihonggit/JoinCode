@@ -11,7 +11,7 @@ public sealed partial class SkillTelemetryMiddleware : ServiceEntity, ISkillMidd
     {
         _telemetryService = telemetryService;
     }
-    [Inject] private readonly ITelemetryService? _telemetryService;
+    private readonly ITelemetryService? _telemetryService;
 
     /// <inheritdoc />
 

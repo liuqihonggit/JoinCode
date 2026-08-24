@@ -14,7 +14,7 @@ public sealed partial class DomainBlocklistChecker : ServiceEntity, IDomainBlock
 
     private readonly IApiClient _apiClient;
     private readonly IWebFetchCache _cache;
-    [Inject] private readonly ILogger<DomainBlocklistChecker>? _logger;
+    private readonly ILogger<DomainBlocklistChecker>? _logger;
 
     public DomainBlocklistChecker(
         IApiClient apiClient,

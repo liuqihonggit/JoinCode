@@ -13,7 +13,7 @@ public sealed partial class DiminishingReturnsMiddleware : ServiceEntity, IQuery
     {
         _detector = detector;
     }
-    [Inject] private readonly IDiminishingReturnsDetector? _detector;
+    private readonly IDiminishingReturnsDetector? _detector;
 
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;

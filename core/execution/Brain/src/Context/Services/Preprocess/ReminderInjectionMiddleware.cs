@@ -15,9 +15,9 @@ public sealed partial class ReminderInjectionMiddleware : ServiceEntity, IPrepar
         _reminderManager = reminderManager;
         _contextManager = contextManager;
     }
-    [Inject] private readonly ToolIdleReminderService _toolIdleReminder;
-    [Inject] private readonly ISystemReminderManager _reminderManager;
-    [Inject] private readonly IChatContextManager _contextManager;
+    private readonly ToolIdleReminderService _toolIdleReminder;
+    private readonly ISystemReminderManager _reminderManager;
+    private readonly IChatContextManager _contextManager;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

@@ -9,7 +9,7 @@ namespace Infrastructure.IO;
 [Register(typeof(JoinCode.Abstractions.LLM.Chat.IMcpOutputStorage))]
 public sealed partial class McpOutputStorage : ServiceEntity, JoinCode.Abstractions.LLM.Chat.IMcpOutputStorage
 {
-    [Inject] private readonly ILogger<McpOutputStorage>? _logger;
+    private readonly ILogger<McpOutputStorage>? _logger;
     private readonly IFileSystem _fs;
     private readonly string _baseDir;
 

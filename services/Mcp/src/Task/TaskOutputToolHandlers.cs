@@ -6,7 +6,7 @@ namespace McpToolDispatch;
 public partial class TaskOutputToolHandlers
 {
     private readonly ITaskService _taskService;
-    [Inject] private readonly ILogger<TaskOutputToolHandlers>? _logger;
+    private readonly ILogger<TaskOutputToolHandlers>? _logger;
 
     public TaskOutputToolHandlers(ITaskService taskService, ILogger<TaskOutputToolHandlers>? logger = null)
     {

@@ -9,7 +9,7 @@ public sealed partial class IdeIntegrationService : ServiceEntity, IIdeIntegrati
     private string? _currentFilePath;
     private readonly IFileSystem _fs;
     private readonly IProcessService _processService;
-    [Inject] private readonly ILogger<IdeIntegrationService>? _logger;
+    private readonly ILogger<IdeIntegrationService>? _logger;
 
     private static readonly FrozenDictionary<IdeType, IdeDetectionConfig> DetectionConfigs =
         new Dictionary<IdeType, IdeDetectionConfig>

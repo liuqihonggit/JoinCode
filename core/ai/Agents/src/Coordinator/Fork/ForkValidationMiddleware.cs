@@ -11,7 +11,7 @@ public sealed partial class ForkValidationMiddleware : ServiceEntity, IForkMiddl
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<ForkValidationMiddleware>? _logger;
+    private readonly ILogger<ForkValidationMiddleware>? _logger;
 
     /// <summary>验证最先执行</summary>
 

@@ -12,7 +12,7 @@ public sealed partial class HotSpotSpawnIntegration : IHotSpotSpawnIntegration
     private readonly IContractChangeBroadcaster _broadcaster;
     private readonly IHotSpotTracker _hotSpotTracker;
     private readonly IContractChangeNotificationRouter _router;
-    [Inject] private readonly ILogger<HotSpotSpawnIntegration>? _logger;
+    private readonly ILogger<HotSpotSpawnIntegration>? _logger;
 
     private volatile bool _listenersRegistered;
     private string? _registeredCaptainId;

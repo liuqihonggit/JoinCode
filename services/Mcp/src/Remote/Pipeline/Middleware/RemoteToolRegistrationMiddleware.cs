@@ -14,8 +14,8 @@ public sealed partial class RemoteToolRegistrationMiddleware : ServiceEntity, IR
         _toolRegistry = toolRegistry;
         _logger = logger;
     }
-    [Inject] private readonly IToolRegistry _toolRegistry;
-    [Inject] private readonly ILogger<RemoteToolRegistrationMiddleware> _logger;
+    private readonly IToolRegistry _toolRegistry;
+    private readonly ILogger<RemoteToolRegistrationMiddleware> _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

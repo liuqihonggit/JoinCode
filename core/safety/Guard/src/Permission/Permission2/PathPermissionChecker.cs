@@ -13,7 +13,7 @@ public sealed partial class PathPermissionChecker : ServiceEntity, IPathPermissi
     private readonly string[] _resolvedAdditionalDirectories;
     private readonly IReadOnlyList<PathPermissionRule> _rules;
     private readonly IFileSystem _fs;
-    [Inject] private readonly ILogger<PathPermissionChecker>? _logger;
+    private readonly ILogger<PathPermissionChecker>? _logger;
     private readonly string _appDataRoot;
 
     /// <summary>

@@ -22,7 +22,7 @@ public sealed partial class PluginCommandDefinition
 [Register]
 public sealed partial class PluginCommandRegistry : MapRegistry<string, PluginCommandDefinition>, IPluginCommandRegistry
 {
-    [Inject] private readonly ILogger<PluginCommandRegistry>? _logger;
+    private readonly ILogger<PluginCommandRegistry>? _logger;
     private readonly ITelemetryService? _telemetryService;
 
     public PluginCommandRegistry(ILogger<PluginCommandRegistry>? logger = null, ITelemetryService? telemetryService = null)

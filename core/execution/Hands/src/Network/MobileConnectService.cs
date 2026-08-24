@@ -6,7 +6,7 @@ namespace IO.Services;
 public sealed partial class MobileConnectService : ServiceEntity, IMobileConnectService, IDisposable
 {
     private System.Net.Sockets.TcpListener? _tcpListener;
-    [Inject] private readonly ILogger<MobileConnectService>? _logger;
+    private readonly ILogger<MobileConnectService>? _logger;
     private int _runningPort;
     private CancellationTokenSource? _cts;
 

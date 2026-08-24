@@ -258,7 +258,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
 
     private readonly HttpClient _httpClient;
     private readonly BridgeApiOptions _options;
-    [Inject] private readonly ILogger<BridgeApiClient>? _logger;
+    private readonly ILogger<BridgeApiClient>? _logger;
     private int _isDisposed;
 
     /// <summary>

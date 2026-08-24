@@ -46,7 +46,7 @@ public sealed partial class McpMonitorEventArgs : EventArgs
 public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IAsyncDisposable
 {
     private readonly IMcpToolRegistry _mcpToolRegistry;
-    [Inject] private readonly ILogger<MonitorMcpTaskExecutor>? _logger;
+    private readonly ILogger<MonitorMcpTaskExecutor>? _logger;
     private readonly ITelemetryService? _telemetryService;
     private readonly IClockService _clock;
     private readonly ConcurrentDictionary<string, MonitorSession> _sessions = new();

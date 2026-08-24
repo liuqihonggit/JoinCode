@@ -14,8 +14,8 @@ public sealed partial class ReactiveCompactMiddleware : ServiceEntity, ICompactM
         _reactiveCompactService = reactiveCompactService;
         _logger = logger;
     }
-    [Inject] private readonly IReactiveCompactService _reactiveCompactService;
-    [Inject] private readonly ILogger<ReactiveCompactMiddleware>? _logger;
+    private readonly IReactiveCompactService _reactiveCompactService;
+    private readonly ILogger<ReactiveCompactMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

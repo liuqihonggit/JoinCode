@@ -13,7 +13,7 @@ public sealed partial class GoalStateTransitionMiddleware : ServiceEntity, IGoal
     {
         _clock = clock;
     }
-    [Inject] private readonly IClockService _clock;
+    private readonly IClockService _clock;
 
 
     public Task InvokeAsync(GoalLifecycleContext ctx, MiddlewareDelegate<GoalLifecycleContext> next, CancellationToken ct)

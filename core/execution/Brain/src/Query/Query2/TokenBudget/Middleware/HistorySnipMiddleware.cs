@@ -14,8 +14,8 @@ public sealed partial class HistorySnipMiddleware : ServiceEntity, IQueryMiddlew
         _historySnipService = historySnipService;
         _tokenBudgetManager = tokenBudgetManager;
     }
-    [Inject] private readonly IHistorySnipService? _historySnipService;
-    [Inject] private readonly ITokenBudgetManager? _tokenBudgetManager;
+    private readonly IHistorySnipService? _historySnipService;
+    private readonly ITokenBudgetManager? _tokenBudgetManager;
 
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;

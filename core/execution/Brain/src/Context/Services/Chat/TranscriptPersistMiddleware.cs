@@ -12,9 +12,9 @@ namespace Core.Context;
 [Register]
 public sealed partial class TranscriptPersistMiddleware : ServiceEntity, IChatMiddleware
 {
-    [Inject] private readonly ITranscriptService? _transcriptService;
-    [Inject] private readonly IChatContextManager _contextManager;
-    [Inject] private readonly ILogger<TranscriptPersistMiddleware>? _logger;
+    private readonly ITranscriptService? _transcriptService;
+    private readonly IChatContextManager _contextManager;
+    private readonly ILogger<TranscriptPersistMiddleware>? _logger;
 
     public TranscriptPersistMiddleware(
         ITranscriptService? transcriptService,

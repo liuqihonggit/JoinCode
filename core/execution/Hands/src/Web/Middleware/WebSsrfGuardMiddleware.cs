@@ -13,7 +13,7 @@ public sealed partial class WebSsrfGuardMiddleware : ServiceEntity, IWebMiddlewa
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<WebSsrfGuardMiddleware>? _logger;
+    private readonly ILogger<WebSsrfGuardMiddleware>? _logger;
 
     /// <inheritdoc />
 

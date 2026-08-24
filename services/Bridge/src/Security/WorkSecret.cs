@@ -99,7 +99,7 @@ public interface IWorkSecretStore : IStore
 public sealed partial class WorkSecretStore : ServiceEntity, IWorkSecretStore, IDisposable
 {
     private readonly ConcurrentDictionary<string, WorkSecretEntry> _secrets;
-    [Inject] private readonly ILogger<WorkSecretStore>? _logger;
+    private readonly ILogger<WorkSecretStore>? _logger;
     private readonly IClockService _clock;
     private readonly byte[] _encryptionKey;
 

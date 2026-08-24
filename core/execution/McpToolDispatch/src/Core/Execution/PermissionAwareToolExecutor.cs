@@ -14,7 +14,7 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
     private readonly ITelemetryService? _telemetryService;
     private readonly IToolPermissionManager _permissionManager;
     private readonly IPermissionConfirmationHandler? _confirmationHandler;
-    [Inject] private readonly ILogger<PermissionAwareToolExecutor> _logger;
+    private readonly ILogger<PermissionAwareToolExecutor> _logger;
     private readonly MiddlewarePipeline<ToolExecutionContext> _pipeline;
 
     /// <summary>

@@ -16,10 +16,10 @@ public sealed partial class TranscriptMiddleware : ServiceEntity, IUnifiedSpawnM
         _contextManager = contextManager;
         _logger = logger;
     }
-    [Inject] private readonly IAgentTranscriptService? _transcriptService;
-    [Inject] private readonly IChatContextManager? _contextManager;
-    [Inject] private readonly ILogger<TranscriptMiddleware>? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly IAgentTranscriptService? _transcriptService;
+    private readonly IChatContextManager? _contextManager;
+    private readonly ILogger<TranscriptMiddleware>? _logger;
+    private readonly IClockService _clock;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

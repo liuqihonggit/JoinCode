@@ -20,12 +20,12 @@ public sealed partial class PreChatMiddleware : ServiceEntity, IChatMiddleware
         _emptyResponseTracker = emptyResponseTracker;
         _logger = logger;
     }
-    [Inject] private readonly IChatContextManager _contextManager;
-    [Inject] private readonly IChatPreprocessor _preprocessor;
-    [Inject] private readonly IChatFileContextService _fileContextService;
-    [Inject] private readonly IChatOptionsFactory _optionsFactory;
-    [Inject] private readonly IEmptyResponseTracker _emptyResponseTracker;
-    [Inject] private readonly ILogger<PreChatMiddleware>? _logger;
+    private readonly IChatContextManager _contextManager;
+    private readonly IChatPreprocessor _preprocessor;
+    private readonly IChatFileContextService _fileContextService;
+    private readonly IChatOptionsFactory _optionsFactory;
+    private readonly IEmptyResponseTracker _emptyResponseTracker;
+    private readonly ILogger<PreChatMiddleware>? _logger;
 
 
     /// <summary>

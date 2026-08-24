@@ -12,8 +12,8 @@ public sealed partial class GitCommandRunner : ServiceEntity, IGitCommandRunner
         _processService = processService;
         _logger = logger;
     }
-    [Inject] private readonly IProcessService _processService;
-    [Inject] private readonly ILogger<GitCommandRunner>? _logger;
+    private readonly IProcessService _processService;
+    private readonly ILogger<GitCommandRunner>? _logger;
 
     public async Task<GitCommandResult> ExecuteAsync(
         string arguments,

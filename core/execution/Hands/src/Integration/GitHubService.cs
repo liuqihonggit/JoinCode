@@ -5,7 +5,7 @@ public sealed partial class GitHubService : ServiceEntity, IGitHubService
 {
     private readonly HttpClient _httpClient;
     private readonly IConfigurationService? _configService;
-    [Inject] private readonly ILogger<GitHubService>? _logger;
+    private readonly ILogger<GitHubService>? _logger;
     private readonly SemaphoreSlim _lock = new(1, 1);
     private readonly Dictionary<string, PRSubscription> _subscriptions = new(StringComparer.Ordinal);
 

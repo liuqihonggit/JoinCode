@@ -5,7 +5,7 @@ public sealed partial class RemoteTriggerService : ServiceEntity, IRemoteTrigger
 {
     private readonly HttpClient _httpClient;
     private readonly IConfigurationService? _configService;
-    [Inject] private readonly ILogger<RemoteTriggerService>? _logger;
+    private readonly ILogger<RemoteTriggerService>? _logger;
 
     public RemoteTriggerService(HttpClient httpClient, IConfigurationService? configService = null, ILogger<RemoteTriggerService>? logger = null)
     {

@@ -21,7 +21,7 @@ public sealed partial class ToolDenyRule
 public sealed partial class ToolPermissionFilter : ServiceEntity, IToolPermissionFilter
 {
     private readonly ConcurrentDictionary<string, ToolDenyRule> _denyRules;
-    [Inject] private readonly ILogger<ToolPermissionFilter>? _logger;
+    private readonly ILogger<ToolPermissionFilter>? _logger;
     private readonly ITelemetryService? _telemetryService;
 
     public ToolPermissionFilter(ILogger<ToolPermissionFilter>? logger = null, ITelemetryService? telemetryService = null)

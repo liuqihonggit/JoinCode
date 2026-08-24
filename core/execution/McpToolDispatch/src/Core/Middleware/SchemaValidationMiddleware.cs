@@ -9,7 +9,7 @@ public sealed partial class SchemaValidationMiddleware : ServiceEntity, IToolExe
 {
 
     private readonly IJsonSchemaValidator? _schemaValidator;
-    [Inject] private readonly ILogger<SchemaValidationMiddleware> _logger;
+    private readonly ILogger<SchemaValidationMiddleware> _logger;
 
     public SchemaValidationMiddleware(
         IJsonSchemaValidator? schemaValidator,

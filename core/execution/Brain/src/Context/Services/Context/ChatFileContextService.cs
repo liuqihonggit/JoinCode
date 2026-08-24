@@ -14,9 +14,9 @@ public sealed partial class ChatFileContextService : ServiceEntity, IChatFileCon
         _fs = fs;
         _logger = logger;
     }
-    [Inject] private readonly FileContextTracker _fileContext;
-    [Inject] private readonly IFileSystem _fs;
-    [Inject] private readonly ILogger<ChatFileContextService>? _logger;
+    private readonly FileContextTracker _fileContext;
+    private readonly IFileSystem _fs;
+    private readonly ILogger<ChatFileContextService>? _logger;
 
     /// <summary>
     /// 从用户消息中提取文件路径并更新文件上下文

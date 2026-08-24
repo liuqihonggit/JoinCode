@@ -12,7 +12,7 @@ public sealed partial class PermissionCacheMiddleware : ServiceEntity, ISettings
     {
         _toolPermissionManager = toolPermissionManager;
     }
-    [Inject] private readonly IToolPermissionManager? _toolPermissionManager;
+    private readonly IToolPermissionManager? _toolPermissionManager;
 
     /// <inheritdoc />
 

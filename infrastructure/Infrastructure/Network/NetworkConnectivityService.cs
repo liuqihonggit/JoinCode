@@ -12,7 +12,7 @@ namespace Infrastructure.Network;
 [Register(typeof(INetworkConnectivityService))]
 public sealed partial class NetworkConnectivityService : ServiceEntity, INetworkConnectivityService
 {
-    [Inject] private readonly ILogger<NetworkConnectivityService>? _logger;
+    private readonly ILogger<NetworkConnectivityService>? _logger;
     private readonly Func<IReadOnlyList<NetworkInterfaceInfo>> _interfaceProvider;
     private readonly Func<bool> _vpnProcessDetector;
     private readonly Func<bool> _proxyEnvDetector;

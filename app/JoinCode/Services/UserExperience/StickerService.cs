@@ -7,7 +7,7 @@ public sealed partial class StickerService : ServiceEntity, IStickerService
 {
     private const string StickerPageUrl = "https://jcc.dev/stickers";
     private readonly IProcessService _processService;
-    [Inject] private readonly ILogger<StickerService>? _logger;
+    private readonly ILogger<StickerService>? _logger;
 
     public StickerService(IProcessService processService, ILogger<StickerService>? logger = null)
     {

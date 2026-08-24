@@ -11,7 +11,7 @@ public sealed partial class SubagentStopCheckpoint : ServiceEntity, ISubagentSto
     private readonly IGitSecretScanner _secretScanner;
     private readonly IGitDiffProvider _diffProvider;
     private readonly IBuildQueueService _buildQueue;
-    [Inject] private readonly ILogger<SubagentStopCheckpoint>? _logger;
+    private readonly ILogger<SubagentStopCheckpoint>? _logger;
 
     public SubagentStopCheckpoint(
         IGitSecretScanner secretScanner,

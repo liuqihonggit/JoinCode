@@ -15,10 +15,10 @@ public sealed partial class ToolScoreSettingsMiddleware : ServiceEntity, ISettin
         _searchScopeReloadable = searchScopeReloadable;
         _logger = logger;
     }
-    [Inject] private readonly IToolHealthMonitor? _healthMonitor;
-    [Inject] private readonly IHyperedgeReloadable? _hyperedgeReloadable;
-    [Inject] private readonly ISearchScopeReloadable? _searchScopeReloadable;
-    [Inject] private readonly ILogger<ToolScoreSettingsMiddleware>? _logger;
+    private readonly IToolHealthMonitor? _healthMonitor;
+    private readonly IHyperedgeReloadable? _hyperedgeReloadable;
+    private readonly ISearchScopeReloadable? _searchScopeReloadable;
+    private readonly ILogger<ToolScoreSettingsMiddleware>? _logger;
 
     /// <inheritdoc />
     public ErrorBehavior OnError => ErrorBehavior.Continue;

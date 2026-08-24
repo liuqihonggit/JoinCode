@@ -6,7 +6,7 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
 {
     private readonly ConcurrentQueue<AnalyticsEvent> _events = new();
     private readonly ConcurrentDictionary<string, ITelemetrySpan> _agentSpans = new();
-    [Inject] private readonly ILogger<AnalyticsService>? _logger;
+    private readonly ILogger<AnalyticsService>? _logger;
     private readonly IFileOperationService? _fileOperationService;
     private readonly string? _storagePath;
     private readonly ITelemetryService? _telemetryService;

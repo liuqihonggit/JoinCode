@@ -8,7 +8,7 @@ namespace JoinCode.Composition.SubAgent;
 [Register(typeof(ISubAgentSummaryClient))]
 public sealed partial class SubAgentSummaryClient : ServiceEntity, ISubAgentSummaryClient
 {
-    [Inject] private readonly ILogger<SubAgentSummaryClient>? _logger;
+    private readonly ILogger<SubAgentSummaryClient>? _logger;
     private readonly IChatClient _kernel;
 
     public SubAgentSummaryClient(IChatClient kernel, ILogger<SubAgentSummaryClient>? logger = null)

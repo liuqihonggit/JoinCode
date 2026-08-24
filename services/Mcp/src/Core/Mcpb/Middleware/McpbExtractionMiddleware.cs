@@ -13,8 +13,8 @@ public sealed partial class McpbExtractionMiddleware : ServiceEntity, IMcpbMiddl
         _fs = fs;
         _logger = logger;
     }
-    [Inject] private readonly IFileSystem _fs;
-    [Inject] private readonly ILogger<McpbExtractionMiddleware>? _logger;
+    private readonly IFileSystem _fs;
+    private readonly ILogger<McpbExtractionMiddleware>? _logger;
 
     private const int MaxFileSizeBytes = 512 * 1024 * 1024;
     private const int MaxTotalSizeBytes = 1024 * 1024 * 1024;

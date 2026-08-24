@@ -102,7 +102,7 @@ public sealed partial class CapacityChangedEventArgs : EventArgs
 public sealed partial class CapacityWakeService : IAsyncDisposable
 {
     private readonly CapacityWakeOptions _options;
-    [Inject] private readonly ILogger<CapacityWakeService>? _logger;
+    private readonly ILogger<CapacityWakeService>? _logger;
     private readonly SemaphoreSlim _stateLock;
 
     private CancellationTokenSource? _monitorCts;

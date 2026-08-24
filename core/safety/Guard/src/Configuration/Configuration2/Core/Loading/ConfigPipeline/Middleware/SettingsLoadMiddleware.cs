@@ -11,7 +11,7 @@ public sealed partial class SettingsLoadMiddleware : ServiceEntity, IConfigLoadM
     {
         _fs = fs;
     }
-    [Inject] private readonly IFileSystem _fs;
+    private readonly IFileSystem _fs;
 
 
     public async Task InvokeAsync(ConfigLoadContext context, MiddlewareDelegate<ConfigLoadContext> next, CancellationToken ct)

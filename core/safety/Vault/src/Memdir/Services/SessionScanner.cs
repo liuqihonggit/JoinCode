@@ -8,7 +8,7 @@ namespace Memdir.Services;
 public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScanner
 {
     private readonly string _sessionsDirectory;
-    [Inject] private readonly ILogger<SessionScanner>? _logger;
+    private readonly ILogger<SessionScanner>? _logger;
     private readonly IFileSystem _fs;
 
     /// <summary>文件扩展名到语言名的映射 — 对齐 TS EXTENSION_TO_LANGUAGE</summary>

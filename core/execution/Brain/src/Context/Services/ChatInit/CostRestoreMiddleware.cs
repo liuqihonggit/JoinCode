@@ -10,7 +10,7 @@ public sealed partial class CostRestoreMiddleware : ServiceEntity, IChatInitMidd
 {
     private readonly ISessionCostPersistence? _sessionCostPersistence;
     private readonly ISessionStats _sessionStats;
-    [Inject] private readonly ILogger<CostRestoreMiddleware>? _logger;
+    private readonly ILogger<CostRestoreMiddleware>? _logger;
 
     /// <summary>
     /// 初始化成本恢复中间件

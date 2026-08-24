@@ -16,8 +16,8 @@ public sealed partial class PasteStore : ServiceEntity, JoinCode.Abstractions.In
         _fs = fs;
         _logger = logger;
     }
-    [Inject] private readonly IFileSystem _fs;
-    [Inject] private readonly ILogger<PasteStore>? _logger;
+    private readonly IFileSystem _fs;
+    private readonly ILogger<PasteStore>? _logger;
 
     private static readonly string PasteCacheDir = Path.Combine(
         WorkflowConstants.Paths.JccDirectory, "paste-cache");

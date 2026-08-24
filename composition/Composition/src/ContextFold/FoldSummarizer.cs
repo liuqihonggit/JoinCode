@@ -8,7 +8,7 @@ namespace JoinCode.Composition.ContextFold;
 [Register(typeof(IFoldSummarizer))]
 public sealed partial class FoldSummarizer : ServiceEntity, IFoldSummarizer
 {
-    [Inject] private readonly ILogger<FoldSummarizer>? _logger;
+    private readonly ILogger<FoldSummarizer>? _logger;
     private readonly IChatClient _kernel;
 
     public FoldSummarizer(IChatClient kernel, ILogger<FoldSummarizer>? logger = null)

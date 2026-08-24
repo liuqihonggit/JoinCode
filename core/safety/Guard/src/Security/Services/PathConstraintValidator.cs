@@ -129,7 +129,7 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
     private static readonly Regex ShellExpansionPattern = new(
         @"\$[A-Za-z_]|%[A-Za-z_]%|\$\{", RegexOptions.Compiled);
 
-    [Inject] private readonly IPathValidator _pathValidator;
+    private readonly IPathValidator _pathValidator;
 
     public PathConstraintValidator(IPathValidator pathValidator)
     {

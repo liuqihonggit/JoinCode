@@ -8,7 +8,7 @@ public sealed partial class BridgeClientHostedService : IHostedService, IAsyncDi
 {
     private readonly BridgeClient _bridgeClient;
     private readonly BridgeConfig _config;
-    [Inject] private readonly ILogger<BridgeClientHostedService>? _logger;
+    private readonly ILogger<BridgeClientHostedService>? _logger;
     private readonly CancellationTokenSource _cts = new();
 
     public BridgeClientHostedService(

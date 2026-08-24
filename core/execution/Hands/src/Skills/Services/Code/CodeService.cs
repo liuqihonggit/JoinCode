@@ -9,7 +9,7 @@ public sealed partial class CodeService : ServiceEntity, ICodeService
 {
     private readonly MiddlewarePipeline<CodeContext> _pipeline;
     private readonly ITelemetryService? _telemetryService;
-    [Inject] private readonly ILogger<CodeService>? _logger;
+    private readonly ILogger<CodeService>? _logger;
 
     /// <summary>
     /// 创建 CodeService

@@ -9,8 +9,8 @@ public sealed partial class DisposeUnregisterMessageMiddleware : ServiceEntity, 
         _messageBroker = messageBroker;
         _logger = logger;
     }
-    [Inject] private readonly IMailbox _messageBroker;
-    [Inject] private readonly ILogger<DisposeUnregisterMessageMiddleware> _logger;
+    private readonly IMailbox _messageBroker;
+    private readonly ILogger<DisposeUnregisterMessageMiddleware> _logger;
 
     public async Task InvokeAsync(AgentDisposeContext ctx, MiddlewareDelegate<AgentDisposeContext> next, CancellationToken ct)
     {

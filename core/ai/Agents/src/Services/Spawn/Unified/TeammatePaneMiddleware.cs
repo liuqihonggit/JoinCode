@@ -15,9 +15,9 @@ public sealed partial class TeammatePaneMiddleware : ServiceEntity, IUnifiedSpaw
         _logger = logger;
         _layoutManager = layoutManager;
     }
-    [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
-    [Inject] private readonly ITeammateLayoutManager? _layoutManager;
-    [Inject] private readonly ILogger<TeammatePaneMiddleware> _logger;
+    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly ITeammateLayoutManager? _layoutManager;
+    private readonly ILogger<TeammatePaneMiddleware> _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

@@ -50,7 +50,7 @@ public sealed record SubAgentSummaryResult(SubAgentSummaryStatus Status, string?
 [Register]
 public sealed partial class SubAgentSummaryGenerator : ServiceEntity
 {
-    [Inject] private readonly ILogger<SubAgentSummaryGenerator>? _logger;
+    private readonly ILogger<SubAgentSummaryGenerator>? _logger;
     private readonly ISubAgentSummaryClient? _client;
     private readonly SubAgentSummaryConfig _config;
 

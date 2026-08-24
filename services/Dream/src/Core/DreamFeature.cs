@@ -14,7 +14,7 @@ public sealed partial class DreamFeature : ServiceEntity, IDreamFeature
     private readonly IDreamTaskRegistry _taskRegistry;
     private readonly AutoDreamConfig _config;
     private readonly MiddlewarePipeline<DreamContext>? _pipeline;
-    [Inject] private readonly ILogger<DreamFeature>? _logger;
+    private readonly ILogger<DreamFeature>? _logger;
 
     public DreamFeature(
         IChatCompletionClient chatCompletionClient,

@@ -11,7 +11,7 @@ public sealed partial class EffortLevelMiddleware : ServiceEntity, ISettingsMidd
     {
         _executionSettingsProvider = executionSettingsProvider;
     }
-    [Inject] private readonly IExecutionSettingsProvider? _executionSettingsProvider;
+    private readonly IExecutionSettingsProvider? _executionSettingsProvider;
 
     /// <inheritdoc />
 

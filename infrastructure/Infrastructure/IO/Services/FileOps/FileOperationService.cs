@@ -14,7 +14,7 @@ public sealed partial class FileOperationService : ServiceEntity, IFileOperation
     private readonly FileReader _fileReader;
     private readonly FileWriter _fileWriter;
     private readonly FileEditor _fileEditor;
-    [Inject] private readonly ILogger<FileOperationService>? _logger;
+    private readonly ILogger<FileOperationService>? _logger;
 
     public FileOperationService(IFileSystem fs, FileOperationConfig config, ILogger<FileOperationService>? logger = null)
     {

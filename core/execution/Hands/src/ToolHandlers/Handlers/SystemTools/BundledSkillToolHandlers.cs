@@ -10,7 +10,7 @@ public partial class BundledSkillToolHandlers
     private readonly ISystemActuatorRegistry _actuatorRegistry;
     private readonly IFileOperationService _fileOperationService;
     private readonly IFileSystem _fs;
-    [Inject] private readonly ILogger<BundledSkillToolHandlers>? _logger;
+    private readonly ILogger<BundledSkillToolHandlers>? _logger;
 
     public BundledSkillToolHandlers(
         ISystemActuatorRegistry actuatorRegistry,

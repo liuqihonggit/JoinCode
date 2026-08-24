@@ -8,7 +8,7 @@ namespace McpToolDispatch;
 [McpToolDispatch(ToolCategory.Sleep)]
 public partial class SleepToolHandlers
 {
-    [Inject] private readonly ILogger<SleepToolHandlers>? _logger;
+    private readonly ILogger<SleepToolHandlers>? _logger;
 
     public SleepToolHandlers(ILogger<SleepToolHandlers>? logger = null)
     {

@@ -15,7 +15,7 @@ public sealed partial class MicrocompactService : ServiceEntity, IMicrocompactSe
     {
         _clock = clock;
     }
-    [Inject] private readonly IClockService _clock;
+    private readonly IClockService _clock;
 
     /// <summary>粗略估算：每4字节≈1个token（英文为主时约4字符/token）</summary>
     private const int BytesPerToken = 4;

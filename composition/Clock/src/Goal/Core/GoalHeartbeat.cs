@@ -12,8 +12,8 @@ public sealed partial class GoalHeartbeat : IGoalHeartbeat
     private Task? _heartbeatLoop;
     private readonly TimeSpan _heartbeatInterval;
     private readonly SemaphoreSlim _stateLock;
-    [Inject] private readonly ILogger<GoalHeartbeat>? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<GoalHeartbeat>? _logger;
+    private readonly IClockService _clock;
 
     public int RefCount => Volatile.Read(ref _refcount);
     public bool IsActive => Volatile.Read(ref _refcount) > 0;

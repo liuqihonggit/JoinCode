@@ -15,8 +15,8 @@ public sealed partial class SaveContextMiddleware : ServiceEntity, IChatMiddlewa
         _contextManager = contextManager;
         _logger = logger;
     }
-    [Inject] private readonly IChatContextManager _contextManager;
-    [Inject] private readonly ILogger<SaveContextMiddleware>? _logger;
+    private readonly IChatContextManager _contextManager;
+    private readonly ILogger<SaveContextMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

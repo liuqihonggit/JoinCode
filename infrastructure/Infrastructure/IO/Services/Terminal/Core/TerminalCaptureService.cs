@@ -6,8 +6,8 @@ namespace IO.Services;
 public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCaptureService
 {
     private readonly IFileSystem _fs;
-    [Inject] private readonly ILogger<TerminalCaptureService>? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<TerminalCaptureService>? _logger;
+    private readonly IClockService _clock;
 
     public TerminalCaptureService(IFileSystem fs, ILogger<TerminalCaptureService>? logger = null, IClockService? clock = null)
     {

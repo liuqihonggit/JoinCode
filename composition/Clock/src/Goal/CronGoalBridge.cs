@@ -6,7 +6,7 @@ public sealed partial class CronGoalBridge : IAsyncDisposable
     private readonly IGoalEngine _goalEngine;
     private readonly ICronTaskStore _taskStore;
     private readonly IAgentDefinitionProvider? _agentDefinitionProvider;
-    [Inject] private readonly ILogger<CronGoalBridge>? _logger;
+    private readonly ILogger<CronGoalBridge>? _logger;
     private readonly CronScheduler _scheduler;
 
     public bool IsStarted { get; private set; }

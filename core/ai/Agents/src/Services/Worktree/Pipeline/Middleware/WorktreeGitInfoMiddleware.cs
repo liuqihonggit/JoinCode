@@ -13,8 +13,8 @@ public sealed partial class WorktreeGitInfoMiddleware : ServiceEntity, IWorktree
         _worktreeService = worktreeService;
         _logger = logger;
     }
-    [Inject] private readonly Lazy<IWorktreePipelineOperations> _worktreeService;
-    [Inject] private readonly ILogger<WorktreeGitInfoMiddleware>? _logger;
+    private readonly Lazy<IWorktreePipelineOperations> _worktreeService;
+    private readonly ILogger<WorktreeGitInfoMiddleware>? _logger;
 
 
     public async Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct)

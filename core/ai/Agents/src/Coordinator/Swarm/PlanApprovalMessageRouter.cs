@@ -12,8 +12,8 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity
     private readonly IMailbox _messageBroker;
     private readonly IPlanModeManager _planModeManager;
     private readonly IToolPermissionManager? _permissionManager;
-    [Inject] private readonly ILogger<PlanApprovalMessageRouter>? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<PlanApprovalMessageRouter>? _logger;
+    private readonly IClockService _clock;
     private CancellationTokenSource? _leaderCts;
     private Task? _leaderRoutingTask;
 

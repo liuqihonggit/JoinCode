@@ -9,9 +9,9 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
 {
     private static FrozenDictionary<SystemActuatorKind, Func<RegistryDeps, ISystemActuator>>? _factories;
 
-    [Inject] private readonly ILogger<SystemActuatorRegistry>? _logger;
-    [Inject] private readonly ITelemetryService? _telemetryService;
-    [Inject] private readonly IAgentNotificationQueue? _notificationQueue;
+    private readonly ILogger<SystemActuatorRegistry>? _logger;
+    private readonly ITelemetryService? _telemetryService;
+    private readonly IAgentNotificationQueue? _notificationQueue;
     private readonly IFileSystem _fs;
     private readonly ISandboxManager? _sandboxManager;
     private readonly IPreventSleepService? _preventSleepService;

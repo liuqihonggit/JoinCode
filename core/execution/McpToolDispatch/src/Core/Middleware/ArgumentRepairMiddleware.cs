@@ -8,7 +8,7 @@ namespace McpToolRegistry;
 public sealed partial class ArgumentRepairMiddleware : ServiceEntity, IToolExecutionMiddleware
 {
 
-    [Inject] private readonly ILogger<ArgumentRepairMiddleware> _logger;
+    private readonly ILogger<ArgumentRepairMiddleware> _logger;
 
     public ArgumentRepairMiddleware(ILogger<ArgumentRepairMiddleware> logger)
     {

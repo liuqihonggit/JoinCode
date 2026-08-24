@@ -13,7 +13,7 @@ public sealed partial class StateTransitionMiddleware : ServiceEntity, IQueryMid
     {
         _stateTransitions = stateTransitions;
     }
-    [Inject] private readonly IQueryStateTransitions? _stateTransitions;
+    private readonly IQueryStateTransitions? _stateTransitions;
 
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;

@@ -11,7 +11,7 @@ public sealed partial class AgentRestrictionMiddleware : ServiceEntity, IToolExe
 
     private readonly IAgentToolRestrictions? _agentToolRestrictions;
     private readonly IToolFilterPolicy? _toolFilterPolicy;
-    [Inject] private readonly ILogger<AgentRestrictionMiddleware> _logger;
+    private readonly ILogger<AgentRestrictionMiddleware> _logger;
 
     public AgentRestrictionMiddleware(
         IAgentToolRestrictions? agentToolRestrictions,

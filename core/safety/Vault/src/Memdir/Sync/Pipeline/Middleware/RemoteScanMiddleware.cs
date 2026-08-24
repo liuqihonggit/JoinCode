@@ -13,7 +13,7 @@ public sealed partial class RemoteScanMiddleware : ServiceEntity, ISyncStartMidd
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<RemoteScanMiddleware>? _logger;
+    private readonly ILogger<RemoteScanMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

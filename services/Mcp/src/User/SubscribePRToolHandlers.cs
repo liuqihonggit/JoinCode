@@ -5,7 +5,7 @@ namespace McpToolDispatch;
 [McpToolDispatch(ToolCategory.PrSubscription, Optional = true)]
 public partial class SubscribePRToolHandlers
 {
-    [Inject] private readonly ILogger<SubscribePRToolHandlers>? _logger;
+    private readonly ILogger<SubscribePRToolHandlers>? _logger;
     private readonly IGitHubService? _gitHubService;
 
     public SubscribePRToolHandlers(ILogger<SubscribePRToolHandlers>? logger = null, IGitHubService? gitHubService = null)

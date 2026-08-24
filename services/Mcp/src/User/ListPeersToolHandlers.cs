@@ -5,7 +5,7 @@ namespace McpToolDispatch;
 [McpToolDispatch(ToolCategory.Peers, Optional = true)]
 public partial class ListPeersToolHandlers
 {
-    [Inject] private readonly ILogger<ListPeersToolHandlers>? _logger;
+    private readonly ILogger<ListPeersToolHandlers>? _logger;
     private readonly IPeerDiscoveryService? _peerService;
 
     public ListPeersToolHandlers(ILogger<ListPeersToolHandlers>? logger = null, IPeerDiscoveryService? peerService = null)

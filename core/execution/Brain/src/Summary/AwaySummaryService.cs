@@ -19,7 +19,7 @@ internal sealed record SummaryTemplateData(
 public sealed partial class AwaySummaryService : ServiceEntity, IAwaySummaryService, IDisposable
 {
     private readonly AwaySummaryOptions _options;
-    [Inject] private readonly ILogger<AwaySummaryService>? _logger;
+    private readonly ILogger<AwaySummaryService>? _logger;
     private readonly IClockService _clock;
     private readonly SemaphoreSlim _eventLock = new(1, 1);
     private readonly ConcurrentQueue<AwayEvent> _events = new();

@@ -10,7 +10,7 @@ namespace IO;
 [Register]
 public sealed partial class FileHistoryService : ServiceEntity, IFileHistoryService
 {
-    [Inject] private readonly ILogger<FileHistoryService>? _logger;
+    private readonly ILogger<FileHistoryService>? _logger;
     private readonly IFileSystem _fs;
     private readonly string _baseDir;
     private readonly string _sessionId;

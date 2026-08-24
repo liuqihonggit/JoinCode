@@ -6,7 +6,7 @@ namespace Core.Prompts.Testing;
 /// </summary>
 public sealed partial class PromptTestReporter
 {
-    [Inject] private readonly ILogger<PromptTestReporter>? _logger;
+    private readonly ILogger<PromptTestReporter>? _logger;
     private readonly IFileSystem _fs;
 
     public PromptTestReporter(IFileSystem fs, ILogger<PromptTestReporter>? logger = null)

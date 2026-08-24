@@ -16,8 +16,8 @@ public sealed partial class DiagnosticLogRecorder : ServiceEntity, IChatMiddlewa
         _fs = fs;
         _logger = logger;
     }
-    [Inject] private readonly IFileSystem _fs;
-    [Inject] private readonly ILogger<DiagnosticLogRecorder>? _logger;
+    private readonly IFileSystem _fs;
+    private readonly ILogger<DiagnosticLogRecorder>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

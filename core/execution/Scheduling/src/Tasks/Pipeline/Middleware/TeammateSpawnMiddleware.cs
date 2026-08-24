@@ -11,8 +11,8 @@ public sealed partial class TeammateSpawnMiddleware : ServiceEntity, ITeammateEx
         _agentLifecycleManager = agentLifecycleManager;
         _subAgentContextAccessor = subAgentContextAccessor;
     }
-    [Inject] private readonly IAgentLifecycleManager _agentLifecycleManager;
-    [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly IAgentLifecycleManager _agentLifecycleManager;
+    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
 
 
     public async Task InvokeAsync(TeammateExecutionContext ctx, MiddlewareDelegate<TeammateExecutionContext> next, CancellationToken ct)

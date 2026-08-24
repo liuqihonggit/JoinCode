@@ -14,9 +14,9 @@ public sealed partial class ChatPromptManager : ServiceEntity, IChatPromptManage
         _reminderManager = reminderManager;
         _logger = logger;
     }
-    [Inject] private readonly SystemPromptBuilder _systemPromptBuilder;
-    [Inject] private readonly ISystemReminderManager _reminderManager;
-    [Inject] private readonly ILogger<ChatPromptManager>? _logger;
+    private readonly SystemPromptBuilder _systemPromptBuilder;
+    private readonly ISystemReminderManager _reminderManager;
+    private readonly ILogger<ChatPromptManager>? _logger;
 
     /// <summary>
     /// 获取分区后的静态前缀（用于清空/压缩后重建系统提示词）

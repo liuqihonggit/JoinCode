@@ -11,7 +11,7 @@ public sealed partial class McpbCacheCheckMiddleware : ServiceEntity, IMcpbMiddl
     {
         _fs = fs;
     }
-    [Inject] private readonly IFileSystem _fs;
+    private readonly IFileSystem _fs;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

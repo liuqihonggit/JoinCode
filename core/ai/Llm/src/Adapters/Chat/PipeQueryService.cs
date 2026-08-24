@@ -4,7 +4,7 @@ namespace Api.Chat;
 public sealed partial class PipeQueryService : IQueryService
 {
     private readonly PipeTransportConfig _config;
-    [Inject] private readonly ILogger<PipeQueryService>? _logger;
+    private readonly ILogger<PipeQueryService>? _logger;
     private readonly HttpClient _httpClient;
     private readonly ResilientHttpExecutor? _resilientExecutor;
 

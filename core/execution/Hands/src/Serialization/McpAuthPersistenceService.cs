@@ -6,7 +6,7 @@ namespace IO.Services;
 public sealed partial class McpAuthPersistenceService : ServiceEntity, IMcpAuthPersistenceService
 {
     private readonly IConfigurationService? _configService;
-    [Inject] private readonly ILogger<McpAuthPersistenceService>? _logger;
+    private readonly ILogger<McpAuthPersistenceService>? _logger;
     private readonly SemaphoreSlim _lock = new(1, 1);
 
     public McpAuthPersistenceService(IConfigurationService? configService = null, ILogger<McpAuthPersistenceService>? logger = null)

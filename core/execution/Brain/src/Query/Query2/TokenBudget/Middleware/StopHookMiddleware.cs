@@ -13,7 +13,7 @@ public sealed partial class StopHookMiddleware : ServiceEntity, IQueryMiddleware
     {
         _stopHookManager = stopHookManager;
     }
-    [Inject] private readonly IQueryStopHookManager? _stopHookManager;
+    private readonly IQueryStopHookManager? _stopHookManager;
 
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;

@@ -6,7 +6,7 @@ public record SnipPreview(string FilePath, long FileSize, int TotalLines, string
 public sealed partial class SnipLogic : ServiceEntity
 {
 
-    [Inject] private readonly IFileSystem _fs;
+    private readonly IFileSystem _fs;
 
     public SnipLogic(IFileSystem fs)
     {

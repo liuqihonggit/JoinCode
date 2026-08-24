@@ -17,12 +17,12 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
         _entityReaper = entityReaper;
         _logger = logger;
     }
-    [Inject] private readonly IFileSystem _fs;
-    [Inject] private readonly IClockService _clock;
-    [Inject] private readonly IPlanModeManager _planModeManager;
-    [Inject] private readonly IAgentWorktreeService _worktreeService;
-    [Inject] private readonly IEntityReaper? _entityReaper;
-    [Inject] private readonly ILogger<HousekeepingService>? _logger;
+    private readonly IFileSystem _fs;
+    private readonly IClockService _clock;
+    private readonly IPlanModeManager _planModeManager;
+    private readonly IAgentWorktreeService _worktreeService;
+    private readonly IEntityReaper? _entityReaper;
+    private readonly ILogger<HousekeepingService>? _logger;
 
     private static readonly string JccDir = WorkflowConstants.Paths.JccDirectory;
 

@@ -18,7 +18,7 @@ public sealed partial class CaCertificateOptions
 public sealed partial class CaCertificateService : ServiceEntity, ICaCertificateService
 {
     private readonly IFileSystem _fs;
-    [Inject] private readonly ILogger<CaCertificateService>? _logger;
+    private readonly ILogger<CaCertificateService>? _logger;
     private readonly ITelemetryService? _telemetryService;
     private readonly List<X509Certificate2> _loadedCertificates;
 

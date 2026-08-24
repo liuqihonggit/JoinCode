@@ -8,7 +8,7 @@ namespace McpToolRegistry;
 public sealed partial class RequiredParamsMiddleware : ServiceEntity, IToolExecutionMiddleware
 {
 
-    [Inject] private readonly ILogger<RequiredParamsMiddleware> _logger;
+    private readonly ILogger<RequiredParamsMiddleware> _logger;
 
     public RequiredParamsMiddleware(ILogger<RequiredParamsMiddleware> logger)
     {

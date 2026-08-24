@@ -12,7 +12,7 @@ public sealed partial class WebDomainCheckMiddleware : ServiceEntity, IWebMiddle
     {
         _domainBlocklistChecker = domainBlocklistChecker;
     }
-    [Inject] private readonly IDomainBlocklistChecker _domainBlocklistChecker;
+    private readonly IDomainBlocklistChecker _domainBlocklistChecker;
 
     /// <inheritdoc />
 

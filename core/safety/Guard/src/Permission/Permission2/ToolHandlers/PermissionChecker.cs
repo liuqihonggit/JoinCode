@@ -8,7 +8,7 @@ namespace Core.Permission;
 public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecker
 {
     private readonly MiddlewarePipeline<PermissionCheckContext> _pipeline;
-    [Inject] private readonly ILogger<PermissionChecker>? _logger;
+    private readonly ILogger<PermissionChecker>? _logger;
     private readonly HashSet<string> _autoApprovedTools;
     private readonly HashSet<string> _autoRejectedTools;
     private readonly PermissionConfig _config;

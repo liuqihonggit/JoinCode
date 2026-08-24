@@ -12,7 +12,7 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
     {
         _telemetryService = telemetryService;
     }
-    [Inject] private readonly ITelemetryService? _telemetryService;
+    private readonly ITelemetryService? _telemetryService;
 
     /// <inheritdoc />
 

@@ -13,7 +13,7 @@ public sealed partial class SetSystemPromptHandler : ServiceEntity, IChatAdminOp
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<SetSystemPromptHandler>? _logger;
+    private readonly ILogger<SetSystemPromptHandler>? _logger;
 
     public ChatAdminOperation Operation => ChatAdminOperation.SetSystemPrompt;
 

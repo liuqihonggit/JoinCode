@@ -12,7 +12,7 @@ public sealed partial class WebCacheWriteMiddleware : ServiceEntity, IWebMiddlew
     {
         _cache = cache;
     }
-    [Inject] private readonly IWebFetchCache _cache;
+    private readonly IWebFetchCache _cache;
 
     /// <inheritdoc />
 

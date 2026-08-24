@@ -21,7 +21,7 @@ public sealed partial class LocalShellTaskDefinition
 public sealed partial class LocalShellTaskExecutor : ServiceEntity, ILocalShellTaskExecutor
 {
     private readonly ISystemActuatorRegistry _actuatorRegistry;
-    [Inject] private readonly ILogger<LocalShellTaskExecutor>? _logger;
+    private readonly ILogger<LocalShellTaskExecutor>? _logger;
     private readonly ITelemetryService? _telemetryService;
     private readonly IClockService _clock;
 

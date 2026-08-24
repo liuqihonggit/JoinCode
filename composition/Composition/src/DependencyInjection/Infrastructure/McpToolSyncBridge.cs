@@ -8,7 +8,7 @@ public sealed partial class McpToolSyncBridge : ServiceEntity
 {
     private readonly IToolRegistry _toolRegistry;
     private readonly IChatContextManager _contextManager;
-    [Inject] private readonly ILogger<McpToolSyncBridge>? _logger;
+    private readonly ILogger<McpToolSyncBridge>? _logger;
 
     public McpToolSyncBridge(
         IToolRegistry toolRegistry,

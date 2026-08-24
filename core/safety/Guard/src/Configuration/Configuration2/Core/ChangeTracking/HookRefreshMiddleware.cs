@@ -11,7 +11,7 @@ public sealed partial class HookRefreshMiddleware : ServiceEntity, ISettingsMidd
     {
         _hookConfigurationManager = hookConfigurationManager;
     }
-    [Inject] private readonly IHookConfigurationManager? _hookConfigurationManager;
+    private readonly IHookConfigurationManager? _hookConfigurationManager;
 
     /// <inheritdoc />
 

@@ -16,11 +16,11 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
         _modelConfigLoader = modelConfigLoader;
         _logger = logger;
     }
-    [Inject] private readonly IFileStateCache? _fileStateCache;
-    [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
-    [Inject] private readonly ISkillService? _skillService;
-    [Inject] private readonly IModelConfigLoader? _modelConfigLoader;
-    [Inject] private readonly ILogger<ContextSetupMiddleware>? _logger;
+    private readonly IFileStateCache? _fileStateCache;
+    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly ISkillService? _skillService;
+    private readonly IModelConfigLoader? _modelConfigLoader;
+    private readonly ILogger<ContextSetupMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 

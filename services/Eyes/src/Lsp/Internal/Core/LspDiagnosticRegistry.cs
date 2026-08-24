@@ -47,7 +47,7 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
     private const int MaxTotalDiagnostics = 30;
     private const int MaxDeliveredFiles = 500;
 
-    [Inject] private readonly IClockService _clock;
+    private readonly IClockService _clock;
     private readonly object _lock = new();
     private readonly Dictionary<string, LspPendingDiagnostic> _pending = new();
     private readonly LinkedList<string> _deliveredLru = new();

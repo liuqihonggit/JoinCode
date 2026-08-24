@@ -7,8 +7,8 @@ public sealed partial class VoiceService : ServiceEntity, IVoiceService, JoinCod
 {
     private readonly VoiceOptions _options;
     private readonly IResilientHttpClientProvider _resilientProvider;
-    [Inject] private readonly ILogger<VoiceService>? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<VoiceService>? _logger;
+    private readonly IClockService _clock;
     private readonly IFileSystem _fs;
     private readonly SemaphoreSlim _stateLock = new(1, 1);
 

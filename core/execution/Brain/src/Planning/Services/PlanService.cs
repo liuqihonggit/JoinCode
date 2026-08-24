@@ -5,7 +5,7 @@ namespace Core.Planning;
 public partial class PlanService : ServiceEntity, IPlanService {
     private readonly IChatClient _kernel;
     private readonly IExceptionService _exceptionService;
-    [Inject] private readonly ILogger<PlanService>? _logger;
+    private readonly ILogger<PlanService>? _logger;
     private readonly IClockService _clock;
     private readonly IToolCategoryProvider _toolCategoryProvider;
     private readonly ITelemetryService? _telemetryService;

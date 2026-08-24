@@ -34,7 +34,7 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
     private readonly IChatStreamChunkProcessor _chunkProcessor;
     private readonly ITaskProgressTracker? _progressTracker;
     private readonly LoopInterventionOptions _options;
-    [Inject] private readonly ILogger<LoopInterventionMiddleware>? _logger;
+    private readonly ILogger<LoopInterventionMiddleware>? _logger;
 
 
     public LoopInterventionMiddleware(

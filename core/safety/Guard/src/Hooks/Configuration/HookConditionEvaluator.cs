@@ -16,7 +16,7 @@ public interface IHookConditionEvaluator
 [Register]
 public sealed partial class HookConditionEvaluator : ServiceEntity, IHookConditionEvaluator
 {
-    [Inject] private readonly ILogger<HookConditionEvaluator>? _logger;
+    private readonly ILogger<HookConditionEvaluator>? _logger;
 
     private static readonly ConcurrentDictionary<string, Regex> ConditionPatternCache = new(StringComparer.Ordinal);
 

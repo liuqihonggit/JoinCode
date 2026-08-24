@@ -10,7 +10,7 @@ using JoinCode.Abstractions.Interfaces;
 public sealed class GoalUserInteractionService : ServiceEntity, IGoalUserInteraction
 {
     private readonly IInteractiveService _interactiveService;
-    [Inject] private readonly ILogger<GoalUserInteractionService>? _logger;
+    private readonly ILogger<GoalUserInteractionService>? _logger;
 
     public GoalUserInteractionService(IInteractiveService interactiveService, ILogger<GoalUserInteractionService>? logger = null)
     {

@@ -7,8 +7,8 @@ namespace Services.Web;
 [Register(typeof(IBinaryContentStorage))]
 public sealed partial class BinaryContentStorage : ServiceEntity, IBinaryContentStorage
 {
-    [Inject] private readonly ILogger<BinaryContentStorage>? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<BinaryContentStorage>? _logger;
+    private readonly IClockService _clock;
     private readonly IFileSystem _fs;
 
     public BinaryContentStorage(IFileSystem fs, ILogger<BinaryContentStorage>? logger = null, IClockService? clock = null)

@@ -10,7 +10,7 @@ public sealed partial class ShutdownCancelLoopMiddleware : ServiceEntity, IShutd
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<ShutdownCancelLoopMiddleware>? _logger;
+    private readonly ILogger<ShutdownCancelLoopMiddleware>? _logger;
 
 
     public async Task InvokeAsync(ShutdownContext ctx, MiddlewareDelegate<ShutdownContext> next, CancellationToken ct)

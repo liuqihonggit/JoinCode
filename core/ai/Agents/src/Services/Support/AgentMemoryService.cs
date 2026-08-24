@@ -25,7 +25,7 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
     /// </summary>
     private const int MaxEntrypointBytes = 25_000;
 
-    [Inject] private readonly ILogger<AgentMemoryService> _logger;
+    private readonly ILogger<AgentMemoryService> _logger;
     private readonly IFileSystem _fs;
     private readonly string _memoryBase;   // ~/.jcc
     private readonly string _cwd;          // 当前工作目录

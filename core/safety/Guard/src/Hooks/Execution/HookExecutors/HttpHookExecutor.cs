@@ -9,7 +9,7 @@ namespace Core.Hooks.Execution;
 public sealed partial class HttpHookExecutor : HookExecutorBase<HttpHook>
 {
     private readonly IHttpClientFactory? _httpClientFactory;
-    [Inject] private readonly IClockService _clock;
+    private readonly IClockService _clock;
 
     public HttpHookExecutor(
         IHttpClientFactory? httpClientFactory = null,

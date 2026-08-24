@@ -14,8 +14,8 @@ public sealed partial class LspPassiveFeedback : ServiceEntity, ILspPassiveFeedb
         _diagnosticRegistry = diagnosticRegistry;
         _logger = logger;
     }
-    [Inject] private readonly ILspDiagnosticRegistry _diagnosticRegistry;
-    [Inject] private readonly ILogger<LspPassiveFeedback>? _logger;
+    private readonly ILspDiagnosticRegistry _diagnosticRegistry;
+    private readonly ILogger<LspPassiveFeedback>? _logger;
 
     public void RegisterNotificationHandlers(ILspManager manager)
     {

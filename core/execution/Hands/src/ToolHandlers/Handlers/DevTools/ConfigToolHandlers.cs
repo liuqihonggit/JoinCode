@@ -9,7 +9,7 @@ public sealed partial class ConfigToolHandlers
 {
     private readonly IConfigurationService _configService;
     private readonly ITelemetryService? _telemetryService;
-    [Inject] private readonly ILogger<ConfigToolHandlers>? _logger;
+    private readonly ILogger<ConfigToolHandlers>? _logger;
 
     public ConfigToolHandlers(IConfigurationService configService, ITelemetryService? telemetryService = null, ILogger<ConfigToolHandlers>? logger = null)
     {

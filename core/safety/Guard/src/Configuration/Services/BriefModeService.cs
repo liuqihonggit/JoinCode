@@ -15,7 +15,7 @@ public partial class BriefModeService : ServiceEntity, IBriefModeService
     private bool _isEnabled;
     private DateTime? _enabledAt;
     private bool _userMsgOptIn;
-    [Inject] private readonly IClockService _clock;
+    private readonly IClockService _clock;
 
     public bool IsEnabled => _isEnabled;
 

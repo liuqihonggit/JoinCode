@@ -12,8 +12,8 @@ public sealed partial class McpbValidationMiddleware : ServiceEntity, IMcpbMiddl
         _fs = fs;
         _logger = logger;
     }
-    [Inject] private readonly IFileSystem _fs;
-    [Inject] private readonly ILogger<McpbValidationMiddleware>? _logger;
+    private readonly IFileSystem _fs;
+    private readonly ILogger<McpbValidationMiddleware>? _logger;
 
 
     public async Task InvokeAsync(McpbLoadContext context, MiddlewareDelegate<McpbLoadContext> next, CancellationToken ct)

@@ -12,7 +12,7 @@ public sealed partial class RecordContextMiddleware : ServiceEntity, IUnifiedSpa
     {
         _clock = clock;
     }
-    [Inject] private readonly IClockService _clock;
+    private readonly IClockService _clock;
 
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 

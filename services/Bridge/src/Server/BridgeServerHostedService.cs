@@ -12,7 +12,7 @@ public sealed partial class BridgeServerHostedService : IHostedService, IAsyncDi
     private readonly BridgeServer _bridgeServer;
     private readonly BridgeConfig _config;
     private readonly CapacityWakeService? _capacityWakeService;
-    [Inject] private readonly ILogger<BridgeServerHostedService>? _logger;
+    private readonly ILogger<BridgeServerHostedService>? _logger;
 
     public BridgeServerHostedService(
         BridgeServer bridgeServer,

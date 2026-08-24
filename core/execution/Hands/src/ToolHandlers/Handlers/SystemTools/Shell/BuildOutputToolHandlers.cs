@@ -6,8 +6,8 @@ namespace Tools.Shell;
 [McpToolDispatch(ToolCategory.Build, Optional = true)]
 public partial class BuildOutputToolHandlers
 {
-    [Inject] private readonly IBuildQueueService? _buildQueueService;
-    [Inject] private readonly ILogger<BuildOutputToolHandlers>? _logger;
+    private readonly IBuildQueueService? _buildQueueService;
+    private readonly ILogger<BuildOutputToolHandlers>? _logger;
 
     public BuildOutputToolHandlers(
         IBuildQueueService? buildQueueService = null,

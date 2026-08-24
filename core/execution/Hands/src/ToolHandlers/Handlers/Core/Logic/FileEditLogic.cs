@@ -6,7 +6,7 @@ public record BatchEditResult(string FilePath, FileEditResult Result);
 public sealed partial class FileEditLogic : ServiceEntity
 {
 
-    [Inject] private readonly IFileSystem _fs;
+    private readonly IFileSystem _fs;
 
     public FileEditLogic(IFileSystem fs)
     {

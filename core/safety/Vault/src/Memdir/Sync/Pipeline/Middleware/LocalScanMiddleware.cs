@@ -13,7 +13,7 @@ public sealed partial class LocalScanMiddleware : ServiceEntity, ISyncStartMiddl
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<LocalScanMiddleware>? _logger;
+    private readonly ILogger<LocalScanMiddleware>? _logger;
 
 
     public Task InvokeAsync(SyncStartContext ctx, MiddlewareDelegate<SyncStartContext> next, CancellationToken ct)

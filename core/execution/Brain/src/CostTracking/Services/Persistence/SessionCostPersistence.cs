@@ -20,7 +20,7 @@ public sealed partial class SessionCostPersistence : ServiceEntity, ISessionCost
 {
     private readonly IFileOperationService _fileOperationService;
     private readonly string _storageDirectory;
-    [Inject] private readonly ILogger<SessionCostPersistence>? _logger;
+    private readonly ILogger<SessionCostPersistence>? _logger;
     private readonly IClockService _clock;
     private readonly CostTracker _costTracker;
     private readonly ITelemetryService? _telemetryService;

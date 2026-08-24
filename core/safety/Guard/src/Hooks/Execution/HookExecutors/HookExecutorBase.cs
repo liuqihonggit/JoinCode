@@ -295,7 +295,7 @@ public interface IHookExecutorFactory
 public partial class HookExecutorFactory : IHookExecutorFactory
 {
     private readonly Dictionary<string, IHookExecutor> _executors = new();
-    [Inject] private readonly ILogger<HookExecutorFactory>? _logger;
+    private readonly ILogger<HookExecutorFactory>? _logger;
 
     public HookExecutorFactory(ILogger<HookExecutorFactory>? logger = null)
     {

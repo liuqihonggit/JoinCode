@@ -33,7 +33,7 @@ public sealed partial class ChatPreprocessor : IChatPreprocessor
     private readonly MiddlewarePipeline<PreprocessContext> _preparePipeline;
     private readonly ISystemReminderManager _reminderManager;
     private readonly IChatContextManager _contextManager;
-    [Inject] private readonly ILogger<ChatPreprocessor>? _logger;
+    private readonly ILogger<ChatPreprocessor>? _logger;
 
     public ChatPreprocessor(
         MiddlewarePipeline<PreprocessContext> analyzePipeline,

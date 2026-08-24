@@ -12,7 +12,7 @@ public sealed partial class ShellClassificationMiddleware : ServiceEntity, IShel
     {
         _commandClassifier = commandClassifier;
     }
-    [Inject] private readonly ICommandClassifier? _commandClassifier;
+    private readonly ICommandClassifier? _commandClassifier;
 
     /// <inheritdoc />
 

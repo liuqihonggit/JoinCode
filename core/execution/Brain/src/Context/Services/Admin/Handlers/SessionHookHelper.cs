@@ -15,9 +15,9 @@ public sealed partial class SessionHookHelper : ServiceEntity
         _hookOrchestrator = hookOrchestrator;
         _logger = logger;
     }
-    [Inject] private readonly ISessionStartHookManager? _sessionStartHookManager;
-    [Inject] private readonly IHookOrchestrator? _hookOrchestrator;
-    [Inject] private readonly ILogger<SessionHookHelper>? _logger;
+    private readonly ISessionStartHookManager? _sessionStartHookManager;
+    private readonly IHookOrchestrator? _hookOrchestrator;
+    private readonly ILogger<SessionHookHelper>? _logger;
 
     /// <summary>
     /// 执行 SessionStart Hook — 对齐 TS processSessionStartHooks

@@ -15,9 +15,9 @@ public sealed partial class AgentSummaryService : ServiceEntity, IAgentSummarySe
     }
     private readonly ConcurrentDictionary<string, AgentExecutionSummary> _executions = new();
     private readonly ConcurrentDictionary<string, AgentMetricsAccumulator> _metrics = new();
-    [Inject] private readonly ILogger<AgentSummaryService>? _logger;
-    [Inject] private readonly ITelemetryService? _telemetryService;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<AgentSummaryService>? _logger;
+    private readonly ITelemetryService? _telemetryService;
+    private readonly IClockService _clock;
 
     /// <inheritdoc />
     public AgentExecutionSummary StartExecution(string agentName, string? taskDescription = null)

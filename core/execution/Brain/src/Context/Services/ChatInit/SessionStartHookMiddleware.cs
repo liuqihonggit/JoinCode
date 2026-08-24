@@ -14,8 +14,8 @@ public sealed partial class SessionStartHookMiddleware : ServiceEntity, IChatIni
         _sessionStartHookManager = sessionStartHookManager;
         _logger = logger;
     }
-    [Inject] private readonly ISessionStartHookManager? _sessionStartHookManager;
-    [Inject] private readonly ILogger<SessionStartHookMiddleware>? _logger;
+    private readonly ISessionStartHookManager? _sessionStartHookManager;
+    private readonly ILogger<SessionStartHookMiddleware>? _logger;
 
     /// <summary>会话 Hook 在配置监控之后</summary>
 

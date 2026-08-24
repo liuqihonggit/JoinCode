@@ -14,8 +14,8 @@ public sealed partial class SessionMemoryCompactMiddleware : ServiceEntity, ICom
         _sessionMemoryCompactService = sessionMemoryCompactService;
         _logger = logger;
     }
-    [Inject] private readonly ISessionMemoryCompactService _sessionMemoryCompactService;
-    [Inject] private readonly ILogger<SessionMemoryCompactMiddleware>? _logger;
+    private readonly ISessionMemoryCompactService _sessionMemoryCompactService;
+    private readonly ILogger<SessionMemoryCompactMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

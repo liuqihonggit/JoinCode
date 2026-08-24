@@ -44,7 +44,7 @@ public sealed partial class BridgeSessionDisplay
 [Register]
 public sealed partial class BridgeUIService : ServiceEntity
 {
-    [Inject] private readonly ILogger<BridgeUIService>? _logger;
+    private readonly ILogger<BridgeUIService>? _logger;
     private readonly IClockService _clock;
     private readonly ConcurrentDictionary<string, BridgeSessionDisplay> _activeSessions;
 

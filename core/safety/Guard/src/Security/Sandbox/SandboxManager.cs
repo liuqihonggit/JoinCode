@@ -11,9 +11,9 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
 {
     private readonly FrozenDictionary<SandboxType, ISandboxProvider> _providers;
     private readonly AsyncLock _lock = new();
-    [Inject] private readonly ILogger<SandboxManager>? _logger;
-    [Inject] private readonly IFileSystem _fs;
-    [Inject] private readonly SandboxIpcClient? _ipcClient;
+    private readonly ILogger<SandboxManager>? _logger;
+    private readonly IFileSystem _fs;
+    private readonly SandboxIpcClient? _ipcClient;
     private volatile ISandboxProvider? _activeProvider;
     private volatile string? _activeSandboxId;
     private volatile SandboxHealthState _healthState = SandboxHealthState.Healthy;

@@ -8,7 +8,7 @@ public sealed partial class ServiceHost : IAsyncDisposable
 {
     private readonly ConcurrentDictionary<string, IWorkflowService> _services = new();
     private readonly ConcurrentDictionary<string, ServiceStatus> _serviceStatuses = new();
-    [Inject] private readonly ILogger<ServiceHost>? _logger;
+    private readonly ILogger<ServiceHost>? _logger;
     private readonly CancellationTokenSource _hostCts = new();
     private bool _isRunning;
 

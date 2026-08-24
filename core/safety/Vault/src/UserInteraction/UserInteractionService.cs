@@ -14,8 +14,8 @@ public sealed partial class UserInteractionService : ServiceEntity, IUserInterac
         _logger = logger;
         _telemetryService = telemetryService;
     }
-    [Inject] private readonly ILogger<UserInteractionService>? _logger;
-    [Inject] private readonly ITelemetryService? _telemetryService;
+    private readonly ILogger<UserInteractionService>? _logger;
+    private readonly ITelemetryService? _telemetryService;
 
     /// <summary>
     /// 询问用户问题

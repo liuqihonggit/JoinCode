@@ -13,7 +13,7 @@ public sealed partial class BridgeClient : IAsyncDisposable
     private readonly ITransportManager _transportManager;
     private readonly MessageHandlerCoordinator _messageHandler;
     private readonly BoundedUUIDSet _processedMessageIds;
-    [Inject] private readonly ILogger<BridgeClient>? _logger;
+    private readonly ILogger<BridgeClient>? _logger;
     private readonly IClockService _clock;
     private readonly BridgeClientOptions _options;
     private readonly BridgeJwtService? _jwtService;

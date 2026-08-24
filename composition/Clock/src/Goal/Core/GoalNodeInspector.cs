@@ -17,8 +17,8 @@ public sealed partial class GoalNodeInspector : ServiceEntity, IGoalNodeInspecto
     private readonly Dictionary<string, List<int>> _loopHistoryByGoal = new(StringComparer.Ordinal);
     private readonly IChatClient? _kernel;
 
-    [Inject] private readonly ILogger<GoalNodeInspector>? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<GoalNodeInspector>? _logger;
+    private readonly IClockService _clock;
 
     public GoalNodeInspector(ILogger<GoalNodeInspector>? logger = null, IClockService? clock = null, IChatClient? kernel = null)
     {

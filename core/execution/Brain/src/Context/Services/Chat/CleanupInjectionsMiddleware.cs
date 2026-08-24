@@ -15,8 +15,8 @@ public sealed partial class CleanupInjectionsMiddleware : ServiceEntity, IChatMi
         _preprocessor = preprocessor;
         _logger = logger;
     }
-    [Inject] private readonly IChatPreprocessor _preprocessor;
-    [Inject] private readonly ILogger<CleanupInjectionsMiddleware>? _logger;
+    private readonly IChatPreprocessor _preprocessor;
+    private readonly ILogger<CleanupInjectionsMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

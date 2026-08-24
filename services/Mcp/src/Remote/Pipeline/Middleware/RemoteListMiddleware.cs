@@ -13,7 +13,7 @@ public sealed partial class RemoteListMiddleware : ServiceEntity, IRemoteSyncMid
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<RemoteListMiddleware> _logger;
+    private readonly ILogger<RemoteListMiddleware> _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

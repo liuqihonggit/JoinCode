@@ -24,7 +24,7 @@ public enum ReloadReason { FileChanged, FileCreated, FileDeleted, Manual }
 public sealed partial class PluginHotReloader : IPluginHotReloader
 {
     private readonly IPluginManager _pluginManager;
-    [Inject] private readonly ILogger<PluginHotReloader>? _logger;
+    private readonly ILogger<PluginHotReloader>? _logger;
     private readonly ITelemetryService? _telemetryService;
     private readonly IFileSystem _fs;
     private IFileSystemWatcher? _watcher;

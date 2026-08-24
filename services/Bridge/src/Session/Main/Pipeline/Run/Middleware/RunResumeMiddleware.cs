@@ -9,8 +9,8 @@ public sealed partial class RunResumeMiddleware : ServiceEntity, IBridgeRunMiddl
         _deps = deps;
         _logger = logger;
     }
-    [Inject] private readonly BridgeMainDeps _deps;
-    [Inject] private readonly ILogger<RunResumeMiddleware> _logger;
+    private readonly BridgeMainDeps _deps;
+    private readonly ILogger<RunResumeMiddleware> _logger;
 
     public async Task InvokeAsync(BridgeRunContext ctx, MiddlewareDelegate<BridgeRunContext> next, CancellationToken ct)
     {

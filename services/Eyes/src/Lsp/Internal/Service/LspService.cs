@@ -10,7 +10,7 @@ public sealed partial class LspService : ILspService
     private readonly ILspConfigLoader _configLoader;
     private readonly IFileOperationService _fileOperationService;
     private readonly IFileSystem _fs;
-    [Inject] private readonly ILogger<LspService>? _logger;
+    private readonly ILogger<LspService>? _logger;
     private readonly ITelemetryService? _telemetryService;
     private readonly SemaphoreSlim _initLock = new(1, 1);
     private int _isInitialized;

@@ -177,8 +177,8 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
     private readonly MemoryStore _memoryStore;
     private readonly IMemoryPaths _memoryPaths;
     private readonly IFileOperationService _fileOperationService;
-    [Inject] private readonly ILogger<AssistantDailyLogService>? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<AssistantDailyLogService>? _logger;
+    private readonly IClockService _clock;
     private readonly SemaphoreSlim _writeLock;
 
     public AssistantDailyLogService(

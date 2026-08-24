@@ -13,7 +13,7 @@ public sealed partial class RemoteDriftDetectionMiddleware : ServiceEntity, IRem
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<RemoteDriftDetectionMiddleware> _logger;
+    private readonly ILogger<RemoteDriftDetectionMiddleware> _logger;
 
 
     public Task InvokeAsync(RemoteSyncContext ctx, MiddlewareDelegate<RemoteSyncContext> next, CancellationToken ct)

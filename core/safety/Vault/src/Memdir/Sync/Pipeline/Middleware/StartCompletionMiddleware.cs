@@ -14,8 +14,8 @@ public sealed partial class StartCompletionMiddleware : ServiceEntity, ISyncStar
         _logger = logger;
         _telemetryService = telemetryService;
     }
-    [Inject] private readonly ILogger<StartCompletionMiddleware>? _logger;
-    [Inject] private readonly ITelemetryService? _telemetryService;
+    private readonly ILogger<StartCompletionMiddleware>? _logger;
+    private readonly ITelemetryService? _telemetryService;
 
 
     public Task InvokeAsync(SyncStartContext ctx, MiddlewareDelegate<SyncStartContext> next, CancellationToken ct)

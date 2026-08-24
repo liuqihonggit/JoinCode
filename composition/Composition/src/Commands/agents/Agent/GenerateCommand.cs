@@ -7,7 +7,7 @@ namespace JoinCode.ChatCommands;
 [ChatCommand(Name = ChatCommandNameConstants.Generate, Description = "生成代码", Usage = "/generate <描述>", Category = ChatCommandCategory.Agent)]
 public sealed partial class GenerateCommand : ChatCommandBase
 {
-    [Inject] private readonly ILogger<GenerateCommand>? _logger;
+    private readonly ILogger<GenerateCommand>? _logger;
     public GenerateCommand(ILogger<GenerateCommand>? logger = null)
     {
         _logger = logger;

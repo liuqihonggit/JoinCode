@@ -11,7 +11,7 @@ public sealed partial class McpbManifestMiddleware : ServiceEntity, IMcpbMiddlew
     {
         _fs = fs;
     }
-    [Inject] private readonly IFileSystem _fs;
+    private readonly IFileSystem _fs;
 
 
     public async Task InvokeAsync(McpbLoadContext context, MiddlewareDelegate<McpbLoadContext> next, CancellationToken ct)

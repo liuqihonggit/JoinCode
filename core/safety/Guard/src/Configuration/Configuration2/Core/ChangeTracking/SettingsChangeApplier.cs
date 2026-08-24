@@ -10,7 +10,7 @@ public sealed partial class SettingsChangeApplier : ServiceEntity, ISettingsChan
     private readonly IConfigChangeNotifier _configChangeNotifier;
     private readonly MiddlewarePipeline<SettingsContext> _pipeline;
     private readonly IFileSystem _fs;
-    [Inject] private readonly ILogger<SettingsChangeApplier>? _logger;
+    private readonly ILogger<SettingsChangeApplier>? _logger;
     private readonly ITelemetryService? _telemetryService;
     private readonly CancellationTokenSource _disposeCts = new();
     private int _isDisposed;

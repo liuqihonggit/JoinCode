@@ -11,7 +11,7 @@ public sealed partial class CodeCacheMiddleware : ServiceEntity, ICodeMiddleware
     {
         _cacheService = cacheService;
     }
-    [Inject] private readonly ICacheService _cacheService;
+    private readonly ICacheService _cacheService;
 
     /// <inheritdoc />
 

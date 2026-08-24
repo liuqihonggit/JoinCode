@@ -13,7 +13,7 @@ public sealed partial class ContentReplacementMiddleware : ServiceEntity, IQuery
     {
         _contentReplacementService = contentReplacementService;
     }
-    [Inject] private readonly IContentReplacementService? _contentReplacementService;
+    private readonly IContentReplacementService? _contentReplacementService;
 
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;

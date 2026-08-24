@@ -49,7 +49,7 @@ public sealed partial class AutoModeClassifier : ServiceEntity, IAutoModeClassif
     private static readonly FrozenSet<OperationType> WriteOperationTypes = FrozenSet.Create(
         OperationType.Write, OperationType.Edit, OperationType.Create, OperationType.Delete);
 
-    [Inject] private readonly ILogger<AutoModeClassifier>? _logger;
+    private readonly ILogger<AutoModeClassifier>? _logger;
     private readonly ITelemetryService? _telemetryService;
 
     public AutoModeClassifier(ILogger<AutoModeClassifier>? logger = null, ITelemetryService? telemetryService = null)

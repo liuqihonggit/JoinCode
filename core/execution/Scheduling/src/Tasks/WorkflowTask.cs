@@ -77,8 +77,8 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
 {
     private readonly IToolExecutionGateway _toolExecutionGateway;
     private readonly IAgentLifecycleManager _agentLifecycleManager;
-    [Inject] private readonly ILogger<WorkflowTaskExecutor>? _logger;
-    [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly ILogger<WorkflowTaskExecutor>? _logger;
+    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     private readonly IClockService _clock;
     private readonly ITelemetryService? _telemetryService;
     private readonly ConcurrentDictionary<string, WorkflowRunState> _activeWorkflows = new();

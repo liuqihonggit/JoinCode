@@ -10,8 +10,8 @@ public sealed partial class PersistentGoalRegistry : IGoalRegistry
 {
     private readonly Dictionary<string, GoalEngine> _engines = new();
     private readonly IServiceProvider _serviceProvider;
-    [Inject] private readonly IGoalStateStore? _stateStore = null;
-    [Inject] private readonly ILogger<PersistentGoalRegistry>? _logger;
+    private readonly IGoalStateStore? _stateStore = null;
+    private readonly ILogger<PersistentGoalRegistry>? _logger;
     private readonly SemaphoreSlim _lock = new(1, 1);
     private string? _currentGoalId;
     private string? _sessionId;

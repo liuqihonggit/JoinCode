@@ -21,8 +21,8 @@ public sealed record InteractivePermissionParams
 [Register]
 public sealed partial class InteractiveHandler : ServiceEntity
 {
-    [Inject] private readonly ILogger<InteractiveHandler>? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<InteractiveHandler>? _logger;
+    private readonly IClockService _clock;
 
     public InteractiveHandler(ILogger<InteractiveHandler>? logger = null, IClockService? clock = null)
     {

@@ -7,7 +7,7 @@ public sealed partial class SwarmPermissionMessageRouter : ServiceEntity
     private readonly IMailbox _messageBroker;
     private readonly SwarmPermissionCallbackService _callbackService;
     private readonly ISwarmPermissionRequestProcessor _requestProcessor;
-    [Inject] private readonly ILogger<SwarmPermissionMessageRouter>? _logger;
+    private readonly ILogger<SwarmPermissionMessageRouter>? _logger;
     private CancellationTokenSource? _cts;
     private Task? _routingTask;
 

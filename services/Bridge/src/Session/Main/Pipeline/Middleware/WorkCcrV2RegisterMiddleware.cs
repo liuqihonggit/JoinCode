@@ -11,8 +11,8 @@ public sealed partial class WorkCcrV2RegisterMiddleware : ServiceEntity, IHandle
         _apiClient = apiClient;
         _logger = logger;
     }
-    [Inject] private readonly ILogger<WorkCcrV2RegisterMiddleware>? _logger;
-    [Inject] private readonly BridgeApiClient _apiClient;
+    private readonly ILogger<WorkCcrV2RegisterMiddleware>? _logger;
+    private readonly BridgeApiClient _apiClient;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

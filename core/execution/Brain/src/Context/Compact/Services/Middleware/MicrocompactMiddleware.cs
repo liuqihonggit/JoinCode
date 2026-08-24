@@ -13,7 +13,7 @@ public sealed partial class MicrocompactMiddleware : ServiceEntity, ICompactMidd
     {
         _microcompactService = microcompactService;
     }
-    [Inject] private readonly IMicrocompactService _microcompactService;
+    private readonly IMicrocompactService _microcompactService;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

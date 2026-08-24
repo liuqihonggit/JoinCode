@@ -13,9 +13,9 @@ public sealed partial class WorktreeConfigMiddleware : ServiceEntity, IWorktreeC
         _worktreeService = worktreeService;
         _logger = logger;
     }
-    [Inject] private readonly IFileOperationService _fs;
-    [Inject] private readonly Lazy<IWorktreePipelineOperations> _worktreeService;
-    [Inject] private readonly ILogger<WorktreeConfigMiddleware>? _logger;
+    private readonly IFileOperationService _fs;
+    private readonly Lazy<IWorktreePipelineOperations> _worktreeService;
+    private readonly ILogger<WorktreeConfigMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

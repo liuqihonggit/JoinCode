@@ -3,7 +3,7 @@ namespace McpClient;
 
 public sealed partial class McpChannelNotificationHandler
 {
-    [Inject] private readonly ILogger<McpChannelNotificationHandler>? _logger;
+    private readonly ILogger<McpChannelNotificationHandler>? _logger;
     private readonly SemaphoreSlim _lock = new(1, 1);
     private readonly Dictionary<string, TaskCompletionSource<ChannelPermissionResponse>> _pendingRequests = new();
 

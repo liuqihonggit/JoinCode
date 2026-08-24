@@ -16,10 +16,10 @@ public sealed partial class AgentHandoffMiddleware : ServiceEntity, IAgentToolMi
         _telemetryService = telemetryService;
         _logger = logger;
     }
-    [Inject] private readonly IHandoffClassifier? _handoffClassifier;
-    [Inject] private readonly JoinCode.Abstractions.Interfaces.IAgentWorktreeManager? _worktreeManager;
-    [Inject] private readonly ITelemetryService? _telemetryService;
-    [Inject] private readonly ILogger<AgentHandoffMiddleware>? _logger;
+    private readonly IHandoffClassifier? _handoffClassifier;
+    private readonly JoinCode.Abstractions.Interfaces.IAgentWorktreeManager? _worktreeManager;
+    private readonly ITelemetryService? _telemetryService;
+    private readonly ILogger<AgentHandoffMiddleware>? _logger;
 
     /// <inheritdoc />
     public int Order => 500;

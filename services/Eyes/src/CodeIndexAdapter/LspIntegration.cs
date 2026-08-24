@@ -6,7 +6,7 @@ public sealed partial class LspIntegration : ServiceEntity, IDisposable
     private readonly ICodeIndexer _indexer;
     private readonly ILspService? _lspService;
     private readonly ILspFileSync? _lspFileSync;
-    [Inject] private readonly ILogger<LspIntegration>? _logger;
+    private readonly ILogger<LspIntegration>? _logger;
     private readonly CancellationTokenSource _updateCts = new();
     private int _disposed;
 

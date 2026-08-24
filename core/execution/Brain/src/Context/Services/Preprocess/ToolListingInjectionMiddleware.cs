@@ -13,7 +13,7 @@ public sealed partial class ToolListingInjectionMiddleware : ServiceEntity, IPre
     {
         _toolListingService = toolListingService;
     }
-    [Inject] private readonly Prompts.Services.ToolListingService? _toolListingService;
+    private readonly Prompts.Services.ToolListingService? _toolListingService;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

@@ -13,8 +13,8 @@ public sealed partial class McpSetupMiddleware : ServiceEntity, IUnifiedSpawnMid
         _mcpServerManager = mcpServerManager;
         _logger = logger;
     }
-    [Inject] private readonly IAgentMcpServerManager? _mcpServerManager;
-    [Inject] private readonly ILogger<McpSetupMiddleware>? _logger;
+    private readonly IAgentMcpServerManager? _mcpServerManager;
+    private readonly ILogger<McpSetupMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

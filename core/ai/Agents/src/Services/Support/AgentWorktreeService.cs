@@ -4,9 +4,9 @@ namespace Core.Agents;
 [Register(typeof(IAgentWorktreeService))]
 [Register(typeof(IWorktreePipelineOperations))]
 public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorktreePipelineOperations, IAsyncDisposable {
-    [Inject] private readonly ILogger<AgentWorktreeService>? _logger;
-    [Inject] private readonly IClockService _clock;
-    [Inject] private readonly IGitCommandRunner _gitRunner;
+    private readonly ILogger<AgentWorktreeService>? _logger;
+    private readonly IClockService _clock;
+    private readonly IGitCommandRunner _gitRunner;
     private readonly IFileOperationService _fileOperationService;
     private readonly WorktreeOptions _defaultOptions;
     private readonly ITelemetryService? _telemetryService;

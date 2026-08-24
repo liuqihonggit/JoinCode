@@ -17,9 +17,9 @@ public sealed partial class ShellBuildInterceptMiddleware : ServiceEntity, IShel
     }
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
 
-    [Inject] private readonly IBuildQueueService _buildQueueService;
-    [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
-    [Inject] private readonly IClockService _clock;
+    private readonly IBuildQueueService _buildQueueService;
+    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly IClockService _clock;
 
     /// <inheritdoc />
 

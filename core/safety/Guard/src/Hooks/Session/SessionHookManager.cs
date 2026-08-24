@@ -131,7 +131,7 @@ public sealed partial class SessionHookStore
 public sealed partial class SessionHookManager : ServiceEntity, ISessionHookManagerInternal
 {
     private readonly ConcurrentDictionary<string, SessionHookStore> _sessionStores = new();
-    [Inject] private readonly ILogger<SessionHookManager>? _logger;
+    private readonly ILogger<SessionHookManager>? _logger;
 
     public SessionHookManager(ILogger<SessionHookManager>? logger = null)
     {

@@ -41,7 +41,7 @@ public sealed partial class ToolExecutionHandler : ServiceEntity, IToolExecution
     private readonly IChatToolOrchestrator _toolOrchestrator;
     private readonly IChatContextManager _contextManager;
     private readonly QueryLoopServices? _services;
-    [Inject] private readonly ILogger<ToolExecutionHandler>? _logger;
+    private readonly ILogger<ToolExecutionHandler>? _logger;
 
     public ToolExecutionHandler(
         IChatToolOrchestrator toolOrchestrator,

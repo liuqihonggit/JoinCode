@@ -8,7 +8,7 @@ public sealed partial class ContextHierarchyFactory : ServiceEntity, IContextHie
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<ContextHierarchyFactory>? _logger;
+    private readonly ILogger<ContextHierarchyFactory>? _logger;
 
     JoinCode.Abstractions.Brain.Context.Hierarchy.IContextHierarchy IContextHierarchyFactory.Create(JoinCode.Abstractions.Brain.Context.Hierarchy.ContextHierarchyOptions options)
     {

@@ -10,7 +10,7 @@ public sealed partial class ShutdownClearPointerMiddleware : ServiceEntity, IShu
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<ShutdownClearPointerMiddleware>? _logger;
+    private readonly ILogger<ShutdownClearPointerMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

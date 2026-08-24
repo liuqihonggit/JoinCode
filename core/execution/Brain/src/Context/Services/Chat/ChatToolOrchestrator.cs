@@ -50,7 +50,7 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
     private readonly IToolExecutionGateway? _toolExecutionGateway;
     private readonly ICmdMap? _cmdMap;
     private readonly IServiceProvider? _serviceProvider;
-    [Inject] private readonly ILogger<ChatToolOrchestrator>? _logger;
+    private readonly ILogger<ChatToolOrchestrator>? _logger;
 
     /// <summary>
     /// 初始化工具编排器

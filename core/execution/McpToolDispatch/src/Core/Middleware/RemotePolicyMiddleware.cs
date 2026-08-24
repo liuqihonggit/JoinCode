@@ -9,7 +9,7 @@ public sealed partial class RemotePolicyMiddleware : ServiceEntity, IToolExecuti
 {
 
     private readonly IRemotePolicyService? _remotePolicyService;
-    [Inject] private readonly ILogger<RemotePolicyMiddleware> _logger;
+    private readonly ILogger<RemotePolicyMiddleware> _logger;
 
     public RemotePolicyMiddleware(
         IRemotePolicyService? remotePolicyService,

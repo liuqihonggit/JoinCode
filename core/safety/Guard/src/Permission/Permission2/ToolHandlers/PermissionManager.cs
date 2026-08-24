@@ -8,7 +8,7 @@ namespace Core.Permission;
 public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDisposable
 {
     private readonly PermissionChecker _permissionChecker;
-    [Inject] private readonly ILogger<PermissionManager>? _logger;
+    private readonly ILogger<PermissionManager>? _logger;
     private readonly ConcurrentDictionary<string, DateTimeOffset> _approvedTools;
     private readonly AsyncLock _modeLock = new();
     private readonly PermissionConfig _config;

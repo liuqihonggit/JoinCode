@@ -46,8 +46,8 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
 
     private readonly MiddlewarePipeline<ForkContext> _pipeline;
     private readonly ForkManagerDependencies _deps;
-    [Inject] private readonly ILogger<ForkSubAgentManager>? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<ForkSubAgentManager>? _logger;
+    private readonly IClockService _clock;
     private readonly ConcurrentDictionary<string, ForkEntry> _entries;
     private readonly ConcurrentDictionary<string, Dictionary<string, string>> _sharedCache;
     private readonly SemaphoreSlim _lock;

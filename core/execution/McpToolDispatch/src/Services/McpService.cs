@@ -12,10 +12,10 @@ public sealed partial class McpService : ServiceEntity, IMcpService
         _telemetryService = telemetryService;
         _registerAllHandlersFunc = registerAllHandlersFunc;
     }
-    [Inject] private readonly IMcpToolRegistry _toolRegistry;
-    [Inject] private readonly ILogger<McpService>? _logger;
-    [Inject] private readonly ITelemetryService? _telemetryService;
-    [Inject] private readonly Func<IMcpToolRegistry, IServiceProvider, CancellationToken, Task<IMcpToolRegistry>>? _registerAllHandlersFunc;
+    private readonly IMcpToolRegistry _toolRegistry;
+    private readonly ILogger<McpService>? _logger;
+    private readonly ITelemetryService? _telemetryService;
+    private readonly Func<IMcpToolRegistry, IServiceProvider, CancellationToken, Task<IMcpToolRegistry>>? _registerAllHandlersFunc;
     private bool _isInitialized;
 
     public bool IsRunning => false;

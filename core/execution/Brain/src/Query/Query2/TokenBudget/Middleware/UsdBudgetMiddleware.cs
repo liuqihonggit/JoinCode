@@ -13,7 +13,7 @@ public sealed partial class UsdBudgetMiddleware : ServiceEntity, IQueryMiddlewar
     {
         _usdBudgetManager = usdBudgetManager;
     }
-    [Inject] private readonly IUsdBudgetManager? _usdBudgetManager;
+    private readonly IUsdBudgetManager? _usdBudgetManager;
 
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;

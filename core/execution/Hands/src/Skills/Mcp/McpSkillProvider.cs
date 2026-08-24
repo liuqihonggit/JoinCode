@@ -8,7 +8,7 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider
     private readonly ConcurrentDictionary<string, IMcpClient> _clients;
     private readonly ConcurrentDictionary<string, SkillDefinition> _mcpSkills;
     private readonly ConcurrentDictionary<string, McpSkillAdapter> _adapters;
-    [Inject] private readonly ILogger<McpSkillProvider>? _logger;
+    private readonly ILogger<McpSkillProvider>? _logger;
     private readonly SemaphoreSlim _refreshLock;
     private bool _isDisposed;
 

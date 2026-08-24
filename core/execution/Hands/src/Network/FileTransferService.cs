@@ -5,7 +5,7 @@ namespace IO.Services;
 [Register]
 public sealed partial class FileTransferService : ServiceEntity, IFileTransferService
 {
-    [Inject] private readonly ILogger<FileTransferService>? _logger;
+    private readonly ILogger<FileTransferService>? _logger;
     private readonly IFileSystem _fs;
 
     public FileTransferService(IFileSystem fs, ILogger<FileTransferService>? logger = null)

@@ -10,7 +10,7 @@ public sealed partial class WorkSecretDecodeMiddleware : ServiceEntity, IHandleW
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<WorkSecretDecodeMiddleware>? _logger;
+    private readonly ILogger<WorkSecretDecodeMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

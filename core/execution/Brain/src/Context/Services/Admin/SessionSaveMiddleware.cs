@@ -14,7 +14,7 @@ public sealed partial class SessionSaveMiddleware : ServiceEntity, IChatAdminMid
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<SessionSaveMiddleware>? _logger;
+    private readonly ILogger<SessionSaveMiddleware>? _logger;
 
 
     /// <summary>

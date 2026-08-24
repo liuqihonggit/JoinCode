@@ -11,7 +11,7 @@ public sealed partial class MailboxHub
 {
     private readonly IMailbox _inProcess;
     private readonly ITeammateMailboxService? _fileMailbox;
-    [Inject] private readonly ILogger<MailboxHub>? _logger;
+    private readonly ILogger<MailboxHub>? _logger;
 
     /// <summary>
     /// 创建 MailboxHub。

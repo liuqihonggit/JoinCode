@@ -12,8 +12,8 @@ public sealed partial class ForkPermissionMiddleware : ServiceEntity, IForkMiddl
         _permissionBridge = permissionBridge;
         _logger = logger;
     }
-    [Inject] private readonly ISwarmPermissionBridge? _permissionBridge;
-    [Inject] private readonly ILogger<ForkPermissionMiddleware>? _logger;
+    private readonly ISwarmPermissionBridge? _permissionBridge;
+    private readonly ILogger<ForkPermissionMiddleware>? _logger;
 
     /// <summary>权限同步在 Spawn 之后</summary>
 

@@ -206,7 +206,7 @@ public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDispos
 {
     private readonly ConcurrentBag<TokenUsageRecord> _usageRecords;
     private readonly ConcurrentDictionary<string, List<TokenUsageRecord>> _sessionIndex;
-    [Inject] private readonly ILogger<UsageTracker>? _logger;
+    private readonly ILogger<UsageTracker>? _logger;
     private readonly ICostTracker? _costTracker;
     private readonly IModelConfigLoader _modelConfigLoader;
 

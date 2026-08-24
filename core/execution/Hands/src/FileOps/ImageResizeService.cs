@@ -12,7 +12,7 @@ public sealed partial class ImageResizeService : ServiceEntity, JoinCode.Abstrac
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<ImageResizeService>? _logger;
+    private readonly ILogger<ImageResizeService>? _logger;
 
     public async Task<JoinCode.Abstractions.LLM.Chat.McpImageResizeResult> ResizeAsync(byte[] imageBuffer, long originalSize, string extension)
     {

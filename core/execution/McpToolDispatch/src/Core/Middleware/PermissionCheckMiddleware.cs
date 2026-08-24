@@ -9,7 +9,7 @@ public sealed partial class PermissionCheckMiddleware : ServiceEntity, IToolExec
 {
 
     private readonly IPermissionCheckingInterceptor? _permissionInterceptor;
-    [Inject] private readonly ILogger<PermissionCheckMiddleware> _logger;
+    private readonly ILogger<PermissionCheckMiddleware> _logger;
 
     public PermissionCheckMiddleware(
         IPermissionCheckingInterceptor? permissionInterceptor,

@@ -10,8 +10,8 @@ public sealed partial class PreventSleepService : ServiceEntity, IPreventSleepSe
         _logger = logger;
         _telemetryService = telemetryService;
     }
-    [Inject] private readonly ILogger<PreventSleepService>? _logger;
-    [Inject] private readonly ITelemetryService? _telemetryService;
+    private readonly ILogger<PreventSleepService>? _logger;
+    private readonly ITelemetryService? _telemetryService;
     private readonly SemaphoreSlim _lock = new(1, 1);
     private uint _previousExecutionState;
     private bool _isSleepPrevented;

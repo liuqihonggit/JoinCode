@@ -14,8 +14,8 @@ public sealed partial class ShellExecutionMiddleware : ServiceEntity, IShellMidd
         _foregroundTaskRegistry = foregroundTaskRegistry;
         _logger = logger;
     }
-    [Inject] private readonly ISystemActuatorRegistry _registry;
-    [Inject] private readonly IForegroundTaskRegistry? _foregroundTaskRegistry;
+    private readonly ISystemActuatorRegistry _registry;
+    private readonly IForegroundTaskRegistry? _foregroundTaskRegistry;
     private readonly ILogger<ShellExecutionMiddleware>? _logger;
 
     /// <inheritdoc />

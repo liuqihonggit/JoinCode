@@ -26,7 +26,7 @@ public sealed partial class StopHookResult
 public sealed partial class StopHookManager : ServiceEntity, IStopHookManager
 {
     private readonly IHookOrchestrator _orchestrator;
-    [Inject] private readonly ILogger<StopHookManager>? _logger;
+    private readonly ILogger<StopHookManager>? _logger;
     private readonly ITelemetryService? _telemetryService;
 
     public StopHookManager(IHookOrchestrator orchestrator, ILogger<StopHookManager>? logger = null, ITelemetryService? telemetryService = null)

@@ -16,7 +16,7 @@ namespace Core.Hooks.Execution.Interception.Guards;
 [Register]
 public sealed partial class HeredocGuard : ICommandGuard
 {
-    [Inject] private readonly ILogger<HeredocGuard>? _logger;
+    private readonly ILogger<HeredocGuard>? _logger;
 
     // 匹配 $(cat <<'DELIMITER'\ncontent\nDELIMITER) 或 $(cat <<DELIMITER\ncontent\nDELIMITER)
     private static readonly Regex HeredocInCommandSubstitution = new(

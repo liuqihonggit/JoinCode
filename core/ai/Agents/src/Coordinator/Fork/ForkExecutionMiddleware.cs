@@ -15,10 +15,10 @@ public sealed partial class ForkExecutionMiddleware : ServiceEntity, IForkMiddle
         _worktreeManager = worktreeManager;
         _logger = logger;
     }
-    [Inject] private readonly IAgentLifecycleManager _lifecycleManager;
-    [Inject] private readonly ITelemetryService? _telemetryService;
-    [Inject] private readonly IAgentWorktreeManager? _worktreeManager;
-    [Inject] private readonly ILogger<ForkExecutionMiddleware>? _logger;
+    private readonly IAgentLifecycleManager _lifecycleManager;
+    private readonly ITelemetryService? _telemetryService;
+    private readonly IAgentWorktreeManager? _worktreeManager;
+    private readonly ILogger<ForkExecutionMiddleware>? _logger;
 
     /// <summary>执行在权限同步之后</summary>
 

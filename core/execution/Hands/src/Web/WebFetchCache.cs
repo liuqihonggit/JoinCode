@@ -14,7 +14,7 @@ public sealed partial class WebFetchCache : ServiceEntity, IWebFetchCache, IDisp
 
     private readonly MemoryCache _urlCache;
     private readonly MemoryCache _domainCheckCache;
-    [Inject] private readonly ILogger<WebFetchCache>? _logger;
+    private readonly ILogger<WebFetchCache>? _logger;
 
     public WebFetchCache(ILogger<WebFetchCache>? logger = null)
     {

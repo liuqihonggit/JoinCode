@@ -36,7 +36,7 @@ public sealed partial class RequestScopeFactory : ServiceEntity, IRequestScopeFa
     {
         _scopeFactory = scopeFactory;
     }
-    [Inject] private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IServiceScopeFactory _scopeFactory;
 
     public IRequestScope CreateScope()
         => new RequestScope(_scopeFactory.CreateScope());

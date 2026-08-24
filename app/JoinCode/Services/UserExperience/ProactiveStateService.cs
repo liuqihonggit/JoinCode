@@ -8,7 +8,7 @@ public sealed partial class ProactiveStateService : ServiceEntity, IProactiveSta
     private bool _active;
     private bool _paused;
     private bool _contextBlocked;
-    [Inject] private readonly ILogger<ProactiveStateService>? _logger;
+    private readonly ILogger<ProactiveStateService>? _logger;
     private event EventHandler? _stateChanged;
 
     public ProactiveStateService(ILogger<ProactiveStateService>? logger = null)

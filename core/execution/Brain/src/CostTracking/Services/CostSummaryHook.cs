@@ -16,9 +16,9 @@ public sealed partial class CostSummaryHook : ServiceEntity, ICostSummaryHook
         _logger = logger;
         _telemetryService = telemetryService;
     }
-    [Inject] private readonly CostTracker _costTracker;
-    [Inject] private readonly ILogger<CostSummaryHook>? _logger;
-    [Inject] private readonly ITelemetryService? _telemetryService;
+    private readonly CostTracker _costTracker;
+    private readonly ILogger<CostSummaryHook>? _logger;
+    private readonly ITelemetryService? _telemetryService;
 
     public Task<string> GenerateSummaryAsync(CancellationToken ct = default)
     {

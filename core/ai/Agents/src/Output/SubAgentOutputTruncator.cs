@@ -12,7 +12,7 @@ public sealed partial class SubAgentOutputTruncator : ServiceEntity
     private const string ArchiveSubdir = ".xxx";
     private const string ArchiveLeaf = "subagent";
 
-    [Inject] private readonly ILogger<SubAgentOutputTruncator> _logger;
+    private readonly ILogger<SubAgentOutputTruncator> _logger;
     private readonly IFileSystem _fs;
     private readonly string _archiveDir;
 

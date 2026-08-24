@@ -13,10 +13,10 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     private readonly IGoalEvaluator _evaluator;
     private readonly IGoalHeartbeat _heartbeat;
     private readonly SemaphoreSlim _stateLock;
-    [Inject] private readonly ILogger<GoalEngine>? _logger;
-    [Inject] private readonly IClockService _clock;
-    [Inject] private readonly IServiceProvider _serviceProvider = null!;
-    [Inject] private readonly IGoalGraphTemplateRegistry _templateRegistry = null!;
+    private readonly ILogger<GoalEngine>? _logger;
+    private readonly IClockService _clock;
+    private readonly IServiceProvider _serviceProvider = null!;
+    private readonly IGoalGraphTemplateRegistry _templateRegistry = null!;
     private readonly IToolPermissionManager? _permissionManager;
     private readonly MiddlewarePipeline<GoalLifecycleContext>? _lifecyclePipeline;
     private GoalState? _state;
@@ -28,7 +28,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     private TaskCompletionSource? _completionTcs;
     private GoalGraph? _goalGraph;
     private GoalGraphEngine? _graphEngine;
-    [Inject] private readonly IGoalStateStore? _stateStore = null;
+    private readonly IGoalStateStore? _stateStore = null;
     private string? _sessionId;
 
     public GoalState? CurrentState => _state;

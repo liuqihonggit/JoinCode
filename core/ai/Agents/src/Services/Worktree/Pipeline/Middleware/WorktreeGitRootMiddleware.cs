@@ -12,8 +12,8 @@ public sealed partial class WorktreeGitRootMiddleware : ServiceEntity, IWorktree
         _fs = fs;
         _logger = logger;
     }
-    [Inject] private readonly IFileOperationService _fs;
-    [Inject] private readonly ILogger<WorktreeGitRootMiddleware>? _logger;
+    private readonly IFileOperationService _fs;
+    private readonly ILogger<WorktreeGitRootMiddleware>? _logger;
 
 
     public async Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct)

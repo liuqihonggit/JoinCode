@@ -41,7 +41,7 @@ public sealed partial class PeerSession
 [Register]
 public sealed partial class PeerSessionManager : IAsyncDisposable
 {
-    [Inject] private readonly ILogger<PeerSessionManager>? _logger;
+    private readonly ILogger<PeerSessionManager>? _logger;
     private readonly ConcurrentDictionary<string, PeerSession> _sessions;
     private readonly AsyncLock _stateLock = new();
     private int _isDisposed;

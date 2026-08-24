@@ -11,10 +11,10 @@ public sealed partial class AgentPromptBuilder : ServiceEntity, JoinCode.Abstrac
         _serviceProvider = serviceProvider;
         _logger = logger;
     }
-    [Inject] private readonly JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider _definitionProvider;
-    [Inject] private readonly IServiceProvider? _serviceProvider;
-    [Inject] private readonly ILogger<AgentPromptBuilder>? _logger;
-    [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider _definitionProvider;
+    private readonly IServiceProvider? _serviceProvider;
+    private readonly ILogger<AgentPromptBuilder>? _logger;
+    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
 
     /// <summary>
     /// 延迟解析 ITeammateInitService，打破循环依赖：

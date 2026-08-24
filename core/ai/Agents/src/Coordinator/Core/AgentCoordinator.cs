@@ -15,8 +15,8 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     private readonly IMailbox _messageBroker;
     private readonly IAgentExecutionEngine _executionEngine;
     private readonly IClockService _clock;
-    [Inject] private readonly ILogger<AgentCoordinator>? _logger;
-    [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly ILogger<AgentCoordinator>? _logger;
+    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     private readonly ISubagentStopHookManager? _subagentStopHookManager;
     private readonly IForkSubAgentManager? _forkManager;
     private readonly ISwarmPermissionBridge? _permissionBridge;

@@ -5,7 +5,7 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
 {
     private readonly McpOAuthOptions _options;
     private readonly HttpClient _httpClient;
-    [Inject] private readonly ILogger<McpPkceAuthProvider>? _logger;
+    private readonly ILogger<McpPkceAuthProvider>? _logger;
     private readonly IFileSystem _fs;
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
     private readonly McpOAuthMetadataDiscovery _metadataDiscovery;

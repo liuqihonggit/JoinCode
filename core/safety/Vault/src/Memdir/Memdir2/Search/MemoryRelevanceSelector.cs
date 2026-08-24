@@ -36,7 +36,7 @@ public sealed partial class MemoryRelevanceSelector : ServiceEntity, IMemoryRele
 {
 
     private readonly IMemoryAgeCalculator _ageCalculator;
-    [Inject] private readonly ILogger<MemoryRelevanceSelector>? _logger;
+    private readonly ILogger<MemoryRelevanceSelector>? _logger;
     private readonly IClockService _clock;
 
     public MemoryRelevanceSelector(

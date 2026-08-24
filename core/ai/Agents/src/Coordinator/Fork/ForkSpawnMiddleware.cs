@@ -12,9 +12,9 @@ public sealed partial class ForkSpawnMiddleware : ServiceEntity, IForkMiddleware
     private readonly IMailboxPoller? _mailboxPoller;
     private readonly JoinCode.Abstractions.Interfaces.IFileStateCache? _fileStateCache;
     private readonly IHotSpotSpawnIntegration? _hotSpotIntegration;
-    [Inject] private readonly ILogger<ForkSpawnMiddleware>? _logger;
-    [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<ForkSpawnMiddleware>? _logger;
+    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly IClockService _clock;
 
     public ForkSpawnMiddleware(
         IAgentLifecycleManager lifecycleManager,

@@ -126,7 +126,7 @@ public sealed partial class MemorySearchHistoryService : ServiceEntity, IMemoryS
     private const int MaxHistorySize = 100;
 
     private readonly MemoryStore _memoryStore;
-    [Inject] private readonly ILogger<MemorySearchHistoryService>? _logger;
+    private readonly ILogger<MemorySearchHistoryService>? _logger;
     private readonly IClockService _clock;
     private readonly AsyncLock _historyLock = new();
 

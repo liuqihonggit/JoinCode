@@ -16,11 +16,11 @@ public sealed partial class ChatIdleDetector : ServiceEntity, IChatIdleDetector
         _idleDetector = idleDetector;
         _logger = logger;
     }
-    [Inject] private readonly IChatContextManager _contextManager;
-    [Inject] private readonly ISystemReminderManager _reminderManager;
-    [Inject] private readonly ToolIdleReminderService _toolIdleReminder;
-    [Inject] private readonly IdleToolDetector _idleDetector;
-    [Inject] private readonly ILogger<ChatIdleDetector>? _logger;
+    private readonly IChatContextManager _contextManager;
+    private readonly ISystemReminderManager _reminderManager;
+    private readonly ToolIdleReminderService _toolIdleReminder;
+    private readonly IdleToolDetector _idleDetector;
+    private readonly ILogger<ChatIdleDetector>? _logger;
 
     /// <summary>
     /// 记录助手轮次使用的工具名

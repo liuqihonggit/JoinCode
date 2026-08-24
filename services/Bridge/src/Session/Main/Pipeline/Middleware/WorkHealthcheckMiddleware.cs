@@ -11,8 +11,8 @@ public sealed partial class WorkHealthcheckMiddleware : ServiceEntity, IHandleWo
         _apiClient = apiClient;
         _logger = logger;
     }
-    [Inject] private readonly ILogger<WorkHealthcheckMiddleware>? _logger;
-    [Inject] private readonly BridgeApiClient _apiClient;
+    private readonly ILogger<WorkHealthcheckMiddleware>? _logger;
+    private readonly BridgeApiClient _apiClient;
 
 
     public async Task InvokeAsync(HandleWorkContext ctx, MiddlewareDelegate<HandleWorkContext> next, CancellationToken ct)

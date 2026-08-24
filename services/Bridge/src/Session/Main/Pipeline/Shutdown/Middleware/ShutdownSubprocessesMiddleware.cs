@@ -10,7 +10,7 @@ public sealed partial class ShutdownSubprocessesMiddleware : ServiceEntity, IShu
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<ShutdownSubprocessesMiddleware>? _logger;
+    private readonly ILogger<ShutdownSubprocessesMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

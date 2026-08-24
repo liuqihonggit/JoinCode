@@ -17,8 +17,8 @@ namespace Tools.Shell;
 [Register]
 public sealed partial class ShellCommandInterceptionMiddleware : ServiceEntity, IShellMiddleware
 {
-    [Inject] private readonly CommandInterceptionDispatcher _dispatcher;
-    [Inject] private readonly ILogger<ShellCommandInterceptionMiddleware>? _logger;
+    private readonly CommandInterceptionDispatcher _dispatcher;
+    private readonly ILogger<ShellCommandInterceptionMiddleware>? _logger;
 
     /// <summary>
     /// 构造命令拦截中间件

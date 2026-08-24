@@ -13,7 +13,7 @@ public sealed partial class AgentStateMachine
 
     private readonly ILogger? _logger;
     private readonly ConcurrentDictionary<string, AgentStateContext> _states;
-    [Inject] private readonly IClockService _clock;
+    private readonly IClockService _clock;
 
     internal event EventHandler<AgentStateChangedEventArgs>? StateChanged;
 

@@ -9,7 +9,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
 {
     private readonly IFileSystem _fs;
     private readonly IIOThrottleService _throttleService;
-    [Inject] private readonly ILogger<ThrottledFileService>? _logger;
+    private readonly ILogger<ThrottledFileService>? _logger;
     private readonly ITelemetryService? _telemetryService;
 
     public ThrottledFileService(

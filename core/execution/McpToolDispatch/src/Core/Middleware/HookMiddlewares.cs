@@ -13,7 +13,7 @@ public sealed partial class PreToolUseHookMiddleware : ServiceEntity, IToolExecu
 {
 
     private readonly IHookOrchestrator? _hookOrchestrator;
-    [Inject] private readonly ILogger<PreToolUseHookMiddleware>? _logger;
+    private readonly ILogger<PreToolUseHookMiddleware>? _logger;
 
     public PreToolUseHookMiddleware(
         IHookOrchestrator? hookOrchestrator = null,
@@ -61,7 +61,7 @@ public sealed partial class PreToolUseHookMiddleware : ServiceEntity, IToolExecu
 public sealed partial class PostToolUseHookMiddleware : ServiceEntity, IToolExecutionMiddleware
 {
     private readonly IHookOrchestrator? _hookOrchestrator;
-    [Inject] private readonly ILogger<PostToolUseHookMiddleware>? _logger;
+    private readonly ILogger<PostToolUseHookMiddleware>? _logger;
 
     public PostToolUseHookMiddleware(
         IHookOrchestrator? hookOrchestrator = null,

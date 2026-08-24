@@ -51,8 +51,8 @@ public interface IOAuthClient
 public sealed partial class OAuthClient : ServiceEntity, IOAuthClient
 {
     private readonly HttpClient _httpClient;
-    [Inject] private readonly ILogger<OAuthClient>? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<OAuthClient>? _logger;
+    private readonly IClockService _clock;
 
     public OAuthClient(HttpClient httpClient, ILogger<OAuthClient>? logger = null, IClockService? clock = null)
     {

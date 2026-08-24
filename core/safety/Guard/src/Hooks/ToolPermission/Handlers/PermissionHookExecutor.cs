@@ -10,9 +10,9 @@ public sealed partial class PermissionHookExecutor : ServiceEntity, IPermissionH
         _logger = logger;
         _telemetryService = telemetryService;
     }
-    [Inject] private readonly IHookOrchestrator _hookOrchestrator;
-    [Inject] private readonly ILogger<PermissionHookExecutor>? _logger;
-    [Inject] private readonly ITelemetryService? _telemetryService;
+    private readonly IHookOrchestrator _hookOrchestrator;
+    private readonly ILogger<PermissionHookExecutor>? _logger;
+    private readonly ITelemetryService? _telemetryService;
 
     public Task RegisterHookAsync(IPermissionHook hook, CancellationToken cancellationToken = default)
     {

@@ -15,10 +15,10 @@ public sealed partial class WorktreeRecoveryMiddleware : ServiceEntity, IWorktre
         _clock = clock;
         _logger = logger;
     }
-    [Inject] private readonly IFileOperationService _fs;
-    [Inject] private readonly ILogger<WorktreeRecoveryMiddleware>? _logger;
-    [Inject] private readonly Lazy<IWorktreePipelineOperations> _worktreeService;
-    [Inject] private readonly IClockService _clock;
+    private readonly IFileOperationService _fs;
+    private readonly ILogger<WorktreeRecoveryMiddleware>? _logger;
+    private readonly Lazy<IWorktreePipelineOperations> _worktreeService;
+    private readonly IClockService _clock;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

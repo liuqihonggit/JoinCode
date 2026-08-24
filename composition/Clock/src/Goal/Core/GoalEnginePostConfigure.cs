@@ -11,7 +11,7 @@ public interface IGoalEnginePostConfigure
 public sealed class GoalEnginePostConfigure : IGoalEnginePostConfigure
 {
     private readonly IGoalGraphTemplateRegistry _registry;
-    [Inject] private readonly ILogger<GoalEnginePostConfigure>? _logger;
+    private readonly ILogger<GoalEnginePostConfigure>? _logger;
 
     public GoalEnginePostConfigure(IGoalGraphTemplateRegistry registry, ILogger<GoalEnginePostConfigure>? logger = null)
     {

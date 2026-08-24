@@ -17,11 +17,11 @@ public sealed partial class ToolListingService : ServiceEntity
         _skillService = skillService;
         _logger = logger;
     }
-    [Inject] private readonly ISystemReminderManager _reminderManager;
-    [Inject] private readonly IAgentDefinitionProvider? _agentProvider;
-    [Inject] private readonly JoinCode.Abstractions.Interfaces.IAgentRoleRegistry? _roleRegistry;
-    [Inject] private readonly ISkillService? _skillService;
-    [Inject] private readonly ILogger<ToolListingService>? _logger;
+    private readonly ISystemReminderManager _reminderManager;
+    private readonly IAgentDefinitionProvider? _agentProvider;
+    private readonly JoinCode.Abstractions.Interfaces.IAgentRoleRegistry? _roleRegistry;
+    private readonly ISkillService? _skillService;
+    private readonly ILogger<ToolListingService>? _logger;
 
     /// <summary>
     /// 增量追踪：已宣布的 Agent 类型集合

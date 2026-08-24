@@ -15,7 +15,7 @@ public sealed record SwarmWorkerPermissionParams
 [Register]
 public sealed partial class SwarmWorkerHandler : ServiceEntity
 {
-    [Inject] private readonly ILogger<SwarmWorkerHandler>? _logger;
+    private readonly ILogger<SwarmWorkerHandler>? _logger;
     private readonly ISwarmPermissionCallbacks? _injectedCallbacks;
 
     private static readonly TimeSpan LeaderResponseTimeout = TimeSpan.FromSeconds(30);

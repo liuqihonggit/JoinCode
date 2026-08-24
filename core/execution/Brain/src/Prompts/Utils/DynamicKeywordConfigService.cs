@@ -12,7 +12,7 @@ namespace Core.Prompts.Utils;
 public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynamicKeywordConfigService, IDisposable
 {
     private readonly IFileSystem _fs;
-    [Inject] private readonly ILogger<DynamicKeywordConfigService>? _logger;
+    private readonly ILogger<DynamicKeywordConfigService>? _logger;
 
     private readonly SemaphoreSlim _reloadLock = new(1, 1);
     private volatile DynamicKeywordConfig _config = new();

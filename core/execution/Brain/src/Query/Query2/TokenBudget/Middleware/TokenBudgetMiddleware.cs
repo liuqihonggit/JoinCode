@@ -13,7 +13,7 @@ public sealed partial class TokenBudgetMiddleware : ServiceEntity, IQueryMiddlew
     {
         _tokenBudgetManager = tokenBudgetManager;
     }
-    [Inject] private readonly ITokenBudgetManager? _tokenBudgetManager;
+    private readonly ITokenBudgetManager? _tokenBudgetManager;
 
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;

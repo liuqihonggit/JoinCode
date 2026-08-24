@@ -14,9 +14,9 @@ public sealed partial class AgentForkMiddleware : ServiceEntity, IAgentToolMiddl
         _forkManager = forkManager;
         _telemetryService = telemetryService;
     }
-    [Inject] private readonly IForkSubAgentManager? _forkManager;
-    [Inject] private readonly ITelemetryService? _telemetryService;
-    [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly IForkSubAgentManager? _forkManager;
+    private readonly ITelemetryService? _telemetryService;
+    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
 
     /// <inheritdoc />
     public int Order => 200;

@@ -14,8 +14,8 @@ public sealed partial class ShellBackgroundMiddleware : ServiceEntity, IShellMid
         _registry = registry;
         _telemetryService = telemetryService;
     }
-    [Inject] private readonly ISystemActuatorRegistry _registry;
-    [Inject] private readonly ITelemetryService? _telemetryService;
+    private readonly ISystemActuatorRegistry _registry;
+    private readonly ITelemetryService? _telemetryService;
 
     /// <inheritdoc />
 

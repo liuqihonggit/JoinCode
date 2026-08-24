@@ -12,7 +12,7 @@ public sealed partial class GoalConflictMessenger : ServiceEntity, IGoalConflict
 {
     private readonly ConcurrentDictionary<string, Channel<ConflictMessage>> _channels = new(StringComparer.Ordinal);
 
-    [Inject] private readonly ILogger<GoalConflictMessenger>? _logger;
+    private readonly ILogger<GoalConflictMessenger>? _logger;
 
     public GoalConflictMessenger(ILogger<GoalConflictMessenger>? logger = null)
     {

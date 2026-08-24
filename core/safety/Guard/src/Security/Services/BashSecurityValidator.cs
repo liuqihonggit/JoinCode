@@ -10,7 +10,7 @@ public sealed partial class BashSecurityValidator : ServiceEntity, IBashSecurity
     {
         _astWalker = astWalker;
     }
-    [Inject] private readonly IBashAstSecurityWalker _astWalker;
+    private readonly IBashAstSecurityWalker _astWalker;
 
     public BashSecurityResult Validate(string command)
     {

@@ -20,7 +20,7 @@ public sealed partial class BackgroundNotificationHandler : ServiceEntity, IBack
 {
     private readonly IAgentNotificationQueue? _notificationQueue;
     private readonly IChatContextManager _contextManager;
-    [Inject] private readonly ILogger<BackgroundNotificationHandler>? _logger;
+    private readonly ILogger<BackgroundNotificationHandler>? _logger;
 
     public BackgroundNotificationHandler(
         IChatContextManager contextManager,

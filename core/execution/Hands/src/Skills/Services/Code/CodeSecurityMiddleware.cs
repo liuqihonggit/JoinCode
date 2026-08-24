@@ -11,7 +11,7 @@ public sealed partial class CodeSecurityMiddleware : ServiceEntity, ICodeMiddlew
     {
         _securityValidator = securityValidator;
     }
-    [Inject] private readonly ICodeSecurityValidator _securityValidator;
+    private readonly ICodeSecurityValidator _securityValidator;
 
     /// <inheritdoc />
 

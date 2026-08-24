@@ -9,7 +9,7 @@ public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.A
 
     private readonly ITeamManager _teamManager;
     private readonly IAgentLifecycleManager _lifecycleManager;
-    [Inject] private readonly ILogger<TeammateReconnectService>? _logger;
+    private readonly ILogger<TeammateReconnectService>? _logger;
     private readonly ConcurrentDictionary<string, int> _reconnectAttempts = new(StringComparer.Ordinal);
 
     public TeammateReconnectService(

@@ -13,7 +13,7 @@ public sealed partial class LoadSessionMessagesHandler : ServiceEntity, IChatAdm
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<LoadSessionMessagesHandler>? _logger;
+    private readonly ILogger<LoadSessionMessagesHandler>? _logger;
 
     public ChatAdminOperation Operation => ChatAdminOperation.LoadSessionMessages;
 

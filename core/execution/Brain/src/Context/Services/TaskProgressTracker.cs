@@ -12,8 +12,8 @@ public sealed partial class TaskProgressTracker : ServiceEntity, ITaskProgressTr
         _todoService = todoService;
         _logger = logger;
     }
-    [Inject] private readonly ITodoService _todoService;
-    [Inject] private readonly ILogger<TaskProgressTracker>? _logger;
+    private readonly ITodoService _todoService;
+    private readonly ILogger<TaskProgressTracker>? _logger;
     private int _lastSnapshotCompletedCount;
     private int _lastKnownCompletedCount;
     private bool _hasSnapshot;

@@ -10,7 +10,7 @@ namespace McpToolDispatch;
 public partial class ModelSearchToolHandlers
 {
     private readonly IModelConfigLoader _modelConfigLoader;
-    [Inject] private readonly ILogger<ModelSearchToolHandlers>? _logger;
+    private readonly ILogger<ModelSearchToolHandlers>? _logger;
 
     public ModelSearchToolHandlers(IModelConfigLoader modelConfigLoader, ILogger<ModelSearchToolHandlers>? logger = null)
     {

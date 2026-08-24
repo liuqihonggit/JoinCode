@@ -13,8 +13,8 @@ public sealed partial class WebService : ServiceEntity, IWebService
     private readonly ITelemetryService? _telemetryService;
     private readonly IQueryService? _queryService;
     private readonly ProviderConfig? _providerConfig;
-    [Inject] private readonly ILogger<WebService>? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<WebService>? _logger;
+    private readonly IClockService _clock;
 
     public WebService(
         MiddlewarePipeline<WebContext> pipeline,

@@ -14,9 +14,9 @@ public sealed partial class PromptBuildingMiddleware : ServiceEntity, IUnifiedSp
         _agentMemoryService = agentMemoryService;
         _logger = logger;
     }
-    [Inject] private readonly IAgentPromptBuilder _promptBuilder;
-    [Inject] private readonly IAgentMemoryService? _agentMemoryService;
-    [Inject] private readonly ILogger<PromptBuildingMiddleware>? _logger;
+    private readonly IAgentPromptBuilder _promptBuilder;
+    private readonly IAgentMemoryService? _agentMemoryService;
+    private readonly ILogger<PromptBuildingMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 

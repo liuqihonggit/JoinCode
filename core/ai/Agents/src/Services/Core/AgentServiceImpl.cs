@@ -28,9 +28,9 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     private readonly SwarmPermissionCallbackService? _permissionCallbackService;
     private readonly JoinCode.Abstractions.Interfaces.IAgentMcpServerManager? _mcpServerManager;
     private readonly JoinCode.Abstractions.Interfaces.IAgentNotificationQueue? _notificationQueue;
-    [Inject] private readonly ILogger<AgentServiceImpl>? _logger;
-    [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<AgentServiceImpl>? _logger;
+    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly IClockService _clock;
     private readonly Infrastructure.Pipeline.MiddlewarePipeline<UnifiedSpawnContext> _spawnPipeline;
     private readonly ConcurrentDictionary<string, TaskCompletionSource<JoinCode.Abstractions.Interfaces.AgentResult>> _completionSources;
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _backgroundCts;

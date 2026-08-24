@@ -7,7 +7,7 @@ namespace Core.Agents.Coordinator;
 public sealed partial class AgentMcpServerManager : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentMcpServerManager
 {
     private readonly IRemoteClientManager _remoteClientManager;
-    [Inject] private readonly ILogger<AgentMcpServerManager>? _logger;
+    private readonly ILogger<AgentMcpServerManager>? _logger;
     private readonly ConcurrentDictionary<string, List<string>> _agentClients = new(StringComparer.Ordinal);
     private readonly IMcpAuthConfigProvider? _authConfigProvider;
     private readonly IMcpClientFactory? _mcpClientFactory;

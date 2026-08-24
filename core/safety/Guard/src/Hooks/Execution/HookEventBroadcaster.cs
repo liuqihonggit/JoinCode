@@ -55,7 +55,7 @@ public sealed partial class HookEventBroadcaster : ServiceEntity, IHookEventBroa
 {
     private readonly ConcurrentBag<Action<HookExecutionEvent>> _handlers = new();
     private readonly ConcurrentQueue<HookExecutionEvent> _pendingEvents = new();
-    [Inject] private readonly ILogger<HookEventBroadcaster>? _logger;
+    private readonly ILogger<HookEventBroadcaster>? _logger;
 
     private const int MaxPendingEvents = 100;
     private bool _allEventsEnabled = false;

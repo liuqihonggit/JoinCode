@@ -12,7 +12,7 @@ public sealed partial class ChatUsageProcessor : ServiceEntity, IChatUsageProces
     private readonly ICostTracker? _costTracker;
     private readonly IRateLimitTracker? _rateLimitTracker;
     private readonly ModelPricingTable _pricingTable;
-    [Inject] private readonly ILogger<ChatUsageProcessor>? _logger;
+    private readonly ILogger<ChatUsageProcessor>? _logger;
 
     /// <summary>
     /// 初始化用量处理器

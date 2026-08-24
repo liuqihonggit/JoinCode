@@ -55,8 +55,8 @@ public sealed partial class TokenRefreshEventArgs : EventArgs
 [Register(typeof(ITokenRefreshScheduler))]
 public sealed partial class TokenRefreshScheduler : ServiceEntity, ITokenRefreshScheduler, IDisposable
 {
-    [Inject] private readonly ILogger<TokenRefreshScheduler>? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<TokenRefreshScheduler>? _logger;
+    private readonly IClockService _clock;
     private readonly ConcurrentDictionary<string, TokenMonitor> _monitors = new();
     private readonly TimeSpan _refreshBuffer;
 

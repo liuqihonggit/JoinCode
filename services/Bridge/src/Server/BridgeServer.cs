@@ -21,7 +21,7 @@ public sealed partial class BridgeServer : ServiceEntity, IDisposable
 {
     private readonly HttpListener _httpListener;
     private readonly ConcurrentDictionary<string, WebSocket> _clients;
-    [Inject] private readonly ILogger<BridgeServer>? _logger;
+    private readonly ILogger<BridgeServer>? _logger;
     private readonly IClockService _clock;
     private readonly IFileOperationService _fileOperationService;
     private readonly CancellationTokenSource _cts;

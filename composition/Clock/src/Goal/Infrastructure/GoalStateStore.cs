@@ -13,7 +13,7 @@ public sealed class GoalStateStore : IGoalStateStore
 {
     private readonly string _baseDir;
     private readonly IFileSystem _fs;
-    [Inject] private readonly ILogger<GoalStateStore>? _logger = null;
+    private readonly ILogger<GoalStateStore>? _logger = null;
 
     public GoalStateStore(IFileSystem fs, string? baseDir = null, ILogger<GoalStateStore>? logger = null)
     {

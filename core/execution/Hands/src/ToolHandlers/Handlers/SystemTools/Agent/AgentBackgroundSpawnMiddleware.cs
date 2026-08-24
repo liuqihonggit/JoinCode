@@ -13,8 +13,8 @@ public sealed partial class AgentBackgroundSpawnMiddleware : ServiceEntity, IAge
         _agentService = agentService;
         _telemetryService = telemetryService;
     }
-    [Inject] private readonly IAgentService _agentService;
-    [Inject] private readonly ITelemetryService? _telemetryService;
+    private readonly IAgentService _agentService;
+    private readonly ITelemetryService? _telemetryService;
 
     /// <inheritdoc />
     public int Order => 300;

@@ -9,7 +9,7 @@ public sealed partial class AppStateSettingSyncService : ServiceEntity, IDisposa
 {
     private readonly IConfigurationService _configurationService;
     private readonly IStore<AppState> _store;
-    [Inject] private readonly ILogger<AppStateSettingSyncService>? _logger;
+    private readonly ILogger<AppStateSettingSyncService>? _logger;
 
     /// <summary>
     /// AppStateKey 到 AppState 字段的映射

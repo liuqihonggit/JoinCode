@@ -8,7 +8,7 @@ public sealed partial class ApplyPatchLogic : ServiceEntity
     {
         _fs = fs;
     }
-    [Inject] private readonly IFileSystem _fs;
+    private readonly IFileSystem _fs;
 
     public async Task<ApplyPatchResult> ApplyAsync(
         string patch,

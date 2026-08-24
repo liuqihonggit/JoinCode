@@ -8,7 +8,7 @@ namespace Memdir.Services;
 public sealed partial class FacetCacheService : ServiceEntity, IFacetCacheService
 {
     private readonly string _facetsDirectory;
-    [Inject] private readonly ILogger<FacetCacheService>? _logger;
+    private readonly ILogger<FacetCacheService>? _logger;
     private readonly IFileSystem _fs;
 
     public FacetCacheService(IFileSystem fs, string? facetsDirectory = null, ILogger<FacetCacheService>? logger = null)

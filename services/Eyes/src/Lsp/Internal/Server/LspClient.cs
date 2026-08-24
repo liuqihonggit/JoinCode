@@ -169,7 +169,7 @@ public interface ILspClient : IAsyncDisposable
 
 public sealed partial class LspClient : ILspClient
 {
-    [Inject] private readonly ILogger<LspClient>? _logger;
+    private readonly ILogger<LspClient>? _logger;
     private readonly IFileSystem _fs;
     private readonly IProcessService _processService;
     private IInteractiveProcess? _process;

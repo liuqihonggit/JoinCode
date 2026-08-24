@@ -3,7 +3,7 @@ namespace Core.Configuration;
 public sealed partial class CustomCommandLoader
 {
     private readonly IFileSystem _fs;
-    [Inject] private readonly ILogger<CustomCommandLoader>? _logger;
+    private readonly ILogger<CustomCommandLoader>? _logger;
 
     private static readonly string[] ProjectCommandDirs = new[] { 
         Path.Combine(".trae", "commands"),

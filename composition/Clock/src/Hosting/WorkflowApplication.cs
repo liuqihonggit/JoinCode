@@ -10,9 +10,9 @@ public sealed partial class WorkflowApplication : IAsyncDisposable
     private readonly ServiceMessageBus _messageBus;
     private readonly ICronTaskStore? _cronTaskStore;
     private readonly INotificationService? _notificationService;
-    [Inject] private readonly ILogger<CronSchedulerService>? _cronLogger;
-    [Inject] private readonly ILogger<WorkflowApplication>? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly ILogger<CronSchedulerService>? _cronLogger;
+    private readonly ILogger<WorkflowApplication>? _logger;
+    private readonly IClockService _clock;
     private DateTime _startedAt;
 
     public WorkflowApplication(

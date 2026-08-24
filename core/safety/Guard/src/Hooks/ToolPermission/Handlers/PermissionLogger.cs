@@ -14,8 +14,8 @@ public sealed partial class PermissionLogger : ServiceEntity, IPermissionLogger
         _logger = logger;
         _telemetryService = telemetryService;
     }
-    [Inject] private readonly ILogger<PermissionLogger>? _logger;
-    [Inject] private readonly ITelemetryService? _telemetryService;
+    private readonly ILogger<PermissionLogger>? _logger;
+    private readonly ITelemetryService? _telemetryService;
 
     private static readonly FrozenSet<string> CodeEditingTools = FrozenSet.Create(
         StringComparer.OrdinalIgnoreCase,

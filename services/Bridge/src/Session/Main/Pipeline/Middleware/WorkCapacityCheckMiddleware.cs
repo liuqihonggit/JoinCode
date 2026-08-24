@@ -10,7 +10,7 @@ public sealed partial class WorkCapacityCheckMiddleware : ServiceEntity, IHandle
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<WorkCapacityCheckMiddleware>? _logger;
+    private readonly ILogger<WorkCapacityCheckMiddleware>? _logger;
 
 
     public async Task InvokeAsync(HandleWorkContext ctx, MiddlewareDelegate<HandleWorkContext> next, CancellationToken ct)

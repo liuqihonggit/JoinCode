@@ -5,7 +5,7 @@ public sealed partial class BridgePipeHostedService : IHostedService, IAsyncDisp
     private readonly BridgeHeartbeatService _heartbeatService;
     private readonly IPipeRouteRegistrar? _routeRegistrar;
     private readonly Core.Bridge.BridgeServer? _bridgeServer;
-    [Inject] private readonly ILogger<BridgePipeHostedService>? _logger;
+    private readonly ILogger<BridgePipeHostedService>? _logger;
     private readonly CancellationTokenSource _disposeCts = new();
 
     public BridgePipeHostedService(

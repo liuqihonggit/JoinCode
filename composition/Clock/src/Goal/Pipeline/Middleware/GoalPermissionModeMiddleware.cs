@@ -13,7 +13,7 @@ public sealed partial class GoalPermissionModeMiddleware : ServiceEntity, IGoalL
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<GoalPermissionModeMiddleware>? _logger;
+    private readonly ILogger<GoalPermissionModeMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

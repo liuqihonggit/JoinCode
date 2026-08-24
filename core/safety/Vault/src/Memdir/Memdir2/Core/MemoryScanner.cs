@@ -38,7 +38,7 @@ public interface IMemoryScanner
 public sealed partial class MemoryScanner : ServiceEntity, IMemoryScanner
 {
     private readonly IMemoryPaths _memoryPaths;
-    [Inject] private readonly ILogger<MemoryScanner>? _logger;
+    private readonly ILogger<MemoryScanner>? _logger;
     private readonly IFileSystem _fs;
 
     public MemoryScanner(IFileSystem fs, IMemoryPaths memoryPaths, ILogger<MemoryScanner>? logger = null)

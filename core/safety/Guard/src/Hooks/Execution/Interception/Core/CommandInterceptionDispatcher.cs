@@ -32,7 +32,7 @@ public sealed partial class CommandInterceptionDispatcher : ServiceEntity
 {
     private readonly ICommandGuard[] _guards;
     private readonly ICommandInterceptor[] _interceptors;
-    [Inject] private readonly ILogger<CommandInterceptionDispatcher>? _logger;
+    private readonly ILogger<CommandInterceptionDispatcher>? _logger;
 
     /// <summary>
     /// 构造调度器 — DI 注入所有守卫和拦截器,按优先级降序预排序

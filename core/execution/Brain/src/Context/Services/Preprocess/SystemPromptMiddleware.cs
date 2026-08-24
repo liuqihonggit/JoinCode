@@ -14,8 +14,8 @@ public sealed partial class SystemPromptMiddleware : ServiceEntity, IPreparePrep
         _systemPromptBuilder = systemPromptBuilder;
         _contextManager = contextManager;
     }
-    [Inject] private readonly SystemPromptBuilder _systemPromptBuilder;
-    [Inject] private readonly IChatContextManager _contextManager;
+    private readonly SystemPromptBuilder _systemPromptBuilder;
+    private readonly IChatContextManager _contextManager;
 
 
     /// <inheritdoc/>

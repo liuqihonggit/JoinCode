@@ -44,7 +44,7 @@ public sealed partial class JsonFileDreamTaskPersistence : IDreamTaskPersistence
 {
     private string _storageDir;
     private readonly string _baseStorageDir;
-    [Inject] private readonly ILogger<JsonFileDreamTaskPersistence>? _logger;
+    private readonly ILogger<JsonFileDreamTaskPersistence>? _logger;
     private readonly IFileOperationService _fileOperationService;
 
     public JsonFileDreamTaskPersistence(

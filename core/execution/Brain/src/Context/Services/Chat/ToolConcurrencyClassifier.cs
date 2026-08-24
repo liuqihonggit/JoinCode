@@ -28,7 +28,7 @@ public sealed partial class ToolConcurrencyClassifier : ServiceEntity, IToolConc
 {
     private readonly FrozenSet<string> _safeToolNames;
     private readonly Func<string, bool>? _isCommandReadOnly;
-    [Inject] private readonly ILogger<ToolConcurrencyClassifier>? _logger;
+    private readonly ILogger<ToolConcurrencyClassifier>? _logger;
 
     /// <summary>
     /// 初始化并发安全分类器

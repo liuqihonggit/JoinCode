@@ -13,8 +13,8 @@ public sealed partial class MetadataMiddleware : ServiceEntity, IUnifiedSpawnMid
         _transcriptService = transcriptService;
         _logger = logger;
     }
-    [Inject] private readonly IAgentTranscriptService? _transcriptService;
-    [Inject] private readonly ILogger<MetadataMiddleware>? _logger;
+    private readonly IAgentTranscriptService? _transcriptService;
+    private readonly ILogger<MetadataMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

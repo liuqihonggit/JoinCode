@@ -12,8 +12,8 @@ public sealed partial class SwarmPermissionRequestProcessor : ServiceEntity, ISw
     private readonly IMailbox _messageBroker;
     private readonly IAgentPermissionManager _permissionManager;
     private readonly SwarmPermissionCallbackService _callbackService;
-    [Inject] private readonly ILogger<SwarmPermissionRequestProcessor>? _logger;
-    [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly ILogger<SwarmPermissionRequestProcessor>? _logger;
+    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
 
     public SwarmPermissionRequestProcessor(
         IMailbox messageBroker,

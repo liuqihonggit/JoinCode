@@ -10,7 +10,7 @@ public sealed partial class ShutdownArchiveMiddleware : ServiceEntity, IShutdown
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<ShutdownArchiveMiddleware>? _logger;
+    private readonly ILogger<ShutdownArchiveMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

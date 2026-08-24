@@ -9,7 +9,7 @@ public partial class TaskStopToolHandlers
 {
     private readonly ITaskService _taskService;
     private readonly IAgentService _agentCoordinator;
-    [Inject] private readonly ILogger<TaskStopToolHandlers>? _logger;
+    private readonly ILogger<TaskStopToolHandlers>? _logger;
 
     public TaskStopToolHandlers(
         ITaskService taskService,

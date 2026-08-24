@@ -11,7 +11,7 @@ public sealed partial class ForegroundTaskRegistry : MapRegistry<string, ISystem
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<ForegroundTaskRegistry>? _logger;
+    private readonly ILogger<ForegroundTaskRegistry>? _logger;
 
     /// <inheritdoc />
     public void Register(ISystemActuatorCommandContext context)

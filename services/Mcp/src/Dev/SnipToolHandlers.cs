@@ -6,7 +6,7 @@ namespace McpToolDispatch;
 public partial class SnipToolHandlers
 {
     private readonly IChatContextManager _contextManager;
-    [Inject] private readonly ILogger<SnipToolHandlers>? _logger;
+    private readonly ILogger<SnipToolHandlers>? _logger;
 
     public SnipToolHandlers(IChatContextManager contextManager, ILogger<SnipToolHandlers>? logger = null)
     {

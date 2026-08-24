@@ -13,8 +13,8 @@ public sealed partial class WebCacheCheckMiddleware : ServiceEntity, IWebMiddlew
         _cache = cache;
         _telemetryService = telemetryService;
     }
-    [Inject] private readonly IWebFetchCache _cache;
-    [Inject] private readonly ITelemetryService? _telemetryService;
+    private readonly IWebFetchCache _cache;
+    private readonly ITelemetryService? _telemetryService;
 
     /// <inheritdoc />
 

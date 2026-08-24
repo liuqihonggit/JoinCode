@@ -35,7 +35,7 @@ public sealed partial class StopHookResult
 public sealed partial class QueryStopHookManager : ServiceEntity, IQueryStopHookManager
 {
     private readonly ConcurrentDictionary<string, IQueryStopHook> _hooks;
-    [Inject] private readonly ILogger<QueryStopHookManager>? _logger;
+    private readonly ILogger<QueryStopHookManager>? _logger;
     private readonly ITelemetryService? _telemetryService;
 
     public QueryStopHookManager(ILogger<QueryStopHookManager>? logger = null, ITelemetryService? telemetryService = null)

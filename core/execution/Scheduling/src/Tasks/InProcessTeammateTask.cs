@@ -45,8 +45,8 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
 {
     private readonly IAgentLifecycleManager _agentLifecycleManager;
     private readonly IMailbox _messageBroker;
-    [Inject] private readonly ILogger<InProcessTeammateTaskExecutor>? _logger;
-    [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly ILogger<InProcessTeammateTaskExecutor>? _logger;
+    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     private readonly IClockService _clock;
     private readonly ITelemetryService? _telemetryService;
     private readonly IMailboxPoller? _mailboxPoller;

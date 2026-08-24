@@ -11,8 +11,8 @@ public sealed partial class WorkWorktreeMiddleware : ServiceEntity, IHandleWorkM
         _logger = logger;
         _worktreeService = worktreeService;
     }
-    [Inject] private readonly ILogger<WorkWorktreeMiddleware>? _logger;
-    [Inject] private readonly IAgentWorktreeService? _worktreeService;
+    private readonly ILogger<WorkWorktreeMiddleware>? _logger;
+    private readonly IAgentWorktreeService? _worktreeService;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

@@ -10,7 +10,7 @@ public sealed partial class ChatInitializer : ServiceEntity, IChatInitializer
 {
     private readonly MiddlewarePipeline<ChatInitContext> _pipeline;
     private readonly IChatContextManager _contextManager;
-    [Inject] private readonly ILogger<ChatInitializer>? _logger;
+    private readonly ILogger<ChatInitializer>? _logger;
     private ISessionCostPersistence? _sessionCostPersistence;
 
     /// <summary>

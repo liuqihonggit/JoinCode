@@ -5,7 +5,7 @@ namespace McpToolDispatch;
 [McpToolDispatch(ToolCategory.FileTransfer, Optional = true)]
 public partial class SendUserFileToolHandlers
 {
-    [Inject] private readonly ILogger<SendUserFileToolHandlers>? _logger;
+    private readonly ILogger<SendUserFileToolHandlers>? _logger;
     private readonly IFileTransferService? _transferService;
     private readonly IFileSystem _fs;
 

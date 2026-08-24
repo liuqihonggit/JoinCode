@@ -9,8 +9,8 @@ public sealed partial class DisposeLifecycleMiddleware : ServiceEntity, IAgentDi
         _lifecycleManager = lifecycleManager;
         _logger = logger;
     }
-    [Inject] private readonly IAgentLifecycleManager _lifecycleManager;
-    [Inject] private readonly ILogger<DisposeLifecycleMiddleware> _logger;
+    private readonly IAgentLifecycleManager _lifecycleManager;
+    private readonly ILogger<DisposeLifecycleMiddleware> _logger;
 
     public async Task InvokeAsync(AgentDisposeContext ctx, MiddlewareDelegate<AgentDisposeContext> next, CancellationToken ct)
     {

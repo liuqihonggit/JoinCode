@@ -23,7 +23,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
     private readonly IChatClient _kernel;
     private readonly IToolRegistry _toolRegistry;
     private readonly IToolExecutionGateway? _toolExecutionGateway;
-    [Inject] private readonly ILogger<QueryEngine>? _logger;
+    private readonly ILogger<QueryEngine>? _logger;
     private readonly QueryEngineConfig _config;
     private readonly IServiceProvider? _serviceProvider;
     private readonly ILoggerFactory? _loggerFactory;

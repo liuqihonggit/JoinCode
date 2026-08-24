@@ -13,7 +13,7 @@ public sealed partial class IdleReminderMiddleware : ServiceEntity, IQueryMiddle
     {
         _toolIdleReminder = toolIdleReminder;
     }
-    [Inject] private readonly IToolIdleReminderService? _toolIdleReminder;
+    private readonly IToolIdleReminderService? _toolIdleReminder;
 
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;

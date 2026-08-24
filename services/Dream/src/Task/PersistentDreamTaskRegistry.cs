@@ -9,7 +9,7 @@ namespace JoinCode.Dream.Persistence;
 public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IAsyncDisposable
 {
     private readonly IDreamTaskPersistence _persistence;
-    [Inject] private readonly ILogger<PersistentDreamTaskRegistry>? _logger;
+    private readonly ILogger<PersistentDreamTaskRegistry>? _logger;
     private readonly AsyncLock _lock = new();
 
     // 内存缓存（活跃任务）

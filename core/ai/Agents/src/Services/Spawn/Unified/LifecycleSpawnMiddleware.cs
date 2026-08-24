@@ -16,9 +16,9 @@ public sealed partial class LifecycleSpawnMiddleware : ServiceEntity, IUnifiedSp
         _subAgentContextAccessor = subAgentContextAccessor;
         _logger = logger;
     }
-    [Inject] private readonly IAgentLifecycleManager _lifecycleManager;
-    [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
-    [Inject] private readonly ILogger<LifecycleSpawnMiddleware>? _logger;
+    private readonly IAgentLifecycleManager _lifecycleManager;
+    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly ILogger<LifecycleSpawnMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 

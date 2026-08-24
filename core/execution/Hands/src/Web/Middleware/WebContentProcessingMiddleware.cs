@@ -11,7 +11,7 @@ public sealed partial class WebContentProcessingMiddleware : ServiceEntity, IWeb
 
     private readonly IHtmlToMarkdownConverter _htmlToMarkdownConverter;
     private readonly IBinaryContentStorage _binaryContentStorage;
-    [Inject] private readonly ILogger<WebContentProcessingMiddleware>? _logger;
+    private readonly ILogger<WebContentProcessingMiddleware>? _logger;
 
     /// <inheritdoc />
 

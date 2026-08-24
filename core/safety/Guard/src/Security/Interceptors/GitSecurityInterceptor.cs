@@ -6,7 +6,7 @@ public sealed partial class GitSecurityInterceptor : ServiceEntity, IGitSecurity
 {
     private readonly IGitDiffProvider _diffProvider;
     private readonly IGitSecretScanner _scanner;
-    [Inject] private readonly ILogger<GitSecurityInterceptor> _logger;
+    private readonly ILogger<GitSecurityInterceptor> _logger;
 
     private static readonly HashSet<string> ScannedTools =
     [

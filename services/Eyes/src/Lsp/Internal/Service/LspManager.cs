@@ -38,11 +38,11 @@ public sealed partial class LspManager : ILspManager
     private readonly ConcurrentDictionary<string, LspServerInstance> _servers = new();
     private readonly Dictionary<string, List<string>> _extensionMap = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, string> _openedFiles = new();
-    [Inject] private readonly ILogger<LspManager> _logger;
-    [Inject] private readonly IFileOperationService? _fileOperationService;
-    [Inject] private readonly ILspPassiveFeedback? _passiveFeedback;
-    [Inject] private readonly IFileSystem _fs;
-    [Inject] private readonly IProcessService _processService;
+    private readonly ILogger<LspManager> _logger;
+    private readonly IFileOperationService? _fileOperationService;
+    private readonly ILspPassiveFeedback? _passiveFeedback;
+    private readonly IFileSystem _fs;
+    private readonly IProcessService _processService;
     private readonly SemaphoreSlim _initLock = new(1, 1);
     private int _isInitialized;
     private int _isDisposed;

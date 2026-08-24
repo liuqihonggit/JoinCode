@@ -6,7 +6,7 @@ public sealed partial class ContextFoldExecutor
         "[CONVERSATION HISTORY SUMMARY — earlier turns folded for context efficiency]\n\n";
 
     private readonly IFoldSummarizer _summarizer;
-    [Inject] private readonly ILogger<ContextFoldExecutor>? _logger;
+    private readonly ILogger<ContextFoldExecutor>? _logger;
 
     public ContextFoldExecutor(IFoldSummarizer summarizer, ILogger<ContextFoldExecutor>? logger = null)
     {

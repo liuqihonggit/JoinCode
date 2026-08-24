@@ -8,7 +8,7 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry
 {
     private readonly IToolRegistry _toolRegistry;
     private readonly RemoteClientManager _remoteClientManager;
-    [Inject] private readonly ILogger<ToolRegistryAdapter>? _logger;
+    private readonly ILogger<ToolRegistryAdapter>? _logger;
 
     public ToolRegistryAdapter(
         IToolRegistry toolRegistry,

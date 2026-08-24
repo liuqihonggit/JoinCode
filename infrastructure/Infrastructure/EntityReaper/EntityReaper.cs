@@ -7,8 +7,8 @@ namespace Infrastructure.EntityReaper;
 [Register(typeof(IEntityReaper))]
 public sealed partial class EntityReaper : IEntityReaper, IScanStrategy
 {
-    [Inject] private readonly IClockService _clock;
-    [Inject] private readonly ILogger<EntityReaper>? _logger;
+    private readonly IClockService _clock;
+    private readonly ILogger<EntityReaper>? _logger;
 
     private readonly EntityReaperConfig _config;
 

@@ -4,7 +4,7 @@ namespace Core.Security.Services;
 public sealed partial class MtlsService : ServiceEntity, IMtlsService
 {
     private readonly IFileSystem _fs;
-    [Inject] private readonly ILogger<MtlsService>? _logger;
+    private readonly ILogger<MtlsService>? _logger;
     private readonly ICaCertificateService? _caCertificateService;
     private readonly ITelemetryService? _telemetryService;
     private volatile MtlsConfiguration? _currentConfiguration;

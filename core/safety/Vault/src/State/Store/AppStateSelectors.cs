@@ -14,8 +14,8 @@ public sealed partial class AppStateSelectors : ServiceEntity
         _store = store;
         _telemetryService = telemetryService;
     }
-    [Inject] private readonly IStore<AppState> _store;
-    [Inject] private readonly ITelemetryService? _telemetryService;
+    private readonly IStore<AppState> _store;
+    private readonly ITelemetryService? _telemetryService;
 
     private void RecordSelectorMetrics(string selectorCategory, string selectorName)
         => _telemetryService?.RecordCount("vault.selector.count", new Dictionary<string, string> { ["category"] = selectorCategory, ["selector"] = selectorName }, "count", "State selector creation count");

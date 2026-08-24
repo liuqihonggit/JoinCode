@@ -13,7 +13,7 @@ public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeServic
     private bool _isSimpleMode;
     private SimpleModeConfig _config;
     private readonly IBriefModeService? _briefModeService;
-    [Inject] private readonly ILogger<SimpleModeService>? _logger;
+    private readonly ILogger<SimpleModeService>? _logger;
 
     public bool IsSimpleMode
     {

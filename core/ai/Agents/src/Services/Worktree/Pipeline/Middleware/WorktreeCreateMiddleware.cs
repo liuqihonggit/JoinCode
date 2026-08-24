@@ -14,10 +14,10 @@ public sealed partial class WorktreeCreateMiddleware : ServiceEntity, IWorktreeC
         _clock = clock;
         _logger = logger;
     }
-    [Inject] private readonly Lazy<IWorktreePipelineOperations> _worktreeService;
-    [Inject] private readonly IFileOperationService _fs;
-    [Inject] private readonly ILogger<WorktreeCreateMiddleware>? _logger;
-    [Inject] private readonly IClockService _clock;
+    private readonly Lazy<IWorktreePipelineOperations> _worktreeService;
+    private readonly IFileOperationService _fs;
+    private readonly ILogger<WorktreeCreateMiddleware>? _logger;
+    private readonly IClockService _clock;
 
 
     public async Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct)

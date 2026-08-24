@@ -11,7 +11,7 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
 {
     private readonly ConcurrentDictionary<string, SessionState> _fallbackStorage = new();
     private readonly IClockService _clock;
-    [Inject] private readonly ILogger<StateService>? _logger;
+    private readonly ILogger<StateService>? _logger;
     private const string StateKey = "state";
 
     private static ISessionCache? GetCurrentCache()

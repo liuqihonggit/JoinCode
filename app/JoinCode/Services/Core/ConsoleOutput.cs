@@ -6,7 +6,7 @@ namespace JoinCode.Services;
 [Register]
 public sealed partial class ConsoleOutput : ServiceEntity, IConsoleOutput
 {
-    [Inject] private readonly ILogger<ConsoleOutput>? _logger;
+    private readonly ILogger<ConsoleOutput>? _logger;
 
     public ConsoleOutput(ILogger<ConsoleOutput>? logger = null)
     {

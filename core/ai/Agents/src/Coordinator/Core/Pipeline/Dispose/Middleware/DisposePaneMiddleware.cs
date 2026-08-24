@@ -9,8 +9,8 @@ public sealed partial class DisposePaneMiddleware : ServiceEntity, IAgentDispose
         _logger = logger;
         _layoutManager = layoutManager;
     }
-    [Inject] private readonly ITeammateLayoutManager? _layoutManager;
-    [Inject] private readonly ILogger<DisposePaneMiddleware> _logger;
+    private readonly ITeammateLayoutManager? _layoutManager;
+    private readonly ILogger<DisposePaneMiddleware> _logger;
 
     public async Task InvokeAsync(AgentDisposeContext ctx, MiddlewareDelegate<AgentDisposeContext> next, CancellationToken ct)
     {

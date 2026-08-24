@@ -16,11 +16,11 @@ public sealed partial class RegisterMessageMiddleware : ServiceEntity, IUnifiedS
         _teammateInitService = teammateInitService;
         _serviceProvider = serviceProvider;
     }
-    [Inject] private readonly IMailbox _messageBroker;
-    [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
-    [Inject] private readonly ILogger<RegisterMessageMiddleware> _logger;
-    [Inject] private readonly ITeammateInitService? _teammateInitService;
-    [Inject] private readonly IServiceProvider? _serviceProvider;
+    private readonly IMailbox _messageBroker;
+    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly ILogger<RegisterMessageMiddleware> _logger;
+    private readonly ITeammateInitService? _teammateInitService;
+    private readonly IServiceProvider? _serviceProvider;
 
     private ITeammateInitService? ResolvedTeammateInitService => _teammateInitService ?? _serviceProvider?.GetService(typeof(ITeammateInitService)) as ITeammateInitService;
 

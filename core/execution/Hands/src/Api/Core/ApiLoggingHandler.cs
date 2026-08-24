@@ -83,7 +83,7 @@ public sealed record ApiLoggingOptions
 /// </summary>
 public sealed partial class ApiLoggingHandler : DelegatingHandler
 {
-    [Inject] private readonly ILogger<ApiLoggingHandler> _logger;
+    private readonly ILogger<ApiLoggingHandler> _logger;
     private readonly ApiLoggingOptions _options;
 
     public ApiLoggingHandler(

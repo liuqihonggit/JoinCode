@@ -54,7 +54,7 @@ public static partial class ServiceRegistration
             .ValidateOnStart();
 
         // FileOperationConfig — 直接注册供 FileOperationService 构造函数使用
-        // （FileOperationService 有手动构造函数，不使用 [Inject] 生成器）
+        // （FileOperationService 有手动构造函数，不使用 生成器）
         services.AddSingleton(sp =>
         {
             var options = sp.GetRequiredService<IOptions<FileOperationConfig>>();

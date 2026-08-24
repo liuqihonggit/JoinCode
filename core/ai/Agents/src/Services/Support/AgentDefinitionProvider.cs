@@ -14,9 +14,9 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
             pluginAgentLoader.Changed += (_, _) => ClearCache();
         }
     }
-    [Inject] private readonly IFileSystem _fs;
-    [Inject] private readonly ILogger<AgentDefinitionProvider>? _logger;
-    [Inject] private readonly IPluginAgentLoader? _pluginAgentLoader;
+    private readonly IFileSystem _fs;
+    private readonly ILogger<AgentDefinitionProvider>? _logger;
+    private readonly IPluginAgentLoader? _pluginAgentLoader;
     private volatile List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>? _cachedDefinitions;
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
 

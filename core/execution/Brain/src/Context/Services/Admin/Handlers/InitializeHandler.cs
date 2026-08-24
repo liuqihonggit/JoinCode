@@ -13,7 +13,7 @@ public sealed partial class InitializeHandler : ServiceEntity, IChatAdminOperati
     {
         _initializer = initializer;
     }
-    [Inject] private readonly IChatInitializer _initializer;
+    private readonly IChatInitializer _initializer;
 
     public ChatAdminOperation Operation => ChatAdminOperation.Initialize;
 

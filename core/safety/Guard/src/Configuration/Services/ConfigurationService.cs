@@ -14,7 +14,7 @@ public sealed partial class ConfigurationService : ServiceEntity, IConfiguration
     private readonly IFileSystem _fs;
     private readonly IRemoteSettingsService? _remoteSettingsService;
     private readonly IConfigChangeNotifier? _configChangeNotifier;
-    [Inject] private readonly ILogger<ConfigurationService>? _logger;
+    private readonly ILogger<ConfigurationService>? _logger;
 
     public event EventHandler<SettingChangeEventArgs>? SettingChanged;
 

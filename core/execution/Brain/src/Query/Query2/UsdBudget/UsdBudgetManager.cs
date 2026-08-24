@@ -31,7 +31,7 @@ public sealed partial class UsdBudgetManager : IUsdBudgetManager, IAsyncDisposab
     private readonly AsyncLock _lock = new();
     private readonly ICostTracker _costTracker;
     private readonly QueryEngineConfig _config;
-    [Inject] private readonly ILogger<UsdBudgetManager>? _logger;
+    private readonly ILogger<UsdBudgetManager>? _logger;
     private readonly ITelemetryService? _telemetryService;
     private decimal _totalUsed;
     private bool _alertTriggered;

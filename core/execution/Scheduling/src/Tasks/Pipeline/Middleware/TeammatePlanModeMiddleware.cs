@@ -11,8 +11,8 @@ public sealed partial class TeammatePlanModeMiddleware : ServiceEntity, ITeammat
         _planModeManager = planModeManager;
         _logger = logger;
     }
-    [Inject] private readonly IPlanModeManager? _planModeManager;
-    [Inject] private readonly ILogger<TeammatePlanModeMiddleware>? _logger;
+    private readonly IPlanModeManager? _planModeManager;
+    private readonly ILogger<TeammatePlanModeMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

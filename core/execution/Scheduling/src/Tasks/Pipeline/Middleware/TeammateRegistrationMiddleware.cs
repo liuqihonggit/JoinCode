@@ -13,10 +13,10 @@ public sealed partial class TeammateRegistrationMiddleware : ServiceEntity, ITea
         _logger = logger;
         _mailboxPoller = mailboxPoller;
     }
-    [Inject] private readonly IMailbox _messageBroker;
-    [Inject] private readonly ILogger<TeammateRegistrationMiddleware>? _logger;
-    [Inject] private readonly IMailboxPoller? _mailboxPoller;
-    [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly IMailbox _messageBroker;
+    private readonly ILogger<TeammateRegistrationMiddleware>? _logger;
+    private readonly IMailboxPoller? _mailboxPoller;
+    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
 
 
     public async Task InvokeAsync(TeammateExecutionContext ctx, MiddlewareDelegate<TeammateExecutionContext> next, CancellationToken ct)

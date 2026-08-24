@@ -18,9 +18,9 @@ public sealed partial class WorktreeSpawnMiddleware : ServiceEntity, IUnifiedSpa
         _worktreeManager = worktreeManager;
         _logger = logger;
     }
-    [Inject] private readonly IAgentWorktreeService? _worktreeService;
-    [Inject] private readonly IAgentWorktreeManager? _worktreeManager;
-    [Inject] private readonly ILogger<WorktreeSpawnMiddleware>? _logger;
+    private readonly IAgentWorktreeService? _worktreeService;
+    private readonly IAgentWorktreeManager? _worktreeManager;
+    private readonly ILogger<WorktreeSpawnMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

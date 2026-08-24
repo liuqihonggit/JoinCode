@@ -4,7 +4,7 @@ namespace State;
 public sealed partial class TranscriptService : ServiceEntity, ITranscriptService, IDisposable
 {
     private readonly string _sessionsDirectory;
-    [Inject] private readonly ILogger<TranscriptService>? _logger;
+    private readonly ILogger<TranscriptService>? _logger;
     private readonly IClockService _clock;
     private readonly TranscriptFileWriter _writer;
     private readonly IFileSystem _fs;

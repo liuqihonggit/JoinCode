@@ -48,7 +48,7 @@ public sealed partial class PollConfig
 [Register]
 public sealed partial class PollConfigManager : ServiceEntity, IDisposable
 {
-    [Inject] private readonly ILogger<PollConfigManager>? _logger;
+    private readonly ILogger<PollConfigManager>? _logger;
     private readonly AsyncLock _configLock = new();
     private PollConfig _currentConfig;
     private int _consecutiveErrors;

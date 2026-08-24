@@ -14,8 +14,8 @@ public sealed partial class ContextCollapseMiddleware : ServiceEntity, ICompactM
         _contextCollapseService = contextCollapseService;
         _logger = logger;
     }
-    [Inject] private readonly IContextCollapseService? _contextCollapseService;
-    [Inject] private readonly ILogger<ContextCollapseMiddleware>? _logger;
+    private readonly IContextCollapseService? _contextCollapseService;
+    private readonly ILogger<ContextCollapseMiddleware>? _logger;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

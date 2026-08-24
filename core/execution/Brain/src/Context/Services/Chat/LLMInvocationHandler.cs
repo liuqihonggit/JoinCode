@@ -37,7 +37,7 @@ public sealed partial class LLMInvocationHandler : ServiceEntity, ILLMInvocation
     private readonly IChatStreamChunkProcessor _chunkProcessor;
     private readonly IChatContextManager _contextManager;
     private readonly QueryLoopServices? _services;
-    [Inject] private readonly ILogger<LLMInvocationHandler>? _logger;
+    private readonly ILogger<LLMInvocationHandler>? _logger;
 
     public LLMInvocationHandler(
         IChatClient kernel,

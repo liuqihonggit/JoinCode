@@ -13,7 +13,7 @@ public sealed partial class DisposedCheckMiddleware : ServiceEntity, ISyncStartM
     {
         _logger = logger;
     }
-    [Inject] private readonly ILogger<DisposedCheckMiddleware>? _logger;
+    private readonly ILogger<DisposedCheckMiddleware>? _logger;
 
 
     public Task InvokeAsync(SyncStartContext ctx, MiddlewareDelegate<SyncStartContext> next, CancellationToken ct)

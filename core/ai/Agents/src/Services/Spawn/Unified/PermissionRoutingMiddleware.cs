@@ -17,11 +17,11 @@ public sealed partial class PermissionRoutingMiddleware : ServiceEntity, IUnifie
         _permissionRouter = permissionRouter;
         _planApprovalRouter = planApprovalRouter;
     }
-    [Inject] private readonly IMailbox _messageBroker;
-    [Inject] private readonly ISubAgentContextAccessor _subAgentContextAccessor;
-    [Inject] private readonly ILogger<PermissionRoutingMiddleware> _logger;
-    [Inject] private readonly SwarmPermissionMessageRouter? _permissionRouter;
-    [Inject] private readonly PlanApprovalMessageRouter? _planApprovalRouter;
+    private readonly IMailbox _messageBroker;
+    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly ILogger<PermissionRoutingMiddleware> _logger;
+    private readonly SwarmPermissionMessageRouter? _permissionRouter;
+    private readonly PlanApprovalMessageRouter? _planApprovalRouter;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 

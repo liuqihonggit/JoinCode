@@ -24,6 +24,7 @@ internal sealed class DownloadSession : IDownloadSession
     private Task<DownloadResult>? _downloadTask;
     private List<DownloadChunk>? _chunks;
     private long _totalLength;
+    private RangeSupportResult? _probeResult;
     private readonly DateTimeOffset _startTime;
 
     /// <summary>当前状态(线程安全读取)</summary>
@@ -92,7 +93,7 @@ internal sealed class DownloadSession : IDownloadSession
             throw new InvalidOperationException(resumeResult.Error);
 
         _cts = new CancellationTokenSource();
-        _downloadTask = RunDownloadAsync();
+        _downloadTask = Task.Run(RunDownloadAsync, CancellationToken.None);
         return Task.CompletedTask;
     }
 
@@ -148,6 +149,7 @@ internal sealed class DownloadSession : IDownloadSession
         try
         {
             var probeResult = await _probe.ProbeAsync(_url, ct).ConfigureAwait(false);
+            _probeResult = probeResult;
             _totalLength = probeResult.ContentLength ?? 0;
 
             if (!LoadOrPlanChunks(probeResult))
@@ -270,8 +272,8 @@ internal sealed class DownloadSession : IDownloadSession
         {
             Url = _url,
             TotalLength = _totalLength,
-            ETag = null,
-            LastModified = null,
+            ETag = _probeResult?.ETag,
+            LastModified = _probeResult?.LastModified,
             Chunks = _chunks ?? []
         };
 

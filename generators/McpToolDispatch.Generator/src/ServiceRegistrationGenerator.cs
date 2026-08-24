@@ -214,74 +214,15 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
                     continue;
             }
 
-            var lifetime = LifetimeSingleton;
+            // [Register(typeof(IFoo), ServiceLifetime.Xxx)] — 双参数构造函数
+            // 第一个参数: 接口类型 (Type), 第二个参数: 生命周期 (ServiceLifetime enum → int)
+            var interfaceType = attr.ConstructorArguments.ElementAtOrDefault(0);
+            var lifetimeArg = attr.ConstructorArguments.ElementAtOrDefault(1);
 
-            // 从构造函数参数提取 Lifetime
-            if (attr.ConstructorArguments.Length >= 2)
+            if (interfaceType.Value is INamedTypeSymbol typeSym && lifetimeArg.Value is int lifetime)
             {
-                var secondArg = attr.ConstructorArguments.ElementAtOrDefault(1);
-                if (secondArg.Value is int ctorLifetimeInt)
-                    lifetime = ctorLifetimeInt;
-            }
-            else if (attr.ConstructorArguments.Length == 1)
-            {
-                var firstArg = attr.ConstructorArguments.ElementAtOrDefault(0);
-                if (firstArg.Value is int singleLifetimeInt && firstArg.Type?.TypeKind == TypeKind.Enum)
-                    lifetime = singleLifetimeInt;
-            }
-
-            // 命名参数覆盖
-            var lifetimeArg = attr.NamedArguments.FirstOrDefault(kvp => kvp.Key == "Lifetime").Value;
-            if (lifetimeArg.Value is int lifetimeInt)
-                lifetime = lifetimeInt;
-
-            // 检查是否显式指定了接口类型
-            var explicitTypes = new List<string>();
-            foreach (var ctorArg in attr.ConstructorArguments)
-            {
-                if (ctorArg.Value is INamedTypeSymbol typeSym)
-                {
-                    var typeName = typeSym.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-                    // 排除 ServiceLifetime 枚举值（命名空间包含 ServiceLifetime）
-                    if (!typeName.Contains("ServiceLifetime") && !typeName.Contains("JoinCode.Abstractions.Attributes"))
-                        explicitTypes.Add(typeName);
-                }
-            }
-
-            if (explicitTypes.Count > 0)
-            {
-                // 显式指定：注册指定的接口
-                foreach (var iface in explicitTypes)
-                    results.Add(new ServiceRegistration(iface, lifetime));
-            }
-            else
-            {
-                // 无显式指定：自动发现接口和基类
-                var autoTypes = new List<string>();
-
-                // 1. 扫描接口（排除 IDisposable/IAsyncDisposable）
-                var interfaces = typeSymbol.AllInterfaces
-                    .Where(i => i.Name != "IDisposable" && i.Name != "IAsyncDisposable")
-                    .Select(i => i.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
-                autoTypes.AddRange(interfaces);
-
-                // 2. 扫描基类（排除 System.Object）
-                var baseType = typeSymbol.BaseType;
-                if (baseType != null && baseType.Name != "Object")
-                {
-                    autoTypes.Add(baseType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
-                }
-
-                if (autoTypes.Count > 0)
-                {
-                    foreach (var typeName in autoTypes)
-                        results.Add(new ServiceRegistration(typeName, lifetime));
-                }
-                else
-                {
-                    // 无接口也无基类：只注册实现类型自身
-                    results.Add(new ServiceRegistration(null, lifetime));
-                }
+                var typeName = typeSym.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                results.Add(new ServiceRegistration(typeName, lifetime));
             }
         }
 

@@ -44,3 +44,4 @@ global using JoinCode.Abstractions.Models.ErrorRecovery;
 global using System.Net;
 global using System.Runtime.CompilerServices;
 global using Xunit.Abstractions;
+global using Core.Plugins;

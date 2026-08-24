@@ -2,7 +2,6 @@
 namespace Tools;
 
 [Register(typeof(IToolRegistry), ServiceLifetime.Singleton)]
-[AllowSkipEntity("实现 IAsyncDisposable，与 ServiceEntity 的 IDisposable 冲突，保留异步释放模式")]
 public sealed partial class LocalToolRegistry : IToolRegistry
 {
     private readonly Dictionary<string, IToolHandler> _tools = new();

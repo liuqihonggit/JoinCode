@@ -4,7 +4,7 @@ namespace Core.Context.Compression;
 /// <summary>
 /// 代码内容压缩策略
 /// </summary>
-[Register(JoinCode.Abstractions.Attributes.ServiceLifetime.Transient)]
+[Register(typeof(ICompressionStrategy), ServiceLifetime.Transient)]
 public sealed partial class CodeContentCompressor : CompressionStrategyBase
 {
     public override string Name => "CodeContentCompressor";

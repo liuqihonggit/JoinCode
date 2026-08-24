@@ -7,7 +7,6 @@ namespace JoinCode.Transport.Bridge;
 /// 不依赖任何业务消息类型（如 BridgeMessage），可独立于 Bridge 使用
 /// </summary>
 [Register(typeof(IMessageRouter), ServiceLifetime.Singleton)]
-[AllowSkipEntity("实现 IAsyncDisposable，与 ServiceEntity 的 IDisposable 冲突，保留异步释放模式")]
 public sealed partial class StringMessageRouter : IMessageRouter
 {
     private readonly ILogger? _logger;

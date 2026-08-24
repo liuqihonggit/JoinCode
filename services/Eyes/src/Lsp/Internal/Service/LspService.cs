@@ -1,7 +1,6 @@
 namespace Services.Lsp;
 
 [Register(typeof(ILspService), ServiceLifetime.Singleton)]
-[AllowSkipEntity("实现 IAsyncDisposable，与 ServiceEntity 的 IDisposable 冲突，保留异步释放模式")]
 public sealed partial class LspService : ILspService
 {
     private const int MaxLspFileSizeBytes = 10_000_000;

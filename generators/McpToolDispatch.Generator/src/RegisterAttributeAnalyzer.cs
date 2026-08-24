@@ -10,9 +10,6 @@ namespace McpToolDispatch.Generator;
 public sealed class RegisterAttributeAnalyzer : DiagnosticAnalyzer
 {
     private const string RegisterAttributeFullName = "JoinCode.Abstractions.Attributes.RegisterAttribute";
-    private const string AllowSkipEntityAttributeFullName = "JoinCode.Abstractions.Attributes.AllowSkipEntityAttribute";
-    private const string EntityFullName = "JoinCode.Abstractions.Entity.Entity";
-    private const string ServiceEntityFullName = "JoinCode.Abstractions.Entity.ServiceEntity";
 
     private static readonly DiagnosticDescriptor RuleMultiInterfaceWithoutExplicitType = new(
         "JCC4010",
@@ -23,17 +20,8 @@ public sealed class RegisterAttributeAnalyzer : DiagnosticAnalyzer
         true,
         "When a class implements multiple business interfaces (excluding IDisposable/IAsyncDisposable), you must explicitly specify the interface types in [Register] to avoid unintended auto-registration.");
 
-    private static readonly DiagnosticDescriptor RuleMustInheritEntity = new(
-        "JCC4012",
-        "[Register] 类必须继承 ServiceEntity",
-        "类 '{0}' 标记了 [Register] 但未继承 ServiceEntity/Entity. 请继承 ServiceEntity 获得 ObjectId 生命周期追踪, 或用 [AllowSkipEntity(\"原因\")] 豁免.",
-        "DIServiceRegistration",
-        DiagnosticSeverity.Error,
-        true,
-        "All DI services must inherit ServiceEntity to get ObjectId lifecycle tracking. Use [AllowSkipEntity] for exemption (e.g. record types, IAsyncDisposable conflict).");
-
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
-        ImmutableArray.Create(RuleMultiInterfaceWithoutExplicitType, RuleMustInheritEntity);
+        ImmutableArray.Create(RuleMultiInterfaceWithoutExplicitType);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -89,39 +77,6 @@ public sealed class RegisterAttributeAnalyzer : DiagnosticAnalyzer
                 typeSymbol.Name,
                 businessInterfaces.Count,
                 interfaceNames);
-            context.ReportDiagnostic(diagnostic);
-        }
-
-        // JCC4012: [Register] 类必须继承 ServiceEntity/Entity（除非 [AllowSkipEntity] 豁免）
-        var hasAllowSkip = typeSymbol.GetAttributes()
-            .Any(a => a.AttributeClass?.ToDisplayString() == AllowSkipEntityAttributeFullName);
-        if (hasAllowSkip)
-            return;
-
-        // record 不适合继承 ServiceEntity（Equals/GetHashCode 语义冲突），跳过检查
-        if (typeSymbol.IsRecord)
-            return;
-
-        // 检查基类链是否包含 Entity 或 ServiceEntity
-        var baseChain = typeSymbol.BaseType;
-        var hasEntityBase = false;
-        while (baseChain is not null)
-        {
-            var baseFullName = baseChain.ToDisplayString();
-            if (baseFullName == EntityFullName || baseFullName == ServiceEntityFullName)
-            {
-                hasEntityBase = true;
-                break;
-            }
-            baseChain = baseChain.BaseType;
-        }
-
-        if (!hasEntityBase)
-        {
-            var diagnostic = Diagnostic.Create(
-                RuleMustInheritEntity,
-                typeSymbol.Locations[0],
-                typeSymbol.Name);
             context.ReportDiagnostic(diagnostic);
         }
     }

@@ -2,7 +2,6 @@
 namespace Core.Context;
 
 [Register(typeof(IChatService), ServiceLifetime.Singleton)]
-[AllowSkipEntity("实现 IAsyncDisposable，与 ServiceEntity 的 IDisposable 冲突，保留异步释放模式")]
 public partial class ChatService : IChatService {
     private readonly IChatContextManager _contextManager;
     private readonly ILogger<ChatService>? _logger;

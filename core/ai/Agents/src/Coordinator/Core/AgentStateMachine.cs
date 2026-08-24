@@ -6,7 +6,6 @@ namespace Core.Agents.Coordinator;
 /// <para>内部复用 StateMachine&lt;TState&gt; 基础设施,消除手写 switch 转换表/锁/事件重复逻辑</para>
 /// </summary>
 [Register(typeof(AgentStateMachine), ServiceLifetime.Singleton)]
-[AllowSkipEntity("实现 IAsyncDisposable，与 Entity 的 IDisposable 冲突")]
 public sealed partial class AgentStateMachine 
 {
     private static readonly FrozenDictionary<TaskExecutionStatus, FrozenSet<TaskExecutionStatus>> Transitions = CreateTransitionTable();

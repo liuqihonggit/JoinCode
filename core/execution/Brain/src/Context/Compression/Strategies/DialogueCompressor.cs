@@ -4,7 +4,7 @@ namespace Core.Context.Compression;
 /// <summary>
 /// 对话历史压缩策略
 /// </summary>
-[Register(JoinCode.Abstractions.Attributes.ServiceLifetime.Transient)]
+[Register(typeof(ICompressionStrategy), ServiceLifetime.Transient)]
 public sealed partial class DialogueCompressor : CompressionStrategyBase
 {
     public override string Name => "DialogueCompressor";

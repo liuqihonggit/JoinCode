@@ -59,7 +59,6 @@ public sealed record DreamTaskRegistrationRequest(
 /// 内存中的做梦任务注册表实现
 /// </summary>
 [Register(typeof(IDreamTaskRegistry), ServiceLifetime.Singleton)]
-[AllowSkipEntity("实现 IAsyncDisposable，与 ServiceEntity 的 IDisposable 冲突，保留异步释放模式")]
 public sealed partial class InMemoryDreamTaskRegistry : IDreamTaskRegistry, IAsyncDisposable
 {
     private readonly Dictionary<string, DreamTaskState> _tasks = new();

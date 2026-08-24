@@ -7,7 +7,6 @@ using JoinCode.Abstractions.Attributes;
 /// 容量唤醒选项 - 自动伸缩配置
 /// </summary>
 [Register(typeof(CapacityWakeOptions), ServiceLifetime.Singleton)]
-[AllowSkipEntity("实现 IAsyncDisposable，与 Entity 的 IDisposable 冲突")]
 public sealed partial class CapacityWakeOptions 
 {
     public const int DefaultMinInstances = 1;

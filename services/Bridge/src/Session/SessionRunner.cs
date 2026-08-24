@@ -67,7 +67,6 @@ public sealed class BridgeSession
 /// Bridge 会话配置
 /// </summary>
 [Register(typeof(BridgeSessionConfiguration), ServiceLifetime.Singleton)]
-[AllowSkipEntity("实现 IAsyncDisposable，与 Entity 的 IDisposable 冲突")]
 public sealed partial class BridgeSessionConfiguration 
 {
     /// <summary>会话超时时间（默认 30 分钟）</summary>
@@ -92,7 +91,6 @@ public sealed partial class BridgeSessionConfiguration
 /// Bridge 会话工厂 - 创建新的会话实例
 /// </summary>
 [Register(typeof(BridgeSessionFactory), ServiceLifetime.Singleton)]
-[AllowSkipEntity("实现 IAsyncDisposable，与 Entity 的 IDisposable 冲突")]
 public sealed partial class BridgeSessionFactory 
 {
     private readonly TimeProvider _timeProvider;

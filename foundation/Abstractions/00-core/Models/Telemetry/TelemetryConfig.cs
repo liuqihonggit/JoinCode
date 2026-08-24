@@ -4,7 +4,6 @@ namespace JoinCode.Abstractions.Models.Telemetry;
 
 
 [Register(typeof(TelemetryConfig), ServiceLifetime.Singleton)]
-[AllowSkipEntity("无状态配置类，通过 FromEnvironment() 创建，不需要 ObjectId 追踪")]
 public sealed class TelemetryConfig
 {
     public static TelemetryConfig FromEnvironment()

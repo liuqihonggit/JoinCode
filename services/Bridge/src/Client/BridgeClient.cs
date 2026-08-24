@@ -528,7 +528,6 @@ public sealed partial class BridgeClient : IAsyncDisposable
 /// Bridge 客户端选项
 /// </summary>
 [Register(typeof(BridgeClientOptions), ServiceLifetime.Singleton)]
-[AllowSkipEntity("实现 IAsyncDisposable，与 Entity 的 IDisposable 冲突")]
 public partial class BridgeClientOptions 
 {
     // 默认配置常量

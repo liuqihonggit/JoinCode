@@ -7,24 +7,14 @@ namespace JoinCode.Abstractions.Attributes;
 public sealed class RegisterAttribute : Attribute
 {
     /// <summary>
-    /// 注册的接口类型，为 null 时仅注册实现类型
+    /// 注册的接口类型
     /// </summary>
-    public Type? InterfaceType { get; }
+    public Type InterfaceType { get; }
 
     /// <summary>
-    /// 服务生命周期，默认 Singleton
+    /// 服务生命周期
     /// </summary>
     public ServiceLifetime Lifetime { get; }
-
-    public RegisterAttribute() => Lifetime = ServiceLifetime.Singleton;
-
-    public RegisterAttribute(ServiceLifetime lifetime) => Lifetime = lifetime;
-
-    public RegisterAttribute(Type interfaceType)
-    {
-        InterfaceType = interfaceType ?? throw new ArgumentNullException(nameof(interfaceType));
-        Lifetime = ServiceLifetime.Singleton;
-    }
 
     public RegisterAttribute(Type interfaceType, ServiceLifetime lifetime)
     {

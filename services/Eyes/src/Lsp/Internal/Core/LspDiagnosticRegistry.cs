@@ -35,7 +35,8 @@ public interface ILspDiagnosticRegistry : IRegistry
     int PendingCount { get; }
 }
 
-[Register(typeof(ILspDiagnosticRegistry)), Register(typeof(JoinCode.Abstractions.Interfaces.Lsp.ILspDiagnosticProvider))]
+[Register(typeof(ILspDiagnosticRegistry), ServiceLifetime.Singleton)]
+[Register(typeof(JoinCode.Abstractions.Interfaces.Lsp.ILspDiagnosticProvider), ServiceLifetime.Singleton)]
 public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosticRegistry, JoinCode.Abstractions.Interfaces.Lsp.ILspDiagnosticProvider
 {
 

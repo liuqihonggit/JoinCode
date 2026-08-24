@@ -79,6 +79,15 @@ public static class GuiPalette
         /// <summary>输入栏内嵌 composer 卡片表面色（无边框 TextBox + 发送按钮的承载卡片）</summary>
         public string ComposerBackground { get; init; } = "#202020";
 
+        /// <summary>Markdown 代码块背景（暗色深灰 / 亮色浅灰，保证代码文字两主题均可读）</summary>
+        public string CodeBlockBackground { get; init; } = "#141414";
+
+        /// <summary>Diff 新增行背景（绿系弱底）</summary>
+        public string DiffAddedBackground { get; init; } = "#1a2e22";
+
+        /// <summary>Diff 删除行背景（红系弱底）</summary>
+        public string DiffRemovedBackground { get; init; } = "#2e1a1a";
+
         /// <summary>遍历全部 token 值，供对比度校验与资源注入使用。</summary>
         public IEnumerable<string> AllTokens()
         {
@@ -129,6 +138,9 @@ public static class GuiPalette
             yield return AccentHover;
             yield return CardHover;
             yield return ComposerBackground;
+            yield return CodeBlockBackground;
+            yield return DiffAddedBackground;
+            yield return DiffRemovedBackground;
         }
     }
 
@@ -181,7 +193,10 @@ public static class GuiPalette
         AccentSubtleHover = "#cfe0f5",
         AccentHover = "#2f7fd4",
         CardHover = "#e9e9e9",
-        ComposerBackground = "#ffffff"
+        ComposerBackground = "#ffffff",
+        CodeBlockBackground = "#ececec",
+        DiffAddedBackground = "#dcf0e2",
+        DiffRemovedBackground = "#f7dcdc"
     };
 
     /// <summary>获取指定主题的配色方案。</summary>
@@ -268,6 +283,9 @@ public static class GuiPalette
         yield return ("GuiAccentHover", s.AccentHover);
             yield return ("GuiCardHover", s.CardHover);
             yield return ("GuiComposerBackground", s.ComposerBackground);
+            yield return ("GuiCodeBlockBackground", s.CodeBlockBackground);
+            yield return ("GuiDiffAddedBackground", s.DiffAddedBackground);
+            yield return ("GuiDiffRemovedBackground", s.DiffRemovedBackground);
     }
 
     /// <summary>解析十六进制色为不可变画刷（供资源和转换器共用）。</summary>

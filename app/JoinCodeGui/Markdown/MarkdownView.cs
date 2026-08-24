@@ -195,7 +195,7 @@ public sealed class MarkdownView : StackPanel
         stack.Children.Add(body);
         return new Border
         {
-            Background = ToBrush("#141414"),
+            Background = ToBrush(scheme.CodeBlockBackground),
             CornerRadius = new CornerRadius(6),
             ClipToBounds = true,
             Child = stack

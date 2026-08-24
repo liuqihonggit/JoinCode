@@ -43,6 +43,7 @@ Slash 补全面板改造完成（a0a2d71e8）后，用户要求"全部做剩下�
 | G1 | 侧栏底部状态绑定真实 VM 状态（修硬编码"本地引擎待接入"bug）+ 会话列表标签对齐 + closeBtn 走 ghost 类（344 全绿） | ✅ |
 | H1 | 主题图标字形修复：☾ 缺字形渲染成 "C" → FontFamily=Segoe UI Symbol（截图验证 ☀ 正常） | ✅ |
 | H2 | 亮色对话框帧补充（对话框需显式 RequestedThemeVariant，继承宿主默认 Dark）+ 连接 ComboBox 空数据 placeholder（345 全绿） | ✅ |
+| I1 | Markdown 代码块 + Diff 增/删行背景 token 化（CodeBlockBackground/DiffAddedBackground/DiffRemovedBackground），修亮色主题黑底黑字不可读（345 全绿） | ✅ |
 
 ## 踩坑记录
 

@@ -19,7 +19,23 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
 {
     private sealed class ForkEntry
     {
-        public ForkState State;
+        private ForkState _state = ForkState.Running;
+
+        /// <summary>Fork 状态 — setter 校验转换合法性，非法转换抛 InvalidOperationException</summary>
+        public ForkState State
+        {
+            get => _state;
+            set
+            {
+                if (!ForkStateTransitions.CanTransitionTo(_state, value))
+                {
+                    throw new InvalidOperationException(
+                        $"[FORK-ILLEGAL] 非法 Fork 状态转换: {_state} → {value}");
+                }
+                _state = value;
+            }
+        }
+
         public string? Result;
         public required string ParentSessionId;
         public string? AgentId;

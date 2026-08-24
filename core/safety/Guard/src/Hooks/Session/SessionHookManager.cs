@@ -128,6 +128,7 @@ public sealed partial class SessionHookStore
 /// 会话钩子管理器实现
 /// </summary>
 [Register(typeof(ISessionHookManagerInternal), ServiceLifetime.Singleton)]
+[Register(typeof(ISessionHookManager), ServiceLifetime.Singleton)]
 public sealed partial class SessionHookManager : ServiceEntity, ISessionHookManagerInternal
 {
     private readonly ConcurrentDictionary<string, SessionHookStore> _sessionStores = new();

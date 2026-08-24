@@ -10,12 +10,13 @@
           BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,0,1" ClipToBounds="True">
     <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,*,Auto,Auto" ColumnSpacing="8">
       <!-- 左组：主题 / 会话操作（ghost 统一视觉） -->
-      <!-- 主题切换：图标随主题切换（暗色显月亮/亮色显太阳），点击切换 -->
+      <!-- 主题切换：图标随主题切换（暗色显月亮/亮色显太阳），点击切换。
+           Segoe UI Symbol 提供 ☾☀ 完整字形（默认字体缺字形会把 ☾ 渲染成 "C"） -->
       <ToggleButton Classes="ghost" Padding="9,5" FontSize="13"
                     Command="{Binding ToggleThemeCommand}" ToolTip.Tip="切换深浅主题">
         <Panel>
-          <TextBlock Text="☾" IsVisible="{Binding IsDarkTheme}" />
-          <TextBlock Text="☀" IsVisible="{Binding !IsDarkTheme}" />
+          <TextBlock Text="☾" FontFamily="Segoe UI Symbol" IsVisible="{Binding IsDarkTheme}" />
+          <TextBlock Text="☀" FontFamily="Segoe UI Symbol" IsVisible="{Binding !IsDarkTheme}" />
         </Panel>
       </ToggleButton>
       <Button Grid.Column="1" Classes="ghost" Content="↻ 重新生成" Command="{Binding RegenerateLastReplyCommand}"
@@ -26,7 +27,8 @@
               ToolTip.Tip="清空全部会话并重置" />
       <!-- 右组：连接与模型选择（配置驱动，规则7） -->
       <ComboBox Grid.Column="4" ItemsSource="{Binding ConnectionOptions}" SelectedItem="{Binding SelectedConnection}"
-                IsVisible="{Binding IsEngineLoaded}" MaxWidth="220"
+                IsVisible="{Binding IsEngineLoaded}" MaxWidth="220" MinWidth="120"
+                PlaceholderText="选择供应商"
                 HorizontalAlignment="Stretch" ToolTip.Tip="当前供应商（从 models.json 读取）">
         <ComboBox.ItemTemplate>
           <DataTemplate x:DataType="vm:ConnectionOptionItem">

@@ -41,6 +41,8 @@ Slash 补全面板改造完成（a0a2d71e8）后，用户要求"全部做剩下�
 | F3 | 截图验证：DialogRenderTests 4 测试 + confirm/permission/askuser 暗色帧人工核对 | ✅ |
 | F4 | 测试隔离修复：4 个截图测试补传 GuiPreferencesStore(InMemory)，杜绝真实 settings.json 主题覆盖（343 全绿） | ✅ |
 | G1 | 侧栏底部状态绑定真实 VM 状态（修硬编码"本地引擎待接入"bug）+ 会话列表标签对齐 + closeBtn 走 ghost 类（344 全绿） | ✅ |
+| H1 | 主题图标字形修复：☾ 缺字形渲染成 "C" → FontFamily=Segoe UI Symbol（截图验证 ☀ 正常） | ✅ |
+| H2 | 亮色对话框帧补充（对话框需显式 RequestedThemeVariant，继承宿主默认 Dark）+ 连接 ComboBox 空数据 placeholder（345 全绿） | ✅ |
 
 ## 踩坑记录
 
@@ -54,6 +56,8 @@ Slash 补全面板改造完成（a0a2d71e8）后，用户要求"全部做剩下�
 | 几何断言 TransformToVisual 编译错 | Avalonia 11 返回 Matrix?（非 Point?） | `.GetValueOrDefault().Transform(new Point(0,0))` 取窗口坐标 |
 | ↓ 导航到末项列表不滚动 | ScrollViewer.VerticalScrollBarVisibility=Disabled 在 Avalonia 中是**完全禁用滚动**（非隐藏滚动条），ScrollIntoView 失效 Offset 恒 0 | 改 Hidden（滚动条隐藏但滚动可用）；另 ScrollIntoView 对末项差 4px（margin/padding 舍入），Dispatcher.Post(Loaded) 几何校正兜底 |
 | 截图测试突然全挂（窗口全亮 243.6） | 用户验收时切了主题 → 持久化到真实 ~/.jcc/settings.json；4 个截图测试的 CreateVm 漏传 GuiPreferencesStore → 占位会话经 ConfigurationService 读真实主题 → UIThread.Post 异步覆盖窗口主题（且时序竞争 flaky） | CreateVm 统一补传 GuiPreferencesStore(InMemory)——配置服务的 FileSystem 跟随 preferencesStore（构造函数既有设计），测试配置读写全部隔离 |
+| ☾ 图标渲染成 "C" | 默认 UI 字体缺 U+263E 字形，fallback 到错误字形 | TextBlock 显式 FontFamily="Segoe UI Symbol"（☾☀ 均有完整字形） |
+| 亮色对话框测试截出暗色帧 | 对话框 Window 未设 RequestedThemeVariant → 继承测试宿主 Application 默认（Dark） | 测试中对话框显式 RequestedThemeVariant=Light；生产中对话框由 MainWindow ShowDialog 继承 owner 主题无此问题 |
 
 <!-- 🤖 Auto Decision: 2026-08-23 -->
 <!-- 决策: 共享控件样式放编译型 GuiControlStyles.axaml(Styles 子类) 而非 App.axaml -->

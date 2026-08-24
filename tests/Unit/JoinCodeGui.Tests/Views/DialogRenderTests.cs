@@ -88,11 +88,60 @@ public sealed class DialogRenderTests
             Assert.False(vm.IsDarkTheme, "切换后应为亮色主题");
             Assert.False(moon.IsVisible, "亮色主题不应显示月亮图标");
             Assert.True(sun.IsVisible, "亮色主题应显示太阳图标");
+
+            // 帧图保存供人工核对字形（☾ 缺字形会被 fallback 渲染成 "C"）
+            var frame = win.CaptureRenderedFrame()
+                ?? throw new InvalidOperationException("CaptureRenderedFrame 返回 null");
+            SavePng(frame, Path.Combine(DumpDir(), "theme-icon-light.png"));
         }
         finally
         {
             win.Close();
         }
+    }
+
+    [AvaloniaFact]
+    public async Task ThreeDialogs_LightTheme_SavesFramesForReview()
+    {
+        var dump = DumpDir();
+        GuiPalette.CurrentVariant = GuiPalette.GuiThemeVariant.Light;
+        var light = Avalonia.Styling.ThemeVariant.Light;
+
+        var confirm = new ConfirmDialogWindow("确认退出 JoinCode？未发送的输入将丢失。")
+        {
+            RequestedThemeVariant = light // 对话框不设则继承宿主默认（Dark），亮色帧必须显式指定
+        };
+        confirm.Show();
+        Dispatcher.UIThread.RunJobs();
+        await Task.Delay(50);
+        Dispatcher.UIThread.RunJobs();
+        SavePng(confirm.CaptureRenderedFrame() ?? throw new InvalidOperationException("capture null"),
+            Path.Combine(dump, "confirm-light.png"));
+        confirm.Close();
+
+        var ask = new AskUserQuestionDialog(new QuestionItem
+        {
+            Header = "选择实现方案",
+            Question = "补全面板动画采用哪种驱动方式？",
+            Options =
+            [
+                new QuestionOption { Label = "Compositor 过渡", Description = "合成器驱动，桌面流畅" },
+                new QuestionOption { Label = "Task.Delay 步进", Description = "headless 与桌面行为一致" }
+            ]
+        })
+        {
+            RequestedThemeVariant = light
+        };
+        ask.Show();
+        Dispatcher.UIThread.RunJobs();
+        await Task.Delay(50);
+        Dispatcher.UIThread.RunJobs();
+        SavePng(ask.CaptureRenderedFrame() ?? throw new InvalidOperationException("capture null"),
+            Path.Combine(dump, "askuser-light.png"));
+        ask.Close();
+
+        Assert.True(File.Exists(Path.Combine(dump, "confirm-light.png")), "亮色确认对话框帧应已保存");
+        Assert.True(File.Exists(Path.Combine(dump, "askuser-light.png")), "亮色提问对话框帧应已保存");
     }
 
     [AvaloniaFact]

@@ -189,4 +189,8 @@ public interface IJccChatSession : IAsyncDisposable
     /// <summary>把用户输入直接转发给指定子代理（绕过主代理 LLM）。默认不支持（返回 false）</summary>
     Task<bool> ForwardInputToSubAgentAsync(string agentId, string message, CancellationToken cancellationToken = default)
         => Task.FromResult(false);
+
+    /// <summary>获取子代理的 worktree 隔离目录（未启用返回 null）。默认不支持</summary>
+    Task<string?> GetSubAgentWorktreePathAsync(string agentId, CancellationToken cancellationToken = default)
+        => Task.FromResult<string?>(null);
 }

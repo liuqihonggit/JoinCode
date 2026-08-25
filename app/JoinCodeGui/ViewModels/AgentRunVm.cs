@@ -19,6 +19,12 @@ public sealed class AgentRunVm : INotifyPropertyChanged
     /// <summary>子代理 ID（测试定位用）</summary>
     public string AgentId => Run.AgentId;
 
+    /// <summary>已解析的 worktree 目录（懒解析缓存；null=未知，""=确认未启用）</summary>
+    public string? WorktreePath { get; private set; }
+
+    /// <summary>tracker 专用：记录解析结果避免重复查询</summary>
+    public void SetWorktreePath(string path) => WorktreePath = path;
+
     private string _stateGlyph = "●";
     public string StateGlyph { get => _stateGlyph; private set { if (_stateGlyph != value) { _stateGlyph = value; Raise(nameof(StateGlyph)); } } }
 

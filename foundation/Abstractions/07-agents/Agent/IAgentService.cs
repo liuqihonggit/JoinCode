@@ -85,6 +85,13 @@ public interface IAgentService
     /// </summary>
     /// <returns>匹配的 agentId，未找到返回 null</returns>
     Task<string?> FindAgentIdByNameAsync(string name, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 获取指定子代理的 worktree 隔离目录 — 供 GUI 右键直达资源管理器。
+    /// 未启用 worktree 或代理不存在返回 null。
+    /// </summary>
+    Task<string?> GetAgentWorktreePathAsync(string agentId, CancellationToken cancellationToken = default)
+        => Task.FromResult<string?>(null);
 }
 
 /// <summary>

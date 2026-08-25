@@ -162,6 +162,17 @@
                             <ItemsControl.ItemTemplate>
                               <DataTemplate x:DataType="vm:AgentRunVm">
                                 <Border CornerRadius="8" Padding="10,7" Margin="0,0,0,5" Background="{DynamicResource GuiCardHover}">
+                                  <Border.ContextMenu>
+                                    <ContextMenu>
+                                      <!-- F5：worktree 右键直达（懒解析，未启用时系统卡片提示） -->
+                                      <MenuItem Header="📁 在资源管理器中打开工作树"
+                                                Command="{Binding DataContext.OpenWorktreeInExplorerCommand, ElementName=Root}"
+                                                CommandParameter="{Binding}" />
+                                      <MenuItem Header="⧉ 查看回放"
+                                                Command="{Binding DataContext.OpenAgentTranscriptCommand, ElementName=Root}"
+                                                CommandParameter="{Binding}" />
+                                    </ContextMenu>
+                                  </Border.ContextMenu>
                                   <StackPanel Spacing="4">
                                     <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="7">
                                       <!-- 三态状态点：运行蓝 / 成功绿 / 失败红（三布尔互斥驱动，免动态画刷键） -->
@@ -185,8 +196,7 @@
                                                 MinHeight="0" ToolTip.Tip="查看该子代理完整时间线"
                                                 Command="{Binding DataContext.OpenAgentTranscriptCommand, ElementName=Root}"
                                                 CommandParameter="{Binding}" />
-                                      </StackPanel>
-                                    </Grid>
+                                      </StackPanel>                                    </Grid>
                                     <!-- 尾部活动行 + 折叠计数 -->
                                     <ItemsControl ItemsSource="{Binding ActivityLines}" Margin="19,0,0,0">
                                       <ItemsControl.ItemTemplate>

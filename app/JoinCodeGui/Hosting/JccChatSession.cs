@@ -161,6 +161,15 @@ internal sealed class JccChatSession : IJccChatSession
         return await agentService.ForwardUserInputToAgentAsync(agentId, message, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
+    public async Task<string?> GetSubAgentWorktreePathAsync(string agentId, CancellationToken cancellationToken = default)
+    {
+        var agentService = _services.GetService<IAgentService>();
+        if (agentService is null)
+            return null;
+        return await agentService.GetAgentWorktreePathAsync(agentId, cancellationToken).ConfigureAwait(false);
+    }
+
     /// <summary>settings.json 变更转发 — theme 键变更时解析为 ThemeKind 并触发 ThemeChanged</summary>
     private void OnSettingChanged(object? sender, SettingChangeEventArgs e)
     {

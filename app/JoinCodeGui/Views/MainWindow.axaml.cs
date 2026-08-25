@@ -82,6 +82,8 @@ public sealed partial class MainWindow : Window
     {
         if (e.Key is not Key.Escape || _vm is null)
             return;
+        if (!_vm.DoubleEscStop) // F3 快捷键面板可关闭该手势
+            return;
 
         var now = DateTime.Now;
         if ((now - _lastEscapeAt).TotalMilliseconds <= DoubleEscWindowMs)

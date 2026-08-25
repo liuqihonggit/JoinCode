@@ -114,8 +114,20 @@ public sealed partial class InputBarView : UserControl
 
         if (e.Key == Key.Enter)
         {
-            var isShift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
-            if (isShift)
+            // F3 快捷键面板驱动：EnterSends=true → Enter 发送；false → Ctrl+Enter 发送、Enter 换行
+            var ctrl = (e.KeyModifiers & KeyModifiers.Control) != 0;
+            var shift = (e.KeyModifiers & KeyModifiers.Shift) != 0;
+            var sendPressed = vm.EnterSends ? !shift : ctrl;
+
+            if (sendPressed)
+            {
+                if (!vm.IsBusy)
+                {
+                    e.Handled = true;
+                    vm.SendCommand.Execute(null);
+                }
+            }
+            else
             {
                 e.Handled = true;
                 if (sender is TextBox textBox)
@@ -124,11 +136,6 @@ public sealed partial class InputBarView : UserControl
                     vm.InputText = textBox.Text!.Insert(caret, "\n");
                     textBox.CaretIndex = caret + 1;
                 }
-            }
-            else if (!vm.IsBusy)
-            {
-                e.Handled = true;
-                vm.SendCommand.Execute(null);
             }
         }
         else if (e.Key == Key.Up && !vm.IsSlashPopupOpen)

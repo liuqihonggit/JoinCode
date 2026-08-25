@@ -22,4 +22,10 @@ public sealed class GuiPreferences
 
     /// <summary>流式输出开关（设置面板，默认 true）</summary>
     public bool StreamingEnabled { get; set; } = true;
+
+    /// <summary>Enter 直接发送（F3 快捷键面板；默认 false → Ctrl+Enter 发送、Enter 换行）</summary>
+    public bool EnterSends { get; set; } = false;
+
+    /// <summary>双击 ESC 终止当前对话手势开关（默认开启）</summary>
+    public bool DoubleEscStop { get; set; } = true;
 }

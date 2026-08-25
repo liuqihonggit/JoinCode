@@ -89,6 +89,29 @@
           </StackPanel>
         </Border>
 
+        <!-- 快捷键（F3） -->
+        <Border Classes="settingsCard">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="cardTitle" Text="快捷键" />
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="2">
+                <TextBlock Text="Enter 直接发送" FontSize="11.5" Foreground="{DynamicResource GuiPrimaryText}" />
+                <TextBlock Text="关闭时：Ctrl+Enter 发送，Enter 换行" FontSize="10.5"
+                           Foreground="{DynamicResource GuiMutedText}" TextWrapping="Wrap" />
+              </StackPanel>
+              <ToggleSwitch Grid.Column="1" IsChecked="{Binding EnterSends}" MinHeight="0" Padding="0" />
+            </Grid>
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="2">
+                <TextBlock Text="双击 ESC 终止对话" FontSize="11.5" Foreground="{DynamicResource GuiPrimaryText}" />
+                <TextBlock Text="600ms 内两次 ESC，仅断开对话网络" FontSize="10.5"
+                           Foreground="{DynamicResource GuiMutedText}" TextWrapping="Wrap" />
+              </StackPanel>
+              <ToggleSwitch Grid.Column="1" IsChecked="{Binding DoubleEscStop}" MinHeight="0" Padding="0" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
         <!-- 系统提示词 -->
         <Border Classes="settingsCard">
           <StackPanel Spacing="6">

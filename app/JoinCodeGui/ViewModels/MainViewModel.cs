@@ -63,6 +63,21 @@ public sealed partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     private bool _streamingEnabled = true;
 
+    /// <summary>F3：Enter 直接发送（false → Ctrl+Enter 发送、Enter 换行）</summary>
+    [ObservableProperty]
+    private bool _enterSends = false;
+
+    /// <summary>F2：双击 ESC 终止手势开关</summary>
+    [ObservableProperty]
+    private bool _doubleEscStop = true;
+
+    /// <summary>输入栏占位提示 — 随发送键位偏好联动</summary>
+    public string SendHintText => EnterSends
+        ? "输入消息，Enter 发送 / Shift+Enter 换行…"
+        : "输入消息，Ctrl+Enter 发送 / Enter 换行…";
+
+    partial void OnEnterSendsChanged(bool value) => OnPropertyChanged(nameof(SendHintText));
+
     /// <summary>推理力度选项（对齐 CLI /effort：low/medium/high/max/auto）</summary>
     public IReadOnlyList<string> EffortOptions { get; } =
         [EffortLevel.Low.ToValue(), EffortLevel.Medium.ToValue(), EffortLevel.High.ToValue(), EffortLevel.Max.ToValue(), EffortLevel.Auto.ToValue()];
@@ -988,6 +1003,8 @@ public sealed partial class MainViewModel : ViewModelBase
             SystemPrompt = prefs.SystemPrompt;
             FontSize = prefs.FontSize;
             StreamingEnabled = prefs.StreamingEnabled;
+            EnterSends = prefs.EnterSends;
+            DoubleEscStop = prefs.DoubleEscStop;
             _isPreferencesLoaded = true;
         }
         catch (Exception ex)
@@ -1066,6 +1083,8 @@ public sealed partial class MainViewModel : ViewModelBase
         _persistActions[nameof(SystemPrompt)] = SavePreferences;
         _persistActions[nameof(FontSize)] = SavePreferences;
         _persistActions[nameof(StreamingEnabled)] = SavePreferences;
+        _persistActions[nameof(EnterSends)] = SavePreferences;
+        _persistActions[nameof(DoubleEscStop)] = SavePreferences;
     }
 
     /// <summary>
@@ -1100,7 +1119,9 @@ public sealed partial class MainViewModel : ViewModelBase
                 MaxTokens = MaxTokens,
                 SystemPrompt = SystemPrompt,
                 FontSize = FontSize,
-                StreamingEnabled = StreamingEnabled
+                StreamingEnabled = StreamingEnabled,
+                EnterSends = EnterSends,
+                DoubleEscStop = DoubleEscStop
             });
         }
         catch (Exception ex)

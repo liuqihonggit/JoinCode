@@ -181,4 +181,12 @@ public interface IJccChatSession : IAsyncDisposable
     /// <summary>终止后台代理（先按 agentId 停止，未命中再按 forkId 取消）。默认不支持（返回 false）</summary>
     Task<bool> StopBackgroundAgentAsync(string agentId, CancellationToken cancellationToken = default)
         => Task.FromResult(false);
+
+    /// <summary>按名称查找运行中子代理 ID（@提及路由）。默认不支持（返回 null）</summary>
+    Task<string?> FindSubAgentIdByNameAsync(string name, CancellationToken cancellationToken = default)
+        => Task.FromResult<string?>(null);
+
+    /// <summary>把用户输入直接转发给指定子代理（绕过主代理 LLM）。默认不支持（返回 false）</summary>
+    Task<bool> ForwardInputToSubAgentAsync(string agentId, string message, CancellationToken cancellationToken = default)
+        => Task.FromResult(false);
 }

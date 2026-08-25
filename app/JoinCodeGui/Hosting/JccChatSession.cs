@@ -143,6 +143,24 @@ internal sealed class JccChatSession : IJccChatSession
         return false;
     }
 
+    /// <inheritdoc />
+    public async Task<string?> FindSubAgentIdByNameAsync(string name, CancellationToken cancellationToken = default)
+    {
+        var agentService = _services.GetService<IAgentService>();
+        if (agentService is null)
+            return null;
+        return await agentService.FindAgentIdByNameAsync(name, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> ForwardInputToSubAgentAsync(string agentId, string message, CancellationToken cancellationToken = default)
+    {
+        var agentService = _services.GetService<IAgentService>();
+        if (agentService is null)
+            return false;
+        return await agentService.ForwardUserInputToAgentAsync(agentId, message, cancellationToken).ConfigureAwait(false);
+    }
+
     /// <summary>settings.json 变更转发 — theme 键变更时解析为 ThemeKind 并触发 ThemeChanged</summary>
     private void OnSettingChanged(object? sender, SettingChangeEventArgs e)
     {

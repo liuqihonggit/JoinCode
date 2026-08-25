@@ -1320,12 +1320,90 @@ public sealed partial class MainViewModel : ViewModelBase
     /// <summary>是否可停止当前生成（生成中且未被取消）</summary>
     public bool CanStop => _sendCts is not null && !_sendCts.IsCancellationRequested;
 
+    /// <summary>
+    /// F4 规则1：@agentName 消息 → 查找运行中子代理并直接转发。
+    /// 命中/未命中均以系统卡片回显；不开启新 LLM 回合
+    /// </summary>
+    private async Task HandleMentionAsync(string rawInput)
+    {
+        var parsed = JoinCode.Abstractions.Utils.SubAgentMentionParser.Parse(rawInput);
+        if (parsed is null)
+        {
+            AddSystemMessage("⚠ @语法格式错误，正确格式: @agentName 消息内容（空格分隔）");
+            return;
+        }
+
+        var (agentName, text) = parsed.Value;
+        Messages.Add(new ChatUiMessage { Role = MessageRole.User, Content = rawInput, Timestamp = DateTime.Now });
+
+        var agentId = await _session.FindSubAgentIdByNameAsync(agentName).ConfigureAwait(true);
+        if (agentId is null)
+        {
+            var agents = await _session.GetBackgroundAgentsAsync().ConfigureAwait(true);
+            var list = string.Join(", ", agents.Select(a => a.Name));
+            AddSystemMessage($"⚠ 未找到子代理 @{agentName}，当前运行中: [{list}]");
+            return;
+        }
+
+        var ok = await _session.ForwardInputToSubAgentAsync(agentId, text).ConfigureAwait(true);
+        AddSystemMessage(ok ? $"📤 已转发给 @{agentName}" : $"⚠ 转发给 @{agentName} 失败");
+    }
+
+    /// <summary>
+    /// F4 规则2：处理中收到普通消息且恰好一个运行中子代理 → 自动转发；
+    /// 零个或多个时不转发（丢弃本次输入，保持原 IsBusy 忽略语义）
+    /// </summary>
+    private async Task TryAutoForwardToSingleAgentAsync(string message)
+    {
+        try
+        {
+            var agents = await _session.GetBackgroundAgentsAsync().ConfigureAwait(true);
+            if (agents.Count != 1)
+                return;
+
+            await _session.ForwardInputToSubAgentAsync(agents[0].AgentId, message).ConfigureAwait(true);
+            Messages.Add(new ChatUiMessage { Role = MessageRole.User, Content = message, Timestamp = DateTime.Now });
+            AddSystemMessage($"📤 已转发给 @{agents[0].Name}");
+        }
+        catch (Exception ex)
+        {
+            WriteErrorLog(ex);
+        }
+    }
+
+    private void AddSystemMessage(string content)
+    {
+        Messages.Add(new ChatUiMessage
+        {
+            Role = MessageRole.System,
+            Content = content,
+            Timestamp = DateTime.Now
+        });
+        StatusText = "就绪";
+    }
+
     [RelayCommand]
     private async Task SendAsync()
     {
         var message = InputText;
-        if (string.IsNullOrWhiteSpace(message) || IsBusy)
+        if (string.IsNullOrWhiteSpace(message))
             return;
+
+        // F4 规则1：@提及直发子代理 — 绕过主代理 LLM，不受 IsBusy 拦截（对齐 CLI ReplLoopStep）
+        if (message[0] == '@')
+        {
+            InputText = string.Empty;
+            await HandleMentionAsync(message);
+            return;
+        }
+
+        // F4 规则2：处理中且恰好一个运行中子代理 → 自动转发给它（对齐 CLI 单代理转发规则）
+        if (IsBusy)
+        {
+            InputText = string.Empty;
+            await TryAutoForwardToSingleAgentAsync(message);
+            return;
+        }
 
         if (_inputHistory.Count == 0 || _inputHistory[^1] != message)
             _inputHistory.Add(message);

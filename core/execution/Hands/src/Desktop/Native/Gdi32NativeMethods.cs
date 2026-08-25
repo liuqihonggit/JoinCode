@@ -28,4 +28,7 @@ internal static class Gdi32NativeMethods
 
     [DllImport("gdi32.dll")]
     public static extern int GetDeviceCaps(IntPtr hdc, int nIndex);
+
+    [DllImport("gdi32.dll")]
+    public static extern int GetDIBits(IntPtr hdc, IntPtr hbm, int start, int cLines, IntPtr lpvBits, ref BITMAPINFO lpbi, uint usage);
 }

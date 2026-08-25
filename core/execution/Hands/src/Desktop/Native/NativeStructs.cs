@@ -88,3 +88,32 @@ internal struct INPUT
     public uint type;
     public InputUnion u;
 }
+
+/// <summary>
+/// BITMAPINFOHEADER — GetDIBits 位图信息头
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct BITMAPINFOHEADER
+{
+    public uint biSize;
+    public int biWidth;
+    public int biHeight;
+    public ushort biPlanes;
+    public ushort biBitCount;
+    public uint biCompression;
+    public uint biSizeImage;
+    public int biXPelsPerMeter;
+    public int biYPelsPerMeter;
+    public uint biClrUsed;
+    public uint biClrImportant;
+}
+
+/// <summary>
+/// BITMAPINFO — GetDIBits 位图信息（32位色深无需调色板）
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct BITMAPINFO
+{
+    public BITMAPINFOHEADER bmiHeader;
+    public uint bmiColors;
+}

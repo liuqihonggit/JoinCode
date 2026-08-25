@@ -39,4 +39,11 @@ internal static class NativeConstants
 
     // 屏幕坐标系缩放（SendInput 绝对坐标 0-65535）
     public const double AbsoluteScale = 65535.0;
+
+    // GetSystemMetrics 索引
+    public const int SM_CXSCREEN = 0;
+    public const int SM_CYSCREEN = 1;
+
+    // GetDIBits 颜色格式
+    public const uint DIB_RGB_COLORS = 0;
 }

@@ -49,6 +49,12 @@ public sealed partial class MainWindow : Window
         Interval = TimeSpan.FromMilliseconds(100)
     };
 
+    /// <summary>全局状态条心跳计时器 — 500ms 驱动耗时刷新与卡死检测转移</summary>
+    private readonly Avalonia.Threading.DispatcherTimer _runStatusTimer = new()
+    {
+        Interval = TimeSpan.FromMilliseconds(500)
+    };
+
     public MainWindow()
     {
         App.LogDiag("[MainWindow] ctor begin");
@@ -57,6 +63,8 @@ public sealed partial class MainWindow : Window
         _errorToastTimer.Tick += OnErrorToastTimerTick;
         _statusBlinkTimer.Tick += OnStatusBlinkTick;
         _toolTimer.Tick += OnToolTimerTick;
+        _runStatusTimer.Tick += OnRunStatusTimerTick;
+        _runStatusTimer.Start();
         Closed += OnWindowClosed;
         AddHandler(PointerPressedEvent, OnGlobalPointerPressed, RoutingStrategies.Tunnel);
     }
@@ -276,6 +284,10 @@ public sealed partial class MainWindow : Window
                 m.RefreshElapsed();
         }
     }
+
+    /// <summary>全局状态条心跳 tick：耗时刷新 + 卡死检测状态转移</summary>
+    private void OnRunStatusTimerTick(object? sender, EventArgs e)
+        => _vm?.RunStatus.OnHeartbeatTick();
 
     /// <summary>1.5s 后自动隐藏"已复制" toast（每次复制重置计时）</summary>
     private void ScheduleCopyToastHide()

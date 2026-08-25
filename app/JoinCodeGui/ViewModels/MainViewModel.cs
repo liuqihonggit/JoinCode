@@ -315,6 +315,9 @@ public sealed partial class MainViewModel : ViewModelBase
     /// <summary>UI 对话消息集合（角色化气泡）</summary>
     public ObservableCollection<ChatUiMessage> Messages { get; } = [];
 
+    /// <summary>全局运行状态条（spinner 动词/耗时/token 聚合/后台计数/卡死检测）</summary>
+    public GlobalRunStatusViewModel RunStatus { get; } = new();
+
     // === 多 subAgent 运行期显示（T4）===
 
     /// <summary>本回合子代理运行态聚合器（每回合重置）</summary>
@@ -1363,6 +1366,7 @@ public sealed partial class MainViewModel : ViewModelBase
         InputText = string.Empty;
         IsBusy = true;
         StatusText = "思考中…";
+        RunStatus.StartTurn();
         _sendCts = new System.Threading.CancellationTokenSource();
         OnPropertyChanged(nameof(CanStop));
         try
@@ -1441,8 +1445,11 @@ public sealed partial class MainViewModel : ViewModelBase
                 if (evt.IsSubAgentActivity)
                 {
                     HandleSubAgentActivity(evt);
+                    RunStatus.ReportActivity(hasActiveTool: evt.Type == ChatStreamEventType.ToolCallStart);
                     continue;
                 }
+
+                RunStatus.ReportActivity(hasActiveTool: evt.Type == ChatStreamEventType.ToolCallStart);
 
                 switch (evt.Type)
                 {
@@ -1513,7 +1520,10 @@ public sealed partial class MainViewModel : ViewModelBase
                     case ChatStreamEventType.Complete:
                         // G2 对齐 TUI：消费引擎上报的真实 token 用量（Done/Complete 事件携带）
                         if (evt.Usage is not null)
+                        {
                             totalTokens += evt.Usage.TotalTokens;
+                            RunStatus.AddTokens(evt.Usage.TotalTokens);
+                        }
                         break;
                 }
             }
@@ -1558,6 +1568,7 @@ public sealed partial class MainViewModel : ViewModelBase
             _sendCts.Dispose();
             _sendCts = null;
             IsBusy = false;
+            RunStatus.EndTurn();
             OnPropertyChanged(nameof(CanStop));
             SaveActiveSession();
             _insertBeforeAssistant = null;

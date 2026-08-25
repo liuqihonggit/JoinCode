@@ -280,19 +280,46 @@
       <!-- Row 4：状态栏（与侧栏底部状态栏同高同固定值；Grid 内容收缩垂直居中 — 与侧栏 StackPanel Center 同构，文字基线恒对齐） -->
       <Border Grid.Row="4" x:Name="MainStatusBar" Height="30" Padding="12,0" Background="{DynamicResource GuiStatusBarBackground}"
               BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,1,0,0">
-        <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" VerticalAlignment="Center">
-          <TextBlock Text="{Binding Sessions.Count, StringFormat='{}会话 {0}', FallbackValue='会话 0'}" Foreground="{DynamicResource GuiMutedText}" FontSize="11" />
-          <TextBlock Grid.Column="1" Text="{Binding MessageCount, StringFormat='{}  · 消息 {0}', FallbackValue='  · 消息 0'}"
+        <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" VerticalAlignment="Center">
+          <!-- 全局运行状态区（T5）：spinner 动词 + 耗时 + token 聚合，仅 Busy 时可见 -->
+          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                      IsVisible="{Binding RunStatus.IsBusy}">
+            <!-- 双 glyph 切换实现卡死变色（正常青/卡死红），免动态画刷键 -->
+            <Panel>
+              <TextBlock Text="⟳" FontSize="12" VerticalAlignment="Center"
+                         Foreground="{DynamicResource GuiAccentText}"
+                         IsVisible="{Binding !RunStatus.IsStalled}" />
+              <TextBlock Text="⟳" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"
+                         Foreground="{DynamicResource GuiErrorText}"
+                         IsVisible="{Binding RunStatus.IsStalled}" />
+            </Panel>
+            <TextBlock Text="{Binding RunStatus.Verb}" FontSize="11" FontWeight="SemiBold"
+                       Foreground="{DynamicResource GuiAccentText}" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding RunStatus.ElapsedText}" FontSize="11"
+                       Foreground="{DynamicResource GuiMutedText}" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding RunStatus.TokenText}" FontSize="11"
+                       Foreground="{DynamicResource GuiMutedText}" VerticalAlignment="Center"
+                       IsVisible="{Binding RunStatus.TokenText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          </StackPanel>
+          <!-- 后台代理 pill -->
+          <Border Grid.Column="1" CornerRadius="9" Padding="9,1" Margin="10,0,0,0" VerticalAlignment="Center"
+                  Background="{DynamicResource GuiAccentSubtle}"
+                  IsVisible="{Binding RunStatus.BackgroundPillText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+            <TextBlock Text="{Binding RunStatus.BackgroundPillText}" Foreground="{DynamicResource GuiAccentText}"
+                       FontSize="11" VerticalAlignment="Center" />
+          </Border>
+          <TextBlock Grid.Column="2" Text="{Binding Sessions.Count, StringFormat='{}会话 {0}', FallbackValue='会话 0'}" Foreground="{DynamicResource GuiMutedText}" FontSize="11" Margin="10,0,0,0" />
+          <TextBlock Grid.Column="3" Text="{Binding MessageCount, StringFormat='{}  · 消息 {0}', FallbackValue='  · 消息 0'}"
                      Foreground="{DynamicResource GuiMutedText}" FontSize="11" Margin="10,0" />
-          <TextBlock Grid.Column="2" Text="{Binding TokenUsageText, FallbackValue=''}"
+          <TextBlock Grid.Column="4" Text="{Binding TokenUsageText, FallbackValue=''}"
                      Foreground="{DynamicResource GuiMutedText}" FontSize="11" Margin="10,0,0,0" />
-          <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" HorizontalAlignment="Right">
+          <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" HorizontalAlignment="Right">
             <TextBlock x:Name="StatusDot" Text="●" FontSize="12" Foreground="{Binding StatusKind, Converter={StaticResource StatusToBrush}}"
                        VerticalAlignment="Center" />
             <TextBlock Text="{Binding StatusText, FallbackValue='未连接'}" Foreground="{DynamicResource GuiSecondaryText}" FontSize="11" VerticalAlignment="Center"
                        TextTrimming="CharacterEllipsis" />
           </StackPanel>
-          <Border Grid.Column="4" CornerRadius="9" Padding="9,1" Margin="10,0,0,0"
+          <Border Grid.Column="6" CornerRadius="9" Padding="9,1" Margin="10,0,0,0"
                   Background="{DynamicResource GuiAccentSubtle}" VerticalAlignment="Center"
                   IsVisible="{Binding SelectedModel, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
             <TextBlock Text="{Binding SelectedModel, FallbackValue=''}" Foreground="{DynamicResource GuiAccentText}" FontSize="11"

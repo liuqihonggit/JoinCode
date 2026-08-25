@@ -77,4 +77,36 @@ public class ObservationToolHandlers
 
         return ToolResultBuilder.Success().WithText(suggestion).Build();
     }
+
+    /// <summary>观察复现（L-03）— 从抽象逻辑 + 上下文生成可执行操作序列并回放</summary>
+    [McpTool("reproduce_from_logic", "从抽象操作逻辑生成具体操作序列并执行(观察复现)", "desktop")]
+    public async Task<ToolResult> ReproduceFromLogicAsync(
+        [McpToolParameter("操作模式名称", Required = true)] string name,
+        [McpToolParameter("操作模式描述", Required = true)] string pattern,
+        [McpToolParameter("目标上下文(如:在记事本中输入hello)", Required = true)] string context,
+        [McpToolParameter("参数化描述", Required = false)] string? parameters = null,
+        [McpToolParameter("步骤列表(分号分隔)", Required = false)] string? steps = null,
+        CancellationToken ct = default)
+    {
+        var stepList = string.IsNullOrEmpty(steps)
+            ? []
+            : steps.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+
+        var logic = new AbstractOperationLogic(name, pattern, parameters ?? string.Empty, stepList, 0.5);
+        var macro = await _learner.ReproduceAsync(logic, context, ct).ConfigureAwait(false);
+
+        if (macro.Operations.Count == 0)
+            return ToolResultBuilder.Error().WithText("无法从抽象逻辑生成操作序列").Build();
+
+        var playback = await _recorder.PlayAsync(macro, 1, ct).ConfigureAwait(false);
+
+        var sb = new StringBuilder(256);
+        sb.AppendLine($"操作复现完成:");
+        sb.AppendLine($"  生成操作数: {macro.Operations.Count}");
+        sb.AppendLine($"  成功: {playback.SucceededSteps}/{playback.TotalSteps}");
+        sb.AppendLine($"  失败: {playback.FailedSteps}");
+        sb.AppendLine($"  耗时: {playback.Elapsed.TotalMilliseconds:F0}ms");
+
+        return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
+    }
 }

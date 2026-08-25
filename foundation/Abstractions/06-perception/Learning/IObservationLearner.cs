@@ -21,12 +21,18 @@ public sealed record AbstractOperationLogic(
     double Confidence);
 
 /// <summary>
-/// 观察学习器 — 从用户演示中学习操作模式并优化（PRD L-02/L-04）
+/// 观察学习器 — 从用户演示中学习操作模式并优化（PRD L-02/L-03/L-04）
 /// </summary>
 public interface IObservationLearner
 {
     /// <summary>操作抽象（L-02）— 将原始操作序列抽象为参数化逻辑</summary>
     Task<AbstractOperationLogic> AbstractAsync(ObservedSession session, CancellationToken cancellationToken = default);
+
+    /// <summary>观察复现（L-03）— 从抽象逻辑 + 上下文生成可执行操作序列（Macro）</summary>
+    /// <param name="logic">抽象操作逻辑</param>
+    /// <param name="context">目标环境上下文（如"在记事本中输入hello"），LLM 据此生成具体坐标和参数</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    Task<Macro> ReproduceAsync(AbstractOperationLogic logic, string context, CancellationToken cancellationToken = default);
 
     /// <summary>步骤优化（L-04）— 分析抽象逻辑并提出优化建议</summary>
     Task<string> OptimizeAsync(AbstractOperationLogic logic, CancellationToken cancellationToken = default);

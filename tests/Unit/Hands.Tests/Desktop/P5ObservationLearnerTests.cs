@@ -316,4 +316,156 @@ public sealed class P5ObservationLearnerTests
     }
 
     #endregion
+
+    #region ReproduceAsync (L-03)
+
+    [Fact]
+    public async Task ReproduceAsync_ValidResponse_ReturnsMacroWithOperations()
+    {
+        var llmResponse = """{"operations":[{"kind":"Click","x":100,"y":200,"succeeded":true},{"kind":"TypeText","x":0,"y":0,"text":"hello","succeeded":true}]}""";
+        var mock = CreateQueryMock(llmResponse);
+        var learner = new ObservationLearner(mock.Object);
+
+        var logic = new AbstractOperationLogic("输入文本", "点击并输入", "", ["点击", "输入"], 0.8);
+        var macro = await learner.ReproduceAsync(logic, "在记事本中输入hello");
+
+        macro.Name.Should().Be("输入文本");
+        macro.Operations.Should().HaveCount(2);
+        macro.Operations[0].Kind.Should().Be(DesktopOperationKind.Click);
+        macro.Operations[0].X.Should().Be(100);
+        macro.Operations[1].Kind.Should().Be(DesktopOperationKind.TypeText);
+        macro.Operations[1].Text.Should().Be("hello");
+    }
+
+    [Fact]
+    public async Task ReproduceAsync_EmptyResponse_ReturnsEmptyMacro()
+    {
+        var mock = CreateQueryMock("");
+        var learner = new ObservationLearner(mock.Object);
+
+        var logic = new AbstractOperationLogic("test", "p", "", [], 0.5);
+        var macro = await learner.ReproduceAsync(logic, "context");
+
+        macro.Operations.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ReproduceAsync_NullLogic_Throws()
+    {
+        var mock = CreateQueryMock("");
+        var learner = new ObservationLearner(mock.Object);
+
+        var act = async () => await learner.ReproduceAsync(null!, "context");
+        await act.Should().ThrowAsync<ArgumentNullException>();
+    }
+
+    [Fact]
+    public async Task ReproduceAsync_CallsQueryServiceOnce()
+    {
+        var mock = CreateQueryMock("""{"operations":[]}""");
+        var learner = new ObservationLearner(mock.Object);
+
+        var logic = new AbstractOperationLogic("test", "p", "", [], 0.5);
+        await learner.ReproduceAsync(logic, "context");
+
+        mock.Verify(q => q.GetApiMessageContentsAsync(It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(), It.IsAny<IChatClient?>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    #endregion
+
+    #region ParseOperations
+
+    [Fact]
+    public void ParseOperations_ValidJson_ReturnsOperations()
+    {
+        var json = """{"operations":[{"kind":"Click","x":10,"y":20,"succeeded":true},{"kind":"TypeText","text":"hi","succeeded":true}]}""";
+        var ops = ObservationLearner.ParseOperations(json);
+        ops.Should().HaveCount(2);
+        ops[0].Kind.Should().Be(DesktopOperationKind.Click);
+        ops[1].Text.Should().Be("hi");
+    }
+
+    [Fact]
+    public void ParseOperations_EmptyResponse_ReturnsEmpty()
+    {
+        ObservationLearner.ParseOperations("").Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ParseOperations_NoOperationsProperty_ReturnsEmpty()
+    {
+        var json = """{"name":"test"}""";
+        ObservationLearner.ParseOperations(json).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ParseOperations_InvalidJson_ReturnsEmpty()
+    {
+        ObservationLearner.ParseOperations("not json {{{").Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ParseOperations_OperationsNotArray_ReturnsEmpty()
+    {
+        var json = """{"operations":"not array"}""";
+        ObservationLearner.ParseOperations(json).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ParseOperations_WithMouseAction_Parsed()
+    {
+        var json = """{"operations":[{"kind":"Click","x":1,"y":2,"mouseAction":"RightClick","succeeded":true}]}""";
+        var ops = ObservationLearner.ParseOperations(json);
+        ops.Should().HaveCount(1);
+        ops[0].MouseAction.Should().Be(MouseAction.RightClick);
+    }
+
+    [Fact]
+    public void ParseOperations_WithModifiers_Parsed()
+    {
+        var json = """{"operations":[{"kind":"KeyPress","x":0,"y":0,"modifiers":"Control","succeeded":true}]}""";
+        var ops = ObservationLearner.ParseOperations(json);
+        ops.Should().HaveCount(1);
+        ops[0].Modifiers.Should().Be(KeyModifier.Control);
+    }
+
+    [Fact]
+    public void ParseOperations_InvalidKind_Skipped()
+    {
+        var json = """{"operations":[{"kind":"UnknownKind","x":1,"y":2,"succeeded":true},{"kind":"Click","x":3,"y":4,"succeeded":true}]}""";
+        var ops = ObservationLearner.ParseOperations(json);
+        ops.Should().HaveCount(1);
+        ops[0].Kind.Should().Be(DesktopOperationKind.Click);
+    }
+
+    [Fact]
+    public void ParseOperations_MissingKind_Skipped()
+    {
+        var json = """{"operations":[{"x":1,"y":2,"succeeded":true}]}""";
+        ObservationLearner.ParseOperations(json).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ParseOperations_MissingSucceeded_DefaultsToTrue()
+    {
+        var json = """{"operations":[{"kind":"Click","x":1,"y":2}]}""";
+        var ops = ObservationLearner.ParseOperations(json);
+        ops.Should().HaveCount(1);
+        ops[0].Succeeded.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ParseOperations_MarkdownFenced_Parsed()
+    {
+        var input = """
+            ```json
+            {"operations":[{"kind":"Move","x":50,"y":60,"succeeded":true}]}
+            ```
+            """;
+        var ops = ObservationLearner.ParseOperations(input);
+        ops.Should().HaveCount(1);
+        ops[0].Kind.Should().Be(DesktopOperationKind.Move);
+    }
+
+    #endregion
 }

@@ -55,6 +55,110 @@ public sealed partial class ObservationLearner : ServiceEntity, IObservationLear
         return ParseAbstractLogic(responseText, session.Name);
     }
 
+    /// <summary>观察复现（L-03）— 从抽象逻辑 + 上下文生成可执行操作序列（Macro）</summary>
+    public async Task<Macro> ReproduceAsync(AbstractOperationLogic logic, string context, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(logic);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var stepsDesc = string.Join(" → ", logic.Steps);
+        var prompt = new StringBuilder(512)
+            .AppendLine("你是一个操作复现专家。根据抽象操作逻辑和目标上下文,生成具体的桌面操作序列。")
+            .AppendLine()
+            .AppendLine("抽象操作逻辑:")
+            .AppendLine($"  名称: {logic.Name}")
+            .AppendLine($"  模式: {logic.Pattern}")
+            .AppendLine($"  参数: {logic.Parameters}")
+            .AppendLine($"  步骤: {stepsDesc}")
+            .AppendLine($"  置信度: {logic.Confidence:F2}")
+            .AppendLine()
+            .AppendLine($"目标上下文: {context}")
+            .AppendLine()
+            .AppendLine("返回 JSON 格式（只返回 JSON）:")
+            .AppendLine("{")
+            .AppendLine("  \"operations\": [")
+            .AppendLine("    {\"kind\": \"Click|TypeText|KeyPress|Move|Drag\", \"x\": 0, \"y\": 0, \"text\": null, \"mouseAction\": null, \"modifiers\": null, \"succeeded\": true}")
+            .AppendLine("  ]")
+            .AppendLine("}")
+            .AppendLine("kind 可选值: Move, Click, Drag, KeyPress, TypeText, WindowFocus, WindowMove, WindowClose, Screenshot")
+            .ToString();
+
+        var messages = new MessageList();
+        messages.AddSystemMessage(prompt);
+        messages.AddUserMessage("请生成具体的操作序列。");
+
+        var responseList = await _queryService.GetApiMessageContentsAsync(messages, LearningChatOptions, cancellationToken: cancellationToken).ConfigureAwait(false);
+        var responseText = responseList.FirstOrDefault()?.Content ?? string.Empty;
+
+        _logger?.LogDebug("操作复现响应长度: {Length}", responseText.Length);
+        return ParseMacroFromResponse(responseText, logic.Name);
+    }
+
+    internal static Macro ParseMacroFromResponse(string responseText, string macroName)
+    {
+        var operations = ParseOperations(responseText);
+        return new Macro(macroName, operations, DateTimeOffset.UtcNow);
+    }
+
+    internal static IReadOnlyList<DesktopOperation> ParseOperations(string responseText)
+    {
+        var json = ExtractJson(responseText);
+        if (string.IsNullOrEmpty(json))
+            return [];
+
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("operations", out var opsProp) || opsProp.ValueKind != JsonValueKind.Array)
+                return [];
+
+            var result = new List<DesktopOperation>();
+            foreach (var op in opsProp.EnumerateArray())
+            {
+                var parsed = ParseSingleOperation(op);
+                if (parsed is not null)
+                    result.Add(parsed);
+            }
+            return result;
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    internal static DesktopOperation? ParseSingleOperation(JsonElement element)
+    {
+        if (!element.TryGetProperty("kind", out var kindProp))
+            return null;
+        var kindStr = kindProp.GetString();
+        if (string.IsNullOrEmpty(kindStr) || !Enum.TryParse<DesktopOperationKind>(kindStr, ignoreCase: true, out var kind))
+            return null;
+
+        var x = element.TryGetProperty("x", out var xProp) && xProp.TryGetInt32(out var xv) ? xv : 0;
+        var y = element.TryGetProperty("y", out var yProp) && yProp.TryGetInt32(out var yv) ? yv : 0;
+        var text = element.TryGetProperty("text", out var tProp) ? tProp.GetString() : null;
+        var succeeded = !element.TryGetProperty("succeeded", out var sProp) || sProp.GetBoolean();
+
+        MouseAction? mouseAction = null;
+        if (element.TryGetProperty("mouseAction", out var maProp))
+        {
+            var maStr = maProp.GetString();
+            if (!string.IsNullOrEmpty(maStr) && Enum.TryParse<MouseAction>(maStr, ignoreCase: true, out var ma))
+                mouseAction = ma;
+        }
+
+        KeyModifier? modifiers = null;
+        if (element.TryGetProperty("modifiers", out var modProp))
+        {
+            var modStr = modProp.GetString();
+            if (!string.IsNullOrEmpty(modStr) && Enum.TryParse<KeyModifier>(modStr, ignoreCase: true, out var mod))
+                modifiers = mod;
+        }
+
+        return new DesktopOperation(kind, x, y, text, mouseAction, modifiers, DateTimeOffset.UtcNow, succeeded, null);
+    }
+
     /// <summary>步骤优化（L-04）— 分析抽象逻辑并提出优化建议</summary>
     public async Task<string> OptimizeAsync(AbstractOperationLogic logic, CancellationToken cancellationToken = default)
     {

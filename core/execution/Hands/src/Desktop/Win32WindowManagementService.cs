@@ -48,10 +48,16 @@ public sealed partial class Win32WindowManagementService : ServiceEntity, IWindo
         return null;
     }
 
-    /// <summary>激活窗口到前台</summary>
+    /// <summary>激活窗口到前台（含 Alt 键技巧解除 Windows 前台锁定）</summary>
     public Task<bool> FocusAsync(IntPtr hWnd, CancellationToken cancellationToken = default)
     {
+        SendAltTap();
         var ok = User32NativeMethods.SetForegroundWindow(hWnd);
+        if (!ok)
+        {
+            SendAltTap();
+            ok = User32NativeMethods.SetForegroundWindow(hWnd);
+        }
         if (!ok) _logger?.LogWarning("SetForegroundWindow 失败: hWnd={HWnd}", hWnd);
         return Task.FromResult(ok);
     }
@@ -90,6 +96,23 @@ public sealed partial class Win32WindowManagementService : ServiceEntity, IWindo
     }
 
     // ---------- 私有辅助 ----------
+
+    /// <summary>发送 Alt 键 tap 解除 Windows 前台锁定（SetForegroundWindow 限制）</summary>
+    private static void SendAltTap()
+    {
+        var altDown = new INPUT
+        {
+            type = NativeConstants.INPUT_KEYBOARD,
+            u = new InputUnion { ki = new KEYBDINPUT { wVk = 0x12, wScan = 0, dwFlags = 0, time = 0, dwExtraInfo = IntPtr.Zero } }
+        };
+        var altUp = new INPUT
+        {
+            type = NativeConstants.INPUT_KEYBOARD,
+            u = new InputUnion { ki = new KEYBDINPUT { wVk = 0x12, wScan = 0, dwFlags = NativeConstants.KEYEVENTF_KEYUP, time = 0, dwExtraInfo = IntPtr.Zero } }
+        };
+        User32NativeMethods.SendInput(1, [altDown], Marshal.SizeOf<INPUT>());
+        User32NativeMethods.SendInput(1, [altUp], Marshal.SizeOf<INPUT>());
+    }
 
     private static string GetWindowTitle(IntPtr hWnd)
     {

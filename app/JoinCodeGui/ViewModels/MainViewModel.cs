@@ -318,71 +318,26 @@ public sealed partial class MainViewModel : ViewModelBase
     /// <summary>全局运行状态条（spinner 动词/耗时/token 聚合/后台计数/卡死检测）</summary>
     public GlobalRunStatusViewModel RunStatus { get; } = new();
 
-    // === 多 subAgent 运行期显示（T4）===
+    // === 多 subAgent 运行期显示（T4）— 组装逻辑已抽取到 ChatTurnProcessor ===
 
-    /// <summary>本回合子代理运行态聚合器（每回合重置）</summary>
-    private SubAgentRunTracker _agentTracker = new();
-
-    /// <summary>agentId → 行 VM 缓存（tracker run 与 XAML 绑定之间的桥）</summary>
-    private Dictionary<string, AgentRunVm> _agentRunVms = new(StringComparer.Ordinal);
-
-    /// <summary>本回合的运行组卡片（首次子代理事件时创建，整回合复用一张）</summary>
-    private ChatUiMessage? _agentGroupCard;
-
-    /// <summary>回合内"插到助手占位之前"的插入器 — 由 SendMessageCoreAsync 设置，保持过程在回复前的视觉顺序</summary>
-    private Action<ChatUiMessage>? _insertBeforeAssistant;
+    /// <summary>本回合组装器（发送时创建；测试辅助路径懒创建）</summary>
+    private ChatTurnProcessor? _turnProcessor;
 
     /// <summary>测试入口：重置子代理追踪状态</summary>
-    internal void PrepareAgentRunTurnForTest() => ResetAgentRunTracking();
+    internal void PrepareAgentRunTurnForTest()
+        => _turnProcessor = new ChatTurnProcessor(Messages);
 
-    /// <summary>测试入口：直接消费一条子代理事件</summary>
-    internal void HandleSubAgentActivityForTest(ChatStreamEvent evt) => HandleSubAgentActivity(evt);
+    /// <summary>测试入口：直接消费一条子代理事件（无回合占位的轻量路径）</summary>
+    internal void HandleSubAgentActivityForTest(ChatStreamEvent evt)
+        => GetOrCreateProcessor().Process(evt, streamingEnabled: false);
 
-    /// <summary>回合开始时重置子代理聚合状态</summary>
-    private void ResetAgentRunTracking()
+    private ChatTurnProcessor GetOrCreateProcessor()
     {
-        _agentTracker = new SubAgentRunTracker();
-        _agentRunVms = new Dictionary<string, AgentRunVm>(StringComparer.Ordinal);
-        _agentGroupCard = null;
-    }
-
-    /// <summary>
-    /// 消费一条子代理事件（IsSubAgentActivity=true 的事件唯一入口）—
-    /// 归约到 tracker，首次事件创建组卡片（插到助手占位之前），随后同步行 VM 快照
-    /// </summary>
-    private void HandleSubAgentActivity(ChatStreamEvent evt)
-    {
-        _agentTracker.Observe(evt);
-
-        if (_agentGroupCard is null)
-        {
-            _agentGroupCard = new ChatUiMessage
-            {
-                Role = MessageRole.Assistant,
-                Content = string.Empty,
-                Timestamp = DateTime.Now,
-                Kind = ChatUiMessageKind.AgentRunGroup,
-                AgentRuns = []
-            };
-            if (_insertBeforeAssistant is not null)
-                _insertBeforeAssistant(_agentGroupCard);
-            else
-                Messages.Add(_agentGroupCard);
-        }
-
-        foreach (var run in _agentTracker.Runs)
-        {
-            if (_agentRunVms.TryGetValue(run.AgentId, out var vm))
-            {
-                vm.Refresh();
-            }
-            else
-            {
-                vm = new AgentRunVm(run);
-                _agentRunVms[run.AgentId] = vm;
-                _agentGroupCard.AgentRuns!.Add(vm);
-            }
-        }
+        if (_turnProcessor is not null)
+            return _turnProcessor;
+        _turnProcessor = new ChatTurnProcessor(Messages);
+        _turnProcessor.BeginTurn();
+        return _turnProcessor;
     }
 
     /// <summary>Assistant 消息计数器（CanRegenerate O(1) 查找，由 OnMessagesChanged 维护）</summary>
@@ -1415,153 +1370,35 @@ public sealed partial class MainViewModel : ViewModelBase
             });
             RenameActiveSessionTo(message);
 
-            // 助手消息先入列表（流式占位），循环内实时刷新 Content 才能被 AllMessagesText 感知；
-            // 思考/工具卡片经 InsertBeforeAssistant 插到占位之前，保持"过程在前、回复在后"的视觉顺序
-            var assistant = new ChatUiMessage
-            {
-                Role = MessageRole.Assistant,
-                Content = string.Empty,
-                Timestamp = DateTime.Now,
-                IsStreaming = true
-            };
-            Messages.Add(assistant);
-            var assistantIndex = Messages.Count - 1;
-            void InsertBeforeAssistant(ChatUiMessage msg)
-            {
-                Messages.Insert(assistantIndex, msg);
-                assistantIndex++;
-            }
-            _insertBeforeAssistant = InsertBeforeAssistant;
-            ResetAgentRunTracking();
+            // 事件→消息组装委托给 ChatTurnProcessor（T7 抽取，可单测）
+            _turnProcessor = new ChatTurnProcessor(Messages);
+            _turnProcessor.BeginTurn();
+            var processor = _turnProcessor;
 
-            var builder = new StringBuilder();
-            var thinkingBuilder = new StringBuilder();
-            long totalTokens = 0;
-            ChatUiMessage? currentThinking = null;
-            ChatUiMessage? currentToolCall = null;
             await foreach (var evt in _session.StreamAsync(message, _sendCts.Token))
             {
-                // 子代理事件优先路由 — 防止子代理 Content/ToolCall 污染主对话流（GUI 多 subAgent 显示链路）
-                if (evt.IsSubAgentActivity)
-                {
-                    HandleSubAgentActivity(evt);
-                    RunStatus.ReportActivity(hasActiveTool: evt.Type == ChatStreamEventType.ToolCallStart);
-                    continue;
-                }
-
                 RunStatus.ReportActivity(hasActiveTool: evt.Type == ChatStreamEventType.ToolCallStart);
-
-                switch (evt.Type)
-                {
-                    case ChatStreamEventType.Content:
-                        if (evt.Content is not null)
-                        {
-                            builder.Append(evt.Content);
-                            if (StreamingEnabled)
-                                assistant.Content = builder.ToString();
-                        }
-                        break;
-                    case ChatStreamEventType.Thinking:
-                        thinkingBuilder.Append(evt.ThinkingContent);
-                        if (currentThinking is null)
-                        {
-                            currentThinking = new ChatUiMessage
-                            {
-                                Role = MessageRole.Assistant,
-                                Content = string.Empty,
-                                Timestamp = DateTime.Now,
-                                Kind = ChatUiMessageKind.Thinking
-                            };
-                            InsertBeforeAssistant(currentThinking);
-                        }
-                        if (StreamingEnabled)
-                            currentThinking.Content = thinkingBuilder.ToString();
-                        break;
-                    case ChatStreamEventType.ToolCallStart:
-                        currentToolCall = new ChatUiMessage
-                        {
-                            Role = MessageRole.Assistant,
-                            Content = string.Empty,
-                            Timestamp = DateTime.Now,
-                            Kind = ChatUiMessageKind.ToolCall,
-                            ToolName = evt.ToolName,
-                            ToolArguments = evt.ToolArguments,
-                            ToolStartTime = DateTime.Now,
-                            IsToolRunning = true
-                        };
-                        currentToolCall.RefreshElapsed();
-                        InsertBeforeAssistant(currentToolCall);
-                        break;
-                    case ChatStreamEventType.ToolProgress:
-                        if (currentToolCall is not null && evt.ProgressMessage is not null)
-                        {
-                            currentToolCall.Content = evt.ProgressMessage;
-                        }
-                        break;
-                    case ChatStreamEventType.ToolCallEnd:
-                        if (currentToolCall is not null)
-                        {
-                            currentToolCall.IsToolRunning = false;
-                            currentToolCall.RefreshElapsed();
-                        }
-                        InsertBeforeAssistant(new ChatUiMessage
-                        {
-                            Role = MessageRole.Assistant,
-                            Content = string.Empty,
-                            Timestamp = DateTime.Now,
-                            Kind = ChatUiMessageKind.ToolResult,
-                            ToolName = evt.ToolName,
-                            ToolResultText = evt.ToolResultText,
-                            IsToolError = evt.IsToolError,
-                            StructuredPatch = evt.StructuredPatch
-                        });
-                        currentToolCall = null;
-                        break;
-                    case ChatStreamEventType.Complete:
-                        // G2 对齐 TUI：消费引擎上报的真实 token 用量（Done/Complete 事件携带）
-                        if (evt.Usage is not null)
-                        {
-                            totalTokens += evt.Usage.TotalTokens;
-                            RunStatus.AddTokens(evt.Usage.TotalTokens);
-                        }
-                        break;
-                }
+                if (evt.Type == ChatStreamEventType.Complete && evt.Usage is not null)
+                    RunStatus.AddTokens(evt.Usage.TotalTokens);
+                processor.Process(evt, StreamingEnabled);
             }
 
-            // 最终一次性赋值：流式开启时为幂等收尾；关闭时这是唯一的内容填充点。
-            // 空思考气泡在此移除（关闭流式时思考内容也到此处才可见）。
-            if (currentThinking is not null)
-            {
-                currentThinking.Content = thinkingBuilder.ToString();
-                if (string.IsNullOrWhiteSpace(currentThinking.Content))
-                    Messages.Remove(currentThinking);
-            }
-
-            assistant.Content = builder.ToString();
-            assistant.IsStreaming = false;
+            processor.CompleteTurn(StreamingEnabled);
             // 状态栏展示本轮真实 token 用量（引擎未上报时保留空串，不显示估算值）
-            TokenUsageText = totalTokens > 0 ? $"Token:{totalTokens:N0}" : string.Empty;
+            TokenUsageText = processor.TotalTokens > 0 ? $"Token:{processor.TotalTokens:N0}" : string.Empty;
             StatusText = "就绪";
         }
         catch (OperationCanceledException)
         {
             StatusText = "已停止生成";
-            foreach (var m in Messages)
-            {
-                if (m.IsStreaming)
-                    m.IsStreaming = false;
-            }
+            _turnProcessor?.CancelTurn();
         }
         catch (Exception ex)
         {
             ErrorToastText = ex.Message;
             StatusText = "就绪";
             WriteErrorLog(ex);
-            foreach (var m in Messages)
-            {
-                if (m.IsStreaming)
-                    m.IsStreaming = false;
-            }
+            _turnProcessor?.CancelTurn();
         }
         finally
         {
@@ -1571,7 +1408,6 @@ public sealed partial class MainViewModel : ViewModelBase
             RunStatus.EndTurn();
             OnPropertyChanged(nameof(CanStop));
             SaveActiveSession();
-            _insertBeforeAssistant = null;
         }
     }
 

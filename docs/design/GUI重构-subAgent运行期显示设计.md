@@ -176,3 +176,29 @@ public long? AgentTokenCount { get; init; }
 <!-- 决策: 连续搜索/读取从第 2 次起折叠为"搜索/读取 N 次…"摘要；展开上限 LRU=3 移植旧 TUI SubAgentCardManager -->
 <!-- 原因: 单次保留工具名可读性；LRU 防止多 agent 同时展开刷屏 -->
 <!-- 验证: Tracker 9 测试 + GUI 全量 364 测试全绿 -->
+
+## 五、T8 实弹验证结论（2026-08-26）
+
+新增 `tests/MockServers/MockServer.E2E.Tests/E2E/SubAgentEventStreamE2ETests.cs`：
+真实 OpenAI.MockServer 进程（HTTP，--port 0 自动分配）+ 与 GUI 完全同源的引擎会话
+（EngineSessionFactory.CreateGuiSessionAsync），验证 Agent 工具前台流式路径的完整事件链：
+
+```
+主 ToolCallStart(Agent)
+  → AgentStarted(agent-xxx, name, description, role)
+  → [带 AgentId 的子代理活动事件...]
+  → AgentFinished(success=true)
+→ 主 ToolCallEnd(Agent)
+```
+
+**⚠️ 已知限制（后续任务）**：模型调用 Agent 工具时若省略 `subagent_type`，
+走 `AgentForkMiddleware`（Order=200）的后台 fork 短路路径——fork 子代理不经过
+流式中间件，GUI 收不到其运行事件（对齐 TS fork 语义：后台继承上下文）。此类
+agent 完成后经 task-notification 回填，GUI 当前仅显示最终结果行。如需 fork 路
+径实时显示，需在 ForkSubAgentManager 内挂接 SubAgentEventChannel（独立任务）。
+
+**其他发现**：
+- MockServer 两阶段工具加载（tool_groups→tool_description_request→tool_descriptions）
+  正常工作，脚本 peek 不推进索引。
+- Host.Dispose 在测试环境存在 BuildQueueService 二次处置敏感（ObjectDisposedException），
+  E2E 清理已做容错处理；生产 GUI 进程退出不受影响。

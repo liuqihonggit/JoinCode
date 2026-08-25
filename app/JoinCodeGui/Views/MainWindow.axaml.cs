@@ -108,6 +108,7 @@ public sealed partial class MainWindow : Window
             _vm.PropertyChanged -= OnVmPropertyChanged;
             _vm.ScrollToBottomRequested -= OnScrollToBottomRequested;
             _vm.ExitRequested -= OnExitRequested;
+            _vm.TranscriptRequested -= OnTranscriptRequested;
         }
         _vm = DataContext as MainViewModel;
         if (_vm is not null)
@@ -119,7 +120,15 @@ public sealed partial class MainWindow : Window
             _vm.Messages.CollectionChanged += OnMessagesChanged;
             _vm.PropertyChanged += OnVmPropertyChanged;
             _vm.ScrollToBottomRequested += OnScrollToBottomRequested;
+            _vm.TranscriptRequested += OnTranscriptRequested;
         }
+    }
+
+    /// <summary>打开子代理回放窗口 — 只读快照，可多开（每 agent 一窗）</summary>
+    private void OnTranscriptRequested(SubAgentRun run)
+    {
+        var window = new TranscriptWindow(run);
+        window.Show(this);
     }
 
     /// <summary>T9：斜杠命令确认回调 — 弹极简确认窗；后台线程经 UI 线程同步等待（对齐 TUI painter.Invoke 模式）</summary>

@@ -49,7 +49,26 @@ public sealed class SubAgentRun
     public DateTime StartedAtLocal { get; } = DateTime.Now;
 
     internal readonly List<string> _visibleActivities = [];
+
+    private readonly object _transcriptLock = new();
+    private readonly List<SubAgentTranscriptItem> _transcript = [];
+
+    /// <summary>完整时间线（回放窗口数据源，不裁剪；线程安全追加）</summary>
+    public IReadOnlyList<SubAgentTranscriptItem> Transcript
+    {
+        get { lock (_transcriptLock) return [.. _transcript]; }
+    }
+
+    /// <summary>追加时间线条目（tracker 专用）</summary>
+    internal void AppendTranscript(string glyph, string text)
+    {
+        lock (_transcriptLock)
+            _transcript.Add(new SubAgentTranscriptItem(DateTime.Now, glyph, text));
+    }
 }
+
+/// <summary>子代理时间线条目 — 回放窗口的行模型（glyph: ▶ 调用 / ✓ 成功 / ✗ 失败 / ¶ 正文 / ■ 终态）</summary>
+public sealed record SubAgentTranscriptItem(DateTime At, string Glyph, string Text);
 
 /// <summary>子代理运行状态机</summary>
 public enum SubAgentRunState

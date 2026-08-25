@@ -176,8 +176,15 @@
                                       <TextBlock Grid.Column="1" Text="{Binding HeaderText}" FontSize="12"
                                                  FontWeight="SemiBold" Foreground="{DynamicResource GuiPrimaryText}"
                                                  VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                                      <TextBlock Grid.Column="3" Text="{Binding StatsText}" FontSize="10.5"
-                                                 Foreground="{DynamicResource GuiMutedText}" VerticalAlignment="Center" />
+                                      <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="{Binding StatsText}" FontSize="10.5"
+                                                   Foreground="{DynamicResource GuiMutedText}" VerticalAlignment="Center" />
+                                        <!-- 回放入口：打开完整时间线窗口 -->
+                                        <Button Classes="ghost" Content="回放 ▸" FontSize="10" Padding="5,1"
+                                                MinHeight="0" ToolTip.Tip="查看该子代理完整时间线"
+                                                Command="{Binding DataContext.OpenAgentTranscriptCommand, ElementName=Root}"
+                                                CommandParameter="{Binding}" />
+                                      </StackPanel>
                                     </Grid>
                                     <!-- 尾部活动行 + 折叠计数 -->
                                     <ItemsControl ItemsSource="{Binding ActivityLines}" Margin="19,0,0,0">

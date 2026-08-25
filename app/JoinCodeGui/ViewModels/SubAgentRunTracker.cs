@@ -71,13 +71,15 @@ public sealed class SubAgentRunTracker
             return;
         }
 
-        _runs[evt.AgentId!] = new SubAgentRun
+        var run = new SubAgentRun
         {
             AgentId = evt.AgentId!,
             Name = evt.AgentName ?? evt.AgentRole ?? "agent",
             Description = evt.AgentDescription ?? string.Empty,
             Role = evt.AgentRole ?? string.Empty
         };
+        run.AppendTranscript("▶", $"{run.Name} 启动 — {run.Description}");
+        _runs[evt.AgentId!] = run;
     }
 
     private void OnActivity(ChatStreamEvent evt)
@@ -91,6 +93,7 @@ public sealed class SubAgentRunTracker
                 var calling = $"正在调用 {evt.ToolName}…";
                 AppendCollapsed(run, calling);
                 run.LastActivityText = calling;
+                run.AppendTranscript("·", $"调用 {evt.ToolName}");
                 break;
 
             case ChatStreamEventType.ToolCallEnd when !string.IsNullOrEmpty(evt.ToolName):
@@ -112,17 +115,25 @@ public sealed class SubAgentRunTracker
 
                 AppendCollapsed(run, endText);
                 run.LastActivityText = endText;
+                run.AppendTranscript(evt.IsToolError ? "✗" : "✓",
+                    $"{evt.ToolName} → {(evt.ToolResultText is { Length: > 200 } t ? t[..200] + "…" : evt.ToolResultText ?? "(无结果)")}");
                 break;
 
             case ChatStreamEventType.Content when !string.IsNullOrWhiteSpace(evt.Content):
                 var content = evt.Content.Length > 80 ? evt.Content[..80] + "…" : evt.Content;
                 AppendCollapsed(run, content);
                 run.LastActivityText = content;
+                run.AppendTranscript("¶", evt.Content);
+                break;
+
+            case ChatStreamEventType.Thinking when !string.IsNullOrEmpty(evt.ThinkingContent):
+                run.AppendTranscript("◌", evt.ThinkingContent);
                 break;
 
             case ChatStreamEventType.ToolProgress when !string.IsNullOrEmpty(evt.ProgressMessage):
                 AppendCollapsed(run, evt.ProgressMessage);
                 run.LastActivityText = evt.ProgressMessage;
+                run.AppendTranscript("…", evt.ProgressMessage);
                 break;
         }
     }
@@ -138,6 +149,9 @@ public sealed class SubAgentRunTracker
         run.IsSuccess = evt.AgentSuccess == true;
         run.ExecutionTimeMs = evt.AgentExecutionTimeMs;
         run.FinalOutput = evt.Content;
+        run.AppendTranscript("■", evt.AgentSuccess == true
+            ? $"完成 ({run.ToolUseCount} 次工具调用{(evt.AgentExecutionTimeMs is { } ms ? $" · {TimeSpan.FromMilliseconds(ms).TotalSeconds:F1}s" : string.Empty)})"
+            : $"失败 — {evt.Content ?? "(无错误信息)"}");
         return null;
     }
 

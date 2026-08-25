@@ -219,3 +219,20 @@ E2E 双路径验证：`AgentToolSpawn_ShouldEmitAgentEventsThroughMainStream`（
 **残余限制**：fork 完成晚于主对话回合时，AgentFinished 写入死通道被丢弃——
 GUI 该行停留在"运行中"直到回合结束，最终结果经既有 task-notification 机制在
 后续轮次回填。彻底解决需 GUI 跨回合订阅 ForkCompleted 事件（T5 后台代理管理器天然覆盖）。
+
+## 七、实施总览（2026-08-26 全部完成）
+
+| 任务 | 提交 | 内容 |
+|------|------|------|
+| T1 | `6074113d1` | ChatStreamEvent Agent* 事件+身份字段 |
+| T2 | `466b68b65` | SubAgentEventChannel + QueryLoop 合流（AsyncLocal 迭代器陷阱已固化测试） |
+| T3 | `d5e368e0e` | SubAgentRunTracker 聚合器 |
+| T4 | `739cb457a` | 运行组卡片内嵌对话流 |
+| T8 | `f003b86cf` | 实弹 E2E（MockServer+同源引擎，双路径） |
+| Fork 盲区 | `68c0088ce` | fork 路径接入事件通道 |
+| T5 | `bd17938cd` | 全局状态条（随机动词/耗时/token/卡死状态机） |
+| T6 | `a88b40d4a` | TranscriptWindow 回放窗口（tracker 全程留痕） |
+| T7 | `70ecaf704` | MainViewModel 瘦身 → ChatTurnProcessor 可单测抽取 |
+
+最终回归：GUI **380 绿** / Hands **401 绿** / Agents **514 绿** / Brain.Context **767 绿** / E2E **2 绿**。
+MainViewModel 1888 → 1725 行；组装逻辑 100% 移入 ChatTurnProcessor（直测 6 例）。

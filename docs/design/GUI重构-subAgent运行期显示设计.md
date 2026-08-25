@@ -233,6 +233,13 @@ GUI 该行停留在"运行中"直到回合结束，最终结果经既有 task-no
 | T5 | `bd17938cd` | 全局状态条（随机动词/耗时/token/卡死状态机） |
 | T6 | `a88b40d4a` | TranscriptWindow 回放窗口（tracker 全程留痕） |
 | T7 | `70ecaf704` | MainViewModel 瘦身 → ChatTurnProcessor 可单测抽取 |
+| T5+ 后台管理器 | `df69e215e` | pill 弹出面板（引擎权威列表+fork 归并）+ 终止命令 |
 
-最终回归：GUI **380 绿** / Hands **401 绿** / Agents **514 绿** / Brain.Context **767 绿** / E2E **2 绿**。
+最终回归：GUI **385 绿** / Hands **401 绿** / Agents **514 绿** / Brain.Context **767 绿** / E2E **2 绿**。
 MainViewModel 1888 → 1725 行；组装逻辑 100% 移入 ChatTurnProcessor（直测 6 例）。
+
+**后台管理器补充说明**：数据源直读引擎（`IAgentService.GetRunningAgentsAsync` +
+`IForkSubAgentManager.GetActiveForksAsync` 归并），面板打开期间随 500ms 心跳自动刷新，
+彻底覆盖 fork 跨回合生命周期——「残余限制」中"终态写死通道丢弃"问题由此闭环：
+即使回合结束，完成的 fork 会从运行列表消失，面板与 pill 计数即时反映。
+接口新成员采用 DIM 默认实现，全部既有测试桩零改动兼容。

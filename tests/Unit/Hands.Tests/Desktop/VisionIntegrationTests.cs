@@ -3,6 +3,7 @@ namespace JoinCode.Hands.Desktop.Tests;
 /// <summary>
 /// P1 E2E 集成验收 — 视觉理解引导桌面操作全链路（PRD §6.3 M2 验收场景）
 /// 真实截图 → Mock 多模态检测器（模拟 LLM 返回）→ find_element → mouse_click → type_text → 截图验证
+/// 关键：每步操作前后验证前台窗口句柄一致性，焦点丢失时重新激活
 /// </summary>
 [Trait("Category", "DesktopIntegration")]
 public sealed class VisionIntegrationTests
@@ -17,20 +18,24 @@ public sealed class VisionIntegrationTests
         var notepad = System.Diagnostics.Process.Start("notepad.exe");
         try
         {
-            await Task.Delay(1500);
+            await Task.Delay(2000);
 
             var window = await windows.FindAsync("记事本") ?? await windows.FindAsync("Notepad") ?? await windows.FindAsync("Untitled");
             window.Should().NotBeNull("应能找到记事本窗口");
+            var hwnd = window!.Handle;
 
-            var focused = await windows.FocusAsync(window!.Handle);
+            var focused = await windows.FocusAsync(hwnd);
             focused.Should().BeTrue("应能激活记事本窗口");
-            await Task.Delay(500);
+            await Task.Delay(800);
+            User32NativeMethods.GetForegroundWindow().Should().Be(hwnd, "激活后前台应是记事本");
 
             var winRect = window.Rect;
-            var editorX = winRect.X + 15;
-            var editorY = winRect.Y + 60;
-            var editorW = winRect.Width - 30;
-            var editorH = winRect.Height - 80;
+            var editorCenterX = winRect.X + winRect.Width / 2;
+            var editorCenterY = winRect.Y + winRect.Height * 2 / 3;
+            var editorW = winRect.Width / 2;
+            var editorH = winRect.Height / 3;
+            var editorX = editorCenterX - editorW / 2;
+            var editorY = editorCenterY - editorH / 2;
 
             var detectorMock = new Mock<IUiElementDetector>();
             detectorMock
@@ -49,23 +54,37 @@ public sealed class VisionIntegrationTests
             detectResult.Content[0].Text.Should().Contain("1 个 UI 元素");
             detectResult.Content[0].Text.Should().Contain("TextBox");
 
+            await EnsureFocusAsync(hwnd, windows);
+
             var findResult = await visionHandler.FindElementAsync("文本编辑区");
             findResult.IsError.Should().BeFalse();
             var findText = findResult.Content[0].Text!;
             findText.Should().Contain("TextBox");
             findText.Should().Contain("mouse_click");
 
-            var clickX = editorX + editorW / 2;
-            var clickY = editorY + editorH / 2;
-            var clickOp = await input.ClickAsync(clickX, clickY, MouseAction.Click);
+            await EnsureFocusAsync(hwnd, windows);
+
+            var clickOp = await input.ClickAsync(editorCenterX, editorCenterY, MouseAction.Click);
             clickOp.Succeeded.Should().BeTrue("视觉引导点击应成功");
-            await Task.Delay(300);
+            await Task.Delay(800);
+
+            var fgAfterClick = User32NativeMethods.GetForegroundWindow();
+            if (fgAfterClick != hwnd)
+            {
+                await windows.FocusAsync(hwnd);
+                await Task.Delay(500);
+            }
+            User32NativeMethods.GetForegroundWindow().Should().Be(hwnd, "点击后焦点应仍在记事本");
 
             var typeOp = await input.TypeTextAsync("Hello from vision");
             typeOp.Succeeded.Should().BeTrue("输入文本应成功");
-            await Task.Delay(500);
+            await Task.Delay(800);
 
-            var screenshot = await capture.CaptureWindowAsync(window.Handle);
+            var fgAfterType = User32NativeMethods.GetForegroundWindow();
+            fgAfterType.Should().Be(hwnd, "输入后焦点应仍在记事本");
+
+            notepad.HasExited.Should().BeFalse("记事本应仍在运行");
+            var screenshot = await capture.CaptureWindowAsync(hwnd);
             screenshot.Should().NotBeEmpty("最终截图应返回非空 base64");
             screenshot.Should().StartWith("iVBORw0KGgo", "应为 PNG base64 格式");
         }
@@ -77,6 +96,18 @@ public sealed class VisionIntegrationTests
                 notepad.WaitForExit(3000);
             }
         }
+    }
+
+    /// <summary>
+    /// 确保指定窗口在前台，否则重新激活并等待
+    /// </summary>
+    private static async Task EnsureFocusAsync(IntPtr hwnd, Win32WindowManagementService windows)
+    {
+        if (User32NativeMethods.GetForegroundWindow() == hwnd)
+            return;
+
+        await windows.FocusAsync(hwnd);
+        await Task.Delay(500);
     }
 
     [Fact]

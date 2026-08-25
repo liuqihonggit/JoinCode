@@ -156,6 +156,47 @@
                                   FontSize="11" Padding="0" Classes="ghost" HorizontalAlignment="Left"
                                   Command="{Binding DataContext.ToggleThinkingCommand, ElementName=Root}"
                                   CommandParameter="{Binding}" />
+                          <!-- 子代理运行组：多 agent 状态卡片（每行一个 subAgent：状态点+名称+活动+统计） -->
+                          <ItemsControl IsVisible="{Binding IsAgentRunGroup}" ItemsSource="{Binding AgentRuns}" Margin="0,2">
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate x:DataType="vm:AgentRunVm">
+                                <Border CornerRadius="8" Padding="10,7" Margin="0,0,0,5" Background="{DynamicResource GuiCardHover}">
+                                  <StackPanel Spacing="4">
+                                    <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="7">
+                                      <!-- 三态状态点：运行蓝 / 成功绿 / 失败红（三布尔互斥驱动，免动态画刷键） -->
+                                      <TextBlock Text="●" FontSize="12" VerticalAlignment="Top"
+                                                 Foreground="{DynamicResource GuiToastSuccess}"
+                                                 IsVisible="{Binding IsRunning}" />
+                                      <TextBlock Text="✓" FontSize="12" FontWeight="Bold" VerticalAlignment="Top"
+                                                 Foreground="{DynamicResource GuiSuccessText}"
+                                                 IsVisible="{Binding IsCompleted}" />
+                                      <TextBlock Text="✗" FontSize="12" FontWeight="Bold" VerticalAlignment="Top"
+                                                 Foreground="{DynamicResource GuiErrorText}"
+                                                 IsVisible="{Binding IsFailed}" />
+                                      <TextBlock Grid.Column="1" Text="{Binding HeaderText}" FontSize="12"
+                                                 FontWeight="SemiBold" Foreground="{DynamicResource GuiPrimaryText}"
+                                                 VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                      <TextBlock Grid.Column="3" Text="{Binding StatsText}" FontSize="10.5"
+                                                 Foreground="{DynamicResource GuiMutedText}" VerticalAlignment="Center" />
+                                    </Grid>
+                                    <!-- 尾部活动行 + 折叠计数 -->
+                                    <ItemsControl ItemsSource="{Binding ActivityLines}" Margin="19,0,0,0">
+                                      <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                          <TextBlock Text="{Binding}" FontSize="11"
+                                                     Foreground="{DynamicResource GuiSecondaryText}"
+                                                     TextTrimming="CharacterEllipsis" />
+                                        </DataTemplate>
+                                      </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <TextBlock Text="{Binding HiddenText}" FontSize="10.5" Margin="19,0,0,0"
+                                               Foreground="{DynamicResource GuiMutedText}"
+                                               IsVisible="{Binding HiddenText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                  </StackPanel>
+                                </Border>
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
                           <!-- 正文区（工具启动/结果/折叠思考各自定制；其余 Markdown 渲染） -->
                           <Panel IsVisible="{Binding ShowBody}">
                             <!-- 工具调用启动：名称+参数（等宽） -->

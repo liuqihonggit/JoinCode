@@ -315,6 +315,73 @@ public sealed partial class MainViewModel : ViewModelBase
     /// <summary>UI 对话消息集合（角色化气泡）</summary>
     public ObservableCollection<ChatUiMessage> Messages { get; } = [];
 
+    // === 多 subAgent 运行期显示（T4）===
+
+    /// <summary>本回合子代理运行态聚合器（每回合重置）</summary>
+    private SubAgentRunTracker _agentTracker = new();
+
+    /// <summary>agentId → 行 VM 缓存（tracker run 与 XAML 绑定之间的桥）</summary>
+    private Dictionary<string, AgentRunVm> _agentRunVms = new(StringComparer.Ordinal);
+
+    /// <summary>本回合的运行组卡片（首次子代理事件时创建，整回合复用一张）</summary>
+    private ChatUiMessage? _agentGroupCard;
+
+    /// <summary>回合内"插到助手占位之前"的插入器 — 由 SendMessageCoreAsync 设置，保持过程在回复前的视觉顺序</summary>
+    private Action<ChatUiMessage>? _insertBeforeAssistant;
+
+    /// <summary>测试入口：重置子代理追踪状态</summary>
+    internal void PrepareAgentRunTurnForTest() => ResetAgentRunTracking();
+
+    /// <summary>测试入口：直接消费一条子代理事件</summary>
+    internal void HandleSubAgentActivityForTest(ChatStreamEvent evt) => HandleSubAgentActivity(evt);
+
+    /// <summary>回合开始时重置子代理聚合状态</summary>
+    private void ResetAgentRunTracking()
+    {
+        _agentTracker = new SubAgentRunTracker();
+        _agentRunVms = new Dictionary<string, AgentRunVm>(StringComparer.Ordinal);
+        _agentGroupCard = null;
+    }
+
+    /// <summary>
+    /// 消费一条子代理事件（IsSubAgentActivity=true 的事件唯一入口）—
+    /// 归约到 tracker，首次事件创建组卡片（插到助手占位之前），随后同步行 VM 快照
+    /// </summary>
+    private void HandleSubAgentActivity(ChatStreamEvent evt)
+    {
+        _agentTracker.Observe(evt);
+
+        if (_agentGroupCard is null)
+        {
+            _agentGroupCard = new ChatUiMessage
+            {
+                Role = MessageRole.Assistant,
+                Content = string.Empty,
+                Timestamp = DateTime.Now,
+                Kind = ChatUiMessageKind.AgentRunGroup,
+                AgentRuns = []
+            };
+            if (_insertBeforeAssistant is not null)
+                _insertBeforeAssistant(_agentGroupCard);
+            else
+                Messages.Add(_agentGroupCard);
+        }
+
+        foreach (var run in _agentTracker.Runs)
+        {
+            if (_agentRunVms.TryGetValue(run.AgentId, out var vm))
+            {
+                vm.Refresh();
+            }
+            else
+            {
+                vm = new AgentRunVm(run);
+                _agentRunVms[run.AgentId] = vm;
+                _agentGroupCard.AgentRuns!.Add(vm);
+            }
+        }
+    }
+
     /// <summary>Assistant 消息计数器（CanRegenerate O(1) 查找，由 OnMessagesChanged 维护）</summary>
     private int _assistantMessageCount;
 
@@ -1360,6 +1427,8 @@ public sealed partial class MainViewModel : ViewModelBase
                 Messages.Insert(assistantIndex, msg);
                 assistantIndex++;
             }
+            _insertBeforeAssistant = InsertBeforeAssistant;
+            ResetAgentRunTracking();
 
             var builder = new StringBuilder();
             var thinkingBuilder = new StringBuilder();
@@ -1368,6 +1437,13 @@ public sealed partial class MainViewModel : ViewModelBase
             ChatUiMessage? currentToolCall = null;
             await foreach (var evt in _session.StreamAsync(message, _sendCts.Token))
             {
+                // 子代理事件优先路由 — 防止子代理 Content/ToolCall 污染主对话流（GUI 多 subAgent 显示链路）
+                if (evt.IsSubAgentActivity)
+                {
+                    HandleSubAgentActivity(evt);
+                    continue;
+                }
+
                 switch (evt.Type)
                 {
                     case ChatStreamEventType.Content:
@@ -1484,6 +1560,7 @@ public sealed partial class MainViewModel : ViewModelBase
             IsBusy = false;
             OnPropertyChanged(nameof(CanStop));
             SaveActiveSession();
+            _insertBeforeAssistant = null;
         }
     }
 

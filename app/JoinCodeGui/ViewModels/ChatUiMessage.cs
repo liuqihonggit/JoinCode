@@ -107,6 +107,15 @@ public sealed class ChatUiMessage : INotifyPropertyChanged
     /// <summary>结构化 Patch（ToolCallEnd 携带，驱动 Diff 渲染；仅文件编辑类工具填充）</summary>
     public StructuredPatchHunk[]? StructuredPatch { get; set; }
 
+    /// <summary>
+    /// 子代理运行组 — Kind=AgentRunGroup 时持有本回合全部 subAgent 的行 VM 列表，
+    /// 由 SubAgentRunTracker 驱动刷新（内嵌组合模型，卡片顺序天然跟随触发它的工具调用）
+    /// </summary>
+    public List<AgentRunVm>? AgentRuns { get; set; }
+
+    /// <summary>是否为子代理运行组卡片</summary>
+    public bool IsAgentRunGroup => Kind == ChatUiMessageKind.AgentRunGroup;
+
     /// <summary>是否有 Diff 可渲染</summary>
     public bool HasDiff => StructuredPatch is { Length: > 0 };
 
@@ -141,17 +150,18 @@ public sealed class ChatUiMessage : INotifyPropertyChanged
     public bool IsThinkingCollapsed => IsThinking && !IsThinkingExpanded;
 
     /// <summary>正文区域可见性：工具消息隐藏（走工具面板）；思考消息折叠时隐藏展示摘要提示，展开后可见</summary>
-    public bool ShowBody => !IsToolCall && (!IsThinking || IsThinkingExpanded);
+    public bool ShowBody => !IsToolCall && !IsAgentRunGroup && (!IsThinking || IsThinkingExpanded);
 
     /// <summary>折叠时的摘要文案：非思考消息为空；思考消息展示简要提示并可点击展开</summary>
     public string ThinkingSummary => IsThinking ? $"点击展开，思考 {Content.Length} 字" : string.Empty;
 
-    /// <summary>类型标签（思考🧠 / 工具🛠 / 结果✅，正文为空）</summary>
+    /// <summary>类型标签（思考🧠 / 工具🛠 / 结果✅ / 子代理组🤖，正文为空）</summary>
     public string KindLabel => Kind switch
     {
         ChatUiMessageKind.Thinking => "🧠 思考",
         ChatUiMessageKind.ToolCall => "🛠 工具调用",
         ChatUiMessageKind.ToolResult => "✅ 工具结果",
+        ChatUiMessageKind.AgentRunGroup => "🤖 子代理",
         _ => string.Empty
     };
 
@@ -190,6 +200,17 @@ public sealed class ChatUiMessage : INotifyPropertyChanged
                     if (!string.IsNullOrWhiteSpace(ToolResultText))
                         sb.AppendLine(ToolResultText);
                     AppendDiff(sb);
+                }
+            }
+            else if (IsAgentRunGroup)
+            {
+                AppendHeader(sb);
+                sb.AppendLine(KindLabel);
+                foreach (var run in AgentRuns ?? [])
+                {
+                    sb.AppendLine($"  {run.StateGlyph} {run.HeaderText}  {run.StatsText}");
+                    foreach (var line in run.ActivityLines)
+                        sb.Append("    ").AppendLine(line);
                 }
             }
             else if (!string.IsNullOrWhiteSpace(Content))

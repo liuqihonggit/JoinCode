@@ -72,6 +72,34 @@ public sealed class GlobalRunStatusViewModel : INotifyPropertyChanged
     private string _backgroundPillText = string.Empty;
     public string BackgroundPillText { get => _backgroundPillText; private set { if (_backgroundPillText != value) { _backgroundPillText = value; Raise(nameof(BackgroundPillText)); } } }
 
+    private string? _latestActivity;
+    /// <summary>最近一次活动标签（工具名/子代理名/转发目标），走马灯内容源之一</summary>
+    public string? LatestActivity
+    {
+        get => _latestActivity;
+        set { if (_latestActivity != value) { _latestActivity = value; Raise(nameof(LatestActivity)); Raise(nameof(MarqueeText)); } }
+    }
+
+    /// <summary>走马灯文本 — 状态/动词/最近活动/耗时/token 的滚动摘要流（F1）</summary>
+    public string MarqueeText
+    {
+        get
+        {
+            var parts = new List<string>(5);
+            if (IsBusy)
+                parts.Add(Verb);
+            if (!string.IsNullOrEmpty(LatestActivity))
+                parts.Add(LatestActivity);
+            var elapsed = ElapsedText.TrimStart('·', ' ');
+            if (!string.IsNullOrEmpty(elapsed))
+                parts.Add(elapsed);
+            var tokens = TokenText.TrimStart('·', ' ', '↓');
+            if (!string.IsNullOrEmpty(tokens))
+                parts.Add(tokens);
+            return string.Join("  ·  ", parts);
+        }
+    }
+
     /// <summary>状态点字符：运行 ⟳ / 结束 ✓（卡死时由 IsStalled 驱动变色）</summary>
     public string StatusGlyph => IsBusy ? "⟳" : "✓";
 
@@ -113,12 +141,14 @@ public sealed class GlobalRunStatusViewModel : INotifyPropertyChanged
 
     /// <summary>
     /// 心跳上报 — 每条引擎事件到达时调用。
-    /// hasActiveTool=true（工具执行中）豁免卡死检测，对齐 ClaudeCode 行为
+    /// hasActiveTool=true（工具执行中）豁免卡死检测；label 为活动标签（工具/子代理名）进走马灯
     /// </summary>
-    public void ReportActivity(bool hasActiveTool)
+    public void ReportActivity(bool hasActiveTool, string? label = null)
     {
         _lastHeartbeatUtc = _clock();
         _hasActiveTool = hasActiveTool;
+        if (!string.IsNullOrWhiteSpace(label))
+            LatestActivity = label;
         if (IsStalled)
             StallState = StallDetectionState.Monitoring;
     }
@@ -136,13 +166,14 @@ public sealed class GlobalRunStatusViewModel : INotifyPropertyChanged
     public void SetBackgroundCount(int count)
         => BackgroundPillText = count > 0 ? $"{count} 个后台代理" : string.Empty;
 
-    /// <summary>定时器回调（View 层 ~500ms 调度）：刷新耗时 + 卡死判定转移</summary>
+    /// <summary>定时器回调（View 层 ~500ms 调度）：刷新耗时 + 卡死判定转移 + 走马灯内容刷新</summary>
     public void OnHeartbeatTick()
     {
         if (!IsBusy)
             return;
 
         RefreshElapsed();
+        Raise(nameof(MarqueeText));
         var idleSeconds = (_clock() - _lastHeartbeatUtc).TotalSeconds;
         var next = !_hasActiveTool && idleSeconds > StallThresholdSeconds
             ? StallDetectionState.Stalled

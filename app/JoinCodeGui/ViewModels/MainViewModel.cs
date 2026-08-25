@@ -1489,7 +1489,9 @@ public sealed partial class MainViewModel : ViewModelBase
 
             await foreach (var evt in _session.StreamAsync(message, _sendCts.Token))
             {
-                RunStatus.ReportActivity(hasActiveTool: evt.Type == ChatStreamEventType.ToolCallStart);
+                RunStatus.ReportActivity(
+                    hasActiveTool: evt.Type == ChatStreamEventType.ToolCallStart,
+                    label: evt.Type == ChatStreamEventType.ToolCallStart ? evt.ToolName : null);
                 if (evt.Type == ChatStreamEventType.Complete && evt.Usage is not null)
                     RunStatus.AddTokens(evt.Usage.TotalTokens);
                 processor.Process(evt, StreamingEnabled);

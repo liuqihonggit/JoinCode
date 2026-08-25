@@ -34,15 +34,6 @@ public sealed partial class MainWindow : Window
 
     private int _errorToastRemainingMs;
 
-    /// <summary>状态点闪烁计时器 — Busy 态每 500ms 切换透明度，提示用户引擎仍在工作</summary>
-    private readonly Avalonia.Threading.DispatcherTimer _statusBlinkTimer = new()
-    {
-        Interval = TimeSpan.FromMilliseconds(500)
-    };
-
-    /// <summary>闪烁亮暗切换标志（true=亮，false=暗）</summary>
-    private bool _statusBlinkBright = true;
-
     /// <summary>工具调用倒计时刷新计时器 — 每 100ms 更新正在运行的工具的已运行时长</summary>
     private readonly Avalonia.Threading.DispatcherTimer _toolTimer = new()
     {
@@ -61,7 +52,6 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
         App.LogDiag("[MainWindow] ctor end");
         _errorToastTimer.Tick += OnErrorToastTimerTick;
-        _statusBlinkTimer.Tick += OnStatusBlinkTick;
         _toolTimer.Tick += OnToolTimerTick;
         _runStatusTimer.Tick += OnRunStatusTimerTick;
         _runStatusTimer.Start();
@@ -115,8 +105,6 @@ public sealed partial class MainWindow : Window
     {
         _errorToastTimer.Stop();
         _errorToastTimer.Tick -= OnErrorToastTimerTick;
-        _statusBlinkTimer.Stop();
-        _statusBlinkTimer.Tick -= OnStatusBlinkTick;
         _toolTimer.Stop();
         _toolTimer.Tick -= OnToolTimerTick;
         RemoveHandler(PointerPressedEvent, OnGlobalPointerPressed);
@@ -267,7 +255,6 @@ public sealed partial class MainWindow : Window
         }
         else if (e.PropertyName == nameof(MainViewModel.StatusText))
         {
-            UpdateStatusBlink();
         }
         else if (e.PropertyName == nameof(MainViewModel.IsBusy))
         {
@@ -278,36 +265,6 @@ public sealed partial class MainWindow : Window
         }
         // G3：消息区改为 ItemsControl 模板化渲染，FilteredMessages 绑定自动更新，
         // AllMessagesText 仅保留导出/复制用途，不再驱动显示
-    }
-
-    /// <summary>根据当前 StatusKind 启停状态点闪烁：Busy 闪烁，Ready/Error 停止并恢复不透明</summary>
-    private void UpdateStatusBlink()
-    {
-        if (_vm is null || StatusDot is null)
-            return;
-        if (_vm.StatusKind == ViewModels.StatusKind.Busy)
-        {
-            if (!_statusBlinkTimer.IsEnabled)
-            {
-                _statusBlinkBright = true;
-                StatusDot.Opacity = 1;
-                _statusBlinkTimer.Start();
-            }
-        }
-        else
-        {
-            _statusBlinkTimer.Stop();
-            StatusDot.Opacity = 1;
-        }
-    }
-
-    /// <summary>状态点闪烁 tick：亮暗交替（1.0 ↔ 0.3），让用户感知引擎仍在工作</summary>
-    private void OnStatusBlinkTick(object? sender, EventArgs e)
-    {
-        if (StatusDot is null)
-            return;
-        _statusBlinkBright = !_statusBlinkBright;
-        StatusDot.Opacity = _statusBlinkBright ? 1.0 : 0.3;
     }
 
     /// <summary>工具倒计时 tick：刷新所有正在运行工具消息的已运行时长</summary>
@@ -436,3 +393,4 @@ public sealed partial class MainWindow : Window
         _autoScrollEnabled = true;
     }
 }
+

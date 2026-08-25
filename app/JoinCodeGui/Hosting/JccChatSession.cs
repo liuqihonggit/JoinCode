@@ -78,6 +78,71 @@ internal sealed class JccChatSession : IJccChatSession
     /// <inheritdoc />
     public event EventHandler<ThemeKind>? ThemeChanged;
 
+    /// <summary>
+    /// 获取后台子代理快照 — IAgentService 运行列表 + 活跃 fork 归并（forkId 亦为合法终止键）
+    /// </summary>
+    public async Task<IReadOnlyList<ViewModels.BackgroundAgentInfo>> GetBackgroundAgentsAsync(CancellationToken cancellationToken = default)
+    {
+        var result = new List<ViewModels.BackgroundAgentInfo>();
+
+        var agentService = _services.GetService<IAgentService>();
+        if (agentService is not null)
+        {
+            foreach (var info in await agentService.GetRunningAgentsAsync(cancellationToken).ConfigureAwait(false))
+            {
+                result.Add(new ViewModels.BackgroundAgentInfo(
+                    info.Id,
+                    Name: info.DisplayName ?? info.Variant?.ToString() ?? info.Role.ToString().ToLowerInvariant(),
+                    Description: info.Description,
+                    State: info.State.ToString().ToLowerInvariant(),
+                    StartedAt: info.StartedAt,
+                    ToolUseCount: info.ToolUseCount,
+                    TokenCount: info.TokenCount));
+            }
+        }
+
+        var forkManager = _services.GetService<IForkSubAgentManager>();
+        if (forkManager is not null)
+        {
+            foreach (var fork in await forkManager.GetActiveForksAsync(cancellationToken).ConfigureAwait(false))
+            {
+                if (fork.State != ForkState.Running)
+                    continue;
+                result.Add(new ViewModels.BackgroundAgentInfo(
+                    fork.ForkId,
+                    Name: "fork",
+                    Description: $"fork {fork.ForkId}",
+                    State: "running",
+                    StartedAt: fork.CreatedAt,
+                    ToolUseCount: 0,
+                    TokenCount: 0));
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>终止后台代理 — 先按 agentId 停止；未命中且是活跃 fork 时取消之</summary>
+    public async Task<bool> StopBackgroundAgentAsync(string agentId, CancellationToken cancellationToken = default)
+    {
+        var agentService = _services.GetService<IAgentService>();
+        if (agentService is not null && await agentService.StopAgentAsync(agentId, cancellationToken).ConfigureAwait(false))
+            return true;
+
+        var forkManager = _services.GetService<IForkSubAgentManager>();
+        if (forkManager is not null)
+        {
+            var forks = await forkManager.GetActiveForksAsync(cancellationToken).ConfigureAwait(false);
+            if (forks.Any(f => f.ForkId == agentId))
+            {
+                await forkManager.CancelForkAsync(agentId, cancellationToken).ConfigureAwait(false);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>settings.json 变更转发 — theme 键变更时解析为 ThemeKind 并触发 ThemeChanged</summary>
     private void OnSettingChanged(object? sender, SettingChangeEventArgs e)
     {

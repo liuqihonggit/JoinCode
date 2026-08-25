@@ -132,7 +132,7 @@ public sealed class GlobalRunStatusViewModel : INotifyPropertyChanged
         TokenText = FormatTokens(_totalTokens);
     }
 
-    /// <summary>后台代理计数变化（fork 启动/完成回填驱动）</summary>
+    /// <summary>后台代理计数变化（管理面板快照应用后同步驱动）</summary>
     public void SetBackgroundCount(int count)
         => BackgroundPillText = count > 0 ? $"{count} 个后台代理" : string.Empty;
 

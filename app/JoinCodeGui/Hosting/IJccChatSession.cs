@@ -170,4 +170,15 @@ public interface IJccChatSession : IAsyncDisposable
     /// 实现主题双向绑定。参数为解析后的 <see cref="ThemeKind"/>。
     /// </summary>
     event EventHandler<ThemeKind>? ThemeChanged;
+
+    /// <summary>
+    /// 获取后台子代理快照 — 权威数据源（IAgentService 运行列表 + 活跃 fork 归并），
+    /// 驱动 GUI 后台代理管理面板。默认空实现：占位/测试桩无需关心。
+    /// </summary>
+    Task<IReadOnlyList<ViewModels.BackgroundAgentInfo>> GetBackgroundAgentsAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<ViewModels.BackgroundAgentInfo>>([]);
+
+    /// <summary>终止后台代理（先按 agentId 停止，未命中再按 forkId 取消）。默认不支持（返回 false）</summary>
+    Task<bool> StopBackgroundAgentAsync(string agentId, CancellationToken cancellationToken = default)
+        => Task.FromResult(false);
 }

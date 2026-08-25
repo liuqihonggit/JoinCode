@@ -318,6 +318,12 @@ public sealed partial class MainViewModel : ViewModelBase
     /// <summary>全局运行状态条（spinner 动词/耗时/token 聚合/后台计数/卡死检测）</summary>
     public GlobalRunStatusViewModel RunStatus { get; } = new();
 
+    /// <summary>
+    /// 后台代理管理面板 — 数据源绑定会话门面（引擎运行列表+活跃 fork），
+    /// 快照应用时同步 RunStatus 后台计数
+    /// </summary>
+    public BackgroundAgentsPanelViewModel BackgroundPanel { get; }
+
     // === 多 subAgent 运行期显示（T4）— 组装逻辑已抽取到 ChatTurnProcessor ===
 
     /// <summary>本回合组装器（发送时创建；测试辅助路径懒创建）</summary>
@@ -445,6 +451,13 @@ public sealed partial class MainViewModel : ViewModelBase
         // T9：斜杠命令确认/退出 — handler 由 View 注入（弹确认框），退出事件转发给 View 关窗
         _session.SlashConfirmHandler = message => SlashConfirmHandler?.Invoke(message) ?? false;
         _session.ExitRequested += () => ExitRequested?.Invoke();
+
+        // 后台代理管理面板 — 数据源绑定会话门面，快照计数同步到全局状态条
+        BackgroundPanel = new BackgroundAgentsPanelViewModel(
+            fetcher: ct => _session.GetBackgroundAgentsAsync(ct),
+            stopper: (id, ct) => _session.StopBackgroundAgentAsync(id, ct));
+        BackgroundPanel.SnapshotApplied += count => RunStatus.SetBackgroundCount(count);
+
         _selectedEffort = _session.EffortLevel.ToValue();
         Messages.CollectionChanged += OnMessagesChanged;
         LoadPersistedSessions();

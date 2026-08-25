@@ -294,9 +294,15 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    /// <summary>全局状态条心跳 tick：耗时刷新 + 卡死检测状态转移</summary>
+    /// <summary>全局状态条心跳 tick：耗时刷新 + 卡死检测状态转移；面板打开期间同步后台代理快照</summary>
     private void OnRunStatusTimerTick(object? sender, EventArgs e)
-        => _vm?.RunStatus.OnHeartbeatTick();
+    {
+        if (_vm is null)
+            return;
+        _vm.RunStatus.OnHeartbeatTick();
+        if (_vm.BackgroundPanel.IsOpen)
+            _ = _vm.BackgroundPanel.RefreshAsync();
+    }
 
     /// <summary>1.5s 后自动隐藏"已复制" toast（每次复制重置计时）</summary>
     private void ScheduleCopyToastHide()

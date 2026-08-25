@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -67,6 +67,32 @@ public sealed partial class MainWindow : Window
         _runStatusTimer.Start();
         Closed += OnWindowClosed;
         AddHandler(PointerPressedEvent, OnGlobalPointerPressed, RoutingStrategies.Tunnel);
+        AddHandler(KeyDownEvent, OnGlobalKeyDown, RoutingStrategies.Tunnel);
+    }
+
+    /// <summary>双击 ESC 判定窗口 — 两次按键间隔上限</summary>
+    private const double DoubleEscWindowMs = 600;
+    private DateTime _lastEscapeAt = DateTime.MinValue;
+
+    /// <summary>
+    /// F2：全局隧道键处理 — 600ms 内双击 ESC 终止当前 AI 对话
+    /// （StopGenerating 仅取消对话 CTS 断开聊天网络；遥测为独立服务不受影响）
+    /// </summary>
+    private void OnGlobalKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key is not Key.Escape || _vm is null)
+            return;
+
+        var now = DateTime.Now;
+        if ((now - _lastEscapeAt).TotalMilliseconds <= DoubleEscWindowMs)
+        {
+            _lastEscapeAt = DateTime.MinValue; // 消费，防止三连击触发两次终止
+            if (_vm.StopGeneratingCommand.CanExecute(null))
+                _vm.StopGeneratingCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+        _lastEscapeAt = now;
     }
 
     /// <summary>点击候选项完成补全 → 回焦输入框</summary>

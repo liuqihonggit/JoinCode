@@ -202,3 +202,20 @@ agent 完成后经 task-notification 回填，GUI 当前仅显示最终结果行
   正常工作，脚本 peek 不推进索引。
 - Host.Dispose 在测试环境存在 BuildQueueService 二次处置敏感（ObjectDisposedException），
   E2E 清理已做容错处理；生产 GUI 进程退出不受影响。
+
+## 六、Fork 盲区修复（2026-08-26，commit 68c0088ce）
+
+`subagent_type` 为空 → `AgentForkMiddleware`(Order=200) 后台 fork 短路路径现已接入事件通道：
+
+| 时点 | 事件 | 发射方 |
+|------|------|--------|
+| ForkAsync 返回后立即 | `AgentStarted(forkId, "fork", prompt)` | AgentForkMiddleware（回合作用域内存活） |
+| 后台执行完成/失败/取消 | `AgentFinished(agentId, success, output)` | ForkSubAgentManager.RunBackgroundForkAsync（经 `ForkOptions.EventChannel` 捕获引用） |
+
+E2E 双路径验证：`AgentToolSpawn_ShouldEmitAgentEventsThroughMainStream`（流式全量）+
+`AgentToolFork_WithoutSubagentType_ShouldEmitAgentStartedImmediately`（fork 即时可见）。
+回归：Hands 401 / Agents 514 / GUI 364 全绿。
+
+**残余限制**：fork 完成晚于主对话回合时，AgentFinished 写入死通道被丢弃——
+GUI 该行停留在"运行中"直到回合结束，最终结果经既有 task-notification 机制在
+后续轮次回填。彻底解决需 GUI 跨回合订阅 ForkCompleted 事件（T5 后台代理管理器天然覆盖）。

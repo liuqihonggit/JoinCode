@@ -35,6 +35,13 @@ public sealed class ForkOptions
     /// Fork 路径下指定 worktree 隔离，让子智能体在独立工作树中执行
     /// </summary>
     public AgentIsolationMode IsolationMode { get; init; } = AgentIsolationMode.None;
+
+    /// <summary>
+    /// 子代理事件通道 — 调用方（AgentForkMiddleware）从环境态捕获后传入，
+    /// 供后台 fork 完成时发射 <see cref="ChatStreamEventType.AgentFinished"/> 终态事件。
+    /// fork 无流式 chunk，故只有生命周期两端事件；回合结束后到达的事件由死通道自然丢弃。
+    /// </summary>
+    public JoinCode.Abstractions.LLM.Chat.SubAgentEventChannel? EventChannel { get; init; }
 }
 
 public sealed class ForkSubAgent

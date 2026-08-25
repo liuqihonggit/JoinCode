@@ -185,7 +185,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
             // 若 RunBackgroundForkAsync 同步完成(如 ExecuteAsync 同步抛出异常),
             // .WaitAsync 再访问 forkCts.Token 会抛 ObjectDisposedException
             var forkToken = forkCts.Token;
-            _ = RunBackgroundForkAsync(forkId, context.Agent, options.TaskDescription, forkToken)
+            _ = RunBackgroundForkAsync(forkId, context.Agent, options.TaskDescription, options.EventChannel, forkToken)
                 .WaitAsync(TimeSpan.FromSeconds(10), forkToken).ConfigureAwait(false);
 
             return new ForkResult
@@ -330,8 +330,22 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
         }
     }
 
-    private async Task RunBackgroundForkAsync(string forkId, IAgent agent, string taskDescription, CancellationToken cancellationToken)
+    private async Task RunBackgroundForkAsync(string forkId, IAgent agent, string taskDescription,
+        JoinCode.Abstractions.LLM.Chat.SubAgentEventChannel? eventChannel, CancellationToken cancellationToken)
     {
+        // 终态发射辅助 — 通道由调用方在回合作用域内捕获传入；
+        // fork 完成晚于回合时事件写入死通道自然丢弃（GUI 靠 task-notification 回填补足）
+        void EmitFinished(bool success, string? output)
+        {
+            if (eventChannel is null)
+                return;
+            _entries.TryGetValue(forkId, out var entry);
+            eventChannel.Emit(JoinCode.Abstractions.LLM.Chat.ChatStreamEvent.AgentFinished(
+                entry?.AgentId ?? forkId,
+                success: success,
+                finalOutput: output));
+        }
+
         try
         {
             var result = await _deps.LifecycleManager.ExecuteAsync(agent, cancellationToken).ConfigureAwait(false);
@@ -354,6 +368,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
                 }
             }
 
+            EmitFinished(result.IsSuccess, result.IsSuccess ? result.Output : result.Error);
             await FireForkCompletedAsync(forkId, taskDescription).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
@@ -363,6 +378,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
             RecordForkMetrics("fork_background_cancelled", false);
             _logger?.LogInformation("Background Fork {ForkId} was cancelled", forkId);
 
+            EmitFinished(success: false, "已取消");
             await FireForkCompletedAsync(forkId, taskDescription).ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -375,6 +391,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
             RecordForkMetrics("fork_background_error", false);
             _logger?.LogError(ex, "Background Fork {ForkId} failed with exception", forkId);
 
+            EmitFinished(success: false, ex.Message);
             await FireForkCompletedAsync(forkId, taskDescription).ConfigureAwait(false);
         }
         finally

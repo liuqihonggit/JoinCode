@@ -54,6 +54,36 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
 
     private int MaxConcurrency => _toolExecutionSettings?.MaxParallelToolExecution ?? 10;
 
+    /// <summary>子代理事件通道轮询间隔 — 工具执行期间排空 SubAgentEventChannel 的节奏</summary>
+    private const int SubAgentEventPollIntervalMs = 50;
+
+    /// <summary>
+    /// 等待任务完成期间持续排空子代理事件通道 — GUI 多 subAgent 运行期显示的核心合流点。
+    /// 每次轮询把通道缓冲的事件交给调用方 yield，直到任务完成且缓冲排空。
+    /// 本方法不 await 目标任务：异常（含取消）保留在任务上，由调用方读取
+    /// 任务结果时在原有 try/catch 中按原语义抛出。通道经参数显式传入（迭代器内禁用 AsyncLocal）。
+    /// </summary>
+    private async IAsyncEnumerable<ChatStreamEvent> WaitForTaskWithDrainAsync(
+        Task task,
+        SubAgentEventChannel? channel,
+        [EnumeratorCancellation] CancellationToken ct)
+    {
+        while (!task.IsCompleted)
+        {
+            // WhenAny 不传播成员异常 — Task.Delay 的取消由其捕获，此处永不抛出。
+            // 目标任务是本方法参数、已在本上下文启动，仅借 WhenAny 轮询完成状态
+#pragma warning disable VSTHRD003
+            await Task.WhenAny(task, Task.Delay(SubAgentEventPollIntervalMs, ct)).ConfigureAwait(false);
+#pragma warning restore VSTHRD003
+        }
+
+        if (channel is not null)
+        {
+            foreach (var evt in channel.TryDrain())
+                yield return evt;
+        }
+    }
+
     /// <summary>
     /// 处理聊天事件流：while 循环执行 LLM 调用和工具执行
     /// </summary>
@@ -64,6 +94,10 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         var totalToolCalls = 0;
         TokenUsage? finalUsage = null;
         string? finalModelId = null;
+
+        // 子代理事件通道 — 挂到 context 显式传递（AsyncLocal 在异步迭代器内跨 yield 不可见，
+        // 实测见 AsyncLocalInIteratorTests）；深层发射侧的作用域由 ToolExecutionHandler 进入
+        context.SubAgentEvents ??= new SubAgentEventChannel();
 
 #if DEBUG
         if (System.Diagnostics.Debugger.IsAttached) System.Diagnostics.Debugger.Break();
@@ -206,9 +240,16 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
             await streamingExecutor.AddToolAsync(toolCall, idx).ConfigureAwait(false);
         }
 
+        // 排空等待：工具执行期间实时 yield 子代理事件（GUI 多 subAgent 显示链路）；
+        // yield 禁止出现在带 catch 的 try 内（CS1626），故排空在 try 外、结果读取在 try 内保持原异常语义
+            var remainingTask = streamingExecutor.GetRemainingResultsAsync();
+            await foreach (var agentEvt in WaitForTaskWithDrainAsync(remainingTask, context.SubAgentEvents, ct).ConfigureAwait(false)) {
+                yield return agentEvt;
+            }
+
         IReadOnlyList<StreamingToolResult> allResults;
         try {
-            allResults = await streamingExecutor.GetRemainingResultsAsync().ConfigureAwait(false);
+            allResults = await remainingTask.ConfigureAwait(false);
         } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
             await _toolHandler.WriteAbortedToolResultsAsync(toolCalls, 0, CancellationToken.None).ConfigureAwait(false);
             throw;
@@ -282,9 +323,18 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
             yield return ChatStreamEvent.ToolStart(toolCall.Name, toolCall.Id, toolCall.Arguments);
 
             ToolCallResult toolCallResult;
+            // 排空等待：工具执行期间实时 yield 子代理事件（GUI 多 subAgent 显示链路）
+            var execTask = _toolHandler.ExecuteToolCallAsync(
+                toolCall.Name, toolCall.Id, currentArgs, context, ct);
+            await foreach (var agentEvt in WaitForTaskWithDrainAsync(execTask, context.SubAgentEvents, ct).ConfigureAwait(false)) {
+                yield return agentEvt;
+            }
+
             try {
-                toolCallResult = await _toolHandler.ExecuteToolCallAsync(
-                    toolCall.Name, toolCall.Id, currentArgs, context, ct).ConfigureAwait(false);
+                // 排空等待已确认任务完成（含异常态），同步读取仅为在原 try/catch 内触发原异常语义
+#pragma warning disable JCC3006
+                toolCallResult = execTask.GetAwaiter().GetResult();
+#pragma warning restore JCC3006
             } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
                 await _toolHandler.WriteAbortedToolResultsAsync(toolCalls, idx, CancellationToken.None).ConfigureAwait(false);
                 throw;

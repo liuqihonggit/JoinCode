@@ -74,6 +74,11 @@ public sealed partial class ToolExecutionHandler : ServiceEntity, IToolExecution
         string toolName, string? toolCallId, Dictionary<string, JsonElement>? arguments,
         ChatMiddlewareContext context, CancellationToken cancellationToken)
     {
+        // 子代理事件作用域 — 本方法是普通异步方法（非迭代器），在此进入 AsyncLocal 作用域
+        // 可可靠传播到深层 Agent 工具管道，AgentStreamExecutionMiddleware 经 Current 发射事件。
+        // QueryLoop 排空侧不经过此环境态（迭代器限制），而是显式读取 context.SubAgentEvents。
+        using var agentEventScope = context.SubAgentEvents?.EnterScope();
+
         var toolCallResult = await _toolOrchestrator.ExecuteToolCallAsync(
             toolName, toolCallId, arguments, cancellationToken).ConfigureAwait(false);
 

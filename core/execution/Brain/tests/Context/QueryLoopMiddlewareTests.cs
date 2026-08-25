@@ -120,6 +120,99 @@ public sealed class QueryLoopMiddlewareTests
         toolResultsAdded.Should().NotContain(r => r.Content == "(aborted)");
     }
 
+    [Fact]
+    public async Task SubAgentEvents_EmittedDuringToolExecution_ShouldBeYieldedBeforeToolEnd()
+    {
+        // GUI 多 subAgent 显示的核心链路：子代理中间件在工具执行期间向通道发射事件，
+        // 主循环必须实时排空并 yield（位置在 ToolStart 与 ToolEnd 之间），回合结束恢复作用域
+        var toolCalls = new List<ToolCallEntry>
+        {
+            new() { Id = "call_001", Name = "Agent", Arguments = "{\"description\":\"调研\"}" },
+        };
+
+        var (contextManager, _) = CreateContextManager();
+
+        var toolOrchestrator = new Mock<IChatToolOrchestrator>();
+        toolOrchestrator.Setup(t => t.ExecuteToolCallAsync("Agent", "call_001", It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<CancellationToken>()))
+            .Returns(async (string name, string? callId, Dictionary<string, JsonElement>? args, CancellationToken ct) =>
+            {
+                var channel = SubAgentEventChannel.Current;
+                channel?.Emit(ChatStreamEvent.AgentStarted("ag-x", "explore", "调研", "executor"));
+                channel?.Emit(new ChatStreamEvent { Type = ChatStreamEventType.ToolCallStart, ToolName = "FileRead", AgentId = "ag-x" });
+                await Task.Delay(120).ConfigureAwait(true);
+                channel?.Emit(ChatStreamEvent.AgentFinished("ag-x", success: true));
+                return new ToolCallResult { ResultText = "agent done", IsError = false };
+            });
+
+        var middleware = CreateMiddleware(contextManager, toolOrchestrator, toolCalls);
+
+        var events = new List<ChatStreamEvent>();
+        await foreach (var evt in middleware.InvokeAsync(
+            CreateContext(), (ctx, ct) => AsyncEnumerableEmpty<ChatStreamEvent>(), CancellationToken.None))
+        {
+            events.Add(evt);
+        }
+
+        var types = events.Select(e => e.Type).ToList();
+        types.Should().Contain(ChatStreamEventType.AgentStarted);
+        types.Should().Contain(ChatStreamEventType.ToolCallStart);
+        types.Should().Contain(ChatStreamEventType.AgentFinished);
+
+        // 主对话与子代理共用 ToolCallStart 枚举，用 AgentId 区分
+        var mainToolStartIndex = events.FindIndex(e => e.Type == ChatStreamEventType.ToolCallStart && !e.IsSubAgentActivity);
+        var firstAgentEventIndex = events.FindIndex(e => e.IsSubAgentActivity);
+        var mainToolEndIndex = events.FindIndex(e => e.Type == ChatStreamEventType.ToolCallEnd && !e.IsSubAgentActivity);
+
+        mainToolStartIndex.Should().BeGreaterThanOrEqualTo(0);
+        mainToolEndIndex.Should().BeGreaterThanOrEqualTo(0);
+        firstAgentEventIndex.Should().BeGreaterThan(mainToolStartIndex,
+            "子代理事件必须出现在主对话 ToolStart 之后");
+        types.IndexOf(ChatStreamEventType.AgentFinished).Should().BeLessThan(mainToolEndIndex,
+            "子代理事件必须出现在主对话 ToolEnd 之前");
+
+        SubAgentEventChannel.Current.Should().BeNull("回合结束后作用域必须恢复");
+    }
+
+    [Fact]
+    public async Task NestedQueryLoop_SubAgentSpawnsGrandchild_EmitsToOwnScope()
+    {
+        // 嵌套隔离：子代理内部再 spawn 孙代理时，孙代理事件进入内层通道，不泄漏到外层缓冲
+        var toolCalls = new List<ToolCallEntry>
+        {
+            new() { Id = "call_001", Name = "Agent", Arguments = "{\"description\":\"父代理\"}" },
+        };
+
+        var (contextManager, _) = CreateContextManager();
+
+        var toolOrchestrator = new Mock<IChatToolOrchestrator>();
+        toolOrchestrator.Setup(t => t.ExecuteToolCallAsync("Agent", "call_001", It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<CancellationToken>()))
+            .Returns((string name, string? callId, Dictionary<string, JsonElement>? args, CancellationToken ct) =>
+            {
+                var outerChannel = SubAgentEventChannel.Current;
+                outerChannel.Should().NotBeNull();
+                var innerChannel = new SubAgentEventChannel();
+                using (innerChannel.EnterScope())
+                {
+                    SubAgentEventChannel.Current!.Emit(ChatStreamEvent.AgentStarted("grandchild"));
+                    SubAgentEventChannel.Current.TryDrain().Should().ContainSingle("内层作用域独立缓冲");
+                }
+                outerChannel.TryDrain().Should().BeEmpty("内层事件不得泄漏到外层");
+                return Task.FromResult(new ToolCallResult { ResultText = "done", IsError = false });
+            });
+
+        var middleware = CreateMiddleware(contextManager, toolOrchestrator, toolCalls);
+
+        var events = new List<ChatStreamEvent>();
+        await foreach (var evt in middleware.InvokeAsync(
+            CreateContext(), (ctx, ct) => AsyncEnumerableEmpty<ChatStreamEvent>(), CancellationToken.None))
+        {
+            events.Add(evt);
+        }
+
+        events.Where(e => e.Type == ChatStreamEventType.AgentStarted)
+            .Should().BeEmpty("内层通道的孙代理事件不应出现在外层输出中");
+    }
+
     private static (Mock<IChatContextManager> Mock, List<(string Content, string? ToolCallId, string ToolName)> Results) CreateContextManager()
     {
         var contextManager = new Mock<IChatContextManager>();

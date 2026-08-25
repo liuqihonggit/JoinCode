@@ -78,6 +78,7 @@ global using Services.SystemPower;
 global using Services.Build;
 global using Services.Voice;
 global using Services.Web;
+global using Infrastructure.Network.Downloader;
 global using StreamEvent = JoinCode.Abstractions.LLM.Chat.StreamEvent;
 global using System.Collections.Immutable;
 global using System.ComponentModel.DataAnnotations;

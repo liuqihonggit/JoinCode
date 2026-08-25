@@ -1,4 +1,5 @@
 global using System.Collections.Frozen;
+global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.Utils;
 global using JoinCode.Abstractions.Tools;
 global using FluentAssertions;
@@ -7,3 +8,5 @@ global using System.Text.Json;
 global using Testing.Common;
 global using Tools;
 global using Tools.Handlers;
+global using JoinCode.Hands.Desktop;
+global using JoinCode.Hands.Desktop.Native;

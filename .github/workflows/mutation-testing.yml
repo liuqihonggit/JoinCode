@@ -176,6 +176,9 @@ jobs:
             'Bridge-Transport'    = @{ Dir = 'services\Bridge\tests\Unit'; Src = 'Bridge.csproj'; Mutate = @('Transport/**'); Concurrency = 2 }
             'Bridge-CoreOnly'     = @{ Dir = 'services\Bridge\tests\Unit'; Src = 'Bridge.csproj'; Mutate = @('Core/**'); Concurrency = 2 }
             'Bridge-Messaging'    = @{ Dir = 'services\Bridge\tests\Unit'; Src = 'Bridge.csproj'; Mutate = @('Messaging/**'); Concurrency = 2 }
+            'Bridge-SerMsg'       = @{ Dir = 'services\Bridge\tests\Unit'; Src = 'Bridge.csproj'; Mutate = @('Core/Serialization/**','Messaging/**'); Concurrency = 2 }
+            'Bridge-RtMsg'        = @{ Dir = 'services\Bridge\tests\Unit'; Src = 'Bridge.csproj'; Mutate = @('Core/Runtime/**','Messaging/**'); Concurrency = 2 }
+            'Bridge-CtxMsg'       = @{ Dir = 'services\Bridge\tests\Unit'; Src = 'Bridge.csproj'; Mutate = @('Core/Context/**','Core/Handle/**','Core/BridgeUI.cs','Core/BridgeStatusUtil.cs','Core/BridgePointer.cs','Core/BridgeFaultInjection.cs','Core/IBridgeLogger.cs','Messaging/**'); Concurrency = 2 }
             'Bridge-ClientServer' = @{ Dir = 'services\Bridge\tests\Unit'; Src = 'Bridge.csproj'; Mutate = @('Client/**','Server/**','Config/**','Security/**'); Concurrency = 2 }
             'Composition'          = @{ Dir = 'composition\Composition\tests\Unit';      Src = 'Composition.csproj';     Mutate = @() }
             'Clock'                = @{ Dir = 'composition\Clock\tests\Unit';            Src = 'Clock.csproj';           Mutate = @() }

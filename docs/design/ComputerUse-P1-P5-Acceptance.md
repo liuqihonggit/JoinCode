@@ -15,8 +15,8 @@
 | P2 | M3 | 环境感知 + 撤销元意识 | 31 | 0 | ✅ |
 | P3 | M4 | 复合操作链 + 进程干预 | 14 | 3 | ✅ |
 | P4 | M5 | 宏录制 | 13 | 0 | ✅ |
-| P5 | M6 | 观察学习 | 28 | 0 | ✅ |
-| **合计** | | | **193** | **9** | **✅** |
+| P5 | M6 | 观察学习（抽象/复现/优化） | 43 | 0 | ✅ |
+| **合计** | | | **208** | **9** | **✅** |
 
 ---
 
@@ -152,7 +152,7 @@
 
 | 测试类 | 测试数 | 验证内容 |
 |--------|--------|----------|
-| `P5ObservationLearnerTests` | 28 | BuildOperationsDescription/ExtractJson/ParseAbstractLogic 纯方法 + Mock IQueryService AbstractAsync/OptimizeAsync |
+| `P5ObservationLearnerTests` | 43 | BuildOperationsDescription/ExtractJson/ParseAbstractLogic/ParseOperations 纯方法 + Mock LLM Abstract/Reproduce/Optimize |
 
 ### PRD 需求映射
 
@@ -160,6 +160,7 @@
 |-----------|------|------|
 | L-01 观察会话记录 | `ObservedSession`（操作序列+截图+时间范围） | ✅ |
 | L-02 操作抽象 | `AbstractAsync` → `AbstractOperationLogic`（参数化模式） | ✅ Mock LLM |
+| L-03 观察复现 | `ReproduceAsync` → `Macro`（LLM 生成具体操作序列） | ✅ Mock LLM |
 | L-04 步骤优化 | `OptimizeAsync` → 优化建议文本 | ✅ Mock LLM |
 
 ---
@@ -209,8 +210,9 @@ dotnet test tests/Unit/Hands.Tests/Hands.Tests.csproj -c Debug --no-build \
 | `start_observation` | P5 | ObservationToolHandlers | 开始观察会话 |
 | `learn_from_observation` | P5 | ObservationToolHandlers | 观察→抽象操作逻辑 |
 | `optimize_steps` | P5 | ObservationToolHandlers | 优化操作步骤建议 |
+| `reproduce_from_logic` | P5 | ObservationToolHandlers | 从抽象逻辑生成操作序列并执行 |
 
-**合计**：19 个 MCP 工具
+**合计**：20 个 MCP 工具
 
 ---
 
@@ -235,7 +237,6 @@ dotnet test tests/Unit/Hands.Tests/Hands.Tests.csproj -c Debug --no-build \
 
 | 项 | 说明 | 优先级 |
 |----|------|--------|
-| L-03 观察复现 | PRD L-03（从抽象逻辑生成可执行操作序列）未实现，需 `ReproduceAsync(AbstractOperationLogic) → Macro` | 低（L-02/L-04已覆盖核心学习能力） |
 | P1 真实多模态 LLM 集成 | 当前集成测试用 Mock 检测器，未对接真实多模态 LLM API | 低（需 API key + 网络环境） |
 | P3 集成测试串行化 | 9个集成测试串行运行约30s，可考虑虚拟桌面隔离并行 | 低 |
 
@@ -257,3 +258,4 @@ dotnet test tests/Unit/Hands.Tests/Hands.Tests.csproj -c Debug --no-build \
 | `e526bd062` | P4: 宏录制+13单元测试 |
 | `4e4804993` | P5: 观察学习+28单元测试 |
 | `ecc215dc3` | fix: 集成测试统一标记Category=Integration |
+| `c4a770bc7` | feat: L-03 观察复现 + reproduce_from_logic MCP工具 + 15单元测试 |

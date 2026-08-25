@@ -20,4 +20,8 @@ public enum WebToolName
     [EnumValue("web_browser")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     WebBrowser,
+
+    [EnumValue("download_file")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
+    DownloadFile,
 }

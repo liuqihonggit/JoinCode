@@ -155,4 +155,24 @@ public long? AgentTokenCount { get; init; }
 
 ## 决策记录
 
-<!-- 🤖 Auto Decision: 待用户确认 D1/D2/D3 后填写 -->
+<!-- 🤖 Auto Decision: 2026-08-25 -->
+<!-- 决策: 用户确认可视化四形态（内嵌运行卡片/并行树形列表/完成定格/全局状态条）按设计实现 -->
+<!-- 原因: 对齐 ClaudeCode 内联模式，agent 状态紧贴触发上下文 -->
+<!-- 替代方案: 右栏独立面板（违背内联参考模式，未采用）-->
+<!-- 验证: D1/D2/D3 按推荐方案 A 执行 -->
+
+<!-- 🤖 Auto Decision: 2026-08-26 (T1, commit 1d3e98167) -->
+<!-- 决策: 子代理中间活动复用现有事件类型 + AgentId 路由键，仅新增 AgentStarted/AgentFinished 两个枚举值 -->
+<!-- 原因: 对齐 TS onProgress 附着 toolUseID 模式；枚举增量最小；Switch 可选回调保证 AskClarifyCommand/SessionController 零改动兼容 -->
+<!-- 替代方案: 三个全新事件类型（活动事件语义与现有类型重复，未采用）-->
+
+<!-- 🤖 Auto Decision: 2026-08-26 (T2, commit 3a7621154) -->
+<!-- 决策: SubAgentEventChannel 排空侧经 ChatMiddlewareContext.SubAgentEvents 显式传递，发射侧由 ToolExecutionHandler 进入 AsyncLocal 作用域 -->
+<!-- 原因: 实测 AsyncLocal 在异步迭代器段内 Set 后跨 yield 不可见（AsyncLocalInIteratorTests 固化该平台行为），QueryLoop 是迭代器禁走环境态；ToolExecutionHandler 是普通异步方法可可靠传播 -->
+<!-- 替代方案: 全链路显式参数传递（需改 orchestrator/gateway/executor 四层签名，侵入过大）-->
+<!-- 验证: QueryLoop 合流测试绿：子代理事件出现在主 ToolStart 与 ToolEnd 之间；嵌套作用域隔离测试绿 -->
+
+<!-- 🤖 Auto Decision: 2026-08-26 (T3+T4) -->
+<!-- 决策: 连续搜索/读取从第 2 次起折叠为"搜索/读取 N 次…"摘要；展开上限 LRU=3 移植旧 TUI SubAgentCardManager -->
+<!-- 原因: 单次保留工具名可读性；LRU 防止多 agent 同时展开刷屏 -->
+<!-- 验证: Tracker 9 测试 + GUI 全量 364 测试全绿 -->

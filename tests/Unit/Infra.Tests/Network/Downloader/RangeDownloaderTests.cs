@@ -65,7 +65,7 @@ public sealed class RangeDownloaderTests
             };
         });
         var fs = new InMemoryFileSystem();
-        var downloader = new RangeDownloader(new HttpClient(handler), fs);
+        var downloader = new RangeDownloader(new TestHttpClientProvider(new HttpClient(handler)), fs);
 
         var session = downloader.StartDownload(Url, FilePath, new DownloadOptions { MaxThreads = 1 });
         await Task.Delay(50);
@@ -130,7 +130,7 @@ public sealed class RangeDownloaderTests
             };
         });
         var fs = new InMemoryFileSystem();
-        var downloader = new RangeDownloader(new HttpClient(handler), fs);
+        var downloader = new RangeDownloader(new TestHttpClientProvider(new HttpClient(handler)), fs);
         return (downloader, fs);
     }
 

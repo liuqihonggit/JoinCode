@@ -16,7 +16,7 @@ public sealed class DownloadSessionStateTransitionTests
     {
         var handler = CreateDelayedHandler(1024, delayMs: 500, etag: "\"etag1\"");
         var fs = new InMemoryFileSystem();
-        var downloader = new RangeDownloader(new HttpClient(handler), fs);
+        var downloader = new RangeDownloader(new TestHttpClientProvider(new HttpClient(handler)), fs);
 
         var session = downloader.StartDownload(Url, FilePath, new DownloadOptions { MaxThreads = 1 });
         await Task.Delay(50);
@@ -33,7 +33,7 @@ public sealed class DownloadSessionStateTransitionTests
         var data = Enumerable.Range(0, 1024).Select(i => (byte)i).ToArray();
         var handler = CreateDelayedHandlerWithData(data, delayMs: 300, etag: "\"etag1\"");
         var fs = new InMemoryFileSystem();
-        var downloader = new RangeDownloader(new HttpClient(handler), fs);
+        var downloader = new RangeDownloader(new TestHttpClientProvider(new HttpClient(handler)), fs);
 
         var session = downloader.StartDownload(Url, FilePath, new DownloadOptions { MaxThreads = 1 });
         await Task.Delay(50);
@@ -67,7 +67,7 @@ public sealed class DownloadSessionStateTransitionTests
             return RangeResponseFromData(req, data);
         });
         var fs = new InMemoryFileSystem();
-        var downloader = new RangeDownloader(new HttpClient(handler), fs);
+        var downloader = new RangeDownloader(new TestHttpClientProvider(new HttpClient(handler)), fs);
 
         var session = downloader.StartDownload(Url, FilePath, new DownloadOptions { MaxThreads = 1 });
         await Task.Delay(50);
@@ -106,7 +106,7 @@ public sealed class DownloadSessionStateTransitionTests
     {
         var handler = CreateDelayedHandler(1024, delayMs: 500, etag: "\"etag1\"");
         var fs = new InMemoryFileSystem();
-        var downloader = new RangeDownloader(new HttpClient(handler), fs);
+        var downloader = new RangeDownloader(new TestHttpClientProvider(new HttpClient(handler)), fs);
 
         var session = downloader.StartDownload(Url, FilePath, new DownloadOptions { MaxThreads = 1 });
         await Task.Delay(50);
@@ -131,7 +131,7 @@ public sealed class DownloadSessionStateTransitionTests
             return RangeResponseFromData(req, data);
         });
         var fs = new InMemoryFileSystem();
-        return (new RangeDownloader(new HttpClient(handler), fs), fs);
+        return (new RangeDownloader(new TestHttpClientProvider(new HttpClient(handler)), fs), fs);
     }
 
     private static DelayedStubHandler CreateDelayedHandler(int length, int delayMs, string etag)

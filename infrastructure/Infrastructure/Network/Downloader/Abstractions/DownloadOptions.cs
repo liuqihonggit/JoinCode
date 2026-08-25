@@ -24,6 +24,12 @@ public sealed class DownloadOptions
     /// <summary>元数据持久化频率:每下载 N 字节刷新一次 .meta.json。默认 64KB</summary>
     public long MetadataFlushInterval { get; init; } = 64 * 1024;
 
+    /// <summary>
+    /// 代理 URL(如 http://127.0.0.1:7890)— 优先级最高,非空时使用此代理
+    /// <para>null 时按优先级回退:HTTPS_PROXY/HTTP_PROXY 环境变量 → VPN/代理路由识别</para>
+    /// </summary>
+    public string? ProxyUrl { get; init; }
+
     /// <summary>校验 MaxThreads 合法性(>=1)</summary>
     public void Validate()
     {

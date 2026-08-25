@@ -193,6 +193,7 @@ public sealed class P3CompoundOperationTests
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task StartAndKillProcess_Notepad_StartedThenKilled()
     {
         var handler = new ProcessToolHandlers();

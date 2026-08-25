@@ -5,7 +5,7 @@ namespace JoinCode.Hands.Desktop.Tests;
 /// 串行化运行（防止多测试并行启动多个记事本互相干扰）
 /// 用 process.MainWindowHandle 精确关联窗口，每步验证前台句柄一致性
 /// </summary>
-[Trait("Category", "DesktopIntegration")]
+[Trait("Category", "Integration")]
 [Collection("DesktopIntegration")]
 public sealed class P3CompoundOperationIntegrationTests
 {

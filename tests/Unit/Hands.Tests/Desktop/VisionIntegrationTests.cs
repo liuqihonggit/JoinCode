@@ -4,7 +4,7 @@ namespace JoinCode.Hands.Desktop.Tests;
 /// P1 E2E 集成验收 — 视觉理解引导桌面操作全链路（PRD §6.3 M2 验收场景）
 /// 串行化运行，用 process.MainWindowHandle 精确关联窗口，每步验证前台句柄一致性
 /// </summary>
-[Trait("Category", "DesktopIntegration")]
+[Trait("Category", "Integration")]
 [Collection("DesktopIntegration")]
 public sealed class VisionIntegrationTests
 {

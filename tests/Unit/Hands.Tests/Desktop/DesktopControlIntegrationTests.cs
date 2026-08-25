@@ -4,7 +4,7 @@ namespace JoinCode.Hands.Desktop.Tests;
 /// P0 E2E 集成验收 — 记事本全链路：启动→查找窗口→激活→输入文本→截图→关闭
 /// 对应 PRD §6.3 M1 验收场景，串行化运行
 /// </summary>
-[Trait("Category", "DesktopIntegration")]
+[Trait("Category", "Integration")]
 [Collection("DesktopIntegration")]
 public sealed class DesktopControlIntegrationTests
 {

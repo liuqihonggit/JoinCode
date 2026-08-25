@@ -190,6 +190,7 @@ public static class TestPipelineRegistration
                 .Use(sp.GetRequiredService<ShellSedInterceptMiddleware>())
                 .Use(sp.GetRequiredService<ShellBackgroundMiddleware>())
                 .Use(sp.GetRequiredService<ShellBuildInterceptMiddleware>())
+                .Use(sp.GetRequiredService<ShellDownloadHintMiddleware>())
                 .Use(sp.GetRequiredService<ShellExecutionMiddleware>())
                 .Use(sp.GetRequiredService<ShellOutputMiddleware>())
                 .WithHooks(sp)

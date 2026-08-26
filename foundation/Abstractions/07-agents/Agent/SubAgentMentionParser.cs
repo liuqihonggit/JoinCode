@@ -1,17 +1,17 @@
-namespace JoinCode.Entry;
+namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
-/// @agentName 语法解析器 — 用户用 @指定子代理直接注入输入，绕过主代理 LLM 协同决策
-/// 语法: @agentName 消息内容
-/// 匹配优先级: DisplayName 精确 → Description 精确 → Id 前缀
+/// @agentName 语法解析器 — 用户用 @指定子代理直接注入输入，绕过主代理 LLM 协同决策。
+/// CLI ReplLoopStep 与 GUI 消息路由共用此实现（自 JoinCode.Entry 内部类公共化迁入）。
+/// 语法: @agentName 消息内容（必须空格分隔）
 /// </summary>
-internal static class SubAgentMentionParser
+public static class SubAgentMentionParser
 {
     /// <summary>
     /// 尝试解析 @agentName 消息 语法
     /// </summary>
     /// <returns>(agentName, message) 或 null（非 @ 语法或格式无效）</returns>
-    internal static (string AgentName, string Message)? Parse(string input)
+    public static (string AgentName, string Message)? Parse(string input)
     {
         if (string.IsNullOrWhiteSpace(input) || input[0] != '@') return null;
 
@@ -30,7 +30,7 @@ internal static class SubAgentMentionParser
     /// 按名称模糊匹配运行中子代理
     /// 匹配优先级: DisplayName 精确 → Description 精确 → Id 前缀
     /// </summary>
-    internal static JoinCode.Abstractions.Interfaces.RunningAgentInfo? FindAgent(
+    public static JoinCode.Abstractions.Interfaces.RunningAgentInfo? FindAgent(
         string agentName,
         IEnumerable<JoinCode.Abstractions.Interfaces.RunningAgentInfo> runningAgents)
     {

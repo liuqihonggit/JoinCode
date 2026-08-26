@@ -273,4 +273,44 @@ public class ForkSubAgentManagerTests
         var result = act();
         result.Should().Contain(task);
     }
+
+    [Fact]
+    public async Task ForkAsync_BackgroundWithEventChannel_ShouldEmitAgentFinishedOnCompletion()
+    {
+        // GUI fork 盲区修复契约：RunInBackground=true 且传入 EventChannel 时，
+        // 后台 fork 完成必须向通道发射 AgentFinished 终态事件
+        var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
+        var agent = new AgentBase("Fork with channel", null, queryEngineMock.Object, null);
+
+        _lifecycleManagerMock
+            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
+            .ReturnsAsync(agent);
+        _lifecycleManagerMock
+            .Setup(x => x.ExecuteAsync(agent, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SubAgentResult { AgentId = "fork-agent-ch", IsSuccess = true, Output = "Fork completed" });
+
+        var channel = new SubAgentEventChannel();
+        var options = new ForkOptions
+        {
+            ParentSessionId = "parent-session-ch",
+            TaskDescription = "Fork task",
+            RunInBackground = true,
+            EventChannel = channel
+        };
+
+        var result = await _manager.ForkAsync(options).ConfigureAwait(true);
+        result.State.Should().Be(ForkState.Running);
+
+        ChatStreamEvent? finished = null;
+        for (var i = 0; i < 100 && finished is null; i++)
+        {
+            await Task.Delay(20).ConfigureAwait(true);
+            finished = channel.TryDrain().FirstOrDefault(e => e.Type == ChatStreamEventType.AgentFinished);
+        }
+
+        finished.Should().NotBeNull("后台 fork 完成必须发射 AgentFinished");
+        finished!.AgentSuccess.Should().BeTrue();
+        finished.AgentId.Should().Be(agent.ObjectId.UniqueId, "终态应携带真实 agentId（entry.AgentId）");
+        finished.Content.Should().Be("Fork completed");
+    }
 }

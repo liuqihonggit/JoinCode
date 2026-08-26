@@ -63,6 +63,101 @@ public sealed partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     private bool _streamingEnabled = true;
 
+    /// <summary>F3：Enter 直接发送（false → Ctrl+Enter 发送、Enter 换行）</summary>
+    [ObservableProperty]
+    private bool _enterSends = false;
+
+    /// <summary>F2：双击 ESC 终止手势开关</summary>
+    [ObservableProperty]
+    private bool _doubleEscStop = true;
+
+    /// <summary>输入栏占位提示 — 随发送键位偏好联动</summary>
+    public string SendHintText => EnterSends
+        ? "输入消息，Enter 发送 / Shift+Enter 换行…"
+        : "输入消息，Ctrl+Enter 发送 / Enter 换行…";
+
+    partial void OnEnterSendsChanged(bool value) => OnPropertyChanged(nameof(SendHintText));
+
+    /// <summary>快捷键面板项列表（需求3）— 从 GuiPreferences 加载，录制后写回持久化</summary>
+    public ObservableCollection<HotkeyItemVm> HotkeyItems { get; } = [];
+
+    /// <summary>切换快捷键录制状态：同一时间只允许一个项录制中</summary>
+    [RelayCommand]
+    private void ToggleHotkeyRecording(HotkeyItemVm? item)
+    {
+        if (item is null)
+            return;
+        foreach (var h in HotkeyItems)
+            h.IsRecording = h == item && !h.IsRecording;
+    }
+
+    /// <summary>恢复单个快捷键为默认值</summary>
+    [RelayCommand]
+    private void ResetHotkey(HotkeyItemVm? item)
+    {
+        if (item is null)
+            return;
+        item.Gesture = GetDefaultHotkey(item.ActionKey);
+        SaveHotkeysToPreferences();
+    }
+
+    /// <summary>录制完成后由 View 层调用：设置键位并持久化</summary>
+    public void ApplyRecordedHotkey(HotkeyItemVm item, string gesture)
+    {
+        item.Gesture = gesture;
+        item.IsRecording = false;
+        SaveHotkeysToPreferences();
+    }
+
+    /// <summary>快捷键默认值表</summary>
+    private static string GetDefaultHotkey(string actionKey) => actionKey switch
+    {
+        "Send" => "Ctrl+Enter",
+        "Newline" => "Enter",
+        "Stop" => "Double+Escape",
+        "NewSession" => "Ctrl+N",
+        "ClearHistory" => "Ctrl+L",
+        "ToggleSettings" => "Ctrl+OemComma",
+        _ => string.Empty
+    };
+
+    /// <summary>从 HotkeyItems 获取指定动作的当前键位</summary>
+    private string GetHotkeyGesture(string actionKey)
+    {
+        foreach (var h in HotkeyItems)
+            if (h.ActionKey == actionKey)
+                return h.Gesture;
+        return GetDefaultHotkey(actionKey);
+    }
+
+    /// <summary>从 HotkeyItems 写回 GuiPreferences 并持久化</summary>
+    private void SaveHotkeysToPreferences()
+    {
+        if (!_isPreferencesLoaded)
+            return;
+        try
+        {
+            var existing = _preferencesStore.Load();
+            foreach (var h in HotkeyItems)
+            {
+                switch (h.ActionKey)
+                {
+                    case "Send": existing.HotkeySend = h.Gesture; break;
+                    case "Newline": existing.HotkeyNewline = h.Gesture; break;
+                    case "Stop": existing.HotkeyStop = h.Gesture; break;
+                    case "NewSession": existing.HotkeyNewSession = h.Gesture; break;
+                    case "ClearHistory": existing.HotkeyClearHistory = h.Gesture; break;
+                    case "ToggleSettings": existing.HotkeyToggleSettings = h.Gesture; break;
+                }
+            }
+            _preferencesStore.Save(existing);
+        }
+        catch (Exception ex)
+        {
+            WriteErrorLog(ex);
+        }
+    }
+
     /// <summary>推理力度选项（对齐 CLI /effort：low/medium/high/max/auto）</summary>
     public IReadOnlyList<string> EffortOptions { get; } =
         [EffortLevel.Low.ToValue(), EffortLevel.Medium.ToValue(), EffortLevel.High.ToValue(), EffortLevel.Max.ToValue(), EffortLevel.Auto.ToValue()];
@@ -295,6 +390,14 @@ public sealed partial class MainViewModel : ViewModelBase
             msg.IsThinkingExpanded = !msg.IsThinkingExpanded;
     }
 
+    /// <summary>切换系统提示词注入卡片的折叠/展开状态（需求10）</summary>
+    [RelayCommand]
+    private void TogglePrompt(object? parameter)
+    {
+        if (parameter is ChatUiMessage msg && msg.IsSystemPromptInjection)
+            msg.IsPromptExpanded = !msg.IsPromptExpanded;
+    }
+
     private int _sessionCounter;
 
     /// <summary>当前活动会话（首条用户消息后自动设为新标题）</summary>
@@ -314,6 +417,37 @@ public sealed partial class MainViewModel : ViewModelBase
 
     /// <summary>UI 对话消息集合（角色化气泡）</summary>
     public ObservableCollection<ChatUiMessage> Messages { get; } = [];
+
+    /// <summary>全局运行状态条（spinner 动词/耗时/token 聚合/后台计数/卡死检测）</summary>
+    public GlobalRunStatusViewModel RunStatus { get; } = new();
+
+    /// <summary>
+    /// 后台代理管理面板 — 数据源绑定会话门面（引擎运行列表+活跃 fork），
+    /// 快照应用时同步 RunStatus 后台计数
+    /// </summary>
+    public BackgroundAgentsPanelViewModel BackgroundPanel { get; }
+
+    // === 多 subAgent 运行期显示（T4）— 组装逻辑已抽取到 ChatTurnProcessor ===
+
+    /// <summary>本回合组装器（发送时创建；测试辅助路径懒创建）</summary>
+    private ChatTurnProcessor? _turnProcessor;
+
+    /// <summary>测试入口：重置子代理追踪状态</summary>
+    internal void PrepareAgentRunTurnForTest()
+        => _turnProcessor = new ChatTurnProcessor(Messages);
+
+    /// <summary>测试入口：直接消费一条子代理事件（无回合占位的轻量路径）</summary>
+    internal void HandleSubAgentActivityForTest(ChatStreamEvent evt)
+        => GetOrCreateProcessor().Process(evt, streamingEnabled: false);
+
+    private ChatTurnProcessor GetOrCreateProcessor()
+    {
+        if (_turnProcessor is not null)
+            return _turnProcessor;
+        _turnProcessor = new ChatTurnProcessor(Messages);
+        _turnProcessor.BeginTurn();
+        return _turnProcessor;
+    }
 
     /// <summary>Assistant 消息计数器（CanRegenerate O(1) 查找，由 OnMessagesChanged 维护）</summary>
     private int _assistantMessageCount;
@@ -420,6 +554,13 @@ public sealed partial class MainViewModel : ViewModelBase
         // T9：斜杠命令确认/退出 — handler 由 View 注入（弹确认框），退出事件转发给 View 关窗
         _session.SlashConfirmHandler = message => SlashConfirmHandler?.Invoke(message) ?? false;
         _session.ExitRequested += () => ExitRequested?.Invoke();
+
+        // 后台代理管理面板 — 数据源绑定会话门面，快照计数同步到全局状态条
+        BackgroundPanel = new BackgroundAgentsPanelViewModel(
+            fetcher: ct => _session.GetBackgroundAgentsAsync(ct),
+            stopper: (id, ct) => _session.StopBackgroundAgentAsync(id, ct));
+        BackgroundPanel.SnapshotApplied += count => RunStatus.SetBackgroundCount(count);
+
         _selectedEffort = _session.EffortLevel.ToValue();
         Messages.CollectionChanged += OnMessagesChanged;
         LoadPersistedSessions();
@@ -501,6 +642,8 @@ public sealed partial class MainViewModel : ViewModelBase
 
         OnPropertyChanged(nameof(IsMockConnection));
         IsEngineLoaded = true;
+        // 需求11：异步填充子会话树（快照避免跨线程）
+        _ = Task.Run(() => PopulateSubSessionsAsync(Sessions.ToArray()));
         _ = Task.Run(async () =>
         {
             try
@@ -906,6 +1049,19 @@ public sealed partial class MainViewModel : ViewModelBase
     {
         if (_isPreferencesLoaded && !string.IsNullOrWhiteSpace(value))
         {
+            // 需求10：向消息区推送系统提示词注入卡片（去重：与最后一条注入内容相同则跳过）
+            if (Messages.Count == 0
+                || Messages[^1].Kind != ChatUiMessageKind.SystemPromptInjection
+                || Messages[^1].Content != value)
+            {
+                Messages.Add(new ChatUiMessage
+                {
+                    Role = MessageRole.System,
+                    Content = value,
+                    Timestamp = DateTime.Now,
+                    Kind = ChatUiMessageKind.SystemPromptInjection
+                });
+            }
             _ = Task.Run(async () =>
             {
                 try { await _session.SetSystemPromptAsync(value).WaitAsync(Timeout); }
@@ -950,6 +1106,18 @@ public sealed partial class MainViewModel : ViewModelBase
             SystemPrompt = prefs.SystemPrompt;
             FontSize = prefs.FontSize;
             StreamingEnabled = prefs.StreamingEnabled;
+            EnterSends = prefs.EnterSends;
+            DoubleEscStop = prefs.DoubleEscStop;
+            // 需求3：加载快捷键面板项
+            HotkeyItems.Clear();
+            HotkeyItems.Add(new HotkeyItemVm("发送消息", "Send", prefs.HotkeySend));
+            HotkeyItems.Add(new HotkeyItemVm("换行", "Newline", prefs.HotkeyNewline));
+            HotkeyItems.Add(new HotkeyItemVm("终止对话", "Stop", prefs.HotkeyStop));
+            HotkeyItems.Add(new HotkeyItemVm("新建会话", "NewSession", prefs.HotkeyNewSession));
+            HotkeyItems.Add(new HotkeyItemVm("清空对话", "ClearHistory", prefs.HotkeyClearHistory));
+            HotkeyItems.Add(new HotkeyItemVm("打开设置", "ToggleSettings", prefs.HotkeyToggleSettings));
+            NetworkMode = prefs.NetworkMode;
+            ProxyUrl = prefs.ProxyUrl;
             _isPreferencesLoaded = true;
         }
         catch (Exception ex)
@@ -1028,6 +1196,8 @@ public sealed partial class MainViewModel : ViewModelBase
         _persistActions[nameof(SystemPrompt)] = SavePreferences;
         _persistActions[nameof(FontSize)] = SavePreferences;
         _persistActions[nameof(StreamingEnabled)] = SavePreferences;
+        _persistActions[nameof(EnterSends)] = SavePreferences;
+        _persistActions[nameof(DoubleEscStop)] = SavePreferences;
     }
 
     /// <summary>
@@ -1062,7 +1232,17 @@ public sealed partial class MainViewModel : ViewModelBase
                 MaxTokens = MaxTokens,
                 SystemPrompt = SystemPrompt,
                 FontSize = FontSize,
-                StreamingEnabled = StreamingEnabled
+                StreamingEnabled = StreamingEnabled,
+                EnterSends = EnterSends,
+                DoubleEscStop = DoubleEscStop,
+                HotkeySend = GetHotkeyGesture("Send"),
+                HotkeyNewline = GetHotkeyGesture("Newline"),
+                HotkeyStop = GetHotkeyGesture("Stop"),
+                HotkeyNewSession = GetHotkeyGesture("NewSession"),
+                HotkeyClearHistory = GetHotkeyGesture("ClearHistory"),
+                HotkeyToggleSettings = GetHotkeyGesture("ToggleSettings"),
+                NetworkMode = NetworkMode,
+                ProxyUrl = ProxyUrl
             });
         }
         catch (Exception ex)
@@ -1282,12 +1462,116 @@ public sealed partial class MainViewModel : ViewModelBase
     /// <summary>是否可停止当前生成（生成中且未被取消）</summary>
     public bool CanStop => _sendCts is not null && !_sendCts.IsCancellationRequested;
 
+    /// <summary>
+    /// F4 规则1：@agentName 消息 → 查找运行中子代理并直接转发。
+    /// 命中/未命中均以系统卡片回显；不开启新 LLM 回合
+    /// </summary>
+    private async Task HandleMentionAsync(string rawInput)
+    {
+        var parsed = JoinCode.Abstractions.Utils.SubAgentMentionParser.Parse(rawInput);
+        if (parsed is null)
+        {
+            AddSystemMessage("⚠ @语法格式错误，正确格式: @agentName 消息内容（空格分隔）");
+            return;
+        }
+
+        var (agentName, text) = parsed.Value;
+        Messages.Add(new ChatUiMessage { Role = MessageRole.User, Content = rawInput, Timestamp = DateTime.Now });
+
+        var agentId = await _session.FindSubAgentIdByNameAsync(agentName).ConfigureAwait(true);
+        if (agentId is null)
+        {
+            var agents = await _session.GetBackgroundAgentsAsync().ConfigureAwait(true);
+            var list = string.Join(", ", agents.Select(a => a.Name));
+            AddSystemMessage($"⚠ 未找到子代理 @{agentName}，当前运行中: [{list}]");
+            return;
+        }
+
+        var ok = await _session.ForwardInputToSubAgentAsync(agentId, text).ConfigureAwait(true);
+        AddSystemMessage(ok ? $"📤 已转发给 @{agentName}" : $"⚠ 转发给 @{agentName} 失败");
+    }
+
+    /// <summary>
+    /// F4 规则2：处理中收到普通消息且恰好一个运行中子代理 → 自动转发；
+    /// 零个或多个时不转发（丢弃本次输入，保持原 IsBusy 忽略语义）
+    /// </summary>
+    private async Task TryAutoForwardToSingleAgentAsync(string message)
+    {
+        try
+        {
+            var agents = await _session.GetBackgroundAgentsAsync().ConfigureAwait(true);
+            if (agents.Count != 1)
+                return;
+
+            await _session.ForwardInputToSubAgentAsync(agents[0].AgentId, message).ConfigureAwait(true);
+            Messages.Add(new ChatUiMessage { Role = MessageRole.User, Content = message, Timestamp = DateTime.Now });
+            AddSystemMessage($"📤 已转发给 @{agents[0].Name}");
+        }
+        catch (Exception ex)
+        {
+            WriteErrorLog(ex);
+        }
+    }
+
+    private void AddSystemMessage(string content)
+    {
+        Messages.Add(new ChatUiMessage
+        {
+            Role = MessageRole.System,
+            Content = content,
+            Timestamp = DateTime.Now
+        });
+        StatusText = "就绪";
+    }
+
+    /// <summary>F5：打开子代理 worktree 目录 — 懒解析路径，未启用隔离时系统卡片提示</summary>
+    [RelayCommand]
+    private async Task OpenWorktreeInExplorerAsync(AgentRunVm? runVm)
+    {
+        if (runVm is null)
+            return;
+
+        var path = runVm.WorktreePath
+            ?? await _session.GetSubAgentWorktreePathAsync(runVm.AgentId).ConfigureAwait(true);
+
+        if (string.IsNullOrEmpty(path) || !System.IO.Directory.Exists(path))
+        {
+            AddSystemMessage($"⚠ 子代理 {runVm.Run.Name} 未使用 worktree 隔离（无独立目录）");
+            return;
+        }
+
+        runVm.SetWorktreePath(path);
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = "explorer.exe",
+            Arguments = $"\"{path}\"",
+            UseShellExecute = true
+        });
+        AddSystemMessage($"📁 已打开 {runVm.Run.Name} 的工作树: {path}");
+    }
+
     [RelayCommand]
     private async Task SendAsync()
     {
         var message = InputText;
-        if (string.IsNullOrWhiteSpace(message) || IsBusy)
+        if (string.IsNullOrWhiteSpace(message))
             return;
+
+        // F4 规则1：@提及直发子代理 — 绕过主代理 LLM，不受 IsBusy 拦截（对齐 CLI ReplLoopStep）
+        if (message[0] == '@')
+        {
+            InputText = string.Empty;
+            await HandleMentionAsync(message);
+            return;
+        }
+
+        // F4 规则2：处理中且恰好一个运行中子代理 → 自动转发给它（对齐 CLI 单代理转发规则）
+        if (IsBusy)
+        {
+            InputText = string.Empty;
+            await TryAutoForwardToSingleAgentAsync(message);
+            return;
+        }
 
         if (_inputHistory.Count == 0 || _inputHistory[^1] != message)
             _inputHistory.Add(message);
@@ -1296,8 +1580,10 @@ public sealed partial class MainViewModel : ViewModelBase
         InputText = string.Empty;
         IsBusy = true;
         StatusText = "思考中…";
+        RunStatus.StartTurn();
         _sendCts = new System.Threading.CancellationTokenSource();
         OnPropertyChanged(nameof(CanStop));
+        var stopReason = MarqueeStopReason.Normal;
         try
         {
             // 斜杠命令路由（G1 对齐 TUI）：/ 前缀走命令执行链路，不进聊天流
@@ -1344,144 +1630,46 @@ public sealed partial class MainViewModel : ViewModelBase
             });
             RenameActiveSessionTo(message);
 
-            // 助手消息先入列表（流式占位），循环内实时刷新 Content 才能被 AllMessagesText 感知；
-            // 思考/工具卡片经 InsertBeforeAssistant 插到占位之前，保持"过程在前、回复在后"的视觉顺序
-            var assistant = new ChatUiMessage
-            {
-                Role = MessageRole.Assistant,
-                Content = string.Empty,
-                Timestamp = DateTime.Now,
-                IsStreaming = true
-            };
-            Messages.Add(assistant);
-            var assistantIndex = Messages.Count - 1;
-            void InsertBeforeAssistant(ChatUiMessage msg)
-            {
-                Messages.Insert(assistantIndex, msg);
-                assistantIndex++;
-            }
+            // 事件→消息组装委托给 ChatTurnProcessor（T7 抽取，可单测）
+            _turnProcessor = new ChatTurnProcessor(Messages);
+            _turnProcessor.BeginTurn();
+            var processor = _turnProcessor;
 
-            var builder = new StringBuilder();
-            var thinkingBuilder = new StringBuilder();
-            long totalTokens = 0;
-            ChatUiMessage? currentThinking = null;
-            ChatUiMessage? currentToolCall = null;
             await foreach (var evt in _session.StreamAsync(message, _sendCts.Token))
             {
-                switch (evt.Type)
-                {
-                    case ChatStreamEventType.Content:
-                        if (evt.Content is not null)
-                        {
-                            builder.Append(evt.Content);
-                            if (StreamingEnabled)
-                                assistant.Content = builder.ToString();
-                        }
-                        break;
-                    case ChatStreamEventType.Thinking:
-                        thinkingBuilder.Append(evt.ThinkingContent);
-                        if (currentThinking is null)
-                        {
-                            currentThinking = new ChatUiMessage
-                            {
-                                Role = MessageRole.Assistant,
-                                Content = string.Empty,
-                                Timestamp = DateTime.Now,
-                                Kind = ChatUiMessageKind.Thinking
-                            };
-                            InsertBeforeAssistant(currentThinking);
-                        }
-                        if (StreamingEnabled)
-                            currentThinking.Content = thinkingBuilder.ToString();
-                        break;
-                    case ChatStreamEventType.ToolCallStart:
-                        currentToolCall = new ChatUiMessage
-                        {
-                            Role = MessageRole.Assistant,
-                            Content = string.Empty,
-                            Timestamp = DateTime.Now,
-                            Kind = ChatUiMessageKind.ToolCall,
-                            ToolName = evt.ToolName,
-                            ToolArguments = evt.ToolArguments,
-                            ToolStartTime = DateTime.Now,
-                            IsToolRunning = true
-                        };
-                        currentToolCall.RefreshElapsed();
-                        InsertBeforeAssistant(currentToolCall);
-                        break;
-                    case ChatStreamEventType.ToolProgress:
-                        if (currentToolCall is not null && evt.ProgressMessage is not null)
-                        {
-                            currentToolCall.Content = evt.ProgressMessage;
-                        }
-                        break;
-                    case ChatStreamEventType.ToolCallEnd:
-                        if (currentToolCall is not null)
-                        {
-                            currentToolCall.IsToolRunning = false;
-                            currentToolCall.RefreshElapsed();
-                        }
-                        InsertBeforeAssistant(new ChatUiMessage
-                        {
-                            Role = MessageRole.Assistant,
-                            Content = string.Empty,
-                            Timestamp = DateTime.Now,
-                            Kind = ChatUiMessageKind.ToolResult,
-                            ToolName = evt.ToolName,
-                            ToolResultText = evt.ToolResultText,
-                            IsToolError = evt.IsToolError,
-                            StructuredPatch = evt.StructuredPatch
-                        });
-                        currentToolCall = null;
-                        break;
-                    case ChatStreamEventType.Complete:
-                        // G2 对齐 TUI：消费引擎上报的真实 token 用量（Done/Complete 事件携带）
-                        if (evt.Usage is not null)
-                            totalTokens += evt.Usage.TotalTokens;
-                        break;
-                }
+                RunStatus.ReportActivity(
+                    hasActiveTool: evt.Type == ChatStreamEventType.ToolCallStart,
+                    label: evt.Type == ChatStreamEventType.ToolCallStart ? evt.ToolName : null);
+                if (evt.Type == ChatStreamEventType.Complete && evt.Usage is not null)
+                    RunStatus.AddTokens(evt.Usage.TotalTokens);
+                processor.Process(evt, StreamingEnabled);
             }
 
-            // 最终一次性赋值：流式开启时为幂等收尾；关闭时这是唯一的内容填充点。
-            // 空思考气泡在此移除（关闭流式时思考内容也到此处才可见）。
-            if (currentThinking is not null)
-            {
-                currentThinking.Content = thinkingBuilder.ToString();
-                if (string.IsNullOrWhiteSpace(currentThinking.Content))
-                    Messages.Remove(currentThinking);
-            }
-
-            assistant.Content = builder.ToString();
-            assistant.IsStreaming = false;
+            processor.CompleteTurn(StreamingEnabled);
             // 状态栏展示本轮真实 token 用量（引擎未上报时保留空串，不显示估算值）
-            TokenUsageText = totalTokens > 0 ? $"Token:{totalTokens:N0}" : string.Empty;
+            TokenUsageText = processor.TotalTokens > 0 ? $"Token:{processor.TotalTokens:N0}" : string.Empty;
             StatusText = "就绪";
         }
         catch (OperationCanceledException)
         {
             StatusText = "已停止生成";
-            foreach (var m in Messages)
-            {
-                if (m.IsStreaming)
-                    m.IsStreaming = false;
-            }
+            _turnProcessor?.CancelTurn();
+            stopReason = MarqueeStopReason.UserAborted;
         }
         catch (Exception ex)
         {
             ErrorToastText = ex.Message;
             StatusText = "就绪";
             WriteErrorLog(ex);
-            foreach (var m in Messages)
-            {
-                if (m.IsStreaming)
-                    m.IsStreaming = false;
-            }
+            _turnProcessor?.CancelTurn();
+            stopReason = MarqueeStopReason.Abnormal;
         }
         finally
         {
             _sendCts.Dispose();
             _sendCts = null;
             IsBusy = false;
+            RunStatus.EndTurn(stopReason);
             OnPropertyChanged(nameof(CanStop));
             SaveActiveSession();
         }
@@ -1678,6 +1866,13 @@ public sealed partial class MainViewModel : ViewModelBase
         _activeSession = session;
         _session.SwitchSession(session.Id);
 
+        // 需求11：子会话点击展示内容（SubSessionMessages 缓存或引擎加载）
+        if (session.IsSubSession)
+        {
+            await LoadSubSessionContentAsync(session).ConfigureAwait(false);
+            return;
+        }
+
         // 切换会话时从持久化恢复该会话消息到消息区（空会话则清空）
         var data = _sessionStore.Load(session.Id);
         Messages.Clear();
@@ -1736,6 +1931,21 @@ public sealed partial class MainViewModel : ViewModelBase
         session.IsRenaming = false;
         if (!string.IsNullOrWhiteSpace(session.RenameDraft))
             session.Title = session.RenameDraft.Trim();
+    }
+
+    /// <summary>
+    /// 请求打开子代理回放窗口 — View 层订阅 <see cref="TranscriptRequested"/>
+    /// 弹出 TranscriptWindow（VM 不持有 Window 引用，保持可测性）
+    /// </summary>
+    public event Action<SubAgentRun>? TranscriptRequested;
+
+    /// <summary>回放请求（agent 卡片"回放"按钮触发）</summary>
+    [RelayCommand]
+    private void OpenAgentTranscript(AgentRunVm? runVm)
+    {
+        if (runVm is null)
+            return;
+        TranscriptRequested?.Invoke(runVm.Run);
     }
 
     /// <summary>取消重命名（Esc 触发），恢复原标题</summary>

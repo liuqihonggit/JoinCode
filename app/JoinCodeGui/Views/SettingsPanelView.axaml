@@ -4,8 +4,9 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
              xmlns:vm="using:JoinCode.Gui.ViewModels"
-             x:Class="JoinCode.Gui.Views.SettingsPanelView"
-             x:DataType="vm:MainViewModel">
+              x:Class="JoinCode.Gui.Views.SettingsPanelView"
+              x:Name="Root"
+              x:DataType="vm:MainViewModel">
   <UserControl.Styles>
     <!-- 设置卡片：圆角 10 分组容器 -->
     <Style Selector="Border.settingsCard">
@@ -86,6 +87,79 @@
               <ComboBox ItemsSource="{Binding EffortOptions}" SelectedItem="{Binding SelectedEffort}"
                         HorizontalAlignment="Stretch" FontSize="12" />
             </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!-- 快捷键面板（F3 / 需求3） -->
+        <Border Classes="settingsCard">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="cardTitle" Text="快捷键" />
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="2">
+                <TextBlock Text="Enter 直接发送" FontSize="11.5" Foreground="{DynamicResource GuiPrimaryText}" />
+                <TextBlock Text="关闭时：Ctrl+Enter 发送，Enter 换行" FontSize="10.5"
+                           Foreground="{DynamicResource GuiMutedText}" TextWrapping="Wrap" />
+              </StackPanel>
+              <ToggleSwitch Grid.Column="1" IsChecked="{Binding EnterSends}" MinHeight="0" Padding="0" />
+            </Grid>
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="2">
+                <TextBlock Text="双击 ESC 终止对话" FontSize="11.5" Foreground="{DynamicResource GuiPrimaryText}" />
+                <TextBlock Text="600ms 内两次 ESC，仅断开对话网络" FontSize="10.5"
+                           Foreground="{DynamicResource GuiMutedText}" TextWrapping="Wrap" />
+              </StackPanel>
+              <ToggleSwitch Grid.Column="1" IsChecked="{Binding DoubleEscStop}" MinHeight="0" Padding="0" />
+            </Grid>
+            <!-- 快捷键列表（可录制键位） — 需求3 -->
+            <ItemsControl ItemsSource="{Binding HotkeyItems}" Margin="0,4,0,0">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:HotkeyItemVm">
+                  <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6" Margin="0,2">
+                    <StackPanel Spacing="1">
+                      <TextBlock Text="{Binding ActionLabel}" FontSize="11.5" Foreground="{DynamicResource GuiPrimaryText}" />
+                      <TextBlock Text="{Binding Gesture}" FontSize="10.5" Foreground="{DynamicResource GuiMutedText}"
+                                 IsVisible="{Binding !IsRecording}" />
+                      <TextBlock Text="按下键组合…" FontSize="10.5" Foreground="{DynamicResource GuiAccentText}"
+                                 IsVisible="{Binding IsRecording}" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Classes="ghost" Content="录制" FontSize="10" Padding="6,2" MinHeight="0"
+                            IsVisible="{Binding !IsRecording}"
+                            Command="{Binding DataContext.ToggleHotkeyRecordingCommand, ElementName=Root}"
+                            CommandParameter="{Binding}" />
+                    <Button Grid.Column="1" Classes="ghost" Content="停止" FontSize="10" Padding="6,2" MinHeight="0"
+                            Foreground="{DynamicResource GuiWarnText}"
+                            IsVisible="{Binding IsRecording}"
+                            Command="{Binding DataContext.ToggleHotkeyRecordingCommand, ElementName=Root}"
+                            CommandParameter="{Binding}" />
+                    <Button Grid.Column="2" Classes="ghost" Content="↺" FontSize="10" Padding="4,2" MinHeight="0"
+                            ToolTip.Tip="恢复默认"
+                            Command="{Binding DataContext.ResetHotkeyCommand, ElementName=Root}"
+                            CommandParameter="{Binding}" />
+                  </Grid>
+                </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+          </StackPanel>
+        </Border>
+
+        <!-- 网络切换（需求7） — Local=直连 / Proxy=走代理 / Auto=自动检测 -->
+        <Border Classes="settingsCard">
+          <StackPanel Spacing="8">
+            <TextBlock Classes="cardTitle" Text="网络" />
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="2">
+                <TextBlock Text="网络模式" FontSize="11.5" Foreground="{DynamicResource GuiPrimaryText}" />
+                <TextBlock Text="Local=直连 / Proxy=走代理 / Auto=自动检测" FontSize="10.5"
+                           Foreground="{DynamicResource GuiMutedText}" TextWrapping="Wrap" />
+              </StackPanel>
+              <ComboBox Grid.Column="1" ItemsSource="{Binding NetworkModeOptions}"
+                        SelectedItem="{Binding NetworkMode}" MinWidth="90" />
+            </Grid>
+            <TextBox Text="{Binding ProxyUrl}" FontSize="11"
+                     Watermark="代理地址（Proxy 模式时使用，如 http://127.0.0.1:7890）" />
+            <Button Classes="accentSubtle" Content="应用网络模式" FontSize="11" Padding="8,4" MinHeight="0"
+                    HorizontalAlignment="Left"
+                    Command="{Binding ApplyNetworkModeCommand}" />
           </StackPanel>
         </Border>
 

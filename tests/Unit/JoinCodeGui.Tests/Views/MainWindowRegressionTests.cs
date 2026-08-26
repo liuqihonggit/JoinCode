@@ -49,7 +49,7 @@ public sealed class MainWindowRegressionTests
     }
 
     [AvaloniaFact]
-    public void EnterKey_SendsMessage()
+    public void CtrlEnterKey_SendsMessage()
     {
         var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
         var win = new MainWindow { DataContext = vm };
@@ -58,10 +58,29 @@ public sealed class MainWindowRegressionTests
 
         vm.InputText = "enter-test";
         var input = win.GetVisualDescendants().OfType<TextBox>().First(t => t.Name == "InputTextBox");
-        input.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
+        input.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter, KeyModifiers = KeyModifiers.Control });
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
         Assert.True(vm.Messages.Count > 0);
+    }
+
+    /// <summary>F3 新默认键位：裸 Enter=换行不发送（EnterSends=false）</summary>
+    [AvaloniaFact]
+    public void PlainEnterKey_InsertsNewline_DoesNotSend_ByDefault()
+    {
+        var vm = new MainViewModel(null, new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
+        var win = new MainWindow { DataContext = vm };
+        win.Show();
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+
+        vm.InputText = "abc";
+        var input = win.GetVisualDescendants().OfType<TextBox>().First(t => t.Name == "InputTextBox");
+        input.CaretIndex = 1;
+        input.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+
+        Assert.True(vm.InputText.Contains('\n'), "裸 Enter 应插入换行");
+        Assert.Empty(vm.Messages);
     }
 
     [AvaloniaFact]

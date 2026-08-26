@@ -170,4 +170,34 @@ public interface IJccChatSession : IAsyncDisposable
     /// 实现主题双向绑定。参数为解析后的 <see cref="ThemeKind"/>。
     /// </summary>
     event EventHandler<ThemeKind>? ThemeChanged;
+
+    /// <summary>
+    /// 获取后台子代理快照 — 权威数据源（IAgentService 运行列表 + 活跃 fork 归并），
+    /// 驱动 GUI 后台代理管理面板。默认空实现：占位/测试桩无需关心。
+    /// </summary>
+    Task<IReadOnlyList<ViewModels.BackgroundAgentInfo>> GetBackgroundAgentsAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<ViewModels.BackgroundAgentInfo>>([]);
+
+    /// <summary>终止后台代理（先按 agentId 停止，未命中再按 forkId 取消）。默认不支持（返回 false）</summary>
+    Task<bool> StopBackgroundAgentAsync(string agentId, CancellationToken cancellationToken = default)
+        => Task.FromResult(false);
+
+    /// <summary>按名称查找运行中子代理 ID（@提及路由）。默认不支持（返回 null）</summary>
+    Task<string?> FindSubAgentIdByNameAsync(string name, CancellationToken cancellationToken = default)
+        => Task.FromResult<string?>(null);
+
+    /// <summary>把用户输入直接转发给指定子代理（绕过主代理 LLM）。默认不支持（返回 false）</summary>
+    Task<bool> ForwardInputToSubAgentAsync(string agentId, string message, CancellationToken cancellationToken = default)
+        => Task.FromResult(false);
+
+    /// <summary>获取子代理的 worktree 隔离目录（未启用返回 null）。默认不支持</summary>
+    Task<string?> GetSubAgentWorktreePathAsync(string agentId, CancellationToken cancellationToken = default)
+        => Task.FromResult<string?>(null);
+
+    /// <summary>获取主会话的子会话列表（fork 子代理，需求11 树形展示）。默认不支持（返回空）</summary>
+    Task<IReadOnlyList<SubSessionInfo>> GetSubSessionsAsync(string parentSessionId, CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<SubSessionInfo>>([]);
 }
+
+/// <summary>子会话信息 — 供 GUI 树形展示（需求11）</summary>
+public sealed record SubSessionInfo(string Id, string ParentSessionId, string Title, string State, string? WorktreePath);

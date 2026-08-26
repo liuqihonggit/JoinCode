@@ -17,6 +17,7 @@ global using JoinCode.Abstractions.Localization;
 global using JoinCode.Abstractions.LLM;
 global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.Models;
+global using JoinCode.Abstractions.Models.Agent;
 global using JoinCode.Abstractions.Models.Runtime;
 global using JoinCode.Abstractions.Models.Skill;
 global using JoinCode.Abstractions.Models.SkillSearch;

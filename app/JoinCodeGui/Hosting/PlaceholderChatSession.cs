@@ -145,6 +145,14 @@ internal sealed class PlaceholderChatSession : IJccChatSession
         remove { }
     }
 
+    /// <inheritdoc />
+    public Task<IReadOnlyList<ViewModels.BackgroundAgentInfo>> GetBackgroundAgentsAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<ViewModels.BackgroundAgentInfo>>([]);
+
+    /// <inheritdoc />
+    public Task<bool> StopBackgroundAgentAsync(string agentId, CancellationToken cancellationToken = default)
+        => Task.FromResult(false);
+
     public float? Temperature => null;
     public int? MaxTokens => null;
 

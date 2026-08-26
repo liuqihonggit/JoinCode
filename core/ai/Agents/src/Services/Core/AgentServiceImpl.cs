@@ -278,6 +278,18 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     }
 
     /// <summary>
+    /// 获取指定子代理的 worktree 隔离目录 — 供 GUI 右键直达资源管理器；
+    /// 未启用 worktree 隔离或代理不存在返回 null
+    /// </summary>
+    public async Task<string?> GetAgentWorktreePathAsync(string agentId, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
+        var agent = await _lifecycleManager.GetAgentAsync(agentId, cancellationToken).ConfigureAwait(false);
+        // WorktreePath 存于 AgentBase.Options（IAgent 接口不暴露），需向下转型
+        return agent is AgentBase concrete ? concrete.Options.WorktreePath : null;
+    }
+
+    /// <summary>
     /// 注册子代理名称索引 — Spawn 时调用，建立 name→agentId 的多键映射
     /// </summary>
     private void RegisterAgentNameIndex(IAgent subAgent)

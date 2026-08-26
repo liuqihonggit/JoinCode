@@ -54,6 +54,14 @@ public sealed partial class App : Application
     private static MainViewModel CreateViewModel()
     {
         var viewModel = new MainViewModel();
+
+        // 需求6：--design 模式填充设计时数据，供截图美观分析（不启动引擎）
+        if (Environment.GetCommandLineArgs().Contains("--design"))
+        {
+            Design.DesignData.Populate(viewModel);
+            return viewModel;
+        }
+
         _ = Task.Run(() => Hosting.JccChatSession.CreateAsync())
             .ContinueWith(t =>
             {

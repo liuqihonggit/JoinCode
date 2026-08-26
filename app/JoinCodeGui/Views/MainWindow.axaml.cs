@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -34,19 +34,16 @@ public sealed partial class MainWindow : Window
 
     private int _errorToastRemainingMs;
 
-    /// <summary>状态点闪烁计时器 — Busy 态每 500ms 切换透明度，提示用户引擎仍在工作</summary>
-    private readonly Avalonia.Threading.DispatcherTimer _statusBlinkTimer = new()
-    {
-        Interval = TimeSpan.FromMilliseconds(500)
-    };
-
-    /// <summary>闪烁亮暗切换标志（true=亮，false=暗）</summary>
-    private bool _statusBlinkBright = true;
-
     /// <summary>工具调用倒计时刷新计时器 — 每 100ms 更新正在运行的工具的已运行时长</summary>
     private readonly Avalonia.Threading.DispatcherTimer _toolTimer = new()
     {
         Interval = TimeSpan.FromMilliseconds(100)
+    };
+
+    /// <summary>全局状态条心跳计时器 — 500ms 驱动耗时刷新与卡死检测转移</summary>
+    private readonly Avalonia.Threading.DispatcherTimer _runStatusTimer = new()
+    {
+        Interval = TimeSpan.FromMilliseconds(500)
     };
 
     public MainWindow()
@@ -55,10 +52,39 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
         App.LogDiag("[MainWindow] ctor end");
         _errorToastTimer.Tick += OnErrorToastTimerTick;
-        _statusBlinkTimer.Tick += OnStatusBlinkTick;
         _toolTimer.Tick += OnToolTimerTick;
+        _runStatusTimer.Tick += OnRunStatusTimerTick;
+        _runStatusTimer.Start();
         Closed += OnWindowClosed;
         AddHandler(PointerPressedEvent, OnGlobalPointerPressed, RoutingStrategies.Tunnel);
+        AddHandler(KeyDownEvent, OnGlobalKeyDown, RoutingStrategies.Tunnel);
+    }
+
+    /// <summary>双击 ESC 判定窗口 — 两次按键间隔上限</summary>
+    private const double DoubleEscWindowMs = 600;
+    private DateTime _lastEscapeAt = DateTime.MinValue;
+
+    /// <summary>
+    /// F2：全局隧道键处理 — 600ms 内双击 ESC 终止当前 AI 对话
+    /// （StopGenerating 仅取消对话 CTS 断开聊天网络；遥测为独立服务不受影响）
+    /// </summary>
+    private void OnGlobalKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key is not Key.Escape || _vm is null)
+            return;
+        if (!_vm.DoubleEscStop) // F3 快捷键面板可关闭该手势
+            return;
+
+        var now = DateTime.Now;
+        if ((now - _lastEscapeAt).TotalMilliseconds <= DoubleEscWindowMs)
+        {
+            _lastEscapeAt = DateTime.MinValue; // 消费，防止三连击触发两次终止
+            if (_vm.StopGeneratingCommand.CanExecute(null))
+                _vm.StopGeneratingCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+        _lastEscapeAt = now;
     }
 
     /// <summary>点击候选项完成补全 → 回焦输入框</summary>
@@ -79,8 +105,6 @@ public sealed partial class MainWindow : Window
     {
         _errorToastTimer.Stop();
         _errorToastTimer.Tick -= OnErrorToastTimerTick;
-        _statusBlinkTimer.Stop();
-        _statusBlinkTimer.Tick -= OnStatusBlinkTick;
         _toolTimer.Stop();
         _toolTimer.Tick -= OnToolTimerTick;
         RemoveHandler(PointerPressedEvent, OnGlobalPointerPressed);
@@ -100,6 +124,8 @@ public sealed partial class MainWindow : Window
             _vm.PropertyChanged -= OnVmPropertyChanged;
             _vm.ScrollToBottomRequested -= OnScrollToBottomRequested;
             _vm.ExitRequested -= OnExitRequested;
+            _vm.TranscriptRequested -= OnTranscriptRequested;
+            _vm.RunStatus.MarqueeStopped -= OnMarqueeStopped;
         }
         _vm = DataContext as MainViewModel;
         if (_vm is not null)
@@ -111,7 +137,16 @@ public sealed partial class MainWindow : Window
             _vm.Messages.CollectionChanged += OnMessagesChanged;
             _vm.PropertyChanged += OnVmPropertyChanged;
             _vm.ScrollToBottomRequested += OnScrollToBottomRequested;
+            _vm.TranscriptRequested += OnTranscriptRequested;
+            _vm.RunStatus.MarqueeStopped += OnMarqueeStopped;
         }
+    }
+
+    /// <summary>打开子代理回放窗口 — 只读快照，可多开（每 agent 一窗）</summary>
+    private void OnTranscriptRequested(SubAgentRun run)
+    {
+        var window = new TranscriptWindow(run);
+        window.Show(this);
     }
 
     /// <summary>T9：斜杠命令确认回调 — 弹极简确认窗；后台线程经 UI 线程同步等待（对齐 TUI painter.Invoke 模式）</summary>
@@ -127,6 +162,22 @@ public sealed partial class MainWindow : Window
 
     /// <summary>T9：/exit 确认通过 → 关闭主窗口</summary>
     private void OnExitRequested() => Close();
+
+    /// <summary>需求9：走马灯异常/卡死停止时弹模态提醒，避免用户不知情（Normal/UserAborted 静默）</summary>
+    private void OnMarqueeStopped(MarqueeStopReason reason)
+    {
+        if (reason is MarqueeStopReason.Normal
+            or MarqueeStopReason.UserAborted)
+            return;
+        var message = reason == MarqueeStopReason.Stalled
+            ? "连接似乎已中断（3 秒无响应），对话已停止。\n如需重试请重新发送消息。"
+            : "连接异常，对话已停止。\n详情见 dumps/send_error.log。";
+        _ = Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
+        {
+            var dialog = new ConfirmDialogWindow(message);
+            await dialog.ShowDialog<bool?>(this);
+        });
+    }
 
     /// <summary>权限确认回调：弹出确认框并把用户决策返回给网关；关闭窗口等价于拒绝</summary>
     private async Task<Hosting.PermissionConfirmationDecision> ShowPermissionDialogAsync(
@@ -222,7 +273,6 @@ public sealed partial class MainWindow : Window
         }
         else if (e.PropertyName == nameof(MainViewModel.StatusText))
         {
-            UpdateStatusBlink();
         }
         else if (e.PropertyName == nameof(MainViewModel.IsBusy))
         {
@@ -235,36 +285,6 @@ public sealed partial class MainWindow : Window
         // AllMessagesText 仅保留导出/复制用途，不再驱动显示
     }
 
-    /// <summary>根据当前 StatusKind 启停状态点闪烁：Busy 闪烁，Ready/Error 停止并恢复不透明</summary>
-    private void UpdateStatusBlink()
-    {
-        if (_vm is null || StatusDot is null)
-            return;
-        if (_vm.StatusKind == ViewModels.StatusKind.Busy)
-        {
-            if (!_statusBlinkTimer.IsEnabled)
-            {
-                _statusBlinkBright = true;
-                StatusDot.Opacity = 1;
-                _statusBlinkTimer.Start();
-            }
-        }
-        else
-        {
-            _statusBlinkTimer.Stop();
-            StatusDot.Opacity = 1;
-        }
-    }
-
-    /// <summary>状态点闪烁 tick：亮暗交替（1.0 ↔ 0.3），让用户感知引擎仍在工作</summary>
-    private void OnStatusBlinkTick(object? sender, EventArgs e)
-    {
-        if (StatusDot is null)
-            return;
-        _statusBlinkBright = !_statusBlinkBright;
-        StatusDot.Opacity = _statusBlinkBright ? 1.0 : 0.3;
-    }
-
     /// <summary>工具倒计时 tick：刷新所有正在运行工具消息的已运行时长</summary>
     private void OnToolTimerTick(object? sender, EventArgs e)
     {
@@ -275,6 +295,16 @@ public sealed partial class MainWindow : Window
             if (m.IsToolRunning)
                 m.RefreshElapsed();
         }
+    }
+
+    /// <summary>全局状态条心跳 tick：耗时刷新 + 卡死检测状态转移；面板打开期间同步后台代理快照</summary>
+    private void OnRunStatusTimerTick(object? sender, EventArgs e)
+    {
+        if (_vm is null)
+            return;
+        _vm.RunStatus.OnHeartbeatTick();
+        if (_vm.BackgroundPanel.IsOpen)
+            _ = _vm.BackgroundPanel.RefreshAsync();
     }
 
     /// <summary>1.5s 后自动隐藏"已复制" toast（每次复制重置计时）</summary>
@@ -381,3 +411,4 @@ public sealed partial class MainWindow : Window
         _autoScrollEnabled = true;
     }
 }
+

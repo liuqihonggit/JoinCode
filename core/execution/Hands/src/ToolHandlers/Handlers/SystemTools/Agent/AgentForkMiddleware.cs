@@ -50,10 +50,20 @@ public sealed partial class AgentForkMiddleware : ServiceEntity, IAgentToolMiddl
             RunInBackground = true,
             PermissionMode = PermissionMode.Plan,
             MaxIterations = 200,
-            CacheSafeParams = parentCacheSafeParams
+            CacheSafeParams = parentCacheSafeParams,
+            // 捕获当前回合的子代理事件通道 — 供后台完成时发射 AgentFinished 终态
+            EventChannel = JoinCode.Abstractions.LLM.Chat.SubAgentEventChannel.Current
         };
 
         var result = await forkManager.ForkAsync(forkOptions, ct).ConfigureAwait(false);
+
+        // 立即发射启动事件（此刻仍在回合作用域内，GUI 运行面板即刻出现该 fork 的卡片行）
+        JoinCode.Abstractions.LLM.Chat.SubAgentEventChannel.Current?.Emit(
+            JoinCode.Abstractions.LLM.Chat.ChatStreamEvent.AgentStarted(
+                result.ForkId,
+                name: "fork",
+                description: context.Prompt,
+                role: AgentRole.Coordinator.ToValue()));
 
         var response = new StringBuilder();
         response.AppendLine("Fork sub-agent launched");

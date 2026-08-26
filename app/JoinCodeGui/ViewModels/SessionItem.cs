@@ -1,9 +1,12 @@
+using System.Collections.ObjectModel;
+
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace JoinCode.Gui.ViewModels;
 
 /// <summary>
 /// 侧边栏会话条目 — 占位阶段仅展示结构，P1 接入引擎后映射真实会话。
+/// 需求11：支持树形展示（主会话展开后显示子会话），ParentId=null 为顶层主会话。
 /// </summary>
 public sealed partial class SessionItem : ObservableObject
 {
@@ -23,4 +26,48 @@ public sealed partial class SessionItem : ObservableObject
     /// <summary>重命名编辑中的草稿标题</summary>
     [ObservableProperty]
     private string _renameDraft = string.Empty;
+
+    /// <summary>父会话 ID — null 为顶层主会话，非 null 为子会话（需求11 树形展示）</summary>
+    public string? ParentId { get; set; }
+
+    /// <summary>子会话列表 — 主会话展开后显示（需求11）；空列表表示无子会话</summary>
+    public ObservableCollection<SessionItem> Children { get; } = [];
+
+    /// <summary>是否为子会话（ParentId 非空）</summary>
+    public bool IsSubSession => ParentId is not null;
+
+    /// <summary>是否有子会话（驱动展开箭头可见性）</summary>
+    public bool HasChildren => Children.Count > 0;
+
+    /// <summary>树形节点是否展开（需求11）</summary>
+    [ObservableProperty]
+    private bool _isExpanded;
+
+    /// <summary>是否有 git worktree（子会话右键"打开文件夹"可见性，需求11）</summary>
+    [ObservableProperty]
+    private bool _hasWorktree;
+
+    /// <summary>worktree 路径（HasWorktree=true 时填充，供资源管理器打开）</summary>
+    [ObservableProperty]
+    private string? _worktreePath;
+
+    /// <summary>子会话生命周期状态 — Running/Completed/Merged/Cancelled/Failed（需求11，完成后灰色保留）</summary>
+    [ObservableProperty]
+    private string _subSessionState = "Running";
+
+    /// <summary>子会话是否已结束（Completed/Merged/Cancelled/Failed）— 驱动灰色样式，不移除保留统计</summary>
+    public bool IsSubSessionFinished => IsSubSession
+        && SubSessionState is "Completed" or "Merged" or "Cancelled" or "Failed";
+
+    /// <summary>子会话是否正在运行 — 驱动正常亮色</summary>
+    public bool IsSubSessionRunning => IsSubSession && SubSessionState == "Running";
+
+    /// <summary>子会话是否成功完成（Completed/Merged）— 驱动 ✓ 绿色图标</summary>
+    public bool IsSubSessionCompleted => IsSubSession && SubSessionState is "Completed" or "Merged";
+
+    /// <summary>子会话是否失败（Failed/Cancelled）— 驱动 ✗ 红色图标</summary>
+    public bool IsSubSessionFailed => IsSubSession && SubSessionState is "Failed" or "Cancelled";
+
+    /// <summary>子会话消息缓存 — 设计时模拟数据或运行时从引擎加载（不持久化，需求11 点击子会话展示内容）</summary>
+    public List<ChatUiMessage>? SubSessionMessages { get; set; }
 }

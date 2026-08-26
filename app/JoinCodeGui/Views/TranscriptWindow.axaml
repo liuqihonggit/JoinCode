@@ -1,0 +1,62 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="720" d:DesignHeight="520"
+        xmlns:vm="using:JoinCode.Gui.ViewModels"
+        x:Class="JoinCode.Gui.Views.TranscriptWindow"
+        Title="子代理回放"
+        Width="720" Height="520" MinWidth="520" MinHeight="360"
+        CanResize="True"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner">
+  <Window.Styles>
+    <Style Selector="Border.trLine">
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="10,6" />
+      <Setter Property="Margin" Value="0,0,0,5" />
+      <Setter Property="Background" Value="{DynamicResource GuiCardHover}" />
+    </Style>
+  </Window.Styles>
+  <Grid RowDefinitions="Auto,*,Auto">
+    <!-- 头部：标题 + 统计 -->
+    <Border Grid.Row="0" Padding="14,8" Background="{DynamicResource GuiSearchBarBackground}"
+            BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,0,0,1">
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <TextBlock x:Name="TitleGlyph" Text="▶" FontSize="13" Foreground="{DynamicResource GuiAccentText}" VerticalAlignment="Center" />
+          <TextBlock x:Name="TitleText" Text="子代理回放" FontSize="13" FontWeight="SemiBold"
+                     Foreground="{DynamicResource GuiPrimaryText}" VerticalAlignment="Center" />
+        </StackPanel>
+        <TextBlock x:Name="StatsText" Grid.Column="1" FontSize="11"
+                   Foreground="{DynamicResource GuiMutedText}" VerticalAlignment="Center" />
+      </Grid>
+    </Border>
+
+    <!-- 时间线 -->
+    <ScrollViewer Grid.Row="1" x:Name="TranscriptScroll" Padding="12,8">
+      <ItemsControl x:Name="TranscriptItems">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:SubAgentTranscriptItem">
+            <Border Classes="trLine">
+              <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8">
+                <TextBlock Text="{Binding At, StringFormat='HH:mm:ss'}" FontSize="10.5"
+                           Foreground="{DynamicResource GuiMutedText}" VerticalAlignment="Top" Margin="0,1,0,0" />
+                <TextBlock Grid.Column="1" Text="{Binding Glyph}" FontSize="12" FontWeight="SemiBold"
+                           Foreground="{DynamicResource GuiAccentText}" VerticalAlignment="Top" />
+                <SelectableTextBlock Grid.Column="2" Text="{Binding Text}" FontSize="12" TextWrapping="Wrap"
+                                     Foreground="{DynamicResource GuiPrimaryText}" />
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+
+    <!-- 底部操作 -->
+    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="12,8">
+      <Button Classes="ghost" Content="⧉ 复制全部" FontSize="11" Padding="10,4" Click="OnCopyAllClick" />
+      <Button Content="关闭" FontSize="11" Padding="14,4" Click="OnCloseClick" />
+    </StackPanel>
+  </Grid>
+</Window>

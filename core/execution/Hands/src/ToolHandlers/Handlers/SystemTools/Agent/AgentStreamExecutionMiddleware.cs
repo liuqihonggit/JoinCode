@@ -46,19 +46,87 @@ public sealed partial class AgentStreamExecutionMiddleware : ServiceEntity, IAge
         string? agentId = null;
         var succeeded = true;
         string? errorMessage = null;
+        string? finalOutput = null;
+        JoinCode.Abstractions.LLM.Chat.TokenUsage? finalUsage = null;
+
+        // GUI 多 subAgent 运行期显示的数据源：向主对话管道的子代理通道发射带身份事件。
+        // 无通道时（CLI 纯文本等场景）SubAgentEventChannel.Current 为 null，发射自然跳过。
+        var channel = JoinCode.Abstractions.LLM.Chat.SubAgentEventChannel.Current;
+        var roleValue = spawnOptions.Role.ToValue();
+
+        void EmitStarted(string id)
+        {
+            channel?.Emit(JoinCode.Abstractions.LLM.Chat.ChatStreamEvent.AgentStarted(
+                id,
+                name: spawnOptions.Name ?? context.ResolvedPrimaryType,
+                description: spawnOptions.Description,
+                role: roleValue));
+        }
 
         await foreach (var chunk in _agentService.RunAgentStreamAsync(spawnOptions, ct).ConfigureAwait(false))
         {
+            var isFirstChunk = agentId is null;
             agentId ??= chunk.AgentId;
+            if (isFirstChunk && agentId is not null)
+                EmitStarted(agentId);
 
             switch (chunk.Type)
             {
                 case AgentStreamChunkType.Content:
                     context.ContentBuilder.Append(chunk.Content);
+                    channel?.Emit(new JoinCode.Abstractions.LLM.Chat.ChatStreamEvent
+                    {
+                        Type = JoinCode.Abstractions.LLM.Chat.ChatStreamEventType.Content,
+                        Content = chunk.Content,
+                        AgentId = agentId
+                    });
+                    break;
+                case AgentStreamChunkType.ThinkingStart:
+                case AgentStreamChunkType.Thinking:
+                    if (!string.IsNullOrEmpty(chunk.ThinkingContent) || !string.IsNullOrEmpty(chunk.Content))
+                    {
+                        channel?.Emit(new JoinCode.Abstractions.LLM.Chat.ChatStreamEvent
+                        {
+                            Type = JoinCode.Abstractions.LLM.Chat.ChatStreamEventType.Thinking,
+                            ThinkingContent = chunk.ThinkingContent ?? chunk.Content,
+                            AgentId = agentId
+                        });
+                    }
                     break;
                 case AgentStreamChunkType.ToolCallStart:
                     // 工具调用开始 — 对齐 TS onProgress({type:'agent_progress'})
                     _logger?.LogDebug("[AgentStreamExecution] Agent {AgentId} calling tool: {ToolName}", chunk.AgentId, chunk.ToolName);
+                    channel?.Emit(new JoinCode.Abstractions.LLM.Chat.ChatStreamEvent
+                    {
+                        Type = JoinCode.Abstractions.LLM.Chat.ChatStreamEventType.ToolCallStart,
+                        ToolName = chunk.ToolName,
+                        ToolCallId = chunk.ToolCallId,
+                        ToolArguments = chunk.ToolArguments,
+                        AgentId = agentId
+                    });
+                    break;
+                case AgentStreamChunkType.ToolCallEnd:
+                    channel?.Emit(new JoinCode.Abstractions.LLM.Chat.ChatStreamEvent
+                    {
+                        Type = JoinCode.Abstractions.LLM.Chat.ChatStreamEventType.ToolCallEnd,
+                        ToolName = chunk.ToolName,
+                        ToolCallId = chunk.ToolCallId,
+                        ToolResultText = chunk.ToolResultText,
+                        IsToolError = chunk.IsToolError,
+                        StructuredPatch = chunk.StructuredPatch,
+                        AgentId = agentId
+                    });
+                    break;
+                case AgentStreamChunkType.ToolProgress:
+                    channel?.Emit(new JoinCode.Abstractions.LLM.Chat.ChatStreamEvent
+                    {
+                        Type = JoinCode.Abstractions.LLM.Chat.ChatStreamEventType.ToolProgress,
+                        ToolName = chunk.ToolName,
+                        ToolCallId = chunk.ToolCallId,
+                        ProgressType = chunk.ProgressType,
+                        ProgressMessage = chunk.ProgressMessage,
+                        AgentId = agentId
+                    });
                     break;
                 case AgentStreamChunkType.Complete:
                     context.ExecutionTimeMs = chunk.ExecutionTimeMs;
@@ -66,7 +134,9 @@ public sealed partial class AgentStreamExecutionMiddleware : ServiceEntity, IAge
                     if (chunk.Content is not null && succeeded)
                     {
                         context.ContentBuilder.Append(chunk.Content);
+                        finalOutput = chunk.Content;
                     }
+                    finalUsage = chunk.Usage;
                     break;
                 case AgentStreamChunkType.Error:
                     succeeded = false;
@@ -78,6 +148,17 @@ public sealed partial class AgentStreamExecutionMiddleware : ServiceEntity, IAge
         context.AgentId = agentId;
         context.Succeeded = succeeded;
         context.ErrorMessage = errorMessage;
+
+        if (agentId is not null)
+        {
+            // 统计收尾：成功携带最终输出（Complete 块），失败携带错误消息
+            channel?.Emit(JoinCode.Abstractions.LLM.Chat.ChatStreamEvent.AgentFinished(
+                agentId,
+                success: succeeded,
+                executionTimeMs: context.ExecutionTimeMs,
+                usage: finalUsage,
+                finalOutput: succeeded ? finalOutput : errorMessage));
+        }
 
         await next(context, ct).ConfigureAwait(false);
     }

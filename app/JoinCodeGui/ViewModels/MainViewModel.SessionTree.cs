@@ -30,6 +30,31 @@ public sealed partial class MainViewModel
             item.IsExpanded = !item.IsExpanded;
     }
 
+    /// <summary>需求11：加载子会话内容到消息区 — SubSessionMessages 缓存优先，否则从引擎获取</summary>
+    public async Task LoadSubSessionContentAsync(SessionItem session)
+    {
+        Messages.Clear();
+        if (session.SubSessionMessages is { Count: > 0 } subMsgs)
+        {
+            foreach (var m in subMsgs)
+                Messages.Add(m);
+            return;
+        }
+        try
+        {
+            var records = await _session.GetMessagesAsync(CancellationToken.None).ConfigureAwait(false);
+            foreach (var r in records)
+            {
+                if (!string.IsNullOrWhiteSpace(r.Content))
+                    Messages.Add(new ChatUiMessage { Role = MessageRoleExtensions.FromValue(r.Role) ?? MessageRole.User, Content = r.Content, Timestamp = r.Timestamp });
+            }
+        }
+        catch (Exception ex)
+        {
+            WriteErrorLog(ex);
+        }
+    }
+
     /// <summary>需求11：异步从引擎拉取子会话填充 Children — AttachRealSession 后调用（快照避免跨线程）</summary>
     public async Task PopulateSubSessionsAsync(SessionItem[] sessions)
     {

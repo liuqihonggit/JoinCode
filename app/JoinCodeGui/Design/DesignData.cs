@@ -30,54 +30,62 @@ public static class DesignData
 
         // 主会话1：快速排序实现（2 个子会话：1 完成 + 1 运行中）
         var s1 = new SessionItem { Id = "design-1", Title = "快速排序实现", IsExpanded = true };
-        s1.Children.Add(new SessionItem
+        var sub1_1 = new SessionItem
         {
-            Id = "design-1-1",
-            Title = "单元测试生成",
-            ParentId = "design-1",
-            SubSessionState = "Completed",
-            HasWorktree = true,
+            Id = "design-1-1", Title = "单元测试生成", ParentId = "design-1",
+            SubSessionState = "Completed", HasWorktree = true,
             WorktreePath = @"D:\project\w4\.worktrees\design-1-1"
-        });
-        s1.Children.Add(new SessionItem
+        };
+        sub1_1.SubSessionMessages = CreateSubMessages(
+            "为 QuickSort 方法生成单元测试",
+            "已生成 5 个测试用例，覆盖正常/边界/空数组场景",
+            "Write test/QuickSortTests.cs", "已创建测试文件 (23 行)");
+        s1.Children.Add(sub1_1);
+        var sub1_2 = new SessionItem
         {
-            Id = "design-1-2",
-            Title = "性能基准测试",
-            ParentId = "design-1",
-            SubSessionState = "Running",
-            HasWorktree = true,
+            Id = "design-1-2", Title = "性能基准测试", ParentId = "design-1",
+            SubSessionState = "Running", HasWorktree = true,
             WorktreePath = @"D:\project\w4\.worktrees\design-1-2"
-        });
+        };
+        sub1_2.SubSessionMessages = CreateSubMessages(
+            "对 QuickSort 做性能基准测试",
+            "正在运行基准测试…");
+        s1.Children.Add(sub1_2);
         vm.Sessions.Add(s1);
 
         // 主会话2：API 设计讨论（3 个子会话：1 完成 + 1 失败 + 1 运行中）
         var s2 = new SessionItem { Id = "design-2", Title = "API 设计讨论", IsExpanded = true };
-        s2.Children.Add(new SessionItem
+        var sub2_1 = new SessionItem
         {
-            Id = "design-2-1",
-            Title = "OpenAPI 规范生成",
-            ParentId = "design-2",
-            SubSessionState = "Completed",
-            HasWorktree = true,
+            Id = "design-2-1", Title = "OpenAPI 规范生成", ParentId = "design-2",
+            SubSessionState = "Completed", HasWorktree = true,
             WorktreePath = @"D:\project\w4\.worktrees\design-2-1"
-        });
-        s2.Children.Add(new SessionItem
+        };
+        sub2_1.SubSessionMessages = CreateSubMessages(
+            "根据 API 代码生成 OpenAPI 规范",
+            "已生成 openapi.yaml，包含 12 个端点定义",
+            "Write openapi.yaml", "已创建 OpenAPI 规范文件 (156 行)");
+        s2.Children.Add(sub2_1);
+        var sub2_2 = new SessionItem
         {
-            Id = "design-2-2",
-            Title = "Mock 服务器搭建",
-            ParentId = "design-2",
-            SubSessionState = "Failed",
-            HasWorktree = false
-        });
-        s2.Children.Add(new SessionItem
+            Id = "design-2-2", Title = "Mock 服务器搭建", ParentId = "design-2",
+            SubSessionState = "Failed", HasWorktree = false
+        };
+        sub2_2.SubSessionMessages = CreateSubMessages(
+            "基于 OpenAPI 搭建 Mock 服务器",
+            "❌ Mock 服务器启动失败：端口 9901 被占用");
+        s2.Children.Add(sub2_2);
+        var sub2_3 = new SessionItem
         {
-            Id = "design-2-3",
-            Title = "集成测试编写",
-            ParentId = "design-2",
-            SubSessionState = "Running",
-            HasWorktree = true,
+            Id = "design-2-3", Title = "集成测试编写", ParentId = "design-2",
+            SubSessionState = "Running", HasWorktree = true,
             WorktreePath = @"D:\project\w4\.worktrees\design-2-3"
-        });
+        };
+        sub2_3.SubSessionMessages = CreateSubMessages(
+            "编写 API 集成测试",
+            "正在生成集成测试用例…",
+            "Read openapi.yaml", "读取规范文件成功");
+        s2.Children.Add(sub2_3);
         vm.Sessions.Add(s2);
 
         // 主会话3：Bug 修复（无子会话）
@@ -158,5 +166,21 @@ public static class DesignData
 
         vm.RunStatus.LatestActivity = "QuickSort 示例";
         vm.StatusText = "就绪";
+    }
+
+    /// <summary>创建子会话模拟消息（指令 + 可选工具调用 + 回复）</summary>
+    private static List<ChatUiMessage> CreateSubMessages(string instruction, string response, string? toolName = null, string? toolResult = null)
+    {
+        var msgs = new List<ChatUiMessage>
+        {
+            new() { Role = MessageRole.User, Content = instruction, Timestamp = DateTime.Now }
+        };
+        if (toolName is not null)
+        {
+            msgs.Add(new ChatUiMessage { Role = MessageRole.Assistant, Content = string.Empty, Timestamp = DateTime.Now, Kind = ChatUiMessageKind.ToolCall, ToolName = toolName });
+            msgs.Add(new ChatUiMessage { Role = MessageRole.Assistant, Content = string.Empty, Timestamp = DateTime.Now, Kind = ChatUiMessageKind.ToolResult, ToolName = toolName, ToolResultText = toolResult });
+        }
+        msgs.Add(new ChatUiMessage { Role = MessageRole.Assistant, Content = response, Timestamp = DateTime.Now });
+        return msgs;
     }
 }

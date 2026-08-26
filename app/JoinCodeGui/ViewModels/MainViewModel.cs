@@ -1866,6 +1866,13 @@ public sealed partial class MainViewModel : ViewModelBase
         _activeSession = session;
         _session.SwitchSession(session.Id);
 
+        // 需求11：子会话点击展示内容（SubSessionMessages 缓存或引擎加载）
+        if (session.IsSubSession)
+        {
+            await LoadSubSessionContentAsync(session).ConfigureAwait(false);
+            return;
+        }
+
         // 切换会话时从持久化恢复该会话消息到消息区（空会话则清空）
         var data = _sessionStore.Load(session.Id);
         Messages.Clear();

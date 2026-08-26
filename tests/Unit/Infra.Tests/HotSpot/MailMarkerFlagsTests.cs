@@ -56,6 +56,25 @@ public sealed class MailMarkerFlagsTests
         mail.IsHighPriority.Should().BeFalse();
     }
 
+    [Fact]
+    public void FileModifyIntent_DefaultMarker_ShouldBeNone()
+    {
+        var intent = MakeIntent();
+        intent.Marker.Should().Be(MailMarker.None, "默认无标记");
+    }
+
+    [Fact]
+    public void FileModifyIntent_WithMarker_ShouldRetain()
+    {
+        var intent = MakeIntent(MailMarker.TestFileConflict | MailMarker.ResourceRefChange);
+        intent.Marker.Should().Be(MailMarker.TestFileConflict | MailMarker.ResourceRefChange);
+        intent.Marker.HasFlag(MailMarker.TestFileConflict).Should().BeTrue();
+        intent.Marker.HasFlag(MailMarker.ResourceRefChange).Should().BeTrue();
+    }
+
     private static DeferredMail MakeMail(MailMarker marker) =>
         new() { To = "w1", From = "captain", Subject = "s", Body = "b", OpenAfterTurns = 1, Marker = marker, CreatedAt = DateTimeOffset.UtcNow };
+
+    private static FileModifyIntent MakeIntent(MailMarker marker = MailMarker.None) =>
+        new() { FilePath = "foo.cs", Intent = ModifyIntent.ContractChange, WorkerId = "w1", ReportedAt = DateTimeOffset.UtcNow, Marker = marker };
 }

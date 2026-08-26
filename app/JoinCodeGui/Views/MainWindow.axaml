@@ -8,8 +8,10 @@
         xmlns:controls="using:JoinCode.Gui.Views.Controls"
         xmlns:edit="using:AvaloniaEdit"
         xmlns:local="using:JoinCode.Gui.Views"
+        xmlns:design="using:JoinCode.Gui.Design"
         x:Class="JoinCode.Gui.Views.MainWindow"
         x:Name="Root"
+        d:DataContext="{x:Static design:DesignData.Sample}"
         x:DataType="vm:MainViewModel"
         MinWidth="800" MinHeight="600"
         Title="JoinCode Ava">

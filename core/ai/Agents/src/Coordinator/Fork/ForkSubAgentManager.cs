@@ -214,7 +214,9 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
         try
         {
             return _entries
-                .Where(kvp => kvp.Value.State == ForkState.Running || kvp.Value.State == ForkState.Completed)
+                .Where(kvp => kvp.Value.State == ForkState.Running
+                           || kvp.Value.State == ForkState.Completed
+                           || kvp.Value.State == ForkState.Failed)
                 .Select(kvp => new ForkSubAgent
                 {
                     ForkId = kvp.Key,

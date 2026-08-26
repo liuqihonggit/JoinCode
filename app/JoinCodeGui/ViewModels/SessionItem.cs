@@ -61,4 +61,10 @@ public sealed partial class SessionItem : ObservableObject
 
     /// <summary>子会话是否正在运行 — 驱动正常亮色</summary>
     public bool IsSubSessionRunning => IsSubSession && SubSessionState == "Running";
+
+    /// <summary>子会话是否成功完成（Completed/Merged）— 驱动 ✓ 绿色图标</summary>
+    public bool IsSubSessionCompleted => IsSubSession && SubSessionState is "Completed" or "Merged";
+
+    /// <summary>子会话是否失败（Failed/Cancelled）— 驱动 ✗ 红色图标</summary>
+    public bool IsSubSessionFailed => IsSubSession && SubSessionState is "Failed" or "Cancelled";
 }

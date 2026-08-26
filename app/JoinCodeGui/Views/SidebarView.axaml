@@ -126,7 +126,10 @@
                                          IsVisible="{Binding IsSubSessionRunning}" />
                               <TextBlock Text="✓" FontSize="11" VerticalAlignment="Center"
                                          Foreground="{DynamicResource GuiSuccessText}"
-                                         IsVisible="{Binding IsSubSessionFinished}" />
+                                         IsVisible="{Binding IsSubSessionCompleted}" />
+                              <TextBlock Text="✗" FontSize="11" VerticalAlignment="Center"
+                                         Foreground="{DynamicResource GuiErrorText}"
+                                         IsVisible="{Binding IsSubSessionFailed}" />
                             </Panel>
                             <TextBlock Text="{Binding Title}" Foreground="{DynamicResource GuiSecondaryText}" FontSize="11.5"
                                        VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />

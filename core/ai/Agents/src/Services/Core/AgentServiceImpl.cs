@@ -12,7 +12,8 @@ public sealed record AgentServiceDependencies(
     SwarmPermissionCallbackService? PermissionCallbackService = null,
     JoinCode.Abstractions.Interfaces.IAgentMcpServerManager? McpServerManager = null,
     JoinCode.Abstractions.Interfaces.IAgentInputForwardQueue? InputForwardQueue = null,
-    JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? OutputChannelManager = null);
+    JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? OutputChannelManager = null,
+    JoinCode.Abstractions.Interfaces.IAgentWorktreeManager? WorktreeManager = null);
 
 [Register(typeof(JoinCode.Abstractions.Interfaces.IAgentService), ServiceLifetime.Singleton)]
 public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentService, IDisposable
@@ -27,6 +28,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     private readonly JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? _outputChannelManager;
     private readonly SwarmPermissionCallbackService? _permissionCallbackService;
     private readonly JoinCode.Abstractions.Interfaces.IAgentMcpServerManager? _mcpServerManager;
+    private readonly JoinCode.Abstractions.Interfaces.IAgentWorktreeManager? _worktreeManager;
     private readonly JoinCode.Abstractions.Interfaces.IAgentNotificationQueue? _notificationQueue;
     private readonly ILogger<AgentServiceImpl>? _logger;
     private readonly ISubAgentContextAccessor _subAgentContextAccessor;
@@ -63,6 +65,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         _outputChannelManager = deps?.OutputChannelManager;
         _permissionCallbackService = deps?.PermissionCallbackService;
         _mcpServerManager = deps?.McpServerManager;
+        _worktreeManager = deps?.WorktreeManager;
         _notificationQueue = notificationQueue;
         _logger = logger;
         _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
@@ -257,8 +260,32 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         }
 
         await CleanupMcpServersIfNeededAsync(agentId, cancellationToken).ConfigureAwait(false);
+        await CleanupWorktreeIfNeededAsync(agentId, cancellationToken).ConfigureAwait(false);
 
         return await _lifecycleManager.CancelAgentAsync(agentId, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 终止子代理时清理 worktree — 修复原先遗漏导致 worktree 静默残留（磁盘泄漏）。
+    /// worktree 中有未提交变更时保留并记录 reason，无变更时移除。对齐 ForkExecutionMiddleware 的清理策略。
+    /// </summary>
+    private async Task CleanupWorktreeIfNeededAsync(string agentId, CancellationToken cancellationToken)
+    {
+        if (_worktreeManager is null) return;
+
+        try
+        {
+            var cleanupDetail = await _worktreeManager.CleanupWorktreeAsync(agentId, cancellationToken).ConfigureAwait(false);
+            if (cleanupDetail.Kept)
+            {
+                _logger?.LogInformation("Agent {AgentId} worktree kept: {Path} (reason: {Reason})",
+                    agentId, cleanupDetail.WorktreePath, cleanupDetail.Reason);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Agent {AgentId} worktree cleanup failed", agentId);
+        }
     }
 
     /// <summary>

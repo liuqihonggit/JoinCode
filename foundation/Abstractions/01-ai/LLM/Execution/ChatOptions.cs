@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.LLM;
+﻿namespace JoinCode.Abstractions.LLM;
 
 public sealed class ChatOptions
 {
@@ -9,8 +9,8 @@ public sealed class ChatOptions
     public float? PresencePenalty { get; init; }
     public ToolChoice ToolChoice { get; init; }
     public DiscoveredToolSet? DiscoveredTools { get; init; }
-    public IReadOnlyList<DeferredToolInfo>? DeferredTools { get; init; }
-    public IReadOnlyDictionary<string, JsonElement>? ExtensionData { get; init; }
+    public IReadOnlyList<DeferredToolInfo>? DeferredTools { get; init; } = [];
+    public IReadOnlyDictionary<string, JsonElement> ExtensionData { get; init; } = new Dictionary<string, JsonElement>();
 
     /// <summary>
     /// 推理力度

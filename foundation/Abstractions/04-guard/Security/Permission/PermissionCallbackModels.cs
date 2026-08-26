@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.Security.Permission;
+﻿namespace JoinCode.Abstractions.Security.Permission;
 
 /// <summary>
 /// 权限回调响应 — 跨组件权限交互的响应数据
@@ -9,10 +9,10 @@ public sealed class PermissionCallbackResponse
     public required string Behavior { get; init; }
 
     [JsonPropertyName("updated_input")]
-    public Dictionary<string, JsonElement>? UpdatedInput { get; init; }
+    public Dictionary<string, JsonElement>? UpdatedInput { get; init; } = [];
 
     [JsonPropertyName("updated_permissions")]
-    public List<PermissionCallbackUpdate>? UpdatedPermissions { get; init; }
+    public List<PermissionCallbackUpdate>? UpdatedPermissions { get; init; } = [];
 
     [JsonPropertyName("message")]
     public string? Message { get; init; }

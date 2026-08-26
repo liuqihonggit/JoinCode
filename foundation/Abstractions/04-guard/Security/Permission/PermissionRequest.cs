@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.Security;
+﻿namespace JoinCode.Abstractions.Security;
 
 /// <summary>
 /// 权限请求类，包含工具执行所需的权限信息
@@ -13,7 +13,7 @@ public sealed class PermissionRequest
     /// <summary>
     /// 工具参数
     /// </summary>
-    public Dictionary<string, JsonElement>? Arguments { get; }
+    public Dictionary<string, JsonElement>? Arguments { get; } = [];
 
     /// <summary>
     /// 请求时间

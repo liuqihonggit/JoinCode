@@ -51,7 +51,7 @@ public sealed partial class ChatOptionsFactory : ServiceEntity, IChatOptionsFact
             ThinkingEnabled = _executionSettingsProvider?.ThinkingEnabled ?? false,
             FastMode = fastMode,
             FastModelId = fastModelId,
-            ExtensionData = extensionData,
+            ExtensionData = extensionData ?? new Dictionary<string, JsonElement>(),
             ContextManagement = _apiContextManagementService?.GetConfig(
                 effortLevel is not null ? new ThinkingContext { HasThinking = true } : null)
         };

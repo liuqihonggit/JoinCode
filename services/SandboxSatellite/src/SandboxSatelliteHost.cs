@@ -140,7 +140,7 @@ public sealed class SandboxSatelliteHost : IAsyncDisposable
                     ? execRequest.Command
                     : EscapeForSingleQuotedShell(execRequest.Command)
             ],
-            EnvironmentVariables = execRequest.EnvironmentVariables,
+            EnvironmentVariables = execRequest.EnvironmentVariables ?? new Dictionary<string, string>(),
             SkipArgumentValidation = true,
         });
 

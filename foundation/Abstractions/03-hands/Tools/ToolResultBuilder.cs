@@ -1,10 +1,10 @@
-namespace JoinCode.Abstractions.Tools;
+﻿namespace JoinCode.Abstractions.Tools;
 
 public sealed class ToolResultBuilder
 {
     private readonly List<ToolContent> _content = new();
     private bool _isError;
-    private List<EntityMetadataEntry>? _entityMetadata;
+    private List<EntityMetadataEntry>? _entityMetadata = [];
     private ToolDiagnostic? _diagnostic;
 
     public static ToolResultBuilder Success() => new();

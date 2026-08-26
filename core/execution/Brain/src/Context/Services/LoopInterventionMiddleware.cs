@@ -255,7 +255,7 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
             ToolChoice = original?.ToolChoice ?? ToolChoice.AutoInvoke,
             DiscoveredTools = original?.DiscoveredTools,
             DeferredTools = original?.DeferredTools,
-            ExtensionData = original?.ExtensionData,
+            ExtensionData = original?.ExtensionData ?? new Dictionary<string, JsonElement>(),
             EffortLevel = original?.EffortLevel,
             FastMode = original?.FastMode ?? false,
             FastModelId = original?.FastModelId,

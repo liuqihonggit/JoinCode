@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.Utils;
+﻿namespace JoinCode.Abstractions.Utils;
 
 public sealed class TransitionFailedEventArgs<TState> : EventArgs where TState : struct, Enum
 {
@@ -10,7 +10,7 @@ public sealed class TransitionFailedEventArgs<TState> : EventArgs where TState :
 public sealed class StateMachine<TState> where TState : struct, Enum
 {
     private readonly FrozenDictionary<TState, FrozenSet<TState>> _transitions;
-    private readonly FrozenSet<TState>? _terminalStates;
+    private readonly FrozenSet<TState>? _terminalStates = [];
     private readonly object _lock = new();
     private readonly IClockService? _clock;
     private TState _currentState;

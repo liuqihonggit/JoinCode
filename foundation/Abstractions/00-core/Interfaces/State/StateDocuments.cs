@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.State;
+﻿namespace JoinCode.Abstractions.State;
 
 /// <summary>
 /// AppState 持久化文档类
@@ -34,7 +34,7 @@ public sealed class SessionStateDocument
 /// </summary>
 public sealed class ApiMessageDocument : ChatMessage
 {
-    public Dictionary<string, string>? Metadata { get; set; }
+    public Dictionary<string, string>? Metadata { get; set; } = [];
 }
 
 /// <summary>
@@ -50,7 +50,7 @@ public sealed class AgentStateDocument
     public AgentStatus Status { get; set; }
     public string? WorkingDirectory { get; set; }
     public string? CurrentTaskId { get; set; }
-    public Dictionary<string, string>? Metadata { get; set; }
+    public Dictionary<string, string>? Metadata { get; set; } = [];
     public DateTime LastActivityAt { get; set; }
 }
 
@@ -65,14 +65,14 @@ public sealed class TaskStateDocument
     public TaskExecutionStatus Status { get; set; }
     public string? AgentId { get; set; }
     public string? ParentTaskId { get; set; }
-    public IEnumerable<string>? SubTaskIds { get; set; }
+    public IEnumerable<string>? SubTaskIds { get; set; } = [];
     public int Progress { get; set; }
     public string? Result { get; set; }
     public string? Error { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? StartedAt { get; set; }
     public DateTime? CompletedAt { get; set; }
-    public Dictionary<string, string>? Metadata { get; set; }
+    public Dictionary<string, string>? Metadata { get; set; } = [];
 }
 
 /// <summary>
@@ -86,7 +86,7 @@ public sealed class ConfigStateDocument
     public bool AutoConfirm { get; set; }
     public long? MaxTokenBudget { get; set; }
     public long UsedTokens { get; set; }
-    public Dictionary<string, string>? Settings { get; set; }
+    public Dictionary<string, string>? Settings { get; set; } = [];
 }
 
 /// <summary>

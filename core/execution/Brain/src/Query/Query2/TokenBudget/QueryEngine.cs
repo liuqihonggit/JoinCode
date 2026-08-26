@@ -640,13 +640,13 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
         {
             RenderedSystemPrompt = existing?.RenderedSystemPrompt,
             ModelId = existing?.ModelId,
-            ToolNames = existing?.ToolNames,
-            UserContext = existing?.UserContext is not null
+            ToolNames = existing?.ToolNames ?? [],
+            UserContext = existing is not null
                 ? new Dictionary<string, string>(existing.UserContext)
-                : null,
-            SystemContext = existing?.SystemContext is not null
+                : [],
+            SystemContext = existing is not null
                 ? new Dictionary<string, string>(existing.SystemContext)
-                : null,
+                : [],
             ContentReplacementState = context.Options?.ContentReplacementState?.Clone()
         };
     }

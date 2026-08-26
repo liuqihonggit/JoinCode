@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.Security;
+﻿namespace JoinCode.Abstractions.Security;
 
 public interface IHttpProxyService
 {
@@ -12,6 +12,6 @@ public sealed partial class ProxyOptions
     public string? ProxyUrl { get; init; }
     public string? ProxyUsername { get; init; }
     public string? ProxyPassword { get; init; }
-    public List<string>? BypassHosts { get; init; }
+    public List<string>? BypassHosts { get; init; } = [];
     public bool UseDefaultCredentials { get; init; }
 }

@@ -25,7 +25,7 @@ public sealed class ProcessOptions
     /// </summary>
     public IReadOnlyList<string>? ArgumentList { get; init; }
     public string? WorkingDirectory { get; init; }
-    public IReadOnlyDictionary<string, string>? EnvironmentVariables { get; init; }
+    public IReadOnlyDictionary<string, string> EnvironmentVariables { get; init; } = new Dictionary<string, string>();
     public System.Text.Encoding? StandardOutputEncoding { get; init; }
     public System.Text.Encoding? StandardErrorEncoding { get; init; }
     public int? TimeoutMs { get; init; }

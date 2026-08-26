@@ -1,4 +1,4 @@
-
+﻿
 namespace JoinCode.Abstractions.Services;
 
 public abstract class RemoteCacheRefreshServiceBase<TItem> : IDisposable
@@ -119,5 +119,5 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : IDisposable
 
 public sealed class RemoteRefreshResult<TItem>
 {
-    public Dictionary<string, TItem>? Items { get; init; }
+    public Dictionary<string, TItem>? Items { get; init; } = [];
 }

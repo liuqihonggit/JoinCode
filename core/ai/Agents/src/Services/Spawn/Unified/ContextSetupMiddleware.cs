@@ -175,13 +175,13 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
         var cloned = parentParams.Clone();
 
         var userContext = cloned.UserContext;
-        if (definition?.OmitClaudeMd == true && userContext is not null)
+        if (definition?.OmitClaudeMd == true)
         {
             userContext = FilterKey(userContext, "claudeMd");
         }
 
         var systemContext = cloned.SystemContext;
-        if (definition?.OmitGitStatus == true && systemContext is not null)
+        if (definition?.OmitGitStatus == true)
         {
             systemContext = FilterKey(systemContext, "gitStatus");
         }

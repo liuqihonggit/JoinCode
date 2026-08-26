@@ -1,4 +1,4 @@
-
+﻿
 namespace JoinCode.Abstractions.Tools;
 
 /// <summary>
@@ -68,7 +68,7 @@ public class ToolSchema
 
     [JsonPropertyName("required")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<string>? Required { get; init; }
+    public List<string>? Required { get; init; } = [];
 }
 
 /// <summary>
@@ -85,7 +85,7 @@ public class ToolSchemaProperty
 
     [JsonPropertyName("enum")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<string>? Enum { get; init; }
+    public List<string>? Enum { get; init; } = [];
 
     [JsonPropertyName("default")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]

@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.Models.Agent;
+﻿namespace JoinCode.Abstractions.Models.Agent;
 
 public enum TeammateMessageType
 {
@@ -40,7 +40,7 @@ public sealed class TeammateStructuredMessage
     public string? ToAgentId { get; init; }
     public string? Reason { get; init; }
     public string? Content { get; init; }
-    public Dictionary<string, JsonElement>? Payload { get; init; }
+    public Dictionary<string, JsonElement>? Payload { get; init; } = [];
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
 }
 

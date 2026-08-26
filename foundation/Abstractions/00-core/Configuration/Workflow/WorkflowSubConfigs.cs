@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.Configuration;
+﻿namespace JoinCode.Abstractions.Configuration;
 
 public class CodeExecutionConfig {
     public int ExecutionTimeoutSeconds { get; set; } = WorkflowConstants.Timeouts.CodeExecutionTimeoutSeconds;
@@ -19,12 +19,12 @@ public class WorktreeConfig {
     /// <summary>
     /// 稀疏检出路径列表（可选）
     /// </summary>
-    public List<string>? SparsePaths { get; set; }
+    public List<string>? SparsePaths { get; set; } = [];
 
     /// <summary>
     /// 要符号链接的目录列表
     /// </summary>
-    public List<string>? SymlinkDirectories { get; set; }
+    public List<string>? SymlinkDirectories { get; set; } = [];
 
     /// <summary>
     /// 要复制的配置文件列表

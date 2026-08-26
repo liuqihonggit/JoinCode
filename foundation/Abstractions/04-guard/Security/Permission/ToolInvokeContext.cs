@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.Security.Permission;
+﻿namespace JoinCode.Abstractions.Security.Permission;
 
 /// <summary>
 /// 工具调用上下文
@@ -13,7 +13,7 @@ public sealed partial class ToolInvokeContext
     /// <summary>
     /// 工具参数
     /// </summary>
-    public Dictionary<string, JsonElement>? Arguments { get; }
+    public Dictionary<string, JsonElement>? Arguments { get; } = [];
 
     /// <summary>
     /// 请求ID

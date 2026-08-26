@@ -1,11 +1,11 @@
-namespace JoinCode.Abstractions.LLM.Chat;
+﻿namespace JoinCode.Abstractions.LLM.Chat;
 
 public sealed class StreamEvent
 {
     public MessageRole? Role { get; init; }
     public string? Content { get; init; }
     public string? ModelId { get; init; }
-    public IReadOnlyDictionary<string, JsonElement>? Metadata { get; init; }
+    public IReadOnlyDictionary<string, JsonElement> Metadata { get; init; } = new Dictionary<string, JsonElement>();
 
     public StreamEvent() { }
 
@@ -14,6 +14,6 @@ public sealed class StreamEvent
         Role = role;
         Content = content;
         ModelId = modelId;
-        Metadata = metadata;
+        Metadata = metadata ?? new Dictionary<string, JsonElement>();
     }
 }

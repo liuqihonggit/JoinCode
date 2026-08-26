@@ -11,6 +11,19 @@ public enum StallDetectionState
     Stalled
 }
 
+/// <summary>走马灯停止原因 — 驱动弹窗策略（Normal/UserAborted 不弹，Abnormal/Stalled 弹模态）（需求9）</summary>
+public enum MarqueeStopReason
+{
+    /// <summary>正常完成 — 不弹窗</summary>
+    Normal,
+    /// <summary>用户主动终止（双击 ESC）— 不弹窗（用户知情）</summary>
+    UserAborted,
+    /// <summary>异常/掉线 — 弹模态提醒</summary>
+    Abnormal,
+    /// <summary>卡死（3s 无心跳）— 弹模态提醒</summary>
+    Stalled
+}
+
 /// <summary>
 /// 全局运行状态条 VM — 底部状态条的运行聚合区：
 /// 随机动词 spinner + 回合耗时 + token 聚合 + "N 个后台代理"入口 + 卡死渐变红。
@@ -20,6 +33,9 @@ public enum StallDetectionState
 public sealed class GlobalRunStatusViewModel : INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler? PropertyChanged;
+
+    /// <summary>走马灯停止事件 — Abnormal/Stalled 时弹模态提醒，避免用户不知情（需求9）</summary>
+    public event Action<MarqueeStopReason>? MarqueeStopped;
 
     private void Raise(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
@@ -49,6 +65,8 @@ public sealed class GlobalRunStatusViewModel : INotifyPropertyChanged
             Raise(nameof(StallState));
             Raise(nameof(IsStalled));
             Raise(nameof(StatusGlyph));
+            if (value == StallDetectionState.Stalled)
+                MarqueeStopped?.Invoke(MarqueeStopReason.Stalled);
         }
     }
 
@@ -132,13 +150,16 @@ public sealed class GlobalRunStatusViewModel : INotifyPropertyChanged
         Raise(nameof(StatusGlyph));
     }
 
-    /// <summary>回合结束 — 定格耗时、退出卡死态</summary>
-    public void EndTurn()
+    /// <summary>回合结束 — 定格耗时、退出卡死态；触发 MarqueeStopped 事件供弹窗（需求9）</summary>
+    public void EndTurn(MarqueeStopReason reason = MarqueeStopReason.Normal)
     {
         RefreshElapsed();
+        var wasBusy = IsBusy;
         IsBusy = false;
         StallState = StallDetectionState.Monitoring;
         Raise(nameof(StatusGlyph));
+        if (wasBusy)
+            MarqueeStopped?.Invoke(reason);
     }
 
     /// <summary>

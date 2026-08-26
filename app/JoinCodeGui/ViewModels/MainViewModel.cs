@@ -1462,6 +1462,7 @@ public sealed partial class MainViewModel : ViewModelBase
         RunStatus.StartTurn();
         _sendCts = new System.Threading.CancellationTokenSource();
         OnPropertyChanged(nameof(CanStop));
+        var stopReason = MarqueeStopReason.Normal;
         try
         {
             // 斜杠命令路由（G1 对齐 TUI）：/ 前缀走命令执行链路，不进聊天流
@@ -1532,6 +1533,7 @@ public sealed partial class MainViewModel : ViewModelBase
         {
             StatusText = "已停止生成";
             _turnProcessor?.CancelTurn();
+            stopReason = MarqueeStopReason.UserAborted;
         }
         catch (Exception ex)
         {
@@ -1539,13 +1541,14 @@ public sealed partial class MainViewModel : ViewModelBase
             StatusText = "就绪";
             WriteErrorLog(ex);
             _turnProcessor?.CancelTurn();
+            stopReason = MarqueeStopReason.Abnormal;
         }
         finally
         {
             _sendCts.Dispose();
             _sendCts = null;
             IsBusy = false;
-            RunStatus.EndTurn();
+            RunStatus.EndTurn(stopReason);
             OnPropertyChanged(nameof(CanStop));
             SaveActiveSession();
         }

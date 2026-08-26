@@ -125,6 +125,7 @@ public sealed partial class MainWindow : Window
             _vm.ScrollToBottomRequested -= OnScrollToBottomRequested;
             _vm.ExitRequested -= OnExitRequested;
             _vm.TranscriptRequested -= OnTranscriptRequested;
+            _vm.RunStatus.MarqueeStopped -= OnMarqueeStopped;
         }
         _vm = DataContext as MainViewModel;
         if (_vm is not null)
@@ -137,6 +138,7 @@ public sealed partial class MainWindow : Window
             _vm.PropertyChanged += OnVmPropertyChanged;
             _vm.ScrollToBottomRequested += OnScrollToBottomRequested;
             _vm.TranscriptRequested += OnTranscriptRequested;
+            _vm.RunStatus.MarqueeStopped += OnMarqueeStopped;
         }
     }
 
@@ -160,6 +162,22 @@ public sealed partial class MainWindow : Window
 
     /// <summary>T9：/exit 确认通过 → 关闭主窗口</summary>
     private void OnExitRequested() => Close();
+
+    /// <summary>需求9：走马灯异常/卡死停止时弹模态提醒，避免用户不知情（Normal/UserAborted 静默）</summary>
+    private void OnMarqueeStopped(MarqueeStopReason reason)
+    {
+        if (reason is MarqueeStopReason.Normal
+            or MarqueeStopReason.UserAborted)
+            return;
+        var message = reason == MarqueeStopReason.Stalled
+            ? "连接似乎已中断（3 秒无响应），对话已停止。\n如需重试请重新发送消息。"
+            : "连接异常，对话已停止。\n详情见 dumps/send_error.log。";
+        _ = Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
+        {
+            var dialog = new ConfirmDialogWindow(message);
+            await dialog.ShowDialog<bool?>(this);
+        });
+    }
 
     /// <summary>权限确认回调：弹出确认框并把用户决策返回给网关；关闭窗口等价于拒绝</summary>
     private async Task<Hosting.PermissionConfirmationDecision> ShowPermissionDialogAsync(

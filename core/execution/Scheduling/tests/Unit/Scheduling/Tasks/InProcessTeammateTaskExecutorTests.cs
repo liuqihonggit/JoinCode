@@ -228,4 +228,67 @@ public class InProcessTeammateTaskExecutorTests
 
         executeCallCount.Should().BeGreaterThanOrEqualTo(2, "第一次失败后循环应重试而非退出");
     }
+
+    [Fact]
+    public async Task InterruptTeammateAsync_WhenTeammateNotExists_ShouldReturnFalse()
+    {
+        var result = await _executor.InterruptTeammateAsync("nonexistent").ConfigureAwait(true);
+
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task InterruptTeammateAsync_WhenTeammateWorking_ShouldCancelWorkTokenButNotLifecycle()
+    {
+        var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
+        var agent = new AgentBase("Interrupt test", null, queryEngineMock.Object, null);
+
+        var workCancelledTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        _lifecycleManagerMock
+            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
+            .ReturnsAsync(agent);
+        _lifecycleManagerMock
+            .Setup(x => x.ExecuteAsync(It.IsAny<IAgent>(), It.IsAny<CancellationToken>()))
+            .Returns(async (IAgent _, CancellationToken ct) =>
+            {
+                try
+                {
+                    await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(true);
+                }
+                catch (OperationCanceledException)
+                {
+                    workCancelledTcs.TrySetResult(true);
+                }
+                return new SubAgentResult { AgentId = "agent-i", IsSuccess = true, Output = "interrupted" };
+            });
+        _lifecycleManagerMock
+            .Setup(x => x.DisposeAgentAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var definition = new InProcessTeammateDefinition
+        {
+            TaskId = "tm-int",
+            TeammateId = "teammate-int",
+            Task = "Interrupt test",
+            ContinuousMode = true
+        };
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        await _executor.ExecuteTeammateAsync(definition, cts.Token).ConfigureAwait(true);
+
+        await Task.Delay(300).ConfigureAwait(true);
+
+        var result = await _executor.InterruptTeammateAsync("teammate-int").ConfigureAwait(true);
+
+        result.Should().BeTrue();
+
+        var workCancelled = await workCancelledTcs.Task.WaitAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(true);
+        workCancelled.Should().BeTrue();
+
+        var active = await _executor.GetActiveTeammatesAsync().ConfigureAwait(true);
+        active.Should().Contain("teammate-int");
+
+        await _executor.StopTeammateAsync("teammate-int").ConfigureAwait(true);
+    }
 }

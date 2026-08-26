@@ -8,6 +8,7 @@ public interface IInProcessTeammateTaskExecutor
     Task StopTeammateAsync(string teammateId, CancellationToken ct = default);
     Task TerminateTeammateAsync(string teammateId, string? reason = null, CancellationToken ct = default);
     Task<bool> IsTeammateIdleAsync(string teammateId, CancellationToken ct = default);
+    Task<bool> InterruptTeammateAsync(string teammateId, CancellationToken ct = default);
 }
 
 public sealed partial class InProcessTeammateDefinition
@@ -38,6 +39,12 @@ public sealed class TeammateState
     public bool IsIdle { get; set; }
     public string? LastResult { get; set; }
     public int TurnCount { get; set; }
+    /// <summary>
+    /// 当前 per-turn work 的 CTS — Interrupt 时只 cancel 此 CTS 中断当前 work，不杀 lifecycle。
+    /// 由循环体在 work 开始前设置、结束后清空；InterruptTeammateAsync 读取并 cancel。
+    /// 受 <see cref="InProcessTeammateTaskExecutor._teammateLock"/> 保护。
+    /// </summary>
+    public CancellationTokenSource? CurrentWorkCts { get; set; }
 }
 
 [Register(typeof(IInProcessTeammateTaskExecutor), ServiceLifetime.Singleton)]
@@ -333,6 +340,77 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
     }
 
     /// <summary>
+    /// 中断 teammate 当前 per-turn work — 只 cancel <see cref="TeammateState.CurrentWorkCts"/>，
+    /// 不 cancel lifecycle，teammate 进 idle 等待 next prompt（对齐 ClaudeCode inProcessRunner ESC 行为）。
+    /// 若 teammate 不存在或当前无活跃 work，返回 false。
+    /// </summary>
+    public async Task<bool> InterruptTeammateAsync(string teammateId, CancellationToken ct = default)
+    {
+        await _teammateLock.WaitAsync(ct).ConfigureAwait(false);
+        CancellationTokenSource? workCts;
+        try
+        {
+            if (!_activeTeammates.TryGetValue(teammateId, out var state))
+            {
+                return false;
+            }
+            workCts = state.CurrentWorkCts;
+        }
+        finally
+        {
+            _teammateLock.Release();
+        }
+
+        if (workCts is null || workCts.IsCancellationRequested)
+        {
+            return false;
+        }
+
+        await workCts.CancelAsync().ConfigureAwait(false);
+        _logger?.LogInformation("Teammate {TeammateId} 当前 work 已中断（interrupt），进入 idle 等待 next prompt", teammateId);
+        return true;
+    }
+
+    /// <summary>
+    /// 循环体调用 — 将当前 per-turn workCts 暴露到 state，供 InterruptTeammateAsync 读取并 cancel。
+    /// </summary>
+    private async Task SetCurrentWorkCtsAsync(string teammateId, CancellationTokenSource workCts, CancellationToken lifecycleCt)
+    {
+        await _teammateLock.WaitAsync(lifecycleCt).ConfigureAwait(false);
+        try
+        {
+            if (_activeTeammates.TryGetValue(teammateId, out var state))
+            {
+                state.CurrentWorkCts = workCts;
+            }
+        }
+        finally
+        {
+            _teammateLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// 循环体 finally 调用 — 清空 state.CurrentWorkCts，避免 Interrupt 取到已 dispose 的旧 cts。
+    /// 用 CancellationToken.None 保证清理不被取消。
+    /// </summary>
+    private async Task ClearCurrentWorkCtsAsync(string teammateId)
+    {
+        await _teammateLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+        try
+        {
+            if (_activeTeammates.TryGetValue(teammateId, out var state))
+            {
+                state.CurrentWorkCts = null;
+            }
+        }
+        finally
+        {
+            _teammateLock.Release();
+        }
+    }
+
+    /// <summary>
     /// 后台启动 teammate 循环 — 观察未处理异常，避免静默死亡；退出时通知 coordinator
     /// </summary>
     private void RunTeammateLoopBackground(InProcessTeammateDefinition definition, TeammateState state, CancellationToken lifecycleCt)
@@ -405,9 +483,11 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
 
             while (!lifecycleCt.IsCancellationRequested && !shouldExit)
             {
+                CancellationTokenSource? workCts = null;
                 try
                 {
-                    using var workCts = CancellationTokenSource.CreateLinkedTokenSource(lifecycleCt);
+                    workCts = CancellationTokenSource.CreateLinkedTokenSource(lifecycleCt);
+                    await SetCurrentWorkCtsAsync(definition.TeammateId, workCts, lifecycleCt).ConfigureAwait(false);
 
                     var result = await _agentLifecycleManager.ExecuteAsync(state.Agent, workCts.Token).ConfigureAwait(false);
 
@@ -461,6 +541,11 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
                     {
                         shouldExit = true;
                     }
+                }
+                finally
+                {
+                    await ClearCurrentWorkCtsAsync(definition.TeammateId).ConfigureAwait(false);
+                    workCts?.Dispose();
                 }
             }
         }

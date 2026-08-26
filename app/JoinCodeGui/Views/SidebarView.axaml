@@ -3,10 +3,11 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
-             xmlns:vm="using:JoinCode.Gui.ViewModels"
-             xmlns:local="using:JoinCode.Gui.Views"
-             x:Class="JoinCode.Gui.Views.SidebarView"
-             x:DataType="vm:MainViewModel">
+              xmlns:vm="using:JoinCode.Gui.ViewModels"
+              xmlns:local="using:JoinCode.Gui.Views"
+              xmlns:controls="using:JoinCode.Gui.Views.Controls"
+              x:Class="JoinCode.Gui.Views.SidebarView"
+              x:DataType="vm:MainViewModel">
   <UserControl.Styles>
     <!-- 会话卡片：圆角 8，悬停浮起，选中高亮（类名驱动，替代转换器绑定以便悬停态生效） -->
     <Style Selector="Border.sessionItem">
@@ -89,16 +90,12 @@
         </ItemsControl>
       </StackPanel>
     </ScrollViewer>
-    <!-- 底部状态：绑定真实引擎状态（StatusText/StatusKind），与主窗口状态栏同源同高（固定 30 防内容撑高错位） -->
+    <!-- 底部状态：走马灯（与主窗口状态栏同源 MarqueeText，固定 30 防内容撑高错位） -->
     <Border Grid.Row="2" x:Name="SidebarStatusBar" Height="30" Padding="12,0" Background="{DynamicResource GuiStatusBarBackground}"
             BorderBrush="{DynamicResource GuiDivider}" BorderThickness="0,1,0,0">
-      <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-        <TextBlock Text="●" FontSize="12" Foreground="{Binding StatusKind, Converter={StaticResource StatusToBrush}}"
-                   VerticalAlignment="Center" />
-        <TextBlock Text="{Binding StatusText, FallbackValue='未连接'}" FontSize="11"
-                   Foreground="{DynamicResource GuiMutedText}" VerticalAlignment="Center"
-                   TextTrimming="CharacterEllipsis" />
-      </StackPanel>
+      <controls:MarqueeTextBlock Text="{Binding RunStatus.MarqueeText, FallbackValue='JoinCode 就绪'}"
+                                 Foreground="{DynamicResource GuiMutedText}"
+                                 Height="16" VerticalAlignment="Center" />
     </Border>
   </Grid>
 </UserControl>

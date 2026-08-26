@@ -80,7 +80,7 @@ public sealed class GlobalRunStatusViewModel : INotifyPropertyChanged
         set { if (_latestActivity != value) { _latestActivity = value; Raise(nameof(LatestActivity)); Raise(nameof(MarqueeText)); } }
     }
 
-    /// <summary>走马灯文本 — 状态/动词/最近活动/耗时/token 的滚动摘要流（F1）</summary>
+    /// <summary>走马灯文本 — 状态/动词/最近活动/耗时/token 的滚动摘要流（F1）；空闲时显示默认欢迎语</summary>
     public string MarqueeText
     {
         get
@@ -96,7 +96,9 @@ public sealed class GlobalRunStatusViewModel : INotifyPropertyChanged
             var tokens = TokenText.TrimStart('·', ' ', '↓');
             if (!string.IsNullOrEmpty(tokens))
                 parts.Add(tokens);
-            return string.Join("  ·  ", parts);
+            return parts.Count > 0
+                ? string.Join("  ·  ", parts)
+                : "JoinCode Ava 就绪 · Ctrl+Enter 发送 · @子代理名 可直发 · 双击 ESC 终止";
         }
     }
 

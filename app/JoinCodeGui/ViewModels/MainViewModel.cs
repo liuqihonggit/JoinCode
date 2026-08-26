@@ -310,6 +310,14 @@ public sealed partial class MainViewModel : ViewModelBase
             msg.IsThinkingExpanded = !msg.IsThinkingExpanded;
     }
 
+    /// <summary>切换系统提示词注入卡片的折叠/展开状态（需求10）</summary>
+    [RelayCommand]
+    private void TogglePrompt(object? parameter)
+    {
+        if (parameter is ChatUiMessage msg && msg.IsSystemPromptInjection)
+            msg.IsPromptExpanded = !msg.IsPromptExpanded;
+    }
+
     private int _sessionCounter;
 
     /// <summary>当前活动会话（首条用户消息后自动设为新标题）</summary>
@@ -959,6 +967,19 @@ public sealed partial class MainViewModel : ViewModelBase
     {
         if (_isPreferencesLoaded && !string.IsNullOrWhiteSpace(value))
         {
+            // 需求10：向消息区推送系统提示词注入卡片（去重：与最后一条注入内容相同则跳过）
+            if (Messages.Count == 0
+                || Messages[^1].Kind != ChatUiMessageKind.SystemPromptInjection
+                || Messages[^1].Content != value)
+            {
+                Messages.Add(new ChatUiMessage
+                {
+                    Role = MessageRole.System,
+                    Content = value,
+                    Timestamp = DateTime.Now,
+                    Kind = ChatUiMessageKind.SystemPromptInjection
+                });
+            }
             _ = Task.Run(async () =>
             {
                 try { await _session.SetSystemPromptAsync(value).WaitAsync(Timeout); }

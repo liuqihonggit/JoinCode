@@ -215,6 +215,30 @@
                               </DataTemplate>
                             </ItemsControl.ItemTemplate>
                           </ItemsControl>
+                          <!-- 系统提示词注入卡片（需求10）：标题+默认折叠内容，点击展开看全文 -->
+                          <Border IsVisible="{Binding IsSystemPromptInjection}" CornerRadius="8" Padding="10,7" Margin="0,2"
+                                  Background="{DynamicResource GuiCardHover}">
+                            <StackPanel Spacing="4">
+                              <Button Classes="ghost" HorizontalAlignment="Left" Padding="0" MinHeight="0"
+                                      Command="{Binding DataContext.TogglePromptCommand, ElementName=Root}"
+                                      CommandParameter="{Binding}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                  <TextBlock Text="{Binding KindLabel}" FontSize="12" FontWeight="SemiBold"
+                                             Foreground="{DynamicResource GuiPrimaryText}" />
+                                  <TextBlock Text="▾" FontSize="10" VerticalAlignment="Center"
+                                             Foreground="{DynamicResource GuiMutedText}"
+                                             IsVisible="{Binding IsPromptCollapsed}" />
+                                  <TextBlock Text="▴" FontSize="10" VerticalAlignment="Center"
+                                             Foreground="{DynamicResource GuiMutedText}"
+                                             IsVisible="{Binding IsPromptExpanded}" />
+                                </StackPanel>
+                              </Button>
+                              <TextBlock IsVisible="{Binding IsPromptCollapsed}" Text="{Binding PromptSummary}" FontSize="11"
+                                         Foreground="{DynamicResource GuiMutedText}" TextTrimming="CharacterEllipsis" />
+                              <SelectableTextBlock IsVisible="{Binding IsPromptExpanded}" Text="{Binding Content}"
+                                                   FontFamily="{DynamicResource GuiMonoFont}" FontSize="11" TextWrapping="Wrap" />
+                            </StackPanel>
+                          </Border>
                           <!-- 正文区（工具启动/结果/折叠思考各自定制；其余 Markdown 渲染） -->
                           <Panel IsVisible="{Binding ShowBody}">
                             <!-- 工具调用启动：名称+参数（等宽） -->

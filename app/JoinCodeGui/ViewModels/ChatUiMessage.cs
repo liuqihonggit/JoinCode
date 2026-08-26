@@ -149,8 +149,34 @@ public sealed class ChatUiMessage : INotifyPropertyChanged
     /// <summary>思考消息处于折叠态（未展开）；驱动折叠提示可见性</summary>
     public bool IsThinkingCollapsed => IsThinking && !IsThinkingExpanded;
 
-    /// <summary>正文区域可见性：工具消息隐藏（走工具面板）；思考消息折叠时隐藏展示摘要提示，展开后可见</summary>
-    public bool ShowBody => !IsToolCall && !IsAgentRunGroup && (!IsThinking || IsThinkingExpanded);
+    /// <summary>是否为系统提示词注入卡片（需求10）</summary>
+    public bool IsSystemPromptInjection => Kind == ChatUiMessageKind.SystemPromptInjection;
+
+    /// <summary>系统提示词卡片是否展开（默认折叠=false，点击展开看全文）</summary>
+    private bool _isPromptExpanded;
+    public bool IsPromptExpanded
+    {
+        get => _isPromptExpanded;
+        set
+        {
+            if (_isPromptExpanded == value)
+                return;
+            _isPromptExpanded = value;
+            Raise(nameof(IsPromptExpanded));
+            Raise(nameof(IsPromptCollapsed));
+        }
+    }
+
+    /// <summary>系统提示词卡片处于折叠态</summary>
+    public bool IsPromptCollapsed => IsSystemPromptInjection && !IsPromptExpanded;
+
+    /// <summary>系统提示词折叠摘要：前 60 字 + 字数</summary>
+    public string PromptSummary => IsSystemPromptInjection
+        ? (Content.Length <= 60 ? Content : Content.AsSpan(0, 60).ToString() + "…")
+        : string.Empty;
+
+    /// <summary>正文区域可见性：工具/子代理组/系统提示词注入消息隐藏（走独立卡片）；思考消息折叠时隐藏展示摘要提示，展开后可见</summary>
+    public bool ShowBody => !IsToolCall && !IsAgentRunGroup && !IsSystemPromptInjection && (!IsThinking || IsThinkingExpanded);
 
     /// <summary>折叠时的摘要文案：非思考消息为空；思考消息展示简要提示并可点击展开</summary>
     public string ThinkingSummary => IsThinking ? $"点击展开，思考 {Content.Length} 字" : string.Empty;
@@ -162,6 +188,7 @@ public sealed class ChatUiMessage : INotifyPropertyChanged
         ChatUiMessageKind.ToolCall => "🛠 工具调用",
         ChatUiMessageKind.ToolResult => "✅ 工具结果",
         ChatUiMessageKind.AgentRunGroup => "🤖 子代理",
+        ChatUiMessageKind.SystemPromptInjection => "📋 系统提示词注入",
         _ => string.Empty
     };
 
@@ -212,6 +239,13 @@ public sealed class ChatUiMessage : INotifyPropertyChanged
                     foreach (var line in run.ActivityLines)
                         sb.Append("    ").AppendLine(line);
                 }
+            }
+            else if (IsSystemPromptInjection)
+            {
+                AppendHeader(sb);
+                sb.AppendLine(KindLabel);
+                if (!string.IsNullOrWhiteSpace(Content))
+                    sb.AppendLine(Content);
             }
             else if (!string.IsNullOrWhiteSpace(Content))
             {

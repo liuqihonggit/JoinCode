@@ -13,7 +13,7 @@ namespace AotSafety.Generator
             "容器初始化: 容器类型字段/属性必须初始化，禁止为 null",
             "容器类型 {0} '{1}' 未初始化，默认为 null。应在声明时初始化（如 = new()），或显式标记为可空。未初始化的容器在使用时会导致 NullReferenceException。",
             "CodeStyle",
-            DiagnosticSeverity.Info,
+            DiagnosticSeverity.Warning,
             true,
             "容器类型（List/Dictionary/HashSet/数组等）未初始化时默认为 null, 使用时抛 NullReferenceException. 合规写法: 1) 声明时初始化; 2) 显式标记可空; 3) 构造函数赋值（已自动识别豁免）. 可空容器允许, 用于延迟初始化场景.");
 

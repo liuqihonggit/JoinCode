@@ -1459,9 +1459,6 @@ public sealed partial class MainViewModel : ViewModelBase
             Messages.Remove(message);
     }
 
-    /// <summary>是否可停止当前生成（生成中且未被取消）</summary>
-    public bool CanStop => _sendCts is not null && !_sendCts.IsCancellationRequested;
-
     /// <summary>
     /// F4 规则1：@agentName 消息 → 查找运行中子代理并直接转发。
     /// 命中/未命中均以系统卡片回显；不开启新 LLM 回合
@@ -1721,17 +1718,6 @@ public sealed partial class MainViewModel : ViewModelBase
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[MainViewModel] 会话持久化失败: {ex.Message}");
-        }
-    }
-
-    /// <summary>停止当前生成（发送中按钮可用时）</summary>
-    [RelayCommand]
-    private void StopGenerating()
-    {
-        if (_sendCts is not null)
-        {
-            _sendCts.Cancel();
-            OnPropertyChanged(nameof(CanStop));
         }
     }
 

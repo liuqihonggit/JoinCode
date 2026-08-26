@@ -65,8 +65,9 @@ public sealed partial class MainWindow : Window
     private DateTime _lastEscapeAt = DateTime.MinValue;
 
     /// <summary>
-    /// F2：全局隧道键处理 — 600ms 内双击 ESC 终止当前 AI 对话
-    /// （StopGenerating 仅取消对话 CTS 断开聊天网络；遥测为独立服务不受影响）
+    /// F2：全局隧道键处理 — 600ms 内双击 ESC 终止当前视图看见的对话框（新增需求）。
+    /// 当前聚焦子会话 → 仅终止该 subAgent；当前聚焦主会话 → 终止主会话发送。
+    /// 遥测网络为独立服务不受影响。F3 快捷键面板可关闭该手势。
     /// </summary>
     private void OnGlobalKeyDown(object? sender, KeyEventArgs e)
     {

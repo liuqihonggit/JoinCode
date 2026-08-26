@@ -244,9 +244,10 @@ public sealed class GuiBeautifyRenderTests
             Assert.True(topDiff <= 0.75,
                 $"侧栏状态栏顶 {sidebarRect.Top:F1} 与主状态栏顶 {mainRect.Top:F1} 不在同一水平线（差 {topDiff:F1}px）");
 
-            // 文字基线对齐 — 容器对齐但内容未垂直居中时文字仍会错位（用户可见的"差一点点"）
-            var sideText = sidebarBar.GetVisualDescendants().OfType<TextBlock>()
-                .First(t => t.Text == ((MainViewModel)win.DataContext!).StatusText);
+            // 文字基线对齐 — 走马灯内部 TextBlock 为侧栏状态文字源（走马灯替代绿点后）
+            var sideMarquee = sidebarBar.GetVisualDescendants()
+                .OfType<JoinCode.Gui.Views.Controls.MarqueeTextBlock>().First();
+            var sideText = sideMarquee.GetVisualDescendants().OfType<TextBlock>().First();
             var mainText = mainBar.GetVisualDescendants().OfType<TextBlock>().First();
             var textDiff = Math.Abs(BoundsInWindow(sideText).Top - BoundsInWindow(mainText).Top);
             Assert.True(textDiff <= 0.75,
@@ -290,10 +291,11 @@ public sealed class GuiBeautifyRenderTests
             Assert.DoesNotContain(win.GetVisualDescendants().OfType<TextBlock>(),
                 t => t.Text == "本地引擎待接入");
 
-            // 侧栏底部状态文本必须与 VM.StatusText 同源
-            var sidebarStatus = win.GetVisualDescendants().OfType<TextBlock>()
-                .Where(t => t.Text == vm.StatusText).ToList();
-            Assert.NotEmpty(sidebarStatus);
+            // 侧栏底部走马灯文本必须与 VM.RunStatus.MarqueeText 同源（走马灯替代绿点后绑定源变更）
+            var sidebarMarquee = win.GetVisualDescendants()
+                .OfType<JoinCode.Gui.Views.Controls.MarqueeTextBlock>().FirstOrDefault();
+            Assert.NotNull(sidebarMarquee);
+            Assert.Equal(vm.RunStatus.MarqueeText, sidebarMarquee!.Text);
         }
         finally
         {

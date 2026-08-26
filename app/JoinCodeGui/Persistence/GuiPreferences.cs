@@ -46,4 +46,10 @@ public sealed class GuiPreferences
 
     /// <summary>快捷键：打开/收起设置（默认 Ctrl+Comma）</summary>
     public string HotkeyToggleSettings { get; set; } = "Ctrl+OemComma";
+
+    /// <summary>网络模式 — Local(直连)/Proxy(走代理)/Auto(自动检测)，需求7</summary>
+    public string NetworkMode { get; set; } = "Auto";
+
+    /// <summary>代理地址（NetworkMode=Proxy 时使用，如 http://127.0.0.1:7890）</summary>
+    public string? ProxyUrl { get; set; }
 }

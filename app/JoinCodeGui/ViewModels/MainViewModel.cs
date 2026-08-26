@@ -1114,6 +1114,8 @@ public sealed partial class MainViewModel : ViewModelBase
             HotkeyItems.Add(new HotkeyItemVm("新建会话", "NewSession", prefs.HotkeyNewSession));
             HotkeyItems.Add(new HotkeyItemVm("清空对话", "ClearHistory", prefs.HotkeyClearHistory));
             HotkeyItems.Add(new HotkeyItemVm("打开设置", "ToggleSettings", prefs.HotkeyToggleSettings));
+            NetworkMode = prefs.NetworkMode;
+            ProxyUrl = prefs.ProxyUrl;
             _isPreferencesLoaded = true;
         }
         catch (Exception ex)
@@ -1236,7 +1238,9 @@ public sealed partial class MainViewModel : ViewModelBase
                 HotkeyStop = GetHotkeyGesture("Stop"),
                 HotkeyNewSession = GetHotkeyGesture("NewSession"),
                 HotkeyClearHistory = GetHotkeyGesture("ClearHistory"),
-                HotkeyToggleSettings = GetHotkeyGesture("ToggleSettings")
+                HotkeyToggleSettings = GetHotkeyGesture("ToggleSettings"),
+                NetworkMode = NetworkMode,
+                ProxyUrl = ProxyUrl
             });
         }
         catch (Exception ex)

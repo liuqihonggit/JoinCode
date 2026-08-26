@@ -142,6 +142,27 @@
           </StackPanel>
         </Border>
 
+        <!-- 网络切换（需求7） — Local=直连 / Proxy=走代理 / Auto=自动检测 -->
+        <Border Classes="settingsCard">
+          <StackPanel Spacing="8">
+            <TextBlock Classes="cardTitle" Text="网络" />
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="2">
+                <TextBlock Text="网络模式" FontSize="11.5" Foreground="{DynamicResource GuiPrimaryText}" />
+                <TextBlock Text="Local=直连 / Proxy=走代理 / Auto=自动检测" FontSize="10.5"
+                           Foreground="{DynamicResource GuiMutedText}" TextWrapping="Wrap" />
+              </StackPanel>
+              <ComboBox Grid.Column="1" ItemsSource="{Binding NetworkModeOptions}"
+                        SelectedItem="{Binding NetworkMode}" MinWidth="90" />
+            </Grid>
+            <TextBox Text="{Binding ProxyUrl}" FontSize="11"
+                     Watermark="代理地址（Proxy 模式时使用，如 http://127.0.0.1:7890）" />
+            <Button Classes="accentSubtle" Content="应用网络模式" FontSize="11" Padding="8,4" MinHeight="0"
+                    HorizontalAlignment="Left"
+                    Command="{Binding ApplyNetworkModeCommand}" />
+          </StackPanel>
+        </Border>
+
         <!-- 系统提示词 -->
         <Border Classes="settingsCard">
           <StackPanel Spacing="6">

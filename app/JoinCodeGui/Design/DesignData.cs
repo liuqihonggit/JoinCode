@@ -28,8 +28,59 @@ public static class DesignData
         if (vm.Messages.Count > 0)
             return;
 
-        vm.Sessions.Add(new SessionItem { Id = "design-1", Title = "快速排序实现" });
-        vm.Sessions.Add(new SessionItem { Id = "design-2", Title = "API 设计讨论" });
+        // 主会话1：快速排序实现（2 个子会话：1 完成 + 1 运行中）
+        var s1 = new SessionItem { Id = "design-1", Title = "快速排序实现", IsExpanded = true };
+        s1.Children.Add(new SessionItem
+        {
+            Id = "design-1-1",
+            Title = "单元测试生成",
+            ParentId = "design-1",
+            SubSessionState = "Completed",
+            HasWorktree = true,
+            WorktreePath = @"D:\project\w4\.worktrees\design-1-1"
+        });
+        s1.Children.Add(new SessionItem
+        {
+            Id = "design-1-2",
+            Title = "性能基准测试",
+            ParentId = "design-1",
+            SubSessionState = "Running",
+            HasWorktree = true,
+            WorktreePath = @"D:\project\w4\.worktrees\design-1-2"
+        });
+        vm.Sessions.Add(s1);
+
+        // 主会话2：API 设计讨论（3 个子会话：1 完成 + 1 失败 + 1 运行中）
+        var s2 = new SessionItem { Id = "design-2", Title = "API 设计讨论", IsExpanded = true };
+        s2.Children.Add(new SessionItem
+        {
+            Id = "design-2-1",
+            Title = "OpenAPI 规范生成",
+            ParentId = "design-2",
+            SubSessionState = "Completed",
+            HasWorktree = true,
+            WorktreePath = @"D:\project\w4\.worktrees\design-2-1"
+        });
+        s2.Children.Add(new SessionItem
+        {
+            Id = "design-2-2",
+            Title = "Mock 服务器搭建",
+            ParentId = "design-2",
+            SubSessionState = "Failed",
+            HasWorktree = false
+        });
+        s2.Children.Add(new SessionItem
+        {
+            Id = "design-2-3",
+            Title = "集成测试编写",
+            ParentId = "design-2",
+            SubSessionState = "Running",
+            HasWorktree = true,
+            WorktreePath = @"D:\project\w4\.worktrees\design-2-3"
+        });
+        vm.Sessions.Add(s2);
+
+        // 主会话3：Bug 修复（无子会话）
         vm.Sessions.Add(new SessionItem { Id = "design-3", Title = "Bug 修复: 内存泄漏" });
 
         vm.Messages.Add(new ChatUiMessage

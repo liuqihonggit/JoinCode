@@ -112,6 +112,10 @@ public sealed class AgentBaseContractChangeTests
         var options = new SubAgentOptions { MaxIterations = 1, InitialMessageList = initialMessages };
         var agent = new AgentBase("test task", options, queryEngine.Object, null);
 
+        var queue = new ConcurrentQueue<string>();
+        queue.Enqueue("任务进行中");
+        agent.ContractChangeNotifications = queue;
+
         var mail = new DeferredMail
         {
             To = agent.ObjectId.UniqueId,
@@ -124,6 +128,7 @@ public sealed class AgentBaseContractChangeTests
         };
         var mailMock = new Mock<IDeferredMailService>();
         mailMock.Setup(x => x.TickTurns(It.IsAny<string>())).Returns(new List<DeferredMail> { mail }.AsReadOnly());
+        mailMock.Setup(x => x.FlushOnTaskEnd(It.IsAny<string>(), It.IsAny<MailMarker?>())).Returns(Array.Empty<DeferredMail>().AsReadOnly());
         agent.DeferredMailService = mailMock.Object;
 
         await agent.ExecuteAsync();
@@ -140,5 +145,70 @@ public sealed class AgentBaseContractChangeTests
 
         var act = () => agent.ExecuteAsync();
         await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_IdleWithDeferredMail_ShouldReadImmediately()
+    {
+        var queryEngine = CreateQueryEngineMock();
+        var initialMessages = new MessageList();
+        initialMessages.AddSystemMessage("test system");
+
+        var options = new SubAgentOptions { MaxIterations = 1, InitialMessageList = initialMessages };
+        var agent = new AgentBase("test task", options, queryEngine.Object, null);
+
+        var mail = new DeferredMail
+        {
+            To = agent.ObjectId.UniqueId,
+            From = "captain",
+            Subject = "拉取通知",
+            Body = "队长已改热文件, 请 pull",
+            OpenAfterTurns = 100,
+            Marker = MailMarker.HotFileConflict,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+        var mailMock = new Mock<IDeferredMailService>();
+        mailMock.Setup(x => x.FlushOnTaskEnd(It.IsAny<string>(), It.IsAny<MailMarker?>())).Returns(new List<DeferredMail> { mail }.AsReadOnly());
+        mailMock.Setup(x => x.TickTurns(It.IsAny<string>())).Returns(Array.Empty<DeferredMail>().AsReadOnly());
+        agent.DeferredMailService = mailMock.Object;
+
+        await agent.ExecuteAsync();
+
+        initialMessages.Should().Contain(m => m.Content != null && m.Content.Contains("[延迟邮件]") && m.Content.Contains("请 pull"), "空闲时未到期邮件也应立即读取");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithTaskInput_ShouldNotReadImmaturedMail()
+    {
+        var queryEngine = CreateQueryEngineMock();
+        var initialMessages = new MessageList();
+        initialMessages.AddSystemMessage("test system");
+
+        var options = new SubAgentOptions { MaxIterations = 1, InitialMessageList = initialMessages };
+        var agent = new AgentBase("test task", options, queryEngine.Object, null);
+
+        var queue = new ConcurrentQueue<string>();
+        queue.Enqueue("IFoo 变更");
+        agent.ContractChangeNotifications = queue;
+
+        var immatured = new DeferredMail
+        {
+            To = agent.ObjectId.UniqueId,
+            From = "captain",
+            Subject = "不应出现",
+            Body = "未到期不应立即读",
+            OpenAfterTurns = 100,
+            Marker = MailMarker.HotFileConflict,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+        var mailMock = new Mock<IDeferredMailService>();
+        mailMock.Setup(x => x.TickTurns(It.IsAny<string>())).Returns(Array.Empty<DeferredMail>().AsReadOnly());
+        mailMock.Setup(x => x.FlushOnTaskEnd(It.IsAny<string>(), It.IsAny<MailMarker?>())).Returns(new List<DeferredMail> { immatured }.AsReadOnly());
+        agent.DeferredMailService = mailMock.Object;
+
+        await agent.ExecuteAsync();
+
+        initialMessages.Should().NotContain(m => m.Content != null && m.Content.Contains("不应出现"), "有任务时不应立即读未到期邮件");
+        initialMessages.Should().Contain(m => m.Content != null && m.Content.Contains("IFoo 变更"), "契约通知应正常消费");
     }
 }

@@ -553,11 +553,14 @@ public class AgentBase : Entity, IAgent
     /// </summary>
     protected void DrainPendingUserInputs(MessageList chatHistory)
     {
+        var hasTaskInput = false;
+
         if (InputForwardQueue is not null)
         {
             var pendingInputs = InputForwardQueue.TryDrain(UniqueId);
             if (pendingInputs.Count > 0)
             {
+                hasTaskInput = true;
                 foreach (var input in pendingInputs)
                 {
                     chatHistory.AddUserMessage($"[用户追加输入] {input}");
@@ -572,6 +575,7 @@ public class AgentBase : Entity, IAgent
             var changeCount = 0;
             while (ContractChangeNotifications.TryDequeue(out var changeContent))
             {
+                hasTaskInput = true;
                 chatHistory.AddUserMessage($"[契约变更通知] 队长已改热文件并 push: {changeContent}。已同步主干，请继续你的任务，保留本地半成品。");
                 changeCount++;
             }
@@ -581,17 +585,19 @@ public class AgentBase : Entity, IAgent
             }
         }
 
-        // 消费到期延迟邮件 — TickTurns 递减轮次, 到期的注入 ChatHistory
+        // 延迟邮件: 有任务输入时只消费到期邮件(TickTurns), 空闲时立即读取全部(FlushOnTaskEnd)
         if (DeferredMailService is not null)
         {
-            var maturedMails = DeferredMailService.TickTurns(UniqueId);
-            foreach (var mail in maturedMails)
+            var mails = hasTaskInput
+                ? DeferredMailService.TickTurns(UniqueId)
+                : DeferredMailService.FlushOnTaskEnd(UniqueId);
+            foreach (var mail in mails)
             {
                 chatHistory.AddUserMessage($"[延迟邮件] {mail.Subject}: {mail.Body}");
             }
-            if (maturedMails.Count > 0)
+            if (mails.Count > 0)
             {
-                _logger?.LogInformation("[Agent {AgentId}] 消费 {Count} 封到期延迟邮件", UniqueId, maturedMails.Count);
+                _logger?.LogInformation("[Agent {AgentId}] 消费 {Count} 封延迟邮件({Mode})", UniqueId, mails.Count, hasTaskInput ? "到期" : "空闲立即");
             }
         }
     }

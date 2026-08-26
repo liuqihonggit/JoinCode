@@ -29,4 +29,39 @@ public sealed partial class MainViewModel
         if (item is not null)
             item.IsExpanded = !item.IsExpanded;
     }
+
+    /// <summary>需求11：异步从引擎拉取子会话填充 Children — AttachRealSession 后调用（快照避免跨线程）</summary>
+    public async Task PopulateSubSessionsAsync(SessionItem[] sessions)
+    {
+        try
+        {
+            foreach (var session in sessions)
+            {
+                var subs = await _session.GetSubSessionsAsync(session.Id).ConfigureAwait(false);
+                if (subs.Count == 0)
+                    continue;
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    session.Children.Clear();
+                    foreach (var sub in subs)
+                    {
+                        session.Children.Add(new SessionItem
+                        {
+                            Id = sub.Id,
+                            Title = sub.Title,
+                            ParentId = sub.ParentSessionId,
+                            HasWorktree = sub.WorktreePath is not null,
+                            WorktreePath = sub.WorktreePath,
+                            SubSessionState = sub.State
+                        });
+                    }
+                    session.IsExpanded = true;
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            WriteErrorLog(ex);
+        }
+    }
 }

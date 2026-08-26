@@ -170,6 +170,25 @@ internal sealed class JccChatSession : IJccChatSession
         return await agentService.GetAgentWorktreePathAsync(agentId, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<SubSessionInfo>> GetSubSessionsAsync(string parentSessionId, CancellationToken cancellationToken = default)
+    {
+        var forkManager = _services.GetService<IForkSubAgentManager>();
+        if (forkManager is null)
+            return [];
+        var forks = await forkManager.GetActiveForksAsync(cancellationToken).ConfigureAwait(false);
+        var result = new List<SubSessionInfo>();
+        foreach (var f in forks)
+        {
+            if (f.ParentSessionId != parentSessionId)
+                continue;
+            var title = $"子会话 {f.ForkId.AsSpan(0, Math.Min(8, f.ForkId.Length)).ToString()}";
+            var worktree = await GetSubAgentWorktreePathAsync(f.ForkId, cancellationToken).ConfigureAwait(false);
+            result.Add(new SubSessionInfo(f.ForkId, f.ParentSessionId, title, f.State.ToString(), worktree));
+        }
+        return result;
+    }
+
     /// <summary>settings.json 变更转发 — theme 键变更时解析为 ThemeKind 并触发 ThemeChanged</summary>
     private void OnSettingChanged(object? sender, SettingChangeEventArgs e)
     {

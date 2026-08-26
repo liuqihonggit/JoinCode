@@ -39,6 +39,10 @@
     <Style Selector="Border.sessionItem:pointerover Button.closeBtn">
       <Setter Property="Opacity" Value="1" />
     </Style>
+    <!-- 需求11：子会话已完成/失败 — 灰色保留（不移除，保留统计意义） -->
+    <Style Selector="Border.sessionItem.finished">
+      <Setter Property="Opacity" Value="0.5" />
+    </Style>
   </UserControl.Styles>
 
   <Grid RowDefinitions="Auto,*,Auto"
@@ -103,6 +107,7 @@
                     <DataTemplate x:DataType="vm:SessionItem">
                       <Border Classes="sessionItem"
                               Classes.selected="{Binding IsSelected}"
+                              Classes.finished="{Binding IsSubSessionFinished}"
                               Tapped="OnSessionSingleTapped"
                               Cursor="Hand">
                         <Border.ContextMenu>
@@ -115,8 +120,14 @@
                         </Border.ContextMenu>
                         <Grid ColumnDefinitions="*,Auto">
                           <StackPanel Orientation="Horizontal" Spacing="6">
-                            <TextBlock Text="↳" FontSize="11" Opacity="0.6" VerticalAlignment="Center"
-                                       Foreground="{DynamicResource GuiMutedText}" />
+                            <Panel Width="12">
+                              <TextBlock Text="⟳" FontSize="11" VerticalAlignment="Center"
+                                         Foreground="{DynamicResource GuiAccentText}"
+                                         IsVisible="{Binding IsSubSessionRunning}" />
+                              <TextBlock Text="✓" FontSize="11" VerticalAlignment="Center"
+                                         Foreground="{DynamicResource GuiSuccessText}"
+                                         IsVisible="{Binding IsSubSessionFinished}" />
+                            </Panel>
                             <TextBlock Text="{Binding Title}" Foreground="{DynamicResource GuiSecondaryText}" FontSize="11.5"
                                        VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                           </StackPanel>

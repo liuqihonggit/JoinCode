@@ -642,6 +642,8 @@ public sealed partial class MainViewModel : ViewModelBase
 
         OnPropertyChanged(nameof(IsMockConnection));
         IsEngineLoaded = true;
+        // 需求11：异步填充子会话树（快照避免跨线程）
+        _ = Task.Run(() => PopulateSubSessionsAsync(Sessions.ToArray()));
         _ = Task.Run(async () =>
         {
             try

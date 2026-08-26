@@ -193,4 +193,11 @@ public interface IJccChatSession : IAsyncDisposable
     /// <summary>获取子代理的 worktree 隔离目录（未启用返回 null）。默认不支持</summary>
     Task<string?> GetSubAgentWorktreePathAsync(string agentId, CancellationToken cancellationToken = default)
         => Task.FromResult<string?>(null);
+
+    /// <summary>获取主会话的子会话列表（fork 子代理，需求11 树形展示）。默认不支持（返回空）</summary>
+    Task<IReadOnlyList<SubSessionInfo>> GetSubSessionsAsync(string parentSessionId, CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<SubSessionInfo>>([]);
 }
+
+/// <summary>子会话信息 — 供 GUI 树形展示（需求11）</summary>
+public sealed record SubSessionInfo(string Id, string ParentSessionId, string Title, string State, string? WorktreePath);

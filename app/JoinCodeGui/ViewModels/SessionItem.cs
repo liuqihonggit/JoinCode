@@ -50,4 +50,15 @@ public sealed partial class SessionItem : ObservableObject
     /// <summary>worktree 路径（HasWorktree=true 时填充，供资源管理器打开）</summary>
     [ObservableProperty]
     private string? _worktreePath;
+
+    /// <summary>子会话生命周期状态 — Running/Completed/Merged/Cancelled/Failed（需求11，完成后灰色保留）</summary>
+    [ObservableProperty]
+    private string _subSessionState = "Running";
+
+    /// <summary>子会话是否已结束（Completed/Merged/Cancelled/Failed）— 驱动灰色样式，不移除保留统计</summary>
+    public bool IsSubSessionFinished => IsSubSession
+        && SubSessionState is "Completed" or "Merged" or "Cancelled" or "Failed";
+
+    /// <summary>子会话是否正在运行 — 驱动正常亮色</summary>
+    public bool IsSubSessionRunning => IsSubSession && SubSessionState == "Running";
 }

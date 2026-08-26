@@ -10,6 +10,7 @@ public interface IInProcessTeammateTaskExecutor
     Task TerminateTeammateAsync(string teammateId, string? reason = null, CancellationToken ct = default);
     Task<bool> IsTeammateIdleAsync(string teammateId, CancellationToken ct = default);
     Task<bool> InterruptTeammateAsync(string teammateId, CancellationToken ct = default);
+    event EventHandler<TeammateCompletedEventArgs>? TeammateCompleted;
 }
 
 /// <summary>
@@ -22,6 +23,19 @@ public sealed record TeammateStateSnapshot(
     bool IsIdle,
     int TurnCount,
     string? LastResult);
+
+/// <summary>
+/// teammate 完成事件参数 — teammate 正常完成或被终止时触发，供 GUI 移除子会话卡片/补足结果。
+/// </summary>
+public sealed class TeammateCompletedEventArgs : EventArgs
+{
+    public required string TeammateId { get; init; }
+    public required string Task { get; init; }
+    public string? Output { get; init; }
+    public bool IsSuccess { get; init; }
+    public string? Error { get; init; }
+    public int TurnCount { get; init; }
+}
 
 public sealed partial class InProcessTeammateDefinition
 {
@@ -78,6 +92,8 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
     private readonly ConcurrentDictionary<string, Channel<CoordinatorMessage>> _pendingMessages = new();
     private readonly SemaphoreSlim _teammateLock = new(1, 1);
     private readonly MiddlewarePipeline<TeammateExecutionContext>? _executePipeline;
+
+    public event EventHandler<TeammateCompletedEventArgs>? TeammateCompleted;
 
     public InProcessTeammateTaskExecutor(
         IAgentLifecycleManager agentLifecycleManager,
@@ -494,6 +510,8 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
             DisplayName = state.Context.AgentName
         };
 
+        var completedNormally = false;
+
         using (state.Context.EnterScope())
         using (subAgentContext.EnterScopeWithCwd(null))
         {
@@ -538,6 +556,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
                         definition.TeammateId, state.TurnCount, result.IsSuccess, result.Output?.Length ?? 0);
 
                     // 正常完成 — 退出循环（对齐 forked agent 单次执行语义；Interrupt 后才进 idle 等 next prompt）
+                    completedNormally = true;
                     shouldExit = true;
                 }
                 catch (OperationCanceledException) when (lifecycleCt.IsCancellationRequested)
@@ -603,6 +622,22 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
 
         _logger?.LogInformation("Teammate {TeammateId} loop exited after {TurnCount} turns",
             definition.TeammateId, state.TurnCount);
+
+        try
+        {
+            TeammateCompleted?.Invoke(this, new TeammateCompletedEventArgs
+            {
+                TeammateId = definition.TeammateId,
+                Task = definition.Task,
+                Output = state.LastResult,
+                IsSuccess = completedNormally,
+                TurnCount = state.TurnCount
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Teammate {TeammateId} TeammateCompleted event handler threw", definition.TeammateId);
+        }
     }
 
     private async Task<TeammateWaitResult> WaitForNextPromptOrShutdownAsync(

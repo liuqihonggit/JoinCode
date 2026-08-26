@@ -110,6 +110,52 @@ public static class DesignData
             Kind = ChatUiMessageKind.Thinking
         });
 
+        // 子代理运行组卡片（3 个子代理：完成 + 运行中 + 失败，含对话活动行）
+        var run1 = new SubAgentRun
+        {
+            AgentId = "design-agent-1",
+            Name = "explore",
+            Description = "搜索快速排序实现",
+            State = SubAgentRunState.Completed,
+            IsSuccess = true,
+            ToolUseCount = 3,
+            ExecutionTimeMs = 4200,
+            FinalOutput = "找到 QuickSort 实现在 MainViewModel.cs:1520"
+        };
+        run1._visibleActivities.Add("🔍 Grep 搜索 'QuickSort'");
+        run1._visibleActivities.Add("📖 Read MainViewModel.cs");
+        run1._visibleActivities.Add("✓ 分析完成");
+        var run2 = new SubAgentRun
+        {
+            AgentId = "design-agent-2",
+            Name = "test-gen",
+            Description = "生成单元测试",
+            State = SubAgentRunState.Running,
+            ToolUseCount = 1
+        };
+        run2._visibleActivities.Add("⚙ 生成测试用例…");
+        var run3 = new SubAgentRun
+        {
+            AgentId = "design-agent-3",
+            Name = "refactor",
+            Description = "重构方法签名",
+            State = SubAgentRunState.Failed,
+            IsSuccess = false,
+            ToolUseCount = 2,
+            ExecutionTimeMs = 1800,
+            FinalOutput = "编译失败: CS0103 未找到 stopReason"
+        };
+        run3._visibleActivities.Add("⚙ 重构方法签名");
+        run3._visibleActivities.Add("✗ 编译失败: CS0103");
+        vm.Messages.Add(new ChatUiMessage
+        {
+            Role = MessageRole.Assistant,
+            Content = string.Empty,
+            Timestamp = DateTime.Now,
+            Kind = ChatUiMessageKind.AgentRunGroup,
+            AgentRuns = [new AgentRunVm(run1), new AgentRunVm(run2), new AgentRunVm(run3)]
+        });
+
         vm.RunStatus.LatestActivity = "QuickSort 示例";
         vm.StatusText = "就绪";
     }

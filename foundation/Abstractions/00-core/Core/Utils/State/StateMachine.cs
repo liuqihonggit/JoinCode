@@ -10,7 +10,7 @@ public sealed class TransitionFailedEventArgs<TState> : EventArgs where TState :
 public sealed class StateMachine<TState> where TState : struct, Enum
 {
     private readonly FrozenDictionary<TState, FrozenSet<TState>> _transitions;
-    private readonly FrozenSet<TState>? _terminalStates = [];
+    private readonly FrozenSet<TState> _terminalStates = FrozenSet<TState>.Empty;
     private readonly object _lock = new();
     private readonly IClockService? _clock;
     private TState _currentState;
@@ -153,7 +153,7 @@ public sealed class StateMachine<TState> where TState : struct, Enum
 
     public bool IsTerminalState()
     {
-        if (_terminalStates is null)
+        if (_terminalStates.Count == 0)
         {
             lock (_lock)
             {

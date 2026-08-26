@@ -21,9 +21,9 @@ public sealed class ProcessOptions
     public string Arguments { get; init; } = string.Empty;
     /// <summary>
     /// 参数化启动列表 — 优先于 <see cref="Arguments"/>，通过 ProcessStartInfo.ArgumentList 逐个添加，消除字符串拼接注入风险
-    /// <para>非空时忽略 <see cref="Arguments"/>；为 null 时回退到 <see cref="Arguments"/></para>
+    /// <para>非空时忽略 <see cref="Arguments"/>；为空列表时回退到 <see cref="Arguments"/></para>
     /// </summary>
-    public IReadOnlyList<string>? ArgumentList { get; init; }
+    public IReadOnlyList<string> ArgumentList { get; init; } = [];
     public string? WorkingDirectory { get; init; }
     public IReadOnlyDictionary<string, string> EnvironmentVariables { get; init; } = new Dictionary<string, string>();
     public System.Text.Encoding? StandardOutputEncoding { get; init; }
@@ -77,10 +77,11 @@ public sealed class InteractiveProcessOptions
     public string Arguments { get; init; } = string.Empty;
     /// <summary>
     /// 参数化启动列表 — 优先于 <see cref="Arguments"/>，消除字符串拼接注入风险
+    /// <para>非空时忽略 <see cref="Arguments"/>；为空列表时回退到 <see cref="Arguments"/></para>
     /// </summary>
-    public IReadOnlyList<string>? ArgumentList { get; init; }
+    public IReadOnlyList<string> ArgumentList { get; init; } = [];
     public string? WorkingDirectory { get; init; }
-    public IReadOnlyDictionary<string, string>? EnvironmentVariables { get; init; }
+    public IReadOnlyDictionary<string, string> EnvironmentVariables { get; init; } = new Dictionary<string, string>();
     public bool RedirectStandardError { get; init; } = true;
     public System.Text.Encoding? StandardOutputEncoding { get; init; }
     public System.Text.Encoding? StandardErrorEncoding { get; init; }

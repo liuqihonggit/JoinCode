@@ -118,9 +118,9 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
         {
             FileName = options.ExecPath,
             Arguments = options.Arguments ?? string.Empty,
-            ArgumentList = options.ArgumentList,
+            ArgumentList = options.ArgumentList ?? [],
             WorkingDirectory = options.Dir,
-            EnvironmentVariables = options.EnvironmentVariables
+            EnvironmentVariables = options.EnvironmentVariables ?? new Dictionary<string, string>()
         };
 
         var process = await processService.StartInteractiveAsync(interactiveOptions, ct).ConfigureAwait(false);

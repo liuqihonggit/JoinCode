@@ -51,7 +51,7 @@ public sealed class McpStdioClient : McpClientBase
             var opts = new InteractiveProcessOptions
             {
                 FileName = _config.Endpoint,
-                EnvironmentVariables = envVars,
+                EnvironmentVariables = envVars ?? new Dictionary<string, string>(),
                 RedirectStandardError = true,
             };
 

@@ -74,9 +74,9 @@ public sealed class PatientProcessManager : IAsyncDisposable
         {
             FileName = execPath,
             Arguments = arguments,
-            ArgumentList = argumentList,
+            ArgumentList = argumentList ?? [],
             WorkingDirectory = workingDirectory,
-            EnvironmentVariables = environmentVariables,
+            EnvironmentVariables = environmentVariables ?? new Dictionary<string, string>(),
             RedirectStandardError = true
         };
 

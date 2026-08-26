@@ -46,10 +46,10 @@ public sealed partial class StdioProcessManager : IAsyncDisposable
         var startInfo = builder.BuildInteractive(new InteractiveProcessOptions
         {
             FileName = config.ExecutablePath,
-            ArgumentList = config.ArgumentList,
+            ArgumentList = config.ArgumentList ?? [],
             Arguments = config.Arguments,
             WorkingDirectory = config.WorkingDirectory ?? Path.GetDirectoryName(config.ExecutablePath) ?? Environment.CurrentDirectory,
-            EnvironmentVariables = config.EnvironmentVariables,
+            EnvironmentVariables = config.EnvironmentVariables ?? new Dictionary<string, string>(),
         });
 
         _process = new System.Diagnostics.Process { StartInfo = startInfo };

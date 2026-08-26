@@ -4,7 +4,7 @@ public sealed class ToolResultBuilder
 {
     private readonly List<ToolContent> _content = new();
     private bool _isError;
-    private List<EntityMetadataEntry>? _entityMetadata = [];
+    private List<EntityMetadataEntry> _entityMetadata = [];
     private ToolDiagnostic? _diagnostic;
 
     public static ToolResultBuilder Success() => new();
@@ -98,7 +98,6 @@ public sealed class ToolResultBuilder
     /// </summary>
     public ToolResultBuilder WithEntityMetadata(EntityMetadataEntry entry)
     {
-        _entityMetadata ??= new();
         _entityMetadata.Add(entry);
         return this;
     }

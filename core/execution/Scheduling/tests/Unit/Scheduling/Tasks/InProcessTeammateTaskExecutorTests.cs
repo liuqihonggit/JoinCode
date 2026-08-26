@@ -292,4 +292,48 @@ public class InProcessTeammateTaskExecutorTests
 
         await _executor.StopTeammateAsync("teammate-int").ConfigureAwait(true);
     }
+
+    [Fact]
+    public async Task GetActiveTeammateSnapshotsAsync_WhenTeammateActive_ShouldReturnSnapshotWithTaskAndParent()
+    {
+        var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
+        var agent = new AgentBase("Snapshot task", null, queryEngineMock.Object, null);
+
+        _lifecycleManagerMock
+            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
+            .ReturnsAsync(agent);
+        _lifecycleManagerMock
+            .Setup(x => x.ExecuteAsync(It.IsAny<IAgent>(), It.IsAny<CancellationToken>()))
+            .Returns(async (IAgent _, CancellationToken ct) =>
+            {
+                await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(true);
+                return new SubAgentResult { AgentId = "agent-s", IsSuccess = true, Output = "done" };
+            });
+        _lifecycleManagerMock
+            .Setup(x => x.DisposeAgentAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var definition = new InProcessTeammateDefinition
+        {
+            TaskId = "tm-snap",
+            TeammateId = "teammate-snap",
+            Task = "Snapshot task description",
+            ContinuousMode = true,
+            ParentSessionId = "parent-session-1"
+        };
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await _executor.ExecuteTeammateAsync(definition, cts.Token).ConfigureAwait(true);
+
+        await Task.Delay(200).ConfigureAwait(true);
+
+        var snapshots = await _executor.GetActiveTeammateSnapshotsAsync().ConfigureAwait(true);
+        var snap = snapshots.FirstOrDefault(s => s.TeammateId == "teammate-snap");
+
+        snap.Should().NotBeNull();
+        snap!.Task.Should().Be("Snapshot task description");
+        snap.ParentSessionId.Should().Be("parent-session-1");
+
+        await _executor.StopTeammateAsync("teammate-snap").ConfigureAwait(true);
+    }
 }

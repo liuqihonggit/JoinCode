@@ -5,11 +5,23 @@ public interface IInProcessTeammateTaskExecutor
     Task<AgentTaskResult> ExecuteTeammateAsync(InProcessTeammateDefinition definition, CancellationToken ct = default);
     Task<bool> SendMessageToTeammateAsync(string teammateId, CoordinatorMessage message, CancellationToken ct = default);
     Task<IEnumerable<string>> GetActiveTeammatesAsync(CancellationToken ct = default);
+    Task<IEnumerable<TeammateStateSnapshot>> GetActiveTeammateSnapshotsAsync(CancellationToken ct = default);
     Task StopTeammateAsync(string teammateId, CancellationToken ct = default);
     Task TerminateTeammateAsync(string teammateId, string? reason = null, CancellationToken ct = default);
     Task<bool> IsTeammateIdleAsync(string teammateId, CancellationToken ct = default);
     Task<bool> InterruptTeammateAsync(string teammateId, CancellationToken ct = default);
 }
+
+/// <summary>
+/// teammate 状态快照 — 供 GUI 渲染子会话树（含 ParentSessionId/Task/IsIdle 等，弥补 GetActiveTeammatesAsync 只返回 ID 的不足）。
+/// </summary>
+public sealed record TeammateStateSnapshot(
+    string TeammateId,
+    string? ParentSessionId,
+    string Task,
+    bool IsIdle,
+    int TurnCount,
+    string? LastResult);
 
 public sealed partial class InProcessTeammateDefinition
 {
@@ -39,6 +51,10 @@ public sealed class TeammateState
     public bool IsIdle { get; set; }
     public string? LastResult { get; set; }
     public int TurnCount { get; set; }
+    /// <summary>
+    /// 任务描述 — 来自 <see cref="InProcessTeammateDefinition.Task"/>，供 snapshot 暴露给 GUI 渲染子会话标题。
+    /// </summary>
+    public string Task { get; init; } = string.Empty;
     /// <summary>
     /// 当前 per-turn work 的 CTS — Interrupt 时只 cancel 此 CTS 中断当前 work，不杀 lifecycle。
     /// 由循环体在 work 开始前设置、结束后清空；InterruptTeammateAsync 读取并 cancel。
@@ -187,7 +203,8 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
                 Agent = agent,
                 LifecycleCts = lifecycleCts,
                 Context = teammateContext,
-                IsIdle = false
+                IsIdle = false,
+                Task = definition.Task
             };
 
             await _teammateLock.WaitAsync(ct).ConfigureAwait(false);
@@ -272,6 +289,28 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
         try
         {
             return _activeTeammates.Keys;
+        }
+        finally
+        {
+            _teammateLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// 返回所有活跃 teammate 的状态快照 — 供 GUI 渲染子会话树（含 ParentSessionId/Task/IsIdle 等）。
+    /// </summary>
+    public async Task<IEnumerable<TeammateStateSnapshot>> GetActiveTeammateSnapshotsAsync(CancellationToken ct = default)
+    {
+        await _teammateLock.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            return _activeTeammates.Select(kv => new TeammateStateSnapshot(
+                kv.Key,
+                kv.Value.Context.ParentSessionId,
+                kv.Value.Task,
+                kv.Value.IsIdle,
+                kv.Value.TurnCount,
+                kv.Value.LastResult)).ToList();
         }
         finally
         {

@@ -12,6 +12,7 @@ public sealed partial class ForkSpawnMiddleware : ServiceEntity, IForkMiddleware
     private readonly IMailboxPoller? _mailboxPoller;
     private readonly JoinCode.Abstractions.Interfaces.IFileStateCache? _fileStateCache;
     private readonly IHotSpotSpawnIntegration? _hotSpotIntegration;
+    private readonly JoinCode.Abstractions.Interfaces.IDeferredMailService? _deferredMailService;
     private readonly ILogger<ForkSpawnMiddleware>? _logger;
     private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     private readonly IClockService _clock;
@@ -23,6 +24,7 @@ public sealed partial class ForkSpawnMiddleware : ServiceEntity, IForkMiddleware
         IMailboxPoller? mailboxPoller = null,
         JoinCode.Abstractions.Interfaces.IFileStateCache? fileStateCache = null,
         IHotSpotSpawnIntegration? hotSpotIntegration = null,
+        JoinCode.Abstractions.Interfaces.IDeferredMailService? deferredMailService = null,
         ILogger<ForkSpawnMiddleware>? logger = null,
         ISubAgentContextAccessor? subAgentContextAccessor = null,
         IClockService? clock = null)
@@ -33,6 +35,7 @@ public sealed partial class ForkSpawnMiddleware : ServiceEntity, IForkMiddleware
         _mailboxPoller = mailboxPoller;
         _fileStateCache = fileStateCache;
         _hotSpotIntegration = hotSpotIntegration;
+        _deferredMailService = deferredMailService;
         _logger = logger;
         _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
         _clock = clock ?? SystemClockService.Instance;
@@ -123,6 +126,7 @@ public sealed partial class ForkSpawnMiddleware : ServiceEntity, IForkMiddleware
             if (agent is AgentBase agentBase)
             {
                 agentBase.ContractChangeNotifications = _hotSpotIntegration.GetOrCreateNotificationQueue(agent.ObjectId.UniqueId);
+                agentBase.DeferredMailService = _deferredMailService;
             }
         }
 

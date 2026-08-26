@@ -33,7 +33,7 @@ public sealed record DeferredMail
     public int OpenAfterTurns { get; init; } = 20;
 
     /// <summary>
-    /// 邮件标记（优先级分类）
+    /// 邮件标记（可组合的冲突标志，[Flags] 位标志）
     /// </summary>
     public MailMarker Marker { get; init; } = MailMarker.ResourceRefChange;
 
@@ -43,7 +43,7 @@ public sealed record DeferredMail
     public required DateTimeOffset CreatedAt { get; init; }
 
     /// <summary>
-    /// 是否高优先级（热文件冲突）
+    /// 是否高优先级（含热文件冲突标记）— 用 HasFlag 支持组合标记
     /// </summary>
-    public bool IsHighPriority => Marker == MailMarker.HotFileConflict;
+    public bool IsHighPriority => Marker.HasFlag(MailMarker.HotFileConflict);
 }

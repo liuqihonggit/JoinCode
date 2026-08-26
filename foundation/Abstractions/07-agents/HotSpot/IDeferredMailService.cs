@@ -22,13 +22,15 @@ public interface IDeferredMailService
     /// 任务结束注入：返回该 Agent 所有未到期但需立即投递的邮件，并从队列移除
     /// </summary>
     /// <param name="agentId">收件人 Agent ID</param>
-    /// <returns>所有待投递邮件</returns>
-    IReadOnlyList<DeferredMail> FlushOnTaskEnd(string agentId);
+    /// <param name="markerFilter">标记过滤 — 仅投递含此标记的邮件并移除, null 表示投递全部</param>
+    /// <returns>投递的邮件列表</returns>
+    IReadOnlyList<DeferredMail> FlushOnTaskEnd(string agentId, MailMarker? markerFilter = null);
 
     /// <summary>
     /// 获取待投递邮件（未到期，不移除）
     /// </summary>
     /// <param name="agentId">收件人 Agent ID</param>
+    /// <param name="markerFilter">标记过滤 — 仅返回含此标记的邮件, null 表示不过滤</param>
     /// <returns>待投递邮件列表</returns>
-    IReadOnlyList<DeferredMail> GetPending(string agentId);
+    IReadOnlyList<DeferredMail> GetPending(string agentId, MailMarker? markerFilter = null);
 }

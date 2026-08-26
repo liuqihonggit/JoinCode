@@ -85,4 +85,32 @@ public sealed class DeferredMailServiceTests
         matured[0].IsHighPriority.Should().BeTrue();
         matured[0].Marker.Should().Be(MailMarker.HotFileConflict);
     }
+
+    [Fact]
+    public async Task GetPending_WithMarkerFilter_ShouldReturnOnlyMailsContainingMarker()
+    {
+        await _sut.DeferAsync(MakeMail("w1", turns: 100, marker: MailMarker.HotFileConflict));
+        await _sut.DeferAsync(MakeMail("w1", turns: 100, marker: MailMarker.TestFileConflict));
+        await _sut.DeferAsync(MakeMail("w1", turns: 100, marker: MailMarker.HotFileConflict | MailMarker.ResourceRefChange));
+
+        _sut.GetPending("w1", MailMarker.HotFileConflict).Should().HaveCount(2, "两封含 HotFileConflict");
+        _sut.GetPending("w1", MailMarker.TestFileConflict).Should().HaveCount(1, "一封含 TestFileConflict");
+        _sut.GetPending("w1", MailMarker.ResourceRefChange).Should().HaveCount(1, "一封含 ResourceRefChange");
+        _sut.GetPending("w1").Should().HaveCount(3, "无过滤返回全部");
+        _sut.GetPending("w1", MailMarker.None).Should().HaveCount(3, "None 过滤等同不过滤");
+    }
+
+    [Fact]
+    public async Task FlushOnTaskEnd_WithMarkerFilter_ShouldRemoveOnlyMatchingAndKeepOthers()
+    {
+        await _sut.DeferAsync(MakeMail("w1", turns: 100, marker: MailMarker.HotFileConflict));
+        await _sut.DeferAsync(MakeMail("w1", turns: 100, marker: MailMarker.TestFileConflict));
+
+        var hot = _sut.FlushOnTaskEnd("w1", MailMarker.HotFileConflict);
+
+        hot.Should().HaveCount(1);
+        hot[0].Marker.Should().Be(MailMarker.HotFileConflict);
+        _sut.GetPending("w1").Should().HaveCount(1, "未匹配的应保留");
+        _sut.GetPending("w1")[0].Marker.Should().Be(MailMarker.TestFileConflict);
+    }
 }

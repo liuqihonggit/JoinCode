@@ -444,5 +444,43 @@ public sealed class GoalEngineTests
             await SafeDisposeAsync(engine).ConfigureAwait(true);
         }
     }
+
+    /// <summary>
+    /// 验证 GoalEngine 在 serviceProvider 提供 IDeferredMailService 时, 将其注入给 mainAgent
+    /// 队长(main agent)不走 ForkSpawnMiddleware, 需在 RegisterMainAgent 中显式注入
+    /// </summary>
+    [Fact]
+    public async Task StartAsync_WithDeferredMailService_Should_Inject_To_MainAgent()
+    {
+        var (kernel, evaluator, serviceProvider) = CreateMocks();
+
+        var queryEngine = new Mock<IQueryEngine>();
+        serviceProvider
+            .Setup(sp => sp.GetService(It.Is<Type>(t => t == typeof(IQueryEngine))))
+            .Returns(queryEngine.Object);
+
+        var deferredMailService = new Mock<IDeferredMailService>();
+        serviceProvider
+            .Setup(sp => sp.GetService(It.Is<Type>(t => t == typeof(IDeferredMailService))))
+            .Returns(deferredMailService.Object);
+
+        var engine = new GoalEngine(kernel.Object, evaluator.Object, heartbeat: CreateHeartbeatMock().Object, serviceProvider: serviceProvider.Object);
+        try
+        {
+            await engine.StartAsync("延迟邮件注入测试").ConfigureAwait(true);
+
+            var allMainAgents = JoinCode.Abstractions.Entity.SessionRouter.GetAllScopes()
+                .SelectMany(s => s.GetAll<Core.Agents.Coordinator.AgentBase>())
+                .Where(a => a.Role == AgentRole.Coordinator)
+                .ToList();
+            Assert.NotEmpty(allMainAgents);
+            Assert.NotNull(allMainAgents[0].DeferredMailService);
+            Assert.Same(deferredMailService.Object, allMainAgents[0].DeferredMailService);
+        }
+        finally
+        {
+            await SafeDisposeAsync(engine).ConfigureAwait(true);
+        }
+    }
 }
 #pragma warning restore JCC3010, JCC3011, JCC3012

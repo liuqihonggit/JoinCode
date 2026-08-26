@@ -1104,6 +1104,14 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
             goalId: goalId,
             tokenBudget: tokenBudget);
 
+        // 队长(main agent)侧延迟邮件注入 — 与 ForkSpawnMiddleware 给 fork 注入对齐
+        // main agent 不走 ForkSpawnMiddleware, 需在此显式注入; Agent 空闲时立即读取邮件
+        var deferredMailService = _serviceProvider.GetService<JoinCode.Abstractions.Interfaces.IDeferredMailService>();
+        if (deferredMailService is not null)
+        {
+            mainAgent.DeferredMailService = deferredMailService;
+        }
+
         var spawnPipeline = _serviceProvider.GetService<Infrastructure.Pipeline.MiddlewarePipeline<Core.Agents.UnifiedSpawnContext>>();
         if (spawnPipeline is not null)
         {

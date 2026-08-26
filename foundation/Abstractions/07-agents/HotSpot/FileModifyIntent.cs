@@ -27,6 +27,12 @@ public sealed record FileModifyIntent
     public required DateTimeOffset ReportedAt { get; init; }
 
     /// <summary>
+    /// 冲突标记分类 — subAgent 上报时自带, [Flags] 可组合
+    /// None=未分类, HotFileConflict=热文件冲突(队长统计>=3 升级), TestFileConflict=测试文件冲突, ResourceRefChange=资源引用变更
+    /// </summary>
+    public MailMarker Marker { get; init; } = MailMarker.None;
+
+    /// <summary>
     /// 是否为契约修改（便捷判断）
     /// </summary>
     public bool IsContractChange => Intent == ModifyIntent.ContractChange;

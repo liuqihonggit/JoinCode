@@ -34,6 +34,7 @@ public sealed class GdiScreenCaptureServiceTests
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task CaptureFullScreenAsync_OnDesktop_ReturnsNonEmptyBase64()
     {
         var service = new GdiScreenCaptureService();

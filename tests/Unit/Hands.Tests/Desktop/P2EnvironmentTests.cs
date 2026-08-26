@@ -178,6 +178,7 @@ public sealed class P2EnvironmentTests
     #region Win32EnvironmentAwarenessService.GetCursorState (real desktop)
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task GetCursorState_RealDesktop_ReturnsValidState()
     {
         var service = new Win32EnvironmentAwarenessService();
@@ -187,6 +188,7 @@ public sealed class P2EnvironmentTests
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public async Task DetectPopup_RealDesktop_ReturnsNullOrPopupInfo()
     {
         var service = new Win32EnvironmentAwarenessService();

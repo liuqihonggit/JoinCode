@@ -47,13 +47,20 @@ public sealed class DeferredMailService : IDeferredMailService
         }
     }
 
-    public IReadOnlyList<DeferredMail> FlushOnTaskEnd(string agentId)
+    public IReadOnlyList<DeferredMail> FlushOnTaskEnd(string agentId, MailMarker? markerFilter = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
         lock (GetLock(agentId))
         {
             if (!_pending.TryGetValue(agentId, out var list))
                 return [];
+
+            if (markerFilter is { } filter)
+            {
+                var matched = list.Where(e => e.Mail.Marker.HasFlag(filter)).Select(e => e.Mail).ToList();
+                list.RemoveAll(e => e.Mail.Marker.HasFlag(filter));
+                return matched;
+            }
 
             var all = list.Select(e => e.Mail).ToList();
             list.Clear();
@@ -61,14 +68,17 @@ public sealed class DeferredMailService : IDeferredMailService
         }
     }
 
-    public IReadOnlyList<DeferredMail> GetPending(string agentId)
+    public IReadOnlyList<DeferredMail> GetPending(string agentId, MailMarker? markerFilter = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
         lock (GetLock(agentId))
         {
             if (!_pending.TryGetValue(agentId, out var list))
                 return [];
-            return list.Select(e => e.Mail).ToList();
+            var mails = list.Select(e => e.Mail);
+            if (markerFilter is { } filter)
+                mails = mails.Where(m => m.Marker.HasFlag(filter));
+            return mails.ToList();
         }
     }
 

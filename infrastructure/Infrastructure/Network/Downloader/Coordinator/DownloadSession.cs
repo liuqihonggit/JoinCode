@@ -22,7 +22,7 @@ internal sealed class DownloadSession : IDownloadSession
 
     private CancellationTokenSource? _cts;
     private Task<DownloadResult>? _downloadTask;
-    private List<DownloadChunk>? _chunks;
+    private List<DownloadChunk> _chunks = [];
     private long _totalLength;
     private RangeSupportResult? _probeResult;
     private readonly DateTimeOffset _startTime;
@@ -81,7 +81,7 @@ internal sealed class DownloadSession : IDownloadSession
 #pragma warning restore VSTHRD003
         }
 
-        if (_chunks is not null)
+        if (_chunks.Count > 0)
             _metadataStore.Save(_filePath, BuildMetadata());
     }
 
@@ -155,7 +155,7 @@ internal sealed class DownloadSession : IDownloadSession
             if (!LoadOrPlanChunks(probeResult))
                 return FailureResult("[DOWN009] 无法确定文件长度或分片规划失败");
 
-            var pendingChunks = _chunks!.Where(c => !c.Completed).ToList();
+            var pendingChunks = _chunks.Where(c => !c.Completed).ToList();
             if (pendingChunks.Count == 0)
                 return await MergeAndCompleteAsync(ct).ConfigureAwait(false);
 
@@ -236,7 +236,7 @@ internal sealed class DownloadSession : IDownloadSession
         if (!mergeResult.Success)
             return FailureResult(mergeResult.Error);
 
-        var partPaths = _chunks!
+        var partPaths = _chunks
             .OrderBy(c => c.Index)
             .Select(c => GetPartPath(c.Index))
             .Where(p => _fs.FileExists(p))
@@ -265,7 +265,7 @@ internal sealed class DownloadSession : IDownloadSession
 
     private string GetPartPath(int index) => $"{_filePath}.part{index}";
 
-    private long GetDownloadedBytes() => _chunks?.Sum(c => c.Downloaded) ?? 0;
+    private long GetDownloadedBytes() => _chunks.Sum(c => c.Downloaded);
 
     private DownloadMetadata BuildMetadata() =>
         new()
@@ -274,13 +274,13 @@ internal sealed class DownloadSession : IDownloadSession
             TotalLength = _totalLength,
             ETag = _probeResult?.ETag,
             LastModified = _probeResult?.LastModified,
-            Chunks = _chunks ?? []
+            Chunks = _chunks
         };
 
     private void CleanupTempFiles()
     {
         _metadataStore.Delete(_filePath);
-        if (_chunks is null) return;
+        if (_chunks.Count == 0) return;
         foreach (var chunk in _chunks)
         {
             var partPath = GetPartPath(chunk.Index);

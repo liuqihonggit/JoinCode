@@ -118,9 +118,9 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
         {
             FileName = options.ExecPath,
             Arguments = options.Arguments ?? string.Empty,
-            ArgumentList = options.ArgumentList ?? [],
+            ArgumentList = options.ArgumentList,
             WorkingDirectory = options.Dir,
-            EnvironmentVariables = options.EnvironmentVariables ?? new Dictionary<string, string>()
+            EnvironmentVariables = options.EnvironmentVariables
         };
 
         var process = await processService.StartInteractiveAsync(interactiveOptions, ct).ConfigureAwait(false);
@@ -545,7 +545,7 @@ public sealed class BridgeSubprocessSpawner
     public string? WorkingDirectory { get; init; }
 
     /// <summary>额外环境变量</summary>
-    public Dictionary<string, string>? ExtraEnv { get; init; }
+    public Dictionary<string, string> ExtraEnv { get; init; } = [];
 
     /// <summary>是否调试日志</summary>
     public bool DebugLog { get; init; }
@@ -720,12 +720,9 @@ public sealed class BridgeSubprocessSpawner
         var env = new Dictionary<string, string>();
 
         // 额外环境变量
-        if (ExtraEnv is not null)
+        foreach (var (key, value) in ExtraEnv)
         {
-            foreach (var (key, value) in ExtraEnv)
-            {
-                env[key] = value;
-            }
+            env[key] = value;
         }
 
         // Bridge 专用环境变量 — 对齐 TS 端
@@ -874,10 +871,10 @@ public sealed class BridgeSubprocessOptions
     public string? Arguments { get; init; }
 
     /// <summary>参数化启动列表 — 由 Spawner 填充，优先于 <see cref="Arguments"/>，消除字符串拼接注入风险</summary>
-    public IReadOnlyList<string>? ArgumentList { get; init; }
+    public IReadOnlyList<string> ArgumentList { get; init; } = [];
 
     /// <summary>环境变量 — 由 Spawner 填充</summary>
-    public Dictionary<string, string>? EnvironmentVariables { get; init; }
+    public Dictionary<string, string> EnvironmentVariables { get; init; } = [];
 
     /// <summary>SDK URL（WebSocket/SSE 端点）</summary>
     public string? SdkUrl { get; init; }

@@ -5,7 +5,8 @@ public sealed partial class ChatCommandRegistry : JoinCode.Abstractions.Interfac
 {
     private readonly CategorizedRegistry<string, IChatCommand, ChatCommandCategory> _registry;
     private readonly ILogger<ChatCommandRegistry>? _logger;
-    private IReadOnlyList<ChatCommandInfo>? _cachedCommandInfos;
+    private IReadOnlyList<ChatCommandInfo> _cachedCommandInfos = [];
+    private bool _cachedCommandInfosValid;
 
     public ChatCommandRegistry(ILogger<ChatCommandRegistry>? logger = null)
     {
@@ -28,7 +29,7 @@ public sealed partial class ChatCommandRegistry : JoinCode.Abstractions.Interfac
         foreach (var alias in command.Aliases)
             _registry.RegisterAlias(alias, command);
 
-        _cachedCommandInfos = null;
+        _cachedCommandInfosValid = false;
         _logger?.LogDebug("[ChatCommandRegistry] 已注册命令: {CommandName}", command.Name);
     }
 
@@ -46,7 +47,7 @@ public sealed partial class ChatCommandRegistry : JoinCode.Abstractions.Interfac
     bool JoinCode.Abstractions.Interfaces.ICommandRegistry.UnregisterCommand(string commandName)
     {
         var removed = _registry.Unregister(commandName);
-        if (removed) _cachedCommandInfos = null;
+        if (removed) _cachedCommandInfosValid = false;
         return removed;
     }
 
@@ -99,16 +100,21 @@ public sealed partial class ChatCommandRegistry : JoinCode.Abstractions.Interfac
 
     public IEnumerable<ChatCommandInfo> GetCommandInfos()
     {
-        return _cachedCommandInfos ??= _registry.GetCategorizedEntries()
-            .Select(e => new ChatCommandInfo(
-                e.Value.Name,
-                e.Value.Description,
-                e.Value.Usage,
-                e.Value.Aliases,
-                e.Value.ArgumentHint,
-                e.Value.IsHidden || !e.IsEnabled,
-                e.Category))
-            .ToArray();
+        if (!_cachedCommandInfosValid)
+        {
+            _cachedCommandInfos = _registry.GetCategorizedEntries()
+                .Select(e => new ChatCommandInfo(
+                    e.Value.Name,
+                    e.Value.Description,
+                    e.Value.Usage,
+                    e.Value.Aliases,
+                    e.Value.ArgumentHint,
+                    e.Value.IsHidden || !e.IsEnabled,
+                    e.Category))
+                .ToArray();
+            _cachedCommandInfosValid = true;
+        }
+        return _cachedCommandInfos;
     }
 }
 

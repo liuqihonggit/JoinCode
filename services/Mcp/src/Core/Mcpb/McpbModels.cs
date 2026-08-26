@@ -18,7 +18,7 @@ public sealed partial class McpbManifest
     public McpbServerConfig? Server { get; set; }
 
     [JsonPropertyName("user_config")]
-    public Dictionary<string, McpbUserConfigOption>? UserConfig { get; set; }
+    public Dictionary<string, McpbUserConfigOption> UserConfig { get; set; } = [];
 }
 
 public sealed partial class McpbAuthor
@@ -36,13 +36,13 @@ public sealed partial class McpbServerConfig
     public string? Command { get; set; }
 
     [JsonPropertyName("args")]
-    public List<string>? Args { get; set; }
+    public List<string> Args { get; set; } = [];
 
     [JsonPropertyName("url")]
     public string? Url { get; set; }
 
     [JsonPropertyName("env")]
-    public Dictionary<string, JsonElement>? Env { get; set; }
+    public Dictionary<string, JsonElement> Env { get; set; } = [];
 }
 
 public sealed partial class McpbUserConfigOption

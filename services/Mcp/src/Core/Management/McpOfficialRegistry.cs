@@ -112,10 +112,10 @@ public sealed partial class McpRegistryInstallation
     public string? Command { get; set; }
 
     [JsonPropertyName("args")]
-    public List<string>? Args { get; set; }
+    public List<string> Args { get; set; } = [];
 
     [JsonPropertyName("env")]
-    public Dictionary<string, string>? Env { get; set; }
+    public Dictionary<string, string> Env { get; set; } = [];
 
     [JsonPropertyName("type")]
     public string? Type { get; set; }

@@ -23,7 +23,7 @@ public sealed partial class RemoteDriftDetectionMiddleware : ServiceEntity, IRem
             return next(ctx, ct);
         }
 
-        if (ctx.PreviousToolSpecs is not { Count: > 0 } || ctx.ToolsResult is null)
+        if (ctx.PreviousToolSpecs.Count == 0 || ctx.ToolsResult is null)
         {
             return next(ctx, ct);
         }

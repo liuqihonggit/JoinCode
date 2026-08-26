@@ -83,7 +83,7 @@ public sealed partial class McpbLoader : ServiceEntity
 
         var env = new Dictionary<string, string>();
 
-        if (server.Env != null)
+        if (server.Env.Count > 0)
         {
             foreach (var kvp in server.Env)
             {

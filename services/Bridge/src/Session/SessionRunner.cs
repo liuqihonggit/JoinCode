@@ -60,7 +60,7 @@ public sealed class BridgeSession
     /// <summary>会话元数据</summary>
     [JsonPropertyName("metadata")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public Dictionary<string, string>? Metadata { get; init; }
+    public Dictionary<string, string> Metadata { get; init; } = [];
 }
 
 /// <summary>
@@ -118,7 +118,7 @@ public sealed partial class BridgeSessionFactory
             CreatedAt = now,
             LastActiveAt = now,
             Status = BridgeSessionStatus.Active,
-            Metadata = metadata
+            Metadata = metadata ?? []
         };
     }
 }

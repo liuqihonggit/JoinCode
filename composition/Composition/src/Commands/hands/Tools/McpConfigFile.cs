@@ -4,10 +4,10 @@ public sealed class McpServerConfigEntry
 {
     public string Type { get; set; } = "stdio";
     public string? Command { get; set; }
-    public List<string>? Args { get; set; }
+    public List<string> Args { get; set; } = [];
     public string? Url { get; set; }
-    public Dictionary<string, string>? Env { get; set; }
-    public Dictionary<string, string>? Headers { get; set; }
+    public Dictionary<string, string> Env { get; set; } = [];
+    public Dictionary<string, string> Headers { get; set; } = [];
 }
 
 public sealed class McpConfigFile

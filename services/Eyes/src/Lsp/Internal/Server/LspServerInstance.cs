@@ -51,7 +51,7 @@ public sealed partial class LspInstanceConfig
     public required string LanguageId { get; init; }
     public required string Command { get; init; }
     public List<string> Arguments { get; init; } = [];
-    public Dictionary<string, string>? Environment { get; init; }
+    public Dictionary<string, string> Environment { get; init; } = [];
     public string? WorkingDirectory { get; init; }
     public TimeSpan? StartupTimeout { get; init; }
     public int? MaxRestarts { get; init; }

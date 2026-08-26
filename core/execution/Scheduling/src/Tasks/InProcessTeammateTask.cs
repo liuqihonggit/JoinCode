@@ -492,15 +492,29 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
                     var result = await _agentLifecycleManager.ExecuteAsync(state.Agent, workCts.Token).ConfigureAwait(false);
 
                     state.TurnCount++;
-                    state.IsIdle = true;
                     state.LastResult = result.Output;
-
-                    await NotifyIdleAsync(definition.TeammateId, state, result.Output).ConfigureAwait(false);
-
                     RecordTeammateMetrics("turn_complete", result.IsSuccess);
 
                     _logger?.LogDebug("Teammate {TeammateId} checkpoint: turn={TurnCount} success={Success} outputLen={OutputLen}",
                         definition.TeammateId, state.TurnCount, result.IsSuccess, result.Output?.Length ?? 0);
+
+                    // 正常完成 — 退出循环（对齐 forked agent 单次执行语义；Interrupt 后才进 idle 等 next prompt）
+                    shouldExit = true;
+                }
+                catch (OperationCanceledException) when (lifecycleCt.IsCancellationRequested)
+                {
+                    shouldExit = true;
+                }
+                catch (OperationCanceledException) when (!lifecycleCt.IsCancellationRequested)
+                {
+                    // Interrupt — workCts 被 cancel 但 lifecycle 未取消，进 idle 等 next prompt
+                    // 对齐 ClaudeCode inProcessRunner ESC：不通知 coordinator（不自动唤醒 mainAgent），仅等用户 next prompt
+                    state.TurnCount++;
+                    state.IsIdle = true;
+                    RecordTeammateMetrics("turn_interrupted", true);
+
+                    _logger?.LogInformation("Teammate {TeammateId} interrupted at turn={TurnCount}, entering idle to wait for next prompt",
+                        definition.TeammateId, state.TurnCount);
 
                     var waitResult = await WaitForNextPromptOrShutdownAsync(
                         definition.TeammateId, lifecycleCt).ConfigureAwait(false);
@@ -510,20 +524,16 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
                     switch (waitResult)
                     {
                         case TeammateWaitResult.ShutdownRequest:
-                            _logger?.LogInformation("Teammate {TeammateId} received shutdown request", definition.TeammateId);
+                            _logger?.LogInformation("Teammate {TeammateId} received shutdown request after interrupt", definition.TeammateId);
                             shouldExit = true;
                             break;
                         case TeammateWaitResult.NewMessage:
-                            _logger?.LogDebug("Teammate {TeammateId} received new message, continuing loop", definition.TeammateId);
+                            _logger?.LogDebug("Teammate {TeammateId} received new message after interrupt, resuming work", definition.TeammateId);
                             break;
                         case TeammateWaitResult.Aborted:
                             shouldExit = true;
                             break;
                     }
-                }
-                catch (OperationCanceledException) when (lifecycleCt.IsCancellationRequested)
-                {
-                    shouldExit = true;
                 }
                 catch (Exception ex)
                 {

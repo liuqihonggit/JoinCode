@@ -255,12 +255,13 @@ public class InProcessTeammateTaskExecutorTests
                 try
                 {
                     await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(true);
+                    return new SubAgentResult { AgentId = "agent-i", IsSuccess = true, Output = "done" };
                 }
                 catch (OperationCanceledException)
                 {
                     workCancelledTcs.TrySetResult(true);
+                    throw;
                 }
-                return new SubAgentResult { AgentId = "agent-i", IsSuccess = true, Output = "interrupted" };
             });
         _lifecycleManagerMock
             .Setup(x => x.DisposeAgentAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))

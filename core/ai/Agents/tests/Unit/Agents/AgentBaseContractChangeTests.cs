@@ -101,4 +101,44 @@ public sealed class AgentBaseContractChangeTests
 
         queue.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task ExecuteAsync_WithMaturedDeferredMail_ShouldAddToChatHistory()
+    {
+        var queryEngine = CreateQueryEngineMock();
+        var initialMessages = new MessageList();
+        initialMessages.AddSystemMessage("test system");
+
+        var options = new SubAgentOptions { MaxIterations = 1, InitialMessageList = initialMessages };
+        var agent = new AgentBase("test task", options, queryEngine.Object, null);
+
+        var mail = new DeferredMail
+        {
+            To = agent.ObjectId.UniqueId,
+            From = "w1",
+            Subject = "测试文件冲突",
+            Body = "Foo.test.cs 变更",
+            OpenAfterTurns = 1,
+            Marker = MailMarker.TestFileConflict,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+        var mailMock = new Mock<IDeferredMailService>();
+        mailMock.Setup(x => x.TickTurns(It.IsAny<string>())).Returns(new List<DeferredMail> { mail }.AsReadOnly());
+        agent.DeferredMailService = mailMock.Object;
+
+        await agent.ExecuteAsync();
+
+        initialMessages.Should().Contain(m => m.Content != null && m.Content.Contains("[延迟邮件]") && m.Content.Contains("Foo.test.cs 变更"));
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithNullDeferredMailService_ShouldNotThrow()
+    {
+        var queryEngine = CreateQueryEngineMock();
+        var options = new SubAgentOptions { MaxIterations = 1 };
+        var agent = new AgentBase("test task", options, queryEngine.Object, null);
+
+        var act = () => agent.ExecuteAsync();
+        await act.Should().NotThrowAsync();
+    }
 }

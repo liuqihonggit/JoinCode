@@ -82,6 +82,12 @@ public class AgentBase : Entity, IAgent
     public ConcurrentQueue<string>? ContractChangeNotifications { get; set; }
 
     /// <summary>
+    /// 延迟邮件服务 — 每轮 LLM 调用前消费到期延迟邮件, 注入 ChatHistory
+    /// null 表示未接入延迟邮件(默认); 由 ForkSpawnMiddleware 注入
+    /// </summary>
+    public JoinCode.Abstractions.Interfaces.IDeferredMailService? DeferredMailService { get; set; }
+
+    /// <summary>
     /// 输出 channel 管理器 — AgentBase.ExecuteStreamAsync 中统一写入，前台拉取显示
     /// null 表示不支持输出 channel（默认）；由 AgentServiceImpl 在创建子代理后注入
     /// 主代理和子代理都通过此属性统一输出，在父类 AgentBase 上一处实现
@@ -572,6 +578,20 @@ public class AgentBase : Entity, IAgent
             if (changeCount > 0)
             {
                 _logger?.LogInformation("[Agent {AgentId}] 消费 {Count} 条契约变更通知", UniqueId, changeCount);
+            }
+        }
+
+        // 消费到期延迟邮件 — TickTurns 递减轮次, 到期的注入 ChatHistory
+        if (DeferredMailService is not null)
+        {
+            var maturedMails = DeferredMailService.TickTurns(UniqueId);
+            foreach (var mail in maturedMails)
+            {
+                chatHistory.AddUserMessage($"[延迟邮件] {mail.Subject}: {mail.Body}");
+            }
+            if (maturedMails.Count > 0)
+            {
+                _logger?.LogInformation("[Agent {AgentId}] 消费 {Count} 封到期延迟邮件", UniqueId, maturedMails.Count);
             }
         }
     }

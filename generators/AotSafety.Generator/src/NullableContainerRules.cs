@@ -12,7 +12,7 @@ namespace AotSafety.Generator
             "可空容器: 可空容器字段/属性建议改为非空初始化",
             "可空容器 {0} '{1}' 建议改为非空初始化（{2} = [] 或 = new()）。空容器比 null 更健壮: 无需 null 检查, JSON 反序列化无对应字段时默认空集合而非 null。",
             "CodeStyle",
-            DiagnosticSeverity.Info,
+            DiagnosticSeverity.Warning,
             true,
             "可空容器字段导致大量 null 检查, 且 JSON 反序列化时可能为 null. 空容器（= []）是更合理的默认值: 1) 遍历空集合是 no-op, 无需 null 检查; 2) JSON 反序列化无字段时保持空集合; 3) 消除 NullReferenceException 风险. 例外: 延迟初始化（先 null 后赋值）、可选参数、可能无结果的返回值.");
 

@@ -28,4 +28,22 @@ public sealed class GuiPreferences
 
     /// <summary>双击 ESC 终止当前对话手势开关（默认开启）</summary>
     public bool DoubleEscStop { get; set; } = true;
+
+    /// <summary>快捷键：发送消息（默认 Ctrl+Enter）— 需求3 快捷键面板</summary>
+    public string HotkeySend { get; set; } = "Ctrl+Enter";
+
+    /// <summary>快捷键：换行（默认 Enter）</summary>
+    public string HotkeyNewline { get; set; } = "Enter";
+
+    /// <summary>快捷键：终止对话（默认 Double+Escape）</summary>
+    public string HotkeyStop { get; set; } = "Double+Escape";
+
+    /// <summary>快捷键：新建会话（默认 Ctrl+N）</summary>
+    public string HotkeyNewSession { get; set; } = "Ctrl+N";
+
+    /// <summary>快捷键：清空对话（默认 Ctrl+L）</summary>
+    public string HotkeyClearHistory { get; set; } = "Ctrl+L";
+
+    /// <summary>快捷键：打开/收起设置（默认 Ctrl+Comma）</summary>
+    public string HotkeyToggleSettings { get; set; } = "Ctrl+OemComma";
 }

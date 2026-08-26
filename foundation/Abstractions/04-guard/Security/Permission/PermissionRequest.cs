@@ -13,7 +13,7 @@ public sealed class PermissionRequest
     /// <summary>
     /// 工具参数
     /// </summary>
-    public Dictionary<string, JsonElement>? Arguments { get; } = [];
+    public Dictionary<string, JsonElement> Arguments { get; } = [];
 
     /// <summary>
     /// 请求时间
@@ -33,7 +33,7 @@ public sealed class PermissionRequest
     public PermissionRequest(string toolName, Dictionary<string, JsonElement>? arguments = null)
     {
         ToolName = toolName ?? throw new ArgumentNullException(nameof(toolName));
-        Arguments = arguments;
+        Arguments = arguments ?? [];
         RequestTime = DateTimeOffset.UtcNow;
         RequestId = Guid.NewGuid().ToString("N");
     }
@@ -48,7 +48,7 @@ public sealed class PermissionRequest
     public PermissionRequest(string toolName, Dictionary<string, JsonElement>? arguments, string requestId, DateTimeOffset requestTime)
     {
         ToolName = toolName ?? throw new ArgumentNullException(nameof(toolName));
-        Arguments = arguments;
+        Arguments = arguments ?? [];
         RequestId = requestId ?? throw new ArgumentNullException(nameof(requestId));
         RequestTime = requestTime;
     }

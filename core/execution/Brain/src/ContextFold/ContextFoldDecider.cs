@@ -251,7 +251,7 @@ public static class ContextFoldDecider
                 saved += (msg.Content?.Length ?? 0) - replacement.Length;
                 rewritten.Add(new ApiMessage(msg.Role, replacement, msg.Metadata, msg.ModelId, msg.TokenUsage)
                 {
-                    ContentBlocks = msg.ContentBlocks
+                    ContentBlocks = msg.ContentBlocks ?? []
                 });
                 index++;
                 changed = true;

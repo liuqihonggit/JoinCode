@@ -36,7 +36,7 @@ public sealed partial class FeatureFlagService : RemoteCacheRefreshServiceBase<F
 
         return new RemoteRefreshResult<FeatureFlag>
         {
-            Items = flagResponse?.Features
+            Items = flagResponse?.Features ?? []
         };
     }
 

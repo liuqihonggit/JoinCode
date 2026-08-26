@@ -97,7 +97,7 @@ public sealed partial class HttpProxyService : ServiceEntity, IHttpProxyService
         return new ProxyOptions
         {
             ProxyUrl = proxyUrl,
-            BypassHosts = bypassHosts.Count > 0 ? bypassHosts : null,
+            BypassHosts = bypassHosts.Count > 0 ? bypassHosts : [],
             UseDefaultCredentials = true
         };
     }

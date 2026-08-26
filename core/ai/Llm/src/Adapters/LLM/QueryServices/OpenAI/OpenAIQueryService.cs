@@ -489,7 +489,7 @@ public class OpenAIQueryService : QueryServiceBase
         return new OpenAIFunctionParameters
         {
             Properties = props,
-            Required = required.Count > 0 ? required : null
+            Required = required.Count > 0 ? required : []
         };
     }
 

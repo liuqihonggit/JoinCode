@@ -37,8 +37,8 @@ public sealed partial class DefinitionResolutionMiddleware : ServiceEntity, IUni
                 WhenToUse = profile.WhenToUse,
                 Description = profile.Description,
                 SystemPrompt = profile.SystemPrompt,
-                Tools = profile.AllowedTools?.ToList(),
-                DisallowedTools = profile.DisallowedTools?.ToList(),
+                Tools = profile.AllowedTools?.ToList() ?? [],
+                DisallowedTools = profile.DisallowedTools?.ToList() ?? [],
                 PermissionMode = profile.PermissionMode,
                 IsBackground = profile.IsBackground,
                 OmitClaudeMd = profile.OmitClaudeMd,
@@ -47,7 +47,7 @@ public sealed partial class DefinitionResolutionMiddleware : ServiceEntity, IUni
                 Temperature = profile.Temperature,
                 MaxTokens = profile.MaxTokens,
                 Memory = profile.Memory,
-                Skills = profile.Skills?.ToList(),
+                Skills = profile.Skills?.ToList() ?? [],
                 SourcePath = profile.SourcePath,
             };
         }

@@ -333,7 +333,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            Log.Append(new ApiMessage(MessageRole.Tool, content, metadata) { ContentBlocks = contentBlocks });
+            Log.Append(new ApiMessage(MessageRole.Tool, content, metadata) { ContentBlocks = contentBlocks ?? [] });
             _logger.LogDebug("已添加工具结果消息(含多模态)，当前对话数: {Count}", Log.Count);
         }
         finally

@@ -548,7 +548,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
         return new AnthropicInputSchema
         {
             Properties = props,
-            Required = required.Count > 0 ? required : null
+            Required = required.Count > 0 ? required : []
         };
     }
 

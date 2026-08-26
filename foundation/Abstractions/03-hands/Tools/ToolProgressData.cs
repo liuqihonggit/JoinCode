@@ -32,7 +32,7 @@ public sealed class ToolProgressData
     /// 如 Bash: output/fullOutput/totalLines/totalBytes
     /// 如 MCP: serverName/toolName/status
     /// </summary>
-    public Dictionary<string, JsonElement>? Extra { get; init; } = [];
+    public Dictionary<string, JsonElement> Extra { get; init; } = [];
 }
 
 /// <summary>

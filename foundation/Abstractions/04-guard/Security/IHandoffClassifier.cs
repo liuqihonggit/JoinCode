@@ -49,7 +49,7 @@ public sealed partial class AgentToolInvocation
 {
     public required string ToolName { get; init; }
     public required OperationType OperationType { get; init; }
-    public Dictionary<string, JsonElement>? Parameters { get; init; } = [];
+    public Dictionary<string, JsonElement> Parameters { get; init; } = [];
     public bool WasAutoApproved { get; init; }
 }
 

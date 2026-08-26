@@ -50,7 +50,7 @@ public sealed class ClearToolUsesStrategy : ContextEditStrategy
     /// <summary>
     /// 排除的工具名列表 — 这些工具的使用记录不会被清除
     /// </summary>
-    public IReadOnlyList<string>? ExcludeTools { get; init; } = [];
+    public IReadOnlyList<string> ExcludeTools { get; init; } = [];
 
     /// <summary>
     /// 至少清除的 token 数

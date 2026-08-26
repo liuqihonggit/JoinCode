@@ -163,7 +163,7 @@ public sealed class ParameterValidation
     public string? Pattern { get; init; }
 
     [JsonPropertyName("enum")]
-    public IReadOnlyList<string>? EnumValues { get; init; } = [];
+    public IReadOnlyList<string> EnumValues { get; init; } = [];
 }
 
 public enum SkillStepType
@@ -208,7 +208,7 @@ public sealed class SkillStep
     public string? OnError { get; init; }
 
     [JsonPropertyName("branches")]
-    public Dictionary<string, List<SkillStep>>? Branches { get; init; } = [];
+    public Dictionary<string, List<SkillStep>> Branches { get; init; } = [];
 
     [JsonPropertyName("timeout_seconds")]
     public int? TimeoutSeconds { get; init; }
@@ -229,7 +229,7 @@ public sealed class LoopConfig
     public string? Variable { get; init; }
 
     [JsonPropertyName("body")]
-    public List<SkillStep>? Body { get; init; } = [];
+    public List<SkillStep> Body { get; init; } = [];
 
     [JsonPropertyName("max_iterations")]
     public int MaxIterations { get; init; } = 100;

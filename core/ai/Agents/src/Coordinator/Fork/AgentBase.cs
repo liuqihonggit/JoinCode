@@ -649,8 +649,8 @@ public class AgentBase : Entity, IAgent
 
         return new QueryOptions
         {
-            AllowedTools = Options.AllowedTools,
-            DeniedTools = Options.DeniedTools,
+            AllowedTools = Options.AllowedTools ?? [],
+            DeniedTools = Options.DeniedTools ?? [],
             CacheSafeParams = Options.CacheSafeParams,
             ProgressTracker = Options.ProgressTracker,
             ContentReplacementState = Options.ContentReplacementState,

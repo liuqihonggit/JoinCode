@@ -10,5 +10,5 @@ public abstract class InputSchemaBase
 
     [JsonPropertyName("required")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<string>? Required { get; set; } = [];
+    public List<string> Required { get; set; } = [];
 }

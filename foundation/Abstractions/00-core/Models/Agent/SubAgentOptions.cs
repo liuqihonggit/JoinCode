@@ -13,10 +13,10 @@ public sealed class SubAgentOptions
     public string? ColorHex { get; init; }
     public string? SpinnerVerb { get; init; }
     public string? SystemPrompt { get; init; }
-    public List<string>? AllowedTools { get; init; } = [];
-    public List<string>? DeniedTools { get; init; } = [];
+    public List<string> AllowedTools { get; init; } = [];
+    public List<string> DeniedTools { get; init; } = [];
     public MessageList? InitialMessageList { get; init; }
-    public List<string>? PreloadSkills { get; init; } = [];
+    public List<string> PreloadSkills { get; init; } = [];
     /// <summary>首轮前置 prompt — spawn 时作为第一条 user message 注入,支持斜杠命令</summary>
     public string? InitialPrompt { get; init; }
     /// <summary>

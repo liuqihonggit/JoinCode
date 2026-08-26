@@ -87,9 +87,9 @@ public sealed class McpServerConnectionConfigBuilder
         Endpoint = _endpoint,
         TransportType = _transportType,
         Auth = _auth,
-        Environment = _environment,
+        Environment = _environment ?? [],
         HeadersHelper = _headersHelper,
-        Headers = _headers
+        Headers = _headers ?? []
     };
 }
 
@@ -123,6 +123,6 @@ public sealed class McpAuthConfigBuilder
         ClientId = _clientId,
         ClientSecret = _clientSecret,
         TokenUrl = _tokenUrl,
-        Scopes = _scopes
+        Scopes = _scopes ?? []
     };
 }

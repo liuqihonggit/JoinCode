@@ -13,7 +13,7 @@ public sealed partial class ToolInvokeContext
     /// <summary>
     /// 工具参数
     /// </summary>
-    public Dictionary<string, JsonElement>? Arguments { get; } = [];
+    public Dictionary<string, JsonElement> Arguments { get; } = [];
 
     /// <summary>
     /// 请求ID
@@ -31,7 +31,7 @@ public sealed partial class ToolInvokeContext
     public ToolInvokeContext(string toolName, Dictionary<string, JsonElement>? arguments = null)
     {
         ToolName = toolName ?? throw new ArgumentNullException(nameof(toolName));
-        Arguments = arguments;
+        Arguments = arguments ?? [];
         RequestId = Guid.NewGuid().ToString("N");
         InvokeTime = DateTimeOffset.UtcNow;
     }
@@ -42,7 +42,7 @@ public sealed partial class ToolInvokeContext
     public ToolInvokeContext(string toolName, Dictionary<string, JsonElement>? arguments, string requestId)
     {
         ToolName = toolName ?? throw new ArgumentNullException(nameof(toolName));
-        Arguments = arguments;
+        Arguments = arguments ?? [];
         RequestId = requestId ?? throw new ArgumentNullException(nameof(requestId));
         InvokeTime = DateTimeOffset.UtcNow;
     }

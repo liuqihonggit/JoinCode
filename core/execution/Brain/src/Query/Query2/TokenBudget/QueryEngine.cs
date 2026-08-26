@@ -558,7 +558,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
         context.ChatHistory.Add(new ApiMessage(MessageRole.Tool, toolResultText, toolMetadata)
         {
             // 对齐 TS — 将多模态内容块传递到 ApiMessage，由 ChatService 转换为 LLM API 格式
-            ContentBlocks = nonTextContents.Count > 0 ? nonTextContents : null
+            ContentBlocks = nonTextContents.Count > 0 ? nonTextContents : []
         });
     }
 

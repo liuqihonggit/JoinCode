@@ -28,7 +28,7 @@ public sealed class CmdContext
     // === MCP 工具参数 ===
 
     /// <summary>MCP 工具的 JSON 参数</summary>
-    public Dictionary<string, JsonElement>? JsonArgs { get; init; } = [];
+    public Dictionary<string, JsonElement> JsonArgs { get; init; } = [];
 
     /// <summary>MCP 工具进度回调</summary>
     public ToolProgressCallback? OnProgress { get; init; }

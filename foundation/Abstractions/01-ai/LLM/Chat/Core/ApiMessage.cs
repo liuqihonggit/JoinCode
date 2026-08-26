@@ -13,7 +13,7 @@ public sealed class ApiMessage
     /// 当工具结果包含图片或二进制内容时，此字段承载非文本内容块
     /// ChatService 负责将这些内容块转换为 LLM API 的多模态格式
     /// </summary>
-    public IReadOnlyList<ToolContent>? ContentBlocks { get; init; } = [];
+    public IReadOnlyList<ToolContent> ContentBlocks { get; init; } = [];
 
     public ApiMessage() { }
 

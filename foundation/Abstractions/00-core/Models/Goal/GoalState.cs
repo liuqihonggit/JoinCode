@@ -24,7 +24,7 @@ public sealed class GoalState
     public string SessionId { get; set; } = string.Empty;
 
     /// <summary>持久化的对话历史 — 进程重启后可恢复 ChatHistory 上下文</summary>
-    public List<ApiMessageDocument>? PersistedHistory { get; set; } = [];
+    public List<ApiMessageDocument> PersistedHistory { get; set; } = [];
 
     public TimeSpan Elapsed => AchievedAt.HasValue
         ? AchievedAt.Value - CreatedAt

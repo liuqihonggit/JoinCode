@@ -21,7 +21,7 @@ public sealed partial class SandboxExecuteRequest
     public required string Command { get; init; }
     public string? WorkingDirectory { get; init; }
     public int TimeoutMs { get; init; } = 30000;
-    public Dictionary<string, string>? EnvironmentVariables { get; init; } = [];
+    public Dictionary<string, string> EnvironmentVariables { get; init; } = [];
 }
 
 public sealed partial class SandboxExecuteResponse

@@ -46,7 +46,7 @@ public sealed partial class ChatOptionsFactory : ServiceEntity, IChatOptionsFact
             PresencePenalty = chatParams.PresencePenalty,
             ToolChoice = ToolChoice.AutoInvoke,
             DiscoveredTools = discoveredTools,
-            DeferredTools = deferredTools.Any() ? deferredTools.ToList() : null,
+            DeferredTools = deferredTools.Any() ? deferredTools.ToList() : [],
             EffortLevel = effortLevel,
             ThinkingEnabled = _executionSettingsProvider?.ThinkingEnabled ?? false,
             FastMode = fastMode,

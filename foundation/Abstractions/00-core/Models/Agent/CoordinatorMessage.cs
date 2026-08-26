@@ -9,6 +9,6 @@ public sealed class CoordinatorMessage
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
     public TeammateMessageType? StructuredType { get; init; }
     public string? RequestId { get; init; }
-    public Dictionary<string, JsonElement>? Payload { get; init; } = [];
+    public Dictionary<string, JsonElement> Payload { get; init; } = [];
     public bool IsStructured => StructuredType is not null;
 }

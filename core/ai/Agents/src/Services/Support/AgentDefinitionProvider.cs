@@ -108,7 +108,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
                 Role = AgentRole.Coordinator,
                 WhenToUse = "General tasks with full toolset",
                 Description = "Coordinator agent — manages Goal lifecycle, full toolset",
-                Tools = null,
+                Tools = [],
                 DisallowedTools = subAgentDisallowedTools
             },
             new()
@@ -314,19 +314,19 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
             Variant = variant,
             WhenToUse = whenToUse,
             Description = GetStringFromData(result.Data, "description", "desc"),
-            Tools = GetStringListFromData(result.Data, "tools", "allowed_tools"),
-            DisallowedTools = GetStringListFromData(result.Data, "disallowed_tools", "denied_tools"),
+            Tools = GetStringListFromData(result.Data, "tools", "allowed_tools") ?? [],
+            DisallowedTools = GetStringListFromData(result.Data, "disallowed_tools", "denied_tools") ?? [],
             ModelName = NormalizeModelName(GetStringFromData(result.Data, "model", "model_name")),
             Temperature = GetFloatFromData(result.Data, "temperature"),
             MaxTokens = GetIntFromData(result.Data, "max_tokens"),
             IsBackground = GetBoolFromData(result.Data, "is_background", "background"),
             SystemPrompt = result.HasFrontmatter ? result.Content.Trim() : content.Trim(),
             SourcePath = sourcePath,
-            Skills = GetStringListFromData(result.Data, "skills", "preload_skills"),
+            Skills = GetStringListFromData(result.Data, "skills", "preload_skills") ?? [],
             PermissionMode = GetStringFromData(result.Data, "permission_mode", "permissionMode"),
-            Hooks = ParseHooksFromData(result.Data),
-            McpServers = ParseMcpServersFromData(result.Data),
-            RequiredMcpServers = GetStringListFromData(result.Data, "required_mcp_servers", "requiredMcpServers"),
+            Hooks = ParseHooksFromData(result.Data) ?? [],
+            McpServers = ParseMcpServersFromData(result.Data) ?? [],
+            RequiredMcpServers = GetStringListFromData(result.Data, "required_mcp_servers", "requiredMcpServers") ?? [],
             Memory = ParseMemoryScopeFromData(result.Data),
             CriticalSystemReminder = GetStringFromData(result.Data, "criticalSystemReminder_EXPERIMENTAL", "critical_system_reminder"),
             InitialPrompt = GetStringFromData(result.Data, "initialPrompt", "initial_prompt"),
@@ -634,11 +634,11 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         return new JoinCode.Abstractions.Prompts.ToolPrompts.AgentMcpServerInlineConfig
         {
             Command = command,
-            Args = args,
-            Env = env,
+            Args = args ?? [],
+            Env = env ?? [],
             Url = url,
             TransportType = transportType,
-            Headers = headers
+            Headers = headers ?? []
         };
     }
 

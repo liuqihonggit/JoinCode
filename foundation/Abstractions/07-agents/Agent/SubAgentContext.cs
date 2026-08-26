@@ -29,8 +29,8 @@ public sealed class SubAgentContext
     public TokenUsage TokenUsage { get; } = new();
     public AgentStatus Status { get; set; } = AgentStatus.Pending;
 
-    public IEnumerable<string>? AllowedTools { get; init; } = [];
-    public IEnumerable<string>? DeniedTools { get; init; } = [];
+    public IEnumerable<string> AllowedTools { get; init; } = [];
+    public IEnumerable<string> DeniedTools { get; init; } = [];
 
     public string? SubagentName { get; init; }
     public bool IsBuiltIn { get; init; }

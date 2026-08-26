@@ -22,8 +22,8 @@ public sealed class ForkOptions
     public string? SystemPrompt { get; init; }
     public int MaxIterations { get; init; } = 10;
     public JoinCode.Abstractions.Security.PermissionMode PermissionMode { get; init; } = JoinCode.Abstractions.Security.PermissionMode.Plan;
-    public List<string>? AllowedTools { get; init; } = [];
-    public List<string>? DeniedTools { get; init; } = [];
+    public List<string> AllowedTools { get; init; } = [];
+    public List<string> DeniedTools { get; init; } = [];
     public bool RunInBackground { get; init; }
     public int MaxForkDepth { get; init; } = 3;
     public MessageList? ParentMessageList { get; init; }

@@ -32,7 +32,7 @@ public sealed partial class RemoteManagedSettingsService : RemoteCacheRefreshSer
 
         return new RemoteRefreshResult<ManagedSetting>
         {
-            Items = settingsResponse?.Settings?.ToDictionary(s => s.Key, s => s, StringComparer.OrdinalIgnoreCase)
+            Items = settingsResponse?.Settings?.ToDictionary(s => s.Key, s => s, StringComparer.OrdinalIgnoreCase) ?? []
         };
     }
 

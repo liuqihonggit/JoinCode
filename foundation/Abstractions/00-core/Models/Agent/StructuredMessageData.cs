@@ -38,7 +38,7 @@ public sealed class StructuredMessageData
     /// <summary>
     /// 原始 JSON 数据（包含所有字段）
     /// </summary>
-    public Dictionary<string, JsonElement>? Payload { get; init; } = [];
+    public Dictionary<string, JsonElement> Payload { get; init; } = [];
 
     /// <summary>
     /// 生成自动分类器输入文本 — 对齐 TS toAutoClassifierInput

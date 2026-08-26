@@ -233,8 +233,8 @@ public class AgentDefinition
     public required AgentRole Role { get; set; }
     public ExecutorVariant? Variant { get; set; }
     public required string WhenToUse { get; set; }
-    public List<string>? Tools { get; set; } = [];
-    public List<string>? DisallowedTools { get; set; } = [];
+    public List<string> Tools { get; set; } = [];
+    public List<string> DisallowedTools { get; set; } = [];
     public string? Description { get; set; }
     public string? SystemPrompt { get; set; }
     public string? ModelName { get; set; }
@@ -242,11 +242,11 @@ public class AgentDefinition
     public int? MaxTokens { get; set; }
     public bool IsBackground { get; set; }
     public string? SourcePath { get; set; }
-    public List<string>? Skills { get; set; } = [];
+    public List<string> Skills { get; set; } = [];
     public string? PermissionMode { get; set; }
-    public Dictionary<string, List<AgentHookMatcher>>? Hooks { get; set; } = [];
-    public List<AgentMcpServerSpec>? McpServers { get; set; } = [];
-    public List<string>? RequiredMcpServers { get; set; } = [];
+    public Dictionary<string, List<AgentHookMatcher>> Hooks { get; set; } = [];
+    public List<AgentMcpServerSpec> McpServers { get; set; } = [];
+    public List<string> RequiredMcpServers { get; set; } = [];
 
     /// <summary>
     /// 记忆作用域 — 对齐 TS AgentDefinition.memory
@@ -316,11 +316,11 @@ public sealed class AgentMcpServerSpec
 public sealed class AgentMcpServerInlineConfig
 {
     public string? Command { get; init; }
-    public List<string>? Args { get; init; } = [];
-    public Dictionary<string, string>? Env { get; init; } = [];
+    public List<string> Args { get; init; } = [];
+    public Dictionary<string, string> Env { get; init; } = [];
     public string? Url { get; init; }
     public string? TransportType { get; init; }
-    public Dictionary<string, string>? Headers { get; init; } = [];
+    public Dictionary<string, string> Headers { get; init; } = [];
     /// <summary>
     /// 认证配置名称 — 引用 mcp_auth_* 工具配置的认证
     /// </summary>

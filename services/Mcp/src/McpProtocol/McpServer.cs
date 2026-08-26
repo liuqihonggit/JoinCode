@@ -370,7 +370,7 @@ public class McpServer : IMcpServer
         {
             Name = h.Name,
             Description = h.Description,
-            Arguments = h.Arguments
+            Arguments = h.Arguments ?? []
         }).ToList();
 
         return new McpPromptsListResponse { Prompts = prompts };

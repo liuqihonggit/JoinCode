@@ -9,15 +9,16 @@ public sealed class IntentReporterTests
     private readonly IntentCollector _collector = new();
     private readonly HotFileDetector _detector = new();
     private readonly FakeMailbox _mailbox = new();
+    private readonly DeferredMailService _deferredMail = new();
     private readonly IIntentReporter _sut;
 
     public IntentReporterTests()
     {
-        _sut = new IntentReporter(_collector, _detector, _mailbox);
+        _sut = new IntentReporter(_collector, _detector, _mailbox, _deferredMail);
     }
 
-    private static FileModifyIntent MakeIntent(string path, ModifyIntent intent, string workerId = "w1") =>
-        new() { FilePath = path, Intent = intent, WorkerId = workerId, ReportedAt = DateTimeOffset.UtcNow };
+    private static FileModifyIntent MakeIntent(string path, ModifyIntent intent, string workerId = "w1", MailMarker marker = MailMarker.None) =>
+        new() { FilePath = path, Intent = intent, WorkerId = workerId, ReportedAt = DateTimeOffset.UtcNow, Marker = marker };
 
     [Fact]
     public async Task ReportModifyIntentsAsync_HotFileContractChange_ShouldSendMailToCaptain()
@@ -103,6 +104,56 @@ public sealed class IntentReporterTests
         msg.Content.Should().Contain("IFoo.cs");
         msg.Content.Should().Contain("IBar.cs");
         msg.Content.Should().Contain("w1");
+    }
+
+    [Fact]
+    public async Task ReportModifyIntentsAsync_TestFileConflict_ShouldDeferMail()
+    {
+        var intent = MakeIntent("tests/Foo.test.cs", ModifyIntent.ContractChange, marker: MailMarker.TestFileConflict);
+
+        await _sut.ReportModifyIntentsAsync("w1", "captain", [intent]);
+
+        _mailbox.SentMessages.Should().BeEmpty("测试文件冲突走延迟不走实时");
+        var pending = _deferredMail.GetPending("captain");
+        pending.Should().HaveCount(1);
+        pending[0].Marker.Should().Be(MailMarker.TestFileConflict);
+        pending[0].From.Should().Be("w1");
+        pending[0].To.Should().Be("captain");
+    }
+
+    [Fact]
+    public async Task ReportModifyIntentsAsync_ResourceRefChange_ShouldDeferMail()
+    {
+        var intent = MakeIntent("config.json", ModifyIntent.ContractChange, marker: MailMarker.ResourceRefChange);
+
+        await _sut.ReportModifyIntentsAsync("w1", "captain", [intent]);
+
+        var pending = _deferredMail.GetPending("captain");
+        pending.Should().HaveCount(1);
+        pending[0].Marker.Should().Be(MailMarker.ResourceRefChange);
+    }
+
+    [Fact]
+    public async Task ReportModifyIntentsAsync_HotFileWithNoMarker_ShouldSendMailNotDefer()
+    {
+        var intent = MakeIntent("src/Abstractions/IFoo.cs", ModifyIntent.ContractChange);
+
+        await _sut.ReportModifyIntentsAsync("w1", "captain", [intent]);
+
+        _mailbox.SentMessages.Should().HaveCount(1, "热文件契约改实时通知");
+        _deferredMail.GetPending("captain").Should().BeEmpty("无中低标记不延迟");
+    }
+
+    [Fact]
+    public async Task ReportModifyIntentsAsync_CombinedMarker_ShouldDeferOnce()
+    {
+        var intent = MakeIntent("tests/config.test.json", ModifyIntent.ContractChange, marker: MailMarker.TestFileConflict | MailMarker.ResourceRefChange);
+
+        await _sut.ReportModifyIntentsAsync("w1", "captain", [intent]);
+
+        var pending = _deferredMail.GetPending("captain");
+        pending.Should().HaveCount(1, "一个 intent 投递一封延迟邮件");
+        pending[0].Marker.Should().Be(MailMarker.TestFileConflict | MailMarker.ResourceRefChange);
     }
 }
 

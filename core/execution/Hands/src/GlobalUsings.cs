@@ -120,3 +120,4 @@ global using JoinCode.Abstractions.Pipeline;
 global using Infrastructure.Pipeline;
 global using ValidationHelper = Core.Utils.ValidationHelper;
 global using ValidationResult = Structura.Primitives.ValidationResult;
+global using Core.Scheduling.Tasks;

@@ -8,6 +8,30 @@ namespace JoinCode.Gui.ViewModels;
 /// </summary>
 public sealed partial class MainViewModel
 {
+    /// <summary>子代理中断后的空闲倒计时器 — null 表示无活跃倒计时</summary>
+    private SubAgentIdleTimer? _idleTimer;
+
+    /// <summary>60秒空闲超时触发 — mainAgent 接手编排（Cancel teammate + 接手分析 diff）</summary>
+#pragma warning disable JCC3005 // 事件处理器必须是 async void（EventHandler 签名）
+    private async void OnMainAgentTakeoverRequested(object? sender, string teammateId)
+#pragma warning restore JCC3005
+    {
+        try
+        {
+            var ok = await _session.StopBackgroundAgentAsync(teammateId).ConfigureAwait(false);
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                StatusText = ok ? $"子代理空闲超时已终止,mainAgent接手: {teammateId}" : $"子代理超时终止失败: {teammateId}";
+                _idleTimer?.Dispose();
+                _idleTimer = null;
+            });
+        }
+        catch (Exception ex)
+        {
+            WriteErrorLog(ex);
+        }
+    }
+
     /// <summary>需求11：子会话右键打开 worktree 文件夹 — 用资源管理器直达 worktree 目录</summary>
     [RelayCommand]
     private void OpenSessionWorktree(SessionItem? item)
@@ -78,6 +102,17 @@ public sealed partial class MainViewModel
         }
     }
 
+    /// <summary>用户打字（KeyDown，未发送）重置空闲倒计时 — 用户还在活动，别移交 mainAgent</summary>
+    public void ResetIdleTimer() => _idleTimer?.Reset();
+
+    /// <summary>用户发送消息取消空闲倒计时 — 用户主动接管，立即恢复子代理（不等倒计时）</summary>
+    public void StopIdleTimer()
+    {
+        _idleTimer?.Stop();
+        _idleTimer?.Dispose();
+        _idleTimer = null;
+    }
+
     /// <summary>
     /// 中断子代理当前 work（非终止）— teammate 进 idle 等 next prompt，可恢复。
     /// 双击 ESC 走此路径（对齐 ClaudeCode inProcessRunner ESC 行为）。
@@ -90,8 +125,21 @@ public sealed partial class MainViewModel
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
             {
                 if (ok)
+                {
                     subSession.SubSessionState = "Interrupted";
-                StatusText = ok ? $"已中断子代理: {subSession.Title}" : $"中断子代理失败: {subSession.Title}";
+                    // 启动60秒空闲倒计时 — 用户打字重置，发送取消，超时移交 mainAgent
+                    _idleTimer?.Dispose();
+                    _idleTimer = new SubAgentIdleTimer(60, remaining =>
+                    {
+                        StatusText = $"子代理已中断 · {remaining}s内无输入将移交mainAgent";
+                    });
+                    _idleTimer.MainAgentTakeoverRequested += OnMainAgentTakeoverRequested;
+                    _idleTimer.Start(subSession.Id);
+                }
+                else
+                {
+                    StatusText = $"中断子代理失败: {subSession.Title}";
+                }
                 OnPropertyChanged(nameof(CanStop));
             });
         }

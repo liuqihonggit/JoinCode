@@ -83,6 +83,9 @@ public sealed partial class InputBarView : UserControl
         if (DataContext is not MainViewModel vm)
             return;
 
+        // 用户打字重置子代理空闲倒计时（任何按键都算活动，别移交 mainAgent）
+        vm.ResetIdleTimer();
+
         if (vm.IsSlashPopupOpen)
         {
             if (e.Key == Key.Down)
@@ -124,6 +127,8 @@ public sealed partial class InputBarView : UserControl
                 if (!vm.IsBusy)
                 {
                     e.Handled = true;
+                    // 用户发送消息取消空闲倒计时 — 主动接管，立即恢复子代理
+                    vm.StopIdleTimer();
                     vm.SendCommand.Execute(null);
                 }
             }

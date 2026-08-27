@@ -65,7 +65,7 @@ internal sealed class AnthropicCacheProtocol : CacheProtocol
         AnthropicToolResultBlock? lastResult = null;
         foreach (var msg in messages)
         {
-            if (msg.Content?.Blocks is { } blocks)
+            if (msg.Content?.Blocks is { Count: > 0 } blocks)
             {
                 foreach (var block in blocks)
                 {

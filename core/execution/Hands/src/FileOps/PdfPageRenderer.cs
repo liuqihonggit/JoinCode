@@ -34,7 +34,7 @@ public sealed class PdfExtractResult
     public required bool Success { get; init; }
 
     /// <summary>提取的页面图像（成功时）</summary>
-    public IReadOnlyList<PdfPageImage>? Pages { get; init; }
+    public IReadOnlyList<PdfPageImage> Pages { get; init; } = [];
 
     /// <summary>PDF 总页数</summary>
     public int? TotalPageCount { get; init; }

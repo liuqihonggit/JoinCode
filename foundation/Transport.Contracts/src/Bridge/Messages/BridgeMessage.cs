@@ -53,8 +53,8 @@ public abstract class BridgeMessage
     public long Timestamp { get; init; } = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
     [JsonPropertyName("metadata")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public Dictionary<string, JsonElement>? Metadata { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public Dictionary<string, JsonElement> Metadata { get; init; } = [];
 }
 
 /// <summary>
@@ -68,12 +68,12 @@ public class ControlRequest : BridgeMessage
     public string Command { get; init; } = string.Empty;
 
     [JsonPropertyName("params")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public Dictionary<string, JsonElement>? Params { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public Dictionary<string, JsonElement> Params { get; init; } = [];
 
     public Dictionary<string, JsonElement> GetParams()
     {
-        return Params ?? new Dictionary<string, JsonElement>();
+        return Params;
     }
 }
 
@@ -163,12 +163,12 @@ public class ToolsCallRequest : BridgeMessage
     public string ToolName { get; init; } = string.Empty;
 
     [JsonPropertyName("arguments")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public Dictionary<string, JsonElement>? Arguments { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public Dictionary<string, JsonElement> Arguments { get; init; } = [];
 
     public Dictionary<string, JsonElement> GetArguments()
     {
-        return Arguments ?? new Dictionary<string, JsonElement>();
+        return Arguments;
     }
 }
 
@@ -205,8 +205,8 @@ public class SkillExecuteRequest : BridgeMessage
     public string SkillName { get; init; } = string.Empty;
 
     [JsonPropertyName("parameters")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public Dictionary<string, JsonElement>? Parameters { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public Dictionary<string, JsonElement> Parameters { get; init; } = [];
 
     [JsonPropertyName("context")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -214,7 +214,7 @@ public class SkillExecuteRequest : BridgeMessage
 
     public Dictionary<string, JsonElement> GetParameters()
     {
-        return Parameters ?? new Dictionary<string, JsonElement>();
+        return Parameters;
     }
 }
 

@@ -30,7 +30,7 @@ public sealed class InboundMessageFields
     public string? Content { get; init; }
 
     /// <summary>内容块列表（当 content 是数组时）</summary>
-    public List<Dictionary<string, JsonElement>>? ContentBlocks { get; init; }
+    public List<Dictionary<string, JsonElement>> ContentBlocks { get; init; } = [];
 
     /// <summary>消息 UUID</summary>
     public string? Uuid { get; init; }

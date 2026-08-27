@@ -29,7 +29,7 @@ public sealed class GoalLifecycleContext : PipelineContextBase
     public string? Objective { get; init; }
 
     /// <summary>约束条件（仅 Start 需要）</summary>
-    public List<string>? Constraints { get; init; }
+    public List<string> Constraints { get; init; } = [];
 
     /// <summary>Token 预算（仅 Start 需要）</summary>
     public int? TokenBudget { get; init; }

@@ -26,7 +26,7 @@ public abstract partial class QueryServiceBase : IQueryService
     protected readonly IFileSystem? FileSystem;
 
     /// <summary>最近一次响应的速率限制头（流式首块注入 metadata 用）</summary>
-    private volatile Dictionary<string, string?>? _lastRateLimitHeaders;
+    private volatile Dictionary<string, string?> _lastRateLimitHeaders = [];
 
     protected QueryServiceBase(ProviderConfig config, HttpClient? httpClient = null, ILogger? logger = null, IFileSystem? fs = null, ResilientHttpExecutor? resilientExecutor = null)
     {
@@ -130,8 +130,8 @@ public abstract partial class QueryServiceBase : IQueryService
     /// </summary>
     protected StreamEvent? EnrichWithRateLimitMetadata(StreamEvent msg)
     {
+        if (_lastRateLimitHeaders.Count == 0) return null;
         var headers = _lastRateLimitHeaders;
-        if (headers == null) return null;
 
         var newMetadata = new Dictionary<string, JsonElement>();
         if (msg.Metadata != null)

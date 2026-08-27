@@ -42,8 +42,8 @@ public sealed partial class SwarmPermissionRequestProcessor : ServiceEntity, ISw
             RequestId = requestData.RequestId,
             Behavior = allowed ? PermissionBehaviorConstants.Allow : PermissionBehaviorConstants.Deny,
             Feedback = allowed ? null : $"Leader denied: {requestData.ToolName}",
-            UpdatedInput = allowed ? updatedInput : null,
-            PermissionUpdates = allowed ? permissionUpdates : null
+            UpdatedInput = allowed ? (updatedInput ?? []) : [],
+            PermissionUpdates = allowed ? (permissionUpdates ?? []) : []
         };
 
         var content = JsonSerializer.Serialize(responseData, AgentsJsonContext.Default.SwarmPermissionResponseData);

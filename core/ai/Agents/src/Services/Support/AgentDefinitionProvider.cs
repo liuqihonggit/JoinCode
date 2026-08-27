@@ -17,7 +17,8 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
     private readonly IFileSystem _fs;
     private readonly ILogger<AgentDefinitionProvider>? _logger;
     private readonly IPluginAgentLoader? _pluginAgentLoader;
-    private volatile List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>? _cachedDefinitions;
+    private volatile List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition> _cachedDefinitions = [];
+    private volatile bool _cacheLoaded;
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
 
     private static readonly string[] ProjectAgentDirs =
@@ -31,13 +32,13 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         string? workingDirectory = null,
         CancellationToken cancellationToken = default)
     {
-        if (_cachedDefinitions is not null)
+        if (_cacheLoaded)
             return _cachedDefinitions;
 
         await _cacheLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (_cachedDefinitions is not null)
+            if (_cacheLoaded)
                 return _cachedDefinitions;
 
             var definitions = new List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>();
@@ -62,6 +63,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
             }
 
             _cachedDefinitions = Deduplicate(definitions);
+            _cacheLoaded = true;
             return _cachedDefinitions;
         }
         finally
@@ -83,7 +85,8 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
     /// <inheritdoc />
     public void ClearCache()
     {
-        _cachedDefinitions = null;
+        _cachedDefinitions = [];
+        _cacheLoaded = false;
         _logger?.LogDebug("代理定义缓存已清除");
     }
 

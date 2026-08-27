@@ -26,7 +26,7 @@ public sealed class NodeResult
     public string? Message { get; init; }
     public int TokensUsed { get; init; }
     public bool IsFailed { get; init; }
-    public IReadOnlyList<ConflictMessage>? Conflicts { get; init; }
+    public IReadOnlyList<ConflictMessage> Conflicts { get; init; } = [];
 
     public static NodeResult Succeeded(string? output, int tokensUsed = 0)
         => new() { Output = output, TokensUsed = tokensUsed };

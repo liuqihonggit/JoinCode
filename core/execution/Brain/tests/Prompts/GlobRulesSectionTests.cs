@@ -7,7 +7,7 @@ public sealed class GlobRulesSectionTests
     {
         var tracker = new FileContextTracker();
         tracker.UpdateFilePaths(["test.cs"]);
-        PromptConfigSnapshot.SetCurrent(new SystemPromptProviderOptions { ExternalRules = null, FileContext = tracker });
+        PromptConfigSnapshot.SetCurrent(new SystemPromptProviderOptions { ExternalRules = [], FileContext = tracker });
 
         var section = GlobRulesSection.Create();
 
@@ -159,7 +159,7 @@ public sealed class GlobRulesSectionTests
     public void Create_Should_Be_Dynamic_Section()
     {
         var tracker = new FileContextTracker();
-        PromptConfigSnapshot.SetCurrent(new SystemPromptProviderOptions { ExternalRules = null, FileContext = tracker });
+        PromptConfigSnapshot.SetCurrent(new SystemPromptProviderOptions { ExternalRules = [], FileContext = tracker });
 
         var section = GlobRulesSection.Create();
 

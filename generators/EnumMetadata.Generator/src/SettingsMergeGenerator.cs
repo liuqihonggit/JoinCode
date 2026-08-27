@@ -163,8 +163,16 @@ public sealed class SettingsMergeGenerator : IIncrementalGenerator
 
             if (prop.Strategy == SettingsMergeStrategy.DictionaryMerge && prop.DictValueType is not null)
             {
-                // Dictionary 深拷贝
-                sb.AppendLine($"        {propName} = other.{propName} is not null ? new Dictionary<string, {prop.DictValueType}>(other.{propName}, StringComparer.OrdinalIgnoreCase) : null;");
+                if (prop.IsNullable)
+                {
+                    // Dictionary 深拷贝 — 可空属性保留 null 检查
+                    sb.AppendLine($"        {propName} = other.{propName} is not null ? new Dictionary<string, {prop.DictValueType}>(other.{propName}, StringComparer.OrdinalIgnoreCase) : null;");
+                }
+                else
+                {
+                    // Dictionary 深拷贝 — 非空属性无需 null 检查
+                    sb.AppendLine($"        {propName} = new Dictionary<string, {prop.DictValueType}>(other.{propName}, StringComparer.OrdinalIgnoreCase);");
+                }
             }
             else
             {
@@ -199,39 +207,60 @@ public sealed class SettingsMergeGenerator : IIncrementalGenerator
             switch (prop.Strategy)
             {
                 case SettingsMergeStrategy.Override:
-                    sb.AppendLine($"            {propName} = overrideSettings.{propName} ?? baseSettings.{propName},");
+                    if (prop.IsNullable)
+                        sb.AppendLine($"            {propName} = overrideSettings.{propName} ?? baseSettings.{propName},");
+                    else
+                        sb.AppendLine($"            {propName} = overrideSettings.{propName},");
                     break;
 
                 case SettingsMergeStrategy.DictionaryMerge:
                     if (prop.CustomMergeMethod is not null)
                     {
-                        sb.AppendLine($"            {propName} = {prop.CustomMergeMethod}(baseSettings.{propName}, overrideSettings.{propName}),");
+                        if (prop.IsNullable)
+                            sb.AppendLine($"            {propName} = {prop.CustomMergeMethod}(baseSettings.{propName}, overrideSettings.{propName}),");
+                        else
+                            sb.AppendLine($"            {propName} = {prop.CustomMergeMethod}(baseSettings.{propName}, overrideSettings.{propName}) ?? new(),");
                     }
                     else
                     {
-                        sb.AppendLine($"            {propName} = MergeDictionaries(baseSettings.{propName}, overrideSettings.{propName}),");
+                        if (prop.IsNullable)
+                            sb.AppendLine($"            {propName} = MergeDictionaries(baseSettings.{propName}, overrideSettings.{propName}),");
+                        else
+                            sb.AppendLine($"            {propName} = MergeDictionaries(baseSettings.{propName}, overrideSettings.{propName}) ?? new(),");
                     }
                     break;
 
                 case SettingsMergeStrategy.ListConcatDistinct:
-                    sb.AppendLine($"            {propName} = MergeLists(baseSettings.{propName}, overrideSettings.{propName}),");
+                    if (prop.IsNullable)
+                        sb.AppendLine($"            {propName} = MergeLists(baseSettings.{propName}, overrideSettings.{propName}),");
+                    else
+                        sb.AppendLine($"            {propName} = MergeLists(baseSettings.{propName}, overrideSettings.{propName}) ?? new(),");
                     break;
 
                 case SettingsMergeStrategy.RecursiveMerge:
                     if (prop.CustomMergeMethod is not null)
                     {
-                        sb.AppendLine($"            {propName} = {prop.CustomMergeMethod}(baseSettings.{propName}, overrideSettings.{propName}),");
+                        if (prop.IsNullable)
+                            sb.AppendLine($"            {propName} = {prop.CustomMergeMethod}(baseSettings.{propName}, overrideSettings.{propName}),");
+                        else
+                            sb.AppendLine($"            {propName} = {prop.CustomMergeMethod}(baseSettings.{propName}, overrideSettings.{propName}) ?? new(),");
                     }
                     else
                     {
-                        sb.AppendLine($"            {propName} = overrideSettings.{propName} ?? baseSettings.{propName},");
+                        if (prop.IsNullable)
+                            sb.AppendLine($"            {propName} = overrideSettings.{propName} ?? baseSettings.{propName},");
+                        else
+                            sb.AppendLine($"            {propName} = overrideSettings.{propName},");
                     }
                     break;
 
                 case SettingsMergeStrategy.Custom:
                     if (prop.CustomMergeMethod is not null)
                     {
-                        sb.AppendLine($"            {propName} = {prop.CustomMergeMethod}(baseSettings.{propName}, overrideSettings.{propName}),");
+                        if (prop.IsNullable)
+                            sb.AppendLine($"            {propName} = {prop.CustomMergeMethod}(baseSettings.{propName}, overrideSettings.{propName}),");
+                        else
+                            sb.AppendLine($"            {propName} = {prop.CustomMergeMethod}(baseSettings.{propName}, overrideSettings.{propName}) ?? new(),");
                     }
                     break;
             }

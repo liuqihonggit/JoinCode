@@ -313,15 +313,15 @@ internal sealed class TestAnthropicRequest
     public int MaxTokens { get; set; }
 
     [JsonPropertyName("system")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<TestAnthropicSystemBlock>? System { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public List<TestAnthropicSystemBlock> System { get; set; } = [];
 
     [JsonPropertyName("messages")]
     public List<TestAnthropicMessage> Messages { get; set; } = [];
 
     [JsonPropertyName("tools")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<TestAnthropicTool>? Tools { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public List<TestAnthropicTool> Tools { get; set; } = [];
 }
 
 internal sealed class TestAnthropicSystemBlock
@@ -374,8 +374,8 @@ internal sealed class TestInputSchema
     public string Type { get; set; } = "object";
 
     [JsonPropertyName("properties")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public Dictionary<string, TestSchemaProperty>? Properties { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public Dictionary<string, TestSchemaProperty> Properties { get; set; } = [];
 }
 
 internal sealed class TestSchemaProperty

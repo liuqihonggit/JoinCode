@@ -17,10 +17,10 @@ public sealed partial class PermissionSyncRequest
     public required string AgentId { get; init; }
     public required string CoordinatorId { get; init; }
     public required PermissionMode Mode { get; init; }
-    public List<string>? AllowedTools { get; init; }
-    public List<string>? DeniedTools { get; init; }
-    public List<string>? AllowedPaths { get; init; }
-    public List<string>? DeniedPaths { get; init; }
+    public List<string> AllowedTools { get; init; } = [];
+    public List<string> DeniedTools { get; init; } = [];
+    public List<string> AllowedPaths { get; init; } = [];
+    public List<string> DeniedPaths { get; init; } = [];
 }
 
 public sealed partial class PermissionSyncState

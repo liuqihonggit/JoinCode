@@ -7,7 +7,7 @@ namespace Core.Prompts.Sections;
 [PromptSection(Name = "session_guidance", Order = 74, IsDynamic = true)]
 public static class SessionGuidanceSection {
     public static string? GetContent() {
-        var tools = PromptConfigSnapshot.Current.EnabledTools?.ToHashSet() ?? new HashSet<string>();
+        var tools = PromptConfigSnapshot.Current.EnabledTools.ToHashSet();
         var items = new List<string>();
 
         if (tools.Contains(InteractionToolNameConstants.AskUserQuestion)) {

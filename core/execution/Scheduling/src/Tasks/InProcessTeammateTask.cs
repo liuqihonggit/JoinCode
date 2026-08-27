@@ -48,7 +48,7 @@ public sealed partial class InProcessTeammateDefinition
     public ExecutorVariant? Variant { get; init; }
     public string? AdditionalInstructions { get; init; }
     public int MaxIterations { get; init; } = 50;
-    public List<string>? InitialContext { get; init; }
+    public List<string> InitialContext { get; init; } = [];
     public string? TeamName { get; init; }
     public string? TeamId { get; init; }
     public string? ParentSessionId { get; init; }

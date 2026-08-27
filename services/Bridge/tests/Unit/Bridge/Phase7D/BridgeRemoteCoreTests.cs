@@ -245,7 +245,7 @@ public sealed class BridgeRemoteCoreTests
     private sealed class MockTransport : IReplBridgeTransport
     {
         public int WriteBatchCallCount { get; private set; }
-        public List<string>? LastBatch { get; private set; }
+        public List<string> LastBatch { get; private set; } = [];
 
         public Task WriteAsync(string message, CancellationToken ct = default) => Task.CompletedTask;
 

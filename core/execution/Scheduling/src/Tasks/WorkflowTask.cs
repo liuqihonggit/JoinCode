@@ -13,7 +13,7 @@ public sealed partial class WorkflowDefinition
     public required string WorkflowId { get; init; }
     public required List<WorkflowStep> Steps { get; init; }
     public WorkflowExecutionMode ExecutionMode { get; init; } = WorkflowExecutionMode.Sequential;
-    public Dictionary<string, string>? Variables { get; init; }
+    public Dictionary<string, string> Variables { get; init; } = [];
 }
 
 public sealed partial class WorkflowStep
@@ -21,8 +21,8 @@ public sealed partial class WorkflowStep
     public required string StepId { get; init; }
     public required string Name { get; init; }
     public string? Description { get; init; }
-    public List<string>? DependsOn { get; init; }
-    public Dictionary<string, JsonElement>? Parameters { get; init; }
+    public List<string> DependsOn { get; init; } = [];
+    public Dictionary<string, JsonElement> Parameters { get; init; } = [];
     public WorkflowStepType StepType { get; init; }
     public string? ToolName { get; init; }
     public string? AgentType { get; init; }
@@ -419,9 +419,9 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
                 : [],
             ExecutionMode = step.Parameters?.GetValueOrDefault("executionMode") is JsonElement modeEl && modeEl.ValueKind == JsonValueKind.String
                 ? WorkflowExecutionModeExtensions.FromValue(modeEl.GetString()) ?? WorkflowExecutionMode.Sequential : WorkflowExecutionMode.Sequential,
-            Variables = step.Parameters?
+            Variables = (step.Parameters?
                 .Where(kvp => kvp.Value.ValueKind == JsonValueKind.String)
-                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value.GetString() ?? string.Empty)
+                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value.GetString() ?? string.Empty)) ?? []
         };
 
         var subResult = await ExecuteWorkflowAsync(subDefinition, ct).ConfigureAwait(false);

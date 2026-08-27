@@ -3,7 +3,7 @@ namespace Core.CostTracking.FeatureFlags;
 
 public sealed partial class FeatureFlagResponse
 {
-    public Dictionary<string, FeatureFlag>? Features { get; set; }
+    public Dictionary<string, FeatureFlag> Features { get; set; } = [];
     public DateTime? FetchedAt { get; set; }
 }
 

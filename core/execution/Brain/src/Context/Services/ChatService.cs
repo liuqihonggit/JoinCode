@@ -200,7 +200,7 @@ public partial class ChatService : IChatService {
             ContextManager = _contextManager,
         };
         await _adminPipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
-        return context.MessageList ?? throw new InvalidOperationException("MessageList is not set after pipeline execution.");
+        return context.MessageList;
     }
 
     /// <summary>

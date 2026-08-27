@@ -7,7 +7,7 @@ namespace Core.Context;
 public sealed class MockQueryLoopMiddleware : IChatMiddleware
 {
     private readonly string? _fixedResponse;
-    private readonly IReadOnlyList<MockScriptEntry>? _scriptTurns;
+    private readonly IReadOnlyList<MockScriptEntry> _scriptTurns = [];
     private int _scriptTurnIndex;
 
     /// <summary>
@@ -67,7 +67,7 @@ public sealed class MockQueryLoopMiddleware : IChatMiddleware
 
     private MockScriptEntry GetCurrentTurn()
     {
-        if (_scriptTurns is null || _scriptTurnIndex >= _scriptTurns.Count)
+        if (_scriptTurns.Count == 0 || _scriptTurnIndex >= _scriptTurns.Count)
         {
             return new MockScriptEntry
             {

@@ -36,8 +36,8 @@ internal sealed class ResponsesRequest
     public int? MaxOutputTokens { get; set; }
 
     [JsonPropertyName("tools")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<ResponsesTool>? Tools { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public List<ResponsesTool> Tools { get; set; } = [];
 
     [JsonPropertyName("tool_choice")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -47,15 +47,15 @@ internal sealed class ResponsesRequest
     /// 两阶段工具加载 — MCP 工具分组（只有组名+工具名，不含完整 schema）
     /// </summary>
     [JsonPropertyName("tool_groups")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<OpenAIToolGroup>? ToolGroups { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public List<OpenAIToolGroup> ToolGroups { get; set; } = [];
 
     /// <summary>
     /// 两阶段工具加载 — 工具完整描述（第二次请求发送，响应 tool_description_request 后）
     /// </summary>
     [JsonPropertyName("tool_descriptions")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<ResponsesTool>? ToolDescriptions { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public List<ResponsesTool> ToolDescriptions { get; set; } = [];
 
     [JsonPropertyName("reasoning")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -132,8 +132,8 @@ internal sealed class ResponsesOutputItem
     public string? Role { get; set; }
 
     [JsonPropertyName("content")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<ResponsesContent>? Content { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public List<ResponsesContent> Content { get; set; } = [];
 
     [JsonPropertyName("name")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

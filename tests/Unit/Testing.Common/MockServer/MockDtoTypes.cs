@@ -23,7 +23,7 @@ public sealed class MockApiMessage
 {
     public string Role { get; init; } = string.Empty;
     public string? Content { get; init; }
-    public List<MockToolCall>? ToolCalls { get; init; }
+    public List<MockToolCall> ToolCalls { get; init; } = [];
 }
 
 public sealed class MockToolCall
@@ -42,7 +42,7 @@ public sealed class MockToolCallFunction
 public sealed class MockChatDelta
 {
     public string? Content { get; init; }
-    public List<MockToolCallDelta>? ToolCalls { get; init; }
+    public List<MockToolCallDelta> ToolCalls { get; init; } = [];
 }
 
 public sealed class MockToolCallDelta

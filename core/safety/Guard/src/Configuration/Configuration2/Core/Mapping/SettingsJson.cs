@@ -15,7 +15,7 @@ public sealed class SettingsJson
     /// 键: 供应商名（如 "sensenova"、"agnes"），值: 预设配置
     /// </summary>
     [JsonPropertyName("vendor")]
-    public Dictionary<string, ProfileSettings>? Vendor { get; init; }
+    public Dictionary<string, ProfileSettings> Vendor { get; init; } = [];
 
     /// <summary>
     /// 当前正在使用的运行时配置 — 包含 profile 指针和所有偏好设置
@@ -40,7 +40,7 @@ public sealed class SettingsJson
 
         return new SettingsJson
         {
-            Vendor = MergeVendorDictionaries(baseSettings.Vendor, overrideSettings.Vendor),
+            Vendor = MergeVendorDictionaries(baseSettings.Vendor, overrideSettings.Vendor) ?? [],
             Current = CurrentSettings.Merge(baseSettings.Current, overrideSettings.Current),
             AutoFetchModels = overrideSettings.AutoFetchModels,
         };
@@ -194,7 +194,7 @@ public sealed partial class CurrentSettings
     /// </summary>
     [JsonPropertyName("env")]
     [SettingsProperty(SettingsMergeStrategy.DictionaryMerge, DictionaryValueType = "string", SkipKeyAccess = true)]
-    public Dictionary<string, string>? Env { get; init; }
+    public Dictionary<string, string> Env { get; init; } = [];
 
     /// <summary>
     /// 权限配置 — 对齐 TS 版 PermissionsSchema
@@ -209,7 +209,7 @@ public sealed partial class CurrentSettings
     /// </summary>
     [JsonPropertyName("hooks")]
     [SettingsProperty(SettingsMergeStrategy.Custom, CustomMergeMethod = "MergeHookDictionaries", SkipKeyAccess = true)]
-    public Dictionary<string, List<HookSettings>>? Hooks { get; init; }
+    public Dictionary<string, List<HookSettings>> Hooks { get; init; } = [];
 
     /// <summary>
     /// MCP 服务器配置 — 对齐 TS 版 mcpServers
@@ -217,7 +217,7 @@ public sealed partial class CurrentSettings
     /// </summary>
     [JsonPropertyName("mcpServers")]
     [SettingsProperty(SettingsMergeStrategy.DictionaryMerge, DictionaryValueType = "McpServerSettings", SkipKeyAccess = true)]
-    public Dictionary<string, McpServerSettings>? McpServers { get; init; }
+    public Dictionary<string, McpServerSettings> McpServers { get; init; } = [];
 
     /// <summary>
     /// 沙箱配置 — 对齐 TS 版 SandboxSettingsSchema
@@ -232,7 +232,7 @@ public sealed partial class CurrentSettings
     /// </summary>
     [JsonPropertyName("enabledPlugins")]
     [SettingsProperty(SettingsMergeStrategy.DictionaryMerge, DictionaryValueType = "PluginSettings", SkipKeyAccess = true)]
-    public Dictionary<string, PluginSettings>? EnabledPlugins { get; init; }
+    public Dictionary<string, PluginSettings> EnabledPlugins { get; init; } = [];
 
     /// <summary>
     /// API Key 辅助命令 — 对齐 TS 版 apiKeyHelper
@@ -274,7 +274,7 @@ public sealed partial class CurrentSettings
     /// </summary>
     [JsonPropertyName("availableModels")]
     [SettingsProperty(SettingsMergeStrategy.ListConcatDistinct, SkipKeyAccess = true)]
-    public List<string>? AvailableModels { get; init; }
+    public List<string> AvailableModels { get; init; } = [];
 
     /// <summary>
     /// 模型覆盖映射 — 对齐 TS 版 modelOverrides
@@ -282,7 +282,7 @@ public sealed partial class CurrentSettings
     /// </summary>
     [JsonPropertyName("modelOverrides")]
     [SettingsProperty(SettingsMergeStrategy.DictionaryMerge, DictionaryValueType = "string", SkipKeyAccess = true)]
-    public Dictionary<string, string>? ModelOverrides { get; init; }
+    public Dictionary<string, string> ModelOverrides { get; init; } = [];
 
     /// <summary>
     /// 是否启用所有项目 MCP 服务器 — 对齐 TS 版 enableAllProjectMcpServers
@@ -296,14 +296,14 @@ public sealed partial class CurrentSettings
     /// </summary>
     [JsonPropertyName("enabledMcpjsonServers")]
     [SettingsProperty(SettingsMergeStrategy.ListConcatDistinct, SkipKeyAccess = true)]
-    public List<string>? EnabledMcpjsonServers { get; init; }
+    public List<string> EnabledMcpjsonServers { get; init; } = [];
 
     /// <summary>
     /// 已禁用的 MCP JSON 服务器 — 对齐 TS 版 disabledMcpjsonServers
     /// </summary>
     [JsonPropertyName("disabledMcpjsonServers")]
     [SettingsProperty(SettingsMergeStrategy.ListConcatDistinct, SkipKeyAccess = true)]
-    public List<string>? DisabledMcpjsonServers { get; init; }
+    public List<string> DisabledMcpjsonServers { get; init; } = [];
 
     /// <summary>
     /// 是否禁用所有 Hook — 对齐 TS 版 disableAllHooks
@@ -352,21 +352,21 @@ public sealed partial class CurrentSettings
     /// </summary>
     [JsonPropertyName("blacklistedTools")]
     [SettingsProperty(SettingsMergeStrategy.ListConcatDistinct)]
-    public List<string>? BlacklistedTools { get; init; }
+    public List<string> BlacklistedTools { get; init; } = [];
 
     /// <summary>
     /// 工具降权配置 — 键为工具名，值为额外扣分
     /// </summary>
     [JsonPropertyName("toolPenalties")]
     [SettingsProperty(SettingsMergeStrategy.DictionaryMerge, DictionaryValueType = "int", SkipKeyAccess = true)]
-    public Dictionary<string, int>? ToolPenalties { get; init; }
+    public Dictionary<string, int> ToolPenalties { get; init; } = [];
 
     /// <summary>
     /// 自定义超边配置 — 用户自定义工具链超图超边
     /// </summary>
     [JsonPropertyName("customHyperedges")]
     [SettingsProperty(SettingsMergeStrategy.Override, SkipKeyAccess = true)]
-    public List<HyperedgeSettings>? CustomHyperedges { get; init; }
+    public List<HyperedgeSettings> CustomHyperedges { get; init; } = [];
 
     /// <summary>
     /// 搜索范围安全配置 — 控制搜索命令的危险标志和过大路径检测
@@ -382,7 +382,7 @@ public sealed partial class CurrentSettings
     /// </summary>
     [JsonPropertyName("modelHistory")]
     [SettingsProperty(SettingsMergeStrategy.ListConcatDistinct)]
-    public List<string>? ModelHistory { get; init; }
+    public List<string> ModelHistory { get; init; } = [];
 
     #region 自定义合并方法
 
@@ -394,13 +394,13 @@ public sealed partial class CurrentSettings
 
         return new PermissionsSettings
         {
-            Allow = MergeLists(basePerms.Allow, overridePerms.Allow),
-            Deny = MergeLists(basePerms.Deny, overridePerms.Deny),
-            Ask = MergeLists(basePerms.Ask, overridePerms.Ask),
+            Allow = MergeLists(basePerms.Allow, overridePerms.Allow) ?? [],
+            Deny = MergeLists(basePerms.Deny, overridePerms.Deny) ?? [],
+            Ask = MergeLists(basePerms.Ask, overridePerms.Ask) ?? [],
             DefaultMode = overridePerms.DefaultMode ?? basePerms.DefaultMode,
-            AdditionalDirectories = MergeLists(basePerms.AdditionalDirectories, overridePerms.AdditionalDirectories),
+            AdditionalDirectories = MergeLists(basePerms.AdditionalDirectories, overridePerms.AdditionalDirectories) ?? [],
             DisableBypassPermissionsMode = overridePerms.DisableBypassPermissionsMode ?? basePerms.DisableBypassPermissionsMode,
-            ToolOverrides = MergeToolOverrides(basePerms.ToolOverrides, overridePerms.ToolOverrides),
+            ToolOverrides = MergeToolOverrides(basePerms.ToolOverrides, overridePerms.ToolOverrides) ?? [],
         };
     }
 
@@ -443,8 +443,8 @@ public sealed partial class CurrentSettings
             {
                 result[key] = new ToolOverrideEntry
                 {
-                    Allow = MergeLists(existing.Allow, value.Allow),
-                    Deny = MergeLists(existing.Deny, value.Deny),
+                    Allow = MergeLists(existing.Allow, value.Allow) ?? [],
+                    Deny = MergeLists(existing.Deny, value.Deny) ?? [],
                 };
             }
             else
@@ -465,13 +465,13 @@ public sealed partial class CurrentSettings
 public sealed class PermissionsSettings
 {
     [JsonPropertyName("allow")]
-    public List<string>? Allow { get; init; }
+    public List<string> Allow { get; init; } = [];
 
     [JsonPropertyName("deny")]
-    public List<string>? Deny { get; init; }
+    public List<string> Deny { get; init; } = [];
 
     [JsonPropertyName("ask")]
-    public List<string>? Ask { get; init; }
+    public List<string> Ask { get; init; } = [];
 
     /// <summary>
     /// 默认权限模式: default, plan, autoAccept
@@ -483,7 +483,7 @@ public sealed class PermissionsSettings
     /// 额外允许的目录
     /// </summary>
     [JsonPropertyName("additionalDirectories")]
-    public List<string>? AdditionalDirectories { get; init; }
+    public List<string> AdditionalDirectories { get; init; } = [];
 
     /// <summary>
     /// 是否禁用绕过权限模式 — 对齐 TS 版 disableBypassPermissionsMode
@@ -496,7 +496,7 @@ public sealed class PermissionsSettings
     /// 格式: { "auto": { "allow": ["bash"], "deny": [] }, "plan": { "deny": ["web_fetch"] } }
     /// </summary>
     [JsonPropertyName("toolOverrides")]
-    public Dictionary<string, ToolOverrideEntry>? ToolOverrides { get; init; }
+    public Dictionary<string, ToolOverrideEntry> ToolOverrides { get; init; } = [];
 }
 
 /// <summary>
@@ -505,10 +505,10 @@ public sealed class PermissionsSettings
 public sealed class ToolOverrideEntry
 {
     [JsonPropertyName("allow")]
-    public List<string>? Allow { get; init; }
+    public List<string> Allow { get; init; } = [];
 
     [JsonPropertyName("deny")]
-    public List<string>? Deny { get; init; }
+    public List<string> Deny { get; init; } = [];
 }
 
 /// <summary>
@@ -547,16 +547,16 @@ public sealed class McpServerSettings
     public string? Command { get; init; }
 
     [JsonPropertyName("args")]
-    public List<string>? Args { get; init; }
+    public List<string> Args { get; init; } = [];
 
     [JsonPropertyName("url")]
     public string? Url { get; init; }
 
     [JsonPropertyName("env")]
-    public Dictionary<string, string>? Env { get; init; }
+    public Dictionary<string, string> Env { get; init; } = [];
 
     [JsonPropertyName("headers")]
-    public Dictionary<string, string>? Headers { get; init; }
+    public Dictionary<string, string> Headers { get; init; } = [];
 }
 
 /// <summary>
@@ -574,7 +574,7 @@ public sealed class SandboxSettings
     public string? Image { get; init; }
 
     [JsonPropertyName("allowedPaths")]
-    public List<string>? AllowedPaths { get; init; }
+    public List<string> AllowedPaths { get; init; } = [];
 
     [JsonPropertyName("restrictNetwork")]
     public bool? RestrictNetwork { get; init; }
@@ -592,7 +592,7 @@ public sealed class PluginSettings
     public bool? Enabled { get; init; }
 
     [JsonPropertyName("config")]
-    public Dictionary<string, string>? Config { get; init; }
+    public Dictionary<string, string> Config { get; init; } = [];
 }
 
 /// <summary>
@@ -601,10 +601,10 @@ public sealed class PluginSettings
 public sealed class WorktreeSettings
 {
     [JsonPropertyName("symlinkDirectories")]
-    public List<string>? SymlinkDirectories { get; init; }
+    public List<string> SymlinkDirectories { get; init; } = [];
 
     [JsonPropertyName("sparsePaths")]
-    public List<string>? SparsePaths { get; init; }
+    public List<string> SparsePaths { get; init; } = [];
 }
 
 /// <summary>
@@ -712,7 +712,7 @@ public sealed class ProfileSettings
 
     /// <summary>该供应商可用的模型列表 — 配置大于内置，GUI 下拉由此驱动</summary>
     [JsonPropertyName("models")]
-    public List<ModelItemConfig>? Models { get; init; }
+    public List<ModelItemConfig> Models { get; init; } = [];
 
     /// <summary>模型列表拉取端点相对路径（如 "models"、"v1/models"）— 拼接 endpoint 得到完整 URL。null 表示不拉取。</summary>
     [JsonPropertyName("modelsEndpoint")]

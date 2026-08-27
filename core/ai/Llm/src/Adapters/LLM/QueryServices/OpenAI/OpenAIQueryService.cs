@@ -308,7 +308,7 @@ public class OpenAIQueryService : QueryServiceBase
         {
             if (m.Metadata.TryGetValue("ToolCalls", out var toolCallsObj))
             {
-                msg.ToolCalls = ConvertToOpenAIToolCalls(toolCallsObj);
+                msg.ToolCalls = ConvertToOpenAIToolCalls(toolCallsObj) ?? [];
                 if (msg.ToolCalls is { Count: > 0 })
                 {
                     msg.Content = null;

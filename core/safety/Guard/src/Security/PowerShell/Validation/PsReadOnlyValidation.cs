@@ -481,7 +481,7 @@ public static partial class PsReadOnlyValidation
 public sealed class PsAllowlistConfig
 {
     /// <summary>允许的安全标志列表</summary>
-    public FrozenSet<string>? SafeFlags { get; init; }
+    public FrozenSet<string> SafeFlags { get; init; } = FrozenSet<string>.Empty;
 
     /// <summary>是否允许所有标志</summary>
     public bool AllowAllFlags { get; init; }

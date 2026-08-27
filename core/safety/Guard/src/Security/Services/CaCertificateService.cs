@@ -10,7 +10,7 @@ public interface ICaCertificateService
 public sealed partial class CaCertificateOptions
 {
     public string? CaBundlePath { get; init; }
-    public List<string>? AdditionalCaPaths { get; init; }
+    public List<string> AdditionalCaPaths { get; init; } = [];
     public bool UseSystemStore { get; init; } = true;
 }
 

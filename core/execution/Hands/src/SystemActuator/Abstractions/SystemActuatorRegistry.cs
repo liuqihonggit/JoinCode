@@ -7,7 +7,8 @@ namespace Services.SystemActuator;
 [Register(typeof(ISystemActuatorRegistry), ServiceLifetime.Singleton)]
 public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IAsyncDisposable
 {
-    private static FrozenDictionary<SystemActuatorKind, Func<RegistryDeps, ISystemActuator>>? _factories;
+    private static FrozenDictionary<SystemActuatorKind, Func<RegistryDeps, ISystemActuator>> _factories = FrozenDictionary<SystemActuatorKind, Func<RegistryDeps, ISystemActuator>>.Empty;
+    private static bool _factoriesLoaded;
 
     private readonly ILogger<SystemActuatorRegistry>? _logger;
     private readonly ITelemetryService? _telemetryService;
@@ -43,12 +44,13 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
         IReadOnlyDictionary<SystemActuatorKind, Func<RegistryDeps, ISystemActuator>> factories)
     {
         _factories = factories.ToFrozenDictionary();
+        _factoriesLoaded = true;
     }
 
     /// <inheritdoc />
     public ISystemActuator Get(SystemActuatorKind kind)
     {
-        if (_factories is null)
+        if (!_factoriesLoaded)
             throw new InvalidOperationException("SystemActuatorRegistry not initialized. Call RegisterFactories() first.");
 
         if (!_factories.TryGetValue(kind, out var factory))
@@ -61,7 +63,7 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
     /// <inheritdoc />
     public bool TryGet(SystemActuatorKind kind, [NotNullWhen(true)] out ISystemActuator? actuator)
     {
-        if (_factories is null || !_factories.TryGetValue(kind, out var factory))
+        if (!_factoriesLoaded || !_factories.TryGetValue(kind, out var factory))
         {
             actuator = null;
             return false;
@@ -73,12 +75,12 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
 
     /// <inheritdoc />
     public IReadOnlyCollection<SystemActuatorKind> RegisteredKinds
-        => _factories?.Keys ?? [];
+        => _factories.Keys;
 
     /// <inheritdoc />
     public IReadOnlyDictionary<SystemActuatorKind, SystemActuatorInfo> GetAllInfos()
     {
-        if (_factories is null)
+        if (!_factoriesLoaded)
             return FrozenDictionary<SystemActuatorKind, SystemActuatorInfo>.Empty;
 
         var deps = new RegistryDeps(_fs, _logger, _sandboxManager, _preventSleepService, _config);

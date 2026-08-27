@@ -7,9 +7,9 @@ namespace Core.Prompts.Sections;
 [PromptSection(Name = "mcp_server", Order = 76, IsDynamic = true)]
 public static class McpServerSection {
     public static string? GetContent() {
-        var servers = PromptConfigSnapshot.Current.McpServers?.ToList();
+        var servers = PromptConfigSnapshot.Current.McpServers.ToList();
 
-        if (servers == null || servers.Count == 0) {
+        if (servers.Count == 0) {
             return null;
         }
 

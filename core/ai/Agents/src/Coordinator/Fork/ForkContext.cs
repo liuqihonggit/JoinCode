@@ -38,7 +38,7 @@ public sealed class ForkContext
     /// <summary>
     /// 共享缓存引用（Manager 在管道执行前设置）
     /// </summary>
-    public Dictionary<string, string>? SharedCache { get; set; }
+    public Dictionary<string, string> SharedCache { get; set; } = [];
 
     /// <summary>
     /// Fork 指令消息（ForkSpawnMiddleware 设置）

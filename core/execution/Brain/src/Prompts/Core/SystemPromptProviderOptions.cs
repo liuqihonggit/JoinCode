@@ -77,13 +77,13 @@ public partial class SystemPromptProviderOptions
     public string? Version { get; init; }
     public string? BuildTime { get; init; }
     public bool IsGitWorktree { get; init; }
-    public IEnumerable<string>? AdditionalWorkdirs { get; init; }
+    public IEnumerable<string> AdditionalWorkdirs { get; init; } = [];
 
     #endregion
 
     #region 工具可用性
 
-    public IEnumerable<string>? EnabledTools { get; init; }
+    public IEnumerable<string> EnabledTools { get; init; } = [];
     public bool HasTodoTool { get; init; }
     public bool HasTaskTool { get; init; }
     public bool HasTeamTools { get; init; }
@@ -96,9 +96,9 @@ public partial class SystemPromptProviderOptions
     #region 规则与上下文
 
     public string? ProjectRules { get; init; }
-    public IReadOnlyList<ExternalRuleEntry>? ExternalRules { get; init; }
+    public IReadOnlyList<ExternalRuleEntry> ExternalRules { get; init; } = [];
     public FileContextTracker? FileContext { get; init; }
-    public IEnumerable<string>? McpServers { get; init; }
+    public IEnumerable<string> McpServers { get; init; } = [];
     public string? IssuesExplainer { get; init; }
     public string? FeedbackChannel { get; init; }
 
@@ -117,7 +117,7 @@ public partial class SystemPromptProviderOptions
 
     public string? CompanionName { get; init; }
     public string? CompanionSpecies { get; init; }
-    public IReadOnlyList<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>? AgentDefinitions { get; init; }
+    public IReadOnlyList<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition> AgentDefinitions { get; init; } = [];
 
     #endregion
 
@@ -135,7 +135,7 @@ public partial class SystemPromptProviderOptions
     /// 所有已注册系统执行器的信息快照 — 通用集合，新增执行器类型无需改代码
     /// Key: SystemActuatorKind, Value: SystemActuatorInfo (DisplayName + ShellPath + Version)
     /// </summary>
-    public IReadOnlyDictionary<SystemActuatorKind, SystemActuatorInfo>? ShellInfos { get; init; }
+    public IReadOnlyDictionary<SystemActuatorKind, SystemActuatorInfo> ShellInfos { get; init; } = new Dictionary<SystemActuatorKind, SystemActuatorInfo>();
 
     #endregion
 
@@ -156,7 +156,7 @@ public partial class SystemPromptProviderOptions
         {
             IsAgentMode = true,
             ProjectRules = projectRules,
-            EnabledTools = enabledTools,
+            EnabledTools = enabledTools ?? [],
             LanguagePreference = languagePreference
         };
     }
@@ -170,9 +170,9 @@ public partial class SystemPromptProviderOptions
         return new SystemPromptProviderOptions
         {
             IsCoordinatorMode = true,
-            AgentDefinitions = agentDefinitions,
+            AgentDefinitions = agentDefinitions ?? [],
             ProjectRules = projectRules,
-            EnabledTools = enabledTools,
+            EnabledTools = enabledTools ?? [],
             LanguagePreference = languagePreference
         };
     }

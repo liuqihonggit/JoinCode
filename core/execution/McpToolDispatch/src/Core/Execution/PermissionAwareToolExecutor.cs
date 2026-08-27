@@ -299,5 +299,5 @@ public sealed class ToolExecutionCompletedEventArgs : EventArgs
     public TimeSpan Duration { get; init; }
 
     /// <summary>工具参数</summary>
-    public Dictionary<string, JsonElement>? Arguments { get; init; }
+    public Dictionary<string, JsonElement> Arguments { get; init; } = [];
 }

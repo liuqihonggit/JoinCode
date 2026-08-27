@@ -85,7 +85,9 @@ public class ToolSchemaProperty
 
     [JsonPropertyName("enum")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<string> Enum { get; init; } = [];
+#pragma warning disable JCC11002
+    public List<string>? Enum { get; init; }
+#pragma warning restore JCC11002
 
     [JsonPropertyName("default")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]

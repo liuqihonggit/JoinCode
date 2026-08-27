@@ -17,7 +17,7 @@ public sealed class AgentDefinitionProviderTests
         var definitions = AgentDefinitionProvider.GetBuiltInDefinitions();
         var coordinator = definitions.First(d => d.Role == AgentRole.Coordinator);
 
-        coordinator.Tools.Should().BeNull();
+        coordinator.Tools.Should().BeEmpty();
         coordinator.DisallowedTools.Should().NotBeNull();
         coordinator.DisallowedTools.Should().Contain([
             AgentToolNameConstants.Agent, AgentToolNameConstants.AgentSpawn
@@ -204,7 +204,7 @@ public sealed class AgentDefinitionProviderTests
         result.Variant.Should().BeNull();
         result.DisplayId.Should().Be("executor");
         result.SystemPrompt.Should().Be("You are a simple agent without frontmatter.");
-        result.Tools.Should().BeNull();
+        result.Tools.Should().BeEmpty();
     }
 
     [Fact]

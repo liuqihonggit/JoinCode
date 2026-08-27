@@ -72,7 +72,7 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
                         if (_todoDag.Nodes.ContainsKey(depId))
                         {
                             var edgeResult = _todoDag.AddEdge(new DagEdge { FromId = depId, ToId = todoId, Label = "depends-on" });
-                            if (edgeResult.CyclePath is not null)
+                            if (edgeResult.CyclePath.Count > 0)
                             {
                                 _todoDag.RemoveNode(todoId);
                                 createdCount--;

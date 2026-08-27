@@ -215,8 +215,8 @@ public sealed partial class SimpleJsonSchemaValidator : ServiceEntity, IJsonSche
             ValidateType(instance, typeNode!, path, errors);
         }
 
-        // Enum validation
-        if (schemaObj.TryGetPropertyValue("enum", out var enumNode) && enumNode is JsonArray enumArray)
+        // Enum validation (skip empty enum arrays — they mean "no constraint")
+        if (schemaObj.TryGetPropertyValue("enum", out var enumNode) && enumNode is JsonArray enumArray && enumArray.Count > 0)
         {
             ValidateEnum(instance, enumArray, path, errors);
         }

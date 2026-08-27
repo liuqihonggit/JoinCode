@@ -116,7 +116,7 @@ public sealed partial class ClusterPlanValidator : ServiceEntity, IClusterPlanVa
             foreach (var depId in task.DependsOn)
             {
                 var edgeResult = dag.AddEdge(new DagEdge { FromId = depId, ToId = task.Id, Label = "depends-on" });
-                if (edgeResult.CyclePath is not null)
+                if (edgeResult.CyclePath.Count > 0)
                 {
                     return edgeResult.CyclePath.ToList();
                 }

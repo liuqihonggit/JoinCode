@@ -29,7 +29,7 @@ public partial class ChatContextManagerThreePartTests
         history.Should().HaveCount(1);
         history[0].Role.Should().Be(MessageRole.System);
         history[0].Content.Should().Be("You are a helpful assistant.");
-        history[0].Metadata.Should().BeNull();
+        history[0].Metadata.Should().BeEmpty();
     }
 
     [Fact]
@@ -44,7 +44,7 @@ public partial class ChatContextManagerThreePartTests
         history.Should().HaveCount(2);
         history[0].Role.Should().Be(MessageRole.System);
         history[0].Content.Should().Be("static");
-        history[0].Metadata.Should().BeNull();
+        history[0].Metadata.Should().BeEmpty();
 
         history[1].Role.Should().Be(MessageRole.System);
         history[1].Content.Should().Be("dynamic context");
@@ -68,7 +68,7 @@ public partial class ChatContextManagerThreePartTests
         history.Should().HaveCount(5);
         history[0].Role.Should().Be(MessageRole.System);
         history[0].Content.Should().Be("static system");
-        history[0].Metadata.Should().BeNull();
+        history[0].Metadata.Should().BeEmpty();
 
         history[1].Role.Should().Be(MessageRole.System);
         history[1].Content.Should().Be("dynamic info");
@@ -159,7 +159,7 @@ public partial class ChatContextManagerThreePartTests
 
         history.Should().HaveCount(5);
         history[0].Content.Should().Be("static");
-        history[0].Metadata.Should().BeNull();
+        history[0].Metadata.Should().BeEmpty();
 
         history[1].Content.Should().Be("turn2 dynamic");
         history[1].Metadata.Should().ContainKey("CacheBreak");
@@ -186,7 +186,7 @@ public partial class ChatContextManagerThreePartTests
         var history = await sut.GetMessageListAsync().ConfigureAwait(true);
 
         history[0].Content.Should().Be("immutable system prompt");
-        history[0].Metadata.Should().BeNull();
+        history[0].Metadata.Should().BeEmpty();
 
         for (int i = 0; i < 5; i++)
         {
@@ -251,7 +251,7 @@ public partial class ChatContextManagerThreePartTests
         var history = await sut.GetMessageListAsync().ConfigureAwait(true);
 
         history[0].Content.Should().Be("restored static");
-        history[0].Metadata.Should().BeNull();
+        history[0].Metadata.Should().BeEmpty();
         history[1].Content.Should().Be("new dynamic");
         history[1].Metadata.Should().ContainKey("CacheBreak");
         history[2].Content.Should().Be("restored user");
@@ -274,7 +274,7 @@ public partial class ChatContextManagerThreePartTests
 
         var history = await sut.GetMessageListAsync().ConfigureAwait(true);
         history[0].Content.Should().Be("system from history");
-        history[0].Metadata.Should().BeNull();
+        history[0].Metadata.Should().BeEmpty();
         history[1].Content.Should().Be("user msg");
     }
 
@@ -290,7 +290,7 @@ public partial class ChatContextManagerThreePartTests
 
         var history = await sut.GetMessageListAsync().ConfigureAwait(true);
 
-        history[0].Metadata.Should().BeNull();
+        history[0].Metadata.Should().BeEmpty();
         history[1].Metadata!["CacheBreak"].GetBoolean().Should().Be(true);
         history[2].Metadata!["CacheBreak"].GetBoolean().Should().Be(true);
         history[3].Metadata!["CacheBreak"].GetBoolean().Should().Be(true);
@@ -321,7 +321,7 @@ public partial class ChatContextManagerThreePartTests
         firstHistory[1].Metadata.Should().ContainKey("CacheBreak", "first request should have CacheBreak");
 
         var secondHistory = await sut.GetMessageListAsync().ConfigureAwait(true);
-        secondHistory[1].Metadata.Should().BeNull("unchanged dynamic content should not have CacheBreak on second request");
+        secondHistory[1].Metadata.Should().BeEmpty("unchanged dynamic content should not have CacheBreak on second request");
     }
 
     [Fact]

@@ -14,7 +14,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
     private readonly PermissionConfig _config;
     private readonly TimeProvider _timeProvider;
     private PermissionMode _currentMode;
-    private List<ToolPermissionRule>? _strippedRules;
+    private List<ToolPermissionRule> _strippedRules = [];
     private bool _disposed;
 
     /// <summary>
@@ -234,14 +234,14 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         // 对齐 TS restoreDangerousPermissions: 恢复之前剥离的危险权限规则
-        if (_strippedRules is { Count: > 0 })
+        if (_strippedRules.Count > 0)
         {
             foreach (var rule in _strippedRules)
             {
                 _config.AutoApprovedTools[rule.ToolName] = rule;
             }
             _logger?.LogInformation("已恢复 {Count} 条危险权限规则", _strippedRules.Count);
-            _strippedRules = null;
+            _strippedRules = [];
         }
 
         return Task.CompletedTask;

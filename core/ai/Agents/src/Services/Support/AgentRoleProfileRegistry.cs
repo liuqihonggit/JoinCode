@@ -219,7 +219,7 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
                 Description = "Coordinator agent — manages Goal lifecycle, full toolset",
                 AllowedTools = IsCoordinatorModeEnabledFromEnv()
                     ? [AgentToolNameConstants.Agent, AgentToolNameConstants.AgentSendMessage, TaskToolNameConstants.TaskStop]
-                    : null,
+                    : [],
                 DisallowedTools = subAgentDisallowedTools,
             },
             new()

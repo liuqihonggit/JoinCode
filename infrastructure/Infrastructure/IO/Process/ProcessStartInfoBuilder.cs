@@ -39,7 +39,7 @@ public sealed class ProcessStartInfoBuilder : IProcessStartInfoBuilder
         if (!options.SkipArgumentValidation)
         {
             CommandArgumentValidator.ValidateList(options.ArgumentList);
-            if (options.ArgumentList is null)
+            if (options.ArgumentList.Count == 0)
                 CommandArgumentValidator.ValidateString(options.Arguments);
         }
 
@@ -55,7 +55,7 @@ public sealed class ProcessStartInfoBuilder : IProcessStartInfoBuilder
             StandardErrorEncoding = options.StandardErrorEncoding ?? _encodingProvider.Error,
         };
 
-        if (options.ArgumentList is { Count: > 0 })
+        if (options.ArgumentList.Count > 0)
         {
             foreach (var arg in options.ArgumentList)
                 psi.ArgumentList.Add(arg);
@@ -84,7 +84,7 @@ public sealed class ProcessStartInfoBuilder : IProcessStartInfoBuilder
         if (!options.SkipArgumentValidation)
         {
             CommandArgumentValidator.ValidateList(options.ArgumentList);
-            if (options.ArgumentList is null)
+            if (options.ArgumentList.Count == 0)
                 CommandArgumentValidator.ValidateString(options.Arguments);
         }
 
@@ -102,7 +102,7 @@ public sealed class ProcessStartInfoBuilder : IProcessStartInfoBuilder
             StandardInputEncoding = options.StandardInputEncoding ?? _encodingProvider.Input,
         };
 
-        if (options.ArgumentList is { Count: > 0 })
+        if (options.ArgumentList.Count > 0)
         {
             foreach (var arg in options.ArgumentList)
                 psi.ArgumentList.Add(arg);

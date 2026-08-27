@@ -54,9 +54,12 @@ public class ResponsesTypesTests
 
         json.Should().NotContain("\"instructions\"");
         json.Should().NotContain("\"reasoning\"");
-        json.Should().NotContain("\"tools\"");
         json.Should().NotContain("\"temperature\"");
         json.Should().NotContain("\"max_output_tokens\"");
+        // 非可空集合字段默认序列化为空数组（WhenWritingDefault 对非 null 空列表不生效）
+        json.Should().Contain("\"tools\":[]");
+        json.Should().Contain("\"tool_groups\":[]");
+        json.Should().Contain("\"tool_descriptions\":[]");
     }
 
     [Fact]

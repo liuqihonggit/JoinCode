@@ -35,7 +35,7 @@ public sealed partial class IterationState
     /// <summary>工具调用 ID</summary>
     public string? ToolCallId { get; set; }
     /// <summary>工具调用参数（已解析）</summary>
-    public Dictionary<string, JsonElement>? ToolCallArguments { get; set; }
+    public Dictionary<string, JsonElement> ToolCallArguments { get; set; } = [];
     /// <summary>
     /// 本轮检测到的全部工具调用列表（支持单响应多工具调用）
     /// 对齐 TS: 同一 LLM 响应中的多个 tool_calls 按顺序执行

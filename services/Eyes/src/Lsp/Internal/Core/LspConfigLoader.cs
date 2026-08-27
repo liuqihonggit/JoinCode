@@ -103,7 +103,7 @@ public sealed record LspServerConfigEntry
             Arguments = Arguments.ToList(),
             WorkingDirectory = WorkingDirectory,
             StartupTimeout = StartupTimeoutSeconds > 0 ? TimeSpan.FromSeconds(StartupTimeoutSeconds) : null,
-            Environment = EnvironmentVariables.Count > 0 ? EnvironmentVariables : null,
+            Environment = EnvironmentVariables,
             ExtensionToLanguage = extToLang
         };
     }

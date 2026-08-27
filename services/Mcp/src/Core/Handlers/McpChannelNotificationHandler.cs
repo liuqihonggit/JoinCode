@@ -93,7 +93,7 @@ public sealed partial class McpChannelNotificationHandler
         {
             ServerName = serverName,
             Content = content,
-            Meta = meta,
+            Meta = meta ?? [],
             XmlMessage = xmlMessage
         });
     }
@@ -225,7 +225,7 @@ public sealed partial class McpChannelMessageEventArgs : EventArgs
 {
     public required string ServerName { get; init; }
     public required string Content { get; init; }
-    public Dictionary<string, string>? Meta { get; init; }
+    public Dictionary<string, string> Meta { get; init; } = [];
     public required string XmlMessage { get; init; }
 }
 

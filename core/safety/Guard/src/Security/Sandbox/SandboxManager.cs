@@ -138,7 +138,7 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
                 Type = newProvider.SandboxType,
                 RestrictNetwork = previousInfo?.RestrictNetwork ?? true,
                 RestrictFileSystem = previousInfo?.RestrictFileSystem ?? true,
-                AllowedPaths = previousInfo?.AllowedPaths,
+                AllowedPaths = previousInfo?.AllowedPaths ?? [],
                 SandboxRoot = previousInfo?.RootPath,
                 MemoryLimitMb = 0,
                 CpuLimitPercent = 0,
@@ -425,7 +425,7 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
             Command = command,
             WorkingDirectory = workingDir,
             TimeoutMs = 0,
-            EnvironmentVariables = envVars.Count > 0 ? envVars : null
+            EnvironmentVariables = envVars.Count > 0 ? envVars : []
         };
 
         var ipcTask = _ipcClient!.ExecuteAsync(request, ct);

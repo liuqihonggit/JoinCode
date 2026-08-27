@@ -41,8 +41,8 @@ internal sealed class OpenAIChatRequest
     public float? PresencePenalty { get; set; }
 
     [JsonPropertyName("tools")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<OpenAITool>? Tools { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public List<OpenAITool> Tools { get; set; } = [];
 
     [JsonPropertyName("tool_choice")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -53,15 +53,15 @@ internal sealed class OpenAIChatRequest
     /// LLM 通过 ToolSearch 按需加载完整描述。null 时不序列化，真实 LLM API 忽略此字段。
     /// </summary>
     [JsonPropertyName("tool_groups")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<OpenAIToolGroup>? ToolGroups { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public List<OpenAIToolGroup> ToolGroups { get; set; } = [];
 
     /// <summary>
     /// 两阶段工具加载 — 工具完整描述（第二次请求发送，响应 tool_description_request 后）
     /// </summary>
     [JsonPropertyName("tool_descriptions")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<OpenAITool>? ToolDescriptions { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public List<OpenAITool> ToolDescriptions { get; set; } = [];
 
     [JsonPropertyName("reasoning_effort")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -94,7 +94,7 @@ internal sealed class OpenAIStreamOptions
 internal sealed class OpenAIMessageContent
 {
     public string? Text { get; init; }
-    public List<OpenAIContentPart>? Parts { get; init; }
+    public List<OpenAIContentPart> Parts { get; init; } = [];
 
     public static implicit operator OpenAIMessageContent?(string? text) =>
         text is null ? null : new() { Text = text };
@@ -149,8 +149,8 @@ internal sealed class OpenAIApiMessage
     public string? ReasoningContent { get; set; }
 
     [JsonPropertyName("tool_calls")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<OpenAIToolCall>? ToolCalls { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public List<OpenAIToolCall> ToolCalls { get; set; } = [];
 
     [JsonPropertyName("tool_call_id")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -287,15 +287,15 @@ internal sealed class OpenAIFunctionDefinition
 internal sealed class OpenAIFunctionParameters : InputSchemaBase
 {
     [JsonPropertyName("properties")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public Dictionary<string, OpenAIParameterProperty>? Properties { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public Dictionary<string, OpenAIParameterProperty> Properties { get; set; } = [];
 }
 
 internal sealed class OpenAIParameterProperty : SchemaProperty
 {
     [JsonPropertyName("enum")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<string>? Enum { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public List<string> Enum { get; set; } = [];
 }
 
 internal sealed class OpenAIToolCall
@@ -392,7 +392,7 @@ internal sealed class OpenAIMessageContentConverter : JsonConverter<OpenAIMessag
             return;
         }
 
-        if (value.Parts is not null)
+        if (value.Parts.Count > 0)
         {
             writer.WriteStartArray();
             foreach (var part in value.Parts)

@@ -219,7 +219,7 @@ public sealed class MockServerConfigTests : IDisposable
         var turn = new ScriptedTurn();
 
         turn.TextResponse.Should().BeNull();
-        turn.ToolCalls.Should().BeNull();
+        turn.ToolCalls.Should().BeEmpty();
         turn.ThinkingContent.Should().BeNull();
         turn.FollowUpText.Should().BeNull();
     }

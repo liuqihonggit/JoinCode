@@ -218,7 +218,7 @@ public class ResponsesQueryServiceTests
 
         var request = service.CreateRequest(new MessageList(), options, stream: false, null);
 
-        request.Tools.Should().BeNull();
+        request.Tools.Should().BeEmpty();
     }
 
     [Fact]

@@ -9,8 +9,8 @@ public static class AdditionalWorkdirsSection
 {
     public static string? GetContent()
     {
-        var dirs = PromptConfigSnapshot.Current.AdditionalWorkdirs?.ToList();
-        if (dirs == null || dirs.Count == 0)
+        var dirs = PromptConfigSnapshot.Current.AdditionalWorkdirs.ToList();
+        if (dirs.Count == 0)
         {
             return null;
         }

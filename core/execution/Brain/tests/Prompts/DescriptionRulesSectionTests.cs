@@ -7,7 +7,7 @@ public sealed class DescriptionRulesSectionTests
     {
         var tracker = new FileContextTracker();
         tracker.UpdateUserMessage("修复bug");
-        PromptConfigSnapshot.SetCurrent(new SystemPromptProviderOptions { ExternalRules = null, FileContext = tracker });
+        PromptConfigSnapshot.SetCurrent(new SystemPromptProviderOptions { ExternalRules = [], FileContext = tracker });
 
         var section = DescriptionRulesSection.Create();
 
@@ -134,7 +134,7 @@ public sealed class DescriptionRulesSectionTests
     public void Create_Should_Be_Dynamic_Section()
     {
         var tracker = new FileContextTracker();
-        PromptConfigSnapshot.SetCurrent(new SystemPromptProviderOptions { ExternalRules = null, FileContext = tracker });
+        PromptConfigSnapshot.SetCurrent(new SystemPromptProviderOptions { ExternalRules = [], FileContext = tracker });
 
         var section = DescriptionRulesSection.Create();
 

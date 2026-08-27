@@ -63,9 +63,7 @@ public sealed partial class ToolExecutionHandler : ServiceEntity, IToolExecution
             return toolCalls;
 
         // 向后兼容：ToolCalls 列表为空但 ToolCallName 不为空时，用单个工具调用填充
-        var fallbackArgsJson = iterState.ToolCallArguments is not null
-            ? JsonSerializer.Serialize(iterState.ToolCallArguments, ChatServiceJsonContext.Default.DictionaryStringJsonElement)
-            : "{}";
+        var fallbackArgsJson = JsonSerializer.Serialize(iterState.ToolCallArguments, ChatServiceJsonContext.Default.DictionaryStringJsonElement);
         return [new() { Id = iterState.ToolCallId, Name = iterState.ToolCallName ?? string.Empty, Arguments = fallbackArgsJson }];
     }
 

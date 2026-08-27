@@ -124,11 +124,11 @@ public sealed class PromptTriggerTester
         return new DefaultSystemPromptProvider(_fs, new SystemPromptProviderOptions
         {
             CustomIntro = config.CustomIntro,
-            EnabledTools = config.EnabledTools,
+            EnabledTools = config.EnabledTools ?? [],
             AdditionalEnvInfo = config.AdditionalEnvInfo,
             ProjectRules = config.ProjectRules,
-            ExternalRules = config.ExternalRules,
-            McpServers = config.McpServers,
+            ExternalRules = config.ExternalRules ?? [],
+            McpServers = config.McpServers ?? [],
             ScratchpadPath = config.ScratchpadPath,
             IsAgentMode = config.IsAgentMode,
             LanguagePreference = config.LanguagePreference,
@@ -144,7 +144,7 @@ public sealed class PromptTriggerTester
             EnableNumericLength = config.EnableNumericLength,
             HasTokenBudget = config.HasTokenBudget,
             IsGitWorktree = config.IsGitWorktree,
-            AdditionalWorkdirs = config.AdditionalWorkdirs
+            AdditionalWorkdirs = config.AdditionalWorkdirs ?? []
         }, briefModeService);
     }
 

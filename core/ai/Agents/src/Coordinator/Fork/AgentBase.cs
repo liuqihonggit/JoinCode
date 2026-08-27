@@ -79,7 +79,7 @@ public class AgentBase : Entity, IAgent
     /// 外部（MailboxPoller/AgentCoordinator）负责往队列里塞通知，AgentBase.DrainPendingUserInputs 消费
     /// null 表示未接入契约变更通知（默认）
     /// </summary>
-    public ConcurrentQueue<string>? ContractChangeNotifications { get; set; }
+    public ConcurrentQueue<string> ContractChangeNotifications { get; set; } = new();
 
     /// <summary>
     /// 延迟邮件服务 — 每轮 LLM 调用前消费到期延迟邮件, 注入 ChatHistory
@@ -570,7 +570,6 @@ public class AgentBase : Entity, IAgent
         }
 
         // T5.0: 消费契约变更通知 — 收到 ContractChanged 后通知 Worker 已同步主干，继续工作
-        if (ContractChangeNotifications is not null)
         {
             var changeCount = 0;
             while (ContractChangeNotifications.TryDequeue(out var changeContent))
@@ -649,8 +648,8 @@ public class AgentBase : Entity, IAgent
 
         return new QueryOptions
         {
-            AllowedTools = Options.AllowedTools,
-            DeniedTools = Options.DeniedTools,
+            AllowedTools = Options.AllowedTools ?? [],
+            DeniedTools = Options.DeniedTools ?? [],
             CacheSafeParams = Options.CacheSafeParams,
             ProgressTracker = Options.ProgressTracker,
             ContentReplacementState = Options.ContentReplacementState,

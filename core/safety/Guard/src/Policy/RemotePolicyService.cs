@@ -36,7 +36,7 @@ public sealed partial class RemotePolicyService : RemoteCacheRefreshServiceBase<
 
         return new RemoteRefreshResult<PolicyRule>
         {
-            Items = policyResponse?.Rules?.ToDictionary(r => r.RuleId, r => r, StringComparer.OrdinalIgnoreCase)
+            Items = policyResponse?.Rules?.ToDictionary(r => r.RuleId, r => r, StringComparer.OrdinalIgnoreCase) ?? []
         };
     }
 

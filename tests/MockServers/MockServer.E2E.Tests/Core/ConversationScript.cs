@@ -41,19 +41,19 @@ public sealed class ConversationScript
         : ConversationMode.Interactive;
 
     public string? AdditionalArgs { get; init; }
-    public Dictionary<string, string>? ExtraEnvVars { get; init; }
+    public Dictionary<string, string> ExtraEnvVars { get; init; } = [];
     public bool DumpMessages { get; init; }
 
     /// <summary>
     /// 额外 MockServer 脚本轮次 — 用于子进程（如 subagent）的 LLM 调用
     /// </summary>
-    public IReadOnlyList<ConversationTurn>? MockServerExtraTurns { get; init; }
+    public IReadOnlyList<ConversationTurn> MockServerExtraTurns { get; init; } = [];
 
     /// <summary>
     /// 简单额外文本响应 — 便捷方式添加子进程用轮次
     /// 每个字符串作为一个纯文本 MockServer 轮次
     /// </summary>
-    public IReadOnlyList<string>? MockServerExtraTextResponses { get; init; }
+    public IReadOnlyList<string> MockServerExtraTextResponses { get; init; } = [];
 
     /// <summary>
     /// 是否需要启动 Mcp.MockServer（用于测试 jcc 连接外部 MCP 服务器并调用工具的正向链路）
@@ -86,7 +86,7 @@ public sealed class MockResponseScript
 {
     public MockResponseType Type { get; init; } = MockResponseType.TextOnly;
     public required string TextResponse { get; init; }
-    public IReadOnlyList<MockToolCallScript>? ToolCalls { get; init; }
+    public IReadOnlyList<MockToolCallScript> ToolCalls { get; init; } = [];
     public string? ThinkingContent { get; init; }
     public bool IsStreaming { get; init; } = true;
     public string? FollowUpText { get; init; }

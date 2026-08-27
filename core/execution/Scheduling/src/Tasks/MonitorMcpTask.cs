@@ -12,13 +12,25 @@ public interface IMonitorMcpTaskExecutor
 public sealed partial class McpMonitorConfig
 {
     public required string ServerName { get; init; }
-    public List<string>? EventFilters { get; init; }
+    public List<string> EventFilters { get; init; } = [];
     public TimeSpan PollInterval { get; init; } = TimeSpan.FromSeconds(5);
     public int MaxEvents { get; init; } = 100;
     public bool AutoReconnect { get; init; } = true;
 
-    private FrozenSet<string>? _eventFilterSet;
-    public FrozenSet<string>? EventFilterSet => _eventFilterSet ??= EventFilters is null || EventFilters.Count == 0 ? null : EventFilters.ToFrozenSet();
+    private FrozenSet<string> _eventFilterSet = FrozenSet<string>.Empty;
+    private bool _eventFilterSetInitialized;
+    public FrozenSet<string> EventFilterSet
+    {
+        get
+        {
+            if (!_eventFilterSetInitialized)
+            {
+                _eventFilterSet = EventFilters.ToFrozenSet();
+                _eventFilterSetInitialized = true;
+            }
+            return _eventFilterSet;
+        }
+    }
 }
 
 public sealed partial class McpMonitorStatus
@@ -284,7 +296,7 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
 
     private void OnMonitorEvent(MonitorSession session, string eventType, Dictionary<string, JsonElement> data)
     {
-        if (session.Config.EventFilterSet is { } filterSet && !filterSet.Contains(eventType))
+        if (session.Config.EventFilterSet.Count > 0 && !session.Config.EventFilterSet.Contains(eventType))
         {
             return;
         }

@@ -37,7 +37,7 @@ public sealed class RemoteSyncContext : IPipelineContext
     public IMcpClient? Client { get; set; }
 
     /// <summary>之前的工具规格（仅 Tools 操作）</summary>
-    public List<ToolSpec>? PreviousToolSpecs { get; set; }
+    public List<ToolSpec> PreviousToolSpecs { get; set; } = [];
 
     // === Step 2: RemoteListMiddleware 填充 ===
 

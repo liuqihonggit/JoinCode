@@ -50,7 +50,7 @@ public sealed class ChatAdminContext
     /// <summary>
     /// 历史消息列表 — LoadSessionMessages 操作使用
     /// </summary>
-    public IReadOnlyList<ApiMessageRecord>? Messages { get; init; }
+    public IReadOnlyList<ApiMessageRecord> Messages { get; init; } = [];
 
     /// <summary>
     /// 工具执行上下文 — CompactHistory/Initialize 操作使用
@@ -67,7 +67,7 @@ public sealed class ChatAdminContext
     /// <summary>
     /// 消息列表 — GetMessageList 操作设置
     /// </summary>
-    public IReadOnlyList<ApiMessageRecord>? MessageList { get; set; }
+    public IReadOnlyList<ApiMessageRecord> MessageList { get; set; } = [];
 
     // === 错误处理 ===
 

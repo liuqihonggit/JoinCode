@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.Utils;
+﻿namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
 /// 通用字典注册器基类 — 内部 ConcurrentDictionary，对外暴露 IEnumerable（遍历器）+ IReadOnlyDictionary（字典视图）
@@ -8,9 +8,12 @@ namespace JoinCode.Abstractions.Utils;
 public class MapRegistry<TKey, TValue> where TKey : notnull
 {
     private readonly ConcurrentDictionary<TKey, TValue> _items;
-    private readonly HashSet<TKey>? _canonicalKeys;
-    private IReadOnlyDictionary<TKey, TValue>? _cachedDict;
-    private IReadOnlyDictionary<TKey, TValue>? _cachedCanonical;
+    private readonly HashSet<TKey> _canonicalKeys = new();
+    private readonly bool _trackCanonical;
+    private IReadOnlyDictionary<TKey, TValue> _cachedDict = FrozenDictionary<TKey, TValue>.Empty;
+    private IReadOnlyDictionary<TKey, TValue> _cachedCanonical = FrozenDictionary<TKey, TValue>.Empty;
+    private bool _cachedDictValid;
+    private bool _cachedCanonicalValid;
 
     /// <summary>当前注册项总数</summary>
     public int Count => _items.Count;
@@ -19,7 +22,9 @@ public class MapRegistry<TKey, TValue> where TKey : notnull
     {
         var c = comparer ?? EqualityComparer<TKey>.Default;
         _items = new ConcurrentDictionary<TKey, TValue>(c);
-        _canonicalKeys = trackCanonical ? new HashSet<TKey>(c) : null;
+        _trackCanonical = trackCanonical;
+        if (trackCanonical)
+            _canonicalKeys = new HashSet<TKey>(c);
     }
 
     /// <summary>注册项（已存在则不覆盖）</summary>
@@ -77,7 +82,12 @@ public class MapRegistry<TKey, TValue> where TKey : notnull
     /// </summary>
     public IReadOnlyDictionary<TKey, TValue> AsDictionary()
     {
-        return _cachedDict ??= _items.ToFrozenDictionary();
+        if (!_cachedDictValid)
+        {
+            _cachedDict = _items.ToFrozenDictionary();
+            _cachedDictValid = true;
+        }
+        return _cachedDict;
     }
 
     /// <summary>条件过滤遍历器 — 不分配新集合</summary>
@@ -87,7 +97,8 @@ public class MapRegistry<TKey, TValue> where TKey : notnull
     public void Clear()
     {
         _items.Clear();
-        _canonicalKeys?.Clear();
+        if (_trackCanonical)
+            _canonicalKeys.Clear();
         InvalidateCache();
     }
 
@@ -96,7 +107,8 @@ public class MapRegistry<TKey, TValue> where TKey : notnull
     {
         var snapshot = new List<KeyValuePair<TKey, TValue>>(_items);
         _items.Clear();
-        _canonicalKeys?.Clear();
+        if (_trackCanonical)
+            _canonicalKeys.Clear();
         InvalidateCache();
         return snapshot;
     }
@@ -107,7 +119,7 @@ public class MapRegistry<TKey, TValue> where TKey : notnull
     public void Register(TKey key, TValue value, bool isCanonical = true)
     {
         _items[key] = value;
-        if (isCanonical && _canonicalKeys is not null)
+        if (isCanonical && _trackCanonical)
             _canonicalKeys.Add(key);
         InvalidateCache();
     }
@@ -122,7 +134,8 @@ public class MapRegistry<TKey, TValue> where TKey : notnull
     public bool Unregister(TKey key)
     {
         var removed = _items.TryRemove(key, out _);
-        _canonicalKeys?.Remove(key);
+        if (_trackCanonical)
+            _canonicalKeys.Remove(key);
         if (removed) InvalidateCache();
         return removed;
     }
@@ -130,24 +143,29 @@ public class MapRegistry<TKey, TValue> where TKey : notnull
     /// <summary>获取所有 Canonical 项的字典视图 — 脏标记缓存 FrozenDictionary</summary>
     public IReadOnlyDictionary<TKey, TValue> GetAllCanonical()
     {
-        if (_canonicalKeys is null)
+        if (!_trackCanonical)
             return AsDictionary();
-        return _cachedCanonical ??= _canonicalKeys
-            .ToDictionary(n => n, n => _items[n])
-            .ToFrozenDictionary();
+        if (!_cachedCanonicalValid)
+        {
+            _cachedCanonical = _canonicalKeys
+                .ToDictionary(n => n, n => _items[n])
+                .ToFrozenDictionary();
+            _cachedCanonicalValid = true;
+        }
+        return _cachedCanonical;
     }
 
     /// <summary>获取所有 Canonical 项的键值对遍历器</summary>
     public IEnumerable<KeyValuePair<TKey, TValue>> GetCanonicalEntries()
     {
-        if (_canonicalKeys is null)
+        if (!_trackCanonical)
             return _items;
         return _canonicalKeys.Select(n => new KeyValuePair<TKey, TValue>(n, _items[n]));
     }
 
     private void InvalidateCache()
     {
-        _cachedDict = null;
-        _cachedCanonical = null;
+        _cachedDictValid = false;
+        _cachedCanonicalValid = false;
     }
 }

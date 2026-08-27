@@ -1,4 +1,4 @@
-
+﻿
 namespace JoinCode.Abstractions.Tools;
 
 /// <summary>
@@ -68,7 +68,7 @@ public class ToolSchema
 
     [JsonPropertyName("required")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<string>? Required { get; init; }
+    public List<string> Required { get; init; } = [];
 }
 
 /// <summary>
@@ -85,7 +85,9 @@ public class ToolSchemaProperty
 
     [JsonPropertyName("enum")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+#pragma warning disable JCC11002
     public List<string>? Enum { get; init; }
+#pragma warning restore JCC11002
 
     [JsonPropertyName("default")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]

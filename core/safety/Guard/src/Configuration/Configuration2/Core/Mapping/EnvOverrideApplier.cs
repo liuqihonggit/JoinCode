@@ -89,7 +89,7 @@ public static class EnvOverrideApplier
                     ApiKeyEnvVar = inferredApiKeyEnvVar ?? existingProfile?.ApiKeyEnvVar,
                     Model = !string.IsNullOrEmpty(envModelId) ? envModelId : existingProfile?.Model,
                     Endpoint = !string.IsNullOrEmpty(envEndpoint) ? envEndpoint : existingProfile?.Endpoint,
-                    Models = existingProfile?.Models,
+                    Models = existingProfile?.Models ?? [],
                 },
             };
         }
@@ -102,7 +102,7 @@ public static class EnvOverrideApplier
 
         var overrideSettings = new SettingsJson
         {
-            Vendor = overrideVendor,
+            Vendor = overrideVendor ?? [],
             Current = overrideCurrent,
         };
 

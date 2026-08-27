@@ -49,9 +49,9 @@ public sealed class McpServerConnectionConfigBuilder
     private string _endpoint = string.Empty;
     private McpClientTransportType _transportType = McpClientTransportType.Stdio;
     private McpAuthConfig? _auth;
-    private Dictionary<string, string>? _environment;
+    private Dictionary<string, string> _environment = [];
     private string? _headersHelper;
-    private Dictionary<string, string>? _headers;
+    private Dictionary<string, string> _headers = [];
 
     private McpServerConnectionConfigBuilder() { }
 
@@ -75,10 +75,10 @@ public sealed class McpServerConnectionConfigBuilder
     public McpServerConnectionConfigBuilder WithBearerToken(string token) { _auth = new McpAuthConfigBuilder().UseBearer(token).Build(); return this; }
     public McpServerConnectionConfigBuilder WithBasicAuth(string username, string password) { _auth = new McpAuthConfigBuilder().UseBasic(username, password).Build(); return this; }
 
-    public McpServerConnectionConfigBuilder WithEnvironment(string key, string value) { _environment ??= new Dictionary<string, string>(); _environment[key] = value; return this; }
+    public McpServerConnectionConfigBuilder WithEnvironment(string key, string value) { _environment[key] = value; return this; }
     public McpServerConnectionConfigBuilder WithEnvironment(Dictionary<string, string> environment) { _environment = environment; return this; }
     public McpServerConnectionConfigBuilder WithHeadersHelper(string headersHelper) { _headersHelper = headersHelper; return this; }
-    public McpServerConnectionConfigBuilder WithHeader(string key, string value) { _headers ??= new Dictionary<string, string>(); _headers[key] = value; return this; }
+    public McpServerConnectionConfigBuilder WithHeader(string key, string value) { _headers[key] = value; return this; }
     public McpServerConnectionConfigBuilder WithHeaders(Dictionary<string, string> headers) { _headers = headers; return this; }
 
     public McpServerConnectionConfig Build() => new()
@@ -103,14 +103,14 @@ public sealed class McpAuthConfigBuilder
     private string? _clientId;
     private string? _clientSecret;
     private string? _tokenUrl;
-    private List<string>? _scopes;
+    private List<string> _scopes = [];
 
     public McpAuthConfigBuilder UseNone() { _type = McpAuthType.None; return this; }
     public McpAuthConfigBuilder UseApiKey(string apiKey) { _type = McpAuthType.ApiKey; _apiKey = apiKey; return this; }
     public McpAuthConfigBuilder UseBearer(string token) { _type = McpAuthType.Bearer; _bearerToken = token; return this; }
     public McpAuthConfigBuilder UseBasic(string username, string password) { _type = McpAuthType.Basic; _username = username; _password = password; return this; }
     public McpAuthConfigBuilder UseOAuth2(string clientId, string clientSecret, string tokenUrl) { _type = McpAuthType.OAuth2; _clientId = clientId; _clientSecret = clientSecret; _tokenUrl = tokenUrl; return this; }
-    public McpAuthConfigBuilder WithScope(string scope) { _scopes ??= new List<string>(); _scopes.Add(scope); return this; }
+    public McpAuthConfigBuilder WithScope(string scope) { _scopes.Add(scope); return this; }
     public McpAuthConfigBuilder WithScopes(params string[] scopes) { _scopes = scopes.ToList(); return this; }
 
     public McpAuthConfig Build() => new()

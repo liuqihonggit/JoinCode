@@ -18,7 +18,7 @@ public sealed class BridgeExtensionHandlersTests
         {
             Id = "req-1",
             Command = "test",
-            Params = parameters
+            Params = parameters ?? new Dictionary<string, JsonElement>()
         };
 
     [Fact]

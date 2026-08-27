@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.Models.Agent;
+﻿namespace JoinCode.Abstractions.Models.Agent;
 
 /// <summary>
 /// 结构化消息解析结果 — 对齐 TS SendMessageTool 的 discriminatedUnion 输入
@@ -38,7 +38,7 @@ public sealed class StructuredMessageData
     /// <summary>
     /// 原始 JSON 数据（包含所有字段）
     /// </summary>
-    public Dictionary<string, JsonElement>? Payload { get; init; }
+    public Dictionary<string, JsonElement> Payload { get; init; } = [];
 
     /// <summary>
     /// 生成自动分类器输入文本 — 对齐 TS toAutoClassifierInput

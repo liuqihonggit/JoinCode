@@ -15,8 +15,8 @@ public sealed partial class PluginCommandDefinition
     public required string PluginName { get; init; }
     public required string Description { get; init; }
     public required string HandlerType { get; init; }
-    public Dictionary<string, JsonElement>? Parameters { get; init; }
-    public List<string>? Aliases { get; init; }
+    public Dictionary<string, JsonElement> Parameters { get; init; } = [];
+    public List<string> Aliases { get; init; } = [];
 }
 
 [Register(typeof(MapRegistry<string, PluginCommandDefinition>), ServiceLifetime.Singleton)]

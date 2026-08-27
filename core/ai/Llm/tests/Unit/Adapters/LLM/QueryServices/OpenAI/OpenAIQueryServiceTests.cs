@@ -131,7 +131,7 @@ public class OpenAIQueryServiceTests
 
         var request = service.CreateRequest(new MessageList(), options, stream: false, null);
 
-        request.Tools.Should().BeNull();
+        request.Tools.Should().BeEmpty();
     }
 
     [Fact]
@@ -465,7 +465,7 @@ public class OpenAIQueryServiceTests
         var result = OpenAIQueryService.ConvertToOpenAIMessage(msg);
 
         result.Content!.Text.Should().Be("plain text");
-        result.Content.Parts.Should().BeNull();
+        result.Content.Parts.Should().BeEmpty();
     }
 
     [Fact]

@@ -224,7 +224,7 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
             {
                 Type = param.Type,
                 Description = param.Description,
-                Enum = param.EnumValues?.ToList(),
+                Enum = param.EnumValues?.ToList() ?? [],
                 Default = param.DefaultValue
             };
 
@@ -235,7 +235,7 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
         return new ToolSchema
         {
             Properties = properties,
-            Required = required.Count > 0 ? required : null
+            Required = required.Count > 0 ? required : []
         };
     }
 

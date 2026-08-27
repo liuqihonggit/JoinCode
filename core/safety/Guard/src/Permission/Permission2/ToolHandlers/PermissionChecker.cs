@@ -123,7 +123,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
         var context = new PermissionCheckContext
         {
             ToolName = toolName,
-            Arguments = arguments,
+            Arguments = arguments ?? [],
             CurrentMode = _currentMode,
             Config = _config,
             AutoApprovedTools = _autoApprovedTools,
@@ -194,10 +194,10 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
             var updatedPermissions = new PermissionsSettings
             {
                 Allow = updatedAllow,
-                Deny = settings.Current?.Permissions?.Deny,
-                Ask = settings.Current?.Permissions?.Ask,
+                Deny = settings.Current?.Permissions?.Deny ?? [],
+                Ask = settings.Current?.Permissions?.Ask ?? [],
                 DefaultMode = settings.Current?.Permissions?.DefaultMode,
-                AdditionalDirectories = settings.Current?.Permissions?.AdditionalDirectories,
+                AdditionalDirectories = settings.Current?.Permissions?.AdditionalDirectories ?? [],
                 DisableBypassPermissionsMode = settings.Current?.Permissions?.DisableBypassPermissionsMode,
             };
 

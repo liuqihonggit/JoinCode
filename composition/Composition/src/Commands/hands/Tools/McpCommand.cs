@@ -231,13 +231,13 @@ public sealed class McpCommand : ChatCommandBase
         var entry = new McpServerConfigEntry
         {
             Type = transport,
-            Env = envVars.Count > 0 ? envVars : null
+            Env = envVars.Count > 0 ? envVars : []
         };
 
         if (transport == McpTransportType.Stdio.ToValue())
         {
             entry.Command = commandOrUrl;
-            entry.Args = remainingArgs.Count > 0 ? remainingArgs : null;
+            entry.Args = remainingArgs.Count > 0 ? remainingArgs : [];
         }
         else
         {

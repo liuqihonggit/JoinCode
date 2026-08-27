@@ -83,7 +83,7 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
         var context = new SkillContext
         {
             SkillName = skillName,
-            Parameters = parameters,
+            Parameters = parameters ?? [],
             Skill = skill,
             ExecutionContext = ctx,
             CancellationToken = cancellationToken

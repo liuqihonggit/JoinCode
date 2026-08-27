@@ -78,7 +78,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
         {
             Model = modelId,
             MaxTokens = settings?.MaxTokens ?? 4096,
-            System = systemBlocks.Count > 0 ? systemBlocks : null,
+            System = systemBlocks,
             Messages = anthropicMessages,
             Stream = stream,
             Temperature = settings?.Temperature,
@@ -200,7 +200,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
                         : null,
                     ExcludeTools = s.ExcludeTools is not null
                         ? new List<string>(s.ExcludeTools)
-                        : null,
+                        : [],
                     ClearAtLeast = s.ClearAtLeast is not null
                         ? new AnthropicContextTokenThreshold { Type = s.ClearAtLeast.Type, Value = s.ClearAtLeast.Value }
                         : null,
@@ -548,7 +548,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
         return new AnthropicInputSchema
         {
             Properties = props,
-            Required = required.Count > 0 ? required : null
+            Required = required.Count > 0 ? required : []
         };
     }
 

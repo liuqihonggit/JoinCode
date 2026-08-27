@@ -23,7 +23,7 @@ public sealed partial class LoadSessionMessagesHandler : ServiceEntity, IChatAdm
         {
             await context.ContextManager.ClearMessagesAsync(ct).ConfigureAwait(false);
 
-            foreach (var msg in context.Messages ?? throw new InvalidOperationException("Messages is required."))
+            foreach (var msg in context.Messages)
             {
                 if (msg.Role.Equals("user", StringComparison.OrdinalIgnoreCase))
                 {

@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.Mcp.Protocol;
+﻿namespace JoinCode.Abstractions.Mcp.Protocol;
 
 public class McpPrompt
 {
@@ -11,7 +11,7 @@ public class McpPrompt
 
     [JsonPropertyName("arguments")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<McpPromptArgument>? Arguments { get; init; }
+    public List<McpPromptArgument> Arguments { get; init; } = [];
 }
 
 public class McpPromptArgument
@@ -64,7 +64,7 @@ public class McpPromptGetRequestParams
 
     [JsonPropertyName("arguments")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public Dictionary<string, string>? Arguments { get; init; }
+    public Dictionary<string, string> Arguments { get; init; } = [];
 }
 
 public class McpPromptsListResponse

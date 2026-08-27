@@ -86,7 +86,8 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     private readonly DiscoveredToolSet _discoveredTools = new();
     private readonly List<DeferredToolInfo> _deferredTools = [];
     private string _previousDynamicHash = string.Empty;
-    private List<ApiMessage>? _cachedSystemMessages;
+    private List<ApiMessage> _cachedSystemMessages = [];
+    private bool _systemMessagesCached;
     private int _deferredFoldCount;
     private int _consecutiveNoProgressFolds;
 
@@ -125,7 +126,8 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
             {
                 _staticSystemPrompt = systemPrompt ?? string.Empty;
                 _dynamicSystemMessages.Clear();
-                _cachedSystemMessages = null;
+                _cachedSystemMessages = [];
+            _systemMessagesCached = false;
                 Log.CompactInPlace([]);
 
                 if (chatHistory is { Count: > 0 })
@@ -137,7 +139,8 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
                             if (string.IsNullOrWhiteSpace(_staticSystemPrompt))
                             {
                                 _staticSystemPrompt = msg.Content ?? string.Empty;
-                                _cachedSystemMessages = null;
+                                _cachedSystemMessages = [];
+            _systemMessagesCached = false;
                             }
                             continue;
                         }
@@ -333,7 +336,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            Log.Append(new ApiMessage(MessageRole.Tool, content, metadata) { ContentBlocks = contentBlocks });
+            Log.Append(new ApiMessage(MessageRole.Tool, content, metadata) { ContentBlocks = contentBlocks ?? [] });
             _logger.LogDebug("已添加工具结果消息(含多模态)，当前对话数: {Count}", Log.Count);
         }
         finally
@@ -372,7 +375,8 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         try
         {
             _dynamicSystemMessages.Add(content);
-            _cachedSystemMessages = null;
+            _cachedSystemMessages = [];
+            _systemMessagesCached = false;
             _logger.LogDebug("已添加动态系统消息，当前动态消息数: {Count}", _dynamicSystemMessages.Count);
         }
         finally
@@ -390,7 +394,8 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         try
         {
             _dynamicSystemMessages.Clear();
-            _cachedSystemMessages = null;
+            _cachedSystemMessages = [];
+            _systemMessagesCached = false;
             _logger.LogDebug("已清空动态系统消息");
         }
         finally
@@ -409,7 +414,8 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         {
             Log.CompactInPlace([]);
             _dynamicSystemMessages.Clear();
-            _cachedSystemMessages = null;
+            _cachedSystemMessages = [];
+            _systemMessagesCached = false;
 
             _logger.LogInformation("聊天消息已清空，保留静态系统提示词");
         }
@@ -430,7 +436,8 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         try
         {
             _staticSystemPrompt = systemPrompt;
-            _cachedSystemMessages = null;
+            _cachedSystemMessages = [];
+            _systemMessagesCached = false;
             _logger.LogInformation("静态系统提示词已更新，长度: {Len}", _staticSystemPrompt.Length);
         }
         finally
@@ -736,7 +743,8 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
             var removed = Log.Count;
             Log.CompactInPlace([]);
             _dynamicSystemMessages.Clear();
-            _cachedSystemMessages = null;
+            _cachedSystemMessages = [];
+            _systemMessagesCached = false;
 
             _logger.LogInformation("撤回到会话初始状态 (SP-0)，移除 {Count} 条消息，前缀保留", removed);
 
@@ -917,7 +925,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         var dynamicChanged = currentDynamicHash != _previousDynamicHash;
         _previousDynamicHash = currentDynamicHash;
 
-        if (!dynamicChanged && _cachedSystemMessages is not null)
+        if (!dynamicChanged && _systemMessagesCached)
         {
             return _cachedSystemMessages;
         }
@@ -940,7 +948,16 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
             }
         }
 
-        _cachedSystemMessages = dynamicChanged ? null : systemMessages;
+        if (dynamicChanged)
+        {
+            _cachedSystemMessages = [];
+            _systemMessagesCached = false;
+        }
+        else
+        {
+            _cachedSystemMessages = systemMessages;
+            _systemMessagesCached = true;
+        }
         return systemMessages;
     }
 }

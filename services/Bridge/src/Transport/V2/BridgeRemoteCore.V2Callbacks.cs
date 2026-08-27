@@ -392,10 +392,7 @@ public static partial class BridgeRemoteCore
 
         // 对齐 TS 端: previouslyFlushedUUIDs.clear() — Strategy 2 后清除，让初始消息重新发送到新会话
         // UUID 在服务器端按会话隔离，重新 flush 是安全的
-        if (parameters.PreviouslyFlushedUUIDs is not null)
-        {
-            parameters.PreviouslyFlushedUUIDs.Clear();
-        }
+        parameters.PreviouslyFlushedUUIDs.Clear();
 
         // 对齐 TS 端: userMessageCallbackDone = !onUserMessage — Strategy 2 后重置闩锁
         // 新会话需要重新派生标题（旧会话的 PATCH 已随归档丢失）

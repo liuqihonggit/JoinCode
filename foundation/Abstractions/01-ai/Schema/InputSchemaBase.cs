@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.Schema;
+﻿namespace JoinCode.Abstractions.Schema;
 
 /// <summary>
 /// 输入 Schema 基类 — 提取 InputSchema、OpenAIFunctionParameters、AnthropicInputSchema 共同的 Type + Required 模式
@@ -10,5 +10,5 @@ public abstract class InputSchemaBase
 
     [JsonPropertyName("required")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<string>? Required { get; set; }
+    public List<string> Required { get; set; } = [];
 }

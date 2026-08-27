@@ -46,12 +46,12 @@ public sealed partial class ChatOptionsFactory : ServiceEntity, IChatOptionsFact
             PresencePenalty = chatParams.PresencePenalty,
             ToolChoice = ToolChoice.AutoInvoke,
             DiscoveredTools = discoveredTools,
-            DeferredTools = deferredTools.Any() ? deferredTools.ToList() : null,
+            DeferredTools = deferredTools.Any() ? deferredTools.ToList() : [],
             EffortLevel = effortLevel,
             ThinkingEnabled = _executionSettingsProvider?.ThinkingEnabled ?? false,
             FastMode = fastMode,
             FastModelId = fastModelId,
-            ExtensionData = extensionData,
+            ExtensionData = extensionData ?? new Dictionary<string, JsonElement>(),
             ContextManagement = _apiContextManagementService?.GetConfig(
                 effortLevel is not null ? new ThinkingContext { HasThinking = true } : null)
         };

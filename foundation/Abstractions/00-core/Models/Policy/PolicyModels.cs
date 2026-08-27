@@ -1,4 +1,4 @@
-
+﻿
 namespace JoinCode.Abstractions.Models.Policy;
 
 public enum PolicyType
@@ -24,7 +24,7 @@ public sealed class PolicyEvaluationResult
     public required bool Allowed { get; init; }
     public required PolicyAction Action { get; init; }
     public string? Reason { get; init; }
-    public Dictionary<string, string>? Metadata { get; init; }
+    public Dictionary<string, string> Metadata { get; init; } = [];
     public int? RemainingLimit { get; init; }
     public TimeSpan? RetryAfter { get; init; }
 }
@@ -35,11 +35,11 @@ public sealed class PolicyRule
     public required string Name { get; init; }
     public required PolicyType Type { get; init; }
     public required PolicyAction Action { get; init; }
-    public Dictionary<string, string>? Conditions { get; init; }
+    public Dictionary<string, string> Conditions { get; init; } = [];
     public int? Limit { get; init; }
     public TimeSpan? Window { get; init; }
     public double? CostLimit { get; init; }
-    public List<string>? RestrictedTools { get; init; }
+    public List<string> RestrictedTools { get; init; } = [];
     public bool Enabled { get; init; } = true;
     public int Priority { get; init; }
     public DateTime? UpdatedAt { get; init; }

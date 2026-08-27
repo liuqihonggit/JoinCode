@@ -10,7 +10,8 @@ public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesSe
     private readonly TimeSpan _cacheDuration;
     private readonly TimeProvider _timeProvider;
 
-    private IReadOnlyList<ReleaseInfo>? _cachedReleases;
+    private IReadOnlyList<ReleaseInfo> _cachedReleases = [];
+    private bool _releasesCached;
     private DateTimeOffset _cacheTimestamp;
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
 
@@ -30,7 +31,7 @@ public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesSe
         await _cacheLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            if (_cachedReleases != null && _timeProvider.GetUtcNow() - _cacheTimestamp < _cacheDuration)
+            if (_releasesCached && _timeProvider.GetUtcNow() - _cacheTimestamp < _cacheDuration)
                 return _cachedReleases.Count <= count ? _cachedReleases : _cachedReleases.Take(count).ToList();
         }
         finally
@@ -76,6 +77,7 @@ public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesSe
             try
             {
                 _cachedReleases = result;
+                _releasesCached = true;
                 _cacheTimestamp = _timeProvider.GetUtcNow();
             }
             finally
@@ -90,7 +92,7 @@ public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesSe
             await _cacheLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                if (_cachedReleases != null)
+                if (_releasesCached)
                     return _cachedReleases.Count <= count ? _cachedReleases : _cachedReleases.Take(count).ToList();
             }
             finally

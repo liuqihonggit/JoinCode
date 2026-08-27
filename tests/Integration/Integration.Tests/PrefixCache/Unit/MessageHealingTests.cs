@@ -59,7 +59,7 @@ public sealed class MessageHealingTests
         healed.Should().HaveCount(3);
         healed[1].Role.Should().Be(MessageRole.Assistant);
         healed[1].Content.Should().Be("Let me check that.");
-        healed[1].Metadata.Should().BeNull("tool call metadata should be stripped from trailing assistant");
+        healed[1].Metadata.Should().BeEmpty("tool call metadata should be stripped from trailing assistant");
         healed[2].Role.Should().Be(MessageRole.Tool);
         healed[2].Content.Should().Contain("tool_use_error");
     }

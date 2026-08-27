@@ -22,7 +22,7 @@ public sealed class SkillContext : PipelineContextBase, IMetricsContext
     /// <summary>
     /// 技能参数
     /// </summary>
-    public Dictionary<string, JsonElement>? Parameters { get; init; }
+    public Dictionary<string, JsonElement> Parameters { get; init; } = [];
 
     /// <summary>
     /// 解析到的技能定义 — 由 SkillService 在创建 context 前设置

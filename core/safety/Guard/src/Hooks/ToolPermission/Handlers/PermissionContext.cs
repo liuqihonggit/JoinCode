@@ -12,7 +12,7 @@ public sealed class PermissionQueueItem
     public required string ToolUseId { get; init; }
     public required string ToolName { get; init; }
     public required string Description { get; init; }
-    public Dictionary<string, JsonElement>? Input { get; init; }
+    public Dictionary<string, JsonElement> Input { get; init; } = [];
     public PermissionResult? PermissionResult { get; init; }
     public DateTimeOffset PermissionPromptStartTime { get; init; }
     public bool ClassifierCheckInProgress { get; set; }

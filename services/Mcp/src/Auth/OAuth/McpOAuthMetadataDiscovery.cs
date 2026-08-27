@@ -254,13 +254,13 @@ public sealed partial class OAuthProtectedResourceMetadata
     /// 资源支持的 scope — RFC 9728 §2.1 scopes_supported
     /// </summary>
     [JsonPropertyName("scopes_supported")]
-    public List<string>? ScopesSupported { get; set; }
+    public List<string> ScopesSupported { get; set; } = [];
 
     /// <summary>
     /// 资源支持的 Bearer 方法 — RFC 9728 §2.1 bearer_methods_supported
     /// </summary>
     [JsonPropertyName("bearer_methods_supported")]
-    public List<string>? BearerMethodsSupported { get; set; }
+    public List<string> BearerMethodsSupported { get; set; } = [];
 
     /// <summary>
     /// 资源文档 URL — RFC 9728 §2.1 resource_documentation
@@ -302,31 +302,31 @@ public sealed partial class OAuthAuthorizationServerMetadata
     /// 支持的授权类型 — RFC 8414 §2 grant_types_supported
     /// </summary>
     [JsonPropertyName("grant_types_supported")]
-    public List<string>? GrantTypesSupported { get; set; }
+    public List<string> GrantTypesSupported { get; set; } = [];
 
     /// <summary>
     /// 支持的令牌端点认证方法 — RFC 8414 §2 token_endpoint_auth_methods_supported
     /// </summary>
     [JsonPropertyName("token_endpoint_auth_methods_supported")]
-    public List<string>? TokenEndpointAuthMethodsSupported { get; set; }
+    public List<string> TokenEndpointAuthMethodsSupported { get; set; } = [];
 
     /// <summary>
     /// 支持的 scope — RFC 8414 §2 scopes_supported
     /// </summary>
     [JsonPropertyName("scopes_supported")]
-    public List<string>? ScopesSupported { get; set; }
+    public List<string> ScopesSupported { get; set; } = [];
 
     /// <summary>
     /// 响应类型 — RFC 8414 §2 response_types_supported
     /// </summary>
     [JsonPropertyName("response_types_supported")]
-    public List<string>? ResponseTypesSupported { get; set; }
+    public List<string> ResponseTypesSupported { get; set; } = [];
 
     /// <summary>
     /// 代码挑战方法 — RFC 8414 §2 code_challenge_methods_supported
     /// </summary>
     [JsonPropertyName("code_challenge_methods_supported")]
-    public List<string>? CodeChallengeMethodsSupported { get; set; }
+    public List<string> CodeChallengeMethodsSupported { get; set; } = [];
 
     /// <summary>
     /// 撤销端点 — RFC 8414 §2 revocation_endpoint

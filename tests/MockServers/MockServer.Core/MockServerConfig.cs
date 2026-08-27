@@ -48,7 +48,7 @@ public sealed class ScriptedTurn
     /// <summary>
     /// 工具调用列表（如 read 工具）— 非空时优先返回工具调用
     /// </summary>
-    public List<ToolCallConfig>? ToolCalls { get; set; }
+    public List<ToolCallConfig> ToolCalls { get; set; } = [];
 
     /// <summary>
     /// 思考内容（DeepSeek reasoning_content / Anthropic thinking）

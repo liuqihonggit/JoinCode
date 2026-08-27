@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.Configuration.Settings;
+﻿namespace JoinCode.Abstractions.Configuration.Settings;
 
 /// <summary>
 /// 缓存配置设置
@@ -122,7 +122,7 @@ public class HyperedgeSettings
     /// <summary>
     /// 链路顺序 — LLM使用工具A后推荐的后续工具序列
     /// </summary>
-    public List<string>? ChainOrder { get; set; }
+    public List<string> ChainOrder { get; set; } = [];
 
     /// <summary>
     /// 转换为 ToolHyperedge
@@ -224,7 +224,7 @@ public class LlmExecutionSettings
     /// <summary>
     /// 停止序列
     /// </summary>
-    public List<string>? StopSequences { get; set; }
+    public List<string> StopSequences { get; set; } = [];
 
     /// <summary>
     /// 超时时间（秒）

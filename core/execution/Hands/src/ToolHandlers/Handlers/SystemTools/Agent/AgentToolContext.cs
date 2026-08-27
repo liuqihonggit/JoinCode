@@ -34,7 +34,7 @@ public sealed class AgentToolContext
     /// <para>对齐 claude code allowedAgentTypes: 限制该 agent 只能 spawn 这些类型的子代理</para>
     /// <para>由 AgentValidationMiddleware 解析填充</para>
     /// </summary>
-    public IReadOnlyList<string>? AllowedAgentTypes { get; set; }
+    public IReadOnlyList<string> AllowedAgentTypes { get; set; } = [];
 
     public AgentRole SubagentRole { get; init; } = AgentRole.Executor;
 

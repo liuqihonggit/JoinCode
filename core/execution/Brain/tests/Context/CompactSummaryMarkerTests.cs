@@ -47,6 +47,6 @@ public sealed class CompactSummaryMarkerTests
         var messages = await sut.GetMessageListAsync().ConfigureAwait(true);
         var normalMsg = messages.FirstOrDefault(m => m.Content == "normal user message");
         normalMsg.Should().NotBeNull();
-        normalMsg!.Metadata.Should().BeNull("normal user messages should not have isCompactSummary marker");
+        normalMsg!.Metadata.Should().BeEmpty("normal user messages should not have isCompactSummary marker");
     }
 }

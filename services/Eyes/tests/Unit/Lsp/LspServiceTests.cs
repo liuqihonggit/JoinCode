@@ -343,7 +343,7 @@ public sealed class LspConfigTests
         var config = entry.ToLspInstanceConfig();
 
         config.StartupTimeout.Should().Be(TimeSpan.FromSeconds(30));
-        config.Environment.Should().BeNull();
+        config.Environment.Should().BeEmpty();
         config.ExtensionToLanguage.Should().BeEmpty();
     }
 }

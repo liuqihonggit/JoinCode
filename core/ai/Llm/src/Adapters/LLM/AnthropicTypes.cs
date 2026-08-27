@@ -10,8 +10,8 @@ internal sealed class AnthropicMessagesRequest
     public int MaxTokens { get; set; } = 4096;
 
     [JsonPropertyName("system")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<AnthropicSystemContentBlock>? System { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public List<AnthropicSystemContentBlock> System { get; set; } = [];
 
     [JsonPropertyName("messages")]
     public List<AnthropicMessage> Messages { get; set; } = new();
@@ -28,8 +28,8 @@ internal sealed class AnthropicMessagesRequest
     public float? TopP { get; set; }
 
     [JsonPropertyName("tools")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<AnthropicToolDefinition>? Tools { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public List<AnthropicToolDefinition> Tools { get; set; } = [];
 
     [JsonPropertyName("tool_choice")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -39,15 +39,15 @@ internal sealed class AnthropicMessagesRequest
     /// 两阶段工具加载 — MCP 工具分组（只有组名+工具名，不含完整 schema）
     /// </summary>
     [JsonPropertyName("tool_groups")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<OpenAIToolGroup>? ToolGroups { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public List<OpenAIToolGroup> ToolGroups { get; set; } = [];
 
     /// <summary>
     /// 两阶段工具加载 — 工具完整描述（第二次请求发送，响应 tool_description_request 后）
     /// </summary>
     [JsonPropertyName("tool_descriptions")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<AnthropicToolDefinition>? ToolDescriptions { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public List<AnthropicToolDefinition> ToolDescriptions { get; set; } = [];
 
     [JsonPropertyName("thinking")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -95,10 +95,10 @@ internal sealed class AnthropicSystemContentBlock
 internal sealed class AnthropicMessageContent
 {
     public string? Text { get; init; }
-    public List<AnthropicContentBlock>? Blocks { get; init; }
+    public List<AnthropicContentBlock> Blocks { get; init; } = [];
 
     public bool IsText => Text is not null;
-    public bool IsBlocks => Blocks is not null;
+    public bool IsBlocks => Blocks.Count > 0;
 
     public static implicit operator AnthropicMessageContent?(string? text) =>
         text is null ? null : new() { Text = text };
@@ -209,26 +209,26 @@ internal sealed class AnthropicToolDefinition
     public int? MaxUses { get; set; }
 
     [JsonPropertyName("allowed_domains")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<string>? AllowedDomains { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public List<string> AllowedDomains { get; set; } = [];
 
     [JsonPropertyName("blocked_domains")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<string>? BlockedDomains { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public List<string> BlockedDomains { get; set; } = [];
 }
 
 internal sealed class AnthropicInputSchema : InputSchemaBase
 {
     [JsonPropertyName("properties")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public Dictionary<string, AnthropicSchemaProperty>? Properties { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public Dictionary<string, AnthropicSchemaProperty> Properties { get; set; } = [];
 }
 
 internal sealed class AnthropicSchemaProperty : SchemaProperty
 {
     [JsonPropertyName("enum")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<string>? Enum { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public List<string> Enum { get; set; } = [];
 }
 
 internal sealed class AnthropicMessagesResponse
@@ -409,8 +409,8 @@ internal sealed class AnthropicClearToolUsesStrategy : AnthropicContextEditStrat
     public JsonElement? ClearToolInputs { get; set; }
 
     [JsonPropertyName("exclude_tools")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<string>? ExcludeTools { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public List<string> ExcludeTools { get; set; } = [];
 
     [JsonPropertyName("clear_at_least")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -509,7 +509,7 @@ internal sealed class AnthropicMessageContentConverter : JsonConverter<Anthropic
             return;
         }
 
-        if (value.Blocks is not null)
+        if (value.Blocks.Count > 0)
         {
             writer.WriteStartArray();
             foreach (var block in value.Blocks)

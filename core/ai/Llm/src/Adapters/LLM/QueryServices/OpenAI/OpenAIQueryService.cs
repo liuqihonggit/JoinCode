@@ -308,7 +308,7 @@ public class OpenAIQueryService : QueryServiceBase
         {
             if (m.Metadata.TryGetValue("ToolCalls", out var toolCallsObj))
             {
-                msg.ToolCalls = ConvertToOpenAIToolCalls(toolCallsObj);
+                msg.ToolCalls = ConvertToOpenAIToolCalls(toolCallsObj) ?? [];
                 if (msg.ToolCalls is { Count: > 0 })
                 {
                     msg.Content = null;
@@ -333,7 +333,7 @@ public class OpenAIQueryService : QueryServiceBase
         // 多模态内容块 — 对齐 AnthropicQueryService:340，将 Image block 转为 OpenAI image_url content part
         // DeepSeek vision / OpenAI vision 等多模态模型通过 image_url 接收图片
         // tool_calls 消息保持 Content=null，其余角色有 ContentBlocks 时构建 content part 数组
-        if (m.ContentBlocks is { Count: > 0 } && msg.ToolCalls is null)
+        if (m.ContentBlocks is { Count: > 0 } && msg.ToolCalls is { Count: 0 })
         {
             var parts = new List<OpenAIContentPart>();
             if (!string.IsNullOrEmpty(content))
@@ -489,7 +489,7 @@ public class OpenAIQueryService : QueryServiceBase
         return new OpenAIFunctionParameters
         {
             Properties = props,
-            Required = required.Count > 0 ? required : null
+            Required = required.Count > 0 ? required : []
         };
     }
 

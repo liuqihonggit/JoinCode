@@ -17,7 +17,7 @@ public sealed class PluginCommandRegistryTests
             PluginName = plugin,
             Description = $"Test command {name}",
             HandlerType = "TestHandler",
-            Aliases = aliases
+            Aliases = aliases ?? []
         };
     }
 

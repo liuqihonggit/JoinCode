@@ -558,7 +558,7 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
         context.ChatHistory.Add(new ApiMessage(MessageRole.Tool, toolResultText, toolMetadata)
         {
             // 对齐 TS — 将多模态内容块传递到 ApiMessage，由 ChatService 转换为 LLM API 格式
-            ContentBlocks = nonTextContents.Count > 0 ? nonTextContents : null
+            ContentBlocks = nonTextContents.Count > 0 ? nonTextContents : []
         });
     }
 
@@ -640,13 +640,13 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
         {
             RenderedSystemPrompt = existing?.RenderedSystemPrompt,
             ModelId = existing?.ModelId,
-            ToolNames = existing?.ToolNames,
-            UserContext = existing?.UserContext is not null
+            ToolNames = existing?.ToolNames ?? [],
+            UserContext = existing is not null
                 ? new Dictionary<string, string>(existing.UserContext)
-                : null,
-            SystemContext = existing?.SystemContext is not null
+                : [],
+            SystemContext = existing is not null
                 ? new Dictionary<string, string>(existing.SystemContext)
-                : null,
+                : [],
             ContentReplacementState = context.Options?.ContentReplacementState?.Clone()
         };
     }

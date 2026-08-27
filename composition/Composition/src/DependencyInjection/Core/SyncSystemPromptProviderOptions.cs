@@ -31,10 +31,10 @@ public sealed partial class SyncSystemPromptProviderOptions : Core.Prompts.Syste
                 Globs = r.Globs,
                 Description = r.Description
             }).ToArray()
-            : null;
+            : [];
         FileContext = fileContext;
         IsCoordinatorMode = IsCoordinatorModeEnabledFromEnv();
-        AgentDefinitions = null;
+        AgentDefinitions = [];
         HasTeamTools = true;
         HasSendMessage = true;
         DailyLogPromptBuilder = dailyLogService is not null
@@ -45,6 +45,6 @@ public sealed partial class SyncSystemPromptProviderOptions : Core.Prompts.Syste
             : null;
         AwaySummary = null;
 
-        ShellInfos = actuatorRegistry?.GetAllInfos();
+        ShellInfos = actuatorRegistry?.GetAllInfos() ?? new Dictionary<SystemActuatorKind, SystemActuatorInfo>();
     }
 }

@@ -26,7 +26,7 @@ public sealed class AgentRoleProfileRegistryTests
         profile.Should().NotBeNull();
         profile!.Role.Should().Be(AgentRole.Coordinator);
         profile.Variant.Should().BeNull();
-        profile.AllowedTools.Should().BeNull();
+        profile.AllowedTools.Should().BeEmpty();
     }
 
     [Fact]

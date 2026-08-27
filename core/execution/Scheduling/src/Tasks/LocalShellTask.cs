@@ -14,7 +14,7 @@ public sealed partial class LocalShellTaskDefinition
     public string? WorkingDirectory { get; init; }
     public int? TimeoutMs { get; init; }
     public bool UsePowerShell { get; init; }
-    public Dictionary<string, string>? EnvironmentVariables { get; init; }
+    public Dictionary<string, string> EnvironmentVariables { get; init; } = [];
 }
 
 [Register(typeof(ILocalShellTaskExecutor), ServiceLifetime.Singleton)]

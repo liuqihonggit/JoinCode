@@ -1,4 +1,4 @@
-namespace JoinCode.Hands.Desktop.Tests;
+namespace Integration.Tests;
 
 /// <summary>
 /// P3 复合操作集成测试 — 真实桌面执行右键菜单链/多步点击/拖拽悬停，截图验证效果

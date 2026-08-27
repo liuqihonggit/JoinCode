@@ -15,8 +15,8 @@ public sealed partial class SwarmPermissionResponseData
     public required string RequestId { get; init; }
     public required string Behavior { get; init; }
     public string? Feedback { get; init; }
-    public Dictionary<string, JsonElement>? UpdatedInput { get; init; }
-    public List<SwarmPermissionUpdateData>? PermissionUpdates { get; init; }
+    public Dictionary<string, JsonElement> UpdatedInput { get; init; } = [];
+    public List<SwarmPermissionUpdateData> PermissionUpdates { get; init; } = [];
 }
 
 public sealed partial class SwarmPermissionUpdateData

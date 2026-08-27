@@ -14,7 +14,7 @@ public sealed partial class RemoteAgentTaskDefinition
     public required string Endpoint { get; init; }
     public required string TaskDescription { get; init; }
     public string? SystemPrompt { get; init; }
-    public Dictionary<string, string>? Headers { get; init; }
+    public Dictionary<string, string> Headers { get; init; } = [];
     public TimeSpan? Timeout { get; init; }
     public int MaxRetries { get; init; } = 3;
 }

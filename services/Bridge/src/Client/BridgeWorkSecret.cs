@@ -19,19 +19,19 @@ public sealed class BridgeWorkSecret
     public required string ApiBaseUrl { get; init; }
 
     [JsonPropertyName("sources")]
-    public List<BridgeWorkSecretSource>? Sources { get; init; }
+    public List<BridgeWorkSecretSource> Sources { get; init; } = [];
 
     [JsonPropertyName("auth")]
-    public List<BridgeWorkSecretAuth>? Auth { get; init; }
+    public List<BridgeWorkSecretAuth> Auth { get; init; } = [];
 
     [JsonPropertyName("claude_code_args")]
-    public Dictionary<string, string>? ClaudeCodeArgs { get; init; }
+    public Dictionary<string, string> ClaudeCodeArgs { get; init; } = [];
 
     [JsonPropertyName("mcp_config")]
     public JsonElement? McpConfig { get; init; }
 
     [JsonPropertyName("environment_variables")]
-    public Dictionary<string, string>? EnvironmentVariables { get; init; }
+    public Dictionary<string, string> EnvironmentVariables { get; init; } = [];
 
     [JsonPropertyName("use_code_sessions")]
     public bool UseCodeSessions { get; init; }

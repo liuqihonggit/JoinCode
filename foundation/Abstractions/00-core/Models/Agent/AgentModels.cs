@@ -1,4 +1,4 @@
-
+﻿
 namespace JoinCode.Abstractions.Models.Agent;
 
 /// <summary>
@@ -46,5 +46,5 @@ public class AgentContext
 
 public class AgentMessage : ChatMessage
 {
-    public List<ToolCall>? ToolCalls { get; set; }
+    public List<ToolCall> ToolCalls { get; set; } = [];
 }

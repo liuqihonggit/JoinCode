@@ -392,10 +392,10 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
             Temperature = profile?.Temperature ?? 0.7f,
             DisplayName = metadata.Description ?? "Resumed Agent",
             SystemPrompt = null,
-            AllowedTools = profile?.AllowedTools?.ToList(),
-            DeniedTools = profile?.DisallowedTools?.ToList(),
+            AllowedTools = profile?.AllowedTools?.ToList() ?? [],
+            DeniedTools = profile?.DisallowedTools?.ToList() ?? [],
             InitialMessageList = chatHistory,
-            PreloadSkills = profile?.Skills?.ToList(),
+            PreloadSkills = profile?.Skills?.ToList() ?? [],
             PermissionMode = profile?.PermissionMode,
         };
 

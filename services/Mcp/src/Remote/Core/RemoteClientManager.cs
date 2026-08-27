@@ -433,7 +433,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
             AcceptLevel = _acceptLevel,
             CancellationToken = cancellationToken,
             Client = client,
-            PreviousToolSpecs = previousSpecs,
+            PreviousToolSpecs = previousSpecs ?? [],
         };
 
         var pipeline = _syncPipeline;

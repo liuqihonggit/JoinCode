@@ -28,7 +28,7 @@ public sealed class TuiMessage
     public bool Rendered { get; set; }
 
     /// <summary>元数据（工具名称、子代理名称等扩展信息）。</summary>
-    public IReadOnlyDictionary<string, string>? Metadata { get; init; }
+    public IReadOnlyDictionary<string, string> Metadata { get; init; } = new Dictionary<string, string>();
 
     /// <summary>从 AgentStreamChunk 创建 TuiMessage。</summary>
     public static TuiMessage FromChunk(string agentId, AgentStreamChunk chunk)

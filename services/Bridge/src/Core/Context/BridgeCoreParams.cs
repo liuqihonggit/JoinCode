@@ -59,7 +59,7 @@ public sealed class BridgeCoreParams
     public string[]? InitialMessages { get; init; }
 
     /// <summary>已刷新的 UUID 集合 — 对齐 TS 端 previouslyFlushedUUIDs</summary>
-    public HashSet<string>? PreviouslyFlushedUUIDs { get; init; }
+    public HashSet<string> PreviouslyFlushedUUIDs { get; init; } = [];
 
     /// <summary>入站消息回调</summary>
     public Action<string>? OnInboundMessage { get; init; }

@@ -16,6 +16,6 @@ public partial class PolicyJsonContext : JsonSerializerContext;
 
 public sealed class PolicyFetchResponse
 {
-    public List<PolicyRule>? Rules { get; set; }
+    public List<PolicyRule> Rules { get; set; } = [];
     public DateTime? FetchedAt { get; set; }
 }

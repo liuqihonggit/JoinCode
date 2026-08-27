@@ -51,9 +51,9 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
             Temperature = context.Definition?.Temperature ?? 0.7f,
             DisplayName = context.SpawnOptions.Name ?? context.SpawnOptions.Description,
             SystemPrompt = context.SystemPrompt,
-            AllowedTools = MergeAllowedTools(context.SpawnOptions.AllowedTools, context.Definition?.Tools),
-            DeniedTools = context.Definition?.DisallowedTools,
-            PreloadSkills = context.Definition?.Skills,
+            AllowedTools = MergeAllowedTools(context.SpawnOptions.AllowedTools, context.Definition?.Tools) ?? [],
+            DeniedTools = context.Definition?.DisallowedTools ?? [],
+            PreloadSkills = context.Definition?.Skills ?? [],
             PermissionMode = context.Definition?.PermissionMode,
             InitialPrompt = context.Definition?.InitialPrompt,
             CriticalSystemReminder = context.Definition?.CriticalSystemReminder,
@@ -175,13 +175,13 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
         var cloned = parentParams.Clone();
 
         var userContext = cloned.UserContext;
-        if (definition?.OmitClaudeMd == true && userContext is not null)
+        if (definition?.OmitClaudeMd == true)
         {
             userContext = FilterKey(userContext, "claudeMd");
         }
 
         var systemContext = cloned.SystemContext;
-        if (definition?.OmitGitStatus == true && systemContext is not null)
+        if (definition?.OmitGitStatus == true)
         {
             systemContext = FilterKey(systemContext, "gitStatus");
         }

@@ -12,6 +12,6 @@ public partial class RemoteSettingsJsonContext : JsonSerializerContext;
 
 public sealed class RemoteSettingsResponse
 {
-    public List<ManagedSetting>? Settings { get; set; }
+    public List<ManagedSetting> Settings { get; set; } = [];
     public DateTime? FetchedAt { get; set; }
 }

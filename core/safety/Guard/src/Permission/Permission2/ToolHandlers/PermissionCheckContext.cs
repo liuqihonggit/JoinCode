@@ -14,7 +14,7 @@ public sealed class PermissionCheckContext
     /// <summary>
     /// 工具调用参数
     /// </summary>
-    public Dictionary<string, JsonElement>? Arguments { get; init; }
+    public Dictionary<string, JsonElement> Arguments { get; init; } = [];
 
     /// <summary>
     /// 当前权限模式

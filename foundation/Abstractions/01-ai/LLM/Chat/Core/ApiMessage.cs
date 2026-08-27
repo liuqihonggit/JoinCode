@@ -1,10 +1,10 @@
-namespace JoinCode.Abstractions.LLM.Chat;
+﻿namespace JoinCode.Abstractions.LLM.Chat;
 
 public sealed class ApiMessage
 {
     public MessageRole Role { get; init; }
     public string? Content { get; init; }
-    public IReadOnlyDictionary<string, JsonElement>? Metadata { get; init; }
+    public IReadOnlyDictionary<string, JsonElement> Metadata { get; init; } = new Dictionary<string, JsonElement>();
     public string? ModelId { get; init; }
     public TokenUsage? TokenUsage { get; init; }
 
@@ -13,7 +13,7 @@ public sealed class ApiMessage
     /// 当工具结果包含图片或二进制内容时，此字段承载非文本内容块
     /// ChatService 负责将这些内容块转换为 LLM API 的多模态格式
     /// </summary>
-    public IReadOnlyList<ToolContent>? ContentBlocks { get; init; }
+    public IReadOnlyList<ToolContent> ContentBlocks { get; init; } = [];
 
     public ApiMessage() { }
 
@@ -21,7 +21,7 @@ public sealed class ApiMessage
     {
         Role = role;
         Content = content;
-        Metadata = metadata;
+        Metadata = metadata ?? new Dictionary<string, JsonElement>();
         ModelId = modelId;
         TokenUsage = tokenUsage;
     }

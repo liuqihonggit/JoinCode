@@ -6,7 +6,8 @@ public sealed class CategorizedRegistry<TKey, TValue, TCategory> where TKey : no
     private readonly Dictionary<TKey, TCategory> _categories;
     private readonly Func<TValue, bool>? _isEnabled;
     private readonly TCategory _defaultCategory;
-    private IReadOnlyList<CategorizedEntry<TKey, TValue, TCategory>>? _cachedEntries;
+    private IReadOnlyList<CategorizedEntry<TKey, TValue, TCategory>> _cachedEntries = [];
+    private bool _cachedEntriesValid;
 
     public int Count => _registry.Count;
 
@@ -24,25 +25,25 @@ public sealed class CategorizedRegistry<TKey, TValue, TCategory> where TKey : no
     public void Register(TKey key, TValue value, bool isCanonical = true)
     {
         _registry.Register(key, value, isCanonical);
-        _cachedEntries = null;
+        _cachedEntriesValid = false;
     }
 
     public void RegisterAlias(TKey alias, TValue value)
     {
         _registry.RegisterAlias(alias, value);
-        _cachedEntries = null;
+        _cachedEntriesValid = false;
     }
 
     public void SetCategory(TKey key, TCategory category)
     {
         _categories[key] = category;
-        _cachedEntries = null;
+        _cachedEntriesValid = false;
     }
 
     public bool Unregister(TKey key)
     {
         var removed = _registry.Unregister(key);
-        if (removed) _cachedEntries = null;
+        if (removed) _cachedEntriesValid = false;
         return removed;
     }
 
@@ -75,13 +76,18 @@ public sealed class CategorizedRegistry<TKey, TValue, TCategory> where TKey : no
     /// </summary>
     public IEnumerable<CategorizedEntry<TKey, TValue, TCategory>> GetCategorizedEntries()
     {
-        return _cachedEntries ??= _registry.GetCanonicalEntries()
-            .Select(kvp => new CategorizedEntry<TKey, TValue, TCategory>(
-                kvp.Key,
-                kvp.Value,
-                _categories.TryGetValue(kvp.Key, out var cat) ? cat : _defaultCategory,
-                _isEnabled is null || _isEnabled(kvp.Value)))
-            .ToArray();
+        if (!_cachedEntriesValid)
+        {
+            _cachedEntries = _registry.GetCanonicalEntries()
+                .Select(kvp => new CategorizedEntry<TKey, TValue, TCategory>(
+                    kvp.Key,
+                    kvp.Value,
+                    _categories.TryGetValue(kvp.Key, out var cat) ? cat : _defaultCategory,
+                    _isEnabled is null || _isEnabled(kvp.Value)))
+                .ToArray();
+            _cachedEntriesValid = true;
+        }
+        return _cachedEntries;
     }
 }
 

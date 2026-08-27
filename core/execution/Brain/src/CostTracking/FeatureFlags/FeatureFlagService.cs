@@ -3,7 +3,7 @@ namespace Core.CostTracking.FeatureFlags;
 
 public sealed partial class FeatureFlagResponse
 {
-    public Dictionary<string, FeatureFlag>? Features { get; set; }
+    public Dictionary<string, FeatureFlag> Features { get; set; } = [];
     public DateTime? FetchedAt { get; set; }
 }
 
@@ -36,7 +36,7 @@ public sealed partial class FeatureFlagService : RemoteCacheRefreshServiceBase<F
 
         return new RemoteRefreshResult<FeatureFlag>
         {
-            Items = flagResponse?.Features
+            Items = flagResponse?.Features ?? []
         };
     }
 

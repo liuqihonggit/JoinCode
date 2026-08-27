@@ -327,7 +327,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         {
             Operation = GoalOperation.Start,
             Objective = objective,
-            Constraints = constraints,
+            Constraints = constraints ?? [],
             TokenBudget = tokenBudget,
             CancellationToken = cancellationToken,
             State = _state,

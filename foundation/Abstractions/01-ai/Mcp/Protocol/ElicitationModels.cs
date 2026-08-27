@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.Mcp.Protocol;
+﻿namespace JoinCode.Abstractions.Mcp.Protocol;
 
 public class ElicitRequestParams
 {
@@ -28,7 +28,7 @@ public class ElicitSchema
 
     [JsonPropertyName("required")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<string>? Required { get; set; }
+    public List<string> Required { get; set; } = [];
 }
 
 public class ElicitSchemaProperty : SchemaProperty
@@ -59,7 +59,7 @@ public class ElicitSchemaProperty : SchemaProperty
 
     [JsonPropertyName("enum")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public List<string>? Enum { get; set; }
+    public List<string> Enum { get; set; } = [];
 
     [JsonPropertyName("default")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -77,7 +77,7 @@ public class ElicitResult
 
     [JsonPropertyName("content")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public Dictionary<string, JsonElement?>? Content { get; set; }
+    public Dictionary<string, JsonElement?> Content { get; set; } = [];
 }
 
 public class ElicitationCompleteNotificationParams

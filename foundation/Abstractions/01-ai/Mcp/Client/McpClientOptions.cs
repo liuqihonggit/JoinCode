@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.Mcp.Client;
+﻿namespace JoinCode.Abstractions.Mcp.Client;
 
 public class McpServerConnectionConfig
 {
@@ -6,9 +6,9 @@ public class McpServerConnectionConfig
     public string Endpoint { get; init; } = string.Empty;
     public McpClientTransportType TransportType { get; init; } = McpClientTransportType.Stdio;
     public McpAuthConfig? Auth { get; init; }
-    public Dictionary<string, string>? Environment { get; init; }
+    public Dictionary<string, string> Environment { get; init; } = [];
     public string? HeadersHelper { get; init; }
-    public Dictionary<string, string>? Headers { get; init; }
+    public Dictionary<string, string> Headers { get; init; } = [];
 }
 
 public enum McpClientTransportType
@@ -28,7 +28,7 @@ public class McpAuthConfig
     public string? ClientId { get; init; }
     public string? ClientSecret { get; init; }
     public string? TokenUrl { get; init; }
-    public List<string>? Scopes { get; init; }
+    public List<string> Scopes { get; init; } = [];
 }
 
 public enum McpAuthType

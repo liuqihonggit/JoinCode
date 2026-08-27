@@ -182,6 +182,10 @@ public interface IJccChatSession : IAsyncDisposable
     Task<bool> StopBackgroundAgentAsync(string agentId, CancellationToken cancellationToken = default)
         => Task.FromResult(false);
 
+    /// <summary>中断子代理当前 work（非终止）— teammate 进 idle 等 next prompt，可恢复。默认不支持（返回 false）</summary>
+    Task<bool> InterruptSubAgentAsync(string agentId, CancellationToken cancellationToken = default)
+        => Task.FromResult(false);
+
     /// <summary>按名称查找运行中子代理 ID（@提及路由）。默认不支持（返回 null）</summary>
     Task<string?> FindSubAgentIdByNameAsync(string name, CancellationToken cancellationToken = default)
         => Task.FromResult<string?>(null);

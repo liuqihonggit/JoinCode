@@ -5,9 +5,36 @@ public interface IInProcessTeammateTaskExecutor
     Task<AgentTaskResult> ExecuteTeammateAsync(InProcessTeammateDefinition definition, CancellationToken ct = default);
     Task<bool> SendMessageToTeammateAsync(string teammateId, CoordinatorMessage message, CancellationToken ct = default);
     Task<IEnumerable<string>> GetActiveTeammatesAsync(CancellationToken ct = default);
+    Task<IEnumerable<TeammateStateSnapshot>> GetActiveTeammateSnapshotsAsync(CancellationToken ct = default);
     Task StopTeammateAsync(string teammateId, CancellationToken ct = default);
     Task TerminateTeammateAsync(string teammateId, string? reason = null, CancellationToken ct = default);
     Task<bool> IsTeammateIdleAsync(string teammateId, CancellationToken ct = default);
+    Task<bool> InterruptTeammateAsync(string teammateId, CancellationToken ct = default);
+    event EventHandler<TeammateCompletedEventArgs>? TeammateCompleted;
+}
+
+/// <summary>
+/// teammate 状态快照 — 供 GUI 渲染子会话树（含 ParentSessionId/Task/IsIdle 等，弥补 GetActiveTeammatesAsync 只返回 ID 的不足）。
+/// </summary>
+public sealed record TeammateStateSnapshot(
+    string TeammateId,
+    string? ParentSessionId,
+    string Task,
+    bool IsIdle,
+    int TurnCount,
+    string? LastResult);
+
+/// <summary>
+/// teammate 完成事件参数 — teammate 正常完成或被终止时触发，供 GUI 移除子会话卡片/补足结果。
+/// </summary>
+public sealed class TeammateCompletedEventArgs : EventArgs
+{
+    public required string TeammateId { get; init; }
+    public required string Task { get; init; }
+    public string? Output { get; init; }
+    public bool IsSuccess { get; init; }
+    public string? Error { get; init; }
+    public int TurnCount { get; init; }
 }
 
 public sealed partial class InProcessTeammateDefinition
@@ -28,6 +55,8 @@ public sealed partial class InProcessTeammateDefinition
     public string? Color { get; init; }
     public bool PlanModeRequired { get; init; }
     public bool ContinuousMode { get; init; }
+    /// <summary>隔离模式 — Worktree 时 teammate 在独立工作树中执行（供 mainAgent 接手分析 diff）</summary>
+    public AgentIsolationMode IsolationMode { get; init; } = AgentIsolationMode.None;
 }
 
 public sealed class TeammateState
@@ -38,6 +67,16 @@ public sealed class TeammateState
     public bool IsIdle { get; set; }
     public string? LastResult { get; set; }
     public int TurnCount { get; set; }
+    /// <summary>
+    /// 任务描述 — 来自 <see cref="InProcessTeammateDefinition.Task"/>，供 snapshot 暴露给 GUI 渲染子会话标题。
+    /// </summary>
+    public string Task { get; init; } = string.Empty;
+    /// <summary>
+    /// 当前 per-turn work 的 CTS — Interrupt 时只 cancel 此 CTS 中断当前 work，不杀 lifecycle。
+    /// 由循环体在 work 开始前设置、结束后清空；InterruptTeammateAsync 读取并 cancel。
+    /// 受 <see cref="InProcessTeammateTaskExecutor._teammateLock"/> 保护。
+    /// </summary>
+    public CancellationTokenSource? CurrentWorkCts { get; set; }
 }
 
 [Register(typeof(IInProcessTeammateTaskExecutor), ServiceLifetime.Singleton)]
@@ -55,6 +94,10 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
     private readonly ConcurrentDictionary<string, Channel<CoordinatorMessage>> _pendingMessages = new();
     private readonly SemaphoreSlim _teammateLock = new(1, 1);
     private readonly MiddlewarePipeline<TeammateExecutionContext>? _executePipeline;
+    private readonly IAgentWorktreeService? _worktreeService;
+    private readonly IAgentWorktreeManager? _worktreeManager;
+
+    public event EventHandler<TeammateCompletedEventArgs>? TeammateCompleted;
 
     public InProcessTeammateTaskExecutor(
         IAgentLifecycleManager agentLifecycleManager,
@@ -66,7 +109,9 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
         IPlanModeManager? planModeManager = null,
         IEnumerable<ITeammateExecutionMiddleware>? executeMiddlewares = null,
         ISubAgentContextAccessor? subAgentContextAccessor = null,
-        IClockService? clock = null)
+        IClockService? clock = null,
+        IAgentWorktreeService? worktreeService = null,
+        IAgentWorktreeManager? worktreeManager = null)
     {
         _agentLifecycleManager = agentLifecycleManager;
         _messageBroker = messageBroker;
@@ -76,6 +121,8 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
         _planModeManager = planModeManager;
         _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
         _clock = clock ?? SystemClockService.Instance;
+        _worktreeService = worktreeService;
+        _worktreeManager = worktreeManager;
 
         if (executeMiddlewares is not null && loggerFactory is not null)
         {
@@ -148,6 +195,33 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
 
             var agent = await _agentLifecycleManager.SpawnSubAgentAsync(definition.Task, options, ct).ConfigureAwait(false);
 
+            // worktree 隔离 — IsolationMode=Worktree 时创建独立工作树（供 mainAgent 接手分析 diff）
+            if (definition.IsolationMode == AgentIsolationMode.Worktree && _worktreeService is not null)
+            {
+                try
+                {
+                    var wtResult = await _worktreeService.CreateAgentWorktreeAsync(agent.ObjectId.UniqueId, cancellationToken: ct).ConfigureAwait(false);
+                    if (wtResult.Success && wtResult.Session is not null)
+                    {
+                        ((AgentBase)agent).Options.WorktreePath = wtResult.Session.WorktreePath;
+                        ((AgentBase)agent).Options.WorktreeBranch = wtResult.Session.BranchName;
+                        if (((AgentBase)agent).Context is not null)
+                        {
+                            ((AgentBase)agent).Context!.WorktreePath = wtResult.Session.WorktreePath;
+                        }
+                        _logger?.LogInformation("Teammate {TeammateId} worktree created: {Path}", definition.TeammateId, wtResult.Session.WorktreePath);
+                    }
+                    else
+                    {
+                        _logger?.LogWarning("Teammate {TeammateId} worktree creation failed: {Error}, degrading to normal mode", definition.TeammateId, wtResult.ErrorMessage);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "Teammate {TeammateId} worktree creation exception, degrading to normal mode", definition.TeammateId);
+                }
+            }
+
             if (definition.InitialContext is { Count: > 0 })
             {
                 foreach (var ctx in definition.InitialContext)
@@ -180,7 +254,8 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
                 Agent = agent,
                 LifecycleCts = lifecycleCts,
                 Context = teammateContext,
-                IsIdle = false
+                IsIdle = false,
+                Task = definition.Task
             };
 
             await _teammateLock.WaitAsync(ct).ConfigureAwait(false);
@@ -272,6 +347,28 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
         }
     }
 
+    /// <summary>
+    /// 返回所有活跃 teammate 的状态快照 — 供 GUI 渲染子会话树（含 ParentSessionId/Task/IsIdle 等）。
+    /// </summary>
+    public async Task<IEnumerable<TeammateStateSnapshot>> GetActiveTeammateSnapshotsAsync(CancellationToken ct = default)
+    {
+        await _teammateLock.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            return _activeTeammates.Select(kv => new TeammateStateSnapshot(
+                kv.Key,
+                kv.Value.Context.ParentSessionId,
+                kv.Value.Task,
+                kv.Value.IsIdle,
+                kv.Value.TurnCount,
+                kv.Value.LastResult)).ToList();
+        }
+        finally
+        {
+            _teammateLock.Release();
+        }
+    }
+
     public async Task StopTeammateAsync(string teammateId, CancellationToken ct = default)
     {
         await _teammateLock.WaitAsync(ct).ConfigureAwait(false);
@@ -333,6 +430,77 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
     }
 
     /// <summary>
+    /// 中断 teammate 当前 per-turn work — 只 cancel <see cref="TeammateState.CurrentWorkCts"/>，
+    /// 不 cancel lifecycle，teammate 进 idle 等待 next prompt（对齐 ClaudeCode inProcessRunner ESC 行为）。
+    /// 若 teammate 不存在或当前无活跃 work，返回 false。
+    /// </summary>
+    public async Task<bool> InterruptTeammateAsync(string teammateId, CancellationToken ct = default)
+    {
+        await _teammateLock.WaitAsync(ct).ConfigureAwait(false);
+        CancellationTokenSource? workCts;
+        try
+        {
+            if (!_activeTeammates.TryGetValue(teammateId, out var state))
+            {
+                return false;
+            }
+            workCts = state.CurrentWorkCts;
+        }
+        finally
+        {
+            _teammateLock.Release();
+        }
+
+        if (workCts is null || workCts.IsCancellationRequested)
+        {
+            return false;
+        }
+
+        await workCts.CancelAsync().ConfigureAwait(false);
+        _logger?.LogInformation("Teammate {TeammateId} 当前 work 已中断（interrupt），进入 idle 等待 next prompt", teammateId);
+        return true;
+    }
+
+    /// <summary>
+    /// 循环体调用 — 将当前 per-turn workCts 暴露到 state，供 InterruptTeammateAsync 读取并 cancel。
+    /// </summary>
+    private async Task SetCurrentWorkCtsAsync(string teammateId, CancellationTokenSource workCts, CancellationToken lifecycleCt)
+    {
+        await _teammateLock.WaitAsync(lifecycleCt).ConfigureAwait(false);
+        try
+        {
+            if (_activeTeammates.TryGetValue(teammateId, out var state))
+            {
+                state.CurrentWorkCts = workCts;
+            }
+        }
+        finally
+        {
+            _teammateLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// 循环体 finally 调用 — 清空 state.CurrentWorkCts，避免 Interrupt 取到已 dispose 的旧 cts。
+    /// 用 CancellationToken.None 保证清理不被取消。
+    /// </summary>
+    private async Task ClearCurrentWorkCtsAsync(string teammateId)
+    {
+        await _teammateLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+        try
+        {
+            if (_activeTeammates.TryGetValue(teammateId, out var state))
+            {
+                state.CurrentWorkCts = null;
+            }
+        }
+        finally
+        {
+            _teammateLock.Release();
+        }
+    }
+
+    /// <summary>
     /// 后台启动 teammate 循环 — 观察未处理异常，避免静默死亡；退出时通知 coordinator
     /// </summary>
     private void RunTeammateLoopBackground(InProcessTeammateDefinition definition, TeammateState state, CancellationToken lifecycleCt)
@@ -377,6 +545,8 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
             DisplayName = state.Context.AgentName
         };
 
+        var completedNormally = false;
+
         using (state.Context.EnterScope())
         using (subAgentContext.EnterScopeWithCwd(null))
         {
@@ -405,22 +575,39 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
 
             while (!lifecycleCt.IsCancellationRequested && !shouldExit)
             {
+                CancellationTokenSource? workCts = null;
                 try
                 {
-                    using var workCts = CancellationTokenSource.CreateLinkedTokenSource(lifecycleCt);
+                    workCts = CancellationTokenSource.CreateLinkedTokenSource(lifecycleCt);
+                    await SetCurrentWorkCtsAsync(definition.TeammateId, workCts, lifecycleCt).ConfigureAwait(false);
 
                     var result = await _agentLifecycleManager.ExecuteAsync(state.Agent, workCts.Token).ConfigureAwait(false);
 
                     state.TurnCount++;
-                    state.IsIdle = true;
                     state.LastResult = result.Output;
-
-                    await NotifyIdleAsync(definition.TeammateId, state, result.Output).ConfigureAwait(false);
-
                     RecordTeammateMetrics("turn_complete", result.IsSuccess);
 
                     _logger?.LogDebug("Teammate {TeammateId} checkpoint: turn={TurnCount} success={Success} outputLen={OutputLen}",
                         definition.TeammateId, state.TurnCount, result.IsSuccess, result.Output?.Length ?? 0);
+
+                    // 正常完成 — 退出循环（对齐 forked agent 单次执行语义；Interrupt 后才进 idle 等 next prompt）
+                    completedNormally = true;
+                    shouldExit = true;
+                }
+                catch (OperationCanceledException) when (lifecycleCt.IsCancellationRequested)
+                {
+                    shouldExit = true;
+                }
+                catch (OperationCanceledException) when (!lifecycleCt.IsCancellationRequested)
+                {
+                    // Interrupt — workCts 被 cancel 但 lifecycle 未取消，进 idle 等 next prompt
+                    // 对齐 ClaudeCode inProcessRunner ESC：不通知 coordinator（不自动唤醒 mainAgent），仅等用户 next prompt
+                    state.TurnCount++;
+                    state.IsIdle = true;
+                    RecordTeammateMetrics("turn_interrupted", true);
+
+                    _logger?.LogInformation("Teammate {TeammateId} interrupted at turn={TurnCount}, entering idle to wait for next prompt",
+                        definition.TeammateId, state.TurnCount);
 
                     var waitResult = await WaitForNextPromptOrShutdownAsync(
                         definition.TeammateId, lifecycleCt).ConfigureAwait(false);
@@ -430,20 +617,16 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
                     switch (waitResult)
                     {
                         case TeammateWaitResult.ShutdownRequest:
-                            _logger?.LogInformation("Teammate {TeammateId} received shutdown request", definition.TeammateId);
+                            _logger?.LogInformation("Teammate {TeammateId} received shutdown request after interrupt", definition.TeammateId);
                             shouldExit = true;
                             break;
                         case TeammateWaitResult.NewMessage:
-                            _logger?.LogDebug("Teammate {TeammateId} received new message, continuing loop", definition.TeammateId);
+                            _logger?.LogDebug("Teammate {TeammateId} received new message after interrupt, resuming work", definition.TeammateId);
                             break;
                         case TeammateWaitResult.Aborted:
                             shouldExit = true;
                             break;
                     }
-                }
-                catch (OperationCanceledException) when (lifecycleCt.IsCancellationRequested)
-                {
-                    shouldExit = true;
                 }
                 catch (Exception ex)
                 {
@@ -462,6 +645,11 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
                         shouldExit = true;
                     }
                 }
+                finally
+                {
+                    await ClearCurrentWorkCtsAsync(definition.TeammateId).ConfigureAwait(false);
+                    workCts?.Dispose();
+                }
             }
         }
 
@@ -469,6 +657,22 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
 
         _logger?.LogInformation("Teammate {TeammateId} loop exited after {TurnCount} turns",
             definition.TeammateId, state.TurnCount);
+
+        try
+        {
+            TeammateCompleted?.Invoke(this, new TeammateCompletedEventArgs
+            {
+                TeammateId = definition.TeammateId,
+                Task = definition.Task,
+                Output = state.LastResult,
+                IsSuccess = completedNormally,
+                TurnCount = state.TurnCount
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Teammate {TeammateId} TeammateCompleted event handler threw", definition.TeammateId);
+        }
     }
 
     private async Task<TeammateWaitResult> WaitForNextPromptOrShutdownAsync(
@@ -544,6 +748,24 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
 
         _pendingMessages.TryRemove(teammateId, out var channel);
         channel?.Writer.Complete();
+
+        // worktree 清理 — 有变更保留并记录 reason，无变更移除（对齐 ForkExecutionMiddleware）
+        if (_worktreeManager is not null)
+        {
+            try
+            {
+                var cleanupDetail = await _worktreeManager.CleanupWorktreeAsync(state.Agent.ObjectId.UniqueId, CancellationToken.None).ConfigureAwait(false);
+                if (cleanupDetail.Kept)
+                {
+                    _logger?.LogInformation("Teammate {TeammateId} worktree kept: {Path} (reason: {Reason})",
+                        teammateId, cleanupDetail.WorktreePath, cleanupDetail.Reason);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Teammate {TeammateId} worktree cleanup failed", teammateId);
+            }
+        }
 
         try
         {

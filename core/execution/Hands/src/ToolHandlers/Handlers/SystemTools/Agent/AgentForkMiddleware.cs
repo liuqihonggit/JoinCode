@@ -8,15 +8,17 @@ namespace Tools.Handlers;
 public sealed partial class AgentForkMiddleware : ServiceEntity, IAgentToolMiddleware
 {
 
-    public AgentForkMiddleware(ISubAgentContextAccessor subAgentContextAccessor, IForkSubAgentManager? forkManager = null, ITelemetryService? telemetryService = null)
+    public AgentForkMiddleware(ISubAgentContextAccessor subAgentContextAccessor, IForkSubAgentManager? forkManager = null, ITelemetryService? telemetryService = null, IInProcessTeammateTaskExecutor? teammateExecutor = null)
     {
         _subAgentContextAccessor = subAgentContextAccessor;
         _forkManager = forkManager;
         _telemetryService = telemetryService;
+        _teammateExecutor = teammateExecutor;
     }
     private readonly IForkSubAgentManager? _forkManager;
     private readonly ITelemetryService? _telemetryService;
     private readonly ISubAgentContextAccessor _subAgentContextAccessor;
+    private readonly IInProcessTeammateTaskExecutor? _teammateExecutor;
 
     /// <inheritdoc />
     public int Order => 200;
@@ -26,17 +28,73 @@ public sealed partial class AgentForkMiddleware : ServiceEntity, IAgentToolMiddl
     /// <inheritdoc />
     public async Task InvokeAsync(AgentToolContext context, MiddlewareDelegate<AgentToolContext> next, CancellationToken ct)
     {
-        var isForkPath = string.IsNullOrEmpty(context.SubagentType) && _forkManager is not null;
-
-        if (!isForkPath)
+        // SubagentType 非空 → 不走 fork/teammate，交给后续中间件
+        if (!string.IsNullOrEmpty(context.SubagentType))
         {
             await next(context, ct).ConfigureAwait(false);
             return;
         }
 
+        // 优先走 teammate 路径（支持 Interrupt 中断 + idle 恢复，对齐 ClaudeCode inProcessRunner）
+        if (_teammateExecutor is not null)
+        {
+            await ExecuteTeammatePathAsync(context, ct).ConfigureAwait(false);
+            return;
+        }
+
+        // 回退 fork 路径
+        if (_forkManager is not null)
+        {
+            await ExecuteForkPathAsync(context, ct).ConfigureAwait(false);
+            return;
+        }
+
+        await next(context, ct).ConfigureAwait(false);
+    }
+
+    private async Task ExecuteTeammatePathAsync(AgentToolContext context, CancellationToken ct)
+    {
+        var teammateId = $"teammate-{Guid.NewGuid():N}";
+        var sessionId = _subAgentContextAccessor.Current?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;
+
+        var definition = new InProcessTeammateDefinition
+        {
+            TaskId = teammateId,
+            TeammateId = teammateId,
+            Task = context.Prompt,
+            ParentSessionId = sessionId,
+            ContinuousMode = true,
+            MaxIterations = 200
+        };
+
+        await _teammateExecutor!.ExecuteTeammateAsync(definition, ct).ConfigureAwait(false);
+
+        JoinCode.Abstractions.LLM.Chat.SubAgentEventChannel.Current?.Emit(
+            JoinCode.Abstractions.LLM.Chat.ChatStreamEvent.AgentStarted(
+                teammateId,
+                name: "teammate",
+                description: context.Prompt,
+                role: AgentRole.Coordinator.ToValue()));
+
+        var response = new StringBuilder();
+        response.AppendLine("Teammate sub-agent launched");
+        response.AppendLine($"TeammateId: {teammateId}");
+        response.AppendLine($"Instructions: {context.Prompt}");
+        response.AppendLine();
+        response.AppendLine("Status: async_launched");
+        response.AppendLine("Teammate sub-agent is running in the background. You will be notified when it completes.");
+
+        ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "teammate", true);
+        context.ForkResult = ToolResultBuilder.Success()
+            .WithText(response.ToString())
+            .Build();
+        context.Result = context.ForkResult;
+    }
+
+    private async Task ExecuteForkPathAsync(AgentToolContext context, CancellationToken ct)
+    {
         var forkManager = _forkManager ?? throw new InvalidOperationException("ForkManager not available.");
 
-        // 执行 fork 路径
         var sessionId = _subAgentContextAccessor.Current?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;
         var parentCacheSafeParams = _subAgentContextAccessor.Current?.CacheSafeParams;
 
@@ -79,7 +137,6 @@ public sealed partial class AgentForkMiddleware : ServiceEntity, IAgentToolMiddl
             .WithText(response.ToString())
             .Build();
         context.Result = context.ForkResult;
-        // 短路 — fork 路径不需要后续中间件
     }
 
 }

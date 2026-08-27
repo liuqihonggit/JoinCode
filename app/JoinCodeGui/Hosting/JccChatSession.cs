@@ -122,12 +122,23 @@ internal sealed class JccChatSession : IJccChatSession
         return result;
     }
 
-    /// <summary>终止后台代理 — 先按 agentId 停止；未命中且是活跃 fork 时取消之</summary>
+    /// <summary>终止后台代理 — 先按 agentId 停止；未命中且是活跃 teammate 时停止之；再未命中且是活跃 fork 时取消之</summary>
     public async Task<bool> StopBackgroundAgentAsync(string agentId, CancellationToken cancellationToken = default)
     {
         var agentService = _services.GetService<IAgentService>();
         if (agentService is not null && await agentService.StopAgentAsync(agentId, cancellationToken).ConfigureAwait(false))
             return true;
+
+        var teammateExecutor = _services.GetService<IInProcessTeammateTaskExecutor>();
+        if (teammateExecutor is not null)
+        {
+            var teammates = await teammateExecutor.GetActiveTeammatesAsync(cancellationToken).ConfigureAwait(false);
+            if (teammates.Contains(agentId))
+            {
+                await teammateExecutor.StopTeammateAsync(agentId, cancellationToken).ConfigureAwait(false);
+                return true;
+            }
+        }
 
         var forkManager = _services.GetService<IForkSubAgentManager>();
         if (forkManager is not null)
@@ -141,6 +152,15 @@ internal sealed class JccChatSession : IJccChatSession
         }
 
         return false;
+    }
+
+    /// <summary>中断子代理当前 work（非终止）— 委托 teammateExecutor.InterruptTeammateAsync，teammate 进 idle 等 next prompt</summary>
+    public async Task<bool> InterruptSubAgentAsync(string agentId, CancellationToken cancellationToken = default)
+    {
+        var teammateExecutor = _services.GetService<IInProcessTeammateTaskExecutor>();
+        if (teammateExecutor is null)
+            return false;
+        return await teammateExecutor.InterruptTeammateAsync(agentId, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -173,19 +193,39 @@ internal sealed class JccChatSession : IJccChatSession
     /// <inheritdoc />
     public async Task<IReadOnlyList<SubSessionInfo>> GetSubSessionsAsync(string parentSessionId, CancellationToken cancellationToken = default)
     {
-        var forkManager = _services.GetService<IForkSubAgentManager>();
-        if (forkManager is null)
-            return [];
-        var forks = await forkManager.GetActiveForksAsync(cancellationToken).ConfigureAwait(false);
         var result = new List<SubSessionInfo>();
-        foreach (var f in forks)
+
+        // teammate 子会话（GUI 子代理走 teammate 模型，支持 Interrupt 中断 + idle 恢复）
+        var teammateExecutor = _services.GetService<IInProcessTeammateTaskExecutor>();
+        if (teammateExecutor is not null)
         {
-            if (f.ParentSessionId != parentSessionId)
-                continue;
-            var title = $"子会话 {f.ForkId.AsSpan(0, Math.Min(8, f.ForkId.Length)).ToString()}";
-            var worktree = await GetSubAgentWorktreePathAsync(f.ForkId, cancellationToken).ConfigureAwait(false);
-            result.Add(new SubSessionInfo(f.ForkId, f.ParentSessionId, title, f.State.ToString(), worktree));
+            var snapshots = await teammateExecutor.GetActiveTeammateSnapshotsAsync(cancellationToken).ConfigureAwait(false);
+            foreach (var s in snapshots)
+            {
+                if (s.ParentSessionId != parentSessionId)
+                    continue;
+                var title = $"子会话 {s.TeammateId.AsSpan(0, Math.Min(8, s.TeammateId.Length)).ToString()}";
+                var worktree = await GetSubAgentWorktreePathAsync(s.TeammateId, cancellationToken).ConfigureAwait(false);
+                var state = s.IsIdle ? "Idle" : "Running";
+                result.Add(new SubSessionInfo(s.TeammateId, s.ParentSessionId ?? parentSessionId, title, state, worktree));
+            }
         }
+
+        // fork 子会话（保留 — fork 其他消费方如 MagicDocsManager 创建的仍需显示）
+        var forkManager = _services.GetService<IForkSubAgentManager>();
+        if (forkManager is not null)
+        {
+            var forks = await forkManager.GetActiveForksAsync(cancellationToken).ConfigureAwait(false);
+            foreach (var f in forks)
+            {
+                if (f.ParentSessionId != parentSessionId)
+                    continue;
+                var title = $"子会话 {f.ForkId.AsSpan(0, Math.Min(8, f.ForkId.Length)).ToString()}";
+                var worktree = await GetSubAgentWorktreePathAsync(f.ForkId, cancellationToken).ConfigureAwait(false);
+                result.Add(new SubSessionInfo(f.ForkId, f.ParentSessionId, title, f.State.ToString(), worktree));
+            }
+        }
+
         return result;
     }
 

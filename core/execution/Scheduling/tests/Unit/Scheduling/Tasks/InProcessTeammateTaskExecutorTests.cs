@@ -228,4 +228,217 @@ public class InProcessTeammateTaskExecutorTests
 
         executeCallCount.Should().BeGreaterThanOrEqualTo(2, "第一次失败后循环应重试而非退出");
     }
+
+    [Fact]
+    public async Task InterruptTeammateAsync_WhenTeammateNotExists_ShouldReturnFalse()
+    {
+        var result = await _executor.InterruptTeammateAsync("nonexistent").ConfigureAwait(true);
+
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task InterruptTeammateAsync_WhenTeammateWorking_ShouldCancelWorkTokenButNotLifecycle()
+    {
+        var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
+        var agent = new AgentBase("Interrupt test", null, queryEngineMock.Object, null);
+
+        var workCancelledTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        _lifecycleManagerMock
+            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
+            .ReturnsAsync(agent);
+        _lifecycleManagerMock
+            .Setup(x => x.ExecuteAsync(It.IsAny<IAgent>(), It.IsAny<CancellationToken>()))
+            .Returns(async (IAgent _, CancellationToken ct) =>
+            {
+                try
+                {
+                    await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(true);
+                    return new SubAgentResult { AgentId = "agent-i", IsSuccess = true, Output = "done" };
+                }
+                catch (OperationCanceledException)
+                {
+                    workCancelledTcs.TrySetResult(true);
+                    throw;
+                }
+            });
+        _lifecycleManagerMock
+            .Setup(x => x.DisposeAgentAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var definition = new InProcessTeammateDefinition
+        {
+            TaskId = "tm-int",
+            TeammateId = "teammate-int",
+            Task = "Interrupt test",
+            ContinuousMode = true
+        };
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        await _executor.ExecuteTeammateAsync(definition, cts.Token).ConfigureAwait(true);
+
+        await Task.Delay(300).ConfigureAwait(true);
+
+        var result = await _executor.InterruptTeammateAsync("teammate-int").ConfigureAwait(true);
+
+        result.Should().BeTrue();
+
+        var workCancelled = await workCancelledTcs.Task.WaitAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(true);
+        workCancelled.Should().BeTrue();
+
+        var active = await _executor.GetActiveTeammatesAsync().ConfigureAwait(true);
+        active.Should().Contain("teammate-int");
+
+        await _executor.StopTeammateAsync("teammate-int").ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task GetActiveTeammateSnapshotsAsync_WhenTeammateActive_ShouldReturnSnapshotWithTaskAndParent()
+    {
+        var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
+        var agent = new AgentBase("Snapshot task", null, queryEngineMock.Object, null);
+
+        _lifecycleManagerMock
+            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
+            .ReturnsAsync(agent);
+        _lifecycleManagerMock
+            .Setup(x => x.ExecuteAsync(It.IsAny<IAgent>(), It.IsAny<CancellationToken>()))
+            .Returns(async (IAgent _, CancellationToken ct) =>
+            {
+                await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(true);
+                return new SubAgentResult { AgentId = "agent-s", IsSuccess = true, Output = "done" };
+            });
+        _lifecycleManagerMock
+            .Setup(x => x.DisposeAgentAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var definition = new InProcessTeammateDefinition
+        {
+            TaskId = "tm-snap",
+            TeammateId = "teammate-snap",
+            Task = "Snapshot task description",
+            ContinuousMode = true,
+            ParentSessionId = "parent-session-1"
+        };
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await _executor.ExecuteTeammateAsync(definition, cts.Token).ConfigureAwait(true);
+
+        await Task.Delay(200).ConfigureAwait(true);
+
+        var snapshots = await _executor.GetActiveTeammateSnapshotsAsync().ConfigureAwait(true);
+        var snap = snapshots.FirstOrDefault(s => s.TeammateId == "teammate-snap");
+
+        snap.Should().NotBeNull();
+        snap!.Task.Should().Be("Snapshot task description");
+        snap.ParentSessionId.Should().Be("parent-session-1");
+
+        await _executor.StopTeammateAsync("teammate-snap").ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task ExecuteTeammateAsync_WithWorktreeIsolation_ShouldCreateWorktreeAndCleanupOnExit()
+    {
+        var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
+        var agent = new AgentBase("Worktree task", null, queryEngineMock.Object, null);
+
+        _lifecycleManagerMock
+            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
+            .ReturnsAsync(agent);
+        _lifecycleManagerMock
+            .Setup(x => x.ExecuteAsync(agent, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SubAgentResult { AgentId = "agent-wt", IsSuccess = true, Output = "done" });
+        _lifecycleManagerMock
+            .Setup(x => x.DisposeAgentAsync(agent.ObjectId.UniqueId, It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var worktreeServiceMock = new Mock<IAgentWorktreeService>();
+        worktreeServiceMock
+            .Setup(x => x.CreateAgentWorktreeAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<WorktreeOptions?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(WorktreeCreateResult.SuccessResult(new AgentWorktreeSession
+            {
+                AgentId = agent.ObjectId.UniqueId,
+                OriginalCwd = "D:\\repo",
+                WorktreePath = "D:\\repo\\.worktrees\\agent-wt",
+                BranchName = "wt/agent-wt",
+                GitRootPath = "D:\\repo",
+                CreatedAt = DateTime.UtcNow
+            }));
+
+        var worktreeManagerMock = new Mock<IAgentWorktreeManager>();
+        worktreeManagerMock
+            .Setup(x => x.CleanupWorktreeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(WorktreeCleanupDetail.SuccessfullyRemoved);
+
+        var executor = new InProcessTeammateTaskExecutor(
+            _lifecycleManagerMock.Object,
+            _messageBrokerMock.Object,
+            NullLogger<InProcessTeammateTaskExecutor>.Instance,
+            worktreeService: worktreeServiceMock.Object,
+            worktreeManager: worktreeManagerMock.Object);
+
+        var definition = new InProcessTeammateDefinition
+        {
+            TaskId = "tm-wt",
+            TeammateId = "teammate-wt",
+            Task = "Worktree task",
+            IsolationMode = AgentIsolationMode.Worktree
+        };
+
+        var result = await executor.ExecuteTeammateAsync(definition).ConfigureAwait(true);
+
+        result.IsSuccess.Should().BeTrue();
+        worktreeServiceMock.Verify(x => x.CreateAgentWorktreeAsync(agent.ObjectId.UniqueId, It.IsAny<string?>(), It.IsAny<WorktreeOptions?>(), It.IsAny<CancellationToken>()), Times.Once);
+        worktreeManagerMock.Verify(x => x.CleanupWorktreeAsync(agent.ObjectId.UniqueId, It.IsAny<CancellationToken>()), Times.Once);
+        agent.Options.WorktreePath.Should().Be("D:\\repo\\.worktrees\\agent-wt");
+        agent.Options.WorktreeBranch.Should().Be("wt/agent-wt");
+    }
+
+    [Fact]
+    public async Task ExecuteTeammateAsync_WithWorktreeCreationFailure_ShouldDegradeToNormalMode()
+    {
+        var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
+        var agent = new AgentBase("Degrade task", null, queryEngineMock.Object, null);
+
+        _lifecycleManagerMock
+            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
+            .ReturnsAsync(agent);
+        _lifecycleManagerMock
+            .Setup(x => x.ExecuteAsync(agent, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SubAgentResult { AgentId = "agent-deg", IsSuccess = true, Output = "ok" });
+        _lifecycleManagerMock
+            .Setup(x => x.DisposeAgentAsync(agent.ObjectId.UniqueId, It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var worktreeServiceMock = new Mock<IAgentWorktreeService>();
+        worktreeServiceMock
+            .Setup(x => x.CreateAgentWorktreeAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<WorktreeOptions?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(WorktreeCreateResult.FailureResult("disk full"));
+
+        var worktreeManagerMock = new Mock<IAgentWorktreeManager>();
+        worktreeManagerMock
+            .Setup(x => x.CleanupWorktreeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(WorktreeCleanupDetail.NotIsolated);
+
+        var executor = new InProcessTeammateTaskExecutor(
+            _lifecycleManagerMock.Object,
+            _messageBrokerMock.Object,
+            NullLogger<InProcessTeammateTaskExecutor>.Instance,
+            worktreeService: worktreeServiceMock.Object,
+            worktreeManager: worktreeManagerMock.Object);
+
+        var definition = new InProcessTeammateDefinition
+        {
+            TaskId = "tm-deg",
+            TeammateId = "teammate-deg",
+            Task = "Degrade task",
+            IsolationMode = AgentIsolationMode.Worktree
+        };
+
+        var result = await executor.ExecuteTeammateAsync(definition).ConfigureAwait(true);
+
+        result.IsSuccess.Should().BeTrue("worktree 创建失败应降级为正常模式而非失败");
+        agent.Options.WorktreePath.Should().BeNull();
+    }
 }

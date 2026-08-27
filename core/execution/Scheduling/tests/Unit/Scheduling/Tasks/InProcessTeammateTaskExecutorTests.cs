@@ -336,4 +336,109 @@ public class InProcessTeammateTaskExecutorTests
 
         await _executor.StopTeammateAsync("teammate-snap").ConfigureAwait(true);
     }
+
+    [Fact]
+    public async Task ExecuteTeammateAsync_WithWorktreeIsolation_ShouldCreateWorktreeAndCleanupOnExit()
+    {
+        var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
+        var agent = new AgentBase("Worktree task", null, queryEngineMock.Object, null);
+
+        _lifecycleManagerMock
+            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
+            .ReturnsAsync(agent);
+        _lifecycleManagerMock
+            .Setup(x => x.ExecuteAsync(agent, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SubAgentResult { AgentId = "agent-wt", IsSuccess = true, Output = "done" });
+        _lifecycleManagerMock
+            .Setup(x => x.DisposeAgentAsync(agent.ObjectId.UniqueId, It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var worktreeServiceMock = new Mock<IAgentWorktreeService>();
+        worktreeServiceMock
+            .Setup(x => x.CreateAgentWorktreeAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<WorktreeOptions?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(WorktreeCreateResult.SuccessResult(new AgentWorktreeSession
+            {
+                AgentId = agent.ObjectId.UniqueId,
+                OriginalCwd = "D:\\repo",
+                WorktreePath = "D:\\repo\\.worktrees\\agent-wt",
+                BranchName = "wt/agent-wt",
+                GitRootPath = "D:\\repo",
+                CreatedAt = DateTime.UtcNow
+            }));
+
+        var worktreeManagerMock = new Mock<IAgentWorktreeManager>();
+        worktreeManagerMock
+            .Setup(x => x.CleanupWorktreeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(WorktreeCleanupDetail.SuccessfullyRemoved);
+
+        var executor = new InProcessTeammateTaskExecutor(
+            _lifecycleManagerMock.Object,
+            _messageBrokerMock.Object,
+            NullLogger<InProcessTeammateTaskExecutor>.Instance,
+            worktreeService: worktreeServiceMock.Object,
+            worktreeManager: worktreeManagerMock.Object);
+
+        var definition = new InProcessTeammateDefinition
+        {
+            TaskId = "tm-wt",
+            TeammateId = "teammate-wt",
+            Task = "Worktree task",
+            IsolationMode = AgentIsolationMode.Worktree
+        };
+
+        var result = await executor.ExecuteTeammateAsync(definition).ConfigureAwait(true);
+
+        result.IsSuccess.Should().BeTrue();
+        worktreeServiceMock.Verify(x => x.CreateAgentWorktreeAsync(agent.ObjectId.UniqueId, It.IsAny<string?>(), It.IsAny<WorktreeOptions?>(), It.IsAny<CancellationToken>()), Times.Once);
+        worktreeManagerMock.Verify(x => x.CleanupWorktreeAsync(agent.ObjectId.UniqueId, It.IsAny<CancellationToken>()), Times.Once);
+        agent.Options.WorktreePath.Should().Be("D:\\repo\\.worktrees\\agent-wt");
+        agent.Options.WorktreeBranch.Should().Be("wt/agent-wt");
+    }
+
+    [Fact]
+    public async Task ExecuteTeammateAsync_WithWorktreeCreationFailure_ShouldDegradeToNormalMode()
+    {
+        var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
+        var agent = new AgentBase("Degrade task", null, queryEngineMock.Object, null);
+
+        _lifecycleManagerMock
+            .Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
+            .ReturnsAsync(agent);
+        _lifecycleManagerMock
+            .Setup(x => x.ExecuteAsync(agent, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SubAgentResult { AgentId = "agent-deg", IsSuccess = true, Output = "ok" });
+        _lifecycleManagerMock
+            .Setup(x => x.DisposeAgentAsync(agent.ObjectId.UniqueId, It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var worktreeServiceMock = new Mock<IAgentWorktreeService>();
+        worktreeServiceMock
+            .Setup(x => x.CreateAgentWorktreeAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<WorktreeOptions?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(WorktreeCreateResult.FailureResult("disk full"));
+
+        var worktreeManagerMock = new Mock<IAgentWorktreeManager>();
+        worktreeManagerMock
+            .Setup(x => x.CleanupWorktreeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(WorktreeCleanupDetail.NotIsolated);
+
+        var executor = new InProcessTeammateTaskExecutor(
+            _lifecycleManagerMock.Object,
+            _messageBrokerMock.Object,
+            NullLogger<InProcessTeammateTaskExecutor>.Instance,
+            worktreeService: worktreeServiceMock.Object,
+            worktreeManager: worktreeManagerMock.Object);
+
+        var definition = new InProcessTeammateDefinition
+        {
+            TaskId = "tm-deg",
+            TeammateId = "teammate-deg",
+            Task = "Degrade task",
+            IsolationMode = AgentIsolationMode.Worktree
+        };
+
+        var result = await executor.ExecuteTeammateAsync(definition).ConfigureAwait(true);
+
+        result.IsSuccess.Should().BeTrue("worktree 创建失败应降级为正常模式而非失败");
+        agent.Options.WorktreePath.Should().BeNull();
+    }
 }

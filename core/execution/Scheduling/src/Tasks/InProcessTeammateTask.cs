@@ -55,6 +55,8 @@ public sealed partial class InProcessTeammateDefinition
     public string? Color { get; init; }
     public bool PlanModeRequired { get; init; }
     public bool ContinuousMode { get; init; }
+    /// <summary>隔离模式 — Worktree 时 teammate 在独立工作树中执行（供 mainAgent 接手分析 diff）</summary>
+    public AgentIsolationMode IsolationMode { get; init; } = AgentIsolationMode.None;
 }
 
 public sealed class TeammateState
@@ -92,6 +94,8 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
     private readonly ConcurrentDictionary<string, Channel<CoordinatorMessage>> _pendingMessages = new();
     private readonly SemaphoreSlim _teammateLock = new(1, 1);
     private readonly MiddlewarePipeline<TeammateExecutionContext>? _executePipeline;
+    private readonly IAgentWorktreeService? _worktreeService;
+    private readonly IAgentWorktreeManager? _worktreeManager;
 
     public event EventHandler<TeammateCompletedEventArgs>? TeammateCompleted;
 
@@ -105,7 +109,9 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
         IPlanModeManager? planModeManager = null,
         IEnumerable<ITeammateExecutionMiddleware>? executeMiddlewares = null,
         ISubAgentContextAccessor? subAgentContextAccessor = null,
-        IClockService? clock = null)
+        IClockService? clock = null,
+        IAgentWorktreeService? worktreeService = null,
+        IAgentWorktreeManager? worktreeManager = null)
     {
         _agentLifecycleManager = agentLifecycleManager;
         _messageBroker = messageBroker;
@@ -115,6 +121,8 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
         _planModeManager = planModeManager;
         _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
         _clock = clock ?? SystemClockService.Instance;
+        _worktreeService = worktreeService;
+        _worktreeManager = worktreeManager;
 
         if (executeMiddlewares is not null && loggerFactory is not null)
         {
@@ -186,6 +194,33 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
             };
 
             var agent = await _agentLifecycleManager.SpawnSubAgentAsync(definition.Task, options, ct).ConfigureAwait(false);
+
+            // worktree 隔离 — IsolationMode=Worktree 时创建独立工作树（供 mainAgent 接手分析 diff）
+            if (definition.IsolationMode == AgentIsolationMode.Worktree && _worktreeService is not null)
+            {
+                try
+                {
+                    var wtResult = await _worktreeService.CreateAgentWorktreeAsync(agent.ObjectId.UniqueId, cancellationToken: ct).ConfigureAwait(false);
+                    if (wtResult.Success && wtResult.Session is not null)
+                    {
+                        ((AgentBase)agent).Options.WorktreePath = wtResult.Session.WorktreePath;
+                        ((AgentBase)agent).Options.WorktreeBranch = wtResult.Session.BranchName;
+                        if (((AgentBase)agent).Context is not null)
+                        {
+                            ((AgentBase)agent).Context!.WorktreePath = wtResult.Session.WorktreePath;
+                        }
+                        _logger?.LogInformation("Teammate {TeammateId} worktree created: {Path}", definition.TeammateId, wtResult.Session.WorktreePath);
+                    }
+                    else
+                    {
+                        _logger?.LogWarning("Teammate {TeammateId} worktree creation failed: {Error}, degrading to normal mode", definition.TeammateId, wtResult.ErrorMessage);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "Teammate {TeammateId} worktree creation exception, degrading to normal mode", definition.TeammateId);
+                }
+            }
 
             if (definition.InitialContext is { Count: > 0 })
             {
@@ -713,6 +748,24 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
 
         _pendingMessages.TryRemove(teammateId, out var channel);
         channel?.Writer.Complete();
+
+        // worktree 清理 — 有变更保留并记录 reason，无变更移除（对齐 ForkExecutionMiddleware）
+        if (_worktreeManager is not null)
+        {
+            try
+            {
+                var cleanupDetail = await _worktreeManager.CleanupWorktreeAsync(state.Agent.ObjectId.UniqueId, CancellationToken.None).ConfigureAwait(false);
+                if (cleanupDetail.Kept)
+                {
+                    _logger?.LogInformation("Teammate {TeammateId} worktree kept: {Path} (reason: {Reason})",
+                        teammateId, cleanupDetail.WorktreePath, cleanupDetail.Reason);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Teammate {TeammateId} worktree cleanup failed", teammateId);
+            }
+        }
 
         try
         {

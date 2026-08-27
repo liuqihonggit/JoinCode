@@ -154,6 +154,15 @@ internal sealed class JccChatSession : IJccChatSession
         return false;
     }
 
+    /// <summary>中断子代理当前 work（非终止）— 委托 teammateExecutor.InterruptTeammateAsync，teammate 进 idle 等 next prompt</summary>
+    public async Task<bool> InterruptSubAgentAsync(string agentId, CancellationToken cancellationToken = default)
+    {
+        var teammateExecutor = _services.GetService<IInProcessTeammateTaskExecutor>();
+        if (teammateExecutor is null)
+            return false;
+        return await teammateExecutor.InterruptTeammateAsync(agentId, cancellationToken).ConfigureAwait(false);
+    }
+
     /// <inheritdoc />
     public async Task<string?> FindSubAgentIdByNameAsync(string name, CancellationToken cancellationToken = default)
     {

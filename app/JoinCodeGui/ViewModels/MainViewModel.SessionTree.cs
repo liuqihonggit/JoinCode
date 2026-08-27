@@ -79,6 +79,29 @@ public sealed partial class MainViewModel
     }
 
     /// <summary>
+    /// 中断子代理当前 work（非终止）— teammate 进 idle 等 next prompt，可恢复。
+    /// 双击 ESC 走此路径（对齐 ClaudeCode inProcessRunner ESC 行为）。
+    /// </summary>
+    public async Task InterruptSubAgentAsync(SessionItem subSession)
+    {
+        try
+        {
+            var ok = await _session.InterruptSubAgentAsync(subSession.Id).ConfigureAwait(false);
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                if (ok)
+                    subSession.SubSessionState = "Interrupted";
+                StatusText = ok ? $"已中断子代理: {subSession.Title}" : $"中断子代理失败: {subSession.Title}";
+                OnPropertyChanged(nameof(CanStop));
+            });
+        }
+        catch (Exception ex)
+        {
+            WriteErrorLog(ex);
+        }
+    }
+
+    /// <summary>
     /// 是否可停止当前生成 — 主会话发送中 或 当前聚焦子会话运行中（新增需求：双击ESC只打断当前视图会话）。
     /// 遥测网络不受影响（独立服务）。
     /// </summary>
@@ -86,8 +109,8 @@ public sealed partial class MainViewModel
         || (_activeSession is { IsSubSession: true, IsSubSessionRunning: true });
 
     /// <summary>
-    /// 停止当前生成 — 新增需求：双击ESC只打断当前聚焦的会话标签页（subAgent），而非全部会话。
-    /// 当前聚焦子会话且运行中 → 仅终止该子代理（遥测不终止）；
+    /// 停止当前生成 — 双击ESC只打断当前聚焦的会话标签页。
+    /// 当前聚焦子会话且运行中 → 中断该子代理（Interrupt，进 idle 可恢复，非终止）；
     /// 当前聚焦主会话 → 取消主会话发送 CTS（遥测不终止）。
     /// </summary>
     [RelayCommand]
@@ -95,7 +118,7 @@ public sealed partial class MainViewModel
     {
         if (_activeSession is { IsSubSession: true, IsSubSessionRunning: true } subSession)
         {
-            _ = StopSubAgentAsync(subSession);
+            _ = InterruptSubAgentAsync(subSession);
             return;
         }
         if (_sendCts is not null)

@@ -339,7 +339,28 @@ while (!lifecycleCancelled):
 3. **多个子代理同时被中断**：每个子代理独立60秒倒计时？还是全局一个？（倾向独立，每个子会话一个timer）
 
 <!-- 🤖 Auto Decision: 2026-08-27 -->
-<!-- 决策: 采用方案B完整对齐ClaudeCode，而非方案A轻量模拟 -->
-<!-- 原因: 用户明确选方案B；ClaudeCode的idle循环是正确模型，方案A的"Cancel+续跑"是模拟而非真正idle -->
-<!-- 替代方案: 方案A（Cancel+60秒窗口+续跑新spawn），改动小但非真正idle -->
-<!-- 验证: 待实现验证 -->
+<!-- 决策: 步骤1+2完成 — teammate暴露CurrentWorkCts+InterruptTeammateAsync，用_teammateLock保护读写 -->
+<!-- 原因: workCts原是using var局部变量外部无法abort;改为显式try-finally管理,lock内赋值/清空保证Interrupt线程安全 -->
+<!-- 替代方案: 用Volatile字段无锁,但TeammateState是public class用属性风格,加lock更清晰且Interrupt低频可接受 -->
+<!-- 验证: Scheduling.csproj编译通过(0警告0错误),10个测试全通过(8原有+2新增) ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-27 -->
+<!-- 决策: 步骤1+2合并实现(接口+实现+测试一起改),因接口方法不存在则测试无法编译,TDD红绿在同一次改动 -->
+<!-- 原因: 渐进式要求每步可编译可commit;分两次(先加throw NotImplemented再实现)会产生中间无意义commit -->
+<!-- 验证: commit 1d690ddae ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-27 (步骤3-5批量.完成) -->
+<!-- 决策: GUI子会话切teammate完整链路打通:AgentForkMiddleware优先teammate→JccChatSession归并teammate+fork读取→双击ESC走Interrupt→60秒IdleTimer -->
+<!-- 原因: 对齐ClaudeCode inProcessRunner ESC+idle;teammate循环改正常完成退出,Interrupt后进idle等next prompt -->
+<!-- 关键改动: -->
+<!--   3a: teammate循环正常完成退出(非每轮等next prompt),Interrupt(OCE且lifecycle未取消)后进idle -->
+<!--   3b: GetActiveTeammateSnapshotsAsync返回snapshot(TeammateId/ParentSessionId/Task/IsIdle/TurnCount/LastResult) -->
+<!--   3f: TeammateCompleted事件(teammate退出时触发供GUI移除卡片) -->
+<!--   3d: AgentForkMiddleware注入teammateExecutor优先走teammate,回退fork;Hands加引用Scheduling -->
+<!--   3e: JccChatSession.GetSubSessionsAsync归并teammate+fork;StopBackgroundAgentAsync加teammate段 -->
+<!--   4: IJccChatSession+JccChatSession加InterruptSubAgentAsync;StopGenerating改调InterruptSubAgentAsync -->
+<!--   5a: SubAgentIdleTimer(DispatcherTimer 60秒倒计时,Reset/Stop/MainAgentTakeoverRequested) -->
+<!--   5b: MainViewModel集成IdleTimer,Interrupt后启动,OnInputKeyDown调Reset,发送调Stop,超时OnMainAgentTakeoverRequested -->
+<!-- 替代方案: 改fork本身支持Interrupt(违反PRD方案B-revised);或GUI层独立触发(绕过中间件链,需新接口) -->
+<!-- 待完成: 步骤3c(worktree支持)+步骤6完整版(mainAgent分析diff接手,依赖worktree) -->
+<!-- 验证: Core.slnx+JoinCodeGui编译通过(0警告0错误),Scheduling 11测试全通过 ✅ -->

@@ -198,7 +198,7 @@ public sealed class QueryServiceBaseHelperTests
         var service = CreateTestableService();
         service.ExtractRateLimitHeaders(response);
 
-        service.GetLastRateLimitHeaders().Should().BeNull();
+        service.GetLastRateLimitHeaders().Should().BeEmpty();
     }
 
     [Fact]

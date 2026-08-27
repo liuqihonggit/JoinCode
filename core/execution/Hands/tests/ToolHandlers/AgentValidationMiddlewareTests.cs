@@ -91,7 +91,7 @@ public class AgentValidationMiddlewareTests
         await sut.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
 
         context.ResolvedPrimaryType.Should().BeNull();
-        context.AllowedAgentTypes.Should().BeNull();
+        context.AllowedAgentTypes.Should().BeEmpty();
     }
 
     [Fact]
@@ -103,6 +103,6 @@ public class AgentValidationMiddlewareTests
         await sut.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
 
         context.ResolvedPrimaryType.Should().BeNull();
-        context.AllowedAgentTypes.Should().BeNull();
+        context.AllowedAgentTypes.Should().BeEmpty();
     }
 }

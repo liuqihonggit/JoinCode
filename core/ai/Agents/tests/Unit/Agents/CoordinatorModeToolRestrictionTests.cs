@@ -39,6 +39,6 @@ public sealed class CoordinatorModeToolRestrictionTests
         var profile = registry.GetProfile(AgentRole.Coordinator);
 
         profile.Should().NotBeNull();
-        profile!.AllowedTools.Should().BeNull();
+        profile!.AllowedTools.Should().BeEmpty();
     }
 }

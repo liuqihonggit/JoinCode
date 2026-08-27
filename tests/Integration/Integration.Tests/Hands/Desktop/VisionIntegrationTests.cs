@@ -1,4 +1,4 @@
-namespace JoinCode.Hands.Desktop.Tests;
+namespace Integration.Tests;
 
 /// <summary>
 /// P1 E2E 集成验收 — 视觉理解引导桌面操作全链路（PRD §6.3 M2 验收场景）

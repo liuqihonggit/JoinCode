@@ -1,4 +1,4 @@
-namespace JoinCode.Hands.Desktop.Tests;
+namespace Integration.Tests;
 
 /// <summary>
 /// P0 E2E 集成验收 — 记事本全链路：启动→查找窗口→激活→输入文本→截图→关闭

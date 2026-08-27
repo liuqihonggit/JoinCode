@@ -364,3 +364,52 @@ while (!lifecycleCancelled):
 <!-- 替代方案: 改fork本身支持Interrupt(违反PRD方案B-revised);或GUI层独立触发(绕过中间件链,需新接口) -->
 <!-- 待完成: 步骤3c(worktree支持)+步骤6完整版(mainAgent分析diff接手,依赖worktree) -->
 <!-- 验证: Core.slnx+JoinCodeGui编译通过(0警告0错误),Scheduling 11测试全通过 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-27 (步骤3c完成) -->
+<!-- 决策: InProcessTeammateDefinition加IsolationMode字段,executor注入worktreeService/worktreeManager可选参数 -->
+<!-- 原因: IsolationMode=Worktree时spawn后创建独立工作树,供60秒超时mainAgent接手分析diff;创建失败降级正常模式非失败 -->
+<!-- 关键改动: ExecuteTeammateDirectAsync加worktree创建;CleanupTeammateAsync加worktree清理(对齐ForkExecutionMiddleware) -->
+<!-- 测试: 2个新增测试(WorktreeIsolation_ShouldCreateAndCleanup + CreationFailure_ShouldDegrade),13测试全通过 -->
+<!-- 验证: Scheduling编译通过(0警告0错误),commit eba177cd9 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-08-27 (步骤6完整版完成) -->
+<!-- 决策: OnMainAgentTakeoverRequested增强 — 超时时先提取worktree diff再Stop,有diff则自动注入主会话触发mainAgent -->
+<!-- 原因: 对齐PRD 4.6 — 提取子代理worktree相对主仓库diff,构造接手消息注入主会话ChatHistory触发mainAgent新一轮 -->
+<!-- 关键改动: ExtractWorktreeDiffSummaryAsync(git diff --stat);主会话忙时预填InputText不自动发送避免冲突 -->
+<!-- 替代方案: 直接调_session.StreamAsync绕过SendCommand(会丢失UI状态管理);或只UI提示让用户手动发(不够自动) -->
+<!-- 验证: JoinCodeGui编译通过(0警告0错误),commit 0fefebf68 ✅ -->
+
+## 10. 实现完成总结（2026-08-27）
+
+### 10.1 全部步骤完成状态
+| 步骤 | 内容 | 状态 | commit |
+|------|------|------|--------|
+| 1+2 | teammate暴露workCts+InterruptTeammateAsync | ✅ | 1d690ddae |
+| 3a | teammate循环改正常完成退出 | ✅ | 99d1a972a |
+| 3b | GetActiveTeammateSnapshotsAsync | ✅ | e904a5e22 |
+| 3c | worktree隔离支持 | ✅ | eba177cd9 |
+| 3d | AgentForkMiddleware优先teammate | ✅ | 92b5a6a0c |
+| 3e | JccChatSession归并teammate+fork | ✅ | 639f7ec97 |
+| 3f | TeammateCompleted事件 | ✅ | a084c0340 |
+| 4 | 双击ESC走Interrupt | ✅ | def30e75b |
+| 5a | SubAgentIdleTimer | ✅ | 35e98f3a9 |
+| 5b | MainViewModel集成IdleTimer | ✅ | f5d35bbce |
+| 6 | mainAgent分析diff接手编排 | ✅ | 0fefebf68 |
+| 7 | StopAgentAsync补CleanupWorktreeAsync | ✅ | 534341e1a |
+
+### 10.2 验收标准达成
+- ✅ 双击ESC中断子代理，子代理进idle（非Cancelled，可恢复）
+- ✅ 60秒空闲倒计时启动，UI显示剩余秒数
+- ✅ 用户打字（未发送）→ 倒计时重置（不恢复子代理）
+- ✅ 用户发送消息 → 取消倒计时（用户主动接管）
+- ✅ 60秒无输入 → mainAgent被唤醒，提取diff注入主会话触发接手
+- ✅ Interrupt后worktree保留（不清理），仅Cancel/Stop时清理
+- ✅ 主会话双击ESC行为不变（_sendCts.Cancel）
+- ✅ 对齐ClaudeCode inProcessRunner ESC+idle设计
+- ✅ 编译零警告（TreatWarningsAsErrors）
+
+### 10.3 后续可优化项
+- 🔵 E2E集成测试（MockServer + jcc联合验证完整链路）
+- 🔵 多子代理同时中断时独立倒计时（当前单timer，PRD开放问题3）
+- 🔵 接手消息格式优化（当前git diff --stat，可加变更文件内容摘要）
+- 🔵 IdleTimeoutSeconds配置项接入settings.json（当前硬编码60秒）

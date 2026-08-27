@@ -11,24 +11,92 @@ public sealed partial class MainViewModel
     /// <summary>子代理中断后的空闲倒计时器 — null 表示无活跃倒计时</summary>
     private SubAgentIdleTimer? _idleTimer;
 
-    /// <summary>60秒空闲超时触发 — mainAgent 接手编排（Cancel teammate + 接手分析 diff）</summary>
+    /// <summary>60秒空闲超时触发 — mainAgent 接手编排（Cancel teammate + 提取 diff + 注入主会话触发 mainAgent）</summary>
 #pragma warning disable JCC3005 // 事件处理器必须是 async void（EventHandler 签名）
     private async void OnMainAgentTakeoverRequested(object? sender, string teammateId)
 #pragma warning restore JCC3005
     {
         try
         {
-            var ok = await _session.StopBackgroundAgentAsync(teammateId).ConfigureAwait(false);
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            // 1. 先获取 worktree 路径（Stop 之前 — Stop 之后无变更的 worktree 会被自动清理）
+            var worktreePath = await _session.GetSubAgentWorktreePathAsync(teammateId).ConfigureAwait(false);
+
+            // 2. 提取 worktree diff 摘要（对齐 PRD 4.6 — 供 mainAgent 分析接手）
+            var diffSummary = string.Empty;
+            if (!string.IsNullOrEmpty(worktreePath) && System.IO.Directory.Exists(worktreePath))
             {
-                StatusText = ok ? $"子代理空闲超时已终止,mainAgent接手: {teammateId}" : $"子代理超时终止失败: {teammateId}";
+                diffSummary = await ExtractWorktreeDiffSummaryAsync(worktreePath).ConfigureAwait(false);
+            }
+
+            // 3. 真正终止子代理（Stop 内部会调 CleanupWorktreeAsync — 有变更保留，无变更删除）
+            var ok = await _session.StopBackgroundAgentAsync(teammateId).ConfigureAwait(false);
+
+            // 4. 构造接手消息注入主会话触发 mainAgent（对齐 PRD 4.6）
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
+            {
                 _idleTimer?.Dispose();
                 _idleTimer = null;
+
+                if (ok && !string.IsNullOrWhiteSpace(diffSummary))
+                {
+                    AddSystemMessage($"⏰ 子代理空闲超时，mainAgent 接手: {teammateId}");
+                    var takeoverMessage = $"子代理 {teammateId} 已因空闲超时终止。它在 worktree 中改了以下内容，请接手分析并继续后续工作：\n\n```\n{diffSummary}\n```";
+                    if (!IsBusy)
+                    {
+                        // 主会话空闲 — 自动注入并触发 mainAgent
+                        InputText = takeoverMessage;
+                        await SendCommand.ExecuteAsync(null);
+                    }
+                    else
+                    {
+                        // 主会话正忙 — 预填输入框，用户发送完后自动触发
+                        InputText = takeoverMessage;
+                        StatusText = $"子代理超时已终止，接手消息已预填（主会话忙，发送后触发）: {teammateId}";
+                    }
+                }
+                else
+                {
+                    StatusText = ok
+                        ? $"子代理空闲超时已终止（无变更）: {teammateId}"
+                        : $"子代理超时终止失败: {teammateId}";
+                }
+                OnPropertyChanged(nameof(CanStop));
             });
         }
         catch (Exception ex)
         {
             WriteErrorLog(ex);
+        }
+    }
+
+    /// <summary>提取 worktree 相对主仓库的 diff 摘要（git diff --stat）— 供 mainAgent 接手分析</summary>
+    private static async Task<string> ExtractWorktreeDiffSummaryAsync(string worktreePath)
+    {
+        try
+        {
+            var psi = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "git",
+                Arguments = "diff --stat",
+                WorkingDirectory = worktreePath,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                StandardOutputEncoding = System.Text.Encoding.UTF8
+            };
+            using var proc = System.Diagnostics.Process.Start(psi);
+            if (proc is null)
+                return string.Empty;
+            var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+            var stderrTask = proc.StandardError.ReadToEndAsync();
+            await proc.WaitForExitAsync().ConfigureAwait(false);
+            var output = await stdoutTask.ConfigureAwait(false);
+            await stderrTask.ConfigureAwait(false);
+            return output.Trim();
+        }
+        catch
+        {
+            return string.Empty;
         }
     }
 

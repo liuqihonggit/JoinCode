@@ -1,5 +1,7 @@
 global using FluentAssertions;
 global using JoinCode.Abstractions.Interfaces;
+global using JoinCode.Abstractions.LLM;
+global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.Tools;
 global using JoinCode.Vision.Quadtree;
 global using JoinCode.Vision.Imaging;

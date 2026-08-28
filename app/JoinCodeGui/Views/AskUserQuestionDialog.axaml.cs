@@ -11,7 +11,7 @@ namespace JoinCode.Gui.Views;
 /// </summary>
 public sealed partial class AskUserQuestionDialog : Window
 {
-    private readonly List<QuestionOption>? _options;
+    private readonly List<QuestionOption> _options = [];
     private readonly bool _multiSelect;
     private readonly List<int> _selectedIndices = [];
 

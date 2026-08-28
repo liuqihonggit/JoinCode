@@ -111,7 +111,7 @@ public sealed class ChatUiMessage : INotifyPropertyChanged
     /// 子代理运行组 — Kind=AgentRunGroup 时持有本回合全部 subAgent 的行 VM 列表，
     /// 由 SubAgentRunTracker 驱动刷新（内嵌组合模型，卡片顺序天然跟随触发它的工具调用）
     /// </summary>
-    public List<AgentRunVm>? AgentRuns { get; set; }
+    public List<AgentRunVm> AgentRuns { get; set; } = [];
 
     /// <summary>是否为子代理运行组卡片</summary>
     public bool IsAgentRunGroup => Kind == ChatUiMessageKind.AgentRunGroup;

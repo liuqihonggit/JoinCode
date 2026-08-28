@@ -55,9 +55,10 @@ ADR 引用 design/plans，但不重复其内容。
 
 ## 粒度策略
 
-本项目采用**架构级 + 组件策略级**两层：
+本项目采用**架构级 + 组件策略级 + 工程级**三层：
 - 架构级（0001-0012）：跨模块、影响全局的决策
-- 组件策略级（0013-0024）：组件设计风格、工作方法论、反模式禁令
+- 组件策略级（0013-0025）：组件设计风格、工作方法论、反模式禁令
+- 工程级（0026-0031）：CI/编译/测试/运行时工程决策
 
 函数级决策留在代码注释或 design 文档中。
 
@@ -97,3 +98,14 @@ ADR 引用 design/plans，但不重复其内容。
 | 0023 | 减法思维优先 | accepted | 反例4·加法思维 |
 | 0024 | 治标不治本禁令 | accepted | 反例3·治标不治本 |
 | 0025 | 归档 IMcpProtocolHandler 死接口 | accepted | 规则4·取代0012 |
+
+### 工程级（0026-0031）
+
+| 编号 | 标题 | 状态 | AGENTS.md 对应位置 |
+|------|------|------|-------------------|
+| 0026 | PR 两段式流水线验证 | accepted | Git 规范·PR 两段式验证 |
+| 0027 | TreatWarningsAsErrors 零警告容忍 | accepted | 关键约束·TreatWarningsAsErrors |
+| 0028 | InvariantGlobalization 渐进式双语 | accepted | 关键约束·InvariantGlobalization |
+| 0029 | 分析器铁律 JCC5002/JCC9006 | accepted | GUI 测试·分析器铁律 |
+| 0030 | E2E 真实服务策略 | accepted | E2E·MockServer+jcc 联合测试 |
+| 0031 | HTTP 连接池 DNS 刷新 | accepted | 代码注释·QueryServiceBase.cs:70 |

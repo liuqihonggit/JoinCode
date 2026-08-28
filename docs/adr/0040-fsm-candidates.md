@@ -94,6 +94,7 @@
 | 当前实现 | 已用 StateMachine.cs + AgentStateContext，但无守卫、无事件枚举 |
 | 事件枚举（建议） | `AgentEvent { Start, Pause, Resume, Complete, Fail, Cancel, Retry }` |
 | 改造 | 加事件枚举 + 守卫（如 Retry 次数限制）；OnEnter/OnExit 记录时间戳 |
+| **状态** | **跳过** — API 为 `TryTransitionAsync(agentId, newState)` 目标状态驱动，调用方 8 处直接传 `TaskExecutionStatus` 值；改事件驱动需改所有调用方 + 测试，收益不抵成本（减法思维 ADR 0023） |
 
 #### 7. TaskStateMachine ⭐
 
@@ -102,6 +103,7 @@
 | 位置 | `core/execution/Scheduling/src/Core/TaskStateMachine.cs` |
 | 当前实现 | 已用 StateMachine.cs，无守卫、无事件枚举、无上下文 |
 | 改造 | 加事件枚举 + 守卫（如依赖满足才能 Pending→Running） |
+| **状态** | **跳过** — API 为 `TryTransitionTo(targetState)` 目标状态驱动，本质是"目标状态校验"非"事件驱动转换"；强行加事件枚举是过度设计（减法思维 ADR 0023） |
 
 ---
 

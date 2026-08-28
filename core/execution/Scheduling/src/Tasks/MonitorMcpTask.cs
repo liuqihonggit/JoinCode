@@ -337,20 +337,17 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
         => _telemetryService?.RecordCount("scheduling.monitor.count", new Dictionary<string, string> { ["operation"] = operation, ["server"] = serverName, ["success"] = isSuccess.ToString() }, "count", "MCP monitor operation count");
 }
 
-internal sealed class MonitorSession : IAsyncDisposable
+[FsmStateMachine(typeof(MonitorState), typeof(MonitorSessionEvent), MonitorState.Starting)]
+[Transition(MonitorState.Starting, MonitorSessionEvent.Started, MonitorState.Running)]
+[Transition(MonitorState.Starting, MonitorSessionEvent.Fail, MonitorState.Error)]
+[Transition(MonitorState.Starting, MonitorSessionEvent.Stop, MonitorState.Stopped)]
+[Transition(MonitorState.Running, MonitorSessionEvent.Fail, MonitorState.Error)]
+[Transition(MonitorState.Running, MonitorSessionEvent.Stop, MonitorState.Stopped)]
+[Transition(MonitorState.Error, MonitorSessionEvent.Recover, MonitorState.Running)]
+[Transition(MonitorState.Error, MonitorSessionEvent.Stop, MonitorState.Stopped)]
+internal sealed partial class MonitorSession : IAsyncDisposable
 {
-    private static readonly FrozenDictionary<TransitionKey<MonitorState, MonitorSessionEvent>, TransitionRule<MonitorState>> Transitions = new Dictionary<TransitionKey<MonitorState, MonitorSessionEvent>, TransitionRule<MonitorState>>
-    {
-        [new(MonitorState.Starting, MonitorSessionEvent.Started)] = new(MonitorState.Running),
-        [new(MonitorState.Starting, MonitorSessionEvent.Fail)] = new(MonitorState.Error),
-        [new(MonitorState.Starting, MonitorSessionEvent.Stop)] = new(MonitorState.Stopped),
-        [new(MonitorState.Running, MonitorSessionEvent.Fail)] = new(MonitorState.Error),
-        [new(MonitorState.Running, MonitorSessionEvent.Stop)] = new(MonitorState.Stopped),
-        [new(MonitorState.Error, MonitorSessionEvent.Recover)] = new(MonitorState.Running),
-        [new(MonitorState.Error, MonitorSessionEvent.Stop)] = new(MonitorState.Stopped),
-    }.ToFrozenDictionary();
-
-    private readonly Fsm<MonitorState, MonitorSessionEvent> _fsm = new(Transitions, MonitorState.Starting);
+    private readonly Fsm<MonitorState, MonitorSessionEvent> _fsm;
 
     public string MonitorId { get; }
     public McpMonitorConfig Config { get; }
@@ -365,6 +362,8 @@ internal sealed class MonitorSession : IAsyncDisposable
     {
         MonitorId = monitorId;
         Config = config;
+        _fsm = new Fsm<MonitorState, MonitorSessionEvent>(_fsmTable, MonitorState.Starting);
+        _fsm.StateChanged += (_, e) => FsmDispatchEvent(e);
     }
 
     /// <summary>触发事件 — 查转换表合法则转,非法静默忽略(保持原直接赋值语义)</summary>

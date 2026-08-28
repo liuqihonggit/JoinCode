@@ -2,6 +2,7 @@ global using JoinCode.Abstractions.Attributes;
 global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.LLM;
 global using JoinCode.Abstractions.LLM.Chat;
+global using JoinCode.Abstractions.Localization;
 global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.Utils;
 global using Microsoft.Extensions.DependencyInjection;

@@ -128,46 +128,48 @@ public class ImageMetaphorToolHandlers
         return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
     }
 
-    private const string DescribeSystemPrompt = """
-        你是一个图像分析专家。请分析图片并返回JSON格式的描述。
-        返回格式：
+    private static string DescribeSystemPrompt => $$"""
+        You are an image analysis expert. Analyze the image and return a JSON description.
+        Return format:
         ```json
         {
-          "summary": "图片整体描述",
+          "summary": "overall image description",
           "labels": [
             {
-              "label": "标签名",
-              "description": "简短描述",
-              "suggested_attributes": ["可下钻属性1", "可下钻属性2"]
+              "label": "label name",
+              "description": "brief description",
+              "suggested_attributes": ["drillable attribute 1", "drillable attribute 2"]
             }
           ]
         }
         ```
-        要求：
-        1. summary 用一句话概括图片内容
-        2. labels 包含图片中的主要对象/区域/概念
-        3. suggested_attributes 列出该标签可进一步深挖的属性（如品牌、颜色、状态、数量等）
-        4. 仅返回JSON，不要额外解释
+        Requirements:
+        1. summary: one sentence describing the image content
+        2. labels: main objects/regions/concepts in the image
+        3. suggested_attributes: attributes that can be further explored (e.g., brand, color, state, quantity)
+        4. Return all text content in {{LocalLanguageDetector.GetNativeLanguageName(L.CurrentLanguage)}}
+        5. Return JSON only, no extra explanation
         """;
 
-    private const string DrillDownSystemPrompt = """
-        你是一个图像分析专家。请深入分析图片中指定标签的详细属性。
-        返回格式：
+    private static string DrillDownSystemPrompt => $$"""
+        You are an image analysis expert. Analyze the detailed attributes of the specified label in the image.
+        Return format:
         ```json
         {
-          "label": "标签名",
+          "label": "label name",
           "attributes": [
-            {"name": "属性名", "value": "属性值", "confidence": 0.9}
+            {"name": "attribute name", "value": "attribute value", "confidence": 0.9}
           ],
-          "suggested_next": ["建议下一步下钻的目标1", "目标2"],
+          "suggested_next": ["next drill-down target 1", "target 2"],
           "has_more": true
         }
         ```
-        要求：
-        1. attributes 包含该标签的细粒度属性（如品牌、型号、颜色、状态等）
-        2. confidence 为置信度 0..1
-        3. suggested_next 列出可继续下钻的子目标
-        4. has_more 表示是否还有更多属性可探索
-        5. 仅返回JSON，不要额外解释
+        Requirements:
+        1. attributes: fine-grained attributes of the label (e.g., brand, model, color, state)
+        2. confidence: confidence score 0..1
+        3. suggested_next: sub-targets that can be further drilled down
+        4. has_more: whether there are more attributes to explore
+        5. Return all text content in {{LocalLanguageDetector.GetNativeLanguageName(L.CurrentLanguage)}}
+        6. Return JSON only, no extra explanation
         """;
 }

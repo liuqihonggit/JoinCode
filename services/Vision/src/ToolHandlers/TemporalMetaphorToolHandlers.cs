@@ -134,13 +134,13 @@ public class TemporalMetaphorToolHandlers
         }
     }
 
-    private const string TemporalSystemPrompt = """
-        你是一个时序分析专家。请分析多帧图片的时序演变，返回结构化分析。
-        关注：
-        1. 物体运动轨迹和速度
-        2. 状态变化（出现/消失/变形）
-        3. 稳定区域和变化区域
-        4. 时序模式（周期性/趋势性/突发性）
-        用中文返回分析结果。
+    private static string TemporalSystemPrompt => $"""
+        You are a temporal analysis expert. Analyze the temporal evolution across multiple frames and return a structured analysis.
+        Focus on:
+        1. Object motion trajectories and velocity
+        2. State changes (appearance/disappearance/deformation)
+        3. Stable regions and changing regions
+        4. Temporal patterns (periodic/trend/sporadic)
+        Return the analysis in {LocalLanguageDetector.GetNativeLanguageName(L.CurrentLanguage)}.
         """;
 }

@@ -52,8 +52,8 @@ public sealed class BridgeGuardIntegrationE2ETests : IAsyncLifetime
             envVars: new Dictionary<string, string?>
             {
                 ["JCC_BRIDGE_MODE"] = "1",
-                ["CLAUDE_CODE_OAUTH_TOKEN"] = null,
-                ["CLAUDE_CODE_SESSION_ACCESS_TOKEN"] = null,
+                [JccEnvVar.OAuthToken.ToValue()] = null,
+                [JccEnvVar.SessionAccessToken.ToValue()] = null,
             },
             args: [],
             timeoutSeconds: 15).ConfigureAwait(true);
@@ -75,7 +75,7 @@ public sealed class BridgeGuardIntegrationE2ETests : IAsyncLifetime
             envVars: new Dictionary<string, string?>
             {
                 ["JCC_BRIDGE_MODE"] = "1",
-                ["CLAUDE_CODE_SESSION_ACCESS_TOKEN"] = "test-token-xxx",
+                [JccEnvVar.SessionAccessToken.ToValue()] = "test-token-xxx",
                 ["JCC_API_BASE_URL"] = "http://localhost:1", // 不可达端口，加速失败
             },
             args: [],

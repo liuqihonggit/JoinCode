@@ -724,7 +724,7 @@ public sealed partial class BridgeMain : ServiceEntity
         // 对齐 TS 端: sessionIngressUrl — ant 开发环境下可能与 baseUrl 不同
         var headlessSessionIngressUrl = baseUrl;
         var userType = Environment.GetEnvironmentVariable("USER_TYPE");
-        var ingressOverride = Environment.GetEnvironmentVariable("CLAUDE_BRIDGE_SESSION_INGRESS_URL");
+        var ingressOverride = Environment.GetEnvironmentVariable(JccEnvVar.BridgeSessionIngressUrl.ToValue());
         if (string.Equals(userType, "ant", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(ingressOverride))
         {
             headlessSessionIngressUrl = ingressOverride;

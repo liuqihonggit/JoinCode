@@ -16,7 +16,7 @@ public sealed class BridgeDeviceTokenService
     private readonly SemaphoreSlim _semaphore = new(1, 1);
 
     /// <summary>受信设备令牌环境变量名</summary>
-    private const string TrustedDeviceTokenEnvVar = "CLAUDE_TRUSTED_DEVICE_TOKEN";
+    private static readonly string TrustedDeviceTokenEnvVar = JccEnvVar.TrustedDeviceToken.ToValue();
 
     public BridgeDeviceTokenService(HttpClient httpClient, IFileSystem fs, ILogger? logger = null)
         : this(httpClient, fs, logger, authFilePath: null)

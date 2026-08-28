@@ -12,8 +12,8 @@ public sealed class BridgeMainCommand
     private const string PolicyActionAllowRemoteControl = "allow_remote_control";
     private const string ConfigKeyRemoteDialogSeen = "remoteDialogSeen";
     private const string TokenProviderAnthropic = "anthropic";
-    private const string EnvOAuthToken = "CLAUDE_CODE_OAUTH_TOKEN";
-    private const string EnvSessionAccessToken = "CLAUDE_CODE_SESSION_ACCESS_TOKEN";
+    private static readonly string EnvOAuthToken = JccEnvVar.OAuthToken.ToValue();
+    private static readonly string EnvSessionAccessToken = JccEnvVar.SessionAccessToken.ToValue();
 
     private readonly IServiceProvider? _services;
     private readonly IFileSystem _fs;
@@ -265,11 +265,11 @@ public sealed class BridgeMainCommand
             }
         }
 
-        // 3. CLAUDE_CODE_OAUTH_TOKEN env
+        // 3. JCC_OAUTH_TOKEN env
         var oauthToken = Environment.GetEnvironmentVariable(EnvOAuthToken);
         if (!string.IsNullOrEmpty(oauthToken)) return oauthToken;
 
-        // 4. CLAUDE_CODE_SESSION_ACCESS_TOKEN env
+        // 4. JCC_SESSION_ACCESS_TOKEN env
         var sessionToken = Environment.GetEnvironmentVariable(EnvSessionAccessToken);
         if (!string.IsNullOrEmpty(sessionToken)) return sessionToken;
 

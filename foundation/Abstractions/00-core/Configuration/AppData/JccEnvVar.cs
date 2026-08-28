@@ -78,6 +78,12 @@ public enum JccEnvVar
     // 新增: Bridge 环境变量（对齐 TS 端 CLAUDE_CODE_*）
     [EnumValue("JCC_SESSION_ACCESS_TOKEN")] SessionAccessToken,
     [EnumValue("JCC_BRIDGE_USE_CCR_V2")] BridgeUseCcrV2,
+    [EnumValue("JCC_OAUTH_TOKEN")] OAuthToken,
+    [EnumValue("JCC_BRIDGE_SESSION_INGRESS_URL")] BridgeSessionIngressUrl,
+    [EnumValue("JCC_TRUSTED_DEVICE_TOKEN")] TrustedDeviceToken,
+    [EnumValue("JCC_POST_FOR_SESSION_INGRESS_V2")] PostForSessionIngressV2,
+    [EnumValue("JCC_WORKER_EPOCH")] WorkerEpoch,
+    [EnumValue("JCC_FORCE_SANDBOX")] ForceSandbox,
 
     // 启动时权限模式覆盖 — 支持 E2E 测试自动升级权限（如 bypass）
     [EnumValue("JCC_PERMISSION_MODE")] PermissionMode,

@@ -18,7 +18,7 @@ public sealed partial class WorkCcrV2RegisterMiddleware : ServiceEntity, IHandle
 
     public async Task InvokeAsync(HandleWorkContext ctx, MiddlewareDelegate<HandleWorkContext> next, CancellationToken ct)
     {
-        var forceCcrV2 = Environment.GetEnvironmentVariable("CLAUDE_BRIDGE_USE_CCR_V2") is "1" or "true";
+        var forceCcrV2 = Environment.GetEnvironmentVariable(JccEnvVar.BridgeUseCcrV2.ToValue()) is "1" or "true";
 
         if ((ctx.Secret?.UseCodeSessions == true || forceCcrV2) && ctx.SecretApiBaseUrl is not null && ctx.SessionIngressToken is not null)
         {

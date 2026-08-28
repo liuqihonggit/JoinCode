@@ -16,13 +16,13 @@ public sealed class BridgeDeviceTokenServiceTests : IDisposable
         _fs.CreateDirectory("/test/");
 
         // 保存原始环境变量
-        _originalEnvToken = Environment.GetEnvironmentVariable("CLAUDE_TRUSTED_DEVICE_TOKEN");
-        Environment.SetEnvironmentVariable("CLAUDE_TRUSTED_DEVICE_TOKEN", null);
+        _originalEnvToken = Environment.GetEnvironmentVariable(JccEnvVar.TrustedDeviceToken.ToValue());
+        Environment.SetEnvironmentVariable(JccEnvVar.TrustedDeviceToken.ToValue(), null);
     }
 
     public void Dispose()
     {
-        Environment.SetEnvironmentVariable("CLAUDE_TRUSTED_DEVICE_TOKEN", _originalEnvToken);
+        Environment.SetEnvironmentVariable(JccEnvVar.TrustedDeviceToken.ToValue(), _originalEnvToken);
     }
 
     private BridgeDeviceTokenService CreateSut(HttpResponseMessage? enrollResponse = null)
@@ -48,7 +48,7 @@ public sealed class BridgeDeviceTokenServiceTests : IDisposable
     [Fact]
     public async Task GetToken_ReturnsEnvVar_WhenSet()
     {
-        Environment.SetEnvironmentVariable("CLAUDE_TRUSTED_DEVICE_TOKEN", "env-token-123");
+        Environment.SetEnvironmentVariable(JccEnvVar.TrustedDeviceToken.ToValue(), "env-token-123");
         try
         {
             var sut = CreateSut();
@@ -57,18 +57,18 @@ public sealed class BridgeDeviceTokenServiceTests : IDisposable
         }
         finally
         {
-            Environment.SetEnvironmentVariable("CLAUDE_TRUSTED_DEVICE_TOKEN", null);
+            Environment.SetEnvironmentVariable(JccEnvVar.TrustedDeviceToken.ToValue(), null);
         }
     }
 
     [Fact]
     public async Task GetToken_ReturnsCachedValue_WhenAlreadyCached()
     {
-        Environment.SetEnvironmentVariable("CLAUDE_TRUSTED_DEVICE_TOKEN", "cached-token");
+        Environment.SetEnvironmentVariable(JccEnvVar.TrustedDeviceToken.ToValue(), "cached-token");
         var sut = CreateSut();
         var first = await sut.GetTrustedDeviceTokenAsync().ConfigureAwait(true);
         // 清除环境变量
-        Environment.SetEnvironmentVariable("CLAUDE_TRUSTED_DEVICE_TOKEN", null);
+        Environment.SetEnvironmentVariable(JccEnvVar.TrustedDeviceToken.ToValue(), null);
         // 第二次应返回缓存
         var second = await sut.GetTrustedDeviceTokenAsync().ConfigureAwait(true);
         second.Should().Be("cached-token");
@@ -78,7 +78,7 @@ public sealed class BridgeDeviceTokenServiceTests : IDisposable
     public async Task GetToken_EnvVarTakesPrecedenceOverStorage()
     {
         WriteAuthJson("""{"device_token": "storage-token", "api_key": "key123"}""");
-        Environment.SetEnvironmentVariable("CLAUDE_TRUSTED_DEVICE_TOKEN", "env-override");
+        Environment.SetEnvironmentVariable(JccEnvVar.TrustedDeviceToken.ToValue(), "env-override");
         try
         {
             var sut = CreateSut();
@@ -87,7 +87,7 @@ public sealed class BridgeDeviceTokenServiceTests : IDisposable
         }
         finally
         {
-            Environment.SetEnvironmentVariable("CLAUDE_TRUSTED_DEVICE_TOKEN", null);
+            Environment.SetEnvironmentVariable(JccEnvVar.TrustedDeviceToken.ToValue(), null);
         }
     }
 
@@ -107,13 +107,13 @@ public sealed class BridgeDeviceTokenServiceTests : IDisposable
     [Fact]
     public async Task ClearCache_ForcesReReadFromEnvVar()
     {
-        Environment.SetEnvironmentVariable("CLAUDE_TRUSTED_DEVICE_TOKEN", "first-token");
+        Environment.SetEnvironmentVariable(JccEnvVar.TrustedDeviceToken.ToValue(), "first-token");
         var sut = CreateSut();
         var first = await sut.GetTrustedDeviceTokenAsync().ConfigureAwait(true);
         first.Should().Be("first-token");
 
         // 改变环境变量
-        Environment.SetEnvironmentVariable("CLAUDE_TRUSTED_DEVICE_TOKEN", "second-token");
+        Environment.SetEnvironmentVariable(JccEnvVar.TrustedDeviceToken.ToValue(), "second-token");
 
         // 未清除缓存，仍返回旧值
         var cached = await sut.GetTrustedDeviceTokenAsync().ConfigureAwait(true);
@@ -124,7 +124,7 @@ public sealed class BridgeDeviceTokenServiceTests : IDisposable
         var refreshed = await sut.GetTrustedDeviceTokenAsync().ConfigureAwait(true);
         refreshed.Should().Be("second-token");
 
-        Environment.SetEnvironmentVariable("CLAUDE_TRUSTED_DEVICE_TOKEN", null);
+        Environment.SetEnvironmentVariable(JccEnvVar.TrustedDeviceToken.ToValue(), null);
     }
 
     #endregion

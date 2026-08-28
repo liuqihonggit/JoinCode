@@ -2,7 +2,7 @@ namespace Memdir.Services;
 
 /// <summary>
 /// Facet 缓存服务 — 对齐 TS insights.ts loadCachedFacets + saveFacets
-/// 缓存路径: ~/.jcc/usage-data/facets/{sessionId}.json
+/// 缓存路径: ~/.jcc/sessions/{sessionId}/usage-facet.json
 /// </summary>
 [Register(typeof(IFacetCacheService), ServiceLifetime.Singleton)]
 public sealed partial class FacetCacheService : ServiceEntity, IFacetCacheService
@@ -15,10 +15,7 @@ public sealed partial class FacetCacheService : ServiceEntity, IFacetCacheServic
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _facetsDirectory = facetsDirectory
-            ?? Path.Combine(
-                WorkflowConstants.Paths.JccDirectory,
-                "usage-data",
-                "facets");
+            ?? WorkflowConstants.Paths.SessionsDirectory;
         _logger = logger;
     }
 
@@ -60,9 +57,13 @@ public sealed partial class FacetCacheService : ServiceEntity, IFacetCacheServic
 
         try
         {
-            _fs.CreateDirectory(_facetsDirectory);
-
             var filePath = GetFacetFilePath(facets.SessionId);
+            var dir = Path.GetDirectoryName(filePath);
+            if (dir is not null)
+            {
+                _fs.CreateDirectory(dir);
+            }
+
             var json = JsonSerializer.Serialize(facets, SessionFacetsJsonContext.Default.SessionFacets);
 
             await _fs.WriteAllTextAsync(filePath, json, cancellationToken).ConfigureAwait(false);
@@ -97,7 +98,7 @@ public sealed partial class FacetCacheService : ServiceEntity, IFacetCacheServic
     {
         // 清理 sessionId 中的路径分隔符
         var safeName = sessionId.Replace('/', '_').Replace('\\', '_');
-        return Path.Combine(_facetsDirectory, $"{safeName}.json");
+        return Path.Combine(_facetsDirectory, safeName, "usage-facet.json");
     }
 
     /// <summary>

@@ -225,15 +225,12 @@ public class DiagnosticLogRecorderTests
 
     private static async Task<string> ReadLogContentAsync(IFileSystem fs)
     {
-        var homeDir = Environment.GetEnvironmentVariable("USERPROFILE")
-            ?? Environment.GetEnvironmentVariable("HOME")
-            ?? AppContext.BaseDirectory;
-        var diagDir = Path.Combine(homeDir, ".jcc", "diag");
+        var sessionsDir = WorkflowConstants.Paths.SessionsDirectory;
 
-        if (!fs.DirectoryExists(diagDir))
+        if (!fs.DirectoryExists(sessionsDir))
             return string.Empty;
 
-        var files = fs.GetFiles(diagDir, "*.jsonl", SearchOption.AllDirectories);
+        var files = fs.GetFiles(sessionsDir, "*.jsonl", SearchOption.AllDirectories);
         var sb = new StringBuilder();
         foreach (var file in files)
         {

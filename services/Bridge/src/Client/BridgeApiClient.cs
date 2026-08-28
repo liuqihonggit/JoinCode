@@ -1134,12 +1134,12 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
         {
             case 401:
                 throw new BridgeFatalError(
-                    $"{context}: Authentication failed (401){(detail is not null ? $": {detail}" : "")}. Please run `claude remote-control` to authenticate.",
+                    $"{context}: Authentication failed (401){(detail is not null ? $": {detail}" : "")}. Please run `{BrandConstants.CliCommandName} remote-control` to authenticate.",
                     status, errorType);
             case 403:
                 throw new BridgeFatalError(
                     IsExpiredErrorType(errorType)
-                        ? "Remote Control session has expired. Please restart with `claude remote-control` or /remote-control."
+                        ? $"Remote Control session has expired. Please restart with `{BrandConstants.CliCommandName} remote-control` or /remote-control."
                         : $"{context}: Access denied (403){(detail is not null ? $": {detail}" : "")}. Check your organization permissions.",
                     status, errorType);
             case 404:
@@ -1148,7 +1148,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
                     status, errorType);
             case 410:
                 throw new BridgeFatalError(
-                    detail ?? "Remote Control session has expired. Please restart with `claude remote-control` or /remote-control.",
+                    detail ?? $"Remote Control session has expired. Please restart with `{BrandConstants.CliCommandName} remote-control` or /remote-control.",
                     status, errorType ?? "environment_expired");
             case 429:
                 throw new InvalidOperationException($"{context}: Rate limited (429). Polling too frequently.");

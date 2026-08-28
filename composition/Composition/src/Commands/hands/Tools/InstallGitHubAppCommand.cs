@@ -226,7 +226,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
     {
         var items = new[]
         {
-            ("claude - PR/Issue 评论触发的 Claude 助手", "claude"),
+            ($"claude - PR/Issue 评论触发的 {BrandConstants.ProductName} 助手", "claude"),
             ("claude-review - PR 创建时自动 Code Review", "claude-review"),
         };
 

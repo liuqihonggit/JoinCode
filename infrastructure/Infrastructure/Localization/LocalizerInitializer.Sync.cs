@@ -1088,7 +1088,7 @@ public static partial class LocalizerInitializer
         zhEntries[StringKey.GeneralAgentCalledLog] = "调用 GeneralPurposeAgent，任务: {0}";
         zhEntries[StringKey.GeneralTaskFailed] = "任务执行失败: {0}";
         zhEntries[StringKey.GeneralAgentErrorLog] = "调用 GeneralPurposeAgent 时出错";
-        zhEntries[StringKey.GuideAgentDesc] = "使用 Claude Code 引导 Agent 获取使用帮助";
+        zhEntries[StringKey.GuideAgentDesc] = $"使用 {BrandConstants.ProductName} 引导 Agent 获取使用帮助";
         zhEntries[StringKey.ParamQuestion] = "问题或需要的帮助";
         zhEntries[StringKey.ParamFeature] = "功能名称，可选";
         zhEntries[StringKey.GuideAgentCalledLog] = "调用 ClaudeCodeGuideAgent，问题: {0}";

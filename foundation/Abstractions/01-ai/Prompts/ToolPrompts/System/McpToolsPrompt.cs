@@ -62,10 +62,9 @@ public static class RemoteTriggerToolPrompt
 {
     public const string ToolName = McpToolNameConstants.McpRemoteTrigger;
 
-    public const string Description = """
-        通过 claude.ai CCR API 管理计划的远程 Claude Code 代理（触发器）。
-        身份验证在进程中处理 —— token 永远不会到达 shell。
-        """;
+    public const string Description =
+        "通过 claude.ai CCR API 管理计划的远程 " + BrandConstants.ProductName + " 代理（触发器）。\n" +
+        "身份验证在进程中处理 —— token 永远不会到达 shell。";
 
     public const string Prompt = """
         调用 claude.ai 远程触发 API。使用此工具代替 curl —— OAuth token 在进程中自动添加，永远不会暴露。

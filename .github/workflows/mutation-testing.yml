@@ -50,7 +50,7 @@ jobs:
       - name: Build matrix
         id: set
         run: |
-          ALL_PROJECTS='["Guard-Config","Guard-Security","Guard-Hooks","Vault-Memdir","Vault-Other","Brain-CtxAdmin","Brain-CtxChat","Brain-CtxOther","Brain-CtxNonServices","Brain-PromptsSections","Brain-PromptsOther","Brain-Other","Hands-SysTools","Hands-CoreHandlers","Hands-DevTools","Hands-SkillServices","Hands-SkillBuiltIn","Hands-SkillOther","Hands-Api","Hands-Shell","Scheduling","McpToolDispatch","Llm","Agents","Reasoning","CodeIndex","Browser","Mcp","Eyes","Dream","Bridge-Session","Bridge-Transport","Bridge-CoreOnly","Bridge-Messaging","Bridge-ClientServer","Composition","Clock","Infra-IO-FileOps","Infra-IO-FsAndConfig","Infra-IO-ProcessAndOther","Infra-Utils-Text","Infra-Utils-Resilience","Infra-Utils-Other","Infra-Services","Host-Commands","Host-Other"]'
+          ALL_PROJECTS='["Guard-Config","Guard-Security","Guard-Hooks","Vault-Memdir","Vault-Other","Brain-CtxAdmin","Brain-CtxChat","Brain-CtxOther","Brain-CtxNonServices","Brain-PromptsSections","Brain-PromptsOther","Brain-Other","Hands-SysTools","Hands-CoreHandlers","Hands-DevTools","Hands-SkillServices","Hands-SkillBuiltIn","Hands-SkillOther","Hands-Api","Hands-Shell","Scheduling","McpToolDispatch","Llm","Agents","Reasoning","CodeIndex","Browser","Mcp","Eyes","Dream","Bridge-Session","Bridge-Transport","Bridge-CoreRuntime","Bridge-CoreOther","Bridge-Messaging","Bridge-ClientServer","Composition","Clock","Infra-IO-FileOps","Infra-IO-FsAndConfig","Infra-IO-ProcessAndOther","Infra-Utils-Text","Infra-Utils-Resilience","Infra-Utils-Other","Infra-Services","Host-Commands","Host-Other"]'
           INPUT="${{ github.event.inputs.projects || 'ALL' }}"
           if [ "$INPUT" = "ALL" ]; then
             echo "matrix={\"include\":$(echo $ALL_PROJECTS | jq -c '[.[] | {project: .}]')}" >> $GITHUB_OUTPUT
@@ -70,7 +70,7 @@ jobs:
               elif [ "$trimmed" = "Host" ]; then
                 EXPANDED="$EXPANDED,{\"project\":\"Host-Commands\"},{\"project\":\"Host-Other\"}"
               elif [ "$trimmed" = "Bridge" ]; then
-                EXPANDED="$EXPANDED,{\"project\":\"Bridge-Session\"},{\"project\":\"Bridge-Transport\"},{\"project\":\"Bridge-CoreOnly\"},{\"project\":\"Bridge-Messaging\"},{\"project\":\"Bridge-ClientServer\"}"
+                EXPANDED="$EXPANDED,{\"project\":\"Bridge-Session\"},{\"project\":\"Bridge-Transport\"},{\"project\":\"Bridge-CoreRuntime\"},{\"project\":\"Bridge-CoreOther\"},{\"project\":\"Bridge-Messaging\"},{\"project\":\"Bridge-ClientServer\"}"
               elif [ "$trimmed" = "Infra" ]; then
                 EXPANDED="$EXPANDED,{\"project\":\"Infra-IO-FileOps\"},{\"project\":\"Infra-IO-FsAndConfig\"},{\"project\":\"Infra-IO-ProcessAndOther\"},{\"project\":\"Infra-Utils-Text\"},{\"project\":\"Infra-Utils-Resilience\"},{\"project\":\"Infra-Utils-Other\"},{\"project\":\"Infra-Services\"}"
               else
@@ -85,7 +85,7 @@ jobs:
     name: Stryker - ${{ matrix.project }}
     needs: prepare
     runs-on: windows-latest
-    timeout-minutes: 90
+    timeout-minutes: 60
     strategy:
       matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
       fail-fast: false
@@ -174,7 +174,8 @@ jobs:
             'Dream'                = @{ Dir = 'services\Dream\tests\Unit';               Src = 'Dream.csproj';            Mutate = @() }
             'Bridge-Session'      = @{ Dir = 'services\Bridge\tests\Unit'; Src = 'Bridge.csproj'; Mutate = @('Session/**'); Concurrency = 2 }
             'Bridge-Transport'    = @{ Dir = 'services\Bridge\tests\Unit'; Src = 'Bridge.csproj'; Mutate = @('Transport/**'); Concurrency = 2 }
-            'Bridge-CoreOnly'     = @{ Dir = 'services\Bridge\tests\Unit'; Src = 'Bridge.csproj'; Mutate = @('Core/**'); Concurrency = 2 }
+            'Bridge-CoreRuntime'  = @{ Dir = 'services\Bridge\tests\Unit'; Src = 'Bridge.csproj'; Mutate = @('Core/Runtime/**'); Concurrency = 2 }
+            'Bridge-CoreOther'    = @{ Dir = 'services\Bridge\tests\Unit'; Src = 'Bridge.csproj'; Mutate = @('Core/**','!Core/Runtime/**'); Concurrency = 2 }
             'Bridge-Messaging'    = @{ Dir = 'services\Bridge\tests\Unit'; Src = 'Bridge.csproj'; Mutate = @('Messaging/**'); Concurrency = 2 }
             'Bridge-ClientServer' = @{ Dir = 'services\Bridge\tests\Unit'; Src = 'Bridge.csproj'; Mutate = @('Client/**','Server/**','Config/**','Security/**'); Concurrency = 2 }
             'Composition'          = @{ Dir = 'composition\Composition\tests\Unit';      Src = 'Composition.csproj';     Mutate = @() }
@@ -201,7 +202,7 @@ jobs:
           $slnx = 'Stryker.slnx'
           $slnxPath = Join-Path $env:GITHUB_WORKSPACE $slnx
 
-          $strykerArgs = @("-p", $info.Src, "-s", $slnxPath, "-c", $concurrency, "-b", $breakThreshold, "--configuration", "Debug", "--threshold-low", "60", "--threshold-high", "80", "-r", "progress", "-r", "html", "-r", "json", "-r", "markdown")
+          $strykerArgs = @("-p", $info.Src, "-s", $slnxPath, "-c", $concurrency, "-b", $breakThreshold, "--configuration", "Debug", "--threshold-low", "60", "--threshold-high", "80", "-r", "progress", "-r", "html", "-r", "json", "-r", "markdown", "--test-filter", "Category!=Integration")
 
           if ($info.ContainsKey('Test') -and $info.Test) {
             $strykerArgs += @("--test-project", $info.Test)

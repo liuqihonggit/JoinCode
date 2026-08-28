@@ -49,7 +49,18 @@ internal sealed class CircuitBreakerContext : FsmContext
 /// <para>行为流程：获取当前状态 → 查表 → 守卫判定 → 执行动作 → 转移</para>
 /// <para>计数器递增在 Fsm.Trigger 之前（状态机外），惰性求值在读取 Phase 时触发 OpenTimeout</para>
 /// </summary>
-public sealed class UnifiedCircuitBreaker
+[FsmStateMachine(typeof(CircuitBreakerPhase), typeof(CircuitBreakerEvent), CircuitBreakerPhase.Closed)]
+[Transition(CircuitBreakerPhase.Closed, CircuitBreakerEvent.RecordFailure, CircuitBreakerPhase.Open)]
+[Transition(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.RecordFailure, CircuitBreakerPhase.Open)]
+[Transition(CircuitBreakerPhase.Closed, CircuitBreakerEvent.RecordSuccess, CircuitBreakerPhase.Closed)]
+[Transition(CircuitBreakerPhase.Open, CircuitBreakerEvent.RecordSuccess, CircuitBreakerPhase.Closed)]
+[Transition(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.RecordSuccess, CircuitBreakerPhase.Closed)]
+[Transition(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.TryProbe, CircuitBreakerPhase.HalfOpen)]
+[Transition(CircuitBreakerPhase.Open, CircuitBreakerEvent.OpenTimeout, CircuitBreakerPhase.HalfOpen)]
+[Transition(CircuitBreakerPhase.Closed, CircuitBreakerEvent.Reset, CircuitBreakerPhase.Closed)]
+[Transition(CircuitBreakerPhase.Open, CircuitBreakerEvent.Reset, CircuitBreakerPhase.Closed)]
+[Transition(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.Reset, CircuitBreakerPhase.Closed)]
+public sealed partial class UnifiedCircuitBreaker
 {
     private readonly TimeSpan _openDuration;
     private readonly object _lock = new();
@@ -120,7 +131,8 @@ public sealed class UnifiedCircuitBreaker
             OpenedAt = DateTimeOffset.MinValue,
             LastFailureTime = DateTimeOffset.MinValue,
         };
-        _fsm = new Fsm<CircuitBreakerPhase, CircuitBreakerEvent>(CreateTransitionTable(), CircuitBreakerPhase.Closed);
+        _fsm = new Fsm<CircuitBreakerPhase, CircuitBreakerEvent>(_fsmTable, CircuitBreakerPhase.Closed);
+        _fsm.StateChanged += (_, e) => FsmDispatchEvent(e);
     }
 
     public UnifiedCircuitBreaker(string name, CircuitBreakerConfig config)
@@ -195,51 +207,45 @@ public sealed class UnifiedCircuitBreaker
         }
     }
 
-    private FrozenDictionary<TransitionKey<CircuitBreakerPhase, CircuitBreakerEvent>, TransitionRule<CircuitBreakerPhase>> CreateTransitionTable()
+    [Guard(CircuitBreakerPhase.Closed, CircuitBreakerEvent.RecordFailure)]
+    private static bool FsmGuardFailuresExceedThreshold(FsmContext? ctx) => ((CircuitBreakerContext)ctx!).ConsecutiveFailures >= ((CircuitBreakerContext)ctx!).FailureThreshold;
+
+    [Guard(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.TryProbe)]
+    private static bool FsmGuardProbeCountUnderMax(FsmContext? ctx) => ((CircuitBreakerContext)ctx!).HalfOpenProbeCount < ((CircuitBreakerContext)ctx!).HalfOpenMaxProbe;
+
+    [TransitionAction(CircuitBreakerPhase.Closed, CircuitBreakerEvent.RecordFailure)]
+    [TransitionAction(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.RecordFailure)]
+    private static void FsmActOpen(FsmContext? ctx)
     {
-        TransitionAction openAction = ctx =>
-        {
-            var c = (CircuitBreakerContext)ctx!;
-            c.OpenedAt = DateTimeOffset.UtcNow;
-            c.HalfOpenProbeCount = 0;
-        };
-
-        TransitionAction successAction = ctx =>
-        {
-            var c = (CircuitBreakerContext)ctx!;
-            c.ConsecutiveFailures = 0;
-            c.HalfOpenProbeCount = 0;
-        };
-
-        TransitionAction resetAction = ctx =>
-        {
-            var c = (CircuitBreakerContext)ctx!;
-            c.ConsecutiveFailures = 0;
-            c.HalfOpenProbeCount = 0;
-            c.OpenedAt = DateTimeOffset.MinValue;
-        };
-
-        TransitionAction halfOpenAction = ctx => ((CircuitBreakerContext)ctx!).HalfOpenProbeCount = 0;
-
-        TransitionGuard failuresExceedThreshold = ctx => ((CircuitBreakerContext)ctx!).ConsecutiveFailures >= ((CircuitBreakerContext)ctx!).FailureThreshold;
-        TransitionGuard probeCountUnderMax = ctx => ((CircuitBreakerContext)ctx!).HalfOpenProbeCount < ((CircuitBreakerContext)ctx!).HalfOpenMaxProbe;
-
-        return new Dictionary<TransitionKey<CircuitBreakerPhase, CircuitBreakerEvent>, TransitionRule<CircuitBreakerPhase>>
-        {
-            [new(CircuitBreakerPhase.Closed, CircuitBreakerEvent.RecordFailure)] = new(CircuitBreakerPhase.Open, failuresExceedThreshold, openAction),
-            [new(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.RecordFailure)] = new(CircuitBreakerPhase.Open, null, openAction),
-
-            [new(CircuitBreakerPhase.Closed, CircuitBreakerEvent.RecordSuccess)] = new(CircuitBreakerPhase.Closed, null, successAction),
-            [new(CircuitBreakerPhase.Open, CircuitBreakerEvent.RecordSuccess)] = new(CircuitBreakerPhase.Closed, null, successAction),
-            [new(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.RecordSuccess)] = new(CircuitBreakerPhase.Closed, null, successAction),
-
-            [new(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.TryProbe)] = new(CircuitBreakerPhase.HalfOpen, probeCountUnderMax, ctx => ((CircuitBreakerContext)ctx!).HalfOpenProbeCount++),
-
-            [new(CircuitBreakerPhase.Open, CircuitBreakerEvent.OpenTimeout)] = new(CircuitBreakerPhase.HalfOpen, null, halfOpenAction),
-
-            [new(CircuitBreakerPhase.Closed, CircuitBreakerEvent.Reset)] = new(CircuitBreakerPhase.Closed, null, resetAction),
-            [new(CircuitBreakerPhase.Open, CircuitBreakerEvent.Reset)] = new(CircuitBreakerPhase.Closed, null, resetAction),
-            [new(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.Reset)] = new(CircuitBreakerPhase.Closed, null, resetAction),
-        }.ToFrozenDictionary();
+        var c = (CircuitBreakerContext)ctx!;
+        c.OpenedAt = DateTimeOffset.UtcNow;
+        c.HalfOpenProbeCount = 0;
     }
+
+    [TransitionAction(CircuitBreakerPhase.Closed, CircuitBreakerEvent.RecordSuccess)]
+    [TransitionAction(CircuitBreakerPhase.Open, CircuitBreakerEvent.RecordSuccess)]
+    [TransitionAction(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.RecordSuccess)]
+    private static void FsmActSuccess(FsmContext? ctx)
+    {
+        var c = (CircuitBreakerContext)ctx!;
+        c.ConsecutiveFailures = 0;
+        c.HalfOpenProbeCount = 0;
+    }
+
+    [TransitionAction(CircuitBreakerPhase.Closed, CircuitBreakerEvent.Reset)]
+    [TransitionAction(CircuitBreakerPhase.Open, CircuitBreakerEvent.Reset)]
+    [TransitionAction(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.Reset)]
+    private static void FsmActReset(FsmContext? ctx)
+    {
+        var c = (CircuitBreakerContext)ctx!;
+        c.ConsecutiveFailures = 0;
+        c.HalfOpenProbeCount = 0;
+        c.OpenedAt = DateTimeOffset.MinValue;
+    }
+
+    [TransitionAction(CircuitBreakerPhase.Open, CircuitBreakerEvent.OpenTimeout)]
+    private static void FsmActHalfOpen(FsmContext? ctx) => ((CircuitBreakerContext)ctx!).HalfOpenProbeCount = 0;
+
+    [TransitionAction(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.TryProbe)]
+    private static void FsmActTryProbe(FsmContext? ctx) => ((CircuitBreakerContext)ctx!).HalfOpenProbeCount++;
 }

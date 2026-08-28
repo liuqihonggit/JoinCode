@@ -19,7 +19,7 @@ internal sealed partial class ExitCleanupStep : ServiceEntity, IMiddleware<Start
         var stopHookManager = host.Services.GetService<IStopHookManager>();
         if (stopHookManager is not null)
         {
-            var stopContext = new StopHookContext { SessionId = "main", Reason = "application-exit" };
+            var stopContext = new StopHookContext { SessionId = global::Core.Utils.SessionIdFactory.DefaultSessionId, Reason = "application-exit" };
             await stopHookManager.OnStopAsync(stopContext, ct).ConfigureAwait(false);
         }
 

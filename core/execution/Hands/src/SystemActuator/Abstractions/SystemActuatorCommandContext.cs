@@ -137,7 +137,7 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
         string? sandboxTmpDir = null,
         ILogger? logger = null)
     {
-        var sessionId = Guid.NewGuid().ToString("N")[..8];
+        var sessionId = global::Core.Utils.SessionIdFactory.DefaultSessionId;
         var options = new SystemActuatorExecOptions
         {
             SessionId = sessionId,

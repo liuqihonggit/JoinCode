@@ -706,7 +706,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
                 ? (long)(_clock.GetUtcNow() - startTime).TotalMilliseconds
                 : (long?)null;
 
-            await _transcriptService.SaveMetadataAsync("default", new JoinCode.Abstractions.Interfaces.AgentMetadata
+            await _transcriptService.SaveMetadataAsync(SubAgentContext.Current?.SessionId ?? SessionIdFactory.DefaultSessionId, new JoinCode.Abstractions.Interfaces.AgentMetadata
             {
                 AgentId = subAgent.ObjectId.UniqueId,
                 AgentType = concreteAgent.Options.Variant?.ToValue() ?? concreteAgent.Options.Role.ToValue(),
@@ -746,9 +746,9 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
         try
         {
-            await _transcriptService.AppendEntryAsync("default", agentId, new TranscriptEntry
+            await _transcriptService.AppendEntryAsync(SubAgentContext.Current?.SessionId ?? SessionIdFactory.DefaultSessionId, agentId, new TranscriptEntry
             {
-                SessionId = "default",
+                SessionId = SubAgentContext.Current?.SessionId ?? SessionIdFactory.DefaultSessionId,
                 Role = role,
                 Content = content,
                 Timestamp = _clock.GetUtcNow(),

@@ -637,7 +637,7 @@ public sealed partial class MainViewModel : ViewModelBase
         WriteDebugLog($"AttachRealSession: SelectedConnection={SelectedConnection?.Id}");
 
         // 清空延迟构建的斜杠命令缓存，改用真实引擎的命令清单
-        _slashCommandCache = null;
+        _slashCommandCache = [];
         RefreshSlashSuggestions();
 
         OnPropertyChanged(nameof(IsMockConnection));
@@ -755,10 +755,10 @@ public sealed partial class MainViewModel : ViewModelBase
     }
 
     /// <summary>斜杠命令缓存（懒加载；空命令时回退内置高频命令列表）</summary>
-    private IReadOnlyList<SlashCommandItem>? _slashCommandCache;
+    private IReadOnlyList<SlashCommandItem> _slashCommandCache = [];
 
     /// <summary>引擎可用工具缓存 — AttachRealSession 时异步加载，#工具补全消费</summary>
-    private IReadOnlyList<ToolSummary>? _availableToolsCache;
+    private IReadOnlyList<ToolSummary> _availableToolsCache = [];
 
     /// <summary>当前光标位置（由 View 层同步，用于解析斜杠命令前缀）</summary>
     [ObservableProperty]
@@ -910,7 +910,7 @@ public sealed partial class MainViewModel : ViewModelBase
     }
 
     /// <summary>使斜杠命令缓存失效 — 运行时动态增删命令后调用，下次刷新时重建 Trie</summary>
-    public void InvalidateSlashCommandCache() => _slashCommandCache = null;
+    public void InvalidateSlashCommandCache() => _slashCommandCache = [];
 
     /// <summary>完成斜杠命令补全 — 将选中命令回填到光标位置（替换 / 到前缀结束区间），不破坏其他文本</summary>
     public void CompleteSlashSuggestion()

@@ -8,7 +8,7 @@ namespace JoinCode.Gui.Persistence;
 /// <summary>
 /// GUI 会话持久化存储 — 读写同一 sessions 目录。
 /// 若注入 ITranscriptService,走统一入口(.jsonl + 每会话子目录,与 CLI --continue 共享);
-/// 否则回退到旧扁平 .json(测试隔离兼容)。
+/// 否则回退到每会话子目录 gui.json(测试隔离兼容)。
 /// 通过 IFileSystem 抽象注入,生产用 PhysicalFileSystem,测试用 InMemoryFileSystem。
 /// </summary>
 public sealed class GuiSessionStore
@@ -48,7 +48,7 @@ public sealed class GuiSessionStore
             return [];
 
         var summaries = new List<GuiSessionSummary>();
-        foreach (var file in _fs.GetFiles(_sessionsDir, "*.json", SearchOption.TopDirectoryOnly))
+        foreach (var file in _fs.GetFiles(_sessionsDir, "gui.json", SearchOption.AllDirectories))
         {
             try
             {
@@ -189,11 +189,13 @@ public sealed class GuiSessionStore
         if (_transcriptService is not null)
             return SaveViaTranscriptService(session);
 
-        if (!_fs.DirectoryExists(_sessionsDir))
-            _fs.CreateDirectory(_sessionsDir);
+        var path = GetSessionPath(session.Id);
+        var dir = Path.GetDirectoryName(path);
+        if (dir is not null && !_fs.DirectoryExists(dir))
+            _fs.CreateDirectory(dir);
 
         var json = JsonSerializer.Serialize(session, GuiJsonContext.Default.GuiSessionData);
-        _fs.WriteAllText(GetSessionPath(session.Id), json);
+        _fs.WriteAllText(path, json);
         return true;
     }
 
@@ -244,5 +246,5 @@ public sealed class GuiSessionStore
         return true;
     }
 
-    private string GetSessionPath(string sessionId) => _fs.CombinePath(_sessionsDir, $"{sessionId}.json");
+    private string GetSessionPath(string sessionId) => _fs.CombinePath(_sessionsDir, sessionId, "gui.json");
 }

@@ -75,7 +75,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
             CompletionTokens = completionTokens,
             CacheCreationTokens = cacheCreationTokens,
             CacheReadTokens = cacheReadTokens,
-            SessionId = sessionId ?? Guid.NewGuid().ToString("N")[..8],
+            SessionId = sessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId,
             CostUsd = CalculateCost(model, promptTokens, completionTokens, cacheCreationTokens, cacheReadTokens),
             ApiDurationMs = apiDurationMs
         };

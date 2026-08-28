@@ -108,7 +108,7 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
             $"agent_{agentName}_start",
             new Dictionary<string, JsonElement>
             {
-                ["session_id"] = JsonSerializer.SerializeToElement(sessionId ?? Guid.NewGuid().ToString("N")[..8], CostTrackingJsonContext.Default.String)
+                ["session_id"] = JsonSerializer.SerializeToElement(sessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId, CostTrackingJsonContext.Default.String)
             },
             agentName);
 

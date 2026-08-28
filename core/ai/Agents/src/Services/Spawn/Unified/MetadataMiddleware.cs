@@ -33,7 +33,7 @@ public sealed partial class MetadataMiddleware : ServiceEntity, IUnifiedSpawnMid
         try
         {
             var baseAgent = (AgentBase)agent;
-            await (_transcriptService ?? throw new InvalidOperationException("TranscriptService not available")).SaveMetadataAsync("default", new AgentMetadata
+            await (_transcriptService ?? throw new InvalidOperationException("TranscriptService not available")).SaveMetadataAsync(SubAgentContext.Current?.SessionId ?? SessionIdFactory.DefaultSessionId, new AgentMetadata
             {
                 AgentId = agent.ObjectId.UniqueId,
                 AgentType = baseAgent.Options.Variant?.ToValue() ?? baseAgent.Options.Role.ToValue(),

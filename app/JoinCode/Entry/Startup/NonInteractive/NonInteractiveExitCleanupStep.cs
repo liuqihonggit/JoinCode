@@ -16,7 +16,7 @@ internal sealed partial class NonInteractiveExitCleanupStep : ServiceEntity, IMi
         var stopHookManager = host.Services.GetService<IStopHookManager>();
         if (stopHookManager is not null)
         {
-            var stopContext = new StopHookContext { SessionId = "main", Reason = "non-interactive-exit" };
+            var stopContext = new StopHookContext { SessionId = global::Core.Utils.SessionIdFactory.DefaultSessionId, Reason = "non-interactive-exit" };
             await stopHookManager.OnStopAsync(stopContext, ct).ConfigureAwait(false);
         }
 

@@ -2,7 +2,7 @@ namespace Services.Web;
 
 /// <summary>
 /// 二进制内容持久化 — 对齐TS版 mcpOutputStorage.ts 的 persistBinaryContent
-/// 将二进制响应（PDF、图片等）的原始字节保存到 {sessionDir}/tool-results/{persistId}.{ext}
+/// 将二进制响应（PDF、图片等）的原始字节保存到 ~/.jcc/sessions/{sessionId}/tool-results/{persistId}.{ext}
 /// </summary>
 [Register(typeof(IBinaryContentStorage), ServiceLifetime.Singleton)]
 public sealed partial class BinaryContentStorage : ServiceEntity, IBinaryContentStorage
@@ -75,12 +75,13 @@ public sealed partial class BinaryContentStorage : ServiceEntity, IBinaryContent
 
     /// <summary>
     /// 获取工具结果目录 — 对齐TS版 getToolResultsDir
-    /// 路径: {cwd}/.jcc/sessions/tool-results/
+    /// 路径: ~/.jcc/sessions/{sessionId}/tool-results/
+    /// sessionId 从 SubAgentContext.Current 获取（AsyncLocal），无上下文时回退到 "shared"
     /// </summary>
     private string GetToolResultsDirectory()
     {
-        var cwd = _fs.GetCurrentDirectory();
-        var appData = Path.Combine(cwd, AppDataConstants.AppDataFolder);
-        return Path.Combine(appData, AppDataConstants.SessionsFolderName, AppDataConstants.ToolResultsFolderName);
+        var sessionId = SubAgentContext.Current?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;
+        var safeId = sessionId.Replace('/', '_').Replace('\\', '_');
+        return Path.Combine(WorkflowConstants.Paths.SessionsDirectory, safeId, AppDataConstants.ToolResultsFolderName);
     }
 }

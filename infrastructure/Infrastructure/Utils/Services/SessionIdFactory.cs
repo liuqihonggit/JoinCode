@@ -34,6 +34,28 @@ public static class SessionIdFactory
         return $"{now:yyyyMMdd-HHmm}-{project}-{branch}-parent-{sequence}";
     }
 
+    /// <summary>
+    /// 新建 Fork 会话 ID — 派生式 {parentSessionId}-fork-{ObjectId全局递增数}
+    /// 保持与主会话五段式格式一致的目录命名，消除 GUID 混入 sessions/ 目录
+    /// </summary>
+    public static string CreateFork(string parentSessionId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(parentSessionId);
+        var sequence = new JoinCode.Abstractions.Entity.ObjectId(JoinCode.Abstractions.Entity.ObjectType.Session).SequenceId;
+        return $"{parentSessionId}-fork-{sequence}";
+    }
+
+    /// <summary>
+    /// 新建子代理 ID — 派生式 {parentSessionId}-sub-{ObjectId全局递增数}
+    /// 统一子代理 ID 生成入口，消除散落的 GUID 回退
+    /// </summary>
+    public static string CreateSubAgent(string parentSessionId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(parentSessionId);
+        var sequence = new JoinCode.Abstractions.Entity.ObjectId(JoinCode.Abstractions.Entity.ObjectType.Session).SequenceId;
+        return $"{parentSessionId}-sub-{sequence}";
+    }
+
     private static (string Project, string Branch) DetectLocation() => DetectLocation(Environment.CurrentDirectory);
 
     private static (string Project, string Branch) DetectLocation(string directory)

@@ -69,5 +69,5 @@ public sealed partial class SessionItem : ObservableObject
     public bool IsSubSessionFailed => IsSubSession && SubSessionState is "Failed" or "Cancelled";
 
     /// <summary>子会话消息缓存 — 设计时模拟数据或运行时从引擎加载（不持久化，需求11 点击子会话展示内容）</summary>
-    public List<ChatUiMessage>? SubSessionMessages { get; set; }
+    public List<ChatUiMessage> SubSessionMessages { get; set; } = [];
 }

@@ -18,17 +18,17 @@ public sealed partial class ConfigChangeNotifier : ServiceEntity, IConfigChangeN
     private bool _disposed;
 
     private static readonly string[] RootConfigFiles =
-    new[] { 
+    new[] {
         "AGENTS.md", "agents.md",
-        "CLAUDE.md", "claude.md",
-        "CLAUDE.local.md", "claude.local.md",
+        ClaudeCompatConstants.ProjectRulesFileName, ClaudeCompatConstants.ProjectRulesFileNameLower,
+        ClaudeCompatConstants.ProjectRulesLocalFileName, ClaudeCompatConstants.ProjectRulesLocalFileNameLower,
         "codex.md"
      };
 
     private static readonly string[] RulesSubDirs =
-    new[] { 
+    new[] {
         Path.Combine(".trae", "rules"),
-        Path.Combine(".claude", "rules"),
+        Path.Combine(ClaudeCompatConstants.ConfigDirectory, "rules"),
         Path.Combine(".codex", "rules"),
         Path.Combine(AppDataConstants.AppDataFolder, AppDataConstants.RulesFolderName)
      };

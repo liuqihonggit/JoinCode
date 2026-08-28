@@ -20,7 +20,7 @@ public static class ShellPluginHintExtractor
     private static readonly FrozenSet<string> SupportedTypes = new[] { "plugin" }.ToFrozenSet(StringComparer.Ordinal);
 
     private static readonly Regex HintTagRe = new(
-        @"^[ \t]*<claude-code-hint\s+([^>]*?)\s*\/>[ \t]*$",
+        $@"^[ \t]*<{ClaudeCompatConstants.XmlClaudeCodeHint}\s+([^>]*?)\s*\/>[ \t]*$",
         RegexOptions.Multiline | RegexOptions.Compiled);
 
     private static readonly Regex AttrRe = new(
@@ -29,7 +29,7 @@ public static class ShellPluginHintExtractor
 
     public static ShellPluginHintExtractionResult Extract(string output, string command)
     {
-        if (string.IsNullOrEmpty(output) || !output.Contains("<claude-code-hint", StringComparison.Ordinal))
+        if (string.IsNullOrEmpty(output) || !output.Contains(ClaudeCompatConstants.XmlClaudeCodeHint, StringComparison.Ordinal))
         {
             return new ShellPluginHintExtractionResult
             {

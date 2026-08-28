@@ -232,8 +232,8 @@ public sealed class MemoryCommand : ChatCommandBase
         var agentsPath = Path.Combine(cwd, "AGENTS.md");
         files.Add(("Project AGENTS", agentsPath, "./AGENTS.md", fs.FileExists(agentsPath)));
 
-        var claudePath = Path.Combine(cwd, "CLAUDE.md");
-        files.Add(("Project CLAUDE", claudePath, "./CLAUDE.md", fs.FileExists(claudePath)));
+        var claudePath = Path.Combine(cwd, ClaudeCompatConstants.ProjectRulesFileName);
+        files.Add(("Project CLAUDE", claudePath, $"./{ClaudeCompatConstants.ProjectRulesFileName}", fs.FileExists(claudePath)));
 
         var autoMemDir = Path.Combine(homeDir, AppDataConstants.AppDataFolder, "memories");
         files.Add(("Auto-memory folder", autoMemDir, $"~/{AppDataConstants.AppDataFolder}/memories/", fs.DirectoryExists(autoMemDir)));

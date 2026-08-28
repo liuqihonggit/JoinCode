@@ -177,7 +177,7 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
         var userContext = cloned.UserContext;
         if (definition?.OmitProjectRules == true)
         {
-            userContext = FilterKey(userContext, "claudeMd");
+            userContext = FilterKey(userContext, ClaudeCompatConstants.ContextKeyProjectRules);
         }
 
         var systemContext = cloned.SystemContext;

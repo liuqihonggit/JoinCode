@@ -106,9 +106,9 @@ public sealed record LlmParameters
     };
 
     /// <summary>
-    /// Claude Code 引导 Agent 参数
+    /// JoinCode 引导 Agent 参数
     /// </summary>
-    public static LlmParameters ClaudeCodeGuideAgent => new()
+    public static LlmParameters JoinCodeGuideAgent => new()
     {
         Temperature = 0.4f,
         TopP = 0.95f,

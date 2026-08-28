@@ -607,13 +607,13 @@ public static partial class StringKey
     public const string AgentExecutionContextDesc = "AgentExecutionContextDesc";
     public const string AgentExecutionEngineDesc = "AgentExecutionEngineDesc";
 
-    // === BuiltInAgents (PlanAgent, VerificationAgent, ContextCompressionAgent, ExploreAgent, GeneralPurposeAgent, ClaudeCodeGuideAgent) ===
+    // === BuiltInAgents (PlanAgent, VerificationAgent, ContextCompressionAgent, ExploreAgent, GeneralPurposeAgent, JoinCodeGuideAgent) ===
     public const string PlanAgentClassDesc = "PlanAgentClassDesc";
     public const string VerificationAgentClassDesc = "VerificationAgentClassDesc";
     public const string ContextCompressionAgentClassDesc = "ContextCompressionAgentClassDesc";
     public const string ExploreAgentClassDesc = "ExploreAgentClassDesc";
     public const string GeneralPurposeAgentClassDesc = "GeneralPurposeAgentClassDesc";
-    public const string ClaudeCodeGuideAgentClassDesc = "ClaudeCodeGuideAgentClassDesc";
+    public const string JoinCodeGuideAgentClassDesc = "JoinCodeGuideAgentClassDesc";
 
     // === BuiltInAgentToolHandlers (additional) ===
     public const string GeneralAgentDesc = "GeneralAgentDesc";

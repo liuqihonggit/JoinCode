@@ -1,8 +1,8 @@
-namespace JoinCode.Entry;
+﻿namespace JoinCode.Entry;
 
 /// <summary>
 /// .env/api.json 本地开发配置 — Debug/Release 均可使用
-/// 解析 Claude Code 格式的 JSON 配置，映射到 JoinCode 配置系统
+/// 解析 JoinCode 格式的 JSON 配置，映射到 JoinCode 配置系统
 /// </summary>
 internal sealed class DotEnvConfig
 {

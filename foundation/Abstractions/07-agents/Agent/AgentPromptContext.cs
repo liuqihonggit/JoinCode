@@ -1,8 +1,8 @@
-namespace JoinCode.Abstractions.Interfaces;
+﻿namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
 /// Agent 提示词构建上下文 — 携带运行时配置,供内置 agent 动态注入
-/// <para>对齐 claude code getSystemPrompt({ toolUseContext }) 闭包模式</para>
+/// <para>对齐 TS 原版 getSystemPrompt({ toolUseContext }) 闭包模式</para>
 /// <para>当 agent 需要感知当前 MCP 服务器、可用 skills、settings 时,通过此上下文注入</para>
 /// </summary>
 public sealed record AgentPromptContext

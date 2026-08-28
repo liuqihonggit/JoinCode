@@ -1,8 +1,8 @@
-namespace Core.Agents.Coordinator;
+﻿namespace Core.Agents.Coordinator;
 
 /// <summary>
 /// 邮箱中枢 — 统一消息传递入口，按 MailboxKind 路由到 InProcessMailbox 或文件邮箱。
-/// 对齐 claude code 的 teammateMailbox + AgentTool 双模式设计。
+/// 对齐 TS 原版 的 teammateMailbox + AgentTool 双模式设计。
 /// 渐进式引入：消费者可选用 MailboxHub 替代直接调用 IMailbox 或 ITeammateMailboxService。
 /// </summary>
 [Register(typeof(MailboxHub), ServiceLifetime.Singleton)]

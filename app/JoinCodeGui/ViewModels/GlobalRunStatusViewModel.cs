@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 
 namespace JoinCode.Gui.ViewModels;
 
@@ -39,7 +39,7 @@ public sealed class GlobalRunStatusViewModel : INotifyPropertyChanged
 
     private void Raise(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
-    /// <summary>卡死判定阈值 — 对齐 ClaudeCode useStalledAnimation 的 3s 无心跳</summary>
+    /// <summary>卡死判定阈值 — 对齐 TS 原版 useStalledAnimation 的 3s 无心跳</summary>
     public const double StallThresholdSeconds = 3;
 
     private readonly Func<DateTime> _clock;

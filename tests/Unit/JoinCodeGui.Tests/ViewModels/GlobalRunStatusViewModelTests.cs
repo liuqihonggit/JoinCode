@@ -1,4 +1,4 @@
-using JoinCode.Gui.ViewModels;
+﻿using JoinCode.Gui.ViewModels;
 
 namespace JoinCode.Gui.Tests.ViewModels;
 
@@ -56,7 +56,7 @@ public class GlobalRunStatusViewModelTests
         clock.AdvanceSeconds(10);
         tick();
 
-        vm.IsStalled.Should().BeFalse("有工具执行时豁免卡死检测（对齐 ClaudeCode）");
+        vm.IsStalled.Should().BeFalse("有工具执行时豁免卡死检测（对齐 TS 原版）");
     }
 
     [Fact]

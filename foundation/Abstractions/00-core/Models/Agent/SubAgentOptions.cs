@@ -20,7 +20,7 @@ public sealed class SubAgentOptions
     /// <summary>首轮前置 prompt — spawn 时作为第一条 user message 注入,支持斜杠命令</summary>
     public string? InitialPrompt { get; init; }
     /// <summary>
-    /// 每轮重注入的关键系统提醒 — 对齐 claude code criticalSystemReminder_EXPERIMENTAL
+    /// 每轮重注入的关键系统提醒 — 对齐 TS 原版 criticalSystemReminder_EXPERIMENTAL
     /// <para>每轮 ExecuteAsync 时作为 user message 注入到消息流,保持紧迫感(如 "CRITICAL: 这是验证任务,不要改代码")</para>
     /// </summary>
     public string? CriticalSystemReminder { get; init; }

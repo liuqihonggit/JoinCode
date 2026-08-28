@@ -1,9 +1,9 @@
-
+﻿
 namespace Core.Scheduling;
 
 /// <summary>
 /// 基于文件系统的任务服务实现
-/// 参考 Claude Code 的任务管理设计，支持跨进程/多智能体协作
+/// 参考 TS 原版 的任务管理设计，支持跨进程/多智能体协作
 /// </summary>
 [Register(typeof(ITaskService), ServiceLifetime.Singleton)]
 public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, IDisposable

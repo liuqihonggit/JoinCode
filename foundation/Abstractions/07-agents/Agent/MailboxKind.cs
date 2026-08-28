@@ -1,8 +1,8 @@
-namespace JoinCode.Abstractions.Interfaces;
+﻿namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
 /// 邮箱类型 — 消息传递的通道选择。
-/// 对齐 claude code 的 teammateMailbox（文件）+ AgentTool（进程内）双模式。
+/// 对齐 TS 原版 的 teammateMailbox（文件）+ AgentTool（进程内）双模式。
 /// </summary>
 public enum MailboxKind
 {

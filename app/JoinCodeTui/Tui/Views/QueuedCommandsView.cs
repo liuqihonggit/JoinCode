@@ -1,9 +1,9 @@
-namespace JoinCode.Tui.Views;
+﻿namespace JoinCode.Tui.Views;
 
 /// <summary>
 /// 投递中预览组件 — 可视化 CommandQueue 中待处理的命令。
 /// 队列空时自动隐藏，窄终端（&lt;40列）时隐藏预览。
-/// 对齐 claude code 的 PromptInputQueuedCommands 组件。
+/// 对齐 TS 原版 的 PromptInputQueuedCommands 组件。
 /// </summary>
 public sealed class QueuedCommandsView : ITuiComponent
 {

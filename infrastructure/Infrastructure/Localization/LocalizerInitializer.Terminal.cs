@@ -1,4 +1,4 @@
-namespace Infrastructure.Localization;
+﻿namespace Infrastructure.Localization;
 
 public static partial class LocalizerInitializer
 {
@@ -33,7 +33,7 @@ public static partial class LocalizerInitializer
         zhEntries[StringKey.FooterExitHint] = "Esc 退出";
         zhEntries[StringKey.FooterInterruptHint] = "esc 中断";
         zhEntries[StringKey.FooterBashModeHint] = "! bash 模式";
-        // Claude Code uses English UI — zhEntries mirror defaultEntries for consistency
+        // JoinCode uses English UI — zhEntries mirror defaultEntries for consistency
         zhEntries[StringKey.FooterShortcutsHint] = "? for shortcuts";
         zhEntries[StringKey.PermissionModeAuto] = "自动";
         zhEntries[StringKey.PermissionModeAutoShort] = "自动";

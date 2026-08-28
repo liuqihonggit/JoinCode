@@ -1,4 +1,4 @@
-namespace JoinCode.Transport.Bridge;
+﻿namespace JoinCode.Transport.Bridge;
 
 /// <summary>
 /// Bridge 消息类型枚举
@@ -39,7 +39,7 @@ public enum BridgeMessageType
 
 /// <summary>
 /// Bridge 基础消息类
-/// 模仿 Claude Code 的 SDKMessage 类型
+/// 参考 TS 原版 的 SDKMessage 类型
 /// </summary>
 public abstract class BridgeMessage
 {

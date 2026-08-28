@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Bridge;
 
 /// <summary>
@@ -132,7 +132,7 @@ public sealed class BridgeDeviceTokenService
             {
                 var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/trusted_devices");
                 request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
-                // 对齐 TS 端: { display_name: "Claude Code on ${hostname()} · ${process.platform}" }
+                // 对齐 TS 端: { display_name: "JoinCode on ${hostname()} · ${process.platform}" }
                 var displayName = $"JoinCode on {Environment.MachineName} · {Environment.OSVersion.Platform}";
                 request.Content = new StringContent(
                     $"{{\"display_name\":\"{EscapeJsonString(displayName)}\"}}",

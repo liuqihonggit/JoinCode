@@ -1,8 +1,8 @@
-
+﻿
 namespace State;
 
 /// <summary>
-/// 纯内存状态服务 — 对齐 Claude Code 原版：AppState 是纯内存响应式状态，不做 SQLite 持久化。
+/// 纯内存状态服务 — 对齐 TS 原版 原版：AppState 是纯内存响应式状态，不做 SQLite 持久化。
 /// 原版 TS 代码中 AppState 是临时状态，随进程消亡；对话历史通过 JSONL transcript 文件持久化。
 /// </summary>
 [Register(typeof(StateService), ServiceLifetime.Singleton)]

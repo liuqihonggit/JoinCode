@@ -1,4 +1,4 @@
-namespace Tools.Handlers;
+﻿namespace Tools.Handlers;
 
 /// <summary>
 /// Agent Fork 判断中间件 — 当 subagent_type 为空且 ForkManager 可用时，走 fork 路径
@@ -35,7 +35,7 @@ public sealed partial class AgentForkMiddleware : ServiceEntity, IAgentToolMiddl
             return;
         }
 
-        // 优先走 teammate 路径（支持 Interrupt 中断 + idle 恢复，对齐 ClaudeCode inProcessRunner）
+        // 优先走 teammate 路径（支持 Interrupt 中断 + idle 恢复，对齐 TS 原版 inProcessRunner）
         if (_teammateExecutor is not null)
         {
             await ExecuteTeammatePathAsync(context, ct).ConfigureAwait(false);

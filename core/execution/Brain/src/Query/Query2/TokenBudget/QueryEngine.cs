@@ -1,4 +1,4 @@
-
+﻿
 using JoinCode.Abstractions.Attributes;
 
 namespace Core.Query;
@@ -14,7 +14,7 @@ public sealed record QueryEngineOptions(
 
 /// <summary>
 /// QueryEngine - 查询引擎，处理AI对话和工具调用
-/// 参考Claude Code的QueryEngine实现
+/// 参考 TS 原版的QueryEngine实现
 /// 可选依赖通过 IQueryMiddleware 中间件管道注入，构造函数仅保留核心依赖
 /// </summary>
 [Register(typeof(IQueryEngine), ServiceLifetime.Singleton)]

@@ -1,4 +1,4 @@
-namespace Core.Agents;
+﻿namespace Core.Agents;
 
 [Register(typeof(JoinCode.Abstractions.Interfaces.IAgentPromptBuilder), ServiceLifetime.Singleton)]
 public sealed partial class AgentPromptBuilder : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentPromptBuilder
@@ -119,7 +119,7 @@ public sealed partial class AgentPromptBuilder : ServiceEntity, JoinCode.Abstrac
 
     /// <summary>
     /// 带运行时上下文的系统提示词构建 — 注入当前 MCP/skills/settings
-    /// <para>对齐 claude code getSystemPrompt({ toolUseContext }) 闭包模式</para>
+    /// <para>对齐 TS 原版 getSystemPrompt({ toolUseContext }) 闭包模式</para>
     /// </summary>
     public async Task<string> BuildSystemPromptAsync(
         string? agentType,

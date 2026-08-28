@@ -1,4 +1,4 @@
-namespace Tools.Handlers;
+﻿namespace Tools.Handlers;
 
 /// <summary>
 /// Agent 后台 Spawn 中间件 — 当 RunInBackground=true 时，使用 SpawnAgentAsync 启动后台代理
@@ -46,7 +46,7 @@ public sealed partial class AgentBackgroundSpawnMiddleware : ServiceEntity, IAge
             return;
         }
 
-        // 后台模式: 限制工具集为异步白名单 — 对齐 claude code ASYNC_AGENT_ALLOWED_TOOLS
+        // 后台模式: 限制工具集为异步白名单 — 对齐 TS 原版 ASYNC_AGENT_ALLOWED_TOOLS
         spawnOptions = spawnOptions with { AllowedTools = AsyncAgentAllowedTools.Tools };
 
         // 后台模式: 使用原有 SpawnAgentAsync（fire-and-forget）

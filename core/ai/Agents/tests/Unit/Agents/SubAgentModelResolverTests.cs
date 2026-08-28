@@ -1,9 +1,9 @@
-namespace Core.Agents.Tests.Unit.Agents;
+﻿namespace Core.Agents.Tests.Unit.Agents;
 
 using JoinCode.Abstractions.Interfaces;
 
 /// <summary>
-/// SubAgentModelResolver 单元测试 — 对齐 claude code src/utils/model/agent.ts
+/// SubAgentModelResolver 单元测试 — 对齐 TS 原版 src/utils/model/agent.ts
 /// <para>覆盖: IsInheritKeyword、GetAgentModelDisplay、AliasMatchesParentTier、ResolveModel</para>
 /// </summary>
 public sealed class SubAgentModelResolverTests

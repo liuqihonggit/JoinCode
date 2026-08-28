@@ -1,10 +1,10 @@
-namespace Core.Agents;
+﻿namespace Core.Agents;
 
 using JoinCode.Abstractions.Prompts.ToolPrompts;
 
 /// <summary>
 /// 插件 Agent 安全限制校验 — 效应分类器
-/// <para>对齐 claude code 安装时信任边界: 插件 agent 不能定义 permissionMode/hooks/mcpServers</para>
+/// <para>对齐 TS 原版 安装时信任边界: 插件 agent 不能定义 permissionMode/hooks/mcpServers</para>
 /// <para>对齐 Cordis 框架效应分类: 插件 agent 只能产生安全效应，不能产生特权效应</para>
 /// </summary>
 public static class PluginAgentValidator

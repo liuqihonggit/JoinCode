@@ -14,7 +14,7 @@ public sealed class StatsCommand : ChatCommandBase
         var args = ChatCommandBase.GetSplitArgs(context);
         var scope = args.Length > 0 ? args[0].ToLowerInvariant().TrimStart('-') : "today";
 
-        // 跨会话统计模式 — 对齐 TS Stats.tsx aggregateClaudeCodeStatsForRange
+        // 跨会话统计模式 — 对齐 TS Stats.tsx aggregateJoinCodeStatsForRange
         if (scope is "7d" or "30d" or "all")
         {
             await ShowCrossSessionStatsAsync(context, scope).ConfigureAwait(false);

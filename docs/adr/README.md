@@ -56,7 +56,7 @@ ADR 引用 design/plans，但不重复其内容。
 ## 粒度策略
 
 本项目采用**架构级 + 组件策略级 + 工程级**三层：
-- 架构级（0001-0012）：跨模块、影响全局的决策
+- 架构级（0001-0012 + 0032-0037）：跨模块、影响全局的决策
 - 组件策略级（0013-0025）：组件设计风格、工作方法论、反模式禁令
 - 工程级（0026-0031）：CI/编译/测试/运行时工程决策
 
@@ -98,6 +98,17 @@ ADR 引用 design/plans，但不重复其内容。
 | 0023 | 减法思维优先 | accepted | 反例4·加法思维 |
 | 0024 | 治标不治本禁令 | accepted | 反例3·治标不治本 |
 | 0025 | 归档 IMcpProtocolHandler 死接口 | accepted | 规则4·取代0012 |
+
+### 架构级补充（0032-0037，来自 docs/design）
+
+| 编号 | 标题 | 状态 | 来源文档 |
+|------|------|------|----------|
+| 0032 | ComputerUse P0 纯 Win32 P/Invoke | accepted | ComputerUse-P0-DesktopInput-Design.md |
+| 0033 | 传输层 Fallback 链优先级 | accepted | TransportFallbackChain.md |
+| 0034 | 命令拦截分层 Guard+Interceptor | accepted | 命令拦截架构改造.md |
+| 0035 | 工具渐进式暴露 | accepted | 工具渐进式暴露设计.md |
+| 0036 | 纵深防御 L1-L10 | accepted | UnifiedResilienceArchitecture.md |
+| 0037 | Redirect 软引导而非硬转交 | accepted | 命令拦截架构改造.md |
 
 ### 工程级（0026-0031）
 

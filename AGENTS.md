@@ -955,16 +955,6 @@ public ConversationMode Mode => Turns.Count == 1
   3. 工具补全 → 绑定 `IJccChatSession.GetAvailableToolsAsync()`（从引擎 `IToolRegistry` 读取）
   4. 斜杠命令 → 绑定 `IJccChatSession.GetAvailableSlashCommands()`（从源码生成器 `[ChatCommand]` 提取）
   5. 任何未来新增的界面列表数据 → 必须有对应配置文件或引擎数据源，禁止硬编码
-- **实现模式**：
-  ```
-  配置文件 (models.json / settings.json)
-    ↓ ModelConfigLoader / IConfigChangeNotifier 加载
-  Abstractions 层门面 (IProviderDefinitionRegistry / ModelConfigLoader)
-    ↓ IJccChatSession 接口暴露
-  GUI ViewModel 属性 (ConnectionOptions / ModelOptions)
-    ↓ OnPropertyChanged 驱动
-  XAML ComboBox / ListBox 双向绑定
-  ```
 - **禁止行为**：
   - **⛔ 禁止硬编码枚举遍历构建下拉列表** — 如 `Enum.GetValues<ProviderKind>()` 填充 ComboBox，改枚举要重新编译
   - **⛔ 禁止在 ViewModel 中写固定列表** — 如 `new[] { "openai", "deepseek" }`，改列表要改代码
@@ -975,8 +965,6 @@ public ConversationMode Mode => Turns.Count == 1
 ### 规则8：循环检测器状态机设计风格（推荐）
 
 > ADR: [0018](docs/adr/0018-loop-detector-state-machine.md)
-
-> **来源**：2026-08-23 熵减检测器状态机改造，用户推荐的代码风格
 
 - **状态机模式**：检测器内部用显式状态枚举 + switch 表达式实现状态转换，不用隐式 `if-else` + 标志变量
   - 状态定义：`enum XxxDetectionState { Monitoring, Suspected, Confirmed }`
@@ -1029,8 +1017,6 @@ public ConversationMode Mode => Turns.Count == 1
 | AppendAllTextAsync 失败 → 加重试 | 跨进程并发 = Named Mutex；读-写冲突 = FileShare.ReadWrite |
 | 重试仍失败 → 继续换方案 | 停下来做方案，让用户确认方向 |
 
-**根因**：每次只换一种文件打开方式，没分析冲突类型（读-写 vs 写-写，同进程 vs 跨进程）。正确做法是先分类再选方案。
-
 ### 反例4：加法思维而非减法思维
 
 > ADR: [0023](docs/adr/0023-subtraction-over-addition.md)
@@ -1040,8 +1026,6 @@ public ConversationMode Mode => Turns.Count == 1
 | 加 `[DoNotAutoRegister]` 新特性来阻止 DI 注册 | 减少不必要的 DI 暴露（如 ShellProviderBase 不需要 IShellProvider） |
 | 加 ShellCapabilityProvider DI 单例只为首次检测缓存 | 用静态 ShellCapabilityCache，启动时检测一次 |
 | 加 FileShare 降级策略层 | 用 FileShare.ReadWrite + Named Mutex 一步到位 |
-
-**根因**：加新特性/新层/新策略看似"安全"，实际增加复杂度。减法才是正道——去掉不必要的中间层。
 
 ### 反例5：依赖模型 ID 字符串推断模态而非显式注册（配置大于代码）
 
@@ -1053,4 +1037,4 @@ public ConversationMode Mode => Turns.Count == 1
 | `JCC_MODEL_ID` 指定未注册模型时静默推断补注册 | 无条件抛 `ConfigurationException[GRD016]`，要求用户先在 settings.json 注册 |
 | `AutoFetchModels` 远程拉取新模型时从 ID 推断模态 | 远程新模型模态留默认（`Text`），用户在 settings.json 手动配置需要的模态 |
 
-**根因**：启发式推断基于命名约定，有盲区（`image`/`claude`/`gpt-4o` 等实际识图但 ID 无 `vision`）。2026-08-22 删除 `InferCapabilities` 硬编码，`EnsureEnvModelInConfig` 无条件报错，`Merge` 远程新模型模态留默认。配置大于代码，模态能力由 settings.json 显式配置。定位文件：`ConfigLoader.cs:582 EnsureEnvModelInConfig`、`ModelListMerger.cs:39 Merge`。
+**定位文件**：`ConfigLoader.cs:582 EnsureEnvModelInConfig`、`ModelListMerger.cs:39 Merge`

@@ -96,4 +96,4 @@ ADR 引用 design/plans，但不重复其内容。
 | 0022 | C# AST CLI 优先于正则 | accepted | 脚本语言优先级 |
 | 0023 | 减法思维优先 | accepted | 反例4·加法思维 |
 | 0024 | 治标不治本禁令 | accepted | 反例3·治标不治本 |
-| 0025 | 归档 IMcpProtocolHandler 死接口 | proposed | 规则4·取代0012 |
+| 0025 | 归档 IMcpProtocolHandler 死接口 | accepted | 规则4·取代0012 |

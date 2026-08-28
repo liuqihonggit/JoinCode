@@ -1,9 +1,10 @@
 # 0025. 归档 IMcpProtocolHandler 死接口
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-08-29
 - 决策者：项目架构组
 - 取代：[0012](docs/adr/0012-two-itoolhandler-interfaces.md)
+- 验证：Mcp 编译 0 警告 0 错误，171 单元测试全通过 ✅
 
 ## 背景
 

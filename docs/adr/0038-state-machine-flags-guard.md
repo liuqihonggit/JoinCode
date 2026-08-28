@@ -4,6 +4,8 @@
 - 日期：2026-08-29
 - 决策者：项目架构组
 - 取代：[0018](docs/adr/0018-loop-detector-state-machine.md)
+- 验证：Brain 编译 0 警告 0 错误，767 测试全通过 ✅
+- 实现说明：EntropyDetectionState 改为 [Flags] 位标志（None=0/Monitoring=1/Suspected=2/Confirmed=4），预留状态组合扩展性
 
 ## 背景
 

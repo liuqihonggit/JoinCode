@@ -34,14 +34,14 @@ subAgent 事件从引擎到 GUI 的链路**完全断裂**：
 1. `MainViewModel.cs` **1785 行**巨石类：会话管理 + 消息组装 + 设置 + 主题 + 权限弹窗回调全部耦合
 2. 事件循环内联在 `SendMessageCoreAsync` 中（1340-1468 行），switch-case 直接操作消息集合，无法测试
 3. 无虚拟化：`Messages` ObservableCollection 全量渲染，长对话性能差
-4. 工具调用卡片无折叠/展开态区分（ClaudeCode 有 queued/running/success/error 五态视觉）
+4. 工具调用卡片无折叠/展开态区分（TS 原版 有 queued/running/success/error 五态视觉）
 5. 无全局运行状态条（spinner/耗时/token 聚合）
 
 ### 1.4 ClaudeCode TUI 参考结论（调研自 claude-code-rev-main）
 
 可迁移到 Avalonia 的核心模式：
 
-| ClaudeCode 模式 | GUI 迁移形态 |
+| TS 原版 模式 | GUI 迁移形态 |
 |----------------|-------------|
 | 每 agent 一行进度（类型徽章+工具数+tokens+当前活动） | AgentRunPanel 树形列表，每 agent 固定 2 行卡片 |
 | 运行区只显示尾部 3 条活动 + "+N more" 折叠计数 | 运行中 agent 卡片内固定高度活动列表 |
@@ -129,7 +129,7 @@ public long? AgentTokenCount { get; init; }
 ### D2：消息模型层级表达
 
 - **方案 A（推荐）**：`ChatUiMessage` 增加 `Kind=AgentRunGroup` + 持有 `List<AgentRunVm>` 子列表（组合而非继承）。优点：对话流顺序天然保持（agent 组卡在触发它的 ToolCall 之后）；缺点：ChatUiMessage 变复合。
-- 方案 B：完全独立的顶层 `ObservableCollection<AgentRunVm>` + 对话流外置面板（右栏）。优点消息流零改动；缺点 agent 与触发上下文空间分离，违背 ClaudeCode 内联模式。
+- 方案 B：完全独立的顶层 `ObservableCollection<AgentRunVm>` + 对话流外置面板（右栏）。优点消息流零改动；缺点 agent 与触发上下文空间分离，违背 TS 原版 内联模式。
 
 ### D3：重构节奏
 
@@ -157,7 +157,7 @@ public long? AgentTokenCount { get; init; }
 
 <!-- 🤖 Auto Decision: 2026-08-25 -->
 <!-- 决策: 用户确认可视化四形态（内嵌运行卡片/并行树形列表/完成定格/全局状态条）按设计实现 -->
-<!-- 原因: 对齐 ClaudeCode 内联模式，agent 状态紧贴触发上下文 -->
+<!-- 原因: 对齐 TS 原版 内联模式，agent 状态紧贴触发上下文 -->
 <!-- 替代方案: 右栏独立面板（违背内联参考模式，未采用）-->
 <!-- 验证: D1/D2/D3 按推荐方案 A 执行 -->
 

@@ -2,7 +2,7 @@
 
 > 创建: 2026-08-27
 > 状态: 设计确认中
-> 方案: B-revised（完美对齐 ClaudeCode 两种设计：forked agent + teammate）
+> 方案: B-revised（完美对齐 TS 原版 两种设计：forked agent + teammate）
 
 ## 0. 方案修订记录（2026-08-27）
 
@@ -11,11 +11,11 @@
 **修订为**：改teammate + GUI切teammate
 
 ### 0.2 调研发现
-1. **ClaudeCode有两种子代理**：forked agent（同步跑完即退出）+ teammate（后台idle循环）
+1. **JoinCode有两种子代理**：forked agent（同步跑完即退出）+ teammate（后台idle循环）
 2. **当前项目也已有两种骨架**：
    - fork子代理（AgentServiceImpl）= forked agent模型 ✅对齐
    - InProcessTeammateTaskExecutor = teammate模型骨架 ✅基本对齐
-3. **teammate骨架已对齐ClaudeCode**：
+3. **teammate骨架已对齐 TS 原版**：
    - `LifecycleCts`（lifecycle）↔ `abortController` ✅
    - `workCts = CreateLinkedTokenSource(lifecycleCts)`（per-turn）↔ `currentWorkAbortController` ✅
    - `while`循环 + `WaitForNextPromptOrShutdownAsync` ↔ `waitForNextPromptOrShutdown` ✅
@@ -24,11 +24,11 @@
 5. **GUI子会话当前是fork子代理**（`JccChatSession.cs:174` 从 `forkManager.GetActiveForksAsync` 获取），不是teammate
 
 ### 0.3 修订方案
-1. **fork子代理保持forked agent不动**（ESC=Cancel终止）— 对齐ClaudeCode forkedAgent.ts
-2. **teammate补Interrupt能力**（暴露workCts + InterruptTeammateAsync）— 对齐ClaudeCode inProcessRunner
+1. **fork子代理保持forked agent不动**（ESC=Cancel终止）— 对齐 TS 原版 forkedAgent.ts
+2. **teammate补Interrupt能力**（暴露workCts + InterruptTeammateAsync）— 对齐 TS 原版 inProcessRunner
 3. **GUI子会话改用teammate模型**（创建/操作从fork切到teammate）
 4. **60秒空闲窗口**加在teammate的Interrupt上
-5. **60秒超时唤醒mainAgent**（编排增强，ClaudeCode没有）
+5. **60秒超时唤醒mainAgent**（编排增强，TS 原版没有）
 
 ### 0.4 修订任务分解
 | 步骤 | 内容 | 风险 |
@@ -53,7 +53,7 @@
 2. **用户无输入机会**：计划引入"子代理停止后mainAgent自动接手分析diff"的编排。若双击ESC后立即唤醒mainAgent，用户还没来得及思考/打字，mainAgent就开始干活了。
 3. **worktree泄漏**：`StopAgentAsync` 只调 `CleanupMcpServersIfNeededAsync`，不调 `CleanupWorktreeAsync`。终止的后台子代理 worktree 静默残留（不影响功能因ID唯一，但泄漏磁盘）。
 
-### 1.3 ClaudeCode 参考
+### 1.3 TS 原版 参考
 `inProcessRunner.ts:1291-1361`：Escape后子代理进 **idle**，加 interrupt message，**不自动唤醒 leader**（注释明确："We do NOT automatically send the teammate's response to the leader"）。子代理 `waitForNextPromptOrShutdown` 等下一条消息，控制权交回用户。
 
 ## 2. 目标与非目标
@@ -64,7 +64,7 @@
 3. 60秒内完全无输入活动 → 唤醒mainAgent接手分析diff（编排增强）
 4. 用户在窗口内打字/发送 → 重置倒计时，用户接管子代理（发next prompt恢复执行）
 5. worktree 清理对齐：Interrupt 不清理（子代理还活着），仅 Cancel/Dispose 时清理
-6. 对齐 ClaudeCode inProcessRunner 的 idle 循环设计
+6. 对齐 TS 原版 inProcessRunner 的 idle 循环设计
 
 ### 2.2 非目标
 - 不改 teammate 模式（InProcessTeammateTask 已有 idle notification 机制）
@@ -80,7 +80,7 @@
 用户双击ESC（聚焦子会话且运行中）
   │
   ├─► AgentBase.Interrupt()
-  │     ├─ _cts.Cancel()          中断当前LLM流（对齐ClaudeCode abortCurrentWork）
+  │     ├─ _cts.Cancel()          中断当前LLM流（对齐 TS 原版 abortCurrentWork）
   │     ├─ Status = Paused        进idle（非Cancelled，可恢复）
   │     └─ _cts = new CTS()       重置CTS供下次Resume
   │
@@ -118,16 +118,16 @@
 
 **核心目的**：用户思考/打字时不被打断，只有真正空闲60秒才移交mainAgent；用户主动发送则立即接管。
 
-### 3.3 与ClaudeCode的差异
+### 3.3 与TS 原版的差异
 
-| 维度 | ClaudeCode | 本方案 |
+| 维度 | TS 原版 | 本方案 |
 |------|------------|--------|
 | ESC后子代理状态 | idle，等next prompt | Paused，等next prompt（对齐） |
 | 是否自动唤醒leader | 否（无限等） | 否，但60秒空闲超时后唤醒（编排增强） |
 | worktree清理 | 显式cleanupWorktree（--force） | Interrupt不清理；Cancel/Dispose时清理（对齐） |
 | next prompt来源 | waitForNextPromptOrShutdown | ForwardInputToSubAgentAsync + Resume |
 
-60秒超时唤醒mainAgent是本方案独有的编排增强，ClaudeCode没有（ClaudeCode的leader不主动接手）。
+60秒超时唤醒mainAgent是本方案独有的编排增强，TS 原版没有（TS 原版的leader不主动接手）。
 
 ## 4. 详细需求规格
 
@@ -232,7 +232,7 @@ while (!lifecycleCancelled):
 
 **4.5.3 倒计时配置**：
 - 默认60秒，可配置（`GuiPreferences.IdleTimeoutSeconds`）
-- 0 = 禁用超时（永不唤醒mainAgent，纯对齐ClaudeCode）
+- 0 = 禁用超时（永不唤醒mainAgent，纯对齐 TS 原版）
 
 ### 4.6 60秒超时唤醒mainAgent接手编排
 
@@ -313,7 +313,7 @@ while (!lifecycleCancelled):
 - [ ] Interrupt后worktree保留（不清理）
 - [ ] 主会话双击ESC行为不变（_sendCts.Cancel）
 
-### 7.2 对齐ClaudeCode验收
+### 7.2 对齐 TS 原版验收
 - [ ] ESC后子代理进idle等next prompt（非终止）
 - [ ] 不自动唤醒mainAgent（仅60秒超时触发）
 - [ ] worktree清理时机对齐（Interrupt保留，Cancel/Dispose清理）
@@ -329,7 +329,7 @@ while (!lifecycleCancelled):
 
 | 配置 | 默认值 | 说明 |
 |------|--------|------|
-| `GuiPreferences.IdleTimeoutSeconds` | 60 | 空闲超时秒数，0=禁用（纯ClaudeCode模式） |
+| `GuiPreferences.IdleTimeoutSeconds` | 60 | 空闲超时秒数，0=禁用（纯TS 原版模式） |
 | `GuiPreferences.DoubleEscStop` | true | 双击ESC手势开关（已有） |
 
 ## 9. 开放问题
@@ -351,7 +351,7 @@ while (!lifecycleCancelled):
 
 <!-- 🤖 Auto Decision: 2026-08-27 (步骤3-5批量.完成) -->
 <!-- 决策: GUI子会话切teammate完整链路打通:AgentForkMiddleware优先teammate→JccChatSession归并teammate+fork读取→双击ESC走Interrupt→60秒IdleTimer -->
-<!-- 原因: 对齐ClaudeCode inProcessRunner ESC+idle;teammate循环改正常完成退出,Interrupt后进idle等next prompt -->
+<!-- 原因: 对齐 TS 原版 inProcessRunner ESC+idle;teammate循环改正常完成退出,Interrupt后进idle等next prompt -->
 <!-- 关键改动: -->
 <!--   3a: teammate循环正常完成退出(非每轮等next prompt),Interrupt(OCE且lifecycle未取消)后进idle -->
 <!--   3b: GetActiveTeammateSnapshotsAsync返回snapshot(TeammateId/ParentSessionId/Task/IsIdle/TurnCount/LastResult) -->
@@ -405,7 +405,7 @@ while (!lifecycleCancelled):
 - ✅ 60秒无输入 → mainAgent被唤醒，提取diff注入主会话触发接手
 - ✅ Interrupt后worktree保留（不清理），仅Cancel/Stop时清理
 - ✅ 主会话双击ESC行为不变（_sendCts.Cancel）
-- ✅ 对齐ClaudeCode inProcessRunner ESC+idle设计
+- ✅ 对齐 TS 原版 inProcessRunner ESC+idle设计
 - ✅ 编译零警告（TreatWarningsAsErrors）
 
 ### 10.3 后续可优化项

@@ -349,7 +349,7 @@ jcc -p "你好"
 
 ## 3. 架构与方法论
 
-本工程对齐 Claude Code 和 DeepSeek-Reasonix，采用七层隔离架构 + 洋葱模型中间件管道。
+本工程对齐 TS 原版 和 DeepSeek-Reasonix，采用七层隔离架构 + 洋葱模型中间件管道。
 
 1. **七层 slnx 隔离架构**：Generators → Foundation → Infrastructure → Core → Services → Composition → App，严格按依赖顺序编译，零循环依赖。每层独立解决方案，上层依赖下层的构建产物。
 2. **洋葱模型 + 中间件管道**：按服务划分，嵌套中间件管道模型；为强调管道顺序，手动注册。共 14 条管道（Chat/Permission/Shell/Web/Skill 等）。
@@ -413,7 +413,7 @@ jcc -p "你好"
 
 ### 3.3 记忆系统
 
-目前仅对齐 Claude Code 的记忆机制，因为发现了一个业界无解的级联记忆问题：
+目前仅对齐 TS 原版 的记忆机制，因为发现了一个业界无解的级联记忆问题：
 
 ```
 1. 我距离家到公司需要走20分钟。

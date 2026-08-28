@@ -2,14 +2,14 @@
 
 ## 背景
 
-对齐 ClaudeCode `src/utils/model/agent.ts` 的 `getAgentModel` 设计,补齐 w2 项目缺失的两项能力:
+对齐 TS 原版 `src/utils/model/agent.ts` 的 `getAgentModel` 设计,补齐 w2 项目缺失的两项能力:
 
-| 缺失项 | ClaudeCode 位置 | w2 现状 | 价值 |
+| 缺失项 | TS 原版 位置 | w2 现状 | 价值 |
 |--------|-----------------|---------|------|
 | `inherit` 关键字 | `agent.ts:80-88` | 用 `null` 隐式继承,无显式关键字 | 中 — 配置可读性 |
 | Bedrock 跨区域前缀继承 | `agent.ts:50-67` + `bedrock.ts` | 完全缺失 | 中 — Bedrock 用户必需 |
 
-## ClaudeCode 设计要点
+## TS 原版 设计要点
 
 ### inherit 关键字
 - `getDefaultSubagentModel()` 返回 `'inherit'`
@@ -59,7 +59,7 @@
 4. `foundation/Abstractions/00-core/Configuration/Llm/tests/BedrockModelHelperTests.cs` (新建)
    - 完整单元测试
 
-## 优先级链(对齐 ClaudeCode)
+## 优先级链(对齐 TS 原版)
 
 | 优先级 | 来源 | w2 实现 |
 |--------|------|---------|

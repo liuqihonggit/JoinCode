@@ -13,7 +13,7 @@
 | headless 截图无法捕获 Popup 内容（独立弹层窗口），渲染验证困难 | `CaptureRenderedFrame` 只截主帧 |
 | 无出现动画，突兀弹出 | — |
 
-## 设计方案（Claude Code 风格底部命令面板）
+## 设计方案（JoinCode 风格底部命令面板）
 
 1. **内联底部升起面板**：Popup → InputBarView 内 Grid 覆盖层，锚定输入栏正上方、
    与主列同宽，视觉上从输入栏背后向上滑出。

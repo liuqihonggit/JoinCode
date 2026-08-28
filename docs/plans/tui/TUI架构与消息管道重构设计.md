@@ -17,7 +17,7 @@
 | 2 | 统一"终端"绘制入口 | 所有绘制仅从"终端"名称的函数进行，防止组件错误引用和发送 |
 | 3 | 输入不打断投递队列 | 主代理输出期间用户输入不打断，投递消息队列等待；需引入"投递中"TUI 组件 |
 | 4 | TUI 组件自适应 | 自适应宽高、校验方式、可视化分析、尺寸事件驱动 |
-| 5 | 多 Agent 设计对齐 | 把 plan agent 等加回设计，参考 claude code 的 fork+过滤工具 |
+| 5 | 多 Agent 设计对齐 | 把 plan agent 等加回设计，参考 TS 原版 的 fork+过滤工具 |
 | 6 | @xxAgent 邮箱传递 | 改为邮箱传递消息，收敛当前乱飞的消息管道 |
 
 ### 1.2 设计原则
@@ -65,7 +65,7 @@
 
 ### 2.5 议题 5：工具过滤层数过多
 
-当前 6 层工具过滤叠加（CLI 参数 / Agent 定义 / Fork / 权限模式 / AgentBase / 权限规则），认知负担重。claude code 仅 3 层（`ALL_AGENT_DISALLOWED_TOOLS` / `CUSTOM_AGENT_DISALLOWED_TOOLS` / `ASYNC_AGENT_ALLOWED_TOOLS`）。
+当前 6 层工具过滤叠加（CLI 参数 / Agent 定义 / Fork / 权限模式 / AgentBase / 权限规则），认知负担重。TS 原版 仅 3 层（`ALL_AGENT_DISALLOWED_TOOLS` / `CUSTOM_AGENT_DISALLOWED_TOOLS` / `ASYNC_AGENT_ALLOWED_TOOLS`）。
 
 ### 2.6 议题 6：3 套消息机制循环
 
@@ -233,7 +233,7 @@ public record QueuedCommand(string Content, CommandOrigin Origin, QueuePriority 
 public record QueueSnapshot(IReadOnlyList<QueuedCommand> Pending);
 ```
 
-**优先级规则**（对齐 claude code）：
+**优先级规则**（对齐 TS 原版）：
 - `Now`：权限确认响应（立即处理）
 - `Next`：用户输入（默认）
 - `Later`：任务通知（不饥饿用户输入）
@@ -338,11 +338,11 @@ public async Task QueuedCommandsView_Resize_Narrow_HidesPreview()
 
 ### 4.4 议题 5：多 Agent 设计对齐
 
-#### 4.4.1 Agent 定义对齐 claude code
+#### 4.4.1 Agent 定义对齐 TS 原版
 
 当前已有 `Plan/Explore/Verification/General/Guide`（`BuiltInAgentToolHandlers.cs`），**无需新增**，仅需对齐工具过滤为 3 层：
 
-| 层 | 职责 | 对应 claude code |
+| 层 | 职责 | 对应 TS 原版 |
 |----|------|-----------------|
 | `AllAgentDisallowedTools` | 所有 subagent 禁用（防递归） | `ALL_AGENT_DISALLOWED_TOOLS` |
 | `AsyncAgentAllowedTools` | 后台 agent 白名单 | `ASYNC_AGENT_ALLOWED_TOOLS` |
@@ -352,7 +352,7 @@ public async Task QueuedCommandsView_Resize_Narrow_HidesPreview()
 
 #### 4.4.2 Fork + 过滤工具（已实现，保留）
 
-当前 `ForkSubAgentManager` + 5 个 Fork 中间件已实现，对齐 claude code 的 `forkSubagent.ts`：
+当前 `ForkSubAgentManager` + 5 个 Fork 中间件已实现，对齐 TS 原版 的 `forkSubagent.ts`：
 - `ForkSpawnMiddleware` 已支持 `UseExactTools`（精确继承父工具集）
 - `CacheSafeParams` 已透传（保证 prompt cache 命中）
 
@@ -434,7 +434,7 @@ dotnet publish tools/TerminalGuiAotProbe -c Release
 
 **风险点**：Terminal.Gui 依赖 `Markdig`、`TextMateSharp`、`Microsoft.Extensions.Configuration.Binder`，需验证这些依赖 AOT 兼容。若不兼容，考虑：
 - 选项 A：禁用 Terminal.Gui 的 Markdown/语法高亮功能（排除 Markdig/TextMateSharp 依赖）
-- 选项 B：回退到自研轻量 TUI（参考 claude code Ink，用 C# 实现）
+- 选项 B：回退到自研轻量 TUI（参考 TS 原版 Ink，用 C# 实现）
 - 选项 C：Terminal.Gui 仅用于 Debug 模式，Release AOT 用 CLI 降级
 
 ### 阶段 1：引入 TUI 渲染层骨架（不破坏现有 CLI）
@@ -523,9 +523,9 @@ dotnet publish tools/TerminalGuiAotProbe -c Release
 
 ---
 
-## 8. 与 claude code 对齐对照
+## 8. 与 TS 原版 对齐对照
 
-| 议题 | claude code 实现 | 本设计实现 | 对齐度 |
+| 议题 | TS 原版 实现 | 本设计实现 | 对齐度 |
 |------|------------------|-----------|--------|
 | 1. TUI 线程亲和 | 自研 Ink + React + Yoga，单例 `Ink` 类 | Terminal.Gui `Application.MainLoop` | ✅ 等价（MainLoop 即单例渲染控制器） |
 | 2. 统一绘制入口 | `writeDiffToTerminal` 唯一 stdout 写入 | `TerminalPainter` 唯一入口 + 分析器约束 | ✅ 等价 |
@@ -539,7 +539,7 @@ dotnet publish tools/TerminalGuiAotProbe -c Release
 <!-- 🤖 Auto Decision: 2026-08-16 -->
 <!-- 决策: TUI 技术选型用 Terminal.Gui v2.4.17 -->
 <!-- 原因: 用户选择；Terminal.Gui 自带布局引擎/resize事件/组件库，标记 IsAotCompatible=true -->
-<!-- 替代方案 A: 自研轻量 TUI（参考 claude code Ink，工作量大） -->
+<!-- 替代方案 A: 自研轻量 TUI（参考 TS 原版 Ink，工作量大） -->
 <!-- 替代方案 B: 保持 CLI+GUI 双路径仅统一抽象（改动小但未解决根本问题） -->
 <!-- 风险: Terminal.Gui 依赖 Markdig/TextMateSharp/Microsoft.Extensions.Configuration.Binder，AOT 兼容性需阶段0卫星项目验证 -->
 <!-- 验证: 待阶段0 AOT 卫星项目验证后确认 -->
@@ -561,7 +561,7 @@ dotnet publish tools/TerminalGuiAotProbe -c Release
 
 ### 9.2 目标 3 层
 
-| 目标层 | 职责 | 合并的当前层 | 对应 claude code |
+| 目标层 | 职责 | 合并的当前层 | 对应 TS 原版 |
 |--------|------|-------------|-----------------|
 | `AllAgentDisallowedTools` | 所有 subagent 禁用（防递归） | 4（静态集）+ 6（deny 规则防递归部分） | `ALL_AGENT_DISALLOWED_TOOLS` |
 | `AsyncAgentAllowedTools` | 后台 agent 白名单 | 3（Fork UseExactTools）+ 1（CLI --allowed-tools） | `ASYNC_AGENT_ALLOWED_TOOLS` |

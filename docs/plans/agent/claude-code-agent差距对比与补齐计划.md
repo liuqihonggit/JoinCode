@@ -1,4 +1,4 @@
-# Claude Code Agent 架构差距对比与补齐计划
+# JoinCode Agent 架构差距对比与补齐计划
 
 > **创建时间**: 2026-08-16
 > **调研源码**: `D:\project\claude-code-rust\claude-code-rev-main\src\`
@@ -11,7 +11,7 @@
 
 ### 1.1 核心机制对齐度: ~85%
 
-| 机制 | 我们 | claude code | 状态 |
+| 机制 | 我们 | TS 原版 | 状态 |
 |------|------|-------------|------|
 | 统一 AgentBase(fork 模式) | `core/ai/Agents/src/Coordinator/Fork/AgentBase.cs:1` (681行) | `runAgent.ts` | ✅ 对齐 |
 | 工具白/黑名单过滤 | `AgentRoleProfile.AllowedTools/DisallowedTools` | `resolveAgentTools` | ✅ 对齐 |
@@ -24,7 +24,7 @@
 | Worktree 隔离 | `IAgentWorktreeManager` | `isolation: 'worktree'` | ✅ 对齐 |
 | Agent 记忆 | `IAgentMemoryService` | `agentMemory.ts` | ✅ 对齐 |
 
-### 1.2 我们的额外优势(claude code 没有)
+### 1.2 我们的额外优势(TS 原版 没有)
 
 | 优势 | 位置 | 说明 |
 |------|------|------|
@@ -43,7 +43,7 @@
 #### 缺失项 1: Coordinator 专用模式
 
 - **状态**: 🟡 部分实现(2026-08-16 验证)
-- **claude code 位置**: `src/coordinator/coordinatorMode.ts:1` (321+行)
+- **TS 原版 位置**: `src/coordinator/coordinatorMode.ts:1` (321+行)
 - **描述**: 专门的编排模式,coordinator 只有 `Agent`/`SendMessage`/`TaskStop` 三个工具,不直接执行任务,只编排 worker。有详细 system prompt 指导如何写 worker prompt、何时 continue vs spawn fresh。Worker agent 类型为 `'worker'`,结果通过 `<task-notification>` XML 返回。
 - **启用方式**: `feature('COORDINATOR_MODE') && isEnvTruthy(process.env.CLAUDE_CODE_COORDINATOR_MODE)`
 - **价值**: 高 — 编排与执行分离,coordinator 不陷入执行细节
@@ -52,7 +52,7 @@
   - ✅ 有工厂方法: `SystemPromptProviderOptions.ForCoordinatorMode()` (`:109`)
   - ❌ **生产代码硬编码 `IsCoordinatorMode = false`**(`SyncSystemPromptProviderOptions.cs:37`),无启用路径
   - ❌ **`ForCoordinatorMode()` 从未被调用**(全代码库仅定义处 1 处匹配)
-  - ❌ **不限制工具集**: Coordinator Profile `AllowedTools = null`(全量),而 claude code 限制为 `[Agent, SendMessage, TaskStop]`(`COORDINATOR_MODE_ALLOWED_TOOLS`)
+  - ❌ **不限制工具集**: Coordinator Profile `AllowedTools = null`(全量),而 TS 原版 限制为 `[Agent, SendMessage, TaskStop]`(`COORDINATOR_MODE_ALLOWED_TOOLS`)
   - ❌ 无 feature gate / 环境变量(如 `JCC_COORDINATOR_MODE`)
 - **设计方案**:
   1. **启用路径**: 在 `SyncSystemPromptProviderOptions` 构造函数中,从环境变量 `JCC_COORDINATOR_MODE` 或 `WorkflowConfig` 读取 `IsCoordinatorMode`(默认 false,向后兼容)
@@ -65,7 +65,7 @@
 #### 缺失项 2: Fork 字节级 prompt cache 共享
 
 - **状态**: ✅ 已实现(2026-08-16 验证)
-- **claude code 位置**: `src/tools/AgentTool/runAgent.ts:508`
+- **TS 原版 位置**: `src/tools/AgentTool/runAgent.ts:508`
 - **描述**: Fork 路径用父 agent 的**已渲染 system prompt 字节**(`toolUseContext.renderedSystemPrompt`),而非重新生成。避免 GrowthBook 冷热状态差异导致 prompt cache 失效。普通 subagent 零上下文启动,两种模式共存。
 - **价值**: 高 — 大幅省 token(prompt cache 命中)
 - **验证结论**: **已实现**。`ForkSpawnMiddleware.cs:69`:
@@ -75,20 +75,20 @@
   - `CacheSafeParams.RenderedSystemPrompt` 字段存在(`foundation/Abstractions/01-ai/LLM/Chat/Cache/CacheSafeParams.cs:5`)
   - fork 时 `cacheSafeParams?.Clone()` 克隆父参数(`ForkSpawnMiddleware.cs:48`)
   - `ContextSetupMiddleware.cs:85` 也传递 `RenderedSystemPrompt`
-  - 逻辑与 claude code 的 `override.systemPrompt ?? toolUseContext.renderedSystemPrompt` 一致
+  - 逻辑与 TS 原版 的 `override.systemPrompt ?? toolUseContext.renderedSystemPrompt` 一致
 - **无需补齐**
 
 #### 缺失项 3: getSystemPrompt 闭包延迟生成
 
 - **状态**: 🟡 部分实现(2026-08-16 验证)
-- **claude code 位置**: `src/tools/AgentTool/loadAgentsDir.ts:106`
+- **TS 原版 位置**: `src/tools/AgentTool/loadAgentsDir.ts:106`
 - **描述**: `getSystemPrompt` 是闭包而非静态字段。内置 agent 可接收 `toolUseContext` 参数,动态注入运行时配置(如 claude-code-guide agent 注入当前 MCP 服务器列表、自定义命令、skills、settings.json)。
 - **价值**: 高 — 内置 agent 可动态注入运行时配置
 - **验证结论**:
   - ✅ `AgentPromptBuilder.BuildSystemPromptAsync` 有部分动态注入:团队上下文(`:79-99` 通过 `ITeammateInitService`)、skills 列表(`:107-115`)
   - ❌ **不接收运行时上下文参数**: 签名是 `(agentType, task, context, ct)`,无 `toolUseContext` 等价参数,无法注入当前 MCP/skills/settings
   - ❌ **GuideAgent 不动态注入配置**: `BuiltInAgentToolHandlers.GuideAgentAsync` 调用 `BuildGuidePrompt(question, feature)` 静态构建,不查询当前 MCP/skills/settings
-  - ❌ 无 claude code 的 `getSystemPrompt({ toolUseContext })` 闭包模式
+  - ❌ 无 TS 原版 的 `getSystemPrompt({ toolUseContext })` 闭包模式
 - **设计方案**:
   1. **新增 `AgentPromptContext` 参数**: 给 `BuildSystemPromptAsync` 增加可选参数,含 `IReadOnlyList<string> McpServers`、`IReadOnlyList<string> AvailableSkills`、`string? SettingsSummary`
   2. **GuideAgent 特殊处理**: spawn 前从 `IToolRegistry`/`ISkillRegistry`/`IConfigChangeNotifier` 查询当前配置,注入到 prompt
@@ -99,28 +99,28 @@
 #### 缺失项 10: omitClaudeMd + 省略 gitStatus
 
 - **状态**: ✅ 已实现(2026-08-16 验证)
-- **claude code 位置**: `src/tools/AgentTool/runAgent.ts:385`
+- **TS 原版 位置**: `src/tools/AgentTool/runAgent.ts:385`
 - **描述**: 只读 agent(Explore/Plan)省略 CLAUDE.md(每周省 5-15 Gtok),且省略父 session 的 stale gitStatus(40KB)。通过 `omitClaudeMd: true` 字段控制。
 - **价值**: 高 — 省 5-15 Gtok/周
 - **验证结论**: **已实现**。
   - `AgentRoleProfile.OmitClaudeMd`/`OmitGitStatus` 字段存在(`AgentRoleProfile.cs:57,62`)
   - Explore/Plan Profile 设置 `OmitClaudeMd = true`、`OmitGitStatus = true`(`AgentRoleProfileRegistry.cs:233-234,245-246`)
   - `ContextSetupMiddleware.BuildFilteredCacheSafeParams`(`:72,78`): `OmitClaudeMd == true` → `FilterKey(userContext, "claudeMd")`;`OmitGitStatus == true` → `FilterKey(systemContext, "gitStatus")`
-  - 逻辑与 claude code 的 `shouldOmitClaudeMd` + 省略 gitStatus 一致
+  - 逻辑与 TS 原版 的 `shouldOmitClaudeMd` + 省略 gitStatus 一致
 - **无需补齐**
 
 #### 缺失项 12+13: 递归 fork 防护 + filterIncompleteToolCalls
 
 - **状态**: ✅ 已实现(2026-08-16 验证)
-- **claude code 位置**: `src/tools/AgentTool/forkSubagent.ts` (isInForkChild), `runAgent.ts` (filterIncompleteToolCalls)
+- **TS 原版 位置**: `src/tools/AgentTool/forkSubagent.ts` (isInForkChild), `runAgent.ts` (filterIncompleteToolCalls)
 - **描述**:
   - **递归 fork 防护**: `isInForkChild` 检测 fork boilerplate tag(`<fork-boilerplate>`),防止 fork 子进程递归 fork(无限递归)
   - **filterIncompleteToolCalls**: fork 时过滤掉不完整的 tool calls(有 tool_use 无 tool_result),避免 API 错误
 - **价值**: 高 — 防无限递归 + 防 API 错误
 - **验证结论**: **均已实现**:
-  - **递归防护**: `ForkMessageBuilder.IsInForkChild`(`ForkMessageBuilder.cs:46`)检测 `<fork-boilerplate>` tag,与 claude code 的 `isInForkChild` 逻辑一致
+  - **递归防护**: `ForkMessageBuilder.IsInForkChild`(`ForkMessageBuilder.cs:46`)检测 `<fork-boilerplate>` tag,与 TS 原版 的 `isInForkChild` 逻辑一致
   - **深度限制**: `ForkSubAgentManager.CalculateForkDepth`(`ForkSubAgentManager.cs:430`)max 100 层,`ForkContext.ForkDepth` 字段传递
-  - **incomplete tool call 处理**: `ForkMessageBuilder.BuildForkedMessages`(`ForkMessageBuilder.cs:60`)为每个 tool_use 补占位 tool_result(`ForkPlaceholderResult = "Fork started — processing in background"`),效果等同于 claude code 的 `filterIncompleteToolCalls`(避免 API 错误),实现思路略不同(补占位 vs 过滤)
+  - **incomplete tool call 处理**: `ForkMessageBuilder.BuildForkedMessages`(`ForkMessageBuilder.cs:60`)为每个 tool_use 补占位 tool_result(`ForkPlaceholderResult = "Fork started — processing in background"`),效果等同于 TS 原版 的 `filterIncompleteToolCalls`(避免 API 错误),实现思路略不同(补占位 vs 过滤)
 - **无需补齐**
 
 ---
@@ -130,19 +130,19 @@
 #### 缺失项 4: 多层来源优先级覆盖
 
 - **状态**: 🟡 部分实现(2026-08-16 验证 → 2026-08-16 修复 EnsureCustomLoaded)
-- **claude code 位置**: `src/tools/AgentTool/loadAgentsDir.ts:193` (`getActiveAgentsFromList`)
+- **TS 原版 位置**: `src/tools/AgentTool/loadAgentsDir.ts:193` (`getActiveAgentsFromList`)
 - **描述**: agent 来源优先级(低 → 高): `built-in < plugin < userSettings < projectSettings < flagSettings < policySettings`,后者覆盖前者同名 agent。用 Map.set 同 key 覆盖实现。
 - **价值**: 中 — 配置灵活性(项目级覆盖用户级覆盖内置)
 - **验证结论**:
   - ✅ `AgentDefinitionProvider.Deduplicate`(`:618-638`)实现了覆盖:有 `SourcePath` 的(来自文件)覆盖先来的(内置),加载顺序 内置→用户→项目,效果 项目>用户>内置
-  - ❌ 缺 plugin/flag/managed 三层(claude code 有 6 层,我们 3 层)
+  - ❌ 缺 plugin/flag/managed 三层(TS 原版 有 6 层,我们 3 层)
   - ✅ **已修复** `AgentRoleProfileRegistry.EnsureCustomLoaded`: 自定义定义有 SourcePath 时覆盖同 key 内置 profile(用 Dictionary 索引 O(n) 替代 FindIndex O(n²))
 - **已实现**: commit `160a7ce8d` — EnsureCustomLoaded 覆盖逻辑 + 测试 GetProfile_CustomDefinitionWithSourcePath_OverridesBuiltIn
 
 #### 缺失项 5: 异步 agent 白名单(ASYNC_AGENT_ALLOWED_TOOLS)
 
 - **状态**: ❌ 确认缺失(2026-08-16 验证)
-- **claude code 位置**: `src/constants/tools.ts`
+- **TS 原版 位置**: `src/constants/tools.ts`
 - **描述**: 后台(异步)agent 有独立白名单,限制可用工具(不能 AskUserQuestion、不能 TaskStop 等)。`filterToolsForAgent` 中 `isAsync && !ASYNC_AGENT_ALLOWED_TOOLS.has(tool.name)` 时过滤。
 - **价值**: 中 — 后台 agent 安全(不能交互提问、不能停止其他任务)
 - **验证结论**: 确认缺失。全代码库无 `AsyncAgentAllowed`/`BACKGROUND_ALLOWED_TOOLS`/`ASYNC_AGENT_ALLOWED` 等常量。`AgentBackgroundSpawnMiddleware` 存在但无独立工具白名单过滤。
@@ -155,7 +155,7 @@
 #### 缺失项 6: Agent 专属 MCP 服务器(mcpServers 字段)
 
 - **状态**: ⬜ 未验证
-- **claude code 位置**: `src/tools/AgentTool/runAgent.ts` (`initializeAgentMcpServers`)
+- **TS 原版 位置**: `src/tools/AgentTool/runAgent.ts` (`initializeAgentMcpServers`)
 - **描述**: agent 定义中 `mcpServers` 字段允许 agent 定义自己的 MCP 服务器,spawn 时连接,结束时清理。`AgentMcpServerSpec[]` 类型。
 - **价值**: 中 — agent 私有工具(如 doctor agent 专属诊断 MCP)
 - **我们现状**: 有 `IAgentMcpServerManager` 接口和 `AgentMcpServerManager` 实现,需验证是否支持 agent 定义中声明专属 MCP。
@@ -165,7 +165,7 @@
 #### 缺失项 7: Skills 预加载(skills 字段)
 
 - **状态**: 🟡 部分实现(2026-08-16 验证)
-- **claude code 位置**: `src/tools/AgentTool/runAgent.ts`
+- **TS 原版 位置**: `src/tools/AgentTool/runAgent.ts`
 - **描述**: agent 定义中 `skills` 字段在 spawn 时预加载 skill 内容到 initialMessages。`skills: string[]`。
 - **价值**: 中 — spawn 时自动加载 skill,无需 agent 自己调用 skill 工具
 - **验证结论**:
@@ -182,7 +182,7 @@
 #### 缺失项 8: initialPrompt(首轮前置 prompt)
 
 - **状态**: ⬜ 未验证
-- **claude code 位置**: `src/tools/AgentTool/loadAgentsDir.ts`
+- **TS 原版 位置**: `src/tools/AgentTool/loadAgentsDir.ts`
 - **描述**: agent 定义中 `initialPrompt` 字段,首轮前置 prompt(支持斜杠命令)。spawn 时作为第一条 user message 注入。
 - **价值**: 低 — 较少 agent 需要
 - **我们现状**: 需验证 `SubAgentOptions` 或 agent 定义是否有 initialPrompt 字段。
@@ -192,7 +192,7 @@
 #### 缺失项 9: maxTurns(agent 级别最大轮次)
 
 - **状态**: 🟡 部分实现(2026-08-16 验证)
-- **claude code 位置**: `src/tools/AgentTool/runAgent.ts`
+- **TS 原版 位置**: `src/tools/AgentTool/runAgent.ts`
 - **描述**: agent 定义中 `maxTurns` 字段,agent 级别的最大轮次限制。`maxTurns ?? agentDefinition.maxTurns`。
 - **价值**: 中 — 防失控
 - **验证结论**:
@@ -208,7 +208,7 @@
 #### 缺失项 14: Agent(worker,researcher) 语法
 
 - **状态**: ✅ 已实现(2026-08-16)
-- **claude code 位置**: `src/tools/AgentTool/agentToolUtils.ts` (`resolveAgentTools`)
+- **TS 原版 位置**: `src/tools/AgentTool/agentToolUtils.ts` (`resolveAgentTools`)
 - **描述**: Agent 工具的 `tools` 字段可携带 `allowedAgentTypes` 元数据,如 `Agent(worker,researcher)` 限制可 spawn 的 agent 类型。`ruleContent.split(',')` 解析。
 - **价值**: 中 — 限制 agent 可递归 spawn 的子 agent 类型
 - **已实现**: commit `97d2c3457` — `AgentTypeSpecParser` 静态类(Parse + IsAllowed) + 7 个测试
@@ -218,7 +218,7 @@
 #### 缺失项 15: requiredMcpServers
 
 - **状态**: ⬜ 未验证
-- **claude code 位置**: `src/tools/AgentTool/AgentTool.tsx`
+- **TS 原版 位置**: `src/tools/AgentTool/AgentTool.tsx`
 - **描述**: agent 可声明 `requiredMcpServers: string[]`,spawn 时检查这些 MCP 服务器是否已配置,不满足报错。等待 pending 服务器最多 30s。
 - **价值**: 中 — 显式声明依赖,缺失时清晰报错
 - **我们现状**: 需验证 agent 定义是否有 requiredMcpServers 字段。
@@ -228,7 +228,7 @@
 #### 缺失项 16: filterDeniedAgents(权限规则禁用特定 agent)
 
 - **状态**: ⬜ 未验证
-- **claude code 位置**: 权限层
+- **TS 原版 位置**: 权限层
 - **描述**: 权限规则可禁用特定 agent,`Agent(AgentName)` deny 语法。
 - **价值**: 中 — 安全控制
 - **我们现状**: 需验证权限层是否支持按 agent 名禁用。
@@ -238,7 +238,7 @@
 #### 缺失项 17: 插件 agent 安全限制
 
 - **状态**: ⏸️ 暂缓(2026-08-16)
-- **claude code 位置**: `src/utils/plugins/loadPluginAgents.ts`
+- **TS 原版 位置**: `src/utils/plugins/loadPluginAgents.ts`
 - **描述**: 插件 agent **不能**定义 `permissionMode`、`hooks`、`mcpServers`(安装时信任边界,不允许单个 agent 文件静默添加)。
 - **价值**: 中 — 安全(插件不能越权)
 - **暂缓原因**: 无插件 agent 体系(只有 PluginHook),需先建立插件 agent 加载器,工作量较大
@@ -247,7 +247,7 @@
 #### 缺失项 21: background: true(总在后台运行)
 
 - **状态**: ⬜ 未验证
-- **claude code 位置**: `src/tools/AgentTool/built-in/verificationAgent.ts`
+- **TS 原版 位置**: `src/tools/AgentTool/built-in/verificationAgent.ts`
 - **描述**: agent 定义中 `background: true` 表示总在后台运行(如 verification agent)。与 `run_in_background` 参数不同,这是 agent 级别的固定配置。
 - **价值**: 中 — 某些 agent(验证/监控)天然适合后台
 - **我们现状**: 有 `AgentBackgroundSpawnMiddleware`,需验证是否支持 agent 定义级别的 background 字段。
@@ -261,7 +261,7 @@
 #### 缺失项 11: ONE_SHOT_BUILTIN_AGENT_TYPES
 
 - **状态**: ✅ 已实现(2026-08-16 验证)
-- **claude code 位置**: `src/tools/AgentTool/agentToolUtils.ts`
+- **TS 原版 位置**: `src/tools/AgentTool/agentToolUtils.ts`
 - **描述**: Explore/Plan 是 one-shot agent,跳过 agentId/SendMessage/usage trailer(每次省 ~135 字符)。
 - **价值**: 低 — 省 135 字符/次
 - **验证结论**: **已实现**。
@@ -275,7 +275,7 @@
 #### 缺失项 18: criticalSystemReminder_EXPERIMENTAL
 
 - **状态**: ✅ 已实现(2026-08-16)
-- **claude code 位置**: `src/tools/AgentTool/loadAgentsDir.ts`
+- **TS 原版 位置**: `src/tools/AgentTool/loadAgentsDir.ts`
 - **描述**: agent 定义中 `criticalSystemReminder_EXPERIMENTAL` 字段,每轮重注入的提醒(如 verification agent 的 "CRITICAL: This is a VERIFICATION-ONLY task")。
 - **价值**: 低 — 实验性功能
 - **已实现**: commit `a469d6296` — AgentRoleProfile.CriticalSystemReminder + AgentDefinition.CriticalSystemReminder + AgentPromptBuilder 注入 + 2 个测试
@@ -283,7 +283,7 @@
 #### 缺失项 19: model alias 匹配父 tier
 
 - **状态**: ✅ 已实现(2026-08-16)
-- **claude code 位置**: `src/utils/model/agent.ts` (`aliasMatchesParentTier`)
+- **TS 原版 位置**: `src/utils/model/agent.ts` (`aliasMatchesParentTier`)
 - **描述**: 如果 agent 指定 `model: 'opus'` 而父模型也是 opus 系列,直接用父模型(避免 Vertex 用户从 Opus 4.6 降级到默认 Opus)。
 - **价值**: 低 — 边缘场景
 - **已实现**: commit `0f538fe1a` — `SystemPromptProviderOptions.ModelAliasMatchesParentTier` 静态方法 + 6 个测试(opus/sonnet/haiku 三档匹配)
@@ -291,7 +291,7 @@
 #### 缺失项 20: CLAUDE_CODE_SUBAGENT_MODEL 环境变量
 
 - **状态**: ✅ 已实现(2026-08-19)
-- **claude code 位置**: `src/utils/model/agent.ts`
+- **TS 原版 位置**: `src/utils/model/agent.ts`
 - **描述**: 全局环境变量覆盖所有 subagent 模型。
 - **价值**: 低 — 测试/调试用
 - **已实现**: `JCC_SUBAGENT_MODEL` 环境变量 + inherit 关键字 + Bedrock 跨区域前缀继承,commit `325db9a8f`
@@ -299,9 +299,9 @@
 #### 缺失项 21: inherit 关键字 + Bedrock 跨区域前缀继承
 
 - **状态**: ✅ 已实现(2026-08-19)
-- **claude code 位置**: `src/utils/model/agent.ts` (getDefaultSubagentModel + getBedrockRegionPrefix + applyBedrockRegionPrefix)
+- **TS 原版 位置**: `src/utils/model/agent.ts` (getDefaultSubagentModel + getBedrockRegionPrefix + applyBedrockRegionPrefix)
 - **描述**: 
-  - `inherit` 关键字: 子代理显式继承父线程模型(对齐 claude code 默认 'inherit')
+  - `inherit` 关键字: 子代理显式继承父线程模型(对齐 TS 原版 默认 'inherit')
   - Bedrock 跨区域前缀: 父模型有 us/eu/apac/global 前缀时,子代理 alias 模型继承相同前缀(IAM 权限区域限定)
 - **价值**: 中 — Bedrock 用户必需 + 配置可读性
 - **已实现**: commit `325db9a8f`
@@ -315,7 +315,7 @@
 #### 缺失项 22: color/effort 字段
 
 - **状态**: ⬜ 未验证
-- **claude code 位置**: `src/tools/AgentTool/loadAgentsDir.ts`
+- **TS 原版 位置**: `src/tools/AgentTool/loadAgentsDir.ts`
 - **描述**: `color`(UI 颜色)和 `effort`(努力等级)字段。
 - **价值**: 低 — UI/调优
 - **我们现状**: 需验证。
@@ -325,7 +325,7 @@
 #### 缺失项 23(合并): isolation: 'remote'
 
 - **状态**: ✅ 已实现(2026-08-16)
-- **claude code 位置**: `src/tools/AgentTool/loadAgentsDir.ts`
+- **TS 原版 位置**: `src/tools/AgentTool/loadAgentsDir.ts`
 - **描述**: `isolation` 支持 `'worktree'` 和 `'remote'` 两种。我们可能有 worktree,需验证 remote。
 - **价值**: 低 — 远程隔离较少用
 - **已实现**: commit `1cfc879e0` — `AgentIsolationMode.Remote` 枚举值 + [EnumValue("remote")] + 2 个测试(FromValue/ToValue 往返)
@@ -454,4 +454,4 @@
 <!-- 🤖 Auto Decision: 2026-08-21 -->
 <!-- 决策: #14 AgentTypeSpecParser 接入 spawn 路径 + #18 criticalSystemReminder 改为每轮注入 -->
 <!-- 原因: 文档标记"已实现"但实际链路断裂 — #14 解析器生产零调用,#18 注入到 system prompt 而非每轮消息流 -->
-<!-- 验证: 查 Claude Code 源码确认两项真实存在(allowedAgentTypes + criticalSystemReminder_EXPERIMENTAL re-injected at every user turn),修复后 #14 15/15测试 #18 9/9测试 ✅ -->
+<!-- 验证: 查 JoinCode 源码确认两项真实存在(allowedAgentTypes + criticalSystemReminder_EXPERIMENTAL re-injected at every user turn),修复后 #14 15/15测试 #18 9/9测试 ✅ -->

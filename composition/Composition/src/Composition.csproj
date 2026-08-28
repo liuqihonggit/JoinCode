@@ -16,6 +16,7 @@
     <ProjectReference Include="$(RepoRoot)core\safety\Guard\src\Guard.csproj" />
     <ProjectReference Include="$(RepoRoot)core\execution\Hands\src\Hands.csproj" />
     <ProjectReference Include="$(RepoRoot)services\Eyes\src\Eyes.csproj" />
+    <ProjectReference Include="$(RepoRoot)services\Vision\src\Vision.csproj" />
     <ProjectReference Include="$(RepoRoot)core\safety\Vault\src\Vault.csproj" />
     <ProjectReference Include="$(RepoRoot)core\execution\Scheduling\src\Scheduling.csproj" />
     <ProjectReference Include="$(RepoRoot)core\execution\McpToolDispatch\src\McpToolDispatch.csproj" />

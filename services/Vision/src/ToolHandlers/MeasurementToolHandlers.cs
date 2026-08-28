@@ -58,13 +58,24 @@ public class MeasurementToolHandlers
         if (width <= 0 || height <= 0)
             return ToolResultBuilder.Error().WithText("[VIS401] 区域尺寸必须为正").Build();
 
-        var bytes = Convert.FromBase64String(imageBase64);
-        using var image = Image.Load<Rgb24>(bytes);
+        if (!VisionBase64.TryDecode(imageBase64, out var bytes, out var decodeError))
+            return ToolResultBuilder.Error().WithText($"[VIS403] {decodeError}").Build();
 
-        if (x < 0 || y < 0 || x + width > image.Width || y + height > image.Height)
-            return ToolResultBuilder.Error().WithText($"[VIS402] 区域超出图片范围 ({image.Width}x{image.Height})").Build();
+        Image<Rgb24> image;
+        try
+        {
+            image = Image.Load<Rgb24>(bytes);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return ToolResultBuilder.Error().WithText("[VIS403] 无法解码图片，请检查 base64 是否为有效图片").Build();
+        }
+        using var img = image;
 
-        var (avgR, avgG, avgB, varR, varG, varB, gradient) = AnalyzeRegion(image, x, y, width, height);
+        if (x < 0 || y < 0 || x + width > img.Width || y + height > img.Height)
+            return ToolResultBuilder.Error().WithText($"[VIS402] 区域超出图片范围 ({img.Width}x{img.Height})").Build();
+
+        var (avgR, avgG, avgB, varR, varG, varB, gradient) = AnalyzeRegion(img, x, y, width, height);
         var totalVariance = (varR + varG + varB) / 3.0;
         var depthEstimate = totalVariance > 0 ? 100.0 / (1.0 + totalVariance / 100.0) : 100.0;
 

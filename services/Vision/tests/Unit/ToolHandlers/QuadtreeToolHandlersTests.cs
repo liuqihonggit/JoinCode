@@ -73,6 +73,14 @@ public sealed class QuadtreeToolHandlersTests
     }
 
     [Fact]
+    public async Task QuadtreeBuild_InvalidBase64_ShouldReturnErrorNotThrow()
+    {
+        var result = await _handlers.QuadtreeBuildAsync("not-valid-base64!!!", depth: 1);
+        result.IsError.Should().BeTrue();
+        result.Content[0].Text.Should().Contain("[VIS102]");
+    }
+
+    [Fact]
     public async Task QuadtreeZoom_ShouldReturnSubImageAndNewGrid()
     {
         var base64 = CreateTestImageBase64();
@@ -93,6 +101,24 @@ public sealed class QuadtreeToolHandlersTests
         var result = await _handlers.QuadtreeZoomAsync(base64, "", sourceDepth: 1);
         result.IsError.Should().BeTrue();
         result.Content[0].Text.Should().Contain("[VIS111]");
+    }
+
+    [Fact]
+    public async Task QuadtreeZoom_CellCodeExceedsSourceDepth_ShouldReturnErrorNotCrash()
+    {
+        var base64 = CreateTestImageBase64();
+        var result = await _handlers.QuadtreeZoomAsync(base64, "L0.3.3", sourceDepth: 1, targetDepth: 1);
+
+        result.IsError.Should().BeTrue();
+        result.Content[0].Text.Should().Contain("[VIS112]");
+    }
+
+    [Fact]
+    public async Task QuadtreeZoom_InvalidBase64_ShouldReturnErrorNotThrow()
+    {
+        var result = await _handlers.QuadtreeZoomAsync("not-valid-base64!!!", "L0.0", sourceDepth: 1);
+        result.IsError.Should().BeTrue();
+        result.Content[0].Text.Should().Contain("[VIS113]");
     }
 
     [Fact]
@@ -122,6 +148,15 @@ public sealed class QuadtreeToolHandlersTests
         var result = await _handlers.QuadtreePaintAsync(0, TestHeight, depth: 1, """{"L0.0":0.5}""");
         result.IsError.Should().BeTrue();
         result.Content[0].Text.Should().Contain("[VIS120]");
+    }
+
+    [Fact]
+    public async Task QuadtreePaint_InvalidJson_ShouldReturnErrorNotThrow()
+    {
+        var result = await _handlers.QuadtreePaintAsync(TestWidth, TestHeight, depth: 1, "not-valid-json");
+
+        result.IsError.Should().BeTrue();
+        result.Content[0].Text.Should().Contain("[VIS122]");
     }
 
     [Fact]
@@ -155,6 +190,24 @@ public sealed class QuadtreeToolHandlersTests
         var result = await _handlers.QuadtreeRenderAsync("", TestWidth, TestHeight, depth: 1);
         result.IsError.Should().BeTrue();
         result.Content[0].Text.Should().Contain("[VIS130]");
+    }
+
+    [Fact]
+    public async Task QuadtreeRender_InvalidPaintsJson_ShouldReturnErrorNotThrow()
+    {
+        var base64 = CreateTestImageBase64();
+        var result = await _handlers.QuadtreeRenderAsync(base64, TestWidth, TestHeight, depth: 1, "not-valid-json");
+
+        result.IsError.Should().BeTrue();
+        result.Content[0].Text.Should().Contain("[VIS132]");
+    }
+
+    [Fact]
+    public async Task QuadtreeRender_InvalidBase64_ShouldReturnErrorNotThrow()
+    {
+        var result = await _handlers.QuadtreeRenderAsync("not-valid-base64!!!", TestWidth, TestHeight, depth: 1);
+        result.IsError.Should().BeTrue();
+        result.Content[0].Text.Should().Contain("[VIS020]");
     }
 
     [Theory]
@@ -207,5 +260,13 @@ public sealed class QuadtreeToolHandlersTests
         var result = await _handlers.ScreenIndicateAsync("", "L0.0", TestWidth, TestHeight, depth: 1);
         result.IsError.Should().BeTrue();
         result.Content[0].Text.Should().Contain("[VIS150]");
+    }
+
+    [Fact]
+    public async Task ScreenIndicate_InvalidBase64_ShouldReturnErrorNotThrow()
+    {
+        var result = await _handlers.ScreenIndicateAsync("not-valid-base64!!!", "L0.0", TestWidth, TestHeight, depth: 1);
+        result.IsError.Should().BeTrue();
+        result.Content[0].Text.Should().Contain("[VIS020]");
     }
 }

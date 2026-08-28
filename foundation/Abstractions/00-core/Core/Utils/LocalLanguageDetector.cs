@@ -120,7 +120,6 @@ public static class LocalLanguageDetector
         [0x1E] = "th",
         [0x2A] = "vi",
         [0x21] = "id",
-        [0x04] = "zh",
     }.ToFrozenDictionary();
 
     [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]

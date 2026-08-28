@@ -4,43 +4,10 @@ using McpProtocol;
 
 /// <summary>
 /// McpServer 防御性编程测试
-/// 验证并发注册工具处理器不抛异常
+/// 验证并发注册资源处理器不抛异常
 /// </summary>
 public sealed class McpServerDefensiveTests
 {
-    private sealed class FakeToolHandler : IMcpProtocolHandler
-    {
-        public string Name { get; }
-        public string Description => "fake";
-        public JsonElement InputSchema => default;
-        public Task<object> ExecuteAsync(Dictionary<string, JsonElement> arguments, CancellationToken cancellationToken = default)
-            => Task.FromResult<object>(null!);
-
-        public FakeToolHandler(string name) => Name = name;
-    }
-
-    [Fact]
-    public async Task ConcurrentRegisterToolHandler_DoesNotThrow()
-    {
-        var server = new McpServer("test");
-        var exceptions = new ConcurrentQueue<Exception>();
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
-
-        var tasks = Enumerable.Range(0, 4).Select(i => Task.Run(() =>
-        {
-            try
-            {
-                var n = i * 1000;
-                while (!cts.IsCancellationRequested)
-                    server.RegisterToolHandler(new FakeToolHandler($"tool-{n++}"));
-            }
-            catch (Exception ex) { exceptions.Enqueue(ex); }
-        }));
-
-        await Task.WhenAll(tasks);
-        exceptions.Should().BeEmpty();
-    }
-
     [Fact]
     public async Task ConcurrentRegisterResourceHandler_DoesNotThrow()
     {

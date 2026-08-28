@@ -1,6 +1,6 @@
 # 0041. Fsm 源码生成器 + 特性 + 事件订阅
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-08-29
 - 决策者：用户确认
 - 前驱：[0040](docs/adr/0040-enterprise-fsm-framework.md)（企业级状态机框架）

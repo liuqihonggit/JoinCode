@@ -82,7 +82,7 @@ public partial class ChatService : IChatService {
     public async IAsyncEnumerable<string> SendMessageStreamAsync(string message, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
-        var context = new ChatMiddlewareContext { Message = message, SpanName = "chat.send.stream", ConversationTurn = _conversationTurn, ToolUseContext = _toolUseContext };
+        var context = new ChatMiddlewareContext { Message = message, SpanName = "chat.send.stream", ConversationTurn = _conversationTurn, ToolUseContext = _toolUseContext, SessionId = (_contextManager is ChatContextManager cm) ? cm.SessionId : global::Core.Utils.SessionIdFactory.DefaultSessionId };
 
         try
         {
@@ -107,7 +107,7 @@ public partial class ChatService : IChatService {
     public async IAsyncEnumerable<ChatStreamEvent> StreamWithEventsAsync(string message, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
-        var context = new ChatMiddlewareContext { Message = message, SpanName = "chat.send.events", ConversationTurn = _conversationTurn, ToolUseContext = _toolUseContext };
+        var context = new ChatMiddlewareContext { Message = message, SpanName = "chat.send.events", ConversationTurn = _conversationTurn, ToolUseContext = _toolUseContext, SessionId = (_contextManager is ChatContextManager cm) ? cm.SessionId : global::Core.Utils.SessionIdFactory.DefaultSessionId };
 
         try
         {
@@ -129,7 +129,7 @@ public partial class ChatService : IChatService {
     /// </summary>
     public async Task<string> SendMessageAsync(string message, CancellationToken cancellationToken = default) {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
-        var context = new ChatMiddlewareContext { Message = message, SpanName = "chat.send.sync", ConversationTurn = _conversationTurn, ToolUseContext = _toolUseContext };
+        var context = new ChatMiddlewareContext { Message = message, SpanName = "chat.send.sync", ConversationTurn = _conversationTurn, ToolUseContext = _toolUseContext, SessionId = (_contextManager is ChatContextManager cm) ? cm.SessionId : global::Core.Utils.SessionIdFactory.DefaultSessionId };
 
         try
         {

@@ -74,6 +74,11 @@ public sealed class ChatMiddlewareContext
     public string SpanName { get; init; } = "chat.send.events";
 
     /// <summary>
+    /// 当前会话 ID — 由 ChatService 在创建 context 时从 ContextManager 获取，供 DiagnosticLogRecorder 等中间件用作目录名
+    /// </summary>
+    public string SessionId { get; init; } = global::Core.Utils.SessionIdFactory.DefaultSessionId;
+
+    /// <summary>
     /// 当前对话轮次号 — 由 ChatService 在创建 context 时设置
     /// </summary>
     public int ConversationTurn { get; init; }

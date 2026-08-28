@@ -26,7 +26,7 @@ public sealed partial class DiagnosticLogRecorder : ServiceEntity, IChatMiddlewa
         StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,
         [EnumeratorCancellation] CancellationToken ct)
     {
-        var sessionId = context.SpanName;
+        var sessionId = context.SessionId;
         var logPath = BuildLogPath(sessionId);
 
         await EnsureDiagDirectoryAsync(logPath).ConfigureAwait(false);

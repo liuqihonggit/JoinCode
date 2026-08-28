@@ -71,7 +71,7 @@ public sealed class ModelCoordinator : IModelCoordinator
             AllowedTools = _plannerAllowedTools,
             SystemPrompt = DefaultPlannerPrompt,
             InitialMessageList = _plannerSession,
-            SessionId = $"planner-{Guid.NewGuid():N}"[..24],
+            SessionId = SessionIdFactory.DefaultSessionId,
         };
 
         var planner = AgentFactory.Create(
@@ -122,7 +122,7 @@ public sealed class ModelCoordinator : IModelCoordinator
         {
             ModelName = _executorModelId,
             SystemPrompt = "You are the executor in a two-model coding agent. Carry out the plan using your available tools.",
-            SessionId = $"executor-{Guid.NewGuid():N}"[..24],
+            SessionId = SessionIdFactory.DefaultSessionId,
         };
 
         var executor = AgentFactory.Create(

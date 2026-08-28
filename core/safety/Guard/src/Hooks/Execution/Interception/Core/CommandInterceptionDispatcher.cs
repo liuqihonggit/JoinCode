@@ -65,6 +65,13 @@ public sealed partial class CommandInterceptionDispatcher : ServiceEntity
         ArgumentException.ThrowIfNullOrWhiteSpace(command);
         var currentCommand = command;
 
+        // 阶段0: [Flags] 属性检测 — 一次性检测命令拦截属性,用于日志诊断
+        var flags = InterceptionFlagDetector.Detect(command, context);
+        if (flags != InterceptionFlags.None)
+        {
+            _logger?.LogDebug("命令拦截属性: {Flags} ({Command})", flags, command);
+        }
+
         // 阶段1: 守卫链(无状态瞬时决策)
         foreach (var guard in _guards)
         {

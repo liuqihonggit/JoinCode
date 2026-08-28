@@ -13,6 +13,25 @@ public enum LspServerState
     [EnumValue("error")] Error
 }
 
+/// <summary>
+/// LSP 服务器事件 — 触发状态转换的事件（ADR 0040 事件枚举）
+/// </summary>
+internal enum LspServerEvent
+{
+    /// <summary>启动请求 — Stopped/Error → Starting</summary>
+    Start,
+    /// <summary>连接成功 — Starting → Running</summary>
+    ConnectSucceeded,
+    /// <summary>连接失败 — Starting → Error</summary>
+    ConnectFailed,
+    /// <summary>开始停止 — Running/Starting/Error → Stopping</summary>
+    BeginStop,
+    /// <summary>停止成功 — Stopping → Stopped</summary>
+    StopSucceeded,
+    /// <summary>停止失败 — Stopping → Error</summary>
+    StopFailed,
+}
+
 public interface ILspServerInstance : IAsyncDisposable
 {
     string Name { get; }
@@ -58,6 +77,16 @@ public sealed partial class LspInstanceConfig
     public Dictionary<string, string> ExtensionToLanguage { get; init; } = [];
 }
 
+[FsmStateMachine(typeof(LspServerState), typeof(LspServerEvent), LspServerState.Stopped)]
+[Transition(LspServerState.Stopped, LspServerEvent.Start, LspServerState.Starting)]
+[Transition(LspServerState.Error, LspServerEvent.Start, LspServerState.Starting)]
+[Transition(LspServerState.Starting, LspServerEvent.ConnectSucceeded, LspServerState.Running)]
+[Transition(LspServerState.Starting, LspServerEvent.ConnectFailed, LspServerState.Error)]
+[Transition(LspServerState.Starting, LspServerEvent.BeginStop, LspServerState.Stopping)]
+[Transition(LspServerState.Running, LspServerEvent.BeginStop, LspServerState.Stopping)]
+[Transition(LspServerState.Error, LspServerEvent.BeginStop, LspServerState.Stopping)]
+[Transition(LspServerState.Stopping, LspServerEvent.StopSucceeded, LspServerState.Stopped)]
+[Transition(LspServerState.Stopping, LspServerEvent.StopFailed, LspServerState.Error)]
 public sealed partial class LspServerInstance : ILspServerInstance
 {
     private const int LspErrorContentModified = -32801;
@@ -65,12 +94,10 @@ public sealed partial class LspServerInstance : ILspServerInstance
     private const int RetryBaseDelayMs = 500;
     private const int DefaultMaxRestarts = 3;
 
-    private static readonly FrozenDictionary<LspServerState, FrozenSet<LspServerState>> Transitions = CreateTransitionTable();
-
     private readonly LspInstanceConfig _config;
     private readonly ILogger<LspServerInstance> _logger;
     private readonly LspClient _client;
-    private readonly StateMachine<LspServerState> _stateMachine;
+    private readonly Fsm<LspServerState, LspServerEvent> _stateMachine;
 
     private Exception? _lastError;
     private int _crashRecoveryCount;
@@ -93,26 +120,15 @@ public sealed partial class LspServerInstance : ILspServerInstance
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _client = new LspClient(fs, processService);
-        _stateMachine = new StateMachine<LspServerState>(Transitions, LspServerState.Stopped);
+        _stateMachine = new Fsm<LspServerState, LspServerEvent>(_fsmSortedKeys, _fsmRules, LspServerState.Stopped);
         _stateMachine.StateChanged += OnStateChanged;
+        _stateMachine.StateChanged += (_, e) => FsmDispatchEvent(e);
     }
 
-    private void OnStateChanged(object? sender, StateChangedEventArgs<LspServerState> e)
+    private void OnStateChanged(object? sender, TransitionResult<LspServerState, LspServerEvent> e)
     {
-        _logger.LogInformation("LSP server '{Name}' state: {OldState} → {NewState}", Name, e.OldState, e.NewState);
-        StateChanged?.Invoke(this, new LspServerStateChangedEventArgs { OldState = e.OldState, NewState = e.NewState });
-    }
-
-    private static FrozenDictionary<LspServerState, FrozenSet<LspServerState>> CreateTransitionTable()
-    {
-        return new Dictionary<LspServerState, FrozenSet<LspServerState>>
-        {
-            [LspServerState.Stopped] = FrozenSet.Create(LspServerState.Starting),
-            [LspServerState.Starting] = FrozenSet.Create(LspServerState.Running, LspServerState.Error, LspServerState.Stopping),
-            [LspServerState.Running] = FrozenSet.Create(LspServerState.Stopping, LspServerState.Error),
-            [LspServerState.Stopping] = FrozenSet.Create(LspServerState.Stopped, LspServerState.Error),
-            [LspServerState.Error] = FrozenSet.Create(LspServerState.Starting, LspServerState.Stopping),
-        }.ToFrozenDictionary();
+        _logger.LogInformation("LSP server '{Name}' state: {OldState} → {NewState}", Name, e.FromState, e.ToState);
+        StateChanged?.Invoke(this, new LspServerStateChangedEventArgs { OldState = e.FromState, NewState = e.ToState });
     }
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
@@ -134,7 +150,7 @@ public sealed partial class LspServerInstance : ILspServerInstance
 
         try
         {
-            _stateMachine.TransitionTo(LspServerState.Starting);
+            _stateMachine.Trigger(LspServerEvent.Start);
 
             var connected = await _client.ConnectAsync(new LspServerConfig
             {
@@ -148,14 +164,14 @@ public sealed partial class LspServerInstance : ILspServerInstance
                 throw new InvalidOperationException($"Failed to connect to LSP server '{Name}'");
             }
 
-            _stateMachine.TransitionTo(LspServerState.Running);
+            _stateMachine.Trigger(LspServerEvent.ConnectSucceeded);
             _crashRecoveryCount = 0;
             _logger.LogInformation("LSP server '{Name}' started successfully", Name);
         }
         catch (Exception ex)
         {
             _lastError = ex;
-            _stateMachine.ForceTransitionTo(LspServerState.Error);
+            _stateMachine.ForceSet(LspServerState.Error);
             ErrorOccurred?.Invoke(this, new LspServerErrorEventArgs { Error = ex, ServerName = Name });
             _logger.LogError(ex, "Failed to start LSP server '{Name}'", Name);
             throw;
@@ -171,15 +187,15 @@ public sealed partial class LspServerInstance : ILspServerInstance
 
         try
         {
-            _stateMachine.TransitionTo(LspServerState.Stopping);
+            _stateMachine.Trigger(LspServerEvent.BeginStop);
             await _client.DisconnectAsync(cancellationToken).ConfigureAwait(false);
-            _stateMachine.TransitionTo(LspServerState.Stopped);
+            _stateMachine.Trigger(LspServerEvent.StopSucceeded);
             _logger.LogInformation("LSP server '{Name}' stopped", Name);
         }
         catch (Exception ex)
         {
             _lastError = ex;
-            _stateMachine.ForceTransitionTo(LspServerState.Error);
+            _stateMachine.ForceSet(LspServerState.Error);
             ErrorOccurred?.Invoke(this, new LspServerErrorEventArgs { Error = ex, ServerName = Name });
             throw;
         }

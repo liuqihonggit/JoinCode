@@ -1,8 +1,7 @@
 namespace McpProtocol;
 
-public class McpServer : IMcpServer
+public class McpServer
 {
-    private readonly ConcurrentDictionary<string, IMcpProtocolHandler> _tools = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, IResourceHandler> _resources = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, IPromptHandler> _prompts = new(StringComparer.Ordinal);
     private readonly string _serverName;
@@ -26,26 +25,6 @@ public class McpServer : IMcpServer
     {
         _inputReader = inputReader;
         _outputWriter = outputWriter;
-    }
-
-    public void RegisterTool<T>(T toolInstance) where T : class
-    {
-        ArgumentNullException.ThrowIfNull(toolInstance);
-
-        if (toolInstance is IMcpProtocolHandler handler)
-        {
-            _tools[handler.Name] = handler;
-        }
-        else
-        {
-            throw new ArgumentException($"Tool instance must implement {nameof(IMcpProtocolHandler)}", nameof(toolInstance));
-        }
-    }
-
-    public void RegisterToolHandler(IMcpProtocolHandler handler)
-    {
-        ArgumentNullException.ThrowIfNull(handler);
-        _tools[handler.Name] = handler;
     }
 
     public void RegisterResourceHandler(IResourceHandler handler)
@@ -277,54 +256,21 @@ public class McpServer : IMcpServer
         return new PingResult();
     }
 
-    private ListToolsResult HandleListTools()
+    private static ListToolsResult HandleListTools()
     {
-        var tools = _tools.Values.Select(h => new ToolDefinition
-        {
-            Name = h.Name,
-            Description = h.Description,
-            InputSchema = h.InputSchema
-        }).ToList();
-
-        return new ListToolsResult { Tools = tools };
+        return new ListToolsResult { Tools = [] };
     }
 
-    private async Task<CallToolResult> HandleCallToolAsync(JsonElement? paramsObj, CancellationToken cancellationToken)
+    private static Task<CallToolResult> HandleCallToolAsync(JsonElement? paramsObj, CancellationToken cancellationToken)
     {
-        if (paramsObj == null)
-            return new CallToolResult { Content = [new McpToolContent { Text = "No parameters provided" }], IsError = true };
-
-        var callParams = McpJsonSerializer.DeserializeCallToolRequestParams(paramsObj.Value.GetRawText());
-        if (callParams == null)
-            return new CallToolResult { Content = [new McpToolContent { Text = "Invalid parameters" }], IsError = true };
-
-        if (!_tools.TryGetValue(callParams.Name, out var handler))
-            return new CallToolResult { Content = [new McpToolContent { Text = $"Tool not found: {callParams.Name}" }], IsError = true };
-
-        try
+        var name = paramsObj != null
+            ? McpJsonSerializer.DeserializeCallToolRequestParams(paramsObj.Value.GetRawText())?.Name ?? "<unknown>"
+            : "<unknown>";
+        return Task.FromResult(new CallToolResult
         {
-            var arguments = ParseArguments(callParams.Arguments);
-            var result = await handler.ExecuteAsync(arguments).ConfigureAwait(false);
-
-            var resultText = result switch
-            {
-                null => "null",
-                string s => s,
-                _ => McpJsonSerializer.SerializeObject(result)
-            };
-            return new CallToolResult
-            {
-                Content = [new McpToolContent { Text = resultText }]
-            };
-        }
-        catch (Exception ex)
-        {
-            return new CallToolResult
-            {
-                Content = [new McpToolContent { Text = $"Error: {ex.InnerException?.Message ?? ex.Message}" }],
-                IsError = true
-            };
-        }
+            Content = [new McpToolContent { Text = $"Tool not found: {name}" }],
+            IsError = true
+        });
     }
 
     private McpResourcesListResponse HandleListResources()
@@ -416,13 +362,6 @@ public class McpServer : IMcpServer
         }
 
         return new PingResult();
-    }
-
-    private static Dictionary<string, JsonElement> ParseArguments(JsonElement? arguments)
-    {
-        if (arguments == null) return new Dictionary<string, JsonElement>();
-
-        return McpJsonSerializer.DeserializeDictionaryStringJsonElement(arguments.Value.GetRawText()) ?? new Dictionary<string, JsonElement>();
     }
 }
 

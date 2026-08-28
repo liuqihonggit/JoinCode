@@ -5,6 +5,7 @@
     <Project Path="generators/CodeFixes/src/CodeFixes.csproj" />
     <Project Path="generators/CliOption.Generator/src/CliOption.Generator.csproj" />
     <Project Path="generators/EnumMetadata.Generator/src/EnumMetadata.Generator.csproj" />
+    <Project Path="generators/Fsm.Generator/src/Fsm.Generator.csproj" />
     <Project Path="generators/McpToolDispatch.Generator/src/McpToolDispatch.Generator.csproj" />
     <Project Path="generators/PromptSection.Generator/src/PromptSection.Generator.csproj" />
     <Project Path="generators/PromptTemplate.Generator/src/PromptTemplate.Generator.csproj" />
@@ -12,5 +13,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="generators/AotSafety.Generator/tests/AotSafety.Tests.csproj" />
+    <Project Path="generators/Fsm.Generator/tests/Fsm.Generator.Tests.csproj" />
   </Folder>
 </Solution>

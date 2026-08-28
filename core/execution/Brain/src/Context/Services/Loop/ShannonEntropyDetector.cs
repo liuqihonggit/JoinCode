@@ -1,18 +1,26 @@
 namespace Core.Context;
 
 /// <summary>
-/// Shannon 信息熵减检测器状态机的三种状态
+/// Shannon 信息熵减检测器状态机的状态标志 — [Flags] 位标志枚举
+/// <para>
+/// 对齐 ADR 0038: 状态机 + 守卫 + [Flags] 位标志降低状态爆炸。
+/// 当前状态互斥(Monitoring/Suspected/Confirmed),未来可组合(如 Monitoring|Retrying)。
+/// </para>
 /// </summary>
-public enum EntropyDetectionState
+[Flags]
+public enum EntropyDetectionState : byte
 {
+    /// <summary>无状态 — 初始或重置后</summary>
+    None = 0,
+
     /// <summary>监控中 — 未检测到熵减趋势或已复位</summary>
-    Monitoring,
+    Monitoring = 1,
 
     /// <summary>疑似死循环 — 第一次触发，等待二次确认</summary>
-    Suspected,
+    Suspected = 2,
 
     /// <summary>确认死循环 — 确认窗口内二次触发，触发干预</summary>
-    Confirmed
+    Confirmed = 4,
 }
 
 /// <summary>

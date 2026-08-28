@@ -902,7 +902,7 @@ public ConversationMode Mode => Turns.Count == 1
 
 ### 规则4：工具函数统一 — 三项合并
 
-> ADR: [0012](docs/adr/0012-two-itoolhandler-interfaces.md)（双 IToolHandler 不合并）
+> ADR: [0025](docs/adr/0025-archive-dead-imcpprotocolhandler.md)（归档死接口，取代 0012）
 
 - **合并1：双 IToolHandler 接口**
   - `McpProtocol.IToolHandler`（InputSchema=JsonElement, 返回object）保留为 MCP 协议内部类型

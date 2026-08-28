@@ -1,8 +1,9 @@
 # 0012. 双 IToolHandler 接口不合并
 
-- 状态：accepted
+- 状态：superseded by 0025
 - 日期：2026-08-29
 - 决策者：项目架构组
+- 取代原因：调查发现 IMcpProtocolHandler 有 0 个生产实现、McpServer 也是死代码，为死接口做"不合并"决策无意义。详见 [0025](docs/adr/0025-archive-dead-imcpprotocolhandler.md)
 
 ## 背景
 

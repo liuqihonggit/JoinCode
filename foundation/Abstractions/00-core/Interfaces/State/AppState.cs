@@ -3,7 +3,7 @@ namespace JoinCode.Abstractions.State;
 
 /// <summary>
 /// 应用全局状态定义
-/// 参考 claude-code AppState 设计，包含所有需要响应式的状态
+/// 参考 TS 原版 AppState 设计，包含所有需要响应式的状态
 /// </summary>
 public sealed record AppState
 {

@@ -6,7 +6,7 @@ namespace JoinCode.Abstractions.Brain.Context.Resolution;
 public sealed record ExploreReferenceRequest
 {
     /// <summary>
-    /// 引用路径，如 "claude-code/src/tools" 或 "工具实现"
+    /// 引用路径，如 "src/tools" 或 "工具实现"
     /// </summary>
     public required string ReferencePath { get; init; }
 

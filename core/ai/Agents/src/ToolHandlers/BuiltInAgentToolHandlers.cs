@@ -295,7 +295,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
 
     /// <summary>
     /// 构建 GuideAgent 运行时上下文 — 注入当前可用 agent 列表
-    /// <para>对齐 TS 原版 claude-code-guide agent 的 getSystemPrompt({ toolUseContext }) 闭包模式</para>
+    /// <para>对齐 TS 原版 JoinCodeGuide agent 的 getSystemPrompt({ toolUseContext }) 闭包模式</para>
     /// </summary>
     private AgentPromptContext BuildGuidePromptContext(CancellationToken cancellationToken)
     {

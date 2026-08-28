@@ -80,7 +80,7 @@ public sealed partial class BinaryContentStorage : ServiceEntity, IBinaryContent
     /// </summary>
     private string GetToolResultsDirectory()
     {
-        var sessionId = SubAgentContext.Current?.SessionId ?? "shared";
+        var sessionId = SubAgentContext.Current?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;
         var safeId = sessionId.Replace('/', '_').Replace('\\', '_');
         return Path.Combine(WorkflowConstants.Paths.SessionsDirectory, safeId, AppDataConstants.ToolResultsFolderName);
     }

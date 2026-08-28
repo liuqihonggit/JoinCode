@@ -33,7 +33,7 @@ public sealed class ForkCommand : ChatCommandBase
                 return ChatCommandResult.Continue();
             }
 
-            var forkSessionId = Guid.NewGuid().ToString("N");
+            var forkSessionId = global::Core.Utils.SessionIdFactory.CreateFork(currentSessionId);
 
             var mainEntries = entries
                 .Where(e => !e.IsSidechain)

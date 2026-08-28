@@ -1,8 +1,10 @@
 global using FluentAssertions;
 global using JoinCode.Abstractions.Interfaces;
+global using JoinCode.Abstractions.Tools;
 global using JoinCode.Vision.Quadtree;
 global using JoinCode.Vision.Imaging;
 global using JoinCode.Vision.Rendering;
+global using JoinCode.Vision.ToolHandlers;
 global using Xunit;
 global using SixLabors.ImageSharp;
 global using SixLabors.ImageSharp.PixelFormats;

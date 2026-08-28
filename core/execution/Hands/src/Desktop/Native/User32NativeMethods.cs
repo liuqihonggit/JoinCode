@@ -69,4 +69,12 @@ internal static class User32NativeMethods
 
     [DllImport("user32.dll")]
     public static extern int GetSystemMetrics(int nIndex);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool InvalidateRect(IntPtr hWnd, IntPtr lpRect, [MarshalAs(UnmanagedType.Bool)] bool bErase);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool UpdateWindow(IntPtr hWnd);
 }

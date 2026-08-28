@@ -188,8 +188,8 @@ public class QuadtreeToolHandlers
         return Task.FromResult(ToolResultBuilder.Success().WithText(text).Build());
     }
 
-    /// <summary>高亮当前观察区域 — 在图片上标注指定格子，返回标注后的图片</summary>
-    [McpTool("screen_indicate", "高亮当前观察区域（指定格子），返回标注图片base64。用于向用户展示LLM正在关注的区域", "vision")]
+    /// <summary>高亮当前观察区域 — 在图片上标注指定格子并返回标注图片base64（不修改桌面）</summary>
+    [McpTool("screen_indicate", "在图片上标注指定格子，返回标注后的图片base64。注意:此工具只在图片上画框返回,不在桌面上实际高亮。如需桌面实际高亮请用show_desktop_overlay。前置:需先screenshot获取imageBase64+quadtree_build获取cellCode", "vision")]
     public async Task<ToolResult> ScreenIndicateAsync(
         [McpToolParameter("原图 base64", Required = true)] string imageBase64,
         [McpToolParameter("要高亮的格子编码（如 L0.2.1）", Required = true)] string cellCode,

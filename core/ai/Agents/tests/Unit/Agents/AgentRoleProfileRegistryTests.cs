@@ -113,7 +113,7 @@ public sealed class AgentRoleProfileRegistryTests
         variants.Should().Contain([
             ExecutorVariant.Code, ExecutorVariant.Search,
             ExecutorVariant.Explore, ExecutorVariant.Plan, ExecutorVariant.Doctor,
-            ExecutorVariant.Verification, ExecutorVariant.ClaudeCodeGuide, ExecutorVariant.ContextCompression
+            ExecutorVariant.Verification, ExecutorVariant.JoinCodeGuide, ExecutorVariant.ContextCompression
         ]);
     }
 
@@ -180,11 +180,11 @@ public sealed class AgentRoleProfileRegistryTests
     }
 
     [Fact]
-    public void GetProfile_ExecutorClaudeCodeGuide_HasCorrectTools()
+    public void GetProfile_ExecutorJoinCodeGuide_HasCorrectTools()
     {
         var registry = new AgentRoleProfileRegistry();
 
-        var profile = registry.GetProfile(AgentRole.Executor, ExecutorVariant.ClaudeCodeGuide);
+        var profile = registry.GetProfile(AgentRole.Executor, ExecutorVariant.JoinCodeGuide);
 
         profile.Should().NotBeNull();
         profile!.AllowedTools.Should().Contain(FileToolNameConstants.FileRead);

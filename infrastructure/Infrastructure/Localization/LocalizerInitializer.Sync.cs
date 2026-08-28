@@ -1062,9 +1062,9 @@ public static partial class LocalizerInitializer
         defaultEntries[StringKey.GuideAgentDesc] = $"Use {BrandConstants.ProductName} Guide Agent to get usage help";
         defaultEntries[StringKey.ParamQuestion] = "Question or help needed";
         defaultEntries[StringKey.ParamFeature] = "Feature name, optional";
-        defaultEntries[StringKey.GuideAgentCalledLog] = "Calling ClaudeCodeGuideAgent, question: {0}";
+        defaultEntries[StringKey.GuideAgentCalledLog] = "Calling JoinCodeGuideAgent, question: {0}";
         defaultEntries[StringKey.GuideFailed] = "Failed to get help: {0}";
-        defaultEntries[StringKey.GuideAgentErrorLog] = "Error calling ClaudeCodeGuideAgent";
+        defaultEntries[StringKey.GuideAgentErrorLog] = "Error calling JoinCodeGuideAgent";
         defaultEntries[StringKey.ListAgentsDesc] = "List all available built-in agents";
         defaultEntries[StringKey.AvailableBuiltInAgentsTitle] = "# Available Built-in Agents";
         defaultEntries[StringKey.SyncLabelDescription] = "- Description: {0}";
@@ -1091,9 +1091,9 @@ public static partial class LocalizerInitializer
         zhEntries[StringKey.GuideAgentDesc] = $"使用 {BrandConstants.ProductName} 引导 Agent 获取使用帮助";
         zhEntries[StringKey.ParamQuestion] = "问题或需要的帮助";
         zhEntries[StringKey.ParamFeature] = "功能名称，可选";
-        zhEntries[StringKey.GuideAgentCalledLog] = "调用 ClaudeCodeGuideAgent，问题: {0}";
+        zhEntries[StringKey.GuideAgentCalledLog] = "调用 JoinCodeGuideAgent，问题: {0}";
         zhEntries[StringKey.GuideFailed] = "获取帮助失败: {0}";
-        zhEntries[StringKey.GuideAgentErrorLog] = "调用 ClaudeCodeGuideAgent 时出错";
+        zhEntries[StringKey.GuideAgentErrorLog] = "调用 JoinCodeGuideAgent 时出错";
         zhEntries[StringKey.ListAgentsDesc] = "列出所有可用的内置 Agent";
         zhEntries[StringKey.AvailableBuiltInAgentsTitle] = "# 可用内置 Agent 列表";
         zhEntries[StringKey.SyncLabelDescription] = "- 描述: {0}";

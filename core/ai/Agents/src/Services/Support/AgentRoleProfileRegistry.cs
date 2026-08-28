@@ -310,7 +310,7 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
             new()
             {
                 Role = AgentRole.Executor,
-                Variant = ExecutorVariant.ClaudeCodeGuide,
+                Variant = ExecutorVariant.JoinCodeGuide,
                 WhenToUse = $"Guide users on how to use {BrandConstants.ProductName} features and best practices",
                 Description = $"{BrandConstants.ProductName} Guide agent — helps users understand and use {BrandConstants.ProductName}",
                 AllowedTools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase],

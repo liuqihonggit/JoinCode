@@ -226,7 +226,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
             var prompt = BuildGuidePrompt(question, feature);
             var systemPrompt = _promptBuilder is not null
                 ? await _promptBuilder.BuildSystemPromptAsync(
-                    ExecutorVariant.ClaudeCodeGuide.ToValue(),
+                    ExecutorVariant.JoinCodeGuide.ToValue(),
                     question,
                     null,
                     BuildGuidePromptContext(cancellationToken),
@@ -237,7 +237,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
                 Description = $"Guide: {question}",
                 Prompt = prompt,
                 Role = AgentRole.Executor,
-                Variant = ExecutorVariant.ClaudeCodeGuide,
+                Variant = ExecutorVariant.JoinCodeGuide,
                 SystemPrompt = systemPrompt,
             };
 

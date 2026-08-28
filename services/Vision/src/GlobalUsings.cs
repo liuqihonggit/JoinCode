@@ -8,3 +8,6 @@ global using System.Collections.Frozen;
 global using System.Globalization;
 global using System.Text;
 global using System.Text.Json;
+global using SixLabors.ImageSharp;
+global using SixLabors.ImageSharp.Formats.Png;
+global using SixLabors.ImageSharp.Processing;

@@ -688,7 +688,7 @@ public sealed partial class BridgeMain : ServiceEntity
         if (opts.CheckWorkspaceTrusted is not null && !opts.CheckWorkspaceTrusted())
         {
             throw new BridgeHeadlessPermanentError(
-                $"Workspace not trusted: {opts.Dir}. Run 'claude' in that directory first to accept the trust dialog.");
+                $"Workspace not trusted: {opts.Dir}. Run '{BrandConstants.CliCommandName}' in that directory first to accept the trust dialog.");
         }
 
         // ===== 瞬态验证: Token 检查 — 对齐 TS 端 getAccessToken =====
@@ -920,7 +920,7 @@ public sealed partial class BridgeMain : ServiceEntity
         }
         else if (_isResuming && !_fatalExit)
         {
-            _logger?.LogInformation("Resume this session by running `claude remote-control --continue`");
+            _logger?.LogInformation($"Resume this session by running `{BrandConstants.CliCommandName} remote-control --continue`");
             _logger?.LogDebug("BridgeMain: skipping archive+deregister to allow resume");
         }
 

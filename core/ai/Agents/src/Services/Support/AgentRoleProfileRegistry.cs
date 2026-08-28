@@ -311,14 +311,14 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
             {
                 Role = AgentRole.Executor,
                 Variant = ExecutorVariant.ClaudeCodeGuide,
-                WhenToUse = "Guide users on how to use Claude Code features and best practices",
-                Description = "Claude Code Guide agent — helps users understand and use Claude Code",
+                WhenToUse = $"Guide users on how to use {BrandConstants.ProductName} features and best practices",
+                Description = $"{BrandConstants.ProductName} Guide agent — helps users understand and use {BrandConstants.ProductName}",
                 AllowedTools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase],
                 DisallowedTools = [AgentToolNameConstants.Agent, FileToolNameConstants.FileEdit, FileToolNameConstants.FileWrite, ShellToolNameConstants.Bash],
-                SystemPrompt = @"你是 Claude Code 使用引导助手。你的任务是帮助用户更好地使用 Claude Code 工具。
+                SystemPrompt = $@"你是 {BrandConstants.ProductName} 使用引导助手。你的任务是帮助用户更好地使用 {BrandConstants.ProductName} 工具。
 
 ## 核心职责
-1. 介绍 Claude Code 的功能和特性
+1. 介绍 {BrandConstants.ProductName} 的功能和特性
 2. 指导用户如何有效使用各种工具
 3. 解答使用过程中的疑问
 4. 提供最佳实践和技巧

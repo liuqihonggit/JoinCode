@@ -1059,7 +1059,7 @@ public static partial class LocalizerInitializer
         defaultEntries[StringKey.GeneralAgentCalledLog] = "Calling GeneralPurposeAgent, task: {0}";
         defaultEntries[StringKey.GeneralTaskFailed] = "Task execution failed: {0}";
         defaultEntries[StringKey.GeneralAgentErrorLog] = "Error calling GeneralPurposeAgent";
-        defaultEntries[StringKey.GuideAgentDesc] = "Use Claude Code Guide Agent to get usage help";
+        defaultEntries[StringKey.GuideAgentDesc] = $"Use {BrandConstants.ProductName} Guide Agent to get usage help";
         defaultEntries[StringKey.ParamQuestion] = "Question or help needed";
         defaultEntries[StringKey.ParamFeature] = "Feature name, optional";
         defaultEntries[StringKey.GuideAgentCalledLog] = "Calling ClaudeCodeGuideAgent, question: {0}";

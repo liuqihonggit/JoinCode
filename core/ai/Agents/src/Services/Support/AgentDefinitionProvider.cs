@@ -180,8 +180,8 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
             {
                 Role = AgentRole.Executor,
                 Variant = ExecutorVariant.ClaudeCodeGuide,
-                WhenToUse = "Guide users on how to use Claude Code features and best practices",
-                Description = "Claude Code Guide agent — helps users understand and use Claude Code",
+                WhenToUse = $"Guide users on how to use {BrandConstants.ProductName} features and best practices",
+                Description = $"{BrandConstants.ProductName} Guide agent — helps users understand and use {BrandConstants.ProductName}",
                 Tools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase],
                 DisallowedTools = [AgentToolNameConstants.Agent, FileToolNameConstants.FileEdit, FileToolNameConstants.FileWrite, ShellToolNameConstants.Bash]
             },

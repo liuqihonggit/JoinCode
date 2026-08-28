@@ -58,4 +58,5 @@ public enum ToolCategory
     [EnumValue("sandbox")] Sandbox,
     [EnumValue("error_recovery")] ErrorRecovery,
     [EnumValue("desktop_control")] DesktopControl,
+    [EnumValue("vision")] Vision,
 }

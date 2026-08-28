@@ -24,9 +24,9 @@ class Program
         CommandLineOptions? options = null;
         try
         {
-            // 1. 本地化
+            // 1. 本地化 — 自动检测电脑配置语言（JCC_LANGUAGE可覆盖）
             Infrastructure.Localization.LocalizerInitializer.Initialize(
-                Environment.GetEnvironmentVariable(JccEnvVar.Language.ToValue()) ?? "zh");
+                JoinCode.Abstractions.Utils.LocalLanguageDetector.Detect());
 
             // 2. 子命令路由
             if (args.Length > 0 && App.Builder.ApplicationBuilder.IsSubCommand(args[0]))

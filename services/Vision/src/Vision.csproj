@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>JoinCode.Vision</RootNamespace>
+    <AssemblyName>JoinCode.Vision</AssemblyName>
+    <Description>JoinCode Vision 子系统 — 多模态隐喻显露工具（四叉树标注/隐喻拓扑/时序隐喻/测量）</Description>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);NU5104</NoWarn>
+    <PackageId>JoinCode.Vision</PackageId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)foundation\Abstractions\Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="$(ImageSharpVersion)" />
+    <PackageReference Include="SkiaSharp" Version="4.151.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)generators\EnumMetadata.Generator\src\EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="JoinCode.Vision.Tests" />
+  </ItemGroup>
+
+</Project>

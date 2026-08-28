@@ -11,3 +11,6 @@ global using System.Text.Json;
 global using SixLabors.ImageSharp;
 global using SixLabors.ImageSharp.Formats.Png;
 global using SixLabors.ImageSharp.Processing;
+global using SkiaSharp;
+global using JoinCode.Vision.Quadtree;
+global using JoinCode.Vision.Imaging;

@@ -45,6 +45,21 @@ public sealed partial class McpMonitorStatus
 
 public enum MonitorState { [EnumValue("starting")] Starting = 0, [EnumValue("running")] Running = 1, [EnumValue("stopped")] Stopped = 3, [EnumValue("error")] Error = 4 }
 
+/// <summary>
+/// 监控会话事件 — 触发状态转换的事件（ADR 0040 事件枚举）
+/// </summary>
+internal enum MonitorSessionEvent
+{
+    /// <summary>启动成功 — Starting → Running</summary>
+    Started,
+    /// <summary>出错 — Starting/Running → Error</summary>
+    Fail,
+    /// <summary>重连恢复 — Error → Running</summary>
+    Recover,
+    /// <summary>停止 — Running/Starting/Error → Stopped</summary>
+    Stop,
+}
+
 public sealed partial class McpMonitorEventArgs : EventArgs
 {
     public required string MonitorId { get; init; }
@@ -92,8 +107,6 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
         {
             _sessionLock.Release();
         }
-
-        session.State = MonitorState.Starting;
 
         _ = RunMonitorLoopAsync(session, ct);
 
@@ -164,12 +177,12 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
 
             if (client is null)
             {
-                session.State = MonitorState.Error;
+                session.Trigger(MonitorSessionEvent.Fail);
                 _logger?.LogError("Failed to resolve MCP client for server {ServerName}", session.Config.ServerName);
                 return;
             }
 
-            session.State = MonitorState.Running;
+            session.Trigger(MonitorSessionEvent.Started);
 
             while (!linkedCts.Token.IsCancellationRequested)
             {
@@ -184,17 +197,17 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
                 }
                 catch (Exception ex) when (session.Config.AutoReconnect)
                 {
-                    session.State = MonitorState.Error;
+                    session.Trigger(MonitorSessionEvent.Fail);
                     _logger?.LogWarning(ex, "Monitor {MonitorId} encountered error, attempting reconnect", session.MonitorId);
 
                     var reconnected = await TryReconnectAsync(session, linkedCts.Token).ConfigureAwait(false);
                     if (!reconnected) break;
 
-                    session.State = MonitorState.Running;
+                    session.Trigger(MonitorSessionEvent.Recover);
                 }
                 catch (Exception ex)
                 {
-                    session.State = MonitorState.Error;
+                    session.Trigger(MonitorSessionEvent.Fail);
                     _logger?.LogError(ex, "Monitor {MonitorId} failed", session.MonitorId);
                     break;
                 }
@@ -205,14 +218,14 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
         }
         catch (Exception ex)
         {
-            session.State = MonitorState.Error;
+            session.Trigger(MonitorSessionEvent.Fail);
             _logger?.LogError(ex, "Monitor {MonitorId} loop crashed", session.MonitorId);
         }
         finally
         {
             if (session.State != MonitorState.Error)
             {
-                session.State = MonitorState.Stopped;
+                session.Trigger(MonitorSessionEvent.Stop);
             }
         }
     }
@@ -326,9 +339,22 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
 
 internal sealed class MonitorSession : IAsyncDisposable
 {
+    private static readonly FrozenDictionary<TransitionKey<MonitorState, MonitorSessionEvent>, TransitionRule<MonitorState>> Transitions = new Dictionary<TransitionKey<MonitorState, MonitorSessionEvent>, TransitionRule<MonitorState>>
+    {
+        [new(MonitorState.Starting, MonitorSessionEvent.Started)] = new(MonitorState.Running),
+        [new(MonitorState.Starting, MonitorSessionEvent.Fail)] = new(MonitorState.Error),
+        [new(MonitorState.Starting, MonitorSessionEvent.Stop)] = new(MonitorState.Stopped),
+        [new(MonitorState.Running, MonitorSessionEvent.Fail)] = new(MonitorState.Error),
+        [new(MonitorState.Running, MonitorSessionEvent.Stop)] = new(MonitorState.Stopped),
+        [new(MonitorState.Error, MonitorSessionEvent.Recover)] = new(MonitorState.Running),
+        [new(MonitorState.Error, MonitorSessionEvent.Stop)] = new(MonitorState.Stopped),
+    }.ToFrozenDictionary();
+
+    private readonly Fsm<MonitorState, MonitorSessionEvent> _fsm = new(Transitions, MonitorState.Starting);
+
     public string MonitorId { get; }
     public McpMonitorConfig Config { get; }
-    public MonitorState State { get; set; } = MonitorState.Starting;
+    public MonitorState State => _fsm.CurrentState;
     public DateTime StartedAt { get; } = DateTime.UtcNow;
     public int EventsReceivedField;
     public int EventsReceived => Volatile.Read(ref EventsReceivedField);
@@ -340,6 +366,9 @@ internal sealed class MonitorSession : IAsyncDisposable
         MonitorId = monitorId;
         Config = config;
     }
+
+    /// <summary>触发事件 — 查转换表合法则转,非法静默忽略(保持原直接赋值语义)</summary>
+    public void Trigger(MonitorSessionEvent evt) => _fsm.TryTrigger(evt);
 
     public McpMonitorStatus ToStatus()
     {

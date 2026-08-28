@@ -138,4 +138,39 @@ public sealed class TemporalMetaphorToolHandlersTests
         result.IsError.Should().BeTrue();
         result.Content[0].Text.Should().Contain("[VIS314]");
     }
+
+    [Fact]
+    public async Task TemporalAggregate_InvalidJson_ShouldReturnErrorNotThrow()
+    {
+        var handlers = new TemporalMetaphorToolHandlers(new Mock<IQueryService>().Object);
+
+        var result = await handlers.TemporalAggregateAsync("not-valid-json");
+
+        result.IsError.Should().BeTrue();
+        result.Content[0].Text.Should().Contain("[VIS301]");
+    }
+
+    [Fact]
+    public async Task TemporalStableContour_InvalidJson_ShouldReturnErrorNotThrow()
+    {
+        var handlers = new TemporalMetaphorToolHandlers(new Mock<IQueryService>().Object);
+
+        var result = await handlers.TemporalStableContourAsync("not-valid-json");
+
+        result.IsError.Should().BeTrue();
+        result.Content[0].Text.Should().Contain("[VIS311]");
+    }
+
+    [Fact]
+    public async Task TemporalStableContour_InvalidFrameBase64_ShouldReturnErrorNotCrash()
+    {
+        var frame1 = CreateTestImageBase64();
+        var framesJson = CreateFramesJson(frame1, "not-valid-base64!!!");
+        var handlers = new TemporalMetaphorToolHandlers(new Mock<IQueryService>().Object);
+
+        var result = await handlers.TemporalStableContourAsync(framesJson);
+
+        result.IsError.Should().BeTrue();
+        result.Content[0].Text.Should().Contain("[VIS315]");
+    }
 }

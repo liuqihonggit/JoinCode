@@ -81,6 +81,16 @@ public sealed class MeasurementToolHandlersTests
     }
 
     [Fact]
+    public async Task MeasureDepth_InvalidBase64_ShouldReturnErrorNotThrow()
+    {
+        var handlers = new MeasurementToolHandlers();
+        var result = await handlers.MeasureDepthAsync("not-valid-base64!!!", 0, 0, 4, 4);
+
+        result.IsError.Should().BeTrue();
+        result.Content[0].Text.Should().Contain("[VIS403]");
+    }
+
+    [Fact]
     public async Task MeasureRatio_Square_ShouldReturnRatio1()
     {
         var handlers = new MeasurementToolHandlers();

@@ -23,7 +23,8 @@ public sealed partial class QuadtreeRenderer : IQuadtreeRenderer
         ArgumentNullException.ThrowIfNull(grid);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var bytes = Convert.FromBase64String(imageBase64);
+        if (!VisionBase64.TryDecode(imageBase64, out var bytes, out var decodeError))
+            throw new ArgumentException($"[VIS020] {decodeError}", nameof(imageBase64));
         using var original = SKBitmap.Decode(bytes);
         if (original is null) throw new ArgumentException("[VIS020] 无法解码图片", nameof(imageBase64));
 
@@ -79,7 +80,8 @@ public sealed partial class QuadtreeRenderer : IQuadtreeRenderer
         var x = col * cellW;
         var y = row * cellH;
 
-        var bytes = Convert.FromBase64String(imageBase64);
+        if (!VisionBase64.TryDecode(imageBase64, out var bytes, out var decodeError))
+            throw new ArgumentException($"[VIS013] {decodeError}", nameof(imageBase64));
         var subBytes = await CellCropper.CropAsync(bytes, x, y, cellW, cellH, cancellationToken).ConfigureAwait(false);
         var subBase64 = Convert.ToBase64String(subBytes);
 

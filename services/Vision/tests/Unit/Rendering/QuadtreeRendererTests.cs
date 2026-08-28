@@ -90,7 +90,7 @@ public sealed class QuadtreeRendererTests
     {
         var grid = new QuadtreeEncoder().BuildGrid(100, 100, 1);
         var act = async () => await _renderer.RenderAsync("not-valid-base64!!!", grid);
-        await act.Should().ThrowAsync<FormatException>();
+        await act.Should().ThrowAsync<ArgumentException>().WithMessage("*VIS020*");
     }
 
     private static string CreateTestImageBase64(int width, int height, Color color)

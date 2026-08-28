@@ -32,7 +32,15 @@ public class TemporalMetaphorToolHandlers
         if (string.IsNullOrWhiteSpace(framesJson))
             return ToolResultBuilder.Error().WithText("[VIS300] framesJson 不能为空").Build();
 
-        var frames = JsonSerializer.Deserialize(framesJson, VisionJsonContext.Default.ListString);
+        List<string>? frames;
+        try
+        {
+            frames = JsonSerializer.Deserialize(framesJson, VisionJsonContext.Default.ListString);
+        }
+        catch (JsonException)
+        {
+            return ToolResultBuilder.Error().WithText("[VIS301] framesJson 解析失败或为空").Build();
+        }
         if (frames is null || frames.Count == 0)
             return ToolResultBuilder.Error().WithText("[VIS301] framesJson 解析失败或为空").Build();
         if (frames.Count > MaxFrames)
@@ -71,7 +79,15 @@ public class TemporalMetaphorToolHandlers
         if (string.IsNullOrWhiteSpace(framesJson))
             return ToolResultBuilder.Error().WithText("[VIS310] framesJson 不能为空").Build();
 
-        var frames = JsonSerializer.Deserialize(framesJson, VisionJsonContext.Default.ListString);
+        List<string>? frames;
+        try
+        {
+            frames = JsonSerializer.Deserialize(framesJson, VisionJsonContext.Default.ListString);
+        }
+        catch (JsonException)
+        {
+            return ToolResultBuilder.Error().WithText("[VIS311] framesJson 解析失败").Build();
+        }
         if (frames is null || frames.Count < 2)
             return ToolResultBuilder.Error().WithText("[VIS311] 至少需要2帧才能计算稳定轮廓").Build();
         if (frames.Count > MaxFrames)
@@ -88,14 +104,14 @@ public class TemporalMetaphorToolHandlers
                 .WithImage(maskBase64, "image/png")
                 .Build();
         }
-        catch (ArgumentException ex) when (ex.Message.StartsWith("[VIS314]", StringComparison.Ordinal))
+        catch (ArgumentException ex) when (ex.Message.StartsWith("[VIS314]", StringComparison.Ordinal) || ex.Message.StartsWith("[VIS315]", StringComparison.Ordinal))
         {
             return ToolResultBuilder.Error().WithText(ex.Message).Build();
         }
     }
 
     /// <summary>计算稳定区域掩码 — 帧差粗筛，稳定像素=白色，不稳定=黑色</summary>
-    /// <exception cref="ArgumentException">帧尺寸不一致时抛出，消息以 [VIS314] 开头</exception>
+    /// <exception cref="ArgumentException">帧尺寸不一致([VIS314])或帧base64无效([VIS315])时抛出</exception>
     private static async Task<string> ComputeStableMaskAsync(List<string> frameBase64List, int threshold, CancellationToken ct)
     {
         var frames = new List<Image<Rgb24>>(frameBase64List.Count);
@@ -103,8 +119,18 @@ public class TemporalMetaphorToolHandlers
         {
             foreach (var base64 in frameBase64List)
             {
-                var bytes = Convert.FromBase64String(base64);
-                frames.Add(Image.Load<Rgb24>(bytes));
+                if (!VisionBase64.TryDecode(base64, out var bytes, out var decodeError))
+                    throw new ArgumentException($"[VIS315] 帧 base64 无效: {decodeError}");
+                Image<Rgb24> frame;
+                try
+                {
+                    frame = Image.Load<Rgb24>(bytes);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    throw new ArgumentException("[VIS315] 帧图片解码失败，请检查 base64 是否为有效图片");
+                }
+                frames.Add(frame);
             }
 
             var width = frames[0].Width;

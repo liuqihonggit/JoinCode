@@ -34,7 +34,9 @@ public class QuadtreeToolHandlers
         if (depth < 0)
             return Task.FromResult(ToolResultBuilder.Error().WithText("[VIS101] depth 不能为负").Build());
 
-        var (width, height) = GetImageDimensions(imageBase64);
+        if (!TryGetImageDimensions(imageBase64, out var width, out var height, out var dimError))
+            return Task.FromResult(ToolResultBuilder.Error().WithText($"[VIS102] {dimError}").Build());
+
         var grid = _annotator.BuildGrid(width, height, depth);
         var text = FormatGrid(grid, "四叉树网格构建完成");
         return Task.FromResult(ToolResultBuilder.Success().WithText(text).Build());
@@ -54,13 +56,15 @@ public class QuadtreeToolHandlers
         if (string.IsNullOrWhiteSpace(cellCode))
             return ToolResultBuilder.Error().WithText("[VIS111] cellCode 不能为空").Build();
 
-        var (width, height) = GetImageDimensions(imageBase64);
+        if (!TryGetImageDimensions(imageBase64, out var width, out var height, out var dimError))
+            return ToolResultBuilder.Error().WithText($"[VIS113] {dimError}").Build();
+
         QuadtreeZoomResult zoomResult;
         try
         {
             zoomResult = await _renderer.ZoomAsync(imageBase64, cellCode, width, height, sourceDepth, targetDepth, ct).ConfigureAwait(false);
         }
-        catch (ArgumentException ex) when (ex.Message.StartsWith("[VIS112]", StringComparison.Ordinal))
+        catch (ArgumentException ex) when (ex.Message.StartsWith("[VIS112]", StringComparison.Ordinal) || ex.Message.StartsWith("[VIS013]", StringComparison.Ordinal))
         {
             return ToolResultBuilder.Error().WithText(ex.Message).Build();
         }
@@ -143,7 +147,15 @@ public class QuadtreeToolHandlers
             grid = _annotator.PaintCells(grid, defaultPaints);
         }
 
-        var renderResult = await _renderer.RenderAsync(imageBase64, grid, ct).ConfigureAwait(false);
+        QuadtreeRenderResult renderResult;
+        try
+        {
+            renderResult = await _renderer.RenderAsync(imageBase64, grid, ct).ConfigureAwait(false);
+        }
+        catch (ArgumentException ex) when (ex.Message.StartsWith("[VIS020]", StringComparison.Ordinal))
+        {
+            return ToolResultBuilder.Error().WithText(ex.Message).Build();
+        }
 
         return ToolResultBuilder.Success()
             .WithText($"渲染完成: {imageWidth}x{imageHeight} depth={depth} 格子数={grid.Cells.Count}")
@@ -195,7 +207,15 @@ public class QuadtreeToolHandlers
         var paints = new Dictionary<string, double> { [cellCode] = 1.0 };
         var paintedGrid = _annotator.PaintCells(grid, paints);
 
-        var renderResult = await _renderer.RenderAsync(imageBase64, paintedGrid, ct).ConfigureAwait(false);
+        QuadtreeRenderResult renderResult;
+        try
+        {
+            renderResult = await _renderer.RenderAsync(imageBase64, paintedGrid, ct).ConfigureAwait(false);
+        }
+        catch (ArgumentException ex) when (ex.Message.StartsWith("[VIS020]", StringComparison.Ordinal))
+        {
+            return ToolResultBuilder.Error().WithText(ex.Message).Build();
+        }
 
         return ToolResultBuilder.Success()
             .WithText($"高亮区域: {cellCode} (depth={depth})")
@@ -203,13 +223,27 @@ public class QuadtreeToolHandlers
             .Build();
     }
 
-    /// <summary>从 base64 解码图片获取尺寸</summary>
-    private static (int Width, int Height) GetImageDimensions(string imageBase64)
+    /// <summary>从 base64 解码图片获取尺寸 — 容错版，失败返回 false + 错误描述</summary>
+    private static bool TryGetImageDimensions(string imageBase64, out int width, out int height, out string error)
     {
-        var bytes = Convert.FromBase64String(imageBase64);
+        if (!VisionBase64.TryDecode(imageBase64, out var bytes, out error))
+        {
+            width = 0;
+            height = 0;
+            return false;
+        }
         using var bitmap = SKBitmap.Decode(bytes);
-        if (bitmap is null) throw new ArgumentException("[VIS030] 无法解码图片，请检查 base64 编码");
-        return (bitmap.Width, bitmap.Height);
+        if (bitmap is null)
+        {
+            width = 0;
+            height = 0;
+            error = "无法解码图片，请检查 base64 编码";
+            return false;
+        }
+        width = bitmap.Width;
+        height = bitmap.Height;
+        error = string.Empty;
+        return true;
     }
 
     /// <summary>格式化网格为可读文本 — 供 LLM 理解格子布局</summary>

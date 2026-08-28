@@ -126,6 +126,7 @@
 | 当前实现 | if-else 链返回不同 CompactFallbackLevel |
 | 状态枚举 | `CompactFallbackLevel`（None/Sanitize/Microcompact/Truncate/Abort） |
 | 改造 | 降级链状态机化，转换表显式化降级路径 |
+| **状态** | **跳过** — `Validate` 是纯函数(输入 summary→输出 FallbackLevel),FallbackLevel 是策略选择返回值非状态转换;None→Sanitize→...→Abort 是严重程度递增选项,无状态机语义(减法思维 ADR 0023) |
 
 #### 10. GlobalRunStatusViewModel（StallDetectionState） ⭐
 
@@ -134,6 +135,7 @@
 | 位置 | `app/JoinCodeGui/ViewModels/GlobalRunStatusViewModel.cs` |
 | 状态枚举 | `StallDetectionState`（Monitoring/Stalled）— **仅 2 状态** |
 | 改造收益 | 较低（状态太少），但可统一模式 |
+| **状态** | **跳过** — 仅 2 状态(Monitoring/Stalled),状态机框架开销大于收益;且在 ViewModel 层,引入 Abstractions 依赖不合理(减法思维 ADR 0023) |
 
 ---
 

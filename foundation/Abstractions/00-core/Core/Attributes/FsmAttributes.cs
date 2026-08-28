@@ -2,10 +2,11 @@ namespace JoinCode.Abstractions.Attributes;
 
 /// <summary>
 /// 标记类为状态机 — 声明状态枚举类型、事件枚举类型、初始状态
-/// <para>ADR 0041: 源码生成器据此扫描 [Transition]/[Guard]/[Action] 特性生成转换表</para>
+/// <para>ADR 0041: 源码生成器据此扫描 [Transition]/[Guard]/[TransitionAction] 特性生成转换表</para>
+/// <para>命名加 Fsm 前缀避免与 System.Runtime.CompilerServices.StateMachineAttribute 冲突</para>
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-public sealed class StateMachineAttribute : Attribute
+public sealed class FsmStateMachineAttribute : Attribute
 {
     /// <summary>状态枚举类型</summary>
     public Type StateType { get; }
@@ -16,7 +17,7 @@ public sealed class StateMachineAttribute : Attribute
     /// <summary>初始状态值</summary>
     public object InitialState { get; }
 
-    public StateMachineAttribute(Type stateType, Type eventType, object initialState)
+    public FsmStateMachineAttribute(Type stateType, Type eventType, object initialState)
     {
         StateType = stateType;
         EventType = eventType;

@@ -13,5 +13,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="generators/AotSafety.Generator/tests/AotSafety.Tests.csproj" />
+    <Project Path="generators/Fsm.Generator/tests/Fsm.Generator.Tests.csproj" />
   </Folder>
 </Solution>

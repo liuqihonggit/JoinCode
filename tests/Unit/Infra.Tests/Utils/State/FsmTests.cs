@@ -277,4 +277,151 @@ public class FsmTests
         k1.Should().NotBe(k3);
         k1.GetHashCode().Should().Be(k2.GetHashCode());
     }
+
+    [Fact]
+    public void TransitionKey_CompareTo_ShouldOrderByFromThenEvent()
+    {
+        var a = new TransitionKey<FsmTestState, FsmTestEvent>(FsmTestState.Idle, FsmTestEvent.Start);
+        var b = new TransitionKey<FsmTestState, FsmTestEvent>(FsmTestState.Idle, FsmTestEvent.Pause);
+        var c = new TransitionKey<FsmTestState, FsmTestEvent>(FsmTestState.Running, FsmTestEvent.Start);
+
+        a.CompareTo(b).Should().BeLessThan(0, "Idle+Start < Idle+Pause (Event 升序)");
+        a.CompareTo(c).Should().BeLessThan(0, "Idle+Start < Running+Start (From 升序)");
+        b.CompareTo(c).Should().BeLessThan(0, "Idle+Pause < Running+Start (From 优先于 Event)");
+        a.CompareTo(a).Should().Be(0, "自反性");
+    }
+
+    [Fact]
+    public void ArrayConstructor_ShouldWorkSameAsDictionaryConstructor()
+    {
+        var table = CreateTransitionTable();
+        var fsmFromDict = new Fsm<FsmTestState, FsmTestEvent>(table, FsmTestState.Idle);
+
+        var pairs = table.OrderBy(kvp => kvp.Key).ToArray();
+        var sortedKeys = pairs.Select(p => p.Key).ToArray();
+        var rules = pairs.Select(p => p.Value).ToArray();
+        var fsmFromArray = new Fsm<FsmTestState, FsmTestEvent>(sortedKeys, rules, FsmTestState.Idle);
+
+        fsmFromDict.CurrentState.Should().Be(fsmFromArray.CurrentState);
+
+        var r1 = fsmFromDict.Trigger(FsmTestEvent.Start);
+        var r2 = fsmFromArray.Trigger(FsmTestEvent.Start);
+        r1.Should().BeEquivalentTo(r2);
+        fsmFromDict.CurrentState.Should().Be(fsmFromArray.CurrentState);
+
+        var r3 = fsmFromDict.Trigger(FsmTestEvent.Complete);
+        var r4 = fsmFromArray.Trigger(FsmTestEvent.Complete);
+        r3.Should().BeEquivalentTo(r4);
+    }
+
+    [Fact]
+    public void BinarySearch_ShouldFindExistingKey()
+    {
+        var keys = new[]
+        {
+            new TransitionKey<FsmTestState, FsmTestEvent>(FsmTestState.Idle, FsmTestEvent.Start),
+            new TransitionKey<FsmTestState, FsmTestEvent>(FsmTestState.Running, FsmTestEvent.Fail),
+            new TransitionKey<FsmTestState, FsmTestEvent>(FsmTestState.Running, FsmTestEvent.Pause),
+        };
+        Array.Sort(keys);
+
+        var searchKey = new TransitionKey<FsmTestState, FsmTestEvent>(FsmTestState.Running, FsmTestEvent.Pause);
+        var idx = Array.BinarySearch(keys, searchKey);
+        idx.Should().BeGreaterThanOrEqualTo(0, "存在的 key 应找到非负索引");
+        keys[idx].Should().Be(searchKey);
+    }
+
+    [Fact]
+    public void BinarySearch_ShouldReturnNegativeForMissingKey()
+    {
+        var keys = new[]
+        {
+            new TransitionKey<FsmTestState, FsmTestEvent>(FsmTestState.Idle, FsmTestEvent.Start),
+            new TransitionKey<FsmTestState, FsmTestEvent>(FsmTestState.Running, FsmTestEvent.Pause),
+        };
+        Array.Sort(keys);
+
+        var missingKey = new TransitionKey<FsmTestState, FsmTestEvent>(FsmTestState.Paused, FsmTestEvent.Start);
+        var idx = Array.BinarySearch(keys, missingKey);
+        idx.Should().BeLessThan(0, "不存在的 key 应返回负数（按位补码）");
+    }
+
+    [Fact]
+    public void SortedKeysArray_ShouldBeOrderedByCompareTo()
+    {
+        var table = CreateTransitionTable();
+        var pairs = table.OrderBy(kvp => kvp.Key).ToArray();
+        var sortedKeys = pairs.Select(p => p.Key).ToArray();
+
+        for (var i = 1; i < sortedKeys.Length; i++)
+            sortedKeys[i - 1].CompareTo(sortedKeys[i]).Should().BeLessThanOrEqualTo(0,
+                "排序数组每相邻元素应非降序");
+    }
+
+    [Fact]
+    public void ArrayConstructor_WithGuard_ShouldWork()
+    {
+        var ctx = new FsmTestContext { ConsecutiveFailures = 5 };
+        var guard = new TransitionGuard(c => ((FsmTestContext)c!).ConsecutiveFailures >= 3);
+
+        var table = new Dictionary<TransitionKey<FsmTestState, FsmTestEvent>, TransitionRule<FsmTestState>>
+        {
+            [new(FsmTestState.Running, FsmTestEvent.Complete)] = new(FsmTestState.Completed, guard),
+        }.ToFrozenDictionary();
+
+        var pairs = table.OrderBy(kvp => kvp.Key).ToArray();
+        var fsm = new Fsm<FsmTestState, FsmTestEvent>(
+            pairs.Select(p => p.Key).ToArray(),
+            pairs.Select(p => p.Value).ToArray(),
+            FsmTestState.Running);
+
+        var result = fsm.Trigger(FsmTestEvent.Complete, ctx);
+        result.Transitioned.Should().BeTrue("守卫通过（ConsecutiveFailures=5 >= 3）");
+        result.ToState.Should().Be(FsmTestState.Completed);
+    }
+
+    [Fact]
+    public void ArrayConstructor_WithAction_ShouldInvokeAction()
+    {
+        var ctx = new FsmTestContext();
+        var action = new TransitionAction(c => ((FsmTestContext)c!).ActionInvoked = true);
+
+        var table = new Dictionary<TransitionKey<FsmTestState, FsmTestEvent>, TransitionRule<FsmTestState>>
+        {
+            [new(FsmTestState.Idle, FsmTestEvent.Start)] = new(FsmTestState.Running, Action: action),
+        }.ToFrozenDictionary();
+
+        var pairs = table.OrderBy(kvp => kvp.Key).ToArray();
+        var fsm = new Fsm<FsmTestState, FsmTestEvent>(
+            pairs.Select(p => p.Key).ToArray(),
+            pairs.Select(p => p.Value).ToArray(),
+            FsmTestState.Idle);
+
+        fsm.Trigger(FsmTestEvent.Start, ctx);
+        ctx.ActionInvoked.Should().BeTrue("Action 应在转换后执行");
+    }
+
+    [Fact]
+    public void GetAvailableEvents_WithArrayBackend_ShouldReturnGuardedEvents()
+    {
+        var ctx = new FsmTestContext { ConsecutiveFailures = 1 };
+        var guard = new TransitionGuard(c => ((FsmTestContext)c!).ConsecutiveFailures >= 3);
+
+        var table = new Dictionary<TransitionKey<FsmTestState, FsmTestEvent>, TransitionRule<FsmTestState>>
+        {
+            [new(FsmTestState.Running, FsmTestEvent.Pause)] = new(FsmTestState.Paused),
+            [new(FsmTestState.Running, FsmTestEvent.Complete)] = new(FsmTestState.Completed, guard),
+            [new(FsmTestState.Running, FsmTestEvent.Fail)] = new(FsmTestState.Faulted),
+        }.ToFrozenDictionary();
+
+        var pairs = table.OrderBy(kvp => kvp.Key).ToArray();
+        var fsm = new Fsm<FsmTestState, FsmTestEvent>(
+            pairs.Select(p => p.Key).ToArray(),
+            pairs.Select(p => p.Value).ToArray(),
+            FsmTestState.Running);
+
+        var events = fsm.GetAvailableEvents(ctx);
+        events.Should().Contain(new[] { FsmTestEvent.Pause, FsmTestEvent.Fail });
+        events.Should().NotContain(FsmTestEvent.Complete, "守卫未通过（ConsecutiveFailures=1 < 3）");
+    }
 }

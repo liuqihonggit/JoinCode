@@ -3,10 +3,19 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// 状态机转换键 — (FromState, Event) 组合键
 /// <para>ADR 0040: 禁止用元组，用 readonly record struct 显式命名</para>
+/// <para>ADR 0041: 实现 IComparable 支持排序数组 + Array.BinarySearch 查找（替代 FrozenDictionary 哈希桶）</para>
 /// </summary>
 public readonly record struct TransitionKey<TState, TEvent>(TState From, TEvent Event)
+    : IComparable<TransitionKey<TState, TEvent>>
     where TState : struct, Enum
-    where TEvent : struct, Enum;
+    where TEvent : struct, Enum
+{
+    public int CompareTo(TransitionKey<TState, TEvent> other)
+    {
+        var fromCmp = Comparer<TState>.Default.Compare(From, other.From);
+        return fromCmp != 0 ? fromCmp : Comparer<TEvent>.Default.Compare(Event, other.Event);
+    }
+}
 
 /// <summary>
 /// 守卫委托 — 条件检查，返回 true 才允许转换
@@ -65,13 +74,15 @@ public sealed record TransitionResult<TState, TEvent>(
 /// 企业级状态机 — 转换表 + 守卫 + 共享上下文 + 事件枚举
 /// <para>行为流程：获取当前状态 → 查表得到事件函数指针 → 守卫判定 → 执行动作 → 转移</para>
 /// <para>ADR 0040: 禁止元组 key，用 TransitionKey record struct；熔断作为状态枚举值</para>
+/// <para>ADR 0041: 排序并行数组 + Array.BinarySearch 替代 FrozenDictionary（省内存，连续缓存友好）</para>
 /// <para>线程安全：状态读写用 lock，Action 在 lock 外执行（避免长持锁）</para>
 /// </summary>
 public sealed class Fsm<TState, TEvent>
     where TState : struct, Enum
     where TEvent : struct, Enum
 {
-    private readonly FrozenDictionary<TransitionKey<TState, TEvent>, TransitionRule<TState>> _table;
+    private readonly TransitionKey<TState, TEvent>[] _sortedKeys;
+    private readonly TransitionRule<TState>[] _rules;
     private readonly object _lock = new();
     private TState _currentState;
 
@@ -85,16 +96,41 @@ public sealed class Fsm<TState, TEvent>
     public event EventHandler<TransitionResult<TState, TEvent>>? StateChanged;
 
     /// <summary>
-    /// 构造状态机
+    /// 构造状态机（排序并行数组 — 生成器首选，零构造开销）
     /// </summary>
-    /// <param name="table">转换表 — FrozenDictionary&lt;TransitionKey, TransitionRule&gt;</param>
+    /// <param name="sortedKeys">已按 TransitionKey.CompareTo 排序的 key 数组</param>
+    /// <param name="rules">与 sortedKeys 并行对应的 rule 数组</param>
     /// <param name="initialState">初始状态</param>
+    public Fsm(
+        TransitionKey<TState, TEvent>[] sortedKeys,
+        TransitionRule<TState>[] rules,
+        TState initialState)
+    {
+        _sortedKeys = sortedKeys;
+        _rules = rules;
+        _currentState = initialState;
+    }
+
+    /// <summary>
+    /// 构造状态机（FrozenDictionary 兼容构造 — 内部转排序数组）
+    /// </summary>
     public Fsm(
         FrozenDictionary<TransitionKey<TState, TEvent>, TransitionRule<TState>> table,
         TState initialState)
     {
-        _table = table;
+        var pairs = table.OrderBy(kvp => kvp.Key).ToArray();
+        _sortedKeys = pairs.Select(p => p.Key).ToArray();
+        _rules = pairs.Select(p => p.Value).ToArray();
         _currentState = initialState;
+    }
+
+    /// <summary>
+    /// 二分查找转换规则 — O(log n)，n 通常 &lt; 15
+    /// </summary>
+    private TransitionRule<TState>? LookupRule(TransitionKey<TState, TEvent> key)
+    {
+        var idx = Array.BinarySearch(_sortedKeys, key);
+        return idx >= 0 ? _rules[idx] : null;
     }
 
     /// <summary>
@@ -114,8 +150,9 @@ public sealed class Fsm<TState, TEvent>
         {
             oldState = _currentState;
             var key = new TransitionKey<TState, TEvent>(_currentState, evt);
+            var rule = LookupRule(key);
 
-            if (!_table.TryGetValue(key, out var rule))
+            if (rule is null)
                 return new TransitionResult<TState, TEvent>(false, oldState, oldState, evt, TransitionOutcome.NoRule);
 
             if (rule.Guard is not null && !rule.Guard(ctx))
@@ -147,7 +184,8 @@ public sealed class Fsm<TState, TEvent>
         lock (_lock)
         {
             var key = new TransitionKey<TState, TEvent>(_currentState, evt);
-            if (!_table.TryGetValue(key, out var rule))
+            var rule = LookupRule(key);
+            if (rule is null)
                 return false;
 
             return rule.Guard is null || rule.Guard(ctx);
@@ -162,11 +200,17 @@ public sealed class Fsm<TState, TEvent>
         lock (_lock)
         {
             var state = _currentState;
-            return _table
-                .Where(kvp => kvp.Key.From.Equals(state))
-                .Where(kvp => kvp.Value.Guard is null || kvp.Value.Guard(ctx))
-                .Select(kvp => kvp.Key.Event)
-                .ToList();
+            var result = new List<TEvent>();
+            for (var i = 0; i < _sortedKeys.Length; i++)
+            {
+                if (_sortedKeys[i].From.Equals(state))
+                {
+                    var rule = _rules[i];
+                    if (rule.Guard is null || rule.Guard(ctx))
+                        result.Add(_sortedKeys[i].Event);
+                }
+            }
+            return result;
         }
     }
 

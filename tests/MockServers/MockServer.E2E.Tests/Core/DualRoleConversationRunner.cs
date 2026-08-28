@@ -115,6 +115,8 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
             ["JCC_APP_DATA_FOLDER"] = stateDir,
             // CI 环境 MockServer 响应可能较慢，30s 超时避免误判
             ["JCC_API_TIMEOUT_MS"] = "30000",
+            // E2E 断言硬编码中文，强制中文语言避免 CI 英文系统检测到 en 导致输出语言不匹配
+            ["JCC_LANGUAGE"] = "zh",
         };
 
         if (script.ExtraEnvVars is not null)
@@ -243,6 +245,8 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
                 ["JCC_STATE_FILE_PATH"] = _stateFilePath!,
                 ["JCC_PERMISSION_MODE"] = "bypass",
                 ["JCC_APP_DATA_FOLDER"] = Path.GetDirectoryName(_stateFilePath)!,
+                // E2E 断言硬编码中文，强制中文语言避免 CI 英文系统检测到 en 导致输出语言不匹配
+                ["JCC_LANGUAGE"] = "zh",
             };
 
             if (script.ExtraEnvVars is not null)

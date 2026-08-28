@@ -362,10 +362,10 @@ public sealed partial class HttpTransportOptions
     /// <summary>动态请求头获取脚本 — 对齐 TS headersHelper</summary>
     public string? HeadersHelper { get; init; }
 
-    /// <summary>服务器名称 — 传递给 headersHelper 的 CLAUDE_CODE_MCP_SERVER_NAME 环境变量</summary>
+    /// <summary>服务器名称 — 传递给 headersHelper 的 JCC_MCP_SERVER_NAME 环境变量</summary>
     public string ServerName { get; init; } = string.Empty;
 
-    /// <summary>服务器 URL — 传递给 headersHelper 的 CLAUDE_CODE_MCP_SERVER_URL 环境变量</summary>
+    /// <summary>服务器 URL — 传递给 headersHelper 的 JCC_MCP_SERVER_URL 环境变量</summary>
     public string ServerUrl { get; init; } = string.Empty;
 
     /// <summary>MCP 协议版本 — 对齐 2025-11-25 规范 MCP-Protocol-Version 头部</summary>

@@ -215,7 +215,7 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
     public async Task UpdateAccessTokenAsync(string newToken, CancellationToken ct = default)
     {
         AccessToken = newToken;
-        var message = $"{{\"type\":\"update_environment_variables\",\"variables\":{{\"CLAUDE_CODE_SESSION_ACCESS_TOKEN\":\"{newToken}\"}}}}\n";
+        var message = $"{{\"type\":\"update_environment_variables\",\"variables\":{{\"JCC_SESSION_ACCESS_TOKEN\":\"{newToken}\"}}}}\n";
         await WriteStdinAsync(message, ct).ConfigureAwait(false);
         _logger?.LogDebug("[SubprocessHandle] 令牌已刷新: {SessionId}", SessionId);
     }

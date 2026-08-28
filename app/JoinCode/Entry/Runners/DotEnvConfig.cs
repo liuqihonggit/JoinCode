@@ -95,7 +95,7 @@ internal sealed class DotEnvConfig
                 : null;
 
             // Effort Level
-            if (envObj.TryGetProperty("CLAUDE_CODE_EFFORT_LEVEL", out var effortVal) && effortVal.ValueKind == System.Text.Json.JsonValueKind.String)
+            if (envObj.TryGetProperty("JCC_EFFORT_LEVEL", out var effortVal) && effortVal.ValueKind == System.Text.Json.JsonValueKind.String)
                 config.EffortLevel = effortVal.GetString();
 
             return config;

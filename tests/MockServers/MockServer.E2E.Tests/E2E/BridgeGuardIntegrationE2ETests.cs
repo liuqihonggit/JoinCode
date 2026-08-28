@@ -64,7 +64,7 @@ public sealed class BridgeGuardIntegrationE2ETests : IAsyncLifetime
     }
 
     /// <summary>
-    /// JCC_BRIDGE_MODE=1 + CLAUDE_CODE_SESSION_ACCESS_TOKEN 设置时，
+    /// JCC_BRIDGE_MODE=1 + JCC_SESSION_ACCESS_TOKEN 设置时，
     /// Guard 检查应全部通过（fail-open 策略 + env token），
     /// 进入 BridgeMain.RunAsync 后会因 API 不可达失败，但不应在 Guard 阶段失败
     /// </summary>

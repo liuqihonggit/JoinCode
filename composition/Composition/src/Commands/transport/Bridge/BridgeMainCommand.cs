@@ -237,7 +237,7 @@ public sealed class BridgeMainCommand
 
     /// <summary>
     /// 获取访问令牌 — 对齐 TS 端: getBridgeAccessToken()
-    /// 优先级: OAuth Token Storage(未过期) → CLAUDE_CODE_OAUTH_TOKEN env → CLAUDE_CODE_SESSION_ACCESS_TOKEN env
+    /// 优先级: OAuth Token Storage(未过期) → JCC_OAUTH_TOKEN env → JCC_SESSION_ACCESS_TOKEN env
     /// 决策: Token 过期不自动刷新，回退到环境变量（避免在命令入口触发 OAuth 流程）
     /// </summary>
     internal async Task<string?> GetAccessTokenAsync(CancellationToken ct = default)

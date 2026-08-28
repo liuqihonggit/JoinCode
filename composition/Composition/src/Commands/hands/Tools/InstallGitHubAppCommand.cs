@@ -254,7 +254,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
         var items = new List<(string Display, string SecretName, string AuthType)>
         {
             ("输入新的 API Key", ProviderEnvVarConstants.AnthropicApiKey, "api_key"),
-            ("使用 OAuth Token", "CLAUDE_CODE_OAUTH_TOKEN", "oauth_token"),
+            ("使用 OAuth Token", "JCC_OAUTH_TOKEN", "oauth_token"),
         };
 
         // 检查是否已有本地 API Key
@@ -460,7 +460,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
     private static (string FileName, string Content) GetWorkflowContent(string workflow, string secretName, string authType)
     {
         var secretRef = authType == "oauth_token"
-            ? "claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}"
+            ? "JCC_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}"
             : $"anthropic_api_key: ${{ secrets.{secretName} }}";
 
         return workflow switch

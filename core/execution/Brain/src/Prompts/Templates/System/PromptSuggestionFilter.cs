@@ -135,7 +135,7 @@ CLI 要求继续 -> "是" 或 "继续"
         if (EvaluativeRegex.IsMatch(lower))
             return true;
 
-        // 过滤 Claude 的声音
+        // 过滤 JoinCode 的声音
         if (ClaudeVoiceRegex.IsMatch(suggestion))
             return true;
 

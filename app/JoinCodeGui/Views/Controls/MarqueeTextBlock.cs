@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 
@@ -7,7 +7,7 @@ namespace JoinCode.Gui.Views.Controls;
 /// <summary>
 /// 走马灯文本控件（学习 opencode 状态栏）— 文本超宽时匀速横向滚动循环，
 /// 不超宽时静态右对齐。热路径仅此小控件内部计时器（50ms 步进），
-/// 对齐 ClaudeCode「动画钟只在最小子组件」的热路径隔离原则。
+/// 对齐 TS 原版「动画钟只在最小子组件」的热路径隔离原则。
 /// </summary>
 public sealed class MarqueeTextBlock : Control
 {

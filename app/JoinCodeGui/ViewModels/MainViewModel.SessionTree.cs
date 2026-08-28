@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.Input;
+﻿using CommunityToolkit.Mvvm.Input;
 
 namespace JoinCode.Gui.ViewModels;
 
@@ -183,7 +183,7 @@ public sealed partial class MainViewModel
 
     /// <summary>
     /// 中断子代理当前 work（非终止）— teammate 进 idle 等 next prompt，可恢复。
-    /// 双击 ESC 走此路径（对齐 ClaudeCode inProcessRunner ESC 行为）。
+    /// 双击 ESC 走此路径（对齐 TS 原版 inProcessRunner ESC 行为）。
     /// </summary>
     public async Task InterruptSubAgentAsync(SessionItem subSession)
     {

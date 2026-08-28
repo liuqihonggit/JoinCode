@@ -1,4 +1,4 @@
-namespace Tools.Handlers;
+﻿namespace Tools.Handlers;
 
 /// <summary>
 /// Agent 参数验证中间件 — 检查 description 和 prompt 的有效性
@@ -41,7 +41,7 @@ public sealed partial class AgentValidationMiddleware : ServiceEntity, IAgentToo
             return Task.CompletedTask; // 短路
         }
 
-        // 解析 Agent(worker,researcher) 语法 — 对齐 claude code resolveAgentTools allowedAgentTypes
+        // 解析 Agent(worker,researcher) 语法 — 对齐 TS 原版 resolveAgentTools allowedAgentTypes
         // SubagentType 含逗号时,提取 PrimaryType 作为实际 spawn 类型,AllowedTypes 限制可递归 spawn 的子类型
         if (!string.IsNullOrWhiteSpace(context.SubagentType))
         {

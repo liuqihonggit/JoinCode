@@ -1,8 +1,8 @@
-
+﻿
 namespace Core.Agents.Coordinator;
 
 /// <summary>
-/// Agent 工厂 — 对齐 Claude Code createSubagentContext: fork AgentBase + 过滤工具
+/// Agent 工厂 — 对齐 TS 原版 createSubagentContext: fork AgentBase + 过滤工具
 /// 所有子代理都是 AgentBase 实例，通过 SubAgentOptions.AllowedTools/DeniedTools 过滤工具集
 /// variant 只影响系统提示词，不影响管道
 /// </summary>

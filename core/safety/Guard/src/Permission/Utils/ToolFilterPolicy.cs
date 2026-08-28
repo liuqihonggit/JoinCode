@@ -1,9 +1,9 @@
-namespace Core.Utils;
+﻿namespace Core.Utils;
 
 /// <summary>
 /// 工具过滤策略实现 — 3 层收敛后的统一检查。
 /// 检查顺序：Bypass → 层 1 全局禁用 → 层 2 白名单 → 层 3 代理黑名单 → 允许。
-/// 对齐 claude code 的 filterToolsForAgent 3 层设计。
+/// 对齐 TS 原版 的 filterToolsForAgent 3 层设计。
 /// </summary>
 [Register(typeof(IToolFilterPolicy), ServiceLifetime.Singleton)]
 public sealed partial class ToolFilterPolicy : IToolFilterPolicy

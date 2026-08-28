@@ -1,9 +1,9 @@
-namespace JoinCode.Abstractions.Interfaces;
+﻿namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
 /// 统一邮箱接口 — 所有 agent 间消息传递均通过邮箱，废弃 Channel 直传命名。
 /// 同进程用 InProcessMailbox（内存邮箱），跨进程用 TeammateMailboxService（文件邮箱）。
-/// 对齐 claude code 的 teammateMailbox + mailbox 双模式设计。
+/// 对齐 TS 原版 的 teammateMailbox + mailbox 双模式设计。
 /// </summary>
 public interface IMailbox
 {

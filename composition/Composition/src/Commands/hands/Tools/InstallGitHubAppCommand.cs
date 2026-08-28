@@ -1,10 +1,10 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /install-github-app 命令 — 对齐 TS install-github-app.tsx
-/// 设置 Claude GitHub Actions 工作流，包含多步分支交互
+/// 设置 JoinCode GitHub Actions 工作流，包含多步分支交互
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.InstallGitHubApp, Description = "设置 Claude GitHub Actions 工作流", Usage = "/install-github-app", Category = ChatCommandCategory.Tools)]
+[ChatCommand(Name = ChatCommandNameConstants.InstallGitHubApp, Description = "设置 JoinCode GitHub Actions 工作流", Usage = "/install-github-app", Category = ChatCommandCategory.Tools)]
 public sealed class InstallGitHubAppCommand : ChatCommandBase
 {
     private readonly IGitHubCommandRunner? _gitHubRunner;
@@ -48,9 +48,9 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
 
         // Step 4: 安装 GitHub App（提示用户在浏览器中安装）
         TerminalHelper.NewLine();
-        TerminalHelper.WriteLine($"{TerminalColors.Accent}正在打开浏览器安装 Claude GitHub App...{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Accent}正在打开浏览器安装 JoinCode GitHub App...{AnsiStyleConstants.Reset}");
         TerminalHelper.NewLine();
-        TerminalHelper.WriteLine($"  手动访问: {TerminalColors.Accent}https://github.com/apps/claude{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"  手动访问: {TerminalColors.Accent}{ClaudeCompatConstants.GitHubAppUrl}{AnsiStyleConstants.Reset}");
         TerminalHelper.NewLine();
         TerminalHelper.WriteLine($"请为仓库 {TerminalColors.Accent}{repoName}{AnsiStyleConstants.Reset} 安装 App 并授予访问权限。");
 
@@ -226,7 +226,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
     {
         var items = new[]
         {
-            ("claude - PR/Issue 评论触发的 Claude 助手", "claude"),
+            ($"claude - PR/Issue 评论触发的 {BrandConstants.ProductName} 助手", "claude"),
             ("claude-review - PR 创建时自动 Code Review", "claude-review"),
         };
 
@@ -254,7 +254,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
         var items = new List<(string Display, string SecretName, string AuthType)>
         {
             ("输入新的 API Key", ProviderEnvVarConstants.AnthropicApiKey, "api_key"),
-            ("使用 OAuth Token", "CLAUDE_CODE_OAUTH_TOKEN", "oauth_token"),
+            ("使用 OAuth Token", "JCC_OAUTH_TOKEN", "oauth_token"),
         };
 
         // 检查是否已有本地 API Key
@@ -289,7 +289,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
         {
             TerminalHelper.NewLine();
             TerminalHelper.WriteLine($"{TerminalColors.Accent}OAuth 认证流程:{AnsiStyleConstants.Reset}");
-            TerminalHelper.WriteLine("  1. 浏览器将打开 Claude 授权页面");
+            TerminalHelper.WriteLine("  1. 浏览器将打开 JoinCode 授权页面");
             TerminalHelper.WriteLine("  2. 授权后复制 Token 粘贴到此处");
             TerminalHelper.NewLine();
             TerminalHelper.WriteRaw("输入 OAuth Token: ");
@@ -460,13 +460,13 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
     private static (string FileName, string Content) GetWorkflowContent(string workflow, string secretName, string authType)
     {
         var secretRef = authType == "oauth_token"
-            ? "claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}"
+            ? $"JCC_OAUTH_TOKEN: ${{ secrets.{ClaudeCompatConstants.GitHubSecretOAuthToken} }}"
             : $"anthropic_api_key: ${{ secrets.{secretName} }}";
 
         return workflow switch
         {
             "claude" => ("claude.yml", $"""
-name: Claude
+name: JoinCode
 on:
   issue_comment:
     types: [created]
@@ -486,12 +486,12 @@ jobs:
       (github.event_name == 'issues' && contains(github.event.issue.body, '@claude'))
     runs-on: ubuntu-latest
     steps:
-      - uses: anthropics/claude-code-base-action@v1
+      - uses: {ClaudeCompatConstants.GitHubActionBaseAction}
         with:
           {secretRef}
 """),
             "claude-review" => ("claude-review.yml", $"""
-name: Claude Review
+name: JoinCode Review
 on:
   pull_request:
     types: [opened, synchronize, ready_for_review, reopened]
@@ -501,7 +501,7 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
-      - uses: anthropics/claude-code-base-action@v1
+      - uses: {ClaudeCompatConstants.GitHubActionBaseAction}
         with:
           {secretRef}
 """),
@@ -543,13 +543,13 @@ jobs:
         {
             TerminalHelper.WriteLine("后续步骤:");
             TerminalHelper.WriteLine($"  1. 在浏览器中查看并合并 Pull Request");
-            TerminalHelper.WriteLine($"  2. 确保已安装 Claude GitHub App: {TerminalColors.Accent}https://github.com/apps/claude{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"  2. 确保已安装 Claude GitHub App: {TerminalColors.Accent}{ClaudeCompatConstants.GitHubAppUrl}{AnsiStyleConstants.Reset}");
             TerminalHelper.WriteLine($"  3. 合并 PR 后工作流将自动启用");
         }
         else
         {
             TerminalHelper.WriteLine("后续步骤:");
-            TerminalHelper.WriteLine($"  1. 确保已安装 Claude GitHub App: {TerminalColors.Accent}https://github.com/apps/claude{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"  1. 确保已安装 Claude GitHub App: {TerminalColors.Accent}{ClaudeCompatConstants.GitHubAppUrl}{AnsiStyleConstants.Reset}");
             TerminalHelper.WriteLine($"  2. API Key 已配置到仓库 Secret");
         }
 
@@ -569,7 +569,7 @@ jobs:
             TerminalHelper.WriteLine($"  修复: {fixHint}");
         }
         TerminalHelper.NewLine();
-        TerminalHelper.WriteLine($"手动设置文档: {TerminalColors.Accent}https://docs.anthropic.com/en/docs/claude-code/github-actions{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"手动设置文档: {TerminalColors.Accent}{ClaudeCompatConstants.GitHubDocsUrl}{AnsiStyleConstants.Reset}");
     }
 
     /// <summary>

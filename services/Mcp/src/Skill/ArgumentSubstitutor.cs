@@ -65,17 +65,17 @@ public sealed class ArgumentSubstitutor
             result = result.Replace("$ARGUMENTS", args ?? string.Empty);
         }
 
-        if (!string.IsNullOrEmpty(skillDirectory) && result.Contains("${CLAUDE_SKILL_DIR}"))
+        if (!string.IsNullOrEmpty(skillDirectory) && result.Contains(ClaudeCompatConstants.TemplateSkillDir))
         {
             hasPlaceholder = true;
             var normalizedPath = skillDirectory.Replace('\\', '/');
-            result = result.Replace("${CLAUDE_SKILL_DIR}", normalizedPath);
+            result = result.Replace(ClaudeCompatConstants.TemplateSkillDir, normalizedPath);
         }
 
-        if (!string.IsNullOrEmpty(sessionId) && result.Contains("${CLAUDE_SESSION_ID}"))
+        if (!string.IsNullOrEmpty(sessionId) && result.Contains(ClaudeCompatConstants.TemplateSessionId))
         {
             hasPlaceholder = true;
-            result = result.Replace("${CLAUDE_SESSION_ID}", sessionId);
+            result = result.Replace(ClaudeCompatConstants.TemplateSessionId, sessionId);
         }
 
         if (!hasPlaceholder && appendIfNoPlaceholder && !string.IsNullOrWhiteSpace(args))

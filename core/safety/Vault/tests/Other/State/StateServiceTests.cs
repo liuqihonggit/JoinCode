@@ -1,8 +1,8 @@
-
+﻿
 namespace Core.Tests.Services;
 
 /// <summary>
-/// StateService 单元测试 — 纯内存实现，对齐 Claude Code 原版
+/// StateService 单元测试 — 纯内存实现，对齐 TS 原版 原版
 /// </summary>
 public sealed class StateServiceTests : IDisposable
 {

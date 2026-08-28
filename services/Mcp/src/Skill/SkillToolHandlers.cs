@@ -1,11 +1,11 @@
-
+﻿
 
 
 namespace McpToolDispatch;
 
 /// <summary>
 /// 技能执行工具处理器 - 提供技能执行和列表功能
-/// 参考Claude Code的SkillTool实现：单工具统一入口，skill名称+可选args
+/// 参考 TS 原版的SkillTool实现：单工具统一入口，skill名称+可选args
 /// </summary>
 [McpToolDispatch(ToolCategory.Skill)]
 public class SkillToolHandlers

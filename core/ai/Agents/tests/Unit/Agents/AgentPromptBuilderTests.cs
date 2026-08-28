@@ -1,4 +1,4 @@
-namespace Core.Agents;
+﻿namespace Core.Agents;
 
 using JoinCode.Abstractions.Interfaces;
 using JoinCode.Abstractions.Models.Agent;
@@ -72,7 +72,7 @@ public sealed class AgentPromptBuilderTests
     [Fact]
     public async Task BuildSystemPromptAsync_WithCriticalSystemReminder_NotInSystemPrompt()
     {
-        // CriticalSystemReminder 改为每轮注入消息流(对齐 claude code),不在 system prompt 中
+        // CriticalSystemReminder 改为每轮注入消息流(对齐 TS 原版),不在 system prompt 中
         var definition = new JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition
         {
             Role = AgentRole.Executor,

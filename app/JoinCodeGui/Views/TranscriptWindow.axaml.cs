@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -10,7 +10,7 @@ namespace JoinCode.Gui.Views;
 
 /// <summary>
 /// 子代理回放窗口 — 展示单个 subAgent 的完整时间线（tracker Transcript 全量留痕），
-/// 对齐 ClaudeCode ctrl+o transcript 模式的 GUI 版。只读快照：打开时定格，不实时刷新。
+/// 对齐 TS 原版 ctrl+o transcript 模式的 GUI 版。只读快照：打开时定格，不实时刷新。
 /// </summary>
 public partial class TranscriptWindow : Window
 {

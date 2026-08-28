@@ -113,8 +113,8 @@ public sealed class BridgeMainCommandGuardIntegrationTests
     [Fact]
     public async Task GetAccessTokenAsync_WhenStoredTokenValid_PrefersStoredOverEnvVar()
     {
-        Environment.SetEnvironmentVariable("CLAUDE_CODE_SESSION_ACCESS_TOKEN", "env-token-xxx");
-        Environment.SetEnvironmentVariable("CLAUDE_CODE_OAUTH_TOKEN", null);
+        Environment.SetEnvironmentVariable(JccEnvVar.SessionAccessToken.ToValue(), "env-token-xxx");
+        Environment.SetEnvironmentVariable(JccEnvVar.OAuthToken.ToValue(), null);
         try
         {
             var tokenMock = new Mock<ITokenStorage>();
@@ -134,15 +134,15 @@ public sealed class BridgeMainCommandGuardIntegrationTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("CLAUDE_CODE_SESSION_ACCESS_TOKEN", null);
+            Environment.SetEnvironmentVariable(JccEnvVar.SessionAccessToken.ToValue(), null);
         }
     }
 
     [Fact]
     public async Task GetAccessTokenAsync_WhenNoEnvVar_LoadsFromTokenStorage()
     {
-        Environment.SetEnvironmentVariable("CLAUDE_CODE_SESSION_ACCESS_TOKEN", null);
-        Environment.SetEnvironmentVariable("CLAUDE_CODE_OAUTH_TOKEN", null);
+        Environment.SetEnvironmentVariable(JccEnvVar.SessionAccessToken.ToValue(), null);
+        Environment.SetEnvironmentVariable(JccEnvVar.OAuthToken.ToValue(), null);
         try
         {
             var tokenMock = new Mock<ITokenStorage>();
@@ -165,15 +165,15 @@ public sealed class BridgeMainCommandGuardIntegrationTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("CLAUDE_CODE_SESSION_ACCESS_TOKEN", null);
+            Environment.SetEnvironmentVariable(JccEnvVar.SessionAccessToken.ToValue(), null);
         }
     }
 
     [Fact]
     public async Task GetAccessTokenAsync_WhenTokenExpired_ReturnsNull_Then_FallsBackToOAuthEnv()
     {
-        Environment.SetEnvironmentVariable("CLAUDE_CODE_OAUTH_TOKEN", "oauth-env-fallback");
-        Environment.SetEnvironmentVariable("CLAUDE_CODE_SESSION_ACCESS_TOKEN", null);
+        Environment.SetEnvironmentVariable(JccEnvVar.OAuthToken.ToValue(), "oauth-env-fallback");
+        Environment.SetEnvironmentVariable(JccEnvVar.SessionAccessToken.ToValue(), null);
         try
         {
             var tokenMock = new Mock<ITokenStorage>();
@@ -193,15 +193,15 @@ public sealed class BridgeMainCommandGuardIntegrationTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("CLAUDE_CODE_OAUTH_TOKEN", null);
+            Environment.SetEnvironmentVariable(JccEnvVar.OAuthToken.ToValue(), null);
         }
     }
 
     [Fact]
     public async Task GetAccessTokenAsync_WhenTokenStorageNull_FallsBackToOAuthEnvVar()
     {
-        Environment.SetEnvironmentVariable("CLAUDE_CODE_OAUTH_TOKEN", "fallback-from-env");
-        Environment.SetEnvironmentVariable("CLAUDE_CODE_SESSION_ACCESS_TOKEN", null);
+        Environment.SetEnvironmentVariable(JccEnvVar.OAuthToken.ToValue(), "fallback-from-env");
+        Environment.SetEnvironmentVariable(JccEnvVar.SessionAccessToken.ToValue(), null);
         try
         {
             var command = CreateCommand(tokenStorage: null);
@@ -212,7 +212,7 @@ public sealed class BridgeMainCommandGuardIntegrationTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("CLAUDE_CODE_OAUTH_TOKEN", null);
+            Environment.SetEnvironmentVariable(JccEnvVar.OAuthToken.ToValue(), null);
         }
     }
 
@@ -286,7 +286,7 @@ public sealed class BridgeMainCommandGuardIntegrationTests
     [Fact]
     public async Task BuildDeps_PassesMarkRemoteDialogSeen_ToBridgeMainDeps()
     {
-        Environment.SetEnvironmentVariable("CLAUDE_CODE_SESSION_ACCESS_TOKEN", "test-token-for-deps");
+        Environment.SetEnvironmentVariable(JccEnvVar.SessionAccessToken.ToValue(), "test-token-for-deps");
         try
         {
             var configMock = new Mock<IConfigurationService>();
@@ -299,7 +299,7 @@ public sealed class BridgeMainCommandGuardIntegrationTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("CLAUDE_CODE_SESSION_ACCESS_TOKEN", null);
+            Environment.SetEnvironmentVariable(JccEnvVar.SessionAccessToken.ToValue(), null);
         }
     }
 }

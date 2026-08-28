@@ -215,7 +215,7 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
     public async Task UpdateAccessTokenAsync(string newToken, CancellationToken ct = default)
     {
         AccessToken = newToken;
-        var message = $"{{\"type\":\"update_environment_variables\",\"variables\":{{\"CLAUDE_CODE_SESSION_ACCESS_TOKEN\":\"{newToken}\"}}}}\n";
+        var message = $"{{\"type\":\"update_environment_variables\",\"variables\":{{\"JCC_SESSION_ACCESS_TOKEN\":\"{newToken}\"}}}}\n";
         await WriteStdinAsync(message, ct).ConfigureAwait(false);
         _logger?.LogDebug("[SubprocessHandle] 令牌已刷新: {SessionId}", SessionId);
     }
@@ -713,7 +713,7 @@ public sealed class BridgeSubprocessSpawner
 
     /// <summary>
     /// 构建环境变量字典 — 对齐 TS 端子进程环境变量
-    /// 包含 CLAUDE_CODE_SESSION_ACCESS_TOKEN、CLAUDE_CODE_POST_FOR_SESSION_INGRESS_V2 等
+    /// 包含 JCC_SESSION_ACCESS_TOKEN、JCC_POST_FOR_SESSION_INGRESS_V2 等
     /// </summary>
     private Dictionary<string, string> BuildEnvironmentVariables(BridgeSubprocessOptions options)
     {
@@ -731,28 +731,28 @@ public sealed class BridgeSubprocessSpawner
 
         if (options.AccessToken is not null)
         {
-            // 对齐 TS 端: CLAUDE_CODE_SESSION_ACCESS_TOKEN
-            env["CLAUDE_CODE_SESSION_ACCESS_TOKEN"] = options.AccessToken;
+            // 对齐 TS 端: JCC_SESSION_ACCESS_TOKEN
+            env[JccEnvVar.SessionAccessToken.ToValue()] = options.AccessToken;
         }
 
         // 剥离 bridge 的 OAuth token，子进程使用 session token
-        env["CLAUDE_CODE_OAUTH_TOKEN"] = "";
+        env[JccEnvVar.OAuthToken.ToValue()] = "";
 
         // v1: HybridTransport (WS reads + POST writes) to Session-Ingress
-        env["CLAUDE_CODE_POST_FOR_SESSION_INGRESS_V2"] = "1";
+        env[JccEnvVar.PostForSessionIngressV2.ToValue()] = "1";
 
         if (options.UseCcrV2)
         {
-            env["CLAUDE_CODE_USE_CCR_V2"] = "1";
+            env[JccEnvVar.BridgeUseCcrV2.ToValue()] = "1";
             if (options.WorkerEpoch.HasValue)
             {
-                env["CLAUDE_CODE_WORKER_EPOCH"] = options.WorkerEpoch.Value.ToString();
+                env[JccEnvVar.WorkerEpoch.ToValue()] = options.WorkerEpoch.Value.ToString();
             }
         }
 
         if (options.Sandbox)
         {
-            env["CLAUDE_CODE_FORCE_SANDBOX"] = "1";
+            env[JccEnvVar.ForceSandbox.ToValue()] = "1";
         }
 
         return env;

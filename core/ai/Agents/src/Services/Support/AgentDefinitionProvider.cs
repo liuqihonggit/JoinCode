@@ -1,4 +1,4 @@
-namespace Core.Agents;
+﻿namespace Core.Agents;
 
 [Register(typeof(JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider), ServiceLifetime.Singleton)]
 public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider
@@ -141,7 +141,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
                 Tools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase, ShellToolNameConstants.Bash],
                 DisallowedTools = readOnlyDisallowedTools,
                 IsBackground = false,
-                OmitClaudeMd = true,
+                OmitProjectRules = true,
                 OmitGitStatus = true
             },
             new()
@@ -153,7 +153,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
                 Tools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase, ShellToolNameConstants.Bash],
                 DisallowedTools = readOnlyDisallowedTools,
                 IsBackground = false,
-                OmitClaudeMd = true,
+                OmitProjectRules = true,
                 OmitGitStatus = true
             },
             new()
@@ -179,9 +179,9 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
             new()
             {
                 Role = AgentRole.Executor,
-                Variant = ExecutorVariant.ClaudeCodeGuide,
-                WhenToUse = "Guide users on how to use Claude Code features and best practices",
-                Description = "Claude Code Guide agent — helps users understand and use Claude Code",
+                Variant = ExecutorVariant.JoinCodeGuide,
+                WhenToUse = $"Guide users on how to use {BrandConstants.ProductName} features and best practices",
+                Description = $"{BrandConstants.ProductName} Guide agent — helps users understand and use {BrandConstants.ProductName}",
                 Tools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase],
                 DisallowedTools = [AgentToolNameConstants.Agent, FileToolNameConstants.FileEdit, FileToolNameConstants.FileWrite, ShellToolNameConstants.Bash]
             },
@@ -358,7 +358,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
     }
 
     /// <summary>
-    /// 归一化模型名称 — 对齐 claude code AgentJsonSchema model.transform
+    /// 归一化模型名称 — 对齐 TS 原版 AgentJsonSchema model.transform
     /// <para>"inherit" 不区分大小写归一化为小写 "inherit",其他值原样返回</para>
     /// <para>避免配置写 "Inherit"/"INHERIT" 时解析失败</para>
     /// </summary>

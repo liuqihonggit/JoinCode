@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Bridge;
 
 /// <summary>
@@ -33,7 +33,7 @@ public sealed class BridgeSessionSnapshot
 
 /// <summary>
 /// Bridge 会话模型 - 表示一个远程 Bridge 会话
-/// 对标 Claude Code 的 Session 类型
+/// 对标 TS 原版的 Session 类型
 /// </summary>
 public sealed class BridgeSession
 {
@@ -125,7 +125,7 @@ public sealed partial class BridgeSessionFactory
 
 /// <summary>
 /// Bridge 会话运行器 - 管理会话生命周期
-/// 对标 Claude Code 的 sessionRunner.ts 和 createSession.ts
+/// 对标 TS 原版的 sessionRunner.ts 和 createSession.ts
 /// </summary>
 [Register(typeof(BridgeSessionRunner), ServiceLifetime.Singleton)]
 public sealed partial class BridgeSessionRunner : ServiceEntity

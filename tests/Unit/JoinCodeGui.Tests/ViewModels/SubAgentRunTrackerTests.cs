@@ -1,4 +1,4 @@
-using JoinCode.Abstractions.LLM.Chat;
+﻿using JoinCode.Abstractions.LLM.Chat;
 
 using JoinCode.Gui.ViewModels;
 
@@ -103,7 +103,7 @@ public class SubAgentRunTrackerTests
         tracker.Observe(new ChatStreamEvent { Type = ChatStreamEventType.ToolCallStart, ToolName = "Glob", AgentId = "a1", ToolCallId = "c2" });
         tracker.Observe(new ChatStreamEvent { Type = ChatStreamEventType.ToolCallEnd, ToolName = "Glob", AgentId = "a1" });
 
-        // 连续搜索/读取类工具 → 折叠成一条计数摘要（ClaudeCode getSearchReadSummaryText 模式）
+        // 连续搜索/读取类工具 → 折叠成一条计数摘要（JoinCode getSearchReadSummaryText 模式）
         var last = tracker.Runs.Single().VisibleActivities.Last();
         last.Should().Contain("2").And.Contain("搜索");
     }

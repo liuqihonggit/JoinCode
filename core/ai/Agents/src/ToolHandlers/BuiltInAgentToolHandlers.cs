@@ -1,4 +1,4 @@
-namespace Core.Agents.ToolHandlers;
+﻿namespace Core.Agents.ToolHandlers;
 
 [McpToolDispatch(ToolCategory.Agent, Optional = true)]
 [Register(typeof(BuiltInAgentToolHandlers), ServiceLifetime.Singleton)]
@@ -213,7 +213,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
         }
     }
 
-    [McpTool(AgentToolNameConstants.GuideAgent, "Use Claude Code Guide Agent to get usage help", AgentToolNameConstants.Agent)]
+    [McpTool(AgentToolNameConstants.GuideAgent, "Use " + BrandConstants.ProductName + " Guide Agent to get usage help", AgentToolNameConstants.Agent)]
     public async Task<ToolResult> GuideAgentAsync(
         [McpToolParameter("Question or help needed")] string question,
         [McpToolParameter("Feature name, optional", Required = false)] string? feature = null,
@@ -226,7 +226,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
             var prompt = BuildGuidePrompt(question, feature);
             var systemPrompt = _promptBuilder is not null
                 ? await _promptBuilder.BuildSystemPromptAsync(
-                    ExecutorVariant.ClaudeCodeGuide.ToValue(),
+                    ExecutorVariant.JoinCodeGuide.ToValue(),
                     question,
                     null,
                     BuildGuidePromptContext(cancellationToken),
@@ -237,7 +237,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
                 Description = $"Guide: {question}",
                 Prompt = prompt,
                 Role = AgentRole.Executor,
-                Variant = ExecutorVariant.ClaudeCodeGuide,
+                Variant = ExecutorVariant.JoinCodeGuide,
                 SystemPrompt = systemPrompt,
             };
 
@@ -295,7 +295,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
 
     /// <summary>
     /// 构建 GuideAgent 运行时上下文 — 注入当前可用 agent 列表
-    /// <para>对齐 claude code claude-code-guide agent 的 getSystemPrompt({ toolUseContext }) 闭包模式</para>
+    /// <para>对齐 TS 原版 JoinCodeGuide agent 的 getSystemPrompt({ toolUseContext }) 闭包模式</para>
     /// </summary>
     private AgentPromptContext BuildGuidePromptContext(CancellationToken cancellationToken)
     {
@@ -440,10 +440,10 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
     {
         if (!string.IsNullOrWhiteSpace(feature))
         {
-            return $"请详细介绍 Claude Code 的以下功能：\n\n## 功能名称\n{feature}\n\n请提供功能概述、使用场景、详细步骤和实际示例。";
+            return $"请详细介绍 {BrandConstants.ProductName} 的以下功能：\n\n## 功能名称\n{feature}\n\n请提供功能概述、使用场景、详细步骤和实际示例。";
         }
 
-        return $"请回答以下关于 Claude Code 使用的问题：\n\n## 问题\n{question}\n\n请提供直接回答、相关背景和具体示例。";
+        return $"请回答以下关于 {BrandConstants.ProductName} 使用的问题：\n\n## 问题\n{question}\n\n请提供直接回答、相关背景和具体示例。";
     }
 
     #endregion

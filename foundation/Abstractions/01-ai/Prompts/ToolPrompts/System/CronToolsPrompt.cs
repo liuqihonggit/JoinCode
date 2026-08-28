@@ -16,7 +16,7 @@ public static class CronCreateToolPrompt
     {
         return durableEnabled
             ? $"安排一个提示在未来时间运行 —— 要么在 cron 计划上重复，要么在特定时间运行一次。传递 durable: true 以持久化到 {AppDataConstants.AppDataFolder}/{AppDataConstants.ScheduledTasksFileName}；否则仅会话。"
-            : "安排一个提示在未来时间在此 Claude 会话中运行 —— 要么在 cron 计划上重复，要么在特定时间运行一次。";
+            : "安排一个提示在未来时间在此 JoinCode 会话中运行 —— 要么在 cron 计划上重复，要么在特定时间运行一次。";
     }
 
     /// <summary>

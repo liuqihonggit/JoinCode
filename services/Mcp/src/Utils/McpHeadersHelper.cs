@@ -26,8 +26,8 @@ public static class McpHeadersHelper
                 TimeoutMs = (int)Timeout.TotalMilliseconds,
                 EnvironmentVariables = new Dictionary<string, string>
                 {
-                    ["CLAUDE_CODE_MCP_SERVER_NAME"] = serverName,
-                    ["CLAUDE_CODE_MCP_SERVER_URL"] = serverUrl
+                    ["JCC_MCP_SERVER_NAME"] = serverName,
+                    ["JCC_MCP_SERVER_URL"] = serverUrl
                 }
             };
 

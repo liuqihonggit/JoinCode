@@ -11,17 +11,17 @@ public sealed partial class ProjectRulesLoader : ServiceEntity {
         Path.Combine(AppDataConstants.AppDataFolder, AppDataConstants.RulesFolderName, AppDataConstants.ProjectRulesFileName),
         "AGENTS.md",
         "agents.md",
-        "CLAUDE.md",
-        "claude.md",
-        "CLAUDE.local.md",
-        "claude.local.md",
+        ClaudeCompatConstants.ProjectRulesFileName,
+        ClaudeCompatConstants.ProjectRulesFileNameLower,
+        ClaudeCompatConstants.ProjectRulesLocalFileName,
+        ClaudeCompatConstants.ProjectRulesLocalFileNameLower,
         "codex.md",
         Path.Combine(".codex", "AGENTS.md")
     ];
 
     private static string[] GetRulesDirectoryPaths() => [
         Path.Combine(".trae", "rules"),
-        Path.Combine(".claude", "rules"),
+        Path.Combine(ClaudeCompatConstants.ConfigDirectory, "rules"),
         Path.Combine(".codex", "rules"),
         Path.Combine(AppDataConstants.AppDataFolder, AppDataConstants.RulesFolderName)
     ];

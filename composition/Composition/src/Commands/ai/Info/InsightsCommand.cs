@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Insights, Description = "AI生成会话洞察分析", Usage = "/insights [stats|deep|report]", Category = ChatCommandCategory.Info, ArgumentHint = "[stats|deep|report]")]
 public sealed class InsightsCommand : ChatCommandBase
@@ -516,7 +516,7 @@ public sealed class InsightsCommand : ChatCommandBase
     {
         var sb = new StringBuilder();
 
-        sb.AppendLine("You are generating a comprehensive Claude Code Insights report.");
+        sb.AppendLine("You are generating a comprehensive JoinCode Insights report.");
         sb.AppendLine();
         sb.AppendLine(dataContext);
         sb.AppendLine();
@@ -525,7 +525,7 @@ public sealed class InsightsCommand : ChatCommandBase
         sb.AppendLine();
 
         sb.AppendLine("1. PROJECT AREAS: Identify 4-5 main project areas the user worked on");
-        sb.AppendLine("2. INTERACTION STYLE: Analyze the user's interaction patterns with Claude Code");
+        sb.AppendLine("2. INTERACTION STYLE: Analyze the user's interaction patterns with JoinCode");
         sb.AppendLine("3. WHAT WORKS: Identify 3 impressive workflows that worked well");
         sb.AppendLine("4. FRICTION ANALYSIS: Identify 3 friction categories with examples");
         sb.AppendLine("5. SUGGESTIONS: Provide improvement suggestions (CLAUDE.md additions, features to try, usage patterns)");
@@ -563,7 +563,7 @@ public sealed class InsightsCommand : ChatCommandBase
             .Join("\n");
 
         return $"""
-            Analyze the following Claude Code usage data and provide insights. Data from {sessionCount} sessions:
+            Analyze the following JoinCode usage data and provide insights. Data from {sessionCount} sessions:
 
             Overview:
             - Sessions: {data.TotalSessions}

@@ -1,8 +1,8 @@
-namespace Tools.Handlers;
+﻿namespace Tools.Handlers;
 
 /// <summary>
 /// 解析 Agent(worker,researcher) 语法 — 限制可 spawn 的 agent 类型
-/// <para>对齐 claude code resolveAgentTools 的 allowedAgentTypes 元数据</para>
+/// <para>对齐 TS 原版 resolveAgentTools 的 allowedAgentTypes 元数据</para>
 /// <para>"worker,researcher" → AllowedTypes=["worker","researcher"], PrimaryType="worker"</para>
 /// </summary>
 public static class AgentTypeSpecParser

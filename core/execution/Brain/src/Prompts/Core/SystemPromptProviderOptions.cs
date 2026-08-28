@@ -1,4 +1,4 @@
-namespace Core.Prompts;
+﻿namespace Core.Prompts;
 
 /// <summary>
 /// 系统提示词提供者配置选项
@@ -13,7 +13,7 @@ public partial class SystemPromptProviderOptions
 
     /// <summary>
     /// 从环境变量 JCC_COORDINATOR_MODE 检测是否启用 Coordinator 模式
-    /// <para>对齐 claude code CLAUDE_CODE_COORDINATOR_MODE 环境变量</para>
+    /// <para>对齐 TS 原版 CLAUDE_CODE_COORDINATOR_MODE 环境变量</para>
     /// <para>支持值: 1, true, TRUE(不区分大小写)</para>
     /// </summary>
     public static bool IsCoordinatorModeEnabledFromEnv()
@@ -24,7 +24,7 @@ public partial class SystemPromptProviderOptions
 
     /// <summary>
     /// 从环境变量 JCC_SUBAGENT_MODEL 获取 subagent 模型覆盖
-    /// <para>对齐 claude code CLAUDE_CODE_SUBAGENT_MODEL 环境变量</para>
+    /// <para>对齐 TS 原版 CLAUDE_CODE_SUBAGENT_MODEL 环境变量</para>
     /// <para>设置后全局覆盖所有 subagent 模型,用于测试/调试</para>
     /// </summary>
     public static string? GetSubagentModelFromEnv()
@@ -34,7 +34,7 @@ public partial class SystemPromptProviderOptions
 
     /// <summary>
     /// 判断 agent 指定的 model alias 是否匹配父模型 tier
-    /// <para>对齐 claude code aliasMatchesParentTier — 避免 Vertex 用户从 Opus 4.6 降级到默认 Opus</para>
+    /// <para>对齐 TS 原版 aliasMatchesParentTier — 避免 Vertex 用户从 Opus 4.6 降级到默认 Opus</para>
     /// <para>alias = "opus" 且 parentModel 含 "opus" → true(用父模型,避免降级)</para>
     /// <para>委托给 SubAgentModelResolver.AliasMatchesParentTier 保持单一真相源</para>
     /// </summary>
@@ -42,13 +42,13 @@ public partial class SystemPromptProviderOptions
         => SubAgentModelResolver.AliasMatchesParentTier(alias, parentModel);
 
     /// <summary>
-    /// 子代理默认模型关键字 — 对齐 claude code getDefaultSubagentModel
+    /// 子代理默认模型关键字 — 对齐 TS 原版 getDefaultSubagentModel
     /// <para>返回 "inherit" 表示子代理默认继承父线程模型</para>
     /// </summary>
     public const string DefaultSubagentModel = SubAgentModelResolver.DefaultSubagentModel;
 
     /// <summary>
-    /// 判断模型字符串是否是 inherit 关键字 — 对齐 claude code agentModelWithExp === 'inherit'
+    /// 判断模型字符串是否是 inherit 关键字 — 对齐 TS 原版 agentModelWithExp === 'inherit'
     /// <para>不区分大小写: "inherit"、"Inherit"、"INHERIT" 均返回 true</para>
     /// <para>null/空白 返回 false</para>
     /// <para>委托给 SubAgentModelResolver.IsInheritKeyword 保持单一真相源</para>
@@ -57,7 +57,7 @@ public partial class SystemPromptProviderOptions
         => SubAgentModelResolver.IsInheritKeyword(model);
 
     /// <summary>
-    /// 获取子代理模型显示文本 — 对齐 claude code getAgentModelDisplay
+    /// 获取子代理模型显示文本 — 对齐 TS 原版 getAgentModelDisplay
     /// <para>null/空 → "Inherit from parent (default)"</para>
     /// <para>"inherit" → "Inherit from parent"</para>
     /// <para>其他 → 首字母大写</para>

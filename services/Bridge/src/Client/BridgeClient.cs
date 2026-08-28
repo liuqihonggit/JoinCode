@@ -1,10 +1,10 @@
-
+﻿
 namespace Core.Bridge;
 
 using JoinCode.Abstractions.Attributes;
 
 /// <summary>
-/// Bridge 客户端 - 模仿 Claude Code 的 replBridge.ts 架构
+/// Bridge 客户端 - 参考 TS 原版 的 replBridge.ts 架构
 /// 实现消息轮询循环、消息去重、Echo 过滤和重连逻辑
 /// </summary>
 [Register(typeof(BridgeClient), ServiceLifetime.Singleton)]
@@ -285,7 +285,7 @@ public sealed partial class BridgeClient : IAsyncDisposable
     #region 消息轮询循环 (pollForWork)
 
     /// <summary>
-    /// 消息轮询循环 - 模仿 Claude Code 的 pollForWork
+    /// 消息轮询循环 - 参考 TS 原版 的 pollForWork
     /// </summary>
     private async Task RunPollingLoopAsync(CancellationToken cancellationToken)
     {

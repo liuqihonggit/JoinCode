@@ -14,7 +14,7 @@ Entity (基类)
         创建: new Agent(task, options, queryEngine, ..., role, variant, ...)
 
 AgentRole: Coordinator | Executor
-ExecutorVariant: Code | Search | Explore | Plan | Doctor | Verification | ClaudeCodeGuide | ContextCompression | Teammate
+ExecutorVariant: Code | Search | Explore | Plan | Doctor | Verification | JoinCodeGuide | ContextCompression | Teammate
 ```
 
 ### 1.2 问题

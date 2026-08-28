@@ -91,11 +91,11 @@ PreChatMiddleware.RecordPromptStateAsync        // core/execution/Brain/src/Cont
 
 ## 6. 上游参考（DeepSeek-Reasonix Go 版，main-v2/v1.20）
 
-> 调查核实：这个"压缩 vs 前缀缓存"矛盾在三家（Claude Code TS / Reasonix TS / **Reasonix Go**）中都存在；Go 版是**唯一把"缓存优先折叠"落地并带 E2E 验证的**，是本 C# 计划的黄金参照。
+> 调查核实：这个"压缩 vs 前缀缓存"矛盾在三家（JoinCode TS / Reasonix TS / **Reasonix Go**）中都存在；Go 版是**唯一把"缓存优先折叠"落地并带 E2E 验证的**，是本 C# 计划的黄金参照。
 
 | 我的计划项 | Go 版实现 | 文件 | 结论 |
 |-----------|----------|------|------|
-| Phase1 缓存感知延迟折叠 | ✅ **软/硬分层阈值**：`soft=0.5` 只提示不改折叠、显式保留前缀 | `internal/agent/compact.go:87-112,125` | **Go 版已落地同款想法**，比 Claude Code 更接近本 Phase1；直接抄 |
+| Phase1 缓存感知延迟折叠 | ✅ **软/硬分层阈值**：`soft=0.5` 只提示不改折叠、显式保留前缀 | `internal/agent/compact.go:87-112,125` | **Go 版已落地同款想法**，比 JoinCode 更接近本 Phase1；直接抄 |
 | Phase1 推迟封顶 | ✅ **折叠卡死锁**：窗口太小时折叠赶不上增长→自动暂停、让前缀只增不改 | `compact.go:94,122-131,154-159` | 比"计数封顶"更强的兜底，命中率恢复 |
 | Phase1 折叠前低成本剪裁 | ✅ **`snip=0.6` 先剪裁过期 tool_calls** 再摘要折叠 | `compact.go:113-121,133-143` | 剪裁比摘要省一轮 omitcall，可作为折叠前预步骤 |
 | Phase2 折叠后重基线 | ✅ `session.RewriteVersion` → `CacheBreakKind` 属于 `log_rewrite` 而非 `CacheEviction` | `agent/session.go:20,92` + `cache_shape.go:26,75` | 与主张一致，已工程验证 |
@@ -112,7 +112,7 @@ PreChatMiddleware.RecordPromptStateAsync        // core/execution/Brain/src/Cont
 ## 7. 决策记录
 
 <!-- 🤖 Auto Decision: 2026-08-06 -->
-<!-- 决策: 先出蓝图计划 md，不直接改代码；并把上游 Claude Code 的参考结论并入计划 -->
+<!-- 决策: 先出蓝图计划 md，不直接改代码；并把上游 JoinCode 的参考结论并入计划 -->
 <!-- 原因: "缓存 vs 压缩"是量级权衡，涉及行为变更，需用户确认方向与阈值；上游结论可作对齐基准 -->
 <!-- 替代方案: 直接重构（风险高，未获确认，弃用）-->
 <!-- 验证: 计划文档产出 + 上游调研核实，未改行为代码 -->
@@ -120,7 +120,7 @@ PreChatMiddleware.RecordPromptStateAsync        // core/execution/Brain/src/Cont
 ## 8. 决策记录（Reasonix 调研补充，2026-08-06）
 
 <!-- 决策: 将 DeepSeek-Reasonix Go 版(上游 main-v2)分层折叠/折叠卡死锁/剪裁/log_rewrite 归因等结论并入本计划 §6 -->
-<!-- 原因: Go 版已把本项目 Phase1+Phase2 的想方案<E2E 实测落地，是比 Claude Code TS 更完整、更贴近本项目的参照基准 -->
+<!-- 原因: Go 版已把本项目 Phase1+Phase2 的想方案<E2E 实测落地，是比 JoinCode TS 更完整、更贴近本项目的参照基准 -->
 <!-- 替代方案: 仅 Claude 参考(缺"缓存优先折叠"背书)；仅 Reasonix TS 参考(旧、无 E2E)。Go 版兼有二者 -->
 <!-- 验证: 在 reset 到 upstream 时于 reflog 找回"缓存设计.md"供归档比对；本会话未改行为代码 -->
 

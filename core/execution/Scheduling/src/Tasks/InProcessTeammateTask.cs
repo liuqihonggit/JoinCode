@@ -1,4 +1,4 @@
-namespace Core.Scheduling.Tasks;
+﻿namespace Core.Scheduling.Tasks;
 
 public interface IInProcessTeammateTaskExecutor
 {
@@ -431,7 +431,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
 
     /// <summary>
     /// 中断 teammate 当前 per-turn work — 只 cancel <see cref="TeammateState.CurrentWorkCts"/>，
-    /// 不 cancel lifecycle，teammate 进 idle 等待 next prompt（对齐 ClaudeCode inProcessRunner ESC 行为）。
+    /// 不 cancel lifecycle，teammate 进 idle 等待 next prompt（对齐 TS 原版 inProcessRunner ESC 行为）。
     /// 若 teammate 不存在或当前无活跃 work，返回 false。
     /// </summary>
     public async Task<bool> InterruptTeammateAsync(string teammateId, CancellationToken ct = default)
@@ -601,7 +601,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
                 catch (OperationCanceledException) when (!lifecycleCt.IsCancellationRequested)
                 {
                     // Interrupt — workCts 被 cancel 但 lifecycle 未取消，进 idle 等 next prompt
-                    // 对齐 ClaudeCode inProcessRunner ESC：不通知 coordinator（不自动唤醒 mainAgent），仅等用户 next prompt
+                    // 对齐 TS 原版 inProcessRunner ESC：不通知 coordinator（不自动唤醒 mainAgent），仅等用户 next prompt
                     state.TurnCount++;
                     state.IsIdle = true;
                     RecordTeammateMetrics("turn_interrupted", true);

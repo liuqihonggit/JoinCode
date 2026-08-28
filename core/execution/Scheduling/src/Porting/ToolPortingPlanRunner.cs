@@ -319,7 +319,7 @@ public sealed partial class ToolPortingPlanRunner : ServiceEntity
             "Task-02-User-Interaction" => new List<string>
             {
                 "AskUserQuestionTool + EnterPlanModeTool + ExitPlanModeV2Tool",
-                "planAgent + exploreAgent + verificationAgent + generalPurposeAgent + claudeCodeGuideAgent"
+                $"planAgent + exploreAgent + verificationAgent + generalPurposeAgent + {ClaudeCompatConstants.AgentClaudeCodeGuide}"
             },
             "Task-06-Todo-Search" => new List<string>
             {

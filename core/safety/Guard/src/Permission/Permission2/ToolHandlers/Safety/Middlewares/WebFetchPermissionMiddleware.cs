@@ -56,7 +56,7 @@ public sealed partial class WebFetchPermissionMiddleware : ServiceEntity, IPermi
         // 3. ask 规则匹配
         if (MatchesWebFetchRule(config.AskRules, ruleContent))
             return ToolPermissionCheckResult.PendingConfirmation(
-                $"Claude requested permissions to use {toolName}, but you haven't granted it yet.");
+                $"{BrandConstants.ProductName} requested permissions to use {toolName}, but you haven't granted it yet.");
 
         // 4. allow 规则匹配（含 RuleContent 的细粒度规则）
         if (MatchesWebFetchRuleWithContent(config.AutoApprovedTools.Values, ruleContent))
@@ -64,7 +64,7 @@ public sealed partial class WebFetchPermissionMiddleware : ServiceEntity, IPermi
 
         // 5. 默认 → ask
         return ToolPermissionCheckResult.PendingConfirmation(
-            $"Claude requested permissions to use {toolName}, but you haven't granted it yet.");
+            $"JoinCode requested permissions to use {toolName}, but you haven't granted it yet.");
     }
 
     /// <summary>

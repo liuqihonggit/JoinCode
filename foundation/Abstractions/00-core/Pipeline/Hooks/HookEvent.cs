@@ -1,8 +1,8 @@
-namespace JoinCode.Abstractions.Hooks;
+﻿namespace JoinCode.Abstractions.Hooks;
 
 /// <summary>
 /// 钩子事件类型
-/// 参考 Claude Code 的 HookEvent 设计
+/// 参考 TS 原版 的 HookEvent 设计
 /// </summary>
 public enum HookEvent
 {

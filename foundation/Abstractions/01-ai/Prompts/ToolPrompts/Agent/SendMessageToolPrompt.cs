@@ -16,7 +16,7 @@ public static class SendMessageToolPrompt
     {
         var udsRow = udsInboxEnabled
             ? @"
-| `""uds:/path/to.sock""` | 本地 Claude 会话的 socket（同一机器；使用 `ListPeers`） |
+| `""uds:/path/to.sock""` | 本地 JoinCode 会话的 socket（同一机器；使用 `ListPeers`） |
 | `""bridge:session_...""` | 远程控制对等会话（跨机器；使用 `ListPeers`） |"
             : "";
 

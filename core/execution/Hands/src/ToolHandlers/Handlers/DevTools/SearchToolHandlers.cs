@@ -1,4 +1,4 @@
-namespace Tools.Handlers;
+﻿namespace Tools.Handlers;
 
 /// <summary>
 /// Grep 搜索选项参数
@@ -119,7 +119,7 @@ public sealed record SymbolSearchOptions
 
 /// <summary>
 /// Search tool handlers - provides Glob and Grep search capabilities
-/// Aligned with Claude Code's GlobTool and GrepTool
+/// Aligned with JoinCode's GlobTool and GrepTool
 /// </summary>
 [McpToolDispatch(ToolCategory.Search)]
 public class SearchToolHandlers : OneShotCommandGroup

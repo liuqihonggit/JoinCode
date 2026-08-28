@@ -1,9 +1,9 @@
-namespace JoinCode.Gui.ViewModels;
+﻿namespace JoinCode.Gui.ViewModels;
 
 /// <summary>
 /// 多 subAgent 运行态聚合器 — 消费带 AgentId 的 ChatStreamEvent（IsSubAgentActivity），
 /// 把引擎事件流归约为每 agent 一行的运行记录，供 AgentRunPanelView 绑定。
-/// 纯 C# 无 UI 依赖，行为对齐 ClaudeCode：尾部 N 条活动 + 连续搜索/读取折叠 + 展开上限 LRU 驱逐
+/// 纯 C# 无 UI 依赖，行为对齐 TS 原版：尾部 N 条活动 + 连续搜索/读取折叠 + 展开上限 LRU 驱逐
 /// （展开管理语义移植自旧 TUI SubAgentCardManager）。
 /// </summary>
 public sealed class SubAgentRunTracker
@@ -18,7 +18,7 @@ public sealed class SubAgentRunTracker
     private readonly LinkedList<string> _expandedOrder = new();
     private readonly HashSet<string> _expandedSet = new(StringComparer.Ordinal);
 
-    /// <summary>连续搜索/读取类工具名 — 命中时折叠成计数摘要（对齐 ClaudeCode getSearchReadSummaryText）</summary>
+    /// <summary>连续搜索/读取类工具名 — 命中时折叠成计数摘要（对齐 TS 原版 getSearchReadSummaryText）</summary>
     private static readonly FrozenSet<string> SearchReadTools = FrozenSet.Create(
         StringComparer.OrdinalIgnoreCase,
         "Grep", "Glob", "Read", "FileRead", "FileSearch", "Search", "LS", "List");
@@ -101,7 +101,7 @@ public sealed class SubAgentRunTracker
                 string endText;
                 if (SearchReadTools.Contains(evt.ToolName))
                 {
-                    // 连续第 2 次起折叠成计数摘要（对齐 ClaudeCode：单次不折叠，保留工具名可读性）
+                    // 连续第 2 次起折叠成计数摘要（对齐 TS 原版：单次不折叠，保留工具名可读性）
                     run.SearchReadStreak++;
                     endText = run.SearchReadStreak >= 2
                         ? $"搜索/读取 {run.SearchReadStreak} 次…"

@@ -1,16 +1,16 @@
 # #17 插件 Agent 安全限制 — 方案设计
 
 > **创建时间**: 2026-08-17
-> **对齐目标**: claude code `src/utils/plugins/loadPluginAgents.ts`
+> **对齐目标**: TS 原版 `src/utils/plugins/loadPluginAgents.ts`
 > **状态**: 待用户审阅
 
 ---
 
 ## 一、目的：为什么要做这个？
 
-### 1.1 claude code 的设计
+### 1.1 TS 原版 的设计
 
-claude code 的插件可以贡献 agent 定义（从插件目录加载 `.md` 文件）。但出于**安装时信任边界**考虑，插件 agent **不能**定义以下三个字段：
+TS 原版 的插件可以贡献 agent 定义（从插件目录加载 `.md` 文件）。但出于**安装时信任边界**考虑，插件 agent **不能**定义以下三个字段：
 
 | 禁止字段 | 原因 |
 |----------|------|
@@ -80,7 +80,7 @@ namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
 /// 插件 Agent 定义提供者 — 插件实现此接口以贡献 agent 定义
-/// 对齐 claude code loadPluginAgents: 从插件加载 agent 定义 + 安全限制
+/// 对齐 TS 原版 loadPluginAgents: 从插件加载 agent 定义 + 安全限制
 /// </summary>
 public interface IPluginAgentProvider
 {
@@ -96,7 +96,7 @@ public interface IPluginAgentProvider
 namespace Core.Agents;
 
 /// <summary>
-/// 插件 Agent 安全限制校验 — 对齐 claude code 安装时信任边界
+/// 插件 Agent 安全限制校验 — 对齐 TS 原版 安装时信任边界
 /// 插件 agent 不能定义 permissionMode/hooks/mcpServers
 /// </summary>
 public static class PluginAgentValidator
@@ -125,7 +125,7 @@ namespace Core.Agents;
 
 /// <summary>
 /// 从已加载插件收集 agent 定义 — 维护 Map<name, AgentDefinition>
-/// 对齐 claude code loadPluginAgents
+/// 对齐 TS 原版 loadPluginAgents
 /// </summary>
 [Register(typeof(IPluginAgentLoader))]
 public sealed class PluginAgentLoader : IPluginAgentLoader

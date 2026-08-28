@@ -1,8 +1,8 @@
-namespace JoinCode.Abstractions.Interfaces;
+﻿namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
 /// 工具过滤策略接口 — 3 层收敛后的统一工具过滤入口。
-/// 对齐 claude code 的 filterToolsForAgent 3 层设计：
+/// 对齐 TS 原版 的 filterToolsForAgent 3 层设计：
 /// 1. AllAgentDisallowedTools（全局禁用，防递归）
 /// 2. AsyncAgentAllowedTools（白名单）
 /// 3. AgentDefinition.DisallowedTools（agent 定义级黑名单）

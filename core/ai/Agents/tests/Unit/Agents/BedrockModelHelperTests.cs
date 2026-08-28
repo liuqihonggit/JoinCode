@@ -1,9 +1,9 @@
-namespace Core.Agents.Tests.Unit.Agents;
+﻿namespace Core.Agents.Tests.Unit.Agents;
 
 using JoinCode.Abstractions.Configuration.Llm;
 
 /// <summary>
-/// BedrockModelHelper 单元测试 — 对齐 claude code src/utils/model/bedrock.ts
+/// BedrockModelHelper 单元测试 — 对齐 TS 原版 src/utils/model/bedrock.ts
 /// <para>覆盖: IsFoundationModel、ExtractModelIdFromArn、GetBedrockRegionPrefix、ApplyBedrockRegionPrefix、ApplyParentRegionPrefix</para>
 /// </summary>
 public sealed class BedrockModelHelperTests

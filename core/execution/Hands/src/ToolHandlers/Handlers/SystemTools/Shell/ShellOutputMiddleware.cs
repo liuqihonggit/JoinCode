@@ -64,10 +64,10 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
 
         var output = BuildOutputResponse(result, context.Command);
 
-        var hintResult = ClaudeCodeHintExtractor.Extract(output, context.Command);
+        var hintResult = ShellPluginHintExtractor.Extract(output, context.Command);
         if (hintResult.Hints.Count > 0)
         {
-            _telemetryService?.RecordCount("shell.hints.detected", new Dictionary<string, string> { ["type"] = string.Join(",", hintResult.Hints.Select(h => h.Type)) }, description: "Claude Code hints detected");
+            _telemetryService?.RecordCount("shell.hints.detected", new Dictionary<string, string> { ["type"] = string.Join(",", hintResult.Hints.Select(h => h.Type)) }, description: "Shell plugin hints detected");
         }
         output = hintResult.StrippedOutput;
 

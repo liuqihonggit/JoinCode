@@ -20,7 +20,7 @@ public sealed class SessionFacets
     /// <summary>用户满意度计数 — 对齐 TS user_satisfaction_counts</summary>
     public IReadOnlyDictionary<string, int> UserSatisfactionCounts { get; init; } = new Dictionary<string, int>();
 
-    /// <summary>Claude 帮助度: unhelpful | slightly_helpful | moderately_helpful | very_helpful | essential</summary>
+    /// <summary>JoinCode 帮助度: unhelpful | slightly_helpful | moderately_helpful | very_helpful | essential</summary>
     public string ClaudeHelpfulness { get; init; } = string.Empty;
 
     /// <summary>会话类型: single_task | multi_task | iterative_refinement | exploration | quick_question</summary>
@@ -38,7 +38,7 @@ public sealed class SessionFacets
     /// <summary>一句话：用户想要什么，是否得到</summary>
     public string BriefSummary { get; init; } = string.Empty;
 
-    /// <summary>用户给 Claude 的指令</summary>
+    /// <summary>用户给 JoinCode 的指令</summary>
     public IReadOnlyList<string> UserInstructionsToClaude { get; init; } = Array.Empty<string>();
 }
 

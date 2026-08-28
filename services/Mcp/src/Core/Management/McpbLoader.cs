@@ -94,8 +94,8 @@ public sealed partial class McpbLoader : ServiceEntity
             }
         }
 
-        env["CLAUDE_PLUGIN_ROOT"] = extractedPath;
-        env["CLAUDE_PLUGIN_DATA"] = Path.Combine(extractedPath, ".data");
+        env[ClaudeCompatConstants.EnvPluginRoot] = extractedPath;
+        env[ClaudeCompatConstants.EnvPluginData] = Path.Combine(extractedPath, ".data");
 
         if (userConfig != null)
         {

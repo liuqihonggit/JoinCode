@@ -1,8 +1,8 @@
-namespace JoinCode.Tui.Views;
+﻿namespace JoinCode.Tui.Views;
 
 /// <summary>
 /// 多 Agent 面板组件 — 显示多个子代理的输出面板。
-/// 对齐 claude code 的 AgentPanes 设计，每个 agent 独立面板，支持切换。
+/// 对齐 TS 原版 的 AgentPanes 设计，每个 agent 独立面板，支持切换。
 /// </summary>
 public sealed class AgentPanesView : ITuiComponent
 {

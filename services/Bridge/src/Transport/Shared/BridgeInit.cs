@@ -240,7 +240,7 @@ public static class BridgeInit
     internal static string ResolveSessionIngressUrl(string baseUrl)
     {
         var userType = Environment.GetEnvironmentVariable("USER_TYPE");
-        var ingressOverride = Environment.GetEnvironmentVariable("CLAUDE_BRIDGE_SESSION_INGRESS_URL");
+        var ingressOverride = Environment.GetEnvironmentVariable(JccEnvVar.BridgeSessionIngressUrl.ToValue());
         if (string.Equals(userType, "ant", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(ingressOverride))
         {
             return ingressOverride;

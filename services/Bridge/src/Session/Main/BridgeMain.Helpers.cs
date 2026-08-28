@@ -259,7 +259,7 @@ public sealed partial class BridgeMain
         // 生产环境下 sessionIngressUrl 与 baseUrl 相同（Envoy 路由 /v1/session_ingress/*）
         var sessionIngressUrl = baseUrl;
         var userType = Environment.GetEnvironmentVariable("USER_TYPE");
-        var ingressOverride = Environment.GetEnvironmentVariable("CLAUDE_BRIDGE_SESSION_INGRESS_URL");
+        var ingressOverride = Environment.GetEnvironmentVariable(JccEnvVar.BridgeSessionIngressUrl.ToValue());
         if (string.Equals(userType, "ant", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(ingressOverride))
         {
             sessionIngressUrl = ingressOverride;

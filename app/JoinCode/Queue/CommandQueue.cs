@@ -1,7 +1,7 @@
-namespace JoinCode.Queue;
+﻿namespace JoinCode.Queue;
 
 /// <summary>
-/// 命令队列优先级 — 对齐 claude code 的 QueuePriority（now > next > later）。
+/// 命令队列优先级 — 对齐 TS 原版 的 QueuePriority（now > next > later）。
 /// </summary>
 public enum QueuePriority
 {
@@ -37,7 +37,7 @@ public sealed record QueuedCommand(string Content, CommandOrigin Origin, QueuePr
 
 /// <summary>
 /// 优先级命令队列 — 三级优先级（Now &gt; Next &gt; Later），同优先级 FIFO，线程安全。
-/// 对齐 claude code 的 messageQueueManager.ts 设计。
+/// 对齐 TS 原版 的 messageQueueManager.ts 设计。
 /// </summary>
 public sealed class CommandQueue
 {
@@ -88,7 +88,7 @@ public sealed class CommandQueue
 
     /// <summary>
     /// 异步出队 — 空队列时异步等待（不阻塞线程），有项时按优先级出队。
-    /// 对齐 claude code 的队列驱动消费模式，供 REPL 主循环 await 使用。
+    /// 对齐 TS 原版 的队列驱动消费模式，供 REPL 主循环 await 使用。
     /// </summary>
     /// <param name="cancellationToken">取消令牌，触发时抛 <see cref="OperationCanceledException"/>。</param>
     /// <returns>出队的命令。</returns>

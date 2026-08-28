@@ -1,4 +1,4 @@
-namespace JoinCode.Gui.ViewModels;
+﻿namespace JoinCode.Gui.ViewModels;
 
 /// <summary>
 /// 子代理中断后的空闲倒计时器 — 双击 ESC 中断子代理后启动，60 秒无输入活动则触发 mainAgent 接手。
@@ -20,7 +20,7 @@ public sealed class SubAgentIdleTimer : IDisposable
     /// <summary>
     /// 构造倒计时器。
     /// </summary>
-    /// <param name="timeoutSeconds">空闲超时秒数，0 = 禁用（永不唤醒 mainAgent，纯对齐 ClaudeCode）</param>
+    /// <param name="timeoutSeconds">空闲超时秒数，0 = 禁用（永不唤醒 mainAgent，纯对齐 TS 原版）</param>
     /// <param name="onTick">每秒回调更新 UI 剩余秒数（可 null）</param>
     public SubAgentIdleTimer(int timeoutSeconds = 60, Action<int>? onTick = null)
     {

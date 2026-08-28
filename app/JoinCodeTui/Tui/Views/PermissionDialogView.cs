@@ -1,8 +1,8 @@
-namespace JoinCode.Tui.Views;
+﻿namespace JoinCode.Tui.Views;
 
 /// <summary>
 /// 权限确认弹窗组件 — 工具执行前的权限确认对话框。
-/// 对齐 claude code 的 PermissionDialog 设计，显示工具名+描述+三档决策按钮（T3 对齐 GUI/CLI）：
+/// 对齐 TS 原版 的 PermissionDialog 设计，显示工具名+描述+三档决策按钮（T3 对齐 GUI/CLI）：
 /// 允许一次(临时5分钟) / 始终允许(24小时会话级) / 拒绝。
 /// </summary>
 public sealed class PermissionDialogView : ITuiComponent

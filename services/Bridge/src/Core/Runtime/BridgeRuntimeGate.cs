@@ -104,7 +104,7 @@ public static class BridgeRuntimeGate
     public static bool ShouldUseCcrV2(bool? secretUseCodeSessions = null)
     {
         if (secretUseCodeSessions == true) return true;
-        var envOverride = Environment.GetEnvironmentVariable("CLAUDE_BRIDGE_USE_CCR_V2");
+        var envOverride = Environment.GetEnvironmentVariable(JccEnvVar.BridgeUseCcrV2.ToValue());
         return envOverride is "1" or "true" or "TRUE";
     }
 

@@ -1,4 +1,4 @@
-namespace Core.Agents;
+﻿namespace Core.Agents;
 
 /// <summary>
 /// 上下文构建中间件 — 构建 SubAgentOptions（不含 Spawn 调用，Spawn 移到 LifecycleSpawnMiddleware）
@@ -77,10 +77,10 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
     }
 
     /// <summary>
-    /// 解析子代理最终生效模型 — 对齐 claude code getAgentModel
+    /// 解析子代理最终生效模型 — 对齐 TS 原版 getAgentModel
     /// <para>优先级链: JCC_SUBAGENT_MODEL 环境变量 > SpawnOptions.Model > Definition.ModelName > inherit/父级模型</para>
-    /// <para>"inherit" 关键字(不区分大小写)显式继承父线程模型,对齐 claude code getDefaultSubagentModel</para>
-    /// <para>null/空 也视为继承父级(隐式 inherit,与 ClaudeCode 默认 'inherit' 语义一致)</para>
+    /// <para>"inherit" 关键字(不区分大小写)显式继承父线程模型,对齐 TS 原版 getDefaultSubagentModel</para>
+    /// <para>null/空 也视为继承父级(隐式 inherit,与 JoinCode 默认 'inherit' 语义一致)</para>
     /// <para>Bedrock 跨区域前缀继承: 若父模型有区域前缀且 provider 是 Bedrock,子代理模型继承相同前缀</para>
     /// </summary>
     private string? ResolveSubagentModel(UnifiedSpawnContext context)
@@ -110,7 +110,7 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
 
     /// <summary>
     /// 分析父模型对应的 provider — 提取 Bedrock 区域前缀并判断是否是 Bedrock
-    /// <para>对齐 claude code getBedrockRegionPrefix(parentModel) + getAPIProvider() === 'bedrock'</para>
+    /// <para>对齐 TS 原版 getBedrockRegionPrefix(parentModel) + getAPIProvider() === 'bedrock'</para>
     /// <para>无 IModelConfigLoader 或父模型未识别 provider 时,isBedrockProvider=false(不应用前缀)</para>
     /// </summary>
     private (string? parentRegionPrefix, bool isBedrockProvider) AnalyzeParentProvider(string? parentModel)
@@ -134,7 +134,7 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
     }
 
     /// <summary>
-    /// 构建 skill 预加载消息列表 — 对齐 claude code skills 字段: spawn 时预加载 skill 内容到 initialMessages
+    /// 构建 skill 预加载消息列表 — 对齐 TS 原版 skills 字段: spawn 时预加载 skill 内容到 initialMessages
     /// </summary>
     private async Task<MessageList> BuildSkillPreloadMessageListAsync(List<string> skills, CancellationToken ct)
     {
@@ -175,9 +175,9 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
         var cloned = parentParams.Clone();
 
         var userContext = cloned.UserContext;
-        if (definition?.OmitClaudeMd == true)
+        if (definition?.OmitProjectRules == true)
         {
-            userContext = FilterKey(userContext, "claudeMd");
+            userContext = FilterKey(userContext, ClaudeCompatConstants.ContextKeyProjectRules);
         }
 
         var systemContext = cloned.SystemContext;

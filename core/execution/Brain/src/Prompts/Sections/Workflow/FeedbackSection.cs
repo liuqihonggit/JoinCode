@@ -21,7 +21,7 @@ public static class FeedbackSection {
         }
 
         // 默认反馈指导
-        items.Add("如果用户报告Claude Code本身的错误、缓慢或意外行为（而不是要求您修复他们自己的代码），推荐适当的命令：/issue 用于模型相关问题（奇怪输出、错误工具选择、幻觉、拒绝），或 /share 用于上传完整会话记录以报告产品错误、崩溃、缓慢或一般问题。仅在用户描述Claude Code问题时推荐这些。");
+        items.Add($"如果用户报告{BrandConstants.ProductName}本身的错误、缓慢或意外行为（而不是要求您修复他们自己的代码），推荐适当的命令：/issue 用于模型相关问题（奇怪输出、错误工具选择、幻觉、拒绝），或 /share 用于上传完整会话记录以报告产品错误、崩溃、缓慢或一般问题。仅在用户描述{BrandConstants.ProductName}问题时推荐这些。");
 
         if (items.Count == 0) {
             return null;

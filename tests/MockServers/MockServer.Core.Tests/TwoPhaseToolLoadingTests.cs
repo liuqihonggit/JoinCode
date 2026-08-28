@@ -1,7 +1,7 @@
-namespace MockServer.Core.Tests;
+﻿namespace MockServer.Core.Tests;
 
 /// <summary>
-/// 两阶段工具加载测试 — Claude Code 风格的惰性工具描述加载
+/// 两阶段工具加载测试 — TS 原版风格的惰性工具描述加载
 ///
 /// 流程:
 /// 1. 首次请求: 客户端发送 tool_groups(只有分组,不含完整 schema)

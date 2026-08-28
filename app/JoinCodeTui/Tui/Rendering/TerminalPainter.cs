@@ -1,9 +1,9 @@
-namespace JoinCode.Tui.Rendering;
+﻿namespace JoinCode.Tui.Rendering;
 
 /// <summary>
 /// 终端唯一绘制入口 — 所有 UI 变更必须经此入口，禁止业务代码直接 Console.Write 或操作 Terminal.Gui Application。
 /// 线程安全：非 MainLoop 线程通过 Invoke 投递到 MainLoop，由 Application 保证单线程渲染。
-/// 对齐 claude code 的 writeDiffToTerminal 唯一 stdout 写入点设计。
+/// 对齐 TS 原版 的 writeDiffToTerminal 唯一 stdout 写入点设计。
 /// </summary>
 public sealed class TerminalPainter
 {

@@ -1,4 +1,4 @@
-namespace Core.Agents.Tests.Unit.Agents;
+﻿namespace Core.Agents.Tests.Unit.Agents;
 
 using JoinCode.Abstractions.Interfaces;
 using JoinCode.Abstractions.LLM.Chat;
@@ -7,7 +7,7 @@ using JoinCode.Abstractions.Models.Agent;
 
 /// <summary>
 /// AgentBase CriticalSystemReminder 每轮注入测试
-/// 验证 criticalSystemReminder 作为 user message 注入到消息流(对齐 claude code re-injected at every user turn)
+/// 验证 criticalSystemReminder 作为 user message 注入到消息流(对齐 TS 原版 re-injected at every user turn)
 /// </summary>
 public sealed class AgentBaseCriticalSystemReminderTests
 {

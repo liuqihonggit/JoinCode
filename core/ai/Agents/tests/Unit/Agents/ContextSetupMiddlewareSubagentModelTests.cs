@@ -1,4 +1,4 @@
-namespace Core.Agents.Tests.Unit.Agents;
+﻿namespace Core.Agents.Tests.Unit.Agents;
 
 using JoinCode.Abstractions.Interfaces;
 using JoinCode.Abstractions.LLM.Chat;
@@ -7,7 +7,7 @@ using JoinCode.Abstractions.Models.Agent;
 /// <summary>
 /// ContextSetupMiddleware 子代理模型解析测试
 /// 验证优先级链: JCC_SUBAGENT_MODEL > SpawnOptions.Model > Definition.ModelName > inherit/父级模型
-/// 对齐 claude code getAgentModel 设计
+/// 对齐 TS 原版 getAgentModel 设计
 /// </summary>
 public sealed class ContextSetupMiddlewareSubagentModelTests
 {

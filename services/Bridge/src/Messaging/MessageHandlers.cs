@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Bridge;
 
 using JoinCode.Abstractions.Attributes;
@@ -60,7 +60,7 @@ public sealed record MessageHandlerContext(
 
 /// <summary>
 /// 消息处理器接口
-/// 模仿 Claude Code 的消息处理模式
+/// 参考 TS 原版 的消息处理模式
 /// </summary>
 public interface IMessageHandler
 {

@@ -118,7 +118,7 @@ public static class SupportedSettings
             {
                 Source = "settings",
                 Type = "string",
-                Description = "Claude 响应和语音听写的首选语言（如 \"japanese\", \"spanish\"）",
+                Description = "JoinCode 响应和语音听写的首选语言（如 \"japanese\", \"spanish\"）",
             },
         };
 

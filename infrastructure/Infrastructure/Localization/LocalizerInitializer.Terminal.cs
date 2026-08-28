@@ -1,4 +1,4 @@
-﻿namespace Infrastructure.Localization;
+namespace Infrastructure.Localization;
 
 public static partial class LocalizerInitializer
 {
@@ -26,8 +26,8 @@ public static partial class LocalizerInitializer
         defaultEntries[StringKey.PermissionAnyBashCommandStartingWith] = "Any bash command starting with {0}";
         defaultEntries[StringKey.PermissionAnyBashCommand] = "Any bash command";
         defaultEntries[StringKey.PermissionTheBashCommand] = "The bash command: {0}";
-        defaultEntries[StringKey.PermissionTellWhatToDoNext] = "tell Claude what to do next";
-        defaultEntries[StringKey.PermissionTellWhatToDoDifferently] = "tell Claude what to do differently";
+        defaultEntries[StringKey.PermissionTellWhatToDoNext] = "tell JoinCode what to do next";
+        defaultEntries[StringKey.PermissionTellWhatToDoDifferently] = "tell JoinCode what to do differently";
         defaultEntries[StringKey.PermissionDoYouWantToProceed] = "Do you want to proceed?";
 
         zhEntries[StringKey.FooterExitHint] = "Esc 退出";
@@ -52,8 +52,8 @@ public static partial class LocalizerInitializer
         zhEntries[StringKey.PermissionAnyBashCommandStartingWith] = "任何以 {0} 开头的 bash 命令";
         zhEntries[StringKey.PermissionAnyBashCommand] = "任何 bash 命令";
         zhEntries[StringKey.PermissionTheBashCommand] = "bash 命令: {0}";
-        zhEntries[StringKey.PermissionTellWhatToDoNext] = "告诉 Claude 接下来做什么";
-        zhEntries[StringKey.PermissionTellWhatToDoDifferently] = "告诉 Claude 做什么不同的";
+        zhEntries[StringKey.PermissionTellWhatToDoNext] = "告诉 JoinCode 接下来做什么";
+        zhEntries[StringKey.PermissionTellWhatToDoDifferently] = "告诉 JoinCode 做什么不同的";
         zhEntries[StringKey.PermissionDoYouWantToProceed] = "是否继续？";
 
         // === Thinking / Expand Hints (MessageRenderer, ExpandHint) ===

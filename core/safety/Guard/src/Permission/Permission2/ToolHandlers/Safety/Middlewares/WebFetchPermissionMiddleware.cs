@@ -64,7 +64,7 @@ public sealed partial class WebFetchPermissionMiddleware : ServiceEntity, IPermi
 
         // 5. 默认 → ask
         return ToolPermissionCheckResult.PendingConfirmation(
-            $"Claude requested permissions to use {toolName}, but you haven't granted it yet.");
+            $"JoinCode requested permissions to use {toolName}, but you haven't granted it yet.");
     }
 
     /// <summary>

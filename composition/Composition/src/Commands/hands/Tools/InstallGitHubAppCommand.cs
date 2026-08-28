@@ -1,10 +1,10 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /install-github-app 命令 — 对齐 TS install-github-app.tsx
-/// 设置 Claude GitHub Actions 工作流，包含多步分支交互
+/// 设置 JoinCode GitHub Actions 工作流，包含多步分支交互
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.InstallGitHubApp, Description = "设置 Claude GitHub Actions 工作流", Usage = "/install-github-app", Category = ChatCommandCategory.Tools)]
+[ChatCommand(Name = ChatCommandNameConstants.InstallGitHubApp, Description = "设置 JoinCode GitHub Actions 工作流", Usage = "/install-github-app", Category = ChatCommandCategory.Tools)]
 public sealed class InstallGitHubAppCommand : ChatCommandBase
 {
     private readonly IGitHubCommandRunner? _gitHubRunner;
@@ -48,7 +48,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
 
         // Step 4: 安装 GitHub App（提示用户在浏览器中安装）
         TerminalHelper.NewLine();
-        TerminalHelper.WriteLine($"{TerminalColors.Accent}正在打开浏览器安装 Claude GitHub App...{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Accent}正在打开浏览器安装 JoinCode GitHub App...{AnsiStyleConstants.Reset}");
         TerminalHelper.NewLine();
         TerminalHelper.WriteLine($"  手动访问: {TerminalColors.Accent}https://github.com/apps/claude{AnsiStyleConstants.Reset}");
         TerminalHelper.NewLine();
@@ -289,7 +289,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
         {
             TerminalHelper.NewLine();
             TerminalHelper.WriteLine($"{TerminalColors.Accent}OAuth 认证流程:{AnsiStyleConstants.Reset}");
-            TerminalHelper.WriteLine("  1. 浏览器将打开 Claude 授权页面");
+            TerminalHelper.WriteLine("  1. 浏览器将打开 JoinCode 授权页面");
             TerminalHelper.WriteLine("  2. 授权后复制 Token 粘贴到此处");
             TerminalHelper.NewLine();
             TerminalHelper.WriteRaw("输入 OAuth Token: ");
@@ -466,7 +466,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
         return workflow switch
         {
             "claude" => ("claude.yml", $"""
-name: Claude
+name: JoinCode
 on:
   issue_comment:
     types: [created]
@@ -491,7 +491,7 @@ jobs:
           {secretRef}
 """),
             "claude-review" => ("claude-review.yml", $"""
-name: Claude Review
+name: JoinCode Review
 on:
   pull_request:
     types: [opened, synchronize, ready_for_review, reopened]

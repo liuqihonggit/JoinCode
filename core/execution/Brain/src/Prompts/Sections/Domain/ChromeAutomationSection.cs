@@ -12,7 +12,7 @@ public static class ChromeAutomationSection
     /// 基础 Chrome 提示词
     /// </summary>
     public const string BaseChromePrompt = """
-# Claude in Chrome 浏览器自动化
+# JoinCode in Chrome 浏览器自动化
 
 你有权访问浏览器自动化工具（mcp__claude-in-chrome__*）用于与 Chrome 中的网页交互。遵循以下指南进行有效的浏览器自动化。
 
@@ -76,7 +76,7 @@ Chrome 浏览器工具是需要在使用前加载的 MCP 工具。在调用任�
 """;
 
     /// <summary>
-    /// Claude in Chrome 技能提示
+    /// JoinCode in Chrome 技能提示
     /// </summary>
     public static readonly string ClaudeInChromeSkillHint = $"""
 **浏览器自动化**：Chrome 浏览器工具通过 "claude-in-chrome" 技能可用。
@@ -86,7 +86,7 @@ Chrome 浏览器工具是需要在使用前加载的 MCP 工具。在调用任�
 """;
 
     /// <summary>
-    /// 带 WebBrowser 的 Claude in Chrome 技能提示
+    /// 带 WebBrowser 的 JoinCode in Chrome 技能提示
     /// </summary>
     public static readonly string ClaudeInChromeSkillHintWithWebBrowser = $"""
 **浏览器自动化**：使用 WebBrowser 进行开发（开发服务器、JS 评估、控制台、截图）。

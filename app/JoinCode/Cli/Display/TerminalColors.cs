@@ -7,8 +7,8 @@ public static class TerminalColors
 {
     #region Brand
 
-    public static readonly RgbColor Claude = new(215, 119, 87);
-    public static readonly RgbColor ClaudeShimmer = new(235, 159, 127);
+    public static readonly RgbColor JoinCode = new(215, 119, 87);
+    public static readonly RgbColor JoinCodeShimmer = new(235, 159, 127);
 
     #endregion
 
@@ -157,7 +157,7 @@ public static class TerminalColors
 
     #region Backward-Compatible String Properties
 
-    public static string Primary => Claude.ToAnsiFg();
+    public static string Primary => JoinCode.ToAnsiFg();
     public static string Accent => Permission.ToAnsiFg();
     public static string Secondary => Permission.ToAnsiFg();
     public static string Divider => Subtle.ToAnsiFg();

@@ -90,7 +90,7 @@ ADR 引用 design/plans，但不重复其内容。
 | 0015 | 配置热重载双变量切换 | accepted | 六项架构规则·规则3 |
 | 0016 | 参数传接口不传属性 | accepted | 六项架构规则·规则5 |
 | 0017 | 归纳性重构不放弃 | accepted | 六项架构规则·规则6 |
-| 0018 | 循环检测器状态机风格 | accepted | 六项架构规则·规则8 |
+| 0018 | 循环检测器状态机风格 | superseded by 0038 | 六项架构规则·规则8 |
 | 0019 | 枚举 + EnumValue + 源码生成器 | accepted | 封装要求·枚举扩展 |
 | 0020 | 封装要求 | accepted | 封装要求 |
 | 0021 | E2E 脚本 Mode 计算属性 | accepted | E2E 测试脚本模式规范 |
@@ -105,10 +105,17 @@ ADR 引用 design/plans，但不重复其内容。
 |------|------|------|----------|
 | 0032 | ComputerUse P0 纯 Win32 P/Invoke | accepted | ComputerUse-P0-DesktopInput-Design.md |
 | 0033 | 传输层 Fallback 链优先级 | accepted | TransportFallbackChain.md |
-| 0034 | 命令拦截分层 Guard+Interceptor | accepted | 命令拦截架构改造.md |
+| 0034 | 命令拦截分层 Guard+Interceptor | superseded by 0039 | 命令拦截架构改造.md |
 | 0035 | 工具渐进式暴露 | accepted | 工具渐进式暴露设计.md |
 | 0036 | 纵深防御 L1-L10 | accepted | UnifiedResilienceArchitecture.md |
 | 0037 | Redirect 软引导而非硬转交 | accepted | 命令拦截架构改造.md |
+
+### 状态机优化（0038-0039，取代 0018/0034）
+
+| 编号 | 标题 | 状态 | 取代 |
+|------|------|------|------|
+| 0038 | 状态机 + 守卫 + [Flags] 位标志 | accepted | 取代 0018 |
+| 0039 | 命令拦截全状态机 + 守卫 + [Flags] | proposed | 取代 0034 |
 
 ### 工程级（0026-0031）
 

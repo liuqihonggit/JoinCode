@@ -1,8 +1,9 @@
 # 0034. 命令拦截分层 Guard+Interceptor+Dispatcher
 
-- 状态：accepted
+- 状态：superseded by 0039
 - 日期：2026-08-29
 - 决策者：项目架构组
+- 取代原因：放弃全状态机的理由（状态爆炸）在引入 [Flags] + 守卫后不成立。详见 [0039](docs/adr/0039-command-interception-state-machine.md)
 
 ## 背景
 

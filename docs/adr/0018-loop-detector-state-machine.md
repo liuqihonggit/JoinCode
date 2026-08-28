@@ -1,8 +1,9 @@
 # 0018. 循环检测器状态机风格
 
-- 状态：accepted
+- 状态：superseded by 0038
 - 日期：2026-08-29
 - 决策者：项目架构组
+- 取代原因：显式枚举无法表达状态组合，[Flags] 位标志 + 守卫可降低状态爆炸。详见 [0038](docs/adr/0038-state-machine-flags-guard.md)
 
 ## 背景
 

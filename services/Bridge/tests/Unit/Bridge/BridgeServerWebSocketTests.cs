@@ -27,12 +27,16 @@ public sealed class BridgeServerWebSocketTests : IAsyncDisposable
             logger: NullLogger<BridgeServer>.Instance,
             actuatorRegistry: CreateShellServiceMock().Object,
             ideService: CreateIdeServiceMock().Object);
-        _server.Start();
+        // 守卫：Start() 端口绑定失败时抛 HttpListenerException，提供诊断信息
+        try { _server.Start(); }
+        catch (Exception ex) { throw new InvalidOperationException($"[UTU005] BridgeServer.Start() failed on port {_port}: {ex.Message}", ex); }
     }
 
     public async ValueTask DisposeAsync()
     {
-        try { await _server.StopAsync(CancellationToken.None).ConfigureAwait(true); }
+        // 守卫：StopAsync 可能卡住，5 秒超时保护
+        using var stopCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        try { await _server.StopAsync(stopCts.Token).ConfigureAwait(true); }
         catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"Dispose server failed: {ex.Message}"); }
         _cts.Dispose();
     }
@@ -207,7 +211,11 @@ public sealed class BridgeServerWebSocketTests : IAsyncDisposable
             logger: NullLogger<BridgeServer>.Instance,
             actuatorRegistry: CreateShellServiceMock().Object,
             ideService: null);
-        serverNoIde.Start();
+        // 守卫：Start() 端口绑定失败时抛异常，提供诊断信息
+        try { serverNoIde.Start(); }
+        catch (Exception ex) { throw new InvalidOperationException($"[UTU006] BridgeServer.Start() failed on port {port}: {ex.Message}", ex); }
+        // 守卫：StopAsync 可能卡住，5 秒超时保护
+        using var stopCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         try
         {
             using var client = new ClientWebSocket();
@@ -237,7 +245,7 @@ public sealed class BridgeServerWebSocketTests : IAsyncDisposable
         }
         finally
         {
-            try { await serverNoIde.StopAsync(CancellationToken.None).ConfigureAwait(true); }
+            try { await serverNoIde.StopAsync(stopCts.Token).ConfigureAwait(true); }
             catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"Dispose serverNoIde failed: {ex.Message}"); }
         }
     }

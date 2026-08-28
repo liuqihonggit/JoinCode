@@ -1,6 +1,6 @@
 namespace Tools.Shell;
 
-public sealed class ClaudeCodeHint
+public sealed class ShellPluginHint
 {
     public required int V { get; init; }
     public required string Type { get; init; }
@@ -8,13 +8,13 @@ public sealed class ClaudeCodeHint
     public required string SourceCommand { get; init; }
 }
 
-public sealed class ClaudeCodeHintExtractionResult
+public sealed class ShellPluginHintExtractionResult
 {
-    public required IReadOnlyList<ClaudeCodeHint> Hints { get; init; }
+    public required IReadOnlyList<ShellPluginHint> Hints { get; init; }
     public required string StrippedOutput { get; init; }
 }
 
-public static class ClaudeCodeHintExtractor
+public static class ShellPluginHintExtractor
 {
     private static readonly FrozenSet<int> SupportedVersions = new[] { 1 }.ToFrozenSet();
     private static readonly FrozenSet<string> SupportedTypes = new[] { "plugin" }.ToFrozenSet(StringComparer.Ordinal);
@@ -27,11 +27,11 @@ public static class ClaudeCodeHintExtractor
         @"(\w+)=(?:""([^""]*)""|([^\s/>]+))",
         RegexOptions.Compiled);
 
-    public static ClaudeCodeHintExtractionResult Extract(string output, string command)
+    public static ShellPluginHintExtractionResult Extract(string output, string command)
     {
         if (string.IsNullOrEmpty(output) || !output.Contains("<claude-code-hint", StringComparison.Ordinal))
         {
-            return new ClaudeCodeHintExtractionResult
+            return new ShellPluginHintExtractionResult
             {
                 Hints = [],
                 StrippedOutput = output ?? string.Empty
@@ -39,7 +39,7 @@ public static class ClaudeCodeHintExtractor
         }
 
         var sourceCommand = FirstCommandToken(command);
-        var hints = new List<ClaudeCodeHint>();
+        var hints = new List<ShellPluginHint>();
 
         var stripped = HintTagRe.Replace(output, match =>
         {
@@ -57,7 +57,7 @@ public static class ClaudeCodeHintExtractor
             if (string.IsNullOrEmpty(value))
                 return string.Empty;
 
-            hints.Add(new ClaudeCodeHint
+            hints.Add(new ShellPluginHint
             {
                 V = v,
                 Type = type,
@@ -73,7 +73,7 @@ public static class ClaudeCodeHintExtractor
             stripped = CollapseExcessiveBlankLines(stripped);
         }
 
-        return new ClaudeCodeHintExtractionResult
+        return new ShellPluginHintExtractionResult
         {
             Hints = hints,
             StrippedOutput = stripped

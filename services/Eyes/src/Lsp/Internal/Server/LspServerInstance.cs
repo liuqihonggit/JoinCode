@@ -77,14 +77,22 @@ public sealed partial class LspInstanceConfig
     public Dictionary<string, string> ExtensionToLanguage { get; init; } = [];
 }
 
+[FsmStateMachine(typeof(LspServerState), typeof(LspServerEvent), LspServerState.Stopped)]
+[Transition(LspServerState.Stopped, LspServerEvent.Start, LspServerState.Starting)]
+[Transition(LspServerState.Error, LspServerEvent.Start, LspServerState.Starting)]
+[Transition(LspServerState.Starting, LspServerEvent.ConnectSucceeded, LspServerState.Running)]
+[Transition(LspServerState.Starting, LspServerEvent.ConnectFailed, LspServerState.Error)]
+[Transition(LspServerState.Starting, LspServerEvent.BeginStop, LspServerState.Stopping)]
+[Transition(LspServerState.Running, LspServerEvent.BeginStop, LspServerState.Stopping)]
+[Transition(LspServerState.Error, LspServerEvent.BeginStop, LspServerState.Stopping)]
+[Transition(LspServerState.Stopping, LspServerEvent.StopSucceeded, LspServerState.Stopped)]
+[Transition(LspServerState.Stopping, LspServerEvent.StopFailed, LspServerState.Error)]
 public sealed partial class LspServerInstance : ILspServerInstance
 {
     private const int LspErrorContentModified = -32801;
     private const int MaxRetriesForTransientErrors = 3;
     private const int RetryBaseDelayMs = 500;
     private const int DefaultMaxRestarts = 3;
-
-    private static readonly FrozenDictionary<TransitionKey<LspServerState, LspServerEvent>, TransitionRule<LspServerState>> Transitions = CreateTransitionTable();
 
     private readonly LspInstanceConfig _config;
     private readonly ILogger<LspServerInstance> _logger;
@@ -112,30 +120,15 @@ public sealed partial class LspServerInstance : ILspServerInstance
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _client = new LspClient(fs, processService);
-        _stateMachine = new Fsm<LspServerState, LspServerEvent>(Transitions, LspServerState.Stopped);
+        _stateMachine = new Fsm<LspServerState, LspServerEvent>(_fsmTable, LspServerState.Stopped);
         _stateMachine.StateChanged += OnStateChanged;
+        _stateMachine.StateChanged += (_, e) => FsmDispatchEvent(e);
     }
 
     private void OnStateChanged(object? sender, TransitionResult<LspServerState, LspServerEvent> e)
     {
         _logger.LogInformation("LSP server '{Name}' state: {OldState} → {NewState}", Name, e.FromState, e.ToState);
         StateChanged?.Invoke(this, new LspServerStateChangedEventArgs { OldState = e.FromState, NewState = e.ToState });
-    }
-
-    private static FrozenDictionary<TransitionKey<LspServerState, LspServerEvent>, TransitionRule<LspServerState>> CreateTransitionTable()
-    {
-        return new Dictionary<TransitionKey<LspServerState, LspServerEvent>, TransitionRule<LspServerState>>
-        {
-            [new(LspServerState.Stopped, LspServerEvent.Start)] = new(LspServerState.Starting),
-            [new(LspServerState.Error, LspServerEvent.Start)] = new(LspServerState.Starting),
-            [new(LspServerState.Starting, LspServerEvent.ConnectSucceeded)] = new(LspServerState.Running),
-            [new(LspServerState.Starting, LspServerEvent.ConnectFailed)] = new(LspServerState.Error),
-            [new(LspServerState.Starting, LspServerEvent.BeginStop)] = new(LspServerState.Stopping),
-            [new(LspServerState.Running, LspServerEvent.BeginStop)] = new(LspServerState.Stopping),
-            [new(LspServerState.Error, LspServerEvent.BeginStop)] = new(LspServerState.Stopping),
-            [new(LspServerState.Stopping, LspServerEvent.StopSucceeded)] = new(LspServerState.Stopped),
-            [new(LspServerState.Stopping, LspServerEvent.StopFailed)] = new(LspServerState.Error),
-        }.ToFrozenDictionary();
     }
 
     public async Task StartAsync(CancellationToken cancellationToken = default)

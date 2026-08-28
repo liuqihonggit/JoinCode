@@ -138,7 +138,7 @@ public sealed class FsmGenerator : IIncrementalGenerator
         sb.AppendLine();
 
         foreach (var ev in m.EventValues)
-            sb.AppendLine($"    public event EventHandler<TransitionResult<{s}, {e}>>? On{ev};");
+            sb.AppendLine($"    internal event EventHandler<TransitionResult<{s}, {e}>>? On{ev};");
         sb.AppendLine();
 
         sb.AppendLine($"    private void FsmDispatchEvent(TransitionResult<{s}, {e}> e)");

@@ -1,19 +1,32 @@
 namespace Infrastructure.Network.Downloader.StateMachine;
 
 /// <summary>
-/// 下载状态机 — 转换表 + 守卫 + 事件枚举（ADR 0040 企业级状态机）
-/// <para>行为流程：获取当前状态 → 查表 → 守卫判定 → 执行动作 → 转移</para>
-/// <para>转换表显式表达所有合法转换，非法 (FromState, Event) 组合返回 NoRule</para>
+/// 下载状态机 — 转换表 + 守卫 + 事件枚举（ADR 0040/0041 源码生成器）
+/// <para>转换表由 Fsm.Generator 扫描 [Transition] 特性生成（_fsmTable + FsmDispatchEvent）</para>
+/// <para>每事件独立 C# event: OnStart/OnPause/OnResume/OnEnterMerging/OnComplete/OnCancel/OnFail</para>
 /// <para>每个操作有精确前置状态,非法操作返回 Success=false + Error=[DOWN001]</para>
 /// </summary>
-internal sealed class DownloadStateMachine
+[FsmStateMachine(typeof(DownloadState), typeof(DownloadOperation), DownloadState.Idle)]
+[Transition(DownloadState.Idle, DownloadOperation.Start, DownloadState.Downloading)]
+[Transition(DownloadState.Downloading, DownloadOperation.Pause, DownloadState.Paused)]
+[Transition(DownloadState.Paused, DownloadOperation.Resume, DownloadState.Downloading)]
+[Transition(DownloadState.Downloading, DownloadOperation.EnterMerging, DownloadState.Merging)]
+[Transition(DownloadState.Merging, DownloadOperation.Complete, DownloadState.Completed)]
+[Transition(DownloadState.Idle, DownloadOperation.Cancel, DownloadState.Cancelled)]
+[Transition(DownloadState.Downloading, DownloadOperation.Cancel, DownloadState.Cancelled)]
+[Transition(DownloadState.Paused, DownloadOperation.Cancel, DownloadState.Cancelled)]
+[Transition(DownloadState.Merging, DownloadOperation.Cancel, DownloadState.Cancelled)]
+[Transition(DownloadState.Downloading, DownloadOperation.Fail, DownloadState.Failed)]
+[Transition(DownloadState.Paused, DownloadOperation.Fail, DownloadState.Failed)]
+[Transition(DownloadState.Merging, DownloadOperation.Fail, DownloadState.Failed)]
+internal sealed partial class DownloadStateMachine
 {
-    private static readonly FrozenDictionary<TransitionKey<DownloadState, DownloadOperation>, TransitionRule<DownloadState>> Table = CreateTable();
     private readonly Fsm<DownloadState, DownloadOperation> _fsm;
 
     public DownloadStateMachine()
     {
-        _fsm = new Fsm<DownloadState, DownloadOperation>(Table, DownloadState.Idle);
+        _fsm = new Fsm<DownloadState, DownloadOperation>(_fsmTable, DownloadState.Idle);
+        _fsm.StateChanged += (_, e) => FsmDispatchEvent(e);
     }
 
     /// <summary>当前状态(线程安全读取)</summary>
@@ -67,26 +80,5 @@ internal sealed class DownloadStateMachine
 
         var error = $"[DOWN001] 非法操作 {op} 从 {result.FromState} 状态";
         return new DownloadStateTransition(false, result.FromState, result.FromState, error);
-    }
-
-    private static FrozenDictionary<TransitionKey<DownloadState, DownloadOperation>, TransitionRule<DownloadState>> CreateTable()
-    {
-        return new Dictionary<TransitionKey<DownloadState, DownloadOperation>, TransitionRule<DownloadState>>
-        {
-            [new(DownloadState.Idle, DownloadOperation.Start)] = new(DownloadState.Downloading),
-            [new(DownloadState.Downloading, DownloadOperation.Pause)] = new(DownloadState.Paused),
-            [new(DownloadState.Paused, DownloadOperation.Resume)] = new(DownloadState.Downloading),
-            [new(DownloadState.Downloading, DownloadOperation.EnterMerging)] = new(DownloadState.Merging),
-            [new(DownloadState.Merging, DownloadOperation.Complete)] = new(DownloadState.Completed),
-
-            [new(DownloadState.Idle, DownloadOperation.Cancel)] = new(DownloadState.Cancelled),
-            [new(DownloadState.Downloading, DownloadOperation.Cancel)] = new(DownloadState.Cancelled),
-            [new(DownloadState.Paused, DownloadOperation.Cancel)] = new(DownloadState.Cancelled),
-            [new(DownloadState.Merging, DownloadOperation.Cancel)] = new(DownloadState.Cancelled),
-
-            [new(DownloadState.Downloading, DownloadOperation.Fail)] = new(DownloadState.Failed),
-            [new(DownloadState.Paused, DownloadOperation.Fail)] = new(DownloadState.Failed),
-            [new(DownloadState.Merging, DownloadOperation.Fail)] = new(DownloadState.Failed),
-        }.ToFrozenDictionary();
     }
 }

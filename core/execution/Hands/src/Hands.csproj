@@ -46,5 +46,6 @@
   
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)generators\PromptTemplate.Generator/src/PromptTemplate.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)generators\McpToolDispatch.Generator\src\McpToolDispatch.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>

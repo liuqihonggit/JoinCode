@@ -50,7 +50,7 @@ jobs:
       - name: Build matrix
         id: set
         run: |
-          ALL_PROJECTS='["Guard-Config","Guard-Security","Guard-Hooks","Vault-Memdir","Vault-Other","Brain-CtxAdmin","Brain-CtxChat","Brain-CtxOther","Brain-CtxNonServices","Brain-PromptsSections","Brain-PromptsOther","Brain-Other","Hands-SysTools","Hands-CoreHandlers","Hands-DevTools","Hands-SkillServices","Hands-SkillBuiltIn","Hands-SkillOther","Hands-Api","Hands-Shell","Scheduling","McpToolDispatch","Llm","Agents","Reasoning","CodeIndex","Browser","Mcp","Eyes","Dream","Bridge-Session","Bridge-Transport","Bridge-CoreRuntime","Bridge-CoreOther","Bridge-Messaging","Bridge-ClientServer","Composition","Clock","Infra-IO-FileOps","Infra-IO-FsAndConfig","Infra-IO-ProcessAndOther","Infra-Utils-Text","Infra-Utils-Resilience","Infra-Utils-Other","Infra-Services","Host-Commands","Host-Other"]'
+          ALL_PROJECTS='["Guard-Config","Guard-Security","Guard-Hooks","Vault-Memdir","Vault-Other","Brain-CtxAdmin","Brain-CtxChat","Brain-CtxOther","Brain-CtxNonServices","Brain-PromptsSections","Brain-PromptsOther","Brain-Other","Hands-SysTools","Hands-CoreHandlers","Hands-DevTools","Hands-SkillServices","Hands-SkillBuiltIn","Hands-SkillOther","Hands-Api","Hands-Shell","Scheduling","McpToolDispatch","Llm","Agents","Reasoning","CodeIndex","Browser","Mcp","Eyes","Dream","Bridge-Session","Bridge-Transport","Bridge-CoreRuntime","Bridge-CoreOther","Bridge-Messaging","Bridge-ClientServer","Composition","Clock","Infra-IO-FileOps","Infra-IO-FsAndConfig","Infra-IO-ProcessAndOther","Infra-Utils-Text","Infra-Utils-Resilience","Infra-Utils-OtherA","Infra-Utils-OtherB","Infra-Services","Host-Commands","Host-Other"]'
           INPUT="${{ github.event.inputs.projects || 'ALL' }}"
           if [ "$INPUT" = "ALL" ]; then
             echo "matrix={\"include\":$(echo $ALL_PROJECTS | jq -c '[.[] | {project: .}]')}" >> $GITHUB_OUTPUT
@@ -72,7 +72,7 @@ jobs:
               elif [ "$trimmed" = "Bridge" ]; then
                 EXPANDED="$EXPANDED,{\"project\":\"Bridge-Session\"},{\"project\":\"Bridge-Transport\"},{\"project\":\"Bridge-CoreRuntime\"},{\"project\":\"Bridge-CoreOther\"},{\"project\":\"Bridge-Messaging\"},{\"project\":\"Bridge-ClientServer\"}"
               elif [ "$trimmed" = "Infra" ]; then
-                EXPANDED="$EXPANDED,{\"project\":\"Infra-IO-FileOps\"},{\"project\":\"Infra-IO-FsAndConfig\"},{\"project\":\"Infra-IO-ProcessAndOther\"},{\"project\":\"Infra-Utils-Text\"},{\"project\":\"Infra-Utils-Resilience\"},{\"project\":\"Infra-Utils-Other\"},{\"project\":\"Infra-Services\"}"
+                EXPANDED="$EXPANDED,{\"project\":\"Infra-IO-FileOps\"},{\"project\":\"Infra-IO-FsAndConfig\"},{\"project\":\"Infra-IO-ProcessAndOther\"},{\"project\":\"Infra-Utils-Text\"},{\"project\":\"Infra-Utils-Resilience\"},{\"project\":\"Infra-Utils-OtherA\"},{\"project\":\"Infra-Utils-OtherB\"},{\"project\":\"Infra-Services\"}"
               else
                 EXPANDED="$EXPANDED,{\"project\":\"$trimmed\"}"
               fi
@@ -185,7 +185,8 @@ jobs:
             'Infra-IO-ProcessAndOther' = @{ Dir = 'tests\Unit\Infra.Tests\IO';               Src = 'Infrastructure.csproj';      Test = 'Infra.IO.Tests.csproj';      Mutate = @('IO/Process/**','IO/Console/**','IO/Services/Terminal/**','IO/Services/Diff/**','Http/**','Process/**','Ssh/**','Windows/**','Shell/**') }
             'Infra-Utils-Text'       = @{ Dir = 'tests\Unit\Infra.Tests\Utils';              Src = 'Infrastructure.csproj';      Test = 'Infra.Utils.Tests.csproj';   Mutate = @('Utils/Text/**') }
             'Infra-Utils-Resilience' = @{ Dir = 'tests\Unit\Infra.Tests\Utils';              Src = 'Infrastructure.csproj';      Test = 'Infra.Utils.Tests.csproj';   Mutate = @('Utils/Resilience/**') }
-            'Infra-Utils-Other'      = @{ Dir = 'tests\Unit\Infra.Tests\Utils';              Src = 'Infrastructure.csproj';      Test = 'Infra.Utils.Tests.csproj';   Mutate = @('Utils/Validation/**','Utils/State/**','Utils/Services/**','Utils/Throttle/**','Utils/Async/**','Utils/Collections/**','Utils/Pooling/**','Utils/IO/**','Utils/Generation/**','Utils/System/**','Cache/**','Configuration/**','Time/**','AsyncFileLock/**','EntityReaper/**','ReaperScheduler/**','Housekeeping/**') }
+            'Infra-Utils-OtherA'    = @{ Dir = 'tests\Unit\Infra.Tests\Utils'; Src = 'Infrastructure.csproj'; Test = 'Infra.Utils.Tests.csproj'; Mutate = @('Housekeeping/**','Utils/Validation/**','Utils/Async/**','Cache/**','AsyncFileLock/**','Utils/Services/**') }
+            'Infra-Utils-OtherB'    = @{ Dir = 'tests\Unit\Infra.Tests\Utils'; Src = 'Infrastructure.csproj'; Test = 'Infra.Utils.Tests.csproj'; Mutate = @('Utils/State/**','Utils/Throttle/**','Utils/Collections/**','Utils/Pooling/**','Utils/IO/**','Utils/Generation/**','Utils/System/**','Configuration/**','Time/**','EntityReaper/**','ReaperScheduler/**') }
             'Infra-Services'         = @{ Dir = 'tests\Unit\Infra.Tests\Services';           Src = 'Infrastructure.csproj';      Test = 'Infra.Services.Tests.csproj'; Mutate = @('Localization/**','Pipeline/**','Plugins/**','Telemetry/**') }
             'Host-Commands'        = @{ Dir = 'tests\Unit\Host.Tests';                   Src = 'JoinCode.csproj';        Mutate = @('Commands/**') }
             'Host-Other'           = @{ Dir = 'tests\Unit\Host.Tests';                   Src = 'JoinCode.csproj';        Mutate = @('App/**','Cli/**','Entry/**','Pipe/**','Services/**') }

@@ -103,6 +103,17 @@
 
 ## ✅ 必须执行（遗漏即错）
 
+### ADR 工作流（架构决策记录）
+
+> 📖 规范详见 [docs/adr/README.md](docs/adr/README.md)
+
+1. **新架构决策必须先写 ADR**：涉及跨模块、影响全局、或选择 A 放弃 B 的决策，先在 `docs/adr/` 写 ADR（`状态：proposed`）再实现
+2. **实现后改状态**：决策落地并验证后，ADR 状态改为 `accepted`
+3. **决策被取代**：旧 ADR 状态改为 `superseded by NNNN`，新 ADR 引用旧 ADR
+4. **ADR 不可删除**：内容不可变，只改状态字段（见 ADR [0008](docs/adr/0008-archive-to-xxx-not-delete.md)）
+5. **粒度**：架构级 + 组件策略级，函数级决策留在代码注释
+6. **AGENTS.md 反向引用**：AGENTS.md 中对应规则处标注 `> ADR: [NNNN](docs/adr/NNNN-xxx.md)`
+
 ### 开发流程强制要求
 
 0. 脚本替换规范
@@ -232,6 +243,8 @@
 
 ## 封装要求
 
+> ADR: [0020](docs/adr/0020-encapsulation-requirements.md)（封装要求）、[0019](docs/adr/0019-enum-enumvalue-source-generator.md)（枚举扩展）
+
 | 规则 | 说明 |
 |------|------|
 | API 粒度 | 尽可能少暴露公开接口，测试用 `internal` 类 |
@@ -337,6 +350,8 @@ public FrozenSet<string>? FilterSet => _filterSet ??= Filters?.ToFrozenSet();
 - 避免依赖 Unix 工具（`grep`, `sed`, `awk`），除非明确要求 WSL
 
 ### 脚本语言优先级
+
+> ADR: [0022](docs/adr/0022-csharp-ast-cli-over-regex.md)（C# AST CLI 优先于正则）
 
 1. **C# AST CLI 优先**：涉及 C# 源码的批量分析/重构/检测，优先使用 `tools/JccAuditAstCli`（基于 Roslyn 的 AST 分析工具），而非正则或文本替换
    - 构建命令：`dotnet build tools/JccAuditAstCli/JccAuditCli.csproj -c Release`
@@ -704,6 +719,8 @@ Get-ChildItem "D:\project\{当前分支名}\tests\MockServers\MockServer.Core\du
 
 ## E2E 测试脚本模式规范
 
+> ADR: [0021](docs/adr/0021-e2e-script-mode-inferred.md)（Mode 计算属性）
+
 ### 问题背景
 
 Interactive 模式下 `Console.In.ReadLineAsync` 从重定向 stdin 管道读取存在竞争条件，偶发卡死60s超时。单轮命令尤其容易触发。
@@ -847,7 +864,11 @@ public ConversationMode Mode => Turns.Count == 1
 
 ## 六项架构规则（2026-08-05 新增）
 
+> 📖 各规则已收编为 ADR，详见 [docs/adr/README.md](docs/adr/README.md) 索引。下方每条规则标注对应 ADR 编号，可二次打开查看完整决策上下文与替代方案。
+
 ### 规则1：超图与DAG不统一，但 ChainOrder 可升级
+
+> ADR: [0013](docs/adr/0013-hypergraph-vs-dag-separation.md)
 
 - **结论**：DAG 管**执行顺序+硬依赖**（拓扑排序、环检测、增量重算），超图管**评分共享+链路推荐**（语义关联、权重传播）
 - **当前**：`ToolHyperedge.ChainOrder` 是 `string[]?`（简单线性链），是 DAG 的特例
@@ -855,6 +876,8 @@ public ConversationMode Mode => Turns.Count == 1
 - **禁止**：在无实际需求时强行统一两者，造成过度抽象
 
 ### 规则2：MCP工具覆盖原则 — 296个工具已覆盖53个Category
+
+> ADR: [0014](docs/adr/0014-mcp-tool-coverage-principle.md)
 
 - **现状**：63个Handler类，296个McpTool方法，覆盖53个ToolCategory
 - **新增工具原则**：
@@ -866,6 +889,8 @@ public ConversationMode Mode => Turns.Count == 1
 
 ### 规则3：配置热重载 — 双变量切换模式
 
+> ADR: [0015](docs/adr/0015-config-hotreload-dual-variable.md)
+
 - **现状**：`IConfigChangeNotifier` + `SettingsChangeApplier` 管道已监控 settings.json 变更，但只更新部分字段（EffortLevel、Hook缓存、Permission缓存），**不重建 WorkflowConfig**
 - **双变量切换模式**：
   1. 每个可热重载的配置项维护两个变量：`_active`（当前生效）和 `_staging`（新值待切换）
@@ -876,6 +901,8 @@ public ConversationMode Mode => Turns.Count == 1
 - **禁止**：直接修改 `_active` 而不经过 `_staging` 验证
 
 ### 规则4：工具函数统一 — 三项合并
+
+> ADR: [0012](docs/adr/0012-two-itoolhandler-interfaces.md)（双 IToolHandler 不合并）
 
 - **合并1：双 IToolHandler 接口**
   - `McpProtocol.IToolHandler`（InputSchema=JsonElement, 返回object）保留为 MCP 协议内部类型
@@ -892,6 +919,8 @@ public ConversationMode Mode => Turns.Count == 1
 
 ### 规则5：参数传递传父类/接口，不传属性
 
+> ADR: [0016](docs/adr/0016-pass-interface-not-property.md)
+
 - **核心原则**：函数参数尽可能传父类/接口/完整对象，到了末尾才拆开使用
 - **反面案例**：`bool isBash = shell.Type == ShellType.Bash`，然后传 `isBash` 给下游
 - **正面案例**：直接传 `ShellProvider shell`，下游在需要时才 `shell.Type == ShellType.Bash`
@@ -904,6 +933,8 @@ public ConversationMode Mode => Turns.Count == 1
 
 ### 规则6：归纳性重构不放弃
 
+> ADR: [0017](docs/adr/0017-inductive-refactor-no-abandon.md)
+
 - **原则**：无论扫描的地方如何复杂，只要存在归纳可能性，都不要放弃重构
 - **操作**：
   1. 发现重复模式 → 提取公共方法/基类/接口
@@ -914,6 +945,8 @@ public ConversationMode Mode => Turns.Count == 1
 - **验证**：每次重构后编译+测试，确保不破坏现有功能
 
 ### 规则7：文件驱动界面 — 配置文件是界面数据的唯一数据源
+
+> ADR: [0005](docs/adr/0005-file-driven-ui.md)
 
 - **核心原则**：任何界面下拉/列表/表格的数据源必须绑定配置文件（如 `models.json`、`settings.json`），禁止硬编码枚举遍历或固定列表。改配置文件 → 自动驱动界面更新，无需改代码重新编译。
 - **适用范围**：
@@ -941,6 +974,8 @@ public ConversationMode Mode => Turns.Count == 1
 
 ### 规则8：循环检测器状态机设计风格（推荐）
 
+> ADR: [0018](docs/adr/0018-loop-detector-state-machine.md)
+
 > **来源**：2026-08-23 熵减检测器状态机改造，用户推荐的代码风格
 
 - **状态机模式**：检测器内部用显式状态枚举 + switch 表达式实现状态转换，不用隐式 `if-else` + 标志变量
@@ -959,6 +994,8 @@ public ConversationMode Mode => Turns.Count == 1
 - **适用范围**：所有循环/异常检测器（OutputLoop、LogicFingerprint、ToolCallSequence、ShannonEntropy）及干预中间件
 
 ## ⚠️ 反例清单（踩过的坑，禁止再犯）
+
+> 📖 部分反例已收编为 ADR，详见 [docs/adr/README.md](docs/adr/README.md) 索引。
 
 ### 反例1：不优先查阅 AGENTS.md 已有文档
 
@@ -983,6 +1020,8 @@ public ConversationMode Mode => Turns.Count == 1
 
 ### 反例3：治标不治本的修复链
 
+> ADR: [0024](docs/adr/0024-no-symptomatic-fix-chain.md)
+
 | ❌ 禁止 | ✅ 正确 |
 |---------|---------|
 | FileShare.None 失败 → 加 FileShare 降级策略 | 先分析根因：是读-写冲突还是写-写冲突？ |
@@ -994,6 +1033,8 @@ public ConversationMode Mode => Turns.Count == 1
 
 ### 反例4：加法思维而非减法思维
 
+> ADR: [0023](docs/adr/0023-subtraction-over-addition.md)
+
 | ❌ 禁止 | ✅ 正确 |
 |---------|---------|
 | 加 `[DoNotAutoRegister]` 新特性来阻止 DI 注册 | 减少不必要的 DI 暴露（如 ShellProviderBase 不需要 IShellProvider） |
@@ -1003,6 +1044,8 @@ public ConversationMode Mode => Turns.Count == 1
 **根因**：加新特性/新层/新策略看似"安全"，实际增加复杂度。减法才是正道——去掉不必要的中间层。
 
 ### 反例5：依赖模型 ID 字符串推断模态而非显式注册（配置大于代码）
+
+> ADR: [0004](docs/adr/0004-config-over-code-modalities.md)
 
 | ❌ 禁止 | ✅ 正确 |
 |---------|---------|

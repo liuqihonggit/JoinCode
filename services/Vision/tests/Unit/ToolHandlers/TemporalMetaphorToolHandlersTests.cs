@@ -124,4 +124,18 @@ public sealed class TemporalMetaphorToolHandlersTests
         result.IsError.Should().BeFalse();
         result.Content[1].Data.Should().NotBeNullOrEmpty();
     }
+
+    [Fact]
+    public async Task TemporalStableContour_InconsistentFrameSizes_ShouldReturnErrorNotCrash()
+    {
+        var frame1 = CreateTestImageBase64(width: 4, height: 4);
+        var frame2 = CreateTestImageBase64(width: 8, height: 8);
+        var framesJson = CreateFramesJson(frame1, frame2);
+        var handlers = new TemporalMetaphorToolHandlers(new Mock<IQueryService>().Object);
+
+        var result = await handlers.TemporalStableContourAsync(framesJson);
+
+        result.IsError.Should().BeTrue();
+        result.Content[0].Text.Should().Contain("[VIS314]");
+    }
 }

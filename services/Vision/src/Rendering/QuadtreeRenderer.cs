@@ -72,6 +72,8 @@ public sealed partial class QuadtreeRenderer : IQuadtreeRenderer
 
         var (col, row) = QuadtreeEncoder.DecodeToGrid(cellCode);
         var size = 1 << sourceDepth;
+        if (col < 0 || col >= size || row < 0 || row >= size)
+            throw new ArgumentException($"[VIS112] 格子编码 {cellCode} 越界: 解码坐标 (col={col}, row={row}) 超出 sourceDepth={sourceDepth} 的合法范围 0..{size - 1}");
         var cellW = imageWidth / size;
         var cellH = imageHeight / size;
         var x = col * cellW;

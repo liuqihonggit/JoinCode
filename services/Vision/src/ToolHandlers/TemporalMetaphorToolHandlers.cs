@@ -79,15 +79,23 @@ public class TemporalMetaphorToolHandlers
         if (threshold < 0 || threshold > 255)
             return ToolResultBuilder.Error().WithText("[VIS313] threshold 必须在 0-255 范围内").Build();
 
-        var maskBase64 = await ComputeStableMaskAsync(frames, threshold, ct).ConfigureAwait(false);
+        try
+        {
+            var maskBase64 = await ComputeStableMaskAsync(frames, threshold, ct).ConfigureAwait(false);
 
-        return ToolResultBuilder.Success()
-            .WithText($"稳定轮廓提取完成: {frames.Count} 帧, 阈值={threshold}")
-            .WithImage(maskBase64, "image/png")
-            .Build();
+            return ToolResultBuilder.Success()
+                .WithText($"稳定轮廓提取完成: {frames.Count} 帧, 阈值={threshold}")
+                .WithImage(maskBase64, "image/png")
+                .Build();
+        }
+        catch (ArgumentException ex) when (ex.Message.StartsWith("[VIS314]", StringComparison.Ordinal))
+        {
+            return ToolResultBuilder.Error().WithText(ex.Message).Build();
+        }
     }
 
     /// <summary>计算稳定区域掩码 — 帧差粗筛，稳定像素=白色，不稳定=黑色</summary>
+    /// <exception cref="ArgumentException">帧尺寸不一致时抛出，消息以 [VIS314] 开头</exception>
     private static async Task<string> ComputeStableMaskAsync(List<string> frameBase64List, int threshold, CancellationToken ct)
     {
         var frames = new List<Image<Rgb24>>(frameBase64List.Count);
@@ -101,6 +109,12 @@ public class TemporalMetaphorToolHandlers
 
             var width = frames[0].Width;
             var height = frames[0].Height;
+            for (var i = 1; i < frames.Count; i++)
+            {
+                if (frames[i].Width != width || frames[i].Height != height)
+                    throw new ArgumentException($"[VIS314] 帧尺寸不一致: 帧0={width}x{height}, 帧{i}={frames[i].Width}x{frames[i].Height}，所有帧必须同尺寸");
+            }
+
             using var mask = new Image<L8>(width, height, new L8(0));
 
             for (var y = 0; y < height; y++)

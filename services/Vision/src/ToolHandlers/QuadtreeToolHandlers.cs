@@ -55,7 +55,15 @@ public class QuadtreeToolHandlers
             return ToolResultBuilder.Error().WithText("[VIS111] cellCode 不能为空").Build();
 
         var (width, height) = GetImageDimensions(imageBase64);
-        var zoomResult = await _renderer.ZoomAsync(imageBase64, cellCode, width, height, sourceDepth, targetDepth, ct).ConfigureAwait(false);
+        QuadtreeZoomResult zoomResult;
+        try
+        {
+            zoomResult = await _renderer.ZoomAsync(imageBase64, cellCode, width, height, sourceDepth, targetDepth, ct).ConfigureAwait(false);
+        }
+        catch (ArgumentException ex) when (ex.Message.StartsWith("[VIS112]", StringComparison.Ordinal))
+        {
+            return ToolResultBuilder.Error().WithText(ex.Message).Build();
+        }
         var text = FormatGrid(zoomResult.Grid, $"聚焦格子 {cellCode} → 子图 {zoomResult.Grid.ImageWidth}x{zoomResult.Grid.ImageHeight}");
 
         return ToolResultBuilder.Success()
@@ -78,7 +86,15 @@ public class QuadtreeToolHandlers
         if (string.IsNullOrWhiteSpace(paintsJson))
             return Task.FromResult(ToolResultBuilder.Error().WithText("[VIS121] paintsJson 不能为空").Build());
 
-        var paints = JsonSerializer.Deserialize(paintsJson, VisionJsonContext.Default.DictionaryStringDouble);
+        Dictionary<string, double>? paints;
+        try
+        {
+            paints = JsonSerializer.Deserialize(paintsJson, VisionJsonContext.Default.DictionaryStringDouble);
+        }
+        catch (JsonException)
+        {
+            return Task.FromResult(ToolResultBuilder.Error().WithText("[VIS122] paintsJson 解析失败或为空").Build());
+        }
         if (paints is null || paints.Count == 0)
             return Task.FromResult(ToolResultBuilder.Error().WithText("[VIS122] paintsJson 解析失败或为空").Build());
 
@@ -107,7 +123,15 @@ public class QuadtreeToolHandlers
 
         if (!string.IsNullOrWhiteSpace(paintsJson))
         {
-            var paints = JsonSerializer.Deserialize(paintsJson, VisionJsonContext.Default.DictionaryStringDouble);
+            Dictionary<string, double>? paints;
+            try
+            {
+                paints = JsonSerializer.Deserialize(paintsJson, VisionJsonContext.Default.DictionaryStringDouble);
+            }
+            catch (JsonException)
+            {
+                return ToolResultBuilder.Error().WithText("[VIS132] paintsJson 解析失败").Build();
+            }
             if (paints is not null && paints.Count > 0)
                 grid = _annotator.PaintCells(grid, paints);
         }

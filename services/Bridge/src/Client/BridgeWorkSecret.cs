@@ -25,7 +25,7 @@ public sealed class BridgeWorkSecret
     public List<BridgeWorkSecretAuth> Auth { get; init; } = [];
 
     [JsonPropertyName("claude_code_args")]
-    public Dictionary<string, string> ClaudeCodeArgs { get; init; } = [];
+    public Dictionary<string, string> CliArgs { get; init; } = [];
 
     [JsonPropertyName("mcp_config")]
     public JsonElement? McpConfig { get; init; }

@@ -255,10 +255,10 @@ public class AgentDefinition
     public AgentMemoryScope? Memory { get; set; }
 
     /// <summary>
-    /// 是否省略 claudeMd — 只读 Agent (Explore/Plan) 不需要 CLAUDE.md 上下文
+    /// 是否省略项目规则上下文 — 只读 Agent (Explore/Plan) 不需要 CLAUDE.md 上下文
     /// 对齐 TS: agentDefinition.omitClaudeMd
     /// </summary>
-    public bool OmitClaudeMd { get; init; }
+    public bool OmitProjectRules { get; init; }
 
     /// <summary>
     /// 是否省略 gitStatus — Explore/Plan 不需要 git status（~1-3 Gtok/周节省）

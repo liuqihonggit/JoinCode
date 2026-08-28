@@ -52,9 +52,9 @@ public sealed class AgentRoleProfile
     public bool IsBackground { get; init; }
 
     /// <summary>
-    /// 是否省略 CLAUDE.md 上下文 — Explore/Plan 不需要
+    /// 是否省略项目规则上下文 — Explore/Plan 不需要
     /// </summary>
-    public bool OmitClaudeMd { get; init; }
+    public bool OmitProjectRules { get; init; }
 
     /// <summary>
     /// 是否省略 git status 上下文 — Explore/Plan 不需要

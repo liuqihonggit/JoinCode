@@ -53,7 +53,7 @@ public sealed partial class ToolListingService : ServiceEntity
                 Tools = p.AllowedTools?.ToList() ?? [],
                 DisallowedTools = p.DisallowedTools?.ToList() ?? [],
                 IsBackground = p.IsBackground,
-                OmitClaudeMd = p.OmitClaudeMd,
+                OmitProjectRules = p.OmitProjectRules,
                 OmitGitStatus = p.OmitGitStatus,
                 PermissionMode = p.PermissionMode,
             }).ToList();

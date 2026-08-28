@@ -52,7 +52,7 @@ public sealed class AgentRoleProfileRegistryTests
 
         profile.Should().NotBeNull();
         profile!.IsOneShot.Should().BeTrue();
-        profile.OmitClaudeMd.Should().BeTrue();
+        profile.OmitProjectRules.Should().BeTrue();
         profile.OmitGitStatus.Should().BeTrue();
     }
 

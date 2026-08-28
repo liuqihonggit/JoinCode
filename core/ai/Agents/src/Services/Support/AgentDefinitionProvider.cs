@@ -141,7 +141,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
                 Tools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase, ShellToolNameConstants.Bash],
                 DisallowedTools = readOnlyDisallowedTools,
                 IsBackground = false,
-                OmitClaudeMd = true,
+                OmitProjectRules = true,
                 OmitGitStatus = true
             },
             new()
@@ -153,7 +153,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
                 Tools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase, ShellToolNameConstants.Bash],
                 DisallowedTools = readOnlyDisallowedTools,
                 IsBackground = false,
-                OmitClaudeMd = true,
+                OmitProjectRules = true,
                 OmitGitStatus = true
             },
             new()

@@ -41,7 +41,7 @@ public sealed partial class DefinitionResolutionMiddleware : ServiceEntity, IUni
                 DisallowedTools = profile.DisallowedTools?.ToList() ?? [],
                 PermissionMode = profile.PermissionMode,
                 IsBackground = profile.IsBackground,
-                OmitClaudeMd = profile.OmitClaudeMd,
+                OmitProjectRules = profile.OmitProjectRules,
                 OmitGitStatus = profile.OmitGitStatus,
                 ModelName = profile.ModelName,
                 Temperature = profile.Temperature,

@@ -1,10 +1,11 @@
 # 0040. 企业级状态机框架 — 转换表 + 守卫 + 共享上下文
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-08-29
 - 决策者：用户确认
 - 增强：[0038](docs/adr/0038-state-machine-flags-guard.md)、[0039](docs/adr/0039-command-interception-state-machine.md)
 - 候选清单：[0040-fsm-candidates.md](0040-fsm-candidates.md)
+- 后继：[0041](docs/adr/0041-fsm-source-generator.md)（源码生成器 + 特性 + 事件订阅）
 
 ## 背景
 

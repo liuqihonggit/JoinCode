@@ -60,7 +60,13 @@ internal sealed class EntropyFsmContext : FsmContext
 /// 误报消除：Suspected 状态超过确认窗口未再次触发 → 复位到 Monitoring
 /// <para>行为流程：获取当前状态 → 查表 → 守卫判定 → 执行动作 → 转移（ADR 0040）</para>
 /// </summary>
-public sealed class ShannonEntropyDetector
+[FsmStateMachine(typeof(EntropyDetectionState), typeof(EntropyEvent), EntropyDetectionState.Monitoring)]
+[Transition(EntropyDetectionState.Monitoring, EntropyEvent.Decline, EntropyDetectionState.Suspected)]
+[Transition(EntropyDetectionState.Suspected, EntropyEvent.Confirm, EntropyDetectionState.Confirmed)]
+[Transition(EntropyDetectionState.Suspected, EntropyEvent.Timeout, EntropyDetectionState.Monitoring)]
+[Transition(EntropyDetectionState.Confirmed, EntropyEvent.Decline, EntropyDetectionState.Confirmed)]
+[Transition(EntropyDetectionState.Confirmed, EntropyEvent.Recover, EntropyDetectionState.Monitoring)]
+public sealed partial class ShannonEntropyDetector
 {
     private readonly int _windowSize;
     private readonly int _declineThreshold;
@@ -98,7 +104,8 @@ public sealed class ShannonEntropyDetector
         _clock = clock ?? (() => DateTimeOffset.UtcNow);
         _entropyHistory = new RingBuffer<double>(RingBuffer<double>.RoundUpToPowerOfTwo(windowSize * 2));
         _ctx = new EntropyFsmContext();
-        _fsm = new Fsm<EntropyDetectionState, EntropyEvent>(CreateTransitionTable(), EntropyDetectionState.Monitoring);
+        _fsm = new Fsm<EntropyDetectionState, EntropyEvent>(_fsmTable, EntropyDetectionState.Monitoring);
+        _fsm.StateChanged += (_, e) => FsmDispatchEvent(e);
     }
 
     /// <summary>
@@ -163,31 +170,24 @@ public sealed class ShannonEntropyDetector
         return ctx.IsDeclining ? EntropyEvent.Confirm : null;
     }
 
-    private FrozenDictionary<TransitionKey<EntropyDetectionState, EntropyEvent>, TransitionRule<EntropyDetectionState>> CreateTransitionTable()
+    [TransitionAction(EntropyDetectionState.Monitoring, EntropyEvent.Decline)]
+    private static void FsmActDeclineFromMonitoring(FsmContext? ctx)
     {
-        return new Dictionary<TransitionKey<EntropyDetectionState, EntropyEvent>, TransitionRule<EntropyDetectionState>>
-        {
-            [new(EntropyDetectionState.Monitoring, EntropyEvent.Decline)] = new(
-                EntropyDetectionState.Suspected,
-                Action: ctx => ((EntropyFsmContext)ctx!).FirstTriggerTime = ((EntropyFsmContext)ctx!).Now),
-
-            [new(EntropyDetectionState.Suspected, EntropyEvent.Confirm)] = new(
-                EntropyDetectionState.Confirmed,
-                Action: ctx => ((EntropyFsmContext)ctx!).TriggerCount++),
-
-            [new(EntropyDetectionState.Suspected, EntropyEvent.Timeout)] = new(
-                EntropyDetectionState.Monitoring,
-                Action: ctx => ((EntropyFsmContext)ctx!).FirstTriggerTime = null),
-
-            [new(EntropyDetectionState.Confirmed, EntropyEvent.Decline)] = new(
-                EntropyDetectionState.Confirmed,
-                Action: ctx => ((EntropyFsmContext)ctx!).TriggerCount++),
-
-            [new(EntropyDetectionState.Confirmed, EntropyEvent.Recover)] = new(
-                EntropyDetectionState.Monitoring,
-                Action: ctx => ((EntropyFsmContext)ctx!).FirstTriggerTime = null),
-        }.ToFrozenDictionary();
+        var c = (EntropyFsmContext)ctx!;
+        c.FirstTriggerTime = c.Now;
     }
+
+    [TransitionAction(EntropyDetectionState.Suspected, EntropyEvent.Confirm)]
+    private static void FsmActConfirm(FsmContext? ctx) => ((EntropyFsmContext)ctx!).TriggerCount++;
+
+    [TransitionAction(EntropyDetectionState.Suspected, EntropyEvent.Timeout)]
+    private static void FsmActTimeout(FsmContext? ctx) => ((EntropyFsmContext)ctx!).FirstTriggerTime = null;
+
+    [TransitionAction(EntropyDetectionState.Confirmed, EntropyEvent.Decline)]
+    private static void FsmActDeclineFromConfirmed(FsmContext? ctx) => ((EntropyFsmContext)ctx!).TriggerCount++;
+
+    [TransitionAction(EntropyDetectionState.Confirmed, EntropyEvent.Recover)]
+    private static void FsmActRecover(FsmContext? ctx) => ((EntropyFsmContext)ctx!).FirstTriggerTime = null;
 
     /// <summary>
     /// 计算 Shannon 信息熵 H = -Σ(p_i * log2(p_i))

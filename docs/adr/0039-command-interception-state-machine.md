@@ -1,9 +1,11 @@
 # 0039. 命令拦截全状态机 + 守卫 + [Flags]
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-08-29
 - 决策者：项目架构组
 - 取代：[0034](docs/adr/0034-command-interception-layered.md)
+- 验证：Guard 编译 0 警告 0 错误，285 测试全通过 ✅
+- 实现说明：命令拦截无状态，[Flags] 用于属性检测优化，保留 Guard 守卫模式，不引入状态机
 
 ## 背景
 

@@ -362,7 +362,7 @@ internal sealed partial class MonitorSession : IAsyncDisposable
     {
         MonitorId = monitorId;
         Config = config;
-        _fsm = new Fsm<MonitorState, MonitorSessionEvent>(_fsmTable, MonitorState.Starting);
+        _fsm = new Fsm<MonitorState, MonitorSessionEvent>(_fsmSortedKeys, _fsmRules, MonitorState.Starting);
         _fsm.StateChanged += (_, e) => FsmDispatchEvent(e);
     }
 

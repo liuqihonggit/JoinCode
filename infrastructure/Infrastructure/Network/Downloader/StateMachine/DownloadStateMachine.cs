@@ -25,7 +25,7 @@ internal sealed partial class DownloadStateMachine
 
     public DownloadStateMachine()
     {
-        _fsm = new Fsm<DownloadState, DownloadOperation>(_fsmTable, DownloadState.Idle);
+        _fsm = new Fsm<DownloadState, DownloadOperation>(_fsmSortedKeys, _fsmRules, DownloadState.Idle);
         _fsm.StateChanged += (_, e) => FsmDispatchEvent(e);
     }
 

@@ -120,7 +120,7 @@ public sealed partial class LspServerInstance : ILspServerInstance
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _client = new LspClient(fs, processService);
-        _stateMachine = new Fsm<LspServerState, LspServerEvent>(_fsmTable, LspServerState.Stopped);
+        _stateMachine = new Fsm<LspServerState, LspServerEvent>(_fsmSortedKeys, _fsmRules, LspServerState.Stopped);
         _stateMachine.StateChanged += OnStateChanged;
         _stateMachine.StateChanged += (_, e) => FsmDispatchEvent(e);
     }

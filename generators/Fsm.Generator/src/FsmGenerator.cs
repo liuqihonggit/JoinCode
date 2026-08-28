@@ -50,7 +50,7 @@ public sealed class FsmGenerator : IIncrementalGenerator
         if (stateType is null || eventType is null)
             return null;
 
-        var initialStateName = GetEnumMemberName(initialStateValue);
+        var initialStateName = GetEnumMember(initialStateValue)?.Name;
         if (initialStateName is null)
             return null;
 
@@ -62,11 +62,11 @@ public sealed class FsmGenerator : IIncrementalGenerator
         {
             if (a.AttributeClass?.ToDisplayString() != TransitionAttr)
                 continue;
-            var from = GetEnumMemberName(a.ConstructorArguments[0]);
-            var evt = GetEnumMemberName(a.ConstructorArguments[1]);
-            var to = GetEnumMemberName(a.ConstructorArguments[2]);
+            var from = GetEnumMember(a.ConstructorArguments[0]);
+            var evt = GetEnumMember(a.ConstructorArguments[1]);
+            var to = GetEnumMember(a.ConstructorArguments[2]);
             if (from is not null && evt is not null && to is not null)
-                transitions.Add(new TransitionInfo(from, evt, to));
+                transitions.Add(new TransitionInfo(from.Name, evt.Name, to.Name, from.Value, evt.Value));
         }
 
         var guards = new Dictionary<(string From, string Event), string>();
@@ -81,17 +81,17 @@ public sealed class FsmGenerator : IIncrementalGenerator
                 var attrName = a.AttributeClass?.ToDisplayString();
                 if (attrName == GuardAttr)
                 {
-                    var from = GetEnumMemberName(a.ConstructorArguments[0]);
-                    var evt = GetEnumMemberName(a.ConstructorArguments[1]);
+                    var from = GetEnumMember(a.ConstructorArguments[0]);
+                    var evt = GetEnumMember(a.ConstructorArguments[1]);
                     if (from is not null && evt is not null)
-                        guards[(from, evt)] = method.Name;
+                        guards[(from.Name, evt.Name)] = method.Name;
                 }
                 else if (attrName == ActionAttr)
                 {
-                    var from = GetEnumMemberName(a.ConstructorArguments[0]);
-                    var evt = GetEnumMemberName(a.ConstructorArguments[1]);
+                    var from = GetEnumMember(a.ConstructorArguments[0]);
+                    var evt = GetEnumMember(a.ConstructorArguments[1]);
                     if (from is not null && evt is not null)
-                        actions[(from, evt)] = method.Name;
+                        actions[(from.Name, evt.Name)] = method.Name;
                 }
             }
         }
@@ -106,7 +106,7 @@ public sealed class FsmGenerator : IIncrementalGenerator
         return new MachineInfo(ns, className, stateType.Name, eventType.Name, initialStateName, transitions, guards, actions, eventValues);
     }
 
-    private static string? GetEnumMemberName(TypedConstant tc)
+    private static EnumMember? GetEnumMember(TypedConstant tc)
     {
         if (tc.Kind != TypedConstantKind.Enum)
             return null;
@@ -116,13 +116,22 @@ public sealed class FsmGenerator : IIncrementalGenerator
         foreach (var member in enumType.GetMembers().OfType<IFieldSymbol>())
         {
             if (member.ConstantValue?.Equals(value) == true)
-                return member.Name;
+                return new EnumMember(member.Name, Convert.ToInt64(member.ConstantValue));
         }
         return null;
     }
 
+    private sealed class EnumMember
+    {
+        public string Name { get; }
+        public long Value { get; }
+        public EnumMember(string name, long value) { Name = name; Value = value; }
+    }
+
     private static string GenerateCode(MachineInfo m)
     {
+        var sorted = m.Transitions.OrderBy(t => t.FromValue).ThenBy(t => t.EventValue).ToList();
+
         var sb = new StringBuilder();
         sb.AppendLine("#nullable enable");
         if (m.Namespace.Length > 0)
@@ -134,7 +143,8 @@ public sealed class FsmGenerator : IIncrementalGenerator
 
         sb.AppendLine($"partial class {m.ClassName}");
         sb.AppendLine("{");
-        sb.AppendLine($"    private static readonly FrozenDictionary<TransitionKey<{s}, {e}>, TransitionRule<{s}>> _fsmTable = FsmBuildTable();");
+        sb.AppendLine($"    private static readonly TransitionKey<{s}, {e}>[] _fsmSortedKeys = FsmBuildSortedKeys();");
+        sb.AppendLine($"    private static readonly TransitionRule<{s}>[] _fsmRules = FsmBuildRules();");
         sb.AppendLine();
 
         foreach (var ev in m.EventValues)
@@ -151,13 +161,27 @@ public sealed class FsmGenerator : IIncrementalGenerator
         sb.AppendLine("    }");
         sb.AppendLine();
 
-        sb.AppendLine($"    private static FrozenDictionary<TransitionKey<{s}, {e}>, TransitionRule<{s}>> FsmBuildTable()");
+        sb.AppendLine($"    private static TransitionKey<{s}, {e}>[] FsmBuildSortedKeys()");
         sb.AppendLine("    {");
-        sb.AppendLine($"        return new Dictionary<TransitionKey<{s}, {e}>, TransitionRule<{s}>>");
+        sb.AppendLine($"        return new TransitionKey<{s}, {e}>[]");
         sb.AppendLine("        {");
-        for (var i = 0; i < m.Transitions.Count; i++)
+        for (var i = 0; i < sorted.Count; i++)
         {
-            var t = m.Transitions[i];
+            var t = sorted[i];
+            var comma = i < sorted.Count - 1 ? "," : "";
+            sb.AppendLine($"            new({s}.{t.From}, {e}.{t.Event}){comma}");
+        }
+        sb.AppendLine("        };");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        sb.AppendLine($"    private static TransitionRule<{s}>[] FsmBuildRules()");
+        sb.AppendLine("    {");
+        sb.AppendLine($"        return new TransitionRule<{s}>[]");
+        sb.AppendLine("        {");
+        for (var i = 0; i < sorted.Count; i++)
+        {
+            var t = sorted[i];
             var guard = m.Guards.TryGetValue((t.From, t.Event), out var g) ? g : null;
             var action = m.Actions.TryGetValue((t.From, t.Event), out var a) ? a : null;
             var ruleArgs = $"{s}.{t.To}";
@@ -167,10 +191,10 @@ public sealed class FsmGenerator : IIncrementalGenerator
                 ruleArgs += $", {guard}";
             else if (action is not null)
                 ruleArgs += $", null, {action}";
-            var comma = i < m.Transitions.Count - 1 ? "," : "";
-            sb.AppendLine($"            [new({s}.{t.From}, {e}.{t.Event})] = new({ruleArgs}){comma}");
+            var comma = i < sorted.Count - 1 ? "," : "";
+            sb.AppendLine($"            new({ruleArgs}){comma}");
         }
-        sb.AppendLine("        }.ToFrozenDictionary();");
+        sb.AppendLine("        };");
         sb.AppendLine("    }");
         sb.AppendLine("}");
 
@@ -210,6 +234,9 @@ public sealed class FsmGenerator : IIncrementalGenerator
         public string From { get; }
         public string Event { get; }
         public string To { get; }
-        public TransitionInfo(string from, string evt, string to) { From = from; Event = evt; To = to; }
+        public long FromValue { get; }
+        public long EventValue { get; }
+        public TransitionInfo(string from, string evt, string to, long fromValue, long eventValue)
+        { From = from; Event = evt; To = to; FromValue = fromValue; EventValue = eventValue; }
     }
 }

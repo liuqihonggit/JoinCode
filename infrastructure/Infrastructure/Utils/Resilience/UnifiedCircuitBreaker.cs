@@ -131,7 +131,7 @@ public sealed partial class UnifiedCircuitBreaker
             OpenedAt = DateTimeOffset.MinValue,
             LastFailureTime = DateTimeOffset.MinValue,
         };
-        _fsm = new Fsm<CircuitBreakerPhase, CircuitBreakerEvent>(_fsmTable, CircuitBreakerPhase.Closed);
+        _fsm = new Fsm<CircuitBreakerPhase, CircuitBreakerEvent>(_fsmSortedKeys, _fsmRules, CircuitBreakerPhase.Closed);
         _fsm.StateChanged += (_, e) => FsmDispatchEvent(e);
     }
 

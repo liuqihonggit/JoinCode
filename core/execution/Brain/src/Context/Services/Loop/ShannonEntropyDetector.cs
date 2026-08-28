@@ -104,7 +104,7 @@ public sealed partial class ShannonEntropyDetector
         _clock = clock ?? (() => DateTimeOffset.UtcNow);
         _entropyHistory = new RingBuffer<double>(RingBuffer<double>.RoundUpToPowerOfTwo(windowSize * 2));
         _ctx = new EntropyFsmContext();
-        _fsm = new Fsm<EntropyDetectionState, EntropyEvent>(_fsmTable, EntropyDetectionState.Monitoring);
+        _fsm = new Fsm<EntropyDetectionState, EntropyEvent>(_fsmSortedKeys, _fsmRules, EntropyDetectionState.Monitoring);
         _fsm.StateChanged += (_, e) => FsmDispatchEvent(e);
     }
 

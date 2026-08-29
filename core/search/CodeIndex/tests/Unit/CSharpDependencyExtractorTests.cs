@@ -92,6 +92,7 @@ public sealed class CSharpDependencyExtractorTests
     public void ExtractDependencies_UsingDirective_ReturnsImportsEdge()
     {
         var source = """
+            using System.Collections.Generic;
             public class Service { }
             """;
 

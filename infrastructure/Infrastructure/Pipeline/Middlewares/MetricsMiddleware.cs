@@ -1,6 +1,5 @@
-namespace Infrastructure.Pipeline.Middlewares;
+﻿namespace Infrastructure.Pipeline.Middlewares;
 
-using JoinCode.Abstractions.Pipeline;
 
 /// <summary>
 /// 通用指标记录中间件 — 管道执行后自动记录 count 和可选 duration 指标

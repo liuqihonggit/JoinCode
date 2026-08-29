@@ -1,6 +1,5 @@
-namespace Infrastructure.Pipeline.Middlewares;
+﻿namespace Infrastructure.Pipeline.Middlewares;
 
-using JoinCode.Abstractions.Pipeline;
 
 /// <summary>
 /// 通用重试中间件（接口约束版）— 降级为透传，网络重试统一由 ResilientHttpExecutor (Gateway) 处理，避免嵌套放大

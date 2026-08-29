@@ -92,3 +92,6 @@ global using System.Text.Json.Serialization;
 global using System.Text.RegularExpressions;
 global using System.Threading.Channels;
 global using YamlDotNet.RepresentationModel;
+global using Infrastructure.Http;
+global using Infrastructure.Pipeline.Middlewares;
+global using System.Collections.ObjectModel;

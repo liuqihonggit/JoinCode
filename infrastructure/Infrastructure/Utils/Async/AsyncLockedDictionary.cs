@@ -1,6 +1,5 @@
-namespace Core.Utils;
+﻿namespace Core.Utils;
 
-using System.Collections.ObjectModel;
 
 public sealed class AsyncLockedDictionary<TKey, TValue> where TKey : notnull
 {

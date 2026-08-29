@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-
-namespace IO.Services;
+﻿namespace IO.Services;
 
 [Register(typeof(ITerminalCaptureService), ServiceLifetime.Singleton)]
 public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCaptureService

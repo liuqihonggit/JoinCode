@@ -1,6 +1,5 @@
-namespace Infrastructure.Utils.Resilience;
+﻿namespace Infrastructure.Utils.Resilience;
 
-using Infrastructure.Http;
 
 /// <summary>
 /// 韧性遥测收集器 — 从 ResilientHttpClientProvider 和 ResilientSubprocess 收集状态

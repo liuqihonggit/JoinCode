@@ -1,6 +1,5 @@
-namespace Infrastructure.Pipeline;
+﻿namespace Infrastructure.Pipeline;
 
-using Infrastructure.Pipeline.Middlewares;
 
 /// <summary>
 /// 管道构建器扩展方法 — 一行接入日志 Scope

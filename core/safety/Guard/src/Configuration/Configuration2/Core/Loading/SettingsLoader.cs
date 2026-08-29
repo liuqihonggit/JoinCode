@@ -122,6 +122,15 @@ public static class SettingsLoader
               "apiKeyEnvVar": "AGNES_API_KEY",
               "models": [],
               "modelsEndpoint": "models"
+            },
+            "zhipu": {
+              "provider": "zhipu",
+              "protocol": "openai-compatible",
+              "model": "glm-5.3",
+              "endpoint": "https://open.bigmodel.cn/api/paas/v4",
+              "apiKeyEnvVar": "ZHIPUAI_API_KEY",
+              "models": [],
+              "modelsEndpoint": "models"
             }
           },
           "autoFetchModels": true,

@@ -2,7 +2,7 @@
 
 > 此文档从 README 摘出，详细列出所有预置模型。
 
-配置文件 `~/.jcc/settings.json` 预置了 5 个供应商共 43 个模型条目（跨供应商去重后 42 个独立模型，`deepseek-v4-flash` 在 DeepSeek 与 SenseNova 下各声明一次），按供应商分组如下：
+配置文件 `~/.jcc/settings.json` 预置了 6 个供应商共 51 个模型条目（跨供应商去重后 50 个独立模型，`deepseek-v4-flash` 在 DeepSeek 与 SenseNova 下各声明一次），按供应商分组如下：
 
 ## 供应商协议与端点汇总
 
@@ -10,9 +10,10 @@
 |--------|------------|------------|------------------|------------------|----------|
 | `deepseek` | `openai-compatible` | 内置（兼容 OpenAI 协议） | —（不拉取远程列表） | `DEEPSEEK_API_KEY` | `deepseek-v4-flash` |
 | `openai` | `openai-compatible` | `https://api.openai.com/v1` | `models` | `OPENAI_API_KEY` | `gpt-5.6-sol` |
-| `anthropic` | `anthropic` | `https://token.sensenova.cn/v1`（经 SenseNova 中转） | `models` | `ANTHROPIC_API_KEY` | `claude-opus-5-20250815` |
+| `anthropic` | `anthropic` | `https://token.sensenova.cn/v1`（经 SenseNova 中转） | `models` | `ANTHROPIC_API_KEY` | `claude-opus-5` |
 | `sensenova` | `openai-compatible` | `https://token.sensenova.cn/v1` | `models` | `SENSENOVA_API_KEY` | `sensenova-6.7-flash-lite` |
 | `agnes` | `openai-compatible` | `https://apihub.agnes-ai.com/v1` | `models` | `AGNES_API_KEY` | `agnes-2.0-flash` |
+| `zhipu` | `openai-compatible` | `https://open.bigmodel.cn/api/paas/v4` | `models` | `ZHIPUAI_API_KEY` | `glm-5.3` |
 
 > **字段说明**
 > - **`protocol`**：`openai-compatible` 表示走 OpenAI Chat Completions 协议；`anthropic` 表示走 Anthropic Messages 协议。
@@ -88,6 +89,19 @@
 | `agnes-image-2.1-flash` | — | 128K | 新一代图像模型 |
 | `agnes-video-v2.0` | `video` | 128K | 视频理解模型 |
 
+## Zhipu（8 个模型）
+
+| 模型 ID | 别名 | 上下文 | 说明 |
+|---------|------|--------|------|
+| `glm-5.3` | `best`、`5.3` | 1M | 智谱最新旗舰模型，始终启用思考，编程与 Agent 能力比肩 Claude Fable 5 |
+| `glm-5.3-flash` | `flash`、`5.3-flash` | 1M | 原生多模态模型，理解图片视频，生成可交互代码 |
+| `glm-5.2` | `5.2` | 1M | 支撑复杂长程任务，Coding 能力大幅提升 |
+| `glm-5.1` | `5.1` | 200K | Coding 能力对齐 Claude Opus 4.6，可自主工作长达 8 小时 |
+| `glm-5` | `5` | 200K | 编程能力对齐 Claude Opus 4.5，擅长 Agentic 长程规划 |
+| `glm-4.7` | `4.7` | 200K | 通用对话、推理与智能体能力 |
+| `glm-4.6` | `4.6` | 200K | 擅长高级编码、复杂推理与工具调用 |
+| `glm-4-long` | `long` | 1M | 超长文本和记忆型任务，1M 上下文 |
+
 ---
 
-交互模式下可通过 `/model <别名或ID>` 快速切换模型，例如 `/model flash`、`/model pro`、`/model mythos5`、`/model opus5`、`/model sonnet`、`/model 5.6`。
+交互模式下可通过 `/model <别名或ID>` 快速切换模型，例如 `/model flash`、`/model pro`、`/model mythos5`、`/model opus5`、`/model sonnet`、`/model 5.6`、`/model 5.3`。

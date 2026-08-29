@@ -1,0 +1,88 @@
+name: Bug Report
+description: Report a bug to help us improve JoinCode
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report!
+        Before submitting, please search [existing issues](https://github.com/JoinCode/JoinCode/issues?q=is%3Aissue+label%3Abug) to avoid duplicates.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: A one-sentence description of the problem.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction Steps
+      description: Minimal sequence of steps to trigger the bug.
+      placeholder: |
+        1. Run `jcc --trust -p "..."`
+        2. ...
+        3. Observe error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What you expected to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened. Include error messages and stack traces.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: JoinCode Version
+      description: Run `jcc --version` or check the binary build date.
+      placeholder: "1.0.0"
+    validations:
+      required: true
+
+  - type: input
+    id: dotnet
+    attributes:
+      label: .NET SDK Version
+      description: Run `dotnet --version`.
+      placeholder: "10.0.301"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - Windows
+        - Linux
+        - macOS
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Debug Logs
+      description: Output from `jcc --debuglog ...`. Remove any API keys or sensitive data first!
+      render: shell
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Any other context, screenshots, or configuration details.

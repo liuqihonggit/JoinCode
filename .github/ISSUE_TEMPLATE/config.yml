@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security Vulnerability Report
+    url: https://github.com/JoinCode/JoinCode/security/advisories/new
+    about: Report security vulnerabilities privately. Do NOT use public issues for security reports.
+  - name: Documentation & Support
+    url: https://github.com/JoinCode/JoinCode/blob/main/SUPPORT.md
+    about: Read the support guide for common issues and help channels.
+  - name: Code of Conduct
+    url: https://github.com/JoinCode/JoinCode/blob/main/CODE_OF_CONDUCT.md
+    about: Review our community standards before participating.

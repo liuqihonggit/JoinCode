@@ -39,7 +39,7 @@ dependencies and peak performance on launch.
 - **🚀 Native performance** — NativeAOT compiles to a single-file native binary.
   No JIT, no GC pauses, no runtime dependencies, millisecond cold start.
 - **🧠 Multi-provider** — DeepSeek / OpenAI / Anthropic / Azure / SenseNova /
-  Agnes out of the box. Supports OpenAI Chat Completions, Anthropic Messages,
+  Agnes / Zhipu out of the box. Supports OpenAI Chat Completions, Anthropic Messages,
   and OpenAI Responses protocols.
 - **🔧 Rich built-in tools** — Shell execution, file operations, web requests,
   code indexing (TreeSitter AST), browser automation, skill system.
@@ -336,7 +336,7 @@ See [docs/adr/README.md](docs/adr/README.md) for all 40+ ADRs.
 ### Provider Configuration
 
 Provider settings are stored in `~/.jcc/settings.json`. The file ships with
-41 model entries across 5 providers (40 unique models after cross-provider
+51 model entries across 6 providers (50 unique models after cross-provider
 deduplication).
 
 Switch models interactively with `/model <alias>`:
@@ -377,7 +377,7 @@ From low to high:
 
 | Document | Description |
 |----------|-------------|
-| [Available Models](docs/reference/models.md) | 41 models across 5 providers (aliases, context length, notes) |
+| [Available Models](docs/reference/models.md) | 51 models across 6 providers (aliases, context length, notes) |
 | [Technical Details](docs/design/technical-details.md) | Fault tolerance / prefix caching / loop intervention / parallel load / serial build |
 | [Small Model Strategy](docs/design/small-model-strategy.md) | Engineering strategies for small model scenarios (synonyms / prohibitions / counterexamples / match) |
 | [Architecture Index](docs/design/architecture-index.md) | Component dependency graph / detail table / internal structure / middleware pipelines / build commands |

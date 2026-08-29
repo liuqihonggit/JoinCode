@@ -14,7 +14,7 @@
 > 💡 **为什么选 JoinCode？**
 >
 > - **🚀 原生性能** — NativeAOT 编译为单文件原生二进制，无 JIT、无 GC 暂停、无运行时依赖，冷启动毫秒级
-> - **🧠 多模型适配** — DeepSeek / OpenAI / Anthropic / Azure / SenseNova / Agnes 开箱即用，兼容 OpenAI Chat Completions / Anthropic Messages / OpenAI Responses 三种协议
+> - **🧠 多模型适配** — DeepSeek / OpenAI / Anthropic / Azure / SenseNova / Agnes / Zhipu 开箱即用，兼容 OpenAI Chat Completions / Anthropic Messages / OpenAI Responses 三种协议
 > - **🔧 丰富内置工具** — Shell 执行、文件操作、Web 请求、代码索引（TreeSitter AST）、浏览器自动化、技能系统
 > - **🔌 MCP 协议** — 完整的 Model Context Protocol 客户端实现，两阶段工具加载（core_tools/mcp_tools 分组按需拉取），无限扩展自定义工具
 > - **🛡️ 生产级容错** — LLM 宽容处理（LlmJsonHelper 统一门控 + JSON 修复/参数归一化/类型转换/工具名归一化 + Trace 日志）、三级死循环干预、前缀缓存优化、工具惯性错误修正体系（gh 命令统一执行器 + Shell 管道自动改写 + 错误达阈值自动触发修正 Hook）
@@ -60,20 +60,11 @@ dotnet build App.slnx -c Release --no-incremental
 
 | 环境变量 | 必填 | 说明 | 示例 |
 |----------|------|------|------|
-| `JCC_VENDOR` | 否 | 供应商名称（默认 `deepseek`） | `deepseek` / `openai` / `anthropic` / `azure` / `sensenova` / `agnes` |
-| `JCC_MODEL_ID` | 否 | 模型 ID（默认 `deepseek-v4-flash`） | `deepseek-v4-flash` / `gpt-4o` / `claude-opus-5-20250815` / `sensenova-6.7-flash-lite` / `agnes-2.0-flash` |
+| `JCC_VENDOR` | 否 | 供应商名称（默认 `deepseek`） | `deepseek` / `openai` / `anthropic` / `azure` / `sensenova` / `agnes` / `zhipu` |
+| `JCC_MODEL_ID` | 否 | 模型 ID（默认 `deepseek-v4-flash`） | `deepseek-v4-flash` / `gpt-4o` / `claude-opus-5` / `sensenova-6.7-flash-lite` / `agnes-2.0-flash` / `glm-5.3` |
 | `JCC_ENDPOINT` | 否 | API 端点（默认使用 Provider 内置地址） | `http://localhost:9901` |
 
-各供应商对应的 API Key 环境变量：
-
-| 供应商 | 环境变量 | 默认端点 |
-|--------|----------|----------|
-| `deepseek` | `DEEPSEEK_API_KEY` | 内置（兼容 OpenAI 协议） |
-| `openai` | `OPENAI_API_KEY` | `https://api.openai.com/v1` |
-| `anthropic` | `ANTHROPIC_API_KEY` | `https://token.sensenova.cn/v1`（可经 SenseNova 中转） |
-| `azure` | `AZURE_OPENAI_API_KEY` | 需用户配置（Azure OpenAI 资源地址） |
-| `sensenova` | `SENSENOVA_API_KEY` | `https://token.sensenova.cn/v1` |
-| `agnes` | `AGNES_API_KEY` | `https://apihub.agnes-ai.com/v1` |
+各供应商对应的 API Key 环境变量、端点和模型列表详见 [可用模型列表](../reference/models.md)。
 
 #### 使用 DeepSeek（推荐）
 
@@ -124,7 +115,7 @@ jcc --trust
 
 #### 可用模型
 
-预置 5 个供应商共 41 个模型条目（跨供应商去重后 40 个独立模型）。详细的模型列表、别名、上下文长度见 [可用模型列表](../reference/models.md)。
+预置 6 个供应商共 51 个模型条目（跨供应商去重后 50 个独立模型）。详细的模型列表、别名、上下文长度见 [可用模型列表](../reference/models.md)。
 
 交互模式下可通过 `/model <别名或ID>` 快速切换模型，例如 `/model flash`、`/model pro`、`/model opus5`、`/model sonnet`、`/model 5.6`。
 
@@ -396,7 +387,7 @@ OpenAI 的多层记忆 + 半衰期方案更为合理，但实现难度太高，�
 
 | 文档 | 说明 |
 |------|------|
-| [可用模型列表](../reference/models.md) | 5 个供应商 41 个模型的详细列表（别名、上下文长度、说明） |
+| [可用模型列表](../reference/models.md) | 6 个供应商 51 个模型的详细列表（别名、上下文长度、说明） |
 | [技术要点](../design/technical-details.md) | 宽容处理 / 前缀缓存 / 死循环处理 / 并行动态负载 / 串行编译 |
 | [小模型设计组合拳](../design/small-model-strategy.md) | 面向小模型场景的工程化策略（同义词 / 禁令 / 反例 / match） |
 | [项目架构索引](../design/architecture-index.md) | 组件依赖图 / 详情表 / 内部结构 / 中间件管道清单 / 构建命令速查 |

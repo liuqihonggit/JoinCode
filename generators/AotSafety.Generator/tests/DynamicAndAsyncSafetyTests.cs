@@ -447,7 +447,7 @@ public class DynamicAndAsyncSafetyAnalyzerTests
             {
                 Sources =
                 {
-                    ("lib/Infrastructure/SomeService.cs", """
+                    ("infrastructure/SomeService.cs", """
                         {|#1:using System.Threading.Tasks;|}
                         class SomeService
                         {
@@ -478,7 +478,7 @@ public class DynamicAndAsyncSafetyAnalyzerTests
             {
                 Sources =
                 {
-                    ("lib/Infrastructure/SomeService.cs", """
+                    ("infrastructure/SomeService.cs", """
                         {|#0:using System.Threading.Tasks;|}
                         class SomeService
                         {

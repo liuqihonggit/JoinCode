@@ -136,8 +136,8 @@ jcc --trust -p "解释这个代码库的架构"
 # 交互模式（REPL）
 jcc --trust
 
-# TUI 模式（Terminal.Gui v2 全屏交互界面，支持多行输入、Editor 组件、斜杠命令转发）
-jcc --trust --tui
+# TUI 模式（独立 jcctui.exe，Terminal.Gui v2 全屏交互界面，支持多行输入、Editor 组件、斜杠命令转发）
+jcctui --trust
 
 # 指定模型
 jcc --trust -m gpt-4o
@@ -162,7 +162,7 @@ jcc -p "你好"
 | `--trust` | 信任当前目录（跳过目录信任确认） |
 | `-p / --prompt <text>` | 非交互模式单次对话 |
 | `-m / --model <id>` | 指定模型 ID 或别名 |
-| `--tui` | 启动 TUI 全屏界面（Terminal.Gui v2） |
+| `jcctui` | 启动独立 TUI 全屏界面（jcctui.exe，Terminal.Gui v2） |
 | `--bypass` | 跳过所有权限检查（等价 `--permission-mode bypass`，替代旧 `--dangerously-skip-permissions`） |
 | `--permission-mode <mode>` | 权限模式：`plan` / `auto` / `ask` / `bypass` |
 | `--debuglog` / `-d` | 启用调试日志（等效 `JCC_DEBUGLOG=1`） |
@@ -278,7 +278,7 @@ jcc -p "你好"
 
 ### 2.8 TUI 全屏界面（PR #110/#116/#118）
 
-- **Terminal.Gui v2 声明式布局**：`--tui` 启动，7 个视图组件（RootView/PromptView/OutputView/StatusBarView/QueuedCommandsView/AgentPanesView/PermissionDialogView）
+- **Terminal.Gui v2 声明式布局**：独立 `jcctui.exe` 启动，7 个视图组件（RootView/PromptView/OutputView/StatusBarView/QueuedCommandsView/AgentPanesView/PermissionDialogView）
 - **Editor 组件多行输入**：`Ctrl+Enter` 发送，`Enter` 换行，`Ctrl+Up/Down` 历史导航，输出区支持文本选择复制 + WordWrap 软换行 + 行级环形缓冲（默认 2048 行可配置）
 - **斜杠命令统一转发**：TUI 不再有两套命令系统，全部转发到底层 `CmdMap`（`ChatCommandRegistry` + `CmdMap` + `CommandServices`），`TabCompleter` 从源码生成器获取命令列表
 - **性能优化**：启动并行化降 37%，去反射扫描启动 -70%，全管线 UTF-8 + batch mode 写终端 -83%，`LayoutAndDraw` -58%

@@ -403,7 +403,7 @@ chcp 65001
 
 1. **✅ 非交互模式测试** — `jcc --trust -p "提示词"` 或 `echo "提示词" | jcc --trust --non-interactive`
 2. **✅ 交互式 REPL 测试** — 用 `Register-ObjectEvent` + `BeginOutputReadLine` 异步捕获 stdout，通过 `StandardInput.WriteLine` 发送命令
-3. **✅ TUI 模式测试** — `jcc --trust --tui` 启动 Terminal.Gui v2 全屏界面（多行输入 `Ctrl+Enter` 发送，斜杠命令转发到底层 CmdMap）
+3. **✅ TUI 模式测试** — `jcctui --trust` 启动独立 TUI 工程（Terminal.Gui v2 全屏界面，多行输入 `Ctrl+Enter` 发送，斜杠命令转发到底层 CmdMap）
 4. **⚠️ Mock 测试** — 使用 MockServer 进程提供模拟 AI 响应，通过 `JCC_ENDPOINT` 环境变量指向 MockServer
 
 **常用 CLI 参数**：
@@ -412,7 +412,7 @@ chcp 65001
 |------|------|
 | `--trust` | 信任当前目录（跳过目录信任确认） |
 | `--bypass` | 跳过所有权限检查（替代旧 `--dangerously-skip-permissions`，等价 `--permission-mode bypass`） |
-| `--tui` | 启动 TUI 全屏界面（Terminal.Gui v2） |
+| `jcctui` | 启动独立 TUI 全屏界面（jcctui.exe，Terminal.Gui v2） |
 | `--debuglog` / `-d` | 启用调试日志（等效 `JCC_DEBUGLOG=1`） |
 | `--await <seconds>` | 非交互模式超时自动关闭（超时返回 1234） |
 

@@ -6,6 +6,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 [![Code of Conduct](https://img.shields.io/badge/CoC-Microsoft-blue?style=flat-square)](.github/CODE_OF_CONDUCT.md)
 
+> 🌐 **Languages:** **English** | [简体中文](docs/zh-CN/README.md)
+
 **JoinCode** is a pure C# open-source AI coding agent that runs in your terminal.
 It understands your codebase and helps you code faster through natural language —
 executing everyday tasks, explaining complex code, and handling Git workflows,

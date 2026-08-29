@@ -3,7 +3,9 @@
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square)](https://dotnet.microsoft.com/)
 [![NativeAOT](https://img.shields.io/badge/NativeAOT-Enabled-00A4EF?style=flat-square)](https://learn.microsoft.com/dotnet/core/deploying/native-aot/)
 [![C#](https://img.shields.io/badge/C%23-13-68217A?style=flat-square)](https://docs.microsoft.com/dotnet/csharp/)
-[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
+[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](../../LICENSE)
+
+> 🌐 **语言：** [English](../../README.md) | **简体中文**
 
 **JoinCode** 是一个纯 C# 实现的开源 AI 编程智能体，运行在你的终端里，理解你的代码库，通过自然语言帮你编码更快——执行日常任务、解释复杂代码、处理 Git 工作流，全部一条命令搞定。
 

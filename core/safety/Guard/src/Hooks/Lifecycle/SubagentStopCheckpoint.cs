@@ -1,7 +1,5 @@
+﻿namespace Core.Hooks.Lifecycle;
 
-namespace Core.Hooks.Lifecycle;
-
-using JoinCode.Abstractions.Models.Build;
 
 public interface ISubagentStopCheckpointInternal : ISubagentStopCheckpoint;
 

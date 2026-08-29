@@ -1,6 +1,5 @@
-namespace Memdir.Sync;
+﻿namespace Memdir.Sync;
 
-using JoinCode.Abstractions.Pipeline;
 
 /// <summary>
 /// 路径验证中间件 — 验证 WatchPath 非空并确保目录存在

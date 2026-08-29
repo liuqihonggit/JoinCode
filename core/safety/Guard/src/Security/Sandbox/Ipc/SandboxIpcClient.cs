@@ -1,6 +1,5 @@
-namespace Core.Security.Sandbox.Ipc;
+﻿namespace Core.Security.Sandbox.Ipc;
 
-using JoinCode.Abstractions.Security.Sandbox.Ipc;
 
 public sealed class SandboxIpcClient : IAsyncDisposable
 {

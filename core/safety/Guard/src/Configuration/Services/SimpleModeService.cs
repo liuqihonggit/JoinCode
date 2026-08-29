@@ -1,7 +1,4 @@
-
-using JoinCode.Abstractions.Attributes;
-
-namespace Core.Configuration;
+﻿namespace Core.Configuration;
 
 /// <summary>
 /// 精简模式服务实现 - 管理精简模式的启用/禁用状态和配置

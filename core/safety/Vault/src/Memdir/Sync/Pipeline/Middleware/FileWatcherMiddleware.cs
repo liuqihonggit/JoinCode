@@ -1,6 +1,5 @@
-namespace Memdir.Sync;
+﻿namespace Memdir.Sync;
 
-using JoinCode.Abstractions.Pipeline;
 
 /// <summary>
 /// 文件监控中间件 — 初始化 IFileSystemWatcher

@@ -1,8 +1,4 @@
-
-using JoinCode.Abstractions.Attributes;
-using Infrastructure.Pipeline;
-
-namespace Memdir.Sync;
+﻿namespace Memdir.Sync;
 
 public sealed partial class SyncFileEntry
 {

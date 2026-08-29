@@ -1,6 +1,5 @@
-namespace Memdir.Sync;
+﻿namespace Memdir.Sync;
 
-using JoinCode.Abstractions.Pipeline;
 
 /// <summary>
 /// 启动完成中间件 — 标记运行状态、记录日志和指标

@@ -1,6 +1,5 @@
-namespace Core.Security.Sandbox;
+﻿namespace Core.Security.Sandbox;
 
-using JoinCode.Abstractions.Security.Sandbox;
 
 public abstract class SandboxProviderBase : ISandboxProvider
 {

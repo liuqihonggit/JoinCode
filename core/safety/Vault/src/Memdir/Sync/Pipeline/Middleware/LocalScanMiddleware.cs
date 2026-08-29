@@ -1,6 +1,5 @@
-namespace Memdir.Sync;
+﻿namespace Memdir.Sync;
 
-using JoinCode.Abstractions.Pipeline;
 
 /// <summary>
 /// 本地文件扫描中间件 — 扫描 WatchPath 下的文件并填充 LocalEntries

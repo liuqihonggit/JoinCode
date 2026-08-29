@@ -1,6 +1,4 @@
-using TreeSitter;
-
-namespace JoinCode.Abstractions.Security.Shell;
+﻿namespace JoinCode.Abstractions.Security.Shell;
 
 /// <summary>
 /// Bash AST 安全步行器 — 对齐 TS ast.ts parseForSecurity

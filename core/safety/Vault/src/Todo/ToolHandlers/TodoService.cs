@@ -1,6 +1,4 @@
-using Structura.Dag;
-
-namespace Services.Todo;
+﻿namespace Services.Todo;
 
 [Register(typeof(ITodoService), ServiceLifetime.Singleton)]
 public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposable

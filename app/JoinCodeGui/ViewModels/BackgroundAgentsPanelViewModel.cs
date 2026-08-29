@@ -20,7 +20,7 @@ public sealed record BackgroundAgentInfo(
 /// </summary>
 public sealed class BackgroundAgentItemVm
 {
-    private static readonly string[] RunningStates = ["running", "pending", "paused"];
+    private static readonly FrozenSet<string> RunningStates = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, "running", "pending", "paused");
 
     public string AgentId { get; }
     public string Name { get; }
@@ -45,7 +45,7 @@ public sealed class BackgroundAgentItemVm
         StartedAt = info.StartedAt;
         ToolUseCount = info.ToolUseCount;
         TokenCount = info.TokenCount;
-        IsRunning = RunningStates.Contains(info.State, StringComparer.OrdinalIgnoreCase);
+        IsRunning = RunningStates.Contains(info.State);
 
         ElapsedText = info.StartedAt is { } started
             ? FormatElapsed(DateTime.Now - started)

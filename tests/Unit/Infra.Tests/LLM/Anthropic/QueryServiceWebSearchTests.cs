@@ -1,9 +1,5 @@
-namespace Infra.Tests.LLM;
+﻿namespace Infra.Tests.LLM;
 
-using Api.LLM;
-using Api.LLM.QueryServices.Anthropic;
-using ChatApiMessage = JoinCode.Abstractions.LLM.Chat.ApiMessage;
-using ChatMessageRole = JoinCode.Abstractions.LLM.Chat.MessageRole;
 
 /// <summary>
 /// AnthropicQueryService.ConvertAnthropicResponseToApiMessages 的 web_search 链路测试

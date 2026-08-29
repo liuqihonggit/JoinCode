@@ -1,6 +1,5 @@
-namespace Infrastructure.Pipeline.Tests;
+﻿namespace Infrastructure.Pipeline.Tests;
 
-using Infrastructure.Pipeline.Middlewares;
 
 public sealed class CrashSnapshotMiddlewareTests
 {

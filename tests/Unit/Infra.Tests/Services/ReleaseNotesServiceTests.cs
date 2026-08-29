@@ -74,7 +74,7 @@ public sealed class ReleaseNotesServiceTests
     {
         var json = """[{"tag_name":"v1.0.0","body":"Test release","published_at":"2025-01-01T00:00:00Z"}]""";
         var handler = new CountingHandler(json);
-        var fakeTime = new FakeTimeProvider();
+        var fakeTime = new Microsoft.Extensions.Time.Testing.FakeTimeProvider();
 
         var httpClient = new HttpClient(handler);
         var service = new ReleaseNotesService(httpClient,

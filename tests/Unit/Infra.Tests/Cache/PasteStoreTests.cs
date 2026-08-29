@@ -1,7 +1,5 @@
-namespace Infra.Tests.Cache;
+﻿namespace Infra.Tests.Cache;
 
-using Infrastructure.Cache;
-using TestInMemFs = Testing.Common.Services.InMemoryFileSystem;
 
 public sealed class PasteStoreTests
 {

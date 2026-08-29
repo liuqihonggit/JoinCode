@@ -1,7 +1,5 @@
-namespace Infra.Tests.HotSpot;
+﻿namespace Infra.Tests.HotSpot;
 
-using Infrastructure.HotSpot;
-using Infrastructure.IO.Services.FileOps;
 
 /// <summary>
 /// HotSpotSpawnIntegration 单元测试 — Worker spawn 时注册监听器 + 获取通知队列

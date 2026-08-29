@@ -1,11 +1,5 @@
-namespace JoinCode.Entry.Tests;
+﻿namespace JoinCode.Entry.Tests;
 
-using JoinCode.Abstractions.Utils;
-using JoinCode.Abstractions.Utils.Diagnostics;
-using JoinCode.Abstractions.Prompts;
-using JoinCode.Abstractions.Models.ErrorRecovery;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 
 /// <summary>
 /// InitDebugDumpStep 单元测试 — 验证根据 DebugDumpChoice 位标志决定 dump 行为

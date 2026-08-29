@@ -1,10 +1,5 @@
-namespace Infra.Tests.LLM;
+﻿namespace Infra.Tests.LLM;
 
-using Api.LLM;
-using Api.LLM.QueryServices.OpenAI;
-using JoinCode.Abstractions.Utils;
-using ChatApiMessage = JoinCode.Abstractions.LLM.Chat.ApiMessage;
-using ChatMessageRole = JoinCode.Abstractions.LLM.Chat.MessageRole;
 
 /// <summary>
 /// OpenAIQueryService.ConvertToOpenAIMessage 角色转换测试

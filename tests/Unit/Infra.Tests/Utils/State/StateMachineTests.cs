@@ -1,7 +1,5 @@
-namespace Infra.Tests.Utils.State;
+﻿namespace Infra.Tests.Utils.State;
 
-using System.Collections.Frozen;
-using JoinCode.Abstractions.Clock;
 
 public enum TestState
 {

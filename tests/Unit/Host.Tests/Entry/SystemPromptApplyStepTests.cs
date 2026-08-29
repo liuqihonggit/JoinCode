@@ -1,7 +1,5 @@
-namespace JoinCode.Entry.Tests;
+﻿namespace JoinCode.Entry.Tests;
 
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 
 /// <summary>
 /// SystemPromptApplyStep 单元测试 — 验证视角1 #5 的 --system-prompt/--append-system-prompt 行为

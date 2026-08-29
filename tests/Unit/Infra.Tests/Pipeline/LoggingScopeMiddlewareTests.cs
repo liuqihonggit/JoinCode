@@ -1,6 +1,5 @@
-namespace Infrastructure.Pipeline.Tests;
+﻿namespace Infrastructure.Pipeline.Tests;
 
-using Infrastructure.Pipeline.Middlewares;
 
 /// <summary>
 /// LoggingScopeMiddleware 单元测试 — 验证 scope 传播、ObjectId.Empty、Func 选择器

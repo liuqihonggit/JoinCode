@@ -1,6 +1,4 @@
-using McpToolRegistry;
-
-namespace JoinCode.Abstractions.LLM.Chat;
+﻿namespace JoinCode.Abstractions.LLM.Chat;
 
 public sealed class McpReconnectPolicyTests
 {

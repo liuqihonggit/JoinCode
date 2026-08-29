@@ -1,7 +1,5 @@
-namespace Infra.Tests.HotSpot;
+﻿namespace Infra.Tests.HotSpot;
 
-using Infrastructure.HotSpot;
-using JoinCode.Abstractions.Interfaces;
 
 public sealed class HotFileDetectorTests
 {

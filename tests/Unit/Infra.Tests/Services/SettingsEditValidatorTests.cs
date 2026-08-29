@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Configuration.Settings;
-
-namespace Infrastructure.Tests.Services;
+﻿namespace Infrastructure.Tests.Services;
 
 public sealed class SettingsEditValidatorTests
 {

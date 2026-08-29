@@ -1,6 +1,5 @@
-namespace Infra.Tests.Utils.Async;
+﻿namespace Infra.Tests.Utils.Async;
 
-using System.Collections.Frozen;
 
 public class ExponentialBackoffTests
 {

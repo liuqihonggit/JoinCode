@@ -1,6 +1,5 @@
-namespace Infra.Tests.HotSpot;
+﻿namespace Infra.Tests.HotSpot;
 
-using JoinCode.Abstractions.Models.Agent;
 
 public sealed class MailMarkerFlagsTests
 {

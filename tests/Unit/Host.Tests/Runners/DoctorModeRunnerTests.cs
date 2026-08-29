@@ -1,13 +1,5 @@
-namespace Core.Tests.Runners;
+﻿namespace Core.Tests.Runners;
 
-using JoinCode;
-using JoinCode.Abstractions.Interfaces;
-using JoinCode.Abstractions.Interfaces.Scheduling;
-using JoinCode.Abstractions.Models.Agent;
-using JoinCode.Abstractions.Models.Goal;
-using JoinCode.Abstractions.Prompts.ToolPrompts;
-using JoinCode.Entry;
-using Moq;
 
 public class DoctorModeRunnerTests
 {

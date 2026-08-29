@@ -1,8 +1,5 @@
-namespace Infra.Tests.HotSpot;
+﻿namespace Infra.Tests.HotSpot;
 
-using Infrastructure.HotSpot;
-using JoinCode.Abstractions.Interfaces;
-using JoinCode.Abstractions.Models.Agent;
 
 public sealed class IntentReporterTests
 {

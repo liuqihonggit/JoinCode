@@ -1,7 +1,5 @@
-namespace Infra.Tests.HotSpot;
+﻿namespace Infra.Tests.HotSpot;
 
-using Infrastructure.HotSpot;
-using Infrastructure.IO.Services.FileOps;
 
 /// <summary>
 /// 断裂点4+5 集成测试 — 队长改热文件 → 广播 → Worker队列收到通知

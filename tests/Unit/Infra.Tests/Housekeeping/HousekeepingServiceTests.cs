@@ -1,8 +1,5 @@
-namespace Infra.Tests.Housekeeping;
+﻿namespace Infra.Tests.Housekeeping;
 
-using Infrastructure.Housekeeping;
-using Infrastructure.Time;
-using TestInMemFs = Testing.Common.Services.InMemoryFileSystem;
 
 public sealed class HousekeepingServiceTests
 {

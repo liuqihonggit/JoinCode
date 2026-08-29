@@ -1,8 +1,4 @@
-using System.Text;
-using Infrastructure.IO.Services.FileOps;
-using IO.FileSystem;
-
-/// <summary>
+﻿/// <summary>
 /// FileEncodingDetector 单元测试
 /// 对齐 TS: fileRead.ts detectFileEncoding + FileEditTool.ts L207-213
 /// TS 逻辑：检查 BOM（0xFF 0xFE → UTF-16LE），否则默认 UTF-8

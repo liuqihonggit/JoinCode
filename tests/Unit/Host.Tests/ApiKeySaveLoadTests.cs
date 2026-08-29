@@ -1,8 +1,5 @@
-namespace JoinCode.Host.Tests;
+﻿namespace JoinCode.Host.Tests;
 
-using Core.Configuration;
-using Core.Configuration.Providers;
-using JoinCode.Abstractions.Exceptions;
 
 public class ApiKeySaveLoadTests
 {

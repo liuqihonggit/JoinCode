@@ -1,6 +1,4 @@
-﻿using JoinCode.Abstractions.Utils;
-
-namespace JoinCode.Abstractions.Interfaces;
+﻿namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
 /// 系统执行器注册表接口 — 按 Kind 查找执行器 + 统一管理跨执行器的后台任务

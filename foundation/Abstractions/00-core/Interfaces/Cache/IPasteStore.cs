@@ -1,6 +1,4 @@
-﻿using JoinCode.Abstractions.State;
-
-namespace JoinCode.Abstractions.Interfaces.Cache;
+﻿namespace JoinCode.Abstractions.Interfaces.Cache;
 
 /// <summary>
 /// 粘贴内容缓存接口 — 对齐 TS pasteStore.ts

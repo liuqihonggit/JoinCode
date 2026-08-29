@@ -1,6 +1,4 @@
-﻿using JoinCode.Abstractions.Utils;
-
-namespace JoinCode.Abstractions.Tools;
+﻿namespace JoinCode.Abstractions.Tools;
 
 /// <summary>
 /// 执行侧工具注册表 — 异步操作，含注册/查询/执行能力

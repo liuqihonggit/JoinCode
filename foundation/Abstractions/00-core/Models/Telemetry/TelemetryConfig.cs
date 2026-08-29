@@ -1,5 +1,3 @@
-using JoinCode.Abstractions.Attributes;
-
 namespace JoinCode.Abstractions.Models.Telemetry;
 
 

@@ -1,7 +1,5 @@
 ﻿namespace JoinCode.Abstractions.Interfaces;
 
-using JoinCode.Abstractions.Prompts.ToolPrompts;
-
 /// <summary>
 /// 插件 Agent 定义提供者 — 插件实现此接口以贡献 agent 定义
 /// <para>对齐 TS 原版 loadPluginAgents: 从插件加载 agent 定义 + 安全限制</para>

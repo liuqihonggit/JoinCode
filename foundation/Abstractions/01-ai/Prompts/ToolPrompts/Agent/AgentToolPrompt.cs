@@ -1,7 +1,5 @@
 ﻿namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 
-using JoinCode.Abstractions.Models.Agent;
-
 /// <summary>
 /// AgentTool 提示词
 /// </summary>

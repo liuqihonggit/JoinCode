@@ -18,6 +18,7 @@ global using ExecutionContext = JoinCode.Abstractions.Execution.ExecutionContext
 global using JoinCode.Abstractions.Hooks;
 global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.Interfaces.Context;
+global using JoinCode.Abstractions.Interfaces.Scheduling;
 global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.LLM.Execution;
 global using JoinCode.Abstractions.Models;
@@ -61,6 +62,7 @@ global using JoinCode.Abstractions.Mcp.Protocol;
 global using JoinCode.Abstractions.Schema;
 global using JoinCode.Abstractions.Mcp.Registry;
 global using JoinCode.Abstractions.Tools;
+global using JoinCode.Abstractions.Transport;
 global using JoinCode.Abstractions.UI;
 global using JoinCode.Abstractions.Onboarding;
 global using JoinCode.Abstractions.Utils;

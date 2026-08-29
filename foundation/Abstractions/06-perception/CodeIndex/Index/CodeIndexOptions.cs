@@ -1,5 +1,3 @@
-using JoinCode.Abstractions.Attributes;
-
 namespace JoinCode.Abstractions.CodeIndex;
 
 [Register(typeof(CodeIndexOptions), ServiceLifetime.Singleton)]

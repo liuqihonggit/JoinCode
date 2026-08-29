@@ -1,6 +1,4 @@
-﻿using JoinCode.Abstractions.Utils;
-
-namespace JoinCode.Abstractions.Interfaces;
+﻿namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
 /// 文件读取事件参数。

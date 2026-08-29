@@ -1,11 +1,5 @@
 namespace JoinCode.Abstractions.Composition;
 
-using JoinCode.Abstractions.Tools;
-using JoinCode.Abstractions.CodeIndex;
-using JoinCode.Abstractions.Interfaces;
-using JoinCode.Abstractions.Interfaces.Scheduling;
-using JoinCode.Abstractions.Configuration.Providers;
-
 /// <summary>
 /// 注册中心聚合门面 — 统一访问通用 Registry，减少调用方依赖散落
 /// 聚合 Foundation 层通用 Registry，不聚合层特有 Registry（如 IDreamTaskRegistry、ILspDiagnosticRegistry）

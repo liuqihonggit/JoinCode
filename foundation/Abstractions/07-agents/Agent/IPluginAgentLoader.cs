@@ -1,7 +1,5 @@
 namespace JoinCode.Abstractions.Interfaces;
 
-using JoinCode.Abstractions.Prompts.ToolPrompts;
-
 /// <summary>
 /// 插件 Agent 加载器 — 维护 Map&lt;name, AgentDefinition&gt;，支持可逆效应和响应式协效应
 /// <para>对齐 Cordis 框架:</para>

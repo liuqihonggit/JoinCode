@@ -1,9 +1,5 @@
 ﻿
-using JoinCode.Abstractions.State;
-
 namespace JoinCode.Abstractions.Interfaces.Scheduling;
-
-using JoinCode.Abstractions.Models.Goal;
 
 /// <summary>
 /// 目标状态持久化存储 — 按 sessionId 隔离，进程重启后可恢复目标状态。

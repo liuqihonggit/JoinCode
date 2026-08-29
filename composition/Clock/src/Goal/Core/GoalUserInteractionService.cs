@@ -1,6 +1,5 @@
-namespace Core.Goal;
+﻿namespace Core.Goal;
 
-using JoinCode.Abstractions.Interfaces;
 
 /// <summary>
 /// Goal 层用户交互服务 — 带超时的权限询问

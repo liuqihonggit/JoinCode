@@ -1,8 +1,5 @@
-namespace Core.Goal;
+﻿namespace Core.Goal;
 
-using JoinCode.Abstractions.Interfaces;
-using JoinCode.Abstractions.Interfaces.Scheduling;
-using JoinCode.Abstractions.Models.Goal;
 
 /// <summary>
 /// 目标状态持久化存储 — JSON 文件实现，按 sessionId 隔离，原子写入，AOT 兼容。

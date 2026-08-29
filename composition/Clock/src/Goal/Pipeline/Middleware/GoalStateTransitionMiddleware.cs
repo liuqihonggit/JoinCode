@@ -1,6 +1,5 @@
-namespace Core.Goal;
+﻿namespace Core.Goal;
 
-using JoinCode.Abstractions.Pipeline;
 
 /// <summary>
 /// 状态变更中间件 — 根据操作类型执行状态转换

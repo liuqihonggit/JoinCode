@@ -1,8 +1,5 @@
+﻿namespace Core.Goal;
 
-namespace Core.Goal;
-
-using System.Collections.Frozen;
-using Structura.Dag;
 
 // IGoalEngine 接口已移至 JoinCode.Abstractions.Interfaces.Scheduling
 

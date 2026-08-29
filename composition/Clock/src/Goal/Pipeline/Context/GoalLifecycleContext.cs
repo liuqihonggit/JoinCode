@@ -1,6 +1,5 @@
-namespace Core.Goal;
+﻿namespace Core.Goal;
 
-using JoinCode.Abstractions.Pipeline;
 
 /// <summary>
 /// 目标生命周期操作类型

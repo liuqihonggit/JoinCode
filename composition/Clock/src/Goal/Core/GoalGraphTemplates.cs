@@ -1,11 +1,5 @@
-namespace Core.Goal;
+﻿namespace Core.Goal;
 
-using System.Collections.Frozen;
-using JoinCode.Abstractions.Models.Agent;
-using JoinCode.Abstractions.Models.Goal;
-using JoinCode.Abstractions.Interfaces;
-using Core.Hooks.Lifecycle;
-using Structura.Dag;
 
 /// <summary>
 /// 预定义 Graph 模板 — 重构、修bug、调研报告、代码审查、测试生成

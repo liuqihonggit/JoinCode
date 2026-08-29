@@ -1,6 +1,5 @@
-namespace Core.Goal;
+﻿namespace Core.Goal;
 
-using JoinCode.Abstractions.Models.Goal;
 
 /// <summary>
 /// FunctionNode 执行上下文 — 提供上游输出、全局状态、服务访问

@@ -1,6 +1,5 @@
-namespace Core.Goal;
+﻿namespace Core.Goal;
 
-using System.Text.Json.Serialization;
 
 /// <summary>
 /// Graph 定义节点 DTO — goal_graph_define 工具的节点参数

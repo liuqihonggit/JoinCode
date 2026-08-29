@@ -1,7 +1,5 @@
+﻿namespace Core.Goal;
 
-namespace Core.Goal;
-
-using JoinCode.Abstractions.Models.Goal;
 
 [Register(typeof(IDecomposabilityAnalyzer), ServiceLifetime.Singleton)]
 public sealed partial class DecomposabilityAnalyzer : ServiceEntity, IDecomposabilityAnalyzer

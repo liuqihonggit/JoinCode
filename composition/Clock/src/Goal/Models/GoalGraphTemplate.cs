@@ -1,6 +1,5 @@
-namespace Core.Goal;
+﻿namespace Core.Goal;
 
-using JoinCode.Abstractions.Models.Goal;
 
 /// <summary>
 /// Goal Graph 模板 — 定义图结构 + 关键词匹配规则

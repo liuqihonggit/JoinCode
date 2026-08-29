@@ -86,3 +86,7 @@ global using Testing.Common.Services;
 global using Xunit.Abstractions;
 global using JoinCode.ChatCommands;
 global using FluentAssertions;
+global using JoinCode.Abstractions.Models.ErrorRecovery;
+global using JoinCode.Abstractions.Prompts;
+global using JoinCode.Abstractions.Utils.Diagnostics;
+global using JoinCode.Composition.ContextFold;

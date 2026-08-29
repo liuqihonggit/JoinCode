@@ -1,6 +1,5 @@
-namespace Mcp.Tests;
+﻿namespace Mcp.Tests;
 
-using McpProtocol;
 
 /// <summary>
 /// McpServer 防御性编程测试

@@ -1,6 +1,5 @@
-namespace Llm.Tests.Adapters.Chat;
+﻿namespace Llm.Tests.Adapters.Chat;
 
-using JoinCode.Abstractions.Transport;
 
 public class PipeQueryServiceTests
 {

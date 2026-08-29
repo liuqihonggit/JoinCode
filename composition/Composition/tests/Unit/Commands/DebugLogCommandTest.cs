@@ -1,10 +1,4 @@
-using JoinCode.Abstractions.Utils.Diagnostics;
-using JoinCode.Abstractions.Prompts;
-using JoinCode.Abstractions.Models.ErrorRecovery;
-using JoinCode.ChatCommands;
-using FluentAssertions;
-
-namespace Composition.Tests.Commands;
+﻿namespace Composition.Tests.Commands;
 
 /// <summary>
 /// DebugLogCommand 单元测试 — 验证参数解析、默认行为、clear 功能

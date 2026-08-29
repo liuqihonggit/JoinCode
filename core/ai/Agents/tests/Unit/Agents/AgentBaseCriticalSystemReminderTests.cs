@@ -1,9 +1,5 @@
 ﻿namespace Core.Agents.Tests.Unit.Agents;
 
-using JoinCode.Abstractions.Interfaces;
-using JoinCode.Abstractions.LLM.Chat;
-using JoinCode.Abstractions.LLM.Execution;
-using JoinCode.Abstractions.Models.Agent;
 
 /// <summary>
 /// AgentBase CriticalSystemReminder 每轮注入测试

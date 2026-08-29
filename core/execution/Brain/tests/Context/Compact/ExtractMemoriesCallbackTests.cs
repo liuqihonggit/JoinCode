@@ -1,7 +1,4 @@
-using JoinCode.Abstractions.Hooks;
-using JoinCode.Abstractions.Interfaces;
-
-namespace Brain.Tests.Context.Compact;
+﻿namespace Brain.Tests.Context.Compact;
 
 public sealed class ExtractMemoriesCallbackTests
 {

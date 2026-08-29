@@ -1,7 +1,5 @@
-namespace Llm.Tests.Adapters.LLM.QueryServices;
+﻿namespace Llm.Tests.Adapters.LLM.QueryServices;
 
-using System.Net.Http;
-using Api.LLM.QueryServices;
 
 public class FallbackProviderDefinitionTests
 {

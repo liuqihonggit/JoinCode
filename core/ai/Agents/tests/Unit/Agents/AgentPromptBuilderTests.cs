@@ -1,8 +1,5 @@
 ﻿namespace Core.Agents;
 
-using JoinCode.Abstractions.Interfaces;
-using JoinCode.Abstractions.Models.Agent;
-using Moq;
 
 public sealed class AgentPromptBuilderTests
 {

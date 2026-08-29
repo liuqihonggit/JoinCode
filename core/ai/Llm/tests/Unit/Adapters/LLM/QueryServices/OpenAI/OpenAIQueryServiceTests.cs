@@ -1,8 +1,5 @@
-namespace Llm.Tests.Adapters.LLM.QueryServices.OpenAI;
+﻿namespace Llm.Tests.Adapters.LLM.QueryServices.OpenAI;
 
-using System.Text.Json;
-using Api.LLM.QueryServices;
-using Api.LLM.QueryServices.OpenAI;
 
 public class OpenAIQueryServiceTests
 {

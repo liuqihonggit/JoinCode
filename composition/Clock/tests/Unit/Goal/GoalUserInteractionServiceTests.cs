@@ -1,8 +1,5 @@
-namespace Core.Goal.Tests;
+﻿namespace Core.Goal.Tests;
 
-using JoinCode.Abstractions.Interfaces;
-using JoinCode.Abstractions.Models.Interactive;
-using Microsoft.Extensions.Logging.Abstractions;
 
 public sealed class GoalUserInteractionServiceTests
 {

@@ -1,10 +1,5 @@
-namespace Core.Tests.ContextFold;
+﻿namespace Core.Tests.ContextFold;
 
-using JoinCode.Composition.ContextFold;
-using JoinCode.Abstractions.LLM;
-using JoinCode.Abstractions.LLM.Chat;
-using Microsoft.Extensions.Logging.Abstractions;
-using Moq;
 
 public sealed class FoldSummarizerTests
 {

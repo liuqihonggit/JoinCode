@@ -1,6 +1,4 @@
-using Core.Security.Services;
-
-namespace JoinCode.Tests.Guard;
+﻿namespace JoinCode.Tests.Guard;
 
 public class CommandClassifierSearchScopeTests
 {

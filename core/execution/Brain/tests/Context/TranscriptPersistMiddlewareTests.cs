@@ -1,8 +1,4 @@
-using Core.Context;
-using JoinCode.Abstractions.Interfaces;
-using JoinCode.Abstractions.LLM.Chat;
-
-namespace Brain.Tests.Context;
+﻿namespace Brain.Tests.Context;
 
 /// <summary>
 /// TranscriptPersistMiddleware 测试 — 对话流结束后把 ChatHistory 快照差量增量写入 transcript。

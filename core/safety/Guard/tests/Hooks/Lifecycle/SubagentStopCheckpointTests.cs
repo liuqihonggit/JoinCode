@@ -1,7 +1,5 @@
+﻿namespace Core.Tests.Hooks.Lifecycle;
 
-namespace Core.Tests.Hooks.Lifecycle;
-
-using JoinCode.Abstractions.Models.Build;
 
 public class SubagentStopCheckpointTests
 {

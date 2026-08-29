@@ -1,7 +1,5 @@
-namespace Core.Agents.Tests.Unit.Agents;
+﻿namespace Core.Agents.Tests.Unit.Agents;
 
-using JoinCode.Abstractions.Interfaces;
-using JoinCode.Abstractions.LLM.Execution;
 
 /// <summary>
 /// AgentLifecycleManager 子会话 ID 派生测试

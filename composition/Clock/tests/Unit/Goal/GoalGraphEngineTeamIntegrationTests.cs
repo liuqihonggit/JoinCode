@@ -1,10 +1,5 @@
+﻿namespace Core.Goal.Tests;
 
-namespace Core.Goal.Tests;
-
-using System.Collections.Frozen;
-using Microsoft.Extensions.DependencyInjection;
-using Structura.Dag;
-using Infrastructure.Time;
 
 /// <summary>
 /// T8.3: /goal 接入 team 组件 — 图执行时建团队，节点派发的 sub-agent 加入团队

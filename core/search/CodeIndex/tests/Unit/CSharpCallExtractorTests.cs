@@ -1,4 +1,4 @@
-namespace JoinCode.CodeIndex.Tests;
+﻿namespace JoinCode.CodeIndex.Tests;
 
 public sealed class CSharpCallExtractorTests
 {
@@ -387,7 +387,6 @@ public sealed class CSharpCallExtractorTests
     public void ExtractCalls_EventHandlerSubscription_Detected()
     {
         var source = """
-            using System;
             public class Service
             {
                 public event EventHandler Changed;
@@ -410,7 +409,6 @@ public sealed class CSharpCallExtractorTests
     public void ExtractCalls_EventHandlerUnsubscription_Detected()
     {
         var source = """
-            using System;
             public class Service
             {
                 public event EventHandler Changed;
@@ -453,7 +451,6 @@ public sealed class CSharpCallExtractorTests
     public void ExtractCalls_LambdaInLinqChain_AttributedToContainingMethod()
     {
         var source = """
-            using System.Linq;
             public class Item { public void Process() { } }
             public class Service
             {

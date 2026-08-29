@@ -78,3 +78,5 @@ global using System.Runtime.CompilerServices;
 global using Testing.Common;
 global using Testing.Common.Services;
 global using Xunit.Abstractions;
+global using JoinCode.Abstractions.Exceptions;
+global using JoinCode.Abstractions.Prompts.ToolPrompts;

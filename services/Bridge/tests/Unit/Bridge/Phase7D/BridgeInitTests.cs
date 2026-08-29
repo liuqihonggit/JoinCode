@@ -1,7 +1,5 @@
+﻿namespace Bridge.Tests.Phase7D;
 
-namespace Bridge.Tests.Phase7D;
-
-using CoreBridgeState = JoinCode.Transport.Bridge.BridgeState;
 
 public sealed class BridgeInitTests
 {

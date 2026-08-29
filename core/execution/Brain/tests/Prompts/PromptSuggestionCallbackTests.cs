@@ -1,7 +1,4 @@
-using JoinCode.Abstractions.Hooks;
-using JoinCode.Abstractions.Interfaces;
-
-namespace Brain.Tests.Prompts;
+﻿namespace Brain.Tests.Prompts;
 
 public sealed class PromptSuggestionCallbackTests
 {

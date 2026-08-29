@@ -51,3 +51,4 @@ global using Core.Tests.Fakes;
 global using TranscriptEntry = JoinCode.Abstractions.LLM.Chat.TranscriptEntry;
 global using TranscriptSummary = JoinCode.Abstractions.LLM.Chat.TranscriptSummary;
 global using Xunit.Abstractions;
+global using TestInMemFs = Testing.Common.Services.InMemoryFileSystem;

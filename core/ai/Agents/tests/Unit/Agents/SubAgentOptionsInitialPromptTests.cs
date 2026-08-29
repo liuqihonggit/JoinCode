@@ -1,6 +1,5 @@
-namespace Core.Agents;
+﻿namespace Core.Agents;
 
-using JoinCode.Abstractions.Models.Agent;
 
 public sealed class SubAgentOptionsInitialPromptTests
 {

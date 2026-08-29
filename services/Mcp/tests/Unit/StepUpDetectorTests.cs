@@ -1,7 +1,4 @@
-using System.Net;
-using McpClient.Transports;
-
-namespace Mcp.Tests;
+﻿namespace Mcp.Tests;
 
 public sealed class StepUpDetectorTests
 {

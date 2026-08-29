@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Configuration.Llm;
-
-namespace Mcp.Tests;
+﻿namespace Mcp.Tests;
 
 public sealed class ModelSearchToolHandlersTests
 {

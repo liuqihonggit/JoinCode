@@ -1,8 +1,5 @@
-namespace Bridge.Tests.Gate;
+﻿namespace Bridge.Tests.Gate;
 
-using JoinCode.Abstractions.Clock;
-using Core.Bridge.Gate;
-using Infrastructure.Pipeline;
 
 public sealed class BridgeGateMiddlewareTests
 {

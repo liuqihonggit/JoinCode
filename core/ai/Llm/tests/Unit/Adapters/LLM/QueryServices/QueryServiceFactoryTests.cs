@@ -1,11 +1,4 @@
-using Api.LLM.QueryServices;
-using Api.LLM.QueryServices.Agnes;
-using Api.LLM.QueryServices.Anthropic;
-using Api.LLM.QueryServices.Azure;
-using Api.LLM.QueryServices.OpenAI;
-using Api.LLM.QueryServices.Responses;
-
-namespace Llm.Tests.Adapters.LLM.QueryServices;
+﻿namespace Llm.Tests.Adapters.LLM.QueryServices;
 
 public sealed class QueryServiceFactoryTests
 {

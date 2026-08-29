@@ -1,10 +1,5 @@
+﻿namespace Core.Goal.Tests;
 
-namespace Core.Goal.Tests;
-
-using System.Collections.Frozen;
-using Microsoft.Extensions.DependencyInjection;
-using Structura.Dag;
-using Infrastructure.Time;
 
 /// <summary>
 /// T2.2: 派发前查热点表 — 热点文件契约改队长自己揽不派Worker

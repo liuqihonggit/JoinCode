@@ -1,10 +1,5 @@
-namespace Core.Agents;
+﻿namespace Core.Agents;
 
-using Core.Agents.ToolHandlers;
-using JoinCode.Abstractions.Interfaces;
-using JoinCode.Abstractions.Models.Agent;
-using Microsoft.Extensions.Logging.Abstractions;
-using Moq;
 
 public sealed class BuiltInAgentToolHandlersOutputTests
 {

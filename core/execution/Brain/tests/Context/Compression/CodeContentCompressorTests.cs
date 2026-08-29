@@ -1,5 +1,4 @@
-
-namespace Core.Tests.Context.Compression;
+﻿namespace Core.Tests.Context.Compression;
 
 public class CodeContentCompressorTests
 {
@@ -60,7 +59,6 @@ public class CodeContentCompressorTests
     public async Task CompressAsync_ShouldPreserveClassSignature()
     {
         var code = @"
-using System;
 
 public class TestClass
 {
@@ -115,8 +113,6 @@ public class TestClass
     public async Task CompressAsync_ShouldPreserveImports()
     {
         var code = @"
-using System;
-using System.Collections.Generic;
 
 public class Test { }";
 
@@ -131,9 +127,6 @@ public class Test { }";
     public async Task CompressAsync_ShouldRemoveImportsWhenNotPreserved()
     {
         var code = @"
-using System;
-using System.Collections.Generic;
-using System.Linq;
 
 public class Test {
     public void Method() {

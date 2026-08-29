@@ -1,8 +1,5 @@
+﻿namespace Core.Tests.Hooks.Lifecycle;
 
-namespace Core.Tests.Hooks.Lifecycle;
-
-using JoinCode.Abstractions.Models.Agent;
-using JoinCode.Abstractions.Models.Goal;
 
 public class ClusterPlanApprovalHookManagerTests
 {

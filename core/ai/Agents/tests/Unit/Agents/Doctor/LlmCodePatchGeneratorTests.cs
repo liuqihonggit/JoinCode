@@ -1,7 +1,5 @@
-namespace Core.Tests.Agents.Doctor;
+﻿namespace Core.Tests.Agents.Doctor;
 
-using JoinCode.Abstractions.Interfaces.Doctor;
-using JoinCode.Abstractions.LLM;
 
 public class LlmCodePatchGeneratorTests
 {

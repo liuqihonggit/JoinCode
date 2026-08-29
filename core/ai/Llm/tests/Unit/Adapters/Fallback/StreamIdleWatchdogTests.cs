@@ -1,7 +1,4 @@
-using Api.LLM.Fallback;
-using System.Runtime.CompilerServices;
-
-namespace Llm.Tests.Adapters.Fallback;
+﻿namespace Llm.Tests.Adapters.Fallback;
 
 public class StreamIdleWatchdogTests
 {

@@ -70,3 +70,7 @@ global using IO.FileSystem;
 global using Microsoft.Extensions.Time.Testing;
 global using Xunit;
 global using ValidationResult = Structura.Primitives.ValidationResult;
+global using HookPermissionUpdate = JoinCode.Abstractions.Hooks.PermissionUpdate;
+global using JoinCode.Abstractions.Models.Agent;
+global using JoinCode.Abstractions.Models.Build;
+global using JoinCode.Abstractions.Models.Goal;

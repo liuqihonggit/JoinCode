@@ -21,9 +21,9 @@
   <ItemGroup>
     <!-- 调试用：引用本地 Terminal.Gui 源码（.xxx/Terminal.Gui），可步入框架代码定位性能瓶颈 -->
     <!-- 恢复 NuGet 包时改回: <PackageReference Include="Terminal.Gui" Version="2.4.17" /> -->
-    <ProjectReference Include="$(RepoRoot)libs\Terminal.Gui\Terminal.Gui\Terminal.Gui.csproj" />
+    <ProjectReference Include="$(RepoRoot)libs\Terminal.Gui\Terminal.Gui\Terminal.Gui.csproj" Condition="Exists('$(RepoRoot)libs\Terminal.Gui\Terminal.Gui\Terminal.Gui.csproj')" />
     <!-- EditorView — rope-backed 文本编辑器，支持选择/复制/软换行；引用本地源码可调试 -->
-    <ProjectReference Include="$(RepoRoot)libs\Editor\src\Terminal.Gui.Editor\Terminal.Gui.Editor.csproj" />
+    <ProjectReference Include="$(RepoRoot)libs\Editor\src\Terminal.Gui.Editor\Terminal.Gui.Editor.csproj" Condition="Exists('$(RepoRoot)libs\Editor\src\Terminal.Gui.Editor\Terminal.Gui.Editor.csproj')" />
   </ItemGroup>
 
   <ItemGroup>

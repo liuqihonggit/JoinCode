@@ -1,6 +1,5 @@
-namespace Mcp.MockServer.Engine;
+﻿namespace Mcp.MockServer.Engine;
 
-using Mcp.MockServer.Models;
 
 /// <summary>
 /// MCP JSON-RPC 请求处理器 — 解析 JSON-RPC 消息并返回响应
@@ -114,7 +113,7 @@ public sealed class McpMockServerEngine
     {
         _sessionId ??= $"mock-{Guid.NewGuid():N}";
 
-        var result = new InitializeResult
+        var result = new Mcp.MockServer.Models.InitializeResult
         {
             ProtocolVersion = _config.ProtocolVersion,
             ServerInfo = new Implementation
@@ -122,7 +121,7 @@ public sealed class McpMockServerEngine
                 Name = _config.ServerName,
                 Version = _config.ServerVersion
             },
-            Capabilities = new ServerCapabilities
+            Capabilities = new Mcp.MockServer.Models.ServerCapabilities
             {
                 Tools = JsonDocument.Parse("{}").RootElement.Clone(),
                 Resources = JsonDocument.Parse("{}").RootElement.Clone(),
@@ -298,7 +297,7 @@ public sealed class McpMockServerEngine
 
     private static string BuildResult<T>(JsonElement id, T result, JsonTypeInfo<T> typeInfo)
     {
-        var response = new JsonRpcResponse
+        var response = new Mcp.MockServer.Models.JsonRpcResponse
         {
             Id = id,
             Result = JsonSerializer.SerializeToElement(result, typeInfo)
@@ -308,10 +307,10 @@ public sealed class McpMockServerEngine
 
     private static string BuildErrorResponse(JsonElement? id, int code, string message)
     {
-        var response = new JsonRpcResponse
+        var response = new Mcp.MockServer.Models.JsonRpcResponse
         {
             Id = id ?? default,
-            Error = new JsonRpcError { Code = code, Message = message }
+            Error = new Mcp.MockServer.Models.JsonRpcError { Code = code, Message = message }
         };
         return JsonSerializer.Serialize(response, McpMockServerJsonContext.Default.JsonRpcResponse);
     }

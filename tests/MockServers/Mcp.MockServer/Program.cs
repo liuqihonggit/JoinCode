@@ -1,7 +1,5 @@
-namespace Mcp.MockServer;
+﻿namespace Mcp.MockServer;
 
-using Mcp.MockServer.Engine;
-using Mcp.MockServer.Models;
 
 /// <summary>
 /// MCP MockServer 入口 — 通过 HTTP (Streamable HTTP) 接收 JSON-RPC 请求

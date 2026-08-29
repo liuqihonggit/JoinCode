@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-
-namespace IO.Services;
+﻿namespace IO.Services;
 
 [Register(typeof(IIdeIntegrationService), ServiceLifetime.Singleton)]
 public sealed partial class IdeIntegrationService : ServiceEntity, IIdeIntegrationService

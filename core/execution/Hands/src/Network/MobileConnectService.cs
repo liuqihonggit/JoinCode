@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-
-namespace IO.Services;
+﻿namespace IO.Services;
 
 [Register(typeof(IMobileConnectService), ServiceLifetime.Singleton)]
 public sealed partial class MobileConnectService : ServiceEntity, IMobileConnectService, IDisposable

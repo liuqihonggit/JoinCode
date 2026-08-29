@@ -1,6 +1,4 @@
-using System.Runtime.InteropServices;
-
-namespace JoinCode.Hands.Desktop.PulseOverlay;
+﻿namespace JoinCode.Hands.Desktop.PulseOverlay;
 
 /// <summary>
 /// 脉冲覆盖层 Win32 P/Invoke 声明 — 透明窗口创建/消息循环/GDI 绘制

@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-
-namespace Tools.Handlers;
+﻿namespace Tools.Handlers;
 
 [Register(typeof(FileToolHandlersContext), ServiceLifetime.Singleton)]
 public sealed record FileToolHandlersContext(

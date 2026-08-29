@@ -1,7 +1,4 @@
-using System.Collections.Concurrent;
-using JoinCode.Abstractions.Attributes;
-
-namespace IO.Services;
+﻿namespace IO.Services;
 
 [Register(typeof(IPeerDiscoveryService), ServiceLifetime.Singleton)]
 public sealed partial class PeerDiscoveryService : ServiceEntity, IPeerDiscoveryService

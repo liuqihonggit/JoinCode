@@ -122,3 +122,5 @@ global using Infrastructure.Pipeline;
 global using ValidationHelper = Core.Utils.ValidationHelper;
 global using ValidationResult = Structura.Primitives.ValidationResult;
 global using Core.Scheduling.Tasks;
+global using Docnet.Core;
+global using Docnet.Core.Models;

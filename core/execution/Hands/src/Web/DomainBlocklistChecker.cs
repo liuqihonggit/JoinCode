@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-
-namespace Services.Web;
+﻿namespace Services.Web;
 
 /// <summary>
 /// 域名黑名单预检服务

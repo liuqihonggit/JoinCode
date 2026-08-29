@@ -1,6 +1,5 @@
-namespace Services.Build;
+﻿namespace Services.Build;
 
-using System.Diagnostics.CodeAnalysis;
 
 /// <summary>
 /// 编译队列服务 — 编译请求串行化 + 结果缓冲区

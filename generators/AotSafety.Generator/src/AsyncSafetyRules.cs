@@ -765,13 +765,26 @@ namespace AotSafety.Generator
             if (string.IsNullOrEmpty(filePath)) return;
             if (filePath[0] == '/') return;
 
-            var isLibCode = HasPathSegment(filePath, "lib");
-            var isSubsystemCode = HasPathSegment(filePath, "subsystems");
-            if (!isLibCode && !isSubsystemCode) return;
+            if (!IsLibraryCodePath(filePath)) return;
 
             if (HasConfigureAwaitFalse(awaitExpr)) return;
 
             ctx.ReportDiagnostic(Diagnostic.Create(RuleConfigureAwaitFalse, awaitExpr.GetLocation()));
+        }
+
+        private static bool IsLibraryCodePath(string filePath)
+        {
+            if (HasPathSegment(filePath, "tests")) return false;
+            if (HasPathSegment(filePath, "generators")) return false;
+            if (HasPathSegment(filePath, "tools")) return false;
+            if (HasPathSegment(filePath, "libs")) return false;
+            if (HasPathSegment(filePath, "app")) return false;
+
+            return HasPathSegment(filePath, "foundation")
+                || HasPathSegment(filePath, "infrastructure")
+                || HasPathSegment(filePath, "core")
+                || HasPathSegment(filePath, "services")
+                || HasPathSegment(filePath, "composition");
         }
 
         private static bool HasPathSegment(string filePath, string segment)

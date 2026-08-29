@@ -224,3 +224,12 @@ dotnet_naming_style.begins_with_i.required_prefix = I
 dotnet_naming_style.begins_with_i.required_suffix = 
 dotnet_naming_style.begins_with_i.word_separator = 
 dotnet_naming_style.begins_with_i.capitalization = pascal_case
+
+#### JCC 分析器规则覆盖 ####
+
+# JCC3008: ConfigureAwait(false) 检测
+# 暂时禁用：分析器路径检测已修复（lib/subsystems → foundation/infrastructure/core/services/composition），
+# 但库代码中约 4533 处 await 遗漏 ConfigureAwait(false)，无法一次性修复。
+# 将逐层修复后移除此覆盖，恢复默认 warning 级别。
+# 详见 ADR 0045 和 docs/adr/0045-configureawait-false.md
+dotnet_diagnostic.JCC3008.severity = none

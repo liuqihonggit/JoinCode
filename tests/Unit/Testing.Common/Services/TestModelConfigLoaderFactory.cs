@@ -51,13 +51,13 @@ public static class TestModelConfigLoaderFactory
             },
             ["anthropic"] = new ModelProviderConfig
             {
-                DefaultModelId = "claude-opus-4-7-20250701",
-                DefaultFastModelId = "claude-haiku-4-5-20251001",
+                DefaultModelId = "claude-opus-4-7",
+                DefaultFastModelId = "claude-haiku-4-5",
                 Models =
                 [
                     new ModelItemConfig
                     {
-                        Id = "claude-opus-4-7-20250701",
+                        Id = "claude-opus-4-7",
                         DisplayName = "Claude Opus 4.7",
                         ContextWindow = 1000000,
                         Aliases = ["opus", "default"],
@@ -66,7 +66,7 @@ public static class TestModelConfigLoaderFactory
                     },
                     new ModelItemConfig
                     {
-                        Id = "claude-haiku-4-5-20251001",
+                        Id = "claude-haiku-4-5",
                         DisplayName = "Claude Haiku 4.5",
                         ContextWindow = 200000,
                         Aliases = ["haiku", "fast"],

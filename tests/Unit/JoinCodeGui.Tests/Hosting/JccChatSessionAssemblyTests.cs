@@ -85,10 +85,9 @@ public class JccChatSessionAssemblyTests
 
     private static readonly string[] FixtureAnthropic =
     [
-        "claude-opus-4-7-20250701", "claude-opus-4-6-20250514", "claude-opus-4-5-20251101",
-        "claude-sonnet-4-6-20250514", "claude-haiku-4-5-20251001",
-        "claude-opus-5-20250815", "claude-sonnet-5-20250815", "claude-fable-5-20250815",
-        "claude-opus-4-8-20250715"
+        "claude-mythos-5", "claude-opus-5", "claude-sonnet-5", "claude-fable-5",
+        "claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6",
+        "claude-sonnet-4-6", "claude-sonnet-4-5", "claude-opus-4-5", "claude-haiku-4-5"
     ];
 
     private static readonly string[] FixtureAgnes =
@@ -104,7 +103,7 @@ public class JccChatSessionAssemblyTests
         loader.ApplyProviders(new Dictionary<string, JoinCode.Abstractions.Configuration.Llm.ModelProviderConfig>(StringComparer.OrdinalIgnoreCase)
         {
             ["openai"] = new() { DefaultModelId = "gpt-5.6-sol", Models = [.. FixtureOpenai.Select(id => new JoinCode.Abstractions.Configuration.Llm.ModelItemConfig { Id = id })] },
-            ["anthropic"] = new() { DefaultModelId = "claude-sonnet-5-20250815", Models = [.. FixtureAnthropic.Select(id => new JoinCode.Abstractions.Configuration.Llm.ModelItemConfig { Id = id })] },
+            ["anthropic"] = new() { DefaultModelId = "claude-sonnet-5", Models = [.. FixtureAnthropic.Select(id => new JoinCode.Abstractions.Configuration.Llm.ModelItemConfig { Id = id })] },
             ["deepseek"] = new() { DefaultModelId = "deepseek-v4-pro", Models = [.. FixtureDeepseek.Select(id => new JoinCode.Abstractions.Configuration.Llm.ModelItemConfig { Id = id })] },
             ["agnes"] = new() { DefaultModelId = "agnes-2.0-flash", Models = [.. FixtureAgnes.Select(id => new JoinCode.Abstractions.Configuration.Llm.ModelItemConfig { Id = id })] },
             ["sensenova"] = new() { DefaultModelId = "sensenova-6.7-flash-lite", Models = [.. FixtureSensenova.Select(id => new JoinCode.Abstractions.Configuration.Llm.ModelItemConfig { Id = id })] },

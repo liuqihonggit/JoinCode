@@ -52,19 +52,19 @@
 
 ## Anthropic（11 个模型）
 
-| 模型 ID | 别名 | 上下文 | 说明 |
-|---------|------|--------|------|
-| `claude-mythos-5-20250815` | `mythos5`、`best` | 1M | Claude Mythos 5 旗舰模型，1M 上下文 |
-| `claude-opus-5-20250815` | `opus5` | 1M | Opus 5，1M 上下文，最强推理 |
-| `claude-sonnet-5-20250815` | `sonnet5` | 1M | Sonnet 5，1M 上下文 |
-| `claude-fable-5-20250815` | `fable5` | 1M | Fable 5 创意写作模型 |
-| `claude-opus-4-8-20250715` | `opus4.8` | 1M | Opus 4.8，1M 上下文 |
-| `claude-opus-4-7-20250701` | `opus` | 1M | Opus 4.7，1M 上下文 |
-| `claude-opus-4-6-20250514` | — | 1M | Opus 4.6，1M 上下文 |
-| `claude-sonnet-4-6-20250514` | `sonnet` | 200K | Sonnet 4.6，平衡性能与速度 |
-| `claude-sonnet-4-5-20250929` | — | 200K | Sonnet 4.5 |
-| `claude-opus-4-5-20251101` | — | 200K | Opus 4.5 |
-| `claude-haiku-4-5-20251001` | `haiku` | 200K | 快速低成本模型 |
+| 模型 ID | 别名 | 发布日期 | 上下文 | 说明 |
+|---------|------|----------|--------|------|
+| `claude-mythos-5` | `mythos5`、`best` | 2025-08-15 | 1M | Claude Mythos 5 旗舰模型 |
+| `claude-opus-5` | `opus5` | 2025-08-15 | 1M | Opus 5，最强推理 |
+| `claude-sonnet-5` | `sonnet5` | 2025-08-15 | 1M | Sonnet 5 |
+| `claude-fable-5` | `fable5` | 2025-08-15 | 1M | Fable 5 创意写作模型 |
+| `claude-opus-4-8` | `opus4.8` | 2025-07-15 | 1M | Opus 4.8 |
+| `claude-opus-4-7` | `opus` | 2025-07-01 | 1M | Opus 4.7 |
+| `claude-opus-4-6` | — | 2025-05-14 | 1M | Opus 4.6 |
+| `claude-sonnet-4-6` | `sonnet` | 2025-05-14 | 200K | Sonnet 4.6，平衡性能与速度 |
+| `claude-sonnet-4-5` | — | 2025-09-29 | 200K | Sonnet 4.5 |
+| `claude-opus-4-5` | — | 2025-11-01 | 200K | Opus 4.5 |
+| `claude-haiku-4-5` | `haiku` | 2025-10-01 | 200K | 快速低成本模型 |
 
 ## SenseNova（5 个模型）
 

@@ -90,7 +90,7 @@ public static class SettingsLoader
             "anthropic": {
               "provider": "anthropic",
               "protocol": "anthropic",
-              "model": "claude-opus-5-20250815",
+              "model": "claude-opus-5",
               "endpoint": "https://api.anthropic.com",
               "apiKeyEnvVar": "ANTHROPIC_API_KEY",
               "models": [],

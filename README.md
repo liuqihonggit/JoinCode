@@ -16,7 +16,7 @@ all in a single command.
 It compiles to a native single-file executable `jcc.exe` with zero runtime
 dependencies and peak performance on launch.
 
-> 📖 **中文文档** · [README (中文)](docs/zh-CN/README.md) · [AGENTS.md](AGENTS.md) (engineering rules)
+> 📖 **Engineering rules:** [AGENTS.md](AGENTS.md) (Chinese) · [ADR](docs/adr/README.md)
 
 ---
 
@@ -28,6 +28,7 @@ dependencies and peak performance on launch.
 - [Core Features](#core-features)
 - [Architecture](#architecture)
 - [Configuration](#configuration)
+- [Detailed Documentation](#detailed-documentation)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -102,7 +103,7 @@ Provider API keys:
 |----------|---------------------|------------------|
 | `deepseek` | `DEEPSEEK_API_KEY` | Built-in (OpenAI-compatible) |
 | `openai` | `OPENAI_API_KEY` | `https://api.openai.com/v1` |
-| `anthropic` | `ANTHROPIC_API_KEY` | `https://api.anthropic.com` |
+| `anthropic` | `ANTHROPIC_API_KEY` | `https://api.anthropic.com` (or SenseNova relay) |
 | `azure` | `AZURE_OPENAI_API_KEY` | User-configured Azure OpenAI |
 | `sensenova` | `SENSENOVA_API_KEY` | `https://token.sensenova.cn/v1` |
 | `agnes` | `AGNES_API_KEY` | `https://apihub.agnes-ai.com/v1` |
@@ -139,9 +140,9 @@ jcc --debuglog -p "hello"
 | `-p` / `--prompt <text>` | Non-interactive single prompt |
 | `-m` / `--model <id>` | Model ID or alias |
 | `--tui` | Launch TUI full-screen interface |
-| `--bypass` | Skip all permission checks (≡ `--permission-mode bypass`) |
+| `--bypass` | Skip all permission checks (equivalent to `--permission-mode bypass`) |
 | `--permission-mode <mode>` | Permission mode: `plan` / `auto` / `ask` / `bypass` |
-| `--debuglog` / `-d` | Enable debug logging (≡ `JCC_DEBUGLOG=1`) |
+| `--debuglog` / `-d` | Enable debug logging (equivalent to `JCC_DEBUGLOG=1`) |
 | `--await <seconds>` | Non-interactive timeout auto-close (returns 1234 on timeout) |
 | `--doctor` | Doctor mode: monitor and auto-fix a patient process |
 | `--non-interactive` | Read from stdin, write to stdout |

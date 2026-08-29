@@ -1,6 +1,5 @@
 namespace JoinCode.Pipelines;
 
-using JoinCode.Pipelines.Middlewares;
 
 /// <summary>
 /// 管道组合根 — 洋葱模型，手动 .Use() 注册中间件，顺序肉眼可见

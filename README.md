@@ -149,16 +149,58 @@ jcc --debuglog -p "hello"
 
 ### Slash Commands
 
+**Session & Chat:**
+
 | Command | Description |
 |---------|-------------|
 | `/help` | List all commands |
+| `/clear` | Clear chat history (aliases: `reset`, `new`, `cls`) |
+| `/compact` | Compact context toGPT to save tokens (alias: `comp`) |
+| `/rewind` | Restore code/conversation to previous state (alias: `checkpoint`) |
+| `/fork` | Create a conversation branch (alias: `branch`) |
+| `/resume` | Resume a previous session (alias: `continue`) |
+| `/exit` | Exit (alias: `x`) |
+
+**Models & Providers:**
+
+| Command | Description |
+|---------|-------------|
 | `/model <name>` | Switch model (e.g., `/model flash`, `/model pro`) |
-| `/goal` | Goal setting (Outcome + Verification + Constraints) |
+| `/vendor <name>` | Switch LLM provider (`openai` / `anthropic` / `deepseek` / …) |
+| `/sampling` | Set temperature / max tokens |
+| `/effort` | Adjust reasoning effort (`low` / `medium` / `high` / `max` / `auto`) |
+
+**Agents & Reasoning:**
+
+| Command | Description |
+|---------|-------------|
+| `/goal` | Goal autonomous loop engine (Outcome + Verification + Constraints) |
 | `/falv` | Structured reasoning (three-branch + evidence chain + dual budget) |
-| `/brief` | Brief mode |
-| `/clear` | Clear context |
-| `/rewind` | Rewind messages |
-| `/exit` | Exit |
+| `/plan` | Plan mode management |
+| `/agents` | View and manage agents |
+| `/tasks` | List and manage background tasks |
+
+**Tools & Config:**
+
+| Command | Description |
+|---------|-------------|
+| `/mcp` | Manage MCP servers |
+| `/config` | Manage configuration settings |
+| `/permissions` | Manage permission rules |
+| `/tools` | List available tools |
+| `/init` | AI-driven project config initialization |
+| `/doctor` | Diagnose environment (alias: `dr`) |
+
+**Info:**
+
+| Command | Description |
+|---------|-------------|
+| `/status` | Show version, model, account, API status |
+| `/cost` | Show usage cost statistics |
+| `/stats` | Show session statistics |
+| `/context` | Show context statistics |
+
+> Run `/help` in JoinCode for the complete list of 80+ commands.
 
 ---
 

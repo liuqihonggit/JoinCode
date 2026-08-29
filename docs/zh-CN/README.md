@@ -181,16 +181,58 @@ jcc -p "你好"
 
 ### 1.5 常用斜杠命令
 
+**会话与聊天：**
+
 | 命令 | 说明 |
 |------|------|
 | `/help` | 查看所有命令 |
+| `/clear` | 清空聊天历史（别名：`reset`、`new`、`cls`） |
+| `/compact` | 压缩对话上下文以节省 Token（别名：`comp`） |
+| `/rewind` | 恢复代码和/或对话到之前的状态（别名：`checkpoint`） |
+| `/fork` | 创建当前对话的分支（别名：`branch`） |
+| `/resume` | 恢复之前的会话（别名：`continue`） |
+| `/exit` | 退出（别名：`x`） |
+
+**模型与供应商：**
+
+| 命令 | 说明 |
+|------|------|
 | `/model <name>` | 切换模型（如 `/model flash`、`/model pro`） |
-| `/goal` | 目标设定（Outcome + Verification + Constraints） |
+| `/vendor <name>` | 切换 LLM 供应商（`openai` / `anthropic` / `deepseek` / …） |
+| `/sampling` | 查看或设置采样参数（温度/最大Token） |
+| `/effort` | 调整推理力度（`low` / `medium` / `high` / `max` / `auto`） |
+
+**Agent 与推理：**
+
+| 命令 | 说明 |
+|------|------|
+| `/goal` | 目标自主循环引擎（Outcome + Verification + Constraints） |
 | `/falv` | 结构化推理（三权分立 + 证据链 + 双预算） |
-| `/brief` | 简要模式 |
-| `/clear` | 清空上下文 |
-| `/rewind` | 撤回消息 |
-| `/exit` | 退出 |
+| `/plan` | 计划模式管理 |
+| `/agents` | 查看和管理代理 |
+| `/tasks` | 列出和管理后台任务 |
+
+**工具与配置：**
+
+| 命令 | 说明 |
+|------|------|
+| `/mcp` | 管理 MCP 服务器 |
+| `/config` | 管理配置设置 |
+| `/permissions` | 管理权限规则 |
+| `/tools` | 显示可用工具列表 |
+| `/init` | AI驱动初始化项目配置文件 |
+| `/doctor` | 诊断环境配置和依赖（别名：`dr`） |
+
+**信息：**
+
+| 命令 | 说明 |
+|------|------|
+| `/status` | 显示版本、模型、账户、API连接和工具状态 |
+| `/cost` | 显示使用成本统计 |
+| `/stats` | 查看会话统计 |
+| `/context` | 显示当前会话上下文统计 |
+
+> 在 JoinCode 中运行 `/help` 查看完整的 80+ 命令列表。
 
 ---
 

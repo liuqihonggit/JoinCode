@@ -92,3 +92,5 @@ global using TranscriptEntry = JoinCode.Abstractions.LLM.Chat.TranscriptEntry;
 global using TranscriptSummary = JoinCode.Abstractions.LLM.Chat.TranscriptSummary;
 global using Xunit;
 global using Xunit.Abstractions;
+global using ChatApiMessage = JoinCode.Abstractions.LLM.Chat.ApiMessage;
+global using ChatMessageRole = JoinCode.Abstractions.LLM.Chat.MessageRole;

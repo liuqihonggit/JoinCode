@@ -17,7 +17,7 @@ public sealed class BuiltInAgentToolHandlersOutputTests
     {
         var svcMock = new Mock<IAgentService>();
         svcMock.Setup(x => x.SpawnAgentAsync(It.IsAny<AgentSpawnOptions>(), It.IsAny<CancellationToken>()))
-               .ReturnsAsync(new AgentInfo { Id = agentId, Description = "test" });
+               .ReturnsAsync(new JoinCode.Abstractions.Interfaces.AgentInfo { Id = agentId, Description = "test" });
         svcMock.Setup(x => x.WaitForAgentAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                .ReturnsAsync(new AgentResult { AgentId = agentId, Success = success, Output = output });
 
@@ -34,7 +34,7 @@ public sealed class BuiltInAgentToolHandlersOutputTests
     {
         var svcMock = new Mock<IAgentService>();
         svcMock.Setup(x => x.SpawnAgentAsync(It.IsAny<AgentSpawnOptions>(), It.IsAny<CancellationToken>()))
-               .ReturnsAsync(new AgentInfo { Id = agentId, Description = "test" });
+               .ReturnsAsync(new JoinCode.Abstractions.Interfaces.AgentInfo { Id = agentId, Description = "test" });
         svcMock.Setup(x => x.WaitForAgentAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                .ReturnsAsync(new AgentResult { AgentId = agentId, Success = success, Output = output });
 
@@ -79,7 +79,7 @@ public sealed class BuiltInAgentToolHandlersOutputTests
     {
         var svcMock = new Mock<IAgentService>();
         svcMock.Setup(x => x.SpawnAgentAsync(It.IsAny<AgentSpawnOptions>(), It.IsAny<CancellationToken>()))
-               .ReturnsAsync(new AgentInfo { Id = "raw", Description = "t" });
+               .ReturnsAsync(new JoinCode.Abstractions.Interfaces.AgentInfo { Id = "raw", Description = "t" });
         svcMock.Setup(x => x.WaitForAgentAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                .ReturnsAsync(new AgentResult { AgentId = "raw", Success = true, Output = "raw output" });
         var roleMock = new Mock<IAgentRoleRegistry>();

@@ -1,7 +1,4 @@
-using System.Net.Http.Headers;
-using System.Text;
-
-namespace JoinCode.Transport;
+﻿namespace JoinCode.Transport;
 
 /// <summary>
 /// SSE 传输配置

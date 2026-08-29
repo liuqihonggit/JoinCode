@@ -117,8 +117,8 @@ jcc --trust -p "Explain this codebase architecture"
 # Interactive REPL
 jcc --trust
 
-# TUI full-screen mode (Terminal.Gui v2)
-jcc --trust --tui
+# TUI full-screen mode (standalone jcctui.exe, Terminal.Gui v2)
+jcctui --trust
 
 # Specify model
 jcc --trust -m gpt-4o
@@ -139,7 +139,7 @@ jcc --debuglog -p "hello"
 | `--trust` | Trust current directory (skip trust prompt) |
 | `-p` / `--prompt <text>` | Non-interactive single prompt |
 | `-m` / `--model <id>` | Model ID or alias |
-| `--tui` | Launch TUI full-screen interface |
+| `jcctui` | Launch standalone TUI full-screen interface (Terminal.Gui v2) |
 | `--bypass` | Skip all permission checks (equivalent to `--permission-mode bypass`) |
 | `--permission-mode <mode>` | Permission mode: `plan` / `auto` / `ask` / `bypass` |
 | `--debuglog` / `-d` | Enable debug logging (equivalent to `JCC_DEBUGLOG=1`) |

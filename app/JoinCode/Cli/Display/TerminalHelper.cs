@@ -8,7 +8,7 @@ public static class TerminalHelper
     private static bool _isInitialized;
 
     /// <summary>
-    /// 是否禁用颜色输出 — 由 NO_COLOR 环境变量或 CliModeDetector 控制
+    /// 是否禁用颜色输出 — 由 NO_COLOR 环境变量控制
     /// 对齐架构指南：检测到 NO_COLOR 时自动降级为零着色模式
     /// </summary>
     private static bool _noColor;

@@ -2,7 +2,7 @@
 
 > 此文档从 README 摘出，详细列出所有预置模型。
 
-配置文件 `~/.jcc/settings.json` 预置了 5 个供应商共 41 个模型条目（跨供应商去重后 40 个独立模型，`deepseek-v4-flash` 在 DeepSeek 与 SenseNova 下各声明一次），按供应商分组如下：
+配置文件 `~/.jcc/settings.json` 预置了 5 个供应商共 43 个模型条目（跨供应商去重后 42 个独立模型，`deepseek-v4-flash` 在 DeepSeek 与 SenseNova 下各声明一次），按供应商分组如下：
 
 ## 供应商协议与端点汇总
 
@@ -50,18 +50,20 @@
 | `gpt-audio` | `audio` | 128K | GPT 语音对话模型 |
 | `gpt-audio-mini` | `audio-mini` | 128K | GPT 语音对话快速版 |
 
-## Anthropic（9 个模型）
+## Anthropic（11 个模型）
 
 | 模型 ID | 别名 | 上下文 | 说明 |
 |---------|------|--------|------|
-| `claude-opus-5-20250815` | `opus5`、`best` | 1M | 最新旗舰 Opus 5，1M 上下文 |
-| `claude-sonnet-5-20250815` | `sonnet5` | 1M | 最新 Sonnet 5，1M 上下文 |
-| `claude-fable-5-20250815` | `fable5` | 1M | Claude Fable 5 创意写作模型 |
+| `claude-mythos-5-20250815` | `mythos5`、`best` | 1M | Claude Mythos 5 旗舰模型，1M 上下文 |
+| `claude-opus-5-20250815` | `opus5` | 1M | Opus 5，1M 上下文，最强推理 |
+| `claude-sonnet-5-20250815` | `sonnet5` | 1M | Sonnet 5，1M 上下文 |
+| `claude-fable-5-20250815` | `fable5` | 1M | Fable 5 创意写作模型 |
 | `claude-opus-4-8-20250715` | `opus4.8` | 1M | Opus 4.8，1M 上下文 |
-| `claude-opus-4-7-20250701` | `opus`、`best` | 1M | 旗舰 Opus 4.7，1M 上下文，最强推理 |
+| `claude-opus-4-7-20250701` | `opus` | 1M | Opus 4.7，1M 上下文 |
 | `claude-opus-4-6-20250514` | — | 1M | Opus 4.6，1M 上下文 |
-| `claude-opus-4-5-20251101` | — | 200K | Opus 4.5 |
 | `claude-sonnet-4-6-20250514` | `sonnet` | 200K | Sonnet 4.6，平衡性能与速度 |
+| `claude-sonnet-4-5-20250929` | — | 200K | Sonnet 4.5 |
+| `claude-opus-4-5-20251101` | — | 200K | Opus 4.5 |
 | `claude-haiku-4-5-20251001` | `haiku` | 200K | 快速低成本模型 |
 
 ## SenseNova（5 个模型）
@@ -88,4 +90,4 @@
 
 ---
 
-交互模式下可通过 `/model <别名或ID>` 快速切换模型，例如 `/model flash`、`/model pro`、`/model opus5`、`/model sonnet`、`/model 5.6`。
+交互模式下可通过 `/model <别名或ID>` 快速切换模型，例如 `/model flash`、`/model pro`、`/model mythos5`、`/model opus5`、`/model sonnet`、`/model 5.6`。

@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-
-namespace Core.Prompts.Sections;
+﻿namespace Core.Prompts.Sections;
 
 /// <summary>
 /// 系统提醒部分 - 关于system-reminder标签的说明

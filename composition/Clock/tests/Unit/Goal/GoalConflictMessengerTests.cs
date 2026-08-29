@@ -1,8 +1,5 @@
+﻿namespace Core.Goal.Tests;
 
-namespace Core.Goal.Tests;
-
-using JoinCode.Abstractions.Interfaces.Scheduling;
-using JoinCode.Abstractions.Models.Goal;
 
 public sealed class GoalConflictMessengerTests
 {

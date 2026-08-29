@@ -1,9 +1,5 @@
+﻿namespace Core.Bridge;
 
-namespace Core.Bridge;
-
-using JoinCode.Abstractions.Pipeline;
-using Infrastructure.Pipeline;
-using Core.Bridge.Init;
 
 public static partial class BridgeRemoteCore
 {

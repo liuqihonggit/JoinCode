@@ -1,7 +1,5 @@
-namespace Infra.Tests.LLM.OpenAI;
+﻿namespace Infra.Tests.LLM.OpenAI;
 
-using Api.LLM;
-using JoinCode.Abstractions.Utils;
 
 /// <summary>
 /// OpenAI 流式 usage 解析测试

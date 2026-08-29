@@ -1,6 +1,5 @@
-namespace Infrastructure.Pipeline.Middlewares;
+﻿namespace Infrastructure.Pipeline.Middlewares;
 
-using JoinCode.Abstractions.Models.ErrorRecovery;
 
 /// <summary>
 /// 通用崩溃快照中间件 — 捕获管道异常自动记录 CrashSnapshot 后重新抛出

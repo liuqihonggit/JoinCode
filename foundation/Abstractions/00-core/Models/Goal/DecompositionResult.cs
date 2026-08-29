@@ -1,7 +1,5 @@
 namespace JoinCode.Abstractions.Models.Goal;
 
-using JoinCode.Abstractions.Models.Agent;
-
 /// <summary>
 /// 任务分解分析结果
 /// </summary>

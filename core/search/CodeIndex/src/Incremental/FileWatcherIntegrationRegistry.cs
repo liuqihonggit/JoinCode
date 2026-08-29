@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-
-namespace JoinCode.CodeIndex;
+﻿namespace JoinCode.CodeIndex;
 
 /// <summary>
 /// 多仓库文件监听注册表 — 订阅 ICodeIndexerRegistry 的 RepoRegistered/RepoUnregistered 事件

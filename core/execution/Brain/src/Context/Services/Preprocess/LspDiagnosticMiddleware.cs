@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-
-namespace Core.Context;
+﻿namespace Core.Context;
 
 /// <summary>
 /// LSP 诊断注入中间件 — 检查待处理的 LSP 诊断并注入提醒

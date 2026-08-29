@@ -1,6 +1,5 @@
-namespace Core.Tests.ChatCommands;
+﻿namespace Core.Tests.ChatCommands;
 
-using JoinCode.Abstractions.Models;
 
 /// <summary>
 /// /ultraplan 命令单元测试 — P0-A TDD 红阶段

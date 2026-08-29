@@ -1,6 +1,4 @@
-using JoinCode.Tui.Tui;
-
-namespace Host.Tests.Tui;
+﻿namespace Host.Tests.Tui;
 
 /// <summary>
 /// TUI 问答选择输入解析测试 — AskUserDialogView 的 TextField 文本 → 选项索引。

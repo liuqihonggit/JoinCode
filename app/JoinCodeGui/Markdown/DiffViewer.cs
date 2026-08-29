@@ -1,11 +1,4 @@
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Layout;
-using Avalonia.Media;
-
-using JoinCode.Gui.Theming;
-
-namespace JoinCode.Gui.Markdown;
+﻿namespace JoinCode.Gui.Markdown;
 
 /// <summary>
 /// Diff 渲染控件 — 接收 <see cref="StructuredPatchHunk"/> 数组，渲染为带行号与增删行高亮的控件树。

@@ -1,6 +1,5 @@
 ﻿namespace Core.Agents.Tests.Unit.Agents;
 
-using JoinCode.Abstractions.Configuration.Llm;
 
 /// <summary>
 /// BedrockModelHelper 单元测试 — 对齐 TS 原版 src/utils/model/bedrock.ts

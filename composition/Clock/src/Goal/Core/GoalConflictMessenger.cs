@@ -1,8 +1,5 @@
-namespace Core.Goal;
+﻿namespace Core.Goal;
 
-using System.Threading.Channels;
-using JoinCode.Abstractions.Interfaces.Scheduling;
-using JoinCode.Abstractions.Models.Goal;
 
 /// <summary>
 /// 节点间冲突消息队列 — 每节点独立 Channel，非阻塞入队/拉取。

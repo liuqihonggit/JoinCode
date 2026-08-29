@@ -1,14 +1,4 @@
-﻿using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Input;
-using Avalonia.Interactivity;
-using Avalonia.VisualTree;
-
-using JoinCode.Abstractions.Models.Interactive;
-using JoinCode.Gui.Theming;
-using JoinCode.Gui.ViewModels;
-
-namespace JoinCode.Gui.Views;
+﻿namespace JoinCode.Gui.Views;
 
 /// <summary>
 /// 主窗口 code-behind — 仅承载视图逻辑（输入回车发送、新消息自动滚动到底、错误 toast 显示）。

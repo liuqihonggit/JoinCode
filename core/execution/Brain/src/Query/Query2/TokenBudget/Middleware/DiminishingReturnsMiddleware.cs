@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-
-namespace Core.Query;
+﻿namespace Core.Query;
 
 /// <summary>
 /// 递减回报检测中间件 — 每次工具调用后检测递减回报

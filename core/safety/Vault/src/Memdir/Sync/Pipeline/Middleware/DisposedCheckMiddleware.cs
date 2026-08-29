@@ -1,6 +1,5 @@
-namespace Memdir.Sync;
+﻿namespace Memdir.Sync;
 
-using JoinCode.Abstractions.Pipeline;
 
 /// <summary>
 /// 已释放/已运行检查中间件 — 短路无效启动请求

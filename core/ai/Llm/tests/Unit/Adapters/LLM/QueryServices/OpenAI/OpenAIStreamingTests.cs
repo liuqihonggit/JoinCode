@@ -1,9 +1,5 @@
-namespace Llm.Tests.Adapters.LLM.QueryServices.OpenAI;
+﻿namespace Llm.Tests.Adapters.LLM.QueryServices.OpenAI;
 
-using System.Net;
-using System.Text;
-using Api.LLM.QueryServices;
-using Api.LLM.QueryServices.OpenAI;
 
 /// <summary>
 /// 流式响应读取单元测试 — 验证 SendStreamingRequestAsync 在收到 data: [DONE] 后正确退出，不卡住

@@ -1,8 +1,4 @@
-using FluentAssertions;
-
-using JoinCode.Gui.SlashCommands;
-
-namespace JoinCode.Gui.Tests.SlashCommands;
+﻿namespace JoinCode.Gui.Tests.SlashCommands;
 
 /// <summary>
 /// FileCompletionProvider 单元测试 — 验证当前目录文件扫描与前缀过滤。

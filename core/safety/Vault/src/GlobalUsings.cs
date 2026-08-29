@@ -54,3 +54,5 @@ global using System.Text.RegularExpressions;
 global using System.Timers;
 global using JoinCode.Abstractions.Entity;
 global using Microsoft.Extensions.Logging;
+global using JoinCode.Abstractions.Pipeline;
+global using Structura.Dag;

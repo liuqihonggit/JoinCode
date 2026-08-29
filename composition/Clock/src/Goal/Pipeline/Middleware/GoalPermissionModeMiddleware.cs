@@ -1,6 +1,5 @@
-namespace Core.Goal;
+﻿namespace Core.Goal;
 
-using JoinCode.Abstractions.Pipeline;
 
 /// <summary>
 /// 权限模式中间件 — Start 时切换 Auto，Clear/MarkCompleted/MarkUnmet 时恢复

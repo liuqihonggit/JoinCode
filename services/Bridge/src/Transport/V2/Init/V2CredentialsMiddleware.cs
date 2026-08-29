@@ -1,7 +1,5 @@
+﻿namespace Core.Bridge.Init.V2;
 
-namespace Core.Bridge.Init.V2;
-
-using JoinCode.Abstractions.Pipeline;
 
 /// <summary>
 /// V2 获取 bridge 凭证 — 对齐 TS 端: fetchRemoteCredentials

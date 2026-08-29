@@ -1,6 +1,5 @@
-namespace Core.Goal;
+﻿namespace Core.Goal;
 
-using JoinCode.Abstractions.Pipeline;
 
 /// <summary>
 /// 心跳控制中间件 — Pause/Clear/MarkCompleted/MarkUnmet 时重置心跳

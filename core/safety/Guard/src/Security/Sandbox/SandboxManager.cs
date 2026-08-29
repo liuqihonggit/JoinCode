@@ -1,10 +1,5 @@
-namespace Core.Security.Sandbox;
+﻿namespace Core.Security.Sandbox;
 
-using JoinCode.Abstractions.Security.Sandbox;
-using JoinCode.Abstractions.Security.Sandbox.Ipc;
-using Ipc;
-using Providers;
-using AbstractionsSandboxExecutionResult = JoinCode.Abstractions.Security.Sandbox.SandboxExecutionResult;
 
 [Register(typeof(ISandboxManager), ServiceLifetime.Singleton)]
 public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDisposable

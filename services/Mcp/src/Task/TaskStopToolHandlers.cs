@@ -1,8 +1,4 @@
-﻿
-using JoinCode.Abstractions.Models.Agent;
-
-
-namespace McpToolDispatch;
+﻿namespace McpToolDispatch;
 
 [McpToolDispatch(ToolCategory.Task, Optional = true)]
 public partial class TaskStopToolHandlers

@@ -1,6 +1,5 @@
-namespace Memdir.Sync;
+﻿namespace Memdir.Sync;
 
-using JoinCode.Abstractions.Pipeline;
 
 /// <summary>
 /// 同步启动管道共享上下文 — 在中间件各阶段间传递状态

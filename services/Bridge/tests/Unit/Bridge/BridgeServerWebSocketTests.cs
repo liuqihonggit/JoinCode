@@ -1,9 +1,5 @@
-namespace Bridge.Tests;
+﻿namespace Bridge.Tests;
 
-using System.Net.WebSockets;
-using System.Text;
-using System.Text.Json;
-using JoinCode.Abstractions.Interfaces;
 
 /// <summary>
 /// BridgeServer WebSocket 端到端集成测试 — P0-B E2E

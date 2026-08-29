@@ -1,8 +1,4 @@
-using System.Collections.ObjectModel;
-
-using CommunityToolkit.Mvvm.ComponentModel;
-
-namespace JoinCode.Gui.ViewModels;
+﻿namespace JoinCode.Gui.ViewModels;
 
 /// <summary>
 /// 侧边栏会话条目 — 占位阶段仅展示结构，P1 接入引擎后映射真实会话。

@@ -1,9 +1,5 @@
+﻿namespace Core.Agents.Tests.Unit.Agents;
 
-namespace Core.Agents.Tests.Unit.Agents;
-
-using JoinCode.Abstractions.Interfaces;
-using JoinCode.Abstractions.LLM.Execution;
-using JoinCode.Abstractions.Models.Agent;
 
 /// <summary>
 /// T5.0: Worker 主循环查邮箱 — ContractChangeNotifications 队列消费测试

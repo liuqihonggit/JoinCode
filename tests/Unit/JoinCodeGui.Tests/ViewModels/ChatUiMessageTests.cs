@@ -1,10 +1,4 @@
-using System.ComponentModel;
-
-using JoinCode.Abstractions.LLM.Chat;
-using JoinCode.Abstractions.Models.Diff;
-using JoinCode.Gui.ViewModels;
-
-namespace JoinCode.Gui.Tests.ViewModels;
+﻿namespace JoinCode.Gui.Tests.ViewModels;
 
 /// <summary>
 /// ChatUiMessage 单元测试 — 验证 UI 消息模型的角色标签、展示类型、思考折叠、

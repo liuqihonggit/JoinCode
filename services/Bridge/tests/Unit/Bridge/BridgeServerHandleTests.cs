@@ -1,7 +1,5 @@
-namespace Bridge.Tests;
+﻿namespace Bridge.Tests;
 
-using System.Text.Json;
-using JoinCode.Abstractions.Interfaces;
 
 /// <summary>
 /// BridgeServer.executeCommand/setSelection 单元测试 — P0-B TDD

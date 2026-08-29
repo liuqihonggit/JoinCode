@@ -1,6 +1,4 @@
-﻿using JoinCode.Abstractions.State;
-
-namespace JoinCode.Abstractions.Interfaces.Scheduling;
+﻿namespace JoinCode.Abstractions.Interfaces.Scheduling;
 
 /// <summary>
 /// Cron 任务定义

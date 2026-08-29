@@ -1,12 +1,9 @@
-using JoinCode.Abstractions.Security.Permission;
-
-namespace Host.Tests.Tui.Views;
+﻿namespace Host.Tests.Tui.Views;
 
 /// <summary>
 /// PermissionDialogView 单元测试 — 验证权限弹窗显示/隐藏/取消行为。
 /// P0-2 权限闭环：ShowAsync 显示弹窗 → 用户决策 → Hide 隐藏。
 /// </summary>
-using System.Reflection;
 
 public class PermissionDialogViewTests
 {

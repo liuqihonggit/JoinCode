@@ -1,6 +1,5 @@
-namespace Core.Agents.Doctor;
+﻿namespace Core.Agents.Doctor;
 
-using JoinCode.Abstractions.Interfaces.Doctor;
 
 /// <summary>
 /// 自举 worktree 管理器 — 为 Doctor 的自修改创建隔离的 git worktree

@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-
-namespace Core.Prompts.Sections;
+﻿namespace Core.Prompts.Sections;
 
 [PromptSection(
     Name = "structured_task_workflow",

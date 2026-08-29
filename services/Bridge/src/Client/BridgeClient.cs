@@ -1,7 +1,5 @@
-﻿
-namespace Core.Bridge;
+﻿namespace Core.Bridge;
 
-using JoinCode.Abstractions.Attributes;
 
 /// <summary>
 /// Bridge 客户端 - 参考 TS 原版 的 replBridge.ts 架构

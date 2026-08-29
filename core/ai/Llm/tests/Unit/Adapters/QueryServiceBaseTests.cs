@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Configuration.Providers;
-
-namespace Llm.Tests.Adapters;
+﻿namespace Llm.Tests.Adapters;
 
 public class QueryServiceBaseTests
 {

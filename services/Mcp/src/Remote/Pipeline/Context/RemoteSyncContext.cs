@@ -1,6 +1,5 @@
-namespace McpToolRegistry;
+﻿namespace McpToolRegistry;
 
-using JoinCode.Abstractions.Pipeline;
 
 /// <summary>
 /// 远程同步操作类型

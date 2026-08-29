@@ -1,6 +1,4 @@
-using System.Text.RegularExpressions;
-
-namespace McpClient;
+﻿namespace McpClient;
 
 public static partial class McpEnvExpander
 {

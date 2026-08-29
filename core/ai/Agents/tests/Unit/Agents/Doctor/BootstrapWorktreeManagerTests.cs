@@ -1,6 +1,5 @@
-namespace Core.Tests.Agents.Doctor;
+﻿namespace Core.Tests.Agents.Doctor;
 
-using JoinCode.Abstractions.Interfaces.Doctor;
 
 [Trait("Category", "Integration")]
 public class BootstrapWorktreeManagerTests

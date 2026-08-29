@@ -1,9 +1,5 @@
+﻿namespace Core.Bridge;
 
-namespace Core.Bridge;
-
-using Core.Bridge.Gate;
-using Core.Bridge.Init;
-using Infrastructure.Pipeline;
 
 /// <summary>
 /// REPL 桥初始化选项 — 对齐 TS 端 initReplBridge.ts InitBridgeOptions

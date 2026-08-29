@@ -66,3 +66,5 @@ global using JoinCode.Tui.Commands;
 global using JoinCode.Tui.Pipes;
 global using JoinCode.Tui.Diagnostics;
 global using TuiKey = Terminal.Gui.Input.Key;
+global using JoinCode.Cli;
+global using JoinCode.Tui.Interaction;

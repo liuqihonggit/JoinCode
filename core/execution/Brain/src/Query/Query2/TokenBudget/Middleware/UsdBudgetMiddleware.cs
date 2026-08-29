@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-
-namespace Core.Query;
+﻿namespace Core.Query;
 
 /// <summary>
 /// USD 预算中间件 — 每次迭代前检查 USD 预算是否超限

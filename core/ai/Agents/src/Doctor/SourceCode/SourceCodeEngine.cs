@@ -1,6 +1,5 @@
-namespace Core.Agents.Doctor;
+﻿namespace Core.Agents.Doctor;
 
-using JoinCode.Abstractions.Interfaces.Doctor;
 
 /// <summary>
 /// 源码工程引擎 — Doctor 模式的源码工程能力核心

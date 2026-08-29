@@ -12,3 +12,5 @@ global using JoinCode.Hands.Desktop;
 global using JoinCode.Hands.Desktop.Native;
 global using JoinCode.Abstractions.LLM;
 global using JoinCode.Abstractions.LLM.Chat;
+global using JoinCode.Abstractions.Models.Notebook;
+global using Services.Notebook.ToolHandlers;

@@ -1,9 +1,4 @@
-using FluentAssertions;
-
-using JoinCode.Gui.SlashCommands;
-using JoinCode.Gui.ViewModels;
-
-namespace JoinCode.Gui.Tests.SlashCommands;
+﻿namespace JoinCode.Gui.Tests.SlashCommands;
 
 /// <summary>
 /// SlashCommandRanker 单元测试 — 验证完全匹配优先、权重前置、长度升序、字母序兜底。

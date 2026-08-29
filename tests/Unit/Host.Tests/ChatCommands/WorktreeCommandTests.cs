@@ -1,6 +1,5 @@
 ﻿namespace Host.Tests.ChatCommands;
 
-using JoinCode.Abstractions.Models;
 
 /// <summary>
 /// WorktreeCommand 取值范围测试 — 验证 CrudAction 枚举字面量正确路由

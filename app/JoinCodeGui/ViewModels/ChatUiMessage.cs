@@ -1,9 +1,4 @@
-using System.ComponentModel;
-
-using JoinCode.Abstractions.LLM.Chat;
-using JoinCode.Abstractions.Models.Diff;
-
-namespace JoinCode.Gui.ViewModels;
+﻿namespace JoinCode.Gui.ViewModels;
 
 /// <summary>
 /// UI 会话消息模型 — ViewModel 将引擎事件组装为可展示的对话消息。

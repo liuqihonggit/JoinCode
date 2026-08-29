@@ -1,6 +1,5 @@
 ﻿namespace Infrastructure.Pipeline.Middlewares;
 
-using JoinCode.Abstractions.Pipeline;
 
 /// <summary>
 /// 通用 Token 验证中间件 — 检查 OAuth token 是否存在

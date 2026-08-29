@@ -1,7 +1,5 @@
+﻿namespace JoinCode.Dream;
 
-namespace JoinCode.Dream;
-
-using JoinCode.Dream.Pipeline;
 
 /// <summary>
 /// 做梦功能实现 - 记忆整合功能

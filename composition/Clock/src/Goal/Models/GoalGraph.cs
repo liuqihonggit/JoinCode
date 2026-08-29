@@ -1,7 +1,5 @@
-namespace Core.Goal;
+﻿namespace Core.Goal;
 
-using JoinCode.Abstractions.Models.Goal;
-using Structura.Dag;
 
 /// <summary>
 /// Goal Graph — 基于 Dag&lt;GoalNodePayload&gt; 的图定义

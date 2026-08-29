@@ -18,3 +18,4 @@ global using Microsoft.Extensions.DependencyInjection;
 global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using Microsoft.Extensions.Logging;
 global using JoinCode.Abstractions.Entity;
+global using System.Net.Http.Headers;

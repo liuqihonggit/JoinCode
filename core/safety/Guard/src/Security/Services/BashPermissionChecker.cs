@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-
-namespace JoinCode.Abstractions.Security.Shell;
+﻿namespace JoinCode.Abstractions.Security.Shell;
 
 [Register(typeof(IBashPermissionChecker), ServiceLifetime.Singleton)]
 public sealed partial class BashPermissionChecker : ServiceEntity, IBashPermissionChecker

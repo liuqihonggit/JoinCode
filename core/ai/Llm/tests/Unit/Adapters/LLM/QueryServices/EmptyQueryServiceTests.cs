@@ -1,6 +1,5 @@
-namespace Llm.Tests.Adapters.LLM.QueryServices;
+﻿namespace Llm.Tests.Adapters.LLM.QueryServices;
 
-using Api.LLM.QueryServices;
 
 public class EmptyQueryServiceTests
 {

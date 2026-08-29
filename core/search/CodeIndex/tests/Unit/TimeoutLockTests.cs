@@ -1,6 +1,4 @@
-using JoinCode.CodeIndex.Threading;
-
-namespace JoinCode.CodeIndex.Tests;
+﻿namespace JoinCode.CodeIndex.Tests;
 
 public sealed class TimeoutLockTests : IDisposable
 {

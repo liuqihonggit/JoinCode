@@ -1,14 +1,4 @@
-using JoinCode.Abstractions.Interfaces;
-using JoinCode.Abstractions.LLM;
-using JoinCode.Abstractions.LLM.Chat;
-using JoinCode.Abstractions.Models.Interactive;
-
-using IO.FileSystem;
-using JoinCode.Gui.Hosting;
-using JoinCode.Gui.Persistence;
-using JoinCode.Gui.ViewModels;
-
-namespace JoinCode.Gui.Tests.ViewModels;
+﻿namespace JoinCode.Gui.Tests.ViewModels;
 
 /// <summary>
 /// F4 与子代理对话（@提及）GUI 路由测试 —

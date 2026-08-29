@@ -12,3 +12,4 @@ global using Mcp.MockServer.Models;
 global using MockServer.Core;
 global using JoinCode.Abstractions.Models;
 global using JoinCode.Abstractions.Mcp.Protocol;
+global using Mcp.MockServer.Engine;

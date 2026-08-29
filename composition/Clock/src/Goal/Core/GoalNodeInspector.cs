@@ -1,7 +1,5 @@
-namespace Core.Goal;
+﻿namespace Core.Goal;
 
-using JoinCode.Abstractions.Interfaces.Scheduling;
-using JoinCode.Abstractions.Models.Goal;
 
 /// <summary>
 /// 目标节点检查器 — 统一实现健康检查 + 循环观察 + 质量评分。

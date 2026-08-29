@@ -1,7 +1,4 @@
-﻿
-using JoinCode.Abstractions.Attributes;
-
-namespace Core.Query;
+﻿namespace Core.Query;
 
 /// <summary>
 /// QueryEngine.Create 方法的参数封装

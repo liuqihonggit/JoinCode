@@ -1,8 +1,5 @@
-namespace Core.Agents;
+﻿namespace Core.Agents;
 
-using JoinCode.Abstractions.Interfaces;
-using Microsoft.Extensions.Logging.Abstractions;
-using Moq;
 
 public sealed class SubAgentOutputTruncatorTests
 {

@@ -1,6 +1,4 @@
-using System.Runtime.InteropServices;
-
-namespace Infrastructure.Shell;
+﻿namespace Infrastructure.Shell;
 
 /// <summary>
 /// Shell 工具门控服务 — 对齐 TS isPowerShellToolEnabled()

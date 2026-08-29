@@ -1,7 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-using JoinCode.Abstractions.Pipeline;
-
-namespace JoinCode.App.Middlewares;
+﻿namespace JoinCode.App.Middlewares;
 
 [Register(typeof(IPipelinePostHook<SettingsContext>), ServiceLifetime.Singleton)]
 internal sealed partial class SettingsTelemetryHook : TelemetryPostHook<SettingsContext>

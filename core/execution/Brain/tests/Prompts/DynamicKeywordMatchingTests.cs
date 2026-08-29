@@ -1,7 +1,4 @@
-using Core.Prompts.Utils;
-using FluentAssertions;
-
-namespace Core.Tests.Prompts;
+﻿namespace Core.Tests.Prompts;
 
 public class DynamicKeywordMatchingTests
 {

@@ -1,7 +1,5 @@
-namespace McpToolRegistry.Tests;
+﻿namespace McpToolRegistry.Tests;
 
-using JoinCode.Abstractions.Tools;
-using Moq;
 
 public class OnErrorInjectionTests
 {

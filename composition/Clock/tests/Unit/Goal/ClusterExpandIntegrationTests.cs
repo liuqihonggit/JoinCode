@@ -1,9 +1,5 @@
-namespace Core.Goal.Tests;
+﻿namespace Core.Goal.Tests;
 
-using Core.Hooks.Lifecycle;
-using Microsoft.Extensions.DependencyInjection;
-using Structura.Dag;
-using Infrastructure.Time;
 
 public sealed class ClusterExpandIntegrationTests
 {

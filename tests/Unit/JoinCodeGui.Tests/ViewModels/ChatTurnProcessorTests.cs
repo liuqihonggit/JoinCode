@@ -1,10 +1,4 @@
-using System.Collections.ObjectModel;
-
-using JoinCode.Abstractions.LLM.Chat;
-
-using JoinCode.Gui.ViewModels;
-
-namespace JoinCode.Gui.Tests.ViewModels;
+﻿namespace JoinCode.Gui.Tests.ViewModels;
 
 /// <summary>
 /// ChatTurnProcessor 单元测试 — 从 MainViewModel 抽取的回合组装器契约。

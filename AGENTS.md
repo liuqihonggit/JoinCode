@@ -362,6 +362,86 @@ public FrozenSet<string>? FilterSet => _filterSet ??= Filters?.ToFrozenSet();
 3. **PowerShell 最后**：PowerShell 5.1.19041.6456，仅用于系统操作和 dotnet/gh 命令编排
 4. **gh CLI 优先**：操作 PR/Issue/Release 等 GitHub 资源时，优先使用 `gh` CLI，而非 PowerShell 脚本或手动操作
 
+### gh CLI 排错避坑指南（强制遵守）
+
+> **以下全是血泪踩坑记录。排错时必须按此指南操作，禁止重复踩坑。**
+
+#### 坑1：`gh api` + jq 在 PowerShell 中引号被吃掉
+
+```powershell
+# ❌ 绝对禁止：jq 把 "failure" 解释为除法，报 function not defined: failure/0
+gh api .../jobs --jq '.jobs[] | select(.conclusion=="failure") | .id'
+
+# ✅ 正确写法：用反引号转义双引号
+gh api .../jobs --jq ".jobs[] | select(.conclusion==`"failure`") | {name:.name, id:.id}"
+
+# ✅ 最可靠：写入 JSON 文件再用 PowerShell ConvertFrom-Json 解析，彻底绕开 jq 引号地狱
+gh api repos/{owner}/{repo}/actions/runs/{run-id}/jobs > .xxx/jobs.json
+Get-Content .xxx/jobs.json | ConvertFrom-Json | Select-Object -ExpandProperty jobs | Where-Object { $_.conclusion -eq "failure" } | Select-Object name, id
+```
+
+**根因**：PowerShell 把双引号当字符串边界吃掉了，jq 收到的是裸单词 `failure`，被解释为除法。别试图用单引号包双引号——PowerShell 单引号不转义，jq 又不认。反引号转义或干脆走 JSON 文件。
+
+#### 坑2：`gh run view --log-failed` 直接超时炸掉
+
+- 失败日志动辄几万行，`--log-failed` 一把梭直接超 60s 超时
+- **⛔ 禁止**：`gh run view <run-id> --log-failed` 不加过滤
+- **✅ 正确做法**：先拿到失败 job ID，再 `--job <job-id> --log` 精准拉日志，配合 `Select-String` 过滤
+
+```powershell
+# 第一步：拿失败 job ID（走 JSON 文件，别用 jq）
+gh api repos/{owner}/{repo}/actions/runs/{run-id}/jobs > .xxx/jobs.json
+Get-Content .xxx/jobs.json | ConvertFrom-Json | Select-Object -ExpandProperty jobs | Where-Object { $_.conclusion -eq "failure" } | Select-Object name, id
+
+# 第二步：精准拉单个 job 日志，过滤关键行
+gh run view <run-id> --job <job-id> --log 2>&1 | Select-String "Failed|FAIL|Test Run Failed|error" | Select-Object -First 20
+```
+
+#### 坑3：`gh api` 取 job logs 被 Sandbox 网络拦截
+
+```powershell
+# ❌ 报错：Sandbox Network Error: hit restricted [20.205.243.168:443]
+gh api repos/{owner}/{repo}/actions/jobs/<job-id>/logs
+```
+
+- `gh api` 走的 API 端点可能被 Sandbox 网络策略拦截
+- **✅ 解法**：改用 `gh run view --job <job-id> --log`，走不同的 API 路径，不会被拦
+
+#### 坑4：`gh pr checks` 输出格式
+
+```
+<check-name>\t<status>\t<duration>\t<url>
+```
+
+| status 值 | 含义 |
+|-----------|------|
+| `pass` | CI 通过 |
+| `fail` | CI 失败 |
+| `pending` | 正在运行 |
+| `skipping` | 前置 job 失败导致跳过 |
+
+**注意**：`skipping` 不是失败！别看到一堆 `skipping` 就以为全挂了，那是依赖链跳过。
+
+#### CI 排错完整流程（按此顺序，不许跳步）
+
+```powershell
+# 1. 查看哪些 check 失败
+gh pr checks <pr-number>
+
+# 2. 拿到 run-id（从 check URL 里提取，或 gh pr view）
+gh pr view <pr-number> --json statusCheckRollup
+
+# 3. 获取失败 job ID（走 JSON 文件，别用 jq）
+gh api repos/{owner}/{repo}/actions/runs/<run-id>/jobs > .xxx/jobs.json
+Get-Content .xxx/jobs.json | ConvertFrom-Json | Select-Object -ExpandProperty jobs | Where-Object { $_.conclusion -eq "failure" } | Select-Object name, id
+
+# 4. 拉失败 job 日志，过滤关键信息
+gh run view <run-id> --job <job-id> --log 2>&1 | Select-String "Failed|FAIL|Test Run Failed" | Select-Object -First 20
+
+# 5. 本地复现失败测试
+dotnet test <csproj> -c Release --filter "<test-name>" --nologo /p:SkipLocalPack=true
+```
+
 ### UTF-8 编码配置
 
 ```powershell

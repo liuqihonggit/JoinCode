@@ -1,7 +1,5 @@
+﻿namespace Core.Bridge;
 
-namespace Core.Bridge;
-
-using JoinCode.Abstractions.Attributes;
 
 [Register(typeof(BridgeClientSession), ServiceLifetime.Singleton)]
 public sealed record BridgeClientSession(

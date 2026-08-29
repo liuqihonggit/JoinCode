@@ -1,8 +1,4 @@
-using FluentAssertions;
-
-using JoinCode.Gui.SlashCommands;
-
-namespace JoinCode.Gui.Tests.SlashCommands;
+﻿namespace JoinCode.Gui.Tests.SlashCommands;
 
 /// <summary>
 /// ToolCompletionProvider 单元测试 — 验证工具列表与前缀过滤。

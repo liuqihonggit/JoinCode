@@ -1,7 +1,4 @@
-using JoinCode.Abstractions.Configuration.Settings;
-using JoinCode.Abstractions.Configuration.AppData;
-
-namespace Infrastructure.Tests.Services;
+﻿namespace Infrastructure.Tests.Services;
 
 public sealed class MemoryFreshnessNoteTests
 {

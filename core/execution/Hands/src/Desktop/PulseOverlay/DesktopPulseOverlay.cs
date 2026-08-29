@@ -1,6 +1,4 @@
-using System.Runtime.InteropServices;
-
-namespace JoinCode.Hands.Desktop.PulseOverlay;
+﻿namespace JoinCode.Hands.Desktop.PulseOverlay;
 
 /// <summary>
 /// 桌面脉冲圆覆盖层 — 透明无边框顶层窗口 + GDI 半透明圆动画

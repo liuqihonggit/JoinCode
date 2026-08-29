@@ -1,7 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-using Core.Prompts;
-
-namespace Core.Prompts.Sections;
+﻿namespace Core.Prompts.Sections;
 
 [PromptSection(Name = "glob_rules", Order = 78, IsDynamic = true)]
 public static class GlobRulesSection

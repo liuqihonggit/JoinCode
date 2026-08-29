@@ -1,6 +1,5 @@
-namespace JoinCode.Dream.Pipeline;
+﻿namespace JoinCode.Dream.Pipeline;
 
-using JoinCode.Dream.Persistence;
 
 [Register(typeof(IDreamMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class DreamRecordTurnMiddleware : ServiceEntity, IDreamMiddleware

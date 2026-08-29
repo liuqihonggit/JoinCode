@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.LLM.Chat;
-
-namespace Mcp.Tests;
+﻿namespace Mcp.Tests;
 
 public sealed class McpReconnectPolicyTests
 {

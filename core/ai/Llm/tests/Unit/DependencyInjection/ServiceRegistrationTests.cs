@@ -1,9 +1,5 @@
-namespace Llm.Tests.DependencyInjection;
+﻿namespace Llm.Tests.DependencyInjection;
 
-using Api.LLM.QueryServices;
-using JoinCode.Abstractions.Transport;
-using JoinCode.Llm.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection;
 
 public class ServiceRegistrationTests
 {

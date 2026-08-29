@@ -1,9 +1,5 @@
-namespace Core.Goal;
+﻿namespace Core.Goal;
 
-using JoinCode.Abstractions.Models.Goal;
-using JoinCode.Abstractions.LLM;
-using JoinCode.Abstractions.Interfaces;
-using Structura.Dag;
 
 /// <summary>
 /// Goal Graph 执行引擎 — 事件驱动队列 + 条件路由 + 回退重激活

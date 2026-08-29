@@ -1,6 +1,5 @@
-namespace Dream.Tests.Pipeline;
+﻿namespace Dream.Tests.Pipeline;
 
-using JoinCode.Dream.Pipeline;
 
 public sealed class DreamMiddlewareTests
 {

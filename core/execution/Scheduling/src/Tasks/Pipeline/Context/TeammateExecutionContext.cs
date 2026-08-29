@@ -1,6 +1,5 @@
-namespace Core.Scheduling.Tasks;
+﻿namespace Core.Scheduling.Tasks;
 
-using JoinCode.Abstractions.Pipeline;
 
 public sealed class TeammateExecutionContext : IPipelineContext
 {

@@ -1,8 +1,4 @@
-﻿using JoinCode.Abstractions.Utils;
-
-namespace JoinCode.Abstractions.Interfaces;
-
-using JoinCode.Abstractions.Models.Agent;
+﻿namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
 /// Agent 角色注册表 — 管理 AgentRoleProfile 的注册和查询

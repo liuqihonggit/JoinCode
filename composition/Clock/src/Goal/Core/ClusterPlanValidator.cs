@@ -1,7 +1,5 @@
+﻿namespace Core.Goal;
 
-namespace Core.Goal;
-
-using Structura.Dag;
 
 [Register(typeof(IClusterPlanValidator), ServiceLifetime.Singleton)]
 public sealed partial class ClusterPlanValidator : ServiceEntity, IClusterPlanValidator

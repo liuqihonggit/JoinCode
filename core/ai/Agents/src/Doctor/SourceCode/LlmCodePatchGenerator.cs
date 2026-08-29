@@ -1,7 +1,5 @@
-namespace Core.Agents.Doctor;
+﻿namespace Core.Agents.Doctor;
 
-using JoinCode.Abstractions.Interfaces.Doctor;
-using JoinCode.Abstractions.LLM;
 
 /// <summary>
 /// LLM 驱动的源码 patch 生成器 — 分析问题 → 生成源码修改

@@ -1,6 +1,5 @@
-namespace Core.Security.Sandbox.Providers;
+﻿namespace Core.Security.Sandbox.Providers;
 
-using JoinCode.Abstractions.Security.Sandbox;
 
 [Register(typeof(SandboxProviderBase), ServiceLifetime.Singleton)]
 public sealed partial class BubblewrapSandboxProvider : SandboxProviderBase

@@ -118,6 +118,10 @@ ADR 引用 design/plans，但不重复其内容。
 | 0039 | 命令拦截全状态机 + 守卫 + [Flags] | accepted | 取代 0034 |
 | 0040 | 企业级状态机框架 — 转换表+守卫+共享上下文 | accepted | 增强 0038/0039 |
 | 0041 | Fsm 源码生成器 + 特性 + 事件订阅 | accepted | 增强 0040 |
+| 0043 | 收口函数统一 — 命名/参数/异常/幂等性 | accepted | 新增 |
+| 0044 | 错误码统一规范 — [PREFIX+数字] 格式 | accepted | 新增 |
+| 0045 | ConfigureAwait(false) 强制规范 | accepted | 新增 |
+| 0046 | [Register] 特性 DI 自动注册模式 | accepted | 新增 |
 
 ### 工程级（0026-0031）
 

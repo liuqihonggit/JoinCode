@@ -1,6 +1,4 @@
-﻿using JoinCode.Abstractions.State;
-
-namespace JoinCode.Abstractions.Interfaces.Cache;
+﻿namespace JoinCode.Abstractions.Interfaces.Cache;
 
 /// <summary>
 /// 图片路径缓存接口 — 对齐 TS: clearStoredImagePaths

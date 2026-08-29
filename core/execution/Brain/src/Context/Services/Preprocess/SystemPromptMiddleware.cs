@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-
-namespace Core.Context;
+﻿namespace Core.Context;
 
 /// <summary>
 /// 系统提示构建中间件 — 构建分区系统提示（静态前缀 + 动态后缀）

@@ -1,10 +1,4 @@
-using FluentAssertions;
-
-using JoinCode.Gui.Hosting;
-using JoinCode.Gui.SlashCommands;
-using JoinCode.Gui.ViewModels;
-
-namespace JoinCode.Gui.Tests.SlashCommands;
+﻿namespace JoinCode.Gui.Tests.SlashCommands;
 
 /// <summary>
 /// CommandArgumentProvider 单元测试 — 验证各命令参数补全候选生成与前缀过滤。

@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-
-namespace JoinCode.Abstractions.Security.Shell;
+﻿namespace JoinCode.Abstractions.Security.Shell;
 
 /// <summary>
 /// 破坏性命令检测器实现

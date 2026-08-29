@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-
-namespace Core.Prompts.Sections;
+﻿namespace Core.Prompts.Sections;
 
 /// <summary>
 /// Skill部分 - 如何使用技能系统

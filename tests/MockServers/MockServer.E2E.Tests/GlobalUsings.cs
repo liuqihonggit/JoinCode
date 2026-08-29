@@ -29,3 +29,5 @@ global using Testing.Common;
 global using Testing.Common.MockServer;
 global using Testing.Common.Process;
 global using Xunit.Abstractions;
+global using JoinCode.Abstractions.LLM.Chat;
+global using System;

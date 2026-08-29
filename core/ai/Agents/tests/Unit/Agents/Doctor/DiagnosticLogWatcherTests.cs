@@ -1,7 +1,5 @@
-namespace Core.Tests.Agents.Doctor;
+﻿namespace Core.Tests.Agents.Doctor;
 
-using JoinCode.Abstractions.Interfaces;
-using JoinCode.Abstractions.Interfaces.Doctor;
 
 public class DiagnosticLogWatcherTests
 {

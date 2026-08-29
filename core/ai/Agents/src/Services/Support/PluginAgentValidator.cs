@@ -1,6 +1,5 @@
 ﻿namespace Core.Agents;
 
-using JoinCode.Abstractions.Prompts.ToolPrompts;
 
 /// <summary>
 /// 插件 Agent 安全限制校验 — 效应分类器

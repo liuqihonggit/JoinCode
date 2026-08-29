@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-
-namespace Core.Configuration;
+﻿namespace Core.Configuration;
 
 [Register(typeof(IFastModeService), ServiceLifetime.Singleton)]
 public sealed partial class FastModeService : ServiceEntity, IFastModeService, IDisposable

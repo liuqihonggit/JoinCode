@@ -1,7 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-using JoinCode.Abstractions.Pipeline;
-
-namespace JoinCode.App.Middlewares;
+﻿namespace JoinCode.App.Middlewares;
 
 [Register(typeof(IPipelinePostHook<JoinCode.Dream.Pipeline.DreamContext>), ServiceLifetime.Singleton)]
 internal sealed partial class DreamTelemetryHook : TelemetryPostHook<JoinCode.Dream.Pipeline.DreamContext>

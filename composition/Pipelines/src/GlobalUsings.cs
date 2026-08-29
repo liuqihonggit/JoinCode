@@ -27,3 +27,5 @@ global using Tools.Shell;
 global using SkillContext = Core.Skills.SkillContext;
 global using AgentRestrictionMiddleware = Core.Permission.AgentRestrictionMiddleware;
 global using QueryTokenBudgetMiddleware = Core.Query.TokenBudgetMiddleware;
+global using JoinCode.Pipelines.Middlewares;
+global using TokenBudgetMiddleware = JoinCode.Pipelines.Middlewares.TokenBudgetMiddleware;

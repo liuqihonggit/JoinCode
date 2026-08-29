@@ -1,12 +1,4 @@
-using Api.LLM;
-using Api.LLM.CacheProtocol;
-using Api.LLM.QueryServices.Anthropic;
-using JoinCode.Abstractions.Utils;
-using ChatApiMessage = JoinCode.Abstractions.LLM.Chat.ApiMessage;
-using ChatMessageRole = JoinCode.Abstractions.LLM.Chat.MessageRole;
-using MessageList = JoinCode.Abstractions.LLM.Chat.MessageList;
-
-namespace Llm.Tests.Adapters.CacheProtocol;
+﻿namespace Llm.Tests.Adapters.CacheProtocol;
 
 public sealed class AnthropicCacheControlSerializationTests
 {

@@ -1,5 +1,4 @@
-
-namespace Core.Tests.Context.Compression;
+﻿namespace Core.Tests.Context.Compression;
 
 public class CodeContentCompressorTests
 {

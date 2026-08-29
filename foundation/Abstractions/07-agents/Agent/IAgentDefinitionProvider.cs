@@ -1,7 +1,5 @@
 namespace JoinCode.Abstractions.Interfaces;
 
-using JoinCode.Abstractions.Models.Agent;
-
 /// <summary>
 /// 代理定义提供者 - 从多个来源加载代理定义
 /// </summary>

@@ -1,6 +1,4 @@
-using JoinCode.Cli;
-
-namespace JoinCode.Tui.Session;
+﻿namespace JoinCode.Tui.Session;
 
 /// <summary>
 /// TUI 会话元数据存储（T6）— transcript 消息落盘已下沉到引擎 TranscriptPersistMiddleware

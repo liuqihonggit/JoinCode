@@ -1,6 +1,5 @@
-namespace Core.Bridge;
+﻿namespace Core.Bridge;
 
-using JoinCode.Abstractions.Pipeline;
 
 [Register(typeof(IHandleWorkMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class WorkSecretDecodeMiddleware : ServiceEntity, IHandleWorkMiddleware

@@ -1,14 +1,5 @@
-namespace Host.Tests.ChatCommands.Bridge;
+﻿namespace Host.Tests.ChatCommands.Bridge;
 
-using Core.Policy;
-using Infrastructure.Time;
-using JoinCode.Abstractions.Clock;
-using JoinCode.Abstractions.Interfaces;
-using JoinCode.Abstractions.Models.Telemetry;
-using JoinCode.App.Builder;
-using Microsoft.Extensions.Http;
-using Microsoft.Extensions.Options;
-using Services.OAuth;
 
 /// <summary>
 /// ApplicationBuilder.BuildBridgeGuardServices DI 容器构建测试 — P0-D/P1 TDD

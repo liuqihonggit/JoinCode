@@ -1,6 +1,4 @@
-﻿using CommunityToolkit.Mvvm.Input;
-
-namespace JoinCode.Gui.ViewModels;
+﻿namespace JoinCode.Gui.ViewModels;
 
 /// <summary>
 /// MainViewModel partial — 会话树形展示相关命令（需求11）。

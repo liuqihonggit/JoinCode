@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Utils.Diagnostics;
-
-namespace Infrastructure.Http;
+﻿namespace Infrastructure.Http;
 
 public sealed class ResilientHttpExecutor
 {

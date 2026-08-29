@@ -12,3 +12,6 @@ global using System.Text.Json;
 global using Testing.Common;
 global using TreeSitter;
 global using Xunit;
+global using System;
+global using System.Collections.Generic;
+global using System.Linq;

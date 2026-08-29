@@ -1,6 +1,5 @@
 ﻿namespace Tools.Handlers;
 
-using System.Collections.Frozen;
 
 /// <summary>
 /// 异步(后台)Agent 允许的工具集 — 限制后台 agent 不能交互提问、不能停止其他任务

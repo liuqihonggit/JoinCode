@@ -1,10 +1,4 @@
-﻿﻿﻿﻿using Core.Bridge.Init;
-using Core.Bridge.Init.V1;
-using Core.Bridge.Init.V2;
-using Infrastructure.Pipeline;
-using Infrastructure.Pipeline.Middlewares;
-
-namespace Core.DependencyInjection;
+﻿namespace Core.DependencyInjection;
 
 public static partial class ServiceRegistration
 {

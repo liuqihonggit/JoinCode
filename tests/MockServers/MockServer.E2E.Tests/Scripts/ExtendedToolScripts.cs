@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace MockServer.E2E.Tests.Scripts;
+﻿namespace MockServer.E2E.Tests.Scripts;
 
 /// <summary>
 /// 更多任务工具和调度工具 E2E 测试脚本

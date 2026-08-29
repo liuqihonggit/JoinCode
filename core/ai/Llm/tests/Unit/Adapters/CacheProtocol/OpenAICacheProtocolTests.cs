@@ -1,6 +1,4 @@
-using Api.LLM.CacheProtocol;
-
-namespace Llm.Tests.Adapters.CacheProtocol;
+﻿namespace Llm.Tests.Adapters.CacheProtocol;
 
 public sealed class OpenAICacheProtocolTests
 {

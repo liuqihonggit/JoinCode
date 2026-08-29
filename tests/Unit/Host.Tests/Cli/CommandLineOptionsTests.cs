@@ -1,7 +1,4 @@
-
-using JoinCode;
-
-namespace Host.Tests.Cli;
+﻿namespace Host.Tests.Cli;
 
 public sealed class CommandLineOptionsTests
 {

@@ -1,7 +1,5 @@
 ﻿namespace Host.Tests.ChatCommands;
 
-using JoinCode.Abstractions.Interfaces;
-using JoinCode.Abstractions.Configuration.Settings; // SettingSource 命名空间
 
 /// <summary>
 /// ConfigCommand 取值范围测试 — 验证 CrudAction 枚举字面量正确路由

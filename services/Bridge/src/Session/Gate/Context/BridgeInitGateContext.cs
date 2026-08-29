@@ -1,7 +1,5 @@
-namespace Core.Bridge.Gate;
+﻿namespace Core.Bridge.Gate;
 
-using JoinCode.Abstractions.Pipeline;
-using Core.Bridge.Init;
 
 public sealed class BridgeInitGateContext : PipelineContextBase
 {

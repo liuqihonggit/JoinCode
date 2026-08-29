@@ -1,6 +1,4 @@
 ﻿
-using JoinCode.Abstractions.Utils;
-
 namespace JoinCode.Abstractions.Interfaces.Scheduling;
 
 /// <summary>

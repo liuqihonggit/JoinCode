@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-
-namespace Core.Scheduling;
+﻿namespace Core.Scheduling;
 
 /// <summary>
 /// 聚合任务文件操作所需的全部依赖，简化 FileBasedTaskService 构造函数参数

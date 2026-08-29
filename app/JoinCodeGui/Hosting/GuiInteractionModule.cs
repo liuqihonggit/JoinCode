@@ -1,6 +1,4 @@
-using JoinCode.App.Builder;
-
-namespace JoinCode.Gui.Hosting;
+﻿namespace JoinCode.Gui.Hosting;
 
 /// <summary>
 /// GUI 交互模块 — 注册 Avalonia 专属的交互服务，覆盖 Core 层的 Mock InteractiveService。

@@ -1,7 +1,5 @@
-namespace MockServer.E2E.Tests.E2E;
+﻿namespace MockServer.E2E.Tests.E2E;
 
-using System.Diagnostics;
-using System.Text.RegularExpressions;
 
 #pragma warning disable JCC9001, JCC9002
 

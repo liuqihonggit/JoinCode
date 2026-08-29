@@ -1,13 +1,4 @@
-using Avalonia.Controls;
-using Avalonia.Headless.XUnit;
-using Avalonia.Layout;
-using Avalonia.Media;
-using Avalonia.VisualTree;
-
-using JoinCode.Abstractions.Models.Diff;
-using JoinCode.Gui.Markdown;
-
-namespace JoinCode.Gui.Tests.Markdown;
+﻿namespace JoinCode.Gui.Tests.Markdown;
 
 /// <summary>
 /// DiffViewer 渲染测试 — 验证双列行号（旧/新）、增删着色、多 hunk 渲染、空状态。

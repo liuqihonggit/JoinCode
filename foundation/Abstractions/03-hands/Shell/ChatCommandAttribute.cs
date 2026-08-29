@@ -1,5 +1,3 @@
-using JoinCode.Abstractions.Utils;
-
 namespace JoinCode.ChatCommands;
 
 /// <summary>

@@ -1,8 +1,6 @@
 ﻿
 namespace JoinCode.ChatCommands;
 
-using JoinCode.Abstractions.Security.Sandbox;
-
 [ChatCommand(Name = ChatCommandNameConstants.SandboxToggle, Description = "切换沙箱模式", Usage = "/sandbox-toggle [on|off|status|exclude|switch]", Category = ChatCommandCategory.Config, Aliases = ["sandbox"], ArgumentHint = "[on|off|status|exclude|switch]", IsHidden = true)]
 public sealed class SandboxToggleCommand : ChatCommandBase
 {

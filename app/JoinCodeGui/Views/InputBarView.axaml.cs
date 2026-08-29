@@ -1,13 +1,4 @@
-using System;
-
-using Avalonia.Controls;
-using Avalonia.Input;
-using Avalonia.Interactivity;
-using Avalonia.Threading;
-
-using JoinCode.Gui.ViewModels;
-
-namespace JoinCode.Gui.Views;
+﻿namespace JoinCode.Gui.Views;
 
 /// <summary>
 /// 底部输入栏 UserControl — composer 卡片（透明无边框 TextBox 内嵌 + 发送按钮嵌入卡片右下）

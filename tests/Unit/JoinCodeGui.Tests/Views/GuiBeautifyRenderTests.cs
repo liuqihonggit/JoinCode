@@ -1,23 +1,7 @@
-#pragma warning disable JCC9001 // 豁免理由：帧图导出属诊断产物（对齐 dumps/ 约定），非被测行为
+﻿#pragma warning disable JCC9001 // 豁免理由：帧图导出属诊断产物（对齐 dumps/ 约定），非被测行为
 
-using System;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
 
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Headless;
-using Avalonia.Headless.XUnit;
-using Avalonia.Media.Imaging;
-using Avalonia.Threading;
-using Avalonia.VisualTree;
 
-using JoinCode.Abstractions.LLM.Chat;
-using JoinCode.Gui.Persistence;
-using JoinCode.Gui.Theming;
-using JoinCode.Gui.ViewModels;
-using JoinCode.Gui.Views;
 
 namespace JoinCode.Gui.Tests.Views;
 

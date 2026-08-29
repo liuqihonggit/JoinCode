@@ -1,6 +1,5 @@
-namespace Core.Goal;
+﻿namespace Core.Goal;
 
-using JoinCode.Abstractions.Pipeline;
 
 /// <summary>
 /// 完成信号中间件 — MarkCompleted/MarkUnmet 时设置完成信号

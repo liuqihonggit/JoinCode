@@ -1,6 +1,4 @@
-using Api.LLM.QueryServices.Anthropic;
-
-namespace Llm.Tests.Adapters.LLM.QueryServices.Anthropic;
+﻿namespace Llm.Tests.Adapters.LLM.QueryServices.Anthropic;
 
 public sealed class AnthropicQueryServiceTests
 {

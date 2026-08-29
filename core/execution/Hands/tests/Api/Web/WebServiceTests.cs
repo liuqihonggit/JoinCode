@@ -1,7 +1,5 @@
-namespace Core.Tests.Web;
+﻿namespace Core.Tests.Web;
 
-using ChatApiMessage = JoinCode.Abstractions.LLM.Chat.ApiMessage;
-using ChatMessageRole = JoinCode.Abstractions.LLM.Chat.MessageRole;
 
 public sealed class WebServiceTests
 {

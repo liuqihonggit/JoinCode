@@ -1,8 +1,4 @@
-using Core.Hooks.ToolPermission.Handlers;
-using Core.Security.Services;
-using HookPermissionUpdate = JoinCode.Abstractions.Hooks.PermissionUpdate;
-
-namespace JoinCode.Tests.Guard;
+﻿namespace JoinCode.Tests.Guard;
 
 public class CoordinatorHandlerClassifierTests
 {

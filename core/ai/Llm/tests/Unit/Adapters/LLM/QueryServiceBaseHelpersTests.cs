@@ -1,6 +1,5 @@
-namespace Llm.Tests.Adapters.LLM;
+﻿namespace Llm.Tests.Adapters.LLM;
 
-using System.Text.Json;
 
 public class QueryServiceBaseHelpersTests
 {

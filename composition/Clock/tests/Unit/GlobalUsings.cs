@@ -38,3 +38,8 @@ global using FluentAssertions;
 global using System.Runtime.CompilerServices;
 global using Testing.Common.Services;
 global using Xunit;
+global using Core.Hooks.Lifecycle;
+global using Infrastructure.Time;
+global using JoinCode.Abstractions.Models.Interactive;
+global using Structura.Dag;
+global using System.Collections.Frozen;

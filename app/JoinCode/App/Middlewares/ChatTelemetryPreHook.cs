@@ -1,8 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-using JoinCode.Abstractions.Pipeline;
-using Core.Hooks;
-
-namespace JoinCode.App.Middlewares;
+﻿namespace JoinCode.App.Middlewares;
 
 /// <summary>
 /// Chat 管道 Pre Hook — 遥测 StartSpan + UserPromptSubmit Hook 拦截

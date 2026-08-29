@@ -1,7 +1,5 @@
 ﻿namespace Infrastructure.Pipeline.Tests;
 
-using JoinCode.Abstractions.Pipeline;
-using Infrastructure.Pipeline.Middlewares;
 
 public sealed class StreamRateLimitAndCircuitBreakerTests
 {

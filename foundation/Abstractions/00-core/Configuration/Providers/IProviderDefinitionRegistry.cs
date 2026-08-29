@@ -1,6 +1,4 @@
 ﻿
-using JoinCode.Abstractions.Utils;
-
 namespace JoinCode.Abstractions.Configuration.Providers;
 
 public interface IProviderDefinitionRegistry : IRegistry

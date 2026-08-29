@@ -1,7 +1,4 @@
-using JoinCode.Abstractions.Models.Notebook;
-using Services.Notebook.ToolHandlers;
-
-namespace Tools.Handlers.Tests;
+﻿namespace Tools.Handlers.Tests;
 
 public sealed class ApplyPatchDiagnosticTests
 {

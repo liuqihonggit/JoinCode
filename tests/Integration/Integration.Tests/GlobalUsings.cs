@@ -112,3 +112,8 @@ global using SkillContext = Core.Skills.SkillContext;
 global using AgentRestrictionMiddleware = Core.Permission.AgentRestrictionMiddleware;
 global using Tools.Shell;
 global using JoinCode.Pipelines;
+global using IToolHandler = JoinCode.Abstractions.Tools.IToolHandler;
+global using JoinCode.Abstractions.Exceptions;
+global using JoinCode.Abstractions.Security.Shell;
+global using McpToolRegistry;
+global using ToolContent = JoinCode.Abstractions.Tools.ToolContent;

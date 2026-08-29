@@ -1,6 +1,5 @@
-namespace Core.Agents.Doctor;
+﻿namespace Core.Agents.Doctor;
 
-using JoinCode.Abstractions.Interfaces.Doctor;
 
 /// <summary>
 /// 自举闭环 — 源码工程驱动的自我修复

@@ -1,7 +1,5 @@
+﻿namespace Core.Bridge.Init.V2;
 
-namespace Core.Bridge.Init.V2;
-
-using JoinCode.Abstractions.Pipeline;
 
 /// <summary>
 /// V2 JWT 刷新调度器 + 传输回调 + 连接 — 对齐 TS 端 §5-§8

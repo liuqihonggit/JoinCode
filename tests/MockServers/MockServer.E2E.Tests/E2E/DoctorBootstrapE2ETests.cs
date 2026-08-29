@@ -1,7 +1,5 @@
-namespace MockServer.E2E.Tests.E2E;
+﻿namespace MockServer.E2E.Tests.E2E;
 
-using System.Diagnostics;
-using System.Text.RegularExpressions;
 
 // E2E 测试需要启动真实进程和访问文件系统路径
 #pragma warning disable JCC9001, JCC9002

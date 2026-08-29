@@ -1,8 +1,6 @@
 
 namespace JoinCode.Abstractions.Interfaces;
 
-using JoinCode.Abstractions.Models.Agent;
-
 /// <summary>
 /// 通用 Agent 接口 — 协调者和执行者共用
 /// 身份信息通过 ObjectId 获取（ObjectId.SequenceId / ObjectId.UniqueId / ObjectId.DisplayName）

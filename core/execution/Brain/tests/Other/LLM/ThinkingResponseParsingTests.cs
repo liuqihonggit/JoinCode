@@ -1,8 +1,5 @@
-namespace Core.Tests.LLM;
+﻿namespace Core.Tests.LLM;
 
-using Api.LLM.QueryServices.Anthropic;
-using Api.LLM.QueryServices.OpenAI;
-using JoinCode.Abstractions.LLM.Chat;
 
 public sealed class ThinkingResponseParsingTests
 {

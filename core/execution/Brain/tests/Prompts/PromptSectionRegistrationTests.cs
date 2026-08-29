@@ -1,8 +1,4 @@
-using Core.Prompts;
-using JoinCode.Abstractions.Prompts;
-using FluentAssertions;
-
-namespace Core.Tests.Prompts;
+﻿namespace Core.Tests.Prompts;
 
 public class PromptSectionRegistrationTests
 {

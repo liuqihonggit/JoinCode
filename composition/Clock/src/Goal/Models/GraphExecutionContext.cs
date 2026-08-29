@@ -1,7 +1,5 @@
-namespace Core.Goal;
+﻿namespace Core.Goal;
 
-using JoinCode.Abstractions.Models.Goal;
-using Structura.Dag;
 
 /// <summary>
 /// Graph 执行的运行时上下文 — 持有可变状态、队列、重试计数

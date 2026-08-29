@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-
-namespace Core.Prompts.Sections;
+﻿namespace Core.Prompts.Sections;
 
 /// <summary>
 /// 与用户沟通部分 - 如何编写用户-facing文本

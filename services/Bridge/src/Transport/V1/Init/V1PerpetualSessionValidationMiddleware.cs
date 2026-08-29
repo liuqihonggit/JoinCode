@@ -1,7 +1,5 @@
+﻿namespace Core.Bridge.Init.V1;
 
-namespace Core.Bridge.Init.V1;
-
-using JoinCode.Abstractions.Pipeline;
 
 /// <summary>
 /// V1 Perpetual 模式: 验证已有会话是否存活 — 对齐 TS 端: getBridgeSession

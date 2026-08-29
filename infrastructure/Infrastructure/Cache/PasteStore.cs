@@ -1,7 +1,4 @@
-using System.Security.Cryptography;
-using System.Text;
-
-namespace Infrastructure.Cache;
+﻿namespace Infrastructure.Cache;
 
 /// <summary>
 /// 粘贴内容缓存实现 — 对齐 TS pasteStore.ts

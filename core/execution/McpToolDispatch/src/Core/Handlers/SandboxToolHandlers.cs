@@ -1,6 +1,5 @@
-namespace McpToolDispatch;
+﻿namespace McpToolDispatch;
 
-using JoinCode.Abstractions.Security.Sandbox;
 
 [McpToolDispatch(ToolCategory.Sandbox)]
 public sealed class SandboxToolHandlers

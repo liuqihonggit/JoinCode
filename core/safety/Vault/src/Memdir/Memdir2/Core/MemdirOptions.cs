@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-
-namespace Core.Memdir;
+﻿namespace Core.Memdir;
 
 /// <summary>
 /// Memdir 组件配置选项

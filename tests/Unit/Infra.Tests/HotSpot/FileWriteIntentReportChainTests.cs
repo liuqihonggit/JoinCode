@@ -1,7 +1,5 @@
-namespace Infra.Tests.HotSpot;
+﻿namespace Infra.Tests.HotSpot;
 
-using Infrastructure.HotSpot;
-using Infrastructure.IO.Services.FileOps;
 
 /// <summary>
 /// 断裂点1+2+3 集成测试 — 验证 Worker 改文件 → IntentCollector 记录 → HotSpotTracker 查询链路

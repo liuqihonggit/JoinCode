@@ -1,8 +1,5 @@
-namespace Core.Agents.Tests.Unit.Agents;
+﻿namespace Core.Agents.Tests.Unit.Agents;
 
-using JoinCode.Abstractions.Interfaces;
-using JoinCode.Abstractions.LLM.Execution;
-using JoinCode.Abstractions.Models.Agent;
 
 /// <summary>
 /// AgentBase MaxIterations 最大迭代次数限制测试

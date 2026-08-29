@@ -1,6 +1,3 @@
-using Core.Context;
-using Infrastructure.Pipeline;
-
 namespace Core.DependencyInjection;
 
 public static partial class ServiceRegistration

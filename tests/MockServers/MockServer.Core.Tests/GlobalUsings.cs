@@ -3,3 +3,7 @@ global using System.Text.Json;
 global using MockServer.Core;
 global using Xunit;
 global using FluentAssertions;
+global using Anthropic.MockServer;
+global using DeepSeek.MockServer;
+global using OpenAI.MockServer;
+global using Responses.MockServer;

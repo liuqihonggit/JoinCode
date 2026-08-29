@@ -35,3 +35,6 @@ global using System.Collections.Immutable;
 global using System.Text.Json;
 global using System.Text.Json.Serialization;
 global using JoinCode.Abstractions.Entity;
+global using Structura.Dag;
+global using System.Threading.Channels;
+global using Core.Hooks.Lifecycle;

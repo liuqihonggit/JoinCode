@@ -1,6 +1,5 @@
-namespace Core.Tests.Context;
+﻿namespace Core.Tests.Context;
 
-using IOFileSystem = IO.FileSystem.InMemoryFileSystem;
 
 public class DiagnosticLogRecorderTests
 {

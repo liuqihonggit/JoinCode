@@ -22,3 +22,6 @@ global using System.Text.Json;
 global using FluentAssertions;
 global using Infrastructure.Http;
 global using IO.FileSystem;
+global using JoinCode.Abstractions.Configuration.Llm;
+global using JoinCode.Abstractions.LLM.Chat;
+global using System.Reflection;

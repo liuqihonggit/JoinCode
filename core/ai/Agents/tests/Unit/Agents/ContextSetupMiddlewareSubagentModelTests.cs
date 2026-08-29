@@ -1,8 +1,5 @@
 ﻿namespace Core.Agents.Tests.Unit.Agents;
 
-using JoinCode.Abstractions.Interfaces;
-using JoinCode.Abstractions.LLM.Chat;
-using JoinCode.Abstractions.Models.Agent;
 
 /// <summary>
 /// ContextSetupMiddleware 子代理模型解析测试

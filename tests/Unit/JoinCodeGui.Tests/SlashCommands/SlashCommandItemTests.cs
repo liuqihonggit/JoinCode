@@ -1,8 +1,4 @@
-using FluentAssertions;
-
-using JoinCode.Gui.ViewModels;
-
-namespace JoinCode.Gui.Tests.SlashCommands;
+﻿namespace JoinCode.Gui.Tests.SlashCommands;
 
 /// <summary>
 /// SlashCommandItem 单元测试 — 验证 ToolTipText 悬停提示文本的派生逻辑。

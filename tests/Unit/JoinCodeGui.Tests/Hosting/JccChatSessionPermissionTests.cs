@@ -1,16 +1,4 @@
-using FluentAssertions;
-
-using JoinCode.Abstractions.Interfaces;
-using JoinCode.Abstractions.LLM.Chat;
-using JoinCode.Abstractions.Configuration;
-using JoinCode.Abstractions.Configuration.Providers;
-using JoinCode.Abstractions.Security;
-using JoinCode.Abstractions.Security.Permission;
-using JoinCode.Gui.Hosting;
-
-using Microsoft.Extensions.DependencyInjection;
-
-namespace JoinCode.Gui.Tests.Hosting;
+﻿namespace JoinCode.Gui.Tests.Hosting;
 
 /// <summary>
 /// 引擎会话权限确认闭环测试 — 验证网关在引擎抛出

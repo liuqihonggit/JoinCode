@@ -1,8 +1,5 @@
-namespace Core.Agents.Tests.Unit.Agents;
+﻿namespace Core.Agents.Tests.Unit.Agents;
 
-using JoinCode.Abstractions.Interfaces;
-using JoinCode.Abstractions.Models.Agent;
-using JoinCode.Abstractions.Models.Skill;
 
 /// <summary>
 /// ContextSetupMiddleware Skills 预加载测试

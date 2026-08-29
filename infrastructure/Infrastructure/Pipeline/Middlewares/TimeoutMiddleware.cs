@@ -1,6 +1,5 @@
 ﻿namespace Infrastructure.Pipeline.Middlewares;
 
-using JoinCode.Abstractions.Pipeline;
 
 /// <summary>
 /// 通用超时中间件（接口约束版）— 从 ITimeoutContext.Timeout 读取超时时长

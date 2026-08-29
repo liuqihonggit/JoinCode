@@ -1,6 +1,5 @@
-namespace Abs.Tests.LLM.Chat;
+﻿namespace Abs.Tests.LLM.Chat;
 
-using JoinCode.Abstractions.LLM.Chat;
 
 public class MessageListFromListTests
 {

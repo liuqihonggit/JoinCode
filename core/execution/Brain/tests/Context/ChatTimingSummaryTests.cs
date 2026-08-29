@@ -1,6 +1,5 @@
-namespace Core.Tests.Context;
+﻿namespace Core.Tests.Context;
 
-using JoinCode.Abstractions.LLM.Chat;
 
 /// <summary>
 /// ChatTiming.FormatSummary 缓存统计输出单元测试

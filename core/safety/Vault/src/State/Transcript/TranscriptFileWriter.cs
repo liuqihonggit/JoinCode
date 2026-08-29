@@ -1,6 +1,5 @@
-namespace State;
+﻿namespace State;
 
-using Core.Utils;
 
 /// <summary>
 /// 共享的 Transcript 文件写入器 — 提取自 TranscriptService 和 AgentTranscriptService

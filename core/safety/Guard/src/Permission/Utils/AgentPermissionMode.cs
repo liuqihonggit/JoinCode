@@ -1,7 +1,4 @@
-
-using PermissionCheckResult = JoinCode.Abstractions.Security.Permission.PermissionCheckResult;
-
-namespace Core.Utils;
+﻿namespace Core.Utils;
 
 /// <summary>
 /// Agent权限管理器实现

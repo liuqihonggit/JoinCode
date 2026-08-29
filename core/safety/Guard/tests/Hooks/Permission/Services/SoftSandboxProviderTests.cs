@@ -1,6 +1,5 @@
-namespace Guard.Tests.Permission.Services;
+﻿namespace Guard.Tests.Permission.Services;
 
-using JoinCode.Abstractions.Security.Sandbox;
 
 public sealed class SoftSandboxProviderTests
 {

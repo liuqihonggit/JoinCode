@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-
-namespace Core.Context.Compact;
+﻿namespace Core.Context.Compact;
 
 /// <summary>
 /// 会话记忆压缩中间件 — 使用会话记忆进行压缩

@@ -1,7 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-using TreeSitter;
-
-namespace JoinCode.Abstractions.Security.Shell;
+﻿namespace JoinCode.Abstractions.Security.Shell;
 
 [Register(typeof(IBashAstSecurityWalker), ServiceLifetime.Singleton)]
 public sealed partial class BashAstSecurityWalker : ServiceEntity, IBashAstSecurityWalker, IDisposable

@@ -1,7 +1,5 @@
-namespace JoinCode.SandboxSatellite;
+﻿namespace JoinCode.SandboxSatellite;
 
-using JoinCode.Abstractions.Security.Sandbox.Ipc;
-using Infrastructure.Windows.JobObject;
 
 public sealed class SandboxSatelliteHost : IAsyncDisposable
 {

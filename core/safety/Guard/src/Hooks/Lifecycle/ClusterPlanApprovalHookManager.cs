@@ -1,8 +1,5 @@
+﻿namespace Core.Hooks.Lifecycle;
 
-namespace Core.Hooks.Lifecycle;
-
-using JoinCode.Abstractions.Models.Agent;
-using JoinCode.Abstractions.Models.Goal;
 
 public interface IClusterPlanApprovalHookManager
 {

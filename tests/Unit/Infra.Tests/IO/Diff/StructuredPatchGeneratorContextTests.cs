@@ -1,7 +1,4 @@
-using Infrastructure.IO.Services.Diff;
-using JoinCode.Abstractions.Models.Diff;
-
-namespace JoinCode.Infra.Tests.IO.Diff;
+﻿namespace JoinCode.Infra.Tests.IO.Diff;
 
 public sealed class StructuredPatchGeneratorContextTests
 {

@@ -1,13 +1,4 @@
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Controls.Documents;
-using Avalonia.Layout;
-using Avalonia.Media;
-using Avalonia.Media.TextFormatting;
-
-using JoinCode.Gui.Theming;
-
-namespace JoinCode.Gui.Markdown;
+﻿namespace JoinCode.Gui.Markdown;
 
 /// <summary>
 /// Markdown 渲染控件 — 接收 Markdown 文本，内部用 <see cref="MarkdownParser"/> 解析为模型，

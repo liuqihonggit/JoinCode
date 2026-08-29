@@ -1,10 +1,5 @@
-namespace Llm.Tests.Adapters.LLM.QueryServices.Responses;
+﻿namespace Llm.Tests.Adapters.LLM.QueryServices.Responses;
 
-using System.Net;
-using System.Text;
-using System.Text.Json;
-using Api.LLM.QueryServices;
-using Api.LLM.QueryServices.Responses;
 
 public class ResponsesQueryServiceTests
 {

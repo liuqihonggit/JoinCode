@@ -1,6 +1,5 @@
-namespace Api.LLM.Fallback;
+﻿namespace Api.LLM.Fallback;
 
-using JoinCode.Abstractions.Diagnostics;
 
 /// <summary>
 /// 流式→非流式 fallback 装饰器 — 对齐 TS claude.ts 的 executeNonStreamingRequest + withRetry fallback 逻辑

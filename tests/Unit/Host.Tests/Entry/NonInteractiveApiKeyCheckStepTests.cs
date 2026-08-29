@@ -1,6 +1,5 @@
-namespace JoinCode.Entry.Tests;
+﻿namespace JoinCode.Entry.Tests;
 
-using Microsoft.Extensions.Hosting;
 
 /// <summary>
 /// NonInteractiveApiKeyCheckStep 单元测试

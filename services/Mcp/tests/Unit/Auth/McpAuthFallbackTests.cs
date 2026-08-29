@@ -1,7 +1,5 @@
-namespace Mcp.Tests.Auth;
+﻿namespace Mcp.Tests.Auth;
 
-using System.Reflection;
-using McpClient;
 
 /// <summary>
 /// Mcp\Auth 4 处 fallback 迁移测试 — P1-6

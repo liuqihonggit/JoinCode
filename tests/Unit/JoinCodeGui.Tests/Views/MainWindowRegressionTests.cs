@@ -1,19 +1,4 @@
-using Avalonia.Controls;
-using Avalonia.Headless;
-using Avalonia.Headless.XUnit;
-using Avalonia.Input;
-using Avalonia.VisualTree;
-using JoinCode.Abstractions.LLM;
-using JoinCode.Abstractions.LLM.Chat;
-using JoinCode.Abstractions.Interfaces;
-using JoinCode.Abstractions.Models.Interactive;
-using JoinCode.Gui.Hosting;
-using JoinCode.Gui.Persistence;
-using JoinCode.Gui.ViewModels;
-using JoinCode.Gui.Views;
-using Xunit;
-
-namespace JoinCode.Gui.Tests.Views;
+﻿namespace JoinCode.Gui.Tests.Views;
 
 /// <summary>
 /// MainWindow 回归测试 — 验证 XAML 命名字段在构造函数后即完成赋值（InitializeComponent），

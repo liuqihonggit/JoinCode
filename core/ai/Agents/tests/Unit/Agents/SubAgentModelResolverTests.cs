@@ -1,6 +1,5 @@
 ﻿namespace Core.Agents.Tests.Unit.Agents;
 
-using JoinCode.Abstractions.Interfaces;
 
 /// <summary>
 /// SubAgentModelResolver 单元测试 — 对齐 TS 原版 src/utils/model/agent.ts

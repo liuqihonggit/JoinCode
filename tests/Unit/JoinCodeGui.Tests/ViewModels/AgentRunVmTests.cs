@@ -1,8 +1,4 @@
-using JoinCode.Abstractions.LLM.Chat;
-
-using JoinCode.Gui.ViewModels;
-
-namespace JoinCode.Gui.Tests.ViewModels;
+﻿namespace JoinCode.Gui.Tests.ViewModels;
 
 /// <summary>
 /// AgentRunVm 测试 — SubAgentRun → 可绑定行 VM 的映射契约，

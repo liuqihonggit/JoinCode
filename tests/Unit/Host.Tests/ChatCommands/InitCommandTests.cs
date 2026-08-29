@@ -1,6 +1,5 @@
 ﻿namespace Host.Tests.ChatCommands;
 
-using Testing.Common.Services;
 
 /// <summary>
 /// InitCommand 单元测试 — 覆盖 /init quick 路径

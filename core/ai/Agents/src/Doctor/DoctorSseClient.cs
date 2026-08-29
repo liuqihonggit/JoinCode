@@ -1,7 +1,5 @@
-namespace Core.Agents.Doctor;
+﻿namespace Core.Agents.Doctor;
 
-using System.Net.Http;
-using System.Text;
 
 /// <summary>
 /// 医生 SSE 客户端 — 病人端使用，连接医生的 SSE 服务器

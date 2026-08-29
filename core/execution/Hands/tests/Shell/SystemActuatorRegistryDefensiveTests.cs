@@ -1,6 +1,5 @@
-namespace Hands.Shell.Tests;
+﻿namespace Hands.Shell.Tests;
 
-using Services.SystemActuator;
 
 /// <summary>
 /// SystemActuatorRegistry 防御性编程测试

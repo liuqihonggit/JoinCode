@@ -1,7 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-using Core.Prompts;
-
-namespace Core.Prompts.Sections;
+﻿namespace Core.Prompts.Sections;
 
 /// <summary>
 /// 工具结果清除部分 - 关于工具结果自动清除的说明

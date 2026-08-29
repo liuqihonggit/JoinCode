@@ -1,21 +1,4 @@
-using FluentAssertions;
-
-using IO.FileSystem;
-using JoinCode.Abstractions.LLM.Chat;
-using JoinCode.Abstractions.Configuration;
-using JoinCode.Abstractions.Configuration.Providers;
-using JoinCode.Abstractions.Configuration.Settings;
-using JoinCode.Abstractions.Interfaces;
-using JoinCode.Abstractions.LLM;
-
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Configuration;
-using Core.DependencyInjection;
-using JoinCode.Pipelines;
-using Api.Chat;
-using JoinCode.Gui.Hosting;
-
-namespace JoinCode.Gui.Tests.Hosting;
+﻿namespace JoinCode.Gui.Tests.Hosting;
 
 /// <summary>
 /// 引擎会话组装测试 — 验证 GUI 进程内引擎接入的关键假设：

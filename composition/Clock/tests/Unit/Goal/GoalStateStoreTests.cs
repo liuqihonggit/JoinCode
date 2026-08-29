@@ -1,7 +1,5 @@
+﻿namespace Core.Goal.Tests;
 
-namespace Core.Goal.Tests;
-
-using Testing.Common.Services;
 
 public sealed class GoalStateStoreTests
 {

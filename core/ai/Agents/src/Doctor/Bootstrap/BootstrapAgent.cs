@@ -1,7 +1,5 @@
-namespace Core.Agents.Doctor;
+﻿namespace Core.Agents.Doctor;
 
-using JoinCode.Abstractions.Interfaces;
-using JoinCode.Abstractions.Interfaces.Doctor;
 
 /// <summary>
 /// 自举后台 Agent — jcc --doctor 入口，LLM 驱动，监控病人遥测并修复 jcc 自身源码

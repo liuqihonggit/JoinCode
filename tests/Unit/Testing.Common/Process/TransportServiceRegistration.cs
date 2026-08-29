@@ -1,6 +1,4 @@
-using Microsoft.Extensions.DependencyInjection;
-
-namespace Testing.Common.Process;
+﻿namespace Testing.Common.Process;
 
 /// <summary>
 /// Transport 层 DI 注册扩展 — 委托到 Transport.Impl 的统一注册方法

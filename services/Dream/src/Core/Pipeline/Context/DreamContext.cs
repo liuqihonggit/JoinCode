@@ -1,6 +1,5 @@
-namespace JoinCode.Dream.Pipeline;
+﻿namespace JoinCode.Dream.Pipeline;
 
-using JoinCode.Abstractions.Pipeline;
 
 public sealed class DreamContext : PipelineContextBase
 {

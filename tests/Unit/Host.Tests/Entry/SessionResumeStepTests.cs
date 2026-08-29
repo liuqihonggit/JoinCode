@@ -1,10 +1,5 @@
-namespace JoinCode.Entry.Tests;
+﻿namespace JoinCode.Entry.Tests;
 
-using System.Text.Json;
-using JoinCode.ChatCommands;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Testing.Common.Services;
 
 /// <summary>
 /// SessionResumeStep 单元测试 — 验证视角1 #1 的 --continue/--resume 行为

@@ -1,16 +1,4 @@
-using FluentAssertions;
-
-using IO.FileSystem;
-using JoinCode.Abstractions.LLM;
-using JoinCode.Abstractions.LLM.Chat;
-using JoinCode.Abstractions.Interfaces;
-using JoinCode.Abstractions.Models.Diff;
-using JoinCode.Abstractions.Models.Interactive;
-using JoinCode.Gui.Hosting;
-using JoinCode.Gui.Persistence;
-using JoinCode.Gui.ViewModels;
-
-namespace JoinCode.Gui.Tests.ViewModels;
+﻿namespace JoinCode.Gui.Tests.ViewModels;
 
 /// <summary>
 /// MainViewModel 冒烟测试 — 验证"输入→回显→角色化消息"命令链路（不依赖真实引擎）。

@@ -1,11 +1,5 @@
-namespace Infra.Tests.LLM;
+﻿namespace Infra.Tests.LLM;
 
-using Api.LLM;
-using Api.LLM.QueryServices.Anthropic;
-using JoinCode.Abstractions.Utils;
-using ChatApiMessage = JoinCode.Abstractions.LLM.Chat.ApiMessage;
-using ChatMessageRole = JoinCode.Abstractions.LLM.Chat.MessageRole;
-using MessageList = JoinCode.Abstractions.LLM.Chat.MessageList;
 
 /// <summary>
 /// AnthropicQueryService.ConvertToAnthropicMessages Anthropic 角色转换测试

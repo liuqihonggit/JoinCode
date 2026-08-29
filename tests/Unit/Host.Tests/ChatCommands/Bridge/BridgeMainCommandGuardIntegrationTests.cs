@@ -1,12 +1,5 @@
-namespace Host.Tests.ChatCommands.Bridge;
+﻿namespace Host.Tests.ChatCommands.Bridge;
 
-using Core.Bridge;
-using JoinCode.Abstractions.Interfaces;
-using JoinCode.Abstractions.Models.Policy;
-using JoinCode.Abstractions.Security;
-using JoinCode.ChatCommands.Bridge;
-using Moq;
-using Services.OAuth;
 
 /// <summary>
 /// BridgeMainCommand Guard 集成单元测试 — P0-C TDD

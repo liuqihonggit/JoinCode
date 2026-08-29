@@ -1,12 +1,6 @@
-
-#pragma warning disable JCC3010, JCC3011, JCC3012
+﻿#pragma warning disable JCC3010, JCC3011, JCC3012
 namespace Integration.Tests.Guard.Permission;
 
-using IToolHandler = JoinCode.Abstractions.Tools.IToolHandler;
-using ToolContent = JoinCode.Abstractions.Tools.ToolContent;
-using McpToolRegistry;
-using JoinCode.Abstractions.Security.Shell;
-using JoinCode.Abstractions.Exceptions;
 
 /// <summary>
 /// Permission 集成测试 - 使用共享静态配置（已通过分片锁保护）

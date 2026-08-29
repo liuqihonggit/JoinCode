@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-
-namespace Core.Context;
+﻿namespace Core.Context;
 
 /// <summary>
 /// 工具列表注入中间件 — 注入 Agent/Skill 列表附件

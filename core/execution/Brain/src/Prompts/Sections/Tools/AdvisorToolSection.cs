@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-
-namespace Core.Prompts.Sections;
+﻿namespace Core.Prompts.Sections;
 
 /// <summary>
 /// Advisor 工具提示词部分

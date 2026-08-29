@@ -1,6 +1,5 @@
 namespace JoinCode.Abstractions.Models.Goal;
 
-using JoinCode.Abstractions.Models.Agent;
 /// <summary>
 /// Goal Graph 节点 Payload — 携带执行所需的所有信息
 /// </summary>

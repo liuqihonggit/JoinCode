@@ -1,6 +1,4 @@
-using System.ComponentModel;
-
-namespace JoinCode.Gui.ViewModels;
+﻿namespace JoinCode.Gui.ViewModels;
 
 /// <summary>
 /// 子代理运行行 VM — 包装 <see cref="SubAgentRun"/> 供 XAML 绑定。

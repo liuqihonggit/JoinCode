@@ -1,8 +1,6 @@
 
 namespace JoinCode.Abstractions.Interfaces.Scheduling;
 
-using JoinCode.Abstractions.Models.Goal;
-
 /// <summary>
 /// 目标节点检查器 — 统一节点级检查操作：健康检查 + 循环观察 + 质量评分。
 /// 对齐文档 NodeHealthChecker + QualityScorer + Observer，合并为一个接口避免类爆炸。

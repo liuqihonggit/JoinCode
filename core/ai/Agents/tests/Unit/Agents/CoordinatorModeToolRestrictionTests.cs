@@ -1,7 +1,5 @@
-namespace Core.Agents;
+﻿namespace Core.Agents;
 
-using JoinCode.Abstractions.Interfaces;
-using JoinCode.Abstractions.Models.Agent;
 
 /// <summary>
 /// Coordinator 模式工具集限制测试

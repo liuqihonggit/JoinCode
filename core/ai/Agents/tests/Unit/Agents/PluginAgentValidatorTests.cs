@@ -1,7 +1,5 @@
-namespace Core.Agents;
+﻿namespace Core.Agents;
 
-using JoinCode.Abstractions.Models.Agent;
-using JoinCode.Abstractions.Prompts.ToolPrompts;
 
 public sealed class PluginAgentValidatorTests
 {

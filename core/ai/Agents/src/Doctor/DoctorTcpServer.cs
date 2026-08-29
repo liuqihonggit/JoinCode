@@ -1,9 +1,5 @@
-namespace Core.Agents.Doctor;
+﻿namespace Core.Agents.Doctor;
 
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
-using System.Text.Json;
 
 /// <summary>
 /// 医生 TCP 服务器 — TcpListener 监听，管理多个病人连接

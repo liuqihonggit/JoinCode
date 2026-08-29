@@ -1,7 +1,5 @@
-namespace Infra.Tests.Http;
+﻿namespace Infra.Tests.Http;
 
-using Infrastructure.Http;
-using JoinCode.Abstractions.Http;
 
 /// <summary>
 /// DefaultHttpClientProvider 单元测试 — P1-5 推广 HttpClientFactory

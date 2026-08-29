@@ -1,8 +1,4 @@
-﻿using JoinCode.Abstractions.LLM.Chat;
-
-using JoinCode.Gui.ViewModels;
-
-namespace JoinCode.Gui.Tests.ViewModels;
+﻿namespace JoinCode.Gui.Tests.ViewModels;
 
 /// <summary>
 /// SubAgentRunTracker 测试 — 多 subAgent 运行态聚合器。

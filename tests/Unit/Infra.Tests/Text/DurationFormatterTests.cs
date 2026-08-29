@@ -1,6 +1,4 @@
-using Infrastructure.Utils.Text;
-
-namespace JoinCode.Infra.Tests.Text;
+﻿namespace JoinCode.Infra.Tests.Text;
 
 public class DurationFormatterTests
 {

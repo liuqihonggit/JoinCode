@@ -1,6 +1,5 @@
-namespace Api.LLM.QueryServices.Azure;
+﻿namespace Api.LLM.QueryServices.Azure;
 
-using Api.LLM.QueryServices.OpenAI;
 
 /// <summary>
 /// Azure OpenAI QueryService 实现 — 协议层与 OpenAI 兼容（chat/completions 端点）

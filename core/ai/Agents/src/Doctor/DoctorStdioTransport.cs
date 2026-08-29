@@ -1,7 +1,5 @@
-namespace Core.Agents.Doctor;
+﻿namespace Core.Agents.Doctor;
 
-using System.Text;
-using System.Text.Json;
 
 /// <summary>
 /// 医生 stdio 传输 — 从病人 stdout 读取 NDJSON 遥测事件，通过 stdin 发送指令

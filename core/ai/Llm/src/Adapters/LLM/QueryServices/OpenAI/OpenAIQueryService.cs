@@ -1,7 +1,5 @@
-namespace Api.LLM.QueryServices.OpenAI;
+﻿namespace Api.LLM.QueryServices.OpenAI;
 
-using Api.LLM.CacheProtocol;
-using JoinCode.Abstractions.Diagnostics;
 
 /// <summary>
 /// OpenAI 协议 QueryService 实现 — 覆盖 OpenAI 兼容协议（chat/completions 端点 + Bearer Token）

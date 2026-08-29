@@ -1,6 +1,5 @@
-namespace Api.LLM.QueryServices.Anthropic;
+﻿namespace Api.LLM.QueryServices.Anthropic;
 
-using Api.LLM.CacheProtocol;
 
 /// <summary>
 /// Anthropic 协议 QueryService 实现 — 完全独立的协议（v1/messages 端点 + x-api-key Header + content blocks）

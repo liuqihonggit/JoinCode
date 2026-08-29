@@ -1,7 +1,5 @@
-namespace Core.Agents.Doctor;
+﻿namespace Core.Agents.Doctor;
 
-using JoinCode.Abstractions.Interfaces;
-using JoinCode.Abstractions.Interfaces.Doctor;
 
 /// <summary>
 /// 诊断日志文件监控器 — 定期扫描 .jcc/diag/ 目录，将新日志行转为 DiagnosticEvent

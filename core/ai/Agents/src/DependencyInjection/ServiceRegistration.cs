@@ -1,7 +1,5 @@
-namespace JoinCode.Agents.DependencyInjection;
+﻿namespace JoinCode.Agents.DependencyInjection;
 
-using Core.Agents.Doctor;
-using JoinCode.Abstractions.Interfaces.Doctor;
 
 /// <summary>
 /// Agents 子系统的 DI 注册

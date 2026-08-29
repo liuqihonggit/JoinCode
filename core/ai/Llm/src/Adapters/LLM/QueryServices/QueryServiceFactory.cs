@@ -1,10 +1,5 @@
-namespace Api.LLM.QueryServices;
+﻿namespace Api.LLM.QueryServices;
 
-using Api.LLM.QueryServices.Agnes;
-using Api.LLM.QueryServices.Anthropic;
-using Api.LLM.QueryServices.Azure;
-using Api.LLM.QueryServices.OpenAI;
-using Api.LLM.QueryServices.Responses;
 
 /// <summary>
 /// QueryService 工厂 — 按 ProviderKind 分派到对应派生类

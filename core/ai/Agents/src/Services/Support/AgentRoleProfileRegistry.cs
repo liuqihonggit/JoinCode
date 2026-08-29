@@ -1,8 +1,5 @@
-namespace Core.Agents;
+﻿namespace Core.Agents;
 
-using System.Collections.Frozen;
-using JoinCode.Abstractions.Interfaces;
-using JoinCode.Abstractions.Models.Agent;
 
 /// <summary>
 /// Agent 角色注册表 — 管理 AgentRoleProfile 的注册和查询

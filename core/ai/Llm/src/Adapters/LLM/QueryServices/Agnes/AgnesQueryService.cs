@@ -1,6 +1,5 @@
-namespace Api.LLM.QueryServices.Agnes;
+﻿namespace Api.LLM.QueryServices.Agnes;
 
-using Api.LLM.QueryServices.OpenAI;
 
 /// <summary>
 /// Agnes AI QueryService — Agnes 协议与 OpenAI 基本兼容，但存在以下严格校验差异：

@@ -1,8 +1,5 @@
-namespace Core.Agents;
+﻿namespace Core.Agents;
 
-using System.Collections.Frozen;
-using JoinCode.Abstractions.Interfaces;
-using JoinCode.Abstractions.Prompts.ToolPrompts;
 
 /// <summary>
 /// 插件 Agent 加载器 — 维护 Map&lt;name, (AgentDefinition, pluginName)&gt;

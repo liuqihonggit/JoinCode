@@ -1,6 +1,5 @@
-namespace Core.Agents.Doctor;
+﻿namespace Core.Agents.Doctor;
 
-using JoinCode.Abstractions.Interfaces.Doctor;
 
 /// <summary>
 /// 默认自举安全守卫 — 6 条审核规则防止 Agent 破坏自身

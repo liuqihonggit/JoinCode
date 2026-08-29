@@ -93,3 +93,7 @@ global using JoinCode.Abstractions.Pipeline;
 global using Infrastructure.Pipeline;
 global using Infrastructure.Subprocess;
 global using Infrastructure.Utils.Resilience;
+global using JoinCode.Abstractions.Prompts.ToolPrompts;
+global using System.Net;
+global using System.Net.Http;
+global using System.Net.Sockets;

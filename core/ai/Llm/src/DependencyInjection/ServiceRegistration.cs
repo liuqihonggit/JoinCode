@@ -1,7 +1,5 @@
-namespace JoinCode.Llm.DependencyInjection;
+﻿namespace JoinCode.Llm.DependencyInjection;
 
-using Api.LLM.Fallback;
-using Api.LLM.QueryServices;
 
 public static partial class ServiceRegistration
 {

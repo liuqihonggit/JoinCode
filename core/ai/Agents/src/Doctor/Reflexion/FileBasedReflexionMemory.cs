@@ -1,7 +1,5 @@
-namespace Core.Agents.Doctor;
+﻿namespace Core.Agents.Doctor;
 
-using System.Text.Json;
-using JoinCode.Abstractions.Interfaces.Doctor;
 
 /// <summary>
 /// 基于文件的反思记忆 — 将修复经验序列化为 JSON 文件存储

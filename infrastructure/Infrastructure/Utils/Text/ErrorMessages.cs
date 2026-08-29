@@ -3,7 +3,7 @@ namespace Core.Utils;
 /// <summary>
 /// 错误消息常量 — 每条消息带唯一编码前缀 [域+3位数字]，方便在日志乱码时通过编码定位
 /// 域: TRN=Transport通用, SSE=SSE传输, WSK=WebSocket, SSH=SSH会话, MCP=MCP协议, MPB=MCPB bundle,
-///     AGT=Agent, CMP=编译, AUT=认证, PPL=管道, CDI=代码索引, GIT=Git, GEN=通用
+///     AGT=Agent, CMP=编译, AUT=认证, PPL=管道, CDI=代码索引, GIT=Git, INF=基础设施, GEN=通用
 /// </summary>
 public static class ErrorMessages
 {
@@ -175,7 +175,7 @@ public static class ErrorMessages
     /// <summary>
     /// 列配置数量与值选择器数量不匹配
     /// </summary>
-    public const string ColumnConfigCountMismatch = "[GEN002] 列配置数量与值选择器数量不匹配";
+    public const string ColumnConfigCountMismatch = "[INF001] 列配置数量与值选择器数量不匹配";
 
     /// <summary>
     /// 无法解析 JSON-RPC 请求
@@ -205,17 +205,17 @@ public static class ErrorMessages
     /// <summary>
     /// 命令不能为空
     /// </summary>
-    public const string CommandCannotBeEmpty = "[GEN003] 命令不能为空";
+    public const string CommandCannotBeEmpty = "[INF002] 命令不能为空";
 
     /// <summary>
     /// 目录不存在
     /// </summary>
-    public const string DirectoryNotFound = "[GEN004] 目录不存在: {0}";
+    public const string DirectoryNotFound = "[INF003] 目录不存在: {0}";
 
     /// <summary>
     /// 路径不存在
     /// </summary>
-    public const string PathNotFound = "[GEN005] 路径不存在: {0}";
+    public const string PathNotFound = "[INF004] 路径不存在: {0}";
 
     /// <summary>
     /// 代码不能为空
@@ -230,30 +230,30 @@ public static class ErrorMessages
     /// <summary>
     /// 任务不存在
     /// </summary>
-    public const string TaskNotFound = "[GEN006] 任务 {0} 不存在";
+    public const string TaskNotFound = "[INF005] 任务 {0} 不存在";
 
     /// <summary>
     /// 依赖任务不存在
     /// </summary>
-    public const string DependencyTaskNotFound = "[GEN007] 依赖任务 {0} 不存在";
+    public const string DependencyTaskNotFound = "[INF006] 依赖任务 {0} 不存在";
 
     /// <summary>
     /// 依赖关系不存在
     /// </summary>
-    public const string DependencyNotFound = "[GEN008] 依赖关系 {0} 不存在";
+    public const string DependencyNotFound = "[INF007] 依赖关系 {0} 不存在";
 
     /// <summary>
     /// 待办事项不存在
     /// </summary>
-    public const string TodoItemNotFound = "[GEN009] 待办事项不存在";
+    public const string TodoItemNotFound = "[INF008] 待办事项不存在";
 
     /// <summary>
     /// 未找到要替换的字符串
     /// </summary>
-    public const string ReplacementStringNotFound = "[GEN010] 未找到要替换的字符串";
+    public const string ReplacementStringNotFound = "[INF009] 未找到要替换的字符串";
 
     /// <summary>
     /// 参数不能为空
     /// </summary>
-    public const string ArgumentCannotBeEmpty = "[GEN011] {0} 不能为空";
+    public const string ArgumentCannotBeEmpty = "[INF010] {0} 不能为空";
 }

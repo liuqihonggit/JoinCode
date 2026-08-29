@@ -1,6 +1,6 @@
 # 0045. ConfigureAwait(false) 强制规范
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-08-29
 - 决策者：项目架构组
 

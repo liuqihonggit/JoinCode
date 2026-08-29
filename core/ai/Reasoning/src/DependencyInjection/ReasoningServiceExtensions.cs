@@ -1,6 +1,5 @@
-namespace JoinCode.Reasoning.DependencyInjection;
+﻿namespace JoinCode.Reasoning.DependencyInjection;
 
-using Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
 /// 推理引擎DI注册

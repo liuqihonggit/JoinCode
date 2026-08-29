@@ -1,7 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-using Core.Prompts;
-
-namespace Core.Prompts.Sections;
+﻿namespace Core.Prompts.Sections;
 
 /// <summary>
 /// 协调器模式提示词部分

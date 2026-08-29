@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-
-namespace Core.Query;
+﻿namespace Core.Query;
 
 /// <summary>
 /// 历史裁剪中间件 — 每次工具调用后检查是否需要裁剪对话历史

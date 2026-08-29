@@ -1,7 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-using Core.Prompts;
-
-namespace Core.Prompts.Sections;
+﻿namespace Core.Prompts.Sections;
 
 /// <summary>
 /// 工具使用部分 - 如何使用工具

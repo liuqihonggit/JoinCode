@@ -1,7 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-using Core.Prompts;
-
-namespace Core.Prompts.Sections;
+﻿namespace Core.Prompts.Sections;
 
 /// <summary>
 /// 团队成员提示词附加部分

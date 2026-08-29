@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-
-namespace Core.Context.Compact;
+﻿namespace Core.Context.Compact;
 
 /// <summary>
 /// 压缩钩子中间件 — 执行 pre-compact / post-compact hooks

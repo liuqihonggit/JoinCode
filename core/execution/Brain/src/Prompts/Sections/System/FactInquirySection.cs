@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-
-namespace Core.Prompts.Sections;
+﻿namespace Core.Prompts.Sections;
 
 /// <summary>
 /// 事实追问模式 — 当用户发起任务型请求时注入，引导 Agent 主动追问缺失信息

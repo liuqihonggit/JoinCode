@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Diagnostics;
-
-namespace Core.Context;
+﻿namespace Core.Context;
 
 /// <summary>
 /// LLM 调用处理器接口 — 负责LLM流式调用和事件生成

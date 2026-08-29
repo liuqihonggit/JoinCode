@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-
-namespace Core.Context;
+﻿namespace Core.Context;
 
 [Register(typeof(ISessionMetaStore), ServiceLifetime.Singleton)]
 public sealed partial class FileSessionMetaStore : ServiceEntity, ISessionMetaStore

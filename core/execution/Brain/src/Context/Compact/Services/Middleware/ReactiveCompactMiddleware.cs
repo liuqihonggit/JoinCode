@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-
-namespace Core.Context.Compact;
+﻿namespace Core.Context.Compact;
 
 /// <summary>
 /// 响应式压缩中间件 — 处理 prompt-too-long 等错误触发的压缩

@@ -1,7 +1,5 @@
+﻿namespace Core.Bridge.Init.V1;
 
-namespace Core.Bridge.Init.V1;
-
-using JoinCode.Abstractions.Pipeline;
 
 /// <summary>
 /// V1 设置工作轮询循环 + 传输回调 — 对齐 TS 端 §7-§10

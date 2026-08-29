@@ -1,7 +1,5 @@
+﻿namespace Core.Bridge;
 
-namespace Core.Bridge;
-
-using JoinCode.Abstractions.Attributes;
 
 // BridgeServerMessage, BridgeConnectedData, BridgeHealthData, BridgeClientsData,
 // BridgeErrorData, BridgeFileContentData, BridgeSelectionSetData, BridgeCommandExecutedData

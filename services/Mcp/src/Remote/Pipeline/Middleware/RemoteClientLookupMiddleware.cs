@@ -1,6 +1,5 @@
-namespace McpToolRegistry;
+﻿namespace McpToolRegistry;
 
-using JoinCode.Abstractions.Pipeline;
 
 /// <summary>
 /// 客户端查找中间件 — 从远程客户端字典中获取客户端和旧规格

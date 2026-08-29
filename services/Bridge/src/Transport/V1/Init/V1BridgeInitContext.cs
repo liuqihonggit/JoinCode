@@ -1,7 +1,5 @@
+﻿namespace Core.Bridge.Init;
 
-namespace Core.Bridge.Init;
-
-using JoinCode.Abstractions.Pipeline;
 
 /// <summary>
 /// v1 env-based 桥初始化管道上下文 — 中间件间共享的可变状态

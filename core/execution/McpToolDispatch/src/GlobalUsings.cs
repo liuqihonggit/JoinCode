@@ -52,3 +52,4 @@ global using System.Threading;
 global using System.Threading.Channels;
 global using System.Runtime.CompilerServices;
 global using static McpToolDispatch.GeneratedToolHandlerRegistration_JoinCode_McpToolDispatch;
+global using JoinCode.Abstractions.Security.Sandbox;

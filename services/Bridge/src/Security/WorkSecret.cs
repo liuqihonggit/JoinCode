@@ -1,9 +1,4 @@
-
-using JoinCode.Abstractions.Attributes;
-
-using JoinCode.Abstractions.State;
-
-namespace Core.Bridge;
+﻿namespace Core.Bridge;
 
 /// <summary>
 /// 工作密钥生命周期状态 — 归纳 IsRevoked/IsRotated 两个 bool 的隐式约束
@@ -73,7 +68,7 @@ public sealed partial class WorkSecretEntry
 /// <summary>
 /// 工作密钥存储接口 - 密钥管理抽象
 /// </summary>
-public interface IWorkSecretStore : IStore
+public interface IWorkSecretStore : JoinCode.Abstractions.State.IStore
 {
     /// <summary>创建新的工作密钥</summary>
     ValueTask<WorkSecretEntry> CreateAsync(string name, string plainValue, DateTimeOffset? expiresAt = null, CancellationToken ct = default);

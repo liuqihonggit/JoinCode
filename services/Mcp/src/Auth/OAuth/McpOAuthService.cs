@@ -1,7 +1,4 @@
-
-using JoinCode.Abstractions.Attributes;
-
-namespace McpClient;
+﻿namespace McpClient;
 
 [Register(typeof(McpOAuthService), ServiceLifetime.Singleton)]
 public sealed partial class McpOAuthService : ServiceEntity

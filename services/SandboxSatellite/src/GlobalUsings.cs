@@ -4,3 +4,4 @@ global using JoinCode.Abstractions.Services;
 global using IO.FileSystem;
 global using System.Text.Json;
 global using System.Diagnostics;
+global using Infrastructure.Windows.JobObject;

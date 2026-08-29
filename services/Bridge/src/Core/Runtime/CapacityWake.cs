@@ -1,7 +1,5 @@
+﻿namespace Core.Bridge;
 
-namespace Core.Bridge;
-
-using JoinCode.Abstractions.Attributes;
 
 /// <summary>
 /// 容量唤醒选项 - 自动伸缩配置

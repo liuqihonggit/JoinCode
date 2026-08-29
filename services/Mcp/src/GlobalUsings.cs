@@ -99,3 +99,4 @@ global using System.Text.RegularExpressions;
 global using System.Threading;
 global using ToolContent = JoinCode.Abstractions.Tools.ToolContent;
 global using JoinCode.Abstractions.Entity;
+global using JoinCode.Abstractions.Models.Agent;

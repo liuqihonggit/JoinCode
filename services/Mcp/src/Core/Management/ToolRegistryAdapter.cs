@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-
-namespace McpToolRegistry;
+﻿namespace McpToolRegistry;
 
 [Register(typeof(IMcpToolRegistry), ServiceLifetime.Singleton)]
 public sealed partial class ToolRegistryAdapter : IMcpToolRegistry

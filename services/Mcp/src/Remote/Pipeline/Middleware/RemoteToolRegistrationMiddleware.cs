@@ -1,6 +1,5 @@
-namespace McpToolRegistry;
+﻿namespace McpToolRegistry;
 
-using JoinCode.Abstractions.Pipeline;
 
 /// <summary>
 /// 工具注册中间件 — 仅 Tools 操作：注册工具到 ToolRegistry 并更新缓存

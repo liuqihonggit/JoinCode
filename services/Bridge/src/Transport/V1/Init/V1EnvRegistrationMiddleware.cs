@@ -1,7 +1,5 @@
+﻿namespace Core.Bridge.Init.V1;
 
-namespace Core.Bridge.Init.V1;
-
-using JoinCode.Abstractions.Pipeline;
 
 /// <summary>
 /// V1 注册 Bridge 环境 — 对齐 TS 端: registerBridgeEnvironment

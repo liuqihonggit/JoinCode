@@ -1,6 +1,5 @@
-namespace Core.Bridge;
+﻿namespace Core.Bridge;
 
-using JoinCode.Abstractions.Pipeline;
 
 public sealed class ShutdownContext : IPipelineContext
 {

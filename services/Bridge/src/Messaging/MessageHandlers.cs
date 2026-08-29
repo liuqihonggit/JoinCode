@@ -1,7 +1,5 @@
-﻿
-namespace Core.Bridge;
+﻿namespace Core.Bridge;
 
-using JoinCode.Abstractions.Attributes;
 
 public sealed record SkillOutputData
 {

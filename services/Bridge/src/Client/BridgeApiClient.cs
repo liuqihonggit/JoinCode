@@ -1,7 +1,5 @@
+﻿namespace Core.Bridge;
 
-namespace Core.Bridge;
-
-using JoinCode.Abstractions.Attributes;
 
 #region CCR 数据模型 — 对齐 TS 端 bridgeApi.ts / types.ts
 

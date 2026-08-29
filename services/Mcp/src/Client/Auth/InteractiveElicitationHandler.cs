@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Interfaces;
-
-namespace McpClient;
+﻿namespace McpClient;
 
 [Register(typeof(IElicitationHandler), ServiceLifetime.Singleton)]
 public sealed partial class InteractiveElicitationHandler : ServiceEntity, IElicitationHandler

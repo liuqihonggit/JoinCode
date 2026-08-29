@@ -1,7 +1,5 @@
+﻿namespace Core.Bridge.Init.V1;
 
-namespace Core.Bridge.Init.V1;
-
-using JoinCode.Abstractions.Pipeline;
 
 /// <summary>
 /// V1 Perpetual 模式: 读取崩溃恢复指针 — 对齐 TS 端: readBridgePointer

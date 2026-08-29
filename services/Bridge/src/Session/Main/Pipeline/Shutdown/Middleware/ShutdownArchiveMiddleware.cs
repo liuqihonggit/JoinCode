@@ -1,6 +1,5 @@
-namespace Core.Bridge;
+﻿namespace Core.Bridge;
 
-using JoinCode.Abstractions.Pipeline;
 
 [Register(typeof(IShutdownMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class ShutdownArchiveMiddleware : ServiceEntity, IShutdownMiddleware

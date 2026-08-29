@@ -1,6 +1,5 @@
-namespace McpToolRegistry;
+﻿namespace McpToolRegistry;
 
-using JoinCode.Abstractions.Pipeline;
 
 /// <summary>
 /// 远程列表中间件 — 调用 ListTools/ListResources/ListPrompts

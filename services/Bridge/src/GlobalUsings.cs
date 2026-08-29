@@ -57,3 +57,5 @@ global using Infrastructure.Subprocess;
 global using Infrastructure.Utils.Resilience;
 global using QRCoder;
 global using JoinCode.Abstractions.Entity;
+global using Core.Bridge.Gate;
+global using Core.Bridge.Init;

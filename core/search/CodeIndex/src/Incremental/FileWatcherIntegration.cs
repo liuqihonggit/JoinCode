@@ -73,7 +73,7 @@ public sealed partial class FileWatcherIntegration : IAsyncDisposable
         return Task.CompletedTask;
     }
 
-    public async Task StopAsync(CancellationToken ct)
+    public async Task StopAsync(CancellationToken ct = default)
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
 

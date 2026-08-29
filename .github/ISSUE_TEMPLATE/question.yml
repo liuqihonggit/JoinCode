@@ -1,0 +1,44 @@
+name: Question
+description: Ask a question about using JoinCode
+title: "[Question]: "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have a question about using JoinCode?
+        Before submitting, please check:
+        - [README](https://github.com/JoinCode/JoinCode/blob/main/README.md)
+        - [中文 README](https://github.com/JoinCode/JoinCode/blob/main/docs/zh-CN/README.md)
+        - [SUPPORT.md](https://github.com/JoinCode/JoinCode/blob/main/.github/SUPPORT.md)
+        - [existing issues](https://github.com/JoinCode/JoinCode/issues?q=is%3Aissue+label%3Aquestion)
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your Question
+      description: Describe what you'd like to know.
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: What I've Tried
+      description: What have you already attempted or read?
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Topic Area
+      options:
+        - Installation / Setup
+        - CLI Usage
+        - TUI Usage
+        - Configuration
+        - MCP / Tools
+        - Agent / Multi-Agent
+        - Development / Contributing
+        - Other
+    validations:
+      required: true

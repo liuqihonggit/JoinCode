@@ -90,7 +90,7 @@ public static class SettingsLoader
             "anthropic": {
               "provider": "anthropic",
               "protocol": "anthropic",
-              "model": "claude-opus-5-20250815",
+              "model": "claude-opus-5",
               "endpoint": "https://api.anthropic.com",
               "apiKeyEnvVar": "ANTHROPIC_API_KEY",
               "models": [],
@@ -120,6 +120,15 @@ public static class SettingsLoader
               "model": "agnes-2.0-flash",
               "endpoint": "https://apihub.agnes-ai.com/v1",
               "apiKeyEnvVar": "AGNES_API_KEY",
+              "models": [],
+              "modelsEndpoint": "models"
+            },
+            "zhipu": {
+              "provider": "zhipu",
+              "protocol": "openai-compatible",
+              "model": "glm-5.3",
+              "endpoint": "https://open.bigmodel.cn/api/paas/v4",
+              "apiKeyEnvVar": "ZHIPUAI_API_KEY",
               "models": [],
               "modelsEndpoint": "models"
             }

@@ -1,6 +1,4 @@
-using Structura.Dag;
-
-namespace JoinCode.CodeIndex.Analytics;
+﻿namespace JoinCode.CodeIndex.Analytics;
 
 /// <summary>
 /// 图分析实现 — 基于 InMemoryIndexStore 的图数据 + Structura DAG 算法

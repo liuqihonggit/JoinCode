@@ -18,6 +18,15 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
         true,
         "DI 循环依赖会导致运行期容器解析时栈溢出或死锁. 编译期检测可在开发阶段立即发现问题.");
 
+    private static readonly DiagnosticDescriptor DiDuplicateRegisterRule = new(
+        "JCC4012",
+        "DI 重复注册",
+        "类 '{0}' 对接口 '{1}' 重复注册了 [Register]。同一接口在同一类上只能注册一次，重复注册会导致 DI 容器行为不确定。请删除多余的 [Register] 行。",
+        "DIServiceRegistration",
+        DiagnosticSeverity.Error,
+        true,
+        "同一接口在同一类上重复 [Register] 注册会导致 DI 容器注册冲突. 编译期检测可在开发阶段立即发现问题. 对齐 ADR 0046.");
+
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         // === Services ===
@@ -234,6 +243,9 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
         // 编译期 DI 循环依赖检测
         DetectCyclesAndReport(context, services);
 
+        // 编译期 DI 重复注册检测
+        DetectDuplicateRegistrationsAndReport(context, services);
+
         // 按实现类型分组，每个实现类型只注册一次
         var groupedByImpl = services
             .GroupBy(s => s.ImplementationName)
@@ -364,6 +376,36 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
         if (lastDot >= 0 && lastDot < name.Length - 1)
             name = name.Substring(lastDot + 1);
         return name;
+    }
+
+    /// <summary>
+    /// 编译期 DI 重复注册检测：同一类对同一接口多次 [Register] 注册时报错。
+    /// </summary>
+    private static void DetectDuplicateRegistrationsAndReport(SourceProductionContext context, ImmutableArray<ServiceRegistrationInfo> services)
+    {
+        foreach (var info in services)
+        {
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var reg in info.Registrations)
+            {
+                if (reg.InterfaceName is null) continue;
+                if (!seen.Add(reg.InterfaceName))
+                {
+                    var implShortName = info.ImplementationName;
+                    var lastDot = implShortName.LastIndexOf('.');
+                    if (lastDot >= 0 && lastDot < implShortName.Length - 1)
+                        implShortName = implShortName.Substring(lastDot + 1);
+
+                    var ifaceShortName = reg.InterfaceName;
+                    lastDot = ifaceShortName.LastIndexOf('.');
+                    if (lastDot >= 0 && lastDot < ifaceShortName.Length - 1)
+                        ifaceShortName = ifaceShortName.Substring(lastDot + 1);
+
+                    var location = info.Location ?? Location.None;
+                    context.ReportDiagnostic(Diagnostic.Create(DiDuplicateRegisterRule, location, implShortName, ifaceShortName));
+                }
+            }
+        }
     }
 
     /// <summary>

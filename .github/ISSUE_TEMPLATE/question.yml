@@ -10,7 +10,7 @@ body:
         Before submitting, please check:
         - [README](https://github.com/JoinCode/JoinCode/blob/main/README.md)
         - [中文 README](https://github.com/JoinCode/JoinCode/blob/main/docs/zh-CN/README.md)
-        - [SUPPORT.md](https://github.com/JoinCode/JoinCode/blob/main/SUPPORT.md)
+        - [SUPPORT.md](https://github.com/JoinCode/JoinCode/blob/main/.github/SUPPORT.md)
         - [existing issues](https://github.com/JoinCode/JoinCode/issues?q=is%3Aissue+label%3Aquestion)
 
   - type: textarea

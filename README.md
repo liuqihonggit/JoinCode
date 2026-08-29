@@ -4,7 +4,7 @@
 [![NativeAOT](https://img.shields.io/badge/NativeAOT-Enabled-00A4EF?style=flat-square)](https://learn.microsoft.com/dotnet/core/deploying/native-aot/)
 [![C#](https://img.shields.io/badge/C%23-13-68217A?style=flat-square)](https://docs.microsoft.com/dotnet/csharp/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
-[![Code of Conduct](https://img.shields.io/badge/CoC-Microsoft-blue?style=flat-square)](CODE_OF_CONDUCT.md)
+[![Code of Conduct](https://img.shields.io/badge/CoC-Microsoft-blue?style=flat-square)](.github/CODE_OF_CONDUCT.md)
 
 **JoinCode** is a pure C# open-source AI coding agent that runs in your terminal.
 It understands your codebase and helps you code faster through natural language —
@@ -330,12 +330,12 @@ From low to high:
 
 ## Contributing
 
-We welcome contributions! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for
+We welcome contributions! Please read [CONTRIBUTING.md](.github/CONTRIBUTING.md) for
 development setup, coding conventions, and the PR workflow.
 
 Key points:
 
-- Follow the [seven-layer build order](CONTRIBUTING.md#architecture-overview)
+- Follow the [seven-layer build order](.github/CONTRIBUTING.md#architecture-overview)
 - Use [Conventional Commits](https://www.conventionalcommits.org/) format
 - `TreatWarningsAsErrors` is enabled — zero warnings allowed
 - Write ADRs for architecturally significant decisions
@@ -368,5 +368,5 @@ This project is licensed under the [MIT License](LICENSE).
 
 - **Email:** [superhong@foxmail.com](mailto:superhong@foxmail.com)
 - **Issues:** [GitHub Issues](https://github.com/JoinCode/JoinCode/issues)
-- **Security:** See [SECURITY.md](SECURITY.md) — do not use public issues for
+- **Security:** See [SECURITY.md](.github/SECURITY.md) — do not use public issues for
   security reports

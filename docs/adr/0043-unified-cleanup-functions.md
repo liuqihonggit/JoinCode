@@ -93,3 +93,12 @@ public async ValueTask DisposeAsync()
 - 正面：命名统一降低认知成本；IDisposable 支持 using/await using；异常不传播避免掩盖原始异常；幂等性保证安全
 - 负面：现有 Close/Cleanup/Shutdown 需重命名为 Dispose/StopAsync，改动面大；消融实验需逐个验证
 - 中性：重命名保持渐进式（见 ADR 0007），每次统一一个模块
+
+## 实施进度
+
+| 步骤 | 内容 | 状态 | 日期 | 备注 |
+|------|------|------|------|------|
+| 1 | 参数统一：CancellationToken 默认值 | ✅ 完成 | 2026-08-29 | FileWatcherIntegration.StopAsync 已修复 |
+| 2 | 异常处理：收口函数不抛异常 | ✅ 验证通过 | 2026-08-29 | AST 分析 329 处收口函数，0 个直接 throw 违规 |
+| 3 | 幂等性：volatile bool _disposed | ⚠️ 渐进式迁移中 | 2026-08-29 | 170 个文件缺少 _disposed 标志，含测试文件。逐模块审查添加 |
+| 4 | 消融实验方案 | ✅ 已定义 | 2026-08-29 | 见上方第5节 |

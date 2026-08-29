@@ -330,6 +330,18 @@ From low to high:
 
 ---
 
+## Detailed Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Available Models](docs/reference/models.md) | 41 models across 5 providers (aliases, context length, notes) |
+| [Technical Details](docs/design/technical-details.md) | Fault tolerance / prefix caching / loop intervention / parallel load / serial build |
+| [Small Model Strategy](docs/design/small-model-strategy.md) | Engineering strategies for small model scenarios (synonyms / prohibitions / counterexamples / match) |
+| [Architecture Index](docs/design/architecture-index.md) | Component dependency graph / detail table / internal structure / middleware pipelines / build commands |
+| [Architecture Decision Records](docs/adr/README.md) | 40+ ADRs: *why* choice A over B |
+
+---
+
 ## Contributing
 
 We welcome contributions! Please read [CONTRIBUTING.md](.github/CONTRIBUTING.md) for

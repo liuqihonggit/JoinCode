@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Pipeline;
-
-namespace JoinCode.App.Middlewares;
+﻿namespace JoinCode.App.Middlewares;
 
 internal abstract class TelemetryPostHook<TContext> : IPipelinePostHook<TContext>
 {

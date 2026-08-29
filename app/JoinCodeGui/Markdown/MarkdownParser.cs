@@ -1,9 +1,4 @@
-using Markdig;
-using Markdig.Extensions.Tables;
-using Markdig.Syntax;
-using Markdig.Syntax.Inlines;
-
-namespace JoinCode.Gui.Markdown;
+﻿namespace JoinCode.Gui.Markdown;
 
 /// <summary>
 /// Markdown → 渲染模型 转换器。

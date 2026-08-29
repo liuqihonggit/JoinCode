@@ -1,10 +1,4 @@
-using Avalonia.Controls;
-using Avalonia.Input;
-using Avalonia.Interactivity;
-
-using JoinCode.Gui.ViewModels;
-
-namespace JoinCode.Gui.Views;
+﻿namespace JoinCode.Gui.Views;
 
 /// <summary>
 /// 设置面板 UserControl — 对话参数（温度/最大长度/字号/流式/推理力度/系统提示词）

@@ -1,9 +1,4 @@
-using Avalonia.Controls;
-using Avalonia.Input;
-
-using JoinCode.Gui.ViewModels;
-
-namespace JoinCode.Gui.Views;
+﻿namespace JoinCode.Gui.Views;
 
 /// <summary>
 /// 侧边栏 UserControl — 新建对话按钮 + 会话列表 + 底部状态。

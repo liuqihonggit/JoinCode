@@ -1,6 +1,5 @@
-namespace JoinCode.Pipe;
+﻿namespace JoinCode.Pipe;
 
-using JoinCode.Abstractions.Attributes;
 
 [Register(typeof(BridgeHeartbeatService), ServiceLifetime.Singleton)]
 public sealed partial class BridgeHeartbeatService : ServiceEntity

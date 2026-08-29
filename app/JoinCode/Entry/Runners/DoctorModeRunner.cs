@@ -1,9 +1,5 @@
-namespace JoinCode.Entry;
+﻿namespace JoinCode.Entry;
 
-using JoinCode.Abstractions.Interfaces;
-using JoinCode.Abstractions.Interfaces.Scheduling;
-using JoinCode.Abstractions.Models.Agent;
-using JoinCode.Abstractions.Models.Goal;
 
 /// <summary>
 /// 医生模式运行器 — jcc.exe --doctor 入口

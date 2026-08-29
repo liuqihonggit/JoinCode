@@ -1,13 +1,4 @@
-using Avalonia;
-using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Markup.Xaml;
-using Avalonia.Styling;
-
-using JoinCode.Gui.Theming;
-using JoinCode.Gui.ViewModels;
-using JoinCode.Gui.Views;
-
-namespace JoinCode.Gui;
+﻿namespace JoinCode.Gui;
 
 /// <summary>
 /// Avalonia 应用入口定义。

@@ -1,7 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
-
-namespace JoinCode.Gui.ViewModels;
+﻿namespace JoinCode.Gui.ViewModels;
 
 /// <summary>
 /// 后台代理快照 — 引擎运行列表的 GUI 投影（会话门面映射产物）

@@ -1,8 +1,4 @@
-using Avalonia.Controls;
-using Avalonia.Media;
-using JoinCode.Abstractions.Models.Interactive;
-
-namespace JoinCode.Gui.Views;
+﻿namespace JoinCode.Gui.Views;
 
 /// <summary>
 /// AskUserQuestion 弹窗 — 显示问题和选项列表，支持单选/多选/自由输入。

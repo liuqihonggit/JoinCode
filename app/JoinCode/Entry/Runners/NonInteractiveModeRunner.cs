@@ -1,6 +1,5 @@
-namespace JoinCode.Entry;
+﻿namespace JoinCode.Entry;
 
-using Infrastructure.Pipeline;
 
 internal static class NonInteractiveModeRunner
 {

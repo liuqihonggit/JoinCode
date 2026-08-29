@@ -1,7 +1,4 @@
-using JoinCode.Tui.Tui;
-using JoinCode.Tui.Views;
-
-namespace JoinCode.Tui.Interaction;
+﻿namespace JoinCode.Tui.Interaction;
 
 /// <summary>
 /// Terminal.Gui 交互服务 — MCP ask_user_question 工具的 TUI 真实实现，

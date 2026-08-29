@@ -1,6 +1,4 @@
-using JoinCode.Abstractions.Attributes;
-
-namespace IO.Services;
+﻿namespace IO.Services;
 
 [Register(typeof(IProactiveStateService), ServiceLifetime.Singleton)]
 public sealed partial class ProactiveStateService : ServiceEntity, IProactiveStateService

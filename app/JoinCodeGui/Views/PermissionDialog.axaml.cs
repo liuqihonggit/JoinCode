@@ -1,9 +1,4 @@
-using Avalonia.Controls;
-using CommunityToolkit.Mvvm.Input;
-
-using JoinCode.Gui.Hosting;
-
-namespace JoinCode.Gui.Views;
+﻿namespace JoinCode.Gui.Views;
 
 /// <summary>
 /// 权限确认弹窗 — 引擎权限待确认时由 MainWindow 注入回调弹出。

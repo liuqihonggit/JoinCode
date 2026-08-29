@@ -1,7 +1,4 @@
-using JoinCode.Abstractions.LLM.Chat;
-using JoinCode.Gui.ViewModels;
-
-namespace JoinCode.Gui.Design;
+﻿namespace JoinCode.Gui.Design;
 
 /// <summary>设计时数据 — 填充示例消息/会话/走马灯，供 XAML 设计器预览和 --design 截图模式（需求6）</summary>
 public static class DesignData

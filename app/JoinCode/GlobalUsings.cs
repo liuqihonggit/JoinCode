@@ -154,3 +154,4 @@ global using JoinCode.Pipelines;
 global using JoinCode.Pipelines.Middlewares;
 
 global using System.Collections.ObjectModel;
+global using Core.Hooks;

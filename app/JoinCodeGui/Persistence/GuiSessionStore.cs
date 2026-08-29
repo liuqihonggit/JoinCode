@@ -1,9 +1,4 @@
-using System.Text.Json;
-
-using JoinCode.Abstractions.Configuration.AppData;
-using JoinCode.Abstractions.Interfaces;
-
-namespace JoinCode.Gui.Persistence;
+﻿namespace JoinCode.Gui.Persistence;
 
 /// <summary>
 /// GUI 会话持久化存储 — 读写同一 sessions 目录。

@@ -1,10 +1,4 @@
-using Avalonia.Controls;
-using Avalonia.Data.Converters;
-using Avalonia.Media;
-
-using JoinCode.Gui.Theming;
-
-namespace JoinCode.Gui.Converters;
+﻿namespace JoinCode.Gui.Converters;
 
 /// <summary>
 /// (IsUser, Kind) → 消息卡片色条/角色名颜色：工具消息用工具色、思考用紫色、其余按角色蓝/淡青。

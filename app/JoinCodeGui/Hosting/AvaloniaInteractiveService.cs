@@ -1,9 +1,4 @@
-using Avalonia.Controls;
-using Avalonia.Threading;
-using JoinCode.Abstractions.Models.Interactive;
-using JoinCode.Gui.Views;
-
-namespace JoinCode.Gui.Hosting;
+﻿namespace JoinCode.Gui.Hosting;
 
 /// <summary>
 /// Avalonia GUI 交互服务 — 通过弹窗实现 AskUserQuestion 的多选交互。

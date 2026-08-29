@@ -1,6 +1,5 @@
-namespace JoinCode.App.Modules;
+﻿namespace JoinCode.App.Modules;
 
-using Core.Goal;
 
 /// <summary>
 /// 时钟模块 — 注册定时任务相关服务

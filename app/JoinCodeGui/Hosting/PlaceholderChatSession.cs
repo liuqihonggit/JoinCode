@@ -1,11 +1,4 @@
-using JoinCode.Abstractions.Configuration.Llm;
-using JoinCode.Abstractions.Configuration.Settings;
-using JoinCode.Abstractions.Interfaces;
-using JoinCode.Abstractions.LLM;
-using JoinCode.Abstractions.LLM.Chat;
-using JoinCode.Abstractions.UI;
-
-namespace JoinCode.Gui.Hosting;
+﻿namespace JoinCode.Gui.Hosting;
 
 /// <summary>
 /// 占位引擎会话实现 — 无真实引擎连接时作为 mock 占位，返回固定回显供 UI 运行验证。

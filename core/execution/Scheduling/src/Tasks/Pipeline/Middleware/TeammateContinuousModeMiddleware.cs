@@ -1,6 +1,5 @@
-namespace Core.Scheduling.Tasks;
+﻿namespace Core.Scheduling.Tasks;
 
-using JoinCode.Abstractions.Pipeline;
 
 [Register(typeof(ITeammateExecutionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class TeammateContinuousModeMiddleware : ServiceEntity, ITeammateExecutionMiddleware

@@ -1,7 +1,5 @@
+﻿namespace Core.Scheduling.Cron;
 
-namespace Core.Scheduling.Cron;
-
-using JoinCode.Abstractions.Attributes;
 
 /// <summary>
 /// 文件存储的 Cron 任务存储实现

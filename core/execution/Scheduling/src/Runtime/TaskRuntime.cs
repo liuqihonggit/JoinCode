@@ -1,6 +1,5 @@
-namespace Core.Scheduling.Runtime;
+﻿namespace Core.Scheduling.Runtime;
 
-using JoinCode.Abstractions.Attributes;
 
 [Register(typeof(ITaskRuntime), ServiceLifetime.Singleton)]
 public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposable

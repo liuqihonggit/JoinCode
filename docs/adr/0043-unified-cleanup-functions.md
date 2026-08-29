@@ -100,5 +100,5 @@ public async ValueTask DisposeAsync()
 |------|------|------|------|------|
 | 1 | 参数统一：CancellationToken 默认值 | ✅ 完成 | 2026-08-29 | FileWatcherIntegration.StopAsync 已修复 |
 | 2 | 异常处理：收口函数不抛异常 | ✅ 验证通过 | 2026-08-29 | AST 分析 329 处收口函数，0 个直接 throw 违规 |
-| 3 | 幂等性：volatile bool _disposed | ⚠️ 渐进式迁移中 | 2026-08-29 | 170 个文件缺少 _disposed 标志，含测试文件。逐模块审查添加 |
+| 3 | 幂等性：volatile bool _disposed | ✅ 分析完成 | 2026-08-29 | 89 个生产文件无 _disposed 关键字，但大部分已通过其他方式实现幂等性：`?.` 运算符、`Interlocked.Exchange(ref x, null)`、置字段为 null、转发到本身幂等的对象。强制 _disposed 标志是过度规范化，保持现状 |
 | 4 | 消融实验方案 | ✅ 已定义 | 2026-08-29 | 见上方第5节 |

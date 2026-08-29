@@ -1,11 +1,4 @@
-using JoinCode.Abstractions.LLM.Chat;
-
-using IO.FileSystem;
-using JoinCode.Gui.Hosting;
-using JoinCode.Gui.Persistence;
-using JoinCode.Gui.ViewModels;
-
-namespace JoinCode.Gui.Tests.ViewModels;
+﻿namespace JoinCode.Gui.Tests.ViewModels;
 
 /// <summary>
 /// MainViewModel 子代理事件接线测试 —

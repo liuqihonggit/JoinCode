@@ -1,16 +1,4 @@
-﻿using Avalonia.Headless.XUnit;
-using Avalonia.Media;
-
-using FluentAssertions;
-
-using JoinCode.Abstractions.LLM.Chat;
-using JoinCode.Gui.Converters;
-using JoinCode.Gui.Persistence;
-using JoinCode.Gui.Theming;
-using JoinCode.Gui.ViewModels;
-using IO.FileSystem;
-
-namespace JoinCode.Gui.Tests.Theming;
+﻿namespace JoinCode.Gui.Tests.Theming;
 
 /// <summary>
 /// GuiPalette 配色合规性测试 —— 用 WCAG 相对亮度计算所有"文字/背景"语义对对比度，

@@ -1,16 +1,4 @@
-using System.Text;
-
-using Avalonia.Controls;
-using Avalonia.Controls.Documents;
-using Avalonia.Headless;
-using Avalonia.Headless.XUnit;
-using Avalonia.Media;
-using Avalonia.VisualTree;
-
-using JoinCode.Gui.Markdown;
-using JoinCode.Gui.Theming;
-
-namespace JoinCode.Gui.Tests.Markdown;
+﻿namespace JoinCode.Gui.Tests.Markdown;
 
 /// <summary>
 /// MarkdownView 渲染冒烟测试 — Headless 渲染真实 <see cref="MarkdownView"/> 控件树，

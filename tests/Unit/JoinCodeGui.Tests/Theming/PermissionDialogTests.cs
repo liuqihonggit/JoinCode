@@ -1,13 +1,4 @@
-using Avalonia.Controls;
-using Avalonia.Headless;
-using Avalonia.Headless.XUnit;
-using Avalonia.Interactivity;
-using Avalonia.VisualTree;
-
-using JoinCode.Gui.Hosting;
-using JoinCode.Gui.Views;
-
-namespace JoinCode.Gui.Tests.Theming;
+﻿namespace JoinCode.Gui.Tests.Theming;
 
 /// <summary>
 /// 权限确认弹窗冒烟测试 — Headless 渲染真实 <see cref="PermissionDialog"/>，

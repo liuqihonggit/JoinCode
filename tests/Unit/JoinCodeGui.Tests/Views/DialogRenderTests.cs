@@ -1,23 +1,7 @@
-#pragma warning disable JCC9001, JCC3010 // 豁免理由：① 帧图导出属诊断产物（对齐 dumps/ 约定）非被测行为；② 渲染动画由真实时钟合成器驱动，需等待布局完成后再截帧
+﻿#pragma warning disable JCC9001, JCC3010 // 豁免理由：① 帧图导出属诊断产物（对齐 dumps/ 约定）非被测行为；② 渲染动画由真实时钟合成器驱动，需等待布局完成后再截帧
 
-using System;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Threading.Tasks;
 
-using Avalonia.Controls;
-using Avalonia.Headless;
-using Avalonia.Headless.XUnit;
-using Avalonia.Media.Imaging;
-using Avalonia.Threading;
-using Avalonia.VisualTree;
 
-using JoinCode.Abstractions.Models.Interactive;
-using JoinCode.Gui.Persistence;
-using JoinCode.Gui.Theming;
-using JoinCode.Gui.ViewModels;
-using JoinCode.Gui.Views;
 
 namespace JoinCode.Gui.Tests.Views;
 

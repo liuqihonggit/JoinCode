@@ -1,6 +1,4 @@
-﻿using JoinCode.Gui.ViewModels;
-
-namespace JoinCode.Gui.Tests.ViewModels;
+﻿namespace JoinCode.Gui.Tests.ViewModels;
 
 /// <summary>
 /// 全局运行状态条 VM 测试 — 随机动词/耗时/token 聚合/后台代理计数，

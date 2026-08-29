@@ -1,8 +1,4 @@
-using FluentAssertions;
-
-using JoinCode.Gui.SlashCommands;
-
-namespace JoinCode.Gui.Tests.SlashCommands;
+﻿namespace JoinCode.Gui.Tests.SlashCommands;
 
 /// <summary>
 /// SlashCommandParser 单元测试 — 验证光标解析、空格终止、多行、连续 // 等场景。

@@ -1,18 +1,4 @@
-using System;
-using System.Runtime.InteropServices;
-
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Headless;
-using Avalonia.Headless.XUnit;
-using Avalonia.Media.Imaging;
-
-using JoinCode.Gui.Theming;
-using JoinCode.Gui.Persistence;
-using JoinCode.Gui.ViewModels;
-using JoinCode.Gui.Views;
-
-namespace JoinCode.Gui.Tests.Theming;
+﻿namespace JoinCode.Gui.Tests.Theming;
 
 /// <summary>
 /// 视觉截图对比测试 —— 用真正 Skia 渲染出 MainWindow 的暗/亮两帧，

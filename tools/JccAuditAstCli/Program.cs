@@ -46,6 +46,11 @@ public static class Program
             return await RunLayerAuditCommand(args[1..]);
         }
 
+        if (args[0] == "strip-bom")
+        {
+            return RunStripBomCommand(args[1..]);
+        }
+
         // 默认: 审计模式（直接传 slnx/csproj 路径）
         return await RunAuditCommand(args);
     }
@@ -311,44 +316,38 @@ public static class Program
     {
         Console.WriteLine("jcc-audit - JCC 性能审计 CLI 工具");
         Console.WriteLine();
-        Console.WriteLine("用法:");
-        Console.WriteLine("  jcc-audit [audit] <csproj-or-slnx-path> [选项]  审计模式（audit可省略）");
-        Console.WriteLine("  jcc-audit replace <csproj-or-slnx-path> [选项]  替换模式");
-        Console.WriteLine("  jcc-audit ctor-audit <csproj-or-slnx-path> [选项]  构造函数参数审计");
-        Console.WriteLine("  jcc-audit top-files <directory> [选项]            大文件排行");
-        Console.WriteLine("  jcc-audit layer-audit <slnx-path> [选项]          层依赖审计");
+        Console.WriteLine("子命令按功能分三组：审计(Audit) / 修复(Fix) / 统计(Stats)");
         Console.WriteLine();
-        Console.WriteLine("审计选项:");
-        Console.WriteLine("  --analyzer-dir <dir>   分析器 DLL 目录（默认自动搜索）");
+        Console.WriteLine("=== 审计组（Audit）— 扫描诊断，不修改文件 ===");
+        Console.WriteLine("  jcc-audit [audit] <csproj-or-slnx> [选项]        JCC 规则审计（audit可省略）");
+        Console.WriteLine("  jcc-audit ctor-audit <csproj-or-slnx> [选项]    构造函数参数审计");
+        Console.WriteLine("  jcc-audit layer-audit <slnx> [选项]             层依赖审计");
+        Console.WriteLine();
+        Console.WriteLine("=== 修复组（Fix）— 修改源码文件 ===");
+        Console.WriteLine("  jcc-audit replace <csproj-or-slnx> [选项]       AST 批量替换（应用 CodeFix）");
+        Console.WriteLine("  jcc-audit strip-bom <directory> [选项]          移除 .cs 文件 UTF-8 BOM");
+        Console.WriteLine();
+        Console.WriteLine("=== 统计组（Stats）— 信息查询排行 ===");
+        Console.WriteLine("  jcc-audit top-files <directory> [选项]          大文件排行");
+        Console.WriteLine();
+        Console.WriteLine("通用选项:");
         Console.WriteLine("  --output <file>        输出 JSON 报告到文件");
-        Console.WriteLine("  --format <json|text>   输出格式（默认 json）");
-        Console.WriteLine("  --filter <JCC规则ID>  只输出指定规则的诊断（如 JCC3007）");
+        Console.WriteLine("  --format <json|text>   输出格式");
         Console.WriteLine("  --skip-tests           跳过测试/基准/Mock 项目");
+        Console.WriteLine("  --dry-run              仅预览，不实际写入文件（replace/strip-bom）");
         Console.WriteLine("  -h, --help             显示帮助");
         Console.WriteLine();
-        Console.WriteLine("替换选项:");
-        Console.WriteLine("  --rule <JCC规则ID>    要应用的规则（如 JCC1001, JCC6002）");
-        Console.WriteLine("  --fix-all              应用该规则的所有修复");
-        Console.WriteLine("  --dry-run              仅预览，不实际写入文件");
-        Console.WriteLine("  --analyzer-dir <dir>   分析器 DLL 目录");
+        Console.WriteLine("审计组专属选项:");
+        Console.WriteLine("  --analyzer-dir <dir>   分析器 DLL 目录（默认自动搜索）");
+        Console.WriteLine("  --filter <JCC规则ID>  只输出指定规则的诊断（如 JCC3007，audit 专用）");
+        Console.WriteLine("  --threshold <N>        参数数量阈值（ctor-audit 默认 8 / top-files 默认 200）");
         Console.WriteLine();
-        Console.WriteLine("构造函数审计选项:");
-        Console.WriteLine("  --threshold <N>        参数数量阈值（默认 8，超过则报告）");
-        Console.WriteLine("  --output <file>        输出 JSON 报告到文件");
-        Console.WriteLine("  --format <json|text>   输出格式（默认 text）");
-        Console.WriteLine("  --skip-tests           跳过测试/基准/Mock 项目");
+        Console.WriteLine("修复组专属选项:");
+        Console.WriteLine("  --rule <JCC规则ID>    要应用的规则（如 JCC1001, JCC6002，replace 必须指定）");
+        Console.WriteLine("  --fix-all              应用该规则的所有修复（replace）");
         Console.WriteLine();
-        Console.WriteLine("大文件排行选项:");
-        Console.WriteLine("  --top <N>              返回前 N 个大文件（默认 10）");
-        Console.WriteLine("  --threshold <N>        最低行数阈值（默认 200）");
-        Console.WriteLine("  --output <file>        输出 JSON 报告到文件");
-        Console.WriteLine("  --format <json|text>   输出格式（默认 text）");
-        Console.WriteLine("  --skip-tests           跳过测试/基准/Mock 项目");
-        Console.WriteLine();
-        Console.WriteLine("层依赖审计选项:");
-        Console.WriteLine("  --output <file>        输出 JSON 报告到文件");
-        Console.WriteLine("  --format <json|text>   输出格式（默认 text）");
-        Console.WriteLine("  --skip-tests           跳过测试/基准/Mock 项目");
+        Console.WriteLine("统计组专属选项:");
+        Console.WriteLine("  --top <N>              返回前 N 个大文件（top-files 默认 10）");
         Console.WriteLine();
         Console.WriteLine("退出码:");
         Console.WriteLine("  0  无诊断或仅 Info / 替换成功");
@@ -572,6 +571,129 @@ public static class Program
             Console.Error.WriteLine(ex.Message);
             return 1;
         }
+    }
+
+    /// <summary>
+    /// BOM 移除模式：扫描指定目录下所有 .cs 文件，移除 UTF-8 BOM
+    /// </summary>
+    private static int RunStripBomCommand(string[] args)
+    {
+        if (args.Length == 0 || args.Contains("--help", StringComparer.Ordinal) || args.Contains("-h", StringComparer.Ordinal))
+        {
+            PrintStripBomUsage();
+            return 0;
+        }
+
+        var targetPath = args[0];
+        var outputPath = GetArgValue(args, "--output") ?? string.Empty;
+        var format = GetArgValue(args, "--format") ?? "text";
+        var dryRun = args.Contains("--dry-run", StringComparer.Ordinal);
+        var skipTests = args.Contains("--skip-tests", StringComparer.Ordinal);
+
+        if (string.IsNullOrEmpty(targetPath))
+        {
+            Console.Error.WriteLine("必须指定扫描目录路径。");
+            return 1;
+        }
+
+        Console.WriteLine("=== JccAuditCli BOM 移除 ===");
+        Console.WriteLine($"目录: {Path.GetFullPath(targetPath)}");
+        Console.WriteLine($"模式: {(dryRun ? "预览 (DryRun)" : "实际写入")}");
+        Console.WriteLine($"跳过测试: {skipTests}");
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+
+        try
+        {
+            var report = BomStripper.Strip(targetPath, dryRun, skipTests, cts.Token);
+
+            var json = JsonSerializer.Serialize(report, AuditReportContext.Default.BomStripReport);
+
+            if (!string.IsNullOrEmpty(outputPath))
+            {
+                SafeFileIO.WriteAllText(outputPath, json);
+                Console.WriteLine($"报告已写入: {outputPath}");
+            }
+
+            if (format == "json")
+            {
+                Console.WriteLine();
+                Console.WriteLine(json);
+            }
+            else
+            {
+                PrintStripBomTextReport(report);
+            }
+
+            return report.StrippedCount > 0 ? 3 : 0;
+        }
+        catch (OperationCanceledException)
+        {
+            Console.Error.WriteLine("扫描超时（5 分钟限制）。");
+            return 2;
+        }
+        catch (ArgumentException ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return 1;
+        }
+    }
+
+    private static void PrintStripBomTextReport(BomStripReport report)
+    {
+        Console.WriteLine();
+        Console.WriteLine("=== BOM 移除报告 ===");
+        Console.WriteLine($"目录: {report.RootPath}");
+        Console.WriteLine($"时间: {report.Timestamp:yyyy-MM-dd HH:mm:ss}");
+        Console.WriteLine($"--- 遍历 ---");
+        Console.WriteLine($"发现 .cs 文件: {report.TotalCsFiles}");
+        Console.WriteLine($"跳过文件: {report.SkippedFiles}");
+        Console.WriteLine($"实际扫描: {report.ScannedFiles}");
+        Console.WriteLine($"跳过规则:");
+        Console.WriteLine($"  排除目录: {string.Join(", ", BomStripper.ExcludedDirectories)}");
+        Console.WriteLine($"  排除文件: {string.Join(", ", BomStripper.ExcludedFilePatterns)}");
+        if (report.SkipTests)
+        {
+            Console.WriteLine($"  排除测试: {string.Join(", ", BomStripper.ExcludedTestMarkers)}");
+        }
+        Console.WriteLine($"--- 检测 ---");
+        Console.WriteLine($"含 BOM 文件: {report.WithBomCount}");
+        Console.WriteLine($"--- 处理 ---");
+        Console.WriteLine($"已移除: {report.StrippedCount}{(report.DryRun ? " (DryRun，未实际写入)" : "")}");
+        Console.WriteLine();
+
+        if (report.Files.Count == 0)
+        {
+            Console.WriteLine("未发现含 UTF-8 BOM 的文件，编码格式统一。");
+            return;
+        }
+
+        foreach (var file in report.Files)
+        {
+            Console.WriteLine($"  {file.FilePath}");
+        }
+    }
+
+    private static void PrintStripBomUsage()
+    {
+        Console.WriteLine("jcc-audit strip-bom - 移除 .cs 文件 UTF-8 BOM");
+        Console.WriteLine();
+        Console.WriteLine("用法: jcc-audit strip-bom <directory> [选项]");
+        Console.WriteLine();
+        Console.WriteLine("参数:");
+        Console.WriteLine("  <directory>            扫描目录路径");
+        Console.WriteLine();
+        Console.WriteLine("选项:");
+        Console.WriteLine("  --dry-run              仅预览，不实际写入文件");
+        Console.WriteLine("  --output <file>        输出 JSON 报告到文件");
+        Console.WriteLine("  --format <json|text>   输出格式（默认 text）");
+        Console.WriteLine("  --skip-tests           跳过测试/基准/Mock 项目");
+        Console.WriteLine();
+        Console.WriteLine("示例:");
+        Console.WriteLine("  jcc-audit strip-bom .");
+        Console.WriteLine("  jcc-audit strip-bom . --dry-run");
+        Console.WriteLine("  jcc-audit strip-bom ./src --skip-tests");
+        Console.WriteLine("  jcc-audit strip-bom . --format json --output bom-report.json");
     }
 
     private static void PrintLayerAuditTextReport(LayerAuditReport report)

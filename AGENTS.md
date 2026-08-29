@@ -357,6 +357,25 @@ public FrozenSet<string>? FilterSet => _filterSet ??= Filters?.ToFrozenSet();
    - 构建命令：`dotnet build tools/JccAuditAstCli/JccAuditCli.csproj -c Release`
    - 输出路径：`artifacts/bin/JccAuditCli/Release/net10.0/jcc-audit.exe`
    - 适用场景：Nullable 抑制检测、using 组织分析、命名规范检查、DI 注册验证等需要语义理解的场景
+   - **子命令按功能分三组**（`jcc-audit --help` 查看完整用法）：
+
+     | 组 | 子命令 | 用途 | 是否改文件 |
+     |----|--------|------|-----------|
+     | **审计(Audit)** | `audit` / `ctor-audit` / `layer-audit` | 扫描诊断输出报告 | 否 |
+     | **修复(Fix)** | `replace` / `strip-bom` | 应用 CodeFix / 移除 BOM | 是 |
+     | **统计(Stats)** | `top-files` | 大文件行数排行 | 否 |
+
+   - **审计组**：
+     - `jcc-audit [audit] <csproj-or-slnx> [--filter JCC规则ID] [--skip-tests] [--format json\|text] [--output <file>]` — JCC 规则审计（`audit` 可省略）
+     - `jcc-audit ctor-audit <csproj-or-slnx> [--threshold 8] [--skip-tests]` — 构造函数参数审计，超过阈值报告
+     - `jcc-audit layer-audit <slnx> [--skip-tests]` — 七层架构层依赖违规检测
+   - **修复组**：
+     - `jcc-audit replace <csproj-or-slnx> --rule <JCC规则ID> [--fix-all] [--dry-run]` — AST 批量替换，应用 CodeFix 到磁盘文件
+     - `jcc-audit strip-bom <directory> [--dry-run] [--skip-tests]` — 移除指定目录下所有 .cs 文件的 UTF-8 BOM（字节级操作，自动跳过 bin/obj/.xxx/.git/artifacts 和 .Designer.cs/.g.cs）
+   - **统计组**：
+     - `jcc-audit top-files <directory> [--top 10] [--threshold 200] [--skip-tests]` — 按行数降序返回 Top N 大文件
+   - **通用选项**：`--output` 写 JSON 报告、`--format json|text`、`--skip-tests` 跳过测试项目、`--dry-run` 预览不写入
+   - **退出码**：0=无诊断/成功，1=参数错误，2=超时，3=有 Warning，4=有 Error
 2. **Python 脚本次之**：本机 Python 3.12.10，批量文本处理/脚本检测优先使用 `.py` 脚本，而非 PowerShell
    - 适用场景：文件搜索统计、简单文本替换、报告生成等不需要语义理解的场景
 3. **PowerShell 最后**：PowerShell 5.1.19041.6456，仅用于系统操作和 dotnet/gh 命令编排

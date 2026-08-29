@@ -59,6 +59,9 @@ public sealed record AuditReport
 [JsonSerializable(typeof(LayerViolationInfo))]
 [JsonSerializable(typeof(List<LayerViolationInfo>))]
 [JsonSerializable(typeof(LayerAuditReport))]
+[JsonSerializable(typeof(BomStripEntry))]
+[JsonSerializable(typeof(List<BomStripEntry>))]
+[JsonSerializable(typeof(BomStripReport))]
 public sealed partial class AuditReportContext : JsonSerializerContext;
 
 /// <summary>
@@ -96,4 +99,30 @@ public sealed record FileLineReport
     public int SkippedFiles { get; init; }
     public int FilesAboveThreshold { get; init; }
     public List<FileInfoEntry> Files { get; init; } = [];
+}
+
+/// <summary>
+/// 单个 BOM 移除记录
+/// </summary>
+public sealed record BomStripEntry
+{
+    public string FilePath { get; init; } = string.Empty;
+    public string FullPath { get; init; } = string.Empty;
+}
+
+/// <summary>
+/// UTF-8 BOM 移除报告
+/// </summary>
+public sealed record BomStripReport
+{
+    public string RootPath { get; init; } = string.Empty;
+    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+    public int TotalCsFiles { get; init; }
+    public int SkippedFiles { get; init; }
+    public int ScannedFiles { get; init; }
+    public int WithBomCount { get; init; }
+    public int StrippedCount { get; init; }
+    public bool DryRun { get; init; }
+    public bool SkipTests { get; init; }
+    public List<BomStripEntry> Files { get; init; } = [];
 }

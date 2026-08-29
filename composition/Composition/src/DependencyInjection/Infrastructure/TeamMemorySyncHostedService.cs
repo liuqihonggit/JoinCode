@@ -1,6 +1,4 @@
 
-using JoinCode.Abstractions.Attributes;
-
 namespace Core.DependencyInjection;
 
 [Register(typeof(IHostedService), ServiceLifetime.Singleton)]

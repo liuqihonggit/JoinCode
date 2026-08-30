@@ -17,9 +17,24 @@ public sealed record DangerClassificationResult(
     public bool RequiresIntervention => Level != CommandDangerLevel.Safe;
 
     /// <summary>
-    /// 是否绝对禁止（AI 不可执行，必须用户手动执行）
+    /// 是否危险（直接拒绝不提示）
     /// </summary>
-    public bool IsForbidden => Level == CommandDangerLevel.Forbidden;
+    public bool IsDangerous => Level == CommandDangerLevel.Dangerous;
+
+    /// <summary>
+    /// 是否需要 ask 确认（LightValidation 绿色 ask 或 Execution 红色 ask）
+    /// </summary>
+    public bool RequiresAsk => Level == CommandDangerLevel.LightValidation || Level == CommandDangerLevel.Execution;
+
+    /// <summary>
+    /// 是否绿色 ask（可撤回操作）
+    /// </summary>
+    public bool IsLightValidation => Level == CommandDangerLevel.LightValidation;
+
+    /// <summary>
+    /// 是否红色 ask（不可撤回操作）
+    /// </summary>
+    public bool IsExecution => Level == CommandDangerLevel.Execution;
 
     /// <summary>
     /// 安全结果（无危险）

@@ -4,33 +4,34 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// 命令危险等级枚举 — 统一的命令危险分级，作为权限决策的唯一依据
 /// </summary>
 /// <remarks>
-/// 分级语义:
+/// 4级分级语义:
 /// <list type="bullet">
-/// <item><term>Safe</term><description>安全操作 — 自动批准（如 ls/cat/grep/git status）</description></item>
-/// <item><term>Dangerous</term><description>危险操作 — 需用户确认（如 rm/del/mv/chmod）</description></item>
-/// <item><term>Critical</term><description>极危险操作 — 需用户显式确认，不可批量批准（如 rm -rf/git reset --hard/shutdown）</description></item>
-/// <item><term>Forbidden</term><description>绝对禁止 — AI 永远拒绝执行，引导用户在终端手动执行（如 rm -rf //format c:/dd of=/dev/sda/mkfs/fdisk）</description></item>
+/// <item><term>Safe</term><description>只读操作 — 自动通过，无需确认（如 ls/cat/grep/git status）</description></item>
+/// <item><term>LightValidation</term><description>轻校验操作 — 绿色 ask，跨信任目录/密钥文件/敏感路径读取（如读取工作目录外文件、.env、.ssh/id_rsa）</description></item>
+/// <item><term>Execution</term><description>执行操作 — 红色 ask，git/bash/联网/脚本执行（如 git commit、bash 命令、curl、执行 .sh/.ps1）</description></item>
+/// <item><term>Dangerous</term><description>危险操作 — 直接拒绝不提示（如 rm -rf /、format c:、mkfs、fdisk、dd of=/dev/sda）</description></item>
 /// </list>
+/// ask 级别（LightValidation/Execution）支持"同级别自动通过"标记：用户选择后当前会话内同级别操作不再 ask，不持久化，每次打开新 exe 重新提示。
 /// </remarks>
 public enum CommandDangerLevel
 {
     /// <summary>
-    /// 安全操作 — 自动批准，无需确认
+    /// 只读操作 — 自动通过，无需确认
     /// </summary>
     [EnumValue("safe")] Safe = 0,
 
     /// <summary>
-    /// 危险操作 — 需用户确认（Auto 模式拒绝并引导，Ask 模式确认）
+    /// 轻校验操作 — 绿色 ask，跨信任目录/密钥文件/敏感路径读取
     /// </summary>
-    [EnumValue("dangerous")] Dangerous = 1,
+    [EnumValue("light")] LightValidation = 1,
 
     /// <summary>
-    /// 极危险操作 — 需用户显式确认，不可批量批准，不可"始终允许"
+    /// 执行操作 — 红色 ask，git/bash/联网/脚本执行
     /// </summary>
-    [EnumValue("critical")] Critical = 2,
+    [EnumValue("execution")] Execution = 2,
 
     /// <summary>
-    /// 绝对禁止 — AI 永远拒绝执行，任何权限模式下都被拦截，引导用户在终端手动执行
+    /// 危险操作 — 直接拒绝不提示
     /// </summary>
-    [EnumValue("forbidden")] Forbidden = 3
+    [EnumValue("dangerous")] Dangerous = 3
 }

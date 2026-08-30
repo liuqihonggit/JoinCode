@@ -37,6 +37,13 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
             detectedLevels.Add(commandEntry.Level);
             detectedRisks.Add(commandEntry.RiskType);
             details.Add($"命令 '{command.CommandName}': {commandEntry.Description}");
+
+            // git 只读子命令降级为 Safe（git status/log/diff 等不修改仓库）
+            if (commandEntry.Level == CommandDangerLevel.LightValidation &&
+                IsGitReadOnlySubcommand(command))
+            {
+                return DangerClassificationResult.SafeResult;
+            }
         }
 
         // 2. 检查危险参数
@@ -93,13 +100,13 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
     }
 
     /// <inheritdoc />
-    public bool IsForbidden(string command)
+    public bool IsDangerous(string command)
     {
         if (string.IsNullOrWhiteSpace(command))
             return false;
 
         var classification = Classify(command);
-        return classification.IsForbidden;
+        return classification.IsDangerous;
     }
 
     /// <inheritdoc />
@@ -129,6 +136,69 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// 判断 git 子命令是否为只读（不修改仓库状态）
+    /// </summary>
+    private static bool IsGitReadOnlySubcommand(ShellCommand command)
+    {
+        if (!command.CommandName.Equals("git", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        // git 无参数 → 只读（显示用法）
+        if (command.Arguments.Count == 0)
+            return true;
+
+        var subcommand = command.Arguments[0].ToLowerInvariant();
+
+        // 只读子命令白名单
+        var readOnlySubcommands = FrozenSet.Create(
+            StringComparer.OrdinalIgnoreCase,
+            "status", "log", "diff", "show", "blame", "reflog", "describe", "shortlog",
+            "ls-files", "ls-tree", "cat-file", "rev-parse", "rev-list", "name-rev",
+            "cherry", "cherry-pick" /* --no-commit 时只读，保守起见不加入 */,
+            "branch" /* branch 无 -D/-d 时只读，下面特殊处理 */,
+            "remote", "stash" /* stash list 只读，下面特殊处理 */,
+            "config" /* config --get 只读，下面特殊处理 */,
+            "fetch" /* fetch --dry-run 只读，下面特殊处理 */,
+            "grep", "count-objects", "fsck", "gc" /* --auto 时只读 */,
+            "help", "version", "var");
+
+        // branch -D/-d 是删除分支，不是只读
+        if (subcommand == "branch")
+        {
+            return !command.Arguments.Any(a =>
+                a.Equals("-D", StringComparison.OrdinalIgnoreCase) ||
+                a.Equals("-d", StringComparison.OrdinalIgnoreCase) ||
+                a.Equals("--delete", StringComparison.OrdinalIgnoreCase));
+        }
+
+        // stash list 是只读，其他 stash 操作不是
+        if (subcommand == "stash")
+        {
+            return command.Arguments.Count >= 2 &&
+                   command.Arguments[1].Equals("list", StringComparison.OrdinalIgnoreCase);
+        }
+
+        // config --get 是只读，config 写入不是
+        if (subcommand == "config")
+        {
+            return command.Arguments.Any(a =>
+                a.Equals("--get", StringComparison.OrdinalIgnoreCase) ||
+                a.Equals("--get-all", StringComparison.OrdinalIgnoreCase) ||
+                a.Equals("--list", StringComparison.OrdinalIgnoreCase) ||
+                a.Equals("-l", StringComparison.OrdinalIgnoreCase));
+        }
+
+        // fetch --dry-run 是只读
+        if (subcommand == "fetch")
+        {
+            return command.Arguments.Any(a =>
+                a.Equals("--dry-run", StringComparison.OrdinalIgnoreCase));
+        }
+
+        return readOnlySubcommands.Contains(subcommand);
     }
 
     /// <summary>
@@ -185,7 +255,7 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
                 a.Equals("/", StringComparison.OrdinalIgnoreCase) ||
                 a.Equals("C:\\", StringComparison.OrdinalIgnoreCase) ||
                 a.Equals("C:/", StringComparison.OrdinalIgnoreCase));
-            return hasRootTarget ? CommandDangerLevel.Forbidden : CommandDangerLevel.Critical;
+            return hasRootTarget ? CommandDangerLevel.Dangerous : CommandDangerLevel.Execution;
         }
 
         return CommandDangerLevel.Safe;

@@ -219,9 +219,9 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
 
     /// <summary>
     /// 处理检测到的风险 — 根据 CommandDangerLevel 做决策
-    /// Forbidden: 任何模式下都直接拒绝，引导用户在终端手动执行
-    /// Critical: Auto拒绝/Ask显式确认（不可批量批准）/Plan拒绝
-    /// Dangerous: Auto拒绝+引导/Ask确认/Plan拒绝
+    /// Dangerous: 任何模式下都直接拒绝不提示
+    /// Execution（红色ask/不可撤回）: Auto拒绝/Ask确认/Plan拒绝
+    /// LightValidation（绿色ask/可撤回）: Auto拒绝/Ask确认/Plan放行(只读性质)
     /// </summary>
     private void HandleRisks(PermissionCheckContext context, CommandRiskContext riskContext, DangerClassificationResult? dangerResult)
     {
@@ -232,11 +232,10 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
         // 获取危险等级：优先使用 dangerResult，否则从 CommandRisk 推断
         var level = dangerResult?.Level ?? DangerousCommandCatalog.InferLevel(primaryRisk ?? CommandRisk.None);
 
-        // Forbidden 级 — 任何模式下都直接拒绝，引导用户在终端手动执行
-        if (level == CommandDangerLevel.Forbidden)
+        // Dangerous 级 — 任何模式下都直接拒绝不提示
+        if (level == CommandDangerLevel.Dangerous)
         {
-            var forbiddenMsg = BuildForbiddenMessage(context, riskContext, dangerResult);
-            context.Result = ToolPermissionCheckResult.Rejected(forbiddenMsg);
+            context.Result = ToolPermissionCheckResult.Rejected("此操作被禁止");
             return;
         }
 
@@ -250,47 +249,28 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
                 break;
 
             case PermissionMode.Ask:
-                if (level == CommandDangerLevel.Critical)
-                {
-                    // Critical 级 — 需显式确认，不可批量批准
-                    var criticalConfirmation = handler is not null
-                        ? $"⚠️ 极危险操作 — {handler.BuildConfirmationMessage(riskContext)}（此操作不可批量批准，仅本次有效）"
-                        : $"⚠️ 极危险操作 — 工具 '{context.ToolName}' 请求执行极危险操作（{riskContext.Details}）。此操作不可批量批准，仅本次有效。是否批准？";
-                    context.Result = ToolPermissionCheckResult.PendingConfirmation(criticalConfirmation);
-                }
-                else
-                {
-                    // Dangerous 级 — 需确认
-                    var confirmation = handler is not null
-                        ? handler.BuildConfirmationMessage(riskContext)
-                        : $"工具 '{context.ToolName}' 请求执行危险操作（{riskContext.Details}）。是否批准？";
-                    context.Result = ToolPermissionCheckResult.PendingConfirmation(confirmation);
-                }
+                // LightValidation（绿色ask/可撤回）和 Execution（红色ask/不可撤回）都需确认
+                // 颜色区分由 IPermissionConfirmationHandler 根据 DangerLevel 实现
+                var levelTag = level == CommandDangerLevel.LightValidation ? "[轻校验]" : "[执行]";
+                var confirmation = handler is not null
+                    ? $"{levelTag} {handler.BuildConfirmationMessage(riskContext)}"
+                    : $"{levelTag} 工具 '{context.ToolName}' 请求执行操作（{riskContext.Details}）。是否批准？";
+                context.Result = ToolPermissionCheckResult.PendingConfirmation(confirmation);
                 break;
 
             case PermissionMode.Plan:
+                if (level == CommandDangerLevel.LightValidation)
+                {
+                    // LightValidation 在 Plan 模式下放行（可撤回操作，类似只读）
+                    return;
+                }
                 context.Result = ToolPermissionCheckResult.Rejected(
-                    $"Plan 模式下禁止危险操作（{riskContext.Details}）");
+                    $"Plan 模式下禁止不可撤回操作（{riskContext.Details}）");
                 break;
 
             default:
                 break;
         }
-    }
-
-    /// <summary>
-    /// 构建 Forbidden 级拒绝消息 — 引导用户在终端手动执行
-    /// </summary>
-    private static string BuildForbiddenMessage(PermissionCheckContext context, CommandRiskContext riskContext, DangerClassificationResult? dangerResult)
-    {
-        var command = riskContext.ShellCommand?.RawCommand ?? "未知命令";
-        var detail = dangerResult?.Details ?? riskContext.Details ?? "绝对禁止操作";
-
-        return $"⛔ 绝对禁止 — AI 无法执行此操作（{detail}）。\n" +
-               $"此操作可能造成不可恢复的数据丢失或系统损坏，AI 在任何权限模式下都不会执行。\n" +
-               $"如确需执行，请你在终端手动执行以下命令:\n" +
-               $"  {command}\n" +
-               $"⚠️ 请务必确认命令正确后再执行，此操作不可逆。";
     }
 
     /// <summary>

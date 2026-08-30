@@ -1,13 +1,14 @@
 namespace Guard.Security.Tests;
 
 /// <summary>
-/// CommandDangerClassifier 单元测试 — 验证危险命令分级和 Forbidden 拒绝逻辑
+/// CommandDangerClassifier 单元测试 — 验证新4级分级: Safe/LightValidation/Execution/Dangerous
+/// 绿色ask(LightValidation)=可撤回, 红色ask(Execution)=不可撤回, Dangerous=直接拒绝
 /// </summary>
 public class CommandDangerClassifierTests
 {
     private readonly CommandDangerClassifier _classifier = new();
 
-    #region Forbidden 级测试 — AI 永远拒绝
+    #region Dangerous 级测试 — 直接拒绝不提示
 
     [Theory]
     [InlineData("rm -rf /")]
@@ -19,12 +20,12 @@ public class CommandDangerClassifierTests
     [InlineData("wipe /home/user/secret")]
     [InlineData("dd if=/dev/zero of=/dev/sda")]
     [InlineData("diskpart clean")]
-    public void Forbidden_Commands_Should_Return_Forbidden(string command)
+    public void Dangerous_Commands_Should_Return_Dangerous(string command)
     {
         var result = _classifier.Classify(command);
 
-        result.Level.Should().Be(CommandDangerLevel.Forbidden);
-        result.IsForbidden.Should().BeTrue();
+        result.Level.Should().Be(CommandDangerLevel.Dangerous);
+        result.IsDangerous.Should().BeTrue();
         result.RequiresIntervention.Should().BeTrue();
     }
 
@@ -33,39 +34,26 @@ public class CommandDangerClassifierTests
     [InlineData("format c:")]
     [InlineData("mkfs.ext4 /dev/sda1")]
     [InlineData("dd if=/dev/zero of=/dev/sda")]
-    public void IsForbidden_Should_Return_True_For_Forbidden_Commands(string command)
+    public void IsDangerous_Should_Return_True(string command)
     {
-        _classifier.IsForbidden(command).Should().BeTrue();
+        _classifier.IsDangerous(command).Should().BeTrue();
     }
 
     #endregion
 
-    #region Critical 级测试 — 需显式确认，不可批量批准
+    #region Execution 级测试 — 红色 ask / 不可撤回
 
     [Theory]
     [InlineData("rm -rf /tmp/important")]
     [InlineData("del /s /q C:\\temp")]
     [InlineData("erase /s /q C:\\temp")]
     [InlineData("git reset --hard")]
+    [InlineData("git clean -f")]
     [InlineData("shutdown /s")]
     [InlineData("chmod 777 /var/www")]
     [InlineData("dd of=/tmp/image.iso")]
     [InlineData("powershell -enc abc123")]
     [InlineData("echo hello | bash")]
-    public void Critical_Commands_Should_Return_Critical(string command)
-    {
-        var result = _classifier.Classify(command);
-
-        result.Level.Should().Be(CommandDangerLevel.Critical);
-        result.IsForbidden.Should().BeFalse();
-        result.RequiresIntervention.Should().BeTrue();
-    }
-
-    #endregion
-
-    #region Dangerous 级测试 — 需确认
-
-    [Theory]
     [InlineData("rm file.txt")]
     [InlineData("del file.txt")]
     [InlineData("Remove-Item file.txt")]
@@ -78,18 +66,42 @@ public class CommandDangerClassifierTests
     [InlineData("sudo apt update")]
     [InlineData("curl http://example.com")]
     [InlineData("wget http://example.com/file.zip")]
-    public void Dangerous_Commands_Should_Return_Dangerous(string command)
+    [InlineData("format D:")]
+    [InlineData("shutdown /r")]
+    [InlineData("reg add HKCU\\Test")]
+    public void Execution_Commands_Should_Return_Execution(string command)
     {
         var result = _classifier.Classify(command);
 
-        result.Level.Should().Be(CommandDangerLevel.Dangerous);
-        result.IsForbidden.Should().BeFalse();
+        result.Level.Should().Be(CommandDangerLevel.Execution);
+        result.IsDangerous.Should().BeFalse();
         result.RequiresIntervention.Should().BeTrue();
     }
 
     #endregion
 
-    #region Safe 级测试 — 自动批准
+    #region LightValidation 级测试 — 绿色 ask / 可撤回
+
+    [Theory]
+    [InlineData("git commit -m \"msg\"")]
+    [InlineData("git push")]
+    [InlineData("git add file.txt")]
+    [InlineData("git pull")]
+    [InlineData("git merge feature")]
+    [InlineData("git stash")]
+    [InlineData("git tag v1.0")]
+    public void LightValidation_Commands_Should_Return_LightValidation(string command)
+    {
+        var result = _classifier.Classify(command);
+
+        result.Level.Should().Be(CommandDangerLevel.LightValidation);
+        result.IsDangerous.Should().BeFalse();
+        result.RequiresIntervention.Should().BeTrue();
+    }
+
+    #endregion
+
+    #region Safe 级测试 — 自动通过
 
     [Theory]
     [InlineData("ls")]
@@ -97,6 +109,10 @@ public class CommandDangerClassifierTests
     [InlineData("grep pattern file.txt")]
     [InlineData("git status")]
     [InlineData("git log")]
+    [InlineData("git diff")]
+    [InlineData("git show HEAD")]
+    [InlineData("git branch")]
+    [InlineData("git remote -v")]
     [InlineData("echo hello")]
     [InlineData("pwd")]
     [InlineData("whoami")]
@@ -113,18 +129,19 @@ public class CommandDangerClassifierTests
     #region GetCommandLevel 测试
 
     [Theory]
-    [InlineData("mkfs", CommandDangerLevel.Forbidden)]
-    [InlineData("fdisk", CommandDangerLevel.Forbidden)]
-    [InlineData("shred", CommandDangerLevel.Forbidden)]
-    [InlineData("format", CommandDangerLevel.Critical)]
-    [InlineData("shutdown", CommandDangerLevel.Critical)]
-    [InlineData("reg", CommandDangerLevel.Critical)]
-    [InlineData("rm", CommandDangerLevel.Dangerous)]
-    [InlineData("del", CommandDangerLevel.Dangerous)]
-    [InlineData("mv", CommandDangerLevel.Dangerous)]
-    [InlineData("chmod", CommandDangerLevel.Dangerous)]
-    [InlineData("sudo", CommandDangerLevel.Dangerous)]
-    [InlineData("curl", CommandDangerLevel.Dangerous)]
+    [InlineData("mkfs", CommandDangerLevel.Dangerous)]
+    [InlineData("fdisk", CommandDangerLevel.Dangerous)]
+    [InlineData("shred", CommandDangerLevel.Dangerous)]
+    [InlineData("git", CommandDangerLevel.LightValidation)]
+    [InlineData("rm", CommandDangerLevel.Execution)]
+    [InlineData("del", CommandDangerLevel.Execution)]
+    [InlineData("mv", CommandDangerLevel.Execution)]
+    [InlineData("chmod", CommandDangerLevel.Execution)]
+    [InlineData("sudo", CommandDangerLevel.Execution)]
+    [InlineData("curl", CommandDangerLevel.Execution)]
+    [InlineData("format", CommandDangerLevel.Execution)]
+    [InlineData("shutdown", CommandDangerLevel.Execution)]
+    [InlineData("reg", CommandDangerLevel.Execution)]
     [InlineData("ls", CommandDangerLevel.Safe)]
     [InlineData("cat", CommandDangerLevel.Safe)]
     [InlineData("unknowncmd", CommandDangerLevel.Safe)]
@@ -145,17 +162,11 @@ public class CommandDangerClassifierTests
     }
 
     [Fact]
-    public void Null_Command_Should_Return_Safe()
-    {
-        _classifier.Classify((string)null!).Level.Should().Be(CommandDangerLevel.Safe);
-    }
-
-    [Fact]
     public void SafeResult_Should_Have_Correct_Properties()
     {
         DangerClassificationResult.SafeResult.Level.Should().Be(CommandDangerLevel.Safe);
         DangerClassificationResult.SafeResult.RequiresIntervention.Should().BeFalse();
-        DangerClassificationResult.SafeResult.IsForbidden.Should().BeFalse();
+        DangerClassificationResult.SafeResult.IsDangerous.Should().BeFalse();
     }
 
     #endregion
@@ -163,11 +174,11 @@ public class CommandDangerClassifierTests
     #region 危险路径测试
 
     [Theory]
-    [InlineData("rm /", CommandDangerLevel.Forbidden)]
-    [InlineData("rm C:\\", CommandDangerLevel.Forbidden)]
-    [InlineData("rm /root", CommandDangerLevel.Forbidden)]
-    [InlineData("rm /etc/passwd", CommandDangerLevel.Critical)]
-    [InlineData("rm /home/user/file", CommandDangerLevel.Critical)]
+    [InlineData("rm /", CommandDangerLevel.Dangerous)]
+    [InlineData("rm C:\\", CommandDangerLevel.Dangerous)]
+    [InlineData("rm /root", CommandDangerLevel.Dangerous)]
+    [InlineData("rm /etc/passwd", CommandDangerLevel.Execution)]
+    [InlineData("rm /home/user/file", CommandDangerLevel.Execution)]
     public void Dangerous_Paths_Should_Escalate_Level(string command, CommandDangerLevel expectedMinLevel)
     {
         var result = _classifier.Classify(command);

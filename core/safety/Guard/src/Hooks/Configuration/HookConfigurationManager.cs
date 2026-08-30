@@ -437,7 +437,7 @@ public partial class JsonFileHookConfigurationProvider : IHookConfigurationProvi
         var directory = Path.GetDirectoryName(_filePath);
         DirectoryHelper.EnsureDirectoryExists(_fs, directory);
 
-        var json = JsonSerializer.Serialize(settings, HooksJsonContext.Default.HookSettingsFile);
+        var json = RelaxedJsonSerializer.Serialize(settings, HooksJsonContext.Default);
         await _fs.WriteAllTextAsync(_filePath, json).ConfigureAwait(false);
     }
 }

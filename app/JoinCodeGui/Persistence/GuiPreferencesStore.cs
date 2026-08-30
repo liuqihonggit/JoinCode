@@ -50,7 +50,7 @@ public sealed class GuiPreferencesStore
         if (!string.IsNullOrEmpty(dir) && !_fs.DirectoryExists(dir))
             _fs.CreateDirectory(dir);
 
-        var json = JsonSerializer.Serialize(preferences, GuiJsonContext.Default.GuiPreferences);
+        var json = RelaxedJsonSerializer.Serialize(preferences, GuiJsonContext.Default);
         _fs.WriteAllText(_filePath, json);
     }
 }

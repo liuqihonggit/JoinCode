@@ -189,7 +189,7 @@ public sealed class GuiSessionStore
         if (dir is not null && !_fs.DirectoryExists(dir))
             _fs.CreateDirectory(dir);
 
-        var json = JsonSerializer.Serialize(session, GuiJsonContext.Default.GuiSessionData);
+        var json = RelaxedJsonSerializer.Serialize(session, GuiJsonContext.Default);
         _fs.WriteAllText(path, json);
         return true;
     }

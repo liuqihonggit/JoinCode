@@ -296,7 +296,7 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
         {
             infoWithId = infoWithId with { ProjectName = Path.GetFileName(infoWithId.ProjectPath) };
         }
-        var json = JsonSerializer.Serialize(infoWithId, TranscriptJsonContext.Default.SessionInfo);
+        var json = RelaxedJsonSerializer.Serialize(infoWithId, TranscriptJsonContext.Default);
         await _fs.WriteAllTextAsync(metaPath, json, cancellationToken).ConfigureAwait(false);
         _logger?.LogDebug("Session info saved for {SessionId}", sessionId);
     }
@@ -363,7 +363,7 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
                 {
                     DirectoryHelper.EnsureDirectoryExists(_fs, newDir);
                 }
-                var json = JsonSerializer.Serialize(entries, TranscriptJsonContext.Default.ListTranscriptEntry);
+                var json = RelaxedJsonSerializer.Serialize(entries, TranscriptJsonContext.Default);
                 await _fs.WriteAllTextAsync(newPath, json, cancellationToken).ConfigureAwait(false);
                 _logger?.LogInformation("Migrated legacy transcript {SessionId} to session directory (jsonl→json)", sessionId);
             }

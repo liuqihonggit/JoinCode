@@ -64,7 +64,7 @@ public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abs
         {
             EnsureAgentDirectoryExists(sessionId, metadata.AgentId);
             var filePath = GetAgentMetadataPath(sessionId, metadata.AgentId);
-            var json = JsonSerializer.Serialize(metadata, AgentMetadataJsonContext.Default.AgentMetadata);
+            var json = RelaxedJsonSerializer.Serialize(metadata, AgentMetadataJsonContext.Default);
             await _fs.WriteAllTextAsync(filePath, json, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

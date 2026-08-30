@@ -33,7 +33,7 @@ public sealed partial class TaskFileWriter : ServiceEntity, ITaskFileWriter
             _fileOperationService.CreateDirectory(directory);
         }
 
-        var json = JsonSerializer.Serialize(metadata, SchedulingIndentedJsonContext.Default.FileTaskMetadata);
+        var json = RelaxedJsonSerializer.Serialize(metadata, SchedulingIndentedJsonContext.Default);
         await _fileOperationService.WriteFileAsync(filePath, json, cancellationToken).ConfigureAwait(false);
     }
 
@@ -52,7 +52,7 @@ public sealed partial class TaskFileWriter : ServiceEntity, ITaskFileWriter
         }
 
         var tempPath = filePath + ".tmp";
-        var json = JsonSerializer.Serialize(metadata, SchedulingIndentedJsonContext.Default.FileTaskMetadata);
+        var json = RelaxedJsonSerializer.Serialize(metadata, SchedulingIndentedJsonContext.Default);
 
         try
         {
@@ -85,7 +85,7 @@ public sealed partial class TaskFileWriter : ServiceEntity, ITaskFileWriter
     /// </summary>
     public static string Serialize(FileTaskMetadata metadata)
     {
-        return JsonSerializer.Serialize(metadata, SchedulingIndentedJsonContext.Default.FileTaskMetadata);
+        return RelaxedJsonSerializer.Serialize(metadata, SchedulingIndentedJsonContext.Default);
     }
 
     /// <summary>

@@ -297,8 +297,8 @@ public sealed class ResilientHttpExecutor
         {
             BackoffStrategy.Fixed => retry.BaseDelay,
             BackoffStrategy.Linear => retry.BaseDelay * attempt,
-            BackoffStrategy.Exponential => retry.BaseDelay * Math.Pow(2, attempt - 1),
-            BackoffStrategy.ExponentialWithJitter => retry.BaseDelay * Math.Pow(2, attempt - 1),
+            BackoffStrategy.Exponential => TimeSpan.FromMilliseconds(Math.Min(retry.BaseDelay.TotalMilliseconds * Math.Pow(2, attempt - 1), retry.MaxDelay.TotalMilliseconds)),
+            BackoffStrategy.ExponentialWithJitter => TimeSpan.FromMilliseconds(Math.Min(retry.BaseDelay.TotalMilliseconds * Math.Pow(2, attempt - 1), retry.MaxDelay.TotalMilliseconds)),
             _ => retry.BaseDelay
         };
 

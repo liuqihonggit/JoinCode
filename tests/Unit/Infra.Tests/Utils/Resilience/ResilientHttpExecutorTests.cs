@@ -277,7 +277,7 @@ public sealed class ResilientHttpExecutorTests
         {
             Name = "integration",
             OperationTimeout = TimeSpan.FromSeconds(10),
-            Retry = retryOptions.ToTestRetryConfig(TimeSpan.FromSeconds(8), TimeSpan.FromMilliseconds(100)),
+            Retry = retryOptions.ToTestRetryConfig(TimeSpan.FromSeconds(30), TimeSpan.FromMilliseconds(100)),
         };
 
         var executor = new ResilientHttpExecutor(policy);

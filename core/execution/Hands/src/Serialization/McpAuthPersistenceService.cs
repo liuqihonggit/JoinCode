@@ -112,7 +112,7 @@ public sealed partial class McpAuthPersistenceService : ServiceEntity, IMcpAuthP
         try
         {
             var list = entries.Values.ToList();
-            var json = JsonSerializer.Serialize(list, AuthEntryContext.Default.ListAuthConfigEntry);
+            var json = RelaxedJsonSerializer.Serialize(list, AuthEntryContext.Default);
             await configService.SetAsync("mcp.auth_entries", json, ct).ConfigureAwait(false);
         }
         catch (Exception ex)

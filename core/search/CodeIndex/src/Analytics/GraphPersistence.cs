@@ -37,7 +37,7 @@ public sealed class GraphPersistence : ServiceEntity, IGraphPersistence
             NuGetReferences = _store.NuGetRefs.Values.SelectMany(v => v).ToList(),
         };
 
-        var json = JsonSerializer.Serialize(data, CodeIndexJsonContext.Default.GraphPersistenceData);
+        var json = RelaxedJsonSerializer.Serialize(data, CodeIndexJsonContext.Default);
         var path = Path.Combine(directory, "code-index.json");
         await _fs.WriteAllTextAsync(path, json, ct).ConfigureAwait(false);
     }

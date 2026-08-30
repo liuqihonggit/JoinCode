@@ -43,7 +43,7 @@ public sealed class FileBasedReflexionMemory : IReflexionMemory
 
         var fileName = $"{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss-fff}.json";
         var filePath = Path.Combine(ruleDir, fileName);
-        var json = JsonSerializer.Serialize(entry, ReflexionEntryJsonContext.Default.ReflexionEntry);
+        var json = RelaxedJsonSerializer.Serialize(entry, ReflexionEntryJsonContext.Default);
 
         await _fs.WriteAllTextAsync(filePath, json, ct).ConfigureAwait(false);
     }
@@ -177,5 +177,5 @@ internal sealed record ReflexionDiagnosticSummary
 }
 
 [JsonSerializable(typeof(ReflexionEntry))]
-[JsonSourceGenerationOptions(AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 internal sealed partial class ReflexionEntryJsonContext : JsonSerializerContext;

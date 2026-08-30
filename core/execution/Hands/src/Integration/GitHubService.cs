@@ -121,7 +121,7 @@ public sealed partial class GitHubService : ServiceEntity, IGitHubService
         await _lock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            var json = JsonSerializer.Serialize(_subscriptions.Values.ToList(), GitHubSubscriptionContext.Default.ListPRSubscription);
+            var json = RelaxedJsonSerializer.Serialize(_subscriptions.Values.ToList(), GitHubSubscriptionContext.Default);
             await _configService.SetAsync("github.pr_subscriptions", json, ct).ConfigureAwait(false);
         }
         catch (Exception ex)

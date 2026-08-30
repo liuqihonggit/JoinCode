@@ -28,7 +28,7 @@ public static class SessionMetaSerializer
     {
         ArgumentNullException.ThrowIfNull(meta);
 
-        return JsonSerializer.Serialize(meta, SessionMetaJsonContext.Default.SessionMeta);
+        return RelaxedJsonSerializer.Serialize(meta, SessionMetaJsonContext.Default);
     }
 
     public static SessionMeta Deserialize(string json)

@@ -54,6 +54,36 @@ public static class RelaxedJsonSerializer
     }
 
     /// <summary>
+    /// 从 JSON 字符串反序列化（统一入口，JsonTypeInfo 重载）。
+    /// 适用于调用方持有 JsonTypeInfo&lt;T&gt; 而非 JsonSerializerContext 的场景（如泛型方法参数）。
+    /// 清理 BOM 和前后空白后委托 JsonSerializer.Deserialize，AOT 安全。
+    /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "JsonTypeInfo<T> 为源码生成，所有类型已静态 rooted，AOT 安全。")]
+    [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "JsonTypeInfo<T> 为源码生成，无需运行时反射 emit。")]
+    public static T? Deserialize<T>(string json, JsonTypeInfo<T> typeInfo)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return default;
+        var clean = json.AsSpan().Trim();
+        if (clean.Length > 0 && clean[0] == '\uFEFF')
+            clean = clean[1..];
+        return JsonSerializer.Deserialize(clean.ToString(), typeInfo);
+    }
+
+    /// <summary>
+    /// 从流异步反序列化（统一入口）。读取流为字符串后委托 Deserialize&lt;T&gt;，继承 BOM 清理与宽容策略。
+    /// 适用于配置文件流式读取场景。AOT 安全。
+    /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "JsonTypeInfo<T> 为源码生成，所有类型已静态 rooted，AOT 安全。")]
+    [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "JsonTypeInfo<T> 为源码生成，无需运行时反射 emit。")]
+    public static async Task<T?> DeserializeAsync<T>(Stream stream, JsonTypeInfo<T> typeInfo, CancellationToken cancellationToken = default)
+    {
+        using var reader = new StreamReader(stream, Encoding.UTF8);
+        var json = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+        return Deserialize<T>(json, typeInfo);
+    }
+
+    /// <summary>
     /// 从 JSON 字符串反序列化（统一入口，带修复提示）。反序列化失败时尝试 LlmJsonHelper 宽容修复。
     /// 适用于 LLM 生成或可能格式不规范的 JSON。配置文件读取建议用无提示版本 Deserialize&lt;T&gt;。
     /// </summary>

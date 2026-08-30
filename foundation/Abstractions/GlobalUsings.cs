@@ -76,6 +76,7 @@ global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using System.Collections.Frozen;
 global using System.Collections.Immutable;
 global using System.ComponentModel.DataAnnotations;
+global using System.IO;
 global using System.Security.Cryptography;
 global using System.Text;
 global using System.Text.Json;

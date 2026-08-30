@@ -1,4 +1,4 @@
-﻿namespace JoinCode.CodeIndex;
+namespace JoinCode.CodeIndex;
 
 [Register(typeof(FileWatcherIntegration), ServiceLifetime.Singleton)]
 public sealed partial class FileWatcherIntegration : IAsyncDisposable

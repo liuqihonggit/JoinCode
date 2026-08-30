@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Tests.SlashCommands;
+namespace JoinCode.Gui.Tests.SlashCommands;
 
 /// <summary>
 /// SlashCommandTrie 单元测试 — 验证前缀匹配、大小写不敏感、动态增删、边界行为。

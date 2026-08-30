@@ -1,4 +1,4 @@
-﻿// 让本程序集的 AvaloniaFact 测试使用 TestApp 作为宿主（复用与真实 App 完全一致的资源注册）
+// 让本程序集的 AvaloniaFact 测试使用 TestApp 作为宿主（复用与真实 App 完全一致的资源注册）
 [assembly: AvaloniaTestApplication(typeof(JoinCode.Gui.Tests.VisualTestApp))]
 
 namespace JoinCode.Gui.Tests;

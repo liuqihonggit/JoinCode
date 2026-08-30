@@ -1,4 +1,4 @@
-﻿namespace Core.Prompts.Utils;
+namespace Core.Prompts.Utils;
 
 /// <summary>
 /// 动态关键词词表服务 — 从 ~/.jcc/keyword-sections.json 加载关键词配置，支持文件监控热加载

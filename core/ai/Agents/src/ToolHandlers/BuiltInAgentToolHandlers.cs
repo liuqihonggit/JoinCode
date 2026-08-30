@@ -1,4 +1,4 @@
-﻿namespace Core.Agents.ToolHandlers;
+namespace Core.Agents.ToolHandlers;
 
 [McpToolDispatch(ToolCategory.Agent, Optional = true)]
 [Register(typeof(BuiltInAgentToolHandlers), ServiceLifetime.Singleton)]

@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Hosting;
+namespace JoinCode.Gui.Hosting;
 
 /// <summary>工具摘要 — 名称与描述，供 GUI #工具补全展示</summary>
 public sealed record ToolSummary(string Name, string Description);

@@ -1,4 +1,4 @@
-﻿namespace Core.Prompts.Sections;
+namespace Core.Prompts.Sections;
 
 /// <summary>
 /// 上下文压缩部分 - 关于对话压缩的说明

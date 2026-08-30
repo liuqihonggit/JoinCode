@@ -1,4 +1,4 @@
-﻿namespace McpToolRegistry;
+namespace McpToolRegistry;
 
 /// <summary>
 /// 权限感知的工具执行器 — 通过标准中间件管道执行工具调用

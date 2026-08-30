@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.BridgeKick, Description = "断开指定Bridge连接", Usage = "/bridge-kick [session-id]", Category = ChatCommandCategory.Bridge, ArgumentHint = "[session-id]")]
 public sealed class BridgeKickCommand : ChatCommandBase

@@ -1,4 +1,4 @@
-﻿namespace Infra.Tests.Housekeeping;
+namespace Infra.Tests.Housekeeping;
 
 
 public sealed class BackgroundHousekeepingServiceTests

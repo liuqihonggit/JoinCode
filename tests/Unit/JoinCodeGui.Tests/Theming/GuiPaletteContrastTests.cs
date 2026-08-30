@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Tests.Theming;
+namespace JoinCode.Gui.Tests.Theming;
 
 /// <summary>
 /// GuiPalette 配色合规性测试 —— 用 WCAG 相对亮度计算所有"文字/背景"语义对对比度，

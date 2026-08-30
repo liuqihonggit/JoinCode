@@ -1,4 +1,4 @@
-﻿
+
 namespace JoinCode.Abstractions.Services;
 
 public abstract class RemoteCacheRefreshServiceBase<TItem> : IDisposable

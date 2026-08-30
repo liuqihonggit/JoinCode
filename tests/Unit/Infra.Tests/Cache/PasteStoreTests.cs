@@ -1,4 +1,4 @@
-﻿namespace Infra.Tests.Cache;
+namespace Infra.Tests.Cache;
 
 
 public sealed class PasteStoreTests

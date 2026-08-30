@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Transport.Bridge;
+namespace JoinCode.Transport.Bridge;
 
 /// <summary>
 /// 传输管理器接口 — 协调连接管理和消息路由

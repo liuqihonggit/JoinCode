@@ -1,4 +1,4 @@
-﻿namespace Hands.Tests.ToolHandlers;
+namespace Hands.Tests.ToolHandlers;
 
 /// <summary>
 /// AgentStreamExecutionMiddleware 子代理事件转发测试 —

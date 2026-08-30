@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Tests.Hosting;
+namespace JoinCode.Gui.Tests.Hosting;
 
 /// <summary>
 /// 引擎会话权限确认闭环测试 — 验证网关在引擎抛出

@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Tests.Commands;
 
 public class DoctorCommandTests

@@ -1,4 +1,4 @@
-﻿namespace Core.Prompts.Sections;
+namespace Core.Prompts.Sections;
 
 /// <summary>
 /// 反馈部分 - 如何向用户提供反馈渠道

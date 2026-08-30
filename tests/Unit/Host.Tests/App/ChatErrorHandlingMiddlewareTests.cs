@@ -1,4 +1,4 @@
-﻿namespace Host.Tests.App;
+namespace Host.Tests.App;
 
 /// <summary>
 /// ChatErrorHandlingMiddleware 错误分类测试 — 验证纵深防御的多级报错

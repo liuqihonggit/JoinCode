@@ -1,4 +1,4 @@
-﻿namespace Core.Skills.Discovery;
+namespace Core.Skills.Discovery;
 
 [Register(typeof(SkillDiscoveryOptions), ServiceLifetime.Singleton)]
 public sealed partial class SkillDiscoveryOptions : ServiceEntity

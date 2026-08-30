@@ -1,4 +1,4 @@
-﻿namespace Infra.Tests.IO;
+namespace Infra.Tests.IO;
 
 /// <summary>
 /// FileReader 结构化诊断单元测试 — 验证各错误路径返回 ToolDiagnostic。

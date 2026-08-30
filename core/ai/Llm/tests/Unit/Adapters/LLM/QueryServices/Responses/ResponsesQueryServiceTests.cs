@@ -1,4 +1,4 @@
-﻿namespace Llm.Tests.Adapters.LLM.QueryServices.Responses;
+namespace Llm.Tests.Adapters.LLM.QueryServices.Responses;
 
 
 public class ResponsesQueryServiceTests

@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Feedback, Description = "提交反馈", Usage = "/feedback [反馈内容]", Category = ChatCommandCategory.Social, Aliases = ["bug"], ArgumentHint = "[反馈内容]", IsHidden = true)]
 public sealed class FeedbackCommand : ChatCommandBase

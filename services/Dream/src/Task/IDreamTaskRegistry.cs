@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Dream.Persistence;
+namespace JoinCode.Dream.Persistence;
 
 /// <summary>
 /// 做梦任务注册表接口

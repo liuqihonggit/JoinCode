@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Tests.ViewModels;
+namespace JoinCode.Gui.Tests.ViewModels;
 
 /// <summary>
 /// MainViewModel 子代理事件接线测试 —

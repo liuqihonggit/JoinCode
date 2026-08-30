@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.ViewModels;
+namespace JoinCode.Gui.ViewModels;
 
 /// <summary>
 /// 单回合事件→UI 消息组装器 — 从 MainViewModel 抽取的纯组装逻辑（无引擎依赖，可单测）。

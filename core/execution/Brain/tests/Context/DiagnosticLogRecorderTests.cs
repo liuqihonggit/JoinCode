@@ -1,4 +1,4 @@
-﻿namespace Core.Tests.Context;
+namespace Core.Tests.Context;
 
 
 public class DiagnosticLogRecorderTests

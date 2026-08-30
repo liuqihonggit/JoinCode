@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Security.Sandbox.Ipc;
+namespace JoinCode.Abstractions.Security.Sandbox.Ipc;
 
 public sealed partial class SandboxIpcRequest
 {

@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Transport.Bridge;
+namespace JoinCode.Transport.Bridge;
 
 /// <summary>
 /// 字符串消息路由器 - 纯字符串级别的消息去重和分发

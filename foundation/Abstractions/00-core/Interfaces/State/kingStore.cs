@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Interfaces;
+namespace JoinCode.Abstractions.Interfaces;
 
 public sealed class ThinkingEntry
 {

@@ -1,4 +1,4 @@
-﻿namespace Core.Scheduling.Cron;
+namespace Core.Scheduling.Cron;
 
 
 /// <summary>

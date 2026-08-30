@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Cli;
+namespace JoinCode.Cli;
 
 /// <summary>
 /// 会话 ID 生成器 — 生成 {yyyyMMdd-HHmm}-{项目名}-{分支名} 格式,方便用户查找分辨。

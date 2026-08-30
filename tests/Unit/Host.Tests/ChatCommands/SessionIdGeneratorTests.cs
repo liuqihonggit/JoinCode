@@ -1,4 +1,4 @@
-﻿namespace Host.Tests.ChatCommands;
+namespace Host.Tests.ChatCommands;
 
 /// <summary>
 /// SessionIdGenerator 格式测试（T10）— 统一会话 ID 格式：

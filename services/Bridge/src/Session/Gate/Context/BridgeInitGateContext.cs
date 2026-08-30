@@ -1,4 +1,4 @@
-﻿namespace Core.Bridge.Gate;
+namespace Core.Bridge.Gate;
 
 
 public sealed class BridgeInitGateContext : PipelineContextBase

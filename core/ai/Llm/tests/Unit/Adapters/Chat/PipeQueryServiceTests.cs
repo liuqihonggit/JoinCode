@@ -1,4 +1,4 @@
-﻿namespace Llm.Tests.Adapters.Chat;
+namespace Llm.Tests.Adapters.Chat;
 
 
 public class PipeQueryServiceTests

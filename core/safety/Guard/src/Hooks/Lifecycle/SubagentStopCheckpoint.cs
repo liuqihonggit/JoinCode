@@ -1,4 +1,4 @@
-﻿namespace Core.Hooks.Lifecycle;
+namespace Core.Hooks.Lifecycle;
 
 
 public interface ISubagentStopCheckpointInternal : ISubagentStopCheckpoint;

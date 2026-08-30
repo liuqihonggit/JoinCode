@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Schema;
+namespace JoinCode.Abstractions.Schema;
 
 /// <summary>
 /// 输入 Schema 基类 — 提取 InputSchema、OpenAIFunctionParameters、AnthropicInputSchema 共同的 Type + Required 模式

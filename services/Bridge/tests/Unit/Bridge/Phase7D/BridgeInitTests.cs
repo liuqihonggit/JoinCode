@@ -1,4 +1,4 @@
-﻿namespace Bridge.Tests.Phase7D;
+namespace Bridge.Tests.Phase7D;
 
 
 public sealed class BridgeInitTests

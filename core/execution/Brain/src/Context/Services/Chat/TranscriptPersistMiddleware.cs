@@ -1,4 +1,4 @@
-﻿namespace Core.Context;
+namespace Core.Context;
 
 /// <summary>
 /// Transcript 持久化中间件 — 对话流结束后把 ChatHistory 快照差量增量写入 transcript JSONL。

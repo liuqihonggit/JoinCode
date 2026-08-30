@@ -1,4 +1,4 @@
-﻿
+
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Advisor, Description = "配置顾问模型", Usage = "/advisor [model|off]", Category = ChatCommandCategory.Agent, ArgumentHint = "[model|off]")]

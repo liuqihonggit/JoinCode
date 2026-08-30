@@ -1,4 +1,4 @@
-﻿namespace Core.Query;
+namespace Core.Query;
 
 /// <summary>
 /// 内容替换中间件 — 工具调用结果处理时执行内容替换和预算检查

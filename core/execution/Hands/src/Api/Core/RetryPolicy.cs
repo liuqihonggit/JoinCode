@@ -1,4 +1,4 @@
-﻿namespace Services.Api;
+namespace Services.Api;
 
 /// <summary>
 /// 重试策略配置

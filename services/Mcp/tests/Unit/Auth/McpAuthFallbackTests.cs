@@ -1,4 +1,4 @@
-﻿namespace Mcp.Tests.Auth;
+namespace Mcp.Tests.Auth;
 
 
 /// <summary>

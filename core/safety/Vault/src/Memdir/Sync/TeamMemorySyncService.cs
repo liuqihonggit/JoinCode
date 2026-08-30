@@ -1,4 +1,4 @@
-﻿namespace Memdir.Sync;
+namespace Memdir.Sync;
 
 public sealed partial class SyncFileEntry
 {

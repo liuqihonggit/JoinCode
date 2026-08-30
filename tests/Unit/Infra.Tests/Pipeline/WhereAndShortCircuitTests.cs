@@ -1,4 +1,4 @@
-﻿namespace Infrastructure.Pipeline.Tests;
+namespace Infrastructure.Pipeline.Tests;
 
 /// <summary>
 /// Where 条件修饰 + ShortCircuit 短路标记 单元测试

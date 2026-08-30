@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Interfaces;
+namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
 /// Agent 提示词构建上下文 — 携带运行时配置,供内置 agent 动态注入

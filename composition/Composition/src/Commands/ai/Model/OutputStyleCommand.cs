@@ -1,4 +1,4 @@
-﻿
+
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.OutputStyle, Description = "已废弃: 请使用 /config 更改输出样式", Usage = "/output-style", Category = ChatCommandCategory.Model, IsHidden = true)]

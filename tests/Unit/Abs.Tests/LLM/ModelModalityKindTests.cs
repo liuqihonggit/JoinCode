@@ -1,4 +1,4 @@
-﻿namespace Abs.Tests.LLM;
+namespace Abs.Tests.LLM;
 
 /// <summary>
 /// ModelModalityKind [Flags] 枚举 + JsonConverter 单元测试

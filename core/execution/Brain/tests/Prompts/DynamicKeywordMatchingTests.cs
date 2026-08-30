@@ -1,4 +1,4 @@
-﻿namespace Core.Tests.Prompts;
+namespace Core.Tests.Prompts;
 
 public class DynamicKeywordMatchingTests
 {

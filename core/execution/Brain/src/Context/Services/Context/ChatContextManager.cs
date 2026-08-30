@@ -1,4 +1,4 @@
-﻿namespace Core.Context;
+namespace Core.Context;
 
 /// <summary>
 /// 默认上下文窗口解析器 — 当 DI 未注入 IContextWindowResolver 时使用

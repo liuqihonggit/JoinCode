@@ -1,4 +1,4 @@
-﻿namespace Core.Goal.Tests;
+namespace Core.Goal.Tests;
 
 
 public sealed partial class GoalGraphEngineTests

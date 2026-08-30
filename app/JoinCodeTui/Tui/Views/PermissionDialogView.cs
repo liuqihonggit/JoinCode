@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Tui.Views;
+namespace JoinCode.Tui.Views;
 
 /// <summary>
 /// 权限确认弹窗组件 — 工具执行前的权限确认对话框。

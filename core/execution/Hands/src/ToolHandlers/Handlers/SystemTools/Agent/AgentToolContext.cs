@@ -1,4 +1,4 @@
-﻿namespace Tools.Handlers;
+namespace Tools.Handlers;
 
 /// <summary>
 /// Agent 工具中间件共享上下文 — 在管道各阶段间传递状态

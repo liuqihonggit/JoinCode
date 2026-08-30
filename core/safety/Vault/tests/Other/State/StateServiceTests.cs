@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Tests.Services;
 
 /// <summary>

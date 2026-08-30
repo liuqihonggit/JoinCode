@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Tui.Views;
+namespace JoinCode.Tui.Views;
 
 /// <summary>
 /// 多 Agent 面板组件 — 显示多个子代理的输出面板。

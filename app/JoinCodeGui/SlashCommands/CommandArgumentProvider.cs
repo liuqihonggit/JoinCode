@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.SlashCommands;
+namespace JoinCode.Gui.SlashCommands;
 
 /// <summary>
 /// 命令参数补全提供器 — 为支持参数补全的斜杠命令提供候选列表。

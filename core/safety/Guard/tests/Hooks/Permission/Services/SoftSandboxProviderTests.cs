@@ -1,4 +1,4 @@
-﻿namespace Guard.Tests.Permission.Services;
+namespace Guard.Tests.Permission.Services;
 
 
 public sealed class SoftSandboxProviderTests

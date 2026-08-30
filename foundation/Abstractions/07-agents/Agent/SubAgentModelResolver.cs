@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Interfaces;
+namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
 /// 子代理模型解析器 — 对齐 TS 原版 src/utils/model/agent.ts

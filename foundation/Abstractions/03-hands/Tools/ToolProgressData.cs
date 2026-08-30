@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Tools;
+namespace JoinCode.Abstractions.Tools;
 
 /// <summary>
 /// 工具进度数据 — 对齐 TS ToolProgressData

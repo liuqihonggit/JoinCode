@@ -1,4 +1,4 @@
-﻿namespace Host.Tests.ChatCommands;
+namespace Host.Tests.ChatCommands;
 
 /// <summary>
 /// AgentsCommand 取值范围测试 — 验证 CrudAction 枚举字面量(list/ls)正确路由

@@ -1,4 +1,4 @@
-﻿namespace Api.LLM.QueryServices;
+namespace Api.LLM.QueryServices;
 
 
 /// <summary>

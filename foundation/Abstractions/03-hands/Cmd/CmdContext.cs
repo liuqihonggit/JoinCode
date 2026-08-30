@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Cmd;
+namespace JoinCode.Abstractions.Cmd;
 
 /// <summary>
 /// 统一命令上下文 — 斜杠命令和 MCP 工具的调用参数统一容器

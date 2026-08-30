@@ -1,4 +1,4 @@
-﻿namespace Core.Context;
+namespace Core.Context;
 
 /// <summary>
 /// 关键词注入中间件 — 检测用户输入关键词并注入对应提示词

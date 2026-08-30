@@ -1,4 +1,4 @@
-﻿namespace Dream.Tests.Pipeline;
+namespace Dream.Tests.Pipeline;
 
 
 public sealed class DreamMiddlewareTests

@@ -1,4 +1,4 @@
-﻿namespace Infrastructure.Utils.Resilience;
+namespace Infrastructure.Utils.Resilience;
 
 
 /// <summary>

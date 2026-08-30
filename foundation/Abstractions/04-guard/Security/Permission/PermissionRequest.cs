@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Security;
+namespace JoinCode.Abstractions.Security;
 
 /// <summary>
 /// 权限请求类，包含工具执行所需的权限信息

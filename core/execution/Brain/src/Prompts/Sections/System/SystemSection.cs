@@ -1,4 +1,4 @@
-﻿namespace Core.Prompts.Sections;
+namespace Core.Prompts.Sections;
 
 /// <summary>
 /// 系统部分 - 核心系统规则

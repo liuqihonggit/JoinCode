@@ -1,4 +1,4 @@
-﻿namespace Infrastructure.Pipeline.Tests;
+namespace Infrastructure.Pipeline.Tests;
 
 /// <summary>
 /// MiddlewarePipeline 单元测试 — 验证管道构建、注册顺序执行、异常捕获、短路

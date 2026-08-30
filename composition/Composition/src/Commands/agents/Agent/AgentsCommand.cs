@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Agents, Description = "查看和管理代理", Usage = "/agents [list|info <name>]", Category = ChatCommandCategory.Agent, ArgumentHint = "[list|info <name>]")]
 public sealed class AgentsCommand : ChatCommandBase

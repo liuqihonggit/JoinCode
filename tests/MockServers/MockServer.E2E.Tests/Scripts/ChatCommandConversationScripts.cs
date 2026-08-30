@@ -1,4 +1,4 @@
-﻿namespace MockServer.E2E.Tests.Scripts;
+namespace MockServer.E2E.Tests.Scripts;
 
 /// <summary>
 /// 聊天命令 E2E 测试脚本 — 覆盖全部 chat commands (Phase 1: Session/Model/Code/Config/Info/System)

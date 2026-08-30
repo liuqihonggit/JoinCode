@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Transport.Bridge;
+namespace JoinCode.Transport.Bridge;
 
 /// <summary>
 /// v2 传输适配器 — 对齐 TS 端 createV2ReplTransport

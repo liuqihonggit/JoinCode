@@ -1,4 +1,4 @@
-﻿namespace Core.Query;
+namespace Core.Query;
 
 /// <summary>
 /// 停止 Hook 中间件 — 查询完成后执行停止 Hook

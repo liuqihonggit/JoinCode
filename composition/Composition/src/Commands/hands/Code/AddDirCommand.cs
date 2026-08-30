@@ -1,4 +1,4 @@
-﻿
+
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.AddDir, Description = "添加额外的工作目录", Usage = "/add-dir <path> [--remember]", Category = ChatCommandCategory.Code, ArgumentHint = "<path> [--remember]")]

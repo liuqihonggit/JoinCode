@@ -1,4 +1,4 @@
-﻿namespace Core.Prompts.Sections;
+namespace Core.Prompts.Sections;
 
 /// <summary>
 /// 语气和风格部分

@@ -1,4 +1,4 @@
-﻿
+
 namespace JoinCode.Abstractions.Interfaces.Scheduling;
 
 /// <summary>

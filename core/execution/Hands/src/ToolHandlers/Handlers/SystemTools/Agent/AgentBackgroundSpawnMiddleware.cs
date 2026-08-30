@@ -1,4 +1,4 @@
-﻿namespace Tools.Handlers;
+namespace Tools.Handlers;
 
 /// <summary>
 /// Agent 后台 Spawn 中间件 — 当 RunInBackground=true 时，使用 SpawnAgentAsync 启动后台代理

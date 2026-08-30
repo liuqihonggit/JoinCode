@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.State;
+namespace JoinCode.Abstractions.State;
 
 /// <summary>
 /// AppState 持久化文档类

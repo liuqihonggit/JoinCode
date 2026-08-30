@@ -1,4 +1,4 @@
-﻿namespace Host.Tests.ChatCommands;
+namespace Host.Tests.ChatCommands;
 
 /// <summary>
 /// SessionCommand 取值范围测试 — 验证 CrudAction 枚举字面量(ls/rm 等)正确路由

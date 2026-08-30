@@ -1,4 +1,4 @@
-﻿namespace Host.Tests.ChatCommands;
+namespace Host.Tests.ChatCommands;
 
 /// <summary>
 /// TasksAction 枚举扩展方法测试 — 验证 EnumMetadata.Generator 产出正确

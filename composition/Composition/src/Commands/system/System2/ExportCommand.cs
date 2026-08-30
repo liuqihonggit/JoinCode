@@ -1,4 +1,4 @@
-﻿
+
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Export, Description = "导出对话到文件或剪贴板", Usage = "/export [filename|--clipboard]", Category = ChatCommandCategory.System, ArgumentHint = "[filename|--clipboard]")]

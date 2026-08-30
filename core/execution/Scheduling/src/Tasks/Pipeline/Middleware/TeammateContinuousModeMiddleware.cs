@@ -1,4 +1,4 @@
-﻿namespace Core.Scheduling.Tasks;
+namespace Core.Scheduling.Tasks;
 
 
 [Register(typeof(ITeammateExecutionMiddleware), ServiceLifetime.Singleton)]

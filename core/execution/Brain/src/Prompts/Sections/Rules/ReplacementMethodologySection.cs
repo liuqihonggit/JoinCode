@@ -1,4 +1,4 @@
-﻿namespace Core.Prompts.Sections;
+namespace Core.Prompts.Sections;
 
 [PromptSection(
     Name = "replacement_methodology",

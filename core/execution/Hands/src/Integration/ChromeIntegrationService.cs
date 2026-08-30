@@ -1,4 +1,4 @@
-﻿namespace IO.Services;
+namespace IO.Services;
 
 [Register(typeof(IChromeIntegrationService), ServiceLifetime.Singleton)]
 public sealed partial class ChromeIntegrationService : ServiceEntity, IChromeIntegrationService, IDisposable

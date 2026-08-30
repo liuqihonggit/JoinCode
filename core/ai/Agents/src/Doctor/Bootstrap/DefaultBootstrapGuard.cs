@@ -1,4 +1,4 @@
-﻿namespace Core.Agents.Doctor;
+namespace Core.Agents.Doctor;
 
 
 /// <summary>

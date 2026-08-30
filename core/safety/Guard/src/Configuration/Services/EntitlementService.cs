@@ -1,4 +1,4 @@
-﻿namespace Core.Configuration;
+namespace Core.Configuration;
 
 /// <summary>
 /// 功能权限服务默认实现 — 对齐 TS isBriefEntitled()/isBriefEnabled()

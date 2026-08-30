@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Pipe;
+namespace JoinCode.Pipe;
 
 
 [Register(typeof(BridgeHeartbeatService), ServiceLifetime.Singleton)]

@@ -1,4 +1,4 @@
-﻿namespace Core.Prompts.Sections;
+namespace Core.Prompts.Sections;
 
 /// <summary>
 /// Hooks部分 - 关于用户配置的hooks

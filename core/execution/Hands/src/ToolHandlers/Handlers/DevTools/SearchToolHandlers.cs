@@ -1,4 +1,4 @@
-﻿namespace Tools.Handlers;
+namespace Tools.Handlers;
 
 /// <summary>
 /// Grep 搜索选项参数

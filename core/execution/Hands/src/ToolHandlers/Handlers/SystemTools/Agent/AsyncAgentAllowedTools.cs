@@ -1,4 +1,4 @@
-﻿namespace Tools.Handlers;
+namespace Tools.Handlers;
 
 
 /// <summary>

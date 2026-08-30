@@ -1,4 +1,4 @@
-﻿namespace IO.Services;
+namespace IO.Services;
 
 [Register(typeof(IMcpAuthPersistenceService), ServiceLifetime.Singleton)]
 public sealed partial class McpAuthPersistenceService : ServiceEntity, IMcpAuthPersistenceService

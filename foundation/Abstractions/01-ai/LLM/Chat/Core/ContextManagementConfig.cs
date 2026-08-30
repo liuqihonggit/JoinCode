@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.LLM.Chat;
+namespace JoinCode.Abstractions.LLM.Chat;
 
 /// <summary>
 /// API 端上下文管理配置 — 对齐 TS apiMicrocompact.ts ContextManagementConfig

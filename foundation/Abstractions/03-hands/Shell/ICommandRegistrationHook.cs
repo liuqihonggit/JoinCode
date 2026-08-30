@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Interfaces;
+namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
 /// 命令注册钩子接口 - 允许插件通过钩子系统注册命令

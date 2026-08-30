@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Mcp.Protocol;
+namespace JoinCode.Abstractions.Mcp.Protocol;
 
 public class ElicitRequestParams
 {

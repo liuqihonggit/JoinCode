@@ -1,4 +1,4 @@
-﻿namespace Brain.Tests.Context.Compact;
+namespace Brain.Tests.Context.Compact;
 
 /// <summary>
 /// MagicDocsManager 单元测试 — 对齐 TS magicDocs.ts::trackedMagicDocs

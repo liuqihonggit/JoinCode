@@ -1,4 +1,4 @@
-﻿namespace Core.Bridge;
+namespace Core.Bridge;
 
 /// <summary>
 /// Bridge JWT 认证服务 - HMAC-SHA256 签名，NativeAOT 兼容

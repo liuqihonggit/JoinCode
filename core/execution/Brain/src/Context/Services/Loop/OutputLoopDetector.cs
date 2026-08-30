@@ -1,4 +1,4 @@
-﻿namespace Core.Context;
+namespace Core.Context;
 
 public sealed partial class OutputLoopDetector : IOutputLoopDetector
 {

@@ -1,4 +1,4 @@
-﻿namespace Core.Agents;
+namespace Core.Agents;
 
 
 public sealed class PluginAgentLoaderTests

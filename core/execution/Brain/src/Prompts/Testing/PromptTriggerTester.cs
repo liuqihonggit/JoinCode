@@ -1,4 +1,4 @@
-﻿namespace Core.Prompts.Testing;
+namespace Core.Prompts.Testing;
 
 /// <summary>
 /// 提示词触发测试器

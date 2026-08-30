@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Host.Tests;
+namespace JoinCode.Host.Tests;
 
 
 public class ApiKeySaveLoadTests

@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Fork, Description = "创建当前对话的分支", Usage = "/fork [name]", Category = ChatCommandCategory.Session, Aliases = ["branch"], ArgumentHint = "[name]")]
 public sealed class ForkCommand : ChatCommandBase

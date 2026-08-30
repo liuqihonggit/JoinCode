@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Persistence;
+namespace JoinCode.Gui.Persistence;
 
 /// <summary>
 /// GUI 会话持久化存储 — 读写同一 sessions 目录。

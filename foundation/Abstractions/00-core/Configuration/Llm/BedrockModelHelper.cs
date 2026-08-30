@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Configuration.Llm;
+namespace JoinCode.Abstractions.Configuration.Llm;
 
 /// <summary>
 /// Bedrock 模型辅助工具 — 对齐 TS 原版 src/utils/model/bedrock.ts

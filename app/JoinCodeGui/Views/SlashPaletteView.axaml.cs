@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Views;
+namespace JoinCode.Gui.Views;
 
 /// <summary>
 /// 底部升起式斜杠补全面板 — 由 MainWindow 放在输入栏正上方的布局行（与输入栏同列约束），

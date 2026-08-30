@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Tests.Guard;
+namespace JoinCode.Tests.Guard;
 
 public class CommandClassifierSearchScopeTests
 {

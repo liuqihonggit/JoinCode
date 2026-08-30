@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Theming;
+namespace JoinCode.Gui.Theming;
 
 /// <summary>
 /// 主程序 UI 语义配色单一数据源。

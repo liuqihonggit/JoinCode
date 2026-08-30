@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Views;
+namespace JoinCode.Gui.Views;
 
 /// <summary>
 /// 顶部工具栏 UserControl — 主题切换/重新生成/清空/全部重置按钮 +

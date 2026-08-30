@@ -1,4 +1,4 @@
-﻿namespace Core.Tests.Agents.Doctor;
+namespace Core.Tests.Agents.Doctor;
 
 
 [Trait("Category", "Integration")]

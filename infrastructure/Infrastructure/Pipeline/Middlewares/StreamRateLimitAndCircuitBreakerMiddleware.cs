@@ -1,4 +1,4 @@
-﻿namespace Infrastructure.Pipeline.Middlewares;
+namespace Infrastructure.Pipeline.Middlewares;
 
 public sealed class FixedStreamRateLimitMiddleware<TContext, TEvent>(
     int maxRequests,

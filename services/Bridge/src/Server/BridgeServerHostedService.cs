@@ -1,4 +1,4 @@
-﻿namespace Core.Bridge;
+namespace Core.Bridge;
 
 /// <summary>
 /// Bridge 服务器托管服务 - 跟随主机生命周期自动启停

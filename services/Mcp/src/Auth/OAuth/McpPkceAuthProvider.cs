@@ -1,4 +1,4 @@
-﻿
+
 namespace McpClient;
 
 public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDisposable

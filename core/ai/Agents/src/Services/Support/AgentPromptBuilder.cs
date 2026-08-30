@@ -1,4 +1,4 @@
-﻿namespace Core.Agents;
+namespace Core.Agents;
 
 [Register(typeof(JoinCode.Abstractions.Interfaces.IAgentPromptBuilder), ServiceLifetime.Singleton)]
 public sealed partial class AgentPromptBuilder : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentPromptBuilder

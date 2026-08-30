@@ -1,4 +1,4 @@
-﻿namespace MockServer.E2E.Tests.Scripts;
+namespace MockServer.E2E.Tests.Scripts;
 
 /// <summary>
 /// 缺失覆盖的功能 E2E 测试脚本

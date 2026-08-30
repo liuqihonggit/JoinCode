@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Security.Shell;
+namespace JoinCode.Abstractions.Security.Shell;
 
 public sealed partial class BashAstSecurityWalker
 {

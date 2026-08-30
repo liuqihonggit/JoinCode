@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Tui.Views;
+namespace JoinCode.Tui.Views;
 
 /// <summary>
 /// 投递中预览组件 — 可视化 CommandQueue 中待处理的命令。

@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.ViewModels;
+namespace JoinCode.Gui.ViewModels;
 
 /// <summary>卡死检测状态机状态 — 规则8风格显式枚举</summary>
 public enum StallDetectionState

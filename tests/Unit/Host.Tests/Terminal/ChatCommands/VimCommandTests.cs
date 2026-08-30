@@ -1,4 +1,4 @@
-﻿
+
 namespace JoinCode.ChatCommands.Tests;
 
 public class VimCommandTests

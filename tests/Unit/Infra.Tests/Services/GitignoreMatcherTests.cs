@@ -1,4 +1,4 @@
-﻿namespace IO;
+namespace IO;
 
 /// <summary>
 /// GitignoreMatcher 单元测试 — 对齐 .gitignore 规范

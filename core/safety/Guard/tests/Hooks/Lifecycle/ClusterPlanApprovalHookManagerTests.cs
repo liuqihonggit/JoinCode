@@ -1,4 +1,4 @@
-﻿namespace Core.Tests.Hooks.Lifecycle;
+namespace Core.Tests.Hooks.Lifecycle;
 
 
 public class ClusterPlanApprovalHookManagerTests

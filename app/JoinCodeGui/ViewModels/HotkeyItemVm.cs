@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.ViewModels;
+namespace JoinCode.Gui.ViewModels;
 
 /// <summary>快捷键项 VM — 快捷键面板中每行一个可配置快捷键（需求3）</summary>
 public sealed class HotkeyItemVm : INotifyPropertyChanged

@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Brief, Description = "切换简要消息模式", Usage = "/brief [on|off]", Category = ChatCommandCategory.Session)]
 public sealed class BriefCommand : ToggleCommandBase

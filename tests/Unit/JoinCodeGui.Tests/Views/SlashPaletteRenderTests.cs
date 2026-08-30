@@ -1,4 +1,4 @@
-﻿#pragma warning disable JCC9001, JCC3010 // 豁免理由：① 帧图导出属诊断产物（对齐 dumps/ 约定）非被测行为；② 渲染动画由真实时钟合成器驱动，FakeTimeProvider 无法推进，需等待动画完成后再截帧
+#pragma warning disable JCC9001, JCC3010 // 豁免理由：① 帧图导出属诊断产物（对齐 dumps/ 约定）非被测行为；② 渲染动画由真实时钟合成器驱动，FakeTimeProvider 无法推进，需等待动画完成后再截帧
 
 
 

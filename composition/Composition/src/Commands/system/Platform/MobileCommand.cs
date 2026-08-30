@@ -1,4 +1,4 @@
-﻿
+
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Mobile, Description = "移动端连接", Usage = "/mobile [start|stop|url]", Category = ChatCommandCategory.Platform, Aliases = ["ios", "android"], ArgumentHint = "start|stop|url", IsHidden = true)]

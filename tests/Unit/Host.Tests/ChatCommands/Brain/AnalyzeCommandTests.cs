@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Tests.ChatCommands;
 
 public class AnalyzeCommandTests

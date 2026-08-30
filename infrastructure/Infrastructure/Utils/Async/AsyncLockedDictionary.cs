@@ -1,4 +1,4 @@
-﻿namespace Core.Utils;
+namespace Core.Utils;
 
 
 public sealed class AsyncLockedDictionary<TKey, TValue> where TKey : notnull

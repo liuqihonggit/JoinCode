@@ -1,4 +1,4 @@
-﻿namespace Core.Prompts.Utils;
+namespace Core.Prompts.Utils;
 
 /// <summary>
 /// 关键词配置文件编辑校验器 — 限制只能编辑 keyword-sections.json，防止后台 Agent 误改其他文件

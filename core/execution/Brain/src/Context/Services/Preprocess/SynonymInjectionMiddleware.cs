@@ -1,4 +1,4 @@
-﻿namespace Core.Context;
+namespace Core.Context;
 
 /// <summary>
 /// 同义词注入中间件 — 检测同义词并注入补充上下文

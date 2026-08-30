@@ -1,4 +1,4 @@
-﻿namespace JoinCode.CodeIndex.Tests;
+namespace JoinCode.CodeIndex.Tests;
 
 public class BashAstParserTests
 {

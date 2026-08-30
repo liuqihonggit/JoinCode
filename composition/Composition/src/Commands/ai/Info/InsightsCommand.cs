@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Insights, Description = "AI生成会话洞察分析", Usage = "/insights [stats|deep|report]", Category = ChatCommandCategory.Info, ArgumentHint = "[stats|deep|report]")]
 public sealed class InsightsCommand : ChatCommandBase

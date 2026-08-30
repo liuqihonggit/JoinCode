@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.CodeIndex;
+namespace JoinCode.Abstractions.CodeIndex;
 
 /// <summary>
 /// 代码索引仓库注册表 — 管理多个仓库的 ICodeIndexer 实例

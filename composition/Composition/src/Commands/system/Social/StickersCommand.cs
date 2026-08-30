@@ -1,4 +1,4 @@
-﻿
+
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Stickers, Description = "获取贴纸", Usage = "/stickers", Category = ChatCommandCategory.Social)]

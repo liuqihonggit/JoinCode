@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Tui.Views;
+namespace JoinCode.Tui.Views;
 
 /// <summary>
 /// 状态栏组件 — 显示当前模式、队列长度、Agent 状态等信息。

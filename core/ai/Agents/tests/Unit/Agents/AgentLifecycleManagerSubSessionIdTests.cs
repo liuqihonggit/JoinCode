@@ -1,4 +1,4 @@
-﻿namespace Core.Agents.Tests.Unit.Agents;
+namespace Core.Agents.Tests.Unit.Agents;
 
 
 /// <summary>

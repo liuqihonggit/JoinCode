@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.LLM.Chat;
+namespace JoinCode.Abstractions.LLM.Chat;
 
 public interface ISessionMetaStore : IStore
 {

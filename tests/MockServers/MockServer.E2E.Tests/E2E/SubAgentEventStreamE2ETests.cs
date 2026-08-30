@@ -1,4 +1,4 @@
-﻿namespace MockServer.E2E.Tests.E2E;
+namespace MockServer.E2E.Tests.E2E;
 
 /// <summary>
 /// 子代理事件流实弹 E2E — 真实 OpenAI.MockServer 进程 + 进程内 GUI 同源引擎

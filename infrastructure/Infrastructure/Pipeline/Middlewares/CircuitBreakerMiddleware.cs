@@ -1,4 +1,4 @@
-﻿namespace Infrastructure.Pipeline.Middlewares;
+namespace Infrastructure.Pipeline.Middlewares;
 
 public sealed class FixedCircuitBreakerMiddleware<TContext>(
     int failureThreshold,

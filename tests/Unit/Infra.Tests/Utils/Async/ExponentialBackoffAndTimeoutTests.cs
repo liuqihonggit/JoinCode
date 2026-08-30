@@ -1,4 +1,4 @@
-﻿namespace Infra.Tests.Utils.Async;
+namespace Infra.Tests.Utils.Async;
 
 
 public class ExponentialBackoffTests

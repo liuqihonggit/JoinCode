@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui;
+namespace JoinCode.Gui;
 
 /// <summary>
 /// Avalonia 应用入口定义。

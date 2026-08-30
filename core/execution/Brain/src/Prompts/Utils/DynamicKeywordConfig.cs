@@ -1,4 +1,4 @@
-﻿namespace Core.Prompts.Utils;
+namespace Core.Prompts.Utils;
 
 /// <summary>
 /// 动态关键词词表配置模型 — 从 ~/.jcc/keyword-sections.json 加载

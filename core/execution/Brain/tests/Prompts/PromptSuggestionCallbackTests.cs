@@ -1,4 +1,4 @@
-﻿namespace Brain.Tests.Prompts;
+namespace Brain.Tests.Prompts;
 
 public sealed class PromptSuggestionCallbackTests
 {

@@ -1,4 +1,4 @@
-﻿namespace Llm.Tests.Adapters.LLM.QueryServices;
+namespace Llm.Tests.Adapters.LLM.QueryServices;
 
 public sealed class QueryServiceFactoryTests
 {

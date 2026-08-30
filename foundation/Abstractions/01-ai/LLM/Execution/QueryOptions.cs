@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.LLM.Execution;
+namespace JoinCode.Abstractions.LLM.Execution;
 
 public sealed class QueryOptions
 {

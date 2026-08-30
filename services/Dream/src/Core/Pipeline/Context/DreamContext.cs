@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Dream.Pipeline;
+namespace JoinCode.Dream.Pipeline;
 
 
 public sealed class DreamContext : PipelineContextBase

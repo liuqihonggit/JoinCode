@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Tests.Theming;
+namespace JoinCode.Gui.Tests.Theming;
 
 /// <summary>
 /// 视觉截图对比测试 —— 用真正 Skia 渲染出 MainWindow 的暗/亮两帧，

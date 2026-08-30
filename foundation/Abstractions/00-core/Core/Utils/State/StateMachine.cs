@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Utils;
+namespace JoinCode.Abstractions.Utils;
 
 public sealed class TransitionFailedEventArgs<TState> : EventArgs where TState : struct, Enum
 {

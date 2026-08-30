@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Views;
+namespace JoinCode.Gui.Views;
 
 /// <summary>
 /// 极简确认对话框（T9）— 供 /exit、/commit 等斜杠命令的 context.Confirm 回调使用。

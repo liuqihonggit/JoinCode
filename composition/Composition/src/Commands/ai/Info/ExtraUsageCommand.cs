@@ -1,4 +1,4 @@
-﻿
+
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.ExtraUsage, Description = "查看额外用量信息", Usage = "/extra-usage", Category = ChatCommandCategory.Model, IsHidden = true)]

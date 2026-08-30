@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Cli.Commands;
+namespace JoinCode.Cli.Commands;
 
 /// <summary>
 /// 斜杠命令执行结果。

@@ -1,4 +1,4 @@
-﻿namespace Core.Context;
+namespace Core.Context;
 
 /// <summary>
 /// 提醒注入中间件 — 检查工具空闲提醒并注入系统提醒

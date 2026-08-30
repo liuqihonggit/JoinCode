@@ -1,4 +1,4 @@
-﻿namespace Core.Tests.LLM;
+namespace Core.Tests.LLM;
 
 
 public sealed class ThinkingResponseParsingTests

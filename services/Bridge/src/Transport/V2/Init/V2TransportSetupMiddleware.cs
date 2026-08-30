@@ -1,4 +1,4 @@
-﻿namespace Core.Bridge.Init.V2;
+namespace Core.Bridge.Init.V2;
 
 
 /// <summary>

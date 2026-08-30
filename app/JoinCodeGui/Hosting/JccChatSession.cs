@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Hosting;
+namespace JoinCode.Gui.Hosting;
 
 /// <summary>
 /// 引擎会话实现 — 进程内组装真实 AI 工作流（AddAiWorkflowServices + 共享管道），

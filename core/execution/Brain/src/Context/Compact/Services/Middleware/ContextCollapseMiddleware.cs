@@ -1,4 +1,4 @@
-﻿namespace Core.Context.Compact;
+namespace Core.Context.Compact;
 
 /// <summary>
 /// 上下文折叠中间件 — 实验性功能，折叠旧上下文

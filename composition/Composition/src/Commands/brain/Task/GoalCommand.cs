@@ -1,4 +1,4 @@
-﻿
+
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Goal, Description = "目标自主循环引擎 — GoalSpec 收集模式（LLM 询问 6 字段后自主工作）", Usage = "/goal [初始提示] [--constraint '约束'] [--budget <token数>] | /goal pause | /goal resume | /goal clear | /goal --cron <表达式> <描述>", Category = ChatCommandCategory.Task, ArgumentHint = "[初始提示|子命令]")]

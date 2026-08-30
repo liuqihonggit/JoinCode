@@ -1,4 +1,4 @@
-﻿namespace Core.DependencyInjection;
+namespace Core.DependencyInjection;
 
 public static partial class ServiceRegistration
 {

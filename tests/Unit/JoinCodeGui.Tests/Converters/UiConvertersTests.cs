@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Tests.Converters;
+namespace JoinCode.Gui.Tests.Converters;
 
 /// <summary>
 /// UiConverters 单元测试 — 验证 5 个值转换器的输出正确性。

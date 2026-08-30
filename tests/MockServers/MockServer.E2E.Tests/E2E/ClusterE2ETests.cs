@@ -1,4 +1,4 @@
-﻿namespace MockServer.E2E.Tests.E2E;
+namespace MockServer.E2E.Tests.E2E;
 
 
 #pragma warning disable JCC9001, JCC9002

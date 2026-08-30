@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Persistence;
+namespace JoinCode.Gui.Persistence;
 
 /// <summary>
 /// GUI 会话持久化 JSON 上下文 — AOT 兼容（源码生成），

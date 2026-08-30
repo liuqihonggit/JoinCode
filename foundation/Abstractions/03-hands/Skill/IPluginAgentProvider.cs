@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Interfaces;
+namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
 /// 插件 Agent 定义提供者 — 插件实现此接口以贡献 agent 定义

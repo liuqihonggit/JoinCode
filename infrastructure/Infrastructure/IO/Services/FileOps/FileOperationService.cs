@@ -1,4 +1,4 @@
-﻿namespace IO;
+namespace IO;
 
 /// <summary>
 /// 文件操作服务实现，提供文件读写功能

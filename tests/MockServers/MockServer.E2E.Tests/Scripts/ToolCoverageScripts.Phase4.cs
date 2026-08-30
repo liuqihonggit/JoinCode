@@ -1,4 +1,4 @@
-﻿namespace MockServer.E2E.Tests.Scripts;
+namespace MockServer.E2E.Tests.Scripts;
 
 /// <summary>
 /// Phase 4 E2E 脚本 — 补齐未覆盖工具类别

@@ -1,4 +1,4 @@
-﻿
+
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.RateLimitOptions, Description = "配置速率限制选项", Usage = "/rate-limit-options [show]", Category = ChatCommandCategory.Model, Aliases = ["rate-limit"], ArgumentHint = "[show]", IsHidden = true)]

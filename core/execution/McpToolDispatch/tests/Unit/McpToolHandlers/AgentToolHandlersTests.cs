@@ -1,4 +1,4 @@
-﻿namespace Sync.Tests.ToolHandlers;
+namespace Sync.Tests.ToolHandlers;
 
 public class AgentToolHandlersTests
 {

@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.SlashCommands;
+namespace JoinCode.Gui.SlashCommands;
 
 /// <summary>
 /// 文件补全提供器 — 扫描当前工作目录的文件和文件夹，按前缀过滤。

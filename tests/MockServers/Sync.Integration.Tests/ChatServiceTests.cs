@@ -1,4 +1,4 @@
-﻿namespace Tests;
+namespace Tests;
 
 [CollectionDefinition("ChatServiceTests", DisableParallelization = true)]
 public class ChatServiceTestsCollection { }

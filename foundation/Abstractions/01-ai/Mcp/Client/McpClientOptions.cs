@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Mcp.Client;
+namespace JoinCode.Abstractions.Mcp.Client;
 
 public class McpServerConnectionConfig
 {

@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Tests.ViewModels;
+namespace JoinCode.Gui.Tests.ViewModels;
 
 /// <summary>
 /// 后台代理管理面板 VM 测试 — pill 点击开合、引擎快照刷新、终止命令。

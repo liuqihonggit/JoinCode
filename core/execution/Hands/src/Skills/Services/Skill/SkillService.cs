@@ -1,4 +1,4 @@
-﻿namespace Core.Skills;
+namespace Core.Skills;
 
 [Register(typeof(SkillOptions), ServiceLifetime.Singleton)]
 public sealed record SkillOptions

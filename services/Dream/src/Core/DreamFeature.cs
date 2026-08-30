@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Dream;
+namespace JoinCode.Dream;
 
 
 /// <summary>

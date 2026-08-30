@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Security.Shell;
+namespace JoinCode.Abstractions.Security.Shell;
 
 /// <summary>
 /// 路径验证器实现

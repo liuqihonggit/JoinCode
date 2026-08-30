@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Configuration.Settings;
+namespace JoinCode.Abstractions.Configuration.Settings;
 
 /// <summary>
 /// 缓存配置设置

@@ -1,4 +1,4 @@
-﻿namespace MockServer.E2E.Tests.Scripts;
+namespace MockServer.E2E.Tests.Scripts;
 
 /// <summary>
 /// /falv 结构化推理 E2E 测试脚本

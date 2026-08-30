@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Memory, Description = "编辑记忆文件", Usage = "/memory [edit|open|add|search|db|stats|health|cleanup]", Category = ChatCommandCategory.Agent, Aliases = ["mem"])]
 public sealed class MemoryCommand : ChatCommandBase

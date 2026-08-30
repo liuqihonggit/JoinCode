@@ -1,4 +1,4 @@
-﻿namespace Bridge.Tests.Gate;
+namespace Bridge.Tests.Gate;
 
 
 public sealed class BridgeGateMiddlewareTests

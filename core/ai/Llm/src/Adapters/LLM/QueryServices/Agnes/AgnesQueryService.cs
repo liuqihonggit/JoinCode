@@ -1,4 +1,4 @@
-﻿namespace Api.LLM.QueryServices.Agnes;
+namespace Api.LLM.QueryServices.Agnes;
 
 
 /// <summary>

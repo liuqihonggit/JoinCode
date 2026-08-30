@@ -1,4 +1,4 @@
-﻿
+
 namespace Sync.Tests.Scheduling.Tasks;
 
 public class WorkflowTaskExecutorTests

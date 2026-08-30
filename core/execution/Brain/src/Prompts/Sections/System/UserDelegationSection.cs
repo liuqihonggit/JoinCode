@@ -1,4 +1,4 @@
-﻿namespace Core.Prompts.Sections;
+namespace Core.Prompts.Sections;
 
 /// <summary>
 /// 用户委托模式 — 当用户表示离开/委托时注入，授权 Agent 自主决策不再追问

@@ -1,4 +1,4 @@
-﻿namespace Infra.Tests.Utils.State;
+namespace Infra.Tests.Utils.State;
 
 
 public enum TestState

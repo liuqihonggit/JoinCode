@@ -1,4 +1,4 @@
-﻿namespace Infra.Tests.LLM;
+namespace Infra.Tests.LLM;
 
 
 /// <summary>

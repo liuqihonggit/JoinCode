@@ -1,4 +1,4 @@
-﻿namespace Llm.Tests.Adapters.LLM;
+namespace Llm.Tests.Adapters.LLM;
 
 
 public class QueryServiceBaseHelpersTests

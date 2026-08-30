@@ -1,4 +1,4 @@
-﻿namespace Host.Tests.ChatCommands;
+namespace Host.Tests.ChatCommands;
 
 /// <summary>
 /// McpCommand 取值范围测试 — 验证 CrudAction + McpAction 枚举字面量正确路由

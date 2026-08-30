@@ -1,4 +1,4 @@
-﻿namespace Infra.Tests;
+namespace Infra.Tests;
 
 /// <summary>
 /// DI 注册正确性测试 — 检测 [Register] 特性是否正确指定接口类型

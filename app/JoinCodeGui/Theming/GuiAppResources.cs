@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Theming;
+namespace JoinCode.Gui.Theming;
 
 /// <summary>
 /// 应用资源统一注册 —— 供真实 App 与 headless 测试 App 复用同一份配置：

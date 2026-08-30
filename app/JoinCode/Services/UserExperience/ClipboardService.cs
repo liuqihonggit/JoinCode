@@ -1,4 +1,4 @@
-﻿namespace IO.Services;
+namespace IO.Services;
 
 [Register(typeof(IClipboardService), ServiceLifetime.Singleton)]
 public sealed partial class ClipboardService : ServiceEntity, IClipboardService

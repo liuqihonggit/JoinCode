@@ -1,4 +1,4 @@
-﻿namespace State;
+namespace State;
 
 
 /// <summary>

@@ -1,4 +1,4 @@
-﻿namespace Api.LLM.Fallback;
+namespace Api.LLM.Fallback;
 
 
 /// <summary>

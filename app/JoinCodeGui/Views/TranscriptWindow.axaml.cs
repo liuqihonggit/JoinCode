@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Views;
+namespace JoinCode.Gui.Views;
 
 /// <summary>
 /// 子代理回放窗口 — 展示单个 subAgent 的完整时间线（tracker Transcript 全量留痕），

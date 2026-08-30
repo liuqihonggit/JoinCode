@@ -1,4 +1,4 @@
-﻿#pragma warning disable JCC9001 // 豁免理由：帧图导出属诊断产物（对齐 dumps/ 约定），非被测行为
+#pragma warning disable JCC9001 // 豁免理由：帧图导出属诊断产物（对齐 dumps/ 约定），非被测行为
 
 
 

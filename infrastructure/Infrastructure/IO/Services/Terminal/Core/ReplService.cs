@@ -1,4 +1,4 @@
-﻿namespace IO.Services;
+namespace IO.Services;
 
 [Register(typeof(IReplService), ServiceLifetime.Singleton)]
 public sealed partial class ReplService : ServiceEntity, IReplService

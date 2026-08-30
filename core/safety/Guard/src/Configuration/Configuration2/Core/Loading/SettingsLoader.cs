@@ -254,7 +254,7 @@ public static class SettingsLoader
         var directory = Path.GetDirectoryName(path);
         DirectoryHelper.EnsureDirectoryExists(fs, directory);
 
-        var json = ConfigJsonOptions.SerializeIndented(settings);
+        var json = RelaxedJsonSerializer.SerializeIndented(settings, ConfigIndentedJsonContext.Default);
         await fs.WriteAllTextAsync(path, json, cancellationToken).ConfigureAwait(false);
     }
 

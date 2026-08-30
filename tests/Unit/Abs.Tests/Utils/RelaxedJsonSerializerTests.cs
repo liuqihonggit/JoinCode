@@ -53,14 +53,22 @@ public sealed partial class RelaxedJsonSerializerTests
     }
 
     [Fact]
-    public void RelaxedOptions_CachesIndependently_EachCallCreatesNewInstance()
+    public void RelaxedOptions_CachesByContext_SameInstanceReturned()
     {
         var opts1 = TestCamelCaseContext.Default.RelaxedOptions();
         var opts2 = TestCamelCaseContext.Default.RelaxedOptions();
 
-        opts1.Should().NotBeSameAs(opts2);
+        opts1.Should().BeSameAs(opts2);
         opts1.Encoder.Should().Be(JavaScriptEncoder.UnsafeRelaxedJsonEscaping);
-        opts2.Encoder.Should().Be(JavaScriptEncoder.UnsafeRelaxedJsonEscaping);
+    }
+
+    [Fact]
+    public void RelaxedOptions_DifferentContexts_ReturnDifferentInstances()
+    {
+        var opts1 = TestCamelCaseContext.Default.RelaxedOptions();
+        var opts2 = TestDefaultContext.Default.RelaxedOptions();
+
+        opts1.Should().NotBeSameAs(opts2);
     }
 
     [Fact]

@@ -167,7 +167,7 @@ public class ConfigLoader {
         var directory = Path.GetDirectoryName(settingsPath);
         DirectoryHelper.EnsureDirectoryExists(fs, directory);
 
-        var json = ConfigJsonOptions.SerializeIndented(settings);
+        var json = RelaxedJsonSerializer.SerializeIndented(settings, ConfigIndentedJsonContext.Default);
         await fs.WriteAllTextAsync(settingsPath, json, cancellationToken).ConfigureAwait(false);
     }
 
@@ -323,7 +323,7 @@ public class ConfigLoader {
 
         authData[provider] = apiKey;
 
-        var outputJson = ConfigJsonOptions.SerializeCompact(authData);
+        var outputJson = RelaxedJsonSerializer.SerializeCompact(authData, ConfigJsonContext.Default);
         await fs.WriteAllTextAsync(authPath, outputJson, cancellationToken).ConfigureAwait(false);
     }
 
@@ -427,7 +427,7 @@ public class ConfigLoader {
 
         existingSettings ??= new SettingsJson();
         var updatedSettings2 = UpdateSettingByKey(existingSettings, key, value);
-        var outputJson2 = ConfigJsonOptions.SerializeIndented(updatedSettings2);
+        var outputJson2 = RelaxedJsonSerializer.SerializeIndented(updatedSettings2, ConfigIndentedJsonContext.Default);
         await fs.WriteAllTextAsync(settingsPath, outputJson2, cancellationToken).ConfigureAwait(false);
     }
 
@@ -507,7 +507,7 @@ public class ConfigLoader {
             data.Remove(key);
         }
 
-        var outputJson = ConfigJsonOptions.SerializeIndented(data);
+        var outputJson = RelaxedJsonSerializer.SerializeIndented(data, ConfigIndentedJsonContext.Default);
         await fs.WriteAllTextAsync(globalPath, outputJson, cancellationToken).ConfigureAwait(false);
     }
 

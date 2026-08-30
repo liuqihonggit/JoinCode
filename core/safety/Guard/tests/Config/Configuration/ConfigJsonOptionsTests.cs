@@ -1,7 +1,7 @@
 namespace Guard.Tests.Configuration;
 
 /// <summary>
-/// ConfigJsonOptions 测试 — 验证配置 JSON 序列化输出真实中文（非 \uXXXX 转义）+ camelCase 字段名。
+/// 配置 JSON 序列化测试 — 验证通过 RelaxedJsonSerializer 输出真实中文（非 \uXXXX 转义）+ camelCase 字段名。
 /// 回归背景：settings.json 曾因 JsonSerializerOptions 未设 Encoder 导致中文转义为 \u8F7B\u91CF...，
 /// 且 ModelItemConfig 无 [JsonPropertyName] 导致字段名 PascalCase（Id/DisplayName/Description），
 /// 与顶层 [JsonPropertyName("vendor")] 的 camelCase 混用，用户阅读困难。
@@ -32,7 +32,7 @@ public class ConfigJsonOptionsTests
             }
         };
 
-        var json = ConfigJsonOptions.SerializeIndented(settings);
+        var json = RelaxedJsonSerializer.SerializeIndented(settings, ConfigIndentedJsonContext.Default);
 
         json.Should().Contain("轻量多模态智能体模型");
         json.Should().NotContain("\\u8F7B");
@@ -56,7 +56,7 @@ public class ConfigJsonOptionsTests
             }
         };
 
-        var json = ConfigJsonOptions.SerializeIndented(settings);
+        var json = RelaxedJsonSerializer.SerializeIndented(settings, ConfigIndentedJsonContext.Default);
 
         json.Should().Contain("\"displayName\"");
         json.Should().Contain("\"description\"");
@@ -76,7 +76,7 @@ public class ConfigJsonOptionsTests
             ["note"] = "中文备注"
         };
 
-        var json = ConfigJsonOptions.SerializeCompact(data);
+        var json = RelaxedJsonSerializer.SerializeCompact(data, ConfigJsonContext.Default);
 
         json.Should().Contain("中文备注");
         json.Should().NotContain("\\u4E2D\\u6587");

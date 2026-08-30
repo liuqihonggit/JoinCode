@@ -157,6 +157,49 @@ public sealed class ChatUiMessageTests
         msg.DisplayText.Should().BeEmpty();
     }
 
+    [Fact]
+    public void DisplayText_ToolError_ParsesToolUseErrorTag()
+    {
+        var msg = Msg(kind: ChatUiMessageKind.ToolResult);
+        msg.ToolResultText = "<tool_use_error>参数类型不匹配：期望数组，实际为字符串</tool_use_error>";
+        msg.IsToolError = true;
+
+        msg.DisplayText.Should().Be("参数类型不匹配：期望数组，实际为字符串");
+    }
+
+    [Fact]
+    public void DisplayText_ToolError_NoTag_ReturnsOriginalText()
+    {
+        var msg = Msg(kind: ChatUiMessageKind.ToolResult);
+        msg.ToolResultText = "执行失败：文件不存在";
+        msg.IsToolError = true;
+
+        msg.DisplayText.Should().Be("执行失败：文件不存在");
+    }
+
+    [Fact]
+    public void DisplayText_ToolSuccess_DoesNotParseErrorTag()
+    {
+        var msg = Msg(kind: ChatUiMessageKind.ToolResult);
+        msg.ToolResultText = "<tool_use_error>不应解析</tool_use_error>";
+        msg.IsToolError = false;
+
+        msg.DisplayText.Should().Be("<tool_use_error>不应解析</tool_use_error>");
+    }
+
+    [Fact]
+    public void CopyAllText_ToolError_ParsesToolUseErrorTag()
+    {
+        var msg = Msg(MessageRole.Assistant, string.Empty, ChatUiMessageKind.ToolResult);
+        msg.ToolName = "read_file";
+        msg.ToolResultText = "<tool_use_error>文件过大，超过 10MB 限制</tool_use_error>";
+        msg.IsToolError = true;
+
+        var copyText = msg.CopyAllText;
+        copyText.Should().Contain("文件过大，超过 10MB 限制");
+        copyText.Should().NotContain("<tool_use_error>");
+    }
+
     // ── IsCodeBlock ──
 
     [Fact]

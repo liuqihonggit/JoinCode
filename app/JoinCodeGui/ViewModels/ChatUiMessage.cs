@@ -187,9 +187,9 @@ public sealed class ChatUiMessage : INotifyPropertyChanged
         _ => string.Empty
     };
 
-    /// <summary>正文展示文本：工具结果优先展示结果内容，其余展示 Content</summary>
+    /// <summary>正文展示文本：工具结果优先展示结果内容（解析 tool_use_error 标签），其余展示 Content</summary>
     public string DisplayText => Kind == ChatUiMessageKind.ToolResult
-        ? (ToolResultText ?? string.Empty)
+        ? ToolErrorFormatter.ExtractMessage(ToolResultText, IsToolError)
         : (Content ?? string.Empty);
 
     /// <summary>内容是否为代码块（以 ``` 包裹，行代码卡片高亮展示）</summary>
@@ -219,8 +219,9 @@ public sealed class ChatUiMessage : INotifyPropertyChanged
                     sb.AppendLine(ToolArguments);
                 if (IsToolResultMessage)
                 {
-                    if (!string.IsNullOrWhiteSpace(ToolResultText))
-                        sb.AppendLine(ToolResultText);
+                    var formattedResult = ToolErrorFormatter.ExtractMessage(ToolResultText, IsToolError);
+                    if (!string.IsNullOrWhiteSpace(formattedResult))
+                        sb.AppendLine(formattedResult);
                     AppendDiff(sb);
                 }
             }

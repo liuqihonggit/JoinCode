@@ -3,7 +3,9 @@ namespace Integration.Tests.McpTools;
 /// <summary>
 /// MCP 工具冒烟测试 — 验证每个已注册工具能被调用且返回有效 ToolResult
 /// 不验证工具的业务逻辑，只验证不崩溃
+/// 标记 Integration 因遍历全部工具含桌面鼠标/键盘操作（Win32 SendInput 副作用）
 /// </summary>
+[Trait("Category", "Integration")]
 public sealed class McpToolSmokeTests
 {
     private static async Task<(Tools.LocalToolRegistry Registry, IReadOnlyList<ToolInfo> Tools)> BuildAndRegisterAllToolsAsync()

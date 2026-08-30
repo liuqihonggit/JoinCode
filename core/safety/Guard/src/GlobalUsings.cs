@@ -52,6 +52,7 @@ global using Core.Hooks.ToolPermission.Handlers;
 global using Core.Permission;
 global using Core.Plugins;
 global using Core.Security.Constants;
+global using Core.Security.DangerClassification;
 global using Core.Security.Scanners;
 global using Core.Security.Services;
 global using Core.Security.Sandbox;

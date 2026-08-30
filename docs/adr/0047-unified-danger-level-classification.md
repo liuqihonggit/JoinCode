@@ -22,25 +22,31 @@
 
 ## 决策
 
-引入统一的 `CommandDangerLevel` 4级分级，作为权限决策的**唯一依据**：
+引入统一的 `CommandDangerLevel` **4 级分级**，作为权限决策的**唯一依据**。
 
-| 等级 | 数值 | 含义 | AI 行为 | 可否批量批准 | 可否"始终允许" |
-|------|------|------|---------|-------------|---------------|
-| `Safe` | 0 | 安全操作 | 自动批准，无需确认 | — | — |
-| `Dangerous` | 1 | 危险操作 | 需用户确认 | ✅ 可以 | ✅ 可以 |
-| `Critical` | 2 | 极危险操作 | 需用户**显式**确认 | ❌ 不可以 | ❌ 不可以 |
-| `Forbidden` | 3 | 绝对禁止 | AI **永远拒绝**，引导用户手动执行 | ❌ 不可以 | ❌ 不可以 |
+### 四级分级总览
+
+| 等级 | 数值 | 含义 | 颜色 | 可撤回 | AI 行为 | 同级别自动通过 |
+|------|------|------|------|--------|---------|---------------|
+| `Safe` | 0 | 只读操作 | — | — | 自动通过 | — |
+| `LightValidation` | 1 | 轻校验/可撤回操作 | 🟢 绿色 ask | ✅ 可撤回 | 需用户确认 | ✅ 支持（会话级，不持久化） |
+| `Execution` | 2 | 执行/不可撤回操作 | 🔴 红色 ask | ❌ 不可C | 需用户确认 | ✅ 支持（会话级，不持久化） |
+| `Dangerous` | 3 | 危险操作 | — | ❌ 不可撤回 | **直接拒绝不提示** | ❌ 不支持 |
+
+**核心区分**：绿色 ask = 可撤回操作（git commit 可 reset 撤回），红色 ask = 不可撤回操作（rm 删除不可恢复）。
+
+**同级别自动通过**：用户选择后当前会话内同级别操作不再 ask，**不持久化**，每次打开新 exe 重新提示。用户可在 GUI 上点击标记按等级跳过。
 
 ### 各权限模式下的行为矩阵（CommandDangerLevel × PermissionMode）
 
 | CommandDangerLevel ＼ PermissionMode | Plan | Auto | Ask | Bypass |
 |--------------------------------------|------|------|-----|--------|
 | `Safe` | 放行 | 放行 | 放行 | 放行 |
-| `Dangerous` | ❌ 拒绝+引导 | ❌ 拒绝+引导移动到 `.xxx/` | ⏸ 待确认（可批量批准） | 放行 |
-| `Critical` | ❌ 拒绝 | ❌ 拒绝 | ⏸ 待确认（**不可**批量批准，仅本次有效） | 放行 |
-| `Forbidden` | ❌ 拒绝+引导手动执行 | ❌ 拒绝+引导手动执行 | ❌ 拒绝+引导手动执行 | ❌ **拒绝+引导手动执行** |
+| `LightValidation`（🟢绿色ask/可撤回） | 放行（类似只读） | ❌ 拒绝+引导 | ⏸ 🟢绿色待确认 | 放行 |
+| `Execution`（🔴红色ask/不可撤回） | ❌ 拒绝 | ❌ 拒绝+引导 | ⏸ 🔴红色待确认 | 放行 |
+| `Dangerous` | ❌ 拒绝（不提示） | ❌ 拒绝（不提示） | ❌ 拒绝（不提示） | ❌ **拒绝（不提示）** |
 
-> **关键设计**：`Forbidden` 级在 **Bypass 模式下也拒绝**，这是唯一能穿透 Bypass 的拦截，确保 `rm -rf /`、`format c:` 等整盘操作无论如何都不允许 AI 执行。
+> **关键设计**：`Dangerous` 级在**所有模式下都直接拒绝不提示**，包括 Bypass，确保 `rm -rf /`、`format c:` 等操作无论如何都不执行。
 
 ### 启动参数联动
 
@@ -119,31 +125,29 @@ Forbidden 级命令在任何权限模式下都被拒绝，返回引导消息：
 
 ## 后续工作
 
-### 必须修复（联动缺陷）
+### 必须实现（核心联动）
 
-- [ ] **Critical 级不可批量批准** — 当前 `Critical` 级在 Ask 模式下返回 `PendingConfirmation`，用户选 `AlwaysAllow` 仍会被临时批准。需修改 `PermissionAwareToolExecutor.HandlePendingConfirmationAsync` 或 `CliPermissionConfirmationHandler`，当 `DangerClassificationResult.Level == Critical` 时：
-  - 禁用 `(a)始终允许` 选项（CLI 只显示 `(y)允许 / (n)拒绝`）
-  - 拒绝 `AlwaysAllow` 动作（即使收到也降级为 `Allow`）
-  - TUI 隐藏"始终允许"按钮
-- [ ] **Forbidden 级穿透 Bypass** — 当前 `DangerousCommandProtectionMiddleware` 在 Bypass 模式下直接 `return next(context, ct)` 跳过所有检查。需在 Bypass 跳过**之前**先检查 `ICommandDangerClassifier.IsForbidden(command)`，确保 Forbidden 级在 Bypass 下也拒绝。
+- [ ] **同级别自动通过标记机制** — 会话级非持久化，用户选择后同级别操作不再 ask。需修改 `PermissionManager` 新增 `ConcurrentDictionary<CommandDangerLevel, bool>` 按级别批量批准，替代按工具名临时批准。每次打开新 exe 重新提示。
+- [ ] **ask 颜色区分** — CLI: 🟢绿色/🔴红色 `^` 提示符 + `[轻校验]`/`[执行]` 级别标签。TUI: 绿色/红色对话框边框。GUI: 绿色/红色标题栏。
+- [ ] **GUI 按等级跳过标记** — GUI 界面上提供按等级跳过的复选框/按钮，用户点击后当前会话内该级别不再 ask。
+- [ ] **Dangerous 级穿透 Bypass** — 当前 `DangerousCommandProtectionMiddleware` 在 Bypass 模式下直接跳过检查。需在 Bypass 跳过之前先检查 `ICommandDangerClassifier.IsDangerous(command)`，确保 Dangerous 级在 Bypass 下也拒绝。
 
 ### 统一迁移
 
-- [ ] 将 `DestructiveCommandDetector` 委托给 `CommandDangerClassifier`（目前为回退方案，`DangerousCommandProtectionMiddleware` 优先使用 `ICommandDangerClassifier`）
+- [ ] 将 `DestructiveCommandDetector` 委托给 `CommandDangerClassifier`（目前为回退方案）
 - [ ] PowerShell 危险命令分级（`PsDangerousCmdlets` 集成 `DangerousCommandCatalog`）
-- [ ] `Core.Utils.DestructiveCommandAnalyzer`（Infrastructure 层正则分析器）对齐 `CommandDangerLevel` 分级
+- [ ] `Core.Utils.DestructiveCommandAnalyzer`（Infrastructure 层正则分析器）对齐新4级分级
 
 ### 文档联动
 
 - [ ] AGENTS.md 更新权限设计章节，引用本 ADR
-- [ ] CLI `--help` 输出补充 `CommandDangerLevel` 分级说明
-- [ ] `settings.json` schema 补充 `permissions.dangerLevelOverrides` 配置项（允许用户自定义命令分级）
+- [ ] CLI `--help` 输出补充4级分级说明
+- [ ] `settings.json` schema 补充 `permissions.dangerLevelOverrides` 配置项
 
 <!-- 🤖 Auto Decision: 2026-08-30 -->
-<!-- 决策: 引入 CommandDangerLevel 4级分级，统一危险指令到 DangerousCommandCatalog -->
-<!-- 原因: 原系统无"绝对禁止AI执行"等级，rm -rf / 和 rm file.txt 得到相同对待 -->
-<!-- 替代方案: 5级分级(否决)、完全删除CommandRisk(否决)、扩展现有检测器(否决) -->
-<!-- 验证: Core.slnx 编译通过，65个单元测试全部通过 ✅ -->
-<!-- 联动: 启动参数(--permission-mode/JCC_PERMISSION_MODE) → PermissionMode → CommandDangerLevel × PermissionMode → 决策 -->
-<!-- 联动: ask确认(IPermissionConfirmationHandler) → PermissionConfirmAction(Allow/AlwaysAllow/Deny) → 临时批准 -->
-<!-- 缺陷: Critical级可被AlwaysAllow绕过(待修复)、Forbidden级未穿透Bypass(待修复) -->
+<!-- 决策: 4级分级 Safe/LightValidation/Execution/Dangerous，绿色ask=可撤回，红色ask=不可撤回 -->
+<!-- 原因: git操作可撤回应为绿色ask，删除/联网不可撤回应为红色ask，整盘操作直接拒绝 -->
+<!-- 验证: Core.slnx 编译通过，80个单元测试全部通过 ✅ -->
+<!-- 联动: 启动参数(--permission-mode) → PermissionMode → CommandDangerLevel × PermissionMode → 决策 -->
+<!-- 联动: ask确认 → 颜色区分(绿色/红色) + 同级别自动通过(会话级非持久化) -->
+<!-- 待实现: 同级别自动通过标记、ask颜色区分、GUI跳过标记、Dangerous穿透Bypass -->

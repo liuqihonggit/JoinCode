@@ -78,7 +78,7 @@ public sealed class AzureProviderDefinition : IProviderDefinition
             ["endpoint"] = endpoint ?? string.Empty,
             ["apiKey"] = apiKey
         };
-        return System.Text.Json.JsonSerializer.Serialize(authData, ConfigJsonContext.Default.DictionaryStringString);
+        return ConfigJsonOptions.SerializeCompact(authData);
     }
 
     public IEnumerable<ModelEntry> AvailableModels => _modelConfigLoader.GetModels(VendorKindConstants.OpenAi);

@@ -55,7 +55,7 @@ public sealed class SettingsJsonModelWriter
             AutoFetchModels = settings.AutoFetchModels,
         };
 
-        var json = JsonSerializer.Serialize(newSettings, ConfigIndentedJsonContext.Default.SettingsJson);
+        var json = ConfigJsonOptions.SerializeIndented(newSettings);
         var settingsPath = SettingsLoader.GetUserSettingsPath();
 
         _changeNotifier?.MarkInternalWrite(settingsPath);

@@ -747,4 +747,52 @@ public sealed class ToolCallRepairServiceTests
     }
 
     #endregion
+
+    #region TryConvertToArray: string→array 宽容
+
+    [Fact]
+    public void RepairArguments_StringJsonArrayWhereArrayExpected_ParsesToArray()
+    {
+        var schema = new ToolSchema
+        {
+            Properties = new Dictionary<string, ToolSchemaProperty>
+            {
+                ["items"] = new() { Type = "array" }
+            }
+        };
+        var args = new Dictionary<string, JsonElement>
+        {
+            ["items"] = JsonElementHelper.FromString("""[{"id":1},{"id":2}]""")
+        };
+
+        var result = ToolCallRepairService.RepairArguments("Tool", args, schema);
+
+        result.RepairedArguments["items"].ValueKind.Should().Be(JsonValueKind.Array);
+        result.RepairedArguments["items"].GetArrayLength().Should().Be(2);
+    }
+
+    [Fact]
+    public void RepairArguments_StringJsonObjectWhereArrayExpected_WrapsToSingleElementArray()
+    {
+        var schema = new ToolSchema
+        {
+            Properties = new Dictionary<string, ToolSchemaProperty>
+            {
+                ["items"] = new() { Type = "array" }
+            }
+        };
+        var args = new Dictionary<string, JsonElement>
+        {
+            ["items"] = JsonElementHelper.FromString("""{"id":1,"name":"x"}""")
+        };
+
+        var result = ToolCallRepairService.RepairArguments("Tool", args, schema);
+
+        result.RepairedArguments["items"].ValueKind.Should().Be(JsonValueKind.Array);
+        result.RepairedArguments["items"].GetArrayLength().Should().Be(1);
+        result.RepairedArguments["items"][0].GetProperty("id").GetInt32().Should().Be(1);
+        result.RepairedArguments["items"][0].GetProperty("name").GetString().Should().Be("x");
+    }
+
+    #endregion
 }

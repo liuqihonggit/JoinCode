@@ -35,7 +35,9 @@ public static class ChunkFormatter
     private static string FormatToolResult(QueryStreamChunk chunk)
     {
         var status = chunk.IsToolError ? "❌" : "✅";
-        var result = TruncateText(chunk.ToolResultText, 200);
+        var message = ToolErrorFormatter.ExtractMessage(chunk.ToolResultText, chunk.IsToolError);
+        var maxLen = chunk.IsToolError ? 500 : 200;
+        var result = TruncateText(message, maxLen);
         return $"  [工具] {chunk.ToolName} {status} {result}";
     }
 

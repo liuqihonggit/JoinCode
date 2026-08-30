@@ -74,7 +74,7 @@ public sealed class FileBasedReflexionMemory : IReflexionMemory
                 try
                 {
                     var json = await _fs.ReadAllTextAsync(file, ct).ConfigureAwait(false);
-                    var entry = JsonSerializer.Deserialize(json, ReflexionEntryJsonContext.Default.ReflexionEntry);
+                    var entry = RelaxedJsonSerializer.Deserialize(json, ReflexionEntryJsonContext.Default.ReflexionEntry);
                     if (entry is not null && entry.WasSuccessful)
                         results.Add(entry.Patch);
                 }
@@ -123,7 +123,7 @@ public sealed class FileBasedReflexionMemory : IReflexionMemory
                     try
                     {
                         var json = await _fs.ReadAllTextAsync(file, ct).ConfigureAwait(false);
-                        var entry = JsonSerializer.Deserialize(json, ReflexionEntryJsonContext.Default.ReflexionEntry);
+                        var entry = RelaxedJsonSerializer.Deserialize(json, ReflexionEntryJsonContext.Default.ReflexionEntry);
                         if (entry is null) continue;
 
                         totalAttempts++;

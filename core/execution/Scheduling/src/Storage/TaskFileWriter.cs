@@ -95,7 +95,7 @@ public sealed partial class TaskFileWriter : ServiceEntity, ITaskFileWriter
     {
         try
         {
-            return JsonSerializer.Deserialize(json, SchedulingJsonContext.Default.FileTaskMetadata);
+            return RelaxedJsonSerializer.Deserialize(json, SchedulingJsonContext.Default.FileTaskMetadata);
         }
         catch
         {

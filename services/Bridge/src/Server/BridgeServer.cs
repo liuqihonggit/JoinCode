@@ -379,7 +379,7 @@ public sealed partial class BridgeServer : ServiceEntity, IDisposable
     {
         try
         {
-            var message = JsonSerializer.Deserialize(messageJson, BridgeJsonContext.Default.BridgeServerMessage);
+            var message = RelaxedJsonSerializer.Deserialize(messageJson, BridgeJsonContext.Default.BridgeServerMessage);
 
             if (message == null)
             {

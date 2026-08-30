@@ -109,7 +109,7 @@ public sealed partial class SwarmPermissionMessageRouter : ServiceEntity
     {
         try
         {
-            var data = JsonSerializer.Deserialize(
+            var data = RelaxedJsonSerializer.Deserialize(
                 message.Content,
                 AgentsJsonContext.Default.SwarmPermissionRequestData);
 

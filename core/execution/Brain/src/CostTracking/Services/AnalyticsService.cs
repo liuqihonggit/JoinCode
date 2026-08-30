@@ -339,7 +339,7 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
                 return;
             }
 
-            var events = JsonSerializer.Deserialize(result.Content, CostTrackingJsonContext.Default.ListAnalyticsEvent);
+            var events = RelaxedJsonSerializer.Deserialize(result.Content, CostTrackingJsonContext.Default.ListAnalyticsEvent);
 
             if (events != null)
             {

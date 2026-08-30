@@ -118,7 +118,7 @@ public sealed class ToolInterventionManager : ServiceEntity
         {
             if (!_fs.FileExists(_configPath)) return;
             var json = _fs.ReadAllText(_configPath);
-            var data = JsonSerializer.Deserialize(json, ToolInterventionJsonContext.Default.DictionaryStringInterventionRule);
+            var data = RelaxedJsonSerializer.Deserialize(json, ToolInterventionJsonContext.Default.DictionaryStringInterventionRule);
             if (data is null) return;
             foreach (var kvp in data)
                 _rules[kvp.Key] = kvp.Value;

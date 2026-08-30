@@ -595,7 +595,7 @@ public class ResponsesQueryService : QueryServiceBase
         ResponsesResponse? result;
         try
         {
-            result = JsonSerializer.Deserialize(responseJson, NativeJsonContext.Default.ResponsesResponse);
+            result = RelaxedJsonSerializer.Deserialize(responseJson, NativeJsonContext.Default.ResponsesResponse);
         }
         catch (Exception ex) when (ex is JsonException or FormatException)
         {

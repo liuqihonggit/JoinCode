@@ -513,7 +513,7 @@ public class OpenAIQueryService : QueryServiceBase
         OpenAIChatResponse? result;
         try
         {
-            result = JsonSerializer.Deserialize(responseJson, NativeJsonContext.Default.OpenAIChatResponse);
+            result = RelaxedJsonSerializer.Deserialize(responseJson, NativeJsonContext.Default.OpenAIChatResponse);
         }
         catch (Exception ex) when (ex is JsonException or FormatException)
         {
@@ -569,7 +569,7 @@ public class OpenAIQueryService : QueryServiceBase
             OpenAIChatChunk? chunk;
             try
             {
-                chunk = JsonSerializer.Deserialize(data, NativeJsonContext.Default.OpenAIChatChunk);
+                chunk = RelaxedJsonSerializer.Deserialize(data, NativeJsonContext.Default.OpenAIChatChunk);
             }
             catch (Exception ex) when (ex is JsonException or FormatException)
             {

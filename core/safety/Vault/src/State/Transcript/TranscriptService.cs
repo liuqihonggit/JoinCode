@@ -84,7 +84,7 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
                         var json = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
                         if (!string.IsNullOrWhiteSpace(json))
                         {
-                            var entries = JsonSerializer.Deserialize(json, TranscriptJsonContext.Default.ListTranscriptEntry);
+                            var entries = RelaxedJsonSerializer.Deserialize(json, TranscriptJsonContext.Default.ListTranscriptEntry);
                             if (entries is not null)
                             {
                                 entryCount = entries.Count;
@@ -242,7 +242,7 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
             {
                 try
                 {
-                    var deserialized = JsonSerializer.Deserialize(entry.Content, ContentReplacementRecordListJsonContext.Default.ListContentReplacementRecord);
+                    var deserialized = RelaxedJsonSerializer.Deserialize(entry.Content, ContentReplacementRecordListJsonContext.Default.ListContentReplacementRecord);
                     if (deserialized is not null)
                     {
                         records.AddRange(deserialized);
@@ -313,7 +313,7 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
         try
         {
             var json = await _fs.ReadAllTextAsync(metaPath, cancellationToken).ConfigureAwait(false);
-            return JsonSerializer.Deserialize(json, TranscriptJsonContext.Default.SessionInfo);
+            return RelaxedJsonSerializer.Deserialize(json, TranscriptJsonContext.Default.SessionInfo);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -350,7 +350,7 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
                     if (string.IsNullOrWhiteSpace(line)) continue;
                     try
                     {
-                        var entry = JsonSerializer.Deserialize(line, TranscriptJsonContext.Default.TranscriptEntry);
+                        var entry = RelaxedJsonSerializer.Deserialize(line, TranscriptJsonContext.Default.TranscriptEntry);
                         if (entry is not null) entries.Add(entry);
                     }
                     catch (JsonException ex)

@@ -32,7 +32,7 @@ public sealed partial class FeatureFlagService : RemoteCacheRefreshServiceBase<F
         response.EnsureSuccessStatusCode();
 
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        var flagResponse = JsonSerializer.Deserialize(json, JsonContext.FeatureFlagResponse);
+        var flagResponse = RelaxedJsonSerializer.Deserialize(json, JsonContext.FeatureFlagResponse);
 
         return new RemoteRefreshResult<FeatureFlag>
         {

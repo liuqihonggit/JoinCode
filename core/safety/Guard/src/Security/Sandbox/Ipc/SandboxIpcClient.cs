@@ -84,7 +84,7 @@ public sealed class SandboxIpcClient : IAsyncDisposable
             throw new InvalidOperationException($"Sandbox execute failed: {response.Error}");
         }
 
-        return JsonSerializer.Deserialize(response.Payload ?? "", SandboxIpcJsonContext.Default.SandboxExecuteResponse)
+        return RelaxedJsonSerializer.Deserialize(response.Payload ?? "", SandboxIpcJsonContext.Default.SandboxExecuteResponse)
             ?? throw new InvalidOperationException("Failed to parse execute response");
     }
 
@@ -195,7 +195,7 @@ public sealed class SandboxIpcClient : IAsyncDisposable
 
                 try
                 {
-                    var response = JsonSerializer.Deserialize(line, SandboxIpcJsonContext.Default.SandboxIpcResponse);
+                    var response = RelaxedJsonSerializer.Deserialize(line, SandboxIpcJsonContext.Default.SandboxIpcResponse);
                     if (response is not null && _pendingRequests.TryRemove(response.RequestId, out var tcs))
                     {
                         tcs.SetResult(response);

@@ -99,7 +99,7 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
             if (!result.Success || string.IsNullOrEmpty(result.Content)) return;
             var json = result.Content;
 
-            var data = JsonSerializer.Deserialize(json, ThinkingStoreJsonContext.Default.ThinkingStoreData);
+            var data = RelaxedJsonSerializer.Deserialize(json, ThinkingStoreJsonContext.Default.ThinkingStoreData);
             if (data?.Entries == null) return;
 
             foreach (var kvp in data.Entries)

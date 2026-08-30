@@ -331,10 +331,10 @@ public sealed partial class LspClient : ILspClient
 
         if (result is JsonArray)
         {
-            return JsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspLocation) ?? new List<LspLocation>();
+            return RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspLocation) ?? new List<LspLocation>();
         }
 
-        var single = JsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.LspLocation);
+        var single = RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.LspLocation);
         return single != null ? new List<LspLocation> { single } : new List<LspLocation>();
     }
 
@@ -355,7 +355,7 @@ public sealed partial class LspClient : ILspClient
 
         if (result is JsonArray)
         {
-            return JsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspLocation) ?? new List<LspLocation>();
+            return RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspLocation) ?? new List<LspLocation>();
         }
 
         return new List<LspLocation>();
@@ -378,7 +378,7 @@ public sealed partial class LspClient : ILspClient
         if (result is null)
             return null;
 
-        return JsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.LspHoverResult);
+        return RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.LspHoverResult);
     }
 
     public async Task<List<LspCompletionItem>> GetCompletionsAsync(string filePath, int line, int character, CancellationToken cancellationToken = default)
@@ -400,12 +400,12 @@ public sealed partial class LspClient : ILspClient
 
         if (result is JsonArray)
         {
-            return JsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspCompletionItem) ?? new List<LspCompletionItem>();
+            return RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspCompletionItem) ?? new List<LspCompletionItem>();
         }
 
         if (result is JsonObject resultObj && resultObj.TryGetPropertyValue("items", out var itemsNode))
         {
-            return JsonSerializer.Deserialize(itemsNode?.ToJsonString() ?? "[]", LspJsonContext.Default.ListLspCompletionItem) ?? new List<LspCompletionItem>();
+            return RelaxedJsonSerializer.Deserialize(itemsNode?.ToJsonString() ?? "[]", LspJsonContext.Default.ListLspCompletionItem) ?? new List<LspCompletionItem>();
         }
 
         return new List<LspCompletionItem>();
@@ -427,7 +427,7 @@ public sealed partial class LspClient : ILspClient
 
         if (result is JsonArray)
         {
-            return JsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspDocumentSymbol) ?? new List<LspDocumentSymbol>();
+            return RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspDocumentSymbol) ?? new List<LspDocumentSymbol>();
         }
 
         return new List<LspDocumentSymbol>();
@@ -443,7 +443,7 @@ public sealed partial class LspClient : ILspClient
 
         if (result is JsonArray)
         {
-            return JsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspSymbolInformation) ?? new List<LspSymbolInformation>();
+            return RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspSymbolInformation) ?? new List<LspSymbolInformation>();
         }
 
         return new List<LspSymbolInformation>();
@@ -468,10 +468,10 @@ public sealed partial class LspClient : ILspClient
 
         if (result is JsonArray)
         {
-            return JsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspLocation) ?? new List<LspLocation>();
+            return RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspLocation) ?? new List<LspLocation>();
         }
 
-        var single = JsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.LspLocation);
+        var single = RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.LspLocation);
         return single != null ? new List<LspLocation> { single } : new List<LspLocation>();
     }
 
@@ -491,7 +491,7 @@ public sealed partial class LspClient : ILspClient
 
         if (result is JsonArray)
         {
-            return JsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspCallHierarchyItem) ?? new List<LspCallHierarchyItem>();
+            return RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspCallHierarchyItem) ?? new List<LspCallHierarchyItem>();
         }
 
         return new List<LspCallHierarchyItem>();
@@ -507,7 +507,7 @@ public sealed partial class LspClient : ILspClient
 
         if (result is JsonArray)
         {
-            return JsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspCallHierarchyIncomingCall) ?? new List<LspCallHierarchyIncomingCall>();
+            return RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspCallHierarchyIncomingCall) ?? new List<LspCallHierarchyIncomingCall>();
         }
 
         return new List<LspCallHierarchyIncomingCall>();
@@ -523,7 +523,7 @@ public sealed partial class LspClient : ILspClient
 
         if (result is JsonArray)
         {
-            return JsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspCallHierarchyOutgoingCall) ?? new List<LspCallHierarchyOutgoingCall>();
+            return RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspCallHierarchyOutgoingCall) ?? new List<LspCallHierarchyOutgoingCall>();
         }
 
         return new List<LspCallHierarchyOutgoingCall>();

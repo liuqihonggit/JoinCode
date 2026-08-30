@@ -125,7 +125,7 @@ public sealed partial class MacroRecorder : ServiceEntity, IMacroRecorder
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         var json = _fileSystem.ReadAllText(filePath);
-        var macro = JsonSerializer.Deserialize(json, MacroJsonContext.Default.Macro)
+        var macro = RelaxedJsonSerializer.Deserialize(json, MacroJsonContext.Default.Macro)
             ?? throw new InvalidOperationException("宏文件解析失败");
         _logger?.LogInformation("加载宏: {Name}, 共 {Count} 步", macro.Name, macro.Operations.Count);
         return macro;

@@ -36,7 +36,7 @@ public static class JsonArgumentParser
     {
         try
         {
-            result = JsonSerializer.Deserialize(json, ContractsJsonContext.Default.DictionaryStringJsonElement);
+            result = RelaxedJsonSerializer.Deserialize(json, ContractsJsonContext.Default.DictionaryStringJsonElement);
             return result is not null;
         }
         catch (JsonException)

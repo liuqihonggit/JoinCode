@@ -147,7 +147,7 @@ public class ConfigLoader {
         try
         {
             var json = await fs.ReadAllTextAsync(settingsPath, cancellationToken).ConfigureAwait(false);
-            return JsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
+            return RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
         }
         catch
         {
@@ -256,7 +256,7 @@ public class ConfigLoader {
         try
         {
             var json = await fs.ReadAllTextAsync(authPath, cancellationToken).ConfigureAwait(false);
-            return JsonSerializer.Deserialize(json, ConfigJsonContext.Default.DictionaryStringString);
+            return RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.DictionaryStringString);
         }
         catch
         {
@@ -276,7 +276,7 @@ public class ConfigLoader {
         var definition = _registry.TryGet(provider);
         if (definition is not null && definition.IsCompoundAuthFormat(apiKey))
         {
-            var compoundData = JsonSerializer.Deserialize(apiKey, ConfigJsonContext.Default.DictionaryStringString);
+            var compoundData = RelaxedJsonSerializer.Deserialize(apiKey, ConfigJsonContext.Default.DictionaryStringString);
             return definition.ExtractApiKeyFromCompound(apiKey)
                 ?? compoundData?.GetValueOrDefault("apiKey", string.Empty)
                 ?? string.Empty;
@@ -312,7 +312,7 @@ public class ConfigLoader {
             try
             {
                 var json = await fs.ReadAllTextAsync(authPath, cancellationToken).ConfigureAwait(false);
-                authData = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.DictionaryStringString) ?? new Dictionary<string, string>();
+                authData = RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.DictionaryStringString) ?? new Dictionary<string, string>();
             }
             catch (Exception ex)
             {
@@ -386,7 +386,7 @@ public class ConfigLoader {
     /// </summary>
     private static string? TryGetSettingFromJson(string json, string key)
     {
-        var settings = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
+        var settings = RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
         if (settings is not null)
         {
             var value = GetSettingByKey(settings, key);
@@ -416,7 +416,7 @@ public class ConfigLoader {
             try
             {
                 var json = await fs.ReadAllTextAsync(settingsPath, cancellationToken).ConfigureAwait(false);
-                existingSettings = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
+                existingSettings = RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
             }
             catch (Exception ex)
             {
@@ -448,7 +448,7 @@ public class ConfigLoader {
         try
         {
             var json = await fs.ReadAllTextAsync(globalPath, cancellationToken).ConfigureAwait(false);
-            var data = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.DictionaryStringJsonElement);
+            var data = RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.DictionaryStringJsonElement);
             if (data is not null && data.TryGetValue(key, out var element))
             {
                 return element.ValueKind switch
@@ -489,7 +489,7 @@ public class ConfigLoader {
             try
             {
                 var json = await fs.ReadAllTextAsync(globalPath, cancellationToken).ConfigureAwait(false);
-                data = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.DictionaryStringJsonElement) ?? new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+                data = RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.DictionaryStringJsonElement) ?? new Dictionary<string, JsonElement>(StringComparer.Ordinal);
             }
             catch (Exception ex)
             {

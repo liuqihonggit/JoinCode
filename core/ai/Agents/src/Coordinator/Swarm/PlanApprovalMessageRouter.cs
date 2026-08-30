@@ -137,7 +137,7 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity
     {
         try
         {
-            var request = JsonSerializer.Deserialize(
+            var request = RelaxedJsonSerializer.Deserialize(
                 message.Content,
                 AgentsJsonContext.Default.PlanApprovalRequestMessage);
 
@@ -196,7 +196,7 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity
     {
         try
         {
-            var response = JsonSerializer.Deserialize(
+            var response = RelaxedJsonSerializer.Deserialize(
                 message.Content,
                 AgentsJsonContext.Default.PlanApprovalResponseMessage);
 

@@ -200,7 +200,7 @@ public sealed class ConcurrentSessionService
             }
 
             var json = await _fs.ReadAllTextAsync(path, ct).ConfigureAwait(false);
-            var existing = JsonSerializer.Deserialize(json, BridgeJsonContext.Default.ConcurrentSessionRecord);
+            var existing = RelaxedJsonSerializer.Deserialize(json, BridgeJsonContext.Default.ConcurrentSessionRecord);
             if (existing is null) return;
 
             applyPatch(existing);

@@ -51,7 +51,7 @@ public sealed partial class RemoteAgentTaskExecutor : ServiceEntity, IRemoteAgen
                 response.EnsureSuccessStatusCode();
 
                 var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-                var result = JsonSerializer.Deserialize(json, SchedulingTasksJsonContext.Default.RemoteAgentExecuteResponse);
+                var result = RelaxedJsonSerializer.Deserialize(json, SchedulingTasksJsonContext.Default.RemoteAgentExecuteResponse);
 
                 if (result is null)
                 {

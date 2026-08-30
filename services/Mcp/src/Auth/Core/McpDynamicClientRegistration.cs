@@ -37,7 +37,7 @@ public sealed partial class McpDynamicClientRegistration
                 return null;
             }
 
-            var result = JsonSerializer.Deserialize(responseBody, McpOAuthJsonContext.Default.DcrRegistrationResult);
+            var result = RelaxedJsonSerializer.Deserialize(responseBody, McpOAuthJsonContext.Default.DcrRegistrationResult);
             if (result == null || string.IsNullOrEmpty(result.ClientId))
             {
                 _logger?.LogError("无法解析动态客户端注册响应");

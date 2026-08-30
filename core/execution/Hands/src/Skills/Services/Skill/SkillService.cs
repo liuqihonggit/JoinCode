@@ -306,7 +306,7 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
                 return null;
             }
 
-            var skill = JsonSerializer.Deserialize(result.Content, SkillsJsonContext.Default.SkillDefinition);
+            var skill = RelaxedJsonSerializer.Deserialize(result.Content, SkillsJsonContext.Default.SkillDefinition);
             if (skill != null)
             {
                 var lastModified = await _files.GetLastWriteTimeUtcAsync(filePath, cancellationToken).ConfigureAwait(false);

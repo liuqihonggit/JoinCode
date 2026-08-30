@@ -61,7 +61,7 @@ public sealed class AzureProviderDefinition : IProviderDefinition
     {
         try
         {
-            var data = System.Text.Json.JsonSerializer.Deserialize(apiKey, ConfigJsonContext.Default.DictionaryStringString);
+            var data = RelaxedJsonSerializer.Deserialize(apiKey, ConfigJsonContext.Default.DictionaryStringString);
             return data?.GetValueOrDefault("apiKey");
         }
         catch { return null; }

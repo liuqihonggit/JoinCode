@@ -326,7 +326,7 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
             List<RuntimeTask>? tasks;
             try
             {
-                tasks = JsonSerializer.Deserialize(readResult.Content, SchedulingTasksJsonContext.Default.ListRuntimeTask);
+                tasks = RelaxedJsonSerializer.Deserialize(readResult.Content, SchedulingTasksJsonContext.Default.ListRuntimeTask);
             }
             catch (JsonException ex)
             {

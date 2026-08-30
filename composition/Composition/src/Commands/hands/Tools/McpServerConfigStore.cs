@@ -32,7 +32,7 @@ public sealed partial class McpServerConfigStore : ServiceEntity, IMcpServerConf
         try
         {
             var json = await _fs.ReadAllTextAsync(path, ct).ConfigureAwait(false);
-            var result = JsonSerializer.Deserialize(json, McpConfigJsonContext.Default.McpConfigFile);
+            var result = RelaxedJsonSerializer.Deserialize(json, McpConfigJsonContext.Default.McpConfigFile);
             return result ?? new McpConfigFile();
         }
         catch

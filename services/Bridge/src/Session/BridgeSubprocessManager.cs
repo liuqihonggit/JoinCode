@@ -356,7 +356,7 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
 
         try
         {
-            var json = JsonSerializer.Deserialize(ndjsonLine, BridgeJsonContext.Default.DictionaryStringJsonElement);
+            var json = RelaxedJsonSerializer.Deserialize(ndjsonLine, BridgeJsonContext.Default.DictionaryStringJsonElement);
             if (json is null) return null;
 
             // 必须是 user 类型

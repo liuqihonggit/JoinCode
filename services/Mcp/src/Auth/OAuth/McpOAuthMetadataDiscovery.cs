@@ -169,7 +169,7 @@ public sealed partial class McpOAuthMetadataDiscovery
             }
 
             var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            return JsonSerializer.Deserialize(json, McpOAuthJsonContext.Default.OAuthAuthorizationServerMetadata);
+            return RelaxedJsonSerializer.Deserialize(json, McpOAuthJsonContext.Default.OAuthAuthorizationServerMetadata);
         }
         catch (Exception ex)
         {
@@ -195,7 +195,7 @@ public sealed partial class McpOAuthMetadataDiscovery
             }
 
             var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            return JsonSerializer.Deserialize(json, McpOAuthJsonContext.Default.OAuthProtectedResourceMetadata);
+            return RelaxedJsonSerializer.Deserialize(json, McpOAuthJsonContext.Default.OAuthProtectedResourceMetadata);
         }
         catch (Exception ex)
         {

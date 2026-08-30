@@ -268,7 +268,7 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
         response.EnsureSuccessStatusCode();
 
         var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-        var result = JsonSerializer.Deserialize(json, TransportBridgeJsonContext.Default.DictionaryStringJsonElement);
+        var result = RelaxedJsonSerializer.Deserialize(json, TransportBridgeJsonContext.Default.DictionaryStringJsonElement);
         if (result?.TryGetValue("epoch", out var epochValue) == true && epochValue.ValueKind == JsonValueKind.Number)
         {
             return epochValue.GetInt32();

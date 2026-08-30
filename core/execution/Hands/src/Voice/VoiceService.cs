@@ -194,7 +194,7 @@ public sealed partial class VoiceService : ServiceEntity, IVoiceService, JoinCod
             throw new InvalidOperationException(L.T(StringKey.VoiceWhisperApiCallFailed, response.StatusCode));
         }
 
-        var result = JsonSerializer.Deserialize(responseBody, VoiceJsonContext.Default.WhisperTranscriptionResponse);
+        var result = RelaxedJsonSerializer.Deserialize(responseBody, VoiceJsonContext.Default.WhisperTranscriptionResponse);
         return result?.Text ?? string.Empty;
     }
 

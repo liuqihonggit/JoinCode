@@ -315,7 +315,7 @@ public partial class JsonFileHookConfigurationProvider : IHookConfigurationProvi
         try
         {
             var json = _fs.ReadAllText(_filePath);
-            var settings = JsonSerializer.Deserialize(json, HooksJsonContext.Default.HookSettingsFile);
+            var settings = RelaxedJsonSerializer.Deserialize(json, HooksJsonContext.Default.HookSettingsFile);
 
             if (settings?.Hooks == null)
             {

@@ -263,7 +263,7 @@ public sealed class DoctorTcpServer : IDoctorTransport
 
         try
         {
-            var doc = JsonSerializer.Deserialize(json, DoctorTcpJsonContext.Default.DictionaryStringJsonElement);
+            var doc = RelaxedJsonSerializer.Deserialize(json, DoctorTcpJsonContext.Default.DictionaryStringJsonElement);
             if (doc is null) return null;
 
             var eventType = doc.TryGetValue("type", out var typeEl) && typeEl.ValueKind == JsonValueKind.String

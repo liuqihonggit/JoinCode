@@ -243,7 +243,7 @@ public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScann
 
             try
             {
-                var entry = JsonSerializer.Deserialize(line, TranscriptJsonContext.Default.TranscriptEntry);
+                var entry = RelaxedJsonSerializer.Deserialize(line, TranscriptJsonContext.Default.TranscriptEntry);
                 if (entry is not null)
                 {
                     entries.Add(entry);

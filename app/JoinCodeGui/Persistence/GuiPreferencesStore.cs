@@ -32,7 +32,7 @@ public sealed class GuiPreferencesStore
                 return new GuiPreferences();
 
             var json = _fs.ReadAllText(_filePath);
-            return JsonSerializer.Deserialize(json, GuiJsonContext.Default.GuiPreferences)
+            return RelaxedJsonSerializer.Deserialize(json, GuiJsonContext.Default.GuiPreferences)
                 ?? new GuiPreferences();
         }
         catch (Exception)

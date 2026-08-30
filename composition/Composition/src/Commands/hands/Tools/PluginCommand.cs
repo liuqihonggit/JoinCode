@@ -149,7 +149,7 @@ public sealed class PluginCommand : ChatCommandBase
                 var autoLoadJson = await configService.GetAsync("plugins.autoLoadExternalPlugins", context.CancellationToken).ConfigureAwait(false);
                 var autoLoad = string.IsNullOrEmpty(autoLoadJson)
                     ? new List<string>()
-                    : JsonSerializer.Deserialize(autoLoadJson, CliJsonContext.Default.ListString) ?? new List<string>();
+                    : RelaxedJsonSerializer.Deserialize(autoLoadJson, CliJsonContext.Default.ListString) ?? new List<string>();
                 var autoLoadSet = new HashSet<string>(autoLoad, StringComparer.OrdinalIgnoreCase);
                 if (!autoLoadSet.Contains(pluginName))
                 {
@@ -185,7 +185,7 @@ public sealed class PluginCommand : ChatCommandBase
             var disabledJson = await configService.GetAsync("plugins.disabledPlugins", context.CancellationToken).ConfigureAwait(false);
             var disabled = string.IsNullOrEmpty(disabledJson)
                 ? new List<string>()
-                : JsonSerializer.Deserialize(disabledJson, CliJsonContext.Default.ListString) ?? new List<string>();
+                : RelaxedJsonSerializer.Deserialize(disabledJson, CliJsonContext.Default.ListString) ?? new List<string>();
 
             if (enable)
             {

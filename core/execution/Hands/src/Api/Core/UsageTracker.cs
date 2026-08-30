@@ -318,7 +318,7 @@ public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDispos
 
         try
         {
-            var response = JsonSerializer.Deserialize(responseContent, ApiJsonContext.Default.TokenUsageResponse);
+            var response = RelaxedJsonSerializer.Deserialize(responseContent, ApiJsonContext.Default.TokenUsageResponse);
             if (response?.Usage is not null)
             {
                 var input = response.Usage.PromptTokens ?? response.Usage.InputTokens ?? 0;

@@ -54,10 +54,10 @@ internal static class McpMessageExtensions
     public static T? DeserializeResult<T>(this JsonRpcResponse response, JsonTypeInfo<T> typeInfo)
     {
         if (response.Result is JsonElement element)
-            return JsonSerializer.Deserialize(element.GetRawText(), typeInfo);
+            return RelaxedJsonSerializer.Deserialize(element.GetRawText(), typeInfo);
         if (response.Result is null)
             return default;
         var json = McpJsonSerializer.SerializeObject(response.Result);
-        return JsonSerializer.Deserialize(json, typeInfo);
+        return RelaxedJsonSerializer.Deserialize(json, typeInfo);
     }
 }

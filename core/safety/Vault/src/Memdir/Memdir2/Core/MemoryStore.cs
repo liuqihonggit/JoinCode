@@ -338,7 +338,7 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable
                 return;
             }
 
-            var memories = JsonSerializer.Deserialize(result.Content, MemdirJsonContext.Default.ListMemoryEntry);
+            var memories = RelaxedJsonSerializer.Deserialize(result.Content, MemdirJsonContext.Default.ListMemoryEntry);
 
             if (memories != null)
             {

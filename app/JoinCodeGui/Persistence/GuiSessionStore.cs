@@ -48,7 +48,7 @@ public sealed class GuiSessionStore
             try
             {
                 var json = _fs.ReadAllText(file);
-                var data = JsonSerializer.Deserialize(json, GuiJsonContext.Default.GuiSessionData);
+                var data = RelaxedJsonSerializer.Deserialize(json, GuiJsonContext.Default.GuiSessionData);
                 if (data is null || string.IsNullOrWhiteSpace(data.Id))
                     continue;
 
@@ -115,7 +115,7 @@ public sealed class GuiSessionStore
         try
         {
             var json = _fs.ReadAllText(path);
-            return JsonSerializer.Deserialize(json, GuiJsonContext.Default.GuiSessionData);
+            return RelaxedJsonSerializer.Deserialize(json, GuiJsonContext.Default.GuiSessionData);
         }
         catch (Exception)
         {

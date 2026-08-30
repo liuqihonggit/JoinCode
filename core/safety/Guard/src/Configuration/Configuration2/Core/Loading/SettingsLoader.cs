@@ -155,7 +155,7 @@ public static class SettingsLoader
             return null; // 文件存在但非空,解析失败,返回 null
 
         var skeletonJson = BuildDefaultSettingsJson();
-        var skeleton = JsonSerializer.Deserialize(skeletonJson, ConfigJsonContext.Default.SettingsJson);
+        var skeleton = RelaxedJsonSerializer.Deserialize(skeletonJson, ConfigJsonContext.Default.SettingsJson);
         if (skeleton is null)
             return null;
 
@@ -182,7 +182,7 @@ public static class SettingsLoader
             return null;
 
         var skeletonJson = BuildDefaultSettingsJson();
-        var skeleton = JsonSerializer.Deserialize(skeletonJson, ConfigJsonContext.Default.SettingsJson);
+        var skeleton = RelaxedJsonSerializer.Deserialize(skeletonJson, ConfigJsonContext.Default.SettingsJson);
         if (skeleton is null)
             return null;
 
@@ -315,7 +315,7 @@ public static class SettingsLoader
         try
         {
             var json = await fs.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
-            return JsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
+            return RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
         }
         catch
         {
@@ -335,7 +335,7 @@ public static class SettingsLoader
         try
         {
             var json = fs.ReadAllText(path);
-            return JsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
+            return RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
         }
         catch
         {

@@ -84,6 +84,29 @@ public static class RelaxedJsonSerializer
     }
 
     /// <summary>
+    /// 从 JsonElement 反序列化（统一入口）。JsonElement 已解析为 DOM，无需 BOM/空白清理，直接委托。
+    /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "JsonTypeInfo<T> 为源码生成，所有类型已静态 rooted，AOT 安全。")]
+    [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "JsonTypeInfo<T> 为源码生成，无需运行时反射 emit。")]
+    public static T? Deserialize<T>(JsonElement element, JsonTypeInfo<T> typeInfo)
+        => JsonSerializer.Deserialize(element, typeInfo);
+
+    /// <summary>
+    /// 从 ReadOnlySpan&lt;char&gt; 反序列化（统一入口）。清理 BOM 和前后空白后委托。
+    /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "JsonTypeInfo<T> 为源码生成，所有类型已静态 rooted，AOT 安全。")]
+    [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "JsonTypeInfo<T> 为源码生成，无需运行时反射 emit。")]
+    public static T? Deserialize<T>(ReadOnlySpan<char> json, JsonTypeInfo<T> typeInfo)
+    {
+        if (json.IsEmpty)
+            return default;
+        var clean = json.Trim();
+        if (clean.Length > 0 && clean[0] == '\uFEFF')
+            clean = clean[1..];
+        return JsonSerializer.Deserialize(clean, typeInfo);
+    }
+
+    /// <summary>
     /// 从 JSON 字符串反序列化（统一入口，带修复提示）。反序列化失败时尝试 LlmJsonHelper 宽容修复。
     /// 适用于 LLM 生成或可能格式不规范的 JSON。配置文件读取建议用无提示版本 Deserialize&lt;T&gt;。
     /// </summary>

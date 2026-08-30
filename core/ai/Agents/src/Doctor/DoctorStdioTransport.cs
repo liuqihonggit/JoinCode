@@ -160,7 +160,7 @@ public sealed class DoctorStdioTransport : IDoctorTransport
         {
             try
             {
-                var json = JsonSerializer.Deserialize(line, DoctorStdioJsonContext.Default.DictionaryStringJsonElement);
+                var json = RelaxedJsonSerializer.Deserialize(line, DoctorStdioJsonContext.Default.DictionaryStringJsonElement);
                 if (json is not null && json.TryGetValue("type", out var typeEl) && typeEl.ValueKind == JsonValueKind.String)
                 {
                     return typeEl.GetString();

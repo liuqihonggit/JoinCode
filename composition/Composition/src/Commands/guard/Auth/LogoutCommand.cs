@@ -124,7 +124,7 @@ public sealed class LogoutCommand : ChatCommandBase
             }
 
             var json = await fs.ReadAllTextAsync(AuthPath).ConfigureAwait(false);
-            return JsonSerializer.Deserialize(json, CliJsonContext.Default.DictionaryStringString) ?? new Dictionary<string, string>();
+            return RelaxedJsonSerializer.Deserialize(json, CliJsonContext.Default.DictionaryStringString) ?? new Dictionary<string, string>();
         }
         catch
         {

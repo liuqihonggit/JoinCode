@@ -139,7 +139,7 @@ internal sealed class TranscriptFileWriter : IDisposable
         var json = await ReadAllTextWithWriteShareAsync(filePath, cancellationToken).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(json)) return new List<TranscriptEntry>();
 
-        var entries = JsonSerializer.Deserialize(json, TranscriptJsonContext.Default.ListTranscriptEntry);
+        var entries = RelaxedJsonSerializer.Deserialize(json, TranscriptJsonContext.Default.ListTranscriptEntry);
         if (entries is null) return new List<TranscriptEntry>();
 
         var result = new List<TranscriptEntry>(entries.Count);

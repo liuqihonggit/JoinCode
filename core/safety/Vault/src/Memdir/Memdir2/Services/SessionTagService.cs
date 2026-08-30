@@ -95,7 +95,7 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
             var result = await _fileOperationService.ReadFileAsync(_storagePath, cancellationToken: cancellationToken).ConfigureAwait(false);
             if (!result.Success || string.IsNullOrEmpty(result.Content)) return;
 
-            var data = JsonSerializer.Deserialize(result.Content, SessionTagJsonContext.Default.SessionTagData);
+            var data = RelaxedJsonSerializer.Deserialize(result.Content, SessionTagJsonContext.Default.SessionTagData);
             if (data?.Entries == null) return;
 
             foreach (var kvp in data.Entries)

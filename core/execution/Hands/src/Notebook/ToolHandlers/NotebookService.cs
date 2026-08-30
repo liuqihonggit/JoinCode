@@ -30,7 +30,7 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService
             return null;
         }
 
-        var doc = JsonSerializer.Deserialize(result.Content, NotebookDocumentJsonContext.Default.NotebookDocument);
+        var doc = RelaxedJsonSerializer.Deserialize(result.Content, NotebookDocumentJsonContext.Default.NotebookDocument);
         RecordNotebookMetrics("load", doc != null);
         return doc;
     }

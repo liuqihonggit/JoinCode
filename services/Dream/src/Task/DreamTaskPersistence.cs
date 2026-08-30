@@ -99,7 +99,7 @@ public sealed partial class JsonFileDreamTaskPersistence : IDreamTaskPersistence
                 return null;
             }
 
-            var dto = JsonSerializer.Deserialize(result.Content, DreamJsonContext.Default.DreamTaskDto);
+            var dto = RelaxedJsonSerializer.Deserialize(result.Content, DreamJsonContext.Default.DreamTaskDto);
             return dto?.ToState();
         }
         catch (Exception ex)

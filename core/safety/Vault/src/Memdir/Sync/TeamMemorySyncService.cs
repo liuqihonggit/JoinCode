@@ -379,7 +379,7 @@ public sealed partial class TeamMemorySyncService : ServiceEntity, ITeamMemorySy
                 return;
             }
 
-            var entries = JsonSerializer.Deserialize(result.Content, JsonContext.ListSyncFileEntry);
+            var entries = RelaxedJsonSerializer.Deserialize(result.Content, JsonContext.ListSyncFileEntry);
             if (entries == null) return;
 
             foreach (var entry in entries)

@@ -104,7 +104,7 @@ public sealed partial class SessionCostPersistence : ServiceEntity, ISessionCost
                 return null;
             }
 
-            var data = JsonSerializer.Deserialize(result.Content, CostTrackingJsonContext.Default.SessionCostData);
+            var data = RelaxedJsonSerializer.Deserialize(result.Content, CostTrackingJsonContext.Default.SessionCostData);
 
             if (data is null)
             {

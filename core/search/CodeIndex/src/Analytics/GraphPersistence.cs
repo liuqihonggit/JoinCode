@@ -51,7 +51,7 @@ public sealed class GraphPersistence : ServiceEntity, IGraphPersistence
             return false;
 
         var json = await _fs.ReadAllTextAsync(path, ct).ConfigureAwait(false);
-        var data = JsonSerializer.Deserialize(json, CodeIndexJsonContext.Default.GraphPersistenceData);
+        var data = RelaxedJsonSerializer.Deserialize(json, CodeIndexJsonContext.Default.GraphPersistenceData);
 
         if (data is null || data.Version != CurrentVersion)
             return false;

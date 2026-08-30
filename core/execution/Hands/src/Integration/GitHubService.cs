@@ -95,7 +95,7 @@ public sealed partial class GitHubService : ServiceEntity, IGitHubService
                 var json = await _configService.GetAsync("github.pr_subscriptions", ct).ConfigureAwait(false);
                 if (string.IsNullOrEmpty(json)) return;
 
-                var loaded = JsonSerializer.Deserialize(json, GitHubSubscriptionContext.Default.ListPRSubscription);
+                var loaded = RelaxedJsonSerializer.Deserialize(json, GitHubSubscriptionContext.Default.ListPRSubscription);
                 if (loaded != null)
                 {
                     _subscriptions.Clear();

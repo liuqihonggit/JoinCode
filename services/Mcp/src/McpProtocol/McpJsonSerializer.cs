@@ -51,34 +51,34 @@ public static class McpJsonSerializer
     #region Deserialize 重载
 
     public static JsonRpcRequest? DeserializeJsonRpcRequest(string json)
-        => JsonSerializer.Deserialize(json, McpJsonContext.Default.JsonRpcRequest);
+        => RelaxedJsonSerializer.Deserialize(json, McpJsonContext.Default.JsonRpcRequest);
 
     public static JsonRpcResponse? DeserializeJsonRpcResponse(string json)
-        => JsonSerializer.Deserialize(json, McpJsonContext.Default.JsonRpcResponse);
+        => RelaxedJsonSerializer.Deserialize(json, McpJsonContext.Default.JsonRpcResponse);
 
     public static JsonRpcNotification? DeserializeJsonRpcNotification(string json)
-        => JsonSerializer.Deserialize(json, McpJsonContext.Default.JsonRpcNotification);
+        => RelaxedJsonSerializer.Deserialize(json, McpJsonContext.Default.JsonRpcNotification);
 
     public static CallToolRequestParams? DeserializeCallToolRequestParams(string json)
-        => JsonSerializer.Deserialize(json, McpJsonContext.Default.CallToolRequestParams);
+        => RelaxedJsonSerializer.Deserialize(json, McpJsonContext.Default.CallToolRequestParams);
 
     public static McpResourceReadRequestParams? DeserializeMcpResourceReadRequestParams(string json)
-        => JsonSerializer.Deserialize(json, McpJsonContext.Default.McpResourceReadRequestParams);
+        => RelaxedJsonSerializer.Deserialize(json, McpJsonContext.Default.McpResourceReadRequestParams);
 
     public static McpPromptGetRequestParams? DeserializeMcpPromptGetRequestParams(string json)
-        => JsonSerializer.Deserialize(json, McpJsonContext.Default.McpPromptGetRequestParams);
+        => RelaxedJsonSerializer.Deserialize(json, McpJsonContext.Default.McpPromptGetRequestParams);
 
     public static LoggingSetLevelRequestParams? DeserializeLoggingSetLevelRequestParams(string json)
-        => JsonSerializer.Deserialize(json, McpJsonContext.Default.LoggingSetLevelRequestParams);
+        => RelaxedJsonSerializer.Deserialize(json, McpJsonContext.Default.LoggingSetLevelRequestParams);
 
     public static Dictionary<string, JsonElement>? DeserializeDictionaryStringJsonElement(string json)
-        => JsonSerializer.Deserialize(json, McpJsonContext.Default.DictionaryStringJsonElement);
+        => RelaxedJsonSerializer.Deserialize(json, McpJsonContext.Default.DictionaryStringJsonElement);
 
     public static CallToolResult? DeserializeCallToolResult(string json)
-        => JsonSerializer.Deserialize(json, McpJsonContext.Default.CallToolResult);
+        => RelaxedJsonSerializer.Deserialize(json, McpJsonContext.Default.CallToolResult);
 
     public static ListToolsResult? DeserializeListToolsResult(string json)
-        => JsonSerializer.Deserialize(json, McpJsonContext.Default.ListToolsResult);
+        => RelaxedJsonSerializer.Deserialize(json, McpJsonContext.Default.ListToolsResult);
 
     #endregion
 

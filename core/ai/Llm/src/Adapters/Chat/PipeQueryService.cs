@@ -156,7 +156,7 @@ public sealed partial class PipeQueryService : IQueryService
         response.EnsureSuccessStatusCode();
 
         var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
-        var result = JsonSerializer.Deserialize(responseJson, PipeJsonContext.Default.OpenAIChatResponse);
+        var result = RelaxedJsonSerializer.Deserialize(responseJson, PipeJsonContext.Default.OpenAIChatResponse);
 
         if (result == null)
         {
@@ -192,7 +192,7 @@ public sealed partial class PipeQueryService : IQueryService
             var data = line[6..];
             if (data == "[DONE]") yield break;
 
-            var chunk = JsonSerializer.Deserialize(data, PipeJsonContext.Default.OpenAIChatChunk);
+            var chunk = RelaxedJsonSerializer.Deserialize(data, PipeJsonContext.Default.OpenAIChatChunk);
             if (chunk != null)
             {
                 yield return chunk;

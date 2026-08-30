@@ -427,7 +427,7 @@ public static class BridgeSessionApi
             response.EnsureSuccessStatusCode();
 
             var responseJson = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);
-            return JsonSerializer.Deserialize(responseJson, BridgeJsonContext.Default.BridgeReconnectResponse);
+            return RelaxedJsonSerializer.Deserialize(responseJson, BridgeJsonContext.Default.BridgeReconnectResponse);
         }
         catch
         {

@@ -40,7 +40,7 @@ public sealed partial class OnboardingStatePersistence : ServiceEntity
         try
         {
             await using var stream = _fs.CreateStream(_filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            var data = await JsonSerializer.DeserializeAsync(stream, OnboardingPersistenceContext.Default.OnboardingCompletionData, ct).ConfigureAwait(false);
+            var data = await RelaxedJsonSerializer.DeserializeAsync(stream, OnboardingPersistenceContext.Default.OnboardingCompletionData, ct).ConfigureAwait(false);
             return data?.IsComplete ?? false;
         }
         catch

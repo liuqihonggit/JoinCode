@@ -29,7 +29,7 @@ public static class OAuth2TokenExchange
             throw new OAuthException($"Token request failed: {response.StatusCode}", response.StatusCode, responseBody);
         }
 
-        var tokenResponse = JsonSerializer.Deserialize(responseBody, jsonTypeInfo);
+        var tokenResponse = RelaxedJsonSerializer.Deserialize(responseBody, jsonTypeInfo);
 
         if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.AccessToken))
         {

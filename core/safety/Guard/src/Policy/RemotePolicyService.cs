@@ -31,7 +31,7 @@ public sealed partial class RemotePolicyService : RemoteCacheRefreshServiceBase<
         response.EnsureSuccessStatusCode();
 
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        var policyResponse = JsonSerializer.Deserialize(json, JsonContext.PolicyFetchResponse);
+        var policyResponse = RelaxedJsonSerializer.Deserialize(json, JsonContext.PolicyFetchResponse);
 
         return new RemoteRefreshResult<PolicyRule>
         {

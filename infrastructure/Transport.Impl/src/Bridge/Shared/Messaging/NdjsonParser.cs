@@ -73,7 +73,7 @@ public static class NdjsonParser
         Dictionary<string, JsonElement>? json;
         try
         {
-            json = JsonSerializer.Deserialize(ndjsonLine, TransportBridgeJsonContext.Default.DictionaryStringJsonElement);
+            json = RelaxedJsonSerializer.Deserialize(ndjsonLine, TransportBridgeJsonContext.Default.DictionaryStringJsonElement);
         }
         catch
         {
@@ -112,7 +112,7 @@ public static class NdjsonParser
         Dictionary<string, JsonElement>? json;
         try
         {
-            json = JsonSerializer.Deserialize(ndjsonLine, TransportBridgeJsonContext.Default.DictionaryStringJsonElement);
+            json = RelaxedJsonSerializer.Deserialize(ndjsonLine, TransportBridgeJsonContext.Default.DictionaryStringJsonElement);
         }
         catch
         {

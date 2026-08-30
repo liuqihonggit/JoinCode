@@ -268,7 +268,7 @@ public sealed class ToolHealthMonitor : ServiceEntity, IToolHealthMonitor, IDisp
         {
             if (!_fs.FileExists(_configPath)) return;
             var json = _fs.ReadAllText(_configPath);
-            var data = JsonSerializer.Deserialize(json, ToolHealthJsonContext.Default.DictionaryStringToolHealthRecord);
+            var data = RelaxedJsonSerializer.Deserialize(json, ToolHealthJsonContext.Default.DictionaryStringToolHealthRecord);
             if (data is null) return;
 
             foreach (var kvp in data)

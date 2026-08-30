@@ -287,7 +287,7 @@ public sealed partial class FileCronTaskStore : ServiceEntity, ICronTaskStore, I
 
         try
         {
-            var file = JsonSerializer.Deserialize(result.Content, SchedulingIndentedJsonContext.Default.CronTaskFile);
+            var file = RelaxedJsonSerializer.Deserialize(result.Content, SchedulingIndentedJsonContext.Default.CronTaskFile);
 
             if (file?.Tasks == null)
                 return Array.Empty<CronTask>();

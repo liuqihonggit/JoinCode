@@ -35,7 +35,7 @@ public class TemporalMetaphorToolHandlers
         List<string>? frames;
         try
         {
-            frames = JsonSerializer.Deserialize(framesJson, VisionJsonContext.Default.ListString);
+            frames = RelaxedJsonSerializer.Deserialize(framesJson, VisionJsonContext.Default.ListString);
         }
         catch (JsonException)
         {
@@ -82,7 +82,7 @@ public class TemporalMetaphorToolHandlers
         List<string>? frames;
         try
         {
-            frames = JsonSerializer.Deserialize(framesJson, VisionJsonContext.Default.ListString);
+            frames = RelaxedJsonSerializer.Deserialize(framesJson, VisionJsonContext.Default.ListString);
         }
         catch (JsonException)
         {

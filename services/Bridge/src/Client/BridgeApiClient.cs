@@ -355,7 +355,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
         response.EnsureSuccessStatusCode();
 
         var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-        return JsonSerializer.Deserialize(json, jsonTypeInfo);
+        return RelaxedJsonSerializer.Deserialize(json, jsonTypeInfo);
     }
 
     /// <summary>
@@ -385,7 +385,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
         response.EnsureSuccessStatusCode();
 
         var responseJson = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-        return JsonSerializer.Deserialize(responseJson, responseTypeInfo);
+        return RelaxedJsonSerializer.Deserialize(responseJson, responseTypeInfo);
     }
 
     /// <summary>
@@ -415,7 +415,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
         response.EnsureSuccessStatusCode();
 
         var responseJson = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-        return JsonSerializer.Deserialize(responseJson, responseTypeInfo);
+        return RelaxedJsonSerializer.Deserialize(responseJson, responseTypeInfo);
     }
 
     /// <summary>
@@ -538,7 +538,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync(token).ConfigureAwait(false);
-            var data = JsonSerializer.Deserialize(json, BridgeJsonContext.Default.BridgeClientsData);
+            var data = RelaxedJsonSerializer.Deserialize(json, BridgeJsonContext.Default.BridgeClientsData);
             return (IReadOnlyList<string>)(data?.Clients ?? new List<string>());
         }, ct).ConfigureAwait(false);
     }
@@ -564,7 +564,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
             response.EnsureSuccessStatusCode();
 
             var responseJson = await response.Content.ReadAsStringAsync(token).ConfigureAwait(false);
-            return JsonSerializer.Deserialize(responseJson, BridgeJsonContext.Default.BridgeConnectedData);
+            return RelaxedJsonSerializer.Deserialize(responseJson, BridgeJsonContext.Default.BridgeConnectedData);
         }, ct).ConfigureAwait(false);
     }
 
@@ -616,7 +616,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
             response.EnsureSuccessStatusCode();
 
             var responseJson = await response.Content.ReadAsStringAsync(token).ConfigureAwait(false);
-            return JsonSerializer.Deserialize(responseJson, BridgeJsonContext.Default.BridgeEnvironmentRegistrationResponse);
+            return RelaxedJsonSerializer.Deserialize(responseJson, BridgeJsonContext.Default.BridgeEnvironmentRegistrationResponse);
         }, useOAuthRetry: true, ct).ConfigureAwait(false);
     }
 
@@ -671,7 +671,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
             }
 
             var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-            return JsonSerializer.Deserialize(json, BridgeJsonContext.Default.BridgeWorkItem);
+            return RelaxedJsonSerializer.Deserialize(json, BridgeJsonContext.Default.BridgeWorkItem);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -852,7 +852,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
             response.EnsureSuccessStatusCode();
 
             var responseJson = await response.Content.ReadAsStringAsync(token).ConfigureAwait(false);
-            return JsonSerializer.Deserialize(responseJson, BridgeJsonContext.Default.BridgeReconnectResponse);
+            return RelaxedJsonSerializer.Deserialize(responseJson, BridgeJsonContext.Default.BridgeReconnectResponse);
         }, useOAuthRetry: true, ct).ConfigureAwait(false);
     }
 
@@ -897,7 +897,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-            return JsonSerializer.Deserialize(json, BridgeJsonContext.Default.BridgeHeartbeatResponse);
+            return RelaxedJsonSerializer.Deserialize(json, BridgeJsonContext.Default.BridgeHeartbeatResponse);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -993,7 +993,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
                 }
 
                 var json = await response.Content.ReadAsStringAsync(token).ConfigureAwait(false);
-                var data = JsonSerializer.Deserialize(json, BridgeJsonContext.Default.DictionaryStringJsonElement);
+                var data = RelaxedJsonSerializer.Deserialize(json, BridgeJsonContext.Default.DictionaryStringJsonElement);
                 if (data is not null && data.TryGetValue("title", out var titleEl) && titleEl.ValueKind == JsonValueKind.String)
                 {
                     return titleEl.GetString();
@@ -1044,7 +1044,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
                 }
 
                 var json = await response.Content.ReadAsStringAsync(token).ConfigureAwait(false);
-                var data = JsonSerializer.Deserialize(json, BridgeJsonContext.Default.DictionaryStringJsonElement);
+                var data = RelaxedJsonSerializer.Deserialize(json, BridgeJsonContext.Default.DictionaryStringJsonElement);
                 if (data is not null && data.TryGetValue("environment_id", out var envIdEl) && envIdEl.ValueKind == JsonValueKind.String)
                 {
                     return envIdEl.GetString();
@@ -1165,13 +1165,13 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
         if (string.IsNullOrWhiteSpace(responseBody)) return null;
         try
         {
-            var data = JsonSerializer.Deserialize(responseBody, BridgeJsonContext.Default.DictionaryStringJsonElement);
+            var data = RelaxedJsonSerializer.Deserialize(responseBody, BridgeJsonContext.Default.DictionaryStringJsonElement);
             if (data is not null &&
                 data.TryGetValue("error", out var errorEl) &&
                 errorEl.ValueKind == JsonValueKind.Object)
             {
                 // error 是对象，尝试提取 error.type
-                var errorDict = JsonSerializer.Deserialize(errorEl.GetRawText(), BridgeJsonContext.Default.DictionaryStringJsonElement);
+                var errorDict = RelaxedJsonSerializer.Deserialize(errorEl.GetRawText(), BridgeJsonContext.Default.DictionaryStringJsonElement);
                 if (errorDict is not null &&
                     errorDict.TryGetValue("type", out var typeEl) &&
                     typeEl.ValueKind == JsonValueKind.String)
@@ -1193,7 +1193,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
         if (string.IsNullOrWhiteSpace(responseBody)) return null;
         try
         {
-            var data = JsonSerializer.Deserialize(responseBody, BridgeJsonContext.Default.DictionaryStringJsonElement);
+            var data = RelaxedJsonSerializer.Deserialize(responseBody, BridgeJsonContext.Default.DictionaryStringJsonElement);
             if (data is null) return null;
 
             // 优先 data.message
@@ -1205,7 +1205,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
             // 其次 data.error.message
             if (data.TryGetValue("error", out var errorEl) && errorEl.ValueKind == JsonValueKind.Object)
             {
-                var errorDict = JsonSerializer.Deserialize(errorEl.GetRawText(), BridgeJsonContext.Default.DictionaryStringJsonElement);
+                var errorDict = RelaxedJsonSerializer.Deserialize(errorEl.GetRawText(), BridgeJsonContext.Default.DictionaryStringJsonElement);
                 if (errorDict is not null &&
                     errorDict.TryGetValue("message", out var errMsgEl) &&
                     errMsgEl.ValueKind == JsonValueKind.String)

@@ -144,7 +144,7 @@ public sealed partial class ContextLayer : IContextLayer
     {
         try
         {
-            return JsonSerializer.Deserialize(json, ContextDefaultJsonContext.Default.ContextLayer);
+            return RelaxedJsonSerializer.Deserialize(json, ContextDefaultJsonContext.Default.ContextLayer);
         }
         catch (JsonException)
         {

@@ -182,7 +182,7 @@ public sealed class LinkVerificationTests : IAsyncLifetime
     public async Task LINK_003_ConcurrentJsonlAppend_ShouldNotCorruptLines()
     {
         const string linkId = "LINK-003";
-        var filePath = Path.Combine(_testRoot, "concurrent.jsonl");
+        var filePath = Path.Combine(_testRoot, "concurrent.json");
 
         await _fs.WriteAllTextAsync(filePath, string.Empty).ConfigureAwait(true);
 

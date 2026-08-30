@@ -654,7 +654,7 @@ public sealed partial class MainViewModel : ViewModelBase
         session.ThemeChanged += OnThemeChanged;
         LoadThemeFromSettings();
 
-        // 引擎就绪后注入 ITranscriptService,切换到统一入口(.jsonl + 子目录,与 CLI --continue 共享)
+        // 引擎就绪后注入 ITranscriptService,切换到统一入口(.json + 子目录,与 CLI --continue 共享)
         // 构造时 LoadPersistedSessions 用旧 .json 兜底,此处切换后重新加载刷新侧边栏
         if (session.TranscriptService is not null)
         {

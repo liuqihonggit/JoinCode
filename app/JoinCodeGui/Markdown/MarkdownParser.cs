@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Markdown;
+namespace JoinCode.Gui.Markdown;
 
 /// <summary>
 /// Markdown → 渲染模型 转换器。

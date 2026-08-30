@@ -1,4 +1,4 @@
-﻿namespace Core.Context;
+namespace Core.Context;
 
 /// <summary>
 /// 会话保存中间件 — 管理操作完成后统一保存上下文

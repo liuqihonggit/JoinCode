@@ -1,4 +1,4 @@
-﻿#pragma warning disable JCC51010, JCC3010, JCC3011, JCC3012, JCC9001
+#pragma warning disable JCC51010, JCC3010, JCC3011, JCC3012, JCC9001
 namespace State.Tests;
 
 

@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Dream.Pipeline;
+namespace JoinCode.Dream.Pipeline;
 
 
 [Register(typeof(IDreamMiddleware), ServiceLifetime.Singleton)]

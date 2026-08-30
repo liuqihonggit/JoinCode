@@ -1,4 +1,4 @@
-﻿namespace Core.Security.Sandbox.Providers;
+namespace Core.Security.Sandbox.Providers;
 
 
 [Register(typeof(SandboxProviderBase), ServiceLifetime.Singleton)]

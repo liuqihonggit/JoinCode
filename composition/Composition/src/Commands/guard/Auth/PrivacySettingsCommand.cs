@@ -1,4 +1,4 @@
-﻿
+
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.PrivacySettings, Description = "管理隐私设置", Usage = "/privacy-settings [show|telemetry on|off|analytics on|off|crash-reports on|off]", Category = ChatCommandCategory.Auth, ArgumentHint = "[show|telemetry|analytics|crash-reports]")]

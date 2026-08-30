@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Tests.ViewModels;
+namespace JoinCode.Gui.Tests.ViewModels;
 
 /// <summary>
 /// SubAgentRunTracker 测试 — 多 subAgent 运行态聚合器。

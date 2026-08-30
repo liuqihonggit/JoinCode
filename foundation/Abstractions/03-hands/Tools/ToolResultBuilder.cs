@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Tools;
+namespace JoinCode.Abstractions.Tools;
 
 public sealed class ToolResultBuilder
 {

@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Passes, Description = "已废弃: 请使用 /permissions 管理权限规则", Usage = "/passes", Category = ChatCommandCategory.Model, IsHidden = true)]
 public sealed class PassesCommand : ChatCommandBase

@@ -1,4 +1,4 @@
-﻿namespace Core.Configuration.Providers;
+namespace Core.Configuration.Providers;
 
 /// <summary>
 /// 上下文窗口大小解析器 — 对齐 TS getContextWindowForModel 纯函数式设计

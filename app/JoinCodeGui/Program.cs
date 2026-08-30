@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui;
+namespace JoinCode.Gui;
 
 /// <summary>
 /// Programm entry — Avalonia desktop host.

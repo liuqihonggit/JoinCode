@@ -1,4 +1,4 @@
-﻿namespace Core.Goal;
+namespace Core.Goal;
 
 
 [Register(typeof(IDecomposabilityAnalyzer), ServiceLifetime.Singleton)]

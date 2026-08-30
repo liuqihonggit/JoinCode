@@ -1,4 +1,4 @@
-﻿namespace JoinCode.App.Middlewares;
+namespace JoinCode.App.Middlewares;
 
 [Register(typeof(IPipelinePostHook<UnifiedSpawnContext>), ServiceLifetime.Singleton)]
 internal sealed partial class UnifiedSpawnTelemetryHook : TelemetryPostHook<UnifiedSpawnContext>

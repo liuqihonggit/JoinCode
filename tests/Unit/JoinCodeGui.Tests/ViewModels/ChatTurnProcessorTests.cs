@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Tests.ViewModels;
+namespace JoinCode.Gui.Tests.ViewModels;
 
 /// <summary>
 /// ChatTurnProcessor 单元测试 — 从 MainViewModel 抽取的回合组装器契约。

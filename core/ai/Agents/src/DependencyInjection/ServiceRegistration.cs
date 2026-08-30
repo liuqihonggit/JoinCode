@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Agents.DependencyInjection;
+namespace JoinCode.Agents.DependencyInjection;
 
 
 /// <summary>

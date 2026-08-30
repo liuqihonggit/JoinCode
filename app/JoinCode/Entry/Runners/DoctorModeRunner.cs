@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Entry;
+namespace JoinCode.Entry;
 
 
 /// <summary>

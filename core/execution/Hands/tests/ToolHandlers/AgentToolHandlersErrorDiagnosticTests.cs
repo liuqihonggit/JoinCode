@@ -1,4 +1,4 @@
-﻿namespace Hands.Tests.ToolHandlers;
+namespace Hands.Tests.ToolHandlers;
 
 /// <summary>
 /// AgentToolHandlers 错误诊断方法单元测试

@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Configuration;
+namespace JoinCode.Abstractions.Configuration;
 
 public class CodeExecutionConfig {
     public int ExecutionTimeoutSeconds { get; set; } = WorkflowConstants.Timeouts.CodeExecutionTimeoutSeconds;

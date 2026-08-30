@@ -1,4 +1,4 @@
-﻿namespace IO.Services;
+namespace IO.Services;
 
 [Register(typeof(IPeerDiscoveryService), ServiceLifetime.Singleton)]
 public sealed partial class PeerDiscoveryService : ServiceEntity, IPeerDiscoveryService

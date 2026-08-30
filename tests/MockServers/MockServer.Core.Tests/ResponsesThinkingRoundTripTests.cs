@@ -1,4 +1,4 @@
-﻿namespace MockServer.Core.Tests;
+namespace MockServer.Core.Tests;
 
 
 /// <summary>

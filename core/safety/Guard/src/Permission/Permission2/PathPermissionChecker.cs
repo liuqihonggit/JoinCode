@@ -1,4 +1,4 @@
-﻿namespace Core.Permission;
+namespace Core.Permission;
 
 /// <summary>
 /// 路径级权限检查器 — 对齐 TS checkReadPermissionForTool 9步决策链

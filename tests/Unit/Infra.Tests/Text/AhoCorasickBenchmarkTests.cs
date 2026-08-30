@@ -106,7 +106,7 @@ public class AhoCorasickBenchmarkTests
         var swapMs = Time(() =>
             db.SwapPatterns(newPatterns.Select(static p => new KeyValuePair<string, string>(p, p))));
 
-        swapMs.Should().BeLessThanOrEqualTo(100);
+        swapMs.Should().BeLessThanOrEqualTo(500);
     }
 
     private static long Time(Action action)

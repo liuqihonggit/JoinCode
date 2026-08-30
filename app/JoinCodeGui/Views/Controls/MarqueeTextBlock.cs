@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Views.Controls;
+namespace JoinCode.Gui.Views.Controls;
 
 /// <summary>
 /// 走马灯文本控件（学习 opencode 状态栏）— 文本超宽时匀速横向滚动循环，

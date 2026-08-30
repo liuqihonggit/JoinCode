@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Mcp.Registry;
+namespace JoinCode.Abstractions.Mcp.Registry;
 
 public interface IMcpToolRegistry : IToolRegistry, IRegistry
 {

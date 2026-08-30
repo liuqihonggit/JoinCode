@@ -1,4 +1,4 @@
-﻿namespace Core.Security.Sandbox;
+namespace Core.Security.Sandbox;
 
 
 [Register(typeof(ISandboxManager), ServiceLifetime.Singleton)]

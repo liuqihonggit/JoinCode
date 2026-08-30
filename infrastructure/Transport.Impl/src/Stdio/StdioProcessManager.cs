@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Transport;
+namespace JoinCode.Transport;
 
 /// <summary>
 /// 管理CLI进程的stdin/stdout通信

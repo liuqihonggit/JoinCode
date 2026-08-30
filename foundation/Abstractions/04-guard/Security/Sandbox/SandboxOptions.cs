@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Security.Sandbox;
+namespace JoinCode.Abstractions.Security.Sandbox;
 
 public sealed partial class SandboxOptions
 {

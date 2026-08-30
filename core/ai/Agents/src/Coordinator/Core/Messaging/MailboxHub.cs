@@ -1,4 +1,4 @@
-﻿namespace Core.Agents.Coordinator;
+namespace Core.Agents.Coordinator;
 
 /// <summary>
 /// 邮箱中枢 — 统一消息传递入口，按 MailboxKind 路由到 InProcessMailbox 或文件邮箱。

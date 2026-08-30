@@ -1,4 +1,4 @@
-﻿namespace Hands.Shell.Tests;
+namespace Hands.Shell.Tests;
 
 
 /// <summary>

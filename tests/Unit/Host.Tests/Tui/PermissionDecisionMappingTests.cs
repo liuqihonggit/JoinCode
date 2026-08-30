@@ -1,4 +1,4 @@
-﻿namespace Host.Tests.Tui;
+namespace Host.Tests.Tui;
 
 /// <summary>
 /// 权限三档决策测试 — TUI 与 GUI/CLI 的权限语义对齐。

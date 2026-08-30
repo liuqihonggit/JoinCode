@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Security.Shell;
+namespace JoinCode.Abstractions.Security.Shell;
 
 /// <summary>
 /// 只读命令检测器 — 非 Git 标志构建器

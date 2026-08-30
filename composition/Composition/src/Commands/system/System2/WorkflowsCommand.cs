@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Workflows, Description = "管理工作流", Usage = "/workflows [list|run|status] [name]", Category = ChatCommandCategory.System, ArgumentHint = "[list|run|status]")]
 public sealed class WorkflowsCommand : ChatCommandBase

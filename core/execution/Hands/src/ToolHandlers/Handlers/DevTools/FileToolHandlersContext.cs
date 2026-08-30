@@ -1,4 +1,4 @@
-﻿namespace Tools.Handlers;
+namespace Tools.Handlers;
 
 [Register(typeof(FileToolHandlersContext), ServiceLifetime.Singleton)]
 public sealed record FileToolHandlersContext(

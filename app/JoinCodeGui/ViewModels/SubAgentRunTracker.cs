@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.ViewModels;
+namespace JoinCode.Gui.ViewModels;
 
 /// <summary>
 /// 多 subAgent 运行态聚合器 — 消费带 AgentId 的 ChatStreamEvent（IsSubAgentActivity），

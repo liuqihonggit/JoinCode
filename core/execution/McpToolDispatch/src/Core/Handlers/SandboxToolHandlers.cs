@@ -1,4 +1,4 @@
-﻿namespace McpToolDispatch;
+namespace McpToolDispatch;
 
 
 [McpToolDispatch(ToolCategory.Sandbox)]

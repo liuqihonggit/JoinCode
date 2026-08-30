@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Transport;
+namespace JoinCode.Transport;
 
 /// <summary>
 /// SSE 传输配置

@@ -1,4 +1,4 @@
-﻿namespace Core.Prompts;
+namespace Core.Prompts;
 
 [Register(typeof(FileContextTracker), ServiceLifetime.Singleton)]
 public sealed partial class FileContextTracker : ServiceEntity

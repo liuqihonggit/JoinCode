@@ -1,4 +1,4 @@
-﻿namespace Core.Context;
+namespace Core.Context;
 
 /// <summary>
 /// 查询循环中间件 — LLM 调用 + 块处理 + 工具执行循环

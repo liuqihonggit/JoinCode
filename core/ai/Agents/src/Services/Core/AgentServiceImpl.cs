@@ -1,4 +1,4 @@
-﻿namespace Core.Agents;
+namespace Core.Agents;
 
 /// <summary>
 /// AgentServiceImpl 可选依赖聚合 — 4 个可选服务封装为单个参数

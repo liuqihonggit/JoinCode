@@ -1,4 +1,4 @@
-﻿namespace JoinCode.CodeIndex.Persistence;
+namespace JoinCode.CodeIndex.Persistence;
 
 /// <summary>
 /// 内存索引存储 — 替代 SQLite 持久化(IndexDbContext + Fts5Schema)

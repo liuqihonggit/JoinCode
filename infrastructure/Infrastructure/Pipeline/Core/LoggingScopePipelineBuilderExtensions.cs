@@ -1,4 +1,4 @@
-﻿namespace Infrastructure.Pipeline;
+namespace Infrastructure.Pipeline;
 
 
 /// <summary>

@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Reasoning.Tests.Engine;
+namespace JoinCode.Reasoning.Tests.Engine;
 
 public sealed class ReasoningEngineEdgeCaseTests
 {

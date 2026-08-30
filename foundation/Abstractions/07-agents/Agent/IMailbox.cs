@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Interfaces;
+namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
 /// 统一邮箱接口 — 所有 agent 间消息传递均通过邮箱，废弃 Channel 直传命名。

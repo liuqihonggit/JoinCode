@@ -1,4 +1,4 @@
-﻿namespace JoinCode.App.Middlewares;
+namespace JoinCode.App.Middlewares;
 
 [Register(typeof(IPipelinePostHook<Core.Context.ChatAdminContext>), ServiceLifetime.Singleton)]
 internal sealed partial class ChatAdminTelemetryHook : TelemetryPostHook<Core.Context.ChatAdminContext>

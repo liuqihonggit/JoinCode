@@ -1,4 +1,4 @@
-﻿namespace MockServer.E2E.Tests.Scripts;
+namespace MockServer.E2E.Tests.Scripts;
 
 public static class ToolCallScripts
 {

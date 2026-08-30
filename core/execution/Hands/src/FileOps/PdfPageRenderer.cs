@@ -1,4 +1,4 @@
-﻿namespace Infrastructure.IO.Services.FileOps;
+namespace Infrastructure.IO.Services.FileOps;
 
 /// <summary>
 /// PDF 页面渲染结果

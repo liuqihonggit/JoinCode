@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.ViewModels;
+namespace JoinCode.Gui.ViewModels;
 
 /// <summary>
 /// 子代理中断后的空闲倒计时器 — 双击 ESC 中断子代理后启动，60 秒无输入活动则触发 mainAgent 接手。

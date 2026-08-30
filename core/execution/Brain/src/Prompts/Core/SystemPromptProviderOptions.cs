@@ -1,4 +1,4 @@
-﻿namespace Core.Prompts;
+namespace Core.Prompts;
 
 /// <summary>
 /// 系统提示词提供者配置选项

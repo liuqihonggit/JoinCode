@@ -1,4 +1,4 @@
-﻿namespace Core.Tests.ContextFold;
+namespace Core.Tests.ContextFold;
 
 
 public sealed class FoldSummarizerTests

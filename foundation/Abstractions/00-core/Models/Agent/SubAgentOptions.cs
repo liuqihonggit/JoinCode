@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Models.Agent;
+namespace JoinCode.Abstractions.Models.Agent;
 
 public sealed class SubAgentOptions
 {

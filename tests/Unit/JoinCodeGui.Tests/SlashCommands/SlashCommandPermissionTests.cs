@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Tests.SlashCommands;
+namespace JoinCode.Gui.Tests.SlashCommands;
 
 /// <summary>
 /// 斜杠命令权限过滤测试 — 验证 IsEnabled=false 的命令从候选面板排除。

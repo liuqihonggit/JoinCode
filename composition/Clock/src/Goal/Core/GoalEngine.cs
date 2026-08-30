@@ -1,4 +1,4 @@
-﻿namespace Core.Goal;
+namespace Core.Goal;
 
 
 // IGoalEngine 接口已移至 JoinCode.Abstractions.Interfaces.Scheduling

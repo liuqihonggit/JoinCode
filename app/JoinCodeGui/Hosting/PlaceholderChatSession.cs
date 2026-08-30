@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Hosting;
+namespace JoinCode.Gui.Hosting;
 
 /// <summary>
 /// 占位引擎会话实现 — 无真实引擎连接时作为 mock 占位，返回固定回显供 UI 运行验证。

@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Reasoning.Tests;
+namespace JoinCode.Reasoning.Tests;
 
 public sealed class ReasoningEngineTests
 {

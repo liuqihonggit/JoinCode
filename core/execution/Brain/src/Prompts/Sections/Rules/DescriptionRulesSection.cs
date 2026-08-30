@@ -1,4 +1,4 @@
-﻿namespace Core.Prompts.Sections;
+namespace Core.Prompts.Sections;
 
 [PromptSection(Name = "description_rules", Order = 79, IsDynamic = true)]
 public static class DescriptionRulesSection

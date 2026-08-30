@@ -1,4 +1,4 @@
-﻿namespace JoinCode.SandboxSatellite;
+namespace JoinCode.SandboxSatellite;
 
 
 public sealed class SandboxSatelliteHost : IAsyncDisposable

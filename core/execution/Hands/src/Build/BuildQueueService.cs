@@ -1,4 +1,4 @@
-﻿namespace Services.Build;
+namespace Services.Build;
 
 
 /// <summary>

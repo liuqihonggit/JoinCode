@@ -1,4 +1,4 @@
-﻿namespace McpToolRegistry;
+namespace McpToolRegistry;
 
 [Register(typeof(IRemoteClientManager), ServiceLifetime.Singleton)]
 public sealed partial class RemoteClientManager : IRemoteClientManager

@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Entry.Tests;
+namespace JoinCode.Entry.Tests;
 
 
 /// <summary>

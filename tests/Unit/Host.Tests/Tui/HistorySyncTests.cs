@@ -1,4 +1,4 @@
-﻿namespace Host.Tests.Tui;
+namespace Host.Tests.Tui;
 
 /// <summary>
 /// 斜杠命令后历史同步测试 — 验证 SyncHistoryFromEngine 把引擎消息记录重建进 TUI chatHistory。

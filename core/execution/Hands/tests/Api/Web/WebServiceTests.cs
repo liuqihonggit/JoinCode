@@ -1,4 +1,4 @@
-﻿namespace Core.Tests.Web;
+namespace Core.Tests.Web;
 
 
 public sealed class WebServiceTests

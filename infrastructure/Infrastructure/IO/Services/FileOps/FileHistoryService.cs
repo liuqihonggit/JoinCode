@@ -1,4 +1,4 @@
-﻿namespace IO;
+namespace IO;
 
 /// <summary>
 /// File history backup service. Mirrors TS fileHistory.

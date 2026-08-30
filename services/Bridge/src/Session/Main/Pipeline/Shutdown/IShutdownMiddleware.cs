@@ -1,4 +1,4 @@
-﻿namespace Core.Bridge;
+namespace Core.Bridge;
 
 
 public interface IShutdownMiddleware : IMiddleware<ShutdownContext> { }

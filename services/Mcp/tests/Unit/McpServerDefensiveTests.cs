@@ -1,4 +1,4 @@
-﻿namespace Mcp.Tests;
+namespace Mcp.Tests;
 
 
 /// <summary>

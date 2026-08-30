@@ -1,4 +1,4 @@
-﻿
+
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Heapdump, Description = "生成堆转储用于诊断", Usage = "/heapdump", Category = ChatCommandCategory.System, IsHidden = true)]

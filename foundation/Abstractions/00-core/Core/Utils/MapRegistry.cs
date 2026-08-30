@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Utils;
+namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
 /// 通用字典注册器基类 — 内部 ConcurrentDictionary，对外暴露 IEnumerable（遍历器）+ IReadOnlyDictionary（字典视图）

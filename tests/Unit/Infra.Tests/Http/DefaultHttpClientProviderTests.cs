@@ -1,4 +1,4 @@
-﻿namespace Infra.Tests.Http;
+namespace Infra.Tests.Http;
 
 
 /// <summary>

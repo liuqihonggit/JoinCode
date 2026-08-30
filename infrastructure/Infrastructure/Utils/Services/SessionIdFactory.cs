@@ -1,4 +1,4 @@
-﻿namespace Core.Utils;
+namespace Core.Utils;
 
 /// <summary>
 /// 会话 ID 工厂（T10）— 统一五段式格式，消除 "default" 字面量兜底：

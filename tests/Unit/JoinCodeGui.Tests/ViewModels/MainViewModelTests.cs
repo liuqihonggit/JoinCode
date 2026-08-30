@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Tests.ViewModels;
+namespace JoinCode.Gui.Tests.ViewModels;
 
 /// <summary>
 /// MainViewModel 冒烟测试 — 验证"输入→回显→角色化消息"命令链路（不依赖真实引擎）。

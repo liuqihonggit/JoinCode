@@ -1,4 +1,4 @@
-﻿namespace Infra.Tests.HotSpot;
+namespace Infra.Tests.HotSpot;
 
 
 public sealed class DeferredMailServiceTests

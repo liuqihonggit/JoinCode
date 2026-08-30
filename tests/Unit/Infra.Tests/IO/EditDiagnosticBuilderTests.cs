@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Infra.Tests.IO;
+namespace JoinCode.Infra.Tests.IO;
 
 public sealed class EditDiagnosticBuilderTests
 {

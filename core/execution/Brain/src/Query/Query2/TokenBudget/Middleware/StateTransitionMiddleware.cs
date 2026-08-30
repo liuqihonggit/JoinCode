@@ -1,4 +1,4 @@
-﻿namespace Core.Query;
+namespace Core.Query;
 
 /// <summary>
 /// 状态转换中间件 — 查询开始前和完成后转换查询状态

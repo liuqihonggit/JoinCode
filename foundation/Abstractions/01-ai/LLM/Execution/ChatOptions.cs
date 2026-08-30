@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.LLM;
+namespace JoinCode.Abstractions.LLM;
 
 public sealed class ChatOptions
 {

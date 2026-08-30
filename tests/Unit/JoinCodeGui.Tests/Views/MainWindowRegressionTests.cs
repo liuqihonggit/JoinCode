@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Tests.Views;
+namespace JoinCode.Gui.Tests.Views;
 
 /// <summary>
 /// MainWindow 回归测试 — 验证 XAML 命名字段在构造函数后即完成赋值（InitializeComponent），

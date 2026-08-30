@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Tui.Rendering;
+namespace JoinCode.Tui.Rendering;
 
 /// <summary>
 /// 终端唯一绘制入口 — 所有 UI 变更必须经此入口，禁止业务代码直接 Console.Write 或操作 Terminal.Gui Application。

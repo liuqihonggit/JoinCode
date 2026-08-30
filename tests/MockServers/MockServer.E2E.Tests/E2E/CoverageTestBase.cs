@@ -1,4 +1,4 @@
-﻿namespace MockServer.E2E.Tests;
+namespace MockServer.E2E.Tests;
 
 /// <summary>
 /// E2E 覆盖测试基类 — 提供共享的脚本运行、日志、断言辅助方法

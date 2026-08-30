@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Tests.Markdown;
+namespace JoinCode.Gui.Tests.Markdown;
 
 /// <summary>
 /// MarkdownView 渲染冒烟测试 — Headless 渲染真实 <see cref="MarkdownView"/> 控件树，

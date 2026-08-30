@@ -1,4 +1,4 @@
-﻿namespace Testing.Common.Services;
+namespace Testing.Common.Services;
 
 /// <summary>
 /// 测试用 IModelConfigLoader 工厂 — 构建含基础模型定价数据的 ModelConfigLoader 实例

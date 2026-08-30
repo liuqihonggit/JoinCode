@@ -1,4 +1,4 @@
-﻿namespace Core.Context;
+namespace Core.Context;
 
 /// <summary>
 /// 空响应追踪器 — 追踪工具调用后LLM空响应的连续次数

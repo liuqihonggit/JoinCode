@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Prompts.ToolPrompts;
+namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 
 /// <summary>
 /// AgentTool 提示词

@@ -1,4 +1,4 @@
-﻿namespace Llm.Tests.Adapters.Fallback;
+namespace Llm.Tests.Adapters.Fallback;
 
 public class BufferedStreamingDecoratorTests
 {

@@ -1,4 +1,4 @@
-﻿namespace Core.Query;
+namespace Core.Query;
 
 /// <summary>
 /// 空闲提醒中间件 — 每次迭代后记录助手轮次

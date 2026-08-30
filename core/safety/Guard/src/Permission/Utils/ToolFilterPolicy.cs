@@ -1,4 +1,4 @@
-﻿namespace Core.Utils;
+namespace Core.Utils;
 
 /// <summary>
 /// 工具过滤策略实现 — 3 层收敛后的统一检查。

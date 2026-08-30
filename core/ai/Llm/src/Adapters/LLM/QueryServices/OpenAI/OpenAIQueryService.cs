@@ -1,4 +1,4 @@
-﻿namespace Api.LLM.QueryServices.OpenAI;
+namespace Api.LLM.QueryServices.OpenAI;
 
 
 /// <summary>

@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Skills, Description = "查看可用技能（自定义命令）", Usage = "/skills [info <skill-name>]", Category = ChatCommandCategory.Tools)]
 public sealed class SkillsCommand : IChatCommand

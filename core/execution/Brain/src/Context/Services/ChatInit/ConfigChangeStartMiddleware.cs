@@ -1,4 +1,4 @@
-﻿namespace Core.Context;
+namespace Core.Context;
 
 /// <summary>
 /// 配置变更监控中间件 — 启动配置文件变更监控并处理变更事件

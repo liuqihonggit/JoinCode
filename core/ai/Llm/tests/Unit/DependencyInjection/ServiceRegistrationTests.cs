@@ -1,4 +1,4 @@
-﻿namespace Llm.Tests.DependencyInjection;
+namespace Llm.Tests.DependencyInjection;
 
 
 public class ServiceRegistrationTests

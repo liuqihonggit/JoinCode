@@ -1,4 +1,4 @@
-﻿namespace IO.Services;
+namespace IO.Services;
 
 [Register(typeof(IStickerService), ServiceLifetime.Singleton)]
 public sealed partial class StickerService : ServiceEntity, IStickerService

@@ -1,4 +1,4 @@
-﻿namespace Infrastructure.Tests.Services;
+namespace Infrastructure.Tests.Services;
 
 public sealed class PdfPageRendererTests
 {

@@ -1,4 +1,4 @@
-﻿Console.WriteLine("IHttpClientFactory NativeAOT Compatibility Check");
+Console.WriteLine("IHttpClientFactory NativeAOT Compatibility Check");
 
 // 验证 1: AddHttpClient() 能正常注册
 var services = new ServiceCollection();

@@ -1,4 +1,4 @@
-﻿
+
 namespace JoinCode.Abstractions.Models.Agent;
 
 /// <summary>

@@ -1,4 +1,4 @@
-﻿namespace Host.Tests.ChatCommands.Bridge;
+namespace Host.Tests.ChatCommands.Bridge;
 
 
 /// <summary>

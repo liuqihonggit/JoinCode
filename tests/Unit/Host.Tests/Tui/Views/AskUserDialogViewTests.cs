@@ -1,4 +1,4 @@
-﻿namespace Host.Tests.Tui.Views;
+namespace Host.Tests.Tui.Views;
 
 /// <summary>
 /// AskUserDialogView 单元测试 — 验证 T2 ask_user_question 对话框渲染/提交/取消行为。

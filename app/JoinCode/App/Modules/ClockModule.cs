@@ -1,4 +1,4 @@
-﻿namespace JoinCode.App.Modules;
+namespace JoinCode.App.Modules;
 
 
 /// <summary>

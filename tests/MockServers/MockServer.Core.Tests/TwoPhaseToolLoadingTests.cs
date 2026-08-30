@@ -1,4 +1,4 @@
-﻿namespace MockServer.Core.Tests;
+namespace MockServer.Core.Tests;
 
 /// <summary>
 /// 两阶段工具加载测试 — TS 原版风格的惰性工具描述加载

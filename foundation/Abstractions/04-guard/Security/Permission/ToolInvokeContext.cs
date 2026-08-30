@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Security.Permission;
+namespace JoinCode.Abstractions.Security.Permission;
 
 /// <summary>
 /// 工具调用上下文

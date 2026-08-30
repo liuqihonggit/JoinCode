@@ -1,4 +1,4 @@
-﻿namespace Core.Context;
+namespace Core.Context;
 
 /// <summary>
 /// 会话 Hook 辅助服务 — ClearHistory/CompactHistory 共用的 SessionStart/SessionEnd Hook 执行逻辑

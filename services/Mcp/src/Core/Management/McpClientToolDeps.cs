@@ -1,4 +1,4 @@
-﻿namespace McpToolDispatch;
+namespace McpToolDispatch;
 
 [Register(typeof(McpClientToolDeps), ServiceLifetime.Singleton)]
 public sealed record McpClientToolDeps(

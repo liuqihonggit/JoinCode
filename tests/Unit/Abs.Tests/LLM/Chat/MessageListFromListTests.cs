@@ -1,4 +1,4 @@
-﻿namespace Abs.Tests.LLM.Chat;
+namespace Abs.Tests.LLM.Chat;
 
 
 public class MessageListFromListTests

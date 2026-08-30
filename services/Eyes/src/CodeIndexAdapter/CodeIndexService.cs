@@ -1,4 +1,4 @@
-﻿namespace Services.CodeIndex;
+namespace Services.CodeIndex;
 
 [Register(typeof(IHostedService), ServiceLifetime.Singleton)]
 public sealed partial class CodeIndexService : IHostedService, IAsyncDisposable

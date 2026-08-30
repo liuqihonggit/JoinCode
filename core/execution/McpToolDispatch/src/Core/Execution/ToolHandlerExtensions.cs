@@ -1,4 +1,4 @@
-﻿
+
 namespace McpToolDispatch;
 
 public static class ToolHandlerExtensions

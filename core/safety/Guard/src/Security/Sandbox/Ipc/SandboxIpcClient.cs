@@ -1,4 +1,4 @@
-﻿namespace Core.Security.Sandbox.Ipc;
+namespace Core.Security.Sandbox.Ipc;
 
 
 public sealed class SandboxIpcClient : IAsyncDisposable

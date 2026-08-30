@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Tests.Theming;
+namespace JoinCode.Gui.Tests.Theming;
 
 /// <summary>
 /// 权限确认弹窗冒烟测试 — Headless 渲染真实 <see cref="PermissionDialog"/>，

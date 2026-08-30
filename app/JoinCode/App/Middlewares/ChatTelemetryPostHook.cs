@@ -1,4 +1,4 @@
-﻿namespace JoinCode.App.Middlewares;
+namespace JoinCode.App.Middlewares;
 
 /// <summary>
 /// Chat 管道 Post Hook — 遥测 Dispose Span + 指标记录

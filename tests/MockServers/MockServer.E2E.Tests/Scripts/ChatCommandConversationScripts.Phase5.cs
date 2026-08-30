@@ -1,4 +1,4 @@
-﻿namespace MockServer.E2E.Tests.Scripts;
+namespace MockServer.E2E.Tests.Scripts;
 
 /// <summary>
 /// Phase 5 E2E 脚本 — 补齐剩余未覆盖命令

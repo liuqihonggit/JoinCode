@@ -1,4 +1,4 @@
-﻿namespace Core.Bridge;
+namespace Core.Bridge;
 
 [Register(typeof(IHostedService), ServiceLifetime.Singleton)]
 public sealed partial class BridgeClientHostedService : IHostedService, IAsyncDisposable

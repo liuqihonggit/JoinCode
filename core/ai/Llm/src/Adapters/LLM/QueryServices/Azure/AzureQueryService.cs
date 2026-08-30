@@ -1,4 +1,4 @@
-﻿namespace Api.LLM.QueryServices.Azure;
+namespace Api.LLM.QueryServices.Azure;
 
 
 /// <summary>

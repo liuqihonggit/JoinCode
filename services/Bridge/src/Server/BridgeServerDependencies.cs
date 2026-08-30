@@ -1,4 +1,4 @@
-﻿namespace Core.Bridge;
+namespace Core.Bridge;
 
 
 [Register(typeof(BridgeServerSecurity), ServiceLifetime.Singleton)]

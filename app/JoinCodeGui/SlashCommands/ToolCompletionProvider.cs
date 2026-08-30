@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.SlashCommands;
+namespace JoinCode.Gui.SlashCommands;
 
 /// <summary>
 /// 工具补全提供器 — # 触发符调用，提供引擎可用工具列表。

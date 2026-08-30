@@ -1,4 +1,4 @@
-﻿namespace IO;
+namespace IO;
 
 /// <summary>
 /// LRU-based file state cache that tracks file reads for write-before-read validation.

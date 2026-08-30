@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Security.Permission;
+namespace JoinCode.Abstractions.Security.Permission;
 
 /// <summary>
 /// 权限回调响应 — 跨组件权限交互的响应数据

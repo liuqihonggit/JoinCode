@@ -1,4 +1,4 @@
-﻿namespace Llm.Tests.Adapters.QueryServices;
+namespace Llm.Tests.Adapters.QueryServices;
 
 public sealed class FallbackProviderDefinitionTests
 {

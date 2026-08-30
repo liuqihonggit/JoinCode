@@ -1,4 +1,4 @@
-﻿namespace Tools.Handlers.Tests;
+namespace Tools.Handlers.Tests;
 
 public sealed class ApplyPatchDiagnosticTests
 {

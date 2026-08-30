@@ -1,4 +1,4 @@
-﻿namespace Llm.Tests.Adapters.CacheProtocol;
+namespace Llm.Tests.Adapters.CacheProtocol;
 
 public sealed class AddCacheBreakpointsTests
 {

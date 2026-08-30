@@ -1,4 +1,4 @@
-﻿namespace Core.Tests.Runners;
+namespace Core.Tests.Runners;
 
 
 public class DoctorModeRunnerTests

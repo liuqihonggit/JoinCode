@@ -1,4 +1,4 @@
-﻿namespace Tools.Handlers;
+namespace Tools.Handlers;
 
 /// <summary>
 /// 解析 Agent(worker,researcher) 语法 — 限制可 spawn 的 agent 类型

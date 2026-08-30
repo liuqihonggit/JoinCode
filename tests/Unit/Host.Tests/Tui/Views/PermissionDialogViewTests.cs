@@ -1,4 +1,4 @@
-﻿namespace Host.Tests.Tui.Views;
+namespace Host.Tests.Tui.Views;
 
 /// <summary>
 /// PermissionDialogView 单元测试 — 验证权限弹窗显示/隐藏/取消行为。

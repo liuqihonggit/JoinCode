@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Tui.Hosting;
+namespace JoinCode.Tui.Hosting;
 
 /// <summary>
 /// TUI 交互模块 — 注册 Terminal.Gui 专属交互服务，覆盖 Core 层的 Mock InteractiveService。

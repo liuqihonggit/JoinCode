@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Persistence;
+namespace JoinCode.Gui.Persistence;
 
 /// <summary>
 /// GUI 偏好持久化存储 — 读写 ~/.jcc/gui-preferences.json，

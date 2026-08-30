@@ -1,4 +1,4 @@
-﻿namespace JoinCode.App.Middlewares;
+namespace JoinCode.App.Middlewares;
 
 [Register(typeof(IPipelinePostHook<CompactContext>), ServiceLifetime.Singleton)]
 internal sealed partial class CompactTelemetryHook : TelemetryPostHook<CompactContext>

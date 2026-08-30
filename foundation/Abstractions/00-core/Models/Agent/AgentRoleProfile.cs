@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Models.Agent;
+namespace JoinCode.Abstractions.Models.Agent;
 
 /// <summary>
 /// Agent 角色档案 — 值对象，封装角色的提示词/工具集/权限等配置

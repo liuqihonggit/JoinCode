@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Models.Features;
+namespace JoinCode.Abstractions.Models.Features;
 
 public sealed class FeatureFlag
 {

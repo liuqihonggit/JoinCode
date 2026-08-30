@@ -1,4 +1,4 @@
-﻿namespace Core.Context;
+namespace Core.Context;
 
 /// <summary>
 /// 压缩历史操作处理器 — 对齐 TS: compact 后 SessionStart Hook

@@ -1,4 +1,4 @@
-﻿namespace Api.LLM.QueryServices.Anthropic;
+namespace Api.LLM.QueryServices.Anthropic;
 
 
 /// <summary>

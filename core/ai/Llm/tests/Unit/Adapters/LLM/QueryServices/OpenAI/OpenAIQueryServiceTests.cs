@@ -1,4 +1,4 @@
-﻿namespace Llm.Tests.Adapters.LLM.QueryServices.OpenAI;
+namespace Llm.Tests.Adapters.LLM.QueryServices.OpenAI;
 
 
 public class OpenAIQueryServiceTests

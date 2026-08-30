@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Security;
+namespace JoinCode.Abstractions.Security;
 
 public interface IHttpProxyService
 {

@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Tests.Hosting;
+namespace JoinCode.Gui.Tests.Hosting;
 
 /// <summary>
 /// 占位会话门面测试 — 验证 UI 边界（IJccChatSession）在无真实引擎下可独立工作。

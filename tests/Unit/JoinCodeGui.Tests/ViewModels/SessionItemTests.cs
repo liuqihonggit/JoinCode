@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Tests.ViewModels;
+namespace JoinCode.Gui.Tests.ViewModels;
 
 /// <summary>
 /// SessionItem 单元测试 — 验证侧边栏会话条目的默认值、属性赋值与 INPC 通知。

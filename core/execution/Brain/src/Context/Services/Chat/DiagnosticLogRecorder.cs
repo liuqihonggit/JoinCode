@@ -1,4 +1,4 @@
-﻿namespace Core.Context;
+namespace Core.Context;
 
 /// <summary>
 /// 链路日志记录中间件 — 记录工具调用、API 调用、循环检测、异常事件到 JSONL 文件

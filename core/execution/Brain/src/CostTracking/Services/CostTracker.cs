@@ -1,4 +1,4 @@
-﻿namespace Core.CostTracking;
+namespace Core.CostTracking;
 
 [Register(typeof(ICostTracker), ServiceLifetime.Singleton)]
 public sealed partial class CostTracker : IAsyncDisposable, ICostTracker

@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Entry;
+namespace JoinCode.Entry;
 
 /// <summary>
 /// .env/api.json 本地开发配置 — Debug/Release 均可使用

@@ -1,4 +1,4 @@
-﻿namespace Core.Context;
+namespace Core.Context;
 
 /// <summary>
 /// 清理注入中间件 — 清理预处理阶段注入的关键词和同义词

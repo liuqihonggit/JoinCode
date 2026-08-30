@@ -1,4 +1,4 @@
-﻿
+
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Hooks, Description = "管理 Hook 配置", Usage = "/hooks [list|add|remove|test] [args]", Category = ChatCommandCategory.Tools, ArgumentHint = "[list|add|remove|test]")]

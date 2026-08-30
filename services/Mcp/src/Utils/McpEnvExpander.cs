@@ -1,4 +1,4 @@
-﻿namespace McpClient;
+namespace McpClient;
 
 public static partial class McpEnvExpander
 {

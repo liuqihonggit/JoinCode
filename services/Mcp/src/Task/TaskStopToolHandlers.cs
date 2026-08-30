@@ -1,4 +1,4 @@
-﻿namespace McpToolDispatch;
+namespace McpToolDispatch;
 
 [McpToolDispatch(ToolCategory.Task, Optional = true)]
 public partial class TaskStopToolHandlers

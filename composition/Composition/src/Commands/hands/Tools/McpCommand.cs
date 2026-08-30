@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Mcp, Description = "管理 MCP 服务器", Usage = "/mcp [list|status|add|remove|reconnect|enable|disable] [args]", Category = ChatCommandCategory.Tools, ArgumentHint = "[list|status|add|remove|reconnect|enable|disable]")]
 public sealed class McpCommand : ChatCommandBase

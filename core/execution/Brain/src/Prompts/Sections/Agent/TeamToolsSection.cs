@@ -1,4 +1,4 @@
-﻿namespace Core.Prompts.Sections;
+namespace Core.Prompts.Sections;
 
 /// <summary>
 /// 团队工具提示词部分 — 注入 TeamCreate/TeamDelete/SendMessage 的完整使用指南

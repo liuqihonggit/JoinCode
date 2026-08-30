@@ -1,4 +1,4 @@
-﻿namespace Infra.Tests.LLM.OpenAI;
+namespace Infra.Tests.LLM.OpenAI;
 
 
 /// <summary>

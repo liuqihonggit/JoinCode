@@ -1,4 +1,4 @@
-﻿namespace Mcp.MockServer;
+namespace Mcp.MockServer;
 
 
 /// <summary>

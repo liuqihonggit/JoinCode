@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Llm.DependencyInjection;
+namespace JoinCode.Llm.DependencyInjection;
 
 
 public static partial class ServiceRegistration

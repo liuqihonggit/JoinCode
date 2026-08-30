@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Tests.SlashCommands;
+namespace JoinCode.Gui.Tests.SlashCommands;
 
 /// <summary>
 /// CommandArgumentProvider 单元测试 — 验证各命令参数补全候选生成与前缀过滤。

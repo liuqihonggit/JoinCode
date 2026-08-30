@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Tests.Hosting;
+namespace JoinCode.Gui.Tests.Hosting;
 
 /// <summary>
 /// 引擎会话组装测试 — 验证 GUI 进程内引擎接入的关键假设：

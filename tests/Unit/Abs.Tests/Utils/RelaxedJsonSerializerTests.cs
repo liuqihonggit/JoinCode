@@ -7,7 +7,7 @@ public sealed partial class RelaxedJsonSerializerTests
 {
     private sealed record TestDto(string DisplayName, string Description);
 
-    [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = false)]
+    [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = false, PropertyNameCaseInsensitive = true)]
     [JsonSerializable(typeof(TestDto))]
     private sealed partial class TestCamelCaseContext : JsonSerializerContext;
 
@@ -81,5 +81,69 @@ public sealed partial class RelaxedJsonSerializerTests
 
         defaultJson.Should().Contain("\\u");
         relaxedJson.Should().NotContain("\\u");
+    }
+
+    // ── Deserialize ──
+
+    [Fact]
+    public void Deserialize_ValidJson_ReturnsObject()
+    {
+        var json = """{"displayName":"测试","description":"中文描述"}""";
+
+        var result = RelaxedJsonSerializer.Deserialize<TestDto>(json, TestCamelCaseContext.Default);
+
+        result.Should().NotBeNull();
+        result!.DisplayName.Should().Be("测试");
+        result.Description.Should().Be("中文描述");
+    }
+
+    [Fact]
+    public void Deserialize_WithBom_StripsBomAndDeserializes()
+    {
+        var json = "\uFEFF" + """{"displayName":"BOM测试","description":"去BOM"}""";
+
+        var result = RelaxedJsonSerializer.Deserialize<TestDto>(json, TestCamelCaseContext.Default);
+
+        result.Should().NotBeNull();
+        result!.DisplayName.Should().Be("BOM测试");
+    }
+
+    [Fact]
+    public void Deserialize_WithWhitespace_TrimsAndDeserializes()
+    {
+        var json = "  \n  " + """{"displayName":"空白测试","description":"去空白"}""" + "  \n  ";
+
+        var result = RelaxedJsonSerializer.Deserialize<TestDto>(json, TestCamelCaseContext.Default);
+
+        result.Should().NotBeNull();
+        result!.DisplayName.Should().Be("空白测试");
+    }
+
+    [Fact]
+    public void Deserialize_EmptyString_ReturnsDefault()
+    {
+        var result = RelaxedJsonSerializer.Deserialize<TestDto>("", TestCamelCaseContext.Default);
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public void Deserialize_NullString_ReturnsDefault()
+    {
+        var result = RelaxedJsonSerializer.Deserialize<TestDto>(null!, TestCamelCaseContext.Default);
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public void Deserialize_PascalCaseInput_WithCaseInsensitive_ReadsCorrectly()
+    {
+        var json = """{"DisplayName":"大写","Description":"兼容"}""";
+
+        var result = RelaxedJsonSerializer.Deserialize<TestDto>(json, TestCamelCaseContext.Default);
+
+        result.Should().NotBeNull();
+        result!.DisplayName.Should().Be("大写");
+        result.Description.Should().Be("兼容");
     }
 }

@@ -1,11 +1,12 @@
 namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
-/// 通用 JSON 序列化 helper — 在源码生成 JsonSerializerContext 基础上注入
+/// 通用 JSON 序列化/反序列化 helper — 在源码生成 JsonSerializerContext 基础上注入
 /// UnsafeRelaxedJsonEscaping Encoder，使中文字符以真实 UTF-8 输出而非 \uXXXX 转义。
 /// 源码生成器 attribute 无法引用静态 Encoder 属性，故在此运行时创建 options 副本。
 /// 命名策略（CamelCase 等）与缩进由各 JsonSourceGenerationOptions 声明，副本继承。
 /// RelaxedOptions 按 Context 缓存（ConditionalWeakTable），避免每次序列化重复创建。
+/// Deserialize 统一入口，继承 Context 声明的宽容策略（AllowTrailingCommas/PropertyNameCaseInsensitive/ReadCommentHandling）。
 /// </summary>
 public static class RelaxedJsonSerializer
 {
@@ -33,4 +34,29 @@ public static class RelaxedJsonSerializer
 
     /// <summary>序列化为紧凑 JSON（真实中文 + 上下文声明的命名策略）。需 context 声明 WriteIndented=false。</summary>
     public static string SerializeCompact<T>(T value, JsonSerializerContext context) => Serialize(value, context);
+
+    /// <summary>
+    /// 从 JSON 字符串反序列化（统一入口）。使用 context 的 RelaxedOptions，继承声明的宽容策略：
+    /// AllowTrailingCommas、PropertyNameCaseInsensitive、ReadCommentHandling.Skip 等。
+    /// 遇到 BOM 或前后空白时自动清理。TypeInfoResolver 为源码生成，AOT 安全。
+    /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "TypeInfoResolver 为源码生成的 JsonSerializerContext，所有类型已静态 rooted，AOT 安全。")]
+    [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "TypeInfoResolver 为源码生成的 JsonSerializerContext，无需运行时反射 emit。")]
+    public static T? Deserialize<T>(string json, JsonSerializerContext context)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return default;
+        var clean = json.AsSpan().Trim();
+        if (clean.Length > 0 && clean[0] == '\uFEFF')
+            clean = clean[1..];
+        var options = context.RelaxedOptions();
+        return JsonSerializer.Deserialize<T>(clean.ToString(), options);
+    }
+
+    /// <summary>
+    /// 从 JSON 字符串反序列化（统一入口，带修复提示）。反序列化失败时尝试 LlmJsonHelper 宽容修复。
+    /// 适用于 LLM 生成或可能格式不规范的 JSON。配置文件读取建议用无提示版本 Deserialize&lt;T&gt;。
+    /// </summary>
+    public static T? Deserialize<T>(string json, JsonTypeInfo<T> typeInfo, out string? repairHint) where T : class
+        => LlmJsonHelper.Deserialize(json, typeInfo, out repairHint);
 }

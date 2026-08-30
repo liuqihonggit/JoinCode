@@ -129,7 +129,7 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
                     kvp => kvp.Value.ToList())
             };
 
-            var json = JsonSerializer.Serialize(data, SessionTagJsonContext.Default.SessionTagData);
+            var json = RelaxedJsonSerializer.Serialize(data, SessionTagJsonContext.Default);
             await _fileOperationService.WriteFileAsync(_storagePath, json, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) { }

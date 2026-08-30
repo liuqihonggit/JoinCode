@@ -128,7 +128,7 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
             var dir = Path.GetDirectoryName(filePath);
             DirectoryHelper.EnsureDirectoryExists(_fs, dir);
 
-            var json = JsonSerializer.Serialize(data, ThinkingStoreJsonContext.Default.ThinkingStoreData);
+            var json = RelaxedJsonSerializer.Serialize(data, ThinkingStoreJsonContext.Default);
             await _fileOperationService.WriteFileAsync(filePath, json, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) { }

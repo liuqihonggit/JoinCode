@@ -1,7 +1,7 @@
 
 namespace JoinCode.ChatCommands;
 
-[JsonSourceGenerationOptions(WriteIndented = false, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = false, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(SessionData))]
 [JsonSerializable(typeof(SessionMessage))]
 [JsonSerializable(typeof(SessionLiteData))]
@@ -15,7 +15,7 @@ namespace JoinCode.ChatCommands;
 [JsonSerializable(typeof(List<string>))]
 public partial class CliJsonContext : JsonSerializerContext;
 
-[JsonSourceGenerationOptions(WriteIndented = true, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(SessionData))]
 [JsonSerializable(typeof(SessionMessage))]
 [JsonSerializable(typeof(SessionLiteData))]

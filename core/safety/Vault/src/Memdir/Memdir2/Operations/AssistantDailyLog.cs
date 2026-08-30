@@ -361,7 +361,7 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
 
         try
         {
-            var json = JsonSerializer.Serialize(logFile, DailyLogJsonContext.Default.DailyLogFile);
+            var json = RelaxedJsonSerializer.Serialize(logFile, DailyLogJsonContext.Default);
             var result = await _fileOperationService.WriteFileAsync(filePath, json, cancellationToken).ConfigureAwait(false);
 
             if (!result.Success)

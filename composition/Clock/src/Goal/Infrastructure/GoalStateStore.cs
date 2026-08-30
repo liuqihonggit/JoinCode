@@ -40,7 +40,7 @@ public sealed class GoalStateStore : IGoalStateStore
         var sessionDir = GetSessionDir(state.SessionId);
         _fs.CreateDirectory(sessionDir);
         var path = _fs.CombinePath(sessionDir, $"{state.GoalId}.json");
-        var json = JsonSerializer.Serialize(state, GoalJsonContext.Default.GoalState);
+        var json = RelaxedJsonSerializer.Serialize(state, GoalJsonContext.Default);
 
         var tempPath = path + ".tmp";
         await _fs.WriteAllTextAsync(tempPath, json, cancellationToken).ConfigureAwait(false);

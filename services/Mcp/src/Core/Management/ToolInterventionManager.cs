@@ -135,7 +135,7 @@ public sealed class ToolInterventionManager : ServiceEntity
         {
             var dir = Path.GetDirectoryName(_configPath)!;
             if (!_fs.DirectoryExists(dir)) _fs.CreateDirectory(dir);
-            var json = JsonSerializer.Serialize(_rules, ToolInterventionJsonContext.Default.DictionaryStringInterventionRule);
+            var json = RelaxedJsonSerializer.Serialize(_rules, ToolInterventionJsonContext.Default);
             _fs.WriteAllText(_configPath, json);
         }
         catch (Exception ex)

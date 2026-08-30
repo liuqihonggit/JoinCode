@@ -47,7 +47,7 @@ public sealed partial class McpServerConfigStore : ServiceEntity, IMcpServerConf
         var dir = Path.GetDirectoryName(path);
         DirectoryHelper.EnsureDirectoryExists(_fs, dir);
 
-        var json = JsonSerializer.Serialize(config, McpConfigJsonContext.Default.McpConfigFile);
+        var json = RelaxedJsonSerializer.Serialize(config, McpConfigJsonContext.Default);
         var tmpPath = path + ".tmp";
         await _fs.WriteAllTextAsync(tmpPath, json, ct).ConfigureAwait(false);
         _fs.MoveFile(tmpPath, path, overwrite: true);

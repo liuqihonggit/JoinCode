@@ -364,7 +364,7 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable
         try
         {
             var memories = _memories.Values.ToList();
-            var json = JsonSerializer.Serialize(memories, MemdirIndentedJsonContext.Default.ListMemoryEntry);
+            var json = RelaxedJsonSerializer.Serialize(memories, MemdirIndentedJsonContext.Default);
 
             var result = await _fileOperationService.WriteFileAsync(_storagePath, json, cancellationToken).ConfigureAwait(false);
             if (result.Success)

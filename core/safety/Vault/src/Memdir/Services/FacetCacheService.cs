@@ -64,7 +64,7 @@ public sealed partial class FacetCacheService : ServiceEntity, IFacetCacheServic
                 _fs.CreateDirectory(dir);
             }
 
-            var json = JsonSerializer.Serialize(facets, SessionFacetsJsonContext.Default.SessionFacets);
+            var json = RelaxedJsonSerializer.Serialize(facets, SessionFacetsJsonContext.Default);
 
             await _fs.WriteAllTextAsync(filePath, json, cancellationToken).ConfigureAwait(false);
         }

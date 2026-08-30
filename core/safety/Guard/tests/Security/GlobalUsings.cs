@@ -36,6 +36,7 @@ global using Core.Permission.ToolHandlers;
 global using Core.Plugins;
 global using Core.Policy;
 global using Core.Security.Constants;
+global using Core.Security.DangerClassification;
 global using Core.Security.Interceptors;
 global using Core.Security.Scanners;
 global using Core.Security.Services;

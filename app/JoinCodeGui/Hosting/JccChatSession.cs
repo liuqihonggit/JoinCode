@@ -574,6 +574,11 @@ internal sealed class JccChatSession : IJccChatSession
                     ? AlwaysAllowDuration
                     : AllowDuration;
                 permissionManager.ApproveToolTemporarily(pending.ToolName, duration);
+
+                // 同级别自动通过 — 解析 prompt 中的 levelTag，批准对应等级（会话级非持久化）
+                var level = DangerLevelPromptParser.ParseLevelFromPrompt(pending.ConfirmationPrompt);
+                if (level is not null)
+                    permissionManager.ApproveLevelTemporarily(level.Value);
             }
 
             // 撤回本轮（含用户消息 + 部分助手回复），重发同一条消息无重复

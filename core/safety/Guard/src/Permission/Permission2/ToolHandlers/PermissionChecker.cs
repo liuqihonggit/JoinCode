@@ -11,6 +11,7 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
     private readonly ILogger<PermissionChecker>? _logger;
     private readonly HashSet<string> _autoApprovedTools;
     private readonly HashSet<string> _autoRejectedTools;
+    private readonly HashSet<CommandDangerLevel> _approvedLevels;
     private readonly PermissionConfig _config;
     private PermissionMode _currentMode;
     private readonly IFileSystem _fs;
@@ -45,7 +46,28 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
         _autoRejectedTools = _config.AutoRejectedTools
             .Keys
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        // 会话级已批准危险等级 — 用户确认某等级后同会话内同等级自动通过，非持久化
+        _approvedLevels = new HashSet<CommandDangerLevel>();
     }
+
+    /// <summary>
+    /// 会话级批准某危险等级 — 用户确认后同会话内同等级操作自动通过
+    /// 非持久化，每次打开新 exe 重新提示。由 IToolPermissionManager.ApproveLevelTemporarily 调用
+    /// </summary>
+    public void ApproveLevelTemporarily(CommandDangerLevel level)
+    {
+        if (level == CommandDangerLevel.Safe || level == CommandDangerLevel.Dangerous)
+            return; // Safe 无需批准，Dangerous 永不批准
+
+        _approvedLevels.Add(level);
+        _logger?.LogInformation("危险等级已会话级批准: {Level}", level);
+    }
+
+    /// <summary>
+    /// 检查某危险等级是否已会话级批准
+    /// </summary>
+    public bool IsLevelApproved(CommandDangerLevel level) => _approvedLevels.Contains(level);
 
     /// <summary>
     /// 从 JCC_PERMISSION_MODE 环境变量解析启动时的权限模式 — 支持 E2E 测试自动升级权限
@@ -127,7 +149,8 @@ public sealed partial class PermissionChecker : ServiceEntity, IPermissionChecke
             CurrentMode = _currentMode,
             Config = _config,
             AutoApprovedTools = _autoApprovedTools,
-            AutoRejectedTools = _autoRejectedTools
+            AutoRejectedTools = _autoRejectedTools,
+            ApprovedLevels = _approvedLevels
         };
 
         await _pipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);

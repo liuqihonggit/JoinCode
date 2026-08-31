@@ -59,6 +59,11 @@ public sealed class CliPermissionConfirmationHandler : IPermissionConfirmationHa
                     _permissionManager.ApproveToolTemporarily(toolName, TimeSpan.FromMinutes(1));
                 else if (action == PermissionConfirmAction.AlwaysAllow)
                     _permissionManager.ApproveToolTemporarily(toolName, TimeSpan.FromMinutes(30));
+
+                // 同级别自动通过 — 解析 prompt 中的 levelTag，批准对应等级（会话级非持久化）
+                var level = DangerLevelPromptParser.ParseLevelFromPrompt(confirmationPrompt);
+                if (level is not null)
+                    _permissionManager.ApproveLevelTemporarily(level.Value);
             }
 
             return action;

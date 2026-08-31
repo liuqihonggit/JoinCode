@@ -397,6 +397,12 @@ internal static class TuiModeRunner
                 {
                     var duration = GetApprovalDuration(d);
                     permissionManager?.ApproveToolTemporarily(ex.ToolName, duration);
+
+                    // 同级别自动通过 — 解析 prompt 中的 levelTag，批准对应等级（会话级非持久化）
+                    var level = DangerLevelPromptParser.ParseLevelFromPrompt(ex.ConfirmationPrompt);
+                    if (level is not null)
+                        permissionManager?.ApproveLevelTemporarily(level.Value);
+
                     // 撤回本轮（用户消息+部分回复已入历史）再重发，避免上下文重复
                     RewindToSnapshot(chatHistory, historySnapshotCount);
                     permissionRetryCount++;

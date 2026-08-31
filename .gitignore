@@ -492,3 +492,6 @@ libs/Terminal.Gui/**/Debug/
 libs/Terminal.Gui/**/Release/
 libs/Terminal.Gui/artifacts/
 libs/Terminal.Gui/.nuget/
+
+# Runtime dumps (screenshots, crash logs, test artifacts) — 不跟踪
+dumps/

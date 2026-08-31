@@ -44,6 +44,22 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
             {
                 return DangerClassificationResult.SafeResult;
             }
+
+            // git 远程不可撤回子命令升级为 Execution（git push/stash drop/tag -d 等远程或删除操作）
+            if (commandEntry.Level == CommandDangerLevel.LightValidation &&
+                IsGitIrreversibleSubcommand(command))
+            {
+                return new DangerClassificationResult(
+                    CommandDangerLevel.Execution,
+                    CommandRisk.RemoteExecution,
+                    $"git 不可撤回操作 — {command.Arguments[0]} 涉及远程或删除，无法回滚");
+            }
+        }
+        else
+        {
+            // 未知命令默认 Unknown（黄灯）— 安全原则: 未登记命令需用户确认，防止恶意脚本自动通过
+            detectedLevels.Add(CommandDangerLevel.Unknown);
+            details.Add($"未知命令 '{command.CommandName}' — 未在 catalog 中登记");
         }
 
         // 2. 检查危险参数
@@ -116,7 +132,7 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
             return CommandDangerLevel.Safe;
 
         var entry = MatchCommandEntry(commandName);
-        return entry?.Level ?? CommandDangerLevel.Safe;
+        return entry?.Level ?? CommandDangerLevel.Unknown;
     }
 
     /// <summary>
@@ -199,6 +215,45 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
         }
 
         return readOnlySubcommands.Contains(subcommand);
+    }
+
+    /// <summary>
+    /// 判断 git 子命令是否为远程不可撤回操作（升级为 Execution 红灯ask）
+    /// git push 推送到远程后无法撤回，git stash drop/tag -d/branch -D 删除操作不可恢复
+    /// </summary>
+    private static bool IsGitIrreversibleSubcommand(ShellCommand command)
+    {
+        if (!command.CommandName.Equals("git", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        if (command.Arguments.Count == 0)
+            return false;
+
+        var subcommand = command.Arguments[0].ToLowerInvariant();
+
+        // git push — 推送到远程，不可撤回（他人已 fetch/pull 后无法回滚）
+        if (subcommand == "push")
+            return true;
+
+        // git stash drop — 删除 stash，不可撤回
+        if (subcommand == "stash" && command.Arguments.Count >= 2 &&
+            command.Arguments[1].Equals("drop", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        // git tag -d / tag --delete — 删除标签，不可撤回
+        if (subcommand == "tag" && command.Arguments.Any(a =>
+            a.Equals("-d", StringComparison.OrdinalIgnoreCase) ||
+            a.Equals("--delete", StringComparison.OrdinalIgnoreCase)))
+            return true;
+
+        // git branch -D / branch -d / branch --delete — 删除分支，不可撤回
+        if (subcommand == "branch" && command.Arguments.Any(a =>
+            a.Equals("-D", StringComparison.OrdinalIgnoreCase) ||
+            a.Equals("-d", StringComparison.OrdinalIgnoreCase) ||
+            a.Equals("--delete", StringComparison.OrdinalIgnoreCase)))
+            return true;
+
+        return false;
     }
 
     /// <summary>

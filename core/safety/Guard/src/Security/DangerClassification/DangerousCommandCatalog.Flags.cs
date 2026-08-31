@@ -2,7 +2,7 @@ namespace Core.Security.DangerClassification;
 
 /// <summary>
 /// 参数、组合、路径映射表构建 — 危险参数和危险组合的统一定义
-/// 绿色ask(LightValidation)=可撤回, 红色ask(Execution)=不可撤回, Dangerous=直接拒绝
+/// 5级分级: 黄灯=未知, 绿灯=可撤回, 红灯=不可撤回, 黑灯=直接拒绝
 /// </summary>
 public static partial class DangerousCommandCatalog
 {
@@ -51,7 +51,7 @@ public static partial class DangerousCommandCatalog
             new(["dd", "of=", "/dev/"], CommandRisk.DataModification, CommandDangerLevel.Dangerous, "直接写入块设备 — 直接拒绝"),
             new(["diskpart", "clean"], CommandRisk.SystemModification, CommandDangerLevel.Dangerous, "清盘操作 — 直接拒绝"),
 
-            // === Execution（红色 ask / 不可撤回）— 破坏性操作 ===
+            // === Execution（红灯ask / 不可撤回）— 破坏性操作 ===
             new(["del", "/s", "/q"], CommandRisk.RecursiveOperation, CommandDangerLevel.Execution, "静默递归删除 — 不可撤回"),
             new(["erase", "/s", "/q"], CommandRisk.RecursiveOperation, CommandDangerLevel.Execution, "静默递归删除 — 不可撤回"),
             new(["dd", "of="], CommandRisk.DataModification, CommandDangerLevel.Execution, "直接磁盘写 — 不可撤回"),
@@ -91,7 +91,7 @@ public static partial class DangerousCommandCatalog
             ["/usr"] = CommandDangerLevel.Execution,
             ["/var"] = CommandDangerLevel.Execution,
 
-            // LightValidation — 用户目录/路径逃逸（可撤回/轻校验）
+            // LightValidation — 用户目录/路径逃逸（可撤回/绿灯ask）
             ["~"] = CommandDangerLevel.LightValidation,
             ["~/"] = CommandDangerLevel.LightValidation,
             [".."] = CommandDangerLevel.LightValidation,

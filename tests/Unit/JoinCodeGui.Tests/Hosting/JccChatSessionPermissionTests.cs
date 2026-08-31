@@ -203,6 +203,10 @@ public class JccChatSessionPermissionTests
         public void ApproveToolTemporarily(string toolName, TimeSpan duration)
             => ApprovedTool = toolName;
 
+        public void ApproveLevelTemporarily(CommandDangerLevel level)
+        {
+        }
+
         public void RemoveTemporaryApproval(string toolName)
         {
         }

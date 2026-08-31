@@ -56,6 +56,7 @@ global using JoinCode.Abstractions.Configuration.Settings;
 global using JoinCode.Abstractions.LLM;
 global using JoinCode.Abstractions.Security;
 global using JoinCode.Abstractions.Security.Permission;
+global using JoinCode.Abstractions.Security.Shell;
 global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.UI;
 global using JoinCode.App.Builder;

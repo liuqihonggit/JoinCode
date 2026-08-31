@@ -39,9 +39,14 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
     /// <inheritdoc />
     public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct)
     {
-        // Bypass 模式跳过所有检查
+        // Bypass 模式：仍需拦截 Dangerous 级（黑灯），其余放行
+        // 安全红线: rm -rf /、mkfs、format c: 等整盘/系统级不可逆操作即使在 Bypass 下也必须拒绝
         if (context.CurrentMode == PermissionMode.Bypass)
+        {
+            if (TryRejectDangerousInBypass(context))
+                return Task.CompletedTask;
             return next(context, ct);
+        }
 
         // 1. 检查非 Shell 工具的删除操作（如 file_delete）
         var deleteInfo = DetectDeleteOperation(context);
@@ -82,8 +87,53 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
         if (riskContext is null || riskContext.Risks.Count == 0)
             return next(context, ct);
 
+        // 同级别自动通过 — 用户已确认该等级，会话级非持久化，自动放行到 next
+        // Dangerous 级永不自动通过（即使已批准也拒绝，安全红线）
+        var preLevel = dangerResult?.Level ?? DangerousCommandCatalog.InferLevel(SelectPrimaryRisk(riskContext.Risks) ?? CommandRisk.None);
+        if (preLevel != CommandDangerLevel.Dangerous && context.ApprovedLevels.Contains(preLevel))
+            return next(context, ct);
+
         HandleRisks(context, riskContext, dangerResult);
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Bypass 模式下检查 Dangerous 级命令并拒绝 — 安全红线，防止 rm -rf / 等操作穿透
+    /// 仅检查 Shell 工具的 Dangerous 级命令，非 Shell 工具的删除操作在 Bypass 下放行
+    /// </summary>
+    /// <returns>true 表示已拒绝（应短路返回），false 表示放行（应调用 next）</returns>
+    private bool TryRejectDangerousInBypass(PermissionCheckContext context)
+    {
+        if (!context.IsShellOperation(context.ToolName))
+            return false;
+
+        if (context.Arguments is null ||
+            !context.Arguments.TryGetValue("command", out var cmdEl) ||
+            cmdEl.ValueKind != JsonValueKind.String)
+            return false;
+
+        var command = cmdEl.GetString()!;
+
+        // 优先使用统一危险分类器
+        if (_dangerClassifier is not null)
+        {
+            var result = _dangerClassifier.Classify(command);
+            if (result.Level == CommandDangerLevel.Dangerous)
+            {
+                context.Result = ToolPermissionCheckResult.Rejected("此操作被禁止");
+                return true;
+            }
+            return false;
+        }
+
+        // 回退：无分类器时用配置模式检测
+        if (PermissionCheckContext.IsDangerousCommand(command, _dangerousCommandPatterns))
+        {
+            context.Result = ToolPermissionCheckResult.Rejected("此操作被禁止");
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -220,8 +270,8 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
     /// <summary>
     /// 处理检测到的风险 — 根据 CommandDangerLevel 做决策
     /// Dangerous: 任何模式下都直接拒绝不提示
-    /// Execution（红色ask/不可撤回）: Auto拒绝/Ask确认/Plan拒绝
-    /// LightValidation（绿色ask/可撤回）: Auto拒绝/Ask确认/Plan放行(只读性质)
+    /// Execution（红灯ask/不可撤回）: Auto拒绝/Ask确认/Plan拒绝
+    /// LightValidation（绿灯ask/可撤回）: Auto拒绝/Ask确认/Plan放行(只读性质)
     /// </summary>
     private void HandleRisks(PermissionCheckContext context, CommandRiskContext riskContext, DangerClassificationResult? dangerResult)
     {
@@ -249,9 +299,14 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
                 break;
 
             case PermissionMode.Ask:
-                // LightValidation（绿色ask/可撤回）和 Execution（红色ask/不可撤回）都需确认
+                // Unknown（黄灯ask/未知）/ LightValidation（绿灯ask/可撤回）/ Execution（红灯ask/不可撤回）都需确认
                 // 颜色区分由 IPermissionConfirmationHandler 根据 DangerLevel 实现
-                var levelTag = level == CommandDangerLevel.LightValidation ? "[轻校验]" : "[执行]";
+                var levelTag = level switch
+                {
+                    CommandDangerLevel.Unknown => "[黄灯ask]",
+                    CommandDangerLevel.LightValidation => "[绿灯ask]",
+                    _ => "[红灯ask]"
+                };
                 var confirmation = handler is not null
                     ? $"{levelTag} {handler.BuildConfirmationMessage(riskContext)}"
                     : $"{levelTag} 工具 '{context.ToolName}' 请求执行操作（{riskContext.Details}）。是否批准？";

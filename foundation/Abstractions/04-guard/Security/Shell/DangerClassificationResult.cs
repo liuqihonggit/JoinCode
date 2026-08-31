@@ -22,17 +22,24 @@ public sealed record DangerClassificationResult(
     public bool IsDangerous => Level == CommandDangerLevel.Dangerous;
 
     /// <summary>
-    /// 是否需要 ask 确认（LightValidation 绿色 ask 或 Execution 红色 ask）
+    /// 是否需要 ask 确认（Unknown 黄灯ask / LightValidation 绿灯ask / Execution 红灯ask）
     /// </summary>
-    public bool RequiresAsk => Level == CommandDangerLevel.LightValidation || Level == CommandDangerLevel.Execution;
+    public bool RequiresAsk => Level == CommandDangerLevel.Unknown ||
+                               Level == CommandDangerLevel.LightValidation ||
+                               Level == CommandDangerLevel.Execution;
 
     /// <summary>
-    /// 是否绿色 ask（可撤回操作）
+    /// 是否未知命令（黄灯ask）— 未在 catalog 中登记的命令
+    /// </summary>
+    public bool IsUnknown => Level == CommandDangerLevel.Unknown;
+
+    /// <summary>
+    /// 是否绿灯ask（可撤回操作）
     /// </summary>
     public bool IsLightValidation => Level == CommandDangerLevel.LightValidation;
 
     /// <summary>
-    /// 是否红色 ask（不可撤回操作）
+    /// 是否红灯ask（不可撤回操作）
     /// </summary>
     public bool IsExecution => Level == CommandDangerLevel.Execution;
 

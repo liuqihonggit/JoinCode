@@ -45,6 +45,12 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
                 return DangerClassificationResult.SafeResult;
             }
         }
+        else
+        {
+            // 未知命令默认 Unknown（黄灯）— 安全原则: 未登记命令需用户确认，防止恶意脚本自动通过
+            detectedLevels.Add(CommandDangerLevel.Unknown);
+            details.Add($"未知命令 '{command.CommandName}' — 未在 catalog 中登记");
+        }
 
         // 2. 检查危险参数
         foreach (var arg in command.Arguments)
@@ -116,7 +122,7 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
             return CommandDangerLevel.Safe;
 
         var entry = MatchCommandEntry(commandName);
-        return entry?.Level ?? CommandDangerLevel.Safe;
+        return entry?.Level ?? CommandDangerLevel.Unknown;
     }
 
     /// <summary>

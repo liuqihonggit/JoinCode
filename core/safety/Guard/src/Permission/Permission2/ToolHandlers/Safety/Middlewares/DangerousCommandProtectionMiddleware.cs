@@ -264,8 +264,8 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
     /// <summary>
     /// 处理检测到的风险 — 根据 CommandDangerLevel 做决策
     /// Dangerous: 任何模式下都直接拒绝不提示
-    /// Execution（红色ask/不可撤回）: Auto拒绝/Ask确认/Plan拒绝
-    /// LightValidation（绿色ask/可撤回）: Auto拒绝/Ask确认/Plan放行(只读性质)
+    /// Execution（红灯ask/不可撤回）: Auto拒绝/Ask确认/Plan拒绝
+    /// LightValidation（绿灯ask/可撤回）: Auto拒绝/Ask确认/Plan放行(只读性质)
     /// </summary>
     private void HandleRisks(PermissionCheckContext context, CommandRiskContext riskContext, DangerClassificationResult? dangerResult)
     {
@@ -293,9 +293,14 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
                 break;
 
             case PermissionMode.Ask:
-                // LightValidation（绿色ask/可撤回）和 Execution（红色ask/不可撤回）都需确认
+                // Unknown（黄灯ask/未知）/ LightValidation（绿灯ask/可撤回）/ Execution（红灯ask/不可撤回）都需确认
                 // 颜色区分由 IPermissionConfirmationHandler 根据 DangerLevel 实现
-                var levelTag = level == CommandDangerLevel.LightValidation ? "[轻校验]" : "[执行]";
+                var levelTag = level switch
+                {
+                    CommandDangerLevel.Unknown => "[黄灯ask]",
+                    CommandDangerLevel.LightValidation => "[绿灯ask]",
+                    _ => "[红灯ask]"
+                };
                 var confirmation = handler is not null
                     ? $"{levelTag} {handler.BuildConfirmationMessage(riskContext)}"
                     : $"{levelTag} 工具 '{context.ToolName}' 请求执行操作（{riskContext.Details}）。是否批准？";

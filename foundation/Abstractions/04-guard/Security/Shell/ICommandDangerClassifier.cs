@@ -2,7 +2,7 @@ namespace JoinCode.Abstractions.Security.Shell;
 
 /// <summary>
 /// 命令危险分类器接口 — 统一的命令危险分级入口
-/// 4级分级: Safe(只读自动通过) / LightValidation(绿色ask可撤回) / Execution(红色ask不可撤回) / Dangerous(直接拒绝)
+/// 5级分级: Safe(白灯只读自动通过) / Unknown(黄灯未知命令ask) / LightValidation(绿灯可撤回ask) / Execution(红灯不可撤回ask) / Dangerous(黑灯直接拒绝)
 /// </summary>
 public interface ICommandDangerClassifier
 {

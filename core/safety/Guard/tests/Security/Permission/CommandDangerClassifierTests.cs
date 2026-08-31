@@ -2,7 +2,7 @@ namespace Guard.Security.Tests;
 
 /// <summary>
 /// CommandDangerClassifier 单元测试 — 验证新4级分级: Safe/LightValidation/Execution/Dangerous
-/// 绿色ask(LightValidation)=可撤回, 红色ask(Execution)=不可撤回, Dangerous=直接拒绝
+/// 绿灯ask(LightValidation)=可撤回, 红灯ask(Execution)=不可撤回, Dangerous=直接拒绝
 /// </summary>
 public class CommandDangerClassifierTests
 {
@@ -41,7 +41,7 @@ public class CommandDangerClassifierTests
 
     #endregion
 
-    #region Execution 级测试 — 红色 ask / 不可撤回
+    #region Execution 级测试 — 红灯ask / 不可撤回
 
     [Theory]
     [InlineData("rm -rf /tmp/important")]
@@ -80,7 +80,7 @@ public class CommandDangerClassifierTests
 
     #endregion
 
-    #region LightValidation 级测试 — 绿色 ask / 可撤回
+    #region LightValidation 级测试 — 绿灯ask / 可撤回
 
     [Theory]
     [InlineData("git commit -m \"msg\"")]
@@ -97,6 +97,25 @@ public class CommandDangerClassifierTests
         result.Level.Should().Be(CommandDangerLevel.LightValidation);
         result.IsDangerous.Should().BeFalse();
         result.RequiresIntervention.Should().BeTrue();
+    }
+
+    #endregion
+
+    #region Unknown 级测试 — 黄灯ask / 未知命令
+
+    [Theory]
+    [InlineData("exploit")]
+    [InlineData("./unknown_script.sh")]
+    [InlineData("my_custom_tool")]
+    [InlineData("foo bar baz")]
+    public void Unknown_Commands_Should_Return_Unknown(string command)
+    {
+        var result = _classifier.Classify(command);
+
+        result.Level.Should().Be(CommandDangerLevel.Unknown);
+        result.IsDangerous.Should().BeFalse();
+        result.RequiresIntervention.Should().BeTrue();
+        result.RequiresAsk.Should().BeTrue();
     }
 
     #endregion
@@ -144,7 +163,7 @@ public class CommandDangerClassifierTests
     [InlineData("reg", CommandDangerLevel.Execution)]
     [InlineData("ls", CommandDangerLevel.Safe)]
     [InlineData("cat", CommandDangerLevel.Safe)]
-    [InlineData("unknowncmd", CommandDangerLevel.Safe)]
+    [InlineData("unknowncmd", CommandDangerLevel.Unknown)]
     public void GetCommandLevel_Should_Return_Correct_Level(string commandName, CommandDangerLevel expectedLevel)
     {
         _classifier.GetCommandLevel(commandName).Should().Be(expectedLevel);

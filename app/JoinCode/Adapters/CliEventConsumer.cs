@@ -123,7 +123,8 @@ public sealed class CliEventConsumer : IResettableEventConsumer
         else
         {
             using var _ = TerminalHelper.SetColor(isError ? ConsoleColor.Red : ConsoleColor.DarkGray);
-            var glyph = isError ? "FAIL ⚠️" : "OK";
+            var status = isError ? ToolExecutionStatus.Fail : ToolExecutionStatus.Ok;
+            var glyph = status.ToValue();
             TerminalHelper.WriteLine($"[{glyph}] {toolName}");
             var displayText = ToolErrorFormatter.ExtractMessage(resultText, isError);
             if (!string.IsNullOrEmpty(displayText))

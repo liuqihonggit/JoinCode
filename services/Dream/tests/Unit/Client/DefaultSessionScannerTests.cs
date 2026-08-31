@@ -46,10 +46,10 @@ public sealed class DefaultSessionScannerTests
         var scanner = new DefaultSessionScanner(config, fs);
 
         var sessionsDir = "/project/.jcc/sessions";
-        fs.WriteAllText($"{sessionsDir}/session1.json", "data");
-        fs.WriteAllText($"{sessionsDir}/session2.json", "data");
-        fs.SetLastWriteTimeUtc($"{sessionsDir}/session1.json", DateTime.UtcNow.AddHours(1));
-        fs.SetLastWriteTimeUtc($"{sessionsDir}/session2.json", DateTime.UtcNow.AddHours(1));
+        fs.WriteAllText($"{sessionsDir}/session1.jsonl", "data");
+        fs.WriteAllText($"{sessionsDir}/session2.jsonl", "data");
+        fs.SetLastWriteTimeUtc($"{sessionsDir}/session1.jsonl", DateTime.UtcNow.AddHours(1));
+        fs.SetLastWriteTimeUtc($"{sessionsDir}/session2.jsonl", DateTime.UtcNow.AddHours(1));
 
         var since = DateTime.UtcNow.AddHours(-1).Ticks / TimeSpan.TicksPerMillisecond;
         var sessions = await scanner.ListSessionsTouchedSinceAsync(since).ConfigureAwait(true);
@@ -67,8 +67,8 @@ public sealed class DefaultSessionScannerTests
         var scanner = new DefaultSessionScanner(config, fs);
 
         var sessionsDir = "/project/.jcc/sessions";
-        fs.WriteAllText($"{sessionsDir}/session1.json", "data");
-        fs.SetLastWriteTimeUtc($"{sessionsDir}/session1.json", DateTime.UtcNow.AddDays(-2));
+        fs.WriteAllText($"{sessionsDir}/session1.jsonl", "data");
+        fs.SetLastWriteTimeUtc($"{sessionsDir}/session1.jsonl", DateTime.UtcNow.AddDays(-2));
 
         var since = DateTime.UtcNow.AddHours(-1).Ticks / TimeSpan.TicksPerMillisecond;
         var sessions = await scanner.ListSessionsTouchedSinceAsync(since).ConfigureAwait(true);
@@ -84,9 +84,9 @@ public sealed class DefaultSessionScannerTests
         var scanner = new DefaultSessionScanner(config, fs);
 
         var sessionsDir = "/project/.jcc/sessions";
-        fs.WriteAllText($"{sessionsDir}/session1.json", "data");
+        fs.WriteAllText($"{sessionsDir}/session1.jsonl", "data");
         fs.WriteAllText($"{sessionsDir}/notes.txt", "data");
-        fs.SetLastWriteTimeUtc($"{sessionsDir}/session1.json", DateTime.UtcNow.AddHours(1));
+        fs.SetLastWriteTimeUtc($"{sessionsDir}/session1.jsonl", DateTime.UtcNow.AddHours(1));
         fs.SetLastWriteTimeUtc($"{sessionsDir}/notes.txt", DateTime.UtcNow.AddHours(1));
 
         var since = DateTime.UtcNow.AddHours(-1).Ticks / TimeSpan.TicksPerMillisecond;
@@ -104,8 +104,8 @@ public sealed class DefaultSessionScannerTests
         var scanner = new DefaultSessionScanner(config, fs);
 
         var sessionsDir = "/project/.jcc/sessions";
-        fs.WriteAllText($"{sessionsDir}/.json", "data");
-        fs.SetLastWriteTimeUtc($"{sessionsDir}/.json", DateTime.UtcNow.AddHours(1));
+        fs.WriteAllText($"{sessionsDir}/.jsonl", "data");
+        fs.SetLastWriteTimeUtc($"{sessionsDir}/.jsonl", DateTime.UtcNow.AddHours(1));
 
         var since = DateTime.UtcNow.AddHours(-1).Ticks / TimeSpan.TicksPerMillisecond;
         var sessions = await scanner.ListSessionsTouchedSinceAsync(since).ConfigureAwait(true);

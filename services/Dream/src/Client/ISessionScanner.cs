@@ -55,7 +55,7 @@ public sealed partial class DefaultSessionScanner : ServiceEntity, ISessionScann
 
             var sinceTime = new DateTime(sinceMs * TimeSpan.TicksPerMillisecond, DateTimeKind.Utc);
 
-            foreach (var file in _fs.EnumerateFiles(sessionsDir, "*.json", SearchOption.TopDirectoryOnly))
+            foreach (var file in _fs.EnumerateFiles(sessionsDir, "*.jsonl", SearchOption.TopDirectoryOnly))
             {
                 var lastWriteTime = _fs.GetLastWriteTimeUtc(file);
                 if (lastWriteTime > sinceTime)

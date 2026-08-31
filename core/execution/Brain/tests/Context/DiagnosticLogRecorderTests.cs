@@ -229,7 +229,7 @@ public class DiagnosticLogRecorderTests
         if (!fs.DirectoryExists(sessionsDir))
             return string.Empty;
 
-        var files = fs.GetFiles(sessionsDir, "*.json", SearchOption.AllDirectories);
+        var files = fs.GetFiles(sessionsDir, "*.jsonl", SearchOption.AllDirectories);
         var sb = new StringBuilder();
         foreach (var file in files)
         {

@@ -16,7 +16,7 @@ internal sealed partial class SessionInitStep : ServiceEntity, IMiddleware<Start
         var housekeeping = host.Services.GetService<IHousekeepingService>();
         housekeeping?.CleanupOldSessionFiles();
 
-        // 迁移旧扁平 .json 到每会话子目录(幂等,失败不阻塞启动)
+        // 迁移旧扁平 .jsonl 到每会话子目录(幂等,失败不阻塞启动)
         var transcriptSvc = host.Services.GetService<ITranscriptService>();
         if (transcriptSvc is not null)
         {

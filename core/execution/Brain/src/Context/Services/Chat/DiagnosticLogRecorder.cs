@@ -2,7 +2,7 @@ namespace Core.Context;
 
 /// <summary>
 /// 链路日志记录中间件 — 记录工具调用、API 调用、循环检测、异常事件到 JSONL 文件
-/// 写入位置: ~/.jcc/sessions/{sessionId}/diag/{timestamp}.json
+/// 写入位置: ~/.jcc/sessions/{sessionId}/diag/{timestamp}.jsonl
 /// OnError=Continue：日志记录失败不影响管道继续执行
 /// </summary>
 [Register(typeof(IChatMiddleware), ServiceLifetime.Singleton)]
@@ -129,7 +129,7 @@ public sealed partial class DiagnosticLogRecorder : ServiceEntity, IChatMiddlewa
 
     private static string BuildLogPath(string sessionId)
     {
-        return Path.Combine(WorkflowConstants.Paths.SessionsDirectory, sessionId, "diag", $"{DateTimeOffset.UtcNow:yyyyMMdd_HHmmss}.json");
+        return Path.Combine(WorkflowConstants.Paths.SessionsDirectory, sessionId, "diag", $"{DateTimeOffset.UtcNow:yyyyMMdd_HHmmss}.jsonl");
     }
 
     private async Task EnsureDiagDirectoryAsync(string logPath)

@@ -30,8 +30,8 @@ public sealed class HousekeepingServiceTests
     public void CleanupOldSessionFiles_ShouldDeleteOldJsonlFiles()
     {
         _fs.CreateDirectory(SessionsDir);
-        var oldFile = Path.Combine(SessionsDir, "old-session.json");
-        var newFile = Path.Combine(SessionsDir, "new-session.json");
+        var oldFile = Path.Combine(SessionsDir, "old-session.jsonl");
+        var newFile = Path.Combine(SessionsDir, "new-session.jsonl");
 
         _fs.WriteAllText(oldFile, "old");
         _fs.WriteAllText(newFile, "new");
@@ -66,7 +66,7 @@ public sealed class HousekeepingServiceTests
     public void CleanupOldSessionFiles_WithAllRecentFiles_ShouldDeleteNothing()
     {
         _fs.CreateDirectory(SessionsDir);
-        var recentFile = Path.Combine(SessionsDir, "recent.json");
+        var recentFile = Path.Combine(SessionsDir, "recent.jsonl");
         _fs.WriteAllText(recentFile, "recent");
         _fs.SetLastWriteTimeUtc(recentFile, _clock.GetUtcNow().AddDays(-5));
 
@@ -149,7 +149,7 @@ public sealed class HousekeepingServiceTests
     public async Task RunAllCleanupAsync_ShouldAggregateAllResults()
     {
         _fs.CreateDirectory(SessionsDir);
-        var oldFile = Path.Combine(SessionsDir, "old.json");
+        var oldFile = Path.Combine(SessionsDir, "old.jsonl");
         _fs.WriteAllText(oldFile, "old");
         _fs.SetLastWriteTimeUtc(oldFile, _clock.GetUtcNow().AddDays(-31));
 

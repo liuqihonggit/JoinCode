@@ -117,7 +117,7 @@ public sealed class TranscriptServiceTests : IDisposable
         await _service.AppendEntryAsync("older", NewEntry("user", "old")).ConfigureAwait(true);
 
         // 等待时间戳变化 - 使用 SpinWait 替代 Task.Delay 反模式
-        var olderTime = _fs.GetLastWriteTimeUtc("/test/transcript/older/transcript.json");
+        var olderTime = _fs.GetLastWriteTimeUtc("/test/transcript/older/transcript.jsonl");
         SpinWait.SpinUntil(() => DateTime.UtcNow > olderTime, TimeSpan.FromMilliseconds(100));
 
         await _service.AppendEntryAsync("newer", NewEntry("user", "new")).ConfigureAwait(true);
@@ -230,7 +230,7 @@ public sealed class TranscriptServiceTests : IDisposable
     [Fact]
     public async Task MigrateLegacyAsync_Should_Move_Flat_Jsonl_To_SessionDirectory()
     {
-        var flatPath = "/test/transcript/legacy-migrate-1.json";
+        var flatPath = "/test/transcript/legacy-migrate-1.jsonl";
         await _fs.WriteAllTextAsync(flatPath, "{\"sessionId\":\"legacy-migrate-1\",\"role\":\"user\",\"content\":\"old-data\",\"timestamp\":\"2025-01-01T00:00:00Z\"}\n").ConfigureAwait(true);
 
         await _service.MigrateLegacyAsync().ConfigureAwait(true);
@@ -244,7 +244,7 @@ public sealed class TranscriptServiceTests : IDisposable
     [Fact]
     public async Task MigrateLegacyAsync_Should_Be_Idempotent()
     {
-        var flatPath = "/test/transcript/legacy-migrate-2.json";
+        var flatPath = "/test/transcript/legacy-migrate-2.jsonl";
         await _fs.WriteAllTextAsync(flatPath, "{\"sessionId\":\"legacy-migrate-2\",\"role\":\"user\",\"content\":\"data\",\"timestamp\":\"2025-01-01T00:00:00Z\"}\n").ConfigureAwait(true);
 
         await _service.MigrateLegacyAsync().ConfigureAwait(true);

@@ -244,7 +244,7 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
     {
         ValidateId(sessionId, nameof(sessionId));
         ValidateId(agentId, nameof(agentId));
-        return Path.Combine(_mailboxRoot, sessionId, $"{agentId}.json");
+        return Path.Combine(_mailboxRoot, sessionId, $"{agentId}.jsonl");
     }
 
     private void EnsureMailboxDirectoryExists(string sessionId, string agentId)

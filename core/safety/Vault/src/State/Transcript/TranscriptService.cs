@@ -323,14 +323,14 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
     }
 
     /// <summary>
-    /// 迁移旧扁平 .json(直接在 sessions 根目录)到每会话子目录 {id}/transcript.json — 幂等,不删旧文件
+    /// 迁移旧扁平 .jsonl(直接在 sessions 根目录)到每会话子目录 {id}/transcript.json — 幂等,不删旧文件
     /// 旧格式为 JSONL(每行一个 JSON),新格式为 JSON 数组(带缩进,人类可读)
     /// </summary>
     public async Task MigrateLegacyAsync(CancellationToken cancellationToken = default)
     {
         if (!_fs.DirectoryExists(_sessionsDirectory)) return;
 
-        foreach (var file in _fs.EnumerateFiles(_sessionsDirectory, "*.json", SearchOption.TopDirectoryOnly))
+        foreach (var file in _fs.EnumerateFiles(_sessionsDirectory, "*.jsonl", SearchOption.TopDirectoryOnly))
         {
             cancellationToken.ThrowIfCancellationRequested();
             var sessionId = Path.GetFileNameWithoutExtension(file);

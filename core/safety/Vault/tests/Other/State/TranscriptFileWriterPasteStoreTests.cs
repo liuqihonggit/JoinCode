@@ -19,7 +19,7 @@ public sealed class TranscriptFileWriterPasteStoreTests : IDisposable
     [Fact]
     public async Task AppendEntryAsync_SmallContent_ShouldStoreInline()
     {
-        var filePath = Path.Combine(_tempDir, "test.json");
+        var filePath = Path.Combine(_tempDir, "test.jsonl");
         var entry = new TranscriptEntry
         {
             SessionId = "s1",
@@ -46,7 +46,7 @@ public sealed class TranscriptFileWriterPasteStoreTests : IDisposable
         _pasteStore.Setup(p => p.HashPastedText(largeContent)).Returns(hash);
         _pasteStore.Setup(p => p.StorePastedText(hash, largeContent));
 
-        var filePath = Path.Combine(_tempDir, "large.json");
+        var filePath = Path.Combine(_tempDir, "large.jsonl");
         var entry = new TranscriptEntry
         {
             SessionId = "s1",
@@ -69,7 +69,7 @@ public sealed class TranscriptFileWriterPasteStoreTests : IDisposable
 
         _pasteStore.Setup(p => p.RetrievePastedText(hash)).Returns(originalContent);
 
-        var filePath = Path.Combine(_tempDir, "resolve.json");
+        var filePath = Path.Combine(_tempDir, "resolve.jsonl");
         var line = $$"""[{"sessionId":"s1","role":"user","content":"","contentHash":"{{hash}}","timestamp":"2026-07-30T00:00:00Z"}]""";
         _fs.WriteAllText(filePath, line);
 
@@ -85,7 +85,7 @@ public sealed class TranscriptFileWriterPasteStoreTests : IDisposable
         var hash = "MISSINGHASH0000";
         _pasteStore.Setup(p => p.RetrievePastedText(hash)).Returns((string?)null);
 
-        var filePath = Path.Combine(_tempDir, "missing.json");
+        var filePath = Path.Combine(_tempDir, "missing.jsonl");
         var line = $$"""[{"sessionId":"s1","role":"user","content":"","contentHash":"{{hash}}","timestamp":"2026-07-30T00:00:00Z"}]""";
         _fs.WriteAllText(filePath, line);
 
@@ -101,7 +101,7 @@ public sealed class TranscriptFileWriterPasteStoreTests : IDisposable
         var writerNoPaste = new TranscriptFileWriter(_fs, _tempDir, NullLogger.Instance, pasteStore: null);
         var largeContent = new string('y', 2000);
 
-        var filePath = Path.Combine(_tempDir, "nopaste.json");
+        var filePath = Path.Combine(_tempDir, "nopaste.jsonl");
         var entry = new TranscriptEntry
         {
             SessionId = "s1",

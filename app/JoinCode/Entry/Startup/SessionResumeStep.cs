@@ -4,7 +4,7 @@ namespace JoinCode.Entry;
 /// 会话恢复中间件 — 处理 --continue 和 --resume CLI 参数
 /// 在 SessionInitStep 之后执行，加载历史会话消息到 ChatService
 /// 对齐 TS: claude --continue / claude --resume
-/// 统一入口: 通过 ITranscriptService 读取 {sessionId}/transcript.jsonl,不再直读 .json
+/// 统一入口: 通过 ITranscriptService 读取 {sessionId}/transcript.json,不再直读 .json
 /// </summary>
 [Register(typeof(IMiddleware<StartupContext>), ServiceLifetime.Singleton)]
 internal sealed partial class SessionResumeStep : ServiceEntity, IMiddleware<StartupContext>

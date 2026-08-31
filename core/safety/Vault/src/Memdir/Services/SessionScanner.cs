@@ -1,7 +1,7 @@
 namespace Memdir.Services;
 
 /// <summary>
-/// 会话扫描器 — 扫描 ~/.jcc/sessions/ 下所有 .jsonl 会话文件，提取洞察元数据
+/// 会话扫描器 — 扫描 ~/.jcc/sessions/ 下所有 .json 会话文件，提取洞察元数据
 /// 对齐 TS insights.ts scanAllSessions + logToSessionMeta + extractToolStats
 /// </summary>
 [Register(typeof(IInsightSessionScanner), ServiceLifetime.Singleton)]
@@ -56,7 +56,7 @@ public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScann
 
         var results = new List<InsightSessionMeta>();
 
-        foreach (var file in _fs.EnumerateFiles(_sessionsDirectory, "*.jsonl", SearchOption.TopDirectoryOnly))
+        foreach (var file in _fs.EnumerateFiles(_sessionsDirectory, "*.json", SearchOption.TopDirectoryOnly))
         {
             cancellationToken.ThrowIfCancellationRequested();
 

@@ -5,7 +5,7 @@ namespace State.Tests;
 /// 复现 Bug: E2E 测试中 TranscriptFileWriter.AppendEntriesAsync 抛 FileNotFoundException
 ///
 /// 错误堆栈:
-///   System.IO.FileNotFoundException: Could not find file 'C:\Users\Administrator\AppData\Roaming\jcc\sessions\xxx.jsonl'
+///   System.IO.FileNotFoundException: Could not find file 'C:\Users\Administrator\AppData\Roaming\jcc\sessions\xxx.json'
 ///      at Microsoft.Win32.SafeHandles.SafeFileHandle.CreateFile(...)
 ///      at System.IO.FileStream..ctor(String path, FileMode mode, FileAccess access, FileShare share)
 ///      at IO.FileSystem.PhysicalFileSystem.CreateStream(String path, FileMode mode, FileAccess access, FileShare share)
@@ -38,7 +38,7 @@ public sealed class TranscriptFileWriterPhysicalTests : IDisposable
     public async Task AppendEntriesAsync_FileNotExists_ShouldNotThrowFileNotFoundException()
     {
         // Arrange — 使用一个绝对不存在的文件路径
-        var filePath = Path.Combine(_tempDir, "nonexistent-session.jsonl");
+        var filePath = Path.Combine(_tempDir, "nonexistent-session.json");
         _fs.FileExists(filePath).Should().BeFalse("前提: 文件确实不存在");
 
         var entries = new List<TranscriptEntry>
@@ -72,7 +72,7 @@ public sealed class TranscriptFileWriterPhysicalTests : IDisposable
     public void FileModeAppend_FileNotExists_ThrowsFileNotFoundException()
     {
         // Arrange — 使用一个绝对不存在的文件路径
-        var filePath = Path.Combine(_tempDir, "verify-filemode-append.jsonl");
+        var filePath = Path.Combine(_tempDir, "verify-filemode-append.json");
         _fs.FileExists(filePath).Should().BeFalse("前提: 文件确实不存在");
 
         Exception? caught = null;
@@ -111,7 +111,7 @@ public sealed class TranscriptFileWriterPhysicalTests : IDisposable
     {
         // Arrange — 使用一个不存在的目录路径
         var nonexistentDir = Path.Combine(_tempDir, "nonexistent-dir");
-        var filePath = Path.Combine(nonexistentDir, "test.jsonl");
+        var filePath = Path.Combine(nonexistentDir, "test.json");
         _fs.DirectoryExists(nonexistentDir).Should().BeFalse("前提: 目录确实不存在");
 
         Exception? caught = null;
@@ -151,7 +151,7 @@ public sealed class TranscriptFileWriterPhysicalTests : IDisposable
     public void FileModeOpenOrCreate_FileNotExists_DoesNotThrowFileNotFoundException()
     {
         // Arrange
-        var filePath = Path.Combine(_tempDir, "verify-filemode-openorcreate.jsonl");
+        var filePath = Path.Combine(_tempDir, "verify-filemode-openorcreate.json");
         _fs.FileExists(filePath).Should().BeFalse("前提: 文件确实不存在");
 
         // Act — 直接调用 CreateStream(FileMode.OpenOrCreate)

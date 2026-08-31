@@ -588,11 +588,11 @@ public sealed class BridgeSubprocessSpawner
                 debugFile = $"{options.DebugFile}-{safeId}";
             }
 
-            // 对齐 TS 端: bridge-transcript-{safeId}.jsonl
+            // 对齐 TS 端: bridge-transcript-{safeId}.json
             var debugDir = Path.GetDirectoryName(debugFile);
             transcriptPath = string.IsNullOrEmpty(debugDir)
-                ? $"bridge-transcript-{safeId}.jsonl"
-                : Path.Combine(debugDir, $"bridge-transcript-{safeId}.jsonl");
+                ? $"bridge-transcript-{safeId}.json"
+                : Path.Combine(debugDir, $"bridge-transcript-{safeId}.json");
         }
         else if (options.DebugLog || IsAntBuild())
         {

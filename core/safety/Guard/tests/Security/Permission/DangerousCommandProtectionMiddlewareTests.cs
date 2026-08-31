@@ -11,7 +11,7 @@ public class DangerousCommandProtectionMiddlewareTests
     /// <summary>
     /// 构造 Shell 工具权限检查上下文
     /// </summary>
-    private static PermissionCheckContext CreateContext(PermissionMode mode, string command)
+    private static PermissionCheckContext CreateContext(PermissionMode mode, string command, HashSet<CommandDangerLevel>? approvedLevels = null)
     {
         var config = PermissionConfig.CreateDefault();
         var args = new Dictionary<string, JsonElement>
@@ -25,7 +25,8 @@ public class DangerousCommandProtectionMiddlewareTests
             CurrentMode = mode,
             Config = config,
             AutoApprovedTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
-            AutoRejectedTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            AutoRejectedTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            ApprovedLevels = approvedLevels ?? []
         };
     }
 
@@ -84,6 +85,66 @@ public class DangerousCommandProtectionMiddlewareTests
 
         context.Result.Should().NotBeNull();
         context.Result!.IsApproved.Should().BeFalse();
+    }
+
+    #endregion
+
+    #region 同级别自动通过验证
+
+    [Fact]
+    public async Task SameLevelApproval_LightValidation_Should_AutoApprove()
+    {
+        var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);
+        var approved = new HashSet<CommandDangerLevel> { CommandDangerLevel.LightValidation };
+        var context = CreateContext(PermissionMode.Ask, "git commit -m \"msg\"", approved);
+        var nextCalled = false;
+
+        await middleware.InvokeAsync(context, (_, _) => { nextCalled = true; return Task.CompletedTask; }, CancellationToken.None);
+
+        nextCalled.Should().BeTrue("同等级已批准应自动放行");
+        context.Result.Should().BeNull("放行不应设置拒绝结果");
+    }
+
+    [Fact]
+    public async Task SameLevelApproval_Execution_Should_AutoApprove()
+    {
+        var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);
+        var approved = new HashSet<CommandDangerLevel> { CommandDangerLevel.Execution };
+        var context = CreateContext(PermissionMode.Ask, "rm file.txt", approved);
+        var nextCalled = false;
+
+        await middleware.InvokeAsync(context, (_, _) => { nextCalled = true; return Task.CompletedTask; }, CancellationToken.None);
+
+        nextCalled.Should().BeTrue("同等级已批准应自动放行");
+        context.Result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task DifferentLevelApproval_Should_Still_Confirm()
+    {
+        var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);
+        var approved = new HashSet<CommandDangerLevel> { CommandDangerLevel.LightValidation };
+        var context = CreateContext(PermissionMode.Ask, "rm file.txt", approved);
+
+        await middleware.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
+
+        context.Result.Should().NotBeNull("不同等级不应自动放行");
+        context.Result!.ConfirmationRequired.Should().BeTrue("红灯命令在绿灯已批准时仍需确认");
+    }
+
+    [Fact]
+    public async Task DangerousLevel_Should_Never_AutoApprove_Even_If_In_ApprovedLevels()
+    {
+        var middleware = new DangerousCommandProtectionMiddleware(dangerClassifier: _classifier);
+        var approved = new HashSet<CommandDangerLevel> { CommandDangerLevel.Dangerous };
+        var context = CreateContext(PermissionMode.Ask, "rm -rf /", approved);
+        var nextCalled = false;
+
+        await middleware.InvokeAsync(context, (_, _) => { nextCalled = true; return Task.CompletedTask; }, CancellationToken.None);
+
+        context.Result.Should().NotBeNull("Dangerous 永不自动通过");
+        context.Result!.IsApproved.Should().BeFalse();
+        nextCalled.Should().BeFalse();
     }
 
     #endregion

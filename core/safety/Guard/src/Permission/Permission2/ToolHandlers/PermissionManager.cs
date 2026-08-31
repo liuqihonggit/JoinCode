@@ -166,6 +166,13 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
         _logger?.LogInformation("工具临时批准已移除: Tool={ToolName}", toolName);
     }
 
+    /// <inheritdoc />
+    public void ApproveLevelTemporarily(CommandDangerLevel level)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        _permissionChecker.ApproveLevelTemporarily(level);
+    }
+
     /// <summary>
     /// 清除所有缓存
     /// </summary>

@@ -59,6 +59,13 @@ public interface IToolPermissionManager
     void ApproveToolTemporarily(string toolName, TimeSpan duration);
 
     /// <summary>
+    /// 会话级批准某危险等级 — 用户确认后同会话内同等级操作自动通过
+    /// 非持久化，每次打开新 exe 重新提示。Safe/Dangerous 传入无效果（Safe 无需批准，Dangerous 永不批准）
+    /// </summary>
+    /// <param name="level">危险等级（Unknown/LightValidation/Execution）</param>
+    void ApproveLevelTemporarily(CommandDangerLevel level);
+
+    /// <summary>
     /// 移除工具的临时批准
     /// </summary>
     /// <param name="toolName">工具名称</param>

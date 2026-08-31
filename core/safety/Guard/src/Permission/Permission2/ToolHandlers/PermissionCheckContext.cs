@@ -37,6 +37,12 @@ public sealed class PermissionCheckContext
     public required HashSet<string> AutoRejectedTools { get; init; }
 
     /// <summary>
+    /// 会话级已批准的危险等级集合 — 用户确认某等级后，同会话内同等级操作自动通过
+    /// 非持久化，每次打开新 exe 重新提示。由 PermissionChecker 维护，中间件检查
+    /// </summary>
+    public HashSet<CommandDangerLevel> ApprovedLevels { get; init; } = [];
+
+    /// <summary>
     /// 权限检查结果 — 由中间件设置，非 null 时表示已做出决策
     /// </summary>
     public ToolPermissionCheckResult? Result { get; set; }

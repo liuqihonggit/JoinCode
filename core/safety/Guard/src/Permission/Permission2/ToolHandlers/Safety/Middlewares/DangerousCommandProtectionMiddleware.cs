@@ -87,6 +87,12 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
         if (riskContext is null || riskContext.Risks.Count == 0)
             return next(context, ct);
 
+        // 同级别自动通过 — 用户已确认该等级，会话级非持久化，自动放行到 next
+        // Dangerous 级永不自动通过（即使已批准也拒绝，安全红线）
+        var preLevel = dangerResult?.Level ?? DangerousCommandCatalog.InferLevel(SelectPrimaryRisk(riskContext.Risks) ?? CommandRisk.None);
+        if (preLevel != CommandDangerLevel.Dangerous && context.ApprovedLevels.Contains(preLevel))
+            return next(context, ct);
+
         HandleRisks(context, riskContext, dangerResult);
         return Task.CompletedTask;
     }

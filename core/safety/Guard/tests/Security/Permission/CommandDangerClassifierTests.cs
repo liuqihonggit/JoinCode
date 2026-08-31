@@ -69,6 +69,12 @@ public class CommandDangerClassifierTests
     [InlineData("format D:")]
     [InlineData("shutdown /r")]
     [InlineData("reg add HKCU\\Test")]
+    [InlineData("git push")]
+    [InlineData("git push origin main")]
+    [InlineData("git push --force")]
+    [InlineData("git push -f")]
+    [InlineData("git stash drop")]
+    [InlineData("git tag -d v1.0")]
     public void Execution_Commands_Should_Return_Execution(string command)
     {
         var result = _classifier.Classify(command);
@@ -84,7 +90,6 @@ public class CommandDangerClassifierTests
 
     [Theory]
     [InlineData("git commit -m \"msg\"")]
-    [InlineData("git push")]
     [InlineData("git add file.txt")]
     [InlineData("git pull")]
     [InlineData("git merge feature")]

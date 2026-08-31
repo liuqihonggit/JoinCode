@@ -211,4 +211,32 @@ public class CommandDangerClassifierTests
     }
 
     #endregion
+
+    #region DangerLevelPromptParser 测试 — 确认提示解析
+
+    [Theory]
+    [InlineData("[黄灯ask] 未知命令需确认", CommandDangerLevel.Unknown)]
+    [InlineData("[绿灯ask] git commit 可撤回", CommandDangerLevel.LightValidation)]
+    [InlineData("[红灯ask] rm file.txt 不可撤回", CommandDangerLevel.Execution)]
+    public void ParseLevelFromPrompt_Should_Parse_LevelTag(string prompt, CommandDangerLevel expected)
+    {
+        DangerLevelPromptParser.ParseLevelFromPrompt(prompt).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("无标签的提示")]
+    [InlineData("[未知] 旧格式标签")]
+    public void ParseLevelFromPrompt_Should_Return_Null_When_No_Tag(string prompt)
+    {
+        DangerLevelPromptParser.ParseLevelFromPrompt(prompt).Should().BeNull();
+    }
+
+    [Fact]
+    public void ParseLevelFromPrompt_Null_Should_Return_Null()
+    {
+        DangerLevelPromptParser.ParseLevelFromPrompt(null).Should().BeNull();
+    }
+
+    #endregion
 }

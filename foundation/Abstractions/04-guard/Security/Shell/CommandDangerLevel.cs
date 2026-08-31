@@ -41,3 +41,29 @@ public enum CommandDangerLevel
     /// </summary>
     [EnumValue("dangerous")] Dangerous = 4
 }
+
+/// <summary>
+/// CommandDangerLevel 确认提示解析扩展 — 从确认提示文本解析危险等级（用于确认处理器联动同级别自动通过）
+/// </summary>
+public static class DangerLevelPromptParser
+{
+    /// <summary>
+    /// 从确认提示文本解析危险等级 — 中间件在 prompt 中嵌入 [黄灯ask]/[绿灯ask]/[红灯ask] 标签
+    /// </summary>
+    /// <param name="prompt">确认提示文本</param>
+    /// <returns>解析到的等级；未包含标签时返回 null</returns>
+    public static CommandDangerLevel? ParseLevelFromPrompt(string? prompt)
+    {
+        if (string.IsNullOrEmpty(prompt))
+            return null;
+
+        if (prompt.Contains("[黄灯ask]", StringComparison.Ordinal))
+            return CommandDangerLevel.Unknown;
+        if (prompt.Contains("[绿灯ask]", StringComparison.Ordinal))
+            return CommandDangerLevel.LightValidation;
+        if (prompt.Contains("[红灯ask]", StringComparison.Ordinal))
+            return CommandDangerLevel.Execution;
+
+        return null;
+    }
+}

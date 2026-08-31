@@ -153,7 +153,7 @@ public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwa
 
         try
         {
-            var data = JsonSerializer.Deserialize(
+            var data = RelaxedJsonSerializer.Deserialize(
                 message.Content,
                 AgentsJsonContext.Default.SwarmPermissionResponseData);
 

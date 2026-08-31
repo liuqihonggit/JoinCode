@@ -399,7 +399,7 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
             {
                 try
                 {
-                    data = JsonSerializer.Deserialize(rawContent, jsonTypeInfo);
+                    data = RelaxedJsonSerializer.Deserialize(rawContent, jsonTypeInfo);
                 }
                 catch (JsonException ex)
                 {

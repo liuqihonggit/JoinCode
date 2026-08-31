@@ -59,7 +59,7 @@ public sealed class RenameCommand : ChatCommandBase
         }
 
         var json = await fs.ReadAllTextAsync(sessionFile, context.CancellationToken).ConfigureAwait(false);
-        var session = JsonSerializer.Deserialize(json, CliJsonContext.Default.SessionData);
+        var session = RelaxedJsonSerializer.Deserialize(json, CliJsonContext.Default.SessionData);
 
         var oldName = session?.Id ?? context.SessionId;
 

@@ -115,7 +115,7 @@ public sealed record FileTaskMetadata
     /// </summary>
     public string ToJson()
     {
-        return JsonSerializer.Serialize(this, SchedulingIndentedJsonContext.Default.FileTaskMetadata);
+        return RelaxedJsonSerializer.Serialize(this, SchedulingIndentedJsonContext.Default);
     }
 
     /// <summary>
@@ -127,7 +127,7 @@ public sealed record FileTaskMetadata
             return null;
         try
         {
-            return JsonSerializer.Deserialize(json, SchedulingJsonContext.Default.FileTaskMetadata);
+            return RelaxedJsonSerializer.Deserialize(json, SchedulingJsonContext.Default.FileTaskMetadata);
         }
         catch
         {

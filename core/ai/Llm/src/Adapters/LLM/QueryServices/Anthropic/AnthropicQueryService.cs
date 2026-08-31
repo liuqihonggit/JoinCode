@@ -159,7 +159,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
         if (settings?.ExtensionData != null &&
             settings.ExtensionData.TryGetValue("web_search_tool", out var webSearchToolJson))
         {
-            var webSearchTool = JsonSerializer.Deserialize(webSearchToolJson, AnthropicJsonContext.Default.AnthropicToolDefinition);
+            var webSearchTool = RelaxedJsonSerializer.Deserialize(webSearchToolJson, AnthropicJsonContext.Default.AnthropicToolDefinition);
             if (webSearchTool is not null)
             {
                 request.Tools ??= [];
@@ -576,7 +576,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
         AnthropicMessagesResponse? result;
         try
         {
-            result = JsonSerializer.Deserialize(responseJson, AnthropicJsonContext.Default.AnthropicMessagesResponse);
+            result = RelaxedJsonSerializer.Deserialize(responseJson, AnthropicJsonContext.Default.AnthropicMessagesResponse);
         }
         catch (JsonException ex)
         {
@@ -745,7 +745,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
             AnthropicStreamingEvent? evt;
             try
             {
-                evt = JsonSerializer.Deserialize(data, AnthropicJsonContext.Default.AnthropicStreamingEvent);
+                evt = RelaxedJsonSerializer.Deserialize(data, AnthropicJsonContext.Default.AnthropicStreamingEvent);
             }
             catch (JsonException)
             {

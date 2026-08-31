@@ -542,7 +542,7 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 |------|------|
 | **目标框架** | `net10.0` |
 | **NativeAOT** | 强制，Release 模式自动启用 `PublishAot` + `TrimMode=full` |
-| **AOT 兼容** | 禁止 `dynamic`、反射 emit、直接解析 JSON；必须用 `JsonContext` + 源码生成器 |
+| **AOT 兼容** | 禁止 `dynamic`、反射 emit、直接解析 JSON；必须用 `JsonContext` + 源码生成器；写文件 JSON 统一用 `RelaxedJsonSerializer`（> ADR: [0042](docs/adr/0042-json-relaxed-serializer-unification.md)） |
 | **GlobalUsings** | `.cs` 文件内禁止写 `using`，统一放 `GlobalUsings.cs` |
 | **TreatWarningsAsErrors** | 已启用，零警告容忍 |
 | **InvariantGlobalization** | `true`，Release 模式 Exe 项目强制 |

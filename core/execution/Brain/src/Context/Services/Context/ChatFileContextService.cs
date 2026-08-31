@@ -63,7 +63,7 @@ public sealed partial class ChatFileContextService : ServiceEntity, IChatFileCon
                 {
                     try
                     {
-                        var metaJson = JsonSerializer.Serialize(msg.Metadata, ChatServiceJsonContext.Default.DictionaryStringJsonElement);
+                        var metaJson = RelaxedJsonSerializer.Serialize(msg.Metadata, ChatServiceJsonContext.Default);
                         sb.AppendLine($"[Metadata] {metaJson}");
                     }
                     catch (Exception)

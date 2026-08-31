@@ -29,7 +29,7 @@ public sealed class GoalStateStore : IGoalStateStore
             return null;
 
         var json = await _fs.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
-        return JsonSerializer.Deserialize(json, GoalJsonContext.Default.GoalState);
+        return RelaxedJsonSerializer.Deserialize(json, GoalJsonContext.Default.GoalState);
     }
 
     /// <summary>
@@ -40,7 +40,7 @@ public sealed class GoalStateStore : IGoalStateStore
         var sessionDir = GetSessionDir(state.SessionId);
         _fs.CreateDirectory(sessionDir);
         var path = _fs.CombinePath(sessionDir, $"{state.GoalId}.json");
-        var json = JsonSerializer.Serialize(state, GoalJsonContext.Default.GoalState);
+        var json = RelaxedJsonSerializer.Serialize(state, GoalJsonContext.Default);
 
         var tempPath = path + ".tmp";
         await _fs.WriteAllTextAsync(tempPath, json, cancellationToken).ConfigureAwait(false);
@@ -76,7 +76,7 @@ public sealed class GoalStateStore : IGoalStateStore
             try
             {
                 var json = await _fs.ReadAllTextAsync(file, cancellationToken).ConfigureAwait(false);
-                var state = JsonSerializer.Deserialize(json, GoalJsonContext.Default.GoalState);
+                var state = RelaxedJsonSerializer.Deserialize(json, GoalJsonContext.Default.GoalState);
                 if (state is not null && (state.Status == GoalStatus.Pursuing || state.Status == GoalStatus.Paused))
                     result.Add(state);
             }

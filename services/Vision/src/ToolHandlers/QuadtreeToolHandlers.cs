@@ -93,7 +93,7 @@ public class QuadtreeToolHandlers
         Dictionary<string, double>? paints;
         try
         {
-            paints = JsonSerializer.Deserialize(paintsJson, VisionJsonContext.Default.DictionaryStringDouble);
+            paints = RelaxedJsonSerializer.Deserialize(paintsJson, VisionJsonContext.Default.DictionaryStringDouble);
         }
         catch (JsonException)
         {
@@ -130,7 +130,7 @@ public class QuadtreeToolHandlers
             Dictionary<string, double>? paints;
             try
             {
-                paints = JsonSerializer.Deserialize(paintsJson, VisionJsonContext.Default.DictionaryStringDouble);
+                paints = RelaxedJsonSerializer.Deserialize(paintsJson, VisionJsonContext.Default.DictionaryStringDouble);
             }
             catch (JsonException)
             {

@@ -95,7 +95,7 @@ public sealed partial class McpAuthPersistenceService : ServiceEntity, IMcpAuthP
             var json = await configService.GetAsync("mcp.auth_entries", ct).ConfigureAwait(false);
             if (string.IsNullOrEmpty(json)) return new Dictionary<string, AuthConfigEntry>();
 
-            var entries = JsonSerializer.Deserialize(json, AuthEntryContext.Default.ListAuthConfigEntry);
+            var entries = RelaxedJsonSerializer.Deserialize(json, AuthEntryContext.Default.ListAuthConfigEntry);
             if (entries == null) return new Dictionary<string, AuthConfigEntry>();
             return entries.ToDictionary(e => e.Name);
         }
@@ -112,7 +112,7 @@ public sealed partial class McpAuthPersistenceService : ServiceEntity, IMcpAuthP
         try
         {
             var list = entries.Values.ToList();
-            var json = JsonSerializer.Serialize(list, AuthEntryContext.Default.ListAuthConfigEntry);
+            var json = RelaxedJsonSerializer.Serialize(list, AuthEntryContext.Default);
             await configService.SetAsync("mcp.auth_entries", json, ct).ConfigureAwait(false);
         }
         catch (Exception ex)

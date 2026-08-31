@@ -379,7 +379,7 @@ public sealed partial class TeamMemorySyncService : ServiceEntity, ITeamMemorySy
                 return;
             }
 
-            var entries = JsonSerializer.Deserialize(result.Content, JsonContext.ListSyncFileEntry);
+            var entries = RelaxedJsonSerializer.Deserialize(result.Content, JsonContext.ListSyncFileEntry);
             if (entries == null) return;
 
             foreach (var entry in entries)
@@ -599,7 +599,7 @@ public sealed partial class TeamMemorySyncService : ServiceEntity, ITeamMemorySy
         try
         {
             var entries = _remoteEntries.Values.ToList();
-            var json = JsonSerializer.Serialize(entries, JsonContext.ListSyncFileEntry);
+            var json = RelaxedJsonSerializer.Serialize(entries, JsonContext);
 
             await _fileOperationService.WriteFileAsync(
                 _options.RemoteStoragePath, json, cancellationToken).ConfigureAwait(false);

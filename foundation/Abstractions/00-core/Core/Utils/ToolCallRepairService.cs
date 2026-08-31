@@ -864,6 +864,19 @@ internal static class ToolCallRepairService
                     System.Diagnostics.Debug.WriteLine($"ToolCallRepairService: failed to parse string as JSON array");
                 }
             }
+            else if (str.StartsWith('{'))
+            {
+                try
+                {
+                    var obj = JsonDocument.Parse(str);
+                    if (obj.RootElement.ValueKind == JsonValueKind.Object)
+                        return (JsonDocument.Parse($"[{str}]").RootElement.Clone(), true);
+                }
+                catch (JsonException)
+                {
+                    System.Diagnostics.Debug.WriteLine($"ToolCallRepairService: failed to parse string as JSON object for array wrap");
+                }
+            }
         }
 
         return (value, false);

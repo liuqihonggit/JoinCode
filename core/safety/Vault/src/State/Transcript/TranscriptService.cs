@@ -84,7 +84,7 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
                         var json = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
                         if (!string.IsNullOrWhiteSpace(json))
                         {
-                            var entries = JsonSerializer.Deserialize(json, TranscriptJsonContext.Default.ListTranscriptEntry);
+                            var entries = RelaxedJsonSerializer.Deserialize(json, TranscriptJsonContext.Default.ListTranscriptEntry);
                             if (entries is not null)
                             {
                                 entryCount = entries.Count;
@@ -242,7 +242,7 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
             {
                 try
                 {
-                    var deserialized = JsonSerializer.Deserialize(entry.Content, ContentReplacementRecordListJsonContext.Default.ListContentReplacementRecord);
+                    var deserialized = RelaxedJsonSerializer.Deserialize(entry.Content, ContentReplacementRecordListJsonContext.Default.ListContentReplacementRecord);
                     if (deserialized is not null)
                     {
                         records.AddRange(deserialized);
@@ -296,7 +296,7 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
         {
             infoWithId = infoWithId with { ProjectName = Path.GetFileName(infoWithId.ProjectPath) };
         }
-        var json = JsonSerializer.Serialize(infoWithId, TranscriptJsonContext.Default.SessionInfo);
+        var json = RelaxedJsonSerializer.Serialize(infoWithId, TranscriptJsonContext.Default);
         await _fs.WriteAllTextAsync(metaPath, json, cancellationToken).ConfigureAwait(false);
         _logger?.LogDebug("Session info saved for {SessionId}", sessionId);
     }
@@ -313,7 +313,7 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
         try
         {
             var json = await _fs.ReadAllTextAsync(metaPath, cancellationToken).ConfigureAwait(false);
-            return JsonSerializer.Deserialize(json, TranscriptJsonContext.Default.SessionInfo);
+            return RelaxedJsonSerializer.Deserialize(json, TranscriptJsonContext.Default.SessionInfo);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -323,14 +323,14 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
     }
 
     /// <summary>
-    /// 迁移旧扁平 .jsonl(直接在 sessions 根目录)到每会话子目录 {id}/transcript.json — 幂等,不删旧文件
+    /// 迁移旧扁平 .json(直接在 sessions 根目录)到每会话子目录 {id}/transcript.json — 幂等,不删旧文件
     /// 旧格式为 JSONL(每行一个 JSON),新格式为 JSON 数组(带缩进,人类可读)
     /// </summary>
     public async Task MigrateLegacyAsync(CancellationToken cancellationToken = default)
     {
         if (!_fs.DirectoryExists(_sessionsDirectory)) return;
 
-        foreach (var file in _fs.EnumerateFiles(_sessionsDirectory, "*.jsonl", SearchOption.TopDirectoryOnly))
+        foreach (var file in _fs.EnumerateFiles(_sessionsDirectory, "*.json", SearchOption.TopDirectoryOnly))
         {
             cancellationToken.ThrowIfCancellationRequested();
             var sessionId = Path.GetFileNameWithoutExtension(file);
@@ -350,7 +350,7 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
                     if (string.IsNullOrWhiteSpace(line)) continue;
                     try
                     {
-                        var entry = JsonSerializer.Deserialize(line, TranscriptJsonContext.Default.TranscriptEntry);
+                        var entry = RelaxedJsonSerializer.Deserialize(line, TranscriptJsonContext.Default.TranscriptEntry);
                         if (entry is not null) entries.Add(entry);
                     }
                     catch (JsonException ex)
@@ -363,7 +363,7 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
                 {
                     DirectoryHelper.EnsureDirectoryExists(_fs, newDir);
                 }
-                var json = JsonSerializer.Serialize(entries, TranscriptJsonContext.Default.ListTranscriptEntry);
+                var json = RelaxedJsonSerializer.Serialize(entries, TranscriptJsonContext.Default);
                 await _fs.WriteAllTextAsync(newPath, json, cancellationToken).ConfigureAwait(false);
                 _logger?.LogInformation("Migrated legacy transcript {SessionId} to session directory (jsonl→json)", sessionId);
             }

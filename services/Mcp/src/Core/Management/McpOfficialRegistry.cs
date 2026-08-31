@@ -31,7 +31,7 @@ public sealed partial class McpOfficialRegistry : ServiceEntity
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            var result = JsonSerializer.Deserialize(json, McpClientJsonContext.Default.ListMcpRegistryEntry);
+            var result = RelaxedJsonSerializer.Deserialize(json, McpClientJsonContext.Default.ListMcpRegistryEntry);
 
             return result?.AsReadOnly() ?? (IReadOnlyList<McpRegistryEntry>)Array.Empty<McpRegistryEntry>();
         }
@@ -57,7 +57,7 @@ public sealed partial class McpOfficialRegistry : ServiceEntity
             response.EnsureSuccessStatusCode();
 
             var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            return JsonSerializer.Deserialize(json, McpClientJsonContext.Default.McpRegistryServerDetail);
+            return RelaxedJsonSerializer.Deserialize(json, McpClientJsonContext.Default.McpRegistryServerDetail);
         }
         catch (Exception ex)
         {

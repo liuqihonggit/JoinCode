@@ -40,21 +40,21 @@ public static class BridgeMessageSerialization
         var type = typeNode?.GetValue<string>();
         return type switch
         {
-            "initialize" => JsonSerializer.Deserialize(json, BridgeJsonContext.Default.InitializeRequest),
-            "initialize_response" => JsonSerializer.Deserialize(json, BridgeJsonContext.Default.InitializeResponse),
-            "tools/list" => JsonSerializer.Deserialize(json, BridgeJsonContext.Default.ToolsListRequest),
-            "tools/list_response" => JsonSerializer.Deserialize(json, BridgeJsonContext.Default.ToolsListResponse),
-            "tools/call" => JsonSerializer.Deserialize(json, BridgeJsonContext.Default.ToolsCallRequest),
-            "tools/call_response" => JsonSerializer.Deserialize(json, BridgeJsonContext.Default.ToolsCallResponse),
-            "skill/execute" => JsonSerializer.Deserialize(json, BridgeJsonContext.Default.SkillExecuteRequest),
-            "skill/execute_response" => JsonSerializer.Deserialize(json, BridgeJsonContext.Default.SkillExecuteResponse),
-            "control_request" => JsonSerializer.Deserialize(json, BridgeJsonContext.Default.ControlRequest),
-            "control_response" => JsonSerializer.Deserialize(json, BridgeJsonContext.Default.ControlResponse),
-            "ping" => JsonSerializer.Deserialize(json, BridgeJsonContext.Default.PingMessage),
-            "pong" => JsonSerializer.Deserialize(json, BridgeJsonContext.Default.PongMessage),
-            "error" => JsonSerializer.Deserialize(json, BridgeJsonContext.Default.ErrorMessage),
-            "notification" => JsonSerializer.Deserialize(json, BridgeJsonContext.Default.NotificationMessage),
-            "echo" => JsonSerializer.Deserialize(json, BridgeJsonContext.Default.EchoMessage),
+            "initialize" => RelaxedJsonSerializer.Deserialize(json, BridgeJsonContext.Default.InitializeRequest),
+            "initialize_response" => RelaxedJsonSerializer.Deserialize(json, BridgeJsonContext.Default.InitializeResponse),
+            "tools/list" => RelaxedJsonSerializer.Deserialize(json, BridgeJsonContext.Default.ToolsListRequest),
+            "tools/list_response" => RelaxedJsonSerializer.Deserialize(json, BridgeJsonContext.Default.ToolsListResponse),
+            "tools/call" => RelaxedJsonSerializer.Deserialize(json, BridgeJsonContext.Default.ToolsCallRequest),
+            "tools/call_response" => RelaxedJsonSerializer.Deserialize(json, BridgeJsonContext.Default.ToolsCallResponse),
+            "skill/execute" => RelaxedJsonSerializer.Deserialize(json, BridgeJsonContext.Default.SkillExecuteRequest),
+            "skill/execute_response" => RelaxedJsonSerializer.Deserialize(json, BridgeJsonContext.Default.SkillExecuteResponse),
+            "control_request" => RelaxedJsonSerializer.Deserialize(json, BridgeJsonContext.Default.ControlRequest),
+            "control_response" => RelaxedJsonSerializer.Deserialize(json, BridgeJsonContext.Default.ControlResponse),
+            "ping" => RelaxedJsonSerializer.Deserialize(json, BridgeJsonContext.Default.PingMessage),
+            "pong" => RelaxedJsonSerializer.Deserialize(json, BridgeJsonContext.Default.PongMessage),
+            "error" => RelaxedJsonSerializer.Deserialize(json, BridgeJsonContext.Default.ErrorMessage),
+            "notification" => RelaxedJsonSerializer.Deserialize(json, BridgeJsonContext.Default.NotificationMessage),
+            "echo" => RelaxedJsonSerializer.Deserialize(json, BridgeJsonContext.Default.EchoMessage),
             _ => null
         };
     }

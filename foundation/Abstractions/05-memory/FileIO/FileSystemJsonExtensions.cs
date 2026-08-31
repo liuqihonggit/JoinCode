@@ -9,6 +9,6 @@ public static class FileSystemJsonExtensions
         CancellationToken cancellationToken = default)
     {
         var json = await fs.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
-        return JsonSerializer.Deserialize(json, jsonTypeInfo);
+        return RelaxedJsonSerializer.Deserialize(json, jsonTypeInfo);
     }
 }

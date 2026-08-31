@@ -57,7 +57,7 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
 
     /// <summary>
     /// 清理旧会话文件 — 对齐 TS cleanupOldSessionFiles
-    /// 删除 sessions/*.jsonl + *.cast + tool-results/ 中 mtime 超过指定天数的
+    /// 删除 sessions/*.json + *.cast + tool-results/ 中 mtime 超过指定天数的
     /// </summary>
     public int CleanupOldSessionFiles(int maxAgeDays = 30)
     {
@@ -66,7 +66,7 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
         var total = CleanupFilesInDirectory(
             sessionsDir,
             maxAgeDays,
-            ["*.jsonl", "*.cast"],
+            ["*.json", "*.cast"],
             includeSubDirPattern: AppDataConstants.ToolResultsFolderName);
 
         // 清理过期的会话子目录(每会话一文件夹格式 {id}/)

@@ -35,7 +35,7 @@ public sealed partial class RemoteScanMiddleware : ServiceEntity, ISyncStartMidd
                 return;
             }
 
-            var entries = JsonSerializer.Deserialize(result.Content, TeamMemorySyncJsonContext.Default.ListSyncFileEntry);
+            var entries = RelaxedJsonSerializer.Deserialize(result.Content, TeamMemorySyncJsonContext.Default.ListSyncFileEntry);
             if (entries is not null)
             {
                 foreach (var entry in entries)

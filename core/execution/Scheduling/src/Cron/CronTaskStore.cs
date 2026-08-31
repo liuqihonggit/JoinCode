@@ -287,7 +287,7 @@ public sealed partial class FileCronTaskStore : ServiceEntity, ICronTaskStore, I
 
         try
         {
-            var file = JsonSerializer.Deserialize(result.Content, SchedulingIndentedJsonContext.Default.CronTaskFile);
+            var file = RelaxedJsonSerializer.Deserialize(result.Content, SchedulingIndentedJsonContext.Default.CronTaskFile);
 
             if (file?.Tasks == null)
                 return Array.Empty<CronTask>();
@@ -307,7 +307,7 @@ public sealed partial class FileCronTaskStore : ServiceEntity, ICronTaskStore, I
     private static string SerializeTasks(IReadOnlyList<CronTask> tasks)
     {
         var file = new CronTaskFile { Tasks = tasks.ToList() };
-        return JsonSerializer.Serialize(file, SchedulingIndentedJsonContext.Default.CronTaskFile);
+        return RelaxedJsonSerializer.Serialize(file, SchedulingIndentedJsonContext.Default);
     }
 
     private async Task WriteJsonAsync(string json, CancellationToken cancellationToken)

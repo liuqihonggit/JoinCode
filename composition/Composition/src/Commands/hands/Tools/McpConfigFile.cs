@@ -15,7 +15,7 @@ public sealed class McpConfigFile
     public Dictionary<string, McpServerConfigEntry> McpServers { get; set; } = new();
 }
 
-[JsonSourceGenerationOptions(WriteIndented = true, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(McpConfigFile))]
 [JsonSerializable(typeof(McpServerConfigEntry))]
 [JsonSerializable(typeof(Dictionary<string, McpServerConfigEntry>))]

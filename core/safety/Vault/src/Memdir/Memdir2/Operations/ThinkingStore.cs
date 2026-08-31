@@ -99,7 +99,7 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
             if (!result.Success || string.IsNullOrEmpty(result.Content)) return;
             var json = result.Content;
 
-            var data = JsonSerializer.Deserialize(json, ThinkingStoreJsonContext.Default.ThinkingStoreData);
+            var data = RelaxedJsonSerializer.Deserialize(json, ThinkingStoreJsonContext.Default.ThinkingStoreData);
             if (data?.Entries == null) return;
 
             foreach (var kvp in data.Entries)
@@ -128,7 +128,7 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
             var dir = Path.GetDirectoryName(filePath);
             DirectoryHelper.EnsureDirectoryExists(_fs, dir);
 
-            var json = JsonSerializer.Serialize(data, ThinkingStoreJsonContext.Default.ThinkingStoreData);
+            var json = RelaxedJsonSerializer.Serialize(data, ThinkingStoreJsonContext.Default);
             await _fileOperationService.WriteFileAsync(filePath, json, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) { }

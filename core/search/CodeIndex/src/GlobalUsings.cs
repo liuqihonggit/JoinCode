@@ -2,6 +2,7 @@ global using Core.Utils;
 global using System.Collections.Frozen;
 global using System.Diagnostics.CodeAnalysis;
 global using System.Text.RegularExpressions;
+global using JoinCode.Abstractions.Utils;
 global using JoinCode.CodeIndex.Ast;
 global using JoinCode.CodeIndex.Persistence;
 global using JoinCode.CodeIndex.Threading;

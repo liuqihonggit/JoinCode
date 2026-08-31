@@ -139,7 +139,7 @@ internal sealed class TranscriptFileWriter : IDisposable
         var json = await ReadAllTextWithWriteShareAsync(filePath, cancellationToken).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(json)) return new List<TranscriptEntry>();
 
-        var entries = JsonSerializer.Deserialize(json, TranscriptJsonContext.Default.ListTranscriptEntry);
+        var entries = RelaxedJsonSerializer.Deserialize(json, TranscriptJsonContext.Default.ListTranscriptEntry);
         if (entries is null) return new List<TranscriptEntry>();
 
         var result = new List<TranscriptEntry>(entries.Count);
@@ -153,7 +153,7 @@ internal sealed class TranscriptFileWriter : IDisposable
     /// <summary>写 List 为 JSON 文件(带缩进,人类可读)</summary>
     private async Task WriteJsonAsync(string filePath, List<TranscriptEntry> entries, CancellationToken cancellationToken)
     {
-        var json = JsonSerializer.Serialize(entries, TranscriptJsonContext.Default.ListTranscriptEntry);
+        var json = RelaxedJsonSerializer.Serialize(entries, TranscriptJsonContext.Default);
         await _fs.WriteAllTextAsync(filePath, json, cancellationToken).ConfigureAwait(false);
     }
 

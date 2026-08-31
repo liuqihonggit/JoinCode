@@ -1396,7 +1396,7 @@ public partial class FileToolHandlers : IDisposable
 
         // 对齐 TS: detectSessionFileType — 检测会话文件类型
         var isSessionMemory = MemoryFreshnessNote.IsMemoryFile(filePath);
-        var isSessionTranscript = filePath.EndsWith(".jsonl", StringComparison.OrdinalIgnoreCase)
+        var isSessionTranscript = filePath.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
             && filePath.Contains("projects", StringComparison.OrdinalIgnoreCase);
 
         // 对齐 TS: tengu_session_file_read

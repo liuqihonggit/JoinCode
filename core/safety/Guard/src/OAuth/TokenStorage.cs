@@ -79,7 +79,7 @@ public sealed partial class TokenStorage : ServiceEntity, ITokenStorage
         ArgumentNullException.ThrowIfNull(token);
 
         var filePath = GetTokenFilePath(provider);
-        var json = JsonSerializer.Serialize(token, OAuthTokenJsonContext.Default.OAuthToken);
+        var json = RelaxedJsonSerializer.Serialize(token, OAuthTokenJsonContext.Default);
         await _fs.WriteAllTextAsync(filePath, json, cancellationToken).ConfigureAwait(false);
 
         _logger?.LogInformation("Token saved for provider: {Provider}", provider);

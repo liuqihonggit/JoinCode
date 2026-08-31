@@ -37,7 +37,7 @@ public sealed class GraphPersistence : ServiceEntity, IGraphPersistence
             NuGetReferences = _store.NuGetRefs.Values.SelectMany(v => v).ToList(),
         };
 
-        var json = JsonSerializer.Serialize(data, CodeIndexJsonContext.Default.GraphPersistenceData);
+        var json = RelaxedJsonSerializer.Serialize(data, CodeIndexJsonContext.Default);
         var path = Path.Combine(directory, "code-index.json");
         await _fs.WriteAllTextAsync(path, json, ct).ConfigureAwait(false);
     }
@@ -51,7 +51,7 @@ public sealed class GraphPersistence : ServiceEntity, IGraphPersistence
             return false;
 
         var json = await _fs.ReadAllTextAsync(path, ct).ConfigureAwait(false);
-        var data = JsonSerializer.Deserialize(json, CodeIndexJsonContext.Default.GraphPersistenceData);
+        var data = RelaxedJsonSerializer.Deserialize(json, CodeIndexJsonContext.Default.GraphPersistenceData);
 
         if (data is null || data.Version != CurrentVersion)
             return false;

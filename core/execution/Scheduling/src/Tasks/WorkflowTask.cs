@@ -415,7 +415,7 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
         {
             WorkflowId = $"{parentState.Definition.WorkflowId}:{step.StepId}",
             Steps = step.Parameters?.GetValueOrDefault("steps") is JsonElement stepsEl && stepsEl.ValueKind == JsonValueKind.Array
-                ? JsonSerializer.Deserialize(stepsEl, SchedulingTasksJsonContext.Default.ListWorkflowStep) ?? []
+                ? RelaxedJsonSerializer.Deserialize(stepsEl, SchedulingTasksJsonContext.Default.ListWorkflowStep) ?? []
                 : [],
             ExecutionMode = step.Parameters?.GetValueOrDefault("executionMode") is JsonElement modeEl && modeEl.ValueKind == JsonValueKind.String
                 ? WorkflowExecutionModeExtensions.FromValue(modeEl.GetString()) ?? WorkflowExecutionMode.Sequential : WorkflowExecutionMode.Sequential,

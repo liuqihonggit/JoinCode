@@ -2,7 +2,7 @@ namespace JoinCode.Gui.Persistence;
 
 /// <summary>
 /// GUI 会话持久化存储 — 读写同一 sessions 目录。
-/// 若注入 ITranscriptService,走统一入口(.jsonl + 每会话子目录,与 CLI --continue 共享);
+/// 若注入 ITranscriptService,走统一入口(.json + 每会话子目录,与 CLI --continue 共享);
 /// 否则回退到每会话子目录 gui.json(测试隔离兼容)。
 /// 通过 IFileSystem 抽象注入,生产用 PhysicalFileSystem,测试用 InMemoryFileSystem。
 /// </summary>
@@ -24,7 +24,7 @@ public sealed class GuiSessionStore
 
     /// <summary>
     /// 后续注入 ITranscriptService — 引擎后台组装完成后由 AttachRealSession 调用,
-    /// 切换到统一入口(.jsonl + 子目录)。注入后需重新 ListSessions 刷新侧边栏。
+    /// 切换到统一入口(.json + 子目录)。注入后需重新 ListSessions 刷新侧边栏。
     /// </summary>
     public void SetTranscriptService(ITranscriptService transcriptService)
     {
@@ -48,7 +48,7 @@ public sealed class GuiSessionStore
             try
             {
                 var json = _fs.ReadAllText(file);
-                var data = JsonSerializer.Deserialize(json, GuiJsonContext.Default.GuiSessionData);
+                var data = RelaxedJsonSerializer.Deserialize(json, GuiJsonContext.Default.GuiSessionData);
                 if (data is null || string.IsNullOrWhiteSpace(data.Id))
                     continue;
 
@@ -71,7 +71,7 @@ public sealed class GuiSessionStore
         return summaries.OrderByDescending(s => s.LastModified).ToList();
     }
 
-    /// <summary>通过 ITranscriptService 列出会话(统一入口,.jsonl + 子目录)</summary>
+    /// <summary>通过 ITranscriptService 列出会话(统一入口,.json + 子目录)</summary>
     private GuiSessionSummary[] ListSessionsViaTranscriptService()
     {
         var summaries = _transcriptService!.ListTranscriptsAsync(200).GetAwaiter().GetResult();
@@ -115,7 +115,7 @@ public sealed class GuiSessionStore
         try
         {
             var json = _fs.ReadAllText(path);
-            return JsonSerializer.Deserialize(json, GuiJsonContext.Default.GuiSessionData);
+            return RelaxedJsonSerializer.Deserialize(json, GuiJsonContext.Default.GuiSessionData);
         }
         catch (Exception)
         {
@@ -189,7 +189,7 @@ public sealed class GuiSessionStore
         if (dir is not null && !_fs.DirectoryExists(dir))
             _fs.CreateDirectory(dir);
 
-        var json = JsonSerializer.Serialize(session, GuiJsonContext.Default.GuiSessionData);
+        var json = RelaxedJsonSerializer.Serialize(session, GuiJsonContext.Default);
         _fs.WriteAllText(path, json);
         return true;
     }

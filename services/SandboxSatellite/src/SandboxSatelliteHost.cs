@@ -46,7 +46,7 @@ public sealed class SandboxSatelliteHost : IAsyncDisposable
         SandboxIpcRequest? request;
         try
         {
-            request = JsonSerializer.Deserialize(line, SandboxIpcJsonContext.Default.SandboxIpcRequest);
+            request = RelaxedJsonSerializer.Deserialize(line, SandboxIpcJsonContext.Default.SandboxIpcRequest);
         }
         catch (Exception ex)
         {
@@ -114,7 +114,7 @@ public sealed class SandboxSatelliteHost : IAsyncDisposable
 
     private async Task HandleExecuteAsync(SandboxIpcRequest request, CancellationToken ct)
     {
-        var execRequest = JsonSerializer.Deserialize(request.Payload ?? "", SandboxIpcJsonContext.Default.SandboxExecuteRequest);
+        var execRequest = RelaxedJsonSerializer.Deserialize(request.Payload ?? "", SandboxIpcJsonContext.Default.SandboxExecuteRequest);
         if (execRequest is null)
         {
             await WriteResponseAsync(new SandboxIpcResponse

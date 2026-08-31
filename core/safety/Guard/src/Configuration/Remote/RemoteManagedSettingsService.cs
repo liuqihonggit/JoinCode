@@ -28,7 +28,7 @@ public sealed partial class RemoteManagedSettingsService : RemoteCacheRefreshSer
         response.EnsureSuccessStatusCode();
 
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        var settingsResponse = JsonSerializer.Deserialize(json, JsonContext.RemoteSettingsResponse);
+        var settingsResponse = RelaxedJsonSerializer.Deserialize(json, JsonContext.RemoteSettingsResponse);
 
         return new RemoteRefreshResult<ManagedSetting>
         {

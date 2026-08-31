@@ -315,7 +315,7 @@ public partial class JsonFileHookConfigurationProvider : IHookConfigurationProvi
         try
         {
             var json = _fs.ReadAllText(_filePath);
-            var settings = JsonSerializer.Deserialize(json, HooksJsonContext.Default.HookSettingsFile);
+            var settings = RelaxedJsonSerializer.Deserialize(json, HooksJsonContext.Default.HookSettingsFile);
 
             if (settings?.Hooks == null)
             {
@@ -437,7 +437,7 @@ public partial class JsonFileHookConfigurationProvider : IHookConfigurationProvi
         var directory = Path.GetDirectoryName(_filePath);
         DirectoryHelper.EnsureDirectoryExists(_fs, directory);
 
-        var json = JsonSerializer.Serialize(settings, HooksJsonContext.Default.HookSettingsFile);
+        var json = RelaxedJsonSerializer.Serialize(settings, HooksJsonContext.Default);
         await _fs.WriteAllTextAsync(_filePath, json).ConfigureAwait(false);
     }
 }

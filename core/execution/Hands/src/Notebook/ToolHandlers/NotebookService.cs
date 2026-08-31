@@ -30,7 +30,7 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService
             return null;
         }
 
-        var doc = JsonSerializer.Deserialize(result.Content, NotebookDocumentJsonContext.Default.NotebookDocument);
+        var doc = RelaxedJsonSerializer.Deserialize(result.Content, NotebookDocumentJsonContext.Default.NotebookDocument);
         RecordNotebookMetrics("load", doc != null);
         return doc;
     }
@@ -46,15 +46,8 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService
                 await _fileHistoryService.BackupBeforeWriteAsync(filePath, cancellationToken).ConfigureAwait(false);
             }
 
-            // 对齐 TS: IPYNB_INDENT = 1，使用 1 空格缩进写回 notebook
-            var options = new JsonSerializerOptions(NotebookDocumentJsonContext.Default.Options)
-            {
-                WriteIndented = true,
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-                TypeInfoResolver = NotebookDocumentJsonContext.Default,
-            };
-            var context = new NotebookDocumentJsonContext(options);
-            var json = JsonSerializer.Serialize(notebook, context.NotebookDocument);
+            // 对齐 TS: IPYNB_INDENT = 1，使用缩进写回 notebook（真实中文输出）
+            var json = RelaxedJsonSerializer.Serialize(notebook, NotebookDocumentJsonContext.Default);
 
             // 对齐 TS: readFileSyncWithMetadata + writeTextContent — 保持原始编码和换行符
             if (_fs.FileExists(filePath))

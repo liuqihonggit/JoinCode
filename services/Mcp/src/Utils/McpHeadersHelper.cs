@@ -45,7 +45,7 @@ public static class McpHeadersHelper
             }
 
             var outputText = result.StandardOutput.Trim();
-            var headers = JsonSerializer.Deserialize(outputText, McpClientJsonContext.Default.DictionaryStringJsonElement);
+            var headers = RelaxedJsonSerializer.Deserialize(outputText, McpClientJsonContext.Default.DictionaryStringJsonElement);
 
             if (headers == null || headers.Count == 0)
             {

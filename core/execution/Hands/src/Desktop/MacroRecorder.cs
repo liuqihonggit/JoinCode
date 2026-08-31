@@ -3,7 +3,7 @@ namespace JoinCode.Hands.Desktop;
 /// <summary>
 /// 宏录制 JSON 序列化上下文 — AOT 兼容的源码生成器
 /// </summary>
-[JsonSourceGenerationOptions(WriteIndented = true)]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true)]
 [JsonSerializable(typeof(Macro))]
 [JsonSerializable(typeof(List<DesktopOperation>))]
 internal sealed partial class MacroJsonContext : JsonSerializerContext;
@@ -115,7 +115,7 @@ public sealed partial class MacroRecorder : ServiceEntity, IMacroRecorder
         ArgumentNullException.ThrowIfNull(macro);
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
-        var json = JsonSerializer.Serialize(macro, MacroJsonContext.Default.Macro);
+        var json = RelaxedJsonSerializer.Serialize(macro, MacroJsonContext.Default);
         _fileSystem.WriteAllText(filePath, json);
         _logger?.LogInformation("保存宏到: {Path}", filePath);
     }
@@ -125,7 +125,7 @@ public sealed partial class MacroRecorder : ServiceEntity, IMacroRecorder
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         var json = _fileSystem.ReadAllText(filePath);
-        var macro = JsonSerializer.Deserialize(json, MacroJsonContext.Default.Macro)
+        var macro = RelaxedJsonSerializer.Deserialize(json, MacroJsonContext.Default.Macro)
             ?? throw new InvalidOperationException("宏文件解析失败");
         _logger?.LogInformation("加载宏: {Name}, 共 {Count} 步", macro.Name, macro.Operations.Count);
         return macro;

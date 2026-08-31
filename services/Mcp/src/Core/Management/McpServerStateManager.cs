@@ -101,7 +101,7 @@ public sealed partial class McpServerStateManager
                 DisabledServers = _disabledServers.ToList()
             };
 
-            var json = JsonSerializer.Serialize(state, McpClientJsonContext.Default.McpServerDisabledState);
+            var json = RelaxedJsonSerializer.Serialize(state, McpClientJsonContext.Default);
             var directory = Path.GetDirectoryName(_stateFilePath);
             if (!string.IsNullOrEmpty(directory))
             {

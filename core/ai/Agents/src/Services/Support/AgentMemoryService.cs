@@ -451,14 +451,14 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
 
             if (typeof(T) == typeof(SnapshotMeta))
             {
-                var result = System.Text.Json.JsonSerializer.Deserialize(jsonSpan, AgentsJsonContext.Default.AgentMemorySnapshotMetaJson);
+                var result = RelaxedJsonSerializer.Deserialize(jsonSpan, AgentsJsonContext.Default.AgentMemorySnapshotMetaJson);
                 if (result is null) return null;
                 return new SnapshotMeta { UpdatedAt = result.UpdatedAt } as T;
             }
 
             if (typeof(T) == typeof(SyncedMeta))
             {
-                var result = System.Text.Json.JsonSerializer.Deserialize(jsonSpan, AgentsJsonContext.Default.AgentMemorySyncedMetaJson);
+                var result = RelaxedJsonSerializer.Deserialize(jsonSpan, AgentsJsonContext.Default.AgentMemorySyncedMetaJson);
                 if (result is null) return null;
                 return new SyncedMeta { SyncedFrom = result.SyncedFrom } as T;
             }

@@ -18,7 +18,7 @@ public interface IHousekeepingService
 
     /// <summary>
     /// 清理旧会话文件 — 对齐 TS cleanupOldSessionFiles
-    /// 删除 sessions/*.jsonl + *.cast + tool-results/ 中 mtime 超过指定天数的
+    /// 删除 sessions/*.json + *.cast + tool-results/ 中 mtime 超过指定天数的
     /// </summary>
     int CleanupOldSessionFiles(int maxAgeDays = 30);
 

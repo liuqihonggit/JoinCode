@@ -61,7 +61,7 @@ public sealed class AzureProviderDefinition : IProviderDefinition
     {
         try
         {
-            var data = System.Text.Json.JsonSerializer.Deserialize(apiKey, ConfigJsonContext.Default.DictionaryStringString);
+            var data = RelaxedJsonSerializer.Deserialize(apiKey, ConfigJsonContext.Default.DictionaryStringString);
             return data?.GetValueOrDefault("apiKey");
         }
         catch { return null; }
@@ -78,7 +78,7 @@ public sealed class AzureProviderDefinition : IProviderDefinition
             ["endpoint"] = endpoint ?? string.Empty,
             ["apiKey"] = apiKey
         };
-        return System.Text.Json.JsonSerializer.Serialize(authData, ConfigJsonContext.Default.DictionaryStringString);
+        return RelaxedJsonSerializer.SerializeCompact(authData, ConfigJsonContext.Default);
     }
 
     public IEnumerable<ModelEntry> AvailableModels => _modelConfigLoader.GetModels(VendorKindConstants.OpenAi);

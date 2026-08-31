@@ -44,7 +44,7 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
                 try
                 {
                     var json = await _fs.ReadAllTextAsync(file, ct).ConfigureAwait(false);
-                    var template = JsonSerializer.Deserialize(json, ToolTemplateJsonContext.Default.ToolTemplate);
+                    var template = RelaxedJsonSerializer.Deserialize(json, ToolTemplateJsonContext.Default.ToolTemplate);
                     if (template is not null)
                     {
                         var id = Path.GetFileNameWithoutExtension(file);

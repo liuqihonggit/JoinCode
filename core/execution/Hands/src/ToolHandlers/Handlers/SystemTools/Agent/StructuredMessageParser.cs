@@ -22,7 +22,7 @@ public static class StructuredMessageParser
 
         try
         {
-            var json = JsonSerializer.Deserialize(message, ContractsJsonContext.Default.DictionaryStringJsonElement);
+            var json = RelaxedJsonSerializer.Deserialize(message, ContractsJsonContext.Default.DictionaryStringJsonElement);
             if (json is null || !json.TryGetValue("type", out var typeElement))
                 return false;
 

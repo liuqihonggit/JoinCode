@@ -118,7 +118,7 @@ public sealed class BridgePointerService
         try
         {
             var json = await _fs.ReadAllTextAsync(path, ct).ConfigureAwait(false);
-            var pointer = JsonSerializer.Deserialize(json, BridgeJsonContext.Default.BridgePointer);
+            var pointer = RelaxedJsonSerializer.Deserialize(json, BridgeJsonContext.Default.BridgePointer);
 
             if (pointer is null) return null;
 

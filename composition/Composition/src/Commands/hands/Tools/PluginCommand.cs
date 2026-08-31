@@ -149,12 +149,12 @@ public sealed class PluginCommand : ChatCommandBase
                 var autoLoadJson = await configService.GetAsync("plugins.autoLoadExternalPlugins", context.CancellationToken).ConfigureAwait(false);
                 var autoLoad = string.IsNullOrEmpty(autoLoadJson)
                     ? new List<string>()
-                    : JsonSerializer.Deserialize(autoLoadJson, CliJsonContext.Default.ListString) ?? new List<string>();
+                    : RelaxedJsonSerializer.Deserialize(autoLoadJson, CliJsonContext.Default.ListString) ?? new List<string>();
                 var autoLoadSet = new HashSet<string>(autoLoad, StringComparer.OrdinalIgnoreCase);
                 if (!autoLoadSet.Contains(pluginName))
                 {
                     autoLoad.Add(pluginName);
-                    var updatedJson = JsonSerializer.Serialize(autoLoad, CliJsonContext.Default.ListString);
+                    var updatedJson = RelaxedJsonSerializer.Serialize(autoLoad, CliJsonContext.Default);
                     await configService.SetAsync("plugins.autoLoadExternalPlugins", updatedJson, context.CancellationToken).ConfigureAwait(false);
                     TerminalHelper.WriteLine($"已添加到自动加载列表: {pluginName}");
                 }
@@ -185,13 +185,13 @@ public sealed class PluginCommand : ChatCommandBase
             var disabledJson = await configService.GetAsync("plugins.disabledPlugins", context.CancellationToken).ConfigureAwait(false);
             var disabled = string.IsNullOrEmpty(disabledJson)
                 ? new List<string>()
-                : JsonSerializer.Deserialize(disabledJson, CliJsonContext.Default.ListString) ?? new List<string>();
+                : RelaxedJsonSerializer.Deserialize(disabledJson, CliJsonContext.Default.ListString) ?? new List<string>();
 
             if (enable)
             {
                 if (disabled.Remove(name))
                 {
-                    var updatedJson = JsonSerializer.Serialize(disabled, CliJsonContext.Default.ListString);
+                    var updatedJson = RelaxedJsonSerializer.Serialize(disabled, CliJsonContext.Default);
                     await configService.SetAsync("plugins.disabledPlugins", updatedJson, context.CancellationToken).ConfigureAwait(false);
                     TerminalHelper.WriteLine($"{TerminalColors.Success}已启用插件: {name}（重启后生效）{AnsiStyleConstants.Reset}");
                 }
@@ -206,7 +206,7 @@ public sealed class PluginCommand : ChatCommandBase
                 if (!disabledSet.Contains(name))
                 {
                     disabled.Add(name);
-                    var updatedJson = JsonSerializer.Serialize(disabled, CliJsonContext.Default.ListString);
+                    var updatedJson = RelaxedJsonSerializer.Serialize(disabled, CliJsonContext.Default);
                     await configService.SetAsync("plugins.disabledPlugins", updatedJson, context.CancellationToken).ConfigureAwait(false);
                     TerminalHelper.WriteLine($"{TerminalColors.Success}已禁用插件: {name}（重启后生效）{AnsiStyleConstants.Reset}");
                 }

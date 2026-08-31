@@ -21,7 +21,7 @@ public sealed partial class KeywordInjectionMiddleware : ServiceEntity, IAnalyze
     private readonly IFileSystem _fs;
     private readonly ILogger<KeywordInjectionMiddleware>? _logger;
 
-    private const string MissLogFileName = "keyword-misses.jsonl";
+    private const string MissLogFileName = "keyword-misses.json";
     private const int MaxMissLogSize = 1024 * 1024;
 
     public ErrorBehavior OnError => ErrorBehavior.Continue;
@@ -116,8 +116,7 @@ public sealed partial class KeywordInjectionMiddleware : ServiceEntity, IAnalyze
 
         try
         {
-            var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            var dir = Path.Combine(userProfile, AppDataConstants.AppDataFolder);
+            var dir = WorkflowConstants.Paths.SessionsDirectory;
             var filePath = Path.Combine(dir, MissLogFileName);
 
             if (!_fs.DirectoryExists(dir))

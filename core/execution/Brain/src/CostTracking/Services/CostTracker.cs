@@ -414,7 +414,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
                 return;
             }
 
-            var records = JsonSerializer.Deserialize(result.Content, CostTrackingJsonContext.Default.ListTokenUsageRecord);
+            var records = RelaxedJsonSerializer.Deserialize(result.Content, CostTrackingJsonContext.Default.ListTokenUsageRecord);
 
             if (records != null)
             {

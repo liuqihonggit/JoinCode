@@ -92,7 +92,7 @@ public static class NotebookReader
         NotebookDocument? doc;
         try
         {
-            doc = JsonSerializer.Deserialize(json, NotebookDocumentJsonContext.Default.NotebookDocument);
+            doc = RelaxedJsonSerializer.Deserialize(json, NotebookDocumentJsonContext.Default.NotebookDocument);
         }
         catch (JsonException ex)
         {

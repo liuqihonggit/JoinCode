@@ -5,6 +5,7 @@ namespace JoinCode.Abstractions.Models.Notebook;
 /// Notebook 文档 JSON 序列化上下文（AOT 兼容）
 /// 对齐 TS: notebook.ts 的 JSON 解析
 /// </summary>
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 [JsonSerializable(typeof(NotebookDocument))]
 [JsonSerializable(typeof(NotebookCell))]
 [JsonSerializable(typeof(NotebookOutput))]

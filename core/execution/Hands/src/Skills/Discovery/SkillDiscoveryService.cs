@@ -121,7 +121,7 @@ public sealed partial class SkillDiscoveryService : ServiceEntity, ISkillDiscove
 
             try
             {
-                definition = JsonSerializer.Deserialize(result.Content, SkillsJsonContext.Default.SkillDefinition);
+                definition = RelaxedJsonSerializer.Deserialize(result.Content, SkillsJsonContext.Default.SkillDefinition);
                 if (definition == null)
                 {
                     errors.Add(L.T(StringKey.SkillDiscoveryJsonNull));

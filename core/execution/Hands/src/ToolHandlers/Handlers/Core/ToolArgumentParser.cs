@@ -27,7 +27,7 @@ public sealed class ToolArgumentParser
         // 尝试解析为JSON对象
         try
         {
-            var json = JsonSerializer.Deserialize(arguments, ToolsJsonContext.Default.DictionaryStringJsonElement);
+            var json = RelaxedJsonSerializer.Deserialize(arguments, ToolsJsonContext.Default.DictionaryStringJsonElement);
             if (json != null)
             {
                 return json;

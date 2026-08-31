@@ -25,18 +25,18 @@ public static class KeywordSectionEditValidator
 
         try
         {
-            _ = JsonSerializer.Deserialize(updatedContent, DynamicKeywordConfigJsonContext.Default.DynamicKeywordConfig);
+            _ = RelaxedJsonSerializer.Deserialize(updatedContent, DynamicKeywordConfigJsonContext.Default.DynamicKeywordConfig);
         }
         catch (JsonException ex)
         {
             return $"keyword-sections.json 格式非法: {ex.Message}";
         }
 
-        var afterConfig = JsonSerializer.Deserialize(updatedContent, DynamicKeywordConfigJsonContext.Default.DynamicKeywordConfig);
+        var afterConfig = RelaxedJsonSerializer.Deserialize(updatedContent, DynamicKeywordConfigJsonContext.Default.DynamicKeywordConfig);
 
         if (!string.IsNullOrWhiteSpace(originalContent))
         {
-            var beforeConfig = JsonSerializer.Deserialize(originalContent, DynamicKeywordConfigJsonContext.Default.DynamicKeywordConfig);
+            var beforeConfig = RelaxedJsonSerializer.Deserialize(originalContent, DynamicKeywordConfigJsonContext.Default.DynamicKeywordConfig);
             if (beforeConfig is not null && afterConfig is not null && afterConfig.Sections.Count < beforeConfig.Sections.Count)
                 return "禁止删除已有 Section，只能追加关键词或新增 Section";
         }

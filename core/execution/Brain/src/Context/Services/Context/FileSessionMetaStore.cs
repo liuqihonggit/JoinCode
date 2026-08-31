@@ -12,7 +12,7 @@ public sealed partial class FileSessionMetaStore : ServiceEntity, ISessionMetaSt
     public FileSessionMetaStore(IFileSystem fs, string? directoryPath = null)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
-        _directoryPath = directoryPath ?? Path.Combine(AppContext.BaseDirectory, AppDataConstants.SessionsFolderName);
+        _directoryPath = directoryPath ?? Path.Combine(WorkflowConstants.Paths.JccDirectory, AppDataConstants.SessionsFolderName);
     }
 
     private string GetFilePath(string sessionId)

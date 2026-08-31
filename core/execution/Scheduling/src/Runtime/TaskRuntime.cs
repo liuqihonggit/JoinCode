@@ -294,7 +294,7 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
 
             var durableTasks = _tasks.Values.Where(t => t.IsDurable).ToList();
             var filePath = Path.Combine(_deps.PersistenceDirectory, "runtime-tasks.json");
-            var json = JsonSerializer.Serialize(durableTasks, SchedulingTasksJsonContext.Default.ListRuntimeTask);
+            var json = RelaxedJsonSerializer.Serialize(durableTasks, SchedulingTasksJsonContext.Default);
             await _deps.FileOperationService.WriteFileAsync(filePath, json, cancellationToken).ConfigureAwait(false);
 
             _logger?.LogDebug(L.T(StringKey.PersistTasksLog), durableTasks.Count);
@@ -326,7 +326,7 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
             List<RuntimeTask>? tasks;
             try
             {
-                tasks = JsonSerializer.Deserialize(readResult.Content, SchedulingTasksJsonContext.Default.ListRuntimeTask);
+                tasks = RelaxedJsonSerializer.Deserialize(readResult.Content, SchedulingTasksJsonContext.Default.ListRuntimeTask);
             }
             catch (JsonException ex)
             {

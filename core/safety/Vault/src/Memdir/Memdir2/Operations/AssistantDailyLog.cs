@@ -341,7 +341,7 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
                 return new DailyLogFile { Date = dateStr };
             }
 
-            var logFile = JsonSerializer.Deserialize(result.Content, DailyLogJsonContext.Default.DailyLogFile);
+            var logFile = RelaxedJsonSerializer.Deserialize(result.Content, DailyLogJsonContext.Default.DailyLogFile);
             return logFile ?? new DailyLogFile { Date = dateStr };
         }
         catch (Exception ex)
@@ -361,7 +361,7 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
 
         try
         {
-            var json = JsonSerializer.Serialize(logFile, DailyLogJsonContext.Default.DailyLogFile);
+            var json = RelaxedJsonSerializer.Serialize(logFile, DailyLogJsonContext.Default);
             var result = await _fileOperationService.WriteFileAsync(filePath, json, cancellationToken).ConfigureAwait(false);
 
             if (!result.Success)

@@ -40,7 +40,7 @@ public sealed partial class OnboardingStatePersistence : ServiceEntity
         try
         {
             await using var stream = _fs.CreateStream(_filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            var data = await JsonSerializer.DeserializeAsync(stream, OnboardingPersistenceContext.Default.OnboardingCompletionData, ct).ConfigureAwait(false);
+            var data = await RelaxedJsonSerializer.DeserializeAsync(stream, OnboardingPersistenceContext.Default.OnboardingCompletionData, ct).ConfigureAwait(false);
             return data?.IsComplete ?? false;
         }
         catch
@@ -58,8 +58,8 @@ public sealed partial class OnboardingStatePersistence : ServiceEntity
         DirectoryHelper.EnsureDirectoryExists(_fs, dir);
 
         var data = new OnboardingCompletionData { IsComplete = true, CompletedAt = _clock.GetUtcNowOffset() };
-        await using var stream = _fs.CreateStream(_filePath, FileMode.Create, FileAccess.Write, FileShare.Read);
-        await JsonSerializer.SerializeAsync(stream, data, OnboardingPersistenceContext.Default.OnboardingCompletionData, ct).ConfigureAwait(false);
+        var json = RelaxedJsonSerializer.Serialize(data, OnboardingPersistenceContext.Default);
+        await _fs.WriteAllTextAsync(_filePath, json, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -93,5 +93,6 @@ public sealed class OnboardingCompletionData
     public DateTimeOffset CompletedAt { get; set; }
 }
 
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true)]
 [JsonSerializable(typeof(OnboardingCompletionData))]
 public sealed partial class OnboardingPersistenceContext : JsonSerializerContext;

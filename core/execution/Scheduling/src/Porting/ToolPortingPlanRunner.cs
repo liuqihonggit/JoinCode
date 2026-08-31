@@ -174,7 +174,7 @@ public sealed partial class ToolPortingPlanRunner : ServiceEntity
     public string ExportPlanToJson()
     {
         var plan = GenerateAssignmentPlan();
-        return JsonSerializer.Serialize(plan, SchedulingIndentedTasksJsonContext.Default.TaskAssignmentPlan);
+        return RelaxedJsonSerializer.Serialize(plan, SchedulingIndentedTasksJsonContext.Default);
     }
 
     /// <summary>

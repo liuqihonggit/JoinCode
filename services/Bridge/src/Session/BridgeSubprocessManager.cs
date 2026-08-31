@@ -356,7 +356,7 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
 
         try
         {
-            var json = JsonSerializer.Deserialize(ndjsonLine, BridgeJsonContext.Default.DictionaryStringJsonElement);
+            var json = RelaxedJsonSerializer.Deserialize(ndjsonLine, BridgeJsonContext.Default.DictionaryStringJsonElement);
             if (json is null) return null;
 
             // 必须是 user 类型
@@ -588,11 +588,11 @@ public sealed class BridgeSubprocessSpawner
                 debugFile = $"{options.DebugFile}-{safeId}";
             }
 
-            // 对齐 TS 端: bridge-transcript-{safeId}.jsonl
+            // 对齐 TS 端: bridge-transcript-{safeId}.json
             var debugDir = Path.GetDirectoryName(debugFile);
             transcriptPath = string.IsNullOrEmpty(debugDir)
-                ? $"bridge-transcript-{safeId}.jsonl"
-                : Path.Combine(debugDir, $"bridge-transcript-{safeId}.jsonl");
+                ? $"bridge-transcript-{safeId}.json"
+                : Path.Combine(debugDir, $"bridge-transcript-{safeId}.json");
         }
         else if (options.DebugLog || IsAntBuild())
         {

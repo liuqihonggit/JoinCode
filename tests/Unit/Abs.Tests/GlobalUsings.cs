@@ -8,5 +8,6 @@ global using JoinCode.Abstractions.Interfaces;
 global using FluentAssertions;
 global using Moq;
 global using System.Text.Json;
+global using System.Text.Encodings.Web;
 global using System.Collections.Frozen;
 global using Testing.Common;

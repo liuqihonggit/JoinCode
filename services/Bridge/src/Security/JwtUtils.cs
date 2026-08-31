@@ -114,7 +114,7 @@ public sealed partial class BridgeJwtService : ServiceEntity
         }
 
         var payloadJson = Encoding.UTF8.GetString(Base64UrlDecode(payloadSegment));
-        var payload = JsonSerializer.Deserialize(payloadJson, BridgeJwtJsonContext.Default.BridgeJwtPayload);
+        var payload = RelaxedJsonSerializer.Deserialize(payloadJson, BridgeJwtJsonContext.Default.BridgeJwtPayload);
 
         if (payload is null)
         {
@@ -270,7 +270,7 @@ public sealed partial class BridgeJwtService : ServiceEntity
         try
         {
             var payloadJson = Encoding.UTF8.GetString(Base64UrlDecode(parts[1]));
-            return JsonSerializer.Deserialize(payloadJson, BridgeJwtJsonContext.Default.BridgeJwtPayload);
+            return RelaxedJsonSerializer.Deserialize(payloadJson, BridgeJwtJsonContext.Default.BridgeJwtPayload);
         }
         catch (Exception ex)
         {

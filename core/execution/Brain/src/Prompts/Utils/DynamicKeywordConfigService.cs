@@ -63,7 +63,7 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
             if (string.IsNullOrWhiteSpace(json))
                 return;
 
-            var config = JsonSerializer.Deserialize(json, DynamicKeywordConfigJsonContext.Default.DynamicKeywordConfig);
+            var config = RelaxedJsonSerializer.Deserialize(json, DynamicKeywordConfigJsonContext.Default.DynamicKeywordConfig);
             if (config is not null)
             {
                 _config = config;

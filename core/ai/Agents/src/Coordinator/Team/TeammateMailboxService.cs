@@ -198,7 +198,7 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
 
                 try
                 {
-                    var msg = JsonSerializer.Deserialize(line, MailboxJsonContext.Default.MailboxMessage);
+                    var msg = RelaxedJsonSerializer.Deserialize(line, MailboxJsonContext.Default.MailboxMessage);
                     if (msg is not null)
                     {
                         messages.Add(msg);
@@ -244,7 +244,7 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
     {
         ValidateId(sessionId, nameof(sessionId));
         ValidateId(agentId, nameof(agentId));
-        return Path.Combine(_mailboxRoot, sessionId, $"{agentId}.jsonl");
+        return Path.Combine(_mailboxRoot, sessionId, $"{agentId}.json");
     }
 
     private void EnsureMailboxDirectoryExists(string sessionId, string agentId)

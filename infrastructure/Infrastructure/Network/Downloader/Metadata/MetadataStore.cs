@@ -29,7 +29,7 @@ internal sealed class MetadataStore
         try
         {
             var json = _fs.ReadAllText(metaPath);
-            return JsonSerializer.Deserialize(json, DownloaderJsonContext.Default.DownloadMetadata);
+            return RelaxedJsonSerializer.Deserialize(json, DownloaderJsonContext.Default.DownloadMetadata);
         }
         catch (JsonException)
         {

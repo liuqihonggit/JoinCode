@@ -76,7 +76,7 @@ public sealed partial class TrustFolderManager : ServiceEntity, ITrustFolderMana
         try
         {
             var json = _fs.ReadAllText(_trustedFoldersPath);
-            var entries = System.Text.Json.JsonSerializer.Deserialize(json, TrustFoldersContext.Default.TrustFolderEntries);
+            var entries = RelaxedJsonSerializer.Deserialize(json, TrustFoldersContext.Default.TrustFolderEntries);
             if (entries?.Folders is null)
             {
                 return [];
@@ -96,7 +96,7 @@ public sealed partial class TrustFolderManager : ServiceEntity, ITrustFolderMana
         DirectoryHelper.EnsureDirectoryExists(_fs, dir);
 
         var entries = new TrustFolderEntries { Folders = [.. folders] };
-        var json = System.Text.Json.JsonSerializer.Serialize(entries, TrustFoldersContext.Default.TrustFolderEntries);
+        var json = RelaxedJsonSerializer.Serialize(entries, TrustFoldersContext.Default);
         try
         {
             _fs.WriteAllText(_trustedFoldersPath, json);
@@ -124,5 +124,6 @@ public sealed class TrustFolderEntries
 /// <summary>
 /// 信任目录 JSON 序列化上下文
 /// </summary>
+[System.Text.Json.Serialization.JsonSourceGenerationOptions(PropertyNamingPolicy = System.Text.Json.Serialization.JsonKnownNamingPolicy.CamelCase, WriteIndented = true)]
 [System.Text.Json.Serialization.JsonSerializable(typeof(TrustFolderEntries))]
 public sealed partial class TrustFoldersContext : System.Text.Json.Serialization.JsonSerializerContext;

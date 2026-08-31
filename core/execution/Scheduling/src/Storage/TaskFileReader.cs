@@ -32,7 +32,7 @@ public sealed partial class TaskFileReader : ServiceEntity, ITaskFileReader
                 return null;
             }
 
-            return JsonSerializer.Deserialize(result.Content, SchedulingJsonContext.Default.FileTaskMetadata);
+            return RelaxedJsonSerializer.Deserialize(result.Content, SchedulingJsonContext.Default.FileTaskMetadata);
         }
         catch (JsonException)
         {

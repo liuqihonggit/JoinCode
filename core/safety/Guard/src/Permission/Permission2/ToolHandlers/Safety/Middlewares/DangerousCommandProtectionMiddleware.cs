@@ -39,9 +39,14 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
     /// <inheritdoc />
     public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct)
     {
-        // Bypass 模式跳过所有检查
+        // Bypass 模式：仍需拦截 Dangerous 级（黑灯），其余放行
+        // 安全红线: rm -rf /、mkfs、format c: 等整盘/系统级不可逆操作即使在 Bypass 下也必须拒绝
         if (context.CurrentMode == PermissionMode.Bypass)
+        {
+            if (TryRejectDangerousInBypass(context))
+                return Task.CompletedTask;
             return next(context, ct);
+        }
 
         // 1. 检查非 Shell 工具的删除操作（如 file_delete）
         var deleteInfo = DetectDeleteOperation(context);
@@ -84,6 +89,45 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
 
         HandleRisks(context, riskContext, dangerResult);
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Bypass 模式下检查 Dangerous 级命令并拒绝 — 安全红线，防止 rm -rf / 等操作穿透
+    /// 仅检查 Shell 工具的 Dangerous 级命令，非 Shell 工具的删除操作在 Bypass 下放行
+    /// </summary>
+    /// <returns>true 表示已拒绝（应短路返回），false 表示放行（应调用 next）</returns>
+    private bool TryRejectDangerousInBypass(PermissionCheckContext context)
+    {
+        if (!context.IsShellOperation(context.ToolName))
+            return false;
+
+        if (context.Arguments is null ||
+            !context.Arguments.TryGetValue("command", out var cmdEl) ||
+            cmdEl.ValueKind != JsonValueKind.String)
+            return false;
+
+        var command = cmdEl.GetString()!;
+
+        // 优先使用统一危险分类器
+        if (_dangerClassifier is not null)
+        {
+            var result = _dangerClassifier.Classify(command);
+            if (result.Level == CommandDangerLevel.Dangerous)
+            {
+                context.Result = ToolPermissionCheckResult.Rejected("此操作被禁止");
+                return true;
+            }
+            return false;
+        }
+
+        // 回退：无分类器时用配置模式检测
+        if (PermissionCheckContext.IsDangerousCommand(command, _dangerousCommandPatterns))
+        {
+            context.Result = ToolPermissionCheckResult.Rejected("此操作被禁止");
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>

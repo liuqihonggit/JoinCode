@@ -27,6 +27,7 @@ global using JoinCode.Abstractions.Models.Diff;
 global using JoinCode.Abstractions.Models.Interactive;
 global using JoinCode.Abstractions.Security;
 global using JoinCode.Abstractions.Security.Permission;
+global using JoinCode.Abstractions.Security.Shell;
 global using JoinCode.Gui.Converters;
 global using JoinCode.Gui.Hosting;
 global using JoinCode.Gui.Markdown;

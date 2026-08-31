@@ -119,7 +119,7 @@ public static class MarkdownParser
     }
 
     /// <summary>单个内联元素 → 渲染模型内联列表（可展开为多个）</summary>
-    private static IEnumerable<MarkdownInline> ConvertInline(Inline inline)
+    private static IEnumerable<MarkdownInline> ConvertInline(Markdig.Syntax.Inlines.Inline inline)
     {
         switch (inline)
         {

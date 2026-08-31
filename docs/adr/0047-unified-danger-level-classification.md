@@ -96,7 +96,7 @@ ToolPermissionCheckResult (Allowed/Denied/PendingConfirmation)
 - `Allow` → 本次允许，`PermissionManager.ApproveToolTemporarily(toolName, 1~5分钟)` 加入临时批准列表
 - `AlwaysAllow` → 始终允许，`PermissionManager.ApproveToolTemporarily(toolName, 30分钟~24小时)` 加入临时批准列表
 
-**⚠️ 已知缺陷**：确认处理器（CliPermissionConfirmationHandler/JccChatSession/TuiModeRunner）在用户确认后仅调用 `ApproveToolTemporarily(toolName)`，尚未联动 `ApproveLevelTemporarily(level)`。核心机制（PermissionChecker._approvedLevels + 中间件检查）已就绪，但需后续在确认流程中传递 dangerLevel 并调用 `ApproveLevelTemporarily`，同级别自动通过才会实际生效。
+**⚠️ 已知缺陷**：GUI 工程（JoinCodeGui）存在预存的 MarkdownParser `Inline` 歧义编译错误（Avalonia vs Markdig），与权限系统无关。JccChatSession 的 ApproveLevelTemporarily 联动代码已就绪，待 MarkdownParser 错误修复后即可编译验证。
 
 ### 统一实现位置
 
@@ -140,7 +140,7 @@ Dangerous 级命令在任何权限模式下都被拒绝（包括 Bypass），返
 
 ### 必须实现（核心联动）
 
-- [ ] **确认处理器联动 ApproveLevelTemporarily** — 当前确认处理器仅调用 `ApproveToolTemporarily(toolName)`，需在确认流程中传递 dangerLevel 并调用 `ApproveLevelTemporarily(level)`，同级别自动通过才会实际生效。
+- [x] **确认处理器联动 ApproveLevelTemporarily** — CLI/TUI/GUI 三端确认处理器用户确认后调用 `ApproveLevelTemporarily(level)`。`DangerLevelPromptParser.ParseLevelFromPrompt` 从 prompt 解析 `[黄灯ask]`/`[绿灯ask]`/`[红灯ask]` 标签获取 level。同会话内同等级操作不再重复 ask。
 - [ ] **GUI 按等级跳过标记** — GUI 界面上提供按等级跳过的复选框/按钮，用户点击后当前会话内该级别不再 ask。
 
 ### 统一迁移
@@ -162,4 +162,4 @@ Dangerous 级命令在任何权限模式下都被拒绝（包括 Bypass），返
 <!-- 验证: Guard.Security.Tests 105个单元测试全部通过 ✅ -->
 <!-- 联动: 启动参数(--permission-mode) → PermissionMode → CommandDangerLevel × PermissionMode → 决策 -->
 <!-- 联动: ask确认 → [黄灯ask]/[绿灯ask]/[红灯ask]标签 + 同级别自动通过(会话级非持久化) -->
-<!-- 待实现: 确认处理器联动ApproveLevelTemporarily、GUI按等级跳过标记 -->
+<!-- 待实现: GUI按等级跳过标记 -->

@@ -227,8 +227,9 @@ jobs:
           Write-Host "Stryker: $name | Source: $($info.Src) | Dir: $testDir | Slnx: $slnx | Concurrency: $concurrency | Mutate: $($info.Mutate.Count) patterns"
 
           # Stryker 4.16 的 test-case-filter 只能通过配置文件设置（命令行 N/A）
+          # 注意: 此文件会遮蔽上级目录 stryker-config.json,必须携带 additional-timeout 防止变异死锁时测试session无限hang
           $configPath = Join-Path $testDir "stryker-config.json"
-          '{"stryker-config":{"test-case-filter":"Category!=Integration"}}' | Out-File -FilePath $configPath -Encoding utf8 -NoNewline
+          '{"stryker-config":{"test-case-filter":"Category!=Integration","additional-timeout":5000}}' | Out-File -FilePath $configPath -Encoding utf8 -NoNewline
 
           Push-Location $testDir
           try {

@@ -1,10 +1,10 @@
 # 0050. spawn 阶段 SemaphoreSlim 限流
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-09-02
 - 决策者：项目架构组
 - 关联：[0048](docs/adr/0048-subagent-concurrency-unified-config.md)
-- 验证：待实现后补充
+- 验证：Agents 编译 0 警告 0 错误，AgentCoordinator 测试 26 通过 ✅
 
 ## 背景
 

@@ -1,8 +1,9 @@
 # 0048. 子代理并发控制统一配置入口
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-09-02
 - 决策者：项目架构组
+- 验证：Abstractions+Agents+Clock+Composition+App 编译 0 警告 0 错误，并行限流+AgentCoordinator+ForkSubAgentManager 测试全通过 ✅
 - 关联：[0049](docs/adr/0049-archive-maxconcurrentagents.md) | [0050](docs/adr/0050-spawn-stage-concurrency-limit.md) | [0051](docs/adr/0051-fork-concurrency-limit.md)
 
 ## 背景

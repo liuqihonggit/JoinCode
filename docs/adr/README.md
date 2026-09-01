@@ -140,7 +140,7 @@ ADR 引用 design/plans，但不重复其内容。
 | 编号 | 标题 | 状态 | 来源 |
 |------|------|------|------|
 | 0047 | 统一危险指令分级系统 | accepted | 新增 |
-| 0048 | 子代理并发控制统一配置入口 | proposed | 子代理并发控制任务 |
-| 0049 | 归档 MaxConcurrentAgents 死配置 | proposed | 子代理并发控制任务 |
-| 0050 | spawn 阶段 SemaphoreSlim 限流 | proposed | 子代理并发控制任务 |
-| 0051 | Fork 并发上限 | proposed | 子代理并发控制任务 |
+| 0048 | 子代理并发控制统一配置入口 | accepted | 子代理并发控制任务 |
+| 0049 | 归档 MaxConcurrentAgents 死配置 | accepted | 子代理并发控制任务 |
+| 0050 | spawn 阶段 SemaphoreSlim 限流 | accepted | 子代理并发控制任务 |
+| 0051 | Fork 并发上限 | accepted | 子代理并发控制任务 |

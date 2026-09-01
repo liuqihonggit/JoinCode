@@ -145,8 +145,9 @@ ADR 引用 design/plans，但不重复其内容。
 | 0050 | spawn 阶段 SemaphoreSlim 限流 | accepted | 子代理并发控制任务 |
 | 0051 | Fork 并发上限 | accepted | 子代理并发控制任务 |
 
-### 上下文管理（0053）
+### 上下文管理（0053-0054）
 
 | 编号 | 标题 | 状态 | 来源 |
 |------|------|------|------|
 | 0053 | 上下文压缩分层机制 | accepted | Context/Compact+Compression+Collapse 调查 |
+| 0054 | LLM 输出循环检测与分级干预机制 | accepted | Context/Services/Loop+LoopIntervention 调查 |

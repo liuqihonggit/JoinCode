@@ -127,6 +127,12 @@ public partial class SystemPromptProviderOptions
     public IFileSystem? FileSystem { get; init; }
 
     /// <summary>
+    /// 可选时钟服务 — 供 static PromptSection 读取当前时间（经 PromptConfigSnapshot 传递）
+    /// <para>为 null 时 section 回退到 DateTime.Now</para>
+    /// </summary>
+    public IClockService? Clock { get; init; }
+
+    /// <summary>
     /// 可选日志器 — 供 static PromptSection 读取（经 PromptConfigSnapshot 传递）
     /// </summary>
     public ILogger? Logger { get; init; }

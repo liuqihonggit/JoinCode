@@ -6,16 +6,18 @@ namespace Core.Prompts.Sections;
 [PromptSection(Name = "environment", Order = 70, IsDynamic = true)]
 public static class EnvironmentSection {
     public static string? GetContent() {
-        var fs = PromptConfigSnapshot.Current.FileSystem;
+        var config = PromptConfigSnapshot.Current;
+        var fs = config.FileSystem;
         if (fs is null) return null;
 
-        var additionalInfo = PromptConfigSnapshot.Current.AdditionalEnvInfo;
+        var additionalInfo = config.AdditionalEnvInfo;
+        var now = config.Clock?.GetLocalNow() ?? DateTime.Now;
 
         // 使用 EnvironmentSnapshot 统一采集环境信息（消除重复）
         var snapshot = EnvironmentSnapshot.CaptureQuick(fs);
 
         var items = new List<string> {
-            $"当前日期: {DateTime.Now:yyyy-MM-dd}",
+            $"当前日期: {now:yyyy-MM-dd}",
             $"工作目录: {snapshot.WorkingDirectory}",
             $"Git仓库: {(snapshot.IsGitRepo ? "是" : "否")}",
             $"平台: {snapshot.OsDescription}",

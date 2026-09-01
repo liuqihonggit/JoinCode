@@ -13,7 +13,8 @@ public static class SimpleModeSection
         if (fs is null) return null;
 
         var cwd = fs.GetCurrentDirectory();
-        var date = DateTime.Now.ToString("yyyy-MM-dd");
+        var now = snapshot.Clock?.GetLocalNow() ?? DateTime.Now;
+        var date = now.ToString("yyyy-MM-dd");
 
         return $"""
             您是 JoinCode，一个AI驱动的软件工程助手。

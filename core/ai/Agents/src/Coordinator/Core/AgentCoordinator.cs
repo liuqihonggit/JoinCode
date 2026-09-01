@@ -25,6 +25,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     private readonly ConcurrentDictionary<string, string> _secretaries;
     private readonly MiddlewarePipeline<AgentDisposeContext> _disposePipeline;
     private readonly MiddlewarePipeline<UnifiedSpawnContext> _spawnPipeline;
+    private readonly SemaphoreSlim _spawnSemaphore;
 
     public event EventHandler<AgentTaskStatusChangedEventArgs>? TaskStatusChanged;
     public event EventHandler<TeammateChangedEventArgs>? TeammateChanged;
@@ -39,7 +40,8 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         IForkSubAgentManager? forkManager = null,
         ILogger<AgentCoordinator>? logger = null,
         ISubAgentContextAccessor? subAgentContextAccessor = null,
-        ISubagentStopHookManager? subagentStopHookManager = null)
+        ISubagentStopHookManager? subagentStopHookManager = null,
+        SubAgentConcurrencyOptions? concurrencyOptions = null)
     {
         _lifecycleManager = core.LifecycleManager ?? throw new ArgumentNullException(nameof(core.LifecycleManager));
         _worktreeManager = core.WorktreeManager ?? throw new ArgumentNullException(nameof(core.WorktreeManager));
@@ -58,6 +60,9 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         _agentStartTimes = new ConcurrentDictionary<string, DateTime>();
         _secretaries = new ConcurrentDictionary<string, string>(StringComparer.Ordinal);
 
+        var spawnLimit = Math.Max(1, (concurrencyOptions ?? new SubAgentConcurrencyOptions()).MaxConcurrentSpawns);
+        _spawnSemaphore = new SemaphoreSlim(spawnLimit, spawnLimit);
+
         core.StateMachine.StateChanged += (_, e) =>
         {
             TaskStatusChanged?.Invoke(this, new AgentTaskStatusChangedEventArgs(e.AgentId, e.OldState, e.NewState));
@@ -70,32 +75,49 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         };
     }
 
+    /// <summary>
+    /// 释放 spawn 信号量等内核资源
+    /// </summary>
+    protected override void OnDispose()
+    {
+        _spawnSemaphore.Dispose();
+        base.OnDispose();
+    }
+
     #region Agent 生命周期管理（含协调逻辑）
 
     public async Task<IAgent> SpawnSubAgentAsync(string task, SubAgentOptions? options = null, CancellationToken cancellationToken = default, string? parentSessionId = null)
     {
-        var ctx = new UnifiedSpawnContext
+        await _spawnSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            Task = task,
-            SubOptions = options,
-            CancellationToken = cancellationToken,
-            ParentSessionId = parentSessionId,
-        };
-        await _spawnPipeline.ExecuteAsync(ctx, cancellationToken).ConfigureAwait(false);
+            var ctx = new UnifiedSpawnContext
+            {
+                Task = task,
+                SubOptions = options,
+                CancellationToken = cancellationToken,
+                ParentSessionId = parentSessionId,
+            };
+            await _spawnPipeline.ExecuteAsync(ctx, cancellationToken).ConfigureAwait(false);
 
-        if (ctx.Agent is not null)
-        {
-            if (ctx.SpawnedAt != default)
+            if (ctx.Agent is not null)
             {
-                _agentStartTimes[ctx.AgentId] = ctx.SpawnedAt;
+                if (ctx.SpawnedAt != default)
+                {
+                    _agentStartTimes[ctx.AgentId] = ctx.SpawnedAt;
+                }
+                if (ctx.ExecutionContext is not null)
+                {
+                    _executionContexts[ctx.AgentId] = ctx.ExecutionContext;
+                }
             }
-            if (ctx.ExecutionContext is not null)
-            {
-                _executionContexts[ctx.AgentId] = ctx.ExecutionContext;
-            }
+
+            return ctx.Agent ?? throw new InvalidOperationException("Spawn pipeline completed without agent");
         }
-
-        return ctx.Agent ?? throw new InvalidOperationException("Spawn pipeline completed without agent");
+        finally
+        {
+            _spawnSemaphore.Release();
+        }
     }
 
     public async Task<IReadOnlyList<IAgent>> SpawnSubAgentsAsync(IEnumerable<string> tasks, SubAgentOptions? options = null, CancellationToken cancellationToken = default)

@@ -6,7 +6,7 @@ namespace Core.Agents.Coordinator;
 /// </summary>
 [Register(typeof(ISubAgentCoordinator), ServiceLifetime.Singleton)]
 [Register(typeof(ITeammateObserver), ServiceLifetime.Singleton)]
-public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinator, ITeammateObserver
+public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinator, ITeammateObserver, ISubAgentConcurrencyUpdater
 {
     private readonly IAgentLifecycleManager _lifecycleManager;
     private readonly IAgentWorktreeManager _worktreeManager;
@@ -25,6 +25,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     private readonly ConcurrentDictionary<string, string> _secretaries;
     private readonly MiddlewarePipeline<AgentDisposeContext> _disposePipeline;
     private readonly MiddlewarePipeline<UnifiedSpawnContext> _spawnPipeline;
+    private volatile SemaphoreSlim _spawnSemaphore;
 
     public event EventHandler<AgentTaskStatusChangedEventArgs>? TaskStatusChanged;
     public event EventHandler<TeammateChangedEventArgs>? TeammateChanged;
@@ -39,7 +40,8 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         IForkSubAgentManager? forkManager = null,
         ILogger<AgentCoordinator>? logger = null,
         ISubAgentContextAccessor? subAgentContextAccessor = null,
-        ISubagentStopHookManager? subagentStopHookManager = null)
+        ISubagentStopHookManager? subagentStopHookManager = null,
+        SubAgentConcurrencyOptions? concurrencyOptions = null)
     {
         _lifecycleManager = core.LifecycleManager ?? throw new ArgumentNullException(nameof(core.LifecycleManager));
         _worktreeManager = core.WorktreeManager ?? throw new ArgumentNullException(nameof(core.WorktreeManager));
@@ -58,6 +60,9 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         _agentStartTimes = new ConcurrentDictionary<string, DateTime>();
         _secretaries = new ConcurrentDictionary<string, string>(StringComparer.Ordinal);
 
+        var spawnLimit = Math.Max(1, (concurrencyOptions ?? new SubAgentConcurrencyOptions()).MaxConcurrentSpawns);
+        _spawnSemaphore = new SemaphoreSlim(spawnLimit, spawnLimit);
+
         core.StateMachine.StateChanged += (_, e) =>
         {
             TaskStatusChanged?.Invoke(this, new AgentTaskStatusChangedEventArgs(e.AgentId, e.OldState, e.NewState));
@@ -70,32 +75,71 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         };
     }
 
+    /// <summary>
+    /// 释放 spawn 信号量等内核资源
+    /// </summary>
+    protected override void OnDispose()
+    {
+        _spawnSemaphore.Dispose();
+        base.OnDispose();
+    }
+
+    /// <summary>
+    /// 热重载 spawn 并发上限 — 原子替换 SemaphoreSlim，旧的 Dispose（ADR 0048）
+    /// </summary>
+    public void UpdateConcurrencyOptions(SubAgentConcurrencyOptions options)
+    {
+        var newLimit = Math.Max(1, options.MaxConcurrentSpawns);
+        var newSem = new SemaphoreSlim(newLimit, newLimit);
+        var old = Interlocked.Exchange(ref _spawnSemaphore, newSem);
+        old.Dispose();
+        _logger?.LogInformation("spawn 并发上限已热重载为 {Limit}", newLimit);
+    }
+
     #region Agent 生命周期管理（含协调逻辑）
 
     public async Task<IAgent> SpawnSubAgentAsync(string task, SubAgentOptions? options = null, CancellationToken cancellationToken = default, string? parentSessionId = null)
     {
-        var ctx = new UnifiedSpawnContext
+        var sem = _spawnSemaphore;
+        try
         {
-            Task = task,
-            SubOptions = options,
-            CancellationToken = cancellationToken,
-            ParentSessionId = parentSessionId,
-        };
-        await _spawnPipeline.ExecuteAsync(ctx, cancellationToken).ConfigureAwait(false);
-
-        if (ctx.Agent is not null)
-        {
-            if (ctx.SpawnedAt != default)
-            {
-                _agentStartTimes[ctx.AgentId] = ctx.SpawnedAt;
-            }
-            if (ctx.ExecutionContext is not null)
-            {
-                _executionContexts[ctx.AgentId] = ctx.ExecutionContext;
-            }
+            await sem.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
+        catch (ObjectDisposedException)
+        {
+            sem = _spawnSemaphore;
+            await sem.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        try
+        {
+            var ctx = new UnifiedSpawnContext
+            {
+                Task = task,
+                SubOptions = options,
+                CancellationToken = cancellationToken,
+                ParentSessionId = parentSessionId,
+            };
+            await _spawnPipeline.ExecuteAsync(ctx, cancellationToken).ConfigureAwait(false);
 
-        return ctx.Agent ?? throw new InvalidOperationException("Spawn pipeline completed without agent");
+            if (ctx.Agent is not null)
+            {
+                if (ctx.SpawnedAt != default)
+                {
+                    _agentStartTimes[ctx.AgentId] = ctx.SpawnedAt;
+                }
+                if (ctx.ExecutionContext is not null)
+                {
+                    _executionContexts[ctx.AgentId] = ctx.ExecutionContext;
+                }
+            }
+
+            return ctx.Agent ?? throw new InvalidOperationException("Spawn pipeline completed without agent");
+        }
+        finally
+        {
+            try { sem.Release(); }
+            catch (ObjectDisposedException) { _logger?.LogDebug("spawn 信号量在 Release 时已被热重载 Dispose"); }
+        }
     }
 
     public async Task<IReadOnlyList<IAgent>> SpawnSubAgentsAsync(IEnumerable<string> tasks, SubAgentOptions? options = null, CancellationToken cancellationToken = default)

@@ -37,6 +37,9 @@ public sealed partial class SettingsMapper : ServiceEntity
         // 工具评分配置
         ApplyToolScoreSettings(config, settings);
 
+        // 子代理并发控制配置（ADR 0048）
+        ApplySubAgentConcurrencySettings(config, settings);
+
         return config;
     }
 
@@ -305,6 +308,19 @@ public sealed partial class SettingsMapper : ServiceEntity
 
         if (current.ToolPenalties is not null)
             config.ToolExecution.ToolPenalties = new Dictionary<string, int>(current.ToolPenalties, StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// 映射子代理并发控制配置 — spawn/execute/fork 三阶段上限（ADR 0048）
+    /// </summary>
+    private static void ApplySubAgentConcurrencySettings(WorkflowConfig config, SettingsJson? settings)
+    {
+        var sub = settings?.Current?.SubAgentConcurrency;
+        if (sub is null) return;
+
+        config.SubAgentConcurrency.MaxConcurrentSpawns = sub.MaxConcurrentSpawns;
+        config.SubAgentConcurrency.MaxConcurrentExecutions = sub.MaxConcurrentExecutions;
+        config.SubAgentConcurrency.MaxConcurrentForks = sub.MaxConcurrentForks;
     }
 
     #endregion

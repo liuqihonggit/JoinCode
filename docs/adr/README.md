@@ -134,3 +134,13 @@ ADR 引用 design/plans，但不重复其内容。
 | 0029 | 分析器铁律 JCC5002/JCC9006 | accepted | GUI 测试·分析器铁律 |
 | 0030 | E2E 真实服务策略 | accepted | E2E·MockServer+jcc 联合测试 |
 | 0031 | HTTP 连接池 DNS 刷新 | accepted | 代码注释·QueryServiceBase.cs:70 |
+
+### 安全与并发治理（0047-0051）
+
+| 编号 | 标题 | 状态 | 来源 |
+|------|------|------|------|
+| 0047 | 统一危险指令分级系统 | accepted | 新增 |
+| 0048 | 子代理并发控制统一配置入口 | accepted | 子代理并发控制任务 |
+| 0049 | 归档 MaxConcurrentAgents 死配置 | accepted | 子代理并发控制任务 |
+| 0050 | spawn 阶段 SemaphoreSlim 限流 | accepted | 子代理并发控制任务 |
+| 0051 | Fork 并发上限 | accepted | 子代理并发控制任务 |

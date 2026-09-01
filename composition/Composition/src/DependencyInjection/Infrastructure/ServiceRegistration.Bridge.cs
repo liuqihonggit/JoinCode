@@ -46,6 +46,12 @@ public static partial class ServiceRegistration
             return config.Bridge;
         });
 
+        // SubAgentConcurrencyOptions 需从 WorkflowConfig.SubAgentConcurrency 提取（ADR 0048）
+        services.AddSingleton<SubAgentConcurrencyOptions>(sp => {
+            var config = sp.GetRequiredService<WorkflowConfig>();
+            return config.SubAgentConcurrency;
+        });
+
         // BridgeApiClient 手动工厂注册 — 覆盖 [Register] 自动注册
         // 原因: BridgeApiClient 有两个 public 构造函数（HttpClient 版和 BridgeConfig 版），DI 容器无法选择导致歧义
         // 工厂方法明确使用 BridgeConfig 版构造函数，避免歧义

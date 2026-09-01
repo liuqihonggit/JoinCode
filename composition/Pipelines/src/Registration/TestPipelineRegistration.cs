@@ -122,6 +122,7 @@ public static class TestPipelineRegistration
                 .Use(sp.GetRequiredService<HookRefreshMiddleware>())
                 .Use(sp.GetRequiredService<PermissionCacheMiddleware>())
                 .Use(sp.GetRequiredService<ToolScoreSettingsMiddleware>())
+                .Use(sp.GetRequiredService<SubAgentConcurrencyMiddleware>())
                 .WithHooks(sp)
                 .Build());
 

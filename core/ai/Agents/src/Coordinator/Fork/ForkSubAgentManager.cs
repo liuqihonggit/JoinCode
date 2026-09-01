@@ -89,6 +89,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
                     await sem.WaitAsync(ct).ConfigureAwait(false);
             }
         }
+        var semaphoreTransferredToBackground = false;
         try
         {
         // 预计算 Fork 深度（需要访问 _entries 内部状态）
@@ -206,7 +207,8 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
             // 若 RunBackgroundForkAsync 同步完成(如 ExecuteAsync 同步抛出异常),
             // .WaitAsync 再访问 forkCts.Token 会抛 ObjectDisposedException
             var forkToken = forkCts.Token;
-            _ = RunBackgroundForkAsync(forkId, context.Agent, options.TaskDescription, options.EventChannel, forkToken)
+            semaphoreTransferredToBackground = true;
+            _ = RunBackgroundForkAsync(forkId, context.Agent, options.TaskDescription, options.EventChannel, forkToken, sem)
                 .WaitAsync(TimeSpan.FromSeconds(10), forkToken).ConfigureAwait(false);
 
             return new ForkResult
@@ -230,8 +232,11 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
         }
         finally
         {
-            try { sem?.Release(); }
-            catch (ObjectDisposedException) { _logger?.LogDebug("fork 信号量在 Release 时已被热重载 Dispose"); }
+            if (!semaphoreTransferredToBackground)
+            {
+                try { sem?.Release(); }
+                catch (ObjectDisposedException) { _logger?.LogDebug("fork 信号量在 Release 时已被热重载 Dispose"); }
+            }
         }
     }
 
@@ -360,7 +365,8 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
     }
 
     private async Task RunBackgroundForkAsync(string forkId, IAgent agent, string taskDescription,
-        JoinCode.Abstractions.LLM.Chat.SubAgentEventChannel? eventChannel, CancellationToken cancellationToken)
+        JoinCode.Abstractions.LLM.Chat.SubAgentEventChannel? eventChannel, CancellationToken cancellationToken,
+        SemaphoreSlim? forkSemaphore = null)
     {
         // 终态发射辅助 — 通道由调用方在回合作用域内捕获传入；
         // fork 完成晚于回合时事件写入死通道自然丢弃（GUI 靠 task-notification 回填补足）
@@ -429,6 +435,11 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
             {
                 finallyEntry.Cts.Dispose();
                 finallyEntry.Cts = null;
+            }
+            if (forkSemaphore is not null)
+            {
+                try { forkSemaphore.Release(); }
+                catch (ObjectDisposedException) { _logger?.LogDebug("fork 信号量在后台完成 Release 时已被热重载 Dispose"); }
             }
         }
     }

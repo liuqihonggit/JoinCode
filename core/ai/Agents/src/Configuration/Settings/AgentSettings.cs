@@ -7,11 +7,6 @@ namespace Core.Agents.Configuration.Settings;
 public class AgentSettings
 {
     /// <summary>
-    /// 最大并发 Agent 数
-    /// </summary>
-    public int MaxConcurrentAgents { get; set; } = 10;
-
-    /// <summary>
     /// Agent 超时时间（秒）
     /// </summary>
     public int AgentTimeoutSeconds { get; set; } = WorkflowConstants.Timeouts.AgentTimeoutSeconds;

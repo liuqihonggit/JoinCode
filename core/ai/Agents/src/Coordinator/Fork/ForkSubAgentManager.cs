@@ -12,7 +12,7 @@ public sealed record ForkManagerDependencies(
     ITelemetryService? TelemetryService = null);
 
 [Register(typeof(IForkSubAgentManager), ServiceLifetime.Singleton)]
-public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDisposable
+public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDisposable, ISubAgentConcurrencyUpdater
 {
     private sealed class ForkEntry
     {
@@ -48,7 +48,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
     private readonly ConcurrentDictionary<string, ForkEntry> _entries;
     private readonly ConcurrentDictionary<string, Dictionary<string, string>> _sharedCache;
     private readonly SemaphoreSlim _lock;
-    private readonly SemaphoreSlim? _forkSemaphore;
+    private volatile SemaphoreSlim? _forkSemaphore;
 
     public event EventHandler<ForkCompletedEventArgs>? ForkCompleted;
 
@@ -75,8 +75,20 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
 
     public async Task<ForkResult> ForkAsync(ForkOptions options, CancellationToken ct = default)
     {
-        if (_forkSemaphore is not null)
-            await _forkSemaphore.WaitAsync(ct).ConfigureAwait(false);
+        var sem = _forkSemaphore;
+        if (sem is not null)
+        {
+            try
+            {
+                await sem.WaitAsync(ct).ConfigureAwait(false);
+            }
+            catch (ObjectDisposedException)
+            {
+                sem = _forkSemaphore;
+                if (sem is not null)
+                    await sem.WaitAsync(ct).ConfigureAwait(false);
+            }
+        }
         try
         {
         // 预计算 Fork 深度（需要访问 _entries 内部状态）
@@ -218,7 +230,8 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
         }
         finally
         {
-            _forkSemaphore?.Release();
+            try { sem?.Release(); }
+            catch (ObjectDisposedException) { _logger?.LogDebug("fork 信号量在 Release 时已被热重载 Dispose"); }
         }
     }
 
@@ -509,6 +522,20 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
         }
     }
 
+    /// <summary>
+    /// 热重载 fork 并发上限 — 原子替换 SemaphoreSlim，旧的 Dispose（ADR 0048）
+    /// </summary>
+    public void UpdateConcurrencyOptions(SubAgentConcurrencyOptions options)
+    {
+        var maxForks = options.MaxConcurrentForks;
+        var newSem = maxForks > 0
+            ? new SemaphoreSlim(maxForks, maxForks)
+            : null;
+        var old = Interlocked.Exchange(ref _forkSemaphore, newSem);
+        old?.Dispose();
+        _logger?.LogInformation("fork 并发上限已热重载为 {Limit}", maxForks);
+    }
+
     public async ValueTask DisposeAsync()
     {
         await _lock.WaitAsync().ConfigureAwait(false);
@@ -536,5 +563,4 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
 
         _lock.Dispose();
         _forkSemaphore?.Dispose();
-    }
-}
+    }}

@@ -384,6 +384,14 @@ public sealed partial class CurrentSettings
     [SettingsProperty(SettingsMergeStrategy.ListConcatDistinct)]
     public List<string> ModelHistory { get; init; } = [];
 
+    /// <summary>
+    /// 子代理并发控制配置 — spawn/execute/fork 三阶段上限（ADR 0048）
+    /// 热重载：settings.json 变更时通过 SubAgentConcurrencyMiddleware 实时更新各组件 SemaphoreSlim
+    /// </summary>
+    [JsonPropertyName("subAgentConcurrency")]
+    [SettingsProperty(SettingsMergeStrategy.Override, SkipKeyAccess = true)]
+    public SubAgentConcurrencyOptions? SubAgentConcurrency { get; init; }
+
     #region 自定义合并方法
 
     private static PermissionsSettings? MergePermissions(PermissionsSettings? basePerms, PermissionsSettings? overridePerms)

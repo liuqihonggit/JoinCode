@@ -6,7 +6,7 @@ namespace Core.Agents.Coordinator;
 /// </summary>
 [Register(typeof(ISubAgentCoordinator), ServiceLifetime.Singleton)]
 [Register(typeof(ITeammateObserver), ServiceLifetime.Singleton)]
-public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinator, ITeammateObserver
+public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinator, ITeammateObserver, ISubAgentConcurrencyUpdater
 {
     private readonly IAgentLifecycleManager _lifecycleManager;
     private readonly IAgentWorktreeManager _worktreeManager;
@@ -25,7 +25,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     private readonly ConcurrentDictionary<string, string> _secretaries;
     private readonly MiddlewarePipeline<AgentDisposeContext> _disposePipeline;
     private readonly MiddlewarePipeline<UnifiedSpawnContext> _spawnPipeline;
-    private readonly SemaphoreSlim _spawnSemaphore;
+    private volatile SemaphoreSlim _spawnSemaphore;
 
     public event EventHandler<AgentTaskStatusChangedEventArgs>? TaskStatusChanged;
     public event EventHandler<TeammateChangedEventArgs>? TeammateChanged;
@@ -84,11 +84,32 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         base.OnDispose();
     }
 
+    /// <summary>
+    /// 热重载 spawn 并发上限 — 原子替换 SemaphoreSlim，旧的 Dispose（ADR 0048）
+    /// </summary>
+    public void UpdateConcurrencyOptions(SubAgentConcurrencyOptions options)
+    {
+        var newLimit = Math.Max(1, options.MaxConcurrentSpawns);
+        var newSem = new SemaphoreSlim(newLimit, newLimit);
+        var old = Interlocked.Exchange(ref _spawnSemaphore, newSem);
+        old.Dispose();
+        _logger?.LogInformation("spawn 并发上限已热重载为 {Limit}", newLimit);
+    }
+
     #region Agent 生命周期管理（含协调逻辑）
 
     public async Task<IAgent> SpawnSubAgentAsync(string task, SubAgentOptions? options = null, CancellationToken cancellationToken = default, string? parentSessionId = null)
     {
-        await _spawnSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var sem = _spawnSemaphore;
+        try
+        {
+            await sem.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (ObjectDisposedException)
+        {
+            sem = _spawnSemaphore;
+            await sem.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
         try
         {
             var ctx = new UnifiedSpawnContext
@@ -116,7 +137,8 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         }
         finally
         {
-            _spawnSemaphore.Release();
+            try { sem.Release(); }
+            catch (ObjectDisposedException) { _logger?.LogDebug("spawn 信号量在 Release 时已被热重载 Dispose"); }
         }
     }
 

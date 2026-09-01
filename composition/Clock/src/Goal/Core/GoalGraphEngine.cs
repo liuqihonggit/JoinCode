@@ -5,7 +5,7 @@ namespace Core.Goal;
 /// Goal Graph 执行引擎 — 事件驱动队列 + 条件路由 + 回退重激活
 /// </summary>
 [Register(typeof(GoalGraphEngine), ServiceLifetime.Singleton)]
-public sealed partial class GoalGraphEngine : ServiceEntity
+public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrencyUpdater
 {
     private readonly IChatClient _kernel;
     private readonly IGoalEvaluator _evaluator;
@@ -19,7 +19,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity
     private readonly IGoalUserInteraction? _userInteraction = null;
     private readonly IGoalNodeInspector? _nodeInspector = null;
     private readonly IGoalConflictMessenger? _conflictMessenger = null;
-    private readonly SubAgentConcurrencyOptions _concurrencyOptions;
+    private volatile SubAgentConcurrencyOptions _concurrencyOptions;
     private readonly Dictionary<string, Func<NodeContext, Task<NodeResult>>> _functionRegistry = new(StringComparer.Ordinal);
 
     public GoalGraphEngine(
@@ -52,6 +52,15 @@ public sealed partial class GoalGraphEngine : ServiceEntity
     public void RegisterFunction(string nodeId, Func<NodeContext, Task<NodeResult>> fn)
     {
         _functionRegistry[nodeId] = fn;
+    }
+
+    /// <summary>
+    /// 热重载 execute 并发上限 — 原子替换配置引用（ADR 0048）
+    /// </summary>
+    public void UpdateConcurrencyOptions(SubAgentConcurrencyOptions options)
+    {
+        Interlocked.Exchange(ref _concurrencyOptions, options);
+        _logger?.LogInformation("execute 并发上限已热重载为 {Limit}", options.MaxConcurrentExecutions);
     }
 
     public async Task<GoalState> ExecuteAsync(
@@ -93,8 +102,9 @@ public sealed partial class GoalGraphEngine : ServiceEntity
 
         context.ReadyQueue.Enqueue(graph.StartNodeId);
 
-        using var concurrencyLimiter = _concurrencyOptions.MaxConcurrentExecutions > 0
-            ? new SemaphoreSlim(_concurrencyOptions.MaxConcurrentExecutions, _concurrencyOptions.MaxConcurrentExecutions)
+        var concurrencyOptions = _concurrencyOptions;
+        using var concurrencyLimiter = concurrencyOptions.MaxConcurrentExecutions > 0
+            ? new SemaphoreSlim(concurrencyOptions.MaxConcurrentExecutions, concurrencyOptions.MaxConcurrentExecutions)
             : null;
 
         while (true)

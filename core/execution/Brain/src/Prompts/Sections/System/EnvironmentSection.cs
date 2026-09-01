@@ -15,6 +15,7 @@ public static class EnvironmentSection {
         var snapshot = EnvironmentSnapshot.CaptureQuick(fs);
 
         var items = new List<string> {
+            $"当前日期: {DateTime.Now:yyyy-MM-dd}",
             $"工作目录: {snapshot.WorkingDirectory}",
             $"Git仓库: {(snapshot.IsGitRepo ? "是" : "否")}",
             $"平台: {snapshot.OsDescription}",

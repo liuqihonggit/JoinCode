@@ -111,6 +111,16 @@ jobs:
           restore-keys: |
             nuget-${{ runner.os }}-
 
+      - name: Cache Build Artifacts
+        uses: actions/cache@v5
+        with:
+          path: |
+            ${{ github.workspace }}/artifacts/bin
+            ${{ github.workspace }}/artifacts/obj
+          key: build-${{ runner.os }}-${{ hashFiles('**/*.cs', '**/*.csproj', 'Directory.Build.props', '**/*.slnx') }}
+          restore-keys: |
+            build-${{ runner.os }}-
+
       - name: Build - ① Generators
         run: dotnet build Generators.slnx -c Debug --nologo -m /p:SkipLocalPack=true
 

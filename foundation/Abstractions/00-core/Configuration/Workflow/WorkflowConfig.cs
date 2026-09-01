@@ -97,6 +97,11 @@ public class WorkflowConfig {
     public SubAgentConfig SubAgent { get; set; } = new();
 
     /// <summary>
+    /// 子代理并发控制配置 — spawn/execute/fork 三阶段上限（ADR 0048）
+    /// </summary>
+    public SubAgentConcurrencyOptions SubAgentConcurrency { get; set; } = new();
+
+    /// <summary>
     /// 当前激活的配置档案名 — 对应 settings.json 中 profiles 字典的键
     /// </summary>
     public string? CurrentProfile { get; set; }

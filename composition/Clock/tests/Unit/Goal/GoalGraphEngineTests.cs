@@ -33,7 +33,8 @@ public sealed partial class GoalGraphEngineTests
         IServiceProvider? serviceProvider = null,
         IGoalUserInteraction? userInteraction = null,
         IGoalNodeInspector? nodeInspector = null,
-        IGoalConflictMessenger? conflictMessenger = null)
+        IGoalConflictMessenger? conflictMessenger = null,
+        SubAgentConcurrencyOptions? concurrencyOptions = null)
     {
         return new GoalGraphEngine(
             (kernel ?? CreateKernelMock()).Object,
@@ -43,7 +44,8 @@ public sealed partial class GoalGraphEngineTests
             clock: clock,
             userInteraction: userInteraction,
             nodeInspector: nodeInspector,
-            conflictMessenger: conflictMessenger);
+            conflictMessenger: conflictMessenger,
+            concurrencyOptions: concurrencyOptions);
     }
 
     private static GoalState CreateGoalState() => new()
@@ -1861,7 +1863,7 @@ public sealed partial class GoalGraphEngineTests
     [Fact]
     public async Task ParallelExecution_WithMaxConcurrency1_Should_DegradeToSerial()
     {
-        var engine = CreateEngine();
+        var engine = CreateEngine(concurrencyOptions: new SubAgentConcurrencyOptions { MaxConcurrentExecutions = 1 });
         var concurrentCount = 0;
         var maxConcurrent = 0;
 
@@ -1909,13 +1911,12 @@ public sealed partial class GoalGraphEngineTests
             Dag = dag,
             StartNodeId = "A",
             EndNodeIds = FrozenSet.Create("J"),
-            MaxConcurrency = 1,
         };
 
         var result = await engine.ExecuteAsync(graph, CreateGoalState(), new MessageList(), CancellationToken.None);
 
         Assert.Equal(GoalStatus.Achieved, result.Status);
-        Assert.True(maxConcurrent == 1, $"MaxConcurrency=1 应串行，但 maxConcurrent={maxConcurrent}");
+        Assert.True(maxConcurrent == 1, $"MaxConcurrentExecutions=1 应串行，但 maxConcurrent={maxConcurrent}");
     }
 
     // ─────────────────────────────────────────────────────────────

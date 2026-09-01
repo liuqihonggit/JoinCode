@@ -19,6 +19,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity
     private readonly IGoalUserInteraction? _userInteraction = null;
     private readonly IGoalNodeInspector? _nodeInspector = null;
     private readonly IGoalConflictMessenger? _conflictMessenger = null;
+    private readonly SubAgentConcurrencyOptions _concurrencyOptions;
     private readonly Dictionary<string, Func<NodeContext, Task<NodeResult>>> _functionRegistry = new(StringComparer.Ordinal);
 
     public GoalGraphEngine(
@@ -30,7 +31,8 @@ public sealed partial class GoalGraphEngine : ServiceEntity
         IClockService? clock = null,
         IGoalUserInteraction? userInteraction = null,
         IGoalNodeInspector? nodeInspector = null,
-        IGoalConflictMessenger? conflictMessenger = null)
+        IGoalConflictMessenger? conflictMessenger = null,
+        SubAgentConcurrencyOptions? concurrencyOptions = null)
     {
         _kernel = kernel;
         _evaluator = evaluator;
@@ -44,6 +46,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity
         _agentService = serviceProvider.GetService<IAgentService>();
         _dispatchGuard = serviceProvider.GetService<ICaptainDispatchGuard>();
         _teamManager = serviceProvider.GetService<ITeamManager>();
+        _concurrencyOptions = concurrencyOptions ?? serviceProvider.GetService<SubAgentConcurrencyOptions>() ?? new SubAgentConcurrencyOptions();
     }
 
     public void RegisterFunction(string nodeId, Func<NodeContext, Task<NodeResult>> fn)
@@ -90,8 +93,8 @@ public sealed partial class GoalGraphEngine : ServiceEntity
 
         context.ReadyQueue.Enqueue(graph.StartNodeId);
 
-        using var concurrencyLimiter = graph.MaxConcurrency > 0
-            ? new SemaphoreSlim(graph.MaxConcurrency, graph.MaxConcurrency)
+        using var concurrencyLimiter = _concurrencyOptions.MaxConcurrentExecutions > 0
+            ? new SemaphoreSlim(_concurrencyOptions.MaxConcurrentExecutions, _concurrencyOptions.MaxConcurrentExecutions)
             : null;
 
         while (true)

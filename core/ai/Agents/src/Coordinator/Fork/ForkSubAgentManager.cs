@@ -48,6 +48,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
     private readonly ConcurrentDictionary<string, ForkEntry> _entries;
     private readonly ConcurrentDictionary<string, Dictionary<string, string>> _sharedCache;
     private readonly SemaphoreSlim _lock;
+    private readonly SemaphoreSlim? _forkSemaphore;
 
     public event EventHandler<ForkCompletedEventArgs>? ForkCompleted;
 
@@ -55,7 +56,8 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
         MiddlewarePipeline<ForkContext> pipeline,
         ForkManagerDependencies deps,
         ILogger<ForkSubAgentManager>? logger = null,
-        IClockService? clock = null)
+        IClockService? clock = null,
+        SubAgentConcurrencyOptions? concurrencyOptions = null)
     {
         _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
         _deps = deps ?? throw new ArgumentNullException(nameof(deps));
@@ -64,10 +66,19 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
         _entries = new ConcurrentDictionary<string, ForkEntry>();
         _sharedCache = new ConcurrentDictionary<string, Dictionary<string, string>>();
         _lock = new SemaphoreSlim(1, 1);
+
+        var maxForks = (concurrencyOptions ?? new SubAgentConcurrencyOptions()).MaxConcurrentForks;
+        _forkSemaphore = maxForks > 0
+            ? new SemaphoreSlim(maxForks, maxForks)
+            : null;
     }
 
     public async Task<ForkResult> ForkAsync(ForkOptions options, CancellationToken ct = default)
     {
+        if (_forkSemaphore is not null)
+            await _forkSemaphore.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
         // 预计算 Fork 深度（需要访问 _entries 内部状态）
         var forkDepth = CalculateForkDepth(options.ParentSessionId);
 
@@ -204,6 +215,11 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
         await FireForkCompletedAsync(forkId, options.TaskDescription).ConfigureAwait(false);
 
         return BuildForkResult(forkId);
+        }
+        finally
+        {
+            _forkSemaphore?.Release();
+        }
     }
 
     public async Task<IReadOnlyList<ForkSubAgent>> GetActiveForksAsync(CancellationToken ct = default)
@@ -519,5 +535,6 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
         }
 
         _lock.Dispose();
+        _forkSemaphore?.Dispose();
     }
 }

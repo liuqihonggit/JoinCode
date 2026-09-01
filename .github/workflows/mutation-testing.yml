@@ -50,7 +50,7 @@ jobs:
       - name: Build matrix
         id: set
         run: |
-          ALL_PROJECTS='["Guard-Config","Guard-Security","Guard-Hooks","Vault-Memdir","Vault-Other","Brain-CtxAdmin","Brain-CtxChat","Brain-CtxOther","Brain-CtxNonServicesA","Brain-CtxNonServicesB","Brain-PromptsSections","Brain-PromptsOther","Brain-OtherA","Brain-OtherB","Hands-SysTools","Hands-CoreHandlers","Hands-DevTools","Hands-SkillServices","Hands-SkillBuiltIn","Hands-SkillOther","Hands-Api","Hands-Shell","Scheduling","McpToolDispatch","Llm","Agents","Reasoning","CodeIndex","Browser","Mcp","Eyes","Dream","Bridge-SessionA","Bridge-SessionB","Bridge-Transport","Bridge-CoreRuntime","Bridge-CoreOther","Bridge-Messaging","Bridge-ClientServer","Composition","Clock","Infra-IO-FileOps","Infra-IO-FsAndConfig","Infra-IO-ProcessAndOther","Infra-Utils-TextA1","Infra-Utils-TextA2","Infra-Utils-TextB","Infra-Utils-Resilience","Infra-Utils-OtherA1","Infra-Utils-Validation","Infra-Utils-Async","Infra-Utils-Services","Infra-Utils-OtherB","Infra-Services","Host-Commands","Host-Other"]'
+          ALL_PROJECTS='["Guard-Config","Guard-Security-Services","Guard-Security-PowerShell","Guard-Security-Other","Guard-Hooks","Vault-Memdir","Vault-Other","Brain-CtxAdmin","Brain-CtxChat","Brain-CtxOther","Brain-CtxNonServicesA","Brain-CtxNonServicesB","Brain-PromptsSections","Brain-PromptsOther","Brain-OtherA","Brain-OtherB","Hands-SysTools","Hands-CoreHandlers","Hands-DevTools","Hands-SkillServices","Hands-SkillBuiltIn","Hands-SkillOther","Hands-Api","Hands-Shell","Scheduling","McpToolDispatch","Llm","Agents","Reasoning","CodeIndex","Browser","Mcp","Eyes","Dream","Bridge-SessionA","Bridge-SessionB","Bridge-Transport","Bridge-CoreRuntime","Bridge-CoreOther","Bridge-Messaging","Bridge-ClientServer","Composition","Clock","Infra-IO-FileOps","Infra-IO-FsAndConfig","Infra-IO-ProcessAndOther","Infra-Utils-TextA1a","Infra-Utils-TextA1b","Infra-Utils-TextA2a","Infra-Utils-TextA2b","Infra-Utils-TextB1","Infra-Utils-TextB2","Infra-Utils-Resilience","Infra-Utils-OtherA1a","Infra-Utils-OtherA1b","Infra-Utils-Validation","Infra-Utils-Async","Infra-Utils-Services","Infra-Utils-OtherB","Infra-Services","Host-Commands","Host-Other"]'
           INPUT="${{ github.event.inputs.projects || 'ALL' }}"
           if [ "$INPUT" = "ALL" ]; then
             echo "matrix={\"include\":$(echo $ALL_PROJECTS | jq -c '[.[] | {project: .}]')}" >> $GITHUB_OUTPUT
@@ -60,7 +60,7 @@ jobs:
             for part in "${PARTS[@]}"; do
               trimmed=$(echo "$part" | xargs)
               if [ "$trimmed" = "Guard" ]; then
-                EXPANDED="$EXPANDED,{\"project\":\"Guard-Config\"},{\"project\":\"Guard-Security\"},{\"project\":\"Guard-Hooks\"}"
+                EXPANDED="$EXPANDED,{\"project\":\"Guard-Config\"},{\"project\":\"Guard-Security-Services\"},{\"project\":\"Guard-Security-PowerShell\"},{\"project\":\"Guard-Security-Other\"},{\"project\":\"Guard-Hooks\"}"
               elif [ "$trimmed" = "Vault" ]; then
                 EXPANDED="$EXPANDED,{\"project\":\"Vault-Memdir\"},{\"project\":\"Vault-Other\"}"
               elif [ "$trimmed" = "Brain" ]; then
@@ -72,7 +72,7 @@ jobs:
               elif [ "$trimmed" = "Bridge" ]; then
                 EXPANDED="$EXPANDED,{\"project\":\"Bridge-SessionA\"},{\"project\":\"Bridge-SessionB\"},{\"project\":\"Bridge-Transport\"},{\"project\":\"Bridge-CoreRuntime\"},{\"project\":\"Bridge-CoreOther\"},{\"project\":\"Bridge-Messaging\"},{\"project\":\"Bridge-ClientServer\"}"
               elif [ "$trimmed" = "Infra" ]; then
-                EXPANDED="$EXPANDED,{\"project\":\"Infra-IO-FileOps\"},{\"project\":\"Infra-IO-FsAndConfig\"},{\"project\":\"Infra-IO-ProcessAndOther\"},{\"project\":\"Infra-Utils-TextA1\"},{\"project\":\"Infra-Utils-TextA2\"},{\"project\":\"Infra-Utils-TextB\"},{\"project\":\"Infra-Utils-Resilience\"},{\"project\":\"Infra-Utils-OtherA1\"},{\"project\":\"Infra-Utils-Validation\"},{\"project\":\"Infra-Utils-Async\"},{\"project\":\"Infra-Utils-Services\"},{\"project\":\"Infra-Utils-OtherB\"},{\"project\":\"Infra-Services\"}"
+                EXPANDED="$EXPANDED,{\"project\":\"Infra-IO-FileOps\"},{\"project\":\"Infra-IO-FsAndConfig\"},{\"project\":\"Infra-IO-ProcessAndOther\"},{\"project\":\"Infra-Utils-TextA1a\"},{\"project\":\"Infra-Utils-TextA1b\"},{\"project\":\"Infra-Utils-TextA2a\"},{\"project\":\"Infra-Utils-TextA2b\"},{\"project\":\"Infra-Utils-TextB1\"},{\"project\":\"Infra-Utils-TextB2\"},{\"project\":\"Infra-Utils-Resilience\"},{\"project\":\"Infra-Utils-OtherA1a\"},{\"project\":\"Infra-Utils-OtherA1b\"},{\"project\":\"Infra-Utils-Validation\"},{\"project\":\"Infra-Utils-Async\"},{\"project\":\"Infra-Utils-Services\"},{\"project\":\"Infra-Utils-OtherB\"},{\"project\":\"Infra-Services\"}"
               else
                 EXPANDED="$EXPANDED,{\"project\":\"$trimmed\"}"
               fi
@@ -85,7 +85,7 @@ jobs:
     name: Stryker - ${{ matrix.project }}
     needs: prepare
     runs-on: windows-latest
-    timeout-minutes: 40
+    timeout-minutes: 25
     strategy:
       matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
       fail-fast: false
@@ -143,7 +143,9 @@ jobs:
         run: |
           $projectMap = @{
             'Guard-Config'         = @{ Dir = 'core\safety\Guard\tests\Config';   Src = 'Guard.csproj';           Mutate = @('Configuration/**','DependencyInjection/**','Policy/**','OAuth/**') }
-            'Guard-Security'       = @{ Dir = 'core\safety\Guard\tests\Security'; Src = 'Guard.csproj';           Mutate = @('Security/**') }
+            'Guard-Security-Services'   = @{ Dir = 'core\safety\Guard\tests\Security'; Src = 'Guard.csproj'; Mutate = @('Security/Services/**') }
+            'Guard-Security-PowerShell' = @{ Dir = 'core\safety\Guard\tests\Security'; Src = 'Guard.csproj'; Mutate = @('Security/PowerShell/**') }
+            'Guard-Security-Other'      = @{ Dir = 'core\safety\Guard\tests\Security'; Src = 'Guard.csproj'; Mutate = @('Security/DangerClassification/**','Security/Sandbox/**','Security/Shell/**','Security/Scanners/**','Security/Interceptors/**','Security/Constants/**') }
             'Guard-Hooks'          = @{ Dir = 'core\safety\Guard\tests\Hooks';    Src = 'Guard.csproj';           Mutate = @('Hooks/**','Permission/**') }
             'Vault-Memdir'         = @{ Dir = 'core\safety\Vault\tests\Memdir';   Src = 'Vault.csproj';           Mutate = @('Memdir/**') }
             'Vault-Other'          = @{ Dir = 'core\safety\Vault\tests\Other';    Src = 'Vault.csproj';           Mutate = @('State/**','Todo/**','UserInteraction/**','StepEvidence/**','Notification/**','DependencyInjection/**') }
@@ -186,11 +188,15 @@ jobs:
             'Infra-IO-FileOps'       = @{ Dir = 'tests\Unit\Infra.Tests\IO';                 Src = 'Infrastructure.csproj';      Test = 'Infra.IO.Tests.csproj';      Mutate = @('IO/Services/FileOps/**') }
             'Infra-IO-FsAndConfig'   = @{ Dir = 'tests\Unit\Infra.Tests\IO';                 Src = 'Infrastructure.csproj';      Test = 'Infra.IO.Tests.csproj';      Mutate = @('IO/FileSystem/**','IO/Configuration/**','IO/Services/Throttle/**') }
             'Infra-IO-ProcessAndOther' = @{ Dir = 'tests\Unit\Infra.Tests\IO';               Src = 'Infrastructure.csproj';      Test = 'Infra.IO.Tests.csproj';      Mutate = @('IO/Process/**','IO/Console/**','IO/Services/Terminal/**','IO/Services/Diff/**','Http/**','Process/**','Ssh/**','Windows/**','Shell/**') }
-            'Infra-Utils-TextA1'   = @{ Dir = 'tests\Unit\Infra.Tests\Utils';              Src = 'Infrastructure.csproj';      Test = 'Infra.Utils.Tests.csproj';   Mutate = @('Utils/Text/FrontmatterParser.cs','Utils/Text/MarkdownWalker.cs') }
-            'Infra-Utils-TextA2'   = @{ Dir = 'tests\Unit\Infra.Tests\Utils';              Src = 'Infrastructure.csproj';      Test = 'Infra.Utils.Tests.csproj';   Mutate = @('Utils/Text/AhoCorasick.cs','Utils/Text/DualBufferAhoCorasick.cs') }
-            'Infra-Utils-TextB'    = @{ Dir = 'tests\Unit\Infra.Tests\Utils';              Src = 'Infrastructure.csproj';      Test = 'Infra.Utils.Tests.csproj';   Mutate = @('Utils/Text/ErrorMessages.cs','Utils/Text/DurationFormatter.cs','Utils/Text/FileSizeFormatter.cs','Utils/Text/GlobMatcher.cs','Utils/Text/JsonArgumentParser.cs','Utils/Text/StringBuilderPool.cs') }
+            'Infra-Utils-TextA1a'  = @{ Dir = 'tests\Unit\Infra.Tests\Utils';              Src = 'Infrastructure.csproj';      Test = 'Infra.Utils.Tests.csproj';   Mutate = @('Utils/Text/FrontmatterParser.cs') }
+            'Infra-Utils-TextA1b'  = @{ Dir = 'tests\Unit\Infra.Tests\Utils';              Src = 'Infrastructure.csproj';      Test = 'Infra.Utils.Tests.csproj';   Mutate = @('Utils/Text/MarkdownWalker.cs') }
+            'Infra-Utils-TextA2a'  = @{ Dir = 'tests\Unit\Infra.Tests\Utils';              Src = 'Infrastructure.csproj';      Test = 'Infra.Utils.Tests.csproj';   Mutate = @('Utils/Text/AhoCorasick.cs') }
+            'Infra-Utils-TextA2b'  = @{ Dir = 'tests\Unit\Infra.Tests\Utils';              Src = 'Infrastructure.csproj';      Test = 'Infra.Utils.Tests.csproj';   Mutate = @('Utils/Text/DualBufferAhoCorasick.cs') }
+            'Infra-Utils-TextB1'   = @{ Dir = 'tests\Unit\Infra.Tests\Utils';              Src = 'Infrastructure.csproj';      Test = 'Infra.Utils.Tests.csproj';   Mutate = @('Utils/Text/ErrorMessages.cs','Utils/Text/DurationFormatter.cs','Utils/Text/FileSizeFormatter.cs') }
+            'Infra-Utils-TextB2'   = @{ Dir = 'tests\Unit\Infra.Tests\Utils';              Src = 'Infrastructure.csproj';      Test = 'Infra.Utils.Tests.csproj';   Mutate = @('Utils/Text/GlobMatcher.cs','Utils/Text/JsonArgumentParser.cs','Utils/Text/StringBuilderPool.cs') }
             'Infra-Utils-Resilience' = @{ Dir = 'tests\Unit\Infra.Tests\Utils';              Src = 'Infrastructure.csproj';      Test = 'Infra.Utils.Tests.csproj';   Mutate = @('Utils/Resilience/**') }
-            'Infra-Utils-OtherA1'   = @{ Dir = 'tests\Unit\Infra.Tests\Utils'; Src = 'Infrastructure.csproj'; Test = 'Infra.Utils.Tests.csproj'; Mutate = @('Housekeeping/**','Cache/**','AsyncFileLock/**') }
+            'Infra-Utils-OtherA1a'  = @{ Dir = 'tests\Unit\Infra.Tests\Utils'; Src = 'Infrastructure.csproj'; Test = 'Infra.Utils.Tests.csproj'; Mutate = @('Housekeeping/**') }
+            'Infra-Utils-OtherA1b'  = @{ Dir = 'tests\Unit\Infra.Tests\Utils'; Src = 'Infrastructure.csproj'; Test = 'Infra.Utils.Tests.csproj'; Mutate = @('Cache/**','AsyncFileLock/**') }
             'Infra-Utils-Validation' = @{ Dir = 'tests\Unit\Infra.Tests\Utils'; Src = 'Infrastructure.csproj'; Test = 'Infra.Utils.Tests.csproj'; Mutate = @('Utils/Validation/**') }
             'Infra-Utils-Async'      = @{ Dir = 'tests\Unit\Infra.Tests\Utils'; Src = 'Infrastructure.csproj'; Test = 'Infra.Utils.Tests.csproj'; Mutate = @('Utils/Async/**') }
             'Infra-Utils-Services'   = @{ Dir = 'tests\Unit\Infra.Tests\Utils'; Src = 'Infrastructure.csproj'; Test = 'Infra.Utils.Tests.csproj'; Mutate = @('Utils/Services/**') }

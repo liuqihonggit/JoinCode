@@ -817,6 +817,15 @@ Get-ChildItem "D:\project\{当前分支名}\tests\MockServers\MockServer.Core\du
 
 **原因**: Out-File 写 UTF-8 带 BOM → CS0234；WriteAllText 可能清空文件；`$1` 被 PowerShell 展开为空
 
+### 统一写法原则（面向未来替换）
+
+替换时必须为未来做工作：当当前生产代码的写法/格式与替换目标不一致时，必须先转为**统一写法和格式**，再执行替换。
+
+- **目的**：统一写法后可用脚本一次性批量替换，且日后可再次替换（幂等可重复）
+- **禁止**：只替换眼前这一处、各处写法各异 → 下次替换仍需人工逐个判断，无法脚本化
+- **正确**：先把同类代码归一为相同写法/格式 → 再用脚本统一替换 → 替换后所有目标位置写法一致
+- **提示词来源**：`ReplacementMethodologySection`（系统提示词 Section，关键词"替换/批量替换"触发注入）
+
 ## E2E 测试脚本模式规范
 
 > ADR: [0021](docs/adr/0021-e2e-script-mode-inferred.md)（Mode 计算属性）

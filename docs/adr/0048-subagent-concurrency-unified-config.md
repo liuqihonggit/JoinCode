@@ -3,7 +3,7 @@
 - 状态：accepted
 - 日期：2026-09-02
 - 决策者：项目架构组
-- 验证：Abstractions+Agents+Clock+Composition+App 编译 0 警告 0 错误，并行限流+AgentCoordinator+ForkSubAgentManager 测试全通过 ✅
+- 验证：Abstractions+Agents+Clock+Composition+App 编译 0 警告 0 错误，1842 测试全通过（Agents 512 + Clock 432 + Guard.Config 898），热重载链路完整 ✅
 - 关联：[0049](docs/adr/0049-archive-maxconcurrentagents.md) | [0050](docs/adr/0050-spawn-stage-concurrency-limit.md) | [0051](docs/adr/0051-fork-concurrency-limit.md)
 
 ## 背景
@@ -109,6 +109,36 @@ public sealed class SubAgentConcurrencyOptions
 ### 5. 热重载
 
 按 ADR 0015 双变量切换模式，`SubAgentConcurrencyOptions` 变更时通过 `IConfigChangeNotifier` 触发原子交换，spawn/execute/fork 三处的 SemaphoreSlim 动态重建。
+
+**实现链路**（2026-09-02 完成）：
+
+```
+settings.json 变更
+  → ConfigChangeNotifier.ConfigChanged 事件
+  → SettingsChangeApplier.OnConfigChanged
+  → Settings 管道（MiddlewarePipeline<SettingsContext>）
+    → SettingsReloadMiddleware（重新加载 SettingsJson）
+    → SubAgentConcurrencyMiddleware（提取 SubAgentConcurrency）
+      → 遍历 IEnumerable<ISubAgentConcurrencyUpdater>
+        → AgentCoordinator.UpdateConcurrencyOptions（spawn 信号量）
+        → ForkSubAgentManager.UpdateConcurrencyOptions（fork 信号量）
+        → GoalGraphEngine.UpdateConcurrencyOptions（execute 配置引用）
+```
+
+**核心组件**：
+
+| 组件 | 文件 | 职责 |
+|------|------|------|
+| `ISubAgentConcurrencyUpdater` | `Abstractions/07-agents/Agent/ISubAgentConcurrencyUpdater.cs` | 热重载接口 |
+| `SubAgentConcurrencyMiddleware` | `Guard/.../ChangeTracking/SubAgentConcurrencyMiddleware.cs` | Settings 管道中间件 |
+| `CurrentSettings.SubAgentConcurrency` | `Guard/.../Mapping/SettingsJson.cs` | JSON 反序列化字段 |
+| `SettingsMapper.ApplySubAgentConcurrencySettings` | `Guard/.../Mapping/SettingsMapper.cs` | SettingsJson → WorkflowConfig 映射 |
+
+**竞态处理**：
+- `_spawnSemaphore` / `_forkSemaphore` 标记为 `volatile`，`Interlocked.Exchange` 原子替换
+- `SpawnSubAgentAsync` / `ForkAsync` 中读信号量到局部变量，`catch ObjectDisposedException` 后重试读新信号量
+- `Release` 在 `finally` 中同样 `catch ObjectDisposedException`（热重载低频，可接受）
+- `GoalGraphEngine._concurrencyOptions` 用 `volatile` + `Interlocked.Exchange`，`ExecuteAsync` 读局部变量
 
 ## Claude Code 对比调研（2026-09-02 联网）
 

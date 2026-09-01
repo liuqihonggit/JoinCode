@@ -8,7 +8,7 @@ public sealed partial class DefaultSystemPromptProvider : ServiceEntity, ISystem
 {
     private readonly SystemPromptProviderOptions _options;
 
-    public DefaultSystemPromptProvider(IFileSystem fs, SystemPromptProviderOptions options, IBriefModeService? briefModeService = null, ILogger<DefaultSystemPromptProvider>? logger = null)
+    public DefaultSystemPromptProvider(IFileSystem fs, SystemPromptProviderOptions options, IBriefModeService? briefModeService = null, IClockService? clock = null, ILogger<DefaultSystemPromptProvider>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(fs);
         ArgumentNullException.ThrowIfNull(options);
@@ -47,6 +47,7 @@ public sealed partial class DefaultSystemPromptProvider : ServiceEntity, ISystem
             AgentDefinitions = options.AgentDefinitions,
             BriefModeService = options.BriefModeService ?? briefModeService,
             FileSystem = options.FileSystem ?? fs,
+            Clock = options.Clock ?? clock ?? SystemClockService.Instance,
             Logger = logger,
         };
     }

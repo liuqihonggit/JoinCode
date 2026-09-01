@@ -558,6 +558,7 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 | **MiddlewarePipeline\<TContext\>** | Task 管道 | `Infrastructure.Pipeline` — DI 注入中间件集合，支持 PreHook/PostHook、异常捕获/传播两种模式 |
 | **StreamMiddlewarePipeline\<TContext, TEvent\>** | 流式管道 | 同上，返回 `IAsyncEnumerable<TEvent>`，流式场景异常默认传播 |
 | **McpHttpServer** | MCP Streamable HTTP 服务端 | `services/Mcp/src/McpProtocol/McpHttpServer.cs` — HttpListener 实现，无状态（不分配 Session-Id）/有状态（分配+DELETE 终止）双模式，GET 开 SSE 推送 NotificationReceived |
+| **上下文压缩** | 长对话 token 回收 | Compact（对话级管道）+ Compression（内容级策略）+ Collapse（折叠级）三子系统，Microcompact 纯规则优先、LLM 摘要兜底，CompactOutputGuard 守卫降级 > ADR: [0053](docs/adr/0053-context-compaction-layered-mechanism.md) |
 
 ***
 
@@ -816,6 +817,15 @@ Get-ChildItem "D:\project\{当前分支名}\tests\MockServers\MockServer.Core\du
 
 **原因**: Out-File 写 UTF-8 带 BOM → CS0234；WriteAllText 可能清空文件；`$1` 被 PowerShell 展开为空
 
+### 统一写法原则（面向未来替换）
+
+替换时必须为未来做工作：当当前生产代码的写法/格式与替换目标不一致时，必须先转为**统一写法和格式**，再执行替换。
+
+- **目的**：统一写法后可用脚本一次性批量替换，且日后可再次替换（幂等可重复）
+- **禁止**：只替换眼前这一处、各处写法各异 → 下次替换仍需人工逐个判断，无法脚本化
+- **正确**：先把同类代码归一为相同写法/格式 → 再用脚本统一替换 → 替换后所有目标位置写法一致
+- **提示词来源**：`ReplacementMethodologySection`（系统提示词 Section，关键词"替换/批量替换"触发注入）
+
 ## E2E 测试脚本模式规范
 
 > ADR: [0021](docs/adr/0021-e2e-script-mode-inferred.md)（Mode 计算属性）
@@ -1063,7 +1073,7 @@ public ConversationMode Mode => Turns.Count == 1
 
 ### 规则8：循环检测器状态机设计风格（推荐）
 
-> ADR: [0018](docs/adr/0018-loop-detector-state-machine.md)
+> ADR: [0018](docs/adr/0018-loop-detector-state-machine.md) | [0054](docs/adr/0054-llm-output-loop-detection-intervention.md)（完整机制）
 
 - **状态机模式**：检测器内部用显式状态枚举 + switch 表达式实现状态转换，不用隐式 `if-else` + 标志变量
   - 状态定义：`enum XxxDetectionState { Monitoring, Suspected, Confirmed }`

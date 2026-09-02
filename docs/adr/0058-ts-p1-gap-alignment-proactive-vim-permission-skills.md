@@ -1,6 +1,6 @@
 # 0058. TS 原版 P1 缺口补齐 — Proactive + Vim + Permission LLM + Skills
 
-- 状态：proposed
+- 状态：accepted（P1.1+P1.3+P1.4 完成，P1.2 Vim 用户取消）
 - 日期：2026-09-02
 - 决策者：项目架构组
 - 关联：[0057](0057-ts-p0-gap-alignment-lsp-analytics.md)（P0 缺口补齐）

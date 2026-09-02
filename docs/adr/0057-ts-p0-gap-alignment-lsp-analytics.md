@@ -1,6 +1,6 @@
 # 0057. TS 原版 P0 缺口补齐 — LSP 集成 + Analytics 分析
 
-- 状态：proposed
+- 状态：accepted（LSP 已实现，Analytics 待实现）
 - 日期：2026-09-02
 - 决策者：项目架构组
 - 关联：[0056](0056-cache-break-detection-enhancement.md)（缓存破坏检测维度补齐）

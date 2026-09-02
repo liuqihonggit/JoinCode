@@ -101,3 +101,4 @@ global using Xunit.Abstractions;
 global using ChatApiMessage = JoinCode.Abstractions.LLM.Chat.ApiMessage;
 global using ChatMessageRole = JoinCode.Abstractions.LLM.Chat.MessageRole;
 global using Services.SystemActuator;
+global using JoinCode.Abstractions.Interfaces.Lsp;

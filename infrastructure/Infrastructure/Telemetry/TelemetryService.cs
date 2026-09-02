@@ -9,6 +9,7 @@ public sealed partial class TelemetryService : ITelemetryService
     private readonly Meter _meter;
     private readonly ActivityListener _listener;
     private readonly ConsoleTelemetryExporter? _consoleExporter;
+    private readonly IAnalyticsFileSink? _analyticsSink;
     private readonly ConcurrentDictionary<string, ITelemetryCounter> _counters = new();
     private readonly ConcurrentDictionary<string, ITelemetryHistogram> _histograms = new();
     private readonly ConcurrentDictionary<string, ITelemetryGauge> _gauges = new();
@@ -19,10 +20,11 @@ public sealed partial class TelemetryService : ITelemetryService
     public bool IsTracingEnabled => _config.TracingEnabled;
     public bool IsMetricsEnabled => _config.MetricsEnabled;
 
-    public TelemetryService(TelemetryConfig config, ILogger? logger = null)
+    public TelemetryService(TelemetryConfig config, ILogger? logger = null, IAnalyticsFileSink? analyticsSink = null)
     {
         ArgumentNullException.ThrowIfNull(config);
         _config = config;
+        _analyticsSink = analyticsSink;
         _activitySource = new ActivitySource(config.ServiceName, config.ServiceVersion);
         _meter = new Meter(config.ServiceName, config.ServiceVersion);
 
@@ -85,7 +87,7 @@ public sealed partial class TelemetryService : ITelemetryService
             }
 
             var counter = _meter.CreateCounter<double>(n, unit, description);
-            return new TelemetryCounter(n, counter);
+            return new TelemetryCounter(n, counter, _analyticsSink);
         });
     }
 

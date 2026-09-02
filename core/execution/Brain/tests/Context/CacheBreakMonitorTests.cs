@@ -149,14 +149,72 @@ public partial class CacheBreakMonitorTests
 
         var snapshot = await sut.RecordPromptStateAsync().ConfigureAwait(true);
 
-        var usageWithHit = new TokenUsage(100, 50) { CacheReadInputTokens = 80, CacheCreationInputTokens = 0 };
+        var usageWithHit = new TokenUsage(10000, 50) { CacheReadInputTokens = 10000, CacheCreationInputTokens = 0 };
         await sut.CheckCacheBreakAsync(snapshot, usageWithHit).ConfigureAwait(true);
 
-        var usageWithMiss = new TokenUsage(100, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 100 };
+        var usageWithMiss = new TokenUsage(10000, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 100 };
         var result = await sut.CheckCacheBreakAsync(snapshot, usageWithMiss).ConfigureAwait(true);
 
         result.BreakDetected.Should().BeTrue();
         result.Kind.Should().Be(CacheBreakKind.CacheEviction);
+    }
+
+    [Fact]
+    public async Task CheckCacheBreakAsync_CacheEviction_PartialDrop_Detected()
+    {
+        var sut = CreateSut();
+        await sut.UpdateSystemPromptAsync("system prompt").ConfigureAwait(true);
+        await sut.AddDynamicSystemMessageAsync("dynamic").ConfigureAwait(true);
+        await sut.UpdateToolSpecsAsync([new ToolSpec("tool_a", "desc_a")]).ConfigureAwait(true);
+
+        var snapshot = await sut.RecordPromptStateAsync().ConfigureAwait(true);
+
+        var usageWithHit = new TokenUsage(10000, 50) { CacheReadInputTokens = 10000, CacheCreationInputTokens = 0 };
+        await sut.CheckCacheBreakAsync(snapshot, usageWithHit).ConfigureAwait(true);
+
+        var usageWithPartialMiss = new TokenUsage(10000, 50) { CacheReadInputTokens = 2000, CacheCreationInputTokens = 8000 };
+        var result = await sut.CheckCacheBreakAsync(snapshot, usageWithPartialMiss).ConfigureAwait(true);
+
+        result.BreakDetected.Should().BeTrue();
+        result.Kind.Should().Be(CacheBreakKind.CacheEviction);
+    }
+
+    [Fact]
+    public async Task CheckCacheBreakAsync_CacheEviction_SmallRelativeDrop_NotReported()
+    {
+        var sut = CreateSut();
+        await sut.UpdateSystemPromptAsync("system prompt").ConfigureAwait(true);
+        await sut.AddDynamicSystemMessageAsync("dynamic").ConfigureAwait(true);
+        await sut.UpdateToolSpecsAsync([new ToolSpec("tool_a", "desc_a")]).ConfigureAwait(true);
+
+        var snapshot = await sut.RecordPromptStateAsync().ConfigureAwait(true);
+
+        var usageWithHit = new TokenUsage(10000, 50) { CacheReadInputTokens = 10000, CacheCreationInputTokens = 0 };
+        await sut.CheckCacheBreakAsync(snapshot, usageWithHit).ConfigureAwait(true);
+
+        var usageWithSmallDrop = new TokenUsage(10000, 50) { CacheReadInputTokens = 9600, CacheCreationInputTokens = 400 };
+        var result = await sut.CheckCacheBreakAsync(snapshot, usageWithSmallDrop).ConfigureAwait(true);
+
+        result.BreakDetected.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task CheckCacheBreakAsync_CacheEviction_DropBelowAbsoluteThreshold_NotReported()
+    {
+        var sut = CreateSut();
+        await sut.UpdateSystemPromptAsync("system prompt").ConfigureAwait(true);
+        await sut.AddDynamicSystemMessageAsync("dynamic").ConfigureAwait(true);
+        await sut.UpdateToolSpecsAsync([new ToolSpec("tool_a", "desc_a")]).ConfigureAwait(true);
+
+        var snapshot = await sut.RecordPromptStateAsync().ConfigureAwait(true);
+
+        var usageWithHit = new TokenUsage(3000, 50) { CacheReadInputTokens = 3000, CacheCreationInputTokens = 0 };
+        await sut.CheckCacheBreakAsync(snapshot, usageWithHit).ConfigureAwait(true);
+
+        var usageWithSmallAbsoluteDrop = new TokenUsage(3000, 50) { CacheReadInputTokens = 1500, CacheCreationInputTokens = 1500 };
+        var result = await sut.CheckCacheBreakAsync(snapshot, usageWithSmallAbsoluteDrop).ConfigureAwait(true);
+
+        result.BreakDetected.Should().BeFalse();
     }
 
     [Fact]

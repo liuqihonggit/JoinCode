@@ -2,8 +2,12 @@ namespace JoinCode.Abstractions.LLM.Chat;
 
 public class CacheBreakDetector
 {
+    private const double CacheEvictionRelativeThreshold = 0.95;
+    private const int CacheEvictionAbsoluteThreshold = 2000;
+
     private bool _hasPreviousCacheHit;
     private bool _pendingCompaction;
+    private int? _prevCacheReadTokens;
 
     /// <summary>
     /// 通知检测器：前缀已被主动压缩/折叠重写。重置缓存命中基线并标记待上报的压缩事件，
@@ -13,6 +17,7 @@ public class CacheBreakDetector
     {
         _hasPreviousCacheHit = false;
         _pendingCompaction = true;
+        _prevCacheReadTokens = null;
     }
 
     /// <summary>
@@ -22,6 +27,7 @@ public class CacheBreakDetector
     {
         _hasPreviousCacheHit = false;
         _pendingCompaction = false;
+        _prevCacheReadTokens = null;
     }
 
     public PromptStateSnapshot RecordPromptState(
@@ -62,6 +68,9 @@ public class CacheBreakDetector
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(currentPrefix);
         ArgumentNullException.ThrowIfNull(usage);
+
+        var prevCacheRead = _prevCacheReadTokens;
+        _prevCacheReadTokens = usage.CacheReadInputTokens;
 
         if (usage.CacheReadInputTokens > 0)
         {
@@ -140,7 +149,7 @@ public class CacheBreakDetector
                 "Cache miss after context compaction — prefix rebuilt by this session");
         }
 
-        if (ShouldReportCacheEviction(usage, allHashesMatch))
+        if (ShouldReportCacheEviction(usage, allHashesMatch, prevCacheRead))
         {
             return CacheBreakResult.Break(CacheBreakKind.CacheEviction,
                 "Cache miss despite identical prefix — likely TTL eviction");
@@ -158,10 +167,19 @@ public class CacheBreakDetector
         return usage.CacheReadInputTokens == 0;
     }
 
-    protected virtual bool ShouldReportCacheEviction(TokenUsage usage, bool allHashesMatch)
+    protected virtual bool ShouldReportCacheEviction(TokenUsage usage, bool allHashesMatch, int? prevCacheRead)
     {
         if (!_hasPreviousCacheHit) return false;
-        return allHashesMatch && usage.CacheReadInputTokens == 0 && usage.CacheCreationInputTokens > 0;
+        if (!allHashesMatch) return false;
+
+        if (prevCacheRead is null or 0)
+        {
+            return usage.CacheReadInputTokens == 0 && usage.CacheCreationInputTokens > 0;
+        }
+
+        var tokenDrop = prevCacheRead.Value - usage.CacheReadInputTokens;
+        return usage.CacheReadInputTokens < prevCacheRead.Value * CacheEvictionRelativeThreshold
+            && tokenDrop >= CacheEvictionAbsoluteThreshold;
     }
 
     private static bool IsModelChanged(PromptStateSnapshot snapshot, string? currentModelId)

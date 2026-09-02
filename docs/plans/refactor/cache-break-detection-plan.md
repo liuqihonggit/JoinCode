@@ -295,12 +295,12 @@ P2.1（notifyCacheDeletion）✅ commit 1c5105bf0
 P2.2（sanitizeToolName）✅ commit 4bbf5a18f
 P2.3（feature gate）⏸️ 暂缓 — 默认全开不影响现有行为
 P3.1（diff 输出）⏸️ 暂缓 — 低价值（jcc 无 --debug 查看渠道）
-P3.2（agent 隔离）⏸️ 暂缓 — 高风险大改 IChatContextManager 接口，留给用户决策
+P3.2（agent 隔离）✅ commit 4648ad344
 ```
 
 每步遵循：红测试 → 实现 → 编译 → 绿测试 → git 提交
 
-**验证结果**：28 CacheBreak + 262 PrefixCache 测试全绿
+**验证结果**：777 Brain.Context.Tests + 262 PrefixCache 测试全绿
 
 <!-- 🤖 Auto Decision: 2026-09-02 -->
 <!-- 决策: 分 4 批 P0-P3 渐进式实现，P0 优先修复漏报 -->

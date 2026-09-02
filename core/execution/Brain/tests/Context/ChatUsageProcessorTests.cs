@@ -7,7 +7,7 @@ public sealed class ChatUsageProcessorTests
     {
         var stats = new SessionStats();
         var contextManager = new Mock<IChatContextManager>();
-        contextManager.Setup(cm => cm.CheckCacheBreakAsync(It.IsAny<PromptStateSnapshot>(), It.IsAny<TokenUsage>(), It.IsAny<CancellationToken>()))
+        contextManager.Setup(cm => cm.CheckCacheBreakAsync(It.IsAny<PromptStateSnapshot>(), It.IsAny<TokenUsage>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(CacheBreakResult.Break(CacheBreakKind.ToolSpecsChanged, "tools changed"));
         contextManager.Setup(cm => cm.DecideAfterUsage(It.IsAny<TokenUsage>()))
             .Returns(ContextFoldDecision.None);
@@ -23,7 +23,7 @@ public sealed class ChatUsageProcessorTests
             DynamicContentHash = "jkl"
         };
 
-        await sut.ProcessUsageAsync(usage, "test-model", snapshot, CancellationToken.None).ConfigureAwait(true);
+        await sut.ProcessUsageAsync(usage, "test-model", snapshot, ct: CancellationToken.None).ConfigureAwait(true);
 
         stats.ToolSpecsCacheBreaks.Should().Be(1);
         stats.TurnCount.Should().Be(1);
@@ -34,7 +34,7 @@ public sealed class ChatUsageProcessorTests
     {
         var stats = new SessionStats();
         var contextManager = new Mock<IChatContextManager>();
-        contextManager.Setup(cm => cm.CheckCacheBreakAsync(It.IsAny<PromptStateSnapshot>(), It.IsAny<TokenUsage>(), It.IsAny<CancellationToken>()))
+        contextManager.Setup(cm => cm.CheckCacheBreakAsync(It.IsAny<PromptStateSnapshot>(), It.IsAny<TokenUsage>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(CacheBreakResult.NoBreak());
         contextManager.Setup(cm => cm.DecideAfterUsage(It.IsAny<TokenUsage>()))
             .Returns(ContextFoldDecision.None);
@@ -50,7 +50,7 @@ public sealed class ChatUsageProcessorTests
             DynamicContentHash = "jkl"
         };
 
-        await sut.ProcessUsageAsync(usage, "test-model", snapshot, CancellationToken.None).ConfigureAwait(true);
+        await sut.ProcessUsageAsync(usage, "test-model", snapshot, ct: CancellationToken.None).ConfigureAwait(true);
 
         stats.SystemPromptCacheBreaks.Should().Be(0);
         stats.ToolSpecsCacheBreaks.Should().Be(0);
@@ -64,7 +64,7 @@ public sealed class ChatUsageProcessorTests
     {
         var stats = new SessionStats();
         var contextManager = new Mock<IChatContextManager>();
-        contextManager.Setup(cm => cm.CheckCacheBreakAsync(It.IsAny<PromptStateSnapshot>(), It.IsAny<TokenUsage>(), It.IsAny<CancellationToken>()))
+        contextManager.Setup(cm => cm.CheckCacheBreakAsync(It.IsAny<PromptStateSnapshot>(), It.IsAny<TokenUsage>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(CacheBreakResult.Break(CacheBreakKind.SystemPromptChanged, "system changed"));
         contextManager.Setup(cm => cm.DecideAfterUsage(It.IsAny<TokenUsage>()))
             .Returns(ContextFoldDecision.None);
@@ -80,7 +80,7 @@ public sealed class ChatUsageProcessorTests
             DynamicContentHash = "jkl"
         };
 
-        await sut.ProcessUsageAsync(usage, "test-model", snapshot, CancellationToken.None).ConfigureAwait(true);
+        await sut.ProcessUsageAsync(usage, "test-model", snapshot, ct: CancellationToken.None).ConfigureAwait(true);
 
         stats.SystemPromptCacheBreaks.Should().Be(1);
         stats.ToolSpecsCacheBreaks.Should().Be(0);
@@ -91,7 +91,7 @@ public sealed class ChatUsageProcessorTests
     {
         var stats = new SessionStats();
         var contextManager = new Mock<IChatContextManager>();
-        contextManager.Setup(cm => cm.CheckCacheBreakAsync(It.IsAny<PromptStateSnapshot>(), It.IsAny<TokenUsage>(), It.IsAny<CancellationToken>()))
+        contextManager.Setup(cm => cm.CheckCacheBreakAsync(It.IsAny<PromptStateSnapshot>(), It.IsAny<TokenUsage>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(CacheBreakResult.Break(CacheBreakKind.CacheEviction, "eviction"));
         contextManager.Setup(cm => cm.DecideAfterUsage(It.IsAny<TokenUsage>()))
             .Returns(ContextFoldDecision.None);
@@ -107,7 +107,7 @@ public sealed class ChatUsageProcessorTests
             DynamicContentHash = "jkl"
         };
 
-        await sut.ProcessUsageAsync(usage, "test-model", snapshot, CancellationToken.None).ConfigureAwait(true);
+        await sut.ProcessUsageAsync(usage, "test-model", snapshot, ct: CancellationToken.None).ConfigureAwait(true);
 
         stats.CacheEvictionBreaks.Should().Be(1);
     }

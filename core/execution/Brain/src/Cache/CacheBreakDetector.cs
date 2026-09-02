@@ -2,8 +2,33 @@ namespace JoinCode.Abstractions.LLM.Chat;
 
 public class CacheBreakDetector
 {
+    private const double CacheEvictionRelativeThreshold = 0.95;
+    private const int CacheEvictionAbsoluteThreshold = 2000;
+    private static readonly TimeSpan Ttl5Min = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan Ttl1Hour = TimeSpan.FromHours(1);
+
+    private readonly Func<DateTimeOffset>? _clock;
     private bool _hasPreviousCacheHit;
     private bool _pendingCompaction;
+    private bool _cacheDeletionsPending;
+    private int? _prevCacheReadTokens;
+    private DateTimeOffset? _lastCallTimestamp;
+
+    public CacheBreakDetector(Func<DateTimeOffset>? clock = null)
+    {
+        _clock = clock;
+    }
+
+    private DateTimeOffset Now => _clock?.Invoke() ?? DateTimeOffset.UtcNow;
+
+    /// <summary>
+    /// 通知检测器：cached microcompact 已发送 cache_edits deletions。
+    /// 下一次 API 响应的 cache read tokens 会预期性下降，不应报为缓存破坏。
+    /// </summary>
+    public void NotifyCacheDeletion()
+    {
+        _cacheDeletionsPending = true;
+    }
 
     /// <summary>
     /// 通知检测器：前缀已被主动压缩/折叠重写。重置缓存命中基线并标记待上报的压缩事件，
@@ -13,6 +38,8 @@ public class CacheBreakDetector
     {
         _hasPreviousCacheHit = false;
         _pendingCompaction = true;
+        _prevCacheReadTokens = null;
+        _lastCallTimestamp = null;
     }
 
     /// <summary>
@@ -22,6 +49,9 @@ public class CacheBreakDetector
     {
         _hasPreviousCacheHit = false;
         _pendingCompaction = false;
+        _cacheDeletionsPending = false;
+        _prevCacheReadTokens = null;
+        _lastCallTimestamp = null;
     }
 
     public PromptStateSnapshot RecordPromptState(
@@ -63,6 +93,26 @@ public class CacheBreakDetector
         ArgumentNullException.ThrowIfNull(currentPrefix);
         ArgumentNullException.ThrowIfNull(usage);
 
+        if (IsExcludedModel(snapshot.ModelId))
+        {
+            return CacheBreakResult.NoBreak();
+        }
+
+        if (_cacheDeletionsPending)
+        {
+            _cacheDeletionsPending = false;
+            _prevCacheReadTokens = usage.CacheReadInputTokens;
+            _lastCallTimestamp = Now;
+            return CacheBreakResult.NoBreak();
+        }
+
+        var now = Now;
+        var timeSinceLastCall = _lastCallTimestamp is not null ? now - _lastCallTimestamp.Value : (TimeSpan?)null;
+        _lastCallTimestamp = now;
+
+        var prevCacheRead = _prevCacheReadTokens;
+        _prevCacheReadTokens = usage.CacheReadInputTokens;
+
         if (usage.CacheReadInputTokens > 0)
         {
             _hasPreviousCacheHit = true;
@@ -95,9 +145,10 @@ public class CacheBreakDetector
 
             if (ShouldReportToolSpecsBreak(toolDrift, usage))
             {
+                var sanitizedDrift = toolDrift.WithSanitizedNames();
                 return CacheBreakResult.Break(CacheBreakKind.ToolSpecsChanged,
-                    $"Tool specs changed: {toolDrift.Kind} — {toolDrift.Summary}, cache hit={usage.CacheReadInputTokens}",
-                    toolDrift);
+                    $"Tool specs changed: {sanitizedDrift.Kind} — {sanitizedDrift.Summary}, cache hit={usage.CacheReadInputTokens}",
+                    sanitizedDrift);
             }
         }
 
@@ -140,15 +191,15 @@ public class CacheBreakDetector
                 "Cache miss after context compaction — prefix rebuilt by this session");
         }
 
-        if (ShouldReportCacheEviction(usage, allHashesMatch))
+        if (ShouldReportCacheEviction(usage, allHashesMatch, prevCacheRead))
         {
-            return CacheBreakResult.Break(CacheBreakKind.CacheEviction,
-                "Cache miss despite identical prefix — likely TTL eviction");
+            var (kind, detail) = ClassifyCacheMiss(timeSinceLastCall);
+            return CacheBreakResult.Break(kind, detail);
         }
 
         // 未发现失效：若此前压缩事件未触发到上报（本轮有缓存命中），清除待上报标记
         _pendingCompaction = false;
-        return new CacheBreakResult { BreakDetected = false, Kind = CacheBreakKind.None, ToolDrift = toolDrift };
+        return new CacheBreakResult { BreakDetected = false, Kind = CacheBreakKind.None, ToolDrift = toolDrift?.WithSanitizedNames() };
     }
 
     protected virtual bool ShouldReportToolSpecsBreak(ToolDriftReport drift, TokenUsage usage)
@@ -158,10 +209,19 @@ public class CacheBreakDetector
         return usage.CacheReadInputTokens == 0;
     }
 
-    protected virtual bool ShouldReportCacheEviction(TokenUsage usage, bool allHashesMatch)
+    protected virtual bool ShouldReportCacheEviction(TokenUsage usage, bool allHashesMatch, int? prevCacheRead)
     {
         if (!_hasPreviousCacheHit) return false;
-        return allHashesMatch && usage.CacheReadInputTokens == 0 && usage.CacheCreationInputTokens > 0;
+        if (!allHashesMatch) return false;
+
+        if (prevCacheRead is null or 0)
+        {
+            return usage.CacheReadInputTokens == 0 && usage.CacheCreationInputTokens > 0;
+        }
+
+        var tokenDrop = prevCacheRead.Value - usage.CacheReadInputTokens;
+        return usage.CacheReadInputTokens < prevCacheRead.Value * CacheEvictionRelativeThreshold
+            && tokenDrop >= CacheEvictionAbsoluteThreshold;
     }
 
     private static bool IsModelChanged(PromptStateSnapshot snapshot, string? currentModelId)
@@ -176,6 +236,30 @@ public class CacheBreakDetector
         if (snapshot.FastMode is null && currentFastMode is null) return false;
         if (snapshot.FastMode is null || currentFastMode is null) return false;
         return snapshot.FastMode != currentFastMode;
+    }
+
+    private static bool IsExcludedModel(string? modelId)
+        => modelId is not null && modelId.Contains("haiku", StringComparison.OrdinalIgnoreCase);
+
+    private static (CacheBreakKind Kind, string Detail) ClassifyCacheMiss(TimeSpan? timeSinceLastCall)
+    {
+        if (timeSinceLastCall is null)
+        {
+            return (CacheBreakKind.CacheEviction, "Cache miss despite identical prefix — no previous call timestamp");
+        }
+
+        var gap = timeSinceLastCall.Value;
+        if (gap > Ttl1Hour)
+        {
+            return (CacheBreakKind.TtlExpiration1Hour, "Cache miss — possible 1h TTL expiry (prompt unchanged)");
+        }
+
+        if (gap > Ttl5Min)
+        {
+            return (CacheBreakKind.TtlExpiration5Min, "Cache miss — possible 5min TTL expiry (prompt unchanged)");
+        }
+
+        return (CacheBreakKind.ServerSideRouting, "Cache miss — likely server-side routing/eviction (prompt unchanged, <5min gap)");
     }
 }
 

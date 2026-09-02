@@ -63,11 +63,11 @@ public sealed class CacheBreakDetectorCompactionTests
         var prefix = new ImmutablePrefix("System", tools, []);
 
         var snapshot1 = _detector.RecordPromptState(prefix, "dynamic");
-        _detector.CheckCacheBreak(snapshot1, prefix, "dynamic", Hit(80, 0));
+        _detector.CheckCacheBreak(snapshot1, prefix, "dynamic", Hit(10000, 0));
 
         var snapshot2 = _detector.RecordPromptState(prefix, "dynamic");
         var result2 = _detector.CheckCacheBreak(snapshot2, prefix, "dynamic", Miss());
-        result2.Kind.Should().Be(CacheBreakKind.CacheEviction);
+        result2.Kind.Should().Be(CacheBreakKind.ServerSideRouting);
     }
 
     [Fact]

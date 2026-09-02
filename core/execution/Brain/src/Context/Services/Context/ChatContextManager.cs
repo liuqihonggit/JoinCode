@@ -79,7 +79,12 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
 
     /// <summary>当前会话的对话日志 — 按 SessionId 隔离，切换会话时自动分桶</summary>
     private AppendOnlyLog Log => Logs.GetOrAdd(_sessionId, _ => new AppendOnlyLog());
-    private readonly CacheBreakDetector _cacheBreakDetector = new();
+
+    /// <summary>缓存破坏检测器 — 按 agentId 隔离，主代理(null)和子代理互不干扰基线</summary>
+    private readonly ConcurrentDictionary<string, CacheBreakDetector> _cacheBreakDetectorsByAgent = new();
+    private CacheBreakDetector GetCacheBreakDetector(string? agentId)
+        => _cacheBreakDetectorsByAgent.GetOrAdd(agentId ?? "main", _ => new CacheBreakDetector());
+
     private readonly DiscoveredToolSet _discoveredTools = new();
     private readonly List<DeferredToolInfo> _deferredTools = [];
     private string _previousDynamicHash = string.Empty;
@@ -553,7 +558,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// <summary>
     /// 根据折叠决策执行上下文折叠操作（普通/激进/摘要退出）
     /// </summary>
-    public async Task<ContextFoldResult> FoldIfNeededAsync(ContextFoldDecision decision, CancellationToken cancellationToken = default)
+    public async Task<ContextFoldResult> FoldIfNeededAsync(ContextFoldDecision decision, string? agentId = null, CancellationToken cancellationToken = default)
     {
         if (_foldExecutor == null)
         {
@@ -609,7 +614,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
                 if (clearedBySnip)
                 {
                     _consecutiveNoProgressFolds = 0;
-                    _cacheBreakDetector.NotifyCompaction();
+                    GetCacheBreakDetector(agentId).NotifyCompaction();
 
                     return new ContextFoldResult
                     {
@@ -647,7 +652,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
             if (foldResult.Folded)
             {
                 _consecutiveNoProgressFolds = 0;
-                _cacheBreakDetector.NotifyCompaction();
+                GetCacheBreakDetector(agentId).NotifyCompaction();
             }
             else if (decision is ContextFoldDecision.FoldNormal or ContextFoldDecision.FoldAggressive
                      && snip.Results == 0)
@@ -794,14 +799,14 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// <summary>
     /// 记录当前提示词前缀状态快照，用于后续缓存失效检测
     /// </summary>
-    public async Task<PromptStateSnapshot> RecordPromptStateAsync(CancellationToken cancellationToken = default)
+    public async Task<PromptStateSnapshot> RecordPromptStateAsync(string? agentId = null, CancellationToken cancellationToken = default)
     {
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             var prefix = new ImmutablePrefix(_staticSystemPrompt, _currentToolSpecs, []);
             var dynamicContent = string.Join("\n", _dynamicSystemMessages);
-            var snapshot = _cacheBreakDetector.RecordPromptState(prefix, dynamicContent, Log.ToMessages());
+            var snapshot = GetCacheBreakDetector(agentId).RecordPromptState(prefix, dynamicContent, Log.ToMessages());
 
             var toolSpecsBytes = _currentToolSpecs.Sum(t =>
                 System.Text.Encoding.UTF8.GetByteCount(t.Name) +
@@ -827,7 +832,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// <summary>
     /// 检测缓存是否失效，对比快照与当前前缀状态并结合 token 用量判断
     /// </summary>
-    public async Task<CacheBreakResult> CheckCacheBreakAsync(PromptStateSnapshot snapshot, TokenUsage usage, CancellationToken cancellationToken = default)
+    public async Task<CacheBreakResult> CheckCacheBreakAsync(PromptStateSnapshot snapshot, TokenUsage usage, string? agentId = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(usage);
@@ -837,7 +842,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         {
             var currentPrefix = new ImmutablePrefix(_staticSystemPrompt, _currentToolSpecs, []);
             var currentDynamicContent = string.Join("\n", _dynamicSystemMessages);
-            var result = _cacheBreakDetector.CheckCacheBreak(snapshot, currentPrefix, currentDynamicContent, usage, Log.ToMessages());
+            var result = GetCacheBreakDetector(agentId).CheckCacheBreak(snapshot, currentPrefix, currentDynamicContent, usage, Log.ToMessages());
 
             if (result.BreakDetected)
             {

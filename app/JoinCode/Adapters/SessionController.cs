@@ -243,7 +243,7 @@ public sealed class SessionController
         var contextManager = _serviceProvider.GetService<IChatContextManager>();
         if (contextManager is not null)
         {
-            await contextManager.RecordPromptStateAsync(ct).ConfigureAwait(false);
+            await contextManager.RecordPromptStateAsync(cancellationToken: ct).ConfigureAwait(false);
         }
 
         var modalityInjection = DetectModalityMismatch(input);

@@ -363,7 +363,7 @@ public sealed class LoopInterventionMiddlewareTests
             .ReturnsAsync(userMessages);
         contextManager.Setup(c => c.RewindToStartAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(RewindResult.Ok(RewindKind.ClearHistory, 3, 0));
-        contextManager.Setup(c => c.FoldIfNeededAsync(It.IsAny<ContextFoldDecision>(), It.IsAny<CancellationToken>()))
+        contextManager.Setup(c => c.FoldIfNeededAsync(It.IsAny<ContextFoldDecision>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ContextFoldResult { Folded = false, OriginalMessageCount = 3 });
 
         var chatClient = new Mock<IChatClient>();
@@ -405,7 +405,7 @@ public sealed class LoopInterventionMiddlewareTests
             .ReturnsAsync(messages);
         contextManager.Setup(c => c.RewindToStartAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(RewindResult.Ok(RewindKind.ClearHistory, 2, 0));
-        contextManager.Setup(c => c.FoldIfNeededAsync(It.IsAny<ContextFoldDecision>(), It.IsAny<CancellationToken>()))
+        contextManager.Setup(c => c.FoldIfNeededAsync(It.IsAny<ContextFoldDecision>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ContextFoldResult { Folded = false, OriginalMessageCount = 2 });
 
         var chatClient = new Mock<IChatClient>();

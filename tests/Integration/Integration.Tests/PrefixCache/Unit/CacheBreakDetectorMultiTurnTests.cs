@@ -94,7 +94,7 @@ public sealed class CacheBreakDetectorMultiTurnTests
 
         var usage1 = new TokenUsage(100, 50)
         {
-            CacheReadInputTokens = 80,
+            CacheReadInputTokens = 10000,
             CacheCreationInputTokens = 0
         };
         _detector.CheckCacheBreak(snapshot1, prefix, "dynamic", usage1);
@@ -108,7 +108,7 @@ public sealed class CacheBreakDetectorMultiTurnTests
         };
         var result2 = _detector.CheckCacheBreak(snapshot2, prefix, "dynamic", usage2);
         result2.BreakDetected.Should().BeTrue("cache eviction: identical prefix but cache miss after previous hit");
-        result2.Kind.Should().Be(CacheBreakKind.CacheEviction);
+        result2.Kind.Should().Be(CacheBreakKind.ServerSideRouting);
     }
 
     [Fact]

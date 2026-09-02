@@ -36,7 +36,10 @@ public interface IChatContextManager
     Task SaveContextAsync(CancellationToken cancellationToken = default);
     ContextFoldDecision DecideAfterUsage(TokenUsage usage, bool alreadyFoldedThisTurn = false);
     PreflightDecision DecidePreflight(IReadOnlyList<ToolSpec> toolSpecs);
-    Task<ContextFoldResult> FoldIfNeededAsync(ContextFoldDecision decision, CancellationToken cancellationToken = default);
+    /// <param name="decision">折叠决策。</param>
+    /// <param name="agentId">代理标识，null 表示主代理。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    Task<ContextFoldResult> FoldIfNeededAsync(ContextFoldDecision decision, string? agentId = null, CancellationToken cancellationToken = default);
     int GetContextMaxTokens();
 
     /// <summary>
@@ -63,12 +66,18 @@ public interface IChatContextManager
     /// <summary>
     /// 记录当前前缀状态快照（LLM 请求前调用）。用于缓存失效两阶段检测的第一阶段。
     /// </summary>
-    Task<PromptStateSnapshot> RecordPromptStateAsync(CancellationToken cancellationToken = default);
+    /// <param name="agentId">代理标识，null 表示主代理。不同代理维护独立的缓存检测基线。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    Task<PromptStateSnapshot> RecordPromptStateAsync(string? agentId = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 检测缓存失效（LLM 响应后调用）。两阶段检测的第二阶段，与请求前的快照对比。
     /// </summary>
-    Task<CacheBreakResult> CheckCacheBreakAsync(PromptStateSnapshot snapshot, TokenUsage usage, CancellationToken cancellationToken = default);
+    /// <param name="snapshot">请求前记录的前缀状态快照。</param>
+    /// <param name="usage">LLM 响应的 token 用量。</param>
+    /// <param name="agentId">代理标识，null 表示主代理。需与 RecordPromptStateAsync 使用相同的 agentId。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    Task<CacheBreakResult> CheckCacheBreakAsync(PromptStateSnapshot snapshot, TokenUsage usage, string? agentId = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 获取已发现的延迟工具集合。用于 Deferred Tools 请求构建。

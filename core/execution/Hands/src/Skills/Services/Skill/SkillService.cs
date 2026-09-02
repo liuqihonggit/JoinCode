@@ -227,6 +227,8 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
         RegisterSkill(BuiltIn.RememberSkill.CreateDefinition());
         RegisterSkill(BuiltIn.SimplifySkill.CreateDefinition());
         RegisterSkill(BuiltIn.SkillifySkill.CreateDefinition());
+        RegisterSkill(BuiltIn.UpdateConfigSkill.CreateDefinition());
+        RegisterSkill(BuiltIn.KeybindingsSkill.CreateDefinition());
     }
 
     private async Task LoadExternalSkillsAsync(CancellationToken cancellationToken)

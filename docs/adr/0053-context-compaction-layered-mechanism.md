@@ -156,3 +156,21 @@ None → Sanitize → Microcompact → Truncate → Abort
 - 正面：长对话不中断；纯规则压缩零 LLM 成本；多层降级保证压缩质量；API 端压缩保 prompt cache；策略可扩展
 - 负面：三子系统 + 管道 + 策略 + 守卫认知负担较重；Microcompact 占位符丢失旧工具结果细节（需用户主动 /compact 全量摘要恢复）
 - 中性：Collapse 为实验性功能默认不启用；阈值通过 `CompactThresholds` 配置可调；对齐 TS 端 microCompact.ts/apiMicrocompact.ts 保持行为一致
+
+## 补充注记
+
+### 摘要输出结构（交接设计）
+
+`CompactPromptTemplate.cs`（`core/execution/Brain/src/Prompts/Templates/Memory/`）的 LLM 摘要提示词采用 12 部分结构，其中第 10/11/12 项专为任务交接设计（"避坑 + 接手指引"三件套）：
+
+| 项 | 内容 |
+|----|------|
+| 10. 关键约束与决策 | 已知约束、已做出的关键决定（选 A 放弃 B 及理由）、未验证的假设 |
+| 11. 风险与注意事项 | 易误判/重复劳动/跑偏的点、已验证不继续的方向、已知陷阱 |
+| 12. 建议接手路径 | 接手者应优先查看的文件/模块/日志/命令、应先验证什么、推荐下一步 |
+
+三个变体（Base/Partial/UpTo）的第 9 项已统一为"继续工作的上下文"交接语气（2026-09-02，commit ce76ed1d5），此前 Base/Partial 为"可选下一步"。UpTo 变体（`PartialCompactUpToPrompt`）的交接声明最明确："仅阅读你的摘要然后阅读较新消息的人能够完全理解发生了什么并继续工作"。
+
+压缩后注入新会话的续行指令（`GetCompactUserSummaryMessage`）："此会话正在从之前耗尽上下文的对话中继续…从它停止的地方继续对话，不要再向用户询问任何问题。"
+
+测试 `CompactPromptTemplateTests.cs` 对第 10/11/12 项有断言保护。

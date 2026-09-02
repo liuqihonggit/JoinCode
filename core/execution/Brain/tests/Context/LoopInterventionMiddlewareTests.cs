@@ -386,7 +386,7 @@ public sealed class LoopInterventionMiddlewareTests
         await CollectEventsAsync(middleware, context, nextEvents).ConfigureAwait(true);
 
         contextManager.Verify(c => c.RewindToStartAsync(It.IsAny<CancellationToken>()), Times.Once);
-        contextManager.Verify(c => c.AddUserMessageAsync("请加上验证码", It.IsAny<CancellationToken>()), Times.Once);
+        contextManager.Verify(c => c.AddUserMessageAsync("请加上验证码", It.IsAny<MessageOriginKind?>(), It.IsAny<CancellationToken>()), Times.Once);
         contextManager.Verify(c => c.AddSystemMessageAsync(
             It.Is<string>(s => s.Contains("循环检测已重置")),
             It.IsAny<CancellationToken>()), Times.Once);
@@ -428,7 +428,7 @@ public sealed class LoopInterventionMiddlewareTests
         await CollectEventsAsync(middleware, context, nextEvents).ConfigureAwait(true);
 
         contextManager.Verify(c => c.RewindToStartAsync(It.IsAny<CancellationToken>()), Times.Once);
-        contextManager.Verify(c => c.AddUserMessageAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        contextManager.Verify(c => c.AddUserMessageAsync(It.IsAny<string>(), It.IsAny<MessageOriginKind?>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]

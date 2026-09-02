@@ -17,7 +17,7 @@ public interface IChatContextManager
     void SwitchSession(string sessionId);
 
     Task LoadContextAsync(CancellationToken cancellationToken = default);
-    Task AddUserMessageAsync(string content, CancellationToken cancellationToken = default);
+    Task AddUserMessageAsync(string content, MessageOriginKind? originKind = null, CancellationToken cancellationToken = default);
     Task AddCompactSummaryMessageAsync(string content, CancellationToken cancellationToken = default);
     Task AddAssistantMessageAsync(string content, CancellationToken cancellationToken = default);
     Task AddAssistantToolCallMessageAsync(string? content, IReadOnlyDictionary<string, JsonElement> metadata, CancellationToken cancellationToken = default);

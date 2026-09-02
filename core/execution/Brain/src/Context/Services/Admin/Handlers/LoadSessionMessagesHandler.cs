@@ -25,7 +25,7 @@ public sealed partial class LoadSessionMessagesHandler : ServiceEntity, IChatAdm
             {
                 if (msg.Role.Equals("user", StringComparison.OrdinalIgnoreCase))
                 {
-                    await context.ContextManager.AddUserMessageAsync(msg.Content, ct).ConfigureAwait(false);
+                    await context.ContextManager.AddUserMessageAsync(msg.Content, cancellationToken: ct).ConfigureAwait(false);
                 }
                 else if (msg.Role.Equals("assistant", StringComparison.OrdinalIgnoreCase))
                 {

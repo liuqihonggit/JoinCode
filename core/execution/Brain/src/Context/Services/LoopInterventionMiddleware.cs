@@ -211,7 +211,7 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
             {
                 await _contextManager.AddSystemMessageAsync(
                     "对话因循环检测已重置，以下是用户最近的需求描述：", ct).ConfigureAwait(false);
-                await _contextManager.AddUserMessageAsync(lastUserMessage, ct).ConfigureAwait(false);
+                await _contextManager.AddUserMessageAsync(lastUserMessage, cancellationToken: ct).ConfigureAwait(false);
                 await _contextManager.AddSystemMessageAsync("请继续。", ct).ConfigureAwait(false);
                 _logger?.LogInformation("[LoopInterventionMiddleware] 已保留最近1轮用户消息作为种子");
             }

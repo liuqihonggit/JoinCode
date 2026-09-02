@@ -74,7 +74,7 @@ public sealed partial class ChatPreprocessor : IChatPreprocessor
         await _preparePipeline.ExecuteAsync(context, ct).ConfigureAwait(false);
 
         if (!isDryRun)
-            await _contextManager.AddUserMessageAsync(message, ct).ConfigureAwait(false);
+            await _contextManager.AddUserMessageAsync(message, cancellationToken: ct).ConfigureAwait(false);
     }
 
     /// <summary>

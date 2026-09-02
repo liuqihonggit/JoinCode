@@ -237,14 +237,20 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// <summary>
     /// 添加用户消息到对话日志
     /// </summary>
-    public async Task AddUserMessageAsync(string content, CancellationToken cancellationToken = default)
+    public async Task AddUserMessageAsync(string content, MessageOriginKind? originKind = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(content);
 
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            Log.Append(new ApiMessage(MessageRole.User, content));
+            var metadata = originKind is null
+                ? null
+                : new Dictionary<string, JsonElement>
+                {
+                    [MessageMetadataKeyConstants.Origin] = JsonElementHelper.FromJson($"{{\"kind\":\"{originKind.Value.ToValue()}\"}}")
+                };
+            Log.Append(new ApiMessage(MessageRole.User, content, metadata));
             _logger.LogDebug("已添加用户消息，当前对话数: {Count}", Log.Count);
         }
         finally

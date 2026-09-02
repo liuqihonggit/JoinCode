@@ -20,4 +20,7 @@ public enum MessageMetadataKey
 
     /// <summary>消息时间戳 — ISO 8601 格式</summary>
     [EnumValue("timestamp")] Timestamp,
+
+    /// <summary>消息来源 — 对齐 TS origin: { kind: "..." }，不设置 = human (keyboard)</summary>
+    [EnumValue("origin")] Origin,
 }

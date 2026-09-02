@@ -7,6 +7,8 @@ namespace Core.Prompts.Sections;
 /// </summary>
 [PromptSection(Name = "agent_tool", Order = 12)]
 public static class AgentToolSection {
+    internal const string SubagentUsageGuidance = "Subagent对于并行化独立查询或保护主上下文窗口免受过多结果的影响很有价值，但在不需要时不应过度使用。重要的是，避免重复Subagent已经在做的工作——如果您将研究委托给Subagent，请不要自己也执行相同的搜索。";
+
     public static string? GetContent() {
         var isCoordinator = PromptConfigSnapshot.Current.IsCoordinatorMode;
         if (isCoordinator)
@@ -17,9 +19,8 @@ public static class AgentToolSection {
         return $"""
 # 使用{AgentToolNameConstants.Agent}工具
 
-使用{AgentToolNameConstants.Agent}工具与专门的{AgentToolNameConstants.Agent}配合，当手头的任务与{AgentToolNameConstants.Agent}的描述匹配时。
-Subagent对于并行化独立查询或保护主上下文窗口免受过多结果的影响很有价值，但在不需要时不应过度使用。
-重要的是，避免重复Subagent已经在做的工作——如果您将研究委托给Subagent，请不要自己也执行相同的搜索。
+使用{AgentToolNameConstants.Agent}工具与专门的{AgentToolNameConstants.Agent}配合，当手边的任务与{AgentToolNameConstants.Agent}的描述匹配时。
+{SubagentUsageGuidance}
 
 可用代理类型列在对话中的 <system-reminder> 消息中。
 """;

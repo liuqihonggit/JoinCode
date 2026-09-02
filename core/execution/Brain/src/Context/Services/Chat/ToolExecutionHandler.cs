@@ -95,7 +95,7 @@ public sealed partial class ToolExecutionHandler : ServiceEntity, IToolExecution
             {
                 if (injectedMsg.Role == MessageRole.User)
                 {
-                    await _contextManager.AddUserMessageAsync(injectedMsg.Content ?? string.Empty, cancellationToken).ConfigureAwait(false);
+                    await _contextManager.AddUserMessageAsync(injectedMsg.Content ?? string.Empty, cancellationToken: cancellationToken).ConfigureAwait(false);
                 }
                 else if (injectedMsg.Role == MessageRole.Assistant)
                 {

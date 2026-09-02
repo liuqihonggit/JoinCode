@@ -294,7 +294,7 @@ internal sealed class JccChatSession : IJccChatSession
             switch (role)
             {
                 case MessageRole.User:
-                    await ctxMgr.AddUserMessageAsync(content, cancellationToken).ConfigureAwait(false);
+                    await ctxMgr.AddUserMessageAsync(content, cancellationToken: cancellationToken).ConfigureAwait(false);
                     break;
                 case MessageRole.Assistant:
                     await ctxMgr.AddAssistantMessageAsync(content, cancellationToken).ConfigureAwait(false);

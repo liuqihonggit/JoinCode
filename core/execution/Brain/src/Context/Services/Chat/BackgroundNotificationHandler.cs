@@ -48,7 +48,7 @@ public sealed partial class BackgroundNotificationHandler : ServiceEntity, IBack
             var wrappedContent = isShellNotification
                 ? notification.Xml
                 : $"A background agent completed a task:\n{notification.Xml}";
-            await _contextManager.AddUserMessageAsync(wrappedContent, ct).ConfigureAwait(false);
+            await _contextManager.AddUserMessageAsync(wrappedContent, MessageOriginKind.TaskNotification, ct).ConfigureAwait(false);
         }
 
         _logger?.LogInformation("[BackgroundNotificationHandler] 注入 {Count} 条后台代理通知", pendingNotifications.Count);

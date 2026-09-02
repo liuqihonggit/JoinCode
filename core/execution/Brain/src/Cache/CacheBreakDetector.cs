@@ -145,9 +145,10 @@ public class CacheBreakDetector
 
             if (ShouldReportToolSpecsBreak(toolDrift, usage))
             {
+                var sanitizedDrift = toolDrift.WithSanitizedNames();
                 return CacheBreakResult.Break(CacheBreakKind.ToolSpecsChanged,
-                    $"Tool specs changed: {toolDrift.Kind} — {toolDrift.Summary}, cache hit={usage.CacheReadInputTokens}",
-                    toolDrift);
+                    $"Tool specs changed: {sanitizedDrift.Kind} — {sanitizedDrift.Summary}, cache hit={usage.CacheReadInputTokens}",
+                    sanitizedDrift);
             }
         }
 
@@ -198,7 +199,7 @@ public class CacheBreakDetector
 
         // 未发现失效：若此前压缩事件未触发到上报（本轮有缓存命中），清除待上报标记
         _pendingCompaction = false;
-        return new CacheBreakResult { BreakDetected = false, Kind = CacheBreakKind.None, ToolDrift = toolDrift };
+        return new CacheBreakResult { BreakDetected = false, Kind = CacheBreakKind.None, ToolDrift = toolDrift?.WithSanitizedNames() };
     }
 
     protected virtual bool ShouldReportToolSpecsBreak(ToolDriftReport drift, TokenUsage usage)

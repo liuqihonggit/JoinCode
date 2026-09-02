@@ -309,6 +309,22 @@ public partial class CacheBreakMonitorTests
     }
 
     [Fact]
+    public void CheckCacheBreak_McpToolName_SanitizedInToolDrift()
+    {
+        var detector = new CacheBreakDetector();
+        var prefix1 = new ImmutablePrefix("system", [new ToolSpec("mcp__filesystem_read", "desc_v1")], []);
+        var snapshot = detector.RecordPromptState(prefix1, "dynamic");
+
+        var prefix2 = new ImmutablePrefix("system", [new ToolSpec("mcp__filesystem_read", "desc_v2")], []);
+        var usage = new TokenUsage(100, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 100 };
+        var result = detector.CheckCacheBreak(snapshot, prefix2, "dynamic", usage);
+
+        result.BreakDetected.Should().BeTrue();
+        result.Kind.Should().Be(CacheBreakKind.ToolSpecsChanged);
+        result.ToolDrift!.EditedNames.Should().ContainSingle().Which.Should().Be("mcp");
+    }
+
+    [Fact]
     public async Task RecordPromptStateAsync_NoToolSpecs_StillWorks()
     {
         var sut = CreateSut();

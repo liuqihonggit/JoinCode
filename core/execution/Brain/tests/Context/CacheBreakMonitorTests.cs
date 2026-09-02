@@ -325,6 +325,29 @@ public partial class CacheBreakMonitorTests
     }
 
     [Fact]
+    public async Task CheckCacheBreakAsync_MultiAgent_BaselinesIsolated()
+    {
+        var sut = CreateSut();
+        await sut.UpdateSystemPromptAsync("system").ConfigureAwait(true);
+        await sut.AddDynamicSystemMessageAsync("dynamic").ConfigureAwait(true);
+        await sut.UpdateToolSpecsAsync([new ToolSpec("tool_a", "desc_a")]).ConfigureAwait(true);
+
+        var snapshotA = await sut.RecordPromptStateAsync("agent-a").ConfigureAwait(true);
+        var usageHitA = new TokenUsage(10000, 50) { CacheReadInputTokens = 10000 };
+        await sut.CheckCacheBreakAsync(snapshotA, usageHitA, "agent-a").ConfigureAwait(true);
+
+        var snapshotB = await sut.RecordPromptStateAsync("agent-b").ConfigureAwait(true);
+        var usageHitB = new TokenUsage(3000, 50) { CacheReadInputTokens = 3000 };
+        await sut.CheckCacheBreakAsync(snapshotB, usageHitB, "agent-b").ConfigureAwait(true);
+
+        var usageMissA = new TokenUsage(10000, 50) { CacheReadInputTokens = 2500, CacheCreationInputTokens = 7500 };
+        var resultA = await sut.CheckCacheBreakAsync(snapshotA, usageMissA, "agent-a").ConfigureAwait(true);
+
+        resultA.BreakDetected.Should().BeTrue("agent-a 基线 10000，降幅 7500 > 2000 应报");
+        resultA.Kind.Should().Be(CacheBreakKind.ServerSideRouting);
+    }
+
+    [Fact]
     public async Task RecordPromptStateAsync_NoToolSpecs_StillWorks()
     {
         var sut = CreateSut();

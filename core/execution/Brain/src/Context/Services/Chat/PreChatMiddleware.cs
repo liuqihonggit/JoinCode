@@ -49,7 +49,7 @@ public sealed partial class PreChatMiddleware : ServiceEntity, IChatMiddleware
         context.PreprocessResult = preprocessResult;
 
         context.ExecutionSettings = _optionsFactory.Create();
-        context.PromptSnapshot = await _contextManager.RecordPromptStateAsync(ct).ConfigureAwait(false);
+        context.PromptSnapshot = await _contextManager.RecordPromptStateAsync(context.AgentId, ct).ConfigureAwait(false);
 
         context.Timing.StopPreprocess();
 

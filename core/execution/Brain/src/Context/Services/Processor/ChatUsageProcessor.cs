@@ -36,11 +36,11 @@ public sealed partial class ChatUsageProcessor : ServiceEntity, IChatUsageProces
     /// <summary>
     /// 处理 Usage 数据：计算成本、记录统计、检查缓存失效、上下文折叠
     /// </summary>
-    public async Task ProcessUsageAsync(TokenUsage usage, string? modelId, PromptStateSnapshot promptSnapshot, CancellationToken ct)
+    public async Task ProcessUsageAsync(TokenUsage usage, string? modelId, PromptStateSnapshot promptSnapshot, string? agentId = null, CancellationToken ct = default)
     {
         var costUsd = ComputeCostUsd(modelId, usage);
 
-        var cacheBreakResult = await _contextManager.CheckCacheBreakAsync(promptSnapshot, usage, ct).ConfigureAwait(false);
+        var cacheBreakResult = await _contextManager.CheckCacheBreakAsync(promptSnapshot, usage, agentId, ct).ConfigureAwait(false);
         if (cacheBreakResult.BreakDetected)
         {
             _logger?.LogWarning("缓存失效: Kind={Kind}, Detail={Detail}", cacheBreakResult.Kind, cacheBreakResult.Detail);
@@ -53,7 +53,7 @@ public sealed partial class ChatUsageProcessor : ServiceEntity, IChatUsageProces
         {
             try
             {
-                var foldResult = await _contextManager.FoldIfNeededAsync(foldDecision, ct).ConfigureAwait(false);
+                var foldResult = await _contextManager.FoldIfNeededAsync(foldDecision, agentId, ct).ConfigureAwait(false);
                 if (foldResult.Folded)
                 {
                     _logger?.LogInformation("上下文折叠已执行: {Decision}, 原始 {Original} 条 → 保留 {Tail} 条 + 摘要",

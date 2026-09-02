@@ -35,7 +35,7 @@ public sealed partial class ProcessUsageMiddleware : ServiceEntity, IChatMiddlew
         if (context.FinalUsage is not null && context.PromptSnapshot is not null)
         {
             await _usageProcessor.ProcessUsageAsync(
-                context.FinalUsage, context.FinalModelId, context.PromptSnapshot, ct).ConfigureAwait(false);
+                context.FinalUsage, context.FinalModelId, context.PromptSnapshot, context.AgentId, ct).ConfigureAwait(false);
         }
     }
 }

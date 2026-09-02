@@ -193,7 +193,7 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
         }
 
         var compactResult = await _contextManager.FoldIfNeededAsync(
-            _options.CompactFoldDecision, ct).ConfigureAwait(false);
+            _options.CompactFoldDecision, cancellationToken: ct).ConfigureAwait(false);
 
         if (compactResult.Folded)
         {

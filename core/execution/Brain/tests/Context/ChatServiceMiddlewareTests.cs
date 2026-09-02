@@ -216,7 +216,7 @@ public sealed class ChatServiceMiddlewareTests
 
         // MockQueryLoopMiddleware 设置了 FinalUsage，ProcessUsageMiddleware 应调用 ProcessUsageAsync
         usageMock.Verify(
-            u => u.ProcessUsageAsync(It.IsAny<TokenUsage>(), It.IsAny<string>(), It.IsAny<PromptStateSnapshot>(), It.IsAny<CancellationToken>()),
+            u => u.ProcessUsageAsync(It.IsAny<TokenUsage>(), It.IsAny<string>(), It.IsAny<PromptStateSnapshot>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -224,7 +224,7 @@ public sealed class ChatServiceMiddlewareTests
     public async Task SendMessageAsync_WithUsage_ProcessUsageFailure_DoesNotThrow()
     {
         var usageMock = new Mock<IChatUsageProcessor>();
-        usageMock.Setup(u => u.ProcessUsageAsync(It.IsAny<TokenUsage>(), It.IsAny<string>(), It.IsAny<PromptStateSnapshot>(), It.IsAny<CancellationToken>()))
+        usageMock.Setup(u => u.ProcessUsageAsync(It.IsAny<TokenUsage>(), It.IsAny<string>(), It.IsAny<PromptStateSnapshot>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("usage failed"));
 
         var preprocessorMock = new Mock<IChatPreprocessor>();

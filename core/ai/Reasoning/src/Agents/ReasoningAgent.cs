@@ -140,7 +140,7 @@ public abstract class ReasoningAgent : AgentBase
         var decision = ContextManager.DecideAfterUsage(new TokenUsage(estimatedTokens, 0));
         if (decision is ContextFoldDecision.None) return userPrompt;
 
-        await ContextManager.FoldIfNeededAsync(decision, ct).ConfigureAwait(false);
+        await ContextManager.FoldIfNeededAsync(decision, cancellationToken: ct).ConfigureAwait(false);
         var messages = await ContextManager.GetMessageListAsync(ct).ConfigureAwait(false);
         var lastUser = messages.LastOrDefault(m => m.Role == MessageRole.User);
         return lastUser?.Content ?? userPrompt;

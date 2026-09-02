@@ -79,6 +79,11 @@ public sealed class ChatMiddlewareContext
     public string SessionId { get; init; } = global::Core.Utils.SessionIdFactory.DefaultSessionId;
 
     /// <summary>
+    /// 当前代理标识 — null 表示主代理，子代理设为唯一 ID。用于缓存破坏检测按 agent 隔离基线。
+    /// </summary>
+    public string? AgentId { get; init; }
+
+    /// <summary>
     /// 当前对话轮次号 — 由 ChatService 在创建 context 时设置
     /// </summary>
     public int ConversationTurn { get; init; }

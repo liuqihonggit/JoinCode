@@ -218,6 +218,20 @@ public partial class CacheBreakMonitorTests
     }
 
     [Fact]
+    public void CheckCacheBreak_HaikuModel_Skipped()
+    {
+        var detector = new CacheBreakDetector();
+        var prefix = new ImmutablePrefix("system v1", [new ToolSpec("tool_a", "desc_a")], []);
+        var snapshot = detector.RecordPromptState(prefix, "dynamic", modelId: "claude-3-haiku");
+
+        var changedPrefix = new ImmutablePrefix("system v2", [new ToolSpec("tool_a", "desc_a")], []);
+        var usage = new TokenUsage(100, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 100 };
+        var result = detector.CheckCacheBreak(snapshot, changedPrefix, "dynamic", usage, currentModelId: "claude-3-haiku");
+
+        result.BreakDetected.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task RecordPromptStateAsync_NoToolSpecs_StillWorks()
     {
         var sut = CreateSut();

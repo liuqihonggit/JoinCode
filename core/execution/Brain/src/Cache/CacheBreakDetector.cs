@@ -69,6 +69,11 @@ public class CacheBreakDetector
         ArgumentNullException.ThrowIfNull(currentPrefix);
         ArgumentNullException.ThrowIfNull(usage);
 
+        if (IsExcludedModel(snapshot.ModelId))
+        {
+            return CacheBreakResult.NoBreak();
+        }
+
         var prevCacheRead = _prevCacheReadTokens;
         _prevCacheReadTokens = usage.CacheReadInputTokens;
 
@@ -195,6 +200,9 @@ public class CacheBreakDetector
         if (snapshot.FastMode is null || currentFastMode is null) return false;
         return snapshot.FastMode != currentFastMode;
     }
+
+    private static bool IsExcludedModel(string? modelId)
+        => modelId is not null && modelId.Contains("haiku", StringComparison.OrdinalIgnoreCase);
 }
 
 // <!-- 🤖 Auto Decision: 2026-08-06 -->

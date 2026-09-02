@@ -1,11 +1,11 @@
 # 0056. 缓存破坏检测维度补齐 — 双阈值 + TTL 区分 + 多 agent 隔离
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-09-02
 - 决策者：项目架构组
 - 关联：[0055](0055-system-prompt-section-injection-optimization.md)（P0 缓存破坏检测机制）
 - 实现计划：[cache-break-detection-plan.md](../plans/refactor/cache-break-detection-plan.md)
-- 验证：待实现
+- 验证：P0 已实现并测试通过（26 CacheBreak + 262 PrefixCache 测试全绿）
 
 ## 背景
 

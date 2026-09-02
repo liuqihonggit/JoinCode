@@ -10,6 +10,7 @@ public class CacheBreakDetector
     private readonly Func<DateTimeOffset>? _clock;
     private bool _hasPreviousCacheHit;
     private bool _pendingCompaction;
+    private bool _cacheDeletionsPending;
     private int? _prevCacheReadTokens;
     private DateTimeOffset? _lastCallTimestamp;
 
@@ -19,6 +20,15 @@ public class CacheBreakDetector
     }
 
     private DateTimeOffset Now => _clock?.Invoke() ?? DateTimeOffset.UtcNow;
+
+    /// <summary>
+    /// 通知检测器：cached microcompact 已发送 cache_edits deletions。
+    /// 下一次 API 响应的 cache read tokens 会预期性下降，不应报为缓存破坏。
+    /// </summary>
+    public void NotifyCacheDeletion()
+    {
+        _cacheDeletionsPending = true;
+    }
 
     /// <summary>
     /// 通知检测器：前缀已被主动压缩/折叠重写。重置缓存命中基线并标记待上报的压缩事件，
@@ -39,6 +49,7 @@ public class CacheBreakDetector
     {
         _hasPreviousCacheHit = false;
         _pendingCompaction = false;
+        _cacheDeletionsPending = false;
         _prevCacheReadTokens = null;
         _lastCallTimestamp = null;
     }
@@ -84,6 +95,14 @@ public class CacheBreakDetector
 
         if (IsExcludedModel(snapshot.ModelId))
         {
+            return CacheBreakResult.NoBreak();
+        }
+
+        if (_cacheDeletionsPending)
+        {
+            _cacheDeletionsPending = false;
+            _prevCacheReadTokens = usage.CacheReadInputTokens;
+            _lastCallTimestamp = Now;
             return CacheBreakResult.NoBreak();
         }
 

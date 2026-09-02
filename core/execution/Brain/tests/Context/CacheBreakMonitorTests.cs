@@ -289,6 +289,26 @@ public partial class CacheBreakMonitorTests
     }
 
     [Fact]
+    public void CheckCacheBreak_NotifyCacheDeletion_SuppressesBreak()
+    {
+        var time = new DateTimeOffset(2026, 9, 2, 0, 0, 0, TimeSpan.Zero);
+        var detector = new CacheBreakDetector(() => time);
+        var prefix = new ImmutablePrefix("system", [new ToolSpec("tool_a", "desc_a")], []);
+        var snapshot = detector.RecordPromptState(prefix, "dynamic");
+
+        var usageWithHit = new TokenUsage(10000, 50) { CacheReadInputTokens = 10000, CacheCreationInputTokens = 0 };
+        detector.CheckCacheBreak(snapshot, prefix, "dynamic", usageWithHit);
+
+        detector.NotifyCacheDeletion();
+
+        time = time.AddMinutes(1);
+        var usageAfterDeletion = new TokenUsage(10000, 50) { CacheReadInputTokens = 2000, CacheCreationInputTokens = 8000 };
+        var result = detector.CheckCacheBreak(snapshot, prefix, "dynamic", usageAfterDeletion);
+
+        result.BreakDetected.Should().BeFalse("cache deletion is expected, not a break");
+    }
+
+    [Fact]
     public async Task RecordPromptStateAsync_NoToolSpecs_StillWorks()
     {
         var sut = CreateSut();

@@ -1,6 +1,6 @@
 # 0057. TS 原版 P0 缺口补齐 — LSP 集成 + Analytics 分析
 
-- 状态：accepted（LSP 已实现，Analytics 待实现）
+- 状态：accepted
 - 日期：2026-09-02
 - 决策者：项目架构组
 - 关联：[0056](0056-cache-break-detection-enhancement.md)（缓存破坏检测维度补齐）
@@ -110,3 +110,23 @@ TS 原版 `services/analytics/` 实现了使用数据收集：
 |----|----------|
 | 批1 LSP | `lsp_complete` 工具返回补全列表，`lsp_definition` 跳转定义 |
 | 批2 Analytics | `logEvent` 事件写入 `.jcc/analytics/` 目录，含 sessionId/timestamp/toolName |
+
+## 实现补记
+
+### 批1 LSP — 已存在 + 去重（2026-09-02）
+
+**发现**：jcc 已有完整 LSP 基础设施（`services/Eyes/src/Lsp/`）和工具 Handler（`core/execution/McpToolDispatch/src/CodeTools/LspToolHandlers.cs`），包含 10+ 种操作（goto_definition/find_references/hover/completion/document_symbols/workspace_symbols/goto_implementation/prepare_call_hierarchy/incoming_calls/outgoing_calls）。
+
+**修正**：最初在 `Hands/src/ToolHandlers/Handlers/DevTools/` 创建了重复的 `LspToolHandlers.cs`，导致 `McpToolDispatch.Generator` 生成双重注册（CS0111）。已将重复文件移至 `.xxx/` 归档。
+
+### 批2 Analytics — AnalyticsFileSink（2026-09-02）
+
+**实现**：`infrastructure/Infrastructure/Telemetry/AnalyticsFileSink.cs`
+- `AnalyticsEvent` record（Name/Timestamp/SessionId/Tags/Value）+ `AnalyticsJsonContext` 源码生成器（AOT 友好）
+- `AnalyticsSinkKillswitch`：`volatile bool _enabled` + `Volatile.Read/Write double _sampleRate` + `Interlocked` 计数
+- `AnalyticsFileSink`：`Channel<T>` 异步队列（容量 1000，DropOldest）+ 定时 flush 循环 + 批量 JSONL 写入
+- `IAnalyticsFileSink` 接口 + `[Register(Singleton)]` DI 自动注册
+
+**测试**：`tests/Unit/Infra.Tests/Telemetry/AnalyticsFileSinkTests.cs` — 12 个测试全绿（null fs/禁用/启用/flush/采样率/动态开关/dispose/溢出）
+
+**与 TS 差异**：未实现 Datadog/GrowthBook（第三方 SDK 不兼容 NativeAOT），用自实现 `AnalyticsFileSink` + 现有 `TelemetryService`（ActivitySource/Meter）替代。全项目已有 96 处 `RecordCount` 调用覆盖关键路径。

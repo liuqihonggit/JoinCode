@@ -32,13 +32,20 @@ jcc 的 46 个 always section 每轮注入约 5,000-6,000 tokens（约 13,200 �
 
 记录 4 项优化空间，按优先级排列。本 ADR 仅记录分析结论，实现留待后续逐项落地。
 
-### P0：缓存破坏检测机制
+### P0：缓存破坏检测机制 ✅ 已实现（[0056](0056-cache-break-detection-enhancement.md)）
 
 TS 原版有完整的两阶段缓存破坏检测（`promptCacheBreakDetection.ts`，660+ 行）：
 - Phase 1（pre-call）：`recordPromptState` 计算 systemHash/toolsHash/cacheControlHash/perToolHashes 等 12+ 维度哈希
 - Phase 2（post-call）：`checkResponseForCacheBreak` 检查 API 响应的 cache tokens，判断缓存是否被破坏并报告原因
 
-jcc 完全没有此机制，无法诊断缓存何时被破坏及原因，无法量化缓存 miss 的 token 损失。
+jcc 已有 `CacheBreakDetector`（9 维度），并已补齐：
+- 双阈值检测（相对 5% + 绝对 2000，修复漏报）
+- haiku 模型排除
+- TTL 时段区分（5min/1h/服务端路由）
+- `NotifyCacheDeletion` 抑制 cached microcompact 误报
+- MCP 工具名脱敏（`WithSanitizedNames`）
+
+详见 ADR [0056](0056-cache-break-detection-enhancement.md)。
 
 ### P1：三级 cache scope 精细化 + MCP 降级
 

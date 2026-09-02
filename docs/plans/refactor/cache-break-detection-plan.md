@@ -285,23 +285,25 @@ public async Task CheckCacheBreakAsync_CacheEviction_PartialDrop_Detected()
 ## 6. 实现顺序
 
 ```
-P0.1（漏报修复）→ 编译 → 红测试 → 绿测试 → 提交
-P0.2（haiku 排除）→ 编译 → 测试 → 提交
-P0.3（TTL 区分）→ 全量重建 → 测试 → 提交
-P1.1（perToolHashes）→ 编译 → 测试 → 提交
-P1.2（cacheControlHash）→ 编译 → 测试 → 提交
-P1.3（effort+betas+strategy+extraBody）→ 全量重建 → 测试 → 提交
-P2.1（notifyCacheDeletion）→ 编译 → 测试 → 提交
-P2.2（sanitizeToolName）→ 编译 → 测试 → 提交
-P2.3（feature gate）→ 编译 → 测试 → 提交
-P3.1（diff 输出）→ 编译 → 测试 → 提交
-P3.2（agent 隔离）→ 编译 → 测试 → 提交
+P0.1（漏报修复）✅ commit 4df5bc4dd
+P0.2（haiku 排除）✅ commit 61f85df55
+P0.3（TTL 区分）✅ commit e9b05c3a5
+P1.1（perToolHashes）⏭️ 跳过 — ToolDriftReport.EditedNames 已提供 per-tool 定位
+P1.2（cacheControlHash）⏭️ 跳过 — jcc 不支持三级 cache scope（ADR 0055 P1 未实现）
+P1.3（effort+betas+strategy+extraBody）⏭️ 跳过 — Anthropic 专属参数，jcc 多供应商不适用
+P2.1（notifyCacheDeletion）✅ commit 1c5105bf0
+P2.2（sanitizeToolName）✅ commit 4bbf5a18f
+P2.3（feature gate）⏸️ 暂缓 — 默认全开不影响现有行为
+P3.1（diff 输出）⏸️ 暂缓 — 低价值（jcc 无 --debug 查看渠道）
+P3.2（agent 隔离）⏸️ 暂缓 — 高风险大改 IChatContextManager 接口，留给用户决策
 ```
 
 每步遵循：红测试 → 实现 → 编译 → 绿测试 → git 提交
+
+**验证结果**：28 CacheBreak + 262 PrefixCache 测试全绿
 
 <!-- 🤖 Auto Decision: 2026-09-02 -->
 <!-- 决策: 分 4 批 P0-P3 渐进式实现，P0 优先修复漏报 -->
 <!-- 原因: P0 的相对降幅 5% 漏报是最高价值修复（现状 80% 降幅都不报），P1-P3 是维度/机制/可观测性补齐 -->
 <!-- 替代方案: 一次性全量对齐 TS（风险高，破坏面大，违反渐进式原则）-->
-<!-- 验证: 计划文档已写，待用户确认后开始 P0.1 实现 -->
+<!-- 验证: P0+P2 已实现，28+262 测试全绿 ✅ -->

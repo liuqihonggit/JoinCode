@@ -30,6 +30,15 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
 
         var agentService = context.Host.Services.GetService<JoinCode.Abstractions.Interfaces.IAgentService>();
         var confirmationGate = context.Host.Services.GetService<IConfirmationGate>();
+        var proactiveState = context.Host.Services.GetService<IProactiveStateService>();
+        var proactiveLogger = context.Host.Services.GetService<ILogger<ProactiveTickScheduler>>();
+        TerminalFocusDetector? focusDetector = null;
+        ProactiveTickScheduler? tickScheduler = null;
+        if (proactiveState is not null)
+        {
+            focusDetector = new TerminalFocusDetector();
+            tickScheduler = new ProactiveTickScheduler(proactiveState, focusDetector, proactiveLogger);
+        }
 
         var isProcessing = 0;
 
@@ -258,6 +267,16 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
                     Diag.WriteLifecycle("[AI对话结束]");
                     using (Cli.TerminalHelper.SetColor(ConsoleColor.DarkGray))
                         Cli.TerminalHelper.WriteLine(new string('─', Cli.TerminalHelper.GetWidth()));
+                }
+
+                if (tickScheduler is not null && commandQueue.Count == 0)
+                {
+                    var tick = tickScheduler;
+                    var tickContent = tick.GenerateTick();
+                    if (tickContent is not null)
+                    {
+                        commandQueue.Enqueue(new QueuedCommand(tickContent, CommandOrigin.ProactiveTick, QueuePriority.Later));
+                    }
                 }
             }
         }

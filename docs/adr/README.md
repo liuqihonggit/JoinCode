@@ -158,3 +158,9 @@ ADR 引用 design/plans，但不重复其内容。
 |------|------|------|------|
 | 0055 | 系统提示词 section 注入优化空间 | proposed | 60 section vs TS 20 section 调查 |
 | 0056 | 缓存破坏检测维度补齐 — 双阈值+TTL+agent 隔离 | accepted | CacheBreakDetector vs TS promptCacheBreakDetection 对比 |
+
+### TS 原版缺口补齐（0057）
+
+| 编号 | 标题 | 状态 | 来源 |
+|------|------|------|------|
+| 0057 | TS P0 缺口补齐 — LSP+Analytics | proposed | jcc vs TS 全量差异分析 |

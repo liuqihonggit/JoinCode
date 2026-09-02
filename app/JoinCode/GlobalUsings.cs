@@ -79,6 +79,7 @@ global using Infrastructure.Utils.IO;
 global using Infrastructure.Utils.Text;
 global using Infrastructure.Time;
 global using IO.FileSystem;
+global using IO.Services;
 global using Services.Api;
 global using Services.Shell;
 global using JoinCode.ChatCommands;

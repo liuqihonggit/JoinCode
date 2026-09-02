@@ -40,6 +40,7 @@ global using Core.Utils;
 global using Infrastructure.Localization;
 global using Infrastructure.Utils.Text;
 global using IO.FileSystem;
+global using IO.Services;
 global using Services.Api;
 
 global using JoinCode.ChatCommands;

@@ -124,6 +124,10 @@ jobs:
           name: build-output
           path: |
             artifacts/bin/
+            !artifacts/bin/JoinCodeTui/
+            !artifacts/bin/JoinCodeGui/
+            !artifacts/bin/JoinCodeGui.Tests/
+            !artifacts/bin/SkiaSharpAotTest/
             !**/runtimes/linux-arm/
             !**/runtimes/linux-arm64/
             !**/runtimes/linux-x64/
@@ -136,6 +140,8 @@ jobs:
             !**/runtimes/unix/
             !**/runtimes/linux/
             !**/runtimes/osx/
+            !**/*.pdb
+            !**/*.xml
           retention-days: 1
 
   unit-test-group-1a:

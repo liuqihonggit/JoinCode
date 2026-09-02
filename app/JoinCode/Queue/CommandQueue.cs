@@ -28,6 +28,9 @@ public enum CommandOrigin
 
     /// <summary>权限确认响应。</summary>
     PermissionResponse,
+
+    /// <summary>主动模式 tick（系统生成，非用户输入）。</summary>
+    ProactiveTick,
 }
 
 /// <summary>

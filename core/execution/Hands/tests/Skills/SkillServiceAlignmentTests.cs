@@ -44,9 +44,9 @@ public sealed class SkillServiceAlignmentTests : IDisposable
         var service = CreateService();
         var skills = await service.GetAvailableSkillsAsync();
 
-        skills.Should().HaveCount(9);
+        skills.Should().HaveCount(11);
         skills.Select(s => s.Name).Should().Contain(
-            new[] { "verify", "debug", "batch", "stuck", "hunter", "loop", "remember", "simplify", "skillify" });
+            new[] { "verify", "debug", "batch", "stuck", "hunter", "loop", "remember", "simplify", "skillify", "update-config", "keybindings" });
     }
 
     [Fact]
@@ -54,7 +54,7 @@ public sealed class SkillServiceAlignmentTests : IDisposable
     {
         var service = CreateService();
 
-        foreach (var name in new[] { "verify", "debug", "batch", "stuck", "hunter", "loop", "remember", "simplify", "skillify" })
+        foreach (var name in new[] { "verify", "debug", "batch", "stuck", "hunter", "loop", "remember", "simplify", "skillify", "update-config", "keybindings" })
         {
             service.SkillExists(name).Should().BeTrue($"built-in skill '{name}' should exist");
         }
@@ -65,7 +65,7 @@ public sealed class SkillServiceAlignmentTests : IDisposable
     {
         var service = CreateService();
 
-        foreach (var name in new[] { "verify", "debug", "batch", "stuck", "hunter", "loop", "remember", "simplify", "skillify" })
+        foreach (var name in new[] { "verify", "debug", "batch", "stuck", "hunter", "loop", "remember", "simplify", "skillify", "update-config", "keybindings" })
         {
             var skill = await service.GetSkillAsync(name);
             skill.Should().NotBeNull($"built-in skill '{name}' should be retrievable");
@@ -78,7 +78,7 @@ public sealed class SkillServiceAlignmentTests : IDisposable
     {
         var service = CreateService();
 
-        foreach (var name in new[] { "verify", "debug", "batch", "stuck", "hunter", "loop", "remember", "simplify", "skillify" })
+        foreach (var name in new[] { "verify", "debug", "batch", "stuck", "hunter", "loop", "remember", "simplify", "skillify", "update-config", "keybindings" })
         {
             var skill = await service.GetSkillAsync(name);
             skill.Should().NotBeNull();

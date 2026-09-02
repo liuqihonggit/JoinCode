@@ -156,7 +156,7 @@ public partial class CacheBreakMonitorTests
         var result = await sut.CheckCacheBreakAsync(snapshot, usageWithMiss).ConfigureAwait(true);
 
         result.BreakDetected.Should().BeTrue();
-        result.Kind.Should().Be(CacheBreakKind.CacheEviction);
+        result.Kind.Should().Be(CacheBreakKind.ServerSideRouting);
     }
 
     [Fact]
@@ -176,7 +176,7 @@ public partial class CacheBreakMonitorTests
         var result = await sut.CheckCacheBreakAsync(snapshot, usageWithPartialMiss).ConfigureAwait(true);
 
         result.BreakDetected.Should().BeTrue();
-        result.Kind.Should().Be(CacheBreakKind.CacheEviction);
+        result.Kind.Should().Be(CacheBreakKind.ServerSideRouting);
     }
 
     [Fact]
@@ -229,6 +229,63 @@ public partial class CacheBreakMonitorTests
         var result = detector.CheckCacheBreak(snapshot, changedPrefix, "dynamic", usage, currentModelId: "claude-3-haiku");
 
         result.BreakDetected.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CheckCacheBreak_Ttl5Min_Detected()
+    {
+        var time = new DateTimeOffset(2026, 9, 2, 0, 0, 0, TimeSpan.Zero);
+        var detector = new CacheBreakDetector(() => time);
+        var prefix = new ImmutablePrefix("system", [new ToolSpec("tool_a", "desc_a")], []);
+        var snapshot = detector.RecordPromptState(prefix, "dynamic");
+
+        var usageWithHit = new TokenUsage(10000, 50) { CacheReadInputTokens = 10000, CacheCreationInputTokens = 0 };
+        detector.CheckCacheBreak(snapshot, prefix, "dynamic", usageWithHit);
+
+        time = time.AddMinutes(6);
+        var usageWithMiss = new TokenUsage(10000, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 10000 };
+        var result = detector.CheckCacheBreak(snapshot, prefix, "dynamic", usageWithMiss);
+
+        result.BreakDetected.Should().BeTrue();
+        result.Kind.Should().Be(CacheBreakKind.TtlExpiration5Min);
+    }
+
+    [Fact]
+    public void CheckCacheBreak_Ttl1Hour_Detected()
+    {
+        var time = new DateTimeOffset(2026, 9, 2, 0, 0, 0, TimeSpan.Zero);
+        var detector = new CacheBreakDetector(() => time);
+        var prefix = new ImmutablePrefix("system", [new ToolSpec("tool_a", "desc_a")], []);
+        var snapshot = detector.RecordPromptState(prefix, "dynamic");
+
+        var usageWithHit = new TokenUsage(10000, 50) { CacheReadInputTokens = 10000, CacheCreationInputTokens = 0 };
+        detector.CheckCacheBreak(snapshot, prefix, "dynamic", usageWithHit);
+
+        time = time.AddMinutes(61);
+        var usageWithMiss = new TokenUsage(10000, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 10000 };
+        var result = detector.CheckCacheBreak(snapshot, prefix, "dynamic", usageWithMiss);
+
+        result.BreakDetected.Should().BeTrue();
+        result.Kind.Should().Be(CacheBreakKind.TtlExpiration1Hour);
+    }
+
+    [Fact]
+    public void CheckCacheBreak_ServerSideRouting_Detected()
+    {
+        var time = new DateTimeOffset(2026, 9, 2, 0, 0, 0, TimeSpan.Zero);
+        var detector = new CacheBreakDetector(() => time);
+        var prefix = new ImmutablePrefix("system", [new ToolSpec("tool_a", "desc_a")], []);
+        var snapshot = detector.RecordPromptState(prefix, "dynamic");
+
+        var usageWithHit = new TokenUsage(10000, 50) { CacheReadInputTokens = 10000, CacheCreationInputTokens = 0 };
+        detector.CheckCacheBreak(snapshot, prefix, "dynamic", usageWithHit);
+
+        time = time.AddMinutes(2);
+        var usageWithMiss = new TokenUsage(10000, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 10000 };
+        var result = detector.CheckCacheBreak(snapshot, prefix, "dynamic", usageWithMiss);
+
+        result.BreakDetected.Should().BeTrue();
+        result.Kind.Should().Be(CacheBreakKind.ServerSideRouting);
     }
 
     [Fact]

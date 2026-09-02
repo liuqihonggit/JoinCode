@@ -136,7 +136,7 @@ public sealed class CacheBreakDetectorFalsePositiveTests
 
         var usage1 = new TokenUsage(100, 50)
         {
-            CacheReadInputTokens = 80,
+            CacheReadInputTokens = 10000,
             CacheCreationInputTokens = 0
         };
         var result1 = _detector.CheckCacheBreak(snapshot1, prefix, "dynamic", usage1);
@@ -154,7 +154,7 @@ public sealed class CacheBreakDetectorFalsePositiveTests
         result2.BreakDetected.Should().BeTrue(
             "second request with identical state but CacheReadInputTokens=0 " +
             "is a genuine cache eviction (prior request had cache hit)");
-        result2.Kind.Should().Be(CacheBreakKind.CacheEviction);
+        result2.Kind.Should().Be(CacheBreakKind.ServerSideRouting);
     }
 
     [Fact]

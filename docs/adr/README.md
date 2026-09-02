@@ -151,3 +151,10 @@ ADR 引用 design/plans，但不重复其内容。
 |------|------|------|------|
 | 0053 | 上下文压缩分层机制 | accepted | Context/Compact+Compression+Collapse 调查 |
 | 0054 | LLM 输出循环检测与分级干预机制 | accepted | Context/Services/Loop+LoopIntervention 调查 |
+
+### 系统提示词与缓存优化（0055-0056）
+
+| 编号 | 标题 | 状态 | 来源 |
+|------|------|------|------|
+| 0055 | 系统提示词 section 注入优化空间 | proposed | 60 section vs TS 20 section 调查 |
+| 0056 | 缓存破坏检测维度补齐 — 双阈值+TTL+agent 隔离 | proposed | CacheBreakDetector vs TS promptCacheBreakDetection 对比 |

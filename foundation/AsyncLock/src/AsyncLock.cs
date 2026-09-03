@@ -12,7 +12,7 @@ public sealed class AsyncLock : IDisposable
     /// <summary>
     /// 默认锁等待超时 — <see cref="TryLock(CancellationToken)"/> 在 ct 无超时时使用此值。
     /// </summary>
-    public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(1);
+    public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(5);
 
     private readonly SemaphoreSlim _semaphore = new(1, 1);
     private readonly string _name;

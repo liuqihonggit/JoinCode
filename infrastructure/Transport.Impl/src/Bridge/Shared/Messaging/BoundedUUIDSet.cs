@@ -111,7 +111,7 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
         if (string.IsNullOrEmpty(uuid))
             return false;
 
-        var guard = _lock.TryLock();
+        var guard = _lock.TryLock(TimeSpan.Zero);
         if (guard is null)
             return false; // 无法获取锁，保守返回 false
 
@@ -129,7 +129,7 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
         if (string.IsNullOrEmpty(uuid))
             return;
 
-        var guard = _lock.TryLock();
+        var guard = _lock.TryLock(TimeSpan.Zero);
         if (guard is null)
             return; // 无法获取锁，保守跳过
 

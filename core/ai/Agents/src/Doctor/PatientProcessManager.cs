@@ -54,7 +54,7 @@ public sealed class PatientProcessManager : IAsyncDisposable
         IReadOnlyDictionary<string, string>? environmentVariables = null,
         CancellationToken cancellationToken = default)
     {
-        EnsurePatientNotExists(patientId, cancellationToken);
+        await EnsurePatientNotExistsAsync(patientId, cancellationToken).ConfigureAwait(false);
 
         var execPath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? "jcc";
 
@@ -97,7 +97,7 @@ public sealed class PatientProcessManager : IAsyncDisposable
         handle.ErrorLineReceived += OnErrorLineReceived;
         handle.ProcessExited += OnProcessExited;
 
-        RegisterPatient(patientId, handle, cancellationToken);
+        await RegisterPatientAsync(patientId, handle, cancellationToken).ConfigureAwait(false);
 
         DoctorDiag.Write($"[Doctor] 病人进程已启动: {patientId}, PID={process.Id}");
 
@@ -105,17 +105,17 @@ public sealed class PatientProcessManager : IAsyncDisposable
     }
 
     /// <summary>检查病人是否已存在，存在则抛异常</summary>
-    private void EnsurePatientNotExists(string patientId, CancellationToken cancellationToken)
+    private async Task EnsurePatientNotExistsAsync(string patientId, CancellationToken cancellationToken)
     {
-        using var guard = _patientsLock.Lock(cancellationToken);
+        using var guard = await _patientsLock.LockAsync(cancellationToken).ConfigureAwait(false);
         if (_patients.ContainsKey(patientId))
             throw new InvalidOperationException($"[AGT013] 病人 {patientId} 已存在，请先 Kill 后再 Spawn");
     }
 
     /// <summary>注册病人进程到管理表</summary>
-    private void RegisterPatient(string patientId, PatientHandle handle, CancellationToken cancellationToken)
+    private async Task RegisterPatientAsync(string patientId, PatientHandle handle, CancellationToken cancellationToken)
     {
-        using var guard = _patientsLock.Lock(cancellationToken);
+        using var guard = await _patientsLock.LockAsync(cancellationToken).ConfigureAwait(false);
  _patients[patientId] = handle; 
     }
 

@@ -241,13 +241,9 @@ public sealed class DoctorTcpServer : IDoctorTransport
     /// <summary>从连接表移除病人（5秒超时）</summary>
     private void RemovePatient(string patientId)
     {
-        try
-        {
-            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            using var guard = _patientsLock.Lock(timeoutCts.Token);
+        using var guard = _patientsLock.TryLock(TimeSpan.FromSeconds(5));
+        if (guard is null) return;
  _patients.Remove(patientId); 
-        }
-        catch (OperationCanceledException) { }
     }
 
     private async Task HandleEventsPostAsync(NetworkStream stream, string body, string patientId, CancellationToken ct)

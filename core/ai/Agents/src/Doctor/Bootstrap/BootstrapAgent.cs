@@ -31,7 +31,7 @@ public sealed class BootstrapAgent : IAsyncDisposable
     {
         get
         {
-            using var guard = _reportsLock.TryLock();
+            using var guard = _reportsLock.TryLock(TimeSpan.Zero);
             if (guard is not null)
             {
                 return _pendingReports;
@@ -438,7 +438,7 @@ public sealed class BootstrapAgent : IAsyncDisposable
 
     private void OnDiagnosticReportGenerated(object? sender, DiagnosticReport report)
     {
-        using var guard = _reportsLock.TryLock();
+        using var guard = _reportsLock.TryLock(TimeSpan.Zero);
         if (guard is not null)
         {
             _pendingReports.Add(report);

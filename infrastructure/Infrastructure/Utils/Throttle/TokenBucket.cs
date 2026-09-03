@@ -13,7 +13,7 @@ public sealed class TokenBucket : IDisposable
     {
         get
         {
-            var guard = _gate.TryLock();
+            var guard = _gate.TryLock(TimeSpan.Zero);
             if (guard is null)
                 return _tokens;
 
@@ -57,7 +57,7 @@ public sealed class TokenBucket : IDisposable
 
     public bool TryConsume(double requiredTokens)
     {
-        var guard = _gate.TryLock();
+        var guard = _gate.TryLock(TimeSpan.Zero);
         if (guard is null)
             return false;
 

@@ -4,6 +4,9 @@ namespace Core.Utils;
 /// 异步互斥锁 — 项目唯一互斥锁原语，所有互斥场景统一走此类型。
 /// 内部接入 <see cref="LockRegistry"/> 诊断：获取/释放时记录调用栈、线程、时间，
 /// 卡死时调用 <see cref="LockRegistry.DumpAll"/> 精确定位。性能非首要目标，诊断能力优先。
+/// 公开 API（4 个获取方法）：<see cref="LockAsync(CancellationToken)"/>（异步等待）、
+/// <see cref="TryLockAsync(TimeSpan, CancellationToken)"/>（异步带超时，超时返回 null）、
+/// <see cref="Lock()"/>（同步等待）、<see cref="TryLock(TimeSpan)"/>（同步带超时，超时返回 null）。
 /// </summary>
 public sealed class AsyncLock : IDisposable
 {
@@ -61,32 +64,6 @@ public sealed class AsyncLock : IDisposable
     }
 
     /// <summary>
-    /// 异步获取锁(带超时)。超时抛 TimeoutException。对齐 SemaphoreSlim.WaitAsync(timeout, ct)。
-    /// </summary>
-    public async ValueTask<IDisposable> LockAsync(TimeSpan timeout, CancellationToken ct = default)
-    {
-        ThrowIfDisposed();
-        LockRegistry.OnWaitStart(_registryId, _name);
-        bool acquired;
-        try
-        {
-            acquired = await _semaphore.WaitAsync(timeout, ct).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            LockRegistry.OnWaitEnd(_registryId, _name);
-            throw;
-        }
-        if (!acquired)
-        {
-            LockRegistry.OnWaitEnd(_registryId, _name);
-            throw new TimeoutException($"AsyncLock '{_name}' 等待超时 {timeout}");
-        }
-        LockRegistry.OnAcquired(_registryId, _name);
-        return new Releaser(this);
-    }
-
-    /// <summary>
     /// 尝试异步获取锁(带超时)。成功返回 Releaser,超时返回 null。对齐 SemaphoreSlim.WaitAsync(timeout) 返回 bool。
     /// </summary>
     public async ValueTask<IDisposable?> TryLockAsync(TimeSpan timeout, CancellationToken ct = default)
@@ -128,44 +105,6 @@ public sealed class AsyncLock : IDisposable
         {
             LockRegistry.OnWaitEnd(_registryId, _name);
             throw;
-        }
-        LockRegistry.OnAcquired(_registryId, _name);
-        return new Releaser(this);
-    }
-
-    /// <summary>
-    /// 同步获取锁(带 CancellationToken)。对齐 SemaphoreSlim.Wait(ct)。
-    /// </summary>
-    public IDisposable Lock(CancellationToken ct)
-    {
-        ThrowIfDisposed();
-        LockRegistry.CheckReentrancy(_registryId, _name);
-        LockRegistry.OnWaitStart(_registryId, _name);
-        try
-        {
-            _semaphore.Wait(ct);
-        }
-        catch (OperationCanceledException)
-        {
-            LockRegistry.OnWaitEnd(_registryId, _name);
-            throw;
-        }
-        LockRegistry.OnAcquired(_registryId, _name);
-        return new Releaser(this);
-    }
-
-    /// <summary>
-    /// 尝试同步获取锁(非阻塞)。成功返回 Releaser,失败返回 null。对齐 SemaphoreSlim.Wait(0) 语义。
-    /// </summary>
-    public IDisposable? TryLock()
-    {
-        ThrowIfDisposed();
-        LockRegistry.OnWaitStart(_registryId, _name);
-        var acquired = _semaphore.Wait(0);
-        if (!acquired)
-        {
-            LockRegistry.OnWaitEnd(_registryId, _name);
-            return null;
         }
         LockRegistry.OnAcquired(_registryId, _name);
         return new Releaser(this);

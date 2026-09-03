@@ -29,7 +29,7 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
     {
         get
         {
-            using var guard = _lock.TryLock();
+            using var guard = _lock.TryLock(TimeSpan.Zero);
             if (guard is null) return Volatile.Read(ref _isOnboardingComplete);
             return _isOnboardingComplete;
         }
@@ -40,7 +40,7 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
     {
         get
         {
-            using var guard = _lock.TryLock();
+            using var guard = _lock.TryLock(TimeSpan.Zero);
             if (guard is null) return BuildStateUnsafe();
             return BuildState();
         }
@@ -64,7 +64,7 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
         OnboardingStep previous;
-        using var guard = _lock.TryLock();
+        using var guard = _lock.TryLock(TimeSpan.Zero);
         if (guard is null) return Task.CompletedTask;
         if (_isOnboardingComplete) return Task.CompletedTask;
         previous = _currentStep;
@@ -83,7 +83,7 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
         OnboardingStep previous;
         OnboardingStep next;
 
-        using var guard = _lock.TryLock();
+        using var guard = _lock.TryLock(TimeSpan.Zero);
         if (guard is null) return Task.CompletedTask;
         if (_isOnboardingComplete) return Task.CompletedTask;
         previous = _currentStep;
@@ -113,7 +113,7 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
         OnboardingStep previous;
         OnboardingStep next;
 
-        using var guard = _lock.TryLock();
+        using var guard = _lock.TryLock(TimeSpan.Zero);
         if (guard is null) return Task.CompletedTask;
         if (_isOnboardingComplete) return Task.CompletedTask;
         previous = _currentStep;
@@ -187,7 +187,7 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
             throw new ArgumentException("API key cannot be null or whitespace.", nameof(apiKey));
         }
 
-        using var guard = _lock.TryLock();
+        using var guard = _lock.TryLock(TimeSpan.Zero);
         if (guard is null) return Task.CompletedTask;
         _apiKey = apiKey;
 
@@ -202,7 +202,7 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
             throw new ArgumentOutOfRangeException(nameof(optionIndex), "Option index cannot be negative.");
         }
 
-        using var guard = _lock.TryLock();
+        using var guard = _lock.TryLock(TimeSpan.Zero);
         if (guard is null) return Task.CompletedTask;
         _selectedIndex = optionIndex;
 

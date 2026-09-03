@@ -81,9 +81,9 @@ public class AsyncLockDiagnosisTests : IDisposable
     public async Task TryLock_已持有时返回null()
     {
         using var lk = new AsyncLock("trylock-test");
-        using var guard = lk.TryLock();
+        using var guard = lk.TryLock(TimeSpan.Zero);
         guard.Should().NotBeNull("首次 TryLock 应成功");
-        using var guard2 = lk.TryLock();
+        using var guard2 = lk.TryLock(TimeSpan.Zero);
         guard2.Should().BeNull("已持有时再次 TryLock 应返回 null");
         await Task.CompletedTask;
     }
@@ -95,15 +95,6 @@ public class AsyncLockDiagnosisTests : IDisposable
         using var holder = await lk.LockAsync();
         var result = await lk.TryLockAsync(TimeSpan.FromMilliseconds(30));
         result.Should().BeNull("锁已被持有时 TryLockAsync 应超时返回 null");
-    }
-
-    [Fact]
-    public async Task LockAsync_超时抛TimeoutException()
-    {
-        using var lk = new AsyncLock("timeout-test");
-        using var holder = await lk.LockAsync();
-        var act = () => lk.LockAsync(TimeSpan.FromMilliseconds(30)).AsTask();
-        await act.Should().ThrowAsync<TimeoutException>("锁已被持有时 LockAsync(timeout) 应抛 TimeoutException");
     }
 
     [Fact]
@@ -194,7 +185,7 @@ public class AsyncLockDiagnosisTests : IDisposable
     {
         using var lk = new AsyncLock("sync-mutex");
         using var g1 = lk.Lock();
-        var g2 = lk.TryLock();
+        var g2 = lk.TryLock(TimeSpan.Zero);
         g2.Should().BeNull("同步 Lock 持有后 TryLock 应失败");
         await Task.CompletedTask;
     }
@@ -291,11 +282,8 @@ public class AsyncLockDiagnosisTests : IDisposable
             {
                 t1Ready.SetResult();
                 await t2Ready.Task;
-                try
-                {
-                    using var g = await lockB.LockAsync(TimeSpan.FromMilliseconds(2000));
-                }
-                catch (TimeoutException) { Console.WriteLine("async t1 lockB 超时"); }
+                using var g = await lockB.TryLockAsync(TimeSpan.FromMilliseconds(2000));
+                if (g is null) Console.WriteLine("async t1 lockB 超时");
             }
         });
 
@@ -305,11 +293,8 @@ public class AsyncLockDiagnosisTests : IDisposable
             {
                 t2Ready.SetResult();
                 await t1Ready.Task;
-                try
-                {
-                    using var g = await lockA.LockAsync(TimeSpan.FromMilliseconds(2000));
-                }
-                catch (TimeoutException) { Console.WriteLine("async t2 lockA 超时"); }
+                using var g = await lockA.TryLockAsync(TimeSpan.FromMilliseconds(2000));
+                if (g is null) Console.WriteLine("async t2 lockA 超时");
             }
         });
 

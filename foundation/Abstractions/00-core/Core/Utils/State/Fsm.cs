@@ -83,13 +83,13 @@ public sealed class Fsm<TState, TEvent>
 {
     private readonly TransitionKey<TState, TEvent>[] _sortedKeys;
     private readonly TransitionRule<TState>[] _rules;
-    private readonly object _lock = new();
+    private readonly AsyncLock _lock = new("Fsm");
     private TState _currentState;
 
     /// <summary>当前状态（线程安全读取）</summary>
     public TState CurrentState
     {
-        get { lock (_lock) { return _currentState; } }
+        get { using (_lock.Lock()) { return _currentState; } }
     }
 
     /// <summary>状态变更事件（转换成功后触发）</summary>
@@ -146,7 +146,7 @@ public sealed class Fsm<TState, TEvent>
         TState newState;
         TransitionAction? actionToRun;
 
-        lock (_lock)
+        using (_lock.Lock())
         {
             oldState = _currentState;
             var key = new TransitionKey<TState, TEvent>(_currentState, evt);
@@ -181,7 +181,7 @@ public sealed class Fsm<TState, TEvent>
     /// </summary>
     public bool CanTrigger(TEvent evt, FsmContext? ctx = null)
     {
-        lock (_lock)
+        using (_lock.Lock())
         {
             var key = new TransitionKey<TState, TEvent>(_currentState, evt);
             var rule = LookupRule(key);
@@ -197,7 +197,7 @@ public sealed class Fsm<TState, TEvent>
     /// </summary>
     public IReadOnlyList<TEvent> GetAvailableEvents(FsmContext? ctx = null)
     {
-        lock (_lock)
+        using (_lock.Lock())
         {
             var state = _currentState;
             var result = new List<TEvent>();
@@ -220,7 +220,7 @@ public sealed class Fsm<TState, TEvent>
     public void ForceSet(TState state)
     {
         TState oldState;
-        lock (_lock)
+        using (_lock.Lock())
         {
             oldState = _currentState;
             _currentState = state;
@@ -235,7 +235,7 @@ public sealed class Fsm<TState, TEvent>
     /// </summary>
     public void Reset(TState state)
     {
-        lock (_lock)
+        using (_lock.Lock())
         {
             _currentState = state;
         }

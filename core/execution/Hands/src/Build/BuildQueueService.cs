@@ -39,7 +39,7 @@ public sealed partial class BuildQueueService : IBuildQueueService
 
     private long _lastFingerprintTicks;
     private DateTimeOffset _fingerprintComputedAt = DateTimeOffset.MinValue;
-    private readonly object _fingerprintLock = new();
+    private readonly AsyncLock _fingerprintLock = new("BuildQueueService");
 
     public BuildQueueService(
         ISystemActuatorRegistry actuatorRegistry,
@@ -322,7 +322,7 @@ public sealed partial class BuildQueueService : IBuildQueueService
     {
         if (string.IsNullOrEmpty(workingDirectory)) return 0;
 
-        lock (_fingerprintLock)
+        using (_fingerprintLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (DateTimeOffset.UtcNow - _fingerprintComputedAt < TimeSpan.FromSeconds(1) && _lastFingerprintTicks != 0)
                 return _lastFingerprintTicks;
@@ -354,7 +354,7 @@ public sealed partial class BuildQueueService : IBuildQueueService
             _logger?.LogDebug(ex, "Directory not found scanning source files: {Directory}", workingDirectory);
         }
 
-        lock (_fingerprintLock)
+        using (_fingerprintLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             _lastFingerprintTicks = maxTicks;
             _fingerprintComputedAt = DateTimeOffset.UtcNow;

@@ -12,7 +12,7 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
     private readonly IStore<TState> _store;
     private readonly Func<TState, TSelected> _selector;
     private readonly IEqualityComparer<TSelected> _comparer;
-    private readonly object _valueLock = new();
+    private readonly AsyncLock _valueLock = new("StoreSelector");
     private ImmutableList<Action<TSelected>> _subscribers = ImmutableList<Action<TSelected>>.Empty;
     private readonly ILogger<StoreSelector<TState, TSelected>>? _logger;
 
@@ -47,7 +47,7 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
     {
         get
         {
-            lock (_valueLock)
+            using (_valueLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
             {
                 return _currentValue;
             }
@@ -81,7 +81,7 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
     {
         var newValue = _selector(args.NewState);
         TSelected oldValue;
-        lock (_valueLock)
+        using (_valueLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             oldValue = _currentValue;
         }
@@ -91,7 +91,7 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
             return;
         }
 
-        lock (_valueLock)
+        using (_valueLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             _currentValue = newValue;
         }

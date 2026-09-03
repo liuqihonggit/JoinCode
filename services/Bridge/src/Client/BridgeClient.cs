@@ -23,7 +23,7 @@ public sealed partial class BridgeClient : IAsyncDisposable
     private CancellationTokenSource? _pollingCts;
     private Task? _pollingTask;
     private volatile int _isRunning;
-    private readonly SemaphoreSlim _stateLock;
+    private readonly AsyncLock _stateLock = new();
     private int _isDisposed;
 
     // 统计信息
@@ -37,26 +37,21 @@ public sealed partial class BridgeClient : IAsyncDisposable
 
     public async ValueTask<BridgeClientState> GetStateAsync(CancellationToken ct = default)
     {
-        await _stateLock.WaitAsync(ct).ConfigureAwait(false);
-        try
+        using var guard = await _stateLock.LockAsync(ct).ConfigureAwait(false);
+
+        return new BridgeClientState
         {
-            return new BridgeClientState
-            {
-                IsRunning = IsRunning,
-                ConnectionState = _transportManager.ConnectionState,
-                TotalMessagesReceived = _totalMessagesReceived,
-                TotalMessagesProcessed = _totalMessagesProcessed,
-                TotalEchoFiltered = _totalEchoFiltered,
-                TotalDuplicatesFiltered = _totalDuplicatesFiltered,
-                Uptime = _clock.GetUtcNow() - _startedAt,
-                HasJwtToken = _authToken != null,
-                HasActiveSession = _sessionRunner?.GetActiveSessions().Count > 0,
-            };
-        }
-        finally
-        {
-            _stateLock.Release();
-        }
+            IsRunning = IsRunning,
+            ConnectionState = _transportManager.ConnectionState,
+            TotalMessagesReceived = _totalMessagesReceived,
+            TotalMessagesProcessed = _totalMessagesProcessed,
+            TotalEchoFiltered = _totalEchoFiltered,
+            TotalDuplicatesFiltered = _totalDuplicatesFiltered,
+            Uptime = _clock.GetUtcNow() - _startedAt,
+            HasJwtToken = _authToken != null,
+            HasActiveSession = _sessionRunner?.GetActiveSessions().Count > 0,
+        };
+    
     }
 
     public event EventHandler<BridgeMessageReceivedEventArgs>? MessageReceived;
@@ -80,7 +75,7 @@ public sealed partial class BridgeClient : IAsyncDisposable
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
         _processedMessageIds = new BoundedUUIDSet(_options.MessageDeduplicationCapacity);
-        _stateLock = new SemaphoreSlim(1, 1);
+
         _jwtService = clientSession?.JwtService;
         _pollConfigManager = clientSession?.PollConfigManager;
         _sessionRunner = clientSession?.SessionRunner;
@@ -102,21 +97,8 @@ public sealed partial class BridgeClient : IAsyncDisposable
     /// </summary>
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
-        await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (IsRunning)
-            {
-                _logger?.LogWarning("[BridgeClient] 客户端已在运行");
-                return;
-            }
-            Interlocked.Exchange(ref _isRunning, 1);
-            _startedAt = _clock.GetUtcNow();
-        }
-        finally
-        {
-            _stateLock.Release();
-        }
+        if (!TryMarkStarting(cancellationToken))
+            return;
 
         try
         {
@@ -148,19 +130,31 @@ public sealed partial class BridgeClient : IAsyncDisposable
         }
         catch (Exception ex)
         {
-            await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                Interlocked.Exchange(ref _isRunning, 0);
-            }
-            finally
-            {
-                _stateLock.Release();
-            }
+            MarkStopped();
             _logger?.LogError(ex, "[BridgeClient] 启动失败");
             ErrorOccurred?.Invoke(this, new BridgeClientErrorEventArgs(ex, "启动失败"));
             throw;
         }
+    }
+
+    /// <summary>尝试标记客户端为启动中，已在运行则返回 false</summary>
+    private bool TryMarkStarting(CancellationToken cancellationToken)
+    {
+        using var guard = _stateLock.Lock(cancellationToken);
+        if (IsRunning)
+        {
+            _logger?.LogWarning("[BridgeClient] 客户端已在运行");
+            return false;
+        }
+        Interlocked.Exchange(ref _isRunning, 1);
+        _startedAt = _clock.GetUtcNow();
+        return true;
+    }
+
+    /// <summary>标记客户端为已停止（原子操作，无需锁）</summary>
+    private void MarkStopped()
+    {
+        Interlocked.Exchange(ref _isRunning, 0);
     }
 
     /// <summary>
@@ -168,19 +162,14 @@ public sealed partial class BridgeClient : IAsyncDisposable
     /// </summary>
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
-        await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        if (!IsRunning)
         {
-            if (!IsRunning)
-            {
-                return;
-            }
-            Interlocked.Exchange(ref _isRunning, 0);
+            return;
         }
-        finally
-        {
-            _stateLock.Release();
-        }
+        Interlocked.Exchange(ref _isRunning, 0);
+    
 
         _logger?.LogInformation("[BridgeClient] 停止客户端...");
 

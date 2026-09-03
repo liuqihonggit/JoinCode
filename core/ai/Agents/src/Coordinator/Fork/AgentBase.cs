@@ -14,7 +14,7 @@ public class AgentBase : Entity, IAgent
     protected readonly List<string> _context;
     protected readonly CancellationTokenSource _cts;
 #pragma warning disable JCC4005 // SemaphoreSlim 在 OnDispose() 中释放，分析器无法追踪间接调用路径
-    protected readonly SemaphoreSlim _pauseLock;
+    protected readonly AsyncLock _pauseLock;
 #pragma warning restore JCC4005
     protected JoinCode.Abstractions.LLM.Chat.CacheSafeParams? _lastCacheSafeParams;
 
@@ -135,7 +135,7 @@ public class AgentBase : Entity, IAgent
         _clock = clock ?? SystemClockService.Instance;
         _context = new List<string>();
         _cts = new CancellationTokenSource();
-        _pauseLock = new SemaphoreSlim(1, 1);
+        _pauseLock = new AsyncLock();
         Status = TaskExecutionStatus.Pending;
         _executionCount = 0;
         ContextManager = contextManager;
@@ -253,8 +253,7 @@ public class AgentBase : Entity, IAgent
 
                     try
                     {
-                        await _pauseLock.WaitAsync(linkedToken).ConfigureAwait(false);
-                        _pauseLock.Release();
+                        using (await _pauseLock.LockAsync(linkedToken).ConfigureAwait(false)) { }
 
                         var pauseDuration = _clock.GetUtcNow() - pauseStart;
                         _logger?.LogInformation("[{AgentType} {AgentId}] 暂停结束，等待时长 {PauseDurationMs}ms", GetType().Name, UniqueId, pauseDuration.TotalMilliseconds);
@@ -423,8 +422,7 @@ public class AgentBase : Entity, IAgent
             {
                 try
                 {
-                    await _pauseLock.WaitAsync(linkedToken).ConfigureAwait(false);
-                    _pauseLock.Release();
+                    using (await _pauseLock.LockAsync(linkedToken).ConfigureAwait(false)) { }
                 }
                 catch (TimeoutException)
                 {

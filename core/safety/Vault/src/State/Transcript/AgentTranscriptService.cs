@@ -6,7 +6,7 @@ public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abs
     private readonly string _sessionsDirectory;
     private readonly ILogger<AgentTranscriptService>? _logger;
     private readonly TranscriptFileWriter _writer;
-    private readonly SemaphoreSlim _metaLock;
+    private readonly AsyncLock _metaLock = new();
     private readonly IFileSystem _fs;
 
     public AgentTranscriptService(IFileSystem fs, string? sessionsDirectory = null, ILogger<AgentTranscriptService>? logger = null, IPasteStore? pasteStore = null)
@@ -18,7 +18,6 @@ public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abs
                 AppDataConstants.SessionsFolderName);
         _logger = logger;
         _writer = new TranscriptFileWriter(_fs, _sessionsDirectory, logger, pasteStore);
-        _metaLock = new SemaphoreSlim(1, 1);
     }
 
     public async Task AppendEntryAsync(string sessionId, string agentId, TranscriptEntry entry, CancellationToken cancellationToken = default)
@@ -59,7 +58,7 @@ public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abs
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         ArgumentNullException.ThrowIfNull(metadata);
 
-        await _metaLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _metaLock.LockAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             EnsureAgentDirectoryExists(sessionId, metadata.AgentId);
@@ -70,10 +69,6 @@ public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abs
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger?.LogError(ex, "Failed to save agent metadata for {AgentId}", metadata.AgentId);
-        }
-        finally
-        {
-            _metaLock.Release();
         }
     }
 

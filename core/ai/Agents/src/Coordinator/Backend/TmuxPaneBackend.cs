@@ -11,7 +11,7 @@ public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractio
 
     private readonly ILogger<TmuxPaneBackend>? _logger;
     private readonly IProcessService _processService;
-    private readonly SemaphoreSlim _creationLock = new(1, 1);
+    private readonly AsyncLock _creationLock = new();
     private readonly HashSet<string> _managedPanes = new(StringComparer.Ordinal);
     private readonly string? _swarmSocket;
     private readonly bool _insideTmux;
@@ -39,18 +39,13 @@ public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractio
     public async Task<JoinCode.Abstractions.Interfaces.CreatePaneResult> CreateTeammatePaneAsync(
         string teammateId, string command, CancellationToken cancellationToken = default)
     {
-        await _creationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (_insideTmux)
-                return await CreatePaneInsideTmuxAsync(teammateId, command, cancellationToken).ConfigureAwait(false);
-            else
-                return await CreatePaneExternalSessionAsync(teammateId, command, cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            _creationLock.Release();
-        }
+        using var guard = await _creationLock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        if (_insideTmux)
+            return await CreatePaneInsideTmuxAsync(teammateId, command, cancellationToken).ConfigureAwait(false);
+        else
+            return await CreatePaneExternalSessionAsync(teammateId, command, cancellationToken).ConfigureAwait(false);
+    
     }
 
     public async Task SendCommandToPaneAsync(string paneId, string command, CancellationToken cancellationToken = default)

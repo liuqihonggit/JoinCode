@@ -77,7 +77,7 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
     private readonly ITelemetryService? _telemetryService;
     private readonly IClockService _clock;
     private readonly ConcurrentDictionary<string, MonitorSession> _sessions = new();
-    private readonly SemaphoreSlim _sessionLock = new(1, 1);
+    private readonly AsyncLock _sessionLock = new();
     private int _monitorIdCounter;
     private int _disposed;
 
@@ -98,15 +98,10 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
         var monitorId = $"monitor-{Interlocked.Increment(ref _monitorIdCounter):D4}";
         var session = new MonitorSession(monitorId, config);
 
-        await _sessionLock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            _sessions[monitorId] = session;
-        }
-        finally
-        {
-            _sessionLock.Release();
-        }
+        using var guard = await _sessionLock.LockAsync(ct).ConfigureAwait(false);
+
+        _sessions[monitorId] = session;
+    
 
         _ = RunMonitorLoopAsync(session, ct);
 
@@ -116,32 +111,22 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
 
     public async Task StopMonitoringAsync(string monitorId, CancellationToken ct = default)
     {
-        await _sessionLock.WaitAsync(ct).ConfigureAwait(false);
-        try
+        using var guard = await _sessionLock.LockAsync(ct).ConfigureAwait(false);
+
+        if (_sessions.TryRemove(monitorId, out var session))
         {
-            if (_sessions.TryRemove(monitorId, out var session))
-            {
-                await session.DisposeAsync().ConfigureAwait(false);
-                RecordMonitorMetrics("stop", session.Config.ServerName, true);
-            }
+            await session.DisposeAsync().ConfigureAwait(false);
+            RecordMonitorMetrics("stop", session.Config.ServerName, true);
         }
-        finally
-        {
-            _sessionLock.Release();
-        }
+    
     }
 
     public async Task<IReadOnlyList<McpMonitorStatus>> GetActiveMonitorsAsync(CancellationToken ct = default)
     {
-        await _sessionLock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            return _sessions.Values.Select(s => s.ToStatus()).ToList();
-        }
-        finally
-        {
-            _sessionLock.Release();
-        }
+        using var guard = await _sessionLock.LockAsync(ct).ConfigureAwait(false);
+
+        return _sessions.Values.Select(s => s.ToStatus()).ToList();
+    
     }
 
     public async ValueTask DisposeAsync()
@@ -150,21 +135,20 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
         if (Interlocked.Exchange(ref _disposed, 1) == 1)
             return;
 
-        await _sessionLock.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            foreach (var session in _sessions.Values)
-            {
-                await session.DisposeAsync().ConfigureAwait(false);
-            }
+        await CleanupSessionsAsync().ConfigureAwait(false);
+        _sessionLock.Dispose();
+    }
 
-            _sessions.Clear();
-        }
-        finally
+    /// <summary>清理所有监控会话（在锁保护下执行）</summary>
+    private async Task CleanupSessionsAsync()
+    {
+        using var guard = await _sessionLock.LockAsync().ConfigureAwait(false);
+        foreach (var session in _sessions.Values)
         {
-            _sessionLock.Release();
-            _sessionLock.Dispose();
+            await session.DisposeAsync().ConfigureAwait(false);
         }
+
+        _sessions.Clear();
     }
 
     private async Task RunMonitorLoopAsync(MonitorSession session, CancellationToken externalCt)

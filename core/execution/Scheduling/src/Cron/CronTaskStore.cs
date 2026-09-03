@@ -13,7 +13,7 @@ public sealed partial class FileCronTaskStore : ServiceEntity, ICronTaskStore, I
     private readonly IFileOperationService _fileOperationService;
     private readonly IFileSystem _fs;
     private readonly IClockService _clock;
-    private readonly SemaphoreSlim _semaphore;
+    private readonly AsyncLock _semaphore = new();
     private readonly Dictionary<string, CronTask> _sessionTasks = new();
     private IFileSystemWatcher? _watcher;
     private bool _disposed;
@@ -36,7 +36,7 @@ public sealed partial class FileCronTaskStore : ServiceEntity, ICronTaskStore, I
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _clock = clock ?? SystemClockService.Instance;
-        _semaphore = new SemaphoreSlim(1, 1);
+
         Diag.WriteLine("[DI] FileCronTaskStore.ctor calling InitializeWatcher...");
         InitializeWatcher();
         Diag.WriteLine("[DI] FileCronTaskStore.ctor done");
@@ -84,18 +84,13 @@ public sealed partial class FileCronTaskStore : ServiceEntity, ICronTaskStore, I
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            var fileTasks = await ReadFileTasksAsync(cancellationToken).ConfigureAwait(false);
-            var allTasks = new List<CronTask>(fileTasks);
-            allTasks.AddRange(_sessionTasks.Values);
-            return allTasks;
-        }
-        finally
-        {
-            _semaphore.Release();
-        }
+        using var guard = await _semaphore.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        var fileTasks = await ReadFileTasksAsync(cancellationToken).ConfigureAwait(false);
+        var allTasks = new List<CronTask>(fileTasks);
+        allTasks.AddRange(_sessionTasks.Values);
+        return allTasks;
+    
     }
 
     public async Task<CronTask> AddTaskAsync(CreateCronTaskRequest request, CancellationToken cancellationToken = default)
@@ -118,32 +113,22 @@ public sealed partial class FileCronTaskStore : ServiceEntity, ICronTaskStore, I
 
         if (!request.IsDurable)
         {
-            await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                _sessionTasks[task.Id] = task;
-            }
-            finally
-            {
-                _semaphore.Release();
-            }
+            using var guard = await _semaphore.LockAsync(cancellationToken).ConfigureAwait(false);
+
+            _sessionTasks[task.Id] = task;
+        
         }
         else
         {
             string? jsonToWrite = null;
 
-            await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                var tasks = await ReadFileTasksAsync(cancellationToken).ConfigureAwait(false);
-                var taskList = tasks.ToList();
-                taskList.Add(task);
-                jsonToWrite = SerializeTasks(taskList);
-            }
-            finally
-            {
-                _semaphore.Release();
-            }
+            using var guard = await _semaphore.LockAsync(cancellationToken).ConfigureAwait(false);
+
+            var tasks = await ReadFileTasksAsync(cancellationToken).ConfigureAwait(false);
+            var taskList = tasks.ToList();
+            taskList.Add(task);
+            jsonToWrite = SerializeTasks(taskList);
+        
 
             await WriteJsonAsync(jsonToWrite ?? throw new InvalidOperationException("Failed to serialize task list."), cancellationToken).ConfigureAwait(false);
         }
@@ -160,27 +145,22 @@ public sealed partial class FileCronTaskStore : ServiceEntity, ICronTaskStore, I
 
         string? jsonToWrite = null;
 
-        await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            foreach (var id in idSet)
-            {
-                _sessionTasks.Remove(id);
-            }
+        using var guard = await _semaphore.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            var fileTasks = await ReadFileTasksAsync(cancellationToken).ConfigureAwait(false);
-            var originalCount = fileTasks.Count;
-            var filteredTasks = fileTasks.Where(t => !idSet.Contains(t.Id)).ToList();
-
-            if (filteredTasks.Count < originalCount)
-            {
-                jsonToWrite = SerializeTasks(filteredTasks);
-            }
-        }
-        finally
+        foreach (var id in idSet)
         {
-            _semaphore.Release();
+            _sessionTasks.Remove(id);
         }
+
+        var fileTasks = await ReadFileTasksAsync(cancellationToken).ConfigureAwait(false);
+        var originalCount = fileTasks.Count;
+        var filteredTasks = fileTasks.Where(t => !idSet.Contains(t.Id)).ToList();
+
+        if (filteredTasks.Count < originalCount)
+        {
+            jsonToWrite = SerializeTasks(filteredTasks);
+        }
+    
 
         if (jsonToWrite != null)
         {
@@ -197,32 +177,27 @@ public sealed partial class FileCronTaskStore : ServiceEntity, ICronTaskStore, I
 
         string? jsonToWrite = null;
 
-        await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        using var guard = await _semaphore.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        foreach (var task in _sessionTasks.Values.Where(t => idSet.Contains(t.Id)))
         {
-            foreach (var task in _sessionTasks.Values.Where(t => idSet.Contains(t.Id)))
-            {
-                task.LastFiredAt = firedAt;
-            }
-
-            var fileTasks = await ReadFileTasksAsync(cancellationToken).ConfigureAwait(false);
-            var changed = false;
-
-            foreach (var task in fileTasks.Where(t => idSet.Contains(t.Id)))
-            {
-                task.LastFiredAt = firedAt;
-                changed = true;
-            }
-
-            if (changed)
-            {
-                jsonToWrite = SerializeTasks(fileTasks);
-            }
+            task.LastFiredAt = firedAt;
         }
-        finally
+
+        var fileTasks = await ReadFileTasksAsync(cancellationToken).ConfigureAwait(false);
+        var changed = false;
+
+        foreach (var task in fileTasks.Where(t => idSet.Contains(t.Id)))
         {
-            _semaphore.Release();
+            task.LastFiredAt = firedAt;
+            changed = true;
         }
+
+        if (changed)
+        {
+            jsonToWrite = SerializeTasks(fileTasks);
+        }
+    
 
         if (jsonToWrite != null)
         {
@@ -237,46 +212,36 @@ public sealed partial class FileCronTaskStore : ServiceEntity, ICronTaskStore, I
         if (_sessionTasks.TryGetValue(id, out var sessionTask))
             return sessionTask;
 
-        await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            var fileTasks = await ReadFileTasksAsync(cancellationToken).ConfigureAwait(false);
-            return fileTasks.FirstOrDefault(t => t.Id == id);
-        }
-        finally
-        {
-            _semaphore.Release();
-        }
+        using var guard = await _semaphore.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        var fileTasks = await ReadFileTasksAsync(cancellationToken).ConfigureAwait(false);
+        return fileTasks.FirstOrDefault(t => t.Id == id);
+    
     }
 
     public async Task<IReadOnlyList<CronTask>> GetTasksByAgentIdAsync(string agentId, CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        using var guard = await _semaphore.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        var fileTasks = await ReadFileTasksAsync(cancellationToken).ConfigureAwait(false);
+        var result = new List<CronTask>();
+
+        foreach (var t in _sessionTasks.Values)
         {
-            var fileTasks = await ReadFileTasksAsync(cancellationToken).ConfigureAwait(false);
-            var result = new List<CronTask>();
-
-            foreach (var t in _sessionTasks.Values)
-            {
-                if (t.AgentId == agentId)
-                    result.Add(t);
-            }
-
-            foreach (var t in fileTasks)
-            {
-                if (t.AgentId == agentId && !_sessionTasks.ContainsKey(t.Id))
-                    result.Add(t);
-            }
-
-            return result;
+            if (t.AgentId == agentId)
+                result.Add(t);
         }
-        finally
+
+        foreach (var t in fileTasks)
         {
-            _semaphore.Release();
+            if (t.AgentId == agentId && !_sessionTasks.ContainsKey(t.Id))
+                result.Add(t);
         }
+
+        return result;
+    
     }
 
     private async Task<IReadOnlyList<CronTask>> ReadFileTasksAsync(CancellationToken cancellationToken)

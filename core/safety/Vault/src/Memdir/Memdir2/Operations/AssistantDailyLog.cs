@@ -179,7 +179,7 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
     private readonly IFileOperationService _fileOperationService;
     private readonly ILogger<AssistantDailyLogService>? _logger;
     private readonly IClockService _clock;
-    private readonly SemaphoreSlim _writeLock;
+    private readonly AsyncLock _writeLock = new();
 
     public AssistantDailyLogService(
         MemoryStore memoryStore,
@@ -193,7 +193,6 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
-        _writeLock = new SemaphoreSlim(1, 1);
     }
 
     /// <inheritdoc />
@@ -206,37 +205,30 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
         ArgumentNullException.ThrowIfNull(content);
 
         cancellationToken.ThrowIfCancellationRequested();
-        await _writeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        using var guard = await _writeLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        var entry = new DailyLogEntry
         {
-            var entry = new DailyLogEntry
-            {
-                Timestamp = _clock.GetUtcNow(),
-                Content = content,
-                Category = category,
-                RelatedMemoryId = relatedMemoryId
-            };
+            Timestamp = _clock.GetUtcNow(),
+            Content = content,
+            Category = category,
+            RelatedMemoryId = relatedMemoryId
+        };
 
-            var logFile = await LoadDailyLogCoreAsync(_clock.GetUtcNow(), cancellationToken).ConfigureAwait(false);
+        var logFile = await LoadDailyLogCoreAsync(_clock.GetUtcNow(), cancellationToken).ConfigureAwait(false);
 
-            var updatedLog = logFile with
-            {
-                Entries = logFile.Entries.Add(entry)
-            };
-
-            await SaveDailyLogCoreAsync(updatedLog, cancellationToken).ConfigureAwait(false);
-
-            _logger?.LogDebug(
-                "[DailyLog] 追加日志条目: [{Category}] {Content}",
-                category.GetLabel(),
-                content[..Math.Min(50, content.Length)]);
-
-            return entry;
-        }
-        finally
+        var updatedLog = logFile with
         {
-            _writeLock.Release();
-        }
+            Entries = logFile.Entries.Add(entry)
+        };
+
+        await SaveDailyLogCoreAsync(updatedLog, cancellationToken).ConfigureAwait(false);
+
+        _logger?.LogDebug(
+            "[DailyLog] 追加日志条目: [{Category}] {Content}",
+            category.GetLabel(),
+            content[..Math.Min(50, content.Length)]);
+
+        return entry;
     }
 
     /// <inheritdoc />

@@ -10,7 +10,7 @@ public class WorkflowToolHandlers
     private readonly IChatService? _chatService;
     private readonly ICodeService? _codeService;
     private readonly IConfiguration _configuration;
-    private readonly SemaphoreSlim _historyLock = new(1, 1);
+    private readonly AsyncLock _historyLock = new();
 
     // 内存中的对话历史（用于提示词模式下的多轮对话测试）
     private readonly List<ApiMessageRecord> _inMemoryMessageList = new();
@@ -201,41 +201,20 @@ public class WorkflowToolHandlers
 
     private async Task RecordApiMessageAsync(string role, string content, CancellationToken ct = default)
     {
-        await _historyLock.WaitAsync(ct);
-        try
-        {
+        using var guard = await _historyLock.LockAsync(ct).ConfigureAwait(false);
             _inMemoryMessageList.Add(new ApiMessageRecord(role, content, DateTime.UtcNow));
-        }
-        finally
-        {
-            _historyLock.Release();
-        }
     }
 
     private async Task ClearInMemoryHistoryAsync(CancellationToken ct = default)
     {
-        await _historyLock.WaitAsync(ct);
-        try
-        {
+        using var guard = await _historyLock.LockAsync(ct).ConfigureAwait(false);
             _inMemoryMessageList.Clear();
-        }
-        finally
-        {
-            _historyLock.Release();
-        }
     }
 
     private async Task<IReadOnlyList<ApiMessageRecord>> GetInMemoryHistoryAsync(CancellationToken ct = default)
     {
-        await _historyLock.WaitAsync(ct);
-        try
-        {
+        using var guard = await _historyLock.LockAsync(ct).ConfigureAwait(false);
             return new List<ApiMessageRecord>(_inMemoryMessageList);
-        }
-        finally
-        {
-            _historyLock.Release();
-        }
     }
 
     private record ApiMessageRecord(string Role, string Content, DateTime Timestamp);

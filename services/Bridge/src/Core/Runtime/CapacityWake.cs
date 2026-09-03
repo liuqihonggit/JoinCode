@@ -100,7 +100,7 @@ public sealed partial class CapacityWakeService : IAsyncDisposable
 {
     private readonly CapacityWakeOptions _options;
     private readonly ILogger<CapacityWakeService>? _logger;
-    private readonly SemaphoreSlim _stateLock;
+    private readonly AsyncLock _stateLock = new();
 
     private CancellationTokenSource? _monitorCts;
     private Task? _monitorTask;
@@ -120,7 +120,7 @@ public sealed partial class CapacityWakeService : IAsyncDisposable
     {
         _options = options ?? new CapacityWakeOptions();
         _logger = logger;
-        _stateLock = new SemaphoreSlim(1, 1);
+
         _currentInstanceCount = _options.MinInstances;
         _currentMetrics = new LoadMetrics();
     }
@@ -130,23 +130,18 @@ public sealed partial class CapacityWakeService : IAsyncDisposable
     /// </summary>
     public async Task StartMonitoringAsync(CancellationToken cancellationToken = default)
     {
-        await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (_monitorTask is { IsCompleted: false })
-            {
-                _logger?.LogWarning("[CapacityWake] 监控已在运行");
-                return;
-            }
+        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            _monitorCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            _monitorTask = RunMonitorLoopAsync(_monitorCts.Token);
-            _logger?.LogInformation("[CapacityWake] 监控已启动，当前实例数: {InstanceCount}", _currentInstanceCount);
-        }
-        finally
+        if (_monitorTask is { IsCompleted: false })
         {
-            _stateLock.Release();
+            _logger?.LogWarning("[CapacityWake] 监控已在运行");
+            return;
         }
+
+        _monitorCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        _monitorTask = RunMonitorLoopAsync(_monitorCts.Token);
+        _logger?.LogInformation("[CapacityWake] 监控已启动，当前实例数: {InstanceCount}", _currentInstanceCount);
+    
     }
 
     /// <summary>
@@ -154,15 +149,10 @@ public sealed partial class CapacityWakeService : IAsyncDisposable
     /// </summary>
     public async Task StopMonitoringAsync(CancellationToken cancellationToken = default)
     {
-        await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            await (_monitorCts?.CancelAsync() ?? Task.CompletedTask).ConfigureAwait(false);
-        }
-        finally
-        {
-            _stateLock.Release();
-        }
+        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        await (_monitorCts?.CancelAsync() ?? Task.CompletedTask).ConfigureAwait(false);
+    
 
         if (_monitorTask is not null)
         {
@@ -206,24 +196,19 @@ public sealed partial class CapacityWakeService : IAsyncDisposable
     /// </summary>
     public async Task ScaleUpAsync(CancellationToken cancellationToken = default)
     {
-        await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            var oldCount = _currentInstanceCount;
-            if (oldCount >= _options.MaxInstances)
-            {
-                _logger?.LogWarning("[CapacityWake] 已达最大实例数 {MaxInstances}，无法扩容", _options.MaxInstances);
-                return;
-            }
+        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            _currentInstanceCount = oldCount + 1;
-            _logger?.LogInformation("[CapacityWake] 扩容: {OldCount} -> {NewCount}", oldCount, _currentInstanceCount);
-            CapacityChanged?.Invoke(this, new CapacityChangedEventArgs(oldCount, _currentInstanceCount, _currentMetrics));
-        }
-        finally
+        var oldCount = _currentInstanceCount;
+        if (oldCount >= _options.MaxInstances)
         {
-            _stateLock.Release();
+            _logger?.LogWarning("[CapacityWake] 已达最大实例数 {MaxInstances}，无法扩容", _options.MaxInstances);
+            return;
         }
+
+        _currentInstanceCount = oldCount + 1;
+        _logger?.LogInformation("[CapacityWake] 扩容: {OldCount} -> {NewCount}", oldCount, _currentInstanceCount);
+        CapacityChanged?.Invoke(this, new CapacityChangedEventArgs(oldCount, _currentInstanceCount, _currentMetrics));
+    
     }
 
     /// <summary>
@@ -231,24 +216,19 @@ public sealed partial class CapacityWakeService : IAsyncDisposable
     /// </summary>
     public async Task ScaleDownAsync(CancellationToken cancellationToken = default)
     {
-        await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            var oldCount = _currentInstanceCount;
-            if (oldCount <= _options.MinInstances)
-            {
-                _logger?.LogWarning("[CapacityWake] 已达最小实例数 {MinInstances}，无法缩容", _options.MinInstances);
-                return;
-            }
+        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            _currentInstanceCount = oldCount - 1;
-            _logger?.LogInformation("[CapacityWake] 缩容: {OldCount} -> {NewCount}", oldCount, _currentInstanceCount);
-            CapacityChanged?.Invoke(this, new CapacityChangedEventArgs(oldCount, _currentInstanceCount, _currentMetrics));
-        }
-        finally
+        var oldCount = _currentInstanceCount;
+        if (oldCount <= _options.MinInstances)
         {
-            _stateLock.Release();
+            _logger?.LogWarning("[CapacityWake] 已达最小实例数 {MinInstances}，无法缩容", _options.MinInstances);
+            return;
         }
+
+        _currentInstanceCount = oldCount - 1;
+        _logger?.LogInformation("[CapacityWake] 缩容: {OldCount} -> {NewCount}", oldCount, _currentInstanceCount);
+        CapacityChanged?.Invoke(this, new CapacityChangedEventArgs(oldCount, _currentInstanceCount, _currentMetrics));
+    
     }
 
     private readonly CapacityWakeSignal _wakeSignal = new();

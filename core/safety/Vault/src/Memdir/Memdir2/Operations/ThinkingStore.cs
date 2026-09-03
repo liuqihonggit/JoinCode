@@ -9,7 +9,7 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
     private readonly IFileSystem _fs;
     private readonly ILogger<ThinkingStore>? _logger;
     private readonly IClockService _clock;
-    private readonly SemaphoreSlim _saveLock = new(1, 1);
+    private readonly AsyncLock _saveLock = new();
     private readonly CancellationTokenSource _disposeCts = new();
 
     public ThinkingStore(IOptions<MemdirOptions> options, IFileOperationService fileOperationService, IFileSystem fs, ILogger<ThinkingStore>? logger = null, IClockService? clock = null)
@@ -115,7 +115,7 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
 
     private async Task SaveAsync(CancellationToken cancellationToken)
     {
-        await _saveLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _saveLock.LockAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             var data = new ThinkingStoreData();
@@ -135,10 +135,6 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, L.T(StringKey.VaultLogThinkingSaveFailed));
-        }
-        finally
-        {
-            _saveLock.Release();
         }
     }
 

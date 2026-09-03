@@ -2,7 +2,7 @@ namespace Infrastructure.Subprocess;
 
 public sealed class ResilientChannel : IDisposable
 {
-    private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly AsyncLock _lock = new();
     private readonly UnifiedCircuitBreaker? _circuitBreaker;
     private readonly string _channelName;
     private readonly TimeSpan _timeout;
@@ -24,7 +24,7 @@ public sealed class ResilientChannel : IDisposable
     {
         ProbeCircuitBreaker();
 
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
         try
         {
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -46,10 +46,7 @@ public sealed class ResilientChannel : IDisposable
             _logger?.LogWarning(ex, "[{ChannelName}] 操作失败", _channelName);
             throw;
         }
-        finally
-        {
-            _lock.Release();
-        }
+
     }
 
     public Task ExecuteAsync(Func<CancellationToken, Task> operation, CancellationToken ct = default) =>

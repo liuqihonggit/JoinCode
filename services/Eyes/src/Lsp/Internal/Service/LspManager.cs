@@ -44,7 +44,7 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
     private readonly ILspPassiveFeedback? _passiveFeedback;
     private readonly IFileSystem _fs;
     private readonly IProcessService _processService;
-    private readonly SemaphoreSlim _initLock = new(1, 1);
+    private readonly AsyncLock _initLock = new();
     private int _isInitialized;
     private int _asyncDisposed;
 
@@ -52,66 +52,56 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
 
     public async Task InitializeAsync(IEnumerable<LspInstanceConfig> configs, CancellationToken cancellationToken = default)
     {
-        await _initLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        using var guard = await _initLock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        if (IsInitialized) return;
+
+        foreach (var config in configs)
         {
-            if (IsInitialized) return;
+            var instance = new LspServerInstance(config, _fs, _processService, _logger != null
+                ? new LoggerFactory().CreateLogger<LspServerInstance>()
+                : throw new InvalidOperationException("Logger required"));
 
-            foreach (var config in configs)
+            _servers[config.Name] = instance;
+
+            foreach (var kvp in config.ExtensionToLanguage)
             {
-                var instance = new LspServerInstance(config, _fs, _processService, _logger != null
-                    ? new LoggerFactory().CreateLogger<LspServerInstance>()
-                    : throw new InvalidOperationException("Logger required"));
-
-                _servers[config.Name] = instance;
-
-                foreach (var kvp in config.ExtensionToLanguage)
+                if (!_extensionMap.TryGetValue(kvp.Key, out var serverNames))
                 {
-                    if (!_extensionMap.TryGetValue(kvp.Key, out var serverNames))
-                    {
-                        serverNames = [];
-                        _extensionMap[kvp.Key] = serverNames;
-                    }
-                    serverNames.Add(config.Name);
+                    serverNames = [];
+                    _extensionMap[kvp.Key] = serverNames;
                 }
-
-                _logger.LogInformation("Registered LSP server: {Name} ({LanguageId}) for extensions: {Extensions}",
-                    config.Name, config.LanguageId, string.Join(", ", config.ExtensionToLanguage.Keys));
+                serverNames.Add(config.Name);
             }
 
-            Volatile.Write(ref _isInitialized, 1);
-            _logger.LogInformation("LSP Manager initialized with {Count} server(s)", _servers.Count);
-
-            if (_passiveFeedback != null)
-            {
-                _passiveFeedback.RegisterNotificationHandlers(this);
-            }
+            _logger.LogInformation("Registered LSP server: {Name} ({LanguageId}) for extensions: {Extensions}",
+                config.Name, config.LanguageId, string.Join(", ", config.ExtensionToLanguage.Keys));
         }
-        finally
+
+        Volatile.Write(ref _isInitialized, 1);
+        _logger.LogInformation("LSP Manager initialized with {Count} server(s)", _servers.Count);
+
+        if (_passiveFeedback != null)
         {
-            _initLock.Release();
+            _passiveFeedback.RegisterNotificationHandlers(this);
         }
+    
     }
 
     public async Task ShutdownAsync(CancellationToken cancellationToken = default)
     {
-        await _initLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (!IsInitialized) return;
+        using var guard = await _initLock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            var tasks = _servers.Values.Select(s => s.StopAsync(cancellationToken).ContinueWith(_ => { }, TaskContinuationOptions.OnlyOnFaulted));
-            await Task.WhenAll(tasks).ConfigureAwait(false);
+        if (!IsInitialized) return;
 
-            _servers.Clear();
-            _extensionMap.Clear();
-            _openedFiles.Clear();
-            Volatile.Write(ref _isInitialized, 0);
-        }
-        finally
-        {
-            _initLock.Release();
-        }
+        var tasks = _servers.Values.Select(s => s.StopAsync(cancellationToken).ContinueWith(_ => { }, TaskContinuationOptions.OnlyOnFaulted));
+        await Task.WhenAll(tasks).ConfigureAwait(false);
+
+        _servers.Clear();
+        _extensionMap.Clear();
+        _openedFiles.Clear();
+        Volatile.Write(ref _isInitialized, 0);
+    
     }
 
     public ILspServerInstance? GetServerForFile(string filePath)

@@ -175,7 +175,7 @@ internal sealed class DiagnosticEntryWriter
     private readonly IFileSystem _fs;
     private readonly string _logPath;
     private readonly ILogger? _logger;
-    private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly AsyncLock _lock = new();
 
     public DiagnosticEntryWriter(IFileSystem fs, string logPath, ILogger? logger)
     {
@@ -192,15 +192,10 @@ internal sealed class DiagnosticEntryWriter
             var dataProps = string.Join(",", entry.Data.Select(kv => $"\"{kv.Key}\":\"{EscapeJsonString(kv.Value)}\""));
             var line = $"{{\"ts\":\"{entry.Timestamp:O}\",\"event\":\"{entry.EventType}\",\"session\":\"{entry.SessionId}\",\"trace\":\"{entry.TraceId}\"{anomalyFlag},\"data\":{{{dataProps}}}}}";
 
-            await _lock.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                await _fs.AppendAllTextAsync(_logPath, line + "\n", ct).ConfigureAwait(false);
-            }
-            finally
-            {
-                _lock.Release();
-            }
+            using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+
+            await _fs.AppendAllTextAsync(_logPath, line + "\n", ct).ConfigureAwait(false);
+        
         }
         catch (Exception ex)
         {

@@ -7,10 +7,9 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
     private const int InitialBackoffMs = 2000;
     private const int MaxBackoffMs = 300000;
 
-    private readonly Dictionary<string, McpClientEntry> _remoteClients = new();
-    private readonly Dictionary<string, List<ToolSpec>> _lastKnownToolSpecs = new();
-    private readonly Dictionary<string, CancellationTokenSource> _reconnectCtsMap = new();
-    private readonly SemaphoreSlim _remoteClientsLock = new(1, 1);
+    private readonly ConcurrentDictionary<string, McpClientEntry> _remoteClients = new();
+    private readonly ConcurrentDictionary<string, List<ToolSpec>> _lastKnownToolSpecs = new();
+    private readonly ConcurrentDictionary<string, CancellationTokenSource> _reconnectCtsMap = new();
     private readonly IToolRegistry _toolRegistry;
     private readonly ILogger<RemoteClientManager> _logger;
     private readonly IClockService _clock;
@@ -173,22 +172,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
 
     private async Task ReconnectWithBackoffAsync(string clientId, string transportType)
     {
-        await _remoteClientsLock.WaitAsync();
-        try
-        {
-            if (_reconnectCtsMap.TryGetValue(clientId, out var existingCts))
-            {
-                existingCts.Cancel();
-                existingCts.Dispose();
-            }
-
-            var cts = new CancellationTokenSource();
-            _reconnectCtsMap[clientId] = cts;
-        }
-        finally
-        {
-            _remoteClientsLock.Release();
-        }
+        SetupReconnectCts(clientId);
 
         var reconnectCts = _reconnectCtsMap.GetValueOrDefault(clientId);
         if (reconnectCts == null) return;
@@ -237,34 +221,36 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
         }
         finally
         {
-            await _remoteClientsLock.WaitAsync();
-            try
-            {
-                if (_reconnectCtsMap.TryGetValue(clientId, out var cts) && cts == reconnectCts)
-                {
-                    _reconnectCtsMap.Remove(clientId);
-                }
-                reconnectCts.Dispose();
-            }
-            finally
-            {
-                _remoteClientsLock.Release();
-            }
+            CleanupReconnectCts(clientId, reconnectCts);
         }
+    }
+
+    /// <summary>设置重连 CTS（取消旧的，创建新的）</summary>
+    private void SetupReconnectCts(string clientId)
+    {
+        CancellationTokenSource? oldCts = null;
+        if (_reconnectCtsMap.TryGetValue(clientId, out oldCts))
+            _reconnectCtsMap.TryRemove(clientId, out _);
+
+        var cts = new CancellationTokenSource();
+        _reconnectCtsMap[clientId] = cts;
+
+        oldCts?.Cancel();
+        oldCts?.Dispose();
+    }
+
+    /// <summary>清理重连 CTS</summary>
+    private void CleanupReconnectCts(string clientId, CancellationTokenSource reconnectCts)
+    {
+        if (_reconnectCtsMap.TryGetValue(clientId, out var currentCts) && currentCts == reconnectCts)
+            _reconnectCtsMap.TryRemove(clientId, out _);
+
+        reconnectCts.Dispose();
     }
 
     private async Task ReconnectClientAsync(string clientId, CancellationToken cancellationToken)
     {
-        IMcpClient? client;
-        await _remoteClientsLock.WaitAsync(cancellationToken);
-        try
-        {
-            client = _remoteClients.GetValueOrDefault(clientId)?.Client;
-        }
-        finally
-        {
-            _remoteClientsLock.Release();
-        }
+        var client = _remoteClients.GetValueOrDefault(clientId)?.Client;
 
         if (client == null)
         {
@@ -292,35 +278,27 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
     /// <summary>
     /// 注册远程 MCP 客户端（异步）
     /// </summary>
-    public async Task RegisterClientAsync(string clientId, IMcpClient client, CancellationToken cancellationToken = default)
+    public Task RegisterClientAsync(string clientId, IMcpClient client, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(clientId);
         ArgumentNullException.ThrowIfNull(client);
 
-        await _remoteClientsLock.WaitAsync(cancellationToken);
-        try
+        var entry = new McpClientEntry
         {
-            if (_remoteClients.ContainsKey(clientId))
-            {
-                throw new InvalidOperationException($"[MCP025] 远程客户端 '{clientId}' 已注册");
-            }
-
-            _remoteClients[clientId] = new McpClientEntry
-            {
-                ClientId = clientId,
-                Client = client,
-                RegisteredAt = _clock.GetUtcNow()
-            };
-
-            client.NotificationReceived += (sender, args) => OnClientNotificationReceived(clientId, args);
-            client.ConnectionLost += (sender, args) => OnClientConnectionLost(clientId, args);
-
-            _logger.LogInformation("已注册远程 MCP 客户端: {ClientId}", clientId);
-        }
-        finally
+            ClientId = clientId,
+            Client = client,
+            RegisteredAt = _clock.GetUtcNow()
+        };
+        if (!_remoteClients.TryAdd(clientId, entry))
         {
-            _remoteClientsLock.Release();
+            throw new InvalidOperationException($"[MCP025] 远程客户端 '{clientId}' 已注册");
         }
+
+        client.NotificationReceived += (sender, args) => OnClientNotificationReceived(clientId, args);
+        client.ConnectionLost += (sender, args) => OnClientConnectionLost(clientId, args);
+
+        _logger.LogInformation("已注册远程 MCP 客户端: {ClientId}", clientId);
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -330,67 +308,43 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
     {
         ArgumentException.ThrowIfNullOrEmpty(clientId);
 
-        await _remoteClientsLock.WaitAsync(cancellationToken);
-        try
+        if (_remoteClients.TryGetValue(clientId, out var entry))
         {
-            if (_remoteClients.TryGetValue(clientId, out var entry))
+            await entry.Client.DisposeAsync();
+            _remoteClients.TryRemove(clientId, out _);
+            _lastKnownToolSpecs.TryRemove(clientId, out _);
+
+            if (_reconnectCtsMap.TryGetValue(clientId, out var cts))
             {
-                await entry.Client.DisposeAsync();
-                _remoteClients.Remove(clientId);
-                _lastKnownToolSpecs.Remove(clientId);
-
-                if (_reconnectCtsMap.TryGetValue(clientId, out var cts))
-                {
-                    cts.Cancel();
-                    cts.Dispose();
-                    _reconnectCtsMap.Remove(clientId);
-                }
-
-                _logger.LogInformation("已移除远程 MCP 客户端: {ClientId}", clientId);
-                return true;
+                cts.Cancel();
+                cts.Dispose();
+                _reconnectCtsMap.TryRemove(clientId, out _);
             }
 
-            return false;
+            _logger.LogInformation("已移除远程 MCP 客户端: {ClientId}", clientId);
+            return true;
         }
-        finally
-        {
-            _remoteClientsLock.Release();
-        }
+
+        return false;
     }
 
     /// <summary>
     /// 获取远程客户端（异步）
     /// </summary>
-    public async Task<IMcpClient?> GetClientAsync(string clientId, CancellationToken cancellationToken = default)
+    public Task<IMcpClient?> GetClientAsync(string clientId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(clientId);
 
-        await _remoteClientsLock.WaitAsync(cancellationToken);
-        try
-        {
-            return _remoteClients.GetValueOrDefault(clientId)?.Client;
-        }
-        finally
-        {
-            _remoteClientsLock.Release();
-        }
+        return Task.FromResult(_remoteClients.GetValueOrDefault(clientId)?.Client);
     }
 
     /// <summary>
     /// 获取所有远程客户端（异步）
     /// </summary>
-    public async Task<IReadOnlyDictionary<string, IMcpClient>> GetAllClientsAsync(CancellationToken cancellationToken = default)
+    public Task<IReadOnlyDictionary<string, IMcpClient>> GetAllClientsAsync(CancellationToken cancellationToken = default)
     {
-        await _remoteClientsLock.WaitAsync(cancellationToken);
-        try
-        {
-            return _remoteClients
-                .ToFrozenDictionary(kvp => kvp.Key, kvp => kvp.Value.Client);
-        }
-        finally
-        {
-            _remoteClientsLock.Release();
-        }
+        return Task.FromResult<IReadOnlyDictionary<string, IMcpClient>>(
+            _remoteClients.ToFrozenDictionary(kvp => kvp.Key, kvp => kvp.Value.Client));
     }
 
     public async Task<RemoteToolsSyncResult> SyncToolsAsync(
@@ -409,18 +363,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
 
     private async Task<RemoteToolsSyncResult> SyncToolsViaPipelineAsync(string clientId, CancellationToken cancellationToken)
     {
-        IMcpClient? client;
-        List<ToolSpec>? previousSpecs;
-        await _remoteClientsLock.WaitAsync(cancellationToken);
-        try
-        {
-            client = _remoteClients.GetValueOrDefault(clientId)?.Client;
-            _lastKnownToolSpecs.TryGetValue(clientId, out previousSpecs);
-        }
-        finally
-        {
-            _remoteClientsLock.Release();
-        }
+        var (client, previousSpecs) = GetClientAndSpecs(clientId, cancellationToken);
 
         var ctx = new RemoteSyncContext
         {
@@ -440,23 +383,15 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
 
         if (ctx.SyncedNames.Count > 0)
         {
-            await _remoteClientsLock.WaitAsync(cancellationToken);
-            try
+            var newSpecs = ctx.ToolsResult?.GetData()
+                .Select(t => new ToolSpec(
+                    McpNameNormalizer.BuildMcpToolName(clientId, t.Name),
+                    t.Description,
+                    t.InputSchema?.ToString()))
+                .ToList();
+            if (newSpecs is not null)
             {
-                var newSpecs = ctx.ToolsResult?.GetData()
-                    .Select(t => new ToolSpec(
-                        McpNameNormalizer.BuildMcpToolName(clientId, t.Name),
-                        t.Description,
-                        t.InputSchema?.ToString()))
-                    .ToList();
-                if (newSpecs is not null)
-                {
-                    _lastKnownToolSpecs[clientId] = newSpecs;
-                }
-            }
-            finally
-            {
-                _remoteClientsLock.Release();
+                UpdateToolSpecs(clientId, newSpecs, cancellationToken);
             }
         }
 
@@ -471,22 +406,11 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
     private async Task<RemoteToolsSyncResult> SyncToolsDirectAsync(
         string clientId, CancellationToken cancellationToken)
     {
-        IMcpClient? client;
-        List<ToolSpec>? previousSpecs;
-        await _remoteClientsLock.WaitAsync(cancellationToken);
-        try
-        {
-            client = _remoteClients.GetValueOrDefault(clientId)?.Client;
-            _lastKnownToolSpecs.TryGetValue(clientId, out previousSpecs);
-        }
-        finally
-        {
-            _remoteClientsLock.Release();
-        }
+        var (client, previousSpecs) = GetClientAndSpecs(clientId, cancellationToken);
 
         if (client == null)
         {
-            return new RemoteToolsSyncResult(false, Array.Empty<string>(), $"客户端 '{clientId}' 未找到");
+            return new RemoteToolsSyncResult(false, Array.Empty<string>(), $"'{'\''}{clientId}{'\''} 未找到");
         }
 
         try
@@ -545,15 +469,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
 
             await Task.WhenAll(toolItems.Select(item => _toolRegistry.RegisterToolAsync(item.Handler, cancellationToken))).ConfigureAwait(false);
 
-            await _remoteClientsLock.WaitAsync(cancellationToken);
-            try
-            {
-                _lastKnownToolSpecs[clientId] = newSpecs;
-            }
-            finally
-            {
-                _remoteClientsLock.Release();
-            }
+            UpdateToolSpecs(clientId, newSpecs, cancellationToken);
 
             _logger.LogInformation(
                 "从远程客户端 {ClientId} 同步了 {Count} 个工具",
@@ -567,6 +483,19 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
             _logger.LogError(ex, "从远程客户端 {ClientId} 同步工具失败", clientId);
             return new RemoteToolsSyncResult(false, Array.Empty<string>(), ex.Message);
         }
+    }
+
+    /// <summary>获取远程客户端和已知的工具规格</summary>
+    private (IMcpClient? Client, List<ToolSpec>? PreviousSpecs) GetClientAndSpecs(string clientId, CancellationToken cancellationToken)
+    {
+        return (_remoteClients.GetValueOrDefault(clientId)?.Client,
+            _lastKnownToolSpecs.TryGetValue(clientId, out var specs) ? specs : null);
+    }
+
+    /// <summary>更新远程客户端的工具规格缓存</summary>
+    private void UpdateToolSpecs(string clientId, List<ToolSpec> specs, CancellationToken cancellationToken)
+    {
+        _lastKnownToolSpecs[clientId] = specs;
     }
 
     /// <summary>
@@ -588,16 +517,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
 
     private async Task<OperationResult<IReadOnlyList<string>>> SyncResourcesViaPipelineAsync(string clientId, CancellationToken cancellationToken)
     {
-        IMcpClient? client;
-        await _remoteClientsLock.WaitAsync(cancellationToken);
-        try
-        {
-            client = _remoteClients.GetValueOrDefault(clientId)?.Client;
-        }
-        finally
-        {
-            _remoteClientsLock.Release();
-        }
+        var client = _remoteClients.GetValueOrDefault(clientId)?.Client;
 
         var ctx = new RemoteSyncContext
         {
@@ -621,16 +541,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
     private async Task<OperationResult<IReadOnlyList<string>>> SyncResourcesDirectAsync(
         string clientId, CancellationToken cancellationToken)
     {
-        IMcpClient? client;
-        await _remoteClientsLock.WaitAsync(cancellationToken);
-        try
-        {
-            client = _remoteClients.GetValueOrDefault(clientId)?.Client;
-        }
-        finally
-        {
-            _remoteClientsLock.Release();
-        }
+        var client = _remoteClients.GetValueOrDefault(clientId)?.Client;
 
         if (client == null)
         {
@@ -683,16 +594,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
 
     private async Task<OperationResult<IReadOnlyList<string>>> SyncPromptsViaPipelineAsync(string clientId, CancellationToken cancellationToken)
     {
-        IMcpClient? client;
-        await _remoteClientsLock.WaitAsync(cancellationToken);
-        try
-        {
-            client = _remoteClients.GetValueOrDefault(clientId)?.Client;
-        }
-        finally
-        {
-            _remoteClientsLock.Release();
-        }
+        var client = _remoteClients.GetValueOrDefault(clientId)?.Client;
 
         var ctx = new RemoteSyncContext
         {
@@ -716,16 +618,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
     private async Task<OperationResult<IReadOnlyList<string>>> SyncPromptsDirectAsync(
         string clientId, CancellationToken cancellationToken)
     {
-        IMcpClient? client;
-        await _remoteClientsLock.WaitAsync(cancellationToken);
-        try
-        {
-            client = _remoteClients.GetValueOrDefault(clientId)?.Client;
-        }
-        finally
-        {
-            _remoteClientsLock.Release();
-        }
+        var client = _remoteClients.GetValueOrDefault(clientId)?.Client;
 
         if (client == null)
         {
@@ -762,17 +655,9 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
     /// <summary>
     /// 获取远程客户端数量（异步）
     /// </summary>
-    public async Task<int> GetClientCountAsync(CancellationToken cancellationToken = default)
+    public Task<int> GetClientCountAsync(CancellationToken cancellationToken = default)
     {
-        await _remoteClientsLock.WaitAsync(cancellationToken);
-        try
-        {
-            return _remoteClients.Count;
-        }
-        finally
-        {
-            _remoteClientsLock.Release();
-        }
+        return Task.FromResult(_remoteClients.Count);
     }
 
     /// <summary>
@@ -780,20 +665,12 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
     /// </summary>
     public async Task ClearAllClientsAsync(CancellationToken cancellationToken = default)
     {
-        await _remoteClientsLock.WaitAsync(cancellationToken);
-        try
-        {
-            await Task.WhenAll(_remoteClients.Values
-                .Select(entry => entry.Client.DisposeAsync().AsTask()));
+        await Task.WhenAll(_remoteClients.Values
+            .Select(entry => entry.Client.DisposeAsync().AsTask()));
 
-            _remoteClients.Clear();
-            _lastKnownToolSpecs.Clear();
-            _logger.LogInformation("所有远程 MCP 客户端已清除");
-        }
-        finally
-        {
-            _remoteClientsLock.Release();
-        }
+        _remoteClients.Clear();
+        _lastKnownToolSpecs.Clear();
+        _logger.LogInformation("所有远程 MCP 客户端已清除");
     }
 
     /// <summary>
@@ -810,25 +687,16 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
     /// </summary>
     public async ValueTask DisposeAsync()
     {
-        await _remoteClientsLock.WaitAsync();
-        try
+        foreach (var cts in _reconnectCtsMap.Values)
         {
-            foreach (var cts in _reconnectCtsMap.Values)
-            {
-                cts.Cancel();
-                cts.Dispose();
-            }
-            _reconnectCtsMap.Clear();
+            cts.Cancel();
+            cts.Dispose();
+        }
+        _reconnectCtsMap.Clear();
 
-            await Task.WhenAll(_remoteClients.Values
-                .Select(entry => entry.Client.DisposeAsync().AsTask()));
-            _remoteClients.Clear();
-            _lastKnownToolSpecs.Clear();
-        }
-        finally
-        {
-            _remoteClientsLock.Release();
-            _remoteClientsLock.Dispose();
-        }
+        await Task.WhenAll(_remoteClients.Values
+            .Select(entry => entry.Client.DisposeAsync().AsTask()));
+        _remoteClients.Clear();
+        _lastKnownToolSpecs.Clear();
     }
 }

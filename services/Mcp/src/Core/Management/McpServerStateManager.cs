@@ -6,7 +6,7 @@ public sealed partial class McpServerStateManager
     private readonly IFileSystem _fs;
     private readonly ILogger<McpServerStateManager>? _logger;
     private readonly string _stateFilePath;
-    private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly AsyncLock _lock = new();
     private HashSet<string> _disabledServers = new(StringComparer.OrdinalIgnoreCase);
 
     public McpServerStateManager(IFileSystem fs, string stateFilePath, ILogger<McpServerStateManager>? logger = null)
@@ -49,42 +49,32 @@ public sealed partial class McpServerStateManager
 
     public async Task<bool> DisableAsync(string serverName, CancellationToken cancellationToken = default)
     {
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (!_disabledServers.Add(serverName))
-            {
-                return false;
-            }
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            await PersistAsync(cancellationToken).ConfigureAwait(false);
-            _logger?.LogInformation("MCP 服务器 {ServerName} 已禁用", serverName);
-            return true;
-        }
-        finally
+        if (!_disabledServers.Add(serverName))
         {
-            _lock.Release();
+            return false;
         }
+
+        await PersistAsync(cancellationToken).ConfigureAwait(false);
+        _logger?.LogInformation("MCP 服务器 {ServerName} 已禁用", serverName);
+        return true;
+    
     }
 
     public async Task<bool> EnableAsync(string serverName, CancellationToken cancellationToken = default)
     {
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (!_disabledServers.Remove(serverName))
-            {
-                return false;
-            }
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            await PersistAsync(cancellationToken).ConfigureAwait(false);
-            _logger?.LogInformation("MCP 服务器 {ServerName} 已启用", serverName);
-            return true;
-        }
-        finally
+        if (!_disabledServers.Remove(serverName))
         {
-            _lock.Release();
+            return false;
         }
+
+        await PersistAsync(cancellationToken).ConfigureAwait(false);
+        _logger?.LogInformation("MCP 服务器 {ServerName} 已启用", serverName);
+        return true;
+    
     }
 
     public IReadOnlySet<string> GetDisabledServers()

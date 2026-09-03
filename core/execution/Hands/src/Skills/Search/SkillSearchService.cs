@@ -10,7 +10,7 @@ public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchServ
     private readonly ConcurrentDictionary<string, FrozenSet<string>> _tagIndex = new();
     private readonly ConcurrentDictionary<string, string> _nameIndex = new(StringComparer.OrdinalIgnoreCase);
     private DateTime _lastIndexTime = DateTime.MinValue;
-    private readonly SemaphoreSlim _indexLock = new(1, 1);
+    private readonly AsyncLock _indexLock = new();
 
     public SkillSearchService(
         ISkillService skillService,
@@ -137,33 +137,28 @@ public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchServ
     {
         if ((DateTime.UtcNow - _lastIndexTime).TotalMinutes < 5) return;
 
-        await _indexLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        using var guard = await _indexLock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        if ((DateTime.UtcNow - _lastIndexTime).TotalMinutes < 5) return;
+
+        var skills = await _skillService.GetAvailableSkillsAsync(cancellationToken).ConfigureAwait(false);
+        _tagIndex.Clear();
+        _nameIndex.Clear();
+
+        foreach (var skill in skills)
         {
-            if ((DateTime.UtcNow - _lastIndexTime).TotalMinutes < 5) return;
-
-            var skills = await _skillService.GetAvailableSkillsAsync(cancellationToken).ConfigureAwait(false);
-            _tagIndex.Clear();
-            _nameIndex.Clear();
-
-            foreach (var skill in skills)
+            _nameIndex[skill.Name] = skill.Name;
+            if (skill.Tags.Count > 0)
             {
-                _nameIndex[skill.Name] = skill.Name;
-                if (skill.Tags.Count > 0)
-                {
-                    _tagIndex[skill.Name] = skill.Tags
-                        .Select(t => t.ToLowerInvariant())
-                        .ToFrozenSet();
-                }
+                _tagIndex[skill.Name] = skill.Tags
+                    .Select(t => t.ToLowerInvariant())
+                    .ToFrozenSet();
             }
+        }
 
-            _lastIndexTime = DateTime.UtcNow;
-            _logger?.LogDebug(L.T(StringKey.SkillSearchIndexRebuilt), skills.Count);
-        }
-        finally
-        {
-            _indexLock.Release();
-        }
+        _lastIndexTime = DateTime.UtcNow;
+        _logger?.LogDebug(L.T(StringKey.SkillSearchIndexRebuilt), skills.Count);
+    
     }
 
     private static double CalculateRelevanceScore(SkillDefinition skill, SkillSearchQuery query)

@@ -251,14 +251,14 @@ public sealed class McpStdioClient : McpClientBase
         var tcs = new TaskCompletionSource<JsonRpcResponse>();
         int requestId = request.GetIdAsInt();
 
-        await _requestLock.WaitAsync(cancellationToken);
+        var guard = await _requestLock.LockAsync(cancellationToken);
         try
         {
             _pendingRequests[requestId] = tcs;
         }
         finally
         {
-            _requestLock.Release();
+            guard.Dispose();
         }
 
         try
@@ -266,14 +266,14 @@ public sealed class McpStdioClient : McpClientBase
             var json = request.ToJson();
             _logger?.LogDebug("发送请求: {Json}", json);
 
-            await _requestLock.WaitAsync(cancellationToken);
+            var guard1 = await _requestLock.LockAsync(cancellationToken);
             try
             {
                 await _stdinWriter.WriteLineAsync(json);
             }
             finally
             {
-                _requestLock.Release();
+                guard1.Dispose();
             }
 
             using var cts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, TimeSpan.FromSeconds(_options.RequestTimeoutSeconds));
@@ -287,14 +287,14 @@ public sealed class McpStdioClient : McpClientBase
         }
         catch (Exception ex)
         {
-            await _requestLock.WaitAsync(cancellationToken);
+            var guard2 = await _requestLock.LockAsync(cancellationToken);
             try
             {
                 _pendingRequests.Remove(requestId);
             }
             finally
             {
-                _requestLock.Release();
+                guard2.Dispose();
             }
 
             requestSpan?.SetStatus(TelemetryStatusCode.Error, ex.Message);
@@ -315,14 +315,14 @@ public sealed class McpStdioClient : McpClientBase
         var json = notification.ToJson();
         _logger?.LogDebug("发送通知: {Json}", json);
 
-        await _requestLock.WaitAsync(cancellationToken);
+        var guard3 = await _requestLock.LockAsync(cancellationToken);
         try
         {
             await _stdinWriter.WriteLineAsync(json);
         }
         finally
         {
-            _requestLock.Release();
+            guard3.Dispose();
         }
     }
 

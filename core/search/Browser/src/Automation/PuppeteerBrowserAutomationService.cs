@@ -12,7 +12,7 @@ public sealed partial class PuppeteerBrowserAutomationService : IBrowserAutomati
     private IBrowser? _browser;
     private bool _initialized;
     private bool _initializing;
-    private readonly SemaphoreSlim _initLock = new(1, 1);
+    private readonly AsyncLock _initLock = new();
 
     public PuppeteerBrowserAutomationService(ILogger<PuppeteerBrowserAutomationService> logger)
     {
@@ -108,45 +108,40 @@ public sealed partial class PuppeteerBrowserAutomationService : IBrowserAutomati
     {
         if (_initialized) return;
 
-        await _initLock.WaitAsync().ConfigureAwait(false);
+        using var guard = await _initLock.LockAsync().ConfigureAwait(false);
+
+        if (_initialized || _initializing) return;
+        _initializing = true;
+
         try
         {
-            if (_initialized || _initializing) return;
-            _initializing = true;
-
-            try
+            var browserFetcher = new BrowserFetcher();
+            var installed = await browserFetcher.DownloadAsync().ConfigureAwait(false);
+            if (installed is null)
             {
-                var browserFetcher = new BrowserFetcher();
-                var installed = await browserFetcher.DownloadAsync().ConfigureAwait(false);
-                if (installed is null)
-                {
-                    _logger.LogWarning("Failed to download Chromium browser");
-                    return;
-                }
+                _logger.LogWarning("Failed to download Chromium browser");
+                return;
+            }
 
-                _browser = await Puppeteer.LaunchAsync(new LaunchOptions
-                {
-                    Headless = true,
-                    Args = ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
-                }).ConfigureAwait(false);
+            _browser = await Puppeteer.LaunchAsync(new LaunchOptions
+            {
+                Headless = true,
+                Args = ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
+            }).ConfigureAwait(false);
 
-                _logger.LogInformation("PuppeteerSharp browser initialized successfully");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to initialize PuppeteerSharp browser");
-                _browser = null;
-            }
-            finally
-            {
-                _initialized = true;
-                _initializing = false;
-            }
+            _logger.LogInformation("PuppeteerSharp browser initialized successfully");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to initialize PuppeteerSharp browser");
+            _browser = null;
         }
         finally
         {
-            _initLock.Release();
+            _initialized = true;
+            _initializing = false;
         }
+    
     }
 
     public async ValueTask DisposeAsync()

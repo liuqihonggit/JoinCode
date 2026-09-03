@@ -9,7 +9,7 @@ public sealed partial class WebSocketTransport : TransportBase, IMcpTransport
     private readonly McpServerConnectionConfig _config;
     private readonly IMcpAuthProvider? _authProvider;
     private readonly ILogger<WebSocketTransport>? _logger;
-    private readonly SemaphoreSlim _receiveLock = new(1, 1);
+    private readonly AsyncLock _receiveLock = new();
     private System.Net.WebSockets.ClientWebSocket? _ws;
 
     /// <summary>IMcpTransport: 收到 JSON-RPC 消息</summary>

@@ -13,7 +13,7 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
     private readonly IFileSystem _fileSystem;
     private readonly IForkSubAgentManager? _forkManager;
     private readonly ILogger<MagicDocsManager>? _logger;
-    private readonly SemaphoreSlim _semaphore = new(1, 1);
+    private readonly AsyncLock _semaphore = new();
     private readonly Dictionary<string, MagicDocEntry> _trackedDocs = new(StringComparer.OrdinalIgnoreCase);
     private IDisposable? _fileReadSubscription;
     // P1-8: 信号量等待超时 — 防止持有方异常未释放导致永久阻塞
@@ -50,24 +50,18 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
         if (detection is null) return;
 
         // P1-8: 添加超时，防止永久阻塞
-        if (!_semaphore.Wait(SemaphoreWaitTimeout))
+        using var guard = _semaphore.TryLock(SemaphoreWaitTimeout);
+        if (guard is null)
         {
             _logger?.LogWarning("MagicDocsManager.OnFileRead 信号量等待超时，跳过注册: {FilePath}", e.FilePath);
             return;
         }
-        try
+        _trackedDocs[e.FilePath] = new MagicDocEntry
         {
-            _trackedDocs[e.FilePath] = new MagicDocEntry
-            {
-                FilePath = e.FilePath,
-                Title = detection.Title,
-                CustomInstructions = detection.CustomInstructions
-            };
-        }
-        finally
-        {
-            _semaphore.Release();
-        }
+            FilePath = e.FilePath,
+            Title = detection.Title,
+            CustomInstructions = detection.CustomInstructions
+        };
 
         _logger?.LogDebug("Magic Doc 已注册: {FilePath} (标题: {Title})", e.FilePath, detection.Title);
     }
@@ -80,16 +74,11 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
         if (context.QuerySource != "repl_main_thread") return;
 
         List<MagicDocEntry> docsToUpdate;
-        await _semaphore.WaitAsync(context.CancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (_trackedDocs.Count == 0) return;
-            docsToUpdate = [.. _trackedDocs.Values];
-        }
-        finally
-        {
-            _semaphore.Release();
-        }
+        using var guard = await _semaphore.LockAsync(context.CancellationToken).ConfigureAwait(false);
+
+        if (_trackedDocs.Count == 0) return;
+        docsToUpdate = [.. _trackedDocs.Values];
+    
 
         foreach (var doc in docsToUpdate)
         {
@@ -108,7 +97,7 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
     {
         if (!_fileSystem.FileExists(doc.FilePath))
         {
-            await RemoveTrackedDocAsync(doc.FilePath).ConfigureAwait(false);
+            RemoveTrackedDocCore(doc.FilePath);
             return;
         }
 
@@ -116,7 +105,7 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
         var detection = MagicDocDetector.Detect(content);
         if (detection is null)
         {
-            await RemoveTrackedDocAsync(doc.FilePath).ConfigureAwait(false);
+            RemoveTrackedDocCore(doc.FilePath);
             return;
         }
 
@@ -144,17 +133,18 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
         }
     }
 
+    /// <summary>
+    /// 移除追踪文档（调用方须已持有 _semaphore）
+    /// </summary>
+    private void RemoveTrackedDocCore(string filePath)
+    {
+        _trackedDocs.Remove(filePath);
+    }
+
     private async Task RemoveTrackedDocAsync(string filePath)
     {
-        await _semaphore.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            _trackedDocs.Remove(filePath);
-        }
-        finally
-        {
-            _semaphore.Release();
-        }
+        using var guard = await _semaphore.LockAsync().ConfigureAwait(false);
+        RemoveTrackedDocCore(filePath);
     }
 
     /// <summary>
@@ -165,13 +155,13 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
         get
         {
             // P1-8: 添加超时，防止永久阻塞；超时返回当前未加锁计数（best-effort）
-            if (!_semaphore.Wait(SemaphoreWaitTimeout))
+            using var guard = _semaphore.TryLock(SemaphoreWaitTimeout);
+            if (guard is null)
             {
                 _logger?.LogWarning("MagicDocsManager.TrackedCount 信号量等待超时，返回未加锁计数");
                 return _trackedDocs.Count;
             }
-            try { return _trackedDocs.Count; }
-            finally { _semaphore.Release(); }
+            return _trackedDocs.Count;
         }
     }
 
@@ -181,13 +171,13 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
     public void Clear()
     {
         // P1-8: 添加超时，防止永久阻塞
-        if (!_semaphore.Wait(SemaphoreWaitTimeout))
+        using var guard = _semaphore.TryLock(SemaphoreWaitTimeout);
+        if (guard is null)
         {
             _logger?.LogWarning("MagicDocsManager.Clear 信号量等待超时，跳过清除");
             return;
         }
-        try { _trackedDocs.Clear(); }
-        finally { _semaphore.Release(); }
+        _trackedDocs.Clear();
     }
 
     protected override void OnDispose() => _semaphore.Dispose();

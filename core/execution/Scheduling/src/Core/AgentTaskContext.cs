@@ -5,7 +5,7 @@ public sealed class AgentTaskContext : IAgentTaskContext
 {
     private readonly ConcurrentDictionary<string, JsonElement> _metadata = new();
     private readonly Dictionary<int, StructuredTaskEntry> _structuredTasks = new();
-    private readonly SemaphoreSlim _structuredTasksSemaphore = new(1, 1);
+    private readonly AsyncLock _structuredTasksSemaphore = new();
 
     public required string TaskId { get; init; }
 
@@ -29,71 +29,51 @@ public sealed class AgentTaskContext : IAgentTaskContext
 
     public async Task<IReadOnlyList<StructuredTaskEntry>> GetStructuredTasksAsync(CancellationToken cancellationToken = default)
     {
-        await _structuredTasksSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            return _structuredTasks.Values.OrderBy(t => t.Order).ToList();
-        }
-        finally
-        {
-            _structuredTasksSemaphore.Release();
-        }
+        using var guard = await _structuredTasksSemaphore.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        return _structuredTasks.Values.OrderBy(t => t.Order).ToList();
+    
     }
 
     public async Task AddStructuredTaskAsync(StructuredTaskEntry task, CancellationToken cancellationToken = default)
     {
-        await _structuredTasksSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            _structuredTasks[task.Order] = task;
-        }
-        finally
-        {
-            _structuredTasksSemaphore.Release();
-        }
+        using var guard = await _structuredTasksSemaphore.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        _structuredTasks[task.Order] = task;
+    
     }
 
     public async Task UpdateStructuredTaskAsync(int order, string? result = null, string? status = null, CancellationToken cancellationToken = default)
     {
-        await _structuredTasksSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (!_structuredTasks.TryGetValue(order, out var existing)) return;
+        using var guard = await _structuredTasksSemaphore.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            _structuredTasks[order] = existing with
-            {
-                Result = result ?? existing.Result,
-                Status = status ?? existing.Status
-            };
-        }
-        finally
+        if (!_structuredTasks.TryGetValue(order, out var existing)) return;
+
+        _structuredTasks[order] = existing with
         {
-            _structuredTasksSemaphore.Release();
-        }
+            Result = result ?? existing.Result,
+            Status = status ?? existing.Status
+        };
+    
     }
 
     public async Task ExcludePossibilityAsync(int taskOrder, int possibilityIndex, string reason, CancellationToken cancellationToken = default)
     {
-        await _structuredTasksSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        using var guard = await _structuredTasksSemaphore.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        if (!_structuredTasks.TryGetValue(taskOrder, out var task)) return;
+
+        if (possibilityIndex < 0 || possibilityIndex >= task.Possibilities.Count) return;
+
+        var possibilities = task.Possibilities.ToList();
+        possibilities[possibilityIndex] = possibilities[possibilityIndex] with
         {
-            if (!_structuredTasks.TryGetValue(taskOrder, out var task)) return;
+            Excluded = true,
+            ExclusionReason = reason
+        };
 
-            if (possibilityIndex < 0 || possibilityIndex >= task.Possibilities.Count) return;
-
-            var possibilities = task.Possibilities.ToList();
-            possibilities[possibilityIndex] = possibilities[possibilityIndex] with
-            {
-                Excluded = true,
-                ExclusionReason = reason
-            };
-
-            _structuredTasks[taskOrder] = task with { Possibilities = possibilities };
-        }
-        finally
-        {
-            _structuredTasksSemaphore.Release();
-        }
+        _structuredTasks[taskOrder] = task with { Possibilities = possibilities };
+    
     }
 
     public CancellationToken CancellationToken { get; init; }
@@ -125,18 +105,12 @@ public sealed class AgentTaskContext : IAgentTaskContext
             subContext._metadata[key] = value;
         }
 
-        if (!_structuredTasksSemaphore.Wait(TimeSpan.FromSeconds(10)))
+        using var guard = _structuredTasksSemaphore.TryLock(TimeSpan.FromSeconds(10));
+        if (guard is null)
             throw new TimeoutException("[SCH001] CreateSubContext: 等待结构化任务信号量超时");
-        try
+        foreach (var task in _structuredTasks.Values.OrderBy(t => t.Order))
         {
-            foreach (var task in _structuredTasks.Values.OrderBy(t => t.Order))
-            {
-                subContext._structuredTasks[task.Order] = task;
-            }
-        }
-        finally
-        {
-            _structuredTasksSemaphore.Release();
+            subContext._structuredTasks[task.Order] = task;
         }
 
         return subContext;

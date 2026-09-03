@@ -6,7 +6,7 @@ public sealed partial class ChromeIntegrationService : ServiceEntity, IChromeInt
     private bool _isConnected;
     private bool _isDefaultEnabled;
     private bool _initialized;
-    private readonly SemaphoreSlim _initLock = new(1, 1);
+    private readonly AsyncLock _initLock = new();
     private readonly IProcessService _processService;
     private readonly ILogger<ChromeIntegrationService>? _logger;
     private readonly IConfigurationService? _configService;
@@ -49,18 +49,12 @@ public sealed partial class ChromeIntegrationService : ServiceEntity, IChromeInt
     private void EnsureInitialized()
     {
         if (_initialized) return;
-        if (!_initLock.Wait(0)) return;
-        try
-        {
-            if (_initialized) return;
-            try { _isDefaultEnabled = Task.Run(() => ReadDefaultEnabledAsync()).GetAwaiter().GetResult(); }
-            catch { _isDefaultEnabled = false; }
-            _initialized = true;
-        }
-        finally
-        {
-            _initLock.Release();
-        }
+        using var guard = _initLock.TryLock();
+        if (guard is null) return;
+        if (_initialized) return;
+        try { _isDefaultEnabled = Task.Run(() => ReadDefaultEnabledAsync()).GetAwaiter().GetResult(); }
+        catch { _isDefaultEnabled = false; }
+        _initialized = true;
     }
 
     public Task<bool> ConnectAsync(CancellationToken ct = default)

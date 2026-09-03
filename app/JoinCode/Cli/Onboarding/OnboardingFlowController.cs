@@ -17,7 +17,7 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
     ];
 
     private readonly OnboardingStatePersistence _persistence;
-    private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly AsyncLock _lock = new();
     private OnboardingStep _currentStep = OnboardingStep.Welcome;
     private int _currentStepIndex;
     private int _selectedIndex;
@@ -29,9 +29,9 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
     {
         get
         {
-            if (!_lock.Wait(0)) return Volatile.Read(ref _isOnboardingComplete);
-            try { return _isOnboardingComplete; }
-            finally { _lock.Release(); }
+            using var guard = _lock.TryLock();
+            if (guard is null) return Volatile.Read(ref _isOnboardingComplete);
+            return _isOnboardingComplete;
         }
     }
 
@@ -40,9 +40,9 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
     {
         get
         {
-            if (!_lock.Wait(0)) return BuildStateUnsafe();
-            try { return BuildState(); }
-            finally { _lock.Release(); }
+            using var guard = _lock.TryLock();
+            if (guard is null) return BuildStateUnsafe();
+            return BuildState();
         }
     }
 
@@ -64,17 +64,14 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
         OnboardingStep previous;
-        if (!_lock.Wait(0)) return Task.CompletedTask;
-        try
-        {
-            if (_isOnboardingComplete) return Task.CompletedTask;
-            previous = _currentStep;
-            _currentStep = OnboardingStep.Welcome;
-            _currentStepIndex = 0;
-            _selectedIndex = 0;
-            _apiKey = null;
-        }
-        finally { _lock.Release(); }
+        using var guard = _lock.TryLock();
+        if (guard is null) return Task.CompletedTask;
+        if (_isOnboardingComplete) return Task.CompletedTask;
+        previous = _currentStep;
+        _currentStep = OnboardingStep.Welcome;
+        _currentStepIndex = 0;
+        _selectedIndex = 0;
+        _apiKey = null;
 
         RaiseStateChanged(previous, OnboardingStep.Welcome);
         return Task.CompletedTask;
@@ -86,28 +83,25 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
         OnboardingStep previous;
         OnboardingStep next;
 
-        if (!_lock.Wait(0)) return Task.CompletedTask;
-        try
-        {
-            if (_isOnboardingComplete) return Task.CompletedTask;
-            previous = _currentStep;
+        using var guard = _lock.TryLock();
+        if (guard is null) return Task.CompletedTask;
+        if (_isOnboardingComplete) return Task.CompletedTask;
+        previous = _currentStep;
 
-            var currentIndex = Array.IndexOf(Steps, _currentStep);
-            if (currentIndex < 0 || currentIndex >= Steps.Length - 1)
-            {
-                if (_currentStep == OnboardingStep.Complete) return Task.CompletedTask;
-                next = OnboardingStep.Complete;
-                _currentStep = next;
-                _currentStepIndex = TotalStepCount;
-            }
-            else
-            {
-                _currentStepIndex = currentIndex + 1;
-                _currentStep = Steps[_currentStepIndex];
-                next = _currentStep;
-            }
+        var currentIndex = Array.IndexOf(Steps, _currentStep);
+        if (currentIndex < 0 || currentIndex >= Steps.Length - 1)
+        {
+            if (_currentStep == OnboardingStep.Complete) return Task.CompletedTask;
+            next = OnboardingStep.Complete;
+            _currentStep = next;
+            _currentStepIndex = TotalStepCount;
         }
-        finally { _lock.Release(); }
+        else
+        {
+            _currentStepIndex = currentIndex + 1;
+            _currentStep = Steps[_currentStepIndex];
+            next = _currentStep;
+        }
 
         RaiseStateChanged(previous, next);
         return Task.CompletedTask;
@@ -119,36 +113,33 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
         OnboardingStep previous;
         OnboardingStep next;
 
-        if (!_lock.Wait(0)) return Task.CompletedTask;
-        try
+        using var guard = _lock.TryLock();
+        if (guard is null) return Task.CompletedTask;
+        if (_isOnboardingComplete) return Task.CompletedTask;
+        previous = _currentStep;
+
+        if (_currentStep == OnboardingStep.Welcome) return Task.CompletedTask;
+
+        if (_currentStep == OnboardingStep.Complete)
         {
-            if (_isOnboardingComplete) return Task.CompletedTask;
-            previous = _currentStep;
-
-            if (_currentStep == OnboardingStep.Welcome) return Task.CompletedTask;
-
-            if (_currentStep == OnboardingStep.Complete)
+            _currentStep = OnboardingStep.TerminalSetup;
+            _currentStepIndex = TotalStepCount - 1;
+            next = _currentStep;
+        }
+        else
+        {
+            var currentIndex = Array.IndexOf(Steps, _currentStep);
+            if (currentIndex > 0)
             {
-                _currentStep = OnboardingStep.TerminalSetup;
-                _currentStepIndex = TotalStepCount - 1;
+                _currentStepIndex = currentIndex - 1;
+                _currentStep = Steps[_currentStepIndex];
                 next = _currentStep;
             }
             else
             {
-                var currentIndex = Array.IndexOf(Steps, _currentStep);
-                if (currentIndex > 0)
-                {
-                    _currentStepIndex = currentIndex - 1;
-                    _currentStep = Steps[_currentStepIndex];
-                    next = _currentStep;
-                }
-                else
-                {
-                    return Task.CompletedTask;
-                }
+                return Task.CompletedTask;
             }
         }
-        finally { _lock.Release(); }
 
         RaiseStateChanged(previous, next);
         return Task.CompletedTask;
@@ -159,18 +150,13 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
     {
         OnboardingStep previous;
 
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            previous = _currentStep;
-            _currentStep = OnboardingStep.Complete;
-            _currentStepIndex = TotalStepCount;
-            _isOnboardingComplete = true;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        previous = _currentStep;
+        _currentStep = OnboardingStep.Complete;
+        _currentStepIndex = TotalStepCount;
+        _isOnboardingComplete = true;
+    
 
         await _persistence.MarkCompleteAsync(cancellationToken).ConfigureAwait(false);
         RaiseStateChanged(previous, OnboardingStep.Complete);
@@ -181,18 +167,13 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
     {
         OnboardingStep previous;
 
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            previous = _currentStep;
-            _currentStep = OnboardingStep.Complete;
-            _currentStepIndex = TotalStepCount;
-            _isOnboardingComplete = true;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        previous = _currentStep;
+        _currentStep = OnboardingStep.Complete;
+        _currentStepIndex = TotalStepCount;
+        _isOnboardingComplete = true;
+    
 
         await _persistence.MarkCompleteAsync(cancellationToken).ConfigureAwait(false);
         RaiseStateChanged(previous, OnboardingStep.Complete);
@@ -206,9 +187,9 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
             throw new ArgumentException("API key cannot be null or whitespace.", nameof(apiKey));
         }
 
-        if (!_lock.Wait(0)) return Task.CompletedTask;
-        try { _apiKey = apiKey; }
-        finally { _lock.Release(); }
+        using var guard = _lock.TryLock();
+        if (guard is null) return Task.CompletedTask;
+        _apiKey = apiKey;
 
         return Task.CompletedTask;
     }
@@ -221,9 +202,9 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
             throw new ArgumentOutOfRangeException(nameof(optionIndex), "Option index cannot be negative.");
         }
 
-        if (!_lock.Wait(0)) return Task.CompletedTask;
-        try { _selectedIndex = optionIndex; }
-        finally { _lock.Release(); }
+        using var guard = _lock.TryLock();
+        if (guard is null) return Task.CompletedTask;
+        _selectedIndex = optionIndex;
 
         return Task.CompletedTask;
     }

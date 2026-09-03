@@ -12,7 +12,7 @@ public sealed partial class PersistentGoalRegistry : IGoalRegistry
     private readonly IServiceProvider _serviceProvider;
     private readonly IGoalStateStore? _stateStore = null;
     private readonly ILogger<PersistentGoalRegistry>? _logger;
-    private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly AsyncLock _lock = new();
     private string? _currentGoalId;
     private string? _sessionId;
 
@@ -44,16 +44,11 @@ public sealed partial class PersistentGoalRegistry : IGoalRegistry
             engine.SetSessionId(_sessionId);
         var state = await engine.StartAsync(objective, constraints, tokenBudget, cancellationToken: cancellationToken).ConfigureAwait(false);
 
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            _engines[state.GoalId] = engine;
-            _currentGoalId = state.GoalId;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        _engines[state.GoalId] = engine;
+        _currentGoalId = state.GoalId;
+    
 
         _logger?.LogInformation("[PersistentGoalRegistry] 启动目标: {GoalId}", state.GoalId);
         return state;
@@ -62,18 +57,13 @@ public sealed partial class PersistentGoalRegistry : IGoalRegistry
     /// <inheritdoc />
     public async Task<IReadOnlyList<GoalState>> ListActiveGoalsAsync(CancellationToken cancellationToken = default)
     {
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            return _engines.Values
-                .Where(e => e.CurrentState is not null)
-                .Select(e => e.CurrentState!)
-                .ToList();
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        return _engines.Values
+            .Where(e => e.CurrentState is not null)
+            .Select(e => e.CurrentState!)
+            .ToList();
+    
     }
 
     /// <inheritdoc />
@@ -99,23 +89,18 @@ public sealed partial class PersistentGoalRegistry : IGoalRegistry
             var activeGoals = await _stateStore.GetActiveGoalsAsync(_sessionId, cancellationToken).ConfigureAwait(false);
             if (activeGoals.Count == 0) return;
 
-            await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
+            using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+            foreach (var state in activeGoals)
             {
-                foreach (var state in activeGoals)
-                {
-                    if (_engines.ContainsKey(state.GoalId)) continue;
-                    var engine = CreateEngine();
-                    engine.SetSessionId(_sessionId);
-                    await engine.RehydrateAsync(cancellationToken, state.GoalId).ConfigureAwait(false);
-                    _engines[state.GoalId] = engine;
-                }
-                _currentGoalId ??= activeGoals[0].GoalId;
+                if (_engines.ContainsKey(state.GoalId)) continue;
+                var engine = CreateEngine();
+                engine.SetSessionId(_sessionId);
+                await engine.RehydrateAsync(cancellationToken, state.GoalId).ConfigureAwait(false);
+                _engines[state.GoalId] = engine;
             }
-            finally
-            {
-                _lock.Release();
-            }
+            _currentGoalId ??= activeGoals[0].GoalId;
+        
             _logger?.LogInformation("[PersistentGoalRegistry] 恢复 {Count} 个活跃目标", activeGoals.Count);
         }
         catch (Exception ex)
@@ -144,19 +129,14 @@ public sealed partial class PersistentGoalRegistry : IGoalRegistry
         if (CurrentEngine is not { } engine) return;
         await engine.ClearAsync(cancellationToken).ConfigureAwait(false);
 
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        if (_currentGoalId is not null)
         {
-            if (_currentGoalId is not null)
-            {
-                _engines.Remove(_currentGoalId);
-                _currentGoalId = _engines.Keys.FirstOrDefault();
-            }
+            _engines.Remove(_currentGoalId);
+            _currentGoalId = _engines.Keys.FirstOrDefault();
         }
-        finally
-        {
-            _lock.Release();
-        }
+    
     }
 
     private GoalEngine CreateEngine()

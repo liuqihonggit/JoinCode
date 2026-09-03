@@ -29,7 +29,7 @@ public sealed class SerialBatchEventUploader : IDisposable
     private readonly Func<IReadOnlyList<string>, Task> _sendFunc;
 
     private readonly List<string> _pending;
-    private readonly SemaphoreSlim _drainLock;
+    private readonly AsyncLock _drainLock = new();
     private readonly List<TaskCompletionSource> _flushResolvers;
     private readonly List<Action> _backpressureResolvers;
     private CancellationTokenSource? _sleepCts;
@@ -65,7 +65,7 @@ public sealed class SerialBatchEventUploader : IDisposable
         _sendFunc = SendViaHttpPostAsync;
 
         _pending = new List<string>();
-        _drainLock = new SemaphoreSlim(1, 1);
+
         _flushResolvers = [];
         _backpressureResolvers = [];
     }
@@ -161,16 +161,11 @@ public sealed class SerialBatchEventUploader : IDisposable
     /// </summary>
     private async Task DrainAsync()
     {
-        await _drainLock.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            if (_draining || _closed) return;
-            _draining = true;
-        }
-        finally
-        {
-            _drainLock.Release();
-        }
+        using var guard = await _drainLock.LockAsync().ConfigureAwait(false);
+
+        if (_draining || _closed) return;
+        _draining = true;
+    
 
         var failures = 0;
 

@@ -27,7 +27,7 @@ public sealed class LoopDiagnosticJournal : IDisposable
     private readonly Channel<IJournalCommand> _channel;
     private readonly Task _consumerTask;
     private readonly CancellationTokenSource _cts;
-    private readonly SemaphoreSlim _windowLock = new(1, 1);
+    private readonly AsyncLock _windowLock = new();
 
     private volatile int _windowCount;
 
@@ -151,17 +151,13 @@ public sealed class LoopDiagnosticJournal : IDisposable
                         break;
 
                     case JournalResetCommand:
-                        await _windowLock.WaitAsync(_cts.Token).ConfigureAwait(false);
-                        try
-                        {
-                            _traceWindow.Clear();
-                            _windowCount = 0;
-                        }
-                        finally
-                        {
-                            _windowLock.Release();
-                        }
+                    {
+                        using var guard = await _windowLock.LockAsync(_cts.Token).ConfigureAwait(false);
+
+                        _traceWindow.Clear();
+                        _windowCount = 0;
                         break;
+                    }
                 }
             }
         }
@@ -178,15 +174,10 @@ public sealed class LoopDiagnosticJournal : IDisposable
     private async Task ProcessAnomalyAsync(LoopAnomalyRecord anomaly)
     {
         List<string> traceChain;
-        await _windowLock.WaitAsync(_cts.Token).ConfigureAwait(false);
-        try
-        {
-            traceChain = _traceWindow.Select(e => e.TraceId).ToList();
-        }
-        finally
-        {
-            _windowLock.Release();
-        }
+        using var guard = await _windowLock.LockAsync(_cts.Token).ConfigureAwait(false);
+
+        traceChain = _traceWindow.Select(e => e.TraceId).ToList();
+    
 
         var fullAnomaly = anomaly with { TraceChain = traceChain };
 
@@ -207,25 +198,24 @@ public sealed class LoopDiagnosticJournal : IDisposable
             Data = fullAnomaly.ToDiagnosticData()
         };
 
-        await AddToWindowAsync(anomalyEntry).ConfigureAwait(false);
+        AddToWindowCore(anomalyEntry);
     }
 
     private async Task AddToWindowAsync(JournalEntry entry)
     {
-        await _windowLock.WaitAsync(_cts.Token).ConfigureAwait(false);
-        try
+        using var guard = await _windowLock.LockAsync(_cts.Token).ConfigureAwait(false);
+
+        AddToWindowCore(entry);
+    }
+
+    private void AddToWindowCore(JournalEntry entry)
+    {
+        _traceWindow.AddLast(entry);
+        while (_traceWindow.Count > _traceWindowCapacity)
         {
-            _traceWindow.AddLast(entry);
-            while (_traceWindow.Count > _traceWindowCapacity)
-            {
-                _traceWindow.RemoveFirst();
-            }
-            _windowCount = _traceWindow.Count;
+            _traceWindow.RemoveFirst();
         }
-        finally
-        {
-            _windowLock.Release();
-        }
+        _windowCount = _traceWindow.Count;
     }
 }
 

@@ -11,7 +11,7 @@ public sealed partial class ContextHierarchy : ServiceEntity, IContextHierarchy,
 {
     private readonly List<IContextLayer> _layers = new();
     private readonly Dictionary<ContextLayerType, IContextLayer> _layerDict = new();
-    private readonly SemaphoreSlim _lock;
+    private readonly AsyncLock _lock = new();
     private readonly ILogger<ContextHierarchy>? _logger;
     private readonly ContextHierarchyOptions _options;
 
@@ -27,7 +27,6 @@ public sealed partial class ContextHierarchy : ServiceEntity, IContextHierarchy,
         ILogger<ContextHierarchy>? logger = null)
     {
 
-        _lock = new SemaphoreSlim(1, 1);
         _options = options?.Value ?? new ContextHierarchyOptions();
         _logger = logger;
         TokenThreshold = _options.TokenThreshold;
@@ -50,103 +49,78 @@ public sealed partial class ContextHierarchy : ServiceEntity, IContextHierarchy,
     {
         ArgumentNullException.ThrowIfNull(layer);
 
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+
+        // 移除同类型的现有层级
+        if (_layerDict.Remove(layer.LayerType, out var existingLayer))
         {
-            // 移除同类型的现有层级
-            if (_layerDict.Remove(layer.LayerType, out var existingLayer))
-            {
-                _layers.Remove(existingLayer);
-            }
-
-            // 按层级类型排序插入（保持列表有序）
-            InsertSorted(layer);
-            _layerDict[layer.LayerType] = layer;
-
-            _logger?.LogDebug(
-                "[ContextHierarchy] 添加层级 {LayerType}, Token数: {TokenCount}",
-                layer.LayerType,
-                layer.TokenCount);
-
-            // 检查是否需要自动压缩
-            if (_options.AutoCompressionEnabled)
-            {
-                await CheckAndTriggerAutoCompressionAsync(ct).ConfigureAwait(false);
-            }
+            _layers.Remove(existingLayer);
         }
-        finally
+
+        // 按层级类型排序插入（保持列表有序）
+        InsertSorted(layer);
+        _layerDict[layer.LayerType] = layer;
+
+        _logger?.LogDebug(
+            "[ContextHierarchy] 添加层级 {LayerType}, Token数: {TokenCount}",
+            layer.LayerType,
+            layer.TokenCount);
+
+        // 检查是否需要自动压缩
+        if (_options.AutoCompressionEnabled)
         {
-            _lock.Release();
+            await CheckAndTriggerAutoCompressionAsync(ct).ConfigureAwait(false);
         }
+    
     }
 
     /// <inheritdoc />
     public async Task<bool> RemoveLayerAsync(ContextLayerType layerType, CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            if (!_layerDict.Remove(layerType, out var layer))
-            {
-                _logger?.LogWarning(
-                    "[ContextHierarchy] 尝试移除不存在的层级: {LayerType}",
-                    layerType);
-                return false;
-            }
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
 
-            _layers.Remove(layer);
-            _logger?.LogDebug(
-                "[ContextHierarchy] 移除层级 {LayerType}",
-                layerType);
-            return true;
-        }
-        finally
+        if (!_layerDict.Remove(layerType, out var layer))
         {
-            _lock.Release();
+            _logger?.LogWarning(
+                "[ContextHierarchy] 尝试移除不存在的层级: {LayerType}",
+                layerType);
+            return false;
         }
+
+        _layers.Remove(layer);
+        _logger?.LogDebug(
+            "[ContextHierarchy] 移除层级 {LayerType}",
+            layerType);
+        return true;
+    
     }
 
     /// <inheritdoc />
     public async Task<IContextLayer?> GetLayerAsync(ContextLayerType layerType, CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            _layerDict.TryGetValue(layerType, out var layer);
-            return layer;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+
+        _layerDict.TryGetValue(layerType, out var layer);
+        return layer;
+    
     }
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<IContextLayer>> GetLayersAsync(CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            return _layers;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+
+        return _layers;
+    
     }
 
     /// <inheritdoc />
     public async Task<IContextLayer?> GetCurrentLayerAsync(CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            return _layers.Count > 0 ? _layers[_layers.Count - 1] : null;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+
+        return _layers.Count > 0 ? _layers[_layers.Count - 1] : null;
+    
     }
 
     /// <inheritdoc />
@@ -157,146 +131,126 @@ public sealed partial class ContextHierarchy : ServiceEntity, IContextHierarchy,
     {
         ArgumentNullException.ThrowIfNull(compressionFunc);
 
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+
+        var current = _layers.Count > 0 ? _layers[_layers.Count - 1] : null;
+        if (current == null)
         {
-            var current = _layers.Count > 0 ? _layers[_layers.Count - 1] : null;
-            if (current == null)
-            {
-                throw new InvalidOperationException("[BRN002] 没有可用的当前层级进行提升");
-            }
-
-            if (current.LayerType >= targetLayer)
-            {
-                throw new InvalidOperationException(
-                    $"无法提升到相同或更低层级: 当前 {current.LayerType}, 目标 {targetLayer}");
-            }
-
-            // 执行压缩
-            var compressedContent = compressionFunc(current.Content, targetLayer);
-
-            var promotedLayer = new ContextLayer(
-                targetLayer,
-                compressedContent,
-                $"Promoted_{targetLayer}_{Guid.NewGuid():N}");
-
-            // 移除原始层级并添加压缩后的层级
-            _layers.Remove(current);
-            _layerDict.Remove(current.LayerType);
-
-            InsertSorted(promotedLayer);
-            _layerDict[targetLayer] = promotedLayer;
-
-            _logger?.LogInformation(
-                "[ContextHierarchy] 层级提升: {SourceLayer} -> {TargetLayer}, " +
-                "Token: {SourceTokens} -> {TargetTokens}",
-                current.LayerType,
-                targetLayer,
-                current.TokenCount,
-                promotedLayer.TokenCount);
-
-            return promotedLayer;
+            throw new InvalidOperationException("[BRN002] 没有可用的当前层级进行提升");
         }
-        finally
+
+        if (current.LayerType >= targetLayer)
         {
-            _lock.Release();
+            throw new InvalidOperationException(
+                $"无法提升到相同或更低层级: 当前 {current.LayerType}, 目标 {targetLayer}");
         }
+
+        // 执行压缩
+        var compressedContent = compressionFunc(current.Content, targetLayer);
+
+        var promotedLayer = new ContextLayer(
+            targetLayer,
+            compressedContent,
+            $"Promoted_{targetLayer}_{Guid.NewGuid():N}");
+
+        // 移除原始层级并添加压缩后的层级
+        _layers.Remove(current);
+        _layerDict.Remove(current.LayerType);
+
+        InsertSorted(promotedLayer);
+        _layerDict[targetLayer] = promotedLayer;
+
+        _logger?.LogInformation(
+            "[ContextHierarchy] 层级提升: {SourceLayer} -> {TargetLayer}, " +
+            "Token: {SourceTokens} -> {TargetTokens}",
+            current.LayerType,
+            targetLayer,
+            current.TokenCount,
+            promotedLayer.TokenCount);
+
+        return promotedLayer;
+    
     }
 
     /// <inheritdoc />
     public async Task<bool> DemoteToLayerAsync(ContextLayerType sourceLayer, CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+
+        if (!_layerDict.TryGetValue(sourceLayer, out var layer))
         {
-            if (!_layerDict.TryGetValue(sourceLayer, out var layer))
-            {
-                _logger?.LogWarning(
-                    "[ContextHierarchy] 尝试恢复不存在的层级: {LayerType}",
-                    sourceLayer);
-                return false;
-            }
-
-            // 尝试解压
-            if (!layer.IsCompressed)
-            {
-                _logger?.LogWarning(
-                    "[ContextHierarchy] 层级 {LayerType} 未压缩，无需恢复",
-                    sourceLayer);
-                return false;
-            }
-
-            layer.Decompress();
-
-            _logger?.LogInformation(
-                "[ContextHierarchy] 层级恢复: {SourceLayer} -> Detailed",
+            _logger?.LogWarning(
+                "[ContextHierarchy] 尝试恢复不存在的层级: {LayerType}",
                 sourceLayer);
+            return false;
+        }
 
-            return true;
-        }
-        finally
+        // 尝试解压
+        if (!layer.IsCompressed)
         {
-            _lock.Release();
+            _logger?.LogWarning(
+                "[ContextHierarchy] 层级 {LayerType} 未压缩，无需恢复",
+                sourceLayer);
+            return false;
         }
+
+        layer.Decompress();
+
+        _logger?.LogInformation(
+            "[ContextHierarchy] 层级恢复: {SourceLayer} -> Detailed",
+            sourceLayer);
+
+        return true;
+    
     }
 
     /// <inheritdoc />
     public async Task<string> GetEffectiveContextAsync(CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+
+        if (_layers.Count == 0)
         {
-            if (_layers.Count == 0)
+            return string.Empty;
+        }
+
+        // 列表已按层级类型排序（低到高），所以从后往前遍历（高到低）
+        var sb = new StringBuilder();
+        bool first = true;
+
+        for (int i = _layers.Count - 1; i >= 0; i--)
+        {
+            var layer = _layers[i];
+            if (string.IsNullOrWhiteSpace(layer.Content))
             {
-                return string.Empty;
+                continue;
             }
 
-            // 列表已按层级类型排序（低到高），所以从后往前遍历（高到低）
-            var sb = new StringBuilder();
-            bool first = true;
-
-            for (int i = _layers.Count - 1; i >= 0; i--)
+            if (!first)
             {
-                var layer = _layers[i];
-                if (string.IsNullOrWhiteSpace(layer.Content))
-                {
-                    continue;
-                }
-
-                if (!first)
-                {
-                    sb.Append("\n\n");
-                }
-                first = false;
-
-                sb.Append('[').Append(layer.LayerType).Append("] ").Append(layer.Content);
+                sb.Append("\n\n");
             }
+            first = false;
 
-            return sb.ToString();
+            sb.Append('[').Append(layer.LayerType).Append("] ").Append(layer.Content);
         }
-        finally
-        {
-            _lock.Release();
-        }
+
+        return sb.ToString();
+    
     }
 
     /// <inheritdoc />
     public async Task<int> GetTotalTokenCountAsync(CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+
+        var total = 0;
+        for (int i = 0; i < _layers.Count; i++)
         {
-            var total = 0;
-            for (int i = 0; i < _layers.Count; i++)
-            {
-                total += _layers[i].TokenCount;
-            }
-            return total;
+            total += _layers[i].TokenCount;
         }
-        finally
-        {
-            _lock.Release();
-        }
+        return total;
+    
     }
 
     /// <summary>

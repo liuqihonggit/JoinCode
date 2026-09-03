@@ -6,7 +6,7 @@ public sealed partial class McpOAuthService : ServiceEntity
     private readonly McpOAuthOptions _options;
     private readonly McpPkceAuthProvider _authProvider;
     private readonly ILogger<McpOAuthService>? _logger;
-    private readonly SemaphoreSlim _stateLock = new(1, 1);
+    private readonly AsyncLock _stateLock = new();
     private HttpListener? _callbackListener;
 
     public McpOAuthService(

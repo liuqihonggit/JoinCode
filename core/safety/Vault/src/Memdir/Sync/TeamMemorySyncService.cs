@@ -17,7 +17,7 @@ public sealed partial class TeamMemorySyncService : ServiceEntity, ITeamMemorySy
     private readonly TeamMemorySyncOptions _options;
     private readonly IFileOperationService _fileOperationService;
     private readonly IFileSystem _fs;
-    private readonly SemaphoreSlim _syncLock = new(1, 1);
+    private readonly AsyncLock _syncLock = new();
     private readonly ConcurrentQueue<MemorySyncEvent> _syncHistory = new();
     private readonly ConcurrentDictionary<string, SyncFileEntry> _localEntries = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, SyncFileEntry> _remoteEntries = new(StringComparer.OrdinalIgnoreCase);
@@ -186,21 +186,14 @@ public sealed partial class TeamMemorySyncService : ServiceEntity, ITeamMemorySy
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        await _syncLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        using var guard = await _syncLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        if (filePath != null)
         {
-            if (filePath != null)
-            {
-                await SyncSingleFileAsync(filePath, cancellationToken).ConfigureAwait(false);
-            }
-            else
-            {
-                await SyncAllFilesAsync(cancellationToken).ConfigureAwait(false);
-            }
+            await SyncSingleFileAsync(filePath, cancellationToken).ConfigureAwait(false);
         }
-        finally
+        else
         {
-            _syncLock.Release();
+            await SyncAllFilesAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -217,45 +210,38 @@ public sealed partial class TeamMemorySyncService : ServiceEntity, ITeamMemorySy
     {
         ArgumentException.ThrowIfNullOrEmpty(filePath);
 
-        await _syncLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        using var guard = await _syncLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        var localEntry = _localEntries.TryGetValue(filePath, out var l) ? l : null;
+        var remoteEntry = _remoteEntries.TryGetValue(filePath, out var r) ? r : null;
+
+        if (localEntry == null || remoteEntry == null)
         {
-            var localEntry = _localEntries.TryGetValue(filePath, out var l) ? l : null;
-            var remoteEntry = _remoteEntries.TryGetValue(filePath, out var r) ? r : null;
-
-            if (localEntry == null || remoteEntry == null)
-            {
-                _logger?.LogWarning(L.T(StringKey.VaultLogConflictMissingEntry), filePath);
-                return resolution;
-            }
-
-            var resolved = resolution switch
-            {
-                SyncConflictResolution.KeepLocal => await ApplyLocalToRemoteAsync(filePath, cancellationToken).ConfigureAwait(false),
-                SyncConflictResolution.KeepRemote => await ApplyRemoteToLocalAsync(filePath, cancellationToken).ConfigureAwait(false),
-                SyncConflictResolution.KeepNewest => await ApplyNewestAsync(filePath, localEntry, remoteEntry, cancellationToken).ConfigureAwait(false),
-                SyncConflictResolution.Merge => await ApplyMergeAsync(filePath, cancellationToken).ConfigureAwait(false),
-                _ => false
-            };
-
-            var syncEvent = new MemorySyncEvent
-            {
-                EventId = Guid.NewGuid().ToString("N")[..8],
-                FilePath = filePath,
-                Type = resolved ? SyncEventType.ConflictResolved : SyncEventType.Error,
-                Timestamp = _clock.GetUtcNow(),
-                ConflictResolution = resolution,
-                ErrorMessage = resolved ? null : L.T(StringKey.VaultConflictResolutionFailed)
-            };
-
-            EnqueueEvent(syncEvent);
-
+            _logger?.LogWarning(L.T(StringKey.VaultLogConflictMissingEntry), filePath);
             return resolution;
         }
-        finally
+
+        var resolved = resolution switch
         {
-            _syncLock.Release();
-        }
+            SyncConflictResolution.KeepLocal => await ApplyLocalToRemoteAsync(filePath, cancellationToken).ConfigureAwait(false),
+            SyncConflictResolution.KeepRemote => await ApplyRemoteToLocalAsync(filePath, cancellationToken).ConfigureAwait(false),
+            SyncConflictResolution.KeepNewest => await ApplyNewestAsync(filePath, localEntry, remoteEntry, cancellationToken).ConfigureAwait(false),
+            SyncConflictResolution.Merge => await ApplyMergeAsync(filePath, cancellationToken).ConfigureAwait(false),
+            _ => false
+        };
+
+        var syncEvent = new MemorySyncEvent
+        {
+            EventId = Guid.NewGuid().ToString("N")[..8],
+            FilePath = filePath,
+            Type = resolved ? SyncEventType.ConflictResolved : SyncEventType.Error,
+            Timestamp = _clock.GetUtcNow(),
+            ConflictResolution = resolution,
+            ErrorMessage = resolved ? null : L.T(StringKey.VaultConflictResolutionFailed)
+        };
+
+        EnqueueEvent(syncEvent);
+
+        return resolution;
     }
 
     private void OnSyncTimerTick(object? state)

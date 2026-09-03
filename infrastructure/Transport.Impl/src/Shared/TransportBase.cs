@@ -11,7 +11,7 @@ public abstract class TransportBase : ITransport
 {
     private CancellationTokenSource? _cts;
     private Task? _backgroundTask;
-    private readonly SemaphoreSlim _sendLock = new(1, 1);
+    private readonly AsyncLock _sendLock = new();
     private int _disposed;
 
     /// <inheritdoc/>
@@ -73,15 +73,10 @@ public abstract class TransportBase : ITransport
     /// <inheritdoc/>
     public async Task SendAsync(ReadOnlyMemory<byte> payload, CancellationToken ct = default)
     {
-        await _sendLock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            await SendCoreAsync(payload, ct).ConfigureAwait(false);
-        }
-        finally
-        {
-            _sendLock.Release();
-        }
+        using var guard = await _sendLock.LockAsync(ct).ConfigureAwait(false);
+
+        await SendCoreAsync(payload, ct).ConfigureAwait(false);
+    
     }
 
     /// <summary>通用断开流程：取消 CTS → 等待后台任务 → 释放资源 → 触发事件</summary>

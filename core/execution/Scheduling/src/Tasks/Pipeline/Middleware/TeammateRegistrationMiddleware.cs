@@ -51,15 +51,8 @@ public sealed partial class TeammateRegistrationMiddleware : ServiceEntity, ITea
 
         if (ctx.TeammateLock is not null)
         {
-            await ctx.TeammateLock.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                ctx.ActiveTeammates[definition.TeammateId] = state;
-            }
-            finally
-            {
-                ctx.TeammateLock.Release();
-            }
+            using var guard = await ctx.TeammateLock.LockAsync(ct).ConfigureAwait(false);
+            ctx.ActiveTeammates[definition.TeammateId] = state;
         }
 
         ctx.PendingMessages[definition.TeammateId] = Channel.CreateUnbounded<CoordinatorMessage>();

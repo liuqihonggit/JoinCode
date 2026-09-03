@@ -15,7 +15,7 @@ public sealed class DoctorTcpServer : IDoctorTransport
     private readonly int _port;
     private TcpListener? _listener;
     private readonly Dictionary<string, DoctorTcpPatient> _patients = new();
-    private readonly SemaphoreSlim _patientsLock = new(1, 1);
+    private readonly AsyncLock _patientsLock = new();
     private readonly Channel<DiagnosticEvent> _eventChannel;
     private readonly ILogger<DoctorTcpServer>? _logger;
     private CancellationTokenSource? _listenCts;
@@ -30,9 +30,8 @@ public sealed class DoctorTcpServer : IDoctorTransport
     {
         get
         {
-            _patientsLock.Wait();
-            try { return _patients.Keys.ToList(); }
-            finally { _patientsLock.Release(); }
+            using var guard = _patientsLock.Lock();
+            return _patients.Keys.ToList();
         }
     }
 
@@ -93,9 +92,8 @@ public sealed class DoctorTcpServer : IDoctorTransport
     public async Task SendCommandAsync(string patientId, string command, CancellationToken cancellationToken = default)
     {
         DoctorTcpPatient? patient;
-        await _patientsLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try { _patients.TryGetValue(patientId, out patient); }
-        finally { _patientsLock.Release(); }
+        using var guard = await _patientsLock.LockAsync(cancellationToken).ConfigureAwait(false);
+ _patients.TryGetValue(patientId, out patient); 
 
         if (patient is null)
         {
@@ -113,9 +111,8 @@ public sealed class DoctorTcpServer : IDoctorTransport
     public async Task BroadcastCommandAsync(string command, CancellationToken cancellationToken = default)
     {
         List<DoctorTcpPatient> patients;
-        await _patientsLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try { patients = _patients.Values.ToList(); }
-        finally { _patientsLock.Release(); }
+        using var guard = await _patientsLock.LockAsync(cancellationToken).ConfigureAwait(false);
+ patients = _patients.Values.ToList(); 
 
         var sseData = $"event: command\ndata: {EscapeSseData(command)}\n\n";
         var bytes = Encoding.UTF8.GetBytes(sseData);
@@ -210,10 +207,7 @@ public sealed class DoctorTcpServer : IDoctorTransport
         await stream.FlushAsync(ct).ConfigureAwait(false);
 
         var patient = new DoctorTcpPatient(patientId, stream, _logger);
-
-        await _patientsLock.WaitAsync(ct).ConfigureAwait(false);
-        try { _patients[patientId] = patient; }
-        finally { _patientsLock.Release(); }
+        AddPatient(patientId, patient);
 
         var endpointMsg = $"event: endpoint\ndata: /events?patientId={patientId}\n\n";
         await patient.SendAsync(Encoding.UTF8.GetBytes(endpointMsg), ct).ConfigureAwait(false);
@@ -231,18 +225,29 @@ public sealed class DoctorTcpServer : IDoctorTransport
         catch (OperationCanceledException) { }
         finally
         {
-            try
-            {
-                using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                await _patientsLock.WaitAsync(timeoutCts.Token).ConfigureAwait(false);
-                try { _patients.Remove(patientId); }
-                finally { _patientsLock.Release(); }
-            }
-            catch (OperationCanceledException) { }
-
+            RemovePatient(patientId);
             DoctorDiag.Write($"[DoctorTCP] 病人 {patientId} SSE 连接断开");
             PatientDisconnected?.Invoke(this, patientId);
         }
+    }
+
+    /// <summary>添加病人到连接表</summary>
+    private void AddPatient(string patientId, DoctorTcpPatient patient)
+    {
+        using var guard = _patientsLock.Lock();
+ _patients[patientId] = patient; 
+    }
+
+    /// <summary>从连接表移除病人（5秒超时）</summary>
+    private void RemovePatient(string patientId)
+    {
+        try
+        {
+            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var guard = _patientsLock.Lock(timeoutCts.Token);
+ _patients.Remove(patientId); 
+        }
+        catch (OperationCanceledException) { }
     }
 
     private async Task HandleEventsPostAsync(NetworkStream stream, string body, string patientId, CancellationToken ct)
@@ -439,20 +444,23 @@ public sealed class DoctorTcpServer : IDoctorTransport
             try { _listenTask.GetAwaiter().GetResult(); } catch (Exception ex) { _logger?.LogWarning(ex, "[DoctorTCP] 等待监听任务完成失败"); }
         }
 
-        await _patientsLock.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            var patients = _patients.Values.ToList();
-            _patients.Clear();
-            await Task.WhenAll(patients.Select(p => p.DisposeAsync().AsTask())).ConfigureAwait(false);
-        }
-        finally { _patientsLock.Release(); }
+        await CleanupPatientsAsync().ConfigureAwait(false);
 
         try { _listener?.Stop(); } catch (Exception ex) { _logger?.LogWarning(ex, "[DoctorTCP] TcpListener.Stop 失败"); }
         _listener = null;
 
         _eventChannel.Writer.TryComplete();
         _patientsLock.Dispose();
+    }
+
+    /// <summary>清理所有病人连接（在锁保护下执行）</summary>
+    private async Task CleanupPatientsAsync()
+    {
+        using var guard = await _patientsLock.LockAsync().ConfigureAwait(false);
+
+        var patients = _patients.Values.ToList();
+        _patients.Clear();
+        await Task.WhenAll(patients.Select(p => p.DisposeAsync().AsTask())).ConfigureAwait(false);
     }
 }
 
@@ -461,7 +469,7 @@ public sealed class DoctorTcpServer : IDoctorTransport
 /// </summary>
 internal sealed class DoctorTcpPatient : IAsyncDisposable
 {
-    private readonly SemaphoreSlim _writeLock = new(1, 1);
+    private readonly AsyncLock _writeLock = new();
     private readonly ILogger? _logger;
     private bool _disposed;
 
@@ -479,13 +487,11 @@ internal sealed class DoctorTcpPatient : IAsyncDisposable
     {
         if (_disposed) throw new ObjectDisposedException(nameof(DoctorTcpPatient));
 
-        await _writeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            await Stream.WriteAsync(data, cancellationToken).ConfigureAwait(false);
-            await Stream.FlushAsync(cancellationToken).ConfigureAwait(false);
-        }
-        finally { _writeLock.Release(); }
+        using var guard = await _writeLock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        await Stream.WriteAsync(data, cancellationToken).ConfigureAwait(false);
+        await Stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+    
     }
 
     public async ValueTask DisposeAsync()

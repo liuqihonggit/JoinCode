@@ -5,7 +5,7 @@ namespace Core.Context.Collapse;
 public sealed partial class ContextCollapseService : ServiceEntity, IContextCollapseService
 {
     private readonly ILogger<ContextCollapseService>? _logger;
-    private readonly SemaphoreSlim _collapseLock = new(1, 1);
+    private readonly AsyncLock _collapseLock = new();
 
     public ContextCollapseService(ILogger<ContextCollapseService>? logger = null)
     {
@@ -20,7 +20,7 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
         ArgumentException.ThrowIfNullOrEmpty(content);
         options ??= ContextCollapseOptions.Balanced;
 
-        await _collapseLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _collapseLock.LockAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             var segments = await IdentifyCollapsibleSegmentsAsync(content, options, cancellationToken).ConfigureAwait(false);
@@ -121,10 +121,7 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
                 ErrorMessage = ex.Message
             };
         }
-        finally
-        {
-            _collapseLock.Release();
-        }
+
     }
 
     public async Task<IReadOnlyList<CollapsibleSegment>> IdentifyCollapsibleSegmentsAsync(

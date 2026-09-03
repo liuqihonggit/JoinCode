@@ -12,7 +12,7 @@ public sealed class DiagnosticLogWatcher : IAsyncDisposable
     private readonly string _diagDirectory;
     private readonly TimeSpan _pollInterval;
     private readonly Dictionary<string, long> _filePositions = new(StringComparer.OrdinalIgnoreCase);
-    private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly AsyncLock _lock = new();
     private Timer? _pollTimer;
     private int _isStarted;
     private int _isDisposed;
@@ -208,8 +208,7 @@ public sealed class DiagnosticLogWatcher : IAsyncDisposable
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return;
         Stop();
-        await _lock.WaitAsync().ConfigureAwait(false);
-        try { _filePositions.Clear(); }
-        finally { _lock.Release(); }
+        using var guard = await _lock.LockAsync().ConfigureAwait(false);
+ _filePositions.Clear(); 
     }
 }

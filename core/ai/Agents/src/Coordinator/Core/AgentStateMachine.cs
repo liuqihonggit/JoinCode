@@ -45,45 +45,38 @@ public sealed partial class AgentStateMachine
             return false;
         }
 
-        await context.Lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+        using var guard = await context.Lock.LockAsync(ct).ConfigureAwait(false);
+        if (!context.StateMachine.TryTransitionTo(newState))
         {
-            if (!context.StateMachine.TryTransitionTo(newState))
-            {
-                _logger?.LogWarning("[AgentStateMachine] Agent {AgentId} 无法从 {CurrentState} 转换到 {NewState}",
-                    agentId, context.CurrentState, newState);
-                return false;
-            }
-
-            var oldState = context.LastTransitionFrom;
-            var now = _clock.GetUtcNow();
-            context.LastTransitionTime = now;
-            context.TransitionHistory.Add(new StateTransition(oldState, newState, now, reason));
-
-            // 更新特定状态的时间戳
-            switch (newState)
-            {
-                case TaskExecutionStatus.Running:
-                    context.StartedAt = now;
-                    break;
-                case TaskExecutionStatus.Completed:
-                case TaskExecutionStatus.Failed:
-                case TaskExecutionStatus.Cancelled:
-                    context.CompletedAt = now;
-                    break;
-            }
-
-            _logger?.LogInformation("[AgentStateMachine] Agent {AgentId} 状态转换: {OldState} -> {NewState}",
-                agentId, oldState, newState);
-
-            StateChanged?.Invoke(this, new AgentStateChangedEventArgs(agentId, oldState, newState));
-
-            return true;
+            _logger?.LogWarning("[AgentStateMachine] Agent {AgentId} 无法从 {CurrentState} 转换到 {NewState}",
+                agentId, context.CurrentState, newState);
+            return false;
         }
-        finally
+
+        var oldState = context.LastTransitionFrom;
+        var now = _clock.GetUtcNow();
+        context.LastTransitionTime = now;
+        context.TransitionHistory.Add(new StateTransition(oldState, newState, now, reason));
+
+        // 更新特定状态的时间戳
+        switch (newState)
         {
-            context.Lock.Release();
+            case TaskExecutionStatus.Running:
+                context.StartedAt = now;
+                break;
+            case TaskExecutionStatus.Completed:
+            case TaskExecutionStatus.Failed:
+            case TaskExecutionStatus.Cancelled:
+                context.CompletedAt = now;
+                break;
         }
+
+        _logger?.LogInformation("[AgentStateMachine] Agent {AgentId} 状态转换: {OldState} -> {NewState}",
+            agentId, oldState, newState);
+
+        StateChanged?.Invoke(this, new AgentStateChangedEventArgs(agentId, oldState, newState));
+
+        return true;
     }
 
     /// <summary>
@@ -229,7 +222,7 @@ public sealed class AgentStateContext : IAsyncDisposable
     public DateTime? CompletedAt { get; set; }
     public DateTime LastTransitionTime { get; set; }
     public List<StateTransition> TransitionHistory { get; }
-    public SemaphoreSlim Lock { get; }
+    public AsyncLock Lock { get; }
     internal TaskExecutionStatus LastTransitionFrom { get; private set; }
 
     internal StateMachine<TaskExecutionStatus> StateMachine => _stateMachine;
@@ -243,7 +236,7 @@ public sealed class AgentStateContext : IAsyncDisposable
         LastTransitionTime = createdAt;
         LastTransitionFrom = TaskExecutionStatus.Pending;
         TransitionHistory = new List<StateTransition>();
-        Lock = new SemaphoreSlim(1, 1);
+        Lock = new AsyncLock();
         _stateMachine = new StateMachine<TaskExecutionStatus>(
             AgentStateMachine.GetTransitions(), TaskExecutionStatus.Pending, clock);
         _stateMachine.StateChanged += OnStateChanged;

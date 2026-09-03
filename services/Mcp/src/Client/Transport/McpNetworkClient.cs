@@ -72,14 +72,14 @@ public abstract class McpNetworkClient<TTransport> : McpClientBase
         var tcs = new TaskCompletionSource<JsonRpcResponse>();
         int requestId = request.GetIdAsInt();
 
-        await _requestLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var guard = await _requestLock.LockAsync(cancellationToken);
         try
         {
             _pendingRequests[requestId] = tcs;
         }
         finally
         {
-            _requestLock.Release();
+            guard.Dispose();
         }
 
         try
@@ -92,14 +92,14 @@ public abstract class McpNetworkClient<TTransport> : McpClientBase
         }
         catch
         {
-            await _requestLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            var guard1 = await _requestLock.LockAsync(cancellationToken);
             try
             {
                 _pendingRequests.Remove(requestId);
             }
             finally
             {
-                _requestLock.Release();
+                guard1.Dispose();
             }
 
             throw;

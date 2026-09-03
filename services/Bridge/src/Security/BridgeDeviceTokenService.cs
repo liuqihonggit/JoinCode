@@ -13,7 +13,7 @@ public sealed class BridgeDeviceTokenService
     private readonly string _authFilePath;
     private readonly IFileSystem _fs;
     private string? _cachedToken;
-    private readonly SemaphoreSlim _semaphore = new(1, 1);
+    private readonly AsyncLock _semaphore = new();
 
     /// <summary>受信设备令牌环境变量名</summary>
     private static readonly string TrustedDeviceTokenEnvVar = JccEnvVar.TrustedDeviceToken.ToValue();
@@ -57,24 +57,19 @@ public sealed class BridgeDeviceTokenService
         // 3. 安全存储（auth.json 中的 device_token 字段）
         try
         {
-            await _semaphore.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                // 双重检查
-                if (_cachedToken is not null) return _cachedToken;
+            using var guard = await _semaphore.LockAsync(ct).ConfigureAwait(false);
 
-                var token = await ReadTokenFromStorageAsync(ct).ConfigureAwait(false);
-                if (token is not null)
-                {
-                    _cachedToken = token;
-                }
+            // 双重检查
+            if (_cachedToken is not null) return _cachedToken;
 
-                return _cachedToken;
-            }
-            finally
+            var token = await ReadTokenFromStorageAsync(ct).ConfigureAwait(false);
+            if (token is not null)
             {
-                _semaphore.Release();
+                _cachedToken = token;
             }
+
+            return _cachedToken;
+        
         }
         catch (Exception ex)
         {
@@ -101,16 +96,11 @@ public sealed class BridgeDeviceTokenService
 
         try
         {
-            await _semaphore.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                await DeleteTokenFromStorageAsync(ct).ConfigureAwait(false);
-                _logger?.LogInformation("[BridgeDeviceToken] 已清除设备令牌");
-            }
-            finally
-            {
-                _semaphore.Release();
-            }
+            using var guard = await _semaphore.LockAsync(ct).ConfigureAwait(false);
+
+            await DeleteTokenFromStorageAsync(ct).ConfigureAwait(false);
+            _logger?.LogInformation("[BridgeDeviceToken] 已清除设备令牌");
+        
         }
         catch (Exception ex)
         {
@@ -127,39 +117,34 @@ public sealed class BridgeDeviceTokenService
     {
         try
         {
-            await _semaphore.WaitAsync(ct).ConfigureAwait(false);
-            try
+            using var guard = await _semaphore.LockAsync(ct).ConfigureAwait(false);
+
+            var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/trusted_devices");
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+            // 对齐 TS 端: { display_name: "JoinCode on ${hostname()} · ${process.platform}" }
+            var displayName = $"JoinCode on {Environment.MachineName} · {Environment.OSVersion.Platform}";
+            request.Content = new StringContent(
+                $"{{\"display_name\":\"{EscapeJsonString(displayName)}\"}}",
+                System.Text.Encoding.UTF8,
+                "application/json");
+
+            var response = await _httpClient.SendAsync(request, ct).ConfigureAwait(false);
+            response.EnsureSuccessStatusCode();
+
+            var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+            var je = JsonDocument.Parse(body).RootElement;
+
+            if (je.TryGetProperty("device_token", out var tokenProp))
             {
-                var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/trusted_devices");
-                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
-                // 对齐 TS 端: { display_name: "JoinCode on ${hostname()} · ${process.platform}" }
-                var displayName = $"JoinCode on {Environment.MachineName} · {Environment.OSVersion.Platform}";
-                request.Content = new StringContent(
-                    $"{{\"display_name\":\"{EscapeJsonString(displayName)}\"}}",
-                    System.Text.Encoding.UTF8,
-                    "application/json");
-
-                var response = await _httpClient.SendAsync(request, ct).ConfigureAwait(false);
-                response.EnsureSuccessStatusCode();
-
-                var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-                var je = JsonDocument.Parse(body).RootElement;
-
-                if (je.TryGetProperty("device_token", out var tokenProp))
+                var token = tokenProp.GetString();
+                if (token is not null)
                 {
-                    var token = tokenProp.GetString();
-                    if (token is not null)
-                    {
-                        _cachedToken = token;
-                        await SaveTokenToStorageAsync(token, ct).ConfigureAwait(false);
-                        _logger?.LogInformation("[BridgeDeviceToken] 设备注册成功");
-                    }
+                    _cachedToken = token;
+                    await SaveTokenToStorageAsync(token, ct).ConfigureAwait(false);
+                    _logger?.LogInformation("[BridgeDeviceToken] 设备注册成功");
                 }
             }
-            finally
-            {
-                _semaphore.Release();
-            }
+        
         }
         catch (Exception ex)
         {

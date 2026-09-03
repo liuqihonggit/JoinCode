@@ -9,7 +9,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
 {
     private readonly ConcurrentDictionary<string, PlanState> _plans = new();
     private readonly List<PlanState> _planHistory = new();
-    private readonly SemaphoreSlim _historyLock;
+    private readonly AsyncLock _historyLock = new();
     private readonly ITelemetryService? _telemetryService;
     private readonly IToolPermissionManager? _permissionManager;
     private readonly ITeammateMailboxService? _mailboxService;
@@ -56,7 +56,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
-        _historyLock = new SemaphoreSlim(1, 1);
+
         _telemetryService = telemetryService;
         _permissionManager = permissionManager;
         _mailboxService = mailboxService;
@@ -264,15 +264,10 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         plan.LastUpdatedAt = _clock.GetUtcNow();
 
         // 添加到历史记录
-        await _historyLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            _planHistory.Add(plan);
-        }
-        finally
-        {
-            _historyLock.Release();
-        }
+        using var guard = await _historyLock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        _planHistory.Add(plan);
+    
 
         // 对齐 TS: 退出时不自动写文件 — plan 文件由模型通过 FileWriteTool 写入
         // TS ExitPlanModeV2Tool.call() 仅在用户通过 CCR 编辑了 plan 时才同步写入磁盘
@@ -637,16 +632,11 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         int limit = 10,
         CancellationToken cancellationToken = default)
     {
-        await _historyLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            var history = _planHistory.AsEnumerable().Reverse().Take(limit).ToList();
-            return history;
-        }
-        finally
-        {
-            _historyLock.Release();
-        }
+        using var guard = await _historyLock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        var history = _planHistory.AsEnumerable().Reverse().Take(limit).ToList();
+        return history;
+    
     }
 
     /// <inheritdoc />

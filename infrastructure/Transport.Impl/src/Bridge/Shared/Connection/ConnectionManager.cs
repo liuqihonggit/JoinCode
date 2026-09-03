@@ -10,7 +10,7 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
 {
     private readonly ILogger? _logger;
     private readonly TransportConfiguration _config;
-    private readonly SemaphoreSlim _stateLock;
+    private readonly AsyncLock _stateLock = new();
 
     private IBridgeTransport? _currentTransport;
     private TransportProtocol _currentProtocol;
@@ -26,34 +26,24 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
 
     public async ValueTask<TransportConnectionState> GetConnectionStateAsync(CancellationToken ct = default)
     {
-        await _stateLock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            return _connectionState;
-        }
-        finally
-        {
-            _stateLock.Release();
-        }
+        using var guard = await _stateLock.LockAsync(ct).ConfigureAwait(false);
+
+        return _connectionState;
+    
     }
 
     private async Task SetConnectionStateAsync(TransportConnectionState value, CancellationToken ct = default)
     {
-        await _stateLock.WaitAsync(ct).ConfigureAwait(false);
-        try
+        using var guard = await _stateLock.LockAsync(ct).ConfigureAwait(false);
+
+        var oldState = _connectionState;
+        _connectionState = value;
+        if (oldState != value)
         {
-            var oldState = _connectionState;
-            _connectionState = value;
-            if (oldState != value)
-            {
-                _logger?.LogDebug("[ConnectionManager] 连接状态变更: {OldState} -> {NewState}", oldState, value);
-                ConnectionStateChanged?.Invoke(this, new StateChangedEventArgs<TransportConnectionState>(oldState, value));
-            }
+            _logger?.LogDebug("[ConnectionManager] 连接状态变更: {OldState} -> {NewState}", oldState, value);
+            ConnectionStateChanged?.Invoke(this, new StateChangedEventArgs<TransportConnectionState>(oldState, value));
         }
-        finally
-        {
-            _stateLock.Release();
-        }
+    
     }
 
     public TransportProtocol CurrentProtocol => _currentProtocol;
@@ -76,7 +66,7 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
         _networkService = networkService;
         _connectionState = TransportConnectionState.Disconnected;
         _currentProtocol = config.PreferredProtocol;
-        _stateLock = new SemaphoreSlim(1, 1);
+
     }
 
     /// <summary>

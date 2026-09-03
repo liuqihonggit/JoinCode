@@ -33,7 +33,7 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
 
     private readonly List<QueuedTool> _queue = [];
     private readonly List<StreamingToolResult> _completedBuffer = [];
-    private readonly SemaphoreSlim _semaphore = new(1, 1);
+    private readonly AsyncLock _semaphore = new();
     private int _executingCount;
     private int _nonSafeExecutingCount;
     private readonly CancellationTokenSource _siblingCts = new();
@@ -77,22 +77,17 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
     {
         if (_discarded) return;
 
-        await _semaphore.WaitAsync().ConfigureAwait(false);
-        try
+        using var guard = await _semaphore.LockAsync().ConfigureAwait(false);
+
+        _queue.Add(new QueuedTool
         {
-            _queue.Add(new QueuedTool
-            {
-                Entry = entry,
-                OriginalIndex = originalIndex,
-                IsConcurrencySafe = false,
-                Status = ToolStatus.Queued,
-                CompletionSource = new TaskCompletionSource<StreamingToolResult>()
-            });
-        }
-        finally
-        {
-            _semaphore.Release();
-        }
+            Entry = entry,
+            OriginalIndex = originalIndex,
+            IsConcurrencySafe = false,
+            Status = ToolStatus.Queued,
+            CompletionSource = new TaskCompletionSource<StreamingToolResult>()
+        });
+    
         RunFireAndForget(ProcessQueueAsync);
     }
 
@@ -103,19 +98,14 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
     {
         if (_discarded) return [];
 
-        await _semaphore.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            var results = _completedBuffer
-                .OrderBy(r => r.OriginalIndex)
-                .ToList();
-            _completedBuffer.Clear();
-            return results;
-        }
-        finally
-        {
-            _semaphore.Release();
-        }
+        using var guard = await _semaphore.LockAsync().ConfigureAwait(false);
+
+        var results = _completedBuffer
+            .OrderBy(r => r.OriginalIndex)
+            .ToList();
+        _completedBuffer.Clear();
+        return results;
+    
     }
 
     /// <summary>
@@ -127,18 +117,14 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
         if (_discarded) return [];
 
         List<Task<StreamingToolResult>> pendingTasks;
-        await _semaphore.WaitAsync().ConfigureAwait(false);
-        try
+        using (var guard = await _semaphore.LockAsync().ConfigureAwait(false))
         {
             pendingTasks = _queue
                 .Where(t => t.Status != ToolStatus.Completed)
                 .Select(t => t.CompletionSource.Task)
                 .ToList();
         }
-        finally
-        {
-            _semaphore.Release();
-        }
+
         if (pendingTasks.Count > 0)
         {
             await Task.WhenAll(pendingTasks).ConfigureAwait(false);
@@ -177,42 +163,32 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
             _logger?.LogDebug("[StreamingToolExecutor] SiblingCts already disposed during discard");
         }
 
-        _semaphore.Wait();
-        try
+        using var guard = _semaphore.Lock();
+        var uncompletedTools = _queue
+            .Where(t => t.Status != ToolStatus.Completed && !t.CompletionSource.Task.IsCompleted)
+            .ToList();
+
+        foreach (var tool in _queue)
         {
-            var uncompletedTools = _queue
-                .Where(t => t.Status != ToolStatus.Completed && !t.CompletionSource.Task.IsCompleted)
-                .ToList();
-
-            foreach (var tool in _queue)
-            {
-                if (tool.Status != ToolStatus.Completed)
-                    tool.Status = ToolStatus.Completed;
-            }
-
-            _completedBuffer.Clear();
-
-            _semaphore.Release();
-
-            foreach (var tool in uncompletedTools)
-            {
-                tool.CompletionSource.TrySetResult(new StreamingToolResult
-                {
-                    ToolName = tool.Entry.Name,
-                    ToolCallId = tool.Entry.Id,
-                    Result = new ToolCallResult
-                    {
-                        ResultText = "(discarded by streaming fallback)",
-                        IsError = true
-                    },
-                    OriginalIndex = tool.OriginalIndex
-                });
-            }
+            if (tool.Status != ToolStatus.Completed)
+                tool.Status = ToolStatus.Completed;
         }
-        catch
+
+        _completedBuffer.Clear();
+
+        foreach (var tool in uncompletedTools)
         {
-            _semaphore.Release();
-            throw;
+            tool.CompletionSource.TrySetResult(new StreamingToolResult
+            {
+                ToolName = tool.Entry.Name,
+                ToolCallId = tool.Entry.Id,
+                Result = new ToolCallResult
+                {
+                    ResultText = "(discarded by streaming fallback)",
+                    IsError = true
+                },
+                OriginalIndex = tool.OriginalIndex
+            });
         }
     }
 
@@ -230,22 +206,17 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
         while (true)
         {
             QueuedTool? toolToExecute;
-            await _semaphore.WaitAsync().ConfigureAwait(false);
-            try
-            {
-                toolToExecute = await FindNextExecutableAsync().ConfigureAwait(false);
-                if (toolToExecute is null)
-                    break;
+            using var guard = await _semaphore.LockAsync().ConfigureAwait(false);
 
-                toolToExecute.Status = ToolStatus.Executing;
-                _executingCount++;
-                if (!toolToExecute.IsConcurrencySafe)
-                    _nonSafeExecutingCount++;
-            }
-            finally
-            {
-                _semaphore.Release();
-            }
+            toolToExecute = await FindNextExecutableAsync().ConfigureAwait(false);
+            if (toolToExecute is null)
+                break;
+
+            toolToExecute.Status = ToolStatus.Executing;
+            _executingCount++;
+            if (!toolToExecute.IsConcurrencySafe)
+                _nonSafeExecutingCount++;
+        
 
             RunFireAndForget(() => ExecuteToolAsync(toolToExecute));
         }
@@ -356,19 +327,14 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
             }
         }
 
-        await _semaphore.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            tool.Status = ToolStatus.Completed;
-            _completedBuffer.Add(result);
-            _executingCount--;
-            if (!tool.IsConcurrencySafe)
-                _nonSafeExecutingCount--;
-        }
-        finally
-        {
-            _semaphore.Release();
-        }
+        using var guard = await _semaphore.LockAsync().ConfigureAwait(false);
+
+        tool.Status = ToolStatus.Completed;
+        _completedBuffer.Add(result);
+        _executingCount--;
+        if (!tool.IsConcurrencySafe)
+            _nonSafeExecutingCount--;
+    
 
         tool.CompletionSource.TrySetResult(result);
 

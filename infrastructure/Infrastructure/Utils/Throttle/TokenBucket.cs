@@ -2,7 +2,7 @@ namespace Core.Utils;
 
 public sealed class TokenBucket : IDisposable
 {
-    private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly AsyncLock _gate = new();
     private readonly double _capacity;
     private readonly double _refillRatePerSecond;
     private readonly Func<DateTime> _timeProvider;
@@ -13,17 +13,14 @@ public sealed class TokenBucket : IDisposable
     {
         get
         {
-            if (!_gate.Wait(0))
+            var guard = _gate.TryLock();
+            if (guard is null)
                 return _tokens;
 
-            try
+            using (guard)
             {
                 Refill();
                 return _tokens;
-            }
-            finally
-            {
-                _gate.Release();
             }
         }
     }
@@ -43,21 +40,16 @@ public sealed class TokenBucket : IDisposable
     {
         while (true)
         {
-            await _gate.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                Refill();
+            using var guard = await _gate.LockAsync(ct).ConfigureAwait(false);
 
-                if (_tokens >= requiredTokens)
-                {
-                    _tokens -= requiredTokens;
-                    return;
-                }
-            }
-            finally
+            Refill();
+
+            if (_tokens >= requiredTokens)
             {
-                _gate.Release();
+                _tokens -= requiredTokens;
+                return;
             }
+        
 
             await Task.Delay(10, ct).ConfigureAwait(false);
         }
@@ -65,10 +57,11 @@ public sealed class TokenBucket : IDisposable
 
     public bool TryConsume(double requiredTokens)
     {
-        if (!_gate.Wait(0))
+        var guard = _gate.TryLock();
+        if (guard is null)
             return false;
 
-        try
+        using (guard)
         {
             Refill();
 
@@ -79,10 +72,6 @@ public sealed class TokenBucket : IDisposable
             }
 
             return false;
-        }
-        finally
-        {
-            _gate.Release();
         }
     }
 

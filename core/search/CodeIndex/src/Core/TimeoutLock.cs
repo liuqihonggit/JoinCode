@@ -2,7 +2,7 @@ namespace JoinCode.CodeIndex.Threading;
 
 internal sealed class TimeoutLock : IDisposable
 {
-    private readonly SemaphoreSlim _semaphore;
+    private readonly AsyncLock _semaphore = new();
     private readonly TimeSpan _defaultTimeout;
     private readonly string _lockName;
     private readonly Action<string>? _log;
@@ -14,7 +14,7 @@ internal sealed class TimeoutLock : IDisposable
 
         _lockName = lockName;
         _defaultTimeout = defaultTimeout ?? TimeSpan.FromSeconds(5);
-        _semaphore = new SemaphoreSlim(1, 1);
+
         _log = log;
     }
 
@@ -25,8 +25,8 @@ internal sealed class TimeoutLock : IDisposable
         var actualTimeout = timeout ?? _defaultTimeout;
         _log?.Invoke($"[TimeoutLock:{_lockName}] Acquiring (timeout={actualTimeout.TotalSeconds}s)...");
 
-        var acquired = await _semaphore.WaitAsync(actualTimeout, ct).ConfigureAwait(false);
-        if (!acquired)
+        var guard = await _semaphore.TryLockAsync(actualTimeout, ct).ConfigureAwait(false);
+        if (guard is null)
         {
             var msg = $"[TimeoutLock:{_lockName}] TIMEOUT: failed to acquire within {actualTimeout.TotalSeconds}s. Possible deadlock detected.";
             _log?.Invoke(msg);
@@ -35,7 +35,7 @@ internal sealed class TimeoutLock : IDisposable
         }
 
         _log?.Invoke($"[TimeoutLock:{_lockName}] Acquired");
-        return new Releaser(_lockName, _semaphore, _log);
+        return new Releaser(_lockName, guard, _log);
     }
 
     public IDisposable Acquire(TimeSpan? timeout = null)
@@ -45,8 +45,8 @@ internal sealed class TimeoutLock : IDisposable
         var actualTimeout = timeout ?? _defaultTimeout;
         _log?.Invoke($"[TimeoutLock:{_lockName}] Acquiring sync (timeout={actualTimeout.TotalSeconds}s)...");
 
-        var acquired = _semaphore.Wait(actualTimeout);
-        if (!acquired)
+        var guard = _semaphore.TryLock(actualTimeout);
+        if (guard is null)
         {
             var msg = $"[TimeoutLock:{_lockName}] TIMEOUT: failed to acquire within {actualTimeout.TotalSeconds}s. Possible deadlock detected.";
             _log?.Invoke(msg);
@@ -55,7 +55,7 @@ internal sealed class TimeoutLock : IDisposable
         }
 
         _log?.Invoke($"[TimeoutLock:{_lockName}] Acquired sync");
-        return new Releaser(_lockName, _semaphore, _log);
+        return new Releaser(_lockName, guard, _log);
     }
 
     public void Dispose()
@@ -66,22 +66,22 @@ internal sealed class TimeoutLock : IDisposable
 
     private sealed class Releaser : IDisposable
     {
-        private readonly SemaphoreSlim _sem;
+        private readonly IDisposable _guard;
         private readonly string _name;
         private readonly Action<string>? _log;
         private int _disposed;
 
-        public Releaser(string name, SemaphoreSlim sem, Action<string>? log)
+        public Releaser(string name, IDisposable guard, Action<string>? log)
         {
             _name = name;
-            _sem = sem;
+            _guard = guard;
             _log = log;
         }
 
         public void Dispose()
         {
             if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
-            _sem.Release();
+            _guard.Dispose();
             _log?.Invoke($"[TimeoutLock:{_name}] Released");
         }
     }

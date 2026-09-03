@@ -13,7 +13,7 @@ public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesSe
     private IReadOnlyList<ReleaseInfo> _cachedReleases = [];
     private bool _releasesCached;
     private DateTimeOffset _cacheTimestamp;
-    private readonly SemaphoreSlim _cacheLock = new(1, 1);
+    private readonly AsyncLock _cacheLock = new();
 
     public ReleaseNotesService(HttpClient httpClient, string repoOwner = "jcc", string repoName = "JoinCode",
         TimeSpan? requestTimeout = null, TimeSpan? cacheDuration = null, TimeProvider? timeProvider = null)
@@ -28,16 +28,8 @@ public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesSe
 
     public async Task<IReadOnlyList<ReleaseInfo>> GetRecentReleasesAsync(int count = 5, CancellationToken ct = default)
     {
-        await _cacheLock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            if (_releasesCached && _timeProvider.GetUtcNow() - _cacheTimestamp < _cacheDuration)
-                return _cachedReleases.Count <= count ? _cachedReleases : _cachedReleases.Take(count).ToList();
-        }
-        finally
-        {
-            _cacheLock.Release();
-        }
+        if (TryGetCachedReleases(count, out var cached))
+            return cached;
 
         using var cts = TimeoutHelper.CreateLinkedTimeout(ct, _requestTimeout);
 
@@ -72,36 +64,38 @@ public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesSe
             }
 
             var result = releases.AsReadOnly();
-
-            await _cacheLock.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                _cachedReleases = result;
-                _releasesCached = true;
-                _cacheTimestamp = _timeProvider.GetUtcNow();
-            }
-            finally
-            {
-                _cacheLock.Release();
-            }
-
+            UpdateCache(result, ct);
             return result;
         }
         catch
         {
-            await _cacheLock.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                if (_releasesCached)
-                    return _cachedReleases.Count <= count ? _cachedReleases : _cachedReleases.Take(count).ToList();
-            }
-            finally
-            {
-                _cacheLock.Release();
-            }
+            if (TryGetCachedReleases(count, out var fallback))
+                return fallback;
 
             return [];
         }
+    }
+
+    /// <summary>尝试从缓存获取 release 列表，缓存有效返回 true</summary>
+    private bool TryGetCachedReleases(int count, out IReadOnlyList<ReleaseInfo> result)
+    {
+        using var guard = _cacheLock.Lock();
+        if (_releasesCached && _timeProvider.GetUtcNow() - _cacheTimestamp < _cacheDuration)
+        {
+            result = _cachedReleases.Count <= count ? _cachedReleases : _cachedReleases.Take(count).ToList();
+            return true;
+        }
+        result = [];
+        return false;
+    }
+
+    /// <summary>更新 release 缓存</summary>
+    private void UpdateCache(IReadOnlyList<ReleaseInfo> releases, CancellationToken ct)
+    {
+        using var guard = _cacheLock.Lock();
+        _cachedReleases = releases;
+        _releasesCached = true;
+        _cacheTimestamp = _timeProvider.GetUtcNow();
     }
 
     /// <summary>释放资源 — P2-2: 补全 IDisposable 释放 SemaphoreSlim 避免资源累积</summary>

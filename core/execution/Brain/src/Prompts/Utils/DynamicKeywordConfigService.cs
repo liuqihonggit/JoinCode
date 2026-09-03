@@ -9,7 +9,7 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
     private readonly IFileSystem _fs;
     private readonly ILogger<DynamicKeywordConfigService>? _logger;
 
-    private readonly SemaphoreSlim _reloadLock = new(1, 1);
+    private readonly AsyncLock _reloadLock = new();
     private volatile DynamicKeywordConfig _config = new();
     private IFileSystemWatcher? _watcher;
     private int _disposed;
@@ -105,16 +105,11 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
 
     private async Task ReloadOnFileChangeAsync()
     {
-        await _reloadLock.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            LoadConfig();
-            ConfigChanged?.Invoke(this, EventArgs.Empty);
-        }
-        finally
-        {
-            _reloadLock.Release();
-        }
+        using var guard = await _reloadLock.LockAsync().ConfigureAwait(false);
+
+        LoadConfig();
+        ConfigChanged?.Invoke(this, EventArgs.Empty);
+    
     }
 
     protected override void OnDispose()

@@ -14,7 +14,7 @@ public sealed partial class TeammateLayoutManager : ServiceEntity, JoinCode.Abst
     private readonly ILogger<TeammateLayoutManager>? _logger;
     private readonly Dictionary<string, string> _teammateColors = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _teammatePanes = new(StringComparer.Ordinal);
-    private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly AsyncLock _lock = new();
     private int _colorIndex;
 
     public JoinCode.Abstractions.Interfaces.BackendType CurrentBackendType => _backend.BackendType;
@@ -30,25 +30,20 @@ public sealed partial class TeammateLayoutManager : ServiceEntity, JoinCode.Abst
     public async Task<JoinCode.Abstractions.Interfaces.CreatePaneResult> CreateTeammatePaneAsync(
         string teammateId, string agentType, string command, CancellationToken cancellationToken = default)
     {
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            var result = await _backend.CreateTeammatePaneAsync(teammateId, command, cancellationToken).ConfigureAwait(false);
-            _teammatePanes[teammateId] = result.PaneId;
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            var color = AssignTeammateColor(teammateId);
-            await _backend.SetPaneBorderColorAsync(result.PaneId, color, cancellationToken).ConfigureAwait(false);
-            await _backend.SetPaneTitleAsync(result.PaneId, $"{agentType}:{teammateId[..Math.Min(8, teammateId.Length)]}", cancellationToken).ConfigureAwait(false);
+        var result = await _backend.CreateTeammatePaneAsync(teammateId, command, cancellationToken).ConfigureAwait(false);
+        _teammatePanes[teammateId] = result.PaneId;
 
-            _logger?.LogInformation("Created teammate pane: TeammateId={TeammateId}, PaneId={PaneId}, Backend={Backend}",
-                teammateId, result.PaneId, result.BackendType);
+        var color = AssignTeammateColor(teammateId);
+        await _backend.SetPaneBorderColorAsync(result.PaneId, color, cancellationToken).ConfigureAwait(false);
+        await _backend.SetPaneTitleAsync(result.PaneId, $"{agentType}:{teammateId[..Math.Min(8, teammateId.Length)]}", cancellationToken).ConfigureAwait(false);
 
-            return result;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        _logger?.LogInformation("Created teammate pane: TeammateId={TeammateId}, PaneId={PaneId}, Backend={Backend}",
+            teammateId, result.PaneId, result.BackendType);
+
+        return result;
+    
     }
 
     public string AssignTeammateColor(string teammateId)
@@ -64,36 +59,26 @@ public sealed partial class TeammateLayoutManager : ServiceEntity, JoinCode.Abst
 
     public async Task RemoveTeammatePaneAsync(string teammateId, CancellationToken cancellationToken = default)
     {
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (_teammatePanes.TryGetValue(teammateId, out var paneId))
-            {
-                await _backend.KillPaneAsync(paneId, cancellationToken).ConfigureAwait(false);
-                _teammatePanes.Remove(teammateId);
-                _teammateColors.Remove(teammateId);
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-                if (_teammatePanes.Count > 0)
-                    await _backend.RebalancePanesAsync(cancellationToken).ConfigureAwait(false);
-            }
-        }
-        finally
+        if (_teammatePanes.TryGetValue(teammateId, out var paneId))
         {
-            _lock.Release();
+            await _backend.KillPaneAsync(paneId, cancellationToken).ConfigureAwait(false);
+            _teammatePanes.Remove(teammateId);
+            _teammateColors.Remove(teammateId);
+
+            if (_teammatePanes.Count > 0)
+                await _backend.RebalancePanesAsync(cancellationToken).ConfigureAwait(false);
         }
+    
     }
 
     public async Task RebalanceLayoutAsync(CancellationToken cancellationToken = default)
     {
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            await _backend.RebalancePanesAsync(cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        await _backend.RebalancePanesAsync(cancellationToken).ConfigureAwait(false);
+    
     }
 
     protected override void OnDispose() => _lock.Dispose();

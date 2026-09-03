@@ -5,7 +5,7 @@ public sealed partial class McpAuthPersistenceService : ServiceEntity, IMcpAuthP
 {
     private readonly IConfigurationService? _configService;
     private readonly ILogger<McpAuthPersistenceService>? _logger;
-    private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly AsyncLock _lock = new();
 
     public McpAuthPersistenceService(IConfigurationService? configService = null, ILogger<McpAuthPersistenceService>? logger = null)
     {
@@ -17,74 +17,54 @@ public sealed partial class McpAuthPersistenceService : ServiceEntity, IMcpAuthP
     {
         if (_configService == null) return;
 
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            var entries = await LoadEntriesAsync(ct).ConfigureAwait(false);
-            var entry = new AuthConfigEntry
-            {
-                Name = authName,
-                AuthType = authType,
-                Data = serializedData,
-                SavedAt = DateTime.UtcNow
-            };
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
 
-            entries[authName] = entry;
-
-            await SaveEntriesAsync(entries, ct).ConfigureAwait(false);
-        }
-        finally
+        var entries = await LoadEntriesAsync(ct).ConfigureAwait(false);
+        var entry = new AuthConfigEntry
         {
-            _lock.Release();
-        }
+            Name = authName,
+            AuthType = authType,
+            Data = serializedData,
+            SavedAt = DateTime.UtcNow
+        };
+
+        entries[authName] = entry;
+
+        await SaveEntriesAsync(entries, ct).ConfigureAwait(false);
+    
     }
 
     public async Task<AuthConfigEntry?> LoadAsync(string authName, CancellationToken ct = default)
     {
         if (_configService == null) return null;
 
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            var entries = await LoadEntriesAsync(ct).ConfigureAwait(false);
-            return entries.TryGetValue(authName, out var entry) ? entry : null;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+
+        var entries = await LoadEntriesAsync(ct).ConfigureAwait(false);
+        return entries.TryGetValue(authName, out var entry) ? entry : null;
+    
     }
 
     public async Task<IReadOnlyList<AuthConfigEntry>> ListAsync(CancellationToken ct = default)
     {
         if (_configService == null) return Array.Empty<AuthConfigEntry>();
 
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            return (await LoadEntriesAsync(ct).ConfigureAwait(false)).Values.ToList();
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+
+        return (await LoadEntriesAsync(ct).ConfigureAwait(false)).Values.ToList();
+    
     }
 
     public async Task RemoveAsync(string authName, CancellationToken ct = default)
     {
         if (_configService == null) return;
 
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            var entries = await LoadEntriesAsync(ct).ConfigureAwait(false);
-            entries.Remove(authName);
-            await SaveEntriesAsync(entries, ct).ConfigureAwait(false);
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+
+        var entries = await LoadEntriesAsync(ct).ConfigureAwait(false);
+        entries.Remove(authName);
+        await SaveEntriesAsync(entries, ct).ConfigureAwait(false);
+    
     }
 
     private async Task<Dictionary<string, AuthConfigEntry>> LoadEntriesAsync(CancellationToken ct)

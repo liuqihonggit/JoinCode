@@ -25,7 +25,7 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
     private readonly IFileOperationService _files;
     private readonly Core.Skills.Mcp.IMcpSkillProvider? _mcpSkillProvider;
     private readonly MiddlewarePipeline<SkillContext> _pipeline;
-    private readonly SemaphoreSlim _reloadLock;
+    private readonly AsyncLock _reloadLock = new();
     private readonly ConcurrentDictionary<string, SkillDefinition> _skills;
     private readonly Core.Skills.Discovery.ISkillDiscoveryService? _discoveryService;
     private readonly ILogger<SkillService>? _logger;
@@ -47,7 +47,7 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
         _discoveryService = discoveryService;
         _mcpSkillProvider = mcpSkillProvider;
         _logger = logger;
-        _reloadLock = new SemaphoreSlim(1, 1);
+
         _skills = new ConcurrentDictionary<string, SkillDefinition>(StringComparer.OrdinalIgnoreCase);
 
         Diag.WriteLine("[SKILL-CTOR] 2 LoadBuiltInSkills");
@@ -138,7 +138,7 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
 
     public async Task<bool> ReloadAsync(string? skillName, ExecutionContext ctx, CancellationToken cancellationToken = default)
     {
-        await _reloadLock.WaitAsync(ctx.CancellationToken).ConfigureAwait(false);
+        using var guard = await _reloadLock.LockAsync(ctx.CancellationToken).ConfigureAwait(false);
         try
         {
             if (skillName != null)
@@ -165,10 +165,7 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
             ctx.Logger?.LogError(ex, L.T(StringKey.SkillServiceReloadFailed));
             return false;
         }
-        finally
-        {
-            _reloadLock.Release();
-        }
+
     }
 
     public void RegisterSkill(SkillDefinition skill)

@@ -92,7 +92,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
     private readonly IPlanModeManager? _planModeManager;
     private readonly ConcurrentDictionary<string, TeammateState> _activeTeammates = new();
     private readonly ConcurrentDictionary<string, Channel<CoordinatorMessage>> _pendingMessages = new();
-    private readonly SemaphoreSlim _teammateLock = new(1, 1);
+    private readonly AsyncLock _teammateLock = new();
     private readonly MiddlewarePipeline<TeammateExecutionContext>? _executePipeline;
     private readonly IAgentWorktreeService? _worktreeService;
     private readonly IAgentWorktreeManager? _worktreeManager;
@@ -258,15 +258,10 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
                 Task = definition.Task
             };
 
-            await _teammateLock.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                _activeTeammates[definition.TeammateId] = state;
-            }
-            finally
-            {
-                _teammateLock.Release();
-            }
+            using var guard = await _teammateLock.LockAsync(ct).ConfigureAwait(false);
+
+            _activeTeammates[definition.TeammateId] = state;
+        
 
             _pendingMessages[definition.TeammateId] = Channel.CreateUnbounded<CoordinatorMessage>();
 
@@ -336,15 +331,10 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
 
     public async Task<IEnumerable<string>> GetActiveTeammatesAsync(CancellationToken ct = default)
     {
-        await _teammateLock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            return _activeTeammates.Keys;
-        }
-        finally
-        {
-            _teammateLock.Release();
-        }
+        using var guard = await _teammateLock.LockAsync(ct).ConfigureAwait(false);
+
+        return _activeTeammates.Keys;
+    
     }
 
     /// <summary>
@@ -352,56 +342,41 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
     /// </summary>
     public async Task<IEnumerable<TeammateStateSnapshot>> GetActiveTeammateSnapshotsAsync(CancellationToken ct = default)
     {
-        await _teammateLock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            return _activeTeammates.Select(kv => new TeammateStateSnapshot(
-                kv.Key,
-                kv.Value.Context.ParentSessionId,
-                kv.Value.Task,
-                kv.Value.IsIdle,
-                kv.Value.TurnCount,
-                kv.Value.LastResult)).ToList();
-        }
-        finally
-        {
-            _teammateLock.Release();
-        }
+        using var guard = await _teammateLock.LockAsync(ct).ConfigureAwait(false);
+
+        return _activeTeammates.Select(kv => new TeammateStateSnapshot(
+            kv.Key,
+            kv.Value.Context.ParentSessionId,
+            kv.Value.Task,
+            kv.Value.IsIdle,
+            kv.Value.TurnCount,
+            kv.Value.LastResult)).ToList();
+    
     }
 
     public async Task StopTeammateAsync(string teammateId, CancellationToken ct = default)
     {
-        await _teammateLock.WaitAsync(ct).ConfigureAwait(false);
-        try
+        using var guard = await _teammateLock.LockAsync(ct).ConfigureAwait(false);
+
+        if (_activeTeammates.TryRemove(teammateId, out var state))
         {
-            if (_activeTeammates.TryRemove(teammateId, out var state))
-            {
-                await state.LifecycleCts.CancelAsync().ConfigureAwait(false);
-                await CleanupTeammateAsync(teammateId, state).ConfigureAwait(false);
-            }
+            await state.LifecycleCts.CancelAsync().ConfigureAwait(false);
+            await CleanupTeammateAsync(teammateId, state).ConfigureAwait(false);
         }
-        finally
-        {
-            _teammateLock.Release();
-        }
+    
     }
 
     public async Task TerminateTeammateAsync(string teammateId, string? reason = null, CancellationToken ct = default)
     {
         TeammateState? state;
 
-        await _teammateLock.WaitAsync(ct).ConfigureAwait(false);
-        try
+        using var guard = await _teammateLock.LockAsync(ct).ConfigureAwait(false);
+
+        if (!_activeTeammates.TryGetValue(teammateId, out state))
         {
-            if (!_activeTeammates.TryGetValue(teammateId, out state))
-            {
-                return;
-            }
+            return;
         }
-        finally
-        {
-            _teammateLock.Release();
-        }
+    
 
         var shutdownMsg = new CoordinatorMessage
         {
@@ -418,15 +393,10 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
 
     public async Task<bool> IsTeammateIdleAsync(string teammateId, CancellationToken ct = default)
     {
-        await _teammateLock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            return _activeTeammates.TryGetValue(teammateId, out var state) && state.IsIdle;
-        }
-        finally
-        {
-            _teammateLock.Release();
-        }
+        using var guard = await _teammateLock.LockAsync(ct).ConfigureAwait(false);
+
+        return _activeTeammates.TryGetValue(teammateId, out var state) && state.IsIdle;
+    
     }
 
     /// <summary>
@@ -436,20 +406,13 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
     /// </summary>
     public async Task<bool> InterruptTeammateAsync(string teammateId, CancellationToken ct = default)
     {
-        await _teammateLock.WaitAsync(ct).ConfigureAwait(false);
+        using var guard = await _teammateLock.LockAsync(ct).ConfigureAwait(false);
         CancellationTokenSource? workCts;
-        try
+        if (!_activeTeammates.TryGetValue(teammateId, out var state))
         {
-            if (!_activeTeammates.TryGetValue(teammateId, out var state))
-            {
-                return false;
-            }
-            workCts = state.CurrentWorkCts;
+            return false;
         }
-        finally
-        {
-            _teammateLock.Release();
-        }
+        workCts = state.CurrentWorkCts;
 
         if (workCts is null || workCts.IsCancellationRequested)
         {
@@ -466,18 +429,13 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
     /// </summary>
     private async Task SetCurrentWorkCtsAsync(string teammateId, CancellationTokenSource workCts, CancellationToken lifecycleCt)
     {
-        await _teammateLock.WaitAsync(lifecycleCt).ConfigureAwait(false);
-        try
+        using var guard = await _teammateLock.LockAsync(lifecycleCt).ConfigureAwait(false);
+
+        if (_activeTeammates.TryGetValue(teammateId, out var state))
         {
-            if (_activeTeammates.TryGetValue(teammateId, out var state))
-            {
-                state.CurrentWorkCts = workCts;
-            }
+            state.CurrentWorkCts = workCts;
         }
-        finally
-        {
-            _teammateLock.Release();
-        }
+    
     }
 
     /// <summary>
@@ -486,18 +444,13 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
     /// </summary>
     private async Task ClearCurrentWorkCtsAsync(string teammateId)
     {
-        await _teammateLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
-        try
+        using var guard = await _teammateLock.LockAsync(CancellationToken.None).ConfigureAwait(false);
+
+        if (_activeTeammates.TryGetValue(teammateId, out var state))
         {
-            if (_activeTeammates.TryGetValue(teammateId, out var state))
-            {
-                state.CurrentWorkCts = null;
-            }
+            state.CurrentWorkCts = null;
         }
-        finally
-        {
-            _teammateLock.Release();
-        }
+    
     }
 
     /// <summary>
@@ -783,18 +736,13 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
     {
         try
         {
-            await _teammateLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
-            try
+            using var guard = await _teammateLock.LockAsync(CancellationToken.None).ConfigureAwait(false);
+
+            if (_activeTeammates.TryRemove(teammateId, out var state))
             {
-                if (_activeTeammates.TryRemove(teammateId, out var state))
-                {
-                    await CleanupTeammateAsync(teammateId, state).ConfigureAwait(false);
-                }
+                await CleanupTeammateAsync(teammateId, state).ConfigureAwait(false);
             }
-            finally
-            {
-                _teammateLock.Release();
-            }
+        
         }
         catch (Exception ex)
         {

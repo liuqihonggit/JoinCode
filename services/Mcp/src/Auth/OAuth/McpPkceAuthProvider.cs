@@ -7,7 +7,7 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
     private readonly HttpClient _httpClient;
     private readonly ILogger<McpPkceAuthProvider>? _logger;
     private readonly IFileSystem _fs;
-    private readonly SemaphoreSlim _refreshLock = new(1, 1);
+    private readonly AsyncLock _refreshLock = new();
     private readonly McpOAuthMetadataDiscovery _metadataDiscovery;
     private readonly McpDynamicClientRegistration _dcr;
 
@@ -113,7 +113,7 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
 
     public async Task<bool> RefreshAsync(CancellationToken cancellationToken = default)
     {
-        await _refreshLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _refreshLock.LockAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             if (!string.IsNullOrEmpty(_authContext.RefreshToken))
@@ -128,10 +128,7 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
             _logger?.LogError(ex, "PKCE 认证刷新失败");
             return false;
         }
-        finally
-        {
-            _refreshLock.Release();
-        }
+
     }
 
     public async Task<string> GetAuthorizationUrlAsync(CancellationToken cancellationToken = default)
@@ -169,7 +166,7 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
 
         await EnsureClientConfiguredAsync(cancellationToken).ConfigureAwait(false);
 
-        await _refreshLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _refreshLock.LockAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             var parameters = new Dictionary<string, string>
@@ -206,10 +203,7 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
             _logger?.LogError(ex, "授权码交换异常");
             return false;
         }
-        finally
-        {
-            _refreshLock.Release();
-        }
+
     }
 
     private async Task EnsureAuthenticatedAsync(CancellationToken cancellationToken)

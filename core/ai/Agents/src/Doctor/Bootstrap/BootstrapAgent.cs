@@ -21,7 +21,7 @@ public sealed class BootstrapAgent : IAsyncDisposable
     private readonly IFileSystem _fs;
     private readonly DiagnosticLogWatcher? _logWatcher;
     private readonly List<DiagnosticReport> _pendingReports = [];
-    private readonly SemaphoreSlim _reportsLock = new(1, 1);
+    private readonly AsyncLock _reportsLock = new();
     private readonly TimeSpan _debounceInterval = TimeSpan.FromSeconds(30);
     private readonly Func<string, string, Task<bool>> _confirmCallback;
     private int _isDisposed;
@@ -31,10 +31,10 @@ public sealed class BootstrapAgent : IAsyncDisposable
     {
         get
         {
-            if (_reportsLock.Wait(0))
+            using var guard = _reportsLock.TryLock();
+            if (guard is not null)
             {
-                try { return _pendingReports; }
-                finally { _reportsLock.Release(); }
+                return _pendingReports;
             }
             return _pendingReports.ToList();
         }
@@ -101,13 +101,11 @@ public sealed class BootstrapAgent : IAsyncDisposable
                 await Task.Delay(_debounceInterval, ct).ConfigureAwait(false);
 
                 List<DiagnosticReport> reportsToProcess;
-                await _reportsLock.WaitAsync(ct).ConfigureAwait(false);
-                try
-                {
-                    reportsToProcess = [.. _pendingReports];
-                    _pendingReports.Clear();
-                }
-                finally { _reportsLock.Release(); }
+                using var guard = await _reportsLock.LockAsync(ct).ConfigureAwait(false);
+
+                reportsToProcess = [.. _pendingReports];
+                _pendingReports.Clear();
+            
 
                 if (reportsToProcess.Count == 0) continue;
 
@@ -201,13 +199,11 @@ public sealed class BootstrapAgent : IAsyncDisposable
                 await Task.Delay(_debounceInterval, ct).ConfigureAwait(false);
 
                 List<DiagnosticReport> reportsToProcess;
-                await _reportsLock.WaitAsync(ct).ConfigureAwait(false);
-                try
-                {
-                    reportsToProcess = [.. _pendingReports];
-                    _pendingReports.Clear();
-                }
-                finally { _reportsLock.Release(); }
+                using var guard = await _reportsLock.LockAsync(ct).ConfigureAwait(false);
+
+                reportsToProcess = [.. _pendingReports];
+                _pendingReports.Clear();
+            
 
                 if (reportsToProcess.Count == 0) continue;
 
@@ -288,13 +284,11 @@ public sealed class BootstrapAgent : IAsyncDisposable
                 await Task.Delay(_debounceInterval, ct).ConfigureAwait(false);
 
                 List<DiagnosticReport> reportsToProcess;
-                await _reportsLock.WaitAsync(ct).ConfigureAwait(false);
-                try
-                {
-                    reportsToProcess = [.. _pendingReports];
-                    _pendingReports.Clear();
-                }
-                finally { _reportsLock.Release(); }
+                using var guard = await _reportsLock.LockAsync(ct).ConfigureAwait(false);
+
+                reportsToProcess = [.. _pendingReports];
+                _pendingReports.Clear();
+            
 
                 if (reportsToProcess.Count == 0) continue;
 
@@ -444,10 +438,10 @@ public sealed class BootstrapAgent : IAsyncDisposable
 
     private void OnDiagnosticReportGenerated(object? sender, DiagnosticReport report)
     {
-        if (_reportsLock.Wait(0))
+        using var guard = _reportsLock.TryLock();
+        if (guard is not null)
         {
-            try { _pendingReports.Add(report); }
-            finally { _reportsLock.Release(); }
+            _pendingReports.Add(report);
         }
         else
         {

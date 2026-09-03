@@ -11,7 +11,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     private readonly WorktreeOptions _defaultOptions;
     private readonly ITelemetryService? _telemetryService;
     private readonly Dictionary<string, AgentWorktreeSession> _sessions = new();
-    private readonly SemaphoreSlim _sessionLock;
+    private readonly AsyncLock _sessionLock = new();
     private readonly MiddlewarePipeline<WorktreeCreateContext>? _createPipeline;
 
     public AgentWorktreeService(
@@ -29,7 +29,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         _clock = clock ?? SystemClockService.Instance;
         _defaultOptions = defaultOptions ?? new WorktreeOptions();
         _telemetryService = telemetryService;
-        _sessionLock = new SemaphoreSlim(1, 1);
+
         if (createMiddlewares != null && loggerFactory != null)
         {
             _createPipeline = new PipelineBuilder<WorktreeCreateContext>()
@@ -151,12 +151,10 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     }
 
     public async Task<AgentWorktreeSession?> GetSessionAsync(string agentId, CancellationToken cancellationToken = default) {
-        await _sessionLock.WaitAsync().ConfigureAwait(false);
-        try {
-            return _sessions.TryGetValue(agentId, out var session) ? session : null;
-        } finally {
-            _sessionLock.Release();
-        }
+        using var guard = await _sessionLock.LockAsync().ConfigureAwait(false);
+
+        return _sessions.TryGetValue(agentId, out var session) ? session : null;
+    
     }
 
     public async Task<bool> HasActiveWorktreeAsync(string agentId, CancellationToken cancellationToken = default) {
@@ -168,12 +166,10 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     }
 
     public async Task<IEnumerable<AgentWorktreeSession>> GetAllSessionsAsync(CancellationToken cancellationToken = default) {
-        await _sessionLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try {
-            return _sessions.Values;
-        } finally {
-            _sessionLock.Release();
-        }
+        using var guard = await _sessionLock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        return _sessions.Values;
+    
     }
 
     public async Task<int> CleanupStaleWorktreesAsync(
@@ -392,23 +388,19 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     #region Private Methods
 
     public async Task SaveSessionAsync(AgentWorktreeSession session) {
-        await _sessionLock.WaitAsync().ConfigureAwait(false);
-        try {
-            _sessions[session.AgentId] = session;
-        } finally {
-            _sessionLock.Release();
-        }
+        using var guard = await _sessionLock.LockAsync().ConfigureAwait(false);
+
+        _sessions[session.AgentId] = session;
+    
 
         await PersistActiveWorktreeSessionAsync(session).ConfigureAwait(false);
     }
 
     internal async Task RemoveSessionAsync(string agentId) {
-        await _sessionLock.WaitAsync().ConfigureAwait(false);
-        try {
-            _sessions.Remove(agentId);
-        } finally {
-            _sessionLock.Release();
-        }
+        using var guard = await _sessionLock.LockAsync().ConfigureAwait(false);
+
+        _sessions.Remove(agentId);
+    
 
         await ClearActiveWorktreeSessionAsync().ConfigureAwait(false);
     }

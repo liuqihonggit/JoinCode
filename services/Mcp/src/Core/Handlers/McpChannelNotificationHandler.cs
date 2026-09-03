@@ -4,8 +4,7 @@ namespace McpClient;
 public sealed partial class McpChannelNotificationHandler
 {
     private readonly ILogger<McpChannelNotificationHandler>? _logger;
-    private readonly SemaphoreSlim _lock = new(1, 1);
-    private readonly Dictionary<string, TaskCompletionSource<ChannelPermissionResponse>> _pendingRequests = new();
+    private readonly ConcurrentDictionary<string, TaskCompletionSource<ChannelPermissionResponse>> _pendingRequests = new();
 
     public event EventHandler<McpChannelMessageEventArgs>? ChannelMessageReceived;
     public event EventHandler<McpChannelPermissionResponseEventArgs>? PermissionResponseReceived;
@@ -119,22 +118,14 @@ public sealed partial class McpChannelNotificationHandler
 
         _logger?.LogInformation("Channel 权限回复: server={Server}, requestId={RequestId}, behavior={Behavior}", serverName, requestId, behavior);
 
-        _lock.Wait();
-        try
+        if (_pendingRequests.TryGetValue(requestId, out var tcs))
         {
-            if (_pendingRequests.TryGetValue(requestId, out var tcs))
+            tcs.TrySetResult(new ChannelPermissionResponse
             {
-                tcs.TrySetResult(new ChannelPermissionResponse
-                {
-                    Behavior = behavior,
-                    FromServer = serverName
-                });
-                _pendingRequests.Remove(requestId);
-            }
-        }
-        finally
-        {
-            _lock.Release();
+                Behavior = behavior,
+                FromServer = serverName
+            });
+            _pendingRequests.TryRemove(requestId, out _);
         }
 
         PermissionResponseReceived?.Invoke(this, new McpChannelPermissionResponseEventArgs
@@ -148,16 +139,7 @@ public sealed partial class McpChannelNotificationHandler
     public async Task<ChannelPermissionResponse?> WaitForPermissionResponseAsync(string requestId, TimeSpan timeout, CancellationToken cancellationToken = default)
     {
         var tcs = new TaskCompletionSource<ChannelPermissionResponse>();
-
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            _pendingRequests[requestId] = tcs;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        _pendingRequests[requestId] = tcs;
 
         try
         {
@@ -166,15 +148,7 @@ public sealed partial class McpChannelNotificationHandler
         }
         catch
         {
-            await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                _pendingRequests.Remove(requestId);
-            }
-            finally
-            {
-                _lock.Release();
-            }
+            _pendingRequests.TryRemove(requestId, out _);
             return null;
         }
     }

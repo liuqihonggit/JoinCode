@@ -10,7 +10,7 @@ public sealed class McpTransportFallbackChain : IMcpTransport
     private readonly ILogger? _logger;
     private IMcpTransport? _activeTransport;
     private int _activeIndex = -1;
-    private readonly SemaphoreSlim _switchLock = new(1, 1);
+    private readonly AsyncLock _switchLock = new();
     private int _disposed;
 
     public event EventHandler<McpMessageReceivedEventArgs>? MessageReceived;
@@ -169,66 +169,61 @@ public sealed class McpTransportFallbackChain : IMcpTransport
     {
         if (_activeIndex < 0 || _activeIndex >= _transports.Length - 1) return;
 
-        await _switchLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+        using var guard = await _switchLock.LockAsync(CancellationToken.None).ConfigureAwait(false);
+
+        if (_activeIndex >= _transports.Length - 1) return;
+
+        var nextIndex = FindNextAvailableTransport(_activeIndex + 1);
+        if (nextIndex < 0)
+        {
+            _logger?.LogWarning("[TransportFallback] No available fallback transport (all circuit breakers open)");
+            return;
+        }
+
+        _logger?.LogWarning(ex, "[TransportFallback] Transport {FromType} connection lost, falling back to {ToType}",
+            _transports[_activeIndex].GetType().Name, _transports[nextIndex].GetType().Name);
+
+        var fallbackStart = DateTimeOffset.UtcNow;
+
         try
         {
-            if (_activeIndex >= _transports.Length - 1) return;
-
-            var nextIndex = FindNextAvailableTransport(_activeIndex + 1);
-            if (nextIndex < 0)
+            if (_activeTransport is not null)
             {
-                _logger?.LogWarning("[TransportFallback] No available fallback transport (all circuit breakers open)");
-                return;
+                UnwireEvents(_activeTransport);
+                await _activeTransport.StopAsync(CancellationToken.None).ConfigureAwait(false);
             }
 
-            _logger?.LogWarning(ex, "[TransportFallback] Transport {FromType} connection lost, falling back to {ToType}",
-                _transports[_activeIndex].GetType().Name, _transports[nextIndex].GetType().Name);
+            await _transports[nextIndex].StartAsync(CancellationToken.None).ConfigureAwait(false);
 
-            var fallbackStart = DateTimeOffset.UtcNow;
+            var fromType = _transports[_activeIndex].GetType().Name;
+            _activeTransport = _transports[nextIndex];
+            _activeIndex = nextIndex;
+            WireEvents(_activeTransport);
 
-            try
+            _circuitBreakers[nextIndex].RecordSuccess();
+            var duration = (DateTimeOffset.UtcNow - fallbackStart).TotalMilliseconds;
+            _metrics.RecordFallback(_activeIndex, nextIndex, (long)duration);
+
+            FallbackOccurred?.Invoke(this, new TransportFallbackEventArgs
             {
-                if (_activeTransport is not null)
-                {
-                    UnwireEvents(_activeTransport);
-                    await _activeTransport.StopAsync(CancellationToken.None).ConfigureAwait(false);
-                }
+                FromTransportType = fromType,
+                ToTransportType = _transports[nextIndex].GetType().Name,
+                Reason = ex.Message,
+                IsServerSide = false,
+                FromPriority = _activeIndex + 1,
+                ToPriority = nextIndex + 1,
+            });
 
-                await _transports[nextIndex].StartAsync(CancellationToken.None).ConfigureAwait(false);
-
-                var fromType = _transports[_activeIndex].GetType().Name;
-                _activeTransport = _transports[nextIndex];
-                _activeIndex = nextIndex;
-                WireEvents(_activeTransport);
-
-                _circuitBreakers[nextIndex].RecordSuccess();
-                var duration = (DateTimeOffset.UtcNow - fallbackStart).TotalMilliseconds;
-                _metrics.RecordFallback(_activeIndex, nextIndex, (long)duration);
-
-                FallbackOccurred?.Invoke(this, new TransportFallbackEventArgs
-                {
-                    FromTransportType = fromType,
-                    ToTransportType = _transports[nextIndex].GetType().Name,
-                    Reason = ex.Message,
-                    IsServerSide = false,
-                    FromPriority = _activeIndex + 1,
-                    ToPriority = nextIndex + 1,
-                });
-
-                _logger?.LogInformation("[TransportFallback] Fallback to {Type} succeeded (duration={Duration}ms)",
-                    _transports[nextIndex].GetType().Name, duration);
-            }
-            catch (Exception fallbackEx)
-            {
-                _logger?.LogWarning(fallbackEx, "[TransportFallback] Fallback to {Type} also failed",
-                    _transports[nextIndex].GetType().Name);
-                _circuitBreakers[nextIndex].RecordFailure();
-            }
+            _logger?.LogInformation("[TransportFallback] Fallback to {Type} succeeded (duration={Duration}ms)",
+                _transports[nextIndex].GetType().Name, duration);
         }
-        finally
+        catch (Exception fallbackEx)
         {
-            _switchLock.Release();
+            _logger?.LogWarning(fallbackEx, "[TransportFallback] Fallback to {Type} also failed",
+                _transports[nextIndex].GetType().Name);
+            _circuitBreakers[nextIndex].RecordFailure();
         }
+    
     }
 
     private int FindNextAvailableTransport(int startIndex)

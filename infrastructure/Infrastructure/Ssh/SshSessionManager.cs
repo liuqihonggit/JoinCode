@@ -15,7 +15,7 @@ public sealed partial class SshSessionManager : ISshSessionManager
     private readonly ILogger<SshSessionManager>? _logger;
     private readonly IFileSystem _fs;
     private readonly ITelemetryService? _telemetryService;
-    private readonly SemaphoreSlim _stateLock = new(1, 1);
+    private readonly AsyncLock _stateLock = new();
     private int _isDisposed;
 
     public event EventHandler<SshSessionStateChangedEventArgs>? SessionStateChanged;
@@ -28,23 +28,18 @@ public sealed partial class SshSessionManager : ISshSessionManager
 
         ArgumentNullException.ThrowIfNull(config);
 
-        await _stateLock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            var session = new SshSession(config, _fs, _logger);
-            _sessions[session.SessionId] = session;
-            session.ConnectionStateChanged += OnSessionConnectionStateChanged;
+        using var guard = await _stateLock.LockAsync(ct).ConfigureAwait(false);
 
-            _logger?.LogInformation("SSH 会话已创建: {SessionId} -> {Username}@{Host}:{Port}",
-                session.SessionId, config.Username, config.Host, config.Port);
+        var session = new SshSession(config, _fs, _logger);
+        _sessions[session.SessionId] = session;
+        session.ConnectionStateChanged += OnSessionConnectionStateChanged;
 
-            RecordSessionMetrics("create", true);
-            return session;
-        }
-        finally
-        {
-            _stateLock.Release();
-        }
+        _logger?.LogInformation("SSH 会话已创建: {SessionId} -> {Username}@{Host}:{Port}",
+            session.SessionId, config.Username, config.Host, config.Port);
+
+        RecordSessionMetrics("create", true);
+        return session;
+    
     }
 
     public ISshSession? GetSession(string sessionId)
@@ -64,21 +59,16 @@ public sealed partial class SshSessionManager : ISshSessionManager
     {
         DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
 
-        await _stateLock.WaitAsync(ct).ConfigureAwait(false);
-        try
+        using var guard = await _stateLock.LockAsync(ct).ConfigureAwait(false);
+
+        if (_sessions.TryRemove(sessionId, out var session))
         {
-            if (_sessions.TryRemove(sessionId, out var session))
-            {
-                session.ConnectionStateChanged -= OnSessionConnectionStateChanged;
-                await session.DisposeAsync().ConfigureAwait(false);
-                _logger?.LogInformation("SSH 会话已销毁: {SessionId}", sessionId);
-                RecordSessionMetrics("destroy", true);
-            }
+            session.ConnectionStateChanged -= OnSessionConnectionStateChanged;
+            await session.DisposeAsync().ConfigureAwait(false);
+            _logger?.LogInformation("SSH 会话已销毁: {SessionId}", sessionId);
+            RecordSessionMetrics("destroy", true);
         }
-        finally
-        {
-            _stateLock.Release();
-        }
+    
     }
 
     private void RecordSessionMetrics(string operation, bool isSuccess) =>
@@ -102,23 +92,22 @@ public sealed partial class SshSessionManager : ISshSessionManager
             return;
         }
 
-        await _stateLock.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            var sessions = _sessions.Values.ToList();
-            foreach (var session in sessions)
-            {
-                session.ConnectionStateChanged -= OnSessionConnectionStateChanged;
-            }
+        await CleanupSessionsAsync().ConfigureAwait(false);
+        _stateLock.Dispose();
+    }
 
-            await Task.WhenAll(sessions.Select(s => s.DisposeAsync().AsTask())).ConfigureAwait(false);
-
-            _sessions.Clear();
-        }
-        finally
+    /// <summary>清理所有 SSH 会话（在锁保护下执行）</summary>
+    private async Task CleanupSessionsAsync()
+    {
+        using var guard = await _stateLock.LockAsync().ConfigureAwait(false);
+        var sessions = _sessions.Values.ToList();
+        foreach (var session in sessions)
         {
-            _stateLock.Release();
-            _stateLock.Dispose();
+            session.ConnectionStateChanged -= OnSessionConnectionStateChanged;
         }
+
+        await Task.WhenAll(sessions.Select(s => s.DisposeAsync().AsTask())).ConfigureAwait(false);
+
+        _sessions.Clear();
     }
 }

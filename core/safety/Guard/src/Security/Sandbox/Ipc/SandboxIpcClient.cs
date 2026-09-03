@@ -6,7 +6,7 @@ public sealed class SandboxIpcClient : IAsyncDisposable
     private readonly IProcessService _processService;
     private readonly IFileSystem _fs;
     private readonly ILogger<SandboxIpcClient>? _logger;
-    private readonly SemaphoreSlim _sendLock = new(1, 1);
+    private readonly AsyncLock _sendLock = new();
     private readonly Func<int, Task>? _onSatelliteStarted;
     private IInteractiveProcess? _process;
     private int _requestCounter;
@@ -147,16 +147,11 @@ public sealed class SandboxIpcClient : IAsyncDisposable
         {
             var json = JsonSerializer.Serialize(request, SandboxIpcJsonContext.Default.SandboxIpcRequest);
 
-            await _sendLock.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                await _process!.StandardInput.WriteAsync((json + "\n").AsMemory(), ct).ConfigureAwait(false);
-                await _process.StandardInput.FlushAsync(ct).ConfigureAwait(false);
-            }
-            finally
-            {
-                _sendLock.Release();
-            }
+            using var guard = await _sendLock.LockAsync(ct).ConfigureAwait(false);
+
+            await _process!.StandardInput.WriteAsync((json + "\n").AsMemory(), ct).ConfigureAwait(false);
+            await _process.StandardInput.FlushAsync(ct).ConfigureAwait(false);
+        
 
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeoutCts.CancelAfter(TimeSpan.FromSeconds(60));

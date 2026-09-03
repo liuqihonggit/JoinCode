@@ -18,7 +18,7 @@ public sealed partial class BridgeMain : ServiceEntity
     // 活跃会话跟踪 — 对齐 TS 端 runBridgeLoop 的 7 个 Map + 3 个 Set
     private readonly BridgeSessionTracker _tracker = new();
     private readonly List<Task> _pendingCleanups = new(); // 待清理任务 — 对齐 TS 端 pendingCleanups
-    private readonly SemaphoreSlim _cleanupLock = new(1, 1); // 替代 lock — JCC4001 分析器要求
+    private readonly AsyncLock _cleanupLock = new(); // 替代 lock — JCC4001 分析器要求
 
     // 退避状态 — 对齐 TS 端 BackoffConfig + 双轨退避
     private readonly BridgeBackoffStrategy _backoff;
@@ -1794,16 +1794,8 @@ public sealed partial class BridgeMain : ServiceEntity
         {
             try
             {
-                await _cleanupLock.WaitAsync(ct).ConfigureAwait(false);
-                Task[] cleanups;
-                try
-                {
-                    cleanups = _pendingCleanups.ToArray();
-                }
-                finally
-                {
-                    _cleanupLock.Release();
-                }
+                using var guard = await _cleanupLock.LockAsync(ct).ConfigureAwait(false);
+                Task[] cleanups = _pendingCleanups.ToArray();
                 await Task.WhenAll(cleanups).WaitAsync(
                     TimeSpan.FromSeconds(5), ct).ConfigureAwait(false);
             }

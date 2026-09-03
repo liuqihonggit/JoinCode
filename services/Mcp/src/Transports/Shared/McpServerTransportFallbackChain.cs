@@ -6,7 +6,7 @@ public sealed class McpServerTransportFallbackChain : IMcpTransport
     private readonly ILogger? _logger;
     private IMcpTransport? _activeTransport;
     private int _activeIndex = -1;
-    private readonly SemaphoreSlim _switchLock = new(1, 1);
+    private readonly AsyncLock _switchLock = new();
     private int _disposed;
 
     public event EventHandler<McpMessageReceivedEventArgs>? MessageReceived;
@@ -81,53 +81,48 @@ public sealed class McpServerTransportFallbackChain : IMcpTransport
     {
         if (_activeIndex < 0 || _activeIndex >= _transports.Length - 1) return;
 
-        await _switchLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+        using var guard = await _switchLock.LockAsync(CancellationToken.None).ConfigureAwait(false);
+
+        if (_activeIndex >= _transports.Length - 1) return;
+
+        var fromType = _transports[_activeIndex].GetType().Name;
+        var nextIndex = _activeIndex + 1;
+
+        _logger?.LogWarning(ex, "[ServerFallback] Transport {FromType} runtime error, degrading to {ToType}",
+            fromType, _transports[nextIndex].GetType().Name);
+
+        if (_activeTransport is not null)
+        {
+            UnwireEvents(_activeTransport);
+            await _activeTransport.StopAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+
         try
         {
-            if (_activeIndex >= _transports.Length - 1) return;
+            await _transports[nextIndex].StartAsync(CancellationToken.None).ConfigureAwait(false);
+            _activeTransport = _transports[nextIndex];
+            _activeIndex = nextIndex;
+            WireEvents(_activeTransport);
 
-            var fromType = _transports[_activeIndex].GetType().Name;
-            var nextIndex = _activeIndex + 1;
-
-            _logger?.LogWarning(ex, "[ServerFallback] Transport {FromType} runtime error, degrading to {ToType}",
-                fromType, _transports[nextIndex].GetType().Name);
-
-            if (_activeTransport is not null)
+            FallbackOccurred?.Invoke(this, new TransportFallbackEventArgs
             {
-                UnwireEvents(_activeTransport);
-                await _activeTransport.StopAsync(CancellationToken.None).ConfigureAwait(false);
-            }
+                FromTransportType = fromType,
+                ToTransportType = _transports[nextIndex].GetType().Name,
+                Reason = ex.Message,
+                IsServerSide = true,
+                FromPriority = _activeIndex,
+                ToPriority = nextIndex + 1,
+            });
 
-            try
-            {
-                await _transports[nextIndex].StartAsync(CancellationToken.None).ConfigureAwait(false);
-                _activeTransport = _transports[nextIndex];
-                _activeIndex = nextIndex;
-                WireEvents(_activeTransport);
-
-                FallbackOccurred?.Invoke(this, new TransportFallbackEventArgs
-                {
-                    FromTransportType = fromType,
-                    ToTransportType = _transports[nextIndex].GetType().Name,
-                    Reason = ex.Message,
-                    IsServerSide = true,
-                    FromPriority = _activeIndex,
-                    ToPriority = nextIndex + 1,
-                });
-
-                _logger?.LogInformation("[ServerFallback] Degraded to {Type} successfully",
-                    _transports[nextIndex].GetType().Name);
-            }
-            catch (Exception fallbackEx)
-            {
-                _logger?.LogError(fallbackEx, "[ServerFallback] Degradation to {Type} also failed",
-                    _transports[nextIndex].GetType().Name);
-            }
+            _logger?.LogInformation("[ServerFallback] Degraded to {Type} successfully",
+                _transports[nextIndex].GetType().Name);
         }
-        finally
+        catch (Exception fallbackEx)
         {
-            _switchLock.Release();
+            _logger?.LogError(fallbackEx, "[ServerFallback] Degradation to {Type} also failed",
+                _transports[nextIndex].GetType().Name);
         }
+    
     }
 
     private void WireEvents(IMcpTransport transport)

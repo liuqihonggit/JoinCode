@@ -9,7 +9,7 @@ internal sealed class GraphExecutionContext
     public required GoalGraph Graph { get; init; }
     public required GoalState State { get; init; }
     public required MessageList ChatHistory { get; init; }
-    public required SemaphoreSlim StateLock { get; init; }
+    public required AsyncLock StateLock { get; init; }
     public required IClockService Clock { get; init; }
 
     public ConcurrentQueue<string> ReadyQueue { get; } = new();

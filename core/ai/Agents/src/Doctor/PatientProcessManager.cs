@@ -8,7 +8,7 @@ public sealed class PatientProcessManager : IAsyncDisposable
 {
     private readonly IProcessService _processService;
     private readonly Dictionary<string, PatientHandle> _patients = new();
-    private readonly SemaphoreSlim _patientsLock = new(1, 1);
+    private readonly AsyncLock _patientsLock = new();
     private int _isDisposed;
 
     /// <summary>病人 stdout 行接收事件（携带 PatientId）</summary>
@@ -25,14 +25,10 @@ public sealed class PatientProcessManager : IAsyncDisposable
     {
         get
         {
-            _patientsLock.Wait();
-            try
-            {
-                return _patients.ToDictionary(
-                    kv => kv.Key,
-                    kv => kv.Value.Info);
-            }
-            finally { _patientsLock.Release(); }
+            using var guard = _patientsLock.Lock();
+            return _patients.ToDictionary(
+                kv => kv.Key,
+                kv => kv.Value.Info);
         }
     }
 
@@ -58,13 +54,7 @@ public sealed class PatientProcessManager : IAsyncDisposable
         IReadOnlyDictionary<string, string>? environmentVariables = null,
         CancellationToken cancellationToken = default)
     {
-        await _patientsLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (_patients.ContainsKey(patientId))
-                throw new InvalidOperationException($"[AGT013] 病人 {patientId} 已存在，请先 Kill 后再 Spawn");
-        }
-        finally { _patientsLock.Release(); }
+        EnsurePatientNotExists(patientId, cancellationToken);
 
         var execPath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? "jcc";
 
@@ -107,13 +97,26 @@ public sealed class PatientProcessManager : IAsyncDisposable
         handle.ErrorLineReceived += OnErrorLineReceived;
         handle.ProcessExited += OnProcessExited;
 
-        await _patientsLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try { _patients[patientId] = handle; }
-        finally { _patientsLock.Release(); }
+        RegisterPatient(patientId, handle, cancellationToken);
 
         DoctorDiag.Write($"[Doctor] 病人进程已启动: {patientId}, PID={process.Id}");
 
         return info;
+    }
+
+    /// <summary>检查病人是否已存在，存在则抛异常</summary>
+    private void EnsurePatientNotExists(string patientId, CancellationToken cancellationToken)
+    {
+        using var guard = _patientsLock.Lock(cancellationToken);
+        if (_patients.ContainsKey(patientId))
+            throw new InvalidOperationException($"[AGT013] 病人 {patientId} 已存在，请先 Kill 后再 Spawn");
+    }
+
+    /// <summary>注册病人进程到管理表</summary>
+    private void RegisterPatient(string patientId, PatientHandle handle, CancellationToken cancellationToken)
+    {
+        using var guard = _patientsLock.Lock(cancellationToken);
+ _patients[patientId] = handle; 
     }
 
     /// <summary>
@@ -122,9 +125,8 @@ public sealed class PatientProcessManager : IAsyncDisposable
     public async Task KillAsync(string patientId)
     {
         PatientHandle? handle;
-        await _patientsLock.WaitAsync().ConfigureAwait(false);
-        try { _patients.TryGetValue(patientId, out handle); }
-        finally { _patientsLock.Release(); }
+        using var guard = await _patientsLock.LockAsync().ConfigureAwait(false);
+ _patients.TryGetValue(patientId, out handle); 
 
         if (handle is null) return;
 
@@ -137,9 +139,8 @@ public sealed class PatientProcessManager : IAsyncDisposable
     /// </summary>
     public async Task RemovePatientAsync(string patientId)
     {
-        await _patientsLock.WaitAsync().ConfigureAwait(false);
-        try { _patients.Remove(patientId); }
-        finally { _patientsLock.Release(); }
+        using var guard = await _patientsLock.LockAsync().ConfigureAwait(false);
+ _patients.Remove(patientId); 
     }
 
     /// <summary>
@@ -148,9 +149,8 @@ public sealed class PatientProcessManager : IAsyncDisposable
     public async Task KillAllAsync()
     {
         List<PatientHandle> handles;
-        await _patientsLock.WaitAsync().ConfigureAwait(false);
-        try { handles = _patients.Values.ToList(); }
-        finally { _patientsLock.Release(); }
+        using var guard = await _patientsLock.LockAsync().ConfigureAwait(false);
+ handles = _patients.Values.ToList(); 
 
         foreach (var handle in handles)
             handle.Kill();
@@ -162,9 +162,8 @@ public sealed class PatientProcessManager : IAsyncDisposable
     public async Task<PatientInfo> WaitForExitAsync(string patientId, CancellationToken cancellationToken = default)
     {
         PatientHandle? handle;
-        await _patientsLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try { _patients.TryGetValue(patientId, out handle); }
-        finally { _patientsLock.Release(); }
+        using var guard = await _patientsLock.LockAsync(cancellationToken).ConfigureAwait(false);
+ _patients.TryGetValue(patientId, out handle); 
 
         if (handle is null)
             throw new InvalidOperationException($"[AGT014] 病人 {patientId} 不存在");
@@ -178,9 +177,8 @@ public sealed class PatientProcessManager : IAsyncDisposable
     public async Task<IReadOnlyDictionary<string, PatientInfo>> WaitForAllExitAsync(CancellationToken cancellationToken = default)
     {
         List<PatientHandle> handles;
-        await _patientsLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try { handles = _patients.Values.ToList(); }
-        finally { _patientsLock.Release(); }
+        using var guard = await _patientsLock.LockAsync(cancellationToken).ConfigureAwait(false);
+ handles = _patients.Values.ToList(); 
 
         var results = new Dictionary<string, PatientInfo>();
         foreach (var handle in handles)
@@ -197,9 +195,8 @@ public sealed class PatientProcessManager : IAsyncDisposable
     /// </summary>
     public System.IO.StreamWriter? GetStandardInput(string patientId)
     {
-        _patientsLock.Wait();
-        try { return _patients.TryGetValue(patientId, out var h) ? h.StandardInput : null; }
-        finally { _patientsLock.Release(); }
+        using var guard = _patientsLock.Lock();
+        return _patients.TryGetValue(patientId, out var h) ? h.StandardInput : null;
     }
 
     /// <summary>
@@ -207,9 +204,8 @@ public sealed class PatientProcessManager : IAsyncDisposable
     /// </summary>
     public PatientInfo? GetPatientInfo(string patientId)
     {
-        _patientsLock.Wait();
-        try { return _patients.TryGetValue(patientId, out var h) ? h.Info : null; }
-        finally { _patientsLock.Release(); }
+        using var guard = _patientsLock.Lock();
+        return _patients.TryGetValue(patientId, out var h) ? h.Info : null;
     }
 
     /// <summary>
@@ -217,9 +213,8 @@ public sealed class PatientProcessManager : IAsyncDisposable
     /// </summary>
     public bool IsRunning(string patientId)
     {
-        _patientsLock.Wait();
-        try { return _patients.TryGetValue(patientId, out var h) && h.IsRunning; }
-        finally { _patientsLock.Release(); }
+        using var guard = _patientsLock.Lock();
+        return _patients.TryGetValue(patientId, out var h) && h.IsRunning;
     }
 
     private void OnOutputLineReceived(object? sender, (string PatientId, string Line) e)
@@ -243,19 +238,21 @@ public sealed class PatientProcessManager : IAsyncDisposable
 
         await KillAllAsync().ConfigureAwait(false);
 
-        List<PatientHandle> handles;
-        await _patientsLock.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            handles = _patients.Values.ToList();
-            _patients.Clear();
-        }
-        finally { _patientsLock.Release(); }
+        await CleanupPatientsAsync().ConfigureAwait(false);
+        _patientsLock.Dispose();
+    }
+
+    /// <summary>清理所有病人句柄（在锁保护下执行）</summary>
+    private async Task CleanupPatientsAsync()
+    {
+        using var guard = await _patientsLock.LockAsync().ConfigureAwait(false);
+
+        var handles = _patients.Values.ToList();
+        _patients.Clear();
+    
 
         foreach (var handle in handles)
             await handle.DisposeAsync().ConfigureAwait(false);
-
-        _patientsLock.Dispose();
     }
 
     /// <summary>

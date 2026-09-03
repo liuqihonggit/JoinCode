@@ -8,7 +8,7 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
     private readonly VcrOptions _options;
     private readonly ILogger<VcrService>? _logger;
     private readonly IFileSystem _fs;
-    private readonly SemaphoreSlim _fileLock = new(1, 1);
+    private readonly AsyncLock _fileLock = new();
     private readonly ConcurrentDictionary<string, VcrCassette> _cassetteCache = new(StringComparer.OrdinalIgnoreCase);
 
     private VcrMode _currentMode;
@@ -34,32 +34,27 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
             return cached;
         }
 
-        await _fileLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            var filePath = GetCassettePath(name);
-            if (!_fs.FileExists(filePath))
-            {
-                var cassette = new VcrCassette { Name = name };
-                _cassetteCache[name] = cassette;
-                _logger?.LogDebug("创建新 cassette: {Name}", name);
-                return cassette;
-            }
+        using var guard = await _fileLock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            var loaded = await _fs.ReadAndDeserializeAsync(filePath, VcrJsonContext.Default.VcrCassette, cancellationToken).ConfigureAwait(false);
-            if (loaded == null)
-            {
-                loaded = new VcrCassette { Name = name };
-            }
-
-            _cassetteCache[name] = loaded;
-            _logger?.LogDebug("加载 cassette: {Name}, 交互数={Count}", name, loaded.Interactions.Count);
-            return loaded;
-        }
-        finally
+        var filePath = GetCassettePath(name);
+        if (!_fs.FileExists(filePath))
         {
-            _fileLock.Release();
+            var cassette = new VcrCassette { Name = name };
+            _cassetteCache[name] = cassette;
+            _logger?.LogDebug("创建新 cassette: {Name}", name);
+            return cassette;
         }
+
+        var loaded = await _fs.ReadAndDeserializeAsync(filePath, VcrJsonContext.Default.VcrCassette, cancellationToken).ConfigureAwait(false);
+        if (loaded == null)
+        {
+            loaded = new VcrCassette { Name = name };
+        }
+
+        _cassetteCache[name] = loaded;
+        _logger?.LogDebug("加载 cassette: {Name}, 交互数={Count}", name, loaded.Interactions.Count);
+        return loaded;
+    
     }
 
     public async Task SaveCassetteAsync(VcrCassette cassette, CancellationToken cancellationToken = default)
@@ -67,23 +62,18 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
         ArgumentNullException.ThrowIfNull(cassette);
         ArgumentException.ThrowIfNullOrEmpty(cassette.Name);
 
-        await _fileLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            var filePath = GetCassettePath(cassette.Name);
-            var directory = Path.GetDirectoryName(filePath);
-            DirectoryHelper.EnsureDirectoryExists(_fs, directory);
+        using var guard = await _fileLock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            var json = JsonSerializer.Serialize(cassette, VcrJsonContext.Default.VcrCassette);
-            await _fs.WriteAllTextAsync(filePath, json, cancellationToken).ConfigureAwait(false);
+        var filePath = GetCassettePath(cassette.Name);
+        var directory = Path.GetDirectoryName(filePath);
+        DirectoryHelper.EnsureDirectoryExists(_fs, directory);
 
-            _cassetteCache[cassette.Name] = cassette;
-            _logger?.LogDebug("保存 cassette: {Name}, 交互数={Count}", cassette.Name, cassette.Interactions.Count);
-        }
-        finally
-        {
-            _fileLock.Release();
-        }
+        var json = JsonSerializer.Serialize(cassette, VcrJsonContext.Default.VcrCassette);
+        await _fs.WriteAllTextAsync(filePath, json, cancellationToken).ConfigureAwait(false);
+
+        _cassetteCache[cassette.Name] = cassette;
+        _logger?.LogDebug("保存 cassette: {Name}, 交互数={Count}", cassette.Name, cassette.Interactions.Count);
+    
     }
 
     public async Task RecordInteractionAsync(string cassetteName, VcrRequest request, VcrResponse response, CancellationToken cancellationToken = default)

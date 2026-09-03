@@ -1,17 +1,17 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>Host.Tests</RootNamespace>
-    <AssemblyName>JoinCode.Host.Tests</AssemblyName>
-    <Description>JoinCode Host 子系统单元测试</Description>
+    <RootNamespace>Tui.Tests</RootNamespace>
+    <AssemblyName>JoinCode.Tui.Tests</AssemblyName>
+    <Description>JoinCode TUI 子系统单元测试</Description>
     <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)app\JoinCode\JoinCode.csproj" />
+    <ProjectReference Include="$(RepoRoot)app\JoinCodeTui\JoinCodeTui.csproj" />
   </ItemGroup>
 
-  <!-- Core.Tests.Terminal 依赖（去重：JoinCode 已在上面） -->
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)composition\Composition\src\Composition.csproj" />
     <ProjectReference Include="$(RepoRoot)composition\Clock\src\Clock.csproj" />

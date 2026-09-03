@@ -20,7 +20,6 @@ global using Microsoft.Extensions.Configuration;
 global using Core.DependencyInjection;
 
 global using JoinCode.Abstractions.Interfaces;
-global using JoinCode.Tui.Views;
 global using JoinCode.Abstractions.Models;
 global using JoinCode.Abstractions.Models.Diff;
 global using JoinCode.Abstractions.Models.Search;

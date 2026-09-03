@@ -28,6 +28,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="JoinCode.Host.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Tui.Tests" />
   </ItemGroup>
 
 </Project>

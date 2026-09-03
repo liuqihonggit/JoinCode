@@ -37,7 +37,7 @@ public sealed partial class BridgeClient : IAsyncDisposable
 
     public async ValueTask<BridgeClientState> GetStateAsync(CancellationToken ct = default)
     {
-        using var guard = await _stateLock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = _stateLock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
 
         return new BridgeClientState
         {
@@ -140,7 +140,7 @@ public sealed partial class BridgeClient : IAsyncDisposable
     /// <summary>尝试标记客户端为启动中，已在运行则返回 false</summary>
     private async Task<bool> TryMarkStartingAsync(CancellationToken cancellationToken)
     {
-        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _stateLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
         if (IsRunning)
         {
             _logger?.LogWarning("[BridgeClient] 客户端已在运行");
@@ -162,7 +162,7 @@ public sealed partial class BridgeClient : IAsyncDisposable
     /// </summary>
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _stateLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
         if (!IsRunning)
         {

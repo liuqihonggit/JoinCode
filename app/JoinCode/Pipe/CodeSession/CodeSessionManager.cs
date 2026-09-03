@@ -21,7 +21,7 @@ public sealed partial class CodeSessionManager : ServiceEntity
         ArgumentException.ThrowIfNullOrWhiteSpace(projectName);
         ArgumentException.ThrowIfNullOrWhiteSpace(workDirectory);
 
-        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
 
         var record = new CodeSessionRecord
         {
@@ -68,7 +68,7 @@ public sealed partial class CodeSessionManager : ServiceEntity
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         ArgumentException.ThrowIfNullOrWhiteSpace(newWorkDirectory);
 
-        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
 
         var existing = await _repo.GetAsync(sessionId, ct).ConfigureAwait(false);
         if (existing is null) return false;

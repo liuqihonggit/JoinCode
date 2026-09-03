@@ -50,7 +50,7 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
         if (detection is null) return;
 
         // P1-8: 添加超时，防止永久阻塞
-        using var guard = _semaphore.TryLock(SemaphoreWaitTimeout);
+        using var guard = _semaphore.TryLock();
         if (guard is null)
         {
             _logger?.LogWarning("MagicDocsManager.OnFileRead 信号量等待超时，跳过注册: {FilePath}", e.FilePath);
@@ -74,7 +74,7 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
         if (context.QuerySource != "repl_main_thread") return;
 
         List<MagicDocEntry> docsToUpdate;
-        using var guard = await _semaphore.LockAsync(context.CancellationToken).ConfigureAwait(false);
+        using var guard = _semaphore.TryLock(context.CancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
         if (_trackedDocs.Count == 0) return;
         docsToUpdate = [.. _trackedDocs.Values];
@@ -143,7 +143,7 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
 
     private async Task RemoveTrackedDocAsync(string filePath)
     {
-        using var guard = await _semaphore.LockAsync().ConfigureAwait(false);
+        using var guard = _semaphore.TryLock() ?? throw new System.TimeoutException("锁等待超时");
         RemoveTrackedDocCore(filePath);
     }
 
@@ -155,7 +155,7 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
         get
         {
             // P1-8: 添加超时，防止永久阻塞；超时返回当前未加锁计数（best-effort）
-            using var guard = _semaphore.TryLock(SemaphoreWaitTimeout);
+            using var guard = _semaphore.TryLock();
             if (guard is null)
             {
                 _logger?.LogWarning("MagicDocsManager.TrackedCount 信号量等待超时，返回未加锁计数");
@@ -171,7 +171,7 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
     public void Clear()
     {
         // P1-8: 添加超时，防止永久阻塞
-        using var guard = _semaphore.TryLock(SemaphoreWaitTimeout);
+        using var guard = _semaphore.TryLock();
         if (guard is null)
         {
             _logger?.LogWarning("MagicDocsManager.Clear 信号量等待超时，跳过清除");

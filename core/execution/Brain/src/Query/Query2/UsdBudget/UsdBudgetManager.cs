@@ -59,7 +59,7 @@ public sealed partial class UsdBudgetManager : IUsdBudgetManager, IAsyncDisposab
             return false;
         }
 
-                using (await _lock.LockAsync(ct).ConfigureAwait(false))
+                using (_lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时"))
         {
             return _totalUsed >= maxBudget;
         }
@@ -67,7 +67,7 @@ public sealed partial class UsdBudgetManager : IUsdBudgetManager, IAsyncDisposab
 
     public async Task<UsdBudgetStatus> GetBudgetStatusAsync(CancellationToken ct = default)
     {
-                using (await _lock.LockAsync(ct).ConfigureAwait(false))
+                using (_lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时"))
         {
             var maxBudget = _config.MaxUsdBudget ?? 0m;
             var remaining = maxBudget > 0 ? Math.Max(0m, maxBudget - _totalUsed) : decimal.MaxValue;
@@ -93,7 +93,7 @@ public sealed partial class UsdBudgetManager : IUsdBudgetManager, IAsyncDisposab
             return;
         }
 
-                using (await _lock.LockAsync(ct).ConfigureAwait(false))
+                using (_lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时"))
         {
             _totalUsed += costUsd;
             _logger?.LogInformation("[UsdBudgetManager] Recorded cost: ${Cost:F6} for '{Reason}', total: ${Total:F6} / ${Max:F2}", costUsd, reason, _totalUsed, maxBudget);

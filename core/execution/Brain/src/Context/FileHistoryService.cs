@@ -27,7 +27,7 @@ public sealed class FileHistoryService
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
         var normalizedPath = Path.GetFullPath(filePath);
 
@@ -59,7 +59,7 @@ public sealed class FileHistoryService
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
         var normalizedPath = Path.GetFullPath(filePath);
         return _history.TryGetValue(normalizedPath, out var snapshots)
@@ -72,7 +72,7 @@ public sealed class FileHistoryService
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
         var normalizedPath = Path.GetFullPath(filePath);
 
@@ -94,7 +94,7 @@ public sealed class FileHistoryService
 
     public async Task ClearAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
         _history.Clear();
     

@@ -73,7 +73,7 @@ public abstract class TransportBase : ITransport
     /// <inheritdoc/>
     public async Task SendAsync(ReadOnlyMemory<byte> payload, CancellationToken ct = default)
     {
-        using var guard = await _sendLock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = _sendLock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
 
         await SendCoreAsync(payload, ct).ConfigureAwait(false);
     

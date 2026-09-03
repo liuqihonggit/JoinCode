@@ -39,7 +39,7 @@ public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractio
     public async Task<JoinCode.Abstractions.Interfaces.CreatePaneResult> CreateTeammatePaneAsync(
         string teammateId, string command, CancellationToken cancellationToken = default)
     {
-        using var guard = await _creationLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _creationLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
         if (_insideTmux)
             return await CreatePaneInsideTmuxAsync(teammateId, command, cancellationToken).ConfigureAwait(false);

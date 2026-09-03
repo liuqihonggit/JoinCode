@@ -31,7 +31,7 @@ public sealed class BootstrapAgent : IAsyncDisposable
     {
         get
         {
-            using var guard = _reportsLock.TryLock(TimeSpan.Zero);
+            using var guard = _reportsLock.TryLock();
             if (guard is not null)
             {
                 return _pendingReports;
@@ -101,7 +101,7 @@ public sealed class BootstrapAgent : IAsyncDisposable
                 await Task.Delay(_debounceInterval, ct).ConfigureAwait(false);
 
                 List<DiagnosticReport> reportsToProcess;
-                using var guard = await _reportsLock.LockAsync(ct).ConfigureAwait(false);
+                using var guard = _reportsLock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
 
                 reportsToProcess = [.. _pendingReports];
                 _pendingReports.Clear();
@@ -199,7 +199,7 @@ public sealed class BootstrapAgent : IAsyncDisposable
                 await Task.Delay(_debounceInterval, ct).ConfigureAwait(false);
 
                 List<DiagnosticReport> reportsToProcess;
-                using var guard = await _reportsLock.LockAsync(ct).ConfigureAwait(false);
+                using var guard = _reportsLock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
 
                 reportsToProcess = [.. _pendingReports];
                 _pendingReports.Clear();
@@ -284,7 +284,7 @@ public sealed class BootstrapAgent : IAsyncDisposable
                 await Task.Delay(_debounceInterval, ct).ConfigureAwait(false);
 
                 List<DiagnosticReport> reportsToProcess;
-                using var guard = await _reportsLock.LockAsync(ct).ConfigureAwait(false);
+                using var guard = _reportsLock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
 
                 reportsToProcess = [.. _pendingReports];
                 _pendingReports.Clear();
@@ -438,7 +438,7 @@ public sealed class BootstrapAgent : IAsyncDisposable
 
     private void OnDiagnosticReportGenerated(object? sender, DiagnosticReport report)
     {
-        using var guard = _reportsLock.TryLock(TimeSpan.Zero);
+        using var guard = _reportsLock.TryLock();
         if (guard is not null)
         {
             _pendingReports.Add(report);

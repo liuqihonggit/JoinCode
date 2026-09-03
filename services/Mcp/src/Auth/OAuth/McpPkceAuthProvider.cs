@@ -113,7 +113,7 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
 
     public async Task<bool> RefreshAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = await _refreshLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _refreshLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
         try
         {
             if (!string.IsNullOrEmpty(_authContext.RefreshToken))
@@ -166,7 +166,7 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
 
         await EnsureClientConfiguredAsync(cancellationToken).ConfigureAwait(false);
 
-        using var guard = await _refreshLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _refreshLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
         try
         {
             var parameters = new Dictionary<string, string>

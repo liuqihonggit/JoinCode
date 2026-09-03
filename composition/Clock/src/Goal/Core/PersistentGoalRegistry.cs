@@ -44,7 +44,7 @@ public sealed partial class PersistentGoalRegistry : IGoalRegistry
             engine.SetSessionId(_sessionId);
         var state = await engine.StartAsync(objective, constraints, tokenBudget, cancellationToken: cancellationToken).ConfigureAwait(false);
 
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
         _engines[state.GoalId] = engine;
         _currentGoalId = state.GoalId;
@@ -57,7 +57,7 @@ public sealed partial class PersistentGoalRegistry : IGoalRegistry
     /// <inheritdoc />
     public async Task<IReadOnlyList<GoalState>> ListActiveGoalsAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
         return _engines.Values
             .Where(e => e.CurrentState is not null)
@@ -89,7 +89,7 @@ public sealed partial class PersistentGoalRegistry : IGoalRegistry
             var activeGoals = await _stateStore.GetActiveGoalsAsync(_sessionId, cancellationToken).ConfigureAwait(false);
             if (activeGoals.Count == 0) return;
 
-            using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+            using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
             foreach (var state in activeGoals)
             {
@@ -129,7 +129,7 @@ public sealed partial class PersistentGoalRegistry : IGoalRegistry
         if (CurrentEngine is not { } engine) return;
         await engine.ClearAsync(cancellationToken).ConfigureAwait(false);
 
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
         if (_currentGoalId is not null)
         {

@@ -20,7 +20,7 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
         ArgumentException.ThrowIfNullOrEmpty(content);
         options ??= ContextCollapseOptions.Balanced;
 
-        using var guard = await _collapseLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _collapseLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
         try
         {
             var segments = await IdentifyCollapsibleSegmentsAsync(content, options, cancellationToken).ConfigureAwait(false);

@@ -264,7 +264,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         plan.LastUpdatedAt = _clock.GetUtcNow();
 
         // 添加到历史记录
-        using var guard = await _historyLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _historyLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
         _planHistory.Add(plan);
     
@@ -632,7 +632,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         int limit = 10,
         CancellationToken cancellationToken = default)
     {
-        using var guard = await _historyLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _historyLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
         var history = _planHistory.AsEnumerable().Reverse().Take(limit).ToList();
         return history;

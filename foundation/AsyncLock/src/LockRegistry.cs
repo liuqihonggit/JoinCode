@@ -169,6 +169,18 @@ public static class LockRegistry
     }
 
     /// <summary>
+    /// 记录锁等待超时 — <see cref="AsyncLock.TryLock"/> 超时返回 null 时调用,*。
+    /// 通过 <see cref="DiagnosticSink"/> 输出诊断,便于定位"哪个锁等太久"。
+    /// </summary>
+    internal static void OnLockTimeout(string name, TimeSpan timeout)
+    {
+        if (!IsEnabled) return;
+        Emit(
+            $"[LOCK-TIMEOUT] 锁 '{name}' 等待 {timeout.TotalSeconds:F1}s 超时,返回 null。" +
+            $"线程: {Thread.CurrentThread.ManagedThreadId}");
+    }
+
+    /// <summary>
     /// 记录锁获取成功（清除等待标记 + 记录持有信息）。
     /// </summary>
     internal static void OnAcquired(int id, string name)

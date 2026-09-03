@@ -49,7 +49,7 @@ public sealed partial class ChromeIntegrationService : ServiceEntity, IChromeInt
     private void EnsureInitialized()
     {
         if (_initialized) return;
-        using var guard = _initLock.TryLock(TimeSpan.Zero);
+        using var guard = _initLock.TryLock();
         if (guard is null) return;
         if (_initialized) return;
         try { _isDefaultEnabled = Task.Run(() => ReadDefaultEnabledAsync()).GetAwaiter().GetResult(); }

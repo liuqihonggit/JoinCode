@@ -23,7 +23,7 @@ public sealed partial class PreventSleepService : ServiceEntity, IPreventSleepSe
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
         if (_isSleepPrevented)
         {
@@ -55,7 +55,7 @@ public sealed partial class PreventSleepService : ServiceEntity, IPreventSleepSe
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
         if (!_isSleepPrevented)
         {

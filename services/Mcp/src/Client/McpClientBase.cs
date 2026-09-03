@@ -136,7 +136,7 @@ public abstract class McpClientBase : IMcpClient
 
         int requestId = response.GetIdAsInt();
 
-        var guard = await _requestLock.LockAsync(cancellationToken);
+        var guard = _requestLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
         try
         {
             if (_pendingRequests.TryGetValue(requestId, out var tcs))
@@ -171,7 +171,7 @@ public abstract class McpClientBase : IMcpClient
 
     protected async Task CancelPendingRequestsAsync(CancellationToken cancellationToken = default)
     {
-        var guard = await _requestLock.LockAsync(cancellationToken);
+        var guard = _requestLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
         try
         {
             foreach (var tcs in _pendingRequests.Values)

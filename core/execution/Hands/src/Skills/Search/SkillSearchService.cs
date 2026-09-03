@@ -137,7 +137,7 @@ public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchServ
     {
         if ((DateTime.UtcNow - _lastIndexTime).TotalMinutes < 5) return;
 
-        using var guard = await _indexLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _indexLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
         if ((DateTime.UtcNow - _lastIndexTime).TotalMinutes < 5) return;
 

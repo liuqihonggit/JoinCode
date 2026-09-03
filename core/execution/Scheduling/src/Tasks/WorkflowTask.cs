@@ -155,7 +155,7 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
     {
         if (_activeWorkflows.TryGetValue(workflowId, out var runState))
         {
-            using var guard = await _stateLock.LockAsync(ct).ConfigureAwait(false);
+            using var guard = _stateLock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
 
             runState.Cts.Cancel();
             runState.State = TaskExecutionStatus.Cancelled;

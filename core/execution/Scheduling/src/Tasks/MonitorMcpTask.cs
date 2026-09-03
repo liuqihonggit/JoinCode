@@ -98,7 +98,7 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
         var monitorId = $"monitor-{Interlocked.Increment(ref _monitorIdCounter):D4}";
         var session = new MonitorSession(monitorId, config);
 
-        using var guard = await _sessionLock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = _sessionLock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
 
         _sessions[monitorId] = session;
     
@@ -111,7 +111,7 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
 
     public async Task StopMonitoringAsync(string monitorId, CancellationToken ct = default)
     {
-        using var guard = await _sessionLock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = _sessionLock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
 
         if (_sessions.TryRemove(monitorId, out var session))
         {
@@ -123,7 +123,7 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
 
     public async Task<IReadOnlyList<McpMonitorStatus>> GetActiveMonitorsAsync(CancellationToken ct = default)
     {
-        using var guard = await _sessionLock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = _sessionLock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
 
         return _sessions.Values.Select(s => s.ToStatus()).ToList();
     
@@ -142,7 +142,7 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
     /// <summary>清理所有监控会话（在锁保护下执行）</summary>
     private async Task CleanupSessionsAsync()
     {
-        using var guard = await _sessionLock.LockAsync().ConfigureAwait(false);
+        using var guard = _sessionLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
         foreach (var session in _sessions.Values)
         {
             await session.DisposeAsync().ConfigureAwait(false);

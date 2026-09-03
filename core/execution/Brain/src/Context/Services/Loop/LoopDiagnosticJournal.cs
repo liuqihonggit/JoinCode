@@ -152,7 +152,7 @@ public sealed class LoopDiagnosticJournal : IDisposable
 
                     case JournalResetCommand:
                     {
-                        using var guard = await _windowLock.LockAsync(_cts.Token).ConfigureAwait(false);
+                        using var guard = _windowLock.TryLock(_cts.Token) ?? throw new System.TimeoutException("锁等待超时");
 
                         _traceWindow.Clear();
                         _windowCount = 0;
@@ -174,7 +174,7 @@ public sealed class LoopDiagnosticJournal : IDisposable
     private async Task ProcessAnomalyAsync(LoopAnomalyRecord anomaly)
     {
         List<string> traceChain;
-        using var guard = await _windowLock.LockAsync(_cts.Token).ConfigureAwait(false);
+        using var guard = _windowLock.TryLock(_cts.Token) ?? throw new System.TimeoutException("锁等待超时");
 
         traceChain = _traceWindow.Select(e => e.TraceId).ToList();
     
@@ -203,7 +203,7 @@ public sealed class LoopDiagnosticJournal : IDisposable
 
     private async Task AddToWindowAsync(JournalEntry entry)
     {
-        using var guard = await _windowLock.LockAsync(_cts.Token).ConfigureAwait(false);
+        using var guard = _windowLock.TryLock(_cts.Token) ?? throw new System.TimeoutException("锁等待超时");
 
         AddToWindowCore(entry);
     }

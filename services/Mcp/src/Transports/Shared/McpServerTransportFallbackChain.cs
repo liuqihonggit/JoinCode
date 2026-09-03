@@ -81,7 +81,7 @@ public sealed class McpServerTransportFallbackChain : IMcpTransport
     {
         if (_activeIndex < 0 || _activeIndex >= _transports.Length - 1) return;
 
-        using var guard = await _switchLock.LockAsync(CancellationToken.None).ConfigureAwait(false);
+        using var guard = _switchLock.TryLock(CancellationToken.None) ?? throw new System.TimeoutException("锁等待超时");
 
         if (_activeIndex >= _transports.Length - 1) return;
 

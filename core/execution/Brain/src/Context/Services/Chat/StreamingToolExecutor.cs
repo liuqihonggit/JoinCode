@@ -77,7 +77,7 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
     {
         if (_discarded) return;
 
-        using var guard = await _semaphore.LockAsync().ConfigureAwait(false);
+        using var guard = _semaphore.TryLock() ?? throw new System.TimeoutException("锁等待超时");
 
         _queue.Add(new QueuedTool
         {
@@ -98,7 +98,7 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
     {
         if (_discarded) return [];
 
-        using var guard = await _semaphore.LockAsync().ConfigureAwait(false);
+        using var guard = _semaphore.TryLock() ?? throw new System.TimeoutException("锁等待超时");
 
         var results = _completedBuffer
             .OrderBy(r => r.OriginalIndex)
@@ -117,7 +117,7 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
         if (_discarded) return [];
 
         List<Task<StreamingToolResult>> pendingTasks;
-        using (var guard = await _semaphore.LockAsync().ConfigureAwait(false))
+        using (var guard = _semaphore.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             pendingTasks = _queue
                 .Where(t => t.Status != ToolStatus.Completed)
@@ -163,7 +163,7 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
             _logger?.LogDebug("[StreamingToolExecutor] SiblingCts already disposed during discard");
         }
 
-        using var guard = _semaphore.Lock();
+        using var guard = _semaphore.TryLock() ?? throw new System.TimeoutException("锁等待超时");
         var uncompletedTools = _queue
             .Where(t => t.Status != ToolStatus.Completed && !t.CompletionSource.Task.IsCompleted)
             .ToList();
@@ -206,7 +206,7 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
         while (true)
         {
             QueuedTool? toolToExecute;
-            using var guard = await _semaphore.LockAsync().ConfigureAwait(false);
+            using var guard = _semaphore.TryLock() ?? throw new System.TimeoutException("锁等待超时");
 
             toolToExecute = await FindNextExecutableAsync().ConfigureAwait(false);
             if (toolToExecute is null)
@@ -327,7 +327,7 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
             }
         }
 
-        using var guard = await _semaphore.LockAsync().ConfigureAwait(false);
+        using var guard = _semaphore.TryLock() ?? throw new System.TimeoutException("锁等待超时");
 
         tool.Status = ToolStatus.Completed;
         _completedBuffer.Add(result);

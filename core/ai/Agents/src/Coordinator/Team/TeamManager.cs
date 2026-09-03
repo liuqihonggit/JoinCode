@@ -179,7 +179,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         var members = _teamMembers.GetOrAdd(teamId, _ => new HashSet<string>());
         var memberDetails = _teamMemberDetails.GetOrAdd(teamId, _ => new Dictionary<string, TeamMemberInfo>());
 
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
         if (members.Contains(agentId))
         {
@@ -219,7 +219,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
         var memberDetails = _teamMemberDetails.GetOrAdd(teamId, _ => new Dictionary<string, TeamMemberInfo>());
 
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
         if (!members.Remove(agentId))
         {
@@ -277,7 +277,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
         var messages = _teamMessages.GetOrAdd(teamId, _ => new List<TeamMessage>());
 
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
         if (!_teamMembers.TryGetValue(teamId, out var members) || !members.Contains(senderId))
         {
@@ -323,7 +323,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
         var messages = _teamMessages.GetOrAdd(teamId, _ => new List<TeamMessage>());
 
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
         if (!_teamMembers.TryGetValue(teamId, out var members) || !members.Contains(senderId))
         {
@@ -348,7 +348,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             return Array.Empty<TeamMessage>();
         }
 
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
         return messages
             .OrderByDescending(m => m.Timestamp)
@@ -381,7 +381,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
         var messages = _teamMessages.GetOrAdd(teamId, _ => new List<TeamMessage>());
 
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
         if (!_teamMembers.TryGetValue(teamId, out var members) || !members.Contains(senderId))
         {
@@ -477,7 +477,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
         var memberDetails = _teamMemberDetails.GetOrAdd(teamId, _ => new Dictionary<string, TeamMemberInfo>());
 
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
         if (!memberDetails.TryGetValue(agentId, out var existing))
         {
@@ -526,7 +526,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
         var paths = _teamAllowedPaths.GetOrAdd(teamId, _ => new Dictionary<string, TeamAllowedPath>());
 
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
         if (paths.TryGetValue(path, out var existing))
         {

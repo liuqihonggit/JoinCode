@@ -119,7 +119,7 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
 
     private async Task SaveAsync(CancellationToken cancellationToken)
     {
-        using var guard = await _saveLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _saveLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
         try
         {
             var data = new SessionTagData

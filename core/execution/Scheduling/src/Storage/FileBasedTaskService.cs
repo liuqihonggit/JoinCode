@@ -41,7 +41,7 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
     {
         if (_initialized) return;
 
-        using var guard = await _initLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _initLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
         if (_initialized) return;
 

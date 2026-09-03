@@ -84,7 +84,7 @@ public sealed partial class FileCronTaskStore : ServiceEntity, ICronTaskStore, I
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        using var guard = await _semaphore.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _semaphore.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
         var fileTasks = await ReadFileTasksAsync(cancellationToken).ConfigureAwait(false);
         var allTasks = new List<CronTask>(fileTasks);
@@ -113,7 +113,7 @@ public sealed partial class FileCronTaskStore : ServiceEntity, ICronTaskStore, I
 
         if (!request.IsDurable)
         {
-            using var guard = await _semaphore.LockAsync(cancellationToken).ConfigureAwait(false);
+            using var guard = _semaphore.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
             _sessionTasks[task.Id] = task;
         
@@ -122,7 +122,7 @@ public sealed partial class FileCronTaskStore : ServiceEntity, ICronTaskStore, I
         {
             string? jsonToWrite = null;
 
-            using var guard = await _semaphore.LockAsync(cancellationToken).ConfigureAwait(false);
+            using var guard = _semaphore.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
             var tasks = await ReadFileTasksAsync(cancellationToken).ConfigureAwait(false);
             var taskList = tasks.ToList();
@@ -145,7 +145,7 @@ public sealed partial class FileCronTaskStore : ServiceEntity, ICronTaskStore, I
 
         string? jsonToWrite = null;
 
-        using var guard = await _semaphore.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _semaphore.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
         foreach (var id in idSet)
         {
@@ -177,7 +177,7 @@ public sealed partial class FileCronTaskStore : ServiceEntity, ICronTaskStore, I
 
         string? jsonToWrite = null;
 
-        using var guard = await _semaphore.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _semaphore.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
         foreach (var task in _sessionTasks.Values.Where(t => idSet.Contains(t.Id)))
         {
@@ -212,7 +212,7 @@ public sealed partial class FileCronTaskStore : ServiceEntity, ICronTaskStore, I
         if (_sessionTasks.TryGetValue(id, out var sessionTask))
             return sessionTask;
 
-        using var guard = await _semaphore.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _semaphore.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
         var fileTasks = await ReadFileTasksAsync(cancellationToken).ConfigureAwait(false);
         return fileTasks.FirstOrDefault(t => t.Id == id);
@@ -223,7 +223,7 @@ public sealed partial class FileCronTaskStore : ServiceEntity, ICronTaskStore, I
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        using var guard = await _semaphore.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _semaphore.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
         var fileTasks = await ReadFileTasksAsync(cancellationToken).ConfigureAwait(false);
         var result = new List<CronTask>();

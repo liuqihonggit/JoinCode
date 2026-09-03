@@ -72,7 +72,7 @@ public abstract class McpNetworkClient<TTransport> : McpClientBase
         var tcs = new TaskCompletionSource<JsonRpcResponse>();
         int requestId = request.GetIdAsInt();
 
-        var guard = await _requestLock.LockAsync(cancellationToken);
+        var guard = _requestLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
         try
         {
             _pendingRequests[requestId] = tcs;
@@ -92,7 +92,7 @@ public abstract class McpNetworkClient<TTransport> : McpClientBase
         }
         catch
         {
-            var guard1 = await _requestLock.LockAsync(cancellationToken);
+            var guard1 = _requestLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
             try
             {
                 _pendingRequests.Remove(requestId);

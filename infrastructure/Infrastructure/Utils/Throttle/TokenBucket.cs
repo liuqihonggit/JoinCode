@@ -13,7 +13,7 @@ public sealed class TokenBucket : IDisposable
     {
         get
         {
-            var guard = _gate.TryLock(TimeSpan.Zero);
+            var guard = _gate.TryLock();
             if (guard is null)
                 return _tokens;
 
@@ -40,7 +40,7 @@ public sealed class TokenBucket : IDisposable
     {
         while (true)
         {
-            using var guard = await _gate.LockAsync(ct).ConfigureAwait(false);
+            using var guard = _gate.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
 
             Refill();
 
@@ -57,7 +57,7 @@ public sealed class TokenBucket : IDisposable
 
     public bool TryConsume(double requiredTokens)
     {
-        var guard = _gate.TryLock(TimeSpan.Zero);
+        var guard = _gate.TryLock();
         if (guard is null)
             return false;
 

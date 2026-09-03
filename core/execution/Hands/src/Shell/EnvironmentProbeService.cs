@@ -24,7 +24,7 @@ public sealed class EnvironmentProbeService : ServiceEntity, IEnvironmentProbeSe
         if (!forceRescan && _cachedReport is not null && _lastProbeTime > DateTime.UtcNow.AddMinutes(-5))
             return _cachedReport;
 
-        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
 
         if (!forceRescan && _cachedReport is not null && _lastProbeTime > DateTime.UtcNow.AddMinutes(-5))
             return _cachedReport;

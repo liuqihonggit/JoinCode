@@ -105,7 +105,7 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
 
     private async Task ReloadOnFileChangeAsync()
     {
-        using var guard = await _reloadLock.LockAsync().ConfigureAwait(false);
+        using var guard = _reloadLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
 
         LoadConfig();
         ConfigChanged?.Invoke(this, EventArgs.Empty);

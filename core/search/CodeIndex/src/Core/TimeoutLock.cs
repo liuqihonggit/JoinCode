@@ -25,7 +25,7 @@ internal sealed class TimeoutLock : IDisposable
         var actualTimeout = timeout ?? _defaultTimeout;
         _log?.Invoke($"[TimeoutLock:{_lockName}] Acquiring (timeout={actualTimeout.TotalSeconds}s)...");
 
-        var guard = await _semaphore.TryLockAsync(actualTimeout, ct).ConfigureAwait(false);
+        var guard = _semaphore.TryLock();
         if (guard is null)
         {
             var msg = $"[TimeoutLock:{_lockName}] TIMEOUT: failed to acquire within {actualTimeout.TotalSeconds}s. Possible deadlock detected.";
@@ -45,7 +45,7 @@ internal sealed class TimeoutLock : IDisposable
         var actualTimeout = timeout ?? _defaultTimeout;
         _log?.Invoke($"[TimeoutLock:{_lockName}] Acquiring sync (timeout={actualTimeout.TotalSeconds}s)...");
 
-        var guard = _semaphore.TryLock(actualTimeout);
+        var guard = _semaphore.TryLock();
         if (guard is null)
         {
             var msg = $"[TimeoutLock:{_lockName}] TIMEOUT: failed to acquire within {actualTimeout.TotalSeconds}s. Possible deadlock detected.";

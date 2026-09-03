@@ -85,7 +85,7 @@ public sealed partial class InMemoryDreamTaskRegistry : IDreamTaskRegistry, IAsy
             Phase = DreamPhase.Starting
         };
 
-                using (await _lock.LockAsync(ct).ConfigureAwait(false))
+                using (_lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时"))
         {
             _tasks[taskId] = task;
         }
@@ -96,7 +96,7 @@ public sealed partial class InMemoryDreamTaskRegistry : IDreamTaskRegistry, IAsy
     /// <inheritdoc />
     public async Task AddDreamTurnAsync(string taskId, DreamTurn turn, IReadOnlyList<string> touchedPaths, CancellationToken ct = default)
     {
-                using (await _lock.LockAsync(ct).ConfigureAwait(false))
+                using (_lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (_tasks.TryGetValue(taskId, out var task))
             {
@@ -108,7 +108,7 @@ public sealed partial class InMemoryDreamTaskRegistry : IDreamTaskRegistry, IAsy
     /// <inheritdoc />
     public async Task CompleteDreamTaskAsync(string taskId, CancellationToken ct = default)
     {
-                using (await _lock.LockAsync(ct).ConfigureAwait(false))
+                using (_lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (_tasks.TryGetValue(taskId, out var task))
             {
@@ -120,7 +120,7 @@ public sealed partial class InMemoryDreamTaskRegistry : IDreamTaskRegistry, IAsy
     /// <inheritdoc />
     public async Task FailDreamTaskAsync(string taskId, CancellationToken ct = default)
     {
-                using (await _lock.LockAsync(ct).ConfigureAwait(false))
+                using (_lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (_tasks.TryGetValue(taskId, out var task))
             {
@@ -133,7 +133,7 @@ public sealed partial class InMemoryDreamTaskRegistry : IDreamTaskRegistry, IAsy
     public async Task KillDreamTaskAsync(string taskId, CancellationToken ct = default)
     {
         DreamTaskState? task;
-                using (await _lock.LockAsync(ct).ConfigureAwait(false))
+                using (_lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时"))
         {
             _tasks.TryGetValue(taskId, out task);
         }
@@ -158,7 +158,7 @@ public sealed partial class InMemoryDreamTaskRegistry : IDreamTaskRegistry, IAsy
     /// <inheritdoc />
     public async Task<DreamTaskState?> GetTaskStateAsync(string taskId, CancellationToken ct = default)
     {
-                using (await _lock.LockAsync(ct).ConfigureAwait(false))
+                using (_lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时"))
         {
             _tasks.TryGetValue(taskId, out var task);
             return task;
@@ -168,7 +168,7 @@ public sealed partial class InMemoryDreamTaskRegistry : IDreamTaskRegistry, IAsy
     /// <inheritdoc />
     public async Task<IReadOnlyDictionary<string, DreamTaskState>> GetAllTasksAsync(CancellationToken ct = default)
     {
-                using (await _lock.LockAsync(ct).ConfigureAwait(false))
+                using (_lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时"))
         {
             return new Dictionary<string, DreamTaskState>(_tasks);
         }

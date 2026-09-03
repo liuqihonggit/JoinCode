@@ -41,7 +41,7 @@ public abstract class ConfigPersistentServiceBase<TValue> : IDisposable
     {
         if (_initialized) return;
         if (Volatile.Read(ref _disposed) == 1) return;
-        var guard = _initLock.TryLock(TimeSpan.Zero);
+        var guard = _initLock.TryLock();
         if (guard is null) return;
         using (guard)
         {

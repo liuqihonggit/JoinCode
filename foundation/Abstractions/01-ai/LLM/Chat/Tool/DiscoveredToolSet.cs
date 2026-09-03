@@ -7,7 +7,7 @@ public sealed class DiscoveredToolSet
 
     public async Task<IReadOnlySet<string>> GetNamesAsync(CancellationToken ct = default)
     {
-        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
 
         return new HashSet<string>(_discoveredNames, StringComparer.Ordinal);
     
@@ -15,7 +15,7 @@ public sealed class DiscoveredToolSet
 
     public async Task<int> GetCountAsync(CancellationToken ct = default)
     {
-        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
 
         return _discoveredNames.Count;
     
@@ -23,7 +23,7 @@ public sealed class DiscoveredToolSet
 
     public async Task<bool> IsDiscoveredAsync(string toolName, CancellationToken ct = default)
     {
-        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
 
         return _discoveredNames.Contains(toolName);
     
@@ -32,7 +32,7 @@ public sealed class DiscoveredToolSet
     public async Task<bool> DiscoverAsync(string toolName, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(toolName);
-        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
 
         return _discoveredNames.Add(toolName);
     
@@ -41,7 +41,7 @@ public sealed class DiscoveredToolSet
     public async Task<int> DiscoverRangeAsync(IEnumerable<string> toolNames, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(toolNames);
-        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
 
         var added = 0;
         foreach (var name in toolNames)
@@ -55,7 +55,7 @@ public sealed class DiscoveredToolSet
 
     public async Task<bool> ForgetAsync(string toolName, CancellationToken ct = default)
     {
-        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
 
         return _discoveredNames.Remove(toolName);
     
@@ -63,7 +63,7 @@ public sealed class DiscoveredToolSet
 
     public async Task ClearAsync(CancellationToken ct = default)
     {
-        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
 
         _discoveredNames.Clear();
     
@@ -71,7 +71,7 @@ public sealed class DiscoveredToolSet
 
     public async Task<string[]> SnapshotAsync(CancellationToken ct = default)
     {
-        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
 
         return [.. _discoveredNames.Order()];
     
@@ -80,7 +80,7 @@ public sealed class DiscoveredToolSet
     public async Task RestoreFromSnapshotAsync(string[] names, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(names);
-        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
 
         _discoveredNames.Clear();
         foreach (var name in names)

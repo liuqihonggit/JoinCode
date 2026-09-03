@@ -59,7 +59,7 @@ internal sealed class TranscriptFileWriter : IDisposable
 
         var entryToWrite = MaybeOffloadToPasteStore(entry);
 
-        using var guard = await _writeLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _writeLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
         try
         {
             EnsureDirectoryExists(Path.GetDirectoryName(filePath));
@@ -87,7 +87,7 @@ internal sealed class TranscriptFileWriter : IDisposable
 
         _logger?.LogDebug("AppendEntriesAsync: filePath={FilePath}, count={Count}", filePath, entries.Count);
 
-        using var guard = await _writeLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _writeLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
         try
         {
             EnsureDirectoryExists(Path.GetDirectoryName(filePath));

@@ -48,7 +48,7 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        using (await _lock.LockAsync(ct).ConfigureAwait(false))
+        using (_lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (IsInSandbox)
             {
@@ -79,7 +79,7 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
 
     public async Task ExitSandboxAsync(CancellationToken ct = default)
     {
-        using (await _lock.LockAsync(ct).ConfigureAwait(false))
+        using (_lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (_activeProvider is null || _activeSandboxId is null)
             {
@@ -109,7 +109,7 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
 
     public async Task SwitchProviderAsync(SandboxType type, CancellationToken ct = default)
     {
-        using (await _lock.LockAsync(ct).ConfigureAwait(false))
+        using (_lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时"))
         {
             var previousType = _activeProvider?.SandboxType ?? SandboxType.None;
             var previousInfo = CurrentSandbox;

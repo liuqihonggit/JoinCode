@@ -55,7 +55,7 @@ public sealed partial class VoiceService : ServiceEntity, IVoiceService, JoinCod
         SetState(VoiceRecordingState.Recording);
         _logger?.LogInformation(L.T(StringKey.VoiceStartRecording));
 
-        _ = RecordLoopAsync(_recordingCts.Token);
+        _ = Task.Run(() => RecordLoopAsync(_recordingCts.Token));
     
     }
 

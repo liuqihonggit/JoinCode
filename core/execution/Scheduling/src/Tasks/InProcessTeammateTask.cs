@@ -430,12 +430,10 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
     private async Task SetCurrentWorkCtsAsync(string teammateId, CancellationTokenSource workCts, CancellationToken lifecycleCt)
     {
         using var guard = _teammateLock.TryLock(lifecycleCt) ?? throw new System.TimeoutException("锁等待超时");
-
         if (_activeTeammates.TryGetValue(teammateId, out var state))
         {
             state.CurrentWorkCts = workCts;
         }
-    
     }
 
     /// <summary>
@@ -458,7 +456,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
     /// </summary>
     private void RunTeammateLoopBackground(InProcessTeammateDefinition definition, TeammateState state, CancellationToken lifecycleCt)
     {
-        _ = SafeRunLoopAsync();
+        _ = Task.Run(SafeRunLoopAsync);
 
         async Task SafeRunLoopAsync()
         {

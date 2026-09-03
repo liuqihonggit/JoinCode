@@ -24,7 +24,7 @@ internal sealed class TranscriptFileWriter : IDisposable
         _sessionsDirectory = sessionsDirectory;
         _logger = logger;
         _pasteStore = pasteStore;
-        _writeLock = new AsyncLock();
+        _writeLock = new AsyncLock(nameof(TranscriptFileWriter));
     }
 
     private bool IsFileSystemRestricted

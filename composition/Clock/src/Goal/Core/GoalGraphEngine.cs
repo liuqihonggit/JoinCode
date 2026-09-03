@@ -74,7 +74,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
             Graph = graph,
             State = goalState,
             ChatHistory = chatHistory,
-            StateLock = new AsyncLock(),
+            StateLock = new AsyncLock(nameof(GoalGraphEngine)),
             Clock = _clock,
         };
 

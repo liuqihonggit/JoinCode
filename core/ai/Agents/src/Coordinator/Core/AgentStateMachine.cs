@@ -236,7 +236,7 @@ public sealed class AgentStateContext : IAsyncDisposable
         LastTransitionTime = createdAt;
         LastTransitionFrom = TaskExecutionStatus.Pending;
         TransitionHistory = new List<StateTransition>();
-        Lock = new AsyncLock();
+        Lock = new AsyncLock(nameof(AgentStateContext));
         _stateMachine = new StateMachine<TaskExecutionStatus>(
             AgentStateMachine.GetTransitions(), TaskExecutionStatus.Pending, clock);
         _stateMachine.StateChanged += OnStateChanged;

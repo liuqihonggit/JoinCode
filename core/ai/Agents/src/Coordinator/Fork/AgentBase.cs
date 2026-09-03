@@ -135,7 +135,7 @@ public class AgentBase : Entity, IAgent
         _clock = clock ?? SystemClockService.Instance;
         _context = new List<string>();
         _cts = new CancellationTokenSource();
-        _pauseLock = new AsyncLock();
+        _pauseLock = new AsyncLock(nameof(AgentBase));
         Status = TaskExecutionStatus.Pending;
         _executionCount = 0;
         ContextManager = contextManager;

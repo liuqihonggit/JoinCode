@@ -10,7 +10,7 @@ public class NoContentionBench
     [GlobalSetup]
     public void Setup()
     {
-        _asyncLock = new AsyncLock();
+        _asyncLock = new AsyncLock(nameof(NoContentionBench));
         _semaphore = new SemaphoreSlim(1, 1);
     }
 

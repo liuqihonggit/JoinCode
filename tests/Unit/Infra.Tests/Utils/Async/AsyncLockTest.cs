@@ -18,7 +18,7 @@ public class AsyncLockTest
     [Fact(Timeout = 10000)]
     public async Task LockAsync_SecondCallWaitsUntilFirstReleases()
     {
-        var asyncLock = new AsyncLock();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         var guard1 = asyncLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
 
         // TryLock 同步阻塞, 在另一线程调用以避免阻塞测试线程
@@ -45,7 +45,7 @@ public class AsyncLockTest
     [Fact(Timeout = 10000)]
     public async Task LockAsync_NoContention_CompletesSynchronously()
     {
-        var asyncLock = new AsyncLock();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
 
         // SemaphoreSlim 包装不保证无竞争时同步完成, 仅验证锁可获取
         var guard = asyncLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
@@ -55,7 +55,7 @@ public class AsyncLockTest
     [Fact(Timeout = 10000)]
     public async Task LockAsync_AfterRelease_CompletesSynchronously()
     {
-        var asyncLock = new AsyncLock();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         var g1 = asyncLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
         g1.Dispose();
 
@@ -68,7 +68,7 @@ public class AsyncLockTest
     [Fact(Timeout = 10000)]
     public async Task LockAsync_MultipleConcurrentLockers_SerializedAndMutuallyExclusive()
     {
-        var asyncLock = new AsyncLock();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         const int N = 10;
         var acquireOrder = new ConcurrentQueue<int>();
         int currentHolders = 0;
@@ -109,7 +109,7 @@ public class AsyncLockTest
     [Fact(Timeout = 10000)]
     public async Task LockAsync_PreCanceledToken_ThrowsOperationCanceledException()
     {
-        var asyncLock = new AsyncLock();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         var cts = new CancellationTokenSource();
         cts.Cancel();
 
@@ -122,7 +122,7 @@ public class AsyncLockTest
     [Fact(Timeout = 10000)]
     public async Task LockAsync_WaitingLockerCanceled_ThrowsAndNextWaiterProceeds()
     {
-        var asyncLock = new AsyncLock();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         var guard1 = asyncLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
 
         var cts2 = new CancellationTokenSource();
@@ -148,7 +148,7 @@ public class AsyncLockTest
     [Fact(Timeout = 10000)]
     public async Task LockAsync_CanceledTokenWhenLockAvailable_ThrowsImmediately()
     {
-        var asyncLock = new AsyncLock();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         var cts = new CancellationTokenSource();
         cts.Cancel();
 
@@ -163,7 +163,7 @@ public class AsyncLockTest
     [Fact(Timeout = 10000)]
     public async Task LockAsync_AfterDispose_ThrowsObjectDisposedException()
     {
-        var asyncLock = new AsyncLock();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         asyncLock.Dispose();
 
         // Dispose 后 TryLock 同步抛 ObjectDisposedException
@@ -175,7 +175,7 @@ public class AsyncLockTest
     [Fact(Timeout = 10000)]
     public async Task Lock_AfterDispose_ThrowsObjectDisposedException()
     {
-        var asyncLock = new AsyncLock();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         asyncLock.Dispose();
 
         Action act = () => { _ = asyncLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"); };
@@ -186,7 +186,7 @@ public class AsyncLockTest
     [Fact(Timeout = 10000, Skip = "SemaphoreSlim.Dispose 不通知等待者,使用 AsyncLock 时确保 Dispose 前无等待者")]
     public async Task LockAsync_WaitingLockerGetsObjectDisposedExceptionOnDispose()
     {
-        var asyncLock = new AsyncLock();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         var guard1 = asyncLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
 
         // TryLock 同步阻塞, 在另一线程调用
@@ -202,7 +202,7 @@ public class AsyncLockTest
     [Fact(Timeout = 10000)]
     public async Task Dispose_CalledTwice_DoesNotThrow()
     {
-        var asyncLock = new AsyncLock();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         asyncLock.Dispose();
         Action act = asyncLock.Dispose;
         act.Should().NotThrow("Dispose 应可重入安全");
@@ -241,7 +241,7 @@ public class AsyncLockTest
     [Fact(Timeout = 10000)]
     public async Task Lock_TwoThreads_Serialized()
     {
-        var asyncLock = new AsyncLock();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         var guard1 = asyncLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
         var secondAcquired = new ManualResetEventSlim(false);
 
@@ -264,7 +264,7 @@ public class AsyncLockTest
     [Fact(Timeout = 10000)]
     public async Task Lock_ThenLockAsync_BlocksUntilRelease()
     {
-        var asyncLock = new AsyncLock();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         var guard1 = asyncLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
 
         // TryLock 同步阻塞, 在另一线程调用
@@ -282,7 +282,7 @@ public class AsyncLockTest
     [Fact(Timeout = 10000)]
     public async Task GuardDispose_AllowsNextLockAsyncToProceedImmediately()
     {
-        var asyncLock = new AsyncLock();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         var guard1 = asyncLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
 
         guard1.Dispose();
@@ -294,7 +294,7 @@ public class AsyncLockTest
     [Fact(Timeout = 10000)]
     public async Task GuardDispose_MultipleTimes_DoesNotBreakLock()
     {
-        var asyncLock = new AsyncLock();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         var guard1 = asyncLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
 
         guard1.Dispose();
@@ -310,7 +310,7 @@ public class AsyncLockTest
     [Fact(Timeout = 10000)]
     public async Task LockAsync_TwiceWithoutRelease_SecondWaits()
     {
-        var asyncLock = new AsyncLock();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         var guard1 = asyncLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
 
         // TryLock 同步阻塞, 在另一线程调用 (同线程会触发重入检测)
@@ -328,7 +328,7 @@ public class AsyncLockTest
     [Fact(Timeout = 10000)]
     public async Task LockAsync_HighConcurrency_AllAcquiredExactlyOnce()
     {
-        var asyncLock = new AsyncLock();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         const int N = 100;
         int currentHolders = 0;
         int maxConcurrent = 0;

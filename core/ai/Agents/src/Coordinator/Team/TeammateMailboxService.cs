@@ -48,7 +48,7 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
             IsRead = false
         };
 
-        var agentLock = _agentLocks.GetOrAdd(request.ToAgentId, _ => new AsyncLock());
+        var agentLock = _agentLocks.GetOrAdd(request.ToAgentId, _ => new AsyncLock(nameof(TeammateMailboxService)));
         using var guard = agentLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
         try
         {
@@ -84,7 +84,7 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
             return Array.Empty<MailboxMessage>();
         }
 
-        var agentLock = _agentLocks.GetOrAdd(agentId, _ => new AsyncLock());
+        var agentLock = _agentLocks.GetOrAdd(agentId, _ => new AsyncLock(nameof(TeammateMailboxService)));
         using var guard = agentLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
         return await ReadMessagesFromFileAsync(filePath, sinceLineIndex, cancellationToken).ConfigureAwait(false);
     }
@@ -102,7 +102,7 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
         var idSet = new HashSet<string>(messageIds);
         if (idSet.Count == 0) return;
 
-        var agentLock = _agentLocks.GetOrAdd(agentId, _ => new AsyncLock());
+        var agentLock = _agentLocks.GetOrAdd(agentId, _ => new AsyncLock(nameof(TeammateMailboxService)));
         using var guard = agentLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
         {
             var allMessages = await ReadMessagesFromFileAsync(filePath, 0, cancellationToken).ConfigureAwait(false);

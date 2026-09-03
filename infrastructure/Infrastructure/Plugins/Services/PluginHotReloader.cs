@@ -40,7 +40,7 @@ public sealed partial class PluginHotReloader : IPluginHotReloader
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _logger = logger;
         _telemetryService = telemetryService;
-        _reloadLock = new AsyncLock();
+        _reloadLock = new AsyncLock(nameof(PluginHotReloader));
     }
 
     public bool IsWatching => _isWatching;

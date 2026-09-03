@@ -7,8 +7,6 @@ public sealed class ConcurrentDag<T> : IDisposable
 {
     private readonly Dag<T> _inner = new();
     private readonly AsyncLock _lock = new();
-    // P1-9: 信号量等待超时 — 防止持有方异常未释放导致永久阻塞
-    private static readonly TimeSpan LockTimeout = TimeSpan.FromSeconds(5);
 
     public IReadOnlyDictionary<string, DagNode<T>> Nodes => _inner.Nodes;
     public IReadOnlyDictionary<string, DagEdge> Edges => _inner.Edges;
@@ -49,47 +47,45 @@ public sealed class ConcurrentDag<T> : IDisposable
     public DagResult RemoveEdge(string edgeId)
         => WithLock(() => _inner.RemoveEdge(edgeId), DagResult.Fail("Lock timeout"));
 
-    // 超时返回 false（保守假设无环，避免阻塞调用方）
     public bool WouldCreateCycle(string fromId, string toId)
         => WithLock(() => _inner.WouldCreateCycle(fromId, toId), false);
 
     public Task<DagResult> AddNodeAsync(DagNode<T> node, CancellationToken ct = default)
     {
         using var guard = _lock.TryLock(ct) ?? throw new TimeoutException("DAG 锁等待超时");
- return Task.FromResult(_inner.AddNode(node)); 
+        return Task.FromResult(_inner.AddNode(node));
     }
 
     public Task<DagResult> AddEdgeAsync(DagEdge edge, CancellationToken ct = default)
     {
         using var guard = _lock.TryLock(ct) ?? throw new TimeoutException("DAG 锁等待超时");
- return Task.FromResult(_inner.AddEdge(edge)); 
+        return Task.FromResult(_inner.AddEdge(edge));
     }
 
     public Task<DagResult> TryAddEdgeAsync(DagEdge edge, CancellationToken ct = default)
     {
         using var guard = _lock.TryLock(ct) ?? throw new TimeoutException("DAG 锁等待超时");
- return Task.FromResult(_inner.TryAddEdge(edge)); 
+        return Task.FromResult(_inner.TryAddEdge(edge));
     }
 
     public Task<DagResult> RemoveNodeAsync(string nodeId, CancellationToken ct = default)
     {
         using var guard = _lock.TryLock(ct) ?? throw new TimeoutException("DAG 锁等待超时");
- return Task.FromResult(_inner.RemoveNode(nodeId)); 
+        return Task.FromResult(_inner.RemoveNode(nodeId));
     }
 
     public Task<DagResult> RemoveEdgeAsync(string edgeId, CancellationToken ct = default)
     {
         using var guard = _lock.TryLock(ct) ?? throw new TimeoutException("DAG 锁等待超时");
- return Task.FromResult(_inner.RemoveEdge(edgeId)); 
+        return Task.FromResult(_inner.RemoveEdge(edgeId));
     }
 
     public Task<bool> WouldCreateCycleAsync(string fromId, string toId, CancellationToken ct = default)
     {
         using var guard = _lock.TryLock(ct) ?? throw new TimeoutException("DAG 锁等待超时");
- return Task.FromResult(_inner.WouldCreateCycle(fromId, toId)); 
+        return Task.FromResult(_inner.WouldCreateCycle(fromId, toId));
     }
 
-    // 超时返回空列表，避免阻塞调用方
     public IReadOnlyList<DagNode<T>> TopologicalSort()
         => WithLock(() => _inner.TopologicalSort(), Array.Empty<DagNode<T>>());
 

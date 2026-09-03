@@ -94,7 +94,7 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
             return cached;
         }
 
-        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         // 双重检查
         if (_cache.TryGetValue(CacheKey, out cached))
@@ -177,7 +177,7 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
             throw new InvalidOperationException($"Source {source} is not editable");
         }
 
-        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         await provider.AddHookAsync(hookEvent, matcher, hook, cancellationToken).ConfigureAwait(false);
         _cache.Clear();
@@ -208,7 +208,7 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
             throw new InvalidOperationException($"Source {source} is not editable");
         }
 
-        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         await provider.RemoveHookAsync(hookEvent, matcher, hook, cancellationToken).ConfigureAwait(false);
         _cache.Clear();

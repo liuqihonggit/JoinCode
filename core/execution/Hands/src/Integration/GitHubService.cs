@@ -18,7 +18,7 @@ public sealed partial class GitHubService : ServiceEntity, IGitHubService
 
     public async Task<IReadOnlyList<PRSubscription>> ListSubscriptionsAsync(CancellationToken ct = default)
     {
-        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         await LoadSubscriptionsCoreAsync(ct).ConfigureAwait(false);
         return _subscriptions.Values.ToList();
     }
@@ -28,7 +28,7 @@ public sealed partial class GitHubService : ServiceEntity, IGitHubService
         if (string.IsNullOrWhiteSpace(prRef))
             throw new ArgumentException("[HND003] PR 引用不能为空", nameof(prRef));
 
-        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         await LoadSubscriptionsCoreAsync(ct).ConfigureAwait(false);
 
@@ -52,7 +52,7 @@ public sealed partial class GitHubService : ServiceEntity, IGitHubService
         if (string.IsNullOrWhiteSpace(prRef))
             throw new ArgumentException("[HND004] PR 引用不能为空", nameof(prRef));
 
-        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         await LoadSubscriptionsCoreAsync(ct).ConfigureAwait(false);
 

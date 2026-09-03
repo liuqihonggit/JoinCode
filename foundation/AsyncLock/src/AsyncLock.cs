@@ -2,7 +2,9 @@ namespace Core.Utils;
 
 /// <summary>
 /// 互斥锁 — SemaphoreSlim(1,1) 的薄封装,项目唯一互斥锁原语。
-/// 仅提供同步 <see cref="TryLock(CancellationToken)"/> — 默认5s超时,超时返回 null 并记录日志,取消抛 OperationCanceledException。
+/// 提供同步 <see cref="TryLock(CancellationToken)"/> 和异步 <see cref="TryLockAsync(CancellationToken)"/>。
+/// async 方法中用 <see cref="TryLockAsync"/> 避免线程池饥饿;非 async 上下文用 <see cref="TryLock"/>。
+/// 默认1s超时,超时返回 null 并记录日志,取消抛 OperationCanceledException。
 /// 内部接入 <see cref="LockRegistry"/> 诊断:获取/释放时记录调用栈、线程、时间,卡死时调用 <see cref="LockRegistry.DumpAll"/> 精确定位。
 /// </summary>
 public sealed class AsyncLock : IDisposable
@@ -57,6 +59,34 @@ public sealed class AsyncLock : IDisposable
         try
         {
             acquired = _semaphore.Wait((int)DefaultTimeout.TotalMilliseconds, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            LockRegistry.OnWaitEnd(_registryId, _name);
+            throw;
+        }
+        if (!acquired)
+        {
+            LockRegistry.OnWaitEnd(_registryId, _name);
+            LockRegistry.OnLockTimeout(_name, DefaultTimeout);
+            return null;
+        }
+        LockRegistry.OnAcquired(_registryId, _name);
+        return new Releaser(this);
+    }
+
+    /// <summary>
+    /// 尝试异步获取锁。成功返回 Releaser,超时返回 null,取消抛 <see cref="OperationCanceledException"/>。
+    /// async 方法中用此方法避免 <see cref="TryLock"/> 同步阻塞线程池导致饥饿。
+    /// </summary>
+    public async ValueTask<IDisposable?> TryLockAsync(CancellationToken ct = default)
+    {
+        ThrowIfDisposed();
+        LockRegistry.OnWaitStart(_registryId, _name);
+        bool acquired;
+        try
+        {
+            acquired = await _semaphore.WaitAsync((int)DefaultTimeout.TotalMilliseconds, ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {

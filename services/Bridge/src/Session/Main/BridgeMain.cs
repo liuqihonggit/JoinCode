@@ -1794,7 +1794,7 @@ public sealed partial class BridgeMain : ServiceEntity
         {
             try
             {
-                using var guard = _cleanupLock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+                using var guard = await _cleanupLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
                 Task[] cleanups = _pendingCleanups.ToArray();
                 await Task.WhenAll(cleanups).WaitAsync(
                     TimeSpan.FromSeconds(5), ct).ConfigureAwait(false);

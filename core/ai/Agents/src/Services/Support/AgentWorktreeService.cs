@@ -151,7 +151,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     }
 
     public async Task<AgentWorktreeSession?> GetSessionAsync(string agentId, CancellationToken cancellationToken = default) {
-        using var guard = _sessionLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _sessionLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         return _sessions.TryGetValue(agentId, out var session) ? session : null;
     
@@ -166,7 +166,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     }
 
     public async Task<IEnumerable<AgentWorktreeSession>> GetAllSessionsAsync(CancellationToken cancellationToken = default) {
-        using var guard = _sessionLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _sessionLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         return _sessions.Values;
     
@@ -388,7 +388,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     #region Private Methods
 
     public async Task SaveSessionAsync(AgentWorktreeSession session) {
-        using var guard = _sessionLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _sessionLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         _sessions[session.AgentId] = session;
     
@@ -397,7 +397,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     }
 
     internal async Task RemoveSessionAsync(string agentId) {
-        using var guard = _sessionLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _sessionLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         _sessions.Remove(agentId);
     

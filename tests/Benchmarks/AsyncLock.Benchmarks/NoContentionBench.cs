@@ -17,7 +17,7 @@ public class NoContentionBench
     [Benchmark(Description = "AsyncLock 无竞争(async)")]
     public async Task AsyncLock_NoContention_Async()
     {
-        using var guard = _asyncLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _asyncLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
     }
 
     [Benchmark(Description = "SemaphoreSlim 无竞争(async)")]
@@ -30,7 +30,7 @@ public class NoContentionBench
     [Benchmark(Description = "AsyncLock 无竞争(sync)")]
     public void AsyncLock_NoContention_Sync()
     {
-        using var guard = _asyncLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _asyncLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
     }
 
     [Benchmark(Description = "SemaphoreSlim 无竞争(sync)")]

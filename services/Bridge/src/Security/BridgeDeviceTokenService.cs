@@ -57,7 +57,7 @@ public sealed class BridgeDeviceTokenService
         // 3. 安全存储（auth.json 中的 device_token 字段）
         try
         {
-            using var guard = _semaphore.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+            using var guard = await _semaphore.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
             // 双重检查
             if (_cachedToken is not null) return _cachedToken;
@@ -96,7 +96,7 @@ public sealed class BridgeDeviceTokenService
 
         try
         {
-            using var guard = _semaphore.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+            using var guard = await _semaphore.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
             await DeleteTokenFromStorageAsync(ct).ConfigureAwait(false);
             _logger?.LogInformation("[BridgeDeviceToken] 已清除设备令牌");
@@ -117,7 +117,7 @@ public sealed class BridgeDeviceTokenService
     {
         try
         {
-            using var guard = _semaphore.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+            using var guard = await _semaphore.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
             var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/trusted_devices");
             request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);

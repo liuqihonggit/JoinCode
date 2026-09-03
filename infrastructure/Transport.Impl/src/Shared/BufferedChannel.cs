@@ -8,7 +8,7 @@ public sealed class BufferedChannel : IDisposable
 
     public async Task AddAsync(string line, CancellationToken ct = default)
     {
-        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         _buffer.Add(line);
     
@@ -16,7 +16,7 @@ public sealed class BufferedChannel : IDisposable
 
     public async Task<string> GetAllAsync(TimeSpan lockTimeout, CancellationToken ct = default)
     {
-        using var guard = _lock.TryLock(ct)
+        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false)
             ?? throw new TimeoutException($"BufferedChannel 锁等待超时 {lockTimeout}");
 
         return string.Join("\n", _buffer);
@@ -25,7 +25,7 @@ public sealed class BufferedChannel : IDisposable
 
     public async Task<string> GetIncrementalAsync(TimeSpan lockTimeout, CancellationToken ct = default)
     {
-        using var guard = _lock.TryLock(ct)
+        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false)
             ?? throw new TimeoutException($"BufferedChannel 锁等待超时 {lockTimeout}");
 
         if (_consumedIndex >= _buffer.Count)
@@ -39,7 +39,7 @@ public sealed class BufferedChannel : IDisposable
 
     public async Task ClearAsync(TimeSpan lockTimeout, CancellationToken ct = default)
     {
-        using var guard = _lock.TryLock(ct)
+        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false)
             ?? throw new TimeoutException($"BufferedChannel 锁等待超时 {lockTimeout}");
 
         _buffer.Clear();
@@ -49,7 +49,7 @@ public sealed class BufferedChannel : IDisposable
 
     public async Task<bool> TryPredicateAsync(Func<string, bool> predicate, CancellationToken ct = default)
     {
-        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         return predicate(string.Join("\n", _buffer));
     

@@ -253,7 +253,7 @@ public class AgentBase : Entity, IAgent
 
                     try
                     {
-                        using (_pauseLock.TryLock(linkedToken) ?? throw new System.TimeoutException("锁等待超时")) { }
+                        using (await _pauseLock.TryLockAsync(linkedToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时")) { }
 
                         var pauseDuration = _clock.GetUtcNow() - pauseStart;
                         _logger?.LogInformation("[{AgentType} {AgentId}] 暂停结束，等待时长 {PauseDurationMs}ms", GetType().Name, UniqueId, pauseDuration.TotalMilliseconds);
@@ -422,7 +422,7 @@ public class AgentBase : Entity, IAgent
             {
                 try
                 {
-                    using (_pauseLock.TryLock(linkedToken) ?? throw new System.TimeoutException("锁等待超时")) { }
+                    using (await _pauseLock.TryLockAsync(linkedToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时")) { }
                 }
                 catch (TimeoutException)
                 {

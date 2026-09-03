@@ -36,7 +36,7 @@ public sealed partial class GoalHeartbeat : IGoalHeartbeat
 
     public async Task StartActivityAsync(SessionActivityReason reason)
     {
-        using var guard = _stateLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _stateLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         _refcount++;
         _activeReasons[reason] = _activeReasons.GetValueOrDefault(reason) + 1;
@@ -53,7 +53,7 @@ public sealed partial class GoalHeartbeat : IGoalHeartbeat
 
     public async Task StopActivityAsync(SessionActivityReason reason)
     {
-        using var guard = _stateLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _stateLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         if (_refcount > 0) _refcount--;
 
@@ -74,7 +74,7 @@ public sealed partial class GoalHeartbeat : IGoalHeartbeat
 
     public async Task ResetAsync()
     {
-        using var guard = _stateLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _stateLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         StopHeartbeatTimer();
         _refcount = 0;
@@ -165,7 +165,7 @@ public sealed partial class GoalHeartbeat : IGoalHeartbeat
     /// <summary>清理心跳状态（在锁保护下执行）</summary>
     private async Task CleanupHeartbeatAsync()
     {
-        using var guard = _stateLock.TryLock(CancellationToken.None) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _stateLock.TryLockAsync(CancellationToken.None).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         _cts?.Cancel();
     

@@ -205,7 +205,7 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
         ArgumentNullException.ThrowIfNull(content);
 
         cancellationToken.ThrowIfCancellationRequested();
-        using var guard = _writeLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _writeLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         var entry = new DailyLogEntry
         {
             Timestamp = _clock.GetUtcNow(),

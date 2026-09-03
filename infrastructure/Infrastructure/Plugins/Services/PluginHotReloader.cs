@@ -118,7 +118,7 @@ public sealed partial class PluginHotReloader : IPluginHotReloader
 
     internal async Task ReloadPluginAsync(string pluginName, string filePath, ReloadReason reason)
     {
-        using var guard = _reloadLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _reloadLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         var args = new PluginReloadEventArgs
         {
             PluginName = pluginName,

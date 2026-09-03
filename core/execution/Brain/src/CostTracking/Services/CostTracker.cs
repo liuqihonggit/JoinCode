@@ -209,7 +209,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
         ArgumentNullException.ThrowIfNull(config);
         config.ValidateOrThrow();
 
-        using var guard = _budgetLock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _budgetLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         _budgetConfig = config;
         _triggeredThresholds.Clear();
@@ -226,7 +226,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
             return;
         }
 
-        using var guard = _budgetLock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _budgetLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         var dailyCost = CalculateDailyCost();
         var monthlyCost = CalculateMonthlyCost();

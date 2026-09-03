@@ -1,4 +1,4 @@
-﻿namespace LockDiagnosis.Tests;
+namespace LockDiagnosis.Tests;
 
 /// <summary>
 /// AsyncLock 互斥语义 + LockRegistry 诊断能力单元测试。
@@ -26,7 +26,7 @@ public class AsyncLockDiagnosisTests : IDisposable
         var order = new List<int>();
         var t1 = Task.Run(async () =>
         {
-            using (lk.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+            using (await lk.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
             {
                 order.Add(1);
                 await Task.Delay(50);
@@ -36,7 +36,7 @@ public class AsyncLockDiagnosisTests : IDisposable
         var t2 = Task.Run(async () =>
         {
             await Task.Delay(10);
-            using (lk.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+            using (await lk.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
             {
                 order.Add(3);
             }
@@ -49,7 +49,7 @@ public class AsyncLockDiagnosisTests : IDisposable
     public async Task 具名构造_锁名出现在DumpAll()
     {
         using var lk = new AsyncLock("my-test-lock");
-        using (lk.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (await lk.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             var dump = LockRegistry.DumpAll();
             dump.Should().Contain("my-test-lock", "具名锁的名称应出现在 DumpAll 输出中");
@@ -81,9 +81,9 @@ public class AsyncLockDiagnosisTests : IDisposable
     public async Task TryLock_已持有时返回null()
     {
         using var lk = new AsyncLock("trylock-test");
-        using var guard = lk.TryLock() ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await lk.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         // 在另一线程获取 — 同线程重入会超时返回 null
-        var guard2 = await Task.Run(() => lk.TryLock());
+        var guard2 = await Task.Run(async () => await lk.TryLockAsync().ConfigureAwait(false));
         guard2.Should().BeNull("另一线程持锁等待1s超时后 TryLock 应返回 null");
     }
 
@@ -91,9 +91,9 @@ public class AsyncLockDiagnosisTests : IDisposable
     public async Task TryLockAsync_超时返回null()
     {
         using var lk = new AsyncLock("trylock-timeout");
-        using var holder = lk.TryLock() ?? throw new System.TimeoutException("锁等待超时");
+        using var holder = await lk.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         // 在另一线程获取 — 同线程重入会超时返回 null
-        var result = await Task.Run(() => lk.TryLock());
+        var result = await Task.Run(async () => await lk.TryLockAsync().ConfigureAwait(false));
         result.Should().BeNull("锁已被持有时 TryLock 应1s超时返回 null");
     }
 
@@ -103,8 +103,8 @@ public class AsyncLockDiagnosisTests : IDisposable
         var lk = new AsyncLock("disposed-test");
         lk.Dispose();
         // Dispose 后 TryLock 同步抛 ObjectDisposedException
-        Action act = () => lk.TryLock();
-        act.Should().Throw<ObjectDisposedException>("Dispose 后再获取应抛 ObjectDisposedException");
+        Func<Task> act = async () => await lk.TryLockAsync().ConfigureAwait(false);
+        await act.Should().ThrowAsync<ObjectDisposedException>("Dispose 后再获取应抛 ObjectDisposedException");
         await Task.CompletedTask;
     }
 
@@ -115,7 +115,7 @@ public class AsyncLockDiagnosisTests : IDisposable
         LockRegistry.DiagnosticSink = messages.Enqueue;
         LockRegistry.HoldTooLongThreshold = TimeSpan.FromMilliseconds(50);
         using var lk = new AsyncLock("hold-long-test");
-        using (lk.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (await lk.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             await Task.Delay(120);
         }
@@ -130,9 +130,9 @@ public class AsyncLockDiagnosisTests : IDisposable
         LockRegistry.DiagnosticSink = messages.Enqueue;
         LockRegistry.WaitTimeoutThreshold = TimeSpan.FromMilliseconds(50);
         using var lk = new AsyncLock("wait-long-test");
-        using var holder = lk.TryLock() ?? throw new System.TimeoutException("锁等待超时");
+        using var holder = await lk.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         // TryLock 同步阻塞, 在另一线程调用以记录等待诊断
-        var waitTask = Task.Run(() => lk.TryLock());
+        var waitTask = Task.Run(async () => await lk.TryLockAsync().ConfigureAwait(false));
         await Task.Delay(150);
         holder.Dispose();
         var acquired = await waitTask;
@@ -147,7 +147,7 @@ public class AsyncLockDiagnosisTests : IDisposable
     {
         LockRegistry.DiagnosticsEnabled = true;
         using var lk = new AsyncLock("stack-test");
-        using (lk.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (await lk.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             var dump = LockRegistry.DumpAll();
             dump.Should().Contain("获取调用栈", "诊断开启时 DumpAll 应包含获取调用栈");
@@ -163,7 +163,7 @@ public class AsyncLockDiagnosisTests : IDisposable
         LockRegistry.HoldTooLongThreshold = TimeSpan.FromMilliseconds(50);
         LockRegistry.StartBackgroundScan(TimeSpan.FromMilliseconds(30));
         using var lk = new AsyncLock("scan-test");
-        using var holder = lk.TryLock() ?? throw new System.TimeoutException("锁等待超时");
+        using var holder = await lk.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         await Task.Delay(200);
         messages.Should().Contain(m => m.Contains("LOCK-SCAN-HOLD") && m.Contains("scan-test"),
             "后台扫描应检测到持有过长的锁并告警");
@@ -176,7 +176,7 @@ public class AsyncLockDiagnosisTests : IDisposable
         var messages = new ConcurrentQueue<string>();
         LockRegistry.DiagnosticSink = messages.Enqueue;
         using var lk = new AsyncLock("disabled-test");
-        using (lk.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (await lk.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             await Task.Delay(60);
         }
@@ -188,9 +188,9 @@ public class AsyncLockDiagnosisTests : IDisposable
     public async Task Lock同步_基本互斥()
     {
         using var lk = new AsyncLock("sync-mutex");
-        using var g1 = lk.TryLock() ?? throw new System.TimeoutException("锁等待超时");
+        using var g1 = await lk.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         // 在另一线程获取 — 同线程重入会超时返回 null
-        var g2 = await Task.Run(() => lk.TryLock());
+        var g2 = await Task.Run(async () => await lk.TryLockAsync().ConfigureAwait(false));
         g2.Should().BeNull("同步 Lock 持有后另一线程 TryLock 应1s超时返回 null");
     }
 
@@ -198,11 +198,11 @@ public class AsyncLockDiagnosisTests : IDisposable
     public async Task Lock带CancellationToken_取消时抛OperationCanceledException()
     {
         using var lk = new AsyncLock("cancel-test");
-        using var holder = lk.TryLock() ?? throw new System.TimeoutException("锁等待超时");
+        using var holder = await lk.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         using var cts = new CancellationTokenSource();
         cts.Cancel();
         // TryLock(已取消 token) 同步抛 OCE; 在另一线程调用以避免重入检测
-        var act = () => Task.Run(() => { _ = lk.TryLock(cts.Token) ?? throw new System.TimeoutException("锁等待超时"); });
+        var act = () => Task.Run(async () => { _ = await lk.TryLockAsync(cts.Token).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"); });
         await act.Should().ThrowAsync<OperationCanceledException>("取消令牌触发时应抛 OCE");
     }
 
@@ -260,9 +260,9 @@ public class AsyncLockDiagnosisTests : IDisposable
     {
         using var lockA = new AsyncLock("no-deadlock-A");
         using var lockB = new AsyncLock("no-deadlock-B");
-        using (lockA.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (await lockA.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
-            using (lockB.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+            using (await lockB.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
             {
                 LockRegistry.DeadlockDetected.Should().BeFalse("顺序获取不形成死锁");
             }
@@ -283,22 +283,22 @@ public class AsyncLockDiagnosisTests : IDisposable
 
         var t1 = Task.Run(async () =>
         {
-            using (lockA.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+            using (await lockA.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
             {
                 t1Ready.SetResult();
                 await t2Ready.Task;
-                using var g = lockB.TryLock();
+                using var g = await lockB.TryLockAsync().ConfigureAwait(false);
                 if (g is null) Console.WriteLine("async t1 lockB 超时");
             }
         });
 
         var t2 = Task.Run(async () =>
         {
-            using (lockB.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+            using (await lockB.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
             {
                 t2Ready.SetResult();
                 await t1Ready.Task;
-                using var g = lockA.TryLock();
+                using var g = await lockA.TryLockAsync().ConfigureAwait(false);
                 if (g is null) Console.WriteLine("async t2 lockA 超时");
             }
         });
@@ -321,10 +321,10 @@ public class AsyncLockDiagnosisTests : IDisposable
     {
         using var lk = new AsyncLock("reentrant-sync");
 
-        using (lk.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (await lk.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             // 同线程重入: TryLock 等1s超时返回 null (不抛异常,因为 ThreadId 在 async 下不可靠)
-            var result = await Task.Run(() => lk.TryLock());
+            var result = await Task.Run(async () => await lk.TryLockAsync().ConfigureAwait(false));
             result.Should().BeNull("另一线程持锁等待1s超时后 TryLock 应返回 null");
         }
     }
@@ -334,9 +334,9 @@ public class AsyncLockDiagnosisTests : IDisposable
     {
         using var lk = new AsyncLock("reentrant-async");
 
-        using (lk.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (await lk.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
-            var result = await Task.Run(() => lk.TryLock());
+            var result = await Task.Run(async () => await lk.TryLockAsync().ConfigureAwait(false));
             result.Should().BeNull("另一线程持锁等待1s超时后 TryLock 应返回 null");
         }
     }
@@ -345,13 +345,13 @@ public class AsyncLockDiagnosisTests : IDisposable
     public async Task 重入检测_不同线程获取同一把锁不应抛异常()
     {
         using var lk = new AsyncLock("cross-thread");
-        using var holder = lk.TryLock() ?? throw new System.TimeoutException("锁等待超时");
+        using var holder = await lk.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         var act = async () =>
         {
-            await Task.Run(() =>
+            await Task.Run(async () =>
             {
-                using var g = lk.TryLock();
+                using var g = await lk.TryLockAsync().ConfigureAwait(false);
             });
         };
 
@@ -364,10 +364,10 @@ public class AsyncLockDiagnosisTests : IDisposable
     {
         using var lk = new AsyncLock("reentrant-info");
 
-        using (lk.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (await lk.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             // 同线程重入: TryLock 等1s超时返回 null
-            var result = await Task.Run(() => lk.TryLock());
+            var result = await Task.Run(async () => await lk.TryLockAsync().ConfigureAwait(false));
             result.Should().BeNull("另一线程持锁等待1s超时后 TryLock 应返回 null");
         }
     }

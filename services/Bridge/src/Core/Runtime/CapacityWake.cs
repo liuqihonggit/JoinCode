@@ -130,7 +130,7 @@ public sealed partial class CapacityWakeService : IAsyncDisposable
     /// </summary>
     public async Task StartMonitoringAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = _stateLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         if (_monitorTask is { IsCompleted: false })
         {
@@ -149,7 +149,7 @@ public sealed partial class CapacityWakeService : IAsyncDisposable
     /// </summary>
     public async Task StopMonitoringAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = _stateLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         await (_monitorCts?.CancelAsync() ?? Task.CompletedTask).ConfigureAwait(false);
     
@@ -196,7 +196,7 @@ public sealed partial class CapacityWakeService : IAsyncDisposable
     /// </summary>
     public async Task ScaleUpAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = _stateLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         var oldCount = _currentInstanceCount;
         if (oldCount >= _options.MaxInstances)
@@ -216,7 +216,7 @@ public sealed partial class CapacityWakeService : IAsyncDisposable
     /// </summary>
     public async Task ScaleDownAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = _stateLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         var oldCount = _currentInstanceCount;
         if (oldCount <= _options.MinInstances)

@@ -208,7 +208,7 @@ public sealed class DiagnosticLogWatcher : IAsyncDisposable
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return;
         Stop();
-        using var guard = _lock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
  _filePositions.Clear(); 
     }
 }

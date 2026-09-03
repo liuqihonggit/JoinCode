@@ -85,7 +85,7 @@ public sealed partial class FileWatcherIntegration : IAsyncDisposable
         _updateCts?.Cancel();
 
         Task[] pending;
-        using var guard = _pendingLock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _pendingLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         pending = [.. _pendingUpdates];
     
@@ -145,7 +145,7 @@ public sealed partial class FileWatcherIntegration : IAsyncDisposable
         {
             var ct = _updateCts?.Token ?? CancellationToken.None;
             var task = SafeUpdateAsync(filePath, ct);
-            using var guard = _pendingLock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+            using var guard = await _pendingLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
             _pendingUpdates.Add(task);
         
@@ -172,7 +172,7 @@ public sealed partial class FileWatcherIntegration : IAsyncDisposable
         }
         finally
         {
-            using var guard = _pendingLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
+            using var guard = await _pendingLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
             _pendingUpdates.Remove(task);
         

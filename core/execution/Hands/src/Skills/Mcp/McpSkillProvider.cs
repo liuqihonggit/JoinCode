@@ -91,7 +91,7 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider
 
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = _refreshLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _refreshLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         _mcpSkills.Clear();
 

@@ -123,7 +123,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         {
             var (systemPrompt, chatHistory) = await _stateService.LoadStateAsync(cancellationToken).ConfigureAwait(false);
 
-            using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+            using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
             _staticSystemPrompt = systemPrompt ?? string.Empty;
             _dynamicSystemMessages.Clear();
@@ -234,7 +234,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(content);
 
-        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         var metadata = originKind is null
             ? null
@@ -250,7 +250,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(content);
 
-        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         Log.Append(new ApiMessage(MessageRole.User, content, new Dictionary<string, JsonElement>
         {
@@ -267,7 +267,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(content);
 
-        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         Log.Append(new ApiMessage(MessageRole.Assistant, content));
         _logger.LogDebug("已添加助手消息，当前对话数: {Count}", Log.Count);
@@ -279,7 +279,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task AddAssistantToolCallMessageAsync(string? content, IReadOnlyDictionary<string, JsonElement> metadata, CancellationToken cancellationToken = default)
     {
-        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         Log.Append(new ApiMessage(MessageRole.Assistant, content, metadata));
         _logger.LogDebug("已添加助手工具调用消息，当前对话数: {Count}", Log.Count);
@@ -291,7 +291,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task AddToolResultMessageAsync(string content, IReadOnlyDictionary<string, JsonElement> metadata, CancellationToken cancellationToken = default)
     {
-        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         Log.Append(new ApiMessage(MessageRole.Tool, content, metadata));
         _logger.LogDebug("已添加工具结果消息，当前对话数: {Count}", Log.Count);
@@ -303,7 +303,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task AddToolResultMessageAsync(string content, IReadOnlyDictionary<string, JsonElement> metadata, IReadOnlyList<ToolContent>? contentBlocks, CancellationToken cancellationToken = default)
     {
-        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         Log.Append(new ApiMessage(MessageRole.Tool, content, metadata) { ContentBlocks = contentBlocks ?? [] });
         _logger.LogDebug("已添加工具结果消息(含多模态)，当前对话数: {Count}", Log.Count);
@@ -317,7 +317,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(content);
 
-        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         Log.Append(new ApiMessage(MessageRole.System, content));
         _logger.LogDebug("已添加系统消息，当前对话数: {Count}", Log.Count);
@@ -331,7 +331,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(content);
 
-        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         _dynamicSystemMessages.Add(content);
         _cachedSystemMessages = [];
@@ -345,7 +345,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task ClearDynamicSystemMessagesAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         _dynamicSystemMessages.Clear();
         _cachedSystemMessages = [];
@@ -359,7 +359,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task ClearMessagesAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         Log.CompactInPlace([]);
         _dynamicSystemMessages.Clear();
@@ -377,7 +377,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(systemPrompt);
 
-        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         _staticSystemPrompt = systemPrompt;
         _cachedSystemMessages = [];
@@ -391,7 +391,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task<MessageList> GetMessageListAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         var messages = AssembleMessages();
         return MessageList.FromList(messages);
@@ -406,7 +406,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         await using var span = _telemetryService?.StartSpan("context.save", TelemetrySpanKind.Server);
         try
         {
-            using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+            using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
             await SaveContextCoreAsync(cancellationToken).ConfigureAwait(false);
 
             span?.SetStatus(TelemetryStatusCode.Ok);
@@ -503,7 +503,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         await using var foldSpan = _telemetryService?.StartSpan("context.fold", TelemetrySpanKind.Server);
         foldSpan?.SetTag("context.fold_decision", decision.ToString());
 
-        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         try
         {
             // 折叠前先做低成本剪裁：过期的大工具结果可重派生，重写它们无需调用摘要器。
@@ -621,7 +621,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         var removed = Log.TrimLastTurn();
         _logger.LogInformation("撤回最后一轮对话 (SP-3)，移除 {Count} 条消息，剩余 {Remaining} 条",
@@ -638,7 +638,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task<RewindResult> RewindToMessageIndexAsync(int messageIndex, CancellationToken cancellationToken = default)
     {
-        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         if (messageIndex < 0 || messageIndex > Log.Count)
         {
@@ -659,7 +659,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task<RewindResult> RewindToStartAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         var removed = Log.Count;
         Log.CompactInPlace([]);
@@ -680,7 +680,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(toolSpecs);
 
-        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         _currentToolSpecs.Clear();
         _currentToolSpecs.AddRange(toolSpecs);
@@ -705,7 +705,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task<PromptStateSnapshot> RecordPromptStateAsync(string? agentId = null, CancellationToken cancellationToken = default)
     {
-        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         var prefix = new ImmutablePrefix(_staticSystemPrompt, _currentToolSpecs, []);
         var dynamicContent = string.Join("\n", _dynamicSystemMessages);
@@ -735,7 +735,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(usage);
 
-        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         var currentPrefix = new ImmutablePrefix(_staticSystemPrompt, _currentToolSpecs, []);
         var currentDynamicContent = string.Join("\n", _dynamicSystemMessages);
@@ -776,7 +776,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task SyncDiscoveredToolsFromHistoryAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         var history = AssembleMessages();
         var chatHistory = MessageList.FromList(history);

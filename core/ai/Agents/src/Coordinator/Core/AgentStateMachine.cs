@@ -45,7 +45,7 @@ public sealed partial class AgentStateMachine
             return false;
         }
 
-        using var guard = context.Lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await context.Lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         if (!context.StateMachine.TryTransitionTo(newState))
         {
             _logger?.LogWarning("[AgentStateMachine] Agent {AgentId} 无法从 {CurrentState} 转换到 {NewState}",

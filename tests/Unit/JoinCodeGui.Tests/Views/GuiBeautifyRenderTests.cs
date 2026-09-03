@@ -58,7 +58,7 @@ public sealed class GuiBeautifyRenderTests
     private static byte[] ReadPixels(WriteableBitmap frame)
     {
         var bytes = new byte[frame.PixelSize.Width * frame.PixelSize.Height * 4];
-        using var locked = frame.TryLock() ?? throw new System.TimeoutException("锁等待超时");
+        using var locked = await frame.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         Marshal.Copy(locked.Address, bytes, 0, bytes.Length);
         return bytes;
     }

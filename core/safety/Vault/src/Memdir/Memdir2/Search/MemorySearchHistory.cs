@@ -156,7 +156,7 @@ public sealed partial class MemorySearchHistoryService : ServiceEntity, IMemoryS
         ArgumentNullException.ThrowIfNull(query);
 
         cancellationToken.ThrowIfCancellationRequested();
-                using (_historyLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时"))
+                using (await _historyLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             var entry = new SearchHistoryEntry
             {

@@ -58,7 +58,7 @@ public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abs
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         ArgumentNullException.ThrowIfNull(metadata);
 
-        using var guard = _metaLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _metaLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         try
         {
             EnsureAgentDirectoryExists(sessionId, metadata.AgentId);

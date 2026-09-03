@@ -21,7 +21,7 @@ public sealed partial class InteractiveElicitationHandler : ServiceEntity, IElic
         ElicitRequestParams @params,
         CancellationToken cancellationToken)
     {
-        using var guard = _queueLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _queueLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         try
         {
             var mode = @params.Mode == ElicitModeConstants.Url ? ElicitModeConstants.Url : ElicitModeConstants.Form;

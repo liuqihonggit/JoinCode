@@ -26,7 +26,7 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
 
     public async ValueTask<TransportConnectionState> GetConnectionStateAsync(CancellationToken ct = default)
     {
-        using var guard = _stateLock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         return _connectionState;
     
@@ -34,7 +34,7 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
 
     private async Task SetConnectionStateAsync(TransportConnectionState value, CancellationToken ct = default)
     {
-        using var guard = _stateLock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         var oldState = _connectionState;
         _connectionState = value;

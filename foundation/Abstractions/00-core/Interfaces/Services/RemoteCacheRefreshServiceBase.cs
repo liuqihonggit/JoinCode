@@ -58,7 +58,7 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : IDisposable
             return;
         }
 
-        using var guard = _refreshLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _refreshLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         try
         {
             Logger?.LogDebug("正在刷新{Label}配置", RefreshLogLabel);

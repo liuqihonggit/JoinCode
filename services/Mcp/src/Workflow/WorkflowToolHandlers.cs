@@ -201,19 +201,19 @@ public class WorkflowToolHandlers
 
     private async Task RecordApiMessageAsync(string role, string content, CancellationToken ct = default)
     {
-        using var guard = _historyLock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _historyLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
             _inMemoryMessageList.Add(new ApiMessageRecord(role, content, DateTime.UtcNow));
     }
 
     private async Task ClearInMemoryHistoryAsync(CancellationToken ct = default)
     {
-        using var guard = _historyLock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _historyLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
             _inMemoryMessageList.Clear();
     }
 
     private async Task<IReadOnlyList<ApiMessageRecord>> GetInMemoryHistoryAsync(CancellationToken ct = default)
     {
-        using var guard = _historyLock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _historyLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
             return new List<ApiMessageRecord>(_inMemoryMessageList);
     }
 

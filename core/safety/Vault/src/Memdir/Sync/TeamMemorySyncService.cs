@@ -186,7 +186,7 @@ public sealed partial class TeamMemorySyncService : ServiceEntity, ITeamMemorySy
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        using var guard = _syncLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _syncLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         if (filePath != null)
         {
             await SyncSingleFileAsync(filePath, cancellationToken).ConfigureAwait(false);
@@ -210,7 +210,7 @@ public sealed partial class TeamMemorySyncService : ServiceEntity, ITeamMemorySy
     {
         ArgumentException.ThrowIfNullOrEmpty(filePath);
 
-        using var guard = _syncLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _syncLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         var localEntry = _localEntries.TryGetValue(filePath, out var l) ? l : null;
         var remoteEntry = _remoteEntries.TryGetValue(filePath, out var r) ? r : null;
 

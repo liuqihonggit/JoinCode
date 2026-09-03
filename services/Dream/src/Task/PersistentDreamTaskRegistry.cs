@@ -47,7 +47,7 @@ public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IA
             Phase = DreamPhase.Starting
         };
 
-                using (_lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时"))
+                using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             _activeTasks[taskId] = task;
         }
@@ -63,7 +63,7 @@ public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IA
     public async Task AddDreamTurnAsync(string taskId, DreamTurn turn, IReadOnlyList<string> touchedPaths, CancellationToken ct = default)
     {
         DreamTaskState? task;
-                using (_lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时"))
+                using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (!_activeTasks.TryGetValue(taskId, out task))
             {
@@ -84,7 +84,7 @@ public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IA
     public async Task CompleteDreamTaskAsync(string taskId, CancellationToken ct = default)
     {
         DreamTaskState? task;
-                using (_lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时"))
+                using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (!_activeTasks.TryGetValue(taskId, out task))
             {
@@ -110,7 +110,7 @@ public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IA
     public async Task FailDreamTaskAsync(string taskId, CancellationToken ct = default)
     {
         DreamTaskState? task;
-                using (_lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时"))
+                using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (!_activeTasks.TryGetValue(taskId, out task))
             {
@@ -137,7 +137,7 @@ public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IA
     {
         DreamTaskState? task;
 
-                using (_lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时"))
+                using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             _activeTasks.TryGetValue(taskId, out task);
         }
@@ -149,7 +149,7 @@ public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IA
 
         task.Kill();
 
-                using (_lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时"))
+                using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             _activeTasks.Remove(taskId);
         }
@@ -163,7 +163,7 @@ public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IA
     public async Task<DreamTaskState?> GetTaskStateAsync(string taskId, CancellationToken ct = default)
     {
         // 先从内存缓存查找
-                using (_lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时"))
+                using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (_activeTasks.TryGetValue(taskId, out var activeTask))
             {
@@ -181,7 +181,7 @@ public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IA
         var result = new Dictionary<string, DreamTaskState>();
 
         // 添加活跃任务
-                using (_lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时"))
+                using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             foreach (var (id, task) in _activeTasks)
             {
@@ -210,7 +210,7 @@ public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IA
         var allTasks = await _persistence.LoadAllAsync(ct).ConfigureAwait(false);
         var activeTasks = allTasks.Where(t => !t.IsTerminal).ToList();
 
-                using (_lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时"))
+                using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             foreach (var task in activeTasks)
             {

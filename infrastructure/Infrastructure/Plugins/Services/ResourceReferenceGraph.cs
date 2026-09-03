@@ -19,7 +19,7 @@ public sealed class ResourceReferenceGraph : IResourceReferenceGraph
         var key = (reference.ConsumerResourceId, reference.TargetResourceId);
         if (!_references.TryAdd(key, reference)) return;
 
-        using (_lock.Lock())
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             _byConsumer.AddOrUpdate(
                 reference.ConsumerPluginName,
@@ -38,7 +38,7 @@ public sealed class ResourceReferenceGraph : IResourceReferenceGraph
         var key = (consumerResourceId, targetResourceId);
         if (!_references.TryRemove(key, out var reference)) return;
 
-        using (_lock.Lock())
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (_byConsumer.TryGetValue(reference.ConsumerPluginName, out var consumerList))
                 consumerList.Remove(reference);
@@ -51,7 +51,7 @@ public sealed class ResourceReferenceGraph : IResourceReferenceGraph
     public IReadOnlyList<string> GetConsumers(string targetPluginName)
     {
         if (!_byTarget.TryGetValue(targetPluginName, out var list)) return [];
-        using (_lock.Lock())
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             return list.Select(r => r.ConsumerPluginName).Distinct().ToList();
         }
@@ -61,7 +61,7 @@ public sealed class ResourceReferenceGraph : IResourceReferenceGraph
     public IReadOnlyList<ResourceReference> GetReferencesBy(string consumerPluginName)
     {
         if (!_byConsumer.TryGetValue(consumerPluginName, out var list)) return [];
-        using (_lock.Lock())
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             return list.ToList();
         }
@@ -71,7 +71,7 @@ public sealed class ResourceReferenceGraph : IResourceReferenceGraph
     public IReadOnlyDictionary<ObjectId, int> GetReferenceCounts(string pluginName)
     {
         if (!_byTarget.TryGetValue(pluginName, out var list)) return new Dictionary<ObjectId, int>();
-        using (_lock.Lock())
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             return list.GroupBy(r => r.TargetResourceId)
                        .ToDictionary(g => g.Key, g => g.Count());
@@ -81,7 +81,7 @@ public sealed class ResourceReferenceGraph : IResourceReferenceGraph
     /// <summary>移除某插件的所有引用关系 — 卸载完成后清理</summary>
     public void RemoveAllForPlugin(string pluginName)
     {
-        using (_lock.Lock())
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (_byConsumer.TryRemove(pluginName, out var consumerList))
             {

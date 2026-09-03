@@ -25,7 +25,7 @@ public static class L
     /// </summary>
     public static void Initialize(string language, IReadOnlyDictionary<string, string> entries)
     {
-        using (s_lock.Lock())
+        using (s_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             CurrentLanguage = language;
             _entries = entries;
@@ -52,7 +52,7 @@ public static class L
 
     private static void EnsureInitialized()
     {
-        using (s_lock.Lock())
+        using (s_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (!_initialized)
             {

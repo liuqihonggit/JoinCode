@@ -89,7 +89,7 @@ public sealed class Fsm<TState, TEvent>
     /// <summary>当前状态（线程安全读取）</summary>
     public TState CurrentState
     {
-        get { using (_lock.Lock()) { return _currentState; } }
+        get { using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时")) { return _currentState; } }
     }
 
     /// <summary>状态变更事件（转换成功后触发）</summary>
@@ -146,7 +146,7 @@ public sealed class Fsm<TState, TEvent>
         TState newState;
         TransitionAction? actionToRun;
 
-        using (_lock.Lock())
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             oldState = _currentState;
             var key = new TransitionKey<TState, TEvent>(_currentState, evt);
@@ -181,7 +181,7 @@ public sealed class Fsm<TState, TEvent>
     /// </summary>
     public bool CanTrigger(TEvent evt, FsmContext? ctx = null)
     {
-        using (_lock.Lock())
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             var key = new TransitionKey<TState, TEvent>(_currentState, evt);
             var rule = LookupRule(key);
@@ -197,7 +197,7 @@ public sealed class Fsm<TState, TEvent>
     /// </summary>
     public IReadOnlyList<TEvent> GetAvailableEvents(FsmContext? ctx = null)
     {
-        using (_lock.Lock())
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             var state = _currentState;
             var result = new List<TEvent>();
@@ -220,7 +220,7 @@ public sealed class Fsm<TState, TEvent>
     public void ForceSet(TState state)
     {
         TState oldState;
-        using (_lock.Lock())
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             oldState = _currentState;
             _currentState = state;
@@ -235,7 +235,7 @@ public sealed class Fsm<TState, TEvent>
     /// </summary>
     public void Reset(TState state)
     {
-        using (_lock.Lock())
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             _currentState = state;
         }

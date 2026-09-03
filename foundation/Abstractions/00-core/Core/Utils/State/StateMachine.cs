@@ -41,7 +41,7 @@ public sealed class StateMachine<TState> where TState : struct, Enum
     {
         get
         {
-            using (_lock.Lock())
+            using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
             {
                 return _currentState;
             }
@@ -63,7 +63,7 @@ public sealed class StateMachine<TState> where TState : struct, Enum
 
     public bool CanTransitionTo(TState to)
     {
-        using (_lock.Lock())
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             return CanTransitionTo(_currentState, to);
         }
@@ -72,7 +72,7 @@ public sealed class StateMachine<TState> where TState : struct, Enum
     public void TransitionTo(TState target)
     {
         TState oldState;
-        using (_lock.Lock())
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (!CanTransitionTo(_currentState, target))
             {
@@ -92,7 +92,7 @@ public sealed class StateMachine<TState> where TState : struct, Enum
     {
         TState oldState;
         bool changed;
-        using (_lock.Lock())
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (!CanTransitionTo(_currentState, target))
             {
@@ -115,7 +115,7 @@ public sealed class StateMachine<TState> where TState : struct, Enum
     public void ForceTransitionTo(TState target)
     {
         TState oldState;
-        using (_lock.Lock())
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             oldState = _currentState;
             _currentState = target;
@@ -127,7 +127,7 @@ public sealed class StateMachine<TState> where TState : struct, Enum
     public void Reset(TState initialState)
     {
         TState oldState;
-        using (_lock.Lock())
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             oldState = _currentState;
             if (oldState.Equals(initialState))
@@ -143,7 +143,7 @@ public sealed class StateMachine<TState> where TState : struct, Enum
 
     public IReadOnlySet<TState> GetValidNextStates()
     {
-        using (_lock.Lock())
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             return _transitions.TryGetValue(_currentState, out var targets)
                 ? targets
@@ -155,13 +155,13 @@ public sealed class StateMachine<TState> where TState : struct, Enum
     {
         if (_terminalStates.Count == 0)
         {
-            using (_lock.Lock())
+            using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
             {
                 return _transitions.TryGetValue(_currentState, out var targets) && targets.Count == 0;
             }
         }
 
-        using (_lock.Lock())
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             return _terminalStates.Contains(_currentState);
         }

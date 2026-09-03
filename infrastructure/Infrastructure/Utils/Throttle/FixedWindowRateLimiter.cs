@@ -18,7 +18,7 @@ public sealed class FixedWindowRateLimiter
 
     public bool TryAcquire()
     {
-        using (_lock.Lock())
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             var now = DateTime.UtcNow;
             if (now - _windowStart >= _window)
@@ -37,7 +37,7 @@ public sealed class FixedWindowRateLimiter
 
     public void Reset()
     {
-        using (_lock.Lock())
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             _windowStart = DateTime.UtcNow;
             _currentCount = 0;

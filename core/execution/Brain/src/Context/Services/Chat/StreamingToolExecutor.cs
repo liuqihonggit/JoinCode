@@ -163,18 +163,21 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
             _logger?.LogDebug("[StreamingToolExecutor] SiblingCts already disposed during discard");
         }
 
-        using var guard = _semaphore.TryLock() ?? throw new System.TimeoutException("锁等待超时");
-        var uncompletedTools = _queue
-            .Where(t => t.Status != ToolStatus.Completed && !t.CompletionSource.Task.IsCompleted)
-            .ToList();
-
-        foreach (var tool in _queue)
+        List<QueuedTool> uncompletedTools;
+        using (var guard = _semaphore.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
-            if (tool.Status != ToolStatus.Completed)
-                tool.Status = ToolStatus.Completed;
-        }
+            uncompletedTools = _queue
+                .Where(t => t.Status != ToolStatus.Completed && !t.CompletionSource.Task.IsCompleted)
+                .ToList();
 
-        _completedBuffer.Clear();
+            foreach (var tool in _queue)
+            {
+                if (tool.Status != ToolStatus.Completed)
+                    tool.Status = ToolStatus.Completed;
+            }
+
+            _completedBuffer.Clear();
+        }
 
         foreach (var tool in uncompletedTools)
         {

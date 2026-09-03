@@ -137,11 +137,12 @@ public abstract class McpClientBase : IMcpClient
         int requestId = response.GetIdAsInt();
 
         var guard = await _requestLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        TaskCompletionSource<JsonRpcResponse>? tcsToComplete = null;
         try
         {
             if (_pendingRequests.TryGetValue(requestId, out var tcs))
             {
-                tcs.TrySetResult(response);
+                tcsToComplete = tcs;
                 _pendingRequests.Remove(requestId);
             }
         }
@@ -149,6 +150,8 @@ public abstract class McpClientBase : IMcpClient
         {
             guard.Dispose();
         }
+
+        tcsToComplete?.TrySetResult(response);
     }
 
     /// <summary>

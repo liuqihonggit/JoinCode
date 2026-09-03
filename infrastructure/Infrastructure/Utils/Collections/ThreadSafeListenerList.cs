@@ -3,7 +3,7 @@ namespace Core.Utils;
 public sealed class ThreadSafeListenerList<T>
 {
     private readonly List<T> _listeners = [];
-    private readonly object _lock = new();
+    private readonly AsyncLock _lock = new("ThreadSafeListenerList");
     private readonly ILogger<ThreadSafeListenerList<T>>? _logger;
 
     public ThreadSafeListenerList(ILogger<ThreadSafeListenerList<T>>? logger = null)
@@ -14,7 +14,7 @@ public sealed class ThreadSafeListenerList<T>
     public IDisposable Register(T listener)
     {
         ArgumentNullException.ThrowIfNull(listener);
-        lock (_lock)
+        using (_lock.Lock())
         {
             _listeners.Add(listener);
         }
@@ -27,7 +27,7 @@ public sealed class ThreadSafeListenerList<T>
         ArgumentNullException.ThrowIfNull(action);
 
         T[] snapshot;
-        lock (_lock)
+        using (_lock.Lock())
         {
             snapshot = _listeners.ToArray();
         }
@@ -49,7 +49,7 @@ public sealed class ThreadSafeListenerList<T>
     {
         get
         {
-            lock (_lock)
+            using (_lock.Lock())
             {
                 return _listeners.Count;
             }
@@ -58,7 +58,7 @@ public sealed class ThreadSafeListenerList<T>
 
     private void Unsubscribe(T listener)
     {
-        lock (_lock)
+        using (_lock.Lock())
         {
             _listeners.Remove(listener);
         }

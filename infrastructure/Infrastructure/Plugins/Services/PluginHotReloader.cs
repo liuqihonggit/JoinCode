@@ -27,7 +27,7 @@ public sealed partial class PluginHotReloader : IPluginHotReloader
     private readonly ITelemetryService? _telemetryService;
     private readonly IFileSystem _fs;
     private IFileSystemWatcher? _watcher;
-    private readonly SemaphoreSlim _reloadLock;
+    private readonly AsyncLock _reloadLock;
     private volatile bool _isWatching;
 
     public PluginHotReloader(
@@ -40,7 +40,7 @@ public sealed partial class PluginHotReloader : IPluginHotReloader
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _logger = logger;
         _telemetryService = telemetryService;
-        _reloadLock = new SemaphoreSlim(1, 1);
+        _reloadLock = new AsyncLock();
     }
 
     public bool IsWatching => _isWatching;
@@ -118,7 +118,7 @@ public sealed partial class PluginHotReloader : IPluginHotReloader
 
     internal async Task ReloadPluginAsync(string pluginName, string filePath, ReloadReason reason)
     {
-        using var guard = await AsyncLockGuard.AcquireAsync(_reloadLock).ConfigureAwait(false);
+        using var guard = await _reloadLock.LockAsync().ConfigureAwait(false);
         var args = new PluginReloadEventArgs
         {
             PluginName = pluginName,

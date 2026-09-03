@@ -3,7 +3,7 @@ namespace Core.Configuration;
 [Register(typeof(IFastModeService), ServiceLifetime.Singleton)]
 public sealed partial class FastModeService : ServiceEntity, IFastModeService, IDisposable
 {
-    private readonly object _lock = new();
+    private readonly AsyncLock _lock = new("FastModeService");
     private bool _isActive;
     private string _fastModelId;
     private string _primaryModelId;
@@ -13,17 +13,17 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
 
     public bool IsFastModeActive
     {
-        get { lock (_lock) return _isActive; }
+        get { using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时")) return _isActive; }
     }
 
     public string FastModelId
     {
-        get { lock (_lock) return _fastModelId; }
+        get { using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时")) return _fastModelId; }
     }
 
     public string PrimaryModelId
     {
-        get { lock (_lock) return _primaryModelId; }
+        get { using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时")) return _primaryModelId; }
     }
 
     public event EventHandler<FastModeChangedEventArgs>? FastModeChanged;
@@ -44,7 +44,7 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
 
     public void Activate()
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (_isActive) return;
 
@@ -63,12 +63,12 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
 
     public void Deactivate()
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (!_isActive) return;
 
             _isActive = false;
-            StopCooldownTimer();
+            StopCooldownTimerUnchecked();
             _logger?.LogInformation("Fast Mode deactivated: returning to {PrimaryModel}", _primaryModelId);
         }
 
@@ -82,23 +82,23 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
 
     public void Toggle()
     {
-        lock (_lock)
+        bool shouldActivate;
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
-            if (_isActive)
-            {
-                Deactivate();
-            }
-            else
-            {
-                Activate();
-            }
+            shouldActivate = !_isActive;
         }
+
+        // 锁外调用（避免锁内调用 Activate/Deactivate 导致重入死锁）
+        if (shouldActivate)
+            Activate();
+        else
+            Deactivate();
     }
 
     public void SetFastModel(string modelId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(modelId);
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             _fastModelId = modelId;
         }
@@ -108,7 +108,7 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
     public void SetPrimaryModel(string modelId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(modelId);
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             _primaryModelId = modelId;
         }
@@ -117,7 +117,7 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
 
     public string GetCurrentModelId()
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             return _isActive ? _fastModelId : _primaryModelId;
         }
@@ -125,7 +125,7 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
 
     public bool IsInCooldown()
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             return _isActive && _cooldownTimer != null;
         }
@@ -133,9 +133,9 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
 
     private void StartCooldownTimer()
     {
-        StopCooldownTimer();
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
+            StopCooldownTimerUnchecked();
             _cooldownTimer = new Timer(_ =>
             {
                 _logger?.LogDebug("Fast Mode cooldown expired, auto-deactivating");
@@ -144,17 +144,17 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
         }
     }
 
-    private void StopCooldownTimer()
+    private void StopCooldownTimerUnchecked()
     {
-        lock (_lock)
-        {
-            _cooldownTimer?.Dispose();
-            _cooldownTimer = null;
-        }
+        _cooldownTimer?.Dispose();
+        _cooldownTimer = null;
     }
 
     protected override void OnDispose()
     {
-        StopCooldownTimer();
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        {
+            StopCooldownTimerUnchecked();
+        }
     }
 }

@@ -131,7 +131,26 @@ RunFireAndForget(ProcessQueueAsync);
 
 ### 验证
 
-- `StreamingToolExecutorTests` 11/11 通过（909ms），之前死锁 5s 超时
+- `StreamingToolExecutorTests` 12/12 通过（含新增 `Discard_DuringGetRemaining_DoesNotDeadlock` 回归测试）
+- `Brain.Context.Tests` 778/778 通过（3s）
+- `GoalEngineTests` 33/33 通过
+
+## 全局排查与防御修复（锁内 TrySetResult 模式）
+
+对全项目 78 处 `TrySetResult` 调用排查，确认在 AsyncLock 锁作用域内的 7 处，全部防御修复：
+
+| 文件 | 行号 | 风险 | 修复方式 |
+|------|------|------|----------|
+| `StreamingToolExecutor.cs` | 339 | 高（已复现死锁） | TrySetResult 移到 `using` 锁块外 |
+| `StreamingToolExecutor.cs` | 181 | 高（Discard 同模式） | TrySetResult 移到 `using` 锁块外 |
+| `McpClientBase.cs` | 144 | 中（异常路径获同锁） | TrySetResult 移到 `guard.Dispose()` 后 |
+| `GoalEngine.cs` | 350,395,519,548 | 低（TCS 续体选项隐患） | TCS 创建加 `RunContinuationsAsynchronously` |
+| `SerialBatchEventUploader.cs` | 216 | 低（已安全） | 已用 `RunContinuationsAsynchronously`，无需修改 |
+
+### 两种防御策略
+
+1. **TrySetResult 移到锁外**（首选，彻底消除锁-续体耦合）：先在锁内更新状态/读取需要的数据，释放锁后 TrySetResult
+2. **TCS 加 `RunContinuationsAsynchronously`**（次选，续体异步执行）：适用于 TrySetResult 难以移到锁外（如 TCS 在多处被设置）的场景
 
 ## 已修复的 fire-and-forget 场景（其他文件，已验证）
 

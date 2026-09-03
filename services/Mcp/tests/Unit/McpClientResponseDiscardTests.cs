@@ -26,6 +26,24 @@ public sealed class McpClientResponseDiscardTests
 
         /// <summary>暴露安全的 fire-and-forget 包裹器</summary>
         public Task FireAndForgetProcessResponseForTest(JsonRpcResponse response) => FireAndForgetProcessResponseAsync(response);
+
+        /// <summary>注册 pending request 并返回其 TCS,模拟 SendRequestAsync 注册等待</summary>
+        public TaskCompletionSource<JsonRpcResponse> RegisterPendingForTest(int requestId)
+        {
+            var tcs = new TaskCompletionSource<JsonRpcResponse>();
+            _pendingRequests[requestId] = tcs;
+            return tcs;
+        }
+
+        /// <summary>模拟等待者续体获取同锁(异常路径 catch 块行为)</summary>
+#pragma warning disable VSTHRD003 // TCS 由 ProcessResponseAsync 设置,此处仅等待完成
+        public async Task SimulateWaiterThenLockAsync(TaskCompletionSource<JsonRpcResponse> tcs)
+        {
+            await tcs.Task;
+            using var guard = await _requestLock.TryLockAsync()
+                ?? throw new System.TimeoutException("等待者续体获取锁超时");
+        }
+#pragma warning restore VSTHRD003
     }
 
     private static JsonRpcResponse CreateResponse(long id) => new() { Id = JsonRpcId.FromNumber(id) };
@@ -56,5 +74,27 @@ public sealed class McpClientResponseDiscardTests
         var client = new TestClient();
         var act = async () => await client.FireAndForgetProcessResponseForTest(CreateResponse(99)).ConfigureAwait(true);
         await act.Should().NotThrowAsync().ConfigureAwait(true);
+    }
+
+    /// <summary>
+    /// 复现 ProcessResponseAsync 锁内 TrySetResult 导致等待者续体同线程同步重入锁死锁。
+    /// 根因：ProcessResponseAsync 在 _requestLock 锁内调用 tcs.TrySetResult，唤醒的等待者续体
+    /// 若在同线程同步执行并尝试获取 _requestLock（如异常 catch 路径），锁未释放 → 自等自死锁。
+    /// 修复：TrySetResult 移到 guard.Dispose() 之后。> ADR: 0060
+    /// </summary>
+    [Fact]
+    public async Task ProcessResponseAsync_LockInnerTrySetResult_DoesNotDeadlock()
+    {
+        var client = new TestClient();
+        var tcs = client.RegisterPendingForTest(1);
+
+        var waiterTask = client.SimulateWaiterThenLockAsync(tcs);
+
+        await Task.Delay(100);
+
+        await client.ProcessResponseForTest(CreateResponse(1)).WaitAsync(TimeSpan.FromSeconds(5));
+
+        await waiterTask.WaitAsync(TimeSpan.FromSeconds(5));
+        waiterTask.IsCompletedSuccessfully.Should().BeTrue("等待者续体在 5s 内完成说明未死锁");
     }
 }

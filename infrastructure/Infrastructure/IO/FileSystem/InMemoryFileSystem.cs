@@ -8,6 +8,7 @@ public sealed class InMemoryFileSystem : IFileSystem
     private readonly ConcurrentDictionary<string, InMemoryFileEntry> _files = new();
     private readonly ConcurrentDictionary<string, InMemoryDirectoryEntry> _directories = new();
     private readonly List<InMemoryFileSystemWatcher> _watchers = [];
+    private readonly AsyncLock _watchersLock = new("InMemoryFileSystem");
     private string _currentDirectory = "/test";
 
     public InMemoryFileSystem()
@@ -543,7 +544,7 @@ public sealed class InMemoryFileSystem : IFileSystem
     /// </summary>
     internal void RegisterWatcher(InMemoryFileSystemWatcher watcher)
     {
-        lock (_watchers) _watchers.Add(watcher);
+        using (_watchersLock.Lock()) _watchers.Add(watcher);
     }
 
     /// <summary>
@@ -551,13 +552,13 @@ public sealed class InMemoryFileSystem : IFileSystem
     /// </summary>
     internal void UnregisterWatcher(InMemoryFileSystemWatcher watcher)
     {
-        lock (_watchers) _watchers.Remove(watcher);
+        using (_watchersLock.Lock()) _watchers.Remove(watcher);
     }
 
     private void NotifyWatchers(string fullPath, WatcherChangeTypes changeType)
     {
         List<InMemoryFileSystemWatcher> snapshot;
-        lock (_watchers) snapshot = [.. _watchers];
+        using (_watchersLock.Lock()) snapshot = [.. _watchers];
         foreach (var watcher in snapshot)
             watcher.OnFileChanged(fullPath, changeType);
     }
@@ -565,7 +566,7 @@ public sealed class InMemoryFileSystem : IFileSystem
     private void NotifyWatchersRenamed(string oldFullPath, string newFullPath)
     {
         List<InMemoryFileSystemWatcher> snapshot;
-        lock (_watchers) snapshot = [.. _watchers];
+        using (_watchersLock.Lock()) snapshot = [.. _watchers];
         foreach (var watcher in snapshot)
             watcher.OnFileRenamed(oldFullPath, newFullPath);
     }

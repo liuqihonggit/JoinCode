@@ -2,7 +2,7 @@ namespace Core.Utils;
 
 public sealed class FixedWindowRateLimiter
 {
-    private readonly object _lock = new();
+    private readonly AsyncLock _lock = new("FixedWindowRateLimiter");
     private readonly int _maxRequests;
     private readonly TimeSpan _window;
     private int _currentCount;
@@ -18,7 +18,7 @@ public sealed class FixedWindowRateLimiter
 
     public bool TryAcquire()
     {
-        lock (_lock)
+        using (_lock.Lock())
         {
             var now = DateTime.UtcNow;
             if (now - _windowStart >= _window)
@@ -37,7 +37,7 @@ public sealed class FixedWindowRateLimiter
 
     public void Reset()
     {
-        lock (_lock)
+        using (_lock.Lock())
         {
             _windowStart = DateTime.UtcNow;
             _currentCount = 0;

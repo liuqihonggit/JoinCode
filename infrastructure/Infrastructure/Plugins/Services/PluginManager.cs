@@ -28,7 +28,7 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
 
     /// <summary>插件加载顺序 — 用于 UnloadAllPluginsAsync 按注册逆序卸载</summary>
     private readonly List<string> _loadOrder = new();
-    private readonly object _loadOrderLock = new();
+    private readonly AsyncLock _loadOrderLock = new("PluginManager");
 
     /// <summary>每个插件的资源 ObjectId 列表 — 卸载后用于扫描验证</summary>
     private readonly ConcurrentDictionary<string, List<ObjectId>> _pluginResourceIds = new();
@@ -388,7 +388,7 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
     /// <summary>记录插件加载顺序</summary>
     private void AddToLoadOrder(string pluginName)
     {
-        lock (_loadOrderLock)
+        using (_loadOrderLock.Lock())
         {
             _loadOrder.Add(pluginName);
         }
@@ -397,7 +397,7 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
     /// <summary>从加载顺序中移除插件</summary>
     private void RemoveFromLoadOrder(string pluginName)
     {
-        lock (_loadOrderLock)
+        using (_loadOrderLock.Lock())
         {
             _loadOrder.Remove(pluginName);
         }
@@ -406,7 +406,7 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
     /// <summary>获取加载顺序的逆序副本 — 用于按注册逆序卸载(Cordis)</summary>
     private List<string> GetLoadOrderReversed()
     {
-        lock (_loadOrderLock)
+        using (_loadOrderLock.Lock())
         {
             var list = _loadOrder.ToList();
             list.Reverse();

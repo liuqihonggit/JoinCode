@@ -9,26 +9,6 @@ public static class LockRegistry
 {
     private static readonly ConcurrentDictionary<int, LockInfo> _locks = new();
     private static int _nextId;
-    private static int _nextFlowId;
-    private static readonly AsyncLocal<int?> _currentFlowId = new();
-
-    /// <summary>
-    /// 当前异步流的唯一身份。跨 await 保持（AsyncLocal 随 ExecutionContext 传播），
-    /// 不同 Task.Run 各自独立（父流未设置时子流懒生成新 ID）。
-    /// 用于 async 上下文中可靠地识别"同一个异步流持有锁A并等待锁B"。
-    /// </summary>
-    internal static int CurrentFlowId
-    {
-        get
-        {
-            if (_currentFlowId.Value is not int flowId)
-            {
-                flowId = Interlocked.Increment(ref _nextFlowId);
-                _currentFlowId.Value = flowId;
-            }
-            return flowId;
-        }
-    }
 
     private static TimeSpan _waitTimeoutThreshold = TimeSpan.FromSeconds(30);
     private static TimeSpan _holdTooLongThreshold = TimeSpan.FromSeconds(5);
@@ -118,31 +98,10 @@ public static class LockRegistry
         if (_locks.TryGetValue(id, out var info))
         {
             info.WaitingThread = Thread.CurrentThread;
-            info.WaitingFlowId = CurrentFlowId;
             info.WaitStartedAt = DateTimeOffset.UtcNow;
             info.WaitStack = CaptureStackTrace(skipFrames: 3);
         }
         DetectDeadlock();
-    }
-
-    /// <summary>
-    /// 重入检测：同一线程已持有此锁时抛 <see cref="LockReentrancyException"/>。
-    /// 仅在会阻塞的 Lock/LockAsync 方法中调用 — TryLock/TryLockAsync 非阻塞，重入返回 null 即可。
-    /// 将"持锁后再次获取同一把锁"的死锁转为立即失败，而非卡在 SemaphoreSlim.Wait()。
-    /// 用线程 ID 而非 AsyncLocal FlowId：SemaphoreSlim 是线程相关的，同线程重入必然死锁；
-    /// AsyncLocal.Value 在 async 方法内部设置不传播回调用方，无法可靠检测 async 重入。
-    /// </summary>
-    internal static void CheckReentrancy(int id, string name)
-    {
-        if (!IsEnabled) return;
-        if (_locks.TryGetValue(id, out var info)
-            && info.HoldingThread == Thread.CurrentThread)
-        {
-            var msg = $"[LOCK-REENTRANCY] 锁 '{name}' (#{id}) 被同一线程 {Thread.CurrentThread.ManagedThreadId} 重入。" +
-                      $"AsyncLock 不支持重入，持锁时再次获取会永久阻塞。\n  原获取调用栈:\n{info.AcquireStack}";
-            Emit(msg);
-            throw new LockReentrancyException(name, id, Thread.CurrentThread.ManagedThreadId, msg);
-        }
     }
 
     /// <summary>
@@ -162,7 +121,6 @@ public static class LockRegistry
                     $"线程: {Thread.CurrentThread.ManagedThreadId}");
             }
             info.WaitingThread = null;
-            info.WaitingFlowId = 0;
             info.WaitStartedAt = null;
             info.WaitStack = null;
         }
@@ -199,11 +157,9 @@ public static class LockRegistry
                     $"获取线程: {Thread.CurrentThread.ManagedThreadId}");
             }
             info.HoldingThread = Thread.CurrentThread;
-            info.HoldingFlowId = CurrentFlowId;
             info.AcquiredAt = DateTimeOffset.UtcNow;
             info.AcquireStack = CaptureStackTrace(skipFrames: 3);
             info.WaitingThread = null;
-            info.WaitingFlowId = 0;
             info.WaitStartedAt = null;
             info.WaitStack = null;
         }
@@ -227,7 +183,6 @@ public static class LockRegistry
                     $"持有线程: {info.HoldingThread?.ManagedThreadId}");
             }
             info.HoldingThread = null;
-            info.HoldingFlowId = 0;
             info.AcquiredAt = null;
             info.AcquireStack = null;
         }
@@ -288,12 +243,12 @@ public static class LockRegistry
             if (info.HoldingThread is not null)
             {
                 var held = info.AcquiredAt.HasValue ? now - info.AcquiredAt.Value : TimeSpan.Zero;
-                status = $"持有中(流#{info.HoldingFlowId}, 线程 {info.HoldingThread.ManagedThreadId}, 已持有 {held.TotalSeconds:F1}s)";
+                status = $"持有中(线程 {info.HoldingThread.ManagedThreadId}, 已持有 {held.TotalSeconds:F1}s)";
             }
             else if (info.WaitingThread is not null)
             {
                 var waited = info.WaitStartedAt.HasValue ? now - info.WaitStartedAt.Value : TimeSpan.Zero;
-                status = $"等待中(流#{info.WaitingFlowId}, 线程 {info.WaitingThread.ManagedThreadId}, 已等 {waited.TotalSeconds:F1}s)";
+                status = $"等待中(线程 {info.WaitingThread.ManagedThreadId}, 已等 {waited.TotalSeconds:F1}s)";
             }
             else
             {
@@ -301,7 +256,7 @@ public static class LockRegistry
             }
             sb.Append($"  #{info.Id} '{info.Name}' — {status}\n");
             if (info.WaitingThread is not null)
-                sb.Append($"    (等待流#{info.WaitingFlowId})\n");
+                sb.Append($"    (等待中)\n");
             if (info.HoldingThread is not null && info.AcquireStack is { Length: > 0 })
                 sb.Append("    获取调用栈:\n").Append(info.AcquireStack);
             if (info.WaitingThread is not null && info.WaitStack is { Length: > 0 })
@@ -412,7 +367,7 @@ public static class LockRegistry
         {
             var (threadId, lk) = chain[i];
             var next = chain[(i + 1) % chain.Count];
-            sb.Append($"  线程{threadId} 持有锁 '{lk.Name}' (#{lk.Id}, 流#{lk.HoldingFlowId})，等待锁 '{next.lk.Name}' (#{next.lk.Id}, 流#{next.lk.WaitingFlowId})\n");
+            sb.Append($"  线程{threadId} 持有锁 '{lk.Name}' (#{lk.Id})，等待锁 '{next.lk.Name}' (#{next.lk.Id})\n");
             if (lk.AcquireStack is { Length: > 0 })
                 sb.Append($"    获取调用栈:\n{lk.AcquireStack}");
             if (next.lk.WaitStack is { Length: > 0 })
@@ -432,7 +387,6 @@ public static class LockRegistry
         StopBackgroundScan();
         _locks.Clear();
         Interlocked.Exchange(ref _nextId, 0);
-        Interlocked.Exchange(ref _nextFlowId, 0);
         Interlocked.Exchange(ref _deadlockDetected, 0);
         Volatile.Write(ref _lastDeadlockReport, null);
     }
@@ -462,11 +416,9 @@ internal sealed class LockInfo
     public int Id;
     public string Name = "";
     public Thread? HoldingThread;
-    public int HoldingFlowId;
     public DateTimeOffset? AcquiredAt;
     public string? AcquireStack;
     public Thread? WaitingThread;
-    public int WaitingFlowId;
     public DateTimeOffset? WaitStartedAt;
     public string? WaitStack;
 }

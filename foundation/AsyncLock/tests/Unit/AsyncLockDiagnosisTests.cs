@@ -1,4 +1,4 @@
-namespace LockDiagnosis.Tests;
+﻿namespace LockDiagnosis.Tests;
 
 /// <summary>
 /// AsyncLock 互斥语义 + LockRegistry 诊断能力单元测试。
@@ -82,9 +82,9 @@ public class AsyncLockDiagnosisTests : IDisposable
     {
         using var lk = new AsyncLock("trylock-test");
         using var guard = lk.TryLock() ?? throw new System.TimeoutException("锁等待超时");
-        // 在另一线程获取 — 同线程重入会抛 LockReentrancyException,跨线程竞争超时返回 null
+        // 在另一线程获取 — 同线程重入会超时返回 null
         var guard2 = await Task.Run(() => lk.TryLock());
-        guard2.Should().BeNull("另一线程持锁等待5s超时后 TryLock 应返回 null");
+        guard2.Should().BeNull("另一线程持锁等待1s超时后 TryLock 应返回 null");
     }
 
     [Fact]
@@ -92,9 +92,9 @@ public class AsyncLockDiagnosisTests : IDisposable
     {
         using var lk = new AsyncLock("trylock-timeout");
         using var holder = lk.TryLock() ?? throw new System.TimeoutException("锁等待超时");
-        // 在另一线程获取 — 同线程重入会抛 LockReentrancyException
+        // 在另一线程获取 — 同线程重入会超时返回 null
         var result = await Task.Run(() => lk.TryLock());
-        result.Should().BeNull("锁已被持有时 TryLock 应5s超时返回 null");
+        result.Should().BeNull("锁已被持有时 TryLock 应1s超时返回 null");
     }
 
     [Fact]
@@ -189,9 +189,9 @@ public class AsyncLockDiagnosisTests : IDisposable
     {
         using var lk = new AsyncLock("sync-mutex");
         using var g1 = lk.TryLock() ?? throw new System.TimeoutException("锁等待超时");
-        // 在另一线程获取 — 同线程重入会抛 LockReentrancyException
+        // 在另一线程获取 — 同线程重入会超时返回 null
         var g2 = await Task.Run(() => lk.TryLock());
-        g2.Should().BeNull("同步 Lock 持有后另一线程 TryLock 应5s超时返回 null");
+        g2.Should().BeNull("同步 Lock 持有后另一线程 TryLock 应1s超时返回 null");
     }
 
     [Fact]
@@ -323,9 +323,9 @@ public class AsyncLockDiagnosisTests : IDisposable
 
         using (lk.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
-            // 同线程重入: TryLock 等5s超时返回 null (不抛异常,因为 ThreadId 在 async 下不可靠)
+            // 同线程重入: TryLock 等1s超时返回 null (不抛异常,因为 ThreadId 在 async 下不可靠)
             var result = await Task.Run(() => lk.TryLock());
-            result.Should().BeNull("另一线程持锁等待5s超时后 TryLock 应返回 null");
+            result.Should().BeNull("另一线程持锁等待1s超时后 TryLock 应返回 null");
         }
     }
 
@@ -337,7 +337,7 @@ public class AsyncLockDiagnosisTests : IDisposable
         using (lk.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             var result = await Task.Run(() => lk.TryLock());
-            result.Should().BeNull("另一线程持锁等待5s超时后 TryLock 应返回 null");
+            result.Should().BeNull("另一线程持锁等待1s超时后 TryLock 应返回 null");
         }
     }
 
@@ -355,7 +355,7 @@ public class AsyncLockDiagnosisTests : IDisposable
             });
         };
 
-        await act.Should().NotThrowAsync<LockReentrancyException>(
+        await act.Should().NotThrowAsync(
             "不同线程获取同一把锁是正常竞争，不是重入");
     }
 
@@ -366,9 +366,9 @@ public class AsyncLockDiagnosisTests : IDisposable
 
         using (lk.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
-            // 同线程重入: TryLock 等5s超时返回 null
+            // 同线程重入: TryLock 等1s超时返回 null
             var result = await Task.Run(() => lk.TryLock());
-            result.Should().BeNull("另一线程持锁等待5s超时后 TryLock 应返回 null");
+            result.Should().BeNull("另一线程持锁等待1s超时后 TryLock 应返回 null");
         }
     }
 }

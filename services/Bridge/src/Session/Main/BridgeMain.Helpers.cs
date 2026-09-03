@@ -154,28 +154,14 @@ public sealed partial class BridgeMain
     /// </summary>
     private void TrackCleanup(Task cleanupTask)
     {
-        _cleanupLock.Wait();
-        try
-        {
+        using var guard = _cleanupLock.Lock();
             _pendingCleanups.Add(cleanupTask);
-        }
-        finally
-        {
-            _cleanupLock.Release();
-        }
 
         // 清理已完成的任务
         _ = cleanupTask.ContinueWith(_ =>
         {
-            _cleanupLock.Wait();
-            try
-            {
+            using var guard = _cleanupLock.Lock();
                 _pendingCleanups.Remove(cleanupTask);
-            }
-            finally
-            {
-                _cleanupLock.Release();
-            }
         }, TaskScheduler.Default);
     }
 

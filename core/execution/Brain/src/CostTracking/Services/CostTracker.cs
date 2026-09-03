@@ -10,7 +10,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
     private readonly ILogger<CostTracker>? _logger;
     private readonly IFileOperationService _fileOperationService;
     private readonly ITelemetryService? _telemetryService;
-    private readonly SemaphoreSlim _budgetLock;
+    private readonly AsyncLock _budgetLock = new();
     private readonly IClockService _clock;
     private readonly ModelPricingTable _pricingTable;
     private CancellationTokenSource? _disposeCts = new();
@@ -34,7 +34,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
         _modelCosts = new ConcurrentDictionary<string, ModelCostInfo>(StringComparer.OrdinalIgnoreCase);
         _usageRecords = new ConcurrentBag<TokenUsageRecord>();
         _sessionIndex = new ConcurrentDictionary<string, List<TokenUsageRecord>>(StringComparer.OrdinalIgnoreCase);
-        _budgetLock = new SemaphoreSlim(1, 1);
+
 
         if (_budgetConfig != null)
         {
@@ -209,16 +209,11 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
         ArgumentNullException.ThrowIfNull(config);
         config.ValidateOrThrow();
 
-        await _budgetLock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            _budgetConfig = config;
-            _triggeredThresholds.Clear();
-        }
-        finally
-        {
-            _budgetLock.Release();
-        }
+        using var guard = await _budgetLock.LockAsync(ct).ConfigureAwait(false);
+
+        _budgetConfig = config;
+        _triggeredThresholds.Clear();
+    
 
         _logger?.LogInformation("[CostTracker] 预算配置已更新 - 日限额: ${Daily}, 月限额: ${Monthly}, 总限额: ${Total}",
             config.DailyLimit, config.MonthlyLimit, config.TotalLimit);
@@ -231,21 +226,16 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
             return;
         }
 
-        await _budgetLock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            var dailyCost = CalculateDailyCost();
-            var monthlyCost = CalculateMonthlyCost();
-            var totalCost = _usageRecords.Sum(r => r.CostUsd);
+        using var guard = await _budgetLock.LockAsync(ct).ConfigureAwait(false);
 
-            CheckThresholdAlert(dailyCost, _budgetConfig.DailyLimit, BudgetType.Daily);
-            CheckThresholdAlert(monthlyCost, _budgetConfig.MonthlyLimit, BudgetType.Monthly);
-            CheckThresholdAlert(totalCost, _budgetConfig.TotalLimit, BudgetType.Total);
-        }
-        finally
-        {
-            _budgetLock.Release();
-        }
+        var dailyCost = CalculateDailyCost();
+        var monthlyCost = CalculateMonthlyCost();
+        var totalCost = _usageRecords.Sum(r => r.CostUsd);
+
+        CheckThresholdAlert(dailyCost, _budgetConfig.DailyLimit, BudgetType.Daily);
+        CheckThresholdAlert(monthlyCost, _budgetConfig.MonthlyLimit, BudgetType.Monthly);
+        CheckThresholdAlert(totalCost, _budgetConfig.TotalLimit, BudgetType.Total);
+    
     }
 
     private void CheckThresholdAlert(decimal currentCost, decimal budgetLimit, BudgetType budgetType)

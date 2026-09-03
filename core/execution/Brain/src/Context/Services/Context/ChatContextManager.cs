@@ -30,7 +30,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
 {
     private readonly IStateService _stateService;
     private readonly ILogger<ChatContextManager> _logger;
-    private readonly SemaphoreSlim _lock;
+    private readonly AsyncLock _lock = new();
     private readonly ContextFoldExecutor? _foldExecutor;
     private readonly ContextFoldThresholds _thresholds;
     private readonly IContextWindowResolver _contextWindowResolver;
@@ -100,7 +100,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     {
         _stateService = stateService;
         _logger = logger;
-        _lock = new SemaphoreSlim(1, 1);
+
         _foldExecutor = options?.FoldExecutor;
         _thresholds = options?.Thresholds ?? ContextFoldThresholds.Default;
         _contextWindowResolver = options?.ContextWindowResolver ?? new DefaultContextWindowResolver();
@@ -123,38 +123,33 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         {
             var (systemPrompt, chatHistory) = await _stateService.LoadStateAsync(cancellationToken).ConfigureAwait(false);
 
-            await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
+            using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+            _staticSystemPrompt = systemPrompt ?? string.Empty;
+            _dynamicSystemMessages.Clear();
+            _cachedSystemMessages = [];
+        _systemMessagesCached = false;
+            Log.CompactInPlace([]);
+
+            if (chatHistory is { Count: > 0 })
             {
-                _staticSystemPrompt = systemPrompt ?? string.Empty;
-                _dynamicSystemMessages.Clear();
-                _cachedSystemMessages = [];
-            _systemMessagesCached = false;
-                Log.CompactInPlace([]);
-
-                if (chatHistory is { Count: > 0 })
+                foreach (var msg in chatHistory)
                 {
-                    foreach (var msg in chatHistory)
+                    if (msg.Role == MessageRole.System)
                     {
-                        if (msg.Role == MessageRole.System)
+                        if (string.IsNullOrWhiteSpace(_staticSystemPrompt))
                         {
-                            if (string.IsNullOrWhiteSpace(_staticSystemPrompt))
-                            {
-                                _staticSystemPrompt = msg.Content ?? string.Empty;
-                                _cachedSystemMessages = [];
-            _systemMessagesCached = false;
-                            }
-                            continue;
+                            _staticSystemPrompt = msg.Content ?? string.Empty;
+                            _cachedSystemMessages = [];
+        _systemMessagesCached = false;
                         }
-
-                        Log.Append(new ApiMessage(msg.Role, msg.Content, msg.Metadata));
+                        continue;
                     }
+
+                    Log.Append(new ApiMessage(msg.Role, msg.Content, msg.Metadata));
                 }
             }
-            finally
-            {
-                _lock.Release();
-            }
+        
 
             _logger.LogInformation("聊天上下文已加载，静态前缀长度: {Len}, 对话消息数: {Count}",
                 _staticSystemPrompt.Length, Log.Count);
@@ -205,18 +200,11 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         }
 
         SnipStats snip;
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            snip = ContextFoldDecider.SnipStaleToolResults(
-                Log,
-                _contextWindowResolver.ResolveCurrentContextWindow(),
-                _thresholds);
-        }
-        finally
-        {
-            _lock.Release();
-        }
+
+        snip = ContextFoldDecider.SnipStaleToolResults(
+            Log,
+            _contextWindowResolver.ResolveCurrentContextWindow(),
+            _thresholds);
 
         if (snip.Results == 0)
         {
@@ -236,7 +224,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         _telemetryService?.RecordHistogram("context.cold_resume_snip.saved_chars", snip.SavedChars,
             unit: "chars", description: "Chars saved by cold resume snip");
 
-        await SaveContextAsync(cancellationToken).ConfigureAwait(false);
+        await SaveContextCoreAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -246,41 +234,30 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(content);
 
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            var metadata = originKind is null
-                ? null
-                : new Dictionary<string, JsonElement>
-                {
-                    [MessageMetadataKeyConstants.Origin] = JsonElementHelper.FromJson($"{{\"kind\":\"{originKind.Value.ToValue()}\"}}")
-                };
-            Log.Append(new ApiMessage(MessageRole.User, content, metadata));
-            _logger.LogDebug("已添加用户消息，当前对话数: {Count}", Log.Count);
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        var metadata = originKind is null
+            ? null
+            : new Dictionary<string, JsonElement>
+            {
+                [MessageMetadataKeyConstants.Origin] = JsonElementHelper.FromJson($"{{\"kind\":\"{originKind.Value.ToValue()}\"}}")
+            };
+        Log.Append(new ApiMessage(MessageRole.User, content, metadata));
+        _logger.LogDebug("已添加用户消息，当前对话数: {Count}", Log.Count);
     }
 
     public async Task AddCompactSummaryMessageAsync(string content, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(content);
 
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        Log.Append(new ApiMessage(MessageRole.User, content, new Dictionary<string, JsonElement>
         {
-            Log.Append(new ApiMessage(MessageRole.User, content, new Dictionary<string, JsonElement>
-            {
-                ["isCompactSummary"] = JsonElementHelper.FromBoolean(true)
-            }));
-            _logger.LogDebug("已添加压缩摘要消息，当前对话数: {Count}", Log.Count);
-        }
-        finally
-        {
-            _lock.Release();
-        }
+            ["isCompactSummary"] = JsonElementHelper.FromBoolean(true)
+        }));
+        _logger.LogDebug("已添加压缩摘要消息，当前对话数: {Count}", Log.Count);
+    
     }
 
     /// <summary>
@@ -290,16 +267,11 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(content);
 
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            Log.Append(new ApiMessage(MessageRole.Assistant, content));
-            _logger.LogDebug("已添加助手消息，当前对话数: {Count}", Log.Count);
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        Log.Append(new ApiMessage(MessageRole.Assistant, content));
+        _logger.LogDebug("已添加助手消息，当前对话数: {Count}", Log.Count);
+    
     }
 
     /// <summary>
@@ -307,16 +279,11 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task AddAssistantToolCallMessageAsync(string? content, IReadOnlyDictionary<string, JsonElement> metadata, CancellationToken cancellationToken = default)
     {
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            Log.Append(new ApiMessage(MessageRole.Assistant, content, metadata));
-            _logger.LogDebug("已添加助手工具调用消息，当前对话数: {Count}", Log.Count);
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        Log.Append(new ApiMessage(MessageRole.Assistant, content, metadata));
+        _logger.LogDebug("已添加助手工具调用消息，当前对话数: {Count}", Log.Count);
+    
     }
 
     /// <summary>
@@ -324,16 +291,11 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task AddToolResultMessageAsync(string content, IReadOnlyDictionary<string, JsonElement> metadata, CancellationToken cancellationToken = default)
     {
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            Log.Append(new ApiMessage(MessageRole.Tool, content, metadata));
-            _logger.LogDebug("已添加工具结果消息，当前对话数: {Count}", Log.Count);
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        Log.Append(new ApiMessage(MessageRole.Tool, content, metadata));
+        _logger.LogDebug("已添加工具结果消息，当前对话数: {Count}", Log.Count);
+    
     }
 
     /// <summary>
@@ -341,16 +303,11 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task AddToolResultMessageAsync(string content, IReadOnlyDictionary<string, JsonElement> metadata, IReadOnlyList<ToolContent>? contentBlocks, CancellationToken cancellationToken = default)
     {
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            Log.Append(new ApiMessage(MessageRole.Tool, content, metadata) { ContentBlocks = contentBlocks ?? [] });
-            _logger.LogDebug("已添加工具结果消息(含多模态)，当前对话数: {Count}", Log.Count);
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        Log.Append(new ApiMessage(MessageRole.Tool, content, metadata) { ContentBlocks = contentBlocks ?? [] });
+        _logger.LogDebug("已添加工具结果消息(含多模态)，当前对话数: {Count}", Log.Count);
+    
     }
 
     /// <summary>
@@ -360,16 +317,11 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(content);
 
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            Log.Append(new ApiMessage(MessageRole.System, content));
-            _logger.LogDebug("已添加系统消息，当前对话数: {Count}", Log.Count);
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        Log.Append(new ApiMessage(MessageRole.System, content));
+        _logger.LogDebug("已添加系统消息，当前对话数: {Count}", Log.Count);
+    
     }
 
     /// <summary>
@@ -379,18 +331,13 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(content);
 
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            _dynamicSystemMessages.Add(content);
-            _cachedSystemMessages = [];
-            _systemMessagesCached = false;
-            _logger.LogDebug("已添加动态系统消息，当前动态消息数: {Count}", _dynamicSystemMessages.Count);
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        _dynamicSystemMessages.Add(content);
+        _cachedSystemMessages = [];
+        _systemMessagesCached = false;
+        _logger.LogDebug("已添加动态系统消息，当前动态消息数: {Count}", _dynamicSystemMessages.Count);
+    
     }
 
     /// <summary>
@@ -398,18 +345,13 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task ClearDynamicSystemMessagesAsync(CancellationToken cancellationToken = default)
     {
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            _dynamicSystemMessages.Clear();
-            _cachedSystemMessages = [];
-            _systemMessagesCached = false;
-            _logger.LogDebug("已清空动态系统消息");
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        _dynamicSystemMessages.Clear();
+        _cachedSystemMessages = [];
+        _systemMessagesCached = false;
+        _logger.LogDebug("已清空动态系统消息");
+    
     }
 
     /// <summary>
@@ -417,20 +359,15 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task ClearMessagesAsync(CancellationToken cancellationToken = default)
     {
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            Log.CompactInPlace([]);
-            _dynamicSystemMessages.Clear();
-            _cachedSystemMessages = [];
-            _systemMessagesCached = false;
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            _logger.LogInformation("聊天消息已清空，保留静态系统提示词");
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        Log.CompactInPlace([]);
+        _dynamicSystemMessages.Clear();
+        _cachedSystemMessages = [];
+        _systemMessagesCached = false;
+
+        _logger.LogInformation("聊天消息已清空，保留静态系统提示词");
+    
     }
 
     /// <summary>
@@ -440,18 +377,13 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(systemPrompt);
 
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            _staticSystemPrompt = systemPrompt;
-            _cachedSystemMessages = [];
-            _systemMessagesCached = false;
-            _logger.LogInformation("静态系统提示词已更新，长度: {Len}", _staticSystemPrompt.Length);
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        _staticSystemPrompt = systemPrompt;
+        _cachedSystemMessages = [];
+        _systemMessagesCached = false;
+        _logger.LogInformation("静态系统提示词已更新，长度: {Len}", _staticSystemPrompt.Length);
+    
     }
 
     /// <summary>
@@ -459,16 +391,11 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task<MessageList> GetMessageListAsync(CancellationToken cancellationToken = default)
     {
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            var messages = AssembleMessages();
-            return MessageList.FromList(messages);
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        var messages = AssembleMessages();
+        return MessageList.FromList(messages);
+    
     }
 
     /// <summary>
@@ -479,29 +406,8 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         await using var span = _telemetryService?.StartSpan("context.save", TelemetrySpanKind.Server);
         try
         {
-            string staticPrefix;
-            MessageList conversationSnapshot;
-
-            await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                staticPrefix = _staticSystemPrompt;
-                conversationSnapshot = new MessageList(Log.ToMessages());
-            }
-            finally
-            {
-                _lock.Release();
-            }
-
-            await _stateService.SaveStateAsync(staticPrefix, conversationSnapshot, cancellationToken).ConfigureAwait(false);
-
-            if (_metaStore is not null && _sessionStats is not null)
-            {
-                var meta = _sessionStats.ToMeta(updatedAtUtcTicks: _clock.GetUtcNow().Ticks);
-                await _metaStore.SaveAsync(_sessionId, meta, cancellationToken).ConfigureAwait(false);
-            }
-
-            _logger.LogDebug("聊天上下文已保存");
+            using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+            await SaveContextCoreAsync(cancellationToken).ConfigureAwait(false);
 
             span?.SetStatus(TelemetryStatusCode.Ok);
         }
@@ -512,6 +418,25 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
             span?.RecordException(ex);
             throw;
         }
+    }
+
+    /// <summary>
+    /// 保存核心逻辑（调用方须已持有 _lock）
+    /// </summary>
+    private async Task SaveContextCoreAsync(CancellationToken cancellationToken)
+    {
+        var staticPrefix = _staticSystemPrompt;
+        var conversationSnapshot = new MessageList(Log.ToMessages());
+
+        await _stateService.SaveStateAsync(staticPrefix, conversationSnapshot, cancellationToken).ConfigureAwait(false);
+
+        if (_metaStore is not null && _sessionStats is not null)
+        {
+            var meta = _sessionStats.ToMeta(updatedAtUtcTicks: _clock.GetUtcNow().Ticks);
+            await _metaStore.SaveAsync(_sessionId, meta, cancellationToken).ConfigureAwait(false);
+        }
+
+        _logger.LogDebug("聊天上下文已保存");
     }
 
     /// <summary>
@@ -578,7 +503,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         await using var foldSpan = _telemetryService?.StartSpan("context.fold", TelemetrySpanKind.Server);
         foldSpan?.SetTag("context.fold_decision", decision.ToString());
 
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             // 折叠前先做低成本剪裁：过期的大工具结果可重派生，重写它们无需调用摘要器。
@@ -681,7 +606,6 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         }
         finally
         {
-            _lock.Release();
             foldSpan?.SetStatus(TelemetryStatusCode.Ok);
             _telemetryService?.RecordCount("context.fold.count", new() { ["decision"] = decision.ToString() }, "count", "Context fold count");
         }
@@ -697,21 +621,16 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default)
     {
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            var removed = Log.TrimLastTurn();
-            _logger.LogInformation("撤回最后一轮对话 (SP-3)，移除 {Count} 条消息，剩余 {Remaining} 条",
-                removed, Log.Count);
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            _telemetryService?.RecordCount("context.rewind.count", new() { ["kind"] = "last_turn" }, "count", "Context rewind count");
+        var removed = Log.TrimLastTurn();
+        _logger.LogInformation("撤回最后一轮对话 (SP-3)，移除 {Count} 条消息，剩余 {Remaining} 条",
+            removed, Log.Count);
 
-            return RewindResult.Ok(RewindKind.TrimLastTurn, removed, Log.Count);
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        _telemetryService?.RecordCount("context.rewind.count", new() { ["kind"] = "last_turn" }, "count", "Context rewind count");
+
+        return RewindResult.Ok(RewindKind.TrimLastTurn, removed, Log.Count);
+    
     }
 
     /// <summary>
@@ -719,25 +638,20 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task<RewindResult> RewindToMessageIndexAsync(int messageIndex, CancellationToken cancellationToken = default)
     {
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (messageIndex < 0 || messageIndex > Log.Count)
-            {
-                return RewindResult.Fail(
-                    $"消息索引 {messageIndex} 超出范围 [0, {Log.Count}]");
-            }
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            var removed = Log.TruncateTo(messageIndex);
-            _logger.LogInformation("撤回到消息索引 {Index} (SP-5)，移除 {Count} 条消息，剩余 {Remaining} 条",
-                messageIndex, removed, Log.Count);
-
-            return RewindResult.Ok(RewindKind.TruncateToIndex, removed, Log.Count);
-        }
-        finally
+        if (messageIndex < 0 || messageIndex > Log.Count)
         {
-            _lock.Release();
+            return RewindResult.Fail(
+                $"消息索引 {messageIndex} 超出范围 [0, {Log.Count}]");
         }
+
+        var removed = Log.TruncateTo(messageIndex);
+        _logger.LogInformation("撤回到消息索引 {Index} (SP-5)，移除 {Count} 条消息，剩余 {Remaining} 条",
+            messageIndex, removed, Log.Count);
+
+        return RewindResult.Ok(RewindKind.TruncateToIndex, removed, Log.Count);
+    
     }
 
     /// <summary>
@@ -745,23 +659,18 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task<RewindResult> RewindToStartAsync(CancellationToken cancellationToken = default)
     {
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            var removed = Log.Count;
-            Log.CompactInPlace([]);
-            _dynamicSystemMessages.Clear();
-            _cachedSystemMessages = [];
-            _systemMessagesCached = false;
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            _logger.LogInformation("撤回到会话初始状态 (SP-0)，移除 {Count} 条消息，前缀保留", removed);
+        var removed = Log.Count;
+        Log.CompactInPlace([]);
+        _dynamicSystemMessages.Clear();
+        _cachedSystemMessages = [];
+        _systemMessagesCached = false;
 
-            return RewindResult.Ok(RewindKind.ClearHistory, removed, 0);
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        _logger.LogInformation("撤回到会话初始状态 (SP-0)，移除 {Count} 条消息，前缀保留", removed);
+
+        return RewindResult.Ok(RewindKind.ClearHistory, removed, 0);
+    
     }
 
     /// <summary>
@@ -771,29 +680,24 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(toolSpecs);
 
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            _currentToolSpecs.Clear();
-            _currentToolSpecs.AddRange(toolSpecs);
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            _deferredTools.Clear();
-            foreach (var spec in toolSpecs)
+        _currentToolSpecs.Clear();
+        _currentToolSpecs.AddRange(toolSpecs);
+
+        _deferredTools.Clear();
+        foreach (var spec in toolSpecs)
+        {
+            var isMcp = spec.Name.Contains('.');
+            if (isMcp)
             {
-                var isMcp = spec.Name.Contains('.');
-                if (isMcp)
-                {
-                    _deferredTools.Add(new DeferredToolInfo(spec.Name, spec.Description, spec.InputSchemaJson, isMcp: true, spec.Category, spec.GroupName));
-                }
+                _deferredTools.Add(new DeferredToolInfo(spec.Name, spec.Description, spec.InputSchemaJson, isMcp: true, spec.Category, spec.GroupName));
             }
+        }
 
-            _logger.LogDebug("工具规格已更新，当前 {Count} 个工具，{DeferredCount} 个延迟工具",
-                _currentToolSpecs.Count, _deferredTools.Count);
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        _logger.LogDebug("工具规格已更新，当前 {Count} 个工具，{DeferredCount} 个延迟工具",
+            _currentToolSpecs.Count, _deferredTools.Count);
+    
     }
 
     /// <summary>
@@ -801,32 +705,26 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task<PromptStateSnapshot> RecordPromptStateAsync(string? agentId = null, CancellationToken cancellationToken = default)
     {
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            var prefix = new ImmutablePrefix(_staticSystemPrompt, _currentToolSpecs, []);
-            var dynamicContent = string.Join("\n", _dynamicSystemMessages);
-            var snapshot = GetCacheBreakDetector(agentId).RecordPromptState(prefix, dynamicContent, Log.ToMessages());
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            var toolSpecsBytes = _currentToolSpecs.Sum(t =>
-                System.Text.Encoding.UTF8.GetByteCount(t.Name) +
-                (t.Description != null ? System.Text.Encoding.UTF8.GetByteCount(t.Description) : 0) +
-                (t.InputSchemaJson != null ? System.Text.Encoding.UTF8.GetByteCount(t.InputSchemaJson) : 0));
-            var systemBytes = System.Text.Encoding.UTF8.GetByteCount(_staticSystemPrompt);
-            var estimatedTokens = ContextFoldDecider.EstimateTokenCount(
-                [new ApiMessage(MessageRole.System, _staticSystemPrompt)],
-                _currentToolSpecs);
+        var prefix = new ImmutablePrefix(_staticSystemPrompt, _currentToolSpecs, []);
+        var dynamicContent = string.Join("\n", _dynamicSystemMessages);
+        var snapshot = GetCacheBreakDetector(agentId).RecordPromptState(prefix, dynamicContent, Log.ToMessages());
 
-            _logger.LogInformation(
-                "前缀状态快照已记录，SystemHash={SystemHash}, SystemBytes={SystemBytes}, ToolCount={ToolCount}, ToolNamesHash={ToolNamesHash}, ToolSpecsBytes={ToolSpecsBytes}, EstimatedTokens={EstimatedTokens}",
-                snapshot.SystemPromptHash, systemBytes, snapshot.ToolCount, snapshot.ToolNamesHash, toolSpecsBytes, estimatedTokens);
+        var toolSpecsBytes = _currentToolSpecs.Sum(t =>
+            System.Text.Encoding.UTF8.GetByteCount(t.Name) +
+            (t.Description != null ? System.Text.Encoding.UTF8.GetByteCount(t.Description) : 0) +
+            (t.InputSchemaJson != null ? System.Text.Encoding.UTF8.GetByteCount(t.InputSchemaJson) : 0));
+        var systemBytes = System.Text.Encoding.UTF8.GetByteCount(_staticSystemPrompt);
+        var estimatedTokens = ContextFoldDecider.EstimateTokenCount(
+            [new ApiMessage(MessageRole.System, _staticSystemPrompt)],
+            _currentToolSpecs);
 
-            return snapshot;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        _logger.LogInformation(
+            "前缀状态快照已记录，SystemHash={SystemHash}, SystemBytes={SystemBytes}, ToolCount={ToolCount}, ToolNamesHash={ToolNamesHash}, ToolSpecsBytes={ToolSpecsBytes}, EstimatedTokens={EstimatedTokens}",
+            snapshot.SystemPromptHash, systemBytes, snapshot.ToolCount, snapshot.ToolNamesHash, toolSpecsBytes, estimatedTokens);
+
+        return snapshot;
     }
 
     /// <summary>
@@ -837,30 +735,24 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(usage);
 
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            var currentPrefix = new ImmutablePrefix(_staticSystemPrompt, _currentToolSpecs, []);
-            var currentDynamicContent = string.Join("\n", _dynamicSystemMessages);
-            var result = GetCacheBreakDetector(agentId).CheckCacheBreak(snapshot, currentPrefix, currentDynamicContent, usage, Log.ToMessages());
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            if (result.BreakDetected)
-            {
-                _logger.LogWarning("缓存失效检测: Kind={Kind}, Detail={Detail}, CacheReadTokens={CacheReadTokens}",
-                    result.Kind, result.Detail, usage.CacheReadInputTokens);
-            }
-            else
-            {
-                _logger.LogInformation("缓存失效检测: 无失效，前缀稳定，CacheReadTokens={CacheReadTokens}, CacheCreationTokens={CacheCreationTokens}",
-                    usage.CacheReadInputTokens, usage.CacheCreationInputTokens);
-            }
+        var currentPrefix = new ImmutablePrefix(_staticSystemPrompt, _currentToolSpecs, []);
+        var currentDynamicContent = string.Join("\n", _dynamicSystemMessages);
+        var result = GetCacheBreakDetector(agentId).CheckCacheBreak(snapshot, currentPrefix, currentDynamicContent, usage, Log.ToMessages());
 
-            return result;
-        }
-        finally
+        if (result.BreakDetected)
         {
-            _lock.Release();
+            _logger.LogWarning("缓存失效检测: Kind={Kind}, Detail={Detail}, CacheReadTokens={CacheReadTokens}",
+                result.Kind, result.Detail, usage.CacheReadInputTokens);
         }
+        else
+        {
+            _logger.LogInformation("缓存失效检测: 无失效，前缀稳定，CacheReadTokens={CacheReadTokens}, CacheCreationTokens={CacheCreationTokens}",
+                usage.CacheReadInputTokens, usage.CacheCreationInputTokens);
+        }
+
+        return result;
     }
 
     /// <summary>
@@ -884,18 +776,13 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task SyncDiscoveredToolsFromHistoryAsync(CancellationToken cancellationToken = default)
     {
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            var history = AssembleMessages();
-            var chatHistory = MessageList.FromList(history);
-            var discovered = ToolReferenceExtractor.ExtractDiscoveredToolNames(chatHistory);
-            await _discoveredTools.DiscoverRangeAsync(discovered).ConfigureAwait(false);
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        var history = AssembleMessages();
+        var chatHistory = MessageList.FromList(history);
+        var discovered = ToolReferenceExtractor.ExtractDiscoveredToolNames(chatHistory);
+        await _discoveredTools.DiscoverRangeAsync(discovered).ConfigureAwait(false);
+    
     }
 
     /// <summary>

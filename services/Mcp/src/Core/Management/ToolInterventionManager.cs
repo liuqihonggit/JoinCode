@@ -10,7 +10,7 @@ public sealed class ToolInterventionManager : ServiceEntity
     private readonly ILogger<ToolInterventionManager>? _logger;
     private readonly IFileSystem _fs;
     private readonly Dictionary<string, InterventionRule> _rules = new(StringComparer.OrdinalIgnoreCase);
-    private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly AsyncLock _lock = new();
     private readonly string _configPath;
 
     public ToolInterventionManager(IFileSystem fs, ILogger<ToolInterventionManager>? logger = null)
@@ -26,68 +26,48 @@ public sealed class ToolInterventionManager : ServiceEntity
 
     public async Task AddRuleAsync(string toolName, InterventionType type, string reason, TimeSpan? duration = null, CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+
+        _rules[toolName] = new InterventionRule
         {
-            _rules[toolName] = new InterventionRule
-            {
-                Type = type,
-                Reason = reason,
-                Expiry = duration.HasValue ? DateTime.UtcNow + duration.Value : null,
-                ScorePenalty = type == InterventionType.Downgrade ? -50 : null,
-                RedirectTo = type == InterventionType.Redirect ? GetDefaultRedirect(toolName) : null
-            };
-            SaveToDisk();
-            _logger?.LogInformation("已添加工具干预: {ToolName} → {Type} ({Reason})", toolName, type, reason);
-        }
-        finally
-        {
-            _lock.Release();
-        }
+            Type = type,
+            Reason = reason,
+            Expiry = duration.HasValue ? DateTime.UtcNow + duration.Value : null,
+            ScorePenalty = type == InterventionType.Downgrade ? -50 : null,
+            RedirectTo = type == InterventionType.Redirect ? GetDefaultRedirect(toolName) : null
+        };
+        SaveToDisk();
+        _logger?.LogInformation("已添加工具干预: {ToolName} → {Type} ({Reason})", toolName, type, reason);
+    
     }
 
     public async Task RemoveRuleAsync(string toolName, CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            _rules.Remove(toolName);
-            SaveToDisk();
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+
+        _rules.Remove(toolName);
+        SaveToDisk();
+    
     }
 
     public async Task<InterventionRule?> GetRuleAsync(string toolName, CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            if (_rules.TryGetValue(toolName, out var rule) && !rule.IsExpired)
-                return rule;
-            return null;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+
+        if (_rules.TryGetValue(toolName, out var rule) && !rule.IsExpired)
+            return rule;
+        return null;
+    
     }
 
     public async Task<IReadOnlyDictionary<string, InterventionRule>> GetActiveRulesAsync(CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            return _rules
-                .Where(kvp => !kvp.Value.IsExpired)
-                .ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+
+        return _rules
+            .Where(kvp => !kvp.Value.IsExpired)
+            .ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+    
     }
 
     public bool IsBlacklisted(string toolName)

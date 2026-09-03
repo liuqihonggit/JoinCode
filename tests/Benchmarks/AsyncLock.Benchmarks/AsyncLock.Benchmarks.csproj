@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>AsyncLockBenchmarks</RootNamespace>
+    <AssemblyName>AsyncLock.Benchmarks</AssemblyName>
+    <ExcludeTestSdk>true</ExcludeTestSdk>
+    <ExcludeJccAnalyzers>true</ExcludeJccAnalyzers>
+    <IsAotCompatible>false</IsAotCompatible>
+    <PublishAot>false</PublishAot>
+    <TrimMode></TrimMode>
+    <NoWarn>$(NoWarn);VSTHRD003;VSTHRD200</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" Version="$(BenchmarkDotNetVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)foundation\AsyncLock\AsyncLock.csproj" />
+  </ItemGroup>
+
+</Project>

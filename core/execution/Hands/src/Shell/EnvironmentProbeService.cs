@@ -11,7 +11,7 @@ public sealed class EnvironmentProbeService : ServiceEntity, IEnvironmentProbeSe
     private readonly IToolHealthMonitor _healthMonitor;
     private EnvironmentReport? _cachedReport;
     private DateTime _lastProbeTime = DateTime.MinValue;
-    private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly AsyncLock _lock = new();
 
     public EnvironmentProbeService(IToolHealthMonitor healthMonitor, ILogger<EnvironmentProbeService>? logger = null)
     {
@@ -24,38 +24,33 @@ public sealed class EnvironmentProbeService : ServiceEntity, IEnvironmentProbeSe
         if (!forceRescan && _cachedReport is not null && _lastProbeTime > DateTime.UtcNow.AddMinutes(-5))
             return _cachedReport;
 
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+
+        if (!forceRescan && _cachedReport is not null && _lastProbeTime > DateTime.UtcNow.AddMinutes(-5))
+            return _cachedReport;
+
+        var components = new List<ComponentScore>
         {
-            if (!forceRescan && _cachedReport is not null && _lastProbeTime > DateTime.UtcNow.AddMinutes(-5))
-                return _cachedReport;
+            await ProbeComponentAsync("git", "Git", ["--version"], "git version"),
+            await ProbeComponentAsync("powershell", "PowerShell", ["-Command", "$PSVersionTable.PSVersion.ToString()"], null),
+            await ProbeComponentAsync("python", "Python", ["--version"], "Python"),
+            await ProbeComponentAsync("dotnet", ".NET SDK", ["--version"], null),
+            await ProbeComponentAsync("node", "Node.js", ["--version"], null),
+            await ProbeComponentAsync("wsl", "WSL2", ["--status"], null),
+            await ProbeComponentAsync("docker", "Docker", ["--version"], "Docker version"),
+        };
 
-            var components = new List<ComponentScore>
-            {
-                await ProbeComponentAsync("git", "Git", ["--version"], "git version"),
-                await ProbeComponentAsync("powershell", "PowerShell", ["-Command", "$PSVersionTable.PSVersion.ToString()"], null),
-                await ProbeComponentAsync("python", "Python", ["--version"], "Python"),
-                await ProbeComponentAsync("dotnet", ".NET SDK", ["--version"], null),
-                await ProbeComponentAsync("node", "Node.js", ["--version"], null),
-                await ProbeComponentAsync("wsl", "WSL2", ["--status"], null),
-                await ProbeComponentAsync("docker", "Docker", ["--version"], "Docker version"),
-            };
-
-            var report = new EnvironmentReport
-            {
-                ProbeTime = DateTime.UtcNow,
-                Components = components,
-                RecommendedShell = GetRecommendedShell(components)
-            };
-
-            _cachedReport = report;
-            _lastProbeTime = DateTime.UtcNow;
-            return report;
-        }
-        finally
+        var report = new EnvironmentReport
         {
-            _lock.Release();
-        }
+            ProbeTime = DateTime.UtcNow,
+            Components = components,
+            RecommendedShell = GetRecommendedShell(components)
+        };
+
+        _cachedReport = report;
+        _lastProbeTime = DateTime.UtcNow;
+        return report;
+    
     }
 
     public string NormalizePath(string rawPath, string targetFormat = "auto")

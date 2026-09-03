@@ -6,7 +6,7 @@ namespace Structura.Dag;
 public sealed class ConcurrentDag<T> : IDisposable
 {
     private readonly Dag<T> _inner = new();
-    private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly AsyncLock _lock = new();
     // P1-9: 信号量等待超时 — 防止持有方异常未释放导致永久阻塞
     private static readonly TimeSpan LockTimeout = TimeSpan.FromSeconds(5);
 
@@ -19,9 +19,9 @@ public sealed class ConcurrentDag<T> : IDisposable
     /// </summary>
     private TResult WithLock<TResult>(Func<TResult> action, TResult timeoutResult)
     {
-        if (!_lock.Wait(LockTimeout)) return timeoutResult;
-        try { return action(); }
-        finally { _lock.Release(); }
+        using var guard = _lock.TryLock(LockTimeout);
+        if (guard is null) return timeoutResult;
+        return action();
     }
 
     /// <summary>
@@ -29,9 +29,9 @@ public sealed class ConcurrentDag<T> : IDisposable
     /// </summary>
     private void WithLock(Action action)
     {
-        if (!_lock.Wait(LockTimeout)) return;
-        try { action(); }
-        finally { _lock.Release(); }
+        using var guard = _lock.TryLock(LockTimeout);
+        if (guard is null) return;
+        action();
     }
 
     public DagResult AddNode(DagNode<T> node)
@@ -55,44 +55,38 @@ public sealed class ConcurrentDag<T> : IDisposable
 
     public async Task<DagResult> AddNodeAsync(DagNode<T> node, CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try { return _inner.AddNode(node); }
-        finally { _lock.Release(); }
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+ return _inner.AddNode(node); 
     }
 
     public async Task<DagResult> AddEdgeAsync(DagEdge edge, CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try { return _inner.AddEdge(edge); }
-        finally { _lock.Release(); }
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+ return _inner.AddEdge(edge); 
     }
 
     public async Task<DagResult> TryAddEdgeAsync(DagEdge edge, CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try { return _inner.TryAddEdge(edge); }
-        finally { _lock.Release(); }
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+ return _inner.TryAddEdge(edge); 
     }
 
     public async Task<DagResult> RemoveNodeAsync(string nodeId, CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try { return _inner.RemoveNode(nodeId); }
-        finally { _lock.Release(); }
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+ return _inner.RemoveNode(nodeId); 
     }
 
     public async Task<DagResult> RemoveEdgeAsync(string edgeId, CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try { return _inner.RemoveEdge(edgeId); }
-        finally { _lock.Release(); }
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+ return _inner.RemoveEdge(edgeId); 
     }
 
     public async Task<bool> WouldCreateCycleAsync(string fromId, string toId, CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try { return _inner.WouldCreateCycle(fromId, toId); }
-        finally { _lock.Release(); }
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+ return _inner.WouldCreateCycle(fromId, toId); 
     }
 
     // 超时返回空列表，避免阻塞调用方

@@ -47,7 +47,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
     private readonly IClockService _clock;
     private readonly ConcurrentDictionary<string, ForkEntry> _entries;
     private readonly ConcurrentDictionary<string, Dictionary<string, string>> _sharedCache;
-    private readonly SemaphoreSlim _lock;
+    private readonly AsyncLock _lock = new();
     private volatile SemaphoreSlim? _forkSemaphore;
 
     public event EventHandler<ForkCompletedEventArgs>? ForkCompleted;
@@ -65,7 +65,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
         _clock = clock ?? SystemClockService.Instance;
         _entries = new ConcurrentDictionary<string, ForkEntry>();
         _sharedCache = new ConcurrentDictionary<string, Dictionary<string, string>>();
-        _lock = new SemaphoreSlim(1, 1);
+
 
         var maxForks = (concurrencyOptions ?? new SubAgentConcurrencyOptions()).MaxConcurrentForks;
         _forkSemaphore = maxForks > 0
@@ -108,34 +108,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
         };
 
         // 在管道执行前设置缓存和条目（确保 CancelForkAsync 可见）
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            if (options.ShareCache)
-            {
-                var parentCache = _sharedCache.GetValueOrDefault(options.ParentSessionId, new Dictionary<string, string>());
-                _sharedCache[options.ParentSessionId] = parentCache;
-                _sharedCache[forkId] = parentCache;
-                context.SharedCache = parentCache;
-            }
-            else
-            {
-                var forkCache = new Dictionary<string, string>();
-                _sharedCache[forkId] = forkCache;
-                context.SharedCache = forkCache;
-            }
-
-            _entries[forkId] = new ForkEntry
-            {
-                State = ForkState.Running,
-                ParentSessionId = options.ParentSessionId,
-                CreatedAt = createdAt
-            };
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        SetupForkEntry(options, forkId, createdAt, context);
 
         // 执行中间件管道
         try
@@ -171,17 +144,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
         // 验证失败: 清理条目并返回
         if (!context.IsValidated)
         {
-            await _lock.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                _entries.TryRemove(forkId, out _);
-                _sharedCache.TryRemove(forkId, out _);
-            }
-            finally
-            {
-                _lock.Release();
-            }
-
+            CleanupForkEntry(forkId);
             return new ForkResult
             {
                 ForkId = context.ForkId,
@@ -240,80 +203,104 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
         }
     }
 
+    /// <summary>在管道执行前设置缓存和条目（确保 CancelForkAsync 可见）</summary>
+    private void SetupForkEntry(ForkOptions options, string forkId, DateTime createdAt, ForkContext context)
+    {
+        using var guard = _lock.Lock();
+        if (options.ShareCache)
+        {
+            var parentCache = _sharedCache.GetValueOrDefault(options.ParentSessionId, new Dictionary<string, string>());
+            _sharedCache[options.ParentSessionId] = parentCache;
+            _sharedCache[forkId] = parentCache;
+            context.SharedCache = parentCache;
+        }
+        else
+        {
+            var forkCache = new Dictionary<string, string>();
+            _sharedCache[forkId] = forkCache;
+            context.SharedCache = forkCache;
+        }
+
+        _entries[forkId] = new ForkEntry
+        {
+            State = ForkState.Running,
+            ParentSessionId = options.ParentSessionId,
+            CreatedAt = createdAt
+        };
+    }
+
+    /// <summary>清理失败的 Fork 条目和缓存</summary>
+    private void CleanupForkEntry(string forkId)
+    {
+        using var guard = _lock.Lock();
+        _entries.TryRemove(forkId, out _);
+        _sharedCache.TryRemove(forkId, out _);
+    }
+
     public async Task<IReadOnlyList<ForkSubAgent>> GetActiveForksAsync(CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            return _entries
-                .Where(kvp => kvp.Value.State == ForkState.Running
-                           || kvp.Value.State == ForkState.Completed
-                           || kvp.Value.State == ForkState.Failed)
-                .Select(kvp => new ForkSubAgent
-                {
-                    ForkId = kvp.Key,
-                    ParentSessionId = kvp.Value.ParentSessionId,
-                    State = kvp.Value.State,
-                    CreatedAt = kvp.Value.CreatedAt,
-                    Result = kvp.Value.Result
-                })
-                .ToList();
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+
+        return _entries
+            .Where(kvp => kvp.Value.State == ForkState.Running
+                       || kvp.Value.State == ForkState.Completed
+                       || kvp.Value.State == ForkState.Failed)
+            .Select(kvp => new ForkSubAgent
+            {
+                ForkId = kvp.Key,
+                ParentSessionId = kvp.Value.ParentSessionId,
+                State = kvp.Value.State,
+                CreatedAt = kvp.Value.CreatedAt,
+                Result = kvp.Value.Result
+            })
+            .ToList();
+    
     }
 
     public async Task<ForkResult> MergeForkAsync(string forkId, CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+
+        if (!_entries.TryGetValue(forkId, out var entry))
         {
-            if (!_entries.TryGetValue(forkId, out var entry))
+            return new ForkResult
             {
-                return new ForkResult
-                {
-                    ForkId = forkId,
-                    State = ForkState.Failed,
-                    Result = "Fork not found"
-                };
-            }
-
-            if (entry.State != ForkState.Completed)
-            {
-                return new ForkResult
-                {
-                    ForkId = forkId,
-                    State = entry.State,
-                    Result = $"Fork is in {entry.State} state, cannot merge"
-                };
-            }
-
-            var parentSessionId = entry.ParentSessionId;
-
-            if (IsSharedCacheForFork(forkId, parentSessionId))
-            {
-                var forkCache = _sharedCache.GetValueOrDefault(forkId, new Dictionary<string, string>());
-                var parentCache = _sharedCache.GetValueOrDefault(parentSessionId, new Dictionary<string, string>());
-
-                foreach (var kvp in forkCache)
-                {
-                    parentCache[kvp.Key] = kvp.Value;
-                }
-
-                _sharedCache[parentSessionId] = parentCache;
-            }
-
-            entry.State = ForkState.Merged;
-
-            _logger?.LogInformation("Fork {ForkId} merged into parent {ParentSessionId}",
-                forkId, parentSessionId);
+                ForkId = forkId,
+                State = ForkState.Failed,
+                Result = "Fork not found"
+            };
         }
-        finally
+
+        if (entry.State != ForkState.Completed)
         {
-            _lock.Release();
+            return new ForkResult
+            {
+                ForkId = forkId,
+                State = entry.State,
+                Result = $"Fork is in {entry.State} state, cannot merge"
+            };
         }
+
+        var parentSessionId = entry.ParentSessionId;
+
+        if (IsSharedCacheForFork(forkId, parentSessionId))
+        {
+            var forkCache = _sharedCache.GetValueOrDefault(forkId, new Dictionary<string, string>());
+            var parentCache = _sharedCache.GetValueOrDefault(parentSessionId, new Dictionary<string, string>());
+
+            foreach (var kvp in forkCache)
+            {
+                parentCache[kvp.Key] = kvp.Value;
+            }
+
+            _sharedCache[parentSessionId] = parentCache;
+        }
+
+        entry.State = ForkState.Merged;
+
+        _logger?.LogInformation("Fork {ForkId} merged into parent {ParentSessionId}",
+            forkId, parentSessionId);
+    
 
         var cache = _sharedCache.GetValueOrDefault(forkId, new Dictionary<string, string>());
         var mergedEntry = _entries.GetValueOrDefault(forkId);
@@ -329,39 +316,34 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
 
     public async Task CancelForkAsync(string forkId, CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            if (!_entries.TryGetValue(forkId, out var entry))
-                return;
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
 
-            if (entry.State == ForkState.Running)
+        if (!_entries.TryGetValue(forkId, out var entry))
+            return;
+
+        if (entry.State == ForkState.Running)
+        {
+            if (entry.Cts is not null)
             {
-                if (entry.Cts is not null)
-                {
-                    await entry.Cts.CancelAsync().ConfigureAwait(false);
-                    entry.Cts.Dispose();
-                    entry.Cts = null;
-                }
-
-                if (entry.AgentId is not null)
-                {
-                    var agentId = entry.AgentId;
-                    entry.AgentId = null;
-                    StopMailboxPollingIfNeeded(agentId);
-                    await _deps.LifecycleManager.CancelAgentAsync(agentId, ct).ConfigureAwait(false);
-                }
-
-                entry.State = ForkState.Cancelled;
-                _logger?.LogInformation("Fork {ForkId} cancelled", forkId);
-
-                await FireForkCompletedAsync(forkId, string.Empty).ConfigureAwait(false);
+                await entry.Cts.CancelAsync().ConfigureAwait(false);
+                entry.Cts.Dispose();
+                entry.Cts = null;
             }
+
+            if (entry.AgentId is not null)
+            {
+                var agentId = entry.AgentId;
+                entry.AgentId = null;
+                StopMailboxPollingIfNeeded(agentId);
+                await _deps.LifecycleManager.CancelAgentAsync(agentId, ct).ConfigureAwait(false);
+            }
+
+            entry.State = ForkState.Cancelled;
+            _logger?.LogInformation("Fork {ForkId} cancelled", forkId);
+
+            await FireForkCompletedAsync(forkId, string.Empty).ConfigureAwait(false);
         }
-        finally
-        {
-            _lock.Release();
-        }
+    
     }
 
     private async Task RunBackgroundForkAsync(string forkId, IAgent agent, string taskDescription,
@@ -549,29 +531,28 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
 
     public async ValueTask DisposeAsync()
     {
-        await _lock.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            var ctsEntries = _entries.Values
-                .Select(e => e.Cts)
-                .OfType<CancellationTokenSource>()
-                .ToList();
-            if (ctsEntries.Count > 0)
-            {
-                await Task.WhenAll(ctsEntries.Select(c => c.CancelAsync())).ConfigureAwait(false);
-                foreach (var cts in ctsEntries)
-                {
-                    cts.Dispose();
-                }
-            }
-            _entries.Clear();
-            _sharedCache.Clear();
-        }
-        finally
-        {
-            _lock.Release();
-        }
-
+        await CleanupForkEntriesAsync().ConfigureAwait(false);
         _lock.Dispose();
         _forkSemaphore?.Dispose();
+    }
+
+    /// <summary>清理所有 Fork 条目和缓存（在锁保护下执行）</summary>
+    private async Task CleanupForkEntriesAsync()
+    {
+        using var guard = await _lock.LockAsync().ConfigureAwait(false);
+
+        var ctsEntries = _entries.Values
+            .Select(e => e.Cts)
+            .OfType<CancellationTokenSource>()
+            .ToList();
+        if (ctsEntries.Count > 0)
+        {
+            await Task.WhenAll(ctsEntries.Select(c => c.CancelAsync())).ConfigureAwait(false);
+            foreach (var cts in ctsEntries)
+            {
+                cts.Dispose();
+            }
+        }
+        _entries.Clear();
+        _sharedCache.Clear();
     }}

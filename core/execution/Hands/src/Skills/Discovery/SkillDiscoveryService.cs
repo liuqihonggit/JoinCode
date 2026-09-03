@@ -8,7 +8,7 @@ public sealed partial class SkillDiscoveryService : ServiceEntity, ISkillDiscove
     private readonly IFileSystem _fs;
     private readonly ILogger<SkillDiscoveryService>? _logger;
     private readonly ConcurrentDictionary<string, DiscoveredSkill> _discoveredSkills;
-    private readonly SemaphoreSlim _discoveryLock;
+    private readonly AsyncLock _discoveryLock = new();
     private IFileSystemWatcher? _watcher;
     private bool _isDisposed;
 
@@ -27,52 +27,47 @@ public sealed partial class SkillDiscoveryService : ServiceEntity, ISkillDiscove
         _fs = fs;
         _logger = logger;
         _discoveredSkills = new ConcurrentDictionary<string, DiscoveredSkill>(StringComparer.OrdinalIgnoreCase);
-        _discoveryLock = new SemaphoreSlim(1, 1);
+
     }
 
     public async Task<IReadOnlyList<DiscoveredSkill>> DiscoverAsync(CancellationToken cancellationToken = default)
     {
-        await _discoveryLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        using var guard = await _discoveryLock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        var results = new List<DiscoveredSkill>();
+
+        if (!_files.DirectoryExists(_options.SkillsDirectory))
         {
-            var results = new List<DiscoveredSkill>();
-
-            if (!_files.DirectoryExists(_options.SkillsDirectory))
-            {
-                _files.CreateDirectory(_options.SkillsDirectory);
-                _logger?.LogInformation(L.T(StringKey.SkillDiscoveryCreateDir), _options.SkillsDirectory);
-                return results;
-            }
-
-            var jsonFiles = _files.GetFiles(_options.SkillsDirectory, "*.json", SearchOption.AllDirectories);
-            foreach (var filePath in jsonFiles)
-            {
-                var skill = await LoadAndValidateFileAsync(filePath, cancellationToken).ConfigureAwait(false);
-                if (skill != null)
-                {
-                    _discoveredSkills[skill.Name] = skill;
-                    results.Add(skill);
-                }
-            }
-
-            var mdFiles = _files.GetFiles(_options.SkillsDirectory, "SKILL.md", SearchOption.AllDirectories);
-            foreach (var filePath in mdFiles)
-            {
-                var skill = await LoadAndValidateFileAsync(filePath, cancellationToken).ConfigureAwait(false);
-                if (skill != null)
-                {
-                    _discoveredSkills[skill.Name] = skill;
-                    results.Add(skill);
-                }
-            }
-
-            _logger?.LogInformation(L.T(StringKey.SkillDiscoveryFoundCount), results.Count);
+            _files.CreateDirectory(_options.SkillsDirectory);
+            _logger?.LogInformation(L.T(StringKey.SkillDiscoveryCreateDir), _options.SkillsDirectory);
             return results;
         }
-        finally
+
+        var jsonFiles = _files.GetFiles(_options.SkillsDirectory, "*.json", SearchOption.AllDirectories);
+        foreach (var filePath in jsonFiles)
         {
-            _discoveryLock.Release();
+            var skill = await LoadAndValidateFileAsync(filePath, cancellationToken).ConfigureAwait(false);
+            if (skill != null)
+            {
+                _discoveredSkills[skill.Name] = skill;
+                results.Add(skill);
+            }
         }
+
+        var mdFiles = _files.GetFiles(_options.SkillsDirectory, "SKILL.md", SearchOption.AllDirectories);
+        foreach (var filePath in mdFiles)
+        {
+            var skill = await LoadAndValidateFileAsync(filePath, cancellationToken).ConfigureAwait(false);
+            if (skill != null)
+            {
+                _discoveredSkills[skill.Name] = skill;
+                results.Add(skill);
+            }
+        }
+
+        _logger?.LogInformation(L.T(StringKey.SkillDiscoveryFoundCount), results.Count);
+        return results;
+    
     }
 
     public async Task<DiscoveredSkill?> LoadSkillAsync(string skillName, CancellationToken cancellationToken = default)

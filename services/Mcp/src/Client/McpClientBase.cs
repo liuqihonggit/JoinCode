@@ -10,7 +10,7 @@ public abstract class McpClientBase : IMcpClient
     private Implementation? _serverInfo;
     private ServerCapabilities? _serverCapabilities;
 
-    protected readonly SemaphoreSlim _requestLock = new(1, 1);
+    protected readonly AsyncLock _requestLock = new("McpClientBase.Request");
     protected readonly Dictionary<int, TaskCompletionSource<JsonRpcResponse>> _pendingRequests = new();
 
     /// <summary>
@@ -136,7 +136,7 @@ public abstract class McpClientBase : IMcpClient
 
         int requestId = response.GetIdAsInt();
 
-        await _requestLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var guard = await _requestLock.LockAsync(cancellationToken);
         try
         {
             if (_pendingRequests.TryGetValue(requestId, out var tcs))
@@ -147,7 +147,7 @@ public abstract class McpClientBase : IMcpClient
         }
         finally
         {
-            _requestLock.Release();
+            guard.Dispose();
         }
     }
 
@@ -171,7 +171,7 @@ public abstract class McpClientBase : IMcpClient
 
     protected async Task CancelPendingRequestsAsync(CancellationToken cancellationToken = default)
     {
-        await _requestLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var guard = await _requestLock.LockAsync(cancellationToken);
         try
         {
             foreach (var tcs in _pendingRequests.Values)
@@ -182,7 +182,7 @@ public abstract class McpClientBase : IMcpClient
         }
         finally
         {
-            _requestLock.Release();
+            guard.Dispose();
         }
     }
 

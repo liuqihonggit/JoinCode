@@ -1,4 +1,5 @@
 // Abstractions 门面 — TUI 组件依赖的接口/DTO
+global using Core.Utils;
 global using JoinCode.Abstractions.Attributes;
 global using JoinCode.Abstractions.Configuration;
 global using JoinCode.Abstractions.Interfaces;

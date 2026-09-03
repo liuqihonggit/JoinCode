@@ -10,7 +10,7 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
 {
     private readonly Dictionary<string, IMcpAuthProvider> _authProviders = new();
     private readonly ILogger? _logger;
-    private readonly SemaphoreSlim _authLock = new(1, 1);
+    private readonly AsyncLock _authLock = new();
     private readonly IMcpAuthPersistenceService? _persistenceService;
     private readonly IHttpClientProvider? _httpClientProvider;
 
@@ -172,15 +172,8 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
                 Logger = _logger,
             });
 
-            await _authLock.WaitAsync(cancellationToken);
-            try
-            {
+            using var guard = await _authLock.LockAsync(cancellationToken).ConfigureAwait(false);
                 _authProviders[auth_name] = provider;
-            }
-            finally
-            {
-                _authLock.Release();
-            }
 
             await PersistAuthConfigAsync(auth_name, McpAuthConfigType.OAuth2, cancellationToken).ConfigureAwait(false);
 
@@ -211,7 +204,7 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
             return ToolResultBuilder.Error().WithText(L.T(StringKey.AuthNameCannotBeEmpty)).Build();
         }
 
-        await _authLock.WaitAsync(cancellationToken);
+        using var guard = await _authLock.LockAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             if (!_authProviders.TryGetValue(auth_name, out var provider))
@@ -238,10 +231,6 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
         {
             _logger?.LogError(ex, L.T(StringKey.RefreshAuthTokenFailedLog), auth_name);
             return ToolResultBuilder.Error().WithText(L.T(StringKey.RefreshFailed, ex.Message)).Build();
-        }
-        finally
-        {
-            _authLock.Release();
         }
     }
 

@@ -6,7 +6,7 @@ public sealed class ProcessHealthMonitor : IDisposable
     private readonly HealthCheckConfig _config;
     private readonly ILogger? _logger;
     private readonly Timer _timer;
-    private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly AsyncLock _lock = new();
     private int _consecutiveFailures;
     private DateTimeOffset _lastCheckTime = DateTimeOffset.MinValue;
     private int _isDisposed;

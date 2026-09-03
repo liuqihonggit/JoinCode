@@ -74,7 +74,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
             Graph = graph,
             State = goalState,
             ChatHistory = chatHistory,
-            StateLock = new SemaphoreSlim(1, 1),
+            StateLock = new AsyncLock(),
             Clock = _clock,
         };
 
@@ -305,13 +305,9 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
 
     private async Task SetGoalStatusAsync(GoalState goalState, GoalStatus status, GraphExecutionContext context, CancellationToken ct)
     {
-        await context.StateLock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            goalState.Status = status;
-            goalState.AchievedAt = _clock.GetUtcNow();
-        }
-        finally { context.StateLock.Release(); }
+        using var guard = await context.StateLock.LockAsync(ct).ConfigureAwait(false);
+        goalState.Status = status;
+        goalState.AchievedAt = _clock.GetUtcNow();
     }
 
     private enum NodeCompletionOutcome
@@ -491,12 +487,8 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
 
         if (!string.IsNullOrEmpty(lastOutput))
         {
-            await context.StateLock.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                context.ChatHistory.AddAssistantMessage($"[{payload.Name}]: {lastOutput}");
-            }
-            finally { context.StateLock.Release(); }
+            using var guard = await context.StateLock.LockAsync(ct).ConfigureAwait(false);
+            context.ChatHistory.AddAssistantMessage($"[{payload.Name}]: {lastOutput}");
         }
 
         return NodeResult.Succeeded(lastOutput, totalTokens);
@@ -679,13 +671,9 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
                 totalTurns++;
         }
 
-        await context.StateLock.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            context.State.TokensUsed = totalTokens;
-            context.State.TurnsCompleted = totalTurns;
-        }
-        finally { context.StateLock.Release(); }
+        using var guard = await context.StateLock.LockAsync().ConfigureAwait(false);
+        context.State.TokensUsed = totalTokens;
+        context.State.TurnsCompleted = totalTurns;
     }
 
     /// <summary>

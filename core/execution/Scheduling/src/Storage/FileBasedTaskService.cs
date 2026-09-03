@@ -14,7 +14,7 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
     private readonly ITaskFileReader _taskFileReader;
     private readonly ILogger<FileBasedTaskService>? _logger;
     private readonly IFileOperationService _fileOperationService;
-    private readonly SemaphoreSlim _initLock;
+    private readonly AsyncLock _initLock = new();
     private bool _initialized;
 
     /// <summary>
@@ -34,30 +34,25 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
         _taskFileReader = fileOps.TaskFileReader ?? throw new ArgumentNullException(nameof(fileOps), "TaskFileReader cannot be null");
         _logger = logger;
         _highWaterMarkManager = new HighWaterMarkManager(fileOps.FileSystem, _options);
-        _initLock = new SemaphoreSlim(1, 1);
+
     }
 
     private async Task EnsureInitializedAsync(CancellationToken cancellationToken = default)
     {
         if (_initialized) return;
 
-        await _initLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (_initialized) return;
+        using var guard = await _initLock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            if (!_fileOperationService.DirectoryExists(_options.TaskDirectoryPath))
-            {
-                _fileOperationService.CreateDirectory(_options.TaskDirectoryPath);
-                _logger?.LogInformation(L.T(StringKey.CreateTaskDirLog), _options.TaskDirectoryPath);
-            }
+        if (_initialized) return;
 
-            _initialized = true;
-        }
-        finally
+        if (!_fileOperationService.DirectoryExists(_options.TaskDirectoryPath))
         {
-            _initLock.Release();
+            _fileOperationService.CreateDirectory(_options.TaskDirectoryPath);
+            _logger?.LogInformation(L.T(StringKey.CreateTaskDirLog), _options.TaskDirectoryPath);
         }
+
+        _initialized = true;
+    
     }
 
     /// <inheritdoc />

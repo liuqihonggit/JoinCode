@@ -11,7 +11,7 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
     private readonly IAgentDefinitionProvider? _definitionProvider;
     private readonly ILogger<AgentRoleProfileRegistry>? _logger;
 #pragma warning disable JCC4005
-    private readonly SemaphoreSlim _loadLock = new(1, 1);
+    private readonly AsyncLock _loadLock = new();
 #pragma warning restore JCC4005
     private List<AgentRoleProfile> _profiles;
     private FrozenDictionary<(AgentRole, ExecutorVariant?), AgentRoleProfile> _profileMap;
@@ -31,22 +31,15 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
 
     public void Register(AgentRoleProfile profile)
     {
-        _loadLock.Wait();
-        try
+        using var guard = _loadLock.Lock();
+        _profiles.Add(profile);
+        _profileMap = BuildProfileMap(_profiles);
+        if (!_roleIndex.TryGetValue(profile.Role, out var list))
         {
-            _profiles.Add(profile);
-            _profileMap = BuildProfileMap(_profiles);
-            if (!_roleIndex.TryGetValue(profile.Role, out var list))
-            {
-                list = new List<AgentRoleProfile>();
-                _roleIndex[profile.Role] = list;
-            }
-            list.Add(profile);
+            list = new List<AgentRoleProfile>();
+            _roleIndex[profile.Role] = list;
         }
-        finally
-        {
-            _loadLock.Release();
-        }
+        list.Add(profile);
     }
 
     public AgentRoleProfile? GetProfile(AgentRole role, ExecutorVariant? variant = null)
@@ -79,18 +72,11 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
 
     public void ClearCache()
     {
-        _loadLock.Wait();
-        try
-        {
-            _customLoaded = false;
-            _profiles = BuildBuiltInProfiles();
-            _profileMap = BuildProfileMap(_profiles);
-            _roleIndex = BuildRoleIndex(_profiles);
-        }
-        finally
-        {
-            _loadLock.Release();
-        }
+        using var guard = _loadLock.Lock();
+        _customLoaded = false;
+        _profiles = BuildBuiltInProfiles();
+        _profileMap = BuildProfileMap(_profiles);
+        _roleIndex = BuildRoleIndex(_profiles);
         _logger?.LogDebug("AgentRoleProfileRegistry 缓存已清除");
     }
 
@@ -99,67 +85,60 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
         if (_customLoaded || _definitionProvider is null)
             return;
 
-        _loadLock.Wait();
+        using var guard = _loadLock.Lock();
+        if (_customLoaded)
+            return;
+
         try
         {
-            if (_customLoaded)
-                return;
-
-            try
+            var definitions = _definitionProvider.GetAgentDefinitionsAsync().GetAwaiter().GetResult();
+            var indexMap = _profiles
+                .Select((p, i) => (key: (p.Role, p.Variant), i))
+                .ToDictionary(x => x.key, x => x.i);
+            foreach (var def in definitions)
             {
-                var definitions = _definitionProvider.GetAgentDefinitionsAsync().GetAwaiter().GetResult();
-                var indexMap = _profiles
-                    .Select((p, i) => (key: (p.Role, p.Variant), i))
-                    .ToDictionary(x => x.key, x => x.i);
-                foreach (var def in definitions)
+                var key = (def.Role, def.Variant);
+                var profile = new AgentRoleProfile
                 {
-                    var key = (def.Role, def.Variant);
-                    var profile = new AgentRoleProfile
-                    {
-                        Role = def.Role,
-                        Variant = def.Variant,
-                        WhenToUse = def.WhenToUse,
-                        Description = def.Description,
-                        SystemPrompt = def.SystemPrompt,
-                        AllowedTools = def.Tools,
-                        DisallowedTools = def.DisallowedTools,
-                        PermissionMode = def.PermissionMode,
-                        IsBackground = def.IsBackground,
-                        OmitProjectRules = def.OmitProjectRules,
-                        OmitGitStatus = def.OmitGitStatus,
-                        IsOneShot = def.Variant.HasValue && OneShotExecutorVariants.IsOneShot(def.Variant.Value),
-                        ModelName = def.ModelName,
-                        Temperature = def.Temperature,
-                        MaxTokens = def.MaxTokens,
-                        Memory = def.Memory,
-                        Skills = def.Skills,
-                        SourcePath = def.SourcePath,
-                        CriticalSystemReminder = def.CriticalSystemReminder,
-                    };
+                    Role = def.Role,
+                    Variant = def.Variant,
+                    WhenToUse = def.WhenToUse,
+                    Description = def.Description,
+                    SystemPrompt = def.SystemPrompt,
+                    AllowedTools = def.Tools,
+                    DisallowedTools = def.DisallowedTools,
+                    PermissionMode = def.PermissionMode,
+                    IsBackground = def.IsBackground,
+                    OmitProjectRules = def.OmitProjectRules,
+                    OmitGitStatus = def.OmitGitStatus,
+                    IsOneShot = def.Variant.HasValue && OneShotExecutorVariants.IsOneShot(def.Variant.Value),
+                    ModelName = def.ModelName,
+                    Temperature = def.Temperature,
+                    MaxTokens = def.MaxTokens,
+                    Memory = def.Memory,
+                    Skills = def.Skills,
+                    SourcePath = def.SourcePath,
+                    CriticalSystemReminder = def.CriticalSystemReminder,
+                };
 
-                    if (indexMap.TryGetValue(key, out var existingIdx) && def.SourcePath is not null)
-                    {
-                        _profiles[existingIdx] = profile;
-                    }
-                    else if (!indexMap.ContainsKey(key))
-                    {
-                        _profiles.Add(profile);
-                        indexMap[key] = _profiles.Count - 1;
-                    }
+                if (indexMap.TryGetValue(key, out var existingIdx) && def.SourcePath is not null)
+                {
+                    _profiles[existingIdx] = profile;
                 }
-                _profileMap = BuildProfileMap(_profiles);
-                _roleIndex = BuildRoleIndex(_profiles);
-                _customLoaded = true;
+                else if (!indexMap.ContainsKey(key))
+                {
+                    _profiles.Add(profile);
+                    indexMap[key] = _profiles.Count - 1;
+                }
             }
-            catch (Exception ex)
-            {
-                _logger?.LogWarning(ex, "加载自定义 AgentDefinition 失败，仅使用内置 Profile");
-                _customLoaded = true;
-            }
+            _profileMap = BuildProfileMap(_profiles);
+            _roleIndex = BuildRoleIndex(_profiles);
+            _customLoaded = true;
         }
-        finally
+        catch (Exception ex)
         {
-            _loadLock.Release();
+            _logger?.LogWarning(ex, "加载自定义 AgentDefinition 失败，仅使用内置 Profile");
+            _customLoaded = true;
         }
     }
 

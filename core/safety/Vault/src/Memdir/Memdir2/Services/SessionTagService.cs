@@ -8,7 +8,7 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
     private readonly string _storagePath;
     private readonly IFileOperationService _fileOperationService;
     private readonly ILogger<SessionTagService>? _logger;
-    private readonly SemaphoreSlim _saveLock = new(1, 1);
+    private readonly AsyncLock _saveLock = new();
     private readonly CancellationTokenSource _disposeCts = new();
 
     public SessionTagService(IOptions<MemdirOptions> options, IFileOperationService fileOperationService, ILogger<SessionTagService>? logger = null)
@@ -119,7 +119,7 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
 
     private async Task SaveAsync(CancellationToken cancellationToken)
     {
-        await _saveLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _saveLock.LockAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             var data = new SessionTagData
@@ -133,10 +133,6 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
             await _fileOperationService.WriteFileAsync(_storagePath, json, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) { }
-        finally
-        {
-            _saveLock.Release();
-        }
     }
 
     protected override void OnDispose()

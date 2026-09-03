@@ -21,7 +21,7 @@ public sealed partial class AwaySummaryService : ServiceEntity, IAwaySummaryServ
     private readonly AwaySummaryOptions _options;
     private readonly ILogger<AwaySummaryService>? _logger;
     private readonly IClockService _clock;
-    private readonly SemaphoreSlim _eventLock = new(1, 1);
+    private readonly AsyncLock _eventLock = new();
     private readonly ConcurrentQueue<AwayEvent> _events = new();
     private readonly CancellationTokenSource _disposeCts = new();
     private int _disposed;
@@ -44,29 +44,24 @@ public sealed partial class AwaySummaryService : ServiceEntity, IAwaySummaryServ
 
     public async Task MarkAwayAsync(CancellationToken cancellationToken = default)
     {
-        await _eventLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            _awaySince = _clock.GetUtcNow();
-            _events.Clear();
+        using var guard = await _eventLock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            _autoSaveTimer = new Timer(
-                _ => { if (_disposed == 0) _ = AutoSaveEventsAsync(_disposeCts.Token).WaitAsync(TimeSpan.FromSeconds(10), _disposeCts.Token).ConfigureAwait(false); },
-                null,
-                _options.AutoSaveInterval,
-                _options.AutoSaveInterval);
+        _awaySince = _clock.GetUtcNow();
+        _events.Clear();
 
-            _logger?.LogInformation("用户离开标记: {Time}", _awaySince.Value);
-        }
-        finally
-        {
-            _eventLock.Release();
-        }
+        _autoSaveTimer = new Timer(
+            _ => { if (_disposed == 0) _ = AutoSaveEventsAsync(_disposeCts.Token).WaitAsync(TimeSpan.FromSeconds(10), _disposeCts.Token).ConfigureAwait(false); },
+            null,
+            _options.AutoSaveInterval,
+            _options.AutoSaveInterval);
+
+        _logger?.LogInformation("用户离开标记: {Time}", _awaySince.Value);
+    
     }
 
     public async Task<AwaySummaryResult> GenerateSummaryAsync(CancellationToken cancellationToken = default)
     {
-        await _eventLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _eventLock.LockAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             if (!_awaySince.HasValue)
@@ -155,10 +150,7 @@ public sealed partial class AwaySummaryService : ServiceEntity, IAwaySummaryServ
                 ErrorMessage = ex.Message
             };
         }
-        finally
-        {
-            _eventLock.Release();
-        }
+
     }
 
     public async Task TrackEventAsync(AwayEvent awayEvent, CancellationToken cancellationToken = default)
@@ -167,20 +159,15 @@ public sealed partial class AwaySummaryService : ServiceEntity, IAwaySummaryServ
 
         if (!_awaySince.HasValue) return;
 
-        await _eventLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            while (_events.Count >= _options.MaxEventsToTrack)
-            {
-                _events.TryDequeue(out _);
-            }
+        using var guard = await _eventLock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            _events.Enqueue(awayEvent);
-        }
-        finally
+        while (_events.Count >= _options.MaxEventsToTrack)
         {
-            _eventLock.Release();
+            _events.TryDequeue(out _);
         }
+
+        _events.Enqueue(awayEvent);
+    
     }
 
     private string BuildSummary(

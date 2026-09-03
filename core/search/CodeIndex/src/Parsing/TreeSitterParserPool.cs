@@ -14,7 +14,7 @@ public static class TreeSitterParserPool
     /// Global lock protecting <see cref="Shared"/> because TreeSitter Parser is NOT thread-safe.
     /// Different CSharpSymbolExtractor instances have their own _parseLock but all access Shared.Parse().
     /// </summary>
-    private static readonly SemaphoreSlim _sharedLock = new(1, 1);
+    private static readonly AsyncLock _sharedLock = new("TreeSitterParserPool.Shared");
 
     /// <summary>
     /// Gets a shared, process-wide parser instance. The same parser is returned for the lifetime
@@ -27,8 +27,7 @@ public static class TreeSitterParserPool
     /// </summary>
     public static async Task<IDisposable> AcquireSharedAsync(CancellationToken ct = default)
     {
-        await _sharedLock.WaitAsync(ct).ConfigureAwait(false);
-        return new SharedLockReleaser(_sharedLock);
+        return await _sharedLock.LockAsync(ct);
     }
 
     /// <summary>
@@ -36,8 +35,7 @@ public static class TreeSitterParserPool
     /// </summary>
     public static IDisposable AcquireShared()
     {
-        _sharedLock.Wait();
-        return new SharedLockReleaser(_sharedLock);
+        return _sharedLock.Lock();
     }
 
     /// <summary>
@@ -46,8 +44,4 @@ public static class TreeSitterParserPool
     /// </summary>
     public static TreeSitterParser CreateDisposable() => new("c-sharp");
 
-    private sealed class SharedLockReleaser(SemaphoreSlim semaphore) : IDisposable
-    {
-        public void Dispose() => semaphore.Release();
-    }
 }

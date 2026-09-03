@@ -110,7 +110,7 @@ ADR 引用 design/plans，但不重复其内容。
 | 0036 | 纵深防御 L1-L10 | accepted | UnifiedResilienceArchitecture.md |
 | 0037 | Redirect 软引导而非硬转交 | accepted | 命令拦截架构改造.md |
 
-### 状态机优化（0038-0039，取代 0018/0034）
+### 状态机框架与统一规范（0038-0046）
 
 | 编号 | 标题 | 状态 | 取代 |
 |------|------|------|------|
@@ -135,7 +135,7 @@ ADR 引用 design/plans，但不重复其内容。
 | 0030 | E2E 真实服务策略 | accepted | E2E·MockServer+jcc 联合测试 |
 | 0031 | HTTP 连接池 DNS 刷新 | accepted | 代码注释·QueryServiceBase.cs:70 |
 
-### 安全与并发治理（0047-0051）
+### 安全与并发治理（0047-0052）
 
 | 编号 | 标题 | 状态 | 来源 |
 |------|------|------|------|
@@ -144,6 +144,7 @@ ADR 引用 design/plans，但不重复其内容。
 | 0049 | 归档 MaxConcurrentAgents 死配置 | accepted | 子代理并发控制任务 |
 | 0050 | spawn 阶段 SemaphoreSlim 限流 | accepted | 子代理并发控制任务 |
 | 0051 | Fork 并发上限 | accepted | 子代理并发控制任务 |
+| 0052 | AsyncLock 统一互斥锁 + 文件读写可剥离架构 | proposed | 新增 |
 
 ### 上下文管理（0053-0054）
 

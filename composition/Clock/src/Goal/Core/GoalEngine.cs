@@ -10,7 +10,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     private readonly IChatClient _kernel;
     private readonly IGoalEvaluator _evaluator;
     private readonly IGoalHeartbeat _heartbeat;
-    private readonly SemaphoreSlim _stateLock;
+    private readonly AsyncLock _stateLock = new();
     private readonly ILogger<GoalEngine>? _logger;
     private readonly IClockService _clock;
     private readonly IServiceProvider _serviceProvider = null!;
@@ -177,7 +177,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         _clock = clock ?? SystemClockService.Instance;
         _permissionManager = permissionManager;
         _serviceProvider = serviceProvider ?? _serviceProvider;
-        _stateLock = new SemaphoreSlim(1, 1);
+
         _chatHistory = new MessageList();
         _heartbeat = heartbeat ?? throw new ArgumentNullException(nameof(heartbeat));
         _stateStore = stateStore;
@@ -292,33 +292,28 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         string? systemPrompt,
         CancellationToken cancellationToken)
     {
-        await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (_state != null && _state.Status == GoalStatus.Pursuing)
-            {
-                throw new InvalidOperationException(L.T(StringKey.GoalEngineAlreadyRunning));
-            }
+        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            var goalId = GenerateGoalId();
-            _state = new GoalState
-            {
-                GoalId = goalId,
-                Objective = objective,
-                Status = GoalStatus.Pursuing,
-                Constraints = constraints ?? [],
-                TokenBudget = tokenBudget
-            };
-
-            _chatHistory.Clear();
-            if (!string.IsNullOrWhiteSpace(systemPrompt))
-                _chatHistory.AddSystemMessage(systemPrompt);
-            _chatHistory.AddUserMessage(objective);
-        }
-        finally
+        if (_state != null && _state.Status == GoalStatus.Pursuing)
         {
-            _stateLock.Release();
+            throw new InvalidOperationException(L.T(StringKey.GoalEngineAlreadyRunning));
         }
+
+        var goalId = GenerateGoalId();
+        _state = new GoalState
+        {
+            GoalId = goalId,
+            Objective = objective,
+            Status = GoalStatus.Pursuing,
+            Constraints = constraints ?? [],
+            TokenBudget = tokenBudget
+        };
+
+        _chatHistory.Clear();
+        if (!string.IsNullOrWhiteSpace(systemPrompt))
+            _chatHistory.AddSystemMessage(systemPrompt);
+        _chatHistory.AddUserMessage(objective);
+    
 
         var ctx = new GoalLifecycleContext
         {
@@ -366,33 +361,28 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         string? systemPrompt,
         CancellationToken cancellationToken)
     {
-        await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (_state != null && _state.Status == GoalStatus.Pursuing)
-            {
-                throw new InvalidOperationException(L.T(StringKey.GoalEngineAlreadyRunning));
-            }
+        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            var goalId = GenerateGoalId();
-            _state = new GoalState
-            {
-                GoalId = goalId,
-                Objective = objective,
-                Status = GoalStatus.Pursuing,
-                Constraints = constraints ?? [],
-                TokenBudget = tokenBudget
-            };
-
-            _chatHistory.Clear();
-            if (!string.IsNullOrWhiteSpace(systemPrompt))
-                _chatHistory.AddSystemMessage(systemPrompt);
-            _chatHistory.AddUserMessage(objective);
-        }
-        finally
+        if (_state != null && _state.Status == GoalStatus.Pursuing)
         {
-            _stateLock.Release();
+            throw new InvalidOperationException(L.T(StringKey.GoalEngineAlreadyRunning));
         }
+
+        var goalId = GenerateGoalId();
+        _state = new GoalState
+        {
+            GoalId = goalId,
+            Objective = objective,
+            Status = GoalStatus.Pursuing,
+            Constraints = constraints ?? [],
+            TokenBudget = tokenBudget
+        };
+
+        _chatHistory.Clear();
+        if (!string.IsNullOrWhiteSpace(systemPrompt))
+            _chatHistory.AddSystemMessage(systemPrompt);
+        _chatHistory.AddUserMessage(objective);
+    
 
         await SwitchToGoalPermissionModeAsync(cancellationToken).ConfigureAwait(false);
 
@@ -426,18 +416,13 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
     private async Task PauseViaPipelineAsync(CancellationToken cancellationToken)
     {
-        await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (_state == null || _state.Status != GoalStatus.Pursuing) return;
+        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            _state.Status = GoalStatus.Paused;
-            _state.PausedAt = _clock.GetUtcNow();
-        }
-        finally
-        {
-            _stateLock.Release();
-        }
+        if (_state == null || _state.Status != GoalStatus.Pursuing) return;
+
+        _state.Status = GoalStatus.Paused;
+        _state.PausedAt = _clock.GetUtcNow();
+    
 
         var ctx = new GoalLifecycleContext
         {
@@ -465,18 +450,13 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
     private async Task PauseDirectAsync(CancellationToken cancellationToken)
     {
-        await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (_state == null || _state.Status != GoalStatus.Pursuing) return;
+        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            _state.Status = GoalStatus.Paused;
-            _state.PausedAt = _clock.GetUtcNow();
-        }
-        finally
-        {
-            _stateLock.Release();
-        }
+        if (_state == null || _state.Status != GoalStatus.Pursuing) return;
+
+        _state.Status = GoalStatus.Paused;
+        _state.PausedAt = _clock.GetUtcNow();
+    
 
         await _heartbeat.ResetAsync().ConfigureAwait(false);
         _logger?.LogInformation(L.T(StringKey.GoalEnginePaused), _state?.GoalId);
@@ -498,18 +478,13 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
     private async Task ResumeViaPipelineAsync(CancellationToken cancellationToken)
     {
-        await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (_state == null || _state.Status != GoalStatus.Paused) return;
+        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            _state.Status = GoalStatus.Pursuing;
-            _state.PausedAt = null;
-        }
-        finally
-        {
-            _stateLock.Release();
-        }
+        if (_state == null || _state.Status != GoalStatus.Paused) return;
+
+        _state.Status = GoalStatus.Pursuing;
+        _state.PausedAt = null;
+    
 
         var ctx = new GoalLifecycleContext
         {
@@ -550,18 +525,13 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
     private async Task ResumeDirectAsync(CancellationToken cancellationToken)
     {
-        await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (_state == null || _state.Status != GoalStatus.Paused) return;
+        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            _state.Status = GoalStatus.Pursuing;
-            _state.PausedAt = null;
-        }
-        finally
-        {
-            _stateLock.Release();
-        }
+        if (_state == null || _state.Status != GoalStatus.Paused) return;
+
+        _state.Status = GoalStatus.Pursuing;
+        _state.PausedAt = null;
+    
 
         var continuationPrompt = ContinuationPromptBuilder.BuildContinuationPrompt(
             _state?.Objective ?? throw new InvalidOperationException("GoalState is not initialized."),
@@ -596,18 +566,13 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
     private async Task ClearViaPipelineAsync(CancellationToken cancellationToken)
     {
-        await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (_state == null) return;
+        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            _state.Status = GoalStatus.Unmet;
-            _state.AchievedAt = _clock.GetUtcNow();
-        }
-        finally
-        {
-            _stateLock.Release();
-        }
+        if (_state == null) return;
+
+        _state.Status = GoalStatus.Unmet;
+        _state.AchievedAt = _clock.GetUtcNow();
+    
 
         var ctx = new GoalLifecycleContext
         {
@@ -643,18 +608,13 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
     private async Task ClearDirectAsync(CancellationToken cancellationToken)
     {
-        await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (_state == null) return;
+        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            _state.Status = GoalStatus.Unmet;
-            _state.AchievedAt = _clock.GetUtcNow();
-        }
-        finally
-        {
-            _stateLock.Release();
-        }
+        if (_state == null) return;
+
+        _state.Status = GoalStatus.Unmet;
+        _state.AchievedAt = _clock.GetUtcNow();
+    
 
         _engineCts?.Cancel();
         await _heartbeat.ResetAsync().ConfigureAwait(false);
@@ -709,24 +669,19 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
             if (target is null) return;
 
             var first = target;
-            await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
+            using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+            _state = first;
+            _chatHistory.Clear();
+            if (first.PersistedHistory is not null)
             {
-                _state = first;
-                _chatHistory.Clear();
-                if (first.PersistedHistory is not null)
+                foreach (var doc in first.PersistedHistory)
                 {
-                    foreach (var doc in first.PersistedHistory)
-                    {
-                        var role = Enum.TryParse<MessageRole>(doc.Role, ignoreCase: true, out var r) ? r : MessageRole.User;
-                        _chatHistory.Add(new ApiMessage(role, doc.Content));
-                    }
+                    var role = Enum.TryParse<MessageRole>(doc.Role, ignoreCase: true, out var r) ? r : MessageRole.User;
+                    _chatHistory.Add(new ApiMessage(role, doc.Content));
                 }
             }
-            finally
-            {
-                _stateLock.Release();
-            }
+        
             _logger?.LogInformation("[GoalEngine] 从持久化恢复目标: {GoalId} (状态: {Status})", first.GoalId, first.Status);
         }
         catch (Exception ex)
@@ -753,19 +708,14 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
     private async Task MarkCompletedViaPipelineAsync(string reason, CancellationToken cancellationToken)
     {
-        await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (_state == null || _state.Status != GoalStatus.Pursuing) return;
+        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            _state.Status = GoalStatus.Achieved;
-            _state.AchievedAt = _clock.GetUtcNow();
-            _state.LastEvaluation = GoalEvaluationResult.Completed(reason);
-        }
-        finally
-        {
-            _stateLock.Release();
-        }
+        if (_state == null || _state.Status != GoalStatus.Pursuing) return;
+
+        _state.Status = GoalStatus.Achieved;
+        _state.AchievedAt = _clock.GetUtcNow();
+        _state.LastEvaluation = GoalEvaluationResult.Completed(reason);
+    
 
         var ctx = new GoalLifecycleContext
         {
@@ -807,19 +757,14 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
     private async Task MarkCompletedDirectAsync(string reason, CancellationToken cancellationToken)
     {
-        await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (_state == null || _state.Status != GoalStatus.Pursuing) return;
+        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            _state.Status = GoalStatus.Achieved;
-            _state.AchievedAt = _clock.GetUtcNow();
-            _state.LastEvaluation = GoalEvaluationResult.Completed(reason);
-        }
-        finally
-        {
-            _stateLock.Release();
-        }
+        if (_state == null || _state.Status != GoalStatus.Pursuing) return;
+
+        _state.Status = GoalStatus.Achieved;
+        _state.AchievedAt = _clock.GetUtcNow();
+        _state.LastEvaluation = GoalEvaluationResult.Completed(reason);
+    
 
         _engineCts?.Cancel();
         await _heartbeat.ResetAsync().ConfigureAwait(false);
@@ -846,19 +791,14 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
     private async Task MarkUnmetViaPipelineAsync(string reason, CancellationToken cancellationToken)
     {
-        await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (_state == null || _state.Status != GoalStatus.Pursuing) return;
+        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            _state.Status = GoalStatus.Unmet;
-            _state.AchievedAt = _clock.GetUtcNow();
-            _state.LastEvaluation = GoalEvaluationResult.NotCompleted(reason);
-        }
-        finally
-        {
-            _stateLock.Release();
-        }
+        if (_state == null || _state.Status != GoalStatus.Pursuing) return;
+
+        _state.Status = GoalStatus.Unmet;
+        _state.AchievedAt = _clock.GetUtcNow();
+        _state.LastEvaluation = GoalEvaluationResult.NotCompleted(reason);
+    
 
         var ctx = new GoalLifecycleContext
         {
@@ -902,19 +842,14 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(reason);
 
-        await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (_state == null || _state.Status != GoalStatus.Pursuing) return;
+        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            _state.Status = GoalStatus.Unmet;
-            _state.AchievedAt = _clock.GetUtcNow();
-            _state.LastEvaluation = GoalEvaluationResult.NotCompleted(reason);
-        }
-        finally
-        {
-            _stateLock.Release();
-        }
+        if (_state == null || _state.Status != GoalStatus.Pursuing) return;
+
+        _state.Status = GoalStatus.Unmet;
+        _state.AchievedAt = _clock.GetUtcNow();
+        _state.LastEvaluation = GoalEvaluationResult.NotCompleted(reason);
+    
 
         _engineCts?.Cancel();
         await _heartbeat.ResetAsync().ConfigureAwait(false);

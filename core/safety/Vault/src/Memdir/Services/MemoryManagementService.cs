@@ -308,7 +308,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
 {
     private readonly MemoryStore _memoryStore;
     private readonly Dictionary<(string TeamId, string Path), TeamMemoryPath> _teamMemoryPaths = new();
-    private readonly SemaphoreSlim _skillLock;
+    private readonly AsyncLock _skillLock = new();
     private readonly ILogger<MemoryManagementService>? _logger;
     private readonly IClockService _clock;
     private readonly MemoryOptionalServices? _optional;
@@ -320,7 +320,6 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
         IClockService? clock = null)
     {
         _memoryStore = memoryStore ?? throw new ArgumentNullException(nameof(memoryStore));
-        _skillLock = new SemaphoreSlim(1, 1);
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
         _optional = optional;
@@ -350,150 +349,136 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     public async Task<MemoryScanResult> ScanMemoriesAsync(string query, string? category = null, int limit = 10, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        await _skillLock.WaitAsync(ct).ConfigureAwait(false);
-        try
+        using var guard = await _skillLock.LockAsync(ct).ConfigureAwait(false);
+        _logger?.LogInformation(L.T(StringKey.VaultLogScanMemory), query, category ?? L.T(StringKey.VaultAllCategory));
+
+        // 将字符串 category 转换为 MemoryType
+        MemoryType? memoryType = MemoryTypeExtensions.FromValue(category);
+
+        List<MemoryEntry> results;
+        if (_optional?.MemoryScanner != null)
         {
-            _logger?.LogInformation(L.T(StringKey.VaultLogScanMemory), query, category ?? L.T(StringKey.VaultAllCategory));
+            // 使用 IMemoryScanner 获取记忆
+            IReadOnlyList<MemoryEntry> scanResults = memoryType.HasValue
+                ? await _optional.MemoryScanner.ScanByTypeAsync(memoryType.Value, ct).ConfigureAwait(false)
+                : await _optional.MemoryScanner.ScanAllAsync(ct).ConfigureAwait(false);
+            results = scanResults.ToList();
+        }
+        else
+        {
+            results = _memoryStore.Search(query, memoryType, limit * 2).ToList();
+        }
 
-            // 将字符串 category 转换为 MemoryType
-            MemoryType? memoryType = MemoryTypeExtensions.FromValue(category);
-
-            List<MemoryEntry> results;
-            if (_optional?.MemoryScanner != null)
-            {
-                // 使用 IMemoryScanner 获取记忆
-                IReadOnlyList<MemoryEntry> scanResults = memoryType.HasValue
-                    ? await _optional.MemoryScanner.ScanByTypeAsync(memoryType.Value, ct).ConfigureAwait(false)
-                    : await _optional.MemoryScanner.ScanAllAsync(ct).ConfigureAwait(false);
-                results = scanResults.ToList();
-            }
-            else
-            {
-                results = _memoryStore.Search(query, memoryType, limit * 2).ToList();
-            }
-
-            List<DetailedScoredMemory> scoredMemories;
-            if (_optional?.RelevanceSelector != null)
-            {
-                // 使用 IMemoryRelevanceSelector 进行相关性选择
-                var selectedMemories = await _optional.RelevanceSelector.SelectRelevantMemoriesAsync(
-                    results, query, limit, ct).ConfigureAwait(false);
-                scoredMemories = selectedMemories
-                    .Select(sm => new DetailedScoredMemory
-                    {
-                        Memory = sm.Memory,
-                        RelevanceScore = sm.RelevanceScore,
-                        MatchReason = GetMatchReason(sm.Memory, query)
-                    })
-                    .ToList();
-            }
-            else
-            {
-                scoredMemories = results.Select(m => new DetailedScoredMemory
+        List<DetailedScoredMemory> scoredMemories;
+        if (_optional?.RelevanceSelector != null)
+        {
+            // 使用 IMemoryRelevanceSelector 进行相关性选择
+            var selectedMemories = await _optional.RelevanceSelector.SelectRelevantMemoriesAsync(
+                results, query, limit, ct).ConfigureAwait(false);
+            scoredMemories = selectedMemories
+                .Select(sm => new DetailedScoredMemory
                 {
-                    Memory = m,
-                    RelevanceScore = CalculateAdvancedRelevanceScore(m, query),
-                    MatchReason = GetMatchReason(m, query)
+                    Memory = sm.Memory,
+                    RelevanceScore = sm.RelevanceScore,
+                    MatchReason = GetMatchReason(sm.Memory, query)
                 })
-                .OrderByDescending(m => m.RelevanceScore)
-                .Take(limit)
                 .ToList();
-            }
-
-            // 使用 IMemoryTruncator 对长内容进行截断
-            if (_optional?.MemoryTruncator != null)
-            {
-                scoredMemories = scoredMemories
-                    .Select(sm => sm with
-                    {
-                        Memory = sm.Memory with
-                        {
-                            Content = _optional.MemoryTruncator.SmartTruncate(sm.Memory.Content, query)
-                        }
-                    })
-                    .ToList();
-            }
-
-            var scanResult = new MemoryScanResult
-            {
-                TotalMemories = results.Count,
-                RelevantMemories = scoredMemories,
-                ScanTime = _clock.GetUtcNow()
-            };
-
-            // 记录搜索历史
-            if (_optional?.SearchHistoryService is not null)
-            {
-                try
-                {
-                    var topIds = scoredMemories
-                        .Take(5)
-                        .Select(m => m.Memory.Id)
-                        .ToImmutableList();
-
-                    await _optional.SearchHistoryService.RecordSearchAsync(
-                        query, scanResult.TotalMemories, topIds, ct).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogWarning(ex, L.T(StringKey.VaultLogRecordSearchHistoryFailed), query);
-                }
-            }
-
-            RecordMemoryMetrics("scan", scanResult.TotalMemories, scanResult.RelevantMemories.Count);
-
-            return scanResult;
         }
-        finally
+        else
         {
-            _skillLock.Release();
+            scoredMemories = results.Select(m => new DetailedScoredMemory
+            {
+                Memory = m,
+                RelevanceScore = CalculateAdvancedRelevanceScore(m, query),
+                MatchReason = GetMatchReason(m, query)
+            })
+            .OrderByDescending(m => m.RelevanceScore)
+            .Take(limit)
+            .ToList();
         }
+
+        // 使用 IMemoryTruncator 对长内容进行截断
+        if (_optional?.MemoryTruncator != null)
+        {
+            scoredMemories = scoredMemories
+                .Select(sm => sm with
+                {
+                    Memory = sm.Memory with
+                    {
+                        Content = _optional.MemoryTruncator.SmartTruncate(sm.Memory.Content, query)
+                    }
+                })
+                .ToList();
+        }
+
+        var scanResult = new MemoryScanResult
+        {
+            TotalMemories = results.Count,
+            RelevantMemories = scoredMemories,
+            ScanTime = _clock.GetUtcNow()
+        };
+
+        // 记录搜索历史
+        if (_optional?.SearchHistoryService is not null)
+        {
+            try
+            {
+                var topIds = scoredMemories
+                    .Take(5)
+                    .Select(m => m.Memory.Id)
+                    .ToImmutableList();
+
+                await _optional.SearchHistoryService.RecordSearchAsync(
+                    query, scanResult.TotalMemories, topIds, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, L.T(StringKey.VaultLogRecordSearchHistoryFailed), query);
+            }
+        }
+
+        RecordMemoryMetrics("scan", scanResult.TotalMemories, scanResult.RelevantMemories.Count);
+
+        return scanResult;
     }
 
     /// <inheritdoc />
     public async Task<List<MemoryAgeInfo>> GetMemoryAgeInfoAsync(CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        await _skillLock.WaitAsync(ct).ConfigureAwait(false);
-        try
+        using var guard = await _skillLock.LockAsync(ct).ConfigureAwait(false);
+        var stats = _memoryStore.GetStatistics();
+
+        var memories = stats.RecentlyAdded
+            .Concat(stats.MostAccessed)
+            .DistinctBy(m => m.Id);
+
+        if (_optional?.AgeCalculator != null)
         {
-            var stats = _memoryStore.GetStatistics();
-
-            var memories = stats.RecentlyAdded
-                .Concat(stats.MostAccessed)
-                .DistinctBy(m => m.Id);
-
-            if (_optional?.AgeCalculator != null)
+            // 使用 IMemoryAgeCalculator 计算老化信息
+            return memories.Select(m =>
             {
-                // 使用 IMemoryAgeCalculator 计算老化信息
-                return memories.Select(m =>
+                var agedRelevance = _optional?.AgeCalculator.CalculateAgedRelevance(m);
+                var shouldArchive = _optional?.AgeCalculator.ShouldArchive(m);
+                return new MemoryAgeInfo
                 {
-                    var agedRelevance = _optional?.AgeCalculator.CalculateAgedRelevance(m);
-                    var shouldArchive = _optional?.AgeCalculator.ShouldArchive(m);
-                    return new MemoryAgeInfo
-                    {
-                        MemoryId = m.Id,
-                        CreatedAt = m.CreatedAt,
-                        LastAccessedAt = m.LastAccessedAt,
-                        AccessCount = m.AccessCount
-                    };
-                })
-                .ToList();
-            }
-
-            return memories.Select(m => new MemoryAgeInfo
-            {
-                MemoryId = m.Id,
-                CreatedAt = m.CreatedAt,
-                LastAccessedAt = m.LastAccessedAt,
-                AccessCount = m.AccessCount
+                    MemoryId = m.Id,
+                    CreatedAt = m.CreatedAt,
+                    LastAccessedAt = m.LastAccessedAt,
+                    AccessCount = m.AccessCount
+                };
             })
             .ToList();
         }
-        finally
+
+        return memories.Select(m => new MemoryAgeInfo
         {
-            _skillLock.Release();
-        }
+            MemoryId = m.Id,
+            CreatedAt = m.CreatedAt,
+            LastAccessedAt = m.LastAccessedAt,
+            AccessCount = m.AccessCount
+        })
+        .ToList();
     }
 
     /// <inheritdoc />
@@ -537,41 +522,27 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     public async Task AddTeamMemoryPathAsync(string teamId, string path, bool isShared = true, List<string>? allowedAgents = null, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        await _skillLock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            // 移除已存在的相同路径
-            _teamMemoryPaths.Remove((teamId, path));
+        using var guard = await _skillLock.LockAsync(ct).ConfigureAwait(false);
+        // 移除已存在的相同路径
+        _teamMemoryPaths.Remove((teamId, path));
 
-            _teamMemoryPaths[(teamId, path)] = new TeamMemoryPath
-            {
-                TeamId = teamId,
-                Path = path,
-                IsShared = isShared,
-                AllowedAgents = allowedAgents ?? new List<string>()
-            };
-
-            _logger?.LogInformation(L.T(StringKey.VaultLogAddTeamPath), teamId, path);
-        }
-        finally
+        _teamMemoryPaths[(teamId, path)] = new TeamMemoryPath
         {
-            _skillLock.Release();
-        }
+            TeamId = teamId,
+            Path = path,
+            IsShared = isShared,
+            AllowedAgents = allowedAgents ?? new List<string>()
+        };
+
+        _logger?.LogInformation(L.T(StringKey.VaultLogAddTeamPath), teamId, path);
     }
 
     /// <inheritdoc />
     public async Task<List<TeamMemoryPath>> GetTeamMemoryPathsAsync(string? teamId = null, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        await _skillLock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            return GetTeamMemoryPathsCore(teamId);
-        }
-        finally
-        {
-            _skillLock.Release();
-        }
+        using var guard = await _skillLock.LockAsync(ct).ConfigureAwait(false);
+        return GetTeamMemoryPathsCore(teamId);
     }
 
     private List<TeamMemoryPath> GetTeamMemoryPathsCore(string? teamId)
@@ -590,21 +561,14 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     public async Task<bool> RemoveTeamMemoryPathAsync(string teamId, string path, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        await _skillLock.WaitAsync(ct).ConfigureAwait(false);
-        try
+        using var guard = await _skillLock.LockAsync(ct).ConfigureAwait(false);
+        var removed = _teamMemoryPaths.Remove((teamId, path));
+        if (removed)
         {
-            var removed = _teamMemoryPaths.Remove((teamId, path));
-            if (removed)
-            {
-                _logger?.LogInformation(L.T(StringKey.VaultLogRemoveTeamPath), teamId, path);
-                return true;
-            }
-            return false;
+            _logger?.LogInformation(L.T(StringKey.VaultLogRemoveTeamPath), teamId, path);
+            return true;
         }
-        finally
-        {
-            _skillLock.Release();
-        }
+        return false;
     }
 
     /// <inheritdoc />
@@ -612,76 +576,69 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     {
         ct.ThrowIfCancellationRequested();
 
-        await _skillLock.WaitAsync(ct).ConfigureAwait(false);
-        try
+        using var guard = await _skillLock.LockAsync(ct).ConfigureAwait(false);
+        var teamPaths = GetTeamMemoryPathsCore(teamId);
+
+        if (teamPaths.Count == 0)
         {
-            var teamPaths = GetTeamMemoryPathsCore(teamId);
+            return new MemoryScanResult { TotalMemories = 0 };
+        }
 
-            if (teamPaths.Count == 0)
-            {
-                return new MemoryScanResult { TotalMemories = 0 };
-            }
+        var pathPrefixes = new HashSet<string>(teamPaths.Select(tp => tp.Path), StringComparer.OrdinalIgnoreCase);
 
-            var pathPrefixes = new HashSet<string>(teamPaths.Select(tp => tp.Path), StringComparer.OrdinalIgnoreCase);
+        var filteredMemories = _memoryStore.Search(query, null, limit * 2)
+            .Where(m => pathPrefixes.Any(prefix => m.Source?.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) == true))
+            .ToList();
 
-            var filteredMemories = _memoryStore.Search(query, null, limit * 2)
-                .Where(m => pathPrefixes.Any(prefix => m.Source?.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) == true))
+        List<DetailedScoredMemory> results;
+        if (_optional?.RelevanceSelector != null)
+        {
+            // 使用 IMemoryRelevanceSelector 进行相关性选择
+            var selectedMemories = await _optional.RelevanceSelector.SelectRelevantMemoriesAsync(
+                filteredMemories, query, limit, ct).ConfigureAwait(false);
+            results = selectedMemories
+                .Select(sm => new DetailedScoredMemory
+                {
+                    Memory = sm.Memory,
+                    RelevanceScore = sm.RelevanceScore,
+                    MatchReason = L.T(StringKey.VaultTeamShared, teamId)
+                })
                 .ToList();
-
-            List<DetailedScoredMemory> results;
-            if (_optional?.RelevanceSelector != null)
-            {
-                // 使用 IMemoryRelevanceSelector 进行相关性选择
-                var selectedMemories = await _optional.RelevanceSelector.SelectRelevantMemoriesAsync(
-                    filteredMemories, query, limit, ct).ConfigureAwait(false);
-                results = selectedMemories
-                    .Select(sm => new DetailedScoredMemory
-                    {
-                        Memory = sm.Memory,
-                        RelevanceScore = sm.RelevanceScore,
-                        MatchReason = L.T(StringKey.VaultTeamShared, teamId)
-                    })
-                    .ToList();
-            }
-            else
-            {
-                results = filteredMemories
-                    .Select(m => new DetailedScoredMemory
-                    {
-                        Memory = m,
-                        RelevanceScore = CalculateAdvancedRelevanceScore(m, query),
-                        MatchReason = L.T(StringKey.VaultTeamShared, teamId)
-                    })
-                    .OrderByDescending(m => m.RelevanceScore)
-                    .Take(limit)
-                    .ToList();
-            }
-
-            // 使用 IMemoryTruncator 对长内容进行截断
-            if (_optional?.MemoryTruncator != null)
-            {
-                results = results
-                    .Select(sm => sm with
-                    {
-                        Memory = sm.Memory with
-                        {
-                            Content = _optional.MemoryTruncator.SmartTruncate(sm.Memory.Content, query)
-                        }
-                    })
-                    .ToList();
-            }
-
-            return new MemoryScanResult
-            {
-                TotalMemories = results.Count,
-                RelevantMemories = results,
-                ScanTime = _clock.GetUtcNow()
-            };
         }
-        finally
+        else
         {
-            _skillLock.Release();
+            results = filteredMemories
+                .Select(m => new DetailedScoredMemory
+                {
+                    Memory = m,
+                    RelevanceScore = CalculateAdvancedRelevanceScore(m, query),
+                    MatchReason = L.T(StringKey.VaultTeamShared, teamId)
+                })
+                .OrderByDescending(m => m.RelevanceScore)
+                .Take(limit)
+                .ToList();
         }
+
+        // 使用 IMemoryTruncator 对长内容进行截断
+        if (_optional?.MemoryTruncator != null)
+        {
+            results = results
+                .Select(sm => sm with
+                {
+                    Memory = sm.Memory with
+                    {
+                        Content = _optional.MemoryTruncator.SmartTruncate(sm.Memory.Content, query)
+                    }
+                })
+                .ToList();
+        }
+
+        return new MemoryScanResult
+        {
+            TotalMemories = results.Count,
+            RelevantMemories = results,
+            ScanTime = _clock.GetUtcNow()
+        };
     }
 
     #endregion

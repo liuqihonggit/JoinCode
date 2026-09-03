@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Tui.Tests</RootNamespace>
+    <AssemblyName>JoinCode.Tui.Tests</AssemblyName>
+    <Description>JoinCode TUI 子系统单元测试</Description>
+    <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)app\JoinCode\JoinCode.csproj" />
+    <ProjectReference Include="$(RepoRoot)app\JoinCodeTui\JoinCodeTui.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)composition\Composition\src\Composition.csproj" />
+    <ProjectReference Include="$(RepoRoot)composition\Clock\src\Clock.csproj" />
+    <ProjectReference Include="$(RepoRoot)core\execution\Brain\src\Brain.csproj" />
+    <ProjectReference Include="$(RepoRoot)core\safety\Guard\src\Guard.csproj" />
+    <ProjectReference Include="$(RepoRoot)core\safety\Vault\src\Vault.csproj" />
+    <ProjectReference Include="$(RepoRoot)core\execution\Hands\src\Hands.csproj" />
+    <ProjectReference Include="$(RepoRoot)infrastructure\Infrastructure\Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)services\Dream\src\Dream.csproj" />
+    <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="$(MicrosoftExtensionsTimeProviderTestingVersion)" />
+  </ItemGroup>
+
+</Project>

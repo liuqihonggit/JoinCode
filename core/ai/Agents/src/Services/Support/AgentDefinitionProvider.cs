@@ -19,7 +19,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
     private readonly IPluginAgentLoader? _pluginAgentLoader;
     private volatile List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition> _cachedDefinitions = [];
     private volatile bool _cacheLoaded;
-    private readonly SemaphoreSlim _cacheLock = new(1, 1);
+    private readonly AsyncLock _cacheLock = new();
 
     private static readonly string[] ProjectAgentDirs =
     new[] { 
@@ -35,41 +35,36 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         if (_cacheLoaded)
             return _cachedDefinitions;
 
-        await _cacheLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (_cacheLoaded)
-                return _cachedDefinitions;
+        using var guard = await _cacheLock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            var definitions = new List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>();
-            definitions.AddRange(GetBuiltInDefinitions());
-
-            if (_pluginAgentLoader is not null)
-            {
-                definitions.AddRange(_pluginAgentLoader.GetAll());
-            }
-
-            // 并行加载用户定义和项目定义
-            var loadTasks = new List<Task<List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>>>();
-            loadTasks.Add(LoadUserDefinitionsAsync(cancellationToken));
-            if (workingDirectory is not null)
-            {
-                loadTasks.Add(LoadProjectDefinitionsAsync(workingDirectory, cancellationToken));
-            }
-            var loadResults = await Task.WhenAll(loadTasks).ConfigureAwait(false);
-            foreach (var loaded in loadResults)
-            {
-                definitions.AddRange(loaded);
-            }
-
-            _cachedDefinitions = Deduplicate(definitions);
-            _cacheLoaded = true;
+        if (_cacheLoaded)
             return _cachedDefinitions;
-        }
-        finally
+
+        var definitions = new List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>();
+        definitions.AddRange(GetBuiltInDefinitions());
+
+        if (_pluginAgentLoader is not null)
         {
-            _cacheLock.Release();
+            definitions.AddRange(_pluginAgentLoader.GetAll());
         }
+
+        // 并行加载用户定义和项目定义
+        var loadTasks = new List<Task<List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>>>();
+        loadTasks.Add(LoadUserDefinitionsAsync(cancellationToken));
+        if (workingDirectory is not null)
+        {
+            loadTasks.Add(LoadProjectDefinitionsAsync(workingDirectory, cancellationToken));
+        }
+        var loadResults = await Task.WhenAll(loadTasks).ConfigureAwait(false);
+        foreach (var loaded in loadResults)
+        {
+            definitions.AddRange(loaded);
+        }
+
+        _cachedDefinitions = Deduplicate(definitions);
+        _cacheLoaded = true;
+        return _cachedDefinitions;
+    
     }
 
     public async Task<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition?> GetAgentDefinitionAsync(

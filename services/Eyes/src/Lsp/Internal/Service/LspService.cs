@@ -11,7 +11,7 @@ public sealed partial class LspService : ServiceEntity, ILspService
     private readonly IFileSystem _fs;
     private readonly ILogger<LspService>? _logger;
     private readonly ITelemetryService? _telemetryService;
-    private readonly SemaphoreSlim _initLock = new(1, 1);
+    private readonly AsyncLock _initLock = new();
     private int _isInitialized;
     private int _asyncDisposed;
 
@@ -43,23 +43,18 @@ public sealed partial class LspService : ServiceEntity, ILspService
     {
         if (Volatile.Read(ref _isInitialized) == 1 && _lspManager.IsInitialized) return;
 
-        await _initLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (Volatile.Read(ref _isInitialized) == 1 && _lspManager.IsInitialized) return;
+        using var guard = await _initLock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            var configEntries = await _configLoader.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
-            var instanceConfigs = configEntries.Select(e => e.ToLspInstanceConfig()).ToList();
+        if (Volatile.Read(ref _isInitialized) == 1 && _lspManager.IsInitialized) return;
 
-            await _lspManager.InitializeAsync(instanceConfigs, cancellationToken).ConfigureAwait(false);
-            Volatile.Write(ref _isInitialized, 1);
+        var configEntries = await _configLoader.LoadAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+        var instanceConfigs = configEntries.Select(e => e.ToLspInstanceConfig()).ToList();
 
-            _logger?.LogInformation("LSP Service initialized with {Count} server config(s)", instanceConfigs.Count);
-        }
-        finally
-        {
-            _initLock.Release();
-        }
+        await _lspManager.InitializeAsync(instanceConfigs, cancellationToken).ConfigureAwait(false);
+        Volatile.Write(ref _isInitialized, 1);
+
+        _logger?.LogInformation("LSP Service initialized with {Count} server config(s)", instanceConfigs.Count);
+    
     }
 
     private async Task EnsureFileOpenAsync(string filePath, CancellationToken cancellationToken = default)

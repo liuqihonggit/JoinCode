@@ -16,7 +16,7 @@ public sealed class BridgePermissionCallbackService : IBridgePermissionCallbacks
     private readonly IReplBridgeTransport _transport;
     private readonly ILogger? _logger;
     private readonly Dictionary<string, List<Func<PermissionCallbackResponse, Task>>> _handlers = new();
-    private readonly SemaphoreSlim _semaphore = new(1, 1);
+    private readonly AsyncLock _semaphore = new();
     private readonly CancellationTokenSource _disposeCts = new();
 
     public BridgePermissionCallbackService(IReplBridgeTransport transport, ILogger? logger = null)
@@ -97,9 +97,7 @@ public sealed class BridgePermissionCallbackService : IBridgePermissionCallbacks
 
     public Action OnResponse(string requestId, Func<PermissionCallbackResponse, Task> handler)
     {
-        _semaphore.Wait();
-        try
-        {
+        using var guard = _semaphore.Lock();
             if (!_handlers.TryGetValue(requestId, out var list))
             {
                 list = new List<Func<PermissionCallbackResponse, Task>>();
@@ -107,18 +105,11 @@ public sealed class BridgePermissionCallbackService : IBridgePermissionCallbacks
             }
 
             list.Add(handler);
-        }
-        finally
-        {
-            _semaphore.Release();
-        }
 
         // 返回取消订阅函数
         return () =>
         {
-            _semaphore.Wait();
-            try
-            {
+            using var guard = _semaphore.Lock();
                 if (_handlers.TryGetValue(requestId, out var list))
                 {
                     list.Remove(handler);
@@ -127,11 +118,6 @@ public sealed class BridgePermissionCallbackService : IBridgePermissionCallbacks
                         _handlers.Remove(requestId);
                     }
                 }
-            }
-            finally
-            {
-                _semaphore.Release();
-            }
         };
     }
 
@@ -140,21 +126,16 @@ public sealed class BridgePermissionCallbackService : IBridgePermissionCallbacks
     /// </summary>
     public async Task HandleResponseAsync(string requestId, PermissionCallbackResponse response)
     {
-        await _semaphore.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            if (!_handlers.TryGetValue(requestId, out var handlers)) return;
+        using var guard = await _semaphore.LockAsync().ConfigureAwait(false);
 
-            foreach (var handler in handlers)
-            {
-                try { await handler(response).ConfigureAwait(false); }
-                catch (Exception ex) { _logger?.LogWarning(ex, "[BridgePermissionCallbacks] 处理器抛出异常"); }
-            }
-        }
-        finally
+        if (!_handlers.TryGetValue(requestId, out var handlers)) return;
+
+        foreach (var handler in handlers)
         {
-            _semaphore.Release();
+            try { await handler(response).ConfigureAwait(false); }
+            catch (Exception ex) { _logger?.LogWarning(ex, "[BridgePermissionCallbacks] 处理器抛出异常"); }
         }
+    
     }
 
     /// <summary>

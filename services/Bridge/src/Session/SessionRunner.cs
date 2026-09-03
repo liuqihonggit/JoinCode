@@ -135,7 +135,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     private readonly BridgeSessionFactory _sessionFactory;
     private readonly BridgeSessionConfiguration _configuration;
     private readonly ILogger? _logger;
-    private readonly SemaphoreSlim _lock;
+    private readonly AsyncLock _lock = new();
     private readonly TimeProvider _timeProvider;
 
     private CancellationTokenSource? _cleanupCts;
@@ -160,7 +160,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
         _logger = logger;
         _sessions = new ConcurrentDictionary<string, BridgeSession>();
         _clientIdToSessionId = new ConcurrentDictionary<string, string>();
-        _lock = new SemaphoreSlim(1, 1);
+
         _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
@@ -223,36 +223,31 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
         Dictionary<string, string>? metadata = null,
         CancellationToken cancellationToken = default)
     {
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        var activeCount = _sessions.Values.Count(s => s.Status == BridgeSessionStatus.Active);
+        if (activeCount >= _configuration.MaxActiveSessions)
         {
-            var activeCount = _sessions.Values.Count(s => s.Status == BridgeSessionStatus.Active);
-            if (activeCount >= _configuration.MaxActiveSessions)
-            {
-                throw new InvalidOperationException(
-                    $"活跃会话数已达上限 ({_configuration.MaxActiveSessions})，无法创建新会话");
-            }
-
-            var session = _sessionFactory.Create(clientId, metadata);
-            _sessions[session.SessionId] = session;
-            _clientIdToSessionId[clientId] = session.SessionId;
-
-            _logger?.LogInformation(
-                "[SessionRunner] 会话已创建: {SessionId}, 客户端: {ClientId}",
-                session.SessionId,
-                clientId);
-
-            SessionStateChanged?.Invoke(this, new BridgeSessionStateChangedEventArgs(
-                session.SessionId,
-                BridgeSessionStatus.Active,
-                previousStatus: null));
-
-            return session;
+            throw new InvalidOperationException(
+                $"活跃会话数已达上限 ({_configuration.MaxActiveSessions})，无法创建新会话");
         }
-        finally
-        {
-            _lock.Release();
-        }
+
+        var session = _sessionFactory.Create(clientId, metadata);
+        _sessions[session.SessionId] = session;
+        _clientIdToSessionId[clientId] = session.SessionId;
+
+        _logger?.LogInformation(
+            "[SessionRunner] 会话已创建: {SessionId}, 客户端: {ClientId}",
+            session.SessionId,
+            clientId);
+
+        SessionStateChanged?.Invoke(this, new BridgeSessionStateChangedEventArgs(
+            session.SessionId,
+            BridgeSessionStatus.Active,
+            previousStatus: null));
+
+        return session;
+    
     }
 
     /// <summary>
@@ -263,38 +258,33 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// <exception cref="KeyNotFoundException">会话不存在</exception>
     public async Task StopSessionAsync(string sessionId, CancellationToken cancellationToken = default)
     {
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        if (!_sessions.TryGetValue(sessionId, out var session))
         {
-            if (!_sessions.TryGetValue(sessionId, out var session))
-            {
-                throw new KeyNotFoundException($"[BRG009] 会话不存在: {sessionId}");
-            }
-
-            if (!BridgeSessionTransitions.CanStop(session.Status))
-            {
-                _logger?.LogWarning("[SessionRunner] 会话已关闭: {SessionId}", sessionId);
-                return;
-            }
-
-            var previousStatus = session.Status;
-            session.Status = BridgeSessionStatus.Closed;
-            session.LastActiveAt = _timeProvider.GetUtcNow();
-
-            if (_clientIdToSessionId.TryGetValue(session.ClientId, out var mappedId) && mappedId == sessionId)
-                _clientIdToSessionId.TryRemove(session.ClientId, out _);
-
-            _logger?.LogInformation("[SessionRunner] 会话已停止: {SessionId}", sessionId);
-
-            SessionStateChanged?.Invoke(this, new BridgeSessionStateChangedEventArgs(
-                sessionId,
-                BridgeSessionStatus.Closed,
-                previousStatus));
+            throw new KeyNotFoundException($"[BRG009] 会话不存在: {sessionId}");
         }
-        finally
+
+        if (!BridgeSessionTransitions.CanStop(session.Status))
         {
-            _lock.Release();
+            _logger?.LogWarning("[SessionRunner] 会话已关闭: {SessionId}", sessionId);
+            return;
         }
+
+        var previousStatus = session.Status;
+        session.Status = BridgeSessionStatus.Closed;
+        session.LastActiveAt = _timeProvider.GetUtcNow();
+
+        if (_clientIdToSessionId.TryGetValue(session.ClientId, out var mappedId) && mappedId == sessionId)
+            _clientIdToSessionId.TryRemove(session.ClientId, out _);
+
+        _logger?.LogInformation("[SessionRunner] 会话已停止: {SessionId}", sessionId);
+
+        SessionStateChanged?.Invoke(this, new BridgeSessionStateChangedEventArgs(
+            sessionId,
+            BridgeSessionStatus.Closed,
+            previousStatus));
+    
     }
 
     /// <summary>
@@ -302,35 +292,30 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// </summary>
     public async Task SuspendSessionAsync(string sessionId, CancellationToken cancellationToken = default)
     {
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        if (!_sessions.TryGetValue(sessionId, out var session))
         {
-            if (!_sessions.TryGetValue(sessionId, out var session))
-            {
-                throw new KeyNotFoundException($"[BRG010] 会话不存在: {sessionId}");
-            }
-
-            if (!BridgeSessionTransitions.CanSuspend(session.Status))
-            {
-                _logger?.LogWarning("[SessionRunner] 无法挂起非活跃/空闲会话: {SessionId}, 状态: {Status}", sessionId, session.Status);
-                return;
-            }
-
-            var previousStatus = session.Status;
-            session.Status = BridgeSessionStatus.Suspended;
-            session.LastActiveAt = _timeProvider.GetUtcNow();
-
-            _logger?.LogInformation("[SessionRunner] 会话已挂起: {SessionId}", sessionId);
-
-            SessionStateChanged?.Invoke(this, new BridgeSessionStateChangedEventArgs(
-                sessionId,
-                BridgeSessionStatus.Suspended,
-                previousStatus));
+            throw new KeyNotFoundException($"[BRG010] 会话不存在: {sessionId}");
         }
-        finally
+
+        if (!BridgeSessionTransitions.CanSuspend(session.Status))
         {
-            _lock.Release();
+            _logger?.LogWarning("[SessionRunner] 无法挂起非活跃/空闲会话: {SessionId}, 状态: {Status}", sessionId, session.Status);
+            return;
         }
+
+        var previousStatus = session.Status;
+        session.Status = BridgeSessionStatus.Suspended;
+        session.LastActiveAt = _timeProvider.GetUtcNow();
+
+        _logger?.LogInformation("[SessionRunner] 会话已挂起: {SessionId}", sessionId);
+
+        SessionStateChanged?.Invoke(this, new BridgeSessionStateChangedEventArgs(
+            sessionId,
+            BridgeSessionStatus.Suspended,
+            previousStatus));
+    
     }
 
     /// <summary>
@@ -338,35 +323,30 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// </summary>
     public async Task ResumeSessionAsync(string sessionId, CancellationToken cancellationToken = default)
     {
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        if (!_sessions.TryGetValue(sessionId, out var session))
         {
-            if (!_sessions.TryGetValue(sessionId, out var session))
-            {
-                throw new KeyNotFoundException($"[BRG011] 会话不存在: {sessionId}");
-            }
-
-            if (!BridgeSessionTransitions.CanResume(session.Status))
-            {
-                _logger?.LogWarning("[SessionRunner] 无法恢复非挂起会话: {SessionId}, 状态: {Status}", sessionId, session.Status);
-                return;
-            }
-
-            var previousStatus = session.Status;
-            session.Status = BridgeSessionStatus.Active;
-            session.LastActiveAt = _timeProvider.GetUtcNow();
-
-            _logger?.LogInformation("[SessionRunner] 会话已恢复: {SessionId}", sessionId);
-
-            SessionStateChanged?.Invoke(this, new BridgeSessionStateChangedEventArgs(
-                sessionId,
-                BridgeSessionStatus.Active,
-                previousStatus));
+            throw new KeyNotFoundException($"[BRG011] 会话不存在: {sessionId}");
         }
-        finally
+
+        if (!BridgeSessionTransitions.CanResume(session.Status))
         {
-            _lock.Release();
+            _logger?.LogWarning("[SessionRunner] 无法恢复非挂起会话: {SessionId}, 状态: {Status}", sessionId, session.Status);
+            return;
         }
+
+        var previousStatus = session.Status;
+        session.Status = BridgeSessionStatus.Active;
+        session.LastActiveAt = _timeProvider.GetUtcNow();
+
+        _logger?.LogInformation("[SessionRunner] 会话已恢复: {SessionId}", sessionId);
+
+        SessionStateChanged?.Invoke(this, new BridgeSessionStateChangedEventArgs(
+            sessionId,
+            BridgeSessionStatus.Active,
+            previousStatus));
+    
     }
 
     /// <summary>
@@ -433,22 +413,17 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
         else if (session.Status != snapshot.State)
         {
             // 状态不一致 → 激活
-            await _lock.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                var previousStatus = session.Status;
-                session.Status = BridgeSessionStatus.Active;
-                session.LastActiveAt = _timeProvider.GetUtcNow();
+            using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
 
-                SessionStateChanged?.Invoke(this, new BridgeSessionStateChangedEventArgs(
-                    session.SessionId,
-                    BridgeSessionStatus.Active,
-                    previousStatus));
-            }
-            finally
-            {
-                _lock.Release();
-            }
+            var previousStatus = session.Status;
+            session.Status = BridgeSessionStatus.Active;
+            session.LastActiveAt = _timeProvider.GetUtcNow();
+
+            SessionStateChanged?.Invoke(this, new BridgeSessionStateChangedEventArgs(
+                session.SessionId,
+                BridgeSessionStatus.Active,
+                previousStatus));
+        
         }
 
         return session;
@@ -474,41 +449,36 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// <returns>刷新是否成功</returns>
     public async Task<bool> KeepAliveAsync(string sessionId, CancellationToken cancellationToken = default)
     {
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        if (!_sessions.TryGetValue(sessionId, out var session))
         {
-            if (!_sessions.TryGetValue(sessionId, out var session))
-            {
-                _logger?.LogWarning("[SessionRunner] KeepAlive 失败，会话不存在: {SessionId}", sessionId);
-                return false;
-            }
-
-            if (!BridgeSessionTransitions.CanKeepAlive(session.Status))
-            {
-                _logger?.LogWarning("[SessionRunner] KeepAlive 失败，会话已关闭: {SessionId}", sessionId);
-                return false;
-            }
-
-            var previousStatus = session.Status;
-            session.LastActiveAt = _timeProvider.GetUtcNow();
-            session.Status = BridgeSessionStatus.Active;
-
-            _logger?.LogDebug("[SessionRunner] KeepAlive 成功: {SessionId}", sessionId);
-
-            if (previousStatus != BridgeSessionStatus.Active)
-            {
-                SessionStateChanged?.Invoke(this, new BridgeSessionStateChangedEventArgs(
-                    sessionId,
-                    BridgeSessionStatus.Active,
-                    previousStatus));
-            }
-
-            return true;
+            _logger?.LogWarning("[SessionRunner] KeepAlive 失败，会话不存在: {SessionId}", sessionId);
+            return false;
         }
-        finally
+
+        if (!BridgeSessionTransitions.CanKeepAlive(session.Status))
         {
-            _lock.Release();
+            _logger?.LogWarning("[SessionRunner] KeepAlive 失败，会话已关闭: {SessionId}", sessionId);
+            return false;
         }
+
+        var previousStatus = session.Status;
+        session.LastActiveAt = _timeProvider.GetUtcNow();
+        session.Status = BridgeSessionStatus.Active;
+
+        _logger?.LogDebug("[SessionRunner] KeepAlive 成功: {SessionId}", sessionId);
+
+        if (previousStatus != BridgeSessionStatus.Active)
+        {
+            SessionStateChanged?.Invoke(this, new BridgeSessionStateChangedEventArgs(
+                sessionId,
+                BridgeSessionStatus.Active,
+                previousStatus));
+        }
+
+        return true;
+    
     }
 
     /// <summary>
@@ -518,65 +488,60 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// <returns>被清理的会话数量</returns>
     public async Task<int> CleanupExpiredSessionsAsync(CancellationToken cancellationToken = default)
     {
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        var now = _timeProvider.GetUtcNow();
+        var timeout = _configuration.SessionTimeout;
+        var expiredSessionIds = _sessions.Values
+            .Where(s => !BridgeSessionTransitions.IsTerminal(s.Status)
+                && now - s.LastActiveAt > timeout)
+            .Select(s => s.SessionId)
+            .ToList();
+
+        foreach (var sessionId in expiredSessionIds)
         {
-            var now = _timeProvider.GetUtcNow();
-            var timeout = _configuration.SessionTimeout;
-            var expiredSessionIds = _sessions.Values
-                .Where(s => !BridgeSessionTransitions.IsTerminal(s.Status)
-                    && now - s.LastActiveAt > timeout)
-                .Select(s => s.SessionId)
-                .ToList();
-
-            foreach (var sessionId in expiredSessionIds)
+            if (_sessions.TryGetValue(sessionId, out var session))
             {
-                if (_sessions.TryGetValue(sessionId, out var session))
-                {
-                    var previousStatus = session.Status;
-                    session.Status = BridgeSessionStatus.Closed;
-                    session.LastActiveAt = now;
+                var previousStatus = session.Status;
+                session.Status = BridgeSessionStatus.Closed;
+                session.LastActiveAt = now;
 
-                    _logger?.LogInformation(
-                        "[SessionRunner] 会话已过期并清理: {SessionId}, 空闲时长: {IdleDuration}",
-                        sessionId,
-                        now - session.LastActiveAt);
-
-                    SessionStateChanged?.Invoke(this, new BridgeSessionStateChangedEventArgs(
-                        sessionId,
-                        BridgeSessionStatus.Closed,
-                        previousStatus));
-
-                    SessionExpired?.Invoke(this, new BridgeSessionExpiredEventArgs(sessionId, session.ClientId));
-                }
-            }
-
-            // 移除已关闭的会话
-            var closedSessionIds = _sessions.Values
-                .Where(s => BridgeSessionTransitions.IsTerminal(s.Status))
-                .Select(s => s.SessionId)
-                .ToList();
-
-            foreach (var sessionId in closedSessionIds)
-            {
-                _sessions.TryRemove(sessionId, out _);
-            }
-
-            var totalCleaned = expiredSessionIds.Count + closedSessionIds.Count;
-            if (totalCleaned > 0)
-            {
                 _logger?.LogInformation(
-                    "[SessionRunner] 清理完成: {ExpiredCount} 个过期, {ClosedCount} 个已关闭移除",
-                    expiredSessionIds.Count,
-                    closedSessionIds.Count);
-            }
+                    "[SessionRunner] 会话已过期并清理: {SessionId}, 空闲时长: {IdleDuration}",
+                    sessionId,
+                    now - session.LastActiveAt);
 
-            return totalCleaned;
+                SessionStateChanged?.Invoke(this, new BridgeSessionStateChangedEventArgs(
+                    sessionId,
+                    BridgeSessionStatus.Closed,
+                    previousStatus));
+
+                SessionExpired?.Invoke(this, new BridgeSessionExpiredEventArgs(sessionId, session.ClientId));
+            }
         }
-        finally
+
+        // 移除已关闭的会话
+        var closedSessionIds = _sessions.Values
+            .Where(s => BridgeSessionTransitions.IsTerminal(s.Status))
+            .Select(s => s.SessionId)
+            .ToList();
+
+        foreach (var sessionId in closedSessionIds)
         {
-            _lock.Release();
+            _sessions.TryRemove(sessionId, out _);
         }
+
+        var totalCleaned = expiredSessionIds.Count + closedSessionIds.Count;
+        if (totalCleaned > 0)
+        {
+            _logger?.LogInformation(
+                "[SessionRunner] 清理完成: {ExpiredCount} 个过期, {ClosedCount} 个已关闭移除",
+                expiredSessionIds.Count,
+                closedSessionIds.Count);
+        }
+
+        return totalCleaned;
+    
     }
 
     /// <summary>

@@ -176,10 +176,10 @@ public sealed partial class LspClient : ILspClient
     private StreamWriter? _writer;
     private StreamReader? _reader;
     private int _requestId;
-    private readonly Dictionary<string, TaskCompletionSource<JsonNode?>> _pendingRequests = new();
+    private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonNode?>> _pendingRequests = new();
     private readonly Dictionary<string, Func<JsonNode?, CancellationToken, ValueTask>> _notificationHandlers = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Func<string, JsonNode?, CancellationToken, ValueTask<JsonNode?>>> _requestHandlers = new(StringComparer.Ordinal);
-    private readonly SemaphoreSlim _lock;
+
     private CancellationTokenSource? _readCts;
     private int _isDisposed;
 
@@ -191,7 +191,7 @@ public sealed partial class LspClient : ILspClient
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _processService = processService ?? throw new ArgumentNullException(nameof(processService));
-        _lock = new SemaphoreSlim(1, 1);
+
         _logger = logger;
     }
 
@@ -279,15 +279,7 @@ public sealed partial class LspClient : ILspClient
         _writer?.Dispose();
         _reader?.Dispose();
 
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            _pendingRequests.Clear();
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        _pendingRequests.Clear();
     }
 
     public async Task<bool> OpenDocumentAsync(string filePath, string languageId, string content, CancellationToken cancellationToken = default)
@@ -535,16 +527,7 @@ public sealed partial class LspClient : ILspClient
     {
         var id = Interlocked.Increment(ref _requestId).ToString();
         var tcs = new TaskCompletionSource<JsonNode?>();
-
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            _pendingRequests[id] = tcs;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        _pendingRequests[id] = tcs;
 
         var request = new LspJsonRpcRequest
         {
@@ -564,18 +547,11 @@ public sealed partial class LspClient : ILspClient
         }
         catch (OperationCanceledException)
         {
-            await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                _pendingRequests.Remove(id);
-            }
-            finally
-            {
-                _lock.Release();
-            }
+            _pendingRequests.TryRemove(id, out _);
             throw;
         }
     }
+
 
     internal async Task SendNotificationAsync(string method, JsonNode? @params, CancellationToken cancellationToken = default)
     {
@@ -677,30 +653,22 @@ public sealed partial class LspClient : ILspClient
                 {
                     var id = idNode.GetValue<string>();
 
-                    await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-                    try
+                    if (_pendingRequests.TryGetValue(id, out var tcs))
                     {
-                        if (_pendingRequests.TryGetValue(id, out var tcs))
+                        if (obj.TryGetPropertyValue("result", out var resultNode))
                         {
-                            if (obj.TryGetPropertyValue("result", out var resultNode))
-                            {
-                                tcs.TrySetResult(resultNode);
-                            }
-                            else if (obj.TryGetPropertyValue("error", out var errorNode))
-                            {
-                                tcs.TrySetException(new InvalidOperationException($"LSP错误: {errorNode?.ToJsonString()}"));
-                            }
-                            else
-                            {
-                                tcs.TrySetResult(null);
-                            }
-
-                            _pendingRequests.Remove(id);
+                            tcs.TrySetResult(resultNode);
                         }
-                    }
-                    finally
-                    {
-                        _lock.Release();
+                        else if (obj.TryGetPropertyValue("error", out var errorNode))
+                        {
+                            tcs.TrySetException(new InvalidOperationException($"LSP错误: {errorNode?.ToJsonString()}"));
+                        }
+                        else
+                        {
+                            tcs.TrySetResult(null);
+                        }
+
+                        _pendingRequests.TryRemove(id, out _);
                     }
                 }
             }
@@ -759,7 +727,6 @@ public sealed partial class LspClient : ILspClient
         }
 
         await DisconnectAsync().ConfigureAwait(false);
-        _lock.Dispose();
     }
 
     #endregion

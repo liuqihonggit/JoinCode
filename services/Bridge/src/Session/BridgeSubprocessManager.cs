@@ -13,7 +13,7 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
     private readonly IInteractiveProcess _process;
     private readonly ResilientSubprocess? _resilientSubprocess;
     private readonly TaskCompletionSource<BridgeSubprocessStatus> _doneTcs;
-    private readonly SemaphoreSlim _stdinLock;
+    private readonly AsyncLock _stdinLock = new();
     private readonly Queue<string> _stderrQueue;
     private readonly Queue<string> _activityQueue;
     private readonly ILogger? _logger;
@@ -90,7 +90,7 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
         AccessToken = options.AccessToken;
         _logger = logger;
         _doneTcs = new TaskCompletionSource<BridgeSubprocessStatus>();
-        _stdinLock = new SemaphoreSlim(1, 1);
+
         _stderrQueue = new Queue<string>(MaxStderrLines);
         _activityQueue = new Queue<string>(MaxActivities);
         _readCts = new CancellationTokenSource();
@@ -186,7 +186,7 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
             return;
         }
 
-        await _stdinLock.WaitAsync(ct).ConfigureAwait(false);
+        using var guard = await _stdinLock.LockAsync(ct).ConfigureAwait(false);
         try
         {
             if (_process.StandardInput.BaseStream is null || !_process.StandardInput.BaseStream.CanWrite)
@@ -202,10 +202,7 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
         {
             _logger?.LogWarning(ex, "[SubprocessHandle] 写入 stdin 失败");
         }
-        finally
-        {
-            _stdinLock.Release();
-        }
+
     }
 
     /// <summary>

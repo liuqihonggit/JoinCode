@@ -8,7 +8,7 @@ public sealed class PollingService : IAsyncDisposable
 {
     private readonly PipeRegistry _registry;
     private readonly int _pollIntervalMs;
-    private readonly SemaphoreSlim _semaphore = new(1, 1);
+    private readonly AsyncLock _semaphore = new();
     private readonly Dictionary<string, AgentState> _lastStates = new();
     private PeriodicTimer? _timer;
     private Task? _pollTask;
@@ -34,36 +34,22 @@ public sealed class PollingService : IAsyncDisposable
     /// <summary>启动轮询。</summary>
     public void Start()
     {
-        _semaphore.Wait();
-        try
-        {
-            if (_timer is not null) return;
-            _timer = new PeriodicTimer(TimeSpan.FromMilliseconds(_pollIntervalMs));
-            _pollTask = PollLoopAsync();
-        }
-        finally
-        {
-            _semaphore.Release();
-        }
+        using var guard = _semaphore.Lock();
+        if (_timer is not null) return;
+        _timer = new PeriodicTimer(TimeSpan.FromMilliseconds(_pollIntervalMs));
+        _pollTask = PollLoopAsync();
     }
 
     /// <summary>停止轮询。</summary>
     public async Task StopAsync()
     {
-        await _semaphore.WaitAsync().ConfigureAwait(false);
+        using var guard = await _semaphore.LockAsync().ConfigureAwait(false);
         PeriodicTimer? timer;
         Task? pollTask;
-        try
-        {
-            timer = _timer;
-            pollTask = _pollTask;
-            _timer = null;
-            _pollTask = null;
-        }
-        finally
-        {
-            _semaphore.Release();
-        }
+        timer = _timer;
+        pollTask = _pollTask;
+        _timer = null;
+        _pollTask = null;
         if (timer is not null)
         {
             timer.Dispose();

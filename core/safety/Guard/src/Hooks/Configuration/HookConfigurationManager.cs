@@ -57,7 +57,7 @@ public interface IHookConfigurationManager
 /// </summary>
 public sealed partial class HookConfigurationManager : IHookConfigurationManager, IAsyncDisposable
 {
-    private readonly SemaphoreSlim _lock;
+    private readonly AsyncLock _lock = new();
     private readonly IFileSystem _fs;
     private readonly ILogger<HookConfigurationManager>? _logger;
     private readonly ConcurrentDictionary<HookSource, IHookConfigurationProvider> _providers;
@@ -69,7 +69,7 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
         IFileSystem fs,
         ILogger<HookConfigurationManager>? logger = null)
     {
-        _lock = new SemaphoreSlim(1, 1);
+
         _fs = fs;
         _logger = logger;
         _providers = new ConcurrentDictionary<HookSource, IHookConfigurationProvider>();
@@ -94,55 +94,50 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
             return cached;
         }
 
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        // 双重检查
+        if (_cache.TryGetValue(CacheKey, out cached))
         {
-            // 双重检查
-            if (_cache.TryGetValue(CacheKey, out cached))
+            return cached;
+        }
+
+        var group = new HookConfigurationGroup();
+
+        // 按优先级顺序加载各来源
+        var sources = Enum.GetValues<HookSource>()
+            .OrderBy(s => s.GetPriority());
+
+        foreach (var source in sources)
+        {
+            if (_providers.TryGetValue(source, out var provider))
             {
-                return cached;
-            }
-
-            var group = new HookConfigurationGroup();
-
-            // 按优先级顺序加载各来源
-            var sources = Enum.GetValues<HookSource>()
-                .OrderBy(s => s.GetPriority());
-
-            foreach (var source in sources)
-            {
-                if (_providers.TryGetValue(source, out var provider))
+                try
                 {
-                    try
+                    var hooks = await provider.LoadHooksAsync(cancellationToken).ConfigureAwait(false);
+                    foreach (var hook in hooks)
                     {
-                        var hooks = await provider.LoadHooksAsync(cancellationToken).ConfigureAwait(false);
-                        foreach (var hook in hooks)
-                        {
-                            group.Add(hook);
-                        }
+                        group.Add(hook);
+                    }
 
-                        _logger?.LogDebug(
-                            "Loaded {Count} hooks from {Source}",
-                            hooks.Count,
-                            source);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger?.LogError(
-                            ex,
-                            "Failed to load hooks from {Source}",
-                            source);
-                    }
+                    _logger?.LogDebug(
+                        "Loaded {Count} hooks from {Source}",
+                        hooks.Count,
+                        source);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(
+                        ex,
+                        "Failed to load hooks from {Source}",
+                        source);
                 }
             }
+        }
 
-            _cache[CacheKey] = group;
-            return group;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        _cache[CacheKey] = group;
+        return group;
+    
     }
 
     /// <inheritdoc />
@@ -182,22 +177,17 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
             throw new InvalidOperationException($"Source {source} is not editable");
         }
 
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            await provider.AddHookAsync(hookEvent, matcher, hook, cancellationToken).ConfigureAwait(false);
-            _cache.Clear();
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            _logger?.LogInformation(
-                "Added hook to {Source} for event {Event}: {HookDisplay}",
-                source,
-                hookEvent,
-                hook.GetDisplayText());
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        await provider.AddHookAsync(hookEvent, matcher, hook, cancellationToken).ConfigureAwait(false);
+        _cache.Clear();
+
+        _logger?.LogInformation(
+            "Added hook to {Source} for event {Event}: {HookDisplay}",
+            source,
+            hookEvent,
+            hook.GetDisplayText());
+    
     }
 
     /// <inheritdoc />
@@ -218,22 +208,17 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
             throw new InvalidOperationException($"Source {source} is not editable");
         }
 
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            await provider.RemoveHookAsync(hookEvent, matcher, hook, cancellationToken).ConfigureAwait(false);
-            _cache.Clear();
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            _logger?.LogInformation(
-                "Removed hook from {Source} for event {Event}: {HookDisplay}",
-                source,
-                hookEvent,
-                hook.GetDisplayText());
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        await provider.RemoveHookAsync(hookEvent, matcher, hook, cancellationToken).ConfigureAwait(false);
+        _cache.Clear();
+
+        _logger?.LogInformation(
+            "Removed hook from {Source} for event {Event}: {HookDisplay}",
+            source,
+            hookEvent,
+            hook.GetDisplayText());
+    
     }
 
     /// <inheritdoc />

@@ -1,8 +1,13 @@
 <Solution>
   <Folder Name="/foundation/">
     <Project Path="foundation/Abstractions/Abstractions.csproj" />
+    <Project Path="foundation/AsyncLock/AsyncLock.csproj" />
     <Project Path="foundation/Structura/Structura.csproj" />
     <Project Path="foundation/Transport.Contracts/Transport.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/foundation/AsyncLock/tests/" />
+  <Folder Name="/foundation/AsyncLock/tests/Unit/">
+    <Project Path="foundation/AsyncLock/tests/Unit/AsyncLock.Tests.csproj" />
   </Folder>
   <Folder Name="/foundation/Structura/" />
   <Folder Name="/foundation/Structura/tests/" />

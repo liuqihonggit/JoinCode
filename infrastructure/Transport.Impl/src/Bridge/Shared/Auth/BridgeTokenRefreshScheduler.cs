@@ -17,7 +17,7 @@ public sealed class BridgeTokenRefreshScheduler : ITokenRefreshScheduler
     // 连续失败计数
     private readonly Dictionary<string, int> _failureCounts = new();
     // 异步锁 — 替代 lock 语句避免 JCC4001
-    private readonly SemaphoreSlim _semaphore = new(1, 1);
+    private readonly AsyncLock _semaphore = new();
 
     private const int MaxRefreshFailures = 3;
     private const int FailureRetryDelayMs = 60_000;
@@ -84,12 +84,13 @@ public sealed class BridgeTokenRefreshScheduler : ITokenRefreshScheduler
     public void Cancel(string sessionId)
     {
         // P1-7: 添加超时，防止永久阻塞
-        if (!_semaphore.Wait(SemaphoreWaitTimeout))
+        var guard = _semaphore.TryLock(SemaphoreWaitTimeout);
+        if (guard is null)
         {
             _options.Logger?.LogWarning("[{Label}] Cancel 信号量等待超时，跳过: {SessionId}", _options.Label, sessionId);
             return;
         }
-        try
+        using (guard)
         {
             if (_timers.Remove(sessionId, out var timer))
             {
@@ -99,22 +100,19 @@ public sealed class BridgeTokenRefreshScheduler : ITokenRefreshScheduler
             _generations.Remove(sessionId);
             _failureCounts.Remove(sessionId);
         }
-        finally
-        {
-            _semaphore.Release();
-        }
     }
 
     /// <summary>取消所有刷新定时器</summary>
     public void CancelAll()
     {
         // P1-7: 添加超时，防止永久阻塞
-        if (!_semaphore.Wait(SemaphoreWaitTimeout))
+        var guard = _semaphore.TryLock(SemaphoreWaitTimeout);
+        if (guard is null)
         {
             _options.Logger?.LogWarning("[{Label}] CancelAll 信号量等待超时，跳过", _options.Label);
             return;
         }
-        try
+        using (guard)
         {
             foreach (var timer in _timers.Values)
             {
@@ -125,21 +123,18 @@ public sealed class BridgeTokenRefreshScheduler : ITokenRefreshScheduler
             _generations.Clear();
             _failureCounts.Clear();
         }
-        finally
-        {
-            _semaphore.Release();
-        }
     }
 
     private void ScheduleFromDelay(string sessionId, long delayMs)
     {
         // P1-7: 添加超时，防止永久阻塞
-        if (!_semaphore.Wait(SemaphoreWaitTimeout))
+        var guard = _semaphore.TryLock(SemaphoreWaitTimeout);
+        if (guard is null)
         {
             _options.Logger?.LogWarning("[{Label}] ScheduleFromDelay 信号量等待超时，跳过: {SessionId}", _options.Label, sessionId);
             return;
         }
-        try
+        using (guard)
         {
             // 递增代际计数器
             ref var generation = ref System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(_generations, sessionId, out _);
@@ -158,29 +153,21 @@ public sealed class BridgeTokenRefreshScheduler : ITokenRefreshScheduler
             _timers[sessionId] = _timeProvider.CreateTimer(_ =>
             {
                 // 代际检查 — 防止过期异步 doRefresh 设置孤立定时器
-                // P1-7: 添加超时，防止永久阻塞
-                if (!_semaphore.Wait(SemaphoreWaitTimeout))
+                var innerGuard = _semaphore.TryLock(SemaphoreWaitTimeout);
+                if (innerGuard is null)
                 {
                     return;
                 }
-                try
+                using (innerGuard)
                 {
                     if (!_generations.TryGetValue(sessionId, out var gen) || gen != currentGeneration)
                     {
                         return;
                     }
                 }
-                finally
-                {
-                    _semaphore.Release();
-                }
 
                 _ = DoRefreshAsync(sessionId);
             }, null, TimeSpan.FromMilliseconds(delayMs), Timeout.InfiniteTimeSpan);
-        }
-        finally
-        {
-            _semaphore.Release();
         }
     }
 
@@ -189,18 +176,15 @@ public sealed class BridgeTokenRefreshScheduler : ITokenRefreshScheduler
         // 对齐 TS: doRefresh 中记录当前代际，异步操作后检查是否已过时
         long generationBeforeRefresh;
         // P1-7: 改用异步等待 + 超时
-        if (!await _semaphore.WaitAsync(SemaphoreWaitTimeout).ConfigureAwait(false))
+        var guard = await _semaphore.TryLockAsync(SemaphoreWaitTimeout).ConfigureAwait(false);
+        if (guard is null)
         {
             _options.Logger?.LogWarning("[{Label}] DoRefreshAsync(1) 信号量等待超时，跳过: {SessionId}", _options.Label, sessionId);
             return;
         }
-        try
+        using (guard)
         {
             generationBeforeRefresh = _generations.GetValueOrDefault(sessionId);
-        }
-        finally
-        {
-            _semaphore.Release();
         }
 
         try
@@ -210,12 +194,13 @@ public sealed class BridgeTokenRefreshScheduler : ITokenRefreshScheduler
             {
                 // 对齐 TS: 异步操作后检查代际是否已变化
                 // 如果 schedule/cancel 在此期间被调用，此 doRefresh 已过时
-                if (!await _semaphore.WaitAsync(SemaphoreWaitTimeout).ConfigureAwait(false))
+                var guard2 = await _semaphore.TryLockAsync(SemaphoreWaitTimeout).ConfigureAwait(false);
+                if (guard2 is null)
                 {
                     _options.Logger?.LogWarning("[{Label}] DoRefreshAsync(2) 信号量等待超时，跳过: {SessionId}", _options.Label, sessionId);
                     return;
                 }
-                try
+                using (guard2)
                 {
                     if (!_generations.TryGetValue(sessionId, out var gen) || gen != generationBeforeRefresh)
                     {
@@ -224,24 +209,17 @@ public sealed class BridgeTokenRefreshScheduler : ITokenRefreshScheduler
                         return;
                     }
                 }
-                finally
-                {
-                    _semaphore.Release();
-                }
 
                 _options.OnRefresh(sessionId, newToken);
                 _options.Logger?.LogDebug("[{Label}] Token 刷新成功: {SessionId}", _options.Label, sessionId);
 
                 // 重置失败计数 + 调度后续刷新（Schedule 内部获取信号量）
-                if (await _semaphore.WaitAsync(SemaphoreWaitTimeout).ConfigureAwait(false))
+                var guard3 = await _semaphore.TryLockAsync(SemaphoreWaitTimeout).ConfigureAwait(false);
+                if (guard3 is not null)
                 {
-                    try
+                    using (guard3)
                     {
                         _failureCounts.Remove(sessionId);
-                    }
-                    finally
-                    {
-                        _semaphore.Release();
                     }
                 }
 
@@ -252,12 +230,13 @@ public sealed class BridgeTokenRefreshScheduler : ITokenRefreshScheduler
         {
             _options.Logger?.LogWarning(ex, "[{Label}] Token 刷新失败: {SessionId}", _options.Label, sessionId);
 
-            if (!await _semaphore.WaitAsync(SemaphoreWaitTimeout).ConfigureAwait(false))
+            var catchGuard = await _semaphore.TryLockAsync(SemaphoreWaitTimeout).ConfigureAwait(false);
+            if (catchGuard is null)
             {
                 _options.Logger?.LogWarning("[{Label}] DoRefreshAsync(catch) 信号量等待超时，跳过失败计数: {SessionId}", _options.Label, sessionId);
                 return;
             }
-            try
+            using (catchGuard)
             {
                 ref var failures = ref System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(_failureCounts, sessionId, out _);
                 failures++;
@@ -276,10 +255,6 @@ public sealed class BridgeTokenRefreshScheduler : ITokenRefreshScheduler
                     // 回退刷新间隔
                     ScheduleFromDelay(sessionId, FallbackRefreshIntervalMs);
                 }
-            }
-            finally
-            {
-                _semaphore.Release();
             }
         }
     }

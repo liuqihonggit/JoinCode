@@ -8,7 +8,7 @@ public sealed class SshSession : ISshSession
     private readonly ILogger? _logger;
     private readonly IFileSystem _fs;
     private readonly SshPortForwardManager _portForwardManager;
-    private readonly SemaphoreSlim _stateLock = new(1, 1);
+    private readonly AsyncLock _stateLock = new();
     private readonly StateMachine<SshConnectionState> _stateMachine;
     private int _isDisposed;
     private Process? _sshProcess;
@@ -36,7 +36,7 @@ public sealed class SshSession : ISshSession
     {
         DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
 
-        await _stateLock.WaitAsync(ct).ConfigureAwait(false);
+        using var guard = await _stateLock.LockAsync(ct).ConfigureAwait(false);
         try
         {
             if (_stateMachine.CurrentState == SshConnectionState.Connected)
@@ -80,37 +80,29 @@ public sealed class SshSession : ISshSession
             _stateMachine.ForceTransitionTo(SshConnectionState.Error);
             throw;
         }
-        finally
-        {
-            _stateLock.Release();
-        }
+
     }
 
     public async Task DisconnectAsync(CancellationToken ct = default)
     {
         DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
 
-        await _stateLock.WaitAsync(ct).ConfigureAwait(false);
-        try
+        using var guard = await _stateLock.LockAsync(ct).ConfigureAwait(false);
+
+        StopKeepAlive();
+        await _portForwardManager.StopAllAsync(ct).ConfigureAwait(false);
+
+        if (_sshProcess != null && !_sshProcess.HasExited)
         {
-            StopKeepAlive();
-            await _portForwardManager.StopAllAsync(ct).ConfigureAwait(false);
-
-            if (_sshProcess != null && !_sshProcess.HasExited)
-            {
-                _sshProcess.Kill();
-                await _sshProcess.WaitForExitAsync(ct).ConfigureAwait(false);
-            }
-
-            _sshProcess = null;
-            _stateMachine.TransitionTo(SshConnectionState.Disconnected);
-
-            _logger?.LogInformation("SSH 会话已断开: {SessionId}", SessionId);
+            _sshProcess.Kill();
+            await _sshProcess.WaitForExitAsync(ct).ConfigureAwait(false);
         }
-        finally
-        {
-            _stateLock.Release();
-        }
+
+        _sshProcess = null;
+        _stateMachine.TransitionTo(SshConnectionState.Disconnected);
+
+        _logger?.LogInformation("SSH 会话已断开: {SessionId}", SessionId);
+    
     }
 
     public async Task ReconnectAsync(CancellationToken ct = default)

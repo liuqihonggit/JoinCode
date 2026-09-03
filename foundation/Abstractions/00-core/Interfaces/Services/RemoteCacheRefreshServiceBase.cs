@@ -5,7 +5,7 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : IDisposable
 {
     private readonly HttpClient _httpClient;
     private readonly ITelemetryService? _telemetryService;
-    private readonly SemaphoreSlim _refreshLock = new(1, 1);
+    private readonly AsyncLock _refreshLock = new();
     private readonly Timer _refreshTimer;
     private readonly ConcurrentDictionary<string, TItem> _cache = new(StringComparer.OrdinalIgnoreCase);
     private readonly CancellationTokenSource _disposeCts = new();
@@ -58,7 +58,7 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : IDisposable
             return;
         }
 
-        await _refreshLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _refreshLock.LockAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             Logger?.LogDebug("正在刷新{Label}配置", RefreshLogLabel);
@@ -90,10 +90,7 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : IDisposable
             Logger?.LogError(ex, "刷新{Label}失败", RefreshLogLabel);
             RecordMetrics("refresh", false);
         }
-        finally
-        {
-            _refreshLock.Release();
-        }
+
     }
 
     protected async Task EnsureCacheAsync(CancellationToken cancellationToken)

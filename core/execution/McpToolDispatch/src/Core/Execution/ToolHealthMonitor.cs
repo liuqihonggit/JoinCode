@@ -14,7 +14,7 @@ public sealed class ToolHealthMonitor : ServiceEntity, IToolHealthMonitor, IDisp
     private readonly ToolScoreConfig _config;
     internal ToolScoreConfig Config => _config;
     private readonly Dictionary<string, ToolHealthRecord> _records = new(StringComparer.OrdinalIgnoreCase);
-    private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly AsyncLock _lock = new();
     private readonly string _configPath;
     private readonly Timer? _decayTimer;
     private volatile BlacklistSnapshot _blacklistSnapshot;
@@ -132,96 +132,71 @@ public sealed class ToolHealthMonitor : ServiceEntity, IToolHealthMonitor, IDisp
 
     public async Task<ToolHealthRecord> RecordSuccessAsync(string toolName, CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            var record = GetOrCreate(toolName);
-            record.Score = Math.Clamp(record.Score + _config.SuccessDelta, _config.ScoreMin, _config.ScoreMax);
-            record.SuccessCount++;
-            record.ConsecutiveFailures = 0;
-            record.LastAdjusted = DateTime.UtcNow;
-            record.LastErrorMessage = null;
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
 
-            SaveToDisk();
-            return record;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        var record = GetOrCreate(toolName);
+        record.Score = Math.Clamp(record.Score + _config.SuccessDelta, _config.ScoreMin, _config.ScoreMax);
+        record.SuccessCount++;
+        record.ConsecutiveFailures = 0;
+        record.LastAdjusted = DateTime.UtcNow;
+        record.LastErrorMessage = null;
+
+        SaveToDisk();
+        return record;
+    
     }
 
     public async Task<ToolHealthRecord> RecordFailureAsync(string toolName, string? errorMessage, CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            var record = GetOrCreate(toolName);
-            record.Score = Math.Clamp(record.Score + _config.FailDelta, _config.ScoreMin, _config.ScoreMax);
-            record.FailCount++;
-            record.ConsecutiveFailures++;
-            record.LastAdjusted = DateTime.UtcNow;
-            record.LastErrorMessage = errorMessage;
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
 
-            if (record.ConsecutiveFailures >= _config.WarningThreshold)
-            {
-                _logger?.LogWarning("工具 {ToolName} 连续失败 {Count} 次，评分 {Score}，将在下次调用时注入提示词",
-                    toolName, record.ConsecutiveFailures, record.Score);
-            }
+        var record = GetOrCreate(toolName);
+        record.Score = Math.Clamp(record.Score + _config.FailDelta, _config.ScoreMin, _config.ScoreMax);
+        record.FailCount++;
+        record.ConsecutiveFailures++;
+        record.LastAdjusted = DateTime.UtcNow;
+        record.LastErrorMessage = errorMessage;
 
-            SaveToDisk();
-            return record;
-        }
-        finally
+        if (record.ConsecutiveFailures >= _config.WarningThreshold)
         {
-            _lock.Release();
+            _logger?.LogWarning("工具 {ToolName} 连续失败 {Count} 次，评分 {Score}，将在下次调用时注入提示词",
+                toolName, record.ConsecutiveFailures, record.Score);
         }
+
+        SaveToDisk();
+        return record;
+    
     }
 
     public async Task<ToolHealthRecord?> GetRecordAsync(string toolName, CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            return _records.GetValueOrDefault(toolName);
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+
+        return _records.GetValueOrDefault(toolName);
+    
     }
 
     public async Task<IReadOnlyDictionary<string, ToolHealthRecord>> GetAllRecordsAsync(CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            return _records.ToFrozenDictionary();
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+
+        return _records.ToFrozenDictionary();
+    
     }
 
     public async Task ResetToolAsync(string toolName, CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+
+        if (_records.TryGetValue(toolName, out var record))
         {
-            if (_records.TryGetValue(toolName, out var record))
-            {
-                record.Score = 0;
-                record.ConsecutiveFailures = 0;
-                record.IsEnabled = true;
-                record.LastAdjusted = DateTime.UtcNow;
-                SaveToDisk();
-            }
+            record.Score = 0;
+            record.ConsecutiveFailures = 0;
+            record.IsEnabled = true;
+            record.LastAdjusted = DateTime.UtcNow;
+            SaveToDisk();
         }
-        finally
-        {
-            _lock.Release();
-        }
+    
     }
 
     private ToolHealthRecord GetOrCreate(string toolName)
@@ -236,30 +211,23 @@ public sealed class ToolHealthMonitor : ServiceEntity, IToolHealthMonitor, IDisp
 
     private void ApplyTimeDecay()
     {
-        _lock.Wait();
-        try
+        using var guard = _lock.Lock();
+        var now = DateTime.UtcNow;
+        foreach (var record in _records.Values)
         {
-            var now = DateTime.UtcNow;
-            foreach (var record in _records.Values)
+            if (!record.IsEnabled) continue;
+
+            var idleHours = (now - record.LastAdjusted).TotalHours;
+            if (idleHours < 1) continue;
+
+            var decay = (int)Math.Floor(idleHours * _config.DecayRatePerHour * _config.DecayRecoveryScore);
+            if (record.Score < 0 && decay > 0)
             {
-                if (!record.IsEnabled) continue;
-
-                var idleHours = (now - record.LastAdjusted).TotalHours;
-                if (idleHours < 1) continue;
-
-                var decay = (int)Math.Floor(idleHours * _config.DecayRatePerHour * _config.DecayRecoveryScore);
-                if (record.Score < 0 && decay > 0)
-                {
-                    record.Score = Math.Min(0, record.Score + decay);
-                }
+                record.Score = Math.Min(0, record.Score + decay);
             }
+        }
 
-            SaveToDisk();
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        SaveToDisk();
     }
 
     private void LoadFromDisk()

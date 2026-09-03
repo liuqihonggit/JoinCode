@@ -9,7 +9,7 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
     private readonly string[] _buffer;
     private readonly int _capacity;
     private readonly HashSet<string> _set;
-    private readonly SemaphoreSlim _lock;
+    private readonly AsyncLock _lock = new();
 
     private int _head;
     private int _count;
@@ -26,7 +26,7 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
         _capacity = capacity;
         _buffer = new string[capacity];
         _set = new HashSet<string>(capacity, StringComparer.Ordinal);
-        _lock = new SemaphoreSlim(1, 1);
+
         _head = 0;
         _count = 0;
     }
@@ -36,15 +36,10 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
     /// </summary>
     public async Task<int> GetCountAsync(CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            return _count;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+
+        return _count;
+    
     }
 
     /// <summary>
@@ -64,36 +59,31 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
         if (string.IsNullOrEmpty(uuid))
             throw new ArgumentException("[TRN013] UUID不能为空", nameof(uuid));
 
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+
+        if (_set.Contains(uuid))
+            return false;
+
+        // 如果已满，移除最旧的元素
+        if (_count == _capacity)
         {
-            if (_set.Contains(uuid))
-                return false;
-
-            // 如果已满，移除最旧的元素
-            if (_count == _capacity)
-            {
-                var oldest = _buffer[_head];
-                _set.Remove(oldest);
-            }
-            else
-            {
-                _count++;
-            }
-
-            // 添加新元素
-            _buffer[_head] = uuid;
-            _set.Add(uuid);
-
-            // 移动头指针
-            _head = (_head + 1) % _capacity;
-
-            return true;
+            var oldest = _buffer[_head];
+            _set.Remove(oldest);
         }
-        finally
+        else
         {
-            _lock.Release();
+            _count++;
         }
+
+        // 添加新元素
+        _buffer[_head] = uuid;
+        _set.Add(uuid);
+
+        // 移动头指针
+        _head = (_head + 1) % _capacity;
+
+        return true;
+    
     }
 
     /// <summary>
@@ -107,15 +97,10 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
         if (string.IsNullOrEmpty(uuid))
             return false;
 
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            return _set.Contains(uuid);
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+
+        return _set.Contains(uuid);
+    
     }
 
     /// <summary>
@@ -126,16 +111,13 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
         if (string.IsNullOrEmpty(uuid))
             return false;
 
-        if (!_lock.Wait(0))
+        var guard = _lock.TryLock();
+        if (guard is null)
             return false; // 无法获取锁，保守返回 false
 
-        try
+        using (guard)
         {
             return _set.Contains(uuid);
-        }
-        finally
-        {
-            _lock.Release();
         }
     }
 
@@ -147,10 +129,11 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
         if (string.IsNullOrEmpty(uuid))
             return;
 
-        if (!_lock.Wait(0))
+        var guard = _lock.TryLock();
+        if (guard is null)
             return; // 无法获取锁，保守跳过
 
-        try
+        using (guard)
         {
             if (_set.Contains(uuid))
                 return;
@@ -170,10 +153,6 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
             _set.Add(uuid);
             _head = (_head + 1) % _capacity;
         }
-        finally
-        {
-            _lock.Release();
-        }
     }
 
     /// <summary>
@@ -182,18 +161,13 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
     /// <param name="ct">取消令牌</param>
     public async Task ClearAsync(CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            Array.Clear(_buffer, 0, _buffer.Length);
-            _set.Clear();
-            _head = 0;
-            _count = 0;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+
+        Array.Clear(_buffer, 0, _buffer.Length);
+        _set.Clear();
+        _head = 0;
+        _count = 0;
+    
     }
 
     /// <summary>
@@ -203,23 +177,18 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
     /// <returns>UUID列表</returns>
     public async Task<IReadOnlyList<string>> ToListAsync(CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            if (_count == 0)
-                return new List<string>();
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
 
-            // 计算最旧元素的索引
-            var startIndex = _count == _capacity ? _head : 0;
+        if (_count == 0)
+            return new List<string>();
 
-            return Enumerable.Range(0, _count)
-                .Select(i => _buffer[(startIndex + i) % _capacity])
-                .ToList();
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        // 计算最旧元素的索引
+        var startIndex = _count == _capacity ? _head : 0;
+
+        return Enumerable.Range(0, _count)
+            .Select(i => _buffer[(startIndex + i) % _capacity])
+            .ToList();
+    
     }
 
     /// <inheritdoc />

@@ -10,7 +10,7 @@ public partial class McpClientToolHandlers : ServiceEntity
 {
     private readonly Dictionary<string, IMcpClient> _clients = new();
     private readonly ILogger<McpClientToolHandlers>? _logger;
-    private readonly SemaphoreSlim _clientLock = new(1, 1);
+    private readonly AsyncLock _clientLock = new();
     private readonly McpClientToolDeps _deps;
     private int _asyncDisposed;
 
@@ -48,7 +48,7 @@ public partial class McpClientToolHandlers : ServiceEntity
             return ToolResultBuilder.Error().WithText($"MCP 服务器 '{connection_name}' 已被禁用，请先启用后再连接").Build();
         }
 
-        await _clientLock.WaitAsync(cancellationToken);
+        using var guard = await _clientLock.LockAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             if (_clients.ContainsKey(connection_name))
@@ -172,10 +172,6 @@ public partial class McpClientToolHandlers : ServiceEntity
             _logger?.LogError(ex, L.T(StringKey.ConnectMcpServerFailedLog), connection_name);
             return ToolExceptionDiagnosticHelper.BuildErrorResult("mcp_connect", ex, _logger, "connection_name", connection_name, "endpoint", endpoint);
         }
-        finally
-        {
-            _clientLock.Release();
-        }
     }
 
     /// <summary>
@@ -191,7 +187,7 @@ public partial class McpClientToolHandlers : ServiceEntity
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNameCannotBeEmpty)).Build();
         }
 
-        await _clientLock.WaitAsync(cancellationToken);
+        using var guard = await _clientLock.LockAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             if (!_clients.TryGetValue(connection_name, out var client))
@@ -216,10 +212,6 @@ public partial class McpClientToolHandlers : ServiceEntity
             _logger?.LogError(ex, L.T(StringKey.DisconnectFailedLog), connection_name);
             return ToolExceptionDiagnosticHelper.BuildErrorResult("mcp_disconnect", ex, _logger, "connection_name", connection_name);
         }
-        finally
-        {
-            _clientLock.Release();
-        }
     }
 
     [McpTool("mcp_disable_server", "Disable an MCP server (persisted to disk)", "mcp")]
@@ -234,7 +226,7 @@ public partial class McpClientToolHandlers : ServiceEntity
 
         var disabled = await _deps.ServerStateManager.DisableAsync(connection_name, cancellationToken).ConfigureAwait(false);
 
-        await _clientLock.WaitAsync(cancellationToken);
+        using var guard = await _clientLock.LockAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             if (_clients.TryGetValue(connection_name, out var client))
@@ -251,10 +243,6 @@ public partial class McpClientToolHandlers : ServiceEntity
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "禁用 MCP 服务器 {ServerName} 时断开连接失败", connection_name);
-        }
-        finally
-        {
-            _clientLock.Release();
         }
 
         return disabled
@@ -577,16 +565,9 @@ public partial class McpClientToolHandlers : ServiceEntity
 
     private async Task<IMcpClient?> GetClientAsync(string connectionName, CancellationToken cancellationToken)
     {
-        await _clientLock.WaitAsync(cancellationToken);
-        try
-        {
+        using var guard = await _clientLock.LockAsync(cancellationToken).ConfigureAwait(false);
             _clients.TryGetValue(connectionName, out var client);
             return client;
-        }
-        finally
-        {
-            _clientLock.Release();
-        }
     }
 
     private static McpClientTransportType ParseTransportType(string transportType)

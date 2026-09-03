@@ -7,7 +7,7 @@ public abstract class ConfigPersistentServiceBase<TValue> : IDisposable
     private readonly CancellationTokenSource _disposeCts = new();
     private int _disposed;
     private bool _initialized;
-    private readonly SemaphoreSlim _initLock = new(1, 1);
+    private readonly AsyncLock _initLock = new();
     protected readonly ILogger? _logger;
 
     protected ConfigPersistentServiceBase(TValue defaultValue, IConfigurationService? configService = null, ILogger? logger = null)
@@ -41,17 +41,14 @@ public abstract class ConfigPersistentServiceBase<TValue> : IDisposable
     {
         if (_initialized) return;
         if (Volatile.Read(ref _disposed) == 1) return;
-        if (!_initLock.Wait(0)) return;
-        try
+        var guard = _initLock.TryLock();
+        if (guard is null) return;
+        using (guard)
         {
             if (_initialized) return;
             try { InitializeAsync().GetAwaiter().GetResult(); }
             catch (Exception ex) { _logger?.LogWarning(ex, "{TypeName}: 初始化失败", GetType().Name); }
             _initialized = true;
-        }
-        finally
-        {
-            _initLock.Release();
         }
     }
 

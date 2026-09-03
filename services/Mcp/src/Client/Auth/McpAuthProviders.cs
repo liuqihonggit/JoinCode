@@ -110,7 +110,7 @@ public sealed class OAuth2AuthProvider : IMcpAuthProvider, IAsyncDisposable
     private readonly ILogger? _logger;
     private readonly IClockService _clock;
     private readonly List<string> _scopes;
-    private readonly SemaphoreSlim _refreshLock = new(1, 1);
+    private readonly AsyncLock _refreshLock = new();
 
     private McpAuthContext _authContext = new();
     private string? _pendingStepUpScope;
@@ -178,7 +178,7 @@ public sealed class OAuth2AuthProvider : IMcpAuthProvider, IAsyncDisposable
 
     public async Task<bool> RefreshAsync(CancellationToken cancellationToken = default)
     {
-        await _refreshLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _refreshLock.LockAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             _logger?.LogInformation("正在刷新 OAuth2 令牌...");
@@ -222,10 +222,7 @@ public sealed class OAuth2AuthProvider : IMcpAuthProvider, IAsyncDisposable
             _logger?.LogError(ex, "刷新令牌时发生异常");
             return false;
         }
-        finally
-        {
-            _refreshLock.Release();
-        }
+
     }
 
     private async Task EnsureAuthenticatedAsync(CancellationToken cancellationToken)

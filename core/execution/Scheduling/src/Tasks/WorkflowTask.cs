@@ -82,7 +82,7 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
     private readonly IClockService _clock;
     private readonly ITelemetryService? _telemetryService;
     private readonly ConcurrentDictionary<string, WorkflowRunState> _activeWorkflows = new();
-    private readonly SemaphoreSlim _stateLock = new(1, 1);
+    private readonly AsyncLock _stateLock = new();
 
     public WorkflowTaskExecutor(
         IToolExecutionGateway toolExecutionGateway,
@@ -155,16 +155,11 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
     {
         if (_activeWorkflows.TryGetValue(workflowId, out var runState))
         {
-            await _stateLock.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                runState.Cts.Cancel();
-                runState.State = TaskExecutionStatus.Cancelled;
-            }
-            finally
-            {
-                _stateLock.Release();
-            }
+            using var guard = await _stateLock.LockAsync(ct).ConfigureAwait(false);
+
+            runState.Cts.Cancel();
+            runState.State = TaskExecutionStatus.Cancelled;
+        
         }
     }
 

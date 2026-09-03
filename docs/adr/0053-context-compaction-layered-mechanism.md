@@ -3,7 +3,7 @@
 - 状态：accepted
 - 日期：2026-09-02
 - 决策者：项目架构组
-- 关联：[0015](docs/adr/0015-config-hotreload-dual-variable.md) | [0018](docs/adr/0018-loop-detector-state-machine.md) | [0040](docs/adr/0040-fsm-candidates.md)
+- 关联：[0015](docs/adr/0015-config-hotreload-dual-variable.md) | [0018](docs/adr/0018-loop-detector-state-machine.md) | [0040](docs/adr/0040-enterprise-fsm-framework.md)
 - 验证：Brain 编译 0 警告 0 错误，Context.Compact + Context.Compression 测试全通过 ✅
 
 ## 背景

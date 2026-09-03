@@ -6,7 +6,7 @@ public sealed partial class GitHubService : ServiceEntity, IGitHubService
     private readonly HttpClient _httpClient;
     private readonly IConfigurationService? _configService;
     private readonly ILogger<GitHubService>? _logger;
-    private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly AsyncLock _lock = new();
     private readonly Dictionary<string, PRSubscription> _subscriptions = new(StringComparer.Ordinal);
 
     public GitHubService(HttpClient httpClient, IConfigurationService? configService = null, ILogger<GitHubService>? logger = null)
@@ -18,16 +18,9 @@ public sealed partial class GitHubService : ServiceEntity, IGitHubService
 
     public async Task<IReadOnlyList<PRSubscription>> ListSubscriptionsAsync(CancellationToken ct = default)
     {
-        await LoadSubscriptionsAsync(ct).ConfigureAwait(false);
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            return _subscriptions.Values.ToList();
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+        await LoadSubscriptionsCoreAsync(ct).ConfigureAwait(false);
+        return _subscriptions.Values.ToList();
     }
 
     public async Task<PRSubscription> SubscribeAsync(string prRef, string events = "all", CancellationToken ct = default)
@@ -35,7 +28,9 @@ public sealed partial class GitHubService : ServiceEntity, IGitHubService
         if (string.IsNullOrWhiteSpace(prRef))
             throw new ArgumentException("[HND003] PR 引用不能为空", nameof(prRef));
 
-        await LoadSubscriptionsAsync(ct).ConfigureAwait(false);
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+
+        await LoadSubscriptionsCoreAsync(ct).ConfigureAwait(false);
 
         var subscription = new PRSubscription
         {
@@ -44,17 +39,9 @@ public sealed partial class GitHubService : ServiceEntity, IGitHubService
             SubscribedAt = DateTime.UtcNow
         };
 
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            _subscriptions[prRef] = subscription;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        _subscriptions[prRef] = subscription;
 
-        await SaveSubscriptionsAsync(ct).ConfigureAwait(false);
+        await SaveSubscriptionsCoreAsync(ct).ConfigureAwait(false);
 
         _logger?.LogInformation("已订阅 PR: {PrRef}，事件: {Events}", prRef, events);
         return subscription;
@@ -65,60 +52,44 @@ public sealed partial class GitHubService : ServiceEntity, IGitHubService
         if (string.IsNullOrWhiteSpace(prRef))
             throw new ArgumentException("[HND004] PR 引用不能为空", nameof(prRef));
 
-        await LoadSubscriptionsAsync(ct).ConfigureAwait(false);
+        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
 
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            _subscriptions.Remove(prRef);
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        await LoadSubscriptionsCoreAsync(ct).ConfigureAwait(false);
 
-        await SaveSubscriptionsAsync(ct).ConfigureAwait(false);
+        _subscriptions.Remove(prRef);
+
+        await SaveSubscriptionsCoreAsync(ct).ConfigureAwait(false);
         _logger?.LogInformation("已取消订阅 PR: {PrRef}", prRef);
     }
 
-    private async Task LoadSubscriptionsAsync(CancellationToken ct)
+    private async Task LoadSubscriptionsCoreAsync(CancellationToken ct)
     {
         if (_configService == null) return;
+        if (_subscriptions.Count > 0) return;
 
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            if (_subscriptions.Count > 0) return;
+            var json = await _configService.GetAsync("github.pr_subscriptions", ct).ConfigureAwait(false);
+            if (string.IsNullOrEmpty(json)) return;
 
-            try
+            var loaded = RelaxedJsonSerializer.Deserialize(json, GitHubSubscriptionContext.Default.ListPRSubscription);
+            if (loaded != null)
             {
-                var json = await _configService.GetAsync("github.pr_subscriptions", ct).ConfigureAwait(false);
-                if (string.IsNullOrEmpty(json)) return;
-
-                var loaded = RelaxedJsonSerializer.Deserialize(json, GitHubSubscriptionContext.Default.ListPRSubscription);
-                if (loaded != null)
-                {
-                    _subscriptions.Clear();
-                    foreach (var sub in loaded)
-                        _subscriptions[sub.PrRef] = sub;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogWarning(ex, "加载 PR 订阅失败");
+                _subscriptions.Clear();
+                foreach (var sub in loaded)
+                    _subscriptions[sub.PrRef] = sub;
             }
         }
-        finally
+        catch (Exception ex)
         {
-            _lock.Release();
+            _logger?.LogWarning(ex, "加载 PR 订阅失败");
         }
     }
 
-    private async Task SaveSubscriptionsAsync(CancellationToken ct)
+    private async Task SaveSubscriptionsCoreAsync(CancellationToken ct)
     {
         if (_configService == null) return;
 
-        await _lock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
             var json = RelaxedJsonSerializer.Serialize(_subscriptions.Values.ToList(), GitHubSubscriptionContext.Default);
@@ -127,10 +98,6 @@ public sealed partial class GitHubService : ServiceEntity, IGitHubService
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "保存 PR 订阅失败");
-        }
-        finally
-        {
-            _lock.Release();
         }
     }
 

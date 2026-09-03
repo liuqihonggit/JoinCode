@@ -40,7 +40,7 @@ public sealed class FlushGate<T> : IFlushGate<T>
 {
     private readonly FlushGateOptions _options;
     private readonly ILogger? _logger;
-    private readonly SemaphoreSlim _batchLock;
+    private readonly AsyncLock _batchLock = new();
     private readonly List<T> _currentBatch;
     private readonly Stopwatch _batchAgeStopwatch;
     private readonly TimeProvider _timeProvider;
@@ -59,7 +59,7 @@ public sealed class FlushGate<T> : IFlushGate<T>
     {
         _options = options ?? FlushGateOptions.CreateDefault();
         _logger = logger;
-        _batchLock = new SemaphoreSlim(1, 1);
+
         _currentBatch = new List<T>(_options.MaxBatchSize);
         _batchAgeStopwatch = new Stopwatch();
         _timeProvider = timeProvider ?? TimeProvider.System;
@@ -70,15 +70,10 @@ public sealed class FlushGate<T> : IFlushGate<T>
     /// </summary>
     public async Task<int> GetCurrentBatchSizeAsync(CancellationToken ct = default)
     {
-        await _batchLock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            return _currentBatch.Count;
-        }
-        finally
-        {
-            _batchLock.Release();
-        }
+        using var guard = await _batchLock.LockAsync(ct).ConfigureAwait(false);
+
+        return _currentBatch.Count;
+    
     }
 
     /// <summary>
@@ -87,27 +82,22 @@ public sealed class FlushGate<T> : IFlushGate<T>
     /// <param name="ct">取消令牌</param>
     public async Task StartAsync(CancellationToken ct = default)
     {
-        await _batchLock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            if (Interlocked.CompareExchange(ref _isRunning, 1, 0) != 0)
-            {
-                _logger?.LogWarning("[FlushGate] 已在运行中");
-                return;
-            }
+        using var guard = await _batchLock.LockAsync(ct).ConfigureAwait(false);
 
-            _flushCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            _flushLoopTask = RunFlushLoopAsync(_flushCts.Token);
-            _batchAgeStopwatch.Start();
-
-            _logger?.LogInformation(
-                "[FlushGate] 已启动，刷新间隔: {IntervalMs}ms，最大批次: {MaxBatch}",
-                _options.FlushIntervalMs, _options.MaxBatchSize);
-        }
-        finally
+        if (Interlocked.CompareExchange(ref _isRunning, 1, 0) != 0)
         {
-            _batchLock.Release();
+            _logger?.LogWarning("[FlushGate] 已在运行中");
+            return;
         }
+
+        _flushCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        _flushLoopTask = RunFlushLoopAsync(_flushCts.Token);
+        _batchAgeStopwatch.Start();
+
+        _logger?.LogInformation(
+            "[FlushGate] 已启动，刷新间隔: {IntervalMs}ms，最大批次: {MaxBatch}",
+            _options.FlushIntervalMs, _options.MaxBatchSize);
+    
     }
 
     /// <summary>
@@ -151,28 +141,15 @@ public sealed class FlushGate<T> : IFlushGate<T>
     {
         ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
 
-        bool shouldFlush = false;
+        using var guard = await _batchLock.LockAsync(ct).ConfigureAwait(false);
 
-        await _batchLock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            _currentBatch.Add(item);
+        _currentBatch.Add(item);
 
-            // 批次满或超过最大等待时间，标记需要刷新
-            if (_currentBatch.Count >= _options.MaxBatchSize ||
-                _batchAgeStopwatch.ElapsedMilliseconds >= _options.MaxWaitMs)
-            {
-                shouldFlush = true;
-            }
-        }
-        finally
+        // 批次满或超过最大等待时间，立即刷新（持锁调用 Core，不重入锁）
+        if (_currentBatch.Count >= _options.MaxBatchSize ||
+            _batchAgeStopwatch.ElapsedMilliseconds >= _options.MaxWaitMs)
         {
-            _batchLock.Release();
-        }
-
-        if (shouldFlush)
-        {
-            await FlushAsync(ct).ConfigureAwait(false);
+            FlushCore();
         }
     }
 
@@ -182,24 +159,23 @@ public sealed class FlushGate<T> : IFlushGate<T>
     /// <param name="ct">取消令牌</param>
     public async Task FlushAsync(CancellationToken ct = default)
     {
-        List<T> batchToFlush;
+        using var guard = await _batchLock.LockAsync(ct).ConfigureAwait(false);
+        FlushCore();
+    }
 
-        await _batchLock.WaitAsync(ct).ConfigureAwait(false);
-        try
+    /// <summary>
+    /// 刷新核心逻辑（调用方须已持有 _batchLock）
+    /// </summary>
+    private void FlushCore()
+    {
+        if (_currentBatch.Count == 0)
         {
-            if (_currentBatch.Count == 0)
-            {
-                return;
-            }
+            return;
+        }
 
-            batchToFlush = new List<T>(_currentBatch);
-            _currentBatch.Clear();
-            _batchAgeStopwatch.Restart();
-        }
-        finally
-        {
-            _batchLock.Release();
-        }
+        var batchToFlush = new List<T>(_currentBatch);
+        _currentBatch.Clear();
+        _batchAgeStopwatch.Restart();
 
         _logger?.LogDebug("[FlushGate] 刷新批次，条目数: {Count}", batchToFlush.Count);
 

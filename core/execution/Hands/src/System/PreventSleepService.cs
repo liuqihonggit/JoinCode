@@ -12,7 +12,7 @@ public sealed partial class PreventSleepService : ServiceEntity, IPreventSleepSe
     }
     private readonly ILogger<PreventSleepService>? _logger;
     private readonly ITelemetryService? _telemetryService;
-    private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly AsyncLock _lock = new();
     private uint _previousExecutionState;
     private bool _isSleepPrevented;
     private bool _disposed;
@@ -23,68 +23,58 @@ public sealed partial class PreventSleepService : ServiceEntity, IPreventSleepSe
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        if (_isSleepPrevented)
         {
-            if (_isSleepPrevented)
-            {
-                _logger?.LogDebug(L.T(StringKey.PreventSleepAlreadyActive));
-                return true;
-            }
-
-            var flags = type == SleepPreventionType.Continuous
-                ? ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_AWAYMODE_REQUIRED
-                : ES_SYSTEM_REQUIRED | ES_AWAYMODE_REQUIRED;
-
-            var result = SetThreadExecutionState(flags);
-            if (result == 0)
-            {
-                _logger?.LogError(L.T(StringKey.PreventSleepSetStateFailed));
-                return false;
-            }
-
-            _previousExecutionState = result;
-            _isSleepPrevented = true;
-
-            _logger?.LogInformation(L.T(StringKey.PreventSleepActivated), type);
-            RecordSleepMetrics("prevent", true);
+            _logger?.LogDebug(L.T(StringKey.PreventSleepAlreadyActive));
             return true;
         }
-        finally
+
+        var flags = type == SleepPreventionType.Continuous
+            ? ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_AWAYMODE_REQUIRED
+            : ES_SYSTEM_REQUIRED | ES_AWAYMODE_REQUIRED;
+
+        var result = SetThreadExecutionState(flags);
+        if (result == 0)
         {
-            _lock.Release();
+            _logger?.LogError(L.T(StringKey.PreventSleepSetStateFailed));
+            return false;
         }
+
+        _previousExecutionState = result;
+        _isSleepPrevented = true;
+
+        _logger?.LogInformation(L.T(StringKey.PreventSleepActivated), type);
+        RecordSleepMetrics("prevent", true);
+        return true;
+    
     }
 
     public async Task<bool> AllowSleepAsync(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        if (!_isSleepPrevented)
         {
-            if (!_isSleepPrevented)
-            {
-                return true;
-            }
-
-            var result = SetThreadExecutionState(ES_CONTINUOUS);
-            if (result == 0)
-            {
-                _logger?.LogError(L.T(StringKey.PreventSleepRestoreFailed));
-                return false;
-            }
-
-            _isSleepPrevented = false;
-
-            _logger?.LogInformation(L.T(StringKey.PreventSleepDeactivated));
-            RecordSleepMetrics("allow", true);
             return true;
         }
-        finally
+
+        var result = SetThreadExecutionState(ES_CONTINUOUS);
+        if (result == 0)
         {
-            _lock.Release();
+            _logger?.LogError(L.T(StringKey.PreventSleepRestoreFailed));
+            return false;
         }
+
+        _isSleepPrevented = false;
+
+        _logger?.LogInformation(L.T(StringKey.PreventSleepDeactivated));
+        RecordSleepMetrics("allow", true);
+        return true;
+    
     }
 
     protected override void OnDispose()

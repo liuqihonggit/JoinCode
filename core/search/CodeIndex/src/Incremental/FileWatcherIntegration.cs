@@ -10,7 +10,7 @@ public sealed partial class FileWatcherIntegration : IAsyncDisposable
     private readonly TimeSpan _debounceInterval;
     private readonly Action<Exception>? _onError;
     private readonly List<Task> _pendingUpdates = [];
-    private readonly SemaphoreSlim _pendingLock = new(1, 1);
+    private readonly AsyncLock _pendingLock = new();
     private CancellationTokenSource? _updateCts;
     private IFileSystemWatcher? _watcher;
     private readonly ILogger<FileWatcherIntegration>? _logger;
@@ -85,15 +85,10 @@ public sealed partial class FileWatcherIntegration : IAsyncDisposable
         _updateCts?.Cancel();
 
         Task[] pending;
-        await _pendingLock.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            pending = [.. _pendingUpdates];
-        }
-        finally
-        {
-            _pendingLock.Release();
-        }
+        using var guard = await _pendingLock.LockAsync(ct).ConfigureAwait(false);
+
+        pending = [.. _pendingUpdates];
+    
 
         if (pending.Length > 0)
         {
@@ -150,15 +145,10 @@ public sealed partial class FileWatcherIntegration : IAsyncDisposable
         {
             var ct = _updateCts?.Token ?? CancellationToken.None;
             var task = SafeUpdateAsync(filePath, ct);
-            await _pendingLock.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                _pendingUpdates.Add(task);
-            }
-            finally
-            {
-                _pendingLock.Release();
-            }
+            using var guard = await _pendingLock.LockAsync(ct).ConfigureAwait(false);
+
+            _pendingUpdates.Add(task);
+        
 
             _ = WatchTaskAsync(task);
         }
@@ -182,15 +172,10 @@ public sealed partial class FileWatcherIntegration : IAsyncDisposable
         }
         finally
         {
-            await _pendingLock.WaitAsync().ConfigureAwait(false);
-            try
-            {
-                _pendingUpdates.Remove(task);
-            }
-            finally
-            {
-                _pendingLock.Release();
-            }
+            using var guard = await _pendingLock.LockAsync().ConfigureAwait(false);
+
+            _pendingUpdates.Remove(task);
+        
         }
     }
 

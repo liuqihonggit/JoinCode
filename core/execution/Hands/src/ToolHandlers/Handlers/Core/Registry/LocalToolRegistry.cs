@@ -7,7 +7,7 @@ public sealed partial class LocalToolRegistry : IToolRegistry
     private readonly Dictionary<string, IToolHandler> _tools = new();
     private readonly Dictionary<ToolKind, Dictionary<string, IToolHandler>> _kindIndex = new();
     private readonly Dictionary<string, Dictionary<string, IToolHandler>> _groupIndex = new(StringComparer.OrdinalIgnoreCase);
-    private readonly SemaphoreSlim _lock;
+    private readonly AsyncLock _lock = new();
     private readonly ILogger? _logger;
 
     public event EventHandler<ToolRegisteredEventArgs>? ToolRegistered;
@@ -16,13 +16,13 @@ public sealed partial class LocalToolRegistry : IToolRegistry
 
     public LocalToolRegistry()
     {
-        _lock = new SemaphoreSlim(1, 1);
+
         _logger = null;
     }
 
     public LocalToolRegistry(ILogger? logger)
     {
-        _lock = new SemaphoreSlim(1, 1);
+
         _logger = logger;
     }
 
@@ -30,27 +30,22 @@ public sealed partial class LocalToolRegistry : IToolRegistry
     {
         ArgumentNullException.ThrowIfNull(handler);
 
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        var isOverwrite = _tools.ContainsKey(handler.Name);
+
+        if (isOverwrite)
         {
-            var isOverwrite = _tools.ContainsKey(handler.Name);
-
-            if (isOverwrite)
-            {
-                var old = _tools[handler.Name];
-                RemoveFromIndex(old);
-            }
-
-            _tools[handler.Name] = handler;
-            AddToIndex(handler);
-
-            OnToolRegistered(handler.Name, handler.Description);
-            _logger?.LogDebug(isOverwrite ? "Tool re-registered (overwritten): {ToolName}" : "Tool registered: {ToolName}", handler.Name);
+            var old = _tools[handler.Name];
+            RemoveFromIndex(old);
         }
-        finally
-        {
-            _lock.Release();
-        }
+
+        _tools[handler.Name] = handler;
+        AddToIndex(handler);
+
+        OnToolRegistered(handler.Name, handler.Description);
+        _logger?.LogDebug(isOverwrite ? "Tool re-registered (overwritten): {ToolName}" : "Tool registered: {ToolName}", handler.Name);
+    
     }
 
     public async Task RegisterToolAsync(string name, string description, ToolSchema inputSchema, ToolHandler handler, CancellationToken cancellationToken = default, ToolKind kind = ToolKind.System, string? groupName = null, ToolTimeoutPolicy? timeoutPolicy = null, string? category = null)
@@ -67,90 +62,60 @@ public sealed partial class LocalToolRegistry : IToolRegistry
     {
         ArgumentException.ThrowIfNullOrEmpty(toolName);
 
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (!_tools.Remove(toolName, out var handler))
-                return false;
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            RemoveFromIndex(handler);
-            OnToolUnregistered(toolName);
-            _logger?.LogDebug("Tool unregistered: {ToolName}", toolName);
-            return true;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        if (!_tools.Remove(toolName, out var handler))
+            return false;
+
+        RemoveFromIndex(handler);
+        OnToolUnregistered(toolName);
+        _logger?.LogDebug("Tool unregistered: {ToolName}", toolName);
+        return true;
+    
     }
 
     public async Task<IToolHandler?> GetToolAsync(string toolName, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(toolName);
 
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            return _tools.GetValueOrDefault(toolName);
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        return _tools.GetValueOrDefault(toolName);
+    
     }
 
     public async Task<IReadOnlyDictionary<string, IToolHandler>> GetAllToolsAsync(CancellationToken cancellationToken = default)
     {
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            return _tools.ToFrozenDictionary();
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        return _tools.ToFrozenDictionary();
+    
     }
 
     public async Task<FrozenSet<string>> GetGroupNamesAsync(CancellationToken cancellationToken = default)
     {
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            return _groupIndex.Keys.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        return _groupIndex.Keys.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+    
     }
 
     public async Task<IReadOnlyDictionary<string, IToolHandler>> GetToolsByKindAsync(ToolKind kind, CancellationToken cancellationToken = default)
     {
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            return _kindIndex.GetValueOrDefault(kind)?.ToFrozenDictionary() ?? FrozenDictionary<string, IToolHandler>.Empty;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        return _kindIndex.GetValueOrDefault(kind)?.ToFrozenDictionary() ?? FrozenDictionary<string, IToolHandler>.Empty;
+    
     }
 
     public async Task<IReadOnlyDictionary<string, IToolHandler>> GetToolsByGroupAsync(string groupName, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(groupName);
 
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            return _groupIndex.GetValueOrDefault(groupName)?.ToFrozenDictionary() ?? FrozenDictionary<string, IToolHandler>.Empty;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        return _groupIndex.GetValueOrDefault(groupName)?.ToFrozenDictionary() ?? FrozenDictionary<string, IToolHandler>.Empty;
+    
     }
 
     public async Task<ToolResult> ExecuteToolAsync(
@@ -163,8 +128,7 @@ public sealed partial class LocalToolRegistry : IToolRegistry
         ArgumentNullException.ThrowIfNull(arguments);
 
         IToolHandler? handler;
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        using (var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false))
         {
             if (!_tools.TryGetValue(toolName, out handler))
             {
@@ -174,10 +138,6 @@ public sealed partial class LocalToolRegistry : IToolRegistry
                     IsError = true
                 };
             }
-        }
-        finally
-        {
-            _lock.Release();
         }
 
         try
@@ -230,45 +190,30 @@ public sealed partial class LocalToolRegistry : IToolRegistry
     {
         ArgumentException.ThrowIfNullOrEmpty(toolName);
 
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            return _tools.ContainsKey(toolName);
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        return _tools.ContainsKey(toolName);
+    
     }
 
     public async Task<int> GetCountAsync(CancellationToken cancellationToken = default)
     {
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            return _tools.Count;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        return _tools.Count;
+    
     }
 
     public async Task ClearAsync(CancellationToken cancellationToken = default)
     {
-        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            _tools.Clear();
-            _kindIndex.Clear();
-            _groupIndex.Clear();
-            OnToolsCleared();
-            _logger?.LogInformation("All tools cleared");
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        _tools.Clear();
+        _kindIndex.Clear();
+        _groupIndex.Clear();
+        OnToolsCleared();
+        _logger?.LogInformation("All tools cleared");
+    
     }
 
     public ValueTask DisposeAsync()

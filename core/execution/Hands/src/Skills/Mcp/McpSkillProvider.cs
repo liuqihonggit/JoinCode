@@ -8,7 +8,7 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider
     private readonly ConcurrentDictionary<string, SkillDefinition> _mcpSkills;
     private readonly ConcurrentDictionary<string, McpSkillAdapter> _adapters;
     private readonly ILogger<McpSkillProvider>? _logger;
-    private readonly SemaphoreSlim _refreshLock;
+    private readonly AsyncLock _refreshLock = new();
     private bool _isDisposed;
 
     public McpSkillProvider(ILogger<McpSkillProvider>? logger = null)
@@ -17,7 +17,7 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider
         _mcpSkills = new ConcurrentDictionary<string, SkillDefinition>(StringComparer.OrdinalIgnoreCase);
         _adapters = new ConcurrentDictionary<string, McpSkillAdapter>(StringComparer.OrdinalIgnoreCase);
         _logger = logger;
-        _refreshLock = new SemaphoreSlim(1, 1);
+
     }
 
     public void RegisterClient(string serverName, IMcpClient client)
@@ -91,57 +91,52 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider
 
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
-        await _refreshLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        using var guard = await _refreshLock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        _mcpSkills.Clear();
+
+        foreach (var (serverName, client) in _clients)
         {
-            _mcpSkills.Clear();
-
-            foreach (var (serverName, client) in _clients)
+            try
             {
-                try
+                if (!client.IsConnected)
                 {
-                    if (!client.IsConnected)
-                    {
-                        await client.ConnectAsync(cancellationToken).ConfigureAwait(false);
-                    }
-
-                    var toolsResult = await client.ListToolsAsync(cancellationToken).ConfigureAwait(false);
-                    if (!toolsResult.Success)
-                    {
-                        _logger?.LogWarning("[McpSkillProvider] 获取 MCP 服务器 {Server} 工具列表失败: {Error}",
-                            serverName, toolsResult.ErrorMessage);
-                        continue;
-                    }
-
-                    var adapter = _adapters.GetValueOrDefault(serverName);
-                    if (adapter == null)
-                    {
-                        continue;
-                    }
-
-                    foreach (var tool in toolsResult.GetData())
-                    {
-                        var skill = await adapter.AdaptToolAsync(tool, cancellationToken).ConfigureAwait(false);
-                        if (skill != null)
-                        {
-                            var namespacedSkill = skill with { Namespace = $"mcp.{serverName}" };
-                            _mcpSkills[namespacedSkill.Name] = namespacedSkill;
-                        }
-                    }
-
-                    _logger?.LogInformation("[McpSkillProvider] 从 MCP 服务器 {Server} 加载 {Count} 个技能",
-                        serverName, toolsResult.GetData().Count);
+                    await client.ConnectAsync(cancellationToken).ConfigureAwait(false);
                 }
-                catch (Exception ex)
+
+                var toolsResult = await client.ListToolsAsync(cancellationToken).ConfigureAwait(false);
+                if (!toolsResult.Success)
                 {
-                    _logger?.LogError(ex, "[McpSkillProvider] 刷新 MCP 服务器 {Server} 失败", serverName);
+                    _logger?.LogWarning("[McpSkillProvider] 获取 MCP 服务器 {Server} 工具列表失败: {Error}",
+                        serverName, toolsResult.ErrorMessage);
+                    continue;
                 }
+
+                var adapter = _adapters.GetValueOrDefault(serverName);
+                if (adapter == null)
+                {
+                    continue;
+                }
+
+                foreach (var tool in toolsResult.GetData())
+                {
+                    var skill = await adapter.AdaptToolAsync(tool, cancellationToken).ConfigureAwait(false);
+                    if (skill != null)
+                    {
+                        var namespacedSkill = skill with { Namespace = $"mcp.{serverName}" };
+                        _mcpSkills[namespacedSkill.Name] = namespacedSkill;
+                    }
+                }
+
+                _logger?.LogInformation("[McpSkillProvider] 从 MCP 服务器 {Server} 加载 {Count} 个技能",
+                    serverName, toolsResult.GetData().Count);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "[McpSkillProvider] 刷新 MCP 服务器 {Server} 失败", serverName);
             }
         }
-        finally
-        {
-            _refreshLock.Release();
-        }
+    
     }
 
     public bool IsSkillAvailable(string skillName)

@@ -5,7 +5,7 @@ public sealed partial class InteractiveElicitationHandler : ServiceEntity, IElic
 {
     private readonly IUserInteractionService _userInteraction;
     private readonly ILogger<InteractiveElicitationHandler>? _logger;
-    private readonly SemaphoreSlim _queueLock = new(1, 1);
+    private readonly AsyncLock _queueLock = new();
 
     public InteractiveElicitationHandler(
         IUserInteractionService userInteraction,
@@ -21,7 +21,7 @@ public sealed partial class InteractiveElicitationHandler : ServiceEntity, IElic
         ElicitRequestParams @params,
         CancellationToken cancellationToken)
     {
-        await _queueLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _queueLock.LockAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             var mode = @params.Mode == ElicitModeConstants.Url ? ElicitModeConstants.Url : ElicitModeConstants.Form;
@@ -42,10 +42,7 @@ public sealed partial class InteractiveElicitationHandler : ServiceEntity, IElic
             _logger?.LogError(ex, "处理 Elicitation 请求失败: 服务器={ServerName}", serverName);
             return new ElicitResult { Action = ElicitActionConstants.Cancel };
         }
-        finally
-        {
-            _queueLock.Release();
-        }
+
     }
 
     private async Task<ElicitResult> HandleFormModeAsync(

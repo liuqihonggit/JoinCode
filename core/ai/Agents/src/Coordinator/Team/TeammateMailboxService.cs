@@ -7,8 +7,8 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
     private readonly string _mailboxRoot;
     private readonly ILogger<TeammateMailboxService>? _logger;
     private readonly IClockService _clock;
-    private readonly SemaphoreSlim _writeLock;
-    private readonly ConcurrentDictionary<string, SemaphoreSlim> _agentLocks;
+    private readonly AsyncLock _writeLock = new();
+    private readonly ConcurrentDictionary<string, AsyncLock> _agentLocks;
     private readonly ConcurrentDictionary<string, MailboxReadCursor> _cursors;
     private int _messageCounter;
 
@@ -26,8 +26,8 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
                 AppDataConstants.MailboxFolderName);
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
-        _writeLock = new SemaphoreSlim(1, 1);
-        _agentLocks = new ConcurrentDictionary<string, SemaphoreSlim>();
+
+        _agentLocks = new ConcurrentDictionary<string, AsyncLock>();
         _cursors = new ConcurrentDictionary<string, MailboxReadCursor>();
     }
 
@@ -48,8 +48,8 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
             IsRead = false
         };
 
-        var agentLock = _agentLocks.GetOrAdd(request.ToAgentId, _ => new SemaphoreSlim(1, 1));
-        await agentLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var agentLock = _agentLocks.GetOrAdd(request.ToAgentId, _ => new AsyncLock());
+        using var guard = await agentLock.LockAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             EnsureMailboxDirectoryExists(request.SessionId, request.ToAgentId);
@@ -60,10 +60,6 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger?.LogError(ex, "Failed to send mailbox message to {AgentId}", request.ToAgentId);
-        }
-        finally
-        {
-            agentLock.Release();
         }
 
         _logger?.LogDebug("Mailbox message sent: {MessageId} from {FromId} to {ToId}",
@@ -88,16 +84,9 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
             return Array.Empty<MailboxMessage>();
         }
 
-        var agentLock = _agentLocks.GetOrAdd(agentId, _ => new SemaphoreSlim(1, 1));
-        await agentLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            return await ReadMessagesFromFileAsync(filePath, sinceLineIndex, cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            agentLock.Release();
-        }
+        var agentLock = _agentLocks.GetOrAdd(agentId, _ => new AsyncLock());
+        using var guard = await agentLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        return await ReadMessagesFromFileAsync(filePath, sinceLineIndex, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task MarkAsReadAsync(
@@ -113,9 +102,8 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
         var idSet = new HashSet<string>(messageIds);
         if (idSet.Count == 0) return;
 
-        var agentLock = _agentLocks.GetOrAdd(agentId, _ => new SemaphoreSlim(1, 1));
-        await agentLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        var agentLock = _agentLocks.GetOrAdd(agentId, _ => new AsyncLock());
+        using var guard = await agentLock.LockAsync(cancellationToken).ConfigureAwait(false);
         {
             var allMessages = await ReadMessagesFromFileAsync(filePath, 0, cancellationToken).ConfigureAwait(false);
             var modified = false;
@@ -142,10 +130,6 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
                     AgentId = agentId, SessionId = sessionId, LastReadLineIndex = lastLineIndex
                 },
                 (_, existing) => existing with { LastReadLineIndex = lastLineIndex });
-        }
-        finally
-        {
-            agentLock.Release();
         }
     }
 
@@ -222,22 +206,17 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
     private async Task RewriteMailboxFileAsync(
         string filePath, IReadOnlyList<MailboxMessage> messages, CancellationToken cancellationToken)
     {
-        await _writeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            await using var stream = _fs.CreateStream(filePath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
-            await using var writer = new StreamWriter(stream);
+        using var guard = await _writeLock.LockAsync(cancellationToken).ConfigureAwait(false);
 
-            for (var i = 0; i < messages.Count; i++)
-            {
-                var line = JsonSerializer.Serialize(messages[i], MailboxJsonContext.Default.MailboxMessage);
-                await writer.WriteLineAsync(line.AsMemory(), cancellationToken).ConfigureAwait(false);
-            }
-        }
-        finally
+        await using var stream = _fs.CreateStream(filePath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
+        await using var writer = new StreamWriter(stream);
+
+        for (var i = 0; i < messages.Count; i++)
         {
-            _writeLock.Release();
+            var line = JsonSerializer.Serialize(messages[i], MailboxJsonContext.Default.MailboxMessage);
+            await writer.WriteLineAsync(line.AsMemory(), cancellationToken).ConfigureAwait(false);
         }
+    
     }
 
     private string GetMailboxFilePath(string sessionId, string agentId)

@@ -17,7 +17,6 @@
     <ProjectReference Include="$(RepoRoot)composition\Clock\src\Clock.csproj" />
     <ProjectReference Include="$(RepoRoot)core\safety\Vault\src\Vault.csproj" />
     <ProjectReference Include="$(RepoRoot)app\JoinCode\JoinCode.csproj" />
-    <ProjectReference Include="$(RepoRoot)app\JoinCodeTui\JoinCodeTui.csproj" />
     <ProjectReference Include="$(RepoRoot)infrastructure\Infrastructure\Infrastructure.csproj" />
 
     <ProjectReference Include="$(RepoRoot)foundation\Abstractions\Abstractions.csproj" />

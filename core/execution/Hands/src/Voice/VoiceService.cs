@@ -10,7 +10,7 @@ public sealed partial class VoiceService : ServiceEntity, IVoiceService, JoinCod
     private readonly ILogger<VoiceService>? _logger;
     private readonly IClockService _clock;
     private readonly IFileSystem _fs;
-    private readonly SemaphoreSlim _stateLock = new(1, 1);
+    private readonly AsyncLock _stateLock = new();
 
     private VoiceRecordingState _state = VoiceRecordingState.Idle;
     private MemoryStream? _recordingStream;
@@ -40,33 +40,28 @@ public sealed partial class VoiceService : ServiceEntity, IVoiceService, JoinCod
 
     public async Task StartRecordingAsync(CancellationToken cancellationToken = default)
     {
-        await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+        if (_state == VoiceRecordingState.Recording)
         {
-            if (_state == VoiceRecordingState.Recording)
-            {
-                _logger?.LogWarning(L.T(StringKey.VoiceAlreadyRecording));
-                return;
-            }
-
-            _recordingStream = new MemoryStream();
-            _recordingCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            _recordingStartTime = _clock.GetUtcNow();
-
-            SetState(VoiceRecordingState.Recording);
-            _logger?.LogInformation(L.T(StringKey.VoiceStartRecording));
-
-            _ = RecordLoopAsync(_recordingCts.Token);
+            _logger?.LogWarning(L.T(StringKey.VoiceAlreadyRecording));
+            return;
         }
-        finally
-        {
-            _stateLock.Release();
-        }
+
+        _recordingStream = new MemoryStream();
+        _recordingCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        _recordingStartTime = _clock.GetUtcNow();
+
+        SetState(VoiceRecordingState.Recording);
+        _logger?.LogInformation(L.T(StringKey.VoiceStartRecording));
+
+        _ = RecordLoopAsync(_recordingCts.Token);
+    
     }
 
     public async Task<VoiceRecordingResult> StopRecordingAsync(CancellationToken cancellationToken = default)
     {
-        await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             if (_state != VoiceRecordingState.Recording)
@@ -133,10 +128,7 @@ public sealed partial class VoiceService : ServiceEntity, IVoiceService, JoinCod
                 ErrorMessage = ex.Message
             };
         }
-        finally
-        {
-            _stateLock.Release();
-        }
+
     }
 
     public async Task<string> TranscribeAsync(byte[] audioData, string? language = null, CancellationToken cancellationToken = default)
@@ -205,19 +197,14 @@ public sealed partial class VoiceService : ServiceEntity, IVoiceService, JoinCod
             var buffer = new byte[4096];
             while (!cancellationToken.IsCancellationRequested)
             {
-                await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-                try
+                using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
+
+                if (_recordingStream != null)
                 {
-                    if (_recordingStream != null)
-                    {
-                        GenerateSilenceBuffer(buffer, _options.SampleRate);
-                        await _recordingStream.WriteAsync(buffer, cancellationToken).ConfigureAwait(false);
-                    }
+                    GenerateSilenceBuffer(buffer, _options.SampleRate);
+                    await _recordingStream.WriteAsync(buffer, cancellationToken).ConfigureAwait(false);
                 }
-                finally
-                {
-                    _stateLock.Release();
-                }
+            
 
                 await Task.Delay(100, cancellationToken).ConfigureAwait(false);
             }

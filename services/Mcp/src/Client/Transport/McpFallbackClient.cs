@@ -67,14 +67,14 @@ public sealed class McpFallbackClient : McpClientBase
         var tcs = new TaskCompletionSource<JsonRpcResponse>();
         int requestId = request.GetIdAsInt();
 
-        await _requestLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var guard = await _requestLock.LockAsync(cancellationToken);
         try
         {
             _pendingRequests[requestId] = tcs;
         }
         finally
         {
-            _requestLock.Release();
+            guard.Dispose();
         }
 
         try
@@ -86,14 +86,14 @@ public sealed class McpFallbackClient : McpClientBase
         }
         catch
         {
-            await _requestLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            var guard1 = await _requestLock.LockAsync(cancellationToken);
             try
             {
                 _pendingRequests.Remove(requestId);
             }
             finally
             {
-                _requestLock.Release();
+                guard1.Dispose();
             }
             throw;
         }

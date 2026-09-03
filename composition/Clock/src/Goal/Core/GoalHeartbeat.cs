@@ -11,7 +11,7 @@ public sealed partial class GoalHeartbeat : IGoalHeartbeat
     private CancellationTokenSource? _cts;
     private Task? _heartbeatLoop;
     private readonly TimeSpan _heartbeatInterval;
-    private readonly SemaphoreSlim _stateLock;
+    private readonly AsyncLock _stateLock = new();
     private readonly ILogger<GoalHeartbeat>? _logger;
     private readonly IClockService _clock;
 
@@ -22,7 +22,7 @@ public sealed partial class GoalHeartbeat : IGoalHeartbeat
 
     public GoalHeartbeat( TimeSpan? heartbeatInterval = null, ILogger<GoalHeartbeat>? logger = null, IClockService? clock = null)
     {
-        _stateLock = new SemaphoreSlim(1, 1);
+
         _heartbeatInterval = heartbeatInterval ?? TimeSpan.FromSeconds(30);
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
@@ -36,66 +36,51 @@ public sealed partial class GoalHeartbeat : IGoalHeartbeat
 
     public async Task StartActivityAsync(SessionActivityReason reason)
     {
-        await _stateLock.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            _refcount++;
-            _activeReasons[reason] = _activeReasons.GetValueOrDefault(reason) + 1;
-            LastActivityAt = _clock.GetUtcNow();
+        using var guard = await _stateLock.LockAsync().ConfigureAwait(false);
 
-            if (_refcount == 1)
-            {
-                StartHeartbeatTimer();
-            }
-        }
-        finally
+        _refcount++;
+        _activeReasons[reason] = _activeReasons.GetValueOrDefault(reason) + 1;
+        LastActivityAt = _clock.GetUtcNow();
+
+        if (_refcount == 1)
         {
-            _stateLock.Release();
+            StartHeartbeatTimer();
         }
+    
 
         _logger?.LogDebug(L.T(StringKey.GoalHeartbeatActivityStarted), reason, _refcount);
     }
 
     public async Task StopActivityAsync(SessionActivityReason reason)
     {
-        await _stateLock.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            if (_refcount > 0) _refcount--;
+        using var guard = await _stateLock.LockAsync().ConfigureAwait(false);
 
-            if (_activeReasons.GetValueOrDefault(reason) > 0)
-            {
-                _activeReasons[reason]--;
-            }
+        if (_refcount > 0) _refcount--;
 
-            if (_refcount == 0 && _heartbeatTimer != null)
-            {
-                StopHeartbeatTimer();
-                LastActivityAt = _clock.GetUtcNow();
-            }
-        }
-        finally
+        if (_activeReasons.GetValueOrDefault(reason) > 0)
         {
-            _stateLock.Release();
+            _activeReasons[reason]--;
         }
+
+        if (_refcount == 0 && _heartbeatTimer != null)
+        {
+            StopHeartbeatTimer();
+            LastActivityAt = _clock.GetUtcNow();
+        }
+    
 
         _logger?.LogDebug(L.T(StringKey.GoalHeartbeatActivityStopped), reason, _refcount);
     }
 
     public async Task ResetAsync()
     {
-        await _stateLock.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            StopHeartbeatTimer();
-            _refcount = 0;
-            _activeReasons.Clear();
-            LastActivityAt = null;
-        }
-        finally
-        {
-            _stateLock.Release();
-        }
+        using var guard = await _stateLock.LockAsync().ConfigureAwait(false);
+
+        StopHeartbeatTimer();
+        _refcount = 0;
+        _activeReasons.Clear();
+        LastActivityAt = null;
+    
 
         _logger?.LogDebug(L.T(StringKey.GoalHeartbeatReset));
     }
@@ -173,15 +158,17 @@ public sealed partial class GoalHeartbeat : IGoalHeartbeat
             return;
         }
 
-        await _stateLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
-        try
-        {
-            _cts?.Cancel();
-        }
-        finally
-        {
-            _stateLock.Release();
-        }
+        await CleanupHeartbeatAsync().ConfigureAwait(false);
+        _stateLock.Dispose();
+    }
+
+    /// <summary>清理心跳状态（在锁保护下执行）</summary>
+    private async Task CleanupHeartbeatAsync()
+    {
+        using var guard = await _stateLock.LockAsync(CancellationToken.None).ConfigureAwait(false);
+
+        _cts?.Cancel();
+    
 
         if (_heartbeatLoop != null)
         {
@@ -207,6 +194,5 @@ public sealed partial class GoalHeartbeat : IGoalHeartbeat
 
         _refcount = 0;
         _activeReasons.Clear();
-        _stateLock.Dispose();
     }
 }

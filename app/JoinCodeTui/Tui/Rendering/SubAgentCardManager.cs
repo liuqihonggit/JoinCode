@@ -6,7 +6,7 @@ namespace JoinCode.Tui.Rendering;
 /// </summary>
 public sealed class SubAgentCardManager
 {
-    private readonly object _lock = new();
+    private readonly AsyncLock _lock = new("SubAgentCardManager");
     private readonly LinkedList<string> _expandedOrder = new();
     private readonly HashSet<string> _expandedSet = new(StringComparer.Ordinal);
     private const int MaxExpanded = 3;
@@ -20,7 +20,7 @@ public sealed class SubAgentCardManager
     /// <summary>指定子代理是否已展开。</summary>
     public bool IsExpanded(string agentId)
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             return _expandedSet.Contains(agentId);
         }
@@ -30,21 +30,9 @@ public sealed class SubAgentCardManager
     /// <returns>被自动折叠的子代理 ID（null 表示没有折叠）。</returns>
     public string? Expand(string agentId)
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
-            if (_expandedSet.Contains(agentId)) return null;
-
-            string? evicted = null;
-            if (_expandedOrder.Count >= MaxExpanded)
-            {
-                evicted = _expandedOrder.First!.Value;
-                _expandedOrder.RemoveFirst();
-                _expandedSet.Remove(evicted);
-            }
-
-            _expandedOrder.AddLast(agentId);
-            _expandedSet.Add(agentId);
-            return evicted;
+            return ExpandUnchecked(agentId);
         }
     }
 
@@ -52,12 +40,9 @@ public sealed class SubAgentCardManager
     /// <returns>是否成功折叠（false 表示原本未展开）。</returns>
     public bool Collapse(string agentId)
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
-            if (!_expandedSet.Contains(agentId)) return false;
-            _expandedSet.Remove(agentId);
-            _expandedOrder.Remove(agentId);
-            return true;
+            return CollapseUnchecked(agentId);
         }
     }
 
@@ -65,24 +50,51 @@ public sealed class SubAgentCardManager
     /// <returns>被自动折叠的子代理 ID（null 表示没有折叠或操作是折叠）。</returns>
     public string? Toggle(string agentId)
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (_expandedSet.Contains(agentId))
             {
-                Collapse(agentId);
+                CollapseUnchecked(agentId);
                 return null;
             }
-            return Expand(agentId);
+            return ExpandUnchecked(agentId);
         }
     }
 
     /// <summary>折叠所有子代理。</summary>
     public void CollapseAll()
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             _expandedOrder.Clear();
             _expandedSet.Clear();
         }
+    }
+
+    /// <summary>展开核心逻辑 — 调用方须已持有 _lock。</summary>
+    private string? ExpandUnchecked(string agentId)
+    {
+        if (_expandedSet.Contains(agentId)) return null;
+
+        string? evicted = null;
+        if (_expandedOrder.Count >= MaxExpanded)
+        {
+            evicted = _expandedOrder.First!.Value;
+            _expandedOrder.RemoveFirst();
+            _expandedSet.Remove(evicted);
+        }
+
+        _expandedOrder.AddLast(agentId);
+        _expandedSet.Add(agentId);
+        return evicted;
+    }
+
+    /// <summary>折叠核心逻辑 — 调用方须已持有 _lock。</summary>
+    private bool CollapseUnchecked(string agentId)
+    {
+        if (!_expandedSet.Contains(agentId)) return false;
+        _expandedSet.Remove(agentId);
+        _expandedOrder.Remove(agentId);
+        return true;
     }
 }

@@ -206,7 +206,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
     /// <summary>在管道执行前设置缓存和条目（确保 CancelForkAsync 可见）</summary>
     private void SetupForkEntry(ForkOptions options, string forkId, DateTime createdAt, ForkContext context)
     {
-        using var guard = _lock.Lock();
+        using var guard = _lock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
         if (options.ShareCache)
         {
             var parentCache = _sharedCache.GetValueOrDefault(options.ParentSessionId, new Dictionary<string, string>());
@@ -232,14 +232,14 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
     /// <summary>清理失败的 Fork 条目和缓存</summary>
     private void CleanupForkEntry(string forkId)
     {
-        using var guard = _lock.Lock();
+        using var guard = _lock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
         _entries.TryRemove(forkId, out _);
         _sharedCache.TryRemove(forkId, out _);
     }
 
     public async Task<IReadOnlyList<ForkSubAgent>> GetActiveForksAsync(CancellationToken ct = default)
     {
-        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
 
         return _entries
             .Where(kvp => kvp.Value.State == ForkState.Running
@@ -259,7 +259,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
 
     public async Task<ForkResult> MergeForkAsync(string forkId, CancellationToken ct = default)
     {
-        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
 
         if (!_entries.TryGetValue(forkId, out var entry))
         {
@@ -316,7 +316,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
 
     public async Task CancelForkAsync(string forkId, CancellationToken ct = default)
     {
-        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
 
         if (!_entries.TryGetValue(forkId, out var entry))
             return;
@@ -539,7 +539,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
     /// <summary>清理所有 Fork 条目和缓存（在锁保护下执行）</summary>
     private async Task CleanupForkEntriesAsync()
     {
-        using var guard = await _lock.LockAsync().ConfigureAwait(false);
+        using var guard = _lock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
 
         var ctsEntries = _entries.Values
             .Select(e => e.Cts)

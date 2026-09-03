@@ -25,9 +25,10 @@ public static class TreeSitterParserPool
     /// <summary>
     /// Acquires exclusive access to the shared parser. Dispose the returned value to release.
     /// </summary>
-    public static async Task<IDisposable> AcquireSharedAsync(CancellationToken ct = default)
+    public static Task<IDisposable> AcquireSharedAsync(CancellationToken ct = default)
     {
-        return await _sharedLock.LockAsync(ct);
+        var guard = _sharedLock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+        return Task.FromResult(guard);
     }
 
     /// <summary>
@@ -35,7 +36,7 @@ public static class TreeSitterParserPool
     /// </summary>
     public static IDisposable AcquireShared()
     {
-        return _sharedLock.Lock();
+        return _sharedLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
     }
 
     /// <summary>

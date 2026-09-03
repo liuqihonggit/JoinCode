@@ -6,7 +6,7 @@ namespace JoinCode.Tui.Rendering;
 /// </summary>
 public sealed class TerminalResizeMonitor
 {
-    private readonly object _lock = new();
+    private readonly AsyncLock _lock = new("TerminalResizeMonitor");
     private int _lastWidth;
     private int _lastHeight;
     private DateTime _lastChangeTime;
@@ -34,7 +34,7 @@ public sealed class TerminalResizeMonitor
     {
         var (clampedW, clampedH) = Clamp(width, height);
 
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (clampedW == _lastWidth && clampedH == _lastHeight) return;
 

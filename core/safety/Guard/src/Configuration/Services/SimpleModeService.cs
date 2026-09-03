@@ -6,7 +6,7 @@ namespace Core.Configuration;
 [Register(typeof(ISimpleModeService), ServiceLifetime.Singleton)]
 public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeService
 {
-    private readonly object _lock = new();
+    private readonly AsyncLock _lock = new("SimpleModeService");
     private bool _isSimpleMode;
     private SimpleModeConfig _config;
     private readonly IBriefModeService? _briefModeService;
@@ -14,7 +14,7 @@ public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeServic
 
     public bool IsSimpleMode
     {
-        get { lock (_lock) return _isSimpleMode; }
+        get { using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时")) return _isSimpleMode; }
     }
 
     public event EventHandler<SimpleModeChangedEventArgs>? SimpleModeChanged;
@@ -30,7 +30,7 @@ public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeServic
 
     public void Enable()
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (_isSimpleMode) return;
 
@@ -50,7 +50,7 @@ public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeServic
 
     public void Disable()
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (!_isSimpleMode) return;
 
@@ -70,31 +70,39 @@ public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeServic
 
     public bool Toggle()
     {
-        lock (_lock)
+        bool newState;
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
-            if (_isSimpleMode)
-            {
-                Disable();
-            }
-            else
-            {
-                Enable();
-            }
-
-            return _isSimpleMode;
+            newState = !_isSimpleMode;
+            _isSimpleMode = newState;
+            _logger?.LogInformation(newState ? "Simple Mode enabled" : "Simple Mode disabled");
         }
+
+        // 锁外处理副作用（避免锁内调用 Enable/Disable 导致重入死锁）
+        if (newState)
+            _briefModeService?.Enable();
+        else
+            _briefModeService?.Disable();
+
+        SimpleModeChanged?.Invoke(this, new SimpleModeChangedEventArgs
+        {
+            IsSimpleMode = newState,
+            Config = _config
+        });
+
+        return newState;
     }
 
     public SimpleModeConfig GetCurrentConfig()
     {
-        lock (_lock) return _config;
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时")) return _config;
     }
 
     public void UpdateConfig(SimpleModeConfig config)
     {
         ArgumentNullException.ThrowIfNull(config);
 
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             _config = config;
             _logger?.LogDebug("Simple Mode config updated");

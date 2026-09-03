@@ -72,7 +72,7 @@ public sealed partial class PeerSessionManager : ServiceEntity
         ArgumentNullException.ThrowIfNull(localPeerId);
         ArgumentNullException.ThrowIfNull(remotePeerId);
 
-                using (await _stateLock.LockAsync(ct).ConfigureAwait(false))
+                using (await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             ObjectDisposedException.ThrowIf(_asyncDisposed != 0, this);
 
@@ -104,7 +104,7 @@ public sealed partial class PeerSessionManager : ServiceEntity
     {
         ArgumentNullException.ThrowIfNull(sessionId);
 
-                using (await _stateLock.LockAsync(ct).ConfigureAwait(false))
+                using (await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (_sessions.TryRemove(sessionId, out var session))
             {
@@ -145,7 +145,7 @@ public sealed partial class PeerSessionManager : ServiceEntity
     /// <param name="ct">取消令牌</param>
     public async Task MarkConnectedAsync(string sessionId, CancellationToken ct = default)
     {
-        using (await _stateLock.LockAsync(ct).ConfigureAwait(false))
+        using (await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (_sessions.TryGetValue(sessionId, out var session))
             {

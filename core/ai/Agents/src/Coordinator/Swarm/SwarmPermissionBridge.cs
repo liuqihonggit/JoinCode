@@ -70,7 +70,7 @@ public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermiss
 
     public async Task SyncPermissionsAsync(string agentId, PermissionSyncRequest request, CancellationToken ct = default)
     {
-                using (await _lock.LockAsync(ct).ConfigureAwait(false))
+                using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             var rule = new AgentPermissionRule
             {
@@ -127,7 +127,7 @@ public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermiss
 
     public async Task<PermissionSyncState> GetPermissionStateAsync(string agentId, CancellationToken ct = default)
     {
-                using (await _lock.LockAsync(ct).ConfigureAwait(false))
+                using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (_permissionStates.TryGetValue(agentId, out var state))
             {
@@ -149,7 +149,7 @@ public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermiss
 
     public async Task RevokePermissionsAsync(string agentId, CancellationToken ct = default)
     {
-                using (await _lock.LockAsync(ct).ConfigureAwait(false))
+                using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             await _permissionManager.RemoveRuleAsync(agentId, ct).ConfigureAwait(false);
 

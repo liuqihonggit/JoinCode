@@ -22,7 +22,7 @@ public sealed partial class DiminishingReturnsDetector : ServiceEntity, IDiminis
     private const int MinimumSampleSize = 2;
 
     private int _consecutiveLowValueCount;
-    private readonly object _resetLock = new();
+    private readonly AsyncLock _resetLock = new("DiminishingReturnsDetector");
     private readonly ITelemetryService? _telemetryService;
 
     public DiminishingReturnsDetector(ITelemetryService? telemetryService = null)
@@ -71,7 +71,7 @@ public sealed partial class DiminishingReturnsDetector : ServiceEntity, IDiminis
 
         var averageRatio = ratios.Average();
 
-        lock (_resetLock)
+        using (_resetLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (averageRatio < LowValueThreshold)
             {
@@ -105,7 +105,7 @@ public sealed partial class DiminishingReturnsDetector : ServiceEntity, IDiminis
 
     public void Reset()
     {
-        lock (_resetLock)
+        using (_resetLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             _consecutiveLowValueCount = 0;
         }

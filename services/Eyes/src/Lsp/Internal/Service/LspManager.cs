@@ -52,7 +52,7 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
 
     public async Task InitializeAsync(IEnumerable<LspInstanceConfig> configs, CancellationToken cancellationToken = default)
     {
-        using var guard = await _initLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _initLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         if (IsInitialized) return;
 
@@ -90,7 +90,7 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
 
     public async Task ShutdownAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = await _initLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _initLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         if (!IsInitialized) return;
 

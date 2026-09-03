@@ -35,7 +35,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         if (_cacheLoaded)
             return _cachedDefinitions;
 
-        using var guard = await _cacheLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _cacheLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         if (_cacheLoaded)
             return _cachedDefinitions;

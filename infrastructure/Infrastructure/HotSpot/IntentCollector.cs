@@ -8,7 +8,7 @@ namespace Infrastructure.HotSpot;
 public sealed class IntentCollector : IIntentCollector
 {
     private readonly ConcurrentDictionary<string, List<FileModifyIntent>> _intentsByFile = new();
-    private readonly ConcurrentDictionary<string, object> _locks = new();
+    private readonly ConcurrentDictionary<string, AsyncLock> _locks = new();
     private readonly IClockService _clock;
 
     public IntentCollector(IClockService? clock = null)
@@ -27,7 +27,7 @@ public sealed class IntentCollector : IIntentCollector
         {
             cancellationToken.ThrowIfCancellationRequested();
             var key = NormalizePath(intent.FilePath);
-            lock (GetLock(key))
+            using (GetLock(key).TryLock() ?? throw new System.TimeoutException("锁等待超时"))
             {
                 _intentsByFile.GetOrAdd(key, _ => []).Add(intent);
             }
@@ -40,7 +40,7 @@ public sealed class IntentCollector : IIntentCollector
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         var key = NormalizePath(filePath);
-        lock (GetLock(key))
+        using (GetLock(key).TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (_intentsByFile.TryGetValue(key, out var list))
                 return [.. list];
@@ -53,7 +53,7 @@ public sealed class IntentCollector : IIntentCollector
         var all = new List<FileModifyIntent>();
         foreach (var kvp in _intentsByFile)
         {
-            lock (GetLock(kvp.Key))
+            using (GetLock(kvp.Key).TryLock() ?? throw new System.TimeoutException("锁等待超时"))
             {
                 all.AddRange(kvp.Value);
             }
@@ -69,7 +69,7 @@ public sealed class IntentCollector : IIntentCollector
         foreach (var kvp in _intentsByFile)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            lock (GetLock(kvp.Key))
+            using (GetLock(kvp.Key).TryLock() ?? throw new System.TimeoutException("锁等待超时"))
             {
                 kvp.Value.RemoveAll(x => x.WorkerId == workerId);
             }
@@ -78,7 +78,7 @@ public sealed class IntentCollector : IIntentCollector
         return Task.CompletedTask;
     }
 
-    private object GetLock(string filePath) => _locks.GetOrAdd(filePath, _ => new object());
+    private AsyncLock GetLock(string filePath) => _locks.GetOrAdd(filePath, _ => new AsyncLock("IntentCollector"));
 
     private static string NormalizePath(string filePath) => filePath.Replace('\\', '/');
 }

@@ -24,7 +24,7 @@ public sealed class ResilientChannel : IDisposable
     {
         ProbeCircuitBreaker();
 
-        using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         try
         {
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);

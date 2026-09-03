@@ -29,7 +29,7 @@ public sealed class SandboxIpcClient : IAsyncDisposable
 
     public async Task StartAsync(string? satelliteExePath = null, CancellationToken ct = default)
     {
-        using (await _startLock.LockAsync(ct).ConfigureAwait(false))
+        using (await _startLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (_process is not null && !_process.HasExited)
             {
@@ -147,7 +147,7 @@ public sealed class SandboxIpcClient : IAsyncDisposable
         {
             var json = JsonSerializer.Serialize(request, SandboxIpcJsonContext.Default.SandboxIpcRequest);
 
-            using var guard = await _sendLock.LockAsync(ct).ConfigureAwait(false);
+            using var guard = await _sendLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
             await _process!.StandardInput.WriteAsync((json + "\n").AsMemory(), ct).ConfigureAwait(false);
             await _process.StandardInput.FlushAsync(ct).ConfigureAwait(false);

@@ -30,7 +30,7 @@ public sealed partial class LocalToolRegistry : IToolRegistry
     {
         ArgumentNullException.ThrowIfNull(handler);
 
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         var isOverwrite = _tools.ContainsKey(handler.Name);
 
@@ -62,7 +62,7 @@ public sealed partial class LocalToolRegistry : IToolRegistry
     {
         ArgumentException.ThrowIfNullOrEmpty(toolName);
 
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         if (!_tools.Remove(toolName, out var handler))
             return false;
@@ -78,7 +78,7 @@ public sealed partial class LocalToolRegistry : IToolRegistry
     {
         ArgumentException.ThrowIfNullOrEmpty(toolName);
 
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         return _tools.GetValueOrDefault(toolName);
     
@@ -86,7 +86,7 @@ public sealed partial class LocalToolRegistry : IToolRegistry
 
     public async Task<IReadOnlyDictionary<string, IToolHandler>> GetAllToolsAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         return _tools.ToFrozenDictionary();
     
@@ -94,7 +94,7 @@ public sealed partial class LocalToolRegistry : IToolRegistry
 
     public async Task<FrozenSet<string>> GetGroupNamesAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         return _groupIndex.Keys.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
     
@@ -102,7 +102,7 @@ public sealed partial class LocalToolRegistry : IToolRegistry
 
     public async Task<IReadOnlyDictionary<string, IToolHandler>> GetToolsByKindAsync(ToolKind kind, CancellationToken cancellationToken = default)
     {
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         return _kindIndex.GetValueOrDefault(kind)?.ToFrozenDictionary() ?? FrozenDictionary<string, IToolHandler>.Empty;
     
@@ -112,7 +112,7 @@ public sealed partial class LocalToolRegistry : IToolRegistry
     {
         ArgumentException.ThrowIfNullOrEmpty(groupName);
 
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         return _groupIndex.GetValueOrDefault(groupName)?.ToFrozenDictionary() ?? FrozenDictionary<string, IToolHandler>.Empty;
     
@@ -128,7 +128,7 @@ public sealed partial class LocalToolRegistry : IToolRegistry
         ArgumentNullException.ThrowIfNull(arguments);
 
         IToolHandler? handler;
-        using (var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false))
+        using (var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (!_tools.TryGetValue(toolName, out handler))
             {
@@ -190,7 +190,7 @@ public sealed partial class LocalToolRegistry : IToolRegistry
     {
         ArgumentException.ThrowIfNullOrEmpty(toolName);
 
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         return _tools.ContainsKey(toolName);
     
@@ -198,7 +198,7 @@ public sealed partial class LocalToolRegistry : IToolRegistry
 
     public async Task<int> GetCountAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         return _tools.Count;
     
@@ -206,7 +206,7 @@ public sealed partial class LocalToolRegistry : IToolRegistry
 
     public async Task ClearAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         _tools.Clear();
         _kindIndex.Clear();

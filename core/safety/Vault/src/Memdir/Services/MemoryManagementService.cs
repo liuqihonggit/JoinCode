@@ -349,7 +349,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     public async Task<MemoryScanResult> ScanMemoriesAsync(string query, string? category = null, int limit = 10, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        using var guard = await _skillLock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = await _skillLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         _logger?.LogInformation(L.T(StringKey.VaultLogScanMemory), query, category ?? L.T(StringKey.VaultAllCategory));
 
         // 将字符串 category 转换为 MemoryType
@@ -446,7 +446,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     public async Task<List<MemoryAgeInfo>> GetMemoryAgeInfoAsync(CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        using var guard = await _skillLock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = await _skillLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         var stats = _memoryStore.GetStatistics();
 
         var memories = stats.RecentlyAdded
@@ -522,7 +522,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     public async Task AddTeamMemoryPathAsync(string teamId, string path, bool isShared = true, List<string>? allowedAgents = null, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        using var guard = await _skillLock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = await _skillLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         // 移除已存在的相同路径
         _teamMemoryPaths.Remove((teamId, path));
 
@@ -541,7 +541,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     public async Task<List<TeamMemoryPath>> GetTeamMemoryPathsAsync(string? teamId = null, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        using var guard = await _skillLock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = await _skillLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         return GetTeamMemoryPathsCore(teamId);
     }
 
@@ -561,7 +561,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     public async Task<bool> RemoveTeamMemoryPathAsync(string teamId, string path, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        using var guard = await _skillLock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = await _skillLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         var removed = _teamMemoryPaths.Remove((teamId, path));
         if (removed)
         {
@@ -576,7 +576,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     {
         ct.ThrowIfCancellationRequested();
 
-        using var guard = await _skillLock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = await _skillLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         var teamPaths = GetTeamMemoryPathsCore(teamId);
 
         if (teamPaths.Count == 0)

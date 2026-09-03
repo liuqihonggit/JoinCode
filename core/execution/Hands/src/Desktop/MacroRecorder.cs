@@ -19,7 +19,7 @@ public sealed partial class MacroRecorder : ServiceEntity, IMacroRecorder
     private readonly IFileSystem _fileSystem;
     private readonly ILogger<MacroRecorder>? _logger;
 
-    private readonly object _lock = new();
+    private readonly AsyncLock _lock = new("MacroRecorder");
     private bool _isRecording;
     private string _macroName = string.Empty;
     private readonly List<DesktopOperation> _recordedOperations = new();
@@ -36,7 +36,7 @@ public sealed partial class MacroRecorder : ServiceEntity, IMacroRecorder
     {
         get
         {
-            lock (_lock)
+            using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
             {
                 return _isRecording;
             }
@@ -47,7 +47,7 @@ public sealed partial class MacroRecorder : ServiceEntity, IMacroRecorder
     public void StartRecording(string macroName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(macroName);
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             _isRecording = true;
             _macroName = macroName;
@@ -59,7 +59,7 @@ public sealed partial class MacroRecorder : ServiceEntity, IMacroRecorder
     /// <summary>停止录制并返回宏</summary>
     public Macro StopRecording()
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             _isRecording = false;
             var macro = new Macro(_macroName, _recordedOperations.ToArray(), DateTimeOffset.UtcNow);
@@ -72,7 +72,7 @@ public sealed partial class MacroRecorder : ServiceEntity, IMacroRecorder
     public void RecordOperation(DesktopOperation operation)
     {
         ArgumentNullException.ThrowIfNull(operation);
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (_isRecording)
                 _recordedOperations.Add(operation);

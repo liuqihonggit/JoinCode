@@ -30,7 +30,7 @@ public sealed class DoctorTcpServer : IDoctorTransport
     {
         get
         {
-            using var guard = _patientsLock.Lock();
+            using var guard = _patientsLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
             return _patients.Keys.ToList();
         }
     }
@@ -92,7 +92,7 @@ public sealed class DoctorTcpServer : IDoctorTransport
     public async Task SendCommandAsync(string patientId, string command, CancellationToken cancellationToken = default)
     {
         DoctorTcpPatient? patient;
-        using var guard = await _patientsLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _patientsLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
  _patients.TryGetValue(patientId, out patient); 
 
         if (patient is null)
@@ -111,7 +111,7 @@ public sealed class DoctorTcpServer : IDoctorTransport
     public async Task BroadcastCommandAsync(string command, CancellationToken cancellationToken = default)
     {
         List<DoctorTcpPatient> patients;
-        using var guard = await _patientsLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _patientsLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
  patients = _patients.Values.ToList(); 
 
         var sseData = $"event: command\ndata: {EscapeSseData(command)}\n\n";
@@ -234,20 +234,16 @@ public sealed class DoctorTcpServer : IDoctorTransport
     /// <summary>添加病人到连接表</summary>
     private void AddPatient(string patientId, DoctorTcpPatient patient)
     {
-        using var guard = _patientsLock.Lock();
+        using var guard = _patientsLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
  _patients[patientId] = patient; 
     }
 
     /// <summary>从连接表移除病人（5秒超时）</summary>
     private void RemovePatient(string patientId)
     {
-        try
-        {
-            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            using var guard = _patientsLock.Lock(timeoutCts.Token);
+        using var guard = _patientsLock.TryLock();
+        if (guard is null) return;
  _patients.Remove(patientId); 
-        }
-        catch (OperationCanceledException) { }
     }
 
     private async Task HandleEventsPostAsync(NetworkStream stream, string body, string patientId, CancellationToken ct)
@@ -456,7 +452,7 @@ public sealed class DoctorTcpServer : IDoctorTransport
     /// <summary>清理所有病人连接（在锁保护下执行）</summary>
     private async Task CleanupPatientsAsync()
     {
-        using var guard = await _patientsLock.LockAsync().ConfigureAwait(false);
+        using var guard = _patientsLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
 
         var patients = _patients.Values.ToList();
         _patients.Clear();
@@ -487,7 +483,7 @@ internal sealed class DoctorTcpPatient : IAsyncDisposable
     {
         if (_disposed) throw new ObjectDisposedException(nameof(DoctorTcpPatient));
 
-        using var guard = await _writeLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _writeLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
 
         await Stream.WriteAsync(data, cancellationToken).ConfigureAwait(false);
         await Stream.FlushAsync(cancellationToken).ConfigureAwait(false);

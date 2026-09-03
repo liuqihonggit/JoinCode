@@ -12,7 +12,7 @@ namespace JoinCode.Abstractions.Entity;
 public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeartbeat
 {
     private readonly Dictionary<ObjectId, PluginResourceBase> _resources = new();
-    private readonly object _resourceLock = new();
+    private readonly AsyncLock _resourceLock = new("WorkflowPluginBase");
     private volatile bool _isAlive = true;
     private DateTime _lastHeartbeatAt;
 
@@ -43,7 +43,7 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
     {
         get
         {
-            lock (_resourceLock)
+            using (_resourceLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
             {
                 return _resources.Values.ToList();
             }
@@ -75,7 +75,7 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
     protected T RegisterResource<T>(T resource) where T : PluginResourceBase
     {
         ArgumentNullException.ThrowIfNull(resource);
-        lock (_resourceLock)
+        using (_resourceLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             _resources[resource.ObjectId] = resource;
         }
@@ -103,7 +103,7 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
             MarkDead();
 
             List<PluginResourceBase> snapshot;
-            lock (_resourceLock)
+            using (_resourceLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
             {
                 snapshot = _resources.Values.ToList();
                 _resources.Clear();

@@ -29,7 +29,7 @@ internal sealed class ExecutionContext : IAsyncDisposable
     /// </summary>
     public async Task AddRunningTaskAsync(Task task)
     {
-                using (await _runningTasksLock.LockAsync(CancellationToken).ConfigureAwait(false))
+                using (await _runningTasksLock.TryLockAsync(CancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             _runningTasks.Add(task);
         }
@@ -40,7 +40,7 @@ internal sealed class ExecutionContext : IAsyncDisposable
     /// </summary>
     public async Task<List<Task>> GetRunningTasksSnapshotAsync()
     {
-                using (await _runningTasksLock.LockAsync(CancellationToken).ConfigureAwait(false))
+                using (await _runningTasksLock.TryLockAsync(CancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             return _runningTasks.ToList();
         }
@@ -51,7 +51,7 @@ internal sealed class ExecutionContext : IAsyncDisposable
     /// </summary>
     public async Task CleanupCompletedTasksAsync(CancellationToken cancellationToken = default)
     {
-                using (await _runningTasksLock.LockAsync(cancellationToken).ConfigureAwait(false))
+                using (await _runningTasksLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             _runningTasks.RemoveAll(t => t.IsCompleted);
         }
@@ -62,7 +62,7 @@ internal sealed class ExecutionContext : IAsyncDisposable
     /// </summary>
     public async Task<int> GetRunningTaskCountAsync(CancellationToken cancellationToken = default)
     {
-                using (await _runningTasksLock.LockAsync(cancellationToken).ConfigureAwait(false))
+                using (await _runningTasksLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             return _runningTasks.Count;
         }

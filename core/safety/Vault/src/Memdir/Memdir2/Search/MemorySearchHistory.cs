@@ -156,7 +156,7 @@ public sealed partial class MemorySearchHistoryService : ServiceEntity, IMemoryS
         ArgumentNullException.ThrowIfNull(query);
 
         cancellationToken.ThrowIfCancellationRequested();
-                using (await _historyLock.LockAsync(cancellationToken).ConfigureAwait(false))
+                using (await _historyLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             var entry = new SearchHistoryEntry
             {
@@ -350,19 +350,19 @@ public sealed partial class MemorySearchHistoryService : ServiceEntity, IMemoryS
 internal sealed class ConcurrentDeque<T>
 {
     private readonly LinkedList<T> _list;
-    private readonly object _lockObj;
+    private readonly AsyncLock _lockObj;
 
     public ConcurrentDeque()
     {
         _list = new LinkedList<T>();
-        _lockObj = new object();
+        _lockObj = new AsyncLock("MemorySearchHistory");
     }
 
     public int Count
     {
         get
         {
-            lock (_lockObj)
+            using (_lockObj.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
             {
                 return _list.Count;
             }
@@ -371,7 +371,7 @@ internal sealed class ConcurrentDeque<T>
 
     public void Prepend(T item)
     {
-        lock (_lockObj)
+        using (_lockObj.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             _list.AddFirst(item);
         }
@@ -379,7 +379,7 @@ internal sealed class ConcurrentDeque<T>
 
     public bool TryTakeBack(out T? item)
     {
-        lock (_lockObj)
+        using (_lockObj.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (_list.Count == 0)
             {
@@ -396,7 +396,7 @@ internal sealed class ConcurrentDeque<T>
 
     public IReadOnlyList<T> Take(int count)
     {
-        lock (_lockObj)
+        using (_lockObj.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             return _list.Take(count).ToImmutableList();
         }

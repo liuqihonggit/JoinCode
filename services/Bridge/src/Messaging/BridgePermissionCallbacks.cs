@@ -97,7 +97,7 @@ public sealed class BridgePermissionCallbackService : IBridgePermissionCallbacks
 
     public Action OnResponse(string requestId, Func<PermissionCallbackResponse, Task> handler)
     {
-        using var guard = _semaphore.Lock();
+        using var guard = _semaphore.TryLock() ?? throw new System.TimeoutException("锁等待超时");
             if (!_handlers.TryGetValue(requestId, out var list))
             {
                 list = new List<Func<PermissionCallbackResponse, Task>>();
@@ -109,7 +109,7 @@ public sealed class BridgePermissionCallbackService : IBridgePermissionCallbacks
         // 返回取消订阅函数
         return () =>
         {
-            using var guard = _semaphore.Lock();
+            using var guard = _semaphore.TryLock() ?? throw new System.TimeoutException("锁等待超时");
                 if (_handlers.TryGetValue(requestId, out var list))
                 {
                     list.Remove(handler);
@@ -126,7 +126,7 @@ public sealed class BridgePermissionCallbackService : IBridgePermissionCallbacks
     /// </summary>
     public async Task HandleResponseAsync(string requestId, PermissionCallbackResponse response)
     {
-        using var guard = await _semaphore.LockAsync().ConfigureAwait(false);
+        using var guard = _semaphore.TryLock() ?? throw new System.TimeoutException("锁等待超时");
 
         if (!_handlers.TryGetValue(requestId, out var handlers)) return;
 

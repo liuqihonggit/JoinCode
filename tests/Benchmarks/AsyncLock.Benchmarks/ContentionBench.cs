@@ -13,7 +13,7 @@ public class ContentionBench
     [GlobalSetup]
     public void Setup()
     {
-        _asyncLock = new AsyncLock();
+        _asyncLock = new AsyncLock(nameof(ContentionBench));
         _semaphore = new SemaphoreSlim(1, 1);
     }
 
@@ -22,7 +22,7 @@ public class ContentionBench
     {
         var tasks = new Task[Concurrency];
         for (var i = 0; i < Concurrency; i++)
-            tasks[i] = Task.Run(async () => { using var g = await _asyncLock.LockAsync(); });
+            tasks[i] = Task.Run(async () => { using var g = await _asyncLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"); });
         await Task.WhenAll(tasks);
     }
 

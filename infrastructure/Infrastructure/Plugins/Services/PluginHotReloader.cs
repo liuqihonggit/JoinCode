@@ -40,7 +40,7 @@ public sealed partial class PluginHotReloader : IPluginHotReloader
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _logger = logger;
         _telemetryService = telemetryService;
-        _reloadLock = new AsyncLock();
+        _reloadLock = new AsyncLock(nameof(PluginHotReloader));
     }
 
     public bool IsWatching => _isWatching;
@@ -118,7 +118,7 @@ public sealed partial class PluginHotReloader : IPluginHotReloader
 
     internal async Task ReloadPluginAsync(string pluginName, string filePath, ReloadReason reason)
     {
-        using var guard = await _reloadLock.LockAsync().ConfigureAwait(false);
+        using var guard = await _reloadLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         var args = new PluginReloadEventArgs
         {
             PluginName = pluginName,

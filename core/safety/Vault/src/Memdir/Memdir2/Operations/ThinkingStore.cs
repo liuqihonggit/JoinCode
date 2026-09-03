@@ -115,7 +115,7 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
 
     private async Task SaveAsync(CancellationToken cancellationToken)
     {
-        using var guard = await _saveLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _saveLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         try
         {
             var data = new ThinkingStoreData();

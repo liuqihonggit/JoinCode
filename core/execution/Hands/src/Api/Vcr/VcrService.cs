@@ -34,7 +34,7 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
             return cached;
         }
 
-        using var guard = await _fileLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _fileLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         var filePath = GetCassettePath(name);
         if (!_fs.FileExists(filePath))
@@ -62,7 +62,7 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
         ArgumentNullException.ThrowIfNull(cassette);
         ArgumentException.ThrowIfNullOrEmpty(cassette.Name);
 
-        using var guard = await _fileLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _fileLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         var filePath = GetCassettePath(cassette.Name);
         var directory = Path.GetDirectoryName(filePath);

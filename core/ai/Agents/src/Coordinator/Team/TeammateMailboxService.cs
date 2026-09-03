@@ -48,8 +48,8 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
             IsRead = false
         };
 
-        var agentLock = _agentLocks.GetOrAdd(request.ToAgentId, _ => new AsyncLock());
-        using var guard = await agentLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        var agentLock = _agentLocks.GetOrAdd(request.ToAgentId, _ => new AsyncLock(nameof(TeammateMailboxService)));
+        using var guard = await agentLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         try
         {
             EnsureMailboxDirectoryExists(request.SessionId, request.ToAgentId);
@@ -84,8 +84,8 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
             return Array.Empty<MailboxMessage>();
         }
 
-        var agentLock = _agentLocks.GetOrAdd(agentId, _ => new AsyncLock());
-        using var guard = await agentLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        var agentLock = _agentLocks.GetOrAdd(agentId, _ => new AsyncLock(nameof(TeammateMailboxService)));
+        using var guard = await agentLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         return await ReadMessagesFromFileAsync(filePath, sinceLineIndex, cancellationToken).ConfigureAwait(false);
     }
 
@@ -102,8 +102,8 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
         var idSet = new HashSet<string>(messageIds);
         if (idSet.Count == 0) return;
 
-        var agentLock = _agentLocks.GetOrAdd(agentId, _ => new AsyncLock());
-        using var guard = await agentLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        var agentLock = _agentLocks.GetOrAdd(agentId, _ => new AsyncLock(nameof(TeammateMailboxService)));
+        using var guard = await agentLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         {
             var allMessages = await ReadMessagesFromFileAsync(filePath, 0, cancellationToken).ConfigureAwait(false);
             var modified = false;
@@ -206,7 +206,7 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
     private async Task RewriteMailboxFileAsync(
         string filePath, IReadOnlyList<MailboxMessage> messages, CancellationToken cancellationToken)
     {
-        using var guard = await _writeLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _writeLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         await using var stream = _fs.CreateStream(filePath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
         await using var writer = new StreamWriter(stream);

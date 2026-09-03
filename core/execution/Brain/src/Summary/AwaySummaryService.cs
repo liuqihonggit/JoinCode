@@ -44,7 +44,7 @@ public sealed partial class AwaySummaryService : ServiceEntity, IAwaySummaryServ
 
     public async Task MarkAwayAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = await _eventLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _eventLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         _awaySince = _clock.GetUtcNow();
         _events.Clear();
@@ -61,7 +61,7 @@ public sealed partial class AwaySummaryService : ServiceEntity, IAwaySummaryServ
 
     public async Task<AwaySummaryResult> GenerateSummaryAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = await _eventLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _eventLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         try
         {
             if (!_awaySince.HasValue)
@@ -159,7 +159,7 @@ public sealed partial class AwaySummaryService : ServiceEntity, IAwaySummaryServ
 
         if (!_awaySince.HasValue) return;
 
-        using var guard = await _eventLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _eventLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         while (_events.Count >= _options.MaxEventsToTrack)
         {

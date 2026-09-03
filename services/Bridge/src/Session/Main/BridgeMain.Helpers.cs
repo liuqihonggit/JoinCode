@@ -154,13 +154,13 @@ public sealed partial class BridgeMain
     /// </summary>
     private void TrackCleanup(Task cleanupTask)
     {
-        using var guard = _cleanupLock.Lock();
+        using var guard = _cleanupLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
             _pendingCleanups.Add(cleanupTask);
 
         // 清理已完成的任务
         _ = cleanupTask.ContinueWith(_ =>
         {
-            using var guard = _cleanupLock.Lock();
+            using var guard = _cleanupLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
                 _pendingCleanups.Remove(cleanupTask);
         }, TaskScheduler.Default);
     }

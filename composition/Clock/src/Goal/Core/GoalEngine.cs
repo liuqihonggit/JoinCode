@@ -292,7 +292,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         string? systemPrompt,
         CancellationToken cancellationToken)
     {
-        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         if (_state != null && _state.Status == GoalStatus.Pursuing)
         {
@@ -347,7 +347,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
                 _state.GoalId, objective, tokenBudget?.ToString() ?? L.T(StringKey.GoalEngineBudgetUnlimited));
 
             _engineCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            _completionTcs = new();
+            _completionTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
             _engineLoop = Task.Run(() => RunGoalLoopAsync(_engineCts.Token));
         }
 
@@ -361,7 +361,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         string? systemPrompt,
         CancellationToken cancellationToken)
     {
-        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         if (_state != null && _state.Status == GoalStatus.Pursuing)
         {
@@ -392,7 +392,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
             _state.GoalId, objective, tokenBudget?.ToString() ?? L.T(StringKey.GoalEngineBudgetUnlimited));
 
         _engineCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        _completionTcs = new();
+        _completionTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
         _engineLoop = Task.Run(() => RunGoalLoopAsync(_engineCts.Token));
 
         await PersistStateAsync(cancellationToken).ConfigureAwait(false);
@@ -416,7 +416,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
     private async Task PauseViaPipelineAsync(CancellationToken cancellationToken)
     {
-        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         if (_state == null || _state.Status != GoalStatus.Pursuing) return;
 
@@ -450,7 +450,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
     private async Task PauseDirectAsync(CancellationToken cancellationToken)
     {
-        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         if (_state == null || _state.Status != GoalStatus.Pursuing) return;
 
@@ -478,7 +478,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
     private async Task ResumeViaPipelineAsync(CancellationToken cancellationToken)
     {
-        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         if (_state == null || _state.Status != GoalStatus.Paused) return;
 
@@ -516,7 +516,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
             _engineCts?.Cancel();
             _engineCts?.Dispose();
             _engineCts = new CancellationTokenSource();
-            _completionTcs = new();
+            _completionTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
             _engineLoop = Task.Run(() => RunGoalLoopAsync(_engineCts.Token));
         }
 
@@ -525,7 +525,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
     private async Task ResumeDirectAsync(CancellationToken cancellationToken)
     {
-        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         if (_state == null || _state.Status != GoalStatus.Paused) return;
 
@@ -545,7 +545,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         _engineCts?.Cancel();
         _engineCts?.Dispose();
         _engineCts = new CancellationTokenSource();
-        _completionTcs = new();
+        _completionTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
         _engineLoop = Task.Run(() => RunGoalLoopAsync(_engineCts.Token));
         _logger?.LogInformation(L.T(StringKey.GoalEngineResumed), _state?.GoalId);
     }
@@ -566,7 +566,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
     private async Task ClearViaPipelineAsync(CancellationToken cancellationToken)
     {
-        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         if (_state == null) return;
 
@@ -608,7 +608,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
     private async Task ClearDirectAsync(CancellationToken cancellationToken)
     {
-        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         if (_state == null) return;
 
@@ -669,7 +669,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
             if (target is null) return;
 
             var first = target;
-            using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
+            using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
             _state = first;
             _chatHistory.Clear();
@@ -708,7 +708,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
     private async Task MarkCompletedViaPipelineAsync(string reason, CancellationToken cancellationToken)
     {
-        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         if (_state == null || _state.Status != GoalStatus.Pursuing) return;
 
@@ -757,7 +757,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
     private async Task MarkCompletedDirectAsync(string reason, CancellationToken cancellationToken)
     {
-        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         if (_state == null || _state.Status != GoalStatus.Pursuing) return;
 
@@ -791,7 +791,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
     private async Task MarkUnmetViaPipelineAsync(string reason, CancellationToken cancellationToken)
     {
-        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         if (_state == null || _state.Status != GoalStatus.Pursuing) return;
 
@@ -842,7 +842,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(reason);
 
-        using var guard = await _stateLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         if (_state == null || _state.Status != GoalStatus.Pursuing) return;
 

@@ -9,7 +9,7 @@ public sealed class TerminalPainter
 {
     private readonly Action<Action> _invoke;
     private readonly List<ITuiComponent> _components = new();
-    private readonly object _lock = new();
+    private readonly AsyncLock _lock = new("TerminalPainter");
 
     /// <summary>
     /// 创建 TerminalPainter。
@@ -35,7 +35,7 @@ public sealed class TerminalPainter
     public void Register(ITuiComponent component)
     {
         ArgumentNullException.ThrowIfNull(component);
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             _components.Add(component);
         }
@@ -46,7 +46,7 @@ public sealed class TerminalPainter
     public void Unregister(ITuiComponent component)
     {
         ArgumentNullException.ThrowIfNull(component);
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             _components.Remove(component);
         }
@@ -55,7 +55,7 @@ public sealed class TerminalPainter
     /// <summary>获取所有已注册组件的只读快照。</summary>
     public IReadOnlyList<ITuiComponent> GetComponents()
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             return _components.ToArray();
         }
@@ -66,7 +66,7 @@ public sealed class TerminalPainter
     public void NotifyQueueChanged(QueueSnapshot snapshot)
     {
         IReadOnlyList<ITuiComponent> components;
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             components = _components.ToArray();
         }
@@ -83,7 +83,7 @@ public sealed class TerminalPainter
     public void NotifyResize(int cols, int rows)
     {
         IReadOnlyList<ITuiComponent> components;
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             components = _components.ToArray();
         }

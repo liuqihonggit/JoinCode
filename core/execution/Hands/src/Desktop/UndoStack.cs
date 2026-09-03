@@ -7,13 +7,13 @@ namespace JoinCode.Hands.Desktop;
 public sealed partial class UndoStack : ServiceEntity, IUndoStack
 {
     private readonly Stack<DesktopOperation> _stack = new();
-    private readonly object _lock = new();
+    private readonly AsyncLock _lock = new("UndoStack");
 
     /// <summary>记录一个已执行的操作</summary>
     public void Push(DesktopOperation operation)
     {
         ArgumentNullException.ThrowIfNull(operation);
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             _stack.Push(operation);
         }
@@ -22,7 +22,7 @@ public sealed partial class UndoStack : ServiceEntity, IUndoStack
     /// <summary>弹出并返回栈顶操作（撤销一步），栈空返回 null</summary>
     public DesktopOperation? Pop()
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             return _stack.Count == 0 ? null : _stack.Pop();
         }
@@ -31,7 +31,7 @@ public sealed partial class UndoStack : ServiceEntity, IUndoStack
     /// <summary>查看栈顶操作但不弹出，栈空返回 null</summary>
     public DesktopOperation? Peek()
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             return _stack.Count == 0 ? null : _stack.Peek();
         }
@@ -42,7 +42,7 @@ public sealed partial class UndoStack : ServiceEntity, IUndoStack
     {
         get
         {
-            lock (_lock)
+            using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
             {
                 return _stack.Count;
             }
@@ -55,7 +55,7 @@ public sealed partial class UndoStack : ServiceEntity, IUndoStack
         if (count <= 0)
             return [];
 
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             return _stack.Take(count).ToArray();
         }
@@ -64,7 +64,7 @@ public sealed partial class UndoStack : ServiceEntity, IUndoStack
     /// <summary>清空撤销栈</summary>
     public void Clear()
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             _stack.Clear();
         }

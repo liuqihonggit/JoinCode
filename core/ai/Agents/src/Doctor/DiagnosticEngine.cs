@@ -12,13 +12,13 @@ public sealed class DiagnosticEngine
     private readonly Dictionary<(string PatientId, string ToolName), int> _toolErrorsByPatientAndTool = new();
     private readonly Dictionary<string, double> _lastTokenUsageRatioByPatient = new();
     private readonly List<DiagnosticReport> _reports = [];
-    private readonly object _lock = new();
+    private readonly AsyncLock _lock = new("DiagnosticEngine");
 
     public IReadOnlyList<DiagnosticReport> Reports
     {
         get
         {
-            lock (_lock) return _reports.ToList();
+            using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时")) return _reports.ToList();
         }
     }
 
@@ -49,7 +49,7 @@ public sealed class DiagnosticEngine
 
         if (report is not null)
         {
-            lock (_lock) _reports.Add(report);
+            using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时")) _reports.Add(report);
             DoctorDiag.WriteError($"[Doctor] 诊断报告生成: {report.RuleId} - {report.Description} (病人: {report.PatientId})");
             DiagnosticReportGenerated?.Invoke(this, report);
         }
@@ -117,7 +117,7 @@ public sealed class DiagnosticEngine
             SuggestedFixDescription = "重启病人进程，检查是否存在死锁或无限循环"
         };
 
-        lock (_lock) _reports.Add(report);
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时")) _reports.Add(report);
         DoctorDiag.WriteError($"[Doctor] 诊断报告生成: {report.RuleId} - {report.Description} (病人: {report.PatientId})");
         DiagnosticReportGenerated?.Invoke(this, report);
         return report;
@@ -125,7 +125,7 @@ public sealed class DiagnosticEngine
 
     public void Reset()
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             _loopCountBySession.Clear();
             _permissionDeniedByTool.Clear();
@@ -138,7 +138,7 @@ public sealed class DiagnosticEngine
 
     public void ResetPatient(string patientId)
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             var sessionKeysToRemove = _loopCountBySession.Keys.Where(k => k.PatientId == patientId).ToList();
             foreach (var key in sessionKeysToRemove) _loopCountBySession.Remove(key);

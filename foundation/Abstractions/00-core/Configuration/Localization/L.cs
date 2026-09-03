@@ -9,7 +9,7 @@ namespace JoinCode.Abstractions.Localization;
 /// </summary>
 public static class L
 {
-    private static readonly object s_lock = new();
+    private static readonly AsyncLock s_lock = new("L");
     private static IReadOnlyDictionary<string, string> _entries =
         FrozenDictionary<string, string>.Empty;
 
@@ -25,7 +25,7 @@ public static class L
     /// </summary>
     public static void Initialize(string language, IReadOnlyDictionary<string, string> entries)
     {
-        lock (s_lock)
+        using (s_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             CurrentLanguage = language;
             _entries = entries;
@@ -52,14 +52,11 @@ public static class L
 
     private static void EnsureInitialized()
     {
-        lock (s_lock)
-        {
-            if (!_initialized)
-            {
-                // 通过 ModuleInitializer 注册的委托初始化
-                LazyInitializer?.Invoke();
-            }
-        }
+        if (_initialized) return;
+        // 不持锁调用 — LazyInitializer 内部 L.Initialize 自己获取锁。
+        // 持锁调用会导致重入死锁（EnsureInitialized → LazyInitializer → L.Initialize 获取同一锁）。
+        // L.Initialize 幂等（可多次调用，后者覆盖），并发调用由其内部锁串行化。
+        LazyInitializer?.Invoke();
     }
 
     /// <summary>

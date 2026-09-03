@@ -192,10 +192,10 @@ internal sealed class DiagnosticEntryWriter
             var dataProps = string.Join(",", entry.Data.Select(kv => $"\"{kv.Key}\":\"{EscapeJsonString(kv.Value)}\""));
             var line = $"{{\"ts\":\"{entry.Timestamp:O}\",\"event\":\"{entry.EventType}\",\"session\":\"{entry.SessionId}\",\"trace\":\"{entry.TraceId}\"{anomalyFlag},\"data\":{{{dataProps}}}}}";
 
-            using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+            using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
             await _fs.AppendAllTextAsync(_logPath, line + "\n", ct).ConfigureAwait(false);
-        
+
         }
         catch (Exception ex)
         {

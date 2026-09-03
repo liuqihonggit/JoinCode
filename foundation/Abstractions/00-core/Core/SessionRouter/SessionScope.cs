@@ -9,7 +9,7 @@ public sealed class SessionScope : IDisposable
 {
     private readonly ConcurrentDictionary<ObjectId, Entity> _entities = new();
     private readonly ConcurrentDictionary<ObjectType, HashSet<ObjectId>> _typeIndex = new();
-    private readonly object _indexLock = new();
+    private readonly AsyncLock _indexLock = new("SessionScope");
     private volatile bool _disposed;
     private int _disposeFailures;
 
@@ -128,7 +128,7 @@ public sealed class SessionScope : IDisposable
     {
         var type = entity.ObjectId.Type;
         var set = _typeIndex.GetOrAdd(type, _ => new HashSet<ObjectId>());
-        lock (_indexLock)
+        using (_indexLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             set.Add(entity.ObjectId);
         }
@@ -139,7 +139,7 @@ public sealed class SessionScope : IDisposable
         var type = entity.ObjectId.Type;
         if (_typeIndex.TryGetValue(type, out var set))
         {
-            lock (_indexLock)
+            using (_indexLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
             {
                 set.Remove(entity.ObjectId);
             }

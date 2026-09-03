@@ -18,23 +18,26 @@ public class AsyncLockTest
     [Fact(Timeout = 10000)]
     public async Task LockAsync_SecondCallWaitsUntilFirstReleases()
     {
-        var asyncLock = new AsyncLock();
-        var guard1 = await asyncLock.LockAsync();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
+        var guard1 = asyncLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
 
-        var secondCall = asyncLock.LockAsync();
-        secondCall.IsCompletedSuccessfully.Should().BeFalse("第一次未释放时第二次应阻塞");
+        // TryLock 同步阻塞, 在另一线程调用以避免阻塞测试线程
+        var secondTask = Task.Run(() => asyncLock.TryLock());
+        (await Task.WhenAny(secondTask, Task.Delay(200))).Should().NotBe(secondTask, "第一次未释放时第二次应阻塞");
 
         guard1.Dispose();
 
-        var guard2 = await secondCall.AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+        var guard2 = await secondTask.WaitAsync(TimeSpan.FromSeconds(5));
+        guard2.Should().NotBeNull("释放第一个后第二次应获取到锁");
 
         // 验证 guard2 确实持有锁: 持有期间第三次调用应阻塞
-        var thirdCall = asyncLock.LockAsync();
-        thirdCall.IsCompletedSuccessfully.Should().BeFalse("guard2 持有锁, 第三次调用应阻塞");
-        guard2.Dispose();
+        var thirdTask = Task.Run(() => asyncLock.TryLock());
+        (await Task.WhenAny(thirdTask, Task.Delay(200))).Should().NotBe(thirdTask, "guard2 持有锁, 第三次调用应阻塞");
+        guard2!.Dispose();
 
-        var guard3 = await thirdCall.AsTask().WaitAsync(TimeSpan.FromSeconds(5));
-        guard3.Dispose();
+        var guard3 = await thirdTask.WaitAsync(TimeSpan.FromSeconds(5));
+        guard3.Should().NotBeNull();
+        guard3!.Dispose();
     }
 
     // ===== 2. 无竞争快速路径 (Fast Path) =====
@@ -42,22 +45,22 @@ public class AsyncLockTest
     [Fact(Timeout = 10000)]
     public async Task LockAsync_NoContention_CompletesSynchronously()
     {
-        var asyncLock = new AsyncLock();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
 
         // SemaphoreSlim 包装不保证无竞争时同步完成, 仅验证锁可获取
-        var guard = await asyncLock.LockAsync();
+        var guard = asyncLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
         guard.Dispose();
     }
 
     [Fact(Timeout = 10000)]
     public async Task LockAsync_AfterRelease_CompletesSynchronously()
     {
-        var asyncLock = new AsyncLock();
-        var g1 = await asyncLock.LockAsync();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
+        var g1 = asyncLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
         g1.Dispose();
 
         // SemaphoreSlim 包装不保证释放后无竞争时同步完成, 仅验证锁可获取
-        (await asyncLock.LockAsync()).Dispose();
+        (asyncLock.TryLock() ?? throw new System.TimeoutException("锁等待超时")).Dispose();
     }
 
     // ===== 3. 竞争排队与唤醒 (Queueing & Wakeup) =====
@@ -65,7 +68,7 @@ public class AsyncLockTest
     [Fact(Timeout = 10000)]
     public async Task LockAsync_MultipleConcurrentLockers_SerializedAndMutuallyExclusive()
     {
-        var asyncLock = new AsyncLock();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         const int N = 10;
         var acquireOrder = new ConcurrentQueue<int>();
         int currentHolders = 0;
@@ -76,7 +79,7 @@ public class AsyncLockTest
         var tasks = Enumerable.Range(0, N).Select(async i =>
         {
             await startGate.Task.ConfigureAwait(true);
-            var guard = await asyncLock.LockAsync();
+            var guard = asyncLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
             try
             {
                 acquireOrder.Enqueue(i);
@@ -106,29 +109,29 @@ public class AsyncLockTest
     [Fact(Timeout = 10000)]
     public async Task LockAsync_PreCanceledToken_ThrowsOperationCanceledException()
     {
-        var asyncLock = new AsyncLock();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        Func<Task> act = async () => await asyncLock.LockAsync(cts.Token);
-        await act.Should().ThrowAsync<OperationCanceledException>();
+        // TryLock(已取消 token) 同步抛 OperationCanceledException
+        Action act = () => { _ = asyncLock.TryLock(cts.Token) ?? throw new System.TimeoutException("锁等待超时"); };
+        act.Should().Throw<OperationCanceledException>();
+        await Task.CompletedTask;
     }
 
     [Fact(Timeout = 10000)]
     public async Task LockAsync_WaitingLockerCanceled_ThrowsAndNextWaiterProceeds()
     {
-        var asyncLock = new AsyncLock();
-        var guard1 = await asyncLock.LockAsync();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
+        var guard1 = asyncLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
 
         var cts2 = new CancellationTokenSource();
-        var call2 = asyncLock.LockAsync(cts2.Token);
-        var call3 = asyncLock.LockAsync();
+        // TryLock 同步阻塞, 在另一线程调用; call2 绑定可取消 token, call3 用默认 5s 超时
+        var task2 = Task.Run(() => asyncLock.TryLock(cts2.Token), cts2.Token);
+        var task3 = Task.Run(() => asyncLock.TryLock());
 
-        call2.IsCompletedSuccessfully.Should().BeFalse("第二个应阻塞等待");
-        call3.IsCompletedSuccessfully.Should().BeFalse("第三个应阻塞等待");
-
-        var task2 = call2.AsTask();
-        var task3 = call3.AsTask();
+        (await Task.WhenAny(task2, Task.Delay(200))).Should().NotBe(task2, "第二个应阻塞等待");
+        (await Task.WhenAny(task3, Task.Delay(200))).Should().NotBe(task3, "第三个应阻塞等待");
 
         cts2.Cancel();
 
@@ -138,18 +141,21 @@ public class AsyncLockTest
         guard1.Dispose();
 
         var guard3 = await task3.WaitAsync(TimeSpan.FromSeconds(5));
-        guard3.Dispose();
+        guard3.Should().NotBeNull();
+        guard3!.Dispose();
     }
 
     [Fact(Timeout = 10000)]
     public async Task LockAsync_CanceledTokenWhenLockAvailable_ThrowsImmediately()
     {
-        var asyncLock = new AsyncLock();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        Func<Task> act = async () => await asyncLock.LockAsync(cts.Token);
-        await act.Should().ThrowAsync<OperationCanceledException>();
+        // TryLock(已取消 token) 同步抛 OperationCanceledException
+        Action act = () => { _ = asyncLock.TryLock(cts.Token) ?? throw new System.TimeoutException("锁等待超时"); };
+        act.Should().Throw<OperationCanceledException>();
+        await Task.CompletedTask;
     }
 
     // ===== 5. Dispose 异常 (Disposed Exception) =====
@@ -157,20 +163,22 @@ public class AsyncLockTest
     [Fact(Timeout = 10000)]
     public async Task LockAsync_AfterDispose_ThrowsObjectDisposedException()
     {
-        var asyncLock = new AsyncLock();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         asyncLock.Dispose();
 
-        Func<Task> act = async () => await asyncLock.LockAsync();
-        await act.Should().ThrowAsync<ObjectDisposedException>();
+        // Dispose 后 TryLock 同步抛 ObjectDisposedException
+        Action act = () => { _ = asyncLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"); };
+        act.Should().Throw<ObjectDisposedException>();
+        await Task.CompletedTask;
     }
 
     [Fact(Timeout = 10000)]
     public async Task Lock_AfterDispose_ThrowsObjectDisposedException()
     {
-        var asyncLock = new AsyncLock();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         asyncLock.Dispose();
 
-        Action act = () => asyncLock.Lock();
+        Action act = () => { _ = asyncLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"); };
         act.Should().Throw<ObjectDisposedException>();
         await Task.CompletedTask;
     }
@@ -178,12 +186,12 @@ public class AsyncLockTest
     [Fact(Timeout = 10000, Skip = "SemaphoreSlim.Dispose 不通知等待者,使用 AsyncLock 时确保 Dispose 前无等待者")]
     public async Task LockAsync_WaitingLockerGetsObjectDisposedExceptionOnDispose()
     {
-        var asyncLock = new AsyncLock();
-        var guard1 = await asyncLock.LockAsync();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
+        var guard1 = asyncLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
 
-        var call2 = asyncLock.LockAsync();
-        call2.IsCompletedSuccessfully.Should().BeFalse("第二个应阻塞等待");
-        var task2 = call2.AsTask();
+        // TryLock 同步阻塞, 在另一线程调用
+        var task2 = Task.Run(() => asyncLock.TryLock());
+        (await Task.WhenAny(task2, Task.Delay(200))).Should().NotBe(task2, "第二个应阻塞等待");
 
         asyncLock.Dispose();
 
@@ -194,7 +202,7 @@ public class AsyncLockTest
     [Fact(Timeout = 10000)]
     public async Task Dispose_CalledTwice_DoesNotThrow()
     {
-        var asyncLock = new AsyncLock();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         asyncLock.Dispose();
         Action act = asyncLock.Dispose;
         act.Should().NotThrow("Dispose 应可重入安全");
@@ -233,13 +241,13 @@ public class AsyncLockTest
     [Fact(Timeout = 10000)]
     public async Task Lock_TwoThreads_Serialized()
     {
-        var asyncLock = new AsyncLock();
-        var guard1 = asyncLock.Lock();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
+        var guard1 = asyncLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
         var secondAcquired = new ManualResetEventSlim(false);
 
         var t = Task.Run(() =>
         {
-            using (asyncLock.Lock())
+            using (asyncLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
             {
                 secondAcquired.Set();
             }
@@ -256,15 +264,17 @@ public class AsyncLockTest
     [Fact(Timeout = 10000)]
     public async Task Lock_ThenLockAsync_BlocksUntilRelease()
     {
-        var asyncLock = new AsyncLock();
-        var guard1 = asyncLock.Lock();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
+        var guard1 = asyncLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
 
-        var call2 = asyncLock.LockAsync();
-        call2.IsCompletedSuccessfully.Should().BeFalse("同步 Lock 持有后, 异步 LockAsync 应阻塞");
+        // TryLock 同步阻塞, 在另一线程调用
+        var task2 = Task.Run(() => asyncLock.TryLock());
+        (await Task.WhenAny(task2, Task.Delay(200))).Should().NotBe(task2, "同步 Lock 持有后, TryLock 应阻塞");
 
         guard1.Dispose();
-        var guard2 = await call2.AsTask().WaitAsync(TimeSpan.FromSeconds(5));
-        guard2.Dispose();
+        var guard2 = await task2.WaitAsync(TimeSpan.FromSeconds(5));
+        guard2.Should().NotBeNull();
+        guard2!.Dispose();
     }
 
     // ===== 8. Guard.Dispose 释放锁 (Guard Release) =====
@@ -272,27 +282,27 @@ public class AsyncLockTest
     [Fact(Timeout = 10000)]
     public async Task GuardDispose_AllowsNextLockAsyncToProceedImmediately()
     {
-        var asyncLock = new AsyncLock();
-        var guard1 = await asyncLock.LockAsync();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
+        var guard1 = asyncLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
 
         guard1.Dispose();
 
         // SemaphoreSlim 包装不保证释放后无竞争时同步完成, 仅验证锁可获取
-        (await asyncLock.LockAsync()).Dispose();
+        (asyncLock.TryLock() ?? throw new System.TimeoutException("锁等待超时")).Dispose();
     }
 
     [Fact(Timeout = 10000)]
     public async Task GuardDispose_MultipleTimes_DoesNotBreakLock()
     {
-        var asyncLock = new AsyncLock();
-        var guard1 = await asyncLock.LockAsync();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
+        var guard1 = asyncLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
 
         guard1.Dispose();
         Action act = guard1.Dispose;
         act.Should().NotThrow("IDisposable guard 多次 Dispose 不应抛异常");
 
         // SemaphoreSlim 包装不保证锁已释放后同步完成, 仅验证可再次获取
-        (await asyncLock.LockAsync()).Dispose();
+        (asyncLock.TryLock() ?? throw new System.TimeoutException("锁等待超时")).Dispose();
     }
 
     // ===== 9. 可重入安全 (Reentrancy Safety - 非重入, 第二次等待) =====
@@ -300,15 +310,17 @@ public class AsyncLockTest
     [Fact(Timeout = 10000)]
     public async Task LockAsync_TwiceWithoutRelease_SecondWaits()
     {
-        var asyncLock = new AsyncLock();
-        var guard1 = await asyncLock.LockAsync();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
+        var guard1 = asyncLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
 
-        var secondCall = asyncLock.LockAsync();
-        secondCall.IsCompletedSuccessfully.Should().BeFalse("未释放第一个锁, 第二次应等待 (非重入互斥语义)");
+        // TryLock 同步阻塞, 在另一线程调用 (同线程会触发重入检测)
+        var secondTask = Task.Run(() => asyncLock.TryLock());
+        (await Task.WhenAny(secondTask, Task.Delay(200))).Should().NotBe(secondTask, "未释放第一个锁, 第二次应等待 (非重入互斥语义)");
 
         guard1.Dispose();
-        var guard2 = await secondCall.AsTask().WaitAsync(TimeSpan.FromSeconds(5));
-        guard2.Dispose();
+        var guard2 = await secondTask.WaitAsync(TimeSpan.FromSeconds(5));
+        guard2.Should().NotBeNull();
+        guard2!.Dispose();
     }
 
     // ===== 10. 大量并发 (High Concurrency) =====
@@ -316,7 +328,7 @@ public class AsyncLockTest
     [Fact(Timeout = 10000)]
     public async Task LockAsync_HighConcurrency_AllAcquiredExactlyOnce()
     {
-        var asyncLock = new AsyncLock();
+        var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         const int N = 100;
         int currentHolders = 0;
         int maxConcurrent = 0;
@@ -327,7 +339,7 @@ public class AsyncLockTest
         var tasks = Enumerable.Range(0, N).Select(async _ =>
         {
             await startGate.Task.ConfigureAwait(true);
-            var guard = await asyncLock.LockAsync();
+            var guard = asyncLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
             try
             {
                 Interlocked.Increment(ref acquireCount);

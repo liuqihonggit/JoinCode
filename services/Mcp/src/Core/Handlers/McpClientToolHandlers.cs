@@ -48,7 +48,7 @@ public partial class McpClientToolHandlers : ServiceEntity
             return ToolResultBuilder.Error().WithText($"MCP 服务器 '{connection_name}' 已被禁用，请先启用后再连接").Build();
         }
 
-        using var guard = await _clientLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _clientLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         try
         {
             if (_clients.ContainsKey(connection_name))
@@ -187,7 +187,7 @@ public partial class McpClientToolHandlers : ServiceEntity
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNameCannotBeEmpty)).Build();
         }
 
-        using var guard = await _clientLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _clientLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         try
         {
             if (!_clients.TryGetValue(connection_name, out var client))
@@ -226,7 +226,7 @@ public partial class McpClientToolHandlers : ServiceEntity
 
         var disabled = await _deps.ServerStateManager.DisableAsync(connection_name, cancellationToken).ConfigureAwait(false);
 
-        using var guard = await _clientLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _clientLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         try
         {
             if (_clients.TryGetValue(connection_name, out var client))
@@ -565,7 +565,7 @@ public partial class McpClientToolHandlers : ServiceEntity
 
     private async Task<IMcpClient?> GetClientAsync(string connectionName, CancellationToken cancellationToken)
     {
-        using var guard = await _clientLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _clientLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
             _clients.TryGetValue(connectionName, out var client);
             return client;
     }

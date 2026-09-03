@@ -45,7 +45,7 @@ public sealed partial class AgentStateMachine
             return false;
         }
 
-        using var guard = await context.Lock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = await context.Lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         if (!context.StateMachine.TryTransitionTo(newState))
         {
             _logger?.LogWarning("[AgentStateMachine] Agent {AgentId} 无法从 {CurrentState} 转换到 {NewState}",
@@ -236,7 +236,7 @@ public sealed class AgentStateContext : IAsyncDisposable
         LastTransitionTime = createdAt;
         LastTransitionFrom = TaskExecutionStatus.Pending;
         TransitionHistory = new List<StateTransition>();
-        Lock = new AsyncLock();
+        Lock = new AsyncLock(nameof(AgentStateContext));
         _stateMachine = new StateMachine<TaskExecutionStatus>(
             AgentStateMachine.GetTransitions(), TaskExecutionStatus.Pending, clock);
         _stateMachine.StateChanged += OnStateChanged;

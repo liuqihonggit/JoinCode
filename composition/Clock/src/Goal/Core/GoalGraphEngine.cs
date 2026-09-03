@@ -74,7 +74,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
             Graph = graph,
             State = goalState,
             ChatHistory = chatHistory,
-            StateLock = new AsyncLock(),
+            StateLock = new AsyncLock(nameof(GoalGraphEngine)),
             Clock = _clock,
         };
 
@@ -305,7 +305,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
 
     private async Task SetGoalStatusAsync(GoalState goalState, GoalStatus status, GraphExecutionContext context, CancellationToken ct)
     {
-        using var guard = await context.StateLock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = await context.StateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         goalState.Status = status;
         goalState.AchievedAt = _clock.GetUtcNow();
     }
@@ -487,7 +487,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
 
         if (!string.IsNullOrEmpty(lastOutput))
         {
-            using var guard = await context.StateLock.LockAsync(ct).ConfigureAwait(false);
+            using var guard = await context.StateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
             context.ChatHistory.AddAssistantMessage($"[{payload.Name}]: {lastOutput}");
         }
 
@@ -671,7 +671,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
                 totalTurns++;
         }
 
-        using var guard = await context.StateLock.LockAsync().ConfigureAwait(false);
+        using var guard = await context.StateLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         context.State.TokensUsed = totalTokens;
         context.State.TurnsCompleted = totalTurns;
     }

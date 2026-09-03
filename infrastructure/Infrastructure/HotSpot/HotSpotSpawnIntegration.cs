@@ -16,7 +16,7 @@ public sealed partial class HotSpotSpawnIntegration : IHotSpotSpawnIntegration
 
     private volatile bool _listenersRegistered;
     private string? _registeredCaptainId;
-    private readonly Lock _registerLock = new();
+    private readonly AsyncLock _registerLock = new("HotSpotSpawnIntegration");
 
     public HotSpotSpawnIntegration(
         IFileWriteListenerRegistry registry,
@@ -43,7 +43,7 @@ public sealed partial class HotSpotSpawnIntegration : IHotSpotSpawnIntegration
     {
         if (_listenersRegistered && _registeredCaptainId == captainId) return;
 
-        lock (_registerLock)
+        using (_registerLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (_listenersRegistered && _registeredCaptainId == captainId) return;
 

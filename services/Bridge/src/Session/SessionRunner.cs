@@ -223,7 +223,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
         Dictionary<string, string>? metadata = null,
         CancellationToken cancellationToken = default)
     {
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         var activeCount = _sessions.Values.Count(s => s.Status == BridgeSessionStatus.Active);
         if (activeCount >= _configuration.MaxActiveSessions)
@@ -258,7 +258,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// <exception cref="KeyNotFoundException">会话不存在</exception>
     public async Task StopSessionAsync(string sessionId, CancellationToken cancellationToken = default)
     {
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         if (!_sessions.TryGetValue(sessionId, out var session))
         {
@@ -292,7 +292,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// </summary>
     public async Task SuspendSessionAsync(string sessionId, CancellationToken cancellationToken = default)
     {
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         if (!_sessions.TryGetValue(sessionId, out var session))
         {
@@ -323,7 +323,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// </summary>
     public async Task ResumeSessionAsync(string sessionId, CancellationToken cancellationToken = default)
     {
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         if (!_sessions.TryGetValue(sessionId, out var session))
         {
@@ -413,7 +413,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
         else if (session.Status != snapshot.State)
         {
             // 状态不一致 → 激活
-            using var guard = await _lock.LockAsync(ct).ConfigureAwait(false);
+            using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
             var previousStatus = session.Status;
             session.Status = BridgeSessionStatus.Active;
@@ -449,7 +449,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// <returns>刷新是否成功</returns>
     public async Task<bool> KeepAliveAsync(string sessionId, CancellationToken cancellationToken = default)
     {
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         if (!_sessions.TryGetValue(sessionId, out var session))
         {
@@ -488,7 +488,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// <returns>被清理的会话数量</returns>
     public async Task<int> CleanupExpiredSessionsAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = await _lock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         var now = _timeProvider.GetUtcNow();
         var timeout = _configuration.SessionTimeout;

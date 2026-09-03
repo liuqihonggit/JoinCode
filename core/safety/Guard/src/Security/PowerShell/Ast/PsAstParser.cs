@@ -8,7 +8,7 @@ public static partial class PsAstParser
 {
     private static readonly string ParseScriptBody = BuildParseScript();
     private static string? _cachedPwshPath;
-    private static readonly Lock CacheLock = new();
+    private static readonly AsyncLock CacheLock = new("PsAstParser");
 
     private const int MaxCacheSize = 256;
     private static readonly ConcurrentDictionary<string, PsParsedCommand> ParseCache = new(StringComparer.Ordinal);
@@ -376,7 +376,7 @@ public static partial class PsAstParser
 
     private static string? FindPwshPath()
     {
-        lock (CacheLock)
+        using (CacheLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (_cachedPwshPath is not null) return _cachedPwshPath;
         }
@@ -405,7 +405,7 @@ public static partial class PsAstParser
 
         if (found is not null)
         {
-            lock (CacheLock)
+            using (CacheLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
             {
                 _cachedPwshPath = found;
             }

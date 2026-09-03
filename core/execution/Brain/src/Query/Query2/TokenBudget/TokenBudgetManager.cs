@@ -28,7 +28,7 @@ public partial class TokenBudgetManager : ITokenBudgetManager, IAsyncDisposable
     /// <param name="ct">取消令牌</param>
     public async Task AllocateBudgetAsync(long amount, CancellationToken ct = default)
     {
-                using (await _lock.LockAsync(ct).ConfigureAwait(false))
+                using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             _budget.TotalBudget += amount;
         }
@@ -43,7 +43,7 @@ public partial class TokenBudgetManager : ITokenBudgetManager, IAsyncDisposable
     /// <param name="ct">取消令牌</param>
     public async Task ConsumeTokensAsync(long amount, string reason, string? toolName = null, CancellationToken ct = default)
     {
-                using (await _lock.LockAsync(ct).ConfigureAwait(false))
+                using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             _budget.UsedTokens += amount;
 
@@ -68,7 +68,7 @@ public partial class TokenBudgetManager : ITokenBudgetManager, IAsyncDisposable
     /// <returns>剩余预算数量；TotalBudget==0（未分配）时返回 long.MaxValue 表示无限制</returns>
     public async Task<long> GetRemainingBudgetAsync(CancellationToken ct = default)
     {
-                using (await _lock.LockAsync(ct).ConfigureAwait(false))
+                using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             // 未分配预算时视为无限制，避免阻止所有对话
             if (_budget.TotalBudget == 0)
@@ -89,7 +89,7 @@ public partial class TokenBudgetManager : ITokenBudgetManager, IAsyncDisposable
             throw new ArgumentOutOfRangeException(nameof(threshold), "[BRN011] 阈值必须在0.0到1.0之间");
         }
 
-                using (await _lock.LockAsync(ct).ConfigureAwait(false))
+                using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             _alertThreshold = threshold;
         }
@@ -101,7 +101,7 @@ public partial class TokenBudgetManager : ITokenBudgetManager, IAsyncDisposable
     /// <param name="ct">取消令牌</param>
     public async Task ResetBudgetAsync(CancellationToken ct = default)
     {
-                using (await _lock.LockAsync(ct).ConfigureAwait(false))
+                using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
         {
             _budget.TotalBudget = 0;
             _budget.UsedTokens = 0;

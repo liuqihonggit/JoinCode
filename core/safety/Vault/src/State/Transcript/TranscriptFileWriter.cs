@@ -24,7 +24,7 @@ internal sealed class TranscriptFileWriter : IDisposable
         _sessionsDirectory = sessionsDirectory;
         _logger = logger;
         _pasteStore = pasteStore;
-        _writeLock = new AsyncLock();
+        _writeLock = new AsyncLock(nameof(TranscriptFileWriter));
     }
 
     private bool IsFileSystemRestricted
@@ -59,7 +59,7 @@ internal sealed class TranscriptFileWriter : IDisposable
 
         var entryToWrite = MaybeOffloadToPasteStore(entry);
 
-        using var guard = await _writeLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _writeLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         try
         {
             EnsureDirectoryExists(Path.GetDirectoryName(filePath));
@@ -87,7 +87,7 @@ internal sealed class TranscriptFileWriter : IDisposable
 
         _logger?.LogDebug("AppendEntriesAsync: filePath={FilePath}, count={Count}", filePath, entries.Count);
 
-        using var guard = await _writeLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = await _writeLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         try
         {
             EnsureDirectoryExists(Path.GetDirectoryName(filePath));

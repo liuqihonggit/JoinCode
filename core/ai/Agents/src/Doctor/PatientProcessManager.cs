@@ -25,7 +25,7 @@ public sealed class PatientProcessManager : IAsyncDisposable
     {
         get
         {
-            using var guard = _patientsLock.Lock();
+            using var guard = _patientsLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
             return _patients.ToDictionary(
                 kv => kv.Key,
                 kv => kv.Value.Info);
@@ -54,7 +54,7 @@ public sealed class PatientProcessManager : IAsyncDisposable
         IReadOnlyDictionary<string, string>? environmentVariables = null,
         CancellationToken cancellationToken = default)
     {
-        EnsurePatientNotExists(patientId, cancellationToken);
+        await EnsurePatientNotExistsAsync(patientId, cancellationToken).ConfigureAwait(false);
 
         var execPath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? "jcc";
 
@@ -97,7 +97,7 @@ public sealed class PatientProcessManager : IAsyncDisposable
         handle.ErrorLineReceived += OnErrorLineReceived;
         handle.ProcessExited += OnProcessExited;
 
-        RegisterPatient(patientId, handle, cancellationToken);
+        await RegisterPatientAsync(patientId, handle, cancellationToken).ConfigureAwait(false);
 
         DoctorDiag.Write($"[Doctor] 病人进程已启动: {patientId}, PID={process.Id}");
 
@@ -105,17 +105,17 @@ public sealed class PatientProcessManager : IAsyncDisposable
     }
 
     /// <summary>检查病人是否已存在，存在则抛异常</summary>
-    private void EnsurePatientNotExists(string patientId, CancellationToken cancellationToken)
+    private async Task EnsurePatientNotExistsAsync(string patientId, CancellationToken cancellationToken)
     {
-        using var guard = _patientsLock.Lock(cancellationToken);
+        using var guard = _patientsLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
         if (_patients.ContainsKey(patientId))
             throw new InvalidOperationException($"[AGT013] 病人 {patientId} 已存在，请先 Kill 后再 Spawn");
     }
 
     /// <summary>注册病人进程到管理表</summary>
-    private void RegisterPatient(string patientId, PatientHandle handle, CancellationToken cancellationToken)
+    private async Task RegisterPatientAsync(string patientId, PatientHandle handle, CancellationToken cancellationToken)
     {
-        using var guard = _patientsLock.Lock(cancellationToken);
+        using var guard = _patientsLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
  _patients[patientId] = handle; 
     }
 
@@ -125,7 +125,7 @@ public sealed class PatientProcessManager : IAsyncDisposable
     public async Task KillAsync(string patientId)
     {
         PatientHandle? handle;
-        using var guard = await _patientsLock.LockAsync().ConfigureAwait(false);
+        using var guard = _patientsLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
  _patients.TryGetValue(patientId, out handle); 
 
         if (handle is null) return;
@@ -139,7 +139,7 @@ public sealed class PatientProcessManager : IAsyncDisposable
     /// </summary>
     public async Task RemovePatientAsync(string patientId)
     {
-        using var guard = await _patientsLock.LockAsync().ConfigureAwait(false);
+        using var guard = _patientsLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
  _patients.Remove(patientId); 
     }
 
@@ -149,7 +149,7 @@ public sealed class PatientProcessManager : IAsyncDisposable
     public async Task KillAllAsync()
     {
         List<PatientHandle> handles;
-        using var guard = await _patientsLock.LockAsync().ConfigureAwait(false);
+        using var guard = _patientsLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
  handles = _patients.Values.ToList(); 
 
         foreach (var handle in handles)
@@ -162,7 +162,7 @@ public sealed class PatientProcessManager : IAsyncDisposable
     public async Task<PatientInfo> WaitForExitAsync(string patientId, CancellationToken cancellationToken = default)
     {
         PatientHandle? handle;
-        using var guard = await _patientsLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _patientsLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
  _patients.TryGetValue(patientId, out handle); 
 
         if (handle is null)
@@ -177,7 +177,7 @@ public sealed class PatientProcessManager : IAsyncDisposable
     public async Task<IReadOnlyDictionary<string, PatientInfo>> WaitForAllExitAsync(CancellationToken cancellationToken = default)
     {
         List<PatientHandle> handles;
-        using var guard = await _patientsLock.LockAsync(cancellationToken).ConfigureAwait(false);
+        using var guard = _patientsLock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
  handles = _patients.Values.ToList(); 
 
         var results = new Dictionary<string, PatientInfo>();
@@ -195,7 +195,7 @@ public sealed class PatientProcessManager : IAsyncDisposable
     /// </summary>
     public System.IO.StreamWriter? GetStandardInput(string patientId)
     {
-        using var guard = _patientsLock.Lock();
+        using var guard = _patientsLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
         return _patients.TryGetValue(patientId, out var h) ? h.StandardInput : null;
     }
 
@@ -204,7 +204,7 @@ public sealed class PatientProcessManager : IAsyncDisposable
     /// </summary>
     public PatientInfo? GetPatientInfo(string patientId)
     {
-        using var guard = _patientsLock.Lock();
+        using var guard = _patientsLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
         return _patients.TryGetValue(patientId, out var h) ? h.Info : null;
     }
 
@@ -213,7 +213,7 @@ public sealed class PatientProcessManager : IAsyncDisposable
     /// </summary>
     public bool IsRunning(string patientId)
     {
-        using var guard = _patientsLock.Lock();
+        using var guard = _patientsLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
         return _patients.TryGetValue(patientId, out var h) && h.IsRunning;
     }
 
@@ -245,7 +245,7 @@ public sealed class PatientProcessManager : IAsyncDisposable
     /// <summary>清理所有病人句柄（在锁保护下执行）</summary>
     private async Task CleanupPatientsAsync()
     {
-        using var guard = await _patientsLock.LockAsync().ConfigureAwait(false);
+        using var guard = _patientsLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
 
         var handles = _patients.Values.ToList();
         _patients.Clear();

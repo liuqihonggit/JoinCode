@@ -70,7 +70,7 @@ public sealed class FlushGate<T> : IFlushGate<T>
     /// </summary>
     public async Task<int> GetCurrentBatchSizeAsync(CancellationToken ct = default)
     {
-        using var guard = await _batchLock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = await _batchLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         return _currentBatch.Count;
     
@@ -82,7 +82,7 @@ public sealed class FlushGate<T> : IFlushGate<T>
     /// <param name="ct">取消令牌</param>
     public async Task StartAsync(CancellationToken ct = default)
     {
-        using var guard = await _batchLock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = await _batchLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         if (Interlocked.CompareExchange(ref _isRunning, 1, 0) != 0)
         {
@@ -141,7 +141,7 @@ public sealed class FlushGate<T> : IFlushGate<T>
     {
         ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
 
-        using var guard = await _batchLock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = await _batchLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
         _currentBatch.Add(item);
 
@@ -159,7 +159,7 @@ public sealed class FlushGate<T> : IFlushGate<T>
     /// <param name="ct">取消令牌</param>
     public async Task FlushAsync(CancellationToken ct = default)
     {
-        using var guard = await _batchLock.LockAsync(ct).ConfigureAwait(false);
+        using var guard = await _batchLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
         FlushCore();
     }
 

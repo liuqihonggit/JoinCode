@@ -18,7 +18,7 @@ public sealed partial class NetworkConnectivityService : ServiceEntity, INetwork
     private readonly Func<bool> _proxyEnvDetector;
     private readonly TimeProvider _timeProvider;
 
-    private readonly object _stateLock = new();
+    private readonly AsyncLock _stateLock = new("NetworkConnectivityService");
     private NetworkConnectivityState _currentState;
     private bool _subscribed;
 
@@ -52,19 +52,19 @@ public sealed partial class NetworkConnectivityService : ServiceEntity, INetwork
     /// <inheritdoc/>
     public NetworkConnectivityState CurrentState
     {
-        get { lock (_stateLock) return _currentState; }
+        get { using (_stateLock.TryLock() ?? throw new System.TimeoutException("锁等待超时")) return _currentState; }
     }
 
     /// <inheritdoc/>
     public bool IsNetworkAvailable()
     {
-        lock (_stateLock) return _currentState != NetworkConnectivityState.Offline;
+        using (_stateLock.TryLock() ?? throw new System.TimeoutException("锁等待超时")) return _currentState != NetworkConnectivityState.Offline;
     }
 
     /// <inheritdoc/>
     public bool IsVpnActive()
     {
-        lock (_stateLock) return _currentState == NetworkConnectivityState.OnlineWithVpn;
+        using (_stateLock.TryLock() ?? throw new System.TimeoutException("锁等待超时")) return _currentState == NetworkConnectivityState.OnlineWithVpn;
     }
 
     /// <inheritdoc/>
@@ -123,7 +123,7 @@ public sealed partial class NetworkConnectivityService : ServiceEntity, INetwork
     {
         var newState = ComputeState();
         NetworkConnectivityState previous;
-        lock (_stateLock)
+        using (_stateLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (_currentState == newState) return;
             previous = _currentState;

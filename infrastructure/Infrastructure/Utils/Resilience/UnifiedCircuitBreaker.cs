@@ -63,7 +63,7 @@ internal sealed class CircuitBreakerContext : FsmContext
 public sealed partial class UnifiedCircuitBreaker
 {
     private readonly TimeSpan _openDuration;
-    private readonly object _lock = new();
+    private readonly AsyncLock _lock = new("UnifiedCircuitBreaker");
     private readonly Fsm<CircuitBreakerPhase, CircuitBreakerEvent> _fsm;
     private readonly CircuitBreakerContext _ctx;
 
@@ -75,7 +75,7 @@ public sealed partial class UnifiedCircuitBreaker
     {
         get
         {
-            lock (_lock)
+            using (_lock.TryLock() ?? throw new global::System.TimeoutException("锁等待超时"))
             {
                 MaybeTransitionToHalfOpen();
                 return _fsm.CurrentState;
@@ -85,24 +85,24 @@ public sealed partial class UnifiedCircuitBreaker
 
     public int ConsecutiveFailures
     {
-        get { lock (_lock) { return _ctx.ConsecutiveFailures; } }
+        get { using (_lock.TryLock() ?? throw new global::System.TimeoutException("锁等待超时")) { return _ctx.ConsecutiveFailures; } }
     }
 
     public int TotalFailures
     {
-        get { lock (_lock) { return _ctx.TotalFailures; } }
+        get { using (_lock.TryLock() ?? throw new global::System.TimeoutException("锁等待超时")) { return _ctx.TotalFailures; } }
     }
 
     public int TotalSuccesses
     {
-        get { lock (_lock) { return _ctx.TotalSuccesses; } }
+        get { using (_lock.TryLock() ?? throw new global::System.TimeoutException("锁等待超时")) { return _ctx.TotalSuccesses; } }
     }
 
     public DateTimeOffset? OpenedAt
     {
         get
         {
-            lock (_lock)
+            using (_lock.TryLock() ?? throw new global::System.TimeoutException("锁等待超时"))
             {
                 return _fsm.CurrentState != CircuitBreakerPhase.Closed ? _ctx.OpenedAt : null;
             }
@@ -113,7 +113,7 @@ public sealed partial class UnifiedCircuitBreaker
 
     public DateTimeOffset? LastFailureTime
     {
-        get { lock (_lock) { return _ctx.LastFailureTime == DateTimeOffset.MinValue ? null : _ctx.LastFailureTime; } }
+        get { using (_lock.TryLock() ?? throw new global::System.TimeoutException("锁等待超时")) { return _ctx.LastFailureTime == DateTimeOffset.MinValue ? null : _ctx.LastFailureTime; } }
     }
 
     public UnifiedCircuitBreaker(string name, int failureThreshold = 5, TimeSpan? openDuration = null, int halfOpenMaxProbe = 1)
@@ -142,7 +142,7 @@ public sealed partial class UnifiedCircuitBreaker
 
     public bool TryProbe()
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new global::System.TimeoutException("锁等待超时"))
         {
             MaybeTransitionToHalfOpen();
             var state = _fsm.CurrentState;
@@ -163,7 +163,7 @@ public sealed partial class UnifiedCircuitBreaker
 
     public void RecordSuccess()
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new global::System.TimeoutException("锁等待超时"))
         {
             MaybeTransitionToHalfOpen();
             _ctx.TotalSuccesses++;
@@ -173,7 +173,7 @@ public sealed partial class UnifiedCircuitBreaker
 
     public void RecordFailure()
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new global::System.TimeoutException("锁等待超时"))
         {
             MaybeTransitionToHalfOpen();
 
@@ -188,7 +188,7 @@ public sealed partial class UnifiedCircuitBreaker
 
     public void Reset()
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new global::System.TimeoutException("锁等待超时"))
         {
             _fsm.Trigger(CircuitBreakerEvent.Reset, _ctx);
         }

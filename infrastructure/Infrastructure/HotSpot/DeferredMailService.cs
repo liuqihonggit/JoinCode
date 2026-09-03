@@ -8,7 +8,7 @@ namespace Infrastructure.HotSpot;
 public sealed class DeferredMailService : IDeferredMailService
 {
     private readonly ConcurrentDictionary<string, List<DeferredMailEntry>> _pending = new();
-    private readonly ConcurrentDictionary<string, object> _locks = new();
+    private readonly ConcurrentDictionary<string, AsyncLock> _locks = new();
 
     public Task DeferAsync(DeferredMail mail, CancellationToken cancellationToken = default)
     {
@@ -16,7 +16,7 @@ public sealed class DeferredMailService : IDeferredMailService
         cancellationToken.ThrowIfCancellationRequested();
 
         var entry = new DeferredMailEntry { Mail = mail, RemainingTurns = mail.OpenAfterTurns };
-        lock (GetLock(mail.To))
+        using (GetLock(mail.To).TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             _pending.GetOrAdd(mail.To, _ => []).Add(entry);
         }
@@ -26,7 +26,7 @@ public sealed class DeferredMailService : IDeferredMailService
     public IReadOnlyList<DeferredMail> TickTurns(string agentId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
-        lock (GetLock(agentId))
+        using (GetLock(agentId).TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (!_pending.TryGetValue(agentId, out var list))
                 return [];
@@ -50,7 +50,7 @@ public sealed class DeferredMailService : IDeferredMailService
     public IReadOnlyList<DeferredMail> FlushOnTaskEnd(string agentId, MailMarker? markerFilter = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
-        lock (GetLock(agentId))
+        using (GetLock(agentId).TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (!_pending.TryGetValue(agentId, out var list))
                 return [];
@@ -71,7 +71,7 @@ public sealed class DeferredMailService : IDeferredMailService
     public IReadOnlyList<DeferredMail> GetPending(string agentId, MailMarker? markerFilter = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
-        lock (GetLock(agentId))
+        using (GetLock(agentId).TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (!_pending.TryGetValue(agentId, out var list))
                 return [];
@@ -82,7 +82,7 @@ public sealed class DeferredMailService : IDeferredMailService
         }
     }
 
-    private object GetLock(string agentId) => _locks.GetOrAdd(agentId, _ => new object());
+    private AsyncLock GetLock(string agentId) => _locks.GetOrAdd(agentId, _ => new AsyncLock("DeferredMailService"));
 
     private sealed class DeferredMailEntry
     {

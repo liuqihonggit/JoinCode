@@ -8,7 +8,7 @@ namespace JoinCode.Hands.Desktop;
 public sealed partial class DesktopSafetyChecker : ServiceEntity, IDesktopSafetyChecker
 {
     private readonly List<DangerousZone> _zones = new();
-    private readonly object _lock = new();
+    private readonly AsyncLock _lock = new("DesktopSafetyChecker");
 
     private static readonly FrozenSet<string> UnsavedKeywords = FrozenSet.Create(
         StringComparer.OrdinalIgnoreCase, "未保存", "unsaved", "modified");
@@ -18,7 +18,7 @@ public sealed partial class DesktopSafetyChecker : ServiceEntity, IDesktopSafety
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             foreach (var zone in _zones)
             {
@@ -55,7 +55,7 @@ public sealed partial class DesktopSafetyChecker : ServiceEntity, IDesktopSafety
     /// <summary>注册危险坐标区域 — 如通过视觉识别到"确定删除"按钮时调用（U-04）</summary>
     public void RegisterDangerousZone(int x, int y, int width, int height)
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             _zones.Add(new DangerousZone(x, y, width, height));
         }
@@ -64,7 +64,7 @@ public sealed partial class DesktopSafetyChecker : ServiceEntity, IDesktopSafety
     /// <summary>清空危险区域集合</summary>
     public void ClearDangerousZones()
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             _zones.Clear();
         }
@@ -75,7 +75,7 @@ public sealed partial class DesktopSafetyChecker : ServiceEntity, IDesktopSafety
     {
         get
         {
-            lock (_lock)
+            using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
             {
                 return _zones.Count;
             }

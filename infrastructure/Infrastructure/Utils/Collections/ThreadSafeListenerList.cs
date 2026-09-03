@@ -14,7 +14,7 @@ public sealed class ThreadSafeListenerList<T>
     public IDisposable Register(T listener)
     {
         ArgumentNullException.ThrowIfNull(listener);
-        using (_lock.Lock())
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             _listeners.Add(listener);
         }
@@ -27,7 +27,7 @@ public sealed class ThreadSafeListenerList<T>
         ArgumentNullException.ThrowIfNull(action);
 
         T[] snapshot;
-        using (_lock.Lock())
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             snapshot = _listeners.ToArray();
         }
@@ -49,7 +49,7 @@ public sealed class ThreadSafeListenerList<T>
     {
         get
         {
-            using (_lock.Lock())
+            using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
             {
                 return _listeners.Count;
             }
@@ -58,7 +58,7 @@ public sealed class ThreadSafeListenerList<T>
 
     private void Unsubscribe(T listener)
     {
-        using (_lock.Lock())
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             _listeners.Remove(listener);
         }

@@ -40,7 +40,7 @@ public sealed class TokenBucket : IDisposable
     {
         while (true)
         {
-            using var guard = await _gate.LockAsync(ct).ConfigureAwait(false);
+            using var guard = await _gate.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
 
             Refill();
 

@@ -135,7 +135,7 @@ public class AgentBase : Entity, IAgent
         _clock = clock ?? SystemClockService.Instance;
         _context = new List<string>();
         _cts = new CancellationTokenSource();
-        _pauseLock = new AsyncLock();
+        _pauseLock = new AsyncLock(nameof(AgentBase));
         Status = TaskExecutionStatus.Pending;
         _executionCount = 0;
         ContextManager = contextManager;
@@ -253,7 +253,7 @@ public class AgentBase : Entity, IAgent
 
                     try
                     {
-                        using (await _pauseLock.LockAsync(linkedToken).ConfigureAwait(false)) { }
+                        using (await _pauseLock.TryLockAsync(linkedToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时")) { }
 
                         var pauseDuration = _clock.GetUtcNow() - pauseStart;
                         _logger?.LogInformation("[{AgentType} {AgentId}] 暂停结束，等待时长 {PauseDurationMs}ms", GetType().Name, UniqueId, pauseDuration.TotalMilliseconds);
@@ -422,7 +422,7 @@ public class AgentBase : Entity, IAgent
             {
                 try
                 {
-                    using (await _pauseLock.LockAsync(linkedToken).ConfigureAwait(false)) { }
+                    using (await _pauseLock.TryLockAsync(linkedToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时")) { }
                 }
                 catch (TimeoutException)
                 {

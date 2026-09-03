@@ -347,7 +347,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
                 _state.GoalId, objective, tokenBudget?.ToString() ?? L.T(StringKey.GoalEngineBudgetUnlimited));
 
             _engineCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            _completionTcs = new();
+            _completionTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
             _engineLoop = Task.Run(() => RunGoalLoopAsync(_engineCts.Token));
         }
 
@@ -392,7 +392,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
             _state.GoalId, objective, tokenBudget?.ToString() ?? L.T(StringKey.GoalEngineBudgetUnlimited));
 
         _engineCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        _completionTcs = new();
+        _completionTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
         _engineLoop = Task.Run(() => RunGoalLoopAsync(_engineCts.Token));
 
         await PersistStateAsync(cancellationToken).ConfigureAwait(false);
@@ -516,7 +516,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
             _engineCts?.Cancel();
             _engineCts?.Dispose();
             _engineCts = new CancellationTokenSource();
-            _completionTcs = new();
+            _completionTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
             _engineLoop = Task.Run(() => RunGoalLoopAsync(_engineCts.Token));
         }
 
@@ -545,7 +545,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         _engineCts?.Cancel();
         _engineCts?.Dispose();
         _engineCts = new CancellationTokenSource();
-        _completionTcs = new();
+        _completionTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
         _engineLoop = Task.Run(() => RunGoalLoopAsync(_engineCts.Token));
         _logger?.LogInformation(L.T(StringKey.GoalEngineResumed), _state?.GoalId);
     }

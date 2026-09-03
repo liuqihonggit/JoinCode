@@ -32,12 +32,12 @@ public static class BridgeDebugController
 {
     private static IBridgeDebugHandle? _handle;
     private static readonly List<BridgeFault> _faultQueue = [];
-    private static readonly object _lock = new();
+    private static readonly AsyncLock _lock = new("BridgeFaultInjection");
 
     /// <summary>注册调试句柄</summary>
     public static void RegisterHandle(IBridgeDebugHandle handle)
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             _handle = handle;
         }
@@ -46,7 +46,7 @@ public static class BridgeDebugController
     /// <summary>清除调试句柄和故障队列</summary>
     public static void ClearHandle()
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             _handle = null;
             _faultQueue.Clear();
@@ -56,7 +56,7 @@ public static class BridgeDebugController
     /// <summary>获取当前调试句柄</summary>
     public static IBridgeDebugHandle? GetHandle()
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             return _handle;
         }
@@ -65,7 +65,7 @@ public static class BridgeDebugController
     /// <summary>向故障队列注入一个故障</summary>
     public static void InjectFault(BridgeFault fault)
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             _faultQueue.Add(fault);
         }
@@ -77,7 +77,7 @@ public static class BridgeDebugController
     /// </summary>
     internal static BridgeFault? TryConsumeFault(string method)
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             for (var i = _faultQueue.Count - 1; i >= 0; i--)
             {

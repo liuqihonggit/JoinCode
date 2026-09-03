@@ -47,7 +47,7 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
     private const int MaxDeliveredFiles = 500;
 
     private readonly IClockService _clock;
-    private readonly object _lock = new();
+    private readonly AsyncLock _lock = new("LspDiagnosticRegistry");
     private readonly Dictionary<string, LspPendingDiagnostic> _pending = new();
     private readonly LinkedList<string> _deliveredLru = new();
     private readonly Dictionary<string, HashSet<string>> _delivered = new();
@@ -56,7 +56,7 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
     {
         get
         {
-            lock (_lock) { return _pending.Count; }
+            using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时")) { return _pending.Count; }
         }
     }
 
@@ -73,7 +73,7 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
             AttachmentSent = false
         };
 
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             _pending[id] = diagnostic;
         }
@@ -85,7 +85,7 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
         HashSet<string> serverNames;
         List<LspPendingDiagnostic> toMark;
 
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (_pending.Count == 0) return [];
 
@@ -113,7 +113,7 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
             diag.AttachmentSent = true;
         }
 
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             var keysToRemove = _pending
                 .Where(kvp => kvp.Value.AttachmentSent)
@@ -140,7 +140,7 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
 
     public void ClearAll()
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             _pending.Clear();
         }
@@ -148,7 +148,7 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
 
     public void ResetAll()
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             _pending.Clear();
             _delivered.Clear();
@@ -158,7 +158,7 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
 
     public void ClearDeliveredForFile(string fileUri)
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (_delivered.Remove(fileUri))
             {
@@ -200,7 +200,7 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
         var dedupedFileMap = new Dictionary<string, LspDiagnosticFile>(StringComparer.OrdinalIgnoreCase);
         var dedupedFiles = new List<LspDiagnosticFile>();
 
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             foreach (var file in allFiles)
             {
@@ -266,7 +266,7 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
 
     private void TrackDelivered(List<LspDiagnosticFile> files)
     {
-        lock (_lock)
+        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             foreach (var file in files)
             {

@@ -16,6 +16,7 @@ public sealed class SubAgentRunTracker
 
     /// <summary>展开状态 LRU：最早展开的排在最前</summary>
     private readonly LinkedList<string> _expandedOrder = new();
+    private readonly AsyncLock _expandedOrderLock = new("SubAgentRunTracker");
     private readonly HashSet<string> _expandedSet = new(StringComparer.Ordinal);
 
     /// <summary>连续搜索/读取类工具名 — 命中时折叠成计数摘要（对齐 TS 原版 getSearchReadSummaryText）</summary>
@@ -173,7 +174,7 @@ public sealed class SubAgentRunTracker
     /// <summary>指定 agent 是否已展开</summary>
     public bool IsExpanded(string agentId)
     {
-        lock (_expandedOrder)
+        using (_expandedOrderLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             return _expandedSet.Contains(agentId);
         }
@@ -182,7 +183,7 @@ public sealed class SubAgentRunTracker
     /// <summary>展开 agent — 超过上限时自动折叠最早展开的，返回被驱逐者 ID（null 表示无驱逐）</summary>
     public string? Expand(string agentId)
     {
-        lock (_expandedOrder)
+        using (_expandedOrderLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (!_expandedSet.Add(agentId))
                 return null;
@@ -202,7 +203,7 @@ public sealed class SubAgentRunTracker
     /// <summary>折叠 agent（false 表示原本未展开）</summary>
     public bool Collapse(string agentId)
     {
-        lock (_expandedOrder)
+        using (_expandedOrderLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
         {
             if (!_expandedSet.Remove(agentId))
                 return false;

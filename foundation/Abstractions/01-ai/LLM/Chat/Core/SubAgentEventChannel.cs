@@ -13,7 +13,7 @@ public sealed class SubAgentEventChannel
     /// <summary>当前异步流绑定的通道（无作用域时为 null）</summary>
     public static SubAgentEventChannel? Current => CurrentAccessor.Value;
 
-    private readonly object _lock = new();
+    private readonly AsyncLock _lock = new("SubAgentEventChannel");
     private readonly List<ChatStreamEvent> _buffer = [];
     private bool _completed;
 
@@ -34,7 +34,7 @@ public sealed class SubAgentEventChannel
     /// </summary>
     public void Emit(ChatStreamEvent evt)
     {
-        lock (_lock)
+        using (_lock.Lock())
         {
             if (_completed)
                 return;
@@ -47,7 +47,7 @@ public sealed class SubAgentEventChannel
     /// </summary>
     public bool TryRead(out ChatStreamEvent evt)
     {
-        lock (_lock)
+        using (_lock.Lock())
         {
             if (_buffer.Count == 0)
             {
@@ -65,7 +65,7 @@ public sealed class SubAgentEventChannel
     /// </summary>
     public IReadOnlyList<ChatStreamEvent> TryDrain()
     {
-        lock (_lock)
+        using (_lock.Lock())
         {
             if (_buffer.Count == 0)
                 return [];
@@ -80,7 +80,7 @@ public sealed class SubAgentEventChannel
     /// </summary>
     public void Complete()
     {
-        lock (_lock)
+        using (_lock.Lock())
         {
             _completed = true;
             _buffer.Clear();

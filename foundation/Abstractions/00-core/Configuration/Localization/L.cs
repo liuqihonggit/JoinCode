@@ -9,7 +9,7 @@ namespace JoinCode.Abstractions.Localization;
 /// </summary>
 public static class L
 {
-    private static readonly object s_lock = new();
+    private static readonly AsyncLock s_lock = new("L");
     private static IReadOnlyDictionary<string, string> _entries =
         FrozenDictionary<string, string>.Empty;
 
@@ -25,7 +25,7 @@ public static class L
     /// </summary>
     public static void Initialize(string language, IReadOnlyDictionary<string, string> entries)
     {
-        lock (s_lock)
+        using (s_lock.Lock())
         {
             CurrentLanguage = language;
             _entries = entries;
@@ -52,7 +52,7 @@ public static class L
 
     private static void EnsureInitialized()
     {
-        lock (s_lock)
+        using (s_lock.Lock())
         {
             if (!_initialized)
             {

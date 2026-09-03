@@ -329,6 +329,42 @@ public sealed class StreamingToolExecutorTests
         await executor.DisposeAsync();
     }
 
+    /// <summary>
+    /// 复现 Discard 在 GetRemainingResultsAsync 等待 Task.WhenAll 期间调用的死锁。
+    /// 根因：Discard 在 _semaphore 锁内调用 TrySetResult，唤醒的 WhenAll 续体在
+    /// 同线程同步执行 GetCompletedResultsAsync TryLock，锁未释放 → 自等自死锁。
+    /// 修复：TrySetResult 移到锁外。> ADR: 0060
+    /// </summary>
+    [Fact]
+#pragma warning disable VSTHRD003 // TCS 由 mock 回调设置,测试仅等待完成
+    public async Task Discard_DuringGetRemaining_DoesNotDeadlock()
+    {
+        var classifier = new ToolConcurrencyClassifier(FrozenSet<string>.Empty);
+        var slowTcs = new TaskCompletionSource<ToolCallResult>();
+        var mockInvoked = new TaskCompletionSource<bool>();
+        var toolHandler = new Mock<IToolExecutionHandler>();
+        toolHandler.Setup(h => h.ExecuteToolCallAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
+            .Callback(() => mockInvoked.TrySetResult(true))
+            .Returns(() => slowTcs.Task);
+
+        var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext());
+
+        await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "Write", Arguments = "{}" }, 0);
+
+        var remainingTask = executor.GetRemainingResultsAsync();
+
+        await mockInvoked.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await Task.Delay(100);
+
+        await Task.Run(() => executor.Discard()).WaitAsync(TimeSpan.FromSeconds(5));
+
+        var results = await remainingTask.WaitAsync(TimeSpan.FromSeconds(5));
+        results.Should().NotBeNull("remainingTask 在 5s 内完成说明 Discard 未死锁");
+
+        await executor.DisposeAsync();
+    }
+#pragma warning restore VSTHRD003
+
     private static IToolExecutionHandler CreateToolHandler()
     {
         var mock = new Mock<IToolExecutionHandler>();

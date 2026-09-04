@@ -256,12 +256,18 @@ public class McpServer
         return new PingResult();
     }
 
-    private static ListToolsResult HandleListTools()
+    /// <summary>
+    /// 处理 tools/list 请求 — 子类可 override 接入 IMcpToolRegistry 暴露真实工具
+    /// </summary>
+    protected virtual ListToolsResult HandleListTools()
     {
         return new ListToolsResult { Tools = [] };
     }
 
-    private static Task<CallToolResult> HandleCallToolAsync(JsonElement? paramsObj, CancellationToken cancellationToken)
+    /// <summary>
+    /// 处理 tools/call 请求 — 子类可 override 接入 IMcpToolRegistry 执行真实工具
+    /// </summary>
+    protected virtual Task<CallToolResult> HandleCallToolAsync(JsonElement? paramsObj, CancellationToken cancellationToken)
     {
         var name = paramsObj != null
             ? McpJsonSerializer.DeserializeCallToolRequestParams(paramsObj.Value.GetRawText())?.Name ?? "<unknown>"

@@ -52,7 +52,8 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
                 Arguments = arguments,
                 WorkingDirectory = workingDirectory,
                 TimeoutMs = (int)_timeout.TotalMilliseconds,
-                EnvironmentVariables = CreateGitHubEnvironment()
+                EnvironmentVariables = CreateGitHubEnvironment(),
+                SkipArgumentValidation = true
             };
 
             var result = await _processService.ExecuteAsync(options, ct).ConfigureAwait(false);
@@ -393,6 +394,7 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
     private static Dictionary<string, string> CreateGitHubEnvironment() => new()
     {
         ["GH_TERMINAL_PROMPT"] = "0",
-        ["GH_FORCE_TTY"] = "100%"
+        ["GH_FORCE_TTY"] = "100%",
+        ["NO_COLOR"] = "1"
     };
 }

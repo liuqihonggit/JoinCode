@@ -21,6 +21,8 @@ public static partial class ShellTimeoutKeywordExtractor
 
         Accumulate(PowerShellStartSleepSecondsRegex().Matches(command), ScaleSeconds, ref maxSeconds, ref found);
         Accumulate(PowerShellStartSleepMillisecondsRegex().Matches(command), ScaleMilliseconds, ref maxSeconds, ref found);
+        Accumulate(PowerShellStartSleepSecondsShortRegex().Matches(command), ScaleSeconds, ref maxSeconds, ref found);
+        Accumulate(PowerShellStartSleepMillisecondsShortRegex().Matches(command), ScaleMilliseconds, ref maxSeconds, ref found);
         Accumulate(PowerShellStartSleepPositionalRegex().Matches(command), ScaleSeconds, ref maxSeconds, ref found);
         Accumulate(BashSleepRegex().Matches(command), ScaleBashSleep, ref maxSeconds, ref found);
         Accumulate(CmdTimeoutRegex().Matches(command), ScaleSeconds, ref maxSeconds, ref found);
@@ -82,6 +84,12 @@ public static partial class ShellTimeoutKeywordExtractor
 
     [GeneratedRegex(@"Start-Sleep\s+-Milliseconds\s+([\d.]+)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex PowerShellStartSleepMillisecondsRegex();
+
+    [GeneratedRegex(@"Start-Sleep\s+-s\s+([\d.]+)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex PowerShellStartSleepSecondsShortRegex();
+
+    [GeneratedRegex(@"Start-Sleep\s+-ms\s+([\d.]+)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex PowerShellStartSleepMillisecondsShortRegex();
 
     [GeneratedRegex(@"Start-Sleep\s+(?!-)([\d.]+)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex PowerShellStartSleepPositionalRegex();

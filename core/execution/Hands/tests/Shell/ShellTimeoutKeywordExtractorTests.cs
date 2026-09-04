@@ -14,6 +14,8 @@ public class ShellTimeoutKeywordExtractorTests
     [InlineData("Start-Sleep 60", 60)]
     [InlineData("Start-Sleep 30.5", 31)]
     [InlineData("start-sleep -seconds 90", 90)]
+    [InlineData("Start-Sleep -s 45", 45)]
+    [InlineData("Start-Sleep -ms 30000", 30)]
     public void PowerShell_StartSleep_ExtractsSeconds(string command, int expected)
     {
         ShellTimeoutKeywordExtractor.ExtractMaxWaitSeconds(command).Should().Be(expected);

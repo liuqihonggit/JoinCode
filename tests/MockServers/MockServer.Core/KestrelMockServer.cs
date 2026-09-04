@@ -8,7 +8,7 @@ public sealed class KestrelMockServer : IHttpMockServer
     private readonly ILogger? _logger;
     private readonly string _serverName;
     private readonly List<CapturedRequest> _capturedRequests = [];
-    private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly AsyncLock _lock = new("KestrelMockServer");
     private int _requestIndex;
     private WebApplication? _app;
     private Task? _runTask;
@@ -136,17 +136,14 @@ public sealed class KestrelMockServer : IHttpMockServer
 
             DumpConversationToFile(requestIndex, body, cacheStats);
 
-            await _lock.WaitAsync(ctx.RequestAborted);
-            try
+            var releaser = await _lock.TryLockAsync(ctx.RequestAborted).ConfigureAwait(false)
+                ?? throw new TimeoutException($"锁 '{_lock.Name}' 等待超时");
+            using (releaser)
             {
                 _capturedRequests.Add(captured);
                 Stats.TotalRequests++;
                 if (cacheStats.CacheReadTokens > 0) Stats.CacheHits++;
                 else Stats.CacheMisses++;
-            }
-            finally
-            {
-                _lock.Release();
             }
 
             _responseStrategy.OnRequestStarted(requestJson.RootElement);
@@ -315,35 +312,35 @@ public sealed class KestrelMockServer : IHttpMockServer
 
     public CapturedRequest GetRequest(int index)
     {
-        if (!_lock.Wait(5000))
-            throw new TimeoutException("[GEN015] [E2E004] 获取请求超时：锁被持有");
-        try { return _capturedRequests[index]; }
-        finally { _lock.Release(); }
+        var releaser = _lock.TryLock()
+            ?? throw new TimeoutException("[GEN015] [E2E004] 获取请求超时：锁被持有");
+        using (releaser)
+        {
+            return _capturedRequests[index];
+        }
     }
 
     public IReadOnlyList<CapturedRequest> GetAllRequests()
     {
-        if (!_lock.Wait(5000))
-            throw new TimeoutException("[GEN016] [E2E005] 获取请求列表超时：锁被持有");
-        try { return _capturedRequests.ToList(); }
-        finally { _lock.Release(); }
+        var releaser = _lock.TryLock()
+            ?? throw new TimeoutException("[GEN016] [E2E005] 获取请求列表超时：锁被持有");
+        using (releaser)
+        {
+            return _capturedRequests.ToList();
+        }
     }
 
     public void Clear()
     {
-        if (!_lock.Wait(5000))
-            throw new TimeoutException("[GEN017] [E2E006] 清除请求超时：锁被持有");
-        try
+        var releaser = _lock.TryLock()
+            ?? throw new TimeoutException("[GEN017] [E2E006] 清除请求超时：锁被持有");
+        using (releaser)
         {
             _capturedRequests.Clear();
             _requestIndex = 0;
             Stats.TotalRequests = 0;
             Stats.CacheHits = 0;
             Stats.CacheMisses = 0;
-        }
-        finally
-        {
-            _lock.Release();
         }
         _cacheSimulator.ResetCache();
     }

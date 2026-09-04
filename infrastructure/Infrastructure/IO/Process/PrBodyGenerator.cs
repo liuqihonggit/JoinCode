@@ -9,6 +9,7 @@ namespace IO.ProcessService;
 /// 3. 自动提取变更摘要
 /// </para>
 /// </summary>
+[Register(typeof(PrBodyGenerator), ServiceLifetime.Singleton)]
 public sealed class PrBodyGenerator
 {
     private readonly IGitCommandRunner _gitRunner;

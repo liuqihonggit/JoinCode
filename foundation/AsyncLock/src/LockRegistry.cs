@@ -101,7 +101,6 @@ public static class LockRegistry
             info.WaitStartedAt = DateTimeOffset.UtcNow;
             info.WaitStack = CaptureStackTrace(skipFrames: 3);
         }
-        DetectDeadlock();
     }
 
     /// <summary>
@@ -328,18 +327,23 @@ public static class LockRegistry
 
     /// <summary>
     /// 检测死锁环（wait-for graph DFS）。每个线程最多等一把锁，出度≤1，沿等待边走回到起点即死锁。
+    /// 只考虑等待超过 <see cref="_waitTimeoutThreshold"/> 的锁，避免线程池线程复用下 HoldingThread stale 误报。
     /// 检测到死锁时自动通过 DiagnosticSink 输出完整诊断（锁链+线程+调用栈），无需手动调用。
     /// </summary>
     internal static void DetectDeadlock()
     {
         if (!IsEnabled) return;
+        var now = DateTimeOffset.UtcNow;
         var waitEdges = new Dictionary<int, (int holderThreadId, LockInfo lk)>();
         foreach (var info in _locks.Values)
         {
             var waitingThread = info.WaitingThread;
             var holdingThread = info.HoldingThread;
-            if (waitingThread is not null && holdingThread is not null)
-                waitEdges[waitingThread.ManagedThreadId] = (holdingThread.ManagedThreadId, info);
+            if (waitingThread is null || holdingThread is null)
+                continue;
+            if (info.WaitStartedAt is not { } waitStart || now - waitStart < _waitTimeoutThreshold)
+                continue;
+            waitEdges[waitingThread.ManagedThreadId] = (holdingThread.ManagedThreadId, info);
         }
         if (waitEdges.Count == 0) return;
         foreach (var startId in waitEdges.Keys)

@@ -18,21 +18,23 @@
 
 ### P1 — gh 工具批量验证
 
-已验证 5 个工具，剩余 24 个 gh 工具未真实调用验证。按优先级分批：
+已验证 11 个工具（5+6），剩余 18 个 gh 工具未真实调用验证。按优先级分批：
 
-**批次1 — PR 相关（6 个）**：
-- [ ] `gh_pr_create` — 创建 PR（需测试仓库）
-- [ ] `gh_pr_merge` — 合并 PR（用 #177 或 #178 测试，注意 auto-merge）
-- [ ] `gh_pr_comment` — 评论 PR
-- [ ] `gh_pr_review` — review PR
-- [ ] `gh_pr_close` — 关闭 PR
-- [ ] `gh_pr_reopen` — 重开 PR
+**批次1 — PR 相关（8 个，6 已验证）**：
+- [x] `gh_pr_view` ✅ PR #177 完整数据
+- [x] `gh_pr_list` ✅ 返回 open PR 列表
+- [x] `gh_pr_diff` ✅ PR #178 完整 diff
+- [x] `gh_pr_checks` ✅ PR #178 CI 检查状态
+- [x] `gh_pr_close` ✅ PR #177 关闭成功
+- [x] `gh_pr_reopen` ✅ PR #177 重开成功
+- [ ] `gh_pr_checkout` — 跳过（会切换分支影响当前工作）
+- [ ] `gh_pr_merge` — 跳过（不可逆操作，需用户确认）
 
-**批次2 — Issue 相关（4 个）**：
+**批次2 — Issue 相关（5 个）**：
+- [ ] `gh_issue_view` — 查看 issue
 - [ ] `gh_issue_create` — 创建 issue
-- [ ] `gh_issue_comment` — 评论 issue
 - [ ] `gh_issue_close` — 关闭 issue
-- [ ] `gh_issue_reopen` — 重开 issue
+- [ ] `gh_issue_comment` — 评论 issue
 
 **批次3 — Repo/Run/Release 相关（7 个）**：
 - [ ] `gh_repo_create` — 创建仓库

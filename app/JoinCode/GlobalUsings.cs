@@ -94,6 +94,8 @@ global using JoinCode.Adapters;
 
 global using IMcpClient = JoinCode.Abstractions.Mcp.Client.IMcpClient;
 global using JoinCode.Abstractions.Mcp.Registry;
+global using JoinCode.Abstractions.Mcp.Protocol;
+global using McpProtocol;
 global using McpClient;
 global using McpBridge;
 global using ToolCacheManager = McpToolRegistry.ToolCacheManager;

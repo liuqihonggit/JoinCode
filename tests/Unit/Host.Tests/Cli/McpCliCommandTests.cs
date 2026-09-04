@@ -3,13 +3,13 @@ namespace Host.Tests.Cli;
 public sealed class McpCliCommandTests
 {
     [Fact]
-    public void Constructor_ShouldRegisterFourSubcommands()
+    public void Constructor_ShouldRegisterFiveSubcommands()
     {
         var command = new McpCliCommand();
 
         command.Name.Should().Be("mcp");
-        command.Subcommands.Should().HaveCount(4);
-        command.Subcommands.Select(c => c.Name).Should().BeEquivalentTo(["call", "list", "search", "schema"]);
+        command.Subcommands.Should().HaveCount(5);
+        command.Subcommands.Select(c => c.Name).Should().BeEquivalentTo(["call", "list", "search", "schema", "serve"]);
     }
 
     [Fact]
@@ -58,5 +58,16 @@ public sealed class McpCliCommandTests
     {
         CliSubCommand.Mcp.ToValue().Should().Be("mcp");
         CliSubCommandExtensions.FromValue("mcp").Should().Be(CliSubCommand.Mcp);
+    }
+
+    [Fact]
+    public void ServeSubcommand_ShouldHaveTransportPortHostOptions()
+    {
+        var command = new McpCliCommand();
+        var serve = command.Subcommands.First(c => c.Name == "serve");
+
+        serve.Options.Should().Contain(o => o.Name == "--transport");
+        serve.Options.Should().Contain(o => o.Name == "--port");
+        serve.Options.Should().Contain(o => o.Name == "--host");
     }
 }

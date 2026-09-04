@@ -65,10 +65,26 @@ public sealed class McpCliCommand : Command
             return await ExecuteSchemaAsync(toolName, json, ct).ConfigureAwait(false);
         });
 
+        var serveCommand = new Command("serve", "启动 MCP 服务端，把全部内部工具暴露给外部 LLM");
+        var transportOption = new Option<string>("--transport") { Description = "传输方式：stdio（默认）或 http", DefaultValueFactory = _ => "stdio" };
+        var portOption = new Option<int>("--port") { Description = "HTTP 监听端口（默认 9903）", DefaultValueFactory = _ => 9903 };
+        var hostOption = new Option<string>("--host") { Description = "HTTP 监听地址（默认 localhost）", DefaultValueFactory = _ => "localhost" };
+        serveCommand.Add(transportOption);
+        serveCommand.Add(portOption);
+        serveCommand.Add(hostOption);
+        serveCommand.SetAction(async (parseResult, ct) =>
+        {
+            var transport = parseResult.GetValue(transportOption) ?? "stdio";
+            var port = parseResult.GetValue(portOption);
+            var hostName = parseResult.GetValue(hostOption) ?? "localhost";
+            return await ExecuteServeAsync(transport, port, hostName, ct).ConfigureAwait(false);
+        });
+
         Add(callCommand);
         Add(listCommand);
         Add(searchCommand);
         Add(schemaCommand);
+        Add(serveCommand);
     }
 
     private static Task<int> ExecuteCallAsync(
@@ -189,6 +205,44 @@ public sealed class McpCliCommand : Command
         var options = new CommandLineOptions { NonInteractive = true, TrustWorkspace = true };
         var result = await EngineSessionFactory.CreateCliSessionAsync(options, fs, ct).ConfigureAwait(false);
         return result.Host;
+    }
+
+    private static async Task<int> ExecuteServeAsync(string transport, int port, string hostName, CancellationToken ct)
+    {
+        if (!string.Equals(transport, "stdio", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(transport, "http", StringComparison.OrdinalIgnoreCase))
+        {
+            TerminalHelper.WriteError($"不支持的传输方式: {transport}（仅支持 stdio 或 http）");
+            return 1;
+        }
+
+        var appHost = await BuildHostAsync(ct).ConfigureAwait(false);
+        try
+        {
+            var registry = appHost.Services.GetRequiredService<IMcpToolRegistry>();
+            var toolCount = await registry.GetCountAsync(ct).ConfigureAwait(false);
+            var server = new JccMcpServer(registry, "jcc-mcp", "1.0.0",
+                $"jcc 内部 MCP 服务端 — 暴露 {toolCount} 个工具");
+
+            if (string.Equals(transport, "stdio", StringComparison.OrdinalIgnoreCase))
+            {
+                TerminalHelper.WriteLine($"{TerminalColors.Info}jcc mcp serve{AnsiStyleConstants.Reset} stdio 模式启动，暴露 {toolCount} 个工具");
+                await server.RunAsync(ct).ConfigureAwait(false);
+                return 0;
+            }
+
+            var prefix = $"http://{hostName}:{port}/mcp/";
+            var httpServer = new McpHttpServer(server, prefix, statelessMode: true);
+            TerminalHelper.WriteLine($"{TerminalColors.Info}jcc mcp serve{AnsiStyleConstants.Reset} HTTP 模式启动: {prefix}，暴露 {toolCount} 个工具");
+            TerminalHelper.WriteLine("按 Ctrl+C 停止");
+            await httpServer.RunAsync(ct).ConfigureAwait(false);
+            httpServer.Dispose();
+            return 0;
+        }
+        finally
+        {
+            try { appHost.Dispose(); } catch (Exception ex) { Diag.WriteLine($"[McpCommand.serve] Host dispose 异常已忽略: {ex.Message}"); }
+        }
     }
 
     private static async Task<int> WithHostAsync(Func<IServiceProvider, Task<int>> action, CancellationToken ct)

@@ -22,14 +22,53 @@ public sealed partial class UpgradeService : ServiceEntity, IUpgradeService
         string? repoOwner = null,
         string? repoName = null,
         IUpdateSource? updateSource = null,
+        UpdateSourceConfig? updateSourceConfig = null,
         ILogger<UpgradeService>? logger = null)
     {
         _httpClient = httpClient;
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _repoOwner = repoOwner ?? JccEndpointsResolver.RepoOwner;
         _repoName = repoName ?? JccEndpointsResolver.RepoName;
-        _updateSource = updateSource;
+        _updateSource = updateSource ?? CreateUpdateSourceFromConfig(updateSourceConfig, httpClient, fs, logger);
         _logger = logger;
+    }
+
+    /// <summary>
+    /// 从配置创建 IUpdateSource — 优先用传入的 config，回退到环境变量
+    /// </summary>
+    private static IUpdateSource? CreateUpdateSourceFromConfig(
+        UpdateSourceConfig? config,
+        HttpClient httpClient,
+        IFileSystem fs,
+        ILogger? logger)
+    {
+        var effectiveConfig = config ?? CreateConfigFromEnv();
+        if (effectiveConfig is null) return null;
+
+        try
+        {
+            return UpdateSourceFactory.Create(effectiveConfig, httpClient, fs, logger);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// 从环境变量创建 UpdateSourceConfig — JCC_UPDATE_SOURCE_TYPE + JCC_UPDATE_MANIFEST_URL
+    /// </summary>
+    private static UpdateSourceConfig? CreateConfigFromEnv()
+    {
+        var sourceTypeEnv = Environment.GetEnvironmentVariable(JccEnvVar.UpdateSourceType.ToValue());
+        if (string.IsNullOrEmpty(sourceTypeEnv)) return null;
+
+        return new UpdateSourceConfig
+        {
+            SourceType = sourceTypeEnv!,
+            ManifestUrl = Environment.GetEnvironmentVariable(JccEnvVar.UpdateManifestUrl.ToValue()),
+            Channel = Environment.GetEnvironmentVariable(JccEnvVar.UpdateChannel.ToValue()) ?? "stable",
+        };
     }
 
     public Version GetCurrentVersion()

@@ -92,8 +92,10 @@ public sealed class DoctorTcpServer : IDoctorTransport
     public async Task SendCommandAsync(string patientId, string command, CancellationToken cancellationToken = default)
     {
         DoctorTcpPatient? patient;
-        using var guard = _patientsLock.TryLock(cancellationToken) ?? throw new System.TimeoutException($"锁 '{_patientsLock.Name}' 等待超时");
+        {
+            using var guard = _patientsLock.TryLock(cancellationToken) ?? throw new System.TimeoutException($"锁 '{_patientsLock.Name}' 等待超时");
  _patients.TryGetValue(patientId, out patient); 
+        }
 
         if (patient is null)
         {
@@ -111,8 +113,10 @@ public sealed class DoctorTcpServer : IDoctorTransport
     public async Task BroadcastCommandAsync(string command, CancellationToken cancellationToken = default)
     {
         List<DoctorTcpPatient> patients;
-        using var guard = _patientsLock.TryLock(cancellationToken) ?? throw new System.TimeoutException($"锁 '{_patientsLock.Name}' 等待超时");
+        {
+            using var guard = _patientsLock.TryLock(cancellationToken) ?? throw new System.TimeoutException($"锁 '{_patientsLock.Name}' 等待超时");
  patients = _patients.Values.ToList(); 
+        }
 
         var sseData = $"event: command\ndata: {EscapeSseData(command)}\n\n";
         var bytes = Encoding.UTF8.GetBytes(sseData);

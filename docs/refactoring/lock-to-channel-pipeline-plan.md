@@ -644,3 +644,279 @@ services/Mcp/src/Core/Management/
 <!-- 原因: 用户选择"只出方案文档不改代码",P3-P8 方案归档待后续执行 -->
 <!-- 替代方案: 直接开始 P3 重构(用户选择暂缓) -->
 <!-- 验证: P3-P8 方案已归档至本文档第十至十九章 ✅ -->
+
+---
+
+## 第二十章:第三轮全量扫描 — composition/infrastructure/Agents/Brain/search/app
+
+> **扫描日期**:2026-09-05
+> **扫描范围**:composition/(25处) + infrastructure/(82处) + core/ai/Agents/(73处) + core/execution/Brain/(76处) + core/search/(8处) + app/JoinCode/(11处) = 275处加锁点
+> **结论**:发现2个新高风险点(P10/P11),22个中风险合理保留点
+
+### 20.1 新高风险点(需重构)
+
+#### P10:PatientProcessManager 持锁 await 进程退出
+
+- **文件**:`core/ai/Agents/src/Doctor/PatientProcessManager.cs`
+- **风险位置**:
+  - `WaitForExitAsync`:165行 持 `_patientsLock` await `handle.WaitForExitAsync(cancellationToken)`
+  - `WaitForAllExitAsync`:180行 持 `_patientsLock` await 所有 handle.WaitForExitAsync
+- **风险**:进程可能 hang 住不退出,导致锁长时间持有,阻塞 Spawn/Kill/GetPatientInfo 等所有病人管理操作
+- **方案**:锁粒度缩小 — 锁内只取 handle 快照,await WaitForExitAsync 移到锁外(与 P4-P8 同类方案)
+
+#### P11:DoctorTcpServer 持锁 await 网络发送
+
+- **文件**:`core/ai/Agents/src/Doctor/DoctorTcpServer.cs`
+- **风险位置**:
+  - `SendCommandAsync`:95行 持 `_patientsLock` await `patient.SendAsync(bytes, ct)`
+  - `BroadcastCommandAsync`:114行 持 `_patientsLock` await 所有 patient.SendAsync
+- **风险**:网络慢会长时间持锁,阻塞 AddPatient/RemovePatient/ConnectedPatientIds 等所有 TCP 服务器操作
+- **方案**:锁粒度缩小 — 锁内只取 patient 快照,await SendAsync 移到锁外(与 P4-P8 同类方案)
+
+### 20.2 中风险合理保留点(22个)
+
+| 模块 | 文件 | 锁内 await | 保留原因 |
+|------|------|-----------|----------|
+| infrastructure | SerialBatchEventUploader.cs | HTTP POST | 锁确保串行 DrainAsync,非死锁风险 |
+| infrastructure | TransportBase.cs | SendCoreAsync | 串行化发送,子类按需 |
+| infrastructure | SshSession.cs | 进程启动/退出 | 连接/断开一次性操作 |
+| infrastructure | SshSessionManager.cs | 会话销毁 | 低频操作 |
+| infrastructure | PluginHotReloader.cs | 插件加载/卸载 | 低频文件变更触发 |
+| composition | PersistentGoalRegistry.cs | RehydrateAsync | 启动时一次性恢复 |
+| composition | GoalEngine.cs | 状态转换 | 锁内纯内存为主 |
+| Agents | AgentWorktreeService.cs | 文件写 | worktree 管理低频 |
+| Agents | TeammateMailboxService.cs | 文件读写 | per-agent 锁保护读-改-写原子性 |
+| Agents | TmuxPaneBackend.cs | tmux 进程启动 | 低频创建 pane |
+| Agents | AgentDefinitionProvider.cs | 文件加载 | 一次性缓存加载 |
+| Brain | ChatContextManager.cs | LoadStateAsync | 一次性会话加载 |
+| Brain | PlanModeManager.cs | 文件读 | 低频退出 Plan 模式 |
+| Brain | DiagnosticLogRecorder.cs | 文件追加写 | 保护写原子性 |
+| Brain | FileHistoryService.cs | 文件写(Restore) | 低频用户手动触发 |
+| Brain | DynamicKeywordConfigService.cs | 同步读配置 | 低频热重载 |
+| Brain | AwaySummaryService.cs | 无 | 锁内纯内存 |
+| Brain | MagicDocsManager.cs | 无 | 锁内快照,IO 在锁外(设计良好) |
+| search | FileWatcherIntegration.cs | Task.WhenAll | 停止时一次性等待 |
+| search | PuppeteerBrowserAutomationService.cs | 下载+启动浏览器 | 一次性初始化 |
+| app | CodeSessionManager.cs | 持久化 | 低频会话管理 |
+| app | OnboardingFlowController.cs | 文件写 | 一次性 onboarding |
+
+### 20.3 低风险点(锁内纯内存,不计)
+
+ExecutionContext / WorkflowToolHandlers / McpNetworkClient / CostTracker / UsageTracker / LocalToolRegistry / VoiceService / TeamManager / TeammateLayoutManager / AgentStateMachine / AgentBase / ProgressTracker / BootstrapAgent / DiagnosticEngine / TokenBudgetManager / UsdBudgetManager / SystemReminder / ContextHierarchy / ContextCollapseService / ConnectionManager / FlushGate / BufferedChannel / BoundedUUIDSet / ThreadSafeListenerList / UnifiedCircuitBreaker / FixedWindowRateLimiter / ResilientChannel / NetworkConnectivityService / PluginManager / ResourceReferenceGraph / HotSpotSpawnIntegration / IntentCollector / InMemoryFileSystem / DeferredMailService / BridgeTokenRefreshScheduler / TreeSitterParserPool / TimeoutLock / TokenBucket / IOThrottleService / DiagnosticLogWatcher
+
+---
+
+## 第二十一章:P10 方案 — PatientProcessManager 锁粒度缩小
+
+### 21.1 当前代码(高风险)
+
+```csharp
+// PatientProcessManager.cs:165
+public async Task<PatientInfo> WaitForExitAsync(string patientId, CancellationToken cancellationToken = default)
+{
+    PatientHandle? handle;
+    using var guard = _patientsLock.TryLock(cancellationToken) ?? throw ...;
+    _patients.TryGetValue(patientId, out handle);
+
+    if (handle is null)
+        throw new InvalidOperationException(...);
+
+    return await handle.WaitForExitAsync(cancellationToken).ConfigureAwait(false); // 持锁 await 进程退出!
+}
+
+// PatientProcessManager.cs:180
+public async Task<IReadOnlyDictionary<string, PatientInfo>> WaitForAllExitAsync(CancellationToken cancellationToken = default)
+{
+    List<PatientHandle> handles;
+    using var guard = _patientsLock.TryLock(cancellationToken) ?? throw ...;
+    handles = _patients.Values.ToList();
+
+    var results = new Dictionary<string, PatientInfo>();
+    foreach (var handle in handles)
+    {
+        try { results[handle.PatientId] = await handle.WaitForExitAsync(cancellationToken).ConfigureAwait(false); } // 持锁 await!
+        catch (OperationCanceledException) { break; }
+    }
+    return results;
+}
+```
+
+### 21.2 重构后代码
+
+```csharp
+public async Task<PatientInfo> WaitForExitAsync(string patientId, CancellationToken cancellationToken = default)
+{
+    PatientHandle? handle;
+    using var guard = _patientsLock.TryLock(cancellationToken) ?? throw ...;
+    _patients.TryGetValue(patientId, out handle);
+
+    // handle 为 null 在锁内判断(快照)
+    if (handle is null)
+        throw new InvalidOperationException($"[AGT014] 病人 {patientId} 不存在");
+
+    // await 进程退出移到锁外
+    return await handle.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+}
+
+public async Task<IReadOnlyDictionary<string, PatientInfo>> WaitForAllExitAsync(CancellationToken cancellationToken = default)
+{
+    List<PatientHandle> handles;
+    using var guard = _patientsLock.TryLock(cancellationToken) ?? throw ...;
+    handles = _patients.Values.ToList();
+
+    // await 所有进程退出移到锁外
+    var results = new Dictionary<string, PatientInfo>();
+    foreach (var handle in handles)
+    {
+        try { results[handle.PatientId] = await handle.WaitForExitAsync(cancellationToken).ConfigureAwait(false); }
+        catch (OperationCanceledException) { break; }
+    }
+    return results;
+}
+```
+
+> **注**:WaitForExitAsync 实际只需把 await 移到 using 作用域外即可,using 会在 `}` 时释放锁。但当前写法 await 在 using 块内,锁覆盖了整个 await。重构方式:提前释放锁或用 `}` 截断锁作用域。
+
+### 21.3 CleanupPatientsAsync 也需同步调整
+
+```csharp
+// 当前:持锁 await DisposeAsync
+private async Task CleanupPatientsAsync()
+{
+    using var guard = _patientsLock.TryLock() ?? throw ...;
+    var handles = _patients.Values.ToList();
+    _patients.Clear();
+    foreach (var handle in handles)
+        await handle.DisposeAsync().ConfigureAwait(false); // 持锁 await!
+}
+
+// 重构后:锁内清空字典,锁外销毁
+private async Task CleanupPatientsAsync()
+{
+    List<PatientHandle> handles;
+    using var guard = _patientsLock.TryLock() ?? throw ...;
+    handles = _patients.Values.ToList();
+    _patients.Clear();
+
+    foreach (var handle in handles)
+        await handle.DisposeAsync().ConfigureAwait(false);
+}
+```
+
+---
+
+## 第二十二章:P11 方案 — DoctorTcpServer 锁粒度缩小
+
+### 22.1 当前代码(高风险)
+
+```csharp
+// DoctorTcpServer.cs:95
+public async Task SendCommandAsync(string patientId, string command, CancellationToken cancellationToken = default)
+{
+    DoctorTcpPatient? patient;
+    using var guard = _patientsLock.TryLock(cancellationToken) ?? throw ...;
+    _patients.TryGetValue(patientId, out patient);
+
+    if (patient is null) { ... return; }
+
+    var sseData = $"event: command\ndata: {EscapeSseData(command)}\n\n";
+    var bytes = Encoding.UTF8.GetBytes(sseData);
+    await patient.SendAsync(bytes, cancellationToken).ConfigureAwait(false); // 持锁 await 网络发送!
+}
+
+// DoctorTcpServer.cs:114
+public async Task BroadcastCommandAsync(string command, CancellationToken cancellationToken = default)
+{
+    List<DoctorTcpPatient> patients;
+    using var guard = _patientsLock.TryLock(cancellationToken) ?? throw ...;
+    patients = _patients.Values.ToList();
+
+    var sseData = ...;
+    var bytes = Encoding.UTF8.GetBytes(sseData);
+    foreach (var patient in patients)
+    {
+        try { await patient.SendAsync(bytes, cancellationToken).ConfigureAwait(false); } // 持锁 await!
+        catch (Exception ex) { ... }
+    }
+}
+```
+
+### 22.2 重构后代码
+
+```csharp
+public async Task SendCommandAsync(string patientId, string command, CancellationToken cancellationToken = default)
+{
+    DoctorTcpPatient? patient;
+    using var guard = _patientsLock.TryLock(cancellationToken) ?? throw ...;
+    _patients.TryGetValue(patientId, out patient);
+
+    // patient null 判断和 bytes 构造在锁内(快照)
+    if (patient is null)
+    {
+        DoctorDiag.WriteError(...);
+        return;
+    }
+
+    var sseData = $"event: command\ndata: {EscapeSseData(command)}\n\n";
+    var bytes = Encoding.UTF8.GetBytes(sseData);
+
+    // await 网络发送移到锁外 — 需要截断 using 作用域
+    // 方式:用局部变量保存 patient 和 bytes,using 块结束后再 await
+    // 但 using 在方法末尾才释放,需要重构为:
+    //   1. 锁内取快照
+    //   2. 锁释放
+    //   3. 锁外 await SendAsync
+    await patient.SendAsync(bytes, cancellationToken).ConfigureAwait(false);
+    DoctorDiag.Write(...);
+}
+```
+
+> **实现细节**:C# `using var` 作用域到方法末尾。要把 await 移到锁外,有两种方式:
+> 1. **用 `using { }` 块显式截断作用域**(推荐,最小改动)
+> 2. 提取 `TryGetPatient` 辅助方法返回快照
+>
+> 方式1示例:
+> ```csharp
+> DoctorTcpPatient? patient;
+> byte[] bytes;
+> {
+>     using var guard = _patientsLock.TryLock(cancellationToken) ?? throw ...;
+>     _patients.TryGetValue(patientId, out patient);
+>     if (patient is null) { DoctorDiag.WriteError(...); return; }
+>     var sseData = $"event: command\ndata: {EscapeSseData(command)}\n\n";
+>     bytes = Encoding.UTF8.GetBytes(sseData);
+> } // 锁在此释放
+> await patient.SendAsync(bytes, cancellationToken).ConfigureAwait(false);
+> DoctorDiag.Write(...);
+> ```
+
+### 22.3 BroadcastCommandAsync 同理
+
+```csharp
+public async Task BroadcastCommandAsync(string command, CancellationToken cancellationToken = default)
+{
+    List<DoctorTcpPatient> patients;
+    byte[] bytes;
+    {
+        using var guard = _patientsLock.TryLock(cancellationToken) ?? throw ...;
+        patients = _patients.Values.ToList();
+        var sseData = $"event: command\ndata: {EscapeSseData(command)}\n\n";
+        bytes = Encoding.UTF8.GetBytes(sseData);
+    } // 锁释放
+
+    foreach (var patient in patients)
+    {
+        try { await patient.SendAsync(bytes, cancellationToken).ConfigureAwait(false); }
+        catch (Exception ex) { DoctorDiag.WriteError(...); }
+    }
+    DoctorDiag.Write(...);
+}
+```
+
+---
+
+<!-- 🤖 Auto Decision: 2026-09-05 -->
+<!-- 决策: 第三轮全量扫描275处加锁点,发现P10/P11两个新高风险点,22个中风险合理保留 -->
+<!-- 原因: P10持锁await进程退出可能hang住阻塞所有病人管理;P11持锁await网络发送可能慢阻塞所有TCP操作 -->
+<!-- 替代方案: 全部保留(用户可选择),但P10/P11死锁风险与P4-P8同类,建议重构 -->
+<!-- 验证: 方案已归档,待执行 ✅ -->

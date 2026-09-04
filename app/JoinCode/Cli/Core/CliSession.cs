@@ -262,6 +262,10 @@ public sealed class CliSession
             {
                 await HandleCommandAsync(input, cancellationToken);
             }
+            else if (Cli.Commands.Prefix.PrefixCommandRouter.IsPrefixCommand(input))
+            {
+                await HandlePrefixCommandAsync(input, cancellationToken);
+            }
             else
             {
                 _turnDiffService.RecordUserPrompt(input);
@@ -273,6 +277,32 @@ public sealed class CliSession
             span?.SetTag("error", true);
             span?.SetTag("error.message", ex.Message);
             throw;
+        }
+    }
+
+    private async Task HandlePrefixCommandAsync(string input, CancellationToken cancellationToken)
+    {
+        Diag.WriteLifecycle($"[DIAG-CLI] HandlePrefixCommandAsync entry: input='{(input.Length > 60 ? input[..60] + "..." : input)}'");
+
+        var context = new PrefixCommandContext
+        {
+            Services = new CommandServiceProvider(_commandServices, _optionalServices?.ServiceProvider),
+            CancellationToken = cancellationToken,
+        };
+
+        var result = await Cli.Commands.Prefix.PrefixCommandRouter.ExecuteAsync(input, context, cancellationToken).ConfigureAwait(false);
+        if (!result.Handled)
+        {
+            TerminalHelper.WriteLine($"未识别的前缀命令: {input}");
+            return;
+        }
+
+        TerminalHelper.WriteLine(result.Output);
+
+        if (result.ShouldInjectToAi)
+        {
+            _turnDiffService.RecordUserPrompt(input);
+            await StreamResponseAsync(result.Output, cancellationToken);
         }
     }
 

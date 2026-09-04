@@ -8,6 +8,7 @@ public static partial class LocalizerInitializer
         defaultEntries[StringKey.FooterExitHint] = "Esc to exit";
         defaultEntries[StringKey.FooterInterruptHint] = "esc to interrupt";
         defaultEntries[StringKey.FooterBashModeHint] = "! bash mode";
+        defaultEntries[StringKey.FooterSilentBashModeHint] = "!! silent";
         defaultEntries[StringKey.FooterShortcutsHint] = "? for shortcuts";
         defaultEntries[StringKey.PermissionModeAuto] = "auto";
         defaultEntries[StringKey.PermissionModeAutoShort] = "auto";
@@ -33,6 +34,7 @@ public static partial class LocalizerInitializer
         zhEntries[StringKey.FooterExitHint] = "Esc 退出";
         zhEntries[StringKey.FooterInterruptHint] = "esc 中断";
         zhEntries[StringKey.FooterBashModeHint] = "! bash 模式";
+        zhEntries[StringKey.FooterSilentBashModeHint] = "!! 静默";
         // JoinCode uses English UI — zhEntries mirror defaultEntries for consistency
         zhEntries[StringKey.FooterShortcutsHint] = "? for shortcuts";
         zhEntries[StringKey.PermissionModeAuto] = "自动";

@@ -1552,6 +1552,14 @@ public sealed partial class MainViewModel : ViewModelBase
             return;
         }
 
+        // !! 前缀命令 — 静默执行/打开，不触发 AI，不受 IsBusy 拦截（对齐 PI !! 设计）
+        if (message.Length >= 2 && message[0] == '!' && message[1] == '!')
+        {
+            InputText = string.Empty;
+            await HandleSilentPrefixCommandAsync(message);
+            return;
+        }
+
         // F4 规则2：处理中且恰好一个运行中子代理 → 自动转发给它（对齐 CLI 单代理转发规则）
         if (IsBusy)
         {
@@ -1573,6 +1581,14 @@ public sealed partial class MainViewModel : ViewModelBase
         var stopReason = MarqueeStopReason.Normal;
         try
         {
+            // ! 前缀命令路由 — 执行 shell 命令，输出注入 AI 上下文（对齐 PI ! 设计）
+            if (message.Length >= 1 && message[0] == '!' && (message.Length < 2 || message[1] != '!'))
+            {
+                await HandleShellPrefixCommandAsync(message, _sendCts.Token);
+                StatusText = "就绪";
+                return;
+            }
+
             // 斜杠命令路由（G1 对齐 TUI）：/ 前缀走命令执行链路，不进聊天流
             if (message.StartsWith('/'))
             {

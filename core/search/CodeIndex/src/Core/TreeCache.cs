@@ -1,11 +1,14 @@
 namespace JoinCode.CodeIndex.Ast;
 
+/// <summary>
+/// TreeSitter 解析树缓存 — 无锁结构（ConcurrentDictionary），消除 AsyncLock 嵌套死锁。
+/// 淘汰策略：达到 maxEntries 后不再缓存新条目（调用方 dispose 新 tree）。
+/// 线程安全：ConcurrentDictionary 保证并发读写安全；同实例并发访问由上层 _parseLock 串行化。
+/// </summary>
 public sealed class TreeCache : IDisposable
 {
     private readonly int _maxEntries;
-    private readonly LinkedList<string> _lruList;
-    private readonly Dictionary<string, CacheEntry> _entries;
-    private readonly Threading.TimeoutLock _lock;
+    private readonly ConcurrentDictionary<string, CacheEntry> _entries;
     private readonly ILogger? _logger;
     private int _disposed;
 
@@ -18,31 +21,19 @@ public sealed class TreeCache : IDisposable
     {
         if (maxEntries < 1) throw new ArgumentOutOfRangeException(nameof(maxEntries));
         _maxEntries = maxEntries;
-        _lruList = new LinkedList<string>();
-        _entries = new Dictionary<string, CacheEntry>(StringComparer.OrdinalIgnoreCase);
+        _entries = new ConcurrentDictionary<string, CacheEntry>(StringComparer.OrdinalIgnoreCase);
         _logger = logger;
-        _lock = new Threading.TimeoutLock("TreeCache", TimeSpan.FromSeconds(30), Log);
     }
 
-    public int Count
-    {
-        get
-        {
-            using var scope = _lock.Acquire();
-            return _entries.Count;
-        }
-    }
+    public int Count => _entries.Count;
 
     public bool TryGet(string filePath, out Tree? tree)
     {
         ArgumentNullException.ThrowIfNull(filePath);
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
 
-        using var scope = _lock.Acquire();
         if (_entries.TryGetValue(filePath, out var entry))
         {
-            _lruList.Remove(entry.LruNode);
-            entry.LruNode = _lruList.AddLast(filePath);
             tree = entry.Tree;
             return true;
         }
@@ -56,10 +47,13 @@ public sealed class TreeCache : IDisposable
         ArgumentNullException.ThrowIfNull(filePath);
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
 
-        using var scope = _lock.Acquire();
         return _entries.TryGetValue(filePath, out var entry) ? entry.Source : null;
     }
 
+    /// <summary>
+    /// 添加或更新缓存条目。达到 maxEntries 后新文件不缓存（dispose tree 避免泄漏）。
+    /// 更新已存在条目时原子替换并 dispose 旧 Tree。
+    /// </summary>
     public void Add(string filePath, Tree tree, string source)
     {
         ArgumentNullException.ThrowIfNull(filePath);
@@ -67,24 +61,28 @@ public sealed class TreeCache : IDisposable
         ArgumentNullException.ThrowIfNull(source);
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
 
-        using var scope = _lock.Acquire();
-        if (_entries.TryGetValue(filePath, out var existing))
+        var newEntry = new CacheEntry(tree, source);
+        while (true)
         {
-            _lruList.Remove(existing.LruNode);
-            existing.Tree.Dispose();
-            existing.Tree = tree;
-            existing.Source = source;
-            existing.LruNode = _lruList.AddLast(filePath);
-            return;
-        }
+            if (_entries.TryGetValue(filePath, out var existing))
+            {
+                if (_entries.TryUpdate(filePath, newEntry, existing))
+                {
+                    existing.Tree.Dispose();
+                    return;
+                }
+                continue;
+            }
 
-        while (_entries.Count >= _maxEntries)
-        {
-            EvictOldest();
-        }
+            if (_entries.Count >= _maxEntries)
+            {
+                tree.Dispose();
+                return;
+            }
 
-        var node = _lruList.AddLast(filePath);
-        _entries[filePath] = new CacheEntry(tree, source, node);
+            if (_entries.TryAdd(filePath, newEntry))
+                return;
+        }
     }
 
     public void Remove(string filePath)
@@ -92,10 +90,8 @@ public sealed class TreeCache : IDisposable
         ArgumentNullException.ThrowIfNull(filePath);
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
 
-        using var scope = _lock.Acquire();
-        if (_entries.Remove(filePath, out var entry))
+        if (_entries.TryRemove(filePath, out var entry))
         {
-            _lruList.Remove(entry.LruNode);
             entry.Tree.Dispose();
         }
     }
@@ -104,51 +100,25 @@ public sealed class TreeCache : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
 
-        using var scope = _lock.Acquire();
         foreach (var entry in _entries.Values)
         {
             entry.Tree.Dispose();
         }
 
         _entries.Clear();
-        _lruList.Clear();
-    }
-
-    private void EvictOldest()
-    {
-        if (_lruList.First is null) return;
-
-        var oldestPath = _lruList.First.Value;
-        _lruList.RemoveFirst();
-
-        if (_entries.Remove(oldestPath, out var entry))
-        {
-            entry.Tree.Dispose();
-        }
     }
 
     public void Dispose()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
 
+        foreach (var entry in _entries.Values)
         {
-            using var scope = _lock.Acquire();
-            foreach (var entry in _entries.Values)
-            {
-                entry.Tree.Dispose();
-            }
-
-            _entries.Clear();
-            _lruList.Clear();
+            entry.Tree.Dispose();
         }
 
-        _lock.Dispose();
+        _entries.Clear();
     }
 
-    private sealed class CacheEntry(Tree tree, string source, LinkedListNode<string> lruNode)
-    {
-        public Tree Tree = tree;
-        public string Source = source;
-        public LinkedListNode<string> LruNode = lruNode;
-    }
+    private sealed record CacheEntry(Tree Tree, string Source);
 }

@@ -23,6 +23,17 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
             Cli.TerminalHelper.WriteLine($"  端点: {p.Endpoint ?? "(默认)"} | API Key: {(string.IsNullOrEmpty(p.ApiKey) ? "未配置" : "已配置")}");
         }
         Cli.TerminalHelper.WriteLine("JoinCode CLI - 输入消息或 /help 查看命令");
+        if (!Cli.TerminalHelper.IsHeadless)
+        {
+            using (Cli.TerminalHelper.SetColor(ConsoleColor.DarkGray))
+            {
+                var hints = string.Join(" | ",
+                    L.T(StringKey.FooterBashModeHint),
+                    L.T(StringKey.FooterSilentBashModeHint),
+                    L.T(StringKey.FooterShortcutsHint));
+                Cli.TerminalHelper.WriteLine(hints);
+            }
+        }
         Cli.TerminalHelper.WriteLine();
         Diag.WriteLifecycle("[AI助手] 就绪");
 

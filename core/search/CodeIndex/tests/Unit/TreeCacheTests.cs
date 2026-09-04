@@ -48,7 +48,7 @@ public sealed class TreeCacheTests : IDisposable
     }
 
     [Fact]
-    public void Add_ExceedsMaxEntries_EvictsOldest()
+    public void Add_ExceedsMaxEntries_DoesNotCacheNewEntries()
     {
         var cache = new TreeCache(maxEntries: 3);
 
@@ -61,11 +61,11 @@ public sealed class TreeCacheTests : IDisposable
                 cache.Add($"file{i}.cs", tree, source);
             }
 
-            Assert.False(cache.TryGet("file0.cs", out _));
-            Assert.False(cache.TryGet("file1.cs", out _));
+            Assert.True(cache.TryGet("file0.cs", out _));
+            Assert.True(cache.TryGet("file1.cs", out _));
             Assert.True(cache.TryGet("file2.cs", out _));
-            Assert.True(cache.TryGet("file3.cs", out _));
-            Assert.True(cache.TryGet("file4.cs", out _));
+            Assert.False(cache.TryGet("file3.cs", out _));
+            Assert.False(cache.TryGet("file4.cs", out _));
         }
         finally
         {
@@ -229,37 +229,5 @@ public sealed class TreeCacheTests : IDisposable
         cache.Dispose();
 
         Assert.Throws<ObjectDisposedException>(() => cache.Clear());
-    }
-
-    [Fact]
-    public void Add_UpdatesLruOrder()
-    {
-        var cache = new TreeCache(maxEntries: 3);
-        try
-        {
-            for (var i = 0; i < 3; i++)
-            {
-                var source = $"class Class{i} {{ }}";
-                using var tree = _parser.Parse(source);
-                cache.Add($"file{i}.cs", tree, source);
-            }
-
-            // Access file0 to make it recently used
-            Assert.True(cache.TryGet("file0.cs", out _));
-
-            // Add file3 → should evict file1 (oldest among non-accessed)
-            var source3 = "class Class3 { }";
-            using var tree3 = _parser.Parse(source3);
-            cache.Add("file3.cs", tree3, source3);
-
-            Assert.True(cache.TryGet("file0.cs", out _));
-            Assert.False(cache.TryGet("file1.cs", out _));
-            Assert.True(cache.TryGet("file2.cs", out _));
-            Assert.True(cache.TryGet("file3.cs", out _));
-        }
-        finally
-        {
-            cache.Dispose();
-        }
     }
 }

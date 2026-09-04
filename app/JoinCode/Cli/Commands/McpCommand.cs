@@ -71,67 +71,67 @@ public sealed class McpCliCommand : Command
         Add(schemaCommand);
     }
 
-    private static async Task<int> ExecuteCallAsync(
+    private static Task<int> ExecuteCallAsync(
         string toolName, string? args, string? argsFile, bool argsStdin, bool json, CancellationToken ct)
     {
         var argDict = ParseArgs(args, argsFile, argsStdin);
         if (argDict is null)
-            return OutputError("参数 JSON 解析失败", json);
+            return Task.FromResult(OutputError("参数 JSON 解析失败", json));
 
-        using var host = await BuildHostAsync(ct).ConfigureAwait(false);
-        var registry = host.Services.GetRequiredService<IMcpToolRegistry>();
-
-        if (!await registry.ContainsToolAsync(toolName, ct).ConfigureAwait(false))
-            return OutputError($"未找到工具: {toolName}（用 jcc mcp list 查看已注册工具）", json);
-
-        var result = await registry.ExecuteToolAsync(toolName, argDict, ct).ConfigureAwait(false);
-        return OutputResult(result, json);
+        return WithHostAsync(async services =>
+        {
+            var registry = services.GetRequiredService<IMcpToolRegistry>();
+            if (!await registry.ContainsToolAsync(toolName, ct).ConfigureAwait(false))
+                return OutputError($"未找到工具: {toolName}（用 jcc mcp list 查看已注册工具）", json);
+            var result = await registry.ExecuteToolAsync(toolName, argDict, ct).ConfigureAwait(false);
+            return OutputResult(result, json);
+        }, ct);
     }
 
-    private static async Task<int> ExecuteListAsync(string? category, bool json, CancellationToken ct)
-    {
-        using var host = await BuildHostAsync(ct).ConfigureAwait(false);
-        var registry = host.Services.GetRequiredService<IMcpToolRegistry>();
-        var tools = await registry.GetAllToolsAsync(ct).ConfigureAwait(false);
-
-        if (json)
+    private static Task<int> ExecuteListAsync(string? category, bool json, CancellationToken ct)
+        => WithHostAsync(async services =>
         {
-            var items = tools.Values
-                .Where(t => string.IsNullOrEmpty(category) || string.Equals(t.Category, category, StringComparison.OrdinalIgnoreCase))
-                .Select(t => new ToolListItem(t.Name, t.Description, t.Category, t.GroupName, t.Kind.ToString()))
-                .ToList();
-            var envelope = Cli.Output.CliOutputEnvelope.Success(items, new Cli.Output.CliOutputMeta { TotalCount = items.Count });
-            System.Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(envelope, JsonCtx.CliOutputEnvelope));
-        }
-        else
-        {
-            var grouped = tools.Values
-                .Where(t => string.IsNullOrEmpty(category) || string.Equals(t.Category, category, StringComparison.OrdinalIgnoreCase))
-                .GroupBy(t => t.Category ?? "(无分类)")
-                .OrderBy(g => g.Key);
+            var registry = services.GetRequiredService<IMcpToolRegistry>();
+            var tools = await registry.GetAllToolsAsync(ct).ConfigureAwait(false);
 
-            foreach (var g in grouped)
+            if (json)
             {
-                TerminalHelper.WriteLine($"{TerminalColors.Info}{g.Key}{AnsiStyleConstants.Reset} ({g.Count()} 个):");
-                foreach (var t in g.OrderBy(t => t.Name))
-                    TerminalHelper.WriteLine($"  {t.Name,-40} {t.Description}");
-                TerminalHelper.NewLine();
+                var items = tools.Values
+                    .Where(t => string.IsNullOrEmpty(category) || string.Equals(t.Category, category, StringComparison.OrdinalIgnoreCase))
+                    .Select(t => new ToolListItem(t.Name, t.Description, t.Category, t.GroupName, t.Kind.ToString()))
+                    .ToList();
+                var envelope = Cli.Output.CliOutputEnvelope.Success(items, new Cli.Output.CliOutputMeta { TotalCount = items.Count });
+                System.Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(envelope, JsonCtx.CliOutputEnvelope));
             }
-            TerminalHelper.WriteLine($"总计: {tools.Count} 个工具");
-        }
-        return 0;
-    }
+            else
+            {
+                var grouped = tools.Values
+                    .Where(t => string.IsNullOrEmpty(category) || string.Equals(t.Category, category, StringComparison.OrdinalIgnoreCase))
+                    .GroupBy(t => t.Category ?? "(无分类)")
+                    .OrderBy(g => g.Key);
 
-    private static async Task<int> ExecuteSearchAsync(string query, bool json, CancellationToken ct)
-    {
-        using var host = await BuildHostAsync(ct).ConfigureAwait(false);
-        var registry = host.Services.GetRequiredService<IMcpToolRegistry>();
-        var allTools = await registry.GetAllToolsAsync(ct).ConfigureAwait(false);
+                foreach (var g in grouped)
+                {
+                    TerminalHelper.WriteLine($"{TerminalColors.Info}{g.Key}{AnsiStyleConstants.Reset} ({g.Count()} 个):");
+                    foreach (var t in g.OrderBy(t => t.Name))
+                        TerminalHelper.WriteLine($"  {t.Name,-40} {t.Description}");
+                    TerminalHelper.NewLine();
+                }
+                TerminalHelper.WriteLine($"总计: {tools.Count} 个工具");
+            }
+            return 0;
+        }, ct);
 
-        var deferredTools = allTools.Values
-            .Select(t => new DeferredToolInfo(t.Name, t.Description, null, t.Kind == ToolKind.Mcp, t.Category, t.GroupName))
-            .ToList();
-        var engine = new ToolSearchEngine(deferredTools);
+    private static Task<int> ExecuteSearchAsync(string query, bool json, CancellationToken ct)
+        => WithHostAsync(async services =>
+        {
+            var registry = services.GetRequiredService<IMcpToolRegistry>();
+            var allTools = await registry.GetAllToolsAsync(ct).ConfigureAwait(false);
+
+            var deferredTools = allTools.Values
+                .Select(t => new DeferredToolInfo(t.Name, t.Description, null, t.Kind == ToolKind.Mcp, t.Category, t.GroupName))
+                .ToList();
+            var engine = new ToolSearchEngine(deferredTools);
         var result = engine.Search(query, 20);
 
         if (json)
@@ -157,13 +157,13 @@ public sealed class McpCliCommand : Command
             }
         }
         return 0;
-    }
+    }, ct);
 
-    private static async Task<int> ExecuteSchemaAsync(string toolName, bool json, CancellationToken ct)
-    {
-        using var host = await BuildHostAsync(ct).ConfigureAwait(false);
-        var registry = host.Services.GetRequiredService<IMcpToolRegistry>();
-        var info = await registry.GetToolInfoAsync(toolName, ct).ConfigureAwait(false);
+    private static Task<int> ExecuteSchemaAsync(string toolName, bool json, CancellationToken ct)
+        => WithHostAsync(async services =>
+        {
+            var registry = services.GetRequiredService<IMcpToolRegistry>();
+            var info = await registry.GetToolInfoAsync(toolName, ct).ConfigureAwait(false);
 
         if (info is null)
             return OutputError($"未找到工具: {toolName}", json);
@@ -181,7 +181,7 @@ public sealed class McpCliCommand : Command
             System.Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(info.InputSchema, ContractsJsonContext.Default.ToolSchema));
         }
         return 0;
-    }
+    }, ct);
 
     private static async Task<IHost> BuildHostAsync(CancellationToken ct)
     {
@@ -189,6 +189,19 @@ public sealed class McpCliCommand : Command
         var options = new CommandLineOptions { NonInteractive = true, TrustWorkspace = true };
         var result = await EngineSessionFactory.CreateCliSessionAsync(options, fs, ct).ConfigureAwait(false);
         return result.Host;
+    }
+
+    private static async Task<int> WithHostAsync(Func<IServiceProvider, Task<int>> action, CancellationToken ct)
+    {
+        var host = await BuildHostAsync(ct).ConfigureAwait(false);
+        try
+        {
+            return await action(host.Services).ConfigureAwait(false);
+        }
+        finally
+        {
+            try { host.Dispose(); } catch (Exception ex) { Diag.WriteLine($"[McpCommand] Host dispose 异常已忽略: {ex.Message}"); }
+        }
     }
 
     private static Dictionary<string, JsonElement>? ParseArgs(string? args, string? argsFile, bool argsStdin)

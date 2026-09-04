@@ -37,12 +37,11 @@
 - [x] `gh_issue_comment` ✅ 评论 Issue #180
 - [x] `gh_issue_close` ✅ 关闭 Issue #180
 
-**⚠️ 发现 Bug — gh 工具多行 body 被拦截**：
+**⚠️ 发现 Bug — gh 工具多行 body 被拦截**（已修复）：
 - `gh_issue_create` 的 body 参数含换行符 `\n` 时，被 `CommandArgumentValidator` 拦截为"危险字符"
-- 错误：`参数包含危险字符 '\n' (U+000A)，可能导致命令注入`
-- 影响范围：所有 gh 工具的多行文本参数（issue body、PR body、comment 等）
-- 修复方案：`GitHubCommandRunner` 对 gh 命令设置 `SkipArgumentValidation=true`，或用 `--body-file` 临时文件传递多行内容
-- 临时规避：body 用单行文本（无换行符）
+- 修复：`GitHubCommandRunner.ExecuteAsync` 设置 `SkipArgumentValidation=true`（与 `GitCommandRunner` 一致）
+- 理由：gh CLI 参数不经过 shell 执行，换行符不会导致命令注入；`EscapeArg` 已转义双引号
+- 验证：多行 body 创建 Issue #181 成功 ✅
 
 **批次3 — Repo/Run/Release 相关（7 个）**：
 - [ ] `gh_repo_create` — 创建仓库

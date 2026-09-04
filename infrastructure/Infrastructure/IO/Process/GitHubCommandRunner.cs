@@ -52,7 +52,8 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
                 Arguments = arguments,
                 WorkingDirectory = workingDirectory,
                 TimeoutMs = (int)_timeout.TotalMilliseconds,
-                EnvironmentVariables = CreateGitHubEnvironment()
+                EnvironmentVariables = CreateGitHubEnvironment(),
+                SkipArgumentValidation = true
             };
 
             var result = await _processService.ExecuteAsync(options, ct).ConfigureAwait(false);

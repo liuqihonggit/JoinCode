@@ -26,28 +26,32 @@ public sealed class ToolInterventionManager : ServiceEntity
 
     public async Task AddRuleAsync(string toolName, InterventionType type, string reason, TimeSpan? duration = null, CancellationToken ct = default)
     {
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
-        _rules[toolName] = new InterventionRule
+        using (var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
-            Type = type,
-            Reason = reason,
-            Expiry = duration.HasValue ? DateTime.UtcNow + duration.Value : null,
-            ScorePenalty = type == InterventionType.Downgrade ? -50 : null,
-            RedirectTo = type == InterventionType.Redirect ? GetDefaultRedirect(toolName) : null
-        };
+            _rules[toolName] = new InterventionRule
+            {
+                Type = type,
+                Reason = reason,
+                Expiry = duration.HasValue ? DateTime.UtcNow + duration.Value : null,
+                ScorePenalty = type == InterventionType.Downgrade ? -50 : null,
+                RedirectTo = type == InterventionType.Redirect ? GetDefaultRedirect(toolName) : null
+            };
+        }
+
         SaveToDisk();
         _logger?.LogInformation("已添加工具干预: {ToolName} → {Type} ({Reason})", toolName, type, reason);
-    
+
     }
 
     public async Task RemoveRuleAsync(string toolName, CancellationToken ct = default)
     {
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
+        using (var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
+        {
+            _rules.Remove(toolName);
+        }
 
-        _rules.Remove(toolName);
         SaveToDisk();
-    
+
     }
 
     public async Task<InterventionRule?> GetRuleAsync(string toolName, CancellationToken ct = default)

@@ -1,11 +1,11 @@
 # 锁 → 管道通讯重构方案
 
-> **状态**:accepted(P0-P8 全部完成)
+> **状态**:accepted(P0-P9 全部完成)
 > **日期**:2026-09-05
-> **实现日期**:2026-09-05(P0-P2) | 2026-09-05(P3-P8)
-> **范围**:StreamingToolExecutor / ForkSubAgentManager / GoalGraphEngine(P0-P2) | McpStdioClient / McpClientToolHandlers / McpAuthToolHandlers / McpTransportFallbackChain / McpServerStateManager / ToolInterventionManager(P3-P8)
+> **实现日期**:2026-09-05(P0-P2) | 2026-09-05(P3-P8) | 2026-09-05(P9)
+> **范围**:StreamingToolExecutor / ForkSubAgentManager / GoalGraphEngine(P0-P2) | McpStdioClient / McpClientToolHandlers / McpAuthToolHandlers / McpTransportFallbackChain / McpServerStateManager / ToolInterventionManager(P3-P8) | SandboxIpcClient(P9)
 > **目标**:将高风险状态锁改为 Actor+Channel 管道通讯,消除死锁与持锁等外部 IO 风险
-> **验证**:P0-P2 1740 单元测试通过 | P3-P8 172 Mcp 单元测试通过(每步编译+测试+commit)
+> **验证**:P0-P2 1740 单元测试通过 | P3-P8 172 Mcp 单元测试通过 | P9 135 Guard.Security 测试通过
 
 ---
 

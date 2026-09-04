@@ -84,8 +84,9 @@ public sealed class StaticFileUpdateSource : IUpdateSource
 
     /// <summary>
     /// 手动解析 manifest.json（避免新增 JsonContext，AOT 友好）
+    /// 供 LocalFileUpdateSource 等其他源复用
     /// </summary>
-    private static UpdateManifest ParseManifest(string json)
+    internal static UpdateManifest ParseManifest(string json)
     {
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;

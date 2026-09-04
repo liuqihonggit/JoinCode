@@ -11,15 +11,18 @@ public static class UpdateSourceFactory
     /// </summary>
     /// <param name="config">更新源配置</param>
     /// <param name="httpClient">HTTP 客户端（Static/HttpApi/GitHubMirror 需要）</param>
+    /// <param name="fs">文件系统（LocalFile 需要）</param>
     /// <param name="logger">日志器</param>
     /// <returns>更新源实例</returns>
     public static IUpdateSource Create(
         UpdateSourceConfig config,
         HttpClient httpClient,
+        IFileSystem fs,
         ILogger? logger = null)
     {
         ArgumentNullException.ThrowIfNull(config);
         ArgumentNullException.ThrowIfNull(httpClient);
+        ArgumentNullException.ThrowIfNull(fs);
 
         var sourceType = config.GetSourceType();
         var manifestUrl = config.GetManifestUrl();
@@ -33,6 +36,7 @@ public static class UpdateSourceFactory
 
             UpdateSourceType.LocalFile => new LocalFileUpdateSource(
                 manifestUrl,
+                fs,
                 logger as ILogger<LocalFileUpdateSource>),
 
             UpdateSourceType.HttpApi => new HttpApiUpdateSource(

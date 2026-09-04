@@ -8,7 +8,7 @@ namespace Core.Prompts.Sections;
     Order = 6,
     InjectOn = PromptSectionInject.Keyword,
     Keywords = new[] {
-        "性能", "优化", "架构", "效率", "编译", "队列", "缓存", "重构",
+        "性能", "架构", "效率", "编译", "队列", "缓存",
         "热路径", "扫盘", "字典", "状态机", "中间件", "异步锁", "断点续传",
         "AOT", "GC", "SIMD", "NativeAOT", "LRU", "0-GC", "多线程"
     })]

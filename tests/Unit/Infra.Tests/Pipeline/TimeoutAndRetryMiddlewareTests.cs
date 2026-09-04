@@ -26,10 +26,10 @@ public sealed class TimeoutAndRetryMiddlewareTests
     [Fact]
     public async Task Timeout_ExceedsTimeout_SetsIsTimedOutAndThrows()
     {
-        var ctx = new TestTimeoutContext { Timeout = TimeSpan.FromMilliseconds(50) };
+        var ctx = new TestTimeoutContext { Timeout = TimeSpan.FromMilliseconds(200) };
         var pipeline = new PipelineBuilder<TestTimeoutContext>()
             .Use(new TimeoutMiddleware<TestTimeoutContext>())
-            .Use(new SlowMiddleware(TimeSpan.FromMilliseconds(500)))
+            .Use(new SlowMiddleware(TimeSpan.FromMilliseconds(2000)))
             .Build();
 
         var act = async () => await pipeline.ExecuteAsync(ctx, CancellationToken.None).ConfigureAwait(true);

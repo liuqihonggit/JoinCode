@@ -203,6 +203,26 @@ public sealed partial class PathPermissionChecker : ServiceEntity, IPathPermissi
             return PathPermissionCheckResult.Allow($"匹配允许规则: {allowRule.Pattern}", allowRule);
         }
 
+        // 步骤8.5: 路径存在性检查 — 工作目录外读取路径不存在时直接报错(Invalid),不拦截等候用户确认
+        // 防止 LLM 输出乱码/错误路径时触发 Ask 面板,应直接报错给 AI
+        // 工作目录内路径不检查(支持创建新文件);allow 规则已优先(允许尝试读取可能不存在的文件)
+        if (!IsInWorkingDirectory(normalizedPath))
+        {
+            if (IsLikelyGarbledPath(normalizedPath))
+            {
+                _logger?.LogDebug("路径含乱码字符,直接报错: {Path}", path);
+                return PathPermissionCheckResult.Invalid(
+                    $"路径含乱码字符,可能编码错误: {path}。请检查路径是否正确。");
+            }
+
+            if (!_fs.FileExists(normalizedPath) && !_fs.DirectoryExists(normalizedPath))
+            {
+                _logger?.LogDebug("工作目录外路径不存在,直接报错: {Path}", path);
+                return PathPermissionCheckResult.Invalid(
+                    $"路径不存在: {path}。请检查路径是否正确,或确认文件/目录是否已创建。");
+            }
+        }
+
         // 步骤9: 默认 — 工作目录外需要确认
         return PathPermissionCheckResult.Ask(
             $"读取路径 {path} 在允许的工作目录之外，需要用户确认。");
@@ -358,6 +378,24 @@ public sealed partial class PathPermissionChecker : ServiceEntity, IPathPermissi
     {
         return path.StartsWith(@"\\", StringComparison.Ordinal) ||
                path.StartsWith("//", StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 乱码路径检测 — 检查路径是否含明确的编码错误标志
+    /// 检测: U+FFFD 替换字符(UTF-8 解码失败)、控制字符(不含制表符)
+    /// 不检测中文/CJK 字符(合法路径),仅检测明确的乱码标志
+    /// </summary>
+    private static bool IsLikelyGarbledPath(string path)
+    {
+        for (var i = 0; i < path.Length; i++)
+        {
+            var c = path[i];
+            if (c == '\uFFFD')
+                return true;
+            if (c < 0x20 && c != '\t')
+                return true;
+        }
+        return false;
     }
 
     /// <summary>

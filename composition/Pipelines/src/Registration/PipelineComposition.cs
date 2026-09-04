@@ -245,6 +245,7 @@ public static class PipelineComposition
             new PipelineBuilder<ShellPipelineContext>()
                 .WithLoggingScope(sp.GetRequiredService<ILoggerFactory>())
                 .Use(sp.GetRequiredService<CrashSnapshotMiddleware<ShellPipelineContext>>())
+                .Use(sp.GetRequiredService<ShellTimeoutKeywordMiddleware>())
                 .Use(sp.GetRequiredService<AbsoluteTimeoutMiddleware>())
                 .Use(sp.GetRequiredService<ShellValidationMiddleware>())
                 .Use(sp.GetRequiredService<ShellCommandInterceptionMiddleware>())

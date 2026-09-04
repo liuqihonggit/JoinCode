@@ -20,5 +20,8 @@ public enum PermissionBehavior
     [EnumValue("block")] Block = 3,
 
     /// <summary>无规则匹配，传递给上层（Shell 安全链决策）</summary>
-    [EnumValue("passthrough")] Passthrough = 4
+    [EnumValue("passthrough")] Passthrough = 4,
+
+    /// <summary>路径无效（不存在/乱码）— 硬错误，不询问不执行直接报错给 AI</summary>
+    [EnumValue("invalid")] Invalid = 5
 }

@@ -44,6 +44,14 @@ public sealed class ShellExecutionConfig
     public int ResumeTimeoutSeconds { get; set; } = 600;
 
     /// <summary>
+    /// 超时关键字检测的缓冲时间（秒，默认 30）
+    /// 检测到脚本内含 N 秒等待（sleep/Start-Sleep/timeout 等）时，超时设为 N + 此缓冲值
+    /// 缓冲用于覆盖命令启动、其他非等待操作的耗时
+    /// </summary>
+    [Range(5, 300, ErrorMessage = "TimeoutKeywordBufferSeconds 必须在 5 秒到 5 分钟之间")]
+    public int TimeoutKeywordBufferSeconds { get; set; } = 30;
+
+    /// <summary>
     /// 是否启用命令执行日志
     /// </summary>
     public bool EnableExecutionLogging { get; set; } = true;

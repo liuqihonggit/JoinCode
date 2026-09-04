@@ -220,6 +220,7 @@ public sealed class PermissionCheckContext
         {
             PermissionBehavior.Allow => ToolPermissionCheckResult.Approved(),
             PermissionBehavior.Deny => ToolPermissionCheckResult.Rejected(pathResult.Reason ?? "路径权限被拒绝"),
+            PermissionBehavior.Invalid => ToolPermissionCheckResult.Rejected(pathResult.Reason ?? "路径无效"),
             PermissionBehavior.Ask => ToolPermissionCheckResult.PendingConfirmation(pathResult.Reason ?? "路径需要用户确认"),
             _ => ToolPermissionCheckResult.PendingConfirmation(pathResult.Reason ?? "未知路径权限状态")
         };

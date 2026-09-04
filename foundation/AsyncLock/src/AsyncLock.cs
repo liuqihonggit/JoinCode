@@ -2,8 +2,8 @@ namespace Core.Utils;
 
 /// <summary>
 /// 锁/并发限流原语 — SemaphoreSlim 的薄封装,支持互斥 (1,1) 和并发限流 (N,N) 两种语义。
-/// 提供同步 <see cref="TryLock(CancellationToken)"/> 和异步 <see cref="TryLockAsync(CancellationToken)"/>。
-/// async 方法中用 <see cref="TryLockAsync"/> 避免线程池饥饿;非 async 上下文用 <see cref="TryLock"/>。
+/// 提供同步 <c>TryLock</c> 和异步 <c>TryLockAsync</c>。
+/// async 方法中用 <c>TryLockAsync</c> 避免线程池饥饿;非 async 上下文用 <c>TryLock</c>。
 /// 默认5s超时(可经 <see cref="AsyncLock(string, TimeSpan)"/> 构造按实例配置),超时返回 null 并记录日志,取消抛 OperationCanceledException。
 /// 内部接入 <see cref="LockRegistry"/> 诊断:获取/释放时记录调用栈、线程、时间,卡死时调用 <see cref="LockRegistry.DumpAll"/> 精确定位。
 /// </summary>
@@ -113,12 +113,20 @@ public sealed class AsyncLock : IDisposable
     /// </summary>
     public IDisposable? TryLock(CancellationToken ct = default)
     {
+        return TryLock(_timeout, ct);
+    }
+
+    /// <summary>
+    /// 尝试同步获取锁,指定超时覆盖实例默认超时。<see cref="TimeSpan.Zero"/> 为非阻塞尝试。
+    /// </summary>
+    public IDisposable? TryLock(TimeSpan timeout, CancellationToken ct = default)
+    {
         ThrowIfDisposed();
         LockRegistry.OnWaitStart(_registryId, _name);
         bool acquired;
         try
         {
-            acquired = _semaphore.Wait((int)_timeout.TotalMilliseconds, ct);
+            acquired = _semaphore.Wait((int)timeout.TotalMilliseconds, ct);
         }
         catch (OperationCanceledException)
         {
@@ -128,7 +136,7 @@ public sealed class AsyncLock : IDisposable
         if (!acquired)
         {
             LockRegistry.OnWaitEnd(_registryId, _name);
-            LockRegistry.OnLockTimeout(_name, _timeout);
+            LockRegistry.OnLockTimeout(_name, timeout);
             return null;
         }
         LockRegistry.OnAcquired(_registryId, _name);
@@ -137,16 +145,24 @@ public sealed class AsyncLock : IDisposable
 
     /// <summary>
     /// 尝试异步获取锁。成功返回 Releaser,超时返回 null,取消抛 <see cref="OperationCanceledException"/>。
-    /// async 方法中用此方法避免 <see cref="TryLock"/> 同步阻塞线程池导致饥饿。
+    /// async 方法中用此方法避免 <c>TryLock</c> 同步阻塞线程池导致饥饿。
     /// </summary>
     public async ValueTask<IDisposable?> TryLockAsync(CancellationToken ct = default)
+    {
+        return await TryLockAsync(_timeout, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 尝试异步获取锁,指定超时覆盖实例默认超时。
+    /// </summary>
+    public async ValueTask<IDisposable?> TryLockAsync(TimeSpan timeout, CancellationToken ct = default)
     {
         ThrowIfDisposed();
         LockRegistry.OnWaitStart(_registryId, _name);
         bool acquired;
         try
         {
-            acquired = await _semaphore.WaitAsync((int)_timeout.TotalMilliseconds, ct).ConfigureAwait(false);
+            acquired = await _semaphore.WaitAsync((int)timeout.TotalMilliseconds, ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -156,7 +172,7 @@ public sealed class AsyncLock : IDisposable
         if (!acquired)
         {
             LockRegistry.OnWaitEnd(_registryId, _name);
-            LockRegistry.OnLockTimeout(_name, _timeout);
+            LockRegistry.OnLockTimeout(_name, timeout);
             return null;
         }
         LockRegistry.OnAcquired(_registryId, _name);

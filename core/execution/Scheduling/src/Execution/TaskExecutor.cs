@@ -37,14 +37,10 @@ internal sealed class TaskExecutor
     /// </summary>
     public async Task ExecuteWithSemaphoreAsync(ScheduledTask task, ExecutionContext context, CancellationToken cancellationToken = default)
     {
-        await context.ConcurrencyLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        using (await context.ConcurrencyLock.TryLockAsync(cancellationToken).ConfigureAwait(false)
+            ?? throw new System.TimeoutException($"锁 '{context.ConcurrencyLock.Name}' 等待超时"))
         {
             await ExecuteAsync(task, context.Options).ConfigureAwait(false);
-        }
-        finally
-        {
-            context.ConcurrencyLock.Release();
         }
     }
 

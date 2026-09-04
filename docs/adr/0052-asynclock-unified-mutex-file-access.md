@@ -265,3 +265,17 @@ public sealed class AsyncLock : IDisposable
 | `CheckReentrancy` + `LockReentrancyException` 抛异常检测同步重入（决策7） | 已移除 `CheckReentrancy`（ThreadId 在 async/await 下因线程池复用不可靠）；改为 `TryLock` 超时返回 null + `TrySetResult` 移到锁外 | 0060 决策1/3，详见 [0059](0059-asynclock-reentrancy-detection.md)（已 superseded） |
 
 本 ADR 仍有效的部分：决策1（参数兼容构造）、决策3（复用 AsyncFileLock）、决策4（公开属性 SemaphoreSlim 按语义区分）、决策6（锁分类归宿）、决策7 的 LockRegistry 诊断层（DumpAll/后台扫描/死锁检测 wait-for graph DFS）。
+
+## 后续变更：AsyncLock 扩展支持 N,N 并发限流（2026-09-04）
+
+> 决策：去掉 `(1,1)` 限制，AsyncLock 同时支持互斥 `(1,1)` 和并发限流 `(N,N)` 两种语义。
+
+| 变更 | 说明 |
+|------|------|
+| 构造函数 `(int, int)` / `(string, int, int)` | 去掉 `initialCount != 1 \|\| maxCount != 1` 限制，允许 N,N |
+| 新增 `(string, int, int, TimeSpan)` | 带超时的 N,N 构造 |
+| 新增 `TryLock(TimeSpan, CancellationToken)` / `TryLockAsync(TimeSpan, CancellationToken)` | 调用方指定超时覆盖实例默认，支持非阻塞 `TimeSpan.Zero` |
+| 替换 9 处长生命周期 SemaphoreSlim(N,N) | ExecutionContext、AgentCoordinator、ForkSubAgentManager、GoalGraphEngine、IOThrottleService |
+| ADR-0052 决策6 锁分类归宿 | "并发限流 → SemaphoreSlim" 改为 "并发限流 → AsyncLock(N,N)" |
+
+**未统一（保留 SemaphoreSlim）**：3 处 ReaderWriterLockSlim（读写锁语义不同）、~3 处短生命周期局部变量（`using var`，无诊断需求）、信号 `(0,N)`（非锁语义）。

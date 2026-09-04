@@ -15,14 +15,14 @@ internal sealed class ExecutionContext : IAsyncDisposable
     {
         Options = options;
         CancellationToken = cancellationToken;
-        ConcurrencyLock = new SemaphoreSlim(options.MaxConcurrentTasks, options.MaxConcurrentTasks);
+        ConcurrencyLock = new AsyncLock("ExecutionContext-Concurrency", options.MaxConcurrentTasks, options.MaxConcurrentTasks);
         _runningTasks = new List<Task>();
         _completedTaskIds = new ConcurrentDictionary<string, byte>();
     }
 
     public ExecutionOptions Options { get; }
     public CancellationToken CancellationToken { get; }
-    public SemaphoreSlim ConcurrencyLock { get; }
+    public AsyncLock ConcurrencyLock { get; }
 
     /// <summary>
     /// 添加运行中的任务 - 线程安全

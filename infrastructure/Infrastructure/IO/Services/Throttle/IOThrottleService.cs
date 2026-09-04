@@ -12,9 +12,9 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
     private readonly ITelemetryService? _telemetryService;
     private readonly IClockService _clock;
 
-    private readonly SemaphoreSlim _readSemaphore;
-    private readonly SemaphoreSlim _writeSemaphore;
-    private readonly SemaphoreSlim _deleteSemaphore;
+    private readonly AsyncLock _readSemaphore;
+    private readonly AsyncLock _writeSemaphore;
+    private readonly AsyncLock _deleteSemaphore;
 
     private readonly TokenBucket _tokenBucket;
 
@@ -37,9 +37,9 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
             throw new InvalidOperationException($"[INF023] IOThrottleOptions 验证失败: {validationError}");
         }
 
-        _readSemaphore = new SemaphoreSlim(_options.MaxConcurrentReads);
-        _writeSemaphore = new SemaphoreSlim(_options.MaxConcurrentWrites);
-        _deleteSemaphore = new SemaphoreSlim(_options.MaxConcurrentDeletes);
+        _readSemaphore = new AsyncLock("IO-Read", _options.MaxConcurrentReads, _options.MaxConcurrentReads);
+        _writeSemaphore = new AsyncLock("IO-Write", _options.MaxConcurrentWrites, _options.MaxConcurrentWrites);
+        _deleteSemaphore = new AsyncLock("IO-Delete", _options.MaxConcurrentDeletes, _options.MaxConcurrentDeletes);
 
         _tokenBucket = new TokenBucket(_options.TokenBucketCapacity, _options.TokenRefillRatePerSecond, () => _clock.GetUtcNow());
 
@@ -60,7 +60,7 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
         IOOperationType operationType = IOOperationType.Read,
         CancellationToken cancellationToken = default)
     {
-        var semaphore = GetSemaphore(operationType);
+        var lockObj = GetLock(operationType);
         var tokenCost = _options.GetTokenCost(operationType);
 
         _logger?.LogDebug(
@@ -69,7 +69,8 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
 
         var stopwatch = Stopwatch.StartNew();
 
-        await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var releaser = await lockObj.TryLockAsync(cancellationToken).ConfigureAwait(false)
+            ?? throw new System.TimeoutException($"锁 '{lockObj.Name}' 等待超时");
 
         try
         {
@@ -86,12 +87,12 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
                 operationType,
                 stopwatch.ElapsedMilliseconds);
 
-            return new IOExecutionLease(this, operationType, _clock);
+            return new IOExecutionLease(this, operationType, _clock, releaser);
         }
         catch
         {
             RecordAcquireMetrics(operationType, stopwatch.ElapsedMilliseconds, false);
-            semaphore.Release();
+            releaser.Dispose();
             throw;
         }
     }
@@ -100,10 +101,11 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
         IOOperationType operationType,
         out IIOExecutionLease? lease)
     {
-        var semaphore = GetSemaphore(operationType);
+        var lockObj = GetLock(operationType);
         var tokenCost = _options.GetTokenCost(operationType);
 
-        if (!semaphore.Wait(0))
+        var releaser = lockObj.TryLock(TimeSpan.Zero, default);
+        if (releaser is null)
         {
             RecordAcquireMetrics(operationType, 0, false);
             lease = null;
@@ -114,7 +116,7 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
         {
             if (!_tokenBucket.TryConsume(tokenCost))
             {
-                semaphore.Release();
+                releaser.Dispose();
                 RecordAcquireMetrics(operationType, 0, false);
                 lease = null;
                 return false;
@@ -122,12 +124,12 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
 
             Interlocked.Increment(ref _currentConcurrentOperations);
             RecordAcquireMetrics(operationType, 0, true);
-            lease = new IOExecutionLease(this, operationType, _clock);
+            lease = new IOExecutionLease(this, operationType, _clock, releaser);
             return true;
         }
         catch
         {
-            semaphore.Release();
+            releaser.Dispose();
             RecordAcquireMetrics(operationType, 0, false);
             lease = null;
             return false;
@@ -136,8 +138,6 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
 
     internal void Release(IOOperationType operationType)
     {
-        var semaphore = GetSemaphore(operationType);
-        semaphore.Release();
         Interlocked.Decrement(ref _currentConcurrentOperations);
 
         _logger?.LogDebug(
@@ -145,7 +145,7 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
             operationType);
     }
 
-    private SemaphoreSlim GetSemaphore(IOOperationType operationType) => operationType switch
+    private AsyncLock GetLock(IOOperationType operationType) => operationType switch
     {
         IOOperationType.Read => _readSemaphore,
         IOOperationType.Write => _writeSemaphore,
@@ -175,21 +175,24 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
 internal sealed class IOExecutionLease : IIOExecutionLease
 {
     private readonly IOThrottleService _service;
+    private readonly IDisposable? _releaser;
     private bool _disposed;
 
     public DateTime AcquiredAt { get; }
     public IOOperationType OperationType { get; }
 
-    public IOExecutionLease(IOThrottleService service, IOOperationType operationType, IClockService clock)
+    public IOExecutionLease(IOThrottleService service, IOOperationType operationType, IClockService clock, IDisposable? releaser = null)
     {
         _service = service;
         OperationType = operationType;
         AcquiredAt = clock.GetUtcNow();
+        _releaser = releaser;
     }
 
     public void Dispose()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+        _releaser?.Dispose();
         _service.Release(OperationType);
     }
 }

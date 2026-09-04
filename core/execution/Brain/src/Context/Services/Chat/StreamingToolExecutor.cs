@@ -347,7 +347,7 @@ public sealed class StreamingToolExecutor : IAsyncDisposable
     /// <summary>
     /// 安全启动 fire-and-forget 任务 — 观察未处理异常，避免静默吞掉或泄漏。
     /// <para>必须用 Task.Run 隔离线程:调用方可能在 <c>using var guard = _semaphore.TryLock()</c> 锁作用域内启动,
-    /// 若 <paramref name="taskFactory"/> 返回的 async 方法同步前缀(第一个 await 之前)也调用 <see cref="AsyncLock.TryLock"/> 获取同一把锁,
+    /// 若 <paramref name="taskFactory"/> 返回的 async 方法同步前缀(第一个 await 之前)也调用 <c>AsyncLock.TryLock</c> 获取同一把锁,
     /// 同步执行会自等自死锁。Task.Run 强制在线程池另一线程执行,避免与当前线程锁持有冲突。> ADR: 0060</para>
     /// </summary>
     private void RunFireAndForget(Func<Task> taskFactory)

@@ -104,7 +104,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
 
         var concurrencyOptions = _concurrencyOptions;
         using var concurrencyLimiter = concurrencyOptions.MaxConcurrentExecutions > 0
-            ? new SemaphoreSlim(concurrencyOptions.MaxConcurrentExecutions, concurrencyOptions.MaxConcurrentExecutions)
+            ? new AsyncLock("GoalGraph-Concurrency", concurrencyOptions.MaxConcurrentExecutions, concurrencyOptions.MaxConcurrentExecutions)
             : null;
 
         while (true)
@@ -191,20 +191,17 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
         string nodeId,
         GoalGraph graph,
         GraphExecutionContext context,
-        SemaphoreSlim? limiter,
+        AsyncLock? limiter,
         CancellationToken ct)
     {
+        IDisposable? releaser = null;
         if (limiter is not null)
-            await limiter.WaitAsync(ct).ConfigureAwait(false);
-        try
+            releaser = await limiter.TryLockAsync(ct).ConfigureAwait(false)
+                ?? throw new System.TimeoutException($"锁 '{limiter.Name}' 等待超时");
+        using (releaser)
         {
             var dagNode = graph.Dag.Nodes[nodeId];
             return await ProcessNodeCompletionAsync(nodeId, dagNode, graph, context, ct).ConfigureAwait(false);
-        }
-        finally
-        {
-            if (limiter is not null)
-                limiter.Release();
         }
     }
 

@@ -525,6 +525,26 @@ gh api repos/{owner}/{repo}/actions/jobs/<job-id>/logs
 
 **注意**：`skipping` 不是失败！别看到一堆 `skipping` 就以为全挂了，那是依赖链跳过。
 
+#### 坑5：`gh run view --job --log` + `Select-String` 管道仍超时（120s+）
+
+- 坑2 的"正确做法"(`--job <job-id> --log 2>&1 | Select-String`)在日志量大时**仍会超时**
+- 原因：`gh run view --log` 一次性输出全部日志到 stdout，PowerShell 管道消费端 `Select-String` 逐行处理，当日志几万行时 120s 超时
+- **⛔ 禁止**：`gh run view <run-id> --job <job-id> --log 2>&1 | Select-String "..." | Select-Object -First 20`（超时炸掉）
+- **✅ 正确做法**：重定向写文件再查（绕开 PowerShell 管道死锁）
+
+```powershell
+# 第一步：重定向写文件（不用管道，不会超时）
+gh run view <run-id> --job <job-id> --log > .xxx/job_log.txt 2>&1
+
+# 第二步：从文件过滤关键行（Select-String 读文件不卡）
+Select-String -Path .xxx/job_log.txt -Pattern "Failed|FAIL|错误|失败|Exception|Assert" | Select-Object -First 30
+
+# 第三步：看测试失败上下文（匹配行前后 5 行）
+Select-String -Path .xxx/job_log.txt -Pattern "失败|Failed" -Context 5,5 | Select-Object -First 10
+```
+
+- **⚠️ 如果重定向也超时**：说明 `gh run view --log` 本身就卡（日志太大或网络慢），改用 `gh api` 分页拉取或直接在 GitHub Actions 页面查看日志
+
 #### CI 排错完整流程（按此顺序，不许跳步）
 
 ```powershell
@@ -538,8 +558,9 @@ gh pr view <pr-number> --json statusCheckRollup
 gh api repos/{owner}/{repo}/actions/runs/<run-id>/jobs > .xxx/jobs.json
 Get-Content .xxx/jobs.json | ConvertFrom-Json | Select-Object -ExpandProperty jobs | Where-Object { $_.conclusion -eq "failure" } | Select-Object name, id
 
-# 4. 拉失败 job 日志，过滤关键信息
-gh run view <run-id> --job <job-id> --log 2>&1 | Select-String "Failed|FAIL|Test Run Failed" | Select-Object -First 20
+# 4. 拉失败 job 日志，过滤关键信息（重定向写文件，不用管道，避免超时）
+gh run view <run-id> --job <job-id> --log > .xxx/job_log.txt 2>&1
+Select-String -Path .xxx/job_log.txt -Pattern "Failed|FAIL|Test Run Failed" | Select-Object -First 30
 
 # 5. 本地复现失败测试
 dotnet test <csproj> -c Release --filter "<test-name>" --nologo /p:SkipLocalPack=true

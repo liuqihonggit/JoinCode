@@ -19,8 +19,8 @@ public sealed partial class ReplService : ServiceEntity, IReplService
     private static readonly (string Language, string DisplayName, string Executable, string InstallHint)[] s_languageDefinitions =
     [
         ("csharp", "C#", "dotnet-script", "dotnet tool install -g dotnet-script"),
-        ("powershell", "PowerShell", "pwsh", "https://github.com/PowerShell/PowerShell"),
-        ("python", "Python", "python3", "https://www.python.org/downloads/"),
+        ("powershell", "PowerShell", "pwsh", JccEndpoints.PowerShellDownloadUrl),
+        ("python", "Python", "python3", JccEndpoints.PythonDownloadUrl),
     ];
 
     private readonly Lazy<IReadOnlyList<ReplLanguageInfo>> _availableLanguages;

@@ -15,12 +15,12 @@ public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesSe
     private DateTimeOffset _cacheTimestamp;
     private readonly AsyncLock _cacheLock = new();
 
-    public ReleaseNotesService(HttpClient httpClient, string repoOwner = "jcc", string repoName = "JoinCode",
+    public ReleaseNotesService(HttpClient httpClient, string? repoOwner = null, string? repoName = null,
         TimeSpan? requestTimeout = null, TimeSpan? cacheDuration = null, TimeProvider? timeProvider = null)
     {
         _httpClient = httpClient;
-        _repoOwner = repoOwner;
-        _repoName = repoName;
+        _repoOwner = repoOwner ?? JccEndpointsResolver.RepoOwner;
+        _repoName = repoName ?? JccEndpointsResolver.RepoName;
         _requestTimeout = requestTimeout ?? TimeSpan.FromSeconds(5);
         _cacheDuration = cacheDuration ?? TimeSpan.FromHours(1);
         _timeProvider = timeProvider ?? TimeProvider.System;
@@ -35,7 +35,7 @@ public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesSe
 
         try
         {
-            var url = $"https://api.github.com/repos/{_repoOwner}/{_repoName}/releases?per_page={count}";
+            var url = $"{JccEndpointsResolver.GitHubApiBase}/repos/{_repoOwner}/{_repoName}/releases?per_page={count}";
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.Add("User-Agent", "JoinCode");
 

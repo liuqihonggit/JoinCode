@@ -39,6 +39,7 @@ global using JoinCode.Abstractions.Models.Vcr;
 global using JoinCode.Abstractions.Models.Voice;
 global using JoinCode.Abstractions.Models.Build;
 global using JoinCode.Abstractions.Models.ErrorRecovery;
+global using JoinCode.Abstractions.Models.Update;
 global using JoinCode.Abstractions.Prompts;
 global using JoinCode.Abstractions.Prompts.ToolPrompts;
 global using JoinCode.Abstractions.Security;

@@ -7,7 +7,6 @@ namespace Services.Web;
 [Register(typeof(IDomainBlocklistChecker), ServiceLifetime.Singleton)]
 public sealed partial class DomainBlocklistChecker : ServiceEntity, IDomainBlocklistChecker
 {
-    private const string BlocklistApiUrl = "https://api.anthropic.com/api/web/domain_info?domain=";
     private static readonly TimeSpan CheckTimeout = TimeSpan.FromSeconds(10);
 
     private readonly IApiClient _apiClient;
@@ -52,7 +51,7 @@ public sealed partial class DomainBlocklistChecker : ServiceEntity, IDomainBlock
             using var cts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, CheckTimeout);
 
             var response = await _apiClient.SendAsync(
-                ApiRequest.Get($"{BlocklistApiUrl}{Uri.EscapeDataString(domain)}"),
+                ApiRequest.Get($"{JccEndpoints.DomainBlocklistApiBase}?domain={Uri.EscapeDataString(domain)}"),
                 cts.Token).ConfigureAwait(false);
 
             if (response.IsSuccessStatusCode)

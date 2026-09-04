@@ -1,7 +1,7 @@
 namespace Core.Utils;
 
 /// <summary>
-/// 互斥锁 — SemaphoreSlim(1,1) 的薄封装,项目唯一互斥锁原语。
+/// 锁/并发限流原语 — SemaphoreSlim 的薄封装,支持互斥 (1,1) 和并发限流 (N,N) 两种语义。
 /// 提供同步 <see cref="TryLock(CancellationToken)"/> 和异步 <see cref="TryLockAsync(CancellationToken)"/>。
 /// async 方法中用 <see cref="TryLockAsync"/> 避免线程池饥饿;非 async 上下文用 <see cref="TryLock"/>。
 /// 默认5s超时(可经 <see cref="AsyncLock(string, TimeSpan)"/> 构造按实例配置),超时返回 null 并记录日志,取消抛 OperationCanceledException。
@@ -14,7 +14,7 @@ public sealed class AsyncLock : IDisposable
     /// </summary>
     public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(5);
 
-    private readonly SemaphoreSlim _semaphore = new(1, 1);
+    private readonly SemaphoreSlim _semaphore;
     private readonly string _name;
     private readonly TimeSpan _timeout;
     private readonly int _registryId;
@@ -30,6 +30,7 @@ public sealed class AsyncLock : IDisposable
     /// </summary>
     public AsyncLock()
     {
+        _semaphore = new SemaphoreSlim(1, 1);
         _name = $"AsyncLock#{LockRegistry.Count + 1}";
         _timeout = DefaultTimeout;
         _registryId = LockRegistry.Register(_name);
@@ -40,6 +41,7 @@ public sealed class AsyncLock : IDisposable
     /// </summary>
     public AsyncLock(string name)
     {
+        _semaphore = new SemaphoreSlim(1, 1);
         _name = string.IsNullOrWhiteSpace(name) ? $"AsyncLock#{LockRegistry.Count + 1}" : name;
         _timeout = DefaultTimeout;
         _registryId = LockRegistry.Register(_name);
@@ -52,33 +54,56 @@ public sealed class AsyncLock : IDisposable
     {
         if (timeout <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(timeout), "超时必须为正值。");
+        _semaphore = new SemaphoreSlim(1, 1);
         _name = string.IsNullOrWhiteSpace(name) ? $"AsyncLock#{LockRegistry.Count + 1}" : name;
         _timeout = timeout;
         _registryId = LockRegistry.Register(_name);
     }
 
+    /// <summary>
+    /// 构造并发限流锁 — (1,1) 为互斥,(N,N) 为并发限流。签名与 <see cref="SemaphoreSlim"/> 一致,降低迁移成本。
+    /// </summary>
     public AsyncLock(int initialCount, int maxCount)
     {
-        if (initialCount != 1 || maxCount != 1)
+        if (initialCount < 0 || maxCount < 1 || initialCount > maxCount)
             throw new ArgumentOutOfRangeException(
                 nameof(initialCount),
-                "AsyncLock 仅支持互斥语义 (1,1)。信号量/并发限流请使用 SemaphoreSlim。");
+                "initialCount 必须 >= 0,maxCount 必须 >= 1,且 initialCount <= maxCount。");
+        _semaphore = new SemaphoreSlim(initialCount, maxCount);
         _name = $"AsyncLock#{LockRegistry.Count + 1}";
         _timeout = DefaultTimeout;
         _registryId = LockRegistry.Register(_name);
     }
 
     /// <summary>
-    /// 构造具名锁 + 参数兼容构造 — 签名与 <see cref="SemaphoreSlim"/> 一致,降低迁移成本,同时支持具名诊断。
+    /// 构造具名并发限流锁 — (1,1) 为互斥,(N,N) 为并发限流。签名与 <see cref="SemaphoreSlim"/> 一致,同时支持具名诊断。
     /// </summary>
     public AsyncLock(string name, int initialCount, int maxCount)
     {
-        if (initialCount != 1 || maxCount != 1)
+        if (initialCount < 0 || maxCount < 1 || initialCount > maxCount)
             throw new ArgumentOutOfRangeException(
                 nameof(initialCount),
-                "AsyncLock 仅支持互斥语义 (1,1)。信号量/并发限流请使用 SemaphoreSlim。");
+                "initialCount 必须 >= 0,maxCount 必须 >= 1,且 initialCount <= maxCount。");
+        _semaphore = new SemaphoreSlim(initialCount, maxCount);
         _name = string.IsNullOrWhiteSpace(name) ? $"AsyncLock#{LockRegistry.Count + 1}" : name;
         _timeout = DefaultTimeout;
+        _registryId = LockRegistry.Register(_name);
+    }
+
+    /// <summary>
+    /// 构造具名并发限流锁并指定超时 — (1,1) 为互斥,(N,N) 为并发限流。
+    /// </summary>
+    public AsyncLock(string name, int initialCount, int maxCount, TimeSpan timeout)
+    {
+        if (initialCount < 0 || maxCount < 1 || initialCount > maxCount)
+            throw new ArgumentOutOfRangeException(
+                nameof(initialCount),
+                "initialCount 必须 >= 0,maxCount 必须 >= 1,且 initialCount <= maxCount。");
+        if (timeout <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(timeout), "超时必须为正值。");
+        _semaphore = new SemaphoreSlim(initialCount, maxCount);
+        _name = string.IsNullOrWhiteSpace(name) ? $"AsyncLock#{LockRegistry.Count + 1}" : name;
+        _timeout = timeout;
         _registryId = LockRegistry.Register(_name);
     }
 

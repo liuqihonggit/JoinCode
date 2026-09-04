@@ -220,9 +220,6 @@ public class AsyncLockTest
     }
 
     [Theory(Timeout = 10000)]
-    [InlineData(0, 1)]
-    [InlineData(2, 2)]
-    [InlineData(1, 2)]
     [InlineData(2, 1)]
     [InlineData(0, 0)]
     [InlineData(-1, 1)]
@@ -232,7 +229,20 @@ public class AsyncLockTest
     {
         Action act = () => new AsyncLock(initial, max);
         act.Should().Throw<ArgumentOutOfRangeException>(
-            "AsyncLock 仅支持互斥语义 (1,1), 信号量/并发限流应使用 SemaphoreSlim");
+            "initialCount > maxCount 或 maxCount < 1 或 initialCount < 0 应抛异常");
+        await Task.CompletedTask;
+    }
+
+    [Theory(Timeout = 10000)]
+    [InlineData(1, 1)]
+    [InlineData(0, 1)]
+    [InlineData(2, 2)]
+    [InlineData(1, 2)]
+    [InlineData(4, 8)]
+    public async Task Constructor_ValidConcurrencyArgs_CreatesSuccessfully(int initial, int max)
+    {
+        var asyncLock = new AsyncLock("test-concurrency", initial, max);
+        asyncLock.Dispose();
         await Task.CompletedTask;
     }
 

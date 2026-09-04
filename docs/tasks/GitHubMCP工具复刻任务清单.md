@@ -116,3 +116,64 @@
 | ToolResultBuilder | `foundation/Abstractions/03-hands/Tools/ToolResultBuilder.cs` |
 | 新 Handler 目标位置 | `services/Mcp/src/GitHub/GitHubToolHandlers.cs` |
 | 新常量类目标位置 | `services/Mcp/src/GitHub/GitHubToolNameConstants.cs` |
+
+## 完成记录
+
+### P0-P6 全部完成 [2026-09-05]
+
+| 段 | 内容 | 状态 |
+|----|------|------|
+| P0 | ToolCategory.GitHub 枚举 + GitHubToolName 枚举(29个) + Handler 骨架 | ✅ |
+| P1 | PR 全套 8 个工具(view/list/diff/checks/merge/checkout/close/reopen) | ✅ |
+| P2 | Run 全套 4 个工具(list/view/rerun/cancel,含 maxLines 截断) | ✅ |
+| P3 | Release 全套 6 个工具(list/view/create/download/upload/delete,download 复用 IDownloader) | ✅ |
+| P4 | Issue 全套 5 个工具(list/view/create/close/comment) | ✅ |
+| P5 | Repo 全套 5 个工具(view/clone/create/fork/list) | ✅ |
+| P6 | gh api 通用调用 1 个工具(禁用 --jq,JsonDocument 解析) | ✅ |
+
+### 编译验证
+- Abstractions.csproj Debug --no-incremental: 0 警告 0 错误 ✅
+- Mcp.csproj Debug: 0 警告 0 错误 ✅
+- Services.slnx Debug: 0 警告 0 错误(上层链路无破坏) ✅
+- 8 个单元测试全绿(覆盖 PR/Run/Issue/Api 核心场景) ✅
+
+### 交付文件清单(13 文件,1154 行)
+- `foundation/Abstractions/00-core/Core/Utils/Constants/ToolCategory.cs` — 新增 GitHub 枚举值
+- `foundation/Abstractions/00-core/Core/Utils/Constants/GitHubToolName.cs` — 29 个工具名枚举
+- `services/Mcp/src/GitHub/GitHubToolHandlers.cs` — 骨架 + 共用辅助方法(Quote/TruncateLines/RunGh/Fail/Ok)
+- `services/Mcp/src/GitHub/GitHubToolHandlers.Pr.cs` — PR 8 个方法
+- `services/Mcp/src/GitHub/GitHubToolHandlers.Run.cs` — Run 4 个方法
+- `services/Mcp/src/GitHub/GitHubToolHandlers.Release.cs` — Release 6 个方法(download 复用 IDownloader)
+- `services/Mcp/src/GitHub/GitHubToolHandlers.Issue.cs` — Issue 5 个方法
+- `services/Mcp/src/GitHub/GitHubToolHandlers.Repo.cs` — Repo 5 个方法
+- `services/Mcp/src/GitHub/GitHubToolHandlers.Api.cs` — gh api 1 个方法
+- `services/Mcp/src/GlobalUsings.cs` — 加 Infrastructure.Network.Downloader
+- `services/Mcp/tests/Unit/GitHubToolHandlersTests.cs` — 8 个单元测试
+- `services/Mcp/tests/Unit/GlobalUsings.cs` — 加 JoinCode.Abstractions.Interfaces + Infrastructure.Network.Downloader
+- `docs/tasks/GitHubMCP工具复刻任务清单.md` — 本文档
+
+<!-- 🤖 Auto Decision: 2026-09-05 -->
+<!-- 决策: GitHubToolName 用枚举+[EnumValue]+[SecurityClass] 模式,源码生成器自动生成 GitHubToolNameConstants -->
+<!-- 原因: 对齐项目现有模式(WorktreeToolName/WebToolName),SSOT 防硬编码,SecurityClass 控制权限 -->
+<!-- 替代方案: 手动写 GitHubToolNameConstants 静态类(但违反"枚举+源码生成器"约定,不采用) -->
+
+<!-- 🤖 Auto Decision: 2026-09-05 -->
+<!-- 决策: Handler 拆成 7 个 partial 文件(骨架+PR+Run+Release+Issue+Repo+Api) -->
+<!-- 原因: 29 个方法放一个文件过长,partial 拆分按职责分组,符合"文件夹内少于十个文件"要求 -->
+<!-- 替代方案: 一个大文件(难维护) 或 每个方法一个文件(过度拆分) -->
+
+<!-- 🤖 Auto Decision: 2026-09-05 -->
+<!-- 决策: gh_release_download 先 gh release view --json assets 获取 URL,再用 IDownloader 多线程分片下载 -->
+<!-- 原因: 复用项目已有的多线程分片+断点续传基建,解决"总是下载失败"痛点,gh 原生下载是单线程 -->
+<!-- 替代方案: 调 gh release download(单线程,无断点续传,大文件易失败,不采用) -->
+
+<!-- 🤖 Auto Decision: 2026-09-05 -->
+<!-- 决策: 避坑1禁用 --jq,改 gh --json 输出完整 JSON 后用 JsonDocument.Parse 解析 -->
+<!-- 原因: MCP 工具用 C# Process 直接调 gh 不经 PowerShell,引号问题不存在,但 --jq 仍禁用避免 jq 依赖 -->
+<!-- 替代方案: 用 --jq 简化输出(但引入 jq 依赖,AOT 不友好,不采用) -->
+
+<!-- 🤖 Auto Decision: 2026-09-05 -->
+<!-- 决策: gh_run_view 加 max_lines 参数(默认 200)用 TruncateLines 截断 -->
+<!-- 原因: 避坑2/5,CI 日志几万行会撑爆 LLM 上下文+超时,截断+提示"已截断"让 LLM 知道 -->
+<!-- 替代方案: 不截断(超时炸掉) 或 写文件返回路径(LLM 无法直接读,不采用) -->
+<!-- 验证: 编译通过,8 个测试全绿,Services.slnx 上层链路无破坏 ✅ -->

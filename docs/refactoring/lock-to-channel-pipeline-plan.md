@@ -1,9 +1,11 @@
 # 锁 → 管道通讯重构方案
 
-> **状态**:proposed
+> **状态**:accepted(P0 完全 Actor 化,P1/P2 最小修复消除死锁点)
 > **日期**:2026-09-05
+> **实现日期**:2026-09-05
 > **范围**:StreamingToolExecutor / ForkSubAgentManager / GoalGraphEngine
 > **目标**:将高风险状态锁改为 Actor+Channel 管道通讯,消除死锁与持锁等外部 IO 风险
+> **验证**:1740 个单元测试通过(AsyncLock 10 + Brain.Context 785 + Agents 513 + Clock 432)
 
 ---
 

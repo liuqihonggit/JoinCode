@@ -6,6 +6,7 @@ public static partial class StringKey
     public const string FooterExitHint = "FooterExitHint";
     public const string FooterInterruptHint = "FooterInterruptHint";
     public const string FooterBashModeHint = "FooterBashModeHint";
+    public const string FooterSilentBashModeHint = "FooterSilentBashModeHint";
     public const string FooterShortcutsHint = "FooterShortcutsHint";
     public const string PermissionModeAuto = "PermissionModeAuto";
     public const string PermissionModeAutoShort = "PermissionModeAutoShort";

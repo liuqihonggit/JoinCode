@@ -10,6 +10,7 @@ global using System.Threading.Tasks;
 
 // 引擎 DI 组装（Composition + 共享管道）
 global using Core.DependencyInjection;
+global using Core.Utils;
 global using JoinCode.Pipelines;
 global using JoinCode.Pipelines.Middlewares;
 global using McpBridge;
@@ -30,6 +31,7 @@ global using JoinCode.Gui.SlashCommands;
 
 // 共享斜杠命令执行器（与 TUI 同一链路）
 global using JoinCode.Cli.Commands;
+global using JoinCode.ChatCommands;
 
 // Hosting 层读取 teammate 子会话列表
 global using Core.Scheduling.Tasks;global using Avalonia;

@@ -58,6 +58,7 @@ global using Testing.Common;
 
 global using JoinCode.Adapters;
 global using JoinCode.Cli;
+global using JoinCode.Cli.Commands.Prefix;
 global using JoinCode.Queue;
 global using JoinCode.Cli.Interaction;
 global using JoinCode.Abstractions.Models.Interactive;

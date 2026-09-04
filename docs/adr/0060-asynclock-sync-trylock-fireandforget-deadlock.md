@@ -88,7 +88,7 @@ $taskOut.Result  # 输出包含 DumpAll 锁状态
 ### 判断 DefaultTimeout 超时是时序竞争 vs 真死锁
 
 - `DefaultTimeout = 5s` 仍超时 → **真死锁**（锁被永久持有），非时序竞争
-- `DefaultTimeout = 1s` 超时但 5s 通过 → 时序竞争（锁持有 1-5s），需优化而非修死锁
+- `DefaultTimeout = 1s` 超时但 5s 通过 → 时序竞争（锁持有 1-5s），需优化而非修死锁（注：DefaultTimeout 现为 5s，此例用于说明阈值选择方法论）
 
 ## 排查记录（StreamingToolExecutor）
 

@@ -34,7 +34,13 @@ public sealed partial class AbsoluteTimeoutMiddleware : ServiceEntity, IShellMid
         }
 
         var configSeconds = _config.AbsoluteTimeoutSeconds;
-        var effectiveSeconds = configSeconds > 0 ? configSeconds : policySeconds;
+        var baseSeconds = configSeconds > 0 ? configSeconds : policySeconds;
+
+        // 尊重 OverrideTimeout（由 ShellTimeoutKeywordMiddleware 等设置）— 若大于基准上限则采用
+        // 支持脚本内含 sleep/Start-Sleep 等等待关键字时自动延长超时，规避默认超时终止
+        var effectiveSeconds = context.OverrideTimeout is { } overrideMs && overrideMs / 1000 > baseSeconds
+            ? overrideMs / 1000
+            : baseSeconds;
 
         var absoluteTimeout = TimeSpan.FromSeconds(effectiveSeconds);
         using var cts = TimeoutHelper.CreateLinkedTimeout(ct, absoluteTimeout);

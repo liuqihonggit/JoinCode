@@ -50,4 +50,10 @@ public sealed class PathPermissionCheckResult
     /// </summary>
     public static PathPermissionCheckResult Ask(string reason, PathPermissionRule? rule = null) =>
         new(PermissionBehavior.Ask, reason, rule);
+
+    /// <summary>
+    /// 创建无效结果 — 路径不存在或乱码，硬错误直接报错给 AI，不询问不执行
+    /// </summary>
+    public static PathPermissionCheckResult Invalid(string reason) =>
+        new(PermissionBehavior.Invalid, reason, null);
 }

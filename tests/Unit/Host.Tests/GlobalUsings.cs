@@ -85,6 +85,7 @@ global using JoinCode.Abstractions.Security.Permission;
 global using JoinCode.Abstractions.Utils.Diagnostics;
 global using JoinCode.App.Builder;
 global using JoinCode.ChatCommands.Bridge;
+global using JoinCode.CliCommands;
 global using JoinCode.Entry;
 global using Microsoft.Extensions.Hosting;
 global using Microsoft.Extensions.Http;

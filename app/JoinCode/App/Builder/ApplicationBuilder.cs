@@ -180,6 +180,7 @@ public sealed class ApplicationBuilder
         rootCommand.Add(new ToolCommand());
         rootCommand.Add(new AgentCommand(cliFs));
         rootCommand.Add(new CodeCommand(cliFs));
+        rootCommand.Add(new McpCliCommand());
         return await rootCommand.Parse(args).InvokeAsync();
     }
 

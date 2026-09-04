@@ -5,67 +5,18 @@ namespace IO.Services.Update;
 /// 从镜像服务器拉取 /releases/latest（GitHub API 格式），转换为 UpdateManifest
 /// > ADR: 0064
 /// </summary>
-public sealed class GitHubMirrorUpdateSource : IUpdateSource
+public sealed class GitHubMirrorUpdateSource : GitHostMirrorUpdateSourceBase
 {
-    private readonly HttpClient _httpClient;
-    private readonly string _mirrorBaseUrl;
-    private readonly ILogger<GitHubMirrorUpdateSource>? _logger;
-
     public GitHubMirrorUpdateSource(HttpClient httpClient, string mirrorBaseUrl, ILogger<GitHubMirrorUpdateSource>? logger = null)
+        : base(httpClient, mirrorBaseUrl, logger)
     {
-        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-        _mirrorBaseUrl = mirrorBaseUrl.TrimEnd('/') ?? throw new ArgumentNullException(nameof(mirrorBaseUrl));
-        _logger = logger;
     }
 
-    public UpdateSourceType Type => UpdateSourceType.GitHubMirror;
+    public override UpdateSourceType Type => UpdateSourceType.GitHubMirror;
 
-    public async Task<UpdateManifest?> GetManifestAsync(CancellationToken ct = default)
-    {
-        try
-        {
-            _logger?.LogDebug("GitHubMirrorUpdateSource: 拉取最新 release {Url}", _mirrorBaseUrl);
+    protected override string GetLatestReleaseUrl() => $"{MirrorBaseUrl}/releases/latest";
 
-            var url = $"{_mirrorBaseUrl}/releases/latest";
-            using var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.Headers.Add("User-Agent", BrandConstants.ProductName);
-
-            using var response = await _httpClient.SendAsync(request, ct).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
-
-            var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-            return ParseGitHubRelease(json);
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "GitHubMirrorUpdateSource: 拉取失败 {Url}", _mirrorBaseUrl);
-            return null;
-        }
-    }
-
-    public async Task<Stream> DownloadAsync(
-        UpdateManifestEntry entry,
-        IProgress<UpdateDownloadProgress>? progress = null,
-        CancellationToken ct = default)
-    {
-        ArgumentNullException.ThrowIfNull(entry);
-
-        _logger?.LogDebug("GitHubMirrorUpdateSource: 下载 {Url}", entry.DownloadUrl);
-
-        using var request = new HttpRequestMessage(HttpMethod.Get, entry.DownloadUrl);
-        request.Headers.Add("User-Agent", BrandConstants.ProductName);
-
-        var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
-
-        return await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// 解析 GitHub API release 响应 → UpdateManifest
-    /// GitHub API 格式: { tag_name, body, published_at, assets: [{ name, browser_download_url, size }] }
-    /// </summary>
-    private static UpdateManifest ParseGitHubRelease(string json)
+    protected override UpdateManifest ParseRelease(string json)
     {
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
@@ -73,7 +24,7 @@ public sealed class GitHubMirrorUpdateSource : IUpdateSource
         var tagName = root.GetProperty("tag_name").GetString()
             ?? throw new InvalidOperationException("GitHub release 缺少 tag_name");
 
-        var version = tagName.StartsWith('v') ? tagName[1..] : tagName;
+        var version = ExtractVersion(tagName);
         var publishedAt = root.TryGetProperty("published_at", out var pubEl) ? pubEl.GetDateTimeOffset() : DateTimeOffset.MinValue;
         var body = root.TryGetProperty("body", out var bodyEl) ? bodyEl.GetString() : null;
 
@@ -96,7 +47,7 @@ public sealed class GitHubMirrorUpdateSource : IUpdateSource
                 {
                     Version = version,
                     DownloadUrl = downloadUrl,
-                    Sha256 = "", // GitHub Release 不提供 SHA256，跳过校验
+                    Sha256 = "",
                     SizeBytes = size,
                     ReleaseNotes = body,
                     PublishedAt = publishedAt,

@@ -16,6 +16,20 @@ public static class JccEndpointsResolver
         ?? JccEndpoints.GitHubApiBase;
 
     /// <summary>
+    /// GitLab API 基址（JCC_GITLAB_API_BASE 覆盖）
+    /// </summary>
+    public static string GitLabApiBase =>
+        Environment.GetEnvironmentVariable(JccEnvVar.GitlabApiBase.ToValue())
+        ?? JccEndpoints.GitLabApiBase;
+
+    /// <summary>
+    /// Gitea API 基址（JCC_GITEA_API_BASE 覆盖）
+    /// </summary>
+    public static string GiteaApiBase =>
+        Environment.GetEnvironmentVariable(JccEnvVar.GiteaApiBase.ToValue())
+        ?? JccEndpoints.GiteaApiBase;
+
+    /// <summary>
     /// 仓库 owner（JCC_REPO_OWNER 覆盖）
     /// </summary>
     public static string RepoOwner =>

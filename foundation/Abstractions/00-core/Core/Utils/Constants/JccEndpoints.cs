@@ -16,6 +16,16 @@ public static class JccEndpoints
     public const string GitHubApiBase = "https://api.github.com";
 
     /// <summary>
+    /// GitLab API 基址（可通过 JCC_GITLAB_API_BASE 环境变量覆盖，用于自建 GitLab/代理）
+    /// </summary>
+    public const string GitLabApiBase = "https://gitlab.com/api/v4";
+
+    /// <summary>
+    /// Gitea API 基址（可通过 JCC_GITEA_API_BASE 环境变量覆盖，用于自建 Gitea/代理）
+    /// </summary>
+    public const string GiteaApiBase = "https://gitea.com/api/v1";
+
+    /// <summary>
     /// 默认仓库 owner（可通过 JCC_REPO_OWNER 环境变量覆盖）
     /// </summary>
     public const string DefaultRepoOwner = "jcc";

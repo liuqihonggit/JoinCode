@@ -189,6 +189,8 @@ public enum JccEnvVar
 
     // 基础设施地址覆盖（ADR 0063）— 覆盖 JccEndpoints 默认值
     [EnumValue("JCC_GITHUB_API_BASE")] GithubApiBase,
+    [EnumValue("JCC_GITLAB_API_BASE")] GitlabApiBase,
+    [EnumValue("JCC_GITEA_API_BASE")] GiteaApiBase,
     [EnumValue("JCC_REPO_OWNER")] RepoOwner,
     [EnumValue("JCC_REPO_NAME")] RepoName,
     [EnumValue("JCC_MCP_REGISTRY_URL")] McpRegistryUrl,

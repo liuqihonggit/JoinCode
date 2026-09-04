@@ -23,6 +23,16 @@ public enum UpdateSourceType
     [EnumValue("github-mirror")] GitHubMirror,
 
     /// <summary>
+    /// GitLab Release 镜像代理 — 从 GitLab API 拉取 Release，转换为 UpdateManifest
+    /// </summary>
+    [EnumValue("gitlab-mirror")] GitLabMirror,
+
+    /// <summary>
+    /// Gitea Release 镜像代理 — 从 Gitea API 拉取 Release，转换为 UpdateManifest
+    /// </summary>
+    [EnumValue("gitea-mirror")] GiteaMirror,
+
+    /// <summary>
     /// 本地文件清单 — 从本地路径或 UNC 路径读取 manifest.json + exe
     /// </summary>
     [EnumValue("local")] LocalFile,

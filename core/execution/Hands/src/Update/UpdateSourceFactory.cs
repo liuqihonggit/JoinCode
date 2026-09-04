@@ -49,6 +49,16 @@ public static class UpdateSourceFactory
                 manifestUrl,
                 logger as ILogger<GitHubMirrorUpdateSource>),
 
+            UpdateSourceType.GitLabMirror => new GitLabMirrorUpdateSource(
+                httpClient,
+                manifestUrl,
+                logger as ILogger<GitLabMirrorUpdateSource>),
+
+            UpdateSourceType.GiteaMirror => new GiteaMirrorUpdateSource(
+                httpClient,
+                manifestUrl,
+                logger as ILogger<GiteaMirrorUpdateSource>),
+
             _ => throw new ArgumentOutOfRangeException(nameof(config), sourceType, "不支持的更新源类型")
         };
     }

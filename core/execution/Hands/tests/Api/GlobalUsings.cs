@@ -73,6 +73,7 @@ global using Services.Cache;
 global using Services.Notebook;
 global using Services.Shell;
 global using Services.SystemPower;
+global using Services.Update;
 global using Services.Build;
 global using Services.Voice;
 global using Services.Web;

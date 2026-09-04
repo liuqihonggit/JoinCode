@@ -1,4 +1,5 @@
 global using JoinCode.Abstractions.Entity;
+global using System.Security.Cryptography;
 global using JoinCode.Abstractions.Attributes;
 global using Core.Hooks.Execution.Interception;
 global using JoinCode.Abstractions.Shell;

@@ -10,7 +10,7 @@ public sealed class UpgradeServiceTests
     {
         _handler = new FakeHttpMessageHandler();
         _httpClient = new HttpClient(_handler);
-        _service = new UpgradeService(_httpClient);
+        _service = new UpgradeService(_httpClient, TestFileSystem.Current);
     }
 
     [Fact]

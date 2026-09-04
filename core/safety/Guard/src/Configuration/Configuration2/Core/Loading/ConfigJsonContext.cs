@@ -18,6 +18,7 @@ namespace Core.Configuration;
 [JsonSerializable(typeof(ModelCapabilitiesConfig))]
 [JsonSerializable(typeof(ModelModalityKind))]
 [JsonSerializable(typeof(ModelPricingConfig))]
+[JsonSerializable(typeof(UpdateSourceConfig))]
 public partial class ConfigJsonContext : JsonSerializerContext;
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true, ReadCommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true, PropertyNameCaseInsensitive = true)]
@@ -37,4 +38,5 @@ public partial class ConfigJsonContext : JsonSerializerContext;
 [JsonSerializable(typeof(ModelCapabilitiesConfig))]
 [JsonSerializable(typeof(ModelModalityKind))]
 [JsonSerializable(typeof(ModelPricingConfig))]
+[JsonSerializable(typeof(UpdateSourceConfig))]
 public partial class ConfigIndentedJsonContext : JsonSerializerContext;

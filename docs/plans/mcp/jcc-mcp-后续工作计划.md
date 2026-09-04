@@ -13,12 +13,13 @@
 - ✅ README 启动参数表格补全（30 个参数按 7 类分组）
 - ✅ ADR 0065 状态 accepted
 - ✅ 冒烟验证: gh_pr_view/gh_pr_list/gh_repo_view/gh_issue_list/gh_run_list + serve initialize/tools/list/tools/call
+- ✅ jcc mcp search/list --json AOT 序列化 bug 修复 — 匿名类型改用具名 record（commit 91c31fbf8）
+- ✅ gh CLI NO_COLOR=1 修复 — GH_FORCE_TTY 导致 ANSI 颜色码污染 JSON 输出
+- ✅ **全部 29 个 gh 工具验证通过** (PR 8/8 · Issue 5/5 · Repo 5/5 · Run 4/4 · Release 6/6 · Api 1/1)
 
 ## 待办
 
-### P1 — gh 工具批量验证
-
-已验证 11 个工具（5+6），剩余 18 个 gh 工具未真实调用验证。按优先级分批：
+### P1 — gh 工具批量验证 ✅ 全部完成
 
 **批次1 — PR 相关（8 个，全部验证）**：
 - [x] `gh_pr_view` ✅ PR #177 完整数据
@@ -43,25 +44,35 @@
 - 理由：gh CLI 参数不经过 shell 执行，换行符不会导致命令注入；`EscapeArg` 已转义双引号
 - 验证：多行 body 创建 Issue #181 成功 ✅
 
-**批次3 — Repo/Run/Release 相关（7 个）**：
-- [ ] `gh_repo_create` — 创建仓库
-- [ ] `gh_repo_delete` — 删除仓库（危险，需确认）
-- [ ] `gh_run_view` — 查看运行详情
-- [ ] `gh_run_rerun` — 重运行 CI
-- [ ] `gh_release_create` — 创建 release
-- [ ] `gh_release_list` — 列出 release
-- [ ] `gh_release_view` — 查看 release
+**批次3 — Repo 相关（5 个，全部验证）**：
+- [x] `gh_repo_view` ✅ 之前已验证
+- [x] `gh_repo_list` ✅ 返回仓库列表
+- [x] `gh_repo_clone` ✅ 克隆 mcp-cli-bridge 到本地
+- [x] `gh_repo_create` ✅ 创建 test-mcp-verify 仓库（已清理）
+- [x] `gh_repo_fork` ✅ fork octocat/Hello-World（已清理）
 
-**批次4 — 其他（7 个）**：
-- [ ] `gh_branch_list` — 列出分支
-- [ ] `gh_branch_create` — 创建分支
-- [ ] `gh_commit_list` — 列出 commit
-- [ ] `gh_tag_list` — 列出 tag
-- [ ] `gh_workflow_list` — 列出 workflow
-- [ ] `gh_workflow_run` — 运行 workflow
-- [ ] `gh_search` — 搜索代码/issue/PR
+**批次4 — Run 相关（4 个，全部验证）**：
+- [x] `gh_run_list` ✅ 返回 CI run 列表
+- [x] `gh_run_view` ✅ Run 33914558821 完整详情（24 个 jobs 全绿）
+- [x] `gh_run_rerun` ✅ 重跑 Run 33914558821
+- [x] `gh_run_cancel` ✅ 取消正在运行的 Run 33914558821
 
-**验证方法**：每个工具用 `jcc mcp call <tool> --args '<json>' --json` 调用，确认返回数据结构正确、无报错。涉及写操作的（create/delete/merge/close）需在测试仓库或确认后执行。
+**批次5 — Release 相关（6 个，全部验证）**：
+- [x] `gh_release_list` ✅ 返回空列表（项目无 release）
+- [x] `gh_release_create` ✅ 创建 v-test-mcp-verify prerelease
+- [x] `gh_release_view` ✅ 查看 release 完整数据
+- [x] `gh_release_upload` ✅ 上传 test_asset.txt
+- [x] `gh_release_download` ✅ 下载 asset（⚠️ NO_COLOR bug，见下方）
+- [x] `gh_release_delete` ✅ 删除 release
+
+**批次6 — Api（1 个，全部验证）**：
+- [x] `gh_api` ✅ GET /repos/liuqihonggit/JoinCode 返回完整仓库信息
+
+**⚠️ 发现 Bug — gh_release_download ANSI 颜色码污染 JSON**（已修复）：
+- `gh_release_download` 内部调用 `gh release view --json assets` 获取 asset 列表
+- `GH_FORCE_TTY=100%` 环境变量导致 gh CLI 输出 ANSI 颜色码（ESC `0x1B`），`JsonDocument.Parse` 失败
+- 修复：`CreateGitHubEnvironment` 添加 `NO_COLOR=1` 环境变量
+- 验证：修复后下载 test_asset.txt 成功 ✅
 
 ### P2 — jcc mcp serve 增强
 

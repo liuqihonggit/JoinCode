@@ -49,7 +49,7 @@ public sealed partial class BridgeMain
     /// </summary>
     private static string BuildRemoteSessionUrl(string sessionId, BridgeConfig config)
     {
-        var baseUrl = config.ApiBaseUrl ?? "https://claude.ai";
+        var baseUrl = config.ApiBaseUrl ?? JccEndpoints.DefaultBridgeRemote;
         var trimmed = baseUrl.TrimEnd('/');
         return $"{trimmed}/remote-control/{sessionId}";
     }

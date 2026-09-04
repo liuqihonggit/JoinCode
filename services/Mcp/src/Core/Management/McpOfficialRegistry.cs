@@ -7,8 +7,6 @@ public sealed partial class McpOfficialRegistry : ServiceEntity
     private readonly IResilientHttpClientProvider _resilientProvider;
     private readonly ILogger<McpOfficialRegistry>? _logger;
 
-    private const string DefaultRegistryUrl = "https://registry.modelcontextprotocol.io";
-
     public McpOfficialRegistry(IResilientHttpClientProvider resilientProvider, ILogger<McpOfficialRegistry>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(resilientProvider);
@@ -18,9 +16,10 @@ public sealed partial class McpOfficialRegistry : ServiceEntity
 
     public async Task<IReadOnlyList<McpRegistryEntry>> SearchAsync(string? query = null, CancellationToken cancellationToken = default)
     {
+        var registryUrl = JccEndpointsResolver.McpOfficialRegistry;
         var url = string.IsNullOrEmpty(query)
-            ? $"{DefaultRegistryUrl}/api/servers"
-            : $"{DefaultRegistryUrl}/api/servers?q={Uri.EscapeDataString(query)}";
+            ? $"{registryUrl}/api/servers"
+            : $"{registryUrl}/api/servers?q={Uri.EscapeDataString(query)}";
 
         _logger?.LogInformation("搜索 MCP 官方注册表: {Url}", url);
 
@@ -46,7 +45,7 @@ public sealed partial class McpOfficialRegistry : ServiceEntity
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(serverId);
 
-        var url = $"{DefaultRegistryUrl}/api/servers/{Uri.EscapeDataString(serverId)}";
+        var url = $"{JccEndpointsResolver.McpOfficialRegistry}/api/servers/{Uri.EscapeDataString(serverId)}";
 
         _logger?.LogInformation("获取 MCP 服务器详情: {ServerId}", serverId);
 

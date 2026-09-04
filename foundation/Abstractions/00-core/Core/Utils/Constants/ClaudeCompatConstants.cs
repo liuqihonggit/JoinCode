@@ -67,7 +67,7 @@ public static class ClaudeCompatConstants
     public const string GitHubActionBaseAction = "anthropics/claude-code-base-action@v1";
 
     /// <summary>GitHub App 安装 URL</summary>
-    public const string GitHubAppUrl = "https://github.com/apps/claude";
+    public const string GitHubAppUrl = JccEndpoints.GitHubAppInstallUrl;
 
     /// <summary>GitHub Actions 文档 URL</summary>
     public const string GitHubDocsUrl = "https://docs.anthropic.com/en/docs/claude-code/github-actions";

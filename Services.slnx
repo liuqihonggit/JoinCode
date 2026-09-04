@@ -11,6 +11,7 @@
     <Project Path="services/Bridge/src/Bridge.csproj" />
     <Project Path="services/Bridge/tests/Unit/Bridge.Tests.csproj" />
     <Project Path="services/SandboxSatellite/src/SandboxSatellite.csproj" />
+    <Project Path="services/Update/src/Update.csproj" />
   </Folder>
   <Folder Name="/foundation/">
     <Project Path="foundation/Abstractions/Abstractions.csproj" />

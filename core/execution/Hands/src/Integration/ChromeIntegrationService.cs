@@ -87,7 +87,7 @@ public sealed partial class ChromeIntegrationService : ServiceEntity, IChromeInt
 
         try
         {
-            await _processService.OpenAsync("https://jcc.dev/chrome", ct).ConfigureAwait(false);
+            await _processService.OpenAsync(JccEndpoints.ChromeIntegrationUrl, ct).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

@@ -1,4 +1,5 @@
 global using JoinCode.Abstractions.Entity;
+global using System.Security.Cryptography;
 global using JoinCode.Abstractions.Attributes;
 global using Core.Hooks.Execution.Interception;
 global using JoinCode.Abstractions.Shell;
@@ -39,6 +40,8 @@ global using JoinCode.Abstractions.Models.Vcr;
 global using JoinCode.Abstractions.Models.Voice;
 global using JoinCode.Abstractions.Models.Build;
 global using JoinCode.Abstractions.Models.ErrorRecovery;
+global using JoinCode.Abstractions.Models.Update;
+global using IO.Services.Update;
 global using JoinCode.Abstractions.Prompts;
 global using JoinCode.Abstractions.Prompts.ToolPrompts;
 global using JoinCode.Abstractions.Security;

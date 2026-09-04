@@ -10,6 +10,7 @@
     <ProjectReference Include="$(RepoRoot)core\execution\Brain\src\Brain.csproj" />
     <ProjectReference Include="$(RepoRoot)core\safety\Guard\src\Guard.csproj" />
     <ProjectReference Include="$(RepoRoot)infrastructure\Infrastructure\Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)services\Update\src\Update.csproj" />
     <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
   </ItemGroup>
   <ItemGroup>

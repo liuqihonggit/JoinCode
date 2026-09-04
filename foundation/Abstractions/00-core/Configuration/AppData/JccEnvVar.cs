@@ -186,6 +186,15 @@ public enum JccEnvVar
     [EnumValue("JCC_EXEC_PATH")] ExecPath,
     [EnumValue("JCC_USE_API_CLEAR_TOOL_RESULTS")] UseApiClearToolResults,
     [EnumValue("JCC_USE_API_CLEAR_TOOL_USES")] UseApiClearToolUses,
+
+    // 基础设施地址覆盖（ADR 0063）— 覆盖 JccEndpoints 默认值
+    [EnumValue("JCC_GITHUB_API_BASE")] GithubApiBase,
+    [EnumValue("JCC_REPO_OWNER")] RepoOwner,
+    [EnumValue("JCC_REPO_NAME")] RepoName,
+    [EnumValue("JCC_MCP_REGISTRY_URL")] McpRegistryUrl,
+    [EnumValue("JCC_UPDATE_MANIFEST_URL")] UpdateManifestUrl,
+    [EnumValue("JCC_UPDATE_SOURCE_TYPE")] UpdateSourceType,
+    [EnumValue("JCC_UPDATE_CHANNEL")] UpdateChannel,
 }
 
 /// <summary>

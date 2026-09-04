@@ -58,6 +58,7 @@ global using JoinCode.Abstractions.Security.Scanning;
 global using JoinCode.Abstractions.Security.Shell;
 global using JoinCode.Abstractions.State;
 global using JoinCode.Abstractions.Models.OAuth;
+global using JoinCode.Abstractions.Models.Update;
 global using JoinCode.Abstractions.Mcp.Client;
 global using JoinCode.Abstractions.Mcp.Protocol;
 global using JoinCode.Abstractions.Schema;

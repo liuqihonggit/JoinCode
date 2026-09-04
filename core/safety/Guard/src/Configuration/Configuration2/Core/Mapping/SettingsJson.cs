@@ -30,6 +30,12 @@ public sealed class SettingsJson
     public bool AutoFetchModels { get; init; } = true;
 
     /// <summary>
+    /// 更新源配置 — 控制自动更新行为（ADR 0064）
+    /// </summary>
+    [JsonPropertyName("update")]
+    public UpdateSourceConfig? Update { get; init; }
+
+    /// <summary>
     /// 合并两个 SettingsJson（低优先级 + 高优先级）
     /// vendor 字典合并（高优先级覆盖同键），current 递归合并
     /// </summary>
@@ -43,6 +49,7 @@ public sealed class SettingsJson
             Vendor = MergeVendorDictionaries(baseSettings.Vendor, overrideSettings.Vendor) ?? [],
             Current = CurrentSettings.Merge(baseSettings.Current, overrideSettings.Current),
             AutoFetchModels = overrideSettings.AutoFetchModels,
+            Update = overrideSettings.Update ?? baseSettings.Update,
         };
     }
 

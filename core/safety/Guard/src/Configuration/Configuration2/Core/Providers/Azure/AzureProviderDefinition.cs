@@ -51,10 +51,10 @@ public sealed class AzureProviderDefinition : IProviderDefinition
     {
         Provider = VendorKindConstants.Azure,
         ClientId = Environment.GetEnvironmentVariable(JccEnvVar.AzureClientId.ToValue()) ?? "",
-        AuthorizationEndpoint = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
-        TokenEndpoint = "https://login.microsoftonline.com/common/oauth2/v2.0/token",
-        RedirectUri = "http://localhost:5000/oauth/callback",
-        Scope = new List<string> { "https://cognitiveservices.azure.com/.default" }
+        AuthorizationEndpoint = JccEndpointsResolver.AzureOAuthAuthorizeUrl,
+        TokenEndpoint = JccEndpointsResolver.AzureOAuthTokenUrl,
+        RedirectUri = JccEndpoints.AzureOAuthRedirectUri,
+        Scope = new List<string> { JccEndpoints.AzureOAuthScope }
     };
 
     public string? ExtractApiKeyFromCompound(string apiKey)

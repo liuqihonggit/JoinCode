@@ -185,7 +185,7 @@ public sealed partial class BridgeApiOptions : ServiceEntity
 
     /// <summary>API 基础 URL</summary>
     [JsonPropertyName("baseUrl")]
-    public string BaseUrl { get; init; } = "http://localhost:3456";
+    public string BaseUrl { get; init; } = JccEndpoints.DefaultBridgeLocal;
 
     /// <summary>API 密钥</summary>
     [JsonPropertyName("apiKey")]
@@ -238,7 +238,7 @@ public sealed partial class BridgeApiOptions : ServiceEntity
 
     public BridgeApiOptions(BridgeConfig config)
     {
-        BaseUrl = string.IsNullOrEmpty(config.ApiBaseUrl) ? "http://localhost:3456" : config.ApiBaseUrl;
+        BaseUrl = string.IsNullOrEmpty(config.ApiBaseUrl) ? JccEndpoints.DefaultBridgeLocal : config.ApiBaseUrl;
         ApiKey = config.ApiKey;
         Timeout = TimeSpan.FromSeconds(config.ApiTimeoutSeconds);
     }

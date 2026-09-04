@@ -1,11 +1,11 @@
 # 锁 → 管道通讯重构方案
 
-> **状态**:accepted(P0 完全 Actor 化,P1/P2 最小修复消除死锁点) | proposed(P3-P8 第二轮分析,待执行)
+> **状态**:accepted(P0-P8 全部完成)
 > **日期**:2026-09-05
-> **实现日期**:2026-09-05(P0/P1/P2) | 2026-09-05(P3-P8 方案产出)
-> **范围**:StreamingToolExecutor / ForkSubAgentManager / GoalGraphEngine(P0-P2 已完成) | McpStdioClient / McpClientToolHandlers / McpAuthToolHandlers / McpTransportFallbackChain / McpServerStateManager / ToolInterventionManager(P3-P8 待执行)
+> **实现日期**:2026-09-05(P0-P2) | 2026-09-05(P3-P8)
+> **范围**:StreamingToolExecutor / ForkSubAgentManager / GoalGraphEngine(P0-P2) | McpStdioClient / McpClientToolHandlers / McpAuthToolHandlers / McpTransportFallbackChain / McpServerStateManager / ToolInterventionManager(P3-P8)
 > **目标**:将高风险状态锁改为 Actor+Channel 管道通讯,消除死锁与持锁等外部 IO 风险
-> **验证**:1740 个单元测试通过(AsyncLock 10 + Brain.Context 785 + Agents 513 + Clock 432)
+> **验证**:P0-P2 1740 单元测试通过 | P3-P8 172 Mcp 单元测试通过(每步编译+测试+commit)
 
 ---
 

@@ -10,6 +10,13 @@ namespace Core.Context;
 public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware {
     private const int MaxToolCallIterations = 128;
 
+    /// <summary>
+    /// 特性开关 — 环境变量 JCC_ACTOR_TOOL_EXECUTOR=1 启用 Actor 版流式工具执行器(零锁)。
+    /// 默认 false 使用原锁版,渐进式迁移。
+    /// </summary>
+    private static readonly bool UseActorToolExecutor =
+        Environment.GetEnvironmentVariable("JCC_ACTOR_TOOL_EXECUTOR") == "1";
+
     private readonly IBackgroundNotificationHandler _notificationHandler;
     private readonly ILLMInvocationHandler _llmHandler;
     private readonly IToolExecutionHandler _toolHandler;
@@ -200,8 +207,9 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
         MessageList historySnapshot, ChatMiddlewareContext context, IterationState iterState,
         int totalToolCalls, [EnumeratorCancellation] CancellationToken ct) {
 
-        var streamingExecutor = new StreamingToolExecutor(
-            _toolHandler, _concurrencyClassifier!, context, MaxConcurrency, _logger, ct);
+        IStreamingToolExecutor streamingExecutor = UseActorToolExecutor
+            ? new StreamingToolExecutorActor(_toolHandler, _concurrencyClassifier!, context, MaxConcurrency, _logger, ct)
+            : new StreamingToolExecutor(_toolHandler, _concurrencyClassifier!, context, MaxConcurrency, _logger, ct);
 
         await foreach (var evt in _llmHandler.InvokeLLMAsync(
             historySnapshot, context.ExecutionSettings, context, totalToolCalls, iterState,

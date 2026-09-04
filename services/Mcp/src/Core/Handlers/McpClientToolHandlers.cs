@@ -48,14 +48,16 @@ public partial class McpClientToolHandlers : ServiceEntity
             return ToolResultBuilder.Error().WithText($"MCP 服务器 '{connection_name}' 已被禁用，请先启用后再连接").Build();
         }
 
-        using var guard = await _clientLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_clientLock.Name}' 等待超时");
-        try
+        using (var guard = await _clientLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_clientLock.Name}' 等待超时"))
         {
             if (_clients.ContainsKey(connection_name))
             {
                 return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionAlreadyExists, connection_name)).Build();
             }
+        }
 
+        try
+        {
             var expandedEndpoint = endpoint.Contains('$') ? McpEnvExpander.ExpandEndpoint(endpoint) : endpoint;
 
             var config = new McpServerConnectionConfig
@@ -127,8 +129,17 @@ public partial class McpClientToolHandlers : ServiceEntity
                 };
             }
 
-            await client.ConnectAsync(cancellationToken);
-            _clients[connection_name] = client;
+            await client.ConnectAsync(cancellationToken).ConfigureAwait(false);
+
+            using (var guard = await _clientLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_clientLock.Name}' 等待超时"))
+            {
+                if (_clients.ContainsKey(connection_name))
+                {
+                    await client.DisconnectAsync(cancellationToken).ConfigureAwait(false);
+                    return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionAlreadyExists, connection_name)).Build();
+                }
+                _clients[connection_name] = client;
+            }
 
             if (_deps.ElicitationHandler is not null)
             {

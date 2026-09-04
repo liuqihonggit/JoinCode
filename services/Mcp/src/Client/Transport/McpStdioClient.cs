@@ -16,6 +16,9 @@ public sealed class McpStdioClient : McpClientBase
     private CancellationTokenSource? _readCts;
     private Task? _readTask;
     private ITelemetrySpan? _connectionSpan;
+    private Channel<string>? _writeChannel;
+    private CancellationTokenSource? _writeCts;
+    private Task? _writeConsumerTask;
 
     public McpStdioClient(McpServerConnectionConfig config, McpClientOptions? options = null, ILogger? logger = null, ITelemetryService? telemetryService = null, IClockService? clock = null, IProcessService? processService = null)
         : base(options ?? new McpClientOptions(), logger)
@@ -63,6 +66,10 @@ public sealed class McpStdioClient : McpClientBase
 
             _readCts = new CancellationTokenSource();
             _readTask = Task.Run(() => ReadLoopAsync(_readCts.Token), _readCts.Token);
+
+            _writeChannel = Channel.CreateUnbounded<string>();
+            _writeCts = new CancellationTokenSource();
+            _writeConsumerTask = Task.Run(() => WriteLoopAsync(_writeCts.Token), _writeCts.Token);
 
             await PerformHandshakeAsync(cancellationToken);
 
@@ -123,6 +130,8 @@ public sealed class McpStdioClient : McpClientBase
     private async Task CleanupAsync(CancellationToken cancellationToken = default)
     {
         _readCts?.Cancel();
+        _writeCts?.Cancel();
+        _writeChannel?.Writer.TryComplete();
 
         if (_readTask != null)
         {
@@ -136,6 +145,18 @@ public sealed class McpStdioClient : McpClientBase
             }
         }
 
+        if (_writeConsumerTask != null)
+        {
+            try
+            {
+                await _writeConsumerTask.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogDebug("等待写消费者任务完成时出错: {Error}", ex.Message);
+            }
+        }
+
         if (_interactiveProcess != null)
         {
             await _interactiveProcess.DisposeAsync();
@@ -146,6 +167,7 @@ public sealed class McpStdioClient : McpClientBase
         _stdoutReader?.Dispose();
 
         _readCts?.Dispose();
+        _writeCts?.Dispose();
 
         await CancelPendingRequestsAsync(cancellationToken);
     }
@@ -204,6 +226,28 @@ public sealed class McpStdioClient : McpClientBase
                 ServerName = _config.Name,
                 TransportType = "stdio"
             });
+        }
+    }
+
+    /// <summary>
+    /// 写消费者循环 — 单消费者从 Channel 串行写 stdin,消除持锁 await IO 死锁风险(P3)
+    /// </summary>
+    private async Task WriteLoopAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (_writeChannel is null) return;
+            await foreach (var json in _writeChannel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+            {
+                if (_stdinWriter is null) break;
+                await _stdinWriter.WriteLineAsync(json).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (ChannelClosedException) { _logger?.LogDebug("MCP Stdio 写通道已关闭"); }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "MCP Stdio 写循环异常");
         }
     }
 
@@ -266,15 +310,7 @@ public sealed class McpStdioClient : McpClientBase
             var json = request.ToJson();
             _logger?.LogDebug("发送请求: {Json}", json);
 
-            var guard1 = await _requestLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_requestLock.Name}' 等待超时");
-            try
-            {
-                await _stdinWriter.WriteLineAsync(json);
-            }
-            finally
-            {
-                guard1.Dispose();
-            }
+            await _writeChannel!.Writer.WriteAsync(json, cancellationToken).ConfigureAwait(false);
 
             using var cts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, TimeSpan.FromSeconds(_options.RequestTimeoutSeconds));
 
@@ -315,15 +351,7 @@ public sealed class McpStdioClient : McpClientBase
         var json = notification.ToJson();
         _logger?.LogDebug("发送通知: {Json}", json);
 
-        var guard3 = await _requestLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_requestLock.Name}' 等待超时");
-        try
-        {
-            await _stdinWriter.WriteLineAsync(json);
-        }
-        finally
-        {
-            guard3.Dispose();
-        }
+        await _writeChannel!.Writer.WriteAsync(json, cancellationToken).ConfigureAwait(false);
     }
 
     private void RecordRequestMetrics(string method, DateTimeOffset startTime, bool isError = false)

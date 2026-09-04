@@ -117,7 +117,11 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
             {
                 if (context.ReadyQueue.IsEmpty)
                     break;
-                await Task.Delay(50, ct).ConfigureAwait(false);
+                try
+                {
+                    await context.NodeCompletedSignal.WaitAsync(TimeSpan.FromSeconds(1), ct).ConfigureAwait(false);
+                }
+                catch (TimeoutException) { _logger?.LogDebug("[GoalGraph] 节点完成信号等待超时,继续检查"); }
                 continue;
             }
 
@@ -201,7 +205,9 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
         using (releaser)
         {
             var dagNode = graph.Dag.Nodes[nodeId];
-            return await ProcessNodeCompletionAsync(nodeId, dagNode, graph, context, ct).ConfigureAwait(false);
+            var outcome = await ProcessNodeCompletionAsync(nodeId, dagNode, graph, context, ct).ConfigureAwait(false);
+            context.NodeCompletedSignal.Release();
+            return outcome;
         }
     }
 

@@ -23,7 +23,7 @@ public sealed class StreamingToolResult
 /// 并发安全工具可并行执行，非并发安全工具独占执行
 /// 结果按原始顺序缓冲，通过 GetCompletedResults 按序输出
 /// </summary>
-public sealed class StreamingToolExecutor : IAsyncDisposable
+public sealed class StreamingToolExecutor : IStreamingToolExecutor
 {
     private readonly IToolExecutionHandler _toolHandler;
     private readonly IToolConcurrencyClassifier _concurrencyClassifier;

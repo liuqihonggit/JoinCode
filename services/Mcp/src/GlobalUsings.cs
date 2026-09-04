@@ -97,6 +97,7 @@ global using System.Text.Json.Serialization;
 global using System.Text.Json.Serialization.Metadata;
 global using System.Text.RegularExpressions;
 global using System.Threading;
+global using System.Threading.Channels;
 global using ToolContent = JoinCode.Abstractions.Tools.ToolContent;
 global using JoinCode.Abstractions.Entity;
 global using JoinCode.Abstractions.Models.Agent;

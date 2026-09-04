@@ -162,8 +162,10 @@ public sealed class PatientProcessManager : IAsyncDisposable
     public async Task<PatientInfo> WaitForExitAsync(string patientId, CancellationToken cancellationToken = default)
     {
         PatientHandle? handle;
-        using var guard = _patientsLock.TryLock(cancellationToken) ?? throw new System.TimeoutException($"锁 '{_patientsLock.Name}' 等待超时");
+        {
+            using var guard = _patientsLock.TryLock(cancellationToken) ?? throw new System.TimeoutException($"锁 '{_patientsLock.Name}' 等待超时");
  _patients.TryGetValue(patientId, out handle); 
+        }
 
         if (handle is null)
             throw new InvalidOperationException($"[AGT014] 病人 {patientId} 不存在");
@@ -177,8 +179,10 @@ public sealed class PatientProcessManager : IAsyncDisposable
     public async Task<IReadOnlyDictionary<string, PatientInfo>> WaitForAllExitAsync(CancellationToken cancellationToken = default)
     {
         List<PatientHandle> handles;
-        using var guard = _patientsLock.TryLock(cancellationToken) ?? throw new System.TimeoutException($"锁 '{_patientsLock.Name}' 等待超时");
+        {
+            using var guard = _patientsLock.TryLock(cancellationToken) ?? throw new System.TimeoutException($"锁 '{_patientsLock.Name}' 等待超时");
  handles = _patients.Values.ToList(); 
+        }
 
         var results = new Dictionary<string, PatientInfo>();
         foreach (var handle in handles)
@@ -245,11 +249,13 @@ public sealed class PatientProcessManager : IAsyncDisposable
     /// <summary>清理所有病人句柄（在锁保护下执行）</summary>
     private async Task CleanupPatientsAsync()
     {
-        using var guard = _patientsLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_patientsLock.Name}' 等待超时");
+        List<PatientHandle> handles;
+        {
+            using var guard = _patientsLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_patientsLock.Name}' 等待超时");
 
-        var handles = _patients.Values.ToList();
-        _patients.Clear();
-    
+            handles = _patients.Values.ToList();
+            _patients.Clear();
+        }
 
         foreach (var handle in handles)
             await handle.DisposeAsync().ConfigureAwait(false);

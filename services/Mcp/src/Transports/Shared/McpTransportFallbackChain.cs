@@ -169,40 +169,52 @@ public sealed class McpTransportFallbackChain : IMcpTransport
     {
         if (_activeIndex < 0 || _activeIndex >= _transports.Length - 1) return;
 
-        using var guard = await _switchLock.TryLockAsync(CancellationToken.None).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_switchLock.Name}' 等待超时");
+        IMcpTransport? oldTransport;
+        int nextIndex;
+        int oldIndex;
 
-        if (_activeIndex >= _transports.Length - 1) return;
-
-        var nextIndex = FindNextAvailableTransport(_activeIndex + 1);
-        if (nextIndex < 0)
+        using (var guard = await _switchLock.TryLockAsync(CancellationToken.None).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_switchLock.Name}' 等待超时"))
         {
-            _logger?.LogWarning("[TransportFallback] No available fallback transport (all circuit breakers open)");
-            return;
+            if (_activeIndex >= _transports.Length - 1) return;
+
+            nextIndex = FindNextAvailableTransport(_activeIndex + 1);
+            if (nextIndex < 0)
+            {
+                _logger?.LogWarning("[TransportFallback] No available fallback transport (all circuit breakers open)");
+                return;
+            }
+
+            oldTransport = _activeTransport;
+            oldIndex = _activeIndex;
         }
 
         _logger?.LogWarning(ex, "[TransportFallback] Transport {FromType} connection lost, falling back to {ToType}",
-            _transports[_activeIndex].GetType().Name, _transports[nextIndex].GetType().Name);
+            _transports[oldIndex].GetType().Name, _transports[nextIndex].GetType().Name);
 
         var fallbackStart = DateTimeOffset.UtcNow;
 
         try
         {
-            if (_activeTransport is not null)
+            if (oldTransport is not null)
             {
-                UnwireEvents(_activeTransport);
-                await _activeTransport.StopAsync(CancellationToken.None).ConfigureAwait(false);
+                UnwireEvents(oldTransport);
+                await oldTransport.StopAsync(CancellationToken.None).ConfigureAwait(false);
             }
 
             await _transports[nextIndex].StartAsync(CancellationToken.None).ConfigureAwait(false);
 
-            var fromType = _transports[_activeIndex].GetType().Name;
-            _activeTransport = _transports[nextIndex];
-            _activeIndex = nextIndex;
-            WireEvents(_activeTransport);
+            string fromType;
+            using (var guard = await _switchLock.TryLockAsync(CancellationToken.None).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_switchLock.Name}' 等待超时"))
+            {
+                fromType = _transports[oldIndex].GetType().Name;
+                _activeTransport = _transports[nextIndex];
+                _activeIndex = nextIndex;
+                WireEvents(_activeTransport);
+            }
 
             _circuitBreakers[nextIndex].RecordSuccess();
             var duration = (DateTimeOffset.UtcNow - fallbackStart).TotalMilliseconds;
-            _metrics.RecordFallback(_activeIndex, nextIndex, (long)duration);
+            _metrics.RecordFallback(oldIndex, nextIndex, (long)duration);
 
             FallbackOccurred?.Invoke(this, new TransportFallbackEventArgs
             {
@@ -210,7 +222,7 @@ public sealed class McpTransportFallbackChain : IMcpTransport
                 ToTransportType = _transports[nextIndex].GetType().Name,
                 Reason = ex.Message,
                 IsServerSide = false,
-                FromPriority = _activeIndex + 1,
+                FromPriority = oldIndex + 1,
                 ToPriority = nextIndex + 1,
             });
 
@@ -223,7 +235,7 @@ public sealed class McpTransportFallbackChain : IMcpTransport
                 _transports[nextIndex].GetType().Name);
             _circuitBreakers[nextIndex].RecordFailure();
         }
-    
+
     }
 
     private int FindNextAvailableTransport(int startIndex)

@@ -49,32 +49,34 @@ public sealed partial class McpServerStateManager
 
     public async Task<bool> DisableAsync(string serverName, CancellationToken cancellationToken = default)
     {
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
-        if (!_disabledServers.Add(serverName))
+        bool changed;
+        using (var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
-            return false;
+            changed = _disabledServers.Add(serverName);
         }
+
+        if (!changed) return false;
 
         await PersistAsync(cancellationToken).ConfigureAwait(false);
         _logger?.LogInformation("MCP 服务器 {ServerName} 已禁用", serverName);
         return true;
-    
+
     }
 
     public async Task<bool> EnableAsync(string serverName, CancellationToken cancellationToken = default)
     {
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
-        if (!_disabledServers.Remove(serverName))
+        bool changed;
+        using (var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
-            return false;
+            changed = _disabledServers.Remove(serverName);
         }
+
+        if (!changed) return false;
 
         await PersistAsync(cancellationToken).ConfigureAwait(false);
         _logger?.LogInformation("MCP 服务器 {ServerName} 已启用", serverName);
         return true;
-    
+
     }
 
     public IReadOnlySet<string> GetDisabledServers()

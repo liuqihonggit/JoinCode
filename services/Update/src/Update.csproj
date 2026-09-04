@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <RootNamespace>JoinCode.Update</RootNamespace>
+    <AssemblyName>JoinCode.Update</AssemblyName>
+    <PackageId>JoinCode.Update</PackageId>
+    <Description>JoinCode 虚拟更新服务器 — 托管 manifest.json + exe 二进制，用于自更新测试和本地部署</Description>
+    <IsPackable>true</IsPackable>
+    <NoWarn>$(NoWarn);IL2026;IL3050;NU1510</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)infrastructure\Infrastructure\Infrastructure.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Infrastructure" Version="$(JccComponentPackageVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)generators\EnumMetadata.Generator\src\EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>

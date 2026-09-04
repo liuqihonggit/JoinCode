@@ -149,6 +149,59 @@ public sealed class GitHubToolHandlersTests
         _gh.LastArguments.Should().NotContain("--jq");
         _gh.LastArguments.Should().Contain("repos/owner/repo");
     }
+
+    [Fact]
+    public async Task ReleaseDownload_NoMatchingAsset_ReturnsError()
+    {
+        _gh.NextResult = new GitHubCommandResult
+        {
+            Success = true,
+            Output = """{"assets":[{"name":"file.zip","url":"https://x/file.zip"}]}""",
+            ExitCode = 0,
+        };
+
+        var result = await _handler.GhReleaseDownloadAsync("v1.0", "/tmp", pattern: "*.tar.gz");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("没有匹配的 asset");
+    }
+
+    [Fact]
+    public async Task ReleaseDownload_Success_DownloadsAllAssets()
+    {
+        _gh.NextResult = new GitHubCommandResult
+        {
+            Success = true,
+            Output = """{"assets":[{"name":"a.zip","url":"https://x/a.zip"},{"name":"b.tar.gz","url":"https://x/b.tar.gz"}]}""",
+            ExitCode = 0,
+        };
+        var fakeDownloader = new FakeDownloader();
+        var handler = new GitHubToolHandlers(_gh, fakeDownloader, new InMemoryFileSystem(), NullLogger<GitHubToolHandlers>.Instance);
+
+        var result = await handler.GhReleaseDownloadAsync("v1.0", "/tmp");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("2 成功");
+        text.Should().Contain("0 失败");
+        fakeDownloader.StartCallCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task ReleaseDownload_ViewFails_PropagatesError()
+    {
+        _gh.NextResult = new GitHubCommandResult
+        {
+            Success = false,
+            Error = "release not found",
+            ExitCode = 1,
+        };
+
+        var result = await _handler.GhReleaseDownloadAsync("v9.9", "/tmp");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("release not found");
+    }
 }
 
 internal sealed class FakeGitHubCommandRunner : IGitHubCommandRunner
@@ -171,6 +224,22 @@ internal sealed class FakeGitHubCommandRunner : IGitHubCommandRunner
 
 internal sealed class FakeDownloader : IDownloader
 {
+    public DownloadResult NextResult { get; set; } = new(true, "", 100, 100, TimeSpan.Zero, DownloadState.Completed);
+    public int StartCallCount { get; private set; }
     public IDownloadSession StartDownload(string url, string filePath, DownloadOptions? options = null, IProgress<DownloadProgress>? progress = null, CancellationToken cancellationToken = default)
-        => throw new NotImplementedException();
+    {
+        StartCallCount++;
+        return new FakeDownloadSession { Result = NextResult with { FilePath = filePath } };
+    }
+}
+
+internal sealed class FakeDownloadSession : IDownloadSession
+{
+    public DownloadResult Result { get; set; } = new(true, "", 0, 0, TimeSpan.Zero, DownloadState.Completed);
+    public DownloadState State => Result.FinalState;
+    public Task PauseAsync(CancellationToken ct = default) => Task.CompletedTask;
+    public Task ResumeAsync(CancellationToken ct = default) => Task.CompletedTask;
+    public Task CancelAsync(CancellationToken ct = default) => Task.CompletedTask;
+    public Task<DownloadResult> WaitForCompletionAsync(CancellationToken ct = default) => Task.FromResult(Result);
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }

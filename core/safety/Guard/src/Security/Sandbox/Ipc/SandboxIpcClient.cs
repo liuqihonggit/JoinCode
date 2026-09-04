@@ -14,6 +14,9 @@ public sealed class SandboxIpcClient : IAsyncDisposable
     private readonly AsyncLock _startLock = new();
     private Task? _readLoopTask;
     private CancellationTokenSource? _readCts;
+    private Channel<string>? _writeChannel;
+    private CancellationTokenSource? _writeCts;
+    private Task? _writeConsumerTask;
 
     public SandboxIpcClient(IProcessService processService, IFileSystem fs, ILogger<SandboxIpcClient>? logger = null, Func<int, Task>? onSatelliteStarted = null)
     {
@@ -46,6 +49,10 @@ public sealed class SandboxIpcClient : IAsyncDisposable
             }, ct).ConfigureAwait(false);
 
             _readLoopTask = ReadLoopAsync(_readCts.Token);
+
+            _writeChannel = Channel.CreateUnbounded<string>();
+            _writeCts = new CancellationTokenSource();
+            _writeConsumerTask = WriteLoopAsync(_writeCts.Token);
 
             if (_onSatelliteStarted is not null)
             {
@@ -130,6 +137,21 @@ public sealed class SandboxIpcClient : IAsyncDisposable
             _logger?.LogDebug(ex, "[SandboxIpcClient] shutdown 请求发送异常，忽略");
         }
 
+        _writeCts?.Cancel();
+        _writeChannel?.Writer.TryComplete();
+
+        if (_writeConsumerTask != null)
+        {
+            try
+            {
+                await _writeConsumerTask.WaitAsync(TimeSpan.FromSeconds(3), ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogDebug(ex, "[SandboxIpcClient] 等待写消费者完成时出错");
+            }
+        }
+
         _readCts?.Cancel();
 
         if (_process is not null && !_process.HasExited)
@@ -147,10 +169,7 @@ public sealed class SandboxIpcClient : IAsyncDisposable
         {
             var json = JsonSerializer.Serialize(request, SandboxIpcJsonContext.Default.SandboxIpcRequest);
 
-            using var guard = await _sendLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_sendLock.Name}' 等待超时");
-
-            await _process!.StandardInput.WriteAsync((json + "\n").AsMemory(), ct).ConfigureAwait(false);
-            await _process.StandardInput.FlushAsync(ct).ConfigureAwait(false);
+            await _writeChannel!.Writer.WriteAsync(json + "\n", ct).ConfigureAwait(false);
         
 
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -168,6 +187,29 @@ public sealed class SandboxIpcClient : IAsyncDisposable
         finally
         {
             _pendingRequests.TryRemove(request.RequestId, out _);
+        }
+    }
+
+    /// <summary>
+    /// 写消费者循环 — 单消费者从 Channel 串行写 stdin,消除持锁 await IO 死锁风险(P9)
+    /// </summary>
+    private async Task WriteLoopAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (_writeChannel is null) return;
+            await foreach (var json in _writeChannel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+            {
+                if (_process is null || _process.HasExited) break;
+                await _process.StandardInput.WriteAsync(json.AsMemory(), cancellationToken).ConfigureAwait(false);
+                await _process.StandardInput.FlushAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (ChannelClosedException) { _logger?.LogDebug("[SandboxIpcClient] 写通道已关闭"); }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "[SandboxIpcClient] 写循环异常");
         }
     }
 
@@ -245,5 +287,6 @@ public sealed class SandboxIpcClient : IAsyncDisposable
         _sendLock.Dispose();
         _startLock.Dispose();
         _readCts?.Dispose();
+        _writeCts?.Dispose();
     }
 }

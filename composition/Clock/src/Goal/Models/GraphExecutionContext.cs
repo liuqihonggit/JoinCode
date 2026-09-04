@@ -13,6 +13,11 @@ internal sealed class GraphExecutionContext
     public required IClockService Clock { get; init; }
 
     public ConcurrentQueue<string> ReadyQueue { get; } = new();
+
+    /// <summary>
+    /// 节点完成信号 — 替代 Task.Delay 轮询。每个节点完成时 Release,循环在 batch 为空时 WaitAsync。
+    /// </summary>
+    public SemaphoreSlim NodeCompletedSignal { get; } = new(0, int.MaxValue);
     public ConcurrentDictionary<string, int> RetryCount { get; } = new(StringComparer.Ordinal);
     public ConcurrentDictionary<string, byte> CompletedNodes { get; } = new(StringComparer.Ordinal);
     public ConcurrentDictionary<string, byte> FailedNodes { get; } = new(StringComparer.Ordinal);

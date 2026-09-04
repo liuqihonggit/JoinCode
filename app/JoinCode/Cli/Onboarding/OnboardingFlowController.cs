@@ -150,7 +150,7 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
     {
         OnboardingStep previous;
 
-        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         previous = _currentStep;
         _currentStep = OnboardingStep.Complete;
@@ -167,7 +167,7 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
     {
         OnboardingStep previous;
 
-        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         previous = _currentStep;
         _currentStep = OnboardingStep.Complete;

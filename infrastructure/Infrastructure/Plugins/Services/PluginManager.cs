@@ -388,7 +388,7 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
     /// <summary>记录插件加载顺序</summary>
     private void AddToLoadOrder(string pluginName)
     {
-        using (_loadOrderLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_loadOrderLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_loadOrderLock.Name}' 等待超时"))
         {
             _loadOrder.Add(pluginName);
         }
@@ -397,7 +397,7 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
     /// <summary>从加载顺序中移除插件</summary>
     private void RemoveFromLoadOrder(string pluginName)
     {
-        using (_loadOrderLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_loadOrderLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_loadOrderLock.Name}' 等待超时"))
         {
             _loadOrder.Remove(pluginName);
         }
@@ -406,7 +406,7 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
     /// <summary>获取加载顺序的逆序副本 — 用于按注册逆序卸载(Cordis)</summary>
     private List<string> GetLoadOrderReversed()
     {
-        using (_loadOrderLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_loadOrderLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_loadOrderLock.Name}' 等待超时"))
         {
             var list = _loadOrder.ToList();
             list.Reverse();

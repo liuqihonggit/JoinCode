@@ -34,7 +34,7 @@ public sealed class SubAgentEventChannel
     /// </summary>
     public void Emit(ChatStreamEvent evt)
     {
-        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             if (_completed)
                 return;
@@ -47,7 +47,7 @@ public sealed class SubAgentEventChannel
     /// </summary>
     public bool TryRead(out ChatStreamEvent evt)
     {
-        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             if (_buffer.Count == 0)
             {
@@ -65,7 +65,7 @@ public sealed class SubAgentEventChannel
     /// </summary>
     public IReadOnlyList<ChatStreamEvent> TryDrain()
     {
-        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             if (_buffer.Count == 0)
                 return [];
@@ -80,7 +80,7 @@ public sealed class SubAgentEventChannel
     /// </summary>
     public void Complete()
     {
-        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             _completed = true;
             _buffer.Clear();

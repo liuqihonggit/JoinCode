@@ -74,7 +74,7 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
         if (context.QuerySource != "repl_main_thread") return;
 
         List<MagicDocEntry> docsToUpdate;
-        using var guard = _semaphore.TryLock(context.CancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = _semaphore.TryLock(context.CancellationToken) ?? throw new System.TimeoutException($"锁 '{_semaphore.Name}' 等待超时");
 
         if (_trackedDocs.Count == 0) return;
         docsToUpdate = [.. _trackedDocs.Values];
@@ -143,7 +143,7 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
 
     private async Task RemoveTrackedDocAsync(string filePath)
     {
-        using var guard = _semaphore.TryLock() ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = _semaphore.TryLock() ?? throw new System.TimeoutException($"锁 '{_semaphore.Name}' 等待超时");
         RemoveTrackedDocCore(filePath);
     }
 

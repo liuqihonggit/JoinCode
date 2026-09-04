@@ -36,7 +36,7 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
     /// </summary>
     public async Task<int> GetCountAsync(CancellationToken ct = default)
     {
-        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         return _count;
     
@@ -59,7 +59,7 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
         if (string.IsNullOrEmpty(uuid))
             throw new ArgumentException("[TRN013] UUID不能为空", nameof(uuid));
 
-        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         if (_set.Contains(uuid))
             return false;
@@ -97,7 +97,7 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
         if (string.IsNullOrEmpty(uuid))
             return false;
 
-        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         return _set.Contains(uuid);
     
@@ -161,7 +161,7 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
     /// <param name="ct">取消令牌</param>
     public async Task ClearAsync(CancellationToken ct = default)
     {
-        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         Array.Clear(_buffer, 0, _buffer.Length);
         _set.Clear();
@@ -177,7 +177,7 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
     /// <returns>UUID列表</returns>
     public async Task<IReadOnlyList<string>> ToListAsync(CancellationToken ct = default)
     {
-        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         if (_count == 0)
             return new List<string>();

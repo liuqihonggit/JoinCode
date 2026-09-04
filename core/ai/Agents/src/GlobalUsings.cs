@@ -59,7 +59,7 @@ global using Core.Utils;
 global using JoinCode.Abstractions.Hooks.Session;
 global using Infrastructure.Utils.IO;
 global using Infrastructure.Utils.Text;
-global using Infrastructure.Utils.System;
+global using Infrastructure.Utils.Cpu;
 global using IO;
 global using IO.Services;
 global using IMcpClient = JoinCode.Abstractions.Mcp.Client.IMcpClient;

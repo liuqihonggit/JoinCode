@@ -27,6 +27,90 @@
 3. 禁止 subAgent 进行全量测试,只能编译+快速冒烟,由mainAgent进行全量测试
 ***
 
+## 🎯 AI 助手总纲（设计哲学与编码准则）
+
+### 工具调用准则
+
+- **执行 bash 工具前，先思考先后果而非结果**，避免一切不可撤回的动作
+- **用移动代替删除**：有非要删除的情况必须调用 `ask_user` 工具让用户接管（详见下文"🔴 绝对禁止"第1条）
+- **Agent 层已帮你把工具分类权限**：用户明确睡觉等无人值守环节下，不调用 `ask_user` 工具
+
+### 架构优先
+
+- **先思考最坏代码方式**，要有反例才能知道如何写好（详见下文"⚠️ 反例清单"）
+- **不要用简单方式为导向**，而是满足架构最优，方便日后不断扩展
+- **使用 ADR 保证全局决策**，每个任务用 spec 来保存执行（详见下文"ADR 工作流"）
+
+### 开心路径
+
+先充分理解当前项目和用户需求，防止架构疲劳，推荐使用开心路径处理项目：
+
+1. **主路径清晰暴露实现路径**：例如 main 仅做配置工作，每个命令是一个主路径
+2. **主路径上面先实现开心路径**，对于边缘场景一律采用断言屏蔽。任务结束后推荐用户用新窗口做之后的任务，需要根据路径进行创立新的 spec 或者 plan
+
+**开心路径设计理由**：
+- a. 边缘场景没有覆盖可以在上层正确就终止，而不是在底层过程游离
+- b. 防止非核心路径过分补充，先做第一版代码给用户验证方向
+- c. 即使有工作计划、TODO 表，也会因为上下文压缩保留 commit 信息条目过多，造成 AI 信心疲劳，后续 AI 会注意力涣散和偷懒
+- d. 断言要具备栈帧信息，AI 调试 exe 时候可以立即整改
+- e. 外部环境传入参数是异常，内部屏蔽就是断言。发布期间会自动清理
+- f. 如果当前已经进入了处理断言阶段，就逐个断言展开决策和修复方案，不要同时处理多个
+
+### 替换便利
+
+为了未来使用脚本替换函数方便，你应该把函数消费写得相同，这样替换才能更便利，实在不行就封装多一个函数。
+
+> 替换时必须为未来做工作：当当前生产代码的写法/格式与替换目标不一致时，必须先转为**统一写法和格式**，再执行替换（幂等可重复）。提示词来源：`ReplacementMethodologySection`（系统提示词 Section，关键词"替换/批量替换"触发注入）
+
+### 字典配置
+
+大量采用和改造为：**AOT 元编程 + 关注点分离 + 约定大于配置**。
+
+- 通过源码生成器获取特性（非 AOT 就反射）
+- 通过非耦合方式进行扩展，特性写在函数上面，构造各种字典，例如 cmdMap
+- 减少硬编码，大量采用 `nameof(xxType)` 防止改了类型忘记改字符串
+- 详见下文"枚举 + [EnumValue] 使用规范"和"封装要求"
+
+### 不要预估时间
+
+你是 AI 助手写代码非常迅速，可以把人类的工作计划压缩到数分钟，因此你的 spec、adr、plan 等文档不要预估任何时间，除非用户明确要求。
+
+### 和用户交互
+
+- **每次只问用户一个问题**，使用 `ask_user` 工具，耐心解释好坏
+- **让用户做选择题而不是问答题**，用户让你自主决策的时候，则按照架构最美设计
+- 详见上文"核心规则：每次回复结束前必须调用 ask_user 工具"
+
+---
+
+### 推荐配置（可选项）
+
+> 默认行为是快速路径，能写三行就不引入架构；
+> 效率工具是知道热路径才进行优化，按照热点优化而不是全局，除非用户明确要求。
+
+#### [架构选型]
+
+1. **可复用和归纳的函数、类、枚举，仅写一套**：它们非常类似也要尽可能写成一个，避免用户难以理解
+2. **泛型模块化**
+3. **状态机**（状态查表事件，动作转移）
+4. **中间件洋葱模型**（详见下文"核心技术选型"MiddlewarePipeline）
+5. **任何资源类都必须树状生长**：这不是反模式设计，这是 is-a，不是鸵鸟问题（重写 fly）。否则难以收集到容器 `map[typeName,object]`，设计资源生命周期，提供插件卸载，可以参考 deepseekHarness。后台会不断扫描这些资源健康，如果被卸载或者宿主死亡了会自动破坏
+
+#### [效率]
+
+1. **计算字符串需要 0-GC**，效率拉满，学习 1BRC 操作：多线程 + SIMD + 非托管字符数组指针直写
+2. **纯异步函数来处理 IO**，高性能内存数据结构用同步函数。异步锁要自己封装 `AsyncLock`，利用 using 释放，锁内超时报错 key 名，避免同步锁定异步的情况（详见下文"AsyncLock 重入检测"）
+3. **下载用多线程和断点续传**
+4. **直接硬件支持的函数**，例如 CRC 等等
+5. **热路径优化**
+6. **无锁队列、环形队列、可排序结构、LRU 缓存结构、Everything 扫盘 + 索引**
+
+#### [编译]
+
+- **NativeAOT 编译，内联函数特性支持**（详见下文"关键约束"）
+- 如果当前项目不是这样的，就不要改变用户已配置的，除非用户明确要求
+
+***
 
 ## 🔴 绝对禁止（触碰即错）
 
@@ -441,6 +525,27 @@ gh api repos/{owner}/{repo}/actions/jobs/<job-id>/logs
 
 **注意**：`skipping` 不是失败！别看到一堆 `skipping` 就以为全挂了，那是依赖链跳过。
 
+#### 坑5：`gh run view --job --log` + `Select-String` 管道仍超时（120s+）
+
+- 坑2 的"正确做法"(`--job <job-id> --log 2>&1 | Select-String`)在日志量大时**仍会超时**
+- 原因：`gh run view --log` 一次性输出全部日志到 stdout，PowerShell 管道消费端 `Select-String` 逐行处理，当日志几万行时 120s 超时
+- **⛔ 禁止**：`gh run view <run-id> --job <job-id> --log 2>&1 | Select-String "..." | Select-Object -First 20`（超时炸掉）
+- **✅ 正确做法**：重定向写文件再查（绕开 PowerShell 管道死锁）
+
+```powershell
+# 第一步：重定向写文件（不用管道，不会超时）
+gh run view <run-id> --job <job-id> --log > .xxx/job_log.txt 2>&1
+
+# 第二步：从文件过滤关键行（Select-String 读文件不卡）
+Select-String -Path .xxx/job_log.txt -Pattern "Failed|FAIL|错误|失败|Exception|Assert" | Select-Object -First 30
+
+# 第三步：看测试失败上下文（匹配行前后 5 行）
+Select-String -Path .xxx/job_log.txt -Pattern "失败|Failed" -Context 5,5 | Select-Object -First 10
+```
+
+- **⚠️ 如果重定向也超时**：说明 `gh run view --log` 本身就卡（日志太大或网络慢），改用 `gh api` 分页拉取或直接在 GitHub Actions 页面查看日志
+- **✅ 实战经验（2026-09-04）**：`gh run view --log` 和 `gh run view --log-failed --job=<id>` 在日志量大时**双双超时**（30s/60s 都不够）。最快替代方案：**直接本地复现失败测试** — `gh run view <run-id> --job <job-id>`（不带 --log）看摘要知道哪个步骤失败 → 本地 `dotnet test <csproj> -c Release --filter "Category!=#Integration"` 跑全量测试看哪个测试 FAIL → 看错误消息和堆栈定位根因。比拉 CI 日志快 10 倍以上
+
 #### CI 排错完整流程（按此顺序，不许跳步）
 
 ```powershell
@@ -454,8 +559,9 @@ gh pr view <pr-number> --json statusCheckRollup
 gh api repos/{owner}/{repo}/actions/runs/<run-id>/jobs > .xxx/jobs.json
 Get-Content .xxx/jobs.json | ConvertFrom-Json | Select-Object -ExpandProperty jobs | Where-Object { $_.conclusion -eq "failure" } | Select-Object name, id
 
-# 4. 拉失败 job 日志，过滤关键信息
-gh run view <run-id> --job <job-id> --log 2>&1 | Select-String "Failed|FAIL|Test Run Failed" | Select-Object -First 20
+# 4. 拉失败 job 日志，过滤关键信息（重定向写文件，不用管道，避免超时）
+gh run view <run-id> --job <job-id> --log > .xxx/job_log.txt 2>&1
+Select-String -Path .xxx/job_log.txt -Pattern "Failed|FAIL|Test Run Failed" | Select-Object -First 30
 
 # 5. 本地复现失败测试
 dotnet test <csproj> -c Release --filter "<test-name>" --nologo /p:SkipLocalPack=true
@@ -559,7 +665,7 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 | **StreamMiddlewarePipeline\<TContext, TEvent\>** | 流式管道 | 同上，返回 `IAsyncEnumerable<TEvent>`，流式场景异常默认传播 |
 | **McpHttpServer** | MCP Streamable HTTP 服务端 | `services/Mcp/src/McpProtocol/McpHttpServer.cs` — HttpListener 实现，无状态（不分配 Session-Id）/有状态（分配+DELETE 终止）双模式，GET 开 SSE 推送 NotificationReceived |
 | **上下文压缩** | 长对话 token 回收 | Compact（对话级管道）+ Compression（内容级策略）+ Collapse（折叠级）三子系统，Microcompact 纯规则优先、LLM 摘要兜底，CompactOutputGuard 守卫降级 > ADR: [0053](docs/adr/0053-context-compaction-layered-mechanism.md) |
-| **AsyncLock 重入检测** | 同步重入死锁防护 | `Lock()`/`Lock(ct)` 检测同线程重入时抛 `LockReentrancyException` 而非卡死；锁内只操作字段，副作用移到锁外 > ADR: [0059](docs/adr/0059-asynclock-reentrancy-detection.md) |
+| **AsyncLock 互斥锁** | 统一互斥锁原语 + 死锁诊断 | `TryLock()`/`TryLockAsync()` 超时返回 null（不抛重入异常，ThreadId 在 async 下不可靠）；锁内只操作字段，副作用移到锁外；`TrySetResult` 禁止在锁内调用（续体同线程重入锁自等自） > ADR: [0052](docs/adr/0052-asynclock-unified-mutex-file-access.md)、[0060](docs/adr/0060-asynclock-sync-trylock-fireandforget-deadlock.md)（0059 已被 0060 取代） |
 
 ***
 
@@ -817,15 +923,6 @@ Get-ChildItem "D:\project\{当前分支名}\tests\MockServers\MockServer.Core\du
 | `git show REV:path \| Out-File` | `git show REV:path > local_path`（重定向） |
 
 **原因**: Out-File 写 UTF-8 带 BOM → CS0234；WriteAllText 可能清空文件；`$1` 被 PowerShell 展开为空
-
-### 统一写法原则（面向未来替换）
-
-替换时必须为未来做工作：当当前生产代码的写法/格式与替换目标不一致时，必须先转为**统一写法和格式**，再执行替换。
-
-- **目的**：统一写法后可用脚本一次性批量替换，且日后可再次替换（幂等可重复）
-- **禁止**：只替换眼前这一处、各处写法各异 → 下次替换仍需人工逐个判断，无法脚本化
-- **正确**：先把同类代码归一为相同写法/格式 → 再用脚本统一替换 → 替换后所有目标位置写法一致
-- **提示词来源**：`ReplacementMethodologySection`（系统提示词 Section，关键词"替换/批量替换"触发注入）
 
 ## E2E 测试脚本模式规范
 

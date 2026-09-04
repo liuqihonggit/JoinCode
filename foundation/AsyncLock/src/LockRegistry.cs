@@ -127,7 +127,7 @@ public static class LockRegistry
     }
 
     /// <summary>
-    /// 记录锁等待超时 — <see cref="AsyncLock.TryLock"/> 超时返回 null 时调用,*。
+    /// 记录锁等待超时 — <c>AsyncLock.TryLock</c> 超时返回 null 时调用,*。
     /// 通过 <see cref="DiagnosticSink"/> 输出诊断,便于定位"哪个锁等太久"。
     /// </summary>
     internal static void OnLockTimeout(string name, TimeSpan timeout)
@@ -336,8 +336,10 @@ public static class LockRegistry
         var waitEdges = new Dictionary<int, (int holderThreadId, LockInfo lk)>();
         foreach (var info in _locks.Values)
         {
-            if (info.WaitingThread is not null && info.HoldingThread is not null)
-                waitEdges[info.WaitingThread.ManagedThreadId] = (info.HoldingThread.ManagedThreadId, info);
+            var waitingThread = info.WaitingThread;
+            var holdingThread = info.HoldingThread;
+            if (waitingThread is not null && holdingThread is not null)
+                waitEdges[waitingThread.ManagedThreadId] = (holdingThread.ManagedThreadId, info);
         }
         if (waitEdges.Count == 0) return;
         foreach (var startId in waitEdges.Keys)

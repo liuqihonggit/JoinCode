@@ -254,3 +254,28 @@ public sealed class AsyncLock : IDisposable
 ## 确认状态
 
 所有 5 个待确认问题已全部确认。AsyncLock 替换迁移已完成（Vault → Infrastructure → Core → Services → Composition → App 全层编译通过，Host.Tests 862 通过 / Infra.IO 132 通过 / Infra.Utils 560 通过）。ADR 状态改为 `accepted`。
+
+## 后续变更（由 ADR-0060 引入，本 ADR 正文保持不变）
+
+> 以下变更由 [0060](0060-asynclock-sync-trylock-fireandforget-deadlock.md) 决策引入，本 ADR 正文（决策2 的 `LockAsync/Lock` API 描述、决策7 的重入检测）已部分被取代。
+
+| 本 ADR 描述 | 实际现状（0060 后） | 取代决策 |
+|------------|---------------------|----------|
+| `LockAsync() → ValueTask<AsyncLockGuard>`、`Lock() → AsyncLockGuard` | `TryLock() → IDisposable?`、`TryLockAsync() → ValueTask<IDisposable?>`（超时返回 null） | 0060 决策1 |
+| `CheckReentrancy` + `LockReentrancyException` 抛异常检测同步重入（决策7） | 已移除 `CheckReentrancy`（ThreadId 在 async/await 下因线程池复用不可靠）；改为 `TryLock` 超时返回 null + `TrySetResult` 移到锁外 | 0060 决策1/3，详见 [0059](0059-asynclock-reentrancy-detection.md)（已 superseded） |
+
+本 ADR 仍有效的部分：决策1（参数兼容构造）、决策3（复用 AsyncFileLock）、决策4（公开属性 SemaphoreSlim 按语义区分）、决策6（锁分类归宿）、决策7 的 LockRegistry 诊断层（DumpAll/后台扫描/死锁检测 wait-for graph DFS）。
+
+## 后续变更：AsyncLock 扩展支持 N,N 并发限流（2026-09-04）
+
+> 决策：去掉 `(1,1)` 限制，AsyncLock 同时支持互斥 `(1,1)` 和并发限流 `(N,N)` 两种语义。
+
+| 变更 | 说明 |
+|------|------|
+| 构造函数 `(int, int)` / `(string, int, int)` | 去掉 `initialCount != 1 \|\| maxCount != 1` 限制，允许 N,N |
+| 新增 `(string, int, int, TimeSpan)` | 带超时的 N,N 构造 |
+| 新增 `TryLock(TimeSpan, CancellationToken)` / `TryLockAsync(TimeSpan, CancellationToken)` | 调用方指定超时覆盖实例默认，支持非阻塞 `TimeSpan.Zero` |
+| 替换 9 处长生命周期 SemaphoreSlim(N,N) | ExecutionContext、AgentCoordinator、ForkSubAgentManager、GoalGraphEngine、IOThrottleService |
+| ADR-0052 决策6 锁分类归宿 | "并发限流 → SemaphoreSlim" 改为 "并发限流 → AsyncLock(N,N)" |
+
+**未统一（保留 SemaphoreSlim）**：3 处 ReaderWriterLockSlim（读写锁语义不同）、~3 处短生命周期局部变量（`using var`，无诊断需求）、信号 `(0,N)`（非锁语义）。

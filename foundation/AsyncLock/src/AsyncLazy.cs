@@ -3,7 +3,7 @@ namespace Core.Utils;
 public sealed class AsyncLazy<T> : IAsyncLazy<T>
 {
     private readonly Func<Task<T>> _factory;
-    private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly AsyncLock _gate = new($"{typeof(T).Name}-AsyncLazy", TimeSpan.FromMinutes(1));
     private Task<T>? _task;
     private int _isDisposed;
 
@@ -29,8 +29,9 @@ public sealed class AsyncLazy<T> : IAsyncLazy<T>
             return await task.ConfigureAwait(false);
         }
 
-        await _gate.WaitAsync(ct).ConfigureAwait(false);
-        try
+        var releaser = await _gate.TryLockAsync(ct).ConfigureAwait(false)
+            ?? throw new TimeoutException($"锁 '{_gate.Name}' 等待超时");
+        using (releaser)
         {
             task = Volatile.Read(ref _task);
             if (task is not null)
@@ -41,10 +42,6 @@ public sealed class AsyncLazy<T> : IAsyncLazy<T>
             task = _factory();
             Volatile.Write(ref _task, task);
             return await task.ConfigureAwait(false);
-        }
-        finally
-        {
-            _gate.Release();
         }
     }
 

@@ -36,7 +36,7 @@ public sealed class SshSession : ISshSession
     {
         DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
 
-        using var guard = await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
         try
         {
             if (_stateMachine.CurrentState == SshConnectionState.Connected)
@@ -87,7 +87,7 @@ public sealed class SshSession : ISshSession
     {
         DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
 
-        using var guard = await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
         StopKeepAlive();
         await _portForwardManager.StopAllAsync(ct).ConfigureAwait(false);

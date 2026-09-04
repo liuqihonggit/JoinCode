@@ -56,13 +56,13 @@ public sealed class SubAgentRun
     /// <summary>完整时间线（回放窗口数据源，不裁剪；线程安全追加）</summary>
     public IReadOnlyList<SubAgentTranscriptItem> Transcript
     {
-        get { using (_transcriptLock.TryLock() ?? throw new System.TimeoutException("锁等待超时")) return [.. _transcript]; }
+        get { using (_transcriptLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_transcriptLock.Name}' 等待超时")) return [.. _transcript]; }
     }
 
     /// <summary>追加时间线条目（tracker 专用）</summary>
     internal void AppendTranscript(string glyph, string text)
     {
-        using (_transcriptLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_transcriptLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_transcriptLock.Name}' 等待超时"))
             _transcript.Add(new SubAgentTranscriptItem(DateTime.Now, glyph, text));
     }
 }

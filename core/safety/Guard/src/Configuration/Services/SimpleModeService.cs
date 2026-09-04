@@ -14,7 +14,7 @@ public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeServic
 
     public bool IsSimpleMode
     {
-        get { using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时")) return _isSimpleMode; }
+        get { using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) return _isSimpleMode; }
     }
 
     public event EventHandler<SimpleModeChangedEventArgs>? SimpleModeChanged;
@@ -30,7 +30,7 @@ public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeServic
 
     public void Enable()
     {
-        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             if (_isSimpleMode) return;
 
@@ -50,7 +50,7 @@ public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeServic
 
     public void Disable()
     {
-        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             if (!_isSimpleMode) return;
 
@@ -71,7 +71,7 @@ public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeServic
     public bool Toggle()
     {
         bool newState;
-        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             newState = !_isSimpleMode;
             _isSimpleMode = newState;
@@ -95,14 +95,14 @@ public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeServic
 
     public SimpleModeConfig GetCurrentConfig()
     {
-        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时")) return _config;
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) return _config;
     }
 
     public void UpdateConfig(SimpleModeConfig config)
     {
         ArgumentNullException.ThrowIfNull(config);
 
-        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             _config = config;
             _logger?.LogDebug("Simple Mode config updated");

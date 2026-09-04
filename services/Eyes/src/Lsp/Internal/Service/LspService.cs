@@ -43,7 +43,7 @@ public sealed partial class LspService : ServiceEntity, ILspService
     {
         if (Volatile.Read(ref _isInitialized) == 1 && _lspManager.IsInitialized) return;
 
-        using var guard = await _initLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _initLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_initLock.Name}' 等待超时");
 
         if (Volatile.Read(ref _isInitialized) == 1 && _lspManager.IsInitialized) return;
 

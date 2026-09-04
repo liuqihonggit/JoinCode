@@ -1,9 +1,10 @@
 # 0059. AsyncLock 同步重入检测 — LockReentrancyException 提早暴露死锁
 
-- 状态：accepted
+- 状态：superseded by 0060
 - 日期：2026-09-03
 - 决策者：项目架构组
 - 关联：[0052](0052-asynclock-unified-mutex-file-access.md)（AsyncLock 统一互斥锁）、[0056](0056-cache-break-detection-enhancement.md)（死锁检测 wait-for graph）
+- 取代：被 [0060](0060-asynclock-sync-trylock-fireandforget-deadlock.md) 取代 — CheckReentrancy 已移除（ThreadId 在 async/await 下因线程池复用不可靠，误报）；改为 TryLock 超时返回 null + TrySetResult 移到锁外（ADR-0060 决策1/3）。本 ADR 的避坑指南（锁内只操作字段、副作用移到锁外）仍然有效。
 
 ## 背景
 

@@ -156,7 +156,7 @@ public sealed partial class MemorySearchHistoryService : ServiceEntity, IMemoryS
         ArgumentNullException.ThrowIfNull(query);
 
         cancellationToken.ThrowIfCancellationRequested();
-                using (await _historyLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
+                using (await _historyLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_historyLock.Name}' 等待超时"))
         {
             var entry = new SearchHistoryEntry
             {
@@ -362,7 +362,7 @@ internal sealed class ConcurrentDeque<T>
     {
         get
         {
-            using (_lockObj.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+            using (_lockObj.TryLock() ?? throw new System.TimeoutException($"锁 '{_lockObj.Name}' 等待超时"))
             {
                 return _list.Count;
             }
@@ -371,7 +371,7 @@ internal sealed class ConcurrentDeque<T>
 
     public void Prepend(T item)
     {
-        using (_lockObj.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_lockObj.TryLock() ?? throw new System.TimeoutException($"锁 '{_lockObj.Name}' 等待超时"))
         {
             _list.AddFirst(item);
         }
@@ -379,7 +379,7 @@ internal sealed class ConcurrentDeque<T>
 
     public bool TryTakeBack(out T? item)
     {
-        using (_lockObj.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_lockObj.TryLock() ?? throw new System.TimeoutException($"锁 '{_lockObj.Name}' 等待超时"))
         {
             if (_list.Count == 0)
             {
@@ -396,7 +396,7 @@ internal sealed class ConcurrentDeque<T>
 
     public IReadOnlyList<T> Take(int count)
     {
-        using (_lockObj.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_lockObj.TryLock() ?? throw new System.TimeoutException($"锁 '{_lockObj.Name}' 等待超时"))
         {
             return _list.Take(count).ToImmutableList();
         }

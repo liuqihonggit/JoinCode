@@ -26,7 +26,7 @@ public sealed class ToolInterventionManager : ServiceEntity
 
     public async Task AddRuleAsync(string toolName, InterventionType type, string reason, TimeSpan? duration = null, CancellationToken ct = default)
     {
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         _rules[toolName] = new InterventionRule
         {
@@ -43,7 +43,7 @@ public sealed class ToolInterventionManager : ServiceEntity
 
     public async Task RemoveRuleAsync(string toolName, CancellationToken ct = default)
     {
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         _rules.Remove(toolName);
         SaveToDisk();
@@ -52,7 +52,7 @@ public sealed class ToolInterventionManager : ServiceEntity
 
     public async Task<InterventionRule?> GetRuleAsync(string toolName, CancellationToken ct = default)
     {
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         if (_rules.TryGetValue(toolName, out var rule) && !rule.IsExpired)
             return rule;
@@ -62,7 +62,7 @@ public sealed class ToolInterventionManager : ServiceEntity
 
     public async Task<IReadOnlyDictionary<string, InterventionRule>> GetActiveRulesAsync(CancellationToken ct = default)
     {
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         return _rules
             .Where(kvp => !kvp.Value.IsExpired)

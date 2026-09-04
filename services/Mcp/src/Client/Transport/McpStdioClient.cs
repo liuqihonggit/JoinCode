@@ -251,7 +251,7 @@ public sealed class McpStdioClient : McpClientBase
         var tcs = new TaskCompletionSource<JsonRpcResponse>();
         int requestId = request.GetIdAsInt();
 
-        var guard = await _requestLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        var guard = await _requestLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_requestLock.Name}' 等待超时");
         try
         {
             _pendingRequests[requestId] = tcs;
@@ -266,7 +266,7 @@ public sealed class McpStdioClient : McpClientBase
             var json = request.ToJson();
             _logger?.LogDebug("发送请求: {Json}", json);
 
-            var guard1 = await _requestLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+            var guard1 = await _requestLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_requestLock.Name}' 等待超时");
             try
             {
                 await _stdinWriter.WriteLineAsync(json);
@@ -287,7 +287,7 @@ public sealed class McpStdioClient : McpClientBase
         }
         catch (Exception ex)
         {
-            var guard2 = await _requestLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+            var guard2 = await _requestLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_requestLock.Name}' 等待超时");
             try
             {
                 _pendingRequests.Remove(requestId);
@@ -315,7 +315,7 @@ public sealed class McpStdioClient : McpClientBase
         var json = notification.ToJson();
         _logger?.LogDebug("发送通知: {Json}", json);
 
-        var guard3 = await _requestLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        var guard3 = await _requestLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_requestLock.Name}' 等待超时");
         try
         {
             await _stdinWriter.WriteLineAsync(json);

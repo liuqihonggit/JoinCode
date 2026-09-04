@@ -49,7 +49,7 @@ public sealed partial class ContextHierarchy : ServiceEntity, IContextHierarchy,
     {
         ArgumentNullException.ThrowIfNull(layer);
 
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         // 移除同类型的现有层级
         if (_layerDict.Remove(layer.LayerType, out var existingLayer))
@@ -77,7 +77,7 @@ public sealed partial class ContextHierarchy : ServiceEntity, IContextHierarchy,
     /// <inheritdoc />
     public async Task<bool> RemoveLayerAsync(ContextLayerType layerType, CancellationToken ct = default)
     {
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         if (!_layerDict.Remove(layerType, out var layer))
         {
@@ -98,7 +98,7 @@ public sealed partial class ContextHierarchy : ServiceEntity, IContextHierarchy,
     /// <inheritdoc />
     public async Task<IContextLayer?> GetLayerAsync(ContextLayerType layerType, CancellationToken ct = default)
     {
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         _layerDict.TryGetValue(layerType, out var layer);
         return layer;
@@ -108,7 +108,7 @@ public sealed partial class ContextHierarchy : ServiceEntity, IContextHierarchy,
     /// <inheritdoc />
     public async Task<IReadOnlyList<IContextLayer>> GetLayersAsync(CancellationToken ct = default)
     {
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         return _layers;
     
@@ -117,7 +117,7 @@ public sealed partial class ContextHierarchy : ServiceEntity, IContextHierarchy,
     /// <inheritdoc />
     public async Task<IContextLayer?> GetCurrentLayerAsync(CancellationToken ct = default)
     {
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         return _layers.Count > 0 ? _layers[_layers.Count - 1] : null;
     
@@ -131,7 +131,7 @@ public sealed partial class ContextHierarchy : ServiceEntity, IContextHierarchy,
     {
         ArgumentNullException.ThrowIfNull(compressionFunc);
 
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         var current = _layers.Count > 0 ? _layers[_layers.Count - 1] : null;
         if (current == null)
@@ -175,7 +175,7 @@ public sealed partial class ContextHierarchy : ServiceEntity, IContextHierarchy,
     /// <inheritdoc />
     public async Task<bool> DemoteToLayerAsync(ContextLayerType sourceLayer, CancellationToken ct = default)
     {
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         if (!_layerDict.TryGetValue(sourceLayer, out var layer))
         {
@@ -207,7 +207,7 @@ public sealed partial class ContextHierarchy : ServiceEntity, IContextHierarchy,
     /// <inheritdoc />
     public async Task<string> GetEffectiveContextAsync(CancellationToken ct = default)
     {
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         if (_layers.Count == 0)
         {
@@ -242,7 +242,7 @@ public sealed partial class ContextHierarchy : ServiceEntity, IContextHierarchy,
     /// <inheritdoc />
     public async Task<int> GetTotalTokenCountAsync(CancellationToken ct = default)
     {
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         var total = 0;
         for (int i = 0; i < _layers.Count; i++)

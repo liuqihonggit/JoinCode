@@ -16,7 +16,8 @@ public sealed class DeferredMailService : IDeferredMailService
         cancellationToken.ThrowIfCancellationRequested();
 
         var entry = new DeferredMailEntry { Mail = mail, RemainingTurns = mail.OpenAfterTurns };
-        using (GetLock(mail.To).TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        var lk = GetLock(mail.To);
+        using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时"))
         {
             _pending.GetOrAdd(mail.To, _ => []).Add(entry);
         }
@@ -26,7 +27,8 @@ public sealed class DeferredMailService : IDeferredMailService
     public IReadOnlyList<DeferredMail> TickTurns(string agentId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
-        using (GetLock(agentId).TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        var lk = GetLock(agentId);
+        using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时"))
         {
             if (!_pending.TryGetValue(agentId, out var list))
                 return [];
@@ -50,7 +52,8 @@ public sealed class DeferredMailService : IDeferredMailService
     public IReadOnlyList<DeferredMail> FlushOnTaskEnd(string agentId, MailMarker? markerFilter = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
-        using (GetLock(agentId).TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        var lk = GetLock(agentId);
+        using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时"))
         {
             if (!_pending.TryGetValue(agentId, out var list))
                 return [];
@@ -71,7 +74,8 @@ public sealed class DeferredMailService : IDeferredMailService
     public IReadOnlyList<DeferredMail> GetPending(string agentId, MailMarker? markerFilter = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
-        using (GetLock(agentId).TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        var lk = GetLock(agentId);
+        using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时"))
         {
             if (!_pending.TryGetValue(agentId, out var list))
                 return [];

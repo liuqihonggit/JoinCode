@@ -52,19 +52,19 @@ public sealed partial class NetworkConnectivityService : ServiceEntity, INetwork
     /// <inheritdoc/>
     public NetworkConnectivityState CurrentState
     {
-        get { using (_stateLock.TryLock() ?? throw new System.TimeoutException("锁等待超时")) return _currentState; }
+        get { using (_stateLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时")) return _currentState; }
     }
 
     /// <inheritdoc/>
     public bool IsNetworkAvailable()
     {
-        using (_stateLock.TryLock() ?? throw new System.TimeoutException("锁等待超时")) return _currentState != NetworkConnectivityState.Offline;
+        using (_stateLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时")) return _currentState != NetworkConnectivityState.Offline;
     }
 
     /// <inheritdoc/>
     public bool IsVpnActive()
     {
-        using (_stateLock.TryLock() ?? throw new System.TimeoutException("锁等待超时")) return _currentState == NetworkConnectivityState.OnlineWithVpn;
+        using (_stateLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时")) return _currentState == NetworkConnectivityState.OnlineWithVpn;
     }
 
     /// <inheritdoc/>
@@ -123,7 +123,7 @@ public sealed partial class NetworkConnectivityService : ServiceEntity, INetwork
     {
         var newState = ComputeState();
         NetworkConnectivityState previous;
-        using (_stateLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_stateLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时"))
         {
             if (_currentState == newState) return;
             previous = _currentState;

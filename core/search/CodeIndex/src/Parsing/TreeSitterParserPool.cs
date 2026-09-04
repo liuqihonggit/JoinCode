@@ -27,7 +27,7 @@ public static class TreeSitterParserPool
     /// </summary>
     public static Task<IDisposable> AcquireSharedAsync(CancellationToken ct = default)
     {
-        var guard = _sharedLock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+        var guard = _sharedLock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_sharedLock.Name}' 等待超时");
         return Task.FromResult(guard);
     }
 
@@ -36,7 +36,7 @@ public static class TreeSitterParserPool
     /// </summary>
     public static IDisposable AcquireShared()
     {
-        return _sharedLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
+        return _sharedLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_sharedLock.Name}' 等待超时");
     }
 
     /// <summary>

@@ -30,7 +30,7 @@ public sealed partial class TeammateLayoutManager : ServiceEntity, JoinCode.Abst
     public async Task<JoinCode.Abstractions.Interfaces.CreatePaneResult> CreateTeammatePaneAsync(
         string teammateId, string agentType, string command, CancellationToken cancellationToken = default)
     {
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         var result = await _backend.CreateTeammatePaneAsync(teammateId, command, cancellationToken).ConfigureAwait(false);
         _teammatePanes[teammateId] = result.PaneId;
@@ -59,7 +59,7 @@ public sealed partial class TeammateLayoutManager : ServiceEntity, JoinCode.Abst
 
     public async Task RemoveTeammatePaneAsync(string teammateId, CancellationToken cancellationToken = default)
     {
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         if (_teammatePanes.TryGetValue(teammateId, out var paneId))
         {
@@ -75,7 +75,7 @@ public sealed partial class TeammateLayoutManager : ServiceEntity, JoinCode.Abst
 
     public async Task RebalanceLayoutAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         await _backend.RebalancePanesAsync(cancellationToken).ConfigureAwait(false);
     

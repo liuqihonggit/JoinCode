@@ -20,7 +20,7 @@ public sealed class SubAgentCardManager
     /// <summary>指定子代理是否已展开。</summary>
     public bool IsExpanded(string agentId)
     {
-        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             return _expandedSet.Contains(agentId);
         }
@@ -30,7 +30,7 @@ public sealed class SubAgentCardManager
     /// <returns>被自动折叠的子代理 ID（null 表示没有折叠）。</returns>
     public string? Expand(string agentId)
     {
-        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             return ExpandUnchecked(agentId);
         }
@@ -40,7 +40,7 @@ public sealed class SubAgentCardManager
     /// <returns>是否成功折叠（false 表示原本未展开）。</returns>
     public bool Collapse(string agentId)
     {
-        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             return CollapseUnchecked(agentId);
         }
@@ -50,7 +50,7 @@ public sealed class SubAgentCardManager
     /// <returns>被自动折叠的子代理 ID（null 表示没有折叠或操作是折叠）。</returns>
     public string? Toggle(string agentId)
     {
-        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             if (_expandedSet.Contains(agentId))
             {
@@ -64,7 +64,7 @@ public sealed class SubAgentCardManager
     /// <summary>折叠所有子代理。</summary>
     public void CollapseAll()
     {
-        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             _expandedOrder.Clear();
             _expandedSet.Clear();

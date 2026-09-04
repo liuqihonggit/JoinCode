@@ -18,7 +18,7 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
     /// <inheritdoc />
     public async Task AddRuleAsync(AgentPermissionRule rule, CancellationToken ct = default)
     {
-                using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
+                using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             _rules.Remove(rule.AgentPattern);
             _rules[rule.AgentPattern] = rule;
@@ -29,7 +29,7 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
     /// <inheritdoc />
     public async Task<bool> RemoveRuleAsync(string agentPattern, CancellationToken ct = default)
     {
-                using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
+                using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             var removed = _rules.Remove(agentPattern);
             if (removed) RecordPermissionManagerMetrics("remove_rule");
@@ -158,7 +158,7 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
     /// <inheritdoc />
     public async Task<IReadOnlyList<AgentPermissionRule>> ListRulesAsync(CancellationToken ct = default)
     {
-                using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
+                using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             return _rules.Values.OrderByDescending(r => r.Priority).ToList();
         }
@@ -167,7 +167,7 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
     /// <inheritdoc />
     public async Task ClearRulesAsync(CancellationToken ct = default)
     {
-                using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
+                using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             _rules.Clear();
         }
@@ -177,7 +177,7 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
 
     private async Task<AgentPermissionRule?> GetMatchingRuleAsync(string agentName, CancellationToken ct)
     {
-                using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
+                using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             // 首先尝试精确匹配
             if (_rules.TryGetValue(agentName, out var exactMatch)) return exactMatch;

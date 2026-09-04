@@ -48,7 +48,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
     private readonly ConcurrentDictionary<string, ForkEntry> _entries;
     private readonly ConcurrentDictionary<string, Dictionary<string, string>> _sharedCache;
     private readonly AsyncLock _lock = new();
-    private volatile SemaphoreSlim? _forkSemaphore;
+    private volatile AsyncLock? _forkSemaphore;
 
     public event EventHandler<ForkCompletedEventArgs>? ForkCompleted;
 
@@ -69,24 +69,27 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
 
         var maxForks = (concurrencyOptions ?? new SubAgentConcurrencyOptions()).MaxConcurrentForks;
         _forkSemaphore = maxForks > 0
-            ? new SemaphoreSlim(maxForks, maxForks)
+            ? new AsyncLock("Fork-Concurrency", maxForks, maxForks)
             : null;
     }
 
     public async Task<ForkResult> ForkAsync(ForkOptions options, CancellationToken ct = default)
     {
         var sem = _forkSemaphore;
+        IDisposable? releaser = null;
         if (sem is not null)
         {
             try
             {
-                await sem.WaitAsync(ct).ConfigureAwait(false);
+                releaser = await sem.TryLockAsync(ct).ConfigureAwait(false)
+                    ?? throw new System.TimeoutException($"锁 '{sem.Name}' 等待超时");
             }
             catch (ObjectDisposedException)
             {
                 sem = _forkSemaphore;
                 if (sem is not null)
-                    await sem.WaitAsync(ct).ConfigureAwait(false);
+                    releaser = await sem.TryLockAsync(ct).ConfigureAwait(false)
+                        ?? throw new System.TimeoutException($"锁 '{sem.Name}' 等待超时");
             }
         }
         var semaphoreTransferredToBackground = false;
@@ -171,7 +174,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
             // .WaitAsync 再访问 forkCts.Token 会抛 ObjectDisposedException
             var forkToken = forkCts.Token;
             semaphoreTransferredToBackground = true;
-            _ = RunBackgroundForkAsync(forkId, context.Agent, options.TaskDescription, options.EventChannel, forkToken, sem)
+            _ = RunBackgroundForkAsync(forkId, context.Agent, options.TaskDescription, options.EventChannel, forkToken, releaser)
                 .WaitAsync(TimeSpan.FromSeconds(10), forkToken).ConfigureAwait(false);
 
             return new ForkResult
@@ -197,7 +200,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
         {
             if (!semaphoreTransferredToBackground)
             {
-                try { sem?.Release(); }
+                try { releaser?.Dispose(); }
                 catch (ObjectDisposedException) { _logger?.LogDebug("fork 信号量在 Release 时已被热重载 Dispose"); }
             }
         }
@@ -206,7 +209,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
     /// <summary>在管道执行前设置缓存和条目（确保 CancelForkAsync 可见）</summary>
     private void SetupForkEntry(ForkOptions options, string forkId, DateTime createdAt, ForkContext context)
     {
-        using var guard = _lock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = _lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
         if (options.ShareCache)
         {
             var parentCache = _sharedCache.GetValueOrDefault(options.ParentSessionId, new Dictionary<string, string>());
@@ -232,14 +235,14 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
     /// <summary>清理失败的 Fork 条目和缓存</summary>
     private void CleanupForkEntry(string forkId)
     {
-        using var guard = _lock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = _lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
         _entries.TryRemove(forkId, out _);
         _sharedCache.TryRemove(forkId, out _);
     }
 
     public async Task<IReadOnlyList<ForkSubAgent>> GetActiveForksAsync(CancellationToken ct = default)
     {
-        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         return _entries
             .Where(kvp => kvp.Value.State == ForkState.Running
@@ -259,7 +262,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
 
     public async Task<ForkResult> MergeForkAsync(string forkId, CancellationToken ct = default)
     {
-        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         if (!_entries.TryGetValue(forkId, out var entry))
         {
@@ -316,7 +319,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
 
     public async Task CancelForkAsync(string forkId, CancellationToken ct = default)
     {
-        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         if (!_entries.TryGetValue(forkId, out var entry))
             return;
@@ -348,7 +351,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
 
     private async Task RunBackgroundForkAsync(string forkId, IAgent agent, string taskDescription,
         JoinCode.Abstractions.LLM.Chat.SubAgentEventChannel? eventChannel, CancellationToken cancellationToken,
-        SemaphoreSlim? forkSemaphore = null)
+        IDisposable? forkReleaser = null)
     {
         // 终态发射辅助 — 通道由调用方在回合作用域内捕获传入；
         // fork 完成晚于回合时事件写入死通道自然丢弃（GUI 靠 task-notification 回填补足）
@@ -418,9 +421,9 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
                 finallyEntry.Cts.Dispose();
                 finallyEntry.Cts = null;
             }
-            if (forkSemaphore is not null)
+            if (forkReleaser is not null)
             {
-                try { forkSemaphore.Release(); }
+                try { forkReleaser.Dispose(); }
                 catch (ObjectDisposedException) { _logger?.LogDebug("fork 信号量在后台完成 Release 时已被热重载 Dispose"); }
             }
         }
@@ -522,7 +525,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
     {
         var maxForks = options.MaxConcurrentForks;
         var newSem = maxForks > 0
-            ? new SemaphoreSlim(maxForks, maxForks)
+            ? new AsyncLock("Fork-Concurrency", maxForks, maxForks)
             : null;
         var old = Interlocked.Exchange(ref _forkSemaphore, newSem);
         old?.Dispose();
@@ -539,7 +542,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
     /// <summary>清理所有 Fork 条目和缓存（在锁保护下执行）</summary>
     private async Task CleanupForkEntriesAsync()
     {
-        using var guard = _lock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = _lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         var ctsEntries = _entries.Values
             .Select(e => e.Cts)

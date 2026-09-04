@@ -186,7 +186,7 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
             return;
         }
 
-        using var guard = await _stdinLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _stdinLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stdinLock.Name}' 等待超时");
         try
         {
             if (_process.StandardInput.BaseStream is null || !_process.StandardInput.BaseStream.CanWrite)

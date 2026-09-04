@@ -376,7 +376,7 @@ public static partial class PsAstParser
 
     private static string? FindPwshPath()
     {
-        using (CacheLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (CacheLock.TryLock() ?? throw new System.TimeoutException($"锁 '{CacheLock.Name}' 等待超时"))
         {
             if (_cachedPwshPath is not null) return _cachedPwshPath;
         }
@@ -405,7 +405,7 @@ public static partial class PsAstParser
 
         if (found is not null)
         {
-            using (CacheLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+            using (CacheLock.TryLock() ?? throw new System.TimeoutException($"锁 '{CacheLock.Name}' 等待超时"))
             {
                 _cachedPwshPath = found;
             }

@@ -31,7 +31,7 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
 
     public void Register(AgentRoleProfile profile)
     {
-        using var guard = _loadLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = _loadLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_loadLock.Name}' 等待超时");
         _profiles.Add(profile);
         _profileMap = BuildProfileMap(_profiles);
         if (!_roleIndex.TryGetValue(profile.Role, out var list))
@@ -72,7 +72,7 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
 
     public void ClearCache()
     {
-        using var guard = _loadLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = _loadLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_loadLock.Name}' 等待超时");
         _customLoaded = false;
         _profiles = BuildBuiltInProfiles();
         _profileMap = BuildProfileMap(_profiles);
@@ -85,7 +85,7 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
         if (_customLoaded || _definitionProvider is null)
             return;
 
-        using var guard = _loadLock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = _loadLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_loadLock.Name}' 等待超时");
         if (_customLoaded)
             return;
 

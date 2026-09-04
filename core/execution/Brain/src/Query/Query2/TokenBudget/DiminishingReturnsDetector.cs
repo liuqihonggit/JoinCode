@@ -71,7 +71,7 @@ public sealed partial class DiminishingReturnsDetector : ServiceEntity, IDiminis
 
         var averageRatio = ratios.Average();
 
-        using (_resetLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_resetLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_resetLock.Name}' 等待超时"))
         {
             if (averageRatio < LowValueThreshold)
             {
@@ -105,7 +105,7 @@ public sealed partial class DiminishingReturnsDetector : ServiceEntity, IDiminis
 
     public void Reset()
     {
-        using (_resetLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_resetLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_resetLock.Name}' 等待超时"))
         {
             _consecutiveLowValueCount = 0;
         }

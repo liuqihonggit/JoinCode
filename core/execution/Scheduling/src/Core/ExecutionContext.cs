@@ -15,21 +15,21 @@ internal sealed class ExecutionContext : IAsyncDisposable
     {
         Options = options;
         CancellationToken = cancellationToken;
-        ConcurrencyLock = new SemaphoreSlim(options.MaxConcurrentTasks, options.MaxConcurrentTasks);
+        ConcurrencyLock = new AsyncLock("ExecutionContext-Concurrency", options.MaxConcurrentTasks, options.MaxConcurrentTasks);
         _runningTasks = new List<Task>();
         _completedTaskIds = new ConcurrentDictionary<string, byte>();
     }
 
     public ExecutionOptions Options { get; }
     public CancellationToken CancellationToken { get; }
-    public SemaphoreSlim ConcurrencyLock { get; }
+    public AsyncLock ConcurrencyLock { get; }
 
     /// <summary>
     /// 添加运行中的任务 - 线程安全
     /// </summary>
     public async Task AddRunningTaskAsync(Task task)
     {
-                using (await _runningTasksLock.TryLockAsync(CancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
+                using (await _runningTasksLock.TryLockAsync(CancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_runningTasksLock.Name}' 等待超时"))
         {
             _runningTasks.Add(task);
         }
@@ -40,7 +40,7 @@ internal sealed class ExecutionContext : IAsyncDisposable
     /// </summary>
     public async Task<List<Task>> GetRunningTasksSnapshotAsync()
     {
-                using (await _runningTasksLock.TryLockAsync(CancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
+                using (await _runningTasksLock.TryLockAsync(CancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_runningTasksLock.Name}' 等待超时"))
         {
             return _runningTasks.ToList();
         }
@@ -51,7 +51,7 @@ internal sealed class ExecutionContext : IAsyncDisposable
     /// </summary>
     public async Task CleanupCompletedTasksAsync(CancellationToken cancellationToken = default)
     {
-                using (await _runningTasksLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
+                using (await _runningTasksLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_runningTasksLock.Name}' 等待超时"))
         {
             _runningTasks.RemoveAll(t => t.IsCompleted);
         }
@@ -62,7 +62,7 @@ internal sealed class ExecutionContext : IAsyncDisposable
     /// </summary>
     public async Task<int> GetRunningTaskCountAsync(CancellationToken cancellationToken = default)
     {
-                using (await _runningTasksLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
+                using (await _runningTasksLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_runningTasksLock.Name}' 等待超时"))
         {
             return _runningTasks.Count;
         }

@@ -285,7 +285,7 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
             return;
         }
 
-                using (await _persistLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
+                using (await _persistLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_persistLock.Name}' 等待超时"))
         {
             if (!_deps.FileOperationService.DirectoryExists(_deps.PersistenceDirectory))
             {
@@ -308,7 +308,7 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
             return Array.Empty<RuntimeTask>();
         }
 
-                using (await _persistLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
+                using (await _persistLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_persistLock.Name}' 等待超时"))
         {
             var filePath = Path.Combine(_deps.PersistenceDirectory, "runtime-tasks.json");
             if (!_deps.FileOperationService.FileExists(filePath))

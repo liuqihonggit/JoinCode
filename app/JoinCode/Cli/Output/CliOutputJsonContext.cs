@@ -15,4 +15,6 @@ namespace JoinCode.Cli.Output;
 [System.Text.Json.Serialization.JsonSerializable(typeof(List<CliOutputEnvelope>))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(CliStreamEvent))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(CliStreamEventData))]
+[System.Text.Json.Serialization.JsonSerializable(typeof(List<CliToolListItem>))]
+[System.Text.Json.Serialization.JsonSerializable(typeof(List<CliToolSearchItem>))]
 public partial class CliOutputJsonContext : System.Text.Json.Serialization.JsonSerializerContext;

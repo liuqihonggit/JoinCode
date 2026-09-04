@@ -114,7 +114,7 @@ public sealed class McpCliCommand : Command
             {
                 var items = tools.Values
                     .Where(t => string.IsNullOrEmpty(category) || string.Equals(t.Category, category, StringComparison.OrdinalIgnoreCase))
-                    .Select(t => new ToolListItem(t.Name, t.Description, t.Category, t.GroupName, t.Kind.ToString()))
+                    .Select(t => new Cli.Output.CliToolListItem(t.Name, t.Description, t.Category, t.GroupName, t.Kind.ToString()))
                     .ToList();
                 var envelope = Cli.Output.CliOutputEnvelope.Success(items, new Cli.Output.CliOutputMeta { TotalCount = items.Count });
                 System.Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(envelope, JsonCtx.CliOutputEnvelope));
@@ -152,12 +152,10 @@ public sealed class McpCliCommand : Command
 
         if (json)
         {
-            var items = result.MatchedToolNames.Select(name => new
-            {
+            var items = result.MatchedToolNames.Select(name => new Cli.Output.CliToolSearchItem(
                 name,
-                description = allTools.TryGetValue(name, out var t) ? t.Description : null,
-                category = allTools.TryGetValue(name, out var t2) ? t2.Category : null,
-            }).ToList();
+                allTools.TryGetValue(name, out var t) ? t.Description : null,
+                allTools.TryGetValue(name, out var t2) ? t2.Category : null)).ToList();
             var envelope = Cli.Output.CliOutputEnvelope.Success(items, new Cli.Output.CliOutputMeta { TotalCount = items.Count });
             System.Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(envelope, JsonCtx.CliOutputEnvelope));
         }
@@ -352,6 +350,5 @@ public sealed class McpCliCommand : Command
             }
         }
     }
-
-    private sealed record ToolListItem(string Name, string Description, string? Category, string? GroupName, string Kind);
 }
+

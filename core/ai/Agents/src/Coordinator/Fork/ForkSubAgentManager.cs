@@ -319,34 +319,43 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
 
     public async Task CancelForkAsync(string forkId, CancellationToken ct = default)
     {
-        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
-        if (!_entries.TryGetValue(forkId, out var entry))
-            return;
-
-        if (entry.State == ForkState.Running)
+        ForkEntry? entry;
+        using (var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
-            if (entry.Cts is not null)
-            {
-                await entry.Cts.CancelAsync().ConfigureAwait(false);
-                entry.Cts.Dispose();
-                entry.Cts = null;
-            }
-
-            if (entry.AgentId is not null)
-            {
-                var agentId = entry.AgentId;
-                entry.AgentId = null;
-                StopMailboxPollingIfNeeded(agentId);
-                await _deps.LifecycleManager.CancelAgentAsync(agentId, ct).ConfigureAwait(false);
-            }
-
-            entry.State = ForkState.Cancelled;
-            _logger?.LogInformation("Fork {ForkId} cancelled", forkId);
-
-            await FireForkCompletedAsync(forkId, string.Empty).ConfigureAwait(false);
+            if (!_entries.TryGetValue(forkId, out entry))
+                return;
+            if (entry.State != ForkState.Running)
+                return;
         }
-    
+
+        if (entry.Cts is not null)
+        {
+            await entry.Cts.CancelAsync().ConfigureAwait(false);
+            entry.Cts.Dispose();
+            entry.Cts = null;
+        }
+
+        string? agentIdToCancel = null;
+        if (entry.AgentId is not null)
+        {
+            agentIdToCancel = entry.AgentId;
+            entry.AgentId = null;
+            StopMailboxPollingIfNeeded(agentIdToCancel);
+        }
+
+        if (agentIdToCancel is not null)
+        {
+            await _deps.LifecycleManager.CancelAgentAsync(agentIdToCancel, ct).ConfigureAwait(false);
+        }
+
+        using (var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
+        {
+            entry.State = ForkState.Cancelled;
+        }
+
+        _logger?.LogInformation("Fork {ForkId} cancelled", forkId);
+
+        await FireForkCompletedAsync(forkId, string.Empty).ConfigureAwait(false);
     }
 
     private async Task RunBackgroundForkAsync(string forkId, IAgent agent, string taskDescription,

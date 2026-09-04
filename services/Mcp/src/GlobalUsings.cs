@@ -101,3 +101,4 @@ global using System.Threading.Channels;
 global using ToolContent = JoinCode.Abstractions.Tools.ToolContent;
 global using JoinCode.Abstractions.Entity;
 global using JoinCode.Abstractions.Models.Agent;
+global using Infrastructure.Network.Downloader;

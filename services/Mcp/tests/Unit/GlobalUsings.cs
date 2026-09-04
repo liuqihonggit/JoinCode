@@ -25,3 +25,5 @@ global using IO.FileSystem;
 global using JoinCode.Abstractions.Configuration.Llm;
 global using JoinCode.Abstractions.LLM.Chat;
 global using System.Reflection;
+global using JoinCode.Abstractions.Interfaces;
+global using Infrastructure.Network.Downloader;

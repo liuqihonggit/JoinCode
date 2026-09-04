@@ -59,4 +59,5 @@ public enum ToolCategory
     [EnumValue("error_recovery")] ErrorRecovery,
     [EnumValue("desktop_control")] DesktopControl,
     [EnumValue("vision")] Vision,
+    [EnumValue("github")] GitHub,
 }

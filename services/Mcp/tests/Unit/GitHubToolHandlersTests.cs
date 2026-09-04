@@ -1,0 +1,176 @@
+namespace Mcp.Tests;
+
+public sealed class GitHubToolHandlersTests
+{
+    private readonly FakeGitHubCommandRunner _gh = new();
+    private readonly GitHubToolHandlers _handler;
+
+    public GitHubToolHandlersTests()
+    {
+        _handler = new GitHubToolHandlers(
+            _gh,
+            new FakeDownloader(),
+            new InMemoryFileSystem(),
+            NullLogger<GitHubToolHandlers>.Instance);
+    }
+
+    [Fact]
+    public async Task PrView_Success_ReturnsOutput()
+    {
+        _gh.NextResult = new GitHubCommandResult
+        {
+            Success = true,
+            Output = """{"number":123,"title":"feat: add","state":"OPEN","url":"https://github.com/o/r/pull/123"}""",
+            ExitCode = 0,
+        };
+
+        var result = await _handler.GhPrViewAsync("123");
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("123");
+        _gh.LastArguments.Should().Contain("pr view 123");
+        _gh.LastArguments.Should().Contain("--json");
+    }
+
+    [Fact]
+    public async Task PrView_Failure_ReturnsError()
+    {
+        _gh.NextResult = new GitHubCommandResult
+        {
+            Success = false,
+            Error = "could not find pr",
+            ExitCode = 1,
+        };
+
+        var result = await _handler.GhPrViewAsync("999");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("could not find pr");
+    }
+
+    [Fact]
+    public async Task PrChecks_Skipping_NotCountedAsFail()
+    {
+        _gh.NextResult = new GitHubCommandResult
+        {
+            Success = true,
+            Output = "build\tpass\t1m\thttps://x\nlint\tskipping\t0s\thttps://y\ntest\tfail\t2m\thttps://z",
+            ExitCode = 0,
+        };
+
+        var result = await _handler.GhPrChecksAsync("1");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("1 通过");
+        text.Should().Contain("1 失败");
+        text.Should().Contain("1 跳过(依赖链跳过,非失败)");
+    }
+
+    [Fact]
+    public async Task RunView_Log_TruncatesToMaxLines()
+    {
+        var lines = Enumerable.Range(0, 300).Select(i => $"line {i}").ToArray();
+        _gh.NextResult = new GitHubCommandResult
+        {
+            Success = true,
+            Output = string.Join('\n', lines),
+            ExitCode = 0,
+        };
+
+        var result = await _handler.GhRunViewAsync("42", log: true, max_lines: 50);
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("已截断");
+        text.Should().Contain("共 300 行");
+        text.Should().Contain("仅显示前 50 行");
+    }
+
+    [Fact]
+    public async Task RunView_NoLog_ReturnsFullDetail()
+    {
+        _gh.NextResult = new GitHubCommandResult
+        {
+            Success = true,
+            Output = """{"databaseId":42,"status":"completed","conclusion":"success"}""",
+            ExitCode = 0,
+        };
+
+        var result = await _handler.GhRunViewAsync("42");
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("42");
+        _gh.LastArguments.Should().NotContain("--log");
+    }
+
+    [Fact]
+    public async Task IssueCreate_QuotesTitleWithSpaces()
+    {
+        _gh.NextResult = new GitHubCommandResult
+        {
+            Success = true,
+            Output = "https://github.com/o/r/issues/1",
+            ExitCode = 0,
+        };
+
+        await _handler.GhIssueCreateAsync("fix: bug in parser", body: "details here");
+
+        _gh.LastArguments.Should().Contain("--title \"fix: bug in parser\"");
+        _gh.LastArguments.Should().Contain("--body \"details here\"");
+    }
+
+    [Fact]
+    public async Task PrMerge_DefaultSquash_AppendsAutoWhenRequested()
+    {
+        _gh.NextResult = new GitHubCommandResult { Success = true, Output = "", ExitCode = 0 };
+
+        await _handler.GhPrMergeAsync("5", auto_merge: true);
+
+        _gh.LastArguments.Should().Contain("pr merge 5");
+        _gh.LastArguments.Should().Contain("--squash");
+        _gh.LastArguments.Should().Contain("--auto");
+    }
+
+    [Fact]
+    public async Task Api_Get_DisablesJq_PassesMethod()
+    {
+        _gh.NextResult = new GitHubCommandResult
+        {
+            Success = true,
+            Output = """{"id":1,"name":"repo"}""",
+            ExitCode = 0,
+        };
+
+        var result = await _handler.GhApiAsync("repos/owner/repo", method: "GET");
+
+        result.IsError.Should().BeFalse();
+        _gh.LastArguments.Should().Contain("--method GET");
+        _gh.LastArguments.Should().NotContain("--jq");
+        _gh.LastArguments.Should().Contain("repos/owner/repo");
+    }
+}
+
+internal sealed class FakeGitHubCommandRunner : IGitHubCommandRunner
+{
+    public GitHubCommandResult NextResult { get; set; } = new() { Success = true, Output = "{}", ExitCode = 0 };
+    public string? LastArguments { get; private set; }
+
+    public Task<GitHubCommandResult> ExecuteAsync(string arguments, string? workingDirectory = null, CancellationToken ct = default)
+    {
+        LastArguments = arguments;
+        return Task.FromResult(NextResult);
+    }
+
+    public Task<PrCreateResult> CreatePrAsync(string title, string? body, string baseBranch, string headBranch, string? repo = null, bool draft = false, CancellationToken ct = default)
+        => throw new NotImplementedException();
+
+    public Task<PrListResult> ListPrsAsync(string? repo = null, string state = "open", int limit = 30, CancellationToken ct = default)
+        => throw new NotImplementedException();
+}
+
+internal sealed class FakeDownloader : IDownloader
+{
+    public IDownloadSession StartDownload(string url, string filePath, DownloadOptions? options = null, IProgress<DownloadProgress>? progress = null, CancellationToken cancellationToken = default)
+        => throw new NotImplementedException();
+}

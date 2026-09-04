@@ -30,11 +30,19 @@
 - [ ] `gh_pr_checkout` — 跳过（会切换分支影响当前工作）
 - [ ] `gh_pr_merge` — 跳过（不可逆操作，需用户确认）
 
-**批次2 — Issue 相关（5 个）**：
-- [ ] `gh_issue_view` — 查看 issue
-- [ ] `gh_issue_create` — 创建 issue
-- [ ] `gh_issue_close` — 关闭 issue
-- [ ] `gh_issue_comment` — 评论 issue
+**批次2 — Issue 相关（5 个，全部验证）**：
+- [x] `gh_issue_list` ✅ 之前已验证
+- [x] `gh_issue_view` ✅ Issue #180 完整数据
+- [x] `gh_issue_create` ✅ 创建 Issue #180（⚠️ 多行 body 有换行符 bug，见下方）
+- [x] `gh_issue_comment` ✅ 评论 Issue #180
+- [x] `gh_issue_close` ✅ 关闭 Issue #180
+
+**⚠️ 发现 Bug — gh 工具多行 body 被拦截**：
+- `gh_issue_create` 的 body 参数含换行符 `\n` 时，被 `CommandArgumentValidator` 拦截为"危险字符"
+- 错误：`参数包含危险字符 '\n' (U+000A)，可能导致命令注入`
+- 影响范围：所有 gh 工具的多行文本参数（issue body、PR body、comment 等）
+- 修复方案：`GitHubCommandRunner` 对 gh 命令设置 `SkipArgumentValidation=true`，或用 `--body-file` 临时文件传递多行内容
+- 临时规避：body 用单行文本（无换行符）
 
 **批次3 — Repo/Run/Release 相关（7 个）**：
 - [ ] `gh_repo_create` — 创建仓库

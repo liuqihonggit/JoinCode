@@ -74,21 +74,38 @@ public sealed class SilentShellPrefixCommandHandler : IPrefixCommandHandler
         return true;
     }
 
-    /// <summary>目录 → 资源管理器打开</summary>
+    /// <summary>目录 → 文件管理器打开（Windows: explorer / Linux: xdg-open / macOS: open）</summary>
     private static bool TryHandleDirectory(string target, out PrefixCommandResult result)
     {
         result = default!;
         if (!Directory.Exists(target))
             return false;
 
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-        {
-            FileName = "explorer.exe",
-            Arguments = $"\"{target}\"",
-            UseShellExecute = true,
-        });
+        OpenDirectory(target);
         result = new PrefixCommandResult(true, $"已打开目录: {target}", ShouldInjectToAi: false);
         return true;
+    }
+
+    private static void OpenDirectory(string path)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                Arguments = $"\"{path}\"",
+                UseShellExecute = true,
+            });
+            return;
+        }
+
+        var opener = OperatingSystem.IsMacOS() ? "open" : "xdg-open";
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = opener,
+            Arguments = $"\"{path}\"",
+            UseShellExecute = false,
+        });
     }
 
     private static void OpenWithDefaultProgram(string path)

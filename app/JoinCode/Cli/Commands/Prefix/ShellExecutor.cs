@@ -21,11 +21,12 @@ internal static class ShellExecutor
         int maxOutputChars,
         CancellationToken cancellationToken)
     {
+        var (shell, shellArg) = GetShellAndArg();
         using var process = new System.Diagnostics.Process();
         process.StartInfo = new System.Diagnostics.ProcessStartInfo
         {
-            FileName = "cmd.exe",
-            Arguments = $"/c {command}",
+            FileName = shell,
+            Arguments = $"{shellArg} {command}",
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -80,5 +81,17 @@ internal static class ShellExecutor
         }
 
         return combined.ToString();
+    }
+
+    /// <summary>
+    /// 获取当前平台的 shell 及参数标志 — Windows: cmd /c，Linux/macOS: bash -c。
+    /// </summary>
+    private static (string Shell, string Arg) GetShellAndArg()
+    {
+        if (OperatingSystem.IsWindows())
+            return ("cmd.exe", "/c");
+        if (OperatingSystem.IsMacOS())
+            return ("/bin/bash", "-c");
+        return ("/bin/sh", "-c");
     }
 }

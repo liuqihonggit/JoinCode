@@ -176,26 +176,28 @@ public sealed partial class UpgradeService : ServiceEntity, IUpgradeService
 
             var downloadedPath = _fs.CombinePath(tempDir, $"{BrandConstants.CliCommandName}.exe.new");
 
-            await using var sourceStream = await _updateSource.DownloadAsync(entry, progress, ct).ConfigureAwait(false);
-            await using var fileStream = _fs.Open(downloadedPath, FileMode.Create);
-
             long totalRead = 0;
-            var buffer = new byte[81920];
-            int read;
-
-            while ((read = await sourceStream.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
             {
-                await fileStream.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
-                totalRead += read;
+                await using var sourceStream = await _updateSource.DownloadAsync(entry, progress, ct).ConfigureAwait(false);
+                await using var fileStream = _fs.Open(downloadedPath, FileMode.Create);
 
-                if (progress is not null && entry.SizeBytes > 0)
+                var buffer = new byte[81920];
+                int read;
+
+                while ((read = await sourceStream.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
                 {
-                    progress.Report(new UpdateDownloadProgress
+                    await fileStream.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
+                    totalRead += read;
+
+                    if (progress is not null && entry.SizeBytes > 0)
                     {
-                        BytesDownloaded = totalRead,
-                        TotalBytes = entry.SizeBytes,
-                        BytesPerSecond = 0
-                    });
+                        progress.Report(new UpdateDownloadProgress
+                        {
+                            BytesDownloaded = totalRead,
+                            TotalBytes = entry.SizeBytes,
+                            BytesPerSecond = 0
+                        });
+                    }
                 }
             }
 

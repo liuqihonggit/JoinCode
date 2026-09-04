@@ -254,3 +254,14 @@ public sealed class AsyncLock : IDisposable
 ## 确认状态
 
 所有 5 个待确认问题已全部确认。AsyncLock 替换迁移已完成（Vault → Infrastructure → Core → Services → Composition → App 全层编译通过，Host.Tests 862 通过 / Infra.IO 132 通过 / Infra.Utils 560 通过）。ADR 状态改为 `accepted`。
+
+## 后续变更（由 ADR-0060 引入，本 ADR 正文保持不变）
+
+> 以下变更由 [0060](0060-asynclock-sync-trylock-fireandforget-deadlock.md) 决策引入，本 ADR 正文（决策2 的 `LockAsync/Lock` API 描述、决策7 的重入检测）已部分被取代。
+
+| 本 ADR 描述 | 实际现状（0060 后） | 取代决策 |
+|------------|---------------------|----------|
+| `LockAsync() → ValueTask<AsyncLockGuard>`、`Lock() → AsyncLockGuard` | `TryLock() → IDisposable?`、`TryLockAsync() → ValueTask<IDisposable?>`（超时返回 null） | 0060 决策1 |
+| `CheckReentrancy` + `LockReentrancyException` 抛异常检测同步重入（决策7） | 已移除 `CheckReentrancy`（ThreadId 在 async/await 下因线程池复用不可靠）；改为 `TryLock` 超时返回 null + `TrySetResult` 移到锁外 | 0060 决策1/3，详见 [0059](0059-asynclock-reentrancy-detection.md)（已 superseded） |
+
+本 ADR 仍有效的部分：决策1（参数兼容构造）、决策3（复用 AsyncFileLock）、决策4（公开属性 SemaphoreSlim 按语义区分）、决策6（锁分类归宿）、决策7 的 LockRegistry 诊断层（DumpAll/后台扫描/死锁检测 wait-for graph DFS）。

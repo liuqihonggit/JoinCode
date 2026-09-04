@@ -643,7 +643,7 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 | **StreamMiddlewarePipeline\<TContext, TEvent\>** | 流式管道 | 同上，返回 `IAsyncEnumerable<TEvent>`，流式场景异常默认传播 |
 | **McpHttpServer** | MCP Streamable HTTP 服务端 | `services/Mcp/src/McpProtocol/McpHttpServer.cs` — HttpListener 实现，无状态（不分配 Session-Id）/有状态（分配+DELETE 终止）双模式，GET 开 SSE 推送 NotificationReceived |
 | **上下文压缩** | 长对话 token 回收 | Compact（对话级管道）+ Compression（内容级策略）+ Collapse（折叠级）三子系统，Microcompact 纯规则优先、LLM 摘要兜底，CompactOutputGuard 守卫降级 > ADR: [0053](docs/adr/0053-context-compaction-layered-mechanism.md) |
-| **AsyncLock 重入检测** | 同步重入死锁防护 | `Lock()`/`Lock(ct)` 检测同线程重入时抛 `LockReentrancyException` 而非卡死；锁内只操作字段，副作用移到锁外 > ADR: [0059](docs/adr/0059-asynclock-reentrancy-detection.md) |
+| **AsyncLock 互斥锁** | 统一互斥锁原语 + 死锁诊断 | `TryLock()`/`TryLockAsync()` 超时返回 null（不抛重入异常，ThreadId 在 async 下不可靠）；锁内只操作字段，副作用移到锁外；`TrySetResult` 禁止在锁内调用（续体同线程重入锁自等自） > ADR: [0052](docs/adr/0052-asynclock-unified-mutex-file-access.md)、[0060](docs/adr/0060-asynclock-sync-trylock-fireandforget-deadlock.md)（0059 已被 0060 取代） |
 
 ***
 

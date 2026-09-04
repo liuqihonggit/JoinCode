@@ -157,18 +157,72 @@ jcc -p "你好"
 
 **常用 CLI 参数速查**：
 
+**基础：**
+
+| 参数 | 说明 |
+|------|------|
+| `--help` / `-h` | 显示帮助信息 |
+| `--version` / `-v` | 显示版本信息 |
+| `--prompt <text>` / `-p` | 非交互模式单次对话 |
+| `--model <id>` / `-m` | 指定模型 ID 或别名 |
+| `--vendor <name>` | 切换供应商（自动匹配 settings.json vendor 预设） |
+| `--pipe <name>` | 命名管道通信 |
+| `jcctui` | 启动独立 TUI 全屏界面（jcctui.exe，Terminal.Gui v2） |
+
+**输出：**
+
+| 参数 | 说明 |
+|------|------|
+| `--non-interactive` | 强制非交互模式（从 stdin 读取，输出到 stdout） |
+| `--json` | 结构化 JSON 输出（子命令和非交互模式生效，交互模式保持彩色输出） |
+| `--format <text\|json\|ndjson>` | 输出格式（默认 text） |
+| `--brief` | 简要模式 |
+| `--quiet` / `-q` | 静默模式（只输出错误信息） |
+
+**权限：**
+
 | 参数 | 说明 |
 |------|------|
 | `--trust` | 信任当前目录（跳过目录信任确认） |
-| `-p / --prompt <text>` | 非交互模式单次对话 |
-| `-m / --model <id>` | 指定模型 ID 或别名 |
-| `jcctui` | 启动独立 TUI 全屏界面（jcctui.exe，Terminal.Gui v2） |
-| `--bypass` | 跳过所有权限检查（等价 `--permission-mode bypass`，替代旧 `--dangerously-skip-permissions`） |
 | `--permission-mode <mode>` | 权限模式：`plan` / `auto` / `ask` / `bypass` |
-| `--debuglog` / `-d` | 启用调试日志（等效 `JCC_DEBUGLOG=1`） |
-| `--await <seconds>` | 非交互模式超时自动关闭（超时返回 1234） |
-| `--doctor` | 医生模式：监控病人进程并自动修复 |
-| `--non-interactive` | 从 stdin 读取，输出到 stdout |
+| `--bypass` | 跳过所有权限检查（等价 `--permission-mode bypass`，替代旧 `--dangerously-skip-permissions`） |
+| `--no-confirm` | 跳过所有确认提示（AI 驱动用，走交互模式但不弹确认框） |
+| `--yes` / `-y` | 跳过所有确认提示（等价 `--no-confirm`） |
+| `--force` / `-f` | 强制执行（跳过权限检查和确认，等价 `--bypass` 轻量版） |
+| `--allowed-tools <list>` | 工具白名单（逗号分隔，如 `Read,Edit,Bash(git:*)`） |
+| `--disallowed-tools <list>` | 工具黑名单（逗号分隔） |
+| `--dry-run` | 试跑模式（只显示将要执行的操作，不实际执行） |
+
+**会话：**
+
+| 参数 | 说明 |
+|------|------|
+| `--continue` / `-c` | 继续最近的会话（自动选择上次会话） |
+| `--resume <id>` / `-r` | 恢复指定会话（按 session-id 或标题关键字） |
+
+**提示词：**
+
+| 参数 | 说明 |
+|------|------|
+| `--system-prompt <text>` | 替换系统提示词（完全覆盖默认） |
+| `--append-system-prompt <text>` | 追加系统提示词（在默认/已加载后附加，不覆盖） |
+
+**诊断：**
+
+| 参数 | 说明 |
+|------|------|
+| `--debuglog` / `-d` | 启用调试日志（输出 [WIRE] [STEP] [READY] 等，等效 `JCC_DEBUGLOG=1`） |
+| `--await <seconds>` | 非交互模式超时自动关闭（超时返回 1234，用于诊断卡死） |
+| `--force-interactive` | 强制交互模式（即使 stdin 重定向也启用 REPL，用于 E2E 测试） |
+
+**医生：**
+
+| 参数 | 说明 |
+|------|------|
+| `--doctor` | 医生模式：spawn jcc.exe 子进程作为病人，监控并自动修复 |
+| `--doctor-server` | 医生服务器模式：监听病人 SSE 连接，支持 1:N 多病人监控（需配合 `--doctor`） |
+| `--doctor-endpoint <url>` | 医生 SSE 端点 URL（病人端使用，如 `http://localhost:9902`） |
+| `--doctor-port <port>` | 医生 SSE 服务器端口（医生端使用，默认 9902） |
 
 ### 1.5 常用斜杠命令
 

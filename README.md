@@ -134,18 +134,72 @@ jcc --debuglog -p "hello"
 
 ## CLI Reference
 
+**Basic:**
+
+| Flag | Description |
+|------|-------------|
+| `--help` / `-h` | Show help |
+| `--version` / `-v` | Show version |
+| `--prompt <text>` / `-p` | Non-interactive single prompt |
+| `--model <id>` / `-m` | Model ID or alias |
+| `--vendor <name>` | Switch LLM provider (auto-match settings.json vendor preset) |
+| `--pipe <name>` | Named pipe communication |
+| `jcctui` | Launch standalone TUI full-screen interface (Terminal.Gui v2) |
+
+**Output:**
+
+| Flag | Description |
+|------|-------------|
+| `--non-interactive` | Force non-interactive mode (read from stdin, write to stdout) |
+| `--json` | Structured JSON output (subcommands and non-interactive mode) |
+| `--format <text\|json\|ndjson>` | Output format (default: text) |
+| `--brief` | Brief mode |
+| `--quiet` / `-q` | Quiet mode (errors only) |
+
+**Permission:**
+
 | Flag | Description |
 |------|-------------|
 | `--trust` | Trust current directory (skip trust prompt) |
-| `-p` / `--prompt <text>` | Non-interactive single prompt |
-| `-m` / `--model <id>` | Model ID or alias |
-| `jcctui` | Launch standalone TUI full-screen interface (Terminal.Gui v2) |
-| `--bypass` | Skip all permission checks (equivalent to `--permission-mode bypass`) |
 | `--permission-mode <mode>` | Permission mode: `plan` / `auto` / `ask` / `bypass` |
+| `--bypass` | Skip all permission checks (equivalent to `--permission-mode bypass`) |
+| `--no-confirm` | Skip all confirmation prompts |
+| `--yes` / `-y` | Skip all confirmation prompts (equivalent to `--no-confirm`) |
+| `--force` / `-f` | Force execution (skip permission checks and confirmations) |
+| `--allowed-tools <list>` | Tool whitelist (comma-separated, e.g. `Read,Edit,Bash(git:*)`) |
+| `--disallowed-tools <list>` | Tool blacklist (comma-separated) |
+| `--dry-run` | Dry-run mode (show operations without executing) |
+
+**Session:**
+
+| Flag | Description |
+|------|-------------|
+| `--continue` / `-c` | Continue the most recent session |
+| `--resume <id>` / `-r` | Resume a specific session (by session-id or title keyword) |
+
+**Prompt:**
+
+| Flag | Description |
+|------|-------------|
+| `--system-prompt <text>` | Replace system prompt (overrides default) |
+| `--append-system-prompt <text>` | Append to system prompt (does not override) |
+
+**Diagnostics:**
+
+| Flag | Description |
+|------|-------------|
 | `--debuglog` / `-d` | Enable debug logging (equivalent to `JCC_DEBUGLOG=1`) |
 | `--await <seconds>` | Non-interactive timeout auto-close (returns 1234 on timeout) |
-| `--doctor` | Doctor mode: monitor and auto-fix a patient process |
-| `--non-interactive` | Read from stdin, write to stdout |
+| `--force-interactive` | Force interactive mode even if stdin is redirected (for E2E tests) |
+
+**Doctor:**
+
+| Flag | Description |
+|------|-------------|
+| `--doctor` | Doctor mode: spawn jcc.exe as patient, monitor and auto-fix |
+| `--doctor-server` | Doctor server mode: listen for patient SSE connections (requires `--doctor`) |
+| `--doctor-endpoint <url>` | Doctor SSE endpoint URL (patient-side, e.g. `http://localhost:9902`) |
+| `--doctor-port <port>` | Doctor SSE server port (doctor-side, default 9902) |
 
 ### Slash Commands
 

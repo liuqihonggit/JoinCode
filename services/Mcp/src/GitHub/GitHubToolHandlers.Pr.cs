@@ -25,7 +25,7 @@ public partial class GitHubToolHandlers
         CancellationToken cancellationToken = default)
     {
         var sb = new StringBuilder("pr list --json number,title,state,url,author,updatedAt");
-        sb.Append($" --state {state ?? "open"}");
+        sb.Append($" --state {(string.IsNullOrWhiteSpace(state) ? "open" : state)}");
         sb.Append($" --limit {limit ?? 30}");
         if (!string.IsNullOrWhiteSpace(author)) sb.Append($" --author {author}");
         sb.Append(RepoArg(repo));
@@ -85,7 +85,7 @@ public partial class GitHubToolHandlers
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
     {
-        var method = merge_method ?? "squash";
+        var method = string.IsNullOrWhiteSpace(merge_method) ? "squash" : merge_method;
         var sb = new StringBuilder($"pr merge {pr_number} --{method}");
         if (auto_merge == true) sb.Append(" --auto");
         if (delete_branch == true) sb.Append(" --delete-branch");

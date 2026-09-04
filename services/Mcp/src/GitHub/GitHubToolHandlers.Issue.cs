@@ -16,7 +16,7 @@ public partial class GitHubToolHandlers
         CancellationToken cancellationToken = default)
     {
         var sb = new StringBuilder("issue list --json number,title,state,url,author,labels,createdAt");
-        sb.Append($" --state {state ?? "open"}");
+        sb.Append($" --state {(string.IsNullOrWhiteSpace(state) ? "open" : state)}");
         sb.Append($" --limit {limit ?? 30}");
         if (!string.IsNullOrWhiteSpace(label)) sb.Append($" --label {Quote(label)}");
         if (!string.IsNullOrWhiteSpace(assignee)) sb.Append($" --assignee {assignee}");

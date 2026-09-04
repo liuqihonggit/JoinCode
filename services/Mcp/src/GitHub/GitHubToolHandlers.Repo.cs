@@ -42,7 +42,7 @@ public partial class GitHubToolHandlers
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
     {
-        var vis = visibility ?? "private";
+        var vis = string.IsNullOrWhiteSpace(visibility) ? "private" : visibility;
         var sb = new StringBuilder($"repo create {name} --{vis}");
         if (!string.IsNullOrWhiteSpace(description)) sb.Append($" --description {Quote(description)}");
         if (add_readme == true) sb.Append(" --add-readme");

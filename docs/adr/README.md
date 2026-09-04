@@ -184,4 +184,4 @@ ADR 引用 design/plans，但不重复其内容。
 
 | 编号 | 标题 | 状态 | 来源 |
 |------|------|------|------|
-| 0065 | jcc mcp CLI 子命令 — bash 直调内部 MCP 工具 | proposed | gh 工具无法真实调用验证 |
+| 0065 | jcc mcp CLI 子命令 — bash 直调内部 MCP 工具 | accepted | gh 工具无法真实调用验证 |

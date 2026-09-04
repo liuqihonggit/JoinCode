@@ -1,6 +1,6 @@
 # 0065. jcc mcp CLI 子命令 — bash 直调内部 MCP 工具
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-09-05
 - 决策者：项目架构组
 
@@ -78,5 +78,31 @@ jcc mcp schema gh_pr_view --json
 
 ## 后续
 
-- `jcc mcp serve`（启动 MCP 服务端暴露给外部 LLM，复用 McpHttpServer）— 单独 ADR
+- ✅ `jcc mcp serve`（启动 MCP 服务端暴露给外部 LLM，复用 McpHttpServer）— 已实现，见下方"serve 实现"
 - 启动参数精简已评估，决定不精简（30 个参数各有用途），改为 README 表格整理（已完成）
+
+## serve 实现（2026-09-05）
+
+新增 `jcc mcp serve` 子命令，把全部 387 个内部工具暴露为 MCP 协议（2025-11-25 Streamable HTTP）。
+
+### 架构
+
+- `McpServer.HandleListTools`/`HandleCallToolAsync` 改为 `protected virtual`（去 static），子类可 override
+- `JccMcpServer : McpServer`（`app/JoinCode/Cli/Commands/JccMcpServer.cs`）注入 `IMcpToolRegistry`，override 两个方法
+  - `HandleListTools`：调用 `GetAllToolsAsync()`，转 `IToolHandler` → `ToolDefinition`（InputSchema 用 `ContractsJsonContext.Default.ToolSchema` 序列化为 JsonElement）
+  - `HandleCallToolAsync`：解析 `CallToolRequestParams`，调用 `ExecuteToolAsync`，转 `ToolResult` → `CallToolResult`
+- `McpCommand.ExecuteServeAsync` 构建 host，创建 `JccMcpServer`，根据 `--transport` 启动 stdio 或 http 模式
+
+### 用法
+
+```powershell
+jcc mcp serve --transport stdio                          # stdio 模式（MCP 客户端管道）
+jcc mcp serve --transport http --port 9903               # HTTP 模式（无状态）
+jcc mcp serve --transport http --port 9903 --host 0.0.0.0 # 监听所有网卡
+```
+
+### 冒烟验证
+
+- `initialize` → serverName=jcc-mcp, protocolVersion=2025-11-25 ✅
+- `tools/list` → 387 个工具（含 gh_*、tool_search、read、write 等）✅
+- `tools/call get_environment_state` → 返回"光标状态: Normal..." ✅

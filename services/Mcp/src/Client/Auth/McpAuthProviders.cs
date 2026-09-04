@@ -178,7 +178,7 @@ public sealed class OAuth2AuthProvider : IMcpAuthProvider, IAsyncDisposable
 
     public async Task<bool> RefreshAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = await _refreshLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _refreshLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_refreshLock.Name}' 等待超时");
         try
         {
             _logger?.LogInformation("正在刷新 OAuth2 令牌...");

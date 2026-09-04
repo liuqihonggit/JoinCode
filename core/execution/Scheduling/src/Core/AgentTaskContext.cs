@@ -29,7 +29,7 @@ public sealed class AgentTaskContext : IAgentTaskContext
 
     public async Task<IReadOnlyList<StructuredTaskEntry>> GetStructuredTasksAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = _structuredTasksSemaphore.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = _structuredTasksSemaphore.TryLock(cancellationToken) ?? throw new System.TimeoutException($"锁 '{_structuredTasksSemaphore.Name}' 等待超时");
 
         return _structuredTasks.Values.OrderBy(t => t.Order).ToList();
     
@@ -37,7 +37,7 @@ public sealed class AgentTaskContext : IAgentTaskContext
 
     public async Task AddStructuredTaskAsync(StructuredTaskEntry task, CancellationToken cancellationToken = default)
     {
-        using var guard = _structuredTasksSemaphore.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = _structuredTasksSemaphore.TryLock(cancellationToken) ?? throw new System.TimeoutException($"锁 '{_structuredTasksSemaphore.Name}' 等待超时");
 
         _structuredTasks[task.Order] = task;
     
@@ -45,7 +45,7 @@ public sealed class AgentTaskContext : IAgentTaskContext
 
     public async Task UpdateStructuredTaskAsync(int order, string? result = null, string? status = null, CancellationToken cancellationToken = default)
     {
-        using var guard = _structuredTasksSemaphore.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = _structuredTasksSemaphore.TryLock(cancellationToken) ?? throw new System.TimeoutException($"锁 '{_structuredTasksSemaphore.Name}' 等待超时");
 
         if (!_structuredTasks.TryGetValue(order, out var existing)) return;
 
@@ -59,7 +59,7 @@ public sealed class AgentTaskContext : IAgentTaskContext
 
     public async Task ExcludePossibilityAsync(int taskOrder, int possibilityIndex, string reason, CancellationToken cancellationToken = default)
     {
-        using var guard = _structuredTasksSemaphore.TryLock(cancellationToken) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = _structuredTasksSemaphore.TryLock(cancellationToken) ?? throw new System.TimeoutException($"锁 '{_structuredTasksSemaphore.Name}' 等待超时");
 
         if (!_structuredTasks.TryGetValue(taskOrder, out var task)) return;
 

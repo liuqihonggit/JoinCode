@@ -322,7 +322,7 @@ public sealed partial class BuildQueueService : IBuildQueueService
     {
         if (string.IsNullOrEmpty(workingDirectory)) return 0;
 
-        using (_fingerprintLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_fingerprintLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_fingerprintLock.Name}' 等待超时"))
         {
             if (DateTimeOffset.UtcNow - _fingerprintComputedAt < TimeSpan.FromSeconds(1) && _lastFingerprintTicks != 0)
                 return _lastFingerprintTicks;
@@ -354,7 +354,7 @@ public sealed partial class BuildQueueService : IBuildQueueService
             _logger?.LogDebug(ex, "Directory not found scanning source files: {Directory}", workingDirectory);
         }
 
-        using (_fingerprintLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_fingerprintLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_fingerprintLock.Name}' 等待超时"))
         {
             _lastFingerprintTicks = maxTicks;
             _fingerprintComputedAt = DateTimeOffset.UtcNow;

@@ -18,7 +18,7 @@ public sealed partial class DesktopSafetyChecker : ServiceEntity, IDesktopSafety
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             foreach (var zone in _zones)
             {
@@ -55,7 +55,7 @@ public sealed partial class DesktopSafetyChecker : ServiceEntity, IDesktopSafety
     /// <summary>注册危险坐标区域 — 如通过视觉识别到"确定删除"按钮时调用（U-04）</summary>
     public void RegisterDangerousZone(int x, int y, int width, int height)
     {
-        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             _zones.Add(new DangerousZone(x, y, width, height));
         }
@@ -64,7 +64,7 @@ public sealed partial class DesktopSafetyChecker : ServiceEntity, IDesktopSafety
     /// <summary>清空危险区域集合</summary>
     public void ClearDangerousZones()
     {
-        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             _zones.Clear();
         }
@@ -75,7 +75,7 @@ public sealed partial class DesktopSafetyChecker : ServiceEntity, IDesktopSafety
     {
         get
         {
-            using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+            using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
             {
                 return _zones.Count;
             }

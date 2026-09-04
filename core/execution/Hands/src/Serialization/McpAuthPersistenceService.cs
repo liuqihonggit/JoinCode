@@ -17,7 +17,7 @@ public sealed partial class McpAuthPersistenceService : ServiceEntity, IMcpAuthP
     {
         if (_configService == null) return;
 
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         var entries = await LoadEntriesAsync(ct).ConfigureAwait(false);
         var entry = new AuthConfigEntry
@@ -38,7 +38,7 @@ public sealed partial class McpAuthPersistenceService : ServiceEntity, IMcpAuthP
     {
         if (_configService == null) return null;
 
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         var entries = await LoadEntriesAsync(ct).ConfigureAwait(false);
         return entries.TryGetValue(authName, out var entry) ? entry : null;
@@ -49,7 +49,7 @@ public sealed partial class McpAuthPersistenceService : ServiceEntity, IMcpAuthP
     {
         if (_configService == null) return Array.Empty<AuthConfigEntry>();
 
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         return (await LoadEntriesAsync(ct).ConfigureAwait(false)).Values.ToList();
     
@@ -59,7 +59,7 @@ public sealed partial class McpAuthPersistenceService : ServiceEntity, IMcpAuthP
     {
         if (_configService == null) return;
 
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         var entries = await LoadEntriesAsync(ct).ConfigureAwait(false);
         entries.Remove(authName);

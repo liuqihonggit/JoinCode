@@ -60,7 +60,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
         }
 
         PermissionMode currentMode;
-                using (await _modeLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
+                using (await _modeLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_modeLock.Name}' 等待超时"))
         {
             currentMode = _currentMode;
         }
@@ -104,7 +104,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-                using (await _modeLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
+                using (await _modeLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_modeLock.Name}' 等待超时"))
         {
             _currentMode = mode;
             _permissionChecker.CurrentMode = mode;
@@ -120,7 +120,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-                using (await _modeLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
+                using (await _modeLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_modeLock.Name}' 等待超时"))
         {
             return _currentMode;
         }

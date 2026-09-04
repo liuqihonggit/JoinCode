@@ -40,7 +40,7 @@ public sealed partial class VoiceService : ServiceEntity, IVoiceService, JoinCod
 
     public async Task StartRecordingAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
         if (_state == VoiceRecordingState.Recording)
         {
@@ -61,7 +61,7 @@ public sealed partial class VoiceService : ServiceEntity, IVoiceService, JoinCod
 
     public async Task<VoiceRecordingResult> StopRecordingAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
         try
         {
             if (_state != VoiceRecordingState.Recording)
@@ -197,7 +197,7 @@ public sealed partial class VoiceService : ServiceEntity, IVoiceService, JoinCod
             var buffer = new byte[4096];
             while (!cancellationToken.IsCancellationRequested)
             {
-                using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+                using var guard = await _stateLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
                 if (_recordingStream != null)
                 {

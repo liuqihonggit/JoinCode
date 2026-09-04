@@ -101,7 +101,7 @@ public sealed class BootstrapAgent : IAsyncDisposable
                 await Task.Delay(_debounceInterval, ct).ConfigureAwait(false);
 
                 List<DiagnosticReport> reportsToProcess;
-                using var guard = _reportsLock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+                using var guard = _reportsLock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_reportsLock.Name}' 等待超时");
 
                 reportsToProcess = [.. _pendingReports];
                 _pendingReports.Clear();
@@ -199,7 +199,7 @@ public sealed class BootstrapAgent : IAsyncDisposable
                 await Task.Delay(_debounceInterval, ct).ConfigureAwait(false);
 
                 List<DiagnosticReport> reportsToProcess;
-                using var guard = _reportsLock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+                using var guard = _reportsLock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_reportsLock.Name}' 等待超时");
 
                 reportsToProcess = [.. _pendingReports];
                 _pendingReports.Clear();
@@ -284,7 +284,7 @@ public sealed class BootstrapAgent : IAsyncDisposable
                 await Task.Delay(_debounceInterval, ct).ConfigureAwait(false);
 
                 List<DiagnosticReport> reportsToProcess;
-                using var guard = _reportsLock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+                using var guard = _reportsLock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_reportsLock.Name}' 等待超时");
 
                 reportsToProcess = [.. _pendingReports];
                 _pendingReports.Clear();

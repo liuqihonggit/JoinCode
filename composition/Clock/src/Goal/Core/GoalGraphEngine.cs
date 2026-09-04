@@ -305,7 +305,8 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
 
     private async Task SetGoalStatusAsync(GoalState goalState, GoalStatus status, GraphExecutionContext context, CancellationToken ct)
     {
-        using var guard = await context.StateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        var lk = context.StateLock;
+        using var guard = await lk.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时");
         goalState.Status = status;
         goalState.AchievedAt = _clock.GetUtcNow();
     }
@@ -487,7 +488,8 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
 
         if (!string.IsNullOrEmpty(lastOutput))
         {
-            using var guard = await context.StateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+            var lk = context.StateLock;
+            using var guard = await lk.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时");
             context.ChatHistory.AddAssistantMessage($"[{payload.Name}]: {lastOutput}");
         }
 
@@ -671,7 +673,8 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
                 totalTurns++;
         }
 
-        using var guard = await context.StateLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        var lk = context.StateLock;
+        using var guard = await lk.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时");
         context.State.TokensUsed = totalTokens;
         context.State.TurnsCompleted = totalTurns;
     }

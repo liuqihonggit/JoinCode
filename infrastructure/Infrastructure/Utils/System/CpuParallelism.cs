@@ -1,4 +1,4 @@
-namespace Infrastructure.Utils.System;
+namespace Infrastructure.Utils.Cpu;
 
 public static class CpuParallelism
 {

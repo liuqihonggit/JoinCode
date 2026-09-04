@@ -132,7 +132,7 @@ public sealed class ToolHealthMonitor : ServiceEntity, IToolHealthMonitor, IDisp
 
     public async Task<ToolHealthRecord> RecordSuccessAsync(string toolName, CancellationToken ct = default)
     {
-        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         var record = GetOrCreate(toolName);
         record.Score = Math.Clamp(record.Score + _config.SuccessDelta, _config.ScoreMin, _config.ScoreMax);
@@ -148,7 +148,7 @@ public sealed class ToolHealthMonitor : ServiceEntity, IToolHealthMonitor, IDisp
 
     public async Task<ToolHealthRecord> RecordFailureAsync(string toolName, string? errorMessage, CancellationToken ct = default)
     {
-        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         var record = GetOrCreate(toolName);
         record.Score = Math.Clamp(record.Score + _config.FailDelta, _config.ScoreMin, _config.ScoreMax);
@@ -170,7 +170,7 @@ public sealed class ToolHealthMonitor : ServiceEntity, IToolHealthMonitor, IDisp
 
     public async Task<ToolHealthRecord?> GetRecordAsync(string toolName, CancellationToken ct = default)
     {
-        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         return _records.GetValueOrDefault(toolName);
     
@@ -178,7 +178,7 @@ public sealed class ToolHealthMonitor : ServiceEntity, IToolHealthMonitor, IDisp
 
     public async Task<IReadOnlyDictionary<string, ToolHealthRecord>> GetAllRecordsAsync(CancellationToken ct = default)
     {
-        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         return _records.ToFrozenDictionary();
     
@@ -186,7 +186,7 @@ public sealed class ToolHealthMonitor : ServiceEntity, IToolHealthMonitor, IDisp
 
     public async Task ResetToolAsync(string toolName, CancellationToken ct = default)
     {
-        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         if (_records.TryGetValue(toolName, out var record))
         {
@@ -211,7 +211,7 @@ public sealed class ToolHealthMonitor : ServiceEntity, IToolHealthMonitor, IDisp
 
     private void ApplyTimeDecay()
     {
-        using var guard = _lock.TryLock() ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = _lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
         var now = DateTime.UtcNow;
         foreach (var record in _records.Values)
         {

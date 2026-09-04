@@ -138,7 +138,7 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
 
     public async Task<bool> ReloadAsync(string? skillName, ExecutionContext ctx, CancellationToken cancellationToken = default)
     {
-        using var guard = await _reloadLock.TryLockAsync(ctx.CancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _reloadLock.TryLockAsync(ctx.CancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_reloadLock.Name}' 等待超时");
         try
         {
             if (skillName != null)

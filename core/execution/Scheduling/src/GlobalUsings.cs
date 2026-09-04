@@ -36,7 +36,7 @@ global using Infrastructure.Pipeline;
 global using Structura.Dag;
 global using Infrastructure.Utils.IO;
 global using Infrastructure.Utils.Text;
-global using Infrastructure.Utils.System;
+global using Infrastructure.Utils.Cpu;
 global using IMcpClient = JoinCode.Abstractions.Mcp.Client.IMcpClient;
 global using JoinCode.Abstractions.Mcp.Registry;
 global using Microsoft.Extensions.DependencyInjection;

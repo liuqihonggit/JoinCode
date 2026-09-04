@@ -14,7 +14,7 @@ global using JoinCode.Abstractions.Configuration.AppData;
 global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.Security.Shell;
 global using Infrastructure.Utils.IO;
-global using Infrastructure.Utils.System;
+global using Infrastructure.Utils.Cpu;
 global using Structura.Dag;
 global using TreeSitter;
 global using System.Xml.Linq;

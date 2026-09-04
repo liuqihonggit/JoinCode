@@ -69,7 +69,7 @@ public sealed partial class PollConfigManager : ServiceEntity, IDisposable
     /// <returns>当前配置快照</returns>
     public async Task<PollConfig> GetCurrentConfigAsync(CancellationToken ct = default)
     {
-                using (await _configLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
+                using (await _configLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_configLock.Name}' 等待超时"))
         {
             return new PollConfig
             {
@@ -91,7 +91,7 @@ public sealed partial class PollConfigManager : ServiceEntity, IDisposable
     {
         ArgumentNullException.ThrowIfNull(newConfig);
 
-                using (await _configLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
+                using (await _configLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_configLock.Name}' 等待超时"))
         {
             _currentConfig = new PollConfig
             {
@@ -116,7 +116,7 @@ public sealed partial class PollConfigManager : ServiceEntity, IDisposable
     /// <returns>下一次轮询间隔（毫秒）</returns>
     public async Task<int> CalculateNextIntervalAsync(bool hasError, CancellationToken ct = default)
     {
-                using (await _configLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
+                using (await _configLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_configLock.Name}' 等待超时"))
         {
             if (hasError)
             {
@@ -156,7 +156,7 @@ public sealed partial class PollConfigManager : ServiceEntity, IDisposable
     /// <param name="ct">取消令牌</param>
     public async Task ResetToDefaultAsync(CancellationToken ct = default)
     {
-                using (await _configLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时"))
+                using (await _configLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_configLock.Name}' 等待超时"))
         {
             _currentConfig = new PollConfig();
             _consecutiveErrors = 0;

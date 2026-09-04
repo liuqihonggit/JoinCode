@@ -108,7 +108,7 @@ public sealed partial class PuppeteerBrowserAutomationService : IBrowserAutomati
     {
         if (_initialized) return;
 
-        using var guard = await _initLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _initLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_initLock.Name}' 等待超时");
 
         if (_initialized || _initializing) return;
         _initializing = true;

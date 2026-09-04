@@ -51,7 +51,8 @@ public sealed partial class TeammateRegistrationMiddleware : ServiceEntity, ITea
 
         if (ctx.TeammateLock is not null)
         {
-            using var guard = await ctx.TeammateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+            var lk = ctx.TeammateLock;
+            using var guard = await lk.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时");
             ctx.ActiveTeammates[definition.TeammateId] = state;
         }
 

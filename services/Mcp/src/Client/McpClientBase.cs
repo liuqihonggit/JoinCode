@@ -136,7 +136,7 @@ public abstract class McpClientBase : IMcpClient
 
         int requestId = response.GetIdAsInt();
 
-        var guard = await _requestLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        var guard = await _requestLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_requestLock.Name}' 等待超时");
         TaskCompletionSource<JsonRpcResponse>? tcsToComplete = null;
         try
         {
@@ -174,7 +174,7 @@ public abstract class McpClientBase : IMcpClient
 
     protected async Task CancelPendingRequestsAsync(CancellationToken cancellationToken = default)
     {
-        var guard = await _requestLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        var guard = await _requestLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_requestLock.Name}' 等待超时");
         try
         {
             foreach (var tcs in _pendingRequests.Values)

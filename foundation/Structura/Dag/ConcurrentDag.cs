@@ -52,37 +52,37 @@ public sealed class ConcurrentDag<T> : IDisposable
 
     public Task<DagResult> AddNodeAsync(DagNode<T> node, CancellationToken ct = default)
     {
-        using var guard = _lock.TryLock(ct) ?? throw new TimeoutException("DAG 锁等待超时");
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' DAG 等待超时");
         return Task.FromResult(_inner.AddNode(node));
     }
 
     public Task<DagResult> AddEdgeAsync(DagEdge edge, CancellationToken ct = default)
     {
-        using var guard = _lock.TryLock(ct) ?? throw new TimeoutException("DAG 锁等待超时");
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' DAG 等待超时");
         return Task.FromResult(_inner.AddEdge(edge));
     }
 
     public Task<DagResult> TryAddEdgeAsync(DagEdge edge, CancellationToken ct = default)
     {
-        using var guard = _lock.TryLock(ct) ?? throw new TimeoutException("DAG 锁等待超时");
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' DAG 等待超时");
         return Task.FromResult(_inner.TryAddEdge(edge));
     }
 
     public Task<DagResult> RemoveNodeAsync(string nodeId, CancellationToken ct = default)
     {
-        using var guard = _lock.TryLock(ct) ?? throw new TimeoutException("DAG 锁等待超时");
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' DAG 等待超时");
         return Task.FromResult(_inner.RemoveNode(nodeId));
     }
 
     public Task<DagResult> RemoveEdgeAsync(string edgeId, CancellationToken ct = default)
     {
-        using var guard = _lock.TryLock(ct) ?? throw new TimeoutException("DAG 锁等待超时");
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' DAG 等待超时");
         return Task.FromResult(_inner.RemoveEdge(edgeId));
     }
 
     public Task<bool> WouldCreateCycleAsync(string fromId, string toId, CancellationToken ct = default)
     {
-        using var guard = _lock.TryLock(ct) ?? throw new TimeoutException("DAG 锁等待超时");
+        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' DAG 等待超时");
         return Task.FromResult(_inner.WouldCreateCycle(fromId, toId));
     }
 

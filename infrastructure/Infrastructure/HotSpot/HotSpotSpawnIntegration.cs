@@ -43,7 +43,7 @@ public sealed partial class HotSpotSpawnIntegration : IHotSpotSpawnIntegration
     {
         if (_listenersRegistered && _registeredCaptainId == captainId) return;
 
-        using (_registerLock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_registerLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_registerLock.Name}' 等待超时"))
         {
             if (_listenersRegistered && _registeredCaptainId == captainId) return;
 

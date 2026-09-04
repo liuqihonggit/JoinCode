@@ -28,7 +28,7 @@ public sealed partial class SshSessionManager : ISshSessionManager
 
         ArgumentNullException.ThrowIfNull(config);
 
-        using var guard = await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
         var session = new SshSession(config, _fs, _logger);
         _sessions[session.SessionId] = session;
@@ -59,7 +59,7 @@ public sealed partial class SshSessionManager : ISshSessionManager
     {
         DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
 
-        using var guard = await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
         if (_sessions.TryRemove(sessionId, out var session))
         {
@@ -99,7 +99,7 @@ public sealed partial class SshSessionManager : ISshSessionManager
     /// <summary>清理所有 SSH 会话（在锁保护下执行）</summary>
     private async Task CleanupSessionsAsync()
     {
-        using var guard = await _stateLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _stateLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
         var sessions = _sessions.Values.ToList();
         foreach (var session in sessions)
         {

@@ -258,7 +258,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
                 Task = definition.Task
             };
 
-            using var guard = await _teammateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+            using var guard = await _teammateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_teammateLock.Name}' 等待超时");
 
             _activeTeammates[definition.TeammateId] = state;
         
@@ -331,7 +331,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
 
     public async Task<IEnumerable<string>> GetActiveTeammatesAsync(CancellationToken ct = default)
     {
-        using var guard = await _teammateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _teammateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_teammateLock.Name}' 等待超时");
 
         return _activeTeammates.Keys;
     
@@ -342,7 +342,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
     /// </summary>
     public async Task<IEnumerable<TeammateStateSnapshot>> GetActiveTeammateSnapshotsAsync(CancellationToken ct = default)
     {
-        using var guard = await _teammateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _teammateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_teammateLock.Name}' 等待超时");
 
         return _activeTeammates.Select(kv => new TeammateStateSnapshot(
             kv.Key,
@@ -356,7 +356,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
 
     public async Task StopTeammateAsync(string teammateId, CancellationToken ct = default)
     {
-        using var guard = await _teammateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _teammateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_teammateLock.Name}' 等待超时");
 
         if (_activeTeammates.TryRemove(teammateId, out var state))
         {
@@ -370,7 +370,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
     {
         TeammateState? state;
 
-        using var guard = await _teammateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _teammateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_teammateLock.Name}' 等待超时");
 
         if (!_activeTeammates.TryGetValue(teammateId, out state))
         {
@@ -393,7 +393,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
 
     public async Task<bool> IsTeammateIdleAsync(string teammateId, CancellationToken ct = default)
     {
-        using var guard = await _teammateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _teammateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_teammateLock.Name}' 等待超时");
 
         return _activeTeammates.TryGetValue(teammateId, out var state) && state.IsIdle;
     
@@ -406,7 +406,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
     /// </summary>
     public async Task<bool> InterruptTeammateAsync(string teammateId, CancellationToken ct = default)
     {
-        using var guard = await _teammateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _teammateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_teammateLock.Name}' 等待超时");
         CancellationTokenSource? workCts;
         if (!_activeTeammates.TryGetValue(teammateId, out var state))
         {
@@ -429,7 +429,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
     /// </summary>
     private async Task SetCurrentWorkCtsAsync(string teammateId, CancellationTokenSource workCts, CancellationToken lifecycleCt)
     {
-        using var guard = await _teammateLock.TryLockAsync(lifecycleCt).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _teammateLock.TryLockAsync(lifecycleCt).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_teammateLock.Name}' 等待超时");
         if (_activeTeammates.TryGetValue(teammateId, out var state))
         {
             state.CurrentWorkCts = workCts;
@@ -442,7 +442,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
     /// </summary>
     private async Task ClearCurrentWorkCtsAsync(string teammateId)
     {
-        using var guard = await _teammateLock.TryLockAsync(CancellationToken.None).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _teammateLock.TryLockAsync(CancellationToken.None).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_teammateLock.Name}' 等待超时");
 
         if (_activeTeammates.TryGetValue(teammateId, out var state))
         {
@@ -734,7 +734,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
     {
         try
         {
-            using var guard = await _teammateLock.TryLockAsync(CancellationToken.None).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+            using var guard = await _teammateLock.TryLockAsync(CancellationToken.None).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_teammateLock.Name}' 等待超时");
 
             if (_activeTeammates.TryRemove(teammateId, out var state))
             {

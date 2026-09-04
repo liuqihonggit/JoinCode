@@ -544,7 +544,7 @@ public sealed class InMemoryFileSystem : IFileSystem
     /// </summary>
     internal void RegisterWatcher(InMemoryFileSystemWatcher watcher)
     {
-        using (_watchersLock.TryLock() ?? throw new System.TimeoutException("锁等待超时")) _watchers.Add(watcher);
+        using (_watchersLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_watchersLock.Name}' 等待超时")) _watchers.Add(watcher);
     }
 
     /// <summary>
@@ -552,13 +552,13 @@ public sealed class InMemoryFileSystem : IFileSystem
     /// </summary>
     internal void UnregisterWatcher(InMemoryFileSystemWatcher watcher)
     {
-        using (_watchersLock.TryLock() ?? throw new System.TimeoutException("锁等待超时")) _watchers.Remove(watcher);
+        using (_watchersLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_watchersLock.Name}' 等待超时")) _watchers.Remove(watcher);
     }
 
     private void NotifyWatchers(string fullPath, WatcherChangeTypes changeType)
     {
         List<InMemoryFileSystemWatcher> snapshot;
-        using (_watchersLock.TryLock() ?? throw new System.TimeoutException("锁等待超时")) snapshot = [.. _watchers];
+        using (_watchersLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_watchersLock.Name}' 等待超时")) snapshot = [.. _watchers];
         foreach (var watcher in snapshot)
             watcher.OnFileChanged(fullPath, changeType);
     }
@@ -566,7 +566,7 @@ public sealed class InMemoryFileSystem : IFileSystem
     private void NotifyWatchersRenamed(string oldFullPath, string newFullPath)
     {
         List<InMemoryFileSystemWatcher> snapshot;
-        using (_watchersLock.TryLock() ?? throw new System.TimeoutException("锁等待超时")) snapshot = [.. _watchers];
+        using (_watchersLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_watchersLock.Name}' 等待超时")) snapshot = [.. _watchers];
         foreach (var watcher in snapshot)
             watcher.OnFileRenamed(oldFullPath, newFullPath);
     }

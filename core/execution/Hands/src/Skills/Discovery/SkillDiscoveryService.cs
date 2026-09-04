@@ -32,7 +32,7 @@ public sealed partial class SkillDiscoveryService : ServiceEntity, ISkillDiscove
 
     public async Task<IReadOnlyList<DiscoveredSkill>> DiscoverAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = await _discoveryLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _discoveryLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_discoveryLock.Name}' 等待超时");
 
         var results = new List<DiscoveredSkill>();
 

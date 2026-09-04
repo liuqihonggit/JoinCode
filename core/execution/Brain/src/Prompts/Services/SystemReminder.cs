@@ -12,7 +12,7 @@ public sealed partial class SystemReminderManager : ISystemReminderManager, IAsy
     /// 异步添加提醒
     /// </summary>
     public async Task AddReminderAsync(string id, string content, int priority = 0, CancellationToken ct = default) {
-        using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时")) {
+        using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             _reminders.Remove(id);
             _reminders[id] = new SystemReminder(id, content, priority);
         }
@@ -22,7 +22,7 @@ public sealed partial class SystemReminderManager : ISystemReminderManager, IAsy
     /// 异步移除提醒
     /// </summary>
     public async Task RemoveReminderAsync(string id, CancellationToken ct = default) {
-        using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时")) {
+        using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             _reminders.Remove(id);
         }
     }
@@ -31,7 +31,7 @@ public sealed partial class SystemReminderManager : ISystemReminderManager, IAsy
     /// 异步获取所有提醒（按优先级排序）
     /// </summary>
     public async Task<IReadOnlyList<SystemReminder>> GetRemindersAsync(CancellationToken ct = default) {
-        using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时")) {
+        using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             return _reminders.Values
                 .OrderByDescending(r => r.Priority)
                 .ThenBy(r => r.CreatedAt)
@@ -43,7 +43,7 @@ public sealed partial class SystemReminderManager : ISystemReminderManager, IAsy
     /// 异步清除所有提醒
     /// </summary>
     public async Task ClearAsync(CancellationToken ct = default) {
-        using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时")) {
+        using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             _reminders.Clear();
         }
     }

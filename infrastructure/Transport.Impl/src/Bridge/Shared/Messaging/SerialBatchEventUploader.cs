@@ -161,7 +161,7 @@ public sealed class SerialBatchEventUploader : IDisposable
     /// </summary>
     private async Task DrainAsync()
     {
-        using var guard = await _drainLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException("锁等待超时");
+        using var guard = await _drainLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_drainLock.Name}' 等待超时");
 
         if (_draining || _closed) return;
         _draining = true;

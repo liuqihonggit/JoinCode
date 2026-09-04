@@ -13,17 +13,17 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
 
     public bool IsFastModeActive
     {
-        get { using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时")) return _isActive; }
+        get { using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) return _isActive; }
     }
 
     public string FastModelId
     {
-        get { using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时")) return _fastModelId; }
+        get { using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) return _fastModelId; }
     }
 
     public string PrimaryModelId
     {
-        get { using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时")) return _primaryModelId; }
+        get { using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) return _primaryModelId; }
     }
 
     public event EventHandler<FastModeChangedEventArgs>? FastModeChanged;
@@ -44,7 +44,7 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
 
     public void Activate()
     {
-        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             if (_isActive) return;
 
@@ -63,7 +63,7 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
 
     public void Deactivate()
     {
-        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             if (!_isActive) return;
 
@@ -83,7 +83,7 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
     public void Toggle()
     {
         bool shouldActivate;
-        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             shouldActivate = !_isActive;
         }
@@ -98,7 +98,7 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
     public void SetFastModel(string modelId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(modelId);
-        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             _fastModelId = modelId;
         }
@@ -108,7 +108,7 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
     public void SetPrimaryModel(string modelId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(modelId);
-        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             _primaryModelId = modelId;
         }
@@ -117,7 +117,7 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
 
     public string GetCurrentModelId()
     {
-        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             return _isActive ? _fastModelId : _primaryModelId;
         }
@@ -125,7 +125,7 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
 
     public bool IsInCooldown()
     {
-        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             return _isActive && _cooldownTimer != null;
         }
@@ -133,7 +133,7 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
 
     private void StartCooldownTimer()
     {
-        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             StopCooldownTimerUnchecked();
             _cooldownTimer = new Timer(_ =>
@@ -152,7 +152,7 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
 
     protected override void OnDispose()
     {
-        using (_lock.TryLock() ?? throw new System.TimeoutException("锁等待超时"))
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             StopCooldownTimerUnchecked();
         }

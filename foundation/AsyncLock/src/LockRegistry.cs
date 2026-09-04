@@ -336,8 +336,10 @@ public static class LockRegistry
         var waitEdges = new Dictionary<int, (int holderThreadId, LockInfo lk)>();
         foreach (var info in _locks.Values)
         {
-            if (info.WaitingThread is not null && info.HoldingThread is not null)
-                waitEdges[info.WaitingThread.ManagedThreadId] = (info.HoldingThread.ManagedThreadId, info);
+            var waitingThread = info.WaitingThread;
+            var holdingThread = info.HoldingThread;
+            if (waitingThread is not null && holdingThread is not null)
+                waitEdges[waitingThread.ManagedThreadId] = (holdingThread.ManagedThreadId, info);
         }
         if (waitEdges.Count == 0) return;
         foreach (var startId in waitEdges.Keys)

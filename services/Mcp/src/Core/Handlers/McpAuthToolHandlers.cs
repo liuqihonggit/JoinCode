@@ -172,8 +172,10 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
                 Logger = _logger,
             });
 
-            using var guard = await _authLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_authLock.Name}' 等待超时");
+            using (var guard = await _authLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_authLock.Name}' 等待超时"))
+            {
                 _authProviders[auth_name] = provider;
+            }
 
             await PersistAuthConfigAsync(auth_name, McpAuthConfigType.OAuth2, cancellationToken).ConfigureAwait(false);
 
@@ -204,15 +206,18 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
             return ToolResultBuilder.Error().WithText(L.T(StringKey.AuthNameCannotBeEmpty)).Build();
         }
 
-        using var guard = await _authLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_authLock.Name}' 等待超时");
-        try
+        IMcpAuthProvider? provider;
+        using (var guard = await _authLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_authLock.Name}' 等待超时"))
         {
-            if (!_authProviders.TryGetValue(auth_name, out var provider))
+            if (!_authProviders.TryGetValue(auth_name, out provider))
             {
                 return ToolResultBuilder.Error().WithText(L.T(StringKey.AuthConfigNotFound, auth_name)).Build();
             }
+        }
 
-            var success = await provider.RefreshAsync(cancellationToken);
+        try
+        {
+            var success = await provider!.RefreshAsync(cancellationToken).ConfigureAwait(false);
 
             if (success)
             {

@@ -544,6 +544,7 @@ Select-String -Path .xxx/job_log.txt -Pattern "失败|Failed" -Context 5,5 | Sel
 ```
 
 - **⚠️ 如果重定向也超时**：说明 `gh run view --log` 本身就卡（日志太大或网络慢），改用 `gh api` 分页拉取或直接在 GitHub Actions 页面查看日志
+- **✅ 实战经验（2026-09-04）**：`gh run view --log` 和 `gh run view --log-failed --job=<id>` 在日志量大时**双双超时**（30s/60s 都不够）。最快替代方案：**直接本地复现失败测试** — `gh run view <run-id> --job <job-id>`（不带 --log）看摘要知道哪个步骤失败 → 本地 `dotnet test <csproj> -c Release --filter "Category!=#Integration"` 跑全量测试看哪个测试 FAIL → 看错误消息和堆栈定位根因。比拉 CI 日志快 10 倍以上
 
 #### CI 排错完整流程（按此顺序，不许跳步）
 

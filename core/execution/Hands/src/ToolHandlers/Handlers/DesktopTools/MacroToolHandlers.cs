@@ -92,7 +92,7 @@ public class MacroToolHandlers
         [McpToolParameter("目录路径", Required = false)] string? directory = null,
         CancellationToken ct = default)
     {
-        var dir = directory ?? Path.Combine(Path.GetTempPath(), "jcc-macros");
+        var dir = string.IsNullOrWhiteSpace(directory) ? Path.Combine(Path.GetTempPath(), "jcc-macros") : directory;
         if (!_fileSystem.DirectoryExists(dir))
             _fileSystem.CreateDirectory(dir);
 

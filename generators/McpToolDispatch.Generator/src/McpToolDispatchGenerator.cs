@@ -283,8 +283,56 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
             elementType = baseName;
             return true;
         }
+        // 匹配 List<T>, List<T>?, IList<T>, IEnumerable<T>, IReadOnlyList<T> 等泛型集合
+        var listElement = ExtractListElementType(typeName);
+        if (listElement != null)
+        {
+            elementType = listElement;
+            return true;
+        }
         elementType = "";
         return false;
+    }
+
+    /// <summary>
+    /// 从 List&lt;T&gt;/IList&lt;T&gt;/IEnumerable&lt;T&gt; 等类型名中提取元素类型 T。
+    /// 返回 null 表示不是泛型集合类型。
+    /// </summary>
+    private static string? ExtractListElementType(string typeName)
+    {
+        // 去除 nullable 后缀
+        var baseName = typeName.EndsWith("?") ? typeName.Substring(0, typeName.Length - 1) : typeName;
+
+        // 检查是否是 List<T>/IList<T>/IEnumerable<T>/IReadOnlyList<T>/ICollection<T> 等
+        var listTypePrefixes = new[]
+        {
+            "System.Collections.Generic.List<",
+            "global::System.Collections.Generic.List<",
+            "System.Collections.Generic.IList<",
+            "global::System.Collections.Generic.IList<",
+            "System.Collections.Generic.IEnumerable<",
+            "global::System.Collections.Generic.IEnumerable<",
+            "System.Collections.Generic.IReadOnlyList<",
+            "global::System.Collections.Generic.IReadOnlyList<",
+            "System.Collections.Generic.ICollection<",
+            "global::System.Collections.Generic.ICollection<",
+            "System.Collections.Generic.IReadOnlyCollection<",
+            "global::System.Collections.Generic.IReadOnlyCollection<",
+        };
+
+        foreach (var prefix in listTypePrefixes)
+        {
+            if (baseName.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                // 提取 <T> 中的 T
+                var innerStart = prefix.Length;
+                if (innerStart < baseName.Length && baseName.EndsWith(">"))
+                {
+                    return baseName.Substring(innerStart, baseName.Length - innerStart - 1);
+                }
+            }
+        }
+        return null;
     }
 
     private static string GetSimpleTypeName(string typeName)
@@ -333,7 +381,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
                 return "array:boolean";
             if (IsDictionaryOfJsonElement(elementType))
                 return "array:object";
-            return "array:string";
+            return "array:object";
         }
 
         return "string";
@@ -346,11 +394,13 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         var snakeName = ToSnakeCase(name);
         var simplified = GetSimpleTypeName(typeName);
 
-        // 处理数组类型
+        // 处理数组/集合类型
         if (IsArrayType(typeName, out var elementType))
         {
             var simplifiedElement = GetSimpleTypeName(elementType);
             var isDictElement = IsDictionaryOfJsonElement(elementType);
+            var isListType = typeName.Contains("List<") || typeName.Contains("IList<") || typeName.Contains("IEnumerable<") || typeName.Contains("IReadOnlyList<") || typeName.Contains("ICollection<") || typeName.Contains("IReadOnlyCollection<");
+            var isSimpleElement = simplifiedElement is "string" or "string?" or "int" or "int?" or "long" or "long?" or "double" or "double?" or "float" or "float?" or "bool" or "bool?";
             var elementExtractor = simplifiedElement switch
             {
                 "string" or "string?" => "e.GetString() ?? \"\"",
@@ -361,10 +411,16 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
                 "bool" or "bool?" => "e.GetBoolean()",
                 _ => isDictElement
                     ? "e.EnumerateObject().ToDictionary(p => p.Name, p => p.Value)"
-                    : "e.GetString() ?? \"\""
+                    : isSimpleElement
+                        ? "e.GetString() ?? \"\""
+                        : $"({elementType.TrimEnd('?')})System.Text.Json.JsonSerializer.Deserialize(e.GetRawText(), typeof({elementType.TrimEnd('?')}), JoinCode.Abstractions.Models.McpToolJsonContext.Default)!"
             };
-            var nullableSuffix = param.IsNullable ? "null" : $"Array.Empty<{GetSimpleTypeName(elementType).TrimEnd('?')}>()";
-            return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) && __{name}El.ValueKind == System.Text.Json.JsonValueKind.Array ? __{name}El.EnumerateArray().Select(e => {elementExtractor}).ToArray() : {nullableSuffix}";
+            var collectionMethod = isListType ? "ToList()" : "ToArray()";
+            var emptyDefault = isListType
+                ? $"new System.Collections.Generic.List<{GetSimpleTypeName(elementType).TrimEnd('?')}>()"
+                : $"Array.Empty<{GetSimpleTypeName(elementType).TrimEnd('?')}>()";
+            var nullableSuffix = param.IsNullable ? "null" : emptyDefault;
+            return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) && __{name}El.ValueKind == System.Text.Json.JsonValueKind.Array ? __{name}El.EnumerateArray().Select(e => {elementExtractor}).{collectionMethod} : {nullableSuffix}";
         }
 
         // 处理 Dictionary<string, JsonElement> 类型（非数组元素）

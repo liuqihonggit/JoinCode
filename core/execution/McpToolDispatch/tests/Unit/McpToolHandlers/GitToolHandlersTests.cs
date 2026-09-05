@@ -170,6 +170,43 @@ public sealed class GitToolHandlersTests
         result.GetTextContent().Should().Contain("cannot be empty");
     }
 
+    /// <summary>
+    /// 复现 bug：MCP 框架把未传的可选 working_dir 参数设为空字符串 "" 而非 null，
+    /// ScanBeforeCommitAsync 中 `workingDir ?? fallback` 不拦截空字符串，
+    /// 导致 GitDiffProvider.GetStagedFileNamesAsync 抛 ArgumentException。
+    /// </summary>
+    [Fact]
+    public async Task GitToolHandlers_GitCommit_EmptyWorkingDir_WithSecurityInterceptor_DoesNotThrow()
+    {
+        var handlerWithInterceptor = new GitToolHandlers(
+            new IO.FileSystem.PhysicalFileSystem(),
+            new StubGitCommandRunner(),
+            new StubGitSecurityInterceptor());
+
+        var result = await handlerWithInterceptor.GitCommitAsync(
+            "test message",
+            working_dir: "",
+            cancellationToken: CancellationToken.None).ConfigureAwait(true);
+
+        result.IsError.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GitToolHandlers_GitCommit_WhitespaceWorkingDir_WithSecurityInterceptor_DoesNotThrow()
+    {
+        var handlerWithInterceptor = new GitToolHandlers(
+            new IO.FileSystem.PhysicalFileSystem(),
+            new StubGitCommandRunner(),
+            new StubGitSecurityInterceptor());
+
+        var result = await handlerWithInterceptor.GitCommitAsync(
+            "test message",
+            working_dir: "   ",
+            cancellationToken: CancellationToken.None).ConfigureAwait(true);
+
+        result.IsError.Should().BeFalse();
+    }
+
     private sealed class StubGitCommandRunner : IGitCommandRunner
     {
         public Task<GitCommandResult> ExecuteAsync(string arguments, string? workingDirectory = null, CancellationToken ct = default)
@@ -180,5 +217,20 @@ public sealed class GitToolHandlersTests
 
         public Task<StaleConflictMarkerResult> DetectStaleConflictMarkersAsync(string? workingDirectory = null, CancellationToken ct = default)
             => Task.FromResult(new StaleConflictMarkerResult { HasStaleMarkers = false });
+    }
+
+    /// <summary>
+    /// 模拟真实 GitSecurityInterceptor 行为：对空字符串 workingDirectory 抛 ArgumentException，
+    /// 对有效路径返回 ScanResult.Safe。
+    /// </summary>
+    private sealed class StubGitSecurityInterceptor : IGitSecurityInterceptor
+    {
+        public int Priority => 0;
+
+        public Task<ScanResult> ScanBeforeCommitAsync(string workingDirectory, CancellationToken ct = default)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(workingDirectory);
+            return Task.FromResult(ScanResult.Safe);
+        }
     }
 }

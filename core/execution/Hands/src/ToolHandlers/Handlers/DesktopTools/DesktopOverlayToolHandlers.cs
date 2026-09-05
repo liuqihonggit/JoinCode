@@ -80,41 +80,46 @@ public class DesktopOverlayToolHandlers
     public async Task<ToolResult> ShowDesktopPulseAsync(
         [McpToolParameter("目标中心X（屏幕坐标）", Required = true)] int centerX,
         [McpToolParameter("目标中心Y（屏幕坐标）", Required = true)] int centerY,
-        [McpToolParameter("最大半径（像素），默认120", Required = false)] int maxRadius = 120,
-        [McpToolParameter("最小半径（像素），默认30", Required = false)] int minRadius = 30,
-        [McpToolParameter("动画总时长（毫秒），超时自动关闭，默认5000", Required = false)] int durationMs = 5000,
-        [McpToolParameter("帧间隔（毫秒），默认33约30fps", Required = false)] int frameMs = 33,
+        [McpToolParameter("最大半径（像素），默认120", Required = false)] int? maxRadius = 120,
+        [McpToolParameter("最小半径（像素），默认30", Required = false)] int? minRadius = 30,
+        [McpToolParameter("动画总时长（毫秒），超时自动关闭，默认5000", Required = false)] int? durationMs = 5000,
+        [McpToolParameter("帧间隔（毫秒），默认33约30fps", Required = false)] int? frameMs = 33,
         [McpToolParameter("圆颜色: red/green/blue/yellow/cyan/magenta，默认yellow", Required = false)] string color = "yellow",
         CancellationToken ct = default)
     {
-        if (maxRadius <= 0 || minRadius <= 0)
+        var maxR = maxRadius ?? 120;
+        var minR = minRadius ?? 30;
+        var duration = durationMs ?? 5000;
+        var frame = frameMs ?? 33;
+
+        if (maxR <= 0 || minR <= 0)
             return ToolResultBuilder.Error().WithText("[OVL200] 半径必须为正").Build();
-        if (minRadius >= maxRadius)
+        if (minR >= maxR)
             return ToolResultBuilder.Error().WithText("[OVL200] 最小半径必须小于最大半径").Build();
-        if (durationMs <= 0)
+        if (duration <= 0)
             return ToolResultBuilder.Error().WithText("[OVL200] 动画时长必须为正").Build();
 
         var colorRef = ParseColor(color);
-        _logger?.LogInformation("启动桌面脉冲圆: 中心({Cx},{Cy}) 半径{MinR}-{MaxR} 颜色={Color} 时长={Duration}ms", centerX, centerY, minRadius, maxRadius, color, durationMs);
+        _logger?.LogInformation("启动桌面脉冲圆: 中心({Cx},{Cy}) 半径{MinR}-{MaxR} 颜色={Color} 时长={Duration}ms", centerX, centerY, minR, maxR, color, duration);
 
         using var overlay = new DesktopPulseOverlay();
-        var runTask = Task.Run(() => overlay.Run(centerX, centerY, maxRadius, minRadius, durationMs, frameMs, colorRef), ct);
+        var runTask = Task.Run(() => overlay.Run(centerX, centerY, maxR, minR, duration, frame, colorRef), ct);
 
         try
         {
-            await Task.Delay(durationMs, ct).ConfigureAwait(false);
+            await Task.Delay(duration, ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
             overlay.Close();
             await runTask.ConfigureAwait(false);
-            return ToolResultBuilder.Success().WithText($"桌面脉冲圆已取消: 中心({centerX},{centerY}) 半径{minRadius}-{maxRadius}").Build();
+            return ToolResultBuilder.Success().WithText($"桌面脉冲圆已取消: 中心({centerX},{centerY}) 半径{minR}-{maxR}").Build();
         }
 
         overlay.Close();
         await runTask.ConfigureAwait(false);
 
-        return ToolResultBuilder.Success().WithText($"桌面脉冲圆已显示 {durationMs}ms: 中心({centerX},{centerY}) 半径{minRadius}-{maxRadius} 颜色={color}").Build();
+        return ToolResultBuilder.Success().WithText($"桌面脉冲圆已显示 {duration}ms: 中心({centerX},{centerY}) 半径{minR}-{maxR} 颜色={color}").Build();
     }
 
     /// <summary>颜色名称 → Win32 COLORREF (0x00BBGGRR)</summary>

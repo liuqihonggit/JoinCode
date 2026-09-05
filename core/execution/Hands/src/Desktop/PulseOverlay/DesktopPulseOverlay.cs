@@ -67,7 +67,7 @@ internal sealed class DesktopPulseOverlay : IDisposable
             return;
         }
 
-        PulseNativeMethods.SetLayeredWindowAttributes(_hwnd, (uint)PulseNativeMethods.COLORREF_TRANSPARENT_KEY, 0, PulseNativeMethods.LWA_COLORKEY);
+        PulseNativeMethods.SetLayeredWindowAttributes(_hwnd, (uint)PulseNativeMethods.COLORREF_TRANSPARENT_KEY, 200, PulseNativeMethods.LWA_COLORKEY | PulseNativeMethods.LWA_ALPHA);
         PulseNativeMethods.ShowWindow(_hwnd, PulseNativeMethods.SW_SHOWNOACTIVATE);
         PulseNativeMethods.SetTimer(_hwnd, (IntPtr)1, (uint)frameMs, IntPtr.Zero);
 
@@ -122,9 +122,10 @@ internal sealed class DesktopPulseOverlay : IDisposable
             return;
         }
 
-        _state.FrameIndex = (_state.FrameIndex + 1) % FrameCount;
-        var t = (double)_state.FrameIndex / FrameCount;
-        _state.CurrentRadius = _state.MaxRadius - (int)((_state.MaxRadius - _state.MinRadius) * t);
+        // 非线性动画：余弦缓动实现大→小→大循环，整个时长内完成 2 次往返
+        var t = (double)elapsed / _state.DurationMs * 2;
+        var wave = (1 + Math.Cos(t * Math.PI)) / 2;
+        _state.CurrentRadius = _state.MinRadius + (int)((_state.MaxRadius - _state.MinRadius) * wave);
 
         PulseNativeMethods.InvalidateRect(hwnd, IntPtr.Zero, true);
     }
@@ -139,21 +140,40 @@ internal sealed class DesktopPulseOverlay : IDisposable
         try
         {
             var rect = new RECT { Left = 0, Top = 0, Right = _state.MaxRadius * 2, Bottom = _state.MaxRadius * 2 };
-            PulseNativeMethods.FillRect(hdc, ref rect, PulseNativeMethods.GetStockObject(NullBrush));
+
+            // 用颜色键颜色填充背景，LWA_COLORKEY 会让这部分变透明
+            var hKeyBrush = PulseNativeMethods.CreateSolidBrush((uint)PulseNativeMethods.COLORREF_TRANSPARENT_KEY);
+            PulseNativeMethods.FillRect(hdc, ref rect, hKeyBrush);
+            PulseNativeMethods.DeleteObject(hKeyBrush);
 
             var r = _state.CurrentRadius;
             var cx = _state.MaxRadius;
             var cy = _state.MaxRadius;
 
-            var hPen = PulseNativeMethods.CreatePen(0, 4, _state.ColorRef);
+            // 实心圆：用目标颜色填充
+            var hBrush = PulseNativeMethods.CreateSolidBrush(_state.ColorRef);
+            var hPen = PulseNativeMethods.CreatePen(0, 2, _state.ColorRef);
             var hOldPen = PulseNativeMethods.SelectObject(hdc, hPen);
-            var hOldBrush = PulseNativeMethods.SelectObject(hdc, PulseNativeMethods.GetStockObject(NullBrush));
+            var hOldBrush = PulseNativeMethods.SelectObject(hdc, hBrush);
 
             PulseNativeMethods.Ellipse(hdc, cx - r, cy - r, cx + r, cy + r);
 
             PulseNativeMethods.SelectObject(hdc, hOldPen);
             PulseNativeMethods.SelectObject(hdc, hOldBrush);
             PulseNativeMethods.DeleteObject(hPen);
+            PulseNativeMethods.DeleteObject(hBrush);
+
+            // 十字瞄准星标：固定大小，不随圆缩放，用红色与黄色圆强反差
+            const int crossSize = 20;
+            const uint crossColor = 0x000000FF; // 红色 COLORREF
+            var crossPen = PulseNativeMethods.CreatePen(0, 3, crossColor);
+            var oldCrossPen = PulseNativeMethods.SelectObject(hdc, crossPen);
+            PulseNativeMethods.MoveToEx(hdc, cx - crossSize, cy, IntPtr.Zero);
+            PulseNativeMethods.LineTo(hdc, cx + crossSize, cy);
+            PulseNativeMethods.MoveToEx(hdc, cx, cy - crossSize, IntPtr.Zero);
+            PulseNativeMethods.LineTo(hdc, cx, cy + crossSize);
+            PulseNativeMethods.SelectObject(hdc, oldCrossPen);
+            PulseNativeMethods.DeleteObject(crossPen);
         }
         finally
         {

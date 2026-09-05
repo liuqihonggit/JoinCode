@@ -179,9 +179,9 @@ public sealed partial class LspService : ServiceEntity, ILspService
         var symbolParams = new LspWorkspaceSymbolParams { Query = query };
 
         var server = _lspManager.GetAllServers().Values.FirstOrDefault();
-        if (server == null)
+        if (server == null || server.State != LspServerState.Running)
         {
-            _logger?.LogWarning("No LSP servers available for workspace symbol search");
+            _logger?.LogWarning("No running LSP servers available for workspace symbol search");
             return [];
         }
 

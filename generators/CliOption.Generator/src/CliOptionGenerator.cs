@@ -559,7 +559,10 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
         sb.AppendLine("    public static string ToJson()");
         sb.AppendLine("    {");
         sb.AppendLine("        using var stream = new System.IO.MemoryStream();");
-        sb.AppendLine("        using var writer = new System.Text.Json.Utf8JsonWriter(stream);");
+        sb.AppendLine("        using var writer = new System.Text.Json.Utf8JsonWriter(stream, new System.Text.Json.JsonWriterOptions");
+        sb.AppendLine("        {");
+        sb.AppendLine("            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping");
+        sb.AppendLine("        });");
         sb.AppendLine("        writer.WriteStartArray();");
         sb.AppendLine("        foreach (var p in Properties)");
         sb.AppendLine("        {");

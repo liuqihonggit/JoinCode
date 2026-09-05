@@ -17,16 +17,27 @@ public sealed class StructuredOutputToolHandler
 
     private static readonly JsonWriterOptions s_indentedWriterOptions = new() { Indented = true };
 
-    public StructuredOutputToolHandler(SimpleJsonSchemaValidator validator)
+    private readonly IPersistencePipeline? _persistencePipeline;
+    private readonly IFileSystem? _fs;
+    private int _schemasLoaded;
+    private const string SchemasSubDir = ".jcc" + "/" + "structured-output";
+    private const string SchemasFileName = "schemas.json";
+
+    public StructuredOutputToolHandler(
+        SimpleJsonSchemaValidator validator,
+        IPersistencePipeline? persistencePipeline = null,
+        IFileSystem? fs = null)
     {
         _validator = validator ?? throw new ArgumentNullException(nameof(validator));
+        _persistencePipeline = persistencePipeline;
+        _fs = fs;
     }
 
     /// <summary>
     /// 注册JSON Schema用于结构化输出验证
     /// </summary>
     [McpTool(SystemToolNameConstants.StructuredOutputRegister, "Register JSON Schema for structured output validation", "structured_output")]
-    public Task<ToolResult> RegisterSchemaAsync(
+    public async Task<ToolResult> RegisterSchemaAsync(
         [McpToolParameter("Schema name")] string schema_name,
         [McpToolParameter("JSON Schema definition (JSON format)")] string schema_json,
         [McpToolParameter("Schema description", Required = false)] string? description = null,
@@ -42,7 +53,7 @@ public sealed class StructuredOutputToolHandler
             if (validationError != null)
             {
                 var diag = BuildValidationErrorDiagnostic(validationError);
-                return Task.FromResult(ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build());
+                return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
             }
 
             // 对齐 TS ajv.validateSchema(): 验证Schema结构合法性（不仅语法检查）
@@ -51,7 +62,7 @@ public sealed class StructuredOutputToolHandler
             {
                 var errorMessages = string.Join("; ", schemaValidation.Errors.Select(e => $"{e.Path}: {e.Message}"));
                 var diag = BuildInvalidSchemaDiagnostic(errorMessages);
-                return Task.FromResult(ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build());
+                return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
             }
 
             var schema = new StructuredOutputSchema
@@ -67,6 +78,8 @@ public sealed class StructuredOutputToolHandler
             // 注册新 Schema 时清除该名称的缓存
             _validationCache.TryRemove(schema_name, out _);
 
+            await SaveSchemasAsync(cancellationToken).ConfigureAwait(false);
+
             var response = new StringBuilder(256);
             response.AppendLine($"Schema registered: {schema_name}");
             if (!string.IsNullOrEmpty(description))
@@ -75,11 +88,11 @@ public sealed class StructuredOutputToolHandler
             }
             response.AppendLine($"Strict mode: {(strict ? "Yes" : "No")}");
 
-            return Task.FromResult(ToolResultBuilder.Success().WithText(response.ToString()).Build());
+            return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return Task.FromResult(ToolExceptionDiagnosticHelper.BuildErrorResult("structured_output_register", ex, null, "schema_name", schema_name));
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("structured_output_register", ex, null, "schema_name", schema_name);
         }
     }
 
@@ -87,7 +100,7 @@ public sealed class StructuredOutputToolHandler
     /// 验证内容是否符合已注册的JSON Schema
     /// </summary>
     [McpTool(SystemToolNameConstants.StructuredOutputValidate, "Validate JSON content against a registered Schema, supports formatted output", "structured_output", ConcurrencySafe = true)]
-    public Task<ToolResult> ValidateOutputAsync(
+    public async Task<ToolResult> ValidateOutputAsync(
         [McpToolParameter("Registered Schema name")] string schema_name,
         [McpToolParameter("JSON content to validate")] string content,
         [McpToolParameter("Validate only without formatting, defaults to false", Required = false, DefaultValue = "false")] bool validate_only = false,
@@ -101,17 +114,19 @@ public sealed class StructuredOutputToolHandler
             if (validationError != null)
             {
                 var diag = BuildValidationErrorDiagnostic(validationError);
-                return Task.FromResult(ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build());
+                return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
             }
+
+            await EnsureSchemasLoadedAsync(cancellationToken).ConfigureAwait(false);
 
             StructuredOutputSchema schema;
             if (!_schemas.TryGetValue(schema_name, out var found))
             {
                 var diag = BuildSchemaNotFoundDiagnostic(schema_name);
-                return Task.FromResult(ToolResultBuilder.Error()
+                return ToolResultBuilder.Error()
                     .WithText(diag.FormattedMessage)
                     .WithDiagnostic(diag)
-                    .Build());
+                    .Build();
             }
             schema = found;
 
@@ -167,18 +182,75 @@ public sealed class StructuredOutputToolHandler
 
             if (result.IsValid)
             {
-                return Task.FromResult(ToolResultBuilder.Success().WithText(response.ToString()).Build());
+                return ToolResultBuilder.Success().WithText(response.ToString()).Build();
             }
             else
             {
                 var diag = BuildValidationFailedDiagnostic(schema_name, result.Errors.Count);
-                return Task.FromResult(ToolResultBuilder.Error().WithText(response.ToString()).WithDiagnostic(diag).Build());
+                return ToolResultBuilder.Error().WithText(response.ToString()).WithDiagnostic(diag).Build();
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return Task.FromResult(ToolExceptionDiagnosticHelper.BuildErrorResult("structured_output_validate", ex, null, "schema_name", schema_name));
+            return ToolExceptionDiagnosticHelper.BuildErrorResult("structured_output_validate", ex, null, "schema_name", schema_name);
         }
+    }
+
+    private async Task SaveSchemasAsync(CancellationToken ct)
+    {
+        if (_persistencePipeline is null) return;
+
+        var snapshot = _schemas.Values.ToList();
+        var json = RelaxedJsonSerializer.Serialize(snapshot, StructuredOutputJsonContext.Default);
+        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var request = new PersistRequest
+        {
+            Category = "structured-output",
+            Directory = SchemasSubDir,
+            FileName = SchemasFileName,
+            Content = json,
+            Completion = tcs,
+        };
+        await _persistencePipeline.EnqueueAsync(request, ct).ConfigureAwait(false);
+        await tcs.Task.ConfigureAwait(false);
+    }
+
+    private async Task EnsureSchemasLoadedAsync(CancellationToken ct)
+    {
+        if (_fs is null || Interlocked.CompareExchange(ref _schemasLoaded, 1, 0) != 0) return;
+
+        try
+        {
+            var root = DiscoverWorkspaceRoot();
+            if (root is null) return;
+            var path = Path.Combine(Path.Combine(root, SchemasSubDir), SchemasFileName);
+            if (!_fs.FileExists(path)) return;
+            var json = await _fs.ReadAllTextAsync(path, ct).ConfigureAwait(false);
+            var list = RelaxedJsonSerializer.Deserialize<List<StructuredOutputSchema>>(json, StructuredOutputJsonContext.Default);
+            if (list is null) return;
+            foreach (var s in list)
+            {
+                _schemas[s.Name] = s;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[StructuredOutput] 加载Schema失败: {ex.Message}");
+        }
+    }
+
+    private string? DiscoverWorkspaceRoot()
+    {
+        var dir = Environment.CurrentDirectory;
+        while (!string.IsNullOrEmpty(dir))
+        {
+            var gitPath = Path.Combine(dir, ".git");
+            if (_fs!.DirectoryExists(gitPath) || _fs.FileExists(gitPath)) return dir;
+            var parent = Path.GetDirectoryName(dir);
+            if (string.IsNullOrEmpty(parent) || parent == dir) break;
+            dir = parent;
+        }
+        return null;
     }
 
     internal static ToolDiagnostic BuildValidationErrorDiagnostic(string validationError) =>

@@ -9,10 +9,20 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
     private readonly Dictionary<string, AgentPermissionRule> _rules = new(StringComparer.Ordinal);
     private readonly AsyncLock _lock = new();
     private readonly ITelemetryService? _telemetryService;
+    private readonly IPersistencePipeline? _persistencePipeline;
+    private readonly IFileSystem? _fs;
+    private int _rulesLoaded;
+    private const string RulesSubDir = ".jcc" + "/" + "permission";
+    private const string RulesFileName = "rules.json";
 
-    public AgentPermissionManager(ITelemetryService? telemetryService = null)
+    public AgentPermissionManager(
+        ITelemetryService? telemetryService = null,
+        IPersistencePipeline? persistencePipeline = null,
+        IFileSystem? fs = null)
     {
         _telemetryService = telemetryService;
+        _persistencePipeline = persistencePipeline;
+        _fs = fs;
     }
 
     /// <inheritdoc />
@@ -20,9 +30,11 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
     {
                 using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
+            await EnsureRulesLoadedAsync(ct).ConfigureAwait(false);
             _rules.Remove(rule.AgentPattern);
             _rules[rule.AgentPattern] = rule;
             RecordPermissionManagerMetrics("add_rule");
+            await SaveRulesAsync(ct).ConfigureAwait(false);
         }
     }
 
@@ -31,8 +43,13 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
     {
                 using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
+            await EnsureRulesLoadedAsync(ct).ConfigureAwait(false);
             var removed = _rules.Remove(agentPattern);
-            if (removed) RecordPermissionManagerMetrics("remove_rule");
+            if (removed)
+            {
+                RecordPermissionManagerMetrics("remove_rule");
+                await SaveRulesAsync(ct).ConfigureAwait(false);
+            }
             return removed;
         }
     }
@@ -160,6 +177,7 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
     {
                 using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
+            await EnsureRulesLoadedAsync(ct).ConfigureAwait(false);
             return _rules.Values.OrderByDescending(r => r.Priority).ToList();
         }
     }
@@ -169,8 +187,73 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
     {
                 using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
+            await EnsureRulesLoadedAsync(ct).ConfigureAwait(false);
             _rules.Clear();
+            await SaveRulesAsync(ct).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    /// 持久化权限规则到 .jcc/permission/rules.json(通过统一持久化管道)。
+    /// </summary>
+    private async Task SaveRulesAsync(CancellationToken ct)
+    {
+        if (_persistencePipeline is null) return;
+
+        var snapshot = _rules.Values.ToList();
+        var json = RelaxedJsonSerializer.Serialize(snapshot, PermissionJsonContext.Default);
+        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var request = new PersistRequest
+        {
+            Category = "permission",
+            Directory = RulesSubDir,
+            FileName = RulesFileName,
+            Content = json,
+            Completion = tcs,
+        };
+        await _persistencePipeline.EnqueueAsync(request, ct).ConfigureAwait(false);
+        await tcs.Task.ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 从 .jcc/permission/rules.json 加载权限规则(若存在且尚未加载)。Interlocked 保证只执行一次。
+    /// </summary>
+    private async Task EnsureRulesLoadedAsync(CancellationToken ct)
+    {
+        if (_fs is null || Interlocked.CompareExchange(ref _rulesLoaded, 1, 0) != 0) return;
+
+        try
+        {
+            var root = DiscoverWorkspaceRoot();
+            if (root is null) return;
+            var path = Path.Combine(Path.Combine(root, RulesSubDir), RulesFileName);
+            if (!_fs.FileExists(path)) return;
+            var json = await _fs.ReadAllTextAsync(path, ct).ConfigureAwait(false);
+            var list = RelaxedJsonSerializer.Deserialize<List<AgentPermissionRule>>(json, PermissionJsonContext.Default);
+            if (list is null) return;
+            foreach (var r in list)
+            {
+                _rules[r.AgentPattern] = r;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[Permission] 加载规则失败: {ex.Message}");
+        }
+    }
+
+    private string? DiscoverWorkspaceRoot()
+    {
+        var dir = Environment.CurrentDirectory;
+        while (!string.IsNullOrEmpty(dir))
+        {
+            var gitPath = Path.Combine(dir, ".git");
+            if (_fs!.DirectoryExists(gitPath) || _fs.FileExists(gitPath)) return dir;
+            var parent = Path.GetDirectoryName(dir);
+            if (string.IsNullOrEmpty(parent) || parent == dir) break;
+            dir = parent;
+        }
+        return null;
     }
 
     #region Private Methods
@@ -179,6 +262,7 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
     {
                 using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
+            await EnsureRulesLoadedAsync(ct).ConfigureAwait(false);
             // 首先尝试精确匹配
             if (_rules.TryGetValue(agentName, out var exactMatch)) return exactMatch;
 

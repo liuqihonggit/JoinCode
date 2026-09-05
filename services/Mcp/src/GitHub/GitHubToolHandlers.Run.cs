@@ -176,7 +176,18 @@ public partial class GitHubToolHandlers
                     var fileSummary = RelaxedJsonSerializer.Deserialize(summaryJson, RunLogSummaryJsonContext.Default.RunLogSummary);
                     if (fileSummary is not null)
                     {
-                        // 验证 updatedAt(检测 rerun 脏数据)
+                        // 5 分钟内跳过 updatedAt 验证(假设 5 分钟内不会 rerun,省 ~1s API 调用)
+                        var needVerify = fileAge >= TimeSpan.FromMinutes(5);
+                        if (!needVerify)
+                        {
+                            var rawContent = _fs.ReadAllText(rawPath);
+                            FillMemoryCacheFromRaw(runId, jobId, rawContent);
+                            _logCache.Add(summaryKey, fileSummary, DateTimeOffset.Now.AddHours(24));
+                            _logger?.LogDebug("Level1 摘要缓存命中(文件,<5min 跳过验证): {Path}, {Steps} 步骤", summaryPath, fileSummary.StepLineCounts.Count);
+                            return fileSummary;
+                        }
+
+                        // 5 分钟后验证 updatedAt(检测 rerun 脏数据)
                         var currentUpdatedAt = await FetchUpdatedAtAsync(runId, workingDir, ct).ConfigureAwait(false);
                         if (currentUpdatedAt is not null && fileSummary.UpdatedAt == currentUpdatedAt)
                         {
@@ -184,7 +195,7 @@ public partial class GitHubToolHandlers
                             var rawContent = _fs.ReadAllText(rawPath);
                             FillMemoryCacheFromRaw(runId, jobId, rawContent);
                             _logCache.Add(summaryKey, fileSummary, DateTimeOffset.Now.AddHours(24));
-                            _logger?.LogDebug("Level1 摘要缓存命中(文件): {Path}, {Steps} 步骤", summaryPath, fileSummary.StepLineCounts.Count);
+                            _logger?.LogDebug("Level1 摘要缓存命中(文件,updatedAt 验证通过): {Path}, {Steps} 步骤", summaryPath, fileSummary.StepLineCounts.Count);
                             return fileSummary;
                         }
                         // updatedAt 不匹配(CI 已更新),放弃旧缓存(不删除文件,直接重新下载)

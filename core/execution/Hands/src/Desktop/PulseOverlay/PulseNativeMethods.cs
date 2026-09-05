@@ -12,6 +12,7 @@ internal static class PulseNativeMethods
     public const int WS_EX_NOACTIVATE = 0x08000000;
     public const int SW_SHOWNOACTIVATE = 4;
     public const int LWA_COLORKEY = 1;
+    public const int LWA_ALPHA = 2;
     public const uint WM_PAINT = 0x000F;
     public const uint WM_TIMER = 0x0113;
     public const uint WM_DESTROY = 0x0002;
@@ -104,6 +105,16 @@ internal static class PulseNativeMethods
 
     [DllImport("gdi32.dll")]
     public static extern IntPtr GetStockObject(int fnObject);
+
+    [DllImport("gdi32.dll")]
+    public static extern IntPtr CreateSolidBrush(uint crColor);
+
+    [DllImport("gdi32.dll")]
+    public static extern bool MoveToEx(IntPtr hdc, int x, int y, IntPtr lpPoint);
+
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool LineTo(IntPtr hdc, int x, int y);
 
     [DllImport("kernel32.dll")]
     public static extern IntPtr GetConsoleWindow();

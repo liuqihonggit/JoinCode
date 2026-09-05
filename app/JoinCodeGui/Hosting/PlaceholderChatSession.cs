@@ -228,5 +228,9 @@ internal sealed class PlaceholderChatSession : IJccChatSession
     public Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
         => Task.FromResult<IReadOnlyList<ToolSummary>>([]);
 
+    /// <inheritdoc />
+    public Task<IReadOnlyList<SubAgentSummary>> GetAvailableSubAgentsAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<SubAgentSummary>>([]);
+
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }

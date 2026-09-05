@@ -31,6 +31,7 @@ global using JoinCode.Gui.SlashCommands;
 
 // 共享斜杠命令执行器（与 TUI 同一链路）
 global using JoinCode.Cli.Commands;
+global using JoinCode.Cli.Commands.Prefix;
 global using JoinCode.ChatCommands;
 
 // Hosting 层读取 teammate 子会话列表

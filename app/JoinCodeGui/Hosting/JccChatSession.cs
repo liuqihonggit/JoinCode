@@ -656,6 +656,26 @@ internal sealed class JccChatSession : IJccChatSession
         return list;
     }
 
+    /// <summary>
+    /// 获取可用子代理清单 — 从 DI 解析 IAgentDefinitionProvider，提取全部代理定义的
+    /// DisplayId 与 Description（Description 为空回退 WhenToUse）。未注册时返回空列表。
+    /// </summary>
+    public async Task<IReadOnlyList<SubAgentSummary>> GetAvailableSubAgentsAsync(CancellationToken cancellationToken = default)
+    {
+        var provider = _services.GetService<IAgentDefinitionProvider>();
+        if (provider is null)
+            return [];
+        var definitions = await provider.GetAgentDefinitionsAsync(null, cancellationToken).ConfigureAwait(false);
+        var list = new List<SubAgentSummary>(definitions.Count);
+        foreach (var def in definitions)
+        {
+            var displayId = def.DisplayId;
+            var description = !string.IsNullOrWhiteSpace(def.Description) ? def.Description! : def.WhenToUse;
+            list.Add(new SubAgentSummary(displayId, description, displayId));
+        }
+        return list;
+    }
+
     public async ValueTask DisposeAsync()
     {
         if (_disposeAsync is not null)

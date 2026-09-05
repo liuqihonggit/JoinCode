@@ -34,7 +34,21 @@ public class VisionToolHandlers
                 return ToolResultBuilder.Error().WithText("截图失败").Build();
         }
 
-        var result = await _detector.DetectAsync(base64, ct).ConfigureAwait(false);
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cts.CancelAfter(TimeSpan.FromSeconds(30));
+
+        UiElementDetectionResult result;
+        try
+        {
+            result = await _detector.DetectAsync(base64, cts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return ToolResultBuilder.Error().WithText("LLM 调用超时（30s），请检查 API Key 配置和网络连接").Build();
+        }
+
+        if (result.ImageWidth == 0 && result.ImageHeight == 0 && result.Elements.Count == 0)
+            return ToolResultBuilder.Error().WithText("LLM 未返回有效识别结果，请检查 API Key 配置和网络连接").Build();
 
         var sb = new StringBuilder(512);
         sb.AppendLine($"截图尺寸: {result.ImageWidth}x{result.ImageHeight}");
@@ -68,7 +82,18 @@ public class VisionToolHandlers
                 return ToolResultBuilder.Error().WithText("截图失败").Build();
         }
 
-        var element = await _detector.FindByDescriptionAsync(base64, description, ct).ConfigureAwait(false);
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cts.CancelAfter(TimeSpan.FromSeconds(30));
+
+        UiElement? element;
+        try
+        {
+            element = await _detector.FindByDescriptionAsync(base64, description, cts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return ToolResultBuilder.Error().WithText("LLM 调用超时（30s），请检查 API Key 配置和网络连接").Build();
+        }
 
         if (element is null)
             return ToolResultBuilder.Success().WithText($"未找到符合描述「{description}」的 UI 元素").Build();

@@ -151,4 +151,55 @@ public sealed class VisionToolHandlersTests
         result.IsError.Should().BeTrue();
         result.Content[0].Text.Should().Contain("截图失败");
     }
+
+    /// <summary>LLM 调用超时（OperationCanceledException）时应返回友好错误，而非异常传播卡死</summary>
+    [Fact]
+    public async Task DetectUiElements_LlmTimeout_ReturnsFriendlyError()
+    {
+        var detectorMock = new Mock<IUiElementDetector>();
+        detectorMock
+            .Setup(d => d.DetectAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns<string, CancellationToken>((_, ct) => Task.FromException<UiElementDetectionResult>(new OperationCanceledException(ct)));
+        var captureMock = CreateCaptureMock();
+        var handler = new VisionToolHandlers(detectorMock.Object, captureMock.Object);
+
+        var result = await handler.DetectUiElementsAsync("base64");
+
+        result.IsError.Should().BeTrue();
+        result.Content[0].Text.Should().Contain("超时");
+    }
+
+    /// <summary>LLM 调用超时时 find_element 应返回友好错误，而非异常传播卡死</summary>
+    [Fact]
+    public async Task FindElement_LlmTimeout_ReturnsFriendlyError()
+    {
+        var detectorMock = new Mock<IUiElementDetector>();
+        detectorMock
+            .Setup(d => d.FindByDescriptionAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns<string, string, CancellationToken>((_, _, ct) => Task.FromException<UiElement?>(new OperationCanceledException(ct)));
+        var captureMock = CreateCaptureMock();
+        var handler = new VisionToolHandlers(detectorMock.Object, captureMock.Object);
+
+        var result = await handler.FindElementAsync("按钮", "base64");
+
+        result.IsError.Should().BeTrue();
+        result.Content[0].Text.Should().Contain("超时");
+    }
+
+    /// <summary>LLM 返回空结果（0x0 尺寸）时应返回友好错误提示检查 API Key，而非误导性的空成功</summary>
+    [Fact]
+    public async Task DetectUiElements_LlmReturnsEmpty_ReturnsFriendlyError()
+    {
+        var detectorMock = new Mock<IUiElementDetector>();
+        detectorMock
+            .Setup(d => d.DetectAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UiElementDetectionResult([], 0, 0));
+        var captureMock = CreateCaptureMock();
+        var handler = new VisionToolHandlers(detectorMock.Object, captureMock.Object);
+
+        var result = await handler.DetectUiElementsAsync("base64");
+
+        result.IsError.Should().BeTrue();
+        result.Content[0].Text.Should().Contain("API Key");
+    }
 }

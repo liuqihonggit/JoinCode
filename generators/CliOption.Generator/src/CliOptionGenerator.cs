@@ -63,6 +63,9 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
                     string? riskLevel = null;
                     string? category = null;
                     string? example = null;
+                    string? aliasOf = null;
+                    string? aliasValue = null;
+                    string? envVar = null;
                     foreach (var named in attr.NamedArguments)
                     {
                         if (named.Key == "AcceptsValue") acceptsValue = (bool)(named.Value.Value ?? false);
@@ -70,6 +73,9 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
                         if (named.Key == "RiskLevel") riskLevel = named.Value.Value as string;
                         if (named.Key == "Category") category = named.Value.Value as string;
                         if (named.Key == "Example") example = named.Value.Value as string;
+                        if (named.Key == "AliasOf") aliasOf = named.Value.Value as string;
+                        if (named.Key == "AliasValue") aliasValue = named.Value.Value as string;
+                        if (named.Key == "EnvVar") envVar = named.Value.Value as string;
                     }
 
                     options.Add(new CliOptionInfo(
@@ -81,7 +87,10 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
                         isNegation,
                         riskLevel,
                         category,
-                        example));
+                        example,
+                        aliasOf,
+                        aliasValue,
+                        envVar));
                 }
 
                 if (options.Count > 0)
@@ -249,6 +258,8 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
         sb.AppendLine("        }");
         sb.AppendLine();
 
+        GenerateAliasExpansion(sb, enumInfo);
+
         // 构造结果
         sb.AppendLine($"        return new {enumInfo.Name}ParseResult");
         sb.AppendLine("        {");
@@ -262,6 +273,10 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
         sb.AppendLine("        };");
 
         sb.AppendLine("    }");
+
+        // ApplyEnvVars 方法
+        sb.AppendLine();
+        GenerateApplyEnvVarsMethod(sb, enumInfo);
 
         // GetHelpText 方法
         sb.AppendLine();
@@ -350,6 +365,81 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
             exSb.AppendLine();
         }
         WriteReturnString(sb, exSb.ToString());
+        sb.AppendLine("    }");
+    }
+
+    /// <summary>
+    /// 生成别名展开代码 — 在 Parse 方法内、构造 ParseResult 之前调用
+    /// 自动从 [CliOption(AliasOf=..., AliasValue=...)] 声明生成，消除 ParseArgs 中手动 if 链
+    /// 规则: 显式设置优先于别名展开（bool→string 别名检查目标 is null）
+    /// </summary>
+    private static void GenerateAliasExpansion(StringBuilder sb, CliEnumInfo enumInfo)
+    {
+        var aliasOptions = enumInfo.Options
+            .Where(o => !o.IsNegation && !string.IsNullOrEmpty(o.AliasOf))
+            .ToList();
+
+        if (aliasOptions.Count == 0)
+            return;
+
+        sb.AppendLine("        // 别名展开 — AliasOf/AliasValue 自动展开（显式设置优先）");
+        foreach (var opt in aliasOptions)
+        {
+            var sourceCamel = ToCamelCase(ToFieldName(opt.Name));
+            var targetOpt = enumInfo.Options.FirstOrDefault(o => o.LongName == opt.AliasOf);
+            if (targetOpt is null)
+                continue;
+            var targetCamel = ToCamelCase(ToFieldName(targetOpt.Name));
+
+            if (string.IsNullOrEmpty(opt.AliasValue))
+            {
+                // bool→bool 别名: if (source) target = true;
+                sb.AppendLine($"        if ({sourceCamel}) {targetCamel} = true;");
+            }
+            else
+            {
+                // bool→string 别名: if (source && target is null) target = "value";
+                sb.AppendLine($"        if ({sourceCamel} && {targetCamel} is null) {targetCamel} = \"{EscapeString(opt.AliasValue!)}\";");
+            }
+        }
+        sb.AppendLine();
+    }
+
+    /// <summary>
+    /// 生成 ApplyEnvVars 方法 — 将已解析的选项值同步到环境变量
+    /// 自动从 [CliOption(EnvVar=...)] 声明生成，消除 ParseArgs 中手动 SetEnvironmentVariable
+    /// 值选项设为实际值，bool 选项设为 "1"
+    /// </summary>
+    private static void GenerateApplyEnvVarsMethod(StringBuilder sb, CliEnumInfo enumInfo)
+    {
+        var envVarOptions = enumInfo.Options
+            .Where(o => !o.IsNegation && !string.IsNullOrEmpty(o.EnvVar))
+            .ToList();
+
+        if (envVarOptions.Count == 0)
+            return;
+
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// 将已解析的选项值同步到环境变量 — 自动从 [CliOption(EnvVar=...)] 声明生成");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine($"    public static void ApplyEnvVars({enumInfo.Name}ParseResult result)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        ArgumentNullException.ThrowIfNull(result);");
+        sb.AppendLine();
+        foreach (var opt in envVarOptions)
+        {
+            var fieldName = ToFieldName(opt.Name);
+            if (opt.AcceptsValue)
+            {
+                sb.AppendLine($"        if (!string.IsNullOrEmpty(result.{fieldName}))");
+                sb.AppendLine($"            System.Environment.SetEnvironmentVariable(\"{EscapeString(opt.EnvVar!)}\", result.{fieldName});");
+            }
+            else
+            {
+                sb.AppendLine($"        if (result.{fieldName})");
+                sb.AppendLine($"            System.Environment.SetEnvironmentVariable(\"{EscapeString(opt.EnvVar!)}\", \"1\");");
+            }
+        }
         sb.AppendLine("    }");
     }
 
@@ -511,8 +601,11 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
         public string? RiskLevel { get; }
         public string? Category { get; }
         public string? Example { get; }
+        public string? AliasOf { get; }
+        public string? AliasValue { get; }
+        public string? EnvVar { get; }
 
-        public CliOptionInfo(string name, string longName, string shortName, string description, bool acceptsValue, bool isNegation, string? riskLevel = null, string? category = null, string? example = null)
+        public CliOptionInfo(string name, string longName, string shortName, string description, bool acceptsValue, bool isNegation, string? riskLevel = null, string? category = null, string? example = null, string? aliasOf = null, string? aliasValue = null, string? envVar = null)
         {
             Name = name;
             LongName = longName;
@@ -523,6 +616,9 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
             RiskLevel = riskLevel;
             Category = category;
             Example = example;
+            AliasOf = aliasOf;
+            AliasValue = aliasValue;
+            EnvVar = envVar;
         }
     }
 }

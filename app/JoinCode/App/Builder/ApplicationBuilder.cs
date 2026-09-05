@@ -326,32 +326,10 @@ public sealed class ApplicationBuilder
             options.DoctorPort = doctorPort;
         }
 
-        // 视角1 #6 + #9: CLI 参数 → JCC_PERMISSION_MODE 环境变量
-        // 决策: 复用 PermissionChecker.TryGetPermissionModeFromEnv 现有逻辑，不修改 PermissionChecker 构造函数
-        // --bypass 等价于 --permission-mode bypass
-        // 两者同时存在时 --permission-mode 优先（更具体）
-        var permissionModeFromCli = !string.IsNullOrEmpty(options.PermissionMode)
-            ? options.PermissionMode
-            : options.DangerouslySkipPermissions ? "bypass" : null;
-        if (!string.IsNullOrEmpty(permissionModeFromCli))
-        {
-            Environment.SetEnvironmentVariable(JccEnvVar.PermissionMode.ToValue(), permissionModeFromCli);
-            Diag.WriteLine($"[MAIN] CLI permission-mode={permissionModeFromCli} → JCC_PERMISSION_MODE 环境变量已设置");
-        }
-
-        // --vendor: CLI 参数 → JCC_VENDOR 环境变量（自动匹配 profiles 中的同名预设）
-        if (!string.IsNullOrEmpty(options.Vendor))
-        {
-            Environment.SetEnvironmentVariable(JccEnvVar.Vendor.ToValue(), options.Vendor);
-            Diag.WriteLine($"[MAIN] CLI vendor={options.Vendor} → JCC_VENDOR 环境变量已设置");
-        }
-
-        // --model: CLI 参数 → JCC_MODEL_ID 环境变量（统一走环境变量覆盖链，与 --vendor 一致）
-        if (!string.IsNullOrEmpty(options.Model))
-        {
-            Environment.SetEnvironmentVariable(JccEnvVar.ModelId.ToValue(), options.Model);
-            Diag.WriteLine($"[MAIN] CLI model={options.Model} → JCC_MODEL_ID 环境变量已设置");
-        }
+        // 环境变量映射 — 由 CliOptionGenerator 从 [CliOption(EnvVar=...)] 声明自动生成
+        // 别名展开（--yes→--no-confirm, --force/--bypass→--permission-mode bypass, --json→--format json）
+        // 已在 CliArgParser.Parse 内部完成，此处只需同步环境变量
+        CliArgParser.ApplyEnvVars(result);
 
         if (Cli.TerminalHelper.IsHeadless)
         {
@@ -364,22 +342,10 @@ public sealed class ApplicationBuilder
             options.NonInteractive = false;
         }
 
+        // --no-confirm / --yes（别名已展开）→ ForceNonInteractive
         if (options.NoConfirm)
         {
             Core.Utils.TestEnvironmentDetector.ForceNonInteractive = true;
-        }
-
-        // --yes 等价于 --no-confirm（对齐架构指南 AX 模式）
-        if (options.Yes)
-        {
-            options.NoConfirm = true;
-            Core.Utils.TestEnvironmentDetector.ForceNonInteractive = true;
-        }
-
-        // --force 等价于 --bypass（对齐架构指南安全设计）
-        if (options.Force)
-        {
-            options.DangerouslySkipPermissions = true;
         }
 
         options.DetectedHeadlessMode = Cli.TerminalHelper.IsHeadless ? HeadlessMode.NoTty : HeadlessMode.Interactive;

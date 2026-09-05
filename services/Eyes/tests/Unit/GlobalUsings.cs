@@ -13,6 +13,7 @@ global using Services.Lsp;
 global using Services.Lsp.Internal;
 global using System.Runtime.CompilerServices;
 global using System.Text.Json;
+global using System.Text.Json.Nodes;
 global using Testing.Common;
 global using TreeSitter;
 global using Xunit;

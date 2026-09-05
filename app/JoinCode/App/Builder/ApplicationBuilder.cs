@@ -183,9 +183,20 @@ public sealed class ApplicationBuilder
                 return flatResult.Value;
         }
 
-        var rootCommand = new RootCommand("JoinCode CLI");
-        rootCommand.Add(new McpCliCommand());
-        return await rootCommand.Parse(args).InvokeAsync();
+        // 旧子命令提示 — ADR 0069: 已由扁平元动词取代
+        if (subCommand is CliSubCommand.Mcp)
+        {
+            TerminalHelper.WriteError("jcc mcp 已由扁平元动词取代，请用 jcc mcp_call/mcp_list/mcp_schema/mcp_search/mcp_serve");
+            return 1;
+        }
+        if (subCommand is CliSubCommand.Tool or CliSubCommand.Agent or CliSubCommand.Code)
+        {
+            TerminalHelper.WriteError($"jcc {args[0]} 已废弃，请用 jcc mcp_call 或 jcc slash_call");
+            return 1;
+        }
+
+        TerminalHelper.WriteError($"未知子命令: {args[0]}（用 jcc --help 查看可用命令）");
+        return 1;
     }
 
     /// <summary>

@@ -1,91 +1,12 @@
 namespace JoinCode.CliCommands;
 
 /// <summary>
-/// MCP 工具命令 — bash 直调内部 MCP 工具（call/list/search/schema）
-/// <para>ADR: 0065 — 构建完整 DI 容器，从 IMcpToolRegistry 取工具调用，不经过交互模式 REPL</para>
+/// MCP 工具命令执行器 — 扁平元动词 mcp_call/mcp_list/mcp_schema/mcp_search/mcp_serve 的共享逻辑。
+/// <para>ADR: 0069 — 从 System.CommandLine.Command 迁移为纯静态类，子命令路由由 FlatSubCommandRouter 处理。</para>
 /// </summary>
-public sealed class McpCliCommand : Command
+public sealed class McpCliCommand
 {
     private static readonly Cli.Output.CliOutputJsonContext JsonCtx = Cli.Output.CliOutputJsonContext.Default;
-
-    public McpCliCommand() : base("mcp", "调用内部 MCP 工具")
-    {
-        var jsonOption = new Option<bool>(JccCliArgConstants.Json) { Description = "以 JSON 格式输出结果" };
-
-        var callCommand = new Command("call", "调用指定 MCP 工具");
-        var callToolArg = new Argument<string>("tool-name") { Description = "工具名称（如 gh_pr_view）" };
-        var argsOption = new Option<string?>("--args") { Description = "工具参数 JSON 内联（如 '{\"repo\":\"x\",\"pr\":1}'）" };
-        var argsFileOption = new Option<string?>("--args-file") { Description = "从文件读取参数 JSON" };
-        var argsStdinOption = new Option<bool>("--args-stdin") { Description = "从 stdin 读取参数 JSON" };
-        callCommand.Add(callToolArg);
-        callCommand.Add(argsOption);
-        callCommand.Add(argsFileOption);
-        callCommand.Add(argsStdinOption);
-        callCommand.Add(jsonOption);
-        callCommand.SetAction(async (parseResult, ct) =>
-        {
-            var toolName = parseResult.GetValue(callToolArg);
-            var args = parseResult.GetValue(argsOption);
-            var argsFile = parseResult.GetValue(argsFileOption);
-            var argsStdin = parseResult.GetValue(argsStdinOption);
-            var json = parseResult.GetValue(jsonOption);
-            return await ExecuteCallAsync(toolName, args, argsFile, argsStdin, json, ct).ConfigureAwait(false);
-        });
-
-        var listCommand = new Command("list", "列出所有已注册工具");
-        var categoryOption = new Option<string?>("--category") { Description = "按分类过滤（如 github、system、file）" };
-        listCommand.Add(categoryOption);
-        listCommand.Add(jsonOption);
-        listCommand.SetAction(async (parseResult, ct) =>
-        {
-            var category = parseResult.GetValue(categoryOption);
-            var json = parseResult.GetValue(jsonOption);
-            return await ExecuteListAsync(category, json, ct).ConfigureAwait(false);
-        });
-
-        var searchCommand = new Command("search", "搜索工具");
-        var searchQueryArg = new Argument<string>("query") { Description = "搜索查询（关键词或 select:A,B）" };
-        searchCommand.Add(searchQueryArg);
-        searchCommand.Add(jsonOption);
-        searchCommand.SetAction(async (parseResult, ct) =>
-        {
-            var query = parseResult.GetValue(searchQueryArg);
-            var json = parseResult.GetValue(jsonOption);
-            return await ExecuteSearchAsync(query, json, ct).ConfigureAwait(false);
-        });
-
-        var schemaCommand = new Command("schema", "输出工具参数 Schema");
-        var schemaToolArg = new Argument<string>("tool-name") { Description = "工具名称" };
-        schemaCommand.Add(schemaToolArg);
-        schemaCommand.Add(jsonOption);
-        schemaCommand.SetAction(async (parseResult, ct) =>
-        {
-            var toolName = parseResult.GetValue(schemaToolArg);
-            var json = parseResult.GetValue(jsonOption);
-            return await ExecuteSchemaAsync(toolName, json, ct).ConfigureAwait(false);
-        });
-
-        var serveCommand = new Command("serve", "启动 MCP 服务端，把全部内部工具暴露给外部 LLM");
-        var transportOption = new Option<string>("--transport") { Description = "传输方式：stdio（默认）或 http", DefaultValueFactory = _ => "stdio" };
-        var portOption = new Option<int>("--port") { Description = "HTTP 监听端口（默认 9903）", DefaultValueFactory = _ => 9903 };
-        var hostOption = new Option<string>("--host") { Description = "HTTP 监听地址（默认 localhost）", DefaultValueFactory = _ => "localhost" };
-        serveCommand.Add(transportOption);
-        serveCommand.Add(portOption);
-        serveCommand.Add(hostOption);
-        serveCommand.SetAction(async (parseResult, ct) =>
-        {
-            var transport = parseResult.GetValue(transportOption) ?? "stdio";
-            var port = parseResult.GetValue(portOption);
-            var hostName = parseResult.GetValue(hostOption) ?? "localhost";
-            return await ExecuteServeAsync(transport, port, hostName, ct).ConfigureAwait(false);
-        });
-
-        Add(callCommand);
-        Add(listCommand);
-        Add(searchCommand);
-        Add(schemaCommand);
-        Add(serveCommand);
-    }
 
     internal static Task<int> ExecuteCallAsync(
         string toolName, string? args, string? argsFile, bool argsStdin, bool json, CancellationToken ct)

@@ -182,7 +182,17 @@ public sealed class McpCliCommand
     {
         string? json = null;
         if (argsStdin)
-            json = System.Console.In.ReadToEnd();
+        {
+            // 读取 stdin 原始字节，循环去除所有前导 UTF-8 BOM（PowerShell 管道可能注入多个 BOM）
+            using var stream = System.Console.OpenStandardInput();
+            using var ms = new System.IO.MemoryStream();
+            stream.CopyTo(ms);
+            var bytes = ms.ToArray();
+            var offset = 0;
+            while (bytes.Length - offset >= 3 && bytes[offset] == 0xEF && bytes[offset + 1] == 0xBB && bytes[offset + 2] == 0xBF)
+                offset += 3;
+            json = System.Text.Encoding.UTF8.GetString(bytes, offset, bytes.Length - offset);
+        }
         else if (!string.IsNullOrEmpty(argsFile))
             json = System.IO.File.ReadAllText(argsFile);
         else if (!string.IsNullOrEmpty(args))

@@ -11,6 +11,7 @@ public sealed class GitHubToolHandlersTests
             _gh,
             new FakeDownloader(),
             new InMemoryFileSystem(),
+            new PersistencePipeline(new InMemoryFileSystem()),
             NullLogger<GitHubToolHandlers>.Instance);
     }
 
@@ -82,9 +83,9 @@ public sealed class GitHubToolHandlersTests
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
-        text.Should().Contain("已截断");
         text.Should().Contain("共 300 行");
-        text.Should().Contain("仅显示前 50 行");
+        text.Should().Contain("显示第 1-50 行");
+        text.Should().Contain("skip_lines=50");
     }
 
     [Fact]
@@ -102,6 +103,198 @@ public sealed class GitHubToolHandlersTests
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("42");
         _gh.LastArguments.Should().NotContain("--log");
+    }
+
+    [Fact]
+    public async Task RunView_LogWithErrorFilter_ReturnsOnlyErrorLines()
+    {
+        _gh.NextResult = new GitHubCommandResult
+        {
+            Success = true,
+            Output = "##[group]Run tests\n##[command]dotnet test\n##[error]Test failed: assert\n##[warning]deprecated\n##[error]Another error\nnormal line",
+            ExitCode = 0,
+        };
+
+        var result = await _handler.GhRunViewAsync("42", log: true, filter: "error", max_lines: 10);
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("过滤:error");
+        text.Should().Contain("##[error]Test failed: assert");
+        text.Should().Contain("##[error]Another error");
+        text.Should().NotContain("##[warning]");
+        text.Should().NotContain("##[command]");
+        text.Should().NotContain("normal line");
+    }
+
+    [Fact]
+    public async Task RunView_LogWithWarningFilter_ReturnsErrorAndWarningLines()
+    {
+        _gh.NextResult = new GitHubCommandResult
+        {
+            Success = true,
+            Output = "##[error]err\n##[warning]warn\n##[command]cmd\nnormal",
+            ExitCode = 0,
+        };
+
+        var result = await _handler.GhRunViewAsync("42", log: true, filter: "warning", max_lines: 10);
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("##[error]err");
+        text.Should().Contain("##[warning]warn");
+        text.Should().NotContain("##[command]");
+        text.Should().NotContain("normal");
+    }
+
+    [Fact]
+    public async Task RunView_LogWithErrorFilter_NoMatch_ReturnsEmptyMessage()
+    {
+        _gh.NextResult = new GitHubCommandResult
+        {
+            Success = true,
+            Output = "##[warning]just a warning\nnormal line\n##[command]dotnet build",
+            ExitCode = 0,
+        };
+
+        var result = await _handler.GhRunViewAsync("42", log: true, filter: "error", max_lines: 10);
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("未匹配到任何日志行");
+    }
+
+    [Fact]
+    public async Task RunView_ExpandSteps_ReturnsStepListFromCache()
+    {
+        _gh.NextResult = new GitHubCommandResult
+        {
+            Success = true,
+            Output = "Job\tSet up job\t2026-01-01T00:00:00Z line1\nJob\tCheckout\t2026-01-01T00:00:01Z line2\nJob\tTest - Brain\t2026-01-01T00:00:02Z ##[error]failed",
+            ExitCode = 0,
+        };
+
+        var result = await _handler.GhRunViewAsync("100", expand: "steps");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("步骤列表");
+        text.Should().Contain("Set up job");
+        text.Should().Contain("Checkout");
+        text.Should().Contain("Test - Brain");
+    }
+
+    [Fact]
+    public async Task RunView_ExpandStepName_ReturnsSectionSummaryForThatStepOnly()
+    {
+        _gh.NextResult = new GitHubCommandResult
+        {
+            Success = true,
+            Output = "Job\tSet up job\t2026-01-01T00:00:00Z setup line\nJob\tTest - Brain\t2026-01-01T00:00:01Z ##[error]failed\nJob\tTest - Brain\t2026-01-01T00:00:02Z test output",
+            ExitCode = 0,
+        };
+
+        var result = await _handler.GhRunViewAsync("104", expand: "step:Test - Brain");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("步骤:Test - Brain");
+        text.Should().Contain("error");
+        text.Should().Contain("normal");
+        text.Should().NotContain("setup line");
+    }
+
+    [Fact]
+    public async Task RunView_ExpandStepName_ReturnsSectionSummary()
+    {
+        _gh.NextResult = new GitHubCommandResult
+        {
+            Success = true,
+            Output = "Job\tTest - Brain\t2026-01-01T00:00:00Z ##[error]err line\nJob\tTest - Brain\t2026-01-01T00:00:01Z normal line\nJob\tTest - Brain\t2026-01-01T00:00:02Z ##[warning]warn line",
+            ExitCode = 0,
+        };
+
+        var result = await _handler.GhRunViewAsync("101", expand: "step:Test - Brain");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("sections");
+        text.Should().Contain("error");
+        text.Should().Contain("warning");
+        text.Should().Contain("normal");
+    }
+
+    [Fact]
+    public async Task RunView_ExpandStepSection_ReturnsSectionContent()
+    {
+        _gh.NextResult = new GitHubCommandResult
+        {
+            Success = true,
+            Output = "Job\tTest - Brain\t2026-01-01T00:00:00Z ##[error]err line\nJob\tTest - Brain\t2026-01-01T00:00:01Z normal line\nJob\tTest - Brain\t2026-01-01T00:00:02Z ##[warning]warn line",
+            ExitCode = 0,
+        };
+
+        var result = await _handler.GhRunViewAsync("102", expand: "step:Test - Brain/section:error");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("##[error]err line");
+        text.Should().NotContain("normal line");
+        text.Should().NotContain("##[warning]");
+    }
+
+    [Fact]
+    public async Task RunView_LogWithSkipLines_ReturnsLinesAfterSkip()
+    {
+        var lines = Enumerable.Range(0, 100).Select(i => $"line {i}").ToArray();
+        _gh.NextResult = new GitHubCommandResult
+        {
+            Success = true,
+            Output = string.Join('\n', lines),
+            ExitCode = 0,
+        };
+
+        var result = await _handler.GhRunViewAsync("42", log: true, max_lines: 10, skip_lines: 50);
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("line 50");
+        text.Should().Contain("line 59");
+        text.Should().NotContain("line 49");
+    }
+
+    [Fact]
+    public async Task RunView_SkipLinesExceedsTotal_ReturnsNoMoreMessage()
+    {
+        _gh.NextResult = new GitHubCommandResult
+        {
+            Success = true,
+            Output = "line 0\nline 1\nline 2",
+            ExitCode = 0,
+        };
+
+        var result = await _handler.GhRunViewAsync("42", log: true, max_lines: 10, skip_lines: 100);
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("已跳过全部");
+    }
+
+    [Fact]
+    public async Task RunView_ExpandStepSectionWithSkipLines_ReturnsLinesAfterSkipInSection()
+    {
+        _gh.NextResult = new GitHubCommandResult
+        {
+            Success = true,
+            Output = string.Join('\n', Enumerable.Range(0, 50).Select(i => $"Job\tTest\t2026-01-01T00:00:00Z line {i}")),
+            ExitCode = 0,
+        };
+
+        var result = await _handler.GhRunViewAsync("103", expand: "step:Test/section:normal", max_lines: 10, skip_lines: 20);
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("line 20");
+        text.Should().Contain("line 29");
+        text.Should().NotContain("line 19");
     }
 
     [Fact]
@@ -176,7 +369,7 @@ public sealed class GitHubToolHandlersTests
             ExitCode = 0,
         };
         var fakeDownloader = new FakeDownloader();
-        var handler = new GitHubToolHandlers(_gh, fakeDownloader, new InMemoryFileSystem(), NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(_gh, fakeDownloader, new InMemoryFileSystem(), new PersistencePipeline(new InMemoryFileSystem()), NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhReleaseDownloadAsync("v1.0", "/tmp");
 
@@ -209,10 +402,25 @@ internal sealed class FakeGitHubCommandRunner : IGitHubCommandRunner
     public GitHubCommandResult NextResult { get; set; } = new() { Success = true, Output = "{}", ExitCode = 0 };
     public string? LastArguments { get; private set; }
 
-    public Task<GitHubCommandResult> ExecuteAsync(string arguments, string? workingDirectory = null, CancellationToken ct = default)
+    public Task<GitHubCommandResult> ExecuteAsync(string arguments, string? workingDirectory = null, int? timeoutMs = null, CancellationToken ct = default)
     {
         LastArguments = arguments;
         return Task.FromResult(NextResult);
+    }
+
+    public async IAsyncEnumerable<string> ExecuteStreamingAsync(
+        string arguments,
+        string? workingDirectory = null,
+        int? timeoutMs = null,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        LastArguments = arguments;
+        if (string.IsNullOrEmpty(NextResult.Output)) yield break;
+        foreach (var line in NextResult.Output.Split('\n'))
+        {
+            ct.ThrowIfCancellationRequested();
+            yield return line;
+        }
     }
 
     public Task<PrCreateResult> CreatePrAsync(string title, string? body, string baseBranch, string headBranch, string? repo = null, bool draft = false, CancellationToken ct = default)

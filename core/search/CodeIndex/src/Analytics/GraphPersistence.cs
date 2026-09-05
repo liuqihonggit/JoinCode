@@ -39,7 +39,6 @@ public sealed class GraphPersistence : ServiceEntity, IGraphPersistence
                 ProjectReferences = _store.ProjectRefs.Values.SelectMany(v => v).ToList(),
                 NuGetReferences = _store.NuGetRefs.Values.SelectMany(v => v).ToList(),
             };
-
             json = RelaxedJsonSerializer.Serialize(data, CodeIndexJsonContext.Default);
         }
 

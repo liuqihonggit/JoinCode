@@ -39,6 +39,7 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
     public async Task<GitHubCommandResult> ExecuteAsync(
         string arguments,
         string? workingDirectory = null,
+        int? timeoutMs = null,
         CancellationToken ct = default)
     {
         try
@@ -46,12 +47,13 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
             Console.Error.WriteLine($"[DIAG-GH] ExecuteAsync start: gh {arguments}, cwd={workingDirectory}");
             Console.Error.Flush();
 
+            var effectiveTimeout = timeoutMs ?? (int)_timeout.TotalMilliseconds;
             var options = new ProcessOptions
             {
                 FileName = "gh",
                 Arguments = arguments,
                 WorkingDirectory = workingDirectory,
-                TimeoutMs = (int)_timeout.TotalMilliseconds,
+                TimeoutMs = effectiveTimeout,
                 EnvironmentVariables = CreateGitHubEnvironment(),
                 SkipArgumentValidation = true
             };
@@ -86,6 +88,74 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
                 Error = ex.Message,
                 ExitCode = -1
             };
+        }
+    }
+
+    /// <summary>
+    /// 流式执行 gh 命令，逐行 yield stdout — 用于大日志过滤场景
+    /// <para>用 IInteractiveProcess 启动进程，逐行读 StandardOutput，避免全部读到内存</para>
+    /// <para>调用方达到 maxLines 后取消枚举即可终止读取</para>
+    /// </summary>
+    public async IAsyncEnumerable<string> ExecuteStreamingAsync(
+        string arguments,
+        string? workingDirectory = null,
+        int? timeoutMs = null,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cts.CancelAfter(TimeSpan.FromMilliseconds(timeoutMs ?? 120_000));
+
+        var options = new InteractiveProcessOptions
+        {
+            FileName = "gh",
+            Arguments = arguments,
+            WorkingDirectory = workingDirectory,
+            EnvironmentVariables = CreateGitHubEnvironment(),
+            SkipArgumentValidation = true
+        };
+
+        IInteractiveProcess? process = null;
+        try
+        {
+            process = await _processService.StartInteractiveAsync(options, cts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            _logger?.LogWarning("流式执行 gh 命令超时: gh {Arguments}", arguments);
+            yield break;
+        }
+
+        try
+        {
+            while (true)
+            {
+                string? line;
+                try
+                {
+                    line = await process.StandardOutput.ReadLineAsync(cts.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                if (line is null) break;
+                yield return line;
+            }
+
+            try
+            {
+                await process.WaitForExitAsync(cts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                _logger?.LogWarning("流式执行 gh 命令等待退出超时: gh {Arguments}", arguments);
+            }
+        }
+        finally
+        {
+            if (!process.HasExited) process.Kill();
+            await process.DisposeAsync().ConfigureAwait(false);
         }
     }
 
@@ -211,7 +281,7 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
         {
             try
             {
-                var result = await ExecuteAsync(arguments, workingDirectory, ct).ConfigureAwait(false);
+                var result = await ExecuteAsync(arguments, workingDirectory, null, ct).ConfigureAwait(false);
 
                 if (result.Success)
                 {

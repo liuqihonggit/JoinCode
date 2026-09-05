@@ -27,6 +27,18 @@ public sealed partial class WorktreeCreateMiddleware : ServiceEntity, IWorktreeC
         var worktreePath = context.WorktreePath;
         var branchName = context.BranchName;
 
+        if (string.IsNullOrEmpty(branchName))
+        {
+            branchName = AgentWorktreeSession.GenerateBranchName(context.AgentId);
+            context.BranchName = branchName;
+        }
+
+        if (string.IsNullOrEmpty(worktreePath))
+        {
+            worktreePath = AgentWorktreeSession.GenerateWorktreePath(gitRoot, context.AgentId);
+            context.WorktreePath = worktreePath;
+        }
+
         context.CreationStartTime = _clock.GetUtcNow();
         _logger?.LogInformation("创建新 worktree: {WorktreePath}, Agent: {AgentId}", worktreePath, context.AgentId);
 

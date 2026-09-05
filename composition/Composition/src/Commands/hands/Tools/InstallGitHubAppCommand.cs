@@ -583,7 +583,7 @@ jobs:
             if (gitHubRunner is not null && command.StartsWith("gh ", StringComparison.OrdinalIgnoreCase))
             {
                 var ghArgs = command[3..];
-                var ghResult = await gitHubRunner.ExecuteAsync(ghArgs, null, ct).ConfigureAwait(false);
+                var ghResult = await gitHubRunner.ExecuteAsync(ghArgs, null, null, ct).ConfigureAwait(false);
                 return ghResult.Success
                     ? ShellResult.Ok(ghResult.Output)
                     : ShellResult.Fail(ghResult.Error);

@@ -81,6 +81,7 @@
     <YamlDotNetVersion>18.1.0</YamlDotNetVersion>
     <SharpZipLibVersion>1.4.2</SharpZipLibVersion>
     <SystemIOHashingVersion>10.0.9</SystemIOHashingVersion>
+    <SystemRuntimeCachingVersion>10.0.9</SystemRuntimeCachingVersion>
     <DockerDotNetVersion>3.125.15</DockerDotNetVersion>
     <LiteDBVersion>5.0.21</LiteDBVersion>
     <MicrosoftCodeAnalysisVersion>5.6.0</MicrosoftCodeAnalysisVersion>

@@ -63,7 +63,13 @@ public sealed partial class WebSocketTransport : TransportBase, IMcpTransport
             }
         }
 
-        var uri = new Uri(_config.Endpoint);
+        var endpoint = _config.Endpoint;
+        var span = endpoint.AsSpan();
+        if (span.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+            endpoint = string.Concat("ws://", span.Slice(7));
+        else if (span.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            endpoint = string.Concat("wss://", span.Slice(8));
+        var uri = new Uri(endpoint);
         await _ws.ConnectAsync(uri, ct).ConfigureAwait(false);
 
         var token2 = CreateCtsAndToken();

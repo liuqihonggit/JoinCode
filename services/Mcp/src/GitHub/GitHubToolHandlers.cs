@@ -18,16 +18,23 @@ public partial class GitHubToolHandlers
     private readonly ILogger<GitHubToolHandlers>? _logger;
 
     /// <summary>
-    /// Run 日志缓存 — 用 MemoryCache.Default(系统内存压力自动释放), key=nameof(GitHubToolHandlers)+":{run_id}:{job_id}"
-    /// <para>流式拉取后按步骤分组缓存,后续 expand 从缓存读取,避免重复下载</para>
-    /// <para>24h 过期,内存紧迫时由系统自动驱逐,无需手动管理 LRU</para>
+    /// Run 日志缓存 — 用 MemoryCache.Default(系统内存压力自动释放)
+    /// <para>两级缓存(ADR 0067): Level1 摘要(轻量)长期保留, Level2 内容(大量行)按 section 独立缓存可被驱逐</para>
+    /// <para>24h 过期,内存压力时 Level2 优先被驱逐,Level1 摘要保留,AI 仍可看步骤列表和 section 摘要</para>
     /// </summary>
     private static readonly MemoryCache _logCache = MemoryCache.Default;
 
     /// <summary>
-    /// 缓存 key 前缀 — 用 nameof 避免硬编码类名,重构时自动跟随
+    /// Level1 摘要缓存 key 前缀 — value=RunLogSummary(步骤名→行数, section类型→行数,轻量)
+    /// <para>用 nameof 避免硬编码类名,重构时自动跟随</para>
     /// </summary>
-    private static readonly string _cachePrefix = nameof(GitHubToolHandlers) + ":";
+    private static readonly string _summaryPrefix = nameof(GitHubToolHandlers) + ":summary:";
+
+    /// <summary>
+    /// Level2 内容缓存 key 前缀 — key=section:{runId}:{jobId}:{stepName}:{sectionType}, value=List&lt;string&gt;(该 section 的日志行)
+    /// <para>按 section 独立缓存,内存压力时各 section 可独立被驱逐,下次访问时按需重新拉取</para>
+    /// </summary>
+    private static readonly string _sectionPrefix = nameof(GitHubToolHandlers) + ":section:";
 
     public GitHubToolHandlers(
         IGitHubCommandRunner gh,

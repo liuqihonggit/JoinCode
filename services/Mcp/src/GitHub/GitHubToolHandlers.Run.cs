@@ -51,7 +51,7 @@ public partial class GitHubToolHandlers
             return await StreamAndFilterAsync(sb.ToString(), run_id, "失败步骤", working_dir, markers, filterLevel, maxLines, cancellationToken, FailedHint, skip);
         }
 
-        // === expand=steps 或 expand=step:Name: 从缓存或流式拉取,按步骤展开 ===
+        // === expand=steps 或 expand=step:Name: 两级缓存(ADR 0067) ===
         var expandStep = expand?.StartsWith("step:", StringComparison.OrdinalIgnoreCase) == true
             ? expand[5..].Trim()
             : null;
@@ -59,62 +59,55 @@ public partial class GitHubToolHandlers
 
         if (wantSteps || expandStep is not null)
         {
-            var cache = await GetOrFetchCacheAsync(run_id, job_id, working_dir, cancellationToken);
-            if (cache is null) return Fail("日志拉取失败");
-
-            // expand=steps: 返回步骤列表
-            if (wantSteps)
-            {
-                var summary = cache.Steps
-                    .OrderByDescending(kvp => kvp.Value.Count)
-                    .Select(kvp => $"  {kvp.Value.Count,6} 行  {kvp.Key}");
-                return Ok(string.Join('\n', summary) + StepsHint, $"Run {run_id} 步骤列表({cache.Steps.Count} 步骤,缓存于 {cache.CachedAt:HH:mm:ss}):");
-            }
-
-            // expand=step:Name 或 expand=step:Name/section:Type: Section 级展开(ADR 0067)
+            // 解析 /section:Type 后缀
+            string? sectionType = null;
             if (expandStep is not null)
             {
-                // 解析 /section:Type 后缀
                 var sectionIdx = expandStep.IndexOf("/section:", StringComparison.OrdinalIgnoreCase);
-                string? sectionType = null;
                 if (sectionIdx >= 0)
                 {
                     sectionType = expandStep[(sectionIdx + 9)..].Trim();
                     expandStep = expandStep[..sectionIdx].Trim();
                 }
+            }
 
-                if (!cache.Steps.TryGetValue(expandStep, out var stepLines))
-                    return Ok($"未找到步骤 '{expandStep}'，可用步骤: {string.Join(", ", cache.Steps.Keys)}");
+            // expand=step:Name/section:Type: 从 Level2 内容缓存读取(ADR 0067)
+            if (expandStep is not null && sectionType is not null)
+            {
+                var sectionLines = await GetOrFetchSectionAsync(run_id, job_id, expandStep, sectionType, working_dir, cancellationToken);
+                if (sectionLines is null)
+                    return Ok($"未找到步骤 '{expandStep}' 或 section '{sectionType}'，建议先 expand=step:{expandStep} 查看 section 摘要");
 
-                // expand=step:Name/section:Type: 返回指定 section 的内容（Level 3）
-                if (sectionType is not null && cache.StepSections.TryGetValue(expandStep, out var sections))
-                {
-                    if (!sections.TryGetValue(sectionType, out var sectionLines))
-                        return Ok($"未找到 section '{sectionType}'，可用: {string.Join(", ", sections.Keys)}");
+                var (secText, secHasMore) = SkipAndTruncate(sectionLines, maxLines, skip);
+                if (secHasMore)
+                    secText += TruncatedHint;
+                var secPrefix = BuildPrefix(run_id, $"步骤:{expandStep}/section:{sectionType}", filterLevel, sectionLines.Count);
+                return Ok(secText, secPrefix);
+            }
 
-                    var (secText, secHasMore) = SkipAndTruncate(sectionLines, maxLines, skip);
-                    if (secHasMore)
-                        secText += TruncatedHint;
-                    var secPrefix = BuildPrefix(run_id, $"步骤:{expandStep}/section:{sectionType}", filterLevel, sectionLines.Count);
-                    return Ok(secText, secPrefix);
-                }
+            // 其余情况(expand=steps 或 expand=step:Name): 从 Level1 摘要缓存读取
+            var summary = await GetOrFetchSummaryAsync(run_id, job_id, working_dir, cancellationToken);
+            if (summary is null) return Fail("日志拉取失败");
 
-                // expand=step:Name: 返回 section 摘要（Level 2，ADR 0067）
-                if (cache.StepSections.TryGetValue(expandStep, out var secs))
-                {
-                    var summary = secs
-                        .OrderBy(kvp => SectionOrder(kvp.Key))
-                        .Select(kvp => $"  {kvp.Key,-8} {kvp.Value.Count,5} 行  {GetSectionPreview(kvp.Value)}");
-                    return Ok(string.Join('\n', summary) + SectionHint, $"Run {run_id} 步骤:{expandStep} sections({secs.Count} 类):");
-                }
+            // expand=steps: 返回步骤列表
+            if (wantSteps)
+            {
+                var stepsText = summary.StepLineCounts
+                    .OrderByDescending(kvp => kvp.Value)
+                    .Select(kvp => $"  {kvp.Value,6} 行  {kvp.Key}");
+                return Ok(string.Join('\n', stepsText) + StepsHint, $"Run {run_id} 步骤列表({summary.StepLineCounts.Count} 步骤,缓存于 {summary.CachedAt:HH:mm:ss}):");
+            }
 
-                // fallback: 无 section 数据时返回全部日志行(向后兼容)
-                var filtered = ApplyFilter(stepLines, markers);
-                var (text, hasMore) = SkipAndTruncate(filtered, maxLines, skip);
-                if (hasMore)
-                    text += TruncatedHint;
-                var prefix = BuildPrefix(run_id, $"步骤:{expandStep}", filterLevel, filtered.Count);
-                return Ok(text, prefix);
+            // expand=step:Name: 返回 section 摘要(Level 2,ADR 0067)
+            if (expandStep is not null)
+            {
+                if (!summary.SectionCounts.TryGetValue(expandStep, out var secs))
+                    return Ok($"未找到步骤 '{expandStep}'，可用步骤: {string.Join(", ", summary.SectionCounts.Keys)}");
+
+                var summaryText = secs
+                    .OrderBy(kvp => SectionOrder(kvp.Key))
+                    .Select(kvp => $"  {kvp.Key,-8} {kvp.Value,5} 行  (用 expand=step:{expandStep}/section:{kvp.Key} 查看)");
+                return Ok(string.Join('\n', summaryText) + SectionHint, $"Run {run_id} 步骤:{expandStep} sections({secs.Count} 类):");
             }
         }
 
@@ -148,54 +141,105 @@ public partial class GitHubToolHandlers
     }
 
     /// <summary>
-    /// 从 MemoryCache 获取或流式拉取并缓存 — 按步骤分组存储
-    /// <para>key=nameof(GitHubToolHandlers)+":{runId}:{jobId}", 24h 过期,内存压力自动释放</para>
+    /// 从 Level1 摘要缓存获取或流式拉取 — 返回 RunLogSummary(步骤名→行数, section类型→行数)
+    /// <para>未命中时流式拉取 --log,构建 Level1 摘要 + 同时把每个 section 的日志行存入 Level2 缓存</para>
+    /// <para>key=nameof(GitHubToolHandlers)+":summary:{runId}:{jobId}", 24h 过期</para>
+    /// <para>ADR 0067 两级缓存: 摘要(轻量)长期保留,内容(大量行)按 section 独立缓存可被驱逐</para>
     /// </summary>
-    private async Task<RunLogCache?> GetOrFetchCacheAsync(string runId, string? jobId, string? workingDir, CancellationToken ct)
+    private async Task<RunLogSummary?> GetOrFetchSummaryAsync(string runId, string? jobId, string? workingDir, CancellationToken ct)
     {
-        var cacheKey = $"{_cachePrefix}{runId}:{jobId ?? "all"}";
-        if (_logCache.Get(cacheKey) is RunLogCache cached)
+        var summaryKey = $"{_summaryPrefix}{runId}:{jobId ?? "all"}";
+        if (_logCache.Get(summaryKey) is RunLogSummary cachedSummary)
         {
-            _logger?.LogDebug("Run 日志缓存命中: {Key}", cacheKey);
-            return cached;
+            _logger?.LogDebug("Level1 摘要缓存命中: {Key}", summaryKey);
+            return cachedSummary;
         }
 
         var sb = new StringBuilder($"run view {runId} --log");
         if (!string.IsNullOrWhiteSpace(jobId)) sb.Append($" --job {jobId}");
 
-        var cache = new RunLogCache { RunId = runId, JobId = jobId };
+        var summary = new RunLogSummary { RunId = runId, JobId = jobId };
+        // 临时收集: stepName → (sectionType → lines),拉取完写入 Level2 缓存
+        var sectionContents = new Dictionary<string, Dictionary<string, List<string>>>(StringComparer.OrdinalIgnoreCase);
+
         await foreach (var line in _gh.ExecuteStreamingAsync(sb.ToString(), ResolveWorkDir(workingDir), 120_000, ct).ConfigureAwait(false))
         {
             var parts = line.Split('\t');
             if (parts.Length < 2) continue;
             var stepName = parts[1];
-
-            // 按步骤分组（已有）
-            if (!cache.Steps.TryGetValue(stepName, out var lines))
-            {
-                lines = new List<string>();
-                cache.Steps[stepName] = lines;
-            }
-            lines.Add(line);
-
-            // 按 section 类型分组（ADR 0067 Section 级展开）
-            if (!cache.StepSections.TryGetValue(stepName, out var sections))
-            {
-                sections = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-                cache.StepSections[stepName] = sections;
-            }
             var sectionType = RunLogCache.ParseSectionType(line);
-            if (!sections.TryGetValue(sectionType, out var sectionLines))
+
+            // Level1 摘要: 步骤行数
+            summary.StepLineCounts[stepName] = summary.StepLineCounts.GetValueOrDefault(stepName) + 1;
+
+            // Level1 摘要: section 计数
+            if (!summary.SectionCounts.TryGetValue(stepName, out var secCounts))
             {
-                sectionLines = new List<string>();
-                sections[sectionType] = sectionLines;
+                secCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                summary.SectionCounts[stepName] = secCounts;
             }
-            sectionLines.Add(line);
+            secCounts[sectionType] = secCounts.GetValueOrDefault(sectionType) + 1;
+
+            // Level2 内容: 临时收集日志行
+            if (!sectionContents.TryGetValue(stepName, out var stepSecs))
+            {
+                stepSecs = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+                sectionContents[stepName] = stepSecs;
+            }
+            if (!stepSecs.TryGetValue(sectionType, out var secLines))
+            {
+                secLines = new List<string>();
+                stepSecs[sectionType] = secLines;
+            }
+            secLines.Add(line);
         }
 
-        _logCache.Add(cacheKey, cache, DateTimeOffset.Now.AddHours(24));
-        _logger?.LogDebug("Run 日志已缓存: {Key}, {Steps} 步骤", cacheKey, cache.Steps.Count);
-        return cache;
+        // 写入 Level2 内容缓存(每个 section 独立 key,24h 过期)
+        foreach (var (stepName, stepSecs) in sectionContents)
+        {
+            foreach (var (secType, secLines) in stepSecs)
+            {
+                var sectionKey = $"{_sectionPrefix}{runId}:{jobId ?? "all"}:{stepName}:{secType}";
+                _logCache.Add(sectionKey, secLines, DateTimeOffset.Now.AddHours(24));
+            }
+        }
+
+        // 写入 Level1 摘要缓存
+        _logCache.Add(summaryKey, summary, DateTimeOffset.Now.AddHours(24));
+        _logger?.LogDebug("Level1 摘要已缓存: {Key}, {Steps} 步骤, {Sections} sections",
+            summaryKey, summary.StepLineCounts.Count, sectionContents.Count);
+        return summary;
+    }
+
+    /// <summary>
+    /// 从 Level2 内容缓存获取指定 section 的日志行 — 未命中时先确保 Level1 摘要已构建(会填充所有 Level2)
+    /// <para>key=nameof(GitHubToolHandlers)+":section:{runId}:{jobId}:{stepName}:{sectionType}", 24h 过期</para>
+    /// <para>内存压力时 Level2 可被独立驱逐,下次访问时按需重新拉取(通过 Level1 触发全量重建)</para>
+    /// </summary>
+    private async Task<List<string>?> GetOrFetchSectionAsync(
+        string runId, string? jobId, string stepName, string sectionType,
+        string? workingDir, CancellationToken ct)
+    {
+        var sectionKey = $"{_sectionPrefix}{runId}:{jobId ?? "all"}:{stepName}:{sectionType}";
+        if (_logCache.Get(sectionKey) is List<string> cachedLines)
+        {
+            _logger?.LogDebug("Level2 内容缓存命中: {Key}, {Lines} 行", sectionKey, cachedLines.Count);
+            return cachedLines;
+        }
+
+        // Level2 未命中,先确保 Level1 已构建(会同时填充所有 Level2 缓存)
+        await GetOrFetchSummaryAsync(runId, jobId, workingDir, ct).ConfigureAwait(false);
+
+        // 再次从 Level2 读取
+        if (_logCache.Get(sectionKey) is List<string> lines)
+        {
+            _logger?.LogDebug("Level2 内容缓存(填充后)命中: {Key}, {Lines} 行", sectionKey, lines.Count);
+            return lines;
+        }
+
+        // 仍然未命中,说明该 step/section 不存在
+        _logger?.LogDebug("Level2 内容缓存未命中(步骤/section 不存在): {Key}", sectionKey);
+        return null;
     }
 
     /// <summary>

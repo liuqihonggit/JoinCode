@@ -43,3 +43,26 @@ internal sealed class RunLogCache
         return SectionNormal;
     }
 }
+
+/// <summary>
+/// Run 日志摘要缓存（Level 1，轻量）— 只存步骤名和 section 计数，不存日志行
+/// <para>ADR 0067 两级缓存：摘要(轻量)长期保留，内容(大量行)按 section 独立缓存可被驱逐</para>
+/// <para>内存压力时 Level 2 内容被优先驱逐,Level 1 摘要保留,AI 仍可看步骤列表和 section 摘要</para>
+/// </summary>
+internal sealed class RunLogSummary
+{
+    /// <summary>Run ID</summary>
+    public required string RunId { get; init; }
+
+    /// <summary>Job ID(null=无指定 job)</summary>
+    public string? JobId { get; init; }
+
+    /// <summary>步骤名 → 该步骤总行数</summary>
+    public Dictionary<string, int> StepLineCounts { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>步骤名 → (section类型 → 行数) — section 摘要计数</summary>
+    public Dictionary<string, Dictionary<string, int>> SectionCounts { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>缓存时间</summary>
+    public DateTimeOffset CachedAt { get; init; } = DateTimeOffset.UtcNow;
+}

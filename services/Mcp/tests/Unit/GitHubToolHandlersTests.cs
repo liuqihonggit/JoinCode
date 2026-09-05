@@ -183,7 +183,7 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task RunView_ExpandStepName_ReturnsOnlyThatStepFromCache()
+    public async Task RunView_ExpandStepName_ReturnsSectionSummaryForThatStepOnly()
     {
         _gh.NextResult = new GitHubCommandResult
         {
@@ -197,7 +197,8 @@ public sealed class GitHubToolHandlersTests
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
         text.Should().Contain("步骤:Test - Brain");
-        text.Should().Contain("##[error]failed");
+        text.Should().Contain("error");
+        text.Should().Contain("normal");
         text.Should().NotContain("setup line");
     }
 

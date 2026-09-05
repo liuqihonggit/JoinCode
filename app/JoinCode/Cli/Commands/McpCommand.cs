@@ -121,10 +121,20 @@ public sealed class McpCliCommand
     internal static async Task<IHost> BuildHostAsync(CancellationToken ct)
     {
         var fs = IO.FileSystem.FileSystemFactory.Create();
-        var options = new CommandLineOptions { NonInteractive = true, TrustWorkspace = true };
+        var options = new CommandLineOptions { NonInteractive = true, TrustWorkspace = true, SkipModelFetch = true };
         Core.Utils.TestEnvironmentDetector.ForceNonInteractive = true;
-        var result = await EngineSessionFactory.CreateCliSessionAsync(options, fs, ct).ConfigureAwait(false);
-        return result.Host;
+        // 子命令模式抑制初始化警告（ShellCapabilityInitializer 的 pwsh/python 检测警告）
+        var prevLogLevel = Environment.GetEnvironmentVariable("JCC_LOG_LEVEL");
+        Environment.SetEnvironmentVariable("JCC_LOG_LEVEL", "Error");
+        try
+        {
+            var result = await EngineSessionFactory.CreateCliSessionAsync(options, fs, ct).ConfigureAwait(false);
+            return result.Host;
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("JCC_LOG_LEVEL", prevLogLevel);
+        }
     }
 
     internal static async Task<int> ExecuteServeAsync(string transport, int port, string hostName, CancellationToken ct)

@@ -122,7 +122,8 @@ public sealed class EngineSessionFactory
         Core.DependencyInjection.ShellCapabilityInitializer.Initialize(
             fs, host.Services.GetService<ILogger<EngineSessionFactory>>());
 
-        StartModelFetchBackground(fs, host.Services, cancellationToken);
+        if (!options.SkipModelFetch)
+            StartModelFetchBackground(fs, host.Services, cancellationToken);
 
         var chatService = host.Services.GetRequiredService<IChatService>();
 

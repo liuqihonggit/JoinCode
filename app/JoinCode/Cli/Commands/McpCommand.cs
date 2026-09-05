@@ -201,6 +201,7 @@ public sealed class McpCliCommand : Command
     {
         var fs = IO.FileSystem.FileSystemFactory.Create();
         var options = new CommandLineOptions { NonInteractive = true, TrustWorkspace = true };
+        Core.Utils.TestEnvironmentDetector.ForceNonInteractive = true;
         var result = await EngineSessionFactory.CreateCliSessionAsync(options, fs, ct).ConfigureAwait(false);
         return result.Host;
     }

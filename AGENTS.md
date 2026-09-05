@@ -622,6 +622,25 @@ chcp 65001
 | `--debuglog` / `-d` | 启用调试日志（等效 `JCC_DEBUGLOG=1`） |
 | `--await <seconds>` | 非交互模式超时自动关闭（超时返回 1234） |
 
+**扁平元动词子命令**（ADR 0069）：
+
+| 元命令 | 用途 | 示例 |
+|--------|------|------|
+| `mcp_call <tool> <argsJson>` | MCP 工具直调 | `jcc mcp_call read_file {"path":"x"}` |
+| `mcp_list [--category <cat>]` | 列出 MCP 工具 | `jcc mcp_list --category Code` |
+| `mcp_schema <tool>` | 查看工具参数 schema | `jcc mcp_schema read_file` |
+| `mcp_search <query>` | 搜索 MCP 工具 | `jcc mcp_search "read"` |
+| `mcp_serve [--port 9903]` | 启动 MCP 服务端 | `jcc mcp_serve --transport http` |
+| `slash_call <cmd> <argsJson>` | 斜杠命令直调 | `jcc slash_call compact {"level":2}` |
+| `slash_list [--category <cat>]` | 列出斜杠命令（分类） | `jcc slash_list` |
+| `slash_schema <cmd>` | 查看斜杠命令参数 schema | `jcc slash_schema compact` |
+| `doctor [--server] [--port <n>]` | 医生模式 | `jcc doctor --server` |
+| `schema` | 输出 CLI 参数定义 JSON | `jcc schema` |
+| `rc` / `remote-control` | 远程控制 | `jcc rc --session-timeout 60` |
+
+> 全局参数可在元命令前：`jcc --trust --model gpt-4o mcp_call read_file {"path":"x"}`
+> 旧 `jcc mcp call` 已废弃，提示用 `jcc mcp_call`。旧 `jcc tool/agent/code` 已归档。
+
 ### .NET FileMode.Append 陷阱
 
 1. **❌ `FileMode.Append` 在 .NET 5+ 中文件不存在时抛 `FileNotFoundException`**

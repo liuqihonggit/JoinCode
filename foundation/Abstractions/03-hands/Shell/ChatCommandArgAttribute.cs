@@ -11,7 +11,7 @@ public sealed class ChatCommandArgAttribute : Attribute
     /// <summary>
     /// 参数名 — 对应 ToolSchemaProperty 的 key
     /// </summary>
-    public required string Name { get; init; }
+    public string Name { get; }
 
     /// <summary>
     /// 参数类型 — string/boolean/number/array/object，对应 ToolSchemaProperty.Type
@@ -47,4 +47,9 @@ public sealed class ChatCommandArgAttribute : Attribute
     /// 数组元素描述 — Type 为 array 时，对应 ToolSchemaProperty.Items.Description
     /// </summary>
     public string? ItemsDescription { get; init; }
+
+    public ChatCommandArgAttribute(string name)
+    {
+        Name = name;
+    }
 }

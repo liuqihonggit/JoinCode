@@ -1,6 +1,9 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Config, Description = "管理配置设置", Usage = "/config [get|set|list|remove] [key] [value]", Category = ChatCommandCategory.Config, ArgumentHint = "[get|set|list|remove]")]
+[ChatCommandArg("action", Type = "string", Description = "配置操作", Enum = new[] { "get", "set", "list", "remove" })]
+[ChatCommandArg("key", Type = "string", Description = "配置键名")]
+[ChatCommandArg("value", Type = "string", Description = "配置值（set 操作时需要）")]
 public sealed class ConfigCommand : ChatCommandBase
 {
     /// <summary>

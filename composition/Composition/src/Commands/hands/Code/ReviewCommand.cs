@@ -1,6 +1,7 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Review, Description = "审查 Pull Request 或代码变更", Usage = "/review [pr-number]", Category = ChatCommandCategory.Code, ArgumentHint = "[pr-number]", ExposeToMcp = true)]
+[ChatCommandArg("pr_number", Type = "string", Description = "Pull Request 编号（可选，默认当前分支）")]
 public sealed class ReviewCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

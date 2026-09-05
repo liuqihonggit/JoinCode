@@ -9,11 +9,11 @@ public sealed class McpCliCommand
     private static readonly Cli.Output.CliOutputJsonContext JsonCtx = Cli.Output.CliOutputJsonContext.Default;
 
     internal static Task<int> ExecuteCallAsync(
-        string toolName, string? args, string? argsFile, bool argsStdin, bool json, CancellationToken ct)
+        string toolName, string? args, string[]? kvArgs, string? argsFile, bool argsStdin, bool json, CancellationToken ct)
     {
-        var argDict = ParseArgs(args, argsFile, argsStdin);
+        var argDict = ParseArgs(args, kvArgs, argsFile, argsStdin);
         if (argDict is null)
-            return Task.FromResult(OutputError("参数 JSON 解析失败", json));
+            return Task.FromResult(OutputError("参数解析失败", json));
 
         return WithHostAsync(async services =>
         {
@@ -178,8 +178,27 @@ public sealed class McpCliCommand
         }
     }
 
-    private static Dictionary<string, JsonElement>? ParseArgs(string? args, string? argsFile, bool argsStdin)
+    private static Dictionary<string, JsonElement>? ParseArgs(string? args, string[]? kvArgs, string? argsFile, bool argsStdin)
     {
+        // 优先级: kvArgs (key=value) > argsJson (JSON) > argsFile > argsStdin
+        if (kvArgs is { Length: > 0 })
+        {
+            var dict = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+            foreach (var kv in kvArgs)
+            {
+                var eqIdx = kv.IndexOf('=');
+                if (eqIdx <= 0 || eqIdx == kv.Length - 1)
+                {
+                    TerminalHelper.WriteError($"参数格式错误: '{kv}'，应为 key=value");
+                    return null;
+                }
+                var key = kv[..eqIdx];
+                var value = kv[(eqIdx + 1)..];
+                dict[key] = ParseValueToJsonElement(value);
+            }
+            return dict;
+        }
+
         string? json = null;
         if (argsStdin)
         {
@@ -219,6 +238,29 @@ public sealed class McpCliCommand
             TerminalHelper.WriteError($"JSON 解析失败: {ex.Message}");
             return null;
         }
+    }
+
+    /// <summary>
+    /// 将 key=value 的字符串值转换为 JsonElement（支持 int/double/bool/string）。
+    /// </summary>
+    private static JsonElement ParseValueToJsonElement(string value)
+    {
+        if (int.TryParse(value, out var intVal))
+            return JsonDocument.Parse(intVal.ToString()).RootElement.Clone();
+        if (double.TryParse(value, out var doubleVal))
+            return JsonDocument.Parse(doubleVal.ToString()).RootElement.Clone();
+        if (string.Equals(value, "true", StringComparison.OrdinalIgnoreCase))
+            return JsonDocument.Parse("true").RootElement.Clone();
+        if (string.Equals(value, "false", StringComparison.OrdinalIgnoreCase))
+            return JsonDocument.Parse("false").RootElement.Clone();
+        if (string.Equals(value, "null", StringComparison.OrdinalIgnoreCase))
+            return JsonDocument.Parse("null").RootElement.Clone();
+        // 字符串值 — 用 Utf8JsonWriter 写入（AOT 兼容）
+        using var ms = new System.IO.MemoryStream();
+        using (var writer = new System.Text.Json.Utf8JsonWriter(ms))
+            writer.WriteStringValue(value);
+        ms.Position = 0;
+        return JsonDocument.Parse(ms).RootElement.Clone();
     }
 
     private static int OutputResult(ToolResult result, bool json)

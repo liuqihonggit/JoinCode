@@ -41,14 +41,28 @@ internal static class FlatSubCommandRouter
         var toolName = GetPositional(args, 0);
         if (string.IsNullOrEmpty(toolName))
         {
-            TerminalHelper.WriteError("用法: jcc mcp_call <tool> <argsJson> [--json] [--args-file <path>] [--args-stdin]");
+            TerminalHelper.WriteError("用法: jcc mcp_call <tool> [key=value ... | <argsJson> | --args-file <path> | --args-stdin] [--json]");
             return 1;
         }
         var json = HasFlag(args, "--json");
         var argsFile = GetOptionValue(args, "--args-file");
         var argsStdin = HasFlag(args, "--args-stdin");
-        var argsJson = !argsStdin && argsFile is null ? GetPositional(args, 1) : null;
-        return await McpCliCommand.ExecuteCallAsync(toolName!, argsJson, argsFile, argsStdin, json, ct).ConfigureAwait(false);
+        // 判断参数格式: JSON (以{开头) vs key=value (包含=)
+        string? argsJson = null;
+        string[]? kvArgs = null;
+        if (!argsStdin && argsFile is null)
+        {
+            var allPositional = GetAllPositional(args, 0);
+            if (allPositional is { Length: > 0 })
+            {
+                // 第一个位置参数是 toolName，跳过；剩余的按格式分发
+                if (allPositional.Length > 1 && allPositional[1].StartsWith("{"))
+                    argsJson = allPositional[1];
+                else if (allPositional.Length > 1)
+                    kvArgs = allPositional[1..];
+            }
+        }
+        return await McpCliCommand.ExecuteCallAsync(toolName!, argsJson, kvArgs, argsFile, argsStdin, json, ct).ConfigureAwait(false);
     }
 
     private static async Task<int?> ExecuteMcpListAsync(string[] args, CancellationToken ct)
@@ -118,6 +132,28 @@ internal static class FlatSubCommandRouter
             positionalIndex++;
         }
         return null;
+    }
+
+    /// <summary>
+    /// 获取从指定索引开始的所有位置参数（跳过 --option 及其值）。
+    /// </summary>
+    internal static string[]? GetAllPositional(string[] args, int startIndex)
+    {
+        var result = new List<string>();
+        var positionalIndex = 0;
+        for (var i = 1; i < args.Length; i++)
+        {
+            if (args[i].StartsWith("--"))
+            {
+                if (i + 1 < args.Length && !args[i + 1].StartsWith("--"))
+                    i++;
+                continue;
+            }
+            if (positionalIndex >= startIndex)
+                result.Add(args[i]);
+            positionalIndex++;
+        }
+        return result.Count > 0 ? result.ToArray() : null;
     }
 
     internal static string? GetOptionValue(string[] args, string optionName)

@@ -484,7 +484,7 @@ public partial class GitToolHandlers
         if (_securityInterceptor == null)
             return null;
 
-        var cwd = workingDir ?? _currentWorkingDirectory ?? _fs.GetCurrentDirectory();
+        var cwd = !string.IsNullOrWhiteSpace(workingDir) ? workingDir : (_currentWorkingDirectory ?? _fs.GetCurrentDirectory());
         var scanResult = await _securityInterceptor.ScanBeforeCommitAsync(cwd, ct).ConfigureAwait(false);
 
         if (!scanResult.IsBlocked)
@@ -499,7 +499,7 @@ public partial class GitToolHandlers
 
     private async Task<GitCommandResult> ExecuteGitCommandAsync(GitSubCommand subCommand, string arguments, string? workingDirectory, CancellationToken cancellationToken)
     {
-        var cwd = workingDirectory ?? _currentWorkingDirectory ?? _fs.GetCurrentDirectory();
+        var cwd = !string.IsNullOrWhiteSpace(workingDirectory) ? workingDirectory : (_currentWorkingDirectory ?? _fs.GetCurrentDirectory());
 
         var result = await _gitRunner.ExecuteAsync(arguments, cwd, cancellationToken).ConfigureAwait(false);
         RecordGitMetrics(subCommand.ToValue(), result.Success);

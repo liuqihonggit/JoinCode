@@ -20,6 +20,7 @@ global using JoinCode.Abstractions.Exceptions;
 global using JoinCode.Abstractions.Models.Policy;
 global using JoinCode.Abstractions.Security;
 global using JoinCode.Abstractions.Security.Permission;
+global using JoinCode.Abstractions.Security.Scanning;
 global using JoinCode.Abstractions.State;
 global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.Utils;

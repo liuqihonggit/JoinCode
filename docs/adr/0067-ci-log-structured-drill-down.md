@@ -138,6 +138,27 @@ Run 33970784713 步骤:Test - Brain (Context) section:error (1 行):
 - **迁移策略**：如果用户不传 `/section:xxx`，返回 section 摘要 + 提示"用 /section:error 查看 error 段"
 - 旧用法 `expand=step:Name + skip_lines=N` 不再直接返回日志行，而是提示用户用 `/section:normal` + `skip_lines` 查看普通日志段
 
+### 10. 按 job 并行下载（首次下载提速）
+
+**问题**：`gh run view --log` 串行下载整个 run 日志（内部调 `GET /repos/{owner}/{repo}/actions/runs/{run_id}/logs` 获取 zip 归档），25 个 job 的 run 耗时 ~43s。文件级缓存已将后续调用降至 3s，但首次调用仍需 43s。
+
+**方案**：用 `GET /repos/{owner}/{repo}/actions/jobs/{job_id}/logs` 按 job 并行下载：
+
+1. 先调 `GET /repos/{owner}/{repo}/actions/runs/{run_id}/jobs` 获取所有 job_id 列表（< 1s）
+2. 并行调 `GET /repos/{owner}/{repo}/actions/jobs/{job_id}/logs` 下载每个 job 的日志（302 重定向到纯文本）
+3. 合并所有 job 日志，用 job 名作为 step 名，构建 RunLogSummary + section 内容
+
+**实测数据**：
+- 全量下载（`gh run view --log`）：43s
+- 单个 job 下载：8.8s
+- 并行下载 25 个 job 理论上：~10-15s（最大 job 的下载时间），提速 3-4 倍
+
+**并发度限制**：用 `SemaphoreSlim(8)` 控制并发，避免 GitHub API 二级限速。
+
+**格式适配**：`gh api .../jobs/{job_id}/logs` 返回 `Timestamp\tLogLine`（2 列），`gh run view --log` 返回 `JobName\tStepName\tTimestamp\tLogLine`（4 列）。6. 用 job 名作为 step 名，每行添加 `JobName\t` 前缀。
+
+**与文件级缓存集成**：并行下载后存入 MemoryCache + `.jcc/gh_cache/` 文件，后续调用仍走缓存。
+
 ## 替代方案
 
 - **Test Result 级展开**：解析 trx 格式，`expand=step:Name/failed` 列出失败测试名。最精确但只适用 dotnet test 步骤，不通用。未采用（保留为未来增强，对 dotnet test 步骤自动检测 trx）。

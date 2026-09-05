@@ -209,42 +209,23 @@ public partial class GitHubToolHandlers
             }
         }
 
-        // 3. 流式下载 + 构建 + 缓存
-        var sb = new StringBuilder($"run view {runId} --log");
-        if (!string.IsNullOrWhiteSpace(jobId)) sb.Append($" --job {jobId}");
-
+        // 3. 并行下载(ADR 0067 §10) + 构建 + 缓存
         var summary = new RunLogSummary { RunId = runId, JobId = jobId };
         var sectionContents = new Dictionary<string, Dictionary<string, List<string>>>(StringComparer.OrdinalIgnoreCase);
         var rawBuilder = new StringBuilder();
 
-        await foreach (var line in _gh.ExecuteStreamingAsync(sb.ToString(), ResolveWorkDir(workingDir), 120_000, ct).ConfigureAwait(false))
+        var parallelOk = string.IsNullOrWhiteSpace(jobId)
+            && await TryDownloadParallelAsync(runId, workingDir, summary, sectionContents, rawBuilder, ct).ConfigureAwait(false);
+        if (!parallelOk)
         {
-            rawBuilder.Append(line).Append('\n');
-            var parts = line.Split('\t');
-            if (parts.Length < 2) continue;
-            var stepName = parts[1];
-            var sectionType = RunLogCache.ParseSectionType(line);
-
-            summary.StepLineCounts[stepName] = summary.StepLineCounts.GetValueOrDefault(stepName) + 1;
-
-            if (!summary.SectionCounts.TryGetValue(stepName, out var secCounts))
+            // 回退到串行 gh run view --log
+            var sb = new StringBuilder($"run view {runId} --log");
+            if (!string.IsNullOrWhiteSpace(jobId)) sb.Append($" --job {jobId}");
+            await foreach (var line in _gh.ExecuteStreamingAsync(sb.ToString(), ResolveWorkDir(workingDir), 120_000, ct).ConfigureAwait(false))
             {
-                secCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-                summary.SectionCounts[stepName] = secCounts;
+                rawBuilder.Append(line).Append('\n');
+                ParseAndAccumulate(line, summary, sectionContents);
             }
-            secCounts[sectionType] = secCounts.GetValueOrDefault(sectionType) + 1;
-
-            if (!sectionContents.TryGetValue(stepName, out var stepSecs))
-            {
-                stepSecs = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-                sectionContents[stepName] = stepSecs;
-            }
-            if (!stepSecs.TryGetValue(sectionType, out var secLines))
-            {
-                secLines = new List<string>();
-                stepSecs[sectionType] = secLines;
-            }
-            secLines.Add(line);
         }
 
         // 获取 updatedAt 用于后续 rerun 检测
@@ -356,6 +337,119 @@ public partial class GitHubToolHandlers
                 _logCache.Add(sectionKey, secLines, DateTimeOffset.Now.AddHours(24));
             }
         }
+    }
+
+    /// <summary>
+    /// 按 job 并行下载日志(ADR 0067 §10) — 25 个 job 并行,理论 10-15s vs 串行 43s
+    /// <para>失败时返回 false,调用方回退到串行 gh run view --log</para>
+    /// <para>并发度限制 8,避免 GitHub API 二级限速</para>
+    /// </summary>
+    private async Task<bool> TryDownloadParallelAsync(
+        string runId, string? workingDir,
+        RunLogSummary summary,
+        Dictionary<string, Dictionary<string, List<string>>> sectionContents,
+        StringBuilder rawBuilder, CancellationToken ct)
+    {
+        try
+        {
+            // 1. 获取 owner/repo
+            var repoResult = await RunGhAsync("repo view --json nameWithOwner -q .nameWithOwner", ResolveWorkDir(workingDir), ct).ConfigureAwait(false);
+            if (!repoResult.Success) return false;
+            var repo = repoResult.Output.Trim();
+
+            // 2. 获取 job 列表
+            var jobsResult = await RunGhAsync($"api repos/{repo}/actions/runs/{runId}/jobs --paginate", ResolveWorkDir(workingDir), ct).ConfigureAwait(false);
+            if (!jobsResult.Success) return false;
+
+            List<(long id, string name)> jobs;
+            using (var doc = JsonDocument.Parse(jobsResult.Output))
+            {
+                if (!doc.RootElement.TryGetProperty("jobs", out var jobsEl)) return false;
+                jobs = new List<(long, string)>();
+                foreach (var job in jobsEl.EnumerateArray())
+                {
+                    if (!job.TryGetProperty("id", out var idEl) || idEl.ValueKind != JsonValueKind.Number) continue;
+                    var name = job.TryGetProperty("name", out var nameEl) ? nameEl.GetString() ?? "unknown" : "unknown";
+                    jobs.Add((idEl.GetInt64(), name));
+                }
+            }
+            if (jobs.Count == 0) return false;
+
+            _logger?.LogDebug("并行下载 {Count} 个 job 日志", jobs.Count);
+
+            // 3. 并行下载每个 job 日志(SemaphoreSlim 限并发 8)
+            using var semaphore = new SemaphoreSlim(8);
+            var tasks = jobs.Select(async job =>
+            {
+                await semaphore.WaitAsync(ct).ConfigureAwait(false);
+                try
+                {
+                    var logResult = await RunGhAsync($"api repos/{repo}/actions/jobs/{job.id}/logs", ResolveWorkDir(workingDir), ct, 60_000).ConfigureAwait(false);
+                    return (job.name, logResult.Success ? logResult.Output : string.Empty);
+                }
+                finally { semaphore.Release(); }
+            }).ToArray();
+            var results = await Task.WhenAll(tasks).ConfigureAwait(false);
+
+            // 4. 合并日志(用 job 名作为 step 名)
+            foreach (var (jobName, logOutput) in results)
+            {
+                if (string.IsNullOrEmpty(logOutput)) continue;
+                foreach (var line in logOutput.Split('\n'))
+                {
+                    if (string.IsNullOrEmpty(line)) continue;
+                    rawBuilder.Append(line).Append('\n');
+                    Accumulate(line, jobName, summary, sectionContents);
+                }
+            }
+
+            _logger?.LogDebug("并行下载完成, {Steps} 步骤", summary.StepLineCounts.Count);
+            return summary.StepLineCounts.Count > 0;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "并行下载失败,回退到串行");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 解析一行日志并累积 — 4 列格式(JobName\tStepName\tTimestamp\tLogLine),从 parts[1] 提取 step 名
+    /// </summary>
+    private static void ParseAndAccumulate(string line, RunLogSummary summary, Dictionary<string, Dictionary<string, List<string>>> sectionContents)
+    {
+        var parts = line.Split('\t');
+        if (parts.Length < 2) return;
+        Accumulate(line, parts[1], summary, sectionContents);
+    }
+
+    /// <summary>
+    /// 累积一行日志到 summary 和 sectionContents — 用指定 stepName
+    /// </summary>
+    private static void Accumulate(string line, string stepName, RunLogSummary summary, Dictionary<string, Dictionary<string, List<string>>> sectionContents)
+    {
+        var sectionType = RunLogCache.ParseSectionType(line);
+
+        summary.StepLineCounts[stepName] = summary.StepLineCounts.GetValueOrDefault(stepName) + 1;
+
+        if (!summary.SectionCounts.TryGetValue(stepName, out var secCounts))
+        {
+            secCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            summary.SectionCounts[stepName] = secCounts;
+        }
+        secCounts[sectionType] = secCounts.GetValueOrDefault(sectionType) + 1;
+
+        if (!sectionContents.TryGetValue(stepName, out var stepSecs))
+        {
+            stepSecs = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            sectionContents[stepName] = stepSecs;
+        }
+        if (!stepSecs.TryGetValue(sectionType, out var secLines))
+        {
+            secLines = new List<string>();
+            stepSecs[sectionType] = secLines;
+        }
+        secLines.Add(line);
     }
 
     /// <summary>

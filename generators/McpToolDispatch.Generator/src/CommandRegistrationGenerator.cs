@@ -5,6 +5,7 @@ namespace McpToolDispatch.Generator;
 public sealed class CommandRegistrationGenerator : IIncrementalGenerator
 {
     private const string ChatCommandAttributeFullName = "JoinCode.ChatCommands.ChatCommandAttribute";
+    private const string ChatCommandArgAttributeFullName = "JoinCode.ChatCommands.ChatCommandArgAttribute";
     private const string IChatCommandFullName = "JoinCode.ChatCommands.IChatCommand";
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -17,8 +18,9 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
                 if (chatCommandAttr is null)
                     return ImmutableArray<CommandInfo>.Empty;
 
+                var chatCommandArgAttr = compilation.GetTypeByMetadataName(ChatCommandArgAttributeFullName);
                 var results = new List<CommandInfo>();
-                VisitNamespaces(compilation.GlobalNamespace, chatCommandAttr, results);
+                VisitNamespaces(compilation.GlobalNamespace, chatCommandAttr, chatCommandArgAttr, results);
                 return results.ToImmutableArray();
             })
             .Collect();
@@ -27,18 +29,20 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
         {
             GenerateRegistrationCode(ctx, commands);
             GenerateSlashCommandCatalog(ctx, commands);
+            GenerateSlashCommandSchemaCatalog(ctx, commands);
         });
     }
 
     private static void VisitNamespaces(
         INamespaceSymbol namespaceSymbol,
         INamedTypeSymbol? chatCommandAttr,
+        INamedTypeSymbol? chatCommandArgAttr,
         List<CommandInfo> results)
     {
         foreach (var member in namespaceSymbol.GetMembers())
         {
             if (member is INamespaceSymbol childNamespace)
-                VisitNamespaces(childNamespace, chatCommandAttr, results);
+                VisitNamespaces(childNamespace, chatCommandAttr, chatCommandArgAttr, results);
             else if (member is INamedTypeSymbol typeSymbol && chatCommandAttr is not null)
             {
                 if (!typeSymbol.Locations.Any(static loc => loc.IsInSource))
@@ -78,6 +82,7 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
 
                     var description = attr.NamedArguments.FirstOrDefault(n => n.Key == "Description").Value.Value as string ?? "";
                     var usage = attr.NamedArguments.FirstOrDefault(n => n.Key == "Usage").Value.Value as string ?? "";
+                    var argumentHint = attr.NamedArguments.FirstOrDefault(n => n.Key == "ArgumentHint").Value.Value as string ?? "";
                     var isHidden = attr.NamedArguments.FirstOrDefault(n => n.Key == "IsHidden").Value.Value is bool hiddenVal && hiddenVal;
                     var isEnabled = attr.NamedArguments.FirstOrDefault(n => n.Key == "IsEnabled").Value.Value is bool enabledVal ? enabledVal : true;
                     var aliases = new List<string>();
@@ -91,6 +96,16 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
                         }
                     }
 
+                    var args = new List<ChatCommandArgInfo>();
+                    if (chatCommandArgAttr is not null)
+                    {
+                        foreach (var a in typeSymbol.GetAttributes())
+                        {
+                            if (SymbolEqualityComparer.Default.Equals(a.AttributeClass, chatCommandArgAttr))
+                                args.Add(ExtractArgInfo(a));
+                        }
+                    }
+
                     results.Add(new CommandInfo(
                         typeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
                         name,
@@ -100,10 +115,38 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
                         usage,
                         aliases.ToArray(),
                         isHidden,
-                        isEnabled));
+                        isEnabled,
+                        argumentHint,
+                        args.ToArray()));
                 }
             }
         }
+    }
+
+    private static ChatCommandArgInfo ExtractArgInfo(AttributeData a)
+    {
+        var argName = a.NamedArguments.FirstOrDefault(n => n.Key == "Name").Value.Value as string ?? "";
+        var argType = a.NamedArguments.FirstOrDefault(n => n.Key == "Type").Value.Value as string ?? "string";
+        var argDesc = a.NamedArguments.FirstOrDefault(n => n.Key == "Description").Value.Value as string ?? "";
+        var argRequired = a.NamedArguments.FirstOrDefault(n => n.Key == "Required").Value.Value is bool reqVal && reqVal;
+        var argDefault = a.NamedArguments.FirstOrDefault(n => n.Key == "Default").Value.Value as string;
+        var argItemsType = a.NamedArguments.FirstOrDefault(n => n.Key == "ItemsType").Value.Value as string;
+        var argItemsDesc = a.NamedArguments.FirstOrDefault(n => n.Key == "ItemsDescription").Value.Value as string;
+
+        string[]? argEnum = null;
+        var enumValue = a.NamedArguments.FirstOrDefault(n => n.Key == "Enum").Value;
+        if (!enumValue.IsNull && enumValue.Kind == TypedConstantKind.Array)
+        {
+            var enumList = new List<string>();
+            foreach (var element in enumValue.Values)
+            {
+                if (element.Value is string enumItem)
+                    enumList.Add(enumItem);
+            }
+            argEnum = enumList.ToArray();
+        }
+
+        return new ChatCommandArgInfo(argName, argType, argDesc, argRequired, argDefault, argEnum, argItemsType, argItemsDesc);
     }
 
     private static void GenerateRegistrationCode(SourceProductionContext context, ImmutableArray<CommandInfo> commands)
@@ -192,6 +235,110 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
         context.AddSource("GeneratedSlashCommandCatalog.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
     }
 
+    /// <summary>生成 GeneratedSlashCommandSchemaCatalog — 从 [ChatCommandArg] 特性提取的参数 schema 目录</summary>
+    private static void GenerateSlashCommandSchemaCatalog(SourceProductionContext context, ImmutableArray<CommandInfo> commands)
+    {
+        var chatCommands = commands.Where(c => c.Type == CommandType.ChatCommand).OrderBy(c => c.Name).ToList();
+        if (chatCommands.Count == 0)
+            return;
+
+        var sb = new StringBuilder();
+        sb.AppendLine("// <auto-generated/>");
+        sb.AppendLine("#nullable enable");
+        sb.AppendLine("using System;");
+        sb.AppendLine("using System.Collections.Generic;");
+        sb.AppendLine("using JoinCode.Abstractions.Interfaces;");
+        sb.AppendLine("using JoinCode.Abstractions.Tools;");
+        sb.AppendLine();
+        sb.AppendLine("namespace JoinCode.ChatCommands;");
+        sb.AppendLine();
+        sb.AppendLine("/// <summary>");
+        sb.AppendLine("/// 斜杠命令参数 schema 目录 — 由源码生成器从 [ChatCommandArg] 特性自动提取，实现 ISlashCommandSchemaCatalog。");
+        sb.AppendLine("/// </summary>");
+        sb.AppendLine("public sealed class GeneratedSlashCommandSchemaCatalog : ISlashCommandSchemaCatalog");
+        sb.AppendLine("{");
+        sb.AppendLine("    public IReadOnlyList<SlashCommandSchemaEntry> AllSchemas { get; } =");
+        sb.AppendLine("    [");
+
+        foreach (var cmd in chatCommands)
+        {
+            if (cmd.Args.Length > 0)
+            {
+                sb.AppendLine($"        new SlashCommandSchemaEntry {{ CommandName = \"{EscapeString(cmd.Name)}\", Schema = {GenerateToolSchemaLiteral(cmd.Args)} }},");
+            }
+            else
+            {
+                var hint = string.IsNullOrEmpty(cmd.ArgumentHint) ? "null" : $"\"{EscapeString(cmd.ArgumentHint)}\"";
+                sb.AppendLine($"        new SlashCommandSchemaEntry {{ CommandName = \"{EscapeString(cmd.Name)}\", Schema = null, ArgumentHint = {hint} }},");
+            }
+        }
+
+        sb.AppendLine("    ];");
+        sb.AppendLine();
+        sb.AppendLine("    public ToolSchema? GetSchema(string commandName)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        foreach (var entry in AllSchemas)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            if (entry.CommandName == commandName)");
+        sb.AppendLine("                return entry.Schema;");
+        sb.AppendLine("        }");
+        sb.AppendLine("        return null;");
+        sb.AppendLine("    }");
+        sb.AppendLine("}");
+
+        context.AddSource("GeneratedSlashCommandSchemaCatalog.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
+    }
+
+    private static string GenerateToolSchemaLiteral(ChatCommandArgInfo[] args)
+    {
+        var sb = new StringBuilder();
+        sb.Append("new ToolSchema { Properties = new() {");
+
+        var first = true;
+        var required = new List<string>();
+
+        foreach (var arg in args)
+        {
+            if (!first) sb.Append(",");
+            first = false;
+
+            sb.Append($" [\"{EscapeString(arg.Name)}\"] = new ToolSchemaProperty {{ Type = \"{EscapeString(arg.Type)}\", Description = \"{EscapeString(arg.Description)}\"");
+
+            if (arg.Enum is not null && arg.Enum.Length > 0)
+            {
+                var enumItems = string.Join(", ", arg.Enum.Select(e => $"\"{EscapeString(e)}\""));
+                sb.Append($", Enum = [{enumItems}]");
+            }
+
+            if (arg.Default is not null)
+                sb.Append($", Default = \"{EscapeString(arg.Default)}\"");
+
+            if (arg.ItemsType is not null)
+            {
+                sb.Append($", Items = new ToolSchemaProperty {{ Type = \"{EscapeString(arg.ItemsType)}\"");
+                if (arg.ItemsDescription is not null)
+                    sb.Append($", Description = \"{EscapeString(arg.ItemsDescription)}\"");
+                sb.Append(" }");
+            }
+
+            sb.Append(" }");
+
+            if (arg.Required)
+                required.Add(arg.Name);
+        }
+
+        sb.Append(" }");
+
+        if (required.Count > 0)
+        {
+            var reqList = string.Join(", ", required.Select(r => $"\"{EscapeString(r)}\""));
+            sb.Append($", Required = [{reqList}]");
+        }
+
+        sb.Append(" }");
+        return sb.ToString();
+    }
+
     private static string EscapeString(string s) => s.Replace("\\", "\\\\").Replace("\"", "\\\"");
 
     private enum CommandType
@@ -210,6 +357,8 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
         public string[] Aliases { get; }
         public bool IsHidden { get; }
         public bool IsEnabled { get; }
+        public string ArgumentHint { get; }
+        public ChatCommandArgInfo[] Args { get; }
 
         public CommandInfo(
             string fullyQualifiedName,
@@ -220,7 +369,9 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
             string usage = "",
             string[]? aliases = null,
             bool isHidden = false,
-            bool isEnabled = true)
+            bool isEnabled = true,
+            string argumentHint = "",
+            ChatCommandArgInfo[]? args = null)
         {
             FullyQualifiedName = fullyQualifiedName;
             Name = name;
@@ -231,6 +382,40 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
             Aliases = aliases ?? [];
             IsHidden = isHidden;
             IsEnabled = isEnabled;
+            ArgumentHint = argumentHint;
+            Args = args ?? [];
+        }
+    }
+
+    private sealed class ChatCommandArgInfo
+    {
+        public string Name { get; }
+        public string Type { get; }
+        public string Description { get; }
+        public bool Required { get; }
+        public string? Default { get; }
+        public string[]? Enum { get; }
+        public string? ItemsType { get; }
+        public string? ItemsDescription { get; }
+
+        public ChatCommandArgInfo(
+            string name,
+            string type,
+            string description,
+            bool required,
+            string? defaultVal,
+            string[]? enumVal,
+            string? itemsType,
+            string? itemsDescription)
+        {
+            Name = name;
+            Type = type;
+            Description = description;
+            Required = required;
+            Default = defaultVal;
+            Enum = enumVal;
+            ItemsType = itemsType;
+            ItemsDescription = itemsDescription;
         }
     }
 }

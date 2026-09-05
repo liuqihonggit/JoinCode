@@ -23,19 +23,21 @@ public sealed class GraphPersistence : ServiceEntity, IGraphPersistence
         ArgumentNullException.ThrowIfNull(directory);
         _fs.CreateDirectory(directory);
 
-        using var scope = _store.EnterReadLock();
-
-        var data = new GraphPersistenceData
+        GraphPersistenceData data;
+        using (var scope = _store.EnterReadLock())
         {
-            Version = CurrentVersion,
-            SavedAt = DateTimeOffset.UtcNow,
-            Symbols = _store.SymbolsByFqn.Values.ToList(),
-            CallEdges = _store.CallEdges,
-            DependencyEdges = _store.DepEdges,
-            Projects = _store.Projects.Values.ToList(),
-            ProjectReferences = _store.ProjectRefs.Values.SelectMany(v => v).ToList(),
-            NuGetReferences = _store.NuGetRefs.Values.SelectMany(v => v).ToList(),
-        };
+            data = new GraphPersistenceData
+            {
+                Version = CurrentVersion,
+                SavedAt = DateTimeOffset.UtcNow,
+                Symbols = _store.SymbolsByFqn.Values.ToList(),
+                CallEdges = _store.CallEdges.ToList(),
+                DependencyEdges = _store.DepEdges.ToList(),
+                Projects = _store.Projects.Values.ToList(),
+                ProjectReferences = _store.ProjectRefs.Values.SelectMany(v => v).ToList(),
+                NuGetReferences = _store.NuGetRefs.Values.SelectMany(v => v).ToList(),
+            };
+        }
 
         var json = RelaxedJsonSerializer.Serialize(data, CodeIndexJsonContext.Default);
         var path = Path.Combine(directory, "code-index.json");

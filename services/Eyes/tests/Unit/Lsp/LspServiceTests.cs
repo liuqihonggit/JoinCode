@@ -502,6 +502,67 @@ public sealed class LspServiceTests
         await act.Should().NotThrowAsync().ConfigureAwait(true);
     }
 
+    [Fact]
+    public async Task SearchWorkspaceSymbolsAsync_ServerStopped_ReturnsEmpty()
+    {
+        var mockServer = new Mock<ILspServerInstance>();
+        mockServer.Setup(s => s.State).Returns(LspServerState.Stopped);
+        _mockManager.Setup(m => m.GetAllServers())
+            .Returns(new Dictionary<string, ILspServerInstance> { ["test-server"] = mockServer.Object });
+        var service = new LspService(CreateEngineContext(), CreateDeps());
+
+        var result = await service.SearchWorkspaceSymbolsAsync("MyClass").ConfigureAwait(true);
+
+        result.Should().NotBeNull();
+        result.Should().BeEmpty();
+        mockServer.Verify(
+            s => s.SendRequestAsync(It.IsAny<string>(), It.IsAny<object?>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task SearchWorkspaceSymbolsAsync_ServerError_ReturnsEmpty()
+    {
+        var mockServer = new Mock<ILspServerInstance>();
+        mockServer.Setup(s => s.State).Returns(LspServerState.Error);
+        _mockManager.Setup(m => m.GetAllServers())
+            .Returns(new Dictionary<string, ILspServerInstance> { ["test-server"] = mockServer.Object });
+        var service = new LspService(CreateEngineContext(), CreateDeps());
+
+        var result = await service.SearchWorkspaceSymbolsAsync("MyClass").ConfigureAwait(true);
+
+        result.Should().NotBeNull();
+        result.Should().BeEmpty();
+        mockServer.Verify(
+            s => s.SendRequestAsync(It.IsAny<string>(), It.IsAny<object?>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task SearchWorkspaceSymbolsAsync_ServerRunning_ReturnsSymbols()
+    {
+        var mockServer = new Mock<ILspServerInstance>();
+        mockServer.Setup(s => s.State).Returns(LspServerState.Running);
+        var jsonResponse = JsonNode.Parse(
+            """[{"name":"MyFunc","kind":12,"location":{"uri":"file:///test.cs","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":6}}}}]""");
+        mockServer.Setup(s => s.SendRequestAsync(It.IsAny<string>(), It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(jsonResponse);
+        _mockManager.Setup(m => m.GetAllServers())
+            .Returns(new Dictionary<string, ILspServerInstance> { ["test-server"] = mockServer.Object });
+        var service = new LspService(CreateEngineContext(), CreateDeps());
+
+        var result = await service.SearchWorkspaceSymbolsAsync("MyFunc").ConfigureAwait(true);
+
+        result.Should().NotBeNull();
+        result.Should().HaveCount(1);
+        result[0].Name.Should().Be("MyFunc");
+        result[0].Kind.Should().Be(12);
+        result[0].Location.Uri.Should().Be("file:///test.cs");
+        mockServer.Verify(
+            s => s.SendRequestAsync(It.IsAny<string>(), It.IsAny<object?>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
     private LspEngineContext CreateEngineContext() => new()
     {
         LspManager = _mockManager.Object,

@@ -192,18 +192,17 @@ public sealed class GitHubToolHandlersTests
             ExitCode = 0,
         };
 
-        var result = await _handler.GhRunViewAsync("101", expand: "step:Test - Brain");
+        var result = await _handler.GhRunViewAsync("104", expand: "step:Test - Brain");
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
         text.Should().Contain("步骤:Test - Brain");
         text.Should().Contain("##[error]failed");
-        text.Should().Contain("test output");
         text.Should().NotContain("setup line");
     }
 
     [Fact]
-    public async Task RunView_ExpandStepName_WithFilter_AppliesMarkerFilter()
+    public async Task RunView_ExpandStepName_ReturnsSectionSummary()
     {
         _gh.NextResult = new GitHubCommandResult
         {
@@ -212,7 +211,27 @@ public sealed class GitHubToolHandlersTests
             ExitCode = 0,
         };
 
-        var result = await _handler.GhRunViewAsync("102", expand: "step:Test - Brain", filter: "error");
+        var result = await _handler.GhRunViewAsync("101", expand: "step:Test - Brain");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("sections");
+        text.Should().Contain("error");
+        text.Should().Contain("warning");
+        text.Should().Contain("normal");
+    }
+
+    [Fact]
+    public async Task RunView_ExpandStepSection_ReturnsSectionContent()
+    {
+        _gh.NextResult = new GitHubCommandResult
+        {
+            Success = true,
+            Output = "Job\tTest - Brain\t2026-01-01T00:00:00Z ##[error]err line\nJob\tTest - Brain\t2026-01-01T00:00:01Z normal line\nJob\tTest - Brain\t2026-01-01T00:00:02Z ##[warning]warn line",
+            ExitCode = 0,
+        };
+
+        var result = await _handler.GhRunViewAsync("102", expand: "step:Test - Brain/section:error");
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -258,7 +277,7 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task RunView_ExpandStepWithSkipLines_ReturnsLinesAfterSkip()
+    public async Task RunView_ExpandStepSectionWithSkipLines_ReturnsLinesAfterSkipInSection()
     {
         _gh.NextResult = new GitHubCommandResult
         {
@@ -267,7 +286,7 @@ public sealed class GitHubToolHandlersTests
             ExitCode = 0,
         };
 
-        var result = await _handler.GhRunViewAsync("103", expand: "step:Test", max_lines: 10, skip_lines: 20);
+        var result = await _handler.GhRunViewAsync("103", expand: "step:Test/section:normal", max_lines: 10, skip_lines: 20);
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();

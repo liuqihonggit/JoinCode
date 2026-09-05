@@ -71,12 +71,44 @@ public partial class GitHubToolHandlers
                 return Ok(string.Join('\n', summary) + StepsHint, $"Run {run_id} 步骤列表({cache.Steps.Count} 步骤,缓存于 {cache.CachedAt:HH:mm:ss}):");
             }
 
-            // expand=step:Name: 从缓存返回指定步骤的日志(支持 skip_lines 分页续读)
+            // expand=step:Name 或 expand=step:Name/section:Type: Section 级展开(ADR 0067)
             if (expandStep is not null)
             {
+                // 解析 /section:Type 后缀
+                var sectionIdx = expandStep.IndexOf("/section:", StringComparison.OrdinalIgnoreCase);
+                string? sectionType = null;
+                if (sectionIdx >= 0)
+                {
+                    sectionType = expandStep[(sectionIdx + 9)..].Trim();
+                    expandStep = expandStep[..sectionIdx].Trim();
+                }
+
                 if (!cache.Steps.TryGetValue(expandStep, out var stepLines))
                     return Ok($"未找到步骤 '{expandStep}'，可用步骤: {string.Join(", ", cache.Steps.Keys)}");
 
+                // expand=step:Name/section:Type: 返回指定 section 的内容（Level 3）
+                if (sectionType is not null && cache.StepSections.TryGetValue(expandStep, out var sections))
+                {
+                    if (!sections.TryGetValue(sectionType, out var sectionLines))
+                        return Ok($"未找到 section '{sectionType}'，可用: {string.Join(", ", sections.Keys)}");
+
+                    var (secText, secHasMore) = SkipAndTruncate(sectionLines, maxLines, skip);
+                    if (secHasMore)
+                        secText += TruncatedHint;
+                    var secPrefix = BuildPrefix(run_id, $"步骤:{expandStep}/section:{sectionType}", filterLevel, sectionLines.Count);
+                    return Ok(secText, secPrefix);
+                }
+
+                // expand=step:Name: 返回 section 摘要（Level 2，ADR 0067）
+                if (cache.StepSections.TryGetValue(expandStep, out var secs))
+                {
+                    var summary = secs
+                        .OrderBy(kvp => SectionOrder(kvp.Key))
+                        .Select(kvp => $"  {kvp.Key,-8} {kvp.Value.Count,5} 行  {GetSectionPreview(kvp.Value)}");
+                    return Ok(string.Join('\n', summary) + SectionHint, $"Run {run_id} 步骤:{expandStep} sections({secs.Count} 类):");
+                }
+
+                // fallback: 无 section 数据时返回全部日志行(向后兼容)
                 var filtered = ApplyFilter(stepLines, markers);
                 var (text, hasMore) = SkipAndTruncate(filtered, maxLines, skip);
                 if (hasMore)
@@ -137,12 +169,28 @@ public partial class GitHubToolHandlers
             var parts = line.Split('\t');
             if (parts.Length < 2) continue;
             var stepName = parts[1];
+
+            // 按步骤分组（已有）
             if (!cache.Steps.TryGetValue(stepName, out var lines))
             {
                 lines = new List<string>();
                 cache.Steps[stepName] = lines;
             }
             lines.Add(line);
+
+            // 按 section 类型分组（ADR 0067 Section 级展开）
+            if (!cache.StepSections.TryGetValue(stepName, out var sections))
+            {
+                sections = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+                cache.StepSections[stepName] = sections;
+            }
+            var sectionType = RunLogCache.ParseSectionType(line);
+            if (!sections.TryGetValue(sectionType, out var sectionLines))
+            {
+                sectionLines = new List<string>();
+                sections[sectionType] = sectionLines;
+            }
+            sectionLines.Add(line);
         }
 
         _logCache.Add(cacheKey, cache, DateTimeOffset.Now.AddHours(24));
@@ -246,6 +294,15 @@ public partial class GitHubToolHandlers
         "- filter=error → 只看 ##[error] 标记行";
 
     /// <summary>
+    /// expand=step:Name 返回 section 摘要后的下一步提示(ADR 0067 Level 2)
+    /// </summary>
+    private const string SectionHint =
+        "\n\n💡 下一步:\n" +
+        "- /section:error → 查看 error 段(排障首要)\n" +
+        "- /section:group → 查看 group 段(命令上下文)\n" +
+        "- /section:normal → 查看普通日志(测试结果)";
+
+    /// <summary>
     /// 日志被截断时的缩小范围提示
     /// </summary>
     private const string TruncatedHint =
@@ -324,6 +381,29 @@ public partial class GitHubToolHandlers
         return result.Error.Contains("超时", StringComparison.OrdinalIgnoreCase)
             || result.Error.Contains("timeout", StringComparison.OrdinalIgnoreCase)
             || result.Error.Contains("timed out", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Section 类型的排序优先级 — error 优先(排障首要),normal 最后
+    /// </summary>
+    private static int SectionOrder(string type) => type switch
+    {
+        RunLogCache.SectionError => 0,
+        RunLogCache.SectionWarning => 1,
+        RunLogCache.SectionCommand => 2,
+        RunLogCache.SectionGroup => 3,
+        RunLogCache.SectionNormal => 4,
+        _ => 5,
+    };
+
+    /// <summary>
+    /// 获取 section 的预览文本 — 第一行截断到 60 字符
+    /// </summary>
+    private static string GetSectionPreview(List<string> lines)
+    {
+        if (lines.Count == 0) return string.Empty;
+        var first = lines[0];
+        return first.Length <= 60 ? first : first[..60] + "...";
     }
 
     [McpTool(GitHubToolNameConstants.GhRunRerun, "重跑 Actions Run(默认只重跑失败的 job)", "github")]

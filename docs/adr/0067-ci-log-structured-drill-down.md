@@ -1,6 +1,6 @@
 # 0067. CI 日志结构化逐级展开（Section 级 drill down）
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-09-06
 - 决策者：AI + 用户确认
 

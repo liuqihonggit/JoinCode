@@ -196,4 +196,4 @@ ADR 引用 design/plans，但不重复其内容。
 
 | 编号 | 标题 | 状态 | 来源 |
 |------|------|------|------|
-| 0067 | CI 日志结构化逐级展开 — Section 级 drill down | proposed | gh_run_view 逐页扫描效率低，AI 需直接跳到 error 段 |
+| 0067 | CI 日志结构化逐级展开 — Section 级 drill down | accepted | gh_run_view 逐页扫描效率低，AI 需直接跳到 error 段 |

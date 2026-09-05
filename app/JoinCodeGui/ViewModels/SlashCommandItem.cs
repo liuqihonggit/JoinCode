@@ -74,6 +74,21 @@ public sealed class SlashCommandItem
             .ToList();
     }
 
+    /// <summary>
+    /// 从 <see cref="SubAgentSummary"/> 列表创建 <see cref="SlashCommandItem"/> 列表。
+    /// 统一构造方式（对齐 <see cref="FromMetadata"/>），供 AgentCompletionProvider 消费。
+    /// </summary>
+    public static IReadOnlyList<SlashCommandItem> FromAgents(IReadOnlyList<SubAgentSummary> agents)
+    {
+        var items = new SlashCommandItem[agents.Count];
+        for (var i = 0; i < agents.Count; i++)
+        {
+            var a = agents[i];
+            items[i] = new SlashCommandItem { Name = a.Name, Description = a.Description };
+        }
+        return items;
+    }
+
     /// <summary>按输入前缀过滤命令（如 "/c" 匹配 /clear、/compact、/copy、/config），并排除禁用命令</summary>
     public static IReadOnlyList<SlashCommandItem> Filter(string prefix, IReadOnlyList<SlashCommandItem>? commands = null)
     {

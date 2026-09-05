@@ -9,11 +9,11 @@ public enum SlashCompletionMode
     /// <summary>命令参数补全（/model xxx）</summary>
     Argument,
 
-    /// <summary>文件补全（@path）</summary>
+    /// <summary>文件补全（#path）</summary>
     File,
 
-    /// <summary>工具补全（#tool）</summary>
-    Tool
+    /// <summary>子代理补全（@agent）</summary>
+    Agent
 }
 
 /// <summary>
@@ -56,7 +56,7 @@ public readonly record struct SlashParseResult
 
 /// <summary>
 /// 补全光标解析器 — 从光标位置向前查找最近的触发符（/ @ #），提取查询前缀。
-/// / → 命令名补全或命令参数补全；@ → 文件补全；# → 工具补全。
+    /// / → 命令名补全或命令参数补全；@ → 子代理补全；# → 文件补全。
 /// </summary>
 public static class SlashCommandParser
 {
@@ -104,7 +104,7 @@ public static class SlashCommandParser
             return SlashParseResult.None;
 
         var prefixAfter = afterTrigger.ToString();
-        var mode = triggerChar == '@' ? SlashCompletionMode.File : SlashCompletionMode.Tool;
+        var mode = triggerChar == '@' ? SlashCompletionMode.Agent : SlashCompletionMode.File;
         return new SlashParseResult
         {
             ShouldComplete = true,

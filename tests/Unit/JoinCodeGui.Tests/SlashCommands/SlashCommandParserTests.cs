@@ -192,24 +192,24 @@ public class SlashCommandParserTests
     }
 
     [Fact]
-    public void Parse_AtTrigger_ReturnsFileMode()
+    public void Parse_AtTrigger_ReturnsAgentMode()
     {
-        var result = SlashCommandParser.Parse("@src", 4);
+        var result = SlashCommandParser.Parse("@ag", 3);
         result.ShouldComplete.Should().BeTrue();
-        result.Mode.Should().Be(SlashCompletionMode.File);
+        result.Mode.Should().Be(SlashCompletionMode.Agent);
         result.TriggerChar.Should().Be('@');
-        result.Prefix.Should().Be("src");
+        result.Prefix.Should().Be("ag");
         result.SlashIndex.Should().Be(0);
     }
 
     [Fact]
-    public void Parse_HashTrigger_ReturnsToolMode()
+    public void Parse_HashTrigger_ReturnsFileMode()
     {
-        var result = SlashCommandParser.Parse("#Read", 5);
+        var result = SlashCommandParser.Parse("#src", 4);
         result.ShouldComplete.Should().BeTrue();
-        result.Mode.Should().Be(SlashCompletionMode.Tool);
+        result.Mode.Should().Be(SlashCompletionMode.File);
         result.TriggerChar.Should().Be('#');
-        result.Prefix.Should().Be("Read");
+        result.Prefix.Should().Be("src");
         result.SlashIndex.Should().Be(0);
     }
 
@@ -223,10 +223,10 @@ public class SlashCommandParserTests
     [Fact]
     public void Parse_NearestTriggerWins_AtOverSlash()
     {
-        var result = SlashCommandParser.Parse("/model @src", 11);
+        var result = SlashCommandParser.Parse("/model @ag", 10);
         result.ShouldComplete.Should().BeTrue();
-        result.Mode.Should().Be(SlashCompletionMode.File);
-        result.Prefix.Should().Be("src");
+        result.Mode.Should().Be(SlashCompletionMode.Agent);
+        result.Prefix.Should().Be("ag");
     }
 
     [Fact]

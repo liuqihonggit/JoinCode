@@ -82,9 +82,9 @@ public sealed class GitHubToolHandlersTests
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
-        text.Should().Contain("已截断");
         text.Should().Contain("共 300 行");
-        text.Should().Contain("仅显示前 50 行");
+        text.Should().Contain("显示第 1-50 行");
+        text.Should().Contain("skip_lines=50");
     }
 
     [Fact]
@@ -219,6 +219,61 @@ public sealed class GitHubToolHandlersTests
         text.Should().Contain("##[error]err line");
         text.Should().NotContain("normal line");
         text.Should().NotContain("##[warning]");
+    }
+
+    [Fact]
+    public async Task RunView_LogWithSkipLines_ReturnsLinesAfterSkip()
+    {
+        var lines = Enumerable.Range(0, 100).Select(i => $"line {i}").ToArray();
+        _gh.NextResult = new GitHubCommandResult
+        {
+            Success = true,
+            Output = string.Join('\n', lines),
+            ExitCode = 0,
+        };
+
+        var result = await _handler.GhRunViewAsync("42", log: true, max_lines: 10, skip_lines: 50);
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("line 50");
+        text.Should().Contain("line 59");
+        text.Should().NotContain("line 49");
+    }
+
+    [Fact]
+    public async Task RunView_SkipLinesExceedsTotal_ReturnsNoMoreMessage()
+    {
+        _gh.NextResult = new GitHubCommandResult
+        {
+            Success = true,
+            Output = "line 0\nline 1\nline 2",
+            ExitCode = 0,
+        };
+
+        var result = await _handler.GhRunViewAsync("42", log: true, max_lines: 10, skip_lines: 100);
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("已跳过全部");
+    }
+
+    [Fact]
+    public async Task RunView_ExpandStepWithSkipLines_ReturnsLinesAfterSkip()
+    {
+        _gh.NextResult = new GitHubCommandResult
+        {
+            Success = true,
+            Output = string.Join('\n', Enumerable.Range(0, 50).Select(i => $"Job\tTest\t2026-01-01T00:00:00Z line {i}")),
+            ExitCode = 0,
+        };
+
+        var result = await _handler.GhRunViewAsync("103", expand: "step:Test", max_lines: 10, skip_lines: 20);
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("line 20");
+        text.Should().Contain("line 29");
+        text.Should().NotContain("line 19");
     }
 
     [Fact]

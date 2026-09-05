@@ -26,18 +26,20 @@ public partial class GitHubToolHandlers
         return hasFailure ? Ok(result.Output + RunListFailureHint) : Ok(result.Output);
     }
 
-    [McpTool(GitHubToolNameConstants.GhRunView, "查看 Run 详情/日志(expand 按步骤展开+LRU缓存,filter 按标记过滤)", "github", ConcurrencySafe = true)]
+    [McpTool(GitHubToolNameConstants.GhRunView, "查看 Run 详情/日志(expand 按步骤展开+MemoryCache缓存,filter 按标记过滤,skip_lines 分页续读)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRunViewAsync(
         [McpToolParameter("Run ID", Required = true)] string run_id,
         [McpToolParameter("Job ID(可选,精准拉单 job)", Required = false)] string? job_id = null,
         [McpToolParameter("是否拉取日志(默认 false,仅看详情)", Required = false)] bool? log = null,
         [McpToolParameter("最大日志行数(默认 200)", Required = false)] int? max_lines = null,
+        [McpToolParameter("跳过前 N 行(用于续读截断日志,默认 0)", Required = false)] int? skip_lines = null,
         [McpToolParameter("按步骤展开: steps=列出步骤列表, failed=只拉失败步骤, step:Name=只拉指定步骤(复刻 ToolSearch map[] 逐层drill down)", Required = false)] string? expand = null,
         [McpToolParameter("日志过滤级别(error/warning/info/all,默认 all=不过滤)", Required = false)] string? filter = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
     {
         var maxLines = max_lines ?? 200;
+        var skip = skip_lines ?? 0;
         var hasFilter = TryParseLogFilter(filter, out var filterLevel) && filterLevel != GitHubLogFilter.All;
         var markers = hasFilter ? GetFilterMarkers(filterLevel) : null;
 
@@ -46,7 +48,7 @@ public partial class GitHubToolHandlers
         {
             var sb = new StringBuilder($"run view {run_id} --log-failed");
             if (!string.IsNullOrWhiteSpace(job_id)) sb.Append($" --job {job_id}");
-            return await StreamAndFilterAsync(sb.ToString(), run_id, "失败步骤", working_dir, markers, filterLevel, maxLines, cancellationToken, FailedHint);
+            return await StreamAndFilterAsync(sb.ToString(), run_id, "失败步骤", working_dir, markers, filterLevel, maxLines, cancellationToken, FailedHint, skip);
         }
 
         // === expand=steps 或 expand=step:Name: 从缓存或流式拉取,按步骤展开 ===
@@ -69,19 +71,18 @@ public partial class GitHubToolHandlers
                 return Ok(string.Join('\n', summary) + StepsHint, $"Run {run_id} 步骤列表({cache.Steps.Count} 步骤,缓存于 {cache.CachedAt:HH:mm:ss}):");
             }
 
-            // expand=step:Name: 从缓存返回指定步骤的日志
+            // expand=step:Name: 从缓存返回指定步骤的日志(支持 skip_lines 分页续读)
             if (expandStep is not null)
             {
                 if (!cache.Steps.TryGetValue(expandStep, out var stepLines))
                     return Ok($"未找到步骤 '{expandStep}'，可用步骤: {string.Join(", ", cache.Steps.Keys)}");
 
                 var filtered = ApplyFilter(stepLines, markers);
-                var truncated = TruncateLines(string.Join('\n', filtered), maxLines);
-                // 被截断时追加缩小范围提示
-                if (truncated.Contains("已截断", StringComparison.OrdinalIgnoreCase))
-                    truncated += TruncatedHint;
+                var (text, hasMore) = SkipAndTruncate(filtered, maxLines, skip);
+                if (hasMore)
+                    text += TruncatedHint;
                 var prefix = BuildPrefix(run_id, $"步骤:{expandStep}", filterLevel, filtered.Count);
-                return Ok(truncated, prefix);
+                return Ok(text, prefix);
             }
         }
 
@@ -92,15 +93,24 @@ public partial class GitHubToolHandlers
         if (wantLog) sb2.Append(" --log");
 
         if (wantLog && (hasFilter || expand is not null))
-            return await StreamAndFilterAsync(sb2.ToString(), run_id, "流式过滤", working_dir, markers, filterLevel, maxLines, cancellationToken, LogHint);
+            return await StreamAndFilterAsync(sb2.ToString(), run_id, "流式过滤", working_dir, markers, filterLevel, maxLines, cancellationToken, LogHint, skip);
 
         var result = await RunGhAsync(sb2.ToString(), ResolveWorkDir(working_dir), cancellationToken, wantLog ? 120_000 : null);
-        if (!result.Success) return Fail(result);
+        if (!result.Success)
+        {
+            // 超时时追加纵深防御提示,避免 AI 改用 gh api
+            if (IsTimeoutError(result))
+                return Fail(result.Error + TimeoutDefenseHint);
+            return Fail(result);
+        }
 
         if (wantLog)
         {
-            var truncated = TruncateLines(result.Output, maxLines);
-            return Ok(truncated + LogHint, $"Run {run_id} 日志:");
+            var allLines = result.Output.Split('\n');
+            var (text, hasMore) = SkipAndTruncate(allLines, maxLines, skip);
+            if (hasMore)
+                text += TruncatedHint;
+            return Ok(text + LogHint, $"Run {run_id} 日志:");
         }
         return Ok(result.Output);
     }
@@ -141,27 +151,59 @@ public partial class GitHubToolHandlers
     }
 
     /// <summary>
-    /// 流式拉取 + 过滤(不缓存,用于 --log-failed 或一次性过滤)
+    /// 流式拉取 + 过滤 + 分页跳过(不缓存,用于 --log-failed 或一次性过滤)
     /// </summary>
     private async Task<ToolResult> StreamAndFilterAsync(
         string command, string runId, string scope, string? workingDir,
         FrozenSet<string>? markers, GitHubLogFilter? filterLevel,
-        int maxLines, CancellationToken ct, string? hint = null)
+        int maxLines, CancellationToken ct, string? hint = null, int skipLines = 0)
     {
         var matched = new List<string>(maxLines);
+        var skipped = 0;
         await foreach (var line in _gh.ExecuteStreamingAsync(command, ResolveWorkDir(workingDir), 120_000, ct).ConfigureAwait(false))
         {
             if (markers is not null && !markers.Any(m => line.Contains(m, StringComparison.OrdinalIgnoreCase)))
                 continue;
+            // 先跳过 skipLines 行(分页续读)
+            if (skipped < skipLines) { skipped++; continue; }
             matched.Add(line);
             if (matched.Count >= maxLines) break;
         }
         var prefix = BuildPrefix(runId, scope, filterLevel, matched.Count);
         if (matched.Count == 0)
-            return Ok("未匹配到任何日志行", prefix);
+            return Ok(skipLines > 0 ? $"未匹配到更多日志行(已跳过 {skipLines} 行)" : "未匹配到任何日志行", prefix);
         var text = string.Join('\n', matched);
+        // 达到 maxLines 说明可能还有更多行,追加续读提示
+        if (matched.Count >= maxLines)
+            text += $"\n... [可能还有更多行，用 skip_lines={skipLines + maxLines} 续读]";
         if (hint is not null) text += hint;
         return Ok(text, prefix);
+    }
+
+    /// <summary>
+    /// 跳过前 skipLines 行,再截断到 maxLines 行 — 返回 (结果文本, 是否还有更多行)
+    /// <para>截断提示包含 skip_lines 续读参数,LLM 可直接分页获取后续行</para>
+    /// </summary>
+    private static (string text, bool hasMore) SkipAndTruncate(IReadOnlyList<string> lines, int maxLines, int skipLines)
+    {
+        if (lines.Count == 0) return (string.Empty, false);
+        if (skipLines >= lines.Count)
+            return ($"已跳过全部 {lines.Count} 行(skip_lines={skipLines})，无更多日志。", false);
+
+        var take = Math.Min(lines.Count - skipLines, maxLines);
+        var sb = new StringBuilder(take * 80);
+        for (int i = skipLines; i < skipLines + take; i++)
+        {
+            sb.Append(lines[i]);
+            sb.Append('\n');
+        }
+        var hasMore = skipLines + take < lines.Count;
+        if (hasMore)
+        {
+            sb.Append($"... [共 {lines.Count} 行，显示第 {skipLines + 1}-{skipLines + take} 行。");
+            sb.Append($"用 skip_lines={skipLines + take} 续读后续行]");
+        }
+        return (sb.ToString(), hasMore);
     }
 
     /// <summary>
@@ -208,6 +250,7 @@ public partial class GitHubToolHandlers
     /// </summary>
     private const string TruncatedHint =
         "\n\n💡 日志已截断，缩小范围:\n" +
+        "- skip_lines=N → 续读后续行(截断提示中有具体值)\n" +
         "- filter=error → 只看错误行\n" +
         "- 增大 max_lines → 看更多行";
 
@@ -223,7 +266,18 @@ public partial class GitHubToolHandlers
     private const string LogHint =
         "\n\n💡 日志量大时建议:\n" +
         "- expand=steps → 按步骤展开\n" +
-        "- filter=error → 只看错误行";
+        "- filter=error → 只看错误行\n" +
+        "- skip_lines=N → 分页续读";
+
+    /// <summary>
+    /// 超时纵深防御提示 — 引导 AI 用 gh 工具的降级路径,不要改用 gh api
+    /// </summary>
+    private const string TimeoutDefenseHint =
+        "\n\n💡 日志量大导致超时，不要改用 gh api，用以下方式缩小范围:\n" +
+        "1. expand=steps → 按步骤展开(每步单独拉取,量小)\n" +
+        "2. expand=step:步骤名 → 只拉指定步骤\n" +
+        "3. skip_lines=N + max_lines=M → 分页拉取\n" +
+        "4. job_id=xxx → 精准拉单 job";
 
     /// <summary>
     /// GitHub Actions 日志过滤标记集 — 按 <see cref="GitHubLogFilter"/> 级别匹配 ##[error] / ##[warning] / ##[command]
@@ -259,6 +313,17 @@ public partial class GitHubToolHandlers
         if (parsed is null) return false;
         result = parsed.Value;
         return true;
+    }
+
+    /// <summary>
+    /// 判断是否为超时错误 — 用于触发纵深防御提示(避免 AI 改用 gh api)
+    /// </summary>
+    private static bool IsTimeoutError(GitHubCommandResult result)
+    {
+        if (string.IsNullOrEmpty(result.Error)) return false;
+        return result.Error.Contains("超时", StringComparison.OrdinalIgnoreCase)
+            || result.Error.Contains("timeout", StringComparison.OrdinalIgnoreCase)
+            || result.Error.Contains("timed out", StringComparison.OrdinalIgnoreCase);
     }
 
     [McpTool(GitHubToolNameConstants.GhRunRerun, "重跑 Actions Run(默认只重跑失败的 job)", "github")]

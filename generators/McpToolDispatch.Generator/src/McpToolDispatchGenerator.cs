@@ -201,7 +201,11 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
                                     }
 
                                     if (param.HasExplicitDefaultValue)
+                                    {
                                         paramRequired = false;
+                                        if (paramDefault is null && param.ExplicitDefaultValue is not null)
+                                            paramDefault = param.ExplicitDefaultValue.ToString();
+                                    }
 
                                     var jsonType = MapTypeToJsonType(param.Type);
                                     var isNullable = paramTypeName.EndsWith("?") || paramTypeName.StartsWith("System.Nullable<");
@@ -363,6 +367,14 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
             return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) && __{name}El.ValueKind == System.Text.Json.JsonValueKind.Array ? __{name}El.EnumerateArray().Select(e => {elementExtractor}).ToArray() : {nullableSuffix}";
         }
 
+        // 处理 Dictionary<string, JsonElement> 类型（非数组元素）
+        if (IsDictionaryOfJsonElement(typeName))
+        {
+            if (param.IsNullable || !param.Required)
+                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) && __{name}El.ValueKind == System.Text.Json.JsonValueKind.Object ? __{name}El.EnumerateObject().ToDictionary(p => p.Name, p => p.Value.Clone()) : null";
+            return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) && __{name}El.ValueKind == System.Text.Json.JsonValueKind.Object ? __{name}El.EnumerateObject().ToDictionary(p => p.Name, p => p.Value.Clone()) : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";
+        }
+
         // 使用简化类型名匹配，结合 IsNullable 判断
         var isNullableType = simplified.EndsWith("?") || param.IsNullable;
         var baseType = simplified.EndsWith("?") ? simplified.Substring(0, simplified.Length - 1) : simplified;
@@ -371,6 +383,8 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         {
             if (isNullableType)
                 return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetString() : null";
+            if (param.HasDefaultValue && param.DefaultValue is not null)
+                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetString() ?? \"{EscapeString(param.DefaultValue)}\" : \"{EscapeString(param.DefaultValue)}\"";
             if (!param.Required)
                 return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetString() ?? \"\" : \"\"";
             return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetString() ?? \"\" : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";
@@ -379,6 +393,8 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         {
             if (isNullableType)
                 return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? (int?)__{name}El.GetInt32() : null";
+            if (param.HasDefaultValue && param.DefaultValue is not null)
+                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetInt32() : {param.DefaultValue}";
             if (!param.Required)
                 return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetInt32() : 0";
             return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetInt32() : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";
@@ -387,6 +403,8 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         {
             if (isNullableType)
                 return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? (long?)__{name}El.GetInt64() : null";
+            if (param.HasDefaultValue && param.DefaultValue is not null)
+                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetInt64() : {param.DefaultValue}L";
             if (!param.Required)
                 return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetInt64() : 0L";
             return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetInt64() : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";
@@ -395,6 +413,8 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         {
             if (isNullableType)
                 return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? (double?)__{name}El.GetDouble() : null";
+            if (param.HasDefaultValue && param.DefaultValue is not null)
+                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetDouble() : {param.DefaultValue}";
             if (!param.Required)
                 return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetDouble() : 0.0";
             return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetDouble() : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";
@@ -403,6 +423,8 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         {
             if (isNullableType)
                 return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? (float?)__{name}El.GetSingle() : null";
+            if (param.HasDefaultValue && param.DefaultValue is not null)
+                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetSingle() : {param.DefaultValue}f";
             if (!param.Required)
                 return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetSingle() : 0.0f";
             return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetSingle() : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";
@@ -411,6 +433,8 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         {
             if (isNullableType)
                 return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? (bool?)__{name}El.GetBoolean() : null";
+            if (param.HasDefaultValue && param.DefaultValue is not null)
+                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetBoolean() : {param.DefaultValue.ToLowerInvariant()}";
             if (!param.Required)
                 return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetBoolean() : false";
             return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetBoolean() : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";

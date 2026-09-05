@@ -52,7 +52,7 @@ public sealed partial class VoiceToolHandlers
         {
             if (!_voiceService.IsRecording)
             {
-                return ToolResultBuilder.Error()
+                return ToolResultBuilder.Success()
                     .WithText(L.T(StringKey.VoiceNotRecording))
                     .Build();
             }

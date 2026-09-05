@@ -7,7 +7,16 @@ public class PlanModeManagerTests
 
     public PlanModeManagerTests()
     {
-        _planModeManager = new PlanModeManager(new IO.FileSystem.PhysicalFileSystem(), JoinCode.Abstractions.Clock.SystemClockService.Instance);
+        // 清理跨进程持久化状态文件，避免测试间相互影响
+        var fs = new IO.FileSystem.PhysicalFileSystem();
+        var planStateFile = System.IO.Path.Combine(
+            System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile),
+            ".jcc", "plans", ".active_plan_state.json");
+        if (fs.FileExists(planStateFile))
+        {
+            fs.DeleteFile(planStateFile);
+        }
+        _planModeManager = new PlanModeManager(fs, JoinCode.Abstractions.Clock.SystemClockService.Instance);
     }
 
     [Fact]

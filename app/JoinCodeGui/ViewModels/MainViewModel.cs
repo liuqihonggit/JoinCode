@@ -1357,6 +1357,9 @@ public sealed partial class MainViewModel : ViewModelBase
         if (string.IsNullOrWhiteSpace(message))
             return;
 
+        // ! / !! 前缀命令统一解析 — 由 PrefixCommandRouter.Parse 判断，不硬编码字符比较
+        var prefixParsed = PrefixCommandRouter.Parse(message);
+
         // F4 规则1：@提及直发子代理 — 绕过主代理 LLM，不受 IsBusy 拦截（对齐 CLI ReplLoopStep）
         if (message[0] == '@')
         {
@@ -1366,7 +1369,7 @@ public sealed partial class MainViewModel : ViewModelBase
         }
 
         // !! 前缀命令 — 静默执行/打开，不触发 AI，不受 IsBusy 拦截（对齐 PI !! 设计）
-        if (message.Length >= 2 && message[0] == '!' && message[1] == '!')
+        if (prefixParsed is { Prefix: "!!" })
         {
             InputText = string.Empty;
             await HandleSilentPrefixCommandAsync(message);
@@ -1395,7 +1398,7 @@ public sealed partial class MainViewModel : ViewModelBase
         try
         {
             // ! 前缀命令路由 — 执行 shell 命令，输出注入 AI 上下文（对齐 PI ! 设计）
-            if (message.Length >= 1 && message[0] == '!' && (message.Length < 2 || message[1] != '!'))
+            if (prefixParsed is { Prefix: "!" })
             {
                 await HandleShellPrefixCommandAsync(message, _sendCts.Token);
                 StatusText = "就绪";

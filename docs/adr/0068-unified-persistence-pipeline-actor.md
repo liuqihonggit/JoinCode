@@ -102,3 +102,53 @@ public sealed class PersistencePipeline : ActorBase<PersistRequest>, IPersistenc
 ## 验证
 
 code_index 首迁验证：rebuild → EnqueueAsync 落盘 → 新进程 EnsureIndexLoadedAsync 加载 → search 命中。验证通过后推广至 memory/permission/task/notebook/structured_output。
+
+## 各分类持久化状态（2026-09-06）
+
+| 分类 | 工具数 | 持久化方式 | 落盘路径 | 跨进程验证 | commit |
+|------|--------|-----------|----------|-----------|--------|
+| code_index | 20 | 统一管道 | `.jcc/code-index/code-index.json` | ✅ rebuild→新进程search命中 | `9c347f088` `ccf1438c7` |
+| memory (team paths) | 3 | 统一管道 | `.jcc/memory/team-paths.json` | ✅ add→新进程list命中 | `a67273059` |
+| permission | 7 | 统一管道 | `.jcc/permission/rules.json` | ✅ add_rule→新进程list命中 | `f618ab8ca` |
+| task | 12 | 文件系统（天然） | `~/.jcc/tasks/task-*.json` | ✅ TaskCreate→新进程TaskList命中 | 已有 FileBasedTaskService |
+| notebook | 10 | .ipynb 文件（天然）+ Read-before-Edit 自动读取 | .ipynb 文件本身 | ✅ create→add_cell→read→edit→read | `f1e977b15` |
+| structured_output | 2 | 统一管道 | `.jcc/structured-output/schemas.json` | ✅ register→新进程validate命中 | `df7d7e718` |
+| todo | 4 | 统一管道 | `.jcc/todo/todos.json` | ✅ TodoWrite→新进程todo_list命中 | `a61120474` |
+| goal | 3 | 运行时会话状态（不需持久化） | — | N/A | — |
+| config/network/planning/notification | 6 | 无状态/运行时 | — | N/A | — |
+| web/desktop | 37 | 无状态外部操作 | — | N/A | — |
+| **git** | **9** | **跳过（用户正在改）** | — | **⏳ 待验证** | — |
+
+## git 持久化后续参考
+
+git 9 个工具（git_add/git_branch/git_clone/git_commit/git_diff/git_log/git_pull/git_push/git_status）操作 git 仓库，状态在 `.git` 目录本身，天然跨进程共享，**预期不需要额外持久化**。
+
+### 跳过原因
+
+用户正在修改 git 工具相关代码，验证暂时跳过。
+
+### 后续验证步骤
+
+1. **等用户完成 git 工具修改后**，重新编译 `dotnet build app/JoinCode/JoinCode.csproj -c Debug`
+2. **逐个验证 9 个 git 工具的成功路径**（在 `D:\project\w1` 仓库上操作）：
+   - `git_status` → 返回当前工作区状态
+   - `git_add` → 添加文件到暂存区
+   - `git_commit` → 提交暂存更改
+   - `git_log` → 查看提交历史
+   - `git_diff` → 查看文件差异
+   - `git_branch` → 创建或切换分支
+   - `git_pull` / `git_push` → 需要远程仓库，可跳过或 mock
+   - `git_clone` → 需要远程仓库，可跳过或 mock
+3. **跨进程验证**：git 工具操作 .git 目录，新进程应能看到前一个进程的 git 操作结果（如 git_add 后新进程 git_status 应显示已暂存）
+
+### 需要阅读的代码
+
+| 文件 | 用途 |
+|------|------|
+| `core/execution/McpToolDispatch/src/**/GitToolHandlers*.cs` | git 工具 handler 实现 |
+| `docs/plans/mcp/验证交接A-组1.md` 第 145-155 行 | git 9 工具交接验证记录（已 ✅ OK，修复 1 个 bug：空字符串 working_dir 未回退默认目录） |
+| `docs/adr/0068-unified-persistence-pipeline-actor.md` 本节 | 持久化管道架构参考 |
+
+### 已知 bug（交接文档记录）
+
+- `git_commit` 空字符串 `working_dir` 未回退默认目录导致 `ArgumentException`（MCP 框架把未传可选参数设为空字符串而非 null，`??` 运算符不拦截空字符串）— **此根因已在 `ce16d38ab` 修复生成器 nullable 误判，git_commit 的 working_dir 参数应同步验证是否已修复**

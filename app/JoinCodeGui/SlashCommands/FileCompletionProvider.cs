@@ -2,12 +2,26 @@ namespace JoinCode.Gui.SlashCommands;
 
 /// <summary>
 /// 文件补全提供器 — 扫描当前工作目录的文件和文件夹，按前缀过滤。
-/// 支持子目录递归：输入 @src/ 自动列出 src 目录内容，输入 @src/F 过滤 F 前缀。
-/// @ 触发符调用，限制候选数量避免大目录卡顿。
+/// 支持子目录递归：输入 #src/ 自动列出 src 目录内容，输入 #src/F 过滤 F 前缀。
+/// # 触发符调用，限制候选数量避免大目录卡顿。
+/// 实现 ICompletionProvider 统一接口，注册到 CompletionTriggerRegistry。
 /// </summary>
-public static class FileCompletionProvider
+public sealed class FileCompletionProvider : ICompletionProvider
 {
     private const int MaxResults = 50;
+
+    /// <inheritdoc/>
+    public char TriggerChar => '#';
+
+    /// <inheritdoc/>
+    public SlashCompletionMode Mode => SlashCompletionMode.File;
+
+    /// <inheritdoc/>
+    public string Label => "文件补全";
+
+    /// <inheritdoc/>
+    public IReadOnlyList<SlashCommandItem> GetCandidates(string prefix, CompletionContext context)
+        => GetFiles(prefix);
 
     /// <summary>获取文件补全候选（扫描当前工作目录）</summary>
     public static IReadOnlyList<SlashCommandItem> GetFiles(string prefix)

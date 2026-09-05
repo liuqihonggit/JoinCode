@@ -3,9 +3,23 @@ namespace JoinCode.Gui.SlashCommands;
 /// <summary>
 /// 子代理补全提供器 — @ 触发符调用，提供引擎可用子代理列表。
 /// 优先使用引擎 SubAgentSummary 动态列表，引擎未就绪时回退内置代理占位列表。
+/// 实现 ICompletionProvider 统一接口，注册到 CompletionTriggerRegistry。
 /// </summary>
-public static class AgentCompletionProvider
+public sealed class AgentCompletionProvider : ICompletionProvider
 {
+    /// <inheritdoc/>
+    public char TriggerChar => '@';
+
+    /// <inheritdoc/>
+    public SlashCompletionMode Mode => SlashCompletionMode.Agent;
+
+    /// <inheritdoc/>
+    public string Label => "代理补全";
+
+    /// <inheritdoc/>
+    public IReadOnlyList<SlashCommandItem> GetCandidates(string prefix, CompletionContext context)
+        => GetAgents(prefix, context.AvailableSubAgentsCache);
+
     /// <summary>获取子代理补全候选（按前缀过滤；优先引擎真实代理，回退占位）</summary>
     public static IReadOnlyList<SlashCommandItem> GetAgents(
         string prefix, IReadOnlyList<SubAgentSummary>? availableAgents = null)

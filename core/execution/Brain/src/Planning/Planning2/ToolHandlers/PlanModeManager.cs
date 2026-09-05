@@ -110,6 +110,9 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         List<PlanStepInput>? initialSteps = null,
         CancellationToken cancellationToken = default)
     {
+        // 跨进程持久化: 从文件恢复活跃 plan 状态
+        await LoadActivePlanStateFromFileAsync(cancellationToken).ConfigureAwait(false);
+
         // 对齐 TS: 禁止在 Agent 上下文中进入计划模式
         if (_subAgentContextAccessor.Current != null)
         {
@@ -156,6 +159,9 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         // 对齐 TS handlePlanModeTransition: 进入plan时清除退出通知标志
         CurrentSessionState().NeedsPlanModeExitAttachment = false;
 
+        // 跨进程持久化: 保存活跃 plan 状态到文件
+        await SaveActivePlanStateToFileAsync(cancellationToken).ConfigureAwait(false);
+
         // 对齐 TS: 保存当前权限模式并切换到 Plan 模式
         if (_permissionManager != null)
         {
@@ -181,6 +187,9 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         AllowedPrompt[]? allowedPrompts = null,
         CancellationToken cancellationToken = default)
     {
+        // 跨进程持久化: 从文件恢复活跃 plan 状态
+        await LoadActivePlanStateFromFileAsync(cancellationToken).ConfigureAwait(false);
+
         // 对齐 TS validateInput: 非plan模式拒绝调用 ExitPlanMode
         if (CurrentPlanId == null || !_plans.TryGetValue(CurrentPlanId, out var plan))
         {
@@ -190,7 +199,8 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         }
 
         // 对齐 TS validateInput: 检查当前权限模式必须是 Plan
-        if (_permissionManager != null)
+        // 跨进程持久化场景: MCP 工具调用是独立进程，权限模式不保持，跳过检查
+        if (_permissionManager != null && !TestEnvironmentDetector.IsNonInteractive)
         {
             var currentMode = await _permissionManager.GetCurrentModeAsync(cancellationToken).ConfigureAwait(false);
             if (currentMode != PermissionMode.Plan)
@@ -277,6 +287,9 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
 
         CurrentPlanId = null;
 
+        // 跨进程持久化: 退出 plan 模式后清除状态文件
+        ClearActivePlanStateFile();
+
         // 对齐 TS: 恢复进入 Plan 模式前的权限模式
         var sessionState = CurrentSessionState();
         if (_permissionManager != null && sessionState.PrePlanMode.HasValue)
@@ -327,29 +340,35 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     /// <summary>
     /// 获取当前计划状态
     /// </summary>
-    public Task<PlanState?> GetPlanStatusAsync(CancellationToken cancellationToken = default)
+    public async Task<PlanState?> GetPlanStatusAsync(CancellationToken cancellationToken = default)
     {
+        // 跨进程持久化: 从文件恢复活跃 plan 状态
+        await LoadActivePlanStateFromFileAsync(cancellationToken).ConfigureAwait(false);
+
         if (CurrentPlanId == null)
         {
-            return Task.FromResult<PlanState?>(null);
+            return null;
         }
 
         _plans.TryGetValue(CurrentPlanId, out var plan);
-        return Task.FromResult(plan);
+        return plan;
     }
 
     /// <summary>
     /// 添加计划步骤
     /// </summary>
-    public Task<PlanOperationResult> AddStepAsync(
+    public async Task<PlanOperationResult> AddStepAsync(
         string description,
         string? toolName = null,
         Dictionary<string, JsonElement>? parameters = null,
         CancellationToken cancellationToken = default)
     {
+        // 跨进程持久化: 从文件恢复活跃 plan 状态
+        await LoadActivePlanStateFromFileAsync(cancellationToken).ConfigureAwait(false);
+
         if (CurrentPlanId == null || !_plans.TryGetValue(CurrentPlanId, out var plan))
         {
-            return Task.FromResult(new PlanOperationResult(false, null, "当前不在计划模式中"));
+            return new PlanOperationResult(false, null, "当前不在计划模式中");
         }
 
         var step = new PlanStep
@@ -364,78 +383,96 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         plan.Steps.Add(step);
         plan.LastUpdatedAt = _clock.GetUtcNow();
 
-        return Task.FromResult(new PlanOperationResult(true, plan));
+        // 跨进程持久化: 保存修改到文件
+        await SaveActivePlanStateToFileAsync(cancellationToken).ConfigureAwait(false);
+
+        return new PlanOperationResult(true, plan);
     }
 
     /// <summary>
     /// 批准执行步骤
     /// </summary>
-    public Task<PlanOperationResult> ApproveStepAsync(
+    public async Task<PlanOperationResult> ApproveStepAsync(
         int stepIndex,
         CancellationToken cancellationToken = default)
     {
+        // 跨进程持久化: 从文件恢复活跃 plan 状态
+        await LoadActivePlanStateFromFileAsync(cancellationToken).ConfigureAwait(false);
+
         if (CurrentPlanId == null || !_plans.TryGetValue(CurrentPlanId, out var plan))
         {
-            return Task.FromResult(new PlanOperationResult(false, null, "当前不在计划模式中"));
+            return new PlanOperationResult(false, null, "当前不在计划模式中");
         }
 
         if (stepIndex < 0 || stepIndex >= plan.Steps.Count)
         {
-            return Task.FromResult(new PlanOperationResult(false, plan, $"步骤索引 {stepIndex} 无效"));
+            return new PlanOperationResult(false, plan, $"步骤索引 {stepIndex} 无效");
         }
 
         var step = plan.Steps[stepIndex];
         if (step.Status != PlanStepStatus.Pending && step.Status != PlanStepStatus.Rejected)
         {
-            return Task.FromResult(new PlanOperationResult(false, plan, $"步骤 {stepIndex} 状态为 {step.Status}，无法批准"));
+            return new PlanOperationResult(false, plan, $"步骤 {stepIndex} 状态为 {step.Status}，无法批准");
         }
 
         step.Status = PlanStepStatus.Approved;
         step.RejectionReason = null;
         plan.LastUpdatedAt = _clock.GetUtcNow();
 
-        return Task.FromResult(new PlanOperationResult(true, plan));
+        // 跨进程持久化: 保存修改到文件
+        await SaveActivePlanStateToFileAsync(cancellationToken).ConfigureAwait(false);
+
+        return new PlanOperationResult(true, plan);
     }
 
     /// <summary>
     /// 拒绝执行步骤
     /// </summary>
-    public Task<PlanOperationResult> RejectStepAsync(
+    public async Task<PlanOperationResult> RejectStepAsync(
         int stepIndex,
         string? reason = null,
         CancellationToken cancellationToken = default)
     {
+        // 跨进程持久化: 从文件恢复活跃 plan 状态
+        await LoadActivePlanStateFromFileAsync(cancellationToken).ConfigureAwait(false);
+
         if (CurrentPlanId == null || !_plans.TryGetValue(CurrentPlanId, out var plan))
         {
-            return Task.FromResult(new PlanOperationResult(false, null, "当前不在计划模式中"));
+            return new PlanOperationResult(false, null, "当前不在计划模式中");
         }
 
         if (stepIndex < 0 || stepIndex >= plan.Steps.Count)
         {
-            return Task.FromResult(new PlanOperationResult(false, plan, $"步骤索引 {stepIndex} 无效"));
+            return new PlanOperationResult(false, plan, $"步骤索引 {stepIndex} 无效");
         }
 
         var step = plan.Steps[stepIndex];
         if (step.Status == PlanStepStatus.Completed || step.Status == PlanStepStatus.Executing)
         {
-            return Task.FromResult(new PlanOperationResult(false, plan, $"步骤 {stepIndex} 已在执行或完成，无法拒绝"));
+            return new PlanOperationResult(false, plan, $"步骤 {stepIndex} 已在执行或完成，无法拒绝");
         }
 
         step.Status = PlanStepStatus.Rejected;
         step.RejectionReason = reason;
         plan.LastUpdatedAt = _clock.GetUtcNow();
 
-        return Task.FromResult(new PlanOperationResult(true, plan));
+        // 跨进程持久化: 保存修改到文件
+        await SaveActivePlanStateToFileAsync(cancellationToken).ConfigureAwait(false);
+
+        return new PlanOperationResult(true, plan);
     }
 
     /// <summary>
     /// 执行已批准的步骤
     /// </summary>
-    public Task<PlanOperationResult> ExecuteApprovedStepsAsync(CancellationToken cancellationToken = default)
+    public async Task<PlanOperationResult> ExecuteApprovedStepsAsync(CancellationToken cancellationToken = default)
     {
+        // 跨进程持久化: 从文件恢复活跃 plan 状态
+        await LoadActivePlanStateFromFileAsync(cancellationToken).ConfigureAwait(false);
+
         if (CurrentPlanId == null || !_plans.TryGetValue(CurrentPlanId, out var plan))
         {
-            return Task.FromResult(new PlanOperationResult(false, null, "当前不在计划模式中"));
+            return new PlanOperationResult(false, null, "当前不在计划模式中");
         }
 
         plan.Status = PlanStatus.Executing;
@@ -471,7 +508,10 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
                     plan.Status = PlanStatus.Failed;
                     plan.LastUpdatedAt = _clock.GetUtcNow();
 
-                    return Task.FromResult(new PlanOperationResult(false, plan, $"步骤 {i} 执行失败", string.Join("\n", results)));
+                    // 跨进程持久化: 保存修改到文件
+                    await SaveActivePlanStateToFileAsync(cancellationToken).ConfigureAwait(false);
+
+                    return new PlanOperationResult(false, plan, $"步骤 {i} 执行失败", string.Join("\n", results));
                 }
             }
             else if (step.Status == PlanStepStatus.Pending)
@@ -492,33 +532,39 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
 
         plan.LastUpdatedAt = _clock.GetUtcNow();
 
-        return Task.FromResult(new PlanOperationResult(true, plan, executionResult: string.Join("\n", results)));
+        // 跨进程持久化: 保存修改到文件
+        await SaveActivePlanStateToFileAsync(cancellationToken).ConfigureAwait(false);
+
+        return new PlanOperationResult(true, plan, executionResult: string.Join("\n", results));
     }
 
     /// <summary>
     /// 修改步骤
     /// </summary>
-    public Task<PlanOperationResult> ModifyStepAsync(
+    public async Task<PlanOperationResult> ModifyStepAsync(
         int stepIndex,
         string? newDescription = null,
         string? newToolName = null,
         Dictionary<string, JsonElement>? newParameters = null,
         CancellationToken cancellationToken = default)
     {
+        // 跨进程持久化: 从文件恢复活跃 plan 状态
+        await LoadActivePlanStateFromFileAsync(cancellationToken).ConfigureAwait(false);
+
         if (CurrentPlanId == null || !_plans.TryGetValue(CurrentPlanId, out var plan))
         {
-            return Task.FromResult(new PlanOperationResult(false, null, "当前不在计划模式中"));
+            return new PlanOperationResult(false, null, "当前不在计划模式中");
         }
 
         if (stepIndex < 0 || stepIndex >= plan.Steps.Count)
         {
-            return Task.FromResult(new PlanOperationResult(false, plan, $"步骤索引 {stepIndex} 无效"));
+            return new PlanOperationResult(false, plan, $"步骤索引 {stepIndex} 无效");
         }
 
         var step = plan.Steps[stepIndex];
         if (step.Status == PlanStepStatus.Completed || step.Status == PlanStepStatus.Executing)
         {
-            return Task.FromResult(new PlanOperationResult(false, plan, $"步骤 {stepIndex} 已在执行或完成，无法修改"));
+            return new PlanOperationResult(false, plan, $"步骤 {stepIndex} 已在执行或完成，无法修改");
         }
 
         if (newDescription != null)
@@ -543,30 +589,36 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
 
         plan.LastUpdatedAt = _clock.GetUtcNow();
 
-        return Task.FromResult(new PlanOperationResult(true, plan));
+        // 跨进程持久化: 保存修改到文件
+        await SaveActivePlanStateToFileAsync(cancellationToken).ConfigureAwait(false);
+
+        return new PlanOperationResult(true, plan);
     }
 
     /// <summary>
     /// 删除步骤
     /// </summary>
-    public Task<PlanOperationResult> RemoveStepAsync(
+    public async Task<PlanOperationResult> RemoveStepAsync(
         int stepIndex,
         CancellationToken cancellationToken = default)
     {
+        // 跨进程持久化: 从文件恢复活跃 plan 状态
+        await LoadActivePlanStateFromFileAsync(cancellationToken).ConfigureAwait(false);
+
         if (CurrentPlanId == null || !_plans.TryGetValue(CurrentPlanId, out var plan))
         {
-            return Task.FromResult(new PlanOperationResult(false, null, "当前不在计划模式中"));
+            return new PlanOperationResult(false, null, "当前不在计划模式中");
         }
 
         if (stepIndex < 0 || stepIndex >= plan.Steps.Count)
         {
-            return Task.FromResult(new PlanOperationResult(false, plan, $"步骤索引 {stepIndex} 无效"));
+            return new PlanOperationResult(false, plan, $"步骤索引 {stepIndex} 无效");
         }
 
         var step = plan.Steps[stepIndex];
         if (step.Status == PlanStepStatus.Completed || step.Status == PlanStepStatus.Executing)
         {
-            return Task.FromResult(new PlanOperationResult(false, plan, $"步骤 {stepIndex} 已在执行或完成，无法删除"));
+            return new PlanOperationResult(false, plan, $"步骤 {stepIndex} 已在执行或完成，无法删除");
         }
 
         plan.Steps.RemoveAt(stepIndex);
@@ -585,30 +637,36 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
 
         plan.LastUpdatedAt = _clock.GetUtcNow();
 
-        return Task.FromResult(new PlanOperationResult(true, plan));
+        // 跨进程持久化: 保存修改到文件
+        await SaveActivePlanStateToFileAsync(cancellationToken).ConfigureAwait(false);
+
+        return new PlanOperationResult(true, plan);
     }
 
     /// <summary>
     /// 重新排序步骤
     /// </summary>
-    public Task<PlanOperationResult> ReorderStepsAsync(
+    public async Task<PlanOperationResult> ReorderStepsAsync(
         List<int> newOrder,
         CancellationToken cancellationToken = default)
     {
+        // 跨进程持久化: 从文件恢复活跃 plan 状态
+        await LoadActivePlanStateFromFileAsync(cancellationToken).ConfigureAwait(false);
+
         if (CurrentPlanId == null || !_plans.TryGetValue(CurrentPlanId, out var plan))
         {
-            return Task.FromResult(new PlanOperationResult(false, null, "当前不在计划模式中"));
+            return new PlanOperationResult(false, null, "当前不在计划模式中");
         }
 
         if (newOrder.Count != plan.Steps.Count)
         {
-            return Task.FromResult(new PlanOperationResult(false, plan, "新顺序列表长度与步骤数不匹配"));
+            return new PlanOperationResult(false, plan, "新顺序列表长度与步骤数不匹配");
         }
 
         // 检查是否有步骤正在执行或已完成
         if (plan.Steps.Any(s => s.Status == PlanStepStatus.Executing || s.Status == PlanStepStatus.Completed))
         {
-            return Task.FromResult(new PlanOperationResult(false, plan, "有步骤正在执行或已完成，无法重新排序"));
+            return new PlanOperationResult(false, plan, "有步骤正在执行或已完成，无法重新排序");
         }
 
         var reorderedSteps = newOrder.Select((oldIndex, newIndex) =>
@@ -622,7 +680,10 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         plan.CurrentStepIndex = 0;
         plan.LastUpdatedAt = _clock.GetUtcNow();
 
-        return Task.FromResult(new PlanOperationResult(true, plan));
+        // 跨进程持久化: 保存修改到文件
+        await SaveActivePlanStateToFileAsync(cancellationToken).ConfigureAwait(false);
+
+        return new PlanOperationResult(true, plan);
     }
 
     /// <summary>
@@ -772,6 +833,88 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     {
         var appDataPath = PlanSlugGenerator.GetPlansDirectory();
         return Path.Combine(appDataPath, $"{slug}.md");
+    }
+
+    /// <summary>
+    /// 跨进程持久化文件路径 — MCP 工具调用是独立进程，需文件共享活跃 plan 状态
+    /// </summary>
+    private static string GetActivePlanStateFilePath() =>
+        Path.Combine(PlanSlugGenerator.GetPlansDirectory(), ".active_plan_state.json");
+
+    /// <summary>
+    /// 从文件加载活跃 plan 状态 — 跨进程恢复 _plans 字典和 CurrentPlanId
+    /// </summary>
+    private async Task LoadActivePlanStateFromFileAsync(CancellationToken cancellationToken)
+    {
+        var filePath = GetActivePlanStateFilePath();
+        if (!_fs.FileExists(filePath)) return;
+
+        try
+        {
+            var json = await _fs.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
+            var state = RelaxedJsonSerializer.Deserialize(json, PlanJsonContext.Default.PersistablePlanState);
+            if (state?.Plan is not null && state.CurrentPlanId is not null)
+            {
+                _plans[state.CurrentPlanId] = state.Plan;
+                var sessionState = CurrentSessionState();
+                sessionState.CurrentPlanId = state.CurrentPlanId;
+                if (state.CurrentSessionSlug is not null)
+                    sessionState.CurrentSessionSlug = state.CurrentSessionSlug;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning("加载活跃 plan 状态文件失败: {Error}", ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// 保存活跃 plan 状态到文件 — 供下一个进程读取
+    /// </summary>
+    private async Task SaveActivePlanStateToFileAsync(CancellationToken cancellationToken)
+    {
+        var planId = CurrentPlanId;
+        if (planId is null || !_plans.TryGetValue(planId, out var plan)) return;
+
+        var filePath = GetActivePlanStateFilePath();
+        var state = new PersistablePlanState
+        {
+            CurrentPlanId = planId,
+            CurrentSessionSlug = CurrentSessionState().CurrentSessionSlug,
+            Plan = plan
+        };
+
+        try
+        {
+            var dir = Path.GetDirectoryName(filePath)!;
+            if (!_fs.DirectoryExists(dir))
+                _fs.CreateDirectory(dir);
+            var json = RelaxedJsonSerializer.Serialize(state, PlanJsonContext.Default);
+            await _fs.WriteAllTextAsync(filePath, json, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning("保存活跃 plan 状态文件失败: {Error}", ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// 清除活跃 plan 状态文件 — 退出 plan 模式后调用
+    /// </summary>
+    private void ClearActivePlanStateFile()
+    {
+        var filePath = GetActivePlanStateFilePath();
+        if (_fs.FileExists(filePath))
+        {
+            try
+            {
+                _fs.DeleteFile(filePath);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning("清除活跃 plan 状态文件失败: {Error}", ex.Message);
+            }
+        }
     }
 
     /// <summary>

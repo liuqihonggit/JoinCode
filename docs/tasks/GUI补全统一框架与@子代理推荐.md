@@ -192,3 +192,34 @@ public static class CompletionTriggerRegistry
 <!-- 原因: 用户要"map 储存每个 subAgent"，指全部；选中未运行的发送时提示 -->
 <!-- 替代方案: 只显示运行中（与现有 @ 路由完全一致，但不符合"map 储存每个"诉求） -->
 <!-- 验证: 待 TDD 验证 -->
+
+<!-- 🤖 Auto Decision: 2026-09-06 -->
+<!-- 决策: GetCandidates 的 prefix 语义为 SlashParseResult.Prefix 原样传入（命令模式含 / 如 "/c"，代理/文件模式不含触发符如 "ag"/"src"） -->
+<!-- 原因: SlashCommandParser 对 / 命令返回含 / 的 Prefix，对 @/# 返回不含触发符的 Prefix；Provider 内部处理差异，MainViewModel 原样传 -->
+<!-- 替代方案: 统一 prefix 不含触发符（需改 Parser 和所有现有测试，破坏面大） -->
+<!-- 验证: 8 个 CompletionTriggerRegistryTests + 8 个 MainViewModelCompletionTests 通过 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-09-06 -->
+<!-- 决策: Argument 模式保留 Parser 特殊分支，不走 Registry 统一路径 -->
+<!-- 原因: Argument 回填区间不同（替换参数区间而非触发符区间），统一进 Provider 需暴露 GetCompletionKind 区分回填行为，过度抽象 -->
+<!-- 替代方案: Provider 暴露 CompletionKind 区分回填（本次不做，保留特殊分支） -->
+<!-- 验证: 28 个 SlashCommandParserTests + 130 MainViewModelTests 通过 ✅ -->
+
+## 任务完成状态
+
+| 任务 | 状态 | commit |
+|------|------|--------|
+| 1: SubAgentSummary + IJccChatSession 接口 | ✅ | `feat: 新增SubAgentSummary与GetAvailableSubAgentsAsync接口` |
+| 2: JccChatSession 实现 | ✅ | `feat: JccChatSession实现GetAvailableSubAgentsAsync` |
+| 3: 统一框架接口 + Registry + 三个 Provider | ✅ | `feat: 统一补全框架ICompletionProvider+CompletionTriggerRegistry+三个Provider实现` |
+| 4: 三个 Provider 实现 | ✅ | 合并到任务 3 |
+| 5: SlashCommandParser 改造 | ✅ | `refactor: SlashCommandParser遍历CompletionTriggerRegistry找触发符` |
+| 6: MainViewModel 接入 Registry | ✅ | `refactor: MainViewModel补全走CompletionTriggerRegistry统一路径` |
+| 7: GUI 冒烟验证 | ⏳ 待执行 | — |
+
+## 扩展点验证
+
+未来加 `$` 工具补全只需：
+1. 新增 `ToolCompletionProvider : ICompletionProvider`（TriggerChar='$'）
+2. 在 `CompletionTriggerRegistry.Build()` 加一行 `new ToolCompletionProvider()`
+3. **零改 Parser、零改 ViewModel** — Registry 自动索引，Parser 自动遍历，ViewModel 自动走统一路径

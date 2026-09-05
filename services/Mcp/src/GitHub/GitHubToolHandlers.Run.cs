@@ -26,7 +26,7 @@ public partial class GitHubToolHandlers
         return hasFailure ? Ok(result.Output + RunListFailureHint) : Ok(result.Output);
     }
 
-    [McpTool(GitHubToolNameConstants.GhRunView, "查看 Run 详情/日志(expand 按步骤展开+MemoryCache缓存,filter 按标记过滤,skip_lines 分页续读)", "github", ConcurrencySafe = true)]
+    [McpTool(GitHubToolNameConstants.GhRunView, "查看 Run 详情/日志(expand 按步骤展开+文件级缓存跨进程,filter 按标记过滤,skip_lines 分页续读,refresh 强制刷新)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRunViewAsync(
         [McpToolParameter("Run ID", Required = true)] string run_id,
         [McpToolParameter("Job ID(可选,精准拉单 job)", Required = false)] string? job_id = null,
@@ -35,11 +35,15 @@ public partial class GitHubToolHandlers
         [McpToolParameter("跳过前 N 行(用于续读截断日志,默认 0)", Required = false)] int? skip_lines = null,
         [McpToolParameter("按步骤展开: steps=列出步骤列表, failed=只拉失败步骤, step:Name=只拉指定步骤(复刻 ToolSearch map[] 逐层drill down)", Required = false)] string? expand = null,
         [McpToolParameter("日志过滤级别(error/warning/info/all,默认 all=不过滤)", Required = false)] string? filter = null,
+        [McpToolParameter("强制刷新缓存(默认 false,rerun 后用 true 避免脏数据)", Required = false)] bool? refresh = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
     {
         var maxLines = max_lines ?? 200;
         var skip = skip_lines ?? 0;
+        var wantRefresh = refresh == true;
+        // MCP 框架可能把缺失的 string? 参数传成空字符串,统一归一化为 null
+        job_id = string.IsNullOrWhiteSpace(job_id) ? null : job_id;
         var hasFilter = TryParseLogFilter(filter, out var filterLevel) && filterLevel != GitHubLogFilter.All;
         var markers = hasFilter ? GetFilterMarkers(filterLevel) : null;
 
@@ -74,7 +78,7 @@ public partial class GitHubToolHandlers
             // expand=step:Name/section:Type: 从 Level2 内容缓存读取(ADR 0067)
             if (expandStep is not null && sectionType is not null)
             {
-                var sectionLines = await GetOrFetchSectionAsync(run_id, job_id, expandStep, sectionType, working_dir, cancellationToken);
+                var sectionLines = await GetOrFetchSectionAsync(run_id, job_id, expandStep, sectionType, working_dir, wantRefresh, cancellationToken);
                 if (sectionLines is null)
                     return Ok($"未找到步骤 '{expandStep}' 或 section '{sectionType}'，建议先 expand=step:{expandStep} 查看 section 摘要");
 
@@ -86,7 +90,7 @@ public partial class GitHubToolHandlers
             }
 
             // 其余情况(expand=steps 或 expand=step:Name): 从 Level1 摘要缓存读取
-            var summary = await GetOrFetchSummaryAsync(run_id, job_id, working_dir, cancellationToken);
+            var summary = await GetOrFetchSummaryAsync(run_id, job_id, working_dir, wantRefresh, cancellationToken);
             if (summary is null) return Fail("日志拉取失败");
 
             // expand=steps: 返回步骤列表
@@ -141,38 +145,77 @@ public partial class GitHubToolHandlers
     }
 
     /// <summary>
-    /// 从 Level1 摘要缓存获取或流式拉取 — 返回 RunLogSummary(步骤名→行数, section类型→行数)
-    /// <para>未命中时流式拉取 --log,构建 Level1 摘要 + 同时把每个 section 的日志行存入 Level2 缓存</para>
-    /// <para>key=nameof(GitHubToolHandlers)+":summary:{runId}:{jobId}", 24h 过期</para>
-    /// <para>ADR 0067 两级缓存: 摘要(轻量)长期保留,内容(大量行)按 section 独立缓存可被驱逐</para>
+    /// 从 Level1 摘要缓存获取或流式拉取 — 三级缓存: MemoryCache → 文件级缓存(.jcc/gh_cache/) → 下载
+    /// <para>文件级缓存跨进程共享,updatedAt 验证检测 rerun 脏数据,Actor 管道异步写入不阻塞</para>
+    /// <para>ADR 0067 两级缓存 + 文件级持久化: 摘要(轻量)+内容(大量行)按 section 独立缓存</para>
     /// </summary>
-    private async Task<RunLogSummary?> GetOrFetchSummaryAsync(string runId, string? jobId, string? workingDir, CancellationToken ct)
+    private async Task<RunLogSummary?> GetOrFetchSummaryAsync(string runId, string? jobId, string? workingDir, bool refresh, CancellationToken ct)
     {
         var summaryKey = $"{_summaryPrefix}{runId}:{jobId ?? "all"}";
-        if (_logCache.Get(summaryKey) is RunLogSummary cachedSummary)
+
+        // 1. MemoryCache 命中
+        if (!refresh && _logCache.Get(summaryKey) is RunLogSummary cachedSummary)
         {
-            _logger?.LogDebug("Level1 摘要缓存命中: {Key}", summaryKey);
+            _logger?.LogDebug("Level1 摘要缓存命中(MemoryCache): {Key}", summaryKey);
             return cachedSummary;
         }
 
+        // 2. 文件级缓存(.jcc/gh_cache/)
+        var cacheDir = GetCacheDir(workingDir);
+        var summaryPath = GetCacheFilePath(cacheDir, runId, jobId, "summary.json");
+        var rawPath = GetCacheFilePath(cacheDir, runId, jobId, "raw");
+
+        if (!refresh && _fs.FileExists(summaryPath) && _fs.FileExists(rawPath))
+        {
+            var fileAge = DateTimeOffset.Now - _fs.GetLastWriteTime(summaryPath);
+            if (fileAge < TimeSpan.FromHours(24))
+            {
+                try
+                {
+                    var summaryJson = _fs.ReadAllText(summaryPath);
+                    var fileSummary = RelaxedJsonSerializer.Deserialize(summaryJson, RunLogSummaryJsonContext.Default.RunLogSummary);
+                    if (fileSummary is not null)
+                    {
+                        // 验证 updatedAt(检测 rerun 脏数据)
+                        var currentUpdatedAt = await FetchUpdatedAtAsync(runId, workingDir, ct).ConfigureAwait(false);
+                        if (currentUpdatedAt is not null && fileSummary.UpdatedAt == currentUpdatedAt)
+                        {
+                            // 摘要匹配,从 .raw 文件解析填充 MemoryCache
+                            var rawContent = _fs.ReadAllText(rawPath);
+                            FillMemoryCacheFromRaw(runId, jobId, rawContent);
+                            _logCache.Add(summaryKey, fileSummary, DateTimeOffset.Now.AddHours(24));
+                            _logger?.LogDebug("Level1 摘要缓存命中(文件): {Path}, {Steps} 步骤", summaryPath, fileSummary.StepLineCounts.Count);
+                            return fileSummary;
+                        }
+                        // updatedAt 不匹配(CI 已更新),放弃旧缓存(不删除文件,直接重新下载)
+                        _logger?.LogDebug("updatedAt 不匹配,放弃文件缓存: {Path}", summaryPath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogDebug(ex, "文件缓存读取失败,重新下载");
+                }
+            }
+        }
+
+        // 3. 流式下载 + 构建 + 缓存
         var sb = new StringBuilder($"run view {runId} --log");
         if (!string.IsNullOrWhiteSpace(jobId)) sb.Append($" --job {jobId}");
 
         var summary = new RunLogSummary { RunId = runId, JobId = jobId };
-        // 临时收集: stepName → (sectionType → lines),拉取完写入 Level2 缓存
         var sectionContents = new Dictionary<string, Dictionary<string, List<string>>>(StringComparer.OrdinalIgnoreCase);
+        var rawBuilder = new StringBuilder();
 
         await foreach (var line in _gh.ExecuteStreamingAsync(sb.ToString(), ResolveWorkDir(workingDir), 120_000, ct).ConfigureAwait(false))
         {
+            rawBuilder.Append(line).Append('\n');
             var parts = line.Split('\t');
             if (parts.Length < 2) continue;
             var stepName = parts[1];
             var sectionType = RunLogCache.ParseSectionType(line);
 
-            // Level1 摘要: 步骤行数
             summary.StepLineCounts[stepName] = summary.StepLineCounts.GetValueOrDefault(stepName) + 1;
 
-            // Level1 摘要: section 计数
             if (!summary.SectionCounts.TryGetValue(stepName, out var secCounts))
             {
                 secCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -180,7 +223,6 @@ public partial class GitHubToolHandlers
             }
             secCounts[sectionType] = secCounts.GetValueOrDefault(sectionType) + 1;
 
-            // Level2 内容: 临时收集日志行
             if (!sectionContents.TryGetValue(stepName, out var stepSecs))
             {
                 stepSecs = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
@@ -194,7 +236,10 @@ public partial class GitHubToolHandlers
             secLines.Add(line);
         }
 
-        // 写入 Level2 内容缓存(每个 section 独立 key,24h 过期)
+        // 获取 updatedAt 用于后续 rerun 检测
+        summary.UpdatedAt = await FetchUpdatedAtAsync(runId, workingDir, ct).ConfigureAwait(false);
+
+        // 写入 MemoryCache
         foreach (var (stepName, stepSecs) in sectionContents)
         {
             foreach (var (secType, secLines) in stepSecs)
@@ -203,32 +248,34 @@ public partial class GitHubToolHandlers
                 _logCache.Add(sectionKey, secLines, DateTimeOffset.Now.AddHours(24));
             }
         }
-
-        // 写入 Level1 摘要缓存
         _logCache.Add(summaryKey, summary, DateTimeOffset.Now.AddHours(24));
-        _logger?.LogDebug("Level1 摘要已缓存: {Key}, {Steps} 步骤, {Sections} sections",
-            summaryKey, summary.StepLineCounts.Count, sectionContents.Count);
+
+        // 通过 Actor 管道异步写文件(fire-and-forget,不阻塞返回)
+        var json = RelaxedJsonSerializer.Serialize(summary, RunLogSummaryJsonContext.Default);
+        _cacheWriter.TrySendFile(summaryPath, json);
+        _cacheWriter.TrySendFile(rawPath, rawBuilder.ToString());
+
+        _logger?.LogDebug("Level1 摘要已缓存(MemoryCache+文件): {Key}, {Steps} 步骤", summaryKey, summary.StepLineCounts.Count);
         return summary;
     }
 
     /// <summary>
-    /// 从 Level2 内容缓存获取指定 section 的日志行 — 未命中时先确保 Level1 摘要已构建(会填充所有 Level2)
-    /// <para>key=nameof(GitHubToolHandlers)+":section:{runId}:{jobId}:{stepName}:{sectionType}", 24h 过期</para>
-    /// <para>内存压力时 Level2 可被独立驱逐,下次访问时按需重新拉取(通过 Level1 触发全量重建)</para>
+    /// 从 Level2 内容缓存获取指定 section 的日志行 — MemoryCache → 触发 Level1 填充 → 再读
+    /// <para>内存压力时 Level2 可被独立驱逐,下次访问时通过 Level1 触发从 .raw 文件重新解析填充</para>
     /// </summary>
     private async Task<List<string>?> GetOrFetchSectionAsync(
         string runId, string? jobId, string stepName, string sectionType,
-        string? workingDir, CancellationToken ct)
+        string? workingDir, bool refresh, CancellationToken ct)
     {
         var sectionKey = $"{_sectionPrefix}{runId}:{jobId ?? "all"}:{stepName}:{sectionType}";
-        if (_logCache.Get(sectionKey) is List<string> cachedLines)
+        if (!refresh && _logCache.Get(sectionKey) is List<string> cachedLines)
         {
             _logger?.LogDebug("Level2 内容缓存命中: {Key}, {Lines} 行", sectionKey, cachedLines.Count);
             return cachedLines;
         }
 
-        // Level2 未命中,先确保 Level1 已构建(会同时填充所有 Level2 缓存)
-        await GetOrFetchSummaryAsync(runId, jobId, workingDir, ct).ConfigureAwait(false);
+        // Level2 未命中,先确保 Level1 已构建(会从文件或下载填充所有 Level2 缓存)
+        await GetOrFetchSummaryAsync(runId, jobId, workingDir, refresh, ct).ConfigureAwait(false);
 
         // 再次从 Level2 读取
         if (_logCache.Get(sectionKey) is List<string> lines)
@@ -237,9 +284,67 @@ public partial class GitHubToolHandlers
             return lines;
         }
 
-        // 仍然未命中,说明该 step/section 不存在
         _logger?.LogDebug("Level2 内容缓存未命中(步骤/section 不存在): {Key}", sectionKey);
         return null;
+    }
+
+    /// <summary>
+    /// 从 GitHub API 获取 Run 的 updatedAt — 用于检测 rerun 后日志是否更新
+    /// <para>轻量 API 调用(不下载日志),&lt; 1s</para>
+    /// </summary>
+    private async Task<string?> FetchUpdatedAtAsync(string runId, string? workingDir, CancellationToken ct)
+    {
+        var result = await RunGhAsync($"run view {runId} --json updatedAt", ResolveWorkDir(workingDir), ct).ConfigureAwait(false);
+        if (!result.Success) return null;
+        try
+        {
+            using var doc = JsonDocument.Parse(result.Output);
+            return doc.RootElement.TryGetProperty("updatedAt", out var el) ? el.GetString() : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// 从原始日志文本解析并填充 MemoryCache(单进程内 section 内容缓存)
+    /// <para>文件级缓存命中时,从 .raw 文件读取解析,避免重新下载</para>
+    /// </summary>
+    private void FillMemoryCacheFromRaw(string runId, string? jobId, string rawContent)
+    {
+        var lines = rawContent.Split('\n');
+        var sectionContents = new Dictionary<string, Dictionary<string, List<string>>>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var line in lines)
+        {
+            if (string.IsNullOrEmpty(line)) continue;
+            var parts = line.Split('\t');
+            if (parts.Length < 2) continue;
+            var stepName = parts[1];
+            var sectionType = RunLogCache.ParseSectionType(line);
+
+            if (!sectionContents.TryGetValue(stepName, out var stepSecs))
+            {
+                stepSecs = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+                sectionContents[stepName] = stepSecs;
+            }
+            if (!stepSecs.TryGetValue(sectionType, out var secLines))
+            {
+                secLines = new List<string>();
+                stepSecs[sectionType] = secLines;
+            }
+            secLines.Add(line);
+        }
+
+        foreach (var (stepName, stepSecs) in sectionContents)
+        {
+            foreach (var (secType, secLines) in stepSecs)
+            {
+                var sectionKey = $"{_sectionPrefix}{runId}:{jobId ?? "all"}:{stepName}:{secType}";
+                _logCache.Add(sectionKey, secLines, DateTimeOffset.Now.AddHours(24));
+            }
+        }
     }
 
     /// <summary>

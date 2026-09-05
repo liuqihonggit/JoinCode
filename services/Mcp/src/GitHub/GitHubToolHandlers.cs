@@ -36,6 +36,17 @@ public partial class GitHubToolHandlers
     /// </summary>
     private static readonly string _sectionPrefix = nameof(GitHubToolHandlers) + ":section:";
 
+    /// <summary>
+    /// 缓存文件写入 Actor — 异步串行写文件到 .jcc/gh_cache/,不阻塞调用方
+    /// <para>实例字段,通过 IFileSystem 注入,ActorBase 保证单消费者串行写入</para>
+    /// </summary>
+    private readonly GitHubCacheWriteActor _cacheWriter;
+
+    /// <summary>
+    /// 文件级缓存目录 — {projectDir}/.jcc/gh_cache/,跨进程共享
+    /// </summary>
+    private const string CacheDirName = ".jcc/gh_cache";
+
     public GitHubToolHandlers(
         IGitHubCommandRunner gh,
         IDownloader downloader,
@@ -46,6 +57,7 @@ public partial class GitHubToolHandlers
         _downloader = downloader ?? throw new ArgumentNullException(nameof(downloader));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _logger = logger;
+        _cacheWriter = new GitHubCacheWriteActor(fs);
     }
 
     // === 共用辅助方法 ===
@@ -129,5 +141,41 @@ public partial class GitHubToolHandlers
     private static string? ResolveWorkDir(string? workingDir)
     {
         return string.IsNullOrWhiteSpace(workingDir) ? null : workingDir;
+    }
+
+    /// <summary>
+    /// 获取缓存目录路径 — {workingDir}/.jcc/gh_cache/ 或 {cwd}/.jcc/gh_cache/
+    /// <para>项目级缓存,跨进程共享,24h 过期</para>
+    /// </summary>
+    private string GetCacheDir(string? workingDir)
+    {
+        var baseDir = string.IsNullOrWhiteSpace(workingDir) ? _fs.GetCurrentDirectory() : workingDir;
+        return _fs.CombinePath(baseDir, CacheDirName);
+    }
+
+    /// <summary>
+    /// 获取缓存文件路径 — {cacheDir}/{sanitizedRunId}_{sanitizedJobId}.{extension}
+    /// </summary>
+    private string GetCacheFilePath(string cacheDir, string runId, string? jobId, string extension)
+    {
+        var safeRunId = SanitizeFileName(runId);
+        var safeJobId = SanitizeFileName(string.IsNullOrWhiteSpace(jobId) ? "all" : jobId);
+        return _fs.CombinePath(cacheDir, $"{safeRunId}_{safeJobId}.{extension}");
+    }
+
+    /// <summary>
+    /// 文件名安全化 — 移除路径分隔符和特殊字符,只保留字母数字下划线减号
+    /// </summary>
+    private static string SanitizeFileName(string value)
+    {
+        var sb = new StringBuilder(value.Length);
+        foreach (var c in value)
+        {
+            if (char.IsLetterOrDigit(c) || c == '-' || c == '_')
+                sb.Append(c);
+            else if (c == ' ')
+                sb.Append('_');
+        }
+        return sb.Length == 0 ? "unknown" : sb.ToString();
     }
 }

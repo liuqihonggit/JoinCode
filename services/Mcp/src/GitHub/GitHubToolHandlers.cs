@@ -17,6 +17,18 @@ public partial class GitHubToolHandlers
     private readonly IFileSystem _fs;
     private readonly ILogger<GitHubToolHandlers>? _logger;
 
+    /// <summary>
+    /// Run 日志缓存 — 用 MemoryCache.Default(系统内存压力自动释放), key=nameof(GitHubToolHandlers)+":{run_id}:{job_id}"
+    /// <para>流式拉取后按步骤分组缓存,后续 expand 从缓存读取,避免重复下载</para>
+    /// <para>24h 过期,内存紧迫时由系统自动驱逐,无需手动管理 LRU</para>
+    /// </summary>
+    private static readonly MemoryCache _logCache = MemoryCache.Default;
+
+    /// <summary>
+    /// 缓存 key 前缀 — 用 nameof 避免硬编码类名,重构时自动跟随
+    /// </summary>
+    private static readonly string _cachePrefix = nameof(GitHubToolHandlers) + ":";
+
     public GitHubToolHandlers(
         IGitHubCommandRunner gh,
         IDownloader downloader,
@@ -62,10 +74,10 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 执行 gh 命令 — 封装日志
     /// </summary>
-    private async Task<GitHubCommandResult> RunGhAsync(string arguments, string? workingDir, CancellationToken ct)
+    private async Task<GitHubCommandResult> RunGhAsync(string arguments, string? workingDir, CancellationToken ct, int? timeoutMs = null)
     {
         _logger?.LogDebug("执行 gh 命令: {Args}", arguments);
-        return await _gh.ExecuteAsync(arguments, workingDir, ct).ConfigureAwait(false);
+        return await _gh.ExecuteAsync(arguments, workingDir, timeoutMs, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -77,6 +89,14 @@ public partial class GitHubToolHandlers
             ? $"gh 命令失败，退出码 {result.ExitCode}"
             : result.Error;
         return ToolResultBuilder.Error().WithText(err).Build();
+    }
+
+    /// <summary>
+    /// 构建失败 ToolResult(直接错误消息)
+    /// </summary>
+    private static ToolResult Fail(string message)
+    {
+        return ToolResultBuilder.Error().WithText(message).Build();
     }
 
     /// <summary>

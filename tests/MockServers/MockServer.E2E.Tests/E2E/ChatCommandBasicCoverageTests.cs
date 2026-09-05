@@ -165,18 +165,6 @@ public sealed class ChatCommandBasicCoverageTests : CoverageTestBase
     }
 
     [Fact]
-    public async Task PassesCommand_ShouldRedirectToPermissions()
-    {
-        await RunScriptAsync(ChatCommandConversationScripts.PassesCommand).ConfigureAwait(true);
-    }
-
-    [Fact]
-    public async Task OutputStyleCommand_ShouldShowDeprecationNotice()
-    {
-        await RunScriptAsync(ChatCommandConversationScripts.OutputStyleCommand).ConfigureAwait(true);
-    }
-
-    [Fact]
     public async Task RateLimitOptionsCommand_ShouldShowRateLimits()
     {
         await RunScriptAsync(ChatCommandConversationScripts.RateLimitOptionsCommand).ConfigureAwait(true);

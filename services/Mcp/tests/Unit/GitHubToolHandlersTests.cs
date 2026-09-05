@@ -11,6 +11,7 @@ public sealed class GitHubToolHandlersTests
             _gh,
             new FakeDownloader(),
             new InMemoryFileSystem(),
+            new PersistencePipeline(new InMemoryFileSystem()),
             NullLogger<GitHubToolHandlers>.Instance);
     }
 
@@ -368,7 +369,7 @@ public sealed class GitHubToolHandlersTests
             ExitCode = 0,
         };
         var fakeDownloader = new FakeDownloader();
-        var handler = new GitHubToolHandlers(_gh, fakeDownloader, new InMemoryFileSystem(), NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(_gh, fakeDownloader, new InMemoryFileSystem(), new PersistencePipeline(new InMemoryFileSystem()), NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhReleaseDownloadAsync("v1.0", "/tmp");
 

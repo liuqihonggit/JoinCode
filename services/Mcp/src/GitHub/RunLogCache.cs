@@ -72,51 +72,6 @@ internal sealed class RunLogSummary
 }
 
 /// <summary>
-/// GitHub 缓存文件写入 Actor — 单消费者 Channel 串行写文件,不阻塞调用方
-/// <para>用 ActorBase 管道(ADR: Actor 模式),TrySendFile 同步入队不阻塞,后台 Consumer 异步写磁盘</para>
-/// <para>缓存路径: {projectDir}/.jcc/gh_cache/ — 项目级缓存,跨进程共享</para>
-/// <para>通过 IFileSystem 抽象写文件(JCC9001 合规),读取时也走 IFileSystem</para>
-/// </summary>
-internal sealed class GitHubCacheWriteActor : ActorBase<GitHubCacheWriteActor.ICommand>
-{
-    internal interface ICommand;
-
-    /// <summary>写入文件命令 — Actor Consumer 串行处理,避免并发写冲突</summary>
-    internal sealed record WriteFileCommand(string FilePath, string Content) : ICommand;
-
-    private readonly IFileSystem _fs;
-    private readonly ILogger<GitHubCacheWriteActor>? _logger;
-
-    public GitHubCacheWriteActor(IFileSystem fs, ILogger<GitHubCacheWriteActor>? logger = null)
-        : base(boundedCapacity: 64, BoundedChannelFullMode.DropOldest)
-    {
-        _fs = fs;
-        _logger = logger;
-    }
-
-    /// <summary>
-    /// 异步投递写文件命令 — 同步入队不阻塞,Actor Consumer 后台串行写入
-    /// </summary>
-    internal bool TrySendFile(string filePath, string content)
-        => TrySend(new WriteFileCommand(filePath, content));
-
-    protected override async ValueTask HandleAsync(ICommand command, CancellationToken ct)
-    {
-        if (command is WriteFileCommand w)
-        {
-            var dir = Path.GetDirectoryName(w.FilePath);
-            if (dir is not null && !_fs.DirectoryExists(dir))
-                _fs.CreateDirectory(dir);
-            await _fs.WriteAllTextAsync(w.FilePath, w.Content, ct).ConfigureAwait(false);
-            _logger?.LogDebug("缓存文件已写入: {Path}", w.FilePath);
-        }
-    }
-
-    protected override void OnConsumerError(Exception ex)
-        => _logger?.LogWarning(ex, "缓存文件写入失败");
-}
-
-/// <summary>
 /// RunLogSummary 的 JSON 序列化上下文 — AOT 模式需要源码生成器
 /// </summary>
 [JsonSerializable(typeof(RunLogSummary))]

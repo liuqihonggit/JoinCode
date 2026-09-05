@@ -118,6 +118,7 @@ code_index 首迁验证：rebuild → EnqueueAsync 落盘 → 新进程 EnsureIn
 | config/network/planning/notification | 6 | 无状态/运行时 | — | N/A | — |
 | web/desktop | 37 | 无状态外部操作 | — | N/A | — |
 | **git** | **9** | **跳过（用户正在改）** | — | **⏳ 待验证** | — |
+| **gh_cache** | **7** | **统一管道** | `.jcc/gh_cache/` | ✅ 首次下载→缓存命中 | `统一到 PersistencePipeline, 删除 GitHubCacheWriteActor` |
 
 ## git 持久化后续参考
 

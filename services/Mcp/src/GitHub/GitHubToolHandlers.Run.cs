@@ -246,10 +246,10 @@ public partial class GitHubToolHandlers
         }
         _logCache.Add(summaryKey, summary, DateTimeOffset.Now.AddHours(24));
 
-        // 通过 Actor 管道异步写文件(fire-and-forget,不阻塞返回)
+        // 通过统一持久化管道异步写文件(fire-and-forget,不阻塞返回) — ADR 0068
         var json = RelaxedJsonSerializer.Serialize(summary, RunLogSummaryJsonContext.Default);
-        _cacheWriter.TrySendFile(summaryPath, json);
-        _cacheWriter.TrySendFile(rawPath, rawBuilder.ToString());
+        _pipeline.TryEnqueue(new PersistRequest { Category = "gh_cache", Directory = cacheDir, FileName = Path.GetFileName(summaryPath), Content = json });
+        _pipeline.TryEnqueue(new PersistRequest { Category = "gh_cache", Directory = cacheDir, FileName = Path.GetFileName(rawPath), Content = rawBuilder.ToString() });
 
         _logger?.LogDebug("Level1 摘要已缓存(MemoryCache+文件): {Key}, {Steps} 步骤", summaryKey, summary.StepLineCounts.Count);
         return summary;

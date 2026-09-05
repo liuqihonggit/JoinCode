@@ -37,10 +37,10 @@ public partial class GitHubToolHandlers
     private static readonly string _sectionPrefix = nameof(GitHubToolHandlers) + ":section:";
 
     /// <summary>
-    /// 缓存文件写入 Actor — 异步串行写文件到 .jcc/gh_cache/,不阻塞调用方
-    /// <para>实例字段,通过 IFileSystem 注入,ActorBase 保证单消费者串行写入</para>
+    /// 统一持久化管道 — 异步串行写缓存文件到 .jcc/gh_cache/,不阻塞调用方
+    /// <para>复用 ADR 0068 统一管道(IPersistencePipeline),替代专用 GitHubCacheWriteActor</para>
     /// </summary>
-    private readonly GitHubCacheWriteActor _cacheWriter;
+    private readonly IPersistencePipeline _pipeline;
 
     /// <summary>
     /// 文件级缓存目录 — {projectDir}/.jcc/gh_cache/,跨进程共享
@@ -51,13 +51,14 @@ public partial class GitHubToolHandlers
         IGitHubCommandRunner gh,
         IDownloader downloader,
         IFileSystem fs,
+        IPersistencePipeline pipeline,
         ILogger<GitHubToolHandlers>? logger = null)
     {
         _gh = gh ?? throw new ArgumentNullException(nameof(gh));
         _downloader = downloader ?? throw new ArgumentNullException(nameof(downloader));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
+        _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
         _logger = logger;
-        _cacheWriter = new GitHubCacheWriteActor(fs);
     }
 
     // === 共用辅助方法 ===

@@ -20,19 +20,19 @@ public class JccChatSessionAssemblyTests
         map.Count.Should().Be(5);
 
         map["deepseek"].Should().BeEquivalentTo(FixtureDeepseek);
-        map["deepseek"].Count.Should().Be(2);
+        map["deepseek"].Count.Should().Be(FixtureDeepseek.Length);
 
         map["openai"].Should().BeEquivalentTo(FixtureOpenai);
-        map["openai"].Count.Should().Be(18);
+        map["openai"].Count.Should().Be(FixtureOpenai.Length);
 
         map["anthropic"].Should().BeEquivalentTo(FixtureAnthropic);
-        map["anthropic"].Count.Should().Be(9);
+        map["anthropic"].Count.Should().Be(FixtureAnthropic.Length);
 
         map["agnes"].Should().BeEquivalentTo(FixtureAgnes);
-        map["agnes"].Count.Should().Be(4);
+        map["agnes"].Count.Should().Be(FixtureAgnes.Length);
 
         map["sensenova"].Should().BeEquivalentTo(FixtureSensenova);
-        map["sensenova"].Count.Should().Be(3);
+        map["sensenova"].Count.Should().Be(FixtureSensenova.Length);
     }
 
     [Fact]

@@ -55,8 +55,9 @@ public readonly record struct SlashParseResult
 }
 
 /// <summary>
-/// 补全光标解析器 — 从光标位置向前查找最近的触发符（/ @ #），提取查询前缀。
-    /// / → 命令名补全或命令参数补全；@ → 子代理补全；# → 文件补全。
+/// 补全光标解析器 — 从光标位置向前查找最近的触发符，提取查询前缀。
+/// 遍历 CompletionTriggerRegistry.All 找触发符，@ → 子代理补全；# → 文件补全；
+/// / → 命令名补全或命令参数补全（Argument 模式为 / 特殊分支，保留 ParseSlash 处理）。
 /// </summary>
 public static class SlashCommandParser
 {
@@ -80,18 +81,9 @@ public static class SlashCommandParser
         var lineStart = slice.LastIndexOf('\n') + 1;
         var lineSlice = slice[lineStart..];
 
-        var slashIdx = lineSlice.LastIndexOf('/');
-        var atIdx = lineSlice.LastIndexOf('@');
-        var hashIdx = lineSlice.LastIndexOf('#');
-
-        var triggerIdx = Math.Max(slashIdx, Math.Max(atIdx, hashIdx));
+        var (triggerIdx, triggerChar) = FindNearestTrigger(lineSlice);
         if (triggerIdx < 0)
             return SlashParseResult.None;
-
-        char triggerChar;
-        if (triggerIdx == slashIdx) triggerChar = '/';
-        else if (triggerIdx == atIdx) triggerChar = '@';
-        else triggerChar = '#';
 
         var triggerIndex = lineStart + triggerIdx;
         var afterTrigger = slice[(triggerIndex + 1)..];
@@ -104,7 +96,8 @@ public static class SlashCommandParser
             return SlashParseResult.None;
 
         var prefixAfter = afterTrigger.ToString();
-        var mode = triggerChar == '@' ? SlashCompletionMode.Agent : SlashCompletionMode.File;
+        var provider = CompletionTriggerRegistry.TryGet(triggerChar);
+        var mode = provider?.Mode ?? SlashCompletionMode.File;
         return new SlashParseResult
         {
             ShouldComplete = true,
@@ -114,6 +107,23 @@ public static class SlashCommandParser
             SlashIndex = triggerIndex,
             PrefixEnd = cursor
         };
+    }
+
+    /// <summary>遍历 Registry.All 找行内最近的触发符（不再硬编码 / @ #）</summary>
+    private static (int idx, char triggerChar) FindNearestTrigger(ReadOnlySpan<char> lineSlice)
+    {
+        var nearestIdx = -1;
+        var nearestChar = '\0';
+        foreach (var provider in CompletionTriggerRegistry.All)
+        {
+            var idx = lineSlice.LastIndexOf(provider.TriggerChar);
+            if (idx > nearestIdx)
+            {
+                nearestIdx = idx;
+                nearestChar = provider.TriggerChar;
+            }
+        }
+        return (nearestIdx, nearestChar);
     }
 
     private static SlashParseResult ParseSlash(

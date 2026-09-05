@@ -85,6 +85,8 @@ public partial class GitHubToolHandlers
                 var (secText, secHasMore) = SkipAndTruncate(sectionLines, maxLines, skip);
                 if (secHasMore)
                     secText += TruncatedHint;
+                if (HasNoStackTrace(secText))
+                    secText += NoStackTraceHint;
                 var secPrefix = BuildPrefix(run_id, $"步骤:{expandStep}/section:{sectionType}", filterLevel, sectionLines.Count);
                 return Ok(secText, secPrefix);
             }
@@ -139,6 +141,8 @@ public partial class GitHubToolHandlers
             var (text, hasMore) = SkipAndTruncate(allLines, maxLines, skip);
             if (hasMore)
                 text += TruncatedHint;
+            if (HasNoStackTrace(text))
+                text += NoStackTraceHint;
             return Ok(text + LogHint, $"Run {run_id} 日志:");
         }
         return Ok(result.Output);
@@ -486,6 +490,8 @@ public partial class GitHubToolHandlers
         if (matched.Count >= maxLines)
             text += $"\n... [可能还有更多行，用 skip_lines={skipLines + maxLines} 续读]";
         if (hint is not null) text += hint;
+        if (HasNoStackTrace(text))
+            text += NoStackTraceHint;
         return Ok(text, prefix);
     }
 
@@ -598,6 +604,15 @@ public partial class GitHubToolHandlers
         "4. job_id=xxx → 精准拉单 job";
 
     /// <summary>
+    /// 缺少栈帧信息提示 — CI 只报 "Process completed with exit code 1" 但无栈帧,引导 AI 按顺序排错
+    /// </summary>
+    private const string NoStackTraceHint =
+        "\n\n⚠️ 运行错误非 0,但缺少栈帧信息,无法定位相关错误。请按顺序逐个排错:\n" +
+        "1. 死锁问题: 可能是线程锁超时但缺少抛出对应错误,请查阅工程中涉及超时的代码,修改超时时间到 5s,这样必然等候一段时间的真实死锁\n" +
+        "2. CI 配置造成的问题: 检查 workflow YAML、环境变量、缓存配置是否正确\n" +
+        "3. GitHub CI 异常: 重试错误发生的工程,可能是 GitHub CI 环境本身存在异常";
+
+    /// <summary>
     /// GitHub Actions 日志过滤标记集 — 按 <see cref="GitHubLogFilter"/> 级别匹配 ##[error] / ##[warning] / ##[command]
     /// </summary>
     private static readonly FrozenSet<string> ErrorMarkers = FrozenSet.Create(
@@ -642,6 +657,20 @@ public partial class GitHubToolHandlers
         return result.Error.Contains("超时", StringComparison.OrdinalIgnoreCase)
             || result.Error.Contains("timeout", StringComparison.OrdinalIgnoreCase)
             || result.Error.Contains("timed out", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// 检测日志文本是否只有 "Process completed with exit code N" 但缺少栈帧信息
+    /// <para>栈帧标记: "  at " / "Exception" / "StackTrace" / "   at " — 有任一即视为有栈帧</para>
+    /// </summary>
+    private static bool HasNoStackTrace(string text)
+    {
+        if (!text.Contains("Process completed with exit code", StringComparison.OrdinalIgnoreCase))
+            return false;
+        return !text.Contains("  at ", StringComparison.Ordinal)
+            && !text.Contains("Exception", StringComparison.OrdinalIgnoreCase)
+            && !text.Contains("StackTrace", StringComparison.OrdinalIgnoreCase)
+            && !text.Contains("stack trace", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

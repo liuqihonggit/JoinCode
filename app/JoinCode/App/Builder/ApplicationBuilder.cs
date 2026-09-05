@@ -175,6 +175,14 @@ public sealed class ApplicationBuilder
             return 0;
         }
 
+        // 扁平元动词子命令 — ADR 0069: mcp_call/mcp_list/mcp_schema/mcp_search/mcp_serve/slash_call/slash_list/slash_schema/doctor
+        if (subCommand is not null)
+        {
+            var flatResult = await FlatSubCommandRouter.TryExecuteAsync(subCommand.Value, args, CancellationToken.None).ConfigureAwait(false);
+            if (flatResult is not null)
+                return flatResult.Value;
+        }
+
         var rootCommand = new RootCommand("JoinCode CLI");
             var cliFs = IO.FileSystem.FileSystemFactory.Create();
         rootCommand.Add(new ToolCommand());

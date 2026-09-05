@@ -226,7 +226,7 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
         foreach (var cmd in chatCommands)
         {
             var aliases = string.Join(", ", cmd.Aliases.Select(a => $"\"{EscapeString(a)}\""));
-            sb.AppendLine($"        new SlashCommandMetadata {{ Name = \"/{EscapeString(cmd.Name)}\", Description = \"{EscapeString(cmd.Description)}\", Usage = \"{EscapeString(cmd.Usage)}\", Aliases = [{aliases}], IsHidden = {cmd.IsHidden.ToString().ToLowerInvariant()}, IsEnabled = {cmd.IsEnabled.ToString().ToLowerInvariant()} }},");
+            sb.AppendLine($"        new SlashCommandMetadata {{ Name = \"/{EscapeString(cmd.Name)}\", Description = \"{EscapeString(cmd.Description)}\", Usage = \"{EscapeString(cmd.Usage)}\", Aliases = [{aliases}], IsHidden = {cmd.IsHidden.ToString().ToLowerInvariant()}, IsEnabled = {cmd.IsEnabled.ToString().ToLowerInvariant()}, Category = \"{EscapeString(cmd.CategoryEnumName ?? "Other")}\" }},");
         }
 
         sb.AppendLine("    ];");

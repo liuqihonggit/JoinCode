@@ -87,7 +87,7 @@ public sealed class McpCliCommand : Command
         Add(serveCommand);
     }
 
-    private static Task<int> ExecuteCallAsync(
+    internal static Task<int> ExecuteCallAsync(
         string toolName, string? args, string? argsFile, bool argsStdin, bool json, CancellationToken ct)
     {
         var argDict = ParseArgs(args, argsFile, argsStdin);
@@ -104,7 +104,7 @@ public sealed class McpCliCommand : Command
         }, ct);
     }
 
-    private static Task<int> ExecuteListAsync(string? category, bool json, CancellationToken ct)
+    internal static Task<int> ExecuteListAsync(string? category, bool json, CancellationToken ct)
         => WithHostAsync(async services =>
         {
             var registry = services.GetRequiredService<IMcpToolRegistry>();
@@ -138,7 +138,7 @@ public sealed class McpCliCommand : Command
             return 0;
         }, ct);
 
-    private static Task<int> ExecuteSearchAsync(string query, bool json, CancellationToken ct)
+    internal static Task<int> ExecuteSearchAsync(string query, bool json, CancellationToken ct)
         => WithHostAsync(async services =>
         {
             var registry = services.GetRequiredService<IMcpToolRegistry>();
@@ -173,7 +173,7 @@ public sealed class McpCliCommand : Command
         return 0;
     }, ct);
 
-    private static Task<int> ExecuteSchemaAsync(string toolName, bool json, CancellationToken ct)
+    internal static Task<int> ExecuteSchemaAsync(string toolName, bool json, CancellationToken ct)
         => WithHostAsync(async services =>
         {
             var registry = services.GetRequiredService<IMcpToolRegistry>();
@@ -197,7 +197,7 @@ public sealed class McpCliCommand : Command
         return 0;
     }, ct);
 
-    private static async Task<IHost> BuildHostAsync(CancellationToken ct)
+    internal static async Task<IHost> BuildHostAsync(CancellationToken ct)
     {
         var fs = IO.FileSystem.FileSystemFactory.Create();
         var options = new CommandLineOptions { NonInteractive = true, TrustWorkspace = true };
@@ -206,7 +206,7 @@ public sealed class McpCliCommand : Command
         return result.Host;
     }
 
-    private static async Task<int> ExecuteServeAsync(string transport, int port, string hostName, CancellationToken ct)
+    internal static async Task<int> ExecuteServeAsync(string transport, int port, string hostName, CancellationToken ct)
     {
         if (!string.Equals(transport, "stdio", StringComparison.OrdinalIgnoreCase)
             && !string.Equals(transport, "http", StringComparison.OrdinalIgnoreCase))
@@ -244,7 +244,7 @@ public sealed class McpCliCommand : Command
         }
     }
 
-    private static async Task<int> WithHostAsync(Func<IServiceProvider, Task<int>> action, CancellationToken ct)
+    internal static async Task<int> WithHostAsync(Func<IServiceProvider, Task<int>> action, CancellationToken ct)
     {
         var host = await BuildHostAsync(ct).ConfigureAwait(false);
         try

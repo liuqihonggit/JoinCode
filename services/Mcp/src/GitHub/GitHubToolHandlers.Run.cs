@@ -384,8 +384,15 @@ public partial class GitHubToolHandlers
                 await semaphore.WaitAsync(ct).ConfigureAwait(false);
                 try
                 {
-                    var logResult = await RunGhAsync($"api repos/{repo}/actions/jobs/{job.id}/logs", ResolveWorkDir(workingDir), ct, 60_000).ConfigureAwait(false);
-                    return (job.name, logResult.Success ? logResult.Output : string.Empty);
+                    for (int attempt = 0; attempt < 3; attempt++)
+                    {
+                        var logResult = await RunGhAsync($"api repos/{repo}/actions/jobs/{job.id}/logs", ResolveWorkDir(workingDir), ct, 60_000).ConfigureAwait(false);
+                        if (logResult.Success && !string.IsNullOrEmpty(logResult.Output))
+                            return (job.name, logResult.Output);
+                        if (attempt < 2)
+                            await Task.Delay(500, ct).ConfigureAwait(false);
+                    }
+                    return (job.name, string.Empty);
                 }
                 finally { semaphore.Release(); }
             }).ToArray();

@@ -24,7 +24,17 @@ public sealed partial class WebFetchMiddleware : ServiceEntity, IWebMiddleware
     /// <inheritdoc />
     public async Task InvokeAsync(WebContext context, MiddlewareDelegate<WebContext> next, CancellationToken ct)
     {
-        var fetchResult = await FetchWithRedirectSafetyAsync(context.UpgradedUrl ?? throw new InvalidOperationException("UpgradedUrl is not available in WebContext."), ct).ConfigureAwait(false);
+        WebFetchResult fetchResult;
+        try
+        {
+            fetchResult = await FetchWithRedirectSafetyAsync(context.UpgradedUrl ?? throw new InvalidOperationException("UpgradedUrl is not available in WebContext."), ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            context.Result = new WebFetchResult(false, context.Url,
+                ErrorMessage: $"Failed to fetch {context.Url}: {ex.Message}");
+            return;
+        }
         context.FetchResult = fetchResult;
 
         // 重定向到不同主机 → 返回重定向结果

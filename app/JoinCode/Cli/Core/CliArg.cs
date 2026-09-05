@@ -98,19 +98,4 @@ public enum CliArg
 
     [CliOption(JccCliArgConstants.Quiet, "-q", "静默模式：只输出错误信息，抑制正常输出", Category = "输出")]
     Quiet,
-
-    [CliOption(JccCliArgConstants.Print, "", "非交互模式（从stdin读取，输出到stdout）", Category = "内部")]
-    Print,
-
-    [CliOption(JccCliArgConstants.SdkUrl, "", "SDK服务URL", AcceptsValue = true, Category = "内部")]
-    SdkUrl,
-
-    [CliOption(JccCliArgConstants.InputFormat, "", "输入格式", AcceptsValue = true, Category = "内部")]
-    InputFormat,
-
-    [CliOption(JccCliArgConstants.OutputFormat, "", "输出格式", AcceptsValue = true, Category = "内部")]
-    OutputFormat,
-
-    [CliOption(JccCliArgConstants.ReplayUserMessages, "", "重放用户消息", Category = "内部")]
-    ReplayUserMessages,
 }

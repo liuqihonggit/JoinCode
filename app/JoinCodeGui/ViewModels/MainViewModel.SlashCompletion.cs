@@ -28,20 +28,22 @@ public sealed partial class MainViewModel
     /// <summary>斜杠命令补全下拉是否打开（解析触发且有匹配命令时）</summary>
     public bool IsSlashPopupOpen => _slashParseResult.ShouldComplete && SlashSuggestions.Count > 0;
 
-    /// <summary>补全面板头部模式徽章文本（命令/参数/文件/代理模式）</summary>
-    public string SlashModeLabel => _slashParseResult.Mode switch
+    /// <summary>补全面板头部模式徽章文本（参数模式特殊处理；其他从 Registry 查 Provider Label）</summary>
+    public string SlashModeLabel
     {
-        SlashCompletionMode.Argument => "参数补全",
-        SlashCompletionMode.File => "文件补全",
-        SlashCompletionMode.Agent => "代理补全",
-        _ => "斜杠命令"
-    };
+        get
+        {
+            if (_slashParseResult.Mode == SlashCompletionMode.Argument)
+                return "参数补全";
+            return CompletionTriggerRegistry.TryGet(_slashParseResult.TriggerChar)?.Label ?? "斜杠命令";
+        }
+    }
 
     /// <summary>斜杠建议当前选中索引（↑↓ 导航）</summary>
     [ObservableProperty]
     private int _slashSelectedIndex = -1;
 
-    /// <summary>刷新斜杠命令建议 — 由 View 层防抖后调用，用光标解析 + Trie 匹配 + 排序</summary>
+    /// <summary>刷新斜杠命令建议 — 由 View 层防抖后调用；Argument 保留特殊分支，Command/Agent/File 走 Registry 统一路径</summary>
     public void RefreshSlashSuggestions()
     {
         if (IsBusy)
@@ -57,38 +59,30 @@ public sealed partial class MainViewModel
             return;
         }
 
+        // Argument 模式回填区间不同（替换参数区间而非触发符区间），保留特殊分支
         if (_slashParseResult.Mode == SlashCompletionMode.Argument)
         {
             RefreshArgumentSuggestions();
             return;
         }
 
-        if (_slashParseResult.Mode == SlashCompletionMode.File)
+        // Command/Agent/File 走统一 Registry — 加新触发符只写 Provider + 注册，零改此处
+        var provider = CompletionTriggerRegistry.TryGet(_slashParseResult.TriggerChar);
+        if (provider is null)
         {
-            RefreshFileSuggestions();
+            ClearSlashSuggestions();
             return;
         }
 
-        if (_slashParseResult.Mode == SlashCompletionMode.Agent)
+        _slashCommandCache ??= BuildSlashCommandCache();
+        var context = new CompletionContext
         {
-            RefreshAgentSuggestions();
-            return;
-        }
-
-        var cache = _slashCommandCache ??= BuildSlashCommandCache();
-        var matched = SlashCommandItem.Filter(_slashParseResult.Prefix, cache);
-        var ranked = SlashCommandRanker.Rank(matched, _slashParseResult.Prefix);
-
-        SlashSuggestions.Clear();
-        var prefixLen = _slashParseResult.Prefix.Length;
-        foreach (var item in ranked)
-        {
-            item.MatchedPart = item.Name.Length >= prefixLen ? item.Name[..prefixLen] : item.Name;
-            item.RemainingPart = item.Name.Length >= prefixLen ? item.Name[prefixLen..] : string.Empty;
-            SlashSuggestions.Add(item);
-        }
-        SlashSelectedIndex = SlashSuggestions.Count > 0 ? 0 : -1;
-        NotifySlashPanelChanged();
+            Session = _session,
+            SlashCommandCache = _slashCommandCache,
+            AvailableSubAgentsCache = _availableSubAgentsCache
+        };
+        var candidates = provider.GetCandidates(_slashParseResult.Prefix, context);
+        PopulateSuggestions(candidates, _slashParseResult.Prefix);
     }
 
     /// <summary>刷新命令参数补全候选 — 由 CommandArgumentProvider 按命令名提供参数列表</summary>
@@ -107,20 +101,6 @@ public sealed partial class MainViewModel
         }
         SlashSelectedIndex = SlashSuggestions.Count > 0 ? 0 : -1;
         NotifySlashPanelChanged();
-    }
-
-    /// <summary>刷新文件补全候选 — 由 FileCompletionProvider 扫描当前工作目录</summary>
-    private void RefreshFileSuggestions()
-    {
-        var files = FileCompletionProvider.GetFiles(_slashParseResult.Prefix);
-        PopulateSuggestions(files, _slashParseResult.Prefix);
-    }
-
-    /// <summary>刷新子代理补全候选 — 由 AgentCompletionProvider 提供子代理列表</summary>
-    private void RefreshAgentSuggestions()
-    {
-        var agents = AgentCompletionProvider.GetAgents(_slashParseResult.Prefix, _availableSubAgentsCache);
-        PopulateSuggestions(agents, _slashParseResult.Prefix);
     }
 
     /// <summary>填充补全候选列表（高亮匹配前缀）</summary>

@@ -163,7 +163,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
 
                                             var propTypeName = property.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
                                             var propJsonType = MapTypeToJsonType(property.Type);
-                                            var propIsNullable = propTypeName.EndsWith("?") || propTypeName.StartsWith("System.Nullable<");
+                                            var propIsNullable = propTypeName.EndsWith("?") || propTypeName.StartsWith("System.Nullable<") || property.Type.NullableAnnotation == NullableAnnotation.Annotated;
                                             parameters.Add(new ParamInfo(
                                                 property.Name,
                                                 propTypeName,
@@ -208,7 +208,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
                                     }
 
                                     var jsonType = MapTypeToJsonType(param.Type);
-                                    var isNullable = paramTypeName.EndsWith("?") || paramTypeName.StartsWith("System.Nullable<");
+                                    var isNullable = paramTypeName.EndsWith("?") || paramTypeName.StartsWith("System.Nullable<") || param.Type.NullableAnnotation == NullableAnnotation.Annotated;
                                     parameters.Add(new ParamInfo(
                                         param.Name ?? $"arg{parameters.Count}",
                                         paramTypeName,

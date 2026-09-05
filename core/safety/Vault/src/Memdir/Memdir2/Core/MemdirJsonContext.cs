@@ -7,6 +7,7 @@ namespace Core.Memdir;
 [JsonSerializable(typeof(SearchHistoryEntry))]
 [JsonSerializable(typeof(List<SearchHistoryEntry>))]
 [JsonSerializable(typeof(PastContextSection))]
+[JsonSerializable(typeof(List<TeamMemoryPath>))]
 public partial class MemdirJsonContext : JsonSerializerContext;
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]

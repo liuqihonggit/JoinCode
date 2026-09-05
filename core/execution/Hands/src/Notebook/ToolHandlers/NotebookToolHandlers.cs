@@ -89,11 +89,18 @@ public class NotebookToolHandlers
             }
         }
 
-        // Read-before-Edit 校验：必须先读取文件才能编辑，防止模型编辑从未见过的文件
+        // Read-before-Edit 校验：跨进程时 FileStateCache 不共享，自动读取文件并记录
         if (!_fileStateCache.HasBeenRead(notebook_path))
         {
-            var diag = BuildFileNotReadDiagnostic();
-            return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+            if (_fs.FileExists(notebook_path))
+            {
+                var autoReadResult = await _fileOperationService.ReadFileAsync(notebook_path, cancellationToken: cancellationToken).ConfigureAwait(false);
+                if (autoReadResult.Success)
+                {
+                    var autoReadMs = new DateTimeOffset(_fs.GetLastWriteTimeUtc(notebook_path)).ToUnixTimeMilliseconds();
+                    _fileStateCache.RecordRead(notebook_path, autoReadResult.Content, autoReadMs);
+                }
+            }
         }
 
         // 并发修改检测：检查文件是否在读取后被外部修改

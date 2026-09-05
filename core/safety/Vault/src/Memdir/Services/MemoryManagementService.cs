@@ -312,17 +312,26 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     private readonly ILogger<MemoryManagementService>? _logger;
     private readonly IClockService _clock;
     private readonly MemoryOptionalServices? _optional;
+    private readonly IPersistencePipeline? _persistencePipeline;
+    private readonly IFileSystem? _fs;
+    private int _teamPathsLoaded;
+    private const string TeamPathsSubDir = ".jcc" + "/" + "memory";
+    private const string TeamPathsFileName = "team-paths.json";
 
     public MemoryManagementService(
         MemoryStore memoryStore,
         MemoryOptionalServices? optional = null,
         ILogger<MemoryManagementService>? logger = null,
-        IClockService? clock = null)
+        IClockService? clock = null,
+        IPersistencePipeline? persistencePipeline = null,
+        IFileSystem? fs = null)
     {
         _memoryStore = memoryStore ?? throw new ArgumentNullException(nameof(memoryStore));
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
         _optional = optional;
+        _persistencePipeline = persistencePipeline;
+        _fs = fs;
     }
 
     #region Async Methods Implementation
@@ -523,6 +532,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     {
         ct.ThrowIfCancellationRequested();
         using var guard = await _skillLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_skillLock.Name}' 等待超时");
+        await EnsureTeamPathsLoadedAsync(ct).ConfigureAwait(false);
         // 移除已存在的相同路径
         _teamMemoryPaths.Remove((teamId, path));
 
@@ -535,6 +545,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
         };
 
         _logger?.LogInformation(L.T(StringKey.VaultLogAddTeamPath), teamId, path);
+        await SaveTeamPathsAsync(ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -542,6 +553,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     {
         ct.ThrowIfCancellationRequested();
         using var guard = await _skillLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_skillLock.Name}' 等待超时");
+        await EnsureTeamPathsLoadedAsync(ct).ConfigureAwait(false);
         return GetTeamMemoryPathsCore(teamId);
     }
 
@@ -562,13 +574,82 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     {
         ct.ThrowIfCancellationRequested();
         using var guard = await _skillLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_skillLock.Name}' 等待超时");
+        await EnsureTeamPathsLoadedAsync(ct).ConfigureAwait(false);
         var removed = _teamMemoryPaths.Remove((teamId, path));
         if (removed)
         {
             _logger?.LogInformation(L.T(StringKey.VaultLogRemoveTeamPath), teamId, path);
+            await SaveTeamPathsAsync(ct).ConfigureAwait(false);
             return true;
         }
         return false;
+    }
+
+    /// <summary>
+    /// 持久化团队路径到 .jcc/memory/team-paths.json(通过统一持久化管道)。
+    /// </summary>
+    private async Task SaveTeamPathsAsync(CancellationToken ct)
+    {
+        if (_persistencePipeline is null) return;
+
+        var snapshot = _teamMemoryPaths.Values.ToList();
+        var json = RelaxedJsonSerializer.Serialize(snapshot, MemdirJsonContext.Default);
+        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var request = new PersistRequest
+        {
+            Category = "memory",
+            Directory = TeamPathsSubDir,
+            FileName = TeamPathsFileName,
+            Content = json,
+            Completion = tcs,
+        };
+        await _persistencePipeline.EnqueueAsync(request, ct).ConfigureAwait(false);
+        await tcs.Task.ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 从 .jcc/memory/team-paths.json 加载团队路径(若存在且尚未加载)。Interlocked 保证只执行一次。
+    /// </summary>
+    private async Task EnsureTeamPathsLoadedAsync(CancellationToken ct)
+    {
+        if (_fs is null || Interlocked.CompareExchange(ref _teamPathsLoaded, 1, 0) != 0) return;
+
+        try
+        {
+            var root = DiscoverWorkspaceRoot();
+            if (root is null) return;
+            var path = _fs.CombinePath(_fs.CombinePath(root, TeamPathsSubDir), TeamPathsFileName);
+            if (!_fs.FileExists(path)) return;
+            var json = await _fs.ReadAllTextAsync(path, ct).ConfigureAwait(false);
+            var list = RelaxedJsonSerializer.Deserialize<List<TeamMemoryPath>>(json, MemdirJsonContext.Default);
+            if (list is null) return;
+            foreach (var tp in list)
+            {
+                _teamMemoryPaths[(tp.TeamId, tp.Path)] = tp;
+            }
+            _logger?.LogDebug("已加载 {Count} 条团队内存路径 from {Path}", list.Count, path);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "加载团队内存路径失败");
+        }
+    }
+
+    /// <summary>
+    /// 从当前工作目录向上发现 .git 工作区根目录(.git 文件或目录都算)。
+    /// </summary>
+    private string? DiscoverWorkspaceRoot()
+    {
+        var dir = Environment.CurrentDirectory;
+        while (!string.IsNullOrEmpty(dir))
+        {
+            var gitPath = Path.Combine(dir, ".git");
+            if (_fs!.DirectoryExists(gitPath) || _fs.FileExists(gitPath)) return dir;
+            var parent = Path.GetDirectoryName(dir);
+            if (string.IsNullOrEmpty(parent) || parent == dir) break;
+            dir = parent;
+        }
+        return null;
     }
 
     /// <inheritdoc />

@@ -1,7 +1,5 @@
-
-namespace Services.Todo;
+namespace Core.Permission;
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = false, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
-[JsonSerializable(typeof(List<TodoItemInput>))]
-[JsonSerializable(typeof(List<TodoItem>))]
-public partial class TodoJsonContext : JsonSerializerContext;
+[JsonSerializable(typeof(List<AgentPermissionRule>))]
+public partial class PermissionJsonContext : JsonSerializerContext;

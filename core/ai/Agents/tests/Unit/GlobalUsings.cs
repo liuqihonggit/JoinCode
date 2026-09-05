@@ -80,3 +80,5 @@ global using Testing.Common.Services;
 global using Xunit.Abstractions;
 global using JoinCode.Abstractions.Exceptions;
 global using JoinCode.Abstractions.Prompts.ToolPrompts;
+global using Core.Agents.Worktree;
+global using JoinCode.Abstractions.Clock;

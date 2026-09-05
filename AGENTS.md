@@ -1245,3 +1245,16 @@ public ConversationMode Mode => Turns.Count == 1
 | `AutoFetchModels` 远程拉取新模型时从 ID 推断模态 | 远程新模型模态留默认（`Text`），用户在 settings.json 手动配置需要的模态 |
 
 **定位文件**：`ConfigLoader.cs:582 EnsureEnvModelInConfig`、`ModelListMerger.cs:39 Merge`
+
+### 反例6：序列化在读锁内完成时多余的 ToList 防御性拷贝
+
+| ❌ 禁止 | ✅ 正确 |
+|---------|---------|
+| 序列化已在 `ReaderWriterLockSlim` 读锁内完成，仍 `ToList()` 拷贝集合 | 直接用引用，读锁内无并发修改，序列化安全 |
+| `CallEdges = _store.CallEdges.ToList()` + 锁内序列化 | `CallEdges = _store.CallEdges` + 锁内序列化 |
+
+**根因**：`ToList()` 会分配新 List + 拷贝全部元素。如果序列化在锁外，需要拷贝防并发修改；但如果序列化已移入锁内（`using (var scope = _store.EnterReadLock()) { ... json = Serialize(data); }`），读锁阻止写锁获取，枚举集合安全，`ToList` 变为多余开销。
+
+**判断方法**：看 `Serialize` 调用是否在 `using (scope = EnterReadLock())` 块内 — 是则去掉 ToList，否则保留。
+
+**定位文件**：`GraphPersistence.cs:SaveAsync`

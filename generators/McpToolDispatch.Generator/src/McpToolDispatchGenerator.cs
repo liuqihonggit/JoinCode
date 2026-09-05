@@ -367,6 +367,14 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
             return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) && __{name}El.ValueKind == System.Text.Json.JsonValueKind.Array ? __{name}El.EnumerateArray().Select(e => {elementExtractor}).ToArray() : {nullableSuffix}";
         }
 
+        // 处理 Dictionary<string, JsonElement> 类型（非数组元素）
+        if (IsDictionaryOfJsonElement(typeName))
+        {
+            if (param.IsNullable || !param.Required)
+                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) && __{name}El.ValueKind == System.Text.Json.JsonValueKind.Object ? __{name}El.EnumerateObject().ToDictionary(p => p.Name, p => p.Value.Clone()) : null";
+            return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) && __{name}El.ValueKind == System.Text.Json.JsonValueKind.Object ? __{name}El.EnumerateObject().ToDictionary(p => p.Name, p => p.Value.Clone()) : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";
+        }
+
         // 使用简化类型名匹配，结合 IsNullable 判断
         var isNullableType = simplified.EndsWith("?") || param.IsNullable;
         var baseType = simplified.EndsWith("?") ? simplified.Substring(0, simplified.Length - 1) : simplified;

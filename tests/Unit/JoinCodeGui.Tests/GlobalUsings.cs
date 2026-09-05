@@ -48,3 +48,5 @@ global using System.Linq;
 global using System.Runtime.InteropServices;
 global using System.Text;
 global using System.Threading.Tasks;
+global using JoinCode.Abstractions.Models.Agent;
+global using JoinCode.Abstractions.Prompts.ToolPrompts;

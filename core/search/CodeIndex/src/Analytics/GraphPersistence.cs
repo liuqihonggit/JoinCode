@@ -8,20 +8,21 @@ public sealed class GraphPersistence : ServiceEntity, IGraphPersistence
 {
     private readonly InMemoryIndexStore _store;
     private readonly IFileSystem _fs;
+    private readonly IPersistencePipeline? _pipeline;
     private const int CurrentVersion = 1;
 
-    public GraphPersistence(InMemoryIndexStore store, IFileSystem fs)
+    public GraphPersistence(InMemoryIndexStore store, IFileSystem fs, IPersistencePipeline? pipeline = null)
     {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(fs);
         _store = store;
         _fs = fs;
+        _pipeline = pipeline;
     }
 
     public async Task SaveAsync(string directory, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(directory);
-        _fs.CreateDirectory(directory);
 
         // 锁只包裹同步的 data 构造 + 序列化(ReaderWriterLockSlim 线程亲和,不可跨 await)
         string json;
@@ -42,8 +43,30 @@ public sealed class GraphPersistence : ServiceEntity, IGraphPersistence
             json = RelaxedJsonSerializer.Serialize(data, CodeIndexJsonContext.Default);
         }
 
-        var path = Path.Combine(directory, "code-index.json");
-        await _fs.WriteAllTextAsync(path, json, ct).ConfigureAwait(false);
+        var fileName = "code-index.json";
+
+        if (_pipeline is not null)
+        {
+            // 统一持久化管道:入队并等待 Actor 写完(确保 rebuild 返回时索引已落盘可跨进程加载)
+            var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var request = new PersistRequest
+            {
+                Category = "code_index",
+                Directory = directory,
+                FileName = fileName,
+                Content = json,
+                Completion = tcs,
+            };
+            await _pipeline.EnqueueAsync(request, ct).ConfigureAwait(false);
+            await tcs.Task.ConfigureAwait(false);
+        }
+        else
+        {
+            // 回退:无管道时直接写文件(兼容旧测试)
+            _fs.CreateDirectory(directory);
+            var path = Path.Combine(directory, fileName);
+            await _fs.WriteAllTextAsync(path, json, ct).ConfigureAwait(false);
+        }
     }
 
     public async Task<bool> LoadAsync(string directory, CancellationToken ct)

@@ -4,16 +4,23 @@ namespace Services.Todo;
 public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposable
 {
 
-    public TodoService(IClockService clock, ITaskRuntime? taskRuntime = null, ITelemetryService? telemetryService = null)
+    public TodoService(IClockService clock, ITaskRuntime? taskRuntime = null, ITelemetryService? telemetryService = null, IPersistencePipeline? persistencePipeline = null, IFileSystem? fs = null)
     {
         _clock = clock;
         _taskRuntime = taskRuntime;
         _telemetryService = telemetryService;
+        _persistencePipeline = persistencePipeline;
+        _fs = fs;
     }
     private readonly ITaskRuntime? _taskRuntime;
     private readonly ITelemetryService? _telemetryService;
     private readonly IClockService _clock;
+    private readonly IPersistencePipeline? _persistencePipeline;
+    private readonly IFileSystem? _fs;
     private readonly ConcurrentDag<TodoItem> _todoDag = new();
+    private int _todosLoaded;
+    private const string TodosSubDir = ".jcc" + "/" + "todo";
+    private const string TodosFileName = "todos.json";
 
     public async Task<TodoServiceResult> WriteTodosAsync(List<TodoItemInput> todos, CancellationToken cancellationToken = default)
     {
@@ -130,11 +137,16 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
 
         var allTodos = _todoDag.Nodes.Values.Select(n => n.Payload).ToList();
         RecordTodoMetrics("write", createdCount + updatedCount + deletedCount);
+
+        await SaveTodosAsync(cancellationToken).ConfigureAwait(false);
+
         return new TodoServiceResult(true, createdCount, updatedCount, deletedCount, allTodos);
     }
 
-    public Task<TodoListResult> ListTodosAsync(string? status = null, string? priority = null, bool includeCompleted = false, CancellationToken cancellationToken = default)
+    public async Task<TodoListResult> ListTodosAsync(string? status = null, string? priority = null, bool includeCompleted = false, CancellationToken cancellationToken = default)
     {
+        await EnsureTodosLoadedAsync(cancellationToken).ConfigureAwait(false);
+
         var query = _todoDag.Nodes.Values.Select(n => n.Payload).AsEnumerable();
 
         if (!string.IsNullOrEmpty(status))
@@ -153,7 +165,7 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
         }
 
         var result = query.OrderBy(t => t.CreatedAt).ToList();
-        return Task.FromResult(new TodoListResult(true, result));
+        return new TodoListResult(true, result);
     }
 
     public async Task<OperationResult<TodoItem?>> UpdateTodoAsync(string todoId, string? content = null, string? status = null, string? priority = null, CancellationToken cancellationToken = default)
@@ -196,24 +208,30 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
             }, cancellationToken).ConfigureAwait(false);
         }
 
+        await SaveTodosAsync(cancellationToken).ConfigureAwait(false);
+
         return OperationResult<TodoItem?>.Ok(updatedTodo);
     }
 
-    public Task ClearTodosAsync(CancellationToken cancellationToken = default)
+    public async Task ClearTodosAsync(CancellationToken cancellationToken = default)
     {
         _todoDag.Clear();
         RecordTodoMetrics("clear", 0);
-        return Task.CompletedTask;
+
+        await SaveTodosAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public Task<IReadOnlyList<TodoItem>> GetTopologicalOrderAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<TodoItem>> GetTopologicalOrderAsync(CancellationToken cancellationToken = default)
     {
+        await EnsureTodosLoadedAsync(cancellationToken).ConfigureAwait(false);
         var sorted = _todoDag.TopologicalSort().Select(n => n.Payload).ToList();
-        return Task.FromResult<IReadOnlyList<TodoItem>>(sorted);
+        return sorted;
     }
 
-    public Task<IReadOnlyList<TodoItem>> GetReadyTodosAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<TodoItem>> GetReadyTodosAsync(CancellationToken cancellationToken = default)
     {
+        await EnsureTodosLoadedAsync(cancellationToken).ConfigureAwait(false);
+
         var completedIds = _todoDag.Nodes.Values
             .Where(n => n.Payload.Status.Equals(TodoStatusConstants.Completed, StringComparison.OrdinalIgnoreCase))
             .Select(n => n.Id)
@@ -231,7 +249,77 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
             .Select(n => n.Payload)
             .ToList();
 
-        return Task.FromResult<IReadOnlyList<TodoItem>>(ready);
+        return ready;
+    }
+
+    private async Task SaveTodosAsync(CancellationToken ct)
+    {
+        if (_persistencePipeline is null) return;
+
+        var snapshot = _todoDag.Nodes.Values.Select(n => n.Payload).ToList();
+        var json = RelaxedJsonSerializer.Serialize(snapshot, TodoJsonContext.Default);
+        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var request = new PersistRequest
+        {
+            Category = "todo",
+            Directory = TodosSubDir,
+            FileName = TodosFileName,
+            Content = json,
+            Completion = tcs,
+        };
+        await _persistencePipeline.EnqueueAsync(request, ct).ConfigureAwait(false);
+        await tcs.Task.ConfigureAwait(false);
+    }
+
+    private async Task EnsureTodosLoadedAsync(CancellationToken ct)
+    {
+        if (_fs is null || Interlocked.CompareExchange(ref _todosLoaded, 1, 0) != 0) return;
+
+        try
+        {
+            var root = DiscoverWorkspaceRoot();
+            if (root is null) return;
+            var path = Path.Combine(Path.Combine(root, TodosSubDir), TodosFileName);
+            if (!_fs.FileExists(path)) return;
+            var json = await _fs.ReadAllTextAsync(path, ct).ConfigureAwait(false);
+            var list = RelaxedJsonSerializer.Deserialize<List<TodoItem>>(json, TodoJsonContext.Default);
+            if (list is null) return;
+            foreach (var todo in list)
+            {
+                _todoDag.AddNode(new DagNode<TodoItem> { Id = todo.Id, Payload = todo });
+            }
+            foreach (var todo in list)
+            {
+                if (todo.DependsOn is { Count: > 0 })
+                {
+                    foreach (var depId in todo.DependsOn)
+                    {
+                        if (_todoDag.Nodes.ContainsKey(depId))
+                        {
+                            _todoDag.AddEdge(new DagEdge { FromId = depId, ToId = todo.Id, Label = "depends-on" });
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[Todo] 加载失败: {ex.Message}");
+        }
+    }
+
+    private string? DiscoverWorkspaceRoot()
+    {
+        var dir = Environment.CurrentDirectory;
+        while (!string.IsNullOrEmpty(dir))
+        {
+            var gitPath = Path.Combine(dir, ".git");
+            if (_fs!.DirectoryExists(gitPath) || _fs.FileExists(gitPath)) return dir;
+            var parent = Path.GetDirectoryName(dir);
+            if (string.IsNullOrEmpty(parent) || parent == dir) break;
+            dir = parent;
+        }
+        return null;
     }
 
     private static TaskExecutionStatus MapStatus(string todoStatus)

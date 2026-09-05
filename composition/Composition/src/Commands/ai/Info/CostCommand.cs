@@ -5,6 +5,7 @@ namespace JoinCode.ChatCommands;
 /// /cost 命令 - 显示成本统计
 /// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Cost, Description = "显示使用成本统计", Usage = "/cost [today|session|total]", Category = ChatCommandCategory.Model, ArgumentHint = "[today|session|total]", ExposeToMcp = true)]
+[ChatCommandArg("scope", Type = "string", Description = "成本统计范围", Enum = new[] { "today", "session", "total" })]
 public sealed class CostCommand(IModelConfigLoader? modelConfigLoader = null) : ChatCommandBase
 {
     private readonly IModelConfigLoader? _modelConfigLoader = modelConfigLoader;

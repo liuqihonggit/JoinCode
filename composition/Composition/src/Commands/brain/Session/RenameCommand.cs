@@ -1,6 +1,7 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Rename, Description = "重命名当前会话", Usage = "/rename <new-name>", Category = ChatCommandCategory.Session, ArgumentHint = "<new-name>")]
+[ChatCommandArg("new_name", Type = "string", Description = "新的会话名称", Required = true)]
 public sealed class RenameCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

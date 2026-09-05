@@ -77,7 +77,7 @@ internal static class PulseNativeMethods
     [DllImport("user32.dll")]
     public static extern IntPtr PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
 
-    [DllImport("user32.dll")]
+    [DllImport("kernel32.dll", SetLastError = true)]
     public static extern IntPtr GetModuleHandle(string? lpModuleName);
 
     [DllImport("user32.dll")]

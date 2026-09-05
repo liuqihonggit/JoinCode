@@ -87,6 +87,12 @@ public class DesktopOverlayToolHandlers
         [McpToolParameter("圆颜色: red/green/blue/yellow/cyan/magenta，默认yellow", Required = false)] string color = "yellow",
         CancellationToken ct = default)
     {
+        // MCP 框架未传 C# 默认值时 int 参数为 0，回退到默认值
+        if (maxRadius == 0) maxRadius = 120;
+        if (minRadius == 0) minRadius = 30;
+        if (durationMs == 0) durationMs = 5000;
+        if (frameMs == 0) frameMs = 33;
+
         if (maxRadius <= 0 || minRadius <= 0)
             return ToolResultBuilder.Error().WithText("[OVL200] 半径必须为正").Build();
         if (minRadius >= maxRadius)

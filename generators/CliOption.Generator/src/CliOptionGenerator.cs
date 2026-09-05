@@ -550,6 +550,34 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
             sb.AppendLine($"        new() {{ Name = \"{EscapeString(opt.LongName)}\", ShortName = {shortNameStr}, Description = \"{EscapeString(opt.Description)}\", Type = {type}, AcceptsValue = {opt.AcceptsValue.ToString().ToLowerInvariant()}, RiskLevel = {riskLevelStr}, Category = {categoryStr}, Example = {exampleStr} }},");
         }
         sb.AppendLine("    };");
+        sb.AppendLine();
+
+        // 生成 ToJson() 方法 — Utf8JsonWriter 直接写 JSON，AOT 兼容，无需 JsonContext
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// 将 Properties 序列化为 JSON 字符串 — Utf8JsonWriter 直接写，AOT 兼容");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine("    public static string ToJson()");
+        sb.AppendLine("    {");
+        sb.AppendLine("        using var stream = new System.IO.MemoryStream();");
+        sb.AppendLine("        using var writer = new System.Text.Json.Utf8JsonWriter(stream);");
+        sb.AppendLine("        writer.WriteStartArray();");
+        sb.AppendLine("        foreach (var p in Properties)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            writer.WriteStartObject();");
+        sb.AppendLine("            writer.WriteString(\"name\", p.Name);");
+        sb.AppendLine("            writer.WriteString(\"shortName\", p.ShortName);");
+        sb.AppendLine("            writer.WriteString(\"description\", p.Description);");
+        sb.AppendLine("            writer.WriteString(\"type\", p.Type);");
+        sb.AppendLine("            writer.WriteBoolean(\"acceptsValue\", p.AcceptsValue);");
+        sb.AppendLine("            if (p.RiskLevel is not null) writer.WriteString(\"riskLevel\", p.RiskLevel);");
+        sb.AppendLine("            if (p.Category is not null) writer.WriteString(\"category\", p.Category);");
+        sb.AppendLine("            if (p.Example is not null) writer.WriteString(\"example\", p.Example);");
+        sb.AppendLine("            writer.WriteEndObject();");
+        sb.AppendLine("        }");
+        sb.AppendLine("        writer.WriteEndArray();");
+        sb.AppendLine("        writer.Flush();");
+        sb.AppendLine("        return System.Text.Encoding.UTF8.GetString(stream.ToArray());");
+        sb.AppendLine("    }");
 
         sb.AppendLine("}");
     }

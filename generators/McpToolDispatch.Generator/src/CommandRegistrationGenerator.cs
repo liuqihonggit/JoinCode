@@ -125,7 +125,8 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
 
     private static ChatCommandArgInfo ExtractArgInfo(AttributeData a)
     {
-        var argName = a.NamedArguments.FirstOrDefault(n => n.Key == "Name").Value.Value as string ?? "";
+        // Name 是构造函数参数，Type/Description/Required 等是 init 命名参数
+        var argName = a.ConstructorArguments.ElementAtOrDefault(0).Value as string ?? "";
         var argType = a.NamedArguments.FirstOrDefault(n => n.Key == "Type").Value.Value as string ?? "string";
         var argDesc = a.NamedArguments.FirstOrDefault(n => n.Key == "Description").Value.Value as string ?? "";
         var argRequired = a.NamedArguments.FirstOrDefault(n => n.Key == "Required").Value.Value is bool reqVal && reqVal;

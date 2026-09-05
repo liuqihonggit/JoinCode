@@ -67,9 +67,9 @@ internal static class SlashListExecutor
 
         if (json)
         {
-            var items = commands.Select(c => new { c.Name, c.Description, c.Usage, c.Category, Aliases = c.Aliases }).ToList();
+            var items = commands.Select(c => new Cli.Output.CliSlashCommandListItem(c.Name, c.Description, c.Usage, c.Category, c.Aliases)).ToList();
             var envelope = Cli.Output.CliOutputEnvelope.Success(items, new Cli.Output.CliOutputMeta { TotalCount = items.Count });
-            System.Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(envelope, Cli.Output.CliOutputJsonContext.Default.CliOutputEnvelope));
+            System.Console.WriteLine(RelaxedJsonSerializer.Serialize(envelope, Cli.Output.CliOutputJsonContext.Default));
         }
         else
         {
@@ -119,12 +119,12 @@ internal static class SlashSchemaExecutor
         if (entry.Schema is not null)
         {
             if (json)
-                System.Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(entry.Schema, ContractsJsonContext.Default.ToolSchema));
+                System.Console.WriteLine(RelaxedJsonSerializer.Serialize(entry.Schema, ContractsJsonContext.Default));
             else
             {
                 TerminalHelper.WriteLine($"命令: /{entry.CommandName}");
                 TerminalHelper.WriteLine("参数 Schema:");
-                System.Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(entry.Schema, ContractsJsonContext.Default.ToolSchema));
+                System.Console.WriteLine(RelaxedJsonSerializer.Serialize(entry.Schema, ContractsJsonContext.Default));
             }
         }
         else

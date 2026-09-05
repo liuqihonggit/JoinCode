@@ -25,7 +25,7 @@ public sealed class CliOutputContract
         if (_jsonMode)
         {
             var envelope = CliOutputEnvelope.Success(data, meta);
-            var json = System.Text.Json.JsonSerializer.Serialize(envelope, _jsonContext.CliOutputEnvelope);
+            var json = RelaxedJsonSerializer.Serialize(envelope, _jsonContext);
             Console.WriteLine(json);
         }
         else
@@ -45,7 +45,7 @@ public sealed class CliOutputContract
         if (_jsonMode)
         {
             var envelope = CliOutputEnvelope.Fail(error);
-            var json = System.Text.Json.JsonSerializer.Serialize(envelope, _jsonContext.CliOutputEnvelope);
+            var json = RelaxedJsonSerializer.Serialize(envelope, _jsonContext);
             TerminalHelper.WriteError(json);
         }
         else

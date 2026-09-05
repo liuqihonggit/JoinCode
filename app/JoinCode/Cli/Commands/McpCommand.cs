@@ -38,7 +38,7 @@ public sealed class McpCliCommand
                     .Select(t => new Cli.Output.CliToolListItem(t.Name, t.Description, t.Category, t.GroupName, t.Kind.ToString()))
                     .ToList();
                 var envelope = Cli.Output.CliOutputEnvelope.Success(items, new Cli.Output.CliOutputMeta { TotalCount = items.Count });
-                System.Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(envelope, JsonCtx.CliOutputEnvelope));
+                System.Console.WriteLine(RelaxedJsonSerializer.Serialize(envelope, JsonCtx));
             }
             else
             {
@@ -78,7 +78,7 @@ public sealed class McpCliCommand
                 allTools.TryGetValue(name, out var t) ? t.Description : null,
                 allTools.TryGetValue(name, out var t2) ? t2.Category : null)).ToList();
             var envelope = Cli.Output.CliOutputEnvelope.Success(items, new Cli.Output.CliOutputMeta { TotalCount = items.Count });
-            System.Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(envelope, JsonCtx.CliOutputEnvelope));
+            System.Console.WriteLine(RelaxedJsonSerializer.Serialize(envelope, JsonCtx));
         }
         else
         {
@@ -105,7 +105,7 @@ public sealed class McpCliCommand
 
         if (json)
         {
-            System.Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(info.InputSchema, ContractsJsonContext.Default.ToolSchema));
+            System.Console.WriteLine(RelaxedJsonSerializer.Serialize(info.InputSchema, ContractsJsonContext.Default));
         }
         else
         {
@@ -113,7 +113,7 @@ public sealed class McpCliCommand
             TerminalHelper.WriteLine($"描述: {info.Description}");
             TerminalHelper.WriteLine($"分类: {info.Category ?? "(无)"}");
             TerminalHelper.WriteLine($"参数 Schema:");
-            System.Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(info.InputSchema, ContractsJsonContext.Default.ToolSchema));
+            System.Console.WriteLine(RelaxedJsonSerializer.Serialize(info.InputSchema, ContractsJsonContext.Default));
         }
         return 0;
     }, ct);

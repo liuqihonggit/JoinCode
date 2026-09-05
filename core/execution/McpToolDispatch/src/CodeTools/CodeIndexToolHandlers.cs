@@ -25,6 +25,7 @@ public sealed class CodeIndexToolHandlers
 
         try
         {
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
             var result = await _indexer.Searcher.SearchAsync(query, cancellationToken).ConfigureAwait(false);
 
             if (result.Items.Count == 0)
@@ -82,6 +83,7 @@ public sealed class CodeIndexToolHandlers
 
         try
         {
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
             var result = await _indexer.SearchComprehensiveAsync(pattern, max_token_budget, cancellationToken, include_ast).ConfigureAwait(false);
 
             // 真正无匹配符号 (TotalMatchedCount==0): 返回空结果提示
@@ -185,6 +187,7 @@ public sealed class CodeIndexToolHandlers
 
         try
         {
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
             var definition = await _indexer.Searcher.FindDefinitionAsync(symbol_name, cancellationToken).ConfigureAwait(false);
 
             if (definition is null)
@@ -232,6 +235,7 @@ public sealed class CodeIndexToolHandlers
 
         try
         {
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
             var references = await _indexer.Searcher.FindReferencesAsync(symbol_name, cancellationToken).ConfigureAwait(false);
 
             if (references.Count == 0)
@@ -277,6 +281,7 @@ public sealed class CodeIndexToolHandlers
 
         try
         {
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
             var callers = await _indexer.CallGraph.GetCallersAsync(symbol_name, cancellationToken).ConfigureAwait(false);
 
             if (callers.Count == 0)
@@ -316,6 +321,7 @@ public sealed class CodeIndexToolHandlers
 
         try
         {
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
             var callees = await _indexer.CallGraph.GetCalleesAsync(symbol_name, cancellationToken).ConfigureAwait(false);
 
             if (callees.Count == 0)
@@ -361,6 +367,7 @@ public sealed class CodeIndexToolHandlers
 
         try
         {
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
             var chain = await _indexer.CallGraph.GetCallChainAsync(from, to, cancellationToken).ConfigureAwait(false);
 
             if (chain.Count == 0)
@@ -400,6 +407,7 @@ public sealed class CodeIndexToolHandlers
 
         try
         {
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
             var scope = await _indexer.CallGraph.GetImpactScopeAsync(symbol_name, cancellationToken).ConfigureAwait(false);
 
             if (scope.Count == 0)
@@ -436,6 +444,7 @@ public sealed class CodeIndexToolHandlers
 
         try
         {
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
             var inheritors = await _indexer.DependencyGraph.GetInheritorsAsync(symbol_name, cancellationToken).ConfigureAwait(false);
 
             if (inheritors.Count == 0)
@@ -474,6 +483,7 @@ public sealed class CodeIndexToolHandlers
 
         try
         {
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
             var deps = await _indexer.DependencyGraph.GetDependenciesAsync(symbol_name, cancellationToken).ConfigureAwait(false);
 
             if (deps.Count == 0)
@@ -512,6 +522,7 @@ public sealed class CodeIndexToolHandlers
 
         try
         {
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
             var files = await _indexer.DependencyGraph.GetAffectedFilesAsync(file_path, cancellationToken).ConfigureAwait(false);
 
             if (files.Count == 0)
@@ -557,6 +568,17 @@ public sealed class CodeIndexToolHandlers
             sb.AppendLine(L.T(StringKey.SkippedFiles, result.SkippedCount));
             sb.AppendLine(L.T(StringKey.DeletedFiles, result.DeletedCount));
 
+            var persistDir = Path.Combine(workspace_root, ".jcc", "code-index");
+            try
+            {
+                await _indexer.Persistence.SaveAsync(persistDir, cancellationToken).ConfigureAwait(false);
+                sb.AppendLine($"索引已持久化到: {persistDir}");
+            }
+            catch (Exception persistEx)
+            {
+                sb.AppendLine($"⚠ 索引持久化失败(内存索引仍可用): {persistEx.Message}");
+            }
+
             return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
         }
         catch (Exception ex)
@@ -571,6 +593,7 @@ public sealed class CodeIndexToolHandlers
     {
         try
         {
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
             var stats = await _indexer.GetStatsAsync(cancellationToken).ConfigureAwait(false);
 
             var sb = new System.Text.StringBuilder();
@@ -616,6 +639,7 @@ public sealed class CodeIndexToolHandlers
 
         try
         {
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
             var result = await _disclosure.DiscloseAsync(query, disclosureLevel, cancellationToken).ConfigureAwait(false);
 
             var sb = new System.Text.StringBuilder();
@@ -649,6 +673,7 @@ public sealed class CodeIndexToolHandlers
 
         try
         {
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
             var deps = await _indexer.ProjectDependencyGraph.GetProjectDependenciesAsync(project_path, cancellationToken).ConfigureAwait(false);
 
             if (deps.Count == 0)
@@ -685,6 +710,7 @@ public sealed class CodeIndexToolHandlers
 
         try
         {
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
             var dependents = await _indexer.ProjectDependencyGraph.GetProjectDependentsAsync(project_path, cancellationToken).ConfigureAwait(false);
 
             if (dependents.Count == 0)
@@ -721,6 +747,7 @@ public sealed class CodeIndexToolHandlers
 
         try
         {
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
             var projects = await _indexer.ProjectDependencyGraph.GetAffectedProjectsAsync(file_path, cancellationToken).ConfigureAwait(false);
 
             if (projects.Count == 0)
@@ -757,6 +784,7 @@ public sealed class CodeIndexToolHandlers
 
         try
         {
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
             var packages = await _indexer.ProjectDependencyGraph.GetProjectNuGetPackagesAsync(project_path, cancellationToken).ConfigureAwait(false);
 
             if (packages.Count == 0)
@@ -794,6 +822,7 @@ public sealed class CodeIndexToolHandlers
 
         try
         {
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
             var projects = await _indexer.ProjectDependencyGraph.GetProjectsUsingNuGetPackageAsync(package_name, cancellationToken).ConfigureAwait(false);
 
             if (projects.Count == 0)
@@ -824,6 +853,7 @@ public sealed class CodeIndexToolHandlers
     {
         try
         {
+            await EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
             var projects = await _indexer.ProjectDependencyGraph.GetAllProjectsAsync(cancellationToken).ConfigureAwait(false);
 
             if (projects.Count == 0)
@@ -887,4 +917,6 @@ public sealed class CodeIndexToolHandlers
             _ => ObjectSymbol.File.ToValue()
         };
     }
+
+    private Task EnsureLoadedAsync(CancellationToken ct) => _indexer.EnsureIndexLoadedAsync(ct);
 }

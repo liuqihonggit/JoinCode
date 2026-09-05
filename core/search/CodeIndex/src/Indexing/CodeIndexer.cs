@@ -18,6 +18,9 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     private readonly GraphVisualization _visualization;
     private readonly ILogger<CodeIndexer>? _logger;
     private int _disposed;
+    private int _autoLoadState;
+    private string? _autoDiscoveredWorkspaceRoot;
+    private const string AutoLoadSubDir = ".jcc" + "/" + "code-index";
 
     public CodeIndexer(InMemoryIndexStore store, IFileSystem fs, ILogger<CodeIndexer>? logger = null)
     {
@@ -458,6 +461,61 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         return _store.FileTracking.Keys
             .Where(p => p.StartsWith(workspaceRoot, StringComparison.OrdinalIgnoreCase))
             .ToList();
+    }
+
+    public async Task EnsureIndexLoadedAsync(CancellationToken ct)
+    {
+        if (Interlocked.CompareExchange(ref _autoLoadState, 1, 0) != 0) return;
+
+        try
+        {
+            var root = DiscoverWorkspaceRoot();
+            if (root is null)
+            {
+                _logger?.LogDebug("CodeIndexer: 未发现 .git 工作区根,跳过自动加载");
+                return;
+            }
+
+            _autoDiscoveredWorkspaceRoot = root;
+            var dir = Path.Combine(root, AutoLoadSubDir);
+            if (!await _persistence.ExistsAsync(dir, ct).ConfigureAwait(false))
+            {
+                _logger?.LogDebug("CodeIndexer: 持久化索引不存在 {Dir},跳过加载", dir);
+                return;
+            }
+
+            var loaded = await _persistence.LoadAsync(dir, ct).ConfigureAwait(false);
+            if (loaded)
+            {
+                _logger?.LogInformation("CodeIndexer: 自动加载索引成功 from {Dir}", dir);
+            }
+            else
+            {
+                _logger?.LogDebug("CodeIndexer: 持久化索引版本不匹配或为空 {Dir}", dir);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "CodeIndexer: 自动加载索引失败");
+        }
+    }
+
+    /// <summary>
+    /// 从当前工作目录向上发现 .git 工作区根目录。返回 null 表示未找到。
+    /// .git 可以是目录(主仓库)或文件(git worktree 指针),两者都算工作区根。
+    /// </summary>
+    private string? DiscoverWorkspaceRoot()
+    {
+        var dir = Environment.CurrentDirectory;
+        while (!string.IsNullOrEmpty(dir))
+        {
+            var gitPath = _fs.CombinePath(dir, ".git");
+            if (_fs.DirectoryExists(gitPath) || _fs.FileExists(gitPath)) return dir;
+            var parent = Path.GetDirectoryName(dir);
+            if (string.IsNullOrEmpty(parent) || parent == dir) break;
+            dir = parent;
+        }
+        return null;
     }
 
     protected override void OnDispose()

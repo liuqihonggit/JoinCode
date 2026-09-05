@@ -15,6 +15,13 @@ public interface ICodeIndexer
     IGraphVisualization Visualization { get; }
 
     /// <summary>
+    /// 自动加载已持久化的索引(若存在且尚未加载)。
+    /// 从当前工作目录向上发现 .git 根,加载 &lt;root&gt;/.jcc/code-index/code-index.json。
+    /// 用 Interlocked 保证只执行一次,后续调用立即返回。跨进程索引复用的入口。
+    /// </summary>
+    Task EnsureIndexLoadedAsync(CancellationToken ct);
+
+    /// <summary>
     /// 综合检索: rg式模糊匹配符号 → 获取全部函数引用 + 调用方/被调用方,受 token 预算限制
     /// 用于: 用户只记得模糊名称时,先模糊检索候选,再用 AST 精确捞出全部引用
     /// </summary>

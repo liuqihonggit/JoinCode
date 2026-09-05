@@ -23,21 +23,25 @@ public sealed class GraphPersistence : ServiceEntity, IGraphPersistence
         ArgumentNullException.ThrowIfNull(directory);
         _fs.CreateDirectory(directory);
 
-        using var scope = _store.EnterReadLock();
-
-        var data = new GraphPersistenceData
+        // 锁只包裹同步的 data 构造 + 序列化(ReaderWriterLockSlim 线程亲和,不可跨 await)
+        string json;
+        using (var scope = _store.EnterReadLock())
         {
-            Version = CurrentVersion,
-            SavedAt = DateTimeOffset.UtcNow,
-            Symbols = _store.SymbolsByFqn.Values.ToList(),
-            CallEdges = _store.CallEdges,
-            DependencyEdges = _store.DepEdges,
-            Projects = _store.Projects.Values.ToList(),
-            ProjectReferences = _store.ProjectRefs.Values.SelectMany(v => v).ToList(),
-            NuGetReferences = _store.NuGetRefs.Values.SelectMany(v => v).ToList(),
-        };
+            var data = new GraphPersistenceData
+            {
+                Version = CurrentVersion,
+                SavedAt = DateTimeOffset.UtcNow,
+                Symbols = _store.SymbolsByFqn.Values.ToList(),
+                CallEdges = _store.CallEdges,
+                DependencyEdges = _store.DepEdges,
+                Projects = _store.Projects.Values.ToList(),
+                ProjectReferences = _store.ProjectRefs.Values.SelectMany(v => v).ToList(),
+                NuGetReferences = _store.NuGetRefs.Values.SelectMany(v => v).ToList(),
+            };
 
-        var json = RelaxedJsonSerializer.Serialize(data, CodeIndexJsonContext.Default);
+            json = RelaxedJsonSerializer.Serialize(data, CodeIndexJsonContext.Default);
+        }
+
         var path = Path.Combine(directory, "code-index.json");
         await _fs.WriteAllTextAsync(path, json, ct).ConfigureAwait(false);
     }

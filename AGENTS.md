@@ -626,7 +626,7 @@ chcp 65001
 
 | 元命令 | 用途 | 示例 |
 |--------|------|------|
-| `mcp_call <tool> <argsJson>` | MCP 工具直调 | `jcc mcp_call read_file {"path":"x"}` |
+| `mcp_call <tool> [key=value ... \| <argsJson> \| --args-file <path> \| --args-stdin]` | MCP 工具直调（PowerShell 用 `key=value`，JSON 用 `--args-file`/`--args-stdin`） | `jcc mcp_call ToolSearch query=read` / `jcc mcp_call read_file --args-file args.json` |
 | `mcp_list [--category <cat>]` | 列出 MCP 工具 | `jcc mcp_list --category Code` |
 | `mcp_schema <tool>` | 查看工具参数 schema | `jcc mcp_schema read_file` |
 | `mcp_search <query>` | 搜索 MCP 工具 | `jcc mcp_search "read"` |

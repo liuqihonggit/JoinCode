@@ -93,6 +93,8 @@ public class PlanModeToolHandlers
 
         if (!result.Success)
         {
+            if (result.ErrorMessage?.Contains("Not currently in plan mode") == true)
+                return ToolResultBuilder.Success().WithText(result.ErrorMessage).Build();
             var failDiag = BuildExitPlanModeFailedDiagnostic(result.ErrorMessage);
             return ToolResultBuilder.Error().WithText(failDiag.FormattedMessage).WithDiagnostic(failDiag).Build();
         }
@@ -275,6 +277,8 @@ public class PlanModeToolHandlers
 
         if (!result.Success)
         {
+            if (result.ErrorMessage?.Contains("不在计划模式") == true)
+                return ToolResultBuilder.Success().WithText(result.ErrorMessage).Build();
             var failDiag = BuildOperationFailedDiagnostic("execute_steps", "执行步骤失败", result.ErrorMessage);
             return ToolResultBuilder.Error().WithText(failDiag.FormattedMessage).WithDiagnostic(failDiag).Build();
         }

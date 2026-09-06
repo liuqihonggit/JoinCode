@@ -17,6 +17,7 @@ class Program
         }
 
         InstallGlobalExceptionHandlers();
+        using var globalJob = CreateGlobalJobObject();
 
         Cli.TerminalHelper.Init();
         JoinCode.Abstractions.Shell.CommandTerminal.SetConsole(new CliCommandConsole());
@@ -286,6 +287,27 @@ class Program
             WriteCrashDump(e.Exception, source: "UnobservedTaskException");
             e.SetObserved();
         };
+    }
+
+    /// <summary>
+    /// 创建全局 JobObject — 把当前进程加入 KILL_ON_JOB_CLOSE，所有子进程自动继承。
+    /// 父进程无论正常退出还是崩溃，OS 自动 Kill 整个进程树，避免子进程孤儿化。
+    /// 非 Windows 平台或创建失败时返回 null，不阻塞启动。
+    /// </summary>
+    private static WindowsJobObjectSandbox? CreateGlobalJobObject()
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+        try
+        {
+            var job = new WindowsJobObjectSandbox();
+            job.CreateJobObject();
+            job.AssignProcess(Environment.ProcessId);
+            return job;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
     }
 
     /// <summary>

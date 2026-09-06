@@ -97,29 +97,29 @@ regex.IsMatch(span) → 匹配
 
 ## 三、重构计划
 
-### P0：修复 Bug + 消除最严重重复
+### P0：修复 Bug + 消除最严重重复 ✅ 已完成
 
-| 步骤 | 动作 | 影响文件 |
-|------|------|----------|
-| P0-1 | `RgEngine.SimpleGlobMatch` → 委托 `GlobMatcher.IsMatch` | RgEngine.cs |
-| P0-2 | `RgEngine.IsGitIgnored` → 委托 `GitignoreMatcher` | RgEngine.cs |
-| P0-3 | 提取 `BinaryFileDetector` 到 `infrastructure/Infrastructure/IO/Services/FileOps/` | RgEngine.cs、SearchService.cs、FileReader.cs、FileToolHandlers.cs |
-| P0-4 | 提取 `VcsDirectories` + `FileTypeExtensions` 常量到 `foundation/Abstractions/` | RgEngine.cs、SearchService.cs、MarkdownWalker.cs |
+| 步骤 | 动作 | 影响文件 | 状态 |
+|------|------|----------|------|
+| P0-1 | `RgEngine.SimpleGlobMatch` → 委托 `GlobMatcher.IsMatch` | RgEngine.cs | ✅ |
+| P0-2 | `RgEngine.IsGitIgnored` → 委托 `GitignoreMatcher`（提取到 Abstractions 层 public） | RgEngine.cs、Abstractions | ✅ |
+| P0-3 | 提取 `BinaryFileDetector` 到 `Abstractions/03-hands/Code/` | RgEngine.cs、SearchService.cs、FileToolHandlers.cs | ✅ |
+| P0-4a | 提取 `VcsDirectoryExclusions` 到 `Abstractions/03-hands/Code/` | RgEngine.cs、SearchService.cs | ✅ |
+| P0-4b | 提取 `LineSpanIndexer` 到 `Abstractions/03-hands/Code/` | RgEngine.cs、SearchService.cs | ✅ |
+| P0-4c | 提取 `FileTypeExtensionMap` 到 `Abstractions/03-hands/Code/` | RgEngine.cs、SearchService.cs | ✅ |
 
-### P1：统一文件遍历 + 正则编译
+### P1：统一正则编译 ✅ 已完成
 
-| 步骤 | 动作 | 影响文件 |
-|------|------|----------|
-| P1-1 | 提取 `SearchFileCollector` 到 `infrastructure/Infrastructure/IO/Services/FileOps/` | RgEngine.cs、SearchService.cs |
-| P1-2 | 提取 `SearchRegexCompiler` 到 `infrastructure/Infrastructure/Utils/Text/` | RgEngine.cs、SearchService.cs |
-| P1-3 | 提取 `LineSpanIndexer`（lineRanges 构建 + FindLineIndex） | RgEngine.cs、SearchService.cs |
+| 步骤 | 动作 | 影响文件 | 状态 |
+|------|------|----------|------|
+| P1-1 | 提取 `SearchRegexCompiler` 到 `Abstractions/03-hands/Code/` | RgEngine.cs、SearchService.cs | ✅ |
 
-### P2：路径安全 + 转义修复
+### P2：路径安全 + 转义修复（待定）
 
-| 步骤 | 动作 | 影响文件 |
-|------|------|----------|
-| P2-1 | 提取 `PathSafetyValidator` 到 `infrastructure/Infrastructure/Utils/Validation/` | RgSubCommand.cs |
-| P2-2 | `FixPowerShellEscaping` 暂不提取（无重复，未来有复用场景时再提取） | — |
+| 步骤 | 动作 | 影响文件 | 状态 |
+|------|------|----------|------|
+| P2-1 | 提取 `PathSafetyValidator` 到 `infrastructure/Infrastructure/Utils/Validation/` | RgSubCommand.cs | 待定 |
+| P2-2 | `FixPowerShellEscaping` 暂不提取（无重复，未来有复用场景时再提取） | — | 不做 |
 
 ---
 

@@ -6,6 +6,7 @@ global using JoinCode.Abstractions.Models;
 global using JoinCode.Abstractions.Utils;
 global using System.Collections.Concurrent;
 global using System.Collections.Frozen;
+global using System.Runtime.Caching;
 global using Microsoft.Extensions.Logging.Abstractions;
 global using McpToolDispatch;
 global using JoinCode.Transport;

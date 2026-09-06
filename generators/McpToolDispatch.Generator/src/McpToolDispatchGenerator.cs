@@ -438,12 +438,12 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         if (baseType == "string")
         {
             if (isNullableType)
-                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetString() : null";
+                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? (__{name}El.ValueKind == System.Text.Json.JsonValueKind.String ? __{name}El.GetString() : __{name}El.GetRawText()) : null";
             if (param.HasDefaultValue && param.DefaultValue is not null)
-                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetString() ?? \"{EscapeString(param.DefaultValue)}\" : \"{EscapeString(param.DefaultValue)}\"";
+                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? (__{name}El.ValueKind == System.Text.Json.JsonValueKind.String ? __{name}El.GetString() : __{name}El.GetRawText()) ?? \"{EscapeString(param.DefaultValue)}\" : \"{EscapeString(param.DefaultValue)}\"";
             if (!param.Required)
-                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetString() ?? \"\" : \"\"";
-            return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetString() ?? \"\" : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";
+                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? (__{name}El.ValueKind == System.Text.Json.JsonValueKind.String ? __{name}El.GetString() : __{name}El.GetRawText()) ?? \"\" : \"\"";
+            return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? (__{name}El.ValueKind == System.Text.Json.JsonValueKind.String ? __{name}El.GetString() : __{name}El.GetRawText()) ?? \"\" : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";
         }
         if (baseType == "int")
         {

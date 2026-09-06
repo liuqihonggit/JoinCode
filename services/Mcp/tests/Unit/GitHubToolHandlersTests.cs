@@ -2,48 +2,50 @@ namespace Mcp.Tests;
 
 public sealed class GitHubToolHandlersTests
 {
-    private readonly FakeGitHubCommandRunner _gh = new();
+    private readonly FakeGitHubApiClient _api = new();
     private readonly GitHubToolHandlers _handler;
 
     public GitHubToolHandlersTests()
     {
+        MemoryCache.Default.Trim(100);
         _handler = new GitHubToolHandlers(
-            _gh,
             new FakeDownloader(),
             new InMemoryFileSystem(),
             new PersistencePipeline(new InMemoryFileSystem()),
+            _api,
+            null,
             NullLogger<GitHubToolHandlers>.Instance);
     }
 
     [Fact]
     public async Task PrView_Success_ReturnsOutput()
     {
-        _gh.NextResult = new GitHubCommandResult
+        _api.NextResponse = new GitHubApiResponse
         {
             Success = true,
-            Output = """{"number":123,"title":"feat: add","state":"OPEN","url":"https://github.com/o/r/pull/123"}""",
-            ExitCode = 0,
+            StatusCode = 200,
+            Body = """{"number":123,"title":"feat: add","state":"open","url":"https://github.com/o/r/pull/123"}""",
         };
 
-        var result = await _handler.GhPrViewAsync("123");
+        var result = await _handler.GhPrViewAsync("123", repo: "owner/repo");
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("123");
-        _gh.LastArguments.Should().Contain("pr view 123");
-        _gh.LastArguments.Should().Contain("--json");
+        _api.LastMethod.Should().Be(HttpMethod.Get);
+        _api.LastPath.Should().Be("repos/owner/repo/pulls/123");
     }
 
     [Fact]
     public async Task PrView_Failure_ReturnsError()
     {
-        _gh.NextResult = new GitHubCommandResult
+        _api.NextResponse = new GitHubApiResponse
         {
             Success = false,
+            StatusCode = 404,
             Error = "could not find pr",
-            ExitCode = 1,
         };
 
-        var result = await _handler.GhPrViewAsync("999");
+        var result = await _handler.GhPrViewAsync("999", repo: "owner/repo");
 
         result.IsError.Should().BeTrue();
         result.GetFirstText().Should().Contain("could not find pr");
@@ -52,14 +54,20 @@ public sealed class GitHubToolHandlersTests
     [Fact]
     public async Task PrChecks_Skipping_NotCountedAsFail()
     {
-        _gh.NextResult = new GitHubCommandResult
+        _api.EnqueueResponse(new GitHubApiResponse
         {
             Success = true,
-            Output = "build\tpass\t1m\thttps://x\nlint\tskipping\t0s\thttps://y\ntest\tfail\t2m\thttps://z",
-            ExitCode = 0,
-        };
+            StatusCode = 200,
+            Body = """{"head":{"sha":"abc123"}}""",
+        });
+        _api.EnqueueResponse(new GitHubApiResponse
+        {
+            Success = true,
+            StatusCode = 200,
+            Body = """{"check_runs":[{"name":"build","conclusion":"success"},{"name":"lint","conclusion":"skipped"},{"name":"test","conclusion":"failure"}]}""",
+        });
 
-        var result = await _handler.GhPrChecksAsync("1");
+        var result = await _handler.GhPrChecksAsync("1", repo: "owner/repo");
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -72,50 +80,39 @@ public sealed class GitHubToolHandlersTests
     public async Task RunView_Log_TruncatesToMaxLines()
     {
         var lines = Enumerable.Range(0, 300).Select(i => $"line {i}").ToArray();
-        _gh.NextResult = new GitHubCommandResult
-        {
-            Success = true,
-            Output = string.Join('\n', lines),
-            ExitCode = 0,
-        };
+        _api.NextLogLines = lines;
 
-        var result = await _handler.GhRunViewAsync("42", log: true, max_lines: 50);
+        var result = await _handler.GhRunViewAsync("42", log: true, max_lines: 50, repo: "owner/repo");
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
-        text.Should().Contain("共 300 行");
-        text.Should().Contain("显示第 1-50 行");
+        text.Should().Contain("line 0");
+        text.Should().Contain("line 49");
         text.Should().Contain("skip_lines=50");
     }
 
     [Fact]
     public async Task RunView_NoLog_ReturnsFullDetail()
     {
-        _gh.NextResult = new GitHubCommandResult
+        _api.NextResponse = new GitHubApiResponse
         {
             Success = true,
-            Output = """{"databaseId":42,"status":"completed","conclusion":"success"}""",
-            ExitCode = 0,
+            StatusCode = 200,
+            Body = """{"databaseId":42,"status":"completed","conclusion":"success"}""",
         };
 
-        var result = await _handler.GhRunViewAsync("42");
+        var result = await _handler.GhRunViewAsync("42", repo: "owner/repo");
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("42");
-        _gh.LastArguments.Should().NotContain("--log");
     }
 
     [Fact]
     public async Task RunView_LogWithErrorFilter_ReturnsOnlyErrorLines()
     {
-        _gh.NextResult = new GitHubCommandResult
-        {
-            Success = true,
-            Output = "##[group]Run tests\n##[command]dotnet test\n##[error]Test failed: assert\n##[warning]deprecated\n##[error]Another error\nnormal line",
-            ExitCode = 0,
-        };
+        _api.NextLogLines = "##[group]Run tests\n##[command]dotnet test\n##[error]Test failed: assert\n##[warning]deprecated\n##[error]Another error\nnormal line".Split('\n');
 
-        var result = await _handler.GhRunViewAsync("42", log: true, filter: "error", max_lines: 10);
+        var result = await _handler.GhRunViewAsync("42", log: true, filter: "error", max_lines: 10, repo: "owner/repo");
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -130,14 +127,9 @@ public sealed class GitHubToolHandlersTests
     [Fact]
     public async Task RunView_LogWithWarningFilter_ReturnsErrorAndWarningLines()
     {
-        _gh.NextResult = new GitHubCommandResult
-        {
-            Success = true,
-            Output = "##[error]err\n##[warning]warn\n##[command]cmd\nnormal",
-            ExitCode = 0,
-        };
+        _api.NextLogLines = "##[error]err\n##[warning]warn\n##[command]cmd\nnormal".Split('\n');
 
-        var result = await _handler.GhRunViewAsync("42", log: true, filter: "warning", max_lines: 10);
+        var result = await _handler.GhRunViewAsync("42", log: true, filter: "warning", max_lines: 10, repo: "owner/repo");
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -150,14 +142,9 @@ public sealed class GitHubToolHandlersTests
     [Fact]
     public async Task RunView_LogWithErrorFilter_NoMatch_ReturnsEmptyMessage()
     {
-        _gh.NextResult = new GitHubCommandResult
-        {
-            Success = true,
-            Output = "##[warning]just a warning\nnormal line\n##[command]dotnet build",
-            ExitCode = 0,
-        };
+        _api.NextLogLines = "##[warning]just a warning\nnormal line\n##[command]dotnet build".Split('\n');
 
-        var result = await _handler.GhRunViewAsync("42", log: true, filter: "error", max_lines: 10);
+        var result = await _handler.GhRunViewAsync("42", log: true, filter: "error", max_lines: 10, repo: "owner/repo");
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("未匹配到任何日志行");
@@ -166,14 +153,11 @@ public sealed class GitHubToolHandlersTests
     [Fact]
     public async Task RunView_ExpandSteps_ReturnsStepListFromCache()
     {
-        _gh.NextResult = new GitHubCommandResult
-        {
-            Success = true,
-            Output = "Job\tSet up job\t2026-01-01T00:00:00Z line1\nJob\tCheckout\t2026-01-01T00:00:01Z line2\nJob\tTest - Brain\t2026-01-01T00:00:02Z ##[error]failed",
-            ExitCode = 0,
-        };
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"jobs":[]}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"updated_at":"2026-01-01T00:00:00Z"}""" });
+        _api.NextLogLines = "Job\tSet up job\t2026-01-01T00:00:00Z line1\nJob\tCheckout\t2026-01-01T00:00:01Z line2\nJob\tTest - Brain\t2026-01-01T00:00:02Z ##[error]failed".Split('\n');
 
-        var result = await _handler.GhRunViewAsync("100", expand: "steps");
+        var result = await _handler.GhRunViewAsync("100", expand: "steps", repo: "owner/repo");
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -184,16 +168,48 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
+    public async Task RunView_ExpandSteps_RestApiLogFormat_ExtractsStepNamesFromEntryName()
+    {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"jobs":[]}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"updated_at":"2026-01-01T00:00:00Z"}""" });
+        _api.NextLogLines = "[0_Set up job.txt] 2026-01-01T00:00:00Z line1\n[1_Checkout.txt] 2026-01-01T00:00:01Z line2\n[2_Test.txt] 2026-01-01T00:00:02Z ##[error]failed".Split('\n');
+
+        var result = await _handler.GhRunViewAsync("100", expand: "steps", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("步骤列表");
+        text.Should().Contain("Set up job");
+        text.Should().Contain("Checkout");
+        text.Should().Contain("Test");
+        text.Should().NotContain("[0_");
+        text.Should().NotContain(".txt]");
+    }
+
+    [Fact]
+    public async Task RunView_ExpandSteps_ParallelDownload_RestApiLogFormat_ExtractsStepNames()
+    {
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"jobs":[{"id":1,"name":"build"},{"id":2,"name":"test"}]}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"updated_at":"2026-01-01T00:00:00Z"}""" });
+        _api.NextLogLines = "[0_Checkout.txt] 2026-01-01T00:00:00Z line1\n[1_Build.txt] 2026-01-01T00:00:01Z line2".Split('\n');
+
+        var result = await _handler.GhRunViewAsync("200", expand: "steps", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("步骤列表");
+        text.Should().Contain("Checkout");
+        text.Should().Contain("Build");
+    }
+
+    [Fact]
     public async Task RunView_ExpandStepName_ReturnsSectionSummaryForThatStepOnly()
     {
-        _gh.NextResult = new GitHubCommandResult
-        {
-            Success = true,
-            Output = "Job\tSet up job\t2026-01-01T00:00:00Z setup line\nJob\tTest - Brain\t2026-01-01T00:00:01Z ##[error]failed\nJob\tTest - Brain\t2026-01-01T00:00:02Z test output",
-            ExitCode = 0,
-        };
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"jobs":[]}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"updated_at":"2026-01-01T00:00:00Z"}""" });
+        _api.NextLogLines = "Job\tSet up job\t2026-01-01T00:00:00Z setup line\nJob\tTest - Brain\t2026-01-01T00:00:01Z ##[error]failed\nJob\tTest - Brain\t2026-01-01T00:00:02Z test output".Split('\n');
 
-        var result = await _handler.GhRunViewAsync("104", expand: "step:Test - Brain");
+        var result = await _handler.GhRunViewAsync("104", expand: "step:Test - Brain", repo: "owner/repo");
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -206,14 +222,11 @@ public sealed class GitHubToolHandlersTests
     [Fact]
     public async Task RunView_ExpandStepName_ReturnsSectionSummary()
     {
-        _gh.NextResult = new GitHubCommandResult
-        {
-            Success = true,
-            Output = "Job\tTest - Brain\t2026-01-01T00:00:00Z ##[error]err line\nJob\tTest - Brain\t2026-01-01T00:00:01Z normal line\nJob\tTest - Brain\t2026-01-01T00:00:02Z ##[warning]warn line",
-            ExitCode = 0,
-        };
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"jobs":[]}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"updated_at":"2026-01-01T00:00:00Z"}""" });
+        _api.NextLogLines = "Job\tTest - Brain\t2026-01-01T00:00:00Z ##[error]err line\nJob\tTest - Brain\t2026-01-01T00:00:01Z normal line\nJob\tTest - Brain\t2026-01-01T00:00:02Z ##[warning]warn line".Split('\n');
 
-        var result = await _handler.GhRunViewAsync("101", expand: "step:Test - Brain");
+        var result = await _handler.GhRunViewAsync("101", expand: "step:Test - Brain", repo: "owner/repo");
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -226,14 +239,11 @@ public sealed class GitHubToolHandlersTests
     [Fact]
     public async Task RunView_ExpandStepSection_ReturnsSectionContent()
     {
-        _gh.NextResult = new GitHubCommandResult
-        {
-            Success = true,
-            Output = "Job\tTest - Brain\t2026-01-01T00:00:00Z ##[error]err line\nJob\tTest - Brain\t2026-01-01T00:00:01Z normal line\nJob\tTest - Brain\t2026-01-01T00:00:02Z ##[warning]warn line",
-            ExitCode = 0,
-        };
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"jobs":[]}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"updated_at":"2026-01-01T00:00:00Z"}""" });
+        _api.NextLogLines = "Job\tTest - Brain\t2026-01-01T00:00:00Z ##[error]err line\nJob\tTest - Brain\t2026-01-01T00:00:01Z normal line\nJob\tTest - Brain\t2026-01-01T00:00:02Z ##[warning]warn line".Split('\n');
 
-        var result = await _handler.GhRunViewAsync("102", expand: "step:Test - Brain/section:error");
+        var result = await _handler.GhRunViewAsync("102", expand: "step:Test - Brain/section:error", repo: "owner/repo");
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -246,14 +256,9 @@ public sealed class GitHubToolHandlersTests
     public async Task RunView_LogWithSkipLines_ReturnsLinesAfterSkip()
     {
         var lines = Enumerable.Range(0, 100).Select(i => $"line {i}").ToArray();
-        _gh.NextResult = new GitHubCommandResult
-        {
-            Success = true,
-            Output = string.Join('\n', lines),
-            ExitCode = 0,
-        };
+        _api.NextLogLines = lines;
 
-        var result = await _handler.GhRunViewAsync("42", log: true, max_lines: 10, skip_lines: 50);
+        var result = await _handler.GhRunViewAsync("42", log: true, max_lines: 10, skip_lines: 50, repo: "owner/repo");
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -265,30 +270,22 @@ public sealed class GitHubToolHandlersTests
     [Fact]
     public async Task RunView_SkipLinesExceedsTotal_ReturnsNoMoreMessage()
     {
-        _gh.NextResult = new GitHubCommandResult
-        {
-            Success = true,
-            Output = "line 0\nline 1\nline 2",
-            ExitCode = 0,
-        };
+        _api.NextLogLines = "line 0\nline 1\nline 2".Split('\n');
 
-        var result = await _handler.GhRunViewAsync("42", log: true, max_lines: 10, skip_lines: 100);
+        var result = await _handler.GhRunViewAsync("42", log: true, max_lines: 10, skip_lines: 100, repo: "owner/repo");
 
         result.IsError.Should().BeFalse();
-        result.GetFirstText().Should().Contain("已跳过全部");
+        result.GetFirstText().Should().Contain("未匹配到更多日志行");
     }
 
     [Fact]
     public async Task RunView_ExpandStepSectionWithSkipLines_ReturnsLinesAfterSkipInSection()
     {
-        _gh.NextResult = new GitHubCommandResult
-        {
-            Success = true,
-            Output = string.Join('\n', Enumerable.Range(0, 50).Select(i => $"Job\tTest\t2026-01-01T00:00:00Z line {i}")),
-            ExitCode = 0,
-        };
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"jobs":[]}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"updated_at":"2026-01-01T00:00:00Z"}""" });
+        _api.NextLogLines = Enumerable.Range(0, 50).Select(i => $"Job\tTest\t2026-01-01T00:00:00Z line {i}").ToArray();
 
-        var result = await _handler.GhRunViewAsync("103", expand: "step:Test/section:normal", max_lines: 10, skip_lines: 20);
+        var result = await _handler.GhRunViewAsync("103", expand: "step:Test/section:normal", max_lines: 10, skip_lines: 20, repo: "owner/repo");
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -300,60 +297,56 @@ public sealed class GitHubToolHandlersTests
     [Fact]
     public async Task IssueCreate_QuotesTitleWithSpaces()
     {
-        _gh.NextResult = new GitHubCommandResult
+        _api.NextResponse = new GitHubApiResponse
         {
             Success = true,
-            Output = "https://github.com/o/r/issues/1",
-            ExitCode = 0,
+            StatusCode = 201,
+            Body = """{"number":1,"html_url":"https://github.com/o/r/issues/1"}""",
         };
 
-        await _handler.GhIssueCreateAsync("fix: bug in parser", body: "details here");
+        await _handler.GhIssueCreateAsync("fix: bug in parser", body: "details here", repo: "owner/repo");
 
-        _gh.LastArguments.Should().Contain("--title \"fix: bug in parser\"");
-        _gh.LastArguments.Should().Contain("--body \"details here\"");
+        _api.LastMethod.Should().Be(HttpMethod.Post);
+        _api.LastPath.Should().Be("repos/owner/repo/issues");
+        _api.LastBody.Should().Contain("\"title\":\"fix: bug in parser\"");
+        _api.LastBody.Should().Contain("\"body\":\"details here\"");
     }
 
     [Fact]
     public async Task PrMerge_DefaultSquash_AppendsAutoWhenRequested()
     {
-        _gh.NextResult = new GitHubCommandResult { Success = true, Output = "", ExitCode = 0 };
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "" };
 
-        await _handler.GhPrMergeAsync("5", auto_merge: true);
+        await _handler.GhPrMergeAsync("5", auto_merge: true, repo: "owner/repo");
 
-        _gh.LastArguments.Should().Contain("pr merge 5");
-        _gh.LastArguments.Should().Contain("--squash");
-        _gh.LastArguments.Should().Contain("--auto");
+        _api.LastMethod.Should().Be(HttpMethod.Put);
+        _api.LastPath.Should().Be("repos/owner/repo/pulls/5/enable-automerge");
+        _api.LastBody.Should().Contain("squash");
     }
 
     [Fact]
     public async Task Api_Get_DisablesJq_PassesMethod()
     {
-        _gh.NextResult = new GitHubCommandResult
-        {
-            Success = true,
-            Output = """{"id":1,"name":"repo"}""",
-            ExitCode = 0,
-        };
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":1,"name":"repo"}""" };
 
         var result = await _handler.GhApiAsync("repos/owner/repo", method: "GET");
 
         result.IsError.Should().BeFalse();
-        _gh.LastArguments.Should().Contain("--method GET");
-        _gh.LastArguments.Should().NotContain("--jq");
-        _gh.LastArguments.Should().Contain("repos/owner/repo");
+        _api.LastMethod.Should().Be(HttpMethod.Get);
+        _api.LastPath.Should().Be("repos/owner/repo");
     }
 
     [Fact]
     public async Task ReleaseDownload_NoMatchingAsset_ReturnsError()
     {
-        _gh.NextResult = new GitHubCommandResult
+        _api.NextResponse = new GitHubApiResponse
         {
             Success = true,
-            Output = """{"assets":[{"name":"file.zip","url":"https://x/file.zip"}]}""",
-            ExitCode = 0,
+            StatusCode = 200,
+            Body = """{"assets":[{"name":"file.zip","browser_download_url":"https://x/file.zip"}]}""",
         };
 
-        var result = await _handler.GhReleaseDownloadAsync("v1.0", "/tmp", pattern: "*.tar.gz");
+        var result = await _handler.GhReleaseDownloadAsync("v1.0", "/tmp", pattern: "*.tar.gz", repo: "owner/repo");
 
         result.IsError.Should().BeTrue();
         result.GetFirstText().Should().Contain("没有匹配的 asset");
@@ -362,16 +355,16 @@ public sealed class GitHubToolHandlersTests
     [Fact]
     public async Task ReleaseDownload_Success_DownloadsAllAssets()
     {
-        _gh.NextResult = new GitHubCommandResult
+        _api.NextResponse = new GitHubApiResponse
         {
             Success = true,
-            Output = """{"assets":[{"name":"a.zip","url":"https://x/a.zip"},{"name":"b.tar.gz","url":"https://x/b.tar.gz"}]}""",
-            ExitCode = 0,
+            StatusCode = 200,
+            Body = """{"assets":[{"name":"a.zip","browser_download_url":"https://x/a.zip"},{"name":"b.tar.gz","browser_download_url":"https://x/b.tar.gz"}]}""",
         };
         var fakeDownloader = new FakeDownloader();
-        var handler = new GitHubToolHandlers(_gh, fakeDownloader, new InMemoryFileSystem(), new PersistencePipeline(new InMemoryFileSystem()), NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(fakeDownloader, new InMemoryFileSystem(), new PersistencePipeline(new InMemoryFileSystem()), _api, null, NullLogger<GitHubToolHandlers>.Instance);
 
-        var result = await handler.GhReleaseDownloadAsync("v1.0", "/tmp");
+        var result = await handler.GhReleaseDownloadAsync("v1.0", "/tmp", repo: "owner/repo");
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -383,51 +376,68 @@ public sealed class GitHubToolHandlersTests
     [Fact]
     public async Task ReleaseDownload_ViewFails_PropagatesError()
     {
-        _gh.NextResult = new GitHubCommandResult
+        _api.NextResponse = new GitHubApiResponse
         {
             Success = false,
+            StatusCode = 404,
             Error = "release not found",
-            ExitCode = 1,
         };
 
-        var result = await _handler.GhReleaseDownloadAsync("v9.9", "/tmp");
+        var result = await _handler.GhReleaseDownloadAsync("v9.9", "/tmp", repo: "owner/repo");
 
         result.IsError.Should().BeTrue();
         result.GetFirstText().Should().Contain("release not found");
     }
 }
 
-internal sealed class FakeGitHubCommandRunner : IGitHubCommandRunner
+internal sealed class FakeGitHubApiClient : IGitHubApiClient
 {
-    public GitHubCommandResult NextResult { get; set; } = new() { Success = true, Output = "{}", ExitCode = 0 };
-    public string? LastArguments { get; private set; }
-
-    public Task<GitHubCommandResult> ExecuteAsync(string arguments, string? workingDirectory = null, int? timeoutMs = null, CancellationToken ct = default)
+    private readonly Queue<GitHubApiResponse> _responses = new();
+    public GitHubApiResponse NextResponse
     {
-        LastArguments = arguments;
-        return Task.FromResult(NextResult);
+        get => _responses.Count > 0 ? _responses.Peek() : _default;
+        set { _responses.Clear(); _responses.Enqueue(value); }
+    }
+    private readonly GitHubApiResponse _default = new() { Success = true, StatusCode = 200, Body = "[]" };
+    public string? LastPath { get; private set; }
+    public HttpMethod? LastMethod { get; private set; }
+    public string? LastBody { get; private set; }
+    public void EnqueueResponse(GitHubApiResponse response) => _responses.Enqueue(response);
+    public IEnumerable<string> NextLogLines { get; set; } = Array.Empty<string>();
+
+    public Task<GitHubApiResponse> SendAsync(HttpMethod method, string path, string? body = null, IReadOnlyDictionary<string, string>? query = null, bool paginate = false, CancellationToken ct = default)
+    {
+        LastMethod = method;
+        LastPath = path;
+        LastBody = body;
+        var response = _responses.Count > 0 ? _responses.Dequeue() : _default;
+        return Task.FromResult(response);
     }
 
-    public async IAsyncEnumerable<string> ExecuteStreamingAsync(
-        string arguments,
-        string? workingDirectory = null,
-        int? timeoutMs = null,
-        [EnumeratorCancellation] CancellationToken ct = default)
+    public async IAsyncEnumerable<string> GetRunLogsAsync(string owner, string repo, long runId, [EnumeratorCancellation] CancellationToken ct = default)
     {
-        LastArguments = arguments;
-        if (string.IsNullOrEmpty(NextResult.Output)) yield break;
-        foreach (var line in NextResult.Output.Split('\n'))
+        foreach (var line in NextLogLines)
         {
             ct.ThrowIfCancellationRequested();
             yield return line;
         }
     }
 
-    public Task<PrCreateResult> CreatePrAsync(string title, string? body, string baseBranch, string headBranch, string? repo = null, bool draft = false, CancellationToken ct = default)
-        => throw new NotImplementedException();
+    public async IAsyncEnumerable<string> GetJobLogsAsync(string owner, string repo, long jobId, [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        foreach (var line in NextLogLines)
+        {
+            ct.ThrowIfCancellationRequested();
+            yield return line;
+        }
+    }
 
-    public Task<PrListResult> ListPrsAsync(string? repo = null, string state = "open", int limit = 30, CancellationToken ct = default)
-        => throw new NotImplementedException();
+    public Task<GitHubApiResponse> UploadAssetAsync(string owner, string repo, long releaseId, string fileName, Stream fileStream, CancellationToken ct = default)
+    {
+        LastMethod = HttpMethod.Post;
+        LastPath = $"repos/{owner}/{repo}/releases/{releaseId}/assets";
+        return Task.FromResult(NextResponse);
+    }
 }
 
 internal sealed class FakeDownloader : IDownloader

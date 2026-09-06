@@ -1,7 +1,7 @@
 namespace McpToolDispatch;
 
 /// <summary>
-/// GitHub Release 工具 — 直调 GitHub REST API（ADR 0072），替代原 gh release 子命令包装
+/// GitHub Release 工具 — 直调 GitHub REST API（ADR 0073），替代原 gh release 子命令包装
 /// <para>核心优化: gh_release_download 复用 IDownloader 多线程分片 + 断点续传,解决下载失败痛点</para>
 /// <para>gh_release_upload 走 uploads.github.com 二进制上传（IGitHubApiClient.UploadAssetAsync）</para>
 /// </summary>

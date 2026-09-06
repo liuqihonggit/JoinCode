@@ -1,7 +1,7 @@
 namespace McpToolDispatch;
 
 /// <summary>
-/// GitHub API 通用调用工具 — 直调 GitHub REST API（ADR 0072）
+/// GitHub API 通用调用工具 — 直调 GitHub REST API（ADR 0073）
 /// <para>替代原 gh api 子命令包装，不再起 gh 子进程</para>
 /// <para>避坑1: 禁用 --jq(已无需，REST 直返 JSON)</para>
 /// <para>避坑3: 优先用专用工具(gh_pr_view 等),此工具用于无专用工具的 API 调用</para>

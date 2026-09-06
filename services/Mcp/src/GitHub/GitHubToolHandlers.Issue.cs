@@ -1,7 +1,7 @@
 namespace McpToolDispatch;
 
 /// <summary>
-/// GitHub Issue 工具 — 直调 GitHub REST API（ADR 0072），替代原 gh issue 子命令包装
+/// GitHub Issue 工具 — 直调 GitHub REST API（ADR 0073），替代原 gh issue 子命令包装
 /// </summary>
 public partial class GitHubToolHandlers
 {

@@ -2,7 +2,7 @@ namespace IO.ProcessService;
 
 /// <summary>
 /// GitHub REST API 客户端实现 — HttpClient 直调 https://api.github.com，摆脱系统 gh CLI 依赖
-/// <para>ADR: 0072 — 替代 GitHubCommandRunner 起子进程方案</para>
+/// <para>ADR: 0073 — 替代 GitHubCommandRunner 起子进程方案</para>
 /// <para>Token: JCC_GITHUB_TOKEN → GITHUB_TOKEN → gh CLI 存储位置(Credential Manager/hosts.yml) → 抛 ConfigurationException</para>
 /// <para>Base URL: JCC_GITHUB_API_URL 默认 https://api.github.com（支持 Enterprise）</para>
 /// <para>Rate limit: 403 + X-RateLimit-Remaining:0 → Retry-After → 重试（最多 3 次）</para>

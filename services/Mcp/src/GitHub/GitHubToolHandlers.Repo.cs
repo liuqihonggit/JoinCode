@@ -1,7 +1,7 @@
 namespace McpToolDispatch;
 
 /// <summary>
-/// GitHub Repo 工具 — 直调 GitHub REST API（ADR 0072），替代原 gh repo 子命令包装
+/// GitHub Repo 工具 — 直调 GitHub REST API（ADR 0073），替代原 gh repo 子命令包装
 /// <para>clone 用本地 git 命令（非 API），create/fork/list/view 走 REST API</para>
 /// </summary>
 public partial class GitHubToolHandlers

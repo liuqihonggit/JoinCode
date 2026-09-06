@@ -148,7 +148,7 @@ public partial class GitHubToolHandlers
     }
 
     /// <summary>
-    /// 解析 owner/repo — 优先用 repo 参数，否则从 git remote origin 推断（ADR 0072）
+    /// 解析 owner/repo — 优先用 repo 参数，否则从 git remote origin 推断（ADR 0073）
     /// </summary>
     private async Task<(string owner, string repo)?> ResolveOwnerRepoAsync(string? repo, string? workingDir, CancellationToken ct)
     {

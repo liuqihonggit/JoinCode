@@ -33,7 +33,7 @@ public sealed record GitHubApiResponse
 
 /// <summary>
 /// GitHub REST API 客户端 — 直调 https://api.github.com，摆脱系统 gh CLI 依赖
-/// <para>ADR: 0072 — 替代 GitHubCommandRunner 起子进程方案</para>
+/// <para>ADR: 0073 — 替代 GitHubCommandRunner 起子进程方案</para>
 /// <para>核心能力：</para>
 /// <para>1. Token 解析：JCC_GITHUB_TOKEN → GITHUB_TOKEN → 抛 ConfigurationException</para>
 /// <para>2. Base URL 可配置：JCC_GITHUB_API_URL（支持 GitHub Enterprise）</para>

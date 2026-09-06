@@ -1,6 +1,6 @@
 # gh_* MCP 工具重写为 REST API 直调 — 执行计划
 
-> ADR: [0072](adr/0072-gh-rest-api-direct-call.md)
+> ADR: [0073](adr/0073-gh-rest-api-direct-call.md)
 > 目标：卸载系统 `gh` CLI，jcc 自包含，AI 统一用 `jcc mcp_call gh_*` 操作 GitHub
 
 ## 现状

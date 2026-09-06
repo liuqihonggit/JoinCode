@@ -6,12 +6,12 @@
 
 ## 背景
 
-FileEditLogic、ApplyPatchLogic、ThrottledFileService 等上层服务采用 Read→改→Write 模式编辑文件：
+FileEditLogic、ApplyPatchLogic、ThrottledFileService、ConfigLoader、HookConfigurationManager、LoginCommand、McpServerConfigStore 等上层服务采用 Read→改→Write 模式编辑文件：
 1. `ReadAllTextAsync` 读文件内容
 2. 内存中修改
 3. `WriteAllTextAsync` 写回
 
-问题：两个并发编辑同一文件时会产生**丢失更新**（A 读 → B 读 → A 写 → B 写，B 的写覆盖 A 的修改）。
+问题：两个并发编辑同一文件时会产生**丢失更新**（A 读 → B 读 → A 写 → B 写，B 的写覆盖 A 的修改）。配置文件（settings.json、auth.json、mcp_servers.json、hooks.json）和状态文件（PID 文件）的并发竞态风险最高。
 
 ## 决策
 
@@ -65,7 +65,37 @@ public async Task<T> EditFileAsync<T>(...)
 
 ### 决策3：上层服务只调接口，不加锁
 
-FileEditLogic、ApplyPatchLogic、ThrottledFileService 改用 `_fs.EditFileAsync`，transform 内部做编解码 + 修改逻辑。上层无锁，底层管道保证串行。
+所有 Read→改→Write 模式的上层服务改用 `_fs.EditFileAsync`，transform 内部做编解码 + 修改逻辑。上层无锁，底层管道保证串行。
+
+**改造范围**（按文件类型分组）：
+
+| 分组 | 文件 | 方法 | 说明 |
+|------|------|------|------|
+| 文件编辑工具 | FileEditLogic.cs | 4 方法 | 文件编辑核心工具 |
+| 文件编辑工具 | ApplyPatchLogic.cs | ApplyAsync | patch 应用 |
+| 文件编辑工具 | ThrottledFileService.cs | EditFileAsync + EditByLineRangeAsync | 限速文件服务 |
+| 文件编辑工具 | ShellSedInterceptMiddleware.cs | 确认阶段 | sed 拦截中间件 |
+| 配置文件 | ConfigLoader.cs | SaveApiKeyToJccAsync + SaveSettingToSettingsJsonAsync + SaveSettingToGlobalConfigAsync | auth.json + settings.json + global.json |
+| 配置文件 | HookConfigurationManager.cs | AddHookAsync + RemoveHookAsync | hooks.json |
+| 配置文件 | LoginCommand.cs | SaveAuthAsync | auth.json |
+| 配置文件 | LogoutCommand.cs | ExecuteAsync | auth.json |
+| 配置文件 | McpServerConfigStore.cs | AddServerAsync + RemoveServerAsync | mcp_servers.json |
+| 配置文件 | JccChatSession.cs | UpdateVendorProfileModelAsync | settings.json (GUI) |
+| 状态文件 | ConcurrentSession.cs | UpdateAsync | PID 文件 |
+
+**评估后跳过的文件**（无需改造）：
+
+| 文件 | 跳过原因 |
+|------|----------|
+| SettingsLoader.cs | 只有纯读或纯写，无 Read→改→Write 竞态 |
+| GraphPersistence.cs | 已分离 Save+Load，Save 用 PersistencePipeline |
+| HighWaterMarkManager.cs | 已用 FileLockService 跨进程锁 |
+| TranscriptFileWriter.cs | 已用 AsyncLock 保护追加 |
+| TrustFolderManager.cs | 接口为同步（void），EditFileAsync 为异步，改签名影响面大；CLI 启动时单次执行，并发风险低 |
+| RenameCommand.cs | 写回后还需 MoveFile，EditFileAsync 不保护后续 MoveFile；/rename 低频手动操作 |
+| TeamMemorySyncService.cs | 纯写入（远程内容覆盖本地），无 Read→改→Write 竞态 |
+| SourceCodePatcher.cs | Doctor Agent 单进程操作，并发风险低 |
+| BootstrapLoop.cs | Doctor Agent 单进程操作，并发风险低 |
 
 ### 决策4：提取 DecodeBytes/EncodeString 到 FileEncodingDetector 共享
 
@@ -83,6 +113,7 @@ FileEditLogic、ApplyPatchLogic、ThrottledFileService 改用 `_fs.EditFileAsync
 - FileEditLogic 16 测试通过
 - ApplyPatchLogic 14 测试通过
 - ThrottledFileService 8 测试通过
+- ApiKeySaveLoadTests 7 测试通过（ConfigLoader 改造后）
 
 ## 影响
 
@@ -94,5 +125,14 @@ FileEditLogic、ApplyPatchLogic、ThrottledFileService 改用 `_fs.EditFileAsync
 | `FileEditLogic.cs` | 4 方法改用 EditFileAsync + 移除旧 helper |
 | `ApplyPatchLogic.cs` | ApplyAsync 改用 EditFileAsync |
 | `ThrottledFileService.cs` | EditFileAsync + EditByLineRangeAsync 改用 |
+| `ShellSedInterceptMiddleware.cs` | 确认阶段改用 EditFileAsync |
+| `ConfigLoader.cs` | 3 个 Save 方法改用 EditFileAsync |
+| `HookConfigurationManager.cs` | AddHook/RemoveHook 改用 EditFileAsync + 提取 EditHooksFileAsync helper |
+| `LoginCommand.cs` | SaveAuthAsync 改用 EditFileAsync |
+| `LogoutCommand.cs` | ExecuteAsync 的 auth.json 读写改用 EditFileAsync |
+| `McpServerConfigStore.cs` | AddServer/RemoveServer 改用 EditFileAsync |
+| `JccChatSession.cs` | UpdateVendorProfileModelAsync 改用 EditFileAsync |
+| `ConcurrentSession.cs` | UpdateAsync 改用 EditFileAsync |
 | `FileEncodingDetector.cs` | 加 DecodeBytes + EncodeString 共享方法 |
 | `EditFileAsyncTests.cs` | 6 个并发安全与原子性测试 |
+| `GlobalUsings.cs` (Guard + Composition + Bridge + JoinCodeGui) | 加 `Infrastructure.IO.Services.FileOps` |

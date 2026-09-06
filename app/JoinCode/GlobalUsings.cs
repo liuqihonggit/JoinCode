@@ -119,6 +119,7 @@ global using System.Text.Json.Serialization.Metadata;
 global using System.Text.Json.Serialization;
 global using System.Text;
 global using System.Text.RegularExpressions;
+global using System.IO.MemoryMappedFiles;
 global using System.Threading.Channels;
 global using Tools;
 global using TranscriptEntry = JoinCode.Abstractions.LLM.Chat.TranscriptEntry;

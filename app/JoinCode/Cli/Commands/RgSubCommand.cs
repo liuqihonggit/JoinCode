@@ -1,18 +1,15 @@
 namespace JoinCode.CliCommands;
 
 /// <summary>
-/// ripgrep 兼容搜索子命令 — jcc rg &lt;pattern&gt; [path...]
-/// <para>ADR: 0070 — 内置 rg 实现，复用 ISearchService.GrepSearchAsync（并行 + .gitignore + 二进制检测 + SIMD 正则）。</para>
-/// <para>宽容策略：自动修复 PowerShell 双反斜杠转义、缺少路径默认 cwd 但禁止根目录扫盘、超时硬终止。</para>
+/// ripgrep 兼容搜索子命令 — jcc rg &lt;pattern&gt; &lt;path2path&gt; [path...]
+/// <para>ADR: 0070 — 内置 rg 实现，用 RgEngine（mmap + PLINQ 并行 + 零 GC Span 行遍历）。</para>
+/// <para>宽容策略：自动修复 PowerShell 双反斜杠转义、强制路径参数禁止扫盘、超时硬终止。</para>
 /// </summary>
 internal static class RgSubCommand
 {
     private const int DefaultTimeoutSeconds = 30;
     private const int MaxTimeoutSeconds = 300;
 
-    /// <summary>
-    /// 执行 rg 子命令。
-    /// </summary>
     public static async Task<int?> ExecuteAsync(string[] args, CancellationToken ct)
     {
         var parsed = ParseArgs(args);
@@ -20,8 +17,6 @@ internal static class RgSubCommand
             return 1;
 
         var pattern = FixPowerShellEscaping(parsed.Pattern);
-        if (parsed.FixedStrings)
-            pattern = Regex.Escape(pattern);
 
         if (string.IsNullOrEmpty(pattern))
         {
@@ -44,102 +39,41 @@ internal static class RgSubCommand
 
         try
         {
-            return await McpCliCommand.WithHostAsync(async services =>
+            var query = new RgQuery(
+                Pattern: pattern,
+                Paths: parsed.Paths,
+                Glob: parsed.Glob,
+                FileType: parsed.FileType,
+                CaseInsensitive: parsed.CaseInsensitive,
+                SmartCase: parsed.SmartCase,
+                WordRegexp: parsed.WordRegexp,
+                OnlyMatching: parsed.OnlyMatching,
+                Replace: parsed.Replace,
+                Multiline: parsed.Multiline,
+                FixedStrings: parsed.FixedStrings,
+                Hidden: parsed.Hidden,
+                NoIgnore: parsed.NoIgnore,
+                Before: parsed.Before,
+                After: parsed.After,
+                Context: parsed.Context,
+                LineNumbers: parsed.LineNumbers,
+                HeadLimit: parsed.HeadLimit,
+                Offset: parsed.Offset,
+                OutputMode: parsed.OutputMode,
+                Sort: parsed.Sort);
+
+            RgOutcome outcome;
+            try
             {
-                var searchService = services.GetRequiredService<ISearchService>();
-                var fileOp = services.GetRequiredService<IFileOperationService>();
+                outcome = await Task.Run(() => RgEngine.Search(query, token), token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                TerminalHelper.WriteError($"搜索超时（{parsed.TimeoutSeconds}s）。请缩小搜索范围、用 --type/-g 过滤，或增加 --timeout。");
+                return 2;
+            }
 
-                var searchPaths = new List<string>(parsed.Paths.Count);
-                foreach (var p in parsed.Paths)
-                {
-                    var resolved = ResolveSearchPath(p, fileOp);
-                    if (resolved is null)
-                    {
-                        TerminalHelper.WriteError($"路径不存在: {p}（当前目录: {fileOp.GetCurrentDirectory()}）");
-                        return 1;
-                    }
-                    searchPaths.Add(resolved);
-                }
-
-                var mergedFilenames = new List<string>();
-                var mergedContent = new StringBuilder();
-                var mergedNumMatches = 0;
-                var mergedNumFiles = 0;
-                var anyFailure = false;
-                string? firstError = null;
-
-                foreach (var searchPath in searchPaths)
-                {
-                    var input = new GrepSearchInput
-                    {
-                        Pattern = pattern,
-                        Path = searchPath,
-                        Glob = parsed.Glob,
-                        OutputMode = parsed.OutputMode,
-                        CaseInsensitive = parsed.CaseInsensitive,
-                        FileType = parsed.FileType,
-                        Multiline = parsed.Multiline,
-                        Before = parsed.Before,
-                        After = parsed.After,
-                        Context = parsed.Context,
-                        LineNumbers = parsed.LineNumbers,
-                        HeadLimit = parsed.HeadLimit,
-                        Offset = parsed.Offset,
-                    };
-
-                    GrepSearchResult result;
-                    try
-                    {
-                        result = await searchService.GrepSearchAsync(input, token).ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-                    {
-                        TerminalHelper.WriteError($"搜索超时（{parsed.TimeoutSeconds}s）。请缩小搜索范围、用 --type/-g 过滤，或增加 --timeout。");
-                        return 2;
-                    }
-
-                    if (!result.Success)
-                    {
-                        anyFailure = true;
-                        firstError ??= result.ErrorMessage ?? "搜索失败";
-                        continue;
-                    }
-
-                    mergedFilenames.AddRange(result.Filenames);
-                    mergedNumFiles += result.NumFiles;
-                    if (result.NumMatches.HasValue)
-                        mergedNumMatches += result.NumMatches.Value;
-                    if (!string.IsNullOrEmpty(result.Content))
-                    {
-                        if (mergedContent.Length > 0)
-                            mergedContent.AppendLine();
-                        mergedContent.Append(result.Content);
-                    }
-                }
-
-                if (anyFailure && mergedNumFiles == 0)
-                {
-                    TerminalHelper.WriteError(firstError ?? "搜索失败");
-                    return 1;
-                }
-
-                var seen = new HashSet<string>(StringComparer.Ordinal);
-                var dedupedFilenames = new List<string>(mergedFilenames.Count);
-                foreach (var f in mergedFilenames)
-                {
-                    if (seen.Add(f))
-                        dedupedFilenames.Add(f);
-                }
-
-                var mergedResult = GrepSearchResult.SuccessResult(
-                    parsed.OutputMode.ToValue(),
-                    dedupedFilenames,
-                    mergedContent.Length > 0 ? mergedContent.ToString() : null,
-                    null,
-                    parsed.OutputMode == SearchOutputMode.Count ? mergedNumMatches : null);
-
-                return OutputResult(mergedResult, parsed, fileOp);
-            }, token).ConfigureAwait(false);
+            return OutputOutcome(outcome, parsed);
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
@@ -148,20 +82,24 @@ internal static class RgSubCommand
         }
     }
 
-    /// <summary>
-    /// 解析 rg 风格参数。
-    /// </summary>
     private static RgOptions? ParseArgs(string[] args)
     {
         string? pattern = null;
         var paths = new List<string>();
         var caseInsensitive = false;
+        var smartCase = false;
+        var wordRegexp = false;
+        var onlyMatching = false;
         var lineNumbers = false;
         var multiline = false;
         var fixedStrings = false;
+        var hidden = false;
+        var noIgnore = false;
         var json = false;
         string? glob = null;
         string? fileType = null;
+        string? replace = null;
+        string? sort = null;
         int? before = null;
         int? after = null;
         int? context = null;
@@ -200,16 +138,22 @@ internal static class RgSubCommand
                 switch (name)
                 {
                     case "--ignore-case": caseInsensitive = true; break;
+                    case "--smart-case": smartCase = true; break;
+                    case "--word-regexp": wordRegexp = true; break;
+                    case "--only-matching": onlyMatching = true; break;
                     case "--line-number": lineNumbers = true; break;
                     case "--no-line-number": lineNumbers = false; break;
                     case "--multiline":
                     case "--multiline-dotall": multiline = true; break;
                     case "--fixed-strings": fixedStrings = true; break;
+                    case "--hidden": hidden = true; break;
+                    case "--no-ignore": noIgnore = true; break;
                     case "--json": json = true; break;
                     case "--count": outputMode = SearchOutputMode.Count; break;
                     case "--files-with-matches": outputMode = SearchOutputMode.Files; break;
                     case "--content": outputMode = SearchOutputMode.Content; break;
-                    case "--no-heading": break;
+                    case "--replace": replace = inlineValue ?? ReadNextValue(args, ref i); break;
+                    case "--sort": sort = inlineValue ?? ReadNextValue(args, ref i); break;
                     case "--type": fileType = inlineValue ?? ReadNextValue(args, ref i); break;
                     case "--glob": glob = inlineValue ?? ReadNextValue(args, ref i); break;
                     case "--head-limit": headLimit = ParseInt(inlineValue ?? ReadNextValue(args, ref i)); break;
@@ -227,8 +171,9 @@ internal static class RgSubCommand
             else
             {
                 if (!ParseShortOptionCluster(arg, args, ref i,
-                        ref caseInsensitive, ref lineNumbers, ref multiline, ref fixedStrings,
-                        ref json, ref glob, ref fileType,
+                        ref caseInsensitive, ref smartCase, ref wordRegexp, ref onlyMatching,
+                        ref lineNumbers, ref multiline, ref fixedStrings,
+                        ref json, ref glob, ref fileType, ref replace,
                         ref before, ref after, ref context, ref headLimit, ref offset,
                         ref timeoutSeconds, ref outputMode))
                 {
@@ -261,17 +206,24 @@ internal static class RgSubCommand
             Glob: glob,
             FileType: fileType,
             CaseInsensitive: caseInsensitive,
-            LineNumbers: effectiveLineNumbers,
+            SmartCase: smartCase,
+            WordRegexp: wordRegexp,
+            OnlyMatching: onlyMatching,
+            Replace: replace,
             Multiline: multiline,
             FixedStrings: fixedStrings,
+            Hidden: hidden,
+            NoIgnore: noIgnore,
             Json: json,
+            LineNumbers: effectiveLineNumbers,
             Before: before,
             After: after,
             Context: context,
             HeadLimit: headLimit,
             Offset: offset,
             TimeoutSeconds: timeoutSeconds,
-            OutputMode: outputMode);
+            OutputMode: outputMode,
+            Sort: sort);
     }
 
     private static string? ReadNextValue(string[] args, ref int i)
@@ -299,13 +251,11 @@ internal static class RgSubCommand
         return Math.Min(seconds, MaxTimeoutSeconds);
     }
 
-    /// <summary>
-    /// 解析短参数簇，如 -in、-A2、-C 3。返回 false 表示遇到 -h 已打印用法应退出。
-    /// </summary>
     private static bool ParseShortOptionCluster(
         string arg, string[] args, ref int i,
-        ref bool caseInsensitive, ref bool lineNumbers, ref bool multiline, ref bool fixedStrings,
-        ref bool json, ref string? glob, ref string? fileType,
+        ref bool caseInsensitive, ref bool smartCase, ref bool wordRegexp, ref bool onlyMatching,
+        ref bool lineNumbers, ref bool multiline, ref bool fixedStrings,
+        ref bool json, ref string? glob, ref string? fileType, ref string? replace,
         ref int? before, ref int? after, ref int? context, ref int? headLimit, ref int? offset,
         ref int timeoutSeconds, ref SearchOutputMode outputMode)
     {
@@ -317,17 +267,20 @@ internal static class RgSubCommand
             switch (c)
             {
                 case 'i': caseInsensitive = true; j++; break;
+                case 'S': smartCase = true; j++; break;
+                case 'w': wordRegexp = true; j++; break;
+                case 'o': onlyMatching = true; j++; break;
                 case 'n': lineNumbers = true; j++; break;
                 case 'U': multiline = true; j++; break;
                 case 'F': fixedStrings = true; j++; break;
                 case 'c': outputMode = SearchOutputMode.Count; j++; break;
                 case 'l': outputMode = SearchOutputMode.Files; j++; break;
-                case 'o': j++; break;
                 case 'A': after = ConsumeShortNumber(span, ref j, args, ref i); break;
                 case 'B': before = ConsumeShortNumber(span, ref j, args, ref i); break;
                 case 'C': context = ConsumeShortNumber(span, ref j, args, ref i); break;
                 case 'g': glob = ConsumeShortString(span, ref j, args, ref i); break;
                 case 't': fileType = ConsumeShortString(span, ref j, args, ref i); break;
+                case 'r': replace = ConsumeShortString(span, ref j, args, ref i); break;
                 case 'h': PrintUsage(); return false;
                 default:
                     TerminalHelper.WriteError($"未知短参数: -{c}（在 {arg} 中）");
@@ -368,11 +321,6 @@ internal static class RgSubCommand
         return next;
     }
 
-    /// <summary>
-    /// 宽容修复 PowerShell 双反斜杠转义。
-    /// PowerShell 常把 \s 传成 \\s、\{ 传成 \\{ 等，导致 rg 正则解析失败。
-    /// 检测 pattern 中的 \\X（X 为正则元字符）并修复为 \X。
-    /// </summary>
     internal static string FixPowerShellEscaping(string pattern)
     {
         if (pattern.Length < 2 || !pattern.Contains('\\'))
@@ -403,9 +351,6 @@ internal static class RgSubCommand
             or '{' or '}' or '[' or ']' or '(' or ')' or '.' or '+' or '*' or '?'
             or '|' or '^' or '$' or 'n' or 'r' or 't' or 'f' or 'v' or '0' or 'x' or 'u' or 'c' or 'p' or 'P' or 'k' or 'A' or 'Z' or 'z' or 'G';
 
-    /// <summary>
-    /// 检查路径是否为根目录或不安全路径（禁止扫盘）。
-    /// </summary>
     private static bool IsRootOrUnsafePath(string? path)
     {
         if (string.IsNullOrWhiteSpace(path) || path == "." || path == "./")
@@ -435,38 +380,24 @@ internal static class RgSubCommand
         return false;
     }
 
-    /// <summary>
-    /// 解析搜索路径，返回 null 表示路径不存在。
-    /// </summary>
-    private static string? ResolveSearchPath(string? path, IFileOperationService fileOp)
+    private static int OutputOutcome(RgOutcome outcome, RgOptions opts)
     {
-        if (string.IsNullOrWhiteSpace(path))
-            return fileOp.GetCurrentDirectory();
+        if (!outcome.Success)
+        {
+            TerminalHelper.WriteError(outcome.Error ?? "搜索失败");
+            return 1;
+        }
 
-        var fullPath = fileOp.GetFullPath(path);
-        if (fileOp.DirectoryExists(fullPath) || fileOp.FileExists(fullPath))
-            return fullPath;
-
-        return null;
-    }
-
-    /// <summary>
-    /// 格式化输出结果（rg 兼容风格）。
-    /// </summary>
-    private static int OutputResult(GrepSearchResult result, RgOptions opts, IFileOperationService fileOp)
-    {
-        if (result.NumFiles == 0)
+        if (outcome.Results.Count == 0)
         {
             if (opts.Json)
                 System.Console.WriteLine("{\"matches\":[]}");
             return 1;
         }
 
-        var cwd = fileOp.GetCurrentDirectory();
-
         if (opts.Json)
         {
-            OutputJson(result, cwd);
+            OutputJson(outcome);
             return 0;
         }
 
@@ -474,26 +405,29 @@ internal static class RgSubCommand
         switch (opts.OutputMode)
         {
             case SearchOutputMode.Content:
-                if (!string.IsNullOrEmpty(result.Content))
-                    sb.Append(result.Content);
+                foreach (var r in outcome.Results)
+                {
+                    if (r.ContentLines is not null)
+                        foreach (var line in r.ContentLines)
+                            sb.AppendLine(line);
+                }
                 break;
             case SearchOutputMode.Count:
-                foreach (var f in result.Filenames)
-                    sb.AppendLine($"{ToRelative(f, cwd)}:1");
-                if (result.NumMatches.HasValue)
-                    sb.Append($"Found {result.NumMatches.Value} total matches across {result.NumFiles} file(s).");
+                foreach (var r in outcome.Results)
+                    sb.AppendLine($"{r.FilePath}:{r.MatchCount}");
+                sb.Append($"Found {outcome.TotalMatches} total matches across {outcome.Results.Count} file(s).");
                 break;
             default:
-                foreach (var f in result.Filenames)
-                    sb.AppendLine(ToRelative(f, cwd));
+                foreach (var r in outcome.Results)
+                    sb.AppendLine(r.FilePath);
                 break;
         }
 
-        if (result.AppliedLimit.HasValue || (result.AppliedOffset.HasValue && result.AppliedOffset.Value > 0))
+        if (outcome.AppliedLimit.HasValue || (outcome.AppliedOffset.HasValue && outcome.AppliedOffset.Value > 0))
         {
             var parts = new List<string>(2);
-            if (result.AppliedLimit.HasValue) parts.Add($"limit: {result.AppliedLimit.Value}");
-            if (result.AppliedOffset.HasValue && result.AppliedOffset.Value > 0) parts.Add($"offset: {result.AppliedOffset.Value}");
+            if (outcome.AppliedLimit.HasValue) parts.Add($"limit: {outcome.AppliedLimit.Value}");
+            if (outcome.AppliedOffset.HasValue && outcome.AppliedOffset.Value > 0) parts.Add($"offset: {outcome.AppliedOffset.Value}");
             sb.AppendLine();
             sb.Append($"[pagination: {string.Join(", ", parts)}]");
         }
@@ -502,40 +436,41 @@ internal static class RgSubCommand
         return 0;
     }
 
-    private static void OutputJson(GrepSearchResult result, string cwd)
+    private static void OutputJson(RgOutcome outcome)
     {
         var sb = new StringBuilder(256);
         sb.Append("{\"matches\":[");
         var first = true;
-        foreach (var f in result.Filenames)
+        foreach (var r in outcome.Results)
         {
             if (!first) sb.Append(',');
             first = false;
             sb.Append("{\"file\":\"");
-            AppendEscaped(sb, ToRelative(f, cwd));
-            sb.Append("\"}");
+            AppendEscaped(sb, r.FilePath);
+            sb.Append("\",\"count\":");
+            sb.Append(r.MatchCount);
+            if (r.ContentLines is not null && r.ContentLines.Count > 0)
+            {
+                sb.Append(",\"lines\":[");
+                var firstLine = true;
+                foreach (var line in r.ContentLines)
+                {
+                    if (!firstLine) sb.Append(',');
+                    firstLine = false;
+                    sb.Append("\"");
+                    AppendEscaped(sb, line);
+                    sb.Append("\"");
+                }
+                sb.Append("]");
+            }
+            sb.Append("}");
         }
-        sb.Append("],\"count\":");
-        sb.Append(result.NumFiles);
-        if (result.NumMatches.HasValue)
-        {
-            sb.Append(",\"totalMatches\":");
-            sb.Append(result.NumMatches.Value);
-        }
-        if (!string.IsNullOrEmpty(result.Content))
-        {
-            sb.Append(",\"content\":\"");
-            AppendEscaped(sb, result.Content);
-            sb.Append("\"");
-        }
+        sb.Append("],\"totalMatches\":");
+        sb.Append(outcome.TotalMatches);
+        sb.Append(",\"fileCount\":");
+        sb.Append(outcome.Results.Count);
         sb.Append("}");
         System.Console.WriteLine(sb.ToString());
-    }
-
-    private static string ToRelative(string path, string cwd)
-    {
-        var rel = DirectoryHelper.GetRelativePath(cwd, path);
-        return rel.StartsWith("..", StringComparison.Ordinal) ? path : rel;
     }
 
     private static void AppendEscaped(StringBuilder sb, string text)
@@ -560,11 +495,11 @@ internal static class RgSubCommand
     private static void PrintUsage()
     {
         TerminalHelper.WriteLine("""
-            jcc rg <pattern> <path> [path...] — ripgrep 兼容搜索（内置实现，复用 Grep 引擎）
+            jcc rg <pattern> <path> [path...] — ripgrep 兼容搜索（mmap + PLINQ 并行 + 零 GC）
 
             用法:
               jcc rg "finally\s*\{" core/ --type cs -g "!**/tests/**"
-              jcc rg "TODO|FIXME" src/ -i -n
+              jcc rg "TODO|FIXME" src/ -i -n -C 2
               jcc rg "class\s+\w+Service" app/JoinCode -A 2 -B 1 --content
 
             位置参数:
@@ -575,9 +510,15 @@ internal static class RgSubCommand
             过滤选项:
               -t, --type <type>       文件类型（cs, js, ts, py, go, rust, java, ...）
               -g, --glob <pattern>    glob 过滤（! 前缀排除，如 !**/tests/**）
+              --hidden                搜索隐藏文件
+              --no-ignore             禁用 .gitignore
 
             输出选项:
               -i, --ignore-case       忽略大小写
+              -S, --smart-case        智能大小写（模式含大写则区分，否则忽略）
+              -w, --word-regexp       词边界匹配
+              -o, --only-matching     只输出匹配部分
+              -r, --replace <text>    替换匹配文本
               -n, --line-number       显示行号（content 模式默认开启）
               -A <n>                  匹配行后 n 行
               -B <n>                  匹配行前 n 行
@@ -589,6 +530,7 @@ internal static class RgSubCommand
               --files-with-matches    只输出文件名（默认）
               --head-limit <n>        限制结果数（默认 250，0=无限）
               --offset <n>            跳过前 n 条结果
+              --sort <key>            排序（path/modified/accessed/created/none）
               --json                  JSON 输出
 
             控制:
@@ -602,6 +544,7 @@ internal static class RgSubCommand
               4. 超时 → 硬终止返回退出码 2
               5. 无匹配 → 退出码 1（对齐 rg）
               6. 二进制文件自动跳过，遵守 .gitignore
+              7. mmap 零拷贝读取大文件（>64KB），PLINQ 并行，Span 零 GC 行遍历
 
             退出码:
               0 = 有匹配
@@ -616,15 +559,22 @@ internal static class RgSubCommand
         string? Glob,
         string? FileType,
         bool CaseInsensitive,
-        bool LineNumbers,
+        bool SmartCase,
+        bool WordRegexp,
+        bool OnlyMatching,
+        string? Replace,
         bool Multiline,
         bool FixedStrings,
+        bool Hidden,
+        bool NoIgnore,
         bool Json,
+        bool LineNumbers,
         int? Before,
         int? After,
         int? Context,
         int? HeadLimit,
         int? Offset,
         int TimeoutSeconds,
-        SearchOutputMode OutputMode);
+        SearchOutputMode OutputMode,
+        string? Sort);
 }

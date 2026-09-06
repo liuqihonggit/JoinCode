@@ -31,6 +31,8 @@ internal static class FlatSubCommandRouter
                 return await ExecuteSlashSchemaAsync(args, ct).ConfigureAwait(false);
             case CliSubCommand.Doctor:
                 return await ExecuteDoctorAsync(args, ct).ConfigureAwait(false);
+            case CliSubCommand.Rg:
+                return await RgSubCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
             default:
                 return null;
         }

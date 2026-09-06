@@ -39,6 +39,7 @@ public sealed class InMemoryFileSystem : IFileSystem
     private readonly InMemoryDirectoryEntry _root = new() { FullPath = "" };
     private readonly ConcurrentDictionary<string, InMemoryFileEntry> _files = new();
     private readonly ConcurrentDictionary<string, InMemoryDirectoryEntry> _directories = new();
+    private readonly ConcurrentDictionary<string, AsyncLock> _editLocks = new();
     private string _currentDirectory = "/test";
 
     public InMemoryFileSystem()
@@ -168,6 +169,28 @@ public sealed class InMemoryFileSystem : IFileSystem
         catch (FormatException)
         {
             return System.Text.Encoding.UTF8.GetBytes(content);
+        }
+    }
+
+    // === IFileSystem: File 原子编辑 ===
+
+    /// <inheritdoc />
+    public async Task<T> EditFileAsync<T>(string path, Func<byte[], CancellationToken, Task<(byte[]? NewContent, T Result)>> transform, CancellationToken cancellationToken = default)
+    {
+        var normalizedPath = NormalizePath(path);
+        var editLock = _editLocks.GetOrAdd(normalizedPath, p => new AsyncLock($"EditFile:{p}"));
+        var releaser = await editLock.TryLockAsync(cancellationToken).ConfigureAwait(false);
+        if (releaser is null)
+            throw new TimeoutException($"编辑文件锁超时: {path}");
+        using (releaser)
+        {
+            var bytes = await ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(false);
+            var (newContent, result) = await transform(bytes, cancellationToken).ConfigureAwait(false);
+            if (newContent is not null)
+            {
+                await WriteAllBytesAsync(path, newContent, cancellationToken).ConfigureAwait(false);
+            }
+            return result;
         }
     }
 

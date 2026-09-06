@@ -59,6 +59,22 @@ public interface IFileSystem
     /// <summary>同步读取文件全部字节 — 对齐 File.ReadAllBytes</summary>
     byte[] ReadAllBytes(string path);
 
+    // === File 原子编辑 ===
+
+    /// <summary>
+    /// 原子编辑文件 — 读取文件字节，调用 transform 函数，写回新字节。
+    /// <para>底层用 per-file 锁串行执行 read→transform→write，保证同一文件的编辑操作串行化，无丢失更新。</para>
+    /// <para>不同文件可并行（不同锁实例）。</para>
+    /// <para>文件不存在时抛 FileNotFoundException。</para>
+    /// <para>transform 返回 null 表示不写入（取消编辑），只返回 Result。</para>
+    /// </summary>
+    /// <typeparam name="T">transform 返回的附加结果类型</typeparam>
+    /// <param name="path">文件路径</param>
+    /// <param name="transform">转换函数：接收当前文件字节和 CancellationToken，返回新字节和附加结果</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>transform 返回的附加结果</returns>
+    Task<T> EditFileAsync<T>(string path, Func<byte[], CancellationToken, Task<(byte[]? NewContent, T Result)>> transform, CancellationToken cancellationToken = default);
+
     // === File 存在/删除/移动/复制 ===
 
     /// <summary>检查文件是否存在 — 对齐 File.Exists</summary>

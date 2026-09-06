@@ -14,6 +14,21 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
     // 导致写空字符串实际写入 3 字节，破坏依赖文件大小判断的逻辑（如 PdfPageRenderer 的 empty 检查）。
     private static readonly Encoding s_utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 
+    /// <summary>
+    /// per-file 编辑锁 — 同一文件的 EditFileAsync 串行化，不同文件并行。
+    /// 锁按规范路径缓存，生命周期与 PhysicalFileSystem（Singleton）相同。
+    /// </summary>
+    private readonly ConcurrentDictionary<string, AsyncLock> _editLocks = new();
+
+    /// <inheritdoc />
+    protected override void OnDispose()
+    {
+        foreach (var kvp in _editLocks)
+            kvp.Value.Dispose();
+        _editLocks.Clear();
+        base.OnDispose();
+    }
+
     /// <inheritdoc />
     public async Task WriteAllTextAsync(string path, string contents, CancellationToken cancellationToken = default)
     {
@@ -123,6 +138,28 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
         using var ms = new MemoryStream();
         stream.CopyTo(ms);
         return ms.ToArray();
+    }
+
+    // === File 原子编辑 ===
+
+    /// <inheritdoc />
+    public async Task<T> EditFileAsync<T>(string path, Func<byte[], CancellationToken, Task<(byte[]? NewContent, T Result)>> transform, CancellationToken cancellationToken = default)
+    {
+        var normalizedPath = Path.GetFullPath(path);
+        var editLock = _editLocks.GetOrAdd(normalizedPath, p => new AsyncLock($"EditFile:{p}"));
+        var releaser = await editLock.TryLockAsync(cancellationToken).ConfigureAwait(false);
+        if (releaser is null)
+            throw new TimeoutException($"编辑文件锁超时: {path}");
+        using (releaser)
+        {
+            var bytes = await ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(false);
+            var (newContent, result) = await transform(bytes, cancellationToken).ConfigureAwait(false);
+            if (newContent is not null)
+            {
+                await WriteAllBytesAsync(path, newContent, cancellationToken).ConfigureAwait(false);
+            }
+            return result;
+        }
     }
 
     // === File 存在/删除/移动/复制 ===

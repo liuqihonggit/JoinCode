@@ -189,34 +189,37 @@ public sealed class LoginCommand : ChatCommandBase
 
     private async Task SaveAuthAsync(string provider, string credentials, IFileSystem fs)
     {
-        var authData = await LoadAuthAsync(fs);
-        authData[provider] = credentials;
-
         var directory = Path.GetDirectoryName(AuthPath);
         if (!string.IsNullOrEmpty(directory) && !fs.DirectoryExists(directory))
         {
             DirectoryHelper.EnsureDirectoryExists(fs, directory);
         }
 
-        var json = JsonSerializer.Serialize(authData, CliIndentedJsonContext.Default.DictionaryStringString);
-        await fs.WriteAllTextAsync(AuthPath, json).ConfigureAwait(false);
-    }
-
-    private static async Task<Dictionary<string, string>> LoadAuthAsync(IFileSystem fs)
-    {
         try
         {
-            if (!fs.FileExists(AuthPath))
+            await fs.EditFileAsync<bool>(AuthPath, async (bytes, ct) =>
             {
-                return new Dictionary<string, string>();
-            }
-
-            var json = await fs.ReadAllTextAsync(AuthPath).ConfigureAwait(false);
-            return RelaxedJsonSerializer.Deserialize(json, CliJsonContext.Default.DictionaryStringString) ?? new Dictionary<string, string>();
+                var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
+                Dictionary<string, string> authData;
+                try
+                {
+                    authData = RelaxedJsonSerializer.Deserialize(content, CliJsonContext.Default.DictionaryStringString) ?? new Dictionary<string, string>();
+                }
+                catch
+                {
+                    authData = new Dictionary<string, string>();
+                }
+                authData[provider] = credentials;
+                var json = JsonSerializer.Serialize(authData, CliIndentedJsonContext.Default.DictionaryStringString);
+                var newBytes = FileEncodingDetector.EncodeString(json, encoding);
+                return (newBytes, true);
+            }, CancellationToken.None).ConfigureAwait(false);
         }
-        catch
+        catch (FileNotFoundException)
         {
-            return new Dictionary<string, string>();
+            var authData = new Dictionary<string, string> { [provider] = credentials };
+            var json = JsonSerializer.Serialize(authData, CliIndentedJsonContext.Default.DictionaryStringString);
+            await fs.WriteAllTextAsync(AuthPath, json).ConfigureAwait(false);
         }
     }
 }

@@ -166,46 +166,54 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
                 return FileEditResult.FailureResult(normalizedPath, oldString, newString, "文件不存在");
             }
 
-            var originalContent = await _fs.ReadAllTextAsync(normalizedPath, cancellationToken)
-                .ConfigureAwait(false);
-
-            var comparison = StringComparison.Ordinal;
-            var replaceCount = 0;
-            string updatedContent;
-
-            if (replaceAll)
+            try
             {
-                updatedContent = originalContent.Replace(oldString, newString, comparison);
-                replaceCount = (originalContent.Length - updatedContent.Length) / (oldString.Length - newString.Length);
-                if (replaceCount < 0) replaceCount = 0;
-            }
-            else
-            {
-                var index = originalContent.IndexOf(oldString, comparison);
-                if (index == -1)
+                return await _fs.EditFileAsync<FileEditResult>(normalizedPath, async (bytes, ct) =>
                 {
-                    RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Failed);
-                    return FileEditResult.FailureResult(normalizedPath, oldString, newString, "未找到匹配的字符串");
-                }
-                var sb = new StringBuilder(originalContent.Length - oldString.Length + newString.Length);
-                sb.Append(originalContent, 0, index);
-                sb.Append(newString);
-                sb.Append(originalContent, index + oldString.Length, originalContent.Length - index - oldString.Length);
-                updatedContent = sb.ToString();
-                replaceCount = 1;
+                    var (originalContent, encoding) = FileEncodingDetector.DecodeBytes(bytes);
+
+                    var comparison = StringComparison.Ordinal;
+                    var replaceCount = 0;
+                    string updatedContent;
+
+                    if (replaceAll)
+                    {
+                        updatedContent = originalContent.Replace(oldString, newString, comparison);
+                        replaceCount = (originalContent.Length - updatedContent.Length) / (oldString.Length - newString.Length);
+                        if (replaceCount < 0) replaceCount = 0;
+                    }
+                    else
+                    {
+                        var index = originalContent.IndexOf(oldString, comparison);
+                        if (index == -1)
+                        {
+                            RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Failed);
+                            return (null, FileEditResult.FailureResult(normalizedPath, oldString, newString, "未找到匹配的字符串"));
+                        }
+                        var sb = new StringBuilder(originalContent.Length - oldString.Length + newString.Length);
+                        sb.Append(originalContent, 0, index);
+                        sb.Append(newString);
+                        sb.Append(originalContent, index + oldString.Length, originalContent.Length - index - oldString.Length);
+                        updatedContent = sb.ToString();
+                        replaceCount = 1;
+                    }
+
+                    var newBytes = FileEncodingDetector.EncodeString(updatedContent, encoding);
+                    RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Ok);
+                    return (newBytes, FileEditResult.SuccessResult(
+                        normalizedPath,
+                        oldString,
+                        newString,
+                        originalContent,
+                        updatedContent,
+                        replaceCount));
+                }, cancellationToken).ConfigureAwait(false);
             }
-
-            await _fs.WriteAllTextAsync(normalizedPath, updatedContent, cancellationToken)
-                .ConfigureAwait(false);
-
-            RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Ok);
-            return FileEditResult.SuccessResult(
-                normalizedPath,
-                oldString,
-                newString,
-                originalContent,
-                updatedContent,
-                replaceCount);
+            catch (FileNotFoundException)
+            {
+                RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Failed);
+                return FileEditResult.FailureResult(normalizedPath, oldString, newString, "文件不存在");
+            }
         }
         catch (Exception ex)
         {
@@ -237,38 +245,47 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
                 return FileLineEditResult.FailureResult(normalizedPath, request.StartLine, request.EndLine, "文件不存在");
             }
 
-            var allLines = (await _fs.ReadAllLinesAsync(normalizedPath, cancellationToken)
-                .ConfigureAwait(false)).ToList();
+            try
+            {
+                return await _fs.EditFileAsync<FileLineEditResult>(normalizedPath, async (bytes, ct) =>
+                {
+                    var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
+                    var allLines = content.Split('\n').Select(l => l.TrimEnd('\r')).ToList();
 
-            var startLine = Math.Max(0, request.StartLine);
-            var endLine = Math.Min(allLines.Count - 1, request.EndLine);
+                    var startLine = Math.Max(0, request.StartLine);
+                    var endLine = Math.Min(allLines.Count - 1, request.EndLine);
 
-            if (startLine > endLine)
+                    if (startLine > endLine)
+                    {
+                        RecordFileMetrics(FileOperationType.EditLineRange, FileOperationResult.Failed);
+                        return (null, FileLineEditResult.FailureResult(normalizedPath, request.StartLine, request.EndLine, "无效的行范围"));
+                    }
+
+                    var originalLines = allLines.Skip(startLine).Take(endLine - startLine + 1);
+                    var originalContent = string.Join(Environment.NewLine, originalLines);
+
+                    allLines.RemoveRange(startLine, endLine - startLine + 1);
+                    var newLines = request.NewContent.Split(new[] { Environment.NewLine }, StringSplitOptions.None);
+                    allLines.InsertRange(startLine, newLines);
+
+                    var updatedContent = string.Join(Environment.NewLine, allLines);
+                    var newBytes = FileEncodingDetector.EncodeString(updatedContent, encoding);
+                    RecordFileMetrics(FileOperationType.EditLineRange, FileOperationResult.Ok);
+                    return (newBytes, FileLineEditResult.SuccessResult(
+                        normalizedPath,
+                        startLine,
+                        endLine,
+                        originalContent,
+                        request.NewContent,
+                        updatedContent,
+                        endLine - startLine + 1));
+                }, cancellationToken).ConfigureAwait(false);
+            }
+            catch (FileNotFoundException)
             {
                 RecordFileMetrics(FileOperationType.EditLineRange, FileOperationResult.Failed);
-                return FileLineEditResult.FailureResult(normalizedPath, request.StartLine, request.EndLine, "无效的行范围");
+                return FileLineEditResult.FailureResult(normalizedPath, request.StartLine, request.EndLine, "文件不存在");
             }
-
-            var originalLines = allLines.Skip(startLine).Take(endLine - startLine + 1);
-            var originalContent = string.Join(Environment.NewLine, originalLines);
-
-            allLines.RemoveRange(startLine, endLine - startLine + 1);
-            var newLines = request.NewContent.Split(new[] { Environment.NewLine }, StringSplitOptions.None);
-            allLines.InsertRange(startLine, newLines);
-
-            var updatedContent = string.Join(Environment.NewLine, allLines);
-            await _fs.WriteAllTextAsync(normalizedPath, updatedContent, cancellationToken)
-                .ConfigureAwait(false);
-
-            RecordFileMetrics(FileOperationType.EditLineRange, FileOperationResult.Ok);
-            return FileLineEditResult.SuccessResult(
-                normalizedPath,
-                startLine,
-                endLine,
-                originalContent,
-                request.NewContent,
-                updatedContent,
-                endLine - startLine + 1);
         }
         catch (Exception ex)
         {

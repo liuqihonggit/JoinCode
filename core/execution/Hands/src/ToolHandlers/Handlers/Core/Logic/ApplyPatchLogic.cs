@@ -40,45 +40,62 @@ public sealed partial class ApplyPatchLogic : ServiceEntity
                 continue;
             }
 
-            var originalContent = await _fs.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
-            var originalLines = SplitLines(originalContent);
-            var modifiedLines = new List<string>(originalLines);
-            var offset = 0;
-            var hunkFailed = false;
-
-            foreach (var hunk in group.OrderBy(h => h.StartLine))
+            try
             {
-                var adjustedStart = hunk.StartLine - 1 + offset;
-
-                if (!VerifyContext(modifiedLines, adjustedStart, hunk))
+                var (hunkFailed, hunkCount) = await _fs.EditFileAsync<(bool Failed, int Count)>(filePath, async (bytes, ct) =>
                 {
-                    details.Add(BuildContextMismatchMessage(filePath, hunk, modifiedLines, adjustedStart));
-                    hunkFailed = true;
-                    break;
+                    var (originalContent, encoding) = FileEncodingDetector.DecodeBytes(bytes);
+                    var originalLines = SplitLines(originalContent);
+                    var modifiedLines = new List<string>(originalLines);
+                    var offset = 0;
+                    var failed = false;
+
+                    foreach (var hunk in group.OrderBy(h => h.StartLine))
+                    {
+                        var adjustedStart = hunk.StartLine - 1 + offset;
+
+                        if (!VerifyContext(modifiedLines, adjustedStart, hunk))
+                        {
+                            details.Add(BuildContextMismatchMessage(filePath, hunk, modifiedLines, adjustedStart));
+                            failed = true;
+                            break;
+                        }
+
+                        var (newLines, linesRemoved, linesAdded) = ApplyHunk(modifiedLines, adjustedStart, hunk);
+                        modifiedLines = newLines;
+                        offset += linesAdded - linesRemoved;
+                    }
+
+                    if (failed)
+                        return (null, (true, group.Count()));
+
+                    if (dryRun)
+                        return (null, (false, group.Count()));
+
+                    var newContent = string.Join("\n", modifiedLines);
+                    var newBytes = FileEncodingDetector.EncodeString(newContent, encoding);
+                    return (newBytes, (false, group.Count()));
+                }, cancellationToken).ConfigureAwait(false);
+
+                if (hunkFailed)
+                {
+                    details.Add($"SKIP {filePath}: left unchanged (patch did not apply cleanly)");
+                    failures++;
+                    continue;
                 }
 
-                var (newLines, linesRemoved, linesAdded) = ApplyHunk(modifiedLines, adjustedStart, hunk);
-                modifiedLines = newLines;
-                offset += linesAdded - linesRemoved;
-            }
+                if (!dryRun)
+                    modifiedPaths.Add(filePath);
 
-            if (hunkFailed)
+                var verb = dryRun ? "Would modify" : "Modified";
+                details.Add($"OK {verb} {filePath} ({hunkCount} hunk(s))");
+                filesModified++;
+            }
+            catch (FileNotFoundException)
             {
-                details.Add($"SKIP {filePath}: left unchanged (patch did not apply cleanly)");
+                details.Add($"FAIL {filePath}: file not found");
                 failures++;
-                continue;
             }
-
-            if (!dryRun)
-            {
-                var newContent = string.Join("\n", modifiedLines);
-                await _fs.WriteAllTextAsync(filePath, newContent, cancellationToken).ConfigureAwait(false);
-                modifiedPaths.Add(filePath);
-            }
-
-            var verb = dryRun ? "Would modify" : "Modified";
-            details.Add($"OK {verb} {filePath} ({group.Count()} hunk(s))");
-            filesModified++;
         }
 
         if (failures > 0)

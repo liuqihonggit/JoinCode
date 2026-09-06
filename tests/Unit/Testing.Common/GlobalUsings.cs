@@ -3,6 +3,7 @@ global using JoinCode.Abstractions.Transport;
 global using JoinCode.Transport;
 global using JoinCode.Transport.DependencyInjection;
 global using Api.LLM;
+global using Core.Utils;
 global using System.IO.Pipes;
 global using System.Text.Json.Serialization;
 global using System.Text.RegularExpressions;

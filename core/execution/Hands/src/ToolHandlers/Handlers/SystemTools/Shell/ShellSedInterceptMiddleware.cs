@@ -88,12 +88,19 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
                 cache?.Remove(filePath);
                 _fallbackEdits.TryRemove(filePath, out _);
 
-                // 直接写入预计算的新内容 — 对齐 TS applySedEdit
+                // 用 EditFileAsync 原子编辑：重新读→替换→写，基于最新内容应用 sed
                 try
                 {
-                    var lineEnding = pending.OriginalLineEnding;
-                    var normalizedNewContent = pending.NewContent.Replace("\n", lineEnding);
-                    await _fs.WriteAllTextAsync(filePath, normalizedNewContent, cancellationToken).ConfigureAwait(false);
+                    await _fs.EditFileAsync<bool>(filePath, async (bytes, ct) =>
+                    {
+                        var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
+                        var lineEnding = content.Contains("\r\n") ? "\r\n" : "\n";
+                        var normalizedContent = content.Replace("\r\n", "\n");
+                        var newContent = SedEditParser.ApplySedSubstitution(normalizedContent, sedInfo);
+                        var finalContent = newContent.Replace("\n", lineEnding);
+                        var newBytes = FileEncodingDetector.EncodeString(finalContent, encoding);
+                        return (newBytes, true);
+                    }, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {

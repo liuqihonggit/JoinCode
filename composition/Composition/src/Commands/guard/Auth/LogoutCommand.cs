@@ -64,13 +64,38 @@ public sealed class LogoutCommand : ChatCommandBase
             // 清除指定 Provider 的 API Key
             if (services.FileSystem.FileExists(AuthPath))
             {
-                var authData = await LoadAuthAsync(services.FileSystem).ConfigureAwait(false);
-                if (authData.Remove(provider))
+                var removed = false;
+                try
                 {
-                    var json = JsonSerializer.Serialize(authData, CliIndentedJsonContext.Default.DictionaryStringString);
-                    await services.FileSystem.WriteAllTextAsync(AuthPath, json, context.CancellationToken).ConfigureAwait(false);
-                    TerminalHelper.WriteLine($"{TerminalColors.Success}已登出 {provider}{AnsiStyleConstants.Reset}");
+                    removed = await services.FileSystem.EditFileAsync<bool>(AuthPath, async (bytes, ct) =>
+                    {
+                        var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
+                        Dictionary<string, string> authData;
+                        try
+                        {
+                            authData = RelaxedJsonSerializer.Deserialize(content, CliJsonContext.Default.DictionaryStringString) ?? new Dictionary<string, string>();
+                        }
+                        catch
+                        {
+                            authData = new Dictionary<string, string>();
+                        }
+                        if (authData.Remove(provider))
+                        {
+                            var json = JsonSerializer.Serialize(authData, CliIndentedJsonContext.Default.DictionaryStringString);
+                            var newBytes = FileEncodingDetector.EncodeString(json, encoding);
+                            return (newBytes, true);
+                        }
+                        return (null, false);
+                    }, context.CancellationToken).ConfigureAwait(false);
+                }
+                catch (FileNotFoundException)
+                {
+                    removed = false;
+                }
 
+                if (removed)
+                {
+                    TerminalHelper.WriteLine($"{TerminalColors.Success}已登出 {provider}{AnsiStyleConstants.Reset}");
                     await PostLogoutRefreshAsync(context).ConfigureAwait(false);
                     return ChatCommandResult.Continue();
                 }
@@ -112,23 +137,5 @@ public sealed class LogoutCommand : ChatCommandBase
         TerminalHelper.WriteLine($"{TerminalColors.Muted}  已清除认证相关缓存{AnsiStyleConstants.Reset}");
 
         return Task.CompletedTask;
-    }
-
-    private static async Task<Dictionary<string, string>> LoadAuthAsync(IFileSystem fs)
-    {
-        try
-        {
-            if (!fs.FileExists(AuthPath))
-            {
-                return new Dictionary<string, string>();
-            }
-
-            var json = await fs.ReadAllTextAsync(AuthPath).ConfigureAwait(false);
-            return RelaxedJsonSerializer.Deserialize(json, CliJsonContext.Default.DictionaryStringString) ?? new Dictionary<string, string>();
-        }
-        catch
-        {
-            return new Dictionary<string, string>();
-        }
     }
 }

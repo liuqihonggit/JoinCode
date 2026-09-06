@@ -305,26 +305,32 @@ public class ConfigLoader {
         if (!string.IsNullOrEmpty(directory) && !fs.DirectoryExists(directory))
             fs.CreateDirectory(directory);
 
-        var authData = new Dictionary<string, string>();
-
-        if (fs.FileExists(authPath))
+        try
         {
-            try
+            await fs.EditFileAsync<bool>(authPath, async (bytes, ct) =>
             {
-                var json = await fs.ReadAllTextAsync(authPath, cancellationToken).ConfigureAwait(false);
-                authData = RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.DictionaryStringString) ?? new Dictionary<string, string>();
-            }
-            catch (Exception ex)
-            {
-                // 文件损坏，重新创建
-                logger?.LogWarning(ex, "Failed to read auth file '{AuthPath}'", authPath);
-            }
+                var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
+                var authData = new Dictionary<string, string>();
+                try
+                {
+                    authData = RelaxedJsonSerializer.Deserialize(content, ConfigJsonContext.Default.DictionaryStringString) ?? new Dictionary<string, string>();
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogWarning(ex, "Failed to read auth file '{AuthPath}'", authPath);
+                }
+                authData[provider] = apiKey;
+                var outputJson = RelaxedJsonSerializer.SerializeCompact(authData, ConfigJsonContext.Default);
+                var newBytes = FileEncodingDetector.EncodeString(outputJson, encoding);
+                return (newBytes, true);
+            }, cancellationToken).ConfigureAwait(false);
         }
-
-        authData[provider] = apiKey;
-
-        var outputJson = RelaxedJsonSerializer.SerializeCompact(authData, ConfigJsonContext.Default);
-        await fs.WriteAllTextAsync(authPath, outputJson, cancellationToken).ConfigureAwait(false);
+        catch (FileNotFoundException)
+        {
+            var authData = new Dictionary<string, string> { [provider] = apiKey };
+            var outputJson = RelaxedJsonSerializer.SerializeCompact(authData, ConfigJsonContext.Default);
+            await fs.WriteAllTextAsync(authPath, outputJson, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     /// <summary>
@@ -408,27 +414,34 @@ public class ConfigLoader {
         var directory = Path.GetDirectoryName(settingsPath);
         DirectoryHelper.EnsureDirectoryExists(fs, directory);
 
-        // 读取现有 settings — 统一用强类型 SettingsJson，不再回退到扁平 KV 格式
-        SettingsJson? existingSettings = null;
-
-        if (fs.FileExists(settingsPath))
+        try
         {
-            try
+            await fs.EditFileAsync<bool>(settingsPath, async (bytes, ct) =>
             {
-                var json = await fs.ReadAllTextAsync(settingsPath, cancellationToken).ConfigureAwait(false);
-                existingSettings = RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
-            }
-            catch (Exception ex)
-            {
-                // 文件损坏，重新创建
-                logger?.LogWarning(ex, "Failed to read settings file '{SettingsPath}'", settingsPath);
-            }
+                var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
+                SettingsJson? existingSettings = null;
+                try
+                {
+                    existingSettings = RelaxedJsonSerializer.Deserialize(content, ConfigJsonContext.Default.SettingsJson);
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogWarning(ex, "Failed to read settings file '{SettingsPath}'", settingsPath);
+                }
+                existingSettings ??= new SettingsJson();
+                var updatedSettings = UpdateSettingByKey(existingSettings, key, value);
+                var outputJson = RelaxedJsonSerializer.SerializeIndented(updatedSettings, ConfigIndentedJsonContext.Default);
+                var newBytes = FileEncodingDetector.EncodeString(outputJson, encoding);
+                return (newBytes, true);
+            }, cancellationToken).ConfigureAwait(false);
         }
-
-        existingSettings ??= new SettingsJson();
-        var updatedSettings2 = UpdateSettingByKey(existingSettings, key, value);
-        var outputJson2 = RelaxedJsonSerializer.SerializeIndented(updatedSettings2, ConfigIndentedJsonContext.Default);
-        await fs.WriteAllTextAsync(settingsPath, outputJson2, cancellationToken).ConfigureAwait(false);
+        catch (FileNotFoundException)
+        {
+            var existingSettings = new SettingsJson();
+            var updatedSettings = UpdateSettingByKey(existingSettings, key, value);
+            var outputJson = RelaxedJsonSerializer.SerializeIndented(updatedSettings, ConfigIndentedJsonContext.Default);
+            await fs.WriteAllTextAsync(settingsPath, outputJson, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     #region 内部辅助方法
@@ -482,33 +495,47 @@ public class ConfigLoader {
         var directory = Path.GetDirectoryName(globalPath);
         DirectoryHelper.EnsureDirectoryExists(fs, directory);
 
-        Dictionary<string, JsonElement> data = new(StringComparer.Ordinal);
-
-        if (fs.FileExists(globalPath))
+        try
         {
-            try
+            await fs.EditFileAsync<bool>(globalPath, async (bytes, ct) =>
             {
-                var json = await fs.ReadAllTextAsync(globalPath, cancellationToken).ConfigureAwait(false);
-                data = RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.DictionaryStringJsonElement) ?? new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-            }
-            catch (Exception ex)
+                var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
+                Dictionary<string, JsonElement> data = new(StringComparer.Ordinal);
+                try
+                {
+                    data = RelaxedJsonSerializer.Deserialize(content, ConfigJsonContext.Default.DictionaryStringJsonElement) ?? new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogWarning(ex, "Failed to read global config file '{GlobalPath}'", globalPath);
+                }
+
+                if (value is not null)
+                {
+                    using var doc = JsonDocument.Parse($"\"{JsonEncodeValue(value)}\"");
+                    data[key] = doc.RootElement.Clone();
+                }
+                else
+                {
+                    data.Remove(key);
+                }
+
+                var outputJson = RelaxedJsonSerializer.SerializeIndented(data, ConfigIndentedJsonContext.Default);
+                var newBytes = FileEncodingDetector.EncodeString(outputJson, encoding);
+                return (newBytes, true);
+            }, cancellationToken).ConfigureAwait(false);
+        }
+        catch (FileNotFoundException)
+        {
+            Dictionary<string, JsonElement> data = new(StringComparer.Ordinal);
+            if (value is not null)
             {
-                logger?.LogWarning(ex, "Failed to read global config file '{GlobalPath}'", globalPath);
+                using var doc = JsonDocument.Parse($"\"{JsonEncodeValue(value)}\"");
+                data[key] = doc.RootElement.Clone();
             }
+            var outputJson = RelaxedJsonSerializer.SerializeIndented(data, ConfigIndentedJsonContext.Default);
+            await fs.WriteAllTextAsync(globalPath, outputJson, cancellationToken).ConfigureAwait(false);
         }
-
-        if (value is not null)
-        {
-            using var doc = JsonDocument.Parse($"\"{JsonEncodeValue(value)}\"");
-            data[key] = doc.RootElement.Clone();
-        }
-        else
-        {
-            data.Remove(key);
-        }
-
-        var outputJson = RelaxedJsonSerializer.SerializeIndented(data, ConfigIndentedJsonContext.Default);
-        await fs.WriteAllTextAsync(globalPath, outputJson, cancellationToken).ConfigureAwait(false);
     }
 
     private static string JsonEncodeValue(string value)

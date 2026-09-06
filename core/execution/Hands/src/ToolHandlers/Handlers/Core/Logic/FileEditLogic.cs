@@ -33,26 +33,27 @@ public sealed partial class FileEditLogic : ServiceEntity
             return FileEditResult.FailureResult(filePath, pattern, replacement, L.T(StringKey.FileEditRegexInvalid, ex.Message));
         }
 
-        var originalContent = await ReadFileWithEncodingAsync(filePath, cancellationToken).ConfigureAwait(false);
-
-        if (!regex.IsMatch(originalContent))
-            return FileEditResult.FailureResult(filePath, pattern, replacement, L.T(StringKey.FileEditPatternNotFound));
-
-        var count = replaceAll ? regex.Matches(originalContent).Count : 1;
-
-        string updatedContent;
-        if (replaceAll)
-        {
-            updatedContent = regex.Replace(originalContent, replacement);
-        }
-        else
-        {
-            updatedContent = regex.Replace(originalContent, replacement, 1);
-        }
-
         try
         {
-            await WriteFileWithEncodingAsync(filePath, updatedContent, cancellationToken).ConfigureAwait(false);
+            return await _fs.EditFileAsync<FileEditResult>(filePath, async (bytes, ct) =>
+            {
+                var (originalContent, encoding) = FileEncodingDetector.DecodeBytes(bytes);
+
+                if (!regex.IsMatch(originalContent))
+                    return (null, FileEditResult.FailureResult(filePath, pattern, replacement, L.T(StringKey.FileEditPatternNotFound)));
+
+                var count = replaceAll ? regex.Matches(originalContent).Count : 1;
+                var updatedContent = replaceAll
+                    ? regex.Replace(originalContent, replacement)
+                    : regex.Replace(originalContent, replacement, 1);
+
+                var newBytes = FileEncodingDetector.EncodeString(updatedContent, encoding);
+                return (newBytes, FileEditResult.SuccessResult(filePath, pattern, replacement, originalContent, updatedContent, count));
+            }, cancellationToken).ConfigureAwait(false);
+        }
+        catch (FileNotFoundException)
+        {
+            return FileEditResult.FailureResult(filePath, pattern, replacement, FileSuggestionHelper.BuildFileNotFoundDiagnostic(filePath, _fs));
         }
         catch (OperationCanceledException)
         {
@@ -66,8 +67,6 @@ public sealed partial class FileEditLogic : ServiceEntity
                 ["检查文件权限、是否被其他进程锁定。"]);
             return FileEditResult.FailureResult(filePath, pattern, replacement, diagnostic);
         }
-
-        return FileEditResult.SuccessResult(filePath, pattern, replacement, originalContent, updatedContent, count);
     }
 
     public async Task<FileLineEditResult> InsertLinesAfterAsync(
@@ -79,28 +78,35 @@ public sealed partial class FileEditLogic : ServiceEntity
         if (!_fs.FileExists(filePath))
             return FileLineEditResult.FailureResult(filePath, afterLine, afterLine, FileSuggestionHelper.BuildFileNotFoundDiagnostic(filePath, _fs));
 
-        var (allLines, fileEncoding) = await ReadAllLinesWithEncodingAsync(filePath, cancellationToken).ConfigureAwait(false);
-
-        if (afterLine < 0 || afterLine > allLines.Count)
-            return FileLineEditResult.FailureResult(filePath, afterLine, afterLine, L.T(StringKey.FileEditLineOutOfRange, afterLine, allLines.Count));
-
-        var newLines = newContent.Split('\n');
-        var resultLines = new List<string>();
-
-        for (var i = 0; i < allLines.Count; i++)
-        {
-            resultLines.Add(allLines[i]);
-            if (i == afterLine)
-                resultLines.AddRange(newLines);
-        }
-
-        if (afterLine == allLines.Count)
-            resultLines.AddRange(newLines);
-
-        var updatedFileContent = string.Join("\n", resultLines);
         try
         {
-            await WriteFileWithEncodingAsync(filePath, updatedFileContent, cancellationToken, fileEncoding).ConfigureAwait(false);
+            return await _fs.EditFileAsync<FileLineEditResult>(filePath, async (bytes, ct) =>
+            {
+                var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
+                var allLines = SplitLines(content);
+
+                if (afterLine < 0 || afterLine > allLines.Count)
+                    return (null, FileLineEditResult.FailureResult(filePath, afterLine, afterLine, L.T(StringKey.FileEditLineOutOfRange, afterLine, allLines.Count)));
+
+                var newLines = newContent.Split('\n');
+                var resultLines = new List<string>();
+                for (var i = 0; i < allLines.Count; i++)
+                {
+                    resultLines.Add(allLines[i]);
+                    if (i == afterLine)
+                        resultLines.AddRange(newLines);
+                }
+                if (afterLine == allLines.Count)
+                    resultLines.AddRange(newLines);
+
+                var updatedFileContent = string.Join("\n", resultLines);
+                var newBytes = FileEncodingDetector.EncodeString(updatedFileContent, encoding);
+                return (newBytes, FileLineEditResult.SuccessResult(filePath, afterLine, afterLine + newLines.Length, string.Empty, newContent, updatedFileContent, newLines.Length));
+            }, cancellationToken).ConfigureAwait(false);
+        }
+        catch (FileNotFoundException)
+        {
+            return FileLineEditResult.FailureResult(filePath, afterLine, afterLine, FileSuggestionHelper.BuildFileNotFoundDiagnostic(filePath, _fs));
         }
         catch (OperationCanceledException)
         {
@@ -114,8 +120,6 @@ public sealed partial class FileEditLogic : ServiceEntity
                 ["检查文件权限、是否被其他进程锁定。"]);
             return FileLineEditResult.FailureResult(filePath, afterLine, afterLine, diagnostic);
         }
-
-        return FileLineEditResult.SuccessResult(filePath, afterLine, afterLine + newLines.Length, string.Empty, newContent, updatedFileContent, newLines.Length);
     }
 
     public async Task<FileLineEditResult> DeleteLinesAsync(
@@ -130,26 +134,36 @@ public sealed partial class FileEditLogic : ServiceEntity
         if (startLine > endLine)
             return FileLineEditResult.FailureResult(filePath, startLine, endLine, L.T(StringKey.FileEditStartLineGreaterThanEnd));
 
-        var (allLines, fileEncoding) = await ReadAllLinesWithEncodingAsync(filePath, cancellationToken).ConfigureAwait(false);
-
-        if (startLine < 1 || startLine > allLines.Count)
-            return FileLineEditResult.FailureResult(filePath, startLine, endLine, L.T(StringKey.FileEditStartLineOutOfRange, startLine, allLines.Count));
-
-        var actualEndLine = Math.Min(endLine, allLines.Count);
-        var originalContent = string.Join("\n", allLines.Skip(startLine - 1).Take(actualEndLine - startLine + 1));
-
-        var resultLines = new List<string>();
-        for (var i = 0; i < allLines.Count; i++)
-        {
-            var lineNumber = i + 1;
-            if (lineNumber < startLine || lineNumber > actualEndLine)
-                resultLines.Add(allLines[i]);
-        }
-
-        var updatedFileContent = string.Join("\n", resultLines);
         try
         {
-            await WriteFileWithEncodingAsync(filePath, updatedFileContent, cancellationToken, fileEncoding).ConfigureAwait(false);
+            return await _fs.EditFileAsync<FileLineEditResult>(filePath, async (bytes, ct) =>
+            {
+                var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
+                var allLines = SplitLines(content);
+
+                if (startLine < 1 || startLine > allLines.Count)
+                    return (null, FileLineEditResult.FailureResult(filePath, startLine, endLine, L.T(StringKey.FileEditStartLineOutOfRange, startLine, allLines.Count)));
+
+                var actualEndLine = Math.Min(endLine, allLines.Count);
+                var originalContent = string.Join("\n", allLines.Skip(startLine - 1).Take(actualEndLine - startLine + 1));
+
+                var resultLines = new List<string>();
+                for (var i = 0; i < allLines.Count; i++)
+                {
+                    var lineNumber = i + 1;
+                    if (lineNumber < startLine || lineNumber > actualEndLine)
+                        resultLines.Add(allLines[i]);
+                }
+
+                var updatedFileContent = string.Join("\n", resultLines);
+                var newBytes = FileEncodingDetector.EncodeString(updatedFileContent, encoding);
+                var deletedCount = actualEndLine - startLine + 1;
+                return (newBytes, FileLineEditResult.SuccessResult(filePath, startLine, actualEndLine, originalContent, string.Empty, updatedFileContent, deletedCount));
+            }, cancellationToken).ConfigureAwait(false);
+        }
+        catch (FileNotFoundException)
+        {
+            return FileLineEditResult.FailureResult(filePath, startLine, endLine, FileSuggestionHelper.BuildFileNotFoundDiagnostic(filePath, _fs));
         }
         catch (OperationCanceledException)
         {
@@ -163,9 +177,6 @@ public sealed partial class FileEditLogic : ServiceEntity
                 ["检查文件权限、是否被其他进程锁定。"]);
             return FileLineEditResult.FailureResult(filePath, startLine, endLine, diagnostic);
         }
-
-        var deletedCount = actualEndLine - startLine + 1;
-        return FileLineEditResult.SuccessResult(filePath, startLine, actualEndLine, originalContent, string.Empty, updatedFileContent, deletedCount);
     }
 
     public async Task<IReadOnlyList<BatchEditResult>> BatchEditAsync(
@@ -186,36 +197,40 @@ public sealed partial class FileEditLogic : ServiceEntity
                     continue;
                 }
 
-                var originalContent = await ReadFileWithEncodingAsync(filePath, cancellationToken).ConfigureAwait(false);
-
-                if (!originalContent.Contains(oldString))
+                var editResult = await _fs.EditFileAsync<FileEditResult>(filePath, async (bytes, ct) =>
                 {
-                    var diagnostic = EditDiagnosticBuilder.BuildDiagnostic(originalContent, oldString);
-                    results.Add(new BatchEditResult(filePath, FileEditResult.FailureResult(filePath, oldString, newString, diagnostic.ToToolDiagnostic())));
-                    continue;
-                }
+                    var (originalContent, encoding) = FileEncodingDetector.DecodeBytes(bytes);
 
-                string updatedContent;
-                int replaceCount;
+                    if (!originalContent.Contains(oldString))
+                    {
+                        var diagnostic = EditDiagnosticBuilder.BuildDiagnostic(originalContent, oldString);
+                        return (null, FileEditResult.FailureResult(filePath, oldString, newString, diagnostic.ToToolDiagnostic()));
+                    }
 
-                if (replaceAll)
-                {
-                    updatedContent = originalContent.Replace(oldString, newString);
-                    replaceCount = CountOccurrences(originalContent, oldString);
-                }
-                else
-                {
-                    var index = originalContent.IndexOf(oldString, StringComparison.Ordinal);
-                    var sb = new StringBuilder(originalContent.Length + newString.Length - oldString.Length);
-                    sb.Append(originalContent, 0, index);
-                    sb.Append(newString);
-                    sb.Append(originalContent, index + oldString.Length, originalContent.Length - index - oldString.Length);
-                    updatedContent = sb.ToString();
-                    replaceCount = 1;
-                }
+                    string updatedContent;
+                    int replaceCount;
 
-                await WriteFileWithEncodingAsync(filePath, updatedContent, cancellationToken).ConfigureAwait(false);
-                results.Add(new BatchEditResult(filePath, FileEditResult.SuccessResult(filePath, oldString, newString, originalContent, updatedContent, replaceCount)));
+                    if (replaceAll)
+                    {
+                        updatedContent = originalContent.Replace(oldString, newString);
+                        replaceCount = CountOccurrences(originalContent, oldString);
+                    }
+                    else
+                    {
+                        var index = originalContent.IndexOf(oldString, StringComparison.Ordinal);
+                        var sb = new StringBuilder(originalContent.Length + newString.Length - oldString.Length);
+                        sb.Append(originalContent, 0, index);
+                        sb.Append(newString);
+                        sb.Append(originalContent, index + oldString.Length, originalContent.Length - index - oldString.Length);
+                        updatedContent = sb.ToString();
+                        replaceCount = 1;
+                    }
+
+                    var newBytes = FileEncodingDetector.EncodeString(updatedContent, encoding);
+                    return (newBytes, FileEditResult.SuccessResult(filePath, oldString, newString, originalContent, updatedContent, replaceCount));
+                }, cancellationToken).ConfigureAwait(false);
+
+                results.Add(new BatchEditResult(filePath, editResult));
             }
             catch (Exception ex)
             {
@@ -243,45 +258,21 @@ public sealed partial class FileEditLogic : ServiceEntity
     }
 
     /// <summary>
-    /// 读取所有行 + 编码 — UTF-8 用 mmap + LineSpanIndexer，其他编码走 StreamReader
+    /// 按行分割字符串 — 对齐 File.ReadAllLines 语义：去除行终止符，忽略末尾空行。
     /// </summary>
-    private async Task<(List<string> Lines, Encoding Encoding)> ReadAllLinesWithEncodingAsync(string filePath, CancellationToken ct)
+    private static List<string> SplitLines(string content)
     {
-        var encoding = await FileEncodingDetector.DetectFromFileAsync(filePath, _fs, ct).ConfigureAwait(false);
-        if (encoding is UTF8Encoding)
+        if (string.IsNullOrEmpty(content))
+            return [];
+        var lines = content.Split('\n');
+        var result = new List<string>(lines.Length);
+        for (var i = 0; i < lines.Length; i++)
         {
-            var content = await _fs.ReadAllTextAsync(filePath, ct).ConfigureAwait(false);
-            var ranges = LineSpanIndexer.BuildLineRanges(content.AsSpan(), ct);
-            var lines = new List<string>(ranges.Count);
-            foreach (var (start, length) in ranges)
-                lines.Add(content.Substring(start, length));
-            return (lines, encoding);
+            var line = lines[i].TrimEnd('\r');
+            if (i == lines.Length - 1 && line.Length == 0)
+                continue;
+            result.Add(line);
         }
-        var allLines = new List<string>();
-        using var stream = _fs.OpenRead(filePath);
-        using var reader = new StreamReader(stream, encoding);
-        while (await reader.ReadLineAsync(ct).ConfigureAwait(false) is { } line)
-            allLines.Add(line);
-        return (allLines, encoding);
-    }
-
-    /// <summary>
-    /// 读取文件内容，自动检测 BOM 编码。
-    /// 对齐 TS: FileEditTool.ts L207-213
-    /// </summary>
-    private async Task<string> ReadFileWithEncodingAsync(string filePath, CancellationToken ct)
-    {
-        var encoding = await FileEncodingDetector.DetectFromFileAsync(filePath, _fs, ct).ConfigureAwait(false);
-        return await _fs.ReadAllTextAsync(filePath, encoding, ct).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// 写入文件内容，保持原始编码。
-    /// 对齐 TS: writeTextContent(filePath, content, encoding, endings)
-    /// </summary>
-    private async Task WriteFileWithEncodingAsync(string filePath, string content, CancellationToken ct, Encoding? encoding = null)
-    {
-        var effectiveEncoding = encoding ?? await FileEncodingDetector.DetectFromFileAsync(filePath, _fs, ct).ConfigureAwait(false);
-        await _fs.WriteAllTextAsync(filePath, content, effectiveEncoding, ct).ConfigureAwait(false);
+        return result;
     }
 }

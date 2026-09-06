@@ -85,7 +85,7 @@ public class AskClarifyCommandTests
         prompt.Should().Contain("选择题");
         prompt.Should().Contain("鱼骨图");
         prompt.Should().Contain("产品经理");
-        prompt.Should().Contain("AskUserQuestion");
+        prompt.Should().Contain("ask_user_question");
         prompt.Should().Contain("新手");
     }
 

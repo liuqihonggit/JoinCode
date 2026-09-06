@@ -169,19 +169,19 @@ public static class NdjsonParser
     /// </summary>
     private static readonly FrozenDictionary<string, string> ToolVerbMap = new Dictionary<string, string>(StringComparer.Ordinal)
     {
-        ["Read"] = "Reading",
-        ["Write"] = "Writing",
-        ["Edit"] = "Editing",
-        ["MultiEdit"] = "Editing",
+        ["read"] = "Reading",
+        ["write"] = "Writing",
+        ["edit"] = "Editing",
+        ["multi_edit"] = "Editing",
         ["bash"] = "Running",
         ["glob"] = "Searching",
         ["grep"] = "Searching",
-        ["LS"] = "Listing",
+        ["ls"] = "Listing",
         ["web_fetch"] = "Fetching",
         ["web_search"] = "Searching",
-        ["TodoRead"] = "Reading todos",
+        ["todo_read"] = "Reading todos",
         ["todo_write"] = "Writing todos",
-        ["Computer"] = "Using computer",
+        ["computer"] = "Using computer",
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>

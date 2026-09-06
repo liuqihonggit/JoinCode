@@ -19,9 +19,9 @@ public static class BatchFileToolScripts
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new() { ToolName = "Read", Arguments = """{"file_path":"test.txt"}""" },
-                        new() { ToolName = "Write", Arguments = """{"file_path":"test.txt","content":"hello"}""" },
-                        new() { ToolName = "Edit", Arguments = """{"file_path":"test.txt","old_string":"hello","new_string":"world"}""" },
+                        new() { ToolName = "read", Arguments = """{"file_path":"test.txt"}""" },
+                        new() { ToolName = "write", Arguments = """{"file_path":"test.txt","content":"hello"}""" },
+                        new() { ToolName = "edit", Arguments = """{"file_path":"test.txt","old_string":"hello","new_string":"world"}""" },
                         new() { ToolName = "file_edit_regex", Arguments = """{"file_path":"test.txt","pattern":"world","replacement":"test"}""" },
                         new() { ToolName = "file_insert_lines", Arguments = """{"file_path":"test.txt","line":1,"content":"line1"}""" },
                         new() { ToolName = "file_delete_lines", Arguments = """{"file_path":"test.txt","start":1,"end":1}""" },
@@ -34,9 +34,9 @@ public static class BatchFileToolScripts
                 },
                 Asserts =
                 [
-                    new() { Type = AssertType.ContainsToolCall, Expected = "Read", Description = "应包含Read" },
-                    new() { Type = AssertType.ContainsToolCall, Expected = "Write", Description = "应包含Write" },
-                    new() { Type = AssertType.ContainsToolCall, Expected = "Edit", Description = "应包含Edit" },
+                    new() { Type = AssertType.ContainsToolCall, Expected = "read", Description = "应包含Read" },
+                    new() { Type = AssertType.ContainsToolCall, Expected = "write", Description = "应包含Write" },
+                    new() { Type = AssertType.ContainsToolCall, Expected = "edit", Description = "应包含Edit" },
                     new() { Type = AssertType.ContainsToolCall, Expected = "file_edit_regex", Description = "应包含file_edit_regex" },
                     new() { Type = AssertType.ContainsToolCall, Expected = "file_insert_lines", Description = "应包含file_insert_lines" },
                     new() { Type = AssertType.ContainsToolCall, Expected = "file_delete_lines", Description = "应包含file_delete_lines" },
@@ -158,7 +158,7 @@ public static class BatchInteractionToolScripts
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new() { ToolName = "Config", Arguments = "{}" },
+                        new() { ToolName = "config", Arguments = "{}" },
                         new() { ToolName = "config_get", Arguments = """{"key":"model"}""" },
                         new() { ToolName = "auth_get_status", Arguments = "{}" },
                         new() { ToolName = "ask_user", Arguments = """{"question":"请确认？","options":[{"label":"是","description":"确认"}]}""" },
@@ -167,7 +167,7 @@ public static class BatchInteractionToolScripts
                 },
                 Asserts =
                 [
-                    new() { Type = AssertType.ContainsToolCall, Expected = "Config", Description = "应包含Config" },
+                    new() { Type = AssertType.ContainsToolCall, Expected = "config", Description = "应包含Config" },
                     new() { Type = AssertType.ContainsToolCall, Expected = "config_get", Description = "应包含config_get" },
                     new() { Type = AssertType.ContainsToolCall, Expected = "auth_get_status", Description = "应包含auth_get_status" },
                     new() { Type = AssertType.ContainsToolCall, Expected = "ask_user", Description = "应包含ask_user" },

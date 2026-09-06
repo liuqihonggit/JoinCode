@@ -222,7 +222,7 @@ public sealed class MagicDocsManagerTests
             It.Is<ForkOptions>(o =>
                 o.ParentSessionId == "session-1" &&
                 o.TaskDescription == "magic_docs" &&
-                o.AllowedTools!.Contains("Edit")),
+                o.AllowedTools!.Contains("edit")),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 

@@ -157,12 +157,12 @@ public sealed class ContentReplacementServiceTests
         var state = new ContentReplacementState();
 
         var largeContent = new string('x', 250_000);
-        var neverPersist = new HashSet<string> { "Read" };
+        var neverPersist = new HashSet<string> { "read" };
 
         var messages = new List<ApiMessage>
         {
             new(MessageRole.User, "test query"),
-            CreateToolMessage("tool_1", largeContent, toolName: "Read"),
+            CreateToolMessage("tool_1", largeContent, toolName: "read"),
         };
 
         var (result, newlyReplaced) = await service.ApplyToolResultBudgetAsync(messages, state, "session1", neverPersist).ConfigureAwait(true);
@@ -455,9 +455,9 @@ public sealed class ContentReplacementServiceTests
         var fileService = new MockToolResultFileService();
         var service = CreateService();
 
-        // Read 工具的阈值为 -1 (Infinity)，永不持久化
+        // read 工具的阈值为 -1 (Infinity)，永不持久化
         var largeContent = new string('x', 250_000);
-        var result = service.MaybePersistLargeToolResult("Read", "id1", largeContent, "session1");
+        var result = service.MaybePersistLargeToolResult("read", "id1", largeContent, "session1");
 
         result.Should().BeNull();
     }

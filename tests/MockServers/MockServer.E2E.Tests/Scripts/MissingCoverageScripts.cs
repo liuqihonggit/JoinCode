@@ -25,7 +25,7 @@ public static class MissingCoverageScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Write",
+                            ToolName = "write",
                             Arguments = """{"file_path":"test_hello.txt","content":"Hello, World!"}"""
                         }
                     ],
@@ -33,7 +33,7 @@ public static class MissingCoverageScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Write", Description = "应包含Write工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "write", Description = "应包含Write工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有助手回复" },
                 ]
             }
@@ -59,7 +59,7 @@ public static class MissingCoverageScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Edit",
+                            ToolName = "edit",
                             Arguments = """{"file_path":"test_config.txt","old_string":"version: 1.0","new_string":"version: 2.0"}"""
                         }
                     ],
@@ -67,7 +67,7 @@ public static class MissingCoverageScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Edit", Description = "应包含Edit工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "edit", Description = "应包含Edit工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有助手回复" },
                 ]
             }

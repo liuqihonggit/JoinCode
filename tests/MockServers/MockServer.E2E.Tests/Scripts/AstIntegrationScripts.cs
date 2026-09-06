@@ -25,7 +25,7 @@ public static class AstIntegrationScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Grep",
+                            ToolName = "grep",
                             Arguments = """{"pattern":"class.*Service"}"""
                         }
                     ],
@@ -33,7 +33,7 @@ public static class AstIntegrationScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Grep", Description = "应调用Grep" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "grep", Description = "应调用Grep" },
                     new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "不应有错误" },
                 ]
             },
@@ -48,7 +48,7 @@ public static class AstIntegrationScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Grep",
+                            ToolName = "grep",
                             Arguments = """{"pattern":"CodeIndexer"}"""
                         }
                     ],
@@ -56,7 +56,7 @@ public static class AstIntegrationScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Grep", Description = "应调用Grep" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "grep", Description = "应调用Grep" },
                     new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "不应有错误" },
                 ]
             },
@@ -71,7 +71,7 @@ public static class AstIntegrationScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Grep",
+                            ToolName = "grep",
                             Arguments = """{"pattern":"BuildIndexAsync"}"""
                         }
                     ],
@@ -79,7 +79,7 @@ public static class AstIntegrationScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Grep", Description = "应调用Grep" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "grep", Description = "应调用Grep" },
                     new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "不应有错误" },
                 ]
             },
@@ -94,7 +94,7 @@ public static class AstIntegrationScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Glob",
+                            ToolName = "glob",
                             Arguments = """{"pattern":"**/*.cs"}"""
                         }
                     ],
@@ -102,7 +102,7 @@ public static class AstIntegrationScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Glob", Description = "应调用Glob" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "glob", Description = "应调用Glob" },
                     new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "不应有错误" },
                 ]
             },

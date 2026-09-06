@@ -80,7 +80,7 @@ public sealed partial class BridgeMainTests
     [Fact]
     public void ExtractActivities_MultipleToolUse_ReturnsMultipleActivities()
     {
-        var ndjson = """{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"/a.cs"}},{"type":"tool_use","name":"Bash","input":{"command":"ls"}}]}}""";
+        var ndjson = """{"type":"assistant","message":{"content":[{"type":"tool_use","name":"read","input":{"file_path":"/a.cs"}},{"type":"tool_use","name":"bash","input":{"command":"ls"}}]}}""";
         var activities = BridgeNdjsonParser.ExtractActivities(ndjson);
         Assert.Equal(2, activities.Count);
         Assert.Equal("Reading /a.cs", activities[0].Summary);
@@ -145,7 +145,7 @@ public sealed partial class BridgeMainTests
         {
             ["file_path"] = JsonDocument.Parse("\"/src/foo.cs\"").RootElement,
         };
-        var summary = BridgeNdjsonParser.ToolSummary("Read", input);
+        var summary = BridgeNdjsonParser.ToolSummary("read", input);
         Assert.Equal("Reading /src/foo.cs", summary);
     }
 
@@ -156,7 +156,7 @@ public sealed partial class BridgeMainTests
         {
             ["command"] = JsonDocument.Parse("\"ls -la\"").RootElement,
         };
-        var summary = BridgeNdjsonParser.ToolSummary("Bash", input);
+        var summary = BridgeNdjsonParser.ToolSummary("bash", input);
         Assert.Equal("Running ls -la", summary);
     }
 
@@ -176,7 +176,7 @@ public sealed partial class BridgeMainTests
         {
             ["file_path"] = JsonDocument.Parse($"\"{longPath}\"").RootElement,
         };
-        var summary = BridgeNdjsonParser.ToolSummary("Read", input);
+        var summary = BridgeNdjsonParser.ToolSummary("read", input);
         Assert.True(summary.Length <= 80);
     }
 

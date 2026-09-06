@@ -188,7 +188,7 @@ public static class SessionControllerScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Read",
+                            ToolName = "read",
                             Arguments = """{"file_path":"jcc.runtimeconfig.json"}"""
                         }
                     ],
@@ -196,8 +196,8 @@ public static class SessionControllerScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Read", Description = "应包含Read工具调用" },
-                    new OutputAssert { Type = AssertType.ToolCallSucceeded, Expected = "Read", Description = "Read工具调用应成功" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "read", Description = "应包含Read工具调用" },
+                    new OutputAssert { Type = AssertType.ToolCallSucceeded, Expected = "read", Description = "Read工具调用应成功" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有助手回复" },
                 ]
             }
@@ -309,7 +309,7 @@ public static class DualModelScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Bash",
+                            ToolName = "bash",
                             Arguments = """{"command":"find . -name '*.cs' | head -5"}"""
                         }
                     ],
@@ -317,7 +317,7 @@ public static class DualModelScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Bash", Description = "应包含工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "bash", Description = "应包含工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有分析回复" },
                     new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "不应有错误" },
                 ]
@@ -345,12 +345,12 @@ public static class DualModelScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Bash",
+                            ToolName = "bash",
                             Arguments = """{"command":"grep -r 'TODO' src/"}"""
                         },
                         new MockToolCallScript
                         {
-                            ToolName = "Read",
+                            ToolName = "read",
                             Arguments = """{"file_path":"src/Program.cs"}"""
                         }
                     ],
@@ -358,8 +358,8 @@ public static class DualModelScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Bash", Description = "应包含Bash工具调用" },
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Read", Description = "应包含ReadFile工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "bash", Description = "应包含Bash工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "read", Description = "应包含ReadFile工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有综合回复" },
                     new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "不应有错误" },
                 ]
@@ -430,7 +430,7 @@ public static class EventStreamScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Bash",
+                            ToolName = "bash",
                             Arguments = """{"command":"ls Alpha/"}"""
                         }
                     ],
@@ -438,7 +438,7 @@ public static class EventStreamScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Bash", Description = "第2轮应包含工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "bash", Description = "第2轮应包含工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "第2轮应有回复" },
                 ]
             },
@@ -478,7 +478,7 @@ public static class EventStreamScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Bash",
+                            ToolName = "bash",
                             Arguments = """{"command":"find . -name '*.cs' -type f"}"""
                         }
                     ],
@@ -486,7 +486,7 @@ public static class EventStreamScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Bash", Description = "应包含Bash工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "bash", Description = "应包含Bash工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
                 ]
             }

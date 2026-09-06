@@ -129,3 +129,21 @@ $jcc = "D:\project\w1\artifacts\bin\JoinCode\Release\net10.0\jcc.exe"
 ### 修复的坏点
 
 - `analytics_report`: 空数据时 `Average()` 抛异常 → `DefaultIfEmpty(0).Average()` 优雅降级 (commit cb3239e4e)
+
+### 缺参数工具合理参数测试 (9个通过)
+
+| 工具 | 参数 | 结果 |
+|------|------|------|
+| `agent_stats` | agent_name=coordinator | OK,返回统计 |
+| `agent_history` | agent_name=coordinator | OK,返回历史 |
+| `agent_execution_detail` | execution_id=non-existent | OK,"未找到执行" |
+| `tool_score_reset` | tool_name=read_file | OK,评分已重置 |
+| `agent_status` | agent_id=non-existent | OK,"Agent not found" |
+| `agent_get_messages` | agent_id=non-existent | OK,"No pending messages" |
+| `agent_clear_history` | confirm=yes | OK,历史已清除 |
+| `analytics_clear` | confirm=yes | OK,分析数据已清除 |
+| `guide_agent` | question=如何使用 | 429限流(非坏点) |
+
+### API限流失败 (5个,非坏点)
+
+`plan_agent`/`explore_agent`/`general_agent`/`verification_agent`/`Agent` — 需要 LLM 调用,sensenova API 429 限流

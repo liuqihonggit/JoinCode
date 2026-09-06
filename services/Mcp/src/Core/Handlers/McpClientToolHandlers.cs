@@ -123,7 +123,11 @@ public partial class McpClientToolHandlers : ServiceEntity
             }
 
             IMcpClient client;
-            if (_deps.ClientFactory is not null)
+            if (config.TransportType == McpClientTransportType.Stdio)
+            {
+                client = new McpStdioClient(config, logger: _logger);
+            }
+            else if (_deps.ClientFactory is not null)
             {
                 client = _deps.ClientFactory.CreateClient(config, enableFallback: true, logger: _logger);
             }
@@ -131,7 +135,6 @@ public partial class McpClientToolHandlers : ServiceEntity
             {
                 client = config.TransportType switch
                 {
-                    McpClientTransportType.Stdio => new McpStdioClient(config, logger: _logger),
                     McpClientTransportType.Http => new McpHttpClient(config, logger: _logger),
                     McpClientTransportType.WebSocket => new McpWebSocketClient(config, logger: _logger),
                     _ => throw new NotSupportedException(L.T(StringKey.UnsupportedTransportType, transport_type))

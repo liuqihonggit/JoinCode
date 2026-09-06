@@ -51,9 +51,11 @@ public sealed class McpStdioClient : McpClientBase
         try
         {
             var effectiveProcessService = _processService ?? IO.ProcessService.ProcessServiceFactory.Create();
+            var (fileName, arguments) = ParseEndpoint(_config.Endpoint);
             var opts = new InteractiveProcessOptions
             {
-                FileName = _config.Endpoint,
+                FileName = fileName,
+                Arguments = arguments,
                 EnvironmentVariables = envVars ?? new Dictionary<string, string>(),
                 RedirectStandardError = true,
             };
@@ -103,6 +105,35 @@ public sealed class McpStdioClient : McpClientBase
             await CleanupAsync();
             throw;
         }
+    }
+
+    /// <summary>
+    /// 解析 endpoint 为 FileName + Arguments — 支持带参数的命令行（如 "node script.js"）。
+    /// 如果 endpoint 以引号开头，取引号内为 FileName，引号后为 Arguments；否则按第一个空格拆分。
+    /// </summary>
+    private static (string FileName, string Arguments) ParseEndpoint(string endpoint)
+    {
+        if (string.IsNullOrWhiteSpace(endpoint))
+            return (endpoint, string.Empty);
+
+        if (endpoint[0] == '"')
+        {
+            var closingQuote = endpoint.IndexOf('"', 1);
+            if (closingQuote > 0)
+            {
+                var fileName = endpoint[1..closingQuote];
+                var arguments = closingQuote + 1 < endpoint.Length
+                    ? endpoint[(closingQuote + 1)..].TrimStart()
+                    : string.Empty;
+                return (fileName, arguments);
+            }
+        }
+
+        var firstSpace = endpoint.IndexOf(' ');
+        if (firstSpace <= 0)
+            return (endpoint, string.Empty);
+
+        return (endpoint[..firstSpace], endpoint[(firstSpace + 1)..]);
     }
 
     public override async Task DisconnectAsync(CancellationToken cancellationToken = default)

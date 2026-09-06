@@ -176,7 +176,7 @@ internal static class RgEngine
             if (!q.NoIgnore && IsGitIgnored(root, rel))
                 continue;
 
-            if (!MatchesGlob(rel, q.Glob))
+            if (!MatchesGlob(rel, q.Globs))
                 continue;
 
             if (!MatchesFileType(file, q.FileType))
@@ -231,18 +231,26 @@ internal static class RgEngine
         return false;
     }
 
-    private static bool MatchesGlob(string rel, string? glob)
+    private static bool MatchesGlob(string rel, IReadOnlyList<string>? globs)
     {
-        if (string.IsNullOrEmpty(glob))
+        if (globs is null || globs.Count == 0)
             return true;
 
-        var normalizedGlob = glob.Replace('\\', '/');
-        if (normalizedGlob.StartsWith('!'))
+        foreach (var glob in globs)
         {
-            var exclude = normalizedGlob[1..];
-            return !SimpleGlobMatch(rel, exclude);
+            var normalizedGlob = glob.Replace('\\', '/');
+            if (normalizedGlob.StartsWith('!'))
+            {
+                var exclude = normalizedGlob[1..];
+                if (SimpleGlobMatch(rel, exclude))
+                    return false;
+            }
+            else if (!SimpleGlobMatch(rel, normalizedGlob))
+            {
+                return false;
+            }
         }
-        return SimpleGlobMatch(rel, normalizedGlob);
+        return true;
     }
 
     private static bool SimpleGlobMatch(string path, string pattern)
@@ -380,13 +388,30 @@ internal static class RgEngine
         }
 
         var matchedLines = new List<int>();
-        for (var i = 0; i < lineRanges.Count; i++)
+        if (q.Multiline)
         {
-            var (s, l) = lineRanges[i];
-            if (l == 0)
-                continue;
-            if (regex.IsMatch(contentSpan.Slice(s, l)))
-                matchedLines.Add(i);
+            var seen = new HashSet<int>();
+            var matches = regex.Matches(content);
+            foreach (Match m in matches)
+            {
+                if (m.Success)
+                {
+                    var lineIdx = FindLineIndex(lineRanges, m.Index);
+                    if (lineIdx >= 0 && seen.Add(lineIdx))
+                        matchedLines.Add(lineIdx);
+                }
+            }
+        }
+        else
+        {
+            for (var i = 0; i < lineRanges.Count; i++)
+            {
+                var (s, l) = lineRanges[i];
+                if (l == 0)
+                    continue;
+                if (regex.IsMatch(contentSpan.Slice(s, l)))
+                    matchedLines.Add(i);
+            }
         }
 
         if (matchedLines.Count == 0)
@@ -455,6 +480,24 @@ internal static class RgEngine
         };
     }
 
+    private static int FindLineIndex(List<(int Start, int Length)> lineRanges, int charIndex)
+    {
+        var lo = 0;
+        var hi = lineRanges.Count - 1;
+        while (lo <= hi)
+        {
+            var mid = lo + ((hi - lo) >> 1);
+            var (start, length) = lineRanges[mid];
+            if (charIndex < start)
+                hi = mid - 1;
+            else if (charIndex >= start + length)
+                lo = mid + 1;
+            else
+                return mid;
+        }
+        return lo < lineRanges.Count ? lo : -1;
+    }
+
     private static (List<RgFileResult> Items, int? AppliedLimit, int? AppliedOffset) ApplyPaging(
         List<RgFileResult> items, int? headLimit, int? offset)
     {
@@ -477,7 +520,7 @@ internal static class RgEngine
 internal sealed record RgQuery(
     string Pattern,
     IReadOnlyList<string> Paths,
-    string? Glob,
+    IReadOnlyList<string>? Globs,
     string? FileType,
     bool CaseInsensitive,
     bool SmartCase,

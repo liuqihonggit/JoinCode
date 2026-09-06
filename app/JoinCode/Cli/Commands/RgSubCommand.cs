@@ -42,7 +42,7 @@ internal static class RgSubCommand
             var query = new RgQuery(
                 Pattern: pattern,
                 Paths: parsed.Paths,
-                Glob: parsed.Glob,
+                Globs: parsed.Globs,
                 FileType: parsed.FileType,
                 CaseInsensitive: parsed.CaseInsensitive,
                 SmartCase: parsed.SmartCase,
@@ -96,10 +96,10 @@ internal static class RgSubCommand
         var hidden = false;
         var noIgnore = false;
         var json = false;
-        string? glob = null;
         string? fileType = null;
         string? replace = null;
         string? sort = null;
+        var globs = new List<string>();
         int? before = null;
         int? after = null;
         int? context = null;
@@ -153,9 +153,16 @@ internal static class RgSubCommand
                     case "--files-with-matches": outputMode = SearchOutputMode.Files; break;
                     case "--content": outputMode = SearchOutputMode.Content; break;
                     case "--replace": replace = inlineValue ?? ReadNextValue(args, ref i); break;
+                    case "--regex-file":
+                        {
+                            var filePath = inlineValue ?? ReadNextValue(args, ref i);
+                            if (filePath is not null && File.Exists(filePath))
+                                pattern = File.ReadAllText(filePath).TrimEnd('\r', '\n');
+                        }
+                        break;
                     case "--sort": sort = inlineValue ?? ReadNextValue(args, ref i); break;
                     case "--type": fileType = inlineValue ?? ReadNextValue(args, ref i); break;
-                    case "--glob": glob = inlineValue ?? ReadNextValue(args, ref i); break;
+                    case "--glob": { var v = inlineValue ?? ReadNextValue(args, ref i); if (v is not null) globs.Add(v); } break;
                     case "--head-limit": headLimit = ParseInt(inlineValue ?? ReadNextValue(args, ref i)); break;
                     case "--offset": offset = ParseInt(inlineValue ?? ReadNextValue(args, ref i)); break;
                     case "--timeout": timeoutSeconds = ClampTimeout(ParseInt(inlineValue ?? ReadNextValue(args, ref i))); break;
@@ -173,7 +180,7 @@ internal static class RgSubCommand
                 if (!ParseShortOptionCluster(arg, args, ref i,
                         ref caseInsensitive, ref smartCase, ref wordRegexp, ref onlyMatching,
                         ref lineNumbers, ref multiline, ref fixedStrings,
-                        ref json, ref glob, ref fileType, ref replace,
+                        ref json, globs, ref fileType, ref replace,
                         ref before, ref after, ref context, ref headLimit, ref offset,
                         ref timeoutSeconds, ref outputMode))
                 {
@@ -203,7 +210,7 @@ internal static class RgSubCommand
         return new RgOptions(
             Pattern: pattern,
             Paths: paths,
-            Glob: glob,
+            Globs: globs,
             FileType: fileType,
             CaseInsensitive: caseInsensitive,
             SmartCase: smartCase,
@@ -255,7 +262,7 @@ internal static class RgSubCommand
         string arg, string[] args, ref int i,
         ref bool caseInsensitive, ref bool smartCase, ref bool wordRegexp, ref bool onlyMatching,
         ref bool lineNumbers, ref bool multiline, ref bool fixedStrings,
-        ref bool json, ref string? glob, ref string? fileType, ref string? replace,
+        ref bool json, List<string> globs, ref string? fileType, ref string? replace,
         ref int? before, ref int? after, ref int? context, ref int? headLimit, ref int? offset,
         ref int timeoutSeconds, ref SearchOutputMode outputMode)
     {
@@ -278,7 +285,7 @@ internal static class RgSubCommand
                 case 'A': after = ConsumeShortNumber(span, ref j, args, ref i); break;
                 case 'B': before = ConsumeShortNumber(span, ref j, args, ref i); break;
                 case 'C': context = ConsumeShortNumber(span, ref j, args, ref i); break;
-                case 'g': glob = ConsumeShortString(span, ref j, args, ref i); break;
+                case 'g': { var v = ConsumeShortString(span, ref j, args, ref i); if (v is not null) globs.Add(v); } break;
                 case 't': fileType = ConsumeShortString(span, ref j, args, ref i); break;
                 case 'r': replace = ConsumeShortString(span, ref j, args, ref i); break;
                 case 'h': PrintUsage(); return false;
@@ -556,7 +563,7 @@ internal static class RgSubCommand
     internal sealed record RgOptions(
         string Pattern,
         IReadOnlyList<string> Paths,
-        string? Glob,
+        IReadOnlyList<string> Globs,
         string? FileType,
         bool CaseInsensitive,
         bool SmartCase,

@@ -274,4 +274,38 @@ public sealed class RgSubCommandTests
         opts.Should().NotBeNull();
         opts!.TimeoutSeconds.Should().Be(30);
     }
+
+    [Fact]
+    public void ParseArgs_MultipleGlobs_ShouldCollectAllGlobs()
+    {
+        var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--glob", "*.cs", "--glob", "!**/tests/**"]);
+        opts.Should().NotBeNull();
+        opts!.Globs.Should().HaveCount(2);
+        opts.Globs.Should().ContainInOrder("*.cs", "!**/tests/**");
+    }
+
+    [Fact]
+    public void ParseArgs_MultipleShortGlobs_ShouldCollectAllGlobs()
+    {
+        var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "-g", "*.cs", "-g", "!**/obj/**"]);
+        opts.Should().NotBeNull();
+        opts!.Globs.Should().HaveCount(2);
+        opts.Globs.Should().ContainInOrder("*.cs", "!**/obj/**");
+    }
+
+    [Fact]
+    public void ParseArgs_NoGlob_ShouldReturnEmptyGlobsList()
+    {
+        var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/"]);
+        opts.Should().NotBeNull();
+        opts!.Globs.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ParseArgs_MultilineDotall_ShouldSetMultilineFlag()
+    {
+        var opts = RgSubCommand.ParseArgs(["rg", "pattern", "src/", "--multiline-dotall"]);
+        opts.Should().NotBeNull();
+        opts!.Multiline.Should().BeTrue();
+    }
 }

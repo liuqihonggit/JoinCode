@@ -674,7 +674,7 @@ jcc rg "pattern" .xxx/ --hidden --no-ignore -n --content
 | `<path>` | 搜索路径（**必填！** 禁止无路径搜索，避免扫盘卡死） |
 | `[path...]` | 额外搜索路径（多路径合并去重） |
 | `-t, --type <type>` | 文件类型（cs, js, ts, py, go, rust, java, ...） |
-| `-g, --glob <pattern>` | glob 过滤（`!` 前缀排除，如 `!**/tests/**`） |
+| `-g, --glob <pattern>` | glob 过滤（`!` 前缀排除，如 `!**/tests/**`，**可多次指定**） |
 | `-i, --ignore-case` | 忽略大小写 |
 | `-S, --smart-case` | 智能大小写（模式全小写则忽略大小写，含大写则区分） |
 | `-w, --word-regexp` | 词边界匹配（`\b<pattern>\b`） |
@@ -694,6 +694,7 @@ jcc rg "pattern" .xxx/ --hidden --no-ignore -n --content
 | `--offset <n>` | 跳过前 n 条结果 |
 | `--timeout <seconds>` | 超时秒数（默认 30，最大 300，超时**硬终止**返回 2） |
 | `--json` | JSON 输出 |
+| `--regex-file <path>` | 从文件读取正则（避免命令行转义问题，配合 `-U` 多行模式） |
 
 **宽容策略（防御工程）**：
 1. **PowerShell 转义自动修复**：`\\s` → `\s`、`\\{` → `\{` 等（检测双反斜杠后跟正则元字符）

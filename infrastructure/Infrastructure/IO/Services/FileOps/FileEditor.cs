@@ -258,8 +258,7 @@ public sealed class FileEditor
             List<string> allLines;
             if (fileEncoding is UTF8Encoding)
             {
-                using var mmapReader = new MappedFileReader(normalizedPath);
-                var content = mmapReader.ReadToEnd();
+                var content = await _fs.ReadAllTextAsync(normalizedPath, cancellationToken).ConfigureAwait(false);
                 var ranges = LineSpanIndexer.BuildLineRanges(content.AsSpan(), cancellationToken);
                 allLines = new List<string>(ranges.Count);
                 foreach (var (start, length) in ranges)

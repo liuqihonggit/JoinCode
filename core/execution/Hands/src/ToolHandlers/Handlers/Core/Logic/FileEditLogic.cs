@@ -250,8 +250,7 @@ public sealed partial class FileEditLogic : ServiceEntity
         var encoding = await FileEncodingDetector.DetectFromFileAsync(filePath, _fs, ct).ConfigureAwait(false);
         if (encoding is UTF8Encoding)
         {
-            using var mmapReader = new MappedFileReader(filePath);
-            var content = mmapReader.ReadToEnd();
+            var content = await _fs.ReadAllTextAsync(filePath, ct).ConfigureAwait(false);
             var ranges = LineSpanIndexer.BuildLineRanges(content.AsSpan(), ct);
             var lines = new List<string>(ranges.Count);
             foreach (var (start, length) in ranges)

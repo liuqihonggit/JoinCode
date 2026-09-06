@@ -3,6 +3,7 @@ namespace Mcp.Tests;
 public sealed class GitHubToolHandlersTests
 {
     private readonly FakeGitHubCommandRunner _gh = new();
+    private readonly FakeGitHubApiClient _api = new();
     private readonly GitHubToolHandlers _handler;
 
     public GitHubToolHandlersTests()
@@ -12,6 +13,7 @@ public sealed class GitHubToolHandlersTests
             new FakeDownloader(),
             new InMemoryFileSystem(),
             new PersistencePipeline(new InMemoryFileSystem()),
+            _api,
             NullLogger<GitHubToolHandlers>.Instance);
     }
 
@@ -328,19 +330,13 @@ public sealed class GitHubToolHandlersTests
     [Fact]
     public async Task Api_Get_DisablesJq_PassesMethod()
     {
-        _gh.NextResult = new GitHubCommandResult
-        {
-            Success = true,
-            Output = """{"id":1,"name":"repo"}""",
-            ExitCode = 0,
-        };
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":1,"name":"repo"}""" };
 
         var result = await _handler.GhApiAsync("repos/owner/repo", method: "GET");
 
         result.IsError.Should().BeFalse();
-        _gh.LastArguments.Should().Contain("--method GET");
-        _gh.LastArguments.Should().NotContain("--jq");
-        _gh.LastArguments.Should().Contain("repos/owner/repo");
+        _api.LastMethod.Should().Be(HttpMethod.Get);
+        _api.LastPath.Should().Be("repos/owner/repo");
     }
 
     [Fact]
@@ -369,7 +365,7 @@ public sealed class GitHubToolHandlersTests
             ExitCode = 0,
         };
         var fakeDownloader = new FakeDownloader();
-        var handler = new GitHubToolHandlers(_gh, fakeDownloader, new InMemoryFileSystem(), new PersistencePipeline(new InMemoryFileSystem()), NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(_gh, fakeDownloader, new InMemoryFileSystem(), new PersistencePipeline(new InMemoryFileSystem()), _api, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhReleaseDownloadAsync("v1.0", "/tmp");
 
@@ -428,6 +424,27 @@ internal sealed class FakeGitHubCommandRunner : IGitHubCommandRunner
 
     public Task<PrListResult> ListPrsAsync(string? repo = null, string state = "open", int limit = 30, CancellationToken ct = default)
         => throw new NotImplementedException();
+}
+
+internal sealed class FakeGitHubApiClient : IGitHubApiClient
+{
+    public GitHubApiResponse NextResponse { get; set; } = new() { Success = true, StatusCode = 200, Body = "[]" };
+    public string? LastPath { get; private set; }
+    public HttpMethod? LastMethod { get; private set; }
+    public string? LastBody { get; private set; }
+
+    public Task<GitHubApiResponse> SendAsync(HttpMethod method, string path, string? body = null, IReadOnlyDictionary<string, string>? query = null, bool paginate = false, CancellationToken ct = default)
+    {
+        LastMethod = method;
+        LastPath = path;
+        LastBody = body;
+        return Task.FromResult(NextResponse);
+    }
+
+    public async IAsyncEnumerable<string> GetRunLogsAsync(string owner, string repo, long runId, [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        yield break;
+    }
 }
 
 internal sealed class FakeDownloader : IDownloader

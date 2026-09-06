@@ -13,6 +13,7 @@ namespace McpToolDispatch;
 public partial class GitHubToolHandlers
 {
     private readonly IGitHubCommandRunner _gh;
+    private readonly IGitHubApiClient? _apiClient;
     private readonly IDownloader _downloader;
     private readonly IFileSystem _fs;
     private readonly ILogger<GitHubToolHandlers>? _logger;
@@ -52,12 +53,14 @@ public partial class GitHubToolHandlers
         IDownloader downloader,
         IFileSystem fs,
         IPersistencePipeline pipeline,
+        IGitHubApiClient? apiClient = null,
         ILogger<GitHubToolHandlers>? logger = null)
     {
         _gh = gh ?? throw new ArgumentNullException(nameof(gh));
         _downloader = downloader ?? throw new ArgumentNullException(nameof(downloader));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
+        _apiClient = apiClient;
         _logger = logger;
     }
 

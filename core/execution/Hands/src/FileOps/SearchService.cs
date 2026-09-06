@@ -72,7 +72,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
                     matcher.AddInclude(pat);
 
                     // 排除 VCS 目录（对齐 TS: .git/.svn/.hg/.bzr/.jj/.sl）
-                    foreach (var vcsDir in VcsDirectoriesToExclude)
+                    foreach (var vcsDir in VcsDirectoryExclusions.Names)
                     {
                         matcher.AddExclude($"**/{vcsDir}/**");
                     }
@@ -166,26 +166,14 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
             }
 
             // Compile regex — 使用 Compiled 提升匹配性能（对齐 ripgrep 的高性能正则引擎）
-            var regexOptions = RegexOptions.Compiled;
-            if (input.CaseInsensitive)
-            {
-                regexOptions |= RegexOptions.IgnoreCase;
-            }
-            if (input.Multiline)
-            {
-                regexOptions |= RegexOptions.Singleline;
-            }
-
-            Regex regex;
-            try
-            {
-                regex = new Regex(input.Pattern, regexOptions);
-            }
-            catch (ArgumentException ex)
+            var (compiledRegex, regexError) = SearchRegexCompiler.Compile(
+                input.Pattern, input.CaseInsensitive, input.Multiline);
+            if (regexError is not null)
             {
                 RecordSearchMetrics("grep", 0, false);
-                return GrepSearchResult.FailureResult($"Invalid regular expression: {ex.Message}");
+                return GrepSearchResult.FailureResult($"Invalid regular expression: {regexError}");
             }
+            Regex regex = compiledRegex!;
 
             var filenames = new List<string>();
             var contentLines = new List<string>();
@@ -219,12 +207,14 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
                         return null;
                     }
 
-                    var lines = fileContent.Split(['\n'], StringSplitOptions.None);
-                    var matchedLines = new List<int>();
+                    var contentSpan = fileContent.AsSpan();
+                    var lineRanges = LineSpanIndexer.BuildLineRanges(contentSpan);
 
-                    for (var i = 0; i < lines.Length; i++)
+                    var matchedLines = new List<int>();
+                    for (var i = 0; i < lineRanges.Count; i++)
                     {
-                        if (regex.IsMatch(lines[i]))
+                        var (s, l) = lineRanges[i];
+                        if (regex.IsMatch(contentSpan.Slice(s, l)))
                         {
                             matchedLines.Add(i);
                         }
@@ -241,15 +231,20 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
                         foreach (var index in matchedLines)
                         {
                             var start = Math.Max(0, index - (input.Before ?? context));
-                            var end = Math.Min(lines.Length, index + (input.After ?? context) + 1);
+                            var end = Math.Min(lineRanges.Count, index + (input.After ?? context) + 1);
 
                             for (var current = start; current < end; current++)
                             {
-                                var lineContent = lines[current];
-                                // Truncate long lines (aligned with TS --max-columns 500)
-                                if (lineContent.Length > MaxContentLineLength)
+                                var (ls, ll) = lineRanges[current];
+                                var lineSpan = contentSpan.Slice(ls, ll);
+                                string lineContent;
+                                if (lineSpan.Length > MaxContentLineLength)
                                 {
-                                    lineContent = string.Concat(lineContent.AsSpan(0, MaxContentLineLength), "...");
+                                    lineContent = string.Concat(lineSpan.Slice(0, MaxContentLineLength).ToString(), "...");
+                                }
+                                else
+                                {
+                                    lineContent = lineSpan.ToString();
                                 }
                                 var prefix = input.LineNumbers
                                     ? $"{filePath}:{current + 1}:"
@@ -425,66 +420,11 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
         return results;
     }
 
-    // VCS directories to exclude from searches (aligned with TS GrepTool)
-    private static readonly FrozenSet<string> VcsDirectoriesToExclude = FrozenSet.ToFrozenSet(
-        [".git", ".svn", ".hg", ".bzr", ".jj", ".sl"],
-        StringComparer.OrdinalIgnoreCase);
-
     // Maximum line length for grep content output (aligned with TS --max-columns 500)
     private const int MaxContentLineLength = 500;
 
     // 二进制检测缓冲区大小（对齐 ripgrep 的 8KB 采样窗口）
     private const int BinaryDetectionBufferSize = 8192;
-
-    // 已知二进制文件扩展名（对齐 ripgrep 内置类型映射）
-    private static readonly FrozenSet<string> BinaryExtensions = FrozenSet.ToFrozenSet(
-        [
-            ".exe", ".dll", ".so", ".dylib", ".a", ".lib", ".o", ".obj",
-            ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ico", ".webp", ".tiff", ".tif",
-            ".mp3", ".mp4", ".wav", ".avi", ".mov", ".mkv", ".flv", ".wmv",
-            ".zip", ".tar", ".gz", ".bz2", ".xz", ".7z", ".rar", ".cab",
-            ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
-            ".class", ".jar", ".war", ".ear", ".dex", ".apk", ".ipa",
-            ".woff", ".woff2", ".ttf", ".otf", ".eot",
-            ".pyc", ".pyd", ".pyo",
-            ".nupkg", ".snupkg", ".pdb", ".mdb",
-        ],
-        StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>
-    /// 文件类型到扩展名的映射表，对齐 ripgrep --type 内置映射
-    /// ripgrep 通过 --type 选项支持预定义的文件类型过滤
-    /// </summary>
-    private static readonly FrozenDictionary<string, string[]> FileTypeExtensions = FrozenDictionary.ToFrozenDictionary(
-        new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["js"] = ["*.js", "*.jsx", "*.mjs", "*.cjs"],
-            ["ts"] = ["*.ts", "*.tsx", "*.mts", "*.cts"],
-            ["py"] = ["*.py", "*.pyi"],
-            ["rust"] = ["*.rs"],
-            ["go"] = ["*.go"],
-            ["java"] = ["*.java"],
-            ["c"] = ["*.c", "*.h"],
-            ["cpp"] = ["*.cpp", "*.cc", "*.cxx", "*.hpp", "*.hh", "*.hxx"],
-            ["csharp"] = ["*.cs"],
-            ["ruby"] = ["*.rb", "*.erb"],
-            ["swift"] = ["*.swift"],
-            ["kotlin"] = ["*.kt", "*.kts"],
-            ["scala"] = ["*.scala"],
-            ["html"] = ["*.html", "*.htm"],
-            ["css"] = ["*.css", "*.scss", "*.sass", "*.less"],
-            ["json"] = ["*.json"],
-            ["yaml"] = ["*.yaml", "*.yml"],
-            ["xml"] = ["*.xml", "*.xsl", "*.xsd"],
-            ["markdown"] = ["*.md", "*.mdx"],
-            ["sh"] = ["*.sh", "*.bash", "*.zsh"],
-            ["powershell"] = ["*.ps1", "*.psm1"],
-            ["sql"] = ["*.sql"],
-            ["dockerfile"] = ["Dockerfile", "*.dockerfile"],
-            ["toml"] = ["*.toml"],
-            ["ini"] = ["*.ini", "*.cfg", "*.conf"],
-        },
-        StringComparer.OrdinalIgnoreCase);
 
     private IReadOnlyList<string> CollectSearchFiles(string basePath, string? globFilter, string? fileType, IReadOnlyList<string>? denyPatterns = null, CancellationToken cancellationToken = default)
     {
@@ -520,11 +460,14 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
         {
             // 对齐 ripgrep --type: 使用预定义的文件类型扩展名映射
             // 当 glob 和 type 同时存在时，ripgrep 是 AND 逻辑
-            if (FileTypeExtensions.TryGetValue(fileType, out var extensions))
+            if (FileTypeExtensionMap.TryGetValue(fileType, out var extensions))
             {
                 foreach (var ext in extensions)
                 {
-                    matcher.AddInclude($"**/{ext}");
+                    if (ext.StartsWith('.'))
+                        matcher.AddInclude($"**/*{ext}");
+                    else
+                        matcher.AddInclude($"**/{ext}");
                 }
             }
             else
@@ -540,7 +483,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
         }
 
         // 排除 VCS 目录
-        foreach (var vcsDir in VcsDirectoriesToExclude)
+        foreach (var vcsDir in VcsDirectoryExclusions.Names)
         {
             matcher.AddExclude($"**/{vcsDir}/**");
         }
@@ -553,8 +496,8 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
         // Matcher 的多个 AddInclude 是 OR 逻辑，但 ripgrep 的 --glob + --type 是 AND 逻辑
         var needsAndFilter = !string.IsNullOrEmpty(fileType) && !string.IsNullOrEmpty(globFilter);
         var typeExtensions = needsAndFilter
-            ? (FileTypeExtensions.TryGetValue(fileType ?? "", out var exts)
-                ? exts.Select(e => e.Replace("*", "").TrimStart('.').ToString()).ToHashSet(StringComparer.OrdinalIgnoreCase)
+            ? (FileTypeExtensionMap.TryGetValue(fileType ?? "", out var exts)
+                ? exts.Select(e => e.TrimStart('.').ToString()).ToHashSet(StringComparer.OrdinalIgnoreCase)
                 : [fileType ?? ""])
             : null;
 
@@ -700,8 +643,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
     private bool IsBinaryFile(string filePath)
     {
         // 快速路径：已知二进制扩展名直接跳过
-        var ext = Path.GetExtension(filePath);
-        if (!string.IsNullOrEmpty(ext) && BinaryExtensions.Contains(ext))
+        if (BinaryFileDetector.IsBinaryByExtension(filePath))
         {
             return true;
         }

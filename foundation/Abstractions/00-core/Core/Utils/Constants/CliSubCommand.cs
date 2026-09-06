@@ -2,12 +2,13 @@ namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
 /// CLI 入口级子命令 — 源码生成器自动生成 CliSubCommandConstants + CliSubCommandExtensions
-/// 适用范围: jcc [mcp_call|mcp_list|mcp_schema|mcp_search|mcp_serve|slash_call|slash_list|slash_schema|doctor|schema|remote-control|rc|remote] [子参数]
+/// 适用范围: jcc [mcp_call|mcp_list|mcp_schema|mcp_search|mcp_serve|slash_call|slash_list|slash_schema|doctor|schema|remote-control|rc|remote|rg] [子参数]
 ///
 /// 使用示例:
 /// - FromValue("mcp_call")       → CliSubCommand.McpCall
 /// - FromValue("slash_call")     → CliSubCommand.SlashCall
 /// - FromValue("RC")             → CliSubCommand.RemoteControl (OrdinalIgnoreCase)
+/// - FromValue("rg")             → CliSubCommand.Rg
 /// - CliSubCommand.RemoteControl.ToValue() → "remote-control"
 /// </summary>
 public enum CliSubCommand
@@ -62,4 +63,8 @@ public enum CliSubCommand
 
     /// <summary>医生模式 — jcc doctor [--server] [--port &lt;n&gt;]</summary>
     [EnumValue("doctor")] Doctor,
+
+    /// <summary>ripgrep 兼容搜索 — jcc rg &lt;pattern&gt; [path...] [--type cs] [-g "!**/tests/**"] [-i] [-n] [-A N] [-B N] [-C N] [--head-limit N] [-U] [-F] [--count] [--files-with-matches] [--content] [--timeout N] [--json]</summary>
+    /// <para>ADR: 0070 — 内置 rg 实现，复用 ISearchService.GrepSearchAsync，宽容处理 PowerShell 转义、缺少路径禁止扫盘、超时硬终止。</para>
+    [EnumValue("rg")] Rg,
 }

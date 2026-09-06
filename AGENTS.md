@@ -637,6 +637,75 @@ chcp 65001
 | `doctor [--server] [--port <n>]` | 医生模式 | `jcc doctor --server` |
 | `schema` | 输出 CLI 参数定义 JSON | `jcc schema` |
 | `rc` / `remote-control` | 远程控制 | `jcc rc --session-timeout 60` |
+| `rg <pattern> <path> [path...]` | ripgrep 兼容搜索（**路径必填**，`RgEngine`：mmap + PLINQ 并行 + 零 GC Span 行遍历） | `jcc rg "finally\s*\{" core/ --type cs -g "!**/tests/**" -n` |
+
+**`jcc rg` 内置 ripgrep 兼容搜索**（ADR 0070 — `RgEngine` 独立实现，mmap 零拷贝 + PLINQ 并行 + 零 GC Span 行遍历）：
+
+```powershell
+# 基本搜索（PowerShell 双反斜杠自动修复: \\s → \s）— 路径必填！
+jcc rg "finally\s*\{" core/ --type cs -g "!**/tests/**" -n
+# 忽略大小写 + 上下文
+jcc rg "TODO|FIXME" src/ -i -n -C 2
+# 字面量搜索（非正则）
+jcc rg "Console.WriteLine" app/ -F --content
+# 计数模式
+jcc rg "class\s+\w+Service" core/ --count --type cs
+# JSON 输出
+jcc rg "pattern" app/ --json --head-limit 50
+# 超时控制（默认 30s，最大 300s，超时返回 2）
+jcc rg "pattern" src/ --timeout 60
+# smart-case（模式全小写则忽略大小写，含大写则区分）
+jcc rg "rgengine" app/ -S -n --content
+# word-regexp（词边界匹配）
+jcc rg "RgEngine" app/ -w -n --content
+# only-matching（只输出匹配部分）
+jcc rg "class\s+\w+" app/ -o -n --content
+# replace（替换匹配部分，$1/$2 反向引用）
+jcc rg "RgEngine" app/ -r "XXX" -n --content
+# 按路径排序
+jcc rg "pattern" core/ app/ --sort path -n --content
+# 搜索隐藏文件 + 不遵守 .gitignore
+jcc rg "pattern" .xxx/ --hidden --no-ignore -n --content
+```
+
+| 参数 | 说明 |
+|------|------|
+| `<pattern>` | 正则表达式（PowerShell `\\s` 自动修复为 `\s`） |
+| `<path>` | 搜索路径（**必填！** 禁止无路径搜索，避免扫盘卡死） |
+| `[path...]` | 额外搜索路径（多路径合并去重） |
+| `-t, --type <type>` | 文件类型（cs, js, ts, py, go, rust, java, ...） |
+| `-g, --glob <pattern>` | glob 过滤（`!` 前缀排除，如 `!**/tests/**`，**可多次指定**） |
+| `-i, --ignore-case` | 忽略大小写 |
+| `-S, --smart-case` | 智能大小写（模式全小写则忽略大小写，含大写则区分） |
+| `-w, --word-regexp` | 词边界匹配（`\b<pattern>\b`） |
+| `-n, --line-number` | 显示行号（content 模式默认开启） |
+| `-A/-B/-C <n>` | 匹配行后/前/前后 n 行 |
+| `-o, --only-matching` | 只输出匹配部分（非整行） |
+| `-r, --replace <str>` | 替换匹配部分（支持 `$1`/`$2` 反向引用） |
+| `-U, --multiline` | 多行模式（`.` 匹配换行） |
+| `-F, --fixed-strings` | 字面量搜索（非正则，自动 `Regex.Escape`） |
+| `--content` | 输出匹配行（`file:line:content`） |
+| `--count` | 输出匹配计数 |
+| `--files-with-matches` | 只输出文件名（默认） |
+| `--sort <mode>` | 排序（`path`/`modified`/`none`，默认 `none`） |
+| `--hidden` | 搜索隐藏文件（默认跳过 `.` 开头目录/文件） |
+| `--no-ignore` | 不遵守 .gitignore（默认遵守） |
+| `--head-limit <n>` | 限制结果数（默认 250，0=无限） |
+| `--offset <n>` | 跳过前 n 条结果 |
+| `--timeout <seconds>` | 超时秒数（默认 30，最大 300，超时**硬终止**返回 2） |
+| `--json` | JSON 输出 |
+| `--regex-file <path>` | 从文件读取正则（避免命令行转义问题，配合 `-U` 多行模式） |
+
+**宽容策略（防御工程）**：
+1. **PowerShell 转义自动修复**：`\\s` → `\s`、`\\{` → `\{` 等（检测双反斜杠后跟正则元字符）
+2. **缺少 path 立即报错退出**（禁止无路径搜索，避免 AI 忘记输路径导致扫盘卡死）
+3. **根目录（`C:\` / `/`）拒绝扫盘**
+4. **超时硬终止**：默认 30s，超时返回退出码 2（不会卡死 120s）
+5. **无匹配返回 1**（对齐 rg 退出码）
+6. **二进制文件自动跳过，遵守 .gitignore**（`RgEngine` 内置 `IsBinary` + `.gitignore` 解析）
+7. **mmap + PLINQ + 零 GC**：`RgEngine` 独立实现 — 大文件（>64KB）用 `MemoryMappedFile` 零拷贝读取，PLINQ `AsParallel().WithCancellation()` 并行每文件，Span 行遍历零分配，.NET Regex SIMD 引擎
+
+**退出码**：`0` = 有匹配，`1` = 无匹配/参数错误，`2` = 超时
 
 > 全局参数可在元命令前：`jcc --trust --model gpt-4o mcp_call read_file {"path":"x"}`
 > 旧 `jcc mcp call` 已废弃，提示用 `jcc mcp_call`。旧 `jcc tool/agent/code` 已归档。

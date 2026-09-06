@@ -1,11 +1,11 @@
 
-namespace IO;
+namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
 /// 轻量级 .gitignore 匹配器，对齐 ripgrep 的 .gitignore 处理行为
 /// 支持：否定模式(!)、目录模式(trailing /)、双星号通配符(**)、字符范围([a-z])
 /// </summary>
-internal sealed class GitignoreMatcher
+public sealed class GitignoreMatcher
 {
     private readonly GitignoreRule[] _rules;
 

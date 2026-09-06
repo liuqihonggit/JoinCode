@@ -90,13 +90,13 @@ public sealed partial class ApplyPatchLogic : ServiceEntity
     internal static List<PatchHunk> ParsePatch(string patch)
     {
         var hunks = new List<PatchHunk>();
-        var lines = patch.Split('\n');
+        var ranges = LineSpanIndexer.BuildLineRanges(patch.AsSpan());
         string? currentFile = null;
         PatchHunk? currentHunk = null;
 
-        foreach (var rawLine in lines)
+        foreach (var (start, length) in ranges)
         {
-            var line = rawLine.TrimEnd('\r');
+            var line = patch.Substring(start, length).TrimEnd('\r');
 
             if (line.StartsWith("--- "))
                 continue;

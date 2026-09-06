@@ -142,7 +142,7 @@ public sealed class McpCliCommand
         }
     }
 
-    internal static async Task<int> ExecuteServeAsync(string transport, int port, string hostName, CancellationToken ct)
+    internal static async Task<int> ExecuteServeAsync(string transport, int port, string hostName, CancellationToken ct, int? awaitSeconds = null)
     {
         if (!string.Equals(transport, "stdio", StringComparison.OrdinalIgnoreCase)
             && !string.Equals(transport, "http", StringComparison.OrdinalIgnoreCase))
@@ -158,20 +158,84 @@ public sealed class McpCliCommand
         var server = new JccMcpServer(registry, "jcc-mcp", "1.0.0",
             $"jcc 内部 MCP 服务端 — 暴露 {toolCount} 个工具");
 
+        // --await N: 子命令级超时,优雅退出并输出结构化信息
+        using var serveCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        if (awaitSeconds is { } secs && secs > 0)
+        {
+            serveCts.CancelAfter(TimeSpan.FromSeconds(secs));
+            TerminalHelper.WriteLine($"{TerminalColors.Info}--await {secs}s{AnsiStyleConstants.Reset} 超时计时器已启动");
+        }
+
         if (string.Equals(transport, "stdio", StringComparison.OrdinalIgnoreCase))
         {
             TerminalHelper.WriteLine($"{TerminalColors.Info}jcc mcp serve{AnsiStyleConstants.Reset} stdio 模式启动，暴露 {toolCount} 个工具");
-            await server.RunAsync(ct).ConfigureAwait(false);
+            try
+            {
+                await server.RunAsync(serveCts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (serveCts.Token.IsCancellationRequested)
+            {
+                WriteServeExitReport("stdio", toolCount, 0, 0, TimeSpan.Zero);
+            }
             return 0;
         }
 
+        // HTTP 模式: 先尝试 HttpListener,失败降级 TcpListener(纵深防御)
         var prefix = $"http://{hostName}:{port}/mcp/";
-        var httpServer = new McpHttpServer(server, prefix, statelessMode: true);
-        TerminalHelper.WriteLine($"{TerminalColors.Info}jcc mcp serve{AnsiStyleConstants.Reset} HTTP 模式启动: {prefix}，暴露 {toolCount} 个工具");
+        var startTime = DateTime.UtcNow;
+        McpTcpServer? tcpServer = null;
+        McpHttpServer? httpServer = null;
+        var usedTcp = false;
+
+        try
+        {
+            httpServer = new McpHttpServer(server, prefix, statelessMode: true);
+            httpServer.Start();
+            TerminalHelper.WriteLine($"{TerminalColors.Info}jcc mcp serve{AnsiStyleConstants.Reset} HTTP 模式启动(HttpListener): {prefix}，暴露 {toolCount} 个工具");
+        }
+        catch (HttpListenerException)
+        {
+            // HttpListener 不可用(沙箱/无 HTTP.sys) → 降级 TcpListener
+            httpServer?.Dispose();
+            httpServer = null;
+            tcpServer = new McpTcpServer(server, hostName, port, statelessMode: true);
+            usedTcp = true;
+            TerminalHelper.WriteLine($"{TerminalColors.Info}jcc mcp serve{AnsiStyleConstants.Reset} HTTP 模式启动(TcpListener 降级): http://{hostName}:{port}/mcp/，暴露 {toolCount} 个工具");
+        }
+
         TerminalHelper.WriteLine("按 Ctrl+C 停止");
-        await httpServer.RunAsync(ct).ConfigureAwait(false);
-        httpServer.Dispose();
+
+        try
+        {
+            if (usedTcp)
+            {
+                await tcpServer!.RunAsync(serveCts.Token).ConfigureAwait(false);
+            }
+            else
+            {
+                await httpServer!.RunAsync(serveCts.Token).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException) when (serveCts.Token.IsCancellationRequested)
+        {
+            // 优雅退出
+        }
+
+        var uptime = DateTime.UtcNow - startTime;
+        var totalReqs = tcpServer?.TotalRequests ?? 0;
+        var totalErrs = tcpServer?.TotalErrors ?? 0;
+        WriteServeExitReport(usedTcp ? "tcp" : "http", toolCount, totalReqs, totalErrs, uptime);
+
+        tcpServer?.Dispose();
+        httpServer?.Dispose();
         return 0;
+    }
+
+    /// <summary>mcp_serve 退出时输出结构化 JSON 报告</summary>
+    private static void WriteServeExitReport(string transport, int toolCount, int totalRequests, int totalErrors, TimeSpan uptime)
+    {
+        var report = $$"""{"transport":"{{transport}}","toolCount":{{toolCount}},"totalRequests":{{totalRequests}},"totalErrors":{{totalErrors}},"uptimeSeconds":{{uptime.TotalSeconds:F2}}}""";
+        TerminalHelper.WriteLine($"{TerminalColors.Info}mcp_serve 退出报告{AnsiStyleConstants.Reset}: {report}");
     }
 
     internal static async Task<int> WithHostAsync(Func<IServiceProvider, Task<int>> action, string? vendor = null, string? model = null, CancellationToken ct = default)

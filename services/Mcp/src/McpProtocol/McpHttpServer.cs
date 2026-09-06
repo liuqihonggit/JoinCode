@@ -32,11 +32,17 @@ public sealed class McpHttpServer : ServiceEntity
         _listener.Prefixes.Add(prefix);
     }
 
+    /// <summary>启动监听(不进入循环)— 用于探测 HttpListener 是否可用</summary>
+    public void Start()
+    {
+        _listener.Start();
+    }
+
     /// <summary>运行服务端,直到 cancellationToken 取消</summary>
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        _listener.Start();
+        if (!_listener.IsListening) _listener.Start();
 
         while (!_cts.Token.IsCancellationRequested)
         {

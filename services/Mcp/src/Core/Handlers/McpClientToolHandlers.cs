@@ -14,11 +14,20 @@ public partial class McpClientToolHandlers : ServiceEntity
     private readonly McpClientToolDeps _deps;
     private int _asyncDisposed;
 
-    public McpClientToolHandlers(McpClientToolDeps? deps = null, ILogger<McpClientToolHandlers>? logger = null)
+    public McpClientToolHandlers(McpClientToolDeps? deps = null, ILogger<McpClientToolHandlers>? logger = null, IFileSystem? fileSystem = null)
         : base(nameof(McpClientToolHandlers))
     {
         _deps = deps ?? new McpClientToolDeps();
         _logger = logger;
+        _persistenceFs = fileSystem;
+        _stateFilePath = fileSystem is not null ? GetStateFilePath() : null;
+
+        var entries = LoadState();
+        if (entries is not null && entries.Count > 0)
+        {
+            _restoreCts = new CancellationTokenSource();
+            _restoreTask = RestoreConnectionsAsync(entries);
+        }
     }
 
     /// <summary>
@@ -114,7 +123,11 @@ public partial class McpClientToolHandlers : ServiceEntity
             }
 
             IMcpClient client;
-            if (_deps.ClientFactory is not null)
+            if (config.TransportType == McpClientTransportType.Stdio)
+            {
+                client = new McpStdioClient(config, logger: _logger);
+            }
+            else if (_deps.ClientFactory is not null)
             {
                 client = _deps.ClientFactory.CreateClient(config, enableFallback: true, logger: _logger);
             }
@@ -122,7 +135,6 @@ public partial class McpClientToolHandlers : ServiceEntity
             {
                 client = config.TransportType switch
                 {
-                    McpClientTransportType.Stdio => new McpStdioClient(config, logger: _logger),
                     McpClientTransportType.Http => new McpHttpClient(config, logger: _logger),
                     McpClientTransportType.WebSocket => new McpWebSocketClient(config, logger: _logger),
                     _ => throw new NotSupportedException(L.T(StringKey.UnsupportedTransportType, transport_type))
@@ -139,6 +151,14 @@ public partial class McpClientToolHandlers : ServiceEntity
                     return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionAlreadyExists, connection_name)).Build();
                 }
                 _clients[connection_name] = client;
+                _connectionConfigs[connection_name] = new McpConnectionEntry
+                {
+                    Name = connection_name,
+                    Endpoint = endpoint,
+                    TransportType = transport_type,
+                    UseOAuth = use_oauth,
+                    AuthName = auth_name
+                };
             }
 
             if (_deps.ElicitationHandler is not null)
@@ -176,6 +196,11 @@ public partial class McpClientToolHandlers : ServiceEntity
                 response.AppendLine(L.T(StringKey.SupportsPrompts));
             }
 
+            if (!_isRestoring)
+            {
+                await SaveStateAsync(cancellationToken).ConfigureAwait(false);
+            }
+
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -208,10 +233,16 @@ public partial class McpClientToolHandlers : ServiceEntity
 
             await client.DisconnectAsync(cancellationToken);
             _clients.Remove(connection_name);
+            _connectionConfigs.TryRemove(connection_name, out _);
 
             if (_deps.ToolRegistry is not null)
             {
                 await _deps.ToolRegistry.UnregisterRemoteClientAsync(connection_name, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (!_isRestoring)
+            {
+                await SaveStateAsync(cancellationToken).ConfigureAwait(false);
             }
 
             return ToolResultBuilder.Success()
@@ -244,6 +275,7 @@ public partial class McpClientToolHandlers : ServiceEntity
             {
                 await client.DisconnectAsync(cancellationToken).ConfigureAwait(false);
                 _clients.Remove(connection_name);
+                _connectionConfigs.TryRemove(connection_name, out _);
 
                 if (_deps.ToolRegistry is not null)
                 {
@@ -254,6 +286,11 @@ public partial class McpClientToolHandlers : ServiceEntity
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "禁用 MCP 服务器 {ServerName} 时断开连接失败", connection_name);
+        }
+
+        if (!_isRestoring)
+        {
+            await SaveStateAsync(cancellationToken).ConfigureAwait(false);
         }
 
         return disabled
@@ -576,6 +613,7 @@ public partial class McpClientToolHandlers : ServiceEntity
 
     private async Task<IMcpClient?> GetClientAsync(string connectionName, CancellationToken cancellationToken)
     {
+        await WaitForRestoreAsync().ConfigureAwait(false);
         using var guard = await _clientLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_clientLock.Name}' 等待超时");
             _clients.TryGetValue(connectionName, out var client);
             return client;
@@ -592,9 +630,17 @@ public partial class McpClientToolHandlers : ServiceEntity
         };
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Threading", "VSTHRD003:Avoid awaiting foreign tasks", Justification = "后台恢复任务在构造函数启动，DisposeAsync 中 await 是安全的，非 UI 线程无 SynchronizationContext")]
     public override async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1) return;
+
+        _restoreCts?.Cancel();
+        if (_restoreTask is not null)
+        {
+            try { await _restoreTask.ConfigureAwait(false); }
+            catch (Exception ex) when (ex is not OperationCanceledException) { _logger?.LogWarning(ex, "等待 MCP 连接恢复任务结束时异常"); }
+        }
 
         var tasks = _clients.Values.Select(client => client.DisposeAsync().AsTask());
         await Task.WhenAll(tasks).ConfigureAwait(false);

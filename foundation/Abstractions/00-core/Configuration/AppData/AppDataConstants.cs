@@ -212,4 +212,31 @@ public static class AppDataConstants
         get => _paths.ToolResultsFolderName;
         set => _paths = _paths with { ToolResultsFolderName = value };
     }
+
+    /// <summary>
+    /// MCP 连接配置目录名（位于 AppDataFolder 下，用于跨进程共享 MCP 连接状态）
+    /// </summary>
+    public static string McpFolderName
+    {
+        get => _paths.McpFolderName;
+        set => _paths = _paths with { McpFolderName = value };
+    }
+
+    /// <summary>
+    /// MCP 连接配置文件名
+    /// </summary>
+    public static string McpConnectionsFileName
+    {
+        get => _paths.McpConnectionsFileName;
+        set => _paths = _paths with { McpConnectionsFileName = value };
+    }
+
+    /// <summary>
+    /// MCP 认证配置文件名
+    /// </summary>
+    public static string McpAuthFileName
+    {
+        get => _paths.McpAuthFileName;
+        set => _paths = _paths with { McpAuthFileName = value };
+    }
 }

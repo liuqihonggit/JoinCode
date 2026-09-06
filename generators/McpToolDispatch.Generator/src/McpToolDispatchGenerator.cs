@@ -403,7 +403,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
             var isSimpleElement = simplifiedElement is "string" or "string?" or "int" or "int?" or "long" or "long?" or "double" or "double?" or "float" or "float?" or "bool" or "bool?";
             var elementExtractor = simplifiedElement switch
             {
-                "string" or "string?" => "e.GetString() ?? \"\"",
+                "string" or "string?" => $"{JsonElementToStringExpr("e")} ?? \"\"",
                 "int" or "int?" => "e.GetInt32()",
                 "long" or "long?" => "e.GetInt64()",
                 "double" or "double?" => "e.GetDouble()",
@@ -412,7 +412,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
                 _ => isDictElement
                     ? "e.EnumerateObject().ToDictionary(p => p.Name, p => p.Value)"
                     : isSimpleElement
-                        ? "e.GetString() ?? \"\""
+                        ? $"{JsonElementToStringExpr("e")} ?? \"\""
                         : $"({elementType.TrimEnd('?')})System.Text.Json.JsonSerializer.Deserialize(e.GetRawText(), typeof({elementType.TrimEnd('?')}), JoinCode.Abstractions.Models.McpToolJsonContext.Default)!"
             };
             var collectionMethod = isListType ? "ToList()" : "ToArray()";
@@ -437,13 +437,14 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
 
         if (baseType == "string")
         {
+            var elExpr = JsonElementToStringExpr($"__{name}El");
             if (isNullableType)
-                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? (__{name}El.ValueKind == System.Text.Json.JsonValueKind.String ? __{name}El.GetString() : __{name}El.GetRawText()) : null";
+                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? {elExpr} : null";
             if (param.HasDefaultValue && param.DefaultValue is not null)
-                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? (__{name}El.ValueKind == System.Text.Json.JsonValueKind.String ? __{name}El.GetString() : __{name}El.GetRawText()) ?? \"{EscapeString(param.DefaultValue)}\" : \"{EscapeString(param.DefaultValue)}\"";
+                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? {elExpr} ?? \"{EscapeString(param.DefaultValue)}\" : \"{EscapeString(param.DefaultValue)}\"";
             if (!param.Required)
-                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? (__{name}El.ValueKind == System.Text.Json.JsonValueKind.String ? __{name}El.GetString() : __{name}El.GetRawText()) ?? \"\" : \"\"";
-            return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? (__{name}El.ValueKind == System.Text.Json.JsonValueKind.String ? __{name}El.GetString() : __{name}El.GetRawText()) ?? \"\" : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";
+                return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? {elExpr} ?? \"\" : \"\"";
+            return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? {elExpr} ?? \"\" : throw new System.ArgumentException(\"Missing required parameter: {snakeName}\")";
         }
         if (baseType == "int")
         {
@@ -504,8 +505,15 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator
         if (!param.Required)
             return $"default({typeName})";
 
-        return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? __{name}El.GetString() ?? \"\" : \"\"";
+        return $"args.TryGetValue(\"{snakeName}\", out var __{name}El) ? {JsonElementToStringExpr($"__{name}El")} ?? \"\" : \"\"";
     }
+
+    /// <summary>
+    /// 生成 JsonElement → string? 转换表达式，处理所有 ValueKind（String/True/False/Number/Null/Object/Array）。
+    /// 对齐 McpCommand.ParseValueToJsonElement — "true" 传入时 JsonElement.ValueKind==True，GetString() 会抛异常。
+    /// </summary>
+    private static string JsonElementToStringExpr(string varName)
+        => $"({varName}.ValueKind == System.Text.Json.JsonValueKind.String ? {varName}.GetString() : {varName}.ValueKind == System.Text.Json.JsonValueKind.Null ? null : {varName}.GetRawText())";
 
     /// <summary>
     /// 判断类型名是否为 Dictionary&lt;string, JsonElement&gt;

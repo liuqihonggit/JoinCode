@@ -88,6 +88,7 @@ global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using System.Collections.Frozen;
 global using System.IO;
 global using System.Net;
+global using System.Net.Sockets;
 global using System.Net.Http.Headers;
 global using System.Security.Cryptography;
 global using System.Text;

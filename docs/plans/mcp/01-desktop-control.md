@@ -127,7 +127,7 @@ $jcc = "D:\project\w1\artifacts\bin\JoinCode\Release\net10.0\jcc.exe"
 
 | 工具 | 问题描述 | 根因 | 修复 |
 |------|----------|------|------|
-| `screenshot` | 空输出(仅"(无文本输出)") | 可能返回二进制base64但mcp_call未正确输出 | 待修复 |
+| `screenshot` | ~~空输出~~ → 已修复 | `OutputResult` 只取 `GetFirstText()`,忽略 `WithImage` 图片数据 | `McpCommand.OutputResult` 遍历全部 Content,输出图片摘要+json完整base64 |
 | `detect_ui_elements` | "LLM 未返回有效识别结果" | 依赖LLM API,无API Key时失败 | 需配置API Key后重测 |
 
 ### 缺参数工具 (24个) — 预期行为
@@ -139,7 +139,7 @@ $jcc = "D:\project\w1\artifacts\bin\JoinCode\Release\net10.0\jcc.exe"
 
 ### 待修复问题
 
-1. **`screenshot` 空输出** — 应返回 base64 PNG 数据,但 mcp_call 输出为空。需检查 screenshot 工具返回值与 mcp_call 输出链路
+1. ~~**`screenshot` 空输出**~~ → ✅ 已修复: `McpCommand.OutputResult` 现在遍历全部 Content,图片输出摘要 `[图片: image/png, N 字节 base64 ≈ M 字节]`,json 模式输出完整 base64
 2. **错误输出格式** — 错误信息输出到 stderr 而非 JSON 格式,需确认是否为设计决策
 
 ## 交接说明

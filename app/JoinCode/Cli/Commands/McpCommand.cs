@@ -277,22 +277,75 @@ public sealed class McpCliCommand
     {
         if (json)
         {
-            var text = result.GetFirstText() ?? string.Empty;
+            // json 模式: 输出完整 content 数组(包括文本和图片 base64 数据)
             var sb = new StringBuilder();
             sb.Append("{\"isError\":");
             sb.Append(result.IsError ? "true" : "false");
-            sb.Append(",\"text\":\"");
-            AppendEscapedJson(sb, text);
-            sb.Append("\"}");
+            sb.Append(",\"content\":[");
+            for (int i = 0; i < result.Content.Count; i++)
+            {
+                if (i > 0) sb.Append(',');
+                var c = result.Content[i];
+                sb.Append("{\"type\":\"");
+                sb.Append(c.Type switch
+                {
+                    ToolContentType.Image => "image",
+                    ToolContentType.Resource => "resource",
+                    ToolContentType.Error => "error",
+                    ToolContentType.Document => "document",
+                    _ => "text",
+                });
+                sb.Append('"');
+                if (!string.IsNullOrEmpty(c.Text))
+                {
+                    sb.Append(",\"text\":\"");
+                    AppendEscapedJson(sb, c.Text);
+                    sb.Append('"');
+                }
+                if (!string.IsNullOrEmpty(c.Data))
+                {
+                    sb.Append(",\"data\":\"");
+                    AppendEscapedJson(sb, c.Data);
+                    sb.Append("\",\"mimeType\":\"");
+                    AppendEscapedJson(sb, c.MimeType ?? "image/png");
+                    sb.Append('"');
+                }
+                sb.Append('}');
+            }
+            sb.Append("]}");
             System.Console.WriteLine(sb.ToString());
         }
         else
         {
-            var text = result.GetFirstText() ?? "(无文本输出)";
-            if (result.IsError)
-                TerminalHelper.WriteError(text);
-            else
-                TerminalHelper.WriteLine(text);
+            // 非 json 模式: 遍历所有 Content,输出文本 + 图片摘要
+            var hasOutput = false;
+            foreach (var c in result.Content)
+            {
+                if (!string.IsNullOrEmpty(c.Text))
+                {
+                    if (result.IsError)
+                        TerminalHelper.WriteError(c.Text);
+                    else
+                        TerminalHelper.WriteLine(c.Text);
+                    hasOutput = true;
+                }
+                else if (!string.IsNullOrEmpty(c.Data))
+                {
+                    // 图片内容: 输出摘要信息(base64 太长不直接输出到控制台)
+                    var mimeType = c.MimeType ?? "unknown";
+                    var decodedSize = c.Data.Length * 3 / 4;
+                    TerminalHelper.WriteLine($"[图片: {mimeType}, {c.Data.Length} 字节 base64 ≈ {decodedSize} 字节]");
+                    hasOutput = true;
+                }
+            }
+            if (!hasOutput)
+            {
+                var fallback = "(无文本输出)";
+                if (result.IsError)
+                    TerminalHelper.WriteError(fallback);
+                else
+                    TerminalHelper.WriteLine(fallback);
+            }
         }
         return result.IsError ? 1 : 0;
     }

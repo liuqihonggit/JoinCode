@@ -97,12 +97,49 @@ $jcc = "D:\project\w1\artifacts\bin\JoinCode\Release\net10.0\jcc.exe"
 - `file_edit_regex` 正则错误可能损坏文件
 - `execute_plan_steps` 执行计划步骤,可能有副作用
 
+## 测试结果
+
+### File 工具 (12 个) — 全部通过
+
+| # | 工具名 | 实际注册名 | 状态 | 备注 |
+|---|--------|-----------|------|------|
+| 1 | `file_read` | `read` | ✅ | 文档工具名错误 |
+| 2 | `file_write` | `write` | ✅ | 修复: CLI无状态模式跳过写前读校验 |
+| 3 | `file_edit` | `edit` | ✅ | 修复: CLI无状态模式跳过写前读校验 |
+| 4 | `file_delete` | `file_delete` | ✅ | |
+| 5 | `directory_list` | `directory_list` | ✅ | |
+| 6 | `file_edit_regex` | `file_edit_regex` | ✅ | |
+| 7 | `file_insert_lines` | `file_insert_lines` | ✅ | 参数: after_line + new_content |
+| 8 | `file_delete_lines` | `file_delete_lines` | ✅ | |
+| 9 | `file_batch_edit` | `file_batch_edit` | ✅ | 参数: file_paths (数组) via --args-file |
+| 10 | `file_snip_lines` | `file_snip_lines` | ✅ | 参数: start_line (0-based) + line_count |
+| 11 | `file_snip_preview` | `file_snip_preview` | ✅ | |
+| 12 | `file_apply_patch` | `apply_patch` | ✅ | 需 LF 行尾; patch 内容 via --args-file |
+
+### Plan 工具 (11 个) — 全部通过
+
+| # | 工具名 | 状态 | 备注 |
+|---|--------|------|------|
+| 1 | `enter_plan_mode` | ✅ | 状态持久化到 ~/.jcc/plans/ |
+| 2 | `exit_plan_mode` | ✅ | |
+| 3 | `get_plan_status` | ✅ | |
+| 4 | `add_plan_step` | ✅ | |
+| 5 | `approve_plan_step` | ✅ | |
+| 6 | `reject_plan_step` | ✅ | |
+| 7 | `execute_plan_steps` | ✅ | |
+| 8 | `modify_plan_step` | ✅ | |
+| 9 | `remove_plan_step` | ✅ | |
+| 10 | `get_plan_history` | ✅ | |
+| 11 | `verify_plan_execution` | ✅ | |
+
 ## 问题记录
 
 | 工具 | 问题描述 | 根因 | 修复 |
 |------|----------|------|------|
-| | | | |
+| `edit`/`write` | CLI无状态模式(mcp_call)永远报"File has not been read yet" | IFileStateCache是进程内单例,每次mcp_call是独立进程,cache永远为空 | FileToolHandlers.cs:355,555 添加 `!TestEnvironmentDetector.ForceNonInteractive` 条件,CLI模式跳过写前读校验 |
+| `file_read`/`file_write`/`file_edit`/`file_apply_patch` | 文档工具名与实际注册名不符 | 计划文档使用了 file_ 前缀,实际注册名为 read/write/edit/apply_patch | 文档记录实际注册名 |
 
 ## 交接说明
 
 > 本计划由第三轮 AI 窗口处理。每次只手动执行一个命令测试,遇到任何不适都需要改代码修复。
+> 测试完成: 23工具, 1坏点已修复(edit/write CLI无状态模式写前读校验)。

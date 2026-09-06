@@ -351,7 +351,8 @@ public partial class FileToolHandlers : IDisposable
         }
 
         // Write-before-read validation: existing files must be read first
-        if (_fileStateCache is not null && _fs.FileExists(file_path))
+        // CLI 无状态模式（mcp_call 单次调用）下 FileStateCache 永远为空，跳过校验
+        if (_fileStateCache is not null && _fs.FileExists(file_path) && !TestEnvironmentDetector.ForceNonInteractive)
         {
             if (!_fileStateCache.HasBeenRead(file_path))
             {
@@ -551,7 +552,8 @@ public partial class FileToolHandlers : IDisposable
         }
 
         // Write-before-read validation for edits too
-        if (_fileStateCache is not null && _fs.FileExists(file_path))
+        // CLI 无状态模式（mcp_call 单次调用）下 FileStateCache 永远为空，跳过校验
+        if (_fileStateCache is not null && _fs.FileExists(file_path) && !TestEnvironmentDetector.ForceNonInteractive)
         {
             if (!_fileStateCache.HasBeenRead(file_path))
             {

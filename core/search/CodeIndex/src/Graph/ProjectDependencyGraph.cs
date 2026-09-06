@@ -24,7 +24,7 @@ public sealed class ProjectDependencyGraph : IProjectDependencyGraph
     {
         ArgumentNullException.ThrowIfNull(projectPath);
 
-        var normalized = NormalizePath(projectPath);
+        var normalized = ResolveProjectPath(projectPath);
         using var scope = _store.EnterReadLock();
         var result = _store.ProjectRefs.TryGetValue(normalized, out var list)
             ? list.ToList()
@@ -36,7 +36,7 @@ public sealed class ProjectDependencyGraph : IProjectDependencyGraph
     {
         ArgumentNullException.ThrowIfNull(projectPath);
 
-        var normalized = NormalizePath(projectPath);
+        var normalized = ResolveProjectPath(projectPath);
         using var scope = _store.EnterReadLock();
         var result = _store.ProjectRefs.Values
             .SelectMany(v => v)
@@ -90,7 +90,7 @@ public sealed class ProjectDependencyGraph : IProjectDependencyGraph
     {
         ArgumentNullException.ThrowIfNull(projectPath);
 
-        var normalized = NormalizePath(projectPath);
+        var normalized = ResolveProjectPath(projectPath);
         using var scope = _store.EnterReadLock();
         var result = _store.NuGetRefs.TryGetValue(normalized, out var list)
             ? list.ToList()
@@ -153,5 +153,32 @@ public sealed class ProjectDependencyGraph : IProjectDependencyGraph
     private static string NormalizePath(string path)
     {
         return path.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
+    }
+
+    /// <summary>
+    /// 解析项目路径: 如果是相对路径,在 store 中查找以该路径结尾的绝对路径; 否则规范化
+    /// </summary>
+    private string ResolveProjectPath(string projectPath)
+    {
+        var normalized = NormalizePath(projectPath);
+
+        // 绝对路径直接返回
+        if (Path.IsPathRooted(normalized))
+        {
+            return normalized;
+        }
+
+        // 相对路径: 在 store 中查找以该路径结尾的项目
+        using var scope = _store.EnterReadLock();
+        foreach (var key in _store.Projects.Keys)
+        {
+            var normalizedKey = NormalizePath(key);
+            if (normalizedKey.EndsWith(normalized, StringComparison.OrdinalIgnoreCase))
+            {
+                return normalizedKey;
+            }
+        }
+
+        return normalized;
     }
 }

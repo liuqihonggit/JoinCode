@@ -153,9 +153,10 @@ internal sealed class CsprojParser
         foreach (var propsFile in propsFiles)
         {
             var propsDir = Path.GetDirectoryName(propsFile) ?? string.Empty;
-            props["MSBuildThisFileDirectory"] = propsDir.EndsWith(Path.DirectorySeparatorChar)
+            var thisFileDir = propsDir.EndsWith(Path.DirectorySeparatorChar)
                 ? propsDir
                 : propsDir + Path.DirectorySeparatorChar;
+            props["MSBuildThisFileDirectory"] = thisFileDir;
 
             try
             {
@@ -167,6 +168,9 @@ internal sealed class CsprojParser
                         var value = elem.Value.Trim();
                         if (!string.IsNullOrEmpty(value) && !value.Contains('<') && !value.Contains('>'))
                         {
+                            // 立即替换 $(MSBuildThisFileDirectory) 为当前文件目录
+                            // 避免后续文件覆盖 MSBuildThisFileDirectory 后导致回溯解析错误
+                            value = value.Replace("$(MSBuildThisFileDirectory)", thisFileDir, StringComparison.OrdinalIgnoreCase);
                             props[elem.Name.LocalName] = value;
                         }
                     }

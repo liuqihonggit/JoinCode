@@ -2,7 +2,7 @@
 
 > 目标：将 try-finally + Dispose/DisposeAsync 模式统一改为 `using`/`await using` 单行释放
 > 原则：每改一处 → 编译 → 提交，渐进式推进
-> 状态：**全部完成** — 15 处已改 + 9 处保持现状（有特别理由） + 3944 单元测试通过
+> 状态：**全部完成** — 30 处已改 + 5 处保持现状（Win32 Handle 局部变量不违规） + 4056 单元测试通过
 
 ## 第一批：明确可改（13 处，零风险纯替换）✅ 全部完成
 
@@ -34,29 +34,44 @@
 | ⑫ | `services/Mcp/src/Client/Transport/McpFallbackClient.cs:75` | guard | ✅ |
 | ⑬ | `services/Mcp/src/Client/Transport/McpFallbackClient.cs:94` | guard1 | ✅ |
 
-## 第二批：有条件可改（8 处）
+## 第二批：null 条件 Dispose → using（C#8+ 支持 null）✅ 全部完成
 
-| # | 文件:行号 | 问题 | 状态 | 保持现状理由 |
-|---|-----------|------|------|-------------|
-| ⑭ | `app/JoinCode/Program.cs:116` | doctorClient 条件创建可空 | ⏸️ | null 安全：`await using` 不支持 null，需引入哨兵类型，收益小 |
-| ⑮ | `infrastructure/Infrastructure/Plugins/Services/PluginManager.cs:193` | span 可空 | ⏸️ | ITelemetrySpan? 类型不兼容 `await using`（后续需调 `.SetTag`） |
-| ⑯ | `infrastructure/Infrastructure/Plugins/Services/PluginManager.cs:293` | span 可空 | ⏸️ | 同 ⑮ |
-| ⑰ | `infrastructure/Infrastructure/IO/Services/FileOps/ThrottledFileService.cs:80` | span 可空（4处） | ⏸️ | 同 ⑮ |
-| ⑱ | `infrastructure/Infrastructure/Http/ResilientHttpExecutor.cs:75` | totalTimeoutCts 条件创建（4处） | ⏸️ | null 安全：条件创建的 CTS，`using` 不支持 null |
+> **关键发现**：C# 8+ 的 `using`/`await using` 声明支持 null 值，编译器自动生成 null 检查。
+> 之前跳过的 5 处"null 条件 Dispose"理由不成立，全部可改。
+
+| # | 文件:行号 | 资源 | 状态 | 改造方式 |
+|---|-----------|------|------|----------|
+| ⑭ | `app/JoinCode/Program.cs:116` | doctorClient | ✅ | `await using var doctorClient = ... ?: null;` |
+| ⑮ | `infrastructure/Infrastructure/Plugins/Services/PluginManager.cs:193` | span | ✅ | `await using var span = ...;` |
+| ⑯ | `infrastructure/Infrastructure/Plugins/Services/PluginManager.cs:293` | span | ✅ | 同 ⑮ |
+| ⑰ | `infrastructure/Infrastructure/IO/Services/FileOps/ThrottledFileService.cs:80` | span（4处） | ✅ | 同 ⑮ |
+| ⑱ | `infrastructure/Infrastructure/Http/ResilientHttpExecutor.cs:75` | totalTimeoutCts（4处） | ✅ | `using var totalTimeoutCts = ...;` |
 | ⑲ | `core/execution/Hands/src/ToolHandlers/Handlers/DesktopTools/ProcessToolHandlers.cs:74` | foreach 迭代变量 | ✅ | 改为 for 循环 + `using var p = targets[i]` |
-| ⑳ | `core/execution/Hands/src/Network/MobileConnectService.cs:115` | 参数变量 | ⏸️ | 参数变量：需重构调用链，调用方用 using 管理 client 生命周期 |
-| ㉑ | `core/ai/Agents/src/Doctor/DoctorTcpServer.cs:195` | 参数变量 + try-catch 吞异常 | ⏸️ | 参数变量 + Close 包在 try-catch 内防二次异常 |
 
-## 第三批：Win32 Handle → SafeHandle（6 处）
+## 第三批：谁申请谁释放（参数违规）✅ 全部完成
 
-| # | 文件:行号 | Handle 类型 | 状态 | 保持现状理由 |
-|---|-----------|-------------|------|-------------|
-| ㉒ | `infrastructure/Infrastructure/Windows/JobObject/WindowsJobObjectSandbox.cs:114` | nint 进程句柄 | ✅ | 用 BCL `SafeProcessHandle` 代替裸 nint |
-| ㉓ | `infrastructure/Infrastructure/IO/Services/Terminal/Core/TerminalCaptureService.cs:368` | int POSIX fd | ⏸️ | Linux 代码（项目主要 Windows），需创建 SafeFdHandle |
-| ㉔ | `core/execution/Hands/src/ToolHandlers/Handlers/DesktopTools/DesktopOverlayToolHandlers.cs:49` | IntPtr GDI DC | ⏸️ | ReleaseDC 需多参数（hWnd + hDC），SafeHandle 难封装 |
-| ㉕ | `core/execution/Hands/src/Desktop/PulseOverlay/DesktopPulseOverlay.cs:178` | PAINTSTRUCT | ⏭️ | EndPaint 需 `ref ps`，SafeHandle 难携带状态 |
-| ㉖ | `core/execution/Hands/src/Desktop/GdiScreenCaptureService.cs:81` | GCHandle struct | ⏭️ | struct 不实现 IDisposable，无法 using |
-| ㉗ | `core/execution/Hands/src/Desktop/GdiScreenCaptureService.cs:98` | 多 GDI 句柄交错 | ⏭️ | 多资源交错释放，需多个 SafeHandle 协作 |
+> **原则**：谁申请谁释放。方法参数不应该在被调用方法内部释放。
+> fire-and-forget 场景：调用方用 async lambda + using 管理资源所有权。
+
+| # | 文件 | 违规参数 | 调用方 | 状态 | 改造方式 |
+|---|------|----------|--------|------|----------|
+| ⑳ | `core/execution/Hands/src/Network/MobileConnectService.cs` | client (TcpClient) | AcceptLoopAsync | ✅ | 调用方 `using var client` + `await`（串行处理） |
+| ㉑ | `core/ai/Agents/src/Doctor/DoctorTcpServer.cs` | tcpClient (TcpClient) | RunAcceptLoopAsync | ✅ | `Task.Run` async lambda + `using var c = tcpClient` |
+| ㉒ | `core/ai/Agents/src/Coordinator/Fork/ForkSubAgentManager.cs` | forkReleaser (IDisposable?) | ForkAsync | ✅ | async lambda + `using var r = capturedReleaser` |
+| ㉓ | `core/search/CodeIndex/src/Incremental/FileWatcherIntegrationRegistry.cs` | watcher (IAsyncDisposable) | OnRepoUnregistered | ✅ | `Task.Run` async lambda + `await using var w` |
+
+## 第四批：Win32 Handle → SafeHandle（6 处）
+
+| # | 文件:行号 | Handle 类型 | 状态 | 说明 |
+|---|-----------|-------------|------|------|
+| ㉔ | `infrastructure/Infrastructure/Windows/JobObject/WindowsJobObjectSandbox.cs:114` | nint 进程句柄 | ✅ | 用 BCL `SafeProcessHandle` 代替裸 nint |
+| ㉕ | `infrastructure/Infrastructure/IO/Services/Terminal/Core/TerminalCaptureService.cs:368` | int POSIX fd | ⏸️ | 局部变量不违规，Linux 代码，需创建 SafeFdHandle |
+| ㉖ | `core/execution/Hands/src/ToolHandlers/Handlers/DesktopTools/DesktopOverlayToolHandlers.cs:49` | IntPtr GDI DC | ⏸️ | 局部变量不违规，ReleaseDC 需多参数 |
+| ㉗ | `core/execution/Hands/src/Desktop/PulseOverlay/DesktopPulseOverlay.cs:178` | PAINTSTRUCT | ⏭️ | 局部变量不违规，EndPaint 需 `ref ps` |
+| ㉘ | `core/execution/Hands/src/Desktop/GdiScreenCaptureService.cs:81` | GCHandle struct | ⏭️ | 局部变量不违规，struct 不实现 IDisposable |
+| ㉙ | `core/execution/Hands/src/Desktop/GdiScreenCaptureService.cs:98` | 多 GDI 句柄交错 | ⏭️ | 局部变量不违规，多资源交错释放 |
+
+> **注**：㉕㉖㉗㉘㉙ 都是局部变量在 finally 里释放，不违反"谁申请谁释放"原则。
 
 ## 已完成记录
 
@@ -68,31 +83,46 @@
 | `dcc7f34e5` | 全局 JobObject 防护子进程孤儿化 + SSH 转发心跳保活 |
 | `717b9d980` | try-finally+Dispose 统一改 using（第一批 13 处） |
 | `ac5d85b0b` | ProcessToolHandlers foreach → for+using（第二批 ⑲） |
-| `ed98fd8f2` | WindowsJobObjectSandbox SafeProcessHandle（第三批 ㉒） |
+| `ed98fd8f2` | WindowsJobObjectSandbox SafeProcessHandle（第三批 ㉔） |
+| `c8bfbbdd2` | doctorClient try-finally → await using（C#8+ 支持 null） |
+| `c18f11efc` | PluginManager span try-finally → await using（2处） |
+| `d7109d88c` | ThrottledFileService span try-finally → await using（4处） |
+| `1a9cafbe7` | ResilientHttpExecutor totalTimeoutCts try-finally → using（4处） |
+| `b596402ee` | MobileConnectService 谁申请谁释放 — 调用方 using 管理 client |
+| `3eab42dc2` | DoctorTcpServer 谁申请谁释放 — lambda using 管理 tcpClient |
+| `329a93bf4` | ForkSubAgentManager 谁申请谁释放 — lambda using 管理 releaser |
+| `cae42c9a4` | FileWatcherIntegrationRegistry 谁申请谁释放 — lambda await using 管理 watcher |
 
 ## 测试验证
 
 | 测试项目 | 通过 | 失败 |
 |----------|------|------|
-| Mcp.Tests | 198 | 0 |
-| Hands.ToolHandlers.Tests | 405 | 0 |
 | Agents.Tests | 527 | 0 |
-| Brain.Context.Tests | 785 | 0 |
-| JoinCodeGui.Tests | 411 | 0 |
-| Host.Tests | 909 | 0 |
-| Composition.Tests | 87 | 0 |
-| Infra.IO.Tests | 132 | 0 |
+| Hands.ToolHandlers.Tests | 405 | 0 |
 | Infra.Services.Tests | 490 | 0 |
-| **合计** | **3944** | **0** |
+| Infra.IO.Tests | 132 | 0 |
+| Infra.Utils.Tests | 573 | 0 |
+| Host.Tests | 909 | 0 |
+| Integration.Tests | 390 | 0 |
+| Tui.Tests | 178 | 0 |
+| MockServer.Core.Tests | 67 | 0 |
+| MockServer.E2E.Tests | 6 | 0 |
+| CodeIndex.Tests | 379 | 0 |
+| **合计** | **4056** | **0** |
 
 ## 统计
 
-- 已改：**15 处**（13 + 1 + 1）
-- 保持现状：**9 处**（5 null 条件 + 2 参数变量 + 2 Win32 Handle），都有特别理由
-- 测试：3944 通过，0 失败
+- 已改：**30 处**（13 第一批 + 1 foreach + 1 SafeHandle + 11 null 条件 + 4 谁申请谁释放）
+- 保持现状：**5 处**（Win32 Handle 局部变量，不违规）
+- 测试：4056 通过，0 失败
 
 <!-- 🤖 Auto Decision: 2026-09-06 -->
-<!-- 决策: null 条件 Dispose 保持 try-finally，不引入 NullAsyncDisposable 哨兵 -->
-<!-- 原因: ITelemetrySpan? 后续需调 .SetTag，await using 会丢失类型信息；null 安全用 if (x is not null) 更直观 -->
-<!-- 替代方案: 引入 NullTelemetrySpan 公共类型 + ITelemetrySpan.Null 实例，但改造成本高收益小 -->
-<!-- 验证: 编译通过，3944 测试全部通过 ✅ -->
+<!-- 决策: C#8+ using/await using 声明支持 null 值，之前跳过的 5 处 null 条件 Dispose 全部可改 -->
+<!-- 原因: 编译器自动生成 null 检查，`using var x = null;` 不会抛异常，跳过 Dispose -->
+<!-- 验证: 创建临时项目验证 using null 行为，编译通过，4056 测试全部通过 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-09-06 -->
+<!-- 决策: 谁申请谁释放原则 — 方法参数不在被调用方释放，fire-and-forget 用 async lambda + using -->
+<!-- 原因: 参数是被调用方"借用"的，不应释放；lambda 捕获变量 = lambda 拥有所有权，可以 using -->
+<!-- 改造: MobileConnectService 串行 await + using；DoctorTcpServer/ForkSubAgentManager/FileWatcher lambda + using -->
+<!-- 验证: 编译通过，4056 测试全部通过 ✅ -->

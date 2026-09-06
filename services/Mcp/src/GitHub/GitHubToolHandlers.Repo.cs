@@ -1,7 +1,8 @@
 namespace McpToolDispatch;
 
 /// <summary>
-/// GitHub Repo 工具 — gh repo 子命令全套
+/// GitHub Repo 工具 — 直调 GitHub REST API（ADR 0072），替代原 gh repo 子命令包装
+/// <para>clone 用本地 git 命令（非 API），create/fork/list/view 走 REST API</para>
 /// </summary>
 public partial class GitHubToolHandlers
 {
@@ -11,11 +12,13 @@ public partial class GitHubToolHandlers
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
     {
-        var sb = new StringBuilder("repo view");
-        if (!string.IsNullOrWhiteSpace(repo)) sb.Append($" {repo}");
-        sb.Append(" --json name,owner,description,url,defaultBranchRef,visibility,createdAt,updatedAt,stargazerCount,forkCount");
-        var result = await RunGhAsync(sb.ToString(), ResolveWorkDir(working_dir), cancellationToken);
-        return result.Success ? Ok(result.Output) : Fail(result);
+        if (_apiClient is null) return ApiClientNotConfigured();
+        var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
+        if (resolved is null) return RepoNotResolved();
+        var (owner, repoName) = resolved.Value;
+
+        var result = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}", ct: cancellationToken).ConfigureAwait(false);
+        return result.Success ? Ok(result.Body) : Fail(result.Error);
     }
 
     [McpTool(GitHubToolNameConstants.GhRepoClone, "克隆仓库(支持浅克隆 --depth=1)", "github")]
@@ -26,11 +29,18 @@ public partial class GitHubToolHandlers
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
     {
-        var sb = new StringBuilder($"repo clone {repo}");
+        if (_git is null) return Fail("git 命令执行器未配置（IGitCommandRunner 未注入）");
+
+        var cloneUrl = repo.StartsWith("http", StringComparison.OrdinalIgnoreCase) || repo.Contains('@')
+            ? repo
+            : $"https://github.com/{repo}.git";
+
+        var sb = new StringBuilder($"clone {cloneUrl}");
         if (!string.IsNullOrWhiteSpace(dir)) sb.Append($" {dir}");
-        if (shallow == true) sb.Append(" -- --depth=1");
-        var result = await RunGhAsync(sb.ToString(), ResolveWorkDir(working_dir), cancellationToken);
-        return result.Success ? Ok(result.Output, $"已克隆 {repo}") : Fail(result);
+        if (shallow == true) sb.Append(" --depth=1");
+
+        var result = await _git.ExecuteAsync(sb.ToString(), working_dir, cancellationToken).ConfigureAwait(false);
+        return result.Success ? Ok(result.Output, $"已克隆 {repo}") : Fail(result.Error);
     }
 
     [McpTool(GitHubToolNameConstants.GhRepoCreate, "创建仓库(public/private/internal)", "github")]
@@ -42,12 +52,22 @@ public partial class GitHubToolHandlers
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
     {
+        if (_apiClient is null) return ApiClientNotConfigured();
         var vis = string.IsNullOrWhiteSpace(visibility) ? "private" : visibility;
-        var sb = new StringBuilder($"repo create {name} --{vis}");
-        if (!string.IsNullOrWhiteSpace(description)) sb.Append($" --description {Quote(description)}");
-        if (add_readme == true) sb.Append(" --add-readme");
-        var result = await RunGhAsync(sb.ToString(), ResolveWorkDir(working_dir), cancellationToken);
-        return result.Success ? Ok(result.Output, $"已创建仓库 {name}") : Fail(result);
+        var isPrivate = vis.Equals("private", StringComparison.OrdinalIgnoreCase);
+        var isInternal = vis.Equals("internal", StringComparison.OrdinalIgnoreCase);
+
+        var bodySb = new StringBuilder();
+        bodySb.Append('{');
+        bodySb.Append("\"name\":" + JsonEscapeString(name));
+        bodySb.Append(",\"private\":" + (isPrivate || isInternal ? "true" : "false"));
+        if (isInternal) bodySb.Append(",\"visibility\":\"internal\"");
+        if (!string.IsNullOrWhiteSpace(description)) bodySb.Append(",\"description\":" + JsonEscapeString(description));
+        if (add_readme == true) bodySb.Append(",\"auto_init\":true");
+        bodySb.Append('}');
+
+        var result = await _apiClient.SendAsync(HttpMethod.Post, "user/repos", bodySb.ToString(), ct: cancellationToken).ConfigureAwait(false);
+        return result.Success ? Ok(result.Body, $"已创建仓库 {name}") : Fail(result.Error);
     }
 
     [McpTool(GitHubToolNameConstants.GhRepoFork, "Fork 仓库", "github")]
@@ -57,10 +77,22 @@ public partial class GitHubToolHandlers
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
     {
-        var sb = new StringBuilder($"repo fork {repo}");
-        if (clone == true) sb.Append(" --clone");
-        var result = await RunGhAsync(sb.ToString(), ResolveWorkDir(working_dir), cancellationToken);
-        return result.Success ? Ok(result.Output, $"已 Fork {repo}") : Fail(result);
+        if (_apiClient is null) return ApiClientNotConfigured();
+        var parsed = ParseGitHubRepoRef(repo);
+        if (parsed is null) return Fail("仓库名格式错误，应为 owner/repo");
+        var (owner, repoName) = parsed.Value;
+
+        var result = await _apiClient.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/forks", ct: cancellationToken).ConfigureAwait(false);
+        if (!result.Success) return Fail(result.Error);
+
+        if (clone == true)
+        {
+            if (_git is null) return Ok(result.Body, $"已 Fork {repo}（但未克隆：git 未配置）");
+            var cloneResult = await _git.ExecuteAsync($"clone https://github.com/{repo}.git", working_dir, cancellationToken).ConfigureAwait(false);
+            if (!cloneResult.Success) return Ok(result.Body, $"已 Fork {repo}（但克隆失败: {cloneResult.Error}）");
+        }
+
+        return Ok(result.Body, $"已 Fork {repo}");
     }
 
     [McpTool(GitHubToolNameConstants.GhRepoList, "列出自己可访问的仓库", "github", ConcurrencySafe = true)]
@@ -69,9 +101,10 @@ public partial class GitHubToolHandlers
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
     {
-        var sb = new StringBuilder("repo list");
-        sb.Append($" --limit {limit ?? 30}");
-        var result = await RunGhAsync(sb.ToString(), ResolveWorkDir(working_dir), cancellationToken);
-        return result.Success ? Ok(result.Output) : Fail(result);
+        if (_apiClient is null) return ApiClientNotConfigured();
+
+        var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 30).ToString() };
+        var result = await _apiClient.SendAsync(HttpMethod.Get, "user/repos", query: query, ct: cancellationToken).ConfigureAwait(false);
+        return result.Success ? Ok(result.Body) : Fail(result.Error);
     }
 }

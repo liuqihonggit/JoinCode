@@ -461,21 +461,6 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
     // 二进制检测缓冲区大小（对齐 ripgrep 的 8KB 采样窗口）
     private const int BinaryDetectionBufferSize = 8192;
 
-    // 已知二进制文件扩展名（对齐 ripgrep 内置类型映射）
-    private static readonly FrozenSet<string> BinaryExtensions = FrozenSet.ToFrozenSet(
-        [
-            ".exe", ".dll", ".so", ".dylib", ".a", ".lib", ".o", ".obj",
-            ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ico", ".webp", ".tiff", ".tif",
-            ".mp3", ".mp4", ".wav", ".avi", ".mov", ".mkv", ".flv", ".wmv",
-            ".zip", ".tar", ".gz", ".bz2", ".xz", ".7z", ".rar", ".cab",
-            ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
-            ".class", ".jar", ".war", ".ear", ".dex", ".apk", ".ipa",
-            ".woff", ".woff2", ".ttf", ".otf", ".eot",
-            ".pyc", ".pyd", ".pyo",
-            ".nupkg", ".snupkg", ".pdb", ".mdb",
-        ],
-        StringComparer.OrdinalIgnoreCase);
-
     /// <summary>
     /// 文件类型到扩展名的映射表，对齐 ripgrep --type 内置映射
     /// ripgrep 通过 --type 选项支持预定义的文件类型过滤
@@ -725,8 +710,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
     private bool IsBinaryFile(string filePath)
     {
         // 快速路径：已知二进制扩展名直接跳过
-        var ext = Path.GetExtension(filePath);
-        if (!string.IsNullOrEmpty(ext) && BinaryExtensions.Contains(ext))
+        if (BinaryFileDetector.IsBinaryByExtension(filePath))
         {
             return true;
         }

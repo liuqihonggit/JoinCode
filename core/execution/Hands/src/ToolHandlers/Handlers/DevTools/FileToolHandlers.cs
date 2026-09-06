@@ -5,7 +5,6 @@ namespace Tools.Handlers;
 [McpToolDispatch(ToolCategory.File)]
 public partial class FileToolHandlers : IDisposable
 {
-    private static readonly FrozenSet<string> BinaryExtensions = CreateBinaryExtensionSet();
     private static readonly FrozenSet<string> BlockedDevicePaths = CreateBlockedDevicePathSet();
     private readonly CancellationTokenSource _disposeCts = new();
 
@@ -154,7 +153,7 @@ public partial class FileToolHandlers : IDisposable
             return await ReadNotebookFileAsync(file_path, cancellationToken).ConfigureAwait(false);
         }
 
-        if (HasBinaryExtension(ext))
+        if (BinaryFileDetector.IsBinaryExtension(ext))
         {
             var binExtDiagnostic = ToolDiagnostic.Create(
                 "BinaryExtensionRejected",
@@ -1235,30 +1234,6 @@ public partial class FileToolHandlers : IDisposable
         try { _disposeCts.Cancel(); } catch (ObjectDisposedException ex) { _logger?.LogWarning(ex, "Dispose 时取消 CancellationTokenSource 失败"); }
         try { _disposeCts.Dispose(); } catch (ObjectDisposedException ex) { _logger?.LogWarning(ex, "Dispose 时释放 CancellationTokenSource 失败"); }
         try { _lspNotificationCompleted.Dispose(); } catch (ObjectDisposedException ex) { _logger?.LogWarning(ex, "Dispose 时释放 LSP 通知信号量失败"); }
-    }
-
-    private static FrozenSet<string> CreateBinaryExtensionSet()
-    {
-        return FrozenSet.ToFrozenSet(
-        [
-            ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ico", ".webp", ".tiff", ".tif",
-            ".mp4", ".mov", ".avi", ".mkv", ".webm", ".wmv", ".flv", ".m4v", ".mpeg", ".mpg",
-            ".mp3", ".wav", ".ogg", ".flac", ".aac", ".m4a", ".wma", ".aiff", ".opus",
-            ".zip", ".tar", ".gz", ".bz2", ".7z", ".rar", ".xz", ".z", ".tgz", ".iso",
-            ".exe", ".dll", ".so", ".dylib", ".bin", ".o", ".a", ".obj", ".lib", ".app", ".msi", ".deb", ".rpm",
-            ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".odt", ".ods", ".odp",
-            ".ttf", ".otf", ".woff", ".woff2", ".eot",
-            ".pyc", ".pyo", ".class", ".jar", ".war", ".ear", ".node", ".wasm", ".rlib",
-            ".sqlite", ".sqlite3", ".db", ".mdb", ".idx",
-            ".psd", ".ai", ".eps", ".sketch", ".fig", ".xd", ".blend", ".3ds", ".max",
-            ".swf", ".fla",
-            ".lockb", ".dat", ".data"
-        ], StringComparer.OrdinalIgnoreCase);
-    }
-
-    private static bool HasBinaryExtension(string ext)
-    {
-        return !string.IsNullOrEmpty(ext) && BinaryExtensions.Contains(ext);
     }
 
     private static FrozenSet<string> CreateBlockedDevicePathSet()

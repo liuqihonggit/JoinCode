@@ -17,20 +17,6 @@ internal static class RgEngine
         [".git", ".svn", ".hg", ".bzr", ".jj", ".sl"],
         StringComparer.OrdinalIgnoreCase);
 
-    private static readonly FrozenSet<string> BinaryExtensions = FrozenSet.ToFrozenSet(
-        [
-            ".exe", ".dll", ".so", ".dylib", ".a", ".lib", ".o", ".obj",
-            ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ico", ".webp", ".tiff", ".tif",
-            ".mp3", ".mp4", ".wav", ".avi", ".mov", ".mkv", ".flv", ".wmv",
-            ".zip", ".tar", ".gz", ".bz2", ".xz", ".7z", ".rar", ".cab",
-            ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
-            ".class", ".jar", ".war", ".ear", ".dex", ".apk", ".ipa",
-            ".woff", ".woff2", ".ttf", ".otf", ".eot",
-            ".pyc", ".pyd", ".pyo",
-            ".nupkg", ".snupkg", ".pdb", ".mdb",
-        ],
-        StringComparer.OrdinalIgnoreCase);
-
     private static readonly FrozenDictionary<string, string[]> FileTypeExtensions = FrozenDictionary.ToFrozenDictionary(
         new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
         {
@@ -184,7 +170,7 @@ internal static class RgEngine
             if (!MatchesFileType(file, q.FileType))
                 continue;
 
-            if (IsBinaryByExtension(file))
+            if (BinaryFileDetector.IsBinaryByExtension(file))
                 continue;
 
             yield return file;
@@ -267,12 +253,6 @@ internal static class RgEngine
             return Array.IndexOf(exts, ext) >= 0;
 
         return string.Equals(ext, $".{fileType}", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsBinaryByExtension(string file)
-    {
-        var ext = Path.GetExtension(file);
-        return !string.IsNullOrEmpty(ext) && BinaryExtensions.Contains(ext);
     }
 
     /// <summary>

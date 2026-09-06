@@ -12,7 +12,7 @@ public sealed class GitHubApiClientTest : IDisposable
     {
         Environment.SetEnvironmentVariable("JCC_GITHUB_TOKEN", "test-token");
         Environment.SetEnvironmentVariable("JCC_GITHUB_API_URL", null);
-        _client = new GitHubApiClient(new HttpClient(_handler) { BaseAddress = new Uri("https://api.github.com/") });
+        _client = new GitHubApiClient(new HttpClient(_handler) { BaseAddress = new Uri("https://api.github.com/") }, new InMemoryFileSystem());
     }
 
     public void Dispose()
@@ -62,7 +62,8 @@ public sealed class GitHubApiClientTest : IDisposable
         Environment.SetEnvironmentVariable("JCC_GITHUB_TOKEN", null);
         Environment.SetEnvironmentVariable("GITHUB_TOKEN", null);
 
-        var act = async () => await _client.SendAsync(HttpMethod.Get, "repos/foo/bar");
+        var client = new GitHubApiClient(new HttpClient(_handler) { BaseAddress = new Uri("https://api.github.com/") }, new InMemoryFileSystem(), ghTokenResolver: () => null);
+        var act = async () => await client.SendAsync(HttpMethod.Get, "repos/foo/bar");
 
         await act.Should().ThrowAsync<ConfigurationException>();
     }

@@ -17,7 +17,8 @@ public abstract class InMemoryFileSystemEntry
 public sealed class InMemoryFileEntry : InMemoryFileSystemEntry
 {
     public string Content { get; set; } = string.Empty;
-    public byte[] Bytes => System.Text.Encoding.UTF8.GetBytes(Content);
+    public byte[]? ByteContent { get; set; }
+    public byte[] Bytes => ByteContent ?? System.Text.Encoding.UTF8.GetBytes(Content);
     public long Length => Bytes.Length;
     public int LineCount => Content.Split('\n').Length;
 }
@@ -86,14 +87,21 @@ public sealed class InMemoryFileSystem : IFileSystem
     /// <inheritdoc />
     public Task WriteAllBytesAsync(string path, byte[] bytes, CancellationToken cancellationToken = default)
     {
-        // 内存文件系统以文本为主，二进制转 Base64 存储
-        WriteAllText(path, Convert.ToBase64String(bytes));
+        WriteAllBytes(path, bytes);
         return Task.CompletedTask;
     }
 
     /// <inheritdoc />
     public void WriteAllBytes(string path, byte[] bytes)
-        => WriteAllText(path, Convert.ToBase64String(bytes));
+    {
+        var normalizedPath = NormalizePath(path);
+        var directory = Path.GetDirectoryName(normalizedPath) ?? string.Empty;
+        EnsureDirectoryExists(directory);
+        var file = _files.GetOrAdd(normalizedPath, _ => new InMemoryFileEntry { FullPath = normalizedPath });
+        file.ByteContent = bytes;
+        file.Content = System.Text.Encoding.UTF8.GetString(bytes);
+        file.LastWriteTime = DateTime.Now;
+    }
 
     /// <inheritdoc />
     public Task AppendAllTextAsync(string path, string contents, CancellationToken cancellationToken = default)
@@ -132,6 +140,12 @@ public sealed class InMemoryFileSystem : IFileSystem
         var normalizedPath = NormalizePath(path);
         if (_files.TryGetValue(normalizedPath, out var file))
         {
+            if (file.ByteContent is not null)
+            {
+                using var ms = new MemoryStream(file.ByteContent, writable: false);
+                using var reader = new StreamReader(ms, System.Text.Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+                return reader.ReadToEnd();
+            }
             return file.Content;
         }
         throw new FileNotFoundException($"[GEN052] 文件未找到: {path}");
@@ -161,15 +175,12 @@ public sealed class InMemoryFileSystem : IFileSystem
     /// <inheritdoc />
     public byte[] ReadAllBytes(string path)
     {
-        var content = ReadAllText(path);
-        try
+        var normalizedPath = NormalizePath(path);
+        if (_files.TryGetValue(normalizedPath, out var file))
         {
-            return Convert.FromBase64String(content);
+            return file.Bytes;
         }
-        catch (FormatException)
-        {
-            return System.Text.Encoding.UTF8.GetBytes(content);
-        }
+        throw new FileNotFoundException($"[GEN052] 文件未找到: {path}");
     }
 
     // === IFileSystem: File 原子编辑 ===

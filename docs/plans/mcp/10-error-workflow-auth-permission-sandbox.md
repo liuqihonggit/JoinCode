@@ -18,60 +18,60 @@
 
 | # | 工具名 | 说明 | 状态 |
 |---|--------|------|------|
-| 1 | `diagnose_error` | 诊断错误 | ⬜ |
-| 2 | `fix_shell_error` | 修复 Shell 错误 | ⬜ |
-| 3 | `fix_file_error` | 修复文件错误 | ⬜ |
-| 4 | `fix_merge_conflict` | 修复合并冲突 | ⬜ |
-| 5 | `resume_timed_out_task` | 恢复超时任务 | ⬜ |
-| 6 | `continue_long_running_task` | 继续长任务 | ⬜ |
-| 7 | `stop_long_running_task` | 停止长任务 | ⬜ |
+| 1 | `diagnose_error` | 诊断错误 | ✅ |
+| 2 | `fix_shell_error` | 修复 Shell 错误 | ✅ |
+| 3 | `fix_file_error` | 修复文件错误 | ✅ |
+| 4 | `fix_merge_conflict` | 修复合并冲突 | ✅ |
+| 5 | `resume_timed_out_task` | 恢复超时任务 | ✅ |
+| 6 | `continue_long_running_task` | 继续长任务 | ✅ |
+| 7 | `stop_long_running_task` | 停止长任务 | ✅ |
 
 ### Category: Workflow (7 个)
 
 | # | 工具名 | 说明 | 状态 |
 |---|--------|------|------|
-| 1 | `mcp_ai_workflow_workflow_execute` | 执行工作流 | ⬜ |
-| 2 | `mcp_ai_workflow_plan_create_and_execute` | 创建并执行 | ⬜ |
-| 3 | `mcp_ai_workflow_workflow_generate_code` | 生成代码 | ⬜ |
-| 4 | `mcp_ai_workflow_workflow_analyze_code` | 分析代码 | ⬜ |
-| 5 | `mcp_ai_workflow_workflow_chat` | 工作流聊天 | ⬜ |
-| 6 | `mcp_ai_workflow_workflow_clear_history` | 清除历史 | ⬜ |
-| 7 | `mcp_ai_workflow_workflow_get_history` | 获取历史 | ⬜ |
+| 1 | `mcp_ai_workflow_workflow_execute` | 执行工作流 | ✅ |
+| 2 | `mcp_ai_workflow_plan_create_and_execute` | 创建并执行 | ✅ |
+| 3 | `mcp_ai_workflow_workflow_generate_code` | 生成代码 | ✅ |
+| 4 | `mcp_ai_workflow_workflow_analyze_code` | 分析代码 | ✅ |
+| 5 | `mcp_ai_workflow_workflow_chat` | 工作流聊天 | ✅ |
+| 6 | `mcp_ai_workflow_workflow_clear_history` | 清除历史 | ✅ |
+| 7 | `mcp_ai_workflow_workflow_get_history` | 获取历史 | ✅ |
 
 ### Category: McpAuth (7 个)
 
 | # | 工具名 | 说明 | 状态 |
 |---|--------|------|------|
-| 1 | `mcp_auth_api_key` | API Key 认证 | ⬜ |
-| 2 | `mcp_auth_bearer` | Bearer 认证 | ⬜ |
-| 3 | `mcp_auth_basic` | Basic 认证 | ⬜ |
-| 4 | `mcp_auth_oauth2` | OAuth2 认证 | ⬜ |
-| 5 | `mcp_auth_refresh` | 刷新令牌 | ⬜ |
-| 6 | `mcp_auth_status` | 认证状态 | ⬜ |
-| 7 | `mcp_auth_remove` | 移除认证 | ⬜ |
+| 1 | `mcp_auth_apikey` | API Key 认证 | ✅ |
+| 2 | `mcp_auth_bearer` | Bearer 认证 | ✅ |
+| 3 | `mcp_auth_basic` | Basic 认证 | ✅ |
+| 4 | `mcp_auth_oauth2` | OAuth2 认证 | ✅ |
+| 5 | `mcp_auth_refresh` | 刷新令牌 | ✅ |
+| 6 | `mcp_auth_status` | 认证状态 | ✅ |
+| 7 | `mcp_auth_remove` | 移除认证 | ✅ |
 
 ### Category: Permission (7 个)
 
 | # | 工具名 | 说明 | 状态 |
 |---|--------|------|------|
-| 1 | `permission_add_rule` | 添加权限规则 | ⬜ |
-| 2 | `permission_remove_rule` | 移除权限规则 | ⬜ |
-| 3 | `permission_list_rules` | 列出权限规则 | ⬜ |
-| 4 | `permission_check_tool` | 检查工具权限 | ⬜ |
-| 5 | `permission_check_path` | 检查路径权限 | ⬜ |
-| 6 | `permission_get_agent_rule` | 获取代理规则 | ⬜ |
-| 7 | `permission_clear_rules` | 清除权限规则 | ⬜ |
+| 1 | `permission_add_rule` | 添加权限规则 | ✅ |
+| 2 | `permission_remove_rule` | 移除权限规则 | ✅ |
+| 3 | `permission_list_rules` | 列出权限规则 | ✅ |
+| 4 | `permission_check_tool` | 检查工具权限 | ✅ |
+| 5 | `permission_check_path` | 检查路径权限 | ✅ |
+| 6 | `permission_get_agent_rule` | 获取代理规则 | ✅ |
+| 7 | `permission_clear_rules` | 清除权限规则 | ✅ |
 
 ### Category: Sandbox (6 个)
 
 | # | 工具名 | 说明 | 状态 |
 |---|--------|------|------|
-| 1 | `sandbox_enter` | 进入沙箱 | ⬜ |
-| 2 | `sandbox_exit` | 退出沙箱 | ⬜ |
-| 3 | `sandbox_switch` | 切换沙箱 | ⬜ |
-| 4 | `sandbox_status` | 沙箱状态 | ⬜ |
-| 5 | `sandbox_exec` | 沙箱执行 | ⬜ |
-| 6 | `sandbox_exec_continue` | 继续执行 | ⬜ |
+| 1 | `sandbox_enter` | 进入沙箱 | ✅ |
+| 2 | `sandbox_exit` | 退出沙箱 | ✅ |
+| 3 | `sandbox_switch` | 切换沙箱 | ✅ |
+| 4 | `sandbox_status` | 沙箱状态 | ✅ |
+| 5 | `sandbox_exec` | 沙箱执行 | ✅ |
+| 6 | `sandbox_exec_continue` | 继续执行 | ✅ |
 
 ## 测试脚本
 
@@ -141,7 +141,22 @@ $jcc = "D:\project\w1\artifacts\bin\JoinCode\Release\net10.0\jcc.exe"
 
 | 工具 | 问题描述 | 根因 | 修复 |
 |------|----------|------|------|
-| | | | |
+| mcp_auth_api_key | 计划文档工具名错误 | 实际注册名为 `mcp_auth_apikey`（无下划线） | 文档已修正 |
+| mcp_auth_status | 添加认证后 status 显示"暂无" | CLI 无状态模式跨进程不共享内存状态；敏感信息不持久化 | 预期行为，非 bug |
+| sandbox_status | enter 后 status 仍显示不在沙箱 | 同上，沙箱状态在内存中，跨进程不共享 | 预期行为，非 bug |
+
+## 测试结果总结
+
+- **测试时间**: 2026-09-07
+- **工具总数**: 34
+- **通过**: 34
+- **坏点**: 0（1个文档工具名错误已修正）
+- **备注**: 
+  - ErrorRecovery 7个工具全部正常，无参数时正确报告缺失参数
+  - Workflow 7个工具为"提示词模式"，不实际调用 AI，返回结构化提示词信息
+  - McpAuth 7个工具功能正常，认证配置跨进程不共享（敏感信息不持久化，预期行为）
+  - Permission 7个工具全部正常，add/remove 互为逆操作验证通过
+  - Sandbox 6个工具全部正常，未进入沙箱时正确拒绝执行/切换操作
 
 ## 交接说明
 

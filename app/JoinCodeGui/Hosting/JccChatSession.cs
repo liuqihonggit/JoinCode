@@ -375,23 +375,28 @@ internal sealed class JccChatSession : IJccChatSession
         if (!fs.FileExists(path)) return;
         try
         {
-            var json = await fs.ReadAllTextAsync(path, ct).ConfigureAwait(false);
-            var node = System.Text.Json.Nodes.JsonNode.Parse(json);
-            if (node is null) return;
-            var vendorNode = node["vendor"];
-            if (vendorNode is null)
+            await fs.EditFileAsync<bool>(path, async (bytes, cancellationToken) =>
             {
-                vendorNode = new System.Text.Json.Nodes.JsonObject();
-                node["vendor"] = vendorNode;
-            }
-            var profileNode = vendorNode[profileName];
-            if (profileNode is null)
-            {
-                profileNode = new System.Text.Json.Nodes.JsonObject();
-                vendorNode[profileName] = profileNode;
-            }
-            profileNode["model"] = modelId;
-            await fs.WriteAllTextAsync(path, node.ToJsonString(), ct).ConfigureAwait(false);
+                var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
+                var node = System.Text.Json.Nodes.JsonNode.Parse(content);
+                if (node is null) return (null, false);
+                var vendorNode = node["vendor"];
+                if (vendorNode is null)
+                {
+                    vendorNode = new System.Text.Json.Nodes.JsonObject();
+                    node["vendor"] = vendorNode;
+                }
+                var profileNode = vendorNode[profileName];
+                if (profileNode is null)
+                {
+                    profileNode = new System.Text.Json.Nodes.JsonObject();
+                    vendorNode[profileName] = profileNode;
+                }
+                profileNode["model"] = modelId;
+                var newJson = node.ToJsonString();
+                var newBytes = FileEncodingDetector.EncodeString(newJson, encoding);
+                return (newBytes, true);
+            }, ct).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

@@ -22,6 +22,7 @@ global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.Configuration.AppData;
 global using IO.FileSystem;
+global using Infrastructure.IO.Services.FileOps;
 
 // GUI ViewModel 层 DTO（SlashCommandItem 等）
 global using JoinCode.Gui.ViewModels;

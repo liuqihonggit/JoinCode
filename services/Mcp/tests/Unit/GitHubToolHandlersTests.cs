@@ -351,14 +351,14 @@ public sealed class GitHubToolHandlersTests
     [Fact]
     public async Task ReleaseDownload_NoMatchingAsset_ReturnsError()
     {
-        _gh.NextResult = new GitHubCommandResult
+        _api.NextResponse = new GitHubApiResponse
         {
             Success = true,
-            Output = """{"assets":[{"name":"file.zip","url":"https://x/file.zip"}]}""",
-            ExitCode = 0,
+            StatusCode = 200,
+            Body = """{"assets":[{"name":"file.zip","browser_download_url":"https://x/file.zip"}]}""",
         };
 
-        var result = await _handler.GhReleaseDownloadAsync("v1.0", "/tmp", pattern: "*.tar.gz");
+        var result = await _handler.GhReleaseDownloadAsync("v1.0", "/tmp", pattern: "*.tar.gz", repo: "owner/repo");
 
         result.IsError.Should().BeTrue();
         result.GetFirstText().Should().Contain("没有匹配的 asset");
@@ -367,16 +367,16 @@ public sealed class GitHubToolHandlersTests
     [Fact]
     public async Task ReleaseDownload_Success_DownloadsAllAssets()
     {
-        _gh.NextResult = new GitHubCommandResult
+        _api.NextResponse = new GitHubApiResponse
         {
             Success = true,
-            Output = """{"assets":[{"name":"a.zip","url":"https://x/a.zip"},{"name":"b.tar.gz","url":"https://x/b.tar.gz"}]}""",
-            ExitCode = 0,
+            StatusCode = 200,
+            Body = """{"assets":[{"name":"a.zip","browser_download_url":"https://x/a.zip"},{"name":"b.tar.gz","browser_download_url":"https://x/b.tar.gz"}]}""",
         };
         var fakeDownloader = new FakeDownloader();
         var handler = new GitHubToolHandlers(_gh, fakeDownloader, new InMemoryFileSystem(), new PersistencePipeline(new InMemoryFileSystem()), _api, null, NullLogger<GitHubToolHandlers>.Instance);
 
-        var result = await handler.GhReleaseDownloadAsync("v1.0", "/tmp");
+        var result = await handler.GhReleaseDownloadAsync("v1.0", "/tmp", repo: "owner/repo");
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -388,14 +388,14 @@ public sealed class GitHubToolHandlersTests
     [Fact]
     public async Task ReleaseDownload_ViewFails_PropagatesError()
     {
-        _gh.NextResult = new GitHubCommandResult
+        _api.NextResponse = new GitHubApiResponse
         {
             Success = false,
+            StatusCode = 404,
             Error = "release not found",
-            ExitCode = 1,
         };
 
-        var result = await _handler.GhReleaseDownloadAsync("v9.9", "/tmp");
+        var result = await _handler.GhReleaseDownloadAsync("v9.9", "/tmp", repo: "owner/repo");
 
         result.IsError.Should().BeTrue();
         result.GetFirstText().Should().Contain("release not found");

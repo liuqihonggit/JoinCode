@@ -220,25 +220,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
                     }
 
                     var contentSpan = fileContent.AsSpan();
-                    var lineRanges = new List<(int Start, int Length)>();
-                    var pos = 0;
-                    while (pos <= contentSpan.Length)
-                    {
-                        var nlIdx = pos < contentSpan.Length
-                            ? contentSpan.Slice(pos).IndexOf('\n')
-                            : -1;
-                        if (nlIdx < 0)
-                        {
-                            lineRanges.Add((pos, contentSpan.Length - pos));
-                            break;
-                        }
-                        var lineStart = pos;
-                        var lineLen = nlIdx;
-                        if (lineLen > 0 && contentSpan[lineStart + lineLen - 1] == '\r')
-                            lineLen--;
-                        lineRanges.Add((lineStart, lineLen));
-                        pos += nlIdx + 1;
-                    }
+                    var lineRanges = LineSpanIndexer.BuildLineRanges(contentSpan);
 
                     var matchedLines = new List<int>();
                     for (var i = 0; i < lineRanges.Count; i++)

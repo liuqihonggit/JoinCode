@@ -310,27 +310,7 @@ internal static class RgEngine
     private static RgFileResult? SearchContent(string path, string content, Regex regex, RgQuery q, CancellationToken ct)
     {
         var contentSpan = content.AsSpan();
-        var lineRanges = new List<(int Start, int Length)>();
-        var pos = 0;
-        while (pos <= contentSpan.Length)
-        {
-            ct.ThrowIfCancellationRequested();
-
-            var nlIdx = pos < contentSpan.Length
-                ? contentSpan.Slice(pos).IndexOf('\n')
-                : -1;
-            if (nlIdx < 0)
-            {
-                lineRanges.Add((pos, contentSpan.Length - pos));
-                break;
-            }
-            var lineStart = pos;
-            var lineLen = nlIdx;
-            if (lineLen > 0 && contentSpan[lineStart + lineLen - 1] == '\r')
-                lineLen--;
-            lineRanges.Add((lineStart, lineLen));
-            pos += nlIdx + 1;
-        }
+        var lineRanges = LineSpanIndexer.BuildLineRanges(contentSpan, ct);
 
         var matchedLines = new List<int>();
         if (q.Multiline)
@@ -341,7 +321,7 @@ internal static class RgEngine
             {
                 if (m.Success)
                 {
-                    var lineIdx = FindLineIndex(lineRanges, m.Index);
+                    var lineIdx = LineSpanIndexer.FindLineIndex(lineRanges, m.Index);
                     if (lineIdx >= 0 && seen.Add(lineIdx))
                         matchedLines.Add(lineIdx);
                 }
@@ -423,24 +403,6 @@ internal static class RgEngine
             "none" => list,
             _ => list,
         };
-    }
-
-    private static int FindLineIndex(List<(int Start, int Length)> lineRanges, int charIndex)
-    {
-        var lo = 0;
-        var hi = lineRanges.Count - 1;
-        while (lo <= hi)
-        {
-            var mid = lo + ((hi - lo) >> 1);
-            var (start, length) = lineRanges[mid];
-            if (charIndex < start)
-                hi = mid - 1;
-            else if (charIndex >= start + length)
-                lo = mid + 1;
-            else
-                return mid;
-        }
-        return lo < lineRanges.Count ? lo : -1;
     }
 
     private static (List<RgFileResult> Items, int? AppliedLimit, int? AppliedOffset) ApplyPaging(

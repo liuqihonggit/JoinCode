@@ -98,11 +98,23 @@ public sealed partial class MainWindow : Window
         _errorToastTimer.Tick -= OnErrorToastTimerTick;
         _toolTimer.Stop();
         _toolTimer.Tick -= OnToolTimerTick;
+        _runStatusTimer.Stop();
+        _runStatusTimer.Tick -= OnRunStatusTimerTick;
         RemoveHandler(PointerPressedEvent, OnGlobalPointerPressed);
         _toastCts?.Cancel();
         _errorToastFadeCts?.Cancel();
         if (_vm is not null)
+        {
             _vm.ScrollToBottomRequested -= OnScrollToBottomRequested;
+            try
+            {
+                _vm.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(3));
+            }
+            catch (Exception ex)
+            {
+                App.LogDiag($"[MainWindow] DisposeAsync failed: {ex.Message}");
+            }
+        }
         Closed -= OnWindowClosed;
     }
 

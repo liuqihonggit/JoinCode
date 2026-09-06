@@ -9,6 +9,7 @@ public sealed partial class StringMessageRouter : IMessageRouter
 {
     private readonly ILogger? _logger;
     private readonly BoundedUUIDSet _processedMessageIds;
+    private int _disposed;
 
     /// <summary>
     /// 接收到去重后的字符串消息
@@ -62,6 +63,7 @@ public sealed partial class StringMessageRouter : IMessageRouter
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         await _processedMessageIds.DisposeAsync().ConfigureAwait(false);
     }
 }

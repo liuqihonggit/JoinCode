@@ -7,6 +7,7 @@ namespace Core.Prompts;
 public sealed partial class SystemReminderManager : ISystemReminderManager, IAsyncDisposable {
     private readonly Dictionary<string, SystemReminder> _reminders = new(StringComparer.Ordinal);
     private readonly AsyncLock _lock = new();
+    private int _disposed;
 
     /// <summary>
     /// 异步添加提醒
@@ -66,6 +67,7 @@ public sealed partial class SystemReminderManager : ISystemReminderManager, IAsy
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _lock.Dispose();
         await ValueTask.CompletedTask.ConfigureAwait(false);
     }

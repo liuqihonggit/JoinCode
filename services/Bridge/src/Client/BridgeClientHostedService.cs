@@ -7,6 +7,7 @@ public sealed partial class BridgeClientHostedService : IHostedService, IAsyncDi
     private readonly BridgeConfig _config;
     private readonly ILogger<BridgeClientHostedService>? _logger;
     private readonly CancellationTokenSource _cts = new();
+    private int _disposed;
 
     public BridgeClientHostedService(
         BridgeClient bridgeClient,
@@ -66,6 +67,7 @@ public sealed partial class BridgeClientHostedService : IHostedService, IAsyncDi
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         await _cts.CancelAsync().ConfigureAwait(false);
         await _bridgeClient.DisposeAsync().ConfigureAwait(false);
         _cts.Dispose();

@@ -114,6 +114,7 @@ public sealed class OAuth2AuthProvider : IMcpAuthProvider, IAsyncDisposable
 
     private McpAuthContext _authContext = new();
     private string? _pendingStepUpScope;
+    private int _disposed;
 
     public McpAuthType AuthType => McpAuthType.OAuth2;
     public bool IsAuthenticated => !string.IsNullOrEmpty(_authContext.AccessToken) && !_authContext.IsExpired;
@@ -255,6 +256,7 @@ public sealed class OAuth2AuthProvider : IMcpAuthProvider, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _httpClient.Dispose();
         _refreshLock.Dispose();
     }

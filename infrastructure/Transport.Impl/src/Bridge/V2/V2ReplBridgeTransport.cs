@@ -34,6 +34,7 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
     private Action<string>? _onDataCallback;
     private Action<int?>? _onCloseCallback;
     private Action? _onConnectCallback;
+    private int _disposed;
 
     public int DroppedBatchCount => 0; // v2 写路径不设置 maxConsecutiveFailures
 
@@ -464,6 +465,7 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         Close();
         _heartbeatCts.Dispose();
         _writeLock.Dispose();

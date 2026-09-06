@@ -51,6 +51,7 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
     private Action<int?>? _onCloseCallback;
     private Action? _onConnectCallback;
     private Action<int, int>? _onBatchDroppedCallback;
+    private int _disposed;
 
     public int DroppedBatchCount => _uploader.DroppedBatchCount;
 
@@ -244,6 +245,7 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         Close();
         _disposeCts.Cancel();
         _disposeCts.Dispose();

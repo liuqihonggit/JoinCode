@@ -14,6 +14,7 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
     private int _rulesLoaded;
     private const string RulesSubDir = ".jcc" + "/" + "permission";
     private const string RulesFileName = "rules.json";
+    private int _disposed;
 
     public AgentPermissionManager(
         ITelemetryService? telemetryService = null,
@@ -300,6 +301,7 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _lock.Dispose();
     }
 }

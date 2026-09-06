@@ -8,6 +8,7 @@ public sealed partial class CronGoalBridge : IAsyncDisposable
     private readonly IAgentDefinitionProvider? _agentDefinitionProvider;
     private readonly ILogger<CronGoalBridge>? _logger;
     private readonly CronScheduler _scheduler;
+    private int _disposed;
 
     public bool IsStarted { get; private set; }
 
@@ -123,6 +124,7 @@ public sealed partial class CronGoalBridge : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         await _scheduler.DisposeAsync().ConfigureAwait(false);
         IsStarted = false;
     }

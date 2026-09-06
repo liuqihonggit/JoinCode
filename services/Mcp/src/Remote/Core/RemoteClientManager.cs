@@ -16,6 +16,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
     private readonly McpReconnectAcceptLevel _acceptLevel;
     private readonly MiddlewarePipeline<RemoteSyncContext>? _syncPipeline;
     private readonly INetworkConnectivityService? _networkService;
+    private int _disposed;
 
     public event EventHandler<ToolsListChangedEventArgs>? ToolsListChanged;
     public event EventHandler<ResourcesListChangedEventArgs>? ResourcesListChanged;
@@ -687,6 +688,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
     /// </summary>
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         foreach (var cts in _reconnectCtsMap.Values)
         {
             cts.Cancel();

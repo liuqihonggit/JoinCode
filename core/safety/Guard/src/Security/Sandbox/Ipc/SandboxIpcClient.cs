@@ -17,6 +17,7 @@ public sealed class SandboxIpcClient : IAsyncDisposable
     private Channel<string>? _writeChannel;
     private CancellationTokenSource? _writeCts;
     private Task? _writeConsumerTask;
+    private int _disposed;
 
     public SandboxIpcClient(IProcessService processService, IFileSystem fs, ILogger<SandboxIpcClient>? logger = null, Func<int, Task>? onSatelliteStarted = null)
     {
@@ -283,6 +284,7 @@ public sealed class SandboxIpcClient : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         await ShutdownAsync().ConfigureAwait(false);
         _sendLock.Dispose();
         _startLock.Dispose();

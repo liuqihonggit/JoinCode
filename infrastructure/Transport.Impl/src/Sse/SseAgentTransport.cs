@@ -41,6 +41,7 @@ public sealed partial class SseAgentTransport : IAgentTransport
     private Task? _sseListenTask;
     private TransportState _state;
     private int _reconnectAttempts;
+    private int _disposed;
 
     public string TransportType => "sse";
 
@@ -181,6 +182,7 @@ public sealed partial class SseAgentTransport : IAgentTransport
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _disposeCts.Cancel();
         _httpClient.Dispose();
         _outputChannel.Dispose();

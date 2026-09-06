@@ -7,6 +7,7 @@ public sealed class SandboxSatelliteHost : IAsyncDisposable
     private readonly CancellationTokenSource _cts = new();
     private WindowsJobObjectSandbox? _innerJobObject;
     private LinuxCgroupSandbox? _innerCgroup;
+    private int _disposed;
 
     public SandboxSatelliteHost(IFileSystem fs)
     {
@@ -270,6 +271,7 @@ public sealed class SandboxSatelliteHost : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _cts.Cancel();
 
         if (_innerJobObject is not null)

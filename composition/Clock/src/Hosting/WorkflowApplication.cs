@@ -14,6 +14,7 @@ public sealed partial class WorkflowApplication : IAsyncDisposable
     private readonly ILogger<WorkflowApplication>? _logger;
     private readonly IClockService _clock;
     private DateTime _startedAt;
+    private int _disposed;
 
     public WorkflowApplication(
         ILogger<ServiceHost>? hostLogger = null,
@@ -174,6 +175,7 @@ public sealed partial class WorkflowApplication : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         await StopAsync().ConfigureAwait(false);
         _serviceHost.ServiceStatusChanged -= OnServiceStatusChanged;
         await _serviceHost.DisposeAsync().ConfigureAwait(false);

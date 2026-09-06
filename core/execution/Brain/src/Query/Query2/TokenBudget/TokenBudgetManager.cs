@@ -11,6 +11,7 @@ public partial class TokenBudgetManager : ITokenBudgetManager, IAsyncDisposable
     private readonly ITelemetryService? _telemetryService;
     private TokenBudget _budget = new();
     private double _alertThreshold = 0.0;
+    private int _disposed;
 
     public event EventHandler<EventArgs>? BudgetAlert;
 
@@ -110,6 +111,7 @@ public partial class TokenBudgetManager : ITokenBudgetManager, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _lock.Dispose();
     }
 }

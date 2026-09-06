@@ -18,6 +18,7 @@ public sealed partial class StdioProcessManager : IAsyncDisposable
     private Task? _stderrReadTask;
 
     private readonly IClockService _clock;
+    private int _disposed;
 
     public StdioProcessManager(ILogger<StdioProcessManager>? logger = null, IClockService? clock = null)
     {
@@ -252,6 +253,7 @@ public sealed partial class StdioProcessManager : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         await StopAsync().ConfigureAwait(false);
     }
 }

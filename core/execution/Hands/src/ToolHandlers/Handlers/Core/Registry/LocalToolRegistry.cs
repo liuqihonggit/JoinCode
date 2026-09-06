@@ -9,6 +9,7 @@ public sealed partial class LocalToolRegistry : IToolRegistry
     private readonly Dictionary<string, Dictionary<string, IToolHandler>> _groupIndex = new(StringComparer.OrdinalIgnoreCase);
     private readonly AsyncLock _lock = new();
     private readonly ILogger? _logger;
+    private int _disposed;
 
     public event EventHandler<ToolRegisteredEventArgs>? ToolRegistered;
     public event EventHandler<ToolUnregisteredEventArgs>? ToolUnregistered;
@@ -218,6 +219,7 @@ public sealed partial class LocalToolRegistry : IToolRegistry
 
     public ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return default;
         _lock.Dispose();
         return ValueTask.CompletedTask;
     }

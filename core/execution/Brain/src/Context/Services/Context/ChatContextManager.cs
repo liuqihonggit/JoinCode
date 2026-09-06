@@ -41,6 +41,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     private readonly IClockService _clock;
     private readonly string? _providerBaseUrl;
     private int _callSeq;
+    private int _disposed;
 
     /// <summary>
     /// 分配下一个链路调用序号 — 线程安全，Interlocked 递增
@@ -790,6 +791,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _lock.Dispose();
     }
 

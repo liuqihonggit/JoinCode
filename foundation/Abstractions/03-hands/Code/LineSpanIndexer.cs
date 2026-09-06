@@ -16,14 +16,14 @@ public static class LineSpanIndexer
     public static List<(int Start, int Length)> BuildLineRanges(ReadOnlySpan<char> content, CancellationToken ct = default)
     {
         var lineRanges = new List<(int Start, int Length)>();
+        if (content.Length == 0)
+            return lineRanges;
         var pos = 0;
-        while (pos <= content.Length)
+        while (pos < content.Length)
         {
             ct.ThrowIfCancellationRequested();
 
-            var nlIdx = pos < content.Length
-                ? content.Slice(pos).IndexOf('\n')
-                : -1;
+            var nlIdx = content.Slice(pos).IndexOf('\n');
             if (nlIdx < 0)
             {
                 lineRanges.Add((pos, content.Length - pos));

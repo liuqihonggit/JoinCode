@@ -309,17 +309,19 @@ public sealed class GitHubToolHandlersTests
     [Fact]
     public async Task IssueCreate_QuotesTitleWithSpaces()
     {
-        _gh.NextResult = new GitHubCommandResult
+        _api.NextResponse = new GitHubApiResponse
         {
             Success = true,
-            Output = "https://github.com/o/r/issues/1",
-            ExitCode = 0,
+            StatusCode = 201,
+            Body = """{"number":1,"html_url":"https://github.com/o/r/issues/1"}""",
         };
 
-        await _handler.GhIssueCreateAsync("fix: bug in parser", body: "details here");
+        await _handler.GhIssueCreateAsync("fix: bug in parser", body: "details here", repo: "owner/repo");
 
-        _gh.LastArguments.Should().Contain("--title \"fix: bug in parser\"");
-        _gh.LastArguments.Should().Contain("--body \"details here\"");
+        _api.LastMethod.Should().Be(HttpMethod.Post);
+        _api.LastPath.Should().Be("repos/owner/repo/issues");
+        _api.LastBody.Should().Contain("\"title\":\"fix: bug in parser\"");
+        _api.LastBody.Should().Contain("\"body\":\"details here\"");
     }
 
     [Fact]

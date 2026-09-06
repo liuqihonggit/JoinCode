@@ -27,17 +27,7 @@ internal static class DoctorSubCommand
         var doctorFs = IO.FileSystem.FileSystemFactory.Create();
         Core.Utils.TestEnvironmentDetector.ForceNonInteractive = true;
         var doctorResult = await App.Builder.EngineSessionFactory.CreateCliSessionAsync(options, doctorFs, ct).ConfigureAwait(false);
-
-        try
-        {
-            return await Entry.DoctorModeRunner.RunAsync(options, doctorResult.Host.Services);
-        }
-        finally
-        {
-            if (doctorResult.Host is IAsyncDisposable asyncDoc)
-                await asyncDoc.DisposeAsync().ConfigureAwait(false);
-            else
-                doctorResult.Host.Dispose();
-        }
+        using var doctorHost = doctorResult.Host;
+        return await Entry.DoctorModeRunner.RunAsync(options, doctorHost.Services);
     }
 }

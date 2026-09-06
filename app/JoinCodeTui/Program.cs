@@ -20,21 +20,10 @@ internal static class Program
             var result = EngineSessionFactory.CreateGuiSessionAsync(
                 extraModules: [new Hosting.TuiInteractionModule()],
                 cancellationToken: awaitCts.Token).GetAwaiter().GetResult();
+            using var host = result.Host;
             WriteDiag("[Main] session created, starting TuiModeRunner");
-            try
-            {
-                TuiModeRunner.RunAsync(result.Config, result.Services, awaitCts.Token).GetAwaiter().GetResult();
-                WriteDiag("[Main] TuiModeRunner returned normally");
-            }
-            finally
-            {
-                try
-                {
-                    if (result.Host is IAsyncDisposable ad) ad.DisposeAsync().GetAwaiter().GetResult();
-                    else result.Host.Dispose();
-                }
-                catch (Exception disposeEx) { WriteDiag($"[Main] Host dispose failed (ignored): {disposeEx.Message}"); }
-            }
+            TuiModeRunner.RunAsync(result.Config, result.Services, awaitCts.Token).GetAwaiter().GetResult();
+            WriteDiag("[Main] TuiModeRunner returned normally");
             return 0;
         }
         catch (OperationCanceledException)

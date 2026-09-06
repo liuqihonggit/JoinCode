@@ -44,18 +44,8 @@ class Program
             {
                 var doctorFs = IO.FileSystem.FileSystemFactory.Create();
                 var doctorResult = await App.Builder.EngineSessionFactory.CreateCliSessionAsync(options, doctorFs);
-
-                try
-                {
-                    return await Entry.DoctorModeRunner.RunAsync(options, doctorResult.Host.Services);
-                }
-                finally
-                {
-                    if (doctorResult.Host is IAsyncDisposable asyncDoc)
-                        await asyncDoc.DisposeAsync();
-                    else
-                        doctorResult.Host.Dispose();
-                }
+                using var doctorHost = doctorResult.Host;
+                return await Entry.DoctorModeRunner.RunAsync(options, doctorHost.Services);
             }
 
             // 3.2 --doctor-endpoint: 病人模式 — 连接到医生的 SSE 服务器，发送遥测事件
@@ -88,7 +78,7 @@ class Program
             var engineResult = await App.Builder.EngineSessionFactory.CreateCliSessionAsync(options, fs);
 
             var config = engineResult.Config;
-            var host = engineResult.Host;
+            using var host = engineResult.Host;
 
             logger = host.Services.GetService<ILogger<Program>>();
 
@@ -126,10 +116,6 @@ class Program
             {
                 if (doctorClient is not null)
                     await doctorClient.DisposeAsync().ConfigureAwait(false);
-                if (host is IAsyncDisposable asyncHost)
-                    await asyncHost.DisposeAsync().ConfigureAwait(false);
-                else
-                    host.Dispose();
             }
 
             return exitCode;

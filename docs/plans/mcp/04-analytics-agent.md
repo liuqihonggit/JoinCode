@@ -44,12 +44,12 @@
 | 4 | `general_agent` | 通用智能体 | ⬜ |
 | 5 | `guide_agent` | 引导智能体 | ⬜ |
 | 6 | `list_agents` | 列出智能体 | ⬜ |
-| 7 | `agent` | 智能体 | ⬜ |
+| 7 | `Agent` | 智能体 | ⬜ |
 | 8 | `agent_list` | 智能体列表 | ⬜ |
 | 9 | `agent_status` | 智能体状态 | ⬜ |
 | 10 | `agent_stop` | 停止智能体 | ⬜ |
 | 11 | `agent_running` | 运行中智能体 | ⬜ |
-| 12 | `agent_send_message` | 发送消息 | ⬜ |
+| 12 | `SendMessage` | 发送消息 | ⬜ |
 | 13 | `forward_user_input` | 转发用户输入 | ⬜ |
 | 14 | `agent_get_messages` | 获取消息 | ⬜ |
 

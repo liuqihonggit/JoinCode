@@ -140,7 +140,22 @@ $jcc = "D:\project\w1\artifacts\bin\JoinCode\Release\net10.0\jcc.exe"
 ### 待修复问题
 
 1. ~~**`screenshot` 空输出**~~ → ✅ 已修复: `McpCommand.OutputResult` 现在遍历全部 Content,图片输出摘要 `[图片: image/png, N 字节 base64 ≈ M 字节]`,json 模式输出完整 base64
-2. **错误输出格式** — 错误信息输出到 stderr 而非 JSON 格式,需确认是否为设计决策
+2. ~~**错误输出格式**~~ → ✅ 确认为设计决策: 非 json 模式输出纯文本,错误用 `TerminalHelper.WriteError` 输出到 stderr; json 模式输出 `{"isError":true,"content":[...]}`
+
+## 最终测试结果 (2026-09-06)
+
+| 状态 | 数量 | 说明 |
+|------|------|------|
+| OK | 7 | 正常返回有意义的结果 |
+| ERROR | 24 | 全部是缺参数错误(预期行为) |
+| 坏点 | 0 | screenshot和detect_ui_elements已修复 |
+
+### 修复的坏点 (2个)
+
+| 坏点 | 修复 |
+|------|------|
+| `screenshot` 空输出 | `OutputResult` 遍历全部 Content,图片输出摘要 |
+| `detect_ui_elements` 错误提示模糊 | 改为3种可能原因+切换建议 |
 
 ## 交接说明
 

@@ -12,7 +12,6 @@ namespace McpToolDispatch;
 [McpToolDispatch(ToolCategory.GitHub)]
 public partial class GitHubToolHandlers
 {
-    private readonly IGitHubCommandRunner _gh;
     private readonly IGitHubApiClient? _apiClient;
     private readonly IGitCommandRunner? _git;
     private readonly IDownloader _downloader;
@@ -50,7 +49,6 @@ public partial class GitHubToolHandlers
     private const string CacheDirName = ".jcc/gh_cache";
 
     public GitHubToolHandlers(
-        IGitHubCommandRunner gh,
         IDownloader downloader,
         IFileSystem fs,
         IPersistencePipeline pipeline,
@@ -58,7 +56,6 @@ public partial class GitHubToolHandlers
         IGitCommandRunner? git = null,
         ILogger<GitHubToolHandlers>? logger = null)
     {
-        _gh = gh ?? throw new ArgumentNullException(nameof(gh));
         _downloader = downloader ?? throw new ArgumentNullException(nameof(downloader));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
@@ -98,26 +95,6 @@ public partial class GitHubToolHandlers
     }
 
     /// <summary>
-    /// 执行 gh 命令 — 封装日志
-    /// </summary>
-    private async Task<GitHubCommandResult> RunGhAsync(string arguments, string? workingDir, CancellationToken ct, int? timeoutMs = null)
-    {
-        _logger?.LogDebug("执行 gh 命令: {Args}", arguments);
-        return await _gh.ExecuteAsync(arguments, workingDir, timeoutMs, ct).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// 构建失败 ToolResult
-    /// </summary>
-    private static ToolResult Fail(GitHubCommandResult result)
-    {
-        var err = string.IsNullOrEmpty(result.Error)
-            ? $"gh 命令失败，退出码 {result.ExitCode}"
-            : result.Error;
-        return ToolResultBuilder.Error().WithText(err).Build();
-    }
-
-    /// <summary>
     /// 构建失败 ToolResult(直接错误消息)
     /// </summary>
     private static ToolResult Fail(string message)
@@ -132,22 +109,6 @@ public partial class GitHubToolHandlers
     {
         var text = string.IsNullOrEmpty(prefix) ? output : $"{prefix}\n{output}";
         return ToolResultBuilder.Success().WithText(text).Build();
-    }
-
-    /// <summary>
-    /// 追加 --repo 参数（仓库不为空时）
-    /// </summary>
-    private static string RepoArg(string? repo)
-    {
-        return string.IsNullOrWhiteSpace(repo) ? string.Empty : $" --repo {repo}";
-    }
-
-    /// <summary>
-    /// 追加 --workdir 参数（工作目录不为空时，通过 ExecuteAsync 的 workingDirectory 传入）
-    /// </summary>
-    private static string? ResolveWorkDir(string? workingDir)
-    {
-        return string.IsNullOrWhiteSpace(workingDir) ? null : workingDir;
     }
 
     /// <summary>

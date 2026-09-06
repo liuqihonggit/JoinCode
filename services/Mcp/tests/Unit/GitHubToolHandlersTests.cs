@@ -2,14 +2,12 @@ namespace Mcp.Tests;
 
 public sealed class GitHubToolHandlersTests
 {
-    private readonly FakeGitHubCommandRunner _gh = new();
     private readonly FakeGitHubApiClient _api = new();
     private readonly GitHubToolHandlers _handler;
 
     public GitHubToolHandlersTests()
     {
         _handler = new GitHubToolHandlers(
-            _gh,
             new FakeDownloader(),
             new InMemoryFileSystem(),
             new PersistencePipeline(new InMemoryFileSystem()),
@@ -328,7 +326,7 @@ public sealed class GitHubToolHandlersTests
             Body = """{"assets":[{"name":"a.zip","browser_download_url":"https://x/a.zip"},{"name":"b.tar.gz","browser_download_url":"https://x/b.tar.gz"}]}""",
         };
         var fakeDownloader = new FakeDownloader();
-        var handler = new GitHubToolHandlers(_gh, fakeDownloader, new InMemoryFileSystem(), new PersistencePipeline(new InMemoryFileSystem()), _api, null, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(fakeDownloader, new InMemoryFileSystem(), new PersistencePipeline(new InMemoryFileSystem()), _api, null, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhReleaseDownloadAsync("v1.0", "/tmp", repo: "owner/repo");
 
@@ -354,39 +352,6 @@ public sealed class GitHubToolHandlersTests
         result.IsError.Should().BeTrue();
         result.GetFirstText().Should().Contain("release not found");
     }
-}
-
-internal sealed class FakeGitHubCommandRunner : IGitHubCommandRunner
-{
-    public GitHubCommandResult NextResult { get; set; } = new() { Success = true, Output = "{}", ExitCode = 0 };
-    public string? LastArguments { get; private set; }
-
-    public Task<GitHubCommandResult> ExecuteAsync(string arguments, string? workingDirectory = null, int? timeoutMs = null, CancellationToken ct = default)
-    {
-        LastArguments = arguments;
-        return Task.FromResult(NextResult);
-    }
-
-    public async IAsyncEnumerable<string> ExecuteStreamingAsync(
-        string arguments,
-        string? workingDirectory = null,
-        int? timeoutMs = null,
-        [EnumeratorCancellation] CancellationToken ct = default)
-    {
-        LastArguments = arguments;
-        if (string.IsNullOrEmpty(NextResult.Output)) yield break;
-        foreach (var line in NextResult.Output.Split('\n'))
-        {
-            ct.ThrowIfCancellationRequested();
-            yield return line;
-        }
-    }
-
-    public Task<PrCreateResult> CreatePrAsync(string title, string? body, string baseBranch, string headBranch, string? repo = null, bool draft = false, CancellationToken ct = default)
-        => throw new NotImplementedException();
-
-    public Task<PrListResult> ListPrsAsync(string? repo = null, string state = "open", int limit = 30, CancellationToken ct = default)
-        => throw new NotImplementedException();
 }
 
 internal sealed class FakeGitHubApiClient : IGitHubApiClient

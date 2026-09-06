@@ -660,16 +660,6 @@ public partial class GitHubToolHandlers
         "- skip_lines=N → 分页续读";
 
     /// <summary>
-    /// 超时纵深防御提示 — 引导 AI 用 gh 工具的降级路径,不要改用 gh api
-    /// </summary>
-    private const string TimeoutDefenseHint =
-        "\n\n💡 日志量大导致超时，不要改用 gh api，用以下方式缩小范围:\n" +
-        "1. expand=steps → 按步骤展开(每步单独拉取,量小)\n" +
-        "2. expand=step:步骤名 → 只拉指定步骤\n" +
-        "3. skip_lines=N + max_lines=M → 分页拉取\n" +
-        "4. job_id=xxx → 精准拉单 job";
-
-    /// <summary>
     /// 缺少栈帧信息提示 — CI 只报 "Process completed with exit code 1" 但无栈帧,引导 AI 按顺序排错
     /// </summary>
     private const string NoStackTraceHint =
@@ -712,17 +702,6 @@ public partial class GitHubToolHandlers
         if (parsed is null) return false;
         result = parsed.Value;
         return true;
-    }
-
-    /// <summary>
-    /// 判断是否为超时错误 — 用于触发纵深防御提示(避免 AI 改用 gh api)
-    /// </summary>
-    private static bool IsTimeoutError(GitHubCommandResult result)
-    {
-        if (string.IsNullOrEmpty(result.Error)) return false;
-        return result.Error.Contains("超时", StringComparison.OrdinalIgnoreCase)
-            || result.Error.Contains("timeout", StringComparison.OrdinalIgnoreCase)
-            || result.Error.Contains("timed out", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

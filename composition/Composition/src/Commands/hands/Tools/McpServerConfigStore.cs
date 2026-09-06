@@ -57,26 +57,73 @@ public sealed partial class McpServerConfigStore : ServiceEntity, IMcpServerConf
     {
         ValidateServerName(name);
 
-        var config = await LoadAsync(scope, ct).ConfigureAwait(false);
+        var path = GetConfigPath(scope);
+        var dir = Path.GetDirectoryName(path);
+        DirectoryHelper.EnsureDirectoryExists(_fs, dir);
 
-        if (config.McpServers.ContainsKey(name))
+        try
         {
-            throw new InvalidOperationException($"[MCP009] MCP 服务器 '{name}' 已存在于 {scope} 配置中");
+            await _fs.EditFileAsync<bool>(path, async (bytes, cancellationToken) =>
+            {
+                var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
+                McpConfigFile config;
+                try
+                {
+                    config = RelaxedJsonSerializer.Deserialize(content, McpConfigJsonContext.Default.McpConfigFile) ?? new McpConfigFile();
+                }
+                catch
+                {
+                    config = new McpConfigFile();
+                }
+                if (config.McpServers.ContainsKey(name))
+                {
+                    throw new InvalidOperationException($"[MCP009] MCP 服务器 '{name}' 已存在于 {scope} 配置中");
+                }
+                config.McpServers[name] = entry;
+                var json = RelaxedJsonSerializer.Serialize(config, McpConfigJsonContext.Default);
+                var newBytes = FileEncodingDetector.EncodeString(json, encoding);
+                return (newBytes, true);
+            }, ct).ConfigureAwait(false);
         }
-
-        config.McpServers[name] = entry;
-        await SaveAsync(scope, config, ct).ConfigureAwait(false);
+        catch (FileNotFoundException)
+        {
+            var config = new McpConfigFile();
+            config.McpServers[name] = entry;
+            await SaveAsync(scope, config, ct).ConfigureAwait(false);
+        }
     }
 
     public async Task<bool> RemoveServerAsync(string name, string scope, CancellationToken ct = default)
     {
-        var config = await LoadAsync(scope, ct).ConfigureAwait(false);
+        var path = GetConfigPath(scope);
+        var dir = Path.GetDirectoryName(path);
+        DirectoryHelper.EnsureDirectoryExists(_fs, dir);
 
-        if (!config.McpServers.Remove(name))
+        try
+        {
+            return await _fs.EditFileAsync<bool>(path, async (bytes, cancellationToken) =>
+            {
+                var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
+                McpConfigFile config;
+                try
+                {
+                    config = RelaxedJsonSerializer.Deserialize(content, McpConfigJsonContext.Default.McpConfigFile) ?? new McpConfigFile();
+                }
+                catch
+                {
+                    config = new McpConfigFile();
+                }
+                if (!config.McpServers.Remove(name))
+                    return (null, false);
+                var json = RelaxedJsonSerializer.Serialize(config, McpConfigJsonContext.Default);
+                var newBytes = FileEncodingDetector.EncodeString(json, encoding);
+                return (newBytes, true);
+            }, ct).ConfigureAwait(false);
+        }
+        catch (FileNotFoundException)
+        {
             return false;
-
-        await SaveAsync(scope, config, ct).ConfigureAwait(false);
-        return true;
+        }
     }
 
     public async Task<Dictionary<string, (string Scope, McpServerConfigEntry Entry)>> GetAllServersAsync(CancellationToken ct = default)

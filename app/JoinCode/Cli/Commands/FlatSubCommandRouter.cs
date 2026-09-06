@@ -105,7 +105,8 @@ internal static class FlatSubCommandRouter
         var transport = GetOptionValue(args, "--transport") ?? "stdio";
         var port = int.TryParse(GetOptionValue(args, "--port"), out var p) ? p : 9903;
         var host = GetOptionValue(args, "--host") ?? "localhost";
-        return await McpCliCommand.ExecuteServeAsync(transport, port, host, ct).ConfigureAwait(false);
+        var awaitSeconds = int.TryParse(GetOptionValue(args, "--await"), out var a) ? a : (int?)null;
+        return await McpCliCommand.ExecuteServeAsync(transport, port, host, ct, awaitSeconds).ConfigureAwait(false);
     }
 
     private static Task<int?> ExecuteSlashCallAsync(string[] args, CancellationToken ct)

@@ -170,8 +170,8 @@ public sealed class SettingsMergeGenerator : IIncrementalGenerator
                 }
                 else
                 {
-                    // Dictionary 深拷贝 — 非空属性无需 null 检查
-                    sb.AppendLine($"        {propName} = new Dictionary<string, {prop.DictValueType}>(other.{propName}, StringComparer.OrdinalIgnoreCase);");
+                    // Dictionary 深拷贝 — 非空属性也做 null 防护（反序列化可能产生 null）
+                    sb.AppendLine($"        {propName} = other.{propName} is not null ? new Dictionary<string, {prop.DictValueType}>(other.{propName}, StringComparer.OrdinalIgnoreCase) : new Dictionary<string, {prop.DictValueType}>(StringComparer.OrdinalIgnoreCase);");
                 }
             }
             else
@@ -354,6 +354,14 @@ public sealed class SettingsMergeGenerator : IIncrementalGenerator
             if (prop.FullyQualifiedType == "string?" || prop.FullyQualifiedType == "string")
             {
                 sb.AppendLine($"            \"{prop.JsonName}\" => {prop.Name},");
+            }
+            else if (prop.FullyQualifiedType == "bool?" || prop.FullyQualifiedType == "bool")
+            {
+                sb.AppendLine($"            \"{prop.JsonName}\" => {prop.Name}?.ToString().ToLowerInvariant(),");
+            }
+            else if (prop.FullyQualifiedType == "int?" || prop.FullyQualifiedType == "int")
+            {
+                sb.AppendLine($"            \"{prop.JsonName}\" => {prop.Name}?.ToString(),");
             }
         }
 

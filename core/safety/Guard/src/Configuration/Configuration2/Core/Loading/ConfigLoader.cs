@@ -512,8 +512,7 @@ public class ConfigLoader {
 
                 if (value is not null)
                 {
-                    using var doc = JsonDocument.Parse($"\"{JsonEncodeValue(value)}\"");
-                    data[key] = doc.RootElement.Clone();
+                    data[key] = ParseJsonValueElement(value);
                 }
                 else
                 {
@@ -530,12 +529,29 @@ public class ConfigLoader {
             Dictionary<string, JsonElement> data = new(StringComparer.Ordinal);
             if (value is not null)
             {
-                using var doc = JsonDocument.Parse($"\"{JsonEncodeValue(value)}\"");
-                data[key] = doc.RootElement.Clone();
+                data[key] = ParseJsonValueElement(value);
             }
             var outputJson = RelaxedJsonSerializer.SerializeIndented(data, ConfigIndentedJsonContext.Default);
             await fs.WriteAllTextAsync(globalPath, outputJson, cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    /// 将字符串值解析为 JsonElement，智能推断类型（boolean/number/string）。
+    /// </summary>
+    private static JsonElement ParseJsonValueElement(string value)
+    {
+        var lower = value.ToLowerInvariant().Trim();
+        var jsonText = lower switch
+        {
+            "true" => "true",
+            "false" => "false",
+            "null" => "null",
+            _ when double.TryParse(lower, out _) => lower,
+            _ => $"\"{JsonEncodeValue(value)}\"",
+        };
+        using var doc = JsonDocument.Parse(jsonText);
+        return doc.RootElement.Clone();
     }
 
     private static string JsonEncodeValue(string value)

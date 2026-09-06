@@ -27,8 +27,9 @@ public sealed partial class SnipLogic : ServiceEntity
         var encoding = await FileEncodingDetector.DetectFromFileAsync(filePath, _fs, cancellationToken).ConfigureAwait(false);
         if (encoding is UTF8Encoding)
         {
-            using var mmapReader = new MappedFileReader(filePath);
-            var content = mmapReader.ReadToEnd();
+            var content = await _fs.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
+            if (content.Length == 0)
+                return string.Empty;
             var ranges = LineSpanIndexer.BuildLineRanges(content.AsSpan(), cancellationToken);
             var result = new StringBuilder();
             for (var i = startLine; i < ranges.Count && i - startLine < lineCount; i++)
@@ -75,8 +76,7 @@ public sealed partial class SnipLogic : ServiceEntity
         var encoding = await FileEncodingDetector.DetectFromFileAsync(filePath, _fs, cancellationToken).ConfigureAwait(false);
         if (encoding is UTF8Encoding)
         {
-            using var mmapReader = new MappedFileReader(filePath);
-            var content = mmapReader.ReadToEnd();
+            var content = await _fs.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
             var ranges = LineSpanIndexer.BuildLineRanges(content.AsSpan(), cancellationToken);
             var previewContent = new StringBuilder();
             var previewLinesCollected = 0;

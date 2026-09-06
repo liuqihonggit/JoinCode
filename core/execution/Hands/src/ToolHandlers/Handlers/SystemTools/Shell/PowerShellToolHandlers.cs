@@ -237,11 +237,10 @@ public class PowerShellToolHandlers : ShellToolBase
             var gateResult = CheckGate(SystemActuatorKind.PowerShell);
             if (gateResult is not null) return gateResult;
 
-            var command = "$PSVersionTable | ConvertTo-Json";
-            var fullCommand = $"powershell.exe -NoProfile -Command \"{command}\"";
+            var command = "$PSVersionTable | ConvertTo-Json -Depth 2";
 
             var result = await _registry.Get(SystemActuatorKind.PowerShell).ExecuteAsync(
-                fullCommand,
+                command,
                 10000,
                 null,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -257,7 +256,7 @@ public class PowerShellToolHandlers : ShellToolBase
             else
             {
                 var simpleResult = await _registry.Get(SystemActuatorKind.PowerShell).ExecuteAsync(
-                    "powershell.exe -NoProfile -Command \"$PSVersionTable.PSVersion\"",
+                    "$PSVersionTable.PSVersion.ToString()",
                     10000,
                     null,
                     cancellationToken: cancellationToken).ConfigureAwait(false);

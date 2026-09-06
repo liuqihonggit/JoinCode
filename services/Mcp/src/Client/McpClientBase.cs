@@ -136,19 +136,12 @@ public abstract class McpClientBase : IMcpClient
 
         int requestId = response.GetIdAsInt();
 
-        var guard = await _requestLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_requestLock.Name}' 等待超时");
+        using var guard = await _requestLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_requestLock.Name}' 等待超时");
         TaskCompletionSource<JsonRpcResponse>? tcsToComplete = null;
-        try
+        if (_pendingRequests.TryGetValue(requestId, out var tcs))
         {
-            if (_pendingRequests.TryGetValue(requestId, out var tcs))
-            {
-                tcsToComplete = tcs;
-                _pendingRequests.Remove(requestId);
-            }
-        }
-        finally
-        {
-            guard.Dispose();
+            tcsToComplete = tcs;
+            _pendingRequests.Remove(requestId);
         }
 
         tcsToComplete?.TrySetResult(response);
@@ -174,19 +167,12 @@ public abstract class McpClientBase : IMcpClient
 
     protected async Task CancelPendingRequestsAsync(CancellationToken cancellationToken = default)
     {
-        var guard = await _requestLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_requestLock.Name}' 等待超时");
-        try
+        using var guard = await _requestLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_requestLock.Name}' 等待超时");
+        foreach (var tcs in _pendingRequests.Values)
         {
-            foreach (var tcs in _pendingRequests.Values)
-            {
-                tcs.TrySetCanceled(cancellationToken);
-            }
-            _pendingRequests.Clear();
+            tcs.TrySetCanceled(cancellationToken);
         }
-        finally
-        {
-            guard.Dispose();
-        }
+        _pendingRequests.Clear();
     }
 
     protected async Task PerformHandshakeAsync(CancellationToken cancellationToken)

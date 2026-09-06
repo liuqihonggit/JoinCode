@@ -230,4 +230,13 @@ public static class AppDataConstants
         get => _paths.McpConnectionsFileName;
         set => _paths = _paths with { McpConnectionsFileName = value };
     }
+
+    /// <summary>
+    /// MCP 认证配置文件名
+    /// </summary>
+    public static string McpAuthFileName
+    {
+        get => _paths.McpAuthFileName;
+        set => _paths = _paths with { McpAuthFileName = value };
+    }
 }

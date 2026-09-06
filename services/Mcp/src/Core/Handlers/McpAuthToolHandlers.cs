@@ -6,7 +6,7 @@ namespace McpToolDispatch;
 /// MCP 认证工具处理器 - 提供 MCP 服务器认证功能
 /// </summary>
 [McpToolDispatch(ToolCategory.McpAuth)]
-public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
+public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
 {
     private readonly Dictionary<string, IMcpAuthProvider> _authProviders = new();
     private readonly ILogger? _logger;
@@ -15,11 +15,14 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
     private readonly IHttpClientProvider? _httpClientProvider;
     private int _disposed;
 
-    public McpAuthToolHandlers(ILogger? logger = null, IMcpAuthPersistenceService? persistenceService = null, IHttpClientProvider? httpClientProvider = null)
+    public McpAuthToolHandlers(ILogger? logger = null, IMcpAuthPersistenceService? persistenceService = null, IHttpClientProvider? httpClientProvider = null, IFileSystem? fileSystem = null)
     {
         _logger = logger;
         _persistenceService = persistenceService;
         _httpClientProvider = httpClientProvider;
+        _authPersistenceFs = fileSystem;
+        _authStateFilePath = fileSystem is not null ? GetAuthStateFilePath() : null;
+        LoadAuthState();
     }
 
     /// <summary>
@@ -48,6 +51,7 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
             _authProviders[auth_name] = provider;
 
             await PersistAuthConfigAsync(auth_name, McpAuthConfigType.ApiKey, cancellationToken).ConfigureAwait(false);
+            await SaveAuthEntryAsync(new McpAuthEntry { AuthName = auth_name, AuthType = "ApiKey", ApiKey = api_key, HeaderName = header_name }, cancellationToken).ConfigureAwait(false);
 
             var response = new System.Text.StringBuilder();
             response.AppendLine(L.T(StringKey.ApiKeyAuthConfigured, auth_name));
@@ -82,6 +86,7 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
             _authProviders[auth_name] = provider;
 
             await PersistAuthConfigAsync(auth_name, McpAuthConfigType.Bearer, cancellationToken).ConfigureAwait(false);
+            await SaveAuthEntryAsync(new McpAuthEntry { AuthName = auth_name, AuthType = "Bearer", Token = token }, cancellationToken).ConfigureAwait(false);
 
             var response = new System.Text.StringBuilder();
             response.AppendLine(L.T(StringKey.BearerTokenAuthConfigured, auth_name));
@@ -117,6 +122,7 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
             _authProviders[auth_name] = provider;
 
             await PersistAuthConfigAsync(auth_name, McpAuthConfigType.Basic, cancellationToken).ConfigureAwait(false);
+            await SaveAuthEntryAsync(new McpAuthEntry { AuthName = auth_name, AuthType = "Basic", Username = username, Password = password }, cancellationToken).ConfigureAwait(false);
 
             var response = new System.Text.StringBuilder();
             response.AppendLine(L.T(StringKey.BasicAuthConfigured, auth_name));
@@ -179,6 +185,7 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
             }
 
             await PersistAuthConfigAsync(auth_name, McpAuthConfigType.OAuth2, cancellationToken).ConfigureAwait(false);
+            await SaveAuthEntryAsync(new McpAuthEntry { AuthName = auth_name, AuthType = "OAuth2", ClientId = client_id, ClientSecret = client_secret, TokenUrl = token_url, Scopes = scopeList }, cancellationToken).ConfigureAwait(false);
 
             var response = new System.Text.StringBuilder();
             response.AppendLine(L.T(StringKey.OAuth2AuthConfigured, auth_name));
@@ -318,6 +325,7 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
             }
 
             _ = RemovePersistedAuthConfigAsync(auth_name, cancellationToken);
+            _ = RemoveAuthEntryAsync(auth_name, cancellationToken);
 
             return Task.FromResult(ToolResultBuilder.Success()
                 .WithText(L.T(StringKey.AuthConfigRemoved, auth_name))

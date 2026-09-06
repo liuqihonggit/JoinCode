@@ -56,6 +56,7 @@ public enum JccEnvVar
     [EnumValue("JCC_TOOL_RESULTS_FOLDER_NAME")] ToolResultsFolderName,
     [EnumValue("JCC_MCP_FOLDER_NAME")] McpFolderName,
     [EnumValue("JCC_MCP_CONNECTIONS_FILE_NAME")] McpConnectionsFileName,
+    [EnumValue("JCC_MCP_AUTH_FILE_NAME")] McpAuthFileName,
 
     // 新增: Team/Teammate 环境变量
     [EnumValue("JCC_AUTO_MODE_GATE_ENABLED")] AutoModeGateEnabled,

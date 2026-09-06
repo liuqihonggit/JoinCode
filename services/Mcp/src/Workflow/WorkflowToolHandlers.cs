@@ -10,6 +10,7 @@ public class WorkflowToolHandlers
     private readonly IChatService? _chatService;
     private readonly ICodeService? _codeService;
     private readonly IConfiguration _configuration;
+    private readonly IFileSystem? _fileSystem;
     private readonly AsyncLock _historyLock = new();
 
     // 内存中的对话历史（用于提示词模式下的多轮对话测试）
@@ -19,12 +20,14 @@ public class WorkflowToolHandlers
         IPlanService? planService,
         IChatService? chatService,
         ICodeService? codeService,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IFileSystem? fileSystem = null)
     {
         _planService = planService;
         _chatService = chatService;
         _codeService = codeService;
         _configuration = configuration;
+        _fileSystem = fileSystem;
     }
 
     private bool CheckHasAiKey()
@@ -32,10 +35,39 @@ public class WorkflowToolHandlers
         var apiKey = _configuration["Workflow:Provider:ApiKey"];
         if (!string.IsNullOrWhiteSpace(apiKey)) return true;
 
-        var envApiKey = Environment.GetEnvironmentVariable(ProviderEnvVar.OpenAiApiKey.ToValue())
-            ?? Environment.GetEnvironmentVariable(ProviderEnvVar.AnthropicApiKey.ToValue())
-            ?? Environment.GetEnvironmentVariable(ProviderEnvVar.AzureOpenAiApiKey.ToValue());
-        return !string.IsNullOrWhiteSpace(envApiKey);
+        foreach (var envVar in Enum.GetValues<ProviderEnvVar>())
+        {
+            var envValue = Environment.GetEnvironmentVariable(envVar.ToValue());
+            if (!string.IsNullOrWhiteSpace(envValue)) return true;
+        }
+
+        var authFilePath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            AppDataConstants.AppDataFolder,
+            AppDataConstants.AuthFileName);
+        try
+        {
+            var fs = _fileSystem ?? new IO.FileSystem.PhysicalFileSystem();
+            if (fs.FileExists(authFilePath))
+            {
+                var json = fs.ReadAllText(authFilePath);
+                using var doc = System.Text.Json.JsonDocument.Parse(json);
+                foreach (var prop in doc.RootElement.EnumerateObject())
+                {
+                    if (prop.Value.ValueKind == System.Text.Json.JsonValueKind.String &&
+                        !string.IsNullOrWhiteSpace(prop.Value.GetString()))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[Workflow] 读取 auth.json 失败: {ex.Message}");
+        }
+
+        return false;
     }
 
     private bool IsPromptOnlyMode()

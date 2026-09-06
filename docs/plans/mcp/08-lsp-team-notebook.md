@@ -113,37 +113,39 @@ $jcc = "D:\project\w1\artifacts\bin\JoinCode\Release\net10.0\jcc.exe"
 
 ## 测试结果
 
-### LSP 工具 (10 个) — 全部通过（优雅降级）
+### LSP 工具 (10 个) — 全部通过（完善：服务器不可用时返回安装提示）
 
 | # | 工具名 | 状态 | 备注 |
 |---|--------|------|------|
-| 1 | `lsp_goto_definition` | ✅ | omnisharp未安装,返回"未找到定义位置" |
-| 2 | `lsp_find_references` | ✅ | 返回"未找到引用" |
-| 3 | `lsp_hover` | ✅ | 返回"无悬停信息" |
-| 4 | `lsp_completion` | ✅ | 返回"无补全建议" |
-| 5 | `lsp_document_symbols` | ✅ | 返回"文档中无符号" |
-| 6 | `lsp_workspace_symbol` | ✅ | 返回"未找到匹配的符号" |
-| 7 | `lsp_goto_implementation` | ✅ | 返回"未找到实现位置" |
-| 8 | `lsp_prepare_call_hierarchy` | ✅ | 返回"此位置无调用层次信息" |
-| 9 | `lsp_incoming_calls` | ✅ | 返回"此位置无调用层次信息" |
-| 10 | `lsp_outgoing_calls` | ✅ | 返回"此位置无调用层次信息" |
+| 1 | `lsp_goto_definition` | ✅ | omnisharp未安装,返回安装提示 |
+| 2 | `lsp_find_references` | ✅ | 返回安装提示 |
+| 3 | `lsp_hover` | ✅ | 返回安装提示 |
+| 4 | `lsp_completion` | ✅ | 返回安装提示 |
+| 5 | `lsp_document_symbols` | ✅ | 返回安装提示 |
+| 6 | `lsp_workspace_symbol` | ✅ | 无file_path,保持原有降级消息 |
+| 7 | `lsp_goto_implementation` | ✅ | 返回安装提示 |
+| 8 | `lsp_prepare_call_hierarchy` | ✅ | 返回安装提示 |
+| 9 | `lsp_incoming_calls` | ✅ | 返回安装提示 |
+| 10 | `lsp_outgoing_calls` | ✅ | 返回安装提示 |
 
-### Team 工具 (10 个) — 全部通过（架构限制：状态不持久化）
+> **完善**: 添加 `IsServerAvailableAsync` 接口方法,`ValidateFileAndExecuteAsync` 中检查服务器可用性。不可用时按文件扩展名返回对应语言服务器的安装命令（如 C# → `dotnet tool install -g OmniSharp`），而非空降级消息。
+
+### Team 工具 (10 个) — 全部通过（完善：添加文件持久化）
 
 | # | 工具名 | 状态 | 备注 |
 |---|--------|------|------|
-| 1 | `team_create` | ✅ | 返回团队ID |
-| 2 | `team_delete` | ✅ | 团队不存在时返回明确错误 |
-| 3 | `team_get` | ✅ | |
-| 4 | `team_list` | ✅ | |
-| 5 | `team_add_member` | ✅ | 参数: agent_id (非member_id) |
-| 6 | `team_remove_member` | ✅ | 参数: agent_id |
-| 7 | `team_send_message` | ✅ | 参数: sender_id |
-| 8 | `team_send_direct_message` | ✅ | 参数: sender_id + target_agent_id |
-| 9 | `team_broadcast` | ✅ | 参数: sender_id |
-| 10 | `team_get_messages` | ✅ | |
+| 1 | `team_create` | ✅ | 持久化到 ~/.jcc/teams/state.json |
+| 2 | `team_delete` | ✅ | 跨进程删除 |
+| 3 | `team_get` | ✅ | 跨进程读取 |
+| 4 | `team_list` | ✅ | 跨进程列表 |
+| 5 | `team_add_member` | ✅ | 跨进程添加成员 |
+| 6 | `team_remove_member` | ✅ | 跨进程移除成员 |
+| 7 | `team_send_message` | ✅ | 跨进程发送消息 |
+| 8 | `team_send_direct_message` | ✅ | 跨进程发送私信 |
+| 9 | `team_broadcast` | ✅ | 跨进程广播 |
+| 10 | `team_get_messages` | ✅ | 跨进程读取消息 |
 
-> **架构限制**: TeamManager 用 ConcurrentDictionary 内存存储,CLI 无状态模式下跨进程状态丢失。交互模式(单进程)下正常工作。
+> **完善**: TeamManager 添加文件持久化（`~/.jcc/teams/state.json`），构造函数加载，每次写操作后保存。IFileSystem 可选注入，测试不受影响。CLI 无状态模式下跨进程共享团队状态。
 
 ### Notebook 工具 (10 个) — 全部通过
 

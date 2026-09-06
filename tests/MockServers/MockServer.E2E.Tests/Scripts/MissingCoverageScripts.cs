@@ -161,7 +161,7 @@ public static class MissingCoverageScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Agent",
+                            ToolName = "agent",
                             Arguments = """{"name":"check-readme","description":"检查README","prompt":"检查当前目录下README文件，返回其内容概要"}"""
                         }
                     ],
@@ -170,7 +170,7 @@ public static class MissingCoverageScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Agent", Description = "应包含Agent工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "agent", Description = "应包含agent工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复（含Agent输出）" },
                     new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "不应有错误" },
                 ]
@@ -242,7 +242,7 @@ public static class MissingCoverageScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Agent",
+                            ToolName = "agent",
                             Arguments = """{"name":"spell-check","description":"拼写检查","prompt":"检查README.md中的拼写问题","isolation":"worktree"}"""
                         }
                     ],
@@ -250,7 +250,7 @@ public static class MissingCoverageScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Agent", Description = "应包含Agent工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "agent", Description = "应包含agent工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复（含Agent输出）" },
                     new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "不应有错误" },
                 ]

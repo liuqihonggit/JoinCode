@@ -159,7 +159,7 @@ public static class ModalityMismatchScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Agent",
+                            ToolName = "agent",
                             Arguments = """{"description":"生成猫的图片","prompt":"画一张可爱的猫咪图片","model":"dall-e-3"}"""
                         }
                     ],
@@ -227,7 +227,7 @@ public static class ModalityMismatchScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Agent",
+                            ToolName = "agent",
                             Arguments = """{"description":"识别图片内容","prompt":"看这张图片里有什么","model":"agnes-image-2.0-flash"}"""
                         }
                     ],

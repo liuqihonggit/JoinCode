@@ -61,6 +61,7 @@ global using Core.Security.Sandbox.Providers;
 global using JoinCode.Abstractions.Security.Sandbox;
 global using Core.Utils;
 global using Infrastructure.Pipeline;
+global using Infrastructure.IO.Services.FileOps;
 global using Infrastructure.Utils.IO;
 global using Infrastructure.Utils.Text;
 global using IO;

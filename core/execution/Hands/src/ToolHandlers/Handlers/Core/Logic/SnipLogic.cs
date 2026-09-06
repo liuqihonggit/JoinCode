@@ -24,11 +24,25 @@ public sealed partial class SnipLogic : ServiceEntity
         if (startLine < 0)
             startLine = 0;
 
-        var result = new StringBuilder();
-        var currentLine = 0;
-
-        using var stream = _fs.OpenRead(filePath);
         var encoding = await FileEncodingDetector.DetectFromFileAsync(filePath, _fs, cancellationToken).ConfigureAwait(false);
+        if (encoding is UTF8Encoding)
+        {
+            var content = await _fs.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
+            if (content.Length == 0)
+                return string.Empty;
+            var ranges = LineSpanIndexer.BuildLineRanges(content.AsSpan(), cancellationToken);
+            var result = new StringBuilder();
+            for (var i = startLine; i < ranges.Count && i - startLine < lineCount; i++)
+            {
+                var (start, length) = ranges[i];
+                result.Append(content.AsSpan(start, length)).AppendLine();
+            }
+            return result.ToString();
+        }
+
+        var result2 = new StringBuilder();
+        var currentLine = 0;
+        using var stream = _fs.OpenRead(filePath);
         using var reader = new StreamReader(stream, encoding);
         while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
         {
@@ -36,13 +50,11 @@ public sealed partial class SnipLogic : ServiceEntity
             {
                 if (currentLine - startLine >= lineCount)
                     break;
-                result.AppendLine(line);
+                result2.AppendLine(line);
             }
-
             currentLine++;
         }
-
-        return result.ToString();
+        return result2.ToString();
     }
 
     public async Task<string> SnipOffsetAsync(string filePath, int offset, int limit, CancellationToken cancellationToken = default)
@@ -61,24 +73,39 @@ public sealed partial class SnipLogic : ServiceEntity
             fileSize = sizeStream.Length;
         }
 
-        var totalLines = 0;
-        var previewContent = new StringBuilder();
-        var previewLinesCollected = 0;
-
-        using var stream = _fs.OpenRead(filePath);
         var encoding = await FileEncodingDetector.DetectFromFileAsync(filePath, _fs, cancellationToken).ConfigureAwait(false);
+        if (encoding is UTF8Encoding)
+        {
+            var content = await _fs.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
+            var ranges = LineSpanIndexer.BuildLineRanges(content.AsSpan(), cancellationToken);
+            var previewContent = new StringBuilder();
+            var previewLinesCollected = 0;
+            for (var i = 0; i < ranges.Count; i++)
+            {
+                if (previewLinesCollected < maxPreviewLines)
+                {
+                    var (start, length) = ranges[i];
+                    previewContent.Append(content.AsSpan(start, length)).AppendLine();
+                    previewLinesCollected++;
+                }
+            }
+            return new SnipPreview(filePath, fileSize, ranges.Count, previewContent.ToString());
+        }
+
+        var totalLines = 0;
+        var previewContent2 = new StringBuilder();
+        var previewLinesCollected2 = 0;
+        using var stream = _fs.OpenRead(filePath);
         using var reader = new StreamReader(stream, encoding);
         while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
         {
             totalLines++;
-
-            if (previewLinesCollected < maxPreviewLines)
+            if (previewLinesCollected2 < maxPreviewLines)
             {
-                previewContent.AppendLine(line);
-                previewLinesCollected++;
+                previewContent2.AppendLine(line);
+                previewLinesCollected2++;
             }
         }
-
-        return new SnipPreview(filePath, fileSize, totalLines, previewContent.ToString());
+        return new SnipPreview(filePath, fileSize, totalLines, previewContent2.ToString());
     }
 }

@@ -79,14 +79,7 @@ public sealed partial class FileEditLogic : ServiceEntity
         if (!_fs.FileExists(filePath))
             return FileLineEditResult.FailureResult(filePath, afterLine, afterLine, FileSuggestionHelper.BuildFileNotFoundDiagnostic(filePath, _fs));
 
-        var allLines = new List<string>();
-        var fileEncoding = await FileEncodingDetector.DetectFromFileAsync(filePath, _fs, cancellationToken).ConfigureAwait(false);
-        using (var stream = _fs.OpenRead(filePath))
-        using (var reader = new StreamReader(stream, fileEncoding))
-        {
-            while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
-                allLines.Add(line);
-        }
+        var (allLines, fileEncoding) = await ReadAllLinesWithEncodingAsync(filePath, cancellationToken).ConfigureAwait(false);
 
         if (afterLine < 0 || afterLine > allLines.Count)
             return FileLineEditResult.FailureResult(filePath, afterLine, afterLine, L.T(StringKey.FileEditLineOutOfRange, afterLine, allLines.Count));
@@ -137,14 +130,7 @@ public sealed partial class FileEditLogic : ServiceEntity
         if (startLine > endLine)
             return FileLineEditResult.FailureResult(filePath, startLine, endLine, L.T(StringKey.FileEditStartLineGreaterThanEnd));
 
-        var allLines = new List<string>();
-        var fileEncoding = await FileEncodingDetector.DetectFromFileAsync(filePath, _fs, cancellationToken).ConfigureAwait(false);
-        using (var stream = _fs.OpenRead(filePath))
-        using (var reader = new StreamReader(stream, fileEncoding))
-        {
-            while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
-                allLines.Add(line);
-        }
+        var (allLines, fileEncoding) = await ReadAllLinesWithEncodingAsync(filePath, cancellationToken).ConfigureAwait(false);
 
         if (startLine < 1 || startLine > allLines.Count)
             return FileLineEditResult.FailureResult(filePath, startLine, endLine, L.T(StringKey.FileEditStartLineOutOfRange, startLine, allLines.Count));
@@ -254,6 +240,29 @@ public sealed partial class FileEditLogic : ServiceEntity
         }
 
         return count;
+    }
+
+    /// <summary>
+    /// 读取所有行 + 编码 — UTF-8 用 mmap + LineSpanIndexer，其他编码走 StreamReader
+    /// </summary>
+    private async Task<(List<string> Lines, Encoding Encoding)> ReadAllLinesWithEncodingAsync(string filePath, CancellationToken ct)
+    {
+        var encoding = await FileEncodingDetector.DetectFromFileAsync(filePath, _fs, ct).ConfigureAwait(false);
+        if (encoding is UTF8Encoding)
+        {
+            var content = await _fs.ReadAllTextAsync(filePath, ct).ConfigureAwait(false);
+            var ranges = LineSpanIndexer.BuildLineRanges(content.AsSpan(), ct);
+            var lines = new List<string>(ranges.Count);
+            foreach (var (start, length) in ranges)
+                lines.Add(content.Substring(start, length));
+            return (lines, encoding);
+        }
+        var allLines = new List<string>();
+        using var stream = _fs.OpenRead(filePath);
+        using var reader = new StreamReader(stream, encoding);
+        while (await reader.ReadLineAsync(ct).ConfigureAwait(false) is { } line)
+            allLines.Add(line);
+        return (allLines, encoding);
     }
 
     /// <summary>

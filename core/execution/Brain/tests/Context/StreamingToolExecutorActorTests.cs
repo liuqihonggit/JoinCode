@@ -28,7 +28,7 @@ public sealed class StreamingToolExecutorActorTests
     {
         var classifier = new ToolConcurrencyClassifier(
             FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "read", "grep"));
-        var executionOrder = new List<string>();
+        var executionOrder = new ConcurrentBag<string>();
 
         var toolHandler = new Mock<IToolExecutionHandler>();
         toolHandler.Setup(h => h.ExecuteToolCallAsync("read", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))

@@ -227,53 +227,17 @@ public sealed partial class ProgressiveDisclosureService : ServiceEntity, IProgr
         sb.AppendLine(L.T(StringKey.ProgressiveDisclosureSourceCode));
         sb.AppendLine();
 
-        var snippets = new List<SourceSnippet>();
+        var topSymbols = symbols.Take(3).ToArray();
+        var snippetTasks = topSymbols.Select(s => ReadSnippetSectionAsync(s, ct)).ToArray();
+        var results = await Task.WhenAll(snippetTasks).ConfigureAwait(false);
 
-        foreach (var s in symbols.Take(3))
+        var snippets = new List<SourceSnippet>(results.Length);
+        foreach (var (snippet, formattedSection) in results)
         {
-            try
+            if (snippet is not null && formattedSection is not null)
             {
-                if (!_fs.FileExists(s.FilePath))
-                {
-                    continue;
-                }
-
-                var lines = await _fs.ReadAllLinesAsync(s.FilePath, ct).ConfigureAwait(false);
-                var startLine = Math.Max(0, s.StartLine - 1);
-                var endLine = Math.Min(lines.Length, s.EndLine);
-
-                if (startLine >= lines.Length)
-                {
-                    continue;
-                }
-
-                var fileContent = string.Join("\n", lines[startLine..endLine]);
-                snippets.Add(new SourceSnippet
-                {
-                    FilePath = s.FilePath,
-                    StartLine = s.StartLine,
-                    EndLine = s.EndLine,
-                    Content = fileContent,
-                    SymbolName = s.Name
-                });
-
-                sb.Append("### ");
-                sb.Append(s.Name);
-                sb.Append(" (");
-                sb.Append(s.FilePath);
-                sb.Append(':');
-                sb.Append(s.StartLine);
-                sb.Append('-');
-                sb.Append(s.EndLine);
-                sb.AppendLine(")");
-                sb.AppendLine("```csharp");
-                sb.AppendLine(fileContent);
-                sb.AppendLine("```");
-                sb.AppendLine();
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogWarning(ex, L.T(StringKey.ProgressiveDisclosureReadSourceFailed), s.FilePath);
+                snippets.Add(snippet);
+                sb.Append(formattedSection);
             }
         }
 
@@ -292,6 +256,58 @@ public sealed partial class ProgressiveDisclosureService : ServiceEntity, IProgr
             SourceSnippets = snippets,
             EstimatedTokens = EstimateTokens(finalContent)
         };
+    }
+
+    private async Task<(SourceSnippet? Snippet, string? FormattedSection)> ReadSnippetSectionAsync(SymbolInfo s, CancellationToken ct)
+    {
+        try
+        {
+            if (!_fs.FileExists(s.FilePath))
+            {
+                return (null, null);
+            }
+
+            var lines = await _fs.ReadAllLinesAsync(s.FilePath, ct).ConfigureAwait(false);
+            var startLine = Math.Max(0, s.StartLine - 1);
+            var endLine = Math.Min(lines.Length, s.EndLine);
+
+            if (startLine >= lines.Length)
+            {
+                return (null, null);
+            }
+
+            var fileContent = string.Join("\n", lines[startLine..endLine]);
+            var snippet = new SourceSnippet
+            {
+                FilePath = s.FilePath,
+                StartLine = s.StartLine,
+                EndLine = s.EndLine,
+                Content = fileContent,
+                SymbolName = s.Name
+            };
+
+            var sectionSb = new StringBuilder();
+            sectionSb.Append("### ");
+            sectionSb.Append(s.Name);
+            sectionSb.Append(" (");
+            sectionSb.Append(s.FilePath);
+            sectionSb.Append(':');
+            sectionSb.Append(s.StartLine);
+            sectionSb.Append('-');
+            sectionSb.Append(s.EndLine);
+            sectionSb.AppendLine(")");
+            sectionSb.AppendLine("```csharp");
+            sectionSb.AppendLine(fileContent);
+            sectionSb.AppendLine("```");
+            sectionSb.AppendLine();
+
+            return (snippet, sectionSb.ToString());
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, L.T(StringKey.ProgressiveDisclosureReadSourceFailed), s.FilePath);
+            return (null, null);
+        }
     }
 
     private static int EstimateTokens(string content)

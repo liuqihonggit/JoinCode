@@ -254,16 +254,24 @@ public sealed class FileEditor
             // 对齐 TS: 检测 BOM 编码
             var fileEncoding = await FileEncodingDetector.DetectFromFileAsync(normalizedPath, _fs, cancellationToken).ConfigureAwait(false);
 
-            // Read all lines using streaming to avoid loading entire file at once
-            var allLines = new List<string>();
-            using (var stream = _fs.CreateStream(normalizedPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-            using (var reader = new StreamReader(stream, fileEncoding))
+            // Read all lines — UTF-8 用 mmap + LineSpanIndexer，其他编码走 StreamReader
+            List<string> allLines;
+            if (fileEncoding is UTF8Encoding)
             {
+                var content = await _fs.ReadAllTextAsync(normalizedPath, cancellationToken).ConfigureAwait(false);
+                var ranges = LineSpanIndexer.BuildLineRanges(content.AsSpan(), cancellationToken);
+                allLines = new List<string>(ranges.Count);
+                foreach (var (start, length) in ranges)
+                    allLines.Add(content.Substring(start, length));
+            }
+            else
+            {
+                allLines = new List<string>();
+                using var stream = _fs.CreateStream(normalizedPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                using var reader = new StreamReader(stream, fileEncoding);
                 string? line;
                 while ((line = await reader.ReadLineAsync(cancellationToken)) != null)
-                {
                     allLines.Add(line);
-                }
             }
             var totalLines = allLines.Count;
 

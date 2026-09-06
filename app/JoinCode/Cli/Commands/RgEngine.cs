@@ -11,6 +11,8 @@ internal static class RgEngine
     private const int MaxContentLineLength = 500;
     private const int BinaryDetectionBufferSize = 8192;
 
+    private static readonly ConcurrentDictionary<string, GitignoreMatcher?> GitignoreCache = new(StringComparer.Ordinal);
+
     private static readonly FrozenSet<string> VcsDirectories = FrozenSet.ToFrozenSet(
         [".git", ".svn", ".hg", ".bzr", ".jj", ".sl"],
         StringComparer.OrdinalIgnoreCase);
@@ -199,36 +201,23 @@ internal static class RgEngine
 
     private static bool IsGitIgnored(string root, string rel)
     {
-        var gitPath = Path.Combine(root, ".git");
-        if (!Directory.Exists(gitPath))
-            return false;
-
-        var gitignorePath = Path.Combine(root, ".gitignore");
-        if (!File.Exists(gitignorePath))
-            return false;
-
-        try
+        var matcher = GitignoreCache.GetOrAdd(root, static r =>
         {
-            var lines = File.ReadAllLines(gitignorePath);
-            foreach (var line in lines)
+            var gitignorePath = Path.Combine(r, ".gitignore");
+            if (!File.Exists(gitignorePath))
+                return null;
+            try
             {
-                var trimmed = line.Trim();
-                if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith('#'))
-                    continue;
-                if (trimmed.StartsWith('!'))
-                    continue;
-
-                var pattern = trimmed.Replace('/', '\\');
-                if (rel.Contains(pattern, StringComparison.OrdinalIgnoreCase) ||
-                    rel.EndsWith(Path.GetFileName(trimmed), StringComparison.OrdinalIgnoreCase))
-                    return true;
+                return GitignoreMatcher.Parse(File.ReadAllText(gitignorePath));
             }
-        }
-        catch (Exception ex)
-        {
-            Diag.WriteLine($"[RgEngine.IsGitIgnored] 读取 .gitignore 失败: {ex.Message}");
-        }
-        return false;
+            catch (Exception ex)
+            {
+                Diag.WriteLine($"[RgEngine.IsGitIgnored] 读取 .gitignore 失败: {ex.Message}");
+                return null;
+            }
+        });
+
+        return matcher is not null && matcher.IsIgnored(rel);
     }
 
     private static bool MatchesGlob(string rel, IReadOnlyList<string>? globs)

@@ -214,10 +214,10 @@ ADR 引用 design/plans，但不重复其内容。
 
 | 编号 | 标题 | 状态 | 来源 | 取代 |
 |------|------|------|------|------|
-| 0070 | jcc rg 内置 ripgrep 兼容搜索 — RgEngine 独立A实现（mmap + PLINQ + 零 GC） | accepted | 需在 jcc 内置高性能文本搜索，复用 ISearchService 无法满足 mmap+Span 需求 |
+| 0070 | jcc rg 内置 ripgrep 兼容搜索 — RgEngine 独立实现（mmap + PLINQ + 零 GC） | accepted | 需在 jcc 内置高性能文本搜索，复用 ISearchService 无法满足 mmap+Span 需求 |
 
-### mmap + PLINQ + Span 技术推广（0071）
+### IFileSystem.EditFileAsync 原子编辑接口（0071）
 
 | 编号 | 标题 | 状态 | 来源 | 取代 |
 |------|------|------|------|------|
-| 0071 | mmap + PLINQ + 零 GC Span 技术推广 — 从 RgEngine 到全项目文件遍历 | accepted | RgEngine 技术验证有效，全项目 40+ 处热点已应用相同技术 |
+| 0071 | IFileSystem.EditFileAsync 原子编辑接口 — per-file AsyncLock 串行化 | accepted | 上层 Read→改→Write 模式有丢失更新风险，需底层原子编辑6 |

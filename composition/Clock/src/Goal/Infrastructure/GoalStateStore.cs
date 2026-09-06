@@ -69,23 +69,24 @@ public sealed class GoalStateStore : IGoalStateStore
         if (!_fs.DirectoryExists(sessionDir))
             return [];
 
-        var result = new List<GoalState>();
-        foreach (var file in _fs.EnumerateFiles(sessionDir, "*.json", SearchOption.TopDirectoryOnly))
+        var files = _fs.EnumerateFiles(sessionDir, "*.json", SearchOption.TopDirectoryOnly);
+        var tasks = files.Select(async file =>
         {
-            cancellationToken.ThrowIfCancellationRequested();
             try
             {
                 var json = await _fs.ReadAllTextAsync(file, cancellationToken).ConfigureAwait(false);
                 var state = RelaxedJsonSerializer.Deserialize(json, GoalJsonContext.Default.GoalState);
-                if (state is not null && (state.Status == GoalStatus.Pursuing || state.Status == GoalStatus.Paused))
-                    result.Add(state);
+                return state is not null && (state.Status == GoalStatus.Pursuing || state.Status == GoalStatus.Paused) ? state : null;
             }
             catch (Exception ex)
             {
                 _logger?.LogWarning(ex, "[GoalStateStore] 读取文件失败: {File}", file);
+                return null;
             }
-        }
-        return result;
+        }).ToArray();
+
+        var results = await Task.WhenAll(tasks).ConfigureAwait(false);
+        return results.Where(r => r is not null).Cast<GoalState>().ToList();
     }
 
     private string GetSessionDir(string sessionId) => _fs.CombinePath(_baseDir, sessionId);

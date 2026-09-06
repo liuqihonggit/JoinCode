@@ -37,7 +37,7 @@ public sealed partial class FileEditLogic : ServiceEntity
         {
             return await _fs.EditFileAsync<FileEditResult>(filePath, async (bytes, ct) =>
             {
-                var (originalContent, encoding) = DecodeBytes(bytes);
+                var (originalContent, encoding) = FileEncodingDetector.DecodeBytes(bytes);
 
                 if (!regex.IsMatch(originalContent))
                     return (null, FileEditResult.FailureResult(filePath, pattern, replacement, L.T(StringKey.FileEditPatternNotFound)));
@@ -47,7 +47,7 @@ public sealed partial class FileEditLogic : ServiceEntity
                     ? regex.Replace(originalContent, replacement)
                     : regex.Replace(originalContent, replacement, 1);
 
-                var newBytes = EncodeString(updatedContent, encoding);
+                var newBytes = FileEncodingDetector.EncodeString(updatedContent, encoding);
                 return (newBytes, FileEditResult.SuccessResult(filePath, pattern, replacement, originalContent, updatedContent, count));
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -82,7 +82,7 @@ public sealed partial class FileEditLogic : ServiceEntity
         {
             return await _fs.EditFileAsync<FileLineEditResult>(filePath, async (bytes, ct) =>
             {
-                var (content, encoding) = DecodeBytes(bytes);
+                var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
                 var allLines = SplitLines(content);
 
                 if (afterLine < 0 || afterLine > allLines.Count)
@@ -100,7 +100,7 @@ public sealed partial class FileEditLogic : ServiceEntity
                     resultLines.AddRange(newLines);
 
                 var updatedFileContent = string.Join("\n", resultLines);
-                var newBytes = EncodeString(updatedFileContent, encoding);
+                var newBytes = FileEncodingDetector.EncodeString(updatedFileContent, encoding);
                 return (newBytes, FileLineEditResult.SuccessResult(filePath, afterLine, afterLine + newLines.Length, string.Empty, newContent, updatedFileContent, newLines.Length));
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -138,7 +138,7 @@ public sealed partial class FileEditLogic : ServiceEntity
         {
             return await _fs.EditFileAsync<FileLineEditResult>(filePath, async (bytes, ct) =>
             {
-                var (content, encoding) = DecodeBytes(bytes);
+                var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
                 var allLines = SplitLines(content);
 
                 if (startLine < 1 || startLine > allLines.Count)
@@ -156,7 +156,7 @@ public sealed partial class FileEditLogic : ServiceEntity
                 }
 
                 var updatedFileContent = string.Join("\n", resultLines);
-                var newBytes = EncodeString(updatedFileContent, encoding);
+                var newBytes = FileEncodingDetector.EncodeString(updatedFileContent, encoding);
                 var deletedCount = actualEndLine - startLine + 1;
                 return (newBytes, FileLineEditResult.SuccessResult(filePath, startLine, actualEndLine, originalContent, string.Empty, updatedFileContent, deletedCount));
             }, cancellationToken).ConfigureAwait(false);
@@ -199,7 +199,7 @@ public sealed partial class FileEditLogic : ServiceEntity
 
                 var editResult = await _fs.EditFileAsync<FileEditResult>(filePath, async (bytes, ct) =>
                 {
-                    var (originalContent, encoding) = DecodeBytes(bytes);
+                    var (originalContent, encoding) = FileEncodingDetector.DecodeBytes(bytes);
 
                     if (!originalContent.Contains(oldString))
                     {
@@ -226,7 +226,7 @@ public sealed partial class FileEditLogic : ServiceEntity
                         replaceCount = 1;
                     }
 
-                    var newBytes = EncodeString(updatedContent, encoding);
+                    var newBytes = FileEncodingDetector.EncodeString(updatedContent, encoding);
                     return (newBytes, FileEditResult.SuccessResult(filePath, oldString, newString, originalContent, updatedContent, replaceCount));
                 }, cancellationToken).ConfigureAwait(false);
 
@@ -255,32 +255,6 @@ public sealed partial class FileEditLogic : ServiceEntity
         }
 
         return count;
-    }
-
-    /// <summary>
-    /// 从字节数组解码为字符串 — 自动检测 BOM 编码，StreamReader 自动跳过 BOM。
-    /// </summary>
-    private static (string Content, Encoding Encoding) DecodeBytes(byte[] bytes)
-    {
-        var encoding = FileEncodingDetector.DetectFromBOM(bytes);
-        using var ms = new MemoryStream(bytes, writable: false);
-        using var reader = new StreamReader(ms, encoding);
-        return (reader.ReadToEnd(), encoding);
-    }
-
-    /// <summary>
-    /// 将字符串编码为字节数组 — 保留原始编码的 BOM（如有）。
-    /// </summary>
-    private static byte[] EncodeString(string content, Encoding encoding)
-    {
-        var preamble = encoding.GetPreamble();
-        var contentBytes = encoding.GetBytes(content);
-        if (preamble.Length == 0)
-            return contentBytes;
-        var bytes = new byte[preamble.Length + contentBytes.Length];
-        Buffer.BlockCopy(preamble, 0, bytes, 0, preamble.Length);
-        Buffer.BlockCopy(contentBytes, 0, bytes, preamble.Length, contentBytes.Length);
-        return bytes;
     }
 
     /// <summary>

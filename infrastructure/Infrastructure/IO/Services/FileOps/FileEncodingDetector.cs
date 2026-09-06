@@ -80,4 +80,30 @@ public static class FileEncodingDetector
             return Encoding.UTF8;
         }
     }
+
+    /// <summary>
+    /// 从字节数组解码为字符串 — 自动检测 BOM 编码，StreamReader 自动跳过 BOM。
+    /// </summary>
+    public static (string Content, Encoding Encoding) DecodeBytes(byte[] bytes)
+    {
+        var encoding = DetectFromBOM(bytes);
+        using var ms = new MemoryStream(bytes, writable: false);
+        using var reader = new StreamReader(ms, encoding);
+        return (reader.ReadToEnd(), encoding);
+    }
+
+    /// <summary>
+    /// 将字符串编码为字节数组 — 保留原始编码的 BOM（如有）。
+    /// </summary>
+    public static byte[] EncodeString(string content, Encoding encoding)
+    {
+        var preamble = encoding.GetPreamble();
+        var contentBytes = encoding.GetBytes(content);
+        if (preamble.Length == 0)
+            return contentBytes;
+        var bytes = new byte[preamble.Length + contentBytes.Length];
+        Buffer.BlockCopy(preamble, 0, bytes, 0, preamble.Length);
+        Buffer.BlockCopy(contentBytes, 0, bytes, preamble.Length, contentBytes.Length);
+        return bytes;
+    }
 }

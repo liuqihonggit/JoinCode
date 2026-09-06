@@ -637,29 +637,30 @@ chcp 65001
 | `doctor [--server] [--port <n>]` | 医生模式 | `jcc doctor --server` |
 | `schema` | 输出 CLI 参数定义 JSON | `jcc schema` |
 | `rc` / `remote-control` | 远程控制 | `jcc rc --session-timeout 60` |
-| `rg <pattern> [path]` | ripgrep 兼容搜索（内置实现，复用 Grep 引擎） | `jcc rg "finally\s*\{" --type cs -g "!**/tests/**" -n` |
+| `rg <pattern> <path> [path...]` | ripgrep 兼容搜索（**路径必填**，内置实现，复用 Grep 引擎） | `jcc rg "finally\s*\{" core/ --type cs -g "!**/tests/**" -n` |
 
 **`jcc rg` 内置 ripgrep 兼容搜索**（ADR 0070）：
 
 ```powershell
-# 基本搜索（PowerShell 双反斜杠自动修复: \\s → \s）
-jcc rg "finally\s*\{" --type cs -g "!**/tests/**" -n
+# 基本搜索（PowerShell 双反斜杠自动修复: \\s → \s）— 路径必填！
+jcc rg "finally\s*\{" core/ --type cs -g "!**/tests/**" -n
 # 忽略大小写 + 上下文
 jcc rg "TODO|FIXME" src/ -i -n -C 2
 # 字面量搜索（非正则）
-jcc rg "Console.WriteLine" -F --content
+jcc rg "Console.WriteLine" app/ -F --content
 # 计数模式
-jcc rg "class\s+\w+Service" --count --type cs
+jcc rg "class\s+\w+Service" core/ --count --type cs
 # JSON 输出
-jcc rg "pattern" --json --head-limit 50
+jcc rg "pattern" app/ --json --head-limit 50
 # 超时控制（默认 30s，最大 300s，超时返回 2）
-jcc rg "pattern" --timeout 60
+jcc rg "pattern" src/ --timeout 60
 ```
 
 | 参数 | 说明 |
 |------|------|
 | `<pattern>` | 正则表达式（PowerShell `\\s` 自动修复为 `\s`） |
-| `[path]` | 搜索路径（默认 cwd，**禁止根目录扫盘**） |
+| `<path>` | 搜索路径（**必填！** 禁止无路径搜索，避免扫盘卡死） |
+| `[path...]` | 额外搜索路径（多路径合并去重） |
 | `-t, --type <type>` | 文件类型（cs, js, ts, py, go, rust, java, ...） |
 | `-g, --glob <pattern>` | glob 过滤（`!` 前缀排除，如 `!**/tests/**`） |
 | `-i, --ignore-case` | 忽略大小写 |
@@ -675,13 +676,14 @@ jcc rg "pattern" --timeout 60
 | `--timeout <seconds>` | 超时秒数（默认 30，最大 300，超时**硬终止**返回 2） |
 | `--json` | JSON 输出 |
 
-**宽容策略**：
+**宽容策略（防御工程）**：
 1. **PowerShell 转义自动修复**：`\\s` → `\s`、`\\{` → `\{` 等（检测双反斜杠后跟正则元字符）
-2. **缺少 path 默认 cwd，但 cwd 为根目录（`C:\` / `/`）则拒绝扫盘**
-3. **超时硬终止**：默认 30s，超时返回退出码 2（不会卡死 120s）
-4. **无匹配返回 1**（对齐 rg 退出码）
-5. **二进制文件自动跳过，遵守 .gitignore**（复用 `SearchService` 现有逻辑）
-6. **并行 + SIMD**：复用 `ISearchService.GrepSearchAsync`（`Task.WhenAll` 并行 + .NET Regex SIMD 引擎）
+2. **缺少 path 立即报错退出**（禁止无路径搜索，避免 AI 忘记输路径导致扫盘卡死）
+3. **根目录（`C:\` / `/`）拒绝扫盘**
+4. **超时硬终止**：默认 30s，超时返回退出码 2（不会卡死 120s）
+5. **无匹配返回 1**（对齐 rg 退出码）
+6. **二进制文件自动跳过，遵守 .gitignore**（复用 `SearchService` 现有逻辑）
+7. **并行 + SIMD**：复用 `ISearchService.GrepSearchAsync`（`Task.WhenAll` 并行 + .NET Regex SIMD 引擎 + Span 零分配行遍历）
 
 **退出码**：`0` = 有匹配，`1` = 无匹配/参数错误，`2` = 超时
 

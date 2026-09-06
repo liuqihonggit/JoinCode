@@ -239,8 +239,17 @@ internal static class RgSubCommand
 
         if (pattern is null)
         {
-            TerminalHelper.WriteError("错误: 缺少 pattern 参数。用法: jcc rg <pattern> [path...]");
+            TerminalHelper.WriteError("错误: 缺少 pattern 参数。用法: jcc rg <pattern> <path> [path...]");
             PrintUsage();
+            return null;
+        }
+
+        if (paths.Count == 0)
+        {
+            TerminalHelper.WriteError("错误: 必须指定搜索路径。禁止无路径搜索（会扫盘卡死）。");
+            TerminalHelper.WriteError("用法: jcc rg <pattern> <path> [path...]");
+            TerminalHelper.WriteError("示例: jcc rg \"WorktreeToolNameConstants\" core/ --type cs -l");
+            TerminalHelper.WriteError("      jcc rg \"class SearchService\" app/JoinCode -n --content");
             return null;
         }
 
@@ -248,7 +257,7 @@ internal static class RgSubCommand
 
         return new RgOptions(
             Pattern: pattern,
-            Paths: paths.Count > 0 ? paths : new List<string> { "." },
+            Paths: paths,
             Glob: glob,
             FileType: fileType,
             CaseInsensitive: caseInsensitive,
@@ -551,16 +560,17 @@ internal static class RgSubCommand
     private static void PrintUsage()
     {
         TerminalHelper.WriteLine("""
-            jcc rg <pattern> [path...] — ripgrep 兼容搜索（内置实现，复用 Grep 引擎）
+            jcc rg <pattern> <path> [path...] — ripgrep 兼容搜索（内置实现，复用 Grep 引擎）
 
             用法:
-              jcc rg "finally\s*\{" --type cs -g "!**/tests/**"
+              jcc rg "finally\s*\{" core/ --type cs -g "!**/tests/**"
               jcc rg "TODO|FIXME" src/ -i -n
-              jcc rg "class\s+\w+Service" -A 2 -B 1 --content
+              jcc rg "class\s+\w+Service" app/JoinCode -A 2 -B 1 --content
 
             位置参数:
               <pattern>     正则表达式（PowerShell 双反斜杠会自动修复: \\s → \s）
-              [path]        搜索路径（默认当前目录，禁止根目录扫盘）
+              <path>        搜索路径（必填！禁止无路径搜索，避免扫盘卡死）
+              [path...]     额外搜索路径（多路径合并去重）
 
             过滤选项:
               -t, --type <type>       文件类型（cs, js, ts, py, go, rust, java, ...）
@@ -587,10 +597,11 @@ internal static class RgSubCommand
 
             宽容策略:
               1. PowerShell 把 \s 传成 \\s → 自动修复为 \s
-              2. 缺少 path → 默认 cwd，但 cwd 为根目录则拒绝扫盘
-              3. 超时 → 硬终止返回退出码 2
-              4. 无匹配 → 退出码 1（对齐 rg）
-              5. 二进制文件自动跳过，遵守 .gitignore
+              2. 缺少 path → 立即报错退出（禁止无路径搜索，避免扫盘卡死）
+              3. 根目录（C:\ / /）→ 拒绝扫盘
+              4. 超时 → 硬终止返回退出码 2
+              5. 无匹配 → 退出码 1（对齐 rg）
+              6. 二进制文件自动跳过，遵守 .gitignore
 
             退出码:
               0 = 有匹配

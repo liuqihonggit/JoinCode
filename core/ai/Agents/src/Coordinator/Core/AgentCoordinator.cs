@@ -61,7 +61,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         _secretaries = new ConcurrentDictionary<string, string>(StringComparer.Ordinal);
 
         var spawnLimit = Math.Max(1, (concurrencyOptions ?? new SubAgentConcurrencyOptions()).MaxConcurrentSpawns);
-        _spawnSemaphore = new AsyncLock("Spawn-Concurrency", spawnLimit, spawnLimit);
+        _spawnSemaphore = new AsyncLock(nameof(AgentCoordinator) + ".Spawn", spawnLimit, spawnLimit);
 
         core.StateMachine.StateChanged += (_, e) =>
         {
@@ -90,7 +90,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     public void UpdateConcurrencyOptions(SubAgentConcurrencyOptions options)
     {
         var newLimit = Math.Max(1, options.MaxConcurrentSpawns);
-        var newSem = new AsyncLock("Spawn-Concurrency", newLimit, newLimit);
+        var newSem = new AsyncLock(nameof(AgentCoordinator) + ".Spawn", newLimit, newLimit);
         var old = Interlocked.Exchange(ref _spawnSemaphore, newSem);
         old.Dispose();
         _logger?.LogInformation("spawn 并发上限已热重载为 {Limit}", newLimit);

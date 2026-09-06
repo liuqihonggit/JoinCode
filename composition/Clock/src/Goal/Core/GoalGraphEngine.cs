@@ -104,7 +104,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
 
         var concurrencyOptions = _concurrencyOptions;
         using var concurrencyLimiter = concurrencyOptions.MaxConcurrentExecutions > 0
-            ? new AsyncLock("GoalGraph-Concurrency", concurrencyOptions.MaxConcurrentExecutions, concurrencyOptions.MaxConcurrentExecutions)
+            ? new AsyncLock(nameof(GoalGraphEngine) + ".Concurrency", concurrencyOptions.MaxConcurrentExecutions, concurrencyOptions.MaxConcurrentExecutions)
             : null;
 
         while (true)

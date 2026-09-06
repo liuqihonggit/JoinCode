@@ -82,7 +82,7 @@ public sealed class IntentCollector : IIntentCollector
         return Task.CompletedTask;
     }
 
-    private AsyncLock GetLock(string filePath) => _locks.GetOrAdd(filePath, _ => new AsyncLock("IntentCollector"));
+    private AsyncLock GetLock(string filePath) => _locks.GetOrAdd(filePath, _ => new AsyncLock(nameof(IntentCollector)));
 
     private static string NormalizePath(string filePath) => filePath.Replace('\\', '/');
 }

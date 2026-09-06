@@ -15,7 +15,7 @@ internal sealed class ExecutionContext : IAsyncDisposable
     {
         Options = options;
         CancellationToken = cancellationToken;
-        ConcurrencyLock = new AsyncLock("ExecutionContext-Concurrency", options.MaxConcurrentTasks, options.MaxConcurrentTasks);
+        ConcurrencyLock = new AsyncLock(nameof(ExecutionContext) + ".Concurrency", options.MaxConcurrentTasks, options.MaxConcurrentTasks);
         _runningTasks = new List<Task>();
         _completedTaskIds = new ConcurrentDictionary<string, byte>();
     }

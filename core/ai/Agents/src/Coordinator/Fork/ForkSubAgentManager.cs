@@ -70,7 +70,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
 
         var maxForks = (concurrencyOptions ?? new SubAgentConcurrencyOptions()).MaxConcurrentForks;
         _forkSemaphore = maxForks > 0
-            ? new AsyncLock("Fork-Concurrency", maxForks, maxForks)
+            ? new AsyncLock(nameof(ForkSubAgentManager) + ".Concurrency", maxForks, maxForks)
             : null;
     }
 
@@ -536,7 +536,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
     {
         var maxForks = options.MaxConcurrentForks;
         var newSem = maxForks > 0
-            ? new AsyncLock("Fork-Concurrency", maxForks, maxForks)
+            ? new AsyncLock(nameof(ForkSubAgentManager) + ".Concurrency", maxForks, maxForks)
             : null;
         var old = Interlocked.Exchange(ref _forkSemaphore, newSem);
         old?.Dispose();

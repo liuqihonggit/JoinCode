@@ -37,9 +37,9 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
             throw new InvalidOperationException($"[INF023] IOThrottleOptions 验证失败: {validationError}");
         }
 
-        _readSemaphore = new AsyncLock("IO-Read", _options.MaxConcurrentReads, _options.MaxConcurrentReads);
-        _writeSemaphore = new AsyncLock("IO-Write", _options.MaxConcurrentWrites, _options.MaxConcurrentWrites);
-        _deleteSemaphore = new AsyncLock("IO-Delete", _options.MaxConcurrentDeletes, _options.MaxConcurrentDeletes);
+        _readSemaphore = new AsyncLock(nameof(IOThrottleService) + ".Read", _options.MaxConcurrentReads, _options.MaxConcurrentReads);
+        _writeSemaphore = new AsyncLock(nameof(IOThrottleService) + ".Write", _options.MaxConcurrentWrites, _options.MaxConcurrentWrites);
+        _deleteSemaphore = new AsyncLock(nameof(IOThrottleService) + ".Delete", _options.MaxConcurrentDeletes, _options.MaxConcurrentDeletes);
 
         _tokenBucket = new TokenBucket(_options.TokenBucketCapacity, _options.TokenRefillRatePerSecond, () => _clock.GetUtcNow());
 

@@ -46,7 +46,7 @@ public sealed class AsyncLockedDictionary<TKey, TValue> where TKey : notnull
         if (_dict.TryGetValue(key, out var value))
             return value;
 
-        var keyLock = _keyLocks.GetOrAdd(key, _ => new AsyncLock("AsyncLockedDictionary"));
+        var keyLock = _keyLocks.GetOrAdd(key, _ => new AsyncLock(nameof(AsyncLockedDictionary<TKey, TValue>)));
         using var guard = await keyLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{keyLock.Name}' AsyncLockedDictionary key '{key}' 等待超时");
 
         if (_dict.TryGetValue(key, out value))

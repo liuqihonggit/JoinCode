@@ -42,7 +42,7 @@ public sealed class ResilientHttpExecutor
                 $"[{_policy.Name}] 熔断器开启: 连续{_circuitBreaker.ConsecutiveFailures}次失败，{_policy.CircuitBreaker!.OpenDuration.TotalSeconds}s 后重试");
         }
 
-        var totalTimeoutCts = _policy.TotalTimeout.HasValue
+        using var totalTimeoutCts = _policy.TotalTimeout.HasValue
             ? CancellationTokenSource.CreateLinkedTokenSource(ct)
             : null;
 
@@ -72,22 +72,11 @@ public sealed class ResilientHttpExecutor
                 _circuitBreaker?.RecordFailure();
                 throw;
             }
-            finally
-            {
-                totalTimeoutCts?.Dispose();
-            }
         }
 
-        try
-        {
-            return await ExecuteRetryLoopAsync(
+        return await ExecuteRetryLoopAsync(
                 ect => ExecuteOnceAsync(operation, operationName, ect),
                 operationName, retry!, ct, effectiveCt).ConfigureAwait(false);
-        }
-        finally
-        {
-            totalTimeoutCts?.Dispose();
-        }
     }
 
     public async Task<T> ExecuteAsync<T>(
@@ -103,7 +92,7 @@ public sealed class ResilientHttpExecutor
                 $"[{_policy.Name}] 熔断器开启: 连续{_circuitBreaker.ConsecutiveFailures}次失败");
         }
 
-        var totalTimeoutCts = _policy.TotalTimeout.HasValue
+        using var totalTimeoutCts = _policy.TotalTimeout.HasValue
             ? CancellationTokenSource.CreateLinkedTokenSource(ct)
             : null;
 
@@ -133,21 +122,10 @@ public sealed class ResilientHttpExecutor
                 _circuitBreaker?.RecordFailure();
                 throw;
             }
-            finally
-            {
-                totalTimeoutCts?.Dispose();
-            }
         }
 
-        try
-        {
-            return await ExecuteRetryLoopAsync(
+        return await ExecuteRetryLoopAsync(
                 operation, operationName, retry!, ct, effectiveCt).ConfigureAwait(false);
-        }
-        finally
-        {
-            totalTimeoutCts?.Dispose();
-        }
     }
 
     /// <summary>

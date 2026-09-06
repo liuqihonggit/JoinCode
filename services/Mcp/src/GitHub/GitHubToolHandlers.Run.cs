@@ -41,9 +41,15 @@ public partial class GitHubToolHandlers
         [McpToolParameter("按步骤展开: steps=列出步骤列表, failed=只拉失败步骤, step:Name=只拉指定步骤(复刻 ToolSearch map[] 逐层drill down)", Required = false)] string? expand = null,
         [McpToolParameter("日志过滤级别(error/warning/info/all,默认 all=不过滤)", Required = false)] string? filter = null,
         [McpToolParameter("强制刷新缓存(默认 false,rerun 后用 true 避免脏数据)", Required = false)] bool? refresh = null,
+        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
     {
+        if (_apiClient is null) return ApiClientNotConfigured();
+        var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
+        if (resolved is null) return RepoNotResolved();
+        var (owner, repoName) = resolved.Value;
+
         var maxLines = max_lines ?? 200;
         var skip = skip_lines ?? 0;
         var wantRefresh = refresh == true;
@@ -52,12 +58,10 @@ public partial class GitHubToolHandlers
         var hasFilter = TryParseLogFilter(filter, out var filterLevel) && filterLevel != GitHubLogFilter.All;
         var markers = hasFilter ? GetFilterMarkers(filterLevel) : null;
 
-        // === expand=failed: 用 --log-failed 只拉失败步骤(量少,不缓存) ===
+        // === expand=failed: 只拉失败步骤日志(量少,不缓存) ===
         if (string.Equals(expand, "failed", StringComparison.OrdinalIgnoreCase))
         {
-            var sb = new StringBuilder($"run view {run_id} --log-failed");
-            if (!string.IsNullOrWhiteSpace(job_id)) sb.Append($" --job {job_id}");
-            return await StreamAndFilterAsync(sb.ToString(), run_id, "失败步骤", working_dir, markers, filterLevel, maxLines, cancellationToken, FailedHint, skip);
+            return await StreamAndFilterAsync(owner, repoName, run_id, job_id, true, "失败步骤", markers, filterLevel, maxLines, cancellationToken, FailedHint, skip);
         }
 
         // === expand=steps 或 expand=step:Name: 两级缓存(ADR 0067) ===
@@ -83,7 +87,7 @@ public partial class GitHubToolHandlers
             // expand=step:Name/section:Type: 从 Level2 内容缓存读取(ADR 0067)
             if (expandStep is not null && sectionType is not null)
             {
-                var sectionLines = await GetOrFetchSectionAsync(run_id, job_id, expandStep, sectionType, working_dir, wantRefresh, cancellationToken);
+                var sectionLines = await GetOrFetchSectionAsync(owner, repoName, run_id, job_id, expandStep, sectionType, working_dir, wantRefresh, cancellationToken);
                 if (sectionLines is null)
                     return Ok($"未找到步骤 '{expandStep}' 或 section '{sectionType}'，建议先 expand=step:{expandStep} 查看 section 摘要");
 
@@ -97,7 +101,7 @@ public partial class GitHubToolHandlers
             }
 
             // 其余情况(expand=steps 或 expand=step:Name): 从 Level1 摘要缓存读取
-            var summary = await GetOrFetchSummaryAsync(run_id, job_id, working_dir, wantRefresh, cancellationToken);
+            var summary = await GetOrFetchSummaryAsync(owner, repoName, run_id, job_id, working_dir, wantRefresh, cancellationToken);
             if (summary is null) return Fail("日志拉取失败");
 
             // expand=steps: 返回步骤列表
@@ -122,35 +126,18 @@ public partial class GitHubToolHandlers
             }
         }
 
-        // === 常规模式: log=false 看摘要, log=true 拉全部日志 ===
+        // === 常规模式: log=false 看详情, log=true 拉日志 ===
         var wantLog = log == true;
-        var sb2 = new StringBuilder($"run view {run_id}");
-        if (!string.IsNullOrWhiteSpace(job_id)) sb2.Append($" --job {job_id}");
-        if (wantLog) sb2.Append(" --log");
-
-        if (wantLog && (hasFilter || expand is not null))
-            return await StreamAndFilterAsync(sb2.ToString(), run_id, "流式过滤", working_dir, markers, filterLevel, maxLines, cancellationToken, LogHint, skip);
-
-        var result = await RunGhAsync(sb2.ToString(), ResolveWorkDir(working_dir), cancellationToken, wantLog ? 120_000 : null);
-        if (!result.Success)
-        {
-            // 超时时追加纵深防御提示,避免 AI 改用 gh api
-            if (IsTimeoutError(result))
-                return Fail(result.Error + TimeoutDefenseHint);
-            return Fail(result);
-        }
 
         if (wantLog)
         {
-            var allLines = result.Output.Split('\n');
-            var (text, hasMore) = SkipAndTruncate(allLines, maxLines, skip);
-            if (hasMore)
-                text += TruncatedHint;
-            if (HasNoStackTrace(text))
-                text += NoStackTraceHint;
-            return Ok(text + LogHint, $"Run {run_id} 日志:");
+            // log=true: 用 REST API 日志流 + 过滤/分页
+            return await StreamAndFilterAsync(owner, repoName, run_id, job_id, false, "日志", markers, filterLevel, maxLines, cancellationToken, LogHint, skip);
         }
-        return Ok(result.Output);
+
+        // log=false: 获取 run 详情 JSON
+        var detailResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{run_id}", ct: cancellationToken).ConfigureAwait(false);
+        return detailResult.Success ? Ok(detailResult.Body) : Fail(detailResult.Error);
     }
 
     /// <summary>
@@ -158,7 +145,7 @@ public partial class GitHubToolHandlers
     /// <para>文件级缓存跨进程共享,updatedAt 验证检测 rerun 脏数据,Actor 管道异步写入不阻塞</para>
     /// <para>ADR 0067 两级缓存 + 文件级持久化: 摘要(轻量)+内容(大量行)按 section 独立缓存</para>
     /// </summary>
-    private async Task<RunLogSummary?> GetOrFetchSummaryAsync(string runId, string? jobId, string? workingDir, bool refresh, CancellationToken ct)
+    private async Task<RunLogSummary?> GetOrFetchSummaryAsync(string owner, string repo, string runId, string? jobId, string? workingDir, bool refresh, CancellationToken ct)
     {
         var summaryKey = $"{_summaryPrefix}{runId}:{jobId ?? "all"}";
 
@@ -197,7 +184,7 @@ public partial class GitHubToolHandlers
                         }
 
                         // 5 分钟后验证 updatedAt(检测 rerun 脏数据)
-                        var currentUpdatedAt = await FetchUpdatedAtAsync(runId, workingDir, ct).ConfigureAwait(false);
+                        var currentUpdatedAt = await FetchUpdatedAtAsync(owner, repo, runId, ct).ConfigureAwait(false);
                         if (currentUpdatedAt is not null && fileSummary.UpdatedAt == currentUpdatedAt)
                         {
                             // 摘要匹配,从 .raw 文件解析填充 MemoryCache
@@ -224,21 +211,33 @@ public partial class GitHubToolHandlers
         var rawBuilder = new StringBuilder();
 
         var parallelOk = string.IsNullOrWhiteSpace(jobId)
-            && await TryDownloadParallelAsync(runId, workingDir, summary, sectionContents, rawBuilder, ct).ConfigureAwait(false);
+            && await TryDownloadParallelAsync(owner, repo, runId, summary, sectionContents, rawBuilder, ct).ConfigureAwait(false);
         if (!parallelOk)
         {
-            // 回退到串行 gh run view --log
-            var sb = new StringBuilder($"run view {runId} --log");
-            if (!string.IsNullOrWhiteSpace(jobId)) sb.Append($" --job {jobId}");
-            await foreach (var line in _gh.ExecuteStreamingAsync(sb.ToString(), ResolveWorkDir(workingDir), 120_000, ct).ConfigureAwait(false))
+            // 回退到串行 REST API 日志流
+            if (long.TryParse(runId, out var runIdLong))
             {
-                rawBuilder.Append(line).Append('\n');
-                ParseAndAccumulate(line, summary, sectionContents);
+                if (!string.IsNullOrWhiteSpace(jobId) && long.TryParse(jobId, out var jobIdLong))
+                {
+                    await foreach (var line in _apiClient!.GetJobLogsAsync(owner, repo, jobIdLong, ct).ConfigureAwait(false))
+                    {
+                        rawBuilder.Append(line).Append('\n');
+                        ParseAndAccumulate(line, summary, sectionContents);
+                    }
+                }
+                else
+                {
+                    await foreach (var line in _apiClient!.GetRunLogsAsync(owner, repo, runIdLong, ct).ConfigureAwait(false))
+                    {
+                        rawBuilder.Append(line).Append('\n');
+                        ParseAndAccumulate(line, summary, sectionContents);
+                    }
+                }
             }
         }
 
         // 获取 updatedAt 用于后续 rerun 检测
-        summary.UpdatedAt = await FetchUpdatedAtAsync(runId, workingDir, ct).ConfigureAwait(false);
+        summary.UpdatedAt = await FetchUpdatedAtAsync(owner, repo, runId, ct).ConfigureAwait(false);
 
         // 写入 MemoryCache
         foreach (var (stepName, stepSecs) in sectionContents)
@@ -265,7 +264,7 @@ public partial class GitHubToolHandlers
     /// <para>内存压力时 Level2 可被独立驱逐,下次访问时通过 Level1 触发从 .raw 文件重新解析填充</para>
     /// </summary>
     private async Task<List<string>?> GetOrFetchSectionAsync(
-        string runId, string? jobId, string stepName, string sectionType,
+        string owner, string repo, string runId, string? jobId, string stepName, string sectionType,
         string? workingDir, bool refresh, CancellationToken ct)
     {
         var sectionKey = $"{_sectionPrefix}{runId}:{jobId ?? "all"}:{stepName}:{sectionType}";
@@ -276,7 +275,7 @@ public partial class GitHubToolHandlers
         }
 
         // Level2 未命中,先确保 Level1 已构建(会从文件或下载填充所有 Level2 缓存)
-        await GetOrFetchSummaryAsync(runId, jobId, workingDir, refresh, ct).ConfigureAwait(false);
+        await GetOrFetchSummaryAsync(owner, repo, runId, jobId, workingDir, refresh, ct).ConfigureAwait(false);
 
         // 再次从 Level2 读取
         if (_logCache.Get(sectionKey) is List<string> lines)
@@ -290,17 +289,17 @@ public partial class GitHubToolHandlers
     }
 
     /// <summary>
-    /// 从 GitHub API 获取 Run 的 updatedAt — 用于检测 rerun 后日志是否更新
+    /// 从 GitHub REST API 获取 Run 的 updated_at — 用于检测 rerun 后日志是否更新
     /// <para>轻量 API 调用(不下载日志),&lt; 1s</para>
     /// </summary>
-    private async Task<string?> FetchUpdatedAtAsync(string runId, string? workingDir, CancellationToken ct)
+    private async Task<string?> FetchUpdatedAtAsync(string owner, string repo, string runId, CancellationToken ct)
     {
-        var result = await RunGhAsync($"run view {runId} --json updatedAt", ResolveWorkDir(workingDir), ct).ConfigureAwait(false);
+        var result = await _apiClient!.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}", ct: ct).ConfigureAwait(false);
         if (!result.Success) return null;
         try
         {
-            using var doc = JsonDocument.Parse(result.Output);
-            return doc.RootElement.TryGetProperty("updatedAt", out var el) ? el.GetString() : null;
+            using var doc = JsonDocument.Parse(result.Body);
+            return doc.RootElement.TryGetProperty("updated_at", out var el) ? el.GetString() : null;
         }
         catch
         {
@@ -350,28 +349,23 @@ public partial class GitHubToolHandlers
 
     /// <summary>
     /// 按 job 并行下载日志(ADR 0067 §10) — 25 个 job 并行,理论 10-15s vs 串行 43s
-    /// <para>失败时返回 false,调用方回退到串行 gh run view --log</para>
+    /// <para>失败时返回 false,调用方回退到串行 GetRunLogsAsync</para>
     /// <para>并发度限制 8,避免 GitHub API 二级限速</para>
     /// </summary>
     private async Task<bool> TryDownloadParallelAsync(
-        string runId, string? workingDir,
+        string owner, string repo, string runId,
         RunLogSummary summary,
         Dictionary<string, Dictionary<string, List<string>>> sectionContents,
         StringBuilder rawBuilder, CancellationToken ct)
     {
         try
         {
-            // 1. 获取 owner/repo
-            var repoResult = await RunGhAsync("repo view --json nameWithOwner -q .nameWithOwner", ResolveWorkDir(workingDir), ct).ConfigureAwait(false);
-            if (!repoResult.Success) return false;
-            var repo = repoResult.Output.Trim();
-
-            // 2. 获取 job 列表
-            var jobsResult = await RunGhAsync($"api repos/{repo}/actions/runs/{runId}/jobs --paginate", ResolveWorkDir(workingDir), ct).ConfigureAwait(false);
+            // 1. 获取 job 列表(owner/repo 已传入)
+            var jobsResult = await _apiClient!.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}/jobs", paginate: true, ct: ct).ConfigureAwait(false);
             if (!jobsResult.Success) return false;
 
             List<(long id, string name)> jobs;
-            using (var doc = JsonDocument.Parse(jobsResult.Output))
+            using (var doc = JsonDocument.Parse(jobsResult.Body))
             {
                 if (!doc.RootElement.TryGetProperty("jobs", out var jobsEl)) return false;
                 jobs = new List<(long, string)>();
@@ -386,7 +380,7 @@ public partial class GitHubToolHandlers
 
             _logger?.LogDebug("并行下载 {Count} 个 job 日志", jobs.Count);
 
-            // 3. 并行下载每个 job 日志(SemaphoreSlim 限并发 8)
+            // 2. 并行下载每个 job 日志(SemaphoreSlim 限并发 8)
             using var semaphore = new SemaphoreSlim(8);
             var tasks = jobs.Select(async job =>
             {
@@ -395,23 +389,35 @@ public partial class GitHubToolHandlers
                 {
                     for (int attempt = 0; attempt < 3; attempt++)
                     {
-                        var logResult = await RunGhAsync($"api repos/{repo}/actions/jobs/{job.id}/logs", ResolveWorkDir(workingDir), ct, 60_000).ConfigureAwait(false);
-                        if (logResult.Success && !string.IsNullOrEmpty(logResult.Output))
-                            return (job.name, logResult.Output);
-                        if (attempt < 2)
+                        try
+                        {
+                            var lines = new List<string>();
+                            await foreach (var line in _apiClient.GetJobLogsAsync(owner, repo, job.id, ct).ConfigureAwait(false))
+                            {
+                                lines.Add(line);
+                            }
+                            if (lines.Count > 0)
+                                return (job.name, lines);
+                            if (attempt < 2)
+                                await Task.Delay(500, ct).ConfigureAwait(false);
+                        }
+                        catch (Exception ex) when (attempt < 2)
+                        {
+                            _logger?.LogDebug(ex, "job {JobId} 日志下载失败,重试 {Attempt}", job.id, attempt + 1);
                             await Task.Delay(500, ct).ConfigureAwait(false);
+                        }
                     }
-                    return (job.name, string.Empty);
+                    return (job.name, new List<string>());
                 }
                 finally { semaphore.Release(); }
             }).ToArray();
             var results = await Task.WhenAll(tasks).ConfigureAwait(false);
 
-            // 4. 合并日志(用 job 名作为 step 名)
-            foreach (var (jobName, logOutput) in results)
+            // 3. 合并日志(用 job 名作为 step 名)
+            foreach (var (jobName, logLines) in results)
             {
-                if (string.IsNullOrEmpty(logOutput)) continue;
-                foreach (var line in logOutput.Split('\n'))
+                if (logLines.Count == 0) continue;
+                foreach (var line in logLines)
                 {
                     if (string.IsNullOrEmpty(line)) continue;
                     rawBuilder.Append(line).Append('\n');
@@ -469,16 +475,71 @@ public partial class GitHubToolHandlers
     }
 
     /// <summary>
+    /// 获取指定 Run 中所有失败 job 的日志 — 逐行 yield(合并多个 job 日志)
+    /// <para>用于 expand=failed 模式,只拉 conclusion=failure 的 job 日志</para>
+    /// </summary>
+    private async IAsyncEnumerable<string> GetFailedJobLogsAsync(
+        string owner, string repo, string runId,
+        [EnumeratorCancellation] CancellationToken ct)
+    {
+        var jobsResult = await _apiClient!.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}/jobs", paginate: true, ct: ct).ConfigureAwait(false);
+        if (!jobsResult.Success) yield break;
+
+        List<long> failedJobIds;
+        using (var doc = JsonDocument.Parse(jobsResult.Body))
+        {
+            if (!doc.RootElement.TryGetProperty("jobs", out var jobsEl)) yield break;
+            failedJobIds = new List<long>();
+            foreach (var job in jobsEl.EnumerateArray())
+            {
+                if (!job.TryGetProperty("id", out var idEl) || idEl.ValueKind != JsonValueKind.Number) continue;
+                var conclusion = job.TryGetProperty("conclusion", out var conEl) ? conEl.GetString() : null;
+                if (string.Equals(conclusion, "failure", StringComparison.OrdinalIgnoreCase))
+                    failedJobIds.Add(idEl.GetInt64());
+            }
+        }
+
+        foreach (var jobId in failedJobIds)
+        {
+            await foreach (var line in _apiClient.GetJobLogsAsync(owner, repo, jobId, ct).ConfigureAwait(false))
+            {
+                yield return line;
+            }
+        }
+    }
+
+    /// <summary>
     /// 流式拉取 + 过滤 + 分页跳过(不缓存,用于 --log-failed 或一次性过滤)
+    /// <para>日志源: failedOnly=true → 失败 job 日志; jobId 有值 → 单 job 日志; 否则 → 整个 run 日志</para>
     /// </summary>
     private async Task<ToolResult> StreamAndFilterAsync(
-        string command, string runId, string scope, string? workingDir,
-        FrozenSet<string>? markers, GitHubLogFilter? filterLevel,
+        string owner, string repo, string runId, string? jobId, bool failedOnly,
+        string scope, FrozenSet<string>? markers, GitHubLogFilter? filterLevel,
         int maxLines, CancellationToken ct, string? hint = null, int skipLines = 0)
     {
         var matched = new List<string>(maxLines);
         var skipped = 0;
-        await foreach (var line in _gh.ExecuteStreamingAsync(command, ResolveWorkDir(workingDir), 120_000, ct).ConfigureAwait(false))
+
+        // 获取日志行枚举源
+        IAsyncEnumerable<string> logLines;
+        if (failedOnly)
+        {
+            logLines = GetFailedJobLogsAsync(owner, repo, runId, ct);
+        }
+        else if (!string.IsNullOrWhiteSpace(jobId) && long.TryParse(jobId, out var jobIdLong))
+        {
+            logLines = _apiClient!.GetJobLogsAsync(owner, repo, jobIdLong, ct);
+        }
+        else if (long.TryParse(runId, out var runIdLong))
+        {
+            logLines = _apiClient!.GetRunLogsAsync(owner, repo, runIdLong, ct);
+        }
+        else
+        {
+            return Fail($"无效的 Run ID: {runId}");
+        }
+
+        await foreach (var line in logLines.ConfigureAwait(false))
         {
             if (markers is not null && !markers.Any(m => line.Contains(m, StringComparison.OrdinalIgnoreCase)))
                 continue;

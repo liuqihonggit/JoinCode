@@ -114,11 +114,11 @@ regex.IsMatch(span) → 匹配
 |------|------|----------|------|
 | P1-1 | 提取 `SearchRegexCompiler` 到 `Abstractions/03-hands/Code/` | RgEngine.cs、SearchService.cs | ✅ |
 
-### P2：路径安全 + 转义修复（待定）
+### P2：路径安全 + 转义修复 ✅ 已完成
 
 | 步骤 | 动作 | 影响文件 | 状态 |
 |------|------|----------|------|
-| P2-1 | 提取 `PathSafetyValidator` 到 `infrastructure/Infrastructure/Utils/Validation/` | RgSubCommand.cs | 待定 |
+| P2-1 | 提取 `PathSafetyValidator` 到 `Abstractions/00-core/core/Utils/Path/` | RgSubCommand.cs | ✅ |
 | P2-2 | `FixPowerShellEscaping` 暂不提取（无重复，未来有复用场景时再提取） | — | 不做 |
 
 ---

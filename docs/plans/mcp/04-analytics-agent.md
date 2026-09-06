@@ -104,8 +104,28 @@ $jcc = "D:\project\w1\artifacts\bin\JoinCode\Release\net10.0\jcc.exe"
 
 | 工具 | 问题描述 | 根因 | 修复 |
 |------|----------|------|------|
-| | | | |
+| `analytics_report` | 空数据时抛 "Sequence contains no elements" 异常 | `AnalyticsService.GetUsageReport` 中 `Average()` 在空集合上抛异常 | 用 `DefaultIfEmpty(0).Average()` 优雅降级 |
+| `agent` (文档) | 文档写 `agent` 但实际工具名是 `Agent` | 文档错误 | 文档需更新 |
+| `agent_send_message` (文档) | 文档写 `agent_send_message` 但实际工具名是 `SendMessage` | 文档错误 | 文档需更新 |
 
 ## 交接说明
 
 > 本计划由第三轮 AI 窗口处理。每次只手动执行一个命令测试,遇到任何不适都需要改代码修复。
+
+## 最终测试结果 (2026-09-06)
+
+| 状态 | 数量 | 说明 |
+|------|------|------|
+| OK | 11 | 正常返回有意义的结果 |
+| ERROR | 16 | 全部是缺参数错误(预期行为) |
+| 坏点 | 1 | analytics_report空数据异常(已修复) |
+| 文档错误 | 2 | agent→Agent, agent_send_message→SendMessage |
+
+### 通过的工具 (11个)
+
+**Analytics (8个)**: agent_system_stats, agent_list_stats, agent_running_stats, tool_score, tool_hypergraph, analytics_tools, analytics_events, analytics_export
+**Agent (3个)**: list_agents, agent_list, agent_running
+
+### 修复的坏点
+
+- `analytics_report`: 空数据时 `Average()` 抛异常 → `DefaultIfEmpty(0).Average()` 优雅降级 (commit cb3239e4e)

@@ -54,6 +54,7 @@ global using System.Text.Json.Nodes;
 global using System.Text.RegularExpressions;
 global using Infrastructure.Pipeline;
 global using Infrastructure.Subprocess;
+global using Infrastructure.IO.Services.FileOps;
 global using Infrastructure.Utils.Resilience;
 global using QRCoder;
 global using JoinCode.Abstractions.Entity;

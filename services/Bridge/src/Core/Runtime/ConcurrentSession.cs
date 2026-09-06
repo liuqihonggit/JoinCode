@@ -199,15 +199,17 @@ public sealed class ConcurrentSessionService
                 return;
             }
 
-            var json = await _fs.ReadAllTextAsync(path, ct).ConfigureAwait(false);
-            var existing = RelaxedJsonSerializer.Deserialize(json, BridgeJsonContext.Default.ConcurrentSessionRecord);
-            if (existing is null) return;
-
-            applyPatch(existing);
-            existing.UpdatedAt = _clock.GetUtcNowOffset().ToUnixTimeMilliseconds();
-
-            var updatedJson = JsonSerializer.Serialize(existing, BridgeJsonContext.Default.ConcurrentSessionRecord);
-            await _fs.WriteAllTextAsync(path, updatedJson, ct).ConfigureAwait(false);
+            await _fs.EditFileAsync<bool>(path, async (bytes, cancellationToken) =>
+            {
+                var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
+                var existing = RelaxedJsonSerializer.Deserialize(content, BridgeJsonContext.Default.ConcurrentSessionRecord);
+                if (existing is null) return (null, false);
+                applyPatch(existing);
+                existing.UpdatedAt = _clock.GetUtcNowOffset().ToUnixTimeMilliseconds();
+                var updatedJson = JsonSerializer.Serialize(existing, BridgeJsonContext.Default.ConcurrentSessionRecord);
+                var newBytes = FileEncodingDetector.EncodeString(updatedJson, encoding);
+                return (newBytes, true);
+            }, ct).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

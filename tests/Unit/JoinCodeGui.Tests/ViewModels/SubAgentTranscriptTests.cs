@@ -12,8 +12,8 @@ public class SubAgentTranscriptTests
     {
         var tracker = new SubAgentRunTracker();
         tracker.Observe(ChatStreamEvent.AgentStarted("a1", "explore", "调研", "executor"));
-        tracker.Observe(new ChatStreamEvent { Type = ChatStreamEventType.ToolCallStart, ToolName = "Grep", AgentId = "a1" });
-        tracker.Observe(new ChatStreamEvent { Type = ChatStreamEventType.ToolCallEnd, ToolName = "Grep", AgentId = "a1" });
+        tracker.Observe(new ChatStreamEvent { Type = ChatStreamEventType.ToolCallStart, ToolName = "grep", AgentId = "a1" });
+        tracker.Observe(new ChatStreamEvent { Type = ChatStreamEventType.ToolCallEnd, ToolName = "grep", AgentId = "a1" });
         tracker.Observe(new ChatStreamEvent { Type = ChatStreamEventType.Content, Content = "找到 3 处匹配", AgentId = "a1" });
         tracker.Observe(ChatStreamEvent.AgentFinished("a1", success: true, executionTimeMs: 5_000, finalOutput: "完成"));
 
@@ -23,7 +23,7 @@ public class SubAgentTranscriptTests
         transcript[0].Glyph.Should().Be("▶");
         transcript[0].Text.Should().Contain("explore");
         transcript[2].Glyph.Should().Be("✓");
-        transcript[2].Text.Should().Contain("Grep");
+        transcript[2].Text.Should().Contain("grep");
         transcript[3].Text.Should().Contain("找到 3 处匹配");
         transcript[4].Glyph.Should().Be("■");
         transcript[4].Text.Should().Contain("完成");

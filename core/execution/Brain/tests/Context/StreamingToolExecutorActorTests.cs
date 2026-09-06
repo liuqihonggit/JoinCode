@@ -9,15 +9,15 @@ public sealed class StreamingToolExecutorActorTests
     public async Task AddTool_SingleSafeTool_ExecutesImmediately()
     {
         var classifier = new ToolConcurrencyClassifier(
-            FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "Read"));
+            FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "read"));
         var toolHandler = CreateToolHandler();
         var executor = new StreamingToolExecutorActor(toolHandler, classifier, CreateContext());
 
-        await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "Read", Arguments = "{}" }, 0);
+        await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "read", Arguments = "{}" }, 0);
 
         var results = await executor.GetRemainingResultsAsync();
         results.Should().ContainSingle();
-        results[0].ToolName.Should().Be("Read");
+        results[0].ToolName.Should().Be("read");
         results[0].Result.IsError.Should().BeFalse();
 
         await executor.DisposeAsync();
@@ -27,26 +27,26 @@ public sealed class StreamingToolExecutorActorTests
     public async Task AddTool_TwoSafeTools_BothExecute()
     {
         var classifier = new ToolConcurrencyClassifier(
-            FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "Read", "Grep"));
+            FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "read", "grep"));
         var executionOrder = new List<string>();
 
         var toolHandler = new Mock<IToolExecutionHandler>();
-        toolHandler.Setup(h => h.ExecuteToolCallAsync("Read", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
-            .Callback(() => executionOrder.Add("Read"))
+        toolHandler.Setup(h => h.ExecuteToolCallAsync("read", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
+            .Callback(() => executionOrder.Add("read"))
             .ReturnsAsync(new ToolCallResult { ResultText = "read-result", IsError = false });
-        toolHandler.Setup(h => h.ExecuteToolCallAsync("Grep", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
-            .Callback(() => executionOrder.Add("Grep"))
+        toolHandler.Setup(h => h.ExecuteToolCallAsync("grep", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
+            .Callback(() => executionOrder.Add("grep"))
             .ReturnsAsync(new ToolCallResult { ResultText = "grep-result", IsError = false });
 
         var executor = new StreamingToolExecutorActor(toolHandler.Object, classifier, CreateContext());
 
-        await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "Read", Arguments = "{}" }, 0);
-        await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "Grep", Arguments = "{}" }, 1);
+        await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "read", Arguments = "{}" }, 0);
+        await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "grep", Arguments = "{}" }, 1);
 
         var results = await executor.GetRemainingResultsAsync();
         results.Should().HaveCount(2);
-        executionOrder.Should().Contain("Read");
-        executionOrder.Should().Contain("Grep");
+        executionOrder.Should().Contain("read");
+        executionOrder.Should().Contain("grep");
 
         await executor.DisposeAsync();
     }
@@ -83,12 +83,12 @@ public sealed class StreamingToolExecutorActorTests
     public async Task GetCompletedResults_ReturnsResultsInOrder()
     {
         var classifier = new ToolConcurrencyClassifier(
-            FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "Read"));
+            FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "read"));
         var toolHandler = CreateToolHandler();
         var executor = new StreamingToolExecutorActor(toolHandler, classifier, CreateContext());
 
-        await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "Read", Arguments = "{}" }, 0);
-        await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "Read", Arguments = "{}" }, 1);
+        await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "read", Arguments = "{}" }, 0);
+        await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "read", Arguments = "{}" }, 1);
 
         await Task.Delay(100);
         var completed = await executor.GetCompletedResultsAsync();
@@ -132,12 +132,12 @@ public sealed class StreamingToolExecutorActorTests
     {
         var classifier = new ToolConcurrencyClassifier(FrozenSet<string>.Empty);
         var toolHandler = new Mock<IToolExecutionHandler>();
-        toolHandler.Setup(h => h.ExecuteToolCallAsync("Bash", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
+        toolHandler.Setup(h => h.ExecuteToolCallAsync("bash", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ToolCallResult { ResultText = "error", IsError = true });
 
         var executor = new StreamingToolExecutorActor(toolHandler.Object, classifier, CreateContext());
 
-        await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "Bash", Arguments = "{}" }, 0);
+        await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "bash", Arguments = "{}" }, 0);
         await executor.GetRemainingResultsAsync();
 
         executor.CombinedCancellationToken.IsCancellationRequested.Should().BeTrue();
@@ -149,14 +149,14 @@ public sealed class StreamingToolExecutorActorTests
     public async Task ConcurrentAddTools_AllComplete_NoDeadlock()
     {
         var classifier = new ToolConcurrencyClassifier(
-            FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "Read"));
+            FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "read"));
         var toolHandler = CreateToolHandler();
         var executor = new StreamingToolExecutorActor(toolHandler, classifier, CreateContext());
 
         const int count = 50;
         var addTasks = Enumerable.Range(0, count).Select(async i =>
         {
-            await executor.AddToolAsync(new ToolCallEntry { Id = i.ToString(), Name = "Read", Arguments = "{}" }, i);
+            await executor.AddToolAsync(new ToolCallEntry { Id = i.ToString(), Name = "read", Arguments = "{}" }, i);
         });
 
         await Task.WhenAll(addTasks);

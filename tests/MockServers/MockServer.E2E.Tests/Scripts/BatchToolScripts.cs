@@ -70,8 +70,8 @@ public static class BatchShellToolScripts
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new() { ToolName = "Bash", Arguments = """{"command":"echo hello"}""" },
-                        new() { ToolName = "PowerShell", Arguments = """{"command":"Get-Process"}""" },
+                        new() { ToolName = "bash", Arguments = """{"command":"echo hello"}""" },
+                        new() { ToolName = "powershell", Arguments = """{"command":"Get-Process"}""" },
                         new() { ToolName = "shell_check", Arguments = """{"command":"echo test"}""" },
                         new() { ToolName = "shell_background_get", Arguments = """{"id":"test-001"}""" },
                         new() { ToolName = "shell_background_list", Arguments = "{}" },
@@ -81,8 +81,8 @@ public static class BatchShellToolScripts
                 },
                 Asserts =
                 [
-                    new() { Type = AssertType.ContainsToolCall, Expected = "Bash", Description = "应包含Bash" },
-                    new() { Type = AssertType.ContainsToolCall, Expected = "PowerShell", Description = "应包含PowerShell" },
+                    new() { Type = AssertType.ContainsToolCall, Expected = "bash", Description = "应包含Bash" },
+                    new() { Type = AssertType.ContainsToolCall, Expected = "powershell", Description = "应包含PowerShell" },
                     new() { Type = AssertType.ContainsToolCall, Expected = "shell_check", Description = "应包含shell_check" },
                     new() { Type = AssertType.ContainsToolCall, Expected = "shell_background_get", Description = "应包含shell_background_get" },
                     new() { Type = AssertType.ContainsToolCall, Expected = "shell_background_list", Description = "应包含shell_background_list" },
@@ -247,7 +247,7 @@ public static class BatchSearchToolScripts
                         new() { ToolName = "search_code", Arguments = """{"query":"class"}""" },
                         new() { ToolName = "search_text", Arguments = """{"pattern":"TODO"}""" },
                         new() { ToolName = "search_files", Arguments = """{"pattern":"*.cs"}""" },
-                        new() { ToolName = "SearchCodebase", Arguments = """{"query":"ChatService"}""" },
+                        new() { ToolName = "search_codebase", Arguments = """{"query":"ChatService"}""" },
                         new() { ToolName = "code_search", Arguments = """{"query":"interface"}""" },
                         new() { ToolName = "symbol_search", Arguments = """{"symbol":"Main"}""" },
                     ],
@@ -258,7 +258,7 @@ public static class BatchSearchToolScripts
                     new() { Type = AssertType.ToolCallSucceeded, Expected = "search_code", Description = "search_code应执行成功" },
                     new() { Type = AssertType.ToolCallSucceeded, Expected = "search_text", Description = "search_text应执行成功" },
                     new() { Type = AssertType.ToolCallSucceeded, Expected = "search_files", Description = "search_files应执行成功" },
-                    new() { Type = AssertType.ToolCallSucceeded, Expected = "SearchCodebase", Description = "SearchCodebase应执行成功" },
+                    new() { Type = AssertType.ToolCallSucceeded, Expected = "search_codebase", Description = "SearchCodebase应执行成功" },
                     new() { Type = AssertType.ToolCallSucceeded, Expected = "code_search", Description = "code_search应执行成功" },
                     new() { Type = AssertType.ToolCallSucceeded, Expected = "symbol_search", Description = "symbol_search应执行成功" },
                     new() { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },

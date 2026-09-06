@@ -9,7 +9,7 @@ public enum InteractionToolName
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     ConfirmAction,
 
-    [EnumValue("AskUserQuestion")]
+    [EnumValue("ask_user_question")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     AskUserQuestion,
 
@@ -25,7 +25,7 @@ public enum InteractionToolName
     [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true)]
     AuthLogout,
 
-    [EnumValue("Config")]
+    [EnumValue("config")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     Config,
 

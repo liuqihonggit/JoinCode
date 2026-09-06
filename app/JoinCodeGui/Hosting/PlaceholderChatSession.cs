@@ -175,12 +175,12 @@ internal sealed class PlaceholderChatSession : IJccChatSession
         yield return ChatStreamEvent.Thinking("\n[推理过程] 用户询问：");
 
         // 后台 agent 动作 1：搜索
-        yield return ChatStreamEvent.ToolStart("WebSearch", "call_search_01", "{\"query\":\"" + message + "\"}");
-        yield return ChatStreamEvent.ToolProgress("WebSearch", "query_update", "正在搜索关键词…", "call_search_01");
+        yield return ChatStreamEvent.ToolStart("web_search", "call_search_01", "{\"query\":\"" + message + "\"}");
+        yield return ChatStreamEvent.ToolProgress("web_search", "query_update", "正在搜索关键词…", "call_search_01");
         await Task.Yield();
-        yield return ChatStreamEvent.ToolProgress("WebSearch", "search_results_received", "已获取 3 条结果", "call_search_01");
+        yield return ChatStreamEvent.ToolProgress("web_search", "search_results_received", "已获取 3 条结果", "call_search_01");
         await Task.Yield();
-        yield return ChatStreamEvent.ToolEnd("WebSearch", "找到相关文档，主题与用户问题吻合", "call_search_01");
+        yield return ChatStreamEvent.ToolEnd("web_search", "找到相关文档，主题与用户问题吻合", "call_search_01");
 
         // 后台 agent 动作 2：读文件
         yield return ChatStreamEvent.ToolStart("ReadFile", "call_read_01", "{\"path\":\"docs/guide.md\"}");

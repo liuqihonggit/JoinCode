@@ -160,7 +160,7 @@ public static class ExtendedToolScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "CronCreate",
+                            ToolName = "cron_create",
                             Arguments = """{"name":"test-cron","schedule":"*/5 * * * *","prompt":"定期检查","timezone":"UTC"}"""
                         }
                     ],
@@ -168,7 +168,7 @@ public static class ExtendedToolScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "CronCreate", Description = "应包含CronCreate工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "cron_create", Description = "应包含CronCreate工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
                 ]
             }
@@ -194,7 +194,7 @@ public static class ExtendedToolScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "CronDelete",
+                            ToolName = "cron_delete",
                             Arguments = """{"task_id":"test-cron-001"}"""
                         }
                     ],
@@ -202,7 +202,7 @@ public static class ExtendedToolScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "CronDelete", Description = "应包含CronDelete工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "cron_delete", Description = "应包含CronDelete工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
                 ]
             }
@@ -228,7 +228,7 @@ public static class ExtendedToolScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "AskUserQuestion",
+                            ToolName = "ask_user_question",
                             Arguments = """{"question":"你确定要删除这个文件吗？","options":[{"label":"是","description":"确认删除"},{"label":"否","description":"取消操作"}]}"""
                         }
                     ],
@@ -236,7 +236,7 @@ public static class ExtendedToolScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "AskUserQuestion", Description = "应包含AskUserQuestion工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "ask_user_question", Description = "应包含AskUserQuestion工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
                 ]
             }

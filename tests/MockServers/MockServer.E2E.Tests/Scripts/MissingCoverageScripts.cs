@@ -93,7 +93,7 @@ public static class MissingCoverageScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Grep",
+                            ToolName = "grep",
                             Arguments = """{"pattern":"TODO","include":"*.cs"}"""
                         }
                     ],
@@ -101,7 +101,7 @@ public static class MissingCoverageScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Grep", Description = "应包含Grep工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "grep", Description = "应包含Grep工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有助手回复" },
                 ]
             }
@@ -127,7 +127,7 @@ public static class MissingCoverageScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Glob",
+                            ToolName = "glob",
                             Arguments = """{"pattern":"**/*.json"}"""
                         }
                     ],
@@ -135,7 +135,7 @@ public static class MissingCoverageScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Glob", Description = "应包含Glob工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "glob", Description = "应包含Glob工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有助手回复" },
                 ]
             }
@@ -416,7 +416,7 @@ public static class SchedulingToolScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "CronList",
+                            ToolName = "cron_list",
                             Arguments = "{}"
                         }
                     ],
@@ -424,7 +424,7 @@ public static class SchedulingToolScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "CronList", Description = "应包含CronList工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "cron_list", Description = "应包含CronList工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
                 ]
             }
@@ -453,7 +453,7 @@ public static class WebToolScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "WebSearch",
+                            ToolName = "web_search",
                             Arguments = """{"query":"JoinCode AI workflow engine"}"""
                         }
                     ],
@@ -461,7 +461,7 @@ public static class WebToolScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "WebSearch", Description = "应包含WebSearch工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "web_search", Description = "应包含WebSearch工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
                 ]
             }

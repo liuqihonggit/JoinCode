@@ -17,15 +17,15 @@ public enum SearchToolName
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     SearchFiles,
 
-    [EnumValue("SearchCodebase")]
+    [EnumValue("search_codebase")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     SearchCodebase,
 
-    [EnumValue("Glob")]
+    [EnumValue("glob")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     Glob,
 
-    [EnumValue("Grep")]
+    [EnumValue("grep")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     Grep,
 

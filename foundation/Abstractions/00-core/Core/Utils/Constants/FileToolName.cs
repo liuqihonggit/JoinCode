@@ -5,15 +5,15 @@ namespace JoinCode.Abstractions.Utils;
 /// </summary>
 public enum FileToolName
 {
-    [EnumValue("Read")]
+    [EnumValue("read")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     FileRead,
 
-    [EnumValue("Write")]
+    [EnumValue("write")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanDenied = true, AskAllowed = true)]
     FileWrite,
 
-    [EnumValue("Edit")]
+    [EnumValue("edit")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanDenied = true, AskAllowed = true)]
     FileEdit,
 

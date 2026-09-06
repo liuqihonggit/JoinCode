@@ -5,7 +5,7 @@ namespace JoinCode.Abstractions.Utils;
 /// </summary>
 public enum ShellToolName
 {
-    [EnumValue("Bash")]
+    [EnumValue("bash")]
     [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true, AgentDestructive = true)]
     Bash,
 
@@ -13,7 +13,7 @@ public enum ShellToolName
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     ShellCheck,
 
-    [EnumValue("PowerShell")]
+    [EnumValue("powershell")]
     [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true, AgentDestructive = true)]
     Powershell,
 

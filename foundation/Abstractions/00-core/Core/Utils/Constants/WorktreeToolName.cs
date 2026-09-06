@@ -37,11 +37,11 @@ public enum WorktreeToolName
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     WorktreeMerge,
 
-    [EnumValue("EnterWorktree")]
+    [EnumValue("enter_worktree")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     EnterWorktree,
 
-    [EnumValue("ExitWorktree")]
+    [EnumValue("exit_worktree")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     ExitWorktree,
 }

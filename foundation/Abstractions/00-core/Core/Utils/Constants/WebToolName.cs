@@ -5,11 +5,11 @@ namespace JoinCode.Abstractions.Utils;
 /// </summary>
 public enum WebToolName
 {
-    [EnumValue("WebFetch")]
+    [EnumValue("web_fetch")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     WebFetch,
 
-    [EnumValue("WebSearch")]
+    [EnumValue("web_search")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     WebSearch,
 

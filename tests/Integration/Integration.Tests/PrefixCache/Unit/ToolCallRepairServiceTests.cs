@@ -322,7 +322,7 @@ public sealed class ToolCallRepairServiceTests
             ["url"] = JsonElementHelper.FromJson("""["https://example.com"]""")
         };
 
-        var result = ToolCallRepairService.RepairArguments("WebFetch", args, schema);
+        var result = ToolCallRepairService.RepairArguments("web_fetch", args, schema);
 
         result.RepairedArguments["url"].ValueKind.Should().Be(JsonValueKind.String);
         result.RepairedArguments["url"].GetString().Should().Be("https://example.com");
@@ -391,21 +391,20 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Theory]
-    [InlineData("read", "Read")]
-    [InlineData("READ", "Read")]
-    [InlineData("Read", "Read")]
-    [InlineData("write", "Write")]
-    [InlineData("WRITE", "Write")]
-    [InlineData("edit", "Edit")]
-    [InlineData("glob", "Glob")]
-    [InlineData("GLOB", "Glob")]
-    [InlineData("grep", "Grep")]
-    [InlineData("bash", "Bash")]
-    [InlineData("BASH", "Bash")]
-    [InlineData("Bash", "Bash")]
-    [InlineData("webfetch", "WebFetch")]
-    [InlineData("WEBFETCH", "WebFetch")]
-    [InlineData("WebFetch", "WebFetch")]
+    [InlineData("read", "read")]
+    [InlineData("READ", "read")]
+    [InlineData("Read", "read")]
+    [InlineData("write", "write")]
+    [InlineData("WRITE", "write")]
+    [InlineData("edit", "edit")]
+    [InlineData("glob", "glob")]
+    [InlineData("GLOB", "glob")]
+    [InlineData("grep", "grep")]
+    [InlineData("bash", "bash")]
+    [InlineData("BASH", "bash")]
+    [InlineData("webfetch", "web_fetch")]
+    [InlineData("WEBFETCH", "web_fetch")]
+    [InlineData("web_fetch", "web_fetch")]
     [InlineData("directory_list", "directory_list")]
     [InlineData("DIRECTORY_LIST", "directory_list")]
     public void RepairToolName_NormalizesCase(string input, string expected)
@@ -454,7 +453,7 @@ public sealed class ToolCallRepairServiceTests
             ["Path"] = JsonElementHelper.FromString("/src/README.md")
         };
 
-        var result = ToolCallRepairService.RepairArguments("Grep", args, schema);
+        var result = ToolCallRepairService.RepairArguments("grep", args, schema);
 
         result.RepairedArguments.Should().ContainKey("pattern");
         result.RepairedArguments.Should().ContainKey("path");

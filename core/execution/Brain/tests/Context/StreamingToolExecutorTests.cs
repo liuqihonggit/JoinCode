@@ -6,15 +6,15 @@ public sealed class StreamingToolExecutorTests
     public async Task AddTool_SingleSafeTool_ExecutesImmediately()
     {
         var classifier = new ToolConcurrencyClassifier(
-            FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "Read"));
+            FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "read"));
         var toolHandler = CreateToolHandler();
         var executor = new StreamingToolExecutor(toolHandler, classifier, CreateContext());
 
-        await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "Read", Arguments = "{}" }, 0);
+        await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "read", Arguments = "{}" }, 0);
 
         var results = await executor.GetRemainingResultsAsync();
         results.Should().ContainSingle();
-        results[0].ToolName.Should().Be("Read");
+        results[0].ToolName.Should().Be("read");
         results[0].Result.IsError.Should().BeFalse();
 
         await executor.DisposeAsync();
@@ -24,26 +24,26 @@ public sealed class StreamingToolExecutorTests
     public async Task AddTool_TwoSafeTools_BothExecute()
     {
         var classifier = new ToolConcurrencyClassifier(
-            FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "Read", "Grep"));
+            FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "read", "grep"));
         var executionOrder = new List<string>();
 
         var toolHandler = new Mock<IToolExecutionHandler>();
-        toolHandler.Setup(h => h.ExecuteToolCallAsync("Read", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
-            .Callback(() => executionOrder.Add("Read"))
+        toolHandler.Setup(h => h.ExecuteToolCallAsync("read", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
+            .Callback(() => executionOrder.Add("read"))
             .ReturnsAsync(new ToolCallResult { ResultText = "read-result", IsError = false });
-        toolHandler.Setup(h => h.ExecuteToolCallAsync("Grep", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
-            .Callback(() => executionOrder.Add("Grep"))
+        toolHandler.Setup(h => h.ExecuteToolCallAsync("grep", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
+            .Callback(() => executionOrder.Add("grep"))
             .ReturnsAsync(new ToolCallResult { ResultText = "grep-result", IsError = false });
 
         var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext());
 
-        await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "Read", Arguments = "{}" }, 0);
-        await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "Grep", Arguments = "{}" }, 1);
+        await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "read", Arguments = "{}" }, 0);
+        await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "grep", Arguments = "{}" }, 1);
 
         var results = await executor.GetRemainingResultsAsync();
         results.Should().HaveCount(2);
-        executionOrder.Should().Contain("Read");
-        executionOrder.Should().Contain("Grep");
+        executionOrder.Should().Contain("read");
+        executionOrder.Should().Contain("grep");
 
         await executor.DisposeAsync();
     }
@@ -79,23 +79,23 @@ public sealed class StreamingToolExecutorTests
     public async Task AddTool_BashError_CancelsSiblingTools()
     {
         var classifier = new ToolConcurrencyClassifier(
-            FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "Read"));
+            FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "read"));
         var toolHandler = new Mock<IToolExecutionHandler>();
-        toolHandler.Setup(h => h.ExecuteToolCallAsync("Bash", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
+        toolHandler.Setup(h => h.ExecuteToolCallAsync("bash", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ToolCallResult { ResultText = "error!", IsError = true });
-        toolHandler.Setup(h => h.ExecuteToolCallAsync("Read", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
+        toolHandler.Setup(h => h.ExecuteToolCallAsync("read", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ToolCallResult { ResultText = "cancelled", IsError = true });
 
         var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext());
 
-        await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "Bash", Arguments = "{}" }, 0);
-        await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "Read", Arguments = "{}" }, 1);
+        await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "bash", Arguments = "{}" }, 0);
+        await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "read", Arguments = "{}" }, 1);
 
         using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         var results = await executor.GetRemainingResultsAsync().WaitAsync(timeoutCts.Token);
         results.Should().HaveCount(2);
-        results.Should().Contain(r => r.ToolName == "Bash" && r.Result.IsError);
-        results.Should().Contain(r => r.ToolName == "Read" && r.Result.IsError);
+        results.Should().Contain(r => r.ToolName == "bash" && r.Result.IsError);
+        results.Should().Contain(r => r.ToolName == "read" && r.Result.IsError);
 
         await executor.DisposeAsync();
     }
@@ -104,13 +104,13 @@ public sealed class StreamingToolExecutorTests
     public async Task GetCompletedResults_ReturnsInOriginalOrder()
     {
         var classifier = new ToolConcurrencyClassifier(
-            FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "Read", "Grep"));
+            FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "read", "grep"));
         var toolHandler = CreateToolHandler();
         var executor = new StreamingToolExecutor(toolHandler, classifier, CreateContext());
 
-        await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "Grep", Arguments = "{}" }, 2);
-        await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "Read", Arguments = "{}" }, 0);
-        await executor.AddToolAsync(new ToolCallEntry { Id = "3", Name = "Grep", Arguments = "{}" }, 1);
+        await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "grep", Arguments = "{}" }, 2);
+        await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "read", Arguments = "{}" }, 0);
+        await executor.AddToolAsync(new ToolCallEntry { Id = "3", Name = "grep", Arguments = "{}" }, 1);
 
         var results = await executor.GetRemainingResultsAsync();
         results[0].OriginalIndex.Should().Be(0);
@@ -125,39 +125,39 @@ public sealed class StreamingToolExecutorTests
     public async Task FindNextExecutable_SafeAfterNonSafe_ShouldNotBeStarved()
     {
         var classifier = new ToolConcurrencyClassifier(
-            FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "Read", "Grep"));
+            FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "read", "grep"));
         var executionOrder = new List<string>();
         var readTcs = new TaskCompletionSource<ToolCallResult>();
 
         var toolHandler = new Mock<IToolExecutionHandler>();
-        toolHandler.Setup(h => h.ExecuteToolCallAsync("Read", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
+        toolHandler.Setup(h => h.ExecuteToolCallAsync("read", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
             .Callback(() => executionOrder.Add("Read:start"))
             .Returns(() => readTcs.Task);
         toolHandler.Setup(h => h.ExecuteToolCallAsync("Write", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
             .Callback(() => executionOrder.Add("Write"))
             .ReturnsAsync(new ToolCallResult { ResultText = "write-result", IsError = false });
-        toolHandler.Setup(h => h.ExecuteToolCallAsync("Grep", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
-            .Callback(() => executionOrder.Add("Grep"))
+        toolHandler.Setup(h => h.ExecuteToolCallAsync("grep", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
+            .Callback(() => executionOrder.Add("grep"))
             .ReturnsAsync(new ToolCallResult { ResultText = "grep-result", IsError = false });
 
         var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext());
 
-        await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "Read", Arguments = "{}" }, 0);
+        await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "read", Arguments = "{}" }, 0);
         await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "Write", Arguments = "{}" }, 1);
-        await executor.AddToolAsync(new ToolCallEntry { Id = "3", Name = "Grep", Arguments = "{}" }, 2);
+        await executor.AddToolAsync(new ToolCallEntry { Id = "3", Name = "grep", Arguments = "{}" }, 2);
 
         await Task.Delay(100);
         executionOrder.Should().Contain("Read:start");
         executionOrder.Should().NotContain("Write", "Write should wait because Read (safe) is executing and Write is non-safe");
-        executionOrder.Should().Contain("Grep", "Grep (safe) should execute concurrently with Read (safe), not be starved by Write (non-safe) ahead in queue");
+        executionOrder.Should().Contain("grep", "Grep (safe) should execute concurrently with Read (safe), not be starved by Write (non-safe) ahead in queue");
 
         readTcs.SetResult(new ToolCallResult { ResultText = "read-result", IsError = false });
 
         var results = await executor.GetRemainingResultsAsync();
         results.Should().HaveCount(3);
-        results.Should().Contain(r => r.ToolName == "Read");
+        results.Should().Contain(r => r.ToolName == "read");
         results.Should().Contain(r => r.ToolName == "Write");
-        results.Should().Contain(r => r.ToolName == "Grep");
+        results.Should().Contain(r => r.ToolName == "grep");
 
         await executor.DisposeAsync();
     }
@@ -173,7 +173,7 @@ public sealed class StreamingToolExecutorTests
         var toolHandler = new Mock<IToolExecutionHandler>();
         toolHandler.Setup(h => h.ExecuteToolCallAsync(ShellToolNameConstants.Powershell, It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
             .Returns(() => psTcs.Task);
-        toolHandler.Setup(h => h.ExecuteToolCallAsync("Read", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
+        toolHandler.Setup(h => h.ExecuteToolCallAsync("read", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
             .Returns(async (string? _, string? _, Dictionary<string, JsonElement>? _, ChatMiddlewareContext _, CancellationToken ct) =>
             {
                 await Task.Delay(5000, ct);
@@ -183,7 +183,7 @@ public sealed class StreamingToolExecutorTests
         var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext());
 
         await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = ShellToolNameConstants.Powershell, Arguments = "{}" }, 0);
-        await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "Read", Arguments = "{}" }, 1);
+        await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "read", Arguments = "{}" }, 1);
 
         await Task.Delay(100);
 
@@ -192,7 +192,7 @@ public sealed class StreamingToolExecutorTests
         var results = await executor.GetRemainingResultsAsync();
         results.Should().HaveCount(2);
         results.Should().Contain(r => r.ToolName == ShellToolNameConstants.Powershell && r.Result.IsError);
-        results.Should().Contain(r => r.ToolName == "Read" && r.Result.IsError, "PowerShell error should cascade cancel sibling tools like Bash does");
+        results.Should().Contain(r => r.ToolName == "read" && r.Result.IsError, "PowerShell error should cascade cancel sibling tools like Bash does");
 
         await executor.DisposeAsync();
     }
@@ -208,7 +208,7 @@ public sealed class StreamingToolExecutorTests
         var toolHandler = new Mock<IToolExecutionHandler>();
         toolHandler.Setup(h => h.ExecuteToolCallAsync(ShellToolNameConstants.PowershellScript, It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
             .Returns(() => psTcs.Task);
-        toolHandler.Setup(h => h.ExecuteToolCallAsync("Read", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
+        toolHandler.Setup(h => h.ExecuteToolCallAsync("read", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
             .Returns(async (string? _, string? _, Dictionary<string, JsonElement>? _, ChatMiddlewareContext _, CancellationToken ct) =>
             {
                 await Task.Delay(5000, ct);
@@ -218,7 +218,7 @@ public sealed class StreamingToolExecutorTests
         var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext());
 
         await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = ShellToolNameConstants.PowershellScript, Arguments = "{}" }, 0);
-        await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "Read", Arguments = "{}" }, 1);
+        await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "read", Arguments = "{}" }, 1);
 
         await Task.Delay(100);
 
@@ -227,7 +227,7 @@ public sealed class StreamingToolExecutorTests
         var results = await executor.GetRemainingResultsAsync();
         results.Should().HaveCount(2);
         results.Should().Contain(r => r.ToolName == ShellToolNameConstants.PowershellScript && r.Result.IsError);
-        results.Should().Contain(r => r.ToolName == "Read" && r.Result.IsError, "PowerShellScript error should cascade cancel sibling tools like Bash does");
+        results.Should().Contain(r => r.ToolName == "read" && r.Result.IsError, "PowerShellScript error should cascade cancel sibling tools like Bash does");
 
         await executor.DisposeAsync();
     }
@@ -237,12 +237,12 @@ public sealed class StreamingToolExecutorTests
     public async Task UserCancellationToken_Cancelled_ShouldCancelExecutingTools()
     {
         var classifier = new ToolConcurrencyClassifier(
-            FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "Read"));
+            FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "read"));
         using var userCts = new CancellationTokenSource();
         var toolStartedTcs = new TaskCompletionSource<bool>();
 
         var toolHandler = new Mock<IToolExecutionHandler>();
-        toolHandler.Setup(h => h.ExecuteToolCallAsync("Read", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
+        toolHandler.Setup(h => h.ExecuteToolCallAsync("read", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
             .Callback(() => toolStartedTcs.SetResult(true))
             .Returns(async (string? _, string? _, Dictionary<string, JsonElement>? _, ChatMiddlewareContext _, CancellationToken ct) =>
             {
@@ -252,7 +252,7 @@ public sealed class StreamingToolExecutorTests
 
         var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext(), userCancellationToken: userCts.Token);
 
-        await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "Read", Arguments = "{}" }, 0);
+        await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "read", Arguments = "{}" }, 0);
 
         await toolStartedTcs.Task;
         userCts.Cancel();
@@ -276,22 +276,22 @@ public sealed class StreamingToolExecutorTests
     {
         var classifier = new ToolConcurrencyClassifier(FrozenSet<string>.Empty);
         var toolHandler = new Mock<IToolExecutionHandler>();
-        toolHandler.Setup(h => h.ExecuteToolCallAsync("Bash", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
+        toolHandler.Setup(h => h.ExecuteToolCallAsync("bash", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ToolCallResult { ResultText = "error!", IsError = true });
-        toolHandler.Setup(h => h.ExecuteToolCallAsync("Read", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
+        toolHandler.Setup(h => h.ExecuteToolCallAsync("read", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ToolCallResult { ResultText = "ok", IsError = false });
 
         var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext());
 
-        await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "Bash", Arguments = "{}" }, 0);
-        await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "Read", Arguments = "{}" }, 1);
+        await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "bash", Arguments = "{}" }, 0);
+        await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "read", Arguments = "{}" }, 1);
 
         using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
         var results = await executor.GetRemainingResultsAsync().WaitAsync(timeoutCts.Token);
 
         results.Should().HaveCount(2, "both tools must complete even after cascade cancel");
-        results.Should().Contain(r => r.ToolName == "Bash" && r.Result.IsError);
-        results.Should().Contain(r => r.ToolName == "Read");
+        results.Should().Contain(r => r.ToolName == "bash" && r.Result.IsError);
+        results.Should().Contain(r => r.ToolName == "read");
 
         await executor.DisposeAsync();
     }
@@ -307,23 +307,23 @@ public sealed class StreamingToolExecutorTests
         var classifier = new ToolConcurrencyClassifier(FrozenSet<string>.Empty);
         var readHandlerInvoked = false;
         var toolHandler = new Mock<IToolExecutionHandler>();
-        toolHandler.Setup(h => h.ExecuteToolCallAsync("Bash", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
+        toolHandler.Setup(h => h.ExecuteToolCallAsync("bash", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ToolCallResult { ResultText = "error!", IsError = true });
-        toolHandler.Setup(h => h.ExecuteToolCallAsync("Read", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
+        toolHandler.Setup(h => h.ExecuteToolCallAsync("read", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
             .Callback(() => readHandlerInvoked = true)
             .ReturnsAsync(new ToolCallResult { ResultText = "should-not-run", IsError = false });
 
         var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext());
 
-        await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "Bash", Arguments = "{}" }, 0);
-        await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "Read", Arguments = "{}" }, 1);
+        await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "bash", Arguments = "{}" }, 0);
+        await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "read", Arguments = "{}" }, 1);
 
         using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         var results = await executor.GetRemainingResultsAsync().WaitAsync(timeoutCts.Token);
 
         results.Should().HaveCount(2);
-        results.Should().Contain(r => r.ToolName == "Bash" && r.Result.IsError);
-        results.Should().Contain(r => r.ToolName == "Read" && r.Result.IsError, "queued tool should get synthetic cancelled error, not handler result");
+        results.Should().Contain(r => r.ToolName == "bash" && r.Result.IsError);
+        results.Should().Contain(r => r.ToolName == "read" && r.Result.IsError, "queued tool should get synthetic cancelled error, not handler result");
         readHandlerInvoked.Should().BeFalse("handler should NOT be invoked for queued tool after cascade cancel — align TS collectResults getAbortReason() early check");
 
         await executor.DisposeAsync();

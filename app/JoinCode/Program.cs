@@ -17,6 +17,7 @@ class Program
         }
 
         InstallGlobalExceptionHandlers();
+        using var globalJob = CreateGlobalJobObject();
 
         Cli.TerminalHelper.Init();
         JoinCode.Abstractions.Shell.CommandTerminal.SetConsole(new CliCommandConsole());
@@ -44,26 +45,17 @@ class Program
             {
                 var doctorFs = IO.FileSystem.FileSystemFactory.Create();
                 var doctorResult = await App.Builder.EngineSessionFactory.CreateCliSessionAsync(options, doctorFs);
-
-                try
-                {
-                    return await Entry.DoctorModeRunner.RunAsync(options, doctorResult.Host.Services);
-                }
-                finally
-                {
-                    if (doctorResult.Host is IAsyncDisposable asyncDoc)
-                        await asyncDoc.DisposeAsync();
-                    else
-                        doctorResult.Host.Dispose();
-                }
+                using var doctorHost = doctorResult.Host;
+                return await Entry.DoctorModeRunner.RunAsync(options, doctorHost.Services);
             }
 
             // 3.2 --doctor-endpoint: 病人模式 — 连接到医生的 SSE 服务器，发送遥测事件
             // 病人正常运行，但额外启动 DoctorSseClient 把诊断输出推送给医生
-            Core.Agents.Doctor.DoctorSseClient? doctorClient = null;
-            if (options.DoctorEndpoint is not null)
+            await using var doctorClient = options.DoctorEndpoint is not null
+                ? new Core.Agents.Doctor.DoctorSseClient(options.DoctorEndpoint)
+                : null;
+            if (doctorClient is not null)
             {
-                doctorClient = new Core.Agents.Doctor.DoctorSseClient(options.DoctorEndpoint);
                 await doctorClient.ConnectAsync();
 
                 Diag.DiagnosticLineWritten += async (_, line) =>
@@ -88,7 +80,7 @@ class Program
             var engineResult = await App.Builder.EngineSessionFactory.CreateCliSessionAsync(options, fs);
 
             var config = engineResult.Config;
-            var host = engineResult.Host;
+            using var host = engineResult.Host;
 
             logger = host.Services.GetService<ILogger<Program>>();
 
@@ -119,9 +111,6 @@ class Program
                 await Entry.InteractiveModeRunner.RunAsync(config, options, host);
                 exitCode = 0;
             }
-
-            if (doctorClient is not null)
-                await doctorClient.DisposeAsync().ConfigureAwait(false);
 
             return exitCode;
         }
@@ -291,6 +280,27 @@ class Program
             WriteCrashDump(e.Exception, source: "UnobservedTaskException");
             e.SetObserved();
         };
+    }
+
+    /// <summary>
+    /// 创建全局 JobObject — 把当前进程加入 KILL_ON_JOB_CLOSE，所有子进程自动继承。
+    /// 父进程无论正常退出还是崩溃，OS 自动 Kill 整个进程树，避免子进程孤儿化。
+    /// 非 Windows 平台或创建失败时返回 null，不阻塞启动。
+    /// </summary>
+    private static WindowsJobObjectSandbox? CreateGlobalJobObject()
+    {
+        if (!OperatingSystem.IsWindows()) return null;
+        try
+        {
+            var job = new WindowsJobObjectSandbox();
+            job.CreateJobObject();
+            job.AssignProcess(Environment.ProcessId);
+            return job;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
     }
 
     /// <summary>

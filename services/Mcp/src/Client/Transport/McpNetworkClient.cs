@@ -72,15 +72,7 @@ public abstract class McpNetworkClient<TTransport> : McpClientBase
         var tcs = new TaskCompletionSource<JsonRpcResponse>();
         int requestId = request.GetIdAsInt();
 
-        var guard = await _requestLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_requestLock.Name}' 等待超时");
-        try
-        {
-            _pendingRequests[requestId] = tcs;
-        }
-        finally
-        {
-            guard.Dispose();
-        }
+        await _requestRegistry.RegisterAsync(requestId, tcs, cancellationToken).ConfigureAwait(false);
 
         try
         {
@@ -92,16 +84,7 @@ public abstract class McpNetworkClient<TTransport> : McpClientBase
         }
         catch
         {
-            var guard1 = await _requestLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_requestLock.Name}' 等待超时");
-            try
-            {
-                _pendingRequests.Remove(requestId);
-            }
-            finally
-            {
-                guard1.Dispose();
-            }
-
+            await _requestRegistry.RemoveAsync(requestId, cancellationToken).ConfigureAwait(false);
             throw;
         }
     }
@@ -152,6 +135,6 @@ public abstract class McpNetworkClient<TTransport> : McpClientBase
         _transport.MessageReceived -= OnTransportMessageReceived;
         _transport.ErrorOccurred -= OnTransportError;
         await _transport.DisposeAsync().ConfigureAwait(false);
-        _requestLock.Dispose();
+        await _requestRegistry.DisposeAsync().ConfigureAwait(false);
     }
 }

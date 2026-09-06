@@ -13,6 +13,7 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
     private readonly AsyncLock _authLock = new();
     private readonly IMcpAuthPersistenceService? _persistenceService;
     private readonly IHttpClientProvider? _httpClientProvider;
+    private int _disposed;
 
     public McpAuthToolHandlers(ILogger? logger = null, IMcpAuthPersistenceService? persistenceService = null, IHttpClientProvider? httpClientProvider = null)
     {
@@ -427,6 +428,7 @@ public class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConfigProvider
     /// </summary>
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         foreach (var provider in _authProviders.Values.OfType<IAsyncDisposable>())
         {
             await provider.DisposeAsync();

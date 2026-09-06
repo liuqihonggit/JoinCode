@@ -10,6 +10,7 @@ public sealed partial class BridgeServerHostedService : IHostedService, IAsyncDi
     private readonly BridgeConfig _config;
     private readonly CapacityWakeService? _capacityWakeService;
     private readonly ILogger<BridgeServerHostedService>? _logger;
+    private int _disposed;
 
     public BridgeServerHostedService(
         BridgeServer bridgeServer,
@@ -79,6 +80,7 @@ public sealed partial class BridgeServerHostedService : IHostedService, IAsyncDi
     /// <inheritdoc />
     public ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return default;
         _bridgeServer.Dispose();
         return ValueTask.CompletedTask;
     }

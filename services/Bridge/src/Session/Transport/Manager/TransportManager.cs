@@ -10,6 +10,7 @@ public sealed partial class TransportManager : ITransportManager
     private readonly IConnectionManager _connectionManager;
     private readonly IMessageRouter _messageRouter;
     private readonly ILogger<TransportManager>? _logger;
+    private int _disposed;
 
     public TransportConnectionState ConnectionState => _connectionManager.ConnectionState;
     public TransportProtocol CurrentProtocol => _connectionManager.CurrentProtocol;
@@ -140,6 +141,7 @@ public sealed partial class TransportManager : ITransportManager
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         await _connectionManager.DisposeAsync().ConfigureAwait(false);
         await _messageRouter.DisposeAsync().ConfigureAwait(false);
     }

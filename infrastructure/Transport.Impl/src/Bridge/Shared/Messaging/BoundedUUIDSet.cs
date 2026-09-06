@@ -13,6 +13,7 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
 
     private int _head;
     private int _count;
+    private int _disposed;
 
     /// <summary>
     /// 创建有界UUID集合
@@ -194,6 +195,7 @@ public sealed class BoundedUUIDSet : IAsyncDisposable
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _lock.Dispose();
     }
 }

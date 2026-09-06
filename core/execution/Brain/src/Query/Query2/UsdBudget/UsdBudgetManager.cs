@@ -35,6 +35,7 @@ public sealed partial class UsdBudgetManager : IUsdBudgetManager, IAsyncDisposab
     private readonly ITelemetryService? _telemetryService;
     private decimal _totalUsed;
     private bool _alertTriggered;
+    private int _disposed;
 
     public event EventHandler<UsdBudgetAlertEventArgs>? BudgetAlert;
 
@@ -121,6 +122,7 @@ public sealed partial class UsdBudgetManager : IUsdBudgetManager, IAsyncDisposab
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _lock.Dispose();
     }
 }

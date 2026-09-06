@@ -332,6 +332,7 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
 internal sealed partial class MonitorSession : IAsyncDisposable
 {
     private readonly Fsm<MonitorState, MonitorSessionEvent> _fsm;
+    private int _disposed;
 
     public string MonitorId { get; }
     public McpMonitorConfig Config { get; }
@@ -368,6 +369,7 @@ internal sealed partial class MonitorSession : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         Cts.Cancel();
         Cts.Dispose();
         await ValueTask.CompletedTask.ConfigureAwait(false);

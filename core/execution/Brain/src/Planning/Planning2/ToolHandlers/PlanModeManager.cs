@@ -18,6 +18,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     private readonly ILogger<PlanModeManager>? _logger;
     private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     private int _planCounter;
+    private int _disposed;
 
     private readonly SessionPlanState _fallbackState = new();
     private const string PlanStateKey = "plan_state";
@@ -703,6 +704,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _historyLock.Dispose();
     }
 

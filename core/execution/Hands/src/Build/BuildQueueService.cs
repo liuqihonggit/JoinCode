@@ -34,6 +34,7 @@ public sealed partial class BuildQueueService : IBuildQueueService
     private int _buildCounter;
     private BuildQueueEntry? _currentBuild;
     private CancellationTokenSource? _currentBuildCts;
+    private int _disposed;
 
     private readonly ConcurrentDictionary<string, BuildBufferEntry> _resultBuffer = new();
 
@@ -605,6 +606,8 @@ public sealed partial class BuildQueueService : IBuildQueueService
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+
         _shutdownCts.Cancel();
         _queue.Writer.TryComplete();
 

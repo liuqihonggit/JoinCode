@@ -42,6 +42,12 @@ public sealed class SshForwardedPort : ISshForwardedPort
             "-o",
             $"ConnectTimeout={_config.ConnectionTimeoutMs / 1000}",
             "-o",
+            "ServerAliveInterval=30",
+            "-o",
+            "ServerAliveCountMax=3",
+            "-o",
+            "ExitOnForwardFailure=yes",
+            "-o",
             "StrictHostKeyChecking=" + (_config.KnownHostsPolicy switch
             {
                 SshKnownHostsPolicy.Strict => "yes",

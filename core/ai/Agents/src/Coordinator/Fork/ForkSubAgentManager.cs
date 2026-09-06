@@ -49,6 +49,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
     private readonly ConcurrentDictionary<string, Dictionary<string, string>> _sharedCache;
     private readonly AsyncLock _lock = new();
     private volatile AsyncLock? _forkSemaphore;
+    private int _disposed;
 
     public event EventHandler<ForkCompletedEventArgs>? ForkCompleted;
 
@@ -69,7 +70,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
 
         var maxForks = (concurrencyOptions ?? new SubAgentConcurrencyOptions()).MaxConcurrentForks;
         _forkSemaphore = maxForks > 0
-            ? new AsyncLock("Fork-Concurrency", maxForks, maxForks)
+            ? new AsyncLock(nameof(ForkSubAgentManager) + ".Concurrency", maxForks, maxForks)
             : null;
     }
 
@@ -174,7 +175,14 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
             // .WaitAsync 再访问 forkCts.Token 会抛 ObjectDisposedException
             var forkToken = forkCts.Token;
             semaphoreTransferredToBackground = true;
-            _ = RunBackgroundForkAsync(forkId, context.Agent, options.TaskDescription, options.EventChannel, forkToken, releaser)
+            var capturedReleaser = releaser;
+            Func<Task> runWithReleaser = async () =>
+            {
+                using var r = capturedReleaser;
+                await RunBackgroundForkAsync(forkId, context.Agent, options.TaskDescription, options.EventChannel, forkToken)
+                    .ConfigureAwait(false);
+            };
+            _ = runWithReleaser()
                 .WaitAsync(TimeSpan.FromSeconds(10), forkToken).ConfigureAwait(false);
 
             return new ForkResult
@@ -359,8 +367,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
     }
 
     private async Task RunBackgroundForkAsync(string forkId, IAgent agent, string taskDescription,
-        JoinCode.Abstractions.LLM.Chat.SubAgentEventChannel? eventChannel, CancellationToken cancellationToken,
-        IDisposable? forkReleaser = null)
+        JoinCode.Abstractions.LLM.Chat.SubAgentEventChannel? eventChannel, CancellationToken cancellationToken)
     {
         // 终态发射辅助 — 通道由调用方在回合作用域内捕获传入；
         // fork 完成晚于回合时事件写入死通道自然丢弃（GUI 靠 task-notification 回填补足）
@@ -429,11 +436,6 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
             {
                 finallyEntry.Cts.Dispose();
                 finallyEntry.Cts = null;
-            }
-            if (forkReleaser is not null)
-            {
-                try { forkReleaser.Dispose(); }
-                catch (ObjectDisposedException) { _logger?.LogDebug("fork 信号量在后台完成 Release 时已被热重载 Dispose"); }
             }
         }
     }
@@ -534,7 +536,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
     {
         var maxForks = options.MaxConcurrentForks;
         var newSem = maxForks > 0
-            ? new AsyncLock("Fork-Concurrency", maxForks, maxForks)
+            ? new AsyncLock(nameof(ForkSubAgentManager) + ".Concurrency", maxForks, maxForks)
             : null;
         var old = Interlocked.Exchange(ref _forkSemaphore, newSem);
         old?.Dispose();
@@ -543,6 +545,8 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+
         await CleanupForkEntriesAsync().ConfigureAwait(false);
         _lock.Dispose();
         _forkSemaphore?.Dispose();

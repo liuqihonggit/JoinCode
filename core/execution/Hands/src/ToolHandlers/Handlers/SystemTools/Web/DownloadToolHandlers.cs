@@ -42,7 +42,7 @@ public class DownloadToolHandlers
             Resume = resume ?? true,
         };
 
-        var session = _downloader.StartDownload(url, file_path, options, null, cancellationToken);
+        await using var session = _downloader.StartDownload(url, file_path, options, null, cancellationToken);
         try
         {
             var result = await session.WaitForCompletionAsync(cancellationToken).ConfigureAwait(false);
@@ -80,10 +80,6 @@ public class DownloadToolHandlers
                     [new DiagnosticDetail("url", url), new DiagnosticDetail("file_path", file_path)],
                     ["检查 URL 是否正确", "检查网络是否可用", "检查目标路径是否有写入权限"]))
                 .Build();
-        }
-        finally
-        {
-            await session.DisposeAsync().ConfigureAwait(false);
         }
     }
 

@@ -18,6 +18,7 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
     private readonly IPreventSleepService? _preventSleepService;
     private readonly ShellExecutionConfig? _config;
     private readonly ConcurrentDictionary<string, SystemActuatorBackgroundTaskEntry> _tasks = new();
+    private int _disposed;
 
     public SystemActuatorRegistry(
         IFileSystem fs,
@@ -340,6 +341,7 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         foreach (var entry in _tasks.Values)
         {
             if (entry.Context is not null && BackgroundTaskStateTransitions.CanCancel(entry.Status))

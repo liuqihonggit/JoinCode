@@ -18,6 +18,7 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
     private string? _resolvedClientId;
     private string? _resolvedAuthorizationUrl;
     private string? _resolvedTokenUrl; // 对齐 TS ClaudeAuthProvider._pendingStepUpScope
+    private int _disposed;
 
     public McpAuthType AuthType => McpAuthType.OAuth2;
     public bool IsAuthenticated => !string.IsNullOrEmpty(_authContext.AccessToken) && !_authContext.IsExpired;
@@ -441,6 +442,7 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _httpClient.Dispose();
         _refreshLock.Dispose();
     }

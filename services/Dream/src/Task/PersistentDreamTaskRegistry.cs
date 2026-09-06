@@ -13,6 +13,7 @@ public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IA
 
     // 内存缓存（活跃任务）
     private readonly Dictionary<string, DreamTaskState> _activeTasks = new();
+    private int _disposed;
 
     public PersistentDreamTaskRegistry(
         IDreamTaskPersistence persistence,
@@ -234,6 +235,7 @@ public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IA
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _lock.Dispose();
     }
 }

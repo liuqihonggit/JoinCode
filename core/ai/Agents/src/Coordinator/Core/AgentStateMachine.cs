@@ -213,6 +213,7 @@ public sealed partial class AgentStateMachine
 public sealed class AgentStateContext : IAsyncDisposable
 {
     private readonly StateMachine<TaskExecutionStatus> _stateMachine;
+    private int _disposed;
 
     public string AgentId { get; }
     public string Task { get; }
@@ -250,6 +251,7 @@ public sealed class AgentStateContext : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         Lock.Dispose();
     }
 }

@@ -11,6 +11,7 @@ public sealed partial class ServiceHost : IAsyncDisposable
     private readonly ILogger<ServiceHost>? _logger;
     private readonly CancellationTokenSource _hostCts = new();
     private bool _isRunning;
+    private int _disposed;
 
     public ServiceHost(ILogger<ServiceHost>? logger = null)
     {
@@ -227,6 +228,7 @@ public sealed partial class ServiceHost : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         await StopAsync().ConfigureAwait(false);
         _hostCts.Dispose();
     }

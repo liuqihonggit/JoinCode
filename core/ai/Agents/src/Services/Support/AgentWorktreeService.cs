@@ -13,6 +13,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     private readonly Dictionary<string, AgentWorktreeSession> _sessions = new();
     private readonly AsyncLock _sessionLock = new();
     private readonly MiddlewarePipeline<WorktreeCreateContext>? _createPipeline;
+    private int _disposed;
 
     public AgentWorktreeService(
         IFileOperationService fileOperationService,
@@ -475,6 +476,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     }
 
     public async ValueTask DisposeAsync() {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         foreach (var kvp in _sessions)
         {
             try { await RemoveAgentWorktreeAsync(kvp.Key, force: true).ConfigureAwait(false); }

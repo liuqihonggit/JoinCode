@@ -28,6 +28,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     private GoalGraphEngine? _graphEngine;
     private readonly IGoalStateStore? _stateStore = null;
     private string? _sessionId;
+    private int _disposed;
 
     public GoalState? CurrentState => _state;
     public bool IsRunning => _state?.Status == GoalStatus.Pursuing;
@@ -933,6 +934,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _engineCts?.Cancel();
         await _heartbeat.ResetAsync().ConfigureAwait(false);
 

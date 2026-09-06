@@ -60,6 +60,7 @@ public sealed partial class InMemoryDreamTaskRegistry : IDreamTaskRegistry, IAsy
 {
     private readonly Dictionary<string, DreamTaskState> _tasks = new();
     private readonly AsyncLock _lock = new();
+    private int _disposed;
 
     public InMemoryDreamTaskRegistry()
     {
@@ -177,6 +178,7 @@ public sealed partial class InMemoryDreamTaskRegistry : IDreamTaskRegistry, IAsy
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _lock.Dispose();
     }
 }

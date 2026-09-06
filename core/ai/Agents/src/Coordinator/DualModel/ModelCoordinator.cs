@@ -74,7 +74,7 @@ public sealed class ModelCoordinator : IModelCoordinator
             SessionId = SessionIdFactory.DefaultSessionId,
         };
 
-        var planner = AgentFactory.Create(
+        using var planner = AgentFactory.Create(
             objective,
             plannerOptions,
             _queryEngine,
@@ -105,10 +105,6 @@ public sealed class ModelCoordinator : IModelCoordinator
             _logger?.LogError(ex, "[ModelCoordinator] Planner failed");
             return ModelPlanResult.Fail(ex.Message);
         }
-        finally
-        {
-            planner.Dispose();
-        }
     }
 
     /// <summary>
@@ -125,7 +121,7 @@ public sealed class ModelCoordinator : IModelCoordinator
             SessionId = SessionIdFactory.DefaultSessionId,
         };
 
-        var executor = AgentFactory.Create(
+        using var executor = AgentFactory.Create(
             handoff,
             executorOptions,
             _queryEngine,
@@ -147,10 +143,6 @@ public sealed class ModelCoordinator : IModelCoordinator
         {
             _logger?.LogError(ex, "[ModelCoordinator] Executor failed");
             return ModelExecutionResult.Fail(ex.Message);
-        }
-        finally
-        {
-            executor.Dispose();
         }
     }
 

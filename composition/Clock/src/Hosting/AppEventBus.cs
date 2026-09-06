@@ -127,8 +127,11 @@ internal sealed class AppEventPayload
 /// </summary>
 internal sealed class AppEventSubscription(Action unsubscribe) : IAsyncDisposable
 {
+    private int _disposed;
+
     public ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return default;
         unsubscribe();
         return ValueTask.CompletedTask;
     }

@@ -64,7 +64,19 @@ public sealed class FileWatcherIntegrationRegistry : IAsyncDisposable
 
         if (watcher is not null)
         {
-            _ = StopAndDisposeWatcherAsync(watcher);
+            var capturedWatcher = watcher;
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await using var w = capturedWatcher;
+                    await w.StopAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "FileWatcherIntegrationRegistry: 停止 watcher 失败");
+                }
+            });
         }
     }
 

@@ -71,8 +71,8 @@ public sealed partial class MobileConnectService : ServiceEntity, IMobileConnect
         {
             try
             {
-                var client = await _tcpListener.AcceptTcpClientAsync(ct).ConfigureAwait(false);
-                _ = HandleClientAsync(client, ct, _logger);
+                using var client = await _tcpListener.AcceptTcpClientAsync(ct).ConfigureAwait(false);
+                await HandleClientAsync(client, ct, _logger).ConfigureAwait(false);
             }
             catch (ObjectDisposedException)
             {
@@ -111,10 +111,6 @@ public sealed partial class MobileConnectService : ServiceEntity, IMobileConnect
         catch (Exception ex)
         {
             logger?.LogWarning(ex, "MobileConnectService: 客户端处理失败");
-        }
-        finally
-        {
-            client.Close();
         }
     }
 

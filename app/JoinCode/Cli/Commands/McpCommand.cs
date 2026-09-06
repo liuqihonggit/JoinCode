@@ -151,46 +151,33 @@ public sealed class McpCliCommand
             return 1;
         }
 
-        var appHost = await BuildHostAsync(ct: ct).ConfigureAwait(false);
-        try
+        using var appHost = await BuildHostAsync(ct: ct).ConfigureAwait(false);
+
+        var registry = appHost.Services.GetRequiredService<IMcpToolRegistry>();
+        var toolCount = await registry.GetCountAsync(ct).ConfigureAwait(false);
+        var server = new JccMcpServer(registry, "jcc-mcp", "1.0.0",
+            $"jcc 内部 MCP 服务端 — 暴露 {toolCount} 个工具");
+
+        if (string.Equals(transport, "stdio", StringComparison.OrdinalIgnoreCase))
         {
-            var registry = appHost.Services.GetRequiredService<IMcpToolRegistry>();
-            var toolCount = await registry.GetCountAsync(ct).ConfigureAwait(false);
-            var server = new JccMcpServer(registry, "jcc-mcp", "1.0.0",
-                $"jcc 内部 MCP 服务端 — 暴露 {toolCount} 个工具");
-
-            if (string.Equals(transport, "stdio", StringComparison.OrdinalIgnoreCase))
-            {
-                TerminalHelper.WriteLine($"{TerminalColors.Info}jcc mcp serve{AnsiStyleConstants.Reset} stdio 模式启动，暴露 {toolCount} 个工具");
-                await server.RunAsync(ct).ConfigureAwait(false);
-                return 0;
-            }
-
-            var prefix = $"http://{hostName}:{port}/mcp/";
-            var httpServer = new McpHttpServer(server, prefix, statelessMode: true);
-            TerminalHelper.WriteLine($"{TerminalColors.Info}jcc mcp serve{AnsiStyleConstants.Reset} HTTP 模式启动: {prefix}，暴露 {toolCount} 个工具");
-            TerminalHelper.WriteLine("按 Ctrl+C 停止");
-            await httpServer.RunAsync(ct).ConfigureAwait(false);
-            httpServer.Dispose();
+            TerminalHelper.WriteLine($"{TerminalColors.Info}jcc mcp serve{AnsiStyleConstants.Reset} stdio 模式启动，暴露 {toolCount} 个工具");
+            await server.RunAsync(ct).ConfigureAwait(false);
             return 0;
         }
-        finally
-        {
-            try { appHost.Dispose(); } catch (Exception ex) { Diag.WriteLine($"[McpCommand.serve] Host dispose 异常已忽略: {ex.Message}"); }
-        }
+
+        var prefix = $"http://{hostName}:{port}/mcp/";
+        var httpServer = new McpHttpServer(server, prefix, statelessMode: true);
+        TerminalHelper.WriteLine($"{TerminalColors.Info}jcc mcp serve{AnsiStyleConstants.Reset} HTTP 模式启动: {prefix}，暴露 {toolCount} 个工具");
+        TerminalHelper.WriteLine("按 Ctrl+C 停止");
+        await httpServer.RunAsync(ct).ConfigureAwait(false);
+        httpServer.Dispose();
+        return 0;
     }
 
     internal static async Task<int> WithHostAsync(Func<IServiceProvider, Task<int>> action, string? vendor = null, string? model = null, CancellationToken ct = default)
     {
-        var host = await BuildHostAsync(vendor, model, ct).ConfigureAwait(false);
-        try
-        {
-            return await action(host.Services).ConfigureAwait(false);
-        }
-        finally
-        {
-            try { host.Dispose(); } catch (Exception ex) { Diag.WriteLine($"[McpCommand] Host dispose 异常已忽略: {ex.Message}"); }
-        }
+        using var host = await BuildHostAsync(vendor, model, ct).ConfigureAwait(false);
+        return await action(host.Services).ConfigureAwait(false);
     }
 
     private static Dictionary<string, JsonElement>? ParseArgs(string? args, string[]? kvArgs, string? argsFile, bool argsStdin)

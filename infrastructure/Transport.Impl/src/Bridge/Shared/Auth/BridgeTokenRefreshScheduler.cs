@@ -24,6 +24,7 @@ public sealed class BridgeTokenRefreshScheduler : ITokenRefreshScheduler
     private const int FallbackRefreshIntervalMs = 30 * 60 * 1000; // 30 分钟
     // P1-7: 信号量等待超时 — 防止持有方异常未释放导致永久阻塞
     private static readonly TimeSpan SemaphoreWaitTimeout = TimeSpan.FromSeconds(5);
+    private int _disposed;
 
     public BridgeTokenRefreshScheduler(
         TokenRefreshOptions options,
@@ -298,6 +299,7 @@ public sealed class BridgeTokenRefreshScheduler : ITokenRefreshScheduler
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         CancelAll();
         await ValueTask.CompletedTask.ConfigureAwait(false);
     }

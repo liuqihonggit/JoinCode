@@ -22,39 +22,32 @@ public sealed partial class StreamCrashSnapshotMiddleware : ServiceEntity, IChat
         StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,
         [EnumeratorCancellation] CancellationToken ct)
     {
-        var enumerator = next(context, ct).GetAsyncEnumerator(ct);
-        try
+        await using var enumerator = next(context, ct).GetAsyncEnumerator(ct);
+        while (true)
         {
-            while (true)
+            ChatStreamEvent current;
+            try
             {
-                ChatStreamEvent current;
-                try
-                {
-                    if (!await enumerator.MoveNextAsync().ConfigureAwait(false))
-                        yield break;
-                    current = enumerator.Current;
-                }
-                catch (OperationCanceledException) { throw; }
-                catch (Exception ex)
-                {
-                    _store.Add(new CrashSnapshot(
-                        "ChatStream",
-                        CrashSeverity.Error,
-                        ex,
-                        new CrashExecutionContext
-                        {
-                            OperationName = "ChatStreamPipeline",
-                            TurnIndex = context.ConversationTurn,
-                        }));
-                    throw;
-                }
-
-                yield return current;
+                if (!await enumerator.MoveNextAsync().ConfigureAwait(false))
+                    yield break;
+                current = enumerator.Current;
             }
-        }
-        finally
-        {
-            await enumerator.DisposeAsync().ConfigureAwait(false);
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                _store.Add(new CrashSnapshot(
+                    "ChatStream",
+                    CrashSeverity.Error,
+                    ex,
+                    new CrashExecutionContext
+                    {
+                        OperationName = "ChatStreamPipeline",
+                        TurnIndex = context.ConversationTurn,
+                    }));
+                throw;
+            }
+
+            yield return current;
         }
     }
 }

@@ -64,6 +64,7 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
     private readonly ConcurrentDictionary<string, HookConfigurationGroup> _cache;
 
     private const string CacheKey = "all_hooks";
+    private int _disposed;
 
     public HookConfigurationManager(
         IFileSystem fs,
@@ -232,6 +233,7 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _lock.Dispose();
     }
 }

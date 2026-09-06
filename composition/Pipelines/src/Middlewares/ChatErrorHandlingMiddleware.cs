@@ -20,35 +20,28 @@ internal sealed partial class ChatErrorHandlingMiddleware : ServiceEntity, Core.
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
     {
         Exception? error = null;
-        var enumerator = next(context, ct).GetAsyncEnumerator(ct);
+        await using var enumerator = next(context, ct).GetAsyncEnumerator(ct);
 
-        try
+        while (true)
         {
-            while (true)
+            try
             {
-                try
+                if (!await enumerator.MoveNextAsync().ConfigureAwait(false))
                 {
-                    if (!await enumerator.MoveNextAsync().ConfigureAwait(false))
-                    {
-                        break;
-                    }
-                }
-                catch (OperationCanceledException)
-                {
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    error = ex;
                     break;
                 }
-
-                yield return enumerator.Current;
             }
-        }
-        finally
-        {
-            await enumerator.DisposeAsync().ConfigureAwait(false);
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                error = ex;
+                break;
+            }
+
+            yield return enumerator.Current;
         }
 
         if (error is not null)

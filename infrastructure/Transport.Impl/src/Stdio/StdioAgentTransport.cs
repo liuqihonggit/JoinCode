@@ -9,6 +9,7 @@ public sealed partial class StdioAgentTransport : IAgentTransport
     private readonly StdioProcessConfig _config;
     private readonly ILogger<StdioAgentTransport>? _logger;
     private TransportState _state;
+    private int _disposed;
 
     public string TransportType => "stdio";
 
@@ -128,6 +129,7 @@ public sealed partial class StdioAgentTransport : IAgentTransport
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         await _processManager.DisposeAsync().ConfigureAwait(false);
         State = TransportState.Disconnected;
     }

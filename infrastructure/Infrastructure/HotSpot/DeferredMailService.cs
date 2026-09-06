@@ -86,7 +86,7 @@ public sealed class DeferredMailService : IDeferredMailService
         }
     }
 
-    private AsyncLock GetLock(string agentId) => _locks.GetOrAdd(agentId, _ => new AsyncLock("DeferredMailService"));
+    private AsyncLock GetLock(string agentId) => _locks.GetOrAdd(agentId, _ => new AsyncLock(nameof(DeferredMailService)));
 
     private sealed class DeferredMailEntry
     {

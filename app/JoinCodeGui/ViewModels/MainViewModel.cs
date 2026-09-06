@@ -4,7 +4,7 @@ namespace JoinCode.Gui.ViewModels;
 /// 主窗口 ViewModel — 承载引擎会话门面与基础对话占位。
 /// 依赖注入仅走 <see cref="IJccChatSession"/>，不触碰引擎内部实现。
 /// </summary>
-public sealed partial class MainViewModel : ViewModelBase
+public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
 {
     private IJccChatSession? _realSession;
     private IJccChatSession? _mockSession;
@@ -1799,5 +1799,22 @@ public sealed partial class MainViewModel : ViewModelBase
     {
         IsBackToBottomVisible = false;
         ScrollToBottomRequested?.Invoke();
+    }
+
+    /// <summary>
+    /// 释放引擎资源 — 窗口关闭时由 MainWindow.OnWindowClosed 调用。
+    /// 避免 HTTP 连接池/FileSystemWatcher/后台任务泄漏导致进程不退（孤儿进程 + 文件锁）。
+    /// </summary>
+    public async ValueTask DisposeAsync()
+    {
+        _modelConfigWatcher?.Dispose();
+        _modelConfigWatcher = null;
+        _sendCts?.Cancel();
+        _sendCts?.Dispose();
+        _sendCts = null;
+        if (_realSession is not null)
+            await _realSession.DisposeAsync().ConfigureAwait(false);
+        if (_mockSession is not null)
+            await _mockSession.DisposeAsync().ConfigureAwait(false);
     }
 }

@@ -40,6 +40,7 @@ public sealed class StreamingToolExecutor : IStreamingToolExecutor
     private readonly CancellationTokenSource? _linkedCts;
     private readonly CancellationToken _combinedCt;
     private volatile bool _discarded;
+    private int _disposed;
 
     /// <summary>
     /// 初始化流式工具执行器
@@ -197,6 +198,7 @@ public sealed class StreamingToolExecutor : IStreamingToolExecutor
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _siblingCts.Cancel();
         _linkedCts?.Dispose();
         _siblingCts.Dispose();

@@ -12,6 +12,7 @@ public sealed partial class CronSchedulerService : IWorkflowService, IAsyncDispo
     private readonly ILogger<CronSchedulerService>? _logger;
     private CronScheduler? _scheduler;
     private CancellationTokenSource? _cts;
+    private int _disposed;
 
     public string ServiceName => "CronScheduler";
 
@@ -102,6 +103,7 @@ public sealed partial class CronSchedulerService : IWorkflowService, IAsyncDispo
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         try
         {
             await StopAsync().ConfigureAwait(false);

@@ -86,35 +86,30 @@ public sealed class WindowsJobObjectSandbox : IDisposable
             throw new InvalidOperationException("[WIN002] JobObject 未创建");
         }
 
-        var processHandle = JobObjectNative.OpenProcess(
-            JobObjectNative.PROCESS_TERMINATE | JobObjectNative.PROCESS_SET_QUOTA,
-            false,
-            processId);
+        using var processHandle = new SafeProcessHandle(
+            JobObjectNative.OpenProcess(
+                JobObjectNative.PROCESS_TERMINATE | JobObjectNative.PROCESS_SET_QUOTA,
+                false,
+                processId),
+            ownsHandle: true);
 
-        if (processHandle == nint.Zero)
+        if (processHandle.IsInvalid)
         {
             var error = Marshal.GetLastPInvokeError();
             _logger?.LogWarning("[WindowsJobObject] 打开进程 {Pid} 失败, Win32 错误码: {Error}", processId, error);
             return false;
         }
 
-        try
+        var success = JobObjectNative.AssignProcessToJobObject(_jobHandle, processHandle.DangerousGetHandle());
+        if (!success)
         {
-            var success = JobObjectNative.AssignProcessToJobObject(_jobHandle, processHandle);
-            if (!success)
-            {
-                var error = Marshal.GetLastPInvokeError();
-                _logger?.LogWarning("[WindowsJobObject] 将进程 {Pid} 分配到 JobObject 失败, Win32 错误码: {Error}", processId, error);
-                return false;
-            }
+            var error = Marshal.GetLastPInvokeError();
+            _logger?.LogWarning("[WindowsJobObject] 将进程 {Pid} 分配到 JobObject 失败, Win32 错误码: {Error}", processId, error);
+            return false;
+        }
 
-            _logger?.LogInformation("[WindowsJobObject] 进程 {Pid} 已分配到 JobObject", processId);
-            return true;
-        }
-        finally
-        {
-            JobObjectNative.CloseHandle(processHandle);
-        }
+        _logger?.LogInformation("[WindowsJobObject] 进程 {Pid} 已分配到 JobObject", processId);
+        return true;
     }
 
     public bool TerminateAllProcesses(uint exitCode = 1)

@@ -56,8 +56,9 @@ public class ProcessToolHandlers
             return ToolResultBuilder.Error().WithText($"未找到进程: {name}").Build();
 
         var sb = new StringBuilder(128);
-        foreach (var p in targets)
+        for (var i = 0; i < targets.Length; i++)
         {
+            using var p = targets[i];
             var procName = "unknown";
             try { procName = p.ProcessName; }
             catch (Exception ex) { _logger?.LogWarning(ex, "获取进程名失败 PID={Pid}", p.Id); }
@@ -70,10 +71,6 @@ public class ProcessToolHandlers
             catch (Exception ex)
             {
                 sb.AppendLine($"结束进程 PID={p.Id} {procName} 失败: {ex.Message}");
-            }
-            finally
-            {
-                p.Dispose();
             }
         }
 

@@ -702,7 +702,7 @@ chcp 65001
 | `mcp_list [--category <cat>]` | 列出 MCP 工具 | `jcc mcp_list --category Code` |
 | `mcp_schema <tool>` | 查看工具参数 schema | `jcc mcp_schema read_file` |
 | `mcp_search <query>` | 搜索 MCP 工具 | `jcc mcp_search "read"` |
-| `mcp_serve [--port 9903]` | 启动 MCP 服务端 | `jcc mcp_serve --transport http` |
+| `mcp_serve [--port 9903] [--transport stdio\|http] [--host H] [--await N]` | 启动 MCP 服务端（HttpListener 不可用时自动降级 TcpListener；--await N 秒后优雅退出+JSON 报告） | `jcc mcp_serve --transport http --port 9903 --await 5` |
 | `slash_call <cmd> <argsJson>` | 斜杠命令直调 | `jcc slash_call compact {"level":2}` |
 | `slash_list [--category <cat>]` | 列出斜杠命令（分类） | `jcc slash_list` |
 | `slash_schema <cmd>` | 查看斜杠命令参数 schema | `jcc slash_schema compact` |

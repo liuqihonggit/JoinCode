@@ -191,7 +191,9 @@ $jcc = "D:\project\w1\artifacts\bin\JoinCode\Release\net10.0\jcc.exe"
 | 8 | `read_mcp_resource` | ✅ | 工具名修正(非mcp_read_resource) |
 | 9 | `mcp_list_prompts` | ✅ | 缺connection_name参数提示 |
 
-> **注**: McpClient 工具需要先建立 MCP 连接才能完整测试。CLI 无状态模式下跨进程连接状态丢失,与 Team 工具相同的架构限制。缺参数提示正常,工具本身无坏点。
+> **注**: McpClient 工具已实现文件持久化（`~/.jcc/mcp/connections.json`），CLI 无状态模式下跨进程共享连接配置。缺参数提示正常,工具本身无坏点。
+> **持久化实现**: `McpClientToolHandlers.Persistence.cs`（LoadState/SaveStateAsync/RestoreConnectionsAsync）+ `McpConnectionStateData.cs` DTO + 3 个单元测试全通过。
+> **mcp_serve 验证**: stdio 模式 tools/list 返回 387 工具 ✅ | http 模式 TcpListener 降级启动 ✅ | --await 5 结构化退出报告 ✅
 
 ## 交接说明
 

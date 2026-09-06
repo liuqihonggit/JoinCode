@@ -50,10 +50,11 @@
 - [x] P3.5 复用 McpServer.ProcessMessageAsync(internal)
 - [x] P3.6 测试:6 个新测试,全量 160 全绿
 
-### P5 E2E + 文档 [进行中]
+### P5 E2E + 文档 [已完成 ✅]
 - [x] P5.1 任务文档更新
-- [ ] P5.2 AGENTS.md MCP 协议版本记录
-- [ ] P5.3 commit P3+P5
+- [x] P5.2 AGENTS.md MCP 协议版本记录
+- [x] P5.3 commit P3+P5
+- [x] P5.4 McpTcpServer 纵深防御（HttpListener→TcpListener 降级）+ 结构化退出报告（2026-09-07）
 
 ## 执行原则
 - 渐进式:每步 红测试 → 改 → 编译 → 绿测试 → commit

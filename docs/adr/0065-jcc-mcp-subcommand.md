@@ -99,6 +99,7 @@ jcc mcp schema gh_pr_view --json
 jcc mcp serve --transport stdio                          # stdio 模式（MCP 客户端管道）
 jcc mcp serve --transport http --port 9903               # HTTP 模式（无状态）
 jcc mcp serve --transport http --port 9903 --host 0.0.0.0 # 监听所有网卡
+jcc mcp serve --transport http --port 9903 --await 5      # 5秒后优雅退出+结构化报告
 ```
 
 ### 冒烟验证
@@ -106,3 +107,33 @@ jcc mcp serve --transport http --port 9903 --host 0.0.0.0 # 监听所有网卡
 - `initialize` → serverName=jcc-mcp, protocolVersion=2025-11-25 ✅
 - `tools/list` → 387 个工具（含 gh_*、tool_search、read、write 等）✅
 - `tools/call get_environment_state` → 返回"光标状态: Normal..." ✅
+
+## TcpListener 降级 + 结构化退出（2026-09-07）
+
+### 问题
+
+HttpListener 依赖 HTTP.sys 驱动，在沙箱/非管理员环境抛 `HttpListenerException: 句柄无效`。
+
+### 方案 — 纵深防御
+
+新增 `McpTcpServer`（`services/Mcp/src/McpProtocol/McpTcpServer.cs`），用 `TcpListener` 替代 `HttpListener`：
+- 纯托管代码，无系统依赖（不依赖 HTTP.sys）
+- 手动解析 HTTP 请求（逐字节读头部 + Content-Length 批量读 body）
+- 支持 POST/GET/DELETE，对齐 2025-11-25 规范
+- 统计信息：TotalRequests/TotalErrors/ActiveConnections/Uptime
+
+`ExecuteServeAsync` 自动降级链：HttpListener.Start() 失败 → 创建 McpTcpServer → 标记 usedTcp。
+
+### 结构化退出报告
+
+新增 `--await N` 子命令参数：N 秒后优雅退出并输出 JSON 报告：
+
+```json
+{"transport":"tcp","toolCount":387,"totalRequests":0,"totalErrors":0,"uptimeSeconds":5.01}
+```
+
+### 验证
+
+- HTTP 模式启动（TcpListener 降级）：`HTTP 模式启动(TcpListener 降级): http://localhost:9903/mcp/，暴露 387 个工具` ✅
+- `--await 5` 优雅退出 + 结构化报告 ✅
+- stdio 模式 `tools/list` 返回 387 工具列表 ✅

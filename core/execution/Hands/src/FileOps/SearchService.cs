@@ -219,12 +219,32 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
                         return null;
                     }
 
-                    var lines = fileContent.Split(['\n'], StringSplitOptions.None);
-                    var matchedLines = new List<int>();
-
-                    for (var i = 0; i < lines.Length; i++)
+                    var contentSpan = fileContent.AsSpan();
+                    var lineRanges = new List<(int Start, int Length)>();
+                    var pos = 0;
+                    while (pos <= contentSpan.Length)
                     {
-                        if (regex.IsMatch(lines[i]))
+                        var nlIdx = pos < contentSpan.Length
+                            ? contentSpan.Slice(pos).IndexOf('\n')
+                            : -1;
+                        if (nlIdx < 0)
+                        {
+                            lineRanges.Add((pos, contentSpan.Length - pos));
+                            break;
+                        }
+                        var lineStart = pos;
+                        var lineLen = nlIdx;
+                        if (lineLen > 0 && contentSpan[lineStart + lineLen - 1] == '\r')
+                            lineLen--;
+                        lineRanges.Add((lineStart, lineLen));
+                        pos += nlIdx + 1;
+                    }
+
+                    var matchedLines = new List<int>();
+                    for (var i = 0; i < lineRanges.Count; i++)
+                    {
+                        var (s, l) = lineRanges[i];
+                        if (regex.IsMatch(contentSpan.Slice(s, l)))
                         {
                             matchedLines.Add(i);
                         }
@@ -241,15 +261,20 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
                         foreach (var index in matchedLines)
                         {
                             var start = Math.Max(0, index - (input.Before ?? context));
-                            var end = Math.Min(lines.Length, index + (input.After ?? context) + 1);
+                            var end = Math.Min(lineRanges.Count, index + (input.After ?? context) + 1);
 
                             for (var current = start; current < end; current++)
                             {
-                                var lineContent = lines[current];
-                                // Truncate long lines (aligned with TS --max-columns 500)
-                                if (lineContent.Length > MaxContentLineLength)
+                                var (ls, ll) = lineRanges[current];
+                                var lineSpan = contentSpan.Slice(ls, ll);
+                                string lineContent;
+                                if (lineSpan.Length > MaxContentLineLength)
                                 {
-                                    lineContent = string.Concat(lineContent.AsSpan(0, MaxContentLineLength), "...");
+                                    lineContent = string.Concat(lineSpan.Slice(0, MaxContentLineLength).ToString(), "...");
+                                }
+                                else
+                                {
+                                    lineContent = lineSpan.ToString();
                                 }
                                 var prefix = input.LineNumbers
                                     ? $"{filePath}:{current + 1}:"

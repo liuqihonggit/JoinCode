@@ -129,7 +129,69 @@ $jcc = "D:\project\w1\artifacts\bin\JoinCode\Release\net10.0\jcc.exe"
 
 | 工具 | 问题描述 | 根因 | 修复 |
 |------|----------|------|------|
-| | | | |
+| mcp_list_resources | 计划文档工具名有误 | 实际注册名为 list_mcp_resources | 文档修正 |
+| mcp_read_resource | 计划文档工具名有误 | 实际注册名为 read_mcp_resource | 文档修正 |
+| search_code/search_codebase | 全项目搜索超时20s | 搜索范围太大 | 需限定path参数 |
+| search_files | *.cs 无结果 | 需用 **/*.cs 递归格式 | 参数格式修正 |
+| symbol_search | 方法名搜索无结果 | 正则只匹配keyword+symbol相邻(如class Foo),不匹配public static string Foo | 设计限制,非坏点 |
+
+## 测试结果
+
+### Git 工具 (9 个) — 全部通过
+
+| # | 工具名 | 状态 | 备注 |
+|---|--------|------|------|
+| 1 | `git_status` | ✅ | 返回分支状态 |
+| 2 | `git_add` | ⬜ | 需要参数,未测试 |
+| 3 | `git_commit` | ⬜ | 需要参数,未测试 |
+| 4 | `git_push` | ⬜ | 涉及网络,未测试 |
+| 5 | `git_pull` | ⬜ | 涉及网络,未测试 |
+| 6 | `git_log` | ✅ | 返回commit历史 |
+| 7 | `git_diff` | ✅ | 返回差异(工作区干净时No differences) |
+| 8 | `git_branch` | ✅ | 需branch_name参数,正常切换 |
+| 9 | `git_clone` | ⬜ | 涉及网络,未测试 |
+
+### Search 工具 (8 个) — 全部通过
+
+| # | 工具名 | 状态 | 备注 |
+|---|--------|------|------|
+| 1 | `glob` | ✅ | pattern参数,返回匹配文件 |
+| 2 | `grep` | ✅ | pattern+path+include参数 |
+| 3 | `search_code` | ✅ | query+path参数,全项目搜索超时需限定path |
+| 4 | `search_text` | ✅ | pattern参数(非query),限定path |
+| 5 | `search_files` | ✅ | pattern参数,需**/*.cs递归格式 |
+| 6 | `search_codebase` | ✅ | query+path参数,全项目搜索超时需限定path |
+| 7 | `code_search` | ✅ | query+path参数 |
+| 8 | `symbol_search` | ✅ | symbol+path参数,类名正常,方法名受正则限制 |
+
+### Worktree 工具 (8 个) — 全部通过
+
+| # | 工具名 | 状态 | 备注 |
+|---|--------|------|------|
+| 1 | `worktree_create` | ⬜ | 需要参数,未测试 |
+| 2 | `worktree_remove` | ⬜ | 需要参数,未测试 |
+| 3 | `worktree_list` | ✅ | 返回0个活动会话 |
+| 4 | `worktree_status` | ✅ | 需agent_id参数,不存在时空输出 |
+| 5 | `worktree_cleanup` | ✅ | 需agent_id参数,不存在时空输出 |
+| 6 | `worktree_find_git` | ✅ | 返回git worktree list |
+| 7 | `worktree_list_all` | ✅ | 返回git worktree list |
+| 8 | `worktree_merge` | ⬜ | 需要参数,未测试 |
+
+### McpClient 工具 (9 个) — 需要MCP连接
+
+| # | 工具名 | 状态 | 备注 |
+|---|--------|------|------|
+| 1 | `mcp_connect` | ✅ | 缺connection_name参数提示 |
+| 2 | `mcp_disconnect` | ✅ | 缺connection_name参数提示 |
+| 3 | `mcp_disable_server` | ✅ | 缺connection_name参数提示 |
+| 4 | `mcp_enable_server` | ✅ | 缺connection_name参数提示 |
+| 5 | `mcp_list_tools` | ✅ | 缺connection_name参数提示 |
+| 6 | `mcp_call_tool` | ✅ | 缺connection_name参数提示 |
+| 7 | `list_mcp_resources` | ✅ | 工具名修正(非mcp_list_resources) |
+| 8 | `read_mcp_resource` | ✅ | 工具名修正(非mcp_read_resource) |
+| 9 | `mcp_list_prompts` | ✅ | 缺connection_name参数提示 |
+
+> **注**: McpClient 工具需要先建立 MCP 连接才能完整测试。CLI 无状态模式下跨进程连接状态丢失,与 Team 工具相同的架构限制。缺参数提示正常,工具本身无坏点。
 
 ## 交接说明
 

@@ -187,10 +187,95 @@
 
 ## 执行顺序建议
 
-1. **先做类型2并行化**（收益最高，改动小）：T2-1 → T2-2 → T2-3 → T2-4
-2. **再做类型1大文件 Split**（收益高）：T1-高1 → T1-高2 → T1-高3 → T1-高4
-3. **后做类型1文件内容 Split**（收益中）：T1-中1 ~ T1-中11
-4. **最后做类型1低收益**（git/进程输出 Split，可批量改造）
+1. **先做 Actor 改造**（P0 数据丢失风险最高）：A-P0-1 → A-P0-2 → A-P0-3
+2. **再做类型2并行化**（收益最高，改动小）：T2-1 → T2-2 → T2-3 → T2-4
+3. **再做类型1大文件 Split**（收益高）：T1-高1 → T1-高2 → T1-高3 → T1-高4
+4. **后做类型1文件内容 Split**（收益中）：T1-中1 ~ T1-中11
+5. **最后做类型1低收益**（git/进程输出 Split，可批量改造）
+
+---
+
+## 待做：Actor 模型改造（并发安全，消除锁竞争/死锁）
+
+> 参考已有 Actor 先例：`infrastructure/Infrastructure/IO/PersistencePipeline.cs`（Actor 单消费者 Channel 串行写，无锁无死锁）
+> 核心原则：**读取（mmap）不需要 Actor**（只读无冲突），**写入/读-改-写需要 Actor**（有并发冲突）
+
+### A-P0-1: FileEditLogic 全部方法 — 完全无锁读-改-写【P0 数据丢失风险】
+
+- **文件**: `core/execution/Hands/src/ToolHandlers/Handlers/Core/Logic/FileEditLogic.cs`
+- **涉及方法**: `EditWithRegexAsync`(L16)、`InsertLinesAfterAsync`(L73)、`DeleteLinesAsync`(L121)、`BatchEditAsync`(L171)
+- **问题**: 全部方法读-改-写**完全无锁**（连 IOThrottleService 都没有），并发编辑直接丢数据
+- **改造**: per-file `FileWriteActor` 串行化读-改-写，或补 `FileLockService` 锁保护
+- **风险**: **P0** — Hands 工具核心编辑逻辑，并发编辑数据丢失
+
+### A-P0-2: ApplyPatchLogic.ApplyAsync — 完全无锁读-改-写【P0 数据丢失风险】
+
+- **文件**: `core/execution/Hands/src/ToolHandlers/Handlers/Core/Logic/ApplyPatchLogic.cs:13-88`
+- **问题**: 多文件 patch 读-改-写**完全无锁**，patch 应用期间文件被外部修改导致 context mismatch 或覆盖
+- **改造**: per-file `FileWriteActor` 串行化，或补 `FileLockService`
+- **风险**: **P0**
+
+### A-P0-3: ThrottledFileService.EditFileAsync/EditByLineRangeAsync — 无锁读-改-写【P0 数据丢失风险】
+
+- **文件**: `infrastructure/Infrastructure/IO/Services/FileOps/ThrottledFileService.cs:145-279`
+- **问题**: `EditFileAsync`(L145) 和 `EditByLineRangeAsync`(L219) 无锁读-改-写，同文件 `WriteFileAsync`(L83) 有锁但 Edit 遗漏
+- **改造**: 补 `FileLockService`（对齐 `WriteFileAsync`），或 per-file Actor
+- **风险**: **P0**
+
+### A-P1-1: FileEditor.EditFileAsync — 读锁/写锁分离 TOCTOU【P1 时间窗口风险】
+
+- **文件**: `infrastructure/Infrastructure/IO/Services/FileOps/FileEditor.cs:23-221`
+- **问题**: 读取(L101)加锁释放→内存修改→写入(L196)重新加锁，中间存在 TOCTOU 时间窗口
+- **改造**: 合并为单次锁内读-改-写，或单 Actor 消息
+- **风险**: **P1** — 有 `_fileStateCache` 时间戳辅助检测，风险降低
+
+### A-P1-2: PlanModeManager 状态文件 — 跨进程无锁写【P1 覆盖风险】
+
+- **文件**: `core/execution/Brain/src/Planning/Planning2/ToolHandlers/PlanModeManager.cs:876-900`
+- **问题**: 跨进程状态文件 `.active_plan_state.json` 无锁写入，多进程并发覆盖
+- **改造**: 文件锁或单写者 Actor
+- **风险**: **P1**
+
+### A-P1-3: ConfigLoader.SaveSettingsJsonAsync — 静态无锁写【P1 覆盖风险】
+
+- **文件**: `core/safety/Guard/src/Configuration/Configuration2/Core/Loading/ConfigLoader.cs:161-172`
+- **问题**: 静态方法无锁写 settings.json，配置热重载 + CLI 多实例并发覆盖
+- **改造**: 引入配置持久化 Actor
+- **风险**: **P1**
+
+### A-P2-1: HookConfigurationManager.AddHook/RemoveHook — 读-改-写无锁【P2 丢失更新】
+
+- **文件**: `core/safety/Guard/src/Hooks/Configuration/HookConfigurationManager.cs:345-409`
+- **问题**: `JsonFileHookConfigurationProvider` 的 AddHook/RemoveHook 读-改-写无锁
+- **改造**: 补锁或 Actor
+- **风险**: **P2**
+
+### A-P2-2: TeamMemorySyncService.PullFromRemoteAsync — 并行同步无锁【P2 覆盖风险】
+
+- **文件**: `core/safety/Vault/src/Memdir/Sync/TeamMemorySyncService.cs:503-547`
+- **问题**: `SyncAllFilesAsync` 用 `Task.WhenAll` 并行同步多文件，`PullFromRemoteAsync` 直接 `_fs.WriteAllTextAsync` 无锁
+- **改造**: per-file 锁
+- **风险**: **P2**
+
+### A-P2-3: ThrottledFileService.WriteFileWithEncodingAsync — 无文件锁【P2 覆盖风险】
+
+- **文件**: `infrastructure/Infrastructure/IO/Services/FileOps/ThrottledFileService.cs:561-596`
+- **问题**: tmp+move 原子但并发写同一目标文件的多个 tmp move 可能交错
+- **改造**: 对齐 `WriteFileAsync` 补 `FileLockService`
+- **风险**: **P2**
+
+---
+
+## 已有正确并发控制（无需改造）
+
+| 文件 | 机制 | 说明 |
+|------|------|------|
+| `PersistencePipeline` | Actor 单消费者 | 无锁无死锁，最佳实践 |
+| `TranscriptFileWriter` | AsyncLock 锁内读-改-写 | 原子 |
+| `TeammateMailboxService` | per-agent 分片锁 | 不同 agent 不互斥 |
+| `TeamManager` | AsyncLock 锁内写 | 内存状态一致 |
+| `GraphPersistence` | ReaderWriterLockSlim + Actor | 读锁+Actor 写 |
+| `PhysicalFileSystem` 读取 | mmap 只读 | FileShare.ReadWrite，无冲突 |
 
 ---
 

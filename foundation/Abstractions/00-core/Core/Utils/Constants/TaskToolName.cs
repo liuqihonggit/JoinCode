@@ -5,15 +5,15 @@ namespace JoinCode.Abstractions.Utils;
 /// </summary>
 public enum TaskToolName
 {
-    [EnumValue("TaskCreate")]
+    [EnumValue("task_create")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     TaskCreate,
 
-    [EnumValue("TaskList")]
+    [EnumValue("task_list")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     TaskList,
 
-    [EnumValue("TaskUpdate")]
+    [EnumValue("task_update")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     TaskUpdate,
 
@@ -21,11 +21,11 @@ public enum TaskToolName
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     TaskDelete,
 
-    [EnumValue("TaskStop")]
+    [EnumValue("task_stop")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     TaskStop,
 
-    [EnumValue("TaskGet")]
+    [EnumValue("task_get")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     TaskGet,
 

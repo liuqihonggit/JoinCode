@@ -342,7 +342,7 @@ public static class TaskToolScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "TaskCreate",
+                            ToolName = "task_create",
                             Arguments = """{"title":"测试任务","description":"这是一个E2E测试任务"}"""
                         }
                     ],
@@ -350,7 +350,7 @@ public static class TaskToolScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "TaskCreate", Description = "应包含TaskCreate工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "task_create", Description = "应包含task_create工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
                 ]
             }

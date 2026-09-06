@@ -13,15 +13,15 @@ public enum SystemToolName
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     BriefStatus,
 
-    [EnumValue("Brief")]
+    [EnumValue("brief")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     Brief,
 
-    [EnumValue("SendUserMessage")]
+    [EnumValue("send_user_message")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     SendUserMessage,
 
-    [EnumValue("Sleep")]
+    [EnumValue("sleep")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     Sleep,
 
@@ -29,11 +29,11 @@ public enum SystemToolName
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     SleepUntil,
 
-    [EnumValue("TaskOutput")]
+    [EnumValue("task_output")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     TaskOutput,
 
-    [EnumValue("ToolSearch")]
+    [EnumValue("tool_search")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     ToolSearch,
 
@@ -53,11 +53,11 @@ public enum SystemToolName
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     Snip,
 
-    [EnumValue("StructuredOutput")]
+    [EnumValue("structured_output")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     SyntheticOutput,
 
-    [EnumValue("RemoteTrigger")]
+    [EnumValue("remote_trigger")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     RemoteTrigger,
 
@@ -109,7 +109,7 @@ public enum SystemToolName
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     ListPeers,
 
-    [EnumValue("REPL")]
+    [EnumValue("repl")]
     [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true)]
     Repl,
 
@@ -145,7 +145,7 @@ public enum SystemToolName
     /// 模型查找工具 — 按功能→型号渐进式展开模型表，模态不匹配报错时动态暴露。
     /// 语法对齐 ToolSearch：list_groups / map[功能Key] / map[功能Key][vendor] / 关键词
     /// </summary>
-    [EnumValue("ModelSearch")]
+    [EnumValue("model_search")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     ModelSearch,
 }

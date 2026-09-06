@@ -14,6 +14,9 @@ namespace McpClient;
 [JsonSerializable(typeof(McpbCacheMetadata))]
 [JsonSerializable(typeof(List<McpRegistryEntry>))]
 [JsonSerializable(typeof(McpRegistryServerDetail))]
+[JsonSerializable(typeof(global::McpToolDispatch.McpConnectionStateData))]
+[JsonSerializable(typeof(global::McpToolDispatch.McpConnectionEntry))]
+[JsonSerializable(typeof(List<global::McpToolDispatch.McpConnectionEntry>))]
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     WriteIndented = false,

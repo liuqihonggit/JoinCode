@@ -26,7 +26,9 @@ public sealed record AppDataPaths(
     string MailboxFolderName,
     string FileHistoryFolderName,
     string PlansFolderName,
-    string ToolResultsFolderName)
+    string ToolResultsFolderName,
+    string McpFolderName,
+    string McpConnectionsFileName)
 {
     /// <summary>
     /// 默认实例 — 从环境变量解析，等价于原 AppDataConstants 的默认行为
@@ -59,7 +61,9 @@ public sealed record AppDataPaths(
             MailboxFolderName: ResolveEnv(JccEnvVar.MailboxFolderName, "mailbox"),
             FileHistoryFolderName: ResolveEnv(JccEnvVar.FileHistoryFolderName, "file-history"),
             PlansFolderName: ResolveEnv(JccEnvVar.PlansFolderName, "plans"),
-            ToolResultsFolderName: ResolveEnv(JccEnvVar.ToolResultsFolderName, "tool-results")
+            ToolResultsFolderName: ResolveEnv(JccEnvVar.ToolResultsFolderName, "tool-results"),
+            McpFolderName: ResolveEnv(JccEnvVar.McpFolderName, "mcp"),
+            McpConnectionsFileName: ResolveEnv(JccEnvVar.McpConnectionsFileName, "connections.json")
         );
     }
 

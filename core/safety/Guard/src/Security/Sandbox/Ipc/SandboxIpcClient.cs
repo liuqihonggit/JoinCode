@@ -6,7 +6,6 @@ public sealed class SandboxIpcClient : IAsyncDisposable
     private readonly IProcessService _processService;
     private readonly IFileSystem _fs;
     private readonly ILogger<SandboxIpcClient>? _logger;
-    private readonly AsyncLock _sendLock = new();
     private readonly Func<int, Task>? _onSatelliteStarted;
     private IInteractiveProcess? _process;
     private int _requestCounter;
@@ -286,7 +285,6 @@ public sealed class SandboxIpcClient : IAsyncDisposable
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         await ShutdownAsync().ConfigureAwait(false);
-        _sendLock.Dispose();
         _startLock.Dispose();
         _readCts?.Dispose();
         _writeCts?.Dispose();

@@ -9,7 +9,8 @@ public sealed class McpCliCommand
     private static readonly Cli.Output.CliOutputJsonContext JsonCtx = Cli.Output.CliOutputJsonContext.Default;
 
     internal static Task<int> ExecuteCallAsync(
-        string toolName, string? args, string[]? kvArgs, string? argsFile, bool argsStdin, bool json, CancellationToken ct)
+        string toolName, string? args, string[]? kvArgs, string? argsFile, bool argsStdin, bool json,
+        string? vendor = null, string? model = null, CancellationToken ct = default)
     {
         var argDict = ParseArgs(args, kvArgs, argsFile, argsStdin);
         if (argDict is null)
@@ -22,7 +23,7 @@ public sealed class McpCliCommand
                 return OutputError($"未找到工具: {toolName}（用 jcc mcp list 查看已注册工具）", json);
             var result = await registry.ExecuteToolAsync(toolName, argDict, ct).ConfigureAwait(false);
             return OutputResult(result, json);
-        }, ct);
+        }, vendor, model, ct);
     }
 
     internal static Task<int> ExecuteListAsync(string? category, bool json, CancellationToken ct)
@@ -57,7 +58,7 @@ public sealed class McpCliCommand
                 TerminalHelper.WriteLine($"总计: {tools.Count} 个工具");
             }
             return 0;
-        }, ct);
+        }, ct: ct);
 
     internal static Task<int> ExecuteSearchAsync(string query, bool json, CancellationToken ct)
         => WithHostAsync(async services =>
@@ -92,7 +93,7 @@ public sealed class McpCliCommand
             }
         }
         return 0;
-    }, ct);
+    }, ct: ct);
 
     internal static Task<int> ExecuteSchemaAsync(string toolName, bool json, CancellationToken ct)
         => WithHostAsync(async services =>
@@ -116,12 +117,16 @@ public sealed class McpCliCommand
             System.Console.WriteLine(RelaxedJsonSerializer.Serialize(info.InputSchema, ContractsJsonContext.Default));
         }
         return 0;
-    }, ct);
+    }, ct: ct);
 
-    internal static async Task<IHost> BuildHostAsync(CancellationToken ct)
+    internal static async Task<IHost> BuildHostAsync(string? vendor = null, string? model = null, CancellationToken ct = default)
     {
         var fs = IO.FileSystem.FileSystemFactory.Create();
         var options = new CommandLineOptions { NonInteractive = true, TrustWorkspace = true, SkipModelFetch = true };
+        if (!string.IsNullOrEmpty(vendor))
+            options.Vendor = vendor;
+        if (!string.IsNullOrEmpty(model))
+            options.Model = model;
         Core.Utils.TestEnvironmentDetector.ForceNonInteractive = true;
         // 子命令模式抑制初始化警告（ShellCapabilityInitializer 的 pwsh/python 检测警告）
         var prevLogLevel = Environment.GetEnvironmentVariable("JCC_LOG_LEVEL");
@@ -146,7 +151,7 @@ public sealed class McpCliCommand
             return 1;
         }
 
-        var appHost = await BuildHostAsync(ct).ConfigureAwait(false);
+        var appHost = await BuildHostAsync(ct: ct).ConfigureAwait(false);
         try
         {
             var registry = appHost.Services.GetRequiredService<IMcpToolRegistry>();
@@ -175,9 +180,9 @@ public sealed class McpCliCommand
         }
     }
 
-    internal static async Task<int> WithHostAsync(Func<IServiceProvider, Task<int>> action, CancellationToken ct)
+    internal static async Task<int> WithHostAsync(Func<IServiceProvider, Task<int>> action, string? vendor = null, string? model = null, CancellationToken ct = default)
     {
-        var host = await BuildHostAsync(ct).ConfigureAwait(false);
+        var host = await BuildHostAsync(vendor, model, ct).ConfigureAwait(false);
         try
         {
             return await action(host.Services).ConfigureAwait(false);

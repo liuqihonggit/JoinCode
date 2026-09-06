@@ -438,41 +438,6 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
     // 二进制检测缓冲区大小（对齐 ripgrep 的 8KB 采样窗口）
     private const int BinaryDetectionBufferSize = 8192;
 
-    /// <summary>
-    /// 文件类型到扩展名的映射表，对齐 ripgrep --type 内置映射
-    /// ripgrep 通过 --type 选项支持预定义的文件类型过滤
-    /// </summary>
-    private static readonly FrozenDictionary<string, string[]> FileTypeExtensions = FrozenDictionary.ToFrozenDictionary(
-        new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["js"] = ["*.js", "*.jsx", "*.mjs", "*.cjs"],
-            ["ts"] = ["*.ts", "*.tsx", "*.mts", "*.cts"],
-            ["py"] = ["*.py", "*.pyi"],
-            ["rust"] = ["*.rs"],
-            ["go"] = ["*.go"],
-            ["java"] = ["*.java"],
-            ["c"] = ["*.c", "*.h"],
-            ["cpp"] = ["*.cpp", "*.cc", "*.cxx", "*.hpp", "*.hh", "*.hxx"],
-            ["csharp"] = ["*.cs"],
-            ["ruby"] = ["*.rb", "*.erb"],
-            ["swift"] = ["*.swift"],
-            ["kotlin"] = ["*.kt", "*.kts"],
-            ["scala"] = ["*.scala"],
-            ["html"] = ["*.html", "*.htm"],
-            ["css"] = ["*.css", "*.scss", "*.sass", "*.less"],
-            ["json"] = ["*.json"],
-            ["yaml"] = ["*.yaml", "*.yml"],
-            ["xml"] = ["*.xml", "*.xsl", "*.xsd"],
-            ["markdown"] = ["*.md", "*.mdx"],
-            ["sh"] = ["*.sh", "*.bash", "*.zsh"],
-            ["powershell"] = ["*.ps1", "*.psm1"],
-            ["sql"] = ["*.sql"],
-            ["dockerfile"] = ["Dockerfile", "*.dockerfile"],
-            ["toml"] = ["*.toml"],
-            ["ini"] = ["*.ini", "*.cfg", "*.conf"],
-        },
-        StringComparer.OrdinalIgnoreCase);
-
     private IReadOnlyList<string> CollectSearchFiles(string basePath, string? globFilter, string? fileType, IReadOnlyList<string>? denyPatterns = null, CancellationToken cancellationToken = default)
     {
         if (_fileOperationService.FileExists(basePath))
@@ -507,11 +472,14 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
         {
             // 对齐 ripgrep --type: 使用预定义的文件类型扩展名映射
             // 当 glob 和 type 同时存在时，ripgrep 是 AND 逻辑
-            if (FileTypeExtensions.TryGetValue(fileType, out var extensions))
+            if (FileTypeExtensionMap.TryGetValue(fileType, out var extensions))
             {
                 foreach (var ext in extensions)
                 {
-                    matcher.AddInclude($"**/{ext}");
+                    if (ext.StartsWith('.'))
+                        matcher.AddInclude($"**/*{ext}");
+                    else
+                        matcher.AddInclude($"**/{ext}");
                 }
             }
             else
@@ -540,8 +508,8 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
         // Matcher 的多个 AddInclude 是 OR 逻辑，但 ripgrep 的 --glob + --type 是 AND 逻辑
         var needsAndFilter = !string.IsNullOrEmpty(fileType) && !string.IsNullOrEmpty(globFilter);
         var typeExtensions = needsAndFilter
-            ? (FileTypeExtensions.TryGetValue(fileType ?? "", out var exts)
-                ? exts.Select(e => e.Replace("*", "").TrimStart('.').ToString()).ToHashSet(StringComparer.OrdinalIgnoreCase)
+            ? (FileTypeExtensionMap.TryGetValue(fileType ?? "", out var exts)
+                ? exts.Select(e => e.TrimStart('.').ToString()).ToHashSet(StringComparer.OrdinalIgnoreCase)
                 : [fileType ?? ""])
             : null;
 

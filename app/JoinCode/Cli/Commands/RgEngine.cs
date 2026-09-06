@@ -13,38 +13,6 @@ internal static class RgEngine
 
     private static readonly ConcurrentDictionary<string, GitignoreMatcher?> GitignoreCache = new(StringComparer.Ordinal);
 
-    private static readonly FrozenDictionary<string, string[]> FileTypeExtensions = FrozenDictionary.ToFrozenDictionary(
-        new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["js"] = [".js", ".jsx", ".mjs", ".cjs"],
-            ["ts"] = [".ts", ".tsx", ".mts", ".cts"],
-            ["py"] = [".py", ".pyi"],
-            ["rust"] = [".rs"],
-            ["go"] = [".go"],
-            ["java"] = [".java"],
-            ["c"] = [".c", ".h"],
-            ["cpp"] = [".cpp", ".cc", ".cxx", ".hpp", ".hh", ".hxx"],
-            ["csharp"] = [".cs"],
-            ["cs"] = [".cs"],
-            ["ruby"] = [".rb", ".erb"],
-            ["swift"] = [".swift"],
-            ["kotlin"] = [".kt", ".kts"],
-            ["scala"] = [".scala"],
-            ["html"] = [".html", ".htm"],
-            ["css"] = [".css", ".scss", ".sass", ".less"],
-            ["json"] = [".json"],
-            ["yaml"] = [".yaml", ".yml"],
-            ["xml"] = [".xml", ".xsl", ".xsd"],
-            ["markdown"] = [".md", ".mdx"],
-            ["md"] = [".md", ".mdx"],
-            ["sh"] = [".sh", ".bash", ".zsh"],
-            ["powershell"] = [".ps1", ".psm1"],
-            ["sql"] = [".sql"],
-            ["toml"] = [".toml"],
-            ["ini"] = [".ini", ".cfg", ".conf"],
-        },
-        StringComparer.OrdinalIgnoreCase);
-
     /// <summary>
     /// 执行搜索。PLINQ 链式：收集文件 → 并行搜索 → 过滤 → 排序 → 分页。
     /// </summary>
@@ -163,7 +131,7 @@ internal static class RgEngine
             if (!MatchesGlob(rel, q.Globs))
                 continue;
 
-            if (!MatchesFileType(file, q.FileType))
+            if (!FileTypeExtensionMap.MatchesFileType(file, q.FileType))
                 continue;
 
             if (BinaryFileDetector.IsBinaryByExtension(file))
@@ -229,18 +197,6 @@ internal static class RgEngine
         }
 
         return GlobMatcher.IsMatch(path, pattern);
-    }
-
-    private static bool MatchesFileType(string file, string? fileType)
-    {
-        if (string.IsNullOrEmpty(fileType))
-            return true;
-
-        var ext = Path.GetExtension(file);
-        if (FileTypeExtensions.TryGetValue(fileType, out var exts))
-            return Array.IndexOf(exts, ext) >= 0;
-
-        return string.Equals(ext, $".{fileType}", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

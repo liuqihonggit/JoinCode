@@ -112,48 +112,25 @@ public sealed class FileReader
         int totalLines = 0;
         int linesToSkip = startIndex;
         int? linesToTake = limit;
-        bool isFirstLine = true;
 
-        using var stream = _fs.CreateStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        // 接入编码检测 — 对齐 FileOperationService.ReadFileWithMetadataAsync
         var encoding = await FileEncodingDetector.DetectFromFileAsync(filePath, _fs, cancellationToken, _logger).ConfigureAwait(false);
-        using var reader = new StreamReader(stream, encoding);
+        var rawContent = await _fs.ReadAllTextAsync(filePath, encoding, cancellationToken).ConfigureAwait(false);
 
-        string? line;
-        while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
+        if (rawContent.Length > 0 && rawContent[0] == '\uFEFF')
+            rawContent = rawContent[1..];
+
+        var ranges = LineSpanIndexer.BuildLineRanges(rawContent.AsSpan(), cancellationToken);
+        totalLines = ranges.Count;
+        for (var i = 0; i < ranges.Count; i++)
         {
-            totalLines++;
-
-            // Strip BOM from first line
-            if (isFirstLine && line.Length > 0 && line[0] == '\uFEFF')
-            {
-                line = line[1..];
-            }
-            isFirstLine = false;
-
-            // Trim trailing \r (CRLF normalization)
-            line = line.TrimEnd('\r');
-
-            // Skip lines before offset
-            if (linesToSkip > 0)
-            {
-                linesToSkip--;
-                continue;
-            }
-
-            // Collect needed lines
+            if (linesToSkip > 0) { linesToSkip--; continue; }
+            var (start, length) = ranges[i];
+            var line = rawContent.Substring(start, length);
             if (linesToTake.HasValue)
             {
-                if (linesToTake.Value > 0)
-                {
-                    lines.Add(line);
-                    linesToTake--;
-                }
+                if (linesToTake.Value > 0) { lines.Add(line); linesToTake--; }
             }
-            else
-            {
-                lines.Add(line);
-            }
+            else { lines.Add(line); }
         }
 
         // 重新计算实际的行号范围

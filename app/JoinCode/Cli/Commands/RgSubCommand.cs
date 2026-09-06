@@ -17,6 +17,10 @@ internal static class RgSubCommand
             return 1;
 
         var pattern = FixPowerShellEscaping(parsed.Pattern);
+        if (!ReferenceEquals(pattern, parsed.Pattern))
+        {
+            TerminalHelper.WriteError($"提示: 已自动修复 PowerShell 双反斜杠转义: \"{parsed.Pattern}\" → \"{pattern}\"");
+        }
 
         if (string.IsNullOrEmpty(pattern))
         {
@@ -29,6 +33,11 @@ internal static class RgSubCommand
             if (IsRootOrUnsafePath(p))
             {
                 TerminalHelper.WriteError($"拒绝在根目录或无效路径上扫盘: {p}。请指定具体子目录（如 . 或 src/）。");
+                return 1;
+            }
+            if (!File.Exists(p) && !Directory.Exists(p))
+            {
+                TerminalHelper.WriteError($"路径不存在: {p}");
                 return 1;
             }
         }

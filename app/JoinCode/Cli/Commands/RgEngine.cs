@@ -20,9 +20,9 @@ internal static class RgEngine
     {
         ct.ThrowIfCancellationRequested();
 
-        var regex = CompileRegex(q);
+        var (regex, compileError) = CompileRegex(q);
         if (regex is null)
-            return RgOutcome.Failure("无效正则表达式");
+            return RgOutcome.Failure($"无效正则表达式: {compileError}");
 
         var files = CollectFiles(q, ct);
         if (files.Count == 0)
@@ -52,13 +52,10 @@ internal static class RgEngine
     /// <summary>
     /// 编译正则。smart-case: 模式含大写则区分大小写，否则忽略。
     /// </summary>
-    private static Regex? CompileRegex(RgQuery q)
+    private static (Regex? Regex, string? Error) CompileRegex(RgQuery q)
     {
-        var (regex, error) = SearchRegexCompiler.Compile(
+        return SearchRegexCompiler.Compile(
             q.Pattern, q.CaseInsensitive, q.Multiline, q.FixedStrings, q.WordRegexp, q.SmartCase);
-        if (error is not null)
-            return null;
-        return regex;
     }
 
     /// <summary>

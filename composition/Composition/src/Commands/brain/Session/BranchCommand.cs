@@ -8,6 +8,8 @@ namespace JoinCode.ChatCommands;
 /// 待办：需要 BranchManager 服务实现分支存储和切换
 /// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Branch, Description = "管理对话分支", Usage = "/branch [list|create|switch|delete] [name]", Category = ChatCommandCategory.Session, Aliases = ["branches"], ArgumentHint = "[list|create|switch|delete]")]
+[ChatCommandArg("action", Type = "string", Description = "分支操作", Enum = new[] { "list", "create", "switch", "delete" })]
+[ChatCommandArg("name", Type = "string", Description = "分支名称")]
 public sealed class BranchCommand : ChatCommandBase
 {
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

@@ -1,6 +1,7 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Tasks, Description = "列出和管理后台任务", Usage = "/tasks [kill|detail|create|update|complete|todo]", Category = ChatCommandCategory.Task, Aliases = ["task", "bashes"], ExposeToMcp = true)]
+[ChatCommandArg("action", Type = "string", Description = "任务操作", Enum = new[] { "kill", "detail", "create", "update", "complete", "todo" })]
 public sealed class TasksCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

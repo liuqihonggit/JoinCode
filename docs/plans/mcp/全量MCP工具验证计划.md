@@ -1,7 +1,7 @@
 # 全量 MCP 工具验证计划
 
 > 总计 387 个工具，48 个分类
-> 验证方法：`jcc mcp call <tool> --args '<json>' --json`
+> 验证方法：`jcc mcp_call <tool> '<json>' --json`
 > 状态标记：✅ OK（空参数通过）| ⚠️ PARAM（需参数，非 bug）| ❌ BUG（工具本身有错误）
 
 ## 验证进度

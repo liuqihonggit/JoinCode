@@ -1,6 +1,7 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Brief, Description = "切换简要消息模式", Usage = "/brief [on|off]", Category = ChatCommandCategory.Session)]
+[ChatCommandArg("state", Type = "string", Description = "开关状态", Enum = new[] { "on", "off" })]
 public sealed class BriefCommand : ToggleCommandBase
 {
     public override string Name => ChatCommandNameConstants.Brief;

@@ -163,25 +163,35 @@ public sealed class ApplicationBuilder
         }
 
         // schema 子命令 — 输出 CLI 参数定义 JSON（对齐架构指南可发现性：Schema 自省）
+        // 使用生成器生成的 ToJson() 方法（Utf8JsonWriter，AOT 兼容，无需 JsonContext）
         if (subCommand == CliSubCommand.Schema)
         {
-            var schemaProps = CliArgSchema.Properties;
-            var envelope = Cli.Output.CliOutputEnvelope.Success(schemaProps, new Cli.Output.CliOutputMeta
-            {
-                Version = typeof(ApplicationBuilder).Assembly.GetName().Version?.ToString(),
-            });
-            var json = System.Text.Json.JsonSerializer.Serialize(envelope, Cli.Output.CliOutputJsonContext.Default.CliOutputEnvelope);
-            System.Console.WriteLine(json);
+            System.Console.WriteLine(CliArgSchema.ToJson());
             return 0;
         }
 
-        var rootCommand = new RootCommand("JoinCode CLI");
-            var cliFs = IO.FileSystem.FileSystemFactory.Create();
-        rootCommand.Add(new ToolCommand());
-        rootCommand.Add(new AgentCommand(cliFs));
-        rootCommand.Add(new CodeCommand(cliFs));
-        rootCommand.Add(new McpCliCommand());
-        return await rootCommand.Parse(args).InvokeAsync();
+        // 扁平元动词子命令 — ADR 0069: mcp_call/mcp_list/mcp_schema/mcp_search/mcp_serve/slash_call/slash_list/slash_schema/doctor
+        if (subCommand is not null)
+        {
+            var flatResult = await FlatSubCommandRouter.TryExecuteAsync(subCommand.Value, args, CancellationToken.None).ConfigureAwait(false);
+            if (flatResult is not null)
+                return flatResult.Value;
+        }
+
+        // 旧子命令提示 — ADR 0069: 已由扁平元动词取代
+        if (subCommand is CliSubCommand.Mcp)
+        {
+            TerminalHelper.WriteError("jcc mcp 已由扁平元动词取代，请用 jcc mcp_call/mcp_list/mcp_schema/mcp_search/mcp_serve");
+            return 1;
+        }
+        if (subCommand is CliSubCommand.Tool or CliSubCommand.Agent or CliSubCommand.Code)
+        {
+            TerminalHelper.WriteError($"jcc {args[0]} 已废弃，请用 jcc mcp_call 或 jcc slash_call");
+            return 1;
+        }
+
+        TerminalHelper.WriteError($"未知子命令: {args[0]}（用 jcc --help 查看可用命令）");
+        return 1;
     }
 
     /// <summary>
@@ -311,32 +321,10 @@ public sealed class ApplicationBuilder
             options.DoctorPort = doctorPort;
         }
 
-        // 视角1 #6 + #9: CLI 参数 → JCC_PERMISSION_MODE 环境变量
-        // 决策: 复用 PermissionChecker.TryGetPermissionModeFromEnv 现有逻辑，不修改 PermissionChecker 构造函数
-        // --bypass 等价于 --permission-mode bypass
-        // 两者同时存在时 --permission-mode 优先（更具体）
-        var permissionModeFromCli = !string.IsNullOrEmpty(options.PermissionMode)
-            ? options.PermissionMode
-            : options.DangerouslySkipPermissions ? "bypass" : null;
-        if (!string.IsNullOrEmpty(permissionModeFromCli))
-        {
-            Environment.SetEnvironmentVariable(JccEnvVar.PermissionMode.ToValue(), permissionModeFromCli);
-            Diag.WriteLine($"[MAIN] CLI permission-mode={permissionModeFromCli} → JCC_PERMISSION_MODE 环境变量已设置");
-        }
-
-        // --vendor: CLI 参数 → JCC_VENDOR 环境变量（自动匹配 profiles 中的同名预设）
-        if (!string.IsNullOrEmpty(options.Vendor))
-        {
-            Environment.SetEnvironmentVariable(JccEnvVar.Vendor.ToValue(), options.Vendor);
-            Diag.WriteLine($"[MAIN] CLI vendor={options.Vendor} → JCC_VENDOR 环境变量已设置");
-        }
-
-        // --model: CLI 参数 → JCC_MODEL_ID 环境变量（统一走环境变量覆盖链，与 --vendor 一致）
-        if (!string.IsNullOrEmpty(options.Model))
-        {
-            Environment.SetEnvironmentVariable(JccEnvVar.ModelId.ToValue(), options.Model);
-            Diag.WriteLine($"[MAIN] CLI model={options.Model} → JCC_MODEL_ID 环境变量已设置");
-        }
+        // 环境变量映射 — 由 CliOptionGenerator 从 [CliOption(EnvVar=...)] 声明自动生成
+        // 别名展开（--yes→--no-confirm, --force/--bypass→--permission-mode bypass, --json→--format json）
+        // 已在 CliArgParser.Parse 内部完成，此处只需同步环境变量
+        CliArgParser.ApplyEnvVars(result);
 
         if (Cli.TerminalHelper.IsHeadless)
         {
@@ -349,22 +337,10 @@ public sealed class ApplicationBuilder
             options.NonInteractive = false;
         }
 
+        // --no-confirm / --yes（别名已展开）→ ForceNonInteractive
         if (options.NoConfirm)
         {
             Core.Utils.TestEnvironmentDetector.ForceNonInteractive = true;
-        }
-
-        // --yes 等价于 --no-confirm（对齐架构指南 AX 模式）
-        if (options.Yes)
-        {
-            options.NoConfirm = true;
-            Core.Utils.TestEnvironmentDetector.ForceNonInteractive = true;
-        }
-
-        // --force 等价于 --bypass（对齐架构指南安全设计）
-        if (options.Force)
-        {
-            options.DangerouslySkipPermissions = true;
         }
 
         options.DetectedHeadlessMode = Cli.TerminalHelper.IsHeadless ? HeadlessMode.NoTty : HeadlessMode.Interactive;
@@ -445,14 +421,21 @@ public sealed class ApplicationBuilder
     {
         Cli.TerminalHelper.WriteLine("JoinCode - AI 智能体命令行工具");
         Cli.TerminalHelper.NewLine();
-        // 使用 CliOptionGenerator 自动生成的分类帮助文本
-        Cli.TerminalHelper.WriteLine(CliArgParser.GetHelpText("categorized"));
+        // 使用 CliOptionGenerator 自动生成的分类帮助文本（替换枚举名为程序名 jcc）
+        Cli.TerminalHelper.WriteLine(CliArgParser.GetHelpText("categorized").Replace("cliarg", "jcc"));
         Cli.TerminalHelper.NewLine();
         Cli.TerminalHelper.WriteLine("子命令:");
-        Cli.TerminalHelper.WriteLine("  tool                    MCP 工具管理");
-        Cli.TerminalHelper.WriteLine("  agent                   智能体管理");
-        Cli.TerminalHelper.WriteLine("  code                    代码操作");
-        Cli.TerminalHelper.WriteLine("  schema                  输出 CLI 参数定义 JSON（供 Agent 动态查询）");
+        Cli.TerminalHelper.WriteLine("  mcp_call <tool> <argsJson>       MCP 工具直调");
+        Cli.TerminalHelper.WriteLine("  mcp_list [--category <cat>]      MCP 工具列表");
+        Cli.TerminalHelper.WriteLine("  mcp_schema <tool>                MCP 工具参数 schema");
+        Cli.TerminalHelper.WriteLine("  mcp_search <query>               MCP 工具搜索");
+        Cli.TerminalHelper.WriteLine("  mcp_serve [--port 9903]          MCP 服务端");
+        Cli.TerminalHelper.WriteLine("  slash_call <cmd> <argsJson>      斜杠命令直调");
+        Cli.TerminalHelper.WriteLine("  slash_list [--category <cat>]    斜杠命令列表");
+        Cli.TerminalHelper.WriteLine("  slash_schema <cmd>               斜杠命令参数 schema");
+        Cli.TerminalHelper.WriteLine("  doctor [--server] [--port <n>]   医生模式");
+        Cli.TerminalHelper.WriteLine("  schema                           输出 CLI 参数定义 JSON");
+        Cli.TerminalHelper.WriteLine("  rc / remote-control              远程控制");
         Cli.TerminalHelper.NewLine();
         Cli.TerminalHelper.WriteLine("环境变量:");
         Cli.TerminalHelper.WriteLine("  JCC_VENDOR            LLM 供应商 (openai/azure/anthropic/deepseek/sensenova)");
@@ -485,7 +468,6 @@ public sealed class ApplicationBuilder
         Cli.TerminalHelper.WriteLine("  130   用户中断 (Ctrl+C)");
         Cli.TerminalHelper.WriteLine("  1234  --await 超时");
         Cli.TerminalHelper.NewLine();
-        Cli.TerminalHelper.WriteLine("示例:");
         Cli.TerminalHelper.WriteLine(CliArgParser.GetHelpText("examples"));
     }
 

@@ -6,7 +6,7 @@
 
 ## 背景
 
-MCP 工具的 6 个状态型分类（code_index/memory/permission/task/notebook/structured_output）各自维护内存状态，跨进程不共享。`jcc mcp call` 每次是新进程，状态在进程退出后丢失。
+MCP 工具的 6 个状态型分类（code_index/memory/permission/task/notebook/structured_output）各自维护内存状态，跨进程不共享。`jcc mcp_call` 每次是新进程，状态在进程退出后丢失。
 
 首轮验证（交接文档 A-组1）将此标记为"设计限制非bug"，但实际是未实现持久化。用户要求全部状态型落盘可跨进程复用。
 

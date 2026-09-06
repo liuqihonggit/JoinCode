@@ -8,6 +8,8 @@ namespace JoinCode.ChatCommands;
 /// 待办：需要 SessionStore 服务实现会话持久化和恢复
 /// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Session, Description = "管理历史会话", Usage = "/session [list|resume|delete] [id]", Category = ChatCommandCategory.Session, Aliases = ["sessions"], ArgumentHint = "[list|resume|delete]")]
+[ChatCommandArg("action", Type = "string", Description = "会话操作", Enum = new[] { "list", "resume", "delete" })]
+[ChatCommandArg("id", Type = "string", Description = "会话 ID（resume/delete 时需要）")]
 public sealed class SessionCommand : ChatCommandBase
 {
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

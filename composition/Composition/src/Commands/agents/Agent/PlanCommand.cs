@@ -1,6 +1,8 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Plan, Description = "计划模式管理", Usage = "/plan [on|off|status|open] [描述]", Category = ChatCommandCategory.Agent, ArgumentHint = "[on|off|status|open]", ExposeToMcp = true)]
+[ChatCommandArg("action", Type = "string", Description = "计划操作", Enum = new[] { "on", "off", "status", "open" })]
+[ChatCommandArg("description", Type = "string", Description = "计划描述（on/open 时可选）")]
 public sealed class PlanCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

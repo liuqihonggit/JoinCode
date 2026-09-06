@@ -214,4 +214,9 @@ public class CommandLineOptions {
     /// 对齐架构指南 AX 模式：最小化输出
     /// </summary>
     public bool Quiet { get; set; }
+
+    /// <summary>
+    /// 跳过模型列表后台拉取（子命令模式如 mcp_call/mcp_search 不需要 LLM 服务，避免不必要的网络请求和警告）
+    /// </summary>
+    public bool SkipModelFetch { get; set; }
 }

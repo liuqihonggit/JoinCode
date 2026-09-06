@@ -9,3 +9,8 @@ public sealed record CliToolListItem(string Name, string Description, string? Ca
 /// 工具搜索结果项 — jcc mcp search --json 输出契约
 /// </summary>
 public sealed record CliToolSearchItem(string Name, string? Description, string? Category);
+
+/// <summary>
+/// 斜杠命令列表项 — jcc slash list --json 输出契约
+/// </summary>
+public sealed record CliSlashCommandListItem(string Name, string Description, string? Usage, string Category, string[] Aliases);

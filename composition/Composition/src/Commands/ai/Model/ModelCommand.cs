@@ -1,6 +1,7 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Model, Description = "切换或查看模型", Usage = "/model [model-id|default|info]", Category = ChatCommandCategory.Model, ArgumentHint = "[model-id|default|info]")]
+[ChatCommandArg("model_id", Type = "string", Description = "模型 ID、default 或 info")]
 public sealed class ModelCommand : ChatCommandBase
 {
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

@@ -5,6 +5,7 @@ namespace JoinCode.ChatCommands;
 /// 支持参数: check(默认) / force / download / apply / auto
 /// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Upgrade, Description = "检查并执行自升级", Usage = "/upgrade [check|force|download|apply|auto]", Category = ChatCommandCategory.System, ArgumentHint = "[check|force|download|apply|auto]")]
+[ChatCommandArg("action", Type = "string", Description = "升级操作", Enum = new[] { "check", "force", "download", "apply", "auto" })]
 public sealed class UpgradeCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

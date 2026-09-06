@@ -1,6 +1,7 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Effort, Description = "调整推理力度", Usage = "/effort [low|medium|high|max|auto|unset]", Category = ChatCommandCategory.Model, ArgumentHint = "[low|medium|high|max|auto|unset]")]
+[ChatCommandArg("level", Type = "string", Description = "推理力度级别", Enum = new[] { "low", "medium", "high", "max", "auto", "unset" })]
 public sealed class EffortCommand : ChatCommandBase
 {
     // 对齐 TS: COMMON_HELP_ARGS

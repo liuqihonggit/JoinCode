@@ -200,7 +200,7 @@ public sealed class CliEventConsumer : IResettableEventConsumer
     private void WriteNdJsonEvent(string eventType, Cli.Output.CliStreamEventData payload)
     {
         var evt = new Cli.Output.CliStreamEvent(eventType) { Data = payload };
-        var json = System.Text.Json.JsonSerializer.Serialize(evt, _jsonContext.CliStreamEvent);
+        var json = RelaxedJsonSerializer.Serialize(evt, _jsonContext);
         Console.WriteLine(json);
         if (Console.IsOutputRedirected) Console.Out.Flush();
     }

@@ -28,9 +28,10 @@ class Program
             Infrastructure.Localization.LocalizerInitializer.Initialize(
                 JoinCode.Abstractions.Utils.LocalLanguageDetector.Detect());
 
-            // 2. 子命令路由
-            if (args.Length > 0 && App.Builder.ApplicationBuilder.IsSubCommand(args[0]))
-                return await App.Builder.ApplicationBuilder.RunSubCommandAsync(args);
+            // 2. 子命令路由 — 扫描第一个子命令（允许全局选项在前，如 jcc --trust mcp_search read）
+            var subCmdIndex = FindSubCommandIndex(args);
+            if (subCmdIndex is int idx)
+                return await App.Builder.ApplicationBuilder.RunSubCommandAsync(ReorderSubCommandToFront(args, idx));
 
             // 3. 参数解析 → CommandLineOptions（后续全部使用 options，不再传递原始 args）
             options = App.Builder.ApplicationBuilder.ParseArgs(args);
@@ -401,5 +402,33 @@ class Program
     {
         if (value is null) return "";
         return value.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
+    }
+
+    /// <summary>
+    /// 扫描 args 找第一个子命令的索引（允许全局选项在前，如 --trust --model gpt-4o mcp_search read）。
+    /// </summary>
+    private static int? FindSubCommandIndex(string[] args)
+    {
+        for (var i = 0; i < args.Length; i++)
+        {
+            if (App.Builder.ApplicationBuilder.IsSubCommand(args[i]))
+                return i;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// 将子命令移到 args[0]，丢弃子命令前的全局选项（子命令执行器内部自行设置 TrustWorkspace 等）。
+    /// 保留子命令及其后的所有参数（子命令专属选项如 --json --args-file 不受影响）。
+    /// </summary>
+    private static string[] ReorderSubCommandToFront(string[] args, int subCmdIndex)
+    {
+        if (subCmdIndex == 0)
+            return args;
+        var newArgs = new string[args.Length - subCmdIndex];
+        newArgs[0] = args[subCmdIndex];
+        if (subCmdIndex + 1 < args.Length)
+            Array.Copy(args, subCmdIndex + 1, newArgs, 1, args.Length - subCmdIndex - 1);
+        return newArgs;
     }
 }

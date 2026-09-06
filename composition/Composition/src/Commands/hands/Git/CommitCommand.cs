@@ -4,6 +4,7 @@ namespace JoinCode.ChatCommands;
 /// /commit 命令 - 创建 Git 提交
 /// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Commit, Description = "创建 Git 提交", Usage = "/commit [message]", Category = ChatCommandCategory.Code, ArgumentHint = "[message]")]
+[ChatCommandArg("message", Type = "string", Description = "提交消息")]
 public sealed class CommitCommand : ChatCommandBase
 {
     // 对齐 TS: Git Safety Protocol — 禁止提交的文件模式（FrozenSet 类型规范，子串匹配仍需遍历）

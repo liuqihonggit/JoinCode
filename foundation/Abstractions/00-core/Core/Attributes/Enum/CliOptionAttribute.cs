@@ -42,6 +42,23 @@ public sealed class CliOptionAttribute : Attribute
     /// </summary>
     public string? Example { get; init; }
 
+    /// <summary>
+    /// 别名目标长参数名 — 声明此选项等价于另一个选项（如 --bypass 等价于 --permission-mode bypass）
+    /// 生成器在 Parse 时自动展开别名，消除 ParseArgs 中手动 if 链
+    /// </summary>
+    public string? AliasOf { get; init; }
+
+    /// <summary>
+    /// 别名值 — AliasOf 目标选项的值（如 --bypass 的 AliasOf="--permission-mode", AliasValue="bypass"）
+    /// </summary>
+    public string? AliasValue { get; init; }
+
+    /// <summary>
+    /// 环境变量名 — 声明此选项的值应同步到指定环境变量（如 --vendor 的 EnvVar="JCC_VENDOR"）
+    /// 生成器在 Parse 后自动 SetEnvironmentVariable，消除 ParseArgs 中手动映射
+    /// </summary>
+    public string? EnvVar { get; init; }
+
     public CliOptionAttribute(string longName, string shortName, string description)
     {
         LongName = longName ?? throw new ArgumentNullException(nameof(longName));

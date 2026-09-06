@@ -1,6 +1,8 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Mcp, Description = "管理 MCP 服务器", Usage = "/mcp [list|status|add|remove|reconnect|enable|disable] [args]", Category = ChatCommandCategory.Tools, ArgumentHint = "[list|status|add|remove|reconnect|enable|disable]")]
+[ChatCommandArg("action", Type = "string", Description = "MCP 管理操作", Enum = new[] { "list", "status", "add", "remove", "reconnect", "enable", "disable" })]
+[ChatCommandArg("args", Type = "string", Description = "操作参数（add/remove 时为服务器名或配置 JSON）")]
 public sealed class McpCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

@@ -614,56 +614,6 @@ public static partial class ChatCommandConversationScripts
     };
 
     /// <summary>
-    /// /passes 命令 — 已废弃，重定向到 /permissions
-    /// </summary>
-    public static ConversationScript PassesCommand => new()
-    {
-        Name = "/passes 命令",
-        Turns =
-        [
-            new ConversationTurn
-            {
-                UserInput = "/passes",
-                AiResponse = new MockResponseScript
-                {
-                    Type = MockResponseType.TextOnly,
-                    TextResponse = "/passes 已废弃"
-                },
-                Asserts =
-                [
-                    new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "/passes应有回复" },
-                    new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "不应有错误" },
-                ]
-            }
-        ]
-    };
-
-    /// <summary>
-    /// /output-style 命令 — 已废弃，重定向到 /config
-    /// </summary>
-    public static ConversationScript OutputStyleCommand => new()
-    {
-        Name = "/output-style 命令",
-        Turns =
-        [
-            new ConversationTurn
-            {
-                UserInput = "/output-style",
-                AiResponse = new MockResponseScript
-                {
-                    Type = MockResponseType.TextOnly,
-                    TextResponse = "/output-style 已废弃"
-                },
-                Asserts =
-                [
-                    new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "/output-style应有回复" },
-                    new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "不应有错误" },
-                ]
-            }
-        ]
-    };
-
-    /// <summary>
     /// /rate-limit-options 命令 — 显示速率限制
     /// </summary>
     public static ConversationScript RateLimitOptionsCommand => new()

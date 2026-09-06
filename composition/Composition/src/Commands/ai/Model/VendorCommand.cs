@@ -1,6 +1,7 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Vendor, Description = "查看或切换 LLM 供应商", Usage = "/vendor [名称|list]", Category = ChatCommandCategory.Model, ArgumentHint = "[openai|anthropic|deepseek|azure|agnes|sensenova|bedrock|list]")]
+[ChatCommandArg("name", Type = "string", Description = "供应商名称或 list", Enum = new[] { "openai", "anthropic", "deepseek", "azure", "agnes", "sensenova", "bedrock", "list" })]
 public sealed class VendorCommand : ChatCommandBase
 {
     public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

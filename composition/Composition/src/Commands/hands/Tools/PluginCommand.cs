@@ -8,6 +8,8 @@ namespace JoinCode.ChatCommands;
 /// 架构差异：TS 有 discover/marketplace/validate/trust-warning 交互式 UI，C# 为命令行操作
 /// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Plugin, Description = "管理插件", Usage = "/plugin [list|install|uninstall|enable|disable] [name]", Category = ChatCommandCategory.Tools, Aliases = ["plugins", "marketplace"], ArgumentHint = "[list|install|uninstall|enable|disable]")]
+[ChatCommandArg("action", Type = "string", Description = "插件操作", Enum = new[] { "list", "install", "uninstall", "enable", "disable" })]
+[ChatCommandArg("name", Type = "string", Description = "插件名称")]
 public sealed class PluginCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

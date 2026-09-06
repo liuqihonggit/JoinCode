@@ -18,7 +18,7 @@ public sealed class MappedFileReaderTests
         var path = CreateTempFile("hello world");
         try
         {
-            using var reader = MappedFileReader.Open(path);
+            using var reader = new MappedFileReader(path);
             var content = reader.ReadToEnd();
             Assert.Equal("hello world", content);
         }
@@ -34,7 +34,7 @@ public sealed class MappedFileReaderTests
         var path = CreateTempFile("ABC");
         try
         {
-            using var reader = MappedFileReader.Open(path);
+            using var reader = new MappedFileReader(path);
             var bytes = reader.ToArray();
             Assert.Equal(new byte[] { 0x41, 0x42, 0x43 }, bytes);
         }
@@ -50,7 +50,7 @@ public sealed class MappedFileReaderTests
         var path = CreateTempFile("1234567890");
         try
         {
-            using var reader = MappedFileReader.Open(path);
+            using var reader = new MappedFileReader(path);
             Assert.Equal(10, reader.Length);
         }
         finally
@@ -65,7 +65,7 @@ public sealed class MappedFileReaderTests
         var path = CreateTempFile("");
         try
         {
-            using var reader = MappedFileReader.Open(path);
+            using var reader = new MappedFileReader(path);
             Assert.Equal("", reader.ReadToEnd());
             Assert.Equal(0, reader.Length);
         }
@@ -82,7 +82,7 @@ public sealed class MappedFileReaderTests
         var path = CreateTempFile(expected);
         try
         {
-            using var reader = MappedFileReader.Open(path);
+            using var reader = new MappedFileReader(path);
             var content = reader.ReadToEnd();
             Assert.Equal(expected, content);
             Assert.Equal(100_000, reader.Length);
@@ -97,7 +97,7 @@ public sealed class MappedFileReaderTests
     public void Open_NonExistentFile_ThrowsFileNotFoundException()
     {
         var path = Path.Combine(Path.GetTempPath(), $"nonexistent_{Guid.NewGuid():N}.txt");
-        Assert.Throws<FileNotFoundException>(() => MappedFileReader.Open(path));
+        Assert.Throws<FileNotFoundException>(() => new MappedFileReader(path));
     }
 
     [Fact]
@@ -106,7 +106,7 @@ public sealed class MappedFileReaderTests
         var path = CreateTempFile("你好世界");
         try
         {
-            using var reader = MappedFileReader.Open(path);
+            using var reader = new MappedFileReader(path);
             var content = reader.ReadToEnd();
             Assert.Equal("你好世界", content);
         }
@@ -122,7 +122,7 @@ public sealed class MappedFileReaderTests
         var path = CreateTempFile("test");
         try
         {
-            var reader = MappedFileReader.Open(path);
+            var reader = new MappedFileReader(path);
             reader.Dispose();
             reader.Dispose();
         }
@@ -138,8 +138,8 @@ public sealed class MappedFileReaderTests
         var path = CreateTempFile("shared content");
         try
         {
-            using var r1 = MappedFileReader.Open(path);
-            using var r2 = MappedFileReader.Open(path);
+            using var r1 = new MappedFileReader(path);
+            using var r2 = new MappedFileReader(path);
             Assert.Equal("shared content", r1.ReadToEnd());
             Assert.Equal("shared content", r2.ReadToEnd());
         }

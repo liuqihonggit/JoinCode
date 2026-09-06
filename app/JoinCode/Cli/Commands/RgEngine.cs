@@ -219,7 +219,7 @@ internal static class RgEngine
     /// </summary>
     private static string ReadViaMmap(string path)
     {
-        using var reader = MappedFileReader.Open(path);
+        using var reader = new MappedFileReader(path);
         return reader.ReadToEnd();
     }
 

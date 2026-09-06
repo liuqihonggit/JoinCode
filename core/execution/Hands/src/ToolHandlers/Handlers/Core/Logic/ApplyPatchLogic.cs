@@ -245,7 +245,14 @@ public sealed partial class ApplyPatchLogic : ServiceEntity
         if (string.IsNullOrEmpty(content))
             return [];
 
-        return content.Split('\n');
+        // 行尾归一化: 去掉 \r 支持 CRLF/LF 混合行尾, 与 ParsePatch 的 TrimEnd('\r') 对齐
+        var lines = content.Split('\n');
+        for (var i = 0; i < lines.Length; i++)
+        {
+            if (lines[i].EndsWith('\r'))
+                lines[i] = lines[i][..^1];
+        }
+        return lines;
     }
 
     [GeneratedRegex(@"^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@")]

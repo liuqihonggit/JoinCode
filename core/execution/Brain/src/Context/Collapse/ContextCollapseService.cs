@@ -231,20 +231,39 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
 
     private static string GenerateCodeBlockSummary(CollapsibleSegment segment, int maxLen)
     {
-        var lines = segment.Content.Split('\n');
-        var firstLine = lines.FirstOrDefault(l => !string.IsNullOrWhiteSpace(l)) ?? "";
+        var contentSpan = segment.Content.AsSpan();
+        var ranges = LineSpanIndexer.BuildLineRanges(contentSpan);
+        string firstLine = "";
+        foreach (var (start, length) in ranges)
+        {
+            var lineSpan = contentSpan.Slice(start, length);
+            if (!lineSpan.IsWhiteSpace())
+            {
+                firstLine = lineSpan.ToString();
+                break;
+            }
+        }
         var refs = segment.KeyReferences.Count > 0
             ? $" | Refs: {string.Join(", ", segment.KeyReferences.Take(5))}"
             : "";
-        var summary = $"[Code: {lines.Length} lines{refs}] {StringTruncator.Truncate(firstLine.Trim(), maxLen - 50)}";
+        var summary = $"[Code: {ranges.Count} lines{refs}] {StringTruncator.Truncate(firstLine.Trim(), maxLen - 50)}";
         return StringTruncator.Truncate(summary, maxLen);
     }
 
     private static string GenerateRepetitiveSummary(CollapsibleSegment segment, int maxLen)
     {
-        var lines = segment.Content.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        var sample = lines.FirstOrDefault() ?? "";
-        var summary = $"[Repetitive pattern: {lines.Length} lines] {StringTruncator.Truncate(sample.Trim(), maxLen - 60)}";
+        var contentSpan = segment.Content.AsSpan();
+        var ranges = LineSpanIndexer.BuildLineRanges(contentSpan);
+        string sample = "";
+        var nonEmptyCount = 0;
+        foreach (var (start, length) in ranges)
+        {
+            if (length == 0) continue;
+            nonEmptyCount++;
+            if (sample.Length == 0)
+                sample = contentSpan.Slice(start, length).ToString();
+        }
+        var summary = $"[Repetitive pattern: {nonEmptyCount} lines] {StringTruncator.Truncate(sample.Trim(), maxLen - 60)}";
         return StringTruncator.Truncate(summary, maxLen);
     }
 
@@ -296,7 +315,7 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
         };
 
         var lengthBonus = Math.Min(0.2, tokenCount / 5000.0);
-        var hasManyLines = content.Split('\n').Length > 50 ? 0.1 : 0;
+        var hasManyLines = LineSpanIndexer.BuildLineRanges(content.AsSpan()).Count > 50 ? 0.1 : 0;
 
         return Math.Min(1.0, basePriority + lengthBonus + hasManyLines);
     }
@@ -347,12 +366,14 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
     private static List<PatternRange> DetectRepetitivePatterns(string content)
     {
         var patterns = new List<PatternRange>();
-        var lines = content.Split('\n');
+        var ranges = LineSpanIndexer.BuildLineRanges(content.AsSpan());
         var lineCounts = new Dictionary<string, (int Count, int FirstLine, int LastLine)>();
 
-        for (var i = 0; i < lines.Length; i++)
+        for (var i = 0; i < ranges.Count; i++)
         {
-            var trimmed = lines[i].Trim();
+            var (start, length) = ranges[i];
+            var line = content.Substring(start, length);
+            var trimmed = line.Trim();
             if (trimmed.Length < 10) continue;
 
             var key = trimmed.Length > 50 ? trimmed[..50] : trimmed;
@@ -373,7 +394,7 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
             var firstLine = kvp.Value.FirstLine;
             var lastLine = kvp.Value.LastLine;
             var startOffset = GetOffsetForLine(content, firstLine);
-            var endOffset = GetOffsetForLine(content, lastLine) + lines[lastLine].Length;
+            var endOffset = GetOffsetForLine(content, lastLine) + ranges[lastLine].Length;
 
             if (endOffset > startOffset)
             {

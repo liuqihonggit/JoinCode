@@ -159,7 +159,7 @@ public sealed class P4MacroRecorderTests
     [Fact]
     public void LoadMacro_ReadsJsonFromFile()
     {
-        var json = """{"Name":"loaded","Operations":[{"Kind":1,"X":100,"Y":200,"Text":null,"MouseAction":1,"Modifiers":null,"Timestamp":"2026-01-01T00:00:00Z","Succeeded":true,"Error":null}],"CreatedAt":"2026-01-01T00:00:00Z"}""";
+        var json = """{"name":"loaded","operations":[{"kind":1,"x":100,"y":200,"text":null,"mouseAction":1,"modifiers":null,"timestamp":"2026-01-01T00:00:00Z","succeeded":true,"error":null}],"createdAt":"2026-01-01T00:00:00Z"}""";
         var fsMock = new Mock<IFileSystem>();
         fsMock.Setup(fs => fs.ReadAllText("/tmp/test.json")).Returns(json);
 

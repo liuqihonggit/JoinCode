@@ -34,7 +34,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
         using var lease = await _throttleService.AcquireAsync(IOOperationType.Read, cancellationToken)
             .ConfigureAwait(false);
 
-        var span = _telemetryService?.StartSpan("file.read", TelemetrySpanKind.Server);
+        await using var span = _telemetryService?.StartSpan("file.read", TelemetrySpanKind.Server);
         span?.SetTag("path", filePath);
         try
         {
@@ -77,10 +77,6 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
             RecordFileMetrics(FileOperationType.Read, FileOperationResult.Failed);
             return FileReadResult.FailureResult(filePath, ex.Message);
         }
-        finally
-        {
-            if (span is not null) await span.DisposeAsync().ConfigureAwait(false);
-        }
     }
 
     /// <inheritdoc />
@@ -92,7 +88,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
         using var lease = await _throttleService.AcquireAsync(IOOperationType.Write, cancellationToken)
             .ConfigureAwait(false);
 
-        var span = _telemetryService?.StartSpan("file.write", TelemetrySpanKind.Server);
+        await using var span = _telemetryService?.StartSpan("file.write", TelemetrySpanKind.Server);
         span?.SetTag("path", filePath);
         try
         {
@@ -143,10 +139,6 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
             RecordFileMetrics(FileOperationType.Write, FileOperationResult.Failed);
             return FileWriteResult.FailureResult(filePath, ex.Message);
         }
-        finally
-        {
-            if (span is not null) await span.DisposeAsync().ConfigureAwait(false);
-        }
     }
 
     /// <inheritdoc />
@@ -160,7 +152,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
         using var lease = await _throttleService.AcquireAsync(IOOperationType.Write, cancellationToken)
             .ConfigureAwait(false);
 
-        var span = _telemetryService?.StartSpan("file.edit", TelemetrySpanKind.Server);
+        await using var span = _telemetryService?.StartSpan("file.edit", TelemetrySpanKind.Server);
         span?.SetTag("path", filePath);
         try
         {
@@ -221,10 +213,6 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
             RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Failed);
             return FileEditResult.FailureResult(filePath, oldString, newString, ex.Message);
         }
-        finally
-        {
-            if (span is not null) await span.DisposeAsync().ConfigureAwait(false);
-        }
     }
 
     /// <inheritdoc />
@@ -235,7 +223,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
         using var lease = await _throttleService.AcquireAsync(IOOperationType.Write, cancellationToken)
             .ConfigureAwait(false);
 
-        var span = _telemetryService?.StartSpan("file.edit_line_range", TelemetrySpanKind.Server);
+        await using var span = _telemetryService?.StartSpan("file.edit_line_range", TelemetrySpanKind.Server);
         span?.SetTag("path", request.FilePath);
         try
         {
@@ -287,10 +275,6 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
             _logger?.LogError(ex, "Failed to edit file by line range: {FilePath}", request.FilePath);
             RecordFileMetrics(FileOperationType.EditLineRange, FileOperationResult.Failed);
             return FileLineEditResult.FailureResult(request.FilePath, request.StartLine, request.EndLine, ex.Message);
-        }
-        finally
-        {
-            if (span is not null) await span.DisposeAsync().ConfigureAwait(false);
         }
     }
 

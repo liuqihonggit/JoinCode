@@ -214,7 +214,7 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
             TotalEvents = events.Count,
             TotalToolCalls = totalToolCalls,
             ToolSuccessRate = totalToolCalls > 0 ? (double)successfulToolCalls / totalToolCalls * 100 : 0,
-            AverageToolDurationMs = toolEvents.Where(e => e.DurationMs.HasValue).Average(e => e.DurationMs ?? 0),
+            AverageToolDurationMs = toolEvents.Where(e => e.DurationMs.HasValue).Select(e => e.DurationMs ?? 0).DefaultIfEmpty(0).Average(),
             TopTools = GetToolUsageStatistics(days).Take(10).ToList(),
             DailyStats = dailyStats,
             ErrorRate = events.Count > 0 ? (double)errorCount / events.Count * 100 : 0

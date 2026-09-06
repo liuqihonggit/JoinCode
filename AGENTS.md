@@ -310,7 +310,7 @@ d,手动验证,通过设置启动参数,通过bash调用来实际运行,真实�
 | 特殊字符禁令 | commit 消息禁止 `$`、反引号、三引号 |
 | ⚠️ 源码生成器 + 增量编译 | `dotnet build` 默认增量编译，会缓存生成器输出。**新增/修改 `[Register]` 类后必须用 `--no-incremental` 全量重建**，否则生成器不会重新扫描新类型 |
 | PR 两段式验证 | PR 通过 CI 后自动合并到 main → main 自动触发自身 CI 实现二次验证。创建 PR 时必须启用 auto-merge（squash 方式）。PR 目标分支统一为 main，无 dev 中间层 |
-| gh 工具优先 | 操作 PR/Issue/Release 等 GitHub 资源时，优先使用 `gh` CLI，而非 PowerShell 脚本或手动操作 |
+| gh 工具优先 | 操作 PR/Issue/Release 等 GitHub 资源时，优先使用 `jcc mcp_call gh_*` 工具（直调 GitHub REST API，无需系统 gh CLI），而非 PowerShell 脚本或手动操作 > ADR: [0072](docs/adr/0072-gh-rest-api-direct-call.md) |
 
 **Git commit 消息格式**：
 - 标准：`类型: 描述`
@@ -533,11 +533,14 @@ public FrozenSet<string>? FilterSet => _filterSet ??= Filters?.ToFrozenSet();
 2. **Python 脚本次之**：本机 Python 3.12.10，批量文本处理/脚本检测优先使用 `.py` 脚本，而非 PowerShell
    - 适用场景：文件搜索统计、简单文本替换、报告生成等不需要语义理解的场景
 3. **PowerShell 最后**：PowerShell 5.1.19041.6456，仅用于系统操作和 dotnet/gh 命令编排
-4. **gh CLI 优先**：操作 PR/Issue/Release 等 GitHub 资源时，优先使用 `gh` CLI，而非 PowerShell 脚本或手动操作
+4. **jcc gh 工具优先**：操作 PR/Issue/Release 等 GitHub 资源时，优先使用 `jcc mcp_call gh_*`（直调 GitHub REST API，无需系统 gh CLI），而非 PowerShell 脚本或手动操作 > ADR: [0072](docs/adr/0072-gh-rest-api-direct-call.md)
+5. **jcc rg 优先**：代码搜索时优先使用 `jcc rg`（内置 `RgEngine`，mmap+PLINQ+零GC，无需系统 rg），而非 `grep`/`Select-String` > ADR: [0070](docs/adr/0070-rgengine-independent-implementation.md)
 
 ### gh CLI 排错避坑指南（强制遵守）
 
 > **以下全是血泪踩坑记录。排错时必须按此指南操作，禁止重复踩坑。**
+>
+> **⚠️ ADR 0072 后大部分 gh_* 已走 REST API（无引号/超时问题）**：gh_api/gh_pr_*/gh_issue_*/gh_repo_*/gh_release_(list/view/create/download/delete)/gh_run_(list/rerun/cancel) 均直调 GitHub REST API。仅 **gh_run_view**（缓存+并行下载逻辑复杂）和 **gh_release_upload**（需二进制上传）仍用 gh 子命令，以下坑仅对这两个命令适用。
 
 #### 坑1：`gh api` + jq 在 PowerShell 中引号被吃掉
 

@@ -87,6 +87,16 @@ public sealed partial class LspService : ServiceEntity, ILspService
         }
     }
 
+    /// <summary>
+    /// 检查指定文件对应的 LSP 服务器是否可用（已安装且能启动）
+    /// </summary>
+    public async Task<bool> IsServerAvailableAsync(string filePath, CancellationToken cancellationToken = default)
+    {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var server = await _lspManager.EnsureServerStartedAsync(filePath, cancellationToken).ConfigureAwait(false);
+        return server is not null;
+    }
+
     public async Task<List<LspLocation>> GotoDefinitionAsync(string filePath, int line, int character, CancellationToken cancellationToken = default)
     {
         await EnsureFileOpenAsync(filePath, cancellationToken).ConfigureAwait(false);

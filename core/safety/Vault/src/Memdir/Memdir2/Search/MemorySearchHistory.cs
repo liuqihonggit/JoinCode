@@ -128,12 +128,11 @@ public sealed partial class MemorySearchHistoryService : ServiceEntity, IMemoryS
     private readonly MemoryStore _memoryStore;
     private readonly ILogger<MemorySearchHistoryService>? _logger;
     private readonly IClockService _clock;
-    private readonly AsyncLock _historyLock = new();
 
     /// <summary>
-    /// 搜索历史记录（按时间倒序）
+    /// 搜索历史记录（按时间倒序）— 无锁不可变快照，CAS 原子更新
     /// </summary>
-    private readonly ConcurrentDeque<SearchHistoryEntry> _searchHistory;
+    private ImmutableList<SearchHistoryEntry> _searchHistory = ImmutableList<SearchHistoryEntry>.Empty;
 
     public MemorySearchHistoryService(
         MemoryStore memoryStore,
@@ -143,11 +142,10 @@ public sealed partial class MemorySearchHistoryService : ServiceEntity, IMemoryS
         _memoryStore = memoryStore ?? throw new ArgumentNullException(nameof(memoryStore));
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
-        _searchHistory = new ConcurrentDeque<SearchHistoryEntry>();
     }
 
     /// <inheritdoc />
-    public async Task<SearchHistoryEntry> RecordSearchAsync(
+    public Task<SearchHistoryEntry> RecordSearchAsync(
         string query,
         int resultCount,
         ImmutableList<string>? topMemoryIds = null,
@@ -156,31 +154,34 @@ public sealed partial class MemorySearchHistoryService : ServiceEntity, IMemoryS
         ArgumentNullException.ThrowIfNull(query);
 
         cancellationToken.ThrowIfCancellationRequested();
-                using (await _historyLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_historyLock.Name}' 等待超时"))
+
+        var entry = new SearchHistoryEntry
         {
-            var entry = new SearchHistoryEntry
-            {
-                Query = query,
-                ResultCount = resultCount,
-                TopMemoryIds = topMemoryIds ?? ImmutableList<string>.Empty,
-                SearchedAt = _clock.GetUtcNow()
-            };
+            Query = query,
+            ResultCount = resultCount,
+            TopMemoryIds = topMemoryIds ?? ImmutableList<string>.Empty,
+            SearchedAt = _clock.GetUtcNow()
+        };
 
-            _searchHistory.Prepend(entry);
-
-            // 超出容量时移除最旧的记录
-            while (_searchHistory.Count > MaxHistorySize)
+        // 无锁 CAS 循环 — 原子更新不可变快照
+        ImmutableList<SearchHistoryEntry> original;
+        ImmutableList<SearchHistoryEntry> updated;
+        do
+        {
+            original = Volatile.Read(ref _searchHistory);
+            updated = original.Insert(0, entry);
+            if (updated.Count > MaxHistorySize)
             {
-                _searchHistory.TryTakeBack(out _);
+                updated = updated.RemoveAt(updated.Count - 1);
             }
+        } while (Interlocked.CompareExchange(ref _searchHistory, updated, original) != original);
 
-            _logger?.LogDebug(
-                L.T(StringKey.VaultLogRecordSearch),
-                query[..Math.Min(50, query.Length)],
-                resultCount);
+        _logger?.LogDebug(
+            L.T(StringKey.VaultLogRecordSearch),
+            query[..Math.Min(50, query.Length)],
+            resultCount);
 
-            return entry;
-        }
+        return Task.FromResult(entry);
     }
 
     /// <inheritdoc />
@@ -317,7 +318,7 @@ public sealed partial class MemorySearchHistoryService : ServiceEntity, IMemoryS
     /// <inheritdoc />
     public IReadOnlyList<SearchHistoryEntry> GetRecentSearches(int limit = 20)
     {
-        return _searchHistory.Take(limit).ToImmutableList();
+        return Volatile.Read(ref _searchHistory).Take(limit).ToImmutableList();
     }
 
     /// <summary>
@@ -340,65 +341,5 @@ public sealed partial class MemorySearchHistoryService : ServiceEntity, IMemoryS
         return (double)overlap / minCount > 0.3;
     }
 
-    protected override void OnDispose() => _historyLock.Dispose();
-}
-
-/// <summary>
-/// 简易双端队列（线程安全）
-/// 用于搜索历史的 FIFO 管理
-/// </summary>
-internal sealed class ConcurrentDeque<T>
-{
-    private readonly LinkedList<T> _list;
-    private readonly AsyncLock _lockObj;
-
-    public ConcurrentDeque()
-    {
-        _list = new LinkedList<T>();
-        _lockObj = new AsyncLock("MemorySearchHistory");
-    }
-
-    public int Count
-    {
-        get
-        {
-            using (_lockObj.TryLock() ?? throw new System.TimeoutException($"锁 '{_lockObj.Name}' 等待超时"))
-            {
-                return _list.Count;
-            }
-        }
-    }
-
-    public void Prepend(T item)
-    {
-        using (_lockObj.TryLock() ?? throw new System.TimeoutException($"锁 '{_lockObj.Name}' 等待超时"))
-        {
-            _list.AddFirst(item);
-        }
-    }
-
-    public bool TryTakeBack(out T? item)
-    {
-        using (_lockObj.TryLock() ?? throw new System.TimeoutException($"锁 '{_lockObj.Name}' 等待超时"))
-        {
-            if (_list.Count == 0)
-            {
-                item = default;
-                return false;
-            }
-
-            var last = _list.Last ?? throw new InvalidOperationException("LinkedList last node is null despite non-zero count.");
-            item = last.Value;
-            _list.RemoveLast();
-            return true;
-        }
-    }
-
-    public IReadOnlyList<T> Take(int count)
-    {
-        using (_lockObj.TryLock() ?? throw new System.TimeoutException($"锁 '{_lockObj.Name}' 等待超时"))
-        {
-            return _list.Take(count).ToImmutableList();
-        }
-    }
+    protected override void OnDispose() { }
 }

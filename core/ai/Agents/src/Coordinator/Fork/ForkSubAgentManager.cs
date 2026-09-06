@@ -49,6 +49,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
     private readonly ConcurrentDictionary<string, Dictionary<string, string>> _sharedCache;
     private readonly AsyncLock _lock = new();
     private volatile AsyncLock? _forkSemaphore;
+    private int _disposed;
 
     public event EventHandler<ForkCompletedEventArgs>? ForkCompleted;
 
@@ -544,6 +545,8 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+
         await CleanupForkEntriesAsync().ConfigureAwait(false);
         _lock.Dispose();
         _forkSemaphore?.Dispose();

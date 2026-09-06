@@ -75,6 +75,14 @@ public sealed partial class FileWatcherIntegration : IAsyncDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
 
+        await StopCoreAsync(ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 停止核心逻辑 — 不检查 _disposed，供 StopAsync 和 DisposeAsync 共用
+    /// </summary>
+    private async Task StopCoreAsync(CancellationToken ct)
+    {
         if (_watcher is not null)
         {
             _watcher.EnableRaisingEvents = false;
@@ -227,15 +235,7 @@ public sealed partial class FileWatcherIntegration : IAsyncDisposable
             return;
         }
 
-        if (_watcher is not null)
-        {
-            _watcher.EnableRaisingEvents = false;
-            _watcher.Dispose();
-            _watcher = null;
-        }
-
-        await StopAsync(CancellationToken.None).ConfigureAwait(false);
-        _updateCts?.Cancel();
+        await StopCoreAsync(CancellationToken.None).ConfigureAwait(false);
         _updateCts?.Dispose();
         _updateCts = null;
         _pendingLock.Dispose();

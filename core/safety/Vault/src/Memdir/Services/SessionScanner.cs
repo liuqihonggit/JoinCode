@@ -54,28 +54,23 @@ public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScann
             return Array.Empty<InsightSessionMeta>();
         }
 
-        var results = new List<InsightSessionMeta>();
-
-        foreach (var file in _fs.EnumerateFiles(_sessionsDirectory, "*.json", SearchOption.TopDirectoryOnly))
+        var files = _fs.EnumerateFiles(_sessionsDirectory, "*.json", SearchOption.TopDirectoryOnly);
+        var tasks = files.Select(async file =>
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
             try
             {
-                var meta = await ExtractSessionMetaAsync(file, cancellationToken).ConfigureAwait(false);
-                if (meta is not null)
-                {
-                    results.Add(meta);
-                }
+                return await ExtractSessionMetaAsync(file, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) { throw; }
             catch (Exception ex)
             {
                 _logger?.LogWarning(ex, "跳过无法读取的会话文件: {File}", file);
+                return null;
             }
-        }
+        }).ToArray();
 
-        return results;
+        var results = await Task.WhenAll(tasks).ConfigureAwait(false);
+        return results.Where(r => r is not null).Cast<InsightSessionMeta>().ToList();
     }
 
     /// <summary>

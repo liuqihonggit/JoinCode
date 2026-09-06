@@ -413,15 +413,15 @@ public partial class GitHubToolHandlers
             }).ToArray();
             var results = await Task.WhenAll(tasks).ConfigureAwait(false);
 
-            // 3. 合并日志(用 job 名作为 step 名)
-            foreach (var (jobName, logLines) in results)
+            // 3. 合并日志(统一用 ParseAndAccumulate 从 [entry.Name] 提取 step 名)
+            foreach (var (_, logLines) in results)
             {
                 if (logLines.Count == 0) continue;
                 foreach (var line in logLines)
                 {
                     if (string.IsNullOrEmpty(line)) continue;
                     rawBuilder.Append(line).Append('\n');
-                    Accumulate(line, jobName, summary, sectionContents);
+                    ParseAndAccumulate(line, summary, sectionContents);
                 }
             }
 
@@ -436,13 +436,53 @@ public partial class GitHubToolHandlers
     }
 
     /// <summary>
-    /// 解析一行日志并累积 — 4 列格式(JobName\tStepName\tTimestamp\tLogLine),从 parts[1] 提取 step 名
+    /// 解析一行日志并累积 — 支持 REST API 格式 [entry.Name] line 和 gh CLI TSV 格式
+    /// <para>REST API: zip entry 名如 "0_Checkout.txt" → step 名 "Checkout"</para>
+    /// <para>gh CLI: TSV 第二列是 step 名</para>
     /// </summary>
     private static void ParseAndAccumulate(string line, RunLogSummary summary, Dictionary<string, Dictionary<string, List<string>>> sectionContents)
     {
-        var parts = line.Split('\t');
-        if (parts.Length < 2) return;
-        Accumulate(line, parts[1], summary, sectionContents);
+        var stepName = TryExtractStepName(line);
+        if (stepName is null) return;
+        Accumulate(line, stepName, summary, sectionContents);
+    }
+
+    /// <summary>
+    /// 从日志行提取步骤名 — REST API 格式 [entry.Name] line 优先,回退 gh CLI TSV 格式
+    /// </summary>
+    private static string? TryExtractStepName(string line)
+    {
+        // REST API 格式: [entry.Name] logLine — entry.Name 是 zip 文件名(如 0_Checkout.txt)
+        if (line.StartsWith('['))
+        {
+            var closeIdx = line.IndexOf(']');
+            if (closeIdx > 1)
+            {
+                return ExtractStepNameFromEntryName(line[1..closeIdx]);
+            }
+        }
+
+        // gh CLI TSV 格式: 列1\t步骤名\t...
+        var tabIdx = line.IndexOf('\t');
+        if (tabIdx < 0) return null;
+        var secondTabIdx = line.IndexOf('\t', tabIdx + 1);
+        return secondTabIdx > tabIdx ? line[(tabIdx + 1)..secondTabIdx] : line[(tabIdx + 1)..];
+    }
+
+    /// <summary>
+    /// 从 zip entry 名提取步骤名 — "0_Checkout.txt" → "Checkout", "Build.txt" → "Build", "0_build/1_Test.txt" → "Test"
+    /// </summary>
+    private static string ExtractStepNameFromEntryName(string entryName)
+    {
+        var name = entryName;
+        var slashIdx = name.LastIndexOf('/');
+        if (slashIdx >= 0) name = name[(slashIdx + 1)..];
+        var dotIdx = name.LastIndexOf('.');
+        if (dotIdx > 0) name = name[..dotIdx];
+        var underscoreIdx = name.IndexOf('_');
+        if (underscoreIdx > 0 && int.TryParse(name.AsSpan(0, underscoreIdx), out _))
+            name = name[(underscoreIdx + 1)..];
+        return name.Length == 0 ? entryName : name;
     }
 
     /// <summary>

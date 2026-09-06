@@ -95,14 +95,16 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
     /// <inheritdoc />
     public string[] ReadAllLines(string path)
     {
-        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        using var reader = new StreamReader(stream);
-        var lines = new List<string>();
-        while (reader.ReadLine() is { } line)
+        using var reader = new MappedFileReader(path);
+        var content = reader.ReadToEnd();
+        var ranges = LineSpanIndexer.BuildLineRanges(content.AsSpan());
+        var lines = new string[ranges.Count];
+        for (var i = 0; i < ranges.Count; i++)
         {
-            lines.Add(line);
+            var (start, length) = ranges[i];
+            lines[i] = content.Substring(start, length);
         }
-        return lines.ToArray();
+        return lines;
     }
 
     /// <inheritdoc />
@@ -284,10 +286,15 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
     }
 
     /// <summary>
-    /// 同步读取全部文本 — FileShare.ReadWrite 允许并发写入者
+    /// 同步读取全部文本 — UTF-8 用 mmap 零拷贝，其他编码走 StreamReader
     /// </summary>
     private static string ReadAllTextWithShare(string path, Encoding encoding)
     {
+        if (encoding is UTF8Encoding)
+        {
+            using var mmapReader = new MappedFileReader(path);
+            return mmapReader.ReadToEnd();
+        }
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         using var reader = new StreamReader(stream, encoding);
         return reader.ReadToEnd();
@@ -305,19 +312,33 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
     }
 
     /// <summary>
-    /// 读取全部文本 — FileShare.ReadWrite 允许并发写入者
+    /// 读取全部文本 — UTF-8 用 mmap 零拷贝，其他编码走 StreamReader
     /// </summary>
-    private static async Task<string> ReadAllTextWithShareAsync(string path, CancellationToken cancellationToken)
+    private static Task<string> ReadAllTextWithShareAsync(string path, CancellationToken cancellationToken)
     {
-        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        using var reader = new StreamReader(stream);
-        return await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        using var reader = new MappedFileReader(path);
+        return Task.FromResult(reader.ReadToEnd());
     }
 
     /// <summary>
-    /// 读取全部文本（指定编码）— FileShare.ReadWrite 允许并发写入者
+    /// 读取全部文本（指定编码）— UTF-8 用 mmap 零拷贝，其他编码走 StreamReader
     /// </summary>
-    private static async Task<string> ReadAllTextWithShareAsync(string path, Encoding encoding, CancellationToken cancellationToken)
+    private static Task<string> ReadAllTextWithShareAsync(string path, Encoding encoding, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (encoding is UTF8Encoding)
+        {
+            using var reader = new MappedFileReader(path);
+            return Task.FromResult(reader.ReadToEnd());
+        }
+        return ReadAllTextWithShareAsyncCore(path, encoding, cancellationToken);
+    }
+
+    /// <summary>
+    /// 非 UTF-8 编码的异步读取实现
+    /// </summary>
+    private static async Task<string> ReadAllTextWithShareAsyncCore(string path, Encoding encoding, CancellationToken cancellationToken)
     {
         await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         using var reader = new StreamReader(stream, encoding);
@@ -325,17 +346,20 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
     }
 
     /// <summary>
-    /// 读取所有行 — FileShare.ReadWrite 允许并发写入者
+    /// 读取所有行 — UTF-8 用 mmap + LineSpanIndexer 零分配行遍历
     /// </summary>
-    private static async Task<string[]> ReadAllLinesWithShareAsync(string path, CancellationToken cancellationToken)
+    private static Task<string[]> ReadAllLinesWithShareAsync(string path, CancellationToken cancellationToken)
     {
-        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        using var reader = new StreamReader(stream);
-        var lines = new List<string>();
-        while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
+        cancellationToken.ThrowIfCancellationRequested();
+        using var reader = new MappedFileReader(path);
+        var content = reader.ReadToEnd();
+        var ranges = LineSpanIndexer.BuildLineRanges(content.AsSpan());
+        var lines = new string[ranges.Count];
+        for (var i = 0; i < ranges.Count; i++)
         {
-            lines.Add(line);
+            var (start, length) = ranges[i];
+            lines[i] = content.Substring(start, length);
         }
-        return lines.ToArray();
+        return Task.FromResult(lines);
     }
 }

@@ -462,6 +462,18 @@ internal sealed class FakeGitHubApiClient : IGitHubApiClient
     {
         yield break;
     }
+
+    public async IAsyncEnumerable<string> GetJobLogsAsync(string owner, string repo, long jobId, [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        yield break;
+    }
+
+    public Task<GitHubApiResponse> UploadAssetAsync(string owner, string repo, long releaseId, string fileName, Stream fileStream, CancellationToken ct = default)
+    {
+        LastMethod = HttpMethod.Post;
+        LastPath = $"repos/{owner}/{repo}/releases/{releaseId}/assets";
+        return Task.FromResult(NextResponse);
+    }
 }
 
 internal sealed class FakeDownloader : IDownloader

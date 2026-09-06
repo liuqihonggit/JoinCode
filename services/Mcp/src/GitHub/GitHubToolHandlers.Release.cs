@@ -3,7 +3,7 @@ namespace McpToolDispatch;
 /// <summary>
 /// GitHub Release 工具 — 直调 GitHub REST API（ADR 0072），替代原 gh release 子命令包装
 /// <para>核心优化: gh_release_download 复用 IDownloader 多线程分片 + 断点续传,解决下载失败痛点</para>
-/// <para>TODO: gh_release_upload 需二进制上传到 uploads.github.com,IGitHubApiClient 暂不支持,保留 gh 子命令</para>
+/// <para>gh_release_upload 走 uploads.github.com 二进制上传（IGitHubApiClient.UploadAssetAsync）</para>
 /// </summary>
 public partial class GitHubToolHandlers
 {
@@ -173,10 +173,56 @@ public partial class GitHubToolHandlers
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
     {
-        var sb = new StringBuilder($"release upload {tag} {files}");
-        sb.Append(RepoArg(repo));
-        var result = await RunGhAsync(sb.ToString(), ResolveWorkDir(working_dir), cancellationToken);
-        return result.Success ? Ok(result.Output, $"已上传 asset 到 Release {tag}") : Fail(result);
+        if (_apiClient is null) return ApiClientNotConfigured();
+        var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
+        if (resolved is null) return RepoNotResolved();
+        var (owner, repoName) = resolved.Value;
+
+        var viewResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases/tags/{tag}", ct: cancellationToken).ConfigureAwait(false);
+        if (!viewResult.Success) return Fail(viewResult.Error);
+
+        long releaseId;
+        try
+        {
+            using var doc = JsonDocument.Parse(viewResult.Body);
+            releaseId = doc.RootElement.GetProperty("id").GetInt64();
+        }
+        catch (Exception ex) { return Fail($"解析 Release id 失败: {ex.Message}"); }
+
+        var filePaths = files.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var sb = new StringBuilder();
+        var successCount = 0;
+        var failCount = 0;
+        foreach (var filePath in filePaths)
+        {
+            var fileName = Path.GetFileName(filePath);
+            try
+            {
+                using var fileStream = _fs.OpenRead(filePath);
+                var uploadResult = await _apiClient.UploadAssetAsync(owner, repoName, releaseId, fileName, fileStream, cancellationToken).ConfigureAwait(false);
+                if (uploadResult.Success)
+                {
+                    successCount++;
+                    sb.AppendLine($"[OK] {fileName}");
+                }
+                else
+                {
+                    failCount++;
+                    sb.AppendLine($"[FAIL] {fileName}: {uploadResult.Error}");
+                }
+            }
+            catch (Exception ex)
+            {
+                failCount++;
+                sb.AppendLine($"[FAIL] {fileName}: {ex.Message}");
+            }
+        }
+
+        sb.AppendLine();
+        sb.Append($"汇总: {successCount} 成功, {failCount} 失败, 共 {filePaths.Length} 个文件");
+        return failCount == 0
+            ? Ok(sb.ToString(), $"已上传 asset 到 Release {tag}")
+            : ToolResultBuilder.Error().WithText(sb.ToString()).Build();
     }
 
     [McpTool(GitHubToolNameConstants.GhReleaseDelete, "删除 Release", "github")]

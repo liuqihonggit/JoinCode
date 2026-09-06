@@ -179,6 +179,104 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient
         }
     }
 
+    /// <summary>
+    /// 获取 Actions Job 日志 — 逐行 yield（zip 解压后逐文件逐行）
+    /// </summary>
+    public async IAsyncEnumerable<string> GetJobLogsAsync(
+        string owner,
+        string repo,
+        long jobId,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var token = ResolveToken();
+        var path = $"repos/{owner}/{repo}/actions/jobs/{jobId}/logs";
+        var request = BuildRequest(HttpMethod.Get, path, null, null, token, true);
+
+        HttpResponseMessage? response = null;
+        string? fetchError = null;
+        var canceled = false;
+        try
+        {
+            response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) { canceled = true; }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "获取 Job 日志失败: jobId={JobId}", jobId);
+            fetchError = $"[ERROR] 获取 Job 日志失败: {ex.Message}";
+        }
+
+        if (canceled) yield break;
+        if (fetchError is not null)
+        {
+            yield return fetchError;
+            yield break;
+        }
+
+        var resp = response!;
+        using (resp)
+        {
+            if (!resp.IsSuccessStatusCode)
+            {
+                var errBody = await ReadBodyAsync(resp, ct).ConfigureAwait(false);
+                yield return $"[ERROR] HTTP {(int)resp.StatusCode}: {ExtractErrorMessage(errBody)}";
+                yield break;
+            }
+
+            using var stream = await resp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+            using var archive = new System.IO.Compression.ZipArchive(stream, System.IO.Compression.ZipArchiveMode.Read);
+            foreach (var entry in archive.Entries)
+            {
+                if (entry.Length == 0) continue;
+                using var entryStream = entry.Open();
+                using var reader = new StreamReader(entryStream);
+                string? line;
+                while ((line = await reader.ReadLineAsync(ct).ConfigureAwait(false)) is not null)
+                {
+                    yield return $"[{entry.Name}] {line}";
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// 上传 Release asset — 二进制上传到 uploads.github.com
+    /// </summary>
+    public async Task<GitHubApiResponse> UploadAssetAsync(
+        string owner,
+        string repo,
+        long releaseId,
+        string fileName,
+        Stream fileStream,
+        CancellationToken ct = default)
+    {
+        var token = ResolveToken();
+        var uploadsBase = Environment.GetEnvironmentVariable("JCC_GITHUB_UPLOADS_URL") ?? "https://uploads.github.com/";
+        uploadsBase = EnsureTrailingSlash(uploadsBase);
+        var uploadUrl = $"{uploadsBase}repos/{owner}/{repo}/releases/{releaseId}/assets?name={Uri.EscapeDataString(fileName)}";
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, uploadUrl);
+        request.Headers.Add("Authorization", $"Bearer {token}");
+        request.Headers.Add("Accept", AcceptHeader);
+        request.Headers.Add("User-Agent", UserAgent);
+        request.Content = new StreamContent(fileStream);
+        request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+
+        try
+        {
+            using var response = await _httpClient.SendAsync(request, ct).ConfigureAwait(false);
+            var body = await ReadBodyAsync(response, ct).ConfigureAwait(false);
+            if (response.IsSuccessStatusCode)
+                return new GitHubApiResponse { Success = true, StatusCode = (int)response.StatusCode, Body = body };
+            return new GitHubApiResponse { Success = false, StatusCode = (int)response.StatusCode, Error = ExtractErrorMessage(body) ?? $"HTTP {(int)response.StatusCode}" };
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "上传 Release asset 失败: {FileName}", fileName);
+            return new GitHubApiResponse { Success = false, StatusCode = 0, Error = ex.Message };
+        }
+    }
+
     // === 私有辅助方法 ===
 
     private static string ResolveToken()

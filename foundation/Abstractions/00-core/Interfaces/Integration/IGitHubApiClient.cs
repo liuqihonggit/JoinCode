@@ -75,4 +75,27 @@ public interface IGitHubApiClient
         string repo,
         long runId,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// 获取 Actions Job 日志 — 逐行 yield（zip 解压后逐文件逐行）
+    /// <para>GET /repos/{owner}/{repo}/actions/jobs/{jobId}/logs 返回 zip 流</para>
+    /// </summary>
+    IAsyncEnumerable<string> GetJobLogsAsync(
+        string owner,
+        string repo,
+        long jobId,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// 上传 Release asset — 二进制上传到 uploads.github.com
+    /// <para>POST https://uploads.github.com/repos/{owner}/{repo}/releases/{releaseId}/assets?name={fileName}</para>
+    /// <para>Content-Type: application/octet-stream，Body: 文件二进制内容</para>
+    /// </summary>
+    Task<GitHubApiResponse> UploadAssetAsync(
+        string owner,
+        string repo,
+        long releaseId,
+        string fileName,
+        Stream fileStream,
+        CancellationToken ct = default);
 }

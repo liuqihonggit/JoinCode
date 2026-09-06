@@ -141,7 +141,11 @@ public sealed class DoctorTcpServer : IDoctorTransport
             {
                 var tcpClient = await _listener.AcceptTcpClientAsync(ct).ConfigureAwait(false);
                 DoctorDiag.Write($"[DoctorTCP] 接受新连接: {tcpClient.Client.RemoteEndPoint}");
-                _ = Task.Run(() => HandleClientAsync(tcpClient, ct), ct);
+                _ = Task.Run(async () =>
+                {
+                    using var c = tcpClient;
+                    await HandleClientAsync(c, ct).ConfigureAwait(false);
+                }, ct);
             }
             catch (SocketException) when (!IsConnected || ct.IsCancellationRequested) { break; }
             catch (OperationCanceledException) { break; }
@@ -163,7 +167,6 @@ public sealed class DoctorTcpServer : IDoctorTransport
             var request = await ReadHttpRequestAsync(stream, ct).ConfigureAwait(false);
             if (request is null)
             {
-                tcpClient.Close();
                 return;
             }
 
@@ -191,11 +194,6 @@ public sealed class DoctorTcpServer : IDoctorTransport
         catch (Exception ex)
         {
             DoctorDiag.WriteError($"[DoctorTCP] 处理请求异常 ({remoteEndPoint}): {ex.Message}");
-        }
-        finally
-        {
-            try { tcpClient.Close(); }
-            catch (Exception closeEx) { _logger?.LogWarning(closeEx, "[DoctorTCP] 关闭连接失败"); }
         }
     }
 

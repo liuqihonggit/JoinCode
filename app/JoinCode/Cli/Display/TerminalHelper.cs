@@ -184,20 +184,32 @@ public static class TerminalHelper
     public static void SetOut(System.IO.TextWriter writer) => System.Console.SetOut(writer);
 
     /// <summary>
-    /// 输出到真实 stdout（绕过 SetOut 重定向）— 用于交互式提示
+    /// 输出到真实 stdout（绕过 SetOut 重定向）— 用于交互式提示。
+    /// <para>⚠ 防御性检测：当 stdout 被重定向时（E2E 测试/管道场景），此方法绕过重定向导致输出无法被捕获。</para>
+    /// <para>若需在非交互模式下输出可被捕获的内容，请改用 <see cref="WriteLine"/>。</para>
     /// </summary>
     public static void WriteLineReal(string? text = null)
     {
+        if (System.Console.IsOutputRedirected)
+        {
+            System.Console.Error.WriteLine($"[TerminalHelper] 警告: WriteLineReal 在 stdout 重定向时被调用，E2E 测试将捕获不到此输出。请改用 WriteLine。 text={text}");
+        }
         if (text is null) RealOut.WriteLine();
         else RealOut.WriteLine(text);
         RealOut.Flush();
     }
 
     /// <summary>
-    /// 输出到真实 stdout（绕过 SetOut 重定向）— 用于交互式提示
+    /// 输出到真实 stdout（绕过 SetOut 重定向）— 用于交互式提示。
+    /// <para>⚠ 防御性检测：当 stdout 被重定向时（E2E 测试/管道场景），此方法绕过重定向导致输出无法被捕获。</para>
+    /// <para>若需在非交互模式下输出可被捕获的内容，请改用 <see cref="WriteLine"/>。</para>
     /// </summary>
     public static void WriteRawReal(string text)
     {
+        if (System.Console.IsOutputRedirected)
+        {
+            System.Console.Error.WriteLine($"[TerminalHelper] 警告: WriteRawReal 在 stdout 重定向时被调用，E2E 测试将捕获不到此输出。请改用 Write。 text={text}");
+        }
         RealOut.Write(text);
         RealOut.Flush();
     }

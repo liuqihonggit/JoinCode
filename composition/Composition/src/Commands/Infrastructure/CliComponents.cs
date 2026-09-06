@@ -140,10 +140,14 @@ public sealed class Dialog
     {
         await Task.CompletedTask.ConfigureAwait(false);
 
+        if (Core.Utils.TestEnvironmentDetector.IsNonInteractive)
+        {
+            TerminalHelper.WriteLine($"{message} (y/N): ");
+            return false;
+        }
+
         TerminalHelper.WriteLineReal();
         TerminalHelper.WriteRawReal($"{message} (y/N): ");
-
-        if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) return false;
 
         try
         {

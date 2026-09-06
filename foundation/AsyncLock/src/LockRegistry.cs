@@ -76,8 +76,9 @@ public static class LockRegistry
     {
         if (_locks.TryRemove(id, out var info) && info.HoldingThread is not null)
         {
-            var heldFor = info.AcquiredAt.HasValue
-                ? DateTimeOffset.UtcNow - info.AcquiredAt.Value
+            var acquiredAt = info.AcquiredAt;
+            var heldFor = acquiredAt.HasValue
+                ? DateTimeOffset.UtcNow - acquiredAt.Value
                 : TimeSpan.Zero;
             if (heldFor > _holdTooLongThreshold)
             {
@@ -171,8 +172,9 @@ public static class LockRegistry
     {
         if (_locks.TryGetValue(id, out var info))
         {
-            var heldFor = info.AcquiredAt.HasValue
-                ? DateTimeOffset.UtcNow - info.AcquiredAt.Value
+            var acquiredAt = info.AcquiredAt;
+            var heldFor = acquiredAt.HasValue
+                ? DateTimeOffset.UtcNow - acquiredAt.Value
                 : TimeSpan.Zero;
             if (heldFor > _holdTooLongThreshold && IsEnabled)
             {
@@ -241,12 +243,14 @@ public static class LockRegistry
             string status;
             if (info.HoldingThread is not null)
             {
-                var held = info.AcquiredAt.HasValue ? now - info.AcquiredAt.Value : TimeSpan.Zero;
+                var acquiredAt = info.AcquiredAt;
+                var held = acquiredAt.HasValue ? now - acquiredAt.Value : TimeSpan.Zero;
                 status = $"持有中(线程 {info.HoldingThread.ManagedThreadId}, 已持有 {held.TotalSeconds:F1}s)";
             }
             else if (info.WaitingThread is not null)
             {
-                var waited = info.WaitStartedAt.HasValue ? now - info.WaitStartedAt.Value : TimeSpan.Zero;
+                var waitStartedAt = info.WaitStartedAt;
+                var waited = waitStartedAt.HasValue ? now - waitStartedAt.Value : TimeSpan.Zero;
                 status = $"等待中(线程 {info.WaitingThread.ManagedThreadId}, 已等 {waited.TotalSeconds:F1}s)";
             }
             else
@@ -303,7 +307,8 @@ public static class LockRegistry
         {
             if (info.HoldingThread is not null && info.AcquiredAt.HasValue)
             {
-                var held = now - info.AcquiredAt.Value;
+                var acquiredAt = info.AcquiredAt.Value;
+                var held = now - acquiredAt;
                 if (held > _holdTooLongThreshold)
                 {
                     Emit(

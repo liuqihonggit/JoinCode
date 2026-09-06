@@ -112,16 +112,25 @@ class Program
             }
 
             int exitCode;
-            if (options.IsNonInteractiveMode)
-                exitCode = await Entry.NonInteractiveModeRunner.RunAsync(config, options, host);
-            else
+            try
             {
-                await Entry.InteractiveModeRunner.RunAsync(config, options, host);
-                exitCode = 0;
+                if (options.IsNonInteractiveMode)
+                    exitCode = await Entry.NonInteractiveModeRunner.RunAsync(config, options, host);
+                else
+                {
+                    await Entry.InteractiveModeRunner.RunAsync(config, options, host);
+                    exitCode = 0;
+                }
             }
-
-            if (doctorClient is not null)
-                await doctorClient.DisposeAsync().ConfigureAwait(false);
+            finally
+            {
+                if (doctorClient is not null)
+                    await doctorClient.DisposeAsync().ConfigureAwait(false);
+                if (host is IAsyncDisposable asyncHost)
+                    await asyncHost.DisposeAsync().ConfigureAwait(false);
+                else
+                    host.Dispose();
+            }
 
             return exitCode;
         }

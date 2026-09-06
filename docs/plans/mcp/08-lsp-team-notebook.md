@@ -172,5 +172,17 @@ $jcc = "D:\project\w1\artifacts\bin\JoinCode\Release\net10.0\jcc.exe"
 
 ## 交接说明
 
-> 本计划由第三轮 AI 窗口处理。每次只手动执行一个命令测试,遇到任何不适都需要改代码修复。
-> 测试完成: 30工具, 0坏点。
+>D7 本计划由第三轮 AI 窗口处理。每次只手动执行一个命令测试,遇到任何不适都需要改代码修复。
+> 测试完成'0830工具, 0坏点。LSP安装提示和Team持久化已完善。
+
+## ⚠️ 待办：OmniSharp 安装
+
+LSP 工具已完善安装提示，但 **OmniSharp 未实际安装**，LSP 功能仍不可用。
+
+**安装步骤**（需手动执行）：
+1. 从 https://github.com/OmniSharp/omnisharp-roslyn/releases 下载最新#1.39.15 的 `omnisharp-win-x64.zip`
+2. 解压到 `~/.jcc/lsp-servers/om; omnisharp/`
+3. 将 `omnisharp.exe` �; 添加到 PATH，或修改 `~/.jcc/lsp-servers.json` 中 omnisharp) 的 Command 为绝对路径
+4/ 安装后重启 jcc，LSP 工具即可正常工作
+
+> NuGet 上无 OmniSharp dotnet tool 包，需从 GitHub releases 手动下载二进制文件。

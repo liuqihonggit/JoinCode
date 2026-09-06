@@ -63,6 +63,11 @@ public sealed record LspServiceConfig
 public interface ILspService : IAsyncDisposable
 {
     /// <summary>
+    /// 检查指定文件对应的 LSP 服务器是否可用（已安装且能启动）
+    /// </summary>
+    Task<bool> IsServerAvailableAsync(string filePath, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 跳转到定义
     /// </summary>
     Task<List<LspLocation>> GotoDefinitionAsync(string filePath, int line, int character, CancellationToken cancellationToken = default);

@@ -55,7 +55,7 @@ public class SubAgentRunTrackerTests
         run.ToolUseCount.Should().Be(1);
 
         // 终态后迟到活动不得复活统计
-        tracker.Observe(new ChatStreamEvent { Type = ChatStreamEventType.ToolCallEnd, ToolName = "Bash", AgentId = "a1" });
+        tracker.Observe(new ChatStreamEvent { Type = ChatStreamEventType.ToolCallEnd, ToolName = "bash", AgentId = "a1" });
         run.ToolUseCount.Should().Be(1);
     }
 
@@ -94,10 +94,10 @@ public class SubAgentRunTrackerTests
     {
         var tracker = new SubAgentRunTracker();
         tracker.Observe(AgentStarted("a1"));
-        tracker.Observe(new ChatStreamEvent { Type = ChatStreamEventType.ToolCallStart, ToolName = "Grep", AgentId = "a1", ToolCallId = "c1" });
-        tracker.Observe(new ChatStreamEvent { Type = ChatStreamEventType.ToolCallEnd, ToolName = "Grep", AgentId = "a1" });
-        tracker.Observe(new ChatStreamEvent { Type = ChatStreamEventType.ToolCallStart, ToolName = "Glob", AgentId = "a1", ToolCallId = "c2" });
-        tracker.Observe(new ChatStreamEvent { Type = ChatStreamEventType.ToolCallEnd, ToolName = "Glob", AgentId = "a1" });
+        tracker.Observe(new ChatStreamEvent { Type = ChatStreamEventType.ToolCallStart, ToolName = "grep", AgentId = "a1", ToolCallId = "c1" });
+        tracker.Observe(new ChatStreamEvent { Type = ChatStreamEventType.ToolCallEnd, ToolName = "grep", AgentId = "a1" });
+        tracker.Observe(new ChatStreamEvent { Type = ChatStreamEventType.ToolCallStart, ToolName = "glob", AgentId = "a1", ToolCallId = "c2" });
+        tracker.Observe(new ChatStreamEvent { Type = ChatStreamEventType.ToolCallEnd, ToolName = "glob", AgentId = "a1" });
 
         // 连续搜索/读取类工具 → 折叠成一条计数摘要（JoinCode getSearchReadSummaryText 模式）
         var last = tracker.Runs.Single().VisibleActivities.Last();
@@ -129,7 +129,7 @@ public class SubAgentRunTrackerTests
         var act = () => tracker.Observe(new ChatStreamEvent
         {
             Type = ChatStreamEventType.ToolCallEnd,
-            ToolName = "Bash",
+            ToolName = "bash",
             AgentId = "ghost"
         });
 

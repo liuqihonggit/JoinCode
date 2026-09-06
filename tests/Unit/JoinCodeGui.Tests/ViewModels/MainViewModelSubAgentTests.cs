@@ -24,7 +24,7 @@ public class MainViewModelSubAgentTests
         vm.PrepareAgentRunTurnForTest();
 
         vm.HandleSubAgentActivityForTest(Started("a1"));
-        vm.HandleSubAgentActivityForTest(new ChatStreamEvent { Type = ChatStreamEventType.ToolCallEnd, ToolName = "Grep", AgentId = "a1" });
+        vm.HandleSubAgentActivityForTest(new ChatStreamEvent { Type = ChatStreamEventType.ToolCallEnd, ToolName = "grep", AgentId = "a1" });
 
         var cards = vm.Messages.Where(m => m.Kind == ChatUiMessageKind.AgentRunGroup).ToList();
         cards.Should().ContainSingle("多次事件只创建一张组卡片");

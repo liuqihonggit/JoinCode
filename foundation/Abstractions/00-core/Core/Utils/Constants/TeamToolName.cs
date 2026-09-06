@@ -5,11 +5,11 @@ namespace JoinCode.Abstractions.Utils;
 /// </summary>
 public enum TeamToolName
 {
-    [EnumValue("TeamCreate")]
+    [EnumValue("team_create")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     TeamCreate,
 
-    [EnumValue("TeamDelete")]
+    [EnumValue("team_delete")]
     [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true)]
     TeamDelete,
 

@@ -50,13 +50,13 @@ public class ChatTurnProcessorTests
     public void Process_ToolLifecycle_ShouldOrderCardsBeforeAssistant()
     {
         var (p, m) = Create();
-        p.Process(ChatStreamEvent.ToolStart("Bash", "c1", "ls"), true);
-        p.Process(ChatStreamEvent.ToolEnd("Bash", "ok", "c1", isError: false), true);
+        p.Process(ChatStreamEvent.ToolStart("bash", "c1", "ls"), true);
+        p.Process(ChatStreamEvent.ToolEnd("bash", "ok", "c1", isError: false), true);
         p.CompleteTurn(true);
 
         // 过程在前、助手回复在后
         m[m.Count - 1].Should().BeSameAs(p.AssistantPlaceholder);
-        m.Should().Contain(mv => mv.Kind == ChatUiMessageKind.ToolCall && mv.ToolName == "Bash");
+        m.Should().Contain(mv => mv.Kind == ChatUiMessageKind.ToolCall && mv.ToolName == "bash");
         m.Should().Contain(mv => mv.Kind == ChatUiMessageKind.ToolResult && mv.ToolResultText == "ok");
 
         var callIdx = m.IndexOf(m.First(mv => mv.Kind == ChatUiMessageKind.ToolCall));

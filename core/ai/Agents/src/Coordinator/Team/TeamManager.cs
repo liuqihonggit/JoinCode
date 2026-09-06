@@ -32,7 +32,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     private ITeammateObserver? ResolvedTeammateObserver =>
         _serviceProvider?.GetService(typeof(ITeammateObserver)) as ITeammateObserver;
 
-    public TeamManager(IClockService clock, ITelemetryService? telemetryService = null, ITeammateMailboxService? mailboxService = null, IServiceProvider? serviceProvider = null, ISubAgentContextAccessor? subAgentContextAccessor = null, ILogger<TeamManager>? logger = null)
+    public TeamManager(IClockService clock, ITelemetryService? telemetryService = null, ITeammateMailboxService? mailboxService = null, IServiceProvider? serviceProvider = null, ISubAgentContextAccessor? subAgentContextAccessor = null, ILogger<TeamManager>? logger = null, IFileSystem? fileSystem = null)
     {
 
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
@@ -41,9 +41,12 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         _serviceProvider = serviceProvider;
         _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
         _logger = logger;
+        _persistenceFs = fileSystem;
+        _stateFilePath = fileSystem is not null ? GetStateFilePath() : null;
+        LoadState();
     }
 
-    public Task<OperationResult<TeamInfo?>> CreateTeamAsync(
+    public async Task<OperationResult<TeamInfo?>> CreateTeamAsync(
         string teamName,
         string? description = null,
         List<string>? initialMembers = null,
@@ -51,7 +54,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     {
         if (string.IsNullOrWhiteSpace(teamName))
         {
-            return Task.FromResult(OperationResult<TeamInfo?>.Fail("团队名称不能为空"));
+            return OperationResult<TeamInfo?>.Fail("团队名称不能为空");
         }
 
         // 单团队限制：当前会话已存在团队时不允许再创建（对齐 TS TeamCreateTool）
@@ -61,7 +64,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             var existingTeamForSession = _teamSessions.FirstOrDefault(kvp => kvp.Value == sessionId);
             if (existingTeamForSession.Key is not null)
             {
-                return Task.FromResult(OperationResult<TeamInfo?>.Fail("已在团队中，请先使用 TeamDelete 删除当前团队"));
+                return OperationResult<TeamInfo?>.Fail("已在团队中，请先使用 TeamDelete 删除当前团队");
             }
         }
 
@@ -69,7 +72,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         var nameConflict = _teams.Values.FirstOrDefault(t => string.Equals(t.TeamName, teamName, StringComparison.OrdinalIgnoreCase));
         if (nameConflict is not null)
         {
-            return Task.FromResult(OperationResult<TeamInfo?>.Fail($"团队名称 '{teamName}' 已存在，请使用其他名称"));
+            return OperationResult<TeamInfo?>.Fail($"团队名称 '{teamName}' 已存在，请使用其他名称");
         }
 
         var teamId = GenerateTeamId();
@@ -111,17 +114,18 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             }
         }
 
-        return Task.FromResult(OperationResult<TeamInfo?>.Ok(team));
+        await SaveStateAsync(cancellationToken).ConfigureAwait(false);
+        return OperationResult<TeamInfo?>.Ok(team);
     }
 
-    public Task<OperationResult<TeamInfo?>> DeleteTeamAsync(
+    public async Task<OperationResult<TeamInfo?>> DeleteTeamAsync(
         string teamId,
         CancellationToken cancellationToken = default)
     {
         if (!_teams.TryGetValue(teamId, out var team))
         {
             RecordTeamMetrics("delete", false);
-            return Task.FromResult(OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在"));
+            return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
 
         // Active member 安全检查（对齐 TS TeamDeleteTool）
@@ -131,7 +135,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             if (activeMembers.Count > 0)
             {
                 var activeNames = string.Join(", ", activeMembers.Select(m => m.AgentId));
-                return Task.FromResult(OperationResult<TeamInfo?>.Fail($"团队仍有活跃成员: {activeNames}，请先优雅关闭所有队友再删除团队"));
+                return OperationResult<TeamInfo?>.Fail($"团队仍有活跃成员: {activeNames}，请先优雅关闭所有队友再删除团队");
             }
         }
 
@@ -148,7 +152,8 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         _teamMessages.TryRemove(teamId, out _);
 
         RecordTeamMetrics("delete", true);
-        return Task.FromResult(OperationResult<TeamInfo?>.Ok(team));
+        await SaveStateAsync(cancellationToken).ConfigureAwait(false);
+        return OperationResult<TeamInfo?>.Ok(team);
     }
 
     public Task<TeamInfo?> GetTeamAsync(
@@ -199,6 +204,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
         _agentToTeam[agentId] = teamId;
 
+        await SaveStateAsync(cancellationToken).ConfigureAwait(false);
         return OperationResult<TeamInfo?>.Ok(_teams[teamId]);
     }
 
@@ -238,6 +244,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             LastActivityAt = _clock.GetUtcNow()
         };
 
+        await SaveStateAsync(cancellationToken).ConfigureAwait(false);
         return OperationResult<TeamInfo?>.Ok(_teams[teamId]);
     }
 
@@ -291,6 +298,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
         await PersistTeamMessageToMailboxAsync(teamId, message, cancellationToken).ConfigureAwait(false);
 
+        await SaveStateAsync(cancellationToken).ConfigureAwait(false);
         return OperationResult<TeamInfo?>.Ok(_teams[teamId]);
     }
 
@@ -335,6 +343,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
         await PersistDirectMessageToMailboxAsync(targetAgentId, senderId, content, messageType ?? "direct", teamId, cancellationToken).ConfigureAwait(false);
 
+        await SaveStateAsync(cancellationToken).ConfigureAwait(false);
         return OperationResult<TeamInfo?>.Ok(team);
     }
 
@@ -395,6 +404,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
         await PersistTeamMessageToMailboxAsync(teamId, message, cancellationToken).ConfigureAwait(false);
 
+        await SaveStateAsync(cancellationToken).ConfigureAwait(false);
         return OperationResult<TeamInfo?>.Ok(_teams[teamId]);
     }
 
@@ -493,6 +503,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             LastActivityAt = _clock.GetUtcNow()
         };
 
+        await SaveStateAsync(cancellationToken).ConfigureAwait(false);
         return OperationResult<TeamInfo?>.Ok(_teams[teamId]);
     }
 
@@ -544,6 +555,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             LastActivityAt = _clock.GetUtcNow()
         };
 
+        await SaveStateAsync(cancellationToken).ConfigureAwait(false);
         return OperationResult<TeamInfo?>.Ok(_teams[teamId]);
     }
 

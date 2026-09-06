@@ -17,7 +17,7 @@ public enum AgentToolName
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     AgentStatus,
 
-    [EnumValue("SendMessage")]
+    [EnumValue("agent_send_message")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     AgentSendMessage,
 
@@ -37,7 +37,7 @@ public enum AgentToolName
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     AgentStop,
 
-    [EnumValue("Agent")]
+    [EnumValue("agent")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     Agent,
 

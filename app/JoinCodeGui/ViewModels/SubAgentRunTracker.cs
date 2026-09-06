@@ -22,7 +22,7 @@ public sealed class SubAgentRunTracker
     /// <summary>连续搜索/读取类工具名 — 命中时折叠成计数摘要（对齐 TS 原版 getSearchReadSummaryText）</summary>
     private static readonly FrozenSet<string> SearchReadTools = FrozenSet.Create(
         StringComparer.OrdinalIgnoreCase,
-        "Grep", "Glob", "Read", "FileRead", "FileSearch", "Search", "LS", "List");
+        "grep", "glob", "read", "FileRead", "FileSearch", "Search", "LS", "List");
 
     public SubAgentRunTracker(int maxVisibleActivities = 3, int maxExpanded = 3)
     {

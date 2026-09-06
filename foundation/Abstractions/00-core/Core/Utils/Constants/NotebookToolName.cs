@@ -5,7 +5,7 @@ namespace JoinCode.Abstractions.Utils;
 /// </summary>
 public enum NotebookToolName
 {
-    [EnumValue("NotebookEdit")]
+    [EnumValue("notebook_edit")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     NotebookEdit,
 

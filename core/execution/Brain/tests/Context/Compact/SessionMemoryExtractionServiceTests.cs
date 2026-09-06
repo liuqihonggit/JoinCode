@@ -61,7 +61,7 @@ public sealed class SessionMemoryExtractionServiceTests
 
         prompt.Should().NotBeNullOrEmpty();
         prompt.Should().Contain("session-memory.md");
-        prompt.Should().Contain("Edit");
+        prompt.Should().Contain("edit");
     }
 
     [Fact]

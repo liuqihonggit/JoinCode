@@ -9,7 +9,8 @@ public sealed class McpCliCommand
     private static readonly Cli.Output.CliOutputJsonContext JsonCtx = Cli.Output.CliOutputJsonContext.Default;
 
     internal static Task<int> ExecuteCallAsync(
-        string toolName, string? args, string[]? kvArgs, string? argsFile, bool argsStdin, bool json, CancellationToken ct)
+        string toolName, string? args, string[]? kvArgs, string? argsFile, bool argsStdin, bool json,
+        string? vendor = null, string? model = null, CancellationToken ct = default)
     {
         var argDict = ParseArgs(args, kvArgs, argsFile, argsStdin);
         if (argDict is null)
@@ -22,7 +23,7 @@ public sealed class McpCliCommand
                 return OutputError($"未找到工具: {toolName}（用 jcc mcp list 查看已注册工具）", json);
             var result = await registry.ExecuteToolAsync(toolName, argDict, ct).ConfigureAwait(false);
             return OutputResult(result, json);
-        }, ct);
+        }, vendor, model, ct);
     }
 
     internal static Task<int> ExecuteListAsync(string? category, bool json, CancellationToken ct)
@@ -57,7 +58,7 @@ public sealed class McpCliCommand
                 TerminalHelper.WriteLine($"总计: {tools.Count} 个工具");
             }
             return 0;
-        }, ct);
+        }, ct: ct);
 
     internal static Task<int> ExecuteSearchAsync(string query, bool json, CancellationToken ct)
         => WithHostAsync(async services =>
@@ -92,7 +93,7 @@ public sealed class McpCliCommand
             }
         }
         return 0;
-    }, ct);
+    }, ct: ct);
 
     internal static Task<int> ExecuteSchemaAsync(string toolName, bool json, CancellationToken ct)
         => WithHostAsync(async services =>
@@ -116,12 +117,16 @@ public sealed class McpCliCommand
             System.Console.WriteLine(RelaxedJsonSerializer.Serialize(info.InputSchema, ContractsJsonContext.Default));
         }
         return 0;
-    }, ct);
+    }, ct: ct);
 
-    internal static async Task<IHost> BuildHostAsync(CancellationToken ct)
+    internal static async Task<IHost> BuildHostAsync(string? vendor = null, string? model = null, CancellationToken ct = default)
     {
         var fs = IO.FileSystem.FileSystemFactory.Create();
         var options = new CommandLineOptions { NonInteractive = true, TrustWorkspace = true, SkipModelFetch = true };
+        if (!string.IsNullOrEmpty(vendor))
+            options.Vendor = vendor;
+        if (!string.IsNullOrEmpty(model))
+            options.Model = model;
         Core.Utils.TestEnvironmentDetector.ForceNonInteractive = true;
         // 子命令模式抑制初始化警告（ShellCapabilityInitializer 的 pwsh/python 检测警告）
         var prevLogLevel = Environment.GetEnvironmentVariable("JCC_LOG_LEVEL");
@@ -146,7 +151,7 @@ public sealed class McpCliCommand
             return 1;
         }
 
-        var appHost = await BuildHostAsync(ct).ConfigureAwait(false);
+        var appHost = await BuildHostAsync(ct: ct).ConfigureAwait(false);
         try
         {
             var registry = appHost.Services.GetRequiredService<IMcpToolRegistry>();
@@ -175,9 +180,9 @@ public sealed class McpCliCommand
         }
     }
 
-    internal static async Task<int> WithHostAsync(Func<IServiceProvider, Task<int>> action, CancellationToken ct)
+    internal static async Task<int> WithHostAsync(Func<IServiceProvider, Task<int>> action, string? vendor = null, string? model = null, CancellationToken ct = default)
     {
-        var host = await BuildHostAsync(ct).ConfigureAwait(false);
+        var host = await BuildHostAsync(vendor, model, ct).ConfigureAwait(false);
         try
         {
             return await action(host.Services).ConfigureAwait(false);
@@ -277,22 +282,75 @@ public sealed class McpCliCommand
     {
         if (json)
         {
-            var text = result.GetFirstText() ?? string.Empty;
+            // json 模式: 输出完整 content 数组(包括文本和图片 base64 数据)
             var sb = new StringBuilder();
             sb.Append("{\"isError\":");
             sb.Append(result.IsError ? "true" : "false");
-            sb.Append(",\"text\":\"");
-            AppendEscapedJson(sb, text);
-            sb.Append("\"}");
+            sb.Append(",\"content\":[");
+            for (int i = 0; i < result.Content.Count; i++)
+            {
+                if (i > 0) sb.Append(',');
+                var c = result.Content[i];
+                sb.Append("{\"type\":\"");
+                sb.Append(c.Type switch
+                {
+                    ToolContentType.Image => "image",
+                    ToolContentType.Resource => "resource",
+                    ToolContentType.Error => "error",
+                    ToolContentType.Document => "document",
+                    _ => "text",
+                });
+                sb.Append('"');
+                if (!string.IsNullOrEmpty(c.Text))
+                {
+                    sb.Append(",\"text\":\"");
+                    AppendEscapedJson(sb, c.Text);
+                    sb.Append('"');
+                }
+                if (!string.IsNullOrEmpty(c.Data))
+                {
+                    sb.Append(",\"data\":\"");
+                    AppendEscapedJson(sb, c.Data);
+                    sb.Append("\",\"mimeType\":\"");
+                    AppendEscapedJson(sb, c.MimeType ?? "image/png");
+                    sb.Append('"');
+                }
+                sb.Append('}');
+            }
+            sb.Append("]}");
             System.Console.WriteLine(sb.ToString());
         }
         else
         {
-            var text = result.GetFirstText() ?? "(无文本输出)";
-            if (result.IsError)
-                TerminalHelper.WriteError(text);
-            else
-                TerminalHelper.WriteLine(text);
+            // 非 json 模式: 遍历所有 Content,输出文本 + 图片摘要
+            var hasOutput = false;
+            foreach (var c in result.Content)
+            {
+                if (!string.IsNullOrEmpty(c.Text))
+                {
+                    if (result.IsError)
+                        TerminalHelper.WriteError(c.Text);
+                    else
+                        TerminalHelper.WriteLine(c.Text);
+                    hasOutput = true;
+                }
+                else if (!string.IsNullOrEmpty(c.Data))
+                {
+                    // 图片内容: 输出摘要信息(base64 太长不直接输出到控制台)
+                    var mimeType = c.MimeType ?? "unknown";
+                    var decodedSize = c.Data.Length * 3 / 4;
+                    TerminalHelper.WriteLine($"[图片: {mimeType}, {c.Data.Length} 字节 base64 ≈ {decodedSize} 字节]");
+                    hasOutput = true;
+                }
+            }
+            if (!hasOutput)
+            {
+                var fallback = "(无文本输出)";
+                if (result.IsError)
+                    TerminalHelper.WriteError(fallback);
+                else
+                    TerminalHelper.WriteLine(fallback);
+            }
         }
         return result.IsError ? 1 : 0;
     }

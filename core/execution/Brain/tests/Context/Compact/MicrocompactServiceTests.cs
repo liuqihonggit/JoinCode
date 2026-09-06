@@ -12,11 +12,11 @@ public sealed class MicrocompactServiceTests
         var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var messages = new List<ApiMessage>
         {
-            CreateAssistantToolCallMessage("call_1", "Bash"),
+            CreateAssistantToolCallMessage("call_1", "bash"),
             CreateToolResultMessage("call_1", new string('x', 1000)),
-            CreateAssistantToolCallMessage("call_2", "Bash"),
+            CreateAssistantToolCallMessage("call_2", "bash"),
             CreateToolResultMessage("call_2", new string('y', 1000)),
-            CreateAssistantToolCallMessage("call_3", "Bash"),
+            CreateAssistantToolCallMessage("call_3", "bash"),
             CreateToolResultMessage("call_3", new string('z', 1000)),
         };
 
@@ -38,7 +38,7 @@ public sealed class MicrocompactServiceTests
         var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var messages = new List<ApiMessage>
         {
-            CreateAssistantToolCallMessage("call_1", "Bash"),
+            CreateAssistantToolCallMessage("call_1", "bash"),
             CreateToolResultMessage("call_1", new string('x', 1000)),
             CreateAssistantToolCallMessage("call_2", "UnknownTool"),
             CreateToolResultMessage("call_2", new string('y', 1000)),
@@ -57,9 +57,9 @@ public sealed class MicrocompactServiceTests
         var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var messages = new List<ApiMessage>
         {
-            CreateAssistantToolCallMessage("call_1", "Bash"),
+            CreateAssistantToolCallMessage("call_1", "bash"),
             CreateToolResultMessage("call_1", ContentReplacementConstants.ToolResultClearedMessage),
-            CreateAssistantToolCallMessage("call_2", "Bash"),
+            CreateAssistantToolCallMessage("call_2", "bash"),
             CreateToolResultMessage("call_2", new string('y', 1000)),
         };
 
@@ -95,7 +95,7 @@ public sealed class MicrocompactServiceTests
             new()
             {
                 ["Id"] = JsonSerializer.SerializeToElement("call_1"),
-                ["Name"] = JsonSerializer.SerializeToElement("Grep"),
+                ["Name"] = JsonSerializer.SerializeToElement("grep"),
                 ["Arguments"] = JsonSerializer.SerializeToElement("{}"),
             }
         };
@@ -124,7 +124,7 @@ public sealed class MicrocompactServiceTests
         {
             CreateAssistantToolCallMessage("call_1", "MyCustomTool"),
             CreateToolResultMessage("call_1", new string('x', 1000)),
-            CreateAssistantToolCallMessage("call_2", "Bash"),
+            CreateAssistantToolCallMessage("call_2", "bash"),
             CreateToolResultMessage("call_2", new string('y', 1000)),
         };
 
@@ -207,12 +207,12 @@ public sealed class MicrocompactServiceTests
         var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var messages = new List<ApiMessage>
         {
-            CreateAssistantToolCallMessage("call_1", "Bash"),
+            CreateAssistantToolCallMessage("call_1", "bash"),
         };
 
         var tokens = service.EstimateMessageTokens(messages);
 
-        // tool_use name "Bash" + 空参数估算
+        // tool_use name "bash" + 空参数估算
         tokens.Should().BeGreaterThan(0);
     }
 
@@ -234,13 +234,13 @@ public sealed class MicrocompactServiceTests
         var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var messages = new List<ApiMessage>
         {
-            CreateAssistantToolCallMessage("call_1", "Bash"),
+            CreateAssistantToolCallMessage("call_1", "bash"),
             CreateToolResultMessage("call_1", new string('x', 1000)),
-            CreateAssistantToolCallMessage("call_2", "Grep"),
+            CreateAssistantToolCallMessage("call_2", "grep"),
             CreateToolResultMessage("call_2", new string('y', 1000)),
-            CreateAssistantToolCallMessage("call_3", "Read"),
+            CreateAssistantToolCallMessage("call_3", "read"),
             CreateToolResultMessage("call_3", new string('z', 1000)),
-            CreateAssistantToolCallMessage("call_4", "Bash"),
+            CreateAssistantToolCallMessage("call_4", "bash"),
             CreateToolResultMessage("call_4", new string('w', 1000)),
         };
 
@@ -264,9 +264,9 @@ public sealed class MicrocompactServiceTests
         };
         var messages = new List<ApiMessage>
         {
-            CreateAssistantToolCallMessage("call_1", "Bash"),
+            CreateAssistantToolCallMessage("call_1", "bash"),
             CreateToolResultMessage("call_1", new string('x', 5000)),
-            CreateAssistantToolCallMessage("call_2", "Bash"),
+            CreateAssistantToolCallMessage("call_2", "bash"),
             CreateToolResultMessage("call_2", new string('y', 5000)),
             // 最后一条 assistant 消息带旧时间戳
             new(MessageRole.Assistant, "done", assistantMetadata),

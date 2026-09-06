@@ -24,7 +24,7 @@ public static class ExtendedToolScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "TaskList",
+                            ToolName = "task_list",
                             Arguments = "{}"
                         }
                     ],
@@ -32,7 +32,7 @@ public static class ExtendedToolScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "TaskList", Description = "应包含TaskList工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "task_list", Description = "应包含TaskList工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
                 ]
             }
@@ -58,7 +58,7 @@ public static class ExtendedToolScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "TaskGet",
+                            ToolName = "task_get",
                             Arguments = """{"task_id":"test-task-001"}"""
                         }
                     ],
@@ -66,7 +66,7 @@ public static class ExtendedToolScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "TaskGet", Description = "应包含TaskGet工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "task_get", Description = "应包含TaskGet工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
                 ]
             }
@@ -92,7 +92,7 @@ public static class ExtendedToolScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "TaskStop",
+                            ToolName = "task_stop",
                             Arguments = """{"task_id":"test-task-001"}"""
                         }
                     ],
@@ -100,7 +100,7 @@ public static class ExtendedToolScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "TaskStop", Description = "应包含TaskStop工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "task_stop", Description = "应包含TaskStop工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
                 ]
             }
@@ -126,7 +126,7 @@ public static class ExtendedToolScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "TaskUpdate",
+                            ToolName = "task_update",
                             Arguments = """{"task_id":"test-task-001","status":"completed"}"""
                         }
                     ],
@@ -134,7 +134,7 @@ public static class ExtendedToolScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "TaskUpdate", Description = "应包含TaskUpdate工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "task_update", Description = "应包含TaskUpdate工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
                 ]
             }
@@ -160,7 +160,7 @@ public static class ExtendedToolScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "CronCreate",
+                            ToolName = "cron_create",
                             Arguments = """{"name":"test-cron","schedule":"*/5 * * * *","prompt":"定期检查","timezone":"UTC"}"""
                         }
                     ],
@@ -168,7 +168,7 @@ public static class ExtendedToolScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "CronCreate", Description = "应包含CronCreate工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "cron_create", Description = "应包含CronCreate工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
                 ]
             }
@@ -194,7 +194,7 @@ public static class ExtendedToolScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "CronDelete",
+                            ToolName = "cron_delete",
                             Arguments = """{"task_id":"test-cron-001"}"""
                         }
                     ],
@@ -202,7 +202,7 @@ public static class ExtendedToolScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "CronDelete", Description = "应包含CronDelete工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "cron_delete", Description = "应包含CronDelete工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
                 ]
             }
@@ -228,7 +228,7 @@ public static class ExtendedToolScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "AskUserQuestion",
+                            ToolName = "ask_user_question",
                             Arguments = """{"question":"你确定要删除这个文件吗？","options":[{"label":"是","description":"确认删除"},{"label":"否","description":"取消操作"}]}"""
                         }
                     ],
@@ -236,7 +236,7 @@ public static class ExtendedToolScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "AskUserQuestion", Description = "应包含AskUserQuestion工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "ask_user_question", Description = "应包含AskUserQuestion工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
                 ]
             }
@@ -331,7 +331,7 @@ public static class ExtendedToolScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "TaskOutput",
+                            ToolName = "task_output",
                             Arguments = """{"task_id":"test-task-001","output_type":"all","max_lines":100}"""
                         }
                     ],
@@ -339,7 +339,7 @@ public static class ExtendedToolScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "TaskOutput", Description = "应包含TaskOutput工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "task_output", Description = "应包含TaskOutput工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
                 ]
             }

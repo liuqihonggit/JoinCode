@@ -17,11 +17,11 @@ public enum PlanToolName
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     PlanModeStatus,
 
-    [EnumValue("EnterPlanMode")]
+    [EnumValue("enter_plan_mode")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     EnterPlanMode,
 
-    [EnumValue("ExitPlanMode")]
+    [EnumValue("exit_plan_mode")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     ExitPlanMode,
 

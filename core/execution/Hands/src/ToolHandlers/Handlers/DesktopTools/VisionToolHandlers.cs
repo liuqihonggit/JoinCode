@@ -48,7 +48,12 @@ public class VisionToolHandlers
         }
 
         if (result.ImageWidth == 0 && result.ImageHeight == 0 && result.Elements.Count == 0)
-            return ToolResultBuilder.Error().WithText("LLM 未返回有效识别结果，请检查 API Key 配置和网络连接").Build();
+            return ToolResultBuilder.Error().WithText(
+                "LLM 未返回有效识别结果。可能原因:\n" +
+                "  1) 当前模型不支持图片理解(vision)，请切换到支持多模态的模型(如 gpt-4o/claude-3.5-sonnet)\n" +
+                "  2) API Key 配置错误或已过期\n" +
+                "  3) 网络连接问题\n" +
+                "提示: 用 jcc --vendor <vendor> --model <model> 切换支持 vision 的模型").Build();
 
         var sb = new StringBuilder(512);
         sb.AppendLine($"截图尺寸: {result.ImageWidth}x{result.ImageHeight}");
@@ -92,11 +97,14 @@ public class VisionToolHandlers
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            return ToolResultBuilder.Error().WithText("LLM 调用超时（30s），请检查 API Key 配置和网络连接").Build();
+            return ToolResultBuilder.Error().WithText(
+                "LLM 调用超时（30s）。可能原因:\n" +
+                "  1) 当前模型不支持图片理解(vision)，请切换到支持多模态的模型\n" +
+                "  2) API Key 配置错误或网络连接超时").Build();
         }
 
         if (element is null)
-            return ToolResultBuilder.Success().WithText($"未找到符合描述「{description}」的 UI 元素").Build();
+            return ToolResultBuilder.Success().WithText($"未找到符合描述「{description}」的 UI 元素。可能模型不支持 vision，请切换到支持多模态的模型").Build();
 
         var sb = new StringBuilder(256);
         sb.AppendLine($"找到元素: {element.Type}" +

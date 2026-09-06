@@ -49,6 +49,8 @@ internal static class FlatSubCommandRouter
         var json = HasFlag(args, "--json");
         var argsFile = GetOptionValue(args, "--args-file");
         var argsStdin = HasFlag(args, "--args-stdin");
+        var vendor = GetOptionValue(args, "--vendor");
+        var model = GetOptionValue(args, "--model");
         // 判断参数格式: JSON (以{开头) vs key=value (包含=)
         string? argsJson = null;
         string[]? kvArgs = null;
@@ -64,7 +66,7 @@ internal static class FlatSubCommandRouter
                     kvArgs = allPositional[1..];
             }
         }
-        return await McpCliCommand.ExecuteCallAsync(toolName!, argsJson, kvArgs, argsFile, argsStdin, json, ct).ConfigureAwait(false);
+        return await McpCliCommand.ExecuteCallAsync(toolName!, argsJson, kvArgs, argsFile, argsStdin, json, vendor, model, ct).ConfigureAwait(false);
     }
 
     private static async Task<int?> ExecuteMcpListAsync(string[] args, CancellationToken ct)

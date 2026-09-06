@@ -50,8 +50,8 @@ public class DiagnosticLogRecorderTests
         var context = CreateContext();
         var events = new List<ChatStreamEvent>
         {
-            ChatStreamEvent.ToolStart("Bash", "tc1"),
-            ChatStreamEvent.ToolEnd("Bash", "error", "tc1", isError: true),
+            ChatStreamEvent.ToolStart("bash", "tc1"),
+            ChatStreamEvent.ToolEnd("bash", "error", "tc1", isError: true),
             ChatStreamEvent.Done(),
         };
 

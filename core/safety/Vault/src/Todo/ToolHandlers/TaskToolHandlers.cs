@@ -134,7 +134,7 @@ public class TaskToolHandlers
             var errorMsg = result.ErrorMessage ?? L.T(StringKey.VaultUpdateTaskFailed);
             var diagnostic = ToolDiagnostic.Create("ServiceFailure", errorMsg,
                 [new DiagnosticDetail("operation", "UpdateTask"), new DiagnosticDetail("taskId", command.TaskId)],
-                ["确认 task_id 是否存在，可先调用 TaskList 获取已有任务的 ID。"]);
+                ["确认 task_id 是否存在，可先调用 task_list 获取已有任务的 ID。"]);
             return ToolResultBuilder.Error().WithText(errorMsg).WithDiagnostic(diagnostic).Build();
         }
 
@@ -168,7 +168,7 @@ public class TaskToolHandlers
             var errorMsg = result.ErrorMessage ?? L.T(StringKey.VaultStopTaskFailed);
             var diagnostic = ToolDiagnostic.Create("ServiceFailure", errorMsg,
                 [new DiagnosticDetail("operation", "StopTask"), new DiagnosticDetail("taskId", command.TaskId)],
-                ["确认 task_id 是否存在，可先调用 TaskList 获取已有任务的 ID。"]);
+                ["确认 task_id 是否存在，可先调用 task_list 获取已有任务的 ID。"]);
             return ToolResultBuilder.Error().WithText(errorMsg).WithDiagnostic(diagnostic).Build();
         }
 
@@ -205,7 +205,7 @@ public class TaskToolHandlers
             var errorMsg = L.T(StringKey.VaultTaskNotFound, command.TaskId);
             var diagnostic = ToolDiagnostic.Create("TaskNotFound", errorMsg,
                 [new DiagnosticDetail("taskId", command.TaskId)],
-                ["确认 task_id 是否存在，可先调用 TaskList 获取已有任务的 ID。"]);
+                ["确认 task_id 是否存在，可先调用 task_list 获取已有任务的 ID。"]);
             return ToolResultBuilder.Error().WithText(errorMsg).WithDiagnostic(diagnostic).Build();
         }
 
@@ -377,7 +377,7 @@ public class TaskToolHandlers
     {
         return ToolDiagnostic.Create("EmptyTaskId", L.T(StringKey.VaultTaskIdCannotBeEmpty),
             [new DiagnosticDetail("field", "task_id")],
-            ["提供非空的 task_id，可先调用 TaskList 获取已有任务的 ID。"]);
+            ["提供非空的 task_id，可先调用 task_list 获取已有任务的 ID。"]);
     }
 
     /// <summary>

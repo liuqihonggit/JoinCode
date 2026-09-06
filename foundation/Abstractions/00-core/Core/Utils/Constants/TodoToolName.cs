@@ -21,7 +21,7 @@ public enum TodoToolName
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     TodoDelete,
 
-    [EnumValue("TodoWrite")]
+    [EnumValue("todo_write")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     TodoWrite,
 

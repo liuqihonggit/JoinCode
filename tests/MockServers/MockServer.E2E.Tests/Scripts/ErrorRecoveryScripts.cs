@@ -157,7 +157,7 @@ public static class ApiErrorRecoveryScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Bash",
+                            ToolName = "bash",
                             Arguments = "{\"command\":\"pwd\"}"
                         }
                     ],
@@ -165,7 +165,7 @@ public static class ApiErrorRecoveryScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Bash", Description = "恢复后应包含Bash工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "bash", Description = "恢复后应包含Bash工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "恢复后应有助手回复" },
                 ]
             }
@@ -217,7 +217,7 @@ public static class StreamInterruptionScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Read",
+                            ToolName = "read",
                             Arguments = "{\"file_path\":\"/nonexistent/file.txt\"}"
                         }
                     ],
@@ -225,7 +225,7 @@ public static class StreamInterruptionScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Read", Description = "应调用ReadFile" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "read", Description = "应调用ReadFile" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "失败后应有恢复回复" },
                 ]
             },
@@ -294,12 +294,12 @@ public static class StreamInterruptionScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Bash",
+                            ToolName = "bash",
                             Arguments = "{\"command\":\"ls\"}"
                         },
                         new MockToolCallScript
                         {
-                            ToolName = "Read",
+                            ToolName = "read",
                             Arguments = "{\"file_path\":\"/nonexistent.txt\"}"
                         }
                     ],
@@ -307,8 +307,8 @@ public static class StreamInterruptionScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Bash", Description = "应包含Bash工具调用" },
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Read", Description = "应包含ReadFile工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "bash", Description = "应包含Bash工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "read", Description = "应包含ReadFile工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "部分失败后应有回复" },
                 ]
             }
@@ -388,7 +388,7 @@ public static class PermissionDenialScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Bash",
+                            ToolName = "bash",
                             Arguments = "{\"command\":\"pwd\"}"
                         }
                     ],
@@ -396,7 +396,7 @@ public static class PermissionDenialScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ToolCallFailed, Expected = "Bash", Description = "deny模式下Bash工具调用应失败" },
+                    new OutputAssert { Type = AssertType.ToolCallFailed, Expected = "bash", Description = "deny模式下Bash工具调用应失败" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "权限拒绝后应有回复" },
                 ]
             }
@@ -423,7 +423,7 @@ public static class PermissionDenialScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Bash",
+                            ToolName = "bash",
                             Arguments = "{\"command\":\"pwd\"}"
                         }
                     ],
@@ -431,7 +431,7 @@ public static class PermissionDenialScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Bash", Description = "auto模式应包含Bash工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "bash", Description = "auto模式应包含Bash工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "auto模式应有助手回复" },
                 ]
             }
@@ -457,12 +457,12 @@ public static class AnthropicDeepCoverageScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Bash",
+                            ToolName = "bash",
                             Arguments = "{\"command\":\"ls\"}"
                         },
                         new MockToolCallScript
                         {
-                            ToolName = "Read",
+                            ToolName = "read",
                             Arguments = "{\"file_path\":\"README.md\"}"
                         }
                     ],
@@ -470,8 +470,8 @@ public static class AnthropicDeepCoverageScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Bash", Description = "应包含Bash工具调用" },
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Read", Description = "应包含ReadFile工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "bash", Description = "应包含Bash工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "read", Description = "应包含ReadFile工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有助手回复" },
                 ]
             }
@@ -495,7 +495,7 @@ public static class AnthropicDeepCoverageScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Bash",
+                            ToolName = "bash",
                             Arguments = "{\"command\":\"ls -la\"}"
                         }
                     ],
@@ -503,7 +503,7 @@ public static class AnthropicDeepCoverageScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Bash", Description = "思考后应包含Bash工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "bash", Description = "思考后应包含Bash工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有助手回复" },
                 ]
             }
@@ -565,7 +565,7 @@ public static class AnthropicDeepCoverageScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Bash",
+                            ToolName = "bash",
                             Arguments = "{\"command\":\"ls\"}"
                         }
                     ],
@@ -573,7 +573,7 @@ public static class AnthropicDeepCoverageScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Bash", Description = "推理后应包含Bash工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "bash", Description = "推理后应包含Bash工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有助手回复" },
                 ]
             }
@@ -596,12 +596,12 @@ public static class AnthropicDeepCoverageScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Bash",
+                            ToolName = "bash",
                             Arguments = "{\"command\":\"ls\"}"
                         },
                         new MockToolCallScript
                         {
-                            ToolName = "Read",
+                            ToolName = "read",
                             Arguments = "{\"file_path\":\"config.json\"}"
                         }
                     ],
@@ -609,8 +609,8 @@ public static class AnthropicDeepCoverageScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Bash", Description = "应包含Bash工具调用" },
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Read", Description = "应包含ReadFile工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "bash", Description = "应包含Bash工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "read", Description = "应包含ReadFile工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有助手回复" },
                 ]
             }
@@ -910,7 +910,7 @@ public static class ConcurrentRequestScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Bash",
+                            ToolName = "bash",
                             Arguments = "{\"command\":\"ls\"}"
                         }
                     ],
@@ -918,7 +918,7 @@ public static class ConcurrentRequestScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Bash", Description = "第1轮应包含Bash" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "bash", Description = "第1轮应包含Bash" },
                 ]
             },
             new ConversationTurn
@@ -945,7 +945,7 @@ public static class ConcurrentRequestScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Bash",
+                            ToolName = "bash",
                             Arguments = "{\"command\":\"ls\"}"
                         }
                     ],
@@ -953,7 +953,7 @@ public static class ConcurrentRequestScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Bash", Description = "第3轮应包含Bash" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "bash", Description = "第3轮应包含Bash" },
                 ]
             }
         ]

@@ -125,7 +125,7 @@ public sealed class DialogRenderTests
         ask.Close();
 
         var perm = new PermissionDialog(new JoinCode.Gui.Hosting.PermissionConfirmationRequest(
-            "Bash", "允许在当前目录执行 shell 命令？", "req-1",
+            "bash", "允许在当前目录执行 shell 命令？", "req-1",
             "rule: bash.execute\nscope: workdir\nmode: confirm"))
         {
             RequestedThemeVariant = light
@@ -178,7 +178,7 @@ public sealed class DialogRenderTests
         var dump = DumpDir();
         GuiPalette.CurrentVariant = GuiPalette.GuiThemeVariant.Dark;
         var request = new JoinCode.Gui.Hosting.PermissionConfirmationRequest(
-            "Bash", "允许在当前目录执行 shell 命令？", "req-1",
+            "bash", "允许在当前目录执行 shell 命令？", "req-1",
             "rule: bash.execute\nscope: workdir\nmode: confirm");
         var dlg = new PermissionDialog(request);
         dlg.Show();

@@ -62,7 +62,7 @@ public static class BasicConversationScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Bash",
+                            ToolName = "bash",
                             Arguments = "{\"command\":\"cd\"}",
                             ToolResult = "/home/user/project"
                         }
@@ -71,7 +71,7 @@ public static class BasicConversationScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Bash", Description = "应包含Bash工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "bash", Description = "应包含Bash工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有助手回复" },
                     new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "不应有错误" },
                 ]

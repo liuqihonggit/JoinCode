@@ -24,7 +24,7 @@ public static class TimeoutAndPathScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Bash",
+                            ToolName = "bash",
                             Arguments = "{\"command\":\"sleep 2; echo done\"}",
                             ToolResult = "done"
                         }
@@ -33,7 +33,7 @@ public static class TimeoutAndPathScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Bash", Description = "应包含Bash工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "bash", Description = "应包含Bash工具调用" },
                     new OutputAssert { Type = AssertType.NotContainsText, Expected = "超时", Description = "sleep 2s不应超时" },
                 ]
             }
@@ -59,7 +59,7 @@ public static class TimeoutAndPathScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Bash",
+                            ToolName = "bash",
                             Arguments = "{\"command\":\"sleep 5\",\"timeout\":1000}"
                         }
                     ],
@@ -67,7 +67,7 @@ public static class TimeoutAndPathScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ToolCallFailed, Expected = "Bash", Description = "冲突应导致工具调用失败" },
+                    new OutputAssert { Type = AssertType.ToolCallFailed, Expected = "bash", Description = "冲突应导致工具调用失败" },
                     new OutputAssert { Type = AssertType.ContainsText, Expected = "等待", Description = "应报含等待时间信息" },
                 ]
             }
@@ -97,7 +97,7 @@ public static class TimeoutAndPathScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Read",
+                            ToolName = "read",
                             Arguments = "{\"file_path\":\"D:\\\\other\\\\bad\\uFFFDfile.txt\"}"
                         }
                     ],
@@ -105,7 +105,7 @@ public static class TimeoutAndPathScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ToolCallFailed, Expected = "Read", Description = "乱码路径应直接失败" },
+                    new OutputAssert { Type = AssertType.ToolCallFailed, Expected = "read", Description = "乱码路径应直接失败" },
                     new OutputAssert { Type = AssertType.NotContainsText, Expected = "需要确认", Description = "不应触发ask面板" },
                     new OutputAssert { Type = AssertType.NotContainsText, Expected = "需要用户确认", Description = "不应等待用户确认" },
                 ]
@@ -136,7 +136,7 @@ public static class TimeoutAndPathScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Read",
+                            ToolName = "read",
                             Arguments = "{\"file_path\":\"D:\\\\nonexistent\\\\missing_file.txt\"}"
                         }
                     ],
@@ -144,7 +144,7 @@ public static class TimeoutAndPathScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ToolCallFailed, Expected = "Read", Description = "不存在路径应直接失败" },
+                    new OutputAssert { Type = AssertType.ToolCallFailed, Expected = "read", Description = "不存在路径应直接失败" },
                     new OutputAssert { Type = AssertType.NotContainsText, Expected = "需要确认", Description = "不应触发ask面板" },
                 ]
             }

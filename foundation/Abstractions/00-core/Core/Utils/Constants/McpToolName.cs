@@ -25,11 +25,11 @@ public enum McpToolName
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     McpCallTool,
 
-    [EnumValue("ListMcpResourcesTool")]
+    [EnumValue("list_mcp_resources")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     McpListResources,
 
-    [EnumValue("ReadMcpResourceTool")]
+    [EnumValue("read_mcp_resource")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     McpReadResource,
 
@@ -85,11 +85,11 @@ public enum McpToolName
     [SecurityClass("sensitive", AutoAllowed = false, PlanDenied = true, AskAllowed = true)]
     McpAuthRemove,
 
-    [EnumValue("RemoteTrigger")]
+    [EnumValue("remote_trigger")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     McpRemoteTrigger,
 
-    [EnumValue("MCP")]
+    [EnumValue("mcp")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     MCP,
 }

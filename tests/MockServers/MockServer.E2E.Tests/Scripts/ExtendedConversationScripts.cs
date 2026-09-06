@@ -18,7 +18,7 @@ public static class ToolCallScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Bash",
+                            ToolName = "bash",
                             Arguments = "{\"command\":\"cd\"}"
                         }
                     ],
@@ -26,7 +26,7 @@ public static class ToolCallScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Bash", Description = "应包含Bash工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "bash", Description = "应包含Bash工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有助手回复" },
                 ]
             }
@@ -49,7 +49,7 @@ public static class ToolCallScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Read",
+                            ToolName = "read",
                             Arguments = "{\"file_path\":\"/test/file.cs\"}"
                         }
                     ],
@@ -57,7 +57,7 @@ public static class ToolCallScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Read", Description = "应包含ReadFile工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "read", Description = "应包含ReadFile工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有助手回复" },
                 ]
             }
@@ -80,12 +80,12 @@ public static class ToolCallScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Bash",
+                            ToolName = "bash",
                             Arguments = "{\"command\":\"ls\"}"
                         },
                         new MockToolCallScript
                         {
-                            ToolName = "Read",
+                            ToolName = "read",
                             Arguments = "{\"file_path\":\"README.md\"}"
                         }
                     ],
@@ -93,8 +93,8 @@ public static class ToolCallScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Bash", Description = "应包含Bash工具调用" },
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Read", Description = "应包含ReadFile工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "bash", Description = "应包含Bash工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "read", Description = "应包含ReadFile工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有助手回复" },
                 ]
             }
@@ -172,7 +172,7 @@ public static class ToolCallScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Bash",
+                            ToolName = "bash",
                             Arguments = "{\"command\":\"cd\"}"
                         }
                     ],
@@ -180,7 +180,7 @@ public static class ToolCallScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Bash", Description = "应包含Bash工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "bash", Description = "应包含Bash工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有助手回复" },
                 ]
             }
@@ -242,13 +242,13 @@ public static class MultiTurnScripts
                     TextResponse = "当前工作目录为：/home/user/project",
                     ToolCalls =
                     [
-                        new MockToolCallScript { ToolName = "Bash", Arguments = "{\"command\":\"cd\"}" }
+                        new MockToolCallScript { ToolName = "bash", Arguments = "{\"command\":\"cd\"}" }
                     ],
                     FollowUpText = "当前工作目录为：/home/user/project"
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Bash", Description = "第1轮应包含Bash工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "bash", Description = "第1轮应包含Bash工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "第1轮应有助手回复" },
                 ]
             },
@@ -511,13 +511,13 @@ public static class ToolIterationScripts
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new MockToolCallScript { ToolName = "Bash", Arguments = "{\"command\":\"ls\"}" }
+                        new MockToolCallScript { ToolName = "bash", Arguments = "{\"command\":\"ls\"}" }
                     ],
                     FollowUpText = "目录下有 config.json 文件。让我读取它。"
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Bash", Description = "第1次应调用Bash" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "bash", Description = "第1次应调用Bash" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有助手回复" },
                 ]
             },
@@ -530,13 +530,13 @@ public static class ToolIterationScripts
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new MockToolCallScript { ToolName = "Read", Arguments = "{\"file_path\":\"config.json\"}" }
+                        new MockToolCallScript { ToolName = "read", Arguments = "{\"file_path\":\"config.json\"}" }
                     ],
                     FollowUpText = "配置文件内容：{\"version\": \"1.0\", \"debug\": true}"
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Read", Description = "第2次应调用ReadFile" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "read", Description = "第2次应调用ReadFile" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "第2轮应有助手回复" },
                 ]
             }
@@ -557,13 +557,13 @@ public static class ToolIterationScripts
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new MockToolCallScript { ToolName = "Read", Arguments = "{\"file_path\":\"/nonexistent/file.txt\"}" }
+                        new MockToolCallScript { ToolName = "read", Arguments = "{\"file_path\":\"/nonexistent/file.txt\"}" }
                     ],
                     FollowUpText = "文件不存在，读取失败。让我尝试其他方式。"
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Read", Description = "应调用ReadFile" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "read", Description = "应调用ReadFile" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "错误后应有恢复回复" },
                 ]
             },
@@ -598,13 +598,13 @@ public static class ToolIterationScripts
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new MockToolCallScript { ToolName = "Bash", Arguments = "{\"command\":\"ls -la\"}" }
+                        new MockToolCallScript { ToolName = "bash", Arguments = "{\"command\":\"ls -la\"}" }
                     ],
                     FollowUpText = "项目根目录包含 src、tests、docs 三个目录。让我查看 src 目录。"
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Bash", Description = "第1轮应调用Bash" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "bash", Description = "第1轮应调用Bash" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "第1轮应有回复" },
                 ]
             },
@@ -617,13 +617,13 @@ public static class ToolIterationScripts
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new MockToolCallScript { ToolName = "Read", Arguments = "{\"file_path\":\"src/Program.cs\"}" }
+                        new MockToolCallScript { ToolName = "read", Arguments = "{\"file_path\":\"src/Program.cs\"}" }
                     ],
                     FollowUpText = "Program.cs 是入口文件，包含 Main 方法。让我看看配置文件。"
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Read", Description = "第2轮应调用ReadFile" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "read", Description = "第2轮应调用ReadFile" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "第2轮应有回复" },
                 ]
             },
@@ -668,13 +668,13 @@ public static class ToolIterationScripts
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new MockToolCallScript { ToolName = "Bash", Arguments = "{\"command\":\"pwd\"}" }
+                        new MockToolCallScript { ToolName = "bash", Arguments = "{\"command\":\"pwd\"}" }
                     ],
                     FollowUpText = "当前目录是 /home/user/project"
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Bash", Description = "第2轮应调用Bash" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "bash", Description = "第2轮应调用Bash" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "第2轮应有回复" },
                 ]
             },
@@ -719,13 +719,13 @@ public static class ToolIterationScripts
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new MockToolCallScript { ToolName = "Bash", Arguments = "{\"command\":\"uname -a\"}" }
+                        new MockToolCallScript { ToolName = "bash", Arguments = "{\"command\":\"uname -a\"}" }
                     ],
                     FollowUpText = "系统信息：Linux x86_64, Kernel 6.1.0"
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Bash", Description = "第2轮应调用Bash" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "bash", Description = "第2轮应调用Bash" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "第2轮工具调用后应有回复" },
                 ]
             },
@@ -748,13 +748,13 @@ public static class ToolIterationScripts
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new MockToolCallScript { ToolName = "Read", Arguments = "{\"file_path\":\"README.md\"}" }
+                        new MockToolCallScript { ToolName = "read", Arguments = "{\"file_path\":\"README.md\"}" }
                     ],
                     FollowUpText = "README内容：# My Project - A simple demo"
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Read", Description = "第4轮应调用Read" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "read", Description = "第4轮应调用Read" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "第4轮工具调用后应有回复" },
                 ]
             }

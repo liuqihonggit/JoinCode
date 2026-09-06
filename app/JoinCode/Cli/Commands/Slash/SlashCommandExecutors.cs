@@ -44,7 +44,7 @@ internal static class SlashCallExecutor
 
             await command.ExecuteAsync(context).ConfigureAwait(false);
             return 0;
-        }, ct).ConfigureAwait(false);
+        }, ct: ct).ConfigureAwait(false);
     }
 }
 

@@ -152,7 +152,7 @@ public sealed class TaskToolHandlersTests
 
         diagnostic.Reason.Should().Be("EmptyTaskId");
         diagnostic.Details.Should().Contain(d => d.Key == "field" && d.Value == "task_id");
-        diagnostic.Suggestions.Should().Contain(s => s.Contains("TaskList"));
+        diagnostic.Suggestions.Should().Contain(s => s.Contains("task_list"));
     }
 
     [Fact]

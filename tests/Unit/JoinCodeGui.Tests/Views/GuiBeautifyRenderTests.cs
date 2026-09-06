@@ -33,7 +33,7 @@ public sealed class GuiBeautifyRenderTests
         vm.Messages.Add(new ChatUiMessage
         {
             Role = MessageRole.Assistant, Kind = ChatUiMessageKind.ToolCall,
-            Content = string.Empty, ToolName = "Bash", ToolArguments = "{ \"command\": \"dotnet run\" }",
+            Content = string.Empty, ToolName = "bash", ToolArguments = "{ \"command\": \"dotnet run\" }",
             Timestamp = now.AddSeconds(5)
         });
         vm.Messages.Add(new ChatUiMessage

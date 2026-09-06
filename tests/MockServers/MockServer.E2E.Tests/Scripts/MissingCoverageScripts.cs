@@ -25,7 +25,7 @@ public static class MissingCoverageScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Write",
+                            ToolName = "write",
                             Arguments = """{"file_path":"test_hello.txt","content":"Hello, World!"}"""
                         }
                     ],
@@ -33,7 +33,7 @@ public static class MissingCoverageScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Write", Description = "应包含Write工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "write", Description = "应包含Write工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有助手回复" },
                 ]
             }
@@ -59,7 +59,7 @@ public static class MissingCoverageScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Edit",
+                            ToolName = "edit",
                             Arguments = """{"file_path":"test_config.txt","old_string":"version: 1.0","new_string":"version: 2.0"}"""
                         }
                     ],
@@ -67,7 +67,7 @@ public static class MissingCoverageScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Edit", Description = "应包含Edit工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "edit", Description = "应包含Edit工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有助手回复" },
                 ]
             }
@@ -93,7 +93,7 @@ public static class MissingCoverageScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Grep",
+                            ToolName = "grep",
                             Arguments = """{"pattern":"TODO","include":"*.cs"}"""
                         }
                     ],
@@ -101,7 +101,7 @@ public static class MissingCoverageScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Grep", Description = "应包含Grep工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "grep", Description = "应包含Grep工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有助手回复" },
                 ]
             }
@@ -127,7 +127,7 @@ public static class MissingCoverageScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Glob",
+                            ToolName = "glob",
                             Arguments = """{"pattern":"**/*.json"}"""
                         }
                     ],
@@ -135,7 +135,7 @@ public static class MissingCoverageScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Glob", Description = "应包含Glob工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "glob", Description = "应包含Glob工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有助手回复" },
                 ]
             }
@@ -161,7 +161,7 @@ public static class MissingCoverageScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Agent",
+                            ToolName = "agent",
                             Arguments = """{"name":"check-readme","description":"检查README","prompt":"检查当前目录下README文件，返回其内容概要"}"""
                         }
                     ],
@@ -170,7 +170,7 @@ public static class MissingCoverageScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Agent", Description = "应包含Agent工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "agent", Description = "应包含agent工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复（含Agent输出）" },
                     new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "不应有错误" },
                 ]
@@ -242,7 +242,7 @@ public static class MissingCoverageScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "Agent",
+                            ToolName = "agent",
                             Arguments = """{"name":"spell-check","description":"拼写检查","prompt":"检查README.md中的拼写问题","isolation":"worktree"}"""
                         }
                     ],
@@ -250,7 +250,7 @@ public static class MissingCoverageScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "Agent", Description = "应包含Agent工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "agent", Description = "应包含agent工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复（含Agent输出）" },
                     new OutputAssert { Type = AssertType.NoErrors, Expected = "", Description = "不应有错误" },
                 ]
@@ -342,7 +342,7 @@ public static class TaskToolScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "TaskCreate",
+                            ToolName = "task_create",
                             Arguments = """{"title":"测试任务","description":"这是一个E2E测试任务"}"""
                         }
                     ],
@@ -350,7 +350,7 @@ public static class TaskToolScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "TaskCreate", Description = "应包含TaskCreate工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "task_create", Description = "应包含task_create工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
                 ]
             }
@@ -416,7 +416,7 @@ public static class SchedulingToolScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "CronList",
+                            ToolName = "cron_list",
                             Arguments = "{}"
                         }
                     ],
@@ -424,7 +424,7 @@ public static class SchedulingToolScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "CronList", Description = "应包含CronList工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "cron_list", Description = "应包含CronList工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
                 ]
             }
@@ -453,7 +453,7 @@ public static class WebToolScripts
                     [
                         new MockToolCallScript
                         {
-                            ToolName = "WebSearch",
+                            ToolName = "web_search",
                             Arguments = """{"query":"JoinCode AI workflow engine"}"""
                         }
                     ],
@@ -461,7 +461,7 @@ public static class WebToolScripts
                 },
                 Asserts =
                 [
-                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "WebSearch", Description = "应包含WebSearch工具调用" },
+                    new OutputAssert { Type = AssertType.ContainsToolCall, Expected = "web_search", Description = "应包含WebSearch工具调用" },
                     new OutputAssert { Type = AssertType.HasAssistantResponse, Expected = "", Description = "应有回复" },
                 ]
             }

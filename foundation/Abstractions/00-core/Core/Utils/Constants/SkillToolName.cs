@@ -5,7 +5,7 @@ namespace JoinCode.Abstractions.Utils;
 /// </summary>
 public enum SkillToolName
 {
-    [EnumValue("Skill")]
+    [EnumValue("skill")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     Skill,
 

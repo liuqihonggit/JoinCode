@@ -75,7 +75,7 @@ public class PermissionDialogViewTests
     {
         var dialog = new PermissionDialogView();
         using var cts = new CancellationTokenSource();
-        var task = dialog.ShowWithDecisionAsync("Bash", "执行命令 npm test", cts.Token);
+        var task = dialog.ShowWithDecisionAsync("bash", "执行命令 npm test", cts.Token);
         Assert.True(dialog.TerminalView.Visible);
 
         InvokeDecision(dialog, "OnAlwaysAllow");

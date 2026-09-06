@@ -12,14 +12,19 @@ public sealed class GraphToolHandlers
         _registry = registry;
     }
 
-    private ICodeIndexer ResolveIndexer(string? repoId)
+    private async Task<ICodeIndexer> ResolveIndexerAsync(string? repoId, CancellationToken ct)
     {
+        ICodeIndexer indexer;
         if (string.IsNullOrWhiteSpace(repoId) || repoId == "default")
-            return _indexer;
-        if (_registry is null)
-            throw new InvalidOperationException("Multi-repo is not available (no ICodeIndexerRegistry registered).");
-        var indexer = _registry.GetIndexer(repoId);
-        return indexer ?? throw new InvalidOperationException($"Repository '{repoId}' is not registered. Use graph_register first.");
+            indexer = _indexer;
+        else
+        {
+            if (_registry is null)
+                throw new InvalidOperationException("Multi-repo is not available (no ICodeIndexerRegistry registered).");
+            indexer = _registry.GetIndexer(repoId) ?? throw new InvalidOperationException($"Repository '{repoId}' is not registered. Use graph_register first.");
+        }
+        await indexer.EnsureIndexLoadedAsync(ct).ConfigureAwait(false);
+        return indexer;
     }
 
     [McpTool(CodeToolNameConstants.GraphDetectCommunities, "Detect code communities (modules/subsystems) using label propagation algorithm on the call graph", "graph")]
@@ -29,7 +34,7 @@ public sealed class GraphToolHandlers
     {
         try
         {
-            var indexer = ResolveIndexer(repo_id);
+            var indexer = await ResolveIndexerAsync(repo_id, cancellationToken).ConfigureAwait(false);
             var communities = await indexer.Analytics.DetectCommunitiesAsync(cancellationToken).ConfigureAwait(false);
 
             if (communities.Count == 0)
@@ -67,7 +72,7 @@ public sealed class GraphToolHandlers
     {
         try
         {
-            var indexer = ResolveIndexer(repo_id);
+            var indexer = await ResolveIndexerAsync(repo_id, cancellationToken).ConfigureAwait(false);
             var hubs = await indexer.Analytics.GetHubNodesAsync(top_n, cancellationToken).ConfigureAwait(false);
 
             if (hubs.Count == 0)
@@ -100,7 +105,7 @@ public sealed class GraphToolHandlers
     {
         try
         {
-            var indexer = ResolveIndexer(repo_id);
+            var indexer = await ResolveIndexerAsync(repo_id, cancellationToken).ConfigureAwait(false);
             var dead = await indexer.Analytics.DetectDeadCodeAsync(cancellationToken).ConfigureAwait(false);
 
             if (dead.Count == 0)
@@ -139,7 +144,7 @@ public sealed class GraphToolHandlers
 
         try
         {
-            var indexer = ResolveIndexer(repo_id);
+            var indexer = await ResolveIndexerAsync(repo_id, cancellationToken).ConfigureAwait(false);
             var result = await indexer.Analytics.ExtractSubgraphAsync(center_symbol, hops, cancellationToken).ConfigureAwait(false);
 
             var sb = new System.Text.StringBuilder();
@@ -174,7 +179,7 @@ public sealed class GraphToolHandlers
 
         try
         {
-            var indexer = ResolveIndexer(repo_id);
+            var indexer = await ResolveIndexerAsync(repo_id, cancellationToken).ConfigureAwait(false);
             var files = changed_files.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             var result = await indexer.Analytics.AnalyzeChangeImpactAsync(files, cancellationToken).ConfigureAwait(false);
 
@@ -218,7 +223,7 @@ public sealed class GraphToolHandlers
     {
         try
         {
-            var indexer = ResolveIndexer(repo_id);
+            var indexer = await ResolveIndexerAsync(repo_id, cancellationToken).ConfigureAwait(false);
             await indexer.Persistence.SaveAsync(directory, cancellationToken).ConfigureAwait(false);
             return ToolResultBuilder.Success().WithText($"Index saved to {directory}").Build();
         }
@@ -236,7 +241,7 @@ public sealed class GraphToolHandlers
     {
         try
         {
-            var indexer = ResolveIndexer(repo_id);
+            var indexer = await ResolveIndexerAsync(repo_id, cancellationToken).ConfigureAwait(false);
             var loaded = await indexer.Persistence.LoadAsync(directory, cancellationToken).ConfigureAwait(false);
             return loaded
                 ? ToolResultBuilder.Success().WithText($"Index loaded from {directory}").Build()
@@ -255,7 +260,7 @@ public sealed class GraphToolHandlers
     {
         try
         {
-            var indexer = ResolveIndexer(repo_id);
+            var indexer = await ResolveIndexerAsync(repo_id, cancellationToken).ConfigureAwait(false);
             var dot = await indexer.Visualization.ExportDotAsync(cancellationToken).ConfigureAwait(false);
             return ToolResultBuilder.Success().WithText(dot).Build();
         }
@@ -272,7 +277,7 @@ public sealed class GraphToolHandlers
     {
         try
         {
-            var indexer = ResolveIndexer(repo_id);
+            var indexer = await ResolveIndexerAsync(repo_id, cancellationToken).ConfigureAwait(false);
             var html = await indexer.Visualization.ExportHtmlAsync(cancellationToken).ConfigureAwait(false);
             return ToolResultBuilder.Success().WithText(html).Build();
         }
@@ -289,7 +294,7 @@ public sealed class GraphToolHandlers
     {
         try
         {
-            var indexer = ResolveIndexer(repo_id);
+            var indexer = await ResolveIndexerAsync(repo_id, cancellationToken).ConfigureAwait(false);
             var wiki = await indexer.Visualization.ExportWikiAsync(cancellationToken).ConfigureAwait(false);
             return ToolResultBuilder.Success().WithText(wiki).Build();
         }
@@ -311,7 +316,7 @@ public sealed class GraphToolHandlers
 
         try
         {
-            var indexer = ResolveIndexer(repo_id);
+            var indexer = await ResolveIndexerAsync(repo_id, cancellationToken).ConfigureAwait(false);
             var result = await indexer.Analytics.QueryAsync(query, max_results, cancellationToken).ConfigureAwait(false);
 
             var sb = new System.Text.StringBuilder();
@@ -349,7 +354,7 @@ public sealed class GraphToolHandlers
 
         try
         {
-            var indexer = ResolveIndexer(repo_id);
+            var indexer = await ResolveIndexerAsync(repo_id, cancellationToken).ConfigureAwait(false);
             var result = await indexer.Analytics.FindPathAsync(from_symbol, to_symbol, cancellationToken).ConfigureAwait(false);
 
             if (!result.PathFound)
@@ -385,7 +390,7 @@ public sealed class GraphToolHandlers
 
         try
         {
-            var indexer = ResolveIndexer(repo_id);
+            var indexer = await ResolveIndexerAsync(repo_id, cancellationToken).ConfigureAwait(false);
             var result = await indexer.Analytics.ExplainAsync(symbol_name, cancellationToken).ConfigureAwait(false);
 
             var sb = new System.Text.StringBuilder();

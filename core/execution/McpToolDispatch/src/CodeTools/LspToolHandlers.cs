@@ -637,6 +637,21 @@ public class LspToolHandlers {
         if (!fileResult.Success)
             return ToolResultBuilder.Error().WithText(L.T(StringKey.FileNotExist, file_path)).Build();
 
+        // 检查 LSP 服务器是否可用，不可用时返回带安装提示的错误信息
+        try
+        {
+            var available = await _lspService.IsServerAvailableAsync(file_path, cancellationToken).ConfigureAwait(false);
+            if (!available)
+            {
+                var hint = GetLspInstallHint(file_path);
+                return ToolResultBuilder.Error().WithText(hint).Build();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "LSP 服务器可用性检查失败: {FilePath}", file_path);
+        }
+
         try
         {
             return await action().ConfigureAwait(false);
@@ -645,5 +660,25 @@ public class LspToolHandlers {
         {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.LspError, ex.Message)).Build();
         }
+    }
+
+    /// <summary>
+    /// 根据文件扩展名生成 LSP 服务器安装提示
+    /// </summary>
+    private static string GetLspInstallHint(string filePath)
+    {
+        var ext = Path.GetExtension(filePath).ToLowerInvariant();
+        var (serverName, installCmd) = ext switch
+        {
+            ".cs" or ".csx" => ("OmniSharp (C#)", "dotnet tool install -g OmniSharp"),
+            ".ts" or ".tsx" or ".js" or ".jsx" or ".mjs" => ("typescript-language-server", "npm install -g typescript-language-server typescript"),
+            ".py" or ".pyw" => ("pylsp (Python)", "pip install pylsp"),
+            ".rs" => ("rust-analyzer", "rustup component add rust-analyzer"),
+            ".go" => ("gopls (Go)", "go install golang.org/x/tools/gopls@latest"),
+            ".java" => ("jdtls (Java Eclipse JDT Language Server)", "参见 https://github.com/eclipse/eclipse.jdt.ls"),
+            ".cpp" or ".cc" or ".cxx" or ".c" or ".h" or ".hpp" => ("clangd (C/C++)", "参见 https://clangd.llvm.org/installation.html"),
+            _ => ("语言服务器", "请安装对应语言的 LSP 服务器")
+        };
+        return $"LSP 服务器 {serverName} 未安装或启动失败。\n安装方式: {installCmd}\n安装后重启 jcc 即可使用 LSP 功能。";
     }
 }

@@ -988,7 +988,7 @@ public class MainViewModelTests
 
             var toolCalls = vm.Messages.Where(m => m.Kind == ChatUiMessageKind.ToolCall).ToList();
             toolCalls.Should().NotBeEmpty();
-            toolCalls[0].ToolName.Should().Be("WebSearch");
+            toolCalls[0].ToolName.Should().Be("web_search");
             toolCalls[0].ToolArguments.Should().Contain("\"query\"");
         }
 

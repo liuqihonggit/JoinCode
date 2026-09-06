@@ -19,9 +19,9 @@ public static class BatchCodeToolScripts
                     TextResponse = "",
                     ToolCalls =
                     [
-                        new() { ToolName = "Grep", Arguments = """{"pattern":"class ChatService"}""" },
-                        new() { ToolName = "Glob", Arguments = """{"pattern":"**/*.cs"}""" },
-                        new() { ToolName = "Read", Arguments = """{"file_path":"src/Program.cs"}""" },
+                        new() { ToolName = "grep", Arguments = """{"pattern":"class ChatService"}""" },
+                        new() { ToolName = "glob", Arguments = """{"pattern":"**/*.cs"}""" },
+                        new() { ToolName = "read", Arguments = """{"file_path":"src/Program.cs"}""" },
                         new() { ToolName = "SearchCodebase", Arguments = """{"query":"ChatService"}""" },
                         new() { ToolName = "search_code", Arguments = """{"query":"ProcessUserInput"}""" },
                         new() { ToolName = "search_files", Arguments = """{"pattern":"*.cs"}""" },
@@ -30,9 +30,9 @@ public static class BatchCodeToolScripts
                 },
                 Asserts =
                 [
-                    new() { Type = AssertType.ContainsToolCall, Expected = "Grep", Description = "应包含Grep" },
-                    new() { Type = AssertType.ContainsToolCall, Expected = "Glob", Description = "应包含Glob" },
-                    new() { Type = AssertType.ContainsToolCall, Expected = "Read", Description = "应包含Read" },
+                    new() { Type = AssertType.ContainsToolCall, Expected = "grep", Description = "应包含Grep" },
+                    new() { Type = AssertType.ContainsToolCall, Expected = "glob", Description = "应包含Glob" },
+                    new() { Type = AssertType.ContainsToolCall, Expected = "read", Description = "应包含Read" },
                     new() { Type = AssertType.ContainsToolCall, Expected = "SearchCodebase", Description = "应包含SearchCodebase" },
                     new() { Type = AssertType.ContainsToolCall, Expected = "search_code", Description = "应包含search_code" },
                     new() { Type = AssertType.ContainsToolCall, Expected = "search_files", Description = "应包含search_files" },

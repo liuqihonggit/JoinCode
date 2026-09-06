@@ -5,15 +5,15 @@ namespace JoinCode.Abstractions.Utils;
 /// </summary>
 public enum CronToolName
 {
-    [EnumValue("CronCreate")]
+    [EnumValue("cron_create")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     CronCreate,
 
-    [EnumValue("CronList")]
+    [EnumValue("cron_list")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     CronList,
 
-    [EnumValue("CronDelete")]
+    [EnumValue("cron_delete")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     CronDelete,
 

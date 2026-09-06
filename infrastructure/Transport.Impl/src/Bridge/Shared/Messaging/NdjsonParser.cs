@@ -165,34 +165,10 @@ public static class NdjsonParser
     }
 
     /// <summary>
-    /// 工具名 → 动词映射 — 对齐 TS 端 toolSummary
-    /// </summary>
-    private static readonly FrozenDictionary<string, string> ToolVerbMap = new Dictionary<string, string>(StringComparer.Ordinal)
-    {
-        ["Read"] = "Reading",
-        ["Write"] = "Writing",
-        ["Edit"] = "Editing",
-        ["MultiEdit"] = "Editing",
-        ["Bash"] = "Running",
-        ["Glob"] = "Searching",
-        ["Grep"] = "Searching",
-        ["LS"] = "Listing",
-        ["WebFetch"] = "Fetching",
-        ["WebSearch"] = "Searching",
-        ["TodoRead"] = "Reading todos",
-        ["TodoWrite"] = "Writing todos",
-        ["Computer"] = "Using computer",
-    }.ToFrozenDictionary(StringComparer.Ordinal);
-
-    /// <summary>
-    /// 工具摘要生成 — 对齐 TS 端 toolSummary
-    /// 将工具名映射为人类可读动词 + 从 input 中提取关键参数
+    /// 工具摘要生成 — 直接用工具名 + 从 input 中提取关键参数
     /// </summary>
     public static string ToolSummary(string toolName, Dictionary<string, JsonElement> input)
     {
-        var verb = ToolVerbMap.GetValueOrDefault(toolName) ?? $"Using {toolName}";
-
-        // 对齐 TS 端: 从 input 中提取关键参数
         var target = ExtractStringField(input, "file_path")
             ?? ExtractStringField(input, "filePath")
             ?? ExtractStringField(input, "pattern")
@@ -202,11 +178,11 @@ public static class NdjsonParser
 
         if (target is not null)
         {
-            var combined = $"{verb} {target}";
+            var combined = $"{toolName} {target}";
             return combined.Length > MaxSummaryLen ? combined[..MaxSummaryLen] : combined;
         }
 
-        return verb;
+        return toolName;
     }
 
     /// <summary>

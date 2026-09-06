@@ -222,7 +222,8 @@ public partial class BundledSkillToolHandlers
         // 检查常见问题
         response.AppendLine($"{ObjectSymbol.DiamondFilled.ToValue()} Diagnostic suggestions:");
 
-        var suggestions = await GetDebugSuggestionsAsync(path, type, error_message, cancellationToken).ConfigureAwait(false);
+        var searchPath = isDirectory ? path : Path.GetDirectoryName(path)!;
+        var suggestions = await GetDebugSuggestionsAsync(searchPath, type, error_message, cancellationToken).ConfigureAwait(false);
 
         if (suggestions.Count == 0)
         {

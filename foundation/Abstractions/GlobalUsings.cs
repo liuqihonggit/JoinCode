@@ -79,6 +79,7 @@ global using System.Collections.Frozen;
 global using System.Collections.Immutable;
 global using System.ComponentModel.DataAnnotations;
 global using System.IO;
+global using System.IO.MemoryMappedFiles;
 global using System.Security.Cryptography;
 global using System.Text;
 global using System.Text.Json;

@@ -215,16 +215,12 @@ internal static class RgEngine
     }
 
     /// <summary>
-    /// mmap 零拷贝读取文件内容。
+    /// mmap 零拷贝读取文件内容。用 MappedFileReader 封装，using 释放句柄。
     /// </summary>
     private static string ReadViaMmap(string path)
     {
-        using var mmf = MemoryMappedFile.CreateFromFile(path, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
-        using var accessor = mmf.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read);
-        var length = (int)accessor.Capacity;
-        var bytes = new byte[length];
-        accessor.ReadArray(0, bytes, 0, length);
-        return Encoding.UTF8.GetString(bytes);
+        using var reader = MappedFileReader.Open(path);
+        return reader.ReadToEnd();
     }
 
     private static bool ContainsNullByte(string content)

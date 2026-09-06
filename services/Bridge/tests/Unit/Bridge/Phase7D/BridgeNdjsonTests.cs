@@ -8,11 +8,11 @@ public sealed partial class BridgeMainTests
     [Fact]
     public void ExtractActivities_AssistantToolUse_ReturnsToolStart()
     {
-        var ndjson = """{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"/src/foo.cs"}}]}}""";
+        var ndjson = """{"type":"assistant","message":{"content":[{"type":"tool_use","name":"read","input":{"file_path":"/src/foo.cs"}}]}}""";
         var activities = BridgeNdjsonParser.ExtractActivities(ndjson);
         Assert.Single(activities);
         Assert.Equal(BridgeNdjsonActivityType.ToolStart, activities[0].Type);
-        Assert.Equal("Reading /src/foo.cs", activities[0].Summary);
+        Assert.Equal("read /src/foo.cs", activities[0].Summary);
     }
 
     [Fact]

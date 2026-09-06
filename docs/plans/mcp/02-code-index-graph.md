@@ -163,4 +163,16 @@ $jcc = "D:\project\w1\artifacts\bin\JoinCode\Release\net10.0\jcc.exe"
 
 ### 结论
 
-**计划02 无坏点,无需修复代码。** 所有工具行为符合预期。
+**计划02 修复了3个坏点,全部验证通过。**
+
+### 修复的坏点 (3个)
+
+| # | 坏点 | 根因 | 修复 |
+|---|------|------|------|
+| 1 | `$(RepoRoot)` 变量解析错误,路径多 `app` 前缀 | `CsprojParser.LoadMsBuildProperties` 中 `MSBuildThisFileDirectory` 被后续 Directory.Build.props 覆盖,导致 `$(RepoRoot)` 回溯解析为错误路径 | 加载属性时立即替换 `$(MSBuildThisFileDirectory)` 为当前文件目录 |
+| 2 | 相对路径不工作,返回"没有依赖" | `ProjectDependencyGraph.NormalizePath` 只替换路径分隔符,不解析相对路径; store 存绝对路径 | 添加 `ResolveProjectPath` 方法,在 store 中匹配以相对路径结尾的绝对路径 |
+| 3 | `graph_explain` 返回 Kind=Unknown, `graph_extract_subgraph` 返回0边 | `GraphToolHandlers` 没有调用 `EnsureIndexLoadedAsync`,store 为空 | `ResolveIndexer` 改为异步 `ResolveIndexerAsync`,自动调用 `EnsureIndexLoadedAsync` |
+
+### 已知限制 (非坏点)
+
+- `graph_register`/`graph_unregister` 在 CLI 无状态模式下不持久化 (每次 mcp_call 是独立进程,架构限制)

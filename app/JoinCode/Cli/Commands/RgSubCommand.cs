@@ -358,34 +358,9 @@ internal static class RgSubCommand
             or '{' or '}' or '[' or ']' or '(' or ')' or '.' or '+' or '*' or '?'
             or '|' or '^' or '$' or 'n' or 'r' or 't' or 'f' or 'v' or '0' or 'x' or 'u' or 'c' or 'p' or 'P' or 'k' or 'A' or 'Z' or 'z' or 'G';
 
-    private static bool IsRootOrUnsafePath(string? path)
-    {
-        if (string.IsNullOrWhiteSpace(path) || path == "." || path == "./")
-            return IsRootPath(Environment.CurrentDirectory);
+    internal static bool IsRootPath(string fullPath) => PathSafetyValidator.IsRootPath(fullPath);
 
-        try
-        {
-            var fullPath = Path.GetFullPath(path);
-            return IsRootPath(fullPath);
-        }
-        catch (Exception)
-        {
-            return true;
-        }
-    }
-
-    internal static bool IsRootPath(string fullPath)
-    {
-        if (string.IsNullOrEmpty(fullPath))
-            return false;
-        if (fullPath.Length == 1 && fullPath[0] == '/')
-            return true;
-        if (fullPath.Length == 3 && char.IsLetter(fullPath[0]) && fullPath[1] == ':' && (fullPath[2] == '\\' || fullPath[2] == '/'))
-            return true;
-        if (fullPath.Length == 2 && char.IsLetter(fullPath[0]) && fullPath[1] == ':')
-            return true;
-        return false;
-    }
+    private static bool IsRootOrUnsafePath(string? path) => PathSafetyValidator.IsRootOrUnsafePath(path);
 
     private static int OutputOutcome(RgOutcome outcome, RgOptions opts)
     {

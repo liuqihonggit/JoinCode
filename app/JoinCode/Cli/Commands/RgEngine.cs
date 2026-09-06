@@ -54,30 +54,11 @@ internal static class RgEngine
     /// </summary>
     private static Regex? CompileRegex(RgQuery q)
     {
-        var pattern = q.Pattern;
-        if (q.FixedStrings)
-            pattern = Regex.Escape(pattern);
-        if (q.WordRegexp)
-            pattern = $@"\b(?:{pattern})\b";
-
-        var options = RegexOptions.Compiled;
-        if (q.Multiline)
-            options |= RegexOptions.Singleline;
-
-        var ignoreCase = q.CaseInsensitive;
-        if (q.SmartCase && !pattern.Any(char.IsUpper))
-            ignoreCase = true;
-        if (ignoreCase)
-            options |= RegexOptions.IgnoreCase;
-
-        try
-        {
-            return new Regex(pattern, options);
-        }
-        catch (ArgumentException)
-        {
+        var (regex, error) = SearchRegexCompiler.Compile(
+            q.Pattern, q.CaseInsensitive, q.Multiline, q.FixedStrings, q.WordRegexp, q.SmartCase);
+        if (error is not null)
             return null;
-        }
+        return regex;
     }
 
     /// <summary>

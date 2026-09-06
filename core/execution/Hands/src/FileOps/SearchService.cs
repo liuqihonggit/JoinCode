@@ -166,26 +166,14 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
             }
 
             // Compile regex — 使用 Compiled 提升匹配性能（对齐 ripgrep 的高性能正则引擎）
-            var regexOptions = RegexOptions.Compiled;
-            if (input.CaseInsensitive)
-            {
-                regexOptions |= RegexOptions.IgnoreCase;
-            }
-            if (input.Multiline)
-            {
-                regexOptions |= RegexOptions.Singleline;
-            }
-
-            Regex regex;
-            try
-            {
-                regex = new Regex(input.Pattern, regexOptions);
-            }
-            catch (ArgumentException ex)
+            var (compiledRegex, regexError) = SearchRegexCompiler.Compile(
+                input.Pattern, input.CaseInsensitive, input.Multiline);
+            if (regexError is not null)
             {
                 RecordSearchMetrics("grep", 0, false);
-                return GrepSearchResult.FailureResult($"Invalid regular expression: {ex.Message}");
+                return GrepSearchResult.FailureResult($"Invalid regular expression: {regexError}");
             }
+            Regex regex = compiledRegex!;
 
             var filenames = new List<string>();
             var contentLines = new List<string>();

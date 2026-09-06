@@ -87,7 +87,7 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
         var plugin = new TPlugin();
         var pluginName = plugin.Name;
 
-        var span = _telemetryService?.StartSpan("plugin.load.workflow", TelemetrySpanKind.Server);
+        await using var span = _telemetryService?.StartSpan("plugin.load.workflow", TelemetrySpanKind.Server);
         span?.SetTag("plugin", pluginName);
         try
         {
@@ -190,10 +190,6 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
             RecordPluginMetrics("workflow", "load", false);
             throw;
         }
-        finally
-        {
-            if (span is not null) await span.DisposeAsync().ConfigureAwait(false);
-        }
     }
 
     public WorkflowPluginHost? GetWorkflowPlugin(string pluginName)
@@ -219,7 +215,7 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
     {
         DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
 
-        var span = _telemetryService?.StartSpan("plugin.load.external", TelemetrySpanKind.Server);
+        await using var span = _telemetryService?.StartSpan("plugin.load.external", TelemetrySpanKind.Server);
         span?.SetTag("plugin", pluginName);
         try
         {
@@ -289,10 +285,6 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
         {
             RecordPluginMetrics("external", "load", false);
             throw;
-        }
-        finally
-        {
-            if (span is not null) await span.DisposeAsync().ConfigureAwait(false);
         }
     }
 

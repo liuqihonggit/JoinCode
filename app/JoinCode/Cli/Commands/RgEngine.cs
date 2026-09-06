@@ -265,19 +265,7 @@ internal static class RgEngine
                    path.Contains($"/{suffix}", StringComparison.OrdinalIgnoreCase);
         }
 
-        if (pattern.StartsWith('*'))
-        {
-            var suffix = pattern[1..];
-            return path.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
-        }
-
-        if (pattern.EndsWith('*'))
-        {
-            var prefix = pattern[..^1];
-            return path.Contains(prefix, StringComparison.OrdinalIgnoreCase);
-        }
-
-        return path.Contains(pattern, StringComparison.OrdinalIgnoreCase);
+        return GlobMatcher.IsMatch(path, pattern);
     }
 
     private static bool MatchesFileType(string file, string? fileType)

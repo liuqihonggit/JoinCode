@@ -72,7 +72,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
                     matcher.AddInclude(pat);
 
                     // 排除 VCS 目录（对齐 TS: .git/.svn/.hg/.bzr/.jj/.sl）
-                    foreach (var vcsDir in VcsDirectoriesToExclude)
+                    foreach (var vcsDir in VcsDirectoryExclusions.Names)
                     {
                         matcher.AddExclude($"**/{vcsDir}/**");
                     }
@@ -450,11 +450,6 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
         return results;
     }
 
-    // VCS directories to exclude from searches (aligned with TS GrepTool)
-    private static readonly FrozenSet<string> VcsDirectoriesToExclude = FrozenSet.ToFrozenSet(
-        [".git", ".svn", ".hg", ".bzr", ".jj", ".sl"],
-        StringComparer.OrdinalIgnoreCase);
-
     // Maximum line length for grep content output (aligned with TS --max-columns 500)
     private const int MaxContentLineLength = 500;
 
@@ -550,7 +545,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
         }
 
         // 排除 VCS 目录
-        foreach (var vcsDir in VcsDirectoriesToExclude)
+        foreach (var vcsDir in VcsDirectoryExclusions.Names)
         {
             matcher.AddExclude($"**/{vcsDir}/**");
         }

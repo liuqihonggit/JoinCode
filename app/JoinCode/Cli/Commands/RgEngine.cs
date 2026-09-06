@@ -13,10 +13,6 @@ internal static class RgEngine
 
     private static readonly ConcurrentDictionary<string, GitignoreMatcher?> GitignoreCache = new(StringComparer.Ordinal);
 
-    private static readonly FrozenSet<string> VcsDirectories = FrozenSet.ToFrozenSet(
-        [".git", ".svn", ".hg", ".bzr", ".jj", ".sl"],
-        StringComparer.OrdinalIgnoreCase);
-
     private static readonly FrozenDictionary<string, string[]> FileTypeExtensions = FrozenDictionary.ToFrozenDictionary(
         new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
         {
@@ -158,7 +154,7 @@ internal static class RgEngine
 
             var rel = Path.GetRelativePath(root, file).Replace('\\', '/');
 
-            if (IsVcsPath(rel))
+            if (VcsDirectoryExclusions.IsVcsPath(rel))
                 continue;
 
             if (!q.NoIgnore && IsGitIgnored(root, rel))
@@ -175,14 +171,6 @@ internal static class RgEngine
 
             yield return file;
         }
-    }
-
-    private static bool IsVcsPath(string rel)
-    {
-        foreach (var vcs in VcsDirectories)
-            if (rel.Contains($"/{vcs}/", StringComparison.OrdinalIgnoreCase) || rel.StartsWith($"{vcs}/", StringComparison.OrdinalIgnoreCase))
-                return true;
-        return false;
     }
 
     private static bool IsGitIgnored(string root, string rel)

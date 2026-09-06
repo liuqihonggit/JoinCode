@@ -14,6 +14,7 @@ public partial class GitHubToolHandlers
 {
     private readonly IGitHubCommandRunner _gh;
     private readonly IGitHubApiClient? _apiClient;
+    private readonly IGitCommandRunner? _git;
     private readonly IDownloader _downloader;
     private readonly IFileSystem _fs;
     private readonly ILogger<GitHubToolHandlers>? _logger;
@@ -54,6 +55,7 @@ public partial class GitHubToolHandlers
         IFileSystem fs,
         IPersistencePipeline pipeline,
         IGitHubApiClient? apiClient = null,
+        IGitCommandRunner? git = null,
         ILogger<GitHubToolHandlers>? logger = null)
     {
         _gh = gh ?? throw new ArgumentNullException(nameof(gh));
@@ -61,6 +63,7 @@ public partial class GitHubToolHandlers
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
         _apiClient = apiClient;
+        _git = git;
         _logger = logger;
     }
 
@@ -181,5 +184,59 @@ public partial class GitHubToolHandlers
                 sb.Append('_');
         }
         return sb.Length == 0 ? "unknown" : sb.ToString();
+    }
+
+    /// <summary>
+    /// 解析 owner/repo — 优先用 repo 参数，否则从 git remote origin 推断（ADR 0072）
+    /// </summary>
+    private async Task<(string owner, string repo)?> ResolveOwnerRepoAsync(string? repo, string? workingDir, CancellationToken ct)
+    {
+        if (!string.IsNullOrWhiteSpace(repo))
+        {
+            var parsed = ParseGitHubRepoRef(repo);
+            if (parsed is not null) return parsed;
+        }
+        if (_git is null) return null;
+        var gitResult = await _git.ExecuteAsync("remote get-url origin", workingDir, ct).ConfigureAwait(false);
+        if (!gitResult.Success || string.IsNullOrWhiteSpace(gitResult.Output)) return null;
+        return ParseGitHubRemoteUrl(gitResult.Output.Trim());
+    }
+
+    /// <summary>
+    /// 解析 "owner/repo" 格式
+    /// </summary>
+    private static (string owner, string repo)? ParseGitHubRepoRef(string repo)
+    {
+        var parts = repo.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 2) return null;
+        var owner = parts[0];
+        var repoName = parts[1].EndsWith(".git", StringComparison.OrdinalIgnoreCase) ? parts[1][..^4] : parts[1];
+        return (owner, repoName);
+    }
+
+    /// <summary>
+    /// 解析 GitHub remote URL — 支持 https://github.com/owner/repo.git 和 git@github.com:owner/repo.git
+    /// </summary>
+    private static (string owner, string repo)? ParseGitHubRemoteUrl(string url)
+    {
+        if (string.IsNullOrEmpty(url)) return null;
+        string path;
+        if (url.StartsWith("https://", StringComparison.OrdinalIgnoreCase) || url.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+        {
+            var uri = new Uri(url);
+            path = uri.AbsolutePath.TrimStart('/');
+        }
+        else if (url.Contains('@'))
+        {
+            var colonIdx = url.IndexOf(':');
+            if (colonIdx < 0) return null;
+            path = url[(colonIdx + 1)..];
+        }
+        else return null;
+
+        if (path.EndsWith(".git", StringComparison.OrdinalIgnoreCase)) path = path[..^4];
+        var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 2) return null;
+        return (parts[0], parts[1]);
     }
 }

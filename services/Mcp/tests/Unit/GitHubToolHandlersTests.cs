@@ -14,38 +14,39 @@ public sealed class GitHubToolHandlersTests
             new InMemoryFileSystem(),
             new PersistencePipeline(new InMemoryFileSystem()),
             _api,
+            null,
             NullLogger<GitHubToolHandlers>.Instance);
     }
 
     [Fact]
     public async Task PrView_Success_ReturnsOutput()
     {
-        _gh.NextResult = new GitHubCommandResult
+        _api.NextResponse = new GitHubApiResponse
         {
             Success = true,
-            Output = """{"number":123,"title":"feat: add","state":"OPEN","url":"https://github.com/o/r/pull/123"}""",
-            ExitCode = 0,
+            StatusCode = 200,
+            Body = """{"number":123,"title":"feat: add","state":"open","url":"https://github.com/o/r/pull/123"}""",
         };
 
-        var result = await _handler.GhPrViewAsync("123");
+        var result = await _handler.GhPrViewAsync("123", repo: "owner/repo");
 
         result.IsError.Should().BeFalse();
         result.GetFirstText().Should().Contain("123");
-        _gh.LastArguments.Should().Contain("pr view 123");
-        _gh.LastArguments.Should().Contain("--json");
+        _api.LastMethod.Should().Be(HttpMethod.Get);
+        _api.LastPath.Should().Be("repos/owner/repo/pulls/123");
     }
 
     [Fact]
     public async Task PrView_Failure_ReturnsError()
     {
-        _gh.NextResult = new GitHubCommandResult
+        _api.NextResponse = new GitHubApiResponse
         {
             Success = false,
+            StatusCode = 404,
             Error = "could not find pr",
-            ExitCode = 1,
         };
 
-        var result = await _handler.GhPrViewAsync("999");
+        var result = await _handler.GhPrViewAsync("999", repo: "owner/repo");
 
         result.IsError.Should().BeTrue();
         result.GetFirstText().Should().Contain("could not find pr");
@@ -54,14 +55,20 @@ public sealed class GitHubToolHandlersTests
     [Fact]
     public async Task PrChecks_Skipping_NotCountedAsFail()
     {
-        _gh.NextResult = new GitHubCommandResult
+        _api.EnqueueResponse(new GitHubApiResponse
         {
             Success = true,
-            Output = "build\tpass\t1m\thttps://x\nlint\tskipping\t0s\thttps://y\ntest\tfail\t2m\thttps://z",
-            ExitCode = 0,
-        };
+            StatusCode = 200,
+            Body = """{"head":{"sha":"abc123"}}""",
+        });
+        _api.EnqueueResponse(new GitHubApiResponse
+        {
+            Success = true,
+            StatusCode = 200,
+            Body = """{"check_runs":[{"name":"build","conclusion":"success"},{"name":"lint","conclusion":"skipped"},{"name":"test","conclusion":"failure"}]}""",
+        });
 
-        var result = await _handler.GhPrChecksAsync("1");
+        var result = await _handler.GhPrChecksAsync("1", repo: "owner/repo");
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -318,13 +325,13 @@ public sealed class GitHubToolHandlersTests
     [Fact]
     public async Task PrMerge_DefaultSquash_AppendsAutoWhenRequested()
     {
-        _gh.NextResult = new GitHubCommandResult { Success = true, Output = "", ExitCode = 0 };
+        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "" };
 
-        await _handler.GhPrMergeAsync("5", auto_merge: true);
+        await _handler.GhPrMergeAsync("5", auto_merge: true, repo: "owner/repo");
 
-        _gh.LastArguments.Should().Contain("pr merge 5");
-        _gh.LastArguments.Should().Contain("--squash");
-        _gh.LastArguments.Should().Contain("--auto");
+        _api.LastMethod.Should().Be(HttpMethod.Put);
+        _api.LastPath.Should().Be("repos/owner/repo/pulls/5/enable-automerge");
+        _api.LastBody.Should().Contain("squash");
     }
 
     [Fact]
@@ -365,7 +372,7 @@ public sealed class GitHubToolHandlersTests
             ExitCode = 0,
         };
         var fakeDownloader = new FakeDownloader();
-        var handler = new GitHubToolHandlers(_gh, fakeDownloader, new InMemoryFileSystem(), new PersistencePipeline(new InMemoryFileSystem()), _api, NullLogger<GitHubToolHandlers>.Instance);
+        var handler = new GitHubToolHandlers(_gh, fakeDownloader, new InMemoryFileSystem(), new PersistencePipeline(new InMemoryFileSystem()), _api, null, NullLogger<GitHubToolHandlers>.Instance);
 
         var result = await handler.GhReleaseDownloadAsync("v1.0", "/tmp");
 
@@ -428,17 +435,25 @@ internal sealed class FakeGitHubCommandRunner : IGitHubCommandRunner
 
 internal sealed class FakeGitHubApiClient : IGitHubApiClient
 {
-    public GitHubApiResponse NextResponse { get; set; } = new() { Success = true, StatusCode = 200, Body = "[]" };
+    private readonly Queue<GitHubApiResponse> _responses = new();
+    public GitHubApiResponse NextResponse
+    {
+        get => _responses.Count > 0 ? _responses.Peek() : _default;
+        set { _responses.Clear(); _responses.Enqueue(value); }
+    }
+    private readonly GitHubApiResponse _default = new() { Success = true, StatusCode = 200, Body = "[]" };
     public string? LastPath { get; private set; }
     public HttpMethod? LastMethod { get; private set; }
     public string? LastBody { get; private set; }
+    public void EnqueueResponse(GitHubApiResponse response) => _responses.Enqueue(response);
 
     public Task<GitHubApiResponse> SendAsync(HttpMethod method, string path, string? body = null, IReadOnlyDictionary<string, string>? query = null, bool paginate = false, CancellationToken ct = default)
     {
         LastMethod = method;
         LastPath = path;
         LastBody = body;
-        return Task.FromResult(NextResponse);
+        var response = _responses.Count > 0 ? _responses.Dequeue() : _default;
+        return Task.FromResult(response);
     }
 
     public async IAsyncEnumerable<string> GetRunLogsAsync(string owner, string repo, long runId, [EnumeratorCancellation] CancellationToken ct = default)

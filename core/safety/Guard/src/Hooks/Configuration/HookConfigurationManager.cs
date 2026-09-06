@@ -348,28 +348,31 @@ public partial class JsonFileHookConfigurationProvider : IHookConfigurationProvi
         HookCommand hook,
         CancellationToken cancellationToken = default)
     {
-        var settings = await LoadSettingsAsync().ConfigureAwait(false);
-        var eventKey = hookEvent.ToEventName();
-        if (!settings.Hooks.TryGetValue(eventKey, out var matchers))
-        {
-            matchers = new List<HookMatcher>();
-            settings.Hooks[eventKey] = matchers;
-        }
+        var directory = Path.GetDirectoryName(_filePath);
+        DirectoryHelper.EnsureDirectoryExists(_fs, directory);
 
-        var existingMatcher = matchers.FirstOrDefault(m => m.Matcher == matcher);
-        if (existingMatcher == null)
+        await EditHooksFileAsync(settings =>
         {
-            existingMatcher = new HookMatcher
+            var eventKey = hookEvent.ToEventName();
+            if (!settings.Hooks.TryGetValue(eventKey, out var matchers))
             {
-                Matcher = matcher,
-                Hooks = new List<HookCommand>()
-            };
-            matchers.Add(existingMatcher);
-        }
+                matchers = new List<HookMatcher>();
+                settings.Hooks[eventKey] = matchers;
+            }
 
-        existingMatcher.Hooks.Add(hook);
+            var existingMatcher = matchers.FirstOrDefault(m => m.Matcher == matcher);
+            if (existingMatcher == null)
+            {
+                existingMatcher = new HookMatcher
+                {
+                    Matcher = matcher,
+                    Hooks = new List<HookCommand>()
+                };
+                matchers.Add(existingMatcher);
+            }
 
-        await SaveSettingsAsync(settings).ConfigureAwait(false);
+            existingMatcher.Hooks.Add(hook);
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -379,53 +382,62 @@ public partial class JsonFileHookConfigurationProvider : IHookConfigurationProvi
         HookCommand hook,
         CancellationToken cancellationToken = default)
     {
-        var settings = await LoadSettingsAsync().ConfigureAwait(false);
-
-        var eventKey = hookEvent.ToEventName();
-        if (!settings.Hooks.TryGetValue(eventKey, out var matchers))
-        {
-            return;
-        }
-
-        var existingMatcher = matchers.FirstOrDefault(m => m.Matcher == matcher);
-        if (existingMatcher == null)
-        {
-            return;
-        }
-
-        existingMatcher.Hooks.RemoveAll(h => h.IsEqualTo(hook));
-
-        if (existingMatcher.Hooks.Count == 0)
-        {
-            matchers.Remove(existingMatcher);
-        }
-
-        if (matchers.Count == 0)
-        {
-            settings.Hooks.Remove(eventKey);
-        }
-
-        await SaveSettingsAsync(settings).ConfigureAwait(false);
-    }
-
-    private async Task<HookSettingsFile> LoadSettingsAsync()
-    {
-        if (!_fs.FileExists(_filePath))
-        {
-            return new HookSettingsFile { Hooks = new Dictionary<string, List<HookMatcher>>() };
-        }
-
-        return await _fs.ReadAndDeserializeAsync(_filePath, HooksJsonContext.Default.HookSettingsFile).ConfigureAwait(false)
-            ?? new HookSettingsFile { Hooks = new Dictionary<string, List<HookMatcher>>() };
-    }
-
-    private async Task SaveSettingsAsync(HookSettingsFile settings)
-    {
         var directory = Path.GetDirectoryName(_filePath);
         DirectoryHelper.EnsureDirectoryExists(_fs, directory);
 
-        var json = RelaxedJsonSerializer.Serialize(settings, HooksJsonContext.Default);
-        await _fs.WriteAllTextAsync(_filePath, json).ConfigureAwait(false);
+        await EditHooksFileAsync(settings =>
+        {
+            var eventKey = hookEvent.ToEventName();
+            if (!settings.Hooks.TryGetValue(eventKey, out var matchers))
+            {
+                return;
+            }
+
+            var existingMatcher = matchers.FirstOrDefault(m => m.Matcher == matcher);
+            if (existingMatcher == null)
+            {
+                return;
+            }
+
+            existingMatcher.Hooks.RemoveAll(h => h.IsEqualTo(hook));
+
+            if (existingMatcher.Hooks.Count == 0)
+            {
+                matchers.Remove(existingMatcher);
+            }
+
+            if (matchers.Count == 0)
+            {
+                settings.Hooks.Remove(eventKey);
+            }
+        }, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 原子编辑钩子配置文件 — per-file AsyncLock 串行执行 read→transform→write，消除并发竞态
+    /// </summary>
+    private async Task EditHooksFileAsync(Action<HookSettingsFile> transform, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _fs.EditFileAsync<bool>(_filePath, async (bytes, ct) =>
+            {
+                var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
+                var settings = RelaxedJsonSerializer.Deserialize(content, HooksJsonContext.Default.HookSettingsFile)
+                    ?? new HookSettingsFile { Hooks = new Dictionary<string, List<HookMatcher>>() };
+                transform(settings);
+                var json = RelaxedJsonSerializer.Serialize(settings, HooksJsonContext.Default);
+                var newBytes = FileEncodingDetector.EncodeString(json, encoding);
+                return (newBytes, true);
+            }, cancellationToken).ConfigureAwait(false);
+        }
+        catch (FileNotFoundException)
+        {
+            var settings = new HookSettingsFile { Hooks = new Dictionary<string, List<HookMatcher>>() };
+            transform(settings);
+            var json = RelaxedJsonSerializer.Serialize(settings, HooksJsonContext.Default);
+            await _fs.WriteAllTextAsync(_filePath, json, cancellationToken).ConfigureAwait(false);
+        }
     }
 }
 

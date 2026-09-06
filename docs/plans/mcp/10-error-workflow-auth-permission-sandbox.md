@@ -142,21 +142,23 @@ $jcc = "D:\project\w1\artifacts\bin\JoinCode\Release\net10.0\jcc.exe"
 | 工具 | 问题描述 | 根因 | 修复 |
 |------|----------|------|------|
 | mcp_auth_api_key | 计划文档工具名错误 | 实际注册名为 `mcp_auth_apikey`（无下划线） | 文档已修正 |
-| mcp_auth_status | 添加认证后 status 显示"暂无" | CLI 无状态模式跨进程不共享内存状态；敏感信息不持久化 | 预期行为，非 bug |
-| sandbox_status | enter 后 status 仍显示不在沙箱 | 同上，沙箱状态在内存中，跨进程不共享 | 预期行为，非 bug |
+| mcp_auth_status | 添加认证后跨进程status看不到 | 构造函数未加载持久化+敏感信息不保存 | **已修复**: 新增Persistence partial class,持久化到~/.jcc/mcp/auth.json |
+| mcp_auth_bearer/basic/oauth2 | 同上 | 同上 | 同上,已修复 |
+| sandbox_status | enter后跨进程status不共享 | 沙箱是进程内隔离,跨进程不共享是本质特性 | 预期行为(沙箱是运行时概念,非配置) |
 
 ## 测试结果总结
 
 - **测试时间**: 2026-09-07
 - **工具总数**: 34
 - **通过**: 34
-- **坏点**: 0（1个文档工具名错误已修正）
+- **坏点修复**: 1 (McpAuth持久化已修复)
+- **验收标准**: 标准7(成功执行并输出有意义的结果)
 - **备注**: 
-  - ErrorRecovery 7个工具全部正常，无参数时正确报告缺失参数
-  - Workflow 7个工具为"提示词模式"，不实际调用 AI，返回结构化提示词信息
-  - McpAuth 7个工具功能正常，认证配置跨进程不共享（敏感信息不持久化，预期行为）
-  - Permission 7个工具全部正常，add/remove 互为逆操作验证通过
-  - Sandbox 6个工具全部正常，未进入沙箱时正确拒绝执行/切换操作
+  - ErrorRecovery 7个: 返回诊断/修复建议,功能完成 ✅
+  - Workflow 7个: "提示词模式"是设计决策(MCP返回提示词给LLM处理,不直接调用AI) ✅
+  - McpAuth 7个: **持久化已修复**,跨进程共享认证配置(apikey/bearer/basic/oauth2全验证通过) ✅
+  - Permission 7个: 持久化正常(.jcc/permission/rules.json),add/remove互为逆操作 ✅
+  - Sandbox 6个: 进程内隔离正确,跨进程不共享是沙箱本质特性 ✅
 
 ## 交接说明
 

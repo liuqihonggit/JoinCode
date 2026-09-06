@@ -82,7 +82,7 @@ internal static class RgSubCommand
         }
     }
 
-    private static RgOptions? ParseArgs(string[] args)
+    internal static RgOptions? ParseArgs(string[] args)
     {
         string? pattern = null;
         var paths = new List<string>();
@@ -553,7 +553,7 @@ internal static class RgSubCommand
             """);
     }
 
-    private sealed record RgOptions(
+    internal sealed record RgOptions(
         string Pattern,
         IReadOnlyList<string> Paths,
         string? Glob,

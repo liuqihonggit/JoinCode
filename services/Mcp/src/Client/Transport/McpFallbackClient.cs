@@ -67,8 +67,7 @@ public sealed class McpFallbackClient : McpClientBase
         var tcs = new TaskCompletionSource<JsonRpcResponse>();
         int requestId = request.GetIdAsInt();
 
-        using var guard = await _requestLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_requestLock.Name}' 等待超时");
-        _pendingRequests[requestId] = tcs;
+        await _requestRegistry.RegisterAsync(requestId, tcs, cancellationToken).ConfigureAwait(false);
 
         try
         {
@@ -79,8 +78,7 @@ public sealed class McpFallbackClient : McpClientBase
         }
         catch
         {
-            using var guard1 = await _requestLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_requestLock.Name}' 等待超时");
-            _pendingRequests.Remove(requestId);
+            await _requestRegistry.RemoveAsync(requestId, cancellationToken).ConfigureAwait(false);
             throw;
         }
     }
@@ -138,6 +136,6 @@ public sealed class McpFallbackClient : McpClientBase
         _chain.ErrorOccurred -= OnChainError;
         _chain.FallbackOccurred -= OnChainFallback;
         await _chain.DisposeAsync().ConfigureAwait(false);
-        _requestLock.Dispose();
+        await _requestRegistry.DisposeAsync().ConfigureAwait(false);
     }
 }

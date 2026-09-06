@@ -10,8 +10,7 @@ public abstract class McpClientBase : IMcpClient
     private Implementation? _serverInfo;
     private ServerCapabilities? _serverCapabilities;
 
-    protected readonly AsyncLock _requestLock = new("McpClientBase.Request");
-    protected readonly Dictionary<int, TaskCompletionSource<JsonRpcResponse>> _pendingRequests = new();
+    protected readonly McpRequestRegistryActor _requestRegistry;
 
     /// <summary>
     /// Elicitation 请求处理器 — 对齐 TS client.setRequestHandler(ElicitRequestSchema, ...)
@@ -48,6 +47,7 @@ public abstract class McpClientBase : IMcpClient
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _logger = logger;
+        _requestRegistry = new McpRequestRegistryActor(logger);
     }
 
     /// <summary>
@@ -135,21 +135,12 @@ public abstract class McpClientBase : IMcpClient
         if (response.Id == null) return;
 
         int requestId = response.GetIdAsInt();
-
-        using var guard = await _requestLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_requestLock.Name}' 等待超时");
-        TaskCompletionSource<JsonRpcResponse>? tcsToComplete = null;
-        if (_pendingRequests.TryGetValue(requestId, out var tcs))
-        {
-            tcsToComplete = tcs;
-            _pendingRequests.Remove(requestId);
-        }
-
-        tcsToComplete?.TrySetResult(response);
+        await _requestRegistry.CompleteAsync(requestId, response, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
     /// 安全的 fire-and-forget 响应处理 — 供传输层接收循环调用
-    /// 防止客户端释放后到达的响应在 _requestLock.WaitAsync 抛 ObjectDisposedException
+    /// 防止客户端释放后到达的响应在 Actor 已释放时抛 ObjectDisposedException
     /// 成为未观察异常被静默丢弃（多级报错：捕获并记录，不崩溃、不污染接收循环）
     /// </summary>
     protected async Task FireAndForgetProcessResponseAsync(JsonRpcResponse response)
@@ -167,12 +158,7 @@ public abstract class McpClientBase : IMcpClient
 
     protected async Task CancelPendingRequestsAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = await _requestLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_requestLock.Name}' 等待超时");
-        foreach (var tcs in _pendingRequests.Values)
-        {
-            tcs.TrySetCanceled(cancellationToken);
-        }
-        _pendingRequests.Clear();
+        await _requestRegistry.CancelAllAsync(cancellationToken).ConfigureAwait(false);
     }
 
     protected async Task PerformHandshakeAsync(CancellationToken cancellationToken)

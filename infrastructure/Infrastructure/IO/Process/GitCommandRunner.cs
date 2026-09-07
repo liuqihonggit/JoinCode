@@ -42,7 +42,8 @@ public sealed partial class GitCommandRunner : ServiceEntity, IGitCommandRunner
                 Success = result.Success,
                 Output = result.StandardOutput,
                 Error = result.StandardError,
-                ExitCode = result.ExitCode
+                ExitCode = result.ExitCode,
+                ExecutionTime = result.ExecutionTime
             };
         }
         catch (OperationCanceledException ex)

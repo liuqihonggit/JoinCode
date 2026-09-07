@@ -3,12 +3,15 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// Git 命令执行结果
 /// </summary>
-public sealed class GitCommandResult
+public sealed class GitCommandResult : ICommandExecutionResult
 {
     public required bool Success { get; init; }
     public string Output { get; init; } = string.Empty;
     public string Error { get; init; } = string.Empty;
     public int ExitCode { get; init; }
+    public TimeSpan ExecutionTime { get; init; } = TimeSpan.Zero;
+
+    int? ICommandExecutionResult.ExitCode => ExitCode;
 }
 
 /// <summary>

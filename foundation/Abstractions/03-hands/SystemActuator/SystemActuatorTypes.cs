@@ -108,7 +108,7 @@ public enum SystemActuatorLifecycleState
 /// <summary>
 /// 系统执行器执行结果
 /// </summary>
-public sealed record SystemActuatorExecutionResult
+public sealed record SystemActuatorExecutionResult : ICommandExecutionResult
 {
     /// <summary>
     /// 内联输出上限（30K）
@@ -132,6 +132,14 @@ public sealed record SystemActuatorExecutionResult
     public bool Interrupted { get; init; }
     public bool Success => ExitCode == 0 && !Interrupted;
     public string? ErrorMessage { get; init; }
+
+    /// <summary>
+    /// 执行时长 — 从进程启动到退出
+    /// </summary>
+    public TimeSpan ExecutionTime { get; init; } = TimeSpan.Zero;
+
+    string ICommandExecutionResult.Output => Stdout;
+    string ICommandExecutionResult.Error => Stderr;
 
     /// <summary>
     /// 大输出持久化路径 — 输出超过 MaxInlineOutputChars 时，完整输出保存到磁盘

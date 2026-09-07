@@ -106,6 +106,7 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
             metadata.Add(EntityMetadataEntry.Bool("interrupted", true));
         if (result.BackgroundTaskId is not null)
             metadata.Add(EntityMetadataEntry.String("background_task_id", result.BackgroundTaskId));
+        metadata.Add(EntityMetadataEntry.Long("execution_time_ms", (long)result.ExecutionTime.TotalMilliseconds));
         return metadata;
     }
 

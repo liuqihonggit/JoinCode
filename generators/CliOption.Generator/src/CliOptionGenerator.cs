@@ -608,8 +608,9 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
     }
 
     /// <summary>
-    /// 生成 BooleanFlags FrozenSet — 所有 AcceptsValue=false 选项的 LongName + ShortName
-    /// 用于参数解析时区分布尔标志和带值选项，避免布尔标志（如 --trust/--json）误吞下一个 token（如 key=value 参数）
+    /// 生成 BooleanFlags + AllOptionNames FrozenSet
+    /// BooleanFlags: AcceptsValue=false 选项的长名+短名，用于参数解析时避免布尔标志误吞下一个 token
+    /// AllOptionNames: 所有选项的长名+短名，用于未知标志检测
     /// </summary>
     private static void GenerateBooleanFlagsSet(StringBuilder sb, CliEnumInfo enumInfo)
     {
@@ -624,6 +625,20 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
         sb.AppendLine($"    public static readonly FrozenSet<string> BooleanFlags = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, new string[]");
         sb.AppendLine("    {");
         foreach (var opt in booleanFlags)
+        {
+            sb.AppendLine($"        \"{EscapeString(opt.LongName)}\",");
+            if (!string.IsNullOrEmpty(opt.ShortName))
+                sb.AppendLine($"        \"{EscapeString(opt.ShortName)}\",");
+        }
+        sb.AppendLine("    });");
+
+        sb.AppendLine();
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// 全选项名集合 — 所有选项的长名+短名，用于未知标志检测");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine($"    public static readonly FrozenSet<string> AllOptionNames = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, new string[]");
+        sb.AppendLine("    {");
+        foreach (var opt in enumInfo.Options)
         {
             sb.AppendLine($"        \"{EscapeString(opt.LongName)}\",");
             if (!string.IsNullOrEmpty(opt.ShortName))

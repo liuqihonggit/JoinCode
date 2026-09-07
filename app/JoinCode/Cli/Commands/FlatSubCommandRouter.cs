@@ -40,6 +40,12 @@ internal static class FlatSubCommandRouter
 
     private static async Task<int?> ExecuteMcpCallAsync(string[] args, CancellationToken ct)
     {
+        var unknownError = DetectUnknownOptions(args);
+        if (unknownError is not null)
+        {
+            TerminalHelper.WriteError(unknownError);
+            return 1;
+        }
         var toolName = GetPositional(args, 0);
         if (string.IsNullOrEmpty(toolName))
         {
@@ -186,6 +192,23 @@ internal static class FlatSubCommandRouter
     {
         var eqIdx = token.IndexOf('=');
         return eqIdx > 0 && eqIdx < token.Length - 1;
+    }
+
+    /// <summary>
+    /// 检测未知 --flag — Rust 风格报错，不静默吞掉
+    /// AllOptionNames 由源码生成器从 [CliOption] 特性自动提取，零双向维护
+    /// </summary>
+    internal static string? DetectUnknownOptions(string[] args)
+    {
+        for (var i = 1; i < args.Length; i++)
+        {
+            if (!args[i].StartsWith("--"))
+                continue;
+            if (CliArgConstants.AllOptionNames.Contains(args[i]))
+                continue;
+            return CliErrorFormatter.FormatError(args, i, "未知选项", "未知选项", "可用选项见 jcc --help");
+        }
+        return null;
     }
 
     internal static string? GetOptionValue(string[] args, string optionName)

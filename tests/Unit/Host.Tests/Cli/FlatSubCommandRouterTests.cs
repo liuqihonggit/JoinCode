@@ -189,4 +189,96 @@ public sealed class FlatSubCommandRouterTests
         CliArgConstants.BooleanFlags.Contains("--TRUST").Should().BeTrue();
         CliArgConstants.BooleanFlags.Contains("--Json").Should().BeTrue();
     }
+
+    /// <summary>
+    /// 未知 --flag 应被检测并返回错误信息，不静默吞掉
+    /// </summary>
+    [Fact]
+    public void DetectUnknownOptions_UnknownFlag_ShouldReturnError()
+    {
+        var args = new[] { "mcp_call", "gh_pr_checks", "--unknown-flag", "pr_number=201" };
+
+        var error = FlatSubCommandRouter.DetectUnknownOptions(args);
+
+        error.Should().NotBeNull();
+        error!.Should().Contain("error:");
+        error.Should().Contain("--unknown-flag");
+        error.Should().Contain("未知选项");
+    }
+
+    /// <summary>
+    /// 已知 --flag 不应报错
+    /// </summary>
+    [Fact]
+    public void DetectUnknownOptions_KnownFlag_ShouldReturnNull()
+    {
+        var args = new[] { "mcp_call", "gh_pr_checks", "--trust", "pr_number=201", "--json" };
+
+        var error = FlatSubCommandRouter.DetectUnknownOptions(args);
+
+        error.Should().BeNull();
+    }
+
+    /// <summary>
+    /// Rust 风格错误格式应包含位置指示线(^)和 hint
+    /// </summary>
+    [Fact]
+    public void DetectUnknownOptions_ErrorFormat_ShouldHaveRustStyleIndicator()
+    {
+        var args = new[] { "mcp_call", "tool", "--bad-flag" };
+
+        var error = FlatSubCommandRouter.DetectUnknownOptions(args);
+
+        error.Should().NotBeNull();
+        error!.Should().Contain("  |");
+        error.Should().Contain("^");
+        error.Should().Contain("hint:");
+    }
+
+    /// <summary>
+    /// CliErrorFormatter.FormatKeyValueError — key= (空值) 应报 '=' 后面不能为空
+    /// </summary>
+    [Fact]
+    public void CliErrorFormatter_KeyValueEmptyValue_ShouldShowRustStyleError()
+    {
+        var error = CliErrorFormatter.FormatKeyValueError("pr_number=", "'=' 后面不能为空", "使用 key=value 传递工具参数，如 pr_number=201");
+
+        error.Should().Contain("error: 参数格式错误");
+        error.Should().Contain("  |");
+        error.Should().Contain("pr_number=");
+        error.Should().Contain("^");
+        error.Should().Contain("'=' 后面不能为空");
+        error.Should().Contain("hint:");
+    }
+
+    /// <summary>
+    /// CliErrorFormatter.FormatError — 完整命令行 + 位置指示
+    /// </summary>
+    [Fact]
+    public void CliErrorFormatter_FormatError_ShouldShowCommandLineAndArrow()
+    {
+        var args = new[] { "mcp_call", "tool", "--bad-flag", "key=value" };
+
+        var error = CliErrorFormatter.FormatError(args, 2, "未知选项", "未知选项", "可用选项见 jcc --help");
+
+        error.Should().Contain("error: 未知选项");
+        error.Should().Contain("mcp_call tool --bad-flag key=value");
+        error.Should().Contain("^^^^^^^^^^");
+        error.Should().Contain("hint: 可用选项见 jcc --help");
+    }
+
+    /// <summary>
+    /// AllOptionNames 应包含所有已知选项(布尔+带值)
+    /// </summary>
+    [Fact]
+    public void CliArgConstants_AllOptionNames_ShouldContainAllKnownOptions()
+    {
+        CliArgConstants.AllOptionNames.Contains("--trust").Should().BeTrue();
+        CliArgConstants.AllOptionNames.Contains("--json").Should().BeTrue();
+        CliArgConstants.AllOptionNames.Contains("--model").Should().BeTrue();
+        CliArgConstants.AllOptionNames.Contains("--args-file").Should().BeTrue();
+        CliArgConstants.AllOptionNames.Contains("--vendor").Should().BeTrue();
+        CliArgConstants.AllOptionNames.Contains("-m").Should().BeTrue();
+        CliArgConstants.AllOptionNames.Contains("-d").Should().BeTrue();
+    }
 }

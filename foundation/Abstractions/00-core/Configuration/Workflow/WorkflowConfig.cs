@@ -102,6 +102,12 @@ public class WorkflowConfig {
     public SubAgentConcurrencyOptions SubAgentConcurrency { get; set; } = new();
 
     /// <summary>
+    /// Actor 模型统一配置 — 编译队列模式 + 背压预设(ADR 0074)
+    /// 从 settings.json 的 current.actor 节点加载,缺失时用默认值
+    /// </summary>
+    public ActorSettings Actor { get; set; } = new();
+
+    /// <summary>
     /// 当前激活的配置档案名 — 对应 settings.json 中 profiles 字典的键
     /// </summary>
     public string? CurrentProfile { get; set; }

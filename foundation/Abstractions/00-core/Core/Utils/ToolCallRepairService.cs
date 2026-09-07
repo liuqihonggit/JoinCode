@@ -357,7 +357,7 @@ internal static class ToolCallRepairService
                 if (i >= json.Length) continue;
 
                 var c = json[i];
-                if (c == '"' || c == '{' || c == '[') continue;
+                if (c == '"' || c == '\'' || c == '{' || c == '[') continue;
                 if (char.IsDigit(c) || c == '-' || c == '+') continue;
                 if (IsLiteralAt(json, i, "true") || IsLiteralAt(json, i, "false") || IsLiteralAt(json, i, "null"))
                     continue;
@@ -409,7 +409,7 @@ internal static class ToolCallRepairService
         if (index + literal.Length > s.Length) return false;
         for (int k = 0; k < literal.Length; k++)
         {
-            if (s[index + k] != literal[k]) return false;
+            if (char.ToLowerInvariant(s[index + k]) != literal[k]) return false;
         }
         if (index + literal.Length < s.Length)
         {

@@ -153,11 +153,10 @@ public sealed class GitHubToolHandlersTests
     [Fact]
     public async Task RunView_ExpandSteps_ReturnsStepListFromCache()
     {
-        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"jobs":[]}""" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"updated_at":"2026-01-01T00:00:00Z"}""" });
         _api.NextLogLines = "Job\tSet up job\t2026-01-01T00:00:00Z line1\nJob\tCheckout\t2026-01-01T00:00:01Z line2\nJob\tTest - Brain\t2026-01-01T00:00:02Z ##[error]failed".Split('\n');
 
-        var result = await _handler.GhRunViewAsync("100", expand: "steps", repo: "owner/repo");
+        var result = await _handler.GhRunViewAsync("100", expand: "steps", job_id: "1", repo: "owner/repo");
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -170,11 +169,10 @@ public sealed class GitHubToolHandlersTests
     [Fact]
     public async Task RunView_ExpandSteps_RestApiLogFormat_ExtractsStepNamesFromEntryName()
     {
-        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"jobs":[]}""" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"updated_at":"2026-01-01T00:00:00Z"}""" });
         _api.NextLogLines = "[0_Set up job.txt] 2026-01-01T00:00:00Z line1\n[1_Checkout.txt] 2026-01-01T00:00:01Z line2\n[2_Test.txt] 2026-01-01T00:00:02Z ##[error]failed".Split('\n');
 
-        var result = await _handler.GhRunViewAsync("100", expand: "steps", repo: "owner/repo");
+        var result = await _handler.GhRunViewAsync("100", expand: "steps", job_id: "1", repo: "owner/repo");
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();
@@ -189,11 +187,10 @@ public sealed class GitHubToolHandlersTests
     [Fact]
     public async Task RunView_ExpandSteps_ParallelDownload_RestApiLogFormat_ExtractsStepNames()
     {
-        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"jobs":[{"id":1,"name":"build"},{"id":2,"name":"test"}]}""" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"updated_at":"2026-01-01T00:00:00Z"}""" });
         _api.NextLogLines = "[0_Checkout.txt] 2026-01-01T00:00:00Z line1\n[1_Build.txt] 2026-01-01T00:00:01Z line2".Split('\n');
 
-        var result = await _handler.GhRunViewAsync("200", expand: "steps", repo: "owner/repo");
+        var result = await _handler.GhRunViewAsync("200", expand: "steps", job_id: "1,2", repo: "owner/repo");
 
         result.IsError.Should().BeFalse();
         var text = result.GetFirstText();

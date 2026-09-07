@@ -14,6 +14,9 @@ public sealed class ProcessResult : ICommandExecutionResult
     int? ICommandExecutionResult.ExitCode => ExitCode;
     string ICommandExecutionResult.Output => StandardOutput;
     string ICommandExecutionResult.Error => StandardError;
+
+    public override string ToString() =>
+        $"[Process {(Success ? "OK" : "FAIL")}] ExitCode={ExitCode}, {ExecutionTime.TotalMilliseconds:F0}ms";
 }
 
 /// <summary>

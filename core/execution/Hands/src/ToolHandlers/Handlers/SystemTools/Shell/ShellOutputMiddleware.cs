@@ -154,11 +154,14 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
                 : null;
 
         // 拼接最终输出 — 对齐 TS [processedStdout, errorMessage, backgroundInfo].filter(Boolean).join('\n')
-        var parts = new List<string>(4);
+        var parts = new List<string>(5);
         if (processedStdout.Length > 0) parts.Add(processedStdout);
         if (errorMessage.Length > 0) parts.Add(errorMessage);
         if (backgroundInfo.Length > 0) parts.Add(backgroundInfo);
         if (interpretationInfo is not null) parts.Add(interpretationInfo);
+
+        // 结构化元数据页脚 — Markdown 表格,供 AI 解析消费
+        parts.Add(result.ToMarkdownSummary().TrimEnd());
 
         var output = string.Join(Environment.NewLine, parts);
         return string.IsNullOrEmpty(output) ? "(No output)" : output;

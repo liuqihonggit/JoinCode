@@ -12,6 +12,9 @@ public sealed class GitCommandResult : ICommandExecutionResult
     public TimeSpan ExecutionTime { get; init; } = TimeSpan.Zero;
 
     int? ICommandExecutionResult.ExitCode => ExitCode;
+
+    public override string ToString() =>
+        $"[Git {(Success ? "OK" : "FAIL")}] ExitCode={ExitCode}, {ExecutionTime.TotalMilliseconds:F0}ms";
 }
 
 /// <summary>

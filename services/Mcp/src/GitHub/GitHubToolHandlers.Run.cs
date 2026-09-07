@@ -303,24 +303,26 @@ public partial class GitHubToolHandlers
             && await TryDownloadJobsAsync(owner, repo, runId, targetJobIds, summary, sectionContents, rawBuilder, ct).ConfigureAwait(false);
         if (!parallelOk)
         {
-            // 回退到串行: 逐个 job 下载
+            // 回退到串行: 逐个 job 下载(每个 job 独立 GitHubLogParser)
             if (targetJobIds.Count > 0)
             {
                 foreach (var jobIdLong in targetJobIds)
                 {
+                    var parser = new GitHubLogParser();
                     await foreach (var line in _apiClient!.GetJobLogsAsync(owner, repo, jobIdLong, ct).ConfigureAwait(false))
                     {
                         rawBuilder.Append(line).Append('\n');
-                        ParseAndAccumulate(line, summary, sectionContents);
+                        parser.ParseLine(line, summary, sectionContents);
                     }
                 }
             }
             else if (long.TryParse(runId, out var runIdLong))
             {
+                var parser = new GitHubLogParser();
                 await foreach (var line in _apiClient!.GetRunLogsAsync(owner, repo, runIdLong, ct).ConfigureAwait(false))
                 {
                     rawBuilder.Append(line).Append('\n');
-                    ParseAndAccumulate(line, summary, sectionContents);
+                    parser.ParseLine(line, summary, sectionContents);
                 }
             }
         }
@@ -430,27 +432,14 @@ public partial class GitHubToolHandlers
         var span = rawContent.AsSpan();
         var ranges = LineSpanIndexer.BuildLineRanges(span);
         var sectionContents = new Dictionary<string, Dictionary<string, List<string>>>(StringComparer.OrdinalIgnoreCase);
+        var summary = new RunLogSummary { RunId = runId, JobId = jobId };
+        var parser = new GitHubLogParser();
 
         foreach (var (start, length) in ranges)
         {
             if (length == 0) continue;
             var line = span.Slice(start, length).ToString();
-            var parts = line.Split('\t');
-            if (parts.Length < 2) continue;
-            var stepName = parts[1];
-            var sectionType = RunLogCache.ParseSectionType(line);
-
-            if (!sectionContents.TryGetValue(stepName, out var stepSecs))
-            {
-                stepSecs = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-                sectionContents[stepName] = stepSecs;
-            }
-            if (!stepSecs.TryGetValue(sectionType, out var secLines))
-            {
-                secLines = new List<string>();
-                stepSecs[sectionType] = secLines;
-            }
-            secLines.Add(line);
+            parser.ParseLine(line, summary, sectionContents);
         }
 
         foreach (var (stepName, stepSecs) in sectionContents)
@@ -511,15 +500,16 @@ public partial class GitHubToolHandlers
             }).ToArray();
             var results = await Task.WhenAll(tasks).ConfigureAwait(false);
 
-            // 合并日志(统一用 ParseAndAccumulate 提取 step 名)
+            // 合并日志(每个 job 独立解析,状态机跟踪步骤名)
             foreach (var (_, logLines) in results)
             {
                 if (logLines.Count == 0) continue;
+                var parser = new GitHubLogParser();
                 foreach (var line in logLines)
                 {
                     if (string.IsNullOrEmpty(line)) continue;
                     rawBuilder.Append(line).Append('\n');
-                    ParseAndAccumulate(line, summary, sectionContents);
+                    parser.ParseLine(line, summary, sectionContents);
                 }
             }
 
@@ -534,16 +524,102 @@ public partial class GitHubToolHandlers
     }
 
     /// <summary>
-    /// 解析一行日志并累积 — 支持 REST API 格式 [entry.Name] line 和 gh CLI TSV 格式
-    /// <para>REST API: zip entry 名如 "0_Checkout.txt" → step 名 "Checkout"</para>
-    /// <para>gh CLI: TSV 第二列是 step 名</para>
+    /// GitHub Actions 日志行解析器 — 状态机 + Span,零 GC 逐行处理
+    /// <para>状态: _currentStepName 跟踪 ##[start-action display=...] 到 ##[end-action] 之间的步骤</para>
+    /// <para>Span 处理时间戳剥离和标记检测,只在提取步骤名时 ToString 分配</para>
     /// </summary>
-    private static void ParseAndAccumulate(string line, RunLogSummary summary, Dictionary<string, Dictionary<string, List<string>>> sectionContents)
+    private sealed class GitHubLogParser
     {
-        var stepName = TryExtractStepName(line);
-        if (stepName is null) return;
-        Accumulate(line, stepName, summary, sectionContents);
+        private string? _currentStepName;
+        private static readonly SearchValues<char> s_nameTerminators = SearchValues.Create(";]");
+
+        /// <summary>
+        /// 解析一行日志并累积 — 状态机跟踪步骤名,Span 检测标记
+        /// </summary>
+        public void ParseLine(string line, RunLogSummary summary, Dictionary<string, Dictionary<string, List<string>>> sectionContents)
+        {
+            var content = StripTimestamp(line.AsSpan());
+
+            // 检测 ##[start-action display=StepName;id=...]
+            if (content.StartsWith("##[start-action display=".AsSpan()))
+            {
+                var rest = content.Slice("##[start-action display=".Length);
+                var endIdx = rest.IndexOfAny(s_nameTerminators);
+                _currentStepName = endIdx > 0 ? rest[..endIdx].ToString() : rest.ToString();
+            }
+            else if (content.StartsWith("##[end-action".AsSpan()))
+            {
+                _currentStepName = null;
+            }
+
+            if (_currentStepName is not null)
+            {
+                Accumulate(line, _currentStepName, summary, sectionContents);
+                return;
+            }
+
+            // 回退: [entry.Name] 前缀 或 TSV 格式
+            var stepName = TryExtractStepName(line.AsSpan());
+            if (stepName is not null)
+                Accumulate(line, stepName, summary, sectionContents);
+        }
+
+        /// <summary>
+        /// 剥离时间戳前缀 — "2026-09-07T17:08:27.5016453Z content" → "content",返回 Span 不分配
+        /// </summary>
+        private static ReadOnlySpan<char> StripTimestamp(ReadOnlySpan<char> span)
+        {
+            // 时间戳格式: "2026-09-07T17:08:27.5016453Z content"
+            var zIdx = span.IndexOf('Z');
+            if (zIdx > 0 && zIdx + 2 < span.Length && span[zIdx + 1] == ' ')
+                return span.Slice(zIdx + 2);
+            // [entry.Name] content
+            if (span.Length > 0 && span[0] == '[')
+            {
+                var closeIdx = span.IndexOf(']');
+                if (closeIdx > 0 && closeIdx + 2 < span.Length)
+                    return span.Slice(closeIdx + 2);
+            }
+            return span;
+        }
+
+        /// <summary>
+        /// 从日志行 Span 提取步骤名 — [entry.Name] 前缀优先,回退 TSV,只在找到时 ToString
+        /// </summary>
+        private static string? TryExtractStepName(ReadOnlySpan<char> span)
+        {
+            // [entry.Name] line → ExtractStepNameFromEntryName(entry.Name)
+            if (span.Length > 0 && span[0] == '[')
+            {
+                var closeIdx = span.IndexOf(']');
+                if (closeIdx > 1)
+                    return ExtractStepNameFromEntryName(span[1..closeIdx]);
+            }
+            // TSV: col1\tstepName\t...
+            var tabIdx = span.IndexOf('\t');
+            if (tabIdx < 0) return null;
+            var remaining = span.Slice(tabIdx + 1);
+            var secondTabIdx = remaining.IndexOf('\t');
+            return secondTabIdx >= 0 ? remaining[..secondTabIdx].ToString() : remaining.ToString();
+        }
+
+        /// <summary>
+        /// 从 zip entry 名 Span 提取步骤名 — "0_Checkout.txt" → "Checkout"
+        /// </summary>
+        private static string ExtractStepNameFromEntryName(ReadOnlySpan<char> entryName)
+        {
+            var name = entryName;
+            var slashIdx = name.LastIndexOf('/');
+            if (slashIdx >= 0) name = name.Slice(slashIdx + 1);
+            var dotIdx = name.LastIndexOf('.');
+            if (dotIdx > 0) name = name[..dotIdx];
+            var underscoreIdx = name.IndexOf('_');
+            if (underscoreIdx > 0 && int.TryParse(name[..underscoreIdx], CultureInfo.InvariantCulture, out _))
+                name = name.Slice(underscoreIdx + 1);
+            return name.Length == 0 ? entryName.ToString() : name.ToString();
+        }
     }
+
 
     /// <summary>
     /// 从日志行提取步骤名 — REST API 格式 [entry.Name] line 优先,回退 gh CLI TSV 格式

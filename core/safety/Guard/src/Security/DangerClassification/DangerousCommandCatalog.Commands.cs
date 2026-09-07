@@ -44,6 +44,18 @@ public static partial class DangerousCommandCatalog
             ["Write-Output"] = new("Write-Output", CommandRisk.None, CommandDangerLevel.Safe, "打印 — 只读"),
             ["Select-String"] = new("Select-String", CommandRisk.None, CommandDangerLevel.Safe, "文本搜索 — 只读"),
 
+            // === Safe（白灯 / 自动通过）— 常见开发工具命令，AI 工具内部调用需要 ===
+            ["dotnet"] = new("dotnet", CommandRisk.None, CommandDangerLevel.Safe, ".NET CLI — 开发工具（build/run/test 等）"),
+            ["node"] = new("node", CommandRisk.None, CommandDangerLevel.Safe, "Node.js — 开发工具"),
+            ["npm"] = new("npm", CommandRisk.None, CommandDangerLevel.Safe, "npm 包管理器 — 开发工具"),
+            ["npx"] = new("npx", CommandRisk.None, CommandDangerLevel.Safe, "npx 包执行器 — 开发工具"),
+            ["python"] = new("python", CommandRisk.None, CommandDangerLevel.Safe, "Python — 开发工具"),
+            ["python3"] = new("python3", CommandRisk.None, CommandDangerLevel.Safe, "Python3 — 开发工具"),
+            ["pip"] = new("pip", CommandRisk.None, CommandDangerLevel.Safe, "pip 包管理器 — 开发工具"),
+            ["java"] = new("java", CommandRisk.None, CommandDangerLevel.Safe, "Java — 开发工具"),
+            ["mvn"] = new("mvn", CommandRisk.None, CommandDangerLevel.Safe, "Maven — 开发工具"),
+            ["gradle"] = new("gradle", CommandRisk.None, CommandDangerLevel.Safe, "Gradle — 开发工具"),
+
             // === Dangerous（直接拒绝不提示）— 整盘/系统级不可逆操作 ===
             ["mkfs"] = new("mkfs", CommandRisk.SystemModification, CommandDangerLevel.Dangerous, "格式化文件系统 — 不可逆整盘操作"),
             ["fdisk"] = new("fdisk", CommandRisk.SystemModification, CommandDangerLevel.Dangerous, "磁盘分区操作 — 不可逆整盘操作"),

@@ -567,13 +567,13 @@ public class AgentBase : Entity, IAgent
             }
         }
 
-        // T5.0: 消费契约变更通知 — 收到 ContractChanged 后通知 Worker 已同步主干，继续工作
+        // T5.0: 消费契约变更通知 — 收到 ContractChanged 后通知 Worker 停止契约修改，系统将在完成后自动 rebase
         {
             var changeCount = 0;
             while (ContractChangeNotifications.TryDequeue(out var changeContent))
             {
                 hasTaskInput = true;
-                chatHistory.AddUserMessage($"[契约变更通知] 队长已改热文件并 push: {changeContent}。已同步主干，请继续你的任务，保留本地半成品。");
+                chatHistory.AddUserMessage($"[契约变更通知] 队长已改热文件并 push: {changeContent}。请停止契约修改，继续内部修改。系统将在你完成后自动 rebase 同步主干，保留本地半成品。");
                 changeCount++;
             }
             if (changeCount > 0)

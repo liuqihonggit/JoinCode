@@ -41,6 +41,7 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
                 .WithDiagnostic(interruptDiag)
                 .WithEntityMetadata(EntityMetadataEntry.Int("exit_code", result.ExitCode ?? -1))
                 .WithEntityMetadata(EntityMetadataEntry.Bool("interrupted", true))
+                .WithEntityMetadata(EntityMetadataEntry.Long("execution_time_ms", (long)result.ExecutionTime.TotalMilliseconds))
                 .Build();
             return Task.CompletedTask;
         }
@@ -80,6 +81,7 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
                 .WithText(output)
                 .WithDiagnostic(failedDiag)
                 .WithEntityMetadata(EntityMetadataEntry.Int("exit_code", result.ExitCode ?? -1))
+                .WithEntityMetadata(EntityMetadataEntry.Long("execution_time_ms", (long)result.ExecutionTime.TotalMilliseconds))
                 .Build();
             return Task.CompletedTask;
         }
@@ -88,6 +90,7 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
         context.Result = ToolResultBuilder.Success()
             .WithText(output)
             .WithEntityMetadata(EntityMetadataEntry.Int("exit_code", result.ExitCode ?? 0))
+            .WithEntityMetadata(EntityMetadataEntry.Long("execution_time_ms", (long)result.ExecutionTime.TotalMilliseconds))
             .Build();
         return Task.CompletedTask;
     }
@@ -95,7 +98,7 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
     /// <summary>
     /// 构建 Shell 执行实体元数据 — 用于回填 BashProcessEntity 子类字段
     /// </summary>
-    private static List<EntityMetadataEntry> BuildShellEntityMetadata(SystemActuatorExecutionResult result)
+    internal static List<EntityMetadataEntry> BuildShellEntityMetadata(SystemActuatorExecutionResult result)
     {
         var metadata = new List<EntityMetadataEntry>();
         if (result.ExitCode.HasValue)
@@ -106,6 +109,7 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
             metadata.Add(EntityMetadataEntry.Bool("interrupted", true));
         if (result.BackgroundTaskId is not null)
             metadata.Add(EntityMetadataEntry.String("background_task_id", result.BackgroundTaskId));
+        metadata.Add(EntityMetadataEntry.Long("execution_time_ms", (long)result.ExecutionTime.TotalMilliseconds));
         return metadata;
     }
 
@@ -150,11 +154,15 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
                 : null;
 
         // 拼接最终输出 — 对齐 TS [processedStdout, errorMessage, backgroundInfo].filter(Boolean).join('\n')
-        var parts = new List<string>(4);
+        var parts = new List<string>(5);
         if (processedStdout.Length > 0) parts.Add(processedStdout);
         if (errorMessage.Length > 0) parts.Add(errorMessage);
         if (backgroundInfo.Length > 0) parts.Add(backgroundInfo);
         if (interpretationInfo is not null) parts.Add(interpretationInfo);
+
+        // 结构化元数据页脚 — Markdown 表格 + JSON 代码块,供 AI 解析消费
+        parts.Add(result.ToMarkdownSummary().TrimEnd());
+        parts.Add(result.ToJsonBlock());
 
         var output = string.Join(Environment.NewLine, parts);
         return string.IsNullOrEmpty(output) ? "(No output)" : output;

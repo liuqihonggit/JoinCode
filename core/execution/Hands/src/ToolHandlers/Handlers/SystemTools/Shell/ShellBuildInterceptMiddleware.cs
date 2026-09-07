@@ -50,7 +50,9 @@ public sealed partial class ShellBuildInterceptMiddleware : ServiceEntity, IShel
                 Interrupted = true,
             };
                 var cancelDiag = BuildCancelledDiagnostic(buildId);
-                context.Result = ToolResultBuilder.Error().WithText(cancelDiag.FormattedMessage).WithDiagnostic(cancelDiag).Build();
+                context.Result = ToolResultBuilder.Error().WithText(cancelDiag.FormattedMessage).WithDiagnostic(cancelDiag)
+                    .WithEntityMetadata(ShellOutputMiddleware.BuildShellEntityMetadata(context.ExecutionResult))
+                    .Build();
                 return;
             }
 
@@ -105,10 +107,12 @@ public sealed partial class ShellBuildInterceptMiddleware : ServiceEntity, IShel
             Stdout = r.Output,
             Stderr = r.ErrorOutput,
             ExitCode = r.ExitCode,
+            ExecutionTime = r.BuildDuration,
         };
+        var metadata = ShellOutputMiddleware.BuildShellEntityMetadata(context.ExecutionResult);
         context.Result = r.ExitCode == 0
-            ? ToolResultBuilder.Success().WithText(displayOutput).Build()
-            : ToolResultBuilder.Error().WithText(displayOutput).WithDiagnostic(BuildFailedDiagnostic(r.BuildId, r.ExitCode)).Build();
+            ? ToolResultBuilder.Success().WithText(displayOutput).WithEntityMetadata(metadata).Build()
+            : ToolResultBuilder.Error().WithText(displayOutput).WithDiagnostic(BuildFailedDiagnostic(r.BuildId, r.ExitCode)).WithEntityMetadata(metadata).Build();
     }
 
     internal static ToolDiagnostic BuildCancelledDiagnostic(string buildId) =>

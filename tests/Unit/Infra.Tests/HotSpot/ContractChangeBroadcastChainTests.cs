@@ -38,7 +38,7 @@ public sealed class ContractChangeBroadcastChainTests
         var notification = string.Empty;
         workerQueue.TryDequeue(out notification).Should().BeTrue();
         notification.Should().Contain("IFoo.cs");
-        notification.Should().Contain("git pull");
+        notification.Should().Contain("自动 rebase");
     }
 
     [Fact]

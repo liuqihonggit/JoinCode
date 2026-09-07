@@ -42,7 +42,7 @@ public sealed class ContractChangeBroadcastListener : IFileWriteListener
         var dependentWorkers = _hotSpotTracker.GetHotSpotInfo(e.FilePath).ClaimingWorkers;
         if (dependentWorkers.Count == 0) return;
 
-        var notification = $"队长改热文件 {e.FilePath} 契约变更，请 git pull --rebase 同步主干后继续";
+        var notification = $"队长改热文件 {e.FilePath} 契约变更，请停止契约修改，系统将在你完成后自动 rebase 同步主干";
         _router.EnqueueNotifications(dependentWorkers, notification);
         _ = BroadcastAsync(e.FilePath, dependentWorkers);
         _logger?.LogInformation("[ContractBroadcast] 队长改热文件 {FilePath}，广播通知 {Count} 个 Worker", e.FilePath, dependentWorkers.Count);

@@ -269,7 +269,13 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
         return new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["CLAUDECODE"] = "1",
-            ["GIT_EDITOR"] = "true"
+            ["GIT_EDITOR"] = "true",
+            ["EDITOR"] = "true",
+            ["VISUAL"] = "true",
+            ["GIT_TERMINAL_PROMPT"] = "0",
+            ["GIT_ASKPASS"] = "",
+            ["GIT_PAGER"] = "cat",
+            ["PAGER"] = "cat"
         };
     }
 

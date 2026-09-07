@@ -10,6 +10,7 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
     private readonly StringBuilder _stderrBuilder = new();
     private readonly CancellationTokenSource _processCts;
     private readonly TaskCompletionSource<SystemActuatorExecutionResult> _resultTcs = new();
+    private readonly System.Diagnostics.Stopwatch _stopwatch = new();
     private readonly string _command;
     private readonly string _workingDirectory;
     private readonly int? _timeoutMs;
@@ -81,6 +82,7 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
         _cwdFilePath = cwdFilePath;
         _detached = detached;
         _processCts = new CancellationTokenSource();
+        _stopwatch.Start();
 
         ShouldAutoBackground = shouldAutoBackground;
 
@@ -426,7 +428,7 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
             _resultTcs.TrySetResult(SystemActuatorExecutionResult.FailureResult(
                 "Process killed",
                 GetCurrentStdout(),
-                _stderrBuilder.ToString()));
+                _stderrBuilder.ToString()) with { ExecutionTime = _stopwatch.Elapsed });
             return;
         }
 
@@ -450,6 +452,7 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
             PersistedOutputSize = persistedSize,
             BackgroundTaskId = _backgroundTaskId,
             CwdWasReset = cwdWasReset,
+            ExecutionTime = _stopwatch.Elapsed,
         };
 
         _resultTcs.TrySetResult(result);

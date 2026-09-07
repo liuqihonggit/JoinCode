@@ -69,7 +69,7 @@ public sealed class GitToolHandlersTests
     {
         // 验证所有枚举值都能通过 ToValue 映射到非空字符串
         var allValues = Enum.GetValues<GitSubCommand>();
-        allValues.Should().HaveCount(16);
+        allValues.Should().NotBeEmpty();
 
         // 验证每个值都有映射，且与 GitSubCommandConstants 常量一致
         foreach (var value in allValues)

@@ -12,11 +12,9 @@ public sealed class TaskTableGenerator : ITaskTableGenerator
         if (entries.Count == 0)
             return "# 任务表\n\n（无任务）\n";
 
-        var sb = new StringBuilder();
-        sb.AppendLine("# 任务表");
-        sb.AppendLine();
-        sb.AppendLine("| 编号 | 描述 | 涉及文件 | 角色 | 依赖 | 验证方式 | 热文件 | 热点标注 | 状态 |");
-        sb.AppendLine("|------|------|----------|------|------|----------|--------|----------|------|");
+        var builder = new MarkdownTableBuilder()
+            .WithTitle("任务表")
+            .AddHeader("编号", "描述", "涉及文件", "角色", "依赖", "验证方式", "热文件", "热点标注", "状态");
 
         foreach (var e in entries)
         {
@@ -24,10 +22,10 @@ public sealed class TaskTableGenerator : ITaskTableGenerator
             var deps = string.Join(", ", e.Dependencies);
             var hot = e.IsHotFile ? "🔥" : "";
             var annotation = string.IsNullOrEmpty(e.HotSpotAnnotation) ? "" : e.HotSpotAnnotation;
-            sb.AppendLine($"| {e.Id} | {e.Description} | {files} | {e.Role} | {deps} | {e.Verification} | {hot} | {annotation} | {e.Status} |");
+            builder.AddRow(e.Id, e.Description, files, e.Role, deps, e.Verification, hot, annotation, e.Status);
         }
 
-        return sb.ToString();
+        return builder.Build();
     }
 
     public string UpdateStatus(IReadOnlyList<TaskTableEntry> entries, string taskId, string newStatus)

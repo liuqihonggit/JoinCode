@@ -75,7 +75,11 @@ public sealed partial class AbsoluteTimeoutMiddleware : ServiceEntity, IShellMid
         sb.AppendLine("- timeout_minutes: 10 (默认10分钟续期)");
 
         var diagnostic = BuildTimeoutDiagnostic(sb.ToString(), context.Command, seconds, toolName);
-        context.Result = ToolResultBuilder.Error().WithText(diagnostic.FormattedMessage).WithDiagnostic(diagnostic).Build();
+        context.Result = ToolResultBuilder.Error().WithText(diagnostic.FormattedMessage).WithDiagnostic(diagnostic)
+            .WithEntityMetadata(EntityMetadataEntry.Int("exit_code", -1))
+            .WithEntityMetadata(EntityMetadataEntry.Bool("interrupted", true))
+            .WithEntityMetadata(EntityMetadataEntry.Long("execution_time_ms", seconds * 1000L))
+            .Build();
     }
 
     internal static ToolDiagnostic BuildTimeoutDiagnostic(string formattedMessage, string command, int seconds, string toolName) =>

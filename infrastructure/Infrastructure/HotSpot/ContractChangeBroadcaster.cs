@@ -37,7 +37,7 @@ public sealed class ContractChangeBroadcaster : IContractChangeBroadcaster
                 FromAgentId = captainId,
                 ToAgentId = workerId,
                 MessageType = TeammateMessageTypeConstants.ContractChanged,
-                Content = FormattableString.Invariant($"队长 {captainId} push 热文件 {filePath} 契约变更，请 git pull 同步主干后继续"),
+                Content = FormattableString.Invariant($"队长 {captainId} push 热文件 {filePath} 契约变更，请停止契约修改，系统将在你完成后自动 rebase 同步主干"),
                 StructuredType = TeammateMessageType.ContractChanged
             };
             if (await _mailbox.SendAsync(workerId, msg, cancellationToken).ConfigureAwait(false))

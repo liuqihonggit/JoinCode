@@ -155,11 +155,20 @@
 
 ### 阶段 5：Worker 同步中断（合并为一个任务）
 
-#### T5.0 Worker 主循环查邮箱 + 同步
-- Worker 主循环每轮生成前查邮箱
-- 收到 `ContractChanged` 消息 → `git pull` 同步主干 → **保留本地内部半成品**（不作废）→ 清除消息 → 继续
-- pull 产生本地冲突时以主干为准
-- 软中断非硬停（不杀 LLM 进程，下一生成检查点自行处理）
+#### T5.0 Worker 自动 rebase 同步（取代旧软通知模式）
+- **触发时机**: SubagentStop 钩子（subagent 完成时，Worker 已停止，工作区干净）
+- **执行流程**: `git fetch` 检测主干有无新提交 → 无则跳过 → 有则检查工作区干净（未提交先 `git commit` 保留半成品）→ `git rebase origin/main` → 无冲突静默完成 → 有冲突 `git rebase --abort` + 邮箱报文
+- **冲突处理**: `git rebase --abort` 保持 worktree 干净（回到 rebase 前状态）+ 邮箱报文含**冲突文件列表 + diff 摘要** + Worker 下次启动时先处理冲突
+- **保留本地半成品**: rebase 保留 Worker 的 commit（变基到 main 之上），不作废
+- **确定性保证**: 系统执行不依赖 LLM 理解提示，有系统日志可追溯
+- **旧方案（已废弃）**: 软通知模式 — 通知文本写"请 git pull --rebase 同步主干后继续"，LLM 看到提示后自己执行。问题：LLM 可能忽略提示/执行错误/多 Worker 同时 rebase 冲突/无确定性保证/归因偏差
+
+#### T5.1 commit 监控 + 自动 rebase 实现（新增）
+- **commit 监控**: SubagentStop 钩子集成 rebase 触发（subagent 完成时自动执行，无需 git hook）
+- **自动 rebase**: `git fetch` → 检测有无新提交 → `git rebase origin/main` → 无冲突静默 → 有冲突 `abort` + 邮箱
+- **冲突通知**: 邮箱报文结构化（冲突文件列表 + diff 摘要），Worker 下次启动先处理
+- **工作区保护**: rebase 前检查工作区干净，有未提交先 `git commit`（保留半成品）
+- **实现位置**: `AgentCoordinator.OnSubagentStopHookAsync` + 新增 `IAutoRebaseService`
 
 ---
 
@@ -277,6 +286,7 @@
 | 8 | 契约热点触发后一刀切禁止 Worker 所有修改、作废内部半成品 | 仅回收契约修改权限，内部修改允许继续，保留内部半成品 |
 | 9 | 队长只改接口不改调用点（让队员擦屁股） | 队长改热文件连带改所有调用点（完整修复） |
 | 10 | 用文件锁防并发写（死锁高） | 用热点识别+队长收口+worktree 隔离替代 |
+| 11 | 软通知"请 git pull --rebase"由 LLM 自己执行（可能忽略/执行错/归因偏差） | 系统自动 rebase（SubagentStop 时执行，确定性保证，冲突 abort+邮箱报文） |
 
 ---
 
@@ -336,10 +346,11 @@
 
 | 任务 | 内容 | 角色 |
 |------|------|------|
-| T5.0 | Worker 主循环查邮箱 + pull 同步保留半成品 | Worker 同步 |
+| T5.0 | Worker SubagentStop 时自动 rebase 同步（取代软通知） | Worker 同步 |
+| T5.1 | commit 监控 + 自动 rebase 实现（IAutoRebaseService） | 自动 rebase |
 | T6.0 | 队长串行处理合并队列 | 串行合并 |
 
-**内聚理由**：T5.0 Worker 收 ContractChanged 后 pull 同步，T6.0 产出进合并队列队长串行合并——都是合并阶段。
+**内聚理由**：T5.0 Worker SubagentStop 时自动 rebase 同步，T5.1 实现 commit 监控+自动 rebase 服务，T6.0 产出进合并队列队长串行合并——都是合并阶段。
 
 ### 单元 E：延迟邮件
 
@@ -387,7 +398,7 @@ E（延迟邮件，相对独立，可在 A 之后任意插入）
 ```
 ① 串行：subAgent 上报要改什么（双意图：InternalChange/ContractChange）
 ② 串行：队长先改热文件（连带改所有调用点，完整修复）+ 自检 + push
-③ 并行：队员 pull 同步主干 → 各自改剩下的（内部修改自由并行）
+③ 并行：队员 SubagentStop 时系统自动 rebase 同步主干 → 各自改剩下的（内部修改自由并行）
 ④ 串行：队员完成 → 产出进合并队列 → 队长串行合并（一次一个，编译校验）
 ⑤ 并行：下一批任务派发（DAG 就绪批次并行）
 ... 循环
@@ -400,7 +411,7 @@ E（延迟邮件，相对独立，可在 A 之后任意插入）
 
 ### 一句话闭环
 
-Worker 上报双意图 → 热点识别（取代文件锁）→ 热文件契约改队长串行收口、内部改队员自由并行 → 队长改热文件连带改所有调用点（完整修复）+ 自检 + push → 热文件变广播给依赖 Worker → Worker pull 同步保留内部半成品 → 编译走消息队列防资源爆炸 → 队长串行合并防冲突爆炸。
+Worker 上报双意图 → 热点识别（取代文件锁）→ 热文件契约改队长串行收口、内部改队员自由并行 → 队长改热文件连带改所有调用点（完整修复）+ 自检 + push → 热文件变广播给依赖 Worker → Worker SubagentStop 时系统自动 rebase 同步（无冲突静默 / 有冲突 abort+邮箱报文含冲突文件列表）→ 编译走消息队列防资源爆炸 → 队长串行合并防冲突爆炸。
 
 ---
 
@@ -454,6 +465,7 @@ Worker 上报双意图 → 热点识别（取代文件锁）→ 热文件契约�
 | C | T2.4 | AgentCoordinator EnsureSecretaryAsync 秘书常驻 | 6 |
 | C | T2.5 | ICallSiteFinder + CallSiteFinder + CodeCallSite | 3 |
 | D | T5.0 | AgentBase ContractChangeNotifications 队列消费 | 5 |
+| D | T5.1 | IAutoRebaseService + AutoRebaseService（自动 rebase 取代软通知） | 11 |
 | D | T6.0 | IMergeQueueService + MergeQueueService | 7 |
 | E | T7.1 | DeferredMail + MailMarker | — |
 | E | T7.2 | IDeferredMailService + DeferredMailService | 7 |
@@ -464,7 +476,7 @@ Worker 上报双意图 → 热点识别（取代文件锁）→ 热文件契约�
 
 ### 待集成任务
 
-✅ **全部完成** — 所有纯新增组件和集成任务已实现，150测试全绿，零破坏。
+✅ **全部完成** — T5.1 自动 rebase 已实现（`AutoRebaseService` + `AgentCoordinator` 集成，11 测试全绿），断裂点6 已从软通知修正为自动执行。所有纯新增组件和集成任务已实现。
 
 ### 集成顺序（已全部完成）
 
@@ -488,8 +500,12 @@ Worker 上报双意图 → 热点识别（取代文件锁）→ 热文件契约�
 - **修复**: 新增 ContractChangeBroadcastListener（队长改热文件自动广播+塞队列）+ ContractChangeNotificationRouter（桥接邮箱到Worker队列）；修复 EnqueueNotification 队列不存在时通知丢失 bug（TryGetValue → GetOrAdd）
 - **链路**: 队长改热文件 → ContractChangeBroadcastListener → ContractChangeNotificationRouter.EnqueueNotifications → Worker.ContractChangeNotifications 队列
 
-### 断裂点6: Worker 收到通知后 git pull --rebase ✅
-- **实现**: 软通知模式 — 通知文本写"请 git pull --rebase 同步主干后继续"，AgentBase.DrainPendingUserInputs 消费时塞入 chatHistory，LLM 看到提示后自己执行 git pull
+### 断裂点6: Worker 自动 rebase 同步 ✅ 已修正为自动执行
+- **旧实现**（软通知模式）: 通知文本写"请 git pull --rebase 同步主干后继续"，AgentBase.DrainPendingUserInputs 消费时塞入 chatHistory，LLM 看到提示后自己执行 git pull
+- **问题**: LLM 可能忽略提示 / 执行错误命令 / 多 Worker 同时 rebase 冲突 / 无确定性保证 / 归因偏差（LLM 认为 rebase 问题不是自己引入的）
+- **新实现**（自动 rebase 模式）: `AutoRebaseService` — SubagentStop 钩子触发系统自动 `git fetch` + `git rebase origin/main`；无冲突静默完成；有冲突 `git rebase --abort` + 邮箱报文（含冲突文件列表 + diff 摘要）
+- **优势**: 确定性执行（不依赖 LLM 理解提示）+ 时机可控（SubagentStop 时 Worker 已停止）+ 冲突可检测（系统生成冲突文件列表）+ 可追溯（系统日志）+ 减少归因偏差
+- **状态**: ✅ 已实现（commit ce05ac774，11 测试全绿）
 
 ### Worker spawn 热点集成 ✅
 - **新增**: IHotSpotSpawnIntegration 聚合服务 + HotSpotSpawnIntegration 实现
@@ -508,3 +524,16 @@ Worker 上报双意图 → 热点识别（取代文件锁）→ 热文件契约�
 <!-- 原因: 遵循规则5（参数传递传父类/接口），避免构造函数参数膨胀 -->
 <!-- 替代方案: 在 ForkSpawnMiddleware 加6个可选参数（臃肿，违反规则5）-->
 <!-- 验证: 编译通过，1750测试全绿 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-09-07 设计修正：软通知→自动 rebase -->
+<!-- 决策: 断裂点6 从"软通知模式(LLM自己执行git pull)"改为"自动rebase模式(SubagentStop时系统自动执行)" -->
+<!-- 原因: 软通知模式有5个问题:1.LLM可能忽略提示 2.执行错误命令 3.多Worker同时rebase冲突 4.无确定性保证 5.归因偏差(LLM认为rebase问题不是自己引入的); 自动rebase模式优势:确定性执行+时机可控(SubagentStop时Worker已停止)+冲突可检测(系统生成冲突文件列表)+可追溯(系统日志)+减少归因偏差 -->
+<!-- 替代方案: 增强软通知(邮箱报文从"请git pull --rebase"改为结构化指令+冲突文件列表)——但仍有LLM忽略风险,不彻底 -->
+<!-- 边缘处理: 1.rebase前检查工作区干净(未提交先commit) 2.rebase冲突时git rebase --abort保持worktree干净 3.git fetch检测有无新提交无则跳过 -->
+<!-- 验证: 文档修正完成,待T5.1代码实现 -->
+
+<!-- 🤖 Auto Decision: 2026-09-07 T5.1 实现完成 -->
+<!-- 决策: AutoRebaseService 状态机驱动(Idle->Fetching->CheckingUpstream->StashingDirty->Rebasing->ConflictDetected->Aborting->Completed),集成到AgentCoordinator.OnSubagentStopHookAsync -->
+<!-- 原因: 用户要求状态机+守卫处理边缘情况(工作区未提交/rebase冲突等); SubagentStop时Worker已停止工作区干净是最佳rebase时机 -->
+<!-- 边缘处理: 1.fetch失败即Failed(涵盖worktree不存在) 2.无新提交Skipped 3.工作区脏先stash再rebase后pop 4.rebase冲突abort+邮箱通知队长含冲突文件列表 5.无队长ID跳过通知 6.stash失败Failed -->
+<!-- 验证: 11单元测试全绿,196 HotSpot测试全绿零破坏,编译通过 ✅ -->

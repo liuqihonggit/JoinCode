@@ -108,7 +108,7 @@ public enum SystemActuatorLifecycleState
 /// <summary>
 /// 系统执行器执行结果
 /// </summary>
-public sealed record SystemActuatorExecutionResult
+public sealed record SystemActuatorExecutionResult : ICommandExecutionResult
 {
     /// <summary>
     /// 内联输出上限（30K）
@@ -132,6 +132,14 @@ public sealed record SystemActuatorExecutionResult
     public bool Interrupted { get; init; }
     public bool Success => ExitCode == 0 && !Interrupted;
     public string? ErrorMessage { get; init; }
+
+    /// <summary>
+    /// 执行时长 — 从进程启动到退出
+    /// </summary>
+    public TimeSpan ExecutionTime { get; init; } = TimeSpan.Zero;
+
+    string ICommandExecutionResult.Output => Stdout;
+    string ICommandExecutionResult.Error => Stderr;
 
     /// <summary>
     /// 大输出持久化路径 — 输出超过 MaxInlineOutputChars 时，完整输出保存到磁盘
@@ -162,6 +170,71 @@ public sealed record SystemActuatorExecutionResult
     /// CWD 是否被重置
     /// </summary>
     public bool CwdWasReset { get; init; }
+
+    /// <summary>
+    /// 简洁单行摘要 — 用于日志/调试,格式: [Shell 状态] ExitCode=x, PID=y, 耗时zms
+    /// </summary>
+    public override string ToString()
+    {
+        var status = Interrupted ? "INT" : Success ? "OK" : "FAIL";
+        var pid = ProcessId.HasValue ? $", PID={ProcessId}" : string.Empty;
+        var bg = BackgroundTaskId is not null ? $", BG={BackgroundTaskId}" : string.Empty;
+        return $"[Shell {status}] ExitCode={ExitCode?.ToString() ?? "null"}{pid}{bg}, {ExecutionTime.TotalMilliseconds:F0}ms";
+    }
+
+    /// <summary>
+    /// 完整 Markdown 表格 — 包含所有字段(含后台化/持久化/进程等扩展信息),供 AI/用户消费
+    /// </summary>
+    public string ToMarkdownTable()
+    {
+        var builder = new MarkdownTableBuilder()
+            .WithTitle("命令执行结果")
+            .AddHeader("字段", "值")
+            .AddRow("退出码", ExitCode?.ToString() ?? "null")
+            .AddRow("成功", Success ? "是" : "否")
+            .AddRow("中断", Interrupted ? "是" : "否")
+            .AddRow("执行时长", FormatDuration(ExecutionTime))
+            .AddRow("进程ID", ProcessId?.ToString() ?? "null")
+            .AddRow("输出摘要", Summarize(Stdout))
+            .AddRow("错误摘要", Summarize(Stderr));
+
+        if (ErrorMessage is not null)
+            builder.AddRow("错误信息", Summarize(ErrorMessage));
+        if (BackgroundTaskId is not null)
+            builder.AddRow("后台任务ID", BackgroundTaskId);
+        if (PersistedOutputPath is not null)
+            builder.AddRow("持久化路径", PersistedOutputPath);
+        if (PersistedOutputSize.HasValue)
+            builder.AddRow("持久化大小", $"{PersistedOutputSize.Value / 1024.0:F1}KB");
+        if (BackgroundedByUser)
+            builder.AddRow("用户后台化", "是");
+        if (AssistantAutoBackgrounded)
+            builder.AddRow("自动后台化", "是");
+        if (CwdWasReset)
+            builder.AddRow("CWD重置", "是");
+
+        return builder.Build();
+    }
+
+    private static string FormatDuration(TimeSpan duration)
+    {
+        var ms = duration.TotalMilliseconds;
+        return ms switch
+        {
+            0 => "0ms",
+            < 1 => $"{ms:F2}ms",
+            < 1000 => $"{ms:F0}ms",
+            < 60000 => $"{duration.TotalSeconds:F2}s",
+            _ => $"{duration.TotalMinutes:F2}min",
+        };
+    }
+
+    private static string Summarize(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return "(空)";
+        var trimmed = text.Trim();
+        return trimmed.Length <= 80 ? trimmed : string.Concat(trimmed.AsSpan(0, 77), "...");
+    }
 
     /// <summary>
     /// 生成大输出持久化消息
@@ -213,7 +286,8 @@ public sealed record SystemActuatorExecutionResult
             Stderr = $"Command timed out ({timeoutMs}ms)",
             ExitCode = -1,
             Interrupted = true,
-            ErrorMessage = "Timeout"
+            ErrorMessage = "Timeout",
+            ExecutionTime = TimeSpan.FromMilliseconds(timeoutMs)
         };
 }
 

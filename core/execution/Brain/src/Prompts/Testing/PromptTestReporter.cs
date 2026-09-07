@@ -152,16 +152,17 @@ public sealed partial class PromptTestReporter
         sb.AppendLine();
 
         // 摘要表格
-        sb.AppendLine("## 测试摘要");
-        sb.AppendLine();
-        sb.AppendLine("| 指标 | 数值 |");
-        sb.AppendLine("|------|------|");
-        sb.AppendLine($"| 总测试数 | {report.TotalCount} |");
-        sb.AppendLine($"| 通过 | {report.CorrectCount} |");
-        sb.AppendLine($"| 失败 | {report.IncorrectCount} |");
-        sb.AppendLine($"| 触发 | {report.TriggeredCount} |");
-        sb.AppendLine($"| 未触发 | {report.NotTriggeredCount} |");
-        sb.AppendLine($"| 总耗时 | {report.TotalDuration.TotalMilliseconds:F1}ms |");
+        var summaryTable = new MarkdownTableBuilder()
+            .WithTitle("测试摘要")
+            .AddHeader("指标", "数值")
+            .AddRow("总测试数", report.TotalCount.ToString())
+            .AddRow("通过", report.CorrectCount.ToString())
+            .AddRow("失败", report.IncorrectCount.ToString())
+            .AddRow("触发", report.TriggeredCount.ToString())
+            .AddRow("未触发", report.NotTriggeredCount.ToString())
+            .AddRow("总耗时", $"{report.TotalDuration.TotalMilliseconds:F1}ms")
+            .Build();
+        sb.Append(summaryTable);
         sb.AppendLine();
 
         // 按场景分组
@@ -173,8 +174,9 @@ public sealed partial class PromptTestReporter
         {
             sb.AppendLine($"### {scenarioName}");
             sb.AppendLine();
-            sb.AppendLine("| Section | 状态 | 条件 | 耗时 |");
-            sb.AppendLine("|---------|------|------|------|");
+
+            var scenarioTable = new MarkdownTableBuilder()
+                .AddHeader("Section", "状态", "条件", "耗时");
 
             foreach (var result in results)
             {
@@ -184,9 +186,10 @@ public sealed partial class PromptTestReporter
                 var condition = result.ConditionDescription ?? "-";
                 var duration = $"{result.Duration.TotalMilliseconds:F1}ms";
 
-                sb.AppendLine($"| {result.SectionName} | {status} | {condition} | {duration} |");
+                scenarioTable.AddRow(result.SectionName, status, condition, duration);
             }
 
+            sb.Append(scenarioTable.Build());
             sb.AppendLine();
         }
 

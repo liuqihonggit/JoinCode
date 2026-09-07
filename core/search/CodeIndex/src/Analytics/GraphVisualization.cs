@@ -153,17 +153,24 @@ public sealed class GraphVisualization : ServiceEntity, IGraphVisualization
 
         sb.AppendLine("---");
         sb.AppendLine();
-        sb.AppendLine("## Community Overview");
-        sb.AppendLine();
-        sb.AppendLine("| # | Members | Internal Edges | External Edges | Cohesion |");
-        sb.AppendLine("|---|---------|---------------|---------------|----------|");
+
+        var communityTable = new MarkdownTableBuilder()
+            .WithTitle("Community Overview")
+            .AddHeader("#", "Members", "Internal Edges", "External Edges", "Cohesion");
 
         foreach (var c in communities)
         {
             var total = c.InternalEdges + c.ExternalEdges;
             var cohesion = total > 0 ? (double)c.InternalEdges / total : 0;
-            sb.AppendLine($"| {c.CommunityId} | {c.MemberCount} | {c.InternalEdges} | {c.ExternalEdges} | {cohesion:P0} |");
+            communityTable.AddRow(
+                c.CommunityId.ToString(),
+                c.MemberCount.ToString(),
+                c.InternalEdges.ToString(),
+                c.ExternalEdges.ToString(),
+                $"{cohesion:P0}");
         }
+
+        sb.Append(communityTable.Build());
 
         sb.AppendLine();
         sb.AppendLine("---");

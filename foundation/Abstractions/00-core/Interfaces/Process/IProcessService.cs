@@ -3,13 +3,20 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 进程执行结果
 /// </summary>
-public sealed class ProcessResult
+public sealed class ProcessResult : ICommandExecutionResult
 {
     public required int ExitCode { get; init; }
     public required string StandardOutput { get; init; }
     public required string StandardError { get; init; }
     public required TimeSpan ExecutionTime { get; init; }
     public bool Success => ExitCode == 0;
+
+    int? ICommandExecutionResult.ExitCode => ExitCode;
+    string ICommandExecutionResult.Output => StandardOutput;
+    string ICommandExecutionResult.Error => StandardError;
+
+    public override string ToString() =>
+        $"[Process {(Success ? "OK" : "FAIL")}] ExitCode={ExitCode}, {ExecutionTime.TotalMilliseconds:F0}ms";
 }
 
 /// <summary>

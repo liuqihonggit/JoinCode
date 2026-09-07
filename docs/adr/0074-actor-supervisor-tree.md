@@ -1,6 +1,6 @@
 # 0074. Actor 监督树 — Router/Gateway/Supervisor/PersistentMailbox 四层扩展
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-09-08
 - 决策者：项目架构组
 - 关联 ADR：[0052](0052-asynclock-unified-mutex-file-access.md)、[0060](0060-asynclock-sync-trylock-fireandforget-deadlock.md)

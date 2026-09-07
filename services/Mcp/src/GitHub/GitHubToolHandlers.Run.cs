@@ -1045,7 +1045,11 @@ public partial class GitHubToolHandlers
             sb.Append('\n');
             sb.Append("   |");
             sb.Append('\n');
-            sb.Append($"   | {TestLine.Trim()}");
+            // ##[error] 行: 去掉 ##[error] 前缀,只保留实际错误信息
+            var displayLine = TestLine.Trim();
+            if (IsErrorMarker && displayLine.StartsWith("##[error]", StringComparison.OrdinalIgnoreCase))
+                displayLine = displayLine["##[error]".Length..].Trim();
+            sb.Append($"   | {displayLine}");
             sb.Append('\n');
             if (ErrorMessageLines.Count > 0)
             {

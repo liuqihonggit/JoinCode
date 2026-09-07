@@ -48,6 +48,8 @@ public partial class ShellToolHandlers : ShellToolBase
         {
             var actuator = _registry.Get(SystemActuatorKind.Bash);
 
+            var workDir = string.IsNullOrEmpty(working_directory) ? _fs.GetCurrentDirectory() : working_directory;
+
             var context = new ShellPipelineContext
             {
                 Command = command,
@@ -55,7 +57,7 @@ public partial class ShellToolHandlers : ShellToolBase
                 Description = description,
                 Timeout = timeout,
                 TimeoutPolicy = TimeoutPolicy,
-                WorkingDirectory = working_directory,
+                WorkingDirectory = workDir,
                 Background = background,
                 AutoBackground = auto_background,
                 DangerouslyDisableSandbox = dangerously_disable_sandbox,

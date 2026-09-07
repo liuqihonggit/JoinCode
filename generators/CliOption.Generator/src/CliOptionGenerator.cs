@@ -602,7 +602,49 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
             }
         }
 
+        GenerateBooleanFlagsSet(sb, enumInfo);
+
         sb.AppendLine("}");
+    }
+
+    /// <summary>
+    /// 生成 BooleanFlags + AllOptionNames FrozenSet
+    /// BooleanFlags: AcceptsValue=false 选项的长名+短名，用于参数解析时避免布尔标志误吞下一个 token
+    /// AllOptionNames: 所有选项的长名+短名，用于未知标志检测
+    /// </summary>
+    private static void GenerateBooleanFlagsSet(StringBuilder sb, CliEnumInfo enumInfo)
+    {
+        var booleanFlags = enumInfo.Options.Where(o => !o.AcceptsValue).ToList();
+        if (booleanFlags.Count == 0)
+            return;
+
+        sb.AppendLine();
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// 布尔标志集合 — 所有 AcceptsValue=false 选项的长名+短名，用于参数解析时避免布尔标志误吞下一个 token");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine($"    public static readonly FrozenSet<string> BooleanFlags = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, new string[]");
+        sb.AppendLine("    {");
+        foreach (var opt in booleanFlags)
+        {
+            sb.AppendLine($"        \"{EscapeString(opt.LongName)}\",");
+            if (!string.IsNullOrEmpty(opt.ShortName))
+                sb.AppendLine($"        \"{EscapeString(opt.ShortName)}\",");
+        }
+        sb.AppendLine("    });");
+
+        sb.AppendLine();
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// 全选项名集合 — 所有选项的长名+短名，用于未知标志检测");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine($"    public static readonly FrozenSet<string> AllOptionNames = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, new string[]");
+        sb.AppendLine("    {");
+        foreach (var opt in enumInfo.Options)
+        {
+            sb.AppendLine($"        \"{EscapeString(opt.LongName)}\",");
+            if (!string.IsNullOrEmpty(opt.ShortName))
+                sb.AppendLine($"        \"{EscapeString(opt.ShortName)}\",");
+        }
+        sb.AppendLine("    });");
     }
 
     private sealed class CliEnumInfo

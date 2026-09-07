@@ -3,6 +3,10 @@ namespace JoinCode.Cli.Output;
 /// <summary>
 /// CLI 错误码注册表 — 集中定义所有结构化错误码
 /// 命名规范: CATEGORY_SPECIFIC_ERROR（大写+下划线）
+/// <para>📌 后续开发者: 新增错误类型时,</para>
+/// <para>1. 在此添加工厂方法返回 CliStructuredError</para>
+/// <para>2. 调用方用 .ToRustStyleString() 渲染为 Rust 风格位置指示错误</para>
+/// <para>3. 禁止新建独立错误格式化器 — ToRustStyleString 是统一渲染入口</para>
 /// </summary>
 public static class CliErrorCatalog
 {
@@ -123,6 +127,20 @@ public static class CliErrorCatalog
         new("ARG_MISSING_REQUIRED",
             $"缺少必需参数: {paramName}",
             "使用 --help 查看参数说明",
+            retryable: false);
+
+    /// <summary>未知选项 — Rust 风格报错，不静默吞掉</summary>
+    public static CliStructuredError ArgUnknownOption(string option) =>
+        new("ARG_UNKNOWN_OPTION",
+            $"未知选项 '{option}'",
+            "可用选项见 jcc --help",
+            retryable: false);
+
+    /// <summary>key=value 参数格式错误 — Rust 风格位置指示</summary>
+    public static CliStructuredError ArgInvalidKeyValueFormat(string token, string detail) =>
+        new("ARG_INVALID_KV_FORMAT",
+            detail,
+            "使用 key=value 传递工具参数，如 pr_number=201",
             retryable: false);
 
     // ── 工具类 (TOOL_) ──

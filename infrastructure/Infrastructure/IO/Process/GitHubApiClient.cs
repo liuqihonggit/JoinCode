@@ -126,7 +126,8 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient
     }
 
     /// <summary>
-    /// 获取 Actions Run 日志 — GET /repos/{owner}/{repo}/actions/runs/{runId}/logs 返回 zip，解压后逐文件逐行 yield
+    /// 获取 Actions Run 日志 — GET /repos/{owner}/{repo}/actions/runs/{runId}/logs
+    /// <para>自动检测响应格式: zip(多文件,逐 entry 逐行) 或纯文本(逐行),无法识别时友好报错</para>
     /// </summary>
     public async IAsyncEnumerable<string> GetRunLogsAsync(
         string owner,
@@ -170,23 +171,17 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient
             }
 
             using var stream = await resp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-            using var archive = new System.IO.Compression.ZipArchive(stream, System.IO.Compression.ZipArchiveMode.Read);
-            foreach (var entry in archive.Entries)
+            await foreach (var line in ReadLogStreamLinesAsync(stream, $"run {runId}", ct).ConfigureAwait(false))
             {
-                if (entry.Length == 0) continue;
-                using var entryStream = entry.Open();
-                using var reader = new StreamReader(entryStream);
-                string? line;
-                while ((line = await reader.ReadLineAsync(ct).ConfigureAwait(false)) is not null)
-                {
-                    yield return $"[{entry.Name}] {line}";
-                }
+                yield return line;
             }
         }
     }
 
     /// <summary>
-    /// 获取 Actions Job 日志 — 逐行 yield（zip 解压后逐文件逐行）
+    /// 获取 Actions Job 日志 — GET /repos/{owner}/{repo}/actions/jobs/{jobId}/logs
+    /// <para>自动检测响应格式: zip(多文件,逐 entry 逐行) 或纯文本(逐行),无法识别时友好报错</para>
+    /// <para>GitHub job logs API 通常返回纯文本(重定向到下载 URL)，run logs API 返回 zip</para>
     /// </summary>
     public async IAsyncEnumerable<string> GetJobLogsAsync(
         string owner,
@@ -230,18 +225,84 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient
             }
 
             using var stream = await resp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-            using var archive = new System.IO.Compression.ZipArchive(stream, System.IO.Compression.ZipArchiveMode.Read);
-            foreach (var entry in archive.Entries)
+            await foreach (var line in ReadLogStreamLinesAsync(stream, $"job {jobId}", ct).ConfigureAwait(false))
             {
-                if (entry.Length == 0) continue;
-                using var entryStream = entry.Open();
-                using var reader = new StreamReader(entryStream);
-                string? line;
-                while ((line = await reader.ReadLineAsync(ct).ConfigureAwait(false)) is not null)
+                yield return line;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 自动检测日志流格式并逐行 yield — zip(PK 魔数)解压逐 entry 逐行,否则当纯文本逐行
+    /// <para>缓冲到 MemoryStream 以支持 seek 和格式检测;zip 解压失败时 yield 友好错误信息</para>
+    /// <para>scope 用于错误信息标识来源(run N / job N)</para>
+    /// </summary>
+    private async IAsyncEnumerable<string> ReadLogStreamLinesAsync(
+        Stream stream, string scope,
+        [EnumeratorCancellation] CancellationToken ct)
+    {
+        // 缓冲到 MemoryStream: ZipArchive 需要 seek + 需要读前 2 字节检测格式
+        using var memStream = new MemoryStream();
+        await stream.CopyToAsync(memStream, ct).ConfigureAwait(false);
+        memStream.Position = 0;
+
+        if (memStream.Length == 0)
+        {
+            yield return $"[ERROR] {scope} 日志响应为空(0 字节)，可能是日志已过期或权限不足";
+            yield break;
+        }
+
+        // 检测 ZIP 魔数: PK (0x50 0x4B)
+        var buffer = memStream.GetBuffer();
+        var isZip = buffer.Length >= 2 && buffer[0] == 0x50 && buffer[1] == 0x4B;
+
+        if (isZip)
+        {
+            // 收集到 List 再 yield(CS1626: yield 不能在带 catch 的 try 块中)
+            List<string>? zipLines = null;
+            string? zipErrorMsg = null;
+            try
+            {
+                using var archive = new System.IO.Compression.ZipArchive(memStream, System.IO.Compression.ZipArchiveMode.Read);
+                zipLines = new List<string>();
+                foreach (var entry in archive.Entries)
                 {
-                    yield return $"[{entry.Name}] {line}";
+                    if (entry.Length == 0) continue;
+                    using var entryStream = entry.Open();
+                    using var reader = new StreamReader(entryStream);
+                    string? line;
+                    while ((line = await reader.ReadLineAsync(ct).ConfigureAwait(false)) is not null)
+                    {
+                        zipLines.Add($"[{entry.Name}] {line}");
+                    }
                 }
             }
+            catch (Exception ex)
+            {
+                // 友好错误: 包含 scope、响应大小、前 4 字节 hex、原始异常
+                var hexPrefix = Convert.ToHexString(buffer, 0, (int)Math.Min(4, memStream.Length));
+                zipErrorMsg = $"[ERROR] {scope} 日志 ZIP 解压失败: {ex.Message}\n  响应大小={memStream.Length} 字节, 前4字节={hexPrefix}\n  可能原因: 日志格式变更、响应被截断或损坏。建议用 gh run view --log 系统命令验证";
+            }
+
+            if (zipErrorMsg is not null)
+            {
+                yield return zipErrorMsg;
+                yield break;
+            }
+            if (zipLines is not null)
+            {
+                foreach (var l in zipLines) yield return l;
+            }
+            yield break;
+        }
+
+        // 纯文本格式: 直接逐行读取
+        memStream.Position = 0;
+        using var textReader = new StreamReader(memStream);
+        string? textLine;
+        while ((textLine = await textReader.ReadLineAsync(ct).ConfigureAwait(false)) is not null)
+        {
+            yield return textLine;
         }
     }
 

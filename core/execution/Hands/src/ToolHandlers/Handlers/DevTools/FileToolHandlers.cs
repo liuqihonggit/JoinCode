@@ -639,9 +639,11 @@ public partial class FileToolHandlers : IDisposable
             return builder.Build();
         }
 
+        var fileSize = ContentReplacementConstants.FormatFileSize(result.UpdatedContent.Length);
+        var lineCount = result.UpdatedContent.AsSpan().Count('\n') + 1;
         var response = replace_all
-            ? $"The file {result.FilePath} has been updated. All {result.ReplaceCount} occurrences were successfully replaced."
-            : $"The file {result.FilePath} has been updated successfully.";
+            ? $"The file {result.FilePath} has been updated. All {result.ReplaceCount} occurrences were successfully replaced. ({fileSize}, {lineCount} lines)"
+            : $"The file {result.FilePath} has been updated successfully. ({fileSize}, {lineCount} lines)";
 
         // 附加 structuredPatch 到 ToolResult — 对齐 TS FileEditTool 返回 structuredPatch
         var toolResult = ToolResultBuilder.Success().WithText(response).Build();
@@ -828,6 +830,9 @@ public partial class FileToolHandlers : IDisposable
         var response = new StringBuilder(128);
         response.AppendLine($"File edited: {result.FilePath}");
         response.AppendLine($"Replaced {result.ReplaceCount} occurrence(s)");
+        var regexFileSize = ContentReplacementConstants.FormatFileSize(result.UpdatedContent.Length);
+        var regexLineCount = result.UpdatedContent.AsSpan().Count('\n') + 1;
+        response.AppendLine($"({regexFileSize}, {regexLineCount} lines)");
 
         NotifyFileWrite(result.FilePath, "edit-regex");
         RecordFileMetrics(FileOperationType.EditRegex, FileOperationResult.Ok);
@@ -891,6 +896,9 @@ public partial class FileToolHandlers : IDisposable
         var response = new StringBuilder(128);
         response.AppendLine($"Content inserted: {result.FilePath}");
         response.AppendLine($"Inserted {result.ReplacedLinesCount} line(s) after line {after_line}");
+        var insFileSize = ContentReplacementConstants.FormatFileSize(result.UpdatedFileContent.Length);
+        var insLineCount = result.UpdatedFileContent.AsSpan().Count('\n') + 1;
+        response.AppendLine($"({insFileSize}, {insLineCount} lines)");
 
         NotifyFileWrite(result.FilePath, "insert-lines");
         RecordFileMetrics(FileOperationType.InsertLines, FileOperationResult.Ok);
@@ -954,6 +962,9 @@ public partial class FileToolHandlers : IDisposable
         var response = new StringBuilder(128);
         response.AppendLine($"Lines deleted: {result.FilePath}");
         response.AppendLine($"Deleted {result.ReplacedLinesCount} line(s) ({result.StartLine}-{result.EndLine})");
+        var delFileSize = ContentReplacementConstants.FormatFileSize(result.UpdatedFileContent.Length);
+        var delLineCount = result.UpdatedFileContent.AsSpan().Count('\n') + 1;
+        response.AppendLine($"({delFileSize}, {delLineCount} lines)");
 
         NotifyFileWrite(result.FilePath, "delete-lines");
         RecordFileMetrics(FileOperationType.DeleteLines, FileOperationResult.Ok);
@@ -1023,7 +1034,8 @@ public partial class FileToolHandlers : IDisposable
             {
                 successCount++;
                 NotifyFileWrite(item.FilePath, "batch-edit");
-                response.AppendLine($"  {StatusSymbol.Tick.ToValue()} {item.FilePath} ({item.Result.ReplaceCount} replacement(s))");
+                var batchSize = ContentReplacementConstants.FormatFileSize(item.Result.UpdatedContent.Length);
+                response.AppendLine($"  {StatusSymbol.Tick.ToValue()} {item.FilePath} ({item.Result.ReplaceCount} replacement(s), {batchSize})");
             }
             else
             {

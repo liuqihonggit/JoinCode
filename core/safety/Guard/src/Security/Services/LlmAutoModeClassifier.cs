@@ -209,15 +209,7 @@ public sealed partial class LlmAutoModeClassifier : ServiceEntity, ILlmAutoModeC
     }
 
     private static string? ExtractJson(string response)
-    {
-        var start = response.IndexOf('{');
-        var end = response.LastIndexOf('}');
-        if (start < 0 || end < 0 || end <= start)
-        {
-            return null;
-        }
-        return response.Substring(start, end - start + 1);
-    }
+        => LlmJsonHelper.ExtractInlineJson(response);
 
     private static SecurityClassification ParseClassification(string value)
         => value.ToLowerInvariant() switch

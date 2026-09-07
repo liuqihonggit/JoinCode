@@ -254,22 +254,13 @@ public abstract class HookExecutorBase<THook> : OneShotCommandGroup, IHookExecut
             result.Outcome);
     }
 
-    private static readonly Regex JsonCodeBlockRegex = new(@"```(?:json)?\s*([\s\S]*?)\s*```", RegexOptions.IgnoreCase);
-    private static readonly Regex JsonObjectRegex = new(@"\{[\s\S]*?\}", RegexOptions.Singleline);
-
     /// <summary>
-    /// 从 LLM 响应中提取 JSON 内容
+    /// 从 LLM 响应中提取 JSON 内容 — 统一调用 LlmJsonHelper
     /// </summary>
     protected static string? ExtractJsonFromResponse(string? response)
     {
         if (string.IsNullOrEmpty(response)) return null;
-
-        var codeBlockMatch = JsonCodeBlockRegex.Match(response);
-        if (codeBlockMatch.Success)
-            return codeBlockMatch.Groups[1].Value.Trim();
-
-        var jsonMatch = JsonObjectRegex.Match(response);
-        return jsonMatch.Success ? jsonMatch.Value : null;
+        return LlmJsonHelper.ExtractJsonBlock(response) ?? LlmJsonHelper.ExtractInlineJson(response);
     }
 }
 

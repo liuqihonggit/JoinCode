@@ -306,35 +306,35 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
     /// 删除认证配置
     /// </summary>
     [McpTool(McpToolNameConstants.McpAuthRemove, "Delete MCP authentication config", "mcp")]
-    public Task<ToolResult> McpAuthRemoveAsync(
+    public async Task<ToolResult> McpAuthRemoveAsync(
         [McpToolParameter("Authentication config name")] string auth_name,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(auth_name))
         {
-            return Task.FromResult(ToolResultBuilder.Error().WithText(L.T(StringKey.AuthNameCannotBeEmpty)).Build());
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.AuthNameCannotBeEmpty)).Build();
         }
 
         try
         {
             if (!_authProviders.Remove(auth_name))
             {
-                return Task.FromResult(ToolResultBuilder.Error()
+                return ToolResultBuilder.Error()
                     .WithText(L.T(StringKey.AuthConfigNotFound, auth_name))
-                    .Build());
+                    .Build();
             }
 
-            _ = RemovePersistedAuthConfigAsync(auth_name, cancellationToken);
-            _ = RemoveAuthEntryAsync(auth_name, cancellationToken);
+            await RemovePersistedAuthConfigAsync(auth_name, cancellationToken).ConfigureAwait(false);
+            await RemoveAuthEntryAsync(auth_name, cancellationToken).ConfigureAwait(false);
 
-            return Task.FromResult(ToolResultBuilder.Success()
+            return ToolResultBuilder.Success()
                 .WithText(L.T(StringKey.AuthConfigRemoved, auth_name))
-                .Build());
+                .Build();
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.RemoveAuthConfigFailedLog));
-            return Task.FromResult(ToolResultBuilder.Error().WithText(L.T(StringKey.RemoveFailed, ex.Message)).Build());
+            return ToolResultBuilder.Error().WithText(L.T(StringKey.RemoveFailed, ex.Message)).Build();
         }
     }
 

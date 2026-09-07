@@ -116,7 +116,7 @@ public class PowerShellToolHandlers : ShellToolBase
                 Description = description,
                 Timeout = timeout,
                 TimeoutPolicy = TimeoutPolicy,
-                WorkingDirectory = working_directory,
+                WorkingDirectory = workDir,
                 Background = background,
                 AutoBackground = auto_background,
                 DangerouslyDisableSandbox = dangerously_disable_sandbox,

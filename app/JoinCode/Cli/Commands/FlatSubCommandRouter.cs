@@ -40,17 +40,23 @@ internal static class FlatSubCommandRouter
 
     private static async Task<int?> ExecuteMcpCallAsync(string[] args, CancellationToken ct)
     {
+        var unknownError = DetectUnknownOptions(args);
+        if (unknownError is not null)
+        {
+            TerminalHelper.WriteError(unknownError);
+            return 1;
+        }
         var toolName = GetPositional(args, 0);
         if (string.IsNullOrEmpty(toolName))
         {
             TerminalHelper.WriteError("用法: jcc mcp_call <tool> [key=value ... | <argsJson> | --args-file <path> | --args-stdin] [--json]");
             return 1;
         }
-        var json = HasFlag(args, "--json");
-        var argsFile = GetOptionValue(args, "--args-file");
-        var argsStdin = HasFlag(args, "--args-stdin");
-        var vendor = GetOptionValue(args, "--vendor");
-        var model = GetOptionValue(args, "--model");
+        var json = HasFlag(args, CliArgConstants.JsonLongName);
+        var argsFile = GetOptionValue(args, CliArgConstants.ArgsFileLongName);
+        var argsStdin = HasFlag(args, CliArgConstants.ArgsStdinLongName);
+        var vendor = GetOptionValue(args, CliArgConstants.VendorLongName);
+        var model = GetOptionValue(args, CliArgConstants.ModelLongName);
         // 判断参数格式: JSON (以{开头) vs key=value (包含=)
         string? argsJson = null;
         string[]? kvArgs = null;
@@ -71,8 +77,8 @@ internal static class FlatSubCommandRouter
 
     private static async Task<int?> ExecuteMcpListAsync(string[] args, CancellationToken ct)
     {
-        var category = GetOptionValue(args, "--category");
-        var json = HasFlag(args, "--json");
+        var category = GetOptionValue(args, CliArgConstants.CategoryLongName);
+        var json = HasFlag(args, CliArgConstants.JsonLongName);
         return await McpCliCommand.ExecuteListAsync(category, json, ct).ConfigureAwait(false);
     }
 
@@ -84,7 +90,7 @@ internal static class FlatSubCommandRouter
             TerminalHelper.WriteError("用法: jcc mcp_schema <tool> [--json]");
             return 1;
         }
-        var json = HasFlag(args, "--json");
+        var json = HasFlag(args, CliArgConstants.JsonLongName);
         return await McpCliCommand.ExecuteSchemaAsync(toolName!, json, ct).ConfigureAwait(false);
     }
 
@@ -96,16 +102,16 @@ internal static class FlatSubCommandRouter
             TerminalHelper.WriteError("用法: jcc mcp_search <query> [--json]");
             return 1;
         }
-        var json = HasFlag(args, "--json");
+        var json = HasFlag(args, CliArgConstants.JsonLongName);
         return await McpCliCommand.ExecuteSearchAsync(query!, json, ct).ConfigureAwait(false);
     }
 
     private static async Task<int?> ExecuteMcpServeAsync(string[] args, CancellationToken ct)
     {
-        var transport = GetOptionValue(args, "--transport") ?? "stdio";
-        var port = int.TryParse(GetOptionValue(args, "--port"), out var p) ? p : 9903;
-        var host = GetOptionValue(args, "--host") ?? "localhost";
-        var awaitSeconds = int.TryParse(GetOptionValue(args, "--await"), out var a) ? a : (int?)null;
+        var transport = GetOptionValue(args, CliArgConstants.TransportLongName) ?? "stdio";
+        var port = int.TryParse(GetOptionValue(args, CliArgConstants.PortLongName), out var p) ? p : 9903;
+        var host = GetOptionValue(args, CliArgConstants.HostLongName) ?? "localhost";
+        var awaitSeconds = int.TryParse(GetOptionValue(args, CliArgConstants.AwaitLongName), out var a) ? a : (int?)null;
         return await McpCliCommand.ExecuteServeAsync(transport, port, host, ct, awaitSeconds).ConfigureAwait(false);
     }
 
@@ -128,7 +134,7 @@ internal static class FlatSubCommandRouter
         {
             if (args[i].StartsWith("--"))
             {
-                if (i + 1 < args.Length && !args[i + 1].StartsWith("--"))
+                if (ShouldConsumeNext(args, i))
                     i++;
                 continue;
             }
@@ -150,7 +156,7 @@ internal static class FlatSubCommandRouter
         {
             if (args[i].StartsWith("--"))
             {
-                if (i + 1 < args.Length && !args[i + 1].StartsWith("--"))
+                if (ShouldConsumeNext(args, i))
                     i++;
                 continue;
             }
@@ -159,6 +165,50 @@ internal static class FlatSubCommandRouter
             positionalIndex++;
         }
         return result.Count > 0 ? result.ToArray() : null;
+    }
+
+    /// <summary>
+    /// 判断 --option 是否应吞掉下一个 token 作为其值。
+    /// 布尔标志（AcceptsValue=false）不吞值；key=value 形式的 token 永远不被吞（保护 MCP 工具参数）。
+    /// 双保险：① CliArgConstants.BooleanFlags 白名单（源码生成器自动维护）② key=value 格式检测
+    /// </summary>
+    private static bool ShouldConsumeNext(string[] args, int i)
+    {
+        if (CliArgConstants.BooleanFlags.Contains(args[i]))
+            return false;
+        if (i + 1 >= args.Length)
+            return false;
+        if (args[i + 1].StartsWith("--"))
+            return false;
+        if (IsKeyValuePair(args[i + 1]))
+            return false;
+        return true;
+    }
+
+    /// <summary>
+    /// 判断 token 是否为 key=value 形式（= 不在首位和末位）
+    /// </summary>
+    private static bool IsKeyValuePair(string token)
+    {
+        var eqIdx = token.IndexOf('=');
+        return eqIdx > 0 && eqIdx < token.Length - 1;
+    }
+
+    /// <summary>
+    /// 检测未知 --flag — Rust 风格报错，不静默吞掉
+    /// AllOptionNames 由源码生成器从 [CliOption] 特性自动提取，零双向维护
+    /// </summary>
+    internal static string? DetectUnknownOptions(string[] args)
+    {
+        for (var i = 1; i < args.Length; i++)
+        {
+            if (!args[i].StartsWith("--"))
+                continue;
+            if (CliArgConstants.AllOptionNames.Contains(args[i]))
+                continue;
+            return CliErrorCatalog.ArgUnknownOption(args[i]).ToRustStyleString(args, i);
+        }
+        return null;
     }
 
     internal static string? GetOptionValue(string[] args, string optionName)

@@ -34,12 +34,12 @@ public partial class GitHubToolHandlers
     [McpTool(GitHubToolNameConstants.GhRunView, "查看 Run 详情/日志(expand 按步骤展开+文件级缓存跨进程,filter 按标记过滤,skip_lines 分页续读,refresh 强制刷新)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRunViewAsync(
         [McpToolParameter("Run ID", Required = true)] string run_id,
-        [McpToolParameter("Job ID(可选,精准拉单 job)", Required = false)] string? job_id = null,
+        [McpToolParameter("Job ID(可选,支持逗号分隔多个并行下载,如 123 或 123,456)", Required = false)] string? job_id = null,
         [McpToolParameter("是否拉取日志(默认 false,仅看详情)", Required = false)] bool? log = null,
         [McpToolParameter("最大日志行数(默认 200)", Required = false)] int? max_lines = null,
         [McpToolParameter("跳过前 N 行(用于续读截断日志,默认 0)", Required = false)] int? skip_lines = null,
-        [McpToolParameter("按步骤展开: steps=列出步骤列表, failed=只拉失败步骤, step:Name=只拉指定步骤(复刻 ToolSearch map[] 逐层drill down)", Required = false)] string? expand = null,
-        [McpToolParameter("日志过滤级别(error/warning/info/all,默认 all=不过滤)", Required = false)] string? filter = null,
+        [McpToolParameter("按步骤展开: jobs=列出job列表, steps=按job_id下载日志后列出步骤, failed=只拉失败步骤, step:Name=只拉指定步骤", Required = false)] string? expand = null,
+        [McpToolParameter("日志过滤级别(error/warning/info/all/failed,默认 all=不过滤;failed=智能提取测试失败+Rust风格输出)", Required = false)] string? filter = null,
         [McpToolParameter("强制刷新缓存(默认 false,rerun 后用 true 避免脏数据)", Required = false)] bool? refresh = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
@@ -58,6 +58,18 @@ public partial class GitHubToolHandlers
         var hasFilter = TryParseLogFilter(filter, out var filterLevel) && filterLevel != GitHubLogFilter.All;
         var markers = hasFilter ? GetFilterMarkers(filterLevel) : null;
 
+        // === expand=jobs: 列出 job 列表(不下载日志,轻量 API 调用) ===
+        if (string.Equals(expand, "jobs", StringComparison.OrdinalIgnoreCase))
+        {
+            return await ListJobsAsync(owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
+        }
+
+        // === filter=failed: 智能过滤测试失败(状态机提取 Failed+Error+StackTrace,Rust 风格输出) ===
+        if (string.Equals(filter, "failed", StringComparison.OrdinalIgnoreCase))
+        {
+            return await FilterFailedTestsAsync(owner, repoName, run_id, job_id, maxLines, skip, cancellationToken);
+        }
+
         // === expand=failed: 只拉失败步骤日志(量少,不缓存) ===
         if (string.Equals(expand, "failed", StringComparison.OrdinalIgnoreCase))
         {
@@ -72,6 +84,12 @@ public partial class GitHubToolHandlers
 
         if (wantSteps || expandStep is not null)
         {
+            // expand=steps 必须带 job_id(诱导式: 先 expand=jobs 看列表,再按需下载)
+            if (wantSteps && string.IsNullOrWhiteSpace(job_id))
+            {
+                return Ok("expand=steps 需要指定 job_id 参数。\n\n💡 操作步骤:\n1. 先用 expand=jobs 查看 job 列表(获取 job ID 和状态)\n2. 再用 expand=steps job_id=123 下载指定 job 日志并查看步骤列表\n3. 支持逗号分隔多个 job_id 并行下载,如 job_id=123,456", "提示:");
+            }
+
             // 解析 /section:Type 后缀
             string? sectionType = null;
             if (expandStep is not null)
@@ -104,12 +122,18 @@ public partial class GitHubToolHandlers
             var summary = await GetOrFetchSummaryAsync(owner, repoName, run_id, job_id, working_dir, wantRefresh, cancellationToken);
             if (summary is null) return Fail("日志拉取失败");
 
-            // expand=steps: 返回步骤列表
+            // expand=steps: 返回步骤列表(有 error 的步骤标 ❌)
             if (wantSteps)
             {
                 var stepsText = summary.StepLineCounts
                     .OrderByDescending(kvp => kvp.Value)
-                    .Select(kvp => $"  {kvp.Value,6} 行  {kvp.Key}");
+                    .Select(kvp =>
+                    {
+                        var hasError = summary.SectionCounts.TryGetValue(kvp.Key, out var secs)
+                            && secs.TryGetValue(RunLogCache.SectionError, out _);
+                        var marker = hasError ? "❌ " : "   ";
+                        return $"  {marker}{kvp.Value,6} 行  {kvp.Key}";
+                    });
                 return Ok(string.Join('\n', stepsText) + StepsHint, $"Run {run_id} 步骤列表({summary.StepLineCounts.Count} 步骤,缓存于 {summary.CachedAt:HH:mm:ss}):");
             }
 
@@ -138,6 +162,75 @@ public partial class GitHubToolHandlers
         // log=false: 获取 run 详情 JSON
         var detailResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/actions/runs/{run_id}", ct: cancellationToken).ConfigureAwait(false);
         return detailResult.Success ? Ok(detailResult.Body) : Fail(detailResult.Error);
+    }
+
+    /// <summary>
+    /// 列出 Run 下的所有 job(不下载日志,轻量 API 调用) — 诱导式 drill-down 第一步
+    /// <para>返回 job ID/名称/状态/结论,AI 选择目标 job 后用 expand=steps job_id=xxx 按需下载</para>
+    /// </summary>
+    private async Task<ToolResult> ListJobsAsync(string owner, string repo, string runId, CancellationToken ct)
+    {
+        var jobsResult = await _apiClient!.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}/jobs", paginate: true, ct: ct).ConfigureAwait(false);
+        if (!jobsResult.Success) return Fail(jobsResult.Error);
+
+        var sb = new StringBuilder();
+        var failedCount = 0;
+        var totalCount = 0;
+        try
+        {
+            using var doc = JsonDocument.Parse(jobsResult.Body);
+            if (!doc.RootElement.TryGetProperty("jobs", out var jobsEl))
+                return Fail("未找到 jobs 数据");
+
+            foreach (var job in jobsEl.EnumerateArray())
+            {
+                var id = job.TryGetProperty("id", out var idEl) && idEl.ValueKind == JsonValueKind.Number ? idEl.GetInt64() : 0;
+                var name = job.TryGetProperty("name", out var nameEl) ? nameEl.GetString() ?? "unknown" : "unknown";
+                var status = job.TryGetProperty("status", out var statusEl) ? statusEl.GetString() ?? "?" : "?";
+                var conclusion = job.TryGetProperty("conclusion", out var conEl) ? conEl.GetString() ?? "" : "";
+                totalCount++;
+
+                var marker = conclusion switch
+                {
+                    "failure" => "❌",
+                    "success" => "✅",
+                    "cancelled" => "⊘",
+                    _ when status == "in_progress" => "⏳",
+                    _ => "  "
+                };
+                if (conclusion == "failure") failedCount++;
+
+                sb.Append($"  {marker} {id,15}  {name}");
+                if (!string.IsNullOrEmpty(conclusion))
+                    sb.Append($"  [{conclusion}]");
+                sb.Append('\n');
+            }
+        }
+        catch (Exception ex)
+        {
+            return Fail($"解析 job 列表失败: {ex.Message}");
+        }
+
+        var hint = failedCount > 0
+            ? $"\n\n💡 下一步:\n- expand=failed → 直接拉失败步骤日志(量少)\n- expand=steps job_id=<失败job的ID> → 下载指定 job 日志并查看步骤列表\n- 支持逗号分隔多个 job_id 并行下载,如 job_id=123,456"
+            : "\n\n💡 下一步:\n- expand=steps job_id=<job ID> → 下载指定 job 日志并查看步骤列表\n- 支持逗号分隔多个 job_id 并行下载,如 job_id=123,456";
+
+        return Ok(sb.ToString() + hint, $"Run {runId} job 列表({totalCount} 个,{failedCount} 个失败):");
+    }
+
+    /// <summary>
+    /// 解析逗号分隔的 job IDs 字符串(如 "123,456")为 List{long}
+    /// </summary>
+    private static List<long> ParseJobIds(string? jobId)
+    {
+        if (string.IsNullOrWhiteSpace(jobId)) return [];
+        var result = new List<long>();
+        foreach (var part in jobId.Split(','))
+        {
+            if (long.TryParse(part.Trim(), out var id))
+                result.Add(id);
+        }
+        return result;
     }
 
     /// <summary>
@@ -205,33 +298,37 @@ public partial class GitHubToolHandlers
             }
         }
 
-        // 3. 并行下载(ADR 0067 §10) + 构建 + 缓存
+        // 3. 并行下载指定 job(s)(ADR 0067 §10) + 构建 + 缓存
         var summary = new RunLogSummary { RunId = runId, JobId = jobId };
         var sectionContents = new Dictionary<string, Dictionary<string, List<string>>>(StringComparer.OrdinalIgnoreCase);
         var rawBuilder = new StringBuilder();
 
-        var parallelOk = string.IsNullOrWhiteSpace(jobId)
-            && await TryDownloadParallelAsync(owner, repo, runId, summary, sectionContents, rawBuilder, ct).ConfigureAwait(false);
+        // 解析 job_id 中的逗号分隔的多个值(如 "123,456")
+        var targetJobIds = ParseJobIds(jobId);
+        var parallelOk = targetJobIds.Count > 0
+            && await TryDownloadJobsAsync(owner, repo, runId, targetJobIds, summary, sectionContents, rawBuilder, ct).ConfigureAwait(false);
         if (!parallelOk)
         {
-            // 回退到串行 REST API 日志流
-            if (long.TryParse(runId, out var runIdLong))
+            // 回退到串行: 逐个 job 下载(每个 job 独立 GitHubLogParser)
+            if (targetJobIds.Count > 0)
             {
-                if (!string.IsNullOrWhiteSpace(jobId) && long.TryParse(jobId, out var jobIdLong))
+                foreach (var jobIdLong in targetJobIds)
                 {
+                    var parser = new GitHubLogParser();
                     await foreach (var line in _apiClient!.GetJobLogsAsync(owner, repo, jobIdLong, ct).ConfigureAwait(false))
                     {
                         rawBuilder.Append(line).Append('\n');
-                        ParseAndAccumulate(line, summary, sectionContents);
+                        parser.ParseLine(line, summary, sectionContents);
                     }
                 }
-                else
+            }
+            else if (long.TryParse(runId, out var runIdLong))
+            {
+                var parser = new GitHubLogParser();
+                await foreach (var line in _apiClient!.GetRunLogsAsync(owner, repo, runIdLong, ct).ConfigureAwait(false))
                 {
-                    await foreach (var line in _apiClient!.GetRunLogsAsync(owner, repo, runIdLong, ct).ConfigureAwait(false))
-                    {
-                        rawBuilder.Append(line).Append('\n');
-                        ParseAndAccumulate(line, summary, sectionContents);
-                    }
+                    rawBuilder.Append(line).Append('\n');
+                    parser.ParseLine(line, summary, sectionContents);
                 }
             }
         }
@@ -260,8 +357,9 @@ public partial class GitHubToolHandlers
     }
 
     /// <summary>
-    /// 从 Level2 内容缓存获取指定 section 的日志行 — MemoryCache → 触发 Level1 填充 → 再读
+    /// 从 Level2 内容缓存获取指定 section 的日志行 — MemoryCache → 触发 Level1 填充 → 文件 raw 补填 → 再读
     /// <para>内存压力时 Level2 可被独立驱逐,下次访问时通过 Level1 触发从 .raw 文件重新解析填充</para>
+    /// <para>Bug 修复: Level1 MemoryCache 命中时不填充 Level2,需从文件缓存 raw 补填</para>
     /// </summary>
     private async Task<List<string>?> GetOrFetchSectionAsync(
         string owner, string repo, string runId, string? jobId, string stepName, string sectionType,
@@ -282,6 +380,30 @@ public partial class GitHubToolHandlers
         {
             _logger?.LogDebug("Level2 内容缓存(填充后)命中: {Key}, {Lines} 行", sectionKey, lines.Count);
             return lines;
+        }
+
+        // Level2 仍 miss: Level1 MemoryCache 命中但未填充 Level2,从文件缓存 raw 补填
+        if (!refresh)
+        {
+            var cacheDir = GetCacheDir(workingDir);
+            var rawPath = GetCacheFilePath(cacheDir, runId, jobId, "raw");
+            if (_fs.FileExists(rawPath))
+            {
+                try
+                {
+                    var rawContent = _fs.ReadAllText(rawPath);
+                    FillMemoryCacheFromRaw(runId, jobId, rawContent);
+                    if (_logCache.Get(sectionKey) is List<string> fileLines)
+                    {
+                        _logger?.LogDebug("Level2 内容缓存(文件 raw 补填)命中: {Key}, {Lines} 行", sectionKey, fileLines.Count);
+                        return fileLines;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogDebug(ex, "文件 raw 补填 Level2 失败: {Path}", rawPath);
+                }
+            }
         }
 
         _logger?.LogDebug("Level2 内容缓存未命中(步骤/section 不存在): {Key}", sectionKey);
@@ -316,27 +438,14 @@ public partial class GitHubToolHandlers
         var span = rawContent.AsSpan();
         var ranges = LineSpanIndexer.BuildLineRanges(span);
         var sectionContents = new Dictionary<string, Dictionary<string, List<string>>>(StringComparer.OrdinalIgnoreCase);
+        var summary = new RunLogSummary { RunId = runId, JobId = jobId };
+        var parser = new GitHubLogParser();
 
         foreach (var (start, length) in ranges)
         {
             if (length == 0) continue;
             var line = span.Slice(start, length).ToString();
-            var parts = line.Split('\t');
-            if (parts.Length < 2) continue;
-            var stepName = parts[1];
-            var sectionType = RunLogCache.ParseSectionType(line);
-
-            if (!sectionContents.TryGetValue(stepName, out var stepSecs))
-            {
-                stepSecs = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-                sectionContents[stepName] = stepSecs;
-            }
-            if (!stepSecs.TryGetValue(sectionType, out var secLines))
-            {
-                secLines = new List<string>();
-                stepSecs[sectionType] = secLines;
-            }
-            secLines.Add(line);
+            parser.ParseLine(line, summary, sectionContents);
         }
 
         foreach (var (stepName, stepSecs) in sectionContents)
@@ -350,41 +459,23 @@ public partial class GitHubToolHandlers
     }
 
     /// <summary>
-    /// 按 job 并行下载日志(ADR 0067 §10) — 25 个 job 并行,理论 10-15s vs 串行 43s
-    /// <para>失败时返回 false,调用方回退到串行 GetRunLogsAsync</para>
+    /// 并行下载指定 job(s) 日志(ADR 0067 §10) — 按需下载,不一次性拉全部 job
+    /// <para>失败时返回 false,调用方回退到串行 GetJobLogsAsync</para>
     /// <para>并发度限制 8,避免 GitHub API 二级限速</para>
     /// </summary>
-    private async Task<bool> TryDownloadParallelAsync(
-        string owner, string repo, string runId,
+    private async Task<bool> TryDownloadJobsAsync(
+        string owner, string repo, string runId, List<long> jobIds,
         RunLogSummary summary,
         Dictionary<string, Dictionary<string, List<string>>> sectionContents,
         StringBuilder rawBuilder, CancellationToken ct)
     {
         try
         {
-            // 1. 获取 job 列表(owner/repo 已传入)
-            var jobsResult = await _apiClient!.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}/jobs", paginate: true, ct: ct).ConfigureAwait(false);
-            if (!jobsResult.Success) return false;
+            _logger?.LogDebug("并行下载 {Count} 个 job 日志(按需)", jobIds.Count);
 
-            List<(long id, string name)> jobs;
-            using (var doc = JsonDocument.Parse(jobsResult.Body))
-            {
-                if (!doc.RootElement.TryGetProperty("jobs", out var jobsEl)) return false;
-                jobs = new List<(long, string)>();
-                foreach (var job in jobsEl.EnumerateArray())
-                {
-                    if (!job.TryGetProperty("id", out var idEl) || idEl.ValueKind != JsonValueKind.Number) continue;
-                    var name = job.TryGetProperty("name", out var nameEl) ? nameEl.GetString() ?? "unknown" : "unknown";
-                    jobs.Add((idEl.GetInt64(), name));
-                }
-            }
-            if (jobs.Count == 0) return false;
-
-            _logger?.LogDebug("并行下载 {Count} 个 job 日志", jobs.Count);
-
-            // 2. 并行下载每个 job 日志(SemaphoreSlim 限并发 8)
+            // 并行下载每个 job 日志(SemaphoreSlim 限并发 8)
             using var semaphore = new SemaphoreSlim(8);
-            var tasks = jobs.Select(async job =>
+            var tasks = jobIds.Select(async jobId =>
             {
                 await semaphore.WaitAsync(ct).ConfigureAwait(false);
                 try
@@ -394,36 +485,37 @@ public partial class GitHubToolHandlers
                         try
                         {
                             var lines = new List<string>();
-                            await foreach (var line in _apiClient.GetJobLogsAsync(owner, repo, job.id, ct).ConfigureAwait(false))
+                            await foreach (var line in _apiClient!.GetJobLogsAsync(owner, repo, jobId, ct).ConfigureAwait(false))
                             {
                                 lines.Add(line);
                             }
                             if (lines.Count > 0)
-                                return (job.name, lines);
+                                return (jobId, lines);
                             if (attempt < 2)
                                 await Task.Delay(500, ct).ConfigureAwait(false);
                         }
                         catch (Exception ex) when (attempt < 2)
                         {
-                            _logger?.LogDebug(ex, "job {JobId} 日志下载失败,重试 {Attempt}", job.id, attempt + 1);
+                            _logger?.LogDebug(ex, "job {JobId} 日志下载失败,重试 {Attempt}", jobId, attempt + 1);
                             await Task.Delay(500, ct).ConfigureAwait(false);
                         }
                     }
-                    return (job.name, new List<string>());
+                    return (jobId, new List<string>());
                 }
                 finally { semaphore.Release(); }
             }).ToArray();
             var results = await Task.WhenAll(tasks).ConfigureAwait(false);
 
-            // 3. 合并日志(统一用 ParseAndAccumulate 从 [entry.Name] 提取 step 名)
+            // 合并日志(每个 job 独立解析,状态机跟踪步骤名)
             foreach (var (_, logLines) in results)
             {
                 if (logLines.Count == 0) continue;
+                var parser = new GitHubLogParser();
                 foreach (var line in logLines)
                 {
                     if (string.IsNullOrEmpty(line)) continue;
                     rawBuilder.Append(line).Append('\n');
-                    ParseAndAccumulate(line, summary, sectionContents);
+                    parser.ParseLine(line, summary, sectionContents);
                 }
             }
 
@@ -438,16 +530,184 @@ public partial class GitHubToolHandlers
     }
 
     /// <summary>
-    /// 解析一行日志并累积 — 支持 REST API 格式 [entry.Name] line 和 gh CLI TSV 格式
-    /// <para>REST API: zip entry 名如 "0_Checkout.txt" → step 名 "Checkout"</para>
-    /// <para>gh CLI: TSV 第二列是 step 名</para>
+    /// GitHub Actions 日志行解析器 — 状态机 + Span,零 GC 逐行处理
+    /// <para>跟踪两类步骤: ##[start-action display=...] (action 步骤) 和 ##[group]Run cmd (run 步骤)</para>
+    /// <para>action 步骤优先级高于 run 步骤,action 内部的 ##[group]Run 归 action 步骤</para>
+    /// <para>Span 处理时间戳剥离和标记检测,只在提取步骤名时 ToString 分配</para>
     /// </summary>
-    private static void ParseAndAccumulate(string line, RunLogSummary summary, Dictionary<string, Dictionary<string, List<string>>> sectionContents)
+    private sealed class GitHubLogParser
     {
-        var stepName = TryExtractStepName(line);
-        if (stepName is null) return;
-        Accumulate(line, stepName, summary, sectionContents);
+        private string? _currentStepName;
+        private bool _inAction;
+        private bool _inRunGroup;
+        private static readonly SearchValues<char> s_nameTerminators = SearchValues.Create(";]");
+
+        /// <summary>
+        /// 解析一行日志并累积 — 状态机跟踪步骤名,Span 检测标记
+        /// </summary>
+        public void ParseLine(string line, RunLogSummary summary, Dictionary<string, Dictionary<string, List<string>>> sectionContents)
+        {
+            var content = StripTimestamp(line.AsSpan());
+
+            // 优先级1: ##[start-action display=StepName;id=...]
+            if (content.StartsWith("##[start-action display=".AsSpan()))
+            {
+                var rest = content.Slice("##[start-action display=".Length);
+                var endIdx = rest.IndexOfAny(s_nameTerminators);
+                _currentStepName = endIdx > 0 ? rest[..endIdx].ToString() : rest.ToString();
+                _inAction = true;
+                _inRunGroup = false;
+                return;
+            }
+
+            // 优先级2: ##[end-action
+            if (content.StartsWith("##[end-action".AsSpan()))
+            {
+                _currentStepName = null;
+                _inAction = false;
+                _inRunGroup = false;
+                return;
+            }
+
+            // 优先级3: ##[group]Run cmd (仅当不在 action 中,action 内部的 group 归 action)
+            if (!_inAction && content.StartsWith("##[group]Run ".AsSpan()))
+            {
+                var cmd = content.Slice("##[group]Run ".Length);
+                _currentStepName = ExtractRunStepName(cmd);
+                _inRunGroup = true;
+                return;
+            }
+
+            // 优先级4: ##[endgroup] (仅当在 run group 中)
+            // 不清除 _currentStepName — ##[endgroup] 只结束命令回显,实际输出在 endgroup 之后
+            // 步骤持续到下一个 ##[start-action] 或 ##[group]Run 切换
+            if (_inRunGroup && content.StartsWith("##[endgroup]".AsSpan()))
+            {
+                _inRunGroup = false;
+                return;
+            }
+
+            if (_currentStepName is not null)
+            {
+                Accumulate(line, _currentStepName, summary, sectionContents);
+                return;
+            }
+
+            // 回退: [entry.Name] 前缀 或 TSV 格式
+            var stepName = TryExtractStepName(line.AsSpan());
+            if (stepName is not null)
+                Accumulate(line, stepName, summary, sectionContents);
+        }
+
+        /// <summary>
+        /// 从 ##[group]Run 命令提取简短步骤名 — Span 处理,零 GC
+        /// <para>"dotnet test xxx.csproj ..." → "dotnet test xxx"</para>
+        /// <para>"dotnet build xxx.csproj ..." → "dotnet build xxx"</para>
+        /// <para>"actions/checkout@v5" → "actions/checkout@v5"</para>
+        /// <para>"./.github/actions/setup-test-env" → "setup-test-env"</para>
+        /// <para>其他 → 截断到 60 字符</para>
+        /// </summary>
+        private static string ExtractRunStepName(ReadOnlySpan<char> cmd)
+        {
+            // dotnet test xxx.csproj ... → dotnet test xxx
+            if (cmd.StartsWith("dotnet test ".AsSpan()))
+            {
+                var after = cmd.Slice("dotnet test ".Length);
+                var csprojIdx = after.IndexOf(".csproj".AsSpan());
+                if (csprojIdx > 0)
+                {
+                    var path = after[..csprojIdx];
+                    var lastSlash = path.LastIndexOf('/');
+                    var shortName = lastSlash >= 0 ? path.Slice(lastSlash + 1) : path;
+                    return string.Concat("dotnet test ", shortName.ToString());
+                }
+                return "dotnet test";
+            }
+
+            // dotnet build xxx.csproj ... → dotnet build xxx
+            if (cmd.StartsWith("dotnet build ".AsSpan()))
+            {
+                var after = cmd.Slice("dotnet build ".Length);
+                var csprojIdx = after.IndexOf(".csproj".AsSpan());
+                if (csprojIdx > 0)
+                {
+                    var path = after[..csprojIdx];
+                    var lastSlash = path.LastIndexOf('/');
+                    var shortName = lastSlash >= 0 ? path.Slice(lastSlash + 1) : path;
+                    return string.Concat("dotnet build ", shortName.ToString());
+                }
+                return "dotnet build";
+            }
+
+            // ./.github/actions/xxx → xxx
+            if (cmd.StartsWith("./.github/actions/".AsSpan()))
+            {
+                var after = cmd.Slice("./.github/actions/".Length);
+                var spaceIdx = after.IndexOf(' ');
+                var name = spaceIdx > 0 ? after[..spaceIdx] : after;
+                return name.ToString();
+            }
+
+            // 其他: 截断到 60 字符
+            return cmd.Length <= 60 ? cmd.ToString() : cmd[..60].ToString();
+        }
+
+        /// <summary>
+        /// 剥离时间戳前缀 — "2026-09-07T17:08:27.5016453Z content" → "content",返回 Span 不分配
+        /// </summary>
+        private static ReadOnlySpan<char> StripTimestamp(ReadOnlySpan<char> span)
+        {
+            // 时间戳格式: "2026-09-07T17:08:27.5016453Z content"
+            var zIdx = span.IndexOf('Z');
+            if (zIdx > 0 && zIdx + 2 < span.Length && span[zIdx + 1] == ' ')
+                return span.Slice(zIdx + 2);
+            // [entry.Name] content
+            if (span.Length > 0 && span[0] == '[')
+            {
+                var closeIdx = span.IndexOf(']');
+                if (closeIdx > 0 && closeIdx + 2 < span.Length)
+                    return span.Slice(closeIdx + 2);
+            }
+            return span;
+        }
+
+        /// <summary>
+        /// 从日志行 Span 提取步骤名 — [entry.Name] 前缀优先,回退 TSV,只在找到时 ToString
+        /// </summary>
+        private static string? TryExtractStepName(ReadOnlySpan<char> span)
+        {
+            // [entry.Name] line → ExtractStepNameFromEntryName(entry.Name)
+            if (span.Length > 0 && span[0] == '[')
+            {
+                var closeIdx = span.IndexOf(']');
+                if (closeIdx > 1)
+                    return ExtractStepNameFromEntryName(span[1..closeIdx]);
+            }
+            // TSV: col1\tstepName\t...
+            var tabIdx = span.IndexOf('\t');
+            if (tabIdx < 0) return null;
+            var remaining = span.Slice(tabIdx + 1);
+            var secondTabIdx = remaining.IndexOf('\t');
+            return secondTabIdx >= 0 ? remaining[..secondTabIdx].ToString() : remaining.ToString();
+        }
+
+        /// <summary>
+        /// 从 zip entry 名 Span 提取步骤名 — "0_Checkout.txt" → "Checkout"
+        /// </summary>
+        private static string ExtractStepNameFromEntryName(ReadOnlySpan<char> entryName)
+        {
+            var name = entryName;
+            var slashIdx = name.LastIndexOf('/');
+            if (slashIdx >= 0) name = name.Slice(slashIdx + 1);
+            var dotIdx = name.LastIndexOf('.');
+            if (dotIdx > 0) name = name[..dotIdx];
+            var underscoreIdx = name.IndexOf('_');
+            if (underscoreIdx > 0 && int.TryParse(name[..underscoreIdx], CultureInfo.InvariantCulture, out _))
+                name = name.Slice(underscoreIdx + 1);
+            return name.Length == 0 ? entryName.ToString() : name.ToString();
+        }
     }
+
 
     /// <summary>
     /// 从日志行提取步骤名 — REST API 格式 [entry.Name] line 优先,回退 gh CLI TSV 格式
@@ -513,7 +773,7 @@ public partial class GitHubToolHandlers
             secLines = new List<string>();
             stepSecs[sectionType] = secLines;
         }
-        secLines.Add(line);
+        secLines.Add(StripLogTimestamp(line));
     }
 
     /// <summary>
@@ -551,6 +811,306 @@ public partial class GitHubToolHandlers
     }
 
     /// <summary>
+    /// 智能过滤测试失败行 — 状态机提取 Failed + Error Message + Stack Trace,Rust 风格输出
+    /// <para>状态机: Normal → InFailedTest(遇到 Failed/[FAIL]) → InErrorMessage(Error Message:) → InStackTrace(Stack Trace:) → Normal</para>
+    /// <para>输出: 每个失败测试用 --> line N 指示, | 管道符标注日志行, = 总结行</para>
+    /// </summary>
+    private async Task<ToolResult> FilterFailedTestsAsync(
+        string owner, string repo, string runId, string? jobId,
+        int maxLines, int skipLines, CancellationToken ct)
+    {
+        // 获取日志行枚举源(优先失败 job,其次指定 job,最后整个 run)
+        IAsyncEnumerable<string> logLines;
+        if (string.IsNullOrWhiteSpace(jobId))
+        {
+            logLines = GetFailedJobLogsAsync(owner, repo, runId, ct);
+        }
+        else if (long.TryParse(jobId, out var jobIdLong))
+        {
+            logLines = _apiClient!.GetJobLogsAsync(owner, repo, jobIdLong, ct);
+        }
+        else
+        {
+            logLines = _apiClient!.GetRunLogsAsync(owner, repo, long.Parse(runId), ct);
+        }
+
+        // 状态机解析
+        var failures = new List<TestFailureInfo>();
+        TestFailureInfo? current = null;
+        var state = LogParseState.Normal;
+        var lineNumber = 0;
+
+        await foreach (var line in logLines.ConfigureAwait(false))
+        {
+            lineNumber++;
+            var content = StripLogTimestamp(line);
+
+            switch (state)
+            {
+                case LogParseState.Normal:
+                    // 检测测试失败标记: "  Failed xxx [FAIL]" 或 "[xUnit.net] xxx [FAIL]"
+                    if (content.Contains("[FAIL]", StringComparison.OrdinalIgnoreCase) ||
+                        content.StartsWith("  Failed ", StringComparison.OrdinalIgnoreCase))
+                    {
+                        current = new TestFailureInfo { StartLine = lineNumber, TestLine = content };
+                        failures.Add(current);
+                        state = LogParseState.InFailedTest;
+                    }
+                    // 检测 ##[error] 行
+                    else if (content.Contains("##[error]", StringComparison.OrdinalIgnoreCase))
+                    {
+                        current = new TestFailureInfo { StartLine = lineNumber, TestLine = content, IsErrorMarker = true };
+                        failures.Add(current);
+                        state = LogParseState.Normal;
+                    }
+                    break;
+
+                case LogParseState.InFailedTest:
+                    if (content.StartsWith("  Error Message:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        state = LogParseState.InErrorMessage;
+                    }
+                    else if (content.StartsWith("  Stack Trace:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        state = LogParseState.InStackTrace;
+                    }
+                    else if (content.StartsWith("  Passed ", StringComparison.OrdinalIgnoreCase) ||
+                             content.StartsWith("  Failed ", StringComparison.OrdinalIgnoreCase) ||
+                             content.Contains("[PASS]", StringComparison.OrdinalIgnoreCase))
+                    {
+                        state = LogParseState.Normal;
+                        current = null;
+                    }
+                    break;
+
+                case LogParseState.InErrorMessage:
+                    if (content.StartsWith("  Stack Trace:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        state = LogParseState.InStackTrace;
+                    }
+                    else if (content.StartsWith("  Passed ", StringComparison.OrdinalIgnoreCase) ||
+                             content.StartsWith("  Failed ", StringComparison.OrdinalIgnoreCase))
+                    {
+                        state = LogParseState.Normal;
+                        current = null;
+                    }
+                    else if (current is not null)
+                    {
+                        current.ErrorMessageLines.Add(content.Trim());
+                    }
+                    break;
+
+                case LogParseState.InStackTrace:
+                    if (current is not null)
+                    {
+                        current.StackTraceLines.Add(content);
+                    }
+                    if (content.StartsWith("  Passed ", StringComparison.OrdinalIgnoreCase) ||
+                        content.StartsWith("  Failed ", StringComparison.OrdinalIgnoreCase) ||
+                        content.Contains("--- End of stack trace", StringComparison.OrdinalIgnoreCase))
+                    {
+                        state = LogParseState.Normal;
+                        current = null;
+                    }
+                    break;
+            }
+        }
+
+        if (failures.Count == 0)
+        {
+            return Ok("未检测到测试失败行。尝试用 filter=error 看 ##[error] 标记,或 log=true 看完整日志。", $"Run {runId} 测试失败过滤(0 个):");
+        }
+
+        // 去重: 同一测试名可能被 [xUnit.net] [FAIL] 和 Failed 两次报告,保留有 ErrorMessage 的那个
+        var deduped = new List<TestFailureInfo>(failures.Count);
+        var testNameIndex = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var f in failures)
+        {
+            if (f.IsErrorMarker)
+            {
+                deduped.Add(f);
+                continue;
+            }
+            var testName = TestFailureInfo.ExtractTestName(f.TestLine);
+            if (testName is not null && testNameIndex.TryGetValue(testName, out var existingIdx))
+            {
+                // 同名失败已存在,保留 ErrorMessage 更多的
+                if (f.ErrorMessageLines.Count > deduped[existingIdx].ErrorMessageLines.Count)
+                    deduped[existingIdx] = f;
+            }
+            else
+            {
+                testNameIndex[testName ?? $"__line_{f.StartLine}"] = deduped.Count;
+                deduped.Add(f);
+            }
+        }
+        failures = deduped;
+
+        // Rust 风格输出
+        var sb = new StringBuilder();
+        var shown = 0;
+        foreach (var f in failures.Skip(skipLines))
+        {
+            if (shown >= maxLines) break;
+            shown++;
+            sb.Append(f.FormatRustStyle());
+            sb.Append('\n');
+        }
+
+        var prefix = $"Run {runId} 测试失败({failures.Count} 个,显示 {shown} 个)";
+        if (skipLines > 0) prefix += $",跳过前 {skipLines} 个";
+        if (skipLines + shown < failures.Count)
+            sb.Append($"\n... [共 {failures.Count} 个失败,用 skip_lines={skipLines + shown} 续读]");
+        return Ok(sb.ToString(), prefix);
+    }
+
+    /// <summary>
+    /// 去掉日志行的时间戳前缀和 ANSI 转义码 — "2026-09-07T17:08:27.5016453Z \x1B[36;1mcontent\x1B[0m" → "content"
+    /// </summary>
+    private static string StripLogTimestamp(string line)
+    {
+        // GitHub Actions 日志格式: "2026-09-07T17:08:27.5016453Z content"
+        // 找到第一个 'Z ' 后面的内容
+        var zIdx = line.IndexOf('Z');
+        if (zIdx > 0 && zIdx + 2 < line.Length && line[zIdx + 1] == ' ')
+        {
+            return StripAnsiEscapes(line[(zIdx + 2)..]);
+        }
+        // [entry.Name] 前缀的行
+        if (line.StartsWith('['))
+        {
+            var closeIdx = line.IndexOf(']');
+            if (closeIdx > 0 && closeIdx + 2 < line.Length)
+                return StripAnsiEscapes(line[(closeIdx + 2)..]);
+        }
+        return StripAnsiEscapes(line);
+    }
+
+    /// <summary>
+    /// 去除 ANSI 转义码序列(ESC[...m) — Span 查找 ESC,无 ESC 直接返回零分配
+    /// </summary>
+    private static string StripAnsiEscapes(string s)
+    {
+        var span = s.AsSpan();
+        var escIdx = span.IndexOf('\x1B');
+        if (escIdx < 0) return s;
+        var sb = new StringBuilder(s.Length);
+        var i = 0;
+        while (i < span.Length)
+        {
+            if (span[i] == '\x1B' && i + 1 < span.Length && span[i + 1] == '[')
+            {
+                i += 2;
+                while (i < span.Length && span[i] != 'm') i++;
+                i++;
+            }
+            else
+            {
+                sb.Append(span[i]);
+                i++;
+            }
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// 日志解析状态机状态
+    /// </summary>
+    private enum LogParseState
+    {
+        Normal,         // 普通行
+        InFailedTest,   // 遇到 Failed/[FAIL],等待 Error Message 或 Stack Trace
+        InErrorMessage, // 在 Error Message: 之后
+        InStackTrace,   // 在 Stack Trace: 之后
+    }
+
+    /// <summary>
+    /// 测试失败信息 — 用于 Rust 风格输出
+    /// </summary>
+    private sealed class TestFailureInfo
+    {
+        public int StartLine;
+        public string TestLine = "";
+        public List<string> ErrorMessageLines = [];
+        public List<string> StackTraceLines = [];
+        public bool IsErrorMarker;
+
+        /// <summary>
+        /// Rust 风格格式化 — --> line N 指示, | 管道符标注日志行, = 总结行
+        /// </summary>
+        public string FormatRustStyle()
+        {
+            var sb = new StringBuilder();
+            sb.Append($"--> line {StartLine}");
+            sb.Append('\n');
+            sb.Append("   |");
+            sb.Append('\n');
+            // ##[error] 行: 去掉 ##[error] 前缀,只保留实际错误信息
+            var displayLine = TestLine.Trim();
+            if (IsErrorMarker && displayLine.StartsWith("##[error]", StringComparison.OrdinalIgnoreCase))
+                displayLine = displayLine["##[error]".Length..].Trim();
+            sb.Append($"   | {displayLine}");
+            sb.Append('\n');
+            if (ErrorMessageLines.Count > 0)
+            {
+                sb.Append("   |   Error Message:");
+                sb.Append('\n');
+                foreach (var em in ErrorMessageLines)
+                {
+                    sb.Append($"   |     {em}");
+                    sb.Append('\n');
+                }
+            }
+            if (StackTraceLines.Count > 0)
+            {
+                sb.Append("   |   Stack Trace:");
+                sb.Append('\n');
+                foreach (var st in StackTraceLines.Take(10))
+                {
+                    sb.Append($"   | {st.Trim()}");
+                    sb.Append('\n');
+                }
+                if (StackTraceLines.Count > 10)
+                    sb.Append($"   | ... ({StackTraceLines.Count - 10} 行未显示)");
+            }
+            sb.Append("   |");
+            sb.Append('\n');
+            // 总结行
+            if (!IsErrorMarker && ErrorMessageLines.Count > 0)
+            {
+                var testName = ExtractTestName(TestLine);
+                if (testName is not null)
+                    sb.Append($"   = test: {testName}");
+                else
+                    sb.Append("   = (见上方日志行)");
+                sb.Append('\n');
+                sb.Append($"   = reason: {ErrorMessageLines[0]}");
+                sb.Append('\n');
+            }
+            return sb.ToString();
+        }
+
+        public static string? ExtractTestName(string line)
+        {
+            // 先去掉时间戳前缀 "2026-09-07T17:09:52.2828405Z content"
+            var content = StripLogTimestamp(line).TrimStart();
+            // "  Failed Mcp.Tests.xxx [24 ms]" → "Mcp.Tests.xxx"
+            // "[xUnit.net 00:00:00.81]     Mcp.Tests.xxx [FAIL]" → "Mcp.Tests.xxx"
+            if (content.StartsWith("Failed ", StringComparison.OrdinalIgnoreCase))
+                content = content[7..];
+            if (content.StartsWith("[xUnit.net", StringComparison.OrdinalIgnoreCase))
+            {
+                var bracketEnd = content.IndexOf(']');
+                if (bracketEnd > 0) content = content[(bracketEnd + 1)..].TrimStart();
+            }
+            // 截取到 [ 之前
+            var bracketIdx = content.IndexOf('[');
+            if (bracketIdx > 0) content = content[..bracketIdx].Trim();
+            return string.IsNullOrEmpty(content) ? null : content;
+        }
+    }
+
+    /// <summary>
     /// 流式拉取 + 过滤 + 分页跳过(不缓存,用于 --log-failed 或一次性过滤)
     /// <para>日志源: failedOnly=true → 失败 job 日志; jobId 有值 → 单 job 日志; 否则 → 整个 run 日志</para>
     /// </summary>
@@ -561,6 +1121,7 @@ public partial class GitHubToolHandlers
     {
         var matched = new List<string>(maxLines);
         var skipped = 0;
+        var lineNumber = 0;
 
         // 获取日志行枚举源
         IAsyncEnumerable<string> logLines;
@@ -583,11 +1144,13 @@ public partial class GitHubToolHandlers
 
         await foreach (var line in logLines.ConfigureAwait(false))
         {
+            lineNumber++;
             if (markers is not null && !markers.Any(m => line.Contains(m, StringComparison.OrdinalIgnoreCase)))
                 continue;
             // 先跳过 skipLines 行(分页续读)
             if (skipped < skipLines) { skipped++; continue; }
-            matched.Add(line);
+            // 加行号前缀,方便定位(去时间戳减少噪音)
+            matched.Add($"  L{lineNumber,5}  {StripLogTimestamp(line)}");
             if (matched.Count >= maxLines) break;
         }
         var prefix = BuildPrefix(runId, scope, filterLevel, matched.Count);
@@ -655,18 +1218,19 @@ public partial class GitHubToolHandlers
     /// </summary>
     private const string RunListFailureHint =
         "\n\n💡 排障步骤:\n" +
-        "1. gh_run_view run_id=xxx expand=steps → 查看步骤列表\n" +
-        "2. gh_run_view run_id=xxx expand=failed → 只看失败步骤\n" +
-        "3. gh_run_view run_id=xxx expand=step:步骤名 filter=error → 看具体步骤的错误行";
+        "1. gh_run_view run_id=xxx expand=jobs → 查看 job 列表(轻量,不下载日志)\n" +
+        "2. gh_run_view run_id=xxx expand=failed → 直接拉失败步骤日志\n" +
+        "3. gh_run_view run_id=xxx expand=steps job_id=<失败job的ID> → 下载指定 job 日志并查看步骤\n" +
+        "4. gh_run_view run_id=xxx log=true job_id=<ID> filter=error → 只看错误行";
 
     /// <summary>
     /// expand=steps 返回步骤列表后的下一步提示
     /// </summary>
     private const string StepsHint =
         "\n\n💡 下一步:\n" +
-        "- expand=failed → 只拉失败步骤(量少)\n" +
         "- expand=step:步骤名 → 查看具体步骤日志\n" +
-        "- filter=error → 只看 ##[error] 标记行";
+        "- filter=error → 只看 ##[error] 标记行\n" +
+        "- log=true job_id=xxx filter=error → 直接过滤错误行";
 
     /// <summary>
     /// expand=step:Name 返回 section 摘要后的下一步提示(ADR 0067 Level 2)

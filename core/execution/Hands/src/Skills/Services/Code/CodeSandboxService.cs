@@ -62,11 +62,8 @@ public sealed partial class CodeSandboxService : ServiceEntity, ICodeSandboxServ
                 throw new InvalidOperationException(string.Format(CoreErrorMessages.CompilationFailed, buildError));
             }
 
-            var exePath = Path.Combine(tempDir, "bin", "Release", "net10.0", "Sandbox.exe");
-            if (!_fs.FileExists(exePath))
-            {
-                exePath = Path.Combine(tempDir, "bin", "Release", "net10.0", "Sandbox.dll");
-            }
+            var dllPath = Path.Combine(tempDir, "bin", "Release", "net10.0", "Sandbox.dll");
+            var exePath = _fs.FileExists(dllPath) ? dllPath : Path.Combine(tempDir, "bin", "Release", "net10.0", "Sandbox.exe");
 
             ProcessResult runResult;
             try

@@ -24,4 +24,63 @@ public sealed class CliStructuredError
         Hint = hint;
         Retryable = retryable;
     }
+
+    /// <summary>
+    /// 渲染为 Rust 编译器风格错误信息 — 完整命令行 + ^ 位置指示线 + hint 修复建议
+    /// <para>示例:</para>
+    /// <para>error: 未知选项</para>
+    /// <para>  |</para>
+    /// <para>  | mcp_call tool --bad-flag key=value</para>
+    /// <para>  |          ^^^^^^^^^^^^^^ 未知选项</para>
+    /// <para>  |</para>
+    /// <para>hint: 可用选项见 jcc --help</para>
+    /// </summary>
+    /// <param name="args">原始参数数组</param>
+    /// <param name="errorArgIndex">错误参数在 args 中的索引</param>
+    public string ToRustStyleString(string[] args, int errorArgIndex)
+    {
+        ArgumentNullException.ThrowIfNull(args);
+        var sb = new StringBuilder();
+        sb.AppendLine($"error: {Message}");
+        sb.AppendLine("  |");
+
+        var cmdLine = string.Join(" ", args);
+        var pos = 0;
+        for (var i = 0; i < errorArgIndex; i++)
+            pos += args[i].Length + 1;
+
+        sb.AppendLine($"  | {cmdLine}");
+        var arrow = new string(' ', pos) + new string('^', args[errorArgIndex].Length);
+        sb.AppendLine($"  | {arrow} {Message}");
+        sb.AppendLine("  |");
+        if (!string.IsNullOrEmpty(Hint))
+            sb.AppendLine($"hint: {Hint}");
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// 渲染为 Rust 编译器风格错误信息 — 单 token 级别位置指示
+    /// <para>示例:</para>
+    /// <para>error: 参数格式错误</para>
+    /// <para>  |</para>
+    /// <para>  | pr_number=</para>
+    /// <para>  | ^^^^^^^^^^ '=' 后面不能为空</para>
+    /// <para>  |</para>
+    /// <para>hint: 使用 key=value 传递工具参数，如 pr_number=201</para>
+    /// </summary>
+    /// <param name="token">格式错误的 token</param>
+    public string ToRustStyleString(string token)
+    {
+        ArgumentNullException.ThrowIfNull(token);
+        var sb = new StringBuilder();
+        sb.AppendLine($"error: {Message}");
+        sb.AppendLine("  |");
+        sb.AppendLine($"  | {token}");
+        var arrow = new string('^', token.Length);
+        sb.AppendLine($"  | {arrow} {Message}");
+        sb.AppendLine("  |");
+        if (!string.IsNullOrEmpty(Hint))
+            sb.AppendLine($"hint: {Hint}");
+        return sb.ToString();
+    }
 }

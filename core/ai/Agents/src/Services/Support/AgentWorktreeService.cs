@@ -246,16 +246,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     }
 
     public async Task<bool> HasUncommittedChangesAsync(string worktreePath, CancellationToken cancellationToken = default) {
-        var result = await ExecuteGitCommandAsync(
-            worktreePath,
-            "status --porcelain",
-            cancellationToken).ConfigureAwait(false);
-
-        if (!result.Success) {
-            return false;
-        }
-
-        return !string.IsNullOrWhiteSpace(result.Output);
+        return await _gitRunner.HasUncommittedChangesAsync(worktreePath, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<bool> HasUnpushedCommitsAsync(

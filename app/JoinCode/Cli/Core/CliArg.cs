@@ -98,4 +98,22 @@ public enum CliArg
 
     [CliOption(JccCliArgConstants.Quiet, "-q", "静默模式：只输出错误信息，抑制正常输出", Category = "输出")]
     Quiet,
+
+    [CliOption(JccCliArgConstants.ArgsFile, "", "从 JSON 文件读取工具参数", AcceptsValue = true, Category = "子命令", Example = "jcc mcp_call read_file --args-file args.json")]
+    ArgsFile,
+
+    [CliOption(JccCliArgConstants.ArgsStdin, "", "从 stdin 读取工具参数（JSON）", Category = "子命令", Example = "jcc mcp_call read_file --args-stdin < args.json")]
+    ArgsStdin,
+
+    [CliOption(JccCliArgConstants.Category, "", "按分类过滤工具列表", AcceptsValue = true, Category = "子命令", Example = "jcc mcp_list --category Code")]
+    Category,
+
+    [CliOption(JccCliArgConstants.Transport, "", "MCP 服务端传输协议 (stdio/http)", AcceptsValue = true, Category = "子命令", Example = "jcc mcp_serve --transport http")]
+    Transport,
+
+    [CliOption(JccCliArgConstants.Port, "", "MCP 服务端监听端口", AcceptsValue = true, Category = "子命令", Example = "jcc mcp_serve --port 9903")]
+    Port,
+
+    [CliOption(JccCliArgConstants.Host, "", "MCP 服务端监听主机", AcceptsValue = true, Category = "子命令", Example = "jcc mcp_serve --host localhost")]
+    Host,
 }

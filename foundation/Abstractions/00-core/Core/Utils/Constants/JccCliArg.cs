@@ -158,4 +158,22 @@ public enum JccCliArg
     [EnumValue("--project")]
     [EnumValue("-p")]
     Project,
+
+    [EnumValue("--args-file")]
+    ArgsFile,
+
+    [EnumValue("--args-stdin")]
+    ArgsStdin,
+
+    [EnumValue("--category")]
+    Category,
+
+    [EnumValue("--transport")]
+    Transport,
+
+    [EnumValue("--port")]
+    Port,
+
+    [EnumValue("--host")]
+    Host,
 }

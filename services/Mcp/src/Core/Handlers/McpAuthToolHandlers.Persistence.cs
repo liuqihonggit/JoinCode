@@ -226,6 +226,7 @@ public sealed partial class McpAuthToolHandlers
             _authPersistenceFs.CreateDirectory(dir);
         }
 
-        await _authPersistenceFs.WriteAllTextAsync(_authStateFilePath, json, ct).ConfigureAwait(false);
+        _authPersistenceFs.WriteAllText(_authStateFilePath, json);
+        await Task.CompletedTask.ConfigureAwait(false);
     }
 }

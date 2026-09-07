@@ -41,6 +41,7 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
                 .WithDiagnostic(interruptDiag)
                 .WithEntityMetadata(EntityMetadataEntry.Int("exit_code", result.ExitCode ?? -1))
                 .WithEntityMetadata(EntityMetadataEntry.Bool("interrupted", true))
+                .WithEntityMetadata(EntityMetadataEntry.Long("execution_time_ms", (long)result.ExecutionTime.TotalMilliseconds))
                 .Build();
             return Task.CompletedTask;
         }
@@ -80,6 +81,7 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
                 .WithText(output)
                 .WithDiagnostic(failedDiag)
                 .WithEntityMetadata(EntityMetadataEntry.Int("exit_code", result.ExitCode ?? -1))
+                .WithEntityMetadata(EntityMetadataEntry.Long("execution_time_ms", (long)result.ExecutionTime.TotalMilliseconds))
                 .Build();
             return Task.CompletedTask;
         }
@@ -88,6 +90,7 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
         context.Result = ToolResultBuilder.Success()
             .WithText(output)
             .WithEntityMetadata(EntityMetadataEntry.Int("exit_code", result.ExitCode ?? 0))
+            .WithEntityMetadata(EntityMetadataEntry.Long("execution_time_ms", (long)result.ExecutionTime.TotalMilliseconds))
             .Build();
         return Task.CompletedTask;
     }
@@ -95,7 +98,7 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
     /// <summary>
     /// 构建 Shell 执行实体元数据 — 用于回填 BashProcessEntity 子类字段
     /// </summary>
-    private static List<EntityMetadataEntry> BuildShellEntityMetadata(SystemActuatorExecutionResult result)
+    internal static List<EntityMetadataEntry> BuildShellEntityMetadata(SystemActuatorExecutionResult result)
     {
         var metadata = new List<EntityMetadataEntry>();
         if (result.ExitCode.HasValue)

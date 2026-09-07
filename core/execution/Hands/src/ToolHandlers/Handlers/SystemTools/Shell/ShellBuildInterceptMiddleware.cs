@@ -105,6 +105,7 @@ public sealed partial class ShellBuildInterceptMiddleware : ServiceEntity, IShel
             Stdout = r.Output,
             Stderr = r.ErrorOutput,
             ExitCode = r.ExitCode,
+            ExecutionTime = r.BuildDuration,
         };
         context.Result = r.ExitCode == 0
             ? ToolResultBuilder.Success().WithText(displayOutput).Build()

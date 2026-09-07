@@ -221,7 +221,8 @@ public sealed record SystemActuatorExecutionResult : ICommandExecutionResult
             Stderr = $"Command timed out ({timeoutMs}ms)",
             ExitCode = -1,
             Interrupted = true,
-            ErrorMessage = "Timeout"
+            ErrorMessage = "Timeout",
+            ExecutionTime = TimeSpan.FromMilliseconds(timeoutMs)
         };
 }
 

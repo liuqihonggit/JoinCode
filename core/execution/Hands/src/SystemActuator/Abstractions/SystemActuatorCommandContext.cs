@@ -428,7 +428,7 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
             _resultTcs.TrySetResult(SystemActuatorExecutionResult.FailureResult(
                 "Process killed",
                 GetCurrentStdout(),
-                _stderrBuilder.ToString()));
+                _stderrBuilder.ToString()) with { ExecutionTime = _stopwatch.Elapsed });
             return;
         }
 

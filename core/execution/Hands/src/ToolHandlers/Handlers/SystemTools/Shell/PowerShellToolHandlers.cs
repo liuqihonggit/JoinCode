@@ -204,7 +204,9 @@ public class PowerShellToolHandlers : ShellToolBase
             {
                 RecordPsmetrics("ps_script", "interrupted");
                 var intDiag = BuildScriptInterruptedDiagnostic(script_path, result.Stderr);
-                return ToolResultBuilder.Error().WithText(intDiag.FormattedMessage).WithDiagnostic(intDiag).Build();
+                return ToolResultBuilder.Error().WithText(intDiag.FormattedMessage).WithDiagnostic(intDiag)
+                    .WithEntityMetadata(ShellOutputMiddleware.BuildShellEntityMetadata(result))
+                    .Build();
             }
 
             var output = ShellOutputMiddleware.BuildOutputResponse(result);
@@ -213,11 +215,15 @@ public class PowerShellToolHandlers : ShellToolBase
             {
                 RecordPsmetrics("ps_script", "failed");
                 var failDiag = BuildScriptFailedDiagnostic(script_path, output);
-                return ToolResultBuilder.Error().WithText(failDiag.FormattedMessage).WithDiagnostic(failDiag).Build();
+                return ToolResultBuilder.Error().WithText(failDiag.FormattedMessage).WithDiagnostic(failDiag)
+                    .WithEntityMetadata(ShellOutputMiddleware.BuildShellEntityMetadata(result))
+                    .Build();
             }
 
             RecordPsmetrics("ps_script", "ok");
-            return ToolResultBuilder.Success().WithText(output).Build();
+            return ToolResultBuilder.Success().WithText(output)
+                .WithEntityMetadata(ShellOutputMiddleware.BuildShellEntityMetadata(result))
+                .Build();
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

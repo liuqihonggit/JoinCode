@@ -260,7 +260,7 @@ public sealed class McpCliCommand
                 }
                 var key = kv[..eqIdx];
                 var value = kv[(eqIdx + 1)..];
-                dict[key] = ParseValueToJsonElement(value);
+                dict[key] = ParseValueToJsonElement(value, key);
             }
             return dict;
         }
@@ -304,10 +304,15 @@ public sealed class McpCliCommand
                 }
                 catch (System.Text.Json.JsonException repairEx)
                 {
-                    TerminalHelper.WriteError($"JSON 修复后仍解析失败: {repairEx.Message}");
+                    TerminalHelper.WriteError(FormatJsonError(repairEx, repairResult.RepairedJson, null, "JSON 修复后仍解析失败"));
                 }
             }
-            TerminalHelper.WriteError($"JSON 解析失败: {ex.Message}");
+            else
+            {
+                TerminalHelper.WriteError(FormatJsonError(ex, json, null, "JSON 解析失败"));
+                if (repairResult.RepairHint is not null)
+                    TerminalHelper.WriteError($"修复提示: {repairResult.RepairHint}");
+            }
             return null;
         }
     }
@@ -330,10 +335,51 @@ public sealed class McpCliCommand
     }
 
     /// <summary>
+    /// 格式化 JSON 解析错误 — Rust 风格，箭头指向出错位置
+    /// </summary>
+    private static string FormatJsonError(System.Text.Json.JsonException ex, string json, string? keyName, string title)
+    {
+        var sb = new StringBuilder();
+        sb.Append(title);
+        if (keyName is not null)
+            sb.Append($" (参数: {keyName})");
+        var msg = ex.Message;
+        var posIdx = msg.IndexOf("LineNumber:");
+        if (posIdx > 0)
+            msg = msg[..(posIdx - 1)].TrimEnd('.');
+        sb.Append($": {msg}");
+
+        var lineNum = ex.LineNumber >= 0 ? (int)ex.LineNumber : 0;
+        var colNum = ex.BytePositionInLine >= 0 ? (int)ex.BytePositionInLine : 0;
+
+        var lines = json.Split('\n');
+        var errorLine = lineNum < lines.Length ? lines[lineNum].TrimEnd('\r') : "";
+        var displayLine = lineNum + 1;
+        var displayCol = colNum + 1;
+        var lineLabel = displayLine.ToString();
+
+        sb.Append($"\n  --> 行 {displayLine}, 列 {displayCol}");
+        sb.Append("\n   |");
+
+        if (errorLine.Length > 0)
+        {
+            sb.Append($"\n {lineLabel} | {errorLine}");
+            var markerCol = Math.Min(colNum, errorLine.Length);
+            var markerIndent = new string(' ', markerCol);
+            sb.Append($"\n   | {markerIndent}^");
+        }
+
+        var escaped = json.Replace("\r", "\\r").Replace("\n", "\\n").Replace("\t", "\\t");
+        sb.Append($"\n  原始输入: {escaped}");
+
+        return sb.ToString();
+    }
+
+    /// <summary>
     /// 将 key=value 的字符串值转换为 JsonElement（支持 int/double/bool/string/JSON对象/JSON数组）。
     /// <para>当 value 以 { 或 [ 开头时，尝试解析为 JSON 对象或数组；解析失败时调用 LlmJsonHelper.RepairJson 修复（处理 PowerShell 引号剥离等问题）。</para>
     /// </summary>
-    private static JsonElement ParseValueToJsonElement(string value)
+    private static JsonElement ParseValueToJsonElement(string value, string keyName)
     {
         if (value.Length > 0 && (value[0] == '{' || value[0] == '['))
         {
@@ -341,7 +387,7 @@ public sealed class McpCliCommand
             {
                 return JsonDocument.Parse(value).RootElement.Clone();
             }
-            catch (System.Text.Json.JsonException)
+            catch (System.Text.Json.JsonException ex)
             {
                 var repairResult = LlmJsonHelper.RepairJson(value);
                 if (repairResult.Success)
@@ -352,8 +398,15 @@ public sealed class McpCliCommand
                     }
                     catch (System.Text.Json.JsonException repairEx)
                     {
-                        TerminalHelper.WriteError($"JSON value 修复后仍解析失败: {repairEx.Message}");
+                        TerminalHelper.WriteError(FormatJsonError(repairEx, repairResult.RepairedJson, keyName, "JSON value 修复后仍解析失败"));
+                        TerminalHelper.WriteError($"  修复后: {repairResult.RepairedJson}");
                     }
+                }
+                else
+                {
+                    TerminalHelper.WriteError(FormatJsonError(ex, value, keyName, "JSON value 解析失败"));
+                    if (repairResult.RepairHint is not null)
+                        TerminalHelper.WriteError($"  修复提示: {repairResult.RepairHint}");
                 }
             }
         }

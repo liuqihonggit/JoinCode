@@ -60,7 +60,7 @@ public sealed class ContractChangeBroadcasterTests
         msg.StructuredType.Should().Be(TeammateMessageType.ContractChanged);
         msg.Content.Should().Contain("IFoo.cs");
         msg.Content.Should().Contain("captain");
-        msg.Content.Should().Contain("git pull");
+        msg.Content.Should().Contain("自动 rebase");
     }
 
     [Fact]

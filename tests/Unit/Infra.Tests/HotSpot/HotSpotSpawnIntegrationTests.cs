@@ -97,6 +97,6 @@ public sealed class HotSpotSpawnIntegrationTests
         queue.Should().NotBeEmpty();
         var notification = string.Empty;
         queue.TryDequeue(out notification).Should().BeTrue();
-        notification.Should().Contain("git pull");
+        notification.Should().Contain("自动 rebase");
     }
 }

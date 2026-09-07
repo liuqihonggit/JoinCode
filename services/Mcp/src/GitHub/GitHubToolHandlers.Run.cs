@@ -34,11 +34,11 @@ public partial class GitHubToolHandlers
     [McpTool(GitHubToolNameConstants.GhRunView, "查看 Run 详情/日志(expand 按步骤展开+文件级缓存跨进程,filter 按标记过滤,skip_lines 分页续读,refresh 强制刷新)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRunViewAsync(
         [McpToolParameter("Run ID", Required = true)] string run_id,
-        [McpToolParameter("Job ID(可选,精准拉单 job)", Required = false)] string? job_id = null,
+        [McpToolParameter("Job ID(可选,支持逗号分隔多个并行下载,如 123 或 123,456)", Required = false)] string? job_id = null,
         [McpToolParameter("是否拉取日志(默认 false,仅看详情)", Required = false)] bool? log = null,
         [McpToolParameter("最大日志行数(默认 200)", Required = false)] int? max_lines = null,
         [McpToolParameter("跳过前 N 行(用于续读截断日志,默认 0)", Required = false)] int? skip_lines = null,
-        [McpToolParameter("按步骤展开: steps=列出步骤列表, failed=只拉失败步骤, step:Name=只拉指定步骤(复刻 ToolSearch map[] 逐层drill down)", Required = false)] string? expand = null,
+        [McpToolParameter("按步骤展开: jobs=列出job列表, steps=按job_id下载日志后列出步骤, failed=只拉失败步骤, step:Name=只拉指定步骤", Required = false)] string? expand = null,
         [McpToolParameter("日志过滤级别(error/warning/info/all,默认 all=不过滤)", Required = false)] string? filter = null,
         [McpToolParameter("强制刷新缓存(默认 false,rerun 后用 true 避免脏数据)", Required = false)] bool? refresh = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
@@ -58,6 +58,12 @@ public partial class GitHubToolHandlers
         var hasFilter = TryParseLogFilter(filter, out var filterLevel) && filterLevel != GitHubLogFilter.All;
         var markers = hasFilter ? GetFilterMarkers(filterLevel) : null;
 
+        // === expand=jobs: 列出 job 列表(不下载日志,轻量 API 调用) ===
+        if (string.Equals(expand, "jobs", StringComparison.OrdinalIgnoreCase))
+        {
+            return await ListJobsAsync(owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
+        }
+
         // === expand=failed: 只拉失败步骤日志(量少,不缓存) ===
         if (string.Equals(expand, "failed", StringComparison.OrdinalIgnoreCase))
         {
@@ -72,6 +78,12 @@ public partial class GitHubToolHandlers
 
         if (wantSteps || expandStep is not null)
         {
+            // expand=steps 必须带 job_id(诱导式: 先 expand=jobs 看列表,再按需下载)
+            if (wantSteps && string.IsNullOrWhiteSpace(job_id))
+            {
+                return Ok("expand=steps 需要指定 job_id 参数。\n\n💡 操作步骤:\n1. 先用 expand=jobs 查看 job 列表(获取 job ID 和状态)\n2. 再用 expand=steps job_id=123 下载指定 job 日志并查看步骤列表\n3. 支持逗号分隔多个 job_id 并行下载,如 job_id=123,456", "提示:");
+            }
+
             // 解析 /section:Type 后缀
             string? sectionType = null;
             if (expandStep is not null)
@@ -141,6 +153,75 @@ public partial class GitHubToolHandlers
     }
 
     /// <summary>
+    /// 列出 Run 下的所有 job(不下载日志,轻量 API 调用) — 诱导式 drill-down 第一步
+    /// <para>返回 job ID/名称/状态/结论,AI 选择目标 job 后用 expand=steps job_id=xxx 按需下载</para>
+    /// </summary>
+    private async Task<ToolResult> ListJobsAsync(string owner, string repo, string runId, CancellationToken ct)
+    {
+        var jobsResult = await _apiClient!.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}/jobs", paginate: true, ct: ct).ConfigureAwait(false);
+        if (!jobsResult.Success) return Fail(jobsResult.Error);
+
+        var sb = new StringBuilder();
+        var failedCount = 0;
+        var totalCount = 0;
+        try
+        {
+            using var doc = JsonDocument.Parse(jobsResult.Body);
+            if (!doc.RootElement.TryGetProperty("jobs", out var jobsEl))
+                return Fail("未找到 jobs 数据");
+
+            foreach (var job in jobsEl.EnumerateArray())
+            {
+                var id = job.TryGetProperty("id", out var idEl) && idEl.ValueKind == JsonValueKind.Number ? idEl.GetInt64() : 0;
+                var name = job.TryGetProperty("name", out var nameEl) ? nameEl.GetString() ?? "unknown" : "unknown";
+                var status = job.TryGetProperty("status", out var statusEl) ? statusEl.GetString() ?? "?" : "?";
+                var conclusion = job.TryGetProperty("conclusion", out var conEl) ? conEl.GetString() ?? "" : "";
+                totalCount++;
+
+                var marker = conclusion switch
+                {
+                    "failure" => "❌",
+                    "success" => "✅",
+                    "cancelled" => "⊘",
+                    _ when status == "in_progress" => "⏳",
+                    _ => "  "
+                };
+                if (conclusion == "failure") failedCount++;
+
+                sb.Append($"  {marker} {id,15}  {name}");
+                if (!string.IsNullOrEmpty(conclusion))
+                    sb.Append($"  [{conclusion}]");
+                sb.Append('\n');
+            }
+        }
+        catch (Exception ex)
+        {
+            return Fail($"解析 job 列表失败: {ex.Message}");
+        }
+
+        var hint = failedCount > 0
+            ? $"\n\n💡 下一步:\n- expand=failed → 直接拉失败步骤日志(量少)\n- expand=steps job_id=<失败job的ID> → 下载指定 job 日志并查看步骤列表\n- 支持逗号分隔多个 job_id 并行下载,如 job_id=123,456"
+            : "\n\n💡 下一步:\n- expand=steps job_id=<job ID> → 下载指定 job 日志并查看步骤列表\n- 支持逗号分隔多个 job_id 并行下载,如 job_id=123,456";
+
+        return Ok(sb.ToString(), $"Run {runId} job 列表({totalCount} 个,{failedCount} 个失败):{hint}");
+    }
+
+    /// <summary>
+    /// 解析逗号分隔的 job IDs 字符串(如 "123,456")为 List{long}
+    /// </summary>
+    private static List<long> ParseJobIds(string? jobId)
+    {
+        if (string.IsNullOrWhiteSpace(jobId)) return [];
+        var result = new List<long>();
+        foreach (var part in jobId.Split(','))
+        {
+            if (long.TryParse(part.Trim(), out var id))
+                result.Add(id);
+        }
+        return result;
+    }
+
+    /// <summary>
     /// 从 Level1 摘要缓存获取或流式拉取 — 三级缓存: MemoryCache → 文件级缓存(.jcc/gh_cache/) → 下载
     /// <para>文件级缓存跨进程共享,updatedAt 验证检测 rerun 脏数据,Actor 管道异步写入不阻塞</para>
     /// <para>ADR 0067 两级缓存 + 文件级持久化: 摘要(轻量)+内容(大量行)按 section 独立缓存</para>
@@ -205,19 +286,21 @@ public partial class GitHubToolHandlers
             }
         }
 
-        // 3. 并行下载(ADR 0067 §10) + 构建 + 缓存
+        // 3. 并行下载指定 job(s)(ADR 0067 §10) + 构建 + 缓存
         var summary = new RunLogSummary { RunId = runId, JobId = jobId };
         var sectionContents = new Dictionary<string, Dictionary<string, List<string>>>(StringComparer.OrdinalIgnoreCase);
         var rawBuilder = new StringBuilder();
 
-        var parallelOk = string.IsNullOrWhiteSpace(jobId)
-            && await TryDownloadParallelAsync(owner, repo, runId, summary, sectionContents, rawBuilder, ct).ConfigureAwait(false);
+        // 解析 job_id 中的逗号分隔的多个值(如 "123,456")
+        var targetJobIds = ParseJobIds(jobId);
+        var parallelOk = targetJobIds.Count > 0
+            && await TryDownloadJobsAsync(owner, repo, runId, targetJobIds, summary, sectionContents, rawBuilder, ct).ConfigureAwait(false);
         if (!parallelOk)
         {
-            // 回退到串行 REST API 日志流
-            if (long.TryParse(runId, out var runIdLong))
+            // 回退到串行: 逐个 job 下载
+            if (targetJobIds.Count > 0)
             {
-                if (!string.IsNullOrWhiteSpace(jobId) && long.TryParse(jobId, out var jobIdLong))
+                foreach (var jobIdLong in targetJobIds)
                 {
                     await foreach (var line in _apiClient!.GetJobLogsAsync(owner, repo, jobIdLong, ct).ConfigureAwait(false))
                     {
@@ -225,13 +308,13 @@ public partial class GitHubToolHandlers
                         ParseAndAccumulate(line, summary, sectionContents);
                     }
                 }
-                else
+            }
+            else if (long.TryParse(runId, out var runIdLong))
+            {
+                await foreach (var line in _apiClient!.GetRunLogsAsync(owner, repo, runIdLong, ct).ConfigureAwait(false))
                 {
-                    await foreach (var line in _apiClient!.GetRunLogsAsync(owner, repo, runIdLong, ct).ConfigureAwait(false))
-                    {
-                        rawBuilder.Append(line).Append('\n');
-                        ParseAndAccumulate(line, summary, sectionContents);
-                    }
+                    rawBuilder.Append(line).Append('\n');
+                    ParseAndAccumulate(line, summary, sectionContents);
                 }
             }
         }
@@ -260,8 +343,9 @@ public partial class GitHubToolHandlers
     }
 
     /// <summary>
-    /// 从 Level2 内容缓存获取指定 section 的日志行 — MemoryCache → 触发 Level1 填充 → 再读
+    /// 从 Level2 内容缓存获取指定 section 的日志行 — MemoryCache → 触发 Level1 填充 → 文件 raw 补填 → 再读
     /// <para>内存压力时 Level2 可被独立驱逐,下次访问时通过 Level1 触发从 .raw 文件重新解析填充</para>
+    /// <para>Bug 修复: Level1 MemoryCache 命中时不填充 Level2,需从文件缓存 raw 补填</para>
     /// </summary>
     private async Task<List<string>?> GetOrFetchSectionAsync(
         string owner, string repo, string runId, string? jobId, string stepName, string sectionType,
@@ -282,6 +366,30 @@ public partial class GitHubToolHandlers
         {
             _logger?.LogDebug("Level2 内容缓存(填充后)命中: {Key}, {Lines} 行", sectionKey, lines.Count);
             return lines;
+        }
+
+        // Level2 仍 miss: Level1 MemoryCache 命中但未填充 Level2,从文件缓存 raw 补填
+        if (!refresh)
+        {
+            var cacheDir = GetCacheDir(workingDir);
+            var rawPath = GetCacheFilePath(cacheDir, runId, jobId, "raw");
+            if (_fs.FileExists(rawPath))
+            {
+                try
+                {
+                    var rawContent = _fs.ReadAllText(rawPath);
+                    FillMemoryCacheFromRaw(runId, jobId, rawContent);
+                    if (_logCache.Get(sectionKey) is List<string> fileLines)
+                    {
+                        _logger?.LogDebug("Level2 内容缓存(文件 raw 补填)命中: {Key}, {Lines} 行", sectionKey, fileLines.Count);
+                        return fileLines;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogDebug(ex, "文件 raw 补填 Level2 失败: {Path}", rawPath);
+                }
+            }
         }
 
         _logger?.LogDebug("Level2 内容缓存未命中(步骤/section 不存在): {Key}", sectionKey);
@@ -350,41 +458,23 @@ public partial class GitHubToolHandlers
     }
 
     /// <summary>
-    /// 按 job 并行下载日志(ADR 0067 §10) — 25 个 job 并行,理论 10-15s vs 串行 43s
-    /// <para>失败时返回 false,调用方回退到串行 GetRunLogsAsync</para>
+    /// 并行下载指定 job(s) 日志(ADR 0067 §10) — 按需下载,不一次性拉全部 job
+    /// <para>失败时返回 false,调用方回退到串行 GetJobLogsAsync</para>
     /// <para>并发度限制 8,避免 GitHub API 二级限速</para>
     /// </summary>
-    private async Task<bool> TryDownloadParallelAsync(
-        string owner, string repo, string runId,
+    private async Task<bool> TryDownloadJobsAsync(
+        string owner, string repo, string runId, List<long> jobIds,
         RunLogSummary summary,
         Dictionary<string, Dictionary<string, List<string>>> sectionContents,
         StringBuilder rawBuilder, CancellationToken ct)
     {
         try
         {
-            // 1. 获取 job 列表(owner/repo 已传入)
-            var jobsResult = await _apiClient!.SendAsync(HttpMethod.Get, $"repos/{owner}/{repo}/actions/runs/{runId}/jobs", paginate: true, ct: ct).ConfigureAwait(false);
-            if (!jobsResult.Success) return false;
+            _logger?.LogDebug("并行下载 {Count} 个 job 日志(按需)", jobIds.Count);
 
-            List<(long id, string name)> jobs;
-            using (var doc = JsonDocument.Parse(jobsResult.Body))
-            {
-                if (!doc.RootElement.TryGetProperty("jobs", out var jobsEl)) return false;
-                jobs = new List<(long, string)>();
-                foreach (var job in jobsEl.EnumerateArray())
-                {
-                    if (!job.TryGetProperty("id", out var idEl) || idEl.ValueKind != JsonValueKind.Number) continue;
-                    var name = job.TryGetProperty("name", out var nameEl) ? nameEl.GetString() ?? "unknown" : "unknown";
-                    jobs.Add((idEl.GetInt64(), name));
-                }
-            }
-            if (jobs.Count == 0) return false;
-
-            _logger?.LogDebug("并行下载 {Count} 个 job 日志", jobs.Count);
-
-            // 2. 并行下载每个 job 日志(SemaphoreSlim 限并发 8)
+            // 并行下载每个 job 日志(SemaphoreSlim 限并发 8)
             using var semaphore = new SemaphoreSlim(8);
-            var tasks = jobs.Select(async job =>
+            var tasks = jobIds.Select(async jobId =>
             {
                 await semaphore.WaitAsync(ct).ConfigureAwait(false);
                 try
@@ -394,28 +484,28 @@ public partial class GitHubToolHandlers
                         try
                         {
                             var lines = new List<string>();
-                            await foreach (var line in _apiClient.GetJobLogsAsync(owner, repo, job.id, ct).ConfigureAwait(false))
+                            await foreach (var line in _apiClient!.GetJobLogsAsync(owner, repo, jobId, ct).ConfigureAwait(false))
                             {
                                 lines.Add(line);
                             }
                             if (lines.Count > 0)
-                                return (job.name, lines);
+                                return (jobId, lines);
                             if (attempt < 2)
                                 await Task.Delay(500, ct).ConfigureAwait(false);
                         }
                         catch (Exception ex) when (attempt < 2)
                         {
-                            _logger?.LogDebug(ex, "job {JobId} 日志下载失败,重试 {Attempt}", job.id, attempt + 1);
+                            _logger?.LogDebug(ex, "job {JobId} 日志下载失败,重试 {Attempt}", jobId, attempt + 1);
                             await Task.Delay(500, ct).ConfigureAwait(false);
                         }
                     }
-                    return (job.name, new List<string>());
+                    return (jobId, new List<string>());
                 }
                 finally { semaphore.Release(); }
             }).ToArray();
             var results = await Task.WhenAll(tasks).ConfigureAwait(false);
 
-            // 3. 合并日志(统一用 ParseAndAccumulate 从 [entry.Name] 提取 step 名)
+            // 合并日志(统一用 ParseAndAccumulate 提取 step 名)
             foreach (var (_, logLines) in results)
             {
                 if (logLines.Count == 0) continue;
@@ -655,18 +745,19 @@ public partial class GitHubToolHandlers
     /// </summary>
     private const string RunListFailureHint =
         "\n\n💡 排障步骤:\n" +
-        "1. gh_run_view run_id=xxx expand=steps → 查看步骤列表\n" +
-        "2. gh_run_view run_id=xxx expand=failed → 只看失败步骤\n" +
-        "3. gh_run_view run_id=xxx expand=step:步骤名 filter=error → 看具体步骤的错误行";
+        "1. gh_run_view run_id=xxx expand=jobs → 查看 job 列表(轻量,不下载日志)\n" +
+        "2. gh_run_view run_id=xxx expand=failed → 直接拉失败步骤日志\n" +
+        "3. gh_run_view run_id=xxx expand=steps job_id=<失败job的ID> → 下载指定 job 日志并查看步骤\n" +
+        "4. gh_run_view run_id=xxx log=true job_id=<ID> filter=error → 只看错误行";
 
     /// <summary>
     /// expand=steps 返回步骤列表后的下一步提示
     /// </summary>
     private const string StepsHint =
         "\n\n💡 下一步:\n" +
-        "- expand=failed → 只拉失败步骤(量少)\n" +
         "- expand=step:步骤名 → 查看具体步骤日志\n" +
-        "- filter=error → 只看 ##[error] 标记行";
+        "- filter=error → 只看 ##[error] 标记行\n" +
+        "- log=true job_id=xxx filter=error → 直接过滤错误行";
 
     /// <summary>
     /// expand=step:Name 返回 section 摘要后的下一步提示(ADR 0067 Level 2)

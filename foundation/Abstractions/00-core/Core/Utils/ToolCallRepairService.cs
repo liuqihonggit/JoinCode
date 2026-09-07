@@ -70,6 +70,7 @@ internal static class ToolCallRepairService
 
         repaired = RemoveTrailingCommas(repaired, hints);
         repaired = FixUnquotedKeys(repaired, hints);
+        repaired = FixUnquotedValues(repaired, hints);
         repaired = FixSingleQuotedStrings(repaired, hints);
         repaired = FixEscapeSequences(repaired, hints);
         repaired = FixHexAndLeadingZeroNumbers(repaired, hints);
@@ -318,6 +319,97 @@ internal static class ToolCallRepairService
         return result.ToString();
     }
 
+    /// <summary>
+    /// 给无引号的 JSON string value 加引号 — :value, → :"value",  :value} → :"value"}
+    /// <para>跳过数字、true/false/null、嵌套对象{}和数组[]、已加引号的字符串</para>
+    /// <para>字符级遍历，正确跳过字符串内的冒号，不会误处理字符串内的 :value, 模式</para>
+    /// </summary>
+    private static string FixUnquotedValues(string json, List<string> hints)
+    {
+        bool changed = false;
+        var result = new StringBuilder(json.Length);
+        int i = 0;
+
+        while (i < json.Length)
+        {
+            if (json[i] == '"')
+            {
+                int start = i;
+                i++;
+                while (i < json.Length)
+                {
+                    if (json[i] == '\\' && i + 1 < json.Length) { i += 2; continue; }
+                    if (json[i] == '"') { i++; break; }
+                    i++;
+                }
+                result.Append(json.AsSpan(start, i - start));
+                continue;
+            }
+
+            if (json[i] == ':')
+            {
+                result.Append(json[i]);
+                i++;
+
+                while (i < json.Length && char.IsWhiteSpace(json[i])) { result.Append(json[i]); i++; }
+                if (i >= json.Length) continue;
+
+                var c = json[i];
+                if (c == '"' || c == '{' || c == '[') continue;
+                if (char.IsDigit(c) || c == '-' || c == '+') continue;
+                if (IsLiteralAt(json, i, "true") || IsLiteralAt(json, i, "false") || IsLiteralAt(json, i, "null"))
+                    continue;
+
+                int valueStart = i;
+                while (i < json.Length && json[i] != ',' && json[i] != '}' && json[i] != ']' && !char.IsWhiteSpace(json[i]))
+                    i++;
+
+                if (i > valueStart)
+                {
+                    int j = i;
+                    while (j < json.Length && char.IsWhiteSpace(json[j])) j++;
+                    if (j < json.Length && (json[j] == ',' || json[j] == '}' || json[j] == ']'))
+                    {
+                        result.Append('"');
+                        result.Append(json.AsSpan(valueStart, i - valueStart));
+                        result.Append('"');
+                        changed = true;
+                        continue;
+                    }
+                }
+
+                result.Append(json.AsSpan(valueStart, i - valueStart));
+                continue;
+            }
+
+            result.Append(json[i]);
+            i++;
+        }
+
+        if (changed)
+            hints.Add("added quotes to unquoted value(s)");
+
+        return result.ToString();
+    }
+
+    /// <summary>
+    /// 检查字符串指定位置是否匹配某个字面量（true/false/null），且后面是单词边界
+    /// </summary>
+    private static bool IsLiteralAt(string s, int index, string literal)
+    {
+        if (index + literal.Length > s.Length) return false;
+        for (int k = 0; k < literal.Length; k++)
+        {
+            if (s[index + k] != literal[k]) return false;
+        }
+        if (index + literal.Length < s.Length)
+        {
+            var next = s[index + literal.Length];
+            if (char.IsLetterOrDigit(next) || next == '_') return false;
+        }
+        return true;
+    }
+
     private static string StripTrailingSemicolon(string json)
     {
         var trimmed = json.AsSpan().Trim();
@@ -389,6 +481,7 @@ internal static class ToolCallRepairService
     /// 修复 JSON 字符串中的非法转义序列和裸控制字符。
     /// 1. \' → ' （标准 JSON 字符串内不需要转义单引号，System.Text.Json 会拒绝）
     /// 2. 裸控制字符（0x00-0x1F）→ 对应 \n \t \r 等转义序列
+    /// 3. 无效反斜杠转义（如 \p \w \R）→ 双写反斜杠（\\p \\w \\R），处理 Windows 路径
     /// </summary>
     private static string FixEscapeSequences(string json, List<string> hints)
     {
@@ -413,6 +506,16 @@ internal static class ToolCallRepairService
                             result.Append('\'');
                             changed = true;
                             i += 2;
+                            start = i;
+                            continue;
+                        }
+
+                        if (next is not ('"' or '\\' or '/' or 'b' or 'f' or 'n' or 'r' or 't' or 'u'))
+                        {
+                            result.Append(json.AsSpan(start, i - start));
+                            result.Append("\\\\");
+                            changed = true;
+                            i++;
                             start = i;
                             continue;
                         }

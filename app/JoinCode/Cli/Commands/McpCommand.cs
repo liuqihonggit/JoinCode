@@ -288,29 +288,76 @@ public sealed class McpCliCommand
 
         try
         {
-            using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.ValueKind != JsonValueKind.Object)
-            {
-                TerminalHelper.WriteError("参数 JSON 必须是对象（{}），不能是数组或标量");
-                return null;
-            }
-            var dict = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-            foreach (var prop in doc.RootElement.EnumerateObject())
-                dict[prop.Name] = prop.Value.Clone();
-            return dict;
+            return ParseJsonObject(json);
         }
         catch (System.Text.Json.JsonException ex)
         {
+            var repairResult = LlmJsonHelper.RepairJson(json);
+            if (repairResult.Success)
+            {
+                try
+                {
+                    var repairedDict = ParseJsonObject(repairResult.RepairedJson);
+                    if (repairResult.RepairHint is not null)
+                        TerminalHelper.WriteLine($"{TerminalColors.Warning}JSON 参数已自动修复: {repairResult.RepairHint}{AnsiStyleConstants.Reset}");
+                    return repairedDict;
+                }
+                catch (System.Text.Json.JsonException repairEx)
+                {
+                    TerminalHelper.WriteError($"JSON 修复后仍解析失败: {repairEx.Message}");
+                }
+            }
             TerminalHelper.WriteError($"JSON 解析失败: {ex.Message}");
             return null;
         }
     }
 
     /// <summary>
-    /// 将 key=value 的字符串值转换为 JsonElement（支持 int/double/bool/string）。
+    /// 将 JSON 字符串解析为 Dictionary（必须是 JSON 对象）
+    /// </summary>
+    private static Dictionary<string, JsonElement> ParseJsonObject(string json)
+    {
+        using var doc = JsonDocument.Parse(json);
+        if (doc.RootElement.ValueKind != JsonValueKind.Object)
+        {
+            TerminalHelper.WriteError("参数 JSON 必须是对象（{}），不能是数组或标量");
+            throw new System.Text.Json.JsonException("JSON 必须是对象");
+        }
+        var dict = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+        foreach (var prop in doc.RootElement.EnumerateObject())
+            dict[prop.Name] = prop.Value.Clone();
+        return dict;
+    }
+
+    /// <summary>
+    /// 将 key=value 的字符串值转换为 JsonElement（支持 int/double/bool/string/JSON对象/JSON数组）。
+    /// <para>当 value 以 { 或 [ 开头时，尝试解析为 JSON 对象或数组；解析失败时调用 LlmJsonHelper.RepairJson 修复（处理 PowerShell 引号剥离等问题）。</para>
     /// </summary>
     private static JsonElement ParseValueToJsonElement(string value)
     {
+        if (value.Length > 0 && (value[0] == '{' || value[0] == '['))
+        {
+            try
+            {
+                return JsonDocument.Parse(value).RootElement.Clone();
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                var repairResult = LlmJsonHelper.RepairJson(value);
+                if (repairResult.Success)
+                {
+                    try
+                    {
+                        return JsonDocument.Parse(repairResult.RepairedJson).RootElement.Clone();
+                    }
+                    catch (System.Text.Json.JsonException repairEx)
+                    {
+                        TerminalHelper.WriteError($"JSON value 修复后仍解析失败: {repairEx.Message}");
+                    }
+                }
+            }
+        }
+
         if (int.TryParse(value, out var intVal))
             return JsonDocument.Parse(intVal.ToString()).RootElement.Clone();
         if (double.TryParse(value, out var doubleVal))

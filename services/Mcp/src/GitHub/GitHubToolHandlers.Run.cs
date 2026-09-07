@@ -525,12 +525,15 @@ public partial class GitHubToolHandlers
 
     /// <summary>
     /// GitHub Actions 日志行解析器 — 状态机 + Span,零 GC 逐行处理
-    /// <para>状态: _currentStepName 跟踪 ##[start-action display=...] 到 ##[end-action] 之间的步骤</para>
+    /// <para>跟踪两类步骤: ##[start-action display=...] (action 步骤) 和 ##[group]Run cmd (run 步骤)</para>
+    /// <para>action 步骤优先级高于 run 步骤,action 内部的 ##[group]Run 归 action 步骤</para>
     /// <para>Span 处理时间戳剥离和标记检测,只在提取步骤名时 ToString 分配</para>
     /// </summary>
     private sealed class GitHubLogParser
     {
         private string? _currentStepName;
+        private bool _inAction;
+        private bool _inRunGroup;
         private static readonly SearchValues<char> s_nameTerminators = SearchValues.Create(";]");
 
         /// <summary>
@@ -540,16 +543,42 @@ public partial class GitHubToolHandlers
         {
             var content = StripTimestamp(line.AsSpan());
 
-            // 检测 ##[start-action display=StepName;id=...]
+            // 优先级1: ##[start-action display=StepName;id=...]
             if (content.StartsWith("##[start-action display=".AsSpan()))
             {
                 var rest = content.Slice("##[start-action display=".Length);
                 var endIdx = rest.IndexOfAny(s_nameTerminators);
                 _currentStepName = endIdx > 0 ? rest[..endIdx].ToString() : rest.ToString();
+                _inAction = true;
+                _inRunGroup = false;
+                return;
             }
-            else if (content.StartsWith("##[end-action".AsSpan()))
+
+            // 优先级2: ##[end-action
+            if (content.StartsWith("##[end-action".AsSpan()))
             {
                 _currentStepName = null;
+                _inAction = false;
+                _inRunGroup = false;
+                return;
+            }
+
+            // 优先级3: ##[group]Run cmd (仅当不在 action 中,action 内部的 group 归 action)
+            if (!_inAction && content.StartsWith("##[group]Run ".AsSpan()))
+            {
+                var cmd = content.Slice("##[group]Run ".Length);
+                _currentStepName = ExtractRunStepName(cmd);
+                _inRunGroup = true;
+                return;
+            }
+
+            // 优先级4: ##[endgroup] (仅当在 run group 中)
+            // 不清除 _currentStepName — ##[endgroup] 只结束命令回显,实际输出在 endgroup 之后
+            // 步骤持续到下一个 ##[start-action] 或 ##[group]Run 切换
+            if (_inRunGroup && content.StartsWith("##[endgroup]".AsSpan()))
+            {
+                _inRunGroup = false;
+                return;
             }
 
             if (_currentStepName is not null)
@@ -562,6 +591,59 @@ public partial class GitHubToolHandlers
             var stepName = TryExtractStepName(line.AsSpan());
             if (stepName is not null)
                 Accumulate(line, stepName, summary, sectionContents);
+        }
+
+        /// <summary>
+        /// 从 ##[group]Run 命令提取简短步骤名 — Span 处理,零 GC
+        /// <para>"dotnet test xxx.csproj ..." → "dotnet test xxx"</para>
+        /// <para>"dotnet build xxx.csproj ..." → "dotnet build xxx"</para>
+        /// <para>"actions/checkout@v5" → "actions/checkout@v5"</para>
+        /// <para>"./.github/actions/setup-test-env" → "setup-test-env"</para>
+        /// <para>其他 → 截断到 60 字符</para>
+        /// </summary>
+        private static string ExtractRunStepName(ReadOnlySpan<char> cmd)
+        {
+            // dotnet test xxx.csproj ... → dotnet test xxx
+            if (cmd.StartsWith("dotnet test ".AsSpan()))
+            {
+                var after = cmd.Slice("dotnet test ".Length);
+                var csprojIdx = after.IndexOf(".csproj".AsSpan());
+                if (csprojIdx > 0)
+                {
+                    var path = after[..csprojIdx];
+                    var lastSlash = path.LastIndexOf('/');
+                    var shortName = lastSlash >= 0 ? path.Slice(lastSlash + 1) : path;
+                    return string.Concat("dotnet test ", shortName.ToString());
+                }
+                return "dotnet test";
+            }
+
+            // dotnet build xxx.csproj ... → dotnet build xxx
+            if (cmd.StartsWith("dotnet build ".AsSpan()))
+            {
+                var after = cmd.Slice("dotnet build ".Length);
+                var csprojIdx = after.IndexOf(".csproj".AsSpan());
+                if (csprojIdx > 0)
+                {
+                    var path = after[..csprojIdx];
+                    var lastSlash = path.LastIndexOf('/');
+                    var shortName = lastSlash >= 0 ? path.Slice(lastSlash + 1) : path;
+                    return string.Concat("dotnet build ", shortName.ToString());
+                }
+                return "dotnet build";
+            }
+
+            // ./.github/actions/xxx → xxx
+            if (cmd.StartsWith("./.github/actions/".AsSpan()))
+            {
+                var after = cmd.Slice("./.github/actions/".Length);
+                var spaceIdx = after.IndexOf(' ');
+                var name = spaceIdx > 0 ? after[..spaceIdx] : after;
+                return name.ToString();
+            }
+
+            // 其他: 截断到 60 字符
+            return cmd.Length <= 60 ? cmd.ToString() : cmd[..60].ToString();
         }
 
         /// <summary>

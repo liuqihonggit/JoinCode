@@ -122,12 +122,18 @@ public partial class GitHubToolHandlers
             var summary = await GetOrFetchSummaryAsync(owner, repoName, run_id, job_id, working_dir, wantRefresh, cancellationToken);
             if (summary is null) return Fail("日志拉取失败");
 
-            // expand=steps: 返回步骤列表
+            // expand=steps: 返回步骤列表(有 error 的步骤标 ❌)
             if (wantSteps)
             {
                 var stepsText = summary.StepLineCounts
                     .OrderByDescending(kvp => kvp.Value)
-                    .Select(kvp => $"  {kvp.Value,6} 行  {kvp.Key}");
+                    .Select(kvp =>
+                    {
+                        var hasError = summary.SectionCounts.TryGetValue(kvp.Key, out var secs)
+                            && secs.TryGetValue(RunLogCache.SectionError, out _);
+                        var marker = hasError ? "❌ " : "   ";
+                        return $"  {marker}{kvp.Value,6} 行  {kvp.Key}";
+                    });
                 return Ok(string.Join('\n', stepsText) + StepsHint, $"Run {run_id} 步骤列表({summary.StepLineCounts.Count} 步骤,缓存于 {summary.CachedAt:HH:mm:ss}):");
             }
 

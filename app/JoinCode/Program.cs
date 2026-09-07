@@ -19,6 +19,9 @@ class Program
         InstallGlobalExceptionHandlers();
         using var globalJob = CreateGlobalJobObject();
 
+        // --await N: 全局超时计时器 — 在子命令路由之前启动，确保所有路径（mcp_call/slash_call 等）都有超时保护
+        using var earlyAwaitTimer = StartEarlyAwaitTimer(args);
+
         Cli.TerminalHelper.Init();
         JoinCode.Abstractions.Shell.CommandTerminal.SetConsole(new CliCommandConsole());
         ILogger<Program>? logger = null;
@@ -262,6 +265,38 @@ class Program
             state: null,
             dueTime: TimeSpan.FromSeconds(seconds),
             period: System.Threading.Timeout.InfiniteTimeSpan);
+    }
+
+    /// <summary>
+    /// 从原始 args 中解析 --await N 并启动早期超时计时器。
+    /// 在子命令路由（mcp_call/slash_call 等）之前启动，确保所有路径都有超时保护。
+    /// 主路径的 StartAwaitTimer 会再次启动（using 释放时先释放 early，再释放 late，不冲突）。
+    /// </summary>
+    private static System.Threading.Timer? StartEarlyAwaitTimer(string[] args)
+    {
+        for (var i = 0; i < args.Length - 1; i++)
+        {
+            if (args[i] == "--await" && int.TryParse(args[i + 1], out var seconds) && seconds > 0)
+            {
+                Diag.WriteLine($"[MAIN] --await {seconds}s 早期计时器已启动（超时返回{(int)ExitCode.AwaitTimeout}）");
+                return new System.Threading.Timer(
+                    callback: _ =>
+                    {
+                        try
+                        {
+                            var timeoutLog = Cli.Output.XdgPathResolver.GetAwaitTimeoutLogPath();
+                            SafeFileIO.AppendAllText(timeoutLog,
+                                $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] --await {seconds}s 早期超时, 进程强制退出({(int)ExitCode.AwaitTimeout})\n");
+                        }
+                        catch (Exception logEx) { Diag.WriteLine($"[MAIN] 早期超时日志写入失败: {logEx.Message}"); }
+                        Environment.Exit((int)ExitCode.AwaitTimeout);
+                    },
+                    state: null,
+                    dueTime: TimeSpan.FromSeconds(seconds),
+                    period: System.Threading.Timeout.InfiniteTimeSpan);
+            }
+        }
+        return null;
     }
 
     /// <summary>

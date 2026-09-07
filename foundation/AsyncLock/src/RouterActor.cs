@@ -49,7 +49,7 @@ public sealed class RandomRouteStrategy<TMessage> : IRouterStrategy<TMessage>
 /// Router Actor — 多 Worker 负载分发 + 监督。
 /// <para>继承 SupervisedActor 获得:父子关系、监督策略、背压、生命周期级联。</para>
 /// <para>Worker 崩溃时按 SupervisorStrategy 自动重启(OneForOne 默认)。</para>
-/// <para>消息通过 <see cref="RouteAsync"/> 投递,由 <see cref="IRouterStrategy{TMessage}"/> 决定分发目标。</para>
+    /// <para>消息通过 RouteAsync 投递,由 <see cref="IRouterStrategy{TMessage}"/> 决定分发目标。</para>
 /// </summary>
 /// <typeparam name="TMessage">路由消息类型</typeparam>
 public class RouterActor<TMessage> : SupervisedActor<RouterActor<TMessage>.IRouterCommand>
@@ -57,7 +57,7 @@ public class RouterActor<TMessage> : SupervisedActor<RouterActor<TMessage>.IRout
     /// <summary>Router 命令标记接口</summary>
     public interface IRouterCommand;
 
-    private sealed record RouteCommand(TMessage Message, Action<TMessage, IAsyncDisposable> Deliver) : IRouterCommand;
+    private sealed record RouteCommand(TMessage Message, Func<TMessage, IAsyncDisposable, ValueTask> Deliver) : IRouterCommand;
 
     private readonly IRouterStrategy<TMessage> _strategy;
     private readonly SupervisorStrategy _childStrategy;
@@ -96,10 +96,26 @@ public class RouterActor<TMessage> : SupervisedActor<RouterActor<TMessage>.IRout
 
     /// <summary>
     /// 路由消息到 Worker — 由路由策略决定目标 Worker,然后调用 deliver 投递。
+    /// <para>同步投递版本 — deliver 内部应使用 TrySend 等同步方法,不可阻塞。</para>
     /// </summary>
     /// <param name="message">待路由消息</param>
     /// <param name="deliver">投递函数:接收消息和 Worker 实例,由调用方强类型发送</param>
     public ValueTask RouteAsync(TMessage message, Action<TMessage, IAsyncDisposable> deliver)
+    {
+        return SendAsync(new RouteCommand(message, (msg, worker) =>
+        {
+            deliver(msg, worker);
+            return ValueTask.CompletedTask;
+        }));
+    }
+
+    /// <summary>
+    /// 路由消息到 Worker — 异步投递版本,deliver 可 await 背压等待。
+    /// <para>适用于编译等需要背压控制的场景:deliver 内部用 SendAsync 异步投递。</para>
+    /// </summary>
+    /// <param name="message">待路由消息</param>
+    /// <param name="deliver">异步投递函数:可 await Worker.SendAsync 等待背压</param>
+    public ValueTask RouteAsync(TMessage message, Func<TMessage, IAsyncDisposable, ValueTask> deliver)
     {
         return SendAsync(new RouteCommand(message, deliver));
     }
@@ -108,12 +124,12 @@ public class RouterActor<TMessage> : SupervisedActor<RouterActor<TMessage>.IRout
     public int WorkerCount => _workerIds.Count;
 
     /// <summary>Consumer 线程内处理路由命令</summary>
-    protected override ValueTask HandleAsync(IRouterCommand command, CancellationToken ct)
+    protected override async ValueTask HandleAsync(IRouterCommand command, CancellationToken ct)
     {
         if (command is RouteCommand(var msg, var deliver))
         {
             var children = GetChildren();
-            if (children.Count == 0) return ValueTask.CompletedTask;
+            if (children.Count == 0) return;
 
             var idx = _strategy.Select(children.Count, msg);
             idx = Math.Clamp(idx, 0, children.Count - 1);
@@ -122,10 +138,9 @@ public class RouterActor<TMessage> : SupervisedActor<RouterActor<TMessage>.IRout
             var worker = workers[idx];
             if (worker.Instance is not null)
             {
-                deliver(msg, worker.Instance);
+                await deliver(msg, worker.Instance).ConfigureAwait(false);
             }
         }
-        return ValueTask.CompletedTask;
     }
 
     /// <summary>子 Worker 失败处理 — 调用可选回调,子类可重写自定义</summary>

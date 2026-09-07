@@ -32,7 +32,7 @@ public sealed record GatewayOptions(
 /// <summary>
 /// 网关熔断状态。
 /// </summary>
-public enum CircuitBreakerState : int
+public enum GatewayCircuitState : int
 {
     /// <summary>关闭(正常调用)</summary>
     Closed,
@@ -65,12 +65,12 @@ public sealed class GatewayActor<TRequest, TResponse> : ActorBase<GatewayActor<T
     private readonly GatewayOptions _options;
     private readonly Func<TRequest, CancellationToken, Task<TResponse>> _handler;
 
-    private int _breakerState = (int)CircuitBreakerState.Closed;
+    private int _breakerState = (int)GatewayCircuitState.Closed;
     private int _consecutiveFailures;
     private DateTimeOffset _breakerOpenedAt = DateTimeOffset.MinValue;
 
     /// <summary>当前熔断状态 — 用于监控</summary>
-    public CircuitBreakerState BreakerState => (CircuitBreakerState)Volatile.Read(ref _breakerState);
+    public GatewayCircuitState BreakerState => (GatewayCircuitState)Volatile.Read(ref _breakerState);
 
     /// <summary>连续失败次数 — 用于监控</summary>
     public int ConsecutiveFailures => Volatile.Read(ref _consecutiveFailures);
@@ -166,13 +166,13 @@ public sealed class GatewayActor<TRequest, TResponse> : ActorBase<GatewayActor<T
     {
         if (_options.CircuitBreakerThreshold <= 0) return false;
 
-        var state = (CircuitBreakerState)Volatile.Read(ref _breakerState);
-        if (state == CircuitBreakerState.Open)
+        var state = (GatewayCircuitState)Volatile.Read(ref _breakerState);
+        if (state == GatewayCircuitState.Open)
         {
             var elapsed = DateTimeOffset.UtcNow - _breakerOpenedAt;
             if (elapsed >= _options.EffectiveRecoveryDelay)
             {
-                Interlocked.Exchange(ref _breakerState, (int)CircuitBreakerState.HalfOpen);
+                Interlocked.Exchange(ref _breakerState, (int)GatewayCircuitState.HalfOpen);
                 return false;
             }
             return true;
@@ -183,7 +183,7 @@ public sealed class GatewayActor<TRequest, TResponse> : ActorBase<GatewayActor<T
     private void OnCallSuccess()
     {
         Interlocked.Exchange(ref _consecutiveFailures, 0);
-        Interlocked.Exchange(ref _breakerState, (int)CircuitBreakerState.Closed);
+        Interlocked.Exchange(ref _breakerState, (int)GatewayCircuitState.Closed);
     }
 
     private void OnCallFailure()
@@ -191,7 +191,7 @@ public sealed class GatewayActor<TRequest, TResponse> : ActorBase<GatewayActor<T
         var failures = Interlocked.Increment(ref _consecutiveFailures);
         if (_options.CircuitBreakerThreshold > 0 && failures >= _options.CircuitBreakerThreshold)
         {
-            Interlocked.Exchange(ref _breakerState, (int)CircuitBreakerState.Open);
+            Interlocked.Exchange(ref _breakerState, (int)GatewayCircuitState.Open);
             _breakerOpenedAt = DateTimeOffset.UtcNow;
         }
     }

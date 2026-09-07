@@ -77,7 +77,7 @@ public class GatewayActorTest
             await SwallowAsync(() => gateway.CallAsync("test"));
         }
 
-        gateway.BreakerState.Should().Be(CircuitBreakerState.Open);
+        gateway.BreakerState.Should().Be(GatewayCircuitState.Open);
     }
 
     [Fact]
@@ -112,7 +112,7 @@ public class GatewayActorTest
         await SwallowAsync(() => gateway.CallAsync("test"));
         var result = await gateway.CallAsync("test");
 
-        gateway.BreakerState.Should().Be(CircuitBreakerState.Closed);
+        gateway.BreakerState.Should().Be(GatewayCircuitState.Closed);
         gateway.ConsecutiveFailures.Should().Be(0);
     }
 

@@ -209,7 +209,7 @@ public partial class GitHubToolHandlers
             ? $"\n\n💡 下一步:\n- expand=failed → 直接拉失败步骤日志(量少)\n- expand=steps job_id=<失败job的ID> → 下载指定 job 日志并查看步骤列表\n- 支持逗号分隔多个 job_id 并行下载,如 job_id=123,456"
             : "\n\n💡 下一步:\n- expand=steps job_id=<job ID> → 下载指定 job 日志并查看步骤列表\n- 支持逗号分隔多个 job_id 并行下载,如 job_id=123,456";
 
-        return Ok(sb.ToString(), $"Run {runId} job 列表({totalCount} 个,{failedCount} 个失败):{hint}");
+        return Ok(sb.ToString() + hint, $"Run {runId} job 列表({totalCount} 个,{failedCount} 个失败):");
     }
 
     /// <summary>

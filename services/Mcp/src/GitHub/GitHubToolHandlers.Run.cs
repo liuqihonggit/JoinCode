@@ -313,12 +313,14 @@ public partial class GitHubToolHandlers
     /// </summary>
     private void FillMemoryCacheFromRaw(string runId, string? jobId, string rawContent)
     {
-        var lines = rawContent.Split('\n');
+        var span = rawContent.AsSpan();
+        var ranges = LineSpanIndexer.BuildLineRanges(span);
         var sectionContents = new Dictionary<string, Dictionary<string, List<string>>>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var line in lines)
+        foreach (var (start, length) in ranges)
         {
-            if (string.IsNullOrEmpty(line)) continue;
+            if (length == 0) continue;
+            var line = span.Slice(start, length).ToString();
             var parts = line.Split('\t');
             if (parts.Length < 2) continue;
             var stepName = parts[1];

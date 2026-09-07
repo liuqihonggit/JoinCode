@@ -465,6 +465,7 @@ Worker 上报双意图 → 热点识别（取代文件锁）→ 热文件契约�
 | C | T2.4 | AgentCoordinator EnsureSecretaryAsync 秘书常驻 | 6 |
 | C | T2.5 | ICallSiteFinder + CallSiteFinder + CodeCallSite | 3 |
 | D | T5.0 | AgentBase ContractChangeNotifications 队列消费 | 5 |
+| D | T5.1 | IAutoRebaseService + AutoRebaseService（自动 rebase 取代软通知） | 11 |
 | D | T6.0 | IMergeQueueService + MergeQueueService | 7 |
 | E | T7.1 | DeferredMail + MailMarker | — |
 | E | T7.2 | IDeferredMailService + DeferredMailService | 7 |
@@ -475,9 +476,7 @@ Worker 上报双意图 → 热点识别（取代文件锁）→ 热文件契约�
 
 ### 待集成任务
 
-⚠️ **T5.1 待实现** — commit 监控 + 自动 rebase（`IAutoRebaseService`），取代旧软通知模式。断裂点6 需从"软通知"改为"自动执行"
-
-✅ **其余全部完成** — 所有纯新增组件和集成任务已实现，150测试全绿，零破坏。
+✅ **全部完成** — T5.1 自动 rebase 已实现（`AutoRebaseService` + `AgentCoordinator` 集成，11 测试全绿），断裂点6 已从软通知修正为自动执行。所有纯新增组件和集成任务已实现。
 
 ### 集成顺序（已全部完成）
 
@@ -501,12 +500,12 @@ Worker 上报双意图 → 热点识别（取代文件锁）→ 热文件契约�
 - **修复**: 新增 ContractChangeBroadcastListener（队长改热文件自动广播+塞队列）+ ContractChangeNotificationRouter（桥接邮箱到Worker队列）；修复 EnqueueNotification 队列不存在时通知丢失 bug（TryGetValue → GetOrAdd）
 - **链路**: 队长改热文件 → ContractChangeBroadcastListener → ContractChangeNotificationRouter.EnqueueNotifications → Worker.ContractChangeNotifications 队列
 
-### 断裂点6: Worker 自动 rebase 同步 ⚠️ 需修正为自动执行
+### 断裂点6: Worker 自动 rebase 同步 ✅ 已修正为自动执行
 - **旧实现**（软通知模式）: 通知文本写"请 git pull --rebase 同步主干后继续"，AgentBase.DrainPendingUserInputs 消费时塞入 chatHistory，LLM 看到提示后自己执行 git pull
 - **问题**: LLM 可能忽略提示 / 执行错误命令 / 多 Worker 同时 rebase 冲突 / 无确定性保证 / 归因偏差（LLM 认为 rebase 问题不是自己引入的）
-- **新设计**（自动 rebase 模式）: SubagentStop 钩子触发系统自动 `git fetch` + `git rebase origin/main`；无冲突静默完成；有冲突 `git rebase --abort` + 邮箱报文（含冲突文件列表 + diff 摘要）
+- **新实现**（自动 rebase 模式）: `AutoRebaseService` — SubagentStop 钩子触发系统自动 `git fetch` + `git rebase origin/main`；无冲突静默完成；有冲突 `git rebase --abort` + 邮箱报文（含冲突文件列表 + diff 摘要）
 - **优势**: 确定性执行（不依赖 LLM 理解提示）+ 时机可控（SubagentStop 时 Worker 已停止）+ 冲突可检测（系统生成冲突文件列表）+ 可追溯（系统日志）+ 减少归因偏差
-- **状态**: 待实现（见 T5.1）
+- **状态**: ✅ 已实现（commit ce05ac774，11 测试全绿）
 
 ### Worker spawn 热点集成 ✅
 - **新增**: IHotSpotSpawnIntegration 聚合服务 + HotSpotSpawnIntegration 实现
@@ -532,3 +531,9 @@ Worker 上报双意图 → 热点识别（取代文件锁）→ 热文件契约�
 <!-- 替代方案: 增强软通知(邮箱报文从"请git pull --rebase"改为结构化指令+冲突文件列表)——但仍有LLM忽略风险,不彻底 -->
 <!-- 边缘处理: 1.rebase前检查工作区干净(未提交先commit) 2.rebase冲突时git rebase --abort保持worktree干净 3.git fetch检测有无新提交无则跳过 -->
 <!-- 验证: 文档修正完成,待T5.1代码实现 -->
+
+<!-- 🤖 Auto Decision: 2026-09-07 T5.1 实现完成 -->
+<!-- 决策: AutoRebaseService 状态机驱动(Idle->Fetching->CheckingUpstream->StashingDirty->Rebasing->ConflictDetected->Aborting->Completed),集成到AgentCoordinator.OnSubagentStopHookAsync -->
+<!-- 原因: 用户要求状态机+守卫处理边缘情况(工作区未提交/rebase冲突等); SubagentStop时Worker已停止工作区干净是最佳rebase时机 -->
+<!-- 边缘处理: 1.fetch失败即Failed(涵盖worktree不存在) 2.无新提交Skipped 3.工作区脏先stash再rebase后pop 4.rebase冲突abort+邮箱通知队长含冲突文件列表 5.无队长ID跳过通知 6.stash失败Failed -->
+<!-- 验证: 11单元测试全绿,196 HotSpot测试全绿零破坏,编译通过 ✅ -->

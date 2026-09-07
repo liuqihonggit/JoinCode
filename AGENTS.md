@@ -698,7 +698,7 @@ chcp 65001
 
 | 元命令 | 用途 | 示例 |
 |--------|------|------|
-| `mcp_call <tool> [key=value ... \| <argsJson> \| --args-file <path> \| --args-stdin]` | MCP 工具直调（PowerShell 用 `key=value`，JSON 用 `--args-file`/`--args-stdin`） | `jcc mcp_call ToolSearch query=read` / `jcc mcp_call read_file --args-file args.json` |
+| `mcp_call <tool> [key=value ... \| <argsJson> \| --args-file <path> \| --args-stdin]` | MCP 工具直调（PowerShell 用 `key=value`，JSON 用 `--args-file`/`--args-stdin`）。**参数顺序不敏感**：`--trust`/`--json`/`--debuglog` 等布尔标志可放任意位置，不会吞掉 key=value 参数 | `jcc mcp_call ToolSearch query=read` / `jcc mcp_call gh_pr_checks --trust pr_number=201 --json` |
 | `mcp_list [--category <cat>]` | 列出 MCP 工具 | `jcc mcp_list --category Code` |
 | `mcp_schema <tool>` | 查看工具参数 schema | `jcc mcp_schema read_file` |
 | `mcp_search <query>` | 搜索 MCP 工具 | `jcc mcp_search "read"` |
@@ -779,7 +779,7 @@ jcc rg "pattern" .xxx/ --hidden --no-ignore -n --content
 
 **退出码**：`0` = 有匹配，`1` = 无匹配/参数错误，`2` = 超时
 
-> 全局参数可在元命令前：`jcc --trust --model gpt-4o mcp_call read_file {"path":"x"}`
+> 全局参数可在元命令前或后：`jcc --trust --model gpt-4o mcp_call read_file {"path":"x"}` 或 `jcc mcp_call read_file --trust path=x`。**布尔标志（--trust/--json/--debuglog 等）不会吞掉 key=value 参数**，参数顺序不敏感（CliArgConstants.BooleanFlags 白名单由源码生成器自动维护）。
 > 旧 `jcc mcp call` 已废弃，提示用 `jcc mcp_call`。旧 `jcc tool/agent/code` 已归档。
 
 ### .NET FileMode.Append 陷阱
@@ -1044,6 +1044,7 @@ Invoke-RestMethod -Uri "http://localhost:9901/shutdown" -Method Get
 | Console.WriteLine 在后台进程中不可见 | `UseShellExecute=false` 时输出到父进程控制台，不写文件 | 前台调试用 `& $exe --port 9901`；后台运行靠 dump 文件诊断 |
 | jcc 环境变量不生效（JCC_ENDPOINT等） | `ApplyEnvOverrides` 只在 `dotEnv != null` 时调用，无 `.env/api.json` 时环境变量被跳过 | 已修复：`ApplyEnvOverrides` 移出 `if (dotEnv is not null)` 块，无论 dotEnv 是否存在都调用 |
 | MockServer 流式最终 chunk 未发送 | `WriteAsync(lastChunk)` 后缺少 `FlushAsync`，`data: [DONE]` 缓冲在服务端 | 在 `BuildStreamFinalChunk` 写入后加 `await ctx.Response.Body.FlushAsync()` |
+| `mcp_call --trust key=value --json` 丢参数 | `FlatSubCommandRouter.GetPositional` 启发式假设 `--xxx` 都带值，布尔标志 `--trust` 误吞 `key=value` | 已修复：`CliArgConstants.BooleanFlags` 白名单（源码生成器从 `[CliOption]` 特性自动提取）+ `IsKeyValuePair()` 双保险，布尔标志不吞值、key=value 永不被吞 |
 
 **2. 启动 jcc 连接 MockServer**
 

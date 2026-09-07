@@ -373,7 +373,14 @@ internal static class ToolCallRepairService
                     if (j < json.Length && (json[j] == ',' || json[j] == '}' || json[j] == ']'))
                     {
                         result.Append('"');
-                        result.Append(json.AsSpan(valueStart, i - valueStart));
+                        var valueSpan = json.AsSpan(valueStart, i - valueStart);
+                        for (int k = 0; k < valueSpan.Length; k++)
+                        {
+                            if (valueSpan[k] == '\\')
+                                result.Append("\\\\");
+                            else
+                                result.Append(valueSpan[k]);
+                        }
                         result.Append('"');
                         changed = true;
                         continue;

@@ -794,4 +794,166 @@ public sealed class ToolCallRepairServiceTests
     }
 
     #endregion
+
+    #region FixUnquotedValues — 无引号 value 加引号（PowerShell 引号剥离）
+
+    [Fact]
+    public void RepairJson_UnquotedValues_AddsQuotes()
+    {
+        var result = ToolCallRepairService.RepairJson("""{"filePath": "/src/Program.cs", "mode": read}""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("mode").GetString().Should().Be("read");
+        result.RepairHint.Should().Contain("unquoted value");
+    }
+
+    [Fact]
+    public void RepairJson_UnquotedKeysAndValues_AddsQuotes()
+    {
+        var result = ToolCallRepairService.RepairJson("""{filePath: /src/Program.cs}""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("filePath").GetString().Should().Be("/src/Program.cs");
+    }
+
+    [Fact]
+    public void RepairJson_UnquotedValueSkipsNumbers_KeepsAsNumber()
+    {
+        var result = ToolCallRepairService.RepairJson("""{"count": 42, "name": test}""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("count").GetInt32().Should().Be(42);
+        parsed.RootElement.GetProperty("name").GetString().Should().Be("test");
+    }
+
+    [Fact]
+    public void RepairJson_UnquotedValueSkipsTrueFalseNull_KeepsAsLiteral()
+    {
+        var result = ToolCallRepairService.RepairJson("""{"a": true, "b": false, "c": null, "d": hello}""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("a").GetBoolean().Should().BeTrue();
+        parsed.RootElement.GetProperty("b").GetBoolean().Should().BeFalse();
+        parsed.RootElement.GetProperty("c").ValueKind.Should().Be(JsonValueKind.Null);
+        parsed.RootElement.GetProperty("d").GetString().Should().Be("hello");
+    }
+
+    #endregion
+
+    #region StripOuterQuotes — 外层多余引号去除
+
+    [Fact]
+    public void RepairJson_OuterDoubleQuotes_Stripped()
+    {
+        var result = ToolCallRepairService.RepairJson("\"{\"key\":\"value\"}\"");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("key").GetString().Should().Be("value");
+    }
+
+    [Fact]
+    public void RepairJson_OuterSingleQuotes_Stripped()
+    {
+        var result = ToolCallRepairService.RepairJson("'{\"key\":\"value\"}'");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("key").GetString().Should().Be("value");
+    }
+
+    #endregion
+
+    #region FixRawNewlines — 裸换行符/制表符替换
+
+    [Fact]
+    public void RepairJson_RawNewlineOutsideString_ReplacedWithEscape()
+    {
+        var json = "{\"key\":\"value1\"\n,\"key2\":\"value2\"}";
+        var result = ToolCallRepairService.RepairJson(json);
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("key").GetString().Should().Be("value1");
+        parsed.RootElement.GetProperty("key2").GetString().Should().Be("value2");
+    }
+
+    [Fact]
+    public void RepairJson_RawTab_ReplacedWithEscape()
+    {
+        var json = "{\"key\":\"val\tue\"}";
+        var result = ToolCallRepairService.RepairJson(json);
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("key").GetString().Should().Be("val\tue");
+    }
+
+    #endregion
+
+    #region FixEscapeSequences — 无效反斜杠转义（Windows 路径）
+
+    [Fact]
+    public void RepairJson_InvalidBackslashEscape_Doubled()
+    {
+        var result = ToolCallRepairService.RepairJson("""{"path": "D:\data\config.txt"}""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("path").GetString().Should().Be("D:\\data\\config.txt");
+    }
+
+    [Fact]
+    public void RepairJson_ValidBackslashEscape_Preserved()
+    {
+        var result = ToolCallRepairService.RepairJson("""{"text": "line1\nline2"}""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("text").GetString().Should().Be("line1\nline2");
+    }
+
+    #endregion
+
+    #region 组合场景 — PowerShell 引号剥离 + Windows 路径
+
+    [Fact]
+    public void RepairJson_PowerShellStrippedJson_WindowsPath_Repaired()
+    {
+        var result = ToolCallRepairService.RepairJson("""{file_path: D:\project\README.md}""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("file_path").GetString().Should().Be("D:\\project\\README.md");
+    }
+
+    [Fact]
+    public void RepairJson_PowerShellStrippedJson_MultipleKeys_Repaired()
+    {
+        var result = ToolCallRepairService.RepairJson("""{file_path: D:\project\README.md, start_line: 1, end_line: 5}""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("file_path").GetString().Should().Be("D:\\project\\README.md");
+        parsed.RootElement.GetProperty("start_line").GetInt32().Should().Be(1);
+        parsed.RootElement.GetProperty("end_line").GetInt32().Should().Be(5);
+    }
+
+    [Fact]
+    public void RepairJson_PowerShellStrippedJson_NestedObject_Repaired()
+    {
+        var result = ToolCallRepairService.RepairJson("""{path: D:\test, options: {verbose: true, count: 3}}""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("path").GetString().Should().Be("D:\\test");
+        parsed.RootElement.GetProperty("options").GetProperty("verbose").GetBoolean().Should().BeTrue();
+        parsed.RootElement.GetProperty("options").GetProperty("count").GetInt32().Should().Be(3);
+    }
+
+    #endregion
 }

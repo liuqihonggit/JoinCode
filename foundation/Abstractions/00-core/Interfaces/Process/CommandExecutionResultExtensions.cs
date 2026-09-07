@@ -40,6 +40,27 @@ public static class CommandExecutionResultExtensions
             .Build();
     }
 
+    /// <summary>
+    /// 将命令执行结果元数据渲染为 JSON 代码块 — 供 AI 用 RelaxedJsonSerializer 宽容解析
+    /// <para>
+    /// 手写 JSON 拼接(AOT 友好,无反射),格式: ```json{"exit_code":0,"success":true,"duration_ms":1500}```
+    /// </para>
+    /// </summary>
+    public static string ToJsonBlock(this ICommandExecutionResult result)
+    {
+        var sb = new StringBuilder(128);
+        sb.Append("```json\n");
+        sb.Append("{\"exit_code\":");
+        sb.Append(result.ExitCode?.ToString() ?? "null");
+        sb.Append(",\"success\":");
+        sb.Append(result.Success ? "true" : "false");
+        sb.Append(",\"duration_ms\":");
+        sb.Append((long)result.ExecutionTime.TotalMilliseconds);
+        sb.Append("}\n");
+        sb.Append("```");
+        return sb.ToString();
+    }
+
     private static string FormatDuration(TimeSpan duration)
     {
         var ms = duration.TotalMilliseconds;

@@ -148,4 +148,44 @@ public class CommandExecutionResultExtensionsTests
 
         Assert.Contains("...", table);
     }
+
+    [Fact]
+    public void ToJsonBlock_ProducesValidJsonBlock()
+    {
+        var result = new ProcessResult
+        {
+            ExitCode = 0,
+            StandardOutput = "hello",
+            StandardError = "",
+            ExecutionTime = TimeSpan.FromMilliseconds(1500),
+        };
+
+        var jsonBlock = result.ToJsonBlock();
+
+        Assert.StartsWith("```json\n", jsonBlock);
+        Assert.EndsWith("```", jsonBlock);
+        var json = jsonBlock.Replace("```json\n", "").Replace("\n```", "");
+        Assert.Contains("\"exit_code\":0", json);
+        Assert.Contains("\"success\":true", json);
+        Assert.Contains("\"duration_ms\":1500", json);
+    }
+
+    [Fact]
+    public void ToJsonBlock_FailedResult_HasFalseSuccess()
+    {
+        var result = new ProcessResult
+        {
+            ExitCode = 1,
+            StandardOutput = "",
+            StandardError = "error",
+            ExecutionTime = TimeSpan.FromMilliseconds(42),
+        };
+
+        var jsonBlock = result.ToJsonBlock();
+        var json = jsonBlock.Replace("```json\n", "").Replace("\n```", "");
+
+        Assert.Contains("\"exit_code\":1", json);
+        Assert.Contains("\"success\":false", json);
+        Assert.Contains("\"duration_ms\":42", json);
+    }
 }

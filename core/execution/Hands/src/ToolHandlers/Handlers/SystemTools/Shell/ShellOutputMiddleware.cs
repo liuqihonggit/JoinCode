@@ -160,8 +160,9 @@ public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddlew
         if (backgroundInfo.Length > 0) parts.Add(backgroundInfo);
         if (interpretationInfo is not null) parts.Add(interpretationInfo);
 
-        // 结构化元数据页脚 — Markdown 表格,供 AI 解析消费
+        // 结构化元数据页脚 — Markdown 表格 + JSON 代码块,供 AI 解析消费
         parts.Add(result.ToMarkdownSummary().TrimEnd());
+        parts.Add(result.ToJsonBlock());
 
         var output = string.Join(Environment.NewLine, parts);
         return string.IsNullOrEmpty(output) ? "(No output)" : output;

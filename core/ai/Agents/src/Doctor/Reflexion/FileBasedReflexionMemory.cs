@@ -67,22 +67,23 @@ public sealed class FileBasedReflexionMemory : IReflexionMemory
                 .OrderByDescending(f => f)
                 .Take(maxResults);
 
-            foreach (var file in files)
+            var tasks = files.Select(async file =>
             {
-                ct.ThrowIfCancellationRequested();
-
                 try
                 {
                     var json = await _fs.ReadAllTextAsync(file, ct).ConfigureAwait(false);
                     var entry = RelaxedJsonSerializer.Deserialize(json, ReflexionEntryJsonContext.Default.ReflexionEntry);
-                    if (entry is not null && entry.WasSuccessful)
-                        results.Add(entry.Patch);
+                    return entry is not null && entry.WasSuccessful ? entry.Patch : null;
                 }
                 catch (Exception ex)
                 {
                     DoctorDiag.WriteError($"[Doctor] 读取反思记忆失败: {file}: {ex.Message}");
+                    return null;
                 }
-            }
+            }).ToArray();
+
+            var taskResults = await Task.WhenAll(tasks).ConfigureAwait(false);
+            results.AddRange(taskResults.Where(r => r is not null).Cast<CodePatch>());
         }
         catch (Exception ex)
         {
@@ -116,27 +117,31 @@ public sealed class FileBasedReflexionMemory : IReflexionMemory
                 var failedPatches = 0;
                 var lastAttemptAt = DateTimeOffset.MinValue;
 
-                foreach (var file in files)
+                var fileTasks = files.Select(async file =>
                 {
-                    ct.ThrowIfCancellationRequested();
-
                     try
                     {
                         var json = await _fs.ReadAllTextAsync(file, ct).ConfigureAwait(false);
-                        var entry = RelaxedJsonSerializer.Deserialize(json, ReflexionEntryJsonContext.Default.ReflexionEntry);
-                        if (entry is null) continue;
-
-                        totalAttempts++;
-                        if (entry.WasSuccessful) successfulPatches++;
-                        else failedPatches++;
-
-                        if (entry.StoredAt > lastAttemptAt)
-                            lastAttemptAt = entry.StoredAt;
+                        return RelaxedJsonSerializer.Deserialize(json, ReflexionEntryJsonContext.Default.ReflexionEntry);
                     }
                     catch (Exception ex)
                     {
                         DoctorDiag.WriteError($"[Doctor] 读取反思统计失败: {file}: {ex.Message}");
+                        return null;
                     }
+                }).ToArray();
+
+                var entries = await Task.WhenAll(fileTasks).ConfigureAwait(false);
+                foreach (var entry in entries)
+                {
+                    if (entry is null) continue;
+
+                    totalAttempts++;
+                    if (entry.WasSuccessful) successfulPatches++;
+                    else failedPatches++;
+
+                    if (entry.StoredAt > lastAttemptAt)
+                        lastAttemptAt = entry.StoredAt;
                 }
 
                 if (totalAttempts > 0)

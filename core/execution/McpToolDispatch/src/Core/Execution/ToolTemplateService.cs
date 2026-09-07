@@ -37,9 +37,7 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
             }
 
             var files = _fs.GetFiles(_templatesDir, "*.json", SearchOption.TopDirectoryOnly);
-            var templates = new List<ToolTemplate>();
-
-            foreach (var file in files)
+            var tasks = files.Select(async file =>
             {
                 try
                 {
@@ -48,7 +46,7 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
                     if (template is not null)
                     {
                         var id = Path.GetFileNameWithoutExtension(file);
-                        template = new ToolTemplate
+                        return new ToolTemplate
                         {
                             Id = id,
                             ToolName = template.ToolName,
@@ -58,14 +56,18 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
                             Parameters = template.Parameters,
                             Execution = template.Execution
                         };
-                        templates.Add(template);
                     }
+                    return null;
                 }
                 catch (Exception ex)
                 {
                     _logger?.LogWarning(ex, "加载工具模板 {File} 失败", file);
+                    return null;
                 }
-            }
+            }).ToArray();
+
+            var results = await Task.WhenAll(tasks).ConfigureAwait(false);
+            var templates = results.Where(r => r is not null).Cast<ToolTemplate>().ToList();
 
             _cache = templates;
             _logger?.LogInformation("已加载 {Count} 个工具模板", templates.Count);

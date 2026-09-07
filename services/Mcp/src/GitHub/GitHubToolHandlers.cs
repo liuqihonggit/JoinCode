@@ -82,15 +82,17 @@ public partial class GitHubToolHandlers
     private static string TruncateLines(string output, int maxLines)
     {
         if (string.IsNullOrEmpty(output) || maxLines <= 0) return output;
-        var lines = output.Split('\n');
-        if (lines.Length <= maxLines) return output;
+        var ranges = LineSpanIndexer.BuildLineRanges(output.AsSpan());
+        if (ranges.Count <= maxLines) return output;
         var sb = new StringBuilder(maxLines * 80);
+        var span = output.AsSpan();
         for (int i = 0; i < maxLines; i++)
         {
-            sb.Append(lines[i]);
+            var (start, length) = ranges[i];
+            sb.Append(span.Slice(start, length));
             sb.Append('\n');
         }
-        sb.Append($"... [已截断，共 {lines.Length} 行，仅显示前 {maxLines} 行。如需更多请缩小过滤范围或用 --job 精准拉取]");
+        sb.Append($"... [已截断，共 {ranges.Count} 行，仅显示前 {maxLines} 行。如需更多请缩小过滤范围或用 --job 精准拉取]");
         return sb.ToString();
     }
 

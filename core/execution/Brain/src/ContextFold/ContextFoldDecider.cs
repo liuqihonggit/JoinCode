@@ -281,17 +281,35 @@ public static class ContextFoldDecider
     {
         var content = (msg.Content ?? string.Empty).TrimEnd('\n', '\r');
         var toolName = msg.ExtractToolName() ?? "tool";
-        var lines = content.Split('\n');
+        var span = content.AsSpan();
+        var ranges = LineSpanIndexer.BuildLineRanges(span);
 
         string head;
         string tail;
         int omitted;
 
-        if (lines.Length > t.SnipHeadLines + t.SnipTailLines)
+        if (ranges.Count > t.SnipHeadLines + t.SnipTailLines)
         {
-            head = string.Join("\n", lines.Take(t.SnipHeadLines));
-            tail = string.Join("\n", lines.TakeLast(t.SnipTailLines));
-            omitted = lines.Length - t.SnipHeadLines - t.SnipTailLines;
+            var headSb = new StringBuilder(t.SnipHeadLines * 80);
+            for (int i = 0; i < t.SnipHeadLines; i++)
+            {
+                if (i > 0) headSb.Append('\n');
+                var (hs, hl) = ranges[i];
+                headSb.Append(span.Slice(hs, hl));
+            }
+            head = headSb.ToString();
+
+            var tailSb = new StringBuilder(t.SnipTailLines * 80);
+            var tailStart = ranges.Count - t.SnipTailLines;
+            for (int i = tailStart; i < ranges.Count; i++)
+            {
+                if (i > tailStart) tailSb.Append('\n');
+                var (ts, tl) = ranges[i];
+                tailSb.Append(span.Slice(ts, tl));
+            }
+            tail = tailSb.ToString();
+
+            omitted = ranges.Count - t.SnipHeadLines - t.SnipTailLines;
             return $"snipped: {toolName} ({content.Length} chars, {omitted} lines omitted; rerun tool to restore)\n" +
                    $"{head}\n[... {omitted} lines omitted ...]\n{tail}";
         }

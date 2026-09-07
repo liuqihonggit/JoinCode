@@ -182,7 +182,7 @@ public abstract class ActorBase<TCommand> : IAsyncDisposable
     /// <summary>
     /// 释放 Actor — 取消 Consumer、完成通道写入、等待 Consumer 退出。
     /// </summary>
-    public async ValueTask DisposeAsync()
+    public virtual async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
         _cts.Cancel();

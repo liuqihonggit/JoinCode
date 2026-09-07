@@ -767,7 +767,7 @@ public partial class GitHubToolHandlers
             secLines = new List<string>();
             stepSecs[sectionType] = secLines;
         }
-        secLines.Add(line);
+        secLines.Add(StripLogTimestamp(line));
     }
 
     /// <summary>
@@ -846,14 +846,14 @@ public partial class GitHubToolHandlers
                     if (content.Contains("[FAIL]", StringComparison.OrdinalIgnoreCase) ||
                         content.StartsWith("  Failed ", StringComparison.OrdinalIgnoreCase))
                     {
-                        current = new TestFailureInfo { StartLine = lineNumber, TestLine = line };
+                        current = new TestFailureInfo { StartLine = lineNumber, TestLine = content };
                         failures.Add(current);
                         state = LogParseState.InFailedTest;
                     }
                     // 检测 ##[error] 行
                     else if (content.Contains("##[error]", StringComparison.OrdinalIgnoreCase))
                     {
-                        current = new TestFailureInfo { StartLine = lineNumber, TestLine = line, IsErrorMarker = true };
+                        current = new TestFailureInfo { StartLine = lineNumber, TestLine = content, IsErrorMarker = true };
                         failures.Add(current);
                         state = LogParseState.Normal;
                     }
@@ -897,7 +897,7 @@ public partial class GitHubToolHandlers
                 case LogParseState.InStackTrace:
                     if (current is not null)
                     {
-                        current.StackTraceLines.Add(line);
+                        current.StackTraceLines.Add(content);
                     }
                     if (content.StartsWith("  Passed ", StringComparison.OrdinalIgnoreCase) ||
                         content.StartsWith("  Failed ", StringComparison.OrdinalIgnoreCase) ||
@@ -1087,8 +1087,8 @@ public partial class GitHubToolHandlers
                 continue;
             // 先跳过 skipLines 行(分页续读)
             if (skipped < skipLines) { skipped++; continue; }
-            // 加行号前缀,方便定位
-            matched.Add($"  L{lineNumber,5}  {line}");
+            // 加行号前缀,方便定位(去时间戳减少噪音)
+            matched.Add($"  L{lineNumber,5}  {StripLogTimestamp(line)}");
             if (matched.Count >= maxLines) break;
         }
         var prefix = BuildPrefix(runId, scope, filterLevel, matched.Count);

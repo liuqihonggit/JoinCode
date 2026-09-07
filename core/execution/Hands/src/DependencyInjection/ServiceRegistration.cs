@@ -5,6 +5,7 @@ public static partial class ServiceRegistration
     public static IServiceCollection AddApiClientServices(this IServiceCollection services)
     {
         services.AddOptions<ApiSettings>();
+        services.AddSingleton(new VcrOptions());
         return services;
     }
 

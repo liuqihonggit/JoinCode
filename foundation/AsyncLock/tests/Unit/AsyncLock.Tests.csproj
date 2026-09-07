@@ -7,5 +7,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)foundation\AsyncLock\AsyncLock.csproj" />
+    <ProjectReference Include="$(RepoRoot)foundation\Abstractions\Abstractions.csproj" />
   </ItemGroup>
 </Project>

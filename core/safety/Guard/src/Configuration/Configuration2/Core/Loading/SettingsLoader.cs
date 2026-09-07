@@ -134,7 +134,21 @@ public static class SettingsLoader
             }
           },
           "autoFetchModels": true,
-          "current": { "profile": "sensenova" }
+          "current": {
+            "profile": "sensenova",
+            "actor": {
+              "buildQueue": {
+                "mode": "serial",
+                "workerCount": 2
+              },
+              "backpressure": {
+                "codingAgentTask": { "capacity": 2000, "sendTimeoutSeconds": 30 },
+                "llmGateway": { "capacity": 200, "sendTimeoutSeconds": 60 },
+                "router": { "capacity": 1000, "sendTimeoutSeconds": 10 },
+                "build": { "capacity": 100, "sendTimeoutSeconds": 60 }
+              }
+            }
+          }
         }
         """;
     }

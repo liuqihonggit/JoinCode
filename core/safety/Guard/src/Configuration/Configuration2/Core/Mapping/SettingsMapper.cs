@@ -40,6 +40,9 @@ public sealed partial class SettingsMapper : ServiceEntity
         // 子代理并发控制配置（ADR 0048）
         ApplySubAgentConcurrencySettings(config, settings);
 
+        // Actor 模型配置（ADR 0074）
+        ApplyActorSettings(config, settings);
+
         return config;
     }
 
@@ -321,6 +324,35 @@ public sealed partial class SettingsMapper : ServiceEntity
         config.SubAgentConcurrency.MaxConcurrentSpawns = sub.MaxConcurrentSpawns;
         config.SubAgentConcurrency.MaxConcurrentExecutions = sub.MaxConcurrentExecutions;
         config.SubAgentConcurrency.MaxConcurrentForks = sub.MaxConcurrentForks;
+    }
+
+    /// <summary>
+    /// 映射 Actor 模型配置 — 编译队列模式 + 背压预设(ADR 0074)
+    /// 缺失时用默认值(串行模式 + 四档预设),不抛异常。
+    /// </summary>
+    private static void ApplyActorSettings(WorkflowConfig config, SettingsJson? settings)
+    {
+        var actor = settings?.Current?.Actor;
+        if (actor is null) return;
+
+        config.Actor.BuildQueue.Mode = actor.BuildQueue.Mode;
+        config.Actor.BuildQueue.WorkerCount = actor.BuildQueue.WorkerCount;
+        config.Actor.BuildQueue.CrossProcessLockPath = actor.BuildQueue.CrossProcessLockPath;
+
+        CopyPreset(config.Actor.Backpressure.CodingAgentTask, actor.Backpressure.CodingAgentTask);
+        CopyPreset(config.Actor.Backpressure.LlmGateway, actor.Backpressure.LlmGateway);
+        CopyPreset(config.Actor.Backpressure.Router, actor.Backpressure.Router);
+        CopyPreset(config.Actor.Backpressure.Build, actor.Backpressure.Build);
+
+        config.Actor.Validate();
+    }
+
+    private static void CopyPreset(BackpressurePreset target, BackpressurePreset source)
+    {
+        target.Capacity = source.Capacity;
+        target.HighWatermark = source.HighWatermark;
+        target.CriticalWatermark = source.CriticalWatermark;
+        target.SendTimeoutSeconds = source.SendTimeoutSeconds;
     }
 
     #endregion

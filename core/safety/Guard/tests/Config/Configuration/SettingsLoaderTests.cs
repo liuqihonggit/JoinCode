@@ -296,6 +296,46 @@ public class SettingsLoaderTests : IDisposable
 
     #endregion
 
+    #region 场景7: 默认骨架含 Actor 配置
+
+    /// <summary>
+    /// BuildDefaultSettingsJson 生成的骨架应包含 current.actor 节点,
+    /// 且能反序列化为 ActorSettings,值与默认预设一致(ADR 0074)
+    /// </summary>
+    [Fact]
+    public void Given_默认骨架_When_解析_Then_包含Actor配置且值正确()
+    {
+        // Given
+        var json = SettingsLoader.BuildDefaultSettingsJson();
+
+        // When
+        var parsed = JsonSerializer.Deserialize<SettingsJson>(json, ConfigJsonContext.Default.SettingsJson);
+
+        // Then
+        parsed.Should().NotBeNull();
+        parsed!.Current.Should().NotBeNull();
+        parsed.Current!.Actor.Should().NotBeNull();
+
+        var actor = parsed.Current.Actor!;
+        actor.BuildQueue.Mode.Should().Be("serial");
+        actor.BuildQueue.WorkerCount.Should().Be(2);
+
+        actor.Backpressure.CodingAgentTask.Capacity.Should().Be(2000);
+        actor.Backpressure.CodingAgentTask.SendTimeoutSeconds.Should().Be(30);
+        actor.Backpressure.LlmGateway.Capacity.Should().Be(200);
+        actor.Backpressure.LlmGateway.SendTimeoutSeconds.Should().Be(60);
+        actor.Backpressure.Router.Capacity.Should().Be(1000);
+        actor.Backpressure.Router.SendTimeoutSeconds.Should().Be(10);
+        actor.Backpressure.Build.Capacity.Should().Be(100);
+        actor.Backpressure.Build.SendTimeoutSeconds.Should().Be(60);
+
+        // 验证合法性通过
+        Action validate = () => actor.Validate();
+        validate.Should().NotThrow();
+    }
+
+    #endregion
+
     #region 辅助方法
 
     private string GetUserSettingsPath() => SettingsLoader.GetUserSettingsPath();

@@ -399,6 +399,14 @@ public sealed partial class CurrentSettings
     [SettingsProperty(SettingsMergeStrategy.Override, SkipKeyAccess = true)]
     public SubAgentConcurrencyOptions? SubAgentConcurrency { get; init; }
 
+    /// <summary>
+    /// Actor 模型统一配置 — 编译队列模式 + 背压预设(ADR 0074)
+    /// settings.json 的 current.actor 节点,缺失时用默认值(串行模式 + 四档预设)
+    /// </summary>
+    [JsonPropertyName("actor")]
+    [SettingsProperty(SettingsMergeStrategy.Override, SkipKeyAccess = true)]
+    public ActorSettings? Actor { get; init; }
+
     #region 自定义合并方法
 
     private static PermissionsSettings? MergePermissions(PermissionsSettings? basePerms, PermissionsSettings? overridePerms)

@@ -915,6 +915,31 @@ public partial class GitHubToolHandlers
             return Ok("未检测到测试失败行。尝试用 filter=error 看 ##[error] 标记,或 log=true 看完整日志。", $"Run {runId} 测试失败过滤(0 个):");
         }
 
+        // 去重: 同一测试名可能被 [xUnit.net] [FAIL] 和 Failed 两次报告,保留有 ErrorMessage 的那个
+        var deduped = new List<TestFailureInfo>(failures.Count);
+        var testNameIndex = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var f in failures)
+        {
+            if (f.IsErrorMarker)
+            {
+                deduped.Add(f);
+                continue;
+            }
+            var testName = TestFailureInfo.ExtractTestName(f.TestLine);
+            if (testName is not null && testNameIndex.TryGetValue(testName, out var existingIdx))
+            {
+                // 同名失败已存在,保留 ErrorMessage 更多的
+                if (f.ErrorMessageLines.Count > deduped[existingIdx].ErrorMessageLines.Count)
+                    deduped[existingIdx] = f;
+            }
+            else
+            {
+                testNameIndex[testName ?? $"__line_{f.StartLine}"] = deduped.Count;
+                deduped.Add(f);
+            }
+        }
+        failures = deduped;
+
         // Rust 风格输出
         var sb = new StringBuilder();
         var shown = 0;
@@ -1043,7 +1068,7 @@ public partial class GitHubToolHandlers
             // 总结行
             if (!IsErrorMarker && ErrorMessageLines.Count > 0)
             {
-                var testName = ExtractTestNameFromLine(TestLine);
+                var testName = ExtractTestName(TestLine);
                 if (testName is not null)
                     sb.Append($"   = test: {testName}");
                 else
@@ -1055,7 +1080,7 @@ public partial class GitHubToolHandlers
             return sb.ToString();
         }
 
-        private static string? ExtractTestNameFromLine(string line)
+        public static string? ExtractTestName(string line)
         {
             // 先去掉时间戳前缀 "2026-09-07T17:09:52.2828405Z content"
             var content = StripLogTimestamp(line).TrimStart();

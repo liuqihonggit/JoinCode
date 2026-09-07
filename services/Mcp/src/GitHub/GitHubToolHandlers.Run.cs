@@ -39,7 +39,7 @@ public partial class GitHubToolHandlers
         [McpToolParameter("最大日志行数(默认 200)", Required = false)] int? max_lines = null,
         [McpToolParameter("跳过前 N 行(用于续读截断日志,默认 0)", Required = false)] int? skip_lines = null,
         [McpToolParameter("按步骤展开: jobs=列出job列表, steps=按job_id下载日志后列出步骤, failed=只拉失败步骤, step:Name=只拉指定步骤", Required = false)] string? expand = null,
-        [McpToolParameter("日志过滤级别(error/warning/info/all,默认 all=不过滤)", Required = false)] string? filter = null,
+        [McpToolParameter("日志过滤级别(error/warning/info/all/failed,默认 all=不过滤;failed=智能提取测试失败+Rust风格输出)", Required = false)] string? filter = null,
         [McpToolParameter("强制刷新缓存(默认 false,rerun 后用 true 避免脏数据)", Required = false)] bool? refresh = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
@@ -62,6 +62,12 @@ public partial class GitHubToolHandlers
         if (string.Equals(expand, "jobs", StringComparison.OrdinalIgnoreCase))
         {
             return await ListJobsAsync(owner, repoName, run_id, cancellationToken).ConfigureAwait(false);
+        }
+
+        // === filter=failed: 智能过滤测试失败(状态机提取 Failed+Error+StackTrace,Rust 风格输出) ===
+        if (string.Equals(filter, "failed", StringComparison.OrdinalIgnoreCase))
+        {
+            return await FilterFailedTestsAsync(owner, repoName, run_id, job_id, maxLines, skip, cancellationToken);
         }
 
         // === expand=failed: 只拉失败步骤日志(量少,不缓存) ===
@@ -641,6 +647,250 @@ public partial class GitHubToolHandlers
     }
 
     /// <summary>
+    /// 智能过滤测试失败行 — 状态机提取 Failed + Error Message + Stack Trace,Rust 风格输出
+    /// <para>状态机: Normal → InFailedTest(遇到 Failed/[FAIL]) → InErrorMessage(Error Message:) → InStackTrace(Stack Trace:) → Normal</para>
+    /// <para>输出: 每个失败测试用 --> line N 指示, | 管道符标注日志行, = 总结行</para>
+    /// </summary>
+    private async Task<ToolResult> FilterFailedTestsAsync(
+        string owner, string repo, string runId, string? jobId,
+        int maxLines, int skipLines, CancellationToken ct)
+    {
+        // 获取日志行枚举源(优先失败 job,其次指定 job,最后整个 run)
+        IAsyncEnumerable<string> logLines;
+        if (string.IsNullOrWhiteSpace(jobId))
+        {
+            logLines = GetFailedJobLogsAsync(owner, repo, runId, ct);
+        }
+        else if (long.TryParse(jobId, out var jobIdLong))
+        {
+            logLines = _apiClient!.GetJobLogsAsync(owner, repo, jobIdLong, ct);
+        }
+        else
+        {
+            logLines = _apiClient!.GetRunLogsAsync(owner, repo, long.Parse(runId), ct);
+        }
+
+        // 状态机解析
+        var failures = new List<TestFailureInfo>();
+        TestFailureInfo? current = null;
+        var state = LogParseState.Normal;
+        var lineNumber = 0;
+
+        await foreach (var line in logLines.ConfigureAwait(false))
+        {
+            lineNumber++;
+            var content = StripLogTimestamp(line);
+
+            switch (state)
+            {
+                case LogParseState.Normal:
+                    // 检测测试失败标记: "  Failed xxx [FAIL]" 或 "[xUnit.net] xxx [FAIL]"
+                    if (content.Contains("[FAIL]", StringComparison.OrdinalIgnoreCase) ||
+                        content.StartsWith("  Failed ", StringComparison.OrdinalIgnoreCase))
+                    {
+                        current = new TestFailureInfo { StartLine = lineNumber, TestLine = line };
+                        failures.Add(current);
+                        state = LogParseState.InFailedTest;
+                    }
+                    // 检测 ##[error] 行
+                    else if (content.Contains("##[error]", StringComparison.OrdinalIgnoreCase))
+                    {
+                        current = new TestFailureInfo { StartLine = lineNumber, TestLine = line, IsErrorMarker = true };
+                        failures.Add(current);
+                        state = LogParseState.Normal;
+                    }
+                    break;
+
+                case LogParseState.InFailedTest:
+                    if (content.StartsWith("  Error Message:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        state = LogParseState.InErrorMessage;
+                    }
+                    else if (content.StartsWith("  Stack Trace:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        state = LogParseState.InStackTrace;
+                    }
+                    else if (content.StartsWith("  Passed ", StringComparison.OrdinalIgnoreCase) ||
+                             content.StartsWith("  Failed ", StringComparison.OrdinalIgnoreCase) ||
+                             content.Contains("[PASS]", StringComparison.OrdinalIgnoreCase))
+                    {
+                        state = LogParseState.Normal;
+                        current = null;
+                    }
+                    break;
+
+                case LogParseState.InErrorMessage:
+                    if (content.StartsWith("  Stack Trace:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        state = LogParseState.InStackTrace;
+                    }
+                    else if (content.StartsWith("  Passed ", StringComparison.OrdinalIgnoreCase) ||
+                             content.StartsWith("  Failed ", StringComparison.OrdinalIgnoreCase))
+                    {
+                        state = LogParseState.Normal;
+                        current = null;
+                    }
+                    else if (current is not null)
+                    {
+                        current.ErrorMessageLines.Add(content.Trim());
+                    }
+                    break;
+
+                case LogParseState.InStackTrace:
+                    if (current is not null)
+                    {
+                        current.StackTraceLines.Add(line);
+                    }
+                    if (content.StartsWith("  Passed ", StringComparison.OrdinalIgnoreCase) ||
+                        content.StartsWith("  Failed ", StringComparison.OrdinalIgnoreCase) ||
+                        content.Contains("--- End of stack trace", StringComparison.OrdinalIgnoreCase))
+                    {
+                        state = LogParseState.Normal;
+                        current = null;
+                    }
+                    break;
+            }
+        }
+
+        if (failures.Count == 0)
+        {
+            return Ok("未检测到测试失败行。尝试用 filter=error 看 ##[error] 标记,或 log=true 看完整日志。", $"Run {runId} 测试失败过滤(0 个):");
+        }
+
+        // Rust 风格输出
+        var sb = new StringBuilder();
+        var shown = 0;
+        foreach (var f in failures.Skip(skipLines))
+        {
+            if (shown >= maxLines) break;
+            shown++;
+            sb.Append(f.FormatRustStyle());
+            sb.Append('\n');
+        }
+
+        var prefix = $"Run {runId} 测试失败({failures.Count} 个,显示 {shown} 个)";
+        if (skipLines > 0) prefix += $",跳过前 {skipLines} 个";
+        if (skipLines + shown < failures.Count)
+            sb.Append($"\n... [共 {failures.Count} 个失败,用 skip_lines={skipLines + shown} 续读]");
+        return Ok(sb.ToString(), prefix);
+    }
+
+    /// <summary>
+    /// 去掉日志行的时间戳前缀 — "2026-09-07T17:08:27.5016453Z content" → "content"
+    /// </summary>
+    private static string StripLogTimestamp(string line)
+    {
+        // GitHub Actions 日志格式: "2026-09-07T17:08:27.5016453Z content"
+        // 找到第一个 'Z ' 后面的内容
+        var zIdx = line.IndexOf('Z');
+        if (zIdx > 0 && zIdx + 2 < line.Length && line[zIdx + 1] == ' ')
+        {
+            return line[(zIdx + 2)..];
+        }
+        // [entry.Name] 前缀的行
+        if (line.StartsWith('['))
+        {
+            var closeIdx = line.IndexOf(']');
+            if (closeIdx > 0 && closeIdx + 2 < line.Length)
+                return line[(closeIdx + 2)..];
+        }
+        return line;
+    }
+
+    /// <summary>
+    /// 日志解析状态机状态
+    /// </summary>
+    private enum LogParseState
+    {
+        Normal,         // 普通行
+        InFailedTest,   // 遇到 Failed/[FAIL],等待 Error Message 或 Stack Trace
+        InErrorMessage, // 在 Error Message: 之后
+        InStackTrace,   // 在 Stack Trace: 之后
+    }
+
+    /// <summary>
+    /// 测试失败信息 — 用于 Rust 风格输出
+    /// </summary>
+    private sealed class TestFailureInfo
+    {
+        public int StartLine;
+        public string TestLine = "";
+        public List<string> ErrorMessageLines = [];
+        public List<string> StackTraceLines = [];
+        public bool IsErrorMarker;
+
+        /// <summary>
+        /// Rust 风格格式化 — --> line N 指示, | 管道符标注日志行, = 总结行
+        /// </summary>
+        public string FormatRustStyle()
+        {
+            var sb = new StringBuilder();
+            sb.Append($"--> line {StartLine}");
+            sb.Append('\n');
+            sb.Append("   |");
+            sb.Append('\n');
+            sb.Append($"   | {TestLine.Trim()}");
+            sb.Append('\n');
+            if (ErrorMessageLines.Count > 0)
+            {
+                sb.Append("   |   Error Message:");
+                sb.Append('\n');
+                foreach (var em in ErrorMessageLines)
+                {
+                    sb.Append($"   |     {em}");
+                    sb.Append('\n');
+                }
+            }
+            if (StackTraceLines.Count > 0)
+            {
+                sb.Append("   |   Stack Trace:");
+                sb.Append('\n');
+                foreach (var st in StackTraceLines.Take(10))
+                {
+                    sb.Append($"   | {st.Trim()}");
+                    sb.Append('\n');
+                }
+                if (StackTraceLines.Count > 10)
+                    sb.Append($"   | ... ({StackTraceLines.Count - 10} 行未显示)");
+            }
+            sb.Append("   |");
+            sb.Append('\n');
+            // 总结行
+            if (!IsErrorMarker && ErrorMessageLines.Count > 0)
+            {
+                var testName = ExtractTestNameFromLine(TestLine);
+                if (testName is not null)
+                    sb.Append($"   = test: {testName}");
+                else
+                    sb.Append("   = (见上方日志行)");
+                sb.Append('\n');
+                sb.Append($"   = reason: {ErrorMessageLines[0]}");
+                sb.Append('\n');
+            }
+            return sb.ToString();
+        }
+
+        private static string? ExtractTestNameFromLine(string line)
+        {
+            // 先去掉时间戳前缀 "2026-09-07T17:09:52.2828405Z content"
+            var content = StripLogTimestamp(line).TrimStart();
+            // "  Failed Mcp.Tests.xxx [24 ms]" → "Mcp.Tests.xxx"
+            // "[xUnit.net 00:00:00.81]     Mcp.Tests.xxx [FAIL]" → "Mcp.Tests.xxx"
+            if (content.StartsWith("Failed ", StringComparison.OrdinalIgnoreCase))
+                content = content[7..];
+            if (content.StartsWith("[xUnit.net", StringComparison.OrdinalIgnoreCase))
+            {
+                var bracketEnd = content.IndexOf(']');
+                if (bracketEnd > 0) content = content[(bracketEnd + 1)..].TrimStart();
+            }
+            // 截取到 [ 之前
+            var bracketIdx = content.IndexOf('[');
+            if (bracketIdx > 0) content = content[..bracketIdx].Trim();
+            return string.IsNullOrEmpty(content) ? null : content;
+        }
+    }
+
+    /// <summary>
     /// 流式拉取 + 过滤 + 分页跳过(不缓存,用于 --log-failed 或一次性过滤)
     /// <para>日志源: failedOnly=true → 失败 job 日志; jobId 有值 → 单 job 日志; 否则 → 整个 run 日志</para>
     /// </summary>
@@ -651,6 +901,7 @@ public partial class GitHubToolHandlers
     {
         var matched = new List<string>(maxLines);
         var skipped = 0;
+        var lineNumber = 0;
 
         // 获取日志行枚举源
         IAsyncEnumerable<string> logLines;
@@ -673,11 +924,13 @@ public partial class GitHubToolHandlers
 
         await foreach (var line in logLines.ConfigureAwait(false))
         {
+            lineNumber++;
             if (markers is not null && !markers.Any(m => line.Contains(m, StringComparison.OrdinalIgnoreCase)))
                 continue;
             // 先跳过 skipLines 行(分页续读)
             if (skipped < skipLines) { skipped++; continue; }
-            matched.Add(line);
+            // 加行号前缀,方便定位
+            matched.Add($"  L{lineNumber,5}  {line}");
             if (matched.Count >= maxLines) break;
         }
         var prefix = BuildPrefix(runId, scope, filterLevel, matched.Count);

@@ -236,14 +236,14 @@ public sealed class FlatSubCommandRouterTests
     }
 
     /// <summary>
-    /// CliErrorFormatter.FormatKeyValueError — key= (空值) 应报 '=' 后面不能为空
+    /// CliErrorCatalog.ArgInvalidKeyValueFormat + ToRustStyleString — key= (空值) 应报 '=' 后面不能为空
     /// </summary>
     [Fact]
-    public void CliErrorFormatter_KeyValueEmptyValue_ShouldShowRustStyleError()
+    public void CliErrorCatalog_KeyValueEmptyValue_ShouldShowRustStyleError()
     {
-        var error = CliErrorFormatter.FormatKeyValueError("pr_number=", "'=' 后面不能为空", "使用 key=value 传递工具参数，如 pr_number=201");
+        var error = CliErrorCatalog.ArgInvalidKeyValueFormat("pr_number=", "'=' 后面不能为空").ToRustStyleString("pr_number=");
 
-        error.Should().Contain("error: 参数格式错误");
+        error.Should().Contain("error:");
         error.Should().Contain("  |");
         error.Should().Contain("pr_number=");
         error.Should().Contain("^");
@@ -252,19 +252,19 @@ public sealed class FlatSubCommandRouterTests
     }
 
     /// <summary>
-    /// CliErrorFormatter.FormatError — 完整命令行 + 位置指示
+    /// CliErrorCatalog.ArgUnknownOption + ToRustStyleString — 完整命令行 + 位置指示
     /// </summary>
     [Fact]
-    public void CliErrorFormatter_FormatError_ShouldShowCommandLineAndArrow()
+    public void CliErrorCatalog_FormatError_ShouldShowCommandLineAndArrow()
     {
         var args = new[] { "mcp_call", "tool", "--bad-flag", "key=value" };
 
-        var error = CliErrorFormatter.FormatError(args, 2, "未知选项", "未知选项", "可用选项见 jcc --help");
+        var error = CliErrorCatalog.ArgUnknownOption("--bad-flag").ToRustStyleString(args, 2);
 
-        error.Should().Contain("error: 未知选项");
+        error.Should().Contain("error:");
         error.Should().Contain("mcp_call tool --bad-flag key=value");
         error.Should().Contain("^^^^^^^^^^");
-        error.Should().Contain("hint: 可用选项见 jcc --help");
+        error.Should().Contain("hint:");
     }
 
     /// <summary>

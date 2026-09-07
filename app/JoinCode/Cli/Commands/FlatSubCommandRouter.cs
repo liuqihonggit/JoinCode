@@ -206,7 +206,7 @@ internal static class FlatSubCommandRouter
                 continue;
             if (CliArgConstants.AllOptionNames.Contains(args[i]))
                 continue;
-            return CliErrorFormatter.FormatError(args, i, "未知选项", "未知选项", "可用选项见 jcc --help");
+            return CliErrorCatalog.ArgUnknownOption(args[i]).ToRustStyleString(args, i);
         }
         return null;
     }

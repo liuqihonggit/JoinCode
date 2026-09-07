@@ -256,7 +256,7 @@ public sealed class McpCliCommand
                 if (eqIdx <= 0 || eqIdx == kv.Length - 1)
                 {
                     var detail = eqIdx <= 0 ? "缺少 '=' 分隔符" : "'=' 后面不能为空";
-                    TerminalHelper.WriteError(CliErrorFormatter.FormatKeyValueError(kv, detail, "使用 key=value 传递工具参数，如 pr_number=201"));
+                    TerminalHelper.WriteError(CliErrorCatalog.ArgInvalidKeyValueFormat(kv, detail).ToRustStyleString(kv));
                     return null;
                 }
                 var key = kv[..eqIdx];

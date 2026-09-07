@@ -80,7 +80,7 @@ public abstract class ActorBase<TCommand> : IAsyncDisposable
     /// <param name="ct">取消令牌</param>
     /// <exception cref="ObjectDisposedException">Actor 已释放</exception>
     /// <exception cref="TimeoutException">发送超时(背压配置了 SendTimeout 且通道满)</exception>
-    protected async ValueTask SendAsync(TCommand cmd, CancellationToken ct = default)
+    protected internal async ValueTask SendAsync(TCommand cmd, CancellationToken ct = default)
     {
         ThrowIfDisposed();
         CheckWatermark();

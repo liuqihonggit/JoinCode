@@ -124,11 +124,9 @@ public class ToolScoreDebugToolHandlers
         if (allRecords.Count == 0)
             return ToolResultBuilder.Success().WithText("暂无工具评分记录").Build();
 
-        var sb = new StringBuilder(2048);
-        sb.AppendLine("## 所有工具评分");
-        sb.AppendLine();
-        sb.AppendLine("| 工具 | 独立评分 | 超图评分 | 有效评分 | 降权 | 成功/失败 | 熔断 |");
-        sb.AppendLine("|------|---------|---------|---------|------|----------|------|");
+        var builder = new MarkdownTableBuilder()
+            .WithTitle("所有工具评分")
+            .AddHeader("工具", "独立评分", "超图评分", "有效评分", "降权", "成功/失败", "熔断");
 
         foreach (var kvp in allRecords.OrderByDescending(k => _monitor.GetEffectiveScore(k.Key)))
         {
@@ -140,16 +138,17 @@ public class ToolScoreDebugToolHandlers
             var penaltyStr = penalty != 0 ? penalty.ToString() : "-";
             var circuitBreaker = !record.IsEnabled ? "是" : "-";
 
-            sb.AppendLine($"| {name} | {record.Score} | {hyperScore} | {effectiveScore} | {penaltyStr} | {record.SuccessCount}/{record.FailCount} | {circuitBreaker} |");
+            builder.AddRow(name, record.Score.ToString(), hyperScore.ToString(), effectiveScore.ToString(), penaltyStr, $"{record.SuccessCount}/{record.FailCount}", circuitBreaker);
         }
+
+        var tableText = builder.Build().TrimEnd();
 
         var blacklisted = allRecords.Keys.Where(k => _monitor.IsBlacklisted(k)).ToList();
         if (blacklisted.Count > 0)
         {
-            sb.AppendLine();
-            sb.AppendLine($"黑名单工具: {string.Join(", ", blacklisted)}");
+            tableText += Environment.NewLine + Environment.NewLine + $"黑名单工具: {string.Join(", ", blacklisted)}";
         }
 
-        return ToolResultBuilder.Success().WithText(sb.ToString().TrimEnd()).Build();
+        return ToolResultBuilder.Success().WithText(tableText).Build();
     }
 }

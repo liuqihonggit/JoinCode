@@ -639,9 +639,11 @@ public partial class FileToolHandlers : IDisposable
             return builder.Build();
         }
 
+        var fileSize = ContentReplacementConstants.FormatFileSize(result.UpdatedContent.Length);
+        var lineCount = result.UpdatedContent.AsSpan().Count('\n') + 1;
         var response = replace_all
-            ? $"The file {result.FilePath} has been updated. All {result.ReplaceCount} occurrences were successfully replaced."
-            : $"The file {result.FilePath} has been updated successfully.";
+            ? $"The file {result.FilePath} has been updated. All {result.ReplaceCount} occurrences were successfully replaced. ({fileSize}, {lineCount} lines)"
+            : $"The file {result.FilePath} has been updated successfully. ({fileSize}, {lineCount} lines)";
 
         // 附加 structuredPatch 到 ToolResult — 对齐 TS FileEditTool 返回 structuredPatch
         var toolResult = ToolResultBuilder.Success().WithText(response).Build();

@@ -160,35 +160,10 @@ public sealed partial class MultimodalUiElementDetector : ServiceEntity, IUiElem
     }
 
     /// <summary>
-    /// 从 LLM 响应中提取 JSON — 处理 ```json ``` 代码块包裹和纯 JSON 两种情况
+    /// 从 LLM 响应中提取 JSON — 统一调用 LlmJsonHelper
     /// </summary>
     internal static string ExtractJson(string responseText)
-    {
-        if (string.IsNullOrWhiteSpace(responseText))
-            return string.Empty;
-
-        var trimmed = responseText.Trim();
-
-        if (trimmed.StartsWith("```", StringComparison.Ordinal))
-        {
-            var firstNewline = trimmed.IndexOf('\n');
-            if (firstNewline >= 0)
-            {
-                var inner = trimmed.AsSpan(firstNewline + 1);
-                var endFence = inner.LastIndexOf("```");
-                if (endFence >= 0)
-                    inner = inner[..endFence];
-                return inner.ToString().Trim();
-            }
-        }
-
-        var start = trimmed.IndexOf('{');
-        var end = trimmed.LastIndexOf('}');
-        if (start >= 0 && end > start)
-            return trimmed.Substring(start, end - start + 1);
-
-        return trimmed;
-    }
+        => LlmJsonHelper.ExtractJsonBlock(responseText) ?? LlmJsonHelper.ExtractInlineJson(responseText) ?? responseText.Trim();
 
     /// <summary>
     /// 字符串 → UiElementType 枚举（容错映射，未知返回 Unknown）

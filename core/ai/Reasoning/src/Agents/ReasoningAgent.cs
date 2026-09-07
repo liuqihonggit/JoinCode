@@ -117,12 +117,10 @@ public abstract class ReasoningAgent : AgentBase
             return repairResult.Success ? repairResult.RepairedJson : json;
         }
 
-        var start = content.IndexOf('{');
-        var end = content.LastIndexOf('}');
-        if (start < 0 || end <= start)
+        var inlineJson = LlmJsonHelper.ExtractInlineJson(content);
+        if (inlineJson is null)
             return null;
 
-        var inlineJson = content[start..(end + 1)];
         var inlineRepair = LlmJsonHelper.RepairJson(inlineJson, logger);
         return inlineRepair.Success ? inlineRepair.RepairedJson : inlineJson;
     }

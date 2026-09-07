@@ -245,30 +245,5 @@ public sealed partial class ObservationLearner : ServiceEntity, IObservationLear
     }
 
     internal static string ExtractJson(string responseText)
-    {
-        if (string.IsNullOrWhiteSpace(responseText))
-            return string.Empty;
-
-        var trimmed = responseText.Trim();
-
-        if (trimmed.StartsWith("```", StringComparison.Ordinal))
-        {
-            var firstNewline = trimmed.IndexOf('\n');
-            if (firstNewline >= 0)
-            {
-                var inner = trimmed.AsSpan(firstNewline + 1);
-                var endFence = inner.LastIndexOf("```");
-                if (endFence >= 0)
-                    inner = inner[..endFence];
-                return inner.ToString().Trim();
-            }
-        }
-
-        var start = trimmed.IndexOf('{');
-        var end = trimmed.LastIndexOf('}');
-        if (start >= 0 && end > start)
-            return trimmed.Substring(start, end - start + 1);
-
-        return trimmed;
-    }
+        => LlmJsonHelper.ExtractJsonBlock(responseText) ?? LlmJsonHelper.ExtractInlineJson(responseText) ?? responseText.Trim();
 }

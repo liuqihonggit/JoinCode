@@ -61,6 +61,7 @@ internal static class ToolCallRepairService
 
         var json = StripBom(rawJson.Trim());
         json = StripTrailingSemicolon(json);
+        json = StripOuterQuotes(json);
 
         if (TryParseJson(json, out _))
             return new ToolCallRepairResult { Success = true, RepairedJson = json };
@@ -68,6 +69,7 @@ internal static class ToolCallRepairService
         var hints = new List<string>();
         var repaired = json;
 
+        repaired = FixRawNewlines(repaired, hints);
         repaired = RemoveTrailingCommas(repaired, hints);
         repaired = FixUnquotedKeys(repaired, hints);
         repaired = FixUnquotedValues(repaired, hints);
@@ -422,6 +424,44 @@ internal static class ToolCallRepairService
         }
 
         return json;
+    }
+
+    /// <summary>
+    /// 去除 JSON 外层多余引号（单引号或双引号）— Shell 转义常见问题
+    /// <para>如 '"{"key":"value"}"' → '{"key":"value"}'</para>
+    /// <para>幂等：如果去除后不是合法 JSON 开头，保留原始引号</para>
+    /// </summary>
+    private static string StripOuterQuotes(string json)
+    {
+        if (json.Length < 2)
+            return json;
+
+        var first = json[0];
+        var last = json[^1];
+        if ((first == '"' && last == '"') || (first == '\'' && last == '\''))
+        {
+            var inner = json[1..^1];
+            if (inner.Length > 0 && (inner[0] == '{' || inner[0] == '['))
+                return inner;
+        }
+
+        return json;
+    }
+
+    /// <summary>
+    /// 修复裸换行符和制表符 — Shell 转义常见问题
+    /// <para>PowerShell 双引号字符串中 \n 被解释为实际换行符 → 替换回 \n 转义序列</para>
+    /// <para>实际换行符在 JSON 字符串值中是非法的，必须替换为 \n 转义序列</para>
+    /// <para>幂等：已转义的 \\n 不受影响（它是两个字符 \ 和 n，不是裸换行符）</para>
+    /// </summary>
+    private static string FixRawNewlines(string json, List<string> hints)
+    {
+        if (!json.Contains('\r') && !json.Contains('\n') && !json.Contains('\t'))
+            return json;
+
+        var repaired = json.Replace("\r\n", "\\n").Replace("\r", "\\n").Replace("\n", "\\n").Replace("\t", "\\t");
+        hints.Add("replaced raw newline/tab with escape sequences");
+        return repaired;
     }
 
     private static string FixSingleQuotedStrings(string json, List<string> hints)

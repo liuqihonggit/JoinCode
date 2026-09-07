@@ -9,11 +9,13 @@ namespace Tools.Handlers;
 public class DownloadToolHandlers
 {
     private readonly IDownloader _downloader;
+    private readonly IFileSystem? _fs;
     private readonly ITelemetryService? _telemetryService;
 
-    public DownloadToolHandlers(IDownloader downloader, ITelemetryService? telemetryService = null)
+    public DownloadToolHandlers(IDownloader downloader, IFileSystem? fs = null, ITelemetryService? telemetryService = null)
     {
         _downloader = downloader ?? throw new ArgumentNullException(nameof(downloader));
+        _fs = fs;
         _telemetryService = telemetryService;
     }
 
@@ -62,8 +64,10 @@ public class DownloadToolHandlers
 
             RecordDownloadMetrics("ok", result.TotalBytes);
             var sizeStr = ContentReplacementConstants.FormatFileSize(result.TotalBytes);
+            var md5 = ComputeFileMd5(file_path);
+            var md5Text = md5 is not null ? $", MD5={md5}" : "";
             return ToolResultBuilder.Success()
-                .WithText($"下载完成: {file_path} ({sizeStr}, 耗时 {result.Elapsed.TotalSeconds:F1}s)")
+                .WithText($"下载完成: {file_path} ({sizeStr}, 耗时 {result.Elapsed.TotalSeconds:F1}s{md5Text})")
                 .WithEntityMetadata(EntityMetadataEntry.Long("total_bytes", result.TotalBytes))
                 .WithEntityMetadata(EntityMetadataEntry.Long("downloaded_bytes", result.DownloadedBytes))
                 .Build();
@@ -80,6 +84,24 @@ public class DownloadToolHandlers
                     [new DiagnosticDetail("url", url), new DiagnosticDetail("file_path", file_path)],
                     ["检查 URL 是否正确", "检查网络是否可用", "检查目标路径是否有写入权限"]))
                 .Build();
+        }
+    }
+
+    private string? ComputeFileMd5(string filePath)
+    {
+        if (_fs is null || !_fs.FileExists(filePath))
+            return null;
+        try
+        {
+            using var stream = _fs.OpenRead(filePath);
+            using var md5 = System.Security.Cryptography.MD5.Create();
+            var hash = md5.ComputeHash(stream);
+            return Convert.ToHexString(hash).ToLowerInvariant();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"MD5 计算失败: {ex.Message}");
+            return null;
         }
     }
 

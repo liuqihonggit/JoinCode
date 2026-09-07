@@ -30,6 +30,7 @@ global using JoinCode.Abstractions.Models.Analytics;
 global using JoinCode.Abstractions.Models.Diff;
 global using JoinCode.Abstractions.Models.Features;
 global using JoinCode.Abstractions.Models.Goal;
+global using JoinCode.Abstractions.Models.Git;
 global using JoinCode.Abstractions.Models.Interactive;
 global using JoinCode.Abstractions.Insights;
 global using JoinCode.Abstractions.Localization;

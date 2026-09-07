@@ -28,34 +28,35 @@ public sealed class AutoRebaseService : IAutoRebaseService
 
         var upstream = request.UpstreamBranch;
         var workDir = request.WorktreePath;
+        var fetch = GitSubCommand.Fetch.ToValue();
+        var rebase = GitSubCommand.Rebase.ToValue();
+        var stash = GitSubCommand.Stash.ToValue();
 
-        var fetchResult = await _gitRunner.ExecuteAsync($"fetch {upstream}", workDir, cancellationToken).ConfigureAwait(false);
+        var fetchResult = await _gitRunner.ExecuteAsync($"{fetch} {upstream}", workDir, cancellationToken).ConfigureAwait(false);
         if (!fetchResult.Success)
         {
             _logger?.LogWarning("[AutoRebase] fetch 失败 for {AgentId}: {Error}", request.AgentId, fetchResult.Error);
             return Failed($"fetch 失败: {fetchResult.Error}");
         }
 
-        var revListResult = await _gitRunner.ExecuteAsync($"rev-list --count HEAD..{upstream}", workDir, cancellationToken).ConfigureAwait(false);
-        if (!revListResult.Success)
+        var upstreamCount = await _gitRunner.GetUpstreamCommitCountAsync(upstream, workDir, cancellationToken).ConfigureAwait(false);
+        if (upstreamCount < 0)
         {
-            _logger?.LogWarning("[AutoRebase] rev-list 失败 for {AgentId}: {Error}", request.AgentId, revListResult.Error);
-            return Failed($"rev-list 失败: {revListResult.Error}");
+            _logger?.LogWarning("[AutoRebase] rev-list 解析失败 for {AgentId}", request.AgentId);
+            return Failed("rev-list 解析失败");
         }
-
-        if (!TryParseCount(revListResult.Output, out var count) || count == 0)
+        if (upstreamCount == 0)
         {
             _logger?.LogDebug("[AutoRebase] 主干无新提交，跳过 for {AgentId}", request.AgentId);
             return Skipped("主干无新提交");
         }
 
-        var statusResult = await _gitRunner.ExecuteAsync("status --porcelain", workDir, cancellationToken).ConfigureAwait(false);
-        var hasUncommitted = statusResult.Success && !string.IsNullOrWhiteSpace(statusResult.Output);
+        var hasUncommitted = await _gitRunner.HasUncommittedChangesAsync(workDir, cancellationToken).ConfigureAwait(false);
 
         var stashed = false;
         if (hasUncommitted)
         {
-            var stashResult = await _gitRunner.ExecuteAsync("stash push -m \"auto-rebase-stash\"", workDir, cancellationToken).ConfigureAwait(false);
+            var stashResult = await _gitRunner.ExecuteAsync($"{stash} push -m \"auto-rebase-stash\"", workDir, cancellationToken).ConfigureAwait(false);
             if (!stashResult.Success)
             {
                 _logger?.LogWarning("[AutoRebase] stash 失败 for {AgentId}: {Error}", request.AgentId, stashResult.Error);
@@ -64,7 +65,7 @@ public sealed class AutoRebaseService : IAutoRebaseService
             stashed = true;
         }
 
-        var rebaseResult = await _gitRunner.ExecuteAsync($"rebase {upstream}", workDir, cancellationToken).ConfigureAwait(false);
+        var rebaseResult = await _gitRunner.ExecuteAsync($"{rebase} {upstream}", workDir, cancellationToken).ConfigureAwait(false);
 
         if (rebaseResult.Success)
         {
@@ -79,9 +80,9 @@ public sealed class AutoRebaseService : IAutoRebaseService
             };
         }
 
-        var conflictFiles = await GetConflictFilesAsync(workDir, cancellationToken).ConfigureAwait(false);
+        var conflictFiles = await _gitRunner.GetConflictFilesAsync(workDir, cancellationToken).ConfigureAwait(false);
 
-        await _gitRunner.ExecuteAsync("rebase --abort", workDir, cancellationToken).ConfigureAwait(false);
+        await _gitRunner.ExecuteAsync($"{rebase} --abort", workDir, cancellationToken).ConfigureAwait(false);
 
         if (stashed)
             await SafeStashPopAsync(workDir, cancellationToken).ConfigureAwait(false);
@@ -101,23 +102,11 @@ public sealed class AutoRebaseService : IAutoRebaseService
         };
     }
 
-    private async Task<IReadOnlyList<string>> GetConflictFilesAsync(string workDir, CancellationToken ct)
-    {
-        var result = await _gitRunner.ExecuteAsync("diff --name-only --diff-filter=U", workDir, ct).ConfigureAwait(false);
-        if (!result.Success || string.IsNullOrWhiteSpace(result.Output))
-            return [];
-        return result.Output
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Select(s => s.Trim())
-            .Where(s => s.Length > 0)
-            .ToList();
-    }
-
     private async Task SafeStashPopAsync(string workDir, CancellationToken ct)
     {
         try
         {
-            await _gitRunner.ExecuteAsync("stash pop", workDir, ct).ConfigureAwait(false);
+            await _gitRunner.ExecuteAsync($"{GitSubCommand.Stash.ToValue()} pop", workDir, ct).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -153,12 +142,4 @@ public sealed class AutoRebaseService : IAutoRebaseService
         Message = message,
         WasSkipped = true,
     };
-
-    private static bool TryParseCount(string output, out int count)
-    {
-        count = 0;
-        if (string.IsNullOrWhiteSpace(output))
-            return false;
-        return int.TryParse(output.Trim(), out count);
-    }
 }

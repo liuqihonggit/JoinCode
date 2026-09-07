@@ -18,6 +18,7 @@ global using JoinCode.Abstractions.LLM;
 global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.Models;
 global using JoinCode.Abstractions.Models.Agent;
+global using JoinCode.Abstractions.Models.Git;
 global using JoinCode.Abstractions.Models.Notebook;
 global using JoinCode.Abstractions.Models.Search;
 global using JoinCode.Abstractions.Models.Ssh;

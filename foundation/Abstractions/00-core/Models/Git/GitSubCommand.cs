@@ -21,4 +21,7 @@ public enum GitSubCommand
     [EnumValue("rev-parse")] RevParse,
     [EnumValue("rev-list")] RevList,
     [EnumValue("sparse-checkout")] SparseCheckout,
+    [EnumValue("fetch")] Fetch,
+    [EnumValue("rebase")] Rebase,
+    [EnumValue("stash")] Stash,
 }

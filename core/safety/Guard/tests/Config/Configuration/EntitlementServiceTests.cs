@@ -181,4 +181,25 @@ public sealed class BriefModeServiceTests
         Assert.False(status.IsEnabled);
         Assert.Null(status.EnabledAt);
     }
+
+    [Fact]
+    public void CrossInstance_PersistedToFile_WhenFileSystemProvided()
+    {
+        var fs = new IO.FileSystem.InMemoryFileSystem();
+        var cwd = Environment.CurrentDirectory;
+        fs.CreateDirectory(Path.Combine(cwd, ".git"));
+        var clock = JoinCode.Abstractions.Clock.SystemClockService.Instance;
+
+        var serviceA = new BriefModeService(clock, fs);
+        serviceA.Enable();
+        Assert.True(serviceA.IsEnabled);
+
+        var serviceB = new BriefModeService(clock, fs);
+        Assert.True(serviceB.IsEnabled, "新实例应从文件加载 enabled 状态");
+        Assert.NotNull(serviceB.EnabledAt);
+
+        serviceB.Disable();
+        var serviceC = new BriefModeService(clock, fs);
+        Assert.False(serviceC.IsEnabled, "新实例应从文件加载 disabled 状态");
+    }
 }

@@ -1,10 +1,10 @@
-# 0075. Actor 全双工改造 — DuplexActorBase 基类设计
+# 0091. Actor 全双工改造 — DuplexActorBase 基类设计
 
-- 状态：superseded by 0076
+- 状态：superseded by 0092
 - 日期：2026-09-08
 - 决策者：项目架构组
 - 关联 ADR：[0074](0074-actor-supervisor-tree.md)、[0052](0052-asynclock-unified-mutex-file-access.md)、[0060](0060-asynclock-sync-trylock-fireandforget-deadlock.md)
-- 取代原因：用户决策直接改 ActorBase（无后向兼容需求），不新建 DuplexActorBase。详见 [0076](0076-actor-duplex-inplace-upgrade.md)
+- 取代原因：用户决策直接改 ActorBase（无后向兼容需求），不新建 DuplexActorBase。详见 [0092](0092-actor-duplex-inplace-upgrade.md)
 
 ## 背景
 

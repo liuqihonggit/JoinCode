@@ -1,10 +1,10 @@
-# 0076. Actor 全双工改造 — 直接改 ActorBase（无后向兼容）
+# 0092. Actor 全双工改造 — 直接改 ActorBase（无后向兼容）
 
 - 状态：accepted
 - 日期：2026-09-08
 - 决策者：用户
-- 关联 ADR：[0075](0075-actor-duplex-upgrade.md)（被取代）、[0074](0074-actor-supervisor-tree.md)、[0052](0052-asynclock-unified-mutex-file-access.md)
-- 取代：[0075](0075-actor-duplex-upgrade.md)
+- 关联 ADR：[0091](0091-actor-duplex-upgrade.md)（被取代）、[0074](0074-actor-supervisor-tree.md)、[0052](0052-asynclock-unified-mutex-file-access.md)
+- 取代：[0091](0091-actor-duplex-upgrade.md)
 
 ## 背景
 
@@ -93,6 +93,6 @@ public async IAsyncEnumerable<TOut> OutputAsync(...)
 
 ## 参考
 
-- [0075-actor-duplex-upgrade.md](0075-actor-duplex-upgrade.md) — 原方案（被取代）
+- [0091-actor-duplex-upgrade.md](0091-actor-duplex-upgrade.md) — 原方案（被取代）
 - `foundation/AsyncLock/src/ActorBase.cs` — 改造后实现
 - `foundation/AsyncLock/src/Unit.cs` — Unit 类型（无输出 Actor 用）

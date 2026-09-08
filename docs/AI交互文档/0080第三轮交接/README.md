@@ -45,4 +45,15 @@ jcc mcp_call <tool_name> param=value
 - FileWriter BOM 污染 (commit 724589d15)
 - tool_score 格式化错误 (commit f1b0962f9)
 
+第二轮已测试约50个工具，发现并修复1个问题：
+- gh_release_list 输出冗余JSON (commit 70478f520)
+
+第二轮同时完成代码索引深度测试，修复6个问题：
+- code_index_rebuild 单个解析失败导致整体崩溃 (commit 65f4a4297)
+- code_index_stats 文件数显示0，持久化缺FileTracking (commit 5c9f22b56)
+- 引用查询不支持简单名匹配FQN (commit 25f24bb7a)
+- 首次查询未自动构建索引 (commit a19e78de9)
+- 索引过时检测自动重建 (commit 697f8a198)
+- 过时检测支持worktree环境 (commit 00772161f)
+
 详见 [手动测试问题清单-0080第一轮-续.md](手动测试问题清单-0080第一轮-续.md)

@@ -1,13 +1,13 @@
 # 交接文档 09: Agent 剩余工具
 
 > 开一个AI窗口处理本文档。逐个执行测试命令，遇到任何不适都修复。
-> 已测试：agent_list ✅
+> 已测试：agent_list ✅、agent_running ✅、list_agents ✅（第二轮批量测试）
 
 ## 工具列表（12个）
 
 1. agent - 创建并启动子Agent
 2. agent_get_messages - 获取Agent消息
-3. agent_running - 列出运行中Agent
+3. agent_running - 列出运行中Agent ✅
 4. agent_send_message - 发送消息给Agent
 5. agent_status - 获取Agent状态
 6. agent_stop - 停止Agent
@@ -15,7 +15,7 @@
 8. forward_user_input - 转发用户输入
 9. general_agent - General Agent
 10. guide_agent - Guide Agent
-11. list_agents - 列出内置Agent
+11. list_agents - 列出内置Agent ✅
 12. plan_agent - Plan Agent
 13. verification_agent - Verification Agent
 

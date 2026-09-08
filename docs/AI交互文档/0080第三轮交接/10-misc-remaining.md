@@ -21,7 +21,7 @@
 12. task_get
 13. task_get_dependencies
 14. task_list（已测试✅）
-15. task_list_running
+15. task_list_running（已测试✅）
 16. task_output
 17. task_remove_dependency
 18. task_set_dependency
@@ -58,7 +58,7 @@
 43. memory_daily_log_append
 44. memory_daily_log_get
 45. memory_health（已测试✅）
-46. memory_list_team_paths
+46. memory_list_team_paths（已测试✅）
 47. memory_remove_team_path
 48. memory_scan（已测试✅）
 49. memory_scan_team

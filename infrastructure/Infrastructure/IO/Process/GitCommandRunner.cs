@@ -22,8 +22,7 @@ public sealed partial class GitCommandRunner : ServiceEntity, IGitCommandRunner
     {
         try
         {
-            Console.Error.WriteLine($"[DIAG-GIT] ExecuteAsync start: git {arguments}, cwd={workingDirectory}, ct.CanCancel={ct.CanBeCanceled}");
-            Console.Error.Flush();
+            _logger?.LogDebug("ExecuteAsync start: git {Arguments}, cwd={WorkingDir}, ct.CanCancel={CanCancel}", arguments, workingDirectory, ct.CanBeCanceled);
             var options = new ProcessOptions
             {
                 FileName = "git",
@@ -34,8 +33,7 @@ public sealed partial class GitCommandRunner : ServiceEntity, IGitCommandRunner
 
             var result = await _processService.ExecuteAsync(options, ct).ConfigureAwait(false);
 
-            Console.Error.WriteLine($"[DIAG-GIT] ExecuteAsync end: git {arguments}, exitCode={result.ExitCode}, stdoutLen={result.StandardOutput.Length}, time={result.ExecutionTime.TotalMilliseconds:F0}ms");
-            Console.Error.Flush();
+            _logger?.LogDebug("ExecuteAsync end: git {Arguments}, exitCode={ExitCode}, stdoutLen={StdoutLen}, time={TimeMs}ms", arguments, result.ExitCode, result.StandardOutput.Length, result.ExecutionTime.TotalMilliseconds);
 
             return new GitCommandResult
             {
@@ -48,14 +46,11 @@ public sealed partial class GitCommandRunner : ServiceEntity, IGitCommandRunner
         }
         catch (OperationCanceledException ex)
         {
-            Console.Error.WriteLine($"[DIAG-GIT] ExecuteAsync CANCELED: git {arguments}, {ex.GetType().Name}");
-            Console.Error.Flush();
+            _logger?.LogDebug("ExecuteAsync CANCELED: git {Arguments}, {ExceptionType}", arguments, ex.GetType().Name);
             throw;
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"[DIAG-GIT] ExecuteAsync EXCEPTION: git {arguments}, {ex.GetType().Name}: {ex.Message}");
-            Console.Error.Flush();
             _logger?.LogError(ex, "执行 Git 命令失败: git {Arguments}", arguments);
             return new GitCommandResult
             {

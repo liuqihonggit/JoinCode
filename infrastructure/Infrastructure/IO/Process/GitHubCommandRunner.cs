@@ -44,8 +44,7 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
     {
         try
         {
-            Console.Error.WriteLine($"[DIAG-GH] ExecuteAsync start: gh {arguments}, cwd={workingDirectory}");
-            Console.Error.Flush();
+            _logger?.LogDebug("ExecuteAsync start: gh {Arguments}, cwd={WorkingDir}", arguments, workingDirectory);
 
             var effectiveTimeout = timeoutMs ?? (int)_timeout.TotalMilliseconds;
             var options = new ProcessOptions
@@ -60,8 +59,7 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
 
             var result = await _processService.ExecuteAsync(options, ct).ConfigureAwait(false);
 
-            Console.Error.WriteLine($"[DIAG-GH] ExecuteAsync end: gh {arguments}, exitCode={result.ExitCode}, stdoutLen={result.StandardOutput.Length}");
-            Console.Error.Flush();
+            _logger?.LogDebug("ExecuteAsync end: gh {Arguments}, exitCode={ExitCode}, stdoutLen={StdoutLen}", arguments, result.ExitCode, result.StandardOutput.Length);
 
             return new GitHubCommandResult
             {
@@ -73,14 +71,11 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
         }
         catch (OperationCanceledException ex)
         {
-            Console.Error.WriteLine($"[DIAG-GH] ExecuteAsync CANCELED: gh {arguments}, {ex.GetType().Name}");
-            Console.Error.Flush();
+            _logger?.LogDebug("ExecuteAsync CANCELED: gh {Arguments}, {ExceptionType}", arguments, ex.GetType().Name);
             throw;
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"[DIAG-GH] ExecuteAsync EXCEPTION: gh {arguments}, {ex.GetType().Name}: {ex.Message}");
-            Console.Error.Flush();
             _logger?.LogError(ex, "执行 GitHub 命令失败: gh {Arguments}", arguments);
             return new GitHubCommandResult
             {
@@ -184,8 +179,6 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
         if (string.IsNullOrWhiteSpace(body))
         {
             _logger?.LogInformation("PR body 为空，已自动生成: {Title}", title);
-            Console.Error.WriteLine($"[DIAG-GH] PR body 自动生成，已用默认值");
-            Console.Error.Flush();
         }
 
         // 构建命令参数

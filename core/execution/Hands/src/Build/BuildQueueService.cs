@@ -485,89 +485,82 @@ public sealed partial class BuildQueueService : IBuildQueueService
 
     private async Task<BuildQueueResult> ExecuteBuildAsync(BuildQueueEntry entry, CancellationToken ct)
     {
-        await (_preventSleepService?.PreventSleepAsync(cancellationToken: CancellationToken.None) ?? Task.CompletedTask).ConfigureAwait(false);
-        try
+        await using var sleepScope = await PreventSleepScope.CreateAsync(_preventSleepService, cancellationToken: CancellationToken.None).ConfigureAwait(false);
+        await using var scope = new BuildExecutionScope(this, ct);
+        var buildCt = scope.Token;
+
+        // 跨进程构建锁 — FileStream + FileShare.None 实现进程间互斥
+        // 多个 subAgent 进程（不同 git worktree）通过此锁串行编译，避免并行编译冲突
+        // 异步轮询获取锁，无线程亲和性，可安全跨 await 使用（修复原 Mutex 死锁问题）
+        if (buildCt.IsCancellationRequested)
         {
-            await using var scope = new BuildExecutionScope(this, ct);
-            var buildCt = scope.Token;
-
-            // 跨进程构建锁 — FileStream + FileShare.None 实现进程间互斥
-            // 多个 subAgent 进程（不同 git worktree）通过此锁串行编译，避免并行编译冲突
-            // 异步轮询获取锁，无线程亲和性，可安全跨 await 使用（修复原 Mutex 死锁问题）
-            if (buildCt.IsCancellationRequested)
-            {
-                return new BuildQueueResult
-                {
-                    BuildId = entry.BuildId,
-                    ExitCode = -1,
-                    Output = string.Empty,
-                    ErrorOutput = "Build cancelled while waiting for build lock",
-                    WaitDuration = TimeSpan.Zero,
-                    BuildDuration = TimeSpan.Zero,
-                    QueuePosition = entry.QueuePosition,
-                    Cancelled = true,
-                };
-            }
-
-            try
-            {
-                await scope.AcquireLockAsync(buildCt).ConfigureAwait(false);
-                _logger?.LogInformation("Build lock acquired for {BuildId} via {LockPath}",
-                    entry.BuildId, _crossProcessLockPath);
-            }
-            catch (OperationCanceledException)
-            {
-                return new BuildQueueResult
-                {
-                    BuildId = entry.BuildId,
-                    ExitCode = -1,
-                    Output = string.Empty,
-                    ErrorOutput = "Build cancelled while waiting for build lock",
-                    WaitDuration = TimeSpan.Zero,
-                    BuildDuration = TimeSpan.Zero,
-                    QueuePosition = entry.QueuePosition,
-                    Cancelled = true,
-                };
-            }
-
-            var sw = Stopwatch.StartNew();
-            var wallStart = DateTimeOffset.UtcNow;
-
-            var result = await _actuatorRegistry.Get(SystemActuatorKind.Bash).ExecuteAsync(
-                entry.Request.Command,
-                workingDirectory: entry.Request.WorkingDirectory,
-                cancellationToken: buildCt).ConfigureAwait(false);
-
-            sw.Stop();
-            var wallElapsed = DateTimeOffset.UtcNow - wallStart;
-
-            var sleepDetected = wallElapsed > sw.Elapsed + TimeSpan.FromSeconds(30);
-            if (sleepDetected)
-            {
-                _logger?.LogWarning(
-                    "Sleep detected during build {BuildId}: wall={Wall}, cpu={Cpu}",
-                    entry.BuildId, wallElapsed, sw.Elapsed);
-            }
-
             return new BuildQueueResult
             {
                 BuildId = entry.BuildId,
-                ExitCode = result.ExitCode ?? -1,
-                Output = result.Stdout ?? string.Empty,
-                ErrorOutput = result.Stderr ?? string.Empty,
-                WaitDuration = entry.StartedAt.HasValue
-                    ? entry.StartedAt.Value - entry.Request.SubmittedAt
-                    : TimeSpan.Zero,
-                BuildDuration = sw.Elapsed,
+                ExitCode = -1,
+                Output = string.Empty,
+                ErrorOutput = "Build cancelled while waiting for build lock",
+                WaitDuration = TimeSpan.Zero,
+                BuildDuration = TimeSpan.Zero,
                 QueuePosition = entry.QueuePosition,
-                SleepDetected = sleepDetected,
-                Cancelled = buildCt.IsCancellationRequested
+                Cancelled = true,
             };
         }
-        finally
+
+        try
         {
-            await (_preventSleepService?.AllowSleepAsync(CancellationToken.None) ?? Task.CompletedTask).ConfigureAwait(false);
+            await scope.AcquireLockAsync(buildCt).ConfigureAwait(false);
+            _logger?.LogInformation("Build lock acquired for {BuildId} via {LockPath}",
+                entry.BuildId, _crossProcessLockPath);
         }
+        catch (OperationCanceledException)
+        {
+            return new BuildQueueResult
+            {
+                BuildId = entry.BuildId,
+                ExitCode = -1,
+                Output = string.Empty,
+                ErrorOutput = "Build cancelled while waiting for build lock",
+                WaitDuration = TimeSpan.Zero,
+                BuildDuration = TimeSpan.Zero,
+                QueuePosition = entry.QueuePosition,
+                Cancelled = true,
+            };
+        }
+
+        var sw = Stopwatch.StartNew();
+        var wallStart = DateTimeOffset.UtcNow;
+
+        var result = await _actuatorRegistry.Get(SystemActuatorKind.Bash).ExecuteAsync(
+            entry.Request.Command,
+            workingDirectory: entry.Request.WorkingDirectory,
+            cancellationToken: buildCt).ConfigureAwait(false);
+
+        sw.Stop();
+        var wallElapsed = DateTimeOffset.UtcNow - wallStart;
+
+        var sleepDetected = wallElapsed > sw.Elapsed + TimeSpan.FromSeconds(30);
+        if (sleepDetected)
+        {
+            _logger?.LogWarning(
+                "Sleep detected during build {BuildId}: wall={Wall}, cpu={Cpu}",
+                entry.BuildId, wallElapsed, sw.Elapsed);
+        }
+
+        return new BuildQueueResult
+        {
+            BuildId = entry.BuildId,
+            ExitCode = result.ExitCode ?? -1,
+            Output = result.Stdout ?? string.Empty,
+            ErrorOutput = result.Stderr ?? string.Empty,
+            WaitDuration = entry.StartedAt.HasValue
+                ? entry.StartedAt.Value - entry.Request.SubmittedAt
+                : TimeSpan.Zero,
+            BuildDuration = sw.Elapsed,
+            QueuePosition = entry.QueuePosition,
+            SleepDetected = sleepDetected,
+            Cancelled = buildCt.IsCancellationRequested
+        };
     }
 
     private void CompleteWithCancellation(string buildId, BuildQueueEntry entry)

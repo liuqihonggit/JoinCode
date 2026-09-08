@@ -5,19 +5,19 @@
 
 ## 工具列表（12个）
 
-1. agent - 创建并启动子Agent
-2. agent_get_messages - 获取Agent消息
+1. agent - 创建并启动子Agent（已测试✅）
+2. agent_get_messages - 获取Agent消息（已测试✅）
 3. agent_running - 列出运行中Agent ✅
-4. agent_send_message - 发送消息给Agent
-5. agent_status - 获取Agent状态
-6. agent_stop - 停止Agent
-7. explore_agent - Explore Agent
-8. forward_user_input - 转发用户输入
-9. general_agent - General Agent
-10. guide_agent - Guide Agent
+4. agent_send_message - 发送消息给Agent（已测试✅）
+5. agent_status - 获取Agent状态（已测试✅）
+6. agent_stop - 停止Agent（已测试✅）
+7. explore_agent - Explore Agent（已测试✅）
+8. forward_user_input - 转发用户输入（已测试✅）
+9. general_agent - General Agent（已测试✅）
+10. guide_agent - Guide Agent（已测试✅）
 11. list_agents - 列出内置Agent ✅
-12. plan_agent - Plan Agent
-13. verification_agent - Verification Agent
+12. plan_agent - Plan Agent（已测试✅）
+13. verification_agent - Verification Agent（已测试✅）
 
 ## 测试命令
 

@@ -159,7 +159,48 @@ internal static class ToolCallRepairService
                 return standard;
         }
 
-        return toolName;
+        // Fallback: 去下划线模糊匹配(WEBFETCH → web_fetch, DIRECTORYLIST → directory_list)
+        return UnderscoreFallback(toolName) ?? toolName;
+    }
+
+    /// <summary>
+    /// 去下划线模糊匹配 — 当 FromValue 精确匹配失败时,去掉下划线后 OrdinalIgnoreCase 比较
+    /// <para>场景: WEBFETCH → web_fetch, webfetch → web_fetch</para>
+    /// </summary>
+    private static string? UnderscoreFallback(string name)
+    {
+        var normalized = name.Replace("_", "");
+        return UnderscoreFallbackCore<FileToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<SearchToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<WebToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<ShellToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<TaskToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<TodoToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<CodeToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<GitToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<NotebookToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<MemoryToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<PlanToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<SkillToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<McpToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<CronToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<SystemToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<InteractionToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<AgentToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<TeamToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<WorkflowToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<WorktreeToolName>(normalized, v => v.ToValue());
+    }
+
+    private static string? UnderscoreFallbackCore<TEnum>(string normalized, Func<TEnum, string> toValue) where TEnum : struct, Enum
+    {
+        foreach (var value in Enum.GetValues<TEnum>())
+        {
+            var enumValue = toValue(value);
+            if (enumValue.Replace("_", "").Equals(normalized, StringComparison.OrdinalIgnoreCase))
+                return enumValue;
+        }
+        return null;
     }
 
     private static readonly Func<string, string?>[] ToolNameResolvers =
@@ -185,6 +226,107 @@ internal static class ToolCallRepairService
         name => WorkflowToolNameExtensions.FromValue(name)?.ToValue(),
         name => WorktreeToolNameExtensions.FromValue(name)?.ToValue(),
     ];
+
+    /// <summary>
+    /// 工具名模糊匹配 — 当用户/AI 调用不存在的工具名时,推荐相似工具名
+    /// <para>匹配策略: 精确(大小写不同) > 前缀 > 子串 > 编辑距离≤3</para>
+    /// <para>返回按相似度降序排列的工具名,最多 5 个</para>
+    /// </summary>
+    public static IReadOnlyList<string> SuggestToolNames(string input, IEnumerable<string> availableTools)
+    {
+        if (string.IsNullOrEmpty(input) || availableTools is null)
+            return Array.Empty<string>();
+
+        var scored = new List<(string Name, int Score)>();
+        foreach (var tool in availableTools)
+        {
+            var score = ComputeNameSimilarity(input, tool);
+            if (score > 0)
+                scored.Add((tool, score));
+        }
+
+        return scored
+            .OrderByDescending(s => s.Score)
+            .ThenBy(s => s.Name, StringComparer.Ordinal)
+            .Take(5)
+            .Select(s => s.Name)
+            .ToList();
+    }
+
+    private static int ComputeNameSimilarity(string input, string candidate)
+    {
+        if (string.Equals(input, candidate, StringComparison.OrdinalIgnoreCase))
+            return 100;
+
+        if (input.Length > candidate.Length && input.StartsWith(candidate, StringComparison.OrdinalIgnoreCase))
+            return 80 - (input.Length - candidate.Length);
+
+        if (input.Length < candidate.Length && candidate.StartsWith(input, StringComparison.OrdinalIgnoreCase))
+            return 60 - (candidate.Length - input.Length);
+
+        if (input.Contains(candidate, StringComparison.OrdinalIgnoreCase) || candidate.Contains(input, StringComparison.OrdinalIgnoreCase))
+            return 40;
+
+        var dist = LevenshteinIgnoreCase(input, candidate);
+        if (dist <= 3)
+            return 30 - dist;
+
+        return 0;
+    }
+
+    /// <summary>Levenshtein 编辑距离(大小写不敏感)</summary>
+    private static int LevenshteinIgnoreCase(string a, string b)
+    {
+        if (a.Length == 0) return b.Length;
+        if (b.Length == 0) return a.Length;
+
+        var prev = new int[b.Length + 1];
+        var curr = new int[b.Length + 1];
+        for (int j = 0; j <= b.Length; j++) prev[j] = j;
+
+        for (int i = 1; i <= a.Length; i++)
+        {
+            curr[0] = i;
+            for (int j = 1; j <= b.Length; j++)
+            {
+                var cost = char.ToLowerInvariant(a[i - 1]) == char.ToLowerInvariant(b[j - 1]) ? 0 : 1;
+                curr[j] = Math.Min(Math.Min(prev[j] + 1, curr[j - 1] + 1), prev[j - 1] + cost);
+            }
+            (prev, curr) = (curr, prev);
+        }
+        return prev[b.Length];
+    }
+
+    /// <summary>
+    /// 生成跨 shell 调用示例文本 — 帮助 AI/用户正确传递 JSON 参数
+    /// <para>覆盖 PowerShell(--%)、Bash(单引号)、Cmd(转义引号)三种 shell</para>
+    /// </summary>
+    internal static string BuildShellCallExamples(string toolName)
+    {
+        return $$"""
+调用示例:
+  PowerShell: jcc mcp_call {{toolName}} --% "{\"key\":\"value\"}"
+  Bash:       jcc mcp_call {{toolName}} '{"key":"value"}'
+  Cmd:        jcc mcp_call {{toolName}} "{\"key\":\"value\"}"
+""";
+    }
+
+    /// <summary>
+    /// 检测"引号被 shell 剥落"特征并返回修正写法提示 — 以 { 开头、有冒号、但无双引号
+    /// <para>返回 null 表示未检测到该特征(不提示)</para>
+    /// </summary>
+    internal static string? BuildShellQuoteHint(string json)
+    {
+        if (json.Length > 0 && json[0] == '{' && json.Contains(':') && !json.Contains('"'))
+        {
+            return """
+提示: 输入看起来像被 shell 剥掉了引号。
+  PowerShell: 用 --% 停止解析,或用 \" 转义双引号
+  示例: jcc mcp_call <tool> --% "{\"key\":\"value\"}"
+""";
+        }
+        return null;
+    }
 
     private static bool TryParseJson(string json, out JsonDocument? doc)
     {
@@ -332,6 +474,21 @@ internal static class ToolCallRepairService
         var result = new StringBuilder(json.Length);
         int i = 0;
 
+        // 将 json[start..end] 加双引号后追加到 result,裸反斜杠转义为 \\ (JSON 合法)
+        static void AppendQuotedValue(StringBuilder sb, string s, int start, int end)
+        {
+            sb.Append('"');
+            var span = s.AsSpan(start, end - start);
+            for (int k = 0; k < span.Length; k++)
+            {
+                if (span[k] == '\\')
+                    sb.Append("\\\\");
+                else
+                    sb.Append(span[k]);
+            }
+            sb.Append('"');
+        }
+
         while (i < json.Length)
         {
             if (json[i] == '"')
@@ -363,6 +520,7 @@ internal static class ToolCallRepairService
                     continue;
 
                 int valueStart = i;
+                // 保守收集: 到空格/逗号/}/] 停(值不含空格的快速路径)
                 while (i < json.Length && json[i] != ',' && json[i] != '}' && json[i] != ']' && !char.IsWhiteSpace(json[i]))
                     i++;
 
@@ -372,21 +530,33 @@ internal static class ToolCallRepairService
                     while (j < json.Length && char.IsWhiteSpace(json[j])) j++;
                     if (j < json.Length && (json[j] == ',' || json[j] == '}' || json[j] == ']'))
                     {
-                        result.Append('"');
-                        var valueSpan = json.AsSpan(valueStart, i - valueStart);
-                        for (int k = 0; k < valueSpan.Length; k++)
-                        {
-                            if (valueSpan[k] == '\\')
-                                result.Append("\\\\");
-                            else
-                                result.Append(valueSpan[k]);
-                        }
-                        result.Append('"');
+                        AppendQuotedValue(result, json, valueStart, i);
                         changed = true;
                         continue;
                     }
                 }
 
+                // 保守收集失败(值含空格,如 PowerShell 剥引号后的 {prompt:echo hello})
+                // → 激进收集: 允许空格,到 ,/}/]/{/[ 停,整体加引号
+                i = valueStart;
+                while (i < json.Length && json[i] != ',' && json[i] != '}' && json[i] != ']' && json[i] != '{' && json[i] != '[')
+                    i++;
+
+                // 去掉尾部空白(避免 "echo hello " 带尾部空格在引号内)
+                int valueEnd = i;
+                while (valueEnd > valueStart && char.IsWhiteSpace(json[valueEnd - 1])) valueEnd--;
+
+                if (valueEnd > valueStart)
+                {
+                    AppendQuotedValue(result, json, valueStart, valueEnd);
+                    // 尾部空白在引号外原样输出
+                    for (int k = valueEnd; k < i; k++)
+                        result.Append(json[k]);
+                    changed = true;
+                    continue;
+                }
+
+                // 激进收集也失败(值为空或首字符即分隔符),原样输出
                 result.Append(json.AsSpan(valueStart, i - valueStart));
                 continue;
             }

@@ -20,7 +20,14 @@ public sealed class McpCliCommand
         {
             var registry = services.GetRequiredService<IMcpToolRegistry>();
             if (!await registry.ContainsToolAsync(toolName, ct).ConfigureAwait(false))
-                return OutputError($"未找到工具: {toolName}（用 jcc mcp list 查看已注册工具）", json);
+            {
+                var allTools = await registry.GetAllToolsAsync(ct).ConfigureAwait(false);
+                var suggestions = LlmJsonHelper.SuggestToolNames(toolName, allTools.Keys);
+                var msg = suggestions.Count > 0
+                    ? $"未找到工具: {toolName}。是否想用: {string.Join(", ", suggestions)}?（用 jcc mcp_schema <工具名> 查看参数）"
+                    : $"未找到工具: {toolName}（用 jcc mcp_list 查看已注册工具）";
+                return OutputError(msg, json);
+            }
             var result = await registry.ExecuteToolAsync(toolName, argDict, ct).ConfigureAwait(false);
             return OutputResult(result, json);
         }, vendor, model, ct);
@@ -102,7 +109,14 @@ public sealed class McpCliCommand
             var info = await registry.GetToolInfoAsync(toolName, ct).ConfigureAwait(false);
 
         if (info is null)
-            return OutputError($"未找到工具: {toolName}", json);
+        {
+            var allTools = await registry.GetAllToolsAsync(ct).ConfigureAwait(false);
+            var suggestions = LlmJsonHelper.SuggestToolNames(toolName, allTools.Keys);
+            var msg = suggestions.Count > 0
+                ? $"未找到工具: {toolName}。是否想用: {string.Join(", ", suggestions)}?（用 jcc mcp_schema <工具名> 查看参数）"
+                : $"未找到工具: {toolName}（用 jcc mcp_list 查看已注册工具）";
+            return OutputError(msg, json);
+        }
 
         if (json)
         {
@@ -115,6 +129,8 @@ public sealed class McpCliCommand
             TerminalHelper.WriteLine($"分类: {info.Category ?? "(无)"}");
             TerminalHelper.WriteLine($"参数 Schema:");
             System.Console.WriteLine(RelaxedJsonSerializer.Serialize(info.InputSchema, ContractsJsonContext.Default));
+            TerminalHelper.NewLine();
+            TerminalHelper.WriteLine(LlmJsonHelper.BuildShellCallExamples(info.Name));
         }
         return 0;
     }, ct: ct);
@@ -313,6 +329,9 @@ public sealed class McpCliCommand
                 TerminalHelper.WriteError(FormatJsonError(ex, json, null, "JSON 解析失败"));
                 if (repairResult.RepairHint is not null)
                     TerminalHelper.WriteError($"修复提示: {repairResult.RepairHint}");
+                var shellHint = LlmJsonHelper.BuildShellQuoteHint(json);
+                if (shellHint is not null)
+                    TerminalHelper.WriteError(shellHint);
             }
             return null;
         }

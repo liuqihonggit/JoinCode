@@ -189,6 +189,25 @@ public static class LlmJsonHelper
     }
 
     /// <summary>
+    /// 工具名模糊匹配建议 — 当工具名找不到时,推荐相似工具名
+    /// 统一门控入口,所有工具名未找到的建议必须通过此方法
+    /// </summary>
+    public static IReadOnlyList<string> SuggestToolNames(string input, IEnumerable<string> availableTools)
+        => ToolCallRepairService.SuggestToolNames(input, availableTools);
+
+    /// <summary>
+    /// 生成跨 shell 调用示例文本 — 帮助 AI/用户正确传递 JSON 参数
+    /// </summary>
+    public static string BuildShellCallExamples(string toolName)
+        => ToolCallRepairService.BuildShellCallExamples(toolName);
+
+    /// <summary>
+    /// 检测引号被 shell 剥落并返回修正写法提示 — 返回 null 表示未检测到
+    /// </summary>
+    public static string? BuildShellQuoteHint(string json)
+        => ToolCallRepairService.BuildShellQuoteHint(json);
+
+    /// <summary>
     /// 参数名归一化 + 参数类型自动转换
     /// 统一门控入口，所有 LLM 输出的工具参数修复必须通过此方法
     /// </summary>

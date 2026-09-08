@@ -842,6 +842,64 @@ public sealed class ToolCallRepairServiceTests
         parsed.RootElement.GetProperty("d").GetString().Should().Be("hello");
     }
 
+    /// <summary>
+    /// PowerShell 剥掉引号后 {prompt:echo hello} 应修复为 {"prompt":"echo hello"}
+    /// 根因: FixUnquotedValues 遇到空格停止收集(第366行 !char.IsWhiteSpace),导致 "echo hello" 无法整体加引号
+    /// </summary>
+    [Fact]
+    public void RepairJson_UnquotedValueWithSpaces_AddsQuotes()
+    {
+        var result = ToolCallRepairService.RepairJson("""{prompt:echo hello}""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("prompt").GetString().Should().Be("echo hello");
+        result.RepairHint.Should().Contain("unquoted value");
+    }
+
+    /// <summary>
+    /// 日志真实场景: {prompt:echo hello,enableWorktreeIsolation:true}
+    /// 带空格值 + bool 字面量混合,PowerShell 引号剥落后 jcc 应能自动修复
+    /// </summary>
+    [Fact]
+    public void RepairJson_UnquotedValueWithSpaces_MixedWithBoolLiteral_AddsQuotes()
+    {
+        var result = ToolCallRepairService.RepairJson("""{prompt:echo hello,enableWorktreeIsolation:true}""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("prompt").GetString().Should().Be("echo hello");
+        parsed.RootElement.GetProperty("enableWorktreeIsolation").GetBoolean().Should().BeTrue();
+    }
+
+    /// <summary>
+    /// 带空格值 + 多对 key:value,每对的值都含空格
+    /// </summary>
+    [Fact]
+    public void RepairJson_UnquotedValueWithSpaces_MultiplePairs_AddsQuotes()
+    {
+        var result = ToolCallRepairService.RepairJson("""{prompt:echo hello world,name:test agent}""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("prompt").GetString().Should().Be("echo hello world");
+        parsed.RootElement.GetProperty("name").GetString().Should().Be("test agent");
+    }
+
+    /// <summary>
+    /// 带空格值后紧跟嵌套对象 — 确保激进收集在遇到 { 时停止,不吞掉嵌套结构
+    /// </summary>
+    [Fact]
+    public void RepairJson_UnquotedValueWithSpaces_BeforeNestedObject_AddsQuotes()
+    {
+        var result = ToolCallRepairService.RepairJson("""{prompt:echo hello,options:{verbose:true}}""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("prompt").GetString().Should().Be("echo hello");
+        parsed.RootElement.GetProperty("options").GetProperty("verbose").GetBoolean().Should().BeTrue();
+    }
+
     #endregion
 
     #region StripOuterQuotes — 外层多余引号去除
@@ -953,6 +1011,145 @@ public sealed class ToolCallRepairServiceTests
         parsed.RootElement.GetProperty("path").GetString().Should().Be("D:\\test");
         parsed.RootElement.GetProperty("options").GetProperty("verbose").GetBoolean().Should().BeTrue();
         parsed.RootElement.GetProperty("options").GetProperty("count").GetInt32().Should().Be(3);
+    }
+
+    #endregion
+
+    #region SuggestToolNames — 工具名模糊匹配建议
+
+    /// <summary>
+    /// agent_launch 找不到时,应建议前缀匹配的 agent
+    /// </summary>
+    [Fact]
+    public void SuggestToolNames_AgentLaunch_SuggestsAgent()
+    {
+        var available = new[] { "agent", "agent_list", "agent_status", "bash", "read" };
+        var suggestions = ToolCallRepairService.SuggestToolNames("agent_launch", available);
+
+        suggestions.Should().NotBeEmpty();
+        suggestions.Should().Contain("agent");
+    }
+
+    /// <summary>
+    /// 大小写不同的精确匹配应排第一
+    /// </summary>
+    [Fact]
+    public void SuggestToolNames_ExactMatchDifferentCase_ReturnsFirst()
+    {
+        var available = new[] { "agent", "bash" };
+        var suggestions = ToolCallRepairService.SuggestToolNames("AGENT", available);
+
+        suggestions.Should().NotBeEmpty();
+        suggestions[0].Should().Be("agent");
+    }
+
+    /// <summary>
+    /// 无相似工具名时返回空列表
+    /// </summary>
+    [Fact]
+    public void SuggestToolNames_NoSimilar_ReturnsEmpty()
+    {
+        var available = new[] { "agent", "bash", "read" };
+        var suggestions = ToolCallRepairService.SuggestToolNames("zzzzzzz", available);
+
+        suggestions.Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// 拼写错误(编辑距离小)应通过编辑距离匹配建议
+    /// </summary>
+    [Fact]
+    public void SuggestToolNames_Typo_SuggestsByEditDistance()
+    {
+        var available = new[] { "agent", "bash", "read" };
+        var suggestions = ToolCallRepairService.SuggestToolNames("agetn", available);
+
+        suggestions.Should().Contain("agent");
+    }
+
+    /// <summary>
+    /// 空输入或空工具列表应返回空
+    /// </summary>
+    [Fact]
+    public void SuggestToolNames_EmptyInputOrTools_ReturnsEmpty()
+    {
+        ToolCallRepairService.SuggestToolNames("", new[] { "agent" }).Should().BeEmpty();
+        ToolCallRepairService.SuggestToolNames("agent", Array.Empty<string>()).Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// 建议数量应限制(最多 5 个),避免输出过长
+    /// </summary>
+    [Fact]
+    public void SuggestToolNames_LimitsToFiveSuggestions()
+    {
+        var available = new[] { "agent", "agent_list", "agent_status", "agent_stop", "agent_get_messages", "agent_running" };
+        var suggestions = ToolCallRepairService.SuggestToolNames("agent_xxx", available);
+
+        suggestions.Count.Should().BeLessThanOrEqualTo(5);
+    }
+
+    #endregion
+
+    #region BuildShellCallExamples — 跨 shell 调用示例
+
+    [Fact]
+    public void BuildShellCallExamples_ContainsAllShells()
+    {
+        var examples = ToolCallRepairService.BuildShellCallExamples("agent");
+
+        examples.Should().Contain("PowerShell");
+        examples.Should().Contain("Bash");
+        examples.Should().Contain("Cmd");
+        examples.Should().Contain("agent");
+        examples.Should().Contain("--%");
+    }
+
+    [Fact]
+    public void BuildShellCallExamples_ContainsToolName()
+    {
+        var examples = ToolCallRepairService.BuildShellCallExamples("my_tool");
+
+        examples.Should().Contain("my_tool");
+    }
+
+    #endregion
+
+    #region BuildShellQuoteHint — 引号被剥落的修正写法提示
+
+    /// <summary>
+    /// PowerShell 剥掉引号后的裸对象 {prompt:echo hello} 应触发引号转义提示
+    /// </summary>
+    [Fact]
+    public void BuildShellQuoteHint_StrippedJson_ReturnsHint()
+    {
+        var hint = ToolCallRepairService.BuildShellQuoteHint("{prompt:echo hello}");
+
+        hint.Should().NotBeNull();
+        hint.Should().Contain("PowerShell");
+        hint.Should().Contain("--%");
+    }
+
+    /// <summary>
+    /// 合法 JSON(有双引号)不应触发提示
+    /// </summary>
+    [Fact]
+    public void BuildShellQuoteHint_ValidJson_ReturnsNull()
+    {
+        var hint = ToolCallRepairService.BuildShellQuoteHint("{\"prompt\":\"hello\"}");
+
+        hint.Should().BeNull();
+    }
+
+    /// <summary>
+    /// 非 JSON(不以 { 开头)不应触发提示
+    /// </summary>
+    [Fact]
+    public void BuildShellQuoteHint_NoBrace_ReturnsNull()
+    {
+        var hint = ToolCallRepairService.BuildShellQuoteHint("not json");
+
+        hint.Should().BeNull();
     }
 
     #endregion

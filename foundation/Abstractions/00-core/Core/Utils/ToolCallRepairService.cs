@@ -305,11 +305,14 @@ internal static class ToolCallRepairService
     internal static string BuildShellCallExamples(string toolName, ToolSchema? schema = null)
     {
         var exampleJson = BuildExampleJson(schema);
+        var exampleKv = BuildExampleKeyValue(schema, toolName);
         return $$"""
-调用示例:
+调用示例 (JSON):
   PowerShell: jcc mcp_call {{toolName}} --% "{{exampleJson}}"
   Bash:       jcc mcp_call {{toolName}} '{{exampleJson}}'
   Cmd:        jcc mcp_call {{toolName}} "{{exampleJson}}"
+调用示例 (key=value):
+  All shells: jcc mcp_call {{exampleKv}}
 """;
     }
 
@@ -352,6 +355,48 @@ internal static class ToolCallRepairService
             "array" => "[]",
             "object" => "{}",
             _ => "\"<" + prop.Type + ">\"",
+        };
+    }
+
+    /// <summary>
+    /// 根据 ToolSchema 生成 key=value 格式示例参数 — 优先包含 required 参数
+    /// </summary>
+    private static string BuildExampleKeyValue(ToolSchema? schema, string toolName)
+    {
+        if (schema is null || schema.Properties.Count == 0)
+            return toolName + " key=value";
+
+        var keys = schema.Required.Count > 0
+            ? schema.Required
+            : schema.Properties.Keys.Take(3).ToList();
+
+        if (keys.Count == 0)
+            return toolName;
+
+        var parts = new List<string>(keys.Count);
+        foreach (var key in keys)
+        {
+            if (!schema.Properties.TryGetValue(key, out var prop))
+                continue;
+            parts.Add(key + "=" + BuildExampleKvValue(prop));
+        }
+        return parts.Count == 0 ? toolName : toolName + " " + string.Join(" ", parts);
+    }
+
+    /// <summary>
+    /// 根据 ToolSchemaProperty 类型生成 key=value 占位值（不带引号）
+    /// </summary>
+    private static string BuildExampleKvValue(ToolSchemaProperty prop)
+    {
+        if (prop.Enum is { Count: > 0 })
+            return prop.Enum[0];
+        return prop.Type switch
+        {
+            "integer" or "number" => "0",
+            "boolean" => "false",
+            "array" => "[]",
+            "object" => "{}",
+            _ => "<" + prop.Type + ">",
         };
     }
 

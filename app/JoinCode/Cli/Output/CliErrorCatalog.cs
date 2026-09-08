@@ -140,7 +140,7 @@ public static class CliErrorCatalog
     public static CliStructuredError ArgInvalidKeyValueFormat(string token, string detail) =>
         new("ARG_INVALID_KV_FORMAT",
             detail,
-            "使用 key=value 传递工具参数，如 pr_number=201",
+            "参数支持两种格式: key=value (如 pr_number=201) 或 JSON (如 {\"pr_number\":201})",
             retryable: false);
 
     // ── 工具类 (TOOL_) ──

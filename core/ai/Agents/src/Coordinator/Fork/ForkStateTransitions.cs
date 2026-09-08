@@ -7,25 +7,18 @@ namespace Core.Agents.Coordinator;
 /// </summary>
 public static class ForkStateTransitions
 {
-    private static readonly FrozenDictionary<ForkState, FrozenSet<ForkState>> Transitions =
-        new Dictionary<ForkState, FrozenSet<ForkState>>
-        {
-            [ForkState.Running] = new HashSet<ForkState>
-            {
-                ForkState.Completed,
-                ForkState.Failed,
-                ForkState.Cancelled
-            }.ToFrozenSet(),
-
-            [ForkState.Completed] = new HashSet<ForkState>
-            {
-                ForkState.Merged
-            }.ToFrozenSet(),
-
-            [ForkState.Merged] = FrozenSet<ForkState>.Empty,
-            [ForkState.Cancelled] = FrozenSet<ForkState>.Empty,
-            [ForkState.Failed] = FrozenSet<ForkState>.Empty
-        }.ToFrozenDictionary();
+    /// <summary>
+    /// 状态转换位掩码表 — 索引为 (int)ForkState，值为目标状态位掩码。
+    /// 替代 FrozenDictionary&lt;ForkState, FrozenSet&lt;ForkState&gt;&gt;，O(1) 数组索引 + 位运算无哈希查找。
+    /// </summary>
+    private static readonly int[] Transitions =
+    [
+        /* Running=0 */ BitMask.Of(ForkState.Completed, ForkState.Failed, ForkState.Cancelled),
+        /* Completed=1 */ BitMask.Of(ForkState.Merged),
+        /* Merged=2 */ 0,
+        /* Cancelled=3 */ 0,
+        /* Failed=4 */ 0
+    ];
 
     /// <summary>
     /// 是否可从 current 转换到 target — 自环合法（相同状态不触发转换）
@@ -40,7 +33,7 @@ public static class ForkStateTransitions
             return true;
         }
 
-        return Transitions.TryGetValue(current, out var targets) && targets.Contains(target);
+        return BitMask.Contains(Transitions[(int)current], target);
     }
 
     /// <summary>

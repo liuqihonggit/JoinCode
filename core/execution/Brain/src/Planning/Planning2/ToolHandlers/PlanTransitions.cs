@@ -7,33 +7,19 @@ namespace Core.Planning;
 /// </summary>
 public static class PlanStateTransitions
 {
-    private static readonly FrozenDictionary<PlanStatus, FrozenSet<PlanStatus>> Transitions =
-        new Dictionary<PlanStatus, FrozenSet<PlanStatus>>
-        {
-            [PlanStatus.Draft] = new HashSet<PlanStatus>
-            {
-                PlanStatus.AwaitingApproval,
-                PlanStatus.Executing,
-                PlanStatus.Cancelled
-            }.ToFrozenSet(),
-
-            [PlanStatus.AwaitingApproval] = new HashSet<PlanStatus>
-            {
-                PlanStatus.Executing,
-                PlanStatus.Cancelled
-            }.ToFrozenSet(),
-
-            [PlanStatus.Executing] = new HashSet<PlanStatus>
-            {
-                PlanStatus.Completed,
-                PlanStatus.Failed,
-                PlanStatus.Cancelled
-            }.ToFrozenSet(),
-
-            [PlanStatus.Completed] = FrozenSet<PlanStatus>.Empty,
-            [PlanStatus.Cancelled] = FrozenSet<PlanStatus>.Empty,
-            [PlanStatus.Failed] = FrozenSet<PlanStatus>.Empty
-        }.ToFrozenDictionary();
+    /// <summary>
+    /// 状态转换位掩码表 — 索引为 (int)PlanStatus，值为目标状态位掩码。
+    /// 替代 FrozenDictionary&lt;PlanStatus, FrozenSet&lt;PlanStatus&gt;&gt;，O(1) 数组索引 + 位运算无哈希查找。
+    /// </summary>
+    private static readonly int[] Transitions =
+    [
+        /* Draft=0 */ BitMask.Of(PlanStatus.AwaitingApproval, PlanStatus.Executing, PlanStatus.Cancelled),
+        /* AwaitingApproval=1 */ BitMask.Of(PlanStatus.Executing, PlanStatus.Cancelled),
+        /* Executing=2 */ BitMask.Of(PlanStatus.Completed, PlanStatus.Failed, PlanStatus.Cancelled),
+        /* Completed=3 */ 0,
+        /* Cancelled=4 */ 0,
+        /* Failed=5 */ 0
+    ];
 
     /// <summary>
     /// 是否可从 current 转换到 target — 自环合法
@@ -45,7 +31,7 @@ public static class PlanStateTransitions
             return true;
         }
 
-        return Transitions.TryGetValue(current, out var targets) && targets.Contains(target);
+        return BitMask.Contains(Transitions[(int)current], target);
     }
 
     /// <summary>
@@ -62,37 +48,20 @@ public static class PlanStateTransitions
 /// </summary>
 public static class PlanStepTransitions
 {
-    private static readonly FrozenDictionary<PlanStepStatus, FrozenSet<PlanStepStatus>> Transitions =
-        new Dictionary<PlanStepStatus, FrozenSet<PlanStepStatus>>
-        {
-            [PlanStepStatus.Pending] = new HashSet<PlanStepStatus>
-            {
-                PlanStepStatus.Approved,
-                PlanStepStatus.Rejected,
-                PlanStepStatus.Skipped
-            }.ToFrozenSet(),
-
-            [PlanStepStatus.Approved] = new HashSet<PlanStepStatus>
-            {
-                PlanStepStatus.Executing
-            }.ToFrozenSet(),
-
-            [PlanStepStatus.Rejected] = new HashSet<PlanStepStatus>
-            {
-                PlanStepStatus.Pending,
-                PlanStepStatus.Approved
-            }.ToFrozenSet(),
-
-            [PlanStepStatus.Executing] = new HashSet<PlanStepStatus>
-            {
-                PlanStepStatus.Completed,
-                PlanStepStatus.Failed
-            }.ToFrozenSet(),
-
-            [PlanStepStatus.Completed] = FrozenSet<PlanStepStatus>.Empty,
-            [PlanStepStatus.Failed] = FrozenSet<PlanStepStatus>.Empty,
-            [PlanStepStatus.Skipped] = FrozenSet<PlanStepStatus>.Empty
-        }.ToFrozenDictionary();
+    /// <summary>
+    /// 状态转换位掩码表 — 索引为 (int)PlanStepStatus，值为目标状态位掩码。
+    /// 替代 FrozenDictionary&lt;PlanStepStatus, FrozenSet&lt;PlanStepStatus&gt;&gt;，O(1) 数组索引 + 位运算无哈希查找。
+    /// </summary>
+    private static readonly int[] Transitions =
+    [
+        /* Pending=0 */ BitMask.Of(PlanStepStatus.Approved, PlanStepStatus.Rejected, PlanStepStatus.Skipped),
+        /* Approved=1 */ BitMask.Of(PlanStepStatus.Executing),
+        /* Rejected=2 */ BitMask.Of(PlanStepStatus.Pending, PlanStepStatus.Approved),
+        /* Executing=3 */ BitMask.Of(PlanStepStatus.Completed, PlanStepStatus.Failed),
+        /* Completed=4 */ 0,
+        /* Failed=5 */ 0,
+        /* Skipped=6 */ 0
+    ];
 
     /// <summary>
     /// 是否可从 current 转换到 target — 自环合法
@@ -104,7 +73,7 @@ public static class PlanStepTransitions
             return true;
         }
 
-        return Transitions.TryGetValue(current, out var targets) && targets.Contains(target);
+        return BitMask.Contains(Transitions[(int)current], target);
     }
 
     /// <summary>

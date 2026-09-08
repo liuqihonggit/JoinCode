@@ -96,10 +96,28 @@ public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCo
         "rm", "rmdir", "sed");
 
     /// <summary>
-    /// Shell 元字符 — 用于检测注入
+    /// Shell 元字符位掩码 — 用于检测注入。128 位覆盖 ASCII 0-127，分高低两个 ulong。
+    /// 替代原 FrozenSet&lt;char&gt;，O(1) 位运算无哈希查找、无内存访问。
+    /// 低 64 位 (char 0-63): \n \r ! # $ &amp; ; &lt; &gt;
+    /// 高 64 位 (char 64-127): ` \ { | }
     /// </summary>
-    private static readonly FrozenSet<char> ShellMetacharacters = FrozenSet.Create(
-        '<', '>', '$', '`', '{', '}', '&', ';', '|', '#', '\\', '!', '\n', '\r');
+    private const ulong ShellMetaLowMask =
+        (1UL << '\n') | (1UL << '\r') | (1UL << '!') | (1UL << '#') |
+        (1UL << '$') | (1UL << '&') | (1UL << ';') | (1UL << '<') | (1UL << '>');
+    private const ulong ShellMetaHighMask =
+        (1UL << ('`' - 64)) | (1UL << ('\\' - 64)) | (1UL << ('{' - 64)) |
+        (1UL << ('|' - 64)) | (1UL << ('}' - 64));
+
+    /// <summary>
+    /// 判断字符是否为 Shell 元字符 — 位掩码 O(1) 查找，替代 FrozenSet&lt;char&gt;.Contains
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsShellMetacharacter(char c)
+    {
+        if (c < 64) return BitMask.Contains64(ShellMetaLowMask, c);
+        if (c < 128) return BitMask.Contains64(ShellMetaHighMask, c - 64);
+        return false;
+    }
 
     public bool IsReadOnly(ShellCommand command)
     {
@@ -470,7 +488,7 @@ public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCo
             if (c == '"' && !inSingleQuote) { inDoubleQuote = !inDoubleQuote; continue; }
             if (inSingleQuote || inDoubleQuote) continue;
 
-            if (ShellMetacharacters.Contains(c)) return true;
+            if (IsShellMetacharacter(c)) return true;
         }
 
         return false;

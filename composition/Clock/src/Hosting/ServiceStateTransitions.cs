@@ -7,38 +7,18 @@ namespace Core.Hosting;
 /// </summary>
 public static class ServiceStateTransitions
 {
-    private static readonly FrozenDictionary<ServiceStatus, FrozenSet<ServiceStatus>> Transitions =
-        new Dictionary<ServiceStatus, FrozenSet<ServiceStatus>>
-        {
-            [ServiceStatus.Stopped] = new HashSet<ServiceStatus>
-            {
-                ServiceStatus.Starting
-            }.ToFrozenSet(),
-
-            [ServiceStatus.Starting] = new HashSet<ServiceStatus>
-            {
-                ServiceStatus.Running,
-                ServiceStatus.Failed
-            }.ToFrozenSet(),
-
-            [ServiceStatus.Running] = new HashSet<ServiceStatus>
-            {
-                ServiceStatus.Stopping,
-                ServiceStatus.Failed
-            }.ToFrozenSet(),
-
-            [ServiceStatus.Stopping] = new HashSet<ServiceStatus>
-            {
-                ServiceStatus.Stopped,
-                ServiceStatus.Failed
-            }.ToFrozenSet(),
-
-            [ServiceStatus.Failed] = new HashSet<ServiceStatus>
-            {
-                ServiceStatus.Starting,
-                ServiceStatus.Stopped
-            }.ToFrozenSet()
-        }.ToFrozenDictionary();
+    /// <summary>
+    /// 状态转换位掩码表 — 索引为 (int)ServiceStatus，值为目标状态位掩码。
+    /// 替代 FrozenDictionary&lt;ServiceStatus, FrozenSet&lt;ServiceStatus&gt;&gt;，O(1) 数组索引 + 位运算无哈希查找。
+    /// </summary>
+    private static readonly int[] Transitions =
+    [
+        /* Stopped=0 */ BitMask.Of(ServiceStatus.Starting),
+        /* Starting=1 */ BitMask.Of(ServiceStatus.Running, ServiceStatus.Failed),
+        /* Running=2 */ BitMask.Of(ServiceStatus.Stopping, ServiceStatus.Failed),
+        /* Stopping=3 */ BitMask.Of(ServiceStatus.Stopped, ServiceStatus.Failed),
+        /* Failed=4 */ BitMask.Of(ServiceStatus.Starting, ServiceStatus.Stopped)
+    ];
 
     /// <summary>
     /// 是否可从 current 转换到 target — 自环合法
@@ -50,7 +30,7 @@ public static class ServiceStateTransitions
             return true;
         }
 
-        return Transitions.TryGetValue(current, out var targets) && targets.Contains(target);
+        return BitMask.Contains(Transitions[(int)current], target);
     }
 
     /// <summary>

@@ -7,27 +7,19 @@ namespace Core.Agents.Doctor;
 /// </summary>
 public static class PatientStateTransitions
 {
-    private static readonly FrozenDictionary<PatientState, FrozenSet<PatientState>> Transitions =
-        new Dictionary<PatientState, FrozenSet<PatientState>>
-        {
-            [PatientState.NotStarted] = new HashSet<PatientState>
-            {
-                PatientState.Running
-            }.ToFrozenSet(),
-
-            [PatientState.Running] = new HashSet<PatientState>
-            {
-                PatientState.Completed,
-                PatientState.Failed,
-                PatientState.Hung,
-                PatientState.Killed
-            }.ToFrozenSet(),
-
-            [PatientState.Completed] = FrozenSet<PatientState>.Empty,
-            [PatientState.Failed] = FrozenSet<PatientState>.Empty,
-            [PatientState.Hung] = FrozenSet<PatientState>.Empty,
-            [PatientState.Killed] = FrozenSet<PatientState>.Empty
-        }.ToFrozenDictionary();
+    /// <summary>
+    /// 状态转换位掩码表 — 索引为 (int)PatientState，值为目标状态位掩码。
+    /// 替代 FrozenDictionary&lt;PatientState, FrozenSet&lt;PatientState&gt;&gt;，O(1) 数组索引 + 位运算无哈希查找。
+    /// </summary>
+    private static readonly int[] Transitions =
+    [
+        /* NotStarted=0 */ BitMask.Of(PatientState.Running),
+        /* Running=1 */ BitMask.Of(PatientState.Completed, PatientState.Failed, PatientState.Hung, PatientState.Killed),
+        /* Completed=2 */ 0,
+        /* Failed=3 */ 0,
+        /* Hung=4 */ 0,
+        /* Killed=5 */ 0
+    ];
 
     /// <summary>
     /// 是否可从 current 转换到 target — 自环合法
@@ -39,7 +31,7 @@ public static class PatientStateTransitions
             return true;
         }
 
-        return Transitions.TryGetValue(current, out var targets) && targets.Contains(target);
+        return BitMask.Contains(Transitions[(int)current], target);
     }
 
     /// <summary>

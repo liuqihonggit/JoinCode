@@ -1,0 +1,612 @@
+name: CI E2E Tests
+
+on:
+  workflow_call:
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: true
+  NUGET_XMLDOC_MODE: skip
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+  Configuration: Release
+
+jobs:
+  e2e-conversation:
+    name: E2E - Conversation
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: ./.github/actions/setup-test-env
+      - name: E2E Tests
+        run: >
+          dotnet test tests/MockServers/MockServer.E2E.Tests/MockServer.E2E.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "FullyQualifiedName~DualRoleConversationTests"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=e2e-conversation.trx"
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-results-conversation
+          path: '**/e2e-conversation.trx'
+          retention-days: 7
+
+  e2e-multi-provider:
+    name: E2E - MultiProvider + Concurrent
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: ./.github/actions/setup-test-env
+      - name: E2E Tests
+        run: >
+          dotnet test tests/MockServers/MockServer.E2E.Tests/MockServer.E2E.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "FullyQualifiedName~MultiProviderE2ETests|FullyQualifiedName~AnthropicDeepCoverageE2ETests|FullyQualifiedName~ConcurrentRequestE2ETests"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=e2e-multi-provider.trx"
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-results-multi-provider
+          path: '**/e2e-multi-provider.trx'
+          retention-days: 7
+
+  e2e-file-tools:
+    name: E2E - File/Search/Shell/Extended
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: ./.github/actions/setup-test-env
+      - name: E2E Tests
+        run: >
+          dotnet test tests/MockServers/MockServer.E2E.Tests/MockServer.E2E.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "FullyQualifiedName~FileToolCoverageTests|FullyQualifiedName~SearchToolCoverageTests|FullyQualifiedName~ShellGitToolCoverageTests|FullyQualifiedName~ExtendedToolCoverageTests"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=e2e-file-tools.trx"
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-results-file-tools
+          path: '**/e2e-file-tools.trx'
+          retention-days: 7
+
+  e2e-agent-tools:
+    name: E2E - Agent/Batch/Task/AST
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: ./.github/actions/setup-test-env
+      - name: E2E Tests
+        run: >
+          dotnet test tests/MockServers/MockServer.E2E.Tests/MockServer.E2E.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "FullyQualifiedName~AgentToolCoverageTests|FullyQualifiedName~BatchToolCoverageTests|FullyQualifiedName~TaskToolCoverageTests|FullyQualifiedName~AstIntegrationTests"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=e2e-agent-tools.trx"
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-results-agent-tools
+          path: '**/e2e-agent-tools.trx'
+          retention-days: 7
+
+  e2e-chatcmd-basic:
+    name: E2E - ChatCmd Basic
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: ./.github/actions/setup-test-env
+      - name: E2E Tests
+        run: >
+          dotnet test tests/MockServers/MockServer.E2E.Tests/MockServer.E2E.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "FullyQualifiedName~ChatCommandBasicCoverageTests"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=e2e-chatcmd-basic.trx"
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-results-chatcmd-basic
+          path: '**/e2e-chatcmd-basic.trx'
+          retention-days: 7
+
+  e2e-chatcmd-code-a1:
+    name: E2E - ChatCmd Code A1
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: ./.github/actions/setup-test-env
+      - name: E2E Tests
+        run: >
+          dotnet test tests/MockServers/MockServer.E2E.Tests/MockServer.E2E.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "FullyQualifiedName~ChatCommandCodeCoverageTests&(FullyQualifiedName~ReviewCommand_ShouldReviewCode|FullyQualifiedName~DiffFilesCommand_ShouldListChangedFiles|FullyQualifiedName~FilesCommand_ShouldListFiles|FullyQualifiedName~ExecuteCommand_ShouldExecuteCode|FullyQualifiedName~AnalyzeCommand_ShouldAnalyzeCode|FullyQualifiedName~AddDirCommand_ShouldAddDirectory)"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=e2e-chatcmd-code-a1.trx"
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-results-chatcmd-code-a1
+          path: '**/e2e-chatcmd-code-a1.trx'
+          retention-days: 7
+
+  e2e-chatcmd-code-a2:
+    name: E2E - ChatCmd Code A2
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: ./.github/actions/setup-test-env
+      - name: E2E Tests
+        run: >
+          dotnet test tests/MockServers/MockServer.E2E.Tests/MockServer.E2E.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "FullyQualifiedName~ChatCommandCodeCoverageTests&(FullyQualifiedName~SecurityReviewCommand_ShouldReviewSecurity|FullyQualifiedName~CommitCommand_ShouldShowCommitInfo|FullyQualifiedName~WorktreeCommand_ShouldListWorktrees|FullyQualifiedName~ThemeCommand_ShouldSetTheme|FullyQualifiedName~ColorCommand_ShouldShowColorTest)"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=e2e-chatcmd-code-a2.trx"
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-results-chatcmd-code-a2
+          path: '**/e2e-chatcmd-code-a2.trx'
+          retention-days: 7
+
+  e2e-chatcmd-code-b1:
+    name: E2E - ChatCmd Code B1
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: ./.github/actions/setup-test-env
+      - name: E2E Tests
+        run: >
+          dotnet test tests/MockServers/MockServer.E2E.Tests/MockServer.E2E.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "FullyQualifiedName~ChatCommandCodeCoverageTests&(FullyQualifiedName~VimCommand_ShouldToggleVimMode|FullyQualifiedName~EnvCommand_ShouldShowEnvVars|FullyQualifiedName~SandboxToggleCommand_ShouldShowStatus|FullyQualifiedName~PermissionsCommand_ShouldListPermissions|FullyQualifiedName~InitCommand_ShouldQuickInit|FullyQualifiedName~DoctorCommand_ShouldNotHang)"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=e2e-chatcmd-code-b1.trx"
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-results-chatcmd-code-b1
+          path: '**/e2e-chatcmd-code-b1.trx'
+          retention-days: 7
+
+  e2e-chatcmd-code-b2:
+    name: E2E - ChatCmd Code B2
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: ./.github/actions/setup-test-env
+      - name: E2E Tests
+        run: >
+          dotnet test tests/MockServers/MockServer.E2E.Tests/MockServer.E2E.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "FullyQualifiedName~ChatCommandCodeCoverageTests&(FullyQualifiedName~StatusCommand_ShouldShowStatus|FullyQualifiedName~UsageCommand_ShouldShowUsage|FullyQualifiedName~InsightsCommand_ShouldShowStats|FullyQualifiedName~ReleaseNotesCommand_ShouldShowNotes|FullyQualifiedName~ContextCommand_ShouldShowContext)"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=e2e-chatcmd-code-b2.trx"
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-results-chatcmd-code-b2
+          path: '**/e2e-chatcmd-code-b2.trx'
+          retention-days: 7
+
+  e2e-chatcmd-extended:
+    name: E2E - ChatCmd Extended
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: ./.github/actions/setup-test-env
+      - name: E2E Tests
+        run: >
+          dotnet test tests/MockServers/MockServer.E2E.Tests/MockServer.E2E.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "FullyQualifiedName~ChatCommandExtendedCoverageTests"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=e2e-chatcmd-extended.trx"
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-results-chatcmd-extended
+          path: '**/e2e-chatcmd-extended.trx'
+          retention-days: 7
+
+  e2e-chatcmd-auth:
+    name: E2E - ChatCmd Auth/Export
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: ./.github/actions/setup-test-env
+      - name: E2E Tests
+        run: >
+          dotnet test tests/MockServers/MockServer.E2E.Tests/MockServer.E2E.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "FullyQualifiedName~ChatCommandAuthExportCoverageTests"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=e2e-chatcmd-auth.trx"
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-results-chatcmd-auth
+          path: '**/e2e-chatcmd-auth.trx'
+          retention-days: 7
+
+  e2e-errors-permission:
+    name: E2E - ErrorRecovery + Permission
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: ./.github/actions/setup-test-env
+      - name: E2E Tests
+        run: >
+          dotnet test tests/MockServers/MockServer.E2E.Tests/MockServer.E2E.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "FullyQualifiedName~ApiErrorRecoveryE2ETests|FullyQualifiedName~StreamInterruptionE2ETests|FullyQualifiedName~PermissionDenialE2ETests"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=e2e-errors-permission.trx"
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-results-errors-permission
+          path: '**/e2e-errors-permission.trx'
+          retention-days: 7
+
+  e2e-mcp-smoke:
+    name: E2E - MCP + Sync + CodeIndex + Smoke
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: ./.github/actions/setup-test-env
+      - name: E2E - MCP Integration
+        run: >
+          dotnet test tests/MockServers/MockServer.E2E.Tests/MockServer.E2E.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "FullyQualifiedName~McpIntegrationTests|FullyQualifiedName~McpProtocolE2ETests"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=e2e-mcp.trx"
+      - name: E2E - Sync Integration
+        run: >
+          dotnet test tests/MockServers/Sync.Integration.Tests/Sync.Integration.Tests.csproj
+          -c Release --no-build --nologo
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=e2e-sync.trx"
+      - name: E2E - CodeIndex
+        run: >
+          dotnet test core/search/CodeIndex/tests/E2E/CodeIndex.E2E.Tests.csproj
+          -c Release --no-build --nologo
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=e2e-codeindex.trx"
+      - name: E2E - Smoke Test (skip MCP)
+        if: always()
+        shell: pwsh
+        run: |
+          $config = (Get-Content smoke-test.json -Raw | ConvertFrom-Json).ci
+          $awaitSec = $config.awaitSeconds
+          $waitMs = $config.waitForExitMs
+          Write-Host "Smoke Test config (ci): await=${awaitSec}s, waitForExit=${waitMs}ms - $($config.description)"
+
+          $mockServerExe = Get-ChildItem -Path artifacts/bin/OpenAI.MockServer -Recurse -Filter "JoinCode.OpenAI.MockServer.exe" | Select-Object -First 1
+          $jccExe = Get-ChildItem -Path artifacts/bin/JoinCode -Recurse -Filter "jcc.exe" | Where-Object { $_.DirectoryName -notlike "*E2E*" -and $_.DirectoryName -notlike "*Tests*" } | Select-Object -First 1
+
+          if (-not $mockServerExe) { Write-Host "MockServer exe not found" -ForegroundColor Red; exit 1 }
+          if (-not $jccExe) { Write-Host "jcc.exe not found" -ForegroundColor Red; exit 1 }
+
+          $mockServerExe = $mockServerExe.FullName
+          $jccExe = $jccExe.FullName
+          Write-Host "MockServer: $mockServerExe"
+          Write-Host "jcc: $jccExe"
+
+          $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
+          $listener.Start()
+          $port = ($listener.LocalEndpoint).Port
+          $listener.Stop()
+          Write-Host "Dynamic port: $port"
+
+          $mockServer = Start-Process -FilePath $mockServerExe -ArgumentList "--port $port" -PassThru -NoNewWindow
+
+          $ready = $false
+          for ($i = 0; $i -lt 15; $i++) {
+            Start-Sleep -Seconds 1
+            try {
+              Invoke-RestMethod -Uri "http://localhost:$port/" -Method Get -TimeoutSec 2 -ErrorAction SilentlyContinue | Out-Null
+              $ready = $true
+              Write-Host "MockServer ready (waited $($i+1)s)" -ForegroundColor Green
+              break
+            } catch {}
+          }
+
+          if (-not $ready) {
+            Write-Host "MockServer failed to start within 15s" -ForegroundColor Red
+            if (-not $mockServer.HasExited) { $mockServer.Kill() }
+            exit 1
+          }
+
+          try {
+            $stateDir = Join-Path $env:TEMP "jcc_smoke_skipmcp_$([System.Guid]::NewGuid().ToString('N'))"
+            New-Item -ItemType Directory -Path $stateDir -Force | Out-Null
+            $settingsJson = '{"vendor":{"openai":{"protocol":"openai-compatible","apiKeyEnvVar":"OPENAI_API_KEY","models":[{"id":"gpt-4o","displayName":"GPT-4o","capabilities":{"modalities":["text"]}},{"id":"gpt-4o-mini","displayName":"GPT-4o Mini","capabilities":{"modalities":["text"]}}]},"anthropic":{"protocol":"anthropic","apiKeyEnvVar":"ANTHROPIC_API_KEY","models":[{"id":"claude-sonnet-4-20250514","displayName":"Claude Sonnet 4","capabilities":{"modalities":["text"]}}]},"deepseek":{"protocol":"openai-compatible","apiKeyEnvVar":"DEEPSEEK_API_KEY","models":[{"id":"deepseek-v4-flash","displayName":"DeepSeek V4 Flash","capabilities":{"modalities":["text"]}}]}}}'
+            [System.IO.File]::WriteAllText((Join-Path $stateDir "settings.json"), $settingsJson)
+
+            $psi = [System.Diagnostics.ProcessStartInfo]::new()
+            $psi.FileName = Resolve-Path $jccExe
+            $psi.Arguments = "--trust -p `"hello`" --await $awaitSec"
+            $psi.EnvironmentVariables["JCC_ENDPOINT"] = "http://localhost:$port"
+            $psi.EnvironmentVariables["OPENAI_API_KEY"] = "sk-test-ci-key"
+            $psi.EnvironmentVariables["JCC_VENDOR"] = "openai"
+            $psi.EnvironmentVariables["JCC_MODEL_ID"] = "gpt-4o"
+            $psi.EnvironmentVariables["JCC_SKIP_MCP_INIT"] = "1"
+            $psi.EnvironmentVariables["JCC_SKIP_PLUGIN_SKILLS"] = "1"
+            $psi.EnvironmentVariables["JCC_APP_DATA_FOLDER"] = $stateDir
+            $psi.UseShellExecute = $false
+            $psi.RedirectStandardOutput = $true
+            $psi.RedirectStandardError = $true
+            $psi.StandardOutputEncoding = [System.Text.Encoding]::UTF8
+            $psi.StandardErrorEncoding = [System.Text.Encoding]::UTF8
+            $psi.WorkingDirectory = $env:GITHUB_WORKSPACE
+
+            $jcc = [System.Diagnostics.Process]::Start($psi)
+            $stdoutTask = $jcc.StandardOutput.ReadToEndAsync()
+            $stderrTask = $jcc.StandardError.ReadToEndAsync()
+            $exited = $jcc.WaitForExit($waitMs)
+
+            if (-not $exited) {
+              Write-Host "FAIL: jcc.exe timed out ($($waitMs/1000)s)" -ForegroundColor Red
+              $jcc.Kill()
+              exit 1
+            }
+
+            $stdout = $stdoutTask.Result
+            $stderr = $stderrTask.Result
+            $exitCode = $jcc.ExitCode
+
+            Write-Host "jcc.exe exit code: $exitCode"
+            Write-Host "stdout (first 2000 chars): $($stdout.Substring(0, [Math]::Min(2000, $stdout.Length)))"
+            if ($stderr) {
+              Write-Host "stderr (first 5000 chars): $($stderr.Substring(0, [Math]::Min(5000, $stderr.Length)))"
+            }
+
+            if ($exitCode -eq 1234) {
+              Write-Host "FAIL: jcc.exe await timer expired (exit 1234)" -ForegroundColor Red
+              exit 1
+            }
+            if ($exitCode -ne 0) {
+              Write-Host "FAIL: jcc.exe exited with code $exitCode" -ForegroundColor Red
+              exit 1
+            }
+
+            Write-Host "PASS: jcc.exe smoke test (skip MCP)" -ForegroundColor Green
+          }
+          finally {
+            try {
+              Invoke-RestMethod -Uri "http://localhost:9901/shutdown" -Method Get -TimeoutSec 3 -ErrorAction SilentlyContinue | Out-Null
+            } catch {}
+            Start-Sleep -Seconds 2
+            if (-not $mockServer.HasExited) { $mockServer.Kill() }
+          }
+
+      - name: E2E - Smoke Test (full)
+        if: always()
+        shell: pwsh
+        run: |
+          $config = (Get-Content smoke-test.json -Raw | ConvertFrom-Json).ci
+          $awaitSec = $config.awaitSeconds
+          $waitMs = $config.waitForExitMs
+          Write-Host "Smoke Test config (ci): await=${awaitSec}s, waitForExit=${waitMs}ms - $($config.description)"
+
+          $mockServerExe = Get-ChildItem -Path artifacts/bin/OpenAI.MockServer -Recurse -Filter "JoinCode.OpenAI.MockServer.exe" | Select-Object -First 1
+          $jccExe = Get-ChildItem -Path artifacts/bin/JoinCode -Recurse -Filter "jcc.exe" | Where-Object { $_.DirectoryName -notlike "*E2E*" -and $_.DirectoryName -notlike "*Tests*" } | Select-Object -First 1
+
+          if (-not $mockServerExe) { Write-Host "MockServer exe not found" -ForegroundColor Red; exit 1 }
+          if (-not $jccExe) { Write-Host "jcc.exe not found" -ForegroundColor Red; exit 1 }
+
+          $mockServerExe = $mockServerExe.FullName
+          $jccExe = $jccExe.FullName
+          Write-Host "MockServer: $mockServerExe"
+          Write-Host "jcc: $jccExe"
+
+          $listener2 = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
+          $listener2.Start()
+          $port = ($listener2.LocalEndpoint).Port
+          $listener2.Stop()
+          Write-Host "Dynamic port: $port"
+
+          $mockServer = Start-Process -FilePath $mockServerExe -ArgumentList "--port $port" -PassThru -NoNewWindow
+
+          $ready = $false
+          for ($i = 0; $i -lt 15; $i++) {
+            Start-Sleep -Seconds 1
+            try {
+              Invoke-RestMethod -Uri "http://localhost:$port/" -Method Get -TimeoutSec 2 -ErrorAction SilentlyContinue | Out-Null
+              $ready = $true
+              Write-Host "MockServer ready (waited $($i+1)s)" -ForegroundColor Green
+              break
+            } catch {}
+          }
+
+          if (-not $ready) {
+            Write-Host "MockServer failed to start within 15s" -ForegroundColor Red
+            if (-not $mockServer.HasExited) { $mockServer.Kill() }
+            exit 1
+          }
+
+          try {
+            $stateDir = Join-Path $env:TEMP "jcc_smoke_full_$([System.Guid]::NewGuid().ToString('N'))"
+            New-Item -ItemType Directory -Path $stateDir -Force | Out-Null
+            $settingsJson = '{"vendor":{"openai":{"protocol":"openai-compatible","apiKeyEnvVar":"OPENAI_API_KEY","models":[{"id":"gpt-4o","displayName":"GPT-4o","capabilities":{"modalities":["text"]}},{"id":"gpt-4o-mini","displayName":"GPT-4o Mini","capabilities":{"modalities":["text"]}}]},"anthropic":{"protocol":"anthropic","apiKeyEnvVar":"ANTHROPIC_API_KEY","models":[{"id":"claude-sonnet-4-20250514","displayName":"Claude Sonnet 4","capabilities":{"modalities":["text"]}}]},"deepseek":{"protocol":"openai-compatible","apiKeyEnvVar":"DEEPSEEK_API_KEY","models":[{"id":"deepseek-v4-flash","displayName":"DeepSeek V4 Flash","capabilities":{"modalities":["text"]}}]}}}'
+            [System.IO.File]::WriteAllText((Join-Path $stateDir "settings.json"), $settingsJson)
+
+            $psi = [System.Diagnostics.ProcessStartInfo]::new()
+            $psi.FileName = Resolve-Path $jccExe
+            $psi.Arguments = "--trust -p `"hello`" --await $awaitSec"
+            $psi.EnvironmentVariables["JCC_ENDPOINT"] = "http://localhost:$port"
+            $psi.EnvironmentVariables["OPENAI_API_KEY"] = "sk-test-ci-key"
+            $psi.EnvironmentVariables["JCC_VENDOR"] = "openai"
+            $psi.EnvironmentVariables["JCC_MODEL_ID"] = "gpt-4o"
+            $psi.EnvironmentVariables["JCC_APP_DATA_FOLDER"] = $stateDir
+            $psi.UseShellExecute = $false
+            $psi.RedirectStandardOutput = $true
+            $psi.RedirectStandardError = $true
+            $psi.StandardOutputEncoding = [System.Text.Encoding]::UTF8
+            $psi.StandardErrorEncoding = [System.Text.Encoding]::UTF8
+            $psi.WorkingDirectory = $env:GITHUB_WORKSPACE
+
+            $jcc = [System.Diagnostics.Process]::Start($psi)
+            $stdoutTask = $jcc.StandardOutput.ReadToEndAsync()
+            $stderrTask = $jcc.StandardError.ReadToEndAsync()
+            $exited = $jcc.WaitForExit($waitMs)
+
+            if (-not $exited) {
+              Write-Host "FAIL: jcc.exe timed out ($($waitMs/1000)s)" -ForegroundColor Red
+              $jcc.Kill()
+              exit 1
+            }
+
+            $stdout = $stdoutTask.Result
+            $stderr = $stderrTask.Result
+            $exitCode = $jcc.ExitCode
+
+            Write-Host "jcc.exe exit code: $exitCode"
+            Write-Host "stdout (first 2000 chars): $($stdout.Substring(0, [Math]::Min(2000, $stdout.Length)))"
+            if ($stderr) {
+              Write-Host "stderr (first 5000 chars): $($stderr.Substring(0, [Math]::Min(5000, $stderr.Length)))"
+              $stderrFile = Join-Path $env:GITHUB_WORKSPACE ".xxx" "jcc_full_stderr.txt"
+              if (-not (Test-Path (Split-Path $stderrFile -Parent))) { New-Item -ItemType Directory -Path (Split-Path $stderrFile -Parent) -Force | Out-Null }
+              [System.IO.File]::WriteAllText($stderrFile, $stderr)
+              Write-Host "Full stderr written to $stderrFile ($($stderr.Length) chars)"
+            }
+
+            if ($exitCode -eq 1234) {
+              Write-Host "FAIL: jcc.exe await timer expired (exit 1234)" -ForegroundColor Red
+              exit 1
+            }
+            if ($exitCode -ne 0) {
+              Write-Host "FAIL: jcc.exe exited with code $exitCode" -ForegroundColor Red
+              exit 1
+            }
+
+            Write-Host "PASS: jcc.exe smoke test (full)" -ForegroundColor Green
+          }
+          finally {
+            try {
+              Invoke-RestMethod -Uri "http://localhost:9902/shutdown" -Method Get -TimeoutSec 3 -ErrorAction SilentlyContinue | Out-Null
+            } catch {}
+            Start-Sleep -Seconds 2
+            if (-not $mockServer.HasExited) { $mockServer.Kill() }
+          }
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-results-mcp-smoke
+          path: |
+            **/e2e-mcp.trx
+            **/e2e-sync.trx
+            **/e2e-codeindex.trx
+            .xxx/jcc_full_stderr.txt
+          retention-days: 7
+
+  e2e-cluster:
+    name: E2E - Cluster
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: ./.github/actions/setup-test-env
+      - name: E2E - Cluster Integration
+        run: >
+          dotnet test tests/MockServers/MockServer.E2E.Tests/MockServer.E2E.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "FullyQualifiedName~ClusterE2ETests"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=e2e-cluster.trx"
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-results-cluster
+          path: |
+            **/e2e-cluster.trx
+          retention-days: 7

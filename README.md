@@ -400,13 +400,16 @@ See [docs/adr/README.md](docs/adr/README.md) for all 40+ ADRs.
 
 ### CI Pipeline
 
-The CI workflow (`.github/workflows/ci.yml`) runs on PRs to `main`:
+CI is split into reusable workflows under `.github/workflows/` (PR → `main`):
 
-1. **Build** — 7-layer ordered build + component test projects + satellite projects
-2. **Unit Tests** (5 parallel groups) — 33 test projects, `--filter "Category!=Integration&Category!=Benchmark"`
-3. **Integration Tests** — `Integration.Tests` (64 .cs) + App.slnx filter groups (Brain/Clock, Guard/Vault, Hands/Host/Mcp, PrefixCache)
-4. **E2E Tests** (14 parallel jobs) — MockServer.E2E.Tests + Sync.Integration.Tests + CodeIndex.E2E.Tests + smoke tests
-5. **Mutation Testing** — Stryker.NET, scheduled daily (`.github/workflows/mutation-testing.yml`)
+| Workflow | Jobs | Description |
+|----------|------|-------------|
+| `ci.yml` | 4 | Main entry — calls sub-workflows |
+| `ci-build.yml` | 1 | 7-layer ordered build + component tests + satellite projects |
+| `ci-unit-tests.yml` | 40 (matrix) | Each csproj = 1 independent job, `--filter "Category!=Integration&Category!=Benchmark"` |
+| `ci-integration.yml` | 5 | `Integration.Tests` (64 .cs) + App.slnx filter groups (Brain/Clock, Guard/Vault, Hands/Host/Mcp, PrefixCache) |
+| `ci-e2e.yml` | 14 | MockServer.E2E.Tests + Sync.Integration.Tests + CodeIndex.E2E.Tests + smoke tests |
+| `mutation-testing.yml` | matrix | Stryker.NET, scheduled daily |
 
 ---
 

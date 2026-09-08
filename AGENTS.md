@@ -469,15 +469,18 @@ chcp 65001
 
 ## CI 流水线
 
-`.github/workflows/ci.yml`（PR → main 触发）：
+CI 拆分为可复用 workflow（PR → main 触发）：
 
-1. **Build** — 七层有序编译 + 组件测试项目 + 卫星项目
-2. **Unit Tests**（5 组并行）— 33 个测试项目，`--filter "Category!=Integration&Category!=Benchmark"`
-3. **Integration Tests** — `Integration.Tests`（64 .cs）+ App.slnx filter 分组（Brain/Clock, Guard/Vault, Hands/Host/Mcp, PrefixCache）
-4. **E2E Tests**（14 组并行）— MockServer.E2E.Tests + Sync.Integration.Tests + CodeIndex.E2E.Tests + smoke tests
-5. **Mutation Testing** — Stryker.NET，每日定时（`.github/workflows/mutation-testing.yml`）
+| Workflow | Jobs | 说明 |
+|----------|------|------|
+| `ci.yml` | 4 | 主入口，调用子 workflow |
+| `ci-build.yml` | 1 | 七层有序编译 + 组件测试项目 + 卫星项目 |
+| `ci-unit-tests.yml` | 40 (matrix) | 每个 csproj 独立 job，`--filter "Category!=Integration&Category!=Benchmark"` |
+| `ci-integration.yml` | 5 | `Integration.Tests`（64 .cs）+ App.slnx filter 分组 |
+| `ci-e2e.yml` | 14 | MockServer.E2E + Sync.Integration + CodeIndex.E2E + smoke tests |
+| `mutation-testing.yml` | matrix | Stryker.NET，每日定时 |
 
-> 注：`tests/Unit/Mcp.Tests`（ToolInterventionManagerTest）和 `tests/Unit/McpToolDispatch.Tests`（ToolHealthMonitor/Scorer/Template/ScoreDebug）有独特测试类，已加入 JoinCode.slnx + CI unit-test-group-5
+> 注：`tests/Unit/Mcp.Tests`（ToolInterventionManagerTest）和 `tests/Unit/McpToolDispatch.Tests`（ToolHealthMonitor/Scorer/Template/ScoreDebug）有独特测试类，已加入 JoinCode.slnx + CI unit-tests matrix
 
 ## 关键约束
 

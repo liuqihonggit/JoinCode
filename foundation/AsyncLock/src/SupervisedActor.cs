@@ -183,12 +183,18 @@ public sealed class ChildActorHandle : IAsyncDisposable
 }
 
 /// <summary>
-/// 监督 Actor — 继承 ActorBase 获得消息处理,新增树形父子关系 + 监督策略。
+/// 监督事件 — 子 Actor 生命周期事件,通过 OutputAsync 流输出。
+/// </summary>
+public sealed record SupervisorEvent(string ChildId, ChildActorState State, string? Message = null);
+
+/// <summary>
+/// 监督 Actor — 继承 ActorBase 获得消息处理 + 输出流,新增树形父子关系 + 监督策略。
 /// <para>父 Actor 在 Consumer 线程内管理子 Actor 生命周期,串行无锁。</para>
 /// <para>子类必须实现 <see cref="OnChildFailureAsync"/> — 决定子 Actor 失败时如何处理(Rust 风格穷尽处理)。</para>
+/// <para>子 Actor 生命周期事件通过 OutputAsync 流输出。</para>
 /// </summary>
 /// <typeparam name="TCommand">命令类型</typeparam>
-public abstract class SupervisedActor<TCommand> : ActorBase<TCommand>
+public abstract class SupervisedActor<TCommand> : ActorBase<TCommand, SupervisorEvent>
 {
     private readonly ConcurrentDictionary<string, ChildActorHandle> _children = new(StringComparer.Ordinal);
 
@@ -227,6 +233,7 @@ public abstract class SupervisedActor<TCommand> : ActorBase<TCommand>
         var handle = new ChildActorHandle(childId, factory, strategy, ReportChildFailureAsync);
         _children[childId] = handle;
         await handle.StartAsync(CancellationToken.None).ConfigureAwait(false);
+        TryPublish(new SupervisorEvent(childId, ChildActorState.Running));
         return handle;
     }
 
@@ -243,6 +250,7 @@ public abstract class SupervisedActor<TCommand> : ActorBase<TCommand>
         foreach (var child in _children.Values)
         {
             await child.StopAsync().ConfigureAwait(false);
+            TryPublish(new SupervisorEvent(child.Id, ChildActorState.Stopped));
         }
     }
 
@@ -250,6 +258,7 @@ public abstract class SupervisedActor<TCommand> : ActorBase<TCommand>
     private async ValueTask ReportChildFailureAsync(ChildActorHandle child, Exception ex, CancellationToken ct)
     {
         await OnChildFailureAsync(child, ex, ct).ConfigureAwait(false);
+        TryPublish(new SupervisorEvent(child.Id, child.State, ex.Message));
     }
 
     /// <summary>Dispose 时级联停止所有子 Actor</summary>

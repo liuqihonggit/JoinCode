@@ -28,10 +28,10 @@ public interface IStreamingToolExecutor : IAsyncDisposable
 /// <summary>
 /// 流式工具执行器 Actor 版 — 单消费者 Channel + 命令模式,零锁。
 /// <para>所有可变状态(_queue/_completedBuffer/_executingCount/_nonSafeExecutingCount)由 Consumer 线程独占访问。</para>
-/// <para>工具执行(慢操作)分发到 Task.Run 并发执行,完成后发 ToolCompletedCommand 回 Consumer 更新状态。</para>
-/// <para>对齐 TS StreamingToolExecutor,行为与 StreamingToolExecutor 等价。</para>
+/// <para>工具执行(慢操作)分发到 Task.Run 并发执行,完成后发命令回 Consumer 更新状态并 TryPublish 输出。</para>
+/// <para>外部可通过 OutputAsync 流式拉取工具完成事件。</para>
 /// </summary>
-public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutorActor.IToolCommand>, IStreamingToolExecutor
+public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutorActor.IToolCommand, StreamingToolResult>, IStreamingToolExecutor
 {
     private readonly IToolExecutionHandler _toolHandler;
     private readonly IToolConcurrencyClassifier _concurrencyClassifier;
@@ -65,7 +65,7 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
         int maxConcurrency = 10,
         ILogger? logger = null,
         CancellationToken userCancellationToken = default)
-        : base(boundedCapacity: null)
+        : base()
     {
         _toolHandler = toolHandler;
         _concurrencyClassifier = concurrencyClassifier;
@@ -107,7 +107,7 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
     }
 
     /// <inheritdoc/>
-#pragma warning disable VSTHRD003 // TCS 任务由 Consumer 线程设置结果,await 不会死锁
+#pragma warning disable VSTHRD003
     public async Task<IReadOnlyList<StreamingToolResult>> GetRemainingResultsAsync()
     {
         if (_discarded) return [];
@@ -233,6 +233,7 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
         _executingCount--;
         if (!isConcurrencySafe)
             _nonSafeExecutingCount--;
+        TryPublish(result);
         ScheduleNext();
     }
 
@@ -243,7 +244,7 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
         tcs.SetResult(results);
     }
 
-#pragma warning disable VSTHRD003 // TCS.Task 由 ExecuteToolAsync 设置结果,收集后由调用方 await,不死锁
+#pragma warning disable VSTHRD003
     private void HandleGetRemaining(TaskCompletionSource<List<Task<StreamingToolResult>>> tcs)
     {
         var pending = _queue

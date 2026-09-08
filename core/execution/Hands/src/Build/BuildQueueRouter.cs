@@ -229,10 +229,16 @@ internal sealed class BuildQueueRouterActor : RouterActor<BuildWorker.ICommand>
 }
 
 /// <summary>
+/// 编译事件 — 编译开始/完成/取消/失败事件,通过 OutputAsync 流输出。
+/// </summary>
+internal sealed record BuildEvent(string BuildId, string WorkerId, BuildQueueEntryStatus Status, string? Message = null);
+
+/// <summary>
 /// 编译 Worker — 单消费者 Actor,串行处理编译命令。
 /// <para>每个 Worker 独立执行编译,不共享状态,崩溃时由 RouterActor 自动重启。</para>
+/// <para>编译事件通过 OutputAsync 流输出。</para>
 /// </summary>
-internal sealed class BuildWorker : ActorBase<BuildWorker.ICommand>
+internal sealed class BuildWorker : ActorBase<BuildWorker.ICommand, BuildEvent>
 {
     internal interface ICommand;
 
@@ -269,6 +275,7 @@ internal sealed class BuildWorker : ActorBase<BuildWorker.ICommand>
         entry.Status = BuildQueueEntryStatus.Building;
         entry.StartedAt = DateTimeOffset.UtcNow;
 
+        TryPublish(new BuildEvent(entry.BuildId, _workerId, BuildQueueEntryStatus.Building));
         _logger?.LogInformation("[{WorkerId}] Build {BuildId} started: {Command}",
             _workerId, entry.BuildId, entry.Request.Command);
 
@@ -284,6 +291,7 @@ internal sealed class BuildWorker : ActorBase<BuildWorker.ICommand>
                     : BuildQueueEntryStatus.Failed;
 
             tcs.TrySetResult(result);
+            TryPublish(new BuildEvent(entry.BuildId, _workerId, entry.Status, $"exit={result.ExitCode}"));
             _logger?.LogInformation("[{WorkerId}] Build {BuildId} completed: exit={ExitCode}",
                 _workerId, entry.BuildId, result.ExitCode);
         }
@@ -292,6 +300,7 @@ internal sealed class BuildWorker : ActorBase<BuildWorker.ICommand>
             entry.Status = BuildQueueEntryStatus.Cancelled;
             entry.CompletedAt = DateTimeOffset.UtcNow;
             tcs.TrySetResult(CreateCancelledResult(entry));
+            TryPublish(new BuildEvent(entry.BuildId, _workerId, BuildQueueEntryStatus.Cancelled));
             _logger?.LogInformation("[{WorkerId}] Build {BuildId} cancelled", _workerId, entry.BuildId);
         }
         catch (Exception ex)
@@ -299,6 +308,7 @@ internal sealed class BuildWorker : ActorBase<BuildWorker.ICommand>
             entry.Status = BuildQueueEntryStatus.Failed;
             entry.CompletedAt = DateTimeOffset.UtcNow;
             tcs.TrySetResult(CreateFailedResult(entry, ex));
+            TryPublish(new BuildEvent(entry.BuildId, _workerId, BuildQueueEntryStatus.Failed, ex.Message));
             _logger?.LogError(ex, "[{WorkerId}] Build {BuildId} failed", _workerId, entry.BuildId);
         }
     }

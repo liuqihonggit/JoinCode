@@ -45,16 +45,22 @@ public enum GatewayCircuitState : int
 }
 
 /// <summary>
+/// 网关事件 — 熔断状态变更事件,通过 OutputAsync 流输出。
+/// </summary>
+public sealed record GatewayEvent(GatewayCircuitState State, string Message);
+
+/// <summary>
 /// 网关 Actor — 通用限流/重试/熔断。
-/// <para>继承 ActorBase(不需要监督),用 LlmGateway 背压配置(容量 200 + 60s 超时)。</para>
+/// <para>继承 ActorBase 获得消息处理 + 输出流,用 LlmGateway 背压配置(容量 200 + 60s 超时)。</para>
 /// <para>限流:SemaphoreSlim 控制最大并发。</para>
 /// <para>重试:指数退避(RetryBaseDelay * 2^attempt)。</para>
 /// <para>熔断:连续失败 CircuitBreakerThreshold 次后打开熔断,RecoveryDelay 后半开试探。</para>
+/// <para>熔断事件通过 OutputAsync 流输出。</para>
 /// <para>特化用例:LlmGatewayActor = GatewayActor&lt;LlmRequest, LlmResponse&gt;。</para>
 /// </summary>
 /// <typeparam name="TRequest">请求类型</typeparam>
 /// <typeparam name="TResponse">响应类型</typeparam>
-public sealed class GatewayActor<TRequest, TResponse> : ActorBase<GatewayActor<TRequest, TResponse>.IGatewayCommand>
+public sealed class GatewayActor<TRequest, TResponse> : ActorBase<GatewayActor<TRequest, TResponse>.IGatewayCommand, GatewayEvent>
 {
     /// <summary>网关命令标记接口</summary>
     public interface IGatewayCommand;
@@ -184,6 +190,7 @@ public sealed class GatewayActor<TRequest, TResponse> : ActorBase<GatewayActor<T
     {
         Interlocked.Exchange(ref _consecutiveFailures, 0);
         Interlocked.Exchange(ref _breakerState, (int)GatewayCircuitState.Closed);
+        TryPublish(new GatewayEvent(GatewayCircuitState.Closed, "调用成功,熔断器关闭"));
     }
 
     private void OnCallFailure()
@@ -193,6 +200,7 @@ public sealed class GatewayActor<TRequest, TResponse> : ActorBase<GatewayActor<T
         {
             Interlocked.Exchange(ref _breakerState, (int)GatewayCircuitState.Open);
             _breakerOpenedAt = DateTimeOffset.UtcNow;
+            TryPublish(new GatewayEvent(GatewayCircuitState.Open, $"连续失败 {failures} 次,熔断器打开"));
         }
     }
 }

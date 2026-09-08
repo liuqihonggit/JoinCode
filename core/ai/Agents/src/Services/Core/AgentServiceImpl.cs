@@ -687,7 +687,16 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
             _notificationQueue?.Enqueue(concreteAgent.Context?.ParentAgentId, notification.ToXml());
 
-            _ = PersistCompletionAsync(subAgent, result, status, _disposeCts.Token).WaitAsync(TimeSpan.FromSeconds(10), _disposeCts.Token).ConfigureAwait(false);
+            CancellationToken persistToken;
+            try
+            {
+                persistToken = _disposeCts.IsCancellationRequested ? CancellationToken.None : _disposeCts.Token;
+            }
+            catch (ObjectDisposedException)
+            {
+                persistToken = CancellationToken.None;
+            }
+            _ = PersistCompletionAsync(subAgent, result, status, persistToken).WaitAsync(TimeSpan.FromSeconds(10), persistToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -799,6 +808,33 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
         _disposeCts.Cancel();
         _disposeCts.Dispose();
+
+        if (_worktreeManager is not null)
+        {
+            try
+            {
+                var sessionsTask = _worktreeManager.GetAllWorktreeSessionsAsync(CancellationToken.None);
+                if (sessionsTask.Wait(TimeSpan.FromSeconds(5)))
+                {
+                    var sessions = sessionsTask.GetAwaiter().GetResult();
+                    foreach (var agentId in sessions.Keys)
+                    {
+                        try
+                        {
+                            _worktreeManager.CleanupWorktreeAsync(agentId, CancellationToken.None).Wait(TimeSpan.FromSeconds(5));
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger?.LogDebug(ex, "OnDispose 清理 worktree {AgentId} 失败", agentId);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogDebug(ex, "OnDispose 获取 worktree sessions 失败");
+            }
+        }
 
         foreach (var kvp in _backgroundCts)
         {

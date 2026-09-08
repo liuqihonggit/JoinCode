@@ -13,6 +13,7 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
     private readonly IClockService _clock;
     private readonly ConcurrentDictionary<string, AgentWorktreeSession> _worktreeSessions;
     private readonly bool _enableWorktreeIsolation;
+    private readonly WorktreeLifecycleGuard? _lifecycleGuard;
 
     public event EventHandler<WorktreeEventArgs>? WorktreeCreated;
     public event EventHandler<WorktreeEventArgs>? WorktreeCleaned;
@@ -22,7 +23,8 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
         IHookOrchestrator? hookOrchestrator = null,
         ILogger? logger = null,
         bool enableWorktreeIsolation = false,
-        IClockService? clock = null)
+        IClockService? clock = null,
+        IFileOperationService? fileOperationService = null)
     {
         _worktreeService = worktreeService;
         _hookOrchestrator = hookOrchestrator;
@@ -30,6 +32,7 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
         _clock = clock ?? SystemClockService.Instance;
         _enableWorktreeIsolation = enableWorktreeIsolation && worktreeService != null;
         _worktreeSessions = new ConcurrentDictionary<string, AgentWorktreeSession>();
+        _lifecycleGuard = fileOperationService is not null ? new WorktreeLifecycleGuard(fileOperationService) : null;
     }
 
     /// <summary>
@@ -150,6 +153,8 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
 
         try
         {
+            _lifecycleGuard?.EnsureNotMainPath(removedSession.WorktreePath, removedSession.GitRootPath);
+
             if (removedSession.HookBased)
             {
                 _logger?.LogInformation("Hook-based agent worktree kept at: {WorktreePath}", removedSession.WorktreePath);
@@ -324,7 +329,11 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
     {
         foreach (var kvp in _worktreeSessions)
         {
-            try { _worktreeService?.RemoveAgentWorktreeAsync(kvp.Key, force: true).Wait(TimeSpan.FromSeconds(5)); }
+            try
+            {
+                _lifecycleGuard?.EnsureNotMainPath(kvp.Value.WorktreePath, kvp.Value.GitRootPath);
+                _worktreeService?.RemoveAgentWorktreeAsync(kvp.Key, force: true).Wait(TimeSpan.FromSeconds(5));
+            }
             catch (Exception ex) { _logger?.LogDebug(ex, "OnDispose 清理 worktree {AgentId} 失败", kvp.Key); }
         }
         _worktreeSessions.Clear();

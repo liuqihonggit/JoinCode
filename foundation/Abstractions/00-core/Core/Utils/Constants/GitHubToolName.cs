@@ -39,6 +39,10 @@ public enum GitHubToolName
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     GhPrReopen,
 
+    [EnumValue("gh_pr_create")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhPrCreate,
+
     // === Run 全套 ===
     [EnumValue("gh_run_list")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]

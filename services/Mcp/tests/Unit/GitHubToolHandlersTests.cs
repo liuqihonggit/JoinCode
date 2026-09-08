@@ -52,6 +52,60 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
+    public async Task PrCreate_Success_ReturnsCreatedPr()
+    {
+        _api.NextResponse = new GitHubApiResponse
+        {
+            Success = true,
+            StatusCode = 201,
+            Body = """{"number":42,"title":"feat: new","state":"open","html_url":"https://github.com/o/r/pull/42"}""",
+        };
+
+        var result = await _handler.GhPrCreateAsync("feat: new", "feature-branch", @base: "main", body: "test body", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("42");
+        _api.LastMethod.Should().Be(HttpMethod.Post);
+        _api.LastPath.Should().Be("repos/owner/repo/pulls");
+        _api.LastBody.Should().Contain("\"title\":\"feat: new\"");
+        _api.LastBody.Should().Contain("\"head\":\"feature-branch\"");
+        _api.LastBody.Should().Contain("\"base\":\"main\"");
+        _api.LastBody.Should().Contain("\"body\":\"test body\"");
+    }
+
+    [Fact]
+    public async Task PrCreate_DraftTrue_IncludesDraftField()
+    {
+        _api.NextResponse = new GitHubApiResponse
+        {
+            Success = true,
+            StatusCode = 201,
+            Body = """{"number":43,"title":"draft","state":"open","draft":true}""",
+        };
+
+        var result = await _handler.GhPrCreateAsync("draft", "branch", draft: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastBody.Should().Contain("\"draft\":true");
+    }
+
+    [Fact]
+    public async Task PrCreate_Failure_ReturnsError()
+    {
+        _api.NextResponse = new GitHubApiResponse
+        {
+            Success = false,
+            StatusCode = 422,
+            Error = "Validation failed",
+        };
+
+        var result = await _handler.GhPrCreateAsync("title", "branch", repo: "owner/repo");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("Validation failed");
+    }
+
+    [Fact]
     public async Task PrChecks_Skipping_NotCountedAsFail()
     {
         _api.EnqueueResponse(new GitHubApiResponse

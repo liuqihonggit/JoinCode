@@ -49,20 +49,29 @@ public sealed partial class WorktreeSpawnMiddleware : ServiceEntity, IUnifiedSpa
 
         try
         {
-            var result = await _worktreeService!.CreateAgentWorktreeAsync(agentId, cancellationToken: ct).ConfigureAwait(false);
-
-            if (!result.Success || result.Session is null)
+            AgentWorktreeSession? session = null;
+            if (_worktreeManager is not null)
             {
-                _logger?.LogWarning("[WorktreeSpawn] 创建 Worktree 失败: {Error}，降级为普通模式", result.ErrorMessage);
+                session = await _worktreeManager.CreateWorktreeForAgentAsync(agentId, ct).ConfigureAwait(false);
+            }
+            else if (_worktreeService is not null)
+            {
+                var result = await _worktreeService.CreateAgentWorktreeAsync(agentId, cancellationToken: ct).ConfigureAwait(false);
+                session = result.Success ? result.Session : null;
+            }
+
+            if (session is null)
+            {
+                _logger?.LogWarning("[WorktreeSpawn] 创建 Worktree 失败，降级为普通模式");
                 return;
             }
 
-            var worktreePath = result.Session.WorktreePath;
+            var worktreePath = session.WorktreePath;
             _logger?.LogInformation("[WorktreeSpawn] Agent {AgentId} Worktree 创建成功: {Path}", agentId, worktreePath);
 
             var agent = (AgentBase)context.Agent!;
             agent.Options.WorktreePath = worktreePath;
-            agent.Options.WorktreeBranch = result.Session.BranchName;
+            agent.Options.WorktreeBranch = session.BranchName;
 
             if (agent.Context is not null)
             {

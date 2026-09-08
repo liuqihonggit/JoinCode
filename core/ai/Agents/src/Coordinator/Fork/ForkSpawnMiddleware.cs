@@ -96,22 +96,31 @@ public sealed partial class ForkSpawnMiddleware : ServiceEntity, IForkMiddleware
         context.Agent = agent;
 
         // Worktree 隔离 — 对齐 TS: isolation: "worktree" 在 fork 路径下也生效
-        var shouldCreateWorktree = context.Options.IsolationMode == AgentIsolationMode.Worktree
-            || (_worktreeManager is not null && _worktreeManager.IsWorktreeIsolationEnabled);
-        if (shouldCreateWorktree && _worktreeManager is not null)
+        var perAgentIsolation = context.Options.IsolationMode == AgentIsolationMode.Worktree;
+        var globalIsolation = _worktreeManager is not null && _worktreeManager.IsWorktreeIsolationEnabled;
+        if ((perAgentIsolation || globalIsolation) && _worktreeManager is not null)
         {
-            var worktreeCreated = await _worktreeManager.CreateWorktreeAsync(agent.ObjectId.UniqueId, ct).ConfigureAwait(false);
-            if (worktreeCreated)
+            AgentWorktreeSession? session = null;
+            if (perAgentIsolation)
             {
-                var session = await _worktreeManager.GetWorktreeSessionAsync(agent.ObjectId.UniqueId, ct).ConfigureAwait(false);
-                if (session is not null)
+                session = await _worktreeManager.CreateWorktreeForAgentAsync(agent.ObjectId.UniqueId, ct).ConfigureAwait(false);
+            }
+            else
+            {
+                var worktreeCreated = await _worktreeManager.CreateWorktreeAsync(agent.ObjectId.UniqueId, ct).ConfigureAwait(false);
+                if (worktreeCreated)
                 {
-                    var parentCwd = _subAgentContextAccessor.Current?.WorktreePath ?? Environment.CurrentDirectory;
-                    var notice = ForkMessageBuilder.BuildWorktreeNotice(parentCwd, session.WorktreePath);
-                    ((AgentBase)agent).AddContext(notice);
-                    context.AgentOptions.WorktreePath = session.WorktreePath;
-                    context.AgentOptions.WorktreeBranch = session.BranchName;
+                    session = await _worktreeManager.GetWorktreeSessionAsync(agent.ObjectId.UniqueId, ct).ConfigureAwait(false);
                 }
+            }
+
+            if (session is not null)
+            {
+                var parentCwd = _subAgentContextAccessor.Current?.WorktreePath ?? Environment.CurrentDirectory;
+                var notice = ForkMessageBuilder.BuildWorktreeNotice(parentCwd, session.WorktreePath);
+                ((AgentBase)agent).AddContext(notice);
+                context.AgentOptions.WorktreePath = session.WorktreePath;
+                context.AgentOptions.WorktreeBranch = session.BranchName;
             }
         }
 

@@ -184,11 +184,11 @@ public class AgentWorktreeManagerTests
     }
 
     [Fact]
-    public async Task CleanupWorktreeAsync_ShouldReturnNotIsolated_WhenDisabled()
+    public async Task CleanupWorktreeAsync_ShouldReturnNotIsolated_WhenNoWorktreeService()
     {
         var manager = new AgentWorktreeManager(
-            worktreeService: _worktreeServiceMock.Object,
-            enableWorktreeIsolation: false);
+            worktreeService: null,
+            enableWorktreeIsolation: true);
 
         var result = await manager.CleanupWorktreeAsync("any-agent").ConfigureAwait(true);
 

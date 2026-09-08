@@ -102,6 +102,43 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
         }
     }
 
+    /// <summary>
+    /// per-agent Worktree 创建 — 不依赖全局隔离开关，显式请求时直接创建。
+    /// 存储 session + 注册 guard，确保清理路径能找到 worktree。
+    /// </summary>
+    public async Task<AgentWorktreeSession?> CreateWorktreeForAgentAsync(string agentId, CancellationToken cancellationToken = default)
+    {
+        if (_worktreeService is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var worktreeResult = await _worktreeService.CreateAgentWorktreeAsync(agentId, cancellationToken: cancellationToken).ConfigureAwait(false);
+            if (worktreeResult.Success && worktreeResult.Session is not null)
+            {
+                _worktreeSessions[agentId] = worktreeResult.Session;
+                RegisterLifecycleGuard(agentId, worktreeResult.Session.WorktreePath, worktreeResult.Session.GitRootPath, worktreeResult.Session.BranchName);
+                _logger?.LogInformation(
+                    AgentCoordinatorConstants.LogMessages.CreateWorktree,
+                    AgentCoordinatorConstants.LogMessages.AgentWorktreeManagerPrefix, agentId, worktreeResult.Session.WorktreePath);
+                FireWorktreeCreated(agentId, worktreeResult.Session.WorktreePath, worktreeResult.Session.BranchName);
+                return worktreeResult.Session;
+            }
+
+            _logger?.LogWarning(
+                AgentCoordinatorConstants.LogMessages.CreateWorktreeFailed,
+                AgentCoordinatorConstants.LogMessages.AgentWorktreeManagerPrefix, agentId, worktreeResult.ErrorMessage);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, AgentCoordinatorConstants.LogMessages.CreateWorktreeError, AgentCoordinatorConstants.LogMessages.AgentWorktreeManagerPrefix, agentId);
+            return null;
+        }
+    }
+
     private async Task<string?> TryCreateWorktreeViaHookAsync(string agentId, CancellationToken cancellationToken)
     {
         var hookOrchestrator = _hookOrchestrator ?? throw new InvalidOperationException("Hook orchestrator not available.");
@@ -147,7 +184,7 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
     /// </summary>
     public async Task<WorktreeCleanupDetail> CleanupWorktreeAsync(string agentId, CancellationToken cancellationToken = default)
     {
-        if (!_enableWorktreeIsolation || _worktreeService == null)
+        if (_worktreeService == null)
         {
             return WorktreeCleanupDetail.NotIsolated;
         }

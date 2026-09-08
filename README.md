@@ -383,6 +383,31 @@ See [docs/adr/README.md](docs/adr/README.md) for all 40+ ADRs.
 | ChatInit | Brain | ContextLoad→CostRestore→ConfigChangeStart→SessionStartHook |
 | ChatAdmin | Brain | SessionAdmin→SessionSave |
 
+### Test Architecture
+
+**49 test projects** across 7 solution layers + cross-layer test center:
+
+| Layer | Count | Location |
+|-------|-------|----------|
+| ① Generators | 2 | `generators/*/tests/` (AotSafety, Fsm.Generator) |
+| ② Foundation | 2 | `foundation/*/tests/Unit/` (AsyncLock, Structura) |
+| ③ Infrastructure | 3 | `tests/Unit/Infra.Tests/{IO,Services,Utils}/` |
+| ④ Core | 20 | `core/*/tests/` (ai, execution, safety, search) |
+| ⑤ Services | 5 | `services/*/tests/Unit/` (Bridge, Dream, Eyes, Mcp, Vision) |
+| ⑥ Composition | 2 | `composition/*/tests/Unit/` (Composition, Clock) |
+| ⑦ App | 2 | `tests/Unit/Host.Tests/`, `tools/*/tests/` |
+| Cross-layer | 13 | `tests/Unit/{Abs,Hands,JoinCodeGui,Tui}.Tests/`, `tests/Integration/`, `tests/MockServers/` |
+
+### CI Pipeline
+
+The CI workflow (`.github/workflows/ci.yml`) runs on PRs to `main`:
+
+1. **Build** — 7-layer ordered build + component test projects + satellite projects
+2. **Unit Tests** (5 parallel groups) — 33 test projects, `--filter "Category!=Integration&Category!=Benchmark"`
+3. **Integration Tests** — `Integration.Tests` (64 .cs) + App.slnx filter groups (Brain/Clock, Guard/Vault, Hands/Host/Mcp, PrefixCache)
+4. **E2E Tests** (14 parallel jobs) — MockServer.E2E.Tests + Sync.Integration.Tests + CodeIndex.E2E.Tests + smoke tests
+5. **Mutation Testing** — Stryker.NET, scheduled daily (`.github/workflows/mutation-testing.yml`)
+
 ---
 
 ## Configuration

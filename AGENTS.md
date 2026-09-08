@@ -452,6 +452,33 @@ chcp 65001
 
 > **详细架构索引见 [README.md](README.md#项目架构索引)**，包含：组件依赖图、组件详情表、内部结构、源码生成器、中间件管道清单、测试结构、构建命令速查、组件名→路径映射
 
+## 测试项目地图
+
+**49 个测试项目**，按七层解决方案 + 跨层测试中心组织：
+
+| 层 | 数量 | 位置 |
+|----|------|------|
+| ① Generators | 2 | `generators/*/tests/`（AotSafety, Fsm.Generator） |
+| ② Foundation | 2 | `foundation/*/tests/Unit/`（AsyncLock, Structura） |
+| ③ Infrastructure | 3 | `tests/Unit/Infra.Tests/{IO,Services,Utils}/` |
+| ④ Core | 20 | `core/*/tests/`（ai, execution, safety, search） |
+| ⑤ Services | 5 | `services/*/tests/Unit/`（Bridge, Dream, Eyes, Mcp, Vision） |
+| ⑥ Composition | 2 | `composition/*/tests/Unit/`（Composition, Clock） |
+| ⑦ App | 2 | `tests/Unit/Host.Tests/`, `tools/*/tests/` |
+| 跨层 | 13 | `tests/Unit/{Abs,Hands,JoinCodeGui,Tui}.Tests/`, `tests/Integration/`, `tests/MockServers/` |
+
+## CI 流水线
+
+`.github/workflows/ci.yml`（PR → main 触发）：
+
+1. **Build** — 七层有序编译 + 组件测试项目 + 卫星项目
+2. **Unit Tests**（5 组并行）— 33 个测试项目，`--filter "Category!=Integration&Category!=Benchmark"`
+3. **Integration Tests** — `Integration.Tests`（64 .cs）+ App.slnx filter 分组（Brain/Clock, Guard/Vault, Hands/Host/Mcp, PrefixCache）
+4. **E2E Tests**（14 组并行）— MockServer.E2E.Tests + Sync.Integration.Tests + CodeIndex.E2E.Tests + smoke tests
+5. **Mutation Testing** — Stryker.NET，每日定时（`.github/workflows/mutation-testing.yml`）
+
+> 注：`tests/Unit/Mcp.Tests`（ToolInterventionManagerTest）和 `tests/Unit/McpToolDispatch.Tests`（ToolHealthMonitor/Scorer/Template/ScoreDebug）有独特测试类，已加入 JoinCode.slnx + CI unit-test-group-5
+
 ## 关键约束
 
 nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。

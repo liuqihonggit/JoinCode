@@ -94,7 +94,12 @@ jobs:
             'services/Eyes/tests/Unit/Eyes.Tests.csproj',
             'core/search/CodeIndex/tests/Unit/CodeIndex.Tests.csproj',
             'services/Dream/tests/Unit/Dream.Tests.csproj',
-            'core/search/CodeIndex/tests/E2E/CodeIndex.E2E.Tests.csproj'
+            'core/search/CodeIndex/tests/E2E/CodeIndex.E2E.Tests.csproj',
+            'tests/Unit/Abs.Tests/Abs.Tests.csproj',
+            'tests/Unit/Hands.Tests/Hands.Tests.csproj',
+            'tests/Unit/Mcp.Tests/Mcp.Tests.csproj',
+            'tests/Unit/McpToolDispatch.Tests/McpToolDispatch.Tests.csproj',
+            'tools/JccAuditAstCli/tests/JccAuditCli.Tests.csproj'
           )
           foreach ($p in $projects) {
             Write-Host "Building $p ..."
@@ -472,6 +477,124 @@ jobs:
         with:
           name: unit-test-results-group-4
           path: '**/*.trx'
+          retention-days: 7
+
+  unit-test-group-5:
+    name: Unit - Foundation + Generators + Coverage gaps
+    runs-on: windows-latest
+    needs: build
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: ./.github/actions/setup-test-env
+      - name: Test - AsyncLock
+        run: >
+          dotnet test foundation/AsyncLock/tests/Unit/AsyncLock.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=asynclock-tests.trx"
+      - name: Test - Structura
+        run: >
+          dotnet test foundation/Structura/tests/Unit/Structura.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=structura-tests.trx"
+      - name: Test - Vision
+        run: >
+          dotnet test services/Vision/tests/Unit/Vision.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=vision-tests.trx"
+      - name: Test - Fsm.Generator
+        run: >
+          dotnet test generators/Fsm.Generator/tests/Fsm.Generator.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=fsm-generator-tests.trx"
+      - name: Test - Abs
+        run: >
+          dotnet test tests/Unit/Abs.Tests/Abs.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=abs-tests.trx"
+      - name: Test - Hands (Goal)
+        run: >
+          dotnet test tests/Unit/Hands.Tests/Hands.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=hands-goal-tests.trx"
+      - name: Test - MockServer.Core
+        run: >
+          dotnet test tests/MockServers/MockServer.Core.Tests/MockServer.Core.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=mockserver-core-tests.trx"
+      - name: Test - JccAuditCli
+        run: >
+          dotnet test tools/JccAuditAstCli/tests/JccAuditCli.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=jccaudit-cli-tests.trx"
+      - name: Test - Mcp (ToolIntervention)
+        run: >
+          dotnet test tests/Unit/Mcp.Tests/Mcp.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=mcp-intervention-tests.trx"
+      - name: Test - McpToolDispatch (Health/Scorer)
+        run: >
+          dotnet test tests/Unit/McpToolDispatch.Tests/McpToolDispatch.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=mcp-tooldispatch-health-tests.trx"
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: unit-test-results-group-5
+          path: '**/*.trx'
+          retention-days: 7
+
+  integration-tests:
+    name: Integration - All (Integration.Tests)
+    runs-on: windows-latest
+    needs: build
+
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: ./.github/actions/setup-test-env
+      - name: Integration Tests
+        run: >
+          dotnet test tests/Integration/Integration.Tests/Integration.Tests.csproj
+          -c Release --no-build --nologo
+          --filter "Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=integration-all.trx"
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-results-all
+          path: '**/integration-all.trx'
           retention-days: 7
 
   integration-brain-clock:

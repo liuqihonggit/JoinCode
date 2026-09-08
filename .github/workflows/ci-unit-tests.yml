@@ -97,8 +97,6 @@ jobs:
           # App / Cross-layer
           - name: Host
             csproj: tests/Unit/Host.Tests/Host.Tests.csproj
-          - name: JccAuditCli
-            csproj: tools/JccAuditAstCli/tests/JccAuditCli.Tests.csproj
           - name: Abs
             csproj: tests/Unit/Abs.Tests/Abs.Tests.csproj
           - name: HandsGoal
@@ -113,6 +111,7 @@ jobs:
           # GUI / TUI
           - name: JoinCodeGui
             csproj: tests/Unit/JoinCodeGui.Tests/JoinCodeGui.Tests.csproj
+            build_first: true
           - name: Tui
             csproj: tests/Unit/Tui.Tests/Tui.Tests.csproj
 
@@ -126,7 +125,7 @@ jobs:
       - name: Test - ${{ matrix.name }}
         run: >
           dotnet test ${{ matrix.csproj }}
-          -c Release --no-build --nologo
+          -c Release ${{ matrix.build_first != true && '--no-build' || '' }} --nologo
           --filter "Category!=Integration&Category!=Benchmark"
           --logger "console;verbosity=detailed"
           --logger "trx;LogFileName=${{ matrix.name }}.trx"

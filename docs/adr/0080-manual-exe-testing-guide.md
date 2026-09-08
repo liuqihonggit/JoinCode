@@ -92,3 +92,46 @@
 ## 替代方案
 
 无。手动测试是验证完整启动链路的必要手段，单元测试无法替代。
+
+## 测试进展记录
+
+### 已完成修复（w3 分支，2026-09-09）
+
+| # | Commit | 修复内容 | 根因 |
+|---|--------|----------|------|
+| 1 | `54ae98d01` | JSON repair 支持 PowerShell 剥引号后值含大括号 | PowerShell 调用 jcc.exe 时剥掉双引号 |
+| 2 | `7c5d90133` | voice 工具 CLI 模式返回明确错误 | `voice_start_recording` 假装成功，`voice_transcribe` API Key 未配置时超时 |
+| 3 | `6c952394d` | BuildPrCreateJson 多引号导致 GitHub API 解析失败 | `JsonEscapeString` 已自带引号，`BuildPrCreateJson` 又多加引号 |
+| 4 | `bad25313c` | brief_mode 跨进程持久化 | 状态存储在内存中，CLI 单次调用模式进程退出后丢失。改为文件持久化 |
+| 5 | `fb02b0e73` | csharp-ls LSP 服务器支持 | Encoding.UTF8 BOM 破坏管道通信 + LocationLink 反序列化 + WorkingDirectory 传递 |
+
+### LSP 工具测试结果（9/10 通过）
+
+C# LSP 服务器从 OmniSharp 切换为 csharp-ls（`dotnet tool install -g csharp-ls`）。
+
+| 工具名 | 结果 | 备注 |
+|--------|------|------|
+| `lsp_hover` | ✅ | 返回方法签名 |
+| `lsp_goto_definition` | ✅ | 跳转到定义位置 |
+| `lsp_find_references` | ✅ | 找到所有引用 |
+| `lsp_goto_implementation` | ✅ | 跳转到实现位置 |
+| `lsp_completion` | ✅ | 返回补全建议 |
+| `lsp_document_symbols` | ✅ | 返回文档符号列表 |
+| `lsp_prepare_call_hierarchy` | ✅ | 返回调用层次项 |
+| `lsp_incoming_calls` | ✅ | 返回传入调用 |
+| `lsp_outgoing_calls` | ✅ | 返回传出调用 |
+| `lsp_workspace_symbol` | ❌ | 需全解决方案索引，小项目可能不返回结果 |
+
+### 关键修复：Encoding.UTF8 BOM 破坏管道通信
+
+**根因**：`Encoding.UTF8` 默认带 BOM 前缀（EF BB BF）。通过管道写入外部进程 stdin 时，对方收到 BOM 字节后无法识别为合法输入，静默退出。
+**修复**：`ProcessEncodingProvider` 改用 `new UTF8Encoding(false)`（无 BOM）。`ProcessStartInfoBuilder` 添加防御性异常 `ValidateNoBomEncoding`，禁止带 BOM 编码用于进程管道 I/O。
+
+### 无法交付项
+
+| 类别 | 数量 | 原因 | 解决方案 |
+|------|------|------|----------|
+| AI 限流 | 10 | sensenova 无 API 额度 | 切换到有额度的 AI 提供商 |
+| LSP workspace_symbol | 1 | 需全解决方案索引 | 大型项目测试验证 |
+| GitHub 清理 | 4 | token 缺 `delete_repo` scope | 添加 scope 或手动删除 |
+| Anthropic 依赖 | 1 | web_search 需 Anthropic API | 配置 Anthropic 提供商 |

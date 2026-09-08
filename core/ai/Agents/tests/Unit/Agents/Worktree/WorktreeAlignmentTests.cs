@@ -109,7 +109,7 @@ public class WorktreeAlignmentTests
     {
         var fs = new InMemoryFileOperationService();
         var gitRunner = new Mock<IGitCommandRunner>();
-        var service = new AgentWorktreeService(fs, gitRunner.Object);
+        var service = new AgentWorktreeService(fs, gitRunner.Object, fs.FileSystem);
 
         var session = new AgentWorktreeSession
         {

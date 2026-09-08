@@ -83,7 +83,7 @@ public partial class BriefModeService : ServiceEntity, IBriefModeService
         if (_fs is null) return;
         try
         {
-            var root = DiscoverWorkspaceRoot();
+            var root = GitWorkspaceResolver.FindGitWorkspaceDir(null, _fs);
             if (root is null) return;
             var path = Path.Combine(Path.Combine(root, ModeSubDir), ModeFileName);
             if (!_fs.FileExists(path)) return;
@@ -107,7 +107,7 @@ public partial class BriefModeService : ServiceEntity, IBriefModeService
         if (_fs is null) return;
         try
         {
-            var root = DiscoverWorkspaceRoot();
+            var root = GitWorkspaceResolver.FindGitWorkspaceDir(null, _fs);
             if (root is null) return;
             var dir = Path.Combine(root, ModeSubDir);
             if (!_fs.DirectoryExists(dir)) _fs.CreateDirectory(dir);
@@ -120,22 +120,5 @@ public partial class BriefModeService : ServiceEntity, IBriefModeService
         {
             _logger?.LogWarning("Brief mode 状态保存失败: {Message}", ex.Message);
         }
-    }
-
-    /// <summary>
-    /// 发现工作区根目录 — 向上查找 .git 目录
-    /// </summary>
-    private string? DiscoverWorkspaceRoot()
-    {
-        var dir = Environment.CurrentDirectory;
-        while (!string.IsNullOrEmpty(dir))
-        {
-            var gitPath = Path.Combine(dir, ".git");
-            if (_fs!.DirectoryExists(gitPath) || _fs.FileExists(gitPath)) return dir;
-            var parent = Path.GetDirectoryName(dir);
-            if (string.IsNullOrEmpty(parent) || parent == dir) break;
-            dir = parent;
-        }
-        return null;
     }
 }

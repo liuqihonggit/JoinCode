@@ -193,11 +193,11 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
     /// </summary>
     private string GetLocalAgentMemoryDir(string dirName)
     {
-        var remoteDir = Environment.GetEnvironmentVariable(JccEnvVar.RemoteMemoryDir.ToValue());
-        if (!string.IsNullOrEmpty(remoteDir))
-        {
-            var gitRoot = FindGitRoot(_cwd);
-            var sanitizedGitRoot = SanitizePathSegment(gitRoot);
+            var remoteDir = Environment.GetEnvironmentVariable(JccEnvVar.RemoteMemoryDir.ToValue());
+            if (!string.IsNullOrEmpty(remoteDir))
+            {
+                var gitRoot = GitWorkspaceResolver.FindGitRootAsync(_cwd, _fs, default).GetAwaiter().GetResult() ?? _cwd;
+                var sanitizedGitRoot = SanitizePathSegment(gitRoot);
             return Path.Combine(remoteDir, "projects", sanitizedGitRoot, AgentMemoryLocalSubdir, dirName) + Path.DirectorySeparatorChar;
         }
 
@@ -470,24 +470,6 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
             _logger.LogDebug(ex, "读取 JSON 文件失败: {Path}", path);
             return null;
         }
-    }
-
-    /// <summary>
-    /// 查找 Git 根目录
-    /// </summary>
-    private string FindGitRoot(string startPath)
-    {
-        var dir = startPath;
-        while (dir != null)
-        {
-            if (_fs.DirectoryExists(Path.Combine(dir, ".git")))
-                return dir;
-            var parent = Path.GetDirectoryName(dir);
-            if (parent is null)
-                break;
-            dir = parent;
-        }
-        return startPath;
     }
 
     /// <summary>

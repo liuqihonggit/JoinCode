@@ -228,7 +228,7 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
 
         try
         {
-            var root = DiscoverWorkspaceRoot();
+            var root = GitWorkspaceResolver.FindGitWorkspaceDir(null, _fs!);
             if (root is null) return;
             var path = Path.Combine(Path.Combine(root, RulesSubDir), RulesFileName);
             if (!_fs.FileExists(path)) return;
@@ -244,20 +244,6 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
         {
             _logger?.LogError("加载规则失败: {Message}", ex.Message);
         }
-    }
-
-    private string? DiscoverWorkspaceRoot()
-    {
-        var dir = Environment.CurrentDirectory;
-        while (!string.IsNullOrEmpty(dir))
-        {
-            var gitPath = Path.Combine(dir, ".git");
-            if (_fs!.DirectoryExists(gitPath) || _fs.FileExists(gitPath)) return dir;
-            var parent = Path.GetDirectoryName(dir);
-            if (string.IsNullOrEmpty(parent) || parent == dir) break;
-            dir = parent;
-        }
-        return null;
     }
 
     #region Private Methods

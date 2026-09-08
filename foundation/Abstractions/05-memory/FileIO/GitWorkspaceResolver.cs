@@ -50,6 +50,34 @@ public static class GitWorkspaceResolver
     }
 
     /// <summary>
+    /// 从 startPath 向上搜索 git 工作区目录（不解析 worktree 到主仓库）。
+    /// .git 是文件或目录都算，返回当前路径。对应原 DiscoverWorkspaceRoot 行为。
+    /// </summary>
+    /// <param name="startPath">起始路径（文件或目录），为 null/空时用当前工作目录</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <returns>git 工作区目录绝对路径，找不到返回 null</returns>
+    public static string? FindGitWorkspaceDir(string? startPath, IFileSystem fs)
+    {
+        var currentPath = ResolveStartDirectory(startPath, fs);
+        if (string.IsNullOrEmpty(currentPath)) return null;
+
+        while (!string.IsNullOrEmpty(currentPath))
+        {
+            var gitPath = fs.CombinePath(currentPath, ".git");
+            if (fs.DirectoryExists(gitPath) || fs.FileExists(gitPath))
+            {
+                return currentPath;
+            }
+
+            var parentPath = fs.GetParentPath(currentPath);
+            if (string.IsNullOrEmpty(parentPath) || parentPath == currentPath) break;
+            currentPath = parentPath;
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// 从 startPath 向上搜索解决方案根目录（.sln/.slnx 所在目录）。
     /// </summary>
     /// <param name="startPath">起始路径（文件或目录）</param>

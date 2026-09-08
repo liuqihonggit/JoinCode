@@ -233,37 +233,56 @@ public sealed partial class BridgeClient : IAsyncDisposable
     /// </summary>
     public async Task<BridgeMessage?> SendRequestAsync(BridgeMessage request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
     {
-        var tcs = new TaskCompletionSource<BridgeMessage?>();
-        var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var timeoutCts = new CancellationTokenSource(timeout ?? _options.DefaultRequestTimeout);
+        using var scope = new BridgeRequestScope(this, request.Id, timeout ?? _options.DefaultRequestTimeout, cancellationToken);
+        await SendMessageAsync(request, scope.Token).ConfigureAwait(false);
+        return await scope.ResponseTask.WaitAsync(scope.Token).ConfigureAwait(false);
+    }
 
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, timeoutCts.Token);
+    /// <summary>
+    /// Bridge 请求作用域 — 封装 SendRequestAsync 的"前-后"配对(CTS×3+事件订阅)
+    /// 构造时进入(创建CTS+注册消息事件),Dispose 时退出(注销事件+释放CTS)
+    /// 用 using var scope = new BridgeRequestScope(...) 管理生命周期,消除散落的 try-finally 配对
+    /// </summary>
+    private sealed class BridgeRequestScope : IDisposable
+    {
+        private readonly BridgeClient _client;
+        private readonly CancellationTokenSource _cts;
+        private readonly CancellationTokenSource _timeoutCts;
+        private readonly CancellationTokenSource _linkedCts;
+        private readonly TaskCompletionSource<BridgeMessage?> _tcs;
+        private readonly EventHandler<BridgeMessageProcessedEventArgs> _onMessageReceived;
+        private int _disposed;
 
-        void OnMessageReceived(object? sender, BridgeMessageProcessedEventArgs e)
+        /// <summary>链接取消令牌 — 传给 SendMessageAsync 和 WaitAsync</summary>
+        public CancellationToken Token => _linkedCts.Token;
+
+        /// <summary>响应任务 — await 此 Task 获取响应</summary>
+        public Task<BridgeMessage?> ResponseTask => _tcs.Task;
+
+        public BridgeRequestScope(BridgeClient client, string requestId, TimeSpan timeout, CancellationToken cancellationToken)
         {
-            // 检查是否是请求的响应
-            if (e.Response is ControlResponse controlResponse && controlResponse.RequestId == request.Id)
+            _client = client;
+            _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            _timeoutCts = new CancellationTokenSource(timeout);
+            _linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, _timeoutCts.Token);
+            _tcs = new TaskCompletionSource<BridgeMessage?>();
+            _onMessageReceived = (_, e) =>
             {
-                tcs.TrySetResult(e.Response);
-            }
-            else if (e.Response is ToolsCallResponse toolsResponse && toolsResponse.ToolCallId == request.Id)
-            {
-                tcs.TrySetResult(e.Response);
-            }
+                if (e.Response is ControlResponse controlResponse && controlResponse.RequestId == requestId)
+                    _tcs.TrySetResult(e.Response);
+                else if (e.Response is ToolsCallResponse toolsResponse && toolsResponse.ToolCallId == requestId)
+                    _tcs.TrySetResult(e.Response);
+            };
+            client.MessageProcessed += _onMessageReceived;
         }
 
-        MessageProcessed += OnMessageReceived;
-
-        try
+        public void Dispose()
         {
-            await SendMessageAsync(request, linkedCts.Token).ConfigureAwait(false);
-            return await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
-        }
-        finally
-        {
-            MessageProcessed -= OnMessageReceived;
-            cts.Dispose();
-            timeoutCts.Dispose();
+            if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+            _client.MessageProcessed -= _onMessageReceived;
+            _cts.Dispose();
+            _timeoutCts.Dispose();
+            _linkedCts.Dispose();
         }
     }
 

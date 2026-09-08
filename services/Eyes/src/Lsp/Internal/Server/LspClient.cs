@@ -8,6 +8,11 @@ public sealed record LspServerConfig
     public required string Command { get; init; }
     public List<string> Arguments { get; init; } = new();
     public Dictionary<string, JsonElement> InitializationOptions { get; init; } = new();
+    /// <summary>
+    /// 工作目录 — LSP 服务器进程的 CWD，同时用于 initialize 的 rootUri。
+    /// 为 null 时回退到当前进程的 CWD。
+    /// </summary>
+    public string? WorkingDirectory { get; init; }
 }
 
 #endregion
@@ -169,7 +174,7 @@ public interface ILspClient : IAsyncDisposable
 
 public sealed partial class LspClient : ILspClient
 {
-    private readonly ILogger<LspClient>? _logger;
+    private readonly ILogger? _logger;
     private readonly IFileSystem _fs;
     private readonly IProcessService _processService;
     private IInteractiveProcess? _process;
@@ -187,7 +192,7 @@ public sealed partial class LspClient : ILspClient
 
     public event EventHandler<(string Method, JsonNode? Params)>? NotificationReceived;
 
-    public LspClient(IFileSystem fs, IProcessService processService, ILogger<LspClient>? logger = null)
+    public LspClient(IFileSystem fs, IProcessService processService, ILogger? logger = null)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _processService = processService ?? throw new ArgumentNullException(nameof(processService));
@@ -213,12 +218,13 @@ public sealed partial class LspClient : ILspClient
             {
                 FileName = config.Command,
                 ArgumentList = config.Arguments,
+                WorkingDirectory = config.WorkingDirectory,
             };
 
             _process = await _processService.StartInteractiveAsync(options, cancellationToken).ConfigureAwait(false);
 
-            _writer = new StreamWriter(_process.StandardInput.BaseStream, Encoding.UTF8);
-            _reader = new StreamReader(_process.StandardOutput.BaseStream, Encoding.UTF8);
+            _writer = _process.StandardInput;
+            _reader = _process.StandardOutput;
 
             _readCts = new CancellationTokenSource();
             var readToken = _readCts.Token;
@@ -233,10 +239,11 @@ public sealed partial class LspClient : ILspClient
                 if (line != null) _logger?.LogDebug("LSP stderr: {Line}", line);
             };
 
+            var rootDir = config.WorkingDirectory ?? _fs.GetCurrentDirectory();
             var initParams = new LspInitializeParams
             {
                 ProcessId = Environment.ProcessId,
-                RootUri = new Uri(_fs.GetCurrentDirectory()).ToString(),
+                RootUri = new Uri(rootDir + Path.DirectorySeparatorChar).ToString(),
                 Capabilities = JsonSerializer.SerializeToNode(new Dictionary<string, JsonElement>(), LspJsonContext.Default.DictionaryStringJsonElement)!
             };
             var initResult = await SendRequestCoreAsync(LspMethod.Initialize.ToValue(), JsonSerializer.SerializeToNode(initParams, LspJsonContext.Default.LspInitializeParams), cancellationToken).ConfigureAwait(false);
@@ -318,16 +325,60 @@ public sealed partial class LspClient : ILspClient
 
         var result = await SendRequestCoreAsync(LspMethod.TextDocumentDefinition.ToValue(), JsonSerializer.SerializeToNode(positionParams, LspJsonContext.Default.LspTextDocumentPositionParams), cancellationToken).ConfigureAwait(false);
 
-        if (result is null)
-            return new List<LspLocation>();
+        return DeserializeLocations(result);
+    }
 
-        if (result is JsonArray)
+    /// <summary>
+    /// 将 LSP definition/implementation 响应反序列化为 LspLocation 列表。
+    /// 处理三种格式：null、Location、Location[]、LocationLink、LocationLink[]。
+    /// csharp-ls 返回 LocationLink 格式（含 targetUri/targetRange），需转换为 LspLocation。
+    /// </summary>
+    private static List<LspLocation> DeserializeLocations(JsonNode? result)
+    {
+        if (result is null) return [];
+
+        if (result is JsonArray arr)
         {
-            return RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspLocation) ?? new List<LspLocation>();
+            var locations = new List<LspLocation>();
+            foreach (var item in arr)
+            {
+                var loc = DeserializeSingleLocation(item);
+                if (loc != null) locations.Add(loc);
+            }
+            return locations;
         }
 
-        var single = RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.LspLocation);
-        return single != null ? new List<LspLocation> { single } : new List<LspLocation>();
+        var single = DeserializeSingleLocation(result);
+        return single != null ? [single] : [];
+    }
+
+    /// <summary>
+    /// 反序列化单个 Location 或 LocationLink 为 LspLocation。
+    /// Location: { uri, range }
+    /// LocationLink: { targetUri, targetRange, targetSelectionRange, originSelectionRange }
+    /// </summary>
+    private static LspLocation? DeserializeSingleLocation(JsonNode? node)
+    {
+        if (node is not JsonObject obj) return null;
+
+        if (obj.TryGetPropertyValue("uri", out var uriNode) && uriNode != null)
+        {
+            return RelaxedJsonSerializer.Deserialize(node!.ToJsonString(), LspJsonContext.Default.LspLocation);
+        }
+
+        if (obj.TryGetPropertyValue("targetUri", out var targetUriNode) && targetUriNode != null)
+        {
+            var targetUri = targetUriNode.GetValue<string>();
+            var rangeNode = obj.TryGetPropertyValue("targetRange", out var tr) ? tr : null;
+            if (rangeNode != null)
+            {
+                var range = RelaxedJsonSerializer.Deserialize(rangeNode.ToJsonString(), LspJsonContext.Default.LspRange);
+                return new LspLocation { Uri = targetUri, Range = range ?? new LspRange { Start = new LspPosition(), End = new LspPosition() } };
+            }
+            return new LspLocation { Uri = targetUri, Range = new LspRange { Start = new LspPosition(), End = new LspPosition() } };
+        }
+
+        return null;
     }
 
     public async Task<List<LspLocation>> FindReferencesAsync(string filePath, int line, int character, CancellationToken cancellationToken = default)
@@ -455,16 +506,7 @@ public sealed partial class LspClient : ILspClient
 
         var result = await SendRequestCoreAsync(LspMethod.TextDocumentImplementation.ToValue(), JsonSerializer.SerializeToNode(positionParams, LspJsonContext.Default.LspTextDocumentPositionParams), cancellationToken).ConfigureAwait(false);
 
-        if (result is null)
-            return new List<LspLocation>();
-
-        if (result is JsonArray)
-        {
-            return RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspLocation) ?? new List<LspLocation>();
-        }
-
-        var single = RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.LspLocation);
-        return single != null ? new List<LspLocation> { single } : new List<LspLocation>();
+        return DeserializeLocations(result);
     }
 
     public async Task<List<LspCallHierarchyItem>> PrepareCallHierarchyAsync(string filePath, int line, int character, CancellationToken cancellationToken = default)
@@ -572,14 +614,16 @@ public sealed partial class LspClient : ILspClient
 
     private async Task SendMessageAsync(string json, CancellationToken cancellationToken = default)
     {
-        if (_writer == null) return;
+        if (_process == null) return;
 
         var bytes = Encoding.UTF8.GetBytes(json);
         var header = $"Content-Length: {bytes.Length}\r\n\r\n";
+        var headerBytes = Encoding.UTF8.GetBytes(header);
 
-        await _writer.WriteAsync(header.AsMemory(), cancellationToken).ConfigureAwait(false);
-        await _writer.WriteAsync(json.AsMemory(), cancellationToken).ConfigureAwait(false);
-        await _writer.FlushAsync(cancellationToken).ConfigureAwait(false);
+        var stream = _process.StandardInput.BaseStream;
+        await stream.WriteAsync(headerBytes, cancellationToken).ConfigureAwait(false);
+        await stream.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
+        await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private async Task ReadLoopAsync(CancellationToken cancellationToken)

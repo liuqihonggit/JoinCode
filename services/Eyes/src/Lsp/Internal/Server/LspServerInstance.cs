@@ -43,7 +43,7 @@ public interface ILspServerInstance : IAsyncDisposable
     event EventHandler<LspServerErrorEventArgs>? ErrorOccurred;
     event EventHandler<LspServerStateChangedEventArgs>? StateChanged;
 
-    Task StartAsync(CancellationToken cancellationToken = default);
+    Task StartAsync(string? workingDirectory = null, CancellationToken cancellationToken = default);
     Task StopAsync(CancellationToken cancellationToken = default);
     Task RestartAsync(CancellationToken cancellationToken = default);
     Task<JsonNode?> SendRequestAsync(string method, object? @params, CancellationToken cancellationToken = default);
@@ -95,7 +95,7 @@ public sealed partial class LspServerInstance : ILspServerInstance
     private const int DefaultMaxRestarts = 3;
 
     private readonly LspInstanceConfig _config;
-    private readonly ILogger<LspServerInstance> _logger;
+    private readonly ILogger _logger;
     private readonly LspClient _client;
     private readonly Fsm<LspServerState, LspServerEvent> _stateMachine;
 
@@ -115,11 +115,11 @@ public sealed partial class LspServerInstance : ILspServerInstance
     public event EventHandler<LspServerErrorEventArgs>? ErrorOccurred;
     public event EventHandler<LspServerStateChangedEventArgs>? StateChanged;
 
-    public LspServerInstance(LspInstanceConfig config, IFileSystem fs, IProcessService processService, ILogger<LspServerInstance> logger)
+    public LspServerInstance(LspInstanceConfig config, IFileSystem fs, IProcessService processService, ILogger logger)
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _client = new LspClient(fs, processService);
+        _client = new LspClient(fs, processService, logger);
         _stateMachine = new Fsm<LspServerState, LspServerEvent>(_fsmSortedKeys, _fsmRules, LspServerState.Stopped);
         _stateMachine.StateChanged += OnStateChanged;
         _stateMachine.StateChanged += (_, e) => FsmDispatchEvent(e);
@@ -131,7 +131,7 @@ public sealed partial class LspServerInstance : ILspServerInstance
         StateChanged?.Invoke(this, new LspServerStateChangedEventArgs { OldState = e.FromState, NewState = e.ToState });
     }
 
-    public async Task StartAsync(CancellationToken cancellationToken = default)
+    public async Task StartAsync(string? workingDirectory = null, CancellationToken cancellationToken = default)
     {
         if (State is LspServerState.Running or LspServerState.Starting)
         {
@@ -152,11 +152,13 @@ public sealed partial class LspServerInstance : ILspServerInstance
         {
             _stateMachine.Trigger(LspServerEvent.Start);
 
+            var effectiveWorkDir = workingDirectory ?? _config.WorkingDirectory;
             var connected = await _client.ConnectAsync(new LspServerConfig
             {
                 LanguageId = _config.LanguageId,
                 Command = _config.Command,
-                Arguments = _config.Arguments
+                Arguments = _config.Arguments,
+                WorkingDirectory = effectiveWorkDir,
             }, cancellationToken).ConfigureAwait(false);
 
             if (!connected)
@@ -212,7 +214,7 @@ public sealed partial class LspServerInstance : ILspServerInstance
             throw new InvalidOperationException($"LSP server '{Name}' exceeded max restart attempts ({maxRestarts})");
         }
 
-        await StartAsync(cancellationToken).ConfigureAwait(false);
+        await StartAsync(null, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<JsonNode?> SendRequestAsync(string method, object? @params, CancellationToken cancellationToken = default)

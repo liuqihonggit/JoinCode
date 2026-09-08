@@ -58,9 +58,7 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
 
         foreach (var config in configs)
         {
-            var instance = new LspServerInstance(config, _fs, _processService, _logger != null
-                ? new LoggerFactory().CreateLogger<LspServerInstance>()
-                : throw new InvalidOperationException("Logger required"));
+            var instance = new LspServerInstance(config, _fs, _processService, _logger);
 
             _servers[config.Name] = instance;
 
@@ -124,12 +122,41 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
 
         try
         {
-            await server.StartAsync(cancellationToken).ConfigureAwait(false);
+            var workspaceRoot = FindWorkspaceRoot(filePath);
+            await server.StartAsync(workspaceRoot, cancellationToken).ConfigureAwait(false);
             return server;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to start LSP server '{Name}' for file: {FilePath}", server.Name, filePath);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// 从文件路径向上搜索 .sln/.slnx 文件，返回所在目录作为 workspace root。
+    /// 找不到时返回文件所在目录。
+    /// </summary>
+    private string? FindWorkspaceRoot(string filePath)
+    {
+        try
+        {
+            var dir = Path.GetDirectoryName(filePath);
+            while (!string.IsNullOrEmpty(dir))
+            {
+                if (_fs.GetFiles(dir, "*.sln", SearchOption.TopDirectoryOnly).Length > 0 ||
+                    _fs.GetFiles(dir, "*.slnx", SearchOption.TopDirectoryOnly).Length > 0)
+                {
+                    return dir;
+                }
+                var parent = _fs.GetParentPath(dir);
+                if (string.IsNullOrEmpty(parent) || parent == dir) break;
+                dir = parent;
+            }
+            return Path.GetDirectoryName(filePath);
+        }
+        catch
+        {
             return null;
         }
     }

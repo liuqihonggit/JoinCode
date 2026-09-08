@@ -670,7 +670,7 @@ public class LspToolHandlers {
         var ext = Path.GetExtension(filePath).ToLowerInvariant();
         var (serverName, installCmd) = ext switch
         {
-            ".cs" or ".csx" => ("OmniSharp (C#)", "dotnet tool install -g OmniSharp"),
+            ".cs" or ".csx" => ("csharp-ls (C#)", "dotnet tool install -g csharp-ls"),
             ".ts" or ".tsx" or ".js" or ".jsx" or ".mjs" => ("typescript-language-server", "npm install -g typescript-language-server typescript"),
             ".py" or ".pyw" => ("pylsp (Python)", "pip install pylsp"),
             ".rs" => ("rust-analyzer", "rustup component add rust-analyzer"),

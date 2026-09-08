@@ -197,10 +197,10 @@ public sealed partial class LspConfigLoader : ServiceEntity, ILspConfigLoader
         {
             new()
             {
-                ServerId = "omnisharp",
-                Name = "C# (OmniSharp)",
-                Command = "omnisharp",
-                Arguments = new List<string> { "-lsp" },
+                ServerId = "csharp-ls",
+                Name = "C# (csharp-ls)",
+                Command = "csharp-ls",
+                Arguments = new List<string> { "--loglevel", "trace" },
                 FileExtensions = new List<string> { ".cs", ".csx" },
                 LanguageId = "csharp"
             },

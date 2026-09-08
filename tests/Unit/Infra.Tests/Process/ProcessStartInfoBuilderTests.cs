@@ -61,8 +61,8 @@ public sealed class ProcessStartInfoBuilderTests
 
         var psi = builder.Build(new ProcessOptions { FileName = "test" });
 
-        psi.StandardOutputEncoding.Should().BeSameAs(Encoding.UTF8);
-        psi.StandardErrorEncoding.Should().BeSameAs(Encoding.UTF8);
+        AssertUtf8WithoutBom(psi.StandardOutputEncoding!);
+        AssertUtf8WithoutBom(psi.StandardErrorEncoding!);
     }
 
     [Fact]
@@ -209,5 +209,11 @@ public sealed class ProcessStartInfoBuilderTests
         var psi = builder.Build(new ProcessOptions { FileName = "test" });
 
         psi.StandardOutputEncoding.Should().BeSameAs(Encoding.Default);
+    }
+
+    private static void AssertUtf8WithoutBom(Encoding encoding)
+    {
+        encoding.WebName.Should().Be("utf-8");
+        encoding.Preamble.Length.Should().Be(0);
     }
 }

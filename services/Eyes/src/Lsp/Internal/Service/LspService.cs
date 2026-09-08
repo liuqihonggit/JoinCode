@@ -303,17 +303,57 @@ public sealed partial class LspService : ServiceEntity, ILspService
 
     #region Private Methods
 
+    /// <summary>
+    /// 将 LSP definition/references/implementation 响应反序列化为 LspLocation 列表。
+    /// 处理格式：null、Location、Location[]、LocationLink、LocationLink[]。
+    /// csharp-ls 返回 LocationLink 格式（含 targetUri/targetRange），需转换为 LspLocation。
+    /// </summary>
     private static List<LspLocation> DeserializeLocations(JsonNode? result)
     {
         if (result is null) return [];
 
-        if (result is JsonArray)
+        if (result is JsonArray arr)
         {
-            return RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspLocation) ?? [];
+            var locations = new List<LspLocation>();
+            foreach (var item in arr)
+            {
+                var loc = DeserializeSingleLocation(item);
+                if (loc != null) locations.Add(loc);
+            }
+            return locations;
         }
 
-        var single = RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.LspLocation);
+        var single = DeserializeSingleLocation(result);
         return single != null ? [single] : [];
+    }
+
+    /// <summary>
+    /// 反序列化单个 Location 或 LocationLink 为 LspLocation。
+    /// Location: { uri, range }
+    /// LocationLink: { targetUri, targetRange, targetSelectionRange, originSelectionRange }
+    /// </summary>
+    private static LspLocation? DeserializeSingleLocation(JsonNode? node)
+    {
+        if (node is not JsonObject obj) return null;
+
+        if (obj.TryGetPropertyValue("uri", out var uriNode) && uriNode != null)
+        {
+            return RelaxedJsonSerializer.Deserialize(node!.ToJsonString(), LspJsonContext.Default.LspLocation);
+        }
+
+        if (obj.TryGetPropertyValue("targetUri", out var targetUriNode) && targetUriNode != null)
+        {
+            var targetUri = targetUriNode.GetValue<string>();
+            var rangeNode = obj.TryGetPropertyValue("targetRange", out var tr) ? tr : null;
+            if (rangeNode != null)
+            {
+                var range = RelaxedJsonSerializer.Deserialize(rangeNode.ToJsonString(), LspJsonContext.Default.LspRange);
+                return new LspLocation { Uri = targetUri, Range = range ?? new LspRange { Start = new LspPosition(), End = new LspPosition() } };
+            }
+            return new LspLocation { Uri = targetUri, Range = new LspRange { Start = new LspPosition(), End = new LspPosition() } };
+        }
+
+        return null;
     }
 
     private static List<LspCompletionItem> DeserializeCompletions(JsonNode? result)

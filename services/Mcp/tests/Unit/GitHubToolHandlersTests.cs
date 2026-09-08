@@ -90,21 +90,29 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task PrMerge_AutoMergeTrue_CallsEnableAutomergeEndpoint()
+    public async Task PrMerge_AutoMergeTrue_CallsGraphQLEnableAutomerge()
     {
-        _api.NextResponse = new GitHubApiResponse
+        _api.EnqueueResponse(new GitHubApiResponse
         {
             Success = true,
             StatusCode = 200,
-            Body = "{}",
-        };
+            Body = """{"number":206,"node_id":"PR_kwDOTVZE0c8AAAABCsFVdw"}""",
+        });
+        _api.EnqueueResponse(new GitHubApiResponse
+        {
+            Success = true,
+            StatusCode = 200,
+            Body = """{"data":{"enablePullRequestAutoMerge":{"pullRequest":{"number":206}}}}""",
+        });
 
         var result = await _handler.GhPrMergeAsync("206", merge_method: "squash", auto_merge: true, repo: "owner/repo");
 
         result.IsError.Should().BeFalse();
-        _api.LastMethod.Should().Be(HttpMethod.Put);
-        _api.LastPath.Should().Be("repos/owner/repo/pulls/206/enable-automerge");
-        _api.LastBody.Should().Contain("\"merge_method\":\"squash\"");
+        _api.LastMethod.Should().Be(HttpMethod.Post);
+        _api.LastPath.Should().Be("graphql");
+        _api.LastBody.Should().Contain("enablePullRequestAutoMerge");
+        _api.LastBody.Should().Contain("SQUASH");
+        _api.LastBody.Should().Contain("PR_kwDOTVZE0c8AAAABCsFVdw");
     }
 
     [Fact]
@@ -401,13 +409,15 @@ public sealed class GitHubToolHandlersTests
     [Fact]
     public async Task PrMerge_DefaultSquash_AppendsAutoWhenRequested()
     {
-        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "" };
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"number":5,"node_id":"PR_test123"}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"data":{"enablePullRequestAutoMerge":{"pullRequest":{"number":5}}}}""" });
 
         await _handler.GhPrMergeAsync("5", auto_merge: true, repo: "owner/repo");
 
-        _api.LastMethod.Should().Be(HttpMethod.Put);
-        _api.LastPath.Should().Be("repos/owner/repo/pulls/5/enable-automerge");
-        _api.LastBody.Should().Contain("squash");
+        _api.LastMethod.Should().Be(HttpMethod.Post);
+        _api.LastPath.Should().Be("graphql");
+        _api.LastBody.Should().Contain("enablePullRequestAutoMerge");
+        _api.LastBody.Should().Contain("SQUASH");
     }
 
     [Fact]

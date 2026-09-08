@@ -152,9 +152,21 @@ public partial class GitHubToolHandlers
 
         if (auto_merge == true)
         {
-            var enableBody = $$"""{"merge_method":"{{method}}"}""";
-            var enableResult = await _apiClient.SendAsync(HttpMethod.Put, $"repos/{owner}/{repoName}/pulls/{number}/enable-automerge", enableBody, ct: cancellationToken).ConfigureAwait(false);
-            if (!enableResult.Success) return Fail(enableResult.Error);
+            var prResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: cancellationToken).ConfigureAwait(false);
+            if (!prResult.Success) return Fail(prResult.Error);
+            string? nodeId;
+            try
+            {
+                using var doc = JsonDocument.Parse(prResult.Body);
+                nodeId = doc.RootElement.GetProperty("node_id").GetString();
+            }
+            catch (Exception ex) { return Fail($"解析 PR node_id 失败: {ex.Message}"); }
+            if (string.IsNullOrEmpty(nodeId)) return Fail("无法从 PR 响应中解析 node_id");
+
+            var graphqlMethod = method.ToUpperInvariant() switch { "SQUASH" => "SQUASH", "REBASE" => "REBASE", _ => "MERGE" };
+            var graphqlBody = $$"""{"query":"mutation { enablePullRequestAutoMerge(input: {pullRequestId: \"{{nodeId}}\", mergeMethod: {{graphqlMethod}}}) { pullRequest { number } } }"}""";
+            var graphqlResult = await _apiClient.SendAsync(HttpMethod.Post, "graphql", graphqlBody, ct: cancellationToken).ConfigureAwait(false);
+            if (!graphqlResult.Success) return Fail(graphqlResult.Error);
             return Ok($"已为 PR {number} 启用 auto-merge（{method}）");
         }
 

@@ -1,6 +1,6 @@
 # 0092. mcp_call 跨 shell 引号宽容 + 工具名模糊匹配
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-09-08
 - 决策者：用户 + AI
 

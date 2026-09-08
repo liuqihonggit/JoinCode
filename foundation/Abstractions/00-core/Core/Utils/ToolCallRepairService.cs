@@ -96,6 +96,15 @@ internal static class ToolCallRepairService
                 RepairHint = hints.Count > 0 ? string.Join("; ", hints) : null
             };
 
+        var shellStripped = RepairShellStrippedSingleKey(json, hints);
+        if (shellStripped is not null && TryParseJson(shellStripped, out _))
+            return new ToolCallRepairResult
+            {
+                Success = true,
+                RepairedJson = shellStripped,
+                RepairHint = hints.Count > 0 ? string.Join("; ", hints) : null
+            };
+
         return new ToolCallRepairResult
         {
             Success = false,
@@ -300,15 +309,104 @@ internal static class ToolCallRepairService
     /// <summary>
     /// 生成跨 shell 调用示例文本 — 帮助 AI/用户正确传递 JSON 参数
     /// <para>覆盖 PowerShell(--%)、Bash(单引号)、Cmd(转义引号)三种 shell</para>
+    /// <para>若提供 schema 则按 required/properties 生成具体参数示例，否则用通用示例</para>
     /// </summary>
-    internal static string BuildShellCallExamples(string toolName)
+    internal static string BuildShellCallExamples(string toolName, ToolSchema? schema = null)
     {
+        var exampleJson = BuildExampleJson(schema);
+        var exampleKv = BuildExampleKeyValue(schema, toolName);
         return $$"""
-调用示例:
-  PowerShell: jcc mcp_call {{toolName}} --% "{\"key\":\"value\"}"
-  Bash:       jcc mcp_call {{toolName}} '{"key":"value"}'
-  Cmd:        jcc mcp_call {{toolName}} "{\"key\":\"value\"}"
+调用示例 (JSON):
+  PowerShell: jcc mcp_call {{toolName}} --% "{{exampleJson}}"
+  Bash:       jcc mcp_call {{toolName}} '{{exampleJson}}'
+  Cmd:        jcc mcp_call {{toolName}} "{{exampleJson}}"
+调用示例 (key=value):
+  All shells: jcc mcp_call {{exampleKv}}
 """;
+    }
+
+    /// <summary>
+    /// 根据 ToolSchema 生成示例 JSON 字符串 — 优先包含 required 参数，无 required 则包含前 3 个 properties
+    /// </summary>
+    private static string BuildExampleJson(ToolSchema? schema)
+    {
+        if (schema is null || schema.Properties.Count == 0)
+            return "{\"key\":\"value\"}";
+
+        var keys = schema.Required.Count > 0
+            ? schema.Required
+            : schema.Properties.Keys.Take(3).ToList();
+
+        if (keys.Count == 0)
+            return "{}";
+
+        var parts = new List<string>(keys.Count);
+        foreach (var key in keys)
+        {
+            if (!schema.Properties.TryGetValue(key, out var prop))
+                continue;
+            parts.Add($"\"{key}\":{BuildExampleValue(prop)}");
+        }
+        return parts.Count == 0 ? "{}" : $"{{{string.Join(",", parts)}}}";
+    }
+
+    /// <summary>
+    /// 根据 ToolSchemaProperty 类型生成占位值
+    /// </summary>
+    private static string BuildExampleValue(ToolSchemaProperty prop)
+    {
+        if (prop.Enum is { Count: > 0 })
+            return "\"" + prop.Enum[0] + "\"";
+        return prop.Type switch
+        {
+            "integer" or "number" => "0",
+            "boolean" => "false",
+            "array" => "[]",
+            "object" => "{}",
+            _ => "\"<" + prop.Type + ">\"",
+        };
+    }
+
+    /// <summary>
+    /// 根据 ToolSchema 生成 key=value 格式示例参数 — 优先包含 required 参数
+    /// </summary>
+    private static string BuildExampleKeyValue(ToolSchema? schema, string toolName)
+    {
+        if (schema is null || schema.Properties.Count == 0)
+            return toolName + " key=value";
+
+        var keys = schema.Required.Count > 0
+            ? schema.Required
+            : schema.Properties.Keys.Take(3).ToList();
+
+        if (keys.Count == 0)
+            return toolName;
+
+        var parts = new List<string>(keys.Count);
+        foreach (var key in keys)
+        {
+            if (!schema.Properties.TryGetValue(key, out var prop))
+                continue;
+            parts.Add(key + "=" + BuildExampleKvValue(prop));
+        }
+        return parts.Count == 0 ? toolName : toolName + " " + string.Join(" ", parts);
+    }
+
+    /// <summary>
+    /// 根据 ToolSchemaProperty 类型生成 key=value 占位值（不带引号）
+    /// </summary>
+    private static string BuildExampleKvValue(ToolSchemaProperty prop)
+    {
+        if (prop.Enum is { Count: > 0 })
+            return prop.Enum[0];
+        return prop.Type switch
+        {
+            "integer" or "number" => "0",
+            "boolean" => "false",
+            "array" => "[]",
+            "object" => "{}",
+            _ => "<" + prop.Type + ">",
+        };
     }
 
     /// <summary>
@@ -326,6 +424,50 @@ internal static class ToolCallRepairService
 """;
         }
         return null;
+    }
+
+    /// <summary>
+    /// 激进修复 PowerShell 剥引号后的单键对象 — 值中含 {} 时 FixUnquotedValues 会截断
+    /// <para>检测: {key:value} 无双引号、单键(key 不含逗号)</para>
+    /// <para>策略: 第一个 : 前为 key,最后一个 } 前为 value,整体加引号</para>
+    /// <para>返回 null 表示不适用(多键对象或已有引号)</para>
+    /// </summary>
+    internal static string? RepairShellStrippedSingleKey(string json, List<string> hints)
+    {
+        if (json.Length < 4 || json[0] != '{' || json[^1] != '}')
+            return null;
+        if (!json.Contains(':') || json.Contains('"'))
+            return null;
+
+        var colonIdx = json.IndexOf(':');
+        if (colonIdx <= 1)
+            return null;
+
+        var keySpan = json.AsSpan(1, colonIdx - 1).Trim();
+        if (keySpan.Length == 0 || keySpan.Contains(','))
+            return null;
+
+        var valueSpan = json.AsSpan(colonIdx + 1, json.Length - colonIdx - 2).Trim();
+        if (valueSpan.Length == 0)
+            return null;
+
+        var sb = new StringBuilder(json.Length + 8);
+        sb.Append('"');
+        sb.Append(keySpan);
+        sb.Append("\":\"");
+        for (int i = 0; i < valueSpan.Length; i++)
+        {
+            if (valueSpan[i] == '\\')
+                sb.Append("\\\\");
+            else if (valueSpan[i] == '"')
+                sb.Append("\\\"");
+            else
+                sb.Append(valueSpan[i]);
+        }
+        sb.Append('"');
+
+        hints.Add($"shell-stripped single-key repair (key={keySpan.ToString()})");
+        return string.Concat("{", sb.ToString(), "}");
     }
 
     private static bool TryParseJson(string json, out JsonDocument? doc)

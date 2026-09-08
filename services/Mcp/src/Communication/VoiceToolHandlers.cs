@@ -14,12 +14,25 @@ public sealed partial class VoiceToolHandlers
         _logger = logger;
     }
 
+    /// <summary>
+    /// 检测是否为 CLI 单次调用模式（jcc mcp_call）— 录制状态不跨进程持久化
+    /// </summary>
+    private static bool IsCliSingleCallMode
+        => Array.IndexOf(Environment.GetCommandLineArgs(), "mcp_call") >= 0;
+
     [McpTool(SystemToolNameConstants.VoiceStartRecording, "Start voice recording", "voice")]
     public async Task<ToolResult> VoiceStartRecordingAsync(
         CancellationToken cancellationToken = default)
     {
         try
         {
+            if (IsCliSingleCallMode)
+            {
+                return ToolResultBuilder.Error()
+                    .WithText("语音录制需要在交互式会话中使用（jcc chat），CLI 单次调用（jcc mcp_call）模式下录制状态不跨进程持久化")
+                    .Build();
+            }
+
             if (_voiceService.IsRecording)
             {
                 return ToolResultBuilder.Error()

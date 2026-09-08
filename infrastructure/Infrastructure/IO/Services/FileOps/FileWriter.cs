@@ -10,6 +10,11 @@ public sealed class FileWriter
     private readonly ILogger? _logger;
     private readonly FileOperationConfig _config;
 
+    // 无 BOM 的 UTF-8 — 新文件默认编码。对齐 PhysicalFileSystem.s_utf8NoBom。
+    // Encoding.UTF8 带 BOM（preamble=EF BB BF），新文件会写入 3 字节 BOM，
+    // 破坏 JSON 解析、代码编译等依赖文件首字节的逻辑。
+    private static readonly Encoding s_utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+
     public FileWriter(IFileSystem fs, FileOperationConfig config, ILogger? logger = null)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
@@ -233,7 +238,7 @@ public sealed class FileWriter
 
         await using (result.GetLock())
         {
-            var effectiveEncoding = encoding ?? Encoding.UTF8;
+            var effectiveEncoding = encoding ?? s_utf8NoBom;
             var tempPath = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
             try
             {

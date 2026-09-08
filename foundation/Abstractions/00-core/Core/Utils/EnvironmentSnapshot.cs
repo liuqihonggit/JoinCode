@@ -69,10 +69,11 @@ public sealed record EnvironmentSnapshot
         IProcessService? processService = null,
         IFileSystem? fs = null,
         string? workingDirectory = null,
+        ILogger? logger = null,
         CancellationToken ct = default)
     {
         var snapshot = CaptureQuick(fs, workingDirectory);
-        var devTools = await DetectDevToolsAsync(processService, ct).ConfigureAwait(false);
+        var devTools = await DetectDevToolsAsync(processService, logger, ct).ConfigureAwait(false);
 
         return snapshot with { DevTools = devTools };
     }
@@ -83,6 +84,7 @@ public sealed record EnvironmentSnapshot
     /// </summary>
     public static async Task<FrozenDictionary<string, string?>> DetectDevToolsAsync(
         IProcessService? processService = null,
+        ILogger? logger = null,
         CancellationToken ct = default)
     {
         var tools = new[] { "node", "python", "go", "rustc", "java", "dotnet", "php", "ruby" };
@@ -90,7 +92,7 @@ public sealed record EnvironmentSnapshot
 
         foreach (var tool in tools)
         {
-            var version = await TryDetectToolVersionAsync(tool, processService, ct).ConfigureAwait(false);
+            var version = await TryDetectToolVersionAsync(tool, processService, logger, ct).ConfigureAwait(false);
             if (version is not null)
             {
                 result[tool] = version;
@@ -112,6 +114,7 @@ public sealed record EnvironmentSnapshot
     private static async Task<string?> TryDetectToolVersionAsync(
         string toolName,
         IProcessService? processService,
+        ILogger? logger,
         CancellationToken ct)
     {
         var versionFlag = toolName is "java" ? "-version" : "--version";
@@ -165,8 +168,7 @@ public sealed record EnvironmentSnapshot
         }
         catch (Exception ex)
         {
-            // 工具不存在或执行失败，记录到 stderr
-            Console.Error.WriteLine($"[EnvironmentSnapshot] 检测工具 {toolName} 失败: {ex.Message}");
+            logger?.LogError("检测工具 {ToolName} 失败: {Message}", toolName, ex.Message);
         }
 
         return null;

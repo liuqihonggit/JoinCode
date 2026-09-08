@@ -7,6 +7,8 @@ namespace JoinCode.Abstractions.CodeIndex;
 [JsonSerializable(typeof(ProjectInfo))]
 [JsonSerializable(typeof(ProjectReferenceEdge))]
 [JsonSerializable(typeof(NuGetPackageReference))]
+[JsonSerializable(typeof(FileTrackingInfo))]
+[JsonSerializable(typeof(List<FileTrackingInfo>))]
 [JsonSerializable(typeof(SearchResult<SymbolInfo>))]
 [JsonSerializable(typeof(SearchResult<CallEdge>))]
 [JsonSerializable(typeof(SearchResult<DependencyEdge>))]

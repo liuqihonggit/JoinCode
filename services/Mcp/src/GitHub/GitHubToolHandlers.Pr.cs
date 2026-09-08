@@ -282,18 +282,15 @@ public partial class GitHubToolHandlers
         sb.Append(JsonEscapeString(title));
         sb.Append(""","head":""");
         sb.Append(JsonEscapeString(head));
-        sb.Append('"');
         if (!string.IsNullOrWhiteSpace(@base))
         {
             sb.Append(""","base":""");
             sb.Append(JsonEscapeString(@base));
-            sb.Append('"');
         }
         if (!string.IsNullOrWhiteSpace(body))
         {
             sb.Append(""","body":""");
             sb.Append(JsonEscapeString(body));
-            sb.Append('"');
         }
         if (draft == true)
             sb.Append(""","draft":true""");

@@ -98,10 +98,12 @@ public sealed class SymbolSearcher : ISymbolSearcher
 
         using var scope = _store.EnterReadLock();
         var result = new List<SymbolInfo>();
+
+        var fqns = ResolveFqns(symbolName);
         foreach (var edge in _store.CallEdges)
         {
             if (ct.IsCancellationRequested) break;
-            if (string.Equals(edge.CalleeSymbol, symbolName, StringComparison.OrdinalIgnoreCase))
+            if (fqns.Contains(edge.CalleeSymbol))
             {
                 result.Add(new SymbolInfo
                 {
@@ -118,6 +120,22 @@ public sealed class SymbolSearcher : ISymbolSearcher
         }
 
         return Task.FromResult<IReadOnlyList<SymbolInfo>>(result);
+    }
+
+    /// <summary>
+    /// 将符号名解析为所有匹配的完全限定名集合 — 同时包含原始输入和符号的 FQN，支持简单名和完全限定名两种输入
+    /// </summary>
+    private HashSet<string> ResolveFqns(string symbolName)
+    {
+        var fqns = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { symbolName };
+        if (_store.SymbolsByName.TryGetValue(symbolName, out var list))
+        {
+            foreach (var s in list)
+            {
+                fqns.Add(s.FullyQualifiedName);
+            }
+        }
+        return fqns;
     }
 
     public Task<SearchResult<SymbolInfo>> SearchByPatternAsync(string pattern, int maxResults, CancellationToken ct)

@@ -150,6 +150,18 @@ public partial class GitHubToolHandlers
     }
 
     /// <summary>
+    /// 将源 JsonElement 的指定属性原样复制到 Utf8JsonWriter — AOT 友好(无反射/emit)
+    /// </summary>
+    private static void CopyProperty(JsonElement source, Utf8JsonWriter writer, string name)
+    {
+        if (source.TryGetProperty(name, out var value))
+        {
+            writer.WritePropertyName(name);
+            writer.WriteRawValue(value.GetRawText());
+        }
+    }
+
+    /// <summary>
     /// 解析 owner/repo — 优先用 repo 参数，否则从 git remote origin 推断（ADR 0073）
     /// </summary>
     private async Task<(string owner, string repo)?> ResolveOwnerRepoAsync(string? repo, string? workingDir, CancellationToken ct)

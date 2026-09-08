@@ -28,30 +28,33 @@ public class FileEncodingDetectorTests
     }
 
     [Fact]
-    public void DetectFromBOM_NoBOM_ReturnsUtf8()
+    public void DetectFromBOM_NoBOM_ReturnsUtf8NoBom()
     {
-        // TS: 默认 utf8
+        // TS: 默认 utf8 — 无 BOM 文件返回无 BOM 编码，避免更新时注入 BOM
         var bytes = new byte[] { 0x41, 0x42, 0x43 }; // "ABC" 无 BOM
         var encoding = FileEncodingDetector.DetectFromBOM(bytes);
-        encoding.Should().BeSameAs(Encoding.UTF8);
+        encoding.Should().BeOfType<UTF8Encoding>();
+        encoding.GetPreamble().Should().BeEmpty("无 BOM 文件不应返回带 BOM 的编码");
     }
 
     [Fact]
-    public void DetectFromBOM_EmptyBuffer_ReturnsUtf8()
+    public void DetectFromBOM_EmptyBuffer_ReturnsUtf8NoBom()
     {
-        // TS: bytesRead === 0 → 'utf8'
+        // TS: bytesRead === 0 → 'utf8'（无 BOM，空文件不应注入 BOM）
         var bytes = Array.Empty<byte>();
         var encoding = FileEncodingDetector.DetectFromBOM(bytes);
-        encoding.Should().BeSameAs(Encoding.UTF8);
+        encoding.Should().BeOfType<UTF8Encoding>();
+        encoding.GetPreamble().Should().BeEmpty();
     }
 
     [Fact]
-    public void DetectFromBOM_SingleByte_ReturnsUtf8()
+    public void DetectFromBOM_SingleByte_ReturnsUtf8NoBom()
     {
-        // TS: bytesRead >= 2 才检查 UTF-16LE，1 字节默认 utf8
+        // TS: bytesRead >= 2 才检查 UTF-16LE，1 字节默认 utf8（无 BOM）
         var bytes = new byte[] { 0xFF };
         var encoding = FileEncodingDetector.DetectFromBOM(bytes);
-        encoding.Should().BeSameAs(Encoding.UTF8);
+        encoding.Should().BeOfType<UTF8Encoding>();
+        encoding.GetPreamble().Should().BeEmpty();
     }
 
     [Fact]
@@ -111,14 +114,15 @@ public class FileEncodingDetectorTests
     }
 
     [Fact]
-    public async Task DetectFromFile_Utf8NoBOM_ReturnsUtf8()
+    public async Task DetectFromFile_Utf8NoBOM_ReturnsUtf8NoBom()
     {
         var filePath = "/test/test-utf8.txt";
 
         await Fs.WriteAllTextAsync(filePath, "Hello World", new UTF8Encoding(false)).ConfigureAwait(true);
 
         var encoding = await FileEncodingDetector.DetectFromFileAsync(filePath, Fs).ConfigureAwait(true);
-        encoding.Should().BeSameAs(Encoding.UTF8);
+        encoding.Should().BeOfType<UTF8Encoding>();
+        encoding.GetPreamble().Should().BeEmpty("无 BOM 文件不应返回带 BOM 的编码");
     }
 
     [Fact]
@@ -133,21 +137,23 @@ public class FileEncodingDetectorTests
     }
 
     [Fact]
-    public async Task DetectFromFile_NonExistentFile_ReturnsUtf8()
+    public async Task DetectFromFile_NonExistentFile_ReturnsUtf8NoBom()
     {
         var encoding = await FileEncodingDetector.DetectFromFileAsync("/nonexistent/file.txt", Fs).ConfigureAwait(true);
-        encoding.Should().BeSameAs(Encoding.UTF8);
+        encoding.Should().BeOfType<UTF8Encoding>();
+        encoding.GetPreamble().Should().BeEmpty();
     }
 
     [Fact]
-    public async Task DetectFromFile_EmptyFile_ReturnsUtf8()
+    public async Task DetectFromFile_EmptyFile_ReturnsUtf8NoBom()
     {
-        // TS: bytesRead === 0 → 'utf8'（空文件默认 UTF-8，不是 ASCII）
+        // TS: bytesRead === 0 → 'utf8'（空文件默认无 BOM UTF-8）
         var filePath = "/test/empty.txt";
         await Fs.WriteAllBytesAsync(filePath, []).ConfigureAwait(true);
 
         var encoding = await FileEncodingDetector.DetectFromFileAsync(filePath, Fs).ConfigureAwait(true);
-        encoding.Should().BeSameAs(Encoding.UTF8);
+        encoding.Should().BeOfType<UTF8Encoding>();
+        encoding.GetPreamble().Should().BeEmpty();
     }
 
     #endregion

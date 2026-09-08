@@ -7,6 +7,10 @@ namespace Infrastructure.IO.Services.FileOps;
 /// </summary>
 public static class FileEncodingDetector
 {
+    // 无 BOM 的 UTF-8 — 用于无 BOM 的文件和默认编码。
+    // Encoding.UTF8 带 BOM（preamble=EF BB BF），作为默认编码会导致无 BOM 文件更新时被写入 BOM。
+    private static readonly Encoding s_utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+
     /// <summary>
     /// 从字节数组前几个字节（BOM）检测编码
     /// 对齐 TS: fileRead.ts L33-44
@@ -16,7 +20,7 @@ public static class FileEncodingDetector
     {
         // TS: bytesRead === 0 → 'utf8'
         if (buffer.Length == 0)
-            return Encoding.UTF8;
+            return s_utf8NoBom;
 
         // UTF-32 LE BOM: FF FE 00 00
         if (buffer.Length >= 4 && buffer[0] == 0xFF && buffer[1] == 0xFE && buffer[2] == 0x00 && buffer[3] == 0x00)
@@ -36,12 +40,12 @@ public static class FileEncodingDetector
             return Encoding.BigEndianUnicode; // UTF-16BE in .NET
 
         // TS: bytesRead >= 3 && buffer[0] === 0xef && buffer[1] === 0xbb && buffer[2] === 0xbf → 'utf8'
-        // UTF-8 BOM 也返回 UTF-8（.NET 的 Encoding.UTF8 会自动处理 BOM）
+        // UTF-8 BOM：返回带 BOM 的 Encoding.UTF8，保持原有 BOM
         if (buffer.Length >= 3 && buffer[0] == 0xEF && buffer[1] == 0xBB && buffer[2] == 0xBF)
             return Encoding.UTF8;
 
-        // TS: 默认 utf8
-        return Encoding.UTF8;
+        // TS: 默认 utf8 — 无 BOM 的文件用无 BOM 编码，避免更新时注入 BOM
+        return s_utf8NoBom;
     }
 
     /// <summary>
@@ -56,7 +60,7 @@ public static class FileEncodingDetector
         ILogger? logger = null)
     {
         if (!fs.FileExists(filePath))
-            return Encoding.UTF8;
+            return s_utf8NoBom;
 
         try
         {
@@ -77,7 +81,7 @@ public static class FileEncodingDetector
             // 检测失败时记录警告，而非静默吞异常
             // 下游用 UTF-8 解码可能产生乱码，用户需知晓检测失败
             logger?.LogWarning(ex, "文件编码检测失败，降级为 UTF-8: {FilePath}", filePath);
-            return Encoding.UTF8;
+            return s_utf8NoBom;
         }
     }
 

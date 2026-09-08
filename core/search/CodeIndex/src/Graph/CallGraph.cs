@@ -39,11 +39,15 @@ public sealed class CallGraph : ICallGraph
         ArgumentNullException.ThrowIfNull(symbolName);
 
         using var scope = _store.EnterReadLock();
-        if (_store.CallsByCallee.TryGetValue(symbolName, out var list))
+        var result = new List<CallEdge>();
+        foreach (var fqn in ResolveFqns(symbolName))
         {
-            return Task.FromResult<IReadOnlyList<CallEdge>>(list.ToList());
+            if (_store.CallsByCallee.TryGetValue(fqn, out var list))
+            {
+                result.AddRange(list);
+            }
         }
-        return Task.FromResult<IReadOnlyList<CallEdge>>(Array.Empty<CallEdge>());
+        return Task.FromResult<IReadOnlyList<CallEdge>>(result);
     }
 
     public Task<IReadOnlyList<CallEdge>> GetCalleesAsync(string symbolName, CancellationToken ct)
@@ -51,11 +55,31 @@ public sealed class CallGraph : ICallGraph
         ArgumentNullException.ThrowIfNull(symbolName);
 
         using var scope = _store.EnterReadLock();
-        if (_store.CallsByCaller.TryGetValue(symbolName, out var list))
+        var result = new List<CallEdge>();
+        foreach (var fqn in ResolveFqns(symbolName))
         {
-            return Task.FromResult<IReadOnlyList<CallEdge>>(list.ToList());
+            if (_store.CallsByCaller.TryGetValue(fqn, out var list))
+            {
+                result.AddRange(list);
+            }
         }
-        return Task.FromResult<IReadOnlyList<CallEdge>>(Array.Empty<CallEdge>());
+        return Task.FromResult<IReadOnlyList<CallEdge>>(result);
+    }
+
+    /// <summary>
+    /// 将符号名解析为所有匹配的完全限定名集合 — 同时包含原始输入和符号的 FQN，支持简单名和完全限定名两种输入
+    /// </summary>
+    private HashSet<string> ResolveFqns(string symbolName)
+    {
+        var fqns = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { symbolName };
+        if (_store.SymbolsByName.TryGetValue(symbolName, out var list))
+        {
+            foreach (var s in list)
+            {
+                fqns.Add(s.FullyQualifiedName);
+            }
+        }
+        return fqns;
     }
 
     public Task<IReadOnlyList<CallEdge>> GetCallChainAsync(string from, string to, CancellationToken ct)

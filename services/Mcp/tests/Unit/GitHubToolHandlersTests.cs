@@ -90,6 +90,45 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
+    public async Task PrCreate_WithBaseAndBody_ProducesValidJsonBody()
+    {
+        _api.NextResponse = new GitHubApiResponse
+        {
+            Success = true,
+            StatusCode = 201,
+            Body = """{"number":44,"title":"t","state":"open"}""",
+        };
+
+        await _handler.GhPrCreateAsync("t", "feat", @base: "main", body: "b", repo: "owner/repo");
+
+        _api.LastBody.Should().NotBeNullOrEmpty();
+        using var doc = System.Text.Json.JsonDocument.Parse(_api.LastBody!);
+        doc.RootElement.GetProperty("title").GetString().Should().Be("t");
+        doc.RootElement.GetProperty("head").GetString().Should().Be("feat");
+        doc.RootElement.GetProperty("base").GetString().Should().Be("main");
+        doc.RootElement.GetProperty("body").GetString().Should().Be("b");
+    }
+
+    [Fact]
+    public async Task PrCreate_WithBaseOnly_ProducesValidJsonBody()
+    {
+        _api.NextResponse = new GitHubApiResponse
+        {
+            Success = true,
+            StatusCode = 201,
+            Body = """{"number":45,"title":"t","state":"open"}""",
+        };
+
+        await _handler.GhPrCreateAsync("t", "feat", @base: "main", repo: "owner/repo");
+
+        _api.LastBody.Should().NotBeNullOrEmpty();
+        using var doc = System.Text.Json.JsonDocument.Parse(_api.LastBody!);
+        doc.RootElement.GetProperty("title").GetString().Should().Be("t");
+        doc.RootElement.GetProperty("head").GetString().Should().Be("feat");
+        doc.RootElement.GetProperty("base").GetString().Should().Be("main");
+    }
+
+    [Fact]
     public async Task PrMerge_AutoMergeTrue_CallsGraphQLEnableAutomerge()
     {
         _api.EnqueueResponse(new GitHubApiResponse
@@ -483,6 +522,29 @@ public sealed class GitHubToolHandlersTests
 
         result.IsError.Should().BeTrue();
         result.GetFirstText().Should().Contain("release not found");
+    }
+
+    [Fact]
+    public async Task ReleaseList_Success_ReturnsSummarizedJson()
+    {
+        _api.NextResponse = new GitHubApiResponse
+        {
+            Success = true,
+            StatusCode = 200,
+            Body = """[{"id":123,"tag_name":"v1.0","name":"Release v1.0","draft":false,"prerelease":false,"created_at":"2026-09-01T00:00:00Z","published_at":"2026-09-01T00:00:00Z","body":"notes","url":"https://api.github.com/repos/o/r/releases/123","assets_url":"https://api.github.com/repos/o/r/releases/123/assets","upload_url":"https://uploads.github.com/repos/o/r/releases/123/assets{?name,label}","html_url":"https://github.com/o/r/releases/tag/v1.0","author":{"login":"user","url":"https://api.github.com/users/user","avatar_url":"https://avatars.githubusercontent.com/u/1?v=4"},"assets":[{"name":"file.zip","size":1024,"browser_download_url":"https://github.com/o/r/releases/download/v1.0/file.zip"}]}]""",
+        };
+
+        var result = await _handler.GhReleaseListAsync(repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("\"tag_name\":\"v1.0\"");
+        text.Should().Contain("\"name\":\"Release v1.0\"");
+        text.Should().Contain("\"draft\":false");
+        text.Should().NotContain("assets_url");
+        text.Should().NotContain("upload_url");
+        text.Should().NotContain("avatar_url");
+        text.Should().NotContain("browser_download_url");
     }
 }
 

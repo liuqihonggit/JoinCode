@@ -37,7 +37,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         _callGraph = new CallGraph(store);
         _dependencyGraph = new DependencyGraph(store);
         _projectDependencyGraph = new ProjectDependencyGraph(store);
-        _projectIndex = new ProjectIndex(store, fs);
+        _projectIndex = new ProjectIndex(store, fs, logger);
         _analytics = new GraphAnalytics(store);
         _persistence = new GraphPersistence(store, fs);
         _visualization = new GraphVisualization(store);
@@ -147,7 +147,14 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         foreach (var slnFile in solutionFiles)
         {
             ct.ThrowIfCancellationRequested();
-            await _projectIndex.IndexSolutionAsync(slnFile, ct).ConfigureAwait(false);
+            try
+            {
+                await _projectIndex.IndexSolutionAsync(slnFile, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "CodeIndexer: 解析 solution 文件失败,跳过: {File}", slnFile);
+            }
         }
 
         if (solutionFiles.Count == 0)
@@ -156,7 +163,14 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
             foreach (var csprojFile in csprojFiles)
             {
                 ct.ThrowIfCancellationRequested();
-                await _projectIndex.IndexProjectAsync(csprojFile, workspaceRoot, ct).ConfigureAwait(false);
+                try
+                {
+                    await _projectIndex.IndexProjectAsync(csprojFile, workspaceRoot, ct).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "CodeIndexer: 解析项目文件失败,跳过: {File}", csprojFile);
+                }
             }
         }
 
@@ -478,26 +492,116 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
 
             _autoDiscoveredWorkspaceRoot = root;
             var dir = Path.Combine(root, AutoLoadSubDir);
-            if (!await _persistence.ExistsAsync(dir, ct).ConfigureAwait(false))
+            if (await _persistence.ExistsAsync(dir, ct).ConfigureAwait(false))
             {
-                _logger?.LogDebug("CodeIndexer: 持久化索引不存在 {Dir},跳过加载", dir);
-                return;
+                var loaded = await _persistence.LoadAsync(dir, ct).ConfigureAwait(false);
+                if (loaded)
+                {
+                    _logger?.LogInformation("CodeIndexer: 自动加载索引成功 from {Dir}", dir);
+                }
+                else
+                {
+                    _logger?.LogDebug("CodeIndexer: 持久化索引版本不匹配或为空 {Dir}", dir);
+                }
             }
 
-            var loaded = await _persistence.LoadAsync(dir, ct).ConfigureAwait(false);
-            if (loaded)
+            if (_store.SymbolsByFqn.Count == 0)
             {
-                _logger?.LogInformation("CodeIndexer: 自动加载索引成功 from {Dir}", dir);
+                _logger?.LogInformation("CodeIndexer: 索引为空,自动构建工作区 {Root}", root);
+                await RebuildAndPersistAsync(root, dir, ct).ConfigureAwait(false);
             }
-            else
+            else if (IsIndexStale(root))
             {
-                _logger?.LogDebug("CodeIndexer: 持久化索引版本不匹配或为空 {Dir}", dir);
+                _logger?.LogInformation("CodeIndexer: 索引已过时(git HEAD 比 LastUpdated 新),自动重建工作区 {Root}", root);
+                await RebuildAndPersistAsync(root, dir, ct).ConfigureAwait(false);
             }
         }
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "CodeIndexer: 自动加载索引失败");
         }
+    }
+
+    /// <summary>
+    /// 重建索引并持久化到磁盘
+    /// </summary>
+    private async Task RebuildAndPersistAsync(string root, string dir, CancellationToken ct)
+    {
+        var options = new CodeIndexOptions { WorkspaceRoot = root };
+        await BuildIndexAsync(options, ct).ConfigureAwait(false);
+        try
+        {
+            await _persistence.SaveAsync(dir, ct).ConfigureAwait(false);
+            _logger?.LogInformation("CodeIndexer: 重建完成并持久化到 {Dir}", dir);
+        }
+        catch (Exception persistEx)
+        {
+            _logger?.LogWarning(persistEx, "CodeIndexer: 重建后持久化失败(内存索引仍可用)");
+        }
+    }
+
+    /// <summary>
+    /// 检查索引是否过时 — 自动适配主仓库(.git/目录)和 worktree(.git/文件)，对笨蛋用户透明
+    /// </summary>
+    private bool IsIndexStale(string workspaceRoot)
+    {
+        try
+        {
+            var gitPath = _fs.CombinePath(workspaceRoot, ".git");
+
+            if (_fs.DirectoryExists(gitPath))
+            {
+                return IsFileStale(_fs.CombinePath(gitPath, "HEAD"));
+            }
+
+            if (_fs.FileExists(gitPath))
+            {
+                var gitDir = ParseGitFile(gitPath);
+                if (gitDir is not null)
+                {
+                    return IsFileStale(_fs.CombinePath(gitDir, "HEAD"));
+                }
+                _logger?.LogDebug("CodeIndexer: worktree .git 文件解析 gitdir 失败,降级检查 .git 文件修改时间");
+                return IsFileStale(gitPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "CodeIndexer: 检查索引新鲜度失败");
+        }
+        return false;
+
+        bool IsFileStale(string path)
+        {
+            if (!_fs.FileExists(path)) return false;
+            return _fs.GetLastWriteTimeUtc(path) > _store.LastUpdated;
+        }
+    }
+
+    /// <summary>
+    /// 解析 worktree .git 指针文件内容 — 格式: "gitdir: /path/to/main/.git/worktrees/w1"
+    /// </summary>
+    private string? ParseGitFile(string gitFilePath)
+    {
+        try
+        {
+            var content = _fs.ReadAllText(gitFilePath).Trim();
+            const string prefix = "gitdir:";
+            if (content.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                var gitDir = content[prefix.Length..].Trim();
+                if (!Path.IsPathRooted(gitDir))
+                {
+                    gitDir = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(gitFilePath)!, gitDir));
+                }
+                return gitDir;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "CodeIndexer: 解析 .git 指针文件失败");
+        }
+        return null;
     }
 
     /// <summary>

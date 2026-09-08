@@ -11,6 +11,7 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
     private readonly ITelemetryService? _telemetryService;
     private readonly IPersistencePipeline? _persistencePipeline;
     private readonly IFileSystem? _fs;
+    private readonly ILogger<AgentPermissionManager>? _logger;
     private int _rulesLoaded;
     private const string RulesSubDir = ".jcc" + "/" + "permission";
     private const string RulesFileName = "rules.json";
@@ -19,10 +20,12 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
     public AgentPermissionManager(
         ITelemetryService? telemetryService = null,
         IPersistencePipeline? persistencePipeline = null,
-        IFileSystem? fs = null)
+        IFileSystem? fs = null,
+        ILogger<AgentPermissionManager>? logger = null)
     {
         _telemetryService = telemetryService;
         _persistencePipeline = persistencePipeline;
+        _logger = logger;
         _fs = fs;
     }
 
@@ -239,7 +242,7 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"[Permission] 加载规则失败: {ex.Message}");
+            _logger?.LogError("加载规则失败: {Message}", ex.Message);
         }
     }
 

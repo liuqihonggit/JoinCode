@@ -130,7 +130,7 @@ public sealed class McpCliCommand
             TerminalHelper.WriteLine($"参数 Schema:");
             System.Console.WriteLine(RelaxedJsonSerializer.Serialize(info.InputSchema, ContractsJsonContext.Default));
             TerminalHelper.NewLine();
-            TerminalHelper.WriteLine(LlmJsonHelper.BuildShellCallExamples(info.Name));
+            TerminalHelper.WriteLine(LlmJsonHelper.BuildShellCallExamples(info.Name, info.InputSchema));
         }
         return 0;
     }, ct: ct);
@@ -316,7 +316,7 @@ public sealed class McpCliCommand
                 {
                     var repairedDict = ParseJsonObject(repairResult.RepairedJson);
                     if (repairResult.RepairHint is not null)
-                        TerminalHelper.WriteLine($"{TerminalColors.Warning}JSON 参数已自动修复: {repairResult.RepairHint}{AnsiStyleConstants.Reset}");
+                        TerminalHelper.WriteError($"JSON 参数已自动修复: {repairResult.RepairHint}");
                     return repairedDict;
                 }
                 catch (System.Text.Json.JsonException repairEx)

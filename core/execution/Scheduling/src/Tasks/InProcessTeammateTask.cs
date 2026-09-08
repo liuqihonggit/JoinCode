@@ -198,23 +198,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
 
             if (definition.PlanModeRequired && _planModeManager != null && !_planModeManager.IsInPlanMode)
             {
-                try
-                {
-                    _logger?.LogInformation("Teammate {TeammateId} requires plan mode, entering automatically", definition.TeammateId);
-
-                    var planResult = await _planModeManager.EnterPlanModeAsync(
-                        description: $"Teammate {definition.TeammateId}: {definition.Task}",
-                        cancellationToken: ct).ConfigureAwait(false);
-
-                    if (!planResult.Success)
-                    {
-                        _logger?.LogWarning("Teammate {TeammateId} failed to enter plan mode: {Error}", definition.TeammateId, planResult.ErrorMessage);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogWarning(ex, "Teammate {TeammateId} failed to enter plan mode", definition.TeammateId);
-                }
+                await TryEnterPlanModeIfNeededAsync(definition, ct).ConfigureAwait(false);
             }
 
             var result = await _agentLifecycleManager.ExecuteAsync(state.Agent, ct).ConfigureAwait(false);
@@ -424,23 +408,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
 
             if (definition.PlanModeRequired && _planModeManager != null && !_planModeManager.IsInPlanMode)
             {
-                try
-                {
-                    _logger?.LogInformation("Teammate {TeammateId} requires plan mode, entering automatically", definition.TeammateId);
-
-                    var planResult = await _planModeManager.EnterPlanModeAsync(
-                        description: $"Teammate {definition.TeammateId}: {definition.Task}",
-                        cancellationToken: lifecycleCt).ConfigureAwait(false);
-
-                    if (!planResult.Success)
-                    {
-                        _logger?.LogWarning("Teammate {TeammateId} failed to enter plan mode: {Error}", definition.TeammateId, planResult.ErrorMessage);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogWarning(ex, "Teammate {TeammateId} failed to enter plan mode", definition.TeammateId);
-                }
+                await TryEnterPlanModeIfNeededAsync(definition, lifecycleCt).ConfigureAwait(false);
             }
 
             while (!lifecycleCt.IsCancellationRequested && !shouldExit)
@@ -664,6 +632,30 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
 
     private void RecordTeammateMetrics(string operation, bool isSuccess)
         => _telemetryService?.RecordCount("scheduling.teammate.count", new Dictionary<string, string> { ["operation"] = operation, ["success"] = isSuccess.ToString() }, "count", "In-process teammate execution count");
+
+    /// <summary>
+    /// 尝试进入 plan mode — PlanModeRequired 且未已在 plan mode 时自动进入,失败仅警告不抛异常
+    /// </summary>
+    private async Task TryEnterPlanModeIfNeededAsync(InProcessTeammateDefinition definition, CancellationToken ct)
+    {
+        try
+        {
+            _logger?.LogInformation("Teammate {TeammateId} requires plan mode, entering automatically", definition.TeammateId);
+
+            var planResult = await _planModeManager!.EnterPlanModeAsync(
+                description: $"Teammate {definition.TeammateId}: {definition.Task}",
+                cancellationToken: ct).ConfigureAwait(false);
+
+            if (!planResult.Success)
+            {
+                _logger?.LogWarning("Teammate {TeammateId} failed to enter plan mode: {Error}", definition.TeammateId, planResult.ErrorMessage);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Teammate {TeammateId} failed to enter plan mode", definition.TeammateId);
+        }
+    }
 
     private void StartMailboxPollingIfNeeded(string teammateId)
     {

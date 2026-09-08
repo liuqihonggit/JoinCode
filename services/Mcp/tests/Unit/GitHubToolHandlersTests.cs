@@ -90,6 +90,41 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
+    public async Task PrMerge_AutoMergeTrue_CallsEnableAutomergeEndpoint()
+    {
+        _api.NextResponse = new GitHubApiResponse
+        {
+            Success = true,
+            StatusCode = 200,
+            Body = "{}",
+        };
+
+        var result = await _handler.GhPrMergeAsync("206", merge_method: "squash", auto_merge: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastMethod.Should().Be(HttpMethod.Put);
+        _api.LastPath.Should().Be("repos/owner/repo/pulls/206/enable-automerge");
+        _api.LastBody.Should().Contain("\"merge_method\":\"squash\"");
+    }
+
+    [Fact]
+    public async Task PrMerge_AutoMergeFalse_CallsMergeEndpoint()
+    {
+        _api.NextResponse = new GitHubApiResponse
+        {
+            Success = true,
+            StatusCode = 200,
+            Body = "{}",
+        };
+
+        var result = await _handler.GhPrMergeAsync("42", merge_method: "squash", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastMethod.Should().Be(HttpMethod.Put);
+        _api.LastPath.Should().Be("repos/owner/repo/pulls/42/merge");
+    }
+
+    [Fact]
     public async Task PrCreate_Failure_ReturnsError()
     {
         _api.NextResponse = new GitHubApiResponse

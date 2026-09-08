@@ -326,40 +326,32 @@ internal sealed class BuildWorker : ActorBase<BuildWorker.ICommand, BuildEvent>
 
     private async Task<BuildQueueResult> ExecuteBuildAsync(BuildQueueEntry entry, CancellationToken buildCt)
     {
-        await (_preventSleepService?.PreventSleepAsync(cancellationToken: CancellationToken.None)
-            ?? Task.CompletedTask).ConfigureAwait(false);
-        try
+        await using var sleepScope = await PreventSleepScope.CreateAsync(_preventSleepService, cancellationToken: CancellationToken.None).ConfigureAwait(false);
+
+        var wallStart = DateTimeOffset.UtcNow;
+
+        var result = await _actuatorRegistry.Get(SystemActuatorKind.Bash).ExecuteAsync(
+            entry.Request.Command,
+            workingDirectory: entry.Request.WorkingDirectory,
+            cancellationToken: buildCt).ConfigureAwait(false);
+
+        var wallElapsed = DateTimeOffset.UtcNow - wallStart;
+        var sleepDetected = wallElapsed > result.ExecutionTime + TimeSpan.FromSeconds(30);
+
+        return new BuildQueueResult
         {
-            var wallStart = DateTimeOffset.UtcNow;
-
-            var result = await _actuatorRegistry.Get(SystemActuatorKind.Bash).ExecuteAsync(
-                entry.Request.Command,
-                workingDirectory: entry.Request.WorkingDirectory,
-                cancellationToken: buildCt).ConfigureAwait(false);
-
-            var wallElapsed = DateTimeOffset.UtcNow - wallStart;
-            var sleepDetected = wallElapsed > result.ExecutionTime + TimeSpan.FromSeconds(30);
-
-            return new BuildQueueResult
-            {
-                BuildId = entry.BuildId,
-                ExitCode = result.ExitCode ?? -1,
-                Output = result.Stdout ?? string.Empty,
-                ErrorOutput = result.Stderr ?? string.Empty,
-                WaitDuration = entry.StartedAt.HasValue
-                    ? entry.StartedAt.Value - entry.Request.SubmittedAt
-                    : TimeSpan.Zero,
-                BuildDuration = result.ExecutionTime,
-                QueuePosition = entry.QueuePosition,
-                SleepDetected = sleepDetected,
-                Cancelled = buildCt.IsCancellationRequested
-            };
-        }
-        finally
-        {
-            await (_preventSleepService?.AllowSleepAsync(CancellationToken.None)
-                ?? Task.CompletedTask).ConfigureAwait(false);
-        }
+            BuildId = entry.BuildId,
+            ExitCode = result.ExitCode ?? -1,
+            Output = result.Stdout ?? string.Empty,
+            ErrorOutput = result.Stderr ?? string.Empty,
+            WaitDuration = entry.StartedAt.HasValue
+                ? entry.StartedAt.Value - entry.Request.SubmittedAt
+                : TimeSpan.Zero,
+            BuildDuration = result.ExecutionTime,
+            QueuePosition = entry.QueuePosition,
+            SleepDetected = sleepDetected,
+            Cancelled = buildCt.IsCancellationRequested
+        };
     }
 
     private static BuildQueueResult CreateCancelledResult(BuildQueueEntry entry)

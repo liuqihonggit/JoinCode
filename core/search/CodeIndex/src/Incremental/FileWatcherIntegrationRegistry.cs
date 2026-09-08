@@ -33,14 +33,9 @@ public sealed class FileWatcherIntegrationRegistry : IAsyncDisposable
 
         var watcher = new FileWatcherIntegration(e.Indexer, e.WorkspaceRoot, _fs, onError: null);
 
-        _lock.EnterWriteLock();
-        try
+        using (_lock.EnterWriteScope())
         {
             _watchers[e.RepoId] = watcher;
-        }
-        finally
-        {
-            _lock.ExitWriteLock();
         }
 
         _ = watcher.StartAsync(CancellationToken.None);
@@ -52,14 +47,9 @@ public sealed class FileWatcherIntegrationRegistry : IAsyncDisposable
 
         FileWatcherIntegration? watcher;
 
-        _lock.EnterWriteLock();
-        try
+        using (_lock.EnterWriteScope())
         {
             _watchers.Remove(e.RepoId, out watcher);
-        }
-        finally
-        {
-            _lock.ExitWriteLock();
         }
 
         if (watcher is not null)
@@ -87,15 +77,8 @@ public sealed class FileWatcherIntegrationRegistry : IAsyncDisposable
     {
         if (_disposed != 0) return false;
 
-        _lock.EnterReadLock();
-        try
-        {
-            return _watchers.ContainsKey(repoId);
-        }
-        finally
-        {
-            _lock.ExitReadLock();
-        }
+        using var scope = _lock.EnterReadScope();
+        return _watchers.ContainsKey(repoId);
     }
 
     /// <summary>
@@ -105,15 +88,8 @@ public sealed class FileWatcherIntegrationRegistry : IAsyncDisposable
     {
         if (_disposed != 0) return [];
 
-        _lock.EnterReadLock();
-        try
-        {
-            return _watchers.Keys.ToList();
-        }
-        finally
-        {
-            _lock.ExitReadLock();
-        }
+        using var scope = _lock.EnterReadScope();
+        return _watchers.Keys.ToList();
     }
 
     private async Task StopAndDisposeWatcherAsync(FileWatcherIntegration watcher)
@@ -137,15 +113,10 @@ public sealed class FileWatcherIntegrationRegistry : IAsyncDisposable
         _registry.RepoUnregistered -= OnRepoUnregistered;
 
         List<FileWatcherIntegration> watchers;
-        _lock.EnterWriteLock();
-        try
+        using (_lock.EnterWriteScope())
         {
             watchers = [.. _watchers.Values];
             _watchers.Clear();
-        }
-        finally
-        {
-            _lock.ExitWriteLock();
         }
 
         foreach (var watcher in watchers)

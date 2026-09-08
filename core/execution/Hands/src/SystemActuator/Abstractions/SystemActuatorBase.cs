@@ -169,8 +169,7 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
 
         _logger?.LogInformation("Executing {Kind} command: {Command}", Kind, command);
 
-        if (_preventSleepService is not null)
-            await _preventSleepService.PreventSleepAsync(SleepPreventionType.Continuous).ConfigureAwait(false);
+        await using var sleepScope = await PreventSleepScope.CreateAsync(_preventSleepService).ConfigureAwait(false);
         try
         {
             var useSandbox = !disableSandbox && _sandboxManager is not null && _sandboxManager.IsInSandbox;
@@ -195,11 +194,6 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
         {
             _logger?.LogError(ex, "{Kind} execution failed: {Command}", Kind, command);
             return SystemActuatorExecutionResult.FailureResult(ex.Message);
-        }
-        finally
-        {
-            if (_preventSleepService is not null)
-                await _preventSleepService.AllowSleepAsync().ConfigureAwait(false);
         }
     }
 
@@ -227,8 +221,7 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
 
         _logger?.LogInformation("Starting backgroundable command with {Kind}: {Command}", Kind, command);
 
-        if (_preventSleepService is not null)
-            await _preventSleepService.PreventSleepAsync(SleepPreventionType.Continuous).ConfigureAwait(false);
+        await using var sleepScope = await PreventSleepScope.CreateAsync(_preventSleepService).ConfigureAwait(false);
 
         var useSandbox = !disableSandbox && _sandboxManager is not null && _sandboxManager.IsInSandbox;
         var sandboxTmpDir = useSandbox
@@ -239,11 +232,7 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
             command, cwd, _fs, this, timeout,
             shouldAutoBackground, useSandbox, sandboxTmpDir, _logger).ConfigureAwait(false);
 
-        _ = context.ResultTask.ContinueWith(async _ =>
-        {
-            if (_preventSleepService is not null)
-                await _preventSleepService.AllowSleepAsync().ConfigureAwait(false);
-        }, TaskScheduler.Default);
+        sleepScope.DetachTo(context.ResultTask);
 
         return context;
     }

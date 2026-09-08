@@ -233,37 +233,56 @@ public sealed partial class BridgeClient : IAsyncDisposable
     /// </summary>
     public async Task<BridgeMessage?> SendRequestAsync(BridgeMessage request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
     {
-        var tcs = new TaskCompletionSource<BridgeMessage?>();
-        var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var timeoutCts = new CancellationTokenSource(timeout ?? _options.DefaultRequestTimeout);
+        using var scope = new BridgeRequestScope(this, request.Id, timeout ?? _options.DefaultRequestTimeout, cancellationToken);
+        await SendMessageAsync(request, scope.Token).ConfigureAwait(false);
+        return await scope.ResponseTask.WaitAsync(scope.Token).ConfigureAwait(false);
+    }
 
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, timeoutCts.Token);
+    /// <summary>
+    /// Bridge 请求作用域 — 封装 SendRequestAsync 的"前-后"配对(CTS×3+事件订阅)
+    /// 构造时进入(创建CTS+注册消息事件),Dispose 时退出(注销事件+释放CTS)
+    /// 用 using var scope = new BridgeRequestScope(...) 管理生命周期,消除散落的 try-finally 配对
+    /// </summary>
+    private sealed class BridgeRequestScope : IDisposable
+    {
+        private readonly BridgeClient _client;
+        private readonly CancellationTokenSource _cts;
+        private readonly CancellationTokenSource _timeoutCts;
+        private readonly CancellationTokenSource _linkedCts;
+        private readonly TaskCompletionSource<BridgeMessage?> _tcs;
+        private readonly EventHandler<BridgeMessageProcessedEventArgs> _onMessageReceived;
+        private int _disposed;
 
-        void OnMessageReceived(object? sender, BridgeMessageProcessedEventArgs e)
+        /// <summary>链接取消令牌 — 传给 SendMessageAsync 和 WaitAsync</summary>
+        public CancellationToken Token => _linkedCts.Token;
+
+        /// <summary>响应任务 — await 此 Task 获取响应</summary>
+        public Task<BridgeMessage?> ResponseTask => _tcs.Task;
+
+        public BridgeRequestScope(BridgeClient client, string requestId, TimeSpan timeout, CancellationToken cancellationToken)
         {
-            // 检查是否是请求的响应
-            if (e.Response is ControlResponse controlResponse && controlResponse.RequestId == request.Id)
+            _client = client;
+            _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            _timeoutCts = new CancellationTokenSource(timeout);
+            _linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, _timeoutCts.Token);
+            _tcs = new TaskCompletionSource<BridgeMessage?>();
+            _onMessageReceived = (_, e) =>
             {
-                tcs.TrySetResult(e.Response);
-            }
-            else if (e.Response is ToolsCallResponse toolsResponse && toolsResponse.ToolCallId == request.Id)
-            {
-                tcs.TrySetResult(e.Response);
-            }
+                if (e.Response is ControlResponse controlResponse && controlResponse.RequestId == requestId)
+                    _tcs.TrySetResult(e.Response);
+                else if (e.Response is ToolsCallResponse toolsResponse && toolsResponse.ToolCallId == requestId)
+                    _tcs.TrySetResult(e.Response);
+            };
+            client.MessageProcessed += _onMessageReceived;
         }
 
-        MessageProcessed += OnMessageReceived;
-
-        try
+        public void Dispose()
         {
-            await SendMessageAsync(request, linkedCts.Token).ConfigureAwait(false);
-            return await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
-        }
-        finally
-        {
-            MessageProcessed -= OnMessageReceived;
-            cts.Dispose();
-            timeoutCts.Dispose();
+            if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+            _client.MessageProcessed -= _onMessageReceived;
+            _cts.Dispose();
+            _timeoutCts.Dispose();
+            _linkedCts.Dispose();
         }
     }
 
@@ -280,70 +299,90 @@ public sealed partial class BridgeClient : IAsyncDisposable
 
         while (!cancellationToken.IsCancellationRequested && IsRunning)
         {
-            try
-            {
-                // 检查连接状态
-                if (!_transportManager.IsConnected)
-                {
-                    _logger?.LogDebug("[BridgeClient] 等待连接...");
-                    var waitInterval = _pollConfigManager != null
-                        ? await _pollConfigManager.CalculateNextIntervalAsync(hasError: false).ConfigureAwait(false)
-                        : _options.PollingIntervalMs;
-                    await Task.Delay(waitInterval, cancellationToken).ConfigureAwait(false);
-                    continue;
-                }
-
-                // 发送心跳以保持连接
-                if (ShouldSendHeartbeat())
-                {
-                    await SendHeartbeatAsync(cancellationToken).ConfigureAwait(false);
-                }
-
-                // 等待一段时间再检查
-                var pollInterval = _pollConfigManager != null
-                    ? await _pollConfigManager.CalculateNextIntervalAsync(hasError: false).ConfigureAwait(false)
-                    : _options.PollingIntervalMs;
-                await Task.Delay(pollInterval, cancellationToken).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
+            if (await ExecutePollCycleAsync(cancellationToken).ConfigureAwait(false))
                 break;
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "[BridgeClient] 轮询循环错误");
-                ErrorOccurred?.Invoke(this, new BridgeClientErrorEventArgs(ex, "轮询循环错误"));
-
-                // 通过 API 客户端检查远程健康状态
-                if (_apiClient != null)
-                {
-                    try
-                    {
-                        var apiHealthy = await _apiClient.HealthCheckAsync(cancellationToken).ConfigureAwait(false);
-                        _logger?.LogDebug("[BridgeClient] API 健康检查: {Status}", apiHealthy ? "正常" : "异常");
-                    }
-                    catch (Exception healthEx)
-                    {
-                        _logger?.LogDebug(healthEx, "[BridgeClient] API 健康检查失败");
-                    }
-                }
-
-                // 短暂延迟后继续
-                try
-                {
-                    var retryDelay = _pollConfigManager != null
-                        ? await _pollConfigManager.CalculateNextIntervalAsync(hasError: true).ConfigureAwait(false)
-                        : _options.ErrorRetryDelayMs;
-                    await Task.Delay(retryDelay, cancellationToken).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
-                    break;
-                }
-            }
         }
 
         _logger?.LogDebug("[BridgeClient] 消息轮询循环已停止");
+    }
+
+    /// <summary>
+    /// 执行单次轮询周期 — 返回 true 表示应退出循环(取消),false 表示继续
+    /// </summary>
+    private async Task<bool> ExecutePollCycleAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!_transportManager.IsConnected)
+            {
+                _logger?.LogDebug("[BridgeClient] 等待连接...");
+                var waitInterval = _pollConfigManager != null
+                    ? await _pollConfigManager.CalculateNextIntervalAsync(hasError: false).ConfigureAwait(false)
+                    : _options.PollingIntervalMs;
+                await Task.Delay(waitInterval, cancellationToken).ConfigureAwait(false);
+                return false;
+            }
+
+            if (ShouldSendHeartbeat())
+            {
+                await SendHeartbeatAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            var pollInterval = _pollConfigManager != null
+                ? await _pollConfigManager.CalculateNextIntervalAsync(hasError: false).ConfigureAwait(false)
+                : _options.PollingIntervalMs;
+            await Task.Delay(pollInterval, cancellationToken).ConfigureAwait(false);
+            return false;
+        }
+        catch (OperationCanceledException)
+        {
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "[BridgeClient] 轮询循环错误");
+            ErrorOccurred?.Invoke(this, new BridgeClientErrorEventArgs(ex, "轮询循环错误"));
+
+            await CheckApiHealthSafelyAsync(cancellationToken).ConfigureAwait(false);
+
+            return await WaitForRetryOrCancelAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// 安全执行 API 健康检查 — 失败仅记录调试日志
+    /// </summary>
+    private async Task CheckApiHealthSafelyAsync(CancellationToken cancellationToken)
+    {
+        if (_apiClient is null) return;
+        try
+        {
+            var apiHealthy = await _apiClient.HealthCheckAsync(cancellationToken).ConfigureAwait(false);
+            _logger?.LogDebug("[BridgeClient] API 健康检查: {Status}", apiHealthy ? "正常" : "异常");
+        }
+        catch (Exception healthEx)
+        {
+            _logger?.LogDebug(healthEx, "[BridgeClient] API 健康检查失败");
+        }
+    }
+
+    /// <summary>
+    /// 等待重试延迟 — 取消时返回 true(应退出),否则 false(继续)
+    /// </summary>
+    private async Task<bool> WaitForRetryOrCancelAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var retryDelay = _pollConfigManager != null
+                ? await _pollConfigManager.CalculateNextIntervalAsync(hasError: true).ConfigureAwait(false)
+                : _options.ErrorRetryDelayMs;
+            await Task.Delay(retryDelay, cancellationToken).ConfigureAwait(false);
+            return false;
+        }
+        catch (OperationCanceledException)
+        {
+            return true;
+        }
     }
 
     #endregion

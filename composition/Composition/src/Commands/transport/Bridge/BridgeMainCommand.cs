@@ -92,16 +92,11 @@ public sealed class BridgeMainCommand
             giveUpThreshold: retryOptions?.TotalBudget);
 
         // 6. 注册信号处理 — 对齐 TS 端: SIGINT/SIGTERM
-        var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        System.Console.CancelKeyPress += (_, e) =>
-        {
-            e.Cancel = true;
-            cts.Cancel();
-        };
+        using var cancelScope = new ConsoleCancelScope(ct);
 
         try
         {
-            var result = await bridgeMain.RunAsync(parsed, cts.Token).ConfigureAwait(false);
+            var result = await bridgeMain.RunAsync(parsed, cancelScope.Token).ConfigureAwait(false);
 
             if (result.HelpText is not null)
             {
@@ -347,4 +342,33 @@ public sealed class BridgeMainCommand
     /// 暴露 BuildDepsAsync 供单元测试调用 — 仅测试用
     /// </summary>
     internal Task<BridgeMainDeps?> BuildDepsForTestAsync(BridgeMainArgs args) => BuildDepsAsync(args);
+
+    /// <summary>
+    /// Console Ctrl+C 取消作用域 — 封装 CancelKeyPress 事件订阅/注销 + CTS 生命周期
+    /// 构造时创建 CTS + 订阅 CancelKeyPress,Dispose 时注销事件 + 释放 CTS
+    /// 用 using var scope = new ConsoleCancelScope(ct) 管理生命周期,消除事件订阅泄漏 + CTS 泄漏
+    /// </summary>
+    private sealed class ConsoleCancelScope : IDisposable
+    {
+        private readonly CancellationTokenSource _cts;
+        private readonly ConsoleCancelEventHandler _handler;
+        private int _disposed;
+
+        /// <summary>链接取消令牌 — Ctrl+C 触发取消</summary>
+        public CancellationToken Token => _cts.Token;
+
+        public ConsoleCancelScope(CancellationToken ct)
+        {
+            _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            _handler = (_, e) => { e.Cancel = true; _cts.Cancel(); };
+            System.Console.CancelKeyPress += _handler;
+        }
+
+        public void Dispose()
+        {
+            if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+            System.Console.CancelKeyPress -= _handler;
+            _cts.Dispose();
+        }
+    }
 }

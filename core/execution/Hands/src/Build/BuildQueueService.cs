@@ -485,102 +485,82 @@ public sealed partial class BuildQueueService : IBuildQueueService
 
     private async Task<BuildQueueResult> ExecuteBuildAsync(BuildQueueEntry entry, CancellationToken ct)
     {
-        await (_preventSleepService?.PreventSleepAsync(cancellationToken: CancellationToken.None) ?? Task.CompletedTask).ConfigureAwait(false);
+        await using var sleepScope = await PreventSleepScope.CreateAsync(_preventSleepService, cancellationToken: CancellationToken.None).ConfigureAwait(false);
+        await using var scope = new BuildExecutionScope(this, ct);
+        var buildCt = scope.Token;
+
+        // 跨进程构建锁 — FileStream + FileShare.None 实现进程间互斥
+        // 多个 subAgent 进程（不同 git worktree）通过此锁串行编译，避免并行编译冲突
+        // 异步轮询获取锁，无线程亲和性，可安全跨 await 使用（修复原 Mutex 死锁问题）
+        if (buildCt.IsCancellationRequested)
+        {
+            return new BuildQueueResult
+            {
+                BuildId = entry.BuildId,
+                ExitCode = -1,
+                Output = string.Empty,
+                ErrorOutput = "Build cancelled while waiting for build lock",
+                WaitDuration = TimeSpan.Zero,
+                BuildDuration = TimeSpan.Zero,
+                QueuePosition = entry.QueuePosition,
+                Cancelled = true,
+            };
+        }
+
         try
         {
-            _currentBuildCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            var buildCt = _currentBuildCts.Token;
-
-            // 跨进程构建锁 — FileStream + FileShare.None 实现进程间互斥
-            // 多个 subAgent 进程（不同 git worktree）通过此锁串行编译，避免并行编译冲突
-            // 异步轮询获取锁，无线程亲和性，可安全跨 await 使用（修复原 Mutex 死锁问题）
-            var lockAcquired = false;
-            try
-            {
-                if (buildCt.IsCancellationRequested)
-                {
-                    return new BuildQueueResult
-                    {
-                        BuildId = entry.BuildId,
-                        ExitCode = -1,
-                        Output = string.Empty,
-                        ErrorOutput = "Build cancelled while waiting for build lock",
-                        WaitDuration = TimeSpan.Zero,
-                        BuildDuration = TimeSpan.Zero,
-                        QueuePosition = entry.QueuePosition,
-                        Cancelled = true,
-                    };
-                }
-
-                await AcquireCrossProcessLockAsync(buildCt).ConfigureAwait(false);
-                lockAcquired = true;
-                _logger?.LogInformation("Build lock acquired for {BuildId} via {LockPath}",
-                    entry.BuildId, _crossProcessLockPath);
-            }
-            catch (OperationCanceledException)
-            {
-                return new BuildQueueResult
-                {
-                    BuildId = entry.BuildId,
-                    ExitCode = -1,
-                    Output = string.Empty,
-                    ErrorOutput = "Build cancelled while waiting for build lock",
-                    WaitDuration = TimeSpan.Zero,
-                    BuildDuration = TimeSpan.Zero,
-                    QueuePosition = entry.QueuePosition,
-                    Cancelled = true,
-                };
-            }
-
-            try
-            {
-                var sw = Stopwatch.StartNew();
-                var wallStart = DateTimeOffset.UtcNow;
-
-                var result = await _actuatorRegistry.Get(SystemActuatorKind.Bash).ExecuteAsync(
-                    entry.Request.Command,
-                    workingDirectory: entry.Request.WorkingDirectory,
-                    cancellationToken: buildCt).ConfigureAwait(false);
-
-                sw.Stop();
-                var wallElapsed = DateTimeOffset.UtcNow - wallStart;
-
-                var sleepDetected = wallElapsed > sw.Elapsed + TimeSpan.FromSeconds(30);
-                if (sleepDetected)
-                {
-                    _logger?.LogWarning(
-                        "Sleep detected during build {BuildId}: wall={Wall}, cpu={Cpu}",
-                        entry.BuildId, wallElapsed, sw.Elapsed);
-                }
-
-                return new BuildQueueResult
-                {
-                    BuildId = entry.BuildId,
-                    ExitCode = result.ExitCode ?? -1,
-                    Output = result.Stdout ?? string.Empty,
-                    ErrorOutput = result.Stderr ?? string.Empty,
-                    WaitDuration = entry.StartedAt.HasValue
-                        ? entry.StartedAt.Value - entry.Request.SubmittedAt
-                        : TimeSpan.Zero,
-                    BuildDuration = sw.Elapsed,
-                    QueuePosition = entry.QueuePosition,
-                    SleepDetected = sleepDetected,
-                    Cancelled = buildCt.IsCancellationRequested
-                };
-            }
-            finally
-            {
-                if (lockAcquired)
-                {
-                    ReleaseCrossProcessLock();
-                    _logger?.LogInformation("Build lock released for {BuildId}", entry.BuildId);
-                }
-            }
+            await scope.AcquireLockAsync(buildCt).ConfigureAwait(false);
+            _logger?.LogInformation("Build lock acquired for {BuildId} via {LockPath}",
+                entry.BuildId, _crossProcessLockPath);
         }
-        finally
+        catch (OperationCanceledException)
         {
-            await (_preventSleepService?.AllowSleepAsync(CancellationToken.None) ?? Task.CompletedTask).ConfigureAwait(false);
+            return new BuildQueueResult
+            {
+                BuildId = entry.BuildId,
+                ExitCode = -1,
+                Output = string.Empty,
+                ErrorOutput = "Build cancelled while waiting for build lock",
+                WaitDuration = TimeSpan.Zero,
+                BuildDuration = TimeSpan.Zero,
+                QueuePosition = entry.QueuePosition,
+                Cancelled = true,
+            };
         }
+
+        var sw = Stopwatch.StartNew();
+        var wallStart = DateTimeOffset.UtcNow;
+
+        var result = await _actuatorRegistry.Get(SystemActuatorKind.Bash).ExecuteAsync(
+            entry.Request.Command,
+            workingDirectory: entry.Request.WorkingDirectory,
+            cancellationToken: buildCt).ConfigureAwait(false);
+
+        sw.Stop();
+        var wallElapsed = DateTimeOffset.UtcNow - wallStart;
+
+        var sleepDetected = wallElapsed > sw.Elapsed + TimeSpan.FromSeconds(30);
+        if (sleepDetected)
+        {
+            _logger?.LogWarning(
+                "Sleep detected during build {BuildId}: wall={Wall}, cpu={Cpu}",
+                entry.BuildId, wallElapsed, sw.Elapsed);
+        }
+
+        return new BuildQueueResult
+        {
+            BuildId = entry.BuildId,
+            ExitCode = result.ExitCode ?? -1,
+            Output = result.Stdout ?? string.Empty,
+            ErrorOutput = result.Stderr ?? string.Empty,
+            WaitDuration = entry.StartedAt.HasValue
+                ? entry.StartedAt.Value - entry.Request.SubmittedAt
+                : TimeSpan.Zero,
+            BuildDuration = sw.Elapsed,
+            QueuePosition = entry.QueuePosition,
+            SleepDetected = sleepDetected,
+            Cancelled = buildCt.IsCancellationRequested
+        };
     }
 
     private void CompleteWithCancellation(string buildId, BuildQueueEntry entry)
@@ -633,5 +613,64 @@ public sealed partial class BuildQueueService : IBuildQueueService
         public required BuildQueueResult Result { get; init; }
         public string? WorkingDirectory { get; init; }
         public long SourceFingerprint { get; init; }
+    }
+
+    /// <summary>
+    /// 构建执行作用域 — 封装单次构建的 CTS 生命周期 + 跨进程锁获取/释放
+    /// <para>构造:创建 linked CTS 并注册到 owner._currentBuildCts(供 CancelAsync 调用)</para>
+    /// <para>AcquireLockAsync:获取跨进程构建锁</para>
+    /// <para>DisposeAsync:释放锁 + 清空 owner._currentBuildCts + Dispose CTS(修复原 CTS 泄漏 bug)</para>
+    /// </summary>
+    private sealed class BuildExecutionScope : IAsyncDisposable
+    {
+        private readonly BuildQueueService _owner;
+        private readonly CancellationTokenSource _cts;
+        private bool _lockAcquired;
+        private int _disposed;
+
+        /// <summary>
+        /// 创建构建执行作用域 — linked CTS 关联外部取消令牌,并注册到 owner 供 CancelAsync 使用
+        /// </summary>
+        public BuildExecutionScope(BuildQueueService owner, CancellationToken externalCt)
+        {
+            _owner = owner;
+            _cts = CancellationTokenSource.CreateLinkedTokenSource(externalCt);
+            _owner._currentBuildCts = _cts;
+        }
+
+        /// <summary>
+        /// 构建取消令牌 — 关联外部 ct + CancelAsync 的取消
+        /// </summary>
+        public CancellationToken Token => _cts.Token;
+
+        /// <summary>
+        /// 异步获取跨进程构建锁 — 成功后 DisposeAsync 时自动释放
+        /// </summary>
+        public async Task AcquireLockAsync(CancellationToken ct)
+        {
+            await _owner.AcquireCrossProcessLockAsync(ct).ConfigureAwait(false);
+            _lockAcquired = true;
+        }
+
+        /// <summary>
+        /// 释放构建作用域 — 释放跨进程锁 + 清空 owner 引用 + Dispose CTS
+        /// </summary>
+        public ValueTask DisposeAsync()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0) return default;
+
+            if (_lockAcquired)
+            {
+                _owner.ReleaseCrossProcessLock();
+            }
+
+            if (_owner._currentBuildCts == _cts)
+            {
+                _owner._currentBuildCts = null;
+            }
+
+            _cts.Dispose();
+            return default;
+        }
     }
 }

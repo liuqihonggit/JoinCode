@@ -189,6 +189,13 @@ public static class LlmJsonHelper
     }
 
     /// <summary>
+    /// 工具名模糊匹配建议 — 当工具名找不到时,推荐相似工具名
+    /// 统一门控入口,所有工具名未找到的建议必须通过此方法
+    /// </summary>
+    public static IReadOnlyList<string> SuggestToolNames(string input, IEnumerable<string> availableTools)
+        => ToolCallRepairService.SuggestToolNames(input, availableTools);
+
+    /// <summary>
     /// 参数名归一化 + 参数类型自动转换
     /// 统一门控入口，所有 LLM 输出的工具参数修复必须通过此方法
     /// </summary>

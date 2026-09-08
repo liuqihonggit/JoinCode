@@ -186,6 +186,76 @@ internal static class ToolCallRepairService
         name => WorktreeToolNameExtensions.FromValue(name)?.ToValue(),
     ];
 
+    /// <summary>
+    /// 工具名模糊匹配 — 当用户/AI 调用不存在的工具名时,推荐相似工具名
+    /// <para>匹配策略: 精确(大小写不同) > 前缀 > 子串 > 编辑距离≤3</para>
+    /// <para>返回按相似度降序排列的工具名,最多 5 个</para>
+    /// </summary>
+    public static IReadOnlyList<string> SuggestToolNames(string input, IEnumerable<string> availableTools)
+    {
+        if (string.IsNullOrEmpty(input) || availableTools is null)
+            return Array.Empty<string>();
+
+        var scored = new List<(string Name, int Score)>();
+        foreach (var tool in availableTools)
+        {
+            var score = ComputeNameSimilarity(input, tool);
+            if (score > 0)
+                scored.Add((tool, score));
+        }
+
+        return scored
+            .OrderByDescending(s => s.Score)
+            .ThenBy(s => s.Name, StringComparer.Ordinal)
+            .Take(5)
+            .Select(s => s.Name)
+            .ToList();
+    }
+
+    private static int ComputeNameSimilarity(string input, string candidate)
+    {
+        if (string.Equals(input, candidate, StringComparison.OrdinalIgnoreCase))
+            return 100;
+
+        if (input.Length > candidate.Length && input.StartsWith(candidate, StringComparison.OrdinalIgnoreCase))
+            return 80 - (input.Length - candidate.Length);
+
+        if (input.Length < candidate.Length && candidate.StartsWith(input, StringComparison.OrdinalIgnoreCase))
+            return 60 - (candidate.Length - input.Length);
+
+        if (input.Contains(candidate, StringComparison.OrdinalIgnoreCase) || candidate.Contains(input, StringComparison.OrdinalIgnoreCase))
+            return 40;
+
+        var dist = LevenshteinIgnoreCase(input, candidate);
+        if (dist <= 3)
+            return 30 - dist;
+
+        return 0;
+    }
+
+    /// <summary>Levenshtein 编辑距离(大小写不敏感)</summary>
+    private static int LevenshteinIgnoreCase(string a, string b)
+    {
+        if (a.Length == 0) return b.Length;
+        if (b.Length == 0) return a.Length;
+
+        var prev = new int[b.Length + 1];
+        var curr = new int[b.Length + 1];
+        for (int j = 0; j <= b.Length; j++) prev[j] = j;
+
+        for (int i = 1; i <= a.Length; i++)
+        {
+            curr[0] = i;
+            for (int j = 1; j <= b.Length; j++)
+            {
+                var cost = char.ToLowerInvariant(a[i - 1]) == char.ToLowerInvariant(b[j - 1]) ? 0 : 1;
+                curr[j] = Math.Min(Math.Min(prev[j] + 1, curr[j - 1] + 1), prev[j - 1] + cost);
+            }
+            (prev, curr) = (curr, prev);
+        }
+        return prev[b.Length];
+    }
+
     private static bool TryParseJson(string json, out JsonDocument? doc)
     {
         try

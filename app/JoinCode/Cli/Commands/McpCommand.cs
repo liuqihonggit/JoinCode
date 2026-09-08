@@ -20,7 +20,14 @@ public sealed class McpCliCommand
         {
             var registry = services.GetRequiredService<IMcpToolRegistry>();
             if (!await registry.ContainsToolAsync(toolName, ct).ConfigureAwait(false))
-                return OutputError($"未找到工具: {toolName}（用 jcc mcp list 查看已注册工具）", json);
+            {
+                var allTools = await registry.GetAllToolsAsync(ct).ConfigureAwait(false);
+                var suggestions = LlmJsonHelper.SuggestToolNames(toolName, allTools.Keys);
+                var msg = suggestions.Count > 0
+                    ? $"未找到工具: {toolName}。是否想用: {string.Join(", ", suggestions)}?（用 jcc mcp_schema <工具名> 查看参数）"
+                    : $"未找到工具: {toolName}（用 jcc mcp_list 查看已注册工具）";
+                return OutputError(msg, json);
+            }
             var result = await registry.ExecuteToolAsync(toolName, argDict, ct).ConfigureAwait(false);
             return OutputResult(result, json);
         }, vendor, model, ct);

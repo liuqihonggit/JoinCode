@@ -1014,4 +1014,80 @@ public sealed class ToolCallRepairServiceTests
     }
 
     #endregion
+
+    #region SuggestToolNames — 工具名模糊匹配建议
+
+    /// <summary>
+    /// agent_launch 找不到时,应建议前缀匹配的 agent
+    /// </summary>
+    [Fact]
+    public void SuggestToolNames_AgentLaunch_SuggestsAgent()
+    {
+        var available = new[] { "agent", "agent_list", "agent_status", "bash", "read" };
+        var suggestions = ToolCallRepairService.SuggestToolNames("agent_launch", available);
+
+        suggestions.Should().NotBeEmpty();
+        suggestions.Should().Contain("agent");
+    }
+
+    /// <summary>
+    /// 大小写不同的精确匹配应排第一
+    /// </summary>
+    [Fact]
+    public void SuggestToolNames_ExactMatchDifferentCase_ReturnsFirst()
+    {
+        var available = new[] { "agent", "bash" };
+        var suggestions = ToolCallRepairService.SuggestToolNames("AGENT", available);
+
+        suggestions.Should().NotBeEmpty();
+        suggestions[0].Should().Be("agent");
+    }
+
+    /// <summary>
+    /// 无相似工具名时返回空列表
+    /// </summary>
+    [Fact]
+    public void SuggestToolNames_NoSimilar_ReturnsEmpty()
+    {
+        var available = new[] { "agent", "bash", "read" };
+        var suggestions = ToolCallRepairService.SuggestToolNames("zzzzzzz", available);
+
+        suggestions.Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// 拼写错误(编辑距离小)应通过编辑距离匹配建议
+    /// </summary>
+    [Fact]
+    public void SuggestToolNames_Typo_SuggestsByEditDistance()
+    {
+        var available = new[] { "agent", "bash", "read" };
+        var suggestions = ToolCallRepairService.SuggestToolNames("agetn", available);
+
+        suggestions.Should().Contain("agent");
+    }
+
+    /// <summary>
+    /// 空输入或空工具列表应返回空
+    /// </summary>
+    [Fact]
+    public void SuggestToolNames_EmptyInputOrTools_ReturnsEmpty()
+    {
+        ToolCallRepairService.SuggestToolNames("", new[] { "agent" }).Should().BeEmpty();
+        ToolCallRepairService.SuggestToolNames("agent", Array.Empty<string>()).Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// 建议数量应限制(最多 5 个),避免输出过长
+    /// </summary>
+    [Fact]
+    public void SuggestToolNames_LimitsToFiveSuggestions()
+    {
+        var available = new[] { "agent", "agent_list", "agent_status", "agent_stop", "agent_get_messages", "agent_running" };
+        var suggestions = ToolCallRepairService.SuggestToolNames("agent_xxx", available);
+
+        suggestions.Count.Should().BeLessThanOrEqualTo(5);
+    }
+
+    #endregion
 }

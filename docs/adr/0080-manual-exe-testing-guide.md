@@ -104,10 +104,11 @@
 | 3 | `6c952394d` | BuildPrCreateJson 多引号导致 GitHub API 解析失败 | `JsonEscapeString` 已自带引号，`BuildPrCreateJson` 又多加引号 |
 | 4 | `bad25313c` | brief_mode 跨进程持久化 | 状态存储在内存中，CLI 单次调用模式进程退出后丢失。改为文件持久化 |
 | 5 | `fb02b0e73` | csharp-ls LSP 服务器支持 | Encoding.UTF8 BOM 破坏管道通信 + LocationLink 反序列化 + WorkingDirectory 传递 |
+| 6 | `8cbd79fb7` | lsp_workspace_symbol 显式 serverName + GitWorkspaceResolver 统一工具类 | workspace_symbol 不接受文件路径无法启动 LSP 服务器；11 处 git root 寻址重复实现 |
 
-### LSP 工具测试结果（9/10 通过）
+### LSP 工具测试结果（10/10 通过）
 
-C# LSP 服务器从 OmniSharp 切换为 csharp-ls（`dotnet tool install -g csharp-ls`）。
+C# LSP 服务器从 OmniSharp 切换为 csharp-ls（`dotnet tool install -g csharp-ls`，版本 0.27.0，支持 .sln + .slnx）。
 
 | 工具名 | 结果 | 备注 |
 |--------|------|------|
@@ -120,7 +121,25 @@ C# LSP 服务器从 OmniSharp 切换为 csharp-ls（`dotnet tool install -g csha
 | `lsp_prepare_call_hierarchy` | ✅ | 返回调用层次项 |
 | `lsp_incoming_calls` | ✅ | 返回传入调用 |
 | `lsp_outgoing_calls` | ✅ | 返回传出调用 |
-| `lsp_workspace_symbol` | ❌ | 需全解决方案索引，小项目可能不返回结果 |
+| `lsp_workspace_symbol` | ✅ | 显式 serverName + 动态寻址兜底，6 种场景全通过 |
+
+### lsp_workspace_symbol 测试详情（6 种场景）
+
+| # | 场景 | 结果 | 备注 |
+|---|------|------|------|
+| 1 | .sln + 显式 serverName | ✅ | 返回 Program 符号 |
+| 2 | .sln + 动态寻址（无 serverName） | ✅ | 按 .cs 扩展名自动匹配 csharp-ls |
+| 3 | .slnx + 显式 serverName | ✅ | csharp-ls 0.18.0+ 支持 .slnx |
+| 4 | git worktree + .sln | ✅ | GitWorkspaceResolver 正确解析 worktree .git 文件 |
+| 5 | .sln + .slnx 共存 | ✅ | csharp-ls 自动选择解决方案 |
+| 6 | 不存在的 serverName | ✅ | 友好错误提示，列出所有可用服务器 |
+
+### GitWorkspaceResolver 统一工具类
+
+提取到 `Abstractions/05-memory/FileIO/GitWorkspaceResolver.cs`，统一项目中 11 处重复的 workspace/git root 寻址实现：
+- `FindGitRootAsync` — 向上搜索 git root，支持 worktree .git 文件解析到主仓库
+- `FindSolutionRoot` — 向上搜索 .sln/.slnx
+- `FindWorkspaceRootAsync` — 先找 .sln/.slnx，找不到 fallback 到 git root
 
 ### 关键修复：Encoding.UTF8 BOM 破坏管道通信
 
@@ -132,6 +151,5 @@ C# LSP 服务器从 OmniSharp 切换为 csharp-ls（`dotnet tool install -g csha
 | 类别 | 数量 | 原因 | 解决方案 |
 |------|------|------|----------|
 | AI 限流 | 10 | sensenova 无 API 额度 | 切换到有额度的 AI 提供商 |
-| LSP workspace_symbol | 1 | 需全解决方案索引 | 大型项目测试验证 |
 | GitHub 清理 | 4 | token 缺 `delete_repo` scope | 添加 scope 或手动删除 |
 | Anthropic 依赖 | 1 | web_search 需 Anthropic API | 配置 Anthropic 提供商 |

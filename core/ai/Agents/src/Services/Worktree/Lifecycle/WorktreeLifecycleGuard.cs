@@ -15,6 +15,7 @@ public sealed class WorktreeLifecycleGuard : IAsyncDisposable
     private readonly IGitCommandRunner? _gitRunner;
     private readonly string? _branchName;
     private readonly ILogger? _logger;
+    private readonly WorktreeRemovalDiagnoser _diagnoser;
     private int _disposed;
 
     /// <summary>
@@ -54,6 +55,7 @@ public sealed class WorktreeLifecycleGuard : IAsyncDisposable
         _gitRunner = gitRunner;
         _branchName = branchName;
         _logger = logger;
+        _diagnoser = new WorktreeRemovalDiagnoser(fileSystem);
     }
 
     /// <summary>
@@ -97,13 +99,13 @@ public sealed class WorktreeLifecycleGuard : IAsyncDisposable
     {
         if (_gitRunner is null)
         {
-            return WorktreeGuardResult.Fail("gitRunner 未注入，无法执行删除");
+            return WorktreeGuardResult.Fail("gitRunner 未注入，无法执行删除", RemovalFailureReason.GitError);
         }
 
         var exists = await _fileSystem.DirectoryExistsAsync(_worktreePath, cancellationToken).ConfigureAwait(false);
         if (!exists)
         {
-            return WorktreeGuardResult.Fail($"worktree 路径不存在: {_worktreePath}");
+            return WorktreeGuardResult.Fail($"worktree 路径不存在: {_worktreePath}", RemovalFailureReason.PathNotFound);
         }
 
         var forceArg = force ? " --force" : string.Empty;
@@ -114,7 +116,9 @@ public sealed class WorktreeLifecycleGuard : IAsyncDisposable
 
         if (!removeResult.Success)
         {
-            return WorktreeGuardResult.Fail($"移除 worktree 失败: {removeResult.Error}");
+            var diagnosed = await _diagnoser.DiagnoseAsync(_worktreePath, removeResult.Error, cancellationToken).ConfigureAwait(false);
+            _logger?.LogWarning("Worktree 移除失败，根因: {Reason}，错误: {Error}", diagnosed.Reason, removeResult.Error);
+            return WorktreeGuardResult.Fail($"移除 worktree 失败: {removeResult.Error}", diagnosed.Reason);
         }
 
         if (_branchName is not null)
@@ -153,14 +157,16 @@ public sealed class WorktreeLifecycleGuard : IAsyncDisposable
 }
 
 /// <summary>
-/// Worktree 守卫操作结果。
+/// Worktree 守卫操作结果 — 携带删除状态 + 失败根因。
 /// </summary>
 public sealed record WorktreeGuardResult
 {
     public required bool Success { get; init; }
     public string? ErrorMessage { get; init; }
     public bool Forced { get; init; }
+    public RemovalFailureReason Reason { get; init; } = RemovalFailureReason.None;
 
     public static WorktreeGuardResult Ok(bool forced = false) => new() { Success = true, Forced = forced };
-    public static WorktreeGuardResult Fail(string error) => new() { Success = false, ErrorMessage = error };
+    public static WorktreeGuardResult Fail(string error, RemovalFailureReason reason = RemovalFailureReason.Unknown) =>
+        new() { Success = false, ErrorMessage = error, Reason = reason };
 }

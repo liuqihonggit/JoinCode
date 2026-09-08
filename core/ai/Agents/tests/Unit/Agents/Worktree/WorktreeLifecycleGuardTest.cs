@@ -94,7 +94,7 @@ public class WorktreeLifecycleGuardTest
     }
 
     /// <summary>
-    /// gitRunner 为 null 时 ReleaseAsync 返回失败 — 不执行删除。
+    /// gitRunner 为 null 时 ReleaseAsync 返回失败 — 不执行删除，根因为 GitError。
     /// </summary>
     [Fact]
     public async Task ReleaseAsync_WhenGitRunnerNull_ReturnsFail()
@@ -105,10 +105,11 @@ public class WorktreeLifecycleGuardTest
 
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().Contain("gitRunner");
+        result.Reason.Should().Be(RemovalFailureReason.GitError);
     }
 
     /// <summary>
-    /// 路径不存在时 ReleaseAsync 返回失败 — 宽容处理已清理的 worktree。
+    /// 路径不存在时 ReleaseAsync 返回失败 — 根因为 PathNotFound。
     /// </summary>
     [Fact]
     public async Task ReleaseAsync_WhenPathNotExists_ReturnsFail()
@@ -120,6 +121,7 @@ public class WorktreeLifecycleGuardTest
 
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().Contain("不存在");
+        result.Reason.Should().Be(RemovalFailureReason.PathNotFound);
     }
 
     /// <summary>
@@ -216,5 +218,65 @@ public class WorktreeLifecycleGuardTest
             It.Is<string>(s => s.Contains("worktree remove") && s.Contains(WorktreePath)),
             It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// git 删除失败且错误含 "being used" 时，Reason 为 ProcessOccupied — 诊断器集成验证。
+    /// </summary>
+    [Fact]
+    public async Task ReleaseAsync_WhenGitFailsWithBeingUsed_ReasonIsProcessOccupied()
+    {
+        var fs = CreateFs(worktreeExists: true);
+        var gitRunner = new Mock<IGitCommandRunner>();
+        gitRunner
+            .Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GitCommandResult { Success = false, ExitCode = 1, Error = "fatal: unable to remove: being used by another process" });
+
+        var guard = new WorktreeLifecycleGuard(WorktreePath, MainPath, fs, gitRunner.Object);
+
+        var result = await guard.ReleaseAsync(force: true, CancellationToken.None);
+
+        result.Success.Should().BeFalse();
+        result.Reason.Should().Be(RemovalFailureReason.ProcessOccupied);
+    }
+
+    /// <summary>
+    /// git 删除失败且错误含 "Permission denied" 时，Reason 为 PermissionDenied — 诊断器集成验证。
+    /// </summary>
+    [Fact]
+    public async Task ReleaseAsync_WhenGitFailsWithPermissionDenied_ReasonIsPermissionDenied()
+    {
+        var fs = CreateFs(worktreeExists: true);
+        var gitRunner = new Mock<IGitCommandRunner>();
+        gitRunner
+            .Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GitCommandResult { Success = false, ExitCode = 1, Error = "fatal: Permission denied" });
+
+        var guard = new WorktreeLifecycleGuard(WorktreePath, MainPath, fs, gitRunner.Object);
+
+        var result = await guard.ReleaseAsync(force: true, CancellationToken.None);
+
+        result.Success.Should().BeFalse();
+        result.Reason.Should().Be(RemovalFailureReason.PermissionDenied);
+    }
+
+    /// <summary>
+    /// git 删除失败且错误为未知模式时，Reason 为 GitError — 诊断器集成验证。
+    /// </summary>
+    [Fact]
+    public async Task ReleaseAsync_WhenGitFailsWithUnknownError_ReasonIsGitError()
+    {
+        var fs = CreateFs(worktreeExists: true);
+        var gitRunner = new Mock<IGitCommandRunner>();
+        gitRunner
+            .Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GitCommandResult { Success = false, ExitCode = 1, Error = "fatal: not a working tree" });
+
+        var guard = new WorktreeLifecycleGuard(WorktreePath, MainPath, fs, gitRunner.Object);
+
+        var result = await guard.ReleaseAsync(force: true, CancellationToken.None);
+
+        result.Success.Should().BeFalse();
+        result.Reason.Should().Be(RemovalFailureReason.GitError);
     }
 }

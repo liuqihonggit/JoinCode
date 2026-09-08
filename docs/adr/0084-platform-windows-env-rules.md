@@ -76,8 +76,10 @@
 2. **Python 脚本次之**：本机 Python 3.12.10，批量文本处理/脚本检测优先使用 `.py` 脚本，而非 PowerShell
    - 适用场景：文件搜索统计、简单文本替换、报告生成等不需要语义理解的场景
 3. **PowerShell 最后**：PowerShell 5.1.19041.6456，仅用于系统操作和 dotnet/gh 命令编排
-4. **jcc gh 工具优先**：操作 PR/Issue/Release 等 GitHub 资源时，优先使用 `jcc mcp_call gh_*`（直调 GitHub REST API，无需系统 gh CLI），而非 PowerShell 脚本或手动操作 > ADR: [0073](0073-gh-rest-api-direct-call.md)
-5. **jcc rg 优先**：代码搜索时优先使用 `jcc rg`（内置 `RgEngine`，mmap+PLINQ+零GC，无需系统 rg），而非 `grep`/`Select-String` > ADR: [0070](0070-rgengine-independent-implementation.md)
+4. **⛔ jcc gh 工具强制（禁系统 gh）**：操作 PR/Issue/Release/CI 等 GitHub 资源时，**必须**使用 `jcc mcp_call gh_*`（直调 GitHub REST API，无需系统 gh CLI）。**禁止**裸调系统 `gh` CLI，也禁止改用 PowerShell 脚本手动操作 > ADR: [0073](0073-gh-rest-api-direct-call.md)、[0089](0089-jcc-builtin-tools-only-no-system-gh-rg.md)
+5. **⛔ jcc rg 强制（禁系统 rg）**：代码/文本搜索时**必须**使用 `jcc rg`（CLI 场景）或 `jcc mcp_call grep`（MCP 场景）（内置 `RgEngine`，mmap+PLINQ+零GC，无需系统 rg）。**禁止**使用系统 `rg`、PowerShell `Select-String` 或宿主 IDE 内置 Grep 工具 > ADR: [0070](0070-rg-engine-mmap-plinq.md)、[0089](0089-jcc-builtin-tools-only-no-system-gh-rg.md)
+
+> **统一入口原则**：`jcc.exe` 启动后已自带 390 个 MCP 工具 + `jcc rg` 等 CLI 子命令，任何可由 jcc 自带工具完成的工作，禁止回退到系统/宿主环境自带工具。详见 ADR [0089](0089-jcc-builtin-tools-only-no-system-gh-rg.md)。
 
 ## 替代方案
 

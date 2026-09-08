@@ -249,7 +249,8 @@ d,手动验证,通过设置启动参数,通过bash调用来实际运行,真实�
 | 特殊字符禁令 | commit 消息禁止 `$`、反引号、三引号 |
 | ⚠️ 源码生成器 + 增量编译 | `dotnet build` 默认增量编译，会缓存生成器输出。**新增/修改 `[Register]` 类后必须用 `--no-incremental` 全量重建**，否则生成器不会重新扫描新类型 |
 | PR 两段式验证 | PR 通过 CI 后自动合并到 main → main 自动触发自身 CI 实现二次验证。创建 PR 时必须启用 auto-merge（squash 方式）。PR 目标分支统一为 main，无 dev 中间层 |
-| gh 工具优先 | 操作 PR/Issue/Release 等 GitHub 资源时，优先使用 `jcc mcp_call gh_*` 工具（直调 GitHub REST API，无需系统 gh CLI），而非 PowerShell 脚本或手动操作 > ADR: [0073](docs/adr/0073-gh-rest-api-direct-call.md) |
+| ⛔ gh 工具强制（禁系统 gh） | 操作 PR/Issue/Release/CI 等 GitHub 资源时，**必须**用 `jcc mcp_call gh_*`（直调 GitHub REST API，无需系统 gh CLI）；**禁止**裸调系统 `gh` CLI 或改用 PowerShell 脚本手动操作 > ADR: [0073](docs/adr/0073-gh-rest-api-direct-call.md)、[0089](docs/adr/0089-jcc-builtin-tools-only-no-system-gh-rg.md) |
+| ⛔ rg 工具强制（禁系统 rg） | 日常代码/文本搜索**必须**用 `jcc rg`（或 `jcc mcp_call grep`）；**禁止**裸调系统 `rg` 或用宿主 IDE 内置 Grep 工具 > ADR: [0070](docs/adr/0070-rg-engine-mmap-plinq.md)、[0089](docs/adr/0089-jcc-builtin-tools-only-no-system-gh-rg.md) |
 
 **Git commit 消息格式**：
 - 标准：`类型: 描述`
@@ -285,7 +286,7 @@ d,手动验证,通过设置启动参数,通过bash调用来实际运行,真实�
 > **原则**: 越靠前的手段成本越低、上下文越精准，禁止跳级查询
 
 1. **🔍 查 MCP 工具**（尤其是记忆 MemoryCli）→ 搜同类问题、失败记录、解决方案
-2. **📂 查项目代码** → .ps1 脚本、SearchCodebase、Grep 搜索现有实现模式
+2. **📂 查项目代码** → .ps1 脚本、SearchCodebase、`jcc rg` 搜索现有实现模式（⛔ 禁止系统 rg / 宿主内置 Grep）
 3. **🛠️ 查可用技能** → 检查 Skill 工具是否有相关能力（如性能优化、代码组织等）
 4. **🌐 查互联网** → WebSearch/WebFetch（最后手段，成本最高、上下文最泛）
 5. **❓ 穷尽以上仍无法解决** → 使用 `ask_user` 请求用户决策
@@ -330,7 +331,7 @@ d,手动验证,通过设置启动参数,通过bash调用来实际运行,真实�
    
 4. **结束对话时有未完成的工作或缺陷，一定要⚠️emoji表情提醒**
 
-5. 根据用户对话，自行决定是否采用脚本检测法，否则grep逐个检查太慢，尤其是大型重构
+5. 根据用户对话，自行决定是否采用脚本检测法，否则 `jcc rg` 逐个检查太慢，尤其是大型重构
    - 脚本检测法：遍历用户项目代码，生成报告
    - 例如，用户需要你判断全部锁是否范围，重构锁，死锁问题
 
@@ -375,6 +376,46 @@ d,手动验证,通过设置启动参数,通过bash调用来实际运行,真实�
 ## 🔴 平台专属操作禁令
 
 > ADR: [0084](docs/adr/0084-platform-windows-env-rules.md) — 详见 ADR 文档（含 PowerShell 禁令、路径格式、命令分隔、脚本语言优先级[AST CLI/Python/PowerShell/jcc gh/jcc rg]）
+
+### 🔧 jcc 自带工具统一入口（⛔ 禁止系统/宿主 gh/rg）
+
+> ADR: [0089](docs/adr/0089-jcc-builtin-tools-only-no-system-gh-rg.md) — 详见 ADR 文档（含实测证据、边缘错误提示清单、`jcc rg` 宽容策略 7 条）
+
+**`jcc.exe` 启动后已自带大量工具**（实测：`jcc mcp_list` = **390 个工具 / 43 个分类**，另有 `jcc rg` 等 CLI 子命令）。
+因此 **⛔ 禁止使用系统/宿主环境自带的 `gh` / `rg`**：
+
+- 禁止在 Bash/PowerShell 里裸调 `gh`、`rg` 可执行文件
+- 禁止用宿主 IDE 内置的 Grep 工具代替 `jcc rg`
+- 报错时按 jcc 提示自愈修正参数，**不得**因为 jcc 工具报错就回退到系统 `gh`/`rg` 绕过
+
+**1. `jcc.exe` gh 工具 → 处理 GitHub 的 PR 和 CI 问题**（`github` 分类 30 个 `gh_*`，HttpClient 直调 REST API，无需系统 gh CLI）：
+
+```bash
+jcc mcp_list --category github                      # 列出全部 gh_* 工具
+jcc mcp_schema <tool>                               # 查参数 schema，不必记忆
+jcc mcp_call gh_pr_list   '{"limit":3}'             # 列 PR（state/author/repo 可选）
+jcc mcp_call gh_pr_checks '{"pr_number":"123"}'     # CI 检查状态（pr_number 必填）
+jcc mcp_call gh_run_view  '{"run_id":"123"}'        # CI Run 详情/日志（run_id 必填）
+jcc mcp_call gh_run_rerun '{"run_id":"123"}'        # 重跑失败的 job
+```
+
+**2. `jcc.exe` rg 工具 → 处理日常搜索**（内置 `RgEngine`，已对边缘错误实现友好提示）：
+
+```bash
+jcc rg "pattern" <path> [path...]     # CLI 场景：path 必填，退出码 0=有匹配/1=无匹配/2=超时
+jcc mcp_call grep '{"pattern":"x","path":"core/"}'   # MCP 场景：结构化输出
+```
+
+`jcc rg` 宽容策略（缺路径/根目录/超时/无匹配全部给出可执行提示，不会静默扫盘卡死）：
+
+| 边缘情况 | 行为 |
+|----------|------|
+| PowerShell 传成 `\\s` | 自动修复为 `\s` |
+| 缺 `path` | 立即报错退出（禁止无路径搜索） |
+| 根目录 `C:\` / `/` | 拒绝扫盘 |
+| 超时 | 硬终止，返回退出码 2（默认 30s，最大 300s） |
+| 无匹配 | 退出码 1（对齐 rg） |
+| 二进制 / `.gitignore` | 自动跳过 |
 
 ### gh CLI 排错避坑指南（强制遵守）
 

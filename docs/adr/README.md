@@ -152,7 +152,6 @@ ADR 引用 design/plans，但不重复其内容。
 | [0088](0088-test-execution-rules.md) | 测试执行规则 | accepted | 2026-09-08 |
 | [0089](0089-jcc-builtin-tools-only-no-system-gh-rg.md) | jcc 自带工具统一入口 — 禁止系统/宿主环境的 gh / rg | accepted | 2026-09-08 |
 | [0090](0090-jcc-gh-cli-subcommand.md) | `jcc gh` CLI 子命令 — 扁平元动词 + schema 驱动参数绑定 | accepted | 2026-09-08 |
-| [0091](0091-actor-duplex-upgrade.md) | Actor 全双工改造 — DuplexActorBase 基类设计 | superseded by 0092 | 2026-09-08 |
 | [0092](0092-actor-duplex-inplace-upgrade.md) | Actor 全双工改造 — 直接改 ActorBase（无后向兼容） | accepted | 2026-09-08 |
 
 ## 主题索引（按议题）

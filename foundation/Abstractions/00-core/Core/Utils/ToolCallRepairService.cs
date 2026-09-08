@@ -159,7 +159,48 @@ internal static class ToolCallRepairService
                 return standard;
         }
 
-        return toolName;
+        // Fallback: 去下划线模糊匹配(WEBFETCH → web_fetch, DIRECTORYLIST → directory_list)
+        return UnderscoreFallback(toolName) ?? toolName;
+    }
+
+    /// <summary>
+    /// 去下划线模糊匹配 — 当 FromValue 精确匹配失败时,去掉下划线后 OrdinalIgnoreCase 比较
+    /// <para>场景: WEBFETCH → web_fetch, webfetch → web_fetch</para>
+    /// </summary>
+    private static string? UnderscoreFallback(string name)
+    {
+        var normalized = name.Replace("_", "");
+        return UnderscoreFallbackCore<FileToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<SearchToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<WebToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<ShellToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<TaskToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<TodoToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<CodeToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<GitToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<NotebookToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<MemoryToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<PlanToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<SkillToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<McpToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<CronToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<SystemToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<InteractionToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<AgentToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<TeamToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<WorkflowToolName>(normalized, v => v.ToValue())
+            ?? UnderscoreFallbackCore<WorktreeToolName>(normalized, v => v.ToValue());
+    }
+
+    private static string? UnderscoreFallbackCore<TEnum>(string normalized, Func<TEnum, string> toValue) where TEnum : struct, Enum
+    {
+        foreach (var value in Enum.GetValues<TEnum>())
+        {
+            var enumValue = toValue(value);
+            if (enumValue.Replace("_", "").Equals(normalized, StringComparison.OrdinalIgnoreCase))
+                return enumValue;
+        }
+        return null;
     }
 
     private static readonly Func<string, string?>[] ToolNameResolvers =

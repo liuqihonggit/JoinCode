@@ -31,6 +31,12 @@ public sealed record AgentCreateOptions
 
     [McpToolParameter("Memory scope: user/project/local (optional, enables agent memory)", Required = false)]
     public string? Memory { get; init; }
+
+    /// <summary>
+    /// 干跑模式 — 不调用 LLM，直接创建 mock agent 并持久化到文件，支持跨进程测试完整链路
+    /// </summary>
+    [McpToolParameter("Dry run mode: skip LLM, create mock agent for testing (optional)", Required = false)]
+    public bool? DryRun { get; init; }
 }
 
 /// <summary>
@@ -80,6 +86,9 @@ public partial class AgentToolHandlers
         [McpToolOptions] AgentCreateOptions options,
         CancellationToken cancellationToken = default)
     {
+        if (options.DryRun == true)
+            return await CreateDryRunAgentAsync(options, cancellationToken).ConfigureAwait(false);
+
         var context = new AgentToolContext
         {
             Description = options.Description,
@@ -108,6 +117,87 @@ public partial class AgentToolHandlers
             ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "spawn", false);
             return ToolExceptionDiagnosticHelper.BuildErrorResult("agent", ex, _logger);
         }
+    }
+
+    /// <summary>
+    /// 干跑模式 — 不调用 LLM，直接创建 mock agent 并持久化到 ~/.jcc/agents/，支持跨进程测试
+    /// </summary>
+    private async Task<ToolResult> CreateDryRunAgentAsync(AgentCreateOptions options, CancellationToken cancellationToken)
+    {
+        var agentId = $"agent-dryrun-{Guid.NewGuid():N}"[..^16];
+        var now = _clock.GetUtcNow();
+        var stateDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".jcc", "agents");
+#pragma warning disable JCC9001
+        Directory.CreateDirectory(stateDir);
+#pragma warning restore JCC9001
+        var statePath = Path.Combine(stateDir, $"{agentId}.json");
+        var state = new DryRunAgentState
+        {
+            Id = agentId,
+            Description = options.Description,
+            Status = "running",
+            StartedAt = now,
+            Prompt = options.Prompt,
+        };
+#pragma warning disable JCC9001
+        await File.WriteAllTextAsync(statePath, RelaxedJsonSerializer.Serialize(state, DryRunAgentStateJsonContext.Default), cancellationToken).ConfigureAwait(false);
+#pragma warning restore JCC9001
+        var response = new System.Text.StringBuilder();
+        response.AppendLine("Agent launched in dry-run mode (no LLM)");
+        response.AppendLine($"Agent ID: {agentId}");
+        response.AppendLine($"Description: {options.Description}");
+        response.AppendLine($"Status: running");
+        response.AppendLine();
+        response.AppendLine("Use agent_status to query status, agent_stop to stop, agent_get_messages to get messages.");
+        return ToolResultBuilder.Success().WithText(response.ToString()).Build();
+    }
+
+    /// <summary>
+    /// 从 ~/.jcc/agents/{agentId}.json 加载 dry-run agent 状态
+    /// </summary>
+    private DryRunAgentState? TryLoadDryRunState(string agentId)
+    {
+        var statePath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".jcc", "agents", $"{agentId}.json");
+#pragma warning disable JCC9001
+        if (!File.Exists(statePath))
+            return null;
+        try
+        {
+            var json = File.ReadAllText(statePath);
+            return RelaxedJsonSerializer.Deserialize(json, DryRunAgentStateJsonContext.Default.DryRunAgentState);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to load dry-run agent state for {AgentId}", agentId);
+            return null;
+        }
+#pragma warning restore JCC9001
+    }
+
+    /// <summary>
+    /// 保存 dry-run agent 状态到 ~/.jcc/agents/{agentId}.json
+    /// </summary>
+    private void TrySaveDryRunState(DryRunAgentState state)
+    {
+        var stateDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".jcc", "agents");
+#pragma warning disable JCC9001
+        Directory.CreateDirectory(stateDir);
+        var statePath = Path.Combine(stateDir, $"{state.Id}.json");
+        try
+        {
+            File.WriteAllText(statePath, RelaxedJsonSerializer.Serialize(state, DryRunAgentStateJsonContext.Default));
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to save dry-run agent state for {AgentId}", state.Id);
+        }
+#pragma warning restore JCC9001
     }
 
     /// <summary>
@@ -166,6 +256,21 @@ public partial class AgentToolHandlers
 
         if (agent == null)
         {
+            var dryState = TryLoadDryRunState(agent_id);
+            if (dryState is not null)
+            {
+                var dryResponse = new System.Text.StringBuilder();
+                dryResponse.AppendLine($"Agent status: {dryState.Status}");
+                dryResponse.AppendLine($"Agent ID: {dryState.Id}");
+                dryResponse.AppendLine($"Description: {dryState.Description}");
+                dryResponse.AppendLine($"Started at: {dryState.StartedAt:yyyy-MM-dd HH:mm:ss}");
+                if (dryState.CompletedAt.HasValue)
+                    dryResponse.AppendLine($"Completed at: {dryState.CompletedAt.Value:yyyy-MM-dd HH:mm:ss}");
+                if (!string.IsNullOrEmpty(dryState.Prompt))
+                    dryResponse.AppendLine($"Prompt: {dryState.Prompt}");
+                return ToolResultBuilder.Success().WithText(dryResponse.ToString()).Build();
+            }
+
             var notFoundDiag = BuildAgentNotFoundDiagnostic(agent_id);
             return ToolResultBuilder.Error()
                 .WithText(notFoundDiag.FormattedMessage)
@@ -226,6 +331,17 @@ public partial class AgentToolHandlers
 
         if (!success)
         {
+            var dryState = TryLoadDryRunState(agent_id);
+            if (dryState is not null)
+            {
+                dryState.Status = "stopped";
+                dryState.CompletedAt = _clock.GetUtcNow();
+                TrySaveDryRunState(dryState);
+                return ToolResultBuilder.Success()
+                    .WithText($"Agent {agent_id} stopped (dry-run)")
+                    .Build();
+            }
+
             ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "stop", false);
             var stopDiag = BuildStopAgentFailedDiagnostic(agent_id);
             return ToolResultBuilder.Error()
@@ -770,3 +886,20 @@ public partial class AgentToolHandlers
     #endregion
 
 }
+
+/// <summary>
+/// Dry-run agent 持久化状态 — 跨进程共享 mock agent 状态
+/// </summary>
+public sealed class DryRunAgentState
+{
+    public required string Id { get; set; }
+    public required string Description { get; set; }
+    public required string Status { get; set; }
+    public DateTime StartedAt { get; set; }
+    public DateTime? CompletedAt { get; set; }
+    public string? Prompt { get; set; }
+}
+
+[JsonSourceGenerationOptions(WriteIndented = true)]
+[JsonSerializable(typeof(DryRunAgentState))]
+internal sealed partial class DryRunAgentStateJsonContext : JsonSerializerContext;

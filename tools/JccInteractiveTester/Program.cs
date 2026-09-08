@@ -37,7 +37,7 @@ internal static class Program
 
         var readyTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var doneTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
 
         // 异步读 stdout — 直接输出到控制台
         _ = Task.Run(async () =>

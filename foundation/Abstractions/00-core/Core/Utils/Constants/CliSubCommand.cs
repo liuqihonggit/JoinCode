@@ -67,4 +67,8 @@ public enum CliSubCommand
     /// <summary>ripgrep 兼容搜索 — jcc rg &lt;pattern&gt; [path...] [--type cs] [-g "!**/tests/**"] [-i] [-n] [-A N] [-B N] [-C N] [--head-limit N] [-U] [-F] [--count] [--files-with-matches] [--content] [--timeout N] [--json]</summary>
     /// <para>ADR: 0070 — 内置 rg 实现，复用 ISearchService.GrepSearchAsync，宽容处理 PowerShell 转义、缺少路径禁止扫盘、超时硬终止。</para>
     [EnumValue("rg")] Rg,
+
+    /// <summary>GitHub 操作 — jcc gh &lt;group&gt; &lt;action&gt; [位置参数...] [--选项 值] [--json]（如 jcc gh pr checks 123）</summary>
+    /// <para>ADR: 0089 — 禁止系统 gh CLI；ADR: 0090 — 扁平元动词形态，工具名按 gh_{group}_{action} 约定拼接，位置参数按 schema required 顺序绑定。</para>
+    [EnumValue("gh")] Gh,
 }

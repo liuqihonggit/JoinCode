@@ -1,6 +1,6 @@
 # mmap + PLINQ + Span 优化工作计划
 
-> ADR: [0071](../adr/0071-mmap-plinq-span-proliferation.md)
+> ADR: [0072](../adr/0072-mmap-plinq-span-proliferation.md)
 > 扫描时间: 2026-09-07
 > 状态: 进行中
 
@@ -17,7 +17,7 @@
 | P2: ContextCollapseService | LineSpanIndexer 替代 3处 Split | `c6311dc71` | 编译 ✅ |
 | P2: ApplyPatchLogic | LineSpanIndexer 替代 Split | `edfb44133` | 265 Hands ✅ |
 | P2: ProgressiveDisclosureService | Task.WhenAll 并行读3个源文件 | `b83b9875f` | 编译 ✅ |
-| ADR 0071 accepted | 记录全部完成改造 | `7db444e3c` | - |
+| ADR 0072 accepted | 记录全部完成改造 | `7db444e3c` | - |
 
 ---
 

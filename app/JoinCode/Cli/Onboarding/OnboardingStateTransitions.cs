@@ -7,37 +7,18 @@ namespace JoinCode.Cli;
 /// </summary>
 public static class OnboardingStateTransitions
 {
-    private static readonly FrozenDictionary<OnboardingStep, FrozenSet<OnboardingStep>> Transitions =
-        new Dictionary<OnboardingStep, FrozenSet<OnboardingStep>>
-        {
-            [OnboardingStep.Welcome] = new HashSet<OnboardingStep>
-            {
-                OnboardingStep.ApiKey
-            }.ToFrozenSet(),
-
-            [OnboardingStep.ApiKey] = new HashSet<OnboardingStep>
-            {
-                OnboardingStep.Welcome,
-                OnboardingStep.Security
-            }.ToFrozenSet(),
-
-            [OnboardingStep.Security] = new HashSet<OnboardingStep>
-            {
-                OnboardingStep.ApiKey,
-                OnboardingStep.TerminalSetup
-            }.ToFrozenSet(),
-
-            [OnboardingStep.TerminalSetup] = new HashSet<OnboardingStep>
-            {
-                OnboardingStep.Security,
-                OnboardingStep.Complete
-            }.ToFrozenSet(),
-
-            [OnboardingStep.Complete] = new HashSet<OnboardingStep>
-            {
-                OnboardingStep.TerminalSetup
-            }.ToFrozenSet()
-        }.ToFrozenDictionary();
+    /// <summary>
+    /// 状态转换位掩码表 — 索引为 (int)OnboardingStep，值为目标状态位掩码。
+    /// 替代 FrozenDictionary&lt;OnboardingStep, FrozenSet&lt;OnboardingStep&gt;&gt;，O(1) 数组索引 + 位运算无哈希查找。
+    /// </summary>
+    private static readonly int[] Transitions =
+    [
+        /* Welcome=0 */ BitMask.Of(OnboardingStep.ApiKey),
+        /* ApiKey=1 */ BitMask.Of(OnboardingStep.Welcome, OnboardingStep.Security),
+        /* Security=2 */ BitMask.Of(OnboardingStep.ApiKey, OnboardingStep.TerminalSetup),
+        /* TerminalSetup=3 */ BitMask.Of(OnboardingStep.Security, OnboardingStep.Complete),
+        /* Complete=4 */ BitMask.Of(OnboardingStep.TerminalSetup)
+    ];
 
     /// <summary>
     /// 是否可从 current 转换到 target — 自-环合法
@@ -49,7 +30,7 @@ public static class OnboardingStateTransitions
             return true;
         }
 
-        return Transitions.TryGetValue(current, out var targets) && targets.Contains(target);
+        return BitMask.Contains(Transitions[(int)current], target);
     }
 
     /// <summary>

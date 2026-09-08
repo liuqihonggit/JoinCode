@@ -537,15 +537,20 @@ public sealed partial class LspClient : ILspClient
         };
 
         var json = JsonSerializer.Serialize(request, LspJsonContext.Default.LspJsonRpcRequest);
-        await SendMessageAsync(json).ConfigureAwait(false);
 
         using var cts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, TimeSpan.FromSeconds(WorkflowConstants.Timeouts.DefaultTimeoutSeconds));
 
         try
         {
+            await SendMessageAsync(json).ConfigureAwait(false);
             return await tcs.Task.WaitAsync(cts.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
+        {
+            _pendingRequests.TryRemove(id, out _);
+            throw;
+        }
+        catch
         {
             _pendingRequests.TryRemove(id, out _);
             throw;

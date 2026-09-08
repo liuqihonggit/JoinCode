@@ -1,90 +1,79 @@
 namespace Core.Utils;
 
 /// <summary>
-/// ActorBase 单元测试 — 验证命令串行处理、异常容错、生命周期、背压。
+/// ActorBase 单元测试 — 验证命令串行处理、异常容错、生命周期、背压、输出流。
 /// </summary>
 public class ActorBaseTest
 {
     [Fact]
-    public async Task SendAsync_CommandProcessed_ReturnsResult()
+    public async Task SendAsync_CommandProcessed_OutputReceived()
     {
         await using var actor = new TestActor();
-        var tcs = new TaskCompletionSource<int>();
-        await actor.IncrementAsync(tcs);
-        (await tcs.Task).Should().Be(1);
+        await actor.SendAsync("hello");
+        await actor.SendAsync("world");
+
+        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 2, TimeSpan.FromSeconds(5));
+
+        actor.ProcessedCommands.Should().Equal("hello", "world");
     }
 
     [Fact]
     public async Task TrySend_CommandProcessed_ReturnsTrue()
     {
         await using var actor = new TestActor();
-        var tcs = new TaskCompletionSource<int>();
-        actor.TryIncrement(tcs).Should().BeTrue();
-        (await tcs.Task).Should().Be(1);
+        actor.TrySend("test").Should().BeTrue();
+        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromSeconds(5));
+        actor.ProcessedCommands.Should().Contain("test");
     }
 
     [Fact]
-    public async Task MultipleCommands_ProcessedSerially_ValueIncrements()
+    public async Task MultipleCommands_ProcessedSerially_InOrder()
     {
         await using var actor = new TestActor();
-        var tasks = new List<Task<int>>();
         for (var i = 0; i < 100; i++)
-        {
-            var tcs = new TaskCompletionSource<int>();
-            await actor.IncrementAsync(tcs);
-            tasks.Add(tcs.Task);
-        }
+            await actor.SendAsync($"msg-{i}");
 
-        var results = await Task.WhenAll(tasks);
-        results.Should().BeInAscendingOrder();
-        results.Should().HaveCount(100);
-        results[^1].Should().Be(100);
+        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 100, TimeSpan.FromSeconds(10));
+
+        actor.ProcessedCommands.Should().HaveCount(100);
+        for (var i = 0; i < 100; i++)
+            actor.ProcessedCommands[i].Should().Be($"msg-{i}");
     }
 
     [Fact]
     public async Task ConcurrentSend_AllCommandsProcessed_NoLoss()
     {
         await using var actor = new TestActor();
-        const int count = 500;
-        var tcsArray = new TaskCompletionSource<int>[count];
-        for (var i = 0; i < count; i++)
-            tcsArray[i] = new TaskCompletionSource<int>();
+        var tasks = Enumerable.Range(0, 500)
+            .Select(i => actor.SendAsync($"msg-{i}").AsTask())
+            .ToArray();
 
-        await Task.WhenAll(Enumerable.Range(0, count).Select(async i =>
-        {
-            await actor.IncrementAsync(tcsArray[i]);
-        }));
+        await Task.WhenAll(tasks);
+        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 500, TimeSpan.FromSeconds(10));
 
-        var results = await Task.WhenAll(tcsArray.Select(t => t.Task));
-        var sorted = results.Order().ToList();
-        sorted.Should().HaveCount(count);
-        sorted[0].Should().Be(1);
-        sorted[^1].Should().Be(count);
+        actor.ProcessedCommands.Should().HaveCount(500);
     }
 
     [Fact]
     public async Task CommandThrows_ConsumerContinues_NextCommandSucceeds()
     {
         await using var actor = new TestActor();
-        var throwTcs = new TaskCompletionSource();
-        await actor.ThrowAsync(throwTcs);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => throwTcs.Task);
+        await actor.SendAsync("throw");
+        await actor.SendAsync("normal");
 
-        var tcs = new TaskCompletionSource<int>();
-        await actor.IncrementAsync(tcs);
-        (await tcs.Task).Should().Be(1);
+        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromSeconds(5));
 
+        actor.ProcessedCommands.Should().Contain("normal");
         actor.ErrorCount.Should().Be(1);
     }
 
     [Fact]
-    public async Task DisposeAsync_CompletesChannel_TrySendReturnsFalse()
+    public async Task DisposeAsync_TrySendReturnsFalse()
     {
         var actor = new TestActor();
         await actor.DisposeAsync();
 
-        var tcs = new TaskCompletionSource<int>();
-        actor.TryIncrement(tcs).Should().BeFalse();
+        actor.TrySend("test").Should().BeFalse();
     }
 
     [Fact]
@@ -93,98 +82,154 @@ public class ActorBaseTest
         var actor = new TestActor();
         await actor.DisposeAsync();
 
-        var tcs = new TaskCompletionSource<int>();
-        var act = async () => await actor.IncrementAsync(tcs);
+        var act = async () => await actor.SendAsync("test");
         await act.Should().ThrowAsync<ObjectDisposedException>();
     }
 
     [Fact]
-    public async Task GetValueQuery_ReturnsCurrentValue()
+    public async Task OutputAsync_ReceivesPublishedMessages()
     {
         await using var actor = new TestActor();
-        var incTcs1 = new TaskCompletionSource<int>();
-        await actor.IncrementAsync(incTcs1);
-        await incTcs1.Task;
+        await actor.SendAsync("hello");
 
-        var incTcs2 = new TaskCompletionSource<int>();
-        await actor.IncrementAsync(incTcs2);
-        await incTcs2.Task;
+        await WaitUntilAsync(() => actor.OutputCount >= 1, TimeSpan.FromSeconds(5));
 
-        var queryTcs = new TaskCompletionSource<int>();
-        await actor.GetValueAsync(queryTcs);
-        (await queryTcs.Task).Should().Be(2);
+        var output = await actor.OutputAsync().FirstOrDefaultAsync();
+        output.Should().Be("processed-hello");
     }
 
     [Fact]
     public async Task BoundedChannel_ProcessesAllCommandsNoLoss()
     {
         await using var actor = new TestActor(boundedCapacity: 4);
-        var tasks = new List<Task<int>>();
-        for (var i = 0; i < 100; i++)
-        {
-            var tcs = new TaskCompletionSource<int>();
-            await actor.IncrementAsync(tcs);
-            tasks.Add(tcs.Task);
-        }
+        var tasks = Enumerable.Range(0, 100)
+            .Select(i => actor.SendAsync($"msg-{i}").AsTask())
+            .ToArray();
 
-        var results = await Task.WhenAll(tasks);
-        results.Should().HaveCount(100);
-        results.Order().Last().Should().Be(100);
+        await Task.WhenAll(tasks);
+        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 100, TimeSpan.FromSeconds(10));
+
+        actor.ProcessedCommands.Should().HaveCount(100);
     }
 
     [Fact]
     public async Task DisposeAsync_WaitsForConsumerExit()
     {
         var actor = new TestActor();
-        var tcs = new TaskCompletionSource<int>();
-        await actor.IncrementAsync(tcs);
-        await tcs.Task;
+        await actor.SendAsync("test");
+        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromSeconds(5));
 
         await actor.DisposeAsync();
         actor.ConsumerTask.IsCompleted.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task SendAsync_WithBackpressure_WatermarkEventTriggered()
+    {
+        var bp = new ActorBackpressure(Capacity: 2, SendTimeout: TimeSpan.FromSeconds(1));
+        await using var actor = new TestActor(bp);
+
+        var events = new List<BackpressureEventArgs>();
+        actor.InputWatermarkReached += (_, e) => events.Add(e);
+
+        await actor.SendAsync("a");
+        await actor.SendAsync("b");
+
+        events.Should().Contain(e => e.Level == WatermarkLevel.High || e.Level == WatermarkLevel.Critical);
+    }
+
+    [Fact]
+    public async Task OutputCount_ReflectsPublishedMessages()
+    {
+        await using var actor = new TestActor();
+        actor.OutputCount.Should().Be(0);
+
+        await actor.SendAsync("test");
+        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromSeconds(5));
+
+        actor.OutputCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task OutputAsync_CancellationToken_CancelsStream()
+    {
+        await using var actor = new TestActor();
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+
+        var act = async () => await actor.OutputAsync(cts.Token).ToListAsync();
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task OutputAsync_SingleConsumer_ReceivesAllMessages()
+    {
+        await using var actor = new TestActor();
+        await actor.SendAsync("test");
+        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromSeconds(5));
+
+        var consumer = actor.OutputAsync().GetAsyncEnumerator();
+        (await consumer.MoveNextAsync()).Should().BeTrue();
+        consumer.Current.Should().Be("processed-test");
+    }
+
+    [Fact]
+    public async Task SendAsync_Timeout_ThrowsTimeoutException()
+    {
+        var bp = new ActorBackpressure(Capacity: 1, SendTimeout: TimeSpan.FromMilliseconds(100));
+        await using var actor = new TestActor(bp) { Gate = new() };
+
+        await actor.SendAsync("first");
+        await Task.Delay(50);
+
+        await actor.SendAsync("second");
+
+        var act = async () => await actor.SendAsync("third");
+        await act.Should().ThrowAsync<TimeoutException>();
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan timeout)
+    {
+        var sw = Stopwatch.StartNew();
+        while (sw.Elapsed < timeout)
+        {
+            if (condition()) return;
+            await Task.Delay(10);
+        }
+        throw new TimeoutException($"Condition not met within {timeout}");
+    }
 }
 
 /// <summary>
-/// 测试用 Actor — 计数器,验证命令串行处理与异常容错。
+/// 测试用 Actor — 输入 string，输出 "processed-{input}"。
 /// </summary>
-internal sealed class TestActor : ActorBase<TestActor.ICommand>
+internal sealed class TestActor : ActorBase<string, string>
 {
-    internal interface ICommand;
+    public readonly List<string> ProcessedCommands = new();
+    public int ErrorCount { get; private set; }
+    public TaskCompletionSource? Gate;
 
-    internal sealed record IncrementCommand(TaskCompletionSource<int> Tcs) : ICommand;
-    internal sealed record GetValueQuery(TaskCompletionSource<int> Tcs) : ICommand;
-    internal sealed record ThrowCommand(TaskCompletionSource TaskCompletionSource) : ICommand;
-
-    private int _value;
-    private int _errorCount;
-
-    public int ErrorCount => _errorCount;
-
-    public TestActor(int? boundedCapacity = null) : base(boundedCapacity) { }
-
-    protected override ValueTask HandleAsync(ICommand command, CancellationToken ct)
+    public TestActor(int? boundedCapacity = null)
+        : base(boundedCapacity is null ? null : new ActorBackpressure(boundedCapacity.Value))
     {
-        switch (command)
-        {
-            case IncrementCommand(var tcs):
-                _value++;
-                tcs.SetResult(_value);
-                return ValueTask.CompletedTask;
-            case GetValueQuery(var tcs):
-                tcs.SetResult(_value);
-                return ValueTask.CompletedTask;
-            case ThrowCommand(var tcs):
-                _errorCount++;
-                tcs.SetException(new InvalidOperationException("test error"));
-                return ValueTask.CompletedTask;
-            default:
-                return ValueTask.CompletedTask;
-        }
     }
 
-    public ValueTask IncrementAsync(TaskCompletionSource<int> tcs) => SendAsync(new IncrementCommand(tcs));
-    public bool TryIncrement(TaskCompletionSource<int> tcs) => TrySend(new IncrementCommand(tcs));
-    public ValueTask GetValueAsync(TaskCompletionSource<int> tcs) => SendAsync(new GetValueQuery(tcs));
-    public ValueTask ThrowAsync(TaskCompletionSource tcs) => SendAsync(new ThrowCommand(tcs));
+    public TestActor(ActorBackpressure? backpressure)
+        : base(backpressure)
+    {
+    }
+
+    protected override async ValueTask HandleAsync(string command, CancellationToken ct)
+    {
+        await Task.Yield();
+        if (command == "throw")
+            throw new InvalidOperationException("test error");
+        if (Gate is not null) await Gate.Task.WaitAsync(ct);
+        ProcessedCommands.Add(command);
+        TryPublish($"processed-{command}");
+    }
+
+    protected override void OnConsumerError(Exception ex)
+    {
+        ErrorCount++;
+    }
 }

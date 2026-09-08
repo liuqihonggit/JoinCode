@@ -2,12 +2,12 @@ namespace Infrastructure.IO;
 
 /// <summary>
 /// 统一持久化管道 — Actor 模型多生产单消费写文件。
-/// 继承 <see cref="ActorBase{TCommand}"/> 单消费者 Channel,所有持久化请求串行处理,无需锁。
+/// 继承 <see cref="ActorBase{TCommand, TOut}"/> 单消费者 Channel,所有持久化请求串行处理,无需锁。
 /// 生产者入队不可变快照(已序列化 JSON),Actor 线程只做 I/O,不访问共享可变状态。
 /// 详见 ADR 0068。
 /// </summary>
 [Register(typeof(IPersistencePipeline), ServiceLifetime.Singleton)]
-public sealed class PersistencePipeline : ActorBase<PersistRequest>, IPersistencePipeline
+public sealed class PersistencePipeline : ActorBase<PersistRequest, Unit>, IPersistencePipeline
 {
     private readonly IFileSystem _fs;
     private readonly ILogger<PersistencePipeline>? _logger;

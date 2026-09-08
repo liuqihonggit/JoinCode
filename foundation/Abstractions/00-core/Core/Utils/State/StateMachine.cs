@@ -9,7 +9,8 @@ public sealed class TransitionFailedEventArgs<TState> : EventArgs where TState :
 
 public sealed class StateMachine<TState> where TState : struct, Enum
 {
-    private readonly FrozenDictionary<TState, FrozenSet<TState>> _transitions;
+    private readonly int[] _transitionMasks;
+    private readonly FrozenSet<TState>?[] _validNextStates;
     private readonly FrozenSet<TState> _terminalStates = FrozenSet<TState>.Empty;
     private readonly AsyncLock _lock = new("StateMachine");
     private readonly IClockService? _clock;
@@ -20,7 +21,8 @@ public sealed class StateMachine<TState> where TState : struct, Enum
         TState initialState,
         IClockService? clock = null)
     {
-        _transitions = transitions;
+        _transitionMasks = BuildTransitionMasks(transitions);
+        _validNextStates = BuildValidNextStates(transitions);
         _currentState = initialState;
         _clock = clock;
     }
@@ -31,10 +33,47 @@ public sealed class StateMachine<TState> where TState : struct, Enum
         FrozenSet<TState> terminalStates,
         IClockService? clock = null)
     {
-        _transitions = transitions;
+        _transitionMasks = BuildTransitionMasks(transitions);
+        _validNextStates = BuildValidNextStates(transitions);
         _currentState = initialState;
         _terminalStates = terminalStates;
         _clock = clock;
+    }
+
+    /// <summary>
+    /// 从 FrozenDictionary 转移表构建 int[] 位掩码数组 — 用于 CanTransitionTo 热路径 O(1) 位运算。
+    /// 索引为 (int)TState，值为目标状态位掩码。AOT 友好，构造时一次性分配。
+    /// </summary>
+    private static int[] BuildTransitionMasks(FrozenDictionary<TState, FrozenSet<TState>> transitions)
+    {
+        var masks = new int[Enum.GetValues<TState>().Length];
+        foreach (var kvp in transitions)
+        {
+            var key = kvp.Key;
+            var mask = 0;
+            foreach (var t in kvp.Value)
+            {
+                var tv = t;
+                mask |= 1 << Unsafe.As<TState, int>(ref tv);
+            }
+            masks[Unsafe.As<TState, int>(ref key)] = mask;
+        }
+        return masks;
+    }
+
+    /// <summary>
+    /// 从 FrozenDictionary 转移表构建 FrozenSet&lt;TState&gt;?[] 数组 — 用于 GetValidNextStates/IsTerminalState 冷路径。
+    /// 索引为 (int)TState，值为该状态的合法目标集合，null 表示状态不在转移表。AOT 友好，构造时一次性分配。
+    /// </summary>
+    private static FrozenSet<TState>?[] BuildValidNextStates(FrozenDictionary<TState, FrozenSet<TState>> transitions)
+    {
+        var validNext = new FrozenSet<TState>?[Enum.GetValues<TState>().Length];
+        foreach (var kvp in transitions)
+        {
+            var key = kvp.Key;
+            validNext[Unsafe.As<TState, int>(ref key)] = kvp.Value;
+        }
+        return validNext;
     }
 
     public TState CurrentState
@@ -58,7 +97,8 @@ public sealed class StateMachine<TState> where TState : struct, Enum
             return true;
         }
 
-        return _transitions.TryGetValue(from, out var targets) && targets.Contains(to);
+        var fromIdx = Unsafe.As<TState, int>(ref from);
+        return fromIdx < _transitionMasks.Length && BitMask.Contains(_transitionMasks[fromIdx], to);
     }
 
     public bool CanTransitionTo(TState to)
@@ -145,7 +185,8 @@ public sealed class StateMachine<TState> where TState : struct, Enum
     {
         using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
-            return _transitions.TryGetValue(_currentState, out var targets)
+            var currentIdx = Unsafe.As<TState, int>(ref _currentState);
+            return currentIdx < _validNextStates.Length && _validNextStates[currentIdx] is { } targets
                 ? targets
                 : FrozenSet<TState>.Empty;
         }
@@ -157,7 +198,8 @@ public sealed class StateMachine<TState> where TState : struct, Enum
         {
             using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
             {
-                return _transitions.TryGetValue(_currentState, out var targets) && targets.Count == 0;
+                var currentIdx = Unsafe.As<TState, int>(ref _currentState);
+                return currentIdx < _validNextStates.Length && _validNextStates[currentIdx] is { Count: 0 };
             }
         }
 

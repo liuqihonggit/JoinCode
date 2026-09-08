@@ -42,7 +42,7 @@ public class ActorBackpressureTest
         await tcs1.Task;
         await tcs2.Task;
 
-        actor.MailboxCount.Should().Be(0);
+        actor.InputCount.Should().Be(0);
     }
 
     [Fact]
@@ -59,8 +59,8 @@ public class ActorBackpressureTest
             await actor.IncrementAsync(new TaskCompletionSource<int>());
         }
 
-        actor.IsHighWatermark.Should().BeTrue();
-        actor.IsCriticalWatermark.Should().BeFalse();
+        actor.IsInputHighWatermark.Should().BeTrue();
+        actor.IsInputCriticalWatermark.Should().BeFalse();
 
         gateTcs.SetResult();
     }
@@ -79,7 +79,7 @@ public class ActorBackpressureTest
             await actor.IncrementAsync(new TaskCompletionSource<int>());
         }
 
-        actor.IsCriticalWatermark.Should().BeTrue();
+        actor.IsInputCriticalWatermark.Should().BeTrue();
 
         gateTcs.SetResult();
     }
@@ -94,7 +94,7 @@ public class ActorBackpressureTest
         actor.SetGate(gateTcs);
 
         var events = new List<BackpressureEventArgs>();
-        actor.WatermarkReached += (_, e) => events.Add(e);
+        actor.InputWatermarkReached += (_, e) => events.Add(e);
 
         for (var i = 0; i < 5; i++)
         {
@@ -117,7 +117,7 @@ public class ActorBackpressureTest
         actor.SetGate(gateTcs);
 
         var events = new List<BackpressureEventArgs>();
-        actor.WatermarkReached += (_, e) => events.Add(e);
+        actor.InputWatermarkReached += (_, e) => events.Add(e);
 
         for (var i = 0; i < 15; i++)
         {
@@ -171,15 +171,15 @@ public class ActorBackpressureTest
     public async Task NoBackpressure_IsHighWatermark_AlwaysFalse()
     {
         await using var actor = new BackpressureTestActor();
-        actor.IsHighWatermark.Should().BeFalse();
-        actor.IsCriticalWatermark.Should().BeFalse();
+        actor.IsInputHighWatermark.Should().BeFalse();
+        actor.IsInputCriticalWatermark.Should().BeFalse();
     }
 }
 
 /// <summary>
 /// 背压测试用 Actor — 支持 gate(门控暂停 Consumer)和背压构造函数。
 /// </summary>
-internal sealed class BackpressureTestActor : ActorBase<BackpressureTestActor.ICommand>
+internal sealed class BackpressureTestActor : ActorBase<BackpressureTestActor.ICommand, Unit>
 {
     internal interface ICommand;
 

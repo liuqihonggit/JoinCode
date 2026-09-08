@@ -43,10 +43,19 @@ public sealed partial class AutoModeClassifier : ServiceEntity, IAutoModeClassif
         .Select(p => new Regex(Regex.Escape(p), RegexOptions.IgnoreCase))
         .ToArray();
 
-    private static readonly FrozenSet<OperationType> ReadOperationTypes = FrozenSet.Create(
+    /// <summary>
+    /// 只读操作位掩码 — 替代 FrozenSet&lt;OperationType&gt;，O(1) 位运算无哈希查找。
+    /// Read=0, List=5, Get=6, Search=7, Glob=8, Grep=9
+    /// </summary>
+    private static readonly int ReadOperationMask = BitMask.Of(
         OperationType.Read, OperationType.List, OperationType.Get,
         OperationType.Search, OperationType.Glob, OperationType.Grep);
-    private static readonly FrozenSet<OperationType> WriteOperationTypes = FrozenSet.Create(
+
+    /// <summary>
+    /// 写入操作位掩码 — 替代 FrozenSet&lt;OperationType&gt;，O(1) 位运算无哈希查找。
+    /// Write=1, Edit=2, Create=3, Delete=4
+    /// </summary>
+    private static readonly int WriteOperationMask = BitMask.Of(
         OperationType.Write, OperationType.Edit, OperationType.Create, OperationType.Delete);
 
     private readonly ILogger<AutoModeClassifier>? _logger;
@@ -138,11 +147,13 @@ public sealed partial class AutoModeClassifier : ServiceEntity, IAutoModeClassif
         };
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool IsReadOperation(OperationType operationType)
-        => ReadOperationTypes.Contains(operationType);
+        => BitMask.Contains(ReadOperationMask, operationType);
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool IsWriteOperation(OperationType operationType)
-        => WriteOperationTypes.Contains(operationType);
+        => BitMask.Contains(WriteOperationMask, operationType);
 
     private static bool IsDangerousCommand(ClassificationRequest request)
     {

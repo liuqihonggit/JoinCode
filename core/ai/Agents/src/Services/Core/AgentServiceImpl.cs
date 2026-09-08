@@ -135,14 +135,20 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
             return MapToAgentInfo(init.SubAgent);
         }
 
-        var result = await _lifecycleManager.ExecuteAsync(init.SubAgent, cancellationToken).ConfigureAwait(false);
-
-        var agentResult = MapToResult(result);
-        tcs.SetResult(agentResult);
-
-        FireAgentCompleted(init.SubAgent, agentResult);
-
-        return MapToAgentInfo(init.SubAgent, result);
+        try
+        {
+            var lifecycleResult = await _lifecycleManager.ExecuteAsync(init.SubAgent, cancellationToken).ConfigureAwait(false);
+            var agentResult = MapToResult(lifecycleResult);
+            tcs.SetResult(agentResult);
+            FireAgentCompleted(init.SubAgent, agentResult);
+            return MapToAgentInfo(init.SubAgent, lifecycleResult);
+        }
+        catch (Exception ex)
+        {
+            _completionSources.TryRemove(init.SubAgent.ObjectId.UniqueId, out var failedTcs);
+            failedTcs?.TrySetException(ex);
+            throw;
+        }
     }
 
     public async IAsyncEnumerable<AgentStreamChunk> RunAgentStreamAsync(

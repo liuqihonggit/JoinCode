@@ -1,7 +1,7 @@
 namespace JoinCode.CliCommands;
 
 /// <summary>
-/// 扁平元动词子命令路由器 — 处理 mcp_call/mcp_list/mcp_schema/mcp_search/mcp_serve/slash_call/slash_list/slash_schema/doctor 等元命令。
+/// 扁平元动词子命令路由器 — 处理 mcp_call/mcp_list/mcp_schema/mcp_search/mcp_serve/slash_call/slash_list/slash_schema/doctor/rg/gh 等元命令。
 /// <para>ADR: 0069 — 扁平元动词风格，位置参数为主，不经过 System.CommandLine 嵌套子命令。</para>
 /// </summary>
 internal static class FlatSubCommandRouter
@@ -33,6 +33,8 @@ internal static class FlatSubCommandRouter
                 return await ExecuteDoctorAsync(args, ct).ConfigureAwait(false);
             case CliSubCommand.Rg:
                 return await RgSubCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
+            case CliSubCommand.Gh:
+                return await GhSubCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
             default:
                 return null;
         }

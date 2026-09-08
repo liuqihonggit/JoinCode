@@ -209,6 +209,7 @@ public class AsyncLockDiagnosisTests : IDisposable
     [Fact]
     public async Task 死锁检测_两个线程互相等待时自动检测()
     {
+        LockRegistry.StartBackgroundScan(TimeSpan.FromMilliseconds(50));
         var messages = new ConcurrentQueue<string>();
         LockRegistry.DiagnosticSink = messages.Enqueue;
         using var lockA = new AsyncLock("deadlock-A", TimeSpan.FromMilliseconds(500));

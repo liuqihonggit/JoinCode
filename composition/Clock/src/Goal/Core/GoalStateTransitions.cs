@@ -8,42 +8,18 @@ namespace Core.Goal;
 /// </summary>
 public static class GoalStateTransitions
 {
-    private static readonly FrozenDictionary<GoalStatus, FrozenSet<GoalStatus>> Transitions =
-        new Dictionary<GoalStatus, FrozenSet<GoalStatus>>
-        {
-            [GoalStatus.Pursuing] = new HashSet<GoalStatus>
-            {
-                GoalStatus.Paused,
-                GoalStatus.Achieved,
-                GoalStatus.Unmet,
-                GoalStatus.BudgetLimited,
-                GoalStatus.Pursuing
-            }.ToFrozenSet(),
-
-            [GoalStatus.Paused] = new HashSet<GoalStatus>
-            {
-                GoalStatus.Pursuing,
-                GoalStatus.Unmet
-            }.ToFrozenSet(),
-
-            [GoalStatus.Achieved] = new HashSet<GoalStatus>
-            {
-                GoalStatus.Pursuing,
-                GoalStatus.Unmet
-            }.ToFrozenSet(),
-
-            [GoalStatus.Unmet] = new HashSet<GoalStatus>
-            {
-                GoalStatus.Pursuing,
-                GoalStatus.Unmet
-            }.ToFrozenSet(),
-
-            [GoalStatus.BudgetLimited] = new HashSet<GoalStatus>
-            {
-                GoalStatus.Pursuing,
-                GoalStatus.Unmet
-            }.ToFrozenSet()
-        }.ToFrozenDictionary();
+    /// <summary>
+    /// 状态转换位掩码表 — 索引为 (int)GoalStatus，值为目标状态位掩码。
+    /// 替代 FrozenDictionary&lt;GoalStatus, FrozenSet&lt;GoalStatus&gt;&gt;，O(1) 数组索引 + 位运算无哈希查找。
+    /// </summary>
+    private static readonly int[] Transitions =
+    [
+        /* Pursuing=0 */ BitMask.Of(GoalStatus.Paused, GoalStatus.Achieved, GoalStatus.Unmet, GoalStatus.BudgetLimited, GoalStatus.Pursuing),
+        /* Paused=1 */ BitMask.Of(GoalStatus.Pursuing, GoalStatus.Unmet),
+        /* Achieved=2 */ BitMask.Of(GoalStatus.Pursuing, GoalStatus.Unmet),
+        /* Unmet=3 */ BitMask.Of(GoalStatus.Pursuing, GoalStatus.Unmet),
+        /* BudgetLimited=4 */ BitMask.Of(GoalStatus.Pursuing, GoalStatus.Unmet)
+    ];
 
     /// <summary>
     /// 是否可从 current 转换到 target — 自环合法
@@ -55,7 +31,7 @@ public static class GoalStateTransitions
             return true;
         }
 
-        return Transitions.TryGetValue(current, out var targets) && targets.Contains(target);
+        return BitMask.Contains(Transitions[(int)current], target);
     }
 
     /// <summary>

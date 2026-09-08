@@ -46,38 +46,45 @@ public sealed class RandomRouteStrategy<TMessage> : IRouterStrategy<TMessage>
 }
 
 /// <summary>
-/// Router Actor — 多 Worker 负载分发 + 监督。
-/// <para>继承 SupervisedActor 获得:父子关系、监督策略、背压、生命周期级联。</para>
-/// <para>Worker 崩溃时按 SupervisorStrategy 自动重启(OneForOne 默认)。</para>
-    /// <para>消息通过 RouteAsync 投递,由 <see cref="IRouterStrategy{TMessage}"/> 决定分发目标。</para>
+/// 路由事件 — 消息路由到 Worker 的事件,通过 OutputAsync 流输出。
+/// </summary>
+public sealed record RouterEvent<TMessage>(string WorkerId, TMessage Message, int WorkerIndex);
+
+/// <summary>
+/// Router 命令标记接口 — 所有 Router 命令的基类。
+/// </summary>
+public interface IRouterCommand;
+
+/// <summary>
+/// 路由命令 — 内部记录消息和投递函数。
+/// </summary>
+internal sealed record RouteCommand<TMessage>(TMessage Message, Func<TMessage, IAsyncDisposable, ValueTask> Deliver) : IRouterCommand;
+
+/// <summary>
+/// Router Actor — 多 Worker 负载分发 + 轻量监督。
+/// <para>直接继承 ActorBase 获得消息处理 + 输出流,自行管理子 Actor 生命周期。</para>
+/// <para>Worker 崩溃时调用 onWorkerFailure 回调,子类可重写自定义处理。</para>
+/// <para>消息通过 RouteAsync 投递,由 <see cref="IRouterStrategy{TMessage}"/> 决定分发目标。</para>
+/// <para>路由事件通过 OutputAsync 流输出。</para>
 /// </summary>
 /// <typeparam name="TMessage">路由消息类型</typeparam>
-public class RouterActor<TMessage> : SupervisedActor<RouterActor<TMessage>.IRouterCommand>
+public class RouterActor<TMessage> : ActorBase<IRouterCommand, RouterEvent<TMessage>>
 {
-    /// <summary>Router 命令标记接口</summary>
-    public interface IRouterCommand;
-
-    private sealed record RouteCommand(TMessage Message, Func<TMessage, IAsyncDisposable, ValueTask> Deliver) : IRouterCommand;
-
     private readonly IRouterStrategy<TMessage> _strategy;
-    private readonly SupervisorStrategy _childStrategy;
     private readonly Action<ChildActorHandle, Exception>? _onWorkerFailure;
-    private readonly List<string> _workerIds = new();
+    private readonly ConcurrentDictionary<string, ChildActorHandle> _children = new(StringComparer.Ordinal);
 
     /// <summary>
     /// 构造 Router Actor — 使用 Router 背压配置(容量 1000 + 10s 超时)。
     /// </summary>
     /// <param name="strategy">路由策略(null=轮询)</param>
-    /// <param name="childStrategy">子 Worker 监督策略(null=OneForOne)</param>
-    /// <param name="onWorkerFailure">Worker 失败回调(可选,Escalate 策略时调用)</param>
+    /// <param name="onWorkerFailure">Worker 失败回调(可选)</param>
     protected RouterActor(
         IRouterStrategy<TMessage>? strategy = null,
-        SupervisorStrategy? childStrategy = null,
         Action<ChildActorHandle, Exception>? onWorkerFailure = null)
         : base(ActorBackpressure.Router)
     {
         _strategy = strategy ?? new RoundRobinStrategy<TMessage>();
-        _childStrategy = childStrategy ?? SupervisorStrategy.OneForOne;
         _onWorkerFailure = onWorkerFailure;
     }
 
@@ -90,8 +97,13 @@ public class RouterActor<TMessage> : SupervisedActor<RouterActor<TMessage>.IRout
         string workerId,
         Func<CancellationToken, ValueTask<IAsyncDisposable>> workerFactory)
     {
-        _workerIds.Add(workerId);
-        return await SpawnChildAsync(workerId, workerFactory, _childStrategy).ConfigureAwait(false);
+        var handle = new ChildActorHandle(
+            workerId, workerFactory,
+            SupervisorStrategy.OneForOne,
+            ReportChildFailureAsync);
+        _children[workerId] = handle;
+        await handle.StartAsync(CancellationToken.None).ConfigureAwait(false);
+        return handle;
     }
 
     /// <summary>
@@ -102,7 +114,7 @@ public class RouterActor<TMessage> : SupervisedActor<RouterActor<TMessage>.IRout
     /// <param name="deliver">投递函数:接收消息和 Worker 实例,由调用方强类型发送</param>
     public ValueTask RouteAsync(TMessage message, Action<TMessage, IAsyncDisposable> deliver)
     {
-        return SendAsync(new RouteCommand(message, (msg, worker) =>
+        return SendAsync(new RouteCommand<TMessage>(message, (msg, worker) =>
         {
             deliver(msg, worker);
             return ValueTask.CompletedTask;
@@ -117,16 +129,16 @@ public class RouterActor<TMessage> : SupervisedActor<RouterActor<TMessage>.IRout
     /// <param name="deliver">异步投递函数:可 await Worker.SendAsync 等待背压</param>
     public ValueTask RouteAsync(TMessage message, Func<TMessage, IAsyncDisposable, ValueTask> deliver)
     {
-        return SendAsync(new RouteCommand(message, deliver));
+        return SendAsync(new RouteCommand<TMessage>(message, deliver));
     }
 
     /// <summary>当前 Worker 数量</summary>
-    public int WorkerCount => _workerIds.Count;
+    public int WorkerCount => _children.Count;
 
     /// <summary>Consumer 线程内处理路由命令</summary>
     protected override async ValueTask HandleAsync(IRouterCommand command, CancellationToken ct)
     {
-        if (command is RouteCommand(var msg, var deliver))
+        if (command is RouteCommand<TMessage>(var msg, var deliver))
         {
             var children = GetChildren();
             if (children.Count == 0) return;
@@ -139,14 +151,29 @@ public class RouterActor<TMessage> : SupervisedActor<RouterActor<TMessage>.IRout
             if (worker.Instance is not null)
             {
                 await deliver(msg, worker.Instance).ConfigureAwait(false);
+                TryPublish(new RouterEvent<TMessage>(worker.Id, msg, idx));
             }
         }
     }
 
     /// <summary>子 Worker 失败处理 — 调用可选回调,子类可重写自定义</summary>
-    protected override ValueTask OnChildFailureAsync(ChildActorHandle child, Exception ex, CancellationToken ct)
+    private async ValueTask ReportChildFailureAsync(ChildActorHandle child, Exception ex, CancellationToken ct)
     {
         _onWorkerFailure?.Invoke(child, ex);
-        return ValueTask.CompletedTask;
+        await child.HandleFailureAsync(ex, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>获取所有子 Actor 句柄</summary>
+    protected IReadOnlyCollection<ChildActorHandle> GetChildren() => _children.Values.ToArray();
+
+    /// <summary>Dispose 时级联停止所有子 Actor</summary>
+    public override async ValueTask DisposeAsync()
+    {
+        foreach (var child in _children.Values)
+        {
+            try { await child.StopAsync().ConfigureAwait(false); }
+            catch (Exception ex) { Console.WriteLine($"[RouterActor:{Id}] Stop child {child.Id} 异常忽略: {ex.Message}"); }
+        }
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }

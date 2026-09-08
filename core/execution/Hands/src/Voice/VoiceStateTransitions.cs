@@ -7,32 +7,17 @@ namespace Services.Voice;
 /// </summary>
 public static class VoiceStateTransitions
 {
-    private static readonly FrozenDictionary<VoiceRecordingState, FrozenSet<VoiceRecordingState>> Transitions =
-        new Dictionary<VoiceRecordingState, FrozenSet<VoiceRecordingState>>
-        {
-            [VoiceRecordingState.Idle] = new HashSet<VoiceRecordingState>
-            {
-                VoiceRecordingState.Recording
-            }.ToFrozenSet(),
-
-            [VoiceRecordingState.Recording] = new HashSet<VoiceRecordingState>
-            {
-                VoiceRecordingState.Processing,
-                VoiceRecordingState.Error,
-                VoiceRecordingState.Idle
-            }.ToFrozenSet(),
-
-            [VoiceRecordingState.Processing] = new HashSet<VoiceRecordingState>
-            {
-                VoiceRecordingState.Idle,
-                VoiceRecordingState.Error
-            }.ToFrozenSet(),
-
-            [VoiceRecordingState.Error] = new HashSet<VoiceRecordingState>
-            {
-                VoiceRecordingState.Idle
-            }.ToFrozenSet()
-        }.ToFrozenDictionary();
+    /// <summary>
+    /// 状态转换位掩码表 — 索引为 (int)VoiceRecordingState，值为目标状态位掩码。
+    /// 替代 FrozenDictionary&lt;VoiceRecordingState, FrozenSet&lt;VoiceRecordingState&gt;&gt;，O(1) 数组索引 + 位运算无哈希查找。
+    /// </summary>
+    private static readonly int[] Transitions =
+    [
+        /* Idle=0 */ BitMask.Of(VoiceRecordingState.Recording),
+        /* Recording=1 */ BitMask.Of(VoiceRecordingState.Processing, VoiceRecordingState.Error, VoiceRecordingState.Idle),
+        /* Processing=2 */ BitMask.Of(VoiceRecordingState.Idle, VoiceRecordingState.Error),
+        /* Error=3 */ BitMask.Of(VoiceRecordingState.Idle)
+    ];
 
     /// <summary>
     /// 是否可从 current 转换到 target — 自环合法
@@ -44,7 +29,7 @@ public static class VoiceStateTransitions
             return true;
         }
 
-        return Transitions.TryGetValue(current, out var targets) && targets.Contains(target);
+        return BitMask.Contains(Transitions[(int)current], target);
     }
 
     /// <summary>

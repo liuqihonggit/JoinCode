@@ -10,7 +10,7 @@ public class PersistentMailboxTest
     {
         var store = new InMemoryPersistentStore<string>();
         await using var actor = new SimpleTestActor();
-        await using var mailbox = new PersistentMailbox<string>(actor, store, "actor-1");
+        await using var mailbox = new PersistentMailbox<string, Unit>(actor, store, "actor-1");
 
         var tcs = new TaskCompletionSource<string>();
         await mailbox.PersistentSendAsync("hello");
@@ -23,7 +23,7 @@ public class PersistentMailboxTest
     {
         var store = new InMemoryPersistentStore<string>();
         await using var actor = new SimpleTestActor();
-        await using var mailbox = new PersistentMailbox<string>(actor, store, "actor-1");
+        await using var mailbox = new PersistentMailbox<string, Unit>(actor, store, "actor-1");
 
         await mailbox.PersistentSendAsync("msg-1");
         await mailbox.AckAsync("msg-1");
@@ -36,7 +36,7 @@ public class PersistentMailboxTest
     {
         var store = new InMemoryPersistentStore<string>();
         await using var actor = new SimpleTestActor();
-        await using var mailbox = new PersistentMailbox<string>(actor, store, "actor-1");
+        await using var mailbox = new PersistentMailbox<string, Unit>(actor, store, "actor-1");
 
         await mailbox.PersistentSendAsync("msg-1");
         await mailbox.PersistentSendAsync("msg-2");
@@ -56,7 +56,7 @@ public class PersistentMailboxTest
     {
         var store = new InMemoryPersistentStore<string>();
         var actor = new SimpleTestActor();
-        var mailbox = new PersistentMailbox<string>(actor, store, "actor-1");
+        var mailbox = new PersistentMailbox<string, Unit>(actor, store, "actor-1");
 
         await mailbox.DisposeAsync();
 
@@ -80,7 +80,7 @@ public class PersistentMailboxTest
 }
 
 /// <summary>简单测试 Actor — 接收 string 命令,可选回调</summary>
-internal sealed class SimpleTestActor : ActorBase<string>
+internal sealed class SimpleTestActor : ActorBase<string, Unit>
 {
     public Action<string>? OnMessage;
 

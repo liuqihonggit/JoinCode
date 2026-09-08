@@ -203,7 +203,8 @@ public sealed class AsyncLock : IDisposable
             if (Interlocked.Exchange(ref _disposed, 1) == 0)
             {
                 LockRegistry.OnReleased(owner._registryId, owner._name);
-                owner._semaphore.Release();
+                if (Interlocked.CompareExchange(ref owner._disposed, 0, 0) == 0)
+                    owner._semaphore.Release();
             }
         }
     }

@@ -1,12 +1,11 @@
-
 namespace McpClient;
 
 /// <summary>
 /// MCP 请求注册表 Actor — 用单消费者 Channel 串行管理 pending requests，消除 AsyncLock 死锁风险。
 /// <para>所有可变状态（_pending 字典）由 Consumer 线程独占，无需锁。</para>
-/// <para>替代 McpClientBase._pendingRequests + _requestLock 的共享状态+锁方案。</para>
+/// <para>响应通过 OutputAsync 流直接拉取，无需 TCS 字典。</para>
 /// </summary>
-public sealed class McpRequestRegistryActor : ActorBase<McpRequestRegistryActor.IRequestCommand>
+public sealed class McpRequestRegistryActor : ActorBase<McpRequestRegistryActor.IRequestCommand, JsonRpcResponse>
 {
     private readonly Dictionary<int, TaskCompletionSource<JsonRpcResponse>> _pending = new();
     private readonly ILogger? _logger;
@@ -26,7 +25,8 @@ public sealed class McpRequestRegistryActor : ActorBase<McpRequestRegistryActor.
     /// <summary>取消所有 pending requests</summary>
     private sealed record CancelAllCommand(CancellationToken CancellationToken) : IRequestCommand;
 
-    public McpRequestRegistryActor(ILogger? logger = null) : base()
+    public McpRequestRegistryActor(ILogger? logger = null)
+        : base()
     {
         _logger = logger;
     }
@@ -43,6 +43,7 @@ public sealed class McpRequestRegistryActor : ActorBase<McpRequestRegistryActor.
                 if (_pending.Remove(comp.RequestId, out var pendingTcs))
                 {
                     pendingTcs.TrySetResult(comp.Response);
+                    TryPublish(comp.Response);
                 }
                 else
                 {
@@ -56,9 +57,7 @@ public sealed class McpRequestRegistryActor : ActorBase<McpRequestRegistryActor.
 
             case CancelAllCommand cancel:
                 foreach (var tcs in _pending.Values)
-                {
                     tcs.TrySetCanceled(cancel.CancellationToken);
-                }
                 _pending.Clear();
                 return default;
 

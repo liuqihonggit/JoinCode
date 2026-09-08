@@ -26,10 +26,16 @@ public sealed record PriorityBackpressureEventArgs(
     WatermarkLevel Level);
 
 /// <summary>
+/// 优先级事件 — 命令处理事件,通过 OutputAsync 流输出。
+/// </summary>
+public sealed record PriorityEvt<TCommand>(TCommand Command, MessagePriority Priority);
+
+/// <summary>
 /// 优先级邮箱 — 多通道按优先级消费,高优先级先处理。
 /// <para>三通道独立背压:High(用户交互)、Normal(LLM)、Low(后台编译)。</para>
 /// <para>Consumer 循环:先 TryRead High,再 Normal,再 Low;全空时信号量等待。</para>
 /// <para>同优先级 FIFO,高优先级严格先于低优先级(只要高优先级队列非空)。</para>
+/// <para>处理事件通过 OutputAsync 流输出。</para>
 /// </summary>
 /// <typeparam name="TCommand">命令类型</typeparam>
 public abstract class PriorityMailbox<TCommand> : IAsyncDisposable
@@ -37,6 +43,7 @@ public abstract class PriorityMailbox<TCommand> : IAsyncDisposable
     private readonly Channel<TCommand> _highChannel;
     private readonly Channel<TCommand> _normalChannel;
     private readonly Channel<TCommand> _lowChannel;
+    private readonly Channel<PriorityEvt<TCommand>> _outputChannel;
     private readonly ActorBackpressure? _highBackpressure;
     private readonly ActorBackpressure? _normalBackpressure;
     private readonly ActorBackpressure? _lowBackpressure;
@@ -62,6 +69,11 @@ public abstract class PriorityMailbox<TCommand> : IAsyncDisposable
         _highChannel = CreateChannel(highBackpressure);
         _normalChannel = CreateChannel(normalBackpressure);
         _lowChannel = CreateChannel(lowBackpressure);
+        _outputChannel = Channel.CreateUnbounded<PriorityEvt<TCommand>>(new UnboundedChannelOptions
+        {
+            SingleReader = true,
+            SingleWriter = true
+        });
         _consumerTask = Task.Run(ConsumeLoopAsync);
     }
 
@@ -165,6 +177,23 @@ public abstract class PriorityMailbox<TCommand> : IAsyncDisposable
     /// <param name="priority">命令优先级</param>
     /// <param name="ct">取消令牌(Actor 释放时触发取消)</param>
     protected abstract ValueTask HandleAsync(TCommand command, MessagePriority priority, CancellationToken ct);
+
+    /// <summary>
+    /// Actor 主动推送消息到输出 Channel — 外部通过 OutputAsync 拉取。
+    /// </summary>
+    protected bool TryPublish(PriorityEvt<TCommand> evt)
+    {
+        if (Volatile.Read(ref _disposed) != 0) return false;
+        return _outputChannel.Writer.TryWrite(evt);
+    }
+
+    /// <summary>
+    /// 外部拉取输出流 — 阻塞式 IAsyncEnumerable。
+    /// </summary>
+    public IAsyncEnumerable<PriorityEvt<TCommand>> OutputAsync(CancellationToken cancellationToken = default)
+    {
+        return _outputChannel.Reader.ReadAllAsync(cancellationToken);
+    }
 
     /// <summary>
     /// Consumer 处理单条命令异常的回调 — 默认忽略,子类可重写以记录日志或计数。
@@ -271,6 +300,7 @@ public abstract class PriorityMailbox<TCommand> : IAsyncDisposable
         _highChannel.Writer.TryComplete();
         _normalChannel.Writer.TryComplete();
         _lowChannel.Writer.TryComplete();
+        _outputChannel.Writer.TryComplete();
         try
         {
             await _consumerTask.ConfigureAwait(false);

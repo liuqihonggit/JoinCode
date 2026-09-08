@@ -380,7 +380,8 @@ public sealed class McpCliCommand
     /// 将 key=value 的字符串值转换为 JsonElement（支持 int/double/bool/string/JSON对象/JSON数组）。
     /// <para>当 value 以 { 或 [ 开头时，尝试解析为 JSON 对象或数组；解析失败时调用 LlmJsonHelper.RepairJson 修复（处理 PowerShell 引号剥离等问题）。</para>
     /// </summary>
-    private static JsonElement ParseValueToJsonElement(string value, string keyName)
+    /// <summary>将字符串值按类型推断转换为 JsonElement（int/double/bool/null/JSON/字符串）</summary>
+    internal static JsonElement ParseValueToJsonElement(string value, string keyName)
     {
         if (value.Length > 0 && (value[0] == '{' || value[0] == '['))
         {
@@ -430,7 +431,8 @@ public sealed class McpCliCommand
         return JsonDocument.Parse(ms).RootElement.Clone();
     }
 
-    private static int OutputResult(ToolResult result, bool json)
+    /// <summary>输出工具执行结果 — 供 gh 等子命令复用，避免第二套输出逻辑</summary>
+    internal static int OutputResult(ToolResult result, bool json)
     {
         if (json)
         {

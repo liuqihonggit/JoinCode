@@ -116,7 +116,11 @@ jcc mcp_call gh_run_rerun '{"run_id":"123"}'            # 重跑失败的 job
 
 ### 方案4：把 `gh` 也做成 `jcc gh` CLI 子命令（对齐 `jcc rg`）
 
-暂缓。当前 `jcc mcp_call gh_*` 已能覆盖全部 30 个工具，且 `mcp_call` 是统一的工具直调入口（ADR 0069）。实测 `jcc gh` **不是**已注册子命令（会被当作提示词处理），新增子命令属独立增强，不阻塞本决策。
+**已落地**（本 ADR 决策时的状态：暂缓）。本 ADR 决策时 `jcc gh` 尚未注册为子命令（会被当作提示词处理，输出"错误: 未提供提示词。"），因此记为"属独立增强，不阻塞本决策"。
+后续已由 **ADR [0090](0090-jcc-gh-cli-subcommand.md)** 落地为 `jcc gh <group> <action> [位置参数...] [--选项 值] [--json]`，两种入口并存：
+
+- `jcc gh pr checks 123` — CLI 形态，Bash 里手写，推荐
+- `jcc mcp_call gh_pr_checks '{"pr_number":"123"}'` — MCP 工具直调形态，脚本/结构化场景
 
 ## 后果
 

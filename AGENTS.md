@@ -388,16 +388,31 @@ d,手动验证,通过设置启动参数,通过bash调用来实际运行,真实�
 - 禁止用宿主 IDE 内置的 Grep 工具代替 `jcc rg`
 - 报错时按 jcc 提示自愈修正参数，**不得**因为 jcc 工具报错就回退到系统 `gh`/`rg` 绕过
 
-**1. `jcc.exe` gh 工具 → 处理 GitHub 的 PR 和 CI 问题**（`github` 分类 30 个 `gh_*`，HttpClient 直调 REST API，无需系统 gh CLI）：
+**1. `jcc.exe` gh 工具 → 处理 GitHub 的 PR 和 CI 问题**（`github` 分类 30 个 `gh_*`，HttpClient 直调 REST API，无需系统 gh CLI）
+
+CLI 形态（**推荐**，ADR: [0090](docs/adr/0090-jcc-gh-cli-subcommand.md)）：
+
+```bash
+jcc gh pr list --limit 3            # 列 PR
+jcc gh pr checks 123                # CI 检查状态
+jcc gh pr view 123                  # PR 详情
+jcc gh run view 123 --log --filter error   # CI 日志（只留 error）
+jcc gh run rerun 123                # 重跑失败的 job
+jcc gh issue comment 12 "正文"       # 评论 Issue
+jcc gh api repos/o/r/issues         # 通用 REST 调用
+jcc gh --help                       # 完整用法
+```
+
+MCP 工具直调形态（脚本/结构化场景，ADR: [0073](docs/adr/0073-gh-rest-api-direct-call.md)）：
 
 ```bash
 jcc mcp_list --category github                      # 列出全部 gh_* 工具
 jcc mcp_schema <tool>                               # 查参数 schema，不必记忆
-jcc mcp_call gh_pr_list   '{"limit":3}'             # 列 PR（state/author/repo 可选）
-jcc mcp_call gh_pr_checks '{"pr_number":"123"}'     # CI 检查状态（pr_number 必填）
-jcc mcp_call gh_run_view  '{"run_id":"123"}'        # CI Run 详情/日志（run_id 必填）
-jcc mcp_call gh_run_rerun '{"run_id":"123"}'        # 重跑失败的 job
+jcc mcp_call gh_pr_checks '{"pr_number":"123"}'     # pr_number 必填
+jcc mcp_call gh_run_view  '{"run_id":"123"}'        # run_id 必填
 ```
+
+两种入口等价：`jcc gh <group> <action>` 按约定拼成 `gh_{group}_{action}`，位置参数按工具 schema 的 `required` 顺序绑定（`pr_number` / `run_id` / `tag` / `issue_number`…），选项支持 `--key value`、`--key=value`，连字符自动归一化为下划线（`--max-lines` → `max_lines`）。
 
 **2. `jcc.exe` rg 工具 → 处理日常搜索**（内置 `RgEngine`，已对边缘错误实现友好提示）：
 

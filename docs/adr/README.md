@@ -227,3 +227,4 @@ ADR 引用 design/plans，但不重复其内容。
 | 编号 | 标题 | 状态 | 来源 | AGENTS.md 对应位置 |
 |------|------|------|------|-------------------|
 | 0089 | jcc 自带工具统一入口 — 禁止系统/宿主环境的 gh / rg | accepted | jcc 已自带 390 工具 + `jcc rg`，AI 仍在裸调系统 gh/rg | 平台专属操作禁令·jcc 自带工具统一入口 / Git 规范表 |
+| 0090 | `jcc gh` CLI 子命令 — 扁平元动词 + schema 驱动参数绑定 | accepted | `mcp_call gh_*` 要手写 JSON；`jcc gh` 未被注册为子命令 | 平台专属操作禁令·gh 工具 CLI 形态 |

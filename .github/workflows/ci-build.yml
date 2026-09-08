@@ -89,7 +89,8 @@ jobs:
             'tests/Unit/Hands.Tests/Hands.Tests.csproj',
             'tests/Unit/Mcp.Tests/Mcp.Tests.csproj',
             'tests/Unit/McpToolDispatch.Tests/McpToolDispatch.Tests.csproj',
-            'tools/JccAuditAstCli/tests/JccAuditCli.Tests.csproj'
+            'tools/JccAuditAstCli/tests/JccAuditCli.Tests.csproj',
+            'tests/Unit/JoinCodeGui.Tests/JoinCodeGui.Tests.csproj'
           )
           foreach ($p in $projects) {
             Write-Host "Building $p ..."

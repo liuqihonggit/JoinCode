@@ -110,6 +110,11 @@ jobs:
           # MockServer
           - name: MockServerCore
             csproj: tests/MockServers/MockServer.Core.Tests/MockServer.Core.Tests.csproj
+          # GUI / TUI
+          - name: JoinCodeGui
+            csproj: tests/Unit/JoinCodeGui.Tests/JoinCodeGui.Tests.csproj
+          - name: Tui
+            csproj: tests/Unit/Tui.Tests/Tui.Tests.csproj
 
     steps:
       - name: Checkout

@@ -50,7 +50,7 @@ public class ToolScoreDebugToolHandlers
             sb.AppendLine($"- 超图评分: {hypergraphScore}");
             sb.AppendLine($"- 有效评分: {effectiveScore}");
             sb.AppendLine($"- 成功/失败: {record?.SuccessCount ?? 0}/{record?.FailCount ?? 0}");
-            sb.AppendLine($"- 成功率: {record?.SuccessRate:P1 ?? 0:P1}");
+            sb.AppendLine($"- 成功率: {(record?.SuccessRate ?? 0):P1}");
             sb.AppendLine($"- 熔断: {(record?.IsEnabled == false ? "是" : "否")}");
             sb.AppendLine($"- 连续失败: {record?.ConsecutiveFailures ?? 0}");
             if (record?.LastErrorMessage is not null)

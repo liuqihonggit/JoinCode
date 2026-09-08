@@ -35,8 +35,7 @@ public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, I
         RepoRegistration registration;
         CodeIndexer concreteIndexer;
 
-        _lock.EnterWriteLock();
-        try
+        using (_lock.EnterWriteScope())
         {
             if (_repos.ContainsKey(repoId))
                 throw new InvalidOperationException($"Repository '{repoId}' is already registered.");
@@ -54,10 +53,6 @@ public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, I
 
             _repos[repoId] = new RegisteredRepo(registration, store, concreteIndexer);
         }
-        finally
-        {
-            _lock.ExitWriteLock();
-        }
 
         RepoRegistered?.Invoke(this, new RepoRegisteredEventArgs
         {
@@ -73,18 +68,13 @@ public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, I
     {
         ArgumentNullException.ThrowIfNull(repoId);
 
-        _lock.EnterWriteLock();
-        try
+        using (_lock.EnterWriteScope())
         {
             if (!_repos.Remove(repoId, out var repo))
                 return Task.FromResult(false);
 
             repo.Indexer.Dispose();
             repo.Store.Dispose();
-        }
-        finally
-        {
-            _lock.ExitWriteLock();
         }
 
         RepoUnregistered?.Invoke(this, new RepoUnregisteredEventArgs
@@ -97,31 +87,24 @@ public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, I
 
     public Task<IReadOnlyList<RepoRegistration>> ListReposAsync(CancellationToken ct)
     {
-        _lock.EnterReadLock();
-        try
-        {
-            var list = new List<RepoRegistration>();
+        using var scope = _lock.EnterReadScope();
+        var list = new List<RepoRegistration>();
 
-            if (_defaultIndexer is not null)
+        if (_defaultIndexer is not null)
+        {
+            list.Add(new RepoRegistration
             {
-                list.Add(new RepoRegistration
-                {
-                    RepoId = "default",
-                    WorkspaceRoot = "",
-                    RegisteredAt = DateTimeOffset.MinValue,
-                    IsDefault = true,
-                    IsWatching = false,
-                });
-            }
-
-            list.AddRange(_repos.Values.Select(r => r.Registration));
-
-            return Task.FromResult<IReadOnlyList<RepoRegistration>>(list);
+                RepoId = "default",
+                WorkspaceRoot = "",
+                RegisteredAt = DateTimeOffset.MinValue,
+                IsDefault = true,
+                IsWatching = false,
+            });
         }
-        finally
-        {
-            _lock.ExitReadLock();
-        }
+
+        list.AddRange(_repos.Values.Select(r => r.Registration));
+
+        return Task.FromResult<IReadOnlyList<RepoRegistration>>(list);
     }
 
     public ICodeIndexer? GetIndexer(string repoId)
@@ -131,23 +114,15 @@ public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, I
         if (string.Equals(repoId, "default", StringComparison.OrdinalIgnoreCase))
             return _defaultIndexer;
 
-        _lock.EnterReadLock();
-        try
-        {
-            return _repos.TryGetValue(repoId, out var repo) ? repo.Indexer : null;
-        }
-        finally
-        {
-            _lock.ExitReadLock();
-        }
+        using var scope = _lock.EnterReadScope();
+        return _repos.TryGetValue(repoId, out var repo) ? repo.Indexer : null;
     }
 
     protected override void OnDispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
-        _lock.EnterWriteLock();
-        try
+        using (_lock.EnterWriteScope())
         {
             foreach (var repo in _repos.Values)
             {
@@ -155,10 +130,6 @@ public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, I
                 repo.Store.Dispose();
             }
             _repos.Clear();
-        }
-        finally
-        {
-            _lock.ExitWriteLock();
         }
 
         _lock.Dispose();

@@ -1,53 +1,55 @@
 namespace JoinCode.Agents.Tests.Worktree;
 
 /// <summary>
-/// WorktreeLifecycleGuard 单元测试 — 专注 worktree 路径验证与释放/删除安全防护。
-/// <para>bug 背景：worktree 创建在当前目录（如 D:\project\w1），但清理时 FindGitRootAsync 解析到主仓库
-/// （D:\project\JoinCode），导致 git worktree remove 命令路径不匹配，清理失败，worktree 静默残留。</para>
-/// <para>修复：新建专注类 WorktreeLifecycleGuard，验证 worktree 路径不等于主仓库路径，统一释放/删除逻辑。</para>
+/// WorktreeLifecycleGuard 单元测试 — 验证路径锁定、标准 Dispose 模式、终结器兜底。
+/// <para>核心设计：构造时锁定 path，Dispose/析构复用同一引用，禁止二次计算路径。</para>
 /// </summary>
 public class WorktreeLifecycleGuardTest
 {
-    private static WorktreeLifecycleGuard CreateGuard() => new(new InMemoryFileOperationService());
+    private const string MainPath = "D:\\project\\w1";
+    private const string WorktreePath = "D:\\project\\w1\\.jcc\\worktrees\\agent-abc";
+
+    private static IFileOperationService CreateFs(bool worktreeExists = false)
+    {
+        var fs = new InMemoryFileOperationService();
+        if (worktreeExists)
+        {
+            fs.CreateDirectory(WorktreePath);
+        }
+        return fs;
+    }
 
     /// <summary>
     /// 路径等于主仓库时必须抛异常 — 防止误删主仓库代码。
     /// </summary>
     [Fact]
-    public void EnsureNotMainPath_WhenSameAsMain_Throws()
+    public void Ctor_WhenSameAsMain_Throws()
     {
-        var guard = CreateGuard();
-        var mainPath = "D:\\project\\w1";
-
-        var act = () => guard.EnsureNotMainPath(mainPath, mainPath);
+        var act = () => new WorktreeLifecycleGuard(MainPath, MainPath, CreateFs());
 
         act.Should().Throw<ArgumentException>()
             .WithParameterName("worktreePath");
     }
 
     /// <summary>
-    /// 路径不同时不抛异常 — 正常场景。
+    /// 路径不同时构造成功，WorktreePath 返回锁定的路径。
     /// </summary>
     [Fact]
-    public void EnsureNotMainPath_WhenDifferent_NoThrow()
+    public void Ctor_WhenDifferent_LocksPath()
     {
-        var guard = CreateGuard();
+        var guard = new WorktreeLifecycleGuard(WorktreePath, MainPath, CreateFs());
 
-        var act = () => guard.EnsureNotMainPath("D:\\project\\w1\\.jcc\\worktrees\\agent-abc", "D:\\project\\w1");
-
-        act.Should().NotThrow();
+        guard.WorktreePath.Should().Be(WorktreePath);
+        guard.MainPath.Should().Be(MainPath);
     }
 
     /// <summary>
     /// 路径大小写不同时按规范化比较 — 容忍大小写差异但仍然检测主路径。
     /// </summary>
     [Fact]
-    public void EnsureNotMainPath_WhenCaseOnlyDifferent_Throws()
+    public void Ctor_WhenCaseOnlyDifferent_Throws()
     {
-        var guard = CreateGuard();
-        var mainPath = "D:\\Project\\W1";
-
-        var act = () => guard.EnsureNotMainPath("d:\\project\\w1", mainPath);
+        var act = () => new WorktreeLifecycleGuard("d:\\project\\w1", "D:\\Project\\W1", CreateFs());
 
         act.Should().Throw<ArgumentException>();
     }
@@ -59,11 +61,9 @@ public class WorktreeLifecycleGuardTest
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    public void EnsureNotMainPath_WhenWorktreePathBlank_Throws(string? worktreePath)
+    public void Ctor_WhenWorktreePathBlank_Throws(string? worktreePath)
     {
-        var guard = CreateGuard();
-
-        var act = () => guard.EnsureNotMainPath(worktreePath!, "D:\\project\\w1");
+        var act = () => new WorktreeLifecycleGuard(worktreePath!, MainPath, CreateFs());
 
         act.Should().Throw<ArgumentException>();
     }
@@ -75,83 +75,146 @@ public class WorktreeLifecycleGuardTest
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    public void EnsureNotMainPath_WhenMainPathBlank_Throws(string? mainPath)
+    public void Ctor_WhenMainPathBlank_Throws(string? mainPath)
     {
-        var guard = CreateGuard();
-
-        var act = () => guard.EnsureNotMainPath("D:\\project\\w1\\.jcc\\worktrees\\agent-abc", mainPath!);
+        var act = () => new WorktreeLifecycleGuard(WorktreePath, mainPath!, CreateFs());
 
         act.Should().Throw<ArgumentException>();
     }
 
     /// <summary>
-    /// 路径规范化后比较 — 处理尾部分隔符、相对路径等。
+    /// 路径规范化后比较 — 处理尾部分隔符。
     /// </summary>
     [Fact]
-    public void EnsureNotMainPath_WhenPathDiffersOnlyByTrailingSeparator_Throws()
+    public void Ctor_WhenPathDiffersOnlyByTrailingSeparator_Throws()
     {
-        var guard = CreateGuard();
-        var mainPath = "D:\\project\\w1";
-
-        var act = () => guard.EnsureNotMainPath("D:\\project\\w1\\", mainPath);
+        var act = () => new WorktreeLifecycleGuard("D:\\project\\w1\\", MainPath, CreateFs());
 
         act.Should().Throw<ArgumentException>();
     }
 
     /// <summary>
-    /// 删除时路径是主仓库必须抛异常 — 安全防护，防止误删主仓库。
+    /// gitRunner 为 null 时 ReleaseAsync 返回失败 — 不执行删除。
     /// </summary>
     [Fact]
-    public async Task RemoveAsync_WhenPathIsMain_Throws()
+    public async Task ReleaseAsync_WhenGitRunnerNull_ReturnsFail()
     {
-        var guard = CreateGuard();
-        var mainPath = "D:\\project\\w1";
+        var guard = new WorktreeLifecycleGuard(WorktreePath, MainPath, CreateFs(worktreeExists: true));
 
-        var act = async () => await guard.RemoveAsync(mainPath, mainPath, force: true, CancellationToken.None);
+        var result = await guard.ReleaseAsync(force: true, CancellationToken.None);
 
-        await act.Should().ThrowAsync<ArgumentException>();
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("gitRunner");
     }
 
     /// <summary>
-    /// 删除时路径不存在返回 false 而非抛异常 — 宽容处理已清理的 worktree。
+    /// 路径不存在时 ReleaseAsync 返回失败 — 宽容处理已清理的 worktree。
     /// </summary>
     [Fact]
-    public async Task RemoveAsync_WhenPathNotExists_ReturnsFalse()
+    public async Task ReleaseAsync_WhenPathNotExists_ReturnsFail()
     {
-        var guard = CreateGuard();
+        var gitRunner = new Mock<IGitCommandRunner>();
+        var guard = new WorktreeLifecycleGuard(WorktreePath, MainPath, CreateFs(worktreeExists: false), gitRunner.Object);
 
-        var result = await guard.RemoveAsync("D:\\nonexistent\\worktree", "D:\\project\\w1", force: true, CancellationToken.None);
+        var result = await guard.ReleaseAsync(force: true, CancellationToken.None);
 
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().Contain("不存在");
     }
 
     /// <summary>
-    /// 释放时有变更保留 worktree — 返回 Kept=true。
+    /// 路径存在且 gitRunner 返回成功时 ReleaseAsync 成功 — 正常删除流程。
     /// </summary>
     [Fact]
-    public async Task ReleaseAsync_WhenHasChanges_KeepsWorktree()
+    public async Task ReleaseAsync_WhenPathExistsAndGitSucceeds_ReturnsOk()
     {
-        var guard = CreateGuard();
+        var fs = CreateFs(worktreeExists: true);
+        var gitRunner = new Mock<IGitCommandRunner>();
+        gitRunner
+            .Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GitCommandResult { Success = true, ExitCode = 0 });
 
-        var result = await guard.ReleaseAsync("D:\\project\\w1\\.jcc\\worktrees\\agent-abc", "D:\\project\\w1", hasChanges: true, CancellationToken.None);
+        var guard = new WorktreeLifecycleGuard(WorktreePath, MainPath, fs, gitRunner.Object, branchName: "worktree-agent-abc");
+
+        var result = await guard.ReleaseAsync(force: true, CancellationToken.None);
 
         result.Success.Should().BeTrue();
-        result.Kept.Should().BeTrue();
-        result.Reason.Should().Be("has_changes");
+        result.Forced.Should().BeTrue();
+
+        gitRunner.Verify(x => x.ExecuteAsync(
+            It.Is<string>(s => s.Contains("worktree remove") && s.Contains("--force") && s.Contains(WorktreePath)),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+        gitRunner.Verify(x => x.ExecuteAsync(
+            It.Is<string>(s => s.Contains("branch -D") && s.Contains("worktree-agent-abc")),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     /// <summary>
-    /// 释放时无变更且路径是主仓库必须抛异常 — 安全防护。
+    /// DisposeAsync 后 ReleaseAsync 抛 ObjectDisposedException — 标准资源生命周期管理。
     /// </summary>
     [Fact]
-    public async Task ReleaseAsync_WhenNoChangesAndPathIsMain_Throws()
+    public async Task ReleaseAsync_AfterDispose_ThrowsObjectDisposed()
     {
-        var guard = CreateGuard();
-        var mainPath = "D:\\project\\w1";
+        var gitRunner = new Mock<IGitCommandRunner>();
+        gitRunner
+            .Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GitCommandResult { Success = true, ExitCode = 0 });
 
-        var act = async () => await guard.ReleaseAsync(mainPath, mainPath, hasChanges: false, CancellationToken.None);
+        var guard = new WorktreeLifecycleGuard(WorktreePath, MainPath, CreateFs(worktreeExists: true), gitRunner.Object);
+        await guard.DisposeAsync();
 
-        await act.Should().ThrowAsync<ArgumentException>();
+        var act = async () => await guard.ReleaseAsync(force: true, CancellationToken.None);
+
+        await act.Should().ThrowAsync<ObjectDisposedException>();
+    }
+
+    /// <summary>
+    /// DisposeAsync 可多次调用不报错 — 幂等释放。
+    /// </summary>
+    [Fact]
+    public async Task DisposeAsync_CalledMultipleTimes_NoThrow()
+    {
+        var gitRunner = new Mock<IGitCommandRunner>();
+        gitRunner
+            .Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GitCommandResult { Success = true, ExitCode = 0 });
+
+        var guard = new WorktreeLifecycleGuard(WorktreePath, MainPath, CreateFs(worktreeExists: true), gitRunner.Object);
+
+        var act = async () =>
+        {
+            await guard.DisposeAsync();
+            await guard.DisposeAsync();
+            await guard.DisposeAsync();
+        };
+
+        await act.Should().NotThrowAsync();
+        gitRunner.Verify(x => x.ExecuteAsync(
+            It.Is<string>(s => s.Contains("worktree remove")),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// await using 语法自动 DisposeAsync — 验证标准 IAsyncDisposable 用法。
+    /// </summary>
+    [Fact]
+    public async Task AwaitUsing_AutoDisposeAsync_ExecutesGitRemove()
+    {
+        var gitRunner = new Mock<IGitCommandRunner>();
+        gitRunner
+            .Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GitCommandResult { Success = true, ExitCode = 0 });
+
+        {
+            await using var guard = new WorktreeLifecycleGuard(WorktreePath, MainPath, CreateFs(worktreeExists: true), gitRunner.Object);
+        }
+
+        gitRunner.Verify(x => x.ExecuteAsync(
+            It.Is<string>(s => s.Contains("worktree remove") && s.Contains(WorktreePath)),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 }

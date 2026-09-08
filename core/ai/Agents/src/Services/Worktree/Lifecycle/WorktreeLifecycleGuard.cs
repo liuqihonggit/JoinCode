@@ -1,29 +1,39 @@
 namespace Core.Agents.Worktree;
 
 /// <summary>
-/// Worktree 生命周期守卫 — 专注路径验证与释放/删除安全防护。
-/// <para>职责单一：仅负责 worktree 路径与主仓库路径的安全校验，防止误删主仓库。</para>
-/// <para>bug 背景：worktree 创建在当前目录（如 D:\project\w1），但清理时 FindGitRootAsync 解析到主仓库
-/// （D:\project\JoinCode），导致 git worktree remove 命令路径不匹配，清理失败，worktree 静默残留。</para>
-/// <para>修复策略：所有释放/删除操作前必须经过 EnsureNotMainPath 校验，拒绝 worktree 路径等于主仓库路径。</para>
+/// Worktree 生命周期守卫 — 构造时锁定 worktree 路径，Dispose 时用同一路径删除，从不二次计算。
+/// <para>设计原理：路径在构造时传入并锁定为 readonly 字段，整个生命周期都用这同一个 path。</para>
+/// <para>这从根上消除了"创建用当前目录、清理用主仓库"的路径不一致 bug —— 因为根本没有第二次计算路径的机会。</para>
+/// <para>异步释放优先（IAsyncDisposable.DisposeAsync），同步 Dispose 委托异步完成。</para>
+/// <para>无终结器：worktree 删除需 git 命令（托管对象），终结器中不安全，依赖显式 DisposeAsync/Dispose。</para>
 /// </summary>
-public sealed class WorktreeLifecycleGuard
+public sealed class WorktreeLifecycleGuard : IAsyncDisposable
 {
+    private readonly string _worktreePath;
+    private readonly string _mainPath;
     private readonly IFileOperationService _fileSystem;
+    private readonly IGitCommandRunner? _gitRunner;
+    private readonly string? _branchName;
+    private readonly ILogger? _logger;
+    private int _disposed;
 
     /// <summary>
-    /// 注入文件系统 — 生产用 PhysicalFileSystem，测试用 InMemoryFileOperationService。
+    /// 构造时锁定 worktree 路径 — 路径在此刻传入，之后永不重新计算。
     /// </summary>
-    public WorktreeLifecycleGuard(IFileOperationService fileSystem) => _fileSystem = fileSystem;
-
-    /// <summary>
-    /// 验证 worktree 路径不等于主仓库路径 — 防止误删主仓库代码。
-    /// <para>路径规范化后按 OrdinalIgnoreCase 比较，容忍大小写差异和尾部分隔符差异。</para>
-    /// </summary>
-    /// <param name="worktreePath">worktree 路径</param>
-    /// <param name="mainPath">主仓库路径</param>
+    /// <param name="worktreePath">要生成的 worktree 路径（构造时锁定）</param>
+    /// <param name="mainPath">主仓库路径（用于安全校验 + git 命令 cwd）</param>
+    /// <param name="fileSystem">文件系统抽象</param>
+    /// <param name="gitRunner">git 命令执行器（null 时 Dispose 仅做路径校验不执行 git）</param>
+    /// <param name="branchName">worktree 分支名（可选，Dispose 时一并删除）</param>
+    /// <param name="logger">日志</param>
     /// <exception cref="ArgumentException">路径为 null/空白，或 worktree 路径等于主仓库路径</exception>
-    public void EnsureNotMainPath(string worktreePath, string mainPath)
+    public WorktreeLifecycleGuard(
+        string worktreePath,
+        string mainPath,
+        IFileOperationService fileSystem,
+        IGitCommandRunner? gitRunner = null,
+        string? branchName = null,
+        ILogger? logger = null)
     {
         ThrowIfBlank(worktreePath, nameof(worktreePath));
         ThrowIfBlank(mainPath, nameof(mainPath));
@@ -37,56 +47,86 @@ public sealed class WorktreeLifecycleGuard
                 "worktree 路径不能等于主仓库路径，拒绝操作以防误删主仓库",
                 nameof(worktreePath));
         }
+
+        _worktreePath = normalizedWorktree;
+        _mainPath = normalizedMain;
+        _fileSystem = fileSystem;
+        _gitRunner = gitRunner;
+        _branchName = branchName;
+        _logger = logger;
     }
 
     /// <summary>
-    /// 强制删除 worktree — 删除前校验路径安全，路径不存在时宽容返回失败。
+    /// 锁定的 worktree 路径 — 构造后永不改变。
     /// </summary>
-    /// <param name="worktreePath">worktree 路径</param>
-    /// <param name="mainPath">主仓库路径（用于安全校验）</param>
-    /// <param name="force">是否强制删除</param>
+    public string WorktreePath => _worktreePath;
+
+    /// <summary>
+    /// 主仓库路径 — 构造后永不改变。
+    /// </summary>
+    public string MainPath => _mainPath;
+
+    /// <summary>
+    /// 释放 worktree — 用构造时锁定的路径执行 git worktree remove，从不重新计算路径。
+    /// </summary>
+    /// <param name="force">是否强制删除（有未提交变更时需 true）</param>
     /// <param name="cancellationToken">取消令牌</param>
-    /// <returns>删除结果</returns>
-    public async Task<WorktreeGuardResult> RemoveAsync(
-        string worktreePath,
-        string mainPath,
-        bool force = false,
-        CancellationToken cancellationToken = default)
+    public async Task<WorktreeGuardResult> ReleaseAsync(bool force = false, CancellationToken cancellationToken = default)
     {
-        EnsureNotMainPath(worktreePath, mainPath);
+        ObjectDisposedException.ThrowIf(_disposed != 0, this);
+        return await ReleaseCoreAsync(force, cancellationToken).ConfigureAwait(false);
+    }
 
-        var exists = await _fileSystem.DirectoryExistsAsync(worktreePath, cancellationToken).ConfigureAwait(false);
+    /// <summary>
+    /// 异步释放 — 用构造时锁定的路径执行 git worktree remove。消费方用 await using。
+    /// </summary>
+    public async ValueTask DisposeAsync()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+        try
+        {
+            await ReleaseCoreAsync(force: true, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "DisposeAsync 清理失败: {Path}", _worktreePath);
+        }
+    }
 
+    private async Task<WorktreeGuardResult> ReleaseCoreAsync(bool force, CancellationToken cancellationToken)
+    {
+        if (_gitRunner is null)
+        {
+            return WorktreeGuardResult.Fail("gitRunner 未注入，无法执行删除");
+        }
+
+        var exists = await _fileSystem.DirectoryExistsAsync(_worktreePath, cancellationToken).ConfigureAwait(false);
         if (!exists)
         {
-            return WorktreeGuardResult.Fail($"worktree 路径不存在: {worktreePath}");
+            return WorktreeGuardResult.Fail($"worktree 路径不存在: {_worktreePath}");
         }
 
-        return WorktreeGuardResult.Ok(force);
-    }
+        var forceArg = force ? " --force" : string.Empty;
+        var removeResult = await _gitRunner.ExecuteAsync(
+            $"worktree remove{forceArg} \"{_worktreePath}\"",
+            _mainPath,
+            cancellationToken).ConfigureAwait(false);
 
-    /// <summary>
-    /// 释放 worktree — 无变更时删除，有变更时保留。删除前校验路径安全。
-    /// </summary>
-    /// <param name="worktreePath">worktree 路径</param>
-    /// <param name="mainPath">主仓库路径（用于安全校验）</param>
-    /// <param name="hasChanges">是否有未提交变更</param>
-    /// <param name="cancellationToken">取消令牌</param>
-    /// <returns>释放结果（Kept=true 表示因有变更而保留）</returns>
-    public Task<WorktreeGuardResult> ReleaseAsync(
-        string worktreePath,
-        string mainPath,
-        bool hasChanges,
-        CancellationToken cancellationToken = default)
-    {
-        EnsureNotMainPath(worktreePath, mainPath);
-
-        if (hasChanges)
+        if (!removeResult.Success)
         {
-            return Task.FromResult(WorktreeGuardResult.Keep("has_changes"));
+            return WorktreeGuardResult.Fail($"移除 worktree 失败: {removeResult.Error}");
         }
 
-        return RemoveAsync(worktreePath, mainPath, force: false, cancellationToken);
+        if (_branchName is not null)
+        {
+            await _gitRunner.ExecuteAsync(
+                $"branch -D {_branchName}",
+                _mainPath,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        _logger?.LogInformation("WorktreeLifecycleGuard 释放: {Path}", _worktreePath);
+        return WorktreeGuardResult.Ok(force);
     }
 
     private static string NormalizePath(string path)
@@ -113,17 +153,14 @@ public sealed class WorktreeLifecycleGuard
 }
 
 /// <summary>
-/// Worktree 守卫操作结果 — 专注路径验证与删除/释放结果。
+/// Worktree 守卫操作结果。
 /// </summary>
 public sealed record WorktreeGuardResult
 {
     public required bool Success { get; init; }
-    public bool Kept { get; init; }
-    public string? Reason { get; init; }
     public string? ErrorMessage { get; init; }
     public bool Forced { get; init; }
 
     public static WorktreeGuardResult Ok(bool forced = false) => new() { Success = true, Forced = forced };
     public static WorktreeGuardResult Fail(string error) => new() { Success = false, ErrorMessage = error };
-    public static WorktreeGuardResult Keep(string reason) => new() { Success = true, Kept = true, Reason = reason };
 }

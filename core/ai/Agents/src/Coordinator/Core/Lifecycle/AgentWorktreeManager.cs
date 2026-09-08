@@ -12,8 +12,10 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
     private readonly ILogger? _logger;
     private readonly IClockService _clock;
     private readonly ConcurrentDictionary<string, AgentWorktreeSession> _worktreeSessions;
+    private readonly ConcurrentDictionary<string, WorktreeLifecycleGuard> _lifecycleGuards;
     private readonly bool _enableWorktreeIsolation;
-    private readonly WorktreeLifecycleGuard? _lifecycleGuard;
+    private readonly IFileOperationService? _fileOperationService;
+    private readonly IGitCommandRunner? _gitRunner;
 
     public event EventHandler<WorktreeEventArgs>? WorktreeCreated;
     public event EventHandler<WorktreeEventArgs>? WorktreeCleaned;
@@ -24,7 +26,8 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
         ILogger? logger = null,
         bool enableWorktreeIsolation = false,
         IClockService? clock = null,
-        IFileOperationService? fileOperationService = null)
+        IFileOperationService? fileOperationService = null,
+        IGitCommandRunner? gitRunner = null)
     {
         _worktreeService = worktreeService;
         _hookOrchestrator = hookOrchestrator;
@@ -32,7 +35,9 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
         _clock = clock ?? SystemClockService.Instance;
         _enableWorktreeIsolation = enableWorktreeIsolation && worktreeService != null;
         _worktreeSessions = new ConcurrentDictionary<string, AgentWorktreeSession>();
-        _lifecycleGuard = fileOperationService is not null ? new WorktreeLifecycleGuard(fileOperationService) : null;
+        _lifecycleGuards = new ConcurrentDictionary<string, WorktreeLifecycleGuard>();
+        _fileOperationService = fileOperationService;
+        _gitRunner = gitRunner;
     }
 
     /// <summary>
@@ -74,6 +79,7 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
             if (worktreeResult.Success && worktreeResult.Session != null)
             {
                 _worktreeSessions[agentId] = worktreeResult.Session;
+                RegisterLifecycleGuard(agentId, worktreeResult.Session.WorktreePath, worktreeResult.Session.GitRootPath, worktreeResult.Session.BranchName);
                 _logger?.LogInformation(
                 AgentCoordinatorConstants.LogMessages.CreateWorktree,
                 AgentCoordinatorConstants.LogMessages.AgentWorktreeManagerPrefix, agentId, worktreeResult.Session.WorktreePath);
@@ -153,8 +159,6 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
 
         try
         {
-            _lifecycleGuard?.EnsureNotMainPath(removedSession.WorktreePath, removedSession.GitRootPath);
-
             if (removedSession.HookBased)
             {
                 _logger?.LogInformation("Hook-based agent worktree kept at: {WorktreePath}", removedSession.WorktreePath);
@@ -325,17 +329,42 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
         });
     }
 
-    protected override void OnDispose()
+    /// <summary>
+    /// 为 worktree 注册生命周期守卫 — 构造时锁定路径，Dispose 时用同一路径删除，从不二次计算。
+    /// </summary>
+    private void RegisterLifecycleGuard(string agentId, string worktreePath, string mainPath, string? branchName)
     {
-        foreach (var kvp in _worktreeSessions)
+        if (_fileOperationService is null) return;
+        try
+        {
+            var guard = new WorktreeLifecycleGuard(worktreePath, mainPath, _fileOperationService, _gitRunner, branchName, _logger);
+            _lifecycleGuards[agentId] = guard;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "创建 WorktreeLifecycleGuard 失败: {AgentId}", agentId);
+        }
+    }
+
+    /// <summary>
+    /// 异步释放 — 遍历 guard 字典逐个 DisposeAsync，用构造时锁定的路径删除，从不二次计算。
+    /// </summary>
+    public override async ValueTask DisposeAsync()
+    {
+        foreach (var kvp in _lifecycleGuards)
         {
             try
             {
-                _lifecycleGuard?.EnsureNotMainPath(kvp.Value.WorktreePath, kvp.Value.GitRootPath);
-                _worktreeService?.RemoveAgentWorktreeAsync(kvp.Key, force: true).Wait(TimeSpan.FromSeconds(5));
+                await kvp.Value.DisposeAsync().ConfigureAwait(false);
             }
-            catch (Exception ex) { _logger?.LogDebug(ex, "OnDispose 清理 worktree {AgentId} 失败", kvp.Key); }
+            catch (Exception ex) { _logger?.LogDebug(ex, "DisposeAsync guard 清理 worktree {AgentId} 失败", kvp.Key); }
         }
+        Dispose();
+    }
+
+    protected override void OnDispose()
+    {
         _worktreeSessions.Clear();
+        _lifecycleGuards.Clear();
     }
 }

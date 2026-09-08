@@ -473,9 +473,9 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
                 _logger?.LogError(ex, "Teammate {TeammateId} 后台循环异常退出", definition.TeammateId);
                 await NotifyIdleAsync(definition.TeammateId, state, $"后台循环异常: {ex.Message}").ConfigureAwait(false);
                 await TryCleanupTeammateAsync(definition.TeammateId).ConfigureAwait(false);
+                    }
+                }
             }
-        }
-    }
 
     private async Task RunTeammateLoopAsync(
         InProcessTeammateDefinition definition,
@@ -526,80 +526,75 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
 
             while (!lifecycleCt.IsCancellationRequested && !shouldExit)
             {
-                CancellationTokenSource? workCts = null;
-                try
+                await using (var work = new TeammateWorkScope(this, definition.TeammateId, lifecycleCt))
                 {
-                    workCts = CancellationTokenSource.CreateLinkedTokenSource(lifecycleCt);
-                    await SetCurrentWorkCtsAsync(definition.TeammateId, workCts, lifecycleCt).ConfigureAwait(false);
-
-                    var result = await _agentLifecycleManager.ExecuteAsync(state.Agent, workCts.Token).ConfigureAwait(false);
-
-                    state.TurnCount++;
-                    state.LastResult = result.Output;
-                    RecordTeammateMetrics("turn_complete", result.IsSuccess);
-
-                    _logger?.LogDebug("Teammate {TeammateId} checkpoint: turn={TurnCount} success={Success} outputLen={OutputLen}",
-                        definition.TeammateId, state.TurnCount, result.IsSuccess, result.Output?.Length ?? 0);
-
-                    // 正常完成 — 退出循环（对齐 forked agent 单次执行语义；Interrupt 后才进 idle 等 next prompt）
-                    completedNormally = true;
-                    shouldExit = true;
-                }
-                catch (OperationCanceledException) when (lifecycleCt.IsCancellationRequested)
-                {
-                    shouldExit = true;
-                }
-                catch (OperationCanceledException) when (!lifecycleCt.IsCancellationRequested)
-                {
-                    // Interrupt — workCts 被 cancel 但 lifecycle 未取消，进 idle 等 next prompt
-                    // 对齐 TS 原版 inProcessRunner ESC：不通知 coordinator（不自动唤醒 mainAgent），仅等用户 next prompt
-                    state.TurnCount++;
-                    state.IsIdle = true;
-                    RecordTeammateMetrics("turn_interrupted", true);
-
-                    _logger?.LogInformation("Teammate {TeammateId} interrupted at turn={TurnCount}, entering idle to wait for next prompt",
-                        definition.TeammateId, state.TurnCount);
-
-                    var waitResult = await WaitForNextPromptOrShutdownAsync(
-                        definition.TeammateId, lifecycleCt).ConfigureAwait(false);
-
-                    state.IsIdle = false;
-
-                    switch (waitResult)
-                    {
-                        case TeammateWaitResult.ShutdownRequest:
-                            _logger?.LogInformation("Teammate {TeammateId} received shutdown request after interrupt", definition.TeammateId);
-                            shouldExit = true;
-                            break;
-                        case TeammateWaitResult.NewMessage:
-                            _logger?.LogDebug("Teammate {TeammateId} received new message after interrupt, resuming work", definition.TeammateId);
-                            break;
-                        case TeammateWaitResult.Aborted:
-                            shouldExit = true;
-                            break;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogError(ex, "Teammate {TeammateId} loop iteration failed", definition.TeammateId);
-                    state.IsIdle = true;
-                    RecordTeammateMetrics("turn_error", false);
-
-                    _logger?.LogWarning("Teammate {TeammateId} checkpoint: turn={TurnCount} failed, will retry after delay", definition.TeammateId, state.TurnCount);
-
+                    await work.EnterAsync(lifecycleCt).ConfigureAwait(false);
                     try
                     {
-                        await Task.Delay(TimeSpan.FromSeconds(1), lifecycleCt).ConfigureAwait(false);
+                        var result = await _agentLifecycleManager.ExecuteAsync(state.Agent, work.Token).ConfigureAwait(false);
+
+                        state.TurnCount++;
+                        state.LastResult = result.Output;
+                        RecordTeammateMetrics("turn_complete", result.IsSuccess);
+
+                        _logger?.LogDebug("Teammate {TeammateId} checkpoint: turn={TurnCount} success={Success} outputLen={OutputLen}",
+                            definition.TeammateId, state.TurnCount, result.IsSuccess, result.Output?.Length ?? 0);
+
+                        // 正常完成 — 退出循环（对齐 forked agent 单次执行语义；Interrupt 后才进 idle 等 next prompt）
+                        completedNormally = true;
+                        shouldExit = true;
                     }
-                    catch (OperationCanceledException)
+                    catch (OperationCanceledException) when (lifecycleCt.IsCancellationRequested)
                     {
                         shouldExit = true;
                     }
-                }
-                finally
-                {
-                    await ClearCurrentWorkCtsAsync(definition.TeammateId).ConfigureAwait(false);
-                    workCts?.Dispose();
+                    catch (OperationCanceledException) when (!lifecycleCt.IsCancellationRequested)
+                    {
+                        // Interrupt — workCts 被 cancel 但 lifecycle 未取消，进 idle 等 next prompt
+                        // 对齐 TS 原版 inProcessRunner ESC，不通知 coordinator（不自动唤醒 mainAgent），仅等用户 next prompt
+                        state.TurnCount++;
+                        state.IsIdle = true;
+                        RecordTeammateMetrics("turn_interrupted", true);
+
+                        _logger?.LogInformation("Teammate {TeammateId} interrupted at turn={TurnCount}, entering idle to wait for next prompt",
+                            definition.TeammateId, state.TurnCount);
+
+                        var waitResult = await WaitForNextPromptOrShutdownAsync(
+                            definition.TeammateId, lifecycleCt).ConfigureAwait(false);
+
+                        state.IsIdle = false;
+
+                        switch (waitResult)
+                        {
+                            case TeammateWaitResult.ShutdownRequest:
+                                _logger?.LogInformation("Teammate {TeammateId} received shutdown request after interrupt", definition.TeammateId);
+                                shouldExit = true;
+                                break;
+                            case TeammateWaitResult.NewMessage:
+                                _logger?.LogDebug("Teammate {TeammateId} received new message after interrupt, resuming work", definition.TeammateId);
+                                break;
+                            case TeammateWaitResult.Aborted:
+                                shouldExit = true;
+                                break;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogError(ex, "Teammate {TeammateId} loop iteration failed", definition.TeammateId);
+                        state.IsIdle = true;
+                        RecordTeammateMetrics("turn_error", false);
+
+                        _logger?.LogWarning("Teammate {TeammateId} checkpoint: turn={TurnCount} failed, will retry after delay", definition.TeammateId, state.TurnCount);
+
+                        try
+                        {
+                            await Task.Delay(TimeSpan.FromSeconds(1), lifecycleCt).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            shouldExit = true;
+                        }
+                    }
                 }
             }
         }
@@ -786,5 +781,38 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
     }
 
     protected override void OnDispose() => _teammateLock.Dispose();
+
+    /// <summary>
+    /// Teammate 单轮工作作用域 — 封装 RunTeammateLoopAsync 单轮的"前-后"配对(workCts+状态注册/反注册)
+    /// 构造时创建 workCts,EnterAsync 注册到 state 供 Interrupt 读取,DisposeAsync 反注册+释放 workCts
+    /// 用 await using var work = new TeammateWorkScope(...) 管理生命周期,消除散落的 try-finally 配对
+    /// </summary>
+    private sealed class TeammateWorkScope : IAsyncDisposable
+    {
+        private readonly InProcessTeammateTaskExecutor _owner;
+        private readonly string _teammateId;
+        private readonly CancellationTokenSource _workCts;
+        private int _disposed;
+
+        /// <summary>单轮工作取消令牌 — 传给 ExecuteAsync,Interrupt 时 cancel</summary>
+        public CancellationToken Token => _workCts.Token;
+
+        public TeammateWorkScope(InProcessTeammateTaskExecutor owner, string teammateId, CancellationToken lifecycleCt)
+        {
+            _owner = owner;
+            _teammateId = teammateId;
+            _workCts = CancellationTokenSource.CreateLinkedTokenSource(lifecycleCt);
+        }
+
+        /// <summary>注册 workCts 到 state,供 InterruptTeammateAsync 读取并 cancel</summary>
+        public Task EnterAsync(CancellationToken lifecycleCt) => _owner.SetCurrentWorkCtsAsync(_teammateId, _workCts, lifecycleCt);
+
+        public async ValueTask DisposeAsync()
+        {
+            if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+            await _owner.ClearCurrentWorkCtsAsync(_teammateId).ConfigureAwait(false);
+            _workCts.Dispose();
+        }
+    }
 }
 

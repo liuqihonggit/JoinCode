@@ -60,10 +60,10 @@ public abstract class ShellToolBase : OneShotCommandGroup
 
     internal static ToolDiagnostic BuildPowerShellUnavailableDiagnostic() =>
         ToolDiagnostic.Create(
-            reason: "平台限制",
-            formattedMessage: "PowerShell tool is not available on this platform. Set JCC_USE_POWERSHELL_TOOL=1 to enable.",
-            details: [new DiagnosticDetail("tool", "PowerShell")],
-            suggestions: ["设置环境变量 JCC_USE_POWERSHELL_TOOL=1 启用 PowerShell 工具"]);
+            reason: "安全策略限制",
+            formattedMessage: "PowerShell 工具默认禁用（external 用户安全策略）。如需启用，设置环境变量 JCC_USE_POWERSHELL_TOOL=1。",
+            details: [new DiagnosticDetail("tool", "PowerShell"), new DiagnosticDetail("reason", "external 用户默认禁用，避免未授权脚本执行风险")],
+            suggestions: ["设置 JCC_USE_POWERSHELL_TOOL=1 启用 PowerShell 工具", "或改用 bash 工具执行命令（默认启用）"]);
 
     internal static ToolDiagnostic BuildSandboxPolicyViolationDiagnostic() =>
         ToolDiagnostic.Create(

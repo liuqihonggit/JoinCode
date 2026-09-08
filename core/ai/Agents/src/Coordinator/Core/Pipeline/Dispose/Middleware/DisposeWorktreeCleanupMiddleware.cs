@@ -23,6 +23,11 @@ public sealed partial class DisposeWorktreeCleanupMiddleware : ServiceEntity, IA
                 _logger.LogInformation("[AgentCoordinator] Agent {AgentId} worktree kept (reason: {Reason}): {WorktreePath}, branch: {BranchName}",
                     ctx.AgentId, cleanupDetail.Reason, cleanupDetail.WorktreePath, cleanupDetail.BranchName);
             }
+            else if (!cleanupDetail.Kept && !string.IsNullOrEmpty(cleanupDetail.WorktreePath))
+            {
+                _logger.LogInformation("已释放git worktree,路径是:{WorktreePath} 已释放git分支:{BranchName}",
+                    cleanupDetail.WorktreePath, cleanupDetail.BranchName ?? "unknown");
+            }
         }
         catch (Exception ex)
         {

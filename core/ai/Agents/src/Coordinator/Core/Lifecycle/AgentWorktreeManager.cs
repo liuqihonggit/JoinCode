@@ -216,8 +216,9 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
                 var removed = await RemoveWorktreeViaGuardAsync(agentId, cancellationToken).ConfigureAwait(false);
                 if (removed)
                 {
-                    _logger?.LogInformation(AgentCoordinatorConstants.LogMessages.CleanupWorktree, AgentCoordinatorConstants.LogMessages.AgentWorktreeManagerPrefix, agentId);
-                    FireWorktreeCleaned(agentId, removedSession.WorktreePath, removedSession.BranchName);
+                    _logger?.LogInformation("已释放git worktree,路径是:{WorktreePath} 已释放git分支:{BranchName}",
+                        removedSession.WorktreePath, removedSession.BranchName ?? "unknown");
+                    FireWorktreeCleaned(agentId, removedSession.WorktreePath, removedSession.BranchName ?? string.Empty);
                     return WorktreeCleanupDetail.SuccessfullyRemoved;
                 }
 

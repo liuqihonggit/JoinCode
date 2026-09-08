@@ -37,7 +37,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         _callGraph = new CallGraph(store);
         _dependencyGraph = new DependencyGraph(store);
         _projectDependencyGraph = new ProjectDependencyGraph(store);
-        _projectIndex = new ProjectIndex(store, fs);
+        _projectIndex = new ProjectIndex(store, fs, logger);
         _analytics = new GraphAnalytics(store);
         _persistence = new GraphPersistence(store, fs);
         _visualization = new GraphVisualization(store);
@@ -147,7 +147,14 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         foreach (var slnFile in solutionFiles)
         {
             ct.ThrowIfCancellationRequested();
-            await _projectIndex.IndexSolutionAsync(slnFile, ct).ConfigureAwait(false);
+            try
+            {
+                await _projectIndex.IndexSolutionAsync(slnFile, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "CodeIndexer: 解析 solution 文件失败,跳过: {File}", slnFile);
+            }
         }
 
         if (solutionFiles.Count == 0)
@@ -156,7 +163,14 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
             foreach (var csprojFile in csprojFiles)
             {
                 ct.ThrowIfCancellationRequested();
-                await _projectIndex.IndexProjectAsync(csprojFile, workspaceRoot, ct).ConfigureAwait(false);
+                try
+                {
+                    await _projectIndex.IndexProjectAsync(csprojFile, workspaceRoot, ct).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "CodeIndexer: 解析项目文件失败,跳过: {File}", csprojFile);
+                }
             }
         }
 

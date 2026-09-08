@@ -8,13 +8,15 @@ internal sealed class ProjectIndex
 {
     private readonly InMemoryIndexStore _store;
     private readonly IFileSystem _fs;
+    private readonly ILogger? _logger;
 
-    public ProjectIndex(InMemoryIndexStore store, IFileSystem fs)
+    public ProjectIndex(InMemoryIndexStore store, IFileSystem fs, ILogger? logger = null)
     {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(fs);
         _store = store;
         _fs = fs;
+        _logger = logger;
     }
 
     internal async Task IndexProjectAsync(string csprojPath, string workspaceRoot, CancellationToken ct)
@@ -54,7 +56,14 @@ internal sealed class ProjectIndex
         {
             if (_fs.FileExists(entry.RelativePath))
             {
-                await IndexProjectWithGuidAsync(entry.RelativePath, workspaceRoot, entry.ProjectGuid, ct).ConfigureAwait(false);
+                try
+                {
+                    await IndexProjectWithGuidAsync(entry.RelativePath, workspaceRoot, entry.ProjectGuid, ct).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "ProjectIndex: 解析项目失败,跳过: {File}", entry.RelativePath);
+                }
             }
         }
     }

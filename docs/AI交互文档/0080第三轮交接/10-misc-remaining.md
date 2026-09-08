@@ -97,7 +97,7 @@ jcc mcp_call team_send_message --% "{\"team_id\":\"nonexistent\",\"message\":\"h
 ### worktree 分类
 ```powershell
 jcc mcp_call worktree_list --% "{}"
-jcc mcp_call worktree_find_git --% "{\"path\":\"D:\\project\\w2\"}"
+jcc mcp_call worktree_find_git --% "{\"path\":\"D:\\project\\w3\"}"
 jcc mcp_call worktree_status --% "{\"agent_id\":\"nonexistent\"}"
 jcc mcp_call worktree_cleanup --% "{}"
 ```

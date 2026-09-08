@@ -105,6 +105,7 @@
 | 4 | `bad25313c` | brief_mode 跨进程持久化 | 状态存储在内存中，CLI 单次调用模式进程退出后丢失。改为文件持久化 |
 | 5 | `fb02b0e73` | csharp-ls LSP 服务器支持 | Encoding.UTF8 BOM 破坏管道通信 + LocationLink 反序列化 + WorkingDirectory 传递 |
 | 6 | `8cbd79fb7` | lsp_workspace_symbol 显式 serverName + GitWorkspaceResolver 统一工具类 | workspace_symbol 不接受文件路径无法启动 LSP 服务器；11 处 git root 寻址重复实现 |
+| 7 | `0b283419d` | 统一 10 处 git root 寻址到 GitWorkspaceResolver | 消除 11 处重复实现，B1/B2 修复 worktree 支持缺陷 |
 
 ### LSP 工具测试结果（10/10 通过）
 
@@ -138,8 +139,18 @@ C# LSP 服务器从 OmniSharp 切换为 csharp-ls（`dotnet tool install -g csha
 
 提取到 `Abstractions/05-memory/FileIO/GitWorkspaceResolver.cs`，统一项目中 11 处重复的 workspace/git root 寻址实现：
 - `FindGitRootAsync` — 向上搜索 git root，支持 worktree .git 文件解析到主仓库
+- `FindGitWorkspaceDir` — 向上搜索 git 工作区目录（不解析 worktree 到主仓库，对应原 DiscoverWorkspaceRoot 行为）
 - `FindSolutionRoot` — 向上搜索 .sln/.slnx
 - `FindWorkspaceRootAsync` — 先找 .sln/.slnx，找不到 fallback 到 git root
+
+已替换的 11 处重复实现：
+- A1 `WorktreeGitRootMiddleware.FindGitRootAsync` → 委托 `GitWorkspaceResolver.FindGitRootAsync`
+- A2 `AgentWorktreeService.FindGitRootAsync` → 委托 `GitWorkspaceResolver.FindGitRootAsync`
+- B1 `AgentMemoryService.FindGitRoot` → `GitWorkspaceResolver.FindGitRootAsync`（修复 worktree 支持缺陷）
+- B2 `SourceCodeEngine.SearchUpForGitRoot` → `GitWorkspaceResolver.FindGitRootAsync`（修复 worktree 支持缺陷）
+- C1-C6 `DiscoverWorkspaceRoot` × 6 → `GitWorkspaceResolver.FindGitWorkspaceDir`
+- D1 `LspService.ResolveWorkspaceRoot` → 已删除，用 `GitWorkspaceResolver.FindWorkspaceRootAsync`
+- D2 `LspManager.FindWorkspaceRoot` → 已删除，用 `GitWorkspaceResolver.FindWorkspaceRootAsync`
 
 ### 关键修复：Encoding.UTF8 BOM 破坏管道通信
 

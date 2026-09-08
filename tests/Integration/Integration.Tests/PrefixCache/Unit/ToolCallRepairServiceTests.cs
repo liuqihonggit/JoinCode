@@ -1063,6 +1063,26 @@ public sealed class ToolCallRepairServiceTests
         parsed.RootElement.GetProperty("options").GetProperty("count").GetInt32().Should().Be(3);
     }
 
+    [Fact]
+    public void RepairJson_PowerShellStrippedJson_ValueWithBraces_Repaired()
+    {
+        var result = ToolCallRepairService.RepairJson("""{code:public class Foo { public void Bar() { int x = 1; } }}""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("code").GetString().Should().Be("public class Foo { public void Bar() { int x = 1; } }");
+    }
+
+    [Fact]
+    public void RepairJson_PowerShellStrippedJson_CodeWithIfStatement_Repaired()
+    {
+        var result = ToolCallRepairService.RepairJson("""{code:int x = 1; if (x == 1) { x = 2; } }""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("code").GetString().Should().Be("int x = 1; if (x == 1) { x = 2; }");
+    }
+
     #endregion
 
     #region SuggestToolNames — 工具名模糊匹配建议

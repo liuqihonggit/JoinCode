@@ -96,6 +96,15 @@ internal static class ToolCallRepairService
                 RepairHint = hints.Count > 0 ? string.Join("; ", hints) : null
             };
 
+        var shellStripped = RepairShellStrippedSingleKey(json, hints);
+        if (shellStripped is not null && TryParseJson(shellStripped, out _))
+            return new ToolCallRepairResult
+            {
+                Success = true,
+                RepairedJson = shellStripped,
+                RepairHint = hints.Count > 0 ? string.Join("; ", hints) : null
+            };
+
         return new ToolCallRepairResult
         {
             Success = false,
@@ -415,6 +424,50 @@ internal static class ToolCallRepairService
 """;
         }
         return null;
+    }
+
+    /// <summary>
+    /// 激进修复 PowerShell 剥引号后的单键对象 — 值中含 {} 时 FixUnquotedValues 会截断
+    /// <para>检测: {key:value} 无双引号、单键(key 不含逗号)</para>
+    /// <para>策略: 第一个 : 前为 key,最后一个 } 前为 value,整体加引号</para>
+    /// <para>返回 null 表示不适用(多键对象或已有引号)</para>
+    /// </summary>
+    internal static string? RepairShellStrippedSingleKey(string json, List<string> hints)
+    {
+        if (json.Length < 4 || json[0] != '{' || json[^1] != '}')
+            return null;
+        if (!json.Contains(':') || json.Contains('"'))
+            return null;
+
+        var colonIdx = json.IndexOf(':');
+        if (colonIdx <= 1)
+            return null;
+
+        var keySpan = json.AsSpan(1, colonIdx - 1).Trim();
+        if (keySpan.Length == 0 || keySpan.Contains(','))
+            return null;
+
+        var valueSpan = json.AsSpan(colonIdx + 1, json.Length - colonIdx - 2).Trim();
+        if (valueSpan.Length == 0)
+            return null;
+
+        var sb = new StringBuilder(json.Length + 8);
+        sb.Append('"');
+        sb.Append(keySpan);
+        sb.Append("\":\"");
+        for (int i = 0; i < valueSpan.Length; i++)
+        {
+            if (valueSpan[i] == '\\')
+                sb.Append("\\\\");
+            else if (valueSpan[i] == '"')
+                sb.Append("\\\"");
+            else
+                sb.Append(valueSpan[i]);
+        }
+        sb.Append('"');
+
+        hints.Add($"shell-stripped single-key repair (key={keySpan.ToString()})");
+        return string.Concat("{", sb.ToString(), "}");
     }
 
     private static bool TryParseJson(string json, out JsonDocument? doc)

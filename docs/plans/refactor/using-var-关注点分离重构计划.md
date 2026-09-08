@@ -31,10 +31,35 @@
 4. 消费端改 `using var scope = new ...;`
 5. 编译 → 测试 → 提交
 
-## 候选清单(待 explore 扫描填充)
+## 候选清单与执行结果
 
-(待填充)
+| # | 候选 | 封装 | 提交 | 测试 |
+|---|------|------|------|------|
+| 1 | FileWatcherIntegrationRegistry | ReaderWriterLockSlimScope 扩展 | 3c0f47a1a | 29 通过 |
+| ' 2 | CodeIndexerRegistry | 复用同上 | 3c0f47a1a | 29 通过 |
+| 3 | ReplLoopStep | ReplStepScope : IAsyncDisposable | 575fbc264 | E2E 待跑 |
+| 4 | BridgeClient.SendRequestAsync | BridgeRequestScope : IDisposable | 8cac485a1 | 7 通过 |
+| 5 | InProcessTeammateTask | TeammateWorkScope : IAsyncDisposable | f5db3a016 | 14 通过 |
+| 6 | BridgeMainCommand(新) | ConsoleCancelScope : IDisposable **修 CTS+事件双重泄漏 bug** | 78fbd9c92 | 25 通过 |
+| 7 | BuildQueueService.ExecuteBuildAsync | BuildExecutionScope : IAsyncDisposable **修 CTS 泄漏 bug** | 7d6f5a85c | 17 通过 |
+
+## 未做候选(复杂度高,待决策)
+
+| # | 候选 | 复杂点 |
+|---|------|--------|
+| 8 | InProcessTeammateTask.ExecuteTeammateDirectAsync | 清理散落3处(try末尾+2 catch),资源多(agent/worktree/broker/mailbox/lifecycleCts/state/channel/planMode) |
+| 9 | AgentBase.ExecuteAsync+ExecuteStreamAsync | 已较好封装(linkedCts/scope 已 using var),价值低 |
+| 10 | PreventSleepScope(4处重复) | 模式不一致(参数不同/第4处 ContinueWith 延迟释放),封装复杂 |
 
 ## 执行进度
 
-(待填充)
+- [x] 第一批:候选1+2(锁 scope 复用)— 3c0f47a1a
+- [x] 候选3:ReplStepScope — 575fbc264
+- [x] 候选4:BridgeRequestScope — 8cac485a1
+- [x] 候选5:TeammateWorkScope — f5db3a016
+- [x] 候选6:ConsoleCancelScope(修 bug)— 78fbd9c92
+- [x] 候选7:BuildExecutionScope(修 CTS 泄漏 bug)— 7d6f5a85c
+
+## 总结
+
+7 个候选完成,制造 6 个新 scope 类,消除 28+ 处散落 try-finally,修 2 个泄漏 bug(CTS+事件双重泄漏、CTS 泄漏)。

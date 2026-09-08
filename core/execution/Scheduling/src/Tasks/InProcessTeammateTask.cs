@@ -819,24 +819,34 @@ public sealed partial class InProcessTeammateTaskExecutor : ServiceEntity, IInPr
 
             _agent = await _owner._agentLifecycleManager.SpawnSubAgentAsync(_definition.Task, options, _externalCt).ConfigureAwait(false);
 
-            if (_definition.IsolationMode == AgentIsolationMode.Worktree && _owner._worktreeService is not null)
+            if (_definition.IsolationMode == AgentIsolationMode.Worktree)
             {
                 try
                 {
-                    var wtResult = await _owner._worktreeService.CreateAgentWorktreeAsync(_agent.ObjectId.UniqueId, cancellationToken: _externalCt).ConfigureAwait(false);
-                    if (wtResult.Success && wtResult.Session is not null)
+                    AgentWorktreeSession? wtSession = null;
+                    if (_owner._worktreeManager is not null)
                     {
-                        ((AgentBase)_agent).Options.WorktreePath = wtResult.Session.WorktreePath;
-                        ((AgentBase)_agent).Options.WorktreeBranch = wtResult.Session.BranchName;
+                        wtSession = await _owner._worktreeManager.CreateWorktreeForAgentAsync(_agent.ObjectId.UniqueId, cancellationToken: _externalCt).ConfigureAwait(false);
+                    }
+                    else if (_owner._worktreeService is not null)
+                    {
+                        var wtResult = await _owner._worktreeService.CreateAgentWorktreeAsync(_agent.ObjectId.UniqueId, cancellationToken: _externalCt).ConfigureAwait(false);
+                        wtSession = wtResult.Success ? wtResult.Session : null;
+                    }
+
+                    if (wtSession is not null)
+                    {
+                        ((AgentBase)_agent).Options.WorktreePath = wtSession.WorktreePath;
+                        ((AgentBase)_agent).Options.WorktreeBranch = wtSession.BranchName;
                         if (((AgentBase)_agent).Context is not null)
                         {
-                            ((AgentBase)_agent).Context!.WorktreePath = wtResult.Session.WorktreePath;
+                            ((AgentBase)_agent).Context!.WorktreePath = wtSession.WorktreePath;
                         }
-                        _owner._logger?.LogInformation("Teammate {TeammateId} worktree created: {Path}", _teammateId, wtResult.Session.WorktreePath);
+                        _owner._logger?.LogInformation("Teammate {TeammateId} worktree created: {Path}", _teammateId, wtSession.WorktreePath);
                     }
                     else
                     {
-                        _owner._logger?.LogWarning("Teammate {TeammateId} worktree creation failed: {Error}, degrading to normal mode", _teammateId, wtResult.ErrorMessage);
+                        _owner._logger?.LogWarning("Teammate {TeammateId} worktree creation failed, degrading to normal mode", _teammateId);
                     }
                 }
                 catch (Exception ex)

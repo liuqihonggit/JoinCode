@@ -64,7 +64,8 @@ public sealed partial class AgentForkMiddleware : ServiceEntity, IAgentToolMiddl
             Task = context.Prompt,
             ParentSessionId = sessionId,
             ContinuousMode = true,
-            MaxIterations = 200
+            MaxIterations = 200,
+            IsolationMode = AgentIsolationModeExtensions.FromValue(context.Isolation) ?? AgentIsolationMode.None
         };
 
         await _teammateExecutor!.ExecuteTeammateAsync(definition, ct).ConfigureAwait(false);

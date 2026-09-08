@@ -176,15 +176,15 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
 
             if (!hasChanges)
             {
-                var cleanupResult = await _worktreeService.RemoveAgentWorktreeAsync(agentId, force: true, cancellationToken).ConfigureAwait(false);
-                if (cleanupResult.Success)
+                var removed = await RemoveWorktreeViaGuardAsync(agentId, cancellationToken).ConfigureAwait(false);
+                if (removed)
                 {
                     _logger?.LogInformation(AgentCoordinatorConstants.LogMessages.CleanupWorktree, AgentCoordinatorConstants.LogMessages.AgentWorktreeManagerPrefix, agentId);
                     FireWorktreeCleaned(agentId, removedSession.WorktreePath, removedSession.BranchName);
                     return WorktreeCleanupDetail.SuccessfullyRemoved;
                 }
 
-                _logger?.LogWarning("Failed to remove unchanged worktree for agent {AgentId}: {Error}", agentId, cleanupResult.ErrorMessage);
+                _logger?.LogWarning("Failed to remove unchanged worktree for agent {AgentId}", agentId);
                 return new WorktreeCleanupDetail
                 {
                     Kept = true,
@@ -344,6 +344,34 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
         {
             _logger?.LogWarning(ex, "创建 WorktreeLifecycleGuard 失败: {AgentId}", agentId);
         }
+    }
+
+    /// <summary>
+    /// 通过 guard 释放 worktree — 优先用构造时锁定的路径，guard 不存在时回退到 worktreeService。
+    /// </summary>
+    private async Task<bool> RemoveWorktreeViaGuardAsync(string agentId, CancellationToken cancellationToken)
+    {
+        if (_lifecycleGuards.TryRemove(agentId, out var guard))
+        {
+            var result = await guard.ReleaseAsync(force: true, cancellationToken).ConfigureAwait(false);
+            if (!result.Success)
+            {
+                _logger?.LogWarning("Guard 释放 worktree 失败: {Reason} {Error}", result.Reason, result.ErrorMessage);
+            }
+            return result.Success;
+        }
+
+        if (_worktreeService is not null)
+        {
+            var cleanupResult = await _worktreeService.RemoveAgentWorktreeAsync(agentId, force: true, cancellationToken).ConfigureAwait(false);
+            if (!cleanupResult.Success)
+            {
+                _logger?.LogWarning("WorktreeService 移除失败: {Error}", cleanupResult.ErrorMessage);
+            }
+            return cleanupResult.Success;
+        }
+
+        return false;
     }
 
     /// <summary>

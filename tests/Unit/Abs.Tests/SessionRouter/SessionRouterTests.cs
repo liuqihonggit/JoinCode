@@ -83,8 +83,8 @@ public sealed class SessionRouterTests
     {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
-        var goal1 = new Goal("目标1");
-        var goal2 = new Goal("目标2");
+        var goal1 = new Goal("目标1", sessionId: sessionId);
+        var goal2 = new Goal("目标2", sessionId: sessionId);
         scope.Register(goal1);
         scope.Register(goal2);
 

@@ -25,6 +25,15 @@
 1. 先记录剩下的任务到 {任务名} 文档
 2. 每个任务都要：红测试 → 任务 → 编译 → 绿测试 → 文档 → (没有单元测试就不得)git 提交 → 差评大师 → 修复
 3. 禁止 subAgent 进行全量测试,只能编译+快速冒烟,由mainAgent进行全量测试
+
+### 项目风格与复用
+
+1. **无后向兼容** — 项目不需要任何后向兼容，遇到相关字样直接删除，大修大改
+2. **JSON 宽容** — 已实现 JSON 宽容解析（RelaxedJsonSerializer），无需重复实现
+3. **Rust 风格报错** — 已实现 Rust 编译器风格报错（带行列指示+代码片段+箭头），面向参数错误必须用此风格
+4. **BitMask 位掩码工具类** — 已实现 `BitMask` 静态工具类（`Abstractions/00-core/Core/Utils/BitMask.cs`），类似 BitArray/Bitmap，减少 hash 查找、降低内存使用、提高性能。枚举集合优先用 `BitMask.Of()` + `BitMask.Contains()`，替代 `FrozenSet<Enum>`
+5. **字符串处理优先级** — 首选用 `Span<char>`（0-GC）、SIMD、mmap、`AsParallel()` 链式编程风格
+
 ***
 
 ## 🎯 AI 助手总纲（设计哲学与编码准则）
@@ -110,77 +119,7 @@ d,手动验证,通过设置启动参数,通过bash调用来实际运行,真实�
 
 ## 手动测试exe功能(非mock操作)
 
-### 准备工作
-
-必须要统一启动参数格式,不要有让人和AI都存在唔会情况.
-其它AI在执行工具时候是无法查询这个工具的代码的,
-因此你进行手动验证,通过启动参数调用工具进行实际运行,
-若出现任何错误和不明确,都会是另一个AI会重复犯的错,也就是隐患.
-你需要分析出原因之后,修改代码,实现更宽容应对,也就是面向笨蛋客户的调整.
-
-通过源码生成器,捕捉命令生成map,暴露启动参数上面,
-让AI手动调用bash启动并运行,例如`jcc.exe mcp_call xxArgs` 
-为什么要真实手动运行?
-因为单元测试不能验证整个启动链路,例如DI卡死,json宽容出错.
-
-> bash运行在沙箱会抽风,偶尔获取的CI信息日志条数是0.
-
-### 验收标准
-1,直接错误,崩溃,换一个边缘参数就蹦了.
-2,输入输出格式错误.
-3,格式对了,但是 Error:true.
-4,格式对了,是 Error:false, 但是没有逾期输出结果,空输出(必须要返回信息,即使这很冗余)
-5,超时,死锁.改用Actor管道模式(而不是处理了这边死锁,另一边死锁又出现了)
-5,输出结果,但是没有完成对应mcp名称功能,词不达意.
-6,设定是jcc内部使用,测试bash沙箱没有能力使用,也就是跨进程无法使用,是持久化没有实现.
-7,成功执行并输出有意义的结果,正面真正的成功,可以交付给客户的.
-
-```
-在项目里面有300多个mcp函数,几十个斜杠命令.
-面对这种高数量,AI会信心不足而罢工,因此要多轮次进行分解.
-第一轮
-随机手动运行,把过程中有任何不满,疑惑,都需要修改,统一,整理整齐.
-第二轮
-用脚本测试,但是它只能验证参数是否返回,好处是快速得到坏点.
-第三轮
-让AI写n个交接文档,
-每个文档只处理约10个mcp命令,每个文档让用户开一个AI窗口处理.
-每次AI只手动执行一个命令测试,和第一轮类似,遇到任何不适都需要改.
-```
-
----
-
-### 推荐配置（可选项）
-
-> 默认行为是快速路径，能写三行就不引入架构；
-> 效率工具是知道热路径才进行优化，按照热点优化而不是全局，除非用户明确要求。
-
-#### [架构选型]
-
-1. **可复用和归纳的函数、类、枚举，仅写一套**：它们非常类似也要尽可能写成一个，避免用户难以理解
-2. **泛型模块化**
-3. **状态机**（状态查表事件，动作转移）
-4. **中间件洋葱模型**（详见下文"核心技术选型"MiddlewarePipeline）
-5. **任何资源类都必须树状生长**：这不是反模式设计，这是 is-a，不是鸵鸟问题（重写 fly）。否则难以收集到容器 `map[typeName,object]`，设计资源生命周期，提供插件卸载，可以参考 deepseekHarness。后台会不断扫描这些资源健康，如果被卸载或者宿主死亡了会自动破坏
-6. 统一写文件的输入管道,用Actor模型,可以随意只读(可接受脏读风险).
-   通过语法分析器禁止随意写,并且推荐管道进行写入.
-   需要效率时候,不受这项管控.
-
-#### [效率]
-
-1. **计算字符串需要 0-GC**，效率拉满，学习 1BRC 操作：多线程 + SIMD + 非托管字符数组指针直写
-2. **纯异步函数来处理 IO**，高性能内存数据结构用同步函数。异步锁要自己封装 `AsyncLock`，利用 using 释放，锁内超时报错 key 名，避免同步锁定异步的情况（详见下文"AsyncLock 重入检测"）
-3. **下载用多线程和断点续传**
-4. **直接硬件支持的函数**，例如 CRC 等等
-5. **热路径优化**
-6. **无锁队列、环形队列、可排序结构、LRU 缓存结构、Everything 扫盘 + 索引**
-
-#### [编译]
-
-- **NativeAOT 编译，内联函数特性支持**（详见下文"关键约束"）
-- 如果当前项目不是这样的，就不要改变用户已配置的，除非用户明确要求
-
-***
+> ADR: [0080](docs/adr/0080-manual-exe-testing-guide.md) — 详见 ADR 文档（含验收标准、推荐配置[架构选型/效率/编译]）
 
 ## 🔴 绝对禁止（触碰即错）
 
@@ -408,41 +347,7 @@ d,手动验证,通过设置启动参数,通过bash调用来实际运行,真实�
 
 ### 数据容器选型规范（AOT编译 + GC释放效率优先）
 
-| 场景 | 选用容器 | 原因 |
-|------|----------|------|
-| **检索优先（无序）** | `Dictionary<K,V>` / `HashSet<T>` | O(1) 查找，GC释放效率最优 |
-| **硬编码有序（如枚举转字典）** | `SortedList<K,V>` | 连续内存，查找 O(log n)，插入少 |
-| **高频插入 + 有序** | `SortedDictionary<K,V>` | 红黑树，插入删除 O(log n) |
-| **尾追加顺序写入** | `T[]` / `List<T>` | 最后才选择，连续内存 |
-| **AOT不可变查找集** | `FrozenSet<T>` / `FrozenDictionary<K,V>` | AOT友好，不可变，O(1) 查找，GC零分配 |
-
-**容器性能对比**：
-
-| 操作 | `SortedDictionary` (红黑树) | `SortedList` (数组) |
-|------|----------------------------|---------------------|
-| 插入/删除 | O(log n) ✅ | **O(n)** ❌ (要挪动大量元素) |
-| 查找/读取 | O(log n) | O(log n) (二分查找) |
-| 内存占用 | 大（每个元素存指针） | **小**（连续内存） |
-
-**禁止行为**：
-- **⛔ 禁止 `List<T>` / `T[]` 用作查找集** — `.Contains()` 是 O(n)，高频路径必须用 `HashSet<T>` / `FrozenSet<T>`
-- **⛔ 禁止 `static readonly T[]` 用于查找** — 改用 `static readonly FrozenSet<T>`
-- **⛔ 禁止内联 `new[] { ... }.Contains()`** — 提取为 `static readonly FrozenSet<T>`
-
-**正确模式**：
-```csharp
-// 静态查找集 — FrozenSet
-private static readonly FrozenSet<string> ValidModes = FrozenSet.Create(
-    StringComparer.OrdinalIgnoreCase, "default", "plan", "auto-accept");
-
-// 动态查找集 — HashSet
-var scopeSet = new HashSet<string>(scopes, StringComparer.Ordinal);
-if (scopeSet.Contains(scope)) ...
-
-// 配置属性懒加载 FrozenSet 缓存
-private FrozenSet<string>? _filterSet;
-public FrozenSet<string>? FilterSet => _filterSet ??= Filters?.ToFrozenSet();
-```
+> ADR: [0085](docs/adr/0085-data-container-selection-spec.md) — 详见 ADR 文档（含容器性能对比、禁止行为、正确模式）
 
 ### Claude Code 复刻任务
 
@@ -469,176 +374,11 @@ public FrozenSet<string>? FilterSet => _filterSet ??= Filters?.ToFrozenSet();
 
 ## 🔴 平台专属操作禁令
 
-### PowerShell 相关
-
-1. **❌ 禁止使用 PowerShell `Set-Content` 修改 C# 文件**
-   - 错误编号: CS1022
-   - 原因: 可能导致文件损坏
-   - 正确: 使用 IDE 的 `SearchReplace` 工具修改文件内容
-
-2. **❌ 禁止使用 PowerShell 交互式命令**
-   - 禁止: `Out-Host -Paging`
-   - 推荐: 使用 `| Select-Object -First N` 替代分页
-
-***
-
-## ⚠️ Windows 命令行环境
-
-### 路径格式
-
-- 使用反斜杠 `\` 作为路径分隔符
-  - 正确: `C:\Users\Name\Documents`
-  - 错误: `/home/user/project`
-
-### 命令分隔
-
-- **禁止使用 `&&`** 连接命令
-- 首选: 分步说明，每个命令单独一行
-- PowerShell: 使用分号 `;` 连接
-- CMD: 可使用单个 `&`（但忽略前序失败）
-
-### 原生工具优先
-
-- 优先使用 Windows 原生命令（`dir`, `findstr`）
-- 或 PowerShell cmdlet（`Get-ChildItem`, `Select-String`）
-- 避免依赖 Unix 工具（`grep`, `sed`, `awk`），除非明确要求 WSL
-
-### 脚本语言优先级
-
-> ADR: [0022](docs/adr/0022-csharp-ast-cli-over-regex.md)（C# AST CLI 优先于正则）
-
-1. **C# AST CLI 优先**：涉及 C# 源码的批量分析/重构/检测，优先使用 `tools/JccAuditAstCli`（基于 Roslyn 的 AST 分析工具），而非正则或文本替换
-   - 构建命令：`dotnet build tools/JccAuditAstCli/JccAuditCli.csproj -c Release`
-   - 输出路径：`artifacts/bin/JccAuditCli/Release/net10.0/jcc-audit.exe`
-   - 适用场景：Nullable 抑制检测、using 组织分析、命名规范检查、DI 注册验证等需要语义理解的场景
-   - **子命令按功能分三组**（`jcc-audit --help` 查看完整用法）：
-
-     | 组 | 子命令 | 用途 | 是否改文件 |
-     |----|--------|------|-----------|
-     | **审计(Audit)** | `audit` / `ctor-audit` / `layer-audit` | 扫描诊断输出报告 | 否 |
-     | **修复(Fix)** | `replace` / `strip-bom` | 应用 CodeFix / 移除 BOM | 是 |
-     | **统计(Stats)** | `top-files` | 大文件行数排行 | 否 |
-
-   - **审计组**：
-     - `jcc-audit [audit] <csproj-or-slnx> [--filter JCC规则ID] [--skip-tests] [--format json\|text] [--output <file>]` — JCC 规则审计（`audit` 可省略）
-     - `jcc-audit ctor-audit <csproj-or-slnx> [--threshold 8] [--skip-tests]` — 构造函数参数审计，超过阈值报告
-     - `jcc-audit layer-audit <slnx> [--skip-tests]` — 七层架构层依赖违规检测
-   - **修复组**：
-     - `jcc-audit replace <csproj-or-slnx> --rule <JCC规则ID> [--fix-all] [--dry-run]` — AST 批量替换，应用 CodeFix 到磁盘文件
-     - `jcc-audit strip-bom <directory> [--dry-run] [--skip-tests]` — 移除指定目录下所有 .cs 文件的 UTF-8 BOM（字节级操作，自动跳过 bin/obj/.xxx/.git/artifacts 和 .Designer.cs/.g.cs）
-   - **统计组**：
-     - `jcc-audit top-files <directory> [--top 10] [--threshold 200] [--skip-tests]` — 按行数降序返回 Top N 大文件
-   - **通用选项**：`--output` 写 JSON 报告、`--format json|text`、`--skip-tests` 跳过测试项目、`--dry-run` 预览不写入
-   - **退出码**：0=无诊断/成功，1=参数错误，2=超时，3=有 Warning，4=有 Error
-2. **Python 脚本次之**：本机 Python 3.12.10，批量文本处理/脚本检测优先使用 `.py` 脚本，而非 PowerShell
-   - 适用场景：文件搜索统计、简单文本替换、报告生成等不需要语义理解的场景
-3. **PowerShell 最后**：PowerShell 5.1.19041.6456，仅用于系统操作和 dotnet/gh 命令编排
-4. **jcc gh 工具优先**：操作 PR/Issue/Release 等 GitHub 资源时，优先使用 `jcc mcp_call gh_*`（直调 GitHub REST API，无需系统 gh CLI），而非 PowerShell 脚本或手动操作 > ADR: [0073](docs/adr/0073-gh-rest-api-direct-call.md)
-5. **jcc rg 优先**：代码搜索时优先使用 `jcc rg`（内置 `RgEngine`，mmap+PLINQ+零GC，无需系统 rg），而非 `grep`/`Select-String` > ADR: [0070](docs/adr/0070-rgengine-independent-implementation.md)
+> ADR: [0084](docs/adr/0084-platform-windows-env-rules.md) — 详见 ADR 文档（含 PowerShell 禁令、路径格式、命令分隔、脚本语言优先级[AST CLI/Python/PowerShell/jcc gh/jcc rg]）
 
 ### gh CLI 排错避坑指南（强制遵守）
 
-> **以下全是血泪踩坑记录。排错时必须按此指南操作，禁止重复踩坑。**
->
-> **⚠️ ADR 0073 后大部分 gh_* 已走 REST API（无引号/超时问题）**：gh_api/gh_pr_*/gh_issue_*/gh_repo_*/gh_release_(list/view/create/download/delete)/gh_run_(list/rerun/cancel) 均直调 GitHub REST API。仅 **gh_run_view**（缓存+并行下载逻辑复杂）和 **gh_release_upload**（需二进制上传）仍用 gh 子命令，以下坑仅对这两个命令适用。
-
-#### 坑1：`gh api` + jq 在 PowerShell 中引号被吃掉
-
-```powershell
-# ❌ 绝对禁止：jq 把 "failure" 解释为除法，报 function not defined: failure/0
-gh api .../jobs --jq '.jobs[] | select(.conclusion=="failure") | .id'
-
-# ✅ 正确写法：用反引号转义双引号
-gh api .../jobs --jq ".jobs[] | select(.conclusion==`"failure`") | {name:.name, id:.id}"
-
-# ✅ 最可靠：写入 JSON 文件再用 PowerShell ConvertFrom-Json 解析，彻底绕开 jq 引号地狱
-gh api repos/{owner}/{repo}/actions/runs/{run-id}/jobs > .xxx/jobs.json
-Get-Content .xxx/jobs.json | ConvertFrom-Json | Select-Object -ExpandProperty jobs | Where-Object { $_.conclusion -eq "failure" } | Select-Object name, id
-```
-
-**根因**：PowerShell 把双引号当字符串边界吃掉了，jq 收到的是裸单词 `failure`，被解释为除法。别试图用单引号包双引号——PowerShell 单引号不转义，jq 又不认。反引号转义或干脆走 JSON 文件。
-
-#### 坑2：`gh run view --log-failed` 直接超时炸掉
-
-- 失败日志动辄几万行，`--log-failed` 一把梭直接超 60s 超时
-- **⛔ 禁止**：`gh run view <run-id> --log-failed` 不加过滤
-- **✅ 正确做法**：先拿到失败 job ID，再 `--job <job-id> --log` 精准拉日志，配合 `Select-String` 过滤
-
-```powershell
-# 第一步：拿失败 job ID（走 JSON 文件，别用 jq）
-gh api repos/{owner}/{repo}/actions/runs/{run-id}/jobs > .xxx/jobs.json
-Get-Content .xxx/jobs.json | ConvertFrom-Json | Select-Object -ExpandProperty jobs | Where-Object { $_.conclusion -eq "failure" } | Select-Object name, id
-
-# 第二步：精准拉单个 job 日志，过滤关键行
-gh run view <run-id> --job <job-id> --log 2>&1 | Select-String "Failed|FAIL|Test Run Failed|error" | Select-Object -First 20
-```
-
-#### 坑3：`gh api` 取 job logs 被 Sandbox 网络拦截
-
-```powershell
-# ❌ 报错：Sandbox Network Error: hit restricted [20.205.243.168:443]
-gh api repos/{owner}/{repo}/actions/jobs/<job-id>/logs
-```
-
-- `gh api` 走的 API 端点可能被 Sandbox 网络策略拦截
-- **✅ 解法**：改用 `gh run view --job <job-id> --log`，走不同的 API 路径，不会被拦
-
-#### 坑4：`gh pr checks` 输出格式
-
-```
-<check-name>\t<status>\t<duration>\t<url>
-```
-
-| status 值 | 含义 |
-|-----------|------|
-| `pass` | CI 通过 |
-| `fail` | CI 失败 |
-| `pending` | 正在运行 |
-| `skipping` | 前置 job 失败导致跳过 |
-
-**注意**：`skipping` 不是失败！别看到一堆 `skipping` 就以为全挂了，那是依赖链跳过。
-
-#### 坑5：`gh run view --job --log` + `Select-String` 管道仍超时（120s+）
-
-- 坑2 的"正确做法"(`--job <job-id> --log 2>&1 | Select-String`)在日志量大时**仍会超时**
-- 原因：`gh run view --log` 一次性输出全部日志到 stdout，PowerShell 管道消费端 `Select-String` 逐行处理，当日志几万行时 120s 超时
-- **⛔ 禁止**：`gh run view <run-id> --job <job-id> --log 2>&1 | Select-String "..." | Select-Object -First 20`（超时炸掉）
-- **✅ 正确做法**：重定向写文件再查（绕开 PowerShell 管道死锁）
-
-```powershell
-# 第一步：重定向写文件（不用管道，不会超时）
-gh run view <run-id> --job <job-id> --log > .xxx/job_log.txt 2>&1
-
-# 第二步：从文件过滤关键行（Select-String 读文件不卡）
-Select-String -Path .xxx/job_log.txt -Pattern "Failed|FAIL|错误|失败|Exception|Assert" | Select-Object -First 30
-
-# 第三步：看测试失败上下文（匹配行前后 5 行）
-Select-String -Path .xxx/job_log.txt -Pattern "失败|Failed" -Context 5,5 | Select-Object -First 10
-```
-
-- **⚠️ 如果重定向也超时**：说明 `gh run view --log` 本身就卡（日志太大或网络慢），改用 `gh api` 分页拉取或直接在 GitHub Actions 页面查看日志
-- **✅ 实战经验（2026-09-04）**：`gh run view --log` 和 `gh run view --log-failed --job=<id>` 在日志量大时**双双超时**（30s/60s 都不够）。最快替代方案：**直接本地复现失败测试** — `gh run view <run-id> --job <job-id>`（不带 --log）看摘要知道哪个步骤失败 → 本地 `dotnet test <csproj> -c Release --filter "Category!=#Integration"` 跑全量测试看哪个测试 FAIL → 看错误消息和堆栈定位根因。比拉 CI 日志快 10 倍以上
-
-#### CI 排错完整流程（按此顺序，不许跳步）
-
-```powershell
-# 1. 查看哪些 check 失败
-gh pr checks <pr-number>
-
-# 2. 拿到 run-id（从 check URL 里提取，或 gh pr view）
-gh pr view <pr-number> --json statusCheckRollup
-
-# 3. 获取失败 job ID（走 JSON 文件，别用 jq）
-gh api repos/{owner}/{repo}/actions/runs/<run-id>/jobs > .xxx/jobs.json
-Get-Content .xxx/jobs.json | ConvertFrom-Json | Select-Object -ExpandProperty jobs | Where-Object { $_.conclusion -eq "failure" } | Select-Object name, id
-
-# 4. 拉失败 job 日志，过滤关键信息（重定向写文件，不用管道，避免超时）
-gh run view <run-id> --job <job-id> --log > .xxx/job_log.txt 2>&1
-Select-String -Path .xxx/job_log.txt -Pattern "Failed|FAIL|Test Run Failed" | Select-Object -First 30
-
-# 5. 本地复现失败测试
-dotnet test <csproj> -c Release --filter "<test-name>" --nologo /p:SkipLocalPack=true
-```
+> ADR: [0075](docs/adr/0075-gh-cli-troubleshooting-guide.md) — 详见 ADR 文档（含坑1-5：jq引号/超时/Sandbox拦截/checks格式/管道死锁 + CI排错完整流程）
 
 ### UTF-8 编码配置
 
@@ -649,152 +389,7 @@ chcp 65001
 
 ### .NET 测试和构建输出禁令
 
-1. **❌ 禁止使用 `Out-File` 重定向 dotnet 命令输出**
-   - `dotnet test ... | Out-File "$env:TEMP\test.txt"` 是**错误**的
-   - 原因: PowerShell 管道逐行传递，`Out-File` 每次写入覆盖前一行，最终文件只有最后一行
-   - `Out-File -Append` 虽然不覆盖，但会丢失实时性，无法及时看到结果
-    - **✅ 正确做法**: 使用 PowerShell 重定向运算符 `>` 写入日志文件
-      - 编译: `dotnet build ... > .xxx/build_log.txt 2>&1`
-      - 测试: `dotnet test ... > .xxx/test_log.txt 2>&1`
-      - 查看结果: `Get-Content .xxx/test_log.txt -Tail 50` 或 `Select-String -Path .xxx/test_log.txt -Pattern "失败!|已通过!"`
-    - **⚠️ 日志文件必须放在 `.xxx/` 目录内**: 如 `.xxx/build_log.txt`，避免被 git 追踪
-
-2. **❌ 禁止使用 `Out-File` 保存编译错误**
-   - `dotnet build ... 2>&1 | Out-File "build_error.txt"` 是**错误**的
-   - 原因: `Out-File` 通过 PowerShell 管道逐行传递，存在数据丢失风险
-   - **✅ 正确做法**: 使用 PowerShell 重定向 `dotnet build ... > .xxx/build_log.txt 2>&1`
-   - 查看错误: `Select-String -Path .xxx/build_log.txt -Pattern "error"`
-
-3. **❌ 禁止使用 `Select-String` 过滤 dotnet 输出**
-   - `dotnet test ... 2>&1 | Select-String "失败|通过"` 会丢失上下文
-   - 原因: 过滤后只剩匹配行，无法看到完整错误信息
-   - **✅ 正确做法**: 直接运行，不使用管道过滤
-
-4. **❌ 禁止使用 `Select-Object -Last` 管道连接 dotnet 命令**
-   - `dotnet test ... 2>&1 | Select-Object -Last 30` 会导致**进程卡死**
-   - 原因: PowerShell 管道是消费端驱动的，`Select-Object -Last N` 必须等所有行输出完才返回最后 N 行。当 dotnet test 输出量大时，PowerShell 管道缓冲区满，dotnet 进程的 stdout 写入阻塞，双方互相等待形成死锁
-   - **✅ 正确做法**: 直接运行 `dotnet test/build` 命令，不使用任何管道。终端本身会显示完整输出
-   - 如果输出过长，使用 RunCommand 工具的 `CheckCommandStatus` 分段读取，而非 PowerShell 管道
-
-
-### CLI 运行时测试
-
-1. **✅ 非交互模式测试** — `jcc --trust -p "提示词"` 或 `echo "提示词" | jcc --trust --non-interactive`
-2. **✅ 交互式 REPL 测试** — 用 `Register-ObjectEvent` + `BeginOutputReadLine` 异步捕获 stdout，通过 `StandardInput.WriteLine` 发送命令
-3. **✅ TUI 模式测试** — `jcctui --trust` 启动独立 TUI 工程（Terminal.Gui v2 全屏界面，多行输入 `Ctrl+Enter` 发送，斜杠命令转发到底层 CmdMap）
-4. **⚠️ Mock 测试** — 使用 MockServer 进程提供模拟 AI 响应，通过 `JCC_ENDPOINT` 环境变量指向 MockServer
-
-**常用 CLI 参数**：
-
-| 参数 | 说明 |
-|------|------|
-| `--trust` | 信任当前目录（跳过目录信任确认） |
-| `--bypass` | 跳过所有权限检查（替代旧 `--dangerously-skip-permissions`，等价 `--permission-mode bypass`） |
-| `jcctui` | 启动独立 TUI 全屏界面（jcctui.exe，Terminal.Gui v2） |
-| `--debuglog` / `-d` | 启用调试日志（等效 `JCC_DEBUGLOG=1`） |
-| `--await <seconds>` | 非交互模式超时自动关闭（超时返回 1234） |
-
-**扁平元动词子命令**（ADR 0069）：
-
-| 元命令 | 用途 | 示例 |
-|--------|------|------|
-| `mcp_call <tool> [key=value ... \| <argsJson> \| --args-file <path> \| --args-stdin]` | MCP 工具直调（PowerShell 用 `key=value`，JSON 用 `--args-file`/`--args-stdin`）。**参数顺序不敏感**：`--trust`/`--json`/`--debuglog` 等布尔标志可放任意位置，不会吞掉 key=value 参数 | `jcc mcp_call ToolSearch query=read` / `jcc mcp_call gh_pr_checks --trust pr_number=201 --json` |
-| `mcp_list [--category <cat>]` | 列出 MCP 工具 | `jcc mcp_list --category Code` |
-| `mcp_schema <tool>` | 查看工具参数 schema | `jcc mcp_schema read_file` |
-| `mcp_search <query>` | 搜索 MCP 工具 | `jcc mcp_search "read"` |
-| `mcp_serve [--port 9903] [--transport stdio\|http] [--host H] [--await N]` | 启动 MCP 服务端（HttpListener 不可用时自动降级 TcpListener；--await N 秒后优雅退出+JSON 报告） | `jcc mcp_serve --transport http --port 9903 --await 5` |
-| `slash_call <cmd> <argsJson>` | 斜杠命令直调 | `jcc slash_call compact {"level":2}` |
-| `slash_list [--category <cat>]` | 列出斜杠命令（分类） | `jcc slash_list` |
-| `slash_schema <cmd>` | 查看斜杠命令参数 schema | `jcc slash_schema compact` |
-| `doctor [--server] [--port <n>]` | 医生模式 | `jcc doctor --server` |
-| `schema` | 输出 CLI 参数定义 JSON | `jcc schema` |
-| `rc` / `remote-control` | 远程控制 | `jcc rc --session-timeout 60` |
-| `rg <pattern> <path> [path...]` | ripgrep 兼容搜索（**路径必填**，`RgEngine`：mmap + PLINQ 并行 + 零 GC Span 行遍历） | `jcc rg "finally\s*\{" core/ --type cs -g "!**/tests/**" -n` |
-
-**`jcc rg` 内置 ripgrep 兼容搜索**（ADR 0070 — `RgEngine` 独立实现，mmap 零拷贝 + PLINQ 并行 + 零 GC Span 行遍历）：
-
-```powershell
-# 基本搜索（PowerShell 双反斜杠自动修复: \\s → \s）— 路径必填！
-jcc rg "finally\s*\{" core/ --type cs -g "!**/tests/**" -n
-# 忽略大小写 + 上下文
-jcc rg "TODO|FIXME" src/ -i -n -C 2
-# 字面量搜索（非正则）
-jcc rg "Console.WriteLine" app/ -F --content
-# 计数模式
-jcc rg "class\s+\w+Service" core/ --count --type cs
-# JSON 输出
-jcc rg "pattern" app/ --json --head-limit 50
-# 超时控制（默认 30s，最大 300s，超时返回 2）
-jcc rg "pattern" src/ --timeout 60
-# smart-case（模式全小写则忽略大小写，含大写则区分）
-jcc rg "rgengine" app/ -S -n --content
-# word-regexp（词边界匹配）
-jcc rg "RgEngine" app/ -w -n --content
-# only-matching（只输出匹配部分）
-jcc rg "class\s+\w+" app/ -o -n --content
-# replace（替换匹配部分，$1/$2 反向引用）
-jcc rg "RgEngine" app/ -r "XXX" -n --content
-# 按路径排序
-jcc rg "pattern" core/ app/ --sort path -n --content
-# 搜索隐藏文件 + 不遵守 .gitignore
-jcc rg "pattern" .xxx/ --hidden --no-ignore -n --content
-```
-
-| 参数 | 说明 |
-|------|------|
-| `<pattern>` | 正则表达式（PowerShell `\\s` 自动修复为 `\s`） |
-| `<path>` | 搜索路径（**必填！** 禁止无路径搜索，避免扫盘卡死） |
-| `[path...]` | 额外搜索路径（多路径合并去重） |
-| `-t, --type <type>` | 文件类型（cs, js, ts, py, go, rust, java, ...） |
-| `-g, --glob <pattern>` | glob 过滤（`!` 前缀排除，如 `!**/tests/**`，**可多次指定**） |
-| `-i, --ignore-case` | 忽略大小写 |
-| `-S, --smart-case` | 智能大小写（模式全小写则忽略大小写，含大写则区分） |
-| `-w, --word-regexp` | 词边界匹配（`\b<pattern>\b`） |
-| `-n, --line-number` | 显示行号（content 模式默认开启） |
-| `-A/-B/-C <n>` | 匹配行后/前/前后 n 行 |
-| `-o, --only-matching` | 只输出匹配部分（非整行） |
-| `-r, --replace <str>` | 替换匹配部分（支持 `$1`/`$2` 反向引用） |
-| `-U, --multiline` | 多行模式（`.` 匹配换行） |
-| `-F, --fixed-strings` | 字面量搜索（非正则，自动 `Regex.Escape`） |
-| `--content` | 输出匹配行（`file:line:content`） |
-| `--count` | 输出匹配计数 |
-| `--files-with-matches` | 只输出文件名（默认） |
-| `--sort <mode>` | 排序（`path`/`modified`/`none`，默认 `none`） |
-| `--hidden` | 搜索隐藏文件（默认跳过 `.` 开头目录/文件） |
-| `--no-ignore` | 不遵守 .gitignore（默认遵守） |
-| `--head-limit <n>` | 限制结果数（默认 250，0=无限） |
-| `--offset <n>` | 跳过前 n 条结果 |
-| `--timeout <seconds>` | 超时秒数（默认 30，最大 300，超时**硬终止**返回 2） |
-| `--json` | JSON 输出 |
-| `--regex-file <path>` | 从文件读取正则（避免命令行转义问题，配合 `-U` 多行模式） |
-
-**宽容策略（防御工程）**：
-1. **PowerShell 转义自动修复**：`\\s` → `\s`、`\\{` → `\{` 等（检测双反斜杠后跟正则元字符）
-2. **缺少 path 立即报错退出**（禁止无路径搜索，避免 AI 忘记输路径导致扫盘卡死）
-3. **根目录（`C:\` / `/`）拒绝扫盘**
-4. **超时硬终止**：默认 30s，超时返回退出码 2（不会卡死 120s）
-5. **无匹配返回 1**（对齐 rg 退出码）
-6. **二进制文件自动跳过，遵守 .gitignore**（`RgEngine` 内置 `IsBinary` + `.gitignore` 解析）
-7. **mmap + PLINQ + 零 GC**：`RgEngine` 独立实现 — 大文件（>64KB）用 `MemoryMappedFile` 零拷贝读取，PLINQ `AsParallel().WithCancellation()` 并行每文件，Span 行遍历零分配，.NET Regex SIMD 引擎
-
-**退出码**：`0` = 有匹配，`1` = 无匹配/参数错误，`2` = 超时
-
-> 全局参数可在元命令前或后：`jcc --trust --model gpt-4o mcp_call read_file {"path":"x"}` 或 `jcc mcp_call read_file --trust path=x`。**布尔标志（--trust/--json/--debuglog 等）不会吞掉 key=value 参数**，参数顺序不敏感（CliArgConstants.BooleanFlags 白名单由源码生成器自动维护）。
-> 旧 `jcc mcp call` 已废弃，提示用 `jcc mcp_call`。旧 `jcc tool/agent/code` 已归档。
-
-### .NET FileMode.Append 陷阱
-
-1. **❌ `FileMode.Append` 在 .NET 5+ 中文件不存在时抛 `FileNotFoundException`**
-   - 与 .NET Framework 行为不同！旧版会自动创建文件
-   - **✅ 正确做法**: 先检查文件是否存在，不存在则用 `FileMode.CreateNew` 创建空文件
-   - 涉及文件: `TranscriptFileWriter`、`BridgeSubprocessManager`
-2. **⚠️ `InMemoryFileSystem` 的 `ByteContent`/`TextContent` 不一致**
-   - `WriteAllBytes` 设置 `ByteContent`，`AppendAllText` 修改 `TextContent`
-   - `ReadAllBytes` 优先返回 `ByteContent`，如果 `ByteContent` 存在但过时，会返回旧数据
-   - **✅ 正确做法**: `AppendAllText` 中如果 `ByteContent` 存在，先解码为 `TextContent` 再追加，然后清除 `ByteContent`
-
-
-
+> ADR: [0076](docs/adr/0076-dotnet-test-build-output-rules.md) — 详见 ADR 文档（含 Out-File/Select-String/Select-Object 禁令、CLI运行时测试[常用参数/扁平元动词/jcc rg]、FileMode.Append 陷阱）
 
 # 项目架构
 
@@ -819,24 +414,7 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 
 ### 核心技术选型
 
-| 技术 | 用途 | 说明 |
-|------|------|------|
-| **System.Linq** | LINQ | 标准库，通过 `Directory.Build.props` 全局 `using System.Linq`，所有源码项目自动引用 |
-| **MiddlewarePipeline\<TContext\>** | Task 管道 | `Infrastructure.Pipeline` — DI 注入中间件集合，支持 PreHook/PostHook、异常捕获/传播两种模式 |
-| **StreamMiddlewarePipeline\<TContext, TEvent\>** | 流式管道 | 同上，返回 `IAsyncEnumerable<TEvent>`，流式场景异常默认传播 |
-| **McpHttpServer** | MCP Streamable HTTP 服务端 | `services/Mcp/src/McpProtocol/McpHttpServer.cs` — HttpListener 实现，无状态（不分配 Session-Id）/有状态（分配+DELETE 终止）双模式，GET 开 SSE 推送 NotificationReceived |
-| **上下文压缩** | 长对话 token 回收 | Compact（对话级管道）+ Compression（内容级策略）+ Collapse（折叠级）三子系统，Microcompact 纯规则优先、LLM 摘要兜底，CompactOutputGuard 守卫降级 > ADR: [0053](docs/adr/0053-context-compaction-layered-mechanism.md) |
-| **AsyncLock 互斥锁** | 统一互斥锁原语 + 死锁诊断 | `TryLock()`/`TryLockAsync()` 超时返回 null（不抛重入异常，ThreadId 在 async 下不可靠）；锁内只操作字段，副作用移到锁外；`TrySetResult` 禁止在锁内调用（续体同线程重入锁自等自） > ADR: [0052](docs/adr/0052-asynclock-unified-mutex-file-access.md)、[0060](docs/adr/0060-asynclock-sync-trylock-fireandforget-deadlock.md)（0059 已被 0060 取代） |
-
-### 锁设计与死锁防护
-
-1. **同步锁与异步锁混用** — 高性能线程安全容器用同步锁 + 同步函数，但大量生产代码用异步函数，必然同时出现异步锁和同步锁混用
-
-2. **AsyncLock TryLock 语义** — 异步锁用自定义 `AsyncLock` + 超时释放 + `using` 释放（NET10 风格）。所有都要用 `TryLock` 语义：尝试加锁 → 超时放弃 → 超时重试（指数退避）→ 超时死等，多策略适配业务复杂性
-
-3. **死锁时改用 Actor 模型** — 业务代码复杂度太高时（如两次 `await` 同一个锁），立即改用 Actor 模型（管道 Channel 通讯无锁模型，用封装私人邮箱接收外部投递）。如果顾客-服务员-厨师架构，服务员要做成**双工双管道通讯**，避免积压信息导致管道卡死其它消费，并加入**背压**控制生产者速度，实在处理不了就**死信队列**。学习 Rust 强迫处理任何边缘场景，否则管道会爆炸
-
-4. **搭配状态机** — Actor 模型可搭配状态机（状态查表事件，动作转移），用显式状态枚举 + switch 表达式实现状态转换，不用隐式 `if-else` + 标志变量
+> ADR: [0086](docs/adr/0086-core-tech-selection-lock-design.md) — 详见 ADR 文档（含 MiddlewarePipeline/StreamMiddlewarePipeline/McpHttpServer/上下文压缩/AsyncLock + 锁设计与死锁防护[Actor模型/状态机]）
 
 ***
 
@@ -851,385 +429,37 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 
 ### 七层解决方案架构（强制编译顺序）
 
-项目采用七层 slnx 隔离架构，**必须按顺序编译**，上层依赖下层的构建产物：
-
-| 编译顺序 | 解决方案 | 职责 | 目录 | 关键内容 |
-|----------|----------|------|------|----------|
-| ① | `Generators.slnx` | 源码生成器 | `generators/` | 9 个 Generator + 测试 |
-| ② | `Foundation.slnx` | 基础抽象 | `foundation/` | Abstractions + Structura + Transport.Contracts |
-| ③ | `Infrastructure.slnx` | 基础设施 | `infrastructure/` | Infrastructure + Transport.Impl |
-| ④ | `Core.slnx` | 核心组件 | `core/` | ai/(Llm,Agents,Reasoning) + execution/(Brain,Hands,Scheduling,McpToolDispatch) + safety/(Guard,Vault) + search/(CodeIndex,Browser) |
-| ⑤ | `Services.slnx` | 服务组件 | `services/` | Mcp + Dream + Eyes + Bridge |
-| ⑥ | `Composition.slnx` | 组合层 | `composition/` | Composition + Clock |
-| ⑦ | `App.slnx` | 主工程 | `app/` | JoinCode.exe + Sdk + 集成测试 + MockServers |
-
-**依赖链**：`Generators` → `Foundation` → `Infrastructure` → `Core` → `Services` → `Composition` → `App`
-
-**为什么必须按顺序？**
-- `Generators.slnx` 包含源码生成器（EnumMetadata.Generator、McpToolDispatch.Generator 等），它们生成 `XxxConstants` 静态类
-- `Foundation.slnx` 中的 Abstractions 需要生成器才能编译出枚举常量
-- 如果跳层编译，依赖的 DLL 不存在，编译会失败
-
-**CI 编译命令（Release + 全量）**：
-```powershell
-dotnet build Generators.slnx -c Release --no-incremental
-dotnet build Foundation.slnx -c Release --no-incremental
-dotnet build Infrastructure.slnx -c Release --no-incremental
-dotnet build Core.slnx -c Release --no-incremental
-dotnet build Services.slnx -c Release --no-incremental
-dotnet build Composition.slnx -c Release --no-incremental
-dotnet build App.slnx -c Release --no-incremental
-```
-
-**修改不同层时的编译策略**：
-| 修改内容 | 需要重新编译的层 |
-|----------|------------------|
-| 枚举/Abstractions/generators | ①②③④⑤⑥⑦ 全部 |
-| Infrastructure/Transport | ③④⑤⑥⑦ |
-| 核心组件（core/） | ④⑤⑥⑦ |
-| 服务组件（services/） | ⑤⑥⑦ |
-| 组合层（composition/） | ⑥⑦ |
-| 主工程源码（app/） | ⑦ |
-| 仅测试代码 | 对应的 slnx |
-
-### 开发编译策略（Debug + 增量 + 单 csproj）
-
-**核心原则**：编码期间用 Debug 模式增量编译单个 csproj，Release 全量编译交给 CI。
-
-**开发阶段（改代码时）**：
-1. **只编译改动的那个 `.csproj`** — 例如改了 `Llm.csproj` 就只编译 `dotnet build core/ai/Llm/src/Llm.csproj -c Debug`，不编译整个 slnx
-2. **使用 Debug 模式** — Debug 编译更快，无需 AOT/Trim 等优化开销
-3. **连续修改多个文件时，改完所有文件后再编译一次** — 禁止改一个文件就编译
-4. **只有影响面很大时才编译 slnx** — 例如改了 Abstractions 接口导致大量项目受影响，才用 `dotnet build Foundation.slnx -c Debug`
-
-**提交前（git commit 前）**：
-1. 不需要本地 Release 全量编译 — CI 会做
-2. 只需确保改动的 csproj 在 Debug 模式下编译通过即可提交
-
-**开发编译命令示例**：
-```powershell
-# 改了 Llm 组件 → 只编译那个 csproj
-dotnet build core/ai/Llm/src/Llm.csproj -c Debug
-# 改了主工程 CliSession → 只编译主工程
-dotnet build app/JoinCode/JoinCode.csproj -c Debug
-# 改了 Abstractions → 影响面大，编译基础层 slnx
-dotnet build Foundation.slnx -c Debug
-```
-
-**CI 全量编译命令（Release + --no-incremental）**：
-```powershell
-dotnet build Generators.slnx -c Release --no-incremental; dotnet build Foundation.slnx -c Release --no-incremental; dotnet build Infrastructure.slnx -c Release --no-incremental; dotnet build Core.slnx -c Release --no-incremental; dotnet build Services.slnx -c Release --no-incremental; dotnet build Composition.slnx -c Release --no-incremental; dotnet build App.slnx -c Release --no-incremental
-```
-
-### 编译注意事项
-
-1. 当遇到编译锁定,编译时候打不开,编译不了,表示有`其他CLI项目`编译中,当前电脑内存紧迫,你只能用 wait 30s 之后再尝试执行编译.
-2. 你有 wait 工具吗? 没有的话尝试 powershell 里面的.
-3. 一直尝试就好,不要放弃,你肯定可以某个时机交错编译得出来的.
+> ADR: [0081](docs/adr/0081-seven-layer-build-strategy.md) — 详见 ADR 文档（含七层依赖链、CI编译命令、修改不同层时的编译策略、开发编译策略[Debug+增量+单csproj]、编译注意事项）
 
 ## 测试
 
-```powershell
-dotnet test App.slnx -c Release /p:SkipLocalPack=true --filter "Category!=Integration"
-```
-
-1. 每个测试都加入一个限时10s，再去找到高耗时。
-2. 一旦无法全局测试，出现卡死，就停下来修复全局测试，确保永远都是快速的全局测试。
-3. **⚠️ 测试"卡死"排查优先级**（按成本从低到高）：
-   - **先查残留 testhost**：`Get-Process -Name testhost | Stop-Process -Force` — 之前 `dotnet test` 被强杀时 testhost 子进程存活，锁住编译产物 DLL 导致后续构建报 `MSB3027 超出重试计数`，表象也是"卡死"。
-   - **再查 stdout 管道锁**：`RedirectStandardOutput + ReadToEnd()` 一次性读取会因输出量大缓冲填满而死锁。正确做法：用重定向 `>` 写日志文件再查，不用管道。
-   - **最后才是测试逻辑死锁**：见下方"GUI 异步测试"经验。
-4. **🔍 定位未标记 Integration 的副作用测试（throw 探针法）**：
-   - **场景**：某测试操作鼠标/键盘/文件系统等副作用，但没标 `[Trait("Category", "Integration")]`，导致 `--filter "Category!=Integration"` 仍会触发副作用。
-   - **方法**：把可疑的生产方法函数体改成 `throw new NotImplementedException("XXX disabled for testing")`（保留方法签名，编译不报错），然后 `dotnet test` **不带 filter** 运行全部测试，哪些测试抛 `NotImplementedException` 就是哪些测试在调用该方法。
-   - **示例**：把 `Win32DesktopInputService.ClickAsync` 和 `TypeTextAsync` 方法体改成 throw，跑 `dotnet test tests/Unit/Hands.Tests/Hands.Tests.csproj`，5个测试抛异常 → 这5个就是操作鼠标的测试。
-   - **恢复**：定位完成后 `git checkout -- <文件>` 恢复原始代码。
-   - **优势**：比 grep 搜索更准确——能找到间接调用链（如测试调用 `CompoundOperationToolHandlers.MultiClickAsync`，内部再调用 `ClickAsync`），grep 只能找到直接调用。
+> ADR: [0088](docs/adr/0088-test-execution-rules.md) — 详见 ADR 文档（含全局测试命令、卡死排查优先级[testhost/管道锁/逻辑死锁]、throw 探针法定位副作用测试）
 
 ### GUI / 异步 UI 测试（Avalonia + CommunityToolkit.Mvvm 适用）
 
-- `[RelayCommand]` 生成的 `AsyncRelayCommand` **默认 `AllowConcurrentExecutions=false`**（命令运行中 `CanExecute` 返回 false、UI 自动禁用）。**不要再为"是否被 IsBusy 拦截"写并发测试**——那是框架内置能力，测它=减法思维的冗余测试，且在单线程上下文极难写好。
-- **异步命令在 xUnit 单线程 `AsyncTestSyncContext` 下直接 `await` 会死锁**（命令续体被 post 回单线程队列，而测试方法正等命令完成，互等）。解法：命令调用包 `Task.Run(...)` + 对返回任务 `.WaitAsync(TimeSpan.FromSeconds(5))` 硬超时兜底，任何情况下 5 秒内必结束测试。
-- 测试标配模板：
-  ```csharp
-  var vm = new MainViewModel();
-  vm.InputText = "hello";
-  await Task.Run(() => vm.SendCommand.ExecuteAsync(null)).WaitAsync(Timeout);
-  ```
-- 分析器铁律：`JCC5002` — 循环内禁止 `+=` 拼字符串，流式追加用 `StringBuilder`。
-- 分析器铁律：`JCC9006` — `FileStream` 构造必须用 `FileShare.ReadWrite`（避免跨进程读写冲突），`PhysicalFileSystem`/`SafeFileIO` 已豁免。
-- 命令本身不检查 `CanExecute` 就执行命令体（`execute(parameter)` 无条件调用）——So 若需在命令内拦截"运行中"，应在命令体开头显式 `if (IsBusy) return;`。
-
-#### Avalonia XAML 专属坑（2026-08-06 实战）
-
-| 坑 | 错误写法 | 正确写法 |
-|----|----------|----------|
-| **引用资源** | `<StaticResource x:Key="Foo" />`（会导致运行时 `StaticResourceExtension.ResourceKey must be set` 崩溃） | 绑定处直接用 `{StaticResource Foo}`（App.axaml 注册后全树可见） |
-| **ToolTip** | `ToolTip="..."`（AVLN2000） | `ToolTip.Tip="..."`（附加属性） |
-| **StackPanel Padding** | `Padding="12,14"`（AVLN2000，StackPanel 无 Padding） | 用 `Margin` 或外包 `Border Padding` |
-| **DataTemplate 绑定** | 无 `x:DataType`（AVLN2000 无法解析属性） | `<DataTemplate x:DataType="vm:ChatUiMessage">` |
-| **ThemeVariant** | `Avalonia.Themes.Fluent.ThemeVariant`（不存在） | `Avalonia.Styling.ThemeVariant.Dark/Light`，赋给 `RequestedThemeVariant` |
-| **转义字符** | XAML 属性里直接用 `<` `>` | 用 `&lt;` `&gt;` 或 `StringFormat` 单引号包裹 |
-| **ScrollChanged 首帧 NRE** | `ScrollChanged` 在窗口首次布局时先于 code-behind 命名字段赋值触发（`BackToBottomButton` 为 null，报 0xC0000005） | handler 内判空 `if (BackToBottomButton is not null)` |
-
-**GUI 崩溃诊断**（Avalonia 桌面无控制台，CLI 的 `--await`/stderr 方案不适用）：
-- 进程退出码 `-532462766` = `0xE0434352` = .NET CLR 未处理异常
-- 在 `App.OnFrameworkInitializationCompleted` 挂 `AppDomain.CurrentDomain.UnhandledException` + `TaskScheduler.UnobservedTaskException`，异常写 `dumps/crash_*.log`（BaseDirectory 下），冒烟崩溃后读该文件定位
-- 注意：冒烟启动后可能弹出"是否调试"对话框卡死进程，用 `Start-Process -PassThru` + 定时 `Stop-Process` 兜底
-
-### 启动 exe 测试
-
-当用户要求启动 exe 进行测试时，使用 `Start-Process -Wait` 等待程序结束：
-
-```powershell
-Start-Process -FilePath "{当前项目}\artifacts\bin\JoinCode\Release\net10.0\jcc.exe" -ArgumentList "<args>" -Wait
-```
-
-示例：
-- 启动主程序：`Start-Process -FilePath "{当前项目}\artifacts\bin\JoinCode\Release\net10.0\jcc.exe" -Wait`
-- 带参数启动：`Start-Process -FilePath "{当前项目}\artifacts\bin\JoinCode\Release\net10.0\jcc.exe" -ArgumentList "/reset-config" -Wait`
+> ADR: [0082](docs/adr/0082-gui-async-test-avalonia.md) — 详见 ADR 文档（含 AsyncRelayCommand 死锁解法、测试标配模板、Avalonia XAML 专属坑、GUI崩溃诊断、启动 exe 测试）
 
 ### MockServer + jcc 联合测试
 
-⚠️ **阻塞进程禁止直接运行**，必须后台启动，否则会卡住 sandbox。
-
-**MockServer 参数表**
-
-| 参数 | 格式 | 默认值 | 说明 |
-|------|------|--------|------|
-| `--port` | `--port <数字>` | 配置文件中的 `port` 字段（0=自动分配） | 监听端口 |
-| `--config` | `--config <路径>` | `mockserver.json` | 预设脚本配置文件 |
-
-**MockServer 端点**
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/` | 健康检查，返回 `{"status":"ok"}` |
-| GET | `/shutdown` | 优雅关闭，返回 `{"status":"shutting_down"}` |
-| POST | `/v1/chat/completions` | OpenAI 兼容的 chat 接口（stream=true/false） |
-| POST | `{**path}` | 通配 POST，匹配任意路径 |
-
-**1. 启动 MockServer**
-
-```powershell
-# ✅ 方式A：Start-Process（推荐，最简单）
-Start-Process -FilePath "D:\project\{当前分支名}\artifacts\bin\OpenAI.MockServer\Release\net10.0\JoinCode.OpenAI.MockServer.exe" -ArgumentList "--port","9901"
-
-# ✅ 方式B：ProcessStartInfo（需要捕获输出时用）
-$psi = [System.Diagnostics.ProcessStartInfo]::new()
-$psi.FileName = "D:\project\{当前分支名}\artifacts\bin\OpenAI.MockServer\Release\net10.0\JoinCode.OpenAI.MockServer.exe"
-$psi.Arguments = "--port 9901"
-$psi.UseShellExecute = $false
-[System.Diagnostics.Process]::Start($psi)
-
-# 验证启动成功：
-Invoke-RestMethod -Uri "http://localhost:9901/" -Method Get
-# 期望返回：@{status=ok}
-
-# 手动 POST 测试（模拟 jcc 发送请求）：
-$body = '{"model":"gpt-4o","messages":[{"role":"user","content":"hello"}],"stream":true}'
-Invoke-RestMethod -Uri "http://localhost:9901/v1/chat/completions" -Method Post -Body $body -ContentType "application/json"
-
-# 关闭：
-Invoke-RestMethod -Uri "http://localhost:9901/shutdown" -Method Get
-```
-
-**踩坑记录**
-
-| 问题 | 原因 | 解决 |
-|------|------|------|
-| 端口始终绑定到配置文件默认值 | `Start-Process -ArgumentList "--port=9901"` 把等号格式当单参数传入 | 用逗号分隔：`-ArgumentList "--port","9901"` |
-| MockServer 启动后立即崩溃 | `File.AppendAllText` 在 Kestrel 多线程中并发写同一文件导致 IOException | 禁止在 KestrelMockServer 中用 File.AppendAllText，只用 Console.WriteLine |
-| `RedirectStandardOutput` + `ReadToEnd()` 死锁 | PowerShell 管道消费端阻塞，dotnet 进程 stdout 写入阻塞 | 用 `BeginOutputReadLine()` 异步读取，或不用重定向 |
-| Console.WriteLine 在后台进程中不可见 | `UseShellExecute=false` 时输出到父进程控制台，不写文件 | 前台调试用 `& $exe --port 9901`；后台运行靠 dump 文件诊断 |
-| jcc 环境变量不生效（JCC_ENDPOINT等） | `ApplyEnvOverrides` 只在 `dotEnv != null` 时调用，无 `.env/api.json` 时环境变量被跳过 | 已修复：`ApplyEnvOverrides` 移出 `if (dotEnv is not null)` 块，无论 dotEnv 是否存在都调用 |
-| MockServer 流式最终 chunk 未发送 | `WriteAsync(lastChunk)` 后缺少 `FlushAsync`，`data: [DONE]` 缓冲在服务端 | 在 `BuildStreamFinalChunk` 写入后加 `await ctx.Response.Body.FlushAsync()` |
-| `mcp_call --trust key=value --json` 丢参数 | `FlatSubCommandRouter.GetPositional` 启发式假设 `--xxx` 都带值，布尔标志 `--trust` 误吞 `key=value` | 已修复：`CliArgConstants.BooleanFlags` 白名单（源码生成器从 `[CliOption]` 特性自动提取）+ `IsKeyValuePair()` 双保险，布尔标志不吞值、key=value 永不被吞 |
-
-**2. 启动 jcc 连接 MockServer**
-
-```powershell
-$psi = [System.Diagnostics.ProcessStartInfo]::new()
-$psi.FileName = "D:\project\{当前分支名}\artifacts\bin\JoinCode\Release\net10.0\jcc.exe"
-$psi.Arguments = "--trust --await 20 -p `"echo hello`""
-$psi.EnvironmentVariables["JCC_ENDPOINT"] = "http://localhost:9901"
-$psi.EnvironmentVariables["OPENAI_API_KEY"] = "sk-test-1234567890"
-$psi.EnvironmentVariables["JCC_VENDOR"] = "openai"
-$psi.EnvironmentVariables["JCC_MODEL_ID"] = "gpt-4o"
-$psi.UseShellExecute = $false
-$psi.WorkingDirectory = "D:\project\{当前分支名}"
-[System.Diagnostics.Process]::Start($psi)
-# --await 20: 20秒超时自动关闭（超时返回1234，正常完成不受影响）
-# --debuglog: 启用诊断输出（[WIRE] [STEP] [READY] 等）
-```
-
-**jcc 环境变量参数表**
-
-| 环境变量 | 示例值 | 说明 |
-|----------|--------|------|
-| `JCC_ENDPOINT` | `http://localhost:9901` | API 端点（⚠️ 不要带 `/v1`，jcc 内部会自动拼接 `chat/completions`） |
-| `OPENAI_API_KEY` | `sk-test-1234567890` | API 密钥（MockServer 不校验，任意值即可） |
-| `JCC_VENDOR` | `openai` | LLM 供应商（openai/anthropic/deepseek/sensenova/agnes） |
-| `JCC_MODEL_ID` | `gpt-4o` | 模型 ID（MockServer 不校验，任意值即可） |
-| `JCC_PROTOCOL` | `responses` | LLM 协议覆盖（`openai-compatible`/`anthropic`/`responses`），不设置则用供应商配置的默认协议 |
-| `JCC_SUBAGENT_MODEL` | `gpt-4o-mini` | 子代理模型全局覆盖（优先级最高，高于 SpawnOptions.Model 和 Agent 定义文件） |
-| `JCC_PERMISSION_MODE` | `bypass` | 权限模式（plan/auto/ask/bypass），等价于 `--permission-mode` 参数 |
-| `JCC_DEBUGLOG` | `1` | 启用调试日志（等效 `--debuglog` 参数） |
-
-**3. 诊断：查看 MockServer 请求记录**
-
-```powershell
-# dump 目录包含每个请求的完整记录
-Get-ChildItem "D:\project\{当前分支名}\tests\MockServers\MockServer.Core\dumps\OpenAI" -File | Sort-Object LastWriteTime -Descending | Select-Object -First 5 Name,LastWriteTime
-```
-
-***
+> ADR: [0077](docs/adr/0077-mockserver-jcc-joint-testing.md) — 详见 ADR 文档（含 MockServer 参数表/端点、启动方式、踩坑记录、jcc 环境变量参数表、诊断方法）
 
 ## 批量替换 C# 源码禁令与导向
 
-| ❌ 禁止 | ✅ 导向 |
-|---------|---------|
-| `Out-File`/`Set-Content` 写 C# 文件 | `ReadAllBytes` → `.Replace()` → `WriteAllBytes` |
-| `[regex]::Replace($text, $pat, '$1')` | `.Replace()` 简单替换；必须正则则写 C# 脚本 |
-| `[IO.File]::WriteAllText($path, $text)` | `[IO.File]::WriteAllBytes($path, [Encoding]::UTF8.GetBytes($text))` |
-| `git show REV:path \| Out-File` | `git show REV:path > local_path`（重定向） |
-
-**原因**: Out-File 写 UTF-8 带 BOM → CS0234；WriteAllText 可能清空文件；`$1` 被 PowerShell 展开为空
+> ADR: [0087](docs/adr/0087-batch-replace-csharp-source-rules.md) — 详见 ADR 文档（含 Out-File/Set-Content/regex/WriteAllText 禁令与正确导向）
 
 ## E2E 测试脚本模式规范
 
-> ADR: [0021](docs/adr/0021-e2e-script-mode-inferred.md)（Mode 计算属性）
-
-### 问题背景
-
-Interactive 模式下 `Console.In.ReadLineAsync` 从重定向 stdin 管道读取存在竞争条件，偶发卡死60s超时。单轮命令尤其容易触发。
-
-### 架构防护：Mode 为计算属性（不可手动设置）
-
-`ConversationScript.Mode` 是**只读计算属性**，根据 `Turns.Count` 自动推断：
-
-```csharp
-public ConversationMode Mode => Turns.Count == 1
-    ? ConversationMode.NonInteractive   // 单轮 → NonInteractive
-    : ConversationMode.Interactive;     // 多轮 → Interactive
-```
-
-**开发者无需（也无法）手动设置 Mode**。删除所有 `Mode = ConversationMode.xxx` 赋值，约束编码进类型系统，从架构层面消除模式误用。
-
-### 推断规则
-
-| 脚本类型 | 自动推断为 | 原因 |
-|----------|-----------|------|
-| **单轮(Turns.Count==1)** | `NonInteractive` | `-p` 参数直接传命令，不经过 stdin 管道，无竞争条件 |
-| **多轮(Turns.Count>1)** | `Interactive` | 需要根据上一轮输出发送下一轮输入，无法用 `-p` |
-
-### 运行时不变量断言
-
-`DualRoleConversationRunner.ValidateScriptMode` 和 `CoverageTestBase.ValidateScriptMode` 在运行时断言计算属性推断正确：
-- 单轮 + 非 NonInteractive → `[GEN036]` 报错
-- 多轮 + 非 Interactive → `[GEN037]` 报错
-
-### 新增 E2E 脚本时的检查清单
-
-1. **不要设置 Mode** — 它是计算属性，赋值会编译失败
-2. 单轮命令 → 只写1个 Turn，Mode 自动推断为 NonInteractive
-3. 多轮交互 → 写多个 Turn，Mode 自动推断为 Interactive
-4. 运行测试确认无 `[GEN036]`/`[GEN037]` 报错
-
-### 定位 E2E 卡死问题的快速方法
-
-1. **先用 `jcc.exe -p "/命令"` 非交互模式验证命令本身** — 不需要 MockServer，1秒出结果
-2. **用 `dotnet test --filter "单个测试"` 本地跑** — E2E 框架自己管 MockServer
-3. **检查 jcc.exe 时间戳** — E2E 用 `Host.Tests\Debug` 路径，改代码后必须重编译 Host.Tests
-4. **同步 `ReadToEnd` 读 stderr** — `BeginErrorReadLine` 在进程被Kill时不flush
+> ADR: [0083](docs/adr/0083-e2e-script-mode-spec.md) — 详见 ADR 文档（含 Mode 计算属性、推断规则、运行时不变量断言[GEN036/GEN037]、新增 E2E 脚本检查清单、定位卡死方法）
 
 # 同义词
 
 ## 用户说的"合并"
 
-- **合并 = rebase，禁止 merge**
-
-- 当用户说"合并 main"、"同步 main"、"把 main 合过来"等，一律执行 `git rebase main`，**禁止使用 `git merge`**
-
-- 原因: merge 会产生大量 "Merge branch 'xxx' into yyy" 合并提交，污染历史；rebase 保持线性历史，干净可读
-
-- 唯一例外: 首次将功能分支合入 main 时，由用户手动执行 `git merge --ff-only` 或 `git rebase`
-
-- **rebase 前必须确保工作区干净**：rebase 要求无未提交修改，否则会拒绝执行。处理方式：
-  - 先提交：`git add -A; git commit -m "wip: 临时保存"` → `git rebase main`
-  - 或暂存：`git stash` → `git rebase main` → `git stash pop`
-  
-- **⚠️ `reset --hard` vs `rebase` 的生死线**：
-
-  | 场景 | 命令 | 原因 |
-  |------|------|------|
-  | 分支有**未合入 main** 的新 commit | `git rebase main` | rebase 会把独有 commit 变基到 main 之上，**不丢失** |
-  | PR 已合入 main，分支同步 | `git reset --hard main` | 分支 commit 已在 main 中，reset 只是快进指针，**不丢失** |
-  | main 与开发分支哈希冲突 | `git reset --hard {分支名}`（在 main 上执行） | squash 合并后哈希不同，reset 直接指向，**不丢失** |
-
-  - **⛔ 绝对禁止**：分支有未合入 main 的独有 commit 时执行 `git reset --hard main` — 这会**永久丢失**这些 commit
-  - **判断方法**：`git log --oneline w3 --not main` — 有输出说明有独有 commit，只能 rebase；无输出说明已全部合入，可以 reset
-  
-- **分支工作流**：任务分支（w1/w2/w3...）→ main 两阶段流水线
-
-  - 任务分支同步 main：`git rebase main`
-  - 禁止在 main 上直接提交或 rebase 任务分支
-
-- **两阶段流水线（强制）**：
-
-  1. **任务分支 → main**：PR 触发 CI（编译+单元测试+集成测试+E2E+AOT），CI 通过后 auto-merge（squash）合并到 main
-  2. **main 合并后**：开发分支 `git reset --hard main` 同步
-
-- **PR 创建前必须先合并最新 main（强制）**：
-
-  1. `git fetch origin main` — 拉取最新 main
-  2. `git merge origin/main` — 合并到当前任务分支（用 merge，不是 rebase，因为要保留完整历史供 CI 验证）
-  3. 如有冲突，解决冲突后编译验证
-  4. 编译通过后再创建 PR
-
-- **PR 合并后同步流程（强制）**：
-
-  1. main 分支：`git pull --rebase origin main`（拉取 squash 合并后的新提交）
-  2. 任务分支：`git reset --hard main`（覆盖为 main 最新状态，避免哈希分叉）
-  - 原因: squash 合并后 main 的提交哈希与任务分支不同，不 reset 会导致分支分叉
-
-- **PR 创建规则**：
-
-  - 任务分支 → main：`gh pr create --base main --head w3 --title "feat: xxx"`
-  - 创建后启用 auto-merge：`gh pr merge <number> --auto --squash`
-  - 禁止手动合并 PR（除非 auto-merge 不可用）
-
-- **CI 触发**：
-  - PR 到 main 时触发全量 CI
-  - CI 必须通过才允许合并
-  - **⛔ dirty PR 不触发 CI**：`mergeable_state=dirty`（分支与 main 有冲突）时 GitHub 不会运行 CI。必须先在分支上 `git merge origin/main` 解决冲突并推送，CI 才会触发
-  - **CI 重试**：`gh run rerun <run-id> --failed` 只重试失败的 job（不加 `--failed` 也是默认只重试失败项）
-  - **⚠️ auto-merge BLOCKED 排查清单**（2026-07-30 踩坑记录，2026-08-18 修正区分正常/异常）：
-    1. **先区分正常 vs 异常 BLOCKED**（最关键一步，跳过会误判）：
-       - 诊断命令：`gh pr view {number} --json mergeable,mergeStateStatus,statusCheckRollup --jq '{mergeable:.mergeable, state:.mergeStateStatus, checks:[.statusCheckRollup[] | {name:.name, status:.status, conclusion:.conclusion}]}'`
-       - **正常 BLOCKED**（无需处理）：`mergeable=MERGEABLE` 且存在 `status=IN_PROGRESS` 或 `status=PENDING` 的 check → CI 正在运行，等全部通过后 auto-merge 自动触发。其他 `needs: build` 的 job 在 build 完成前不会出现在 checks 列表中，**不要因为"实际 check 数 < required check 数"就判定为名称不匹配**
-       - **异常 BLOCKED**（需修复）：所有 check 的 `conclusion` 均非 null（全部完成）且无 `IN_PROGRESS`/`PENDING`，但 `mergeStateStatus` 仍为 `BLOCKED` → 这才是 check 名称不匹配
-    2. **异常 BLOCKED 根因**：Branch protection 的 required status checks 名称与 CI workflow 实际 job 名称不匹配 → GitHub 认为该 required check 永远未完成 → PR 永远 `mergeStateStatus: BLOCKED` → auto-merge 永远不触发
-    3. **典型案例**：protection 配了 `McpToolHandlers`（旧名），CI 实际是 `McpToolDispatch`（新名），差一个词就导致所有 PR 永远无法 auto-merge
-    4. **触发场景**：重命名 CI job、删除/重建保护分支、修改 workflow 文件名后未同步更新 branch protection
-    5. **异常 BLOCKED 诊断命令**（仅在确认异常后执行）：
-       - `gh api repos/{owner}/{repo}/branches/main/protection --jq '.required_status_checks.contexts'` — 查看保护规则要求的 check 名称
-       - `gh pr checks {number}` — 查看 PR 实际的 check 名称
-       - 对比两者，找出不匹配的名称
-    6. **修复命令**：构造 JSON body 调用 `gh api -X PUT repos/{owner}/{repo}/branches/main/protection -H "Accept: application/vnd.github+json" --input protection_update.json`（需要 `restrictions: null` 字段，否则 422）
-    7. **预防**：每次重命名 CI job 后，必须同步更新 branch protection 的 required status checks
+> ADR: [0078](docs/adr/0078-merge-e2e-synonym-rules.md) — 详见 ADR 文档（含 rebase vs merge、reset --hard 生死线、两阶段流水线、PR创建/同步流程、auto-merge BLOCKED 排查、E2E定义）
 
 ## 用户说的E2E
 
-1. MockServers是真实的服务exe,每个用配置文件绑定不同的端口.预设一些对话返回,包括调用read工具.
-2. jcc.exe真实启动,通过-p发送对话,到本机服务,加端口参数.不要模拟对话,遇到直接删除.
-启动之后,需要观察发生什么错误,并且修复.
-3. 当前可能有直接启动jcc.exe的卡死问题,你修改它内部,提供一个启动参数-await 5,
-表示停留5s自动关闭.这个agnet肯定可以5s内完成任务.
-触发计时器死亡的话,提供一个返回值1234,这个时候你就去修复它内部的东西.
-4. 遇到bug,卡死,等等,应该尽可能去加日志点位,不要自己猜测,去行动证明.
-过程中遇到任务问题,都必须要修复.并记录到doc.
-5. 修复全部的链路和服务.
+> ADR: [0078](docs/adr/0078-merge-e2e-synonym-rules.md) — 同上，详见 ADR 文档
 
 # 八荣八耻
 以瞎猜接口为耻,以认真查询为荣;
@@ -1362,71 +592,5 @@ public ConversationMode Mode => Turns.Count == 1
 
 ## ⚠️ 反例清单（踩过的坑，禁止再犯）
 
-> 📖 部分反例已收编为 ADR，详见 [docs/adr/README.md](docs/adr/README.md) 索引。
+> ADR: [0079](docs/adr/0079-anti-pattern-examples.md) — 详见 ADR 文档（含反例1-6：不查AGENTS.md/改共享配置/治标修复链/加法思维/模型ID推断模态/多余ToList拷贝）
 
-### 反例1：不优先查阅 AGENTS.md 已有文档
-
-| ❌ 禁止 | ✅ 正确 |
-|---------|---------|
-| 自己摸索命令行参数格式 | 先查 AGENTS.md 的"CLI 运行时测试"和"踩坑记录"章节 |
-| 用 ProcessStartInfo 手动拼接参数 | 用 AGENTS.md 文档化的 `Start-Process -ArgumentList "--port","9901"` 方式 |
-| 修改共享配置文件（mockserver.json）来适配测试 | 用 `--port` 覆盖端口，`--config` 指定配置，不改文件 |
-| 遇到问题自己猜方案 | 先查 AGENTS.md 踩坑记录，再查项目代码，最后才自己试 |
-
-**根因**：AGENTS.md 是团队积累的操作手册，包含大量踩坑记录和验证过的命令。跳过它直接试错，浪费时间且容易引入新问题（如改了共享配置文件忘记恢复）。
-
-### 反例2：修改共享配置文件来跑测试
-
-| ❌ 禁止 | ✅ 正确 |
-|---------|---------|
-| 改 `mockserver.json` 的端口/内容来适配 E2E | 用 `--port 9901` 覆盖端口 |
-| 改 `mockserver_cluster.json` 的端口来匹配启动参数 | 启动时用 `--port` 覆盖，配置文件保持原始值 |
-| 改完配置文件忘记恢复 | 不改配置文件，用命令行参数覆盖 |
-
-**根因**：配置文件是项目共享的，改了会影响其他人。命令行参数覆盖是零副作用的。
-
-### 反例3：治标不治本的修复链
-
-> ADR: [0024](docs/adr/0024-no-symptomatic-fix-chain.md)
-
-| ❌ 禁止 | ✅ 正确 |
-|---------|---------|
-| FileShare.None 失败 → 加 FileShare 降级策略 | 先分析根因：是读-写冲突还是写-写冲突？ |
-| 降级策略失败 → 换 AppendAllTextAsync | 识别跨进程 vs 同进程，选择正确的同步原语 |
-| AppendAllTextAsync 失败 → 加重试 | 跨进程并发 = Named Mutex；读-写冲突 = FileShare.ReadWrite |
-| 重试仍失败 → 继续换方案 | 停下来做方案，让用户确认方向 |
-
-### 反例4：加法思维而非减法思维
-
-> ADR: [0023](docs/adr/0023-subtraction-over-addition.md)
-
-| ❌ 禁止 | ✅ 正确 |
-|---------|---------|
-| 加 `[DoNotAutoRegister]` 新特性来阻止 DI 注册 | 减少不必要的 DI 暴露（如 ShellProviderBase 不需要 IShellProvider） |
-| 加 ShellCapabilityProvider DI 单例只为首次检测缓存 | 用静态 ShellCapabilityCache，启动时检测一次 |
-| 加 FileShare 降级策略层 | 用 FileShare.ReadWrite + Named Mutex 一步到位 |
-
-### 反例5：依赖模型 ID 字符串推断模态而非显式注册（配置大于代码）
-
-> ADR: [0004](docs/adr/0004-config-over-code-modalities.md)
-
-| ❌ 禁止 | ✅ 正确 |
-|---------|---------|
-| 代码里硬编码模型 ID 字符串模式推断模态（如含 `vision`→识图） | `settings.json` 的 `vendor.{provider}.models` 显式注册模型描述（含 `Capabilities.Modalities`） |
-| `JCC_MODEL_ID` 指定未注册模型时静默推断补注册 | 无条件抛 `ConfigurationException[GRD016]`，要求用户先在 settings.json 注册 |
-| `AutoFetchModels` 远程拉取新模型时从 ID 推断模态 | 远程新模型模态留默认（`Text`），用户在 settings.json 手动配置需要的模态 |
-
-**定位文件**：`ConfigLoader.cs:582 EnsureEnvModelInConfig`、`ModelListMerger.cs:39 Merge`
-
-### 反例6：序列化在读锁内完成时多余的 ToList 防御性拷贝
-
-| ❌ 禁止 | ✅ 正确 |
-|---------|---------|
-| 序列化已在 `ReaderWriterLockSlim` 读锁内完成，仍 `ToList()` 拷贝集合 | 直接用引用，读锁内无并发修改，序列化安全 |
-| `CallEdges = _store.CallEdges.ToList()` + 锁内序列化 | `CallEdges = _store.CallEdges` + 锁内序列化 |
-
-**根因**：`ToList()` 会分配新 List + 拷贝全部元素。如果序列化在锁外，需要拷贝防并发修改；但如果序列化已移入锁内（`using (var scope = _store.EnterReadLock()) { ... json = Serialize(data); }`），读锁阻止写锁获取，枚举集合安全，`ToList` 变为多余开销。
-
-**判断方法**：看 `Serialize` 调用是否在 `using (scope = EnterReadLock())` 块内 — 是则去掉 ToList，否则保留。
-
-**定位文件**：`GraphPersistence.cs:SaveAsync`

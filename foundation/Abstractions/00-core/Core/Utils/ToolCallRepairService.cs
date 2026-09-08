@@ -332,6 +332,21 @@ internal static class ToolCallRepairService
         var result = new StringBuilder(json.Length);
         int i = 0;
 
+        // 将 json[start..end] 加双引号后追加到 result,裸反斜杠转义为 \\ (JSON 合法)
+        static void AppendQuotedValue(StringBuilder sb, string s, int start, int end)
+        {
+            sb.Append('"');
+            var span = s.AsSpan(start, end - start);
+            for (int k = 0; k < span.Length; k++)
+            {
+                if (span[k] == '\\')
+                    sb.Append("\\\\");
+                else
+                    sb.Append(span[k]);
+            }
+            sb.Append('"');
+        }
+
         while (i < json.Length)
         {
             if (json[i] == '"')
@@ -363,6 +378,7 @@ internal static class ToolCallRepairService
                     continue;
 
                 int valueStart = i;
+                // 保守收集: 到空格/逗号/}/] 停(值不含空格的快速路径)
                 while (i < json.Length && json[i] != ',' && json[i] != '}' && json[i] != ']' && !char.IsWhiteSpace(json[i]))
                     i++;
 
@@ -372,21 +388,33 @@ internal static class ToolCallRepairService
                     while (j < json.Length && char.IsWhiteSpace(json[j])) j++;
                     if (j < json.Length && (json[j] == ',' || json[j] == '}' || json[j] == ']'))
                     {
-                        result.Append('"');
-                        var valueSpan = json.AsSpan(valueStart, i - valueStart);
-                        for (int k = 0; k < valueSpan.Length; k++)
-                        {
-                            if (valueSpan[k] == '\\')
-                                result.Append("\\\\");
-                            else
-                                result.Append(valueSpan[k]);
-                        }
-                        result.Append('"');
+                        AppendQuotedValue(result, json, valueStart, i);
                         changed = true;
                         continue;
                     }
                 }
 
+                // 保守收集失败(值含空格,如 PowerShell 剥引号后的 {prompt:echo hello})
+                // → 激进收集: 允许空格,到 ,/}/]/{/[ 停,整体加引号
+                i = valueStart;
+                while (i < json.Length && json[i] != ',' && json[i] != '}' && json[i] != ']' && json[i] != '{' && json[i] != '[')
+                    i++;
+
+                // 去掉尾部空白(避免 "echo hello " 带尾部空格在引号内)
+                int valueEnd = i;
+                while (valueEnd > valueStart && char.IsWhiteSpace(json[valueEnd - 1])) valueEnd--;
+
+                if (valueEnd > valueStart)
+                {
+                    AppendQuotedValue(result, json, valueStart, valueEnd);
+                    // 尾部空白在引号外原样输出
+                    for (int k = valueEnd; k < i; k++)
+                        result.Append(json[k]);
+                    changed = true;
+                    continue;
+                }
+
+                // 激进收集也失败(值为空或首字符即分隔符),原样输出
                 result.Append(json.AsSpan(valueStart, i - valueStart));
                 continue;
             }

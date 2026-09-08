@@ -842,6 +842,64 @@ public sealed class ToolCallRepairServiceTests
         parsed.RootElement.GetProperty("d").GetString().Should().Be("hello");
     }
 
+    /// <summary>
+    /// PowerShell 剥掉引号后 {prompt:echo hello} 应修复为 {"prompt":"echo hello"}
+    /// 根因: FixUnquotedValues 遇到空格停止收集(第366行 !char.IsWhiteSpace),导致 "echo hello" 无法整体加引号
+    /// </summary>
+    [Fact]
+    public void RepairJson_UnquotedValueWithSpaces_AddsQuotes()
+    {
+        var result = ToolCallRepairService.RepairJson("""{prompt:echo hello}""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("prompt").GetString().Should().Be("echo hello");
+        result.RepairHint.Should().Contain("unquoted value");
+    }
+
+    /// <summary>
+    /// 日志真实场景: {prompt:echo hello,enableWorktreeIsolation:true}
+    /// 带空格值 + bool 字面量混合,PowerShell 引号剥落后 jcc 应能自动修复
+    /// </summary>
+    [Fact]
+    public void RepairJson_UnquotedValueWithSpaces_MixedWithBoolLiteral_AddsQuotes()
+    {
+        var result = ToolCallRepairService.RepairJson("""{prompt:echo hello,enableWorktreeIsolation:true}""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("prompt").GetString().Should().Be("echo hello");
+        parsed.RootElement.GetProperty("enableWorktreeIsolation").GetBoolean().Should().BeTrue();
+    }
+
+    /// <summary>
+    /// 带空格值 + 多对 key:value,每对的值都含空格
+    /// </summary>
+    [Fact]
+    public void RepairJson_UnquotedValueWithSpaces_MultiplePairs_AddsQuotes()
+    {
+        var result = ToolCallRepairService.RepairJson("""{prompt:echo hello world,name:test agent}""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("prompt").GetString().Should().Be("echo hello world");
+        parsed.RootElement.GetProperty("name").GetString().Should().Be("test agent");
+    }
+
+    /// <summary>
+    /// 带空格值后紧跟嵌套对象 — 确保激进收集在遇到 { 时停止,不吞掉嵌套结构
+    /// </summary>
+    [Fact]
+    public void RepairJson_UnquotedValueWithSpaces_BeforeNestedObject_AddsQuotes()
+    {
+        var result = ToolCallRepairService.RepairJson("""{prompt:echo hello,options:{verbose:true}}""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("prompt").GetString().Should().Be("echo hello");
+        parsed.RootElement.GetProperty("options").GetProperty("verbose").GetBoolean().Should().BeTrue();
+    }
+
     #endregion
 
     #region StripOuterQuotes — 外层多余引号去除

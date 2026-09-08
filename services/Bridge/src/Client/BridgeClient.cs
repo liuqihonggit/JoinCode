@@ -257,7 +257,7 @@ public sealed partial class BridgeClient : IAsyncDisposable
         try
         {
             await SendMessageAsync(request, linkedCts.Token).ConfigureAwait(false);
-            return await tcs.Task.ConfigureAwait(false);
+            return await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
         }
         finally
         {

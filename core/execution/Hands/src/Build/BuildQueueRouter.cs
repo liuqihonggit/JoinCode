@@ -69,13 +69,24 @@ public sealed class BuildQueueRouter : IBuildQueueService
         var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         _cancelSources[entry.BuildId] = cts;
 
-        await _router.RouteAsync(
-            new BuildWorker.ExecuteBuildCommand(entry, tcs, cts.Token),
-            async (msg, worker) =>
-            {
-                if (worker is BuildWorker w)
-                    await w.SubmitAsync(msg).ConfigureAwait(false);
-            }).ConfigureAwait(false);
+        try
+        {
+            await _router.RouteAsync(
+                new BuildWorker.ExecuteBuildCommand(entry, tcs, cts.Token),
+                async (msg, worker) =>
+                {
+                    if (worker is BuildWorker w)
+                        await w.SubmitAsync(msg).ConfigureAwait(false);
+                }).ConfigureAwait(false);
+        }
+        catch
+        {
+            _waitHandles.TryRemove(entry.BuildId, out var failedTcs);
+            failedTcs?.TrySetCanceled();
+            _cancelSources.TryRemove(entry.BuildId, out var failedCts);
+            failedCts?.Dispose();
+            throw;
+        }
 
         _logger?.LogInformation("Build submitted to router: {BuildId}, command: {Command}",
             entry.BuildId, request.Command);

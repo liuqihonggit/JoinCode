@@ -298,11 +298,11 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
 
     #region Unload
 
-    public Task<PluginUnloadResult> UnloadPluginAsync(string pluginName, PluginUnloadOptions? options = null)
+    public async Task<PluginUnloadResult> UnloadPluginAsync(string pluginName, PluginUnloadOptions? options = null)
     {
         var opts = options ?? PluginUnloadOptions.Default;
-        var cts = new CancellationTokenSource(opts.CooperativeTimeout);
-        return UnloadPluginAsync(pluginName, cts.Token);
+        using var cts = new CancellationTokenSource(opts.CooperativeTimeout);
+        return await UnloadPluginAsync(pluginName, cts.Token).ConfigureAwait(false);
     }
 
     public async Task<PluginUnloadResult> UnloadPluginAsync(string pluginName, CancellationToken cancellationToken)

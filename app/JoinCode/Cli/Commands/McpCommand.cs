@@ -329,6 +329,9 @@ public sealed class McpCliCommand
                 TerminalHelper.WriteError(FormatJsonError(ex, json, null, "JSON 解析失败"));
                 if (repairResult.RepairHint is not null)
                     TerminalHelper.WriteError($"修复提示: {repairResult.RepairHint}");
+                var shellHint = LlmJsonHelper.BuildShellQuoteHint(json);
+                if (shellHint is not null)
+                    TerminalHelper.WriteError(shellHint);
             }
             return null;
         }

@@ -270,6 +270,23 @@ internal static class ToolCallRepairService
 """;
     }
 
+    /// <summary>
+    /// 检测"引号被 shell 剥落"特征并返回修正写法提示 — 以 { 开头、有冒号、但无双引号
+    /// <para>返回 null 表示未检测到该特征(不提示)</para>
+    /// </summary>
+    internal static string? BuildShellQuoteHint(string json)
+    {
+        if (json.Length > 0 && json[0] == '{' && json.Contains(':') && !json.Contains('"'))
+        {
+            return """
+提示: 输入看起来像被 shell 剥掉了引号。
+  PowerShell: 用 --% 停止解析,或用 \" 转义双引号
+  示例: jcc mcp_call <tool> --% "{\"key\":\"value\"}"
+""";
+        }
+        return null;
+    }
+
     private static bool TryParseJson(string json, out JsonDocument? doc)
     {
         try

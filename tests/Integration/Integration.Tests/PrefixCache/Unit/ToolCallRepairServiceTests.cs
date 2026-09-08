@@ -1114,4 +1114,43 @@ public sealed class ToolCallRepairServiceTests
     }
 
     #endregion
+
+    #region BuildShellQuoteHint — 引号被剥落的修正写法提示
+
+    /// <summary>
+    /// PowerShell 剥掉引号后的裸对象 {prompt:echo hello} 应触发引号转义提示
+    /// </summary>
+    [Fact]
+    public void BuildShellQuoteHint_StrippedJson_ReturnsHint()
+    {
+        var hint = ToolCallRepairService.BuildShellQuoteHint("{prompt:echo hello}");
+
+        hint.Should().NotBeNull();
+        hint.Should().Contain("PowerShell");
+        hint.Should().Contain("--%");
+    }
+
+    /// <summary>
+    /// 合法 JSON(有双引号)不应触发提示
+    /// </summary>
+    [Fact]
+    public void BuildShellQuoteHint_ValidJson_ReturnsNull()
+    {
+        var hint = ToolCallRepairService.BuildShellQuoteHint("{\"prompt\":\"hello\"}");
+
+        hint.Should().BeNull();
+    }
+
+    /// <summary>
+    /// 非 JSON(不以 { 开头)不应触发提示
+    /// </summary>
+    [Fact]
+    public void BuildShellQuoteHint_NoBrace_ReturnsNull()
+    {
+        var hint = ToolCallRepairService.BuildShellQuoteHint("not json");
+
+        hint.Should().BeNull();
+    }
+
+    #endregion
 }

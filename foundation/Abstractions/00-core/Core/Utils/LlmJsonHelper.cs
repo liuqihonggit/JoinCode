@@ -202,6 +202,12 @@ public static class LlmJsonHelper
         => ToolCallRepairService.BuildShellCallExamples(toolName);
 
     /// <summary>
+    /// 检测引号被 shell 剥落并返回修正写法提示 — 返回 null 表示未检测到
+    /// </summary>
+    public static string? BuildShellQuoteHint(string json)
+        => ToolCallRepairService.BuildShellQuoteHint(json);
+
+    /// <summary>
     /// 参数名归一化 + 参数类型自动转换
     /// 统一门控入口，所有 LLM 输出的工具参数修复必须通过此方法
     /// </summary>

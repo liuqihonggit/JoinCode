@@ -541,26 +541,28 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     }
 
     /// <summary>
-    /// 检查索引是否过时 — 比较 .git/HEAD 修改时间与索引 LastUpdated
+    /// 检查索引是否过时 — 自动适配主仓库(.git/目录)和 worktree(.git/文件)，对笨蛋用户透明
     /// </summary>
     private bool IsIndexStale(string workspaceRoot)
     {
         try
         {
-            var gitHeadPath = _fs.CombinePath(workspaceRoot, ".git");
-            if (_fs.FileExists(gitHeadPath))
+            var gitPath = _fs.CombinePath(workspaceRoot, ".git");
+
+            if (_fs.DirectoryExists(gitPath))
             {
-                var headModified = _fs.GetLastWriteTimeUtc(gitHeadPath);
-                return headModified > _store.LastUpdated;
+                return IsFileStale(_fs.CombinePath(gitPath, "HEAD"));
             }
-            if (_fs.DirectoryExists(gitHeadPath))
+
+            if (_fs.FileExists(gitPath))
             {
-                var headFile = _fs.CombinePath(gitHeadPath, "HEAD");
-                if (_fs.FileExists(headFile))
+                var gitDir = ParseGitFile(gitPath);
+                if (gitDir is not null)
                 {
-                    var headModified = _fs.GetLastWriteTimeUtc(headFile);
-                    return headModified > _store.LastUpdated;
+                    return IsFileStale(_fs.CombinePath(gitDir, "HEAD"));
                 }
+                _logger?.LogDebug("CodeIndexer: worktree .git 文件解析 gitdir 失败,降级检查 .git 文件修改时间");
+                return IsFileStale(gitPath);
             }
         }
         catch (Exception ex)
@@ -568,6 +570,38 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
             _logger?.LogDebug(ex, "CodeIndexer: 检查索引新鲜度失败");
         }
         return false;
+
+        bool IsFileStale(string path)
+        {
+            if (!_fs.FileExists(path)) return false;
+            return _fs.GetLastWriteTimeUtc(path) > _store.LastUpdated;
+        }
+    }
+
+    /// <summary>
+    /// 解析 worktree .git 指针文件内容 — 格式: "gitdir: /path/to/main/.git/worktrees/w1"
+    /// </summary>
+    private string? ParseGitFile(string gitFilePath)
+    {
+        try
+        {
+            var content = _fs.ReadAllText(gitFilePath).Trim();
+            const string prefix = "gitdir:";
+            if (content.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                var gitDir = content[prefix.Length..].Trim();
+                if (!Path.IsPathRooted(gitDir))
+                {
+                    gitDir = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(gitFilePath)!, gitDir));
+                }
+                return gitDir;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "CodeIndexer: 解析 .git 指针文件失败");
+        }
+        return null;
     }
 
     /// <summary>

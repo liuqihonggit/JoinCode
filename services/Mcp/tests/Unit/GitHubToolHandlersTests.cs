@@ -90,6 +90,45 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
+    public async Task PrCreate_WithBaseAndBody_ProducesValidJsonBody()
+    {
+        _api.NextResponse = new GitHubApiResponse
+        {
+            Success = true,
+            StatusCode = 201,
+            Body = """{"number":44,"title":"t","state":"open"}""",
+        };
+
+        await _handler.GhPrCreateAsync("t", "feat", @base: "main", body: "b", repo: "owner/repo");
+
+        _api.LastBody.Should().NotBeNullOrEmpty();
+        using var doc = System.Text.Json.JsonDocument.Parse(_api.LastBody!);
+        doc.RootElement.GetProperty("title").GetString().Should().Be("t");
+        doc.RootElement.GetProperty("head").GetString().Should().Be("feat");
+        doc.RootElement.GetProperty("base").GetString().Should().Be("main");
+        doc.RootElement.GetProperty("body").GetString().Should().Be("b");
+    }
+
+    [Fact]
+    public async Task PrCreate_WithBaseOnly_ProducesValidJsonBody()
+    {
+        _api.NextResponse = new GitHubApiResponse
+        {
+            Success = true,
+            StatusCode = 201,
+            Body = """{"number":45,"title":"t","state":"open"}""",
+        };
+
+        await _handler.GhPrCreateAsync("t", "feat", @base: "main", repo: "owner/repo");
+
+        _api.LastBody.Should().NotBeNullOrEmpty();
+        using var doc = System.Text.Json.JsonDocument.Parse(_api.LastBody!);
+        doc.RootElement.GetProperty("title").GetString().Should().Be("t");
+        doc.RootElement.GetProperty("head").GetString().Should().Be("feat");
+        doc.RootElement.GetProperty("base").GetString().Should().Be("main");
+    }
+
+    [Fact]
     public async Task PrMerge_AutoMergeTrue_CallsGraphQLEnableAutomerge()
     {
         _api.EnqueueResponse(new GitHubApiResponse

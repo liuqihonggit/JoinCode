@@ -256,6 +256,20 @@ internal static class ToolCallRepairService
         return prev[b.Length];
     }
 
+    /// <summary>
+    /// 生成跨 shell 调用示例文本 — 帮助 AI/用户正确传递 JSON 参数
+    /// <para>覆盖 PowerShell(--%)、Bash(单引号)、Cmd(转义引号)三种 shell</para>
+    /// </summary>
+    internal static string BuildShellCallExamples(string toolName)
+    {
+        return $$"""
+调用示例:
+  PowerShell: jcc mcp_call {{toolName}} --% "{\"key\":\"value\"}"
+  Bash:       jcc mcp_call {{toolName}} '{"key":"value"}'
+  Cmd:        jcc mcp_call {{toolName}} "{\"key\":\"value\"}"
+""";
+    }
+
     private static bool TryParseJson(string json, out JsonDocument? doc)
     {
         try

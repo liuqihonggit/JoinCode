@@ -1090,4 +1090,28 @@ public sealed class ToolCallRepairServiceTests
     }
 
     #endregion
+
+    #region BuildShellCallExamples — 跨 shell 调用示例
+
+    [Fact]
+    public void BuildShellCallExamples_ContainsAllShells()
+    {
+        var examples = ToolCallRepairService.BuildShellCallExamples("agent");
+
+        examples.Should().Contain("PowerShell");
+        examples.Should().Contain("Bash");
+        examples.Should().Contain("Cmd");
+        examples.Should().Contain("agent");
+        examples.Should().Contain("--%");
+    }
+
+    [Fact]
+    public void BuildShellCallExamples_ContainsToolName()
+    {
+        var examples = ToolCallRepairService.BuildShellCallExamples("my_tool");
+
+        examples.Should().Contain("my_tool");
+    }
+
+    #endregion
 }

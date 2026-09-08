@@ -196,6 +196,12 @@ public static class LlmJsonHelper
         => ToolCallRepairService.SuggestToolNames(input, availableTools);
 
     /// <summary>
+    /// 生成跨 shell 调用示例文本 — 帮助 AI/用户正确传递 JSON 参数
+    /// </summary>
+    public static string BuildShellCallExamples(string toolName)
+        => ToolCallRepairService.BuildShellCallExamples(toolName);
+
+    /// <summary>
     /// 参数名归一化 + 参数类型自动转换
     /// 统一门控入口，所有 LLM 输出的工具参数修复必须通过此方法
     /// </summary>

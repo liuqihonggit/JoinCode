@@ -21,7 +21,55 @@ public partial class GitHubToolHandlers
 
         var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 30).ToString() };
         var result = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/releases", query: query, ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? Ok(result.Body) : Fail(result.Error);
+        return result.Success ? Ok(SummarizeReleaseList(result.Body)) : Fail(result.Error);
+    }
+
+    /// <summary>
+    /// 精简 Release 列表 JSON — 只保留关键字段，去掉冗余 URL 和 author 对象，便于人类浏览和 AI 解析
+    /// </summary>
+    private static string SummarizeReleaseList(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
+            var buffer = new ArrayBufferWriter<byte>();
+            using (var writer = new Utf8JsonWriter(buffer))
+            {
+                writer.WriteStartArray();
+                foreach (var release in doc.RootElement.EnumerateArray())
+                {
+                    writer.WriteStartObject();
+                    CopyProperty(release, writer, "id");
+                    CopyProperty(release, writer, "tag_name");
+                    CopyProperty(release, writer, "name");
+                    CopyProperty(release, writer, "draft");
+                    CopyProperty(release, writer, "prerelease");
+                    CopyProperty(release, writer, "created_at");
+                    CopyProperty(release, writer, "published_at");
+                    if (release.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array)
+                    {
+                        writer.WritePropertyName("assets");
+                        writer.WriteStartArray();
+                        foreach (var asset in assets.EnumerateArray())
+                        {
+                            writer.WriteStartObject();
+                            CopyProperty(asset, writer, "name");
+                            CopyProperty(asset, writer, "size");
+                            writer.WriteEndObject();
+                        }
+                        writer.WriteEndArray();
+                    }
+                    writer.WriteEndObject();
+                }
+                writer.WriteEndArray();
+            }
+            return Encoding.UTF8.GetString(buffer.WrittenSpan);
+        }
+        catch (Exception)
+        {
+            return json;
+        }
     }
 
     [McpTool(GitHubToolNameConstants.GhReleaseView, "查看 Release 详情(含 asset 列表)", "github", ConcurrencySafe = true)]

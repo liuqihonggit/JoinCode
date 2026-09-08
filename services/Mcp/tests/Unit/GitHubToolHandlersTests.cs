@@ -523,6 +523,29 @@ public sealed class GitHubToolHandlersTests
         result.IsError.Should().BeTrue();
         result.GetFirstText().Should().Contain("release not found");
     }
+
+    [Fact]
+    public async Task ReleaseList_Success_ReturnsSummarizedJson()
+    {
+        _api.NextResponse = new GitHubApiResponse
+        {
+            Success = true,
+            StatusCode = 200,
+            Body = """[{"id":123,"tag_name":"v1.0","name":"Release v1.0","draft":false,"prerelease":false,"created_at":"2026-09-01T00:00:00Z","published_at":"2026-09-01T00:00:00Z","body":"notes","url":"https://api.github.com/repos/o/r/releases/123","assets_url":"https://api.github.com/repos/o/r/releases/123/assets","upload_url":"https://uploads.github.com/repos/o/r/releases/123/assets{?name,label}","html_url":"https://github.com/o/r/releases/tag/v1.0","author":{"login":"user","url":"https://api.github.com/users/user","avatar_url":"https://avatars.githubusercontent.com/u/1?v=4"},"assets":[{"name":"file.zip","size":1024,"browser_download_url":"https://github.com/o/r/releases/download/v1.0/file.zip"}]}]""",
+        };
+
+        var result = await _handler.GhReleaseListAsync(repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("\"tag_name\":\"v1.0\"");
+        text.Should().Contain("\"name\":\"Release v1.0\"");
+        text.Should().Contain("\"draft\":false");
+        text.Should().NotContain("assets_url");
+        text.Should().NotContain("upload_url");
+        text.Should().NotContain("avatar_url");
+        text.Should().NotContain("browser_download_url");
+    }
 }
 
 internal sealed class FakeGitHubApiClient : IGitHubApiClient

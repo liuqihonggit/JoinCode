@@ -197,9 +197,10 @@ public static class LlmJsonHelper
 
     /// <summary>
     /// 生成跨 shell 调用示例文本 — 帮助 AI/用户正确传递 JSON 参数
+    /// <para>若提供 schema 则按 required/properties 生成具体参数示例</para>
     /// </summary>
-    public static string BuildShellCallExamples(string toolName)
-        => ToolCallRepairService.BuildShellCallExamples(toolName);
+    public static string BuildShellCallExamples(string toolName, ToolSchema? schema = null)
+        => ToolCallRepairService.BuildShellCallExamples(toolName, schema);
 
     /// <summary>
     /// 检测引号被 shell 剥落并返回修正写法提示 — 返回 null 表示未检测到

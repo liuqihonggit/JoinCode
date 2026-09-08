@@ -130,7 +130,7 @@ public sealed class McpCliCommand
             TerminalHelper.WriteLine($"参数 Schema:");
             System.Console.WriteLine(RelaxedJsonSerializer.Serialize(info.InputSchema, ContractsJsonContext.Default));
             TerminalHelper.NewLine();
-            TerminalHelper.WriteLine(LlmJsonHelper.BuildShellCallExamples(info.Name));
+            TerminalHelper.WriteLine(LlmJsonHelper.BuildShellCallExamples(info.Name, info.InputSchema));
         }
         return 0;
     }, ct: ct);

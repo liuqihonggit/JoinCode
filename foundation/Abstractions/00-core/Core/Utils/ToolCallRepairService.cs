@@ -300,15 +300,59 @@ internal static class ToolCallRepairService
     /// <summary>
     /// 生成跨 shell 调用示例文本 — 帮助 AI/用户正确传递 JSON 参数
     /// <para>覆盖 PowerShell(--%)、Bash(单引号)、Cmd(转义引号)三种 shell</para>
+    /// <para>若提供 schema 则按 required/properties 生成具体参数示例，否则用通用示例</para>
     /// </summary>
-    internal static string BuildShellCallExamples(string toolName)
+    internal static string BuildShellCallExamples(string toolName, ToolSchema? schema = null)
     {
+        var exampleJson = BuildExampleJson(schema);
         return $$"""
 调用示例:
-  PowerShell: jcc mcp_call {{toolName}} --% "{\"key\":\"value\"}"
-  Bash:       jcc mcp_call {{toolName}} '{"key":"value"}'
-  Cmd:        jcc mcp_call {{toolName}} "{\"key\":\"value\"}"
+  PowerShell: jcc mcp_call {{toolName}} --% "{{exampleJson}}"
+  Bash:       jcc mcp_call {{toolName}} '{{exampleJson}}'
+  Cmd:        jcc mcp_call {{toolName}} "{{exampleJson}}"
 """;
+    }
+
+    /// <summary>
+    /// 根据 ToolSchema 生成示例 JSON 字符串 — 优先包含 required 参数，无 required 则包含前 3 个 properties
+    /// </summary>
+    private static string BuildExampleJson(ToolSchema? schema)
+    {
+        if (schema is null || schema.Properties.Count == 0)
+            return "{\"key\":\"value\"}";
+
+        var keys = schema.Required.Count > 0
+            ? schema.Required
+            : schema.Properties.Keys.Take(3).ToList();
+
+        if (keys.Count == 0)
+            return "{}";
+
+        var parts = new List<string>(keys.Count);
+        foreach (var key in keys)
+        {
+            if (!schema.Properties.TryGetValue(key, out var prop))
+                continue;
+            parts.Add($"\"{key}\":{BuildExampleValue(prop)}");
+        }
+        return parts.Count == 0 ? "{}" : $"{{{string.Join(",", parts)}}}";
+    }
+
+    /// <summary>
+    /// 根据 ToolSchemaProperty 类型生成占位值
+    /// </summary>
+    private static string BuildExampleValue(ToolSchemaProperty prop)
+    {
+        if (prop.Enum is { Count: > 0 })
+            return "\"" + prop.Enum[0] + "\"";
+        return prop.Type switch
+        {
+            "integer" or "number" => "0",
+            "boolean" => "false",
+            "array" => "[]",
+            "object" => "{}",
+            _ => "\"<" + prop.Type + ">\"",
+        };
     }
 
     /// <summary>

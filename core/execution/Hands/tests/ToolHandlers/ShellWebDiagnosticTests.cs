@@ -9,9 +9,9 @@ public class ShellToolBaseDiagnosticTests
     public void BuildPowerShellUnavailableDiagnostic_ReturnsCorrectStructure()
     {
         var diagnostic = ShellToolBase.BuildPowerShellUnavailableDiagnostic();
-        diagnostic.Reason.Should().Be("平台限制");
+        diagnostic.Reason.Should().Be("安全策略限制");
         diagnostic.Details.Should().Contain(d => d.Key == "tool" && d.Value == "PowerShell");
-        diagnostic.Suggestions.Should().ContainSingle();
+        diagnostic.Suggestions.Should().HaveCount(2);
     }
 
     [Fact]

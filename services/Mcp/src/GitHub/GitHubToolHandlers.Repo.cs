@@ -105,6 +105,44 @@ public partial class GitHubToolHandlers
 
         var query = new Dictionary<string, string> { ["per_page"] = (limit ?? 30).ToString() };
         var result = await _apiClient.SendAsync(HttpMethod.Get, "user/repos", query: query, ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? Ok(result.Body) : Fail(result.Error);
+        if (!result.Success) return Fail(result.Error);
+        return Ok(SummarizeRepoList(result.Body));
+    }
+
+    /// <summary>
+    /// 精简仓库列表 JSON — 只保留关键字段，去掉冗余 URL，便于人类浏览和 AI 解析
+    /// </summary>
+    private static string SummarizeRepoList(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
+            var buffer = new ArrayBufferWriter<byte>();
+            using (var writer = new Utf8JsonWriter(buffer))
+            {
+                writer.WriteStartArray();
+                foreach (var repo in doc.RootElement.EnumerateArray())
+                {
+                    writer.WriteStartObject();
+                    CopyProperty(repo, writer, "name");
+                    CopyProperty(repo, writer, "full_name");
+                    CopyProperty(repo, writer, "private");
+                    CopyProperty(repo, writer, "fork");
+                    CopyProperty(repo, writer, "description");
+                    CopyProperty(repo, writer, "language");
+                    CopyProperty(repo, writer, "stargazers_count");
+                    CopyProperty(repo, writer, "updated_at");
+                    CopyProperty(repo, writer, "default_branch");
+                    writer.WriteEndObject();
+                }
+                writer.WriteEndArray();
+            }
+            return Encoding.UTF8.GetString(buffer.WrittenSpan);
+        }
+        catch (Exception)
+        {
+            return json;
+        }
     }
 }

@@ -1,6 +1,6 @@
 # 0065. jcc mcp CLI 子命令 — bash 直调内部 MCP 工具
 
-- 状态：accepted
+- 状态：superseded by 0069
 - 日期：2026-09-05
 - 决策者：项目架构组
 

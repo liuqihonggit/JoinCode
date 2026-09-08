@@ -26,15 +26,12 @@ ADR 用固定格式收编这些决策，形成不可变的历史记录。
 ## 背景
 
 （为什么需要这个决策，当时面临什么问题）
-
 ## 决策
 
 （最终选了什么）
-
 ## 替代方案
 
 （考虑过但没选的方案，及放弃原因）
-
 ## 后果
 
 - 正面：
@@ -55,176 +52,305 @@ ADR 引用 design/plans，但不重复其内容。
 
 ## 粒度策略
 
-本项目采用**架构级 + 组件策略级 + 工程级**三层：
-- 架构级（0001-0012 + 0032-0037）：跨模块、影响全局的决策
-- 组件策略级（0013-0025）：组件设计风格、工作方法论、反模式禁令
-- 工程级（0026-0031）：CI/编译/测试/运行时工程决策
+本项目采用**架构级 + 组件策略级 + 工程级**三层，函数级决策留在代码注释或 design 文档中。
 
-函数级决策留在代码注释或 design 文档中。
+## 统计
 
-## 索引
+- 总数：**90** | accepted：**80** | superseded：**5** | proposed：**5**
 
-### 架构级（0001-0012）
+## 完整索引（按编号）
 
-| 编号 | 标题 | 状态 |
-|------|------|------|
-| 0001 | 七层 slnx 隔离架构 | accepted |
-| 0002 | NativeAOT + 禁用微软 AI 包 | accepted |
-| 0003 | rebase 而非 merge | accepted |
-| 0004 | 配置大于代码 — 模态能力显式注册 | accepted |
-| 0005 | 文件驱动界面 | accepted |
-| 0006 | 双层 TDD | accepted |
-| 0007 | 渐进式开发方法 | accepted |
-| 0008 | .xxx 归档而非删除 | accepted |
-| 0009 | MCP Streamable HTTP 2025-11-25 | accepted |
-| 0010 | GlobalUsings 统一管理 | accepted |
-| 0011 | 数据容器 AOT+GC 选型 | accepted |
-| 0012 | 双 IToolHandler 接口不合并 | superseded by 0025 |
-
-### 组件策略级（0013-0024）
-
-| 编号 | 标题 | 状态 | AGENTS.md 对应位置 |
-|------|------|------|-------------------|
-| 0013 | 超图与 DAG 分工 | accepted | 六项架构规则·规则1 |
-| 0014 | MCP 工具覆盖原则 | accepted | 六项架构规则·规则2 |
-| 0015 | 配置热重载双变量切换 | accepted | 六项架构规则·规则3 |
-| 0016 | 参数传接口不传属性 | accepted | 六项架构规则·规则5 |
-| 0017 | 归纳性重构不放弃 | accepted | 六项架构规则·规则6 |
-| 0018 | 循环检测器状态机风格 | superseded by 0038 | 六项架构规则·规则8 |
-| 0019 | 枚举 + EnumValue + 源码生成器 | accepted | 封装要求·枚举扩展 |
-| 0020 | 封装要求 | accepted | 封装要求 |
-| 0021 | E2E 脚本 Mode 计算属性 | accepted | E2E 测试脚本模式规范 |
-| 0022 | C# AST CLI 优先于正则 | accepted | 脚本语言优先级 |
-| 0023 | 减法思维优先 | accepted | 反例4·加法思维 |
-| 0024 | 治标不治本禁令 | accepted | 反例3·治标不治本 |
-| 0025 | 归档 IMcpProtocolHandler 死接口 | accepted | 规则4·取代0012 |
-
-### 架构级补充（0032-0037，来自 docs/design）
-
-| 编号 | 标题 | 状态 | 来源文档 |
-|------|------|------|----------|
-| 0032 | ComputerUse P0 纯 Win32 P/Invoke | accepted | ComputerUse-P0-DesktopInput-Design.md |
-| 0033 | 传输层 Fallback 链优先级 | accepted | TransportFallbackChain.md |
-| 0034 | 命令拦截分层 Guard+Interceptor | superseded by 0039 | 命令拦截架构改造.md |
-| 0035 | 工具渐进式暴露 | accepted | 工具渐进式暴露设计.md |
-| 0036 | 纵深防御 L1-L10 | accepted | UnifiedResilienceArchitecture.md |
-| 0037 | Redirect 软引导而非硬转交 | accepted | 命令拦截架构改造.md |
-
-### 状态机框架与统一规范（0038-0046）
-
-| 编号 | 标题 | 状态 | 取代 |
+| 编号 | 标题 | 状态 | 日期 |
 |------|------|------|------|
-| 0038 | 状态机 + 守卫 + [Flags] 位标志 | accepted | 取代 0018 |
-| 0039 | 命令拦截全状态机 + 守卫 + [Flags] | accepted | 取代 0034 |
-| 0040 | 企业级状态机框架 — 转换表+守卫+共享上下文 | accepted | 增强 0038/0039 |
-| 0041 | Fsm 源码生成器 + 特性 + 事件订阅 | accepted | 增强 0040 |
-| 0042 | JSON 序列化统一收口 — RelaxedJsonSerializer | accepted | 新增 |
-| 0043 | 收口函数统一 — 命名/参数/异常/幂等性 | accepted | 新增 |
-| 0044 | 错误码统一规范 — [PREFIX+数字] 格式 | accepted | 新增 |
-| 0045 | ConfigureAwait(false) 强制规范 | accepted | 新增 |
-| 0046 | [Register] 特性 DI 自动注册模式 | accepted | 新增 |
+| [0001](0001-seven-layer-slnx-isolation.md) | 七层 slnx 隔离架构 | accepted | 2026-08-29 |
+| [0002](0002-nativeaot-no-microsoft-ai-packages.md) | NativeAOT + 禁用微软 AI 包 | accepted | 2026-08-29 |
+| [0003](0003-rebase-over-merge.md) | rebase 而非 merge | accepted | 2026-08-29 |
+| [0004](0004-config-over-code-modalities.md) | 配置大于代码 — 模态能力显式注册 | accepted | 2026-08-29 |
+| [0005](0005-file-driven-ui.md) | 文件驱动界面 | accepted | 2026-08-29 |
+| [0006](0006-tdd-double-layer.md) | 双层 TDD | accepted | 2026-08-29 |
+| [0007](0007-progressive-development.md) | 渐进式开发方法 | accepted | 2026-08-29 |
+| [0008](0008-archive-to-xxx-not-delete.md) | .xxx 归档而非删除 | accepted | 2026-08-29 |
+| [0009](0009-mcp-streamable-http.md) | MCP Streamable HTTP 2025-11-25 | accepted | 2026-08-29 |
+| [0010](0010-global-usings.md) | GlobalUsings 统一管理 | accepted | 2026-08-29 |
+| [0011](0011-data-container-aot-gc.md) | 数据容器 AOT+GC 选型 | accepted | 2026-08-29 |
+| [0012](0012-two-itoolhandler-interfaces.md) | 双 IToolHandler 接口不合并 | superseded by 0025 | 2026-08-29 |
+| [0013](0013-hypergraph-vs-dag-separation.md) | 超图与 DAG 分工 | accepted | 2026-08-29 |
+| [0014](0014-mcp-tool-coverage-principle.md) | MCP 工具覆盖原则 | accepted | 2026-08-29 |
+| [0015](0015-config-hotreload-dual-variable.md) | 配置热重载双变量切换 | accepted | 2026-08-29 |
+| [0016](0016-pass-interface-not-property.md) | 参数传接口不传属性 | accepted | 2026-08-29 |
+| [0017](0017-inductive-refactor-no-abandon.md) | 归纳性重构不放弃 | accepted | 2026-08-29 |
+| [0018](0018-loop-detector-state-machine.md) | 循环检测器状态机风格 | superseded by 0038 | 2026-08-29 |
+| [0019](0019-enum-enumvalue-source-generator.md) | 枚举 + EnumValue + 源码生成器 | accepted | 2026-08-29 |
+| [0020](0020-encapsulation-requirements.md) | 封装要求 | accepted | 2026-08-29 |
+| [0021](0021-e2e-script-mode-inferred.md) | E2E 脚本 Mode 计算属性 | accepted | 2026-08-29 |
+| [0022](0022-csharp-ast-cli-over-regex.md) | C# AST CLI 优先于正则 | accepted | 2026-08-29 |
+| [0023](0023-subtraction-over-addition.md) | 减法思维优先 | accepted | 2026-08-29 |
+| [0024](0024-no-symptomatic-fix-chain.md) | 治标不治本禁令 | accepted | 2026-08-29 |
+| [0025](0025-archive-dead-imcpprotocolhandler.md) | 归档 IMcpProtocolHandler 死接口 | accepted | 2026-08-29 |
+| [0026](0026-pr-two-stage-pipeline.md) | PR 两段式流水线验证 | accepted | 2026-08-29 |
+| [0027](0027-treat-warnings-as-errors.md) | TreatWarningsAsErrors 零警告容忍 | accepted | 2026-08-29 |
+| [0028](0028-invariant-globalization.md) | InvariantGlobalization 渐进式双语策略 | accepted | 2026-08-29 |
+| [0029](0029-analyzer-rules-jcc5002-jcc9006.md) | 分析器铁律 JCC5002/JCC9006 | accepted | 2026-08-29 |
+| [0030](0030-e2e-real-service-strategy.md) | E2E 真实服务策略 | accepted | 2026-08-29 |
+| [0031](0031-http-connection-pool-dns.md) | HTTP 连接池 DNS 刷新 | accepted | 2026-08-29 |
+| [0032](0032-computeruse-win32-pinvoke.md) | ComputerUse P0 纯 Win32 P/Invoke | accepted | 2026-08-29 |
+| [0033](0033-transport-fallback-chain-priority.md) | 传输层 Fallback 链优先级 | accepted | 2026-08-29 |
+| [0034](0034-command-interception-layered.md) | 命令拦截分层 Guard+Interceptor+Dispatcher | superseded by 0039 | 2026-08-29 |
+| [0035](0035-tool-progressive-exposure.md) | 工具渐进式暴露 | accepted | 2026-08-29 |
+| [0036](0036-defense-in-depth-l1-l10.md) | 纵深防御 L1-L10 | accepted | 2026-08-29 |
+| [0037](0037-redirect-soft-guidance.md) | Redirect 软引导而非硬转交 | accepted | 2026-08-29 |
+| [0038](0038-state-machine-flags-guard.md) | 状态机 + 守卫 + [Flags] 位标志 | accepted | 2026-08-29 |
+| [0039](0039-command-interception-state-machine.md) | 命令拦截全状态机 + 守卫 + [Flags] | accepted | 2026-08-29 |
+| [0040](0040-enterprise-fsm-framework.md) | 企业级状态机框架 — 转换表 + 守卫 + 共享上下文 | accepted | 2026-08-29 |
+| [0041](0041-fsm-source-generator.md) | Fsm 源码生成器 + 特性 + 事件订阅 | accepted | 2026-08-29 |
+| [0042](0042-json-relaxed-serializer-unification.md) | JSON 序列化统一收口 — RelaxedJsonSerializer 单一入口 | accepted | 2026-08-30 |
+| [0043](0043-unified-cleanup-functions.md) | 收口函数统一 — 命名/参数/异常/幂等性 | accepted | 2026-08-29 |
+| [0044](0044-error-code-convention.md) | 错误码统一规范 — [PREFIX+数字] 格式 | accepted | 2026-08-29 |
+| [0045](0045-configureawait-false.md) | ConfigureAwait(false) 强制规范 | accepted | 2026-08-29 |
+| [0046](0046-register-di-pattern.md) | [Register] 特性 DI 自动注册模式 | accepted | 2026-08-29 |
+| [0047](0047-unified-danger-level-classification.md) | 统一危险指令分级系统 | accepted | 2026-08-30 |
+| [0048](0048-subagent-concurrency-unified-config.md) | 子代理并发控制统一配置入口 | accepted | 2026-09-02 |
+| [0049](0049-archive-maxconcurrentagents.md) | 归档 MaxConcurrentAgents 死配置 | accepted | 2026-09-02 |
+| [0050](0050-spawn-stage-concurrency-limit.md) | spawn 阶段 SemaphoreSlim 限流 | accepted | 2026-09-02 |
+| [0051](0051-fork-concurrency-limit.md) | Fork 并发上限 | accepted | 2026-09-02 |
+| [0052](0052-asynclock-unified-mutex-file-access.md) | AsyncLock 统一互斥锁 + 文件读写可剥离架构 | accepted | 2026-09-02 |
+| [0053](0053-context-compaction-layered-mechanism.md) | 上下文压缩分层机制 | accepted | 2026-09-02 |
+| [0054](0054-llm-output-loop-detection-intervention.md) | LLM 输出循环检测与分级干预机制 | accepted | 2026-09-02 |
+| [0055](0055-system-prompt-section-injection-optimization.md) | 系统提示词 section 注入优化空间 | proposed | 2026-09-02 |
+| [0056](0056-cache-break-detection-enhancement.md) | 缓存破坏检测维度补齐 — 双阈值 + TTL 区分 + 多 agent 隔离 | accepted | 2026-09-02 |
+| [0057](0057-ts-p0-gap-alignment-lsp-analytics.md) | TS 原版 P0 缺口补齐 — LSP 集成 + Analytics 分析 | accepted | 2026-09-02 |
+| [0058](0058-ts-p1-gap-alignment-proactive-vim-permission-skills.md) | TS 原版 P1 缺口补齐 — Proactive + Vim + Permission LLM + Skills | accepted | 2026-09-02 |
+| [0059](0059-asynclock-reentrancy-detection.md) | AsyncLock 同步重入检测 — LockReentrancyException 提早暴露死锁 | superseded by 0060 | 2026-09-03 |
+| [0060](0060-asynclock-sync-trylock-fireandforget-deadlock.md) | AsyncLock 同步 TryLock + StreamingToolExecutor 死锁排查 | accepted | 2026-09-04 |
+| [0061](0061-shell-timeout-keyword-auto-capture.md) | 脚本超时关键字自动捕获机制 | accepted | 2026-09-04 |
+| [0062](0062-path-existence-precheck-and-garbled-detection.md) | 路径存在性前置检查与乱码检测 | accepted | 2026-09-04 |
+| [0063](0063-unified-external-endpoints.md) | 统一对外暴露地址 | proposed | 2026-09-05 |
+| [0064](0064-pluggable-update-source-auto-update.md) | 可插拔更新源与自动更新 | proposed | 2026-09-05 |
+| [0065](0065-jcc-mcp-subcommand.md) | jcc mcp CLI 子命令 — bash 直调内部 MCP 工具 | superseded by 0069 | 2026-09-05 |
+| [0066](0066-prefix-exclamation-command.md) | 前置感叹号命令（! 触发 AI / !! 不触发 AI） | proposed | 2026-09-05 |
+| [0067](0067-ci-log-structured-drill-down.md) | CI 日志结构化逐级展开（Section 级 drill down） | accepted | 2026-09-06 |
+| [0068](0068-unified-persistence-pipeline-actor.md) | 统一持久化管道（Actor 模型） | accepted | 2026-09-06 |
+| [0069](0069-cli-args-full-refactor.md) | 启动参数完全重构 — 扁平元动词 + 统一解析框架 + 斜杠命令直调 | accepted | 2026-09-06 |
+| [0070](0070-rg-engine-mmap-plinq.md) | jcc rg 内置 ripgrep 兼容搜索 — RgEngine 独立实现（mmap + PLINQ + 零 GC） | accepted | 2026-09-06 |
+| [0071](0071-editfileasync-per-file-asynclock.md) | IFileSystem.EditFileAsync 原子编辑接口 — per-file AsyncLock 串行化 | accepted | 2026-09-07 |
+| [0072](0072-mmap-plinq-span-proliferation.md) | mmap + PLINQ + 零 GC Span 技术推广 — 从 RgEngine 到全项目文件遍历 | accepted | 2026-09-07 |
+| [0073](0073-gh-rest-api-direct-call.md) | gh_* MCP 工具重写为 GitHub REST API 直调（摆脱系统 gh 依赖） | proposed | 2026-09-07 |
+| [0074](0074-actor-supervisor-tree.md) | Actor 监督树 — Router/Gateway/Supervisor/PersistentMailbox 四层扩展 | accepted | 2026-09-08 |
+| [0075](0075-gh-cli-troubleshooting-guide.md) | gh CLI 排错避坑指南 | accepted | 2026-09-08 |
+| [0076](0076-dotnet-test-build-output-rules.md) | .NET 测试和构建输出禁令与 CLI 运行时测试 | accepted | 2026-09-08 |
+| [0077](0077-mockserver-jcc-joint-testing.md) | MockServer + jcc 联合测试 | accepted | 2026-09-08 |
+| [0078](0078-merge-e2e-synonym-rules.md) | 合并与 E2E 同义词规则 | accepted | 2026-09-08 |
+| [0079](0079-anti-pattern-examples.md) | 反例清单（踩过的坑，禁止再犯） | accepted | 2026-09-08 |
+| [0080](0080-manual-exe-testing-guide.md) | 手动测试 exe 功能与推荐配置 | accepted | 2026-09-08 |
+| [0081](0081-seven-layer-build-strategy.md) | 七层解决方案架构与编译策略 | accepted | 2026-09-08 |
+| [0082](0082-gui-async-test-avalonia.md) | GUI 异步 UI 测试与启动 exe 测试 | accepted | 2026-09-08 |
+| [0083](0083-e2e-script-mode-spec.md) | E2E 测试脚本模式规范 | accepted | 2026-09-08 |
+| [0084](0084-platform-windows-env-rules.md) | 平台专属操作禁令与 Windows 命令行环境 | accepted | 2026-09-08 |
+| [0085](0085-data-container-selection-spec.md) | 数据容器选型规范 | accepted | 2026-09-08 |
+| [0086](0086-core-tech-selection-lock-design.md) | 核心技术选型与锁设计 | accepted | 2026-09-08 |
+| [0087](0087-batch-replace-csharp-source-rules.md) | 批量替换 C# 源码禁令与导向 | accepted | 2026-09-08 |
+| [0088](0088-test-execution-rules.md) | 测试执行规则 | accepted | 2026-09-08 |
+| [0089](0089-jcc-builtin-tools-only-no-system-gh-rg.md) | jcc 自带工具统一入口 — 禁止系统/宿主环境的 gh / rg | accepted | 2026-09-08 |
+| [0090](0090-jcc-gh-cli-subcommand.md) | `jcc gh` CLI 子命令 — 扁平元动词 + schema 驱动参数绑定 | accepted | 2026-09-08 |
 
-### 工程级（0026-0031）
+## 主题索引（按议题）
 
-| 编号 | 标题 | 状态 | AGENTS.md 对应位置 |
-|------|------|------|-------------------|
-| 0026 | PR 两段式流水线验证 | accepted | Git 规范·PR 两段式验证 |
-| 0027 | TreatWarningsAsErrors 零警告容忍 | accepted | 关键约束·TreatWarningsAsErrors |
-| 0028 | InvariantGlobalization 渐进式双语 | accepted | 关键约束·InvariantGlobalization |
-| 0029 | 分析器铁律 JCC5002/JCC9006 | accepted | GUI 测试·分析器铁律 |
-| 0030 | E2E 真实服务策略 | accepted | E2E·MockServer+jcc 联合测试 |
-| 0031 | HTTP 连接池 DNS 刷新 | accepted | 代码注释·QueryServiceBase.cs:70 |
+> 同一 ADR 可同时归属多个议题时，仅列在主归属组；交叉引用见 AGENTS.md。
 
-### 安全与并发治理（0047-0052）
+### 架构基础
 
-| 编号 | 标题 | 状态 | 来源 |
+| 编号 | 标题 | 状态 | 日期 |
 |------|------|------|------|
-| 0047 | 统一危险指令分级系统 | accepted | 新增 |
-| 0048 | 子代理并发控制统一配置入口 | accepted | 子代理并发控制任务 |
-| 0049 | 归档 MaxConcurrentAgents 死配置 | accepted | 子代理并发控制任务 |
-| 0050 | spawn 阶段 SemaphoreSlim 限流 | accepted | 子代理并发控制任务 |
-| 0051 | Fork 并发上限 | accepted | 子代理并发控制任务 |
-| 0052 | AsyncLock 统一互斥锁 + 文件读写可剥离架构 | proposed | 新增 |
+| [0001](0001-seven-layer-slnx-isolation.md) | 七层 slnx 隔离架构 | accepted | 2026-08-29 |
+| [0002](0002-nativeaot-no-microsoft-ai-packages.md) | NativeAOT + 禁用微软 AI 包 | accepted | 2026-08-29 |
+| [0003](0003-rebase-over-merge.md) | rebase 而非 merge | accepted | 2026-08-29 |
+| [0004](0004-config-over-code-modalities.md) | 配置大于代码 — 模态能力显式注册 | accepted | 2026-08-29 |
+| [0005](0005-file-driven-ui.md) | 文件驱动界面 | accepted | 2026-08-29 |
+| [0006](0006-tdd-double-layer.md) | 双层 TDD | accepted | 2026-08-29 |
+| [0007](0007-progressive-development.md) | 渐进式开发方法 | accepted | 2026-08-29 |
+| [0008](0008-archive-to-xxx-not-delete.md) | .xxx 归档而非删除 | accepted | 2026-08-29 |
+| [0009](0009-mcp-streamable-http.md) | MCP Streamable HTTP 2025-11-25 | accepted | 2026-08-29 |
+| [0010](0010-global-usings.md) | GlobalUsings 统一管理 | accepted | 2026-08-29 |
+| [0011](0011-data-container-aot-gc.md) | 数据容器 AOT+GC 选型 | accepted | 2026-08-29 |
+| [0012](0012-two-itoolhandler-interfaces.md) | 双 IToolHandler 接口不合并 | superseded by 0025 | 2026-08-29 |
+| [0081](0081-seven-layer-build-strategy.md) | 七层解决方案架构与编译策略 | accepted | 2026-09-08 |
 
-### 上下文管理（0053-0054）
+### 组件策略与方法论
 
-| 编号 | 标题 | 状态 | 来源 |
+| 编号 | 标题 | 状态 | 日期 |
 |------|------|------|------|
-| 0053 | 上下文压缩分层机制 | accepted | Context/Compact+Compression+Collapse 调查 |
-| 0054 | LLM 输出循环检测与分级干预机制 | accepted | Context/Services/Loop+LoopIntervention 调查 |
+| [0013](0013-hypergraph-vs-dag-separation.md) | 超图与 DAG 分工 | accepted | 2026-08-29 |
+| [0014](0014-mcp-tool-coverage-principle.md) | MCP 工具覆盖原则 | accepted | 2026-08-29 |
+| [0015](0015-config-hotreload-dual-variable.md) | 配置热重载双变量切换 | accepted | 2026-08-29 |
+| [0016](0016-pass-interface-not-property.md) | 参数传接口不传属性 | accepted | 2026-08-29 |
+| [0017](0017-inductive-refactor-no-abandon.md) | 归纳性重构不放弃 | accepted | 2026-08-29 |
+| [0018](0018-loop-detector-state-machine.md) | 循环检测器状态机风格 | superseded by 0038 | 2026-08-29 |
+| [0019](0019-enum-enumvalue-source-generator.md) | 枚举 + EnumValue + 源码生成器 | accepted | 2026-08-29 |
+| [0020](0020-encapsulation-requirements.md) | 封装要求 | accepted | 2026-08-29 |
+| [0021](0021-e2e-script-mode-inferred.md) | E2E 脚本 Mode 计算属性 | accepted | 2026-08-29 |
+| [0022](0022-csharp-ast-cli-over-regex.md) | C# AST CLI 优先于正则 | accepted | 2026-08-29 |
+| [0023](0023-subtraction-over-addition.md) | 减法思维优先 | accepted | 2026-08-29 |
+| [0024](0024-no-symptomatic-fix-chain.md) | 治标不治本禁令 | accepted | 2026-08-29 |
+| [0025](0025-archive-dead-imcpprotocolhandler.md) | 归档 IMcpProtocolHandler 死接口 | accepted | 2026-08-29 |
+| [0079](0079-anti-pattern-examples.md) | 反例清单（踩过的坑，禁止再犯） | accepted | 2026-09-08 |
+| [0086](0086-core-tech-selection-lock-design.md) | 核心技术选型与锁设计 | accepted | 2026-09-08 |
+| [0087](0087-batch-replace-csharp-source-rules.md) | 批量替换 C# 源码禁令与导向 | accepted | 2026-09-08 |
 
-### 系统提示词与缓存优化（0055-0056）
+### 工程实践 / CI / 测试
 
-| 编号 | 标题 | 状态 | 来源 |
+| 编号 | 标题 | 状态 | 日期 |
 |------|------|------|------|
-| 0055 | 系统提示词 section 注入优化空间 | proposed | 60 section vs TS 20 section 调查 |
-| 0056 | 缓存破坏检测维度补齐 — 双阈值+TTL+agent 隔离 | accepted | CacheBreakDetector vs TS promptCacheBreakDetection 对比 |
+| [0026](0026-pr-two-stage-pipeline.md) | PR 两段式流水线验证 | accepted | 2026-08-29 |
+| [0027](0027-treat-warnings-as-errors.md) | TreatWarningsAsErrors 零警告容忍 | accepted | 2026-08-29 |
+| [0028](0028-invariant-globalization.md) | InvariantGlobalization 渐进式双语策略 | accepted | 2026-08-29 |
+| [0029](0029-analyzer-rules-jcc5002-jcc9006.md) | 分析器铁律 JCC5002/JCC9006 | accepted | 2026-08-29 |
+| [0030](0030-e2e-real-service-strategy.md) | E2E 真实服务策略 | accepted | 2026-08-29 |
+| [0031](0031-http-connection-pool-dns.md) | HTTP 连接池 DNS 刷新 | accepted | 2026-08-29 |
+| [0076](0076-dotnet-test-build-output-rules.md) | .NET 测试和构建输出禁令与 CLI 运行时测试 | accepted | 2026-09-08 |
+| [0077](0077-mockserver-jcc-joint-testing.md) | MockServer + jcc 联合测试 | accepted | 2026-09-08 |
+| [0078](0078-merge-e2e-synonym-rules.md) | 合并与 E2E 同义词规则 | accepted | 2026-09-08 |
+| [0080](0080-manual-exe-testing-guide.md) | 手动测试 exe 功能与推荐配置 | accepted | 2026-09-08 |
+| [0082](0082-gui-async-test-avalonia.md) | GUI 异步 UI 测试与启动 exe 测试 | accepted | 2026-09-08 |
+| [0083](0083-e2e-script-mode-spec.md) | E2E 测试脚本模式规范 | accepted | 2026-09-08 |
+| [0088](0088-test-execution-rules.md) | 测试执行规则 | accepted | 2026-09-08 |
 
-### TS 原版缺口补齐（0057）
+### 平台与传输层
 
-| 编号 | 标题 | 状态 | 来源 |
+| 编号 | 标题 | 状态 | 日期 |
 |------|------|------|------|
-| 0057 | TS P0 缺口补齐 — LSP+Analytics | proposed | jcc vs TS 全量差异分析 |
+| [0032](0032-computeruse-win32-pinvoke.md) | ComputerUse P0 纯 Win32 P/Invoke | accepted | 2026-08-29 |
+| [0033](0033-transport-fallback-chain-priority.md) | 传输层 Fallback 链优先级 | accepted | 2026-08-29 |
+| [0034](0034-command-interception-layered.md) | 命令拦截分层 Guard+Interceptor+Dispatcher | superseded by 0039 | 2026-08-29 |
+| [0035](0035-tool-progressive-exposure.md) | 工具渐进式暴露 | accepted | 2026-08-29 |
+| [0036](0036-defense-in-depth-l1-l10.md) | 纵深防御 L1-L10 | accepted | 2026-08-29 |
+| [0037](0037-redirect-soft-guidance.md) | Redirect 软引导而非硬转交 | accepted | 2026-08-29 |
+| [0084](0084-platform-windows-env-rules.md) | 平台专属操作禁令与 Windows 命令行环境 | accepted | 2026-09-08 |
 
-### 脚本超时与路径校验（0061-0062）
+### 状态机 / 错误码 / 序列化
 
-| 编号 | 标题 | 状态 | 来源 |
+| 编号 | 标题 | 状态 | 日期 |
 |------|------|------|------|
-| 0061 | 脚本超时关键字自动捕获机制 | accepted | 脚本 wait/sleep 默认超时终止问题 |
-| 0062 | 路径存在性前置检查与乱码检测 | accepted | LLM 乱码路径触发 ask 面板问题 |
+| [0038](0038-state-machine-flags-guard.md) | 状态机 + 守卫 + [Flags] 位标志 | accepted | 2026-08-29 |
+| [0039](0039-command-interception-state-machine.md) | 命令拦截全状态机 + 守卫 + [Flags] | accepted | 2026-08-29 |
+| [0040](0040-enterprise-fsm-framework.md) | 企业级状态机框架 — 转换表 + 守卫 + 共享上下文 | accepted | 2026-08-29 |
+| [0041](0041-fsm-source-generator.md) | Fsm 源码生成器 + 特性 + 事件订阅 | accepted | 2026-08-29 |
+| [0042](0042-json-relaxed-serializer-unification.md) | JSON 序列化统一收口 — RelaxedJsonSerializer 单一入口 | accepted | 2026-08-30 |
+| [0043](0043-unified-cleanup-functions.md) | 收口函数统一 — 命名/参数/异常/幂等性 | accepted | 2026-08-29 |
+| [0044](0044-error-code-convention.md) | 错误码统一规范 — [PREFIX+数字] 格式 | accepted | 2026-08-29 |
+| [0045](0045-configureawait-false.md) | ConfigureAwait(false) 强制规范 | accepted | 2026-08-29 |
+| [0046](0046-register-di-pattern.md) | [Register] 特性 DI 自动注册模式 | accepted | 2026-08-29 |
 
-### 地址统一与自动更新（0063-0064）
+### 安全与并发治理
 
-| 编号 | 标题 | 状态 | 来源 |
+| 编号 | 标题 | 状态 | 日期 |
 |------|------|------|------|
-| 0063 | 统一对外暴露地址 — JccEndpoints 常量+环境变量覆盖 | proposed | 基础设施地址分散硬编码问题 |
-| 0064 | 可插拔更新源与自动更新 — IUpdateSource 四种实现 | proposed | 虚拟更新服务器+自动下载安装需求 |
+| [0047](0047-unified-danger-level-classification.md) | 统一危险指令分级系统 | accepted | 2026-08-30 |
+| [0048](0048-subagent-concurrency-unified-config.md) | 子代理并发控制统一配置入口 | accepted | 2026-09-02 |
+| [0049](0049-archive-maxconcurrentagents.md) | 归档 MaxConcurrentAgents 死配置 | accepted | 2026-09-02 |
+| [0050](0050-spawn-stage-concurrency-limit.md) | spawn 阶段 SemaphoreSlim 限流 | accepted | 2026-09-02 |
+| [0051](0051-fork-concurrency-limit.md) | Fork 并发上限 | accepted | 2026-09-02 |
+| [0052](0052-asynclock-unified-mutex-file-access.md) | AsyncLock 统一互斥锁 + 文件读写可剥离架构 | accepted | 2026-09-02 |
+| [0059](0059-asynclock-reentrancy-detection.md) | AsyncLock 同步重入检测 — LockReentrancyException 提早暴露死锁 | superseded by 0060 | 2026-09-03 |
+| [0060](0060-asynclock-sync-trylock-fireandforget-deadlock.md) | AsyncLock 同步 TryLock + StreamingToolExecutor 死锁排查 | accepted | 2026-09-04 |
 
-### CLI 子命令（0065）
+### 上下文与系统提示词
 
-| 编号 | 标题 | 状态 | 来源 |
+| 编号 | 标题 | 状态 | 日期 |
 |------|------|------|------|
-| 0065 | jcc mcp CLI 子命令 — bash 直调内部 MCP 工具 | superseded by 0069 | gh 工具无法真实调用验证 |
+| [0053](0053-context-compaction-layered-mechanism.md) | 上下文压缩分层机制 | accepted | 2026-09-02 |
+| [0054](0054-llm-output-loop-detection-intervention.md) | LLM 输出循环检测与分级干预机制 | accepted | 2026-09-02 |
+| [0055](0055-system-prompt-section-injection-optimization.md) | 系统提示词 section 注入优化空间 | proposed | 2026-09-02 |
+| [0056](0056-cache-break-detection-enhancement.md) | 缓存破坏检测维度补齐 — 双阈值 + TTL 区分 + 多 agent 隔离 | accepted | 2026-09-02 |
 
-### 前置感叹号命令（0066）
+### TS 缺口补齐
 
-| 编号 | 标题 | 状态 | 来源 |
+| 编号 | 标题 | 状态 | 日期 |
 |------|------|------|------|
-| 0066 | 前置感叹号命令 — ! 触发 AI / !! 不触发 AI（对齐 PI 设计） | proposed | PI pi.dev `!`/`!!` 前缀命令需求 |
+| [0057](0057-ts-p0-gap-alignment-lsp-analytics.md) | TS 原版 P0 缺口补齐 — LSP 集成 + Analytics 分析 | accepted | 2026-09-02 |
+| [0058](0058-ts-p1-gap-alignment-proactive-vim-permission-skills.md) | TS 原版 P1 缺口补齐 — Proactive + Vim + Permission LLM + Skills | accepted | 2026-09-02 |
 
-### CI 日志结构化展开（0067）
+### 脚本与路径校验
 
-| 编号 | 标题 | 状态 | 来源 |
+| 编号 | 标题 | 状态 | 日期 |
 |------|------|------|------|
-| 0067 | CI 日志结构化逐级展开 — Section 级 drill down | accepted | gh_run_view 逐页扫描效率低，AI 需直接跳到 error 段 |
+| [0061](0061-shell-timeout-keyword-auto-capture.md) | 脚本超时关键字自动捕获机制 | accepted | 2026-09-04 |
+| [0062](0062-path-existence-precheck-and-garbled-detection.md) | 路径存在性前置检查与乱码检测 | accepted | 2026-09-04 |
 
-### 统一持久化管道（0068）
+### 地址与自动更新
 
-| 编号 | 标题 | 状态 | 来源 |
+| 编号 | 标题 | 状态 | 日期 |
 |------|------|------|------|
-| 0068 | 统一持久化管道（Actor 模型） | accepted | 持久化层并发与一致性重构 |
+| [0063](0063-unified-external-endpoints.md) | 统一对外暴露地址 | proposed | 2026-09-05 |
+| [0064](0064-pluggable-update-source-auto-update.md) | 可插拔更新源与自动更新 | proposed | 2026-09-05 |
 
-### 启动参数完全重构（0069）
+### CLI / jcc 启动参数
 
-| 编号 | 标题 | 状态 | 来源 | 取代 |
-|------|------|------|------|------|
-| 0069 | 启动参数完全重构 — 扁平元动词+统一解析+斜杠直调 | accepted | 启动参数设计混乱、双框架并存、斜杠命令无法直调 | 取代 0065 |
+| 编号 | 标题 | 状态 | 日期 |
+|------|------|------|------|
+| [0065](0065-jcc-mcp-subcommand.md) | jcc mcp CLI 子命令 — bash 直调内部 MCP 工具 | superseded by 0069 | 2026-09-05 |
+| [0066](0066-prefix-exclamation-command.md) | 前置感叹号命令（! 触发 AI / !! 不触发 AI） | proposed | 2026-09-05 |
+| [0069](0069-cli-args-full-refactor.md) | 启动参数完全重构 — 扁平元动词 + 统一解析框架 + 斜杠命令直调 | accepted | 2026-09-06 |
+| [0070](0070-rg-engine-mmap-plinq.md) | jcc rg 内置 ripgrep 兼容搜索 — RgEngine 独立实现（mmap + PLINQ + 零 GC） | accepted | 2026-09-06 |
+| [0089](0089-jcc-builtin-tools-only-no-system-gh-rg.md) | jcc 自带工具统一入口 — 禁止系统/宿主环境的 gh / rg | accepted | 2026-09-08 |
+| [0090](0090-jcc-gh-cli-subcommand.md) | `jcc gh` CLI 子命令 — 扁平元动词 + schema 驱动参数绑定 | accepted | 2026-09-08 |
 
-### jcc rg 内置 ripgrep 兼容搜索（0070）
+### 持久化 / CI 日志 / Actor
 
-| 编号 | 标题 | 状态 | 来源 | 取代 |
-|------|------|------|------|------|
-| 0070 | jcc rg 内置 ripgrep 兼容搜索 — RgEngine 独立实现（mmap + PLINQ + 零 GC） | accepted | 需在 jcc 内置高性能文本搜索，复用 ISearchService 无法满足 mmap+Span 需求 |
+| 编号 | 标题 | 状态 | 日期 |
+|------|------|------|------|
+| [0067](0067-ci-log-structured-drill-down.md) | CI 日志结构化逐级展开（Section 级 drill down） | accepted | 2026-09-06 |
+| [0068](0068-unified-persistence-pipeline-actor.md) | 统一持久化管道（Actor 模型） | accepted | 2026-09-06 |
+| [0074](0074-actor-supervisor-tree.md) | Actor 监督树 — Router/Gateway/Supervisor/PersistentMailbox 四层扩展 | accepted | 2026-09-08 |
 
-### IFileSystem.EditFileAsync 原子编辑接口（0071）
+### 文件 I/O 与 Span 优化
 
-| 编号 | 标题 | 状态 | 来源 | 取代 |
-|------|------|------|------|------|
-| 0071 | IFileSystem.EditFileAsync 原子编辑接口 — per-file AsyncLock 串行化 | accepted | 上层 Read→改→Write 模式有丢失更新风险，需底层原子编辑6 |
+| 编号 | 标题 | 状态 | 日期 |
+|------|------|------|------|
+| [0071](0071-editfileasync-per-file-asynclock.md) | IFileSystem.EditFileAsync 原子编辑接口 — per-file AsyncLock 串行化 | accepted | 2026-09-07 |
+| [0072](0072-mmap-plinq-span-proliferation.md) | mmap + PLINQ + 零 GC Span 技术推广 — 从 RgEngine 到全项目文件遍历 | accepted | 2026-09-07 |
 
-### jcc 自带工具统一入口（0089）
+### GitHub 工具链
 
-| 编号 | 标题 | 状态 | 来源 | AGENTS.md 对应位置 |
-|------|------|------|------|-------------------|
-| 0089 | jcc 自带工具统一入口 — 禁止系统/宿主环境的 gh / rg | accepted | jcc 已自带 390 工具 + `jcc rg`，AI 仍在裸调系统 gh/rg | 平台专属操作禁令·jcc 自带工具统一入口 / Git 规范表 |
-| 0090 | `jcc gh` CLI 子命令 — 扁平元动词 + schema 驱动参数绑定 | accepted | `mcp_call gh_*` 要手写 JSON；`jcc gh` 未被注册为子命令 | 平台专属操作禁令·gh 工具 CLI 形态 |
+| 编号 | 标题 | 状态 | 日期 |
+|------|------|------|------|
+| [0073](0073-gh-rest-api-direct-call.md) | gh_* MCP 工具重写为 GitHub REST API 直调（摆脱系统 gh 依赖） | proposed | 2026-09-07 |
+| [0075](0075-gh-cli-troubleshooting-guide.md) | gh CLI 排错避坑指南 | accepted | 2026-09-08 |
+
+### 数据与核心选型
+
+| 编号 | 标题 | 状态 | 日期 |
+|------|------|------|------|
+| [0085](0085-data-container-selection-spec.md) | 数据容器选型规范 | accepted | 2026-09-08 |
+
+## 取代链（历史追溯）
+
+| 旧 ADR | 状态 | 取代者 |
+|--------|------|--------|
+| [0012](0012-two-itoolhandler-interfaces.md) | 双 IToolHandler 接口不合并 | [0025](0025-archive-dead-imcpprotocolhandler.md) |
+| [0018](0018-loop-detector-state-machine.md) | 循环检测器状态机风格 | [0038](0038-state-machine-flags-guard.md) |
+| [0034](0034-command-interception-layered.md) | 命令拦截分层 Guard+Interceptor+Dispatcher | [0039](0039-command-interception-state-machine.md) |
+| [0059](0059-asynclock-reentrancy-detection.md) | AsyncLock 同步重入检测 — LockReentrancyException 提早暴露死锁 | [0060](0060-asynclock-sync-trylock-fireandforget-deadlock.md) |
+| [0065](0065-jcc-mcp-subcommand.md) | jcc mcp CLI 子命令 — bash 直调内部 MCP 工具 | [0069](0069-cli-args-full-refactor.md) |
+
+## 反例与工程约束（高频查阅）
+
+| 编号 | 主题 | 一句话约束 |
+|------|------|-----------|
+| [0008](0008-archive-to-xxx-not-delete.md) | 删除 vs 归档 | 禁止删除文件，移至 `.xxx/{name}.{时间戳}.del` |
+| [0023](0023-subtraction-over-addition.md) | 减法思维 | 新增前先问能否删除/收敛已有接口 |
+| [0024](0024-no-symptomatic-fix-chain.md) | 治标不治本 | 禁止打补丁链，必须改根因 |
+| [0026](0026-pr-two-stage-pipeline.md) | PR 验证 | 创建 PR 必须开 auto-merge，CI 通过自动合并后 main 再跑 CI 二次验证 |
+| [0027](0027-treat-warnings-as-errors.md) | 零警告 | TreatWarningsAsErrors 全开，分析器铁律 JCC5002/JCC9006 |
+| [0028](0028-invariant-globalization.md) | 区域文化 | InvariantGlobalization 渐进式，先英文再中文 |
+| [0030](0030-e2e-real-service-strategy.md) | E2E 真实 | E2E 优先用真实服务 + MockServer+jcc 联合 |
+| [0043](0043-unified-cleanup-functions.md) | 收口函数 | 命名/参数/异常/幂等性四统一 |
+| [0044](0044-error-code-convention.md) | 错误码 | [PREFIX+数字] 格式，向参数错误用 Rust 风格报错 |
+| [0061](0061-shell-timeout-keyword-auto-capture.md) | 脚本超时 | wait/sleep 等关键字被自动加超时 |
+| [0062](0062-path-existence-precheck-and-garbled-detection.md) | 路径校验 | 外部传入路径必须前置存在性 + 乱码检测 |
+| [0076](0076-dotnet-test-build-output-rules.md) | 构建/测试输出 | 禁止散落 .csproj 同级输出，统一到 `artifacts/bin|obj/` |
+| [0079](0079-anti-pattern-examples.md) | 反例清单 | 踩过的坑禁止再犯 |
+| [0083](0083-e2e-script-mode-spec.md) | E2E 脚本 | E2E 脚本模式 Mode 必须由输入推导 |
+| [0084](0084-platform-windows-env-rules.md) | 平台操作禁令 | 禁用会卡交互的命令、PowerShell 严禁 HEREDOC |
+| [0087](0087-batch-replace-csharp-source-rules.md) | 批量替换 | 必须先在单文件验证 → 才能推广到全部位置 |
+| [0088](0088-test-execution-rules.md) | 测试执行 | 子智能体禁止全量测试，编译+冒烟后由主智能体执行 |
+| [0089](0089-jcc-builtin-tools-only-no-system-gh-rg.md) | jcc 工具统一入口 | ⛔ 禁止系统/宿主 gh/rg，统一用 `jcc rg` / `jcc mcp_call gh_*` / `jcc gh` |

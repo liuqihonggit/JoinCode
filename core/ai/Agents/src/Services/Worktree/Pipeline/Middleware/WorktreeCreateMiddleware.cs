@@ -24,6 +24,11 @@ public sealed partial class WorktreeCreateMiddleware : ServiceEntity, IWorktreeC
     {
         var opts = context.Options ?? new WorktreeOptions();
         var gitRoot = context.GitRoot;
+        if (string.IsNullOrEmpty(gitRoot))
+        {
+            gitRoot = !string.IsNullOrEmpty(context.OriginalCwd) ? context.OriginalCwd : _fs.GetCurrentDirectory();
+            context.GitRoot = gitRoot;
+        }
         var worktreePath = context.WorktreePath;
         var branchName = context.BranchName;
 

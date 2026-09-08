@@ -354,19 +354,21 @@ public class InProcessTeammateTaskExecutorTests
             .Returns(Task.CompletedTask);
 
         var worktreeServiceMock = new Mock<IAgentWorktreeService>();
-        worktreeServiceMock
-            .Setup(x => x.CreateAgentWorktreeAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<WorktreeOptions?>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(WorktreeCreateResult.SuccessResult(new AgentWorktreeSession
-            {
-                AgentId = agent.ObjectId.UniqueId,
-                OriginalCwd = "D:\\repo",
-                WorktreePath = "D:\\repo\\.worktrees\\agent-wt",
-                BranchName = "wt/agent-wt",
-                GitRootPath = "D:\\repo",
-                CreatedAt = DateTime.UtcNow
-            }));
+
+        var wtSession = new AgentWorktreeSession
+        {
+            AgentId = agent.ObjectId.UniqueId,
+            OriginalCwd = "D:\\repo",
+            WorktreePath = "D:\\repo\\.worktrees\\agent-wt",
+            BranchName = "wt/agent-wt",
+            GitRootPath = "D:\\repo",
+            CreatedAt = DateTime.UtcNow
+        };
 
         var worktreeManagerMock = new Mock<IAgentWorktreeManager>();
+        worktreeManagerMock
+            .Setup(x => x.CreateWorktreeForAgentAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(wtSession);
         worktreeManagerMock
             .Setup(x => x.CleanupWorktreeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(WorktreeCleanupDetail.SuccessfullyRemoved);
@@ -389,7 +391,7 @@ public class InProcessTeammateTaskExecutorTests
         var result = await executor.ExecuteTeammateAsync(definition).ConfigureAwait(true);
 
         result.IsSuccess.Should().BeTrue();
-        worktreeServiceMock.Verify(x => x.CreateAgentWorktreeAsync(agent.ObjectId.UniqueId, It.IsAny<string?>(), It.IsAny<WorktreeOptions?>(), It.IsAny<CancellationToken>()), Times.Once);
+        worktreeManagerMock.Verify(x => x.CreateWorktreeForAgentAsync(agent.ObjectId.UniqueId, It.IsAny<CancellationToken>()), Times.Once);
         worktreeManagerMock.Verify(x => x.CleanupWorktreeAsync(agent.ObjectId.UniqueId, It.IsAny<CancellationToken>()), Times.Once);
         agent.Options.WorktreePath.Should().Be("D:\\repo\\.worktrees\\agent-wt");
         agent.Options.WorktreeBranch.Should().Be("wt/agent-wt");
@@ -417,6 +419,9 @@ public class InProcessTeammateTaskExecutorTests
             .ReturnsAsync(WorktreeCreateResult.FailureResult("disk full"));
 
         var worktreeManagerMock = new Mock<IAgentWorktreeManager>();
+        worktreeManagerMock
+            .Setup(x => x.CreateWorktreeForAgentAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((AgentWorktreeSession?)null);
         worktreeManagerMock
             .Setup(x => x.CleanupWorktreeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(WorktreeCleanupDetail.NotIsolated);

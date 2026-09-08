@@ -64,8 +64,14 @@ public sealed partial class WorktreeRecoveryMiddleware : ServiceEntity, IWorktre
             return;
         }
 
-        context.WorktreePath = worktreePath;
-        context.BranchName = branchName;
+        if (string.IsNullOrEmpty(context.WorktreePath))
+        {
+            context.WorktreePath = worktreePath;
+        }
+        if (string.IsNullOrEmpty(context.BranchName))
+        {
+            context.BranchName = branchName;
+        }
 
         await next(context, ct).ConfigureAwait(false);
     }

@@ -58,6 +58,56 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
+    public void RepairJson_NumberWithZeroInMiddle_PreservesNumber()
+    {
+        var result = ToolCallRepairService.RepairJson("""{"pr_number":206}""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("pr_number").GetInt32().Should().Be(206);
+    }
+
+    [Fact]
+    public void RepairJson_Number206AsString_PreservesNumber()
+    {
+        var result = ToolCallRepairService.RepairJson("""{"pr_number":"206"}""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("pr_number").GetString().Should().Be("206");
+    }
+
+    [Fact]
+    public void RepairJson_HexNumber_ConvertsToDecimal()
+    {
+        var result = ToolCallRepairService.RepairJson("""{"value":0x10}""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("value").GetInt32().Should().Be(16);
+    }
+
+    [Fact]
+    public void RepairJson_LeadingZeroNumber_StripsLeadingZeros()
+    {
+        var result = ToolCallRepairService.RepairJson("""{"value":0123}""");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("value").GetInt32().Should().Be(123);
+    }
+
+    [Fact]
+    public void RepairJson_UnquotedNumber206_PreservesNumber()
+    {
+        var result = ToolCallRepairService.RepairJson("{pr_number:206}");
+
+        result.Success.Should().BeTrue();
+        var parsed = JsonDocument.Parse(result.RepairedJson);
+        parsed.RootElement.GetProperty("pr_number").GetInt32().Should().Be(206);
+    }
+
+    [Fact]
     public void RepairJson_EmptyString_ReturnsEmptyObject()
     {
         var result = ToolCallRepairService.RepairJson("");

@@ -52,6 +52,103 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
+    public async Task PrCreate_Success_ReturnsCreatedPr()
+    {
+        _api.NextResponse = new GitHubApiResponse
+        {
+            Success = true,
+            StatusCode = 201,
+            Body = """{"number":42,"title":"feat: new","state":"open","html_url":"https://github.com/o/r/pull/42"}""",
+        };
+
+        var result = await _handler.GhPrCreateAsync("feat: new", "feature-branch", @base: "main", body: "test body", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        result.GetFirstText().Should().Contain("42");
+        _api.LastMethod.Should().Be(HttpMethod.Post);
+        _api.LastPath.Should().Be("repos/owner/repo/pulls");
+        _api.LastBody.Should().Contain("\"title\":\"feat: new\"");
+        _api.LastBody.Should().Contain("\"head\":\"feature-branch\"");
+        _api.LastBody.Should().Contain("\"base\":\"main\"");
+        _api.LastBody.Should().Contain("\"body\":\"test body\"");
+    }
+
+    [Fact]
+    public async Task PrCreate_DraftTrue_IncludesDraftField()
+    {
+        _api.NextResponse = new GitHubApiResponse
+        {
+            Success = true,
+            StatusCode = 201,
+            Body = """{"number":43,"title":"draft","state":"open","draft":true}""",
+        };
+
+        var result = await _handler.GhPrCreateAsync("draft", "branch", draft: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastBody.Should().Contain("\"draft\":true");
+    }
+
+    [Fact]
+    public async Task PrMerge_AutoMergeTrue_CallsGraphQLEnableAutomerge()
+    {
+        _api.EnqueueResponse(new GitHubApiResponse
+        {
+            Success = true,
+            StatusCode = 200,
+            Body = """{"number":206,"node_id":"PR_kwDOTVZE0c8AAAABCsFVdw"}""",
+        });
+        _api.EnqueueResponse(new GitHubApiResponse
+        {
+            Success = true,
+            StatusCode = 200,
+            Body = """{"data":{"enablePullRequestAutoMerge":{"pullRequest":{"number":206}}}}""",
+        });
+
+        var result = await _handler.GhPrMergeAsync("206", merge_method: "squash", auto_merge: true, repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastMethod.Should().Be(HttpMethod.Post);
+        _api.LastPath.Should().Be("graphql");
+        _api.LastBody.Should().Contain("enablePullRequestAutoMerge");
+        _api.LastBody.Should().Contain("SQUASH");
+        _api.LastBody.Should().Contain("PR_kwDOTVZE0c8AAAABCsFVdw");
+    }
+
+    [Fact]
+    public async Task PrMerge_AutoMergeFalse_CallsMergeEndpoint()
+    {
+        _api.NextResponse = new GitHubApiResponse
+        {
+            Success = true,
+            StatusCode = 200,
+            Body = "{}",
+        };
+
+        var result = await _handler.GhPrMergeAsync("42", merge_method: "squash", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        _api.LastMethod.Should().Be(HttpMethod.Put);
+        _api.LastPath.Should().Be("repos/owner/repo/pulls/42/merge");
+    }
+
+    [Fact]
+    public async Task PrCreate_Failure_ReturnsError()
+    {
+        _api.NextResponse = new GitHubApiResponse
+        {
+            Success = false,
+            StatusCode = 422,
+            Error = "Validation failed",
+        };
+
+        var result = await _handler.GhPrCreateAsync("title", "branch", repo: "owner/repo");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("Validation failed");
+    }
+
+    [Fact]
     public async Task PrChecks_Skipping_NotCountedAsFail()
     {
         _api.EnqueueResponse(new GitHubApiResponse
@@ -312,13 +409,15 @@ public sealed class GitHubToolHandlersTests
     [Fact]
     public async Task PrMerge_DefaultSquash_AppendsAutoWhenRequested()
     {
-        _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = "" };
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"number":5,"node_id":"PR_test123"}""" });
+        _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"data":{"enablePullRequestAutoMerge":{"pullRequest":{"number":5}}}}""" });
 
         await _handler.GhPrMergeAsync("5", auto_merge: true, repo: "owner/repo");
 
-        _api.LastMethod.Should().Be(HttpMethod.Put);
-        _api.LastPath.Should().Be("repos/owner/repo/pulls/5/enable-automerge");
-        _api.LastBody.Should().Contain("squash");
+        _api.LastMethod.Should().Be(HttpMethod.Post);
+        _api.LastPath.Should().Be("graphql");
+        _api.LastBody.Should().Contain("enablePullRequestAutoMerge");
+        _api.LastBody.Should().Contain("SQUASH");
     }
 
     [Fact]

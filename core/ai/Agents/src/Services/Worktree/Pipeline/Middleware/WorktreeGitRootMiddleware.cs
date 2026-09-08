@@ -18,6 +18,12 @@ public sealed partial class WorktreeGitRootMiddleware : ServiceEntity, IWorktree
 
     public async Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct)
     {
+        if (!string.IsNullOrEmpty(context.GitRoot))
+        {
+            await next(context, ct).ConfigureAwait(false);
+            return;
+        }
+
         var gitRoot = context.GitRootPath ?? await FindGitRootAsync(_fs.GetCurrentDirectory()).ConfigureAwait(false);
         if (string.IsNullOrEmpty(gitRoot))
         {
@@ -26,7 +32,10 @@ public sealed partial class WorktreeGitRootMiddleware : ServiceEntity, IWorktree
         }
 
         context.GitRoot = gitRoot;
-        context.OriginalCwd = _fs.GetCurrentDirectory();
+        if (string.IsNullOrEmpty(context.OriginalCwd))
+        {
+            context.OriginalCwd = _fs.GetCurrentDirectory();
+        }
 
         await next(context, ct).ConfigureAwait(false);
     }

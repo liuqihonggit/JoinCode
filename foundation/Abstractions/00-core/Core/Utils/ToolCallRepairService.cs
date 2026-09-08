@@ -887,8 +887,9 @@ internal static class ToolCallRepairService
                 continue;
             }
 
-            // 十六进制：0x / 0X 后跟十六进制数字
-            if (json[i] == '0' && i + 1 < json.Length && (json[i + 1] == 'x' || json[i + 1] == 'X'))
+            // 十六进制：0x / 0X 后跟十六进制数字（仅在数字 token 起点触发，避免 206 中的 0x 误匹配）
+            if (json[i] == '0' && i + 1 < json.Length && (json[i + 1] == 'x' || json[i + 1] == 'X')
+                && (i == 0 || !IsAlphaNumeric(json[i - 1])))
             {
                 int j = i + 2;
                 int hexStart = j;
@@ -906,7 +907,9 @@ internal static class ToolCallRepairService
             }
 
             // 前导零整数：0 紧跟数字（如 0123）→ 去前导零（保留至少一位）
-            if (json[i] == '0' && i + 1 < json.Length && json[i + 1] is >= '0' and <= '9')
+            // 仅在数字 token 起点触发（前一个字符非字母数字），避免 206 中的 06 被误判为前导零
+            if (json[i] == '0' && i + 1 < json.Length && json[i + 1] is >= '0' and <= '9'
+                && (i == 0 || !IsAlphaNumeric(json[i - 1])))
             {
                 int j = i + 1;
                 while (j < json.Length && json[j] is >= '0' and <= '9') j++;

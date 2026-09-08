@@ -12,7 +12,10 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
     private readonly ILogger? _logger;
     private readonly IClockService _clock;
     private readonly ConcurrentDictionary<string, AgentWorktreeSession> _worktreeSessions;
+    private readonly ConcurrentDictionary<string, WorktreeLifecycleGuard> _lifecycleGuards;
     private readonly bool _enableWorktreeIsolation;
+    private readonly IFileOperationService? _fileOperationService;
+    private readonly IGitCommandRunner? _gitRunner;
 
     public event EventHandler<WorktreeEventArgs>? WorktreeCreated;
     public event EventHandler<WorktreeEventArgs>? WorktreeCleaned;
@@ -22,7 +25,9 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
         IHookOrchestrator? hookOrchestrator = null,
         ILogger? logger = null,
         bool enableWorktreeIsolation = false,
-        IClockService? clock = null)
+        IClockService? clock = null,
+        IFileOperationService? fileOperationService = null,
+        IGitCommandRunner? gitRunner = null)
     {
         _worktreeService = worktreeService;
         _hookOrchestrator = hookOrchestrator;
@@ -30,6 +35,9 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
         _clock = clock ?? SystemClockService.Instance;
         _enableWorktreeIsolation = enableWorktreeIsolation && worktreeService != null;
         _worktreeSessions = new ConcurrentDictionary<string, AgentWorktreeSession>();
+        _lifecycleGuards = new ConcurrentDictionary<string, WorktreeLifecycleGuard>();
+        _fileOperationService = fileOperationService;
+        _gitRunner = gitRunner;
     }
 
     /// <summary>
@@ -71,6 +79,7 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
             if (worktreeResult.Success && worktreeResult.Session != null)
             {
                 _worktreeSessions[agentId] = worktreeResult.Session;
+                RegisterLifecycleGuard(agentId, worktreeResult.Session.WorktreePath, worktreeResult.Session.GitRootPath, worktreeResult.Session.BranchName);
                 _logger?.LogInformation(
                 AgentCoordinatorConstants.LogMessages.CreateWorktree,
                 AgentCoordinatorConstants.LogMessages.AgentWorktreeManagerPrefix, agentId, worktreeResult.Session.WorktreePath);
@@ -90,6 +99,43 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
         {
             _logger?.LogError(ex, AgentCoordinatorConstants.LogMessages.CreateWorktreeError, AgentCoordinatorConstants.LogMessages.AgentWorktreeManagerPrefix, agentId);
             return false;
+        }
+    }
+
+    /// <summary>
+    /// per-agent Worktree 创建 — 不依赖全局隔离开关，显式请求时直接创建。
+    /// 存储 session + 注册 guard，确保清理路径能找到 worktree。
+    /// </summary>
+    public async Task<AgentWorktreeSession?> CreateWorktreeForAgentAsync(string agentId, CancellationToken cancellationToken = default)
+    {
+        if (_worktreeService is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var worktreeResult = await _worktreeService.CreateAgentWorktreeAsync(agentId, cancellationToken: cancellationToken).ConfigureAwait(false);
+            if (worktreeResult.Success && worktreeResult.Session is not null)
+            {
+                _worktreeSessions[agentId] = worktreeResult.Session;
+                RegisterLifecycleGuard(agentId, worktreeResult.Session.WorktreePath, worktreeResult.Session.GitRootPath, worktreeResult.Session.BranchName);
+                _logger?.LogInformation(
+                    AgentCoordinatorConstants.LogMessages.CreateWorktree,
+                    AgentCoordinatorConstants.LogMessages.AgentWorktreeManagerPrefix, agentId, worktreeResult.Session.WorktreePath);
+                FireWorktreeCreated(agentId, worktreeResult.Session.WorktreePath, worktreeResult.Session.BranchName);
+                return worktreeResult.Session;
+            }
+
+            _logger?.LogWarning(
+                AgentCoordinatorConstants.LogMessages.CreateWorktreeFailed,
+                AgentCoordinatorConstants.LogMessages.AgentWorktreeManagerPrefix, agentId, worktreeResult.ErrorMessage);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, AgentCoordinatorConstants.LogMessages.CreateWorktreeError, AgentCoordinatorConstants.LogMessages.AgentWorktreeManagerPrefix, agentId);
+            return null;
         }
     }
 
@@ -138,7 +184,7 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
     /// </summary>
     public async Task<WorktreeCleanupDetail> CleanupWorktreeAsync(string agentId, CancellationToken cancellationToken = default)
     {
-        if (!_enableWorktreeIsolation || _worktreeService == null)
+        if (_worktreeService == null)
         {
             return WorktreeCleanupDetail.NotIsolated;
         }
@@ -167,15 +213,16 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
 
             if (!hasChanges)
             {
-                var cleanupResult = await _worktreeService.RemoveAgentWorktreeAsync(agentId, force: true, cancellationToken).ConfigureAwait(false);
-                if (cleanupResult.Success)
+                var removed = await RemoveWorktreeViaGuardAsync(agentId, cancellationToken).ConfigureAwait(false);
+                if (removed)
                 {
-                    _logger?.LogInformation(AgentCoordinatorConstants.LogMessages.CleanupWorktree, AgentCoordinatorConstants.LogMessages.AgentWorktreeManagerPrefix, agentId);
-                    FireWorktreeCleaned(agentId, removedSession.WorktreePath, removedSession.BranchName);
+                    _logger?.LogInformation("已释放git worktree,路径是:{WorktreePath} 已释放git分支:{BranchName}",
+                        removedSession.WorktreePath, removedSession.BranchName ?? "unknown");
+                    FireWorktreeCleaned(agentId, removedSession.WorktreePath, removedSession.BranchName ?? string.Empty);
                     return WorktreeCleanupDetail.SuccessfullyRemoved;
                 }
 
-                _logger?.LogWarning("Failed to remove unchanged worktree for agent {AgentId}: {Error}", agentId, cleanupResult.ErrorMessage);
+                _logger?.LogWarning("Failed to remove unchanged worktree for agent {AgentId}", agentId);
                 return new WorktreeCleanupDetail
                 {
                     Kept = true,
@@ -320,13 +367,70 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
         });
     }
 
+    /// <summary>
+    /// 为 worktree 注册生命周期守卫 — 构造时锁定路径，Dispose 时用同一路径删除，从不二次计算。
+    /// </summary>
+    private void RegisterLifecycleGuard(string agentId, string worktreePath, string mainPath, string? branchName)
+    {
+        if (_fileOperationService is null) return;
+        try
+        {
+            var guard = new WorktreeLifecycleGuard(worktreePath, mainPath, _fileOperationService, _gitRunner, branchName, _logger);
+            _lifecycleGuards[agentId] = guard;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "创建 WorktreeLifecycleGuard 失败: {AgentId}", agentId);
+        }
+    }
+
+    /// <summary>
+    /// 通过 guard 释放 worktree — 优先用构造时锁定的路径，guard 不存在时回退到 worktreeService。
+    /// </summary>
+    private async Task<bool> RemoveWorktreeViaGuardAsync(string agentId, CancellationToken cancellationToken)
+    {
+        if (_lifecycleGuards.TryRemove(agentId, out var guard))
+        {
+            var result = await guard.ReleaseAsync(force: true, cancellationToken).ConfigureAwait(false);
+            if (!result.Success)
+            {
+                _logger?.LogWarning("Guard 释放 worktree 失败: {Reason} {Error}", result.Reason, result.ErrorMessage);
+            }
+            return result.Success;
+        }
+
+        if (_worktreeService is not null)
+        {
+            var cleanupResult = await _worktreeService.RemoveAgentWorktreeAsync(agentId, force: true, cancellationToken).ConfigureAwait(false);
+            if (!cleanupResult.Success)
+            {
+                _logger?.LogWarning("WorktreeService 移除失败: {Error}", cleanupResult.ErrorMessage);
+            }
+            return cleanupResult.Success;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// 异步释放 — 遍历 guard 字典逐个 DisposeAsync，用构造时锁定的路径删除，从不二次计算。
+    /// </summary>
+    public override async ValueTask DisposeAsync()
+    {
+        foreach (var kvp in _lifecycleGuards)
+        {
+            try
+            {
+                await kvp.Value.DisposeAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex) { _logger?.LogDebug(ex, "DisposeAsync guard 清理 worktree {AgentId} 失败", kvp.Key); }
+        }
+        Dispose();
+    }
+
     protected override void OnDispose()
     {
-        foreach (var kvp in _worktreeSessions)
-        {
-            try { _worktreeService?.RemoveAgentWorktreeAsync(kvp.Key, force: true).Wait(TimeSpan.FromSeconds(5)); }
-            catch (Exception ex) { _logger?.LogDebug(ex, "OnDispose 清理 worktree {AgentId} 失败", kvp.Key); }
-        }
         _worktreeSessions.Clear();
+        _lifecycleGuards.Clear();
     }
 }

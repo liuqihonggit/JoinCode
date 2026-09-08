@@ -74,9 +74,15 @@ public sealed class WorktreeCleanupDetail
 public interface IAgentWorktreeManager
 {
     /// <summary>
-    /// 为 Agent 创建 Worktree
+    /// 为 Agent 创建 Worktree（全局隔离模式 — 依赖 EnableWorktreeIsolation 开关）
     /// </summary>
     Task<bool> CreateWorktreeAsync(string agentId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 为 Agent 创建 per-agent Worktree — 不依赖全局隔离开关，显式请求时直接创建。
+    /// 返回 worktree 会话（含路径/分支），供调用方设置到 agent.Options。失败返回 null。
+    /// </summary>
+    Task<AgentWorktreeSession?> CreateWorktreeForAgentAsync(string agentId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 清理 Agent 的 Worktree — 对齐 TS cleanupWorktreeIfNeeded

@@ -152,9 +152,21 @@ public partial class GitHubToolHandlers
 
         if (auto_merge == true)
         {
-            var enableBody = $$"""{"merge_method":"{{method}}"}""";
-            var enableResult = await _apiClient.SendAsync(HttpMethod.Put, $"repos/{owner}/{repoName}/pulls/{number}/enable-automerge", enableBody, ct: cancellationToken).ConfigureAwait(false);
-            if (!enableResult.Success) return Fail(enableResult.Error);
+            var prResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: cancellationToken).ConfigureAwait(false);
+            if (!prResult.Success) return Fail(prResult.Error);
+            string? nodeId;
+            try
+            {
+                using var doc = JsonDocument.Parse(prResult.Body);
+                nodeId = doc.RootElement.GetProperty("node_id").GetString();
+            }
+            catch (Exception ex) { return Fail($"解析 PR node_id 失败: {ex.Message}"); }
+            if (string.IsNullOrEmpty(nodeId)) return Fail("无法从 PR 响应中解析 node_id");
+
+            var graphqlMethod = method.ToUpperInvariant() switch { "SQUASH" => "SQUASH", "REBASE" => "REBASE", _ => "MERGE" };
+            var graphqlBody = $$"""{"query":"mutation { enablePullRequestAutoMerge(input: {pullRequestId: \"{{nodeId}}\", mergeMethod: {{graphqlMethod}}}) { pullRequest { number } } }"}""";
+            var graphqlResult = await _apiClient.SendAsync(HttpMethod.Post, "graphql", graphqlBody, ct: cancellationToken).ConfigureAwait(false);
+            if (!graphqlResult.Success) return Fail(graphqlResult.Error);
             return Ok($"已为 PR {number} 启用 auto-merge（{method}）");
         }
 
@@ -237,6 +249,56 @@ public partial class GitHubToolHandlers
         var body = """{"state":"open"}""";
         var result = await _apiClient.SendAsync(HttpMethod.Patch, $"repos/{owner}/{repoName}/pulls/{number}", body, ct: cancellationToken).ConfigureAwait(false);
         return result.Success ? Ok(result.Body, $"已重开 PR {number}") : Fail(result.Error);
+    }
+
+    [McpTool(GitHubToolNameConstants.GhPrCreate, "创建 PR(支持 title/head/base/body/draft)", "github")]
+    public async Task<ToolResult> GhPrCreateAsync(
+        [McpToolParameter("PR 标题", Required = true)] string title,
+        [McpToolParameter("源分支(head)", Required = true)] string head,
+        [McpToolParameter("目标分支(base,默认 main)", Required = false)] string? @base = null,
+        [McpToolParameter("PR 正文(可选,支持 markdown)", Required = false)] string? body = null,
+        [McpToolParameter("是否 draft PR(可选,默认 false)", Required = false)] bool? draft = null,
+        [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
+        [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (_apiClient is null) return ApiClientNotConfigured();
+        var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
+        if (resolved is null) return RepoNotResolved();
+        var (owner, repoName) = resolved.Value;
+
+        var jsonBody = BuildPrCreateJson(title, head, @base, body, draft);
+        var result = await _apiClient.SendAsync(HttpMethod.Post, $"repos/{owner}/{repoName}/pulls", jsonBody, ct: cancellationToken).ConfigureAwait(false);
+        return result.Success ? Ok(result.Body, "PR 创建成功") : Fail(result.Error);
+    }
+
+    /// <summary>
+    /// 构建 PR 创建 JSON 请求体 — 手动拼接避免 JsonSerializer 序列化开销(AOT 友好)
+    /// </summary>
+    private static string BuildPrCreateJson(string title, string head, string? @base, string? body, bool? draft)
+    {
+        var sb = new StringBuilder(256);
+        sb.Append("""{"title":""");
+        sb.Append(JsonEscapeString(title));
+        sb.Append(""","head":""");
+        sb.Append(JsonEscapeString(head));
+        sb.Append('"');
+        if (!string.IsNullOrWhiteSpace(@base))
+        {
+            sb.Append(""","base":""");
+            sb.Append(JsonEscapeString(@base));
+            sb.Append('"');
+        }
+        if (!string.IsNullOrWhiteSpace(body))
+        {
+            sb.Append(""","body":""");
+            sb.Append(JsonEscapeString(body));
+            sb.Append('"');
+        }
+        if (draft == true)
+            sb.Append(""","draft":true""");
+        sb.Append('}');
+        return sb.ToString();
     }
 
     /// <summary>

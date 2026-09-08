@@ -43,13 +43,13 @@
 | 6 | BridgeMainCommand(新) | ConsoleCancelScope : IDisposable **修 CTS+事件双重泄漏 bug** | 78fbd9c92 | 25 通过 |
 | 7 | BuildQueueService.ExecuteBuildAsync | BuildExecutionScope : IAsyncDisposable **修 CTS 泄漏 bug** | 7d6f5a85c | 17 通过 |
 | 8 | InProcessTeammateTask.ExecuteTeammateDirectAsync | TeammateDirectScope : IAsyncDisposable **修资源泄漏 bug** | af036f604 | 262 通过 |
+| 10 | PreventSleepScope(4处重复) | PreventSleepScope : IAsyncDisposable + DetachTo **修 StartAsync 异常泄漏 bug** | 61e95dfd7 | 908 通过 |
 
 ## 未做候选(复杂度高,待决策)
 
 | # | 候选 | 复杂点 |
 |---|------|--------|
 | 9 | AgentBase.ExecuteAsync+ExecuteStreamAsync | 已较好封装(linkedCts/scope 已 using var),价值低 |
-| 10 | PreventSleepScope(4处重复) | 模式不一致(参数不同/第4处 ContinueWith 延迟释放),封装复杂 |
 
 ## 执行进度
 
@@ -60,7 +60,8 @@
 - [x] 候选6:ConsoleCancelScope(修 bug)— 78fbd9c92
 - [x] 候选7:BuildExecutionScope(修 CTS 泄漏 bug)— 7d6f5a85c
 - [x] 候选8:TeammateDirectScope(修资源泄漏 bug)— af036f604
+- [x] 候选10:PreventSleepScope(修 StartAsync 异常泄漏 bug)— 61e95dfd7
 
 ## 总结
 
-8 个候选完成,制造 7 个新 scope 类,消除 31+ 处散落 try-finally,修 3 个泄漏 bug(CTS+事件双重泄漏、CTS 泄漏、资源泄漏)。
+9 个候选完成,制造 8 个新 scope 类,消除 35+ 处散落 try-finally/ContinueWith,修 4 个泄漏 bug(CTS+事件双重泄漏、CTS 泄漏、资源泄漏、PreventSleep 异常泄漏)。

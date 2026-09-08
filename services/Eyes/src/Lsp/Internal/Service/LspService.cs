@@ -182,21 +182,60 @@ public sealed partial class LspService : ServiceEntity, ILspService
         return [];
     }
 
-    public async Task<List<LspSymbolInformation>> SearchWorkspaceSymbolsAsync(string query, CancellationToken cancellationToken = default)
+    public async Task<List<LspSymbolInformation>> SearchWorkspaceSymbolsAsync(string query, string? workspacePath = null, string? serverName = null, CancellationToken cancellationToken = default)
     {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
 
-        var symbolParams = new LspWorkspaceSymbolParams { Query = query };
-
-        var server = _lspManager.GetAllServers().Values.FirstOrDefault();
-        if (server == null || server.State != LspServerState.Running)
+        var allServers = _lspManager.GetAllServers();
+        if (allServers.Count == 0)
         {
-            _logger?.LogWarning("No running LSP servers available for workspace symbol search");
-            return [];
+            throw new InvalidOperationException("No LSP servers configured. Call IsServerAvailableAsync first or configure lsp-servers.json.");
         }
 
+        ILspServerInstance? server;
+        string? workspaceRoot = null;
+
+        if (!string.IsNullOrEmpty(serverName))
+        {
+            if (!allServers.TryGetValue(serverName, out var namedServer))
+            {
+                var available = string.Join(", ", allServers.Keys);
+                throw new InvalidOperationException($"LSP server '{serverName}' not found. Available servers: {available}");
+            }
+            server = namedServer;
+            workspaceRoot = await GitWorkspaceResolver.FindWorkspaceRootAsync(workspacePath, _fs, cancellationToken).ConfigureAwait(false);
+            _logger?.LogInformation("Workspace symbol search: server='{Name}' (explicit), workspace='{Root}'", server.Name, workspaceRoot ?? "(null)");
+        }
+        else if (!string.IsNullOrEmpty(workspacePath) && _fileOperationService.FileExists(workspacePath))
+        {
+            server = await _lspManager.EnsureServerStartedAsync(workspacePath, cancellationToken).ConfigureAwait(false);
+            if (server == null)
+            {
+                throw new InvalidOperationException($"No LSP server matches file extension: {Path.GetExtension(workspacePath)}. Available servers: {string.Join(", ", allServers.Keys)}");
+            }
+            _logger?.LogInformation("Workspace symbol search: server='{Name}' (auto-detected from file), workspace='{Root}'", server.Name, workspacePath);
+        }
+        else
+        {
+            server = allServers.Values.FirstOrDefault(s => s.State == LspServerState.Running)
+                  ?? allServers.Values.FirstOrDefault();
+            if (server == null)
+            {
+                throw new InvalidOperationException("No LSP servers available for workspace symbol search.");
+            }
+            workspaceRoot = await GitWorkspaceResolver.FindWorkspaceRootAsync(workspacePath, _fs, cancellationToken).ConfigureAwait(false);
+            _logger?.LogInformation("Workspace symbol search: server='{Name}' (fallback), workspace='{Root}'", server.Name, workspaceRoot ?? "(null)");
+        }
+
+        if (server.State != LspServerState.Running)
+        {
+            await server.StartAsync(workspaceRoot, cancellationToken).ConfigureAwait(false);
+        }
+
+        var symbolParams = new LspWorkspaceSymbolParams { Query = query };
         var result = await server.SendRequestAsync(LspMethod.WorkspaceSymbol.ToValue(), symbolParams, cancellationToken).ConfigureAwait(false);
 
+        RecordLspMetrics("workspace_symbol");
         if (result is JsonArray)
         {
             return RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspSymbolInformation) ?? [];

@@ -161,7 +161,7 @@ public interface ILspClient : IAsyncDisposable
 
     Task<List<LspDocumentSymbol>> GetDocumentSymbolsAsync(string filePath, CancellationToken cancellationToken = default);
 
-    Task<List<LspSymbolInformation>> SearchWorkspaceSymbolsAsync(string query, CancellationToken cancellationToken = default);
+    Task<List<LspSymbolInformation>> SearchWorkspaceSymbolsAsync(string query, string? workspacePath = null, string? serverName = null, CancellationToken cancellationToken = default);
 
     Task<List<LspLocation>> GotoImplementationAsync(string filePath, int line, int character, CancellationToken cancellationToken = default);
 
@@ -476,7 +476,7 @@ public sealed partial class LspClient : ILspClient
         return new List<LspDocumentSymbol>();
     }
 
-    public async Task<List<LspSymbolInformation>> SearchWorkspaceSymbolsAsync(string query, CancellationToken cancellationToken = default)
+    public async Task<List<LspSymbolInformation>> SearchWorkspaceSymbolsAsync(string query, string? workspacePath = null, string? serverName = null, CancellationToken cancellationToken = default)
     {
         if (!IsConnected) return new List<LspSymbolInformation>();
 

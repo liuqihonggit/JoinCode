@@ -19,6 +19,7 @@ public sealed class StructuredOutputToolHandler
 
     private readonly IPersistencePipeline? _persistencePipeline;
     private readonly IFileSystem? _fs;
+    private readonly ILogger<StructuredOutputToolHandler>? _logger;
     private int _schemasLoaded;
     private const string SchemasSubDir = ".jcc" + "/" + "structured-output";
     private const string SchemasFileName = "schemas.json";
@@ -26,11 +27,13 @@ public sealed class StructuredOutputToolHandler
     public StructuredOutputToolHandler(
         SimpleJsonSchemaValidator validator,
         IPersistencePipeline? persistencePipeline = null,
-        IFileSystem? fs = null)
+        IFileSystem? fs = null,
+        ILogger<StructuredOutputToolHandler>? logger = null)
     {
         _validator = validator ?? throw new ArgumentNullException(nameof(validator));
         _persistencePipeline = persistencePipeline;
         _fs = fs;
+        _logger = logger;
     }
 
     /// <summary>
@@ -235,7 +238,7 @@ public sealed class StructuredOutputToolHandler
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"[StructuredOutput] 加载Schema失败: {ex.Message}");
+            _logger?.LogError("加载Schema失败: {Message}", ex.Message);
         }
     }
 

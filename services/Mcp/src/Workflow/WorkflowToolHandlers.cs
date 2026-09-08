@@ -11,6 +11,7 @@ public class WorkflowToolHandlers
     private readonly ICodeService? _codeService;
     private readonly IConfiguration _configuration;
     private readonly IFileSystem? _fileSystem;
+    private readonly ILogger<WorkflowToolHandlers>? _logger;
     private readonly AsyncLock _historyLock = new();
 
     // 内存中的对话历史（用于提示词模式下的多轮对话测试）
@@ -21,13 +22,15 @@ public class WorkflowToolHandlers
         IChatService? chatService,
         ICodeService? codeService,
         IConfiguration configuration,
-        IFileSystem? fileSystem = null)
+        IFileSystem? fileSystem = null,
+        ILogger<WorkflowToolHandlers>? logger = null)
     {
         _planService = planService;
         _chatService = chatService;
         _codeService = codeService;
         _configuration = configuration;
         _fileSystem = fileSystem;
+        _logger = logger;
     }
 
     private bool CheckHasAiKey()
@@ -64,7 +67,7 @@ public class WorkflowToolHandlers
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"[Workflow] 读取 auth.json 失败: {ex.Message}");
+            _logger?.LogError("读取 auth.json 失败: {Message}", ex.Message);
         }
 
         return false;

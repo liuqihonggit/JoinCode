@@ -4,19 +4,21 @@ namespace Services.Todo;
 public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposable
 {
 
-    public TodoService(IClockService clock, ITaskRuntime? taskRuntime = null, ITelemetryService? telemetryService = null, IPersistencePipeline? persistencePipeline = null, IFileSystem? fs = null)
+    public TodoService(IClockService clock, ITaskRuntime? taskRuntime = null, ITelemetryService? telemetryService = null, IPersistencePipeline? persistencePipeline = null, IFileSystem? fs = null, ILogger<TodoService>? logger = null)
     {
         _clock = clock;
         _taskRuntime = taskRuntime;
         _telemetryService = telemetryService;
         _persistencePipeline = persistencePipeline;
         _fs = fs;
+        _logger = logger;
     }
     private readonly ITaskRuntime? _taskRuntime;
     private readonly ITelemetryService? _telemetryService;
     private readonly IClockService _clock;
     private readonly IPersistencePipeline? _persistencePipeline;
     private readonly IFileSystem? _fs;
+    private readonly ILogger<TodoService>? _logger;
     private readonly ConcurrentDag<TodoItem> _todoDag = new();
     private int _todosLoaded;
     private const string TodosSubDir = ".jcc" + "/" + "todo";
@@ -304,7 +306,7 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"[Todo] 加载失败: {ex.Message}");
+            _logger?.LogError("Todo 加载失败: {Message}", ex.Message);
         }
     }
 

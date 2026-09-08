@@ -200,6 +200,7 @@ d,手动验证,通过设置启动参数,通过bash调用来实际运行,真实�
 
 > 📖 规范详见 [docs/adr/README.md](docs/adr/README.md)
 
+0. **⛔ 禁止把 bug 修复报告写成 ADR** — ADR 只用于统筹"为什么选 A 放弃 B"的架构决策。bug 修复/功能开发/排错过程**不是架构决策**，用 commit message（根因+修复+验证）+ 测试复现。判断：没有真正的"替代方案（考虑过但放弃）"就不是 ADR
 1. **新架构决策必须先写 ADR**：涉及跨模块、影响全局、或选择 A 放弃 B 的决策，先在 `docs/adr/` 写 ADR（`状态：proposed`）再实现
 2. **实现后改状态**：决策落地并验证后，ADR 状态改为 `accepted`
 3. **决策被取代**：旧 ADR 状态改为 `superseded by NNNN`，新 ADR 引用旧 ADR

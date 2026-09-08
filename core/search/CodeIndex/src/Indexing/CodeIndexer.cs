@@ -508,23 +508,66 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
             if (_store.SymbolsByFqn.Count == 0)
             {
                 _logger?.LogInformation("CodeIndexer: 索引为空,自动构建工作区 {Root}", root);
-                var options = new CodeIndexOptions { WorkspaceRoot = root };
-                await BuildIndexAsync(options, ct).ConfigureAwait(false);
-                try
-                {
-                    await _persistence.SaveAsync(dir, ct).ConfigureAwait(false);
-                    _logger?.LogInformation("CodeIndexer: 自动构建完成并持久化到 {Dir}", dir);
-                }
-                catch (Exception persistEx)
-                {
-                    _logger?.LogWarning(persistEx, "CodeIndexer: 自动构建后持久化失败(内存索引仍可用)");
-                }
+                await RebuildAndPersistAsync(root, dir, ct).ConfigureAwait(false);
+            }
+            else if (IsIndexStale(root))
+            {
+                _logger?.LogInformation("CodeIndexer: 索引已过时(git HEAD 比 LastUpdated 新),自动重建工作区 {Root}", root);
+                await RebuildAndPersistAsync(root, dir, ct).ConfigureAwait(false);
             }
         }
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "CodeIndexer: 自动加载索引失败");
         }
+    }
+
+    /// <summary>
+    /// 重建索引并持久化到磁盘
+    /// </summary>
+    private async Task RebuildAndPersistAsync(string root, string dir, CancellationToken ct)
+    {
+        var options = new CodeIndexOptions { WorkspaceRoot = root };
+        await BuildIndexAsync(options, ct).ConfigureAwait(false);
+        try
+        {
+            await _persistence.SaveAsync(dir, ct).ConfigureAwait(false);
+            _logger?.LogInformation("CodeIndexer: 重建完成并持久化到 {Dir}", dir);
+        }
+        catch (Exception persistEx)
+        {
+            _logger?.LogWarning(persistEx, "CodeIndexer: 重建后持久化失败(内存索引仍可用)");
+        }
+    }
+
+    /// <summary>
+    /// 检查索引是否过时 — 比较 .git/HEAD 修改时间与索引 LastUpdated
+    /// </summary>
+    private bool IsIndexStale(string workspaceRoot)
+    {
+        try
+        {
+            var gitHeadPath = _fs.CombinePath(workspaceRoot, ".git");
+            if (_fs.FileExists(gitHeadPath))
+            {
+                var headModified = _fs.GetLastWriteTimeUtc(gitHeadPath);
+                return headModified > _store.LastUpdated;
+            }
+            if (_fs.DirectoryExists(gitHeadPath))
+            {
+                var headFile = _fs.CombinePath(gitHeadPath, "HEAD");
+                if (_fs.FileExists(headFile))
+                {
+                    var headModified = _fs.GetLastWriteTimeUtc(headFile);
+                    return headModified > _store.LastUpdated;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "CodeIndexer: 检查索引新鲜度失败");
+        }
+        return false;
     }
 
     /// <summary>

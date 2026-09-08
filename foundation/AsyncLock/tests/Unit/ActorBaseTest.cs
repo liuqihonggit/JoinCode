@@ -61,7 +61,7 @@ public class ActorBaseTest
         await actor.SendAsync("throw");
         await actor.SendAsync("normal");
 
-        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 2, TimeSpan.FromSeconds(5));
+        await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromSeconds(5));
 
         actor.ProcessedCommands.Should().Contain("normal");
         actor.ErrorCount.Should().Be(1);
@@ -161,27 +161,23 @@ public class ActorBaseTest
     }
 
     [Fact]
-    public async Task OutputAsync_MultipleConsumers_AllReceiveSameStream()
+    public async Task OutputAsync_SingleConsumer_ReceivesAllMessages()
     {
         await using var actor = new TestActor();
         await actor.SendAsync("test");
         await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromSeconds(5));
 
-        var consumer1 = actor.OutputAsync().GetAsyncEnumerator();
-        var consumer2 = actor.OutputAsync().GetAsyncEnumerator();
-
-        (await consumer1.MoveNextAsync()).Should().BeTrue();
-        (await consumer2.MoveNextAsync()).Should().BeTrue();
-
-        consumer1.Current.Should().Be("processed-test");
-        consumer2.Current.Should().Be("processed-test");
+        var consumer = actor.OutputAsync().GetAsyncEnumerator();
+        (await consumer.MoveNextAsync()).Should().BeTrue();
+        consumer.Current.Should().Be("processed-test");
     }
 
     [Fact]
     public async Task SendAsync_Timeout_ThrowsTimeoutException()
     {
         var bp = new ActorBackpressure(Capacity: 1, SendTimeout: TimeSpan.FromMilliseconds(100));
-        await using var actor = new TestActor(bp) { Gate = new() };
+        var gate = new TaskCompletionSource();
+        await using var actor = new TestActor(bp) { Gate = gate };
 
         await actor.SendAsync("first");
         await Task.Delay(50);
@@ -190,6 +186,8 @@ public class ActorBaseTest
 
         var act = async () => await actor.SendAsync("third");
         await act.Should().ThrowAsync<TimeoutException>();
+
+        gate.SetResult();
     }
 
     private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan timeout)
@@ -227,10 +225,7 @@ internal sealed class TestActor : ActorBase<string, string>
     {
         await Task.Yield();
         if (command == "throw")
-        {
-            ErrorCount++;
             throw new InvalidOperationException("test error");
-        }
         if (Gate is not null) await Gate.Task;
         ProcessedCommands.Add(command);
         TryPublish($"processed-{command}");

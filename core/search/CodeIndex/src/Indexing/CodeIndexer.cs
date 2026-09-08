@@ -492,20 +492,33 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
 
             _autoDiscoveredWorkspaceRoot = root;
             var dir = Path.Combine(root, AutoLoadSubDir);
-            if (!await _persistence.ExistsAsync(dir, ct).ConfigureAwait(false))
+            if (await _persistence.ExistsAsync(dir, ct).ConfigureAwait(false))
             {
-                _logger?.LogDebug("CodeIndexer: 持久化索引不存在 {Dir},跳过加载", dir);
-                return;
+                var loaded = await _persistence.LoadAsync(dir, ct).ConfigureAwait(false);
+                if (loaded)
+                {
+                    _logger?.LogInformation("CodeIndexer: 自动加载索引成功 from {Dir}", dir);
+                }
+                else
+                {
+                    _logger?.LogDebug("CodeIndexer: 持久化索引版本不匹配或为空 {Dir}", dir);
+                }
             }
 
-            var loaded = await _persistence.LoadAsync(dir, ct).ConfigureAwait(false);
-            if (loaded)
+            if (_store.SymbolsByFqn.Count == 0)
             {
-                _logger?.LogInformation("CodeIndexer: 自动加载索引成功 from {Dir}", dir);
-            }
-            else
-            {
-                _logger?.LogDebug("CodeIndexer: 持久化索引版本不匹配或为空 {Dir}", dir);
+                _logger?.LogInformation("CodeIndexer: 索引为空,自动构建工作区 {Root}", root);
+                var options = new CodeIndexOptions { WorkspaceRoot = root };
+                await BuildIndexAsync(options, ct).ConfigureAwait(false);
+                try
+                {
+                    await _persistence.SaveAsync(dir, ct).ConfigureAwait(false);
+                    _logger?.LogInformation("CodeIndexer: 自动构建完成并持久化到 {Dir}", dir);
+                }
+                catch (Exception persistEx)
+                {
+                    _logger?.LogWarning(persistEx, "CodeIndexer: 自动构建后持久化失败(内存索引仍可用)");
+                }
             }
         }
         catch (Exception ex)

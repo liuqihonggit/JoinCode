@@ -13,4 +13,5 @@ public sealed record GraphPersistenceData
     public required List<ProjectInfo> Projects { get; init; }
     public required List<ProjectReferenceEdge> ProjectReferences { get; init; }
     public required List<NuGetPackageReference> NuGetReferences { get; init; }
+    public required List<FileTrackingInfo> FileTracking { get; init; }
 }

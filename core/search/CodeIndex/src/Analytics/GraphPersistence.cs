@@ -38,6 +38,13 @@ public sealed class GraphPersistence : ServiceEntity, IGraphPersistence
                 Projects = _store.Projects.Values.ToList(),
                 ProjectReferences = _store.ProjectRefs.Values.SelectMany(v => v).ToList(),
                 NuGetReferences = _store.NuGetRefs.Values.SelectMany(v => v).ToList(),
+                FileTracking = _store.FileTracking.Values.Select(e => new FileTrackingInfo
+                {
+                    FilePath = e.FilePath,
+                    Hash = e.Hash,
+                    SymbolCount = e.SymbolCount,
+                    LastModified = e.LastModified,
+                }).ToList(),
             };
             json = RelaxedJsonSerializer.Serialize(data, CodeIndexJsonContext.Default);
         }
@@ -184,6 +191,17 @@ public sealed class GraphPersistence : ServiceEntity, IGraphPersistence
                 _store.NuGetRefs[pkg.ProjectPath] = pkgList;
             }
             pkgList.Add(pkg);
+        }
+
+        foreach (var ft in data.FileTracking)
+        {
+            _store.FileTracking[ft.FilePath] = new FileTrackingEntry
+            {
+                FilePath = ft.FilePath,
+                Hash = ft.Hash,
+                SymbolCount = ft.SymbolCount,
+                LastModified = ft.LastModified,
+            };
         }
 
         _store.LastUpdated = data.SavedAt;

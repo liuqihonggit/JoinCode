@@ -157,6 +157,11 @@ public sealed partial class VoiceService : ServiceEntity, IVoiceService, JoinCod
 
     private async Task<string> TranscribeWithWhisperApiAsync(byte[] audioData, string? language, CancellationToken cancellationToken)
     {
+        if (string.IsNullOrEmpty(_options.WhisperApiKey))
+        {
+            throw new InvalidOperationException("未配置 Whisper API Key，请在配置文件中设置 voice.whisperApiKey");
+        }
+
         using var content = new MultipartFormDataContent();
         using var audioContent = new ByteArrayContent(audioData);
         audioContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("audio/wav");

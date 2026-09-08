@@ -19,9 +19,9 @@ internal sealed class CliCommandConsole : JoinCode.Abstractions.Interfaces.IComm
     public System.IO.TextWriter Error => TerminalHelper.Error;
 
     public void WriteLine(string message) => TerminalHelper.WriteLine(message);
-    public void WriteError(string message) => TerminalHelper.WriteLine($"{TerminalColors.Error}{message}{AnsiStyleConstants.Reset}");
+    public void WriteError(string message) => TerminalHelper.WriteError($"{TerminalColors.Error}{message}{AnsiStyleConstants.Reset}");
     public void WriteSuccess(string message) => TerminalHelper.WriteLine($"{TerminalColors.Success}{message}{AnsiStyleConstants.Reset}");
-    public void WriteWarning(string message) => TerminalHelper.WriteLine($"{TerminalColors.Warning}{message}{AnsiStyleConstants.Reset}");
+    public void WriteWarning(string message) => TerminalHelper.WriteError($"{TerminalColors.Warning}{message}{AnsiStyleConstants.Reset}");
     public void WriteRaw(string message) => TerminalHelper.WriteRaw(message);
     public void WriteErrorRaw(string message) => TerminalHelper.WriteErrorRaw(message);
     public string? ReadLine() => TerminalHelper.ReadLine();

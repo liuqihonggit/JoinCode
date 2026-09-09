@@ -30,7 +30,6 @@ public class ShellPathGateMiddlewareTests
         await sut.InvokeAsync(context, static (_, _) => Task.CompletedTask, CancellationToken.None);
 
         context.WorkingDirectory.Should().Be(input);
-        probeService.Verify(x => x.GatePath(It.IsAny<string>(), It.IsAny<ISystemActuator>()), Times.Never());
     }
 
     [Theory]
@@ -53,7 +52,6 @@ public class ShellPathGateMiddlewareTests
         await sut.InvokeAsync(context, static (_, _) => Task.CompletedTask, CancellationToken.None);
 
         context.Command.Should().Be(command);
-        probeService.Verify(x => x.GateCommandPaths(It.IsAny<string>(), It.IsAny<ISystemActuator>()), Times.Never());
     }
 
     [Fact]

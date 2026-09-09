@@ -1,8 +1,7 @@
 namespace Hands.Tests.Shell;
 
 /// <summary>
-/// PathConverter + EnvironmentProbeService.GatePath 单元测试
-/// 验证路径门控核心逻辑在不同平台和 Shell 类型下的行为
+/// PathConverter 单元测试 — 验证路径转换核心逻辑
 /// </summary>
 public class EnvironmentProbeServicePathGateTests
 {
@@ -145,119 +144,4 @@ public class EnvironmentProbeServicePathGateTests
     }
 
     #endregion
-
-    #region GatePath — 集成测试（依赖平台）
-
-    /// <summary>
-    /// GatePath 在 Windows + Bash 下应将 Windows 路径转为 POSIX
-    /// 注意：此测试在 Windows 上运行时才验证 Windows 行为
-    /// </summary>
-    [Fact]
-    public void GatePath_WindowsBash_ConvertsToPosix()
-    {
-        if (!OperatingSystem.IsWindows()) return;
-
-        var sut = CreateSut();
-        var result = sut.GatePath("C:\\Users\\test", MockProvider(SystemActuatorKind.Bash));
-        result.Should().Be("/c/Users/test");
-    }
-
-    [Fact]
-    public void GatePath_WindowsPowerShell_KeepsWindowsFormat()
-    {
-        if (!OperatingSystem.IsWindows()) return;
-
-        var sut = CreateSut();
-        var result = sut.GatePath("C:\\Users\\test", MockProvider(SystemActuatorKind.PowerShell));
-        result.Should().Be("C:\\Users\\test");
-    }
-
-    [Fact]
-    public void GatePath_WindowsCmd_KeepsWindowsFormat()
-    {
-        if (!OperatingSystem.IsWindows()) return;
-
-        var sut = CreateSut();
-        var result = sut.GatePath("C:\\Users\\test", MockProvider(SystemActuatorKind.Cmd));
-        result.Should().Be("C:\\Users\\test");
-    }
-
-    [Fact]
-    public void GatePath_WindowsPowerShell_PosixInput_ConvertsToWindows()
-    {
-        if (!OperatingSystem.IsWindows()) return;
-
-        var sut = CreateSut();
-        var result = sut.GatePath("/c/Users/test", MockProvider(SystemActuatorKind.PowerShell));
-        result.Should().Be("C:\\Users\\test");
-    }
-
-    [Fact]
-    public void GatePath_EmptyOrNull_ReturnsAsIs()
-    {
-        var sut = CreateSut();
-        sut.GatePath("", MockProvider(SystemActuatorKind.Bash)).Should().Be("");
-        sut.GatePath(null!, MockProvider(SystemActuatorKind.Bash)).Should().BeNull();
-    }
-
-    [Fact]
-    public void GatePath_WindowsBash_PosixInput_NoChange()
-    {
-        if (!OperatingSystem.IsWindows()) return;
-
-        var sut = CreateSut();
-        var result = sut.GatePath("/c/Users/test", MockProvider(SystemActuatorKind.Bash));
-        result.Should().Be("/c/Users/test");
-    }
-
-    [Fact]
-    public void GatePath_WindowsPowerShell_ForwardSlashPath_ConvertsToBackslash()
-    {
-        if (!OperatingSystem.IsWindows()) return;
-
-        var sut = CreateSut();
-        var result = sut.GatePath("C:/Users/test", MockProvider(SystemActuatorKind.PowerShell));
-        result.Should().Be("C:\\Users\\test");
-    }
-
-    [Fact]
-    public void GatePath_WindowsCmd_ForwardSlashPath_ConvertsToBackslash()
-    {
-        if (!OperatingSystem.IsWindows()) return;
-
-        var sut = CreateSut();
-        var result = sut.GatePath("C:/Users/test", MockProvider(SystemActuatorKind.Cmd));
-        result.Should().Be("C:\\Users\\test");
-    }
-
-    [Fact]
-    public void GatePath_WindowsPython_ForwardSlashPath_ConvertsToBackslash()
-    {
-        if (!OperatingSystem.IsWindows()) return;
-
-        var sut = CreateSut();
-        var result = sut.GatePath("C:/Users/test", MockProvider(SystemActuatorKind.Python));
-        result.Should().Be("C:\\Users\\test");
-    }
-
-    [Fact]
-    public void GatePath_WindowsPython_PosixInput_ConvertsToWindows()
-    {
-        if (!OperatingSystem.IsWindows()) return;
-
-        var sut = CreateSut();
-        var result = sut.GatePath("/c/Users/test", MockProvider(SystemActuatorKind.Python));
-        result.Should().Be("C:\\Users\\test");
-    }
-
-    #endregion
-
-    private static ISystemActuator MockProvider(SystemActuatorKind kind)
-    {
-        var mock = Mock.Of<ISystemActuator>(p => p.Kind == kind);
-        return mock;
-    }
-
-    private static EnvironmentProbeService CreateSut()
-        => new(Mock.Of<IToolHealthMonitor>(), NullLogger<EnvironmentProbeService>.Instance);
 }

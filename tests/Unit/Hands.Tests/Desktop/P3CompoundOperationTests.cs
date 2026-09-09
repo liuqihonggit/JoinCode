@@ -142,6 +142,7 @@ public sealed class P3CompoundOperationTests
     [Fact]
     public async Task MultiClick_ValidCoordinates_ClicksAllPoints()
     {
+        var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
         var inputMock = new Mock<IDesktopInputService>();
         inputMock.Setup(i => i.ClickAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<MouseAction>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(SuccessOp());
@@ -149,21 +150,33 @@ public sealed class P3CompoundOperationTests
 
         var result = await handler.MultiClickAsync("100,200;300,400;500,600", 100);
 
-        result.IsError.Should().BeFalse();
-        result.Content[0].Text.Should().Contain("3 步点击序列");
-        inputMock.Verify(i => i.ClickAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<MouseAction>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
+        if (env.IsInteractive)
+        {
+            result.IsError.Should().BeFalse();
+            result.Content[0].Text.Should().Contain("3 步点击序列");
+            inputMock.Verify(i => i.ClickAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<MouseAction>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
+        }
+        else
+        {
+            result.IsError.Should().BeTrue("非交互式环境应返回错误");
+            result.Content[0].Text.Should().Contain("非交互式桌面环境");
+        }
     }
 
     [Fact]
     public async Task MultiClick_InvalidCoordinates_ReturnsError()
     {
+        var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
         var inputMock = new Mock<IDesktopInputService>();
         var handler = new CompoundOperationToolHandlers(inputMock.Object);
 
         var result = await handler.MultiClickAsync("invalid");
 
         result.IsError.Should().BeTrue();
-        result.Content[0].Text.Should().Contain("解析失败");
+        if (env.IsInteractive)
+            result.Content[0].Text.Should().Contain("解析失败");
+        else
+            result.Content[0].Text.Should().Contain("非交互式桌面环境");
     }
 
     #endregion

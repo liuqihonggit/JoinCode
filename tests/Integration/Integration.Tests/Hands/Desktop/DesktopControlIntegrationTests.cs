@@ -5,12 +5,20 @@ namespace Integration.Tests;
 /// 对应 PRD §6.3 M1 验收场景，串行化运行
 /// </summary>
 [Trait("Category", "Integration")]
+[Trait("Category", "Desktop")]
 [Collection("DesktopIntegration")]
 public sealed class DesktopControlIntegrationTests
 {
     [Fact]
     public async Task FullFlow_Notepad_FindFocusTypeScreenshot_Close()
     {
+        var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
+        if (!env.IsInteractive)
+        {
+            env.Diagnostic.Should().Contain("非交互式桌面环境");
+            return;
+        }
+
         var input = new Win32DesktopInputService(new NoOpDesktopSafetyChecker());
         var windows = new Win32WindowManagementService();
         var capture = new GdiScreenCaptureService();

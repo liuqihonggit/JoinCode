@@ -6,6 +6,7 @@ namespace Integration.Tests;
 /// 用 process.MainWindowHandle 精确关联窗口，每步验证前台句柄一致性
 /// </summary>
 [Trait("Category", "Integration")]
+[Trait("Category", "Desktop")]
 [Collection("DesktopIntegration")]
 public sealed class P3CompoundOperationIntegrationTests
 {
@@ -31,6 +32,13 @@ public sealed class P3CompoundOperationIntegrationTests
     [Fact]
     public async Task RightClickMenu_Notepad_PopupAppears_ThenEscape()
     {
+        var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
+        if (!env.IsInteractive)
+        {
+            env.Diagnostic.Should().Contain("非交互式桌面环境");
+            return;
+        }
+
         var input = new Win32DesktopInputService(new NoOpDesktopSafetyChecker());
         var windows = new Win32WindowManagementService();
         var capture = new GdiScreenCaptureService();
@@ -78,6 +86,16 @@ public sealed class P3CompoundOperationIntegrationTests
     [Fact]
     public async Task MultiClick_Notepad_FocusPreserved()
     {
+        var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
+        if (!env.IsInteractive)
+        {
+            var nonInteractiveHandler = new CompoundOperationToolHandlers(new Win32DesktopInputService(new NoOpDesktopSafetyChecker()));
+            var nonInteractiveResult = await nonInteractiveHandler.MultiClickAsync("100,100;200,200;300,300", 300);
+            nonInteractiveResult.IsError.Should().BeTrue("非交互式环境应返回错误");
+            nonInteractiveResult.Content[0].Text.Should().Contain("非交互式桌面环境");
+            return;
+        }
+
         var input = new Win32DesktopInputService(new NoOpDesktopSafetyChecker());
         var windows = new Win32WindowManagementService();
         var capture = new GdiScreenCaptureService();
@@ -120,6 +138,13 @@ public sealed class P3CompoundOperationIntegrationTests
     [Fact]
     public async Task DragWithHover_Notepad_NoCrash()
     {
+        var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
+        if (!env.IsInteractive)
+        {
+            env.Diagnostic.Should().Contain("非交互式桌面环境");
+            return;
+        }
+
         var input = new Win32DesktopInputService(new NoOpDesktopSafetyChecker());
         var windows = new Win32WindowManagementService();
         var capture = new GdiScreenCaptureService();

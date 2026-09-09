@@ -5,12 +5,20 @@ namespace Integration.Tests;
 /// 串行化运行，用 process.MainWindowHandle 精确关联窗口，每步验证前台句柄一致性
 /// </summary>
 [Trait("Category", "Integration")]
+[Trait("Category", "Desktop")]
 [Collection("DesktopIntegration")]
 public sealed class VisionIntegrationTests
 {
     [Fact]
     public async Task VisionGuidedFlow_Notepad_Screenshot_FindElement_Click_Type()
     {
+        var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
+        if (!env.IsInteractive)
+        {
+            env.Diagnostic.Should().Contain("非交互式桌面环境");
+            return;
+        }
+
         var input = new Win32DesktopInputService(new NoOpDesktopSafetyChecker());
         var windows = new Win32WindowManagementService();
         var capture = new GdiScreenCaptureService();

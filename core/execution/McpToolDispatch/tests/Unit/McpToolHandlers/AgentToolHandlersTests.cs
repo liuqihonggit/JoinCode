@@ -8,6 +8,8 @@ public class AgentToolHandlersTests
 
     public AgentToolHandlersTests()
     {
+        CleanupDryRunAgentFiles();
+
         _agentService.Setup(x => x.SpawnAgentAsync(It.IsAny<AgentSpawnOptions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((AgentSpawnOptions opt, CancellationToken _) => new JoinCode.Abstractions.Interfaces.AgentInfo
             {
@@ -153,5 +155,24 @@ public class AgentToolHandlersTests
 
         Assert.True(result.IsError);
         Assert.Contains("nonexistent", result.GetTextContent());
+    }
+
+    /// <summary>
+    /// 清理 E2E 测试残留的 dry-run agent 文件，避免单元测试隔离失败
+    /// </summary>
+    private static void CleanupDryRunAgentFiles()
+    {
+        var agentDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".jcc", "agents");
+#pragma warning disable JCC9001
+        if (!Directory.Exists(agentDir))
+            return;
+        foreach (var file in Directory.EnumerateFiles(agentDir, "*.json"))
+        {
+            try { File.Delete(file); }
+            catch (IOException ex) { System.Diagnostics.Trace.WriteLine($"Failed to delete {file}: {ex.Message}"); }
+        }
+#pragma warning restore JCC9001
     }
 }

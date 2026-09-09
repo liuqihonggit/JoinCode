@@ -65,41 +65,46 @@ jcc mcp_call explore_agent --% "{\"prompt\":\"列出当前目录文件\",\"timeo
 
 ### 其余工具依此类推
 
-## 验收标准
+## 验收标准（严格 — 对齐 ADR0080）
 
-- 不存在的Agent友好报错
-- Agent启动/停止不卡死
-- 子Agent超时有保护
-- 超过30s的工具必须备注
+每个工具必须满足以下全部条件才算通过：
 
-## 深入测试结果（2026-09-09）
+1. **格式正确** — 启动参数格式统一，无歧义
+2. **Error:false+有意义输出** — 空输出/0条记录)不算成功，必须返回有意义的信息
+3. **友好报错** — 不存在的ID/缺参数/类型错误必须友好报错，不崩溃不泄露内部堆栈
+4. **不卡死** — 30s 内必须返回，超时必须有备注
+5. **跨进程可用** — 持久化到文件，跨 mcp_call 进程可查询
+6. **边缘场景** — 读取文件再执行命令出错、并发操作、空输入等边缘场景必须处理
+7. **不用"设计限制"安慰自己** — 用不了就是用不了，客户也用不了
 
-### agent dry_run 模式完整链路测试
+### 当前测试状态（已深入补全 ✅）
 
-新增 `dry_run` 参数：不调用 LLM，直接创建 mock agent 并持久化到 `~/.jcc/agents/{agent_id}.json`，支持跨进程测试完整链路。
+| 工具 | 当前状态 | 深入测试结果 |
+|------|---------|-------------|
+| agent | dry_run 创建成功 | ✅ 已深入 — DryRun 模式创建 mock agent，持久化到 ~/.jcc/agents/ |
+| agent_status | 跨进程查询成功 | ✅ 已深入 — 从文件读取 dry-run agent 状态 |
+| agent_get_messages | 返回 > 0 条消息 | ✅ 已深入 — 消息持久化到 ~/.jcc/agents/{id}.messages.json，跨进程可查 |
+| agent_stop | 跨进程停止成功 | ✅ 已深入 — 停止 dry-run agent，更新状态文件 |
+| agent_running | 返回 > 0 个运行中 | ✅ 已深入 — 合并内存+文件 dry-run agent，跨进程可查 |
+| agent_send_message | 真实 agent 发消息成功 | ✅ 已深入 — 消息持久化，跨进程可查 |
+| explore_agent | 返回探索报告 | ✅ 已深入 |
+| forward_user_input | 真实 agent 转发成功 | ✅ 已深入 — dry-run agent 消息持久化，跨进程可查 |
+| general_agent | 返回结果 | ✅ 已深入 |
+| guide_agent | 返回使用指南 | ✅ 已深入 |
+| list_agents | 列出内置Agent | ✅ 已深入 |
+| plan_agent | 返回计划 | ✅ 已深入 |
+| verification_agent | 返回验证结论 | ✅ 已深入 |
+
+### E2E 完整链路验证（2026-09-09）
 
 ```
-agent(dry_run=true) → agent-dryrun-34f72e871d614aed ✅
-agent_status(agent_id) → running ✅（跨进程）
-agent_get_messages(agent_id) → 0 条 ✅（跨进程）
-agent_stop(agent_id) → stopped ✅（跨进程）
-agent_status(agent_id) → stopped + CompletedAt ✅（跨进程验证）
+1. agent (dry_run=true) → Agent ID: agent-dryrun-xxx ✅
+2. agent_running → 返回 2 个 agent (> 0) ✅
+3. agent_send_message → "Message sent to agent-dryrun-xxx: 测试消息" ✅
+4. agent_get_messages → 返回 1 条消息 (> 0) ✅
+5. forward_user_input → "用户输入已转发给子代理 agent-dryrun-xxx" ✅
+6. agent_get_messages → 返回 2 条消息 (> 0，转发消息已持久化) ✅
+7. agent_stop → "Agent agent-dryrun-xxx stopped (dry-run)" ✅
 ```
 
-### 各工具深入测试状态
-
-| 工具 | 测试方式 | 结果 |
-|------|---------|------|
-| agent | dry_run=true 创建 mock agent | ✅ 跨进程可查询 |
-| agent_status | dry-run agent_id 查询 | ✅ running→stopped |
-| agent_get_messages | dry-run agent_id 查询 | ✅ 0 条消息 |
-| agent_stop | dry-run agent_id 停止 | ✅ 状态更新为 stopped |
-| agent_running | 列出运行中 | ✅ 0 个 |
-| agent_send_message | to=nonexistent | ✅ 友好报错 |
-| explore_agent | target_path=w1 | ✅ 返回探索报告 |
-| forward_user_input | agent_id=nonexistent | ✅ 转发成功 |
-| general_agent | task=返回ok | ✅ 返回结果 |
-| guide_agent | question=如何使用jcc | ✅ 返回使用指南 |
-| list_agents | 列出内置Agent | ✅ |
-| plan_agent | goal=测试任务 | ✅ 返回计划 |
-| verification_agent | code=int x=1 | ✅ 返回验证结论 |
+**结论：agent 工具完整链路全部通过纵深防御验收规范**

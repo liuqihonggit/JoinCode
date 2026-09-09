@@ -1,6 +1,6 @@
 # 0093. 资源管理与异常控制风格规范
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-09-09
 - 决策者：用户（liuqihonggit）+ AI
 
@@ -87,8 +87,11 @@ public static void CancelAndDisposeSafe(this CancellationTokenSource? cts, ILogg
 
 ## 验证清单
 
-- [ ] `DisposeSafeExtensions` 实现并通过单元测试
-- [ ] `FileToolHandlers.Dispose()` 改用 `DisposeSafe`（3 try-catch → 1 行）
-- [ ] `Mcp.MockServer/Program.cs` 改用 `using var reader`
-- [ ] `McpServer.RunAsync` 的 `reader`/`writer` 加注释说明为何不 using（Console 流）
-- [ ] AGENTS.md 插入规范章节并引用本 ADR
+- [x] `DisposeSafeExtensions` 实现并通过单元测试（11 用例全绿）
+- [x] `FileToolHandlers.Dispose()` 改用 `DisposeSafe`（3 try-catch → 2 行）
+- [x] `Mcp.MockServer/Program.cs` 改用 `using var reader`
+- [x] `McpServer.RunAsync` 的 `reader`/`writer` 加注释说明为何不 using（Console 流）
+- [x] `AgentCoordinator`/`ForkSubAgentManager` 信号量释放改用 `DisposeSafe`
+- [x] `DoctorSseClient`/`StreamIdleWatchdog` 无防御 Dispose 加固
+- [x] AGENTS.md 插入规范章节并引用本 ADR
+- [x] 受影响项目单元测试全绿：Abs(11) + Hands.FileTool(25) + Agents(552) + Llm(386) + Mcp(211) = 1185

@@ -8,10 +8,12 @@ namespace JoinCode.ChatCommands;
 public sealed class InstallGitHubAppCommand : ChatCommandBase
 {
     private readonly IGitHubCommandRunner? _gitHubRunner;
+    private readonly IGitHubApiClient? _apiClient;
 
-    public InstallGitHubAppCommand(IGitHubCommandRunner? gitHubRunner = null)
+    public InstallGitHubAppCommand(IGitHubCommandRunner? gitHubRunner = null, IGitHubApiClient? gitHubApiClient = null)
     {
         _gitHubRunner = gitHubRunner;
+        _apiClient = gitHubApiClient;
     }
 
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
@@ -402,8 +404,21 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
     /// </summary>
     private async Task<bool> VerifyRepoAsync(string repoName, CancellationToken ct)
     {
-        var result = await RunShellCommandAsync($"gh api repos/{repoName} --jq .permissions.admin", ct, _gitHubRunner).ConfigureAwait(false);
-        return result.Success && result.Output.Trim() == "true";
+        if (_apiClient is not null)
+        {
+            var result = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{repoName}", ct: ct).ConfigureAwait(false);
+            if (!result.Success) return false;
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(result.Body);
+                return doc.RootElement.TryGetProperty("permissions", out var perms)
+                    && perms.TryGetProperty("admin", out var adminEl)
+                    && adminEl.GetBoolean();
+            }
+            catch { return false; }
+        }
+        var shellResult = await RunShellCommandAsync($"gh api repos/{repoName} --jq .permissions.admin", ct, _gitHubRunner).ConfigureAwait(false);
+        return shellResult.Success && shellResult.Output.Trim() == "true";
     }
 
     /// <summary>
@@ -416,36 +431,75 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
         string authType,
         CancellationToken ct)
     {
-        // 获取默认分支
+        string defaultBranch;
+        string sha;
+
+        if (_apiClient is not null)
+        {
+            var repoResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{repoName}", ct: ct).ConfigureAwait(false);
+            if (!repoResult.Success) return false;
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(repoResult.Body);
+                defaultBranch = doc.RootElement.GetProperty("default_branch").GetString() ?? "main";
+            }
+            catch { return false; }
+
+            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var newBranch = $"add-claude-github-actions-{timestamp}";
+
+            var refResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{repoName}/git/ref/heads/{defaultBranch}", ct: ct).ConfigureAwait(false);
+            if (!refResult.Success) return false;
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(refResult.Body);
+                sha = doc.RootElement.GetProperty("object").GetProperty("sha").GetString() ?? "";
+            }
+            catch { return false; }
+
+            var createBranchBody = $$"""{"ref":"refs/heads/{{newBranch}}","sha":"{{sha}}"}""";
+            var createBranchResult = await _apiClient.SendAsync(HttpMethod.Post, $"repos/{repoName}/git/refs", body: createBranchBody, ct: ct).ConfigureAwait(false);
+            if (!createBranchResult.Success) return false;
+
+            foreach (var workflow in workflows)
+            {
+                var (fileName, content) = GetWorkflowContent(workflow, secretName, authType);
+                var base64Content = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(content));
+                var createFileBody = $$"""{"message":"Add {{workflow}} workflow","content":"{{base64Content}}","branch":"{{newBranch}}"}""";
+                var createFileResult = await _apiClient.SendAsync(HttpMethod.Put, $"repos/{repoName}/contents/.github/workflows/{fileName}", body: createFileBody, ct: ct).ConfigureAwait(false);
+                if (!createFileResult.Success) return false;
+            }
+
+            return true;
+        }
+
+        // 回退路径: gh CLI
         var branchResult = await RunShellCommandAsync($"gh api repos/{repoName} --jq .default_branch", ct, _gitHubRunner).ConfigureAwait(false);
         if (!branchResult.Success) return false;
 
-        var defaultBranch = branchResult.Output.Trim();
-        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        var newBranch = $"add-claude-github-actions-{timestamp}";
+        defaultBranch = branchResult.Output.Trim();
+        var ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var newBranchFallback = $"add-claude-github-actions-{ts}";
 
-        // 获取默认分支的 SHA
         var shaResult = await RunShellCommandAsync(
             $"gh api repos/{repoName}/git/ref/heads/{defaultBranch} --jq .object.sha",
             ct, _gitHubRunner).ConfigureAwait(false);
         if (!shaResult.Success) return false;
 
-        var sha = shaResult.Output.Trim();
+        sha = shaResult.Output.Trim();
 
-        // 创建新分支
         var createBranch = await RunShellCommandAsync(
-            $"gh api repos/{repoName}/git/refs -f ref=refs/heads/{newBranch} -f sha={sha}",
+            $"gh api repos/{repoName}/git/refs -f ref=refs/heads/{newBranchFallback} -f sha={sha}",
             ct, _gitHubRunner).ConfigureAwait(false);
         if (!createBranch.Success) return false;
 
-        // 创建工作流文件
         foreach (var workflow in workflows)
         {
             var (fileName, content) = GetWorkflowContent(workflow, secretName, authType);
             var base64Content = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(content));
 
             var createFile = await RunShellCommandAsync(
-                $"gh api repos/{repoName}/contents/.github/workflows/{fileName} -X PUT -f message=\"Add {workflow} workflow\" -f content=\"{base64Content}\" -f branch={newBranch}",
+                $"gh api repos/{repoName}/contents/.github/workflows/{fileName} -X PUT -f message=\"Add {workflow} workflow\" -f content=\"{base64Content}\" -f branch={newBranchFallback}",
                 ct, _gitHubRunner).ConfigureAwait(false);
 
             if (!createFile.Success) return false;

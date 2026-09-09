@@ -389,7 +389,7 @@ d,手动验证,通过设置启动参数,通过bash调用来实际运行,真实�
 - 禁止用宿主 IDE 内置的 Grep 工具代替 `jcc rg`
 - 报错时按 jcc 提示自愈修正参数，**不得**因为 jcc 工具报错就回退到系统 `gh`/`rg` 绕过
 
-**1. `jcc.exe` gh 工具 → 处理 GitHub 的 PR 和 CI 问题**（`github` 分类 30 个 `gh_*`，HttpClient 直调 REST API，无需系统 gh CLI）
+**1. `jcc.exe` gh 工具 → 处理 GitHub 的 PR 和 CI 问题**（`github` 分类 31 个 `gh_*`，HttpClient 直调 REST API，无需系统 gh CLI）
 
 CLI 形态（**推荐**，ADR: [0090](docs/adr/0090-jcc-gh-cli-subcommand.md)）：
 

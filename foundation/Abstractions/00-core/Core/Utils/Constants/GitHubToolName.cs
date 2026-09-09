@@ -127,6 +127,11 @@ public enum GitHubToolName
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     GhRepoList,
 
+    // === 分支保护 ===
+    [EnumValue("gh_branch_sync_protection")]
+    [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
+    GhBranchSyncProtection,
+
     // === 通用 API 调用 ===
     [EnumValue("gh_api")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]

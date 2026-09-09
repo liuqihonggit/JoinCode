@@ -13,7 +13,7 @@
 | 能力 | 实测命令 | 实测结果 |
 |------|----------|----------|
 | 工具总量 | `jcc mcp_list` | **390 个工具**，43 个分类（github / search / file / git / lsp / desktop …） |
-| GitHub 域 | `jcc mcp_list --category github` | **30 个 `gh_*` 工具** |
+| GitHub 域 | `jcc mcp_list --category github` | **31 个 `gh_*` 工具** |
 | GitHub 直调 | `jcc mcp_call gh_repo_view '{}'` | 直返 `api.github.com` 完整 REST JSON，**未起任何 `gh` 子进程** |
 | 搜索域（CLI） | `jcc rg` | 真子命令，`RgEngine`（mmap + PLINQ + 零 GC），见 ADR 0070 |
 | 搜索域（MCP） | `jcc mcp_call grep '{...}'` | `search` 分类，ripgrep 驱动，8 个工具 |

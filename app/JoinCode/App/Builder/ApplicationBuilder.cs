@@ -415,60 +415,106 @@ public sealed class ApplicationBuilder
     }
 
     /// <summary>
-    /// 显示帮助信息 — 使用生成器自动生成的分类帮助
+    /// 显示帮助信息 — 多级渐进式展开, 避免一次性注入过多帮助
+    /// <para>jcc -h             → 分类概览(参数/子命令/环境变量/退出码)</para>
+    /// <para>jcc -h options     → 参数选项详情(按分类分组)</para>
+    /// <para>jcc -h sub         → 子命令分类概览</para>
+    /// <para>jcc -h &lt;分类&gt;      → 该分类下的子命令列表</para>
+    /// <para>jcc -h &lt;命令名&gt;    → 命令详情+示例</para>
+    /// <para>jcc -h env         → 环境变量</para>
+    /// <para>jcc -h exit        → 退出码</para>
+    /// <para>jcc -h examples    → 使用示例</para>
     /// </summary>
-    public static void ShowHelp()
+    public static void ShowHelp(string? topic = null)
     {
         Cli.TerminalHelper.WriteLine("JoinCode - AI 智能体命令行工具");
         Cli.TerminalHelper.NewLine();
-        // 使用 CliOptionGenerator 自动生成的分类帮助文本（替换枚举名为程序名 jcc）
-        Cli.TerminalHelper.WriteLine(CliArgParser.GetHelpText("categorized").Replace("cliarg", "jcc"));
+
+        if (string.IsNullOrWhiteSpace(topic))
+        {
+            ShowHelpOverview();
+            return;
+        }
+
+        var t = topic.Trim();
+        switch (t.ToLowerInvariant())
+        {
+            case "options" or "opt":
+                Cli.TerminalHelper.WriteLine(CliArgParser.GetHelpText("categorized").Replace("cliarg", "jcc"));
+                break;
+            case "sub" or "subcommand" or "subs":
+                Cli.TerminalHelper.WriteLine("子命令分类:");
+                Cli.TerminalHelper.NewLine();
+                Cli.TerminalHelper.WriteLine(CliSubCommandHelpText.GetCategories());
+                break;
+            case "env" or "environment":
+                ShowEnvironmentVariables();
+                break;
+            case "exit" or "exitcode" or "exitcodes":
+                ShowExitCodes();
+                break;
+            case "examples" or "ex" or "example":
+                Cli.TerminalHelper.WriteLine(CliArgParser.GetHelpText("examples"));
+                break;
+            default:
+                if (TryShowSubCommandHelp(t)) break;
+                Cli.TerminalHelper.WriteLine($"未知主题: {t}");
+                Cli.TerminalHelper.NewLine();
+                ShowHelpOverview();
+                break;
+        }
+    }
+
+    /// <summary>
+    /// 帮助概览 — 第一级展开, 只显示分类入口
+    /// </summary>
+    private static void ShowHelpOverview()
+    {
+        Cli.TerminalHelper.WriteLine("用法: jcc [选项] [子命令] [参数]");
         Cli.TerminalHelper.NewLine();
-        Cli.TerminalHelper.WriteLine("子命令:");
-        Cli.TerminalHelper.WriteLine("  mcp_call <tool> <argsJson>       MCP 工具直调");
-        Cli.TerminalHelper.WriteLine("  mcp_list [--category <cat>]      MCP 工具列表");
-        Cli.TerminalHelper.WriteLine("  mcp_schema <tool>                MCP 工具参数 schema");
-        Cli.TerminalHelper.WriteLine("  mcp_search <query>               MCP 工具搜索");
-        Cli.TerminalHelper.WriteLine("  mcp_serve [--port 9903]          MCP 服务端");
-        Cli.TerminalHelper.WriteLine("  slash_call <cmd> <argsJson>      斜杠命令直调");
-        Cli.TerminalHelper.WriteLine("  slash_list [--category <cat>]    斜杠命令列表");
-        Cli.TerminalHelper.WriteLine("  slash_schema <cmd>               斜杠命令参数 schema");
-        Cli.TerminalHelper.WriteLine("  doctor [--server] [--port <n>]   医生模式");
-        Cli.TerminalHelper.WriteLine("  schema                           输出 CLI 参数定义 JSON");
-        Cli.TerminalHelper.WriteLine("  rc / remote-control              远程控制");
+        Cli.TerminalHelper.WriteLine("帮助主题:");
+        Cli.TerminalHelper.WriteLine("  jcc -h options     参数选项(按分类分组)");
+        Cli.TerminalHelper.WriteLine("  jcc -h sub         子命令(按分类分组)");
+        Cli.TerminalHelper.WriteLine("  jcc -h env         环境变量");
+        Cli.TerminalHelper.WriteLine("  jcc -h exit        退出码");
+        Cli.TerminalHelper.WriteLine("  jcc -h examples    使用示例");
         Cli.TerminalHelper.NewLine();
+        Cli.TerminalHelper.WriteLine("快捷方式:");
+        Cli.TerminalHelper.WriteLine("  jcc -h <分类名>    直接查看子命令分类(如 jcc -h GitHub)");
+        Cli.TerminalHelper.WriteLine("  jcc -h <命令名>    直接查看命令详情(如 jcc -h gh)");
+    }
+
+    /// <summary>
+    /// 尝试显示子命令帮助 — 按分类名或命令名查找
+    /// </summary>
+    private static bool TryShowSubCommandHelp(string topic)
+    {
+        var help = CliSubCommandHelpText.GetHelp(topic);
+        if (help.StartsWith("未知")) return false;
+        Cli.TerminalHelper.WriteLine(help);
+        return true;
+    }
+
+    /// <summary>
+    /// 显示环境变量 — 从 JccEnvVar 枚举 + [SubCommandInfo] 特性源码生成
+    /// </summary>
+    private static void ShowEnvironmentVariables()
+    {
         Cli.TerminalHelper.WriteLine("环境变量:");
-        Cli.TerminalHelper.WriteLine("  JCC_VENDOR            LLM 供应商 (openai/azure/anthropic/deepseek/sensenova)");
-        Cli.TerminalHelper.WriteLine("  JCC_MODEL_ID           模型 ID");
-        Cli.TerminalHelper.WriteLine("  JCC_ENDPOINT           API 端点");
         Cli.TerminalHelper.NewLine();
-        Cli.TerminalHelper.WriteLine("  OPENAI_API_KEY          OpenAI API Key");
-        Cli.TerminalHelper.WriteLine("  ANTHROPIC_API_KEY       Anthropic API Key");
-        Cli.TerminalHelper.WriteLine("  DEEPSEEK_API_KEY        DeepSeek API Key");
-        Cli.TerminalHelper.WriteLine("  AZURE_OPENAI_API_KEY    Azure OpenAI API Key");
-        Cli.TerminalHelper.NewLine();
-        Cli.TerminalHelper.WriteLine("  JCC_DEBUGLOG           启用调试日志输出 (1/true/yes)");
-        Cli.TerminalHelper.WriteLine("  JCC_LOG_LEVEL          日志级别 (Trace/Debug/Information/Warning/Error)");
-        Cli.TerminalHelper.WriteLine("  JCC_LANGUAGE           界面语言 (zh/en)");
-        Cli.TerminalHelper.WriteLine("  JCC_CONFIG_PATH        自定义配置文件路径");
-        Cli.TerminalHelper.WriteLine("  JCC_PERMISSION_MODE    权限模式 (plan/auto/ask/bypass)");
-        Cli.TerminalHelper.WriteLine("  JCC_CLOCK_MODE         时钟模式 (Physical/Fake，调试用)");
-        Cli.TerminalHelper.WriteLine("  NO_COLOR               禁用颜色输出（https://no-color.org/ 标准）");
-        Cli.TerminalHelper.WriteLine("  APP_NO_TUI             禁用 TUI 交互");
-        Cli.TerminalHelper.NewLine();
+        foreach (var cat in JccEnvVarHelpText.GetHelp().Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            Cli.TerminalHelper.WriteLine(cat);
+    }
+
+    /// <summary>
+    /// 显示退出码 — 从 JccExitCode 枚举 + [SubCommandInfo] 特性源码生成
+    /// </summary>
+    private static void ShowExitCodes()
+    {
         Cli.TerminalHelper.WriteLine("退出码:");
-        Cli.TerminalHelper.WriteLine("  0     成功");
-        Cli.TerminalHelper.WriteLine("  1     通用错误");
-        Cli.TerminalHelper.WriteLine("  2     配置错误");
-        Cli.TerminalHelper.WriteLine("  3     参数错误");
-        Cli.TerminalHelper.WriteLine("  4     API Key 缺失");
-        Cli.TerminalHelper.WriteLine("  10    LLM 调用失败");
-        Cli.TerminalHelper.WriteLine("  11    工具执行失败");
-        Cli.TerminalHelper.WriteLine("  12    MCP 连接失败");
-        Cli.TerminalHelper.WriteLine("  130   用户中断 (Ctrl+C)");
-        Cli.TerminalHelper.WriteLine("  1234  --await 超时");
         Cli.TerminalHelper.NewLine();
-        Cli.TerminalHelper.WriteLine(CliArgParser.GetHelpText("examples"));
+        foreach (var line in JccExitCodeHelpText.GetHelp().Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            Cli.TerminalHelper.WriteLine(line);
     }
 
     /// <summary>

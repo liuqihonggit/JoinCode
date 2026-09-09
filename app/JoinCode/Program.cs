@@ -32,14 +32,20 @@ class Program
             Infrastructure.Localization.LocalizerInitializer.Initialize(
                 JoinCode.Abstractions.Utils.LocalLanguageDetector.Detect());
 
-            // 2. 子命令路由 — 扫描第一个子命令（允许全局选项在前，如 jcc --trust mcp_search read）
-            var subCmdIndex = FindSubCommandIndex(args);
-            if (subCmdIndex is int idx)
-                return await App.Builder.ApplicationBuilder.RunSubCommandAsync(ReorderSubCommandToFront(args, idx));
+            // 2. 帮助优先 — -h/--help 在 args 中时跳过子命令路由, 直接进入帮助系统
+            var hasHelp = Array.IndexOf(args, "-h") >= 0 || Array.IndexOf(args, "--help") >= 0;
 
-            // 3. 参数解析 → CommandLineOptions（后续全部使用 options，不再传递原始 args）
+            // 3. 子命令路由 — 扫描第一个子命令（允许全局选项在前，如 jcc --trust mcp_search read）
+            if (!hasHelp)
+            {
+                var subCmdIndex = FindSubCommandIndex(args);
+                if (subCmdIndex is int idx)
+                    return await App.Builder.ApplicationBuilder.RunSubCommandAsync(ReorderSubCommandToFront(args, idx));
+            }
+
+            // 4. 参数解析 → CommandLineOptions（后续全部使用 options，不再传递原始 args）
             options = App.Builder.ApplicationBuilder.ParseArgs(args);
-            if (options.ShowHelp) { App.Builder.ApplicationBuilder.ShowHelp(); return 0; }
+            if (options.ShowHelp) { App.Builder.ApplicationBuilder.ShowHelp(GetHelpTopic(args)); return 0; }
             if (options.ShowVersion) { App.Builder.ApplicationBuilder.ShowVersion(); return 0; }
 
             // 3.1 --doctor: 医生模式 — spawn jcc.exe 子进程作为病人，监控运行状态并自动修复问题
@@ -475,5 +481,22 @@ class Program
         if (subCmdIndex + 1 < args.Length)
             Array.Copy(args, subCmdIndex + 1, newArgs, 1, args.Length - subCmdIndex - 1);
         return newArgs;
+    }
+
+    /// <summary>
+    /// 从 args 中提取 -h/--help 后的 topic 参数 — 用于多级渐进式展开帮助
+    /// </summary>
+    private static string? GetHelpTopic(string[] args)
+    {
+        for (int i = 0; i < args.Length - 1; i++)
+        {
+            if (args[i] is "-h" or "--help")
+            {
+                var next = args[i + 1];
+                if (!next.StartsWith('-'))
+                    return next;
+            }
+        }
+        return null;
     }
 }

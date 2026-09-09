@@ -233,4 +233,62 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable
         result.Status.Should().Be(TaskExecutionStatus.Completed);
         _toolGatewayMock.Verify(x => x.ExecuteAsync("tool_a", It.IsAny<Dictionary<string, System.Text.Json.JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()), Times.Once, "快照不一致时应从头执行");
     }
+
+    [Fact]
+    public async Task ExecuteSequentialAsync_RestartWithSameStore_ShouldSkipCompletedSteps()
+    {
+        SetupToolSuccess();
+
+        var definition = new WorkflowDefinition
+        {
+            WorkflowId = "wf-seq-restart",
+            ExecutionMode = WorkflowExecutionMode.Sequential,
+            Steps = new List<WorkflowStep>
+            {
+                new() { StepId = "step-a", Name = "A", StepType = WorkflowStepType.ToolCall, ToolName = "tool_a" },
+                new() { StepId = "step-b", Name = "B", StepType = WorkflowStepType.ToolCall, ToolName = "tool_b" }
+            }
+        };
+
+        var executor1 = CreateExecutor();
+        await executor1.ExecuteWorkflowAsync(definition).ConfigureAwait(true);
+
+        _toolGatewayMock.Reset();
+        SetupToolSuccess();
+
+        var executor2 = CreateExecutor();
+        var result = await executor2.ExecuteWorkflowAsync(definition).ConfigureAwait(true);
+
+        _toolGatewayMock.Verify(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, System.Text.Json.JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()), Times.Never, "Sequential 重启后所有步骤应从快照恢复");
+        result.Status.Should().Be(TaskExecutionStatus.Completed);
+    }
+
+    [Fact]
+    public async Task ExecuteParallelAsync_RestartWithSameStore_ShouldSkipCompletedSteps()
+    {
+        SetupToolSuccess();
+
+        var definition = new WorkflowDefinition
+        {
+            WorkflowId = "wf-par-restart",
+            ExecutionMode = WorkflowExecutionMode.Parallel,
+            Steps = new List<WorkflowStep>
+            {
+                new() { StepId = "step-a", Name = "A", StepType = WorkflowStepType.ToolCall, ToolName = "tool_a" },
+                new() { StepId = "step-b", Name = "B", StepType = WorkflowStepType.ToolCall, ToolName = "tool_b" }
+            }
+        };
+
+        var executor1 = CreateExecutor();
+        await executor1.ExecuteWorkflowAsync(definition).ConfigureAwait(true);
+
+        _toolGatewayMock.Reset();
+        SetupToolSuccess();
+
+        var executor2 = CreateExecutor();
+        var result = await executor2.ExecuteWorkflowAsync(definition).ConfigureAwait(true);
+
+        _toolGatewayMock.Verify(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, System.Text.Json.JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()), Times.Never, "Parallel 重启后所有步骤应从快照恢复");
+        result.Status.Should().Be(TaskExecutionStatus.Completed);
+    }
 }

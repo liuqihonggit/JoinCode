@@ -19,8 +19,10 @@ public class PathCaseSensitiveGuardTests
 
         result.Blocked.Should().BeTrue();
         result.SuggestedPath.Should().Be("D:\\proj\\SRC");
+        result.Reason.Should().Contain("特别警告");
+        result.Reason.Should().Contain("同一对象");
         result.Reason.Should().Contain("SRC");
-        result.Reason.Should().Contain("大小写");
+        result.Reason.Should().Contain("删库事故");
     }
 
     [Fact]

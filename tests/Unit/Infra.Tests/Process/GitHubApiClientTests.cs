@@ -7,17 +7,17 @@ public sealed class GitHubApiClientTest : IDisposable
 {
     private readonly FakeHandler _handler = new();
     private readonly GitHubApiClient _client;
+    private readonly EnvVarScope _envScope;
 
     public GitHubApiClientTest()
     {
-        Environment.SetEnvironmentVariable("JCC_GITHUB_TOKEN", "test-token");
-        Environment.SetEnvironmentVariable("JCC_GITHUB_API_URL", null);
+        _envScope = EnvVarScope.Set("JCC_GITHUB_TOKEN", "test-token").Add("JCC_GITHUB_API_URL", null);
         _client = new GitHubApiClient(new HttpClient(_handler) { BaseAddress = new Uri("https://api.github.com/") }, new InMemoryFileSystem());
     }
 
     public void Dispose()
     {
-        Environment.SetEnvironmentVariable("JCC_GITHUB_TOKEN", null);
+        _envScope.Dispose();
         Environment.SetEnvironmentVariable("GITHUB_TOKEN", null);
     }
 

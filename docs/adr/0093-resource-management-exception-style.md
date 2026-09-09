@@ -25,6 +25,9 @@
 - 字段持有的长生命周期资源 → 在 `Dispose(bool disposing)` 中释放
 - 工厂方法返回可释放对象（如 `OpenRead()` 返回 `Stream`）→ 调用方负责
 - 故意不释放底层流（`leaveOpen: true`）→ 注释说明为何不释放
+- **容错删除**（吞异常 + 日志，不传播）的目录/文件清理 → 如 `try { _fs.DeleteFile(path); } catch (Exception ex) { _logger?.LogWarning(ex, "清理失败"); }`，常见于更新/升级流程的备份清理（`UpgradeService.ApplyUpdateAsync`）
+- **需特殊文件处理的目录清理**（先并行删只读文件再删目录）→ 如 `CodeSandboxService.DeleteDirectoryAsync`，dotnet build 产物含只读 `.dll`/`.pdb`，直接 `DeleteDirectory(recursive: true)` 会失败，需先 `_fileOperationService.DeleteFileAsync` 逐个处理只读属性
+- **资源逃逸给调用方的方法返回值** → 如 `UpgradeService.DownloadAsync` 返回 `downloadedPath`（位于 tempDir 内），tempDir 不能在方法结束时删除，需由调用方在 `ApplyUpdateAsync` 移动文件后清理
 
 ### 决策2：一个方法一个 `try-catch`（尽量）
 

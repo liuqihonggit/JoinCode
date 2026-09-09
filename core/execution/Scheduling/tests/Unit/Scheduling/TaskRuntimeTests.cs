@@ -317,4 +317,40 @@ public sealed class TaskRuntimeRecoveryTests : IDisposable
         recoveredRuntime.Dispose();
         runtime.Dispose();
     }
+
+    [Fact]
+    public async Task PersistAsync_ShouldUseAtomicWrite_WithTempFileMove()
+    {
+        var runtime = CreateRuntime();
+        _fileOperationService.FileSystem.CreateDirectory("/test/runtime-tasks");
+
+        var tmpPath = "/test/runtime-tasks/runtime-tasks.json.tmp";
+        _fileOperationService.FileSystem.WriteAllText(tmpPath, "stale temp content from previous crash");
+
+        await runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "persist-atomic", IsDurable = true });
+        await runtime.PersistAsync();
+
+        _fileOperationService.FileExists(tmpPath).Should().BeFalse("原子写 (temp+move) 应清理临时文件，而非直接覆盖目标文件");
+
+        runtime.Dispose();
+    }
+
+    [Fact]
+    public async Task PersistAsync_AtomicWrite_ShouldProduceValidJson()
+    {
+        var runtime = CreateRuntime();
+        _fileOperationService.FileSystem.CreateDirectory("/test/runtime-tasks");
+
+        await runtime.CreateTaskAsync(new RuntimeTaskInput { Description = "persist-valid", IsDurable = true });
+        await runtime.PersistAsync();
+
+        var filePath = "/test/runtime-tasks/runtime-tasks.json";
+        _fileOperationService.FileExists(filePath).Should().BeTrue();
+
+        var readResult = await _fileOperationService.ReadFileAsync(filePath);
+        readResult.Success.Should().BeTrue();
+        readResult.Content.Should().NotBeNullOrEmpty();
+
+        runtime.Dispose();
+    }
 }

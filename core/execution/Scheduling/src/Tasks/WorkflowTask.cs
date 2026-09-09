@@ -81,6 +81,8 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
     private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     private readonly IClockService _clock;
     private readonly ITelemetryService? _telemetryService;
+    private readonly IWorkflowStateStore? _stateStore;
+    private readonly IWorkflowProgressSink? _progressSink;
     private readonly ConcurrentDictionary<string, WorkflowRunState> _activeWorkflows = new();
     private readonly AsyncLock _stateLock = new();
 
@@ -90,7 +92,9 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
         ILogger<WorkflowTaskExecutor>? logger = null,
         ITelemetryService? telemetryService = null,
         ISubAgentContextAccessor? subAgentContextAccessor = null,
-        IClockService? clock = null)
+        IClockService? clock = null,
+        IWorkflowStateStore? stateStore = null,
+        IWorkflowProgressSink? progressSink = null)
     {
         _toolExecutionGateway = toolExecutionGateway;
         _agentLifecycleManager = agentLifecycleManager;
@@ -98,6 +102,8 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
         _telemetryService = telemetryService;
         _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
         _clock = clock ?? SystemClockService.Instance;
+        _stateStore = stateStore;
+        _progressSink = progressSink;
     }
 
     public async Task<WorkflowResult> ExecuteWorkflowAsync(WorkflowDefinition definition, CancellationToken ct = default)
@@ -106,6 +112,7 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
 
         var startTime = _clock.GetUtcNow();
         var runState = new WorkflowRunState(definition);
+        await RestoreFromSnapshotAsync(runState, ct).ConfigureAwait(false);
         _activeWorkflows[definition.WorkflowId] = runState;
 
         try
@@ -171,6 +178,11 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
         {
             linkedCts.Token.ThrowIfCancellationRequested();
 
+            if (runState.StepStatuses.TryGetValue(step.StepId, out var existingStatus) && existingStatus.State is StepState.Completed or StepState.Skipped)
+            {
+                continue;
+            }
+
             var stepResult = await ExecuteStepWithFailureHandlingAsync(step, runState, linkedCts.Token).ConfigureAwait(false);
             runState.StepStatuses[step.StepId] = stepResult;
             _logger?.LogDebug("Workflow checkpoint: step {StepId} -> {State}, completed {Completed}/{Total}",
@@ -181,6 +193,7 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
                 var action = step.OnFailure;
                 if (action is WorkflowStepOnFailure.Stop or WorkflowStepOnFailure.Retry)
                 {
+                    await SaveSnapshotIfAvailableAsync(runState, linkedCts.Token).ConfigureAwait(false);
                     _logger?.LogWarning("Workflow stopped at step {StepId} due to failure. Completed: {Completed}/{Total}",
                         step.StepId, runState.StepStatuses.Count, runState.Definition.Steps.Count);
                     return BuildResult(runState, TaskExecutionStatus.Failed, stepResult.Error);
@@ -190,6 +203,8 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
                     runState.StepStatuses[step.StepId] = new StepStatus { StepId = stepResult.StepId, State = StepState.Skipped, Error = stepResult.Error, ErrorCode = stepResult.ErrorCode, ErrorDetail = stepResult.ErrorDetail, Result = stepResult.Result, Duration = stepResult.Duration };
                 }
             }
+
+            await SaveSnapshotIfAvailableAsync(runState, linkedCts.Token).ConfigureAwait(false);
         }
 
         return BuildResult(runState, TaskExecutionStatus.Completed);
@@ -199,7 +214,17 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
     {
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, runState.Cts.Token);
 
-        var tasks = runState.Definition.Steps.Select(step => ExecuteStepWithFailureHandlingAsync(step, runState, linkedCts.Token)).ToArray();
+        var pendingSteps = runState.Definition.Steps
+            .Where(step => !runState.StepStatuses.TryGetValue(step.StepId, out var st) || st.State is not (StepState.Completed or StepState.Skipped))
+            .ToList();
+
+        if (pendingSteps.Count == 0)
+        {
+            await SaveSnapshotIfAvailableAsync(runState, linkedCts.Token).ConfigureAwait(false);
+            return BuildResult(runState, TaskExecutionStatus.Completed);
+        }
+
+        var tasks = pendingSteps.Select(step => ExecuteStepWithFailureHandlingAsync(step, runState, linkedCts.Token)).ToArray();
 
         try
         {
@@ -209,6 +234,8 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
         {
             return BuildResult(runState, TaskExecutionStatus.Cancelled);
         }
+
+        await SaveSnapshotIfAvailableAsync(runState, linkedCts.Token).ConfigureAwait(false);
 
         var hasFailure = runState.StepStatuses.Values.Any(s => s.State == StepState.Failed);
         return BuildResult(runState, hasFailure ? TaskExecutionStatus.Failed : TaskExecutionStatus.Completed);
@@ -227,11 +254,20 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
         var levels = dag.TopologicalSortByLevels();
         var completed = new HashSet<string>(StringComparer.Ordinal);
 
+        foreach (var kvp in runState.StepStatuses)
+        {
+            if (kvp.Value.State is StepState.Completed or StepState.Skipped)
+            {
+                completed.Add(kvp.Key);
+            }
+        }
+
         foreach (var level in levels)
         {
             linkedCts.Token.ThrowIfCancellationRequested();
 
             var ready = level
+                .Where(n => !completed.Contains(n.Payload.StepId))
                 .Where(n => n.Payload.DependsOn is null || n.Payload.DependsOn.All(d => completed.Contains(d)))
                 .Select(n => n.Payload)
                 .ToList();
@@ -247,8 +283,10 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
                 {
                     runState.StepStatuses[fd.StepId] = new StepStatus { StepId = fd.StepId, State = StepState.Skipped, Error = "Dependency failed" };
                     completed.Add(fd.StepId);
+                    _progressSink?.OnStepSkipped(runState.Definition.WorkflowId, fd.StepId, "Dependency failed");
                 }
 
+                await SaveSnapshotIfAvailableAsync(runState, linkedCts.Token).ConfigureAwait(false);
                 continue;
             }
 
@@ -267,10 +305,42 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
             {
                 completed.Add(step.StepId);
             }
+
+            await SaveSnapshotIfAvailableAsync(runState, linkedCts.Token).ConfigureAwait(false);
         }
 
         var hasFailure = runState.StepStatuses.Values.Any(s => s.State == StepState.Failed);
         return BuildResult(runState, hasFailure ? TaskExecutionStatus.Failed : TaskExecutionStatus.Completed);
+    }
+
+    private async Task SaveSnapshotIfAvailableAsync(WorkflowRunState runState, CancellationToken ct)
+    {
+        if (_stateStore is null) return;
+        var snapshot = runState.ToSnapshot(_clock.GetUtcNow());
+        await _stateStore.SaveSnapshotAsync(runState.Definition.WorkflowId, snapshot, ct).ConfigureAwait(false);
+    }
+
+    private async Task RestoreFromSnapshotAsync(WorkflowRunState runState, CancellationToken ct)
+    {
+        if (_stateStore is null) return;
+
+        var snapshot = await _stateStore.LoadSnapshotAsync(runState.Definition.WorkflowId, ct).ConfigureAwait(false);
+        if (snapshot is null) return;
+
+        var validStepIds = runState.Definition.Steps.Select(s => s.StepId).ToHashSet(StringComparer.Ordinal);
+        if (!snapshot.StepStates.Keys.All(k => validStepIds.Contains(k)))
+        {
+            _logger?.LogWarning("快照与 definition 不一致，丢弃快照从头执行: {WorkflowId}", runState.Definition.WorkflowId);
+            return;
+        }
+
+        foreach (var kvp in snapshot.StepStates)
+        {
+            runState.StepStatuses[kvp.Key] = new StepStatus { StepId = kvp.Key, State = kvp.Value };
+        }
+
+        var restoredCount = snapshot.StepStates.Count(kvp => kvp.Value is StepState.Completed or StepState.Skipped);
+        _logger?.LogInformation("从快照恢复 workflow: {WorkflowId}, 已完成步骤: {RestoredCount}", runState.Definition.WorkflowId, restoredCount);
     }
 
     private static Dag<WorkflowStep> BuildWorkflowDag(WorkflowRunState runState)
@@ -296,6 +366,9 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
 
     private async Task<StepStatus> ExecuteStepWithFailureHandlingAsync(WorkflowStep step, WorkflowRunState runState, CancellationToken ct)
     {
+        _progressSink?.OnStepStarted(runState.Definition.WorkflowId, step.StepId, step.Name);
+        var stepStart = _clock.GetUtcNow();
+
         try
         {
             var result = await ExecuteStepAsync(step, runState, ct).ConfigureAwait(false);
@@ -306,6 +379,7 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
                 for (var i = 0; i < maxRetries; i++)
                 {
                     ct.ThrowIfCancellationRequested();
+                    _progressSink?.OnStepRetried(runState.Definition.WorkflowId, step.StepId, i + 1);
                     await Task.Delay(TimeSpan.FromMilliseconds(200 * (i + 1)), ct).ConfigureAwait(false);
                     result = await ExecuteStepAsync(step, runState, ct).ConfigureAwait(false);
                     if (result.State != StepState.Failed) break;
@@ -313,6 +387,16 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
             }
 
             runState.StepStatuses[step.StepId] = result;
+
+            if (result.State == StepState.Completed)
+            {
+                _progressSink?.OnStepCompleted(runState.Definition.WorkflowId, step.StepId, _clock.GetUtcNow() - stepStart);
+            }
+            else if (result.State == StepState.Failed)
+            {
+                _progressSink?.OnStepFailed(runState.Definition.WorkflowId, step.StepId, result.Error ?? "Unknown", result.ErrorCode);
+            }
+
             return result;
         }
         catch (OperationCanceledException) { throw; }
@@ -329,6 +413,7 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
                 Duration = TimeSpan.Zero
             };
             runState.StepStatuses[step.StepId] = failedStatus;
+            _progressSink?.OnStepFailed(runState.Definition.WorkflowId, step.StepId, ex.Message, ex is WorkflowException wfEx2 ? wfEx2.ErrorCode : null);
             return failedStatus;
         }
     }
@@ -478,6 +563,19 @@ internal sealed class WorkflowRunState
             StepStatuses = new Dictionary<string, StepStatus>(StepStatuses),
             CompletedSteps = completedCount,
             TotalSteps = Definition.Steps.Count
+        };
+    }
+
+    public WorkflowSnapshot ToSnapshot(DateTimeOffset now)
+    {
+        return new WorkflowSnapshot
+        {
+            WorkflowId = Definition.WorkflowId,
+            StepStates = StepStatuses.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.State),
+            SkipReasons = StepStatuses
+                .Where(kvp => kvp.Value.State == StepState.Skipped)
+                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Error ?? "Skipped"),
+            LastUpdated = now
         };
     }
 }

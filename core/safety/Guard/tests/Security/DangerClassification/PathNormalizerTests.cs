@@ -51,4 +51,21 @@ public class PathNormalizerTests
         normalized.Should().NotEndWith("\\");
         normalized.Should().NotEndWith("/");
     }
+
+    [Theory]
+    [InlineData("a\\b\\c/b", "b")]
+    [InlineData("a/b/c\\d", "d")]
+    [InlineData("D:\\proj\\a/b\\c", "c")]
+    public void GetLeafName_Should_Handle_Mixed_Separators_In_Single_Path(string path, string expected)
+    {
+        PathNormalizer.GetLeafName(path).Should().Be(expected);
+    }
+
+    [Fact]
+    public void Normalize_Should_Unify_Mixed_Separators_To_Platform_Separator()
+    {
+        var normalized = PathNormalizer.Normalize("D:\\proj\\a\\b/c");
+        normalized.Should().NotContain("/");
+        normalized.Should().Contain("\\");
+    }
 }

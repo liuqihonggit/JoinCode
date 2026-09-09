@@ -168,7 +168,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0091](0091-actor-duplex-inplace-upgrade.md) | Actor 全双工改造 — 直接改 ActorBase（无后向兼容） | accepted | 2026-09-08 |
 | [0092](0092-worktree-path-inconsistency-fix.md) | Worktree 路径不一致修复 — 中间件幂等 + Guard 路径锁定 | accepted | 2026-09-08 |
 | [0093](0093-resource-management-exception-style.md) | 资源管理与异常控制风格规范 | accepted | 2026-09-09 |
-| [0094](0094-workflow-checkpoint-resume.md) | Workflow 级断点续跑持久化策略 | accepted | 2026-09-09 |
+| [0097](0097-workflow-checkpoint-resume.md) | Workflow 级断点续跑持久化策略 | accepted | 2026-09-09 |
 
 ## 主题索引（按议题）
 

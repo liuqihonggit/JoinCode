@@ -3,7 +3,7 @@
 > 来源规格：`D:\Users\54076\Desktop\1并行工具调用设计 - 副本.txt`（并行工具调用 + DAG依赖 + 断点续跑）
 > 探索报告：w3 已实现规格 90% 能力，唯一硬缺口是 **Workflow 级断点续跑**
 > 关联 ADR：[0013](../adr/0013-hypergraph-vs-dag-separation.md)（DAG/超图分离）、[0068](../adr/0068-unified-persistence-pipeline-actor.md)（统一持久化管道）、[0074](../adr/0074-actor-supervisor-tree.md)（Actor 监督树）
-> 待新建 ADR：0094（Workflow 级断点续跑持久化策略）
+> 待新建 ADR：0097（Workflow 级断点续跑持久化策略）
 
 ---
 
@@ -163,12 +163,12 @@
 
 ---
 
-### 阶段 4：ADR 0094 + E2E 真杀进程测试
+### 阶段 4：ADR 0097 + E2E 真杀进程测试
 
 **为什么做**：架构决策记录 + 端到端验证。
 
 **改动**：
-- 新建 ADR 0094：Workflow 级断点续跑持久化策略（状态：proposed → accepted）
+- 新建 ADR 0097：Workflow 级断点续跑持久化策略（状态：proposed → accepted）
 - E2E 测试：启动 workflow → 杀进程 → 重启同 workflowId → 验证跳过已完成步骤继续执行
 - AGENTS.md 反向引用标注
 
@@ -177,12 +177,12 @@
 - 🟢 E2E 绿：阶段 0-3 实现应使 E2E 通过
 
 **验收**：
-- ✅ ADR 0094 状态 accepted
+- ✅ ADR 0097 状态 accepted
 - ✅ E2E 真杀进程重启测试通过
-- ✅ AGENTS.md 规则1处标注 `> ADR: [0094](docs/adr/0094-xxx.md)`
+- ✅ AGENTS.md 规则1处标注 `> ADR: [0097](docs/adr/0097-xxx.md)`
 
 **涉及文件**（新建）：
-- `docs/adr/0094-workflow-checkpoint-resume.md`
+- `docs/adr/0097-workflow-checkpoint-resume.md`
 - `tests/Integration/...` 或 `tests/E2E/...`（E2E 测试脚本）
 - `AGENTS.md`（反向引用）
 
@@ -227,10 +227,10 @@
 <!-- 验证: 待阶段 2 完成后现有测试仍通过 ✅ -->
 
 <!-- 🤖 Auto Decision: 2026-09-09 -->
-<!-- 决策: 阶段 0-4 全部完成，ADR 0094 accepted -->
+<!-- 决策: 阶段 0-4 全部完成，ADR 0097 accepted -->
 <!-- 完成情况:
   - 阶段 0: TaskRuntime.PersistAsync 原子写修复 (commit 15d39867a)
-  - ADR 0094: Workflow 级断点续跑持久化策略 (commit 63f860d78, 436935a7d)
+  - ADR 0097: Workflow 级断点续跑持久化策略 (commit 63f860d78, 436935a7d)
   - 阶段 1: WorkflowStateStore + 6 测试 (commit 167bda620)
   - 阶段 2: ExecuteDagAsync 每层保存快照 + 4 测试 (commit 901c11659)
   - 阶段 3: 启动加载快照恢复 + 2 测试 (commit 1070a7f50)

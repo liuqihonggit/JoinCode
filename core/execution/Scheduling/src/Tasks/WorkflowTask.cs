@@ -109,6 +109,7 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
 
         var startTime = _clock.GetUtcNow();
         var runState = new WorkflowRunState(definition);
+        await RestoreFromSnapshotAsync(runState, ct).ConfigureAwait(false);
         _activeWorkflows[definition.WorkflowId] = runState;
 
         try
@@ -230,11 +231,20 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
         var levels = dag.TopologicalSortByLevels();
         var completed = new HashSet<string>(StringComparer.Ordinal);
 
+        foreach (var kvp in runState.StepStatuses)
+        {
+            if (kvp.Value.State is StepState.Completed or StepState.Skipped)
+            {
+                completed.Add(kvp.Key);
+            }
+        }
+
         foreach (var level in levels)
         {
             linkedCts.Token.ThrowIfCancellationRequested();
 
             var ready = level
+                .Where(n => !completed.Contains(n.Payload.StepId))
                 .Where(n => n.Payload.DependsOn is null || n.Payload.DependsOn.All(d => completed.Contains(d)))
                 .Select(n => n.Payload)
                 .ToList();
@@ -284,6 +294,29 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
         if (_stateStore is null) return;
         var snapshot = runState.ToSnapshot(_clock.GetUtcNow());
         await _stateStore.SaveSnapshotAsync(runState.Definition.WorkflowId, snapshot, ct).ConfigureAwait(false);
+    }
+
+    private async Task RestoreFromSnapshotAsync(WorkflowRunState runState, CancellationToken ct)
+    {
+        if (_stateStore is null) return;
+
+        var snapshot = await _stateStore.LoadSnapshotAsync(runState.Definition.WorkflowId, ct).ConfigureAwait(false);
+        if (snapshot is null) return;
+
+        var validStepIds = runState.Definition.Steps.Select(s => s.StepId).ToHashSet(StringComparer.Ordinal);
+        if (!snapshot.StepStates.Keys.All(k => validStepIds.Contains(k)))
+        {
+            _logger?.LogWarning("快照与 definition 不一致，丢弃快照从头执行: {WorkflowId}", runState.Definition.WorkflowId);
+            return;
+        }
+
+        foreach (var kvp in snapshot.StepStates)
+        {
+            runState.StepStatuses[kvp.Key] = new StepStatus { StepId = kvp.Key, State = kvp.Value };
+        }
+
+        var restoredCount = snapshot.StepStates.Count(kvp => kvp.Value is StepState.Completed or StepState.Skipped);
+        _logger?.LogInformation("从快照恢复 workflow: {WorkflowId}, 已完成步骤: {RestoredCount}", runState.Definition.WorkflowId, restoredCount);
     }
 
     private static Dag<WorkflowStep> BuildWorkflowDag(WorkflowRunState runState)

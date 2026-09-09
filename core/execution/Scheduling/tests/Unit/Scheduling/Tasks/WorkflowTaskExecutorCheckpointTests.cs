@@ -121,4 +121,65 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable
         snapshot!.StepStates["step-ok"].Should().Be(StepState.Completed);
         snapshot.StepStates["step-fail"].Should().Be(StepState.Failed);
     }
+
+    [Fact]
+    public async Task ExecuteDagAsync_WithExistingSnapshot_ShouldSkipCompletedSteps()
+    {
+        SetupToolSuccess();
+        var executor = CreateExecutor();
+
+        var snapshot = new WorkflowSnapshot
+        {
+            WorkflowId = "wf-resume",
+            StepStates = new Dictionary<string, StepState> { ["step-a"] = StepState.Completed },
+            LastUpdated = DateTimeOffset.UtcNow
+        };
+        await _stateStore.SaveSnapshotAsync("wf-resume", snapshot).ConfigureAwait(true);
+
+        var definition = new WorkflowDefinition
+        {
+            WorkflowId = "wf-resume",
+            ExecutionMode = WorkflowExecutionMode.Dag,
+            Steps = new List<WorkflowStep>
+            {
+                new() { StepId = "step-a", Name = "A", StepType = WorkflowStepType.ToolCall, ToolName = "tool_a" },
+                new() { StepId = "step-b", Name = "B", StepType = WorkflowStepType.ToolCall, ToolName = "tool_b", DependsOn = new List<string> { "step-a" } }
+            }
+        };
+
+        await executor.ExecuteWorkflowAsync(definition).ConfigureAwait(true);
+
+        _toolGatewayMock.Verify(x => x.ExecuteAsync("tool_a", It.IsAny<Dictionary<string, System.Text.Json.JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()), Times.Never, "快照中已完成的步骤不应重复执行");
+        _toolGatewayMock.Verify(x => x.ExecuteAsync("tool_b", It.IsAny<Dictionary<string, System.Text.Json.JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()), Times.Once, "未完成的步骤应执行");
+    }
+
+    [Fact]
+    public async Task ExecuteDagAsync_WithExistingSnapshot_ShouldProduceCompletedResult()
+    {
+        SetupToolSuccess();
+        var executor = CreateExecutor();
+
+        var snapshot = new WorkflowSnapshot
+        {
+            WorkflowId = "wf-resume-result",
+            StepStates = new Dictionary<string, StepState> { ["step-a"] = StepState.Completed },
+            LastUpdated = DateTimeOffset.UtcNow
+        };
+        await _stateStore.SaveSnapshotAsync("wf-resume-result", snapshot).ConfigureAwait(true);
+
+        var definition = new WorkflowDefinition
+        {
+            WorkflowId = "wf-resume-result",
+            ExecutionMode = WorkflowExecutionMode.Dag,
+            Steps = new List<WorkflowStep>
+            {
+                new() { StepId = "step-a", Name = "A", StepType = WorkflowStepType.ToolCall, ToolName = "tool_a" },
+                new() { StepId = "step-b", Name = "B", StepType = WorkflowStepType.ToolCall, ToolName = "tool_b", DependsOn = new List<string> { "step-a" } }
+            }
+        };
+
+        var result = await executor.ExecuteWorkflowAsync(definition).ConfigureAwait(true);
+
+        result.Status.Should().Be(TaskExecutionStatus.Completed);
+    }
 }

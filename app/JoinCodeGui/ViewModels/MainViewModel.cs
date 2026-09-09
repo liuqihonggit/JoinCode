@@ -839,12 +839,34 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
     partial void OnMaxTokensChanged(int value)
     {
         OnPropertyChanged(nameof(IsInputTooLong));
-        WriteBackTemperatureAndMaxTokens();
+        Task.Run(async () =>
+        {
+            try
+            {
+                await _session.SetMaxTokensAsync(value).WaitAsync(Timeout);
+                StatusText = $"采样参数: 温度 {Temperature:0.00}, 最大 {value} tokens";
+            }
+            catch (Exception ex)
+            {
+                StatusText = $"设置采样参数失败: {ex.Message}";
+            }
+        });
     }
 
     partial void OnTemperatureChanged(double value)
     {
-        WriteBackTemperatureAndMaxTokens();
+        Task.Run(async () =>
+        {
+            try
+            {
+                await _session.SetTemperatureAsync((float)value).WaitAsync(Timeout);
+                StatusText = $"采样参数: 温度 {value:0.00}, 最大 {MaxTokens} tokens";
+            }
+            catch (Exception ex)
+            {
+                StatusText = $"设置采样参数失败: {ex.Message}";
+            }
+        });
     }
 
     /// <summary>系统提示词变更时应用到引擎（持久化由 OnPropertyChanged 自动路由处理）</summary>
@@ -871,27 +893,6 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 catch (Exception ex) { WriteErrorLog(ex); }
             });
         }
-    }
-
-    /// <summary>
-    /// 滑块变更写回引擎会话 — 经门面 SetTemperatureAsync/SetMaxTokensAsync 写入共享
-    /// ExecutionSettingsProvider，ChatOptionsFactory 下次创建即覆盖默认值（对齐 CLI 语义：不持久化）。
-    /// </summary>
-    private void WriteBackTemperatureAndMaxTokens()
-    {
-        Task.Run(async () =>
-        {
-            try
-            {
-                await _session.SetTemperatureAsync((float)Temperature).WaitAsync(Timeout);
-                await _session.SetMaxTokensAsync(MaxTokens).WaitAsync(Timeout);
-                StatusText = $"采样参数: 温度 {Temperature:0.00}, 最大 {MaxTokens} tokens";
-            }
-            catch (Exception ex)
-            {
-                StatusText = $"设置采样参数失败: {ex.Message}";
-            }
-        });
     }
 
     /// <summary>

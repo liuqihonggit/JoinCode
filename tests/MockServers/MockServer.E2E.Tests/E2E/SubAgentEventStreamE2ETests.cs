@@ -92,11 +92,11 @@ public sealed class SubAgentEventStreamE2ETests
 
         try
         {
-            Environment.SetEnvironmentVariable("JCC_ENDPOINT", $"http://localhost:{port}");
-            Environment.SetEnvironmentVariable("OPENAI_API_KEY", "sk-test-subagent-e2e");
-            Environment.SetEnvironmentVariable("JCC_VENDOR", "openai");
-            Environment.SetEnvironmentVariable("JCC_MODEL_ID", "gpt-4o");
-            Environment.SetEnvironmentVariable("JCC_PERMISSION_MODE", "bypass");
+            using var envScope = EnvVarScope.Set("JCC_ENDPOINT", $"http://localhost:{port}")
+                .Add("OPENAI_API_KEY", "sk-test-subagent-e2e")
+                .Add("JCC_VENDOR", "openai")
+                .Add("JCC_MODEL_ID", "gpt-4o")
+                .Add("JCC_PERMISSION_MODE", "bypass");
 
             // 与 GUI 完全同源的引擎会话。工厂级令牌传 None：Host 内部服务会注册该令牌，
             // 外部短命 CTS 先于 Host 处置会导致 Dispose 时 ObjectDisposedException
@@ -126,12 +126,7 @@ public sealed class SubAgentEventStreamE2ETests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("JCC_ENDPOINT", null);
-            Environment.SetEnvironmentVariable("OPENAI_API_KEY", null);
-            Environment.SetEnvironmentVariable("JCC_VENDOR", null);
-            Environment.SetEnvironmentVariable("JCC_MODEL_ID", null);
-            Environment.SetEnvironmentVariable("JCC_PERMISSION_MODE", null);
-
+            // 环境变量由 envScope.Dispose 自动恢复（逆序），此处只保留进程/目录清理
             if (!mockServer.HasExited)
             {
                 try { mockServer.Kill(entireProcessTree: true); }

@@ -4,6 +4,7 @@ global using ChatCompletionRequest = Testing.Common.MockServer.ChatCompletionReq
 global using ChatMsg = Testing.Common.MockServer.ApiMessage;
 global using ChatRequest = Testing.Common.MockServer.ChatCompletionRequest;
 global using JoinCode.Abstractions.Interfaces;
+global using JoinCode.Abstractions.Utils;
 global using JoinCode.Abstractions.Hooks;
 global using JoinCode.Abstractions.Configuration.AppData;
 global using JoinCode.Abstractions.Configuration.Providers;

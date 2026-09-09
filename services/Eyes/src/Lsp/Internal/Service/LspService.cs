@@ -189,7 +189,7 @@ public sealed partial class LspService : ServiceEntity, ILspService
         var allServers = _lspManager.GetAllServers();
         if (allServers.Count == 0)
         {
-            throw new InvalidOperationException("No LSP servers configured. Call IsServerAvailableAsync first or configure lsp-servers.json.");
+            return [];
         }
 
         ILspServerInstance? server;
@@ -221,7 +221,7 @@ public sealed partial class LspService : ServiceEntity, ILspService
                   ?? allServers.Values.FirstOrDefault();
             if (server == null)
             {
-                throw new InvalidOperationException("No LSP servers available for workspace symbol search.");
+                return [];
             }
             workspaceRoot = await GitWorkspaceResolver.FindWorkspaceRootAsync(workspacePath, _fs, cancellationToken).ConfigureAwait(false);
             _logger?.LogInformation("Workspace symbol search: server='{Name}' (fallback), workspace='{Root}'", server.Name, workspaceRoot ?? "(null)");
@@ -229,7 +229,7 @@ public sealed partial class LspService : ServiceEntity, ILspService
 
         if (server.State != LspServerState.Running)
         {
-            await server.StartAsync(workspaceRoot, cancellationToken).ConfigureAwait(false);
+            return [];
         }
 
         var symbolParams = new LspWorkspaceSymbolParams { Query = query };

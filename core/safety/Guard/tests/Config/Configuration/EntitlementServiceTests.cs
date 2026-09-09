@@ -186,7 +186,7 @@ public sealed class BriefModeServiceTests
     public void CrossInstance_PersistedToFile_WhenFileSystemProvided()
     {
         var fs = new IO.FileSystem.InMemoryFileSystem();
-        var cwd = Environment.CurrentDirectory;
+        var cwd = fs.GetCurrentDirectory();
         fs.CreateDirectory(Path.Combine(cwd, ".git"));
         var clock = JoinCode.Abstractions.Clock.SystemClockService.Instance;
 

@@ -41,18 +41,12 @@ public sealed class PathCaseSensitiveGuard
         if (realPath is null)
             return PathCaseGuardResult.Pass;
 
-        var targetLeaf = GetLeafName(targetPath);
-        var realLeaf = GetLeafName(realPath);
+        var targetLeaf = PathNormalizer.GetLeafName(targetPath);
+        var realLeaf = PathNormalizer.GetLeafName(realPath);
         if (string.Equals(targetLeaf, realLeaf, StringComparison.Ordinal))
             return PathCaseGuardResult.Pass;
 
         var reason = $"[特别警告] 路径仅大小写不同:命令使用 '{targetPath}',文件系统真实路径为 '{realPath}'。在 Windows 大小写不敏感文件系统上两者指向同一对象,直接删除将误删 '{realPath}' 的内容 — 这是删库事故的典型场景。已阻止删除。请使用与文件系统完全一致的真实路径 '{realPath}' 后再操作,或改用 Move-Item 移动到 .xxx/ 目录归档而非删除。";
         return new PathCaseGuardResult(true, realPath, reason);
-    }
-
-    private static string GetLeafName(string path)
-    {
-        var trimmed = path.TrimEnd('/', '\\');
-        return Path.GetFileName(trimmed);
     }
 }

@@ -35,10 +35,14 @@ public sealed class FileSystemRealPathResolver : IRealPathResolver
         if (string.IsNullOrWhiteSpace(path))
             return null;
 
+        var trimmed = PathNormalizer.TrimTrailingSeparators(path);
+        if (string.IsNullOrEmpty(trimmed))
+            return null;
+
         string fullPath;
         try
         {
-            fullPath = Path.GetFullPath(path);
+            fullPath = _fs.GetFullPath(trimmed);
         }
         catch (Exception)
         {

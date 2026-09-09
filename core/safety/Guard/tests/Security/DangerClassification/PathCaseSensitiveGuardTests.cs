@@ -88,4 +88,22 @@ public class PathCaseSensitiveGuardTests
 
         result.Blocked.Should().BeFalse();
     }
+
+    [Theory]
+    [InlineData("rm a/b/c", "D:\\proj\\a\\b\\C")]
+    [InlineData("rm a\\b\\c", "D:\\proj\\a\\b\\C")]
+    [InlineData("rm a/b/c/", "D:\\proj\\a\\b\\C")]
+    [InlineData("rm src/", "D:\\proj\\SRC")]
+    [InlineData("rm src\\", "D:\\proj\\SRC")]
+    public void Mixed_Separators_Should_Still_Detect_Case_Mismatch(string command, string realPath)
+    {
+        var resolver = new Mock<IRealPathResolver>();
+        resolver.Setup(r => r.GetRealPath(It.IsAny<string>())).Returns(realPath);
+        var cmd = ShellCommand.Parse(command);
+
+        var result = _guard.Check(cmd, resolver.Object);
+
+        result.Blocked.Should().BeTrue();
+        result.SuggestedPath.Should().Be(realPath);
+    }
 }

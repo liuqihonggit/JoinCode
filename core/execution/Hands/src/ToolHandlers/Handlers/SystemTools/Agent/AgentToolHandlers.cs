@@ -179,6 +179,38 @@ public partial class AgentToolHandlers
     }
 
     /// <summary>
+    /// 列出 ~/.jcc/agents/ 目录下所有 dry-run agent 状态文件
+    /// </summary>
+    private List<DryRunAgentState> ListDryRunAgents()
+    {
+        var stateDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".jcc", "agents");
+#pragma warning disable JCC9001
+        if (!Directory.Exists(stateDir))
+            return [];
+        var result = new List<DryRunAgentState>();
+        foreach (var file in Directory.EnumerateFiles(stateDir, "*.json"))
+        {
+            if (file.EndsWith(".messages.json", StringComparison.OrdinalIgnoreCase))
+                continue;
+            try
+            {
+                var json = File.ReadAllText(file);
+                var state = RelaxedJsonSerializer.Deserialize(json, DryRunAgentStateJsonContext.Default.DryRunAgentState);
+                if (state is not null)
+                    result.Add(state);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Failed to load dry-run agent state from {File}", file);
+            }
+        }
+        return result;
+#pragma warning restore JCC9001
+    }
+
+    /// <summary>
     /// 保存 dry-run agent 状态到 ~/.jcc/agents/{agentId}.json
     /// </summary>
     private void TrySaveDryRunState(DryRunAgentState state)
@@ -437,15 +469,34 @@ public partial class AgentToolHandlers
 
             var runningList = runningAgents.ToList();
             var response = new System.Text.StringBuilder();
-            response.AppendLine(L.T(StringKey.AgentRunningCount, runningList.Count));
-            response.AppendLine();
 
             if (runningList.Count == 0)
             {
+                var dryAgents = ListDryRunAgents();
+                if (dryAgents.Count > 0)
+                {
+                    response.AppendLine(L.T(StringKey.AgentRunningCount, dryAgents.Count));
+                    response.AppendLine();
+                    foreach (var dry in dryAgents)
+                    {
+                        var duration = (_clock.GetUtcNow() - dry.StartedAt).ToString(@"hh\:mm\:ss");
+                        response.AppendLine($"- [{dry.Id}] {dry.Description}");
+                        response.AppendLine($"  Type: dry-run, Status: {dry.Status}, Duration: {duration}");
+                    }
+                    ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "list", true);
+                    return ToolResultBuilder.Success()
+                        .WithText(response.ToString())
+                        .Build();
+                }
+                response.AppendLine(L.T(StringKey.AgentRunningCount, 0));
+                response.AppendLine();
                 response.AppendLine(L.T(StringKey.AgentNoRunningAgents));
             }
             else
             {
+                response.AppendLine(L.T(StringKey.AgentRunningCount, runningList.Count));
+                response.AppendLine();
+
                 foreach (var agent in runningList)
                 {
                     var duration = agent.StartedAt.HasValue

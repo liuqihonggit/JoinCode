@@ -546,6 +546,136 @@ public sealed class GitHubToolHandlersTests
         text.Should().NotContain("avatar_url");
         text.Should().NotContain("browser_download_url");
     }
+
+    [Fact]
+    public async Task SyncBranchProtection_Success_UpdatesRequiredStatusChecks()
+    {
+        _api.EnqueueResponse(new GitHubApiResponse
+        {
+            Success = true,
+            StatusCode = 200,
+            Body = """{"head":{"sha":"abc123"}}""",
+        });
+        _api.EnqueueResponse(new GitHubApiResponse
+        {
+            Success = true,
+            StatusCode = 200,
+            Body = """{"check_runs":[{"name":"build / Build"},{"name":"unit-tests / test"},{"name":"e2e / smoke"}]}""",
+        });
+        _api.EnqueueResponse(new GitHubApiResponse
+        {
+            Success = true,
+            StatusCode = 200,
+            Body = """{"strict":true,"contexts":["Build","unit-tests"]}""",
+        });
+        _api.EnqueueResponse(new GitHubApiResponse
+        {
+            Success = true,
+            StatusCode = 200,
+            Body = """{"strict":true,"contexts":["build / Build","unit-tests / test","e2e / smoke"]}""",
+        });
+
+        var result = await _handler.GhSyncBranchProtectionAsync("42", repo: "owner/repo");
+
+        result.IsError.Should().BeFalse();
+        var text = result.GetFirstText();
+        text.Should().Contain("分支保护规则已同步");
+        text.Should().Contain("build / Build");
+        text.Should().Contain("e2e / smoke");
+        text.Should().Contain("+3 新增");
+        text.Should().Contain("-2 移除");
+        _api.LastMethod.Should().Be(HttpMethod.Put);
+        _api.LastPath.Should().Be("repos/owner/repo/branches/main/protection/required_status_checks");
+    }
+
+    [Fact]
+    public async Task SyncBranchProtection_NoProtection_ReturnsError()
+    {
+        _api.EnqueueResponse(new GitHubApiResponse
+        {
+            Success = true,
+            StatusCode = 200,
+            Body = """{"head":{"sha":"abc123"}}""",
+        });
+        _api.EnqueueResponse(new GitHubApiResponse
+        {
+            Success = true,
+            StatusCode = 200,
+            Body = """{"check_runs":[{"name":"build"}]}""",
+        });
+        _api.EnqueueResponse(new GitHubApiResponse
+        {
+            Success = false,
+            StatusCode = 404,
+            Error = "Branch not protected",
+        });
+
+        var result = await _handler.GhSyncBranchProtectionAsync("42", repo: "owner/repo");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("没有分支保护规则");
+    }
+
+    [Fact]
+    public async Task SyncBranchProtection_NoChecks_ReturnsError()
+    {
+        _api.EnqueueResponse(new GitHubApiResponse
+        {
+            Success = true,
+            StatusCode = 200,
+            Body = """{"head":{"sha":"abc123"}}""",
+        });
+        _api.EnqueueResponse(new GitHubApiResponse
+        {
+            Success = true,
+            StatusCode = 200,
+            Body = """{"check_runs":[]}""",
+        });
+
+        var result = await _handler.GhSyncBranchProtectionAsync("42", repo: "owner/repo");
+
+        result.IsError.Should().BeTrue();
+        result.GetFirstText().Should().Contain("没有任何 check-runs");
+    }
+
+    [Fact]
+    public async Task SyncBranchProtection_PutBodyContainsAllCheckNames()
+    {
+        _api.EnqueueResponse(new GitHubApiResponse
+        {
+            Success = true,
+            StatusCode = 200,
+            Body = """{"head":{"sha":"abc123"}}""",
+        });
+        _api.EnqueueResponse(new GitHubApiResponse
+        {
+            Success = true,
+            StatusCode = 200,
+            Body = """{"check_runs":[{"name":"build"},{"name":"test"},{"name":"lint"}]}""",
+        });
+        _api.EnqueueResponse(new GitHubApiResponse
+        {
+            Success = true,
+            StatusCode = 200,
+            Body = """{"strict":false,"contexts":["old-check"]}""",
+        });
+        _api.EnqueueResponse(new GitHubApiResponse
+        {
+            Success = true,
+            StatusCode = 200,
+            Body = """{"strict":false,"contexts":["build","test","lint"]}""",
+        });
+
+        await _handler.GhSyncBranchProtectionAsync("1", branch: "develop", repo: "owner/repo");
+
+        _api.LastMethod.Should().Be(HttpMethod.Put);
+        _api.LastPath.Should().Be("repos/owner/repo/branches/develop/protection/required_status_checks");
+        _api.LastBody.Should().NotBeNullOrEmpty();
+        using var doc = System.Text.Json.JsonDocument.Parse(_api.LastBody!);
+        doc.RootElement.GetProperty("strict").GetBoolean().Should().BeFalse();
+        var contexts = doc.RootElement.GetProperty("contexts").EnumerateArray().Select(c => c.GetString()).ToList();
+        contexts.Should().Contain(new[] { "build", "test", "lint" });
+    }
 }
 
 internal sealed class FakeGitHubApiClient : IGitHubApiClient

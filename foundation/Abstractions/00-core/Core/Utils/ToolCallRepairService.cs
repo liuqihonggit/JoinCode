@@ -647,6 +647,16 @@ internal static class ToolCallRepairService
                 continue;
             }
 
+            if (json[i] == '\'')
+            {
+                int start = i;
+                i++;
+                while (i < json.Length && json[i] != '\'') i++;
+                if (i < json.Length) i++;
+                result.Append(json.AsSpan(start, i - start));
+                continue;
+            }
+
             if (json[i] == ':')
             {
                 result.Append(json[i]);

@@ -5,66 +5,66 @@
 ## 工具列表（按分类）
 
 ### plan 分类（剩余8个）
-1. add_plan_step
-2. approve_plan_step
-3. enter_plan_mode
-4. execute_plan_steps
-5. exit_plan_mode
-6. get_plan_history
-7. modify_plan_step
-8. reject_plan_step
-9. remove_plan_step
+1. add_plan_step（已测试✅）
+2. approve_plan_step（已测试✅）
+3. enter_plan_mode（已测试✅）
+4. execute_plan_steps（已测试✅）
+5. exit_plan_mode（已测试✅）
+6. get_plan_history（已测试✅）
+7. modify_plan_step（已测试✅）
+8. reject_plan_step（已测试✅）
+9. remove_plan_step（已测试✅）
 
 ### task 分类（剩余10个）
-10. task_can_execute
+10. task_can_execute（已测试✅）
 11. task_create（已测试✅）
-12. task_get
-13. task_get_dependencies
+12. task_get（已测试✅）
+13. task_get_dependencies（已测试✅）
 14. task_list（已测试✅）
 15. task_list_running（已测试✅）
-16. task_output
-17. task_remove_dependency
-18. task_set_dependency
-19. task_stop
-20. task_stop_batch
-21. task_update
+16. task_output（已测试✅）
+17. task_remove_dependency（已测试✅）
+18. task_set_dependency（已测试✅）
+19. task_stop（已测试✅）
+20. task_stop_batch（已测试✅）
+21. task_update（已测试✅）
 
 ### team 分类（剩余8个）
-22. team_add_member
-23. team_broadcast
-24. team_create
-25. team_delete
-26. team_get
-27. team_get_messages
+22. team_add_member（已测试✅）
+23. team_broadcast（已测试✅）
+24. team_create（已测试✅）
+25. team_delete（已测试✅）
+26. team_get（已测试✅）
+27. team_get_messages（已测试✅）
 28. team_list（已测试✅）
-29. team_remove_member
-30. team_send_direct_message
-31. team_send_message
+29. team_remove_member（已测试✅）
+30. team_send_direct_message（已测试✅）
+31. team_send_message（已测试✅）
 
 ### worktree 分类（剩余7个）
-32. worktree_cleanup
-33. worktree_create
-34. worktree_find_git
+32. worktree_cleanup（已测试✅）
+33. worktree_create（已测试✅）
+34. worktree_find_git（已测试✅）
 35. worktree_list（已测试✅）
-36. worktree_list_all
-37. worktree_merge
-38. worktree_remove
-39. worktree_status
+36. worktree_list_all（已测试✅）
+37. worktree_merge（已测试✅，已修复路径校验bug）
+38. worktree_remove（已测试✅）
+39. worktree_status（已测试✅）
 
 ### memory 分类（剩余11个）
-40. memory_add_team_path
-41. memory_age
-42. memory_cleanup
-43. memory_daily_log_append
-44. memory_daily_log_get
+40. memory_add_team_path（已测试✅）
+41. memory_age（已测试✅）
+42. memory_cleanup（已测试✅）
+43. memory_daily_log_append（已测试✅）
+44. memory_daily_log_get（已测试✅）
 45. memory_health（已测试✅）
 46. memory_list_team_paths（已测试✅）
-47. memory_remove_team_path
+47. memory_remove_team_path（已测试✅）
 48. memory_scan（已测试✅）
-49. memory_scan_team
-50. memory_search_history
-51. memory_team_status
-52. memory_team_sync
+49. memory_scan_team（已测试✅）
+50. memory_search_history（已测试✅）
+51. memory_team_status（已测试✅）
+52. memory_team_sync（已测试✅）
 
 ## 测试命令示例
 

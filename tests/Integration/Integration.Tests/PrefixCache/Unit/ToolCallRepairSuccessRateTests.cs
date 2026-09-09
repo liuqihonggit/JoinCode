@@ -66,16 +66,16 @@ public sealed class ToolCallRepairSuccessRateTests
 
     public static IEnumerable<object[]> ToolNameCaseSamples => new[]
     {
-        new object[] { "read", "Read", """{"filePath":"/src/Program.cs"}""" },
-        new object[] { "READ", "Read", """{"filePath":"/src/Program.cs"}""" },
-        new object[] { "rEaD", "Read", """{"filePath":"/src/Program.cs"}""" },
-        new object[] { "write", "Write", """{"filePath":"/src/Program.cs"}""" },
-        new object[] { "WRITE", "Write", """{"filePath":"/src/Program.cs"}""" },
-        new object[] { "glob", "Glob", """{"pattern":"*.cs"}""" },
-        new object[] { "GLOB", "Glob", """{"pattern":"*.cs"}""" },
-        new object[] { "bash", "Bash", """{"command":"ls"}""" },
-        new object[] { "BASH", "Bash", """{"command":"ls"}""" },
-        new object[] { "webfetch", "WebFetch", """{"url":"https://example.com"}""" }
+        new object[] { "read", "read", """{"filePath":"/src/Program.cs"}""" },
+        new object[] { "READ", "read", """{"filePath":"/src/Program.cs"}""" },
+        new object[] { "rEaD", "read", """{"filePath":"/src/Program.cs"}""" },
+        new object[] { "write", "write", """{"filePath":"/src/Program.cs"}""" },
+        new object[] { "WRITE", "write", """{"filePath":"/src/Program.cs"}""" },
+        new object[] { "glob", "glob", """{"pattern":"*.cs"}""" },
+        new object[] { "GLOB", "glob", """{"pattern":"*.cs"}""" },
+        new object[] { "bash", "bash", """{"command":"ls"}""" },
+        new object[] { "BASH", "bash", """{"command":"ls"}""" },
+        new object[] { "webfetch", "web_fetch", """{"url":"https://example.com"}""" }
     };
 
     [Theory]
@@ -229,29 +229,29 @@ public sealed class ToolCallRepairSuccessRateTests
     public static IEnumerable<object[]> MixedProblemSamples => new[]
     {
         // 小写工具名 + 单引号 + 尾随逗号 + snake_case 参数名
-        new object[] { "read", "Read", ReadToolSchema, """{'file_path': '/src/Program.cs',}""", "filePath", "/src/Program.cs" },
+        new object[] { "read", "read", ReadToolSchema, """{'file_path': '/src/Program.cs',}""", "filePath", "/src/Program.cs" },
         // 大写工具名 + 未引用键 + 字符串数字
-        new object[] { "READ", "Read", ReadToolSchema, """{file_path: '/src/Program.cs', offset: '10'}""", "filePath", "/src/Program.cs" },
+        new object[] { "READ", "read", ReadToolSchema, """{file_path: '/src/Program.cs', offset: '10'}""", "filePath", "/src/Program.cs" },
         // 小写工具名 + 混合引号 + 别名参数
-        new object[] { "bash", "Bash", BashToolSchema, """{'cmd': "ls", 'workingDirectory': '/tmp',}""", "command", "ls" },
+        new object[] { "bash", "bash", BashToolSchema, """{'cmd': "ls", 'workingDirectory': '/tmp',}""", "command", "ls" },
         // 大写工具名 + 单引号 + 字符串布尔
         new object[] { "SEARCH", "search", SearchToolSchema, """{'search_query': 'test', 'recursive': 'true',}""", "query", "test" },
         // 混合大小写 + 尾随逗号 + 类型错误
-        new object[] { "rEaD", "Read", ReadToolSchema, """{'file_path': '/src/Program.cs', 'limit': '50',}""", "filePath", "/src/Program.cs" },
+        new object[] { "rEaD", "read", ReadToolSchema, """{'file_path': '/src/Program.cs', 'limit': '50',}""", "filePath", "/src/Program.cs" },
         // 小写 + 未引用 + 数字当字符串
-        new object[] { "write", "Write", ReadToolSchema, """{file_path: 123}""", "filePath", "123" },
+        new object[] { "write", "write", ReadToolSchema, """{file_path: 123}""", "filePath", "123" },
         // 大写 + 单引号 + 数组当字符串
-        new object[] { "BASH", "Bash", BashToolSchema, """{'cmd': ['ls -la']}""", "command", "ls -la" },
+        new object[] { "BASH", "bash", BashToolSchema, """{'cmd': ['ls -la']}""", "command", "ls -la" },
         // 混合 + 多个问题
-        new object[] { "glob", "Glob", SearchToolSchema, """{search_pattern: '*.cs',}""", "pattern", "*.cs" },
+        new object[] { "glob", "glob", SearchToolSchema, """{search_pattern: '*.cs',}""", "pattern", "*.cs" },
         // 工具名 + JSON 完全畸形
-        new object[] { "read", "Read", ReadToolSchema, """{'file_path': '/src/Program.cs', 'offset': '10', 'limit': '50',}""", "filePath", "/src/Program.cs" },
+        new object[] { "read", "read", ReadToolSchema, """{'file_path': '/src/Program.cs', 'offset': '10', 'limit': '50',}""", "filePath", "/src/Program.cs" },
         // DeepSeek 风格 — 单引号 + 未引用混合
-        new object[] { "bash", "Bash", BashToolSchema, """{'command': "ls -la", workingDirectory: '/tmp'}""", "command", "ls -la" },
+        new object[] { "bash", "bash", BashToolSchema, """{'command': "ls -la", workingDirectory: '/tmp'}""", "command", "ls -la" },
         // OpenAI 风格 — 大小写混乱
-        new object[] { "WebFetch", "WebFetch", new ToolSchema { Properties = new Dictionary<string, ToolSchemaProperty> { ["url"] = new() { Type = "string" } } }, """{'url_link': 'https://example.com',}""", "url", "https://example.com" },
+        new object[] { "WebFetch", "web_fetch", new ToolSchema { Properties = new Dictionary<string, ToolSchemaProperty> { ["url"] = new() { Type = "string" } } }, """{'url_link': 'https://example.com',}""", "url", "https://example.com" },
         // Anthropic 风格 — snake_case + 尾随逗号
-        new object[] { "edit", "Edit", ReadToolSchema, """{'file_path': '/src/Program.cs', 'old_string': 'old', 'new_string': 'new',}""", "filePath", "/src/Program.cs" }
+        new object[] { "edit", "edit", ReadToolSchema, """{'file_path': '/src/Program.cs', 'old_string': 'old', 'new_string': 'new',}""", "filePath", "/src/Program.cs" }
     };
 
     [Theory]
@@ -357,7 +357,7 @@ public sealed class ToolCallRepairSuccessRateTests
             Description = "read → Read",
             RawToolName = "read",
             RawArguments = """{"filePath":"/src/Program.cs"}""",
-            ExpectedToolName = "Read",
+            ExpectedToolName = "read",
             ExpectedArgumentsKey = "filePath",
             Schema = ReadToolSchema,
             ValidateResult = args => args.TryGetValue("filePath", out var v) && v.GetString() == "/src/Program.cs"
@@ -368,7 +368,7 @@ public sealed class ToolCallRepairSuccessRateTests
             Description = "READ → Read",
             RawToolName = "READ",
             RawArguments = """{"filePath":"/src/Program.cs"}""",
-            ExpectedToolName = "Read",
+            ExpectedToolName = "read",
             ExpectedArgumentsKey = "filePath",
             Schema = ReadToolSchema,
             ValidateResult = args => args.TryGetValue("filePath", out var v) && v.GetString() == "/src/Program.cs"
@@ -379,7 +379,7 @@ public sealed class ToolCallRepairSuccessRateTests
             Description = "rEaD → Read",
             RawToolName = "rEaD",
             RawArguments = """{"filePath":"/src/Program.cs"}""",
-            ExpectedToolName = "Read",
+            ExpectedToolName = "read",
             ExpectedArgumentsKey = "filePath",
             Schema = ReadToolSchema,
             ValidateResult = args => args.TryGetValue("filePath", out var v) && v.GetString() == "/src/Program.cs"
@@ -390,7 +390,7 @@ public sealed class ToolCallRepairSuccessRateTests
             Description = "bash → Bash",
             RawToolName = "bash",
             RawArguments = """{"command":"ls"}""",
-            ExpectedToolName = "Bash",
+            ExpectedToolName = "bash",
             ExpectedArgumentsKey = "command",
             Schema = BashToolSchema,
             ValidateResult = args => args.TryGetValue("command", out var v) && v.GetString() == "ls"
@@ -401,7 +401,7 @@ public sealed class ToolCallRepairSuccessRateTests
             Description = "BASH → Bash",
             RawToolName = "BASH",
             RawArguments = """{"command":"ls"}""",
-            ExpectedToolName = "Bash",
+            ExpectedToolName = "bash",
             ExpectedArgumentsKey = "command",
             Schema = BashToolSchema,
             ValidateResult = args => args.TryGetValue("command", out var v) && v.GetString() == "ls"
@@ -414,7 +414,7 @@ public sealed class ToolCallRepairSuccessRateTests
             Description = "尾随逗号",
             RawToolName = "Read",
             RawArguments = """{"filePath":"/src/Program.cs",}""",
-            ExpectedToolName = "Read",
+            ExpectedToolName = "read",
             ExpectedArgumentsKey = "filePath",
             Schema = ReadToolSchema,
             ValidateResult = args => args.TryGetValue("filePath", out var v) && v.GetString() == "/src/Program.cs"
@@ -425,7 +425,7 @@ public sealed class ToolCallRepairSuccessRateTests
             Description = "未引用键",
             RawToolName = "Read",
             RawArguments = """{filePath: "/src/Program.cs"}""",
-            ExpectedToolName = "Read",
+            ExpectedToolName = "read",
             ExpectedArgumentsKey = "filePath",
             Schema = ReadToolSchema,
             ValidateResult = args => args.TryGetValue("filePath", out var v) && v.GetString() == "/src/Program.cs"
@@ -436,7 +436,7 @@ public sealed class ToolCallRepairSuccessRateTests
             Description = "单引号",
             RawToolName = "Read",
             RawArguments = """{'filePath': '/src/Program.cs'}""",
-            ExpectedToolName = "Read",
+            ExpectedToolName = "read",
             ExpectedArgumentsKey = "filePath",
             Schema = ReadToolSchema,
             ValidateResult = args => args.TryGetValue("filePath", out var v) && v.GetString() == "/src/Program.cs"
@@ -447,7 +447,7 @@ public sealed class ToolCallRepairSuccessRateTests
             Description = "混合引号+尾随逗号",
             RawToolName = "Bash",
             RawArguments = """{'command': "ls", 'workingDirectory': "/tmp",}""",
-            ExpectedToolName = "Bash",
+            ExpectedToolName = "bash",
             ExpectedArgumentsKey = "command",
             Schema = BashToolSchema,
             ValidateResult = args => args.TryGetValue("command", out var v) && v.GetString() == "ls"
@@ -460,7 +460,7 @@ public sealed class ToolCallRepairSuccessRateTests
             Description = "file_path → filePath",
             RawToolName = "Read",
             RawArguments = """{"file_path":"/src/Program.cs"}""",
-            ExpectedToolName = "Read",
+            ExpectedToolName = "read",
             ExpectedArgumentsKey = "filePath",
             Schema = ReadToolSchema,
             ValidateResult = args => args.TryGetValue("filePath", out var v) && v.GetString() == "/src/Program.cs"
@@ -471,7 +471,7 @@ public sealed class ToolCallRepairSuccessRateTests
             Description = "path → filePath",
             RawToolName = "Read",
             RawArguments = """{"path":"/src/Program.cs"}""",
-            ExpectedToolName = "Read",
+            ExpectedToolName = "read",
             ExpectedArgumentsKey = "filePath",
             Schema = ReadToolSchema,
             ValidateResult = args => args.TryGetValue("filePath", out var v) && v.GetString() == "/src/Program.cs"
@@ -482,7 +482,7 @@ public sealed class ToolCallRepairSuccessRateTests
             Description = "cmd → command",
             RawToolName = "Bash",
             RawArguments = """{"cmd":"ls -la"}""",
-            ExpectedToolName = "Bash",
+            ExpectedToolName = "bash",
             ExpectedArgumentsKey = "command",
             Schema = BashToolSchema,
             ValidateResult = args => args.TryGetValue("command", out var v) && v.GetString() == "ls -la"
@@ -506,7 +506,7 @@ public sealed class ToolCallRepairSuccessRateTests
             Description = "字符串数字 → integer",
             RawToolName = "Read",
             RawArguments = """{"filePath":"/src/Program.cs","offset":"10"}""",
-            ExpectedToolName = "Read",
+            ExpectedToolName = "read",
             ExpectedArgumentsKey = "offset",
             Schema = ReadToolSchema,
             ValidateResult = args => args.TryGetValue("offset", out var v) && v.ValueKind == JsonValueKind.Number
@@ -528,7 +528,7 @@ public sealed class ToolCallRepairSuccessRateTests
             Description = "数字 → string",
             RawToolName = "Read",
             RawArguments = """{"filePath":123}""",
-            ExpectedToolName = "Read",
+            ExpectedToolName = "read",
             ExpectedArgumentsKey = "filePath",
             Schema = ReadToolSchema,
             ValidateResult = args => args.TryGetValue("filePath", out var v) && v.ValueKind == JsonValueKind.String && v.GetString() == "123"
@@ -541,7 +541,7 @@ public sealed class ToolCallRepairSuccessRateTests
             Description = "小写+单引号+尾随逗号+snake_case",
             RawToolName = "read",
             RawArguments = """{'file_path': '/src/Program.cs',}""",
-            ExpectedToolName = "Read",
+            ExpectedToolName = "read",
             ExpectedArgumentsKey = "filePath",
             Schema = ReadToolSchema,
             ValidateResult = args => args.TryGetValue("filePath", out var v) && v.GetString() == "/src/Program.cs"
@@ -552,7 +552,7 @@ public sealed class ToolCallRepairSuccessRateTests
             Description = "大写+未引用+字符串数字",
             RawToolName = "READ",
             RawArguments = """{file_path: '/src/Program.cs', offset: '10'}""",
-            ExpectedToolName = "Read",
+            ExpectedToolName = "read",
             ExpectedArgumentsKey = "filePath",
             Schema = ReadToolSchema,
             ValidateResult = args => args.TryGetValue("filePath", out var v) && v.GetString() == "/src/Program.cs"
@@ -563,7 +563,7 @@ public sealed class ToolCallRepairSuccessRateTests
             Description = "小写+混合引号+别名",
             RawToolName = "bash",
             RawArguments = """{'cmd': "ls", 'workingDirectory': '/tmp',}""",
-            ExpectedToolName = "Bash",
+            ExpectedToolName = "bash",
             ExpectedArgumentsKey = "command",
             Schema = BashToolSchema,
             ValidateResult = args => args.TryGetValue("command", out var v) && v.GetString() == "ls"
@@ -574,7 +574,7 @@ public sealed class ToolCallRepairSuccessRateTests
             Description = "DeepSeek风格 — 单引号+未引用混合",
             RawToolName = "bash",
             RawArguments = """{'command': "ls -la", workingDirectory: '/tmp'}""",
-            ExpectedToolName = "Bash",
+            ExpectedToolName = "bash",
             ExpectedArgumentsKey = "command",
             Schema = BashToolSchema,
             ValidateResult = args => args.TryGetValue("command", out var v) && v.GetString() == "ls -la"

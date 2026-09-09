@@ -317,6 +317,15 @@ public class WorktreeToolHandlers
             _ => WorktreeMergeStrategy.Fail
         };
 
+        if (!_fs.DirectoryExists(source_worktree_path))
+        {
+            return ToolResultBuilder.Error().WithText($"源 worktree 路径不存在: {source_worktree_path}").Build();
+        }
+        if (!_fs.DirectoryExists(target_worktree_path))
+        {
+            return ToolResultBuilder.Error().WithText($"目标 worktree 路径不存在: {target_worktree_path}").Build();
+        }
+
         var result = await _mergeService.MergeToTargetAsync(source_worktree_path, target_worktree_path, mergeStrategy, cancellationToken);
 
         if (!result.IsSuccess)

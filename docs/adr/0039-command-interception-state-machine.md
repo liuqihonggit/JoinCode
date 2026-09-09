@@ -28,6 +28,20 @@ ADR 0034 的放弃理由（状态空间爆炸）在引入 [Flags] + 守卫后不
 
 **迁移策略**：渐进式（ADR 0007），现有 5 个 Guard 实现逐步迁移为状态机守卫。
 
+## 路径大小写守卫(Windows 防误删)
+
+**背景**:生产事故 — Windows 下执行 `rm -rf src/`,因文件系统大小写不敏感,`src` 与 `SRC` 指向同一目录,导致核心源码被误删;叠加 `git reset --hard` 数据无法恢复。现有 [0008](docs/adr/0008-archive-to-xxx-not-delete.md)(禁删→归档)是 AI 行为规范,0039 命令拦截架构未覆盖"路径大小写比对"这一具体守卫。
+
+**决策**:在命令拦截状态机的删除转换上加"路径大小写守卫" — 删除命令(rm/del/Remove-Item/rmdir/rd/erase)的目标路径与文件系统真实大小写路径比对,叶子名大小写不一致则 Deny 并提示真实路径,阻断误删。
+
+**实现**:
+- `IRealPathResolver` / `FileSystemRealPathResolver`(`Core.Security.Services`):枚举父目录取条目真实大小写,注入 `IFileSystem`(JCC9001 合规,可 mock)
+- `PathCaseSensitiveGuard`(`Core.Security.DangerClassification`):纯逻辑守卫,比对命令路径叶子名与真实路径叶子名(Ordinal),不匹配返回拦截结果
+- 接入 `DangerousCommandProtectionMiddleware`:Shell 危险命令检测到 FileDeletion/DirectoryDeletion 风险后、自动通过前调用守卫,拦截则 `Rejected(真实路径提示)`
+- 测试:`PathCaseSensitiveGuardTests` 11 用例(mock resolver,不依赖 OS),全量 156 测试无回归
+
+**与 0008 关系**:0008 是策略层(禁删→移到 `.xxx/`),本守卫是机制层(Hook 强制大小写校验,即使 AI 写错路径也删不到)。两者互补:守卫拦大小写错误,0008 引导正确归档。
+
 ## 替代方案
 
 1. **分层 Guard+Interceptor（ADR 0034 原方案）**：放弃。状态爆炸理由不成立，分层增加协调成本。

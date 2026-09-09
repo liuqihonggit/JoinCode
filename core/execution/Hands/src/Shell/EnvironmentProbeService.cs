@@ -53,64 +53,6 @@ public sealed class EnvironmentProbeService : ServiceEntity, IEnvironmentProbeSe
     
     }
 
-    public string NormalizePath(string rawPath, string targetFormat = "auto")
-    {
-        if (string.IsNullOrWhiteSpace(rawPath)) return rawPath;
-
-        var isWindows = OperatingSystem.IsWindows();
-        var useUnixFormat = targetFormat == "unix" || (targetFormat == "auto" && !isWindows);
-        var normalized = rawPath.Replace('\\', '/').Trim();
-
-        if (useUnixFormat)
-        {
-            if (isWindows && normalized.Length >= 2 && normalized[1] == ':')
-                normalized = $"/{char.ToLower(normalized[0])}{normalized[2..]}";
-            return normalized;
-        }
-
-        if (normalized.StartsWith('/') && normalized.Length > 2 && normalized[2] == '/')
-            normalized = $"{char.ToUpper(normalized[1])}:{normalized[2..]}";
-        return normalized.Replace('/', '\\');
-    }
-
-    /// <inheritdoc />
-    public string GatePath(string rawPath, ISystemActuator actuator)
-    {
-        if (string.IsNullOrWhiteSpace(rawPath)) return rawPath;
-
-        var isWindows = OperatingSystem.IsWindows();
-        var isBash = actuator.Kind == SystemActuatorKind.Bash;
-
-        if (isWindows && isBash)
-        {
-            return PathConverter.WindowsPathToPosixPath(rawPath);
-        }
-
-        if (isWindows && !isBash)
-        {
-            return PathConverter.PosixPathToWindowsPath(rawPath);
-        }
-
-        if (!isWindows && PathConverter.LooksLikeWindowsPath(rawPath))
-        {
-            return PathConverter.WindowsPathToPosixPath(rawPath);
-        }
-
-        return rawPath;
-    }
-
-    /// <inheritdoc />
-    public string GateCommandPaths(string command, ISystemActuator actuator)
-    {
-        if (string.IsNullOrEmpty(command)) return command;
-
-        var isWindows = OperatingSystem.IsWindows();
-        var isBash = actuator.Kind == SystemActuatorKind.Bash;
-        var toPosix = (isWindows && isBash) || (!isWindows);
-
-        return PathConverter.GateCommandPaths(command, toPosix);
-    }
-
     public async Task<IReadOnlyDictionary<string, ExecutorScore>> GetExecutorScoresAsync(CancellationToken ct = default)
     {
         var report = await ProbeEnvironmentAsync(false, ct).ConfigureAwait(false);

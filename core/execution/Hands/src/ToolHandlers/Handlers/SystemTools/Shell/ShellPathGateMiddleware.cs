@@ -20,22 +20,7 @@ public sealed partial class ShellPathGateMiddleware : ServiceEntity, IShellMiddl
     {
         if (!string.IsNullOrEmpty(context.WorkingDirectory))
         {
-            var gated = _probeService.GatePath(context.WorkingDirectory, context.Provider);
-            if (!string.Equals(gated, context.WorkingDirectory, StringComparison.Ordinal))
-            {
-                context.WorkingDirectory = gated;
-            }
-
             WarnUncPathForBash(context.WorkingDirectory, context.Provider);
-        }
-
-        if (!string.IsNullOrEmpty(context.Command))
-        {
-            var gatedCommand = _probeService.GateCommandPaths(context.Command, context.Provider);
-            if (!string.Equals(gatedCommand, context.Command, StringComparison.Ordinal))
-            {
-                context.Command = gatedCommand;
-            }
         }
 
         return next(context, ct);

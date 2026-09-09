@@ -67,7 +67,39 @@ public partial class ShellToolHandlers : ShellToolBase
 
             await _pipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
 
-            return context.Result ?? ToolResultBuilder.PipelineNoResult();
+            var result = context.Result ?? ToolResultBuilder.PipelineNoResult();
+
+            if (ShellPathRetryHelper.IsPathError(result))
+            {
+                var normalizedCommand = ShellPathRetryHelper.TryNormalizeCommand(command, toForwardSlash: true);
+                if (normalizedCommand is not null)
+                {
+                    var retryContext = new ShellPipelineContext
+                    {
+                        Command = normalizedCommand,
+                        Provider = actuator,
+                        Description = description,
+                        Timeout = timeout,
+                        TimeoutPolicy = TimeoutPolicy,
+                        WorkingDirectory = workDir,
+                        Background = background,
+                        AutoBackground = auto_background,
+                        DangerouslyDisableSandbox = dangerously_disable_sandbox,
+                        CancellationToken = cancellationToken,
+                        OnProgress = onProgress,
+                    };
+
+                    await _pipeline.ExecuteAsync(retryContext, cancellationToken).ConfigureAwait(false);
+
+                    var retryResult = retryContext.Result;
+                    if (retryResult is not null && !retryResult.IsError)
+                    {
+                        return retryResult;
+                    }
+                }
+            }
+
+            return result;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

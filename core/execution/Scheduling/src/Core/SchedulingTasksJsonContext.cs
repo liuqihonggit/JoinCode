@@ -16,6 +16,7 @@ namespace Core.Scheduling;
 [JsonSerializable(typeof(LocalShellTaskDefinition))]
 [JsonSerializable(typeof(InProcessTeammateDefinition))]
 [JsonSerializable(typeof(List<RuntimeTask>))]
+[JsonSerializable(typeof(WorkflowSnapshot))]
 public partial class SchedulingTasksJsonContext : JsonSerializerContext;
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]

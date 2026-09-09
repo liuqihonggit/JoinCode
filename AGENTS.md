@@ -449,6 +449,10 @@ public void Dispose() {
 | 路径拼接 | `Path.Combine` | 字符串 `+` 拼接路径 |
 | 空检查 | `ArgumentNullException.ThrowIfNull` | `if (x == null) throw new...` |
 | 配置字典 | 枚举 + `[EnumValue]` 源码生成 | 手动 `(string,string)[]` 元组 |
+| 临时目录 | `await using var tmp = TempDirScope.Create(fs)` | 手写 `CreateDirectory` + try-finally `DeleteDirectory` |
+| 环境变量临时设置 | `using var env = EnvVarScope.Set("K","v").Add("K2","v2")` | 手写 `var prev=Get;Set;try{}finally{Set(prev)}` |
+| 工作目录切换 | `using var cwd = CwdScope.Enter(fs, newPath)` | 手写 `var prev=GetCwd;SetCwd;try{}finally{SetCwd(prev)}` |
+| 事件订阅 | `await using var sub = bus.SubscribeAsync(handler)` | `Subscribe` + 手动 `Unsubscribe` try-finally |
 
 ## 🔴 平台专属操作禁令
 

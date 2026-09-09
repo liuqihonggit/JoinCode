@@ -13,7 +13,7 @@ internal sealed record GhParam(string Name, bool IsRequired, bool IsBoolean);
 /// gh 子命令的工具名解析结果。
 /// </summary>
 /// <param name="ToolName">拼接出的 MCP 工具名（如 <c>gh_pr_view</c>）。</param>
-/// <param name="Group">gh 分组（pr/issue/repo/release/run/api）。</param>
+/// <param name="Group">gh 分组（pr/issue/repo/release/run/branch/api）。</param>
 /// <param name="Action">分组下的动作（view/list/...），api 分组为 null。</param>
 /// <param name="Tail">待绑定的剩余参数（位置参数 + 选项）。</param>
 /// <param name="Json">是否要求 JSON 输出。</param>
@@ -27,7 +27,7 @@ internal sealed record GhResolvedCommand(string ToolName, string Group, string? 
 internal static class GhCommandResolver
 {
     /// <summary>gh 分组清单 — 与 <c>gh_*</c> 工具前缀一一对应，用于用法提示。</summary>
-    private static readonly string[] KnownGroups = ["pr", "issue", "repo", "release", "run", "api"];
+    private static readonly string[] KnownGroups = ["pr", "issue", "repo", "release", "run", "branch", "api"];
 
     /// <summary>
     /// 解析 <c>jcc gh ...</c> 命令行（<paramref name="args"/>[0] 为子命令名 <c>gh</c>）。

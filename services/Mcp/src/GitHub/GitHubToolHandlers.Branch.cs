@@ -7,8 +7,8 @@ namespace McpToolDispatch;
 /// </summary>
 public partial class GitHubToolHandlers
 {
-    [McpTool(GitHubToolNameConstants.GhSyncBranchProtection, "同步分支保护规则: 从 PR 的 CI checks 提取 check 名, 更新分支保护的 required_status_checks(避免 CI 拆分后 auto-merge BLOCKED)", "github")]
-    public async Task<ToolResult> GhSyncBranchProtectionAsync(
+    [McpTool(GitHubToolNameConstants.GhBranchSyncProtection, "同步分支保护规则: 从 PR 的 CI checks 提取 check 名, 更新分支保护的 required_status_checks(避免 CI 拆分后 auto-merge BLOCKED)", "github")]
+    public async Task<ToolResult> GhBranchSyncProtectionAsync(
         [McpToolParameter("PR 编号或 URL(用于获取 CI check 名)", Required = true)] string pr_number,
         [McpToolParameter("分支名(默认 main)", Required = false)] string? branch = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,

@@ -128,9 +128,9 @@ public enum GitHubToolName
     GhRepoList,
 
     // === 分支保护 ===
-    [EnumValue("gh_sync_branch_protection")]
+    [EnumValue("gh_branch_sync_protection")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
-    GhSyncBranchProtection,
+    GhBranchSyncProtection,
 
     // === 通用 API 调用 ===
     [EnumValue("gh_api")]

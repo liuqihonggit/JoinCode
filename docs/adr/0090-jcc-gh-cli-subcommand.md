@@ -32,7 +32,7 @@ jcc gh api repos/o/r/issues         # → gh_api      { path: "repos/o/r/issues"
 **理由**：
 - 与 `jcc rg` 同构：位置参数为主、`--` 选项为辅，符合 ADR 0069「扁平元动词 + 位置参数为主」
 - 与 GitHub 官方 `gh pr view 123` 肌肉记忆一致，迁移成本为零
-- `<group> <action>` 两级而非一级：30 个 `gh_*` 工具天然按 `pr/issue/repo/release/run/api` 分组，两级命名自解释
+- `<group> <action>` 两级而非一级：31 个 `gh_*` 工具天然按 `pr/issue/repo/release/run/branch/api` 分组，两级命名自解释
 
 ### 决策2：工具名按约定拼接 `gh_{group}_{action}`，不做静态映射表
 
@@ -48,7 +48,7 @@ jcc gh api repos/o/r/issues         # → gh_api      { path: "repos/o/r/issues"
 **选择**：运行时从 `IMcpToolRegistry.GetToolInfoAsync(toolName)` 取 `ToolSchema`，把 `Required` 数组**按声明顺序**作为位置参数槽位；剩余参数走 `--key=value` / `--key value`。
 
 **理由**：
-- 实测 30 个 `gh_*` 工具的 `required` 集合恰好等于"人类直觉上的位置参数"，且**最多 2 个**：
+- 实测 31 个 `gh_*` 工具的 `required` 集合恰好等于"人类直觉上的位置参数"，且**最多 2 个**：
 
   | 工具 | required（位置参数顺序） |
   |------|--------------------------|

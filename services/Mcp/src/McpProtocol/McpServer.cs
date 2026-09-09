@@ -41,6 +41,8 @@ public class McpServer
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
+        // Console 标准流生命周期 = 进程，不应释放（Dispose 会连带关闭底层 Console 流）。
+        // reader/writer 仅作包装，故不用 using var。详见 ADR-0093 规则1例外。
         var reader = _inputReader ?? new StreamReader(Console.OpenStandardInput());
         var writer = _outputWriter ?? new StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true };
 

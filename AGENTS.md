@@ -374,6 +374,82 @@ d,手动验证,通过设置启动参数,通过bash调用来实际运行,真实�
 4. **Contains 匹配场景** — 对需要模糊匹配（如 `modelId.Contains("gpt-4o")`）的场景，用 `EnumType[]` 按优先级排列，遍历时 `model.ToValue()` 获取匹配串，无需额外字典
 5. 一个枚举可以多个特性注释，手动实现字典很蠢啊
 
+## 代码风格规范（资源管理与异常控制）
+
+> ADR: [0093](docs/adr/0093-resource-management-exception-style.md) — 详见 ADR 文档（含替代方案、DisposeSafe 扩展方法实现、验证清单）
+
+### 规则1：资源释放强制 `using var` / `await using var`
+
+任何 `IDisposable`/`IAsyncDisposable` 对象，在当前作用域内创建且不逃逸，**必须**用 `using var` / `await using var` 声明。禁止裸 `new` 后手动 `Dispose` 或 `try-finally` 释放。
+
+**✅ 正确**：
+```csharp
+using var stream = new FileStream(path, FileMode.Open, FileAccess.Read);
+using var reader = new StreamReader(stream, encoding);
+return await reader.ReadToEndAsync(ct).ConfigureAwait(false);
+```
+
+**❌ 错误**（裸 new + try-finally）：
+```csharp
+var reader = new StreamReader(new FileStream(path, FileMode.Open, FileAccess.Read));
+try { return await reader.ReadToEndAsync(); }
+finally { reader.Dispose(); } // FileStream 未释放，且样板冗余
+```
+
+**例外**（允许手动释放，需注释说明）：
+- 字段持有的长生命周期资源 → 在 `Dispose(bool)` 中释放
+- 工厂方法返回可释放对象（如 `OpenRead()` 返回 `Stream`）→ 调用方负责
+- 故意不释放底层流（`leaveOpen: true` 或 `Console.OpenStandardInput()`）→ 注释说明
+
+### 规则2：一个方法一个 `try-catch`（尽量）
+
+一个方法内尽量只保留一个 `try-catch`。化解手段（按优先级）：
+1. **`using var` 消除 `finally`** — 资源释放交给 using，去掉 try-finally
+2. **提取辅助方法** — 每个资源操作独立成方法各自 using，主方法只编排
+3. **合并相邻 try-catch** — 异常处理相同时合并，用 `when` 子句区分类型
+4. **嵌套 try-catch 提取** — try 内套 try（补偿/回退逻辑）提取为独立方法，外层 catch 调用
+
+**❌ 错误**（Dispose 里 3 个 try-catch）：
+```csharp
+public void Dispose() {
+    try { _cts.Cancel(); } catch (ObjectDisposedException ex) { _logger?.LogWarning(ex, "x"); }
+    try { _cts.Dispose(); } catch (ObjectDisposedException ex) { _logger?.LogWarning(ex, "y"); }
+    try { _sem.Dispose(); } catch (ObjectDisposedException ex) { _logger?.LogWarning(ex, "z"); }
+}
+```
+
+**✅ 正确**（用 DisposeSafe 扩展方法）：
+```csharp
+public void Dispose() {
+    _cts.CancelAndDisposeSafe(_logger);
+    _sem.DisposeSafe(_logger);
+}
+```
+
+### 规则3：`DisposeSafe` 扩展方法（消除 Dispose 样板）
+
+`Abstractions/00-core` 提供 `DisposeSafeExtensions`：
+- `obj.DisposeSafe(logger)` — 吞 `ObjectDisposedException`（幂等），其他异常可选日志
+- `cts.CancelAndDisposeSafe(logger)` — Cancel + Dispose 合并
+
+所有 `Dispose()` 方法禁止再写 `try { x.Dispose(); } catch (ObjectDisposedException)` 样板，统一调 `x.DisposeSafe(_logger)`。
+
+### 好代码一键清单（推荐模式速查）
+
+| 场景 | ✅ 推荐 | ❌ 禁止 |
+|------|---------|---------|
+| 作用域内资源 | `using var` / `await using var` | 裸 `new` + 手动 `Dispose` |
+| 异步资源 | `await using var` | async 方法里 `.Dispose()` |
+| Dispose 多资源 | `x.DisposeSafe(_logger)` | 每资源一个 try-catch |
+| 取消令牌链接 | `using var cts = CancellationTokenSource.CreateLinkedTokenSource(...)` | 手动链接 + try-finally |
+| 只读集合 | `FrozenSet<T>` / `FrozenDictionary<K,V>` | `HashSet` + `AsReadOnly()` |
+| 枚举集合 | `BitMask.Of()` + `BitMask.Contains()` | `FrozenSet<Enum>` |
+| 字符串切片 | `Span<char>` / `ReadOnlySpan<char>` | `Substring` 链式分配 |
+| JSON 解析 | `using var doc = JsonDocument.Parse(...)` | 不 using 的 JsonDocument |
+| 路径拼接 | `Path.Combine` | 字符串 `+` 拼接路径 |
+| 空检查 | `ArgumentNullException.ThrowIfNull` | `if (x == null) throw new...` |
+| 配置字典 | 枚举 + `[EnumValue]` 源码生成 | 手动 `(string,string)[]` 元组 |
+
 ## 🔴 平台专属操作禁令
 
 > ADR: [0084](docs/adr/0084-platform-windows-env-rules.md) — 详见 ADR 文档（含 PowerShell 禁令、路径格式、命令分隔、脚本语言优先级[AST CLI/Python/PowerShell/jcc gh/jcc rg]）

@@ -16,6 +16,8 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
     private readonly ICommandDangerClassifier? _dangerClassifier;
     private readonly FrozenDictionary<CommandRisk, ICommandRiskHandler> _riskHandlers;
     private readonly IReadOnlyList<IDeleteOperationDetector> _deleteDetectors;
+    private readonly IRealPathResolver? _realPathResolver;
+    private readonly PathCaseSensitiveGuard _caseGuard = new();
 
     /// <inheritdoc />
 
@@ -28,12 +30,14 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
         IEnumerable<ICommandRiskHandler>? riskHandlers = null,
         IDestructiveCommandDetector? destructiveCommandDetector = null,
         IEnumerable<IDeleteOperationDetector>? deleteDetectors = null,
-        ICommandDangerClassifier? dangerClassifier = null)
+        ICommandDangerClassifier? dangerClassifier = null,
+        IRealPathResolver? realPathResolver = null)
     {
         _destructiveCommandDetector = destructiveCommandDetector;
         _dangerClassifier = dangerClassifier;
         _riskHandlers = (riskHandlers ?? []).ToFrozenDictionary(h => h.RiskType);
         _deleteDetectors = (deleteDetectors ?? []).ToList();
+        _realPathResolver = realPathResolver;
     }
 
     /// <inheritdoc />
@@ -86,6 +90,19 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
 
         if (riskContext is null || riskContext.Risks.Count == 0)
             return next(context, ct);
+
+        // 路径大小写守卫 — 删除命令的路径大小写与文件系统不一致时拦截(防御 Windows 大小写不敏感误删)
+        if (_realPathResolver is not null &&
+            (riskContext.Risks.Contains(CommandRisk.FileDeletion) || riskContext.Risks.Contains(CommandRisk.DirectoryDeletion)))
+        {
+            var shellCmd = riskContext.ShellCommand ?? ShellCommand.Parse(command);
+            var guardResult = _caseGuard.Check(shellCmd, _realPathResolver);
+            if (guardResult.Blocked)
+            {
+                context.Result = ToolPermissionCheckResult.Rejected(guardResult.Reason!);
+                return Task.CompletedTask;
+            }
+        }
 
         // 同级别自动通过 — 用户已确认该等级，会话级非持久化，自动放行到 next
         // Dangerous 级永不自动通过（即使已批准也拒绝，安全红线）

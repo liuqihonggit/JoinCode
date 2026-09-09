@@ -36,9 +36,9 @@ public sealed class ProcessEncodingProviderTests
         provider.UseUtf8();
 
         provider.IsUtf8Mode.Should().BeTrue();
-        provider.Output.Should().BeSameAs(Encoding.UTF8);
-        provider.Error.Should().BeSameAs(Encoding.UTF8);
-        provider.Input.Should().BeSameAs(Encoding.UTF8);
+        AssertUtf8WithoutBom(provider.Output);
+        AssertUtf8WithoutBom(provider.Error);
+        AssertUtf8WithoutBom(provider.Input);
     }
 
     [Fact]
@@ -86,7 +86,13 @@ public sealed class ProcessEncodingProviderTests
         provider.UseLocal();
         var psi2 = builder.Build(new ProcessOptions { FileName = "test" });
 
-        psi1.StandardOutputEncoding.Should().BeSameAs(Encoding.UTF8);
+        AssertUtf8WithoutBom(psi1.StandardOutputEncoding!);
         psi2.StandardOutputEncoding.Should().BeSameAs(Encoding.Default);
+    }
+
+    private static void AssertUtf8WithoutBom(Encoding encoding)
+    {
+        encoding.WebName.Should().Be("utf-8");
+        encoding.Preamble.Length.Should().Be(0);
     }
 }

@@ -7,12 +7,14 @@ namespace Core.Agents.Worktree;
 public sealed partial class WorktreeGitRootMiddleware : ServiceEntity, IWorktreeCreateMiddleware
 {
 
-    public WorktreeGitRootMiddleware(IFileOperationService fs, ILogger<WorktreeGitRootMiddleware>? logger = null)
+    public WorktreeGitRootMiddleware(IFileOperationService fs, IFileSystem fileSystem, ILogger<WorktreeGitRootMiddleware>? logger = null)
     {
         _fs = fs;
+        _fileSystem = fileSystem;
         _logger = logger;
     }
     private readonly IFileOperationService _fs;
+    private readonly IFileSystem _fileSystem;
     private readonly ILogger<WorktreeGitRootMiddleware>? _logger;
 
 
@@ -24,7 +26,7 @@ public sealed partial class WorktreeGitRootMiddleware : ServiceEntity, IWorktree
             return;
         }
 
-        var gitRoot = context.GitRootPath ?? await FindGitRootAsync(_fs.GetCurrentDirectory()).ConfigureAwait(false);
+        var gitRoot = context.GitRootPath ?? await GitWorkspaceResolver.FindGitRootAsync(_fileSystem.GetCurrentDirectory(), _fileSystem, ct).ConfigureAwait(false);
         if (string.IsNullOrEmpty(gitRoot))
         {
             context.Fail("未找到 Git 仓库根目录");
@@ -38,74 +40,5 @@ public sealed partial class WorktreeGitRootMiddleware : ServiceEntity, IWorktree
         }
 
         await next(context, ct).ConfigureAwait(false);
-    }
-
-    private async Task<string?> FindGitRootAsync(string startPath)
-    {
-        var currentPath = startPath;
-
-        while (!string.IsNullOrEmpty(currentPath))
-        {
-            var gitDir = _fs.CombinePath(currentPath, ".git");
-            if (_fs.DirectoryExists(gitDir))
-            {
-                return currentPath;
-            }
-
-            if (_fs.FileExists(gitDir))
-            {
-                var canonicalRoot = await ResolveCanonicalGitRootFromGitdirFile(gitDir, currentPath).ConfigureAwait(false);
-                return canonicalRoot ?? currentPath;
-            }
-
-            var parentPath = Path.GetDirectoryName(currentPath);
-            if (parentPath == currentPath || string.IsNullOrEmpty(parentPath))
-            {
-                break;
-            }
-            currentPath = parentPath;
-        }
-
-        return null;
-    }
-
-    private async Task<string?> ResolveCanonicalGitRootFromGitdirFile(string gitdirFilePath, string worktreePath)
-    {
-        try
-        {
-            var readResult = await _fs.ReadFileAsync(gitdirFilePath).ConfigureAwait(false);
-            if (!readResult.Success) return null;
-
-            var content = readResult.Content.Trim();
-            if (!content.StartsWith("gitdir: ", StringComparison.OrdinalIgnoreCase))
-            {
-                return null;
-            }
-
-            var gitdirRelative = content["gitdir: ".Length..].Trim();
-            var gitdirAbs = _fs.CombinePath(worktreePath, gitdirRelative);
-            var normalizedGitdir = Path.GetFullPath(gitdirAbs);
-
-            var worktreesMarker = Path.DirectorySeparatorChar + ".git" + Path.DirectorySeparatorChar + "worktrees" + Path.DirectorySeparatorChar;
-            var markerIdx = normalizedGitdir.IndexOf(worktreesMarker, StringComparison.OrdinalIgnoreCase);
-            if (markerIdx < 0)
-            {
-                return null;
-            }
-
-            var canonicalRoot = normalizedGitdir[..markerIdx];
-            var canonicalGitDir = _fs.CombinePath(canonicalRoot, ".git");
-            if (_fs.DirectoryExists(canonicalGitDir))
-            {
-                return canonicalRoot;
-            }
-
-            return null;
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogDebug(ex, "解析 .gitdir 文件失败: {Path}", gitdirFilePath);
-            return null;
-        }
     }
 }

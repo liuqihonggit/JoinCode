@@ -483,7 +483,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
 
         try
         {
-            var root = DiscoverWorkspaceRoot();
+            var root = GitWorkspaceResolver.FindGitWorkspaceDir(null, _fs);
             if (root is null)
             {
                 _logger?.LogDebug("CodeIndexer: 未发现 .git 工作区根,跳过自动加载");
@@ -600,24 +600,6 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         catch (Exception ex)
         {
             _logger?.LogDebug(ex, "CodeIndexer: 解析 .git 指针文件失败");
-        }
-        return null;
-    }
-
-    /// <summary>
-    /// 从当前工作目录向上发现 .git 工作区根目录。返回 null 表示未找到。
-    /// .git 可以是目录(主仓库)或文件(git worktree 指针),两者都算工作区根。
-    /// </summary>
-    private string? DiscoverWorkspaceRoot()
-    {
-        var dir = Environment.CurrentDirectory;
-        while (!string.IsNullOrEmpty(dir))
-        {
-            var gitPath = _fs.CombinePath(dir, ".git");
-            if (_fs.DirectoryExists(gitPath) || _fs.FileExists(gitPath)) return dir;
-            var parent = Path.GetDirectoryName(dir);
-            if (string.IsNullOrEmpty(parent) || parent == dir) break;
-            dir = parent;
         }
         return null;
     }

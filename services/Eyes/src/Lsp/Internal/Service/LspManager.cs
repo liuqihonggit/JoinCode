@@ -58,9 +58,7 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
 
         foreach (var config in configs)
         {
-            var instance = new LspServerInstance(config, _fs, _processService, _logger != null
-                ? new LoggerFactory().CreateLogger<LspServerInstance>()
-                : throw new InvalidOperationException("Logger required"));
+            var instance = new LspServerInstance(config, _fs, _processService, _logger);
 
             _servers[config.Name] = instance;
 
@@ -124,7 +122,8 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
 
         try
         {
-            await server.StartAsync(cancellationToken).ConfigureAwait(false);
+            var workspaceRoot = await GitWorkspaceResolver.FindWorkspaceRootAsync(filePath, _fs, cancellationToken).ConfigureAwait(false);
+            await server.StartAsync(workspaceRoot, cancellationToken).ConfigureAwait(false);
             return server;
         }
         catch (Exception ex)

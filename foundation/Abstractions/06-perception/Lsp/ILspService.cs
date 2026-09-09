@@ -95,7 +95,11 @@ public interface ILspService : IAsyncDisposable
     /// <summary>
     /// 工作区符号搜索
     /// </summary>
-    Task<List<LspSymbolInformation>> SearchWorkspaceSymbolsAsync(string query, CancellationToken cancellationToken = default);
+    /// <param name="query">搜索查询</param>
+    /// <param name="workspacePath">工作区路径（文件或目录），用于启动 LSP 服务器。为 null 时用当前工作目录。</param>
+    /// <param name="serverName">显式指定 LSP 服务器名称（如 "csharp-ls"）。为 null 时动态寻址。</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    Task<List<LspSymbolInformation>> SearchWorkspaceSymbolsAsync(string query, string? workspacePath = null, string? serverName = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 跳转到实现

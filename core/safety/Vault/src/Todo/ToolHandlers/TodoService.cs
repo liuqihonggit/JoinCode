@@ -279,7 +279,7 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
 
         try
         {
-            var root = DiscoverWorkspaceRoot();
+            var root = GitWorkspaceResolver.FindGitWorkspaceDir(null, _fs!);
             if (root is null) return;
             var path = Path.Combine(Path.Combine(root, TodosSubDir), TodosFileName);
             if (!_fs.FileExists(path)) return;
@@ -308,20 +308,6 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
         {
             _logger?.LogError("Todo 加载失败: {Message}", ex.Message);
         }
-    }
-
-    private string? DiscoverWorkspaceRoot()
-    {
-        var dir = Environment.CurrentDirectory;
-        while (!string.IsNullOrEmpty(dir))
-        {
-            var gitPath = Path.Combine(dir, ".git");
-            if (_fs!.DirectoryExists(gitPath) || _fs.FileExists(gitPath)) return dir;
-            var parent = Path.GetDirectoryName(dir);
-            if (string.IsNullOrEmpty(parent) || parent == dir) break;
-            dir = parent;
-        }
-        return null;
     }
 
     private static TaskExecutionStatus MapStatus(string todoStatus)

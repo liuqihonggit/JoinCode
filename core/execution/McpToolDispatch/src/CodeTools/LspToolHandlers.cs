@@ -202,13 +202,15 @@ public class LspToolHandlers {
     [McpTool(CodeToolNameConstants.LspWorkspaceSymbol, "Search symbols in workspace", "lsp")]
     public async Task<ToolResult> LspWorkspaceSymbolAsync(
         [McpToolParameter("Search query")] string query,
+        [McpToolParameter("Workspace path (file or directory) to search in. If omitted, uses current working directory.")] string? workspacePath = null,
+        [McpToolParameter("Explicit LSP server name (e.g. 'csharp-ls'). If omitted, auto-detects from workspacePath or uses first running server.")] string? serverName = null,
         CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(query)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.QueryCannotBeEmpty)).Build();
         }
 
         try {
-            var symbols = await _lspService.SearchWorkspaceSymbolsAsync(query, cancellationToken).ConfigureAwait(false);
+            var symbols = await _lspService.SearchWorkspaceSymbolsAsync(query, workspacePath, serverName, cancellationToken).ConfigureAwait(false);
 
             symbols = await FilterSymbolsGitIgnoredAsync(symbols).ConfigureAwait(false);
 
@@ -670,7 +672,7 @@ public class LspToolHandlers {
         var ext = Path.GetExtension(filePath).ToLowerInvariant();
         var (serverName, installCmd) = ext switch
         {
-            ".cs" or ".csx" => ("OmniSharp (C#)", "dotnet tool install -g OmniSharp"),
+            ".cs" or ".csx" => ("csharp-ls (C#)", "dotnet tool install -g csharp-ls"),
             ".ts" or ".tsx" or ".js" or ".jsx" or ".mjs" => ("typescript-language-server", "npm install -g typescript-language-server typescript"),
             ".py" or ".pyw" => ("pylsp (Python)", "pip install pylsp"),
             ".rs" => ("rust-analyzer", "rustup component add rust-analyzer"),

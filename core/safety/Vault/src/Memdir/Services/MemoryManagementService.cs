@@ -616,7 +616,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
 
         try
         {
-            var root = DiscoverWorkspaceRoot();
+            var root = GitWorkspaceResolver.FindGitWorkspaceDir(null, _fs!);
             if (root is null) return;
             var path = _fs.CombinePath(_fs.CombinePath(root, TeamPathsSubDir), TeamPathsFileName);
             if (!_fs.FileExists(path)) return;
@@ -633,23 +633,6 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
         {
             _logger?.LogWarning(ex, "加载团队内存路径失败");
         }
-    }
-
-    /// <summary>
-    /// 从当前工作目录向上发现 .git 工作区根目录(.git 文件或目录都算)。
-    /// </summary>
-    private string? DiscoverWorkspaceRoot()
-    {
-        var dir = Environment.CurrentDirectory;
-        while (!string.IsNullOrEmpty(dir))
-        {
-            var gitPath = Path.Combine(dir, ".git");
-            if (_fs!.DirectoryExists(gitPath) || _fs.FileExists(gitPath)) return dir;
-            var parent = Path.GetDirectoryName(dir);
-            if (string.IsNullOrEmpty(parent) || parent == dir) break;
-            dir = parent;
-        }
-        return null;
     }
 
     /// <inheritdoc />

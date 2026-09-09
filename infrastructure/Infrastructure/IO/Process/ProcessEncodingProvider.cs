@@ -9,9 +9,10 @@ namespace IO.ProcessService;
 /// </summary>
 public sealed class ProcessEncodingProvider : IProcessEncodingProvider
 {
-    private volatile Encoding _output = Encoding.UTF8;
-    private volatile Encoding _error = Encoding.UTF8;
-    private volatile Encoding _input = Encoding.UTF8;
+    private static readonly Encoding Utf8NoBom = new UTF8Encoding(false);
+    private volatile Encoding _output = Utf8NoBom;
+    private volatile Encoding _error = Utf8NoBom;
+    private volatile Encoding _input = Utf8NoBom;
     private volatile bool _isUtf8Mode = true;
 
     /// <inheritdoc />
@@ -29,9 +30,9 @@ public sealed class ProcessEncodingProvider : IProcessEncodingProvider
     /// <inheritdoc />
     public void UseUtf8()
     {
-        _output = Encoding.UTF8;
-        _error = Encoding.UTF8;
-        _input = Encoding.UTF8;
+        _output = Utf8NoBom;
+        _error = Utf8NoBom;
+        _input = Utf8NoBom;
         _isUtf8Mode = true;
     }
 
@@ -46,12 +47,28 @@ public sealed class ProcessEncodingProvider : IProcessEncodingProvider
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// 如果传入带 BOM 的 UTF-8（如 <see cref="System.Text.Encoding.UTF8"/>），
+    /// 自动转换为无 BOM 变体，防止管道通信被 BOM 字节破坏。
+    /// </remarks>
     public void SetEncoding(Encoding encoding)
     {
         ArgumentNullException.ThrowIfNull(encoding);
-        _output = encoding;
-        _error = encoding;
-        _input = encoding;
-        _isUtf8Mode = string.Equals(encoding.WebName, "utf-8", StringComparison.OrdinalIgnoreCase);
+
+        var safeEncoding = StripBomIfUtf8(encoding);
+        _output = safeEncoding;
+        _error = safeEncoding;
+        _input = safeEncoding;
+        _isUtf8Mode = string.Equals(safeEncoding.WebName, "utf-8", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// 如果编码是带 BOM 的 UTF-8，返回无 BOM 变体；否则原样返回。
+    /// </summary>
+    private static Encoding StripBomIfUtf8(Encoding encoding)
+    {
+        if (encoding.Preamble.Length == 0) return encoding;
+        if (!string.Equals(encoding.WebName, "utf-8", StringComparison.OrdinalIgnoreCase)) return encoding;
+        return Utf8NoBom;
     }
 }

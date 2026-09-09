@@ -39,17 +39,17 @@ public sealed class SourceCodeEngine : ISourceCodeEngine
 
         if (!string.IsNullOrEmpty(hintPath))
         {
-            var gitRoot = SearchUpForGitRoot(hintPath);
+            var gitRoot = await GitWorkspaceResolver.FindGitRootAsync(hintPath, _fs, ct).ConfigureAwait(false);
             if (gitRoot is not null)
                 return await BuildLocationAsync(gitRoot, ct).ConfigureAwait(false);
         }
 
         var exeDir = AppContext.BaseDirectory;
-        var exeGitRoot = SearchUpForGitRoot(exeDir);
+        var exeGitRoot = await GitWorkspaceResolver.FindGitRootAsync(exeDir, _fs, ct).ConfigureAwait(false);
         if (exeGitRoot is not null)
             return await BuildLocationAsync(exeGitRoot, ct).ConfigureAwait(false);
 
-        var cwdGitRoot = SearchUpForGitRoot(_fs.GetCurrentDirectory());
+        var cwdGitRoot = await GitWorkspaceResolver.FindGitRootAsync(_fs.GetCurrentDirectory(), _fs, ct).ConfigureAwait(false);
         if (cwdGitRoot is not null)
             return await BuildLocationAsync(cwdGitRoot, ct).ConfigureAwait(false);
 
@@ -252,14 +252,14 @@ public sealed class SourceCodeEngine : ISourceCodeEngine
             return await BuildLocationAsync(envSourceDir, ct).ConfigureAwait(false);
         }
 
-        var exeGitRoot = SearchUpForGitRoot(AppContext.BaseDirectory);
+        var exeGitRoot = await GitWorkspaceResolver.FindGitRootAsync(AppContext.BaseDirectory, _fs, ct).ConfigureAwait(false);
         if (exeGitRoot is not null)
         {
             DoctorDiag.Write($"[SourceCodeEngine] 策略2: exe目录搜索.git={exeGitRoot}");
             return await BuildLocationAsync(exeGitRoot, ct).ConfigureAwait(false);
         }
 
-        var cwdGitRoot = SearchUpForGitRoot(_fs.GetCurrentDirectory());
+        var cwdGitRoot = await GitWorkspaceResolver.FindGitRootAsync(_fs.GetCurrentDirectory(), _fs, ct).ConfigureAwait(false);
         if (cwdGitRoot is not null)
         {
             DoctorDiag.Write($"[SourceCodeEngine] 策略2: cwd搜索.git={cwdGitRoot}");
@@ -306,18 +306,6 @@ public sealed class SourceCodeEngine : ISourceCodeEngine
             DoctorDiag.WriteError($"[SourceCodeEngine] git clone 异常: {ex.Message}");
             return new SourceCodeLocation { GitRoot = "", IsAvailable = false, FailureReason = ex.Message };
         }
-    }
-
-    private string? SearchUpForGitRoot(string startDir)
-    {
-        var dir = startDir;
-        while (!string.IsNullOrEmpty(dir))
-        {
-            if (_fs.DirectoryExists(Path.Combine(dir, ".git")))
-                return dir;
-            dir = Path.GetDirectoryName(dir);
-        }
-        return null;
     }
 
     private async Task<SourceCodeLocation> BuildLocationAsync(string gitRoot, CancellationToken ct)

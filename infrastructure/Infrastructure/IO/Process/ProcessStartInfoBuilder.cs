@@ -88,6 +88,14 @@ public sealed class ProcessStartInfoBuilder : IProcessStartInfoBuilder
                 CommandArgumentValidator.ValidateString(options.Arguments);
         }
 
+        var inputEncoding = options.StandardInputEncoding ?? _encodingProvider.Input;
+        var outputEncoding = options.StandardOutputEncoding ?? _encodingProvider.Output;
+        var errorEncoding = options.StandardErrorEncoding ?? _encodingProvider.Error;
+
+        ValidateNoBomEncoding(inputEncoding, nameof(options.StandardInputEncoding));
+        ValidateNoBomEncoding(outputEncoding, nameof(options.StandardOutputEncoding));
+        ValidateNoBomEncoding(errorEncoding, nameof(options.StandardErrorEncoding));
+
         var psi = new ProcessStartInfo
         {
             FileName = options.FileName,
@@ -97,9 +105,9 @@ public sealed class ProcessStartInfoBuilder : IProcessStartInfoBuilder
             RedirectStandardOutput = true,
             RedirectStandardInput = true,
             RedirectStandardError = options.RedirectStandardError,
-            StandardOutputEncoding = options.StandardOutputEncoding ?? _encodingProvider.Output,
-            StandardErrorEncoding = options.StandardErrorEncoding ?? _encodingProvider.Error,
-            StandardInputEncoding = options.StandardInputEncoding ?? _encodingProvider.Input,
+            StandardOutputEncoding = outputEncoding,
+            StandardErrorEncoding = errorEncoding,
+            StandardInputEncoding = inputEncoding,
         };
 
         if (options.ArgumentList.Count > 0)
@@ -133,5 +141,32 @@ public sealed class ProcessStartInfoBuilder : IProcessStartInfoBuilder
             FileName = path,
             UseShellExecute = true,
         };
+    }
+
+    /// <summary>
+    /// 防御性检查：禁止带 BOM 的编码用于进程管道 I/O。
+    /// </summary>
+    /// <remarks>
+    /// <b>根因</b>：<see cref="System.Text.Encoding.UTF8"/> 默认带 BOM 前缀（EF BB BF）。
+    /// 当通过管道写入外部进程 stdin 时，对方收到 BOM 字节后无法识别为合法输入，静默退出。
+    /// 典型受害者：csharp-ls、typescript-language-server 等 stdin 驱动的 CLI 工具。
+    /// <para>
+    /// <b>修复</b>：用 <c>new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)</c> 替代 <see cref="System.Text.Encoding.UTF8"/>。
+    /// </para>
+    /// </remarks>
+    /// <param name="encoding">待检查的编码</param>
+    /// <param name="paramName">参数名（用于异常消息）</param>
+    /// <exception cref="ArgumentException">编码带 BOM 前缀时抛出</exception>
+    private static void ValidateNoBomEncoding(Encoding? encoding, string paramName)
+    {
+        if (encoding is null) return;
+        if (encoding.Preamble.Length == 0) return;
+
+        throw new ArgumentException(
+            $"编码 '{encoding.EncodingName}' 带 BOM 前缀（{encoding.Preamble.Length} 字节），" +
+            "禁止用于进程管道 I/O。BOM 字节会导致外部进程（如 csharp-ls）收到非法输入后静默退出。" +
+            "请改用无 BOM 的 UTF-8：new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)。" +
+            "详见 ADR: Encoding.UTF8 带 BOM 破坏管道通信。",
+            paramName);
     }
 }

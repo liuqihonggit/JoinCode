@@ -56,4 +56,11 @@ jcc mcp_call <tool_name> param=value
 - 索引过时检测自动重建 (commit 697f8a198)
 - 过时检测支持worktree环境 (commit 00772161f)
 
-详见 [手动测试问题清单-0080第一轮-续.md](手动测试问题清单-0080第一轮-续.md)
+第三轮已完成 LSP 工具 10/10 + GitWorkspaceResolver 统一重构：
+- GitWorkspaceResolver 统一工具类提取（commit 8cbd79fb7）
+- lsp_workspace_symbol 显式 serverName + workspacePath 参数（commit 8cbd79fb7）
+- 11 处 git root 寻址重复实现统一替换（commit 0b283419d）
+- 17 个边缘场景测试全通过（commit 2d4e8ae42）
+- csharp-ls 0.27.0 替代 OmniSharp，支持 .sln + .slnx + git worktree
+
+详见 [手动测试问题清单-0080第一轮-续.md](手动测试问题清单-0080第一轮-续.md)和 [ADR 0080](../../adr/0080-manual-exe-testing-guide.md)

@@ -8,6 +8,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     private readonly IClockService _clock;
     private readonly IGitCommandRunner _gitRunner;
     private readonly IFileOperationService _fileOperationService;
+    private readonly IFileSystem _fs;
     private readonly WorktreeOptions _defaultOptions;
     private readonly ITelemetryService? _telemetryService;
     private readonly Dictionary<string, AgentWorktreeSession> _sessions = new();
@@ -18,6 +19,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     public AgentWorktreeService(
         IFileOperationService fileOperationService,
         IGitCommandRunner gitRunner,
+        IFileSystem fs,
         IEnumerable<IWorktreeCreateMiddleware>? createMiddlewares = null,
         ILoggerFactory? loggerFactory = null,
         ILogger<AgentWorktreeService>? logger = null,
@@ -26,6 +28,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         IClockService? clock = null) {
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _gitRunner = gitRunner ?? throw new ArgumentNullException(nameof(gitRunner));
+        _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
         _defaultOptions = defaultOptions ?? new WorktreeOptions();
@@ -267,63 +270,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     }
 
     public async Task<string?> FindGitRootAsync(string startPath, CancellationToken cancellationToken = default) {
-        var currentPath = startPath;
-
-        while (!string.IsNullOrEmpty(currentPath)) {
-            var gitDir = _fileOperationService.CombinePath(currentPath, ".git");
-            if (_fileOperationService.DirectoryExists(gitDir)) {
-                return currentPath;
-            }
-
-            if (_fileOperationService.FileExists(gitDir)) {
-                var canonicalRoot = await ResolveCanonicalGitRootFromGitdirFile(gitDir, currentPath).ConfigureAwait(false);
-                if (canonicalRoot is not null) {
-                    return canonicalRoot;
-                }
-                return currentPath;
-            }
-
-            var parentPath = Path.GetDirectoryName(currentPath);
-            if (parentPath == currentPath || string.IsNullOrEmpty(parentPath)) {
-                break;
-            }
-            currentPath = parentPath;
-        }
-
-        return null;
-    }
-
-    private async Task<string?> ResolveCanonicalGitRootFromGitdirFile(string gitdirFilePath, string worktreePath) {
-        try {
-            var readResult = await _fileOperationService.ReadFileAsync(gitdirFilePath).ConfigureAwait(false);
-            if (!readResult.Success) return null;
-
-            var content = readResult.Content.Trim();
-            if (!content.StartsWith("gitdir: ", StringComparison.OrdinalIgnoreCase)) {
-                return null;
-            }
-
-            var gitdirRelative = content["gitdir: ".Length..].Trim();
-            var gitdirAbs = _fileOperationService.CombinePath(worktreePath, gitdirRelative);
-            var normalizedGitdir = Path.GetFullPath(gitdirAbs);
-
-            var worktreesMarker = Path.DirectorySeparatorChar + ".git" + Path.DirectorySeparatorChar + "worktrees" + Path.DirectorySeparatorChar;
-            var markerIdx = normalizedGitdir.IndexOf(worktreesMarker, StringComparison.OrdinalIgnoreCase);
-            if (markerIdx < 0) {
-                return null;
-            }
-
-            var canonicalRoot = normalizedGitdir[..markerIdx];
-            var canonicalGitDir = _fileOperationService.CombinePath(canonicalRoot, ".git");
-            if (_fileOperationService.DirectoryExists(canonicalGitDir)) {
-                return canonicalRoot;
-            }
-
-            return null;
-        } catch (Exception ex) {
-            _logger?.LogDebug(ex, "解析 .gitdir 文件失败: {Path}", gitdirFilePath);
-            return null;
-        }
+        return await GitWorkspaceResolver.FindGitRootAsync(startPath, _fs, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task KeepWorktreeAsync(string agentId, CancellationToken cancellationToken = default) {

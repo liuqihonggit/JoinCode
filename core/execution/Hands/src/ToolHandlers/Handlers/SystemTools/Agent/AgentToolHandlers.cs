@@ -201,6 +201,68 @@ public partial class AgentToolHandlers
     }
 
     /// <summary>
+    /// 追加 dry-run agent 消息到 ~/.jcc/agents/{agentId}.messages.json
+    /// </summary>
+    private void AppendDryRunMessage(string agentId, string content, string? summary)
+    {
+        var msgDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".jcc", "agents");
+#pragma warning disable JCC9001
+        Directory.CreateDirectory(msgDir);
+        var msgPath = Path.Combine(msgDir, $"{agentId}.messages.json");
+        var msgs = new List<DryRunAgentMessage>();
+        if (File.Exists(msgPath))
+        {
+            try
+            {
+                var existing = File.ReadAllText(msgPath);
+                var loaded3 = RelaxedJsonSerializer.Deserialize(existing, DryRunAgentStateJsonContext.Default.ListDryRunAgentMessage);
+                if (loaded3 is not null)
+                    msgs = [.. loaded3];
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Failed to load dry-run messages for {AgentId}", agentId);
+            }
+        }
+        msgs.Add(new DryRunAgentMessage { Content = content, Summary = summary, Timestamp = _clock.GetUtcNow() });
+        try
+        {
+            File.WriteAllText(msgPath, RelaxedJsonSerializer.Serialize(msgs, DryRunAgentStateJsonContext.Default));
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to save dry-run messages for {AgentId}", agentId);
+        }
+#pragma warning restore JCC9001
+    }
+
+    /// <summary>
+    /// 从 ~/.jcc/agents/{agentId}.messages.json 加载 dry-run agent 消息
+    /// </summary>
+    private List<DryRunAgentMessage>? TryLoadDryRunMessages(string agentId)
+    {
+        var msgPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".jcc", "agents", $"{agentId}.messages.json");
+#pragma warning disable JCC9001
+        if (!File.Exists(msgPath))
+            return null;
+        try
+        {
+            var json = File.ReadAllText(msgPath);
+            return RelaxedJsonSerializer.Deserialize(json, DryRunAgentStateJsonContext.Default.ListDryRunAgentMessage)?.ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to load dry-run messages for {AgentId}", agentId);
+            return null;
+        }
+#pragma warning restore JCC9001
+    }
+
+    /// <summary>
     /// 列出可用的代理类型
     /// </summary>
     [McpTool(AgentToolNameConstants.AgentList, "List available agent types", AgentToolNameConstants.Agent, ConcurrencySafe = true)]
@@ -491,6 +553,16 @@ public partial class AgentToolHandlers
 
             if (!sent)
             {
+                var dryState = TryLoadDryRunState(to);
+                if (dryState is not null)
+                {
+                    AppendDryRunMessage(to, message, summary);
+                    var dryMsg = summary is not null
+                        ? $"Message sent to {to}: {summary}"
+                        : $"Message sent to {to}";
+                    return ToolResultBuilder.Success().WithText(dryMsg).Build();
+                }
+
                 ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "send_message", false);
                 var sendDiag = BuildSendMessageFailedDiagnostic(to);
                 return ToolResultBuilder.Error()
@@ -621,6 +693,15 @@ public partial class AgentToolHandlers
 
         try
         {
+            var dryState = TryLoadDryRunState(agentId);
+            if (dryState is not null)
+            {
+                AppendDryRunMessage(agentId, userInput, "forwarded_user_input");
+                return ToolResultBuilder.Success()
+                    .WithText($"用户输入已转发给子代理 {agentId}")
+                    .Build();
+            }
+
             var sent = await _agentService.ForwardUserInputToAgentAsync(agentId, userInput, cancellationToken).ConfigureAwait(false);
 
             if (!sent)
@@ -662,6 +743,23 @@ public partial class AgentToolHandlers
         try
         {
             var messages = (await _agentService.GetAgentMessagesAsync(agent_id, cancellationToken).ConfigureAwait(false)).ToList();
+
+            if (messages.Count == 0)
+            {
+                var dryMsgs = TryLoadDryRunMessages(agent_id);
+                if (dryMsgs is not null && dryMsgs.Count > 0)
+                {
+                    var dryResponse = new System.Text.StringBuilder();
+                    dryResponse.AppendLine($"Pending messages for agent {agent_id}: {dryMsgs.Count}");
+                    dryResponse.AppendLine();
+                    foreach (var msg in dryMsgs)
+                    {
+                        dryResponse.AppendLine($"- [text] {msg.Content}");
+                        dryResponse.AppendLine($"  Time: {msg.Timestamp:HH:mm:ss}");
+                    }
+                    return ToolResultBuilder.Success().WithText(dryResponse.ToString()).Build();
+                }
+            }
 
             var response = new System.Text.StringBuilder();
             response.AppendLine($"Pending messages for agent {agent_id}: {messages.Count}");
@@ -900,6 +998,17 @@ public sealed class DryRunAgentState
     public string? Prompt { get; set; }
 }
 
+/// <summary>
+/// Dry-run agent 消息 — 跨进程共享 mock agent 消息
+/// </summary>
+public sealed class DryRunAgentMessage
+{
+    public required string Content { get; set; }
+    public string? Summary { get; set; }
+    public DateTime Timestamp { get; set; }
+}
+
 [JsonSourceGenerationOptions(WriteIndented = true)]
 [JsonSerializable(typeof(DryRunAgentState))]
+[JsonSerializable(typeof(List<DryRunAgentMessage>))]
 internal sealed partial class DryRunAgentStateJsonContext : JsonSerializerContext;

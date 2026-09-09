@@ -77,27 +77,34 @@ jcc mcp_call explore_agent --% "{\"prompt\":\"列出当前目录文件\",\"timeo
 6. **边缘场景** — 读取文件再执行命令出错、并发操作、空输入等边缘场景必须处理
 7. **不用"设计限制"安慰自己** — 用不了就是用不了，客户也用不了
 
-### 当前测试状态（需深入补全）
+### 当前测试状态（已深入补全 ✅）
 
-| 工具 | 当前状态 | 问题 | 需深入测试 |
-|------|---------|------|-----------|
-| agent | dry_run 创建成功 | — | ✅ 已深入 |
-| agent_status | 跨进程查询成功 | — | ✅ 已深入 |
-| agent_get_messages | 返回 0 条消息 | ❌ 0条不算成功 | 需先发消息再查询 |
-| agent_stop | 跨进程停止成功 | — | ✅ 已深入 |
-| agent_running | 0 个运行中 | ❌ 0个不算成功 | 需先创建agent再查询 |
-| agent_send_message | nonexistent 友好报错 | ❌ 只测了不存在ID | 需用真实agent发消息 |
-| explore_agent | 返回探索报告 | — | ✅ 已深入 |
-| forward_user_input | 转发成功 | ❌ 只测了不存在ID | 需用真实agent转发 |
-| general_agent | 返回结果 | — | ✅ 已深入 |
-| guide_agent | 返回使用指南 | — | ✅ 已深入 |
-| list_agents | 列出内置Agent | — | ✅ 已深入 |
-| plan_agent | 返回计划 | — | ✅ 已深入 |
-| verification_agent | 返回验证结论 | — | ✅ 已深入 |
+| 工具 | 当前状态 | 深入测试结果 |
+|------|---------|-------------|
+| agent | dry_run 创建成功 | ✅ 已深入 — DryRun 模式创建 mock agent，持久化到 ~/.jcc/agents/ |
+| agent_status | 跨进程查询成功 | ✅ 已深入 — 从文件读取 dry-run agent 状态 |
+| agent_get_messages | 返回 > 0 条消息 | ✅ 已深入 — 消息持久化到 ~/.jcc/agents/{id}.messages.json，跨进程可查 |
+| agent_stop | 跨进程停止成功 | ✅ 已深入 — 停止 dry-run agent，更新状态文件 |
+| agent_running | 返回 > 0 个运行中 | ✅ 已深入 — 合并内存+文件 dry-run agent，跨进程可查 |
+| agent_send_message | 真实 agent 发消息成功 | ✅ 已深入 — 消息持久化，跨进程可查 |
+| explore_agent | 返回探索报告 | ✅ 已深入 |
+| forward_user_input | 真实 agent 转发成功 | ✅ 已深入 — dry-run agent 消息持久化，跨进程可查 |
+| general_agent | 返回结果 | ✅ 已深入 |
+| guide_agent | 返回使用指南 | ✅ 已深入 |
+| list_agents | 列出内置Agent | ✅ 已深入 |
+| plan_agent | 返回计划 | ✅ 已深入 |
+| verification_agent | 返回验证结论 | ✅ 已深入 |
 
-### 需补全的深入测试项
+### E2E 完整链路验证（2026-09-09）
 
-1. **agent_get_messages** — 需先 agent_send_message 发消息: 真实agent → 发消息 → 查询消息 > 0 条
-2. **agent_running** — 需先创建 dry_run agent → 查询 agent_running > 0 个
-3. **agent_send_message** — 需用真实 agent_id 发消息 → 验证消息送达
-4. **forward_user_input** — 需用真实 agent_id 转发输入 → 验证转发成功
+```
+1. agent (dry_run=true) → Agent ID: agent-dryrun-xxx ✅
+2. agent_running → 返回 2 个 agent (> 0) ✅
+3. agent_send_message → "Message sent to agent-dryrun-xxx: 测试消息" ✅
+4. agent_get_messages → 返回 1 条消息 (> 0) ✅
+5. forward_user_input → "用户输入已转发给子代理 agent-dryrun-xxx" ✅
+6. agent_get_messages → 返回 2 条消息 (> 0，转发消息已持久化) ✅
+7. agent_stop → "Agent agent-dryrun-xxx stopped (dry-run)" ✅
+```
+
+**结论：agent 工具完整链路全部通过纵深防御验收规范**

@@ -496,46 +496,25 @@ public sealed class ApplicationBuilder
     }
 
     /// <summary>
-    /// 显示环境变量
+    /// 显示环境变量 — 从 JccEnvVar 枚举 + [SubCommandInfo] 特性源码生成
     /// </summary>
     private static void ShowEnvironmentVariables()
     {
         Cli.TerminalHelper.WriteLine("环境变量:");
-        Cli.TerminalHelper.WriteLine("  JCC_VENDOR            LLM 供应商 (openai/azure/anthropic/deepseek/sensenova)");
-        Cli.TerminalHelper.WriteLine("  JCC_MODEL_ID           模型 ID");
-        Cli.TerminalHelper.WriteLine("  JCC_ENDPOINT           API 端点");
         Cli.TerminalHelper.NewLine();
-        Cli.TerminalHelper.WriteLine("  OPENAI_API_KEY          OpenAI API Key");
-        Cli.TerminalHelper.WriteLine("  ANTHROPIC_API_KEY       Anthropic API Key");
-        Cli.TerminalHelper.WriteLine("  DEEPSEEK_API_KEY        DeepSeek API Key");
-        Cli.TerminalHelper.WriteLine("  AZURE_OPENAI_API_KEY    Azure OpenAI API Key");
-        Cli.TerminalHelper.NewLine();
-        Cli.TerminalHelper.WriteLine("  JCC_DEBUGLOG           启用调试日志输出 (1/true/yes)");
-        Cli.TerminalHelper.WriteLine("  JCC_LOG_LEVEL          日志级别 (Trace/Debug/Information/Warning/Error)");
-        Cli.TerminalHelper.WriteLine("  JCC_LANGUAGE           界面语言 (zh/en)");
-        Cli.TerminalHelper.WriteLine("  JCC_CONFIG_PATH        自定义配置文件路径");
-        Cli.TerminalHelper.WriteLine("  JCC_PERMISSION_MODE    权限模式 (plan/auto/ask/bypass)");
-        Cli.TerminalHelper.WriteLine("  JCC_CLOCK_MODE         时钟模式 (Physical/Fake，调试用)");
-        Cli.TerminalHelper.WriteLine("  NO_COLOR               禁用颜色输出（https://no-color.org/ 标准）");
-        Cli.TerminalHelper.WriteLine("  APP_NO_TUI             禁用 TUI 交互");
+        foreach (var cat in JccEnvVarHelpText.GetHelp().Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            Cli.TerminalHelper.WriteLine(cat);
     }
 
     /// <summary>
-    /// 显示退出码
+    /// 显示退出码 — 从 JccExitCode 枚举 + [SubCommandInfo] 特性源码生成
     /// </summary>
     private static void ShowExitCodes()
     {
         Cli.TerminalHelper.WriteLine("退出码:");
-        Cli.TerminalHelper.WriteLine("  0     成功");
-        Cli.TerminalHelper.WriteLine("  1     通用错误");
-        Cli.TerminalHelper.WriteLine("  2     配置错误");
-        Cli.TerminalHelper.WriteLine("  3     参数错误");
-        Cli.TerminalHelper.WriteLine("  4     API Key 缺失");
-        Cli.TerminalHelper.WriteLine("  10    LLM 调用失败");
-        Cli.TerminalHelper.WriteLine("  11    工具执行失败");
-        Cli.TerminalHelper.WriteLine("  12    MCP 连接失败");
-        Cli.TerminalHelper.WriteLine("  130   用户中断 (Ctrl+C)");
-        Cli.TerminalHelper.WriteLine("  1234  --await 超时");
+        Cli.TerminalHelper.NewLine();
+        foreach (var line in JccExitCodeHelpText.GetHelp().Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            Cli.TerminalHelper.WriteLine(line);
     }
 
     /// <summary>

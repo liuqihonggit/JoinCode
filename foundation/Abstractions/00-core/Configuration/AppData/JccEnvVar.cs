@@ -5,19 +5,31 @@ namespace JoinCode.Abstractions.Configuration.AppData;
 /// </summary>
 public enum JccEnvVar
 {
-    [EnumValue("JCC_VENDOR")] Vendor,
+    [EnumValue("JCC_VENDOR")]
+    [SubCommandInfo("LLM 供应商 (openai/azure/anthropic/deepseek/sensenova)", "供应商配置")]
+    Vendor,
     [EnumValue("JCC_PROTOCOL")] Protocol,
-    [EnumValue("JCC_MODEL_ID")] ModelId,
-    [EnumValue("JCC_ENDPOINT")] Endpoint,
+    [EnumValue("JCC_MODEL_ID")]
+    [SubCommandInfo("模型 ID", "供应商配置")]
+    ModelId,
+    [EnumValue("JCC_ENDPOINT")]
+    [SubCommandInfo("API 端点", "供应商配置")]
+    Endpoint,
     [EnumValue("JCC_PROFILE")] Profile,
     [EnumValue("JCC_API_VERSION")] ApiVersion,
     [EnumValue("JCC_ORGANIZATION_ID")] OrganizationId,
-    [EnumValue("JCC_ENABLE_OAUTH")] EnableOAuth,
+    [EnumValue("JCC_ENABLE_OAUTH")]
+    [SubCommandInfo("启用 OAuth 认证", "认证")]
+    EnableOAuth,
     [EnumValue("JCC_CODE_EXECUTION_TIMEOUT")] CodeExecutionTimeout,
     [EnumValue("JCC_CODE_EXECUTION_MAX_MEMORY")] CodeExecutionMaxMemory,
     [EnumValue("JCC_FORCE_TERMINAL")] ForceTerminal,
-    [EnumValue("JCC_EFFORT_LEVEL")] EffortLevel,
-    [EnumValue("JCC_ASSISTANT_MODE")] AssistantMode,
+    [EnumValue("JCC_EFFORT_LEVEL")]
+    [SubCommandInfo("努力级别 (low/medium/high)", "运行时配置")]
+    EffortLevel,
+    [EnumValue("JCC_ASSISTANT_MODE")]
+    [SubCommandInfo("助手模式", "运行时配置")]
+    AssistantMode,
     [EnumValue("JCC_APP_DATA_FOLDER")] AppDataFolder,
     [EnumValue("JCC_AUTH_FILE_NAME")] AuthFileName,
     [EnumValue("JCC_SETTINGS_FILE_NAME")] SettingsFileName,
@@ -32,8 +44,12 @@ public enum JccEnvVar
     [EnumValue("JCC_SKIP_WEB_FETCH_PREFLIGHT")] SkipWebFetchPreflight,
 
     // 新增: 运行时配置
-    [EnumValue("JCC_SANDBOX_MODE")] SandboxMode,
-    [EnumValue("JCC_LANGUAGE")] Language,
+    [EnumValue("JCC_SANDBOX_MODE")]
+    [SubCommandInfo("沙箱模式", "运行时配置")]
+    SandboxMode,
+    [EnumValue("JCC_LANGUAGE")]
+    [SubCommandInfo("界面语言 (zh/en)", "运行时配置")]
+    Language,
     [EnumValue("JCC_STATUS_LINE_COMMAND")] StatusLineCommand,
     [EnumValue("JCC_REPL_MODE")] ReplMode,
     [EnumValue("JCC_REMOTE_MEMORY_DIR")] RemoteMemoryDir,
@@ -89,17 +105,23 @@ public enum JccEnvVar
     [EnumValue("JCC_FORCE_SANDBOX")] ForceSandbox,
 
     // 启动时权限模式覆盖 — 支持 E2E 测试自动升级权限（如 bypass）
-    [EnumValue("JCC_PERMISSION_MODE")] PermissionMode,
+    [EnumValue("JCC_PERMISSION_MODE")]
+    [SubCommandInfo("权限模式 (plan/auto/ask/bypass)", "运行时配置")]
+    PermissionMode,
 
     /// <summary>
     /// 文件系统后端模式 — Physical（默认，真实磁盘）/ InMemory（纯内存，0磁盘IO，调试/E2E测试用）
     /// </summary>
-    [EnumValue("JCC_FILE_SYSTEM_MODE")] FileSystemMode,
+    [EnumValue("JCC_FILE_SYSTEM_MODE")]
+    [SubCommandInfo("文件系统模式 (Physical/InMemory)", "运行时配置")]
+    FileSystemMode,
 
     /// <summary>
     /// HTTP 客户端模式 — Real（默认，真实网络）/ Mock（拦截请求返回预设响应，调试/E2E测试用）
     /// </summary>
-    [EnumValue("JCC_HTTP_MODE")] HttpMode,
+    [EnumValue("JCC_HTTP_MODE")]
+    [SubCommandInfo("HTTP 模式 (Real/Mock)", "运行时配置")]
+    HttpMode,
 
     /// <summary>
     /// 遥测总开关 — 设为 false 同时关闭 tracing 和 metrics（无需分别设两个变量）
@@ -134,7 +156,9 @@ public enum JccEnvVar
     /// <summary>
     /// 时钟模式 — Physical（默认，真实系统时间）/ Fake（可控时间，调试/E2E测试用）
     /// </summary>
-    [EnumValue("JCC_CLOCK_MODE")] ClockMode,
+    [EnumValue("JCC_CLOCK_MODE")]
+    [SubCommandInfo("时钟模式 (Physical/Fake, 调试用)", "运行时配置")]
+    ClockMode,
 
     /// <summary>
     /// 控制台输出模式 — Physical（默认，真实控制台）/ NoOp（静默所有输出，E2E测试/CI用）
@@ -170,11 +194,17 @@ public enum JccEnvVar
     [EnumValue("JCC_RESILIENCE_ENABLED")] ResilienceEnabled,
 
     // 调试/诊断
-    [EnumValue("JCC_DEBUGLOG")] DebugLog,
-    [EnumValue("JCC_DEBUG_MODULES")] DebugModules,
+    [EnumValue("JCC_DEBUGLOG")]
+    [SubCommandInfo("启用调试日志输出 (1/true/yes)", "调试/诊断")]
+    DebugLog,
+    [EnumValue("JCC_DEBUG_MODULES")]
+    [SubCommandInfo("调试模块过滤", "调试/诊断")]
+    DebugModules,
     [EnumValue("JCC_DI_TRACE")] DiTrace,
     [EnumValue("JCC_DUMP_MESSAGES")] DumpMessages,
-    [EnumValue("JCC_LOG_LEVEL")] LogLevel,
+    [EnumValue("JCC_LOG_LEVEL")]
+    [SubCommandInfo("日志级别 (Trace/Debug/Information/Warning/Error)", "调试/诊断")]
+    LogLevel,
 
     // 遥测细分
     [EnumValue("JCC_TELEMETRY_EXPORT")] TelemetryExport,

@@ -19,11 +19,12 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator
                 var enumValueAttr = compilation.GetTypeByMetadataName(EnumValueAttributeFullName);
                 var aliasValueAttr = compilation.GetTypeByMetadataName(AliasValueAttributeFullName);
                 var subCommandInfoAttr = compilation.GetTypeByMetadataName(SubCommandInfoAttributeFullName);
-                if (enumValueAttr is null)
-                    return ImmutableArray<EnumInfo>.Empty;
 
                 var results = new List<EnumInfo>();
-                VisitNamespaces(compilation.GlobalNamespace, compilation.Assembly, enumValueAttr, aliasValueAttr, subCommandInfoAttr, results);
+                if (enumValueAttr is not null)
+                {
+                    VisitNamespaces(compilation.GlobalNamespace, compilation.Assembly, enumValueAttr, aliasValueAttr, subCommandInfoAttr, results);
+                }
                 return results.ToImmutableArray();
             })
             .Collect();

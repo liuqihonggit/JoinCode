@@ -225,3 +225,27 @@
 <!-- 原因: 现有 WorkflowTaskExecutorTests 不传 IWorkflowStateStore，强制注入会破坏数十个测试 -->
 <!-- 替代方案: 强制注入 + 批量改测试，但改动面大、违反渐进式原则 -->
 <!-- 验证: 待阶段 2 完成后现有测试仍通过 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-09-09 -->
+<!-- 决策: 阶段 0-4 全部完成，ADR 0094 accepted -->
+<!-- 完成情况:
+  - 阶段 0: TaskRuntime.PersistAsync 原子写修复 (commit 15d39867a)
+  - ADR 0094: Workflow 级断点续跑持久化策略 (commit 63f860d78, 436935a7d)
+  - 阶段 1: WorkflowStateStore + 6 测试 (commit 167bda620)
+  - 阶段 2: ExecuteDagAsync 每层保存快照 + 4 测试 (commit 901c11659)
+  - 阶段 3: 启动加载快照恢复 + 2 测试 (commit 1070a7f50)
+  - 阶段 4: 重启恢复测试 + 快照一致性校验 + AGENTS.md 反向引用 (commit 436935a7d)
+-->
+<!-- 验证: 8 个 Checkpoint 测试 + 278 个全量 Scheduling.Tests 全绿 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-09-09 -->
+<!-- 决策: WorkflowSnapshot 用 Dictionary<string,StepState> 而非 StepStatus -->
+<!-- 原因: StepStatus.Result(JsonElement) 默认值序列化抛 InvalidOperationException -->
+<!-- 替代方案: 给 Result 赋有效 JsonElement，但生产代码中可能默认值，有隐患 -->
+<!-- 验证: round-trip 测试通过 ✅ -->
+
+<!-- 🤖 Auto Decision: 2026-09-09 -->
+<!-- 决策: E2E 用"两实例模拟重启"而非真杀进程 -->
+<!-- 原因: 真杀进程需要 exe 进程级交互模拟，当前 Scheduling.Tests 是单元测试项目 -->
+<!-- 替代方案: 在 tests/Integration/ 或 tests/E2E/ 新建真杀进程 E2E（后续按需） -->
+<!-- 验证: ExecuteDagAsync_RestartWithSameStore_ShouldSkipAllCompletedSteps 通过 ✅ -->

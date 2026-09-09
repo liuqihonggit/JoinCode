@@ -1,24 +1,22 @@
 namespace Hands.Tests.Shell;
 
 /// <summary>
-/// ShellPathGateMiddleware 单元测试 — 验证路径门控中间件根据 Provider 类型转换 WorkingDirectory
+/// ShellPathGateMiddleware 单元测试 — 验证路径门控中间件不再自动转换路径(报错让 LLM 自己修正)
+/// 仅保留 UNC 路径警告(只读不改) + next 调用
 /// </summary>
 public class ShellPathGateMiddlewareTests
 {
     [Theory]
-    [InlineData("C:\\Users\\test", "bash", "/c/Users/test")]
-    [InlineData("C:\\Users\\test", "powershell", "C:\\Users\\test")]
-    [InlineData("/c/Users/test", "powershell", "C:\\Users\\test")]
-    [InlineData("/c/Users/test", "bash", "/c/Users/test")]
-    [InlineData(null, "bash", null)]
-    [InlineData("", "bash", "")]
-    public async Task InvokeAsync_ConvertsWorkingDirectory(string? input, string kindId, string? expected)
+    [InlineData("C:\\Users\\test", "bash")]
+    [InlineData("C:\\Users\\test", "powershell")]
+    [InlineData("/c/Users/test", "powershell")]
+    [InlineData("/c/Users/test", "bash")]
+    [InlineData(null, "bash")]
+    [InlineData("", "bash")]
+    public async Task InvokeAsync_DoesNotModifyWorkingDirectory(string? input, string kindId)
     {
         var kind = SystemActuatorKind.FromId(kindId)!;
         var probeService = new Mock<IEnvironmentProbeService>();
-        probeService.Setup(x => x.GatePath(It.IsAny<string>(), It.IsAny<ISystemActuator>()))
-            .Returns((string path, ISystemActuator provider) =>
-                provider.Kind == SystemActuatorKind.Bash ? path.Replace('\\', '/') : path.Replace('/', '\\'));
 
         var provider = CreateMockProvider(kind);
         var sut = new ShellPathGateMiddleware(probeService.Object);
@@ -31,44 +29,37 @@ public class ShellPathGateMiddlewareTests
 
         await sut.InvokeAsync(context, static (_, _) => Task.CompletedTask, CancellationToken.None);
 
-        if (expected is null)
-        {
-            context.WorkingDirectory.Should().BeNull();
-        }
-        else
-        {
-            probeService.Verify(x => x.GatePath(input!, provider.Object), input is not null and not "" ? Times.Once() : Times.Never());
-        }
+        context.WorkingDirectory.Should().Be(input);
+        probeService.Verify(x => x.GatePath(It.IsAny<string>(), It.IsAny<ISystemActuator>()), Times.Never());
     }
 
-    [Fact]
-    public async Task InvokeAsync_NoChangeNeeded_DoesNotModifyContext()
+    [Theory]
+    [InlineData("echo D:\\a\\b\\c/d", "bash")]
+    [InlineData("cat C:\\proj\\src/file.txt", "powershell")]
+    public async Task InvokeAsync_DoesNotModifyCommand(string command, string kindId)
     {
+        var kind = SystemActuatorKind.FromId(kindId)!;
         var probeService = new Mock<IEnvironmentProbeService>();
-        var provider = CreateMockProvider(SystemActuatorKind.Bash);
-        probeService.Setup(x => x.GatePath("/home/user", provider.Object))
-            .Returns("/home/user");
 
+        var provider = CreateMockProvider(kind);
         var sut = new ShellPathGateMiddleware(probeService.Object);
         var context = new ShellPipelineContext
         {
-            Command = "echo hello",
+            Command = command,
             Provider = provider.Object,
             WorkingDirectory = "/home/user",
         };
 
         await sut.InvokeAsync(context, static (_, _) => Task.CompletedTask, CancellationToken.None);
 
-        context.WorkingDirectory.Should().Be("/home/user");
+        context.Command.Should().Be(command);
+        probeService.Verify(x => x.GateCommandPaths(It.IsAny<string>(), It.IsAny<ISystemActuator>()), Times.Never());
     }
 
     [Fact]
     public async Task InvokeAsync_CallsNextMiddleware()
     {
         var probeService = new Mock<IEnvironmentProbeService>();
-        probeService.Setup(x => x.GatePath(It.IsAny<string>(), It.IsAny<ISystemActuator>()))
-            .Returns((string p, ISystemActuator _) => p);
-
         var provider = CreateMockProvider(SystemActuatorKind.Bash);
         var sut = new ShellPathGateMiddleware(probeService.Object);
         var context = new ShellPipelineContext

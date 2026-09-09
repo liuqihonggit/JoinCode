@@ -578,6 +578,7 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 | **全球化策略** | 渐进式双语（中英文），遇到全球化问题时逐步实现，不必一次性处理完 |
 | **IsAotCompatible** | 所有源码项目已标记 |
 | **MCP 协议版本** | `2025-11-25`（Streamable HTTP）— 旧 `2024-11-05` + SseClientTransport/SseTransport 已归档到 `services/Mcp/.xxx/`；客户端 `HttpTransport` + 服务端 `McpHttpServer`（HttpListener，无状态/有状态双模式）；`MCP-Protocol-Version` 头握手协商，`MCP-Session-Id` 不分配=无状态 |
+| **Workflow 断点续跑** | DAG 模式每层完成后原子保存快照 `workflow_{id}.state.json`，启动时加载跳过已完成步骤；`IWorkflowStateStore` 可选注入（> ADR: [0094](docs/adr/0094-workflow-checkpoint-resume.md)） |
 
 ### 核心技术选型
 

@@ -182,4 +182,55 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable
 
         result.Status.Should().Be(TaskExecutionStatus.Completed);
     }
+
+    [Fact]
+    public async Task ExecuteDagAsync_RestartWithSameStore_ShouldSkipAllCompletedSteps()
+    {
+        SetupToolSuccess();
+
+        var executor1 = CreateExecutor();
+        await executor1.ExecuteWorkflowAsync(CreateDagWorkflow("wf-restart")).ConfigureAwait(true);
+
+        var snapshotAfterFirstRun = await _stateStore.LoadSnapshotAsync("wf-restart").ConfigureAwait(true);
+        snapshotAfterFirstRun!.StepStates.Should().HaveCount(3, "首次执行后应保存全部 3 步骤快照");
+
+        _toolGatewayMock.Reset();
+        SetupToolSuccess();
+
+        var executor2 = CreateExecutor();
+        var result = await executor2.ExecuteWorkflowAsync(CreateDagWorkflow("wf-restart")).ConfigureAwait(true);
+
+        _toolGatewayMock.Verify(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, System.Text.Json.JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()), Times.Never, "重启后所有步骤应从快照恢复,不重复执行");
+        result.Status.Should().Be(TaskExecutionStatus.Completed);
+    }
+
+    [Fact]
+    public async Task ExecuteDagAsync_SnapshotInconsistent_ShouldDiscardAndExecuteFromScratch()
+    {
+        SetupToolSuccess();
+        var executor = CreateExecutor();
+
+        var snapshot = new WorkflowSnapshot
+        {
+            WorkflowId = "wf-inconsistent",
+            StepStates = new Dictionary<string, StepState> { ["non-existent-step"] = StepState.Completed },
+            LastUpdated = DateTimeOffset.UtcNow
+        };
+        await _stateStore.SaveSnapshotAsync("wf-inconsistent", snapshot).ConfigureAwait(true);
+
+        var definition = new WorkflowDefinition
+        {
+            WorkflowId = "wf-inconsistent",
+            ExecutionMode = WorkflowExecutionMode.Dag,
+            Steps = new List<WorkflowStep>
+            {
+                new() { StepId = "step-a", Name = "A", StepType = WorkflowStepType.ToolCall, ToolName = "tool_a" }
+            }
+        };
+
+        var result = await executor.ExecuteWorkflowAsync(definition).ConfigureAwait(true);
+
+        result.Status.Should().Be(TaskExecutionStatus.Completed);
+        _toolGatewayMock.Verify(x => x.ExecuteAsync("tool_a", It.IsAny<Dictionary<string, System.Text.Json.JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()), Times.Once, "快照不一致时应从头执行");
+    }
 }

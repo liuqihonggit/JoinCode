@@ -82,6 +82,7 @@ global using Services.Notebook;
 global using Services.Shell;
 global using Services.SystemActuator;
 global using Services.SystemPower;
+global using JoinCode.Hands.Desktop;
 global using JoinCode.Hands.Desktop.Native;
 global using JoinCode.Hands.Desktop.PulseOverlay;
 global using Services.Build;

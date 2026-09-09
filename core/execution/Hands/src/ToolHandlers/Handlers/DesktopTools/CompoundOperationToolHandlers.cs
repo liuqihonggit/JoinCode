@@ -80,6 +80,13 @@ public class CompoundOperationToolHandlers
         [McpToolParameter("每步间隔毫秒数", Required = false)] int stepDelayMs = 500,
         CancellationToken ct = default)
     {
+        var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
+        if (!env.IsInteractive)
+        {
+            _logger?.LogWarning("MultiClickAsync 被环境守卫拦截: {Diagnostic}", env.Diagnostic);
+            return ToolResultBuilder.Error().WithText($"桌面操作不可用: {env.Diagnostic}").Build();
+        }
+
         var points = ParseCoordinateList(coordinates);
         if (points.Count == 0)
             return ToolResultBuilder.Error().WithText("坐标列表解析失败,格式应为 x1,y1;x2,y2").Build();

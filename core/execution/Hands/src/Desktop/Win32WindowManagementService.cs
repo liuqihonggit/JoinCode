@@ -51,6 +51,13 @@ public sealed partial class Win32WindowManagementService : ServiceEntity, IWindo
     /// <summary>激活窗口到前台（含 Alt 键技巧解除 Windows 前台锁定）</summary>
     public Task<bool> FocusAsync(IntPtr hWnd, CancellationToken cancellationToken = default)
     {
+        var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
+        if (!env.IsInteractive)
+        {
+            _logger?.LogWarning("FocusAsync 被环境守卫拦截: {Diagnostic}", env.Diagnostic);
+            return Task.FromResult(false);
+        }
+
         SendAltTap();
         var ok = User32NativeMethods.SetForegroundWindow(hWnd);
         if (!ok)

@@ -20,6 +20,13 @@ public sealed partial class Win32DesktopInputService : ServiceEntity, IDesktopIn
     /// <summary>移动光标到绝对像素坐标</summary>
     public Task<DesktopOperation> MoveToAsync(int x, int y, CancellationToken cancellationToken = default)
     {
+        var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
+        if (!env.IsInteractive)
+        {
+            _logger?.LogWarning("桌面操作被环境守卫拦截: {Diagnostic}", env.Diagnostic);
+            return Task.FromResult(BuildOperation(DesktopOperationKind.Move, x, y, succeeded: false, error: env.Diagnostic));
+        }
+
         var ok = User32NativeMethods.SetCursorPos(x, y);
         var op = BuildOperation(DesktopOperationKind.Move, x, y, succeeded: ok);
         if (!ok) _logger?.LogWarning("SetCursorPos 失败: ({X},{Y})", x, y);
@@ -29,6 +36,13 @@ public sealed partial class Win32DesktopInputService : ServiceEntity, IDesktopIn
     /// <summary>执行鼠标动作</summary>
     public async Task<DesktopOperation> ClickAsync(int x, int y, MouseAction action, CancellationToken cancellationToken = default)
     {
+        var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
+        if (!env.IsInteractive)
+        {
+            _logger?.LogWarning("桌面操作被环境守卫拦截: {Diagnostic}", env.Diagnostic);
+            return BuildOperation(DesktopOperationKind.Click, x, y, mouseAction: action, succeeded: false, error: env.Diagnostic);
+        }
+
         var risk = await _safetyChecker.CheckClickAsync(x, y, cancellationToken).ConfigureAwait(false);
         if (risk == UnsafeOperationKind.DangerousCoordinate)
         {
@@ -60,6 +74,13 @@ public sealed partial class Win32DesktopInputService : ServiceEntity, IDesktopIn
     /// <summary>拖拽：按下→移动→松开</summary>
     public async Task<DesktopOperation> DragAsync(int fromX, int fromY, int toX, int toY, int? hoverMsAtTarget = null, CancellationToken cancellationToken = default)
     {
+        var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
+        if (!env.IsInteractive)
+        {
+            _logger?.LogWarning("桌面操作被环境守卫拦截: {Diagnostic}", env.Diagnostic);
+            return BuildOperation(DesktopOperationKind.Drag, toX, toY, succeeded: false, error: env.Diagnostic);
+        }
+
         User32NativeMethods.SetCursorPos(fromX, fromY);
         SendMouseEvent(NativeConstants.MOUSEEVENTF_LEFTDOWN);
 
@@ -82,6 +103,13 @@ public sealed partial class Win32DesktopInputService : ServiceEntity, IDesktopIn
     /// <summary>按键（单键或组合键）</summary>
     public Task<DesktopOperation> KeyPressAsync(int virtualKey, KeyModifier modifiers = KeyModifier.None, CancellationToken cancellationToken = default)
     {
+        var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
+        if (!env.IsInteractive)
+        {
+            _logger?.LogWarning("桌面操作被环境守卫拦截: {Diagnostic}", env.Diagnostic);
+            return Task.FromResult(BuildOperation(DesktopOperationKind.KeyPress, x: 0, y: 0, text: $"VK_{virtualKey:X2}", modifiers: modifiers, succeeded: false, error: env.Diagnostic));
+        }
+
         var modKeys = KeyModifierToVirtualKeys(modifiers);
         foreach (var vk in modKeys) SendKeyEvent(vk, down: true);
 
@@ -96,6 +124,13 @@ public sealed partial class Win32DesktopInputService : ServiceEntity, IDesktopIn
     /// <summary>输入文本（Unicode 逐字符注入）</summary>
     public Task<DesktopOperation> TypeTextAsync(string text, CancellationToken cancellationToken = default)
     {
+        var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
+        if (!env.IsInteractive)
+        {
+            _logger?.LogWarning("桌面操作被环境守卫拦截: {Diagnostic}", env.Diagnostic);
+            return Task.FromResult(BuildOperation(DesktopOperationKind.TypeText, x: 0, y: 0, text: text, succeeded: false, error: env.Diagnostic));
+        }
+
         foreach (var ch in text)
         {
             SendUnicodeChar(ch, down: true);

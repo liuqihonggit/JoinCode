@@ -348,11 +348,11 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
             {
                 try { entry.Context.Kill(); }
                 catch (Exception ex) { _logger?.LogDebug(ex, "DisposeAsync 时终止后台任务进程失败"); }
+                await entry.Context.DisposeSafeAsync(_logger).ConfigureAwait(false);
             }
         }
 
         _tasks.Clear();
-        await ValueTask.CompletedTask.ConfigureAwait(false);
     }
 
     #endregion

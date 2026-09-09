@@ -54,7 +54,8 @@ public sealed class Program
         // 客户端通过 HTTP POST 发送 JSON-RPC 请求，服务器返回 JSON-RPC 响应
         app.MapPost("/mcp", async (HttpContext ctx) =>
         {
-            var requestBody = await new StreamReader(ctx.Request.Body).ReadToEndAsync();
+            using var bodyReader = new StreamReader(ctx.Request.Body);
+            var requestBody = await bodyReader.ReadToEndAsync();
             Console.Error.WriteLine($"[Mcp.MockServer] <- {requestBody}");
 
             string responseJson;
@@ -89,7 +90,8 @@ public sealed class Program
         // POST / — 兼容不带 /mcp 路径的请求
         app.MapPost("/", async (HttpContext ctx) =>
         {
-            var requestBody = await new StreamReader(ctx.Request.Body).ReadToEndAsync();
+            using var bodyReader = new StreamReader(ctx.Request.Body);
+            var requestBody = await bodyReader.ReadToEndAsync();
             Console.Error.WriteLine($"[Mcp.MockServer] <- {requestBody}");
 
             var responseJson = engine.HandleRequest(requestBody);

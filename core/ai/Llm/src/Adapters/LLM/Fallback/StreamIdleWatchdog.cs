@@ -126,9 +126,9 @@ public sealed class StreamIdleWatchdog : IDisposable
         _disposed = true;
 
         ClearTimer();
-        _originalRegistration.Dispose();
+        _originalRegistration.DisposeSafe();
 
         CancelWatchdogCts();
-        _watchdogCts.Dispose();
+        _watchdogCts.DisposeSafe();
     }
 }

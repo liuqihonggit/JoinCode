@@ -143,8 +143,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         }
         finally
         {
-            try { releaser?.Dispose(); }
-            catch (ObjectDisposedException) { _logger?.LogDebug("spawn 信号量在 Release 时已被热重载 Dispose"); }
+            releaser.DisposeSafe(_logger);
         }
     }
 

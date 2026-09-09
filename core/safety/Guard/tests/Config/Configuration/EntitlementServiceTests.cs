@@ -17,15 +17,8 @@ public sealed class EntitlementServiceTests
         var briefMode = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var service = new EntitlementService(briefMode);
         // JCC_BRIEF=1 应该允许
-        Environment.SetEnvironmentVariable(JccEnvVarConstants.Brief, "1");
-        try
-        {
-            Assert.True(service.IsBriefEntitled);
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable(JccEnvVarConstants.Brief, null);
-        }
+        using var envScope1 = EnvVarScope.Set(JccEnvVarConstants.Brief, "1");
+        Assert.True(service.IsBriefEntitled);
     }
 
     [Fact]
@@ -34,15 +27,8 @@ public sealed class EntitlementServiceTests
         var briefMode = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var service = new EntitlementService(briefMode);
         // JCC_BRIEF=false 应该拒绝
-        Environment.SetEnvironmentVariable(JccEnvVarConstants.Brief, "false");
-        try
-        {
-            Assert.False(service.IsBriefEntitled);
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable(JccEnvVarConstants.Brief, null);
-        }
+        using var envScope2 = EnvVarScope.Set(JccEnvVarConstants.Brief, "false");
+        Assert.False(service.IsBriefEntitled);
     }
 
     [Fact]
@@ -51,15 +37,8 @@ public sealed class EntitlementServiceTests
         var briefMode = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var service = new EntitlementService(briefMode);
         // JCC_BRIEF=0 应该拒绝
-        Environment.SetEnvironmentVariable(JccEnvVarConstants.Brief, "0");
-        try
-        {
-            Assert.False(service.IsBriefEntitled);
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable(JccEnvVarConstants.Brief, null);
-        }
+        using var envScope3 = EnvVarScope.Set(JccEnvVarConstants.Brief, "0");
+        Assert.False(service.IsBriefEntitled);
     }
 
     [Fact]

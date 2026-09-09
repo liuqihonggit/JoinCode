@@ -221,8 +221,8 @@ public sealed class DoctorSseClient : IAsyncDisposable
             try { _sseListenTask.GetAwaiter().GetResult(); } catch (Exception ex) { _logger?.LogWarning(ex, "[DoctorSSE-Client] 等待SSE监听任务完成失败"); }
         }
 
-        _cts.Dispose();
-        _httpClient.Dispose();
+        _cts.DisposeSafe(_logger);
+        _httpClient.DisposeSafe(_logger);
     }
 }
 

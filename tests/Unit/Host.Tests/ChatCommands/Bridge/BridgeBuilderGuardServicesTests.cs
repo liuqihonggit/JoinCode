@@ -184,25 +184,16 @@ public sealed class BridgeBuilderGuardServicesTests
     {
         // Arrange
         const string testEndpoint = "https://test-policy.example.com/api";
-        var originalValue = Environment.GetEnvironmentVariable("JCC_REMOTE_POLICY_ENDPOINT");
-        try
-        {
-            Environment.SetEnvironmentVariable("JCC_REMOTE_POLICY_ENDPOINT", testEndpoint);
-            var fs = new IO.FileSystem.PhysicalFileSystem();
+        using var env = EnvVarScope.Set("JCC_REMOTE_POLICY_ENDPOINT", testEndpoint);
+        var fs = new IO.FileSystem.PhysicalFileSystem();
 
-            // Act
-            await using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
-            var options = services.GetRequiredService<IOptions<RemotePolicyOptions>>();
+        // Act
+        await using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+        var options = services.GetRequiredService<IOptions<RemotePolicyOptions>>();
 
-            // Assert
-            options.Value.ApiEndpoint.Should().Be(testEndpoint,
-                "JCC_REMOTE_POLICY_ENDPOINT 环境变量应被读取到 options.ApiEndpoint");
-        }
-        finally
-        {
-            // Cleanup — 恢复原始环境变量
-            Environment.SetEnvironmentVariable("JCC_REMOTE_POLICY_ENDPOINT", originalValue);
-        }
+        // Assert
+        options.Value.ApiEndpoint.Should().Be(testEndpoint,
+            "JCC_REMOTE_POLICY_ENDPOINT 环境变量应被读取到 options.ApiEndpoint");
     }
 
     /// <summary>
@@ -213,24 +204,16 @@ public sealed class BridgeBuilderGuardServicesTests
     {
         // Arrange
         const string testKey = "test-client-key-12345";
-        var originalValue = Environment.GetEnvironmentVariable("JCC_REMOTE_POLICY_KEY");
-        try
-        {
-            Environment.SetEnvironmentVariable("JCC_REMOTE_POLICY_KEY", testKey);
-            var fs = new IO.FileSystem.PhysicalFileSystem();
+        using var env = EnvVarScope.Set("JCC_REMOTE_POLICY_KEY", testKey);
+        var fs = new IO.FileSystem.PhysicalFileSystem();
 
-            // Act
-            await using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
-            var options = services.GetRequiredService<IOptions<RemotePolicyOptions>>();
+        // Act
+        await using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+        var options = services.GetRequiredService<IOptions<RemotePolicyOptions>>();
 
-            // Assert
-            options.Value.ClientKey.Should().Be(testKey,
-                "JCC_REMOTE_POLICY_KEY 环境变量应被读取到 options.ClientKey");
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable("JCC_REMOTE_POLICY_KEY", originalValue);
-        }
+        // Assert
+        options.Value.ClientKey.Should().Be(testKey,
+            "JCC_REMOTE_POLICY_KEY 环境变量应被读取到 options.ClientKey");
     }
 
     /// <summary>
@@ -278,24 +261,16 @@ public sealed class BridgeBuilderGuardServicesTests
     public async Task BuildBridgeGuardServices_WhenNoEndpointEnvVar_ShouldDefaultToEmpty()
     {
         // Arrange
-        var originalValue = Environment.GetEnvironmentVariable("JCC_REMOTE_POLICY_ENDPOINT");
-        try
-        {
-            Environment.SetEnvironmentVariable("JCC_REMOTE_POLICY_ENDPOINT", null);
-            var fs = new IO.FileSystem.PhysicalFileSystem();
+        using var env = EnvVarScope.Set("JCC_REMOTE_POLICY_ENDPOINT", null);
+        var fs = new IO.FileSystem.PhysicalFileSystem();
 
-            // Act
-            await using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
-            var options = services.GetRequiredService<IOptions<RemotePolicyOptions>>();
+        // Act
+        await using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+        var options = services.GetRequiredService<IOptions<RemotePolicyOptions>>();
 
-            // Assert
-            options.Value.ApiEndpoint.Should().BeEmpty(
-                "未设置 JCC_REMOTE_POLICY_ENDPOINT 时，ApiEndpoint 应为空字符串（fail-open 行为）");
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable("JCC_REMOTE_POLICY_ENDPOINT", originalValue);
-        }
+        // Assert
+        options.Value.ApiEndpoint.Should().BeEmpty(
+            "未设置 JCC_REMOTE_POLICY_ENDPOINT 时，ApiEndpoint 应为空字符串（fail-open 行为）");
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
@@ -330,25 +305,16 @@ public sealed class BridgeBuilderGuardServicesTests
     public async Task BuildBridgeGuardServices_WhenClockModeFake_ShouldResolveFakeClockService()
     {
         // Arrange
-        var originalValue = Environment.GetEnvironmentVariable("JCC_CLOCK_MODE");
-        try
-        {
-            Environment.SetEnvironmentVariable("JCC_CLOCK_MODE", "Fake");
-            var fs = new IO.FileSystem.PhysicalFileSystem();
+        using var env = EnvVarScope.Set("JCC_CLOCK_MODE", "Fake");
+        var fs = new IO.FileSystem.PhysicalFileSystem();
 
-            // Act
-            await using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
-            var clock = services.GetRequiredService<IClockService>();
+        // Act
+        await using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+        var clock = services.GetRequiredService<IClockService>();
 
-            // Assert
-            clock.Should().BeOfType<FakeClockService>(
-                "JCC_CLOCK_MODE=Fake 时应解析为 FakeClockService — 支持手动推进时间用于调试/E2E测试");
-        }
-        finally
-        {
-            // Cleanup — 恢复原始环境变量
-            Environment.SetEnvironmentVariable("JCC_CLOCK_MODE", originalValue);
-        }
+        // Assert
+        clock.Should().BeOfType<FakeClockService>(
+            "JCC_CLOCK_MODE=Fake 时应解析为 FakeClockService — 支持手动推进时间用于调试/E2E测试");
     }
 
     /// <summary>
@@ -359,24 +325,15 @@ public sealed class BridgeBuilderGuardServicesTests
     public async Task BuildBridgeGuardServices_WhenClockModeUnset_ShouldResolvePhysicalClockService()
     {
         // Arrange
-        var originalValue = Environment.GetEnvironmentVariable("JCC_CLOCK_MODE");
-        try
-        {
-            Environment.SetEnvironmentVariable("JCC_CLOCK_MODE", null);
-            var fs = new IO.FileSystem.PhysicalFileSystem();
+        using var env = EnvVarScope.Set("JCC_CLOCK_MODE", null);
+        var fs = new IO.FileSystem.PhysicalFileSystem();
 
-            // Act
-            await using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
-            var clock = services.GetRequiredService<IClockService>();
+        // Act
+        await using var services = ApplicationBuilder.BuildBridgeGuardServices(fs);
+        var clock = services.GetRequiredService<IClockService>();
 
-            // Assert
-            clock.Should().BeOfType<PhysicalClockService>(
-                "未设置 JCC_CLOCK_MODE 时应解析为 PhysicalClockService — 默认使用真实系统时间");
-        }
-        finally
-        {
-            // Cleanup — 恢复原始环境变量
-            Environment.SetEnvironmentVariable("JCC_CLOCK_MODE", originalValue);
-        }
+        // Assert
+        clock.Should().BeOfType<PhysicalClockService>(
+            "未设置 JCC_CLOCK_MODE 时应解析为 PhysicalClockService — 默认使用真实系统时间");
     }
 }

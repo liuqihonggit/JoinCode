@@ -145,17 +145,9 @@ public sealed class McpCliCommand
             options.Model = model;
         Core.Utils.TestEnvironmentDetector.ForceNonInteractive = true;
         // 子命令模式抑制初始化警告（ShellCapabilityInitializer 的 pwsh/python 检测警告）
-        var prevLogLevel = Environment.GetEnvironmentVariable("JCC_LOG_LEVEL");
-        Environment.SetEnvironmentVariable("JCC_LOG_LEVEL", "Error");
-        try
-        {
-            var result = await EngineSessionFactory.CreateCliSessionAsync(options, fs, ct).ConfigureAwait(false);
-            return result.Host;
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable("JCC_LOG_LEVEL", prevLogLevel);
-        }
+        using var logLevelScope = EnvVarScope.Set("JCC_LOG_LEVEL", "Error");
+        var result = await EngineSessionFactory.CreateCliSessionAsync(options, fs, ct).ConfigureAwait(false);
+        return result.Host;
     }
 
     internal static async Task<int> ExecuteServeAsync(string transport, int port, string hostName, CancellationToken ct, int? awaitSeconds = null)

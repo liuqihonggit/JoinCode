@@ -184,6 +184,8 @@ public sealed class WorktreeCommand : ChatCommandBase
                     TerminalHelper.WriteLine($"{TerminalColors.Warning}找到未记录的 worktree 目录: {worktreePath}{AnsiStyleConstants.Reset}");
                     if (context.Confirm?.Invoke("是否强制移除？") ?? false)
                     {
+                        // 兜底清理:session 不存在(未记录的 worktree),直接删除目录。
+                        // 注意:可能残留 .git/worktrees/ 元数据和分支引用,建议后续执行 `git worktree prune`。
                         context.GetCommandServices().FileSystem.DeleteDirectory(worktreePath, true);
                         TerminalHelper.WriteLine($"{TerminalColors.Success}已移除 worktree 目录{AnsiStyleConstants.Reset}");
                         return;

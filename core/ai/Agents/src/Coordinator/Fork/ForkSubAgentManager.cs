@@ -208,8 +208,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
         {
             if (!semaphoreTransferredToBackground)
             {
-                try { releaser?.Dispose(); }
-                catch (ObjectDisposedException) { _logger?.LogDebug("fork 信号量在 Release 时已被热重载 Dispose"); }
+                releaser.DisposeSafe(_logger);
             }
         }
     }

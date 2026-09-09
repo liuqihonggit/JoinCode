@@ -1245,9 +1245,8 @@ public partial class FileToolHandlers : IDisposable
 
     public void Dispose()
     {
-        try { _disposeCts.Cancel(); } catch (ObjectDisposedException ex) { _logger?.LogWarning(ex, "Dispose 时取消 CancellationTokenSource 失败"); }
-        try { _disposeCts.Dispose(); } catch (ObjectDisposedException ex) { _logger?.LogWarning(ex, "Dispose 时释放 CancellationTokenSource 失败"); }
-        try { _lspNotificationCompleted.Dispose(); } catch (ObjectDisposedException ex) { _logger?.LogWarning(ex, "Dispose 时释放 LSP 通知信号量失败"); }
+        _disposeCts.CancelAndDisposeSafe(_logger);
+        _lspNotificationCompleted.DisposeSafe(_logger);
     }
 
     private static FrozenSet<string> CreateBlockedDevicePathSet()

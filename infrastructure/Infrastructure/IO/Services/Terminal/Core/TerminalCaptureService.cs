@@ -275,7 +275,8 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
     {
         try
         {
-            var tmpFile = fs.CombinePath(Path.GetTempPath(), $"jcc_screen_{Guid.NewGuid():N}.txt");
+            using var tmpFileScope = TempFileScope.Create(fs, "jcc_screen_", ".txt");
+            var tmpFile = tmpFileScope.Path;
 
             var hardcopyPsi = new System.Diagnostics.ProcessStartInfo
             {
@@ -293,19 +294,12 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
 
             if (!fs.FileExists(tmpFile)) return null;
 
-            try
-            {
-                var content = fs.ReadAllText(tmpFile);
-                if (string.IsNullOrWhiteSpace(content)) return null;
+            var content = fs.ReadAllText(tmpFile);
+            if (string.IsNullOrWhiteSpace(content)) return null;
 
-                return maxLines.HasValue
-                    ? string.Join('\n', content.Split('\n').TakeLast(maxLines.Value))
-                    : content.TrimEnd();
-            }
-            finally
-            {
-                try { fs.DeleteFile(tmpFile); } catch (Exception ex) { logger?.LogWarning(ex, "TerminalCaptureService: failed to delete temp file"); }
-            }
+            return maxLines.HasValue
+                ? string.Join('\n', content.Split('\n').TakeLast(maxLines.Value))
+                : content.TrimEnd();
         }
         catch
         {

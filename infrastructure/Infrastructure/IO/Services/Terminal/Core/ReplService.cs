@@ -208,7 +208,8 @@ public sealed partial class ReplService : ServiceEntity, IReplService
             };
         }
 
-        var scriptFile = _fs.CombinePath(Path.GetTempPath(), $"jcc_repl_{Guid.NewGuid():N}{extension}");
+        using var scriptFileScope = TempFileScope.Create(_fs, "jcc_repl_", extension);
+        var scriptFile = scriptFileScope.Path;
 
         try
         {
@@ -241,10 +242,6 @@ public sealed partial class ReplService : ServiceEntity, IReplService
                 ExecutionTime = TimeSpan.Zero,
                 Error = $"{exeName} 执行失败: {ex.Message}"
             };
-        }
-        finally
-        {
-            try { if (_fs.FileExists(scriptFile)) _fs.DeleteFile(scriptFile); } catch (Exception ex) { _logger?.LogWarning(ex, "ReplService: 删除 {Language} 脚本文件失败", language); }
         }
     }
 

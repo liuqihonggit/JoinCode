@@ -790,11 +790,15 @@ public class MainViewModelTests
             var session = new FakeSession();
             var vm = new MainViewModel(session, new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"), new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
+            System.Threading.SpinWait.SpinUntil(
+                () => session.WrittenMaxTokens is not null,
+                TimeSpan.FromSeconds(2));
+
             vm.Temperature = 1.2;
             vm.MaxTokens = 3000;
 
             System.Threading.SpinWait.SpinUntil(
-                () => session.WrittenTemperature is not null && session.WrittenMaxTokens is not null,
+                () => session.WrittenTemperature == 1.2f && session.WrittenMaxTokens == 3000,
                 TimeSpan.FromSeconds(2));
 
             session.WrittenTemperature.Should().Be(1.2f);

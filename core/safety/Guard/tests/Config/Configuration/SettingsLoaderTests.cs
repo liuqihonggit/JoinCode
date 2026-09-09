@@ -18,7 +18,7 @@ public class SettingsLoaderTests : IDisposable
     private readonly string _userAppDataDir;
     private readonly string? _originalAppDataFolder;
     private readonly string? _originalSettingsFileName;
-    private readonly string? _originalEnvAppDataFolder;
+    private readonly EnvVarScope _envScope;
     private readonly IFileSystem _fs = TestFileSystem.Current;
 
     public SettingsLoaderTests()
@@ -35,14 +35,13 @@ public class SettingsLoaderTests : IDisposable
         _fs.CreateDirectory(_userAppDataDir);
 
         // 先清除环境变量，确保读取到 backing field 的真实值
-        _originalEnvAppDataFolder = Environment.GetEnvironmentVariable(JccEnvVarConstants.AppDataFolder);
-        Environment.SetEnvironmentVariable(JccEnvVarConstants.AppDataFolder, null);
+        _envScope = EnvVarScope.Set(JccEnvVarConstants.AppDataFolder, null);
 
         _originalAppDataFolder = AppDataConstants.AppDataFolder;
         _originalSettingsFileName = AppDataConstants.SettingsFileName;
 
         // 用户设置: 通过环境变量覆盖为临时绝对路径，GetUserSettingsPath 的 IsPathRooted 分支直接使用
-        Environment.SetEnvironmentVariable(JccEnvVarConstants.AppDataFolder, _userAppDataDir);
+        _envScope.Add(JccEnvVarConstants.AppDataFolder, _userAppDataDir);
         AppDataConstants.Paths = AppDataPaths.FromEnvironment(); // 刷新 Paths 实例
         AppDataConstants.SettingsFileName = "settings.json";
     }
@@ -50,7 +49,7 @@ public class SettingsLoaderTests : IDisposable
     public void Dispose()
     {
         // 还原全局 AppDataConstants,避免污染后续测试
-        Environment.SetEnvironmentVariable(JccEnvVarConstants.AppDataFolder, _originalEnvAppDataFolder);
+        _envScope.Dispose();
         AppDataConstants.Paths = AppDataPaths.FromEnvironment(); // 恢复 Paths 实例
     }
 

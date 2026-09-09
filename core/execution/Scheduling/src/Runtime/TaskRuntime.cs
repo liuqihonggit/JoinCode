@@ -295,7 +295,22 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
             var durableTasks = _tasks.Values.Where(t => t.IsDurable).ToList();
             var filePath = Path.Combine(_deps.PersistenceDirectory, "runtime-tasks.json");
             var json = RelaxedJsonSerializer.Serialize(durableTasks, SchedulingTasksJsonContext.Default);
-            await _deps.FileOperationService.WriteFileAsync(filePath, json, cancellationToken).ConfigureAwait(false);
+
+            var tempPath = filePath + ".tmp";
+            try
+            {
+                await _deps.FileOperationService.WriteFileAsync(tempPath, json, cancellationToken).ConfigureAwait(false);
+                await _deps.FileOperationService.MoveFileAsync(tempPath, filePath, overwrite: true, cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                if (_deps.FileOperationService.FileExists(tempPath))
+                {
+                    try { await _deps.FileOperationService.DeleteFileAsync(tempPath, cancellationToken).ConfigureAwait(false); }
+                    catch (Exception cleanupEx) { _logger?.LogWarning(cleanupEx, "清理临时文件失败: {TempPath}", tempPath); }
+                }
+                throw;
+            }
 
             _logger?.LogDebug(L.T(StringKey.PersistTasksLog), durableTasks.Count);
         }

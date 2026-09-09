@@ -8,7 +8,7 @@
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-    <NoWarn>$(NoWarn);JCC9001;CS8604;CS1573;CS1587</NoWarn>
+    <NoWarn>$(NoWarn);JCC9001;CS8604;CS1573;CS1587;NU1903</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

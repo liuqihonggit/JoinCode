@@ -72,11 +72,11 @@ internal static class ToolCallRepairService
         repaired = FixRawNewlines(repaired, hints);
         repaired = RemoveTrailingCommas(repaired, hints);
         repaired = FixUnquotedKeys(repaired, hints);
+        repaired = FixNamedFloatingPointLiterals(repaired, hints);
         repaired = FixUnquotedValues(repaired, hints);
         repaired = FixSingleQuotedStrings(repaired, hints);
         repaired = FixEscapeSequences(repaired, hints);
         repaired = FixHexAndLeadingZeroNumbers(repaired, hints);
-        repaired = FixNamedFloatingPointLiterals(repaired, hints);
 
         if (TryParseJson(repaired, out _))
             return new ToolCallRepairResult

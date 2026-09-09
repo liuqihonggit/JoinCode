@@ -1,0 +1,138 @@
+name: CI Unit Tests
+
+on:
+  workflow_call:
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: true
+  NUGET_XMLDOC_MODE: skip
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+  Configuration: Release
+
+jobs:
+  unit-tests:
+    name: Unit - ${{ matrix.name }}
+    runs-on: windows-latest
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Foundation
+          - name: AsyncLock
+            csproj: foundation/AsyncLock/tests/Unit/AsyncLock.Tests.csproj
+          - name: Structura
+            csproj: foundation/Structura/tests/Unit/Structura.Tests.csproj
+          # Generators
+          - name: AotSafety
+            csproj: generators/AotSafety.Generator/tests/AotSafety.Tests.csproj
+          - name: FsmGenerator
+            csproj: generators/Fsm.Generator/tests/Fsm.Generator.Tests.csproj
+          # Infrastructure
+          - name: InfraIO
+            csproj: tests/Unit/Infra.Tests/IO/Infra.IO.Tests.csproj
+          - name: InfraServices
+            csproj: tests/Unit/Infra.Tests/Services/Infra.Services.Tests.csproj
+          - name: InfraUtils
+            csproj: tests/Unit/Infra.Tests/Utils/Infra.Utils.Tests.csproj
+          # Core - AI
+          - name: Llm
+            csproj: core/ai/Llm/tests/Unit/Llm.Tests.csproj
+          - name: Agents
+            csproj: core/ai/Agents/tests/Unit/Agents.Tests.csproj
+          - name: Reasoning
+            csproj: core/ai/Reasoning/tests/Unit/Reasoning.Tests.csproj
+          # Core - Execution
+          - name: BrainPrompts
+            csproj: core/execution/Brain/tests/Prompts/Brain.Prompts.Tests.csproj
+          - name: BrainContext
+            csproj: core/execution/Brain/tests/Context/Brain.Context.Tests.csproj
+          - name: BrainOther
+            csproj: core/execution/Brain/tests/Other/Brain.Other.Tests.csproj
+          - name: HandsToolHandlers
+            csproj: core/execution/Hands/tests/ToolHandlers/Hands.ToolHandlers.Tests.csproj
+          - name: HandsSkills
+            csproj: core/execution/Hands/tests/Skills/Hands.Skills.Tests.csproj
+          - name: HandsShell
+            csproj: core/execution/Hands/tests/Shell/Hands.Shell.Tests.csproj
+          - name: HandsApi
+            csproj: core/execution/Hands/tests/Api/Hands.Api.Tests.csproj
+          - name: Scheduling
+            csproj: core/execution/Scheduling/tests/Unit/Scheduling.Tests.csproj
+          - name: McpToolDispatch
+            csproj: core/execution/McpToolDispatch/tests/Unit/McpToolDispatch.Tests.csproj
+          # Core - Search
+          - name: CodeIndex
+            csproj: core/search/CodeIndex/tests/Unit/CodeIndex.Tests.csproj
+          - name: Browser
+            csproj: core/search/Browser/tests/Unit/Browser.Tests.csproj
+          # Core - Safety
+          - name: GuardSecurity
+            csproj: core/safety/Guard/tests/Security/Guard.Security.Tests.csproj
+          - name: GuardHooks
+            csproj: core/safety/Guard/tests/Hooks/Guard.Hooks.Tests.csproj
+          - name: GuardConfig
+            csproj: core/safety/Guard/tests/Config/Guard.Config.Tests.csproj
+          - name: VaultOther
+            csproj: core/safety/Vault/tests/Other/Vault.Other.Tests.csproj
+          - name: VaultMemdir
+            csproj: core/safety/Vault/tests/Memdir/Vault.Memdir.Tests.csproj
+          # Services
+          - name: Mcp
+            csproj: services/Mcp/tests/Unit/Mcp.Tests.csproj
+          - name: Dream
+            csproj: services/Dream/tests/Unit/Dream.Tests.csproj
+          - name: Eyes
+            csproj: services/Eyes/tests/Unit/Eyes.Tests.csproj
+          - name: Bridge
+            csproj: services/Bridge/tests/Unit/Bridge.Tests.csproj
+          - name: Vision
+            csproj: services/Vision/tests/Unit/Vision.Tests.csproj
+          # Composition
+          - name: Composition
+            csproj: composition/Composition/tests/Unit/Composition.Tests.csproj
+          - name: Clock
+            csproj: composition/Clock/tests/Unit/Clock.Tests.csproj
+          # App / Cross-layer
+          - name: Host
+            csproj: tests/Unit/Host.Tests/Host.Tests.csproj
+          - name: Abs
+            csproj: tests/Unit/Abs.Tests/Abs.Tests.csproj
+          - name: HandsGoal
+            csproj: tests/Unit/Hands.Tests/Hands.Tests.csproj
+          - name: McpIntervention
+            csproj: tests/Unit/Mcp.Tests/Mcp.Tests.csproj
+          - name: McpToolDispatchHealth
+            csproj: tests/Unit/McpToolDispatch.Tests/McpToolDispatch.Tests.csproj
+          # MockServer
+          - name: MockServerCore
+            csproj: tests/MockServers/MockServer.Core.Tests/MockServer.Core.Tests.csproj
+          # GUI / TUI
+          - name: JoinCodeGui
+            csproj: tests/Unit/JoinCodeGui.Tests/JoinCodeGui.Tests.csproj
+            build_first: true
+          - name: Tui
+            csproj: tests/Unit/Tui.Tests/Tui.Tests.csproj
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: ./.github/actions/setup-test-env
+      - name: Test - ${{ matrix.name }}
+        run: >
+          dotnet test ${{ matrix.csproj }}
+          -c Release ${{ matrix.build_first != true && '--no-build' || '' }} --nologo
+          --filter "Category!=Integration&Category!=Benchmark"
+          --logger "console;verbosity=detailed"
+          --logger "trx;LogFileName=${{ matrix.name }}.trx"
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: unit-test-results-${{ matrix.name }}
+          path: '**/${{ matrix.name }}.trx'
+          retention-days: 7

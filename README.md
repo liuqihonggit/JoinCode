@@ -383,6 +383,34 @@ See [docs/adr/README.md](docs/adr/README.md) for all 40+ ADRs.
 | ChatInit | Brain | ContextLoad→CostRestore→ConfigChangeStart→SessionStartHook |
 | ChatAdmin | Brain | SessionAdmin→SessionSave |
 
+### Test Architecture
+
+**49 test projects** across 7 solution layers + cross-layer test center:
+
+| Layer | Count | Location |
+|-------|-------|----------|
+| ① Generators | 2 | `generators/*/tests/` (AotSafety, Fsm.Generator) |
+| ② Foundation | 2 | `foundation/*/tests/Unit/` (AsyncLock, Structura) |
+| ③ Infrastructure | 3 | `tests/Unit/Infra.Tests/{IO,Services,Utils}/` |
+| ④ Core | 20 | `core/*/tests/` (ai, execution, safety, search) |
+| ⑤ Services | 5 | `services/*/tests/Unit/` (Bridge, Dream, Eyes, Mcp, Vision) |
+| ⑥ Composition | 2 | `composition/*/tests/Unit/` (Composition, Clock) |
+| ⑦ App | 2 | `tests/Unit/Host.Tests/`, `tools/*/tests/` |
+| Cross-layer | 13 | `tests/Unit/{Abs,Hands,JoinCodeGui,Tui}.Tests/`, `tests/Integration/`, `tests/MockServers/` |
+
+### CI Pipeline
+
+CI is split into reusable workflows under `.github/workflows/` (PR → `main`):
+
+| Workflow | Jobs | Description |
+|----------|------|-------------|
+| `ci.yml` | 4 | Main entry — calls sub-workflows |
+| `ci-build.yml` | 1 | 7-layer ordered build + component tests + satellite projects |
+| `ci-unit-tests.yml` | 40 (matrix) | Each csproj = 1 independent job, `--filter "Category!=Integration&Category!=Benchmark"` |
+| `ci-integration.yml` | 5 | `Integration.Tests` (64 .cs) + App.slnx filter groups (Brain/Clock, Guard/Vault, Hands/Host/Mcp, PrefixCache) |
+| `ci-e2e.yml` | 14 | MockServer.E2E.Tests + Sync.Integration.Tests + CodeIndex.E2E.Tests + smoke tests |
+| `mutation-testing.yml` | matrix | Stryker.NET, scheduled daily |
+
 ---
 
 ## Configuration

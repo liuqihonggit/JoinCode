@@ -1,0 +1,139 @@
+name: CI Build
+
+on:
+  workflow_call:
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: true
+  NUGET_XMLDOC_MODE: skip
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+  Configuration: Release
+  JCC_API_TIMEOUT_MS: 30000
+
+jobs:
+  build:
+    name: Build
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: 'global.json'
+
+      - name: Cache NuGet Packages
+        uses: actions/cache@v5
+        with:
+          path: ${{ github.workspace }}/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Build.props') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: Build - ① Generators
+        run: dotnet build Generators.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+
+      - name: Build - ② Foundation
+        run: dotnet build Foundation.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+
+      - name: Build - ③ Infrastructure
+        run: dotnet build Infrastructure.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+
+      - name: Build - ④ Core
+        run: dotnet build Core.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+
+      - name: Build - ⑤ Services
+        run: dotnet build Services.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+
+      - name: Build - ⑥ Composition
+        run: dotnet build Composition.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+
+      - name: Build - ⑦ App
+        run: dotnet build App.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+
+      - name: Build - Component Tests
+        run: |
+          $projects = @(
+            'tests/Unit/Infra.Tests/Services/Infra.Services.Tests.csproj',
+            'tests/Unit/Infra.Tests/Utils/Infra.Utils.Tests.csproj',
+            'tests/Unit/Infra.Tests/IO/Infra.IO.Tests.csproj',
+            'core/execution/Brain/tests/Prompts/Brain.Prompts.Tests.csproj',
+            'core/execution/Brain/tests/Context/Brain.Context.Tests.csproj',
+            'core/execution/Brain/tests/Other/Brain.Other.Tests.csproj',
+            'core/safety/Guard/tests/Security/Guard.Security.Tests.csproj',
+            'core/safety/Guard/tests/Hooks/Guard.Hooks.Tests.csproj',
+            'core/safety/Guard/tests/Config/Guard.Config.Tests.csproj',
+            'services/Bridge/tests/Unit/Bridge.Tests.csproj',
+            'core/execution/Hands/tests/ToolHandlers/Hands.ToolHandlers.Tests.csproj',
+            'core/execution/Hands/tests/Skills/Hands.Skills.Tests.csproj',
+            'core/execution/Hands/tests/Shell/Hands.Shell.Tests.csproj',
+            'core/execution/Hands/tests/Api/Hands.Api.Tests.csproj',
+            'services/Mcp/tests/Unit/Mcp.Tests.csproj',
+            'core/safety/Vault/tests/Other/Vault.Other.Tests.csproj',
+            'core/safety/Vault/tests/Memdir/Vault.Memdir.Tests.csproj',
+            'composition/Composition/tests/Unit/Composition.Tests.csproj',
+            'core/ai/Agents/tests/Unit/Agents.Tests.csproj',
+            'core/execution/Scheduling/tests/Unit/Scheduling.Tests.csproj',
+            'core/execution/McpToolDispatch/tests/Unit/McpToolDispatch.Tests.csproj',
+            'composition/Clock/tests/Unit/Clock.Tests.csproj',
+            'services/Eyes/tests/Unit/Eyes.Tests.csproj',
+            'core/search/CodeIndex/tests/Unit/CodeIndex.Tests.csproj',
+            'services/Dream/tests/Unit/Dream.Tests.csproj',
+            'core/search/CodeIndex/tests/E2E/CodeIndex.E2E.Tests.csproj',
+            'tests/Unit/Abs.Tests/Abs.Tests.csproj',
+            'tests/Unit/Hands.Tests/Hands.Tests.csproj',
+            'tests/Unit/Mcp.Tests/Mcp.Tests.csproj',
+            'tests/Unit/McpToolDispatch.Tests/McpToolDispatch.Tests.csproj'
+          )
+          foreach ($p in $projects) {
+            Write-Host "Building $p ..."
+            dotnet build $p -c Release --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+          }
+        shell: pwsh
+
+      - name: Build - Satellite Projects
+        run: |
+          $projects = @(
+            'tests/Benchmarks/Eyes.Benchmarks/Eyes.Benchmarks.csproj',
+            'tests/AotCompatibility/aot-browser-test/aot-browser-test.csproj',
+            'tests/AotCompatibility/aot-httpclientfactory-test/aot-httpclientfactory-test.csproj',
+            'tests/AotCompatibility/pptr-api-check/PptrApiCheck.csproj'
+          )
+          foreach ($p in $projects) {
+            Write-Host "Building $p ..."
+            dotnet build $p -c Release --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+          }
+        shell: pwsh
+
+      - name: Upload Build Output
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-output
+          path: |
+            artifacts/bin/
+            !artifacts/bin/JoinCodeTui/
+            !artifacts/bin/JoinCodeGui/
+            !artifacts/bin/JoinCodeGui.Tests/
+            !artifacts/bin/SkiaSharpAotTest/
+            !**/runtimes/linux-arm/
+            !**/runtimes/linux-arm64/
+            !**/runtimes/linux-x64/
+            !**/runtimes/linux-x86/
+            !**/runtimes/linux-musl-x64/
+            !**/runtimes/osx-x64/
+            !**/runtimes/osx-arm64/
+            !**/runtimes/win-x86/
+            !**/runtimes/win-arm64/
+            !**/runtimes/unix/
+            !**/runtimes/linux/
+            !**/runtimes/osx/
+            !**/*.pdb
+            !**/*.xml
+          retention-days: 1

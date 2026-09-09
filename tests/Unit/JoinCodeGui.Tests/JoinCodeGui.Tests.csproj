@@ -3,6 +3,7 @@
   <PropertyGroup>
     <RootNamespace>JoinCode.Gui.Tests</RootNamespace>
     <AssemblyName>JoinCode.Gui.Tests</AssemblyName>
+    <NoWarn>$(NoWarn);NU1903</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

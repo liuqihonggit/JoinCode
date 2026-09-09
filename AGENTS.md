@@ -452,6 +452,36 @@ chcp 65001
 
 > **详细架构索引见 [README.md](README.md#项目架构索引)**，包含：组件依赖图、组件详情表、内部结构、源码生成器、中间件管道清单、测试结构、构建命令速查、组件名→路径映射
 
+## 测试项目地图
+
+**49 个测试项目**，按七层解决方案 + 跨层测试中心组织：
+
+| 层 | 数量 | 位置 |
+|----|------|------|
+| ① Generators | 2 | `generators/*/tests/`（AotSafety, Fsm.Generator） |
+| ② Foundation | 2 | `foundation/*/tests/Unit/`（AsyncLock, Structura） |
+| ③ Infrastructure | 3 | `tests/Unit/Infra.Tests/{IO,Services,Utils}/` |
+| ④ Core | 20 | `core/*/tests/`（ai, execution, safety, search） |
+| ⑤ Services | 5 | `services/*/tests/Unit/`（Bridge, Dream, Eyes, Mcp, Vision） |
+| ⑥ Composition | 2 | `composition/*/tests/Unit/`（Composition, Clock） |
+| ⑦ App | 2 | `tests/Unit/Host.Tests/`, `tools/*/tests/` |
+| 跨层 | 13 | `tests/Unit/{Abs,Hands,JoinCodeGui,Tui}.Tests/`, `tests/Integration/`, `tests/MockServers/` |
+
+## CI 流水线
+
+CI 拆分为可复用 workflow（PR → main 触发）：
+
+| Workflow | Jobs | 说明 |
+|----------|------|------|
+| `ci.yml` | 4 | 主入口，调用子 workflow |
+| `ci-build.yml` | 1 | 七层有序编译 + 组件测试项目 + 卫星项目 |
+| `ci-unit-tests.yml` | 40 (matrix) | 每个 csproj 独立 job，`--filter "Category!=Integration&Category!=Benchmark"` |
+| `ci-integration.yml` | 5 | `Integration.Tests`（64 .cs）+ App.slnx filter 分组 |
+| `ci-e2e.yml` | 14 | MockServer.E2E + Sync.Integration + CodeIndex.E2E + smoke tests |
+| `mutation-testing.yml` | matrix | Stryker.NET，每日定时 |
+
+> 注：`tests/Unit/Mcp.Tests`（ToolInterventionManagerTest）和 `tests/Unit/McpToolDispatch.Tests`（ToolHealthMonitor/Scorer/Template/ScoreDebug）有独特测试类，已加入 JoinCode.slnx + CI unit-tests matrix
+
 ## 关键约束
 
 nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。

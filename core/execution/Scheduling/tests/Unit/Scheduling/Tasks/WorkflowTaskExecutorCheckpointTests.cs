@@ -291,4 +291,67 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable
         _toolGatewayMock.Verify(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, System.Text.Json.JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()), Times.Never, "Parallel 重启后所有步骤应从快照恢复");
         result.Status.Should().Be(TaskExecutionStatus.Completed);
     }
+
+    [Fact]
+    public async Task ExecuteDagAsync_WithProgressSink_ShouldPushStartedAndCompleted()
+    {
+        SetupToolSuccess();
+        var sink = new RecordingWorkflowProgressSink();
+        var executor = new WorkflowTaskExecutor(
+            _toolGatewayMock.Object,
+            _lifecycleManagerMock.Object,
+            NullLogger<WorkflowTaskExecutor>.Instance,
+            stateStore: _stateStore,
+            progressSink: sink);
+
+        await executor.ExecuteWorkflowAsync(CreateDagWorkflow("wf-progress")).ConfigureAwait(true);
+
+        sink.Events.Should().Contain("Started:step-a", "Started:step-b", "Started:step-c");
+        sink.Events.Should().Contain("Completed:step-a", "Completed:step-b", "Completed:step-c");
+    }
+
+    [Fact]
+    public async Task ExecuteDagAsync_WithProgressSink_ShouldPushFailedOnFailure()
+    {
+        _toolGatewayMock
+            .Setup(x => x.ExecuteAsync("tool_a", It.IsAny<Dictionary<string, System.Text.Json.JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()))
+            .ReturnsAsync(new ToolResult { Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = "ok" } } });
+        _toolGatewayMock
+            .Setup(x => x.ExecuteAsync("tool_fail", It.IsAny<Dictionary<string, System.Text.Json.JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()))
+            .ThrowsAsync(new JoinCode.Abstractions.Exceptions.WorkflowException("failed", "ERR"));
+
+        var sink = new RecordingWorkflowProgressSink();
+        var executor = new WorkflowTaskExecutor(
+            _toolGatewayMock.Object,
+            _lifecycleManagerMock.Object,
+            NullLogger<WorkflowTaskExecutor>.Instance,
+            stateStore: _stateStore,
+            progressSink: sink);
+
+        var definition = new WorkflowDefinition
+        {
+            WorkflowId = "wf-progress-fail",
+            ExecutionMode = WorkflowExecutionMode.Dag,
+            Steps = new List<WorkflowStep>
+            {
+                new() { StepId = "step-fail", Name = "Fail", StepType = WorkflowStepType.ToolCall, ToolName = "tool_fail", OnFailure = WorkflowStepOnFailure.Continue }
+            }
+        };
+
+        await executor.ExecuteWorkflowAsync(definition).ConfigureAwait(true);
+
+        sink.Events.Should().Contain("Started:step-fail");
+        sink.Events.Should().Contain("Failed:step-fail");
+    }
+
+    private sealed class RecordingWorkflowProgressSink : IWorkflowProgressSink
+    {
+        public List<string> Events { get; } = new();
+
+        public void OnStepStarted(string workflowId, string stepId, string stepName) => Events.Add($"Started:{stepId}");
+        public void OnStepCompleted(string workflowId, string stepId, TimeSpan duration) => Events.Add($"Completed:{stepId}");
+        public void OnStepFailed(string workflowId, string stepId, string error, string? errorCode = null) => Events.Add($"Failed:{stepId}");
+        public void OnStepSkipped(string workflowId, string stepId, string reason) => Events.Add($"Skipped:{stepId}");
+        public void OnStepRetried(string workflowId, string stepId, int attempt) => Events.Add($"Retried:{stepId}:{attempt}");
+    }
 }

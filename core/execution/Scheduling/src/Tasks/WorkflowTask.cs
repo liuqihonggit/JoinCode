@@ -82,6 +82,7 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
     private readonly IClockService _clock;
     private readonly ITelemetryService? _telemetryService;
     private readonly IWorkflowStateStore? _stateStore;
+    private readonly IWorkflowProgressSink? _progressSink;
     private readonly ConcurrentDictionary<string, WorkflowRunState> _activeWorkflows = new();
     private readonly AsyncLock _stateLock = new();
 
@@ -92,7 +93,8 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
         ITelemetryService? telemetryService = null,
         ISubAgentContextAccessor? subAgentContextAccessor = null,
         IClockService? clock = null,
-        IWorkflowStateStore? stateStore = null)
+        IWorkflowStateStore? stateStore = null,
+        IWorkflowProgressSink? progressSink = null)
     {
         _toolExecutionGateway = toolExecutionGateway;
         _agentLifecycleManager = agentLifecycleManager;
@@ -101,6 +103,7 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
         _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
         _clock = clock ?? SystemClockService.Instance;
         _stateStore = stateStore;
+        _progressSink = progressSink;
     }
 
     public async Task<WorkflowResult> ExecuteWorkflowAsync(WorkflowDefinition definition, CancellationToken ct = default)
@@ -280,6 +283,7 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
                 {
                     runState.StepStatuses[fd.StepId] = new StepStatus { StepId = fd.StepId, State = StepState.Skipped, Error = "Dependency failed" };
                     completed.Add(fd.StepId);
+                    _progressSink?.OnStepSkipped(runState.Definition.WorkflowId, fd.StepId, "Dependency failed");
                 }
 
                 await SaveSnapshotIfAvailableAsync(runState, linkedCts.Token).ConfigureAwait(false);
@@ -362,6 +366,9 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
 
     private async Task<StepStatus> ExecuteStepWithFailureHandlingAsync(WorkflowStep step, WorkflowRunState runState, CancellationToken ct)
     {
+        _progressSink?.OnStepStarted(runState.Definition.WorkflowId, step.StepId, step.Name);
+        var stepStart = _clock.GetUtcNow();
+
         try
         {
             var result = await ExecuteStepAsync(step, runState, ct).ConfigureAwait(false);
@@ -372,6 +379,7 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
                 for (var i = 0; i < maxRetries; i++)
                 {
                     ct.ThrowIfCancellationRequested();
+                    _progressSink?.OnStepRetried(runState.Definition.WorkflowId, step.StepId, i + 1);
                     await Task.Delay(TimeSpan.FromMilliseconds(200 * (i + 1)), ct).ConfigureAwait(false);
                     result = await ExecuteStepAsync(step, runState, ct).ConfigureAwait(false);
                     if (result.State != StepState.Failed) break;
@@ -379,6 +387,16 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
             }
 
             runState.StepStatuses[step.StepId] = result;
+
+            if (result.State == StepState.Completed)
+            {
+                _progressSink?.OnStepCompleted(runState.Definition.WorkflowId, step.StepId, _clock.GetUtcNow() - stepStart);
+            }
+            else if (result.State == StepState.Failed)
+            {
+                _progressSink?.OnStepFailed(runState.Definition.WorkflowId, step.StepId, result.Error ?? "Unknown", result.ErrorCode);
+            }
+
             return result;
         }
         catch (OperationCanceledException) { throw; }
@@ -395,6 +413,7 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
                 Duration = TimeSpan.Zero
             };
             runState.StepStatuses[step.StepId] = failedStatus;
+            _progressSink?.OnStepFailed(runState.Definition.WorkflowId, step.StepId, ex.Message, ex is WorkflowException wfEx2 ? wfEx2.ErrorCode : null);
             return failedStatus;
         }
     }

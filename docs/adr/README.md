@@ -69,7 +69,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 
 ## 统计
 
-- 总数：**90** | accepted：**80** | superseded：**5** | proposed：**5**
+- 总数：**93** | accepted：**82** | superseded：**5** | proposed：**6**
 
 ## 完整索引（按编号）
 
@@ -166,6 +166,9 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0089](0089-jcc-builtin-tools-only-no-system-gh-rg.md) | jcc 自带工具统一入口 — 禁止系统/宿主环境的 gh / rg | accepted | 2026-09-08 |
 | [0090](0090-jcc-gh-cli-subcommand.md) | `jcc gh` CLI 子命令 — 扁平元动词 + schema 驱动参数绑定 | accepted | 2026-09-08 |
 | [0091](0091-actor-duplex-inplace-upgrade.md) | Actor 全双工改造 — 直接改 ActorBase（无后向兼容） | accepted | 2026-09-08 |
+| [0092](0092-worktree-path-inconsistency-fix.md) | Worktree 路径不一致修复 — 中间件幂等 + Guard 路径锁定 | accepted | 2026-09-08 |
+| [0093](0093-resource-management-exception-style.md) | 资源管理与异常控制风格规范 | accepted | 2026-09-09 |
+| [0094](0094-workflow-checkpoint-resume.md) | Workflow 级断点续跑持久化策略 | proposed | 2026-09-09 |
 
 ## 主题索引（按议题）
 

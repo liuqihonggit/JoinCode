@@ -114,6 +114,130 @@ public partial class GitHubToolHandlers
     }
 
     /// <summary>
+    /// 精简 PR JSON 输出 — 提取关键字段构建人类可读文本
+    /// </summary>
+    private static string SummarizePr(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            var sb = new StringBuilder(512);
+            var number = root.TryGetProperty("number", out var n) ? n.GetInt32() : 0;
+            var title = root.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";
+            var state = root.TryGetProperty("state", out var s) ? s.GetString() ?? "" : "";
+            var draft = root.TryGetProperty("draft", out var d) && d.GetBoolean();
+            var mergeable = root.TryGetProperty("mergeable", out var m) ? (m.ValueKind == JsonValueKind.Null ? "null" : m.GetBoolean().ToString()) : "unknown";
+            var mergeableState = root.TryGetProperty("mergeable_state", out var ms) ? (ms.ValueKind == JsonValueKind.Null ? "null" : ms.GetString() ?? "") : "";
+            var author = root.TryGetProperty("user", out var u) && u.TryGetProperty("login", out var login) ? login.GetString() ?? "" : "";
+            var headRef = root.TryGetProperty("head", out var h) && h.TryGetProperty("ref", out var hr) ? hr.GetString() ?? "" : "";
+            var baseRef = root.TryGetProperty("base", out var b) && b.TryGetProperty("ref", out var br) ? br.GetString() ?? "" : "";
+            var additions = root.TryGetProperty("additions", out var add) ? add.GetInt32() : 0;
+            var deletions = root.TryGetProperty("deletions", out var del) ? del.GetInt32() : 0;
+            var changedFiles = root.TryGetProperty("changed_files", out var cf) ? cf.GetInt32() : 0;
+            var url = root.TryGetProperty("html_url", out var hu) ? hu.GetString() ?? "" : "";
+
+            sb.AppendLine($"PR #{number}: {title}");
+            sb.AppendLine($"状态: {state}{(draft ? " (draft)" : "")} (mergeable: {mergeable}, mergeable_state: {mergeableState})");
+            sb.AppendLine($"作者: {author}");
+            sb.AppendLine($"分支: {headRef} → {baseRef}");
+            sb.AppendLine($"变更: +{additions} -{deletions} ({changedFiles} files)");
+            sb.Append($"URL: {url}");
+            return sb.ToString();
+        }
+        catch
+        {
+            return json;
+        }
+    }
+
+    /// <summary>
+    /// 精简 Issue JSON 输出 — 提取关键字段构建人类可读文本
+    /// </summary>
+    private static string SummarizeIssue(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            var sb = new StringBuilder(512);
+            var number = root.TryGetProperty("number", out var n) ? n.GetInt32() : 0;
+            var title = root.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";
+            var state = root.TryGetProperty("state", out var s) ? s.GetString() ?? "" : "";
+            var author = root.TryGetProperty("user", out var u) && u.TryGetProperty("login", out var login) ? login.GetString() ?? "" : "";
+            var url = root.TryGetProperty("html_url", out var hu) ? hu.GetString() ?? "" : "";
+            var createdAt = root.TryGetProperty("created_at", out var ca) ? ca.GetString() ?? "" : "";
+
+            sb.AppendLine($"Issue #{number}: {title}");
+            sb.AppendLine($"状态: {state}");
+            sb.AppendLine($"作者: {author}");
+            sb.AppendLine($"创建: {createdAt}");
+            sb.Append($"URL: {url}");
+            return sb.ToString();
+        }
+        catch
+        {
+            return json;
+        }
+    }
+
+    /// <summary>
+    /// 构建 GitHub 工具缓存 key — {toolName}_{SHA256(argsJson)[..8]}.json
+    /// </summary>
+    private static string BuildGhCacheKey(string toolName, string argsJson)
+    {
+        var hashBytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(argsJson));
+        var hashHex = Convert.ToHexString(hashBytes)[..8].ToLowerInvariant();
+        return $"{toolName}_{hashHex}.json";
+    }
+
+    /// <summary>
+    /// 尝试读取 GitHub 工具缓存 — verbose=true 时优先用缓存节约 API
+    /// </summary>
+    private string? TryGetGhCache(string cacheKey)
+    {
+        var cacheDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".jcc", "gh_cache");
+#pragma warning disable JCC9001
+        var cachePath = Path.Combine(cacheDir, cacheKey);
+        if (!File.Exists(cachePath))
+            return null;
+        try
+        {
+            return File.ReadAllText(cachePath);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to read gh cache {Key}", cacheKey);
+            return null;
+        }
+#pragma warning restore JCC9001
+    }
+
+    /// <summary>
+    /// 保存 GitHub 工具缓存 — 默认调用时更新缓存保证数据新鲜
+    /// </summary>
+    private void SaveGhCache(string cacheKey, string json)
+    {
+        var cacheDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".jcc", "gh_cache");
+#pragma warning disable JCC9001
+        Directory.CreateDirectory(cacheDir);
+        var cachePath = Path.Combine(cacheDir, cacheKey);
+        try
+        {
+            File.WriteAllText(cachePath, json);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to save gh cache {Key}", cacheKey);
+        }
+#pragma warning restore JCC9001
+    }
+
+    /// <summary>
     /// 获取缓存目录路径 — {workingDir}/.jcc/gh_cache/ 或 {cwd}/.jcc/gh_cache/
     /// <para>项目级缓存,跨进程共享,24h 过期</para>
     /// </summary>

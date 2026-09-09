@@ -10,6 +10,7 @@ public partial class GitHubToolHandlers
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选,默认当前目录)", Required = false)] string? working_dir = null,
+        [McpToolParameter("verbose=true 返回完整 JSON(从缓存读,不调 API); 默认 false 精简输出(调 API 更新缓存)", Required = false)] bool? verbose = null,
         CancellationToken cancellationToken = default)
     {
         if (_apiClient is null) return ApiClientNotConfigured();
@@ -18,8 +19,20 @@ public partial class GitHubToolHandlers
         var (owner, repoName) = resolved.Value;
         var number = ParsePrNumber(pr_number);
 
+        var cacheKey = BuildGhCacheKey("gh_pr_view", $"{owner}/{repoName}/{number}");
+
+        if (verbose == true)
+        {
+            var cached = TryGetGhCache(cacheKey);
+            if (cached is not null)
+                return Ok(cached);
+        }
+
         var result = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls/{number}", ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? Ok(result.Body) : Fail(result.Error);
+        if (!result.Success) return Fail(result.Error);
+
+        SaveGhCache(cacheKey, result.Body);
+        return Ok(verbose == true ? result.Body : SummarizePr(result.Body));
     }
 
     [McpTool(GitHubToolNameConstants.GhPrList, "列出 PR(支持状态/数量/作者过滤)", "github", ConcurrencySafe = true)]

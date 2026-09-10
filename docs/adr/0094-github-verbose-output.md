@@ -1,4 +1,4 @@
-# ADR 0094: GitHub 工具精简输出 + verbose 完整模式
+# 0094. GitHub 工具精简输出 + verbose 完整模式
 
 > 状态：proposed
 > 日期：2026-09-09

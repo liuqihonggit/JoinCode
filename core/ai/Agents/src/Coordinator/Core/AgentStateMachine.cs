@@ -142,10 +142,10 @@ public sealed partial class AgentStateMachine
     /// </summary>
     public AgentStateReport GetReport()
     {
-        var states = _states.Values.ToList();
+        var states = _states.Values;
         return new AgentStateReport
         {
-            TotalAgents = states.Count,
+            TotalAgents = _states.Count,
             PendingCount = states.Count(c => c.CurrentState == TaskExecutionStatus.Pending),
             RunningCount = states.Count(c => c.CurrentState == TaskExecutionStatus.Running),
             PausedCount = states.Count(c => c.CurrentState == TaskExecutionStatus.Paused),

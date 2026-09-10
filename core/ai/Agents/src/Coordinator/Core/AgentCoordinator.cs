@@ -548,7 +548,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     public async Task<CoordinatorReport> GetCoordinatorReportAsync(CancellationToken cancellationToken = default)
     {
         var stateReport = await _lifecycleManager.GetStateReportAsync(cancellationToken).ConfigureAwait(false);
-        var contexts = _executionContexts.Values.ToList();
+        var contexts = _executionContexts.Values;
 
         return new CoordinatorReport
         {
@@ -696,12 +696,12 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     /// </summary>
     public ExecutionStatistics GetExecutionStatistics()
     {
-        var contexts = _executionContexts.Values.ToList();
+        var contexts = _executionContexts.Values;
         var completedContexts = contexts.Where(c => c.Outcome != AgentOutcome.Pending).ToList();
 
         return new ExecutionStatistics
         {
-            TotalAgents = contexts.Count,
+            TotalAgents = _executionContexts.Count,
             SuccessfulAgents = completedContexts.Count(c => c.Outcome == AgentOutcome.Succeeded),
             FailedAgents = completedContexts.Count(c => c.Outcome == AgentOutcome.Failed),
             CancelledAgents = contexts.Count(c => c.Outcome == AgentOutcome.Cancelled),
@@ -773,7 +773,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         }
     }
 
-    private static long? CalculateAverageExecutionTime(List<AgentExecutionContext> contexts)
+    private static long? CalculateAverageExecutionTime(IEnumerable<AgentExecutionContext> contexts)
     {
         var completedContexts = contexts
             .Where(c => c.LastExecutionStart.HasValue && c.LastExecutionEnd.HasValue)

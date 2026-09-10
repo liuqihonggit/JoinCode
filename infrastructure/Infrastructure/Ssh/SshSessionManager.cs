@@ -100,7 +100,7 @@ public sealed partial class SshSessionManager : ISshSessionManager
     private async Task CleanupSessionsAsync()
     {
         using var guard = await _stateLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
-        var sessions = _sessions.Values.ToList();
+        var sessions = _sessions.Values;
         foreach (var session in sessions)
         {
             session.ConnectionStateChanged -= OnSessionConnectionStateChanged;

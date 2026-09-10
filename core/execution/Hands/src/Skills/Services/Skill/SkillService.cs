@@ -93,7 +93,7 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
 
     public async Task<IReadOnlyList<SkillDefinition>> GetAvailableSkillsAsync(CancellationToken cancellationToken = default)
     {
-        var localSkills = _skills.Values.ToList();
+        var localSkills = _skills.Values;
 
         // 合并 MCP 远程技能 — 对齐 TS getAllCommands 合并本地+MCP技能
         if (_mcpSkillProvider is not null)
@@ -101,14 +101,14 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
             var mcpSkills = await _mcpSkillProvider.GetMcpSkillsAsync(cancellationToken).ConfigureAwait(false);
             if (mcpSkills.Count > 0)
             {
-                var combined = new List<SkillDefinition>(localSkills.Count + mcpSkills.Count);
+                var combined = new List<SkillDefinition>(_skills.Count + mcpSkills.Count);
                 combined.AddRange(localSkills);
                 combined.AddRange(mcpSkills);
                 return combined;
             }
         }
 
-        return localSkills;
+        return localSkills.ToList();
     }
 
     public async Task<SkillDefinition?> GetSkillAsync(string skillName, CancellationToken cancellationToken = default)

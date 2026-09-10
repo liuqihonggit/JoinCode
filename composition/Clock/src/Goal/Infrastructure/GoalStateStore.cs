@@ -15,7 +15,7 @@ public sealed class GoalStateStore : IGoalStateStore
     public GoalStateStore(IFileSystem fs, string? baseDir = null, ILogger<GoalStateStore>? logger = null)
     {
         _fs = fs;
-        _baseDir = baseDir ?? _fs.CombinePath(AppContext.BaseDirectory, ".goal-state");
+        _baseDir = baseDir ?? _fs.CombinePath(_fs.GetCurrentDirectory(), AppDataConstants.AppDataFolder, "goal-state");
         _logger = logger;
     }
 

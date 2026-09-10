@@ -18,7 +18,7 @@ public sealed partial class WorkflowStateStore : ServiceEntity, IWorkflowStateSt
         ILogger<WorkflowStateStore>? logger = null)
     {
         _fileOperationService = fileOperationService;
-        _persistenceDirectory = persistenceDirectory ?? Path.Combine(AppContext.BaseDirectory, "workflow-states");
+        _persistenceDirectory = persistenceDirectory ?? Path.Combine(Environment.CurrentDirectory, AppDataConstants.AppDataFolder, "workflow-states");
         _logger = logger;
     }
 

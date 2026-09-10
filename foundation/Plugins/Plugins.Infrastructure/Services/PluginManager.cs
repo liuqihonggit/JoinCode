@@ -127,7 +127,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
                 wpbLoad.Fiber.TransitionTo(PluginFiberState.Activating);
             }
 
-            var host = new WorkflowPluginHost(plugin, _kernel, _loggerFactory, _fileOperationService, _commandRegistry, _logger);
+            var host = new WorkflowPluginHost(plugin, _kernel, _loggerFactory, _fileOperationService, _commandRegistry, _logger, _serviceProvider);
 
             var loadResult = await host.LoadAsync(cancellationToken).ConfigureAwait(false);
             if (!loadResult.Success)

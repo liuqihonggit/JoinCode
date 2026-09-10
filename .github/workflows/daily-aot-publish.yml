@@ -1,0 +1,86 @@
+name: Daily AOT Publish
+
+on:
+  schedule:
+    - cron: '0 19 * * *'
+  workflow_dispatch:
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: true
+  NUGET_XMLDOC_MODE: skip
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+  Configuration: Release
+
+jobs:
+  aot-publish:
+    name: AOT Publish (${{ matrix.project.name }})
+    runs-on: windows-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - { name: 'jcc', path: 'app/JoinCode/JoinCode.csproj', artifact: 'jcc-aot' }
+          - { name: 'jcctui', path: 'app/JoinCodeTui/JoinCodeTui.csproj', artifact: 'jcctui-aot' }
+          - { name: 'jccgui', path: 'app/JoinCodeGui/JoinCodeGui.csproj', artifact: 'jccgui-aot' }
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: 'global.json'
+
+      - name: Cache NuGet Packages
+        uses: actions/cache@v5
+        with:
+          path: ${{ github.workspace }}/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Build.props') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: Publish (${{ matrix.project.name }}) - NativeAOT
+        run: |
+          dotnet publish ${{ matrix.project.path }} `
+            -c Release `
+            -r win-x64 `
+            -o publish/${{ matrix.project.name }} `
+            --nologo `
+            /p:SkipLocalPack=true `
+            /p:SelfContained=true `
+            /p:PublishAot=true `
+            /p:TrimMode=full
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+        shell: pwsh
+
+      - name: Clean debug artifacts
+        run: |
+          Get-ChildItem publish/${{ matrix.project.name }} -Include "*.pdb","*.xml" -Recurse | Remove-Item -Force
+        shell: pwsh
+
+      - name: Show output info
+        run: |
+          $dir = "publish/${{ matrix.project.name }}"
+          if (Test-Path $dir) {
+            $totalSizeMB = [math]::Round((Get-ChildItem $dir -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB, 2)
+            $fileCount = (Get-ChildItem $dir -File -Recurse).Count
+            Write-Host "${{ matrix.project.name }}: $totalSizeMB MB ($fileCount files)"
+            Get-ChildItem $dir -Filter "*.exe" | ForEach-Object {
+              $sizeMB = [math]::Round($_.Length / 1MB, 2)
+              Write-Host "  $($_.Name): $sizeMB MB"
+            }
+          }
+        shell: pwsh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.project.artifact }}-${{ github.run_number }}
+          path: publish/${{ matrix.project.name }}/
+          retention-days: 7
+          if-no-files-found: error

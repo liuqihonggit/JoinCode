@@ -276,5 +276,6 @@ PluginHost (Actor + Channel<Func<Task>> mailbox)
 
 - 每项走 TDD 红绿循环（AGENTS.md TDD 铁律）
 - 每项编译+单元测试+提交（渐进式开发）
-- #8 #9 的 AOT 限制单独 Release 编译验证
+- #8 #9 的 AOT 限制单独 Release 编译验证 ✅（Abstractions + Guard.Config.Tests Release 编译 0 警告 0 错误）
 - #4 事件溯源的格式闸门用版本迁移测试验证
+- 全部 11 项已完成，333 个插件测试全绿

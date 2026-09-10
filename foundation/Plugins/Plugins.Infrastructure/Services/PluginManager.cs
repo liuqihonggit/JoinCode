@@ -348,12 +348,19 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
 
             _logger?.LogInformation("正在加载外部插件: {PluginName} 从 {ExePath}", pluginName, exePath);
 
-            var builder = new IO.ProcessService.ProcessStartInfoBuilder(new IO.ProcessService.ProcessEncodingProvider());
-            var startInfo = builder.BuildInteractive(new InteractiveProcessOptions
+            var utf8NoBom = new UTF8Encoding(false);
+            var startInfo = new ProcessStartInfo
             {
                 FileName = exePath,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardInput = true,
                 RedirectStandardError = true,
-            });
+                StandardOutputEncoding = utf8NoBom,
+                StandardErrorEncoding = utf8NoBom,
+                StandardInputEncoding = utf8NoBom,
+            };
 
             var process = new Process { StartInfo = startInfo };
             process.ErrorDataReceived += (sender, e) =>

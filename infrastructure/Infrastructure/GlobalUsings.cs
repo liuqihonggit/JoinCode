@@ -47,7 +47,6 @@ global using ExecutionContext = JoinCode.Abstractions.Execution.ExecutionContext
 global using ErrorMessages = Core.Utils.ErrorMessages;
 global using Core.Ssh;
 global using Core.Telemetry;
-global using Core.Plugins;
 global using IAsyncDisposable = System.IAsyncDisposable;
 global using Infrastructure.Utils.IO;
 global using Infrastructure.Configuration;

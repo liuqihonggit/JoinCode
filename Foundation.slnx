@@ -4,6 +4,8 @@
     <Project Path="foundation/AsyncLock/AsyncLock.csproj" />
     <Project Path="foundation/Structura/Structura.csproj" />
     <Project Path="foundation/Transport.Contracts/Transport.Contracts.csproj" />
+    <Project Path="foundation/Plugins/Plugins.Contracts/Plugins.Contracts.csproj" />
+    <Project Path="foundation/Plugins/Plugins.Infrastructure/Plugins.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/foundation/AsyncLock/tests/" />
   <Folder Name="/foundation/AsyncLock/tests/Unit/">

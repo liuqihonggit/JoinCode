@@ -1,4 +1,4 @@
-# 0092. Worktree 路径不一致修复 — 中间件幂等 + Guard 路径锁定
+# 0092. Worktree 路径一致性 — 中间件幂等 + Guard 路径锁定
 
 - 状态：accepted
 - 日期：2026-09-08

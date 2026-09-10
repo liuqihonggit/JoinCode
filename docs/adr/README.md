@@ -69,7 +69,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 
 ## 统计
 
-- 总数：**97** | accepted：**86** | superseded：**5** | proposed：**6**
+- 总数：**97** | accepted：**90** | superseded：**5** | proposed：**2**
 
 ## 完整索引（按编号）
 
@@ -137,17 +137,17 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0060](0060-asynclock-sync-trylock-fireandforget-deadlock.md) | AsyncLock 同步 TryLock + StreamingToolExecutor 死锁排查 | accepted | 2026-09-04 |
 | [0061](0061-shell-timeout-keyword-auto-capture.md) | 脚本超时关键字自动捕获机制 | accepted | 2026-09-04 |
 | [0062](0062-path-existence-precheck-and-garbled-detection.md) | 路径存在性前置检查与乱码检测 | accepted | 2026-09-04 |
-| [0063](0063-unified-external-endpoints.md) | 统一对外暴露地址 | proposed | 2026-09-05 |
-| [0064](0064-pluggable-update-source-auto-update.md) | 可插拔更新源与自动更新 | proposed | 2026-09-05 |
+| [0063](0063-unified-external-endpoints.md) | 统一对外暴露地址 | accepted | 2026-09-05 |
+| [0064](0064-pluggable-update-source-auto-update.md) | 可插拔更新源与自动更新 | accepted | 2026-09-05 |
 | [0065](0065-jcc-mcp-subcommand.md) | jcc mcp CLI 子命令 — bash 直调内部 MCP 工具 | superseded by 0069 | 2026-09-05 |
-| [0066](0066-prefix-exclamation-command.md) | 前置感叹号命令（! 触发 AI / !! 不触发 AI） | proposed | 2026-09-05 |
+| [0066](0066-prefix-exclamation-command.md) | 前置感叹号命令（! 触发 AI / !! 不触发 AI） | accepted | 2026-09-05 |
 | [0067](0067-ci-log-structured-drill-down.md) | CI 日志结构化逐级展开（Section 级 drill down） | accepted | 2026-09-06 |
 | [0068](0068-unified-persistence-pipeline-actor.md) | 统一持久化管道（Actor 模型） | accepted | 2026-09-06 |
 | [0069](0069-cli-args-full-refactor.md) | 启动参数完全重构 — 扁平元动词 + 统一解析框架 + 斜杠命令直调 | accepted | 2026-09-06 |
 | [0070](0070-rg-engine-mmap-plinq.md) | jcc rg 内置 ripgrep 兼容搜索 — RgEngine 独立实现（mmap + PLINQ + 零 GC） | accepted | 2026-09-06 |
 | [0071](0071-editfileasync-per-file-asynclock.md) | IFileSystem.EditFileAsync 原子编辑接口 — per-file AsyncLock 串行化 | accepted | 2026-09-07 |
 | [0072](0072-mmap-plinq-span-proliferation.md) | mmap + PLINQ + 零 GC Span 技术推广 — 从 RgEngine 到全项目文件遍历 | accepted | 2026-09-07 |
-| [0073](0073-gh-rest-api-direct-call.md) | gh_* MCP 工具重写为 GitHub REST API 直调（摆脱系统 gh 依赖） | proposed | 2026-09-07 |
+| [0073](0073-gh-rest-api-direct-call.md) | gh_* MCP 工具重写为 GitHub REST API 直调（摆脱系统 gh 依赖） | accepted | 2026-09-07 |
 | [0074](0074-actor-supervisor-tree.md) | Actor 监督树 — Router/Gateway/Supervisor/PersistentMailbox 四层扩展 | accepted | 2026-09-08 |
 | [0075](0075-gh-cli-troubleshooting-guide.md) | gh CLI 排错避坑指南 | accepted | 2026-09-08 |
 | [0076](0076-dotnet-test-build-output-rules.md) | .NET 测试和构建输出禁令与 CLI 运行时测试 | accepted | 2026-09-08 |
@@ -302,15 +302,15 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 
 | 编号 | 标题 | 状态 | 日期 |
 |------|------|------|------|
-| [0063](0063-unified-external-endpoints.md) | 统一对外暴露地址 | proposed | 2026-09-05 |
-| [0064](0064-pluggable-update-source-auto-update.md) | 可插拔更新源与自动更新 | proposed | 2026-09-05 |
+| [0063](0063-unified-external-endpoints.md) | 统一对外暴露地址 | accepted | 2026-09-05 |
+| [0064](0064-pluggable-update-source-auto-update.md) | 可插拔更新源与自动更新 | accepted | 2026-09-05 |
 
 ### CLI / jcc 启动参数
 
 | 编号 | 标题 | 状态 | 日期 |
 |------|------|------|------|
 | [0065](0065-jcc-mcp-subcommand.md) | jcc mcp CLI 子命令 — bash 直调内部 MCP 工具 | superseded by 0069 | 2026-09-05 |
-| [0066](0066-prefix-exclamation-command.md) | 前置感叹号命令（! 触发 AI / !! 不触发 AI） | proposed | 2026-09-05 |
+| [0066](0066-prefix-exclamation-command.md) | 前置感叹号命令（! 触发 AI / !! 不触发 AI） | accepted | 2026-09-05 |
 | [0069](0069-cli-args-full-refactor.md) | 启动参数完全重构 — 扁平元动词 + 统一解析框架 + 斜杠命令直调 | accepted | 2026-09-06 |
 | [0070](0070-rg-engine-mmap-plinq.md) | jcc rg 内置 ripgrep 兼容搜索 — RgEngine 独立实现（mmap + PLINQ + 零 GC） | accepted | 2026-09-06 |
 | [0089](0089-jcc-builtin-tools-only-no-system-gh-rg.md) | jcc 自带工具统一入口 — 禁止系统/宿主环境的 gh / rg | accepted | 2026-09-08 |
@@ -335,7 +335,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 
 | 编号 | 标题 | 状态 | 日期 |
 |------|------|------|------|
-| [0073](0073-gh-rest-api-direct-call.md) | gh_* MCP 工具重写为 GitHub REST API 直调（摆脱系统 gh 依赖） | proposed | 2026-09-07 |
+| [0073](0073-gh-rest-api-direct-call.md) | gh_* MCP 工具重写为 GitHub REST API 直调（摆脱系统 gh 依赖） | accepted | 2026-09-07 |
 | [0075](0075-gh-cli-troubleshooting-guide.md) | gh CLI 排错避坑指南 | accepted | 2026-09-08 |
 | [0094](0094-github-verbose-output.md) | GitHub 工具精简输出 + verbose 完整模式 | proposed | 2026-09-09 |
 

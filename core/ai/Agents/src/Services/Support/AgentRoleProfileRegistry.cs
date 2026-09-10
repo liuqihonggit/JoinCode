@@ -24,7 +24,30 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
     {
         _definitionProvider = definitionProvider;
         _logger = logger;
-        _profiles = BuildBuiltInProfiles();
+        _profiles = new List<AgentRoleProfile>();
+        _profileMap = BuildProfileMap(_profiles);
+        _roleIndex = BuildRoleIndex(_profiles);
+    }
+
+    /// <summary>
+    /// 注册内置角色 Profile — 由 AgentRolesPlugin 在 InitializeAsync 中调用(ADR 0098 万物皆插件)
+    /// </summary>
+    public void RegisterBuiltInProfiles()
+    {
+        foreach (var profile in BuildBuiltInProfiles())
+        {
+            Register(profile);
+        }
+    }
+
+    /// <summary>
+    /// 撤销内置角色 Profile — 插件卸载时调用
+    /// </summary>
+    public void UnregisterBuiltInProfiles()
+    {
+        using var guard = _loadLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_loadLock.Name}' 等待超时");
+        var builtIn = BuildBuiltInProfiles().ToHashSet();
+        _profiles.RemoveAll(p => builtIn.Contains(p));
         _profileMap = BuildProfileMap(_profiles);
         _roleIndex = BuildRoleIndex(_profiles);
     }

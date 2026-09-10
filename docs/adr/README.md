@@ -194,6 +194,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0095](0095-unified-path-normalizer.md) | 统一路径归一化工具 PathNormalizer | accepted | 2026-09-09 |
 | [0096](0096-shell-path-error-auto-retry.md) | Shell 路径处理策略 — 去掉执行前自动转换 + 执行后失败重试 | accepted | 2026-09-09 |
 | [0097](0097-workflow-checkpoint-resume.md) | Workflow 级断点续跑持久化策略 | accepted | 2026-09-09 |
+| [0098](0098-plugin-system-fusion-actor-effectscope.md) | 插件系统融合 — Actor+EffectScope+动态拓扑+弱事件+ALC | accepted | 2026-09-10 |
 
 ## 主题索引（按议题）
 
@@ -216,6 +217,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0011](0011-data-container-aot-gc.md) | 数据容器 AOT+GC 选型 | accepted | 2026-08-29 |
 | [0012](0012-two-itoolhandler-interfaces.md) | 双 IToolHandler 接口不合并 | superseded by 0025 | 2026-08-29 |
 | [0081](0081-seven-layer-build-strategy.md) | 七层解决方案架构与编译策略 | accepted | 2026-09-08 |
+| [0098](0098-plugin-system-fusion-actor-effectscope.md) | 插件系统融合 — Actor+EffectScope+动态拓扑+弱事件+ALC | accepted | 2026-09-10 |
 
 ### 组件策略与方法论
 

@@ -681,15 +681,12 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 
 > 归档记录: [archive-dead-code.md](docs/refactoring/archive-dead-code.md)（归档死接口，取代 0012）
 
-- **合并1：双 IToolHandler 接口**
-  - `McpProtocol.IToolHandler`（InputSchema=JsonElement, 返回object）保留为 MCP 协议内部类型
-  - `Abstractions.IToolHandler`（InputSchema=ToolSchema, 返回ToolResult, 有Kind/GroupName/onProgress）是主接口
-  - 两者不合并（语义不同），但 `McpProtocol.IToolHandler` 重命名为 `IMcpProtocolHandler` 避免混淆
-- **合并2：三个 ResultBuilder → 一个**
-  - `ToolResultBuilder`（Abstractions）= 基础版
-  - `ResultBuilder`（Hands）= +WithPdf +WithEntityMetadata
-  - `McpResultBuilder`（Abstractions）= +WithBinary +WithEntityMetadata
-  - **统一方案**：将 WithPdf/WithBinary/WithEntityMetadata 全部合并到 `ToolResultBuilder`，删除 `ResultBuilder` 和 `McpResultBuilder`
+- **合并1：双 IToolHandler 接口** ✅ 已完成
+  - `IMcpProtocolHandler`（原 McpProtocol.IToolHandler）已移除 — 0 个生产实现,为死接口
+  - `Abstractions.IToolHandler`（InputSchema=ToolSchema, 返回ToolResult, 有Kind/GroupName/onProgress）是唯一工具处理器接口
+- **合并2：三个 ResultBuilder → 一个** ✅ 已完成
+  - `ResultBuilder`（Hands）和 `McpResultBuilder`（Abstractions）已移除
+  - `ToolResultBuilder`（Abstractions）是唯一的 ToolResult 构建器,含 WithPdf/WithBinary/WithEntityMetadata
 - **合并3：ToolHandler 委托的 toolName 参数**
   - 保留当前设计（DelegateToolHandler 内部补传 Name），不做修改
   - 原因：委托需要工具名做路由，接口通过 this.Name 获取，两者语义不同

@@ -741,7 +741,7 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 
 ### 规则8：循环检测器状态机设计风格（推荐）
 
-> ADR: [0018](docs/adr/0018-loop-detector-state-machine.md) | [0054](docs/adr/0054-llm-output-loop-detection-intervention.md)（完整机制）
+> ADR: [0018](docs/adr/0018-loop-detector-state-machine.md)（superseded by [0038](docs/adr/0038-state-machine-flags-guard.md)） | [0054](docs/adr/0054-llm-output-loop-detection-intervention.md)（完整机制）
 
 - **状态机模式**：检测器内部用显式状态枚举 + switch 表达式实现状态转换，不用隐式 `if-else` + 标志变量
   - 状态定义：`enum XxxDetectionState { Monitoring, Suspected, Confirmed }`

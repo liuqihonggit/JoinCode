@@ -1,6 +1,6 @@
 # 0073. gh_* MCP 工具重写为 GitHub REST API 直调（摆脱系统 gh 依赖）
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-09-07
 - 决策者：项目架构组
 

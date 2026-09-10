@@ -1,4 +1,4 @@
-# 0092. Worktree 路径不一致修复 — 中间件幂等 + Guard 路径锁定
+# 0092. Worktree 路径一致性 — 中间件幂等 + Guard 路径锁定
 
 - 状态：accepted
 - 日期：2026-09-08
@@ -97,6 +97,12 @@ if (string.IsNullOrEmpty(context.WorktreePath))
 - `WorktreeRecoveryMiddleware`：幂等检查
 - `DisposeWorktreeCleanupMiddleware`：移除全局开关检查
 - `AgentServiceImpl`：`FireAgentCompleted` 修复 ObjectDisposedException + `OnDispose` 补充 worktree 清理
+
+## 替代方案
+
+1. **显式排序中间件**：用源码生成器显式排序中间件执行顺序。放弃：需改源码生成器，侵入性大，且幂等检查更简单
+2. **重试机制掩盖根因**：worktree 删除失败时盲目重试。放弃：掩盖根因，违反治标不治本禁令（ADR 0024）
+3. **保留全局开关检查**：per-agent 隔离仍检查 _enableWorktreeIsolation。放弃：全局开关关闭时 per-agent worktree 不清理，资源泄漏
 
 ## 验证
 

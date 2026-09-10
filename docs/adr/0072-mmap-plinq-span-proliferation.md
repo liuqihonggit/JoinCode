@@ -44,6 +44,13 @@ ADR 0070 在 `RgEngine` 中实现了 mmap 零拷贝 + PLINQ 并行 + Span 行遍
 
 **选择**：只有3个文件，并行化收益有限，代码复杂度增加不值得。
 
+## 替代方案
+
+1. **逐个调用方改造**：62+ 调用方逐一改用 mmap。放弃：P0 底层 PhysicalFileSystem 改造自动覆盖全部调用方，无需逐个改
+2. **用第三方 mmap 库**：如 MemoryMappedFiles 扩展包。放弃：BCL 已内置 MemoryMappedFile，无需引入依赖
+3. **保持 StreamReader 逐行读**：不引入 mmap。放弃：大文件全量读入时 mmap 按需分页更优，且 LineSpanIndexer 零分配行遍历
+4. **Parallel.ForEach 替代 PLINQ**：用 Parallel 类并行。放弃：PLINQ 链式编程更简洁，且 AsOrdered 保序需求可配
+
 ## 完成的改造
 
 | 改造点 | 技术 | commit |

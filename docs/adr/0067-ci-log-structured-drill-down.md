@@ -132,7 +132,7 @@ Run 33970784713 步骤:Test - Brain (Context) section:error (1 行):
 
 如果 section 内容多（如 `normal` 有 928 行），截断提示包含 `skip_lines` 续读。
 
-### 9. 向后兼容
+### 9. 行为变更与迁移
 
 - `expand=step:Name` **行为变更**：从返回所有日志行改为返回 section 摘要
 - **迁移策略**：如果用户不传 `/section:xxx`，返回 section 摘要 + 提示"用 /section:error 查看 error 段"

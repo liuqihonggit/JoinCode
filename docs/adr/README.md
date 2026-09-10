@@ -39,6 +39,28 @@ ADR 用固定格式收编这些决策，形成不可变的历史记录。
 - 中性：
 ```
 
+## 状态标注规范
+
+> AI 通常只读文档前 8K token，superseded/部分取代信息必须在标题后醒目标注，确保不被遗漏。
+
+| 状态 | 标注要求 | 格式 |
+|------|---------|------|
+| accepted | 无需额外标注 | — |
+| proposed | 无需额外标注 | — |
+| superseded by NNNN | **必须**在标题后添加 blockquote 标注块 | `> ⚠️ **已被 [NNNN](NNNN-xxx.md) 取代** — 原因简述` |
+| 部分被取代 | **必须**在标题后添加 blockquote 标注块 | `> ⚠️ **部分内容已被 [NNNN](NNNN-xxx.md) 取代** — 哪些被取代，哪些仍有效` |
+
+## 模板字段变体
+
+> 工程**指南/规范/禁令**类 ADR（如排错指南、测试规则、平台禁令）记录的是"怎么做"而非"选 A 放弃 B"，可省略 `## 决策` 和 `## 后果` 节，用 `## 详细内容`/`## 规范`/`## 禁令` 等节代替。传统架构决策 ADR 必须包含完整模板字段。
+
+| ADR 类型 | 决策 | 替代方案 | 后果 | 可用替代节名 |
+|---------|------|---------|------|-------------|
+| 架构决策 | 必需 | 必需 | 必需 | — |
+| 工程指南/规范/禁令 | 可省 | 可省 | 可省 | `## 详细内容`/`## 规范`/`## 禁令` |
+| 有好处/坏处 | 必需 | 必需 | 可用变体 | `## 好处` + `## 坏处` 代替 `## 后果` |
+| superseded | 必需 | 可省 | 可省 | 已被取代,替代方案/后果见取代者 |
+
 ## 与其他文档的关系
 
 | 文档 | 职责 | 示例 |
@@ -69,7 +91,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 
 ## 统计
 
-- 总数：**93** | accepted：**83** | superseded：**5** | proposed：**5**
+- 总数：**97** | accepted：**90** | superseded：**5** | proposed：**2**
 
 ## 完整索引（按编号）
 
@@ -137,17 +159,17 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0060](0060-asynclock-sync-trylock-fireandforget-deadlock.md) | AsyncLock 同步 TryLock + StreamingToolExecutor 死锁排查 | accepted | 2026-09-04 |
 | [0061](0061-shell-timeout-keyword-auto-capture.md) | 脚本超时关键字自动捕获机制 | accepted | 2026-09-04 |
 | [0062](0062-path-existence-precheck-and-garbled-detection.md) | 路径存在性前置检查与乱码检测 | accepted | 2026-09-04 |
-| [0063](0063-unified-external-endpoints.md) | 统一对外暴露地址 | proposed | 2026-09-05 |
-| [0064](0064-pluggable-update-source-auto-update.md) | 可插拔更新源与自动更新 | proposed | 2026-09-05 |
+| [0063](0063-unified-external-endpoints.md) | 统一对外暴露地址 | accepted | 2026-09-05 |
+| [0064](0064-pluggable-update-source-auto-update.md) | 可插拔更新源与自动更新 | accepted | 2026-09-05 |
 | [0065](0065-jcc-mcp-subcommand.md) | jcc mcp CLI 子命令 — bash 直调内部 MCP 工具 | superseded by 0069 | 2026-09-05 |
-| [0066](0066-prefix-exclamation-command.md) | 前置感叹号命令（! 触发 AI / !! 不触发 AI） | proposed | 2026-09-05 |
+| [0066](0066-prefix-exclamation-command.md) | 前置感叹号命令（! 触发 AI / !! 不触发 AI） | accepted | 2026-09-05 |
 | [0067](0067-ci-log-structured-drill-down.md) | CI 日志结构化逐级展开（Section 级 drill down） | accepted | 2026-09-06 |
 | [0068](0068-unified-persistence-pipeline-actor.md) | 统一持久化管道（Actor 模型） | accepted | 2026-09-06 |
 | [0069](0069-cli-args-full-refactor.md) | 启动参数完全重构 — 扁平元动词 + 统一解析框架 + 斜杠命令直调 | accepted | 2026-09-06 |
 | [0070](0070-rg-engine-mmap-plinq.md) | jcc rg 内置 ripgrep 兼容搜索 — RgEngine 独立实现（mmap + PLINQ + 零 GC） | accepted | 2026-09-06 |
 | [0071](0071-editfileasync-per-file-asynclock.md) | IFileSystem.EditFileAsync 原子编辑接口 — per-file AsyncLock 串行化 | accepted | 2026-09-07 |
 | [0072](0072-mmap-plinq-span-proliferation.md) | mmap + PLINQ + 零 GC Span 技术推广 — 从 RgEngine 到全项目文件遍历 | accepted | 2026-09-07 |
-| [0073](0073-gh-rest-api-direct-call.md) | gh_* MCP 工具重写为 GitHub REST API 直调（摆脱系统 gh 依赖） | proposed | 2026-09-07 |
+| [0073](0073-gh-rest-api-direct-call.md) | gh_* MCP 工具重写为 GitHub REST API 直调（摆脱系统 gh 依赖） | accepted | 2026-09-07 |
 | [0074](0074-actor-supervisor-tree.md) | Actor 监督树 — Router/Gateway/Supervisor/PersistentMailbox 四层扩展 | accepted | 2026-09-08 |
 | [0075](0075-gh-cli-troubleshooting-guide.md) | gh CLI 排错避坑指南 | accepted | 2026-09-08 |
 | [0076](0076-dotnet-test-build-output-rules.md) | .NET 测试和构建输出禁令与 CLI 运行时测试 | accepted | 2026-09-08 |
@@ -166,9 +188,13 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0089](0089-jcc-builtin-tools-only-no-system-gh-rg.md) | jcc 自带工具统一入口 — 禁止系统/宿主环境的 gh / rg | accepted | 2026-09-08 |
 | [0090](0090-jcc-gh-cli-subcommand.md) | `jcc gh` CLI 子命令 — 扁平元动词 + schema 驱动参数绑定 | accepted | 2026-09-08 |
 | [0091](0091-actor-duplex-inplace-upgrade.md) | Actor 全双工改造 — 直接改 ActorBase（无后向兼容） | accepted | 2026-09-08 |
-| [0092](0092-worktree-path-inconsistency-fix.md) | Worktree 路径不一致修复 — 中间件幂等 + Guard 路径锁定 | accepted | 2026-09-08 |
+| [0092](0092-worktree-path-inconsistency-fix.md) | Worktree 路径一致性 — 中间件幂等 + Guard 路径锁定 | accepted | 2026-09-08 |
 | [0093](0093-resource-management-exception-style.md) | 资源管理与异常控制风格规范 | accepted | 2026-09-09 |
+| [0094](0094-github-verbose-output.md) | GitHub 工具精简输出 + verbose 完整模式 | proposed | 2026-09-09 |
+| [0095](0095-unified-path-normalizer.md) | 统一路径归一化工具 PathNormalizer | accepted | 2026-09-09 |
+| [0096](0096-shell-path-error-auto-retry.md) | Shell 路径处理策略 — 去掉执行前自动转换 + 执行后失败重试 | accepted | 2026-09-09 |
 | [0097](0097-workflow-checkpoint-resume.md) | Workflow 级断点续跑持久化策略 | accepted | 2026-09-09 |
+| [0098](0098-plugin-system-fusion-actor-effectscope.md) | 插件系统融合 — Actor+EffectScope+动态拓扑+弱事件+ALC | accepted | 2026-09-10 |
 
 ## 主题索引（按议题）
 
@@ -191,6 +217,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0011](0011-data-container-aot-gc.md) | 数据容器 AOT+GC 选型 | accepted | 2026-08-29 |
 | [0012](0012-two-itoolhandler-interfaces.md) | 双 IToolHandler 接口不合并 | superseded by 0025 | 2026-08-29 |
 | [0081](0081-seven-layer-build-strategy.md) | 七层解决方案架构与编译策略 | accepted | 2026-09-08 |
+| [0098](0098-plugin-system-fusion-actor-effectscope.md) | 插件系统融合 — Actor+EffectScope+动态拓扑+弱事件+ALC | accepted | 2026-09-10 |
 
 ### 组件策略与方法论
 
@@ -292,20 +319,22 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 |------|------|------|------|
 | [0061](0061-shell-timeout-keyword-auto-capture.md) | 脚本超时关键字自动捕获机制 | accepted | 2026-09-04 |
 | [0062](0062-path-existence-precheck-and-garbled-detection.md) | 路径存在性前置检查与乱码检测 | accepted | 2026-09-04 |
+| [0095](0095-unified-path-normalizer.md) | 统一路径归一化工具 PathNormalizer | accepted | 2026-09-09 |
+| [0096](0096-shell-path-error-auto-retry.md) | Shell 路径处理策略 — 去掉执行前自动转换 + 执行后失败重试 | accepted | 2026-09-09 |
 
 ### 地址与自动更新
 
 | 编号 | 标题 | 状态 | 日期 |
 |------|------|------|------|
-| [0063](0063-unified-external-endpoints.md) | 统一对外暴露地址 | proposed | 2026-09-05 |
-| [0064](0064-pluggable-update-source-auto-update.md) | 可插拔更新源与自动更新 | proposed | 2026-09-05 |
+| [0063](0063-unified-external-endpoints.md) | 统一对外暴露地址 | accepted | 2026-09-05 |
+| [0064](0064-pluggable-update-source-auto-update.md) | 可插拔更新源与自动更新 | accepted | 2026-09-05 |
 
 ### CLI / jcc 启动参数
 
 | 编号 | 标题 | 状态 | 日期 |
 |------|------|------|------|
 | [0065](0065-jcc-mcp-subcommand.md) | jcc mcp CLI 子命令 — bash 直调内部 MCP 工具 | superseded by 0069 | 2026-09-05 |
-| [0066](0066-prefix-exclamation-command.md) | 前置感叹号命令（! 触发 AI / !! 不触发 AI） | proposed | 2026-09-05 |
+| [0066](0066-prefix-exclamation-command.md) | 前置感叹号命令（! 触发 AI / !! 不触发 AI） | accepted | 2026-09-05 |
 | [0069](0069-cli-args-full-refactor.md) | 启动参数完全重构 — 扁平元动词 + 统一解析框架 + 斜杠命令直调 | accepted | 2026-09-06 |
 | [0070](0070-rg-engine-mmap-plinq.md) | jcc rg 内置 ripgrep 兼容搜索 — RgEngine 独立实现（mmap + PLINQ + 零 GC） | accepted | 2026-09-06 |
 | [0089](0089-jcc-builtin-tools-only-no-system-gh-rg.md) | jcc 自带工具统一入口 — 禁止系统/宿主环境的 gh / rg | accepted | 2026-09-08 |
@@ -330,8 +359,9 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 
 | 编号 | 标题 | 状态 | 日期 |
 |------|------|------|------|
-| [0073](0073-gh-rest-api-direct-call.md) | gh_* MCP 工具重写为 GitHub REST API 直调（摆脱系统 gh 依赖） | proposed | 2026-09-07 |
+| [0073](0073-gh-rest-api-direct-call.md) | gh_* MCP 工具重写为 GitHub REST API 直调（摆脱系统 gh 依赖） | accepted | 2026-09-07 |
 | [0075](0075-gh-cli-troubleshooting-guide.md) | gh CLI 排错避坑指南 | accepted | 2026-09-08 |
+| [0094](0094-github-verbose-output.md) | GitHub 工具精简输出 + verbose 完整模式 | proposed | 2026-09-09 |
 
 ### 数据与核心选型
 

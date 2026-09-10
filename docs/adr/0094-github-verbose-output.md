@@ -1,7 +1,7 @@
-# ADR 0094: GitHub 工具精简输出 + verbose 完整模式
+# 0094. GitHub 工具精简输出 + verbose 完整模式
 
-> 状态：proposed
-> 日期：2026-09-09
+- 状态：proposed
+- 日期：2026-09-09
 
 ## 背景
 
@@ -64,6 +64,6 @@ AI 想刷新数据:
 ## 影响
 
 - 改动文件：`GitHubToolHandlers.Pr.cs`、`GitHubToolHandlers.Issue.cs`、`GitHubToolHandlers.cs` + 测试
-- 后向兼容：`verbose=true` 从缓存取完整 JSON，无缓存时 fallback 到 API 调用
+- verbose 参数可选（默认 false），无缓存时 fallback 到 API 调用
 - AI 上下文节省：典型 PR view 从 ~3000 字符降至 ~300 字符
 - API 调用节省：`verbose=true` 命中缓存时 0 API 调用

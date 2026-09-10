@@ -174,7 +174,7 @@ public sealed class WorkflowPluginHost : PluginResourceBase
     {
         if (_pluginServiceProvider == null)
         {
-            throw new InvalidOperationException("[PLG001] 插件服务容器未构建");
+            throw new InvalidOperationException(PluginErrors.ServiceContainerNotBuilt(_plugin.Name));
         }
         return _pluginServiceProvider.GetRequiredService<T>();
     }

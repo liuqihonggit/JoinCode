@@ -13,18 +13,18 @@ public sealed class PluginFiberStateTests
     public void TransitionTo_LegalChain_Succeeds()
     {
         var fiber = new PluginFiber();
-        fiber.TransitionTo(PluginFiberState.Loading);
+        fiber.TransitionTo(PluginFiberState.Activating);
         fiber.TransitionTo(PluginFiberState.Active);
         fiber.TransitionTo(PluginFiberState.Unloading);
-        fiber.TransitionTo(PluginFiberState.Disposed);
-        Assert.Equal(PluginFiberState.Disposed, fiber.State);
+        fiber.TransitionTo(PluginFiberState.Unloaded);
+        Assert.Equal(PluginFiberState.Unloaded, fiber.State);
     }
 
     [Fact]
     public void TransitionTo_IllegalTransition_Throws()
     {
         var fiber = new PluginFiber();
-        fiber.TransitionTo(PluginFiberState.Loading);
+        fiber.TransitionTo(PluginFiberState.Activating);
         fiber.TransitionTo(PluginFiberState.Active);
         var ex = Assert.Throws<InvalidOperationException>(() => fiber.TransitionTo(PluginFiberState.Pending));
         Assert.Contains("[INF-FIBER-ILLEGAL]", ex.Message);
@@ -34,19 +34,20 @@ public sealed class PluginFiberStateTests
     public void TryTransitionTo_IllegalTransition_ReturnsFalse()
     {
         var fiber = new PluginFiber();
-        fiber.TransitionTo(PluginFiberState.Loading);
-        Assert.False(fiber.TryTransitionTo(PluginFiberState.Disposed));
-        Assert.Equal(PluginFiberState.Loading, fiber.State);
+        fiber.TransitionTo(PluginFiberState.Activating);
+        Assert.False(fiber.TryTransitionTo(PluginFiberState.Unloaded));
+        Assert.Equal(PluginFiberState.Activating, fiber.State);
     }
 
     [Fact]
-    public void TransitionTo_LoadingToFailedToDisposed_Succeeds()
+    public void TransitionTo_ActivatingToFailedToUnloadingToUnloaded_Succeeds()
     {
         var fiber = new PluginFiber();
-        fiber.TransitionTo(PluginFiberState.Loading);
+        fiber.TransitionTo(PluginFiberState.Activating);
         fiber.TransitionTo(PluginFiberState.Failed);
-        fiber.TransitionTo(PluginFiberState.Disposed);
-        Assert.Equal(PluginFiberState.Disposed, fiber.State);
+        fiber.TransitionTo(PluginFiberState.Unloading);
+        fiber.TransitionTo(PluginFiberState.Unloaded);
+        Assert.Equal(PluginFiberState.Unloaded, fiber.State);
     }
 
     [Fact]
@@ -63,9 +64,52 @@ public sealed class PluginFiberStateTests
         var plugin = new FiberTestPlugin();
         var r1 = plugin.Unload();
         Assert.True(r1.IsSuccess);
-        Assert.Equal(PluginFiberState.Disposed, plugin.Fiber.State);
+        Assert.Equal(PluginFiberState.Unloaded, plugin.Fiber.State);
         var r2 = plugin.Unload();
         Assert.Equal(PluginUnloadStatus.AlreadyUnloaded, r2.Status);
+    }
+
+    [Fact]
+    public void TransitionTo_FailedToActivating_RetrySucceeds()
+    {
+        var fiber = new PluginFiber();
+        fiber.TransitionTo(PluginFiberState.Activating);
+        fiber.TransitionTo(PluginFiberState.Failed);
+        fiber.TransitionTo(PluginFiberState.Activating);
+        fiber.TransitionTo(PluginFiberState.Active);
+        Assert.Equal(PluginFiberState.Active, fiber.State);
+    }
+
+    [Fact]
+    public void TransitionTo_ActiveToFailed_Succeeds()
+    {
+        var fiber = new PluginFiber();
+        fiber.TransitionTo(PluginFiberState.Activating);
+        fiber.TransitionTo(PluginFiberState.Active);
+        fiber.TransitionTo(PluginFiberState.Failed);
+        Assert.Equal(PluginFiberState.Failed, fiber.State);
+    }
+
+    [Fact]
+    public void TransitionTo_UnloadingToFailed_Succeeds()
+    {
+        var fiber = new PluginFiber();
+        fiber.TransitionTo(PluginFiberState.Activating);
+        fiber.TransitionTo(PluginFiberState.Active);
+        fiber.TransitionTo(PluginFiberState.Unloading);
+        fiber.TransitionTo(PluginFiberState.Failed);
+        Assert.Equal(PluginFiberState.Failed, fiber.State);
+    }
+
+    [Fact]
+    public void TransitionTo_FailedToUnloadingToUnloaded_Succeeds()
+    {
+        var fiber = new PluginFiber();
+        fiber.TransitionTo(PluginFiberState.Activating);
+        fiber.TransitionTo(PluginFiberState.Failed);
+        fiber.TransitionTo(PluginFiberState.Unloading);
+        fiber.TransitionTo(PluginFiberState.Unloaded);
+        Assert.Equal(PluginFiberState.Unloaded, fiber.State);
     }
 
     private sealed class FiberTestPlugin : WorkflowPluginBase

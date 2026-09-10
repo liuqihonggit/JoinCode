@@ -1,5 +1,7 @@
 # 0059. AsyncLock 同步重入检测 — LockReentrancyException 提早暴露死锁
 
+> ⚠️ **已被 [0060](0060-asynclock-sync-trylock-fireandforget-deadlock.md) 取代** — CheckReentrancy 已移除(ThreadId 在 async/await 下因线程池复用不可靠,误报);改为 TryLock 超时返回 null + TrySetResult 移到锁外
+
 - 状态：superseded by 0060
 - 日期：2026-09-03
 - 决策者：项目架构组

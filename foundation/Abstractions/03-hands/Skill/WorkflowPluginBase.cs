@@ -116,7 +116,7 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
             UnmanagedResources.ReleaseAll();
 
             OnUnload();
-            Fiber.TransitionTo(PluginFiberState.Disposed);
+            Fiber.TransitionTo(PluginFiberState.Unloaded);
             return PluginUnloadResult.Success(Name, sw.Elapsed);
         }
         catch (Exception ex)

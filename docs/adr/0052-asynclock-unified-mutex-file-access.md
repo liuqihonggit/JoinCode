@@ -1,5 +1,7 @@
 # 0052. AsyncLock 统一互斥锁 + 文件读写可剥离架构
 
+> ⚠️ **部分内容已被 [0060](0060-asynclock-sync-trylock-fireandforget-deadlock.md) 取代** — 决策2(LockAsync/Lock API)和决策7(重入检测)已由 0060 更新;决策1/3/4/6 和决策7的LockRegistry诊断层仍有效
+
 - 状态：accepted
 - 日期：2026-09-02
 - 决策者：项目架构组
@@ -199,7 +201,7 @@ public sealed class AsyncLock : IDisposable
 | **保留** 限流 `SemaphoreSlim(n>1)` | — | 非互斥 |
 | **保留** per-key 局部变量锁 | 5 | 持有极短，诊断价值低 |
 
-**向后兼容**：AsyncLock 保留全部原有 API，173 处现有使用零改动自动获得诊断能力。新增 `AsyncLock(string name)` 具名构造。
+**现有调用零改动**：AsyncLock 保留全部原有 API，173 处现有使用零改动自动获得诊断能力。新增 `AsyncLock(string name)` 具名构造。
 
 **验证**：18 个单元测试覆盖互斥/具名/TryLock/超时/Dispose/诊断sink/后台扫描/同步死锁/async死锁，全通过。
 

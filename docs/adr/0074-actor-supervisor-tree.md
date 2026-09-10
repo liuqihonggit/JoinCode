@@ -122,6 +122,14 @@ public sealed class PersistentMailbox<TCommand> : IActorMailbox<TCommand>
 
 **理由**：AGENTS.md "任何资源类都必须树状生长" — Actor 是资源类，但树形能力通过 SupervisedActor 可选获得，不强制所有 Actor 树形
 
+## 替代方案
+
+1. **引入外部 Actor 框架（如 Proto.Actor）**：放弃：引入外部依赖，需验证 AOT 兼容性，且现有 ActorBase 已满足需求
+2. **用 ConcurrentQueue + Task.Delay 轮询**：放弃：空转浪费 CPU，Channel<T> 零空转 + 背压更优
+3. **不引入监督树，OnConsumerError 只记录日志**：放弃：子 Actor 崩溃不重启，系统无法自愈
+4. **全量 AllForOne 策略**：放弃：一个子崩溃重启全部过于激进，OneForOne 默认更合理
+5. **无界 Channel**：放弃：OOM 风险，有界大容量 + 水位线告警更安全
+
 ## 架构图
 
 ```
@@ -157,7 +165,7 @@ public sealed class PersistentMailbox<TCommand> : IActorMailbox<TCommand>
 | 资源隔离 | 每个 Worker 独立状态，崩溃不蔓延 |
 | 限流统一 | LLM Gateway 统一管理 API 并发，避免超限 |
 | 崩溃恢复 | PersistentMailbox 重放未处理消息 |
-| 向后兼容 | ActorBase 不变，现有 Actor 零改动 |
+| 现有 Actor 零改动 | ActorBase 不变，无需改现有 Actor |
 | 背压保护 | 有界大容量 + 水位线告警 + 发送超时，防 OOM 和永久阻塞 |
 | 优先级保证 | PriorityMailbox 用户交互优先于后台任务 |
 

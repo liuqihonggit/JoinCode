@@ -10,16 +10,21 @@ public sealed class PluginContext
 {
     private readonly string _pluginName;
     private readonly IServiceCollection _services;
+    private readonly CancellationToken _shutdown;
     private readonly List<NonEmptyUndo> _undoChain = new();
     private readonly List<IAsyncDisposable> _asyncUndoChain = new();
 
-    /// <summary>创建插件上下文 — 由 WorkflowPluginHost 构造,插件不应直接调用</summary>
-    public PluginContext(string pluginName, IServiceCollection services)
+    /// <summary>
+    /// 创建插件上下文 — 由 WorkflowPluginHost 构造,插件不应直接调用
+    /// <para>shutdown 绑定 PluginManager 的卸载令牌,RunBackgroundTask 自动绑定此令牌</para>
+    /// </summary>
+    public PluginContext(string pluginName, IServiceCollection services, CancellationToken shutdown = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(pluginName);
         ArgumentNullException.ThrowIfNull(services);
         _pluginName = pluginName;
         _services = services;
+        _shutdown = shutdown;
     }
 
     /// <summary>插件名</summary>
@@ -64,8 +69,74 @@ public sealed class PluginContext
         configure(_services);
     }
 
+    /// <summary>
+    /// 提交后台任务。自动绑定 Shutdown,卸载时自动取消并等待(带超时)。
+    /// <para>对齐 Cordis ctx.RunBackgroundTask(ct => ...)</para>
+    /// <para>work 务必协作式响应 CancellationToken,否则卸载时等待超时抛 TimeoutException</para>
+    /// <para>waitOnUnload: null=默认2秒,Zero=不等待(立即返回)</para>
+    /// </summary>
+    public Task RunBackgroundTask(Func<CancellationToken, Task> work, TimeSpan? waitOnUnload = null)
+    {
+        ArgumentNullException.ThrowIfNull(work);
+
+        var token = _shutdown;
+        var pluginName = _pluginName;
+        var task = Task.Run(async () =>
+        {
+            try { await work(token).ConfigureAwait(false); }
+            catch (OperationCanceledException) { }
+            catch (Exception ex) { Console.WriteLine($"[{pluginName}] 后台任务异常: {ex.Message}"); }
+        }, token);
+
+        var wait = waitOnUnload ?? TimeSpan.FromSeconds(2);
+        _undoChain.Add(new NonEmptyUndo(() => WaitForBackgroundTaskExit(task, wait, pluginName)));
+        return task;
+    }
+
+    /// <summary>
+    /// 提交后台任务(同步重载)。自动绑定 Shutdown,卸载时自动取消并等待(带超时)。
+    /// </summary>
+    public Task RunBackgroundTask(Action<CancellationToken> work, TimeSpan? waitOnUnload = null)
+        => RunBackgroundTask(ct => { work(ct); return Task.CompletedTask; }, waitOnUnload);
+
+    /// <summary>
+    /// 弱引用事件订阅 — 订阅者死亡自动回收,不造成内存泄漏(ADR 0098)
+    /// <para>对齐 Cordis ctx.WeakSubscribe — AOT 兼容,不用反射</para>
+    /// <para>handler 不捕获 target(target 作为参数传入),实现真正弱引用</para>
+    /// <para>revert 为空操作:弱引用随 GC 自动清理,ConditionalWeakTable 以 source 为键</para>
+    /// </summary>
+    /// <param name="source">事件源(ConditionalWeakTable 键,源回收后条目自动消失)</param>
+    /// <param name="target">订阅者(弱引用目标,死亡后自动回收)</param>
+    /// <param name="handler">回调(target 作为参数传入,不捕获 target)</param>
+    public void WeakSubscribe<TTarget, TArgs>(
+        object source, TTarget target, Action<TTarget, TArgs> handler) where TTarget : class
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(handler);
+
+        WeakEventBroker<TArgs>.Subscribe(source, target, handler);
+        _undoChain.Add(new NonEmptyUndo(() => { }));
+    }
+
+    private static void WaitForBackgroundTaskExit(Task task, TimeSpan wait, string pluginName)
+    {
+        if (wait <= TimeSpan.Zero) return;
+        try
+        {
+            if (!task.Wait(wait))
+                throw new TimeoutException(
+                    $"后台任务在 {wait.TotalSeconds:0.##}s 内未退出。" +
+                    $"请确保任务正确响应 CancellationToken。");
+        }
+        catch (AggregateException aex) when (aex.InnerExceptions.All(e => e is OperationCanceledException))
+        {
+            Console.WriteLine($"[{pluginName}] 后台任务已正常取消");
+        }
+    }
+
     /// <summary>获取撤销链(逆序) — PluginManager 卸载时调用</summary>
-    internal IReadOnlyList<NonEmptyUndo> GetUndoChain() => _undoChain;
+    public IReadOnlyList<NonEmptyUndo> GetUndoChain() => _undoChain;
 
     /// <summary>获取异步撤销链(逆序) — PluginManager 卸载时先于同步撤销链执行</summary>
     public IReadOnlyList<IAsyncDisposable> GetAsyncUndoChain() => _asyncUndoChain;

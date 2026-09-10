@@ -83,6 +83,18 @@ public async IAsyncEnumerable<TOut> OutputAsync(...)
 | `PriorityMailbox` | 双工适配 | ✅ 完成 |
 | `BuildQueueRouter` | 双工适配 | ✅ 完成 |
 
+## 替代方案
+
+1. **新建 ActorBaseDuplex 继承 ActorBase**：保留旧 ActorBase 不变。放弃：两套基类增加维护成本，且项目不需要后向兼容（AGENTS.md 明确"无后向兼容"）
+2. **装饰器模式包装**：外层 DuplexAdapter 包装 ActorBase。放弃：装饰器无法改变 protected 方法签名，且 Channel 双向访问需改基类
+3. **partial class 扩展**：同文件 partial 分离双工逻辑。放弃：partial 仍修改同一类，无隔离价值
+
+## 后果
+
+- 正面：Actor 全双工统一，Channel 读写分离；所有 Actor 类型（Router/Supervised/Persistent/Priority/BuildQueue）已适配；零编译警告
+- 负面：无后向兼容，所有 Actor 消费方需同步改造；原方案文档已归档到 .xxx/
+- 中性：Unit 类型新增（无输出 Actor 用），ActorBase.cs 直接修改
+
 ## 验证
 
 - [x] 全解决方案编译通过（0 警告 0 错误）

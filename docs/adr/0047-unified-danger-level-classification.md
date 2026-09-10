@@ -1,8 +1,7 @@
-# ADR 0047: 统一危险指令分级系统
+# 0047. 统一危险指令分级系统
 
-**状态**: accepted
-
-**日期**: 2026-08-30
+- 状态：accepted
+- 日期：2026-08-30
 
 ## 背景
 
@@ -163,3 +162,9 @@ Dangerous 级命令在任何权限模式下都被拒绝（包括 Bypass），返
 <!-- 联动: 启动参数(--permission-mode) → PermissionMode → CommandDangerLevel × PermissionMode → 决策 -->
 <!-- 联动: ask确认 → [黄灯ask]/[绿灯ask]/[红灯ask]标签 + 同级别自动通过(会话级非持久化) -->
 <!-- 待实现: GUI按等级跳过标记 -->
+
+## 后果
+
+- 正面：5 级分级统一全项目危险指令检测；未知命令默认黄灯 ask 防止恶意脚本自动通过；同会话同等级自动通过减少重复确认
+- 负面：DestructiveCommandDetector 委托迁移未完成（目前为回退方案）；PowerShell 危险命令分级未完成
+- 中性：5 级分级（白/黄/绿/红/黑灯）替代原有二元判定，需更新 AGENTS.md 和 CLI --help

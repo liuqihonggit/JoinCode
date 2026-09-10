@@ -44,7 +44,7 @@ public sealed partial class PluginHookInjector : ServiceEntity, IPluginHookInjec
 
         if (!_pluginManager.IsPluginLoaded(pluginName))
         {
-            throw new InvalidOperationException($"[INF029] 插件 '{pluginName}' 未加载，无法注入 Hook");
+            throw new InvalidOperationException(PluginErrors.NotLoadedForHook(pluginName));
         }
 
         var hookList = new List<PluginHookDefinition>(hooks);

@@ -151,7 +151,6 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0052](0052-asynclock-unified-mutex-file-access.md) | AsyncLock 统一互斥锁 + 文件读写可剥离架构 | accepted | 2026-09-02 |
 | [0053](0053-context-compaction-layered-mechanism.md) | 上下文压缩分层机制 | accepted | 2026-09-02 |
 | [0054](0054-llm-output-loop-detection-intervention.md) | LLM 输出循环检测与分级干预机制 | accepted | 2026-09-02 |
-| [0055](0055-system-prompt-section-injection-optimization.md) | 系统提示词 section 注入优化空间 | proposed | 2026-09-02 |
 | [0056](0056-cache-break-detection-enhancement.md) | 缓存破坏检测维度补齐 — 双阈值 + TTL 区分 + 多 agent 隔离 | accepted | 2026-09-02 |
 | [0057](0057-ts-p0-gap-alignment-lsp-analytics.md) | TS 原版 P0 缺口补齐 — LSP 集成 + Analytics 分析 | accepted | 2026-09-02 |
 | [0058](0058-ts-p1-gap-alignment-proactive-vim-permission-skills.md) | TS 原版 P1 缺口补齐 — Proactive + Vim + Permission LLM + Skills | accepted | 2026-09-02 |
@@ -303,7 +302,6 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 |------|------|------|------|
 | [0053](0053-context-compaction-layered-mechanism.md) | 上下文压缩分层机制 | accepted | 2026-09-02 |
 | [0054](0054-llm-output-loop-detection-intervention.md) | LLM 输出循环检测与分级干预机制 | accepted | 2026-09-02 |
-| [0055](0055-system-prompt-section-injection-optimization.md) | 系统提示词 section 注入优化空间 | proposed | 2026-09-02 |
 | [0056](0056-cache-break-detection-enhancement.md) | 缓存破坏检测维度补齐 — 双阈值 + TTL 区分 + 多 agent 隔离 | accepted | 2026-09-02 |
 
 ### TS 缺口补齐

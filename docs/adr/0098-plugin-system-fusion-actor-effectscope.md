@@ -1,8 +1,9 @@
 # 0098. 插件系统融合:Actor 串行 + EffectScope + 弱引用事件
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-09-10
 - 决策者：AI + 用户确认
+- 验证：代码已完整实现并测试通过（PluginManager Actor 化 + EffectScope + WeakEventBroker + PluginDiagnostic + RunBackgroundTask + PluginFiberState 含 Activating/Unloaded/Faulted 重试 + PluginAlc ALC 隔离）
 
 ## 背景
 

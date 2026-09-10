@@ -53,7 +53,8 @@ public partial class GitHubToolHandlers
         if (!string.IsNullOrWhiteSpace(author)) query["creator"] = author;
 
         var result = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/pulls", query: query, ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? Ok(result.Body) : Fail(result.Error);
+        if (!result.Success) return Fail(result.Error);
+        return Ok(SummarizePrList(result.Body));
     }
 
     [McpTool(GitHubToolNameConstants.GhPrDiff, "查看 PR diff(patch 文本)", "github", ConcurrencySafe = true)]

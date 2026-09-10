@@ -2,7 +2,7 @@ namespace Core.Tests.Plugins;
 
 /// <summary>
 /// 断裂点1 测试: Fiber 加载状态集成到 PluginManager.LoadWorkflowPluginAsync
-/// 验证 Load → Loading → Active, 失败 → Failed
+/// 验证 Load → Activating → Active, 失败 → Failed
 /// </summary>
 public sealed class PluginFiberLoadIntegrationTests
 {
@@ -73,7 +73,7 @@ public sealed class PluginFiberLoadIntegrationTests
     }
 
     [Fact]
-    public async Task UnloadPluginAsync_AfterSuccessfulLoad_FiberTransitionsToDisposed()
+    public async Task UnloadPluginAsync_AfterSuccessfulLoad_FiberTransitionsToUnloaded()
     {
         var sp = CreateServiceProvider();
         var pm = sp.GetRequiredService<IPluginManager>();
@@ -83,7 +83,7 @@ public sealed class PluginFiberLoadIntegrationTests
         plugin.Fiber.State.Should().Be(PluginFiberState.Active);
 
         await pm.UnloadPluginAsync(plugin.Name).ConfigureAwait(true);
-        plugin.Fiber.State.Should().Be(PluginFiberState.Disposed);
+        plugin.Fiber.State.Should().Be(PluginFiberState.Unloaded);
         sp.Dispose();
     }
 

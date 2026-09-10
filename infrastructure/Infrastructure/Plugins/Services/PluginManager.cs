@@ -107,7 +107,7 @@ public sealed partial class PluginManager : ServiceEntity, IPluginManager
 
             if (plugin is WorkflowPluginBase wpbLoad)
             {
-                wpbLoad.Fiber.TransitionTo(PluginFiberState.Loading);
+                wpbLoad.Fiber.TransitionTo(PluginFiberState.Activating);
             }
 
             var host = new WorkflowPluginHost(plugin, _kernel, _loggerFactory, _fileOperationService, _commandRegistry, _logger);

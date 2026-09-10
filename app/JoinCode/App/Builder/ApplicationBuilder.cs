@@ -556,8 +556,8 @@ public sealed class ApplicationBuilder
         var cwdPath = System.IO.Path.Combine(Environment.CurrentDirectory, ".env", "api.json");
         if (System.IO.File.Exists(cwdPath)) return cwdPath;
 
-        // 3. 可执行文件目录 — Release 部署场景
-        var envPath = System.IO.Path.Combine(AppContext.BaseDirectory, ".env", "api.json");
+        // 3. 项目级 .jcc 目录 — Release 部署场景
+        var envPath = System.IO.Path.Combine(AppDataConstants.Paths.DotEnvDirectory, "api.json");
         if (System.IO.File.Exists(envPath)) return envPath;
 
         // 4. 开发环境回退 — 从 bin/Release/net10.0 向上 5 级到项目根

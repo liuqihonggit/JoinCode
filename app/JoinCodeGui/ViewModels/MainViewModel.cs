@@ -969,7 +969,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
     {
         try
         {
-            var dir = System.IO.Path.Combine(AppContext.BaseDirectory, "dumps");
+            var dir = AppDataConstants.Paths.DumpsDirectory;
             System.IO.Directory.CreateDirectory(dir);
             SafeFileIO.AppendAllText(
                 System.IO.Path.Combine(dir, "persist_debug.log"),
@@ -1500,7 +1500,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
     {
         try
         {
-            var dir = System.IO.Path.Combine(AppContext.BaseDirectory, "dumps");
+            var dir = AppDataConstants.Paths.DumpsDirectory;
             System.IO.Directory.CreateDirectory(dir);
             SafeFileIO.AppendAllText(
                 System.IO.Path.Combine(dir, "send_error.log"),

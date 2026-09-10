@@ -129,6 +129,40 @@ public sealed record AppDataPaths(
     /// </summary>
     public string LocalSettingsRelativePath => $"{AppDataFolder}/settings.local.json";
 
+    // === 用户级路径 (~/.jcc/) ===
+
+    /// <summary>用户级 cron 定时任务目录: ~/.jcc/cron-tasks/</summary>
+    public string CronTasksDirectory => Path.Combine(JccDirectory, "cron-tasks");
+
+    /// <summary>用户级记忆存储目录: ~/.jcc/memdir/</summary>
+    public string MemdirDirectory => Path.Combine(JccDirectory, "memdir");
+
+    /// <summary>用户级成本跟踪文件: ~/.jcc/cost-tracking.json</summary>
+    public string CostTrackingFilePath => Path.Combine(JccDirectory, "cost-tracking.json");
+
+    /// <summary>用户级转储目录: ~/.jcc/dumps/</summary>
+    public string DumpsDirectory => Path.Combine(JccDirectory, "dumps");
+
+    // === 项目级路径 ({cwd}/.jcc/) ===
+
+    /// <summary>项目级 .jcc 目录: {cwd}/.jcc/</summary>
+    public string ProjectJccDirectory => Path.Combine(Environment.CurrentDirectory, AppDataFolder);
+
+    /// <summary>项目级工作流状态目录: {cwd}/.jcc/workflow-states/</summary>
+    public string WorkflowStatesDirectory => Path.Combine(ProjectJccDirectory, "workflow-states");
+
+    /// <summary>项目级运行时任务目录: {cwd}/.jcc/runtime-tasks/</summary>
+    public string RuntimeTasksDirectory => Path.Combine(ProjectJccDirectory, "runtime-tasks");
+
+    /// <summary>项目级目标状态目录: {cwd}/.jcc/goal-state/</summary>
+    public string GoalStateDirectory => Path.Combine(ProjectJccDirectory, "goal-state");
+
+    /// <summary>项目级 .env 配置目录: {cwd}/.jcc/.env/</summary>
+    public string DotEnvDirectory => Path.Combine(ProjectJccDirectory, ".env");
+
+    /// <summary>项目级更新内容目录: {cwd}/.jcc/UpdateContent/</summary>
+    public string UpdateContentDirectory => Path.Combine(ProjectJccDirectory, "UpdateContent");
+
     private static string ResolveEnv(JccEnvVar envVar, string defaultValue)
     {
         var envValue = Environment.GetEnvironmentVariable(envVar.ToValue());

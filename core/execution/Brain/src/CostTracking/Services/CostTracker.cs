@@ -23,7 +23,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
 
     public CostTracker(IFileOperationService fileOperationService, string? storagePath = null, ILogger<CostTracker>? logger = null, BudgetConfig? budgetConfig = null, ITelemetryService? telemetryService = null, IClockService? clock = null, IModelConfigLoader? modelConfigLoader = null)
     {
-        _storagePath = storagePath ?? Path.Combine(AppDataConstants.Paths.JccDirectory, "cost-tracking.json");
+        _storagePath = storagePath ?? AppDataConstants.Paths.CostTrackingFilePath;
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _logger = logger;
         _budgetConfig = budgetConfig;

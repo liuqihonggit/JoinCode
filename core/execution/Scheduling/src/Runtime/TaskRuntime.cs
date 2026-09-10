@@ -20,7 +20,7 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
         _deps = deps ?? new TaskRuntimeDeps();
         if (string.IsNullOrEmpty(_deps.PersistenceDirectory))
         {
-            _deps = _deps with { PersistenceDirectory = Path.Combine(Environment.CurrentDirectory, AppDataConstants.AppDataFolder, "runtime-tasks") };
+            _deps = _deps with { PersistenceDirectory = AppDataConstants.Paths.RuntimeTasksDirectory };
         }
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;

@@ -26,7 +26,7 @@ public sealed class UpdateServer
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _port = port == 0 ? GetAvailablePort() : port;
-        _contentRoot = contentRoot ?? _fs.CombinePath(AppContext.BaseDirectory, "UpdateContent");
+        _contentRoot = contentRoot ?? AppDataConstants.Paths.UpdateContentDirectory;
     }
 
     private static int GetAvailablePort()

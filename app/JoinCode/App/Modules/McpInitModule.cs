@@ -44,15 +44,16 @@ public sealed class McpInitModule : IAppModule
 
         services.WirePluginSkillBridge();
 
-        // 并行：所有插件加载 + MCP 工具注册（七者逻辑独立，IToolRegistry 线程安全）
+        // 并行：所有插件加载 + MCP 工具注册（八者逻辑独立，IToolRegistry 线程安全）
         var dreamTask = LoadDreamPluginSafeAsync(services, logger, ct);
         var fixHooksTask = LoadFixHooksPluginSafeAsync(services, logger, ct);
         var sandboxTask = LoadSandboxProvidersPluginSafeAsync(services, logger, ct);
         var telemetryTask = LoadTelemetryPluginSafeAsync(services, logger, ct);
         var agentRolesTask = LoadAgentRolesPluginSafeAsync(services, logger, ct);
         var csharpLangTask = LoadCSharpLanguagePluginSafeAsync(services, logger, ct);
+        var llmTask = LoadLlmProvidersPluginSafeAsync(services, logger, ct);
         var mcpInitTask = McpInitializeSafeAsync(services, logger, ct);
-        await Task.WhenAll(dreamTask, fixHooksTask, sandboxTask, telemetryTask, agentRolesTask, csharpLangTask, mcpInitTask).ConfigureAwait(false);
+        await Task.WhenAll(dreamTask, fixHooksTask, sandboxTask, telemetryTask, agentRolesTask, csharpLangTask, llmTask, mcpInitTask).ConfigureAwait(false);
 
         // 所有工具注册完成后，同步工具列表 + 刷新 kernel.Plugins
         try
@@ -164,6 +165,22 @@ public sealed class McpInitModule : IAppModule
         catch (Exception ex)
         {
             logger?.LogError(ex, "[MCP] LoadCSharpLanguagePlugin failed");
+        }
+    }
+
+    /// <summary>
+    /// 安全加载 LlmProvidersPlugin — 失败仅记日志，不阻断启动
+    /// </summary>
+    private static async Task LoadLlmProvidersPluginSafeAsync(IServiceProvider services, ILogger? logger, CancellationToken ct)
+    {
+        try
+        {
+            var pluginManager = services.GetRequiredService<Core.Plugins.IPluginManager>();
+            await pluginManager.LoadWorkflowPluginAsync<JoinCode.Llm.Plugins.LlmProvidersPlugin>(ct).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "[MCP] LoadLlmProvidersPlugin failed");
         }
     }
 

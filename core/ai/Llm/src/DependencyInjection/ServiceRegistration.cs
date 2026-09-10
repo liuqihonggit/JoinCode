@@ -3,7 +3,7 @@ namespace JoinCode.Llm.DependencyInjection;
 
 public static partial class ServiceRegistration
 {
-    private static readonly QueryServiceFactory s_factory = new();
+    internal static readonly QueryServiceFactory s_factory = new();
 
     public static IServiceCollection AddLlmServices(
         this IServiceCollection services,

@@ -21,4 +21,7 @@ global using TreeSitter;
 global using System.Xml.Linq;
 global using Range = System.Range;
 global using JoinCode.Abstractions.Entity;
+global using JoinCode.Abstractions.Models;
+global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Logging;
+global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;

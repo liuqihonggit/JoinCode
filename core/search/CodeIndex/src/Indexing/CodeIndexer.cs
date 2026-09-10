@@ -5,14 +5,15 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
 {
     private readonly InMemoryIndexStore _store;
     private readonly IFileSystem _fs;
-    private readonly SymbolIndex _symbolIndex;
-    private readonly IncrementalUpdater _updater;
+    private SymbolIndex _symbolIndex;
+    private IncrementalUpdater _updater;
     private readonly SymbolSearcher _searcher;
     private readonly CallGraph _callGraph;
     private readonly DependencyGraph _dependencyGraph;
     private readonly ProjectDependencyGraph _projectDependencyGraph;
     private readonly ProjectIndex _projectIndex;
-    private readonly CSharpSymbolExtractor _plugin;
+    private ILanguagePlugin _plugin;
+    private Func<ILanguagePlugin> _pluginFactory;
     private readonly GraphAnalytics _analytics;
     private readonly GraphPersistence _persistence;
     private readonly GraphVisualization _visualization;
@@ -30,9 +31,10 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         _store = store;
         _fs = fs;
         _logger = logger;
-        _plugin = new CSharpSymbolExtractor();
+        _pluginFactory = static () => new CSharpSymbolExtractor();
+        _plugin = _pluginFactory();
         _symbolIndex = new SymbolIndex(store, fs, _plugin);
-        _updater = new IncrementalUpdater(_symbolIndex, store, fs, () => new CSharpSymbolExtractor());
+        _updater = new IncrementalUpdater(_symbolIndex, store, fs, _pluginFactory);
         _searcher = new SymbolSearcher(store);
         _callGraph = new CallGraph(store);
         _dependencyGraph = new DependencyGraph(store);
@@ -41,6 +43,19 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         _analytics = new GraphAnalytics(store);
         _persistence = new GraphPersistence(store, fs);
         _visualization = new GraphVisualization(store);
+    }
+
+    /// <summary>
+    /// 设置语言插件工厂 — 插件加载时调用(ADR 0098 万物皆插件)
+    /// <para>必须在索引加载前调用,否则会丢失已索引数据</para>
+    /// </summary>
+    public void SetLanguagePluginFactory(Func<ILanguagePlugin> pluginFactory)
+    {
+        ArgumentNullException.ThrowIfNull(pluginFactory);
+        _pluginFactory = pluginFactory;
+        _plugin = _pluginFactory();
+        _symbolIndex = new SymbolIndex(_store, _fs, _plugin);
+        _updater = new IncrementalUpdater(_symbolIndex, _store, _fs, _pluginFactory);
     }
 
     public ISymbolSearcher Searcher => _searcher;

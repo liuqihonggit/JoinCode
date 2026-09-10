@@ -201,7 +201,7 @@ public sealed class AsyncLock : IDisposable
 | **保留** 限流 `SemaphoreSlim(n>1)` | — | 非互斥 |
 | **保留** per-key 局部变量锁 | 5 | 持有极短，诊断价值低 |
 
-**向后兼容**：AsyncLock 保留全部原有 API，173 处现有使用零改动自动获得诊断能力。新增 `AsyncLock(string name)` 具名构造。
+**现有调用零改动**：AsyncLock 保留全部原有 API，173 处现有使用零改动自动获得诊断能力。新增 `AsyncLock(string name)` 具名构造。
 
 **验证**：18 个单元测试覆盖互斥/具名/TryLock/超时/Dispose/诊断sink/后台扫描/同步死锁/async死锁，全通过。
 

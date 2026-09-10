@@ -165,7 +165,7 @@ public sealed class PersistentMailbox<TCommand> : IActorMailbox<TCommand>
 | 资源隔离 | 每个 Worker 独立状态，崩溃不蔓延 |
 | 限流统一 | LLM Gateway 统一管理 API 并发，避免超限 |
 | 崩溃恢复 | PersistentMailbox 重放未处理消息 |
-| 向后兼容 | ActorBase 不变，现有 Actor 零改动 |
+| 现有 Actor 零改动 | ActorBase 不变，无需改现有 Actor |
 | 背压保护 | 有界大容量 + 水位线告警 + 发送超时，防 OOM 和永久阻塞 |
 | 优先级保证 | PriorityMailbox 用户交互优先于后台任务 |
 

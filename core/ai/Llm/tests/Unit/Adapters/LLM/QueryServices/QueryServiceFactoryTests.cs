@@ -4,6 +4,20 @@ public sealed class QueryServiceFactoryTests
 {
     private readonly QueryServiceFactory _factory = new();
 
+    public QueryServiceFactoryTests()
+    {
+        _factory.RegisterProvider(ProtocolKind.Anthropic,
+            (config, http, logger, fs, executor) => new AnthropicQueryService(config, http, logger, fs, executor));
+        _factory.RegisterProvider(ProtocolKind.Azure,
+            (config, http, logger, fs, executor) => new AzureQueryService(config, http, logger, fs, executor));
+        _factory.RegisterProvider(ProtocolKind.Agnes,
+            (config, http, logger, fs, executor) => new AgnesQueryService(config, http, logger, fs, executor));
+        _factory.RegisterProvider(ProtocolKind.OpenAiResponses,
+            (config, http, logger, fs, executor) => new ResponsesQueryService(config, http, logger, fs, executor));
+        _factory.RegisterDefault(
+            (config, http, logger, fs, executor) => new OpenAIQueryService(config, http, logger, fs, executor));
+    }
+
     [Fact]
     public void Create_NullConfig_ThrowsArgumentNullException()
     {

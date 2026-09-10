@@ -5,10 +5,32 @@ public static partial class ServiceRegistration
 {
     internal static readonly QueryServiceFactory s_factory = new();
 
+    private static int s_providersRegistered;
+
+    /// <summary>
+    /// 确保默认供应商已注册到 s_factory — 幂等,DI 注册阶段和 LlmProvidersPlugin 加载时均可调用
+    /// <para>解决 DI 解析 IQueryService 时插件尚未加载的时序问题(ADR 0098)</para>
+    /// </summary>
+    internal static void EnsureDefaultProvidersRegistered()
+    {
+        if (Interlocked.CompareExchange(ref s_providersRegistered, 1, 0) != 0) return;
+        s_factory.RegisterProvider(ProtocolKind.Anthropic,
+            (config, http, logger, fs, executor) => new AnthropicQueryService(config, http, logger, fs, executor));
+        s_factory.RegisterProvider(ProtocolKind.Azure,
+            (config, http, logger, fs, executor) => new AzureQueryService(config, http, logger, fs, executor));
+        s_factory.RegisterProvider(ProtocolKind.Agnes,
+            (config, http, logger, fs, executor) => new AgnesQueryService(config, http, logger, fs, executor));
+        s_factory.RegisterProvider(ProtocolKind.OpenAiResponses,
+            (config, http, logger, fs, executor) => new ResponsesQueryService(config, http, logger, fs, executor));
+        s_factory.RegisterDefault(
+            (config, http, logger, fs, executor) => new OpenAIQueryService(config, http, logger, fs, executor));
+    }
+
     public static IServiceCollection AddLlmServices(
         this IServiceCollection services,
         ProviderConfig providerConfig)
     {
+        EnsureDefaultProvidersRegistered();
         services.AddSingleton<IQueryService>(sp => CreateQueryService(sp, providerConfig));
 
         return services;
@@ -55,6 +77,7 @@ public static partial class ServiceRegistration
         ProviderConfig providerConfig,
         PipeTransportConfig? pipeEndpoint = null)
     {
+        EnsureDefaultProvidersRegistered();
         if (pipeEndpoint != null)
         {
             services.AddPipeQueryService(pipeEndpoint, providerConfig.ApiKey);

@@ -1,5 +1,7 @@
 # 0034. 命令拦截分层 Guard+Interceptor+Dispatcher
 
+> ⚠️ **已被 [0039](0039-command-interception-state-machine.md) 取代** — 放弃全状态机的理由(状态爆炸)在引入 [Flags] + 守卫后不成立
+
 - 状态：superseded by 0039
 - 日期：2026-08-29
 - 决策者：项目架构组

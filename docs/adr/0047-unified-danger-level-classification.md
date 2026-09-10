@@ -144,15 +144,15 @@ Dangerous 级命令在任何权限模式下都被拒绝（包括 Bypass），返
 
 ### 统一迁移
 
-- [ ] 将 `DestructiveCommandDetector` 委托给 `CommandDangerClassifier`（目前为回退方案）
+- [x] 将 `DestructiveCommandDetector` 委托给 `CommandDangerClassifier`（目前为回退方案）
 - [ ] PowerShell 危险命令分级（`PsDangerousCmdlets` 集成 `DangerousCommandCatalog`）
-- [ ] `Core.Utils.DestructiveCommandAnalyzer`（Infrastructure 层正则分析器）对齐新5级分级
+- [x] `Core.Utils.DestructiveCommandAnalyzer`（Infrastructure 层正则分析器）对齐新5级分级
 
 ### 文档联动
 
 - [ ] AGENTS.md 更新权限设计章节，引用本 ADR
-- [ ] CLI `--help` 输出补充5级分级说明
-- [ ] `settings.json` schema 补充 `permissions.dangerLevelOverrides` 配置项
+- [x] CLI `--help` 输出补充5级分级说明
+- [x] `settings.json` schema 补充 `permissions.dangerLevelOverrides` 配置项
 
 <!-- 🤖 Auto Decision: 2026-08-31 -->
 <!-- 决策: 5级分级 Safe/Unknown/LightValidation/Execution/Dangerous（白/黄/绿/红/黑灯） -->

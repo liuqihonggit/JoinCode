@@ -191,9 +191,9 @@ public sealed class PersistentMailbox<TCommand> : IActorMailbox<TCommand>
 
 ## 验证
 
-- [ ] SupervisedActor 单元测试：父子关系、监督策略、重启计数
-- [ ] RouterActor 单元测试：路由策略、Worker 崩溃恢复
-- [ ] LlmGatewayActor 单元测试：限流、重试、熔断
-- [ ] PersistentMailbox 单元测试：持久化、崩溃恢复
-- [ ] 编译通过（Debug + Release）
-- [ ] AOT 兼容（无 dynamic、无反射 emit）
+- [x] SupervisedActor 单元测试：父子关系、监督策略、重启计数
+- [x] RouterActor 单元测试：路由策略、Worker 崩溃恢复
+- [x] LlmGatewayActor 单元测试：限流、重试、熔断
+- [x] PersistentMailbox 单元测试：持久化、崩溃恢复
+- [x] 编译通过（Debug + Release）
+- [x] AOT 兼容（无 dynamic、无反射 emit）

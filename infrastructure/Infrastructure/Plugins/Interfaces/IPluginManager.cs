@@ -9,6 +9,8 @@ public interface IPluginManager : IDisposable
 
     IReadOnlyCollection<string> LoadedExternalPluginNames { get; }
 
+    IReadOnlyCollection<string> LoadedNativePluginNames { get; }
+
     event EventHandler<string>? PluginLoaded;
     event EventHandler<string>? PluginUnloading;
 
@@ -23,6 +25,11 @@ public interface IPluginManager : IDisposable
     Task<ExternalPluginHost> LoadExternalPluginAsync(string exePath, string pluginName, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 加载 native DLL 插件（AOT兼容，通过 NativeLibrary.Load + JSON IPC）(ADR 0099)
+    /// </summary>
+    Task<NativePluginHost> LoadNativePluginAsync(string dllPath, string pluginName, string? configJson = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 获取工作流插件宿主
     /// </summary>
     WorkflowPluginHost? GetWorkflowPlugin(string pluginName);
@@ -31,6 +38,11 @@ public interface IPluginManager : IDisposable
     /// 获取外部插件宿主
     /// </summary>
     ExternalPluginHost? GetExternalPlugin(string pluginName);
+
+    /// <summary>
+    /// 获取 native DLL 插件宿主
+    /// </summary>
+    NativePluginHost? GetNativePlugin(string pluginName);
 
     /// <summary>
     /// 获取工作流插件实例
@@ -48,4 +60,6 @@ public interface IPluginManager : IDisposable
     bool IsWorkflowPluginLoaded(string pluginName);
 
     bool IsExternalPluginLoaded(string pluginName);
+
+    bool IsNativePluginLoaded(string pluginName);
 }

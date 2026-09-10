@@ -7,6 +7,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
 {
     private readonly ConcurrentDictionary<string, WorkflowPluginHost> _workflowPlugins = new();
     private readonly ConcurrentDictionary<string, ExternalPluginHost> _externalPlugins = new();
+    private readonly ConcurrentDictionary<string, NativePluginHost> _nativePlugins = new();
     private readonly IChatClient? _kernel;
     private readonly ILoggerFactory? _loggerFactory;
     private readonly IFileOperationService? _fileOperationService;
@@ -57,10 +58,11 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     private readonly List<PluginDiagnostic> _diagnostics = new();
 
     public IReadOnlyCollection<string> LoadedPluginNames =>
-        _workflowPlugins.Keys.Concat(_externalPlugins.Keys).ToList();
+        _workflowPlugins.Keys.Concat(_externalPlugins.Keys).Concat(_nativePlugins.Keys).ToList();
 
     public IReadOnlyCollection<string> LoadedWorkflowPluginNames => _workflowPlugins.Keys.ToList();
     public IReadOnlyCollection<string> LoadedExternalPluginNames => _externalPlugins.Keys.ToList();
+    public IReadOnlyCollection<string> LoadedNativePluginNames => _nativePlugins.Keys.ToList();
 
     public PluginManager(
         IFileSystem fs,
@@ -106,7 +108,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         span?.SetTag("plugin", pluginName);
         try
         {
-            if (_workflowPlugins.ContainsKey(pluginName) || _externalPlugins.ContainsKey(pluginName))
+            if (_workflowPlugins.ContainsKey(pluginName) || _externalPlugins.ContainsKey(pluginName) || _nativePlugins.ContainsKey(pluginName))
             {
                 RecordPluginMetrics("workflow", "load", false);
                 throw new InvalidOperationException(PluginErrors.AlreadyLoaded(pluginName));
@@ -242,6 +244,81 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         return await tcs.Task.ConfigureAwait(false);
     }
 
+    #region Native DLL Plugin (AOT Compatible, ADR 0099)
+
+    /// <summary>
+    /// 加载 native DLL 插件 — 通过 Actor mailbox 串行处理
+    /// </summary>
+    public async Task<NativePluginHost> LoadNativePluginAsync(
+        string dllPath,
+        string pluginName,
+        string? configJson = null,
+        CancellationToken cancellationToken = default)
+    {
+        ThrowIfDisposed();
+        var tcs = new TaskCompletionSource<NativePluginHost>();
+        await SendAsync(new LoadNativeCmd(dllPath, pluginName, configJson, tcs, cancellationToken), cancellationToken).ConfigureAwait(false);
+        return await tcs.Task.ConfigureAwait(false);
+    }
+
+    private async Task<NativePluginHost> LoadNativePluginCoreAsync(
+        string dllPath,
+        string pluginName,
+        string? configJson,
+        CancellationToken cancellationToken)
+    {
+        await using var span = _telemetryService?.StartSpan("plugin.load.native", TelemetrySpanKind.Server);
+        span?.SetTag("plugin", pluginName);
+        try
+        {
+            if (_workflowPlugins.ContainsKey(pluginName) || _externalPlugins.ContainsKey(pluginName) || _nativePlugins.ContainsKey(pluginName))
+            {
+                RecordPluginMetrics("native", "load", false);
+                throw new InvalidOperationException(PluginErrors.AlreadyLoaded(pluginName));
+            }
+
+            if (_blacklistedPlugins.ContainsKey(pluginName))
+            {
+                RecordPluginMetrics("native", "load", false);
+                throw new InvalidOperationException(PluginErrors.Blacklisted(pluginName));
+            }
+
+            var host = new NativePluginHost(dllPath, pluginName, _fs, _logger);
+            var loadResult = host.Load(configJson);
+            if (!loadResult.IsSuccess)
+            {
+                RecordPluginMetrics("native", "load", false);
+                throw new InvalidOperationException($"[NATIVE-LOAD-FAIL] 插件 {pluginName} 加载失败: {loadResult.ErrorMessage}");
+            }
+
+            if (!_nativePlugins.TryAdd(pluginName, host))
+            {
+                host.Unload();
+                RecordPluginMetrics("native", "load", false);
+                throw new InvalidOperationException(PluginErrors.AlreadyLoaded(pluginName));
+            }
+
+            _loadOrder.Add(pluginName);
+            RecordPluginMetrics("native", "load", true);
+            _logger?.LogInformation("Native 插件 {PluginName} 已加载", pluginName);
+            PluginLoaded?.Invoke(this, pluginName);
+            return host;
+        }
+        catch (Exception ex) when (ex is not InvalidOperationException)
+        {
+            RecordPluginMetrics("native", "load", false);
+            _logger?.LogError(ex, "加载 native 插件 {PluginName} 失败", pluginName);
+            throw;
+        }
+    }
+
+    public NativePluginHost? GetNativePlugin(string pluginName)
+    {
+        return _nativePlugins.TryGetValue(pluginName, out var host) ? host : null;
+    }
+
+    #endregion
+
     private async Task<ExternalPluginHost> LoadExternalPluginCoreAsync(
         string exePath,
         string pluginName,
@@ -251,7 +328,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         span?.SetTag("plugin", pluginName);
         try
         {
-            if (_workflowPlugins.ContainsKey(pluginName) || _externalPlugins.ContainsKey(pluginName))
+            if (_workflowPlugins.ContainsKey(pluginName) || _externalPlugins.ContainsKey(pluginName) || _nativePlugins.ContainsKey(pluginName))
             {
                 RecordPluginMetrics("external", "load", false);
                 throw new InvalidOperationException(PluginErrors.AlreadyLoaded(pluginName));
@@ -362,6 +439,15 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
             return result;
         }
 
+        if (_nativePlugins.TryRemove(pluginName, out var nativeHost))
+        {
+            await CleanupPluginServicesAsync(pluginName, cancellationToken).ConfigureAwait(false);
+            nativeHost.Unload();
+            nativeHost.Dispose();
+            RecordPluginMetrics("native", "unload", true);
+            return PluginUnloadResult.Success(pluginName, TimeSpan.Zero);
+        }
+
         await CascadeUnloadDependentsAsync(pluginName, cancellationToken).ConfigureAwait(false);
 
         var prepareResult = await PrepareUnloadAsync(pluginName, cancellationToken).ConfigureAwait(false);
@@ -404,6 +490,17 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
             {
                 results.Add(host.Unload());
                 host.Dispose();
+            }
+        }
+
+        var nativePluginNames = _nativePlugins.Keys.ToList();
+        foreach (var pluginName in nativePluginNames)
+        {
+            if (_nativePlugins.TryRemove(pluginName, out var host))
+            {
+                host.Unload();
+                host.Dispose();
+                results.Add(PluginUnloadResult.Success(pluginName, TimeSpan.Zero));
             }
         }
 
@@ -650,11 +747,12 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     public bool IsPluginLoaded(string pluginName)
     {
         ThrowIfDisposed();
-        return _workflowPlugins.ContainsKey(pluginName) || _externalPlugins.ContainsKey(pluginName);
+        return _workflowPlugins.ContainsKey(pluginName) || _externalPlugins.ContainsKey(pluginName) || _nativePlugins.ContainsKey(pluginName);
     }
 
     public bool IsWorkflowPluginLoaded(string pluginName) => _workflowPlugins.ContainsKey(pluginName);
     public bool IsExternalPluginLoaded(string pluginName) => _externalPlugins.ContainsKey(pluginName);
+    public bool IsNativePluginLoaded(string pluginName) => _nativePlugins.ContainsKey(pluginName);
 
     #endregion
 
@@ -672,6 +770,9 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
                 break;
             case LoadExternalCmd loadExtCmd:
                 await HandleLoadExternalAsync(loadExtCmd).ConfigureAwait(false);
+                break;
+            case LoadNativeCmd loadNativeCmd:
+                await HandleLoadNativeAsync(loadNativeCmd).ConfigureAwait(false);
                 break;
             case UnloadCmd unloadCmd:
                 await HandleUnloadAsync(unloadCmd).ConfigureAwait(false);
@@ -701,6 +802,16 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         try
         {
             var result = await LoadExternalPluginCoreAsync(cmd.ExePath, cmd.PluginName, cmd.CancellationToken).ConfigureAwait(false);
+            cmd.Reply.SetResult(result);
+        }
+        catch (Exception ex) { cmd.Reply.SetException(ex); }
+    }
+
+    private async Task HandleLoadNativeAsync(LoadNativeCmd cmd)
+    {
+        try
+        {
+            var result = await LoadNativePluginCoreAsync(cmd.DllPath, cmd.PluginName, cmd.ConfigJson, cmd.CancellationToken).ConfigureAwait(false);
             cmd.Reply.SetResult(result);
         }
         catch (Exception ex) { cmd.Reply.SetException(ex); }
@@ -778,6 +889,18 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         }
 
         _externalPlugins.Clear();
+
+        var nativePluginNames = _nativePlugins.Keys.ToList();
+        foreach (var pluginName in nativePluginNames)
+        {
+            if (_nativePlugins.TryRemove(pluginName, out var host))
+            {
+                try { host.Unload(); host.Dispose(); }
+                catch (Exception ex) { _logger?.LogError(ex, "释放 native 插件时出错: {PluginName}", pluginName); }
+            }
+        }
+
+        _nativePlugins.Clear();
 
         var workflowPluginNames = GetLoadOrderReversed();
         foreach (var pluginName in workflowPluginNames)

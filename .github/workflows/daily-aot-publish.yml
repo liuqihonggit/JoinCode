@@ -52,9 +52,7 @@ jobs:
             -o publish/${{ matrix.project.name }} `
             --nologo `
             /p:SkipLocalPack=true `
-            /p:SelfContained=true `
-            /p:PublishAot=true `
-            /p:TrimMode=full
+            /p:SelfContained=true
           if ($LASTEXITCODE -ne 0) { exit 1 }
         shell: pwsh
 

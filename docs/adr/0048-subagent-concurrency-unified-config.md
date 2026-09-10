@@ -4,7 +4,7 @@
 - 日期：2026-09-02
 - 决策者：项目架构组
 - 验证：Abstractions+Agents+Clock+Composition+App 编译 0 警告 0 错误，1842 测试全通过（Agents 512 + Clock 432 + Guard.Config 898），热重载链路完整 ✅
-- 关联：[0049](docs/adr/0049-archive-maxconcurrentagents.md) | [0050](docs/adr/0050-spawn-stage-concurrency-limit.md) | [0051](docs/adr/0051-fork-concurrency-limit.md)
+- 关联：[refactoring/archive-dead-code.md](../refactoring/archive-dead-code.md)（归档 MaxConcurrentAgents 死配置） | [0050](docs/adr/0050-spawn-stage-concurrency-limit.md) | [0051](docs/adr/0051-fork-concurrency-limit.md)
 
 ## 背景
 
@@ -12,7 +12,7 @@
 
 | 配置点 | 文件 | 默认值 | 作用域 |
 |--------|------|--------|--------|
-| `AgentSettings.MaxConcurrentAgents` | `core/ai/Agents/src/Configuration/Settings/AgentSettings.cs:12` | 10 | Agent 并发（**死配置，见 ADR 0049**） |
+| `AgentSettings.MaxConcurrentAgents` | `core/ai/Agents/src/Configuration/Settings/AgentSettings.cs:12` | 10 | Agent 并发（**死配置，已归档见 refactoring/archive-dead-code.md**） |
 | `ExecutionOptions.MaxConcurrentTasks` | `foundation/Abstractions/00-core/Configuration/Execution/ExecutionOptions.cs:6` | 12 | Scheduling 任务并发 |
 | `CacheAndToolExecutionSettings.MaxParallelToolExecution` | `foundation/Abstractions/00-core/Configuration/Settings/CacheAndToolExecutionSettings.cs:52` | 5 | 工具并行执行 |
 | `ClusterExecutionOptions.MaxConcurrency` | 运行时传入 | - | 集群执行并发 |
@@ -156,7 +156,7 @@ settings.json 变更
 
 1. **保留 4 个分散配置**：放弃。新人无法找到唯一数据源，违反规则7文件驱动原则。
 2. **用 `ExecutionOptions.MaxConcurrentTasks` 统管一切**：放弃。spawn/execute/fork 三阶段资源类型不同（磁盘/CPU/内存），单一数值无法表达差异化上限。
-3. **用 `AgentSettings.MaxConcurrentAgents` 统管**：放弃。该配置是死配置（ADR 0049 归档），且 `AgentSettings` 混杂了超时、重试、模型名等非并发配置，语义不内聚。
+3. **用 `AgentSettings.MaxConcurrentAgents` 统管**：放弃。该配置是死配置（已归档见 refactoring/archive-dead-code.md），且 `AgentSettings` 混杂了超时、重试、模型名等非并发配置，语义不内聚。
 4. **单一数值 `MaxConcurrentSubAgents` 统管三阶段**：放弃。三阶段资源类型不同，单一数值要么过度限制 spawn（磁盘 I/O 瓶颈）要么放任 execute（CPU/内存溢出）。
 
 ## 后果

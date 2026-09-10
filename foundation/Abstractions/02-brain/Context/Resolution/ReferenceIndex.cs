@@ -62,8 +62,7 @@ public sealed class ReferenceIndex
         return matches.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     }
 
-    public IReadOnlyCollection<IndexedReference> GetAllReferences()
-        => _references.Values.ToList();
+    public IEnumerable<IndexedReference> GetAllReferences() => _references.Values;
 
     public bool ContainsPath(string path)
         => _references.ContainsKey(path);

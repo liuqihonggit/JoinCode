@@ -62,12 +62,9 @@ public sealed class ParallelTaskScheduler
     }
 
     /// <summary>
-    /// 获取所有已注册的任务
+    /// 获取所有已注册的任务 — 零拷贝值视图
     /// </summary>
-    public IReadOnlyCollection<ScheduledTask> GetAllTasks()
-    {
-        return _scheduledTasks.Values.ToList();
-    }
+    public IEnumerable<ScheduledTask> GetAllTasks() => _scheduledTasks.Values;
 
     /// <summary>
     /// 获取指定状态的任务

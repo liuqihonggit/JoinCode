@@ -109,13 +109,13 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
             if (_workflowPlugins.ContainsKey(pluginName) || _externalPlugins.ContainsKey(pluginName))
             {
                 RecordPluginMetrics("workflow", "load", false);
-                throw new InvalidOperationException($"[INF031] 插件 '{pluginName}' 已经加载");
+                throw new InvalidOperationException(PluginErrors.AlreadyLoaded(pluginName));
             }
 
             if (_blacklistedPlugins.ContainsKey(pluginName))
             {
                 RecordPluginMetrics("workflow", "load", false);
-                throw new InvalidOperationException($"[INF-PLUGIN-BL] 插件 '{pluginName}' 已被加入黑名单(此前卸载泄漏),拒绝加载");
+                throw new InvalidOperationException(PluginErrors.Blacklisted(pluginName));
             }
 
             _logger?.LogInformation("正在加载内置工作流插件: {PluginName}", pluginName);
@@ -133,7 +133,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
                 if (plugin is WorkflowPluginBase wpbFail) wpbFail.Fiber.TransitionTo(PluginFiberState.Failed);
                 host.Dispose();
                 RecordPluginMetrics("workflow", "load", false);
-                throw new InvalidOperationException($"[INF032] 插件 '{pluginName}' Load 失败: {loadResult.ErrorMessage}");
+                throw new InvalidOperationException(PluginErrors.LoadFailed(pluginName, loadResult.ErrorMessage ?? "未知"));
             }
 
             var initResult = await host.InitializeAsync(cancellationToken).ConfigureAwait(false);
@@ -143,7 +143,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
                 host.Unload();
                 host.Dispose();
                 RecordPluginMetrics("workflow", "load", false);
-                throw new InvalidOperationException($"[INF033] 插件 '{pluginName}' Initialize 失败: {initResult.ErrorMessage}");
+                throw new InvalidOperationException(PluginErrors.InitializeFailed(pluginName, initResult.ErrorMessage ?? "未知"));
             }
 
             if (plugin is WorkflowPluginBase contractPlugin)
@@ -156,7 +156,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
                     host.Dispose();
                     RecordPluginMetrics("workflow", "load", false);
                     throw new InvalidOperationException(
-                        $"[INF-PLUGIN-CONTRACT] 插件 '{pluginName}' 拒绝加载: {contract.Reason}");
+                        PluginErrors.ContractViolation(pluginName, contract.Reason ?? "未知"));
                 }
             }
 
@@ -166,7 +166,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
                 host.Unload();
                 host.Dispose();
                 RecordPluginMetrics("workflow", "load", false);
-                throw new InvalidOperationException($"[INF034] 插件 '{pluginName}' 已经加载");
+                throw new InvalidOperationException(PluginErrors.AlreadyLoaded(pluginName));
             }
 
             var undoChain = new List<Action>();
@@ -254,19 +254,19 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
             if (_workflowPlugins.ContainsKey(pluginName) || _externalPlugins.ContainsKey(pluginName))
             {
                 RecordPluginMetrics("external", "load", false);
-                throw new InvalidOperationException($"[INF035] 插件 '{pluginName}' 已经加载");
+                throw new InvalidOperationException(PluginErrors.AlreadyLoaded(pluginName));
             }
 
             if (_blacklistedPlugins.ContainsKey(pluginName))
             {
                 RecordPluginMetrics("external", "load", false);
-                throw new InvalidOperationException($"[INF-PLUGIN-BL] 插件 '{pluginName}' 已被加入黑名单(此前卸载泄漏),拒绝加载");
+                throw new InvalidOperationException(PluginErrors.Blacklisted(pluginName));
             }
 
             if (!_fs.FileExists(exePath))
             {
                 RecordPluginMetrics("external", "load", false);
-                throw new FileNotFoundException($"[INF036] 外部插件可执行文件不存在: {exePath}", exePath);
+                throw new FileNotFoundException(PluginErrors.ExternalExeNotFound(exePath), exePath);
             }
 
             _logger?.LogInformation("正在加载外部插件: {PluginName} 从 {ExePath}", pluginName, exePath);
@@ -295,7 +295,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
             {
                 process.Dispose();
                 RecordPluginMetrics("external", "load", false);
-                throw new InvalidOperationException($"[INF037] 无法启动外部插件进程: {exePath}");
+                throw new InvalidOperationException(PluginErrors.ExternalProcessStartFailed(exePath));
             }
 
             process.BeginErrorReadLine();
@@ -306,7 +306,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
             {
                 host.Dispose();
                 RecordPluginMetrics("external", "load", false);
-                throw new InvalidOperationException($"[INF038] 插件 '{pluginName}' 已经加载");
+                throw new InvalidOperationException(PluginErrors.AlreadyLoaded(pluginName));
             }
 
             _logger?.LogInformation("外部插件加载成功: {PluginName} (PID: {ProcessId})", pluginName, process.Id);
@@ -579,7 +579,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
                 PluginId = pluginName,
                 Kind = PluginDiagnosticKind.AlcLeak,
                 Message = $"卸载后有 {report.LeakedResourceIds.Count} 个资源泄漏,已加入黑名单",
-                Suggestion = "检查插件是否正确释放了所有 ObjectId 资源"
+                Suggestion = PluginErrors.AlcLeak(pluginName)
             });
         }
     }

@@ -65,4 +65,18 @@ public static class PluginErrors
         $"[INF-PLUGIN-ALC-NOT-COLLECTIBLE] 插件 '{pluginName}' 的 ALC 不可回收,已跳过 Unload。" + Environment.NewLine +
         $"  排错: 该 ALC 创建时未开启 isCollectible,属于宿主配置问题。" + Environment.NewLine +
         $"  修复: 用 PluginAlc(name) 创建可收集 ALC(内部 isCollectible: true)。";
+
+    /// <summary>外部插件可执行文件不存在 — 引导检查路径</summary>
+    public static string ExternalExeNotFound(string exePath) =>
+        $"[INF036] 外部插件可执行文件不存在: {exePath}" + Environment.NewLine +
+        $"  排错: 检查路径是否正确,文件是否存在且有执行权限。" + Environment.NewLine +
+        $"  检查: 用 Path.GetFullPath 解析相对路径,确认工作目录。";
+
+    /// <summary>外部插件进程启动失败 — 引导检查权限/依赖</summary>
+    public static string ExternalProcessStartFailed(string exePath) =>
+        $"[INF037] 无法启动外部插件进程: {exePath}" + Environment.NewLine +
+        $"  排错:" + Environment.NewLine +
+        $"    · 权限不足 → 检查文件是否有执行权限(chmod +x)" + Environment.NewLine +
+        $"    · 依赖缺失 → 检查运行时依赖是否安装(如 .NET runtime)" + Environment.NewLine +
+        $"    · 路径错误 → 确认 exePath 是绝对路径且指向可执行文件";
 }

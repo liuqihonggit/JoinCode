@@ -60,9 +60,9 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     public IReadOnlyCollection<string> LoadedPluginNames =>
         _workflowPlugins.Keys.Concat(_externalPlugins.Keys).Concat(_nativePlugins.Keys).ToList();
 
-    public IReadOnlyCollection<string> LoadedWorkflowPluginNames => _workflowPlugins.Keys.ToList();
-    public IReadOnlyCollection<string> LoadedExternalPluginNames => _externalPlugins.Keys.ToList();
-    public IReadOnlyCollection<string> LoadedNativePluginNames => _nativePlugins.Keys.ToList();
+    public IReadOnlyCollection<string> LoadedWorkflowPluginNames => (IReadOnlyCollection<string>)_workflowPlugins.Keys;
+    public IReadOnlyCollection<string> LoadedExternalPluginNames => (IReadOnlyCollection<string>)_externalPlugins.Keys;
+    public IReadOnlyCollection<string> LoadedNativePluginNames => (IReadOnlyCollection<string>)_nativePlugins.Keys;
 
     public PluginManager(
         IFileSystem fs,

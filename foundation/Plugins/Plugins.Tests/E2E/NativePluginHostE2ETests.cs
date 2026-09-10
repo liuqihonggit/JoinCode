@@ -1,4 +1,4 @@
-namespace Infra.Services.Tests;
+namespace JoinCode.Plugins.Tests.E2E;
 
 /// <summary>
 /// NativePluginHost E2E 测试 — 加载真实 native DLL → invoke → unload 全链路验证 (ADR 0099)

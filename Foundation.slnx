@@ -6,6 +6,7 @@
     <Project Path="foundation/Transport.Contracts/Transport.Contracts.csproj" />
     <Project Path="foundation/Plugins/Plugins.Contracts/Plugins.Contracts.csproj" />
     <Project Path="foundation/Plugins/Plugins.Infrastructure/Plugins.Infrastructure.csproj" />
+    <Project Path="foundation/Plugins/Plugins.Tests/Plugins.Tests.csproj" />
   </Folder>
   <Folder Name="/foundation/AsyncLock/tests/" />
   <Folder Name="/foundation/AsyncLock/tests/Unit/">

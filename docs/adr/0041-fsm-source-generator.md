@@ -36,14 +36,16 @@ private static readonly FrozenDictionary<TransitionKey<LspServerState, LspServer
 
 **特性定义**（放 `Abstractions/Attributes/`）：
 
+> ⚠️ 命名注：`StateMachineAttribute` 改为 `FsmStateMachineAttribute`、`ActionAttribute` 改为 `TransitionActionAttribute`，避免与 `System.Runtime.CompilerServices.StateMachineAttribute` 冲突。
+
 ```csharp
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
-public sealed class StateMachineAttribute : Attribute
+public sealed class FsmStateMachineAttribute : Attribute
 {
     public Type StateType { get; }
     public Type EventType { get; }
     public object InitialState { get; }
-    public StateMachineAttribute(Type stateType, Type eventType, object initialState) { ... }
+    public FsmStateMachineAttribute(Type stateType, Type eventType, object initialState) { ... }
 }
 
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
@@ -64,11 +66,11 @@ public sealed class GuardAttribute : Attribute
 }
 
 [AttributeUsage(AttributeTargets.Method)]
-public sealed class ActionAttribute : Attribute
+public sealed class TransitionActionAttribute : Attribute
 {
     public object From { get; }
     public object Event { get; }
-    public ActionAttribute(object from, object evt) { ... }
+    public TransitionActionAttribute(object from, object evt) { ... }
 }
 ```
 

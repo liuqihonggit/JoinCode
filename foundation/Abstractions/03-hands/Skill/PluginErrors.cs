@@ -79,4 +79,28 @@ public static class PluginErrors
         $"    · 权限不足 → 检查文件是否有执行权限(chmod +x)" + Environment.NewLine +
         $"    · 依赖缺失 → 检查运行时依赖是否安装(如 .NET runtime)" + Environment.NewLine +
         $"    · 路径错误 → 确认 exePath 是绝对路径且指向可执行文件";
+
+    /// <summary>外部插件进程已退出 — 引导检查进程状态</summary>
+    public static string ExternalProcessExited(string pluginName) =>
+        $"[INF028] 外部插件 '{pluginName}' 进程已退出。" + Environment.NewLine +
+        $"  排错: 检查进程是否崩溃或被手动终止。" + Environment.NewLine +
+        $"  检查: 查看 PluginManager.GetDiagnostics() 中是否有崩溃前的诊断记录。";
+
+    /// <summary>插件未加载,无法注入 Hook — 引导先加载</summary>
+    public static string NotLoadedForHook(string pluginName) =>
+        $"[INF029] 插件 '{pluginName}' 未加载,无法注入 Hook。" + Environment.NewLine +
+        $"  排错: 先调用 LoadPluginAsync 加载插件,再注入 Hook。" + Environment.NewLine +
+        $"  检查: IsPluginLoaded(\"{pluginName}\") 确认当前状态。";
+
+    /// <summary>插件目录不存在 — 引导检查路径</summary>
+    public static string DirectoryNotFound(string pluginDirectory) =>
+        $"[INF030] 插件目录不存在: {pluginDirectory}" + Environment.NewLine +
+        $"  排错: 检查路径是否正确,目录是否存在。" + Environment.NewLine +
+        $"  检查: 用 Path.GetFullPath 解析相对路径,确认工作目录。";
+
+    /// <summary>插件服务容器未构建 — 引导检查加载顺序</summary>
+    public static string ServiceContainerNotBuilt(string pluginName) =>
+        $"[PLG001] 插件 '{pluginName}' 服务容器未构建。" + Environment.NewLine +
+        $"  排错: 确保在 GetRequiredService 之前已调用 LoadAsync(完成服务注册)。" + Environment.NewLine +
+        $"  原因: LoadAsync 失败或未调用 → ServiceProvider 为 null。";
 }

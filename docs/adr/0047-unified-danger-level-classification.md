@@ -150,7 +150,7 @@ Dangerous 级命令在任何权限模式下都被拒绝（包括 Bypass），返
 
 ### 文档联动
 
-- [ ] AGENTS.md 更新权限设计章节，引用本 ADR
+- [x] AGENTS.md 更新权限设计章节，引用本 ADR
 - [x] CLI `--help` 输出补充5级分级说明
 - [x] `settings.json` schema 补充 `permissions.dangerLevelOverrides` 配置项
 

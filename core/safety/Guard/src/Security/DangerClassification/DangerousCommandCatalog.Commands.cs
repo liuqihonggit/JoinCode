@@ -122,6 +122,61 @@ public static partial class DangerousCommandCatalog
             ["wget"] = new("wget", CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "远程下载 — 不可撤回"),
             ["Invoke-WebRequest"] = new("Invoke-WebRequest", CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "远程请求 — 不可撤回"),
             ["Invoke-RestMethod"] = new("Invoke-RestMethod", CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "远程请求 — 不可撤回"),
+
+            // === Execution（红灯ask / 不可撤回）— PowerShell 危险 cmdlet（集成自 PsDangerousCmdlets）===
+            // 脚本执行/远程调用
+            ["Invoke-Command"] = new("Invoke-Command", CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "远程命令执行 — 可执行任意代码"),
+            ["Invoke-Expression"] = new("Invoke-Expression", CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "表达式执行 — 可执行任意代码"),
+            ["Start-Job"] = new("Start-Job", CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "后台作业 — 可执行任意代码"),
+            ["Start-ThreadJob"] = new("Start-ThreadJob", CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "线程作业 — 可执行任意代码"),
+            ["New-PSSession"] = new("New-PSSession", CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "远程会话 — 可跨机器执行"),
+            ["Enter-PSSession"] = new("Enter-PSSession", CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "进入远程会话 — 可跨机器执行"),
+            // 事件注册（可执行回调脚本块）
+            ["Register-EngineEvent"] = new("Register-EngineEvent", CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "引擎事件注册 — 回调可执行任意代码"),
+            ["Register-ObjectEvent"] = new("Register-ObjectEvent", CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "对象事件注册 — 回调可执行任意代码"),
+            ["Register-WmiEvent"] = new("Register-WmiEvent", CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "WMI 事件注册 — 回调可执行任意代码"),
+            // 模块加载（模块可执行任意代码）
+            ["Import-Module"] = new("Import-Module", CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "模块加载 — 模块可执行任意代码"),
+            ["ipmo"] = new("ipmo", CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "Import-Module 别名 — 模块加载"),
+            ["Install-Module"] = new("Install-Module", CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "模块安装 — 从远程仓库下载执行"),
+            ["Save-Module"] = new("Save-Module", CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "模块保存 — 从远程仓库下载"),
+            ["Update-Module"] = new("Update-Module", CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "模块更新 — 从远程仓库下载执行"),
+            ["Install-Script"] = new("Install-Script", CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "脚本安装 — 从远程仓库下载执行"),
+            ["Save-Script"] = new("Save-Script", CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "脚本保存 — 从远程仓库下载"),
+            // WMI/CIM 进程生成
+            ["Invoke-WmiMethod"] = new("Invoke-WmiMethod", CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "WMI 方法调用 — 可生成进程"),
+            ["iwmi"] = new("iwmi", CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "Invoke-WmiMethod 别名 — WMI 方法调用"),
+            ["Invoke-CimMethod"] = new("Invoke-CimMethod", CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "CIM 方法调用 — 可生成进程"),
+            // 计划任务（持久化）
+            ["Register-ScheduledTask"] = new("Register-ScheduledTask", CommandRisk.SystemModification, CommandDangerLevel.Execution, "计划任务注册 — 持久化执行"),
+            ["New-ScheduledTask"] = new("New-ScheduledTask", CommandRisk.SystemModification, CommandDangerLevel.Execution, "计划任务创建 — 持久化执行"),
+            ["New-ScheduledTaskAction"] = new("New-ScheduledTaskAction", CommandRisk.SystemModification, CommandDangerLevel.Execution, "计划任务动作 — 持久化执行"),
+            ["Set-ScheduledTask"] = new("Set-ScheduledTask", CommandRisk.SystemModification, CommandDangerLevel.Execution, "计划任务设置 — 持久化执行"),
+            ["Register-ScheduledJob"] = new("Register-ScheduledJob", CommandRisk.SystemModification, CommandDangerLevel.Execution, "计划作业注册 — 持久化执行"),
+            // 别名/变量劫持（命令解析劫持）
+            ["Set-Alias"] = new("Set-Alias", CommandRisk.SystemModification, CommandDangerLevel.Execution, "别名设置 — 可劫持命令解析"),
+            ["sal"] = new("sal", CommandRisk.SystemModification, CommandDangerLevel.Execution, "Set-Alias 别名 — 可劫持命令解析"),
+            ["New-Alias"] = new("New-Alias", CommandRisk.SystemModification, CommandDangerLevel.Execution, "别名创建 — 可劫持命令解析"),
+            ["nal"] = new("nal", CommandRisk.SystemModification, CommandDangerLevel.Execution, "New-Alias 别名 — 可劫持命令解析"),
+            ["Set-Variable"] = new("Set-Variable", CommandRisk.SystemModification, CommandDangerLevel.Execution, "变量设置 — 可劫持命令解析"),
+            ["sv"] = new("sv", CommandRisk.SystemModification, CommandDangerLevel.Execution, "Set-Variable 别名 — 可劫持命令解析"),
+            ["New-Variable"] = new("New-Variable", CommandRisk.SystemModification, CommandDangerLevel.Execution, "变量创建 — 可劫持命令解析"),
+            ["nv"] = new("nv", CommandRisk.SystemModification, CommandDangerLevel.Execution, "New-Variable 别名 — 可劫持命令解析"),
+            // 环境变量/项写入
+            ["Set-Item"] = new("Set-Item", CommandRisk.DataModification, CommandDangerLevel.Execution, "项设置 — 数据修改"),
+            ["si"] = new("si", CommandRisk.DataModification, CommandDangerLevel.Execution, "Set-Item 别名 — 数据修改"),
+            ["New-Item"] = new("New-Item", CommandRisk.DataModification, CommandDangerLevel.Execution, "项创建 — 数据修改"),
+            ["ni"] = new("ni", CommandRisk.DataModification, CommandDangerLevel.Execution, "New-Item 别名 — 数据修改"),
+            ["Clear-Item"] = new("Clear-Item", CommandRisk.DataModification, CommandDangerLevel.Execution, "项清除 — 数据修改"),
+            ["cli"] = new("cli", CommandRisk.DataModification, CommandDangerLevel.Execution, "Clear-Item 别名 — 数据修改"),
+            ["Set-Content"] = new("Set-Content", CommandRisk.DataModification, CommandDangerLevel.Execution, "内容写入 — 数据修改"),
+            ["Add-Content"] = new("Add-Content", CommandRisk.DataModification, CommandDangerLevel.Execution, "内容追加 — 数据修改"),
+            ["ac"] = new("ac", CommandRisk.DataModification, CommandDangerLevel.Execution, "Add-Content 别名 — 数据修改"),
+            // 下载器别名/补充
+            ["iwr"] = new("iwr", CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "Invoke-WebRequest 别名 — 远程请求"),
+            ["irm"] = new("irm", CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "Invoke-RestMethod 别名 — 远程请求"),
+            ["New-Object"] = new("New-Object", CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "对象创建 — 可实例化 COM/ActiveX"),
+            ["Start-BitsTransfer"] = new("Start-BitsTransfer", CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "BITS 传输 — 后台远程下载"),
         };
 
         return entries.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);

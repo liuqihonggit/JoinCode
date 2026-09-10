@@ -36,11 +36,11 @@ Agents 编译 0 警告 0 错误，MaxConcurrentAgents 属性已删除，全项�
 ## 2. 归档 IMcpProtocolHandler 死接口（原 ADR 0025）
 
 - 日期：2026-08-29
-- 取代：[ADR 0012](../adr/0012-two-itoolhandler-interfaces.md)（双 IToolHandler 接口不合并）
+- 取代：[0012-two-itoolhandler-interfaces.md](0012-two-itoolhandler-interfaces.md)（双 IToolHandler 接口不合并,已移出 ADR 体系）
 
 ### 背景
 
-ADR 0012 决策"双 IToolHandler 接口不合并"，理由是协议层与业务层语义不同。但 2026-08-29 代码调查发现：
+[0012](0012-two-itoolhandler-interfaces.md) 决策"双 IToolHandler 接口不合并"，理由是协议层与业务层语义不同。但 2026-08-29 代码调查发现：
 
 1. **`IMcpProtocolHandler` 有 0 个生产实现**：仅 1 个测试 FakeToolHandler。被 `McpServer` 的工具注册功能引用，但该功能**无生产调用**。
 2. **`McpServer` 不是死代码**：被 `McpHttpServer` 包装使用。但 McpServer 的**工具注册功能**是死的。
@@ -63,3 +63,17 @@ ADR 0012 决策"双 IToolHandler 接口不合并"，理由是协议层与业务�
 ### 验证
 
 Mcp 编译 0 警告 0 错误，171 单元测试全通过 ✅
+
+## 3. 工具函数统一 — 三项合并（原 AGENTS.md 规则4）
+
+> 迁移自 AGENTS.md 规则4。这些合并是 debug/清理工作,非全局架构决策。
+
+- **合并1：双 IToolHandler 接口** ✅ 已完成
+  - `IMcpProtocolHandler`（原 McpProtocol.IToolHandler）已移除 — 0 个生产实现,为死接口
+  - `Abstractions.IToolHandler`（InputSchema=ToolSchema, 返回ToolResult, 有Kind/GroupName/onProgress）是唯一工具处理器接口
+- **合并2：三个 ResultBuilder → 一个** ✅ 已完成
+  - `ResultBuilder`（Hands）和 `McpResultBuilder`（Abstractions）已移除
+  - `ToolResultBuilder`（Abstractions）是唯一的 ToolResult 构建器,含 WithPdf/WithBinary/WithEntityMetadata
+- **合并3：ToolHandler 委托的 toolName 参数**
+  - 保留当前设计（DelegateToolHandler 内部补传 Name），不做修改
+  - 原因：委托需要工具名做路由，接口通过 this.Name 获取，两者语义不同

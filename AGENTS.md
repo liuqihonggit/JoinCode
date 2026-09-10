@@ -677,20 +677,6 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 - **新增热重载字段**：ToolScoreSettings、BlacklistedTools、ToolPenalties、HyperedgeSettings（评分配置变更最频繁）
 - **禁止**：直接修改 `_active` 而不经过 `_staging` 验证
 
-### 规则4：工具函数统一 — 三项合并
-
-> 归档记录: [archive-dead-code.md](docs/refactoring/archive-dead-code.md)（归档死接口，取代 0012）
-
-- **合并1：双 IToolHandler 接口** ✅ 已完成
-  - `IMcpProtocolHandler`（原 McpProtocol.IToolHandler）已移除 — 0 个生产实现,为死接口
-  - `Abstractions.IToolHandler`（InputSchema=ToolSchema, 返回ToolResult, 有Kind/GroupName/onProgress）是唯一工具处理器接口
-- **合并2：三个 ResultBuilder → 一个** ✅ 已完成
-  - `ResultBuilder`（Hands）和 `McpResultBuilder`（Abstractions）已移除
-  - `ToolResultBuilder`（Abstractions）是唯一的 ToolResult 构建器,含 WithPdf/WithBinary/WithEntityMetadata
-- **合并3：ToolHandler 委托的 toolName 参数**
-  - 保留当前设计（DelegateToolHandler 内部补传 Name），不做修改
-  - 原因：委托需要工具名做路由，接口通过 this.Name 获取，两者语义不同
-
 ### 规则5：参数传递传父类/接口，不传属性
 
 > ADR: [0016](docs/adr/0016-pass-interface-not-property.md)

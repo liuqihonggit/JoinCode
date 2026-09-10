@@ -124,3 +124,157 @@ PluginHost (Actor + Channel<Func<Task>> mailbox)
 - 每维度编译+单元测试+提交（渐进式开发）
 - 最后全量编译+集成测试
 - ALC 的 AOT 兼容性单独验证（Release 编译）
+
+## DSH/Cordis 功能对齐补全（2026-09-11 扩写）
+
+对照 DSH（DeepSeek Harness，基于 Cordis 内核）插件系统，ADR 0098 原 12 维度已全部落地（Actor+Channel、EffectScope、PluginFiber 状态机、DependencyGraph、ResourceReferenceGraph、ALC 隔离、RunBackgroundTask、PluginDiagnostic、WeakEventBroker、ServiceLookup、标准 DI、心跳检测）。DSH 另有 11 项功能未覆盖，经 .NET NativeAOT 可行性评估，全部纳入本 ADR（#8 #9 因 AOT 限制降级）。不新建 ADR，统一扩写至此。
+
+### 补全项清单
+
+| # | 功能 | AOT | 难度 | 价值 | 依赖 |
+|---|------|:---:|:---:|:---:|:----:|
+| 1 | 5 种事件分发模式 | ✅ | 中 | 高 | - |
+| 2 | 运行时不变量自检 | ✅ | 中 | 高 | - |
+| 3 | 插件审批机制 | ✅ | 低 | 中 | - |
+| 4 | SessionEvent 事件溯源 | ✅ | 高 | 高 | - |
+| 5 | Trajectory + fork/replay | ✅ | 高 | 高 | #4 |
+| 6 | intercept 配置覆写 | ✅ | 中 | 中 | - |
+| 7 | patch 层/Bundle/Profile 组合 | ✅ | 中 | 中 | - |
+| 8 | 动态插件运行时（部分） | ⚠️ | 高 | 高 | #3 |
+| 9 | capability 注入门禁（部分） | ⚠️ | 高 | 中 | - |
+| 10 | Service.invoke 可调用服务 | ✅ | 中 | 低 | - |
+| 11 | 多运行模式 | ✅ | 中 | 低 | - |
+
+### 11.1 事件分发模式（5 种）
+
+- `EventDispatchMode` 枚举：`Emit`/`Parallel`/`Serial`/`Bail`/`Waterfall`
+- `Emit`：同步触发不等监听器
+- `Parallel`：异步并行 `Task.WhenAll`
+- `Serial`：串行依次
+- `Bail`：首个 bail 结果即停
+- `Waterfall`：监听器连成 `next()` 链，漏调 `next()` 短路整条链
+- 改造 `ServiceMessageBus` 支持 `EventDispatchMode` 参数，`IAppEventBus` 加 `EmitWaterfall`/`EmitBail` 等扩展方法
+- 典型应用：`tools/pre-execute` 门禁走 waterfall，`agent/error` 走 emit，`session/flush` 走 parallel
+- AOT：✅ 纯 C# 实现，无反射 emit
+
+### 11.2 运行时不变量自检
+
+- `InvariantRegistry` 服务（挂成 `ctx.Invariants`），可配置注册表，不含产品检查
+- 每个插件程序集暴露 `RegisterInvariants(IInvariantRegistry)` 配套入口（对齐 DSH `./invariant` 伴随入口）
+- `InvariantError`：`code:'INVARIANT'`（稳定机器可读）+ `PackageName`，继承 `Exception`
+- `package_allowlist`/`package_blocklist` 正则过滤（区分大小写、`new RegExp` 编译、blocklist 优先）
+- 专用子 fiber 运行 installer，`fail(message)` 注入抛 `InvariantError`
+- 启动 join：注册成功前不返回；失败原子 dispose 子 fiber
+- disposer 归属：服务拥有每个注册 fiber，卸载任一侧都移除监听器
+- AOT：✅
+
+### 11.3 插件审批机制
+
+- `PluginApprovalRequest`（复用现有 `PlanApprovalRequest` 模式扩展）
+- `ApprovalRequestId` 自增铸造
+- 首个回答者获胜：`ArmRequest`/`PeekRequest`/`ClaimRequest`/`DisarmRequest`/`PendingRequestFor`
+- `approve(requestId, approveFutureVersions)` / `decline(requestId)`
+- 动态插件运行时（#8）的激活前置依赖
+- AOT：✅
+
+### 11.4 SessionEvent 事件溯源
+
+- `SessionEvent` 持久事件流：`seq` 单调递增 + `time` + `type` + `data`
+- 格式版本闸门：`SessionFormatVersion`（当前 =3），日志首行 version 比当前新时拒绝加载
+- `surfaceOp`：`append` 或 `{ op:'replace', startSeq, endSeq }`，仅 message/tool-result 合法
+- `sourceEventSeqs`：引用的源事件 seq（压缩替换→被遮蔽条目）
+- `ignorable`：未知类型跳过；缺失=必选，拒绝重建
+- 升级 `TranscriptService` 为事件溯源（保留 append-only，加 seq/surfaceOp/格式闸门）
+- 遥测/投影/恢复消费同一事件流
+- AOT：✅
+
+### 11.5 Trajectory + fork/replay
+
+- `SessionTrajectory`：从事件流重建完整 run（按 source 分组 inspect）
+- `ReplaySession`：回放事件流到指定 seq
+- `ForkSession`：从某 seq 分叉新会话（复制事件流前缀）
+- 依赖 #4 SessionEvent 事件溯源
+- 复用现有 `SessionResumeStep` 扩展
+- AOT：✅
+
+### 11.6 intercept 配置覆写
+
+- `ServiceIntercept` 层：`ctx.Intercept(serviceName, config)`
+- 流入 `Service.ResolveConfig` 合并祖先 intercept 配置
+- 允许插件覆写服务配置而不改服务实现
+- AOT：✅
+
+### 11.7 patch 层 / Bundle / Profile 组合
+
+- `PluginPatch`：YAML 顶层数组，每条目两种操作——`insert`（按 id 追加）/ 按 id 覆盖整行
+- `PluginBundle`：自带 patch 层的插件包，作为一层加入 profile
+- `PluginProfile`：`bundles` 依赖声明
+- 多层拍平应用：`profile.bundles` → profile patch → 全局 patch → `--patch` overlays
+- `config` 整行替换非深合并；`name` 不符 warn 后跳过；无 `replace`/`ignore` 动词
+- reconcile 按已安装状态（非依赖 diff），`update` 能激活新版本才多了 `dsh.bundle` 声明的包
+- AOT：✅
+
+### 11.8 动态插件运行时（部分，AOT 降级）
+
+- `DynamicPluginRegistry`：进程内存 `Map`，不可变 `Package` + `currentPackageId`/`nextPackageId`
+- `DefinePlugin`/`RunPlugin`/`UpdatePlugin`/`StopPlugin`/`UndefinePlugin`
+- **运行时加载已编译程序集**（复用 `PluginAlc`）+ 版本 + 审批（依赖 #3）
+- **不支持源码求值**：Roslyn 编译器不兼容 NativeAOT，只支持已编译 DLL
+- `stop` 只停运行、`undefine` 永久删除；重启全部丢失（纯内存）
+- `inspect provider`（运行时自省）：`CordisInspectRegistryService` 挂成 `ctx.CordisInspect`
+- invoke handler 表：`host.call(method, args)` 路由，4 类失败码（plugin-not-running/stale-run/method-not-found/handler-error）
+- AOT：⚠️ 降级（无源码求值，只有已编译程序集加载）
+
+### 11.9 capability 注入门禁（部分，AOT 适配）
+
+- **源码生成器编译时检查**：扫描 `[Inject]` 特性，校验 `inject` 声明完整性，未声明访问编译报错
+- **运行时 `ServiceLookup` 校验**：已声明才放行，未声明抛 `ServiceNotDeclaredException`（带修复提示）
+- **不用 `DispatchProxy`**（AOT 不兼容，ADR 0098 已否决 `WeakServiceProxy`）
+- 对齐 DSH capability-based Proxy 语义，但实现路线是源码生成器 + 运行时校验
+- AOT：⚠️ 源码生成器路线
+
+### 11.10 Service.invoke 可调用服务
+
+- `[ServiceInvoke]` 特性标记可调用方法
+- 源码生成器生成调用包装（把服务包成可调用委托）
+- 消费方 `ctx.MyService(args)` 直接调用（对齐 DSH `ctx.logger()` 式）
+- AOT：✅
+
+### 11.11 多运行模式
+
+- `RunMode` 枚举：`Standard`/`Code`/`Minimal`/`Creator`
+- 映射现有 `Interactive`/`NonInteractive`/`Doctor`/`Tui`/`Json`/`Headless`
+- `Standard`：完整工具集（文件编辑+shell+搜索+技能+规划+子代理+工作流）
+- `Code`：SDK 编排（多步操作合并为一个程序）
+- `Minimal`：双工具（shell + str_replace_editor，基准测试用）
+- `Creator`：自省 + 插件实验 + 预设编写
+- AOT：✅
+
+### 实现顺序（依赖链）
+
+```
+#3 审批 → #1 分发模式 → #2 不变量 → #6 intercept → #4 事件溯源 → #5 Trajectory → #7 patch 层 → #9 capability → #10 Service.invoke → #11 多模式 → #8 动态运行时
+```
+
+### 组件处置清单（新增）
+
+| 组件 | 处置 | 理由 |
+|------|------|------|
+| `EventDispatchMode` 枚举 | 新增 | 5 种分发模式 |
+| `InvariantRegistry`+`InvariantError` | 新增 | 运行时不变量自检 |
+| `PluginApprovalRequest` | 新增 | 复用 PlanApproval 模式 |
+| `SessionEvent` 事件流 | 新增（升级 TranscriptService） | 事件溯源 |
+| `SessionTrajectory`+`ReplaySession`+`ForkSession` | 新增 | 事件流重建 |
+| `ServiceIntercept` | 新增 | 配置覆写层 |
+| `PluginPatch`/`PluginBundle`/`PluginProfile` | 新增 | 配置组合 |
+| `DynamicPluginRegistry` | 新增 | 运行时动态插件 |
+| `CapabilityGate`（源码生成器） | 新增 | 编译时 inject 检查 |
+| `ServiceInvokeGenerator` | 新增 | 可调用服务包装 |
+| `RunMode` 枚举 | 新增 | 多运行模式 |
+
+### 补全验证
+
+- 每项走 TDD 红绿循环（AGENTS.md TDD 铁律）
+- 每项编译+单元测试+提交（渐进式开发）
+- #8 #9 的 AOT 限制单独 Release 编译验证
+- #4 事件溯源的格式闸门用版本迁移测试验证

@@ -99,6 +99,26 @@ public sealed class PluginContext
     public Task RunBackgroundTask(Action<CancellationToken> work, TimeSpan? waitOnUnload = null)
         => RunBackgroundTask(ct => { work(ct); return Task.CompletedTask; }, waitOnUnload);
 
+    /// <summary>
+    /// 弱引用事件订阅 — 订阅者死亡自动回收,不造成内存泄漏(ADR 0098)
+    /// <para>对齐 Cordis ctx.WeakSubscribe — AOT 兼容,不用反射</para>
+    /// <para>handler 不捕获 target(target 作为参数传入),实现真正弱引用</para>
+    /// <para>revert 为空操作:弱引用随 GC 自动清理,ConditionalWeakTable 以 source 为键</para>
+    /// </summary>
+    /// <param name="source">事件源(ConditionalWeakTable 键,源回收后条目自动消失)</param>
+    /// <param name="target">订阅者(弱引用目标,死亡后自动回收)</param>
+    /// <param name="handler">回调(target 作为参数传入,不捕获 target)</param>
+    public void WeakSubscribe<TTarget, TArgs>(
+        object source, TTarget target, Action<TTarget, TArgs> handler) where TTarget : class
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(handler);
+
+        WeakEventBroker<TArgs>.Subscribe(source, target, handler);
+        _undoChain.Add(new NonEmptyUndo(() => { }));
+    }
+
     private static void WaitForBackgroundTaskExit(Task task, TimeSpan wait, string pluginName)
     {
         if (wait <= TimeSpan.Zero) return;

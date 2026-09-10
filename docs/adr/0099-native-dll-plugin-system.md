@@ -1,6 +1,6 @@
 # 0099. Native DLL 插件系统: NativeLibrary.Load + UnmanagedCallersOnly
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-09-11
 - 决策者：AI + 用户确认
 

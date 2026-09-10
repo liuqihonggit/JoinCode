@@ -24,4 +24,10 @@ public interface ISandboxManager : IDisposable
     Task<SandboxDegradationResult> TryEnterWithFallbackAsync(SandboxOptions options, CancellationToken ct = default);
     Task<SandboxExecutionResult> ExecuteInSandboxAsync(string command, SandboxExecutionOptions options, CancellationToken ct = default);
     Task<SandboxExecutionResult> ContinueExecutionAsync(string executionId, string action, CancellationToken ct = default);
+
+    /// <summary>运行时添加沙箱提供器 — 插件加载时调用(ADR 0098)</summary>
+    bool AddProvider(ISandboxProvider provider);
+
+    /// <summary>运行时移除沙箱提供器 — 插件卸载时调用</summary>
+    bool RemoveProvider(SandboxType type);
 }

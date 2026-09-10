@@ -201,11 +201,11 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable
     /// </summary>
     public MemoryStatistics GetStatistics()
     {
-        var memories = _memories.Values.ToList();
+        var memories = _memories.Values;
 
         return new MemoryStatistics
         {
-            TotalCount = memories.Count,
+            TotalCount = _memories.Count,
             TypeCounts = memories.GroupBy(m => m.Type)
                 .ToDictionary(g => g.Key, g => g.Count()),
             TagCounts = memories.SelectMany(m => m.Tags)

@@ -122,16 +122,16 @@ public sealed class HookConfigurationGroup
     }
 
     /// <summary>
-    /// 获取事件的匹配器列表
+    /// 获取事件的匹配器列表 — 零拷贝键视图
     /// </summary>
-    public IReadOnlyList<string> GetMatchers(HookEvent hookEvent)
+    public IEnumerable<string> GetMatchers(HookEvent hookEvent)
     {
         if (!Groups.TryGetValue(hookEvent, out var eventGroup))
         {
             return Array.Empty<string>();
         }
 
-        return eventGroup.Keys.ToList();
+        return eventGroup.Keys;
     }
 
     /// <summary>

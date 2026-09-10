@@ -24,6 +24,16 @@ public sealed record LoadExternalCmd(
     CancellationToken CancellationToken) : PluginManagerCommand;
 
 /// <summary>
+/// 加载 native DLL 插件命令 (ADR 0099)
+/// </summary>
+public sealed record LoadNativeCmd(
+    string DllPath,
+    string PluginName,
+    string? ConfigJson,
+    TaskCompletionSource<NativePluginHost> Reply,
+    CancellationToken CancellationToken) : PluginManagerCommand;
+
+/// <summary>
 /// 卸载插件命令
 /// </summary>
 public sealed record UnloadCmd(

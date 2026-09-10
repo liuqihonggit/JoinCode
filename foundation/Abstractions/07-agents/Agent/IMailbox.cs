@@ -22,8 +22,8 @@ public interface IMailbox
     /// <summary>从指定 agent 邮箱接收消息流。</summary>
     IAsyncEnumerable<CoordinatorMessage> ReceiveAsync(string agentId, CancellationToken cancellationToken = default);
 
-    /// <summary>获取所有已注册邮箱的 agent。</summary>
-    IReadOnlyCollection<string> GetRegisteredAgents();
+    /// <summary>获取所有已注册邮箱的 agent — 零拷贝键视图。</summary>
+    IEnumerable<string> GetRegisteredAgents();
 
     /// <summary>获取 agent 的会话 ID。</summary>
     string? GetSessionId(string agentId);

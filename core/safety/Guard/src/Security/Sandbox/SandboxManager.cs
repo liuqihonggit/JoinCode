@@ -4,7 +4,7 @@ namespace Core.Security.Sandbox;
 [Register(typeof(ISandboxManager), ServiceLifetime.Singleton)]
 public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDisposable
 {
-    private readonly FrozenDictionary<SandboxType, ISandboxProvider> _providers;
+    private readonly ConcurrentDictionary<SandboxType, ISandboxProvider> _providers;
     private readonly AsyncLock _lock = new();
     private readonly ILogger<SandboxManager>? _logger;
     private readonly IFileSystem _fs;
@@ -23,11 +23,40 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
         _fs = fs;
         _ipcClient = ipcClient;
         _logger = logger;
-        _providers = providers
-            .Where(p => p.IsAvailable)
-            .ToFrozenDictionary(p => p.SandboxType, p => p);
+        _providers = new ConcurrentDictionary<SandboxType, ISandboxProvider>(
+            providers
+                .Where(p => p.IsAvailable)
+                .ToDictionary(p => p.SandboxType, p => p));
 
         _logger?.LogInformation("[SandboxManager] 可用沙箱类型: {Types}", string.Join(", ", _providers.Keys.Select(k => k.ToValue())));
+    }
+
+    /// <summary>
+    /// 运行时添加沙箱提供器 — 插件加载时调用(ADR 0098 万物皆插件)
+    /// </summary>
+    public bool AddProvider(ISandboxProvider provider)
+    {
+        ArgumentNullException.ThrowIfNull(provider);
+        if (!provider.IsAvailable) return false;
+        var added = _providers.TryAdd(provider.SandboxType, provider);
+        if (added)
+        {
+            _logger?.LogInformation("[SandboxManager] 插件注册沙箱类型: {Type}", provider.SandboxType.ToValue());
+        }
+        return added;
+    }
+
+    /// <summary>
+    /// 运行时移除沙箱提供器 — 插件卸载时调用
+    /// </summary>
+    public bool RemoveProvider(SandboxType type)
+    {
+        var removed = _providers.TryRemove(type, out _);
+        if (removed)
+        {
+            _logger?.LogInformation("[SandboxManager] 插件移除沙箱类型: {Type}", type.ToValue());
+        }
+        return removed;
     }
 
     public ISandboxProvider? ActiveProvider => _activeProvider;

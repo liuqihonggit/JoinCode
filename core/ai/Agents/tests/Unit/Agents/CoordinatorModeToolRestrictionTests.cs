@@ -14,6 +14,7 @@ public sealed class CoordinatorModeToolRestrictionTests
         try
         {
             var registry = new AgentRoleProfileRegistry();
+            registry.RegisterBuiltInProfiles();
             var profile = registry.GetProfile(AgentRole.Coordinator);
 
             profile.Should().NotBeNull();
@@ -34,6 +35,7 @@ public sealed class CoordinatorModeToolRestrictionTests
     {
         Environment.SetEnvironmentVariable("JCC_COORDINATOR_MODE", null);
         var registry = new AgentRoleProfileRegistry();
+        registry.RegisterBuiltInProfiles();
         var profile = registry.GetProfile(AgentRole.Coordinator);
 
         profile.Should().NotBeNull();

@@ -44,10 +44,16 @@ public sealed class McpInitModule : IAppModule
 
         services.WirePluginSkillBridge();
 
-        // 并行：DreamPlugin 加载 + MCP 工具注册（两者逻辑独立，IToolRegistry 线程安全）
+        // 并行：所有插件加载（八者逻辑独立，IToolRegistry 线程安全）
         var dreamTask = LoadDreamPluginSafeAsync(services, logger, ct);
-        var mcpInitTask = McpInitializeSafeAsync(services, logger, ct);
-        await Task.WhenAll(dreamTask, mcpInitTask).ConfigureAwait(false);
+        var fixHooksTask = LoadFixHooksPluginSafeAsync(services, logger, ct);
+        var sandboxTask = LoadSandboxProvidersPluginSafeAsync(services, logger, ct);
+        var telemetryTask = LoadTelemetryPluginSafeAsync(services, logger, ct);
+        var agentRolesTask = LoadAgentRolesPluginSafeAsync(services, logger, ct);
+        var csharpLangTask = LoadCSharpLanguagePluginSafeAsync(services, logger, ct);
+        var llmTask = LoadLlmProvidersPluginSafeAsync(services, logger, ct);
+        var mcpInitTask = LoadMcpInitPluginSafeAsync(services, logger, ct);
+        await Task.WhenAll(dreamTask, fixHooksTask, sandboxTask, telemetryTask, agentRolesTask, csharpLangTask, llmTask, mcpInitTask).ConfigureAwait(false);
 
         // 所有工具注册完成后，同步工具列表 + 刷新 kernel.Plugins
         try
@@ -83,23 +89,114 @@ public sealed class McpInitModule : IAppModule
     }
 
     /// <summary>
-    /// 安全初始化 MCP 服务 — 5s 超时，失败仅记日志，不阻断启动
+    /// 安全加载 FixHooksPlugin — 失败仅记日志，不阻断启动
     /// </summary>
-    private static async Task McpInitializeSafeAsync(IServiceProvider services, ILogger? logger, CancellationToken ct)
+    private static async Task LoadFixHooksPluginSafeAsync(IServiceProvider services, ILogger? logger, CancellationToken ct)
     {
         try
         {
-            using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromSeconds(5));
-            var mcpService = services.GetRequiredService<IMcpService>();
-            await mcpService.InitializeAsync(services, cts.Token).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            logger?.LogWarning("[MCP] InitializeAsync timed out after 5s");
+            var pluginManager = services.GetRequiredService<Core.Plugins.IPluginManager>();
+            await pluginManager.LoadWorkflowPluginAsync<Core.Plugins.FixHooksPlugin>(ct).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            logger?.LogError(ex, "[MCP] InitializeAsync failed");
+            logger?.LogError(ex, "[MCP] LoadFixHooksPlugin failed");
+        }
+    }
+
+    /// <summary>
+    /// 安全加载 SandboxProvidersPlugin — 失败仅记日志，不阻断启动
+    /// </summary>
+    private static async Task LoadSandboxProvidersPluginSafeAsync(IServiceProvider services, ILogger? logger, CancellationToken ct)
+    {
+        try
+        {
+            var pluginManager = services.GetRequiredService<Core.Plugins.IPluginManager>();
+            await pluginManager.LoadWorkflowPluginAsync<Core.Plugins.SandboxProvidersPlugin>(ct).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "[MCP] LoadSandboxProvidersPlugin failed");
+        }
+    }
+
+    /// <summary>
+    /// 安全加载 TelemetryPlugin — 失败仅记日志，不阻断启动
+    /// </summary>
+    private static async Task LoadTelemetryPluginSafeAsync(IServiceProvider services, ILogger? logger, CancellationToken ct)
+    {
+        try
+        {
+            var pluginManager = services.GetRequiredService<Core.Plugins.IPluginManager>();
+            await pluginManager.LoadWorkflowPluginAsync<Core.Telemetry.TelemetryPlugin>(ct).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "[MCP] LoadTelemetryPlugin failed");
+        }
+    }
+
+    /// <summary>
+    /// 安全加载 AgentRolesPlugin — 失败仅记日志，不阻断启动
+    /// </summary>
+    private static async Task LoadAgentRolesPluginSafeAsync(IServiceProvider services, ILogger? logger, CancellationToken ct)
+    {
+        try
+        {
+            var pluginManager = services.GetRequiredService<Core.Plugins.IPluginManager>();
+            await pluginManager.LoadWorkflowPluginAsync<Core.Agents.AgentRolesPlugin>(ct).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "[MCP] LoadAgentRolesPlugin failed");
+        }
+    }
+
+    /// <summary>
+    /// 安全加载 CSharpLanguagePlugin — 失败仅记日志，不阻断启动
+    /// </summary>
+    private static async Task LoadCSharpLanguagePluginSafeAsync(IServiceProvider services, ILogger? logger, CancellationToken ct)
+    {
+        try
+        {
+            var pluginManager = services.GetRequiredService<Core.Plugins.IPluginManager>();
+            await pluginManager.LoadWorkflowPluginAsync<JoinCode.CodeIndex.CSharpLanguagePlugin>(ct).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "[MCP] LoadCSharpLanguagePlugin failed");
+        }
+    }
+
+    /// <summary>
+    /// 安全加载 LlmProvidersPlugin — 失败仅记日志，不阻断启动
+    /// </summary>
+    private static async Task LoadLlmProvidersPluginSafeAsync(IServiceProvider services, ILogger? logger, CancellationToken ct)
+    {
+        try
+        {
+            var pluginManager = services.GetRequiredService<Core.Plugins.IPluginManager>();
+            await pluginManager.LoadWorkflowPluginAsync<JoinCode.Llm.Plugins.LlmProvidersPlugin>(ct).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "[MCP] LoadLlmProvidersPlugin failed");
+        }
+    }
+
+    /// <summary>
+    /// 安全加载 McpInitPlugin — 失败仅记日志，不阻断启动
+    /// </summary>
+    private static async Task LoadMcpInitPluginSafeAsync(IServiceProvider services, ILogger? logger, CancellationToken ct)
+    {
+        try
+        {
+            var pluginManager = services.GetRequiredService<Core.Plugins.IPluginManager>();
+            await pluginManager.LoadWorkflowPluginAsync<JoinCode.Mcp.Plugins.McpInitPlugin>(ct).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "[MCP] LoadMcpInitPlugin failed");
         }
     }
 

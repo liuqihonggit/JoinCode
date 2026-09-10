@@ -19,7 +19,7 @@ public sealed class McpToolBridge
     {
         var allTools = await _toolRegistry.GetAllToolsAsync(cancellationToken);
 
-        var visibleHandlers = allTools.Values.ToList();
+        var visibleHandlers = allTools.Values;
 
         var coreFunctions = new List<IToolDef>();
         var mcpFunctions = new List<IToolDef>();

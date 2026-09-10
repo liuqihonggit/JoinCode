@@ -130,7 +130,7 @@ internal sealed class FakeMessageBroker : IMailbox
         return AsyncEnumerable.Empty<CoordinatorMessage>();
     }
 
-    public IReadOnlyCollection<string> GetRegisteredAgents() => [];
+    public IEnumerable<string> GetRegisteredAgents() => [];
 
     public string? GetSessionId(string agentId) => null;
 }

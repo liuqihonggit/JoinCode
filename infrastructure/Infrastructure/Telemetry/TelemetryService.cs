@@ -8,7 +8,7 @@ public sealed partial class TelemetryService : ITelemetryService
     private readonly ActivitySource _activitySource;
     private readonly Meter _meter;
     private readonly ActivityListener _listener;
-    private readonly ConsoleTelemetryExporter? _consoleExporter;
+    private ConsoleTelemetryExporter? _consoleExporter;
     private readonly IAnalyticsFileSink? _analyticsSink;
     private readonly ConcurrentDictionary<string, ITelemetryCounter> _counters = new();
     private readonly ConcurrentDictionary<string, ITelemetryHistogram> _histograms = new();
@@ -35,12 +35,24 @@ public sealed partial class TelemetryService : ITelemetryService
             Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded
         };
         ActivitySource.AddActivityListener(_listener);
+    }
 
-        // Console 导出器：当 ExportFormat == Console 时，将 span 信息输出到日志
-        if (config.ExportFormat == TelemetryExportFormat.Console)
-        {
-            _consoleExporter = new ConsoleTelemetryExporter(config.ServiceName, logger);
-        }
+    /// <summary>
+    /// 启用控制台导出器 — 插件加载时调用(ADR 0098 万物皆插件)
+    /// </summary>
+    public void EnableConsoleExporter(ILogger? logger)
+    {
+        _consoleExporter?.Dispose();
+        _consoleExporter = new ConsoleTelemetryExporter(_config.ServiceName, logger);
+    }
+
+    /// <summary>
+    /// 禁用控制台导出器 — 插件卸载时调用
+    /// </summary>
+    public void DisableConsoleExporter()
+    {
+        _consoleExporter?.Dispose();
+        _consoleExporter = null;
     }
 
     public ITelemetrySpan StartSpan(

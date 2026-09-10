@@ -69,10 +69,7 @@ public sealed partial class InProcessMailbox : ServiceEntity, IMailbox
         return AsyncEnumerable.Empty<CoordinatorAgentMessage>();
     }
 
-    public IReadOnlyCollection<string> GetRegisteredAgents()
-    {
-        return _messageChannels.Keys.ToList();
-    }
+    public IEnumerable<string> GetRegisteredAgents() => _messageChannels.Keys;
 
     public string? GetSessionId(string agentId)
     {

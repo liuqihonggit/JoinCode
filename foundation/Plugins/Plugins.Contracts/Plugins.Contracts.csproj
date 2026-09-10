@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>JoinCode.Plugins.Contracts</RootNamespace>
+    <AssemblyName>JoinCode.Plugins.Contracts</AssemblyName>
+    <AllowPack>true</AllowPack>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)foundation\Abstractions\Abstractions.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions" Version="$(JccComponentPackageVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)generators\EnumMetadata.Generator\src\EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="JoinCode.Plugins.Infrastructure" />
+    <InternalsVisibleTo Include="JoinCode.Plugins.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Infra.Services.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Guard.Config.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -124,7 +124,7 @@ public abstract class SandboxProviderBase : ISandboxProvider
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        foreach (var sandboxId in _sandboxes.Keys.ToList())
+        foreach (var sandboxId in _sandboxes.Keys)
         {
             await DestroySandboxAsync(sandboxId).ConfigureAwait(false);
         }

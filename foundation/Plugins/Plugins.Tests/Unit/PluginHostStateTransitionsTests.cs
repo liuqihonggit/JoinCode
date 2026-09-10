@@ -1,4 +1,4 @@
-namespace Infra.Tests.Utils.Plugins;
+namespace JoinCode.Plugins.Tests.Unit;
 
 /// <summary>
 /// PluginHostStateTransitions 单元测试 — 验证插件宿主状态转换规则正确性

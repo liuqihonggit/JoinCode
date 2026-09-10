@@ -8,6 +8,7 @@ public sealed class WorkflowPluginHost : PluginResourceBase
 {
     private readonly IServiceCollection _pluginServices;
     private ServiceProvider? _pluginServiceProvider;
+    private readonly IServiceProvider? _rootServiceProvider;
     private readonly IWorkflowPlugin _plugin;
     private readonly ILogger? _logger;
     private readonly ICommandRegistry? _sharedCommandRegistry;
@@ -25,12 +26,14 @@ public sealed class WorkflowPluginHost : PluginResourceBase
         ILoggerFactory? loggerFactory = null,
         IFileOperationService? fileOperationService = null,
         ICommandRegistry? commandRegistry = null,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        IServiceProvider? rootServiceProvider = null)
         : base(plugin.Name, PluginResourceKind.Hook, plugin.Name)
     {
         _plugin = plugin;
         _logger = logger;
         _sharedCommandRegistry = commandRegistry;
+        _rootServiceProvider = rootServiceProvider;
 
         _pluginServices = new ServiceCollection();
 
@@ -91,11 +94,13 @@ public sealed class WorkflowPluginHost : PluginResourceBase
             return OperationResult.Fail("插件服务容器未构建，请先调用 Load()");
         }
 
+        var effectiveServiceProvider = _rootServiceProvider ?? _pluginServiceProvider;
+
         try
         {
             _logger?.LogInformation("正在初始化工作流插件: {PluginName}", _plugin.Name);
 
-            var result = await _plugin.InitializeAsync(_pluginServiceProvider, cancellationToken).ConfigureAwait(false);
+            var result = await _plugin.InitializeAsync(effectiveServiceProvider, cancellationToken).ConfigureAwait(false);
 
             if (!result.Success)
             {

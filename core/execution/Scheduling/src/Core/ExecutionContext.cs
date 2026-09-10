@@ -79,9 +79,9 @@ internal sealed class ExecutionContext : IAsyncDisposable
     public bool IsCompleted(string taskId) => _completedTaskIds.ContainsKey(taskId);
 
     /// <summary>
-    /// 获取已完成的任务ID集合
+    /// 获取已完成的任务ID集合 — 零拷贝，直接走 ConcurrentDictionary.Keys 视图
     /// </summary>
-    public IReadOnlyCollection<string> GetCompletedTaskIds() => _completedTaskIds.Keys.ToList();
+    public IEnumerable<string> GetCompletedTaskIds() => _completedTaskIds.Keys;
 
     /// <summary>
     /// 异步释放资源

@@ -356,10 +356,7 @@ public sealed partial class SessionHookManager : ServiceEntity, ISessionHookMana
     /// <summary>
     /// 获取所有会话ID
     /// </summary>
-    public IEnumerable<string> GetAllSessionIds()
-    {
-        return _sessionStores.Keys.ToList();
-    }
+    public IEnumerable<string> GetAllSessionIds() => _sessionStores.Keys;
 
     /// <summary>
     /// 清除所有会话钩子

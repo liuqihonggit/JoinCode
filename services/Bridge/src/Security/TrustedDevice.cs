@@ -63,8 +63,8 @@ public interface ITrustedDeviceStore : JoinCode.Abstractions.State.IStore
     /// <summary>获取指定设备</summary>
     ValueTask<TrustedDeviceEntry?> GetAsync(string deviceId, CancellationToken ct = default);
 
-    /// <summary>获取所有受信任设备</summary>
-    ValueTask<IReadOnlyList<TrustedDeviceEntry>> GetAllAsync(CancellationToken ct = default);
+    /// <summary>获取所有受信任设备 — 零拷贝值视图</summary>
+    ValueTask<IEnumerable<TrustedDeviceEntry>> GetAllAsync(CancellationToken ct = default);
 
     /// <summary>检查设备是否受信任且未撤销</summary>
     ValueTask<bool> IsTrustedAsync(string deviceId, CancellationToken ct = default);
@@ -134,10 +134,9 @@ public sealed partial class TrustedDeviceStore : ServiceEntity, ITrustedDeviceSt
     }
 
     /// <inheritdoc />
-    public ValueTask<IReadOnlyList<TrustedDeviceEntry>> GetAllAsync(CancellationToken ct = default)
+    public ValueTask<IEnumerable<TrustedDeviceEntry>> GetAllAsync(CancellationToken ct = default)
     {
-        IReadOnlyList<TrustedDeviceEntry> result = _devices.Values.ToList();
-        return new ValueTask<IReadOnlyList<TrustedDeviceEntry>>(result);
+        return new ValueTask<IEnumerable<TrustedDeviceEntry>>(_devices.Values);
     }
 
     /// <inheritdoc />

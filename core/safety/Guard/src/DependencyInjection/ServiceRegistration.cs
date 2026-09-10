@@ -14,10 +14,7 @@ public static partial class ServiceRegistration
 
     public static IServiceCollection AddSecurityServices(this IServiceCollection services)
     {
-        services.TryAddSingleton<ISandboxProvider, SoftSandboxProvider>();
-        services.TryAddSingleton<ISandboxProvider, ProcessSandboxProvider>();
-        services.TryAddSingleton<ISandboxProvider, DockerSandboxProvider>();
-        services.TryAddSingleton<ISandboxProvider, BubblewrapSandboxProvider>();
+        // SandboxProvider 由 SandboxProvidersPlugin 运行时注册(ADR 0098 万物皆插件)
         services.TryAddSingleton(typeof(SandboxIpcClient), sp => new SandboxIpcClient(
             sp.GetRequiredService<IProcessService>(),
             sp.GetRequiredService<IFileSystem>(),

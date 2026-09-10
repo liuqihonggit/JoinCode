@@ -9,6 +9,7 @@ namespace JoinCode.Abstractions.Entity;
 public sealed class PluginDependencyGraph
 {
     private readonly Dictionary<string, HashSet<Type>> _declarations = new();
+    private readonly Dictionary<string, HashSet<string>> _pluginDependencies = new();
 
     /// <summary>声明插件依赖某服务类型</summary>
     public void DeclareServiceDependency(string plugin, Type serviceType)
@@ -18,8 +19,29 @@ public sealed class PluginDependencyGraph
         set.Add(serviceType);
     }
 
+    /// <summary>
+    /// 声明插件依赖另一个插件(插件名级依赖,ADR 0098 维度11整合)
+    /// <para>替代 FindDependentPlugins 的静态遍历,支持拓扑排序</para>
+    /// </summary>
+    public void DeclarePluginDependency(string plugin, string dependsOn)
+    {
+        if (!_pluginDependencies.TryGetValue(dependsOn, out var set))
+            _pluginDependencies[dependsOn] = set = new();
+        set.Add(plugin);
+    }
+
     /// <summary>移除插件的所有声明 — 卸载后清理</summary>
-    public void RemovePlugin(string id) => _declarations.Remove(id);
+    public void RemovePlugin(string id)
+    {
+        _declarations.Remove(id);
+        _pluginDependencies.Remove(id);
+        foreach (var kv in _pluginDependencies)
+            kv.Value.Remove(id);
+    }
+
+    /// <summary>获取直接依赖指定插件的所有插件(插件名级)</summary>
+    public IReadOnlyList<string> GetDependents(string plugin) =>
+        _pluginDependencies.TryGetValue(plugin, out var set) ? set.ToList() : Array.Empty<string>();
 
     /// <summary>
     /// 根据当前服务注册表动态解析拓扑卸载顺序

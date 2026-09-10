@@ -36,6 +36,9 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// <summary>插件黑名单 — 卸载泄漏的插件加入,拒绝再次加载(方案B C4)</summary>
     private readonly ConcurrentDictionary<string, byte> _blacklistedPlugins = new();
 
+    /// <summary>插件依赖图 — 动态拓扑解析(ADR 0098 维度11整合)</summary>
+    private readonly PluginDependencyGraph _dependencyGraph = new();
+
     private IResourceReferenceGraph? _referenceGraph;
     private PluginResourceScanner? _resourceScanner;
     private IAppEventBus? _eventBus;
@@ -187,6 +190,14 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
             {
                 RecordPluginResourceIds(pluginName, pluginBase.Resources.Select(r => r.ObjectId));
                 pluginBase.Fiber.TransitionTo(PluginFiberState.Active);
+            }
+
+            if (plugin is IPluginDependencies deps)
+            {
+                foreach (var dep in deps.Dependencies)
+                {
+                    _dependencyGraph.DeclarePluginDependency(pluginName, dep);
+                }
             }
 
             _logger?.LogInformation("内置工作流插件加载成功: {PluginName}", pluginName);
@@ -366,6 +377,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
 
             ScanAfterUnload(pluginName);
             await BroadcastUiResourceChangeAsync(pluginName, workflowHost).ConfigureAwait(false);
+            _dependencyGraph.RemovePlugin(pluginName);
 
             return result;
         }
@@ -479,36 +491,15 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// </summary>
     private async Task CascadeUnloadDependentsAsync(string pluginName, CancellationToken cancellationToken)
     {
-        var dependents = FindDependentPlugins(pluginName);
+        var dependents = _dependencyGraph.GetDependents(pluginName);
         foreach (var dependent in dependents)
         {
             if (_workflowPlugins.ContainsKey(dependent))
             {
                 _logger?.LogInformation("连带卸载依赖插件: {Dependent} (依赖 {Plugin})", dependent, pluginName);
-                await UnloadPluginAsync(dependent, cancellationToken).ConfigureAwait(false);
+                await UnloadPluginCoreAsync(dependent, cancellationToken).ConfigureAwait(false);
             }
         }
-    }
-
-    /// <summary>找到所有声明依赖指定插件的插件名</summary>
-    private List<string> FindDependentPlugins(string pluginName)
-    {
-        var dependents = new List<string>();
-        foreach (var kv in _workflowPlugins)
-        {
-            if (kv.Value.Plugin is IPluginDependencies deps)
-            {
-                foreach (var dep in deps.Dependencies)
-                {
-                    if (string.Equals(dep, pluginName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        dependents.Add(kv.Key);
-                        break;
-                    }
-                }
-            }
-        }
-        return dependents;
     }
 
     private PluginUnloadResult UnloadWorkflowPlugin(WorkflowPluginHost host)

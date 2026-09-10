@@ -90,14 +90,14 @@ internal sealed class PlaceholderChatSession : IJccChatSession
     public async Task SetModelAsync(string modelId, CancellationToken cancellationToken = default)
     {
         if (_configService is not null)
-            await _configService.SetAsync("model", modelId, cancellationToken).ConfigureAwait(false);
+            await _configService.SetAsync("model", modelId, cancellationToken);
     }
 
     /// <summary>占位会话供应商切换 — 持久化 profile 到 settings.json，引擎可用后重启生效</summary>
     public async Task SetVendorAsync(string vendor, CancellationToken cancellationToken = default)
     {
         if (_configService is null) return;
-        await _configService.SetAsync("profile", vendor, cancellationToken).ConfigureAwait(false);
+        await _configService.SetAsync("profile", vendor, cancellationToken);
     }
 
     /// <summary>占位会话固定返回 Auto，不持久化</summary>
@@ -107,9 +107,9 @@ internal sealed class PlaceholderChatSession : IJccChatSession
     {
         if (_configService is null) return;
         if (effortLevel is EffortLevel.Auto)
-            await _configService.RemoveAsync(ConfigKeyConstants.EffortLevel, cancellationToken).ConfigureAwait(false);
+            await _configService.RemoveAsync(ConfigKeyConstants.EffortLevel, cancellationToken);
         else
-            await _configService.SetAsync(ConfigKeyConstants.EffortLevel, effortLevel.ToValue(), cancellationToken).ConfigureAwait(false);
+            await _configService.SetAsync(ConfigKeyConstants.EffortLevel, effortLevel.ToValue(), cancellationToken);
     }
 
     public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default)
@@ -120,7 +120,7 @@ internal sealed class PlaceholderChatSession : IJccChatSession
     {
         if (_configService is null)
             return ThemeKind.Auto;
-        var value = await _configService.GetAsync(ConfigKeyConstants.Theme, cancellationToken).ConfigureAwait(false);
+        var value = await _configService.GetAsync(ConfigKeyConstants.Theme, cancellationToken);
         return string.IsNullOrEmpty(value) ? ThemeKind.Auto : (ThemeKindExtensions.FromValue(value) ?? ThemeKind.Auto);
     }
 
@@ -128,7 +128,7 @@ internal sealed class PlaceholderChatSession : IJccChatSession
     public async Task SetThemeAsync(ThemeKind theme, CancellationToken cancellationToken = default)
     {
         if (_configService is not null)
-            await _configService.SetAsync(ConfigKeyConstants.Theme, theme.ToValue(), cancellationToken).ConfigureAwait(false);
+            await _configService.SetAsync(ConfigKeyConstants.Theme, theme.ToValue(), cancellationToken);
     }
 
     /// <summary>占位会话无 settings.json 变更，事件永不触发（空 add/remove 避免 CS0067）</summary>

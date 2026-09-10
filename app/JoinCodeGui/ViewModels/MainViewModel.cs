@@ -1575,7 +1575,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
             return;
         var lastUserIndex = Messages.IndexOf(lastUser);
 
-        await _session.RewindLastTurnAsync().ConfigureAwait(false);
+        await _session.RewindLastTurnAsync();
         while (Messages.Count > lastUserIndex)
             Messages.RemoveAt(Messages.Count - 1);
 
@@ -1593,7 +1593,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private async Task ClearHistoryInternalAsync()
     {
         Messages.Clear();
-        await _session.ClearHistoryAsync().ConfigureAwait(false);
+        await _session.ClearHistoryAsync();
     }
 
     /// <summary>展开/收拢右侧设置面板</summary>
@@ -1678,7 +1678,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
         // 需求11：子会话点击展示内容（SubSessionMessages 缓存或引擎加载）
         if (session.IsSubSession)
         {
-            await LoadSubSessionContentAsync(session).ConfigureAwait(false);
+            await LoadSubSessionContentAsync(session);
             return;
         }
 
@@ -1705,7 +1705,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
         // 把持久化历史灌入底层引擎上下文 — GUI 新进程 StateService 内存为空，
         // SwitchSession 仅切换 sessionId 不加载历史，需显式灌入否则发送时 LLM 收不到历史
-        await _session.LoadHistoryAsync(historyForEngine).ConfigureAwait(false);
+        await _session.LoadHistoryAsync(historyForEngine);
     }
 
     /// <summary>重命名指定会话（标题由视图双击触发，空标题忽略）</summary>
@@ -1814,8 +1814,8 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
         _sendCts?.Dispose();
         _sendCts = null;
         if (_realSession is not null)
-            await _realSession.DisposeAsync().ConfigureAwait(false);
+            await _realSession.DisposeAsync();
         if (_mockSession is not null)
-            await _mockSession.DisposeAsync().ConfigureAwait(false);
+            await _mockSession.DisposeAsync();
     }
 }

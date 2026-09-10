@@ -17,17 +17,17 @@ public sealed partial class MainViewModel
         try
         {
             // 1. 先获取 worktree 路径（Stop 之前 — Stop 之后无变更的 worktree 会被自动清理）
-            var worktreePath = await _session.GetSubAgentWorktreePathAsync(teammateId).ConfigureAwait(false);
+            var worktreePath = await _session.GetSubAgentWorktreePathAsync(teammateId);
 
             // 2. 提取 worktree diff 摘要（对齐 PRD 4.6 — 供 mainAgent 分析接手）
             var diffSummary = string.Empty;
             if (!string.IsNullOrEmpty(worktreePath) && System.IO.Directory.Exists(worktreePath))
             {
-                diffSummary = await ExtractWorktreeDiffSummaryAsync(worktreePath).ConfigureAwait(false);
+                diffSummary = await ExtractWorktreeDiffSummaryAsync(worktreePath);
             }
 
             // 3. 真正终止子代理（Stop 内部会调 CleanupWorktreeAsync — 有变更保留，无变更删除）
-            var ok = await _session.StopBackgroundAgentAsync(teammateId).ConfigureAwait(false);
+            var ok = await _session.StopBackgroundAgentAsync(teammateId);
 
             // 4. 构造接手消息注入主会话触发 mainAgent（对齐 PRD 4.6）
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
@@ -87,9 +87,9 @@ public sealed partial class MainViewModel
                 return string.Empty;
             var stdoutTask = proc.StandardOutput.ReadToEndAsync();
             var stderrTask = proc.StandardError.ReadToEndAsync();
-            await proc.WaitForExitAsync().ConfigureAwait(false);
-            var output = await stdoutTask.ConfigureAwait(false);
-            await stderrTask.ConfigureAwait(false);
+            await proc.WaitForExitAsync();
+            var output = await stdoutTask;
+            await stderrTask;
             return output.Trim();
         }
         catch
@@ -132,7 +132,7 @@ public sealed partial class MainViewModel
         }
         try
         {
-            var records = await _session.GetMessagesAsync(CancellationToken.None).ConfigureAwait(false);
+            var records = await _session.GetMessagesAsync(CancellationToken.None);
             foreach (var r in records)
             {
                 if (!string.IsNullOrWhiteSpace(r.Content))
@@ -153,7 +153,7 @@ public sealed partial class MainViewModel
     {
         try
         {
-            var ok = await _session.StopBackgroundAgentAsync(subSession.Id).ConfigureAwait(false);
+            var ok = await _session.StopBackgroundAgentAsync(subSession.Id);
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
             {
                 if (ok)
@@ -187,7 +187,7 @@ public sealed partial class MainViewModel
     {
         try
         {
-            var ok = await _session.InterruptSubAgentAsync(subSession.Id).ConfigureAwait(false);
+            var ok = await _session.InterruptSubAgentAsync(subSession.Id);
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
             {
                 if (ok)
@@ -249,7 +249,7 @@ public sealed partial class MainViewModel
         {
             foreach (var session in sessions)
             {
-                var subs = await _session.GetSubSessionsAsync(session.Id).ConfigureAwait(false);
+                var subs = await _session.GetSubSessionsAsync(session.Id);
                 if (subs.Count == 0)
                     continue;
                 await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>

@@ -44,7 +44,7 @@ public sealed class McpInitModule : IAppModule
 
         services.WirePluginSkillBridge();
 
-        // 并行：所有插件加载 + MCP 工具注册（八者逻辑独立，IToolRegistry 线程安全）
+        // 并行：所有插件加载（八者逻辑独立，IToolRegistry 线程安全）
         var dreamTask = LoadDreamPluginSafeAsync(services, logger, ct);
         var fixHooksTask = LoadFixHooksPluginSafeAsync(services, logger, ct);
         var sandboxTask = LoadSandboxProvidersPluginSafeAsync(services, logger, ct);
@@ -52,7 +52,7 @@ public sealed class McpInitModule : IAppModule
         var agentRolesTask = LoadAgentRolesPluginSafeAsync(services, logger, ct);
         var csharpLangTask = LoadCSharpLanguagePluginSafeAsync(services, logger, ct);
         var llmTask = LoadLlmProvidersPluginSafeAsync(services, logger, ct);
-        var mcpInitTask = McpInitializeSafeAsync(services, logger, ct);
+        var mcpInitTask = LoadMcpInitPluginSafeAsync(services, logger, ct);
         await Task.WhenAll(dreamTask, fixHooksTask, sandboxTask, telemetryTask, agentRolesTask, csharpLangTask, llmTask, mcpInitTask).ConfigureAwait(false);
 
         // 所有工具注册完成后，同步工具列表 + 刷新 kernel.Plugins
@@ -185,23 +185,18 @@ public sealed class McpInitModule : IAppModule
     }
 
     /// <summary>
-    /// 安全初始化 MCP 服务 — 5s 超时，失败仅记日志，不阻断启动
+    /// 安全加载 McpInitPlugin — 失败仅记日志，不阻断启动
     /// </summary>
-    private static async Task McpInitializeSafeAsync(IServiceProvider services, ILogger? logger, CancellationToken ct)
+    private static async Task LoadMcpInitPluginSafeAsync(IServiceProvider services, ILogger? logger, CancellationToken ct)
     {
         try
         {
-            using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromSeconds(5));
-            var mcpService = services.GetRequiredService<IMcpService>();
-            await mcpService.InitializeAsync(services, cts.Token).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            logger?.LogWarning("[MCP] InitializeAsync timed out after 5s");
+            var pluginManager = services.GetRequiredService<Core.Plugins.IPluginManager>();
+            await pluginManager.LoadWorkflowPluginAsync<JoinCode.Mcp.Plugins.McpInitPlugin>(ct).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            logger?.LogError(ex, "[MCP] InitializeAsync failed");
+            logger?.LogError(ex, "[MCP] LoadMcpInitPlugin failed");
         }
     }
 

@@ -47,6 +47,12 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     public event EventHandler<string>? PluginLoaded;
     public event EventHandler<string>? PluginUnloading;
 
+    /// <summary>插件诊断事件 — 撤销失败/ALC泄漏等(ADR 0098 维度11)</summary>
+    public event EventHandler<PluginDiagnostic>? OnDiagnostic;
+
+    /// <summary>诊断历史记录(Consumer 线程独占)</summary>
+    private readonly List<PluginDiagnostic> _diagnostics = new();
+
     public IReadOnlyCollection<string> LoadedPluginNames =>
         _workflowPlugins.Keys.Concat(_externalPlugins.Keys).ToList();
 
@@ -427,7 +433,17 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
             for (int i = undoChain.Count - 1; i >= 0; i--)
             {
                 try { undoChain[i](); }
-                catch (Exception ex) { _logger?.LogWarning(ex, "插件 {PluginName} 撤销链第 {Index} 项执行失败", pluginName, i); }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "插件 {PluginName} 撤销链第 {Index} 项执行失败", pluginName, i);
+                    ReportDiagnostic(new PluginDiagnostic
+                    {
+                        PluginId = pluginName,
+                        Kind = PluginDiagnosticKind.RevertFailed,
+                        Message = $"撤销链第 {i} 项执行失败: {ex.Message}",
+                        Suggestion = "检查副作用撤销操作是否正确处理了已释放的资源"
+                    });
+                }
             }
         }
 
@@ -442,7 +458,17 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
             for (int i = chain.Count - 1; i >= 0; i--)
             {
                 try { await chain[i].DisposeAsync().ConfigureAwait(false); }
-                catch (Exception ex) { _logger?.LogWarning(ex, "插件 {PluginName} async 撤销链第 {Index} 项失败", pluginName, i); }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "插件 {PluginName} async 撤销链第 {Index} 项失败", pluginName, i);
+                    ReportDiagnostic(new PluginDiagnostic
+                    {
+                        PluginId = pluginName,
+                        Kind = PluginDiagnosticKind.RevertFailed,
+                        Message = $"异步撤销链第 {i} 项失败: {ex.Message}",
+                        Suggestion = "检查 IAsyncDisposable.DisposeAsync 是否正确处理了已释放的资源"
+                    });
+                }
             }
         }
     }
@@ -557,6 +583,13 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
             _blacklistedPlugins.TryAdd(pluginName, 0);
             _logger?.LogError("插件 {Plugin} 卸载后有 {Count} 个资源泄漏,已加入黑名单,拒绝再次加载",
                 pluginName, report.LeakedResourceIds.Count);
+            ReportDiagnostic(new PluginDiagnostic
+            {
+                PluginId = pluginName,
+                Kind = PluginDiagnosticKind.AlcLeak,
+                Message = $"卸载后有 {report.LeakedResourceIds.Count} 个资源泄漏,已加入黑名单",
+                Suggestion = "检查插件是否正确释放了所有 ObjectId 资源"
+            });
         }
     }
 
@@ -707,6 +740,19 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     private void ThrowIfDisposed()
     {
         if (_isDisposed) throw new ObjectDisposedException(nameof(PluginManager));
+    }
+
+    /// <summary>获取诊断历史记录(线程安全快照)</summary>
+    public IReadOnlyList<PluginDiagnostic> GetDiagnostics()
+    {
+        lock (_diagnostics) return _diagnostics.ToList();
+    }
+
+    /// <summary>上报诊断事件(Consumer 线程调用)</summary>
+    private void ReportDiagnostic(PluginDiagnostic diagnostic)
+    {
+        lock (_diagnostics) _diagnostics.Add(diagnostic);
+        OnDiagnostic?.Invoke(this, diagnostic);
     }
 
     private void RecordPluginMetrics(string kind, string operation, bool isSuccess) =>

@@ -11,6 +11,19 @@ public sealed record PermissionConfirmationRequest(
 {
     /// <summary>是否有规则内容（驱动 RuleContent TextBlock 显隐）</summary>
     public bool HasRuleContent => !string.IsNullOrWhiteSpace(RuleContent);
+
+    /// <summary>
+    /// 危险等级 — 从 ConfirmationPrompt 解析的 [黄灯ask]/[绿灯ask]/[红灯ask] 标签，
+    /// 驱动 PermissionDialog 颜色区分（黄/绿/红/黑灯）与震动动画触发（红灯/黑灯）。
+    /// null 表示未标记等级（默认中性色，不震动）。
+    /// </summary>
+    public CommandDangerLevel? DangerLevel { get; init; }
+
+    /// <summary>
+    /// 是否需要震动 — 黄灯(未知命令需警觉)/红灯(不可撤回操作需警告)触发;
+    /// 绿灯(可撤回)不震动;黑灯(Dangerous)直接拒绝不弹窗,不会走到此判断。
+    /// </summary>
+    public bool ShouldShake => DangerLevel is CommandDangerLevel.Unknown or CommandDangerLevel.Execution;
 }
 
 /// <summary>

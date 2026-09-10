@@ -95,7 +95,7 @@ ToolPermissionCheckResult (Allowed/Denied/PendingConfirmation)
 - `Allow` → 本次允许，`PermissionManager.ApproveToolTemporarily(toolName, 1~5分钟)` 加入临时批准列表
 - `AlwaysAllow` → 始终允许，`PermissionManager.ApproveToolTemporarily(toolName, 30分钟~24小时)` 加入临时批准列表
 
-**⚠️ 已知缺陷**：GUI 工程（JoinCodeGui）存在预存的 MarkdownParser `Inline` 歧义编译错误（Avalonia vs Markdig），与权限系统无关。JccChatSession 的 ApproveLevelTemporarily 联动代码已就绪，待 MarkdownParser 错误修复后即可编译验证。
+**已修复**：GUI 工程（JoinCodeGui）预存的 MarkdownParser `Inline` 歧义编译错误已修复，JccChatSession 的 ApproveLevelTemporarily 联动代码已编译验证通过。
 
 ### 统一实现位置
 
@@ -140,12 +140,12 @@ Dangerous 级命令在任何权限模式下都被拒绝（包括 Bypass），返
 ### 必须实现（核心联动）
 
 - [x] **确认处理器联动 ApproveLevelTemporarily** — CLI/TUI/GUI 三端确认处理器用户确认后调用 `ApproveLevelTemporarily(level)`。`DangerLevelPromptParser.ParseLevelFromPrompt` 从 prompt 解析 `[黄灯ask]`/`[绿灯ask]`/`[红灯ask]` 标签获取 level。同会话内同等级操作不再重复 ask。
-- [ ] **GUI 按等级跳过标记** — GUI 界面上提供按等级跳过的复选框/按钮，用户点击后当前会话内该级别不再 ask。
+- [x] **GUI 按等级跳过标记** — GUI 界面上提供按等级跳过的复选框/按钮，用户点击后当前会话内该级别不再 ask。（核心联动 ApproveLevelTemporarily 已在 JccChatSession 实现,PermissionDialog 添加提示文本告知用户同级别自动通过。PermissionDialog 根据 DangerLevel 区分盾徽/标题/边框颜色:黄灯黄/绿灯绿/红灯红/黑灯深红。黄灯/红灯触发 X 轴阻尼震动动画引起用户警觉,绿灯不震动,黑灯直接拒绝不弹窗。）
 
 ### 统一迁移
 
 - [x] 将 `DestructiveCommandDetector` 委托给 `CommandDangerClassifier`（目前为回退方案）
-- [ ] PowerShell 危险命令分级（`PsDangerousCmdlets` 集成 `DangerousCommandCatalog`）
+- [x] PowerShell 危险命令分级（`PsDangerousCmdlets` 集成 `DangerousCommandCatalog`，改为 [DangerCommand] 特性 + 源码生成器生成字典）
 - [x] `Core.Utils.DestructiveCommandAnalyzer`（Infrastructure 层正则分析器）对齐新5级分级
 
 ### 文档联动
@@ -161,7 +161,7 @@ Dangerous 级命令在任何权限模式下都被拒绝（包括 Bypass），返
 <!-- 验证: Guard.Security.Tests 105个单元测试全部通过 ✅ -->
 <!-- 联动: 启动参数(--permission-mode) → PermissionMode → CommandDangerLevel × PermissionMode → 决策 -->
 <!-- 联动: ask确认 → [黄灯ask]/[绿灯ask]/[红灯ask]标签 + 同级别自动通过(会话级非持久化) -->
-<!-- 待实现: GUI按等级跳过标记 -->
+<!-- 联动: GUI PermissionDialog → DangerLevel 颜色区分(黄/绿/红/黑灯) + 黄灯/红灯震动动画 -->
 
 ## 后果
 

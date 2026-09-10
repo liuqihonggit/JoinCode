@@ -85,6 +85,18 @@ public static class GuiPalette
         /// <summary>Diff 删除行背景（红系弱底）</summary>
         public string DiffRemovedBackground { get; init; } = "#2e1a1a";
 
+        /// <summary>危险等级黄灯色（Unknown — 未知命令需确认）</summary>
+        public string DangerLevelYellow { get; init; } = "#ffc107";
+
+        /// <summary>危险等级绿灯色（LightValidation — 可撤回操作）</summary>
+        public string DangerLevelGreen { get; init; } = "#3dd68c";
+
+        /// <summary>危险等级红灯色（Execution — 执行/不可撤回操作）</summary>
+        public string DangerLevelRed { get; init; } = "#e5484d";
+
+        /// <summary>危险等级黑灯色（Dangerous — 危险操作深红）</summary>
+        public string DangerLevelBlack { get; init; } = "#8b0000";
+
         /// <summary>遍历全部 token 值，供对比度校验与资源注入使用。</summary>
         public IEnumerable<string> AllTokens()
         {
@@ -138,6 +150,10 @@ public static class GuiPalette
             yield return CodeBlockBackground;
             yield return DiffAddedBackground;
             yield return DiffRemovedBackground;
+            yield return DangerLevelYellow;
+            yield return DangerLevelGreen;
+            yield return DangerLevelRed;
+            yield return DangerLevelBlack;
         }
     }
 
@@ -193,7 +209,11 @@ public static class GuiPalette
         ComposerBackground = "#ffffff",
         CodeBlockBackground = "#ececec",
         DiffAddedBackground = "#dcf0e2",
-        DiffRemovedBackground = "#f7dcdc"
+        DiffRemovedBackground = "#f7dcdc",
+        DangerLevelYellow = "#b35c00",
+        DangerLevelGreen = "#1a7f37",
+        DangerLevelRed = "#c62828",
+        DangerLevelBlack = "#5d0000"
     };
 
     /// <summary>获取指定主题的配色方案。</summary>
@@ -283,6 +303,10 @@ public static class GuiPalette
             yield return ("GuiCodeBlockBackground", s.CodeBlockBackground);
             yield return ("GuiDiffAddedBackground", s.DiffAddedBackground);
             yield return ("GuiDiffRemovedBackground", s.DiffRemovedBackground);
+            yield return ("GuiDangerLevelYellow", s.DangerLevelYellow);
+            yield return ("GuiDangerLevelGreen", s.DangerLevelGreen);
+            yield return ("GuiDangerLevelRed", s.DangerLevelRed);
+            yield return ("GuiDangerLevelBlack", s.DangerLevelBlack);
     }
 
     /// <summary>解析十六进制色为不可变画刷（供资源和转换器共用）。</summary>

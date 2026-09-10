@@ -556,11 +556,13 @@ internal sealed class JccChatSession : IJccChatSession
             }
 
             var decision = PermissionConfirmationDecision.Deny;
+            var dangerLevel = DangerLevelPromptParser.ParseLevelFromPrompt(pending.ConfirmationPrompt);
             if (PermissionConfirmationHandler is not null)
             {
                 decision = await PermissionConfirmationHandler(
                     new PermissionConfirmationRequest(
-                        pending.ToolName, pending.ConfirmationPrompt, pending.RequestId, pending.RuleContent))
+                        pending.ToolName, pending.ConfirmationPrompt, pending.RequestId, pending.RuleContent)
+                    { DangerLevel = dangerLevel })
                     .ConfigureAwait(false);
             }
 
@@ -580,10 +582,9 @@ internal sealed class JccChatSession : IJccChatSession
                     : AllowDuration;
                 permissionManager.ApproveToolTemporarily(pending.ToolName, duration);
 
-                // 同级别自动通过 — 解析 prompt 中的 levelTag，批准对应等级（会话级非持久化）
-                var level = DangerLevelPromptParser.ParseLevelFromPrompt(pending.ConfirmationPrompt);
-                if (level is not null)
-                    permissionManager.ApproveLevelTemporarily(level.Value);
+                // 同级别自动通过 — 复用上方已解析的 dangerLevel，批准对应等级（会话级非持久化）
+                if (dangerLevel is not null)
+                    permissionManager.ApproveLevelTemporarily(dangerLevel.Value);
             }
 
             // 撤回本轮（含用户消息 + 部分助手回复），重发同一条消息无重复

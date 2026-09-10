@@ -172,3 +172,9 @@ RunFireAndForget(ProcessQueueAsync);
 2. **CheckReentrancy 用 ThreadId 检测** — 被否决：async/await 线程池复用导致误判
 3. **CheckReentrancy 用 AsyncLocal FlowId** — 被否决：FlowId 跨 await 丢失不可靠
 4. **StreamingToolExecutor 改用 Channel 消费者模型** — 未采用：根因是 TrySetResult 在锁内，移到锁外即解决，无需架构重构
+
+## 后果
+
+- 正面：StreamingToolExecutor 死锁消除（Discard_DuringGetRemaining_DoesNotDeadlock 回归测试通过）；全项目 7 处锁内 TrySetResult 防御修复；TryLock 超时返回 null 避免 CheckReentrancy 误报
+- 负面：TrySetResult 移到锁外需确保所需数据已在锁内读取完毕；RunContinuationsAsynchronously 有异步调度开销
+- 中性：CheckReentrancy + LockReentrancyException 已移除（ThreadId 在 async/await 下不可靠），ADR 0059 被 0060 取代

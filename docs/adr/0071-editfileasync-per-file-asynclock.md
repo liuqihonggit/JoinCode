@@ -101,6 +101,13 @@ public async Task<T> EditFileAsync<T>(...)
 
 `FileEncodingDetector.DecodeBytes(byte[]) → (string, Encoding)` 和 `EncodeString(string, Encoding) → byte[]` 作为静态方法，FileEditLogic 和 ApplyPatchLogic 共享，消除重复。
 
+## 替代方案
+
+1. **全局单锁**：所有文件编辑共享一把 AsyncLock。放弃：不同文件无竞态，全局锁降低并行度
+2. **FileLockService 跨进程锁**：用 OS 级文件锁。放弃：同进程内无跨进程需求，OS 锁开销大且平台差异
+3. **ReaderWriterLockSlim**：读写分离。放弃：编辑是 Read→改→Write 原子操作，读写分离无意义
+4. **无锁 CAS 乐观并发**：重试机制。放弃：文件编辑非内存操作，CAS 不适用
+
 ## 验证
 
 - 6 个单元测试通过（`EditFileAsyncTests`）：

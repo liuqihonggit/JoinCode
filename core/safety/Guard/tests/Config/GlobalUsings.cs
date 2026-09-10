@@ -62,6 +62,7 @@ global using System.Net;
 global using System.Net.Http;
 global using System.Runtime.CompilerServices;
 global using System.Runtime.InteropServices;
+global using System.Runtime.Loader;
 global using Microsoft.Win32.SafeHandles;
 global using Testing.Common;
 global using Infrastructure.Localization;

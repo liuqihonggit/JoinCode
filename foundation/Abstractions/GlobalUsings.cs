@@ -89,6 +89,7 @@ global using System.Text.RegularExpressions;
 global using System.Globalization;
 global using System.Runtime.CompilerServices;
 global using System.Runtime.InteropServices;
+global using System.Runtime.Loader;
 global using System.Diagnostics.CodeAnalysis;
 global using System.Text.Json.Serialization;
 global using System.Collections.Concurrent;

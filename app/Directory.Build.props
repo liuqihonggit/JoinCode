@@ -7,6 +7,7 @@
   <PropertyGroup>
     <EmbeddedResourceUseDependentUponConvention>true</EmbeddedResourceUseDependentUponConvention>
     <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
+    <NoWarn>$(NoWarn);IL2104</NoWarn>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(OutputType)' != 'Exe' AND '$(Configuration)' != 'Release'">

@@ -27,7 +27,7 @@ public sealed partial class FileCronTaskStore : ServiceEntity, ICronTaskStore, I
         IClockService? clock = null)
     {
         Diag.WriteLine("[DI] FileCronTaskStore.ctor start");
-        var dir = directory ?? Path.Combine(AppContext.BaseDirectory, "cron-tasks");
+        var dir = directory ?? Path.Combine(AppDataConstants.Paths.JccDirectory, "cron-tasks");
         if (string.IsNullOrWhiteSpace(dir))
             throw new ArgumentException("Directory cannot be null or empty", nameof(directory));
 

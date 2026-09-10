@@ -1,7 +1,8 @@
 # 0094. GitHub 工具精简输出 + verbose 完整模式
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-09-09
+- 验证：代码已完整实现（SummarizePr/SummarizeIssue/SummarizeRepo/SummarizePrList/SummarizeIssueList + verbose 参数 + gh_cache 缓存），35 测试通过
 
 ## 背景
 

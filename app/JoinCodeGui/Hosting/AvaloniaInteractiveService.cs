@@ -65,7 +65,7 @@ public sealed class AvaloniaInteractiveService : IInteractiveService
             AskUserQuestionResult result;
             if (Dispatcher.UIThread.CheckAccess())
             {
-                result = await ShowDialogCallback(q).ConfigureAwait(false);
+                result = await ShowDialogCallback(q);
             }
             else
             {
@@ -74,7 +74,7 @@ public sealed class AvaloniaInteractiveService : IInteractiveService
                 {
                     try
                     {
-                        var r = await ShowDialogCallback(q).ConfigureAwait(false);
+                        var r = await ShowDialogCallback(q);
                         tcs.SetResult(r);
                     }
                     catch (Exception ex)
@@ -82,7 +82,7 @@ public sealed class AvaloniaInteractiveService : IInteractiveService
                         tcs.SetException(ex);
                     }
                 }, DispatcherPriority.Normal);
-                result = await tcs.Task.ConfigureAwait(false);
+                result = await tcs.Task;
             }
 
             if (!result.Success || result.Cancelled)

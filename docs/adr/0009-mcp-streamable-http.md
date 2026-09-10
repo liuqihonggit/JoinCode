@@ -11,7 +11,7 @@ MCP（Model Context Protocol）协议有多个版本。旧版 `2024-11-05` 使�
 ## 决策
 
 1. **MCP 协议版本固定 `2025-11-25`（Streamable HTTP）**
-2. **旧 `2024-11-05` + SseClientTransport/SseTransport 已归档到 `services/Mcp/.xxx/`**
+2. **旧 `2024-11-05` + SseClientTransport/SseTransport 已移除**（代码中已不存在，`2024-11-05` 仅保留为协议版本常量 `JsonRpcConstants.V2024_11_05`）
 3. **客户端用 `HttpTransport`**，服务端用 `McpHttpServer`（HttpListener 实现）
 4. **双模式支持**：
    - 无状态模式：不分配 `MCP-Session-Id`

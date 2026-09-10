@@ -76,7 +76,7 @@ internal sealed class JccChatSession : IJccChatSession
         var agentService = _services.GetService<IAgentService>();
         if (agentService is not null)
         {
-            foreach (var info in await agentService.GetRunningAgentsAsync(cancellationToken).ConfigureAwait(false))
+            foreach (var info in await agentService.GetRunningAgentsAsync(cancellationToken))
             {
                 result.Add(new ViewModels.BackgroundAgentInfo(
                     info.Id,
@@ -92,7 +92,7 @@ internal sealed class JccChatSession : IJccChatSession
         var forkManager = _services.GetService<IForkSubAgentManager>();
         if (forkManager is not null)
         {
-            foreach (var fork in await forkManager.GetActiveForksAsync(cancellationToken).ConfigureAwait(false))
+            foreach (var fork in await forkManager.GetActiveForksAsync(cancellationToken))
             {
                 if (fork.State != ForkState.Running)
                     continue;
@@ -114,16 +114,16 @@ internal sealed class JccChatSession : IJccChatSession
     public async Task<bool> StopBackgroundAgentAsync(string agentId, CancellationToken cancellationToken = default)
     {
         var agentService = _services.GetService<IAgentService>();
-        if (agentService is not null && await agentService.StopAgentAsync(agentId, cancellationToken).ConfigureAwait(false))
+        if (agentService is not null && await agentService.StopAgentAsync(agentId, cancellationToken))
             return true;
 
         var teammateExecutor = _services.GetService<IInProcessTeammateTaskExecutor>();
         if (teammateExecutor is not null)
         {
-            var teammates = await teammateExecutor.GetActiveTeammatesAsync(cancellationToken).ConfigureAwait(false);
+            var teammates = await teammateExecutor.GetActiveTeammatesAsync(cancellationToken);
             if (teammates.Contains(agentId))
             {
-                await teammateExecutor.StopTeammateAsync(agentId, cancellationToken).ConfigureAwait(false);
+                await teammateExecutor.StopTeammateAsync(agentId, cancellationToken);
                 return true;
             }
         }
@@ -131,10 +131,10 @@ internal sealed class JccChatSession : IJccChatSession
         var forkManager = _services.GetService<IForkSubAgentManager>();
         if (forkManager is not null)
         {
-            var forks = await forkManager.GetActiveForksAsync(cancellationToken).ConfigureAwait(false);
+            var forks = await forkManager.GetActiveForksAsync(cancellationToken);
             if (forks.Any(f => f.ForkId == agentId))
             {
-                await forkManager.CancelForkAsync(agentId, cancellationToken).ConfigureAwait(false);
+                await forkManager.CancelForkAsync(agentId, cancellationToken);
                 return true;
             }
         }
@@ -148,7 +148,7 @@ internal sealed class JccChatSession : IJccChatSession
         var teammateExecutor = _services.GetService<IInProcessTeammateTaskExecutor>();
         if (teammateExecutor is null)
             return false;
-        return await teammateExecutor.InterruptTeammateAsync(agentId, cancellationToken).ConfigureAwait(false);
+        return await teammateExecutor.InterruptTeammateAsync(agentId, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -157,7 +157,7 @@ internal sealed class JccChatSession : IJccChatSession
         var agentService = _services.GetService<IAgentService>();
         if (agentService is null)
             return null;
-        return await agentService.FindAgentIdByNameAsync(name, cancellationToken).ConfigureAwait(false);
+        return await agentService.FindAgentIdByNameAsync(name, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -166,7 +166,7 @@ internal sealed class JccChatSession : IJccChatSession
         var agentService = _services.GetService<IAgentService>();
         if (agentService is null)
             return false;
-        return await agentService.ForwardUserInputToAgentAsync(agentId, message, cancellationToken).ConfigureAwait(false);
+        return await agentService.ForwardUserInputToAgentAsync(agentId, message, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -175,7 +175,7 @@ internal sealed class JccChatSession : IJccChatSession
         var agentService = _services.GetService<IAgentService>();
         if (agentService is null)
             return null;
-        return await agentService.GetAgentWorktreePathAsync(agentId, cancellationToken).ConfigureAwait(false);
+        return await agentService.GetAgentWorktreePathAsync(agentId, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -187,13 +187,13 @@ internal sealed class JccChatSession : IJccChatSession
         var teammateExecutor = _services.GetService<IInProcessTeammateTaskExecutor>();
         if (teammateExecutor is not null)
         {
-            var snapshots = await teammateExecutor.GetActiveTeammateSnapshotsAsync(cancellationToken).ConfigureAwait(false);
+            var snapshots = await teammateExecutor.GetActiveTeammateSnapshotsAsync(cancellationToken);
             foreach (var s in snapshots)
             {
                 if (s.ParentSessionId != parentSessionId)
                     continue;
                 var title = $"子会话 {s.TeammateId.AsSpan(0, Math.Min(8, s.TeammateId.Length)).ToString()}";
-                var worktree = await GetSubAgentWorktreePathAsync(s.TeammateId, cancellationToken).ConfigureAwait(false);
+                var worktree = await GetSubAgentWorktreePathAsync(s.TeammateId, cancellationToken);
                 var state = s.IsIdle ? "Idle" : "Running";
                 result.Add(new SubSessionInfo(s.TeammateId, s.ParentSessionId ?? parentSessionId, title, state, worktree));
             }
@@ -203,13 +203,13 @@ internal sealed class JccChatSession : IJccChatSession
         var forkManager = _services.GetService<IForkSubAgentManager>();
         if (forkManager is not null)
         {
-            var forks = await forkManager.GetActiveForksAsync(cancellationToken).ConfigureAwait(false);
+            var forks = await forkManager.GetActiveForksAsync(cancellationToken);
             foreach (var f in forks)
             {
                 if (f.ParentSessionId != parentSessionId)
                     continue;
                 var title = $"子会话 {f.ForkId.AsSpan(0, Math.Min(8, f.ForkId.Length)).ToString()}";
-                var worktree = await GetSubAgentWorktreePathAsync(f.ForkId, cancellationToken).ConfigureAwait(false);
+                var worktree = await GetSubAgentWorktreePathAsync(f.ForkId, cancellationToken);
                 result.Add(new SubSessionInfo(f.ForkId, f.ParentSessionId, title, f.State.ToString(), worktree));
             }
         }
@@ -236,7 +236,7 @@ internal sealed class JccChatSession : IJccChatSession
     {
         var swTotal = System.Diagnostics.Stopwatch.StartNew();
         var result = await EngineSessionFactory.CreateGuiSessionAsync(
-            [new GuiInteractionModule()], cancellationToken).ConfigureAwait(false);
+            [new GuiInteractionModule()], cancellationToken);
         App.LogDiag($"[JccChatSession] EngineSessionFactory.CreateGuiSessionAsync: {swTotal.ElapsedMilliseconds}ms");
 
         var executionSettings = result.Services.GetService<IExecutionSettingsProvider>();
@@ -286,7 +286,7 @@ internal sealed class JccChatSession : IJccChatSession
         if (ctxMgr is null)
             return;
 
-        await ctxMgr.ClearMessagesAsync(cancellationToken).ConfigureAwait(false);
+        await ctxMgr.ClearMessagesAsync(cancellationToken);
         foreach (var (role, content) in messages)
         {
             if (string.IsNullOrWhiteSpace(content))
@@ -294,16 +294,16 @@ internal sealed class JccChatSession : IJccChatSession
             switch (role)
             {
                 case MessageRole.User:
-                    await ctxMgr.AddUserMessageAsync(content, cancellationToken: cancellationToken).ConfigureAwait(false);
+                    await ctxMgr.AddUserMessageAsync(content, cancellationToken: cancellationToken);
                     break;
                 case MessageRole.Assistant:
-                    await ctxMgr.AddAssistantMessageAsync(content, cancellationToken).ConfigureAwait(false);
+                    await ctxMgr.AddAssistantMessageAsync(content, cancellationToken);
                     break;
                 case MessageRole.System:
-                    await ctxMgr.AddSystemMessageAsync(content, cancellationToken).ConfigureAwait(false);
+                    await ctxMgr.AddSystemMessageAsync(content, cancellationToken);
                     break;
                 case MessageRole.Tool:
-                    await ctxMgr.AddToolResultMessageAsync(content, new Dictionary<string, JsonElement>(), cancellationToken).ConfigureAwait(false);
+                    await ctxMgr.AddToolResultMessageAsync(content, new Dictionary<string, JsonElement>(), cancellationToken);
                     break;
             }
         }
@@ -333,9 +333,9 @@ internal sealed class JccChatSession : IJccChatSession
         // 启动读取的唯一模型来源，两者缺一不可。
         var configService = _services.GetService<IConfigurationService>();
         if (configService is not null)
-            await configService.SetAsync("model", modelId, cancellationToken).ConfigureAwait(false);
+            await configService.SetAsync("model", modelId, cancellationToken);
 
-        await UpdateVendorProfileModelAsync(modelId, cancellationToken).ConfigureAwait(false);
+        await UpdateVendorProfileModelAsync(modelId, cancellationToken);
     }
 
     /// <summary>
@@ -355,11 +355,11 @@ internal sealed class JccChatSession : IJccChatSession
         var configService = _services.GetService<IConfigurationService>();
         if (configService is not null)
         {
-            await configService.SetAsync("profile", vendor, cancellationToken).ConfigureAwait(false);
+            await configService.SetAsync("profile", vendor, cancellationToken);
         }
 
         if (!string.IsNullOrEmpty(defaultModelId))
-            await UpdateVendorProfileModelAsync(vendor, defaultModelId, cancellationToken).ConfigureAwait(false);
+            await UpdateVendorProfileModelAsync(vendor, defaultModelId, cancellationToken);
     }
 
     /// <summary>
@@ -396,7 +396,7 @@ internal sealed class JccChatSession : IJccChatSession
                 var newJson = node.ToJsonString();
                 var newBytes = FileEncodingDetector.EncodeString(newJson, encoding);
                 return (newBytes, true);
-            }, ct).ConfigureAwait(false);
+            }, ct);
         }
         catch (Exception ex)
         {
@@ -439,11 +439,11 @@ internal sealed class JccChatSession : IJccChatSession
         {
             if (effortLevel is EffortLevel.Auto)
             {
-                await configService.RemoveAsync(ConfigKeyConstants.EffortLevel, cancellationToken).ConfigureAwait(false);
+                await configService.RemoveAsync(ConfigKeyConstants.EffortLevel, cancellationToken);
             }
             else
             {
-                await configService.SetAsync(ConfigKeyConstants.EffortLevel, effortLevel.ToValue(), cancellationToken).ConfigureAwait(false);
+                await configService.SetAsync(ConfigKeyConstants.EffortLevel, effortLevel.ToValue(), cancellationToken);
             }
         }
     }
@@ -505,7 +505,7 @@ internal sealed class JccChatSession : IJccChatSession
             _services,
             confirm: message => SlashConfirmHandler?.Invoke(message) ?? false,
             onExitRequested: () => ExitRequested?.Invoke(),
-            cancellationToken: cancellationToken).ConfigureAwait(false);
+            cancellationToken: cancellationToken);
         return result.Output;
     }
 
@@ -531,7 +531,7 @@ internal sealed class JccChatSession : IJccChatSession
                 bool hasNext;
                 try
                 {
-                    hasNext = await enumerator.MoveNextAsync().ConfigureAwait(false);
+                    hasNext = await enumerator.MoveNextAsync();
                 }
                 catch (PermissionPendingConfirmationException ex)
                 {
@@ -556,12 +556,14 @@ internal sealed class JccChatSession : IJccChatSession
             }
 
             var decision = PermissionConfirmationDecision.Deny;
+            var dangerLevel = DangerLevelPromptParser.ParseLevelFromPrompt(pending.ConfirmationPrompt);
             if (PermissionConfirmationHandler is not null)
             {
                 decision = await PermissionConfirmationHandler(
                     new PermissionConfirmationRequest(
-                        pending.ToolName, pending.ConfirmationPrompt, pending.RequestId, pending.RuleContent))
-                    .ConfigureAwait(false);
+                        pending.ToolName, pending.ConfirmationPrompt, pending.RequestId, pending.RuleContent)
+                    { DangerLevel = dangerLevel })
+                    ;
             }
 
             if (decision == PermissionConfirmationDecision.Deny)
@@ -580,14 +582,13 @@ internal sealed class JccChatSession : IJccChatSession
                     : AllowDuration;
                 permissionManager.ApproveToolTemporarily(pending.ToolName, duration);
 
-                // 同级别自动通过 — 解析 prompt 中的 levelTag，批准对应等级（会话级非持久化）
-                var level = DangerLevelPromptParser.ParseLevelFromPrompt(pending.ConfirmationPrompt);
-                if (level is not null)
-                    permissionManager.ApproveLevelTemporarily(level.Value);
+                // 同级别自动通过 — 复用上方已解析的 dangerLevel，批准对应等级（会话级非持久化）
+                if (dangerLevel is not null)
+                    permissionManager.ApproveLevelTemporarily(dangerLevel.Value);
             }
 
             // 撤回本轮（含用户消息 + 部分助手回复），重发同一条消息无重复
-            await RewindLastTurnAsync(cancellationToken).ConfigureAwait(false);
+            await RewindLastTurnAsync(cancellationToken);
             retries++;
             // while 循环重发同一条消息
         }
@@ -613,7 +614,7 @@ internal sealed class JccChatSession : IJccChatSession
         if (configService is null)
             return ThemeKind.Auto;
 
-        var value = await configService.GetAsync(ConfigKeyConstants.Theme, cancellationToken).ConfigureAwait(false);
+        var value = await configService.GetAsync(ConfigKeyConstants.Theme, cancellationToken);
         return string.IsNullOrEmpty(value) ? ThemeKind.Auto : (ThemeKindExtensions.FromValue(value) ?? ThemeKind.Auto);
     }
 
@@ -624,7 +625,7 @@ internal sealed class JccChatSession : IJccChatSession
     {
         var configService = _services.GetService<IConfigurationService>();
         if (configService is not null)
-            await configService.SetAsync(ConfigKeyConstants.Theme, theme.ToValue(), cancellationToken).ConfigureAwait(false);
+            await configService.SetAsync(ConfigKeyConstants.Theme, theme.ToValue(), cancellationToken);
     }
 
     public Task ClearHistoryAsync(CancellationToken cancellationToken = default)
@@ -654,7 +655,7 @@ internal sealed class JccChatSession : IJccChatSession
         var registry = _services.GetService<IToolRegistry>();
         if (registry is null)
             return [];
-        var tools = await registry.GetAllToolsAsync(cancellationToken).ConfigureAwait(false);
+        var tools = await registry.GetAllToolsAsync(cancellationToken);
         var list = new List<ToolSummary>(tools.Count);
         foreach (var handler in tools.Values)
             list.Add(new ToolSummary(handler.Name, handler.Description));
@@ -670,7 +671,7 @@ internal sealed class JccChatSession : IJccChatSession
         var provider = _services.GetService<IAgentDefinitionProvider>();
         if (provider is null)
             return [];
-        var definitions = await provider.GetAgentDefinitionsAsync(null, cancellationToken).ConfigureAwait(false);
+        var definitions = await provider.GetAgentDefinitionsAsync(null, cancellationToken);
         var list = new List<SubAgentSummary>(definitions.Count);
         foreach (var def in definitions)
         {
@@ -685,7 +686,7 @@ internal sealed class JccChatSession : IJccChatSession
     {
         if (_disposeAsync is not null)
         {
-            await _disposeAsync().ConfigureAwait(false);
+            await _disposeAsync();
         }
     }
 

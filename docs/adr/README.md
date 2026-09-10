@@ -108,7 +108,6 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0009](0009-mcp-streamable-http.md) | MCP Streamable HTTP 2025-11-25 | accepted | 2026-08-29 |
 | [0010](0010-global-usings.md) | GlobalUsings 统一管理 | accepted | 2026-08-29 |
 | [0011](0011-data-container-aot-gc.md) | 数据容器 AOT+GC 选型 | accepted | 2026-08-29 |
-| [0012](0012-two-itoolhandler-interfaces.md) | 双 IToolHandler 接口不合并 | superseded by 0025 | 2026-08-29 |
 | [0013](0013-hypergraph-vs-dag-separation.md) | 超图与 DAG 分工 | accepted | 2026-08-29 |
 | [0014](0014-mcp-tool-coverage-principle.md) | MCP 工具覆盖原则 | accepted | 2026-08-29 |
 | [0015](0015-config-hotreload-dual-variable.md) | 配置热重载双变量切换 | accepted | 2026-08-29 |
@@ -121,7 +120,6 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0022](0022-csharp-ast-cli-over-regex.md) | C# AST CLI 优先于正则 | accepted | 2026-08-29 |
 | [0023](0023-subtraction-over-addition.md) | 减法思维优先 | accepted | 2026-08-29 |
 | [0024](0024-no-symptomatic-fix-chain.md) | 治标不治本禁令 | accepted | 2026-08-29 |
-| [0025](0025-archive-dead-imcpprotocolhandler.md) | 归档 IMcpProtocolHandler 死接口 | accepted | 2026-08-29 |
 | [0026](0026-pr-two-stage-pipeline.md) | PR 两段式流水线验证 | accepted | 2026-08-29 |
 | [0027](0027-treat-warnings-as-errors.md) | TreatWarningsAsErrors 零警告容忍 | accepted | 2026-08-29 |
 | [0028](0028-invariant-globalization.md) | InvariantGlobalization 渐进式双语策略 | accepted | 2026-08-29 |
@@ -145,13 +143,11 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0046](0046-register-di-pattern.md) | [Register] 特性 DI 自动注册模式 | accepted | 2026-08-29 |
 | [0047](0047-unified-danger-level-classification.md) | 统一危险指令分级系统 | accepted | 2026-08-30 |
 | [0048](0048-subagent-concurrency-unified-config.md) | 子代理并发控制统一配置入口 | accepted | 2026-09-02 |
-| [0049](0049-archive-maxconcurrentagents.md) | 归档 MaxConcurrentAgents 死配置 | accepted | 2026-09-02 |
 | [0050](0050-spawn-stage-concurrency-limit.md) | spawn 阶段 SemaphoreSlim 限流 | accepted | 2026-09-02 |
 | [0051](0051-fork-concurrency-limit.md) | Fork 并发上限 | accepted | 2026-09-02 |
 | [0052](0052-asynclock-unified-mutex-file-access.md) | AsyncLock 统一互斥锁 + 文件读写可剥离架构 | accepted | 2026-09-02 |
 | [0053](0053-context-compaction-layered-mechanism.md) | 上下文压缩分层机制 | accepted | 2026-09-02 |
 | [0054](0054-llm-output-loop-detection-intervention.md) | LLM 输出循环检测与分级干预机制 | accepted | 2026-09-02 |
-| [0055](0055-system-prompt-section-injection-optimization.md) | 系统提示词 section 注入优化空间 | proposed | 2026-09-02 |
 | [0056](0056-cache-break-detection-enhancement.md) | 缓存破坏检测维度补齐 — 双阈值 + TTL 区分 + 多 agent 隔离 | accepted | 2026-09-02 |
 | [0057](0057-ts-p0-gap-alignment-lsp-analytics.md) | TS 原版 P0 缺口补齐 — LSP 集成 + Analytics 分析 | accepted | 2026-09-02 |
 | [0058](0058-ts-p1-gap-alignment-proactive-vim-permission-skills.md) | TS 原版 P1 缺口补齐 — Proactive + Vim + Permission LLM + Skills | accepted | 2026-09-02 |
@@ -215,7 +211,6 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0009](0009-mcp-streamable-http.md) | MCP Streamable HTTP 2025-11-25 | accepted | 2026-08-29 |
 | [0010](0010-global-usings.md) | GlobalUsings 统一管理 | accepted | 2026-08-29 |
 | [0011](0011-data-container-aot-gc.md) | 数据容器 AOT+GC 选型 | accepted | 2026-08-29 |
-| [0012](0012-two-itoolhandler-interfaces.md) | 双 IToolHandler 接口不合并 | superseded by 0025 | 2026-08-29 |
 | [0081](0081-seven-layer-build-strategy.md) | 七层解决方案架构与编译策略 | accepted | 2026-09-08 |
 | [0098](0098-plugin-system-fusion-actor-effectscope.md) | 插件系统融合 — Actor+EffectScope+动态拓扑+弱事件+ALC | accepted | 2026-09-10 |
 
@@ -235,7 +230,6 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0022](0022-csharp-ast-cli-over-regex.md) | C# AST CLI 优先于正则 | accepted | 2026-08-29 |
 | [0023](0023-subtraction-over-addition.md) | 减法思维优先 | accepted | 2026-08-29 |
 | [0024](0024-no-symptomatic-fix-chain.md) | 治标不治本禁令 | accepted | 2026-08-29 |
-| [0025](0025-archive-dead-imcpprotocolhandler.md) | 归档 IMcpProtocolHandler 死接口 | accepted | 2026-08-29 |
 | [0079](0079-anti-pattern-examples.md) | 反例清单（踩过的坑，禁止再犯） | accepted | 2026-09-08 |
 | [0086](0086-core-tech-selection-lock-design.md) | 核心技术选型与锁设计 | accepted | 2026-09-08 |
 | [0087](0087-batch-replace-csharp-source-rules.md) | 批量替换 C# 源码禁令与导向 | accepted | 2026-09-08 |
@@ -290,7 +284,6 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 |------|------|------|------|
 | [0047](0047-unified-danger-level-classification.md) | 统一危险指令分级系统 | accepted | 2026-08-30 |
 | [0048](0048-subagent-concurrency-unified-config.md) | 子代理并发控制统一配置入口 | accepted | 2026-09-02 |
-| [0049](0049-archive-maxconcurrentagents.md) | 归档 MaxConcurrentAgents 死配置 | accepted | 2026-09-02 |
 | [0050](0050-spawn-stage-concurrency-limit.md) | spawn 阶段 SemaphoreSlim 限流 | accepted | 2026-09-02 |
 | [0051](0051-fork-concurrency-limit.md) | Fork 并发上限 | accepted | 2026-09-02 |
 | [0052](0052-asynclock-unified-mutex-file-access.md) | AsyncLock 统一互斥锁 + 文件读写可剥离架构 | accepted | 2026-09-02 |
@@ -303,7 +296,6 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 |------|------|------|------|
 | [0053](0053-context-compaction-layered-mechanism.md) | 上下文压缩分层机制 | accepted | 2026-09-02 |
 | [0054](0054-llm-output-loop-detection-intervention.md) | LLM 输出循环检测与分级干预机制 | accepted | 2026-09-02 |
-| [0055](0055-system-prompt-section-injection-optimization.md) | 系统提示词 section 注入优化空间 | proposed | 2026-09-02 |
 | [0056](0056-cache-break-detection-enhancement.md) | 缓存破坏检测维度补齐 — 双阈值 + TTL 区分 + 多 agent 隔离 | accepted | 2026-09-02 |
 
 ### TS 缺口补齐
@@ -373,7 +365,6 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 
 | 旧 ADR | 状态 | 取代者 |
 |--------|------|--------|
-| [0012](0012-two-itoolhandler-interfaces.md) | 双 IToolHandler 接口不合并 | [0025](0025-archive-dead-imcpprotocolhandler.md) |
 | [0018](0018-loop-detector-state-machine.md) | 循环检测器状态机风格 | [0038](0038-state-machine-flags-guard.md) |
 | [0034](0034-command-interception-layered.md) | 命令拦截分层 Guard+Interceptor+Dispatcher | [0039](0039-command-interception-state-machine.md) |
 | [0059](0059-asynclock-reentrancy-detection.md) | AsyncLock 同步重入检测 — LockReentrancyException 提早暴露死锁 | [0060](0060-asynclock-sync-trylock-fireandforget-deadlock.md) |

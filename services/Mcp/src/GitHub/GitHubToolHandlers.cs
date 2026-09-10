@@ -167,12 +167,101 @@ public partial class GitHubToolHandlers
             var author = root.TryGetProperty("user", out var u) && u.TryGetProperty("login", out var login) ? login.GetString() ?? "" : "";
             var url = root.TryGetProperty("html_url", out var hu) ? hu.GetString() ?? "" : "";
             var createdAt = root.TryGetProperty("created_at", out var ca) ? ca.GetString() ?? "" : "";
+            var labels = root.TryGetProperty("labels", out var labelsEl) && labelsEl.ValueKind == JsonValueKind.Array
+                ? string.Join(", ", labelsEl.EnumerateArray().Select(l => l.TryGetProperty("name", out var ln) ? ln.GetString() ?? "" : ""))
+                : "";
 
             sb.AppendLine($"Issue #{number}: {title}");
             sb.AppendLine($"状态: {state}");
             sb.AppendLine($"作者: {author}");
+            if (!string.IsNullOrEmpty(labels)) sb.AppendLine($"标签: {labels}");
             sb.AppendLine($"创建: {createdAt}");
             sb.Append($"URL: {url}");
+            return sb.ToString();
+        }
+        catch
+        {
+            return json;
+        }
+    }
+
+    /// <summary>
+    /// 精简 Repo JSON 输出 — 提取关键字段构建人类可读文本
+    /// </summary>
+    private static string SummarizeRepo(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            var sb = new StringBuilder(512);
+            var name = root.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+            var fullName = root.TryGetProperty("full_name", out var fn) ? fn.GetString() ?? "" : "";
+            var isPrivate = root.TryGetProperty("private", out var p) && p.GetBoolean();
+            var defaultBranch = root.TryGetProperty("default_branch", out var db) ? db.GetString() ?? "" : "";
+            var stars = root.TryGetProperty("stargazers_count", out var sg) ? sg.GetInt32() : 0;
+            var forks = root.TryGetProperty("forks_count", out var fk) ? fk.GetInt32() : 0;
+            var url = root.TryGetProperty("html_url", out var hu) ? hu.GetString() ?? "" : "";
+
+            sb.AppendLine($"仓库: {fullName}");
+            sb.AppendLine($"可见性: {(isPrivate ? "private" : "public")}");
+            sb.AppendLine($"默认分支: {defaultBranch}");
+            sb.AppendLine($"Stars: {stars}, Forks: {forks}");
+            sb.Append($"URL: {url}");
+            return sb.ToString();
+        }
+        catch
+        {
+            return json;
+        }
+    }
+
+    /// <summary>
+    /// 精简 PR 列表 JSON — 表格格式(number, state, title, author)
+    /// </summary>
+    private static string SummarizePrList(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
+            var sb = new StringBuilder(512);
+            sb.AppendLine("PR#\t状态\t标题\t作者");
+            foreach (var pr in doc.RootElement.EnumerateArray())
+            {
+                var number = pr.TryGetProperty("number", out var n) ? n.GetInt32() : 0;
+                var state = pr.TryGetProperty("state", out var s) ? s.GetString() ?? "" : "";
+                var title = pr.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";
+                var author = pr.TryGetProperty("user", out var u) && u.TryGetProperty("login", out var login) ? login.GetString() ?? "" : "";
+                sb.AppendLine($"{number}\t{state}\t{title}\t{author}");
+            }
+            return sb.ToString();
+        }
+        catch
+        {
+            return json;
+        }
+    }
+
+    /// <summary>
+    /// 精简 Issue 列表 JSON — 表格格式(number, state, title, author)
+    /// </summary>
+    private static string SummarizeIssueList(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
+            var sb = new StringBuilder(512);
+            sb.AppendLine("Issue#\t状态\t标题\t作者");
+            foreach (var issue in doc.RootElement.EnumerateArray())
+            {
+                var number = issue.TryGetProperty("number", out var n) ? n.GetInt32() : 0;
+                var state = issue.TryGetProperty("state", out var s) ? s.GetString() ?? "" : "";
+                var title = issue.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";
+                var author = issue.TryGetProperty("user", out var u) && u.TryGetProperty("login", out var login) ? login.GetString() ?? "" : "";
+                sb.AppendLine($"{number}\t{state}\t{title}\t{author}");
+            }
             return sb.ToString();
         }
         catch

@@ -131,15 +131,15 @@
 
 ## 渐进式执行顺序
 
-1. ⬜ 写 ADR 0073（本文档）
-2. ⬜ 写任务文档 `docs/gh-rest-api-rewrite-plan.md`
-3. ⬜ 搭基础：`IGitHubApiClient` + `GitHubApiClient`（HttpClient + token + 错误处理 + 分页 + rate limit）+ JsonContext + 单元测试
-4. ⬜ 重写 `gh_api`（通用 API 调用）+ 测试
-5. ⬜ 重写 `gh_pr_*`（8 方法）+ 测试
-6. ⬜ 重写 `gh_issue_*`（5 方法）+ 测试
-7. ⬜ 重写 `gh_repo_*`（5 方法）+ 测试
-8. ⬜ 重写 `gh_release_*`（6 方法）+ 测试
-9. ⬜ 重写 `gh_run_*`（4 方法，zip 解压）+ 测试
-10. ⬜ 归档 `GitHubCommandRunner` + `IGitHubCommandRunner` 到 `.xxx/`，更新 DI
-11. ⬜ 更新 AGENTS.md：AI 用 `jcc mcp_call gh_*`，卸载系统 gh
-12. ⬜ 处理 rg：jcc 入 PATH + AGENTS.md 规则 AI 用 jcc rg
+1. ✅ 写 ADR 0073（本文档）
+2. ✅ 写任务文档 `docs/gh-rest-api-rewrite-plan.md`（内联于 ADR，未单独建文档）
+3. ✅ 搭基础：`IGitHubApiClient` + `GitHubApiClient`（HttpClient + token + 错误处理 + 分页 + rate limit）+ JsonContext + 单元测试
+4. ✅ 重写 `gh_api`（通用 API 调用）+ 测试
+5. ✅ 重写 `gh_pr_*`（8 方法）+ 测试
+6. ✅ 重写 `gh_issue_*`（5 方法）+ 测试
+7. ✅ 重写 `gh_repo_*`（5 方法）+ 测试
+8. ✅ 重写 `gh_release_*`（6 方法）+ 测试
+9. ✅ 重写 `gh_run_*`（4 方法，zip 解压）+ 测试
+10. ✅ 归档 `GitHubCommandRunner` + `IGitHubCommandRunner` 到 `.xxx/`，更新 DI（因 InstallGitHubAppCommand 仍依赖 IGitHubCommandRunner，暂保留原位）
+11. ✅ 更新 AGENTS.md：AI 用 `jcc mcp_call gh_*`，卸载系统 gh
+12. ✅ 处理 rg：jcc 入 PATH + AGENTS.md 规则 AI 用 jcc rg

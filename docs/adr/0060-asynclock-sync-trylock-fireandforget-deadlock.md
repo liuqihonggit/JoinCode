@@ -143,7 +143,7 @@ RunFireAndForget(ProcessQueueAsync);
 |------|------|------|----------|
 | `StreamingToolExecutor.cs` | 339 | 高（已复现死锁） | TrySetResult 移到 `using` 锁块外 |
 | `StreamingToolExecutor.cs` | 181 | 高（Discard 同模式） | TrySetResult 移到 `using` 锁块外 |
-| `McpClientBase.cs` | 144 | 中（异常路径获同锁） | TrySetResult 移到 `guard.Dispose()` 后 |
+| `McpClientBase.cs` | 144 | 中（异常路径获同锁） | ~~TrySetResult 移到 `guard.Dispose()` 后~~ → 后续演进为 Actor 模型重构（`McpRequestRegistryActor` 单消费者 Channel，TrySetResult 在 Channel 回调中执行，无锁竞争） |
 | `GoalEngine.cs` | 350,395,519,548 | 低（TCS 续体选项隐患） | TCS 创建加 `RunContinuationsAsynchronously` |
 | `SerialBatchEventUploader.cs` | 216 | 低（已安全） | 已用 `RunContinuationsAsynchronously`，无需修改 |
 

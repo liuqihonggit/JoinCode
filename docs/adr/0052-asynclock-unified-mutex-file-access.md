@@ -39,7 +39,9 @@
 
 ## 决策
 
-### 决策1：AsyncLock 提供 SemaphoreSlim 兼容构造（参数作假）
+### 决策1：AsyncLock 提供 SemaphoreSlim 兼容构造
+
+> **后续变更**：已去掉 `(1,1)` 限制，AsyncLock 同时支持互斥 `(1,1)` 和并发限流 `(N,N)` 两种语义。下方原始决策保留作历史记录。
 
 新增构造函数 `AsyncLock(int initialCount, int maxCount)`，签名与 `SemaphoreSlim` 完全一致：
 
@@ -49,13 +51,11 @@ public sealed class AsyncLock : IDisposable
     // 现有无参构造保留
     public AsyncLock() { ... }
 
-    // 新增：参数兼容构造（参数作假，仅支持互斥语义）
+    // 参数兼容构造（后续变更：已放宽为支持 (N,N) 并发限流）
     public AsyncLock(int initialCount, int maxCount)
     {
-        if (initialCount != 1 || maxCount != 1)
-            throw new ArgumentOutOfRangeException(
-                nameof((initialCount, maxCount)),
-                "AsyncLock 仅支持互斥语义 (1,1)。信号量/并发限流请继续使用 SemaphoreSlim。");
+        if (initialCount < 0 || maxCount < 1 || initialCount > maxCount)
+            throw new ArgumentOutOfRangeException(...);
         ...
     }
 
@@ -65,10 +65,10 @@ public sealed class AsyncLock : IDisposable
 }
 ```
 
-**参数作假含义**：
-- 接受 `(1, 1)` → 正常互斥锁
-- 接受其他值 → 抛异常（编译期不报错，运行期 fail-fast，防止误用）
-- 目的：批量替换时构造签名兼容，减少改动量
+**当前语义**（后续变更后）：
+- 接受 `(1, 1)` → 互斥锁
+- 接受 `(N, N)` → 并发限流（N 个并发许可）
+- 接受非法值（initialCount < 0 || maxCount < 1 || initialCount > maxCount）→ 抛异常
 
 **不可替换的 SemaphoreSlim 保留**：
 - 信号量 `(0, int.MaxValue)`、信号 `(0, 1)`、并发限流 `(n, n)` — 这些是 SemaphoreSlim 的正当用途，不强行替换

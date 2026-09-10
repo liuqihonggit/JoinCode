@@ -14,7 +14,7 @@
 
 例外：
 - **app/JoinCode** 主工程入口（顶层语句、Main 方法）：可不加，因为主工程无 SynchronizationContext
-- **app/JoinCodeGui** GUI 项目：**禁止**加 ConfigureAwait(false)，因为 GUI 需要回到 UI 线程
+- **app/JoinCodeGui** GUI 项目：**禁止**加 ConfigureAwait(false)，因为 GUI 需要回到 UI 线程（Avalonia Dispatcher.UI 处理 UI 线程回返）。✅ 已清理：62 处 ConfigureAwait(false) 已全部移除（2026-09-11）
 
 ```csharp
 // ✅ 库代码

@@ -25,7 +25,8 @@ public partial class GitHubToolHandlers
         if (!string.IsNullOrWhiteSpace(assignee)) query["assignee"] = assignee;
 
         var result = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/issues", query: query, ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? Ok(result.Body) : Fail(result.Error);
+        if (!result.Success) return Fail(result.Error);
+        return Ok(SummarizeIssueList(result.Body));
     }
 
     [McpTool(GitHubToolNameConstants.GhIssueView, "查看 Issue 详情", "github", ConcurrencySafe = true)]
@@ -33,6 +34,7 @@ public partial class GitHubToolHandlers
         [McpToolParameter("Issue 编号或 URL", Required = true)] string issue_number,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
+        [McpToolParameter("verbose=true 返回完整 JSON(从缓存读,不调 API); 默认 false 精简输出(调 API 更新缓存)", Required = false)] bool? verbose = null,
         CancellationToken cancellationToken = default)
     {
         if (_apiClient is null) return ApiClientNotConfigured();
@@ -41,8 +43,20 @@ public partial class GitHubToolHandlers
         var (owner, repoName) = resolved.Value;
         var number = ParseIssueNumber(issue_number);
 
+        var cacheKey = BuildGhCacheKey("gh_issue_view", $"{owner}/{repoName}/{number}");
+
+        if (verbose == true)
+        {
+            var cached = TryGetGhCache(cacheKey);
+            if (cached is not null)
+                return Ok(cached);
+        }
+
         var result = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{owner}/{repoName}/issues/{number}", ct: cancellationToken).ConfigureAwait(false);
-        return result.Success ? Ok(result.Body) : Fail(result.Error);
+        if (!result.Success) return Fail(result.Error);
+
+        SaveGhCache(cacheKey, result.Body);
+        return Ok(verbose == true ? result.Body : SummarizeIssue(result.Body));
     }
 
     [McpTool(GitHubToolNameConstants.GhIssueCreate, "创建 Issue(支持标签/指派人)", "github")]

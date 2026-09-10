@@ -2,7 +2,7 @@
 
 > 创建时间: 2026-09-02
 > 范围: 补齐 `CacheBreakDetector` 的检测维度与判定阈值，对齐 TS 原版 `promptCacheBreakDetection.ts`（727 行）
-> 前置 ADR: [0055](../../adr/0055-system-prompt-section-injection-optimization.md)（系统提示词 section 注入优化空间）
+> 前置 ADR: [0056](../../adr/0056-cache-break-detection-enhancement.md)（缓存破坏检测维度补齐,迁移自旧 0055 分析记录）
 
 ## 0. 现状对比
 
@@ -289,7 +289,7 @@ P0.1（漏报修复）✅ commit 4df5bc4dd
 P0.2（haiku 排除）✅ commit 61f85df55
 P0.3（TTL 区分）✅ commit e9b05c3a5
 P1.1（perToolHashes）⏭️ 跳过 — ToolDriftReport.EditedNames 已提供 per-tool 定位
-P1.2（cacheControlHash）⏭️ 跳过 — jcc 不支持三级 cache scope（ADR 0055 P1 未实现）
+P1.2（cacheControlHash）⏭️ 跳过 — jcc 不支持三级 cache scope（旧 0055 P1 未实现,已归档）
 P1.3（effort+betas+strategy+extraBody）⏭️ 跳过 — Anthropic 专属参数，jcc 多供应商不适用
 P2.1（notifyCacheDeletion）✅ commit 1c5105bf0
 P2.2（sanitizeToolName）✅ commit 4bbf5a18f

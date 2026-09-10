@@ -44,10 +44,11 @@ public sealed class McpInitModule : IAppModule
 
         services.WirePluginSkillBridge();
 
-        // 并行：DreamPlugin 加载 + MCP 工具注册（两者逻辑独立，IToolRegistry 线程安全）
+        // 并行：DreamPlugin/FixHooksPlugin 加载 + MCP 工具注册（三者逻辑独立，IToolRegistry 线程安全）
         var dreamTask = LoadDreamPluginSafeAsync(services, logger, ct);
+        var fixHooksTask = LoadFixHooksPluginSafeAsync(services, logger, ct);
         var mcpInitTask = McpInitializeSafeAsync(services, logger, ct);
-        await Task.WhenAll(dreamTask, mcpInitTask).ConfigureAwait(false);
+        await Task.WhenAll(dreamTask, fixHooksTask, mcpInitTask).ConfigureAwait(false);
 
         // 所有工具注册完成后，同步工具列表 + 刷新 kernel.Plugins
         try
@@ -79,6 +80,22 @@ public sealed class McpInitModule : IAppModule
         catch (Exception ex)
         {
             logger?.LogError(ex, "[MCP] LoadDreamPlugin failed");
+        }
+    }
+
+    /// <summary>
+    /// 安全加载 FixHooksPlugin — 失败仅记日志，不阻断启动
+    /// </summary>
+    private static async Task LoadFixHooksPluginSafeAsync(IServiceProvider services, ILogger? logger, CancellationToken ct)
+    {
+        try
+        {
+            var pluginManager = services.GetRequiredService<Core.Plugins.IPluginManager>();
+            await pluginManager.LoadWorkflowPluginAsync<Core.Plugins.FixHooksPlugin>(ct).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "[MCP] LoadFixHooksPlugin failed");
         }
     }
 

@@ -26,17 +26,31 @@ public sealed partial class ToolFixHookRegistry : ServiceEntity
         _healthMonitor = healthMonitor ?? throw new ArgumentNullException(nameof(healthMonitor));
         _logger = logger;
         _threshold = threshold;
-        RegisterDefaultFixHooks();
     }
 
     /// <summary>
     /// 注册默认修正器 — GhPrBodyFixHook + JsonFixHook + GhTimeoutFixHook
+    /// <para>由 FixHooksPlugin 在 InitializeAsync 中调用,实现万物皆插件(ADR 0098)</para>
     /// </summary>
-    private void RegisterDefaultFixHooks()
+    public void RegisterDefaultFixHooks()
     {
         Register(new FixHooks.GhPrBodyFixHook());
         Register(new FixHooks.JsonFixHook());
         Register(new FixHooks.GhTimeoutFixHook());
+    }
+
+    /// <summary>
+    /// 撤销注册指定名称的修正器 — 插件卸载时调用
+    /// </summary>
+    public bool Unregister(string hookName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(hookName);
+        var removed = _hooks.RemoveAll(h => h.Name == hookName);
+        if (removed > 0)
+        {
+            _logger?.LogDebug("撤销工具修正器: {Name} (移除 {Count} 个)", hookName, removed);
+        }
+        return removed > 0;
     }
 
     /// <summary>

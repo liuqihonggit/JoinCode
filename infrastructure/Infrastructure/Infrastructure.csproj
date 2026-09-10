@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <AllowPack>true</AllowPack>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>

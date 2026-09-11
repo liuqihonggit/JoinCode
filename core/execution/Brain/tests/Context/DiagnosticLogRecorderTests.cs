@@ -224,7 +224,7 @@ public class DiagnosticLogRecorderTests
 
     private static async Task<string> ReadLogContentAsync(IFileSystem fs)
     {
-        var sessionsDir = WorkflowConstants.Paths.SessionsDirectory;
+        var sessionsDir = AppDataConstants.Paths.SessionsDirectory;
 
         if (!fs.DirectoryExists(sessionsDir))
             return string.Empty;

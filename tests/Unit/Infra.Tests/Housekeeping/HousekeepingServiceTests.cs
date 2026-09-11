@@ -6,7 +6,7 @@ public sealed class HousekeepingServiceTests
     private readonly TestInMemFs _fs = new();
     private readonly FakeClockService _clock = new();
 
-    private static readonly string JccDir = WorkflowConstants.Paths.JccDirectory;
+    private static readonly string JccDir = AppDataConstants.Paths.JccDirectory;
     private static readonly string SessionsDir = Path.Combine(JccDir, AppDataConstants.SessionsFolderName);
     private static readonly string FileHistoryDir = Path.Combine(JccDir, AppDataConstants.FileHistoryFolderName);
     private static readonly string SessionEnvDir = Path.Combine(JccDir, "session-env");

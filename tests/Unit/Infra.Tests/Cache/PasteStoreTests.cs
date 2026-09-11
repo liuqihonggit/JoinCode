@@ -5,8 +5,7 @@ public sealed class PasteStoreTests
 {
     private readonly TestInMemFs _fs = new();
 
-    private static readonly string PasteCacheDir = Path.Combine(
-        WorkflowConstants.Paths.JccDirectory, "paste-cache");
+    private static readonly string PasteCacheDir = AppDataConstants.Paths.PasteCacheDirectory;
 
     private PasteStore CreateSut()
         => new(_fs, NullLogger<PasteStore>.Instance);

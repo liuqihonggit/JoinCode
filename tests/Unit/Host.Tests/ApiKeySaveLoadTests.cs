@@ -41,7 +41,7 @@ public class ApiKeySaveLoadTests
             
             await ConfigLoader.SaveApiKeyToJccAsync(provider, apiKey, fs).ConfigureAwait(true);
             
-            var authPath = WorkflowConstants.Paths.AuthFilePath;
+            var authPath = AppDataConstants.Paths.AuthFilePath;
             fs.FileExists(authPath).Should().BeTrue($"auth.json should exist at {authPath}");
             
             var loadedKey = await Loader.LoadApiKeyFromJccAsync(provider, fs).ConfigureAwait(true);
@@ -132,7 +132,7 @@ public class ApiKeySaveLoadTests
             
             await ConfigLoader.SaveApiKeyToJccAsync(provider, "old-key", fs).ConfigureAwait(true);
             
-            var authPath = WorkflowConstants.Paths.AuthFilePath;
+            var authPath = AppDataConstants.Paths.AuthFilePath;
             var json1 = await fs.ReadAllTextAsync(authPath).ConfigureAwait(true);
             json1.Should().Contain("old-key");
             
@@ -175,7 +175,7 @@ public class ApiKeySaveLoadTests
             
             await ConfigLoader.SaveApiKeyToJccAsync(provider, apiKey, fs).ConfigureAwait(true);
             
-            var authPath = WorkflowConstants.Paths.AuthFilePath;
+            var authPath = AppDataConstants.Paths.AuthFilePath;
             fs.FileExists(authPath).Should().BeTrue();
             
             var json = await fs.ReadAllTextAsync(authPath).ConfigureAwait(true);

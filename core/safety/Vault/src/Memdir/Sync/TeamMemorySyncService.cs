@@ -1,5 +1,15 @@
 namespace Memdir.Sync;
 
+public interface ITeamMemorySyncCommand;
+
+public sealed record StartSyncCmd(TaskCompletionSource Tcs) : ITeamMemorySyncCommand;
+public sealed record StopSyncCmd(TaskCompletionSource Tcs) : ITeamMemorySyncCommand;
+public sealed record SyncCmd(string? FilePath, TaskCompletionSource Tcs) : ITeamMemorySyncCommand;
+public sealed record ResolveConflictCmd(string FilePath, SyncConflictResolution Resolution, TaskCompletionSource<SyncConflictResolution> Tcs) : ITeamMemorySyncCommand;
+public sealed record FileChangedCmd(string FilePath) : ITeamMemorySyncCommand;
+public sealed record FileDeletedCmd(string FilePath) : ITeamMemorySyncCommand;
+public sealed record FileRenamedCmd(string OldPath, string NewPath) : ITeamMemorySyncCommand;
+
 public sealed partial class SyncFileEntry
 {
     public required string FilePath { get; init; }
@@ -9,7 +19,7 @@ public sealed partial class SyncFileEntry
 }
 
 [Register(typeof(ITeamMemorySyncService), ServiceLifetime.Singleton)]
-public sealed partial class TeamMemorySyncService : ServiceEntity, ITeamMemorySyncService
+public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCommand, Unit>, ITeamMemorySyncService
 {
     private readonly ILogger<TeamMemorySyncService>? _logger;
     private readonly IClockService _clock;
@@ -17,19 +27,21 @@ public sealed partial class TeamMemorySyncService : ServiceEntity, ITeamMemorySy
     private readonly TeamMemorySyncOptions _options;
     private readonly IFileOperationService _fileOperationService;
     private readonly IFileSystem _fs;
-    private readonly AsyncLock _syncLock = new();
     private readonly ConcurrentQueue<MemorySyncEvent> _syncHistory = new();
     private readonly ConcurrentDictionary<string, SyncFileEntry> _localEntries = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, SyncFileEntry> _remoteEntries = new(StringComparer.OrdinalIgnoreCase);
     private readonly System.Threading.Timer _syncTimer;
     private readonly MiddlewarePipeline<SyncStartContext>? _startPipeline;
     private IFileSystemWatcher? _watcher;
-    private bool _isRunning;
-    private bool _disposed;
+    private volatile bool _isRunning;
+    private int _disposed;
     private readonly CancellationTokenSource _disposeCts = new();
 
     private static readonly TeamMemorySyncJsonContext JsonContext = TeamMemorySyncJsonContext.Default;
     private const int MaxSyncHistory = 1000;
+
+    private static TaskCompletionSource CreateTcs() => new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private static TaskCompletionSource<T> CreateTcs<T>() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public TeamMemorySyncService(
         IFileSystem fs,
@@ -40,6 +52,7 @@ public sealed partial class TeamMemorySyncService : ServiceEntity, ITeamMemorySy
         ITelemetryService? telemetryService = null,
         IEnumerable<ISyncStartMiddleware>? startMiddlewares = null,
         IClockService? clock = null)
+        : base()
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
@@ -67,67 +80,87 @@ public sealed partial class TeamMemorySyncService : ServiceEntity, ITeamMemorySy
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
-        if (_startPipeline is not null)
-        {
-            await StartViaPipelineAsync(cancellationToken).ConfigureAwait(false);
-            return;
-        }
-
-        await StartDirectAsync(cancellationToken).ConfigureAwait(false);
+        var tcs = CreateTcs();
+        await SendAsync(new StartSyncCmd(tcs), cancellationToken).ConfigureAwait(false);
+        await tcs.Task.ConfigureAwait(false);
     }
 
-    private async Task StartViaPipelineAsync(CancellationToken cancellationToken)
+    public async Task StopAsync(CancellationToken cancellationToken = default)
     {
-        var pipeline = _startPipeline;
-        if (pipeline is null)
+        var tcs = CreateTcs();
+        await SendAsync(new StopSyncCmd(tcs), cancellationToken).ConfigureAwait(false);
+        await tcs.Task.ConfigureAwait(false);
+    }
+
+    public async Task SyncAsync(string? filePath = null, CancellationToken cancellationToken = default)
+    {
+        var tcs = CreateTcs();
+        await SendAsync(new SyncCmd(filePath, tcs), cancellationToken).ConfigureAwait(false);
+        await tcs.Task.ConfigureAwait(false);
+    }
+
+    public Task<IEnumerable<MemorySyncEvent>> GetSyncHistoryAsync(int limit = 100, CancellationToken cancellationToken = default)
+    {
+        var events = _syncHistory
+            .OrderByDescending(e => e.Timestamp)
+            .Take(limit);
+
+        return Task.FromResult<IEnumerable<MemorySyncEvent>>(events);
+    }
+
+    public async Task<SyncConflictResolution> ResolveConflictAsync(string filePath, SyncConflictResolution resolution, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(filePath);
+        var tcs = CreateTcs<SyncConflictResolution>();
+        await SendAsync(new ResolveConflictCmd(filePath, resolution, tcs), cancellationToken).ConfigureAwait(false);
+        return await tcs.Task.ConfigureAwait(false);
+    }
+
+    private void OnSyncTimerTick(object? state)
+    {
+        if (_isRunning && Volatile.Read(ref _disposed) == 0)
         {
-            return;
+            TrySend(new SyncCmd(null, null!));
+        }
+    }
+
+    private void OnFileChanged(object? sender, FileChangedEventArgs e)
+    {
+        TrySend(new FileChangedCmd(e.FullPath));
+    }
+
+    private void OnFileDeleted(object? sender, FileChangedEventArgs e)
+    {
+        TrySend(new FileDeletedCmd(e.FullPath));
+    }
+
+    private void OnFileRenamed(object? sender, FileRenamedEventArgs e)
+    {
+        TrySend(new FileRenamedCmd(e.OldFullPath, e.FullPath));
+    }
+
+    private void InitializeWatcher()
+    {
+        _watcher = _fs.Watch(_options.WatchPath);
+        _watcher.NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size;
+        _watcher.IncludeSubdirectories = true;
+
+        foreach (var pattern in _options.FilePatterns)
+        {
+            _watcher.Filters.Add(pattern);
         }
 
-        var ctx = new SyncStartContext
-        {
-            FileSystem = _fs,
-            FileOperationService = _fileOperationService,
-            Options = _options,
-            CancellationToken = cancellationToken,
-            IsDisposed = _disposed,
-            IsAlreadyRunning = _isRunning,
-            LocalEntries = _localEntries,
-            RemoteEntries = _remoteEntries,
-            SyncHistory = _syncHistory,
-            SyncTimer = _syncTimer,
-        };
+        _watcher.Changed += OnFileChanged;
+        _watcher.Created += OnFileChanged;
+        _watcher.Deleted += OnFileDeleted;
+        _watcher.Renamed += OnFileRenamed;
 
-        await pipeline.ExecuteAsync(ctx, cancellationToken).ConfigureAwait(false);
-
-        if (ctx.Failed)
-        {
-            if (ctx.IsDisposed)
-            {
-                ObjectDisposedException.ThrowIf(true, this);
-            }
-
-            throw new InvalidOperationException(ctx.ErrorMessage ?? "Sync start failed");
-        }
-
-        if (ctx.MarkAsRunning)
-        {
-            _isRunning = true;
-        }
-
-        if (ctx.Watcher is not null)
-        {
-            _watcher = ctx.Watcher;
-            _watcher.Changed += OnFileChanged;
-            _watcher.Created += OnFileChanged;
-            _watcher.Deleted += OnFileDeleted;
-            _watcher.Renamed += OnFileRenamed;
-        }
+        _watcher.EnableRaisingEvents = true;
     }
 
     private async Task StartDirectAsync(CancellationToken cancellationToken)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
 
         if (_isRunning)
         {
@@ -164,13 +197,62 @@ public sealed partial class TeamMemorySyncService : ServiceEntity, ITeamMemorySy
         RecordSyncMetrics("start", true);
     }
 
-    public Task StopAsync(CancellationToken cancellationToken = default)
+    private async Task StartViaPipelineAsync(CancellationToken cancellationToken)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        var pipeline = _startPipeline;
+        if (pipeline is null)
+        {
+            return;
+        }
+
+        var ctx = new SyncStartContext
+        {
+            FileSystem = _fs,
+            FileOperationService = _fileOperationService,
+            Options = _options,
+            CancellationToken = cancellationToken,
+            IsDisposed = Volatile.Read(ref _disposed) != 0,
+            IsAlreadyRunning = _isRunning,
+            LocalEntries = _localEntries,
+            RemoteEntries = _remoteEntries,
+            SyncHistory = _syncHistory,
+            SyncTimer = _syncTimer,
+        };
+
+        await pipeline.ExecuteAsync(ctx, cancellationToken).ConfigureAwait(false);
+
+        if (ctx.Failed)
+        {
+            if (ctx.IsDisposed)
+            {
+                ObjectDisposedException.ThrowIf(true, this);
+            }
+
+            throw new InvalidOperationException(ctx.ErrorMessage ?? "Sync start failed");
+        }
+
+        if (ctx.MarkAsRunning)
+        {
+            _isRunning = true;
+        }
+
+        if (ctx.Watcher is not null)
+        {
+            _watcher = ctx.Watcher;
+            _watcher.Changed += OnFileChanged;
+            _watcher.Created += OnFileChanged;
+            _watcher.Deleted += OnFileDeleted;
+            _watcher.Renamed += OnFileRenamed;
+        }
+    }
+
+    private void StopDirect()
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
 
         if (!_isRunning)
         {
-            return Task.CompletedTask;
+            return;
         }
 
         _syncTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
@@ -179,38 +261,90 @@ public sealed partial class TeamMemorySyncService : ServiceEntity, ITeamMemorySy
         _isRunning = false;
 
         _logger?.LogInformation(L.T(StringKey.VaultLogSyncStopped));
-        return Task.CompletedTask;
     }
 
-    public async Task SyncAsync(string? filePath = null, CancellationToken cancellationToken = default)
+    private async Task SyncSingleFileAsync(string filePath, CancellationToken cancellationToken)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-
-        using var guard = await _syncLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_syncLock.Name}' 等待超时");
-        if (filePath != null)
+        try
         {
-            await SyncSingleFileAsync(filePath, cancellationToken).ConfigureAwait(false);
+            var localEntry = _localEntries.TryGetValue(filePath, out var l) ? l : null;
+            var remoteEntry = _remoteEntries.TryGetValue(filePath, out var r) ? r : null;
+
+            if (localEntry == null && remoteEntry == null)
+            {
+                return;
+            }
+
+            if (localEntry != null && remoteEntry == null)
+            {
+                await PushToRemoteAsync(filePath, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            if (localEntry == null && remoteEntry != null)
+            {
+                await PullFromRemoteAsync(filePath, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            if (localEntry is not null && remoteEntry is not null && localEntry.ContentHash == remoteEntry.ContentHash)
+            {
+                return;
+            }
+
+            var local = localEntry ?? throw new InvalidOperationException($"Local entry is null for {filePath}.");
+            var remote = remoteEntry ?? throw new InvalidOperationException($"Remote entry is null for {filePath}.");
+            var timeDiff = Math.Abs((local.LastModified - remote.LastModified).TotalSeconds);
+            if (timeDiff < _options.ConflictDetectionWindow.TotalSeconds)
+            {
+                var syncEvent = new MemorySyncEvent
+                {
+                    EventId = Guid.NewGuid().ToString("N")[..8],
+                    FilePath = filePath,
+                    Type = SyncEventType.ConflictDetected,
+                    Timestamp = _clock.GetUtcNow()
+                };
+
+                EnqueueEvent(syncEvent);
+                await ResolveConflictDirectAsync(filePath, _options.DefaultConflictResolution, cancellationToken).ConfigureAwait(false);
+            }
+            else if (localEntry.LastModified > remoteEntry.LastModified)
+            {
+                await PushToRemoteAsync(filePath, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await PullFromRemoteAsync(filePath, cancellationToken).ConfigureAwait(false);
+            }
         }
-        else
+        catch (Exception ex)
         {
-            await SyncAllFilesAsync(cancellationToken).ConfigureAwait(false);
+            _logger?.LogError(ex, L.T(StringKey.VaultLogSyncFileFailed), filePath);
+            RecordSyncMetrics("sync_file", false);
+
+            EnqueueEvent(new MemorySyncEvent
+            {
+                EventId = Guid.NewGuid().ToString("N")[..8],
+                FilePath = filePath,
+                Type = SyncEventType.Error,
+                Timestamp = _clock.GetUtcNow(),
+                ErrorMessage = ex.Message
+            });
         }
     }
 
-    public Task<IEnumerable<MemorySyncEvent>> GetSyncHistoryAsync(int limit = 100, CancellationToken cancellationToken = default)
+    private async Task SyncAllFilesAsync(CancellationToken cancellationToken)
     {
-        var events = _syncHistory
-            .OrderByDescending(e => e.Timestamp)
-            .Take(limit);
+        var allPaths = _localEntries.Keys
+            .Union(_remoteEntries.Keys)
+            .Distinct()
+            .ToList();
 
-        return Task.FromResult<IEnumerable<MemorySyncEvent>>(events);
+        await Task.WhenAll(allPaths.Select(path => SyncSingleFileAsync(path, cancellationToken))).ConfigureAwait(false);
     }
 
-    public async Task<SyncConflictResolution> ResolveConflictAsync(string filePath, SyncConflictResolution resolution, CancellationToken cancellationToken = default)
+    private async Task<SyncConflictResolution> ResolveConflictDirectAsync(string filePath, SyncConflictResolution resolution, CancellationToken cancellationToken)
     {
-        ArgumentException.ThrowIfNullOrEmpty(filePath);
-
-        using var guard = await _syncLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_syncLock.Name}' 等待超时");
         var localEntry = _localEntries.TryGetValue(filePath, out var l) ? l : null;
         var remoteEntry = _remoteEntries.TryGetValue(filePath, out var r) ? r : null;
 
@@ -242,83 +376,6 @@ public sealed partial class TeamMemorySyncService : ServiceEntity, ITeamMemorySy
         EnqueueEvent(syncEvent);
 
         return resolution;
-    }
-
-    private void OnSyncTimerTick(object? state)
-    {
-        if (_isRunning && !_disposed)
-        {
-            _ = SyncAsync(cancellationToken: _disposeCts.Token).WaitAsync(TimeSpan.FromSeconds(10), _disposeCts.Token).ConfigureAwait(false);
-        }
-    }
-
-    private void InitializeWatcher()
-    {
-        _watcher = _fs.Watch(_options.WatchPath);
-        _watcher.NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size;
-        _watcher.IncludeSubdirectories = true;
-
-        foreach (var pattern in _options.FilePatterns)
-        {
-            _watcher.Filters.Add(pattern);
-        }
-
-        _watcher.Changed += OnFileChanged;
-        _watcher.Created += OnFileChanged;
-        _watcher.Deleted += OnFileDeleted;
-        _watcher.Renamed += OnFileRenamed;
-
-        _watcher.EnableRaisingEvents = true;
-    }
-
-    private void OnFileChanged(object? sender, FileChangedEventArgs e)
-    {
-        var syncEvent = new MemorySyncEvent
-        {
-            EventId = Guid.NewGuid().ToString("N")[..8],
-            FilePath = e.FullPath,
-            Type = SyncEventType.LocalChanged,
-            Timestamp = _clock.GetUtcNow(),
-            ContentHash = ComputeFileHash(_fs, e.FullPath)
-        };
-
-        EnqueueEvent(syncEvent);
-
-        if (_options.EnableAutoSync)
-        {
-            _ = SyncAsync(e.FullPath, _disposeCts.Token).WaitAsync(TimeSpan.FromSeconds(10), _disposeCts.Token).ConfigureAwait(false);
-        }
-    }
-
-    private void OnFileDeleted(object? sender, FileChangedEventArgs e)
-    {
-        _localEntries.TryRemove(e.FullPath, out _);
-
-        var syncEvent = new MemorySyncEvent
-        {
-            EventId = Guid.NewGuid().ToString("N")[..8],
-            FilePath = e.FullPath,
-            Type = SyncEventType.LocalChanged,
-            Timestamp = _clock.GetUtcNow()
-        };
-
-        EnqueueEvent(syncEvent);
-    }
-
-    private void OnFileRenamed(object? sender, FileRenamedEventArgs e)
-    {
-        _localEntries.TryRemove(e.OldFullPath, out _);
-
-        var syncEvent = new MemorySyncEvent
-        {
-            EventId = Guid.NewGuid().ToString("N")[..8],
-            FilePath = e.FullPath,
-            Type = SyncEventType.LocalChanged,
-            Timestamp = _clock.GetUtcNow(),
-            ContentHash = ComputeFileHash(_fs, e.FullPath)
-        };
-
-        EnqueueEvent(syncEvent);
     }
 
     private async Task ScanLocalFilesAsync(CancellationToken cancellationToken)
@@ -379,86 +436,6 @@ public sealed partial class TeamMemorySyncService : ServiceEntity, ITeamMemorySy
         {
             _logger?.LogError(ex, L.T(StringKey.VaultLogScanRemoteFailed));
         }
-    }
-
-    private async Task SyncSingleFileAsync(string filePath, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var localEntry = _localEntries.TryGetValue(filePath, out var l) ? l : null;
-            var remoteEntry = _remoteEntries.TryGetValue(filePath, out var r) ? r : null;
-
-            if (localEntry == null && remoteEntry == null)
-            {
-                return;
-            }
-
-            if (localEntry != null && remoteEntry == null)
-            {
-                await PushToRemoteAsync(filePath, cancellationToken).ConfigureAwait(false);
-                return;
-            }
-
-            if (localEntry == null && remoteEntry != null)
-            {
-                await PullFromRemoteAsync(filePath, cancellationToken).ConfigureAwait(false);
-                return;
-            }
-
-            if (localEntry is not null && remoteEntry is not null && localEntry.ContentHash == remoteEntry.ContentHash)
-            {
-                return;
-            }
-
-            var local = localEntry ?? throw new InvalidOperationException($"Local entry is null for {filePath}.");
-            var remote = remoteEntry ?? throw new InvalidOperationException($"Remote entry is null for {filePath}.");
-            var timeDiff = Math.Abs((local.LastModified - remote.LastModified).TotalSeconds);
-            if (timeDiff < _options.ConflictDetectionWindow.TotalSeconds)
-            {
-                var syncEvent = new MemorySyncEvent
-                {
-                    EventId = Guid.NewGuid().ToString("N")[..8],
-                    FilePath = filePath,
-                    Type = SyncEventType.ConflictDetected,
-                    Timestamp = _clock.GetUtcNow()
-                };
-
-                EnqueueEvent(syncEvent);
-                await ResolveConflictAsync(filePath, _options.DefaultConflictResolution, cancellationToken).ConfigureAwait(false);
-            }
-            else if (localEntry.LastModified > remoteEntry.LastModified)
-            {
-                await PushToRemoteAsync(filePath, cancellationToken).ConfigureAwait(false);
-            }
-            else
-            {
-                await PullFromRemoteAsync(filePath, cancellationToken).ConfigureAwait(false);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, L.T(StringKey.VaultLogSyncFileFailed), filePath);
-            RecordSyncMetrics("sync_file", false);
-
-            EnqueueEvent(new MemorySyncEvent
-            {
-                EventId = Guid.NewGuid().ToString("N")[..8],
-                FilePath = filePath,
-                Type = SyncEventType.Error,
-                Timestamp = _clock.GetUtcNow(),
-                ErrorMessage = ex.Message
-            });
-        }
-    }
-
-    private async Task SyncAllFilesAsync(CancellationToken cancellationToken)
-    {
-        var allPaths = _localEntries.Keys
-            .Union(_remoteEntries.Keys)
-            .Distinct()
-            .ToList();
-
-        await Task.WhenAll(allPaths.Select(path => SyncSingleFileAsync(path, cancellationToken))).ConfigureAwait(false);
     }
 
     private async Task PushToRemoteAsync(string filePath, CancellationToken cancellationToken)
@@ -635,7 +612,6 @@ public sealed partial class TeamMemorySyncService : ServiceEntity, ITeamMemorySy
     {
         ArgumentException.ThrowIfNullOrEmpty(teamId);
 
-        // Map teamId to a file path pattern and call SyncAsync
         var teamPath = Path.Combine(_options.WatchPath, teamId);
         await SyncAsync(teamPath, cancellationToken).ConfigureAwait(false);
 
@@ -684,15 +660,98 @@ public sealed partial class TeamMemorySyncService : ServiceEntity, ITeamMemorySy
         };
     }
 
-    protected override void OnDispose()
+    protected override async ValueTask HandleAsync(ITeamMemorySyncCommand command, CancellationToken ct)
     {
-        if (_disposed) return;
-        _disposed = true;
+        switch (command)
+        {
+            case StartSyncCmd start:
+                if (_startPipeline is not null)
+                    await StartViaPipelineAsync(ct).ConfigureAwait(false);
+                else
+                    await StartDirectAsync(ct).ConfigureAwait(false);
+                start.Tcs.TrySetResult();
+                break;
 
+            case StopSyncCmd stop:
+                StopDirect();
+                stop.Tcs.TrySetResult();
+                break;
+
+            case SyncCmd sync:
+                if (sync.FilePath != null)
+                    await SyncSingleFileAsync(sync.FilePath, ct).ConfigureAwait(false);
+                else
+                    await SyncAllFilesAsync(ct).ConfigureAwait(false);
+                sync.Tcs?.TrySetResult();
+                break;
+
+            case ResolveConflictCmd resolve:
+                var result = await ResolveConflictDirectAsync(resolve.FilePath, resolve.Resolution, ct).ConfigureAwait(false);
+                resolve.Tcs.TrySetResult(result);
+                break;
+
+            case FileChangedCmd fileChanged:
+                var syncEvent = new MemorySyncEvent
+                {
+                    EventId = Guid.NewGuid().ToString("N")[..8],
+                    FilePath = fileChanged.FilePath,
+                    Type = SyncEventType.LocalChanged,
+                    Timestamp = _clock.GetUtcNow(),
+                    ContentHash = ComputeFileHash(_fs, fileChanged.FilePath)
+                };
+                EnqueueEvent(syncEvent);
+                if (_options.EnableAutoSync)
+                {
+                    await SyncSingleFileAsync(fileChanged.FilePath, ct).ConfigureAwait(false);
+                }
+                break;
+
+            case FileDeletedCmd fileDeleted:
+                _localEntries.TryRemove(fileDeleted.FilePath, out _);
+                EnqueueEvent(new MemorySyncEvent
+                {
+                    EventId = Guid.NewGuid().ToString("N")[..8],
+                    FilePath = fileDeleted.FilePath,
+                    Type = SyncEventType.LocalChanged,
+                    Timestamp = _clock.GetUtcNow()
+                });
+                break;
+
+            case FileRenamedCmd fileRenamed:
+                _localEntries.TryRemove(fileRenamed.OldPath, out _);
+                EnqueueEvent(new MemorySyncEvent
+                {
+                    EventId = Guid.NewGuid().ToString("N")[..8],
+                    FilePath = fileRenamed.NewPath,
+                    Type = SyncEventType.LocalChanged,
+                    Timestamp = _clock.GetUtcNow(),
+                    ContentHash = ComputeFileHash(_fs, fileRenamed.NewPath)
+                });
+                break;
+        }
+    }
+
+    protected override void OnConsumerError(Exception ex)
+    {
+    }
+
+    public void Dispose()
+    {
+        if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0) return;
         _disposeCts.Cancel();
-        _disposeCts.Dispose();
         _syncTimer.Dispose();
         _watcher?.Dispose();
-        _syncLock.Dispose();
+        DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(5));
+        _disposeCts.Dispose();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0) return;
+        _disposeCts.Cancel();
+        _syncTimer.Dispose();
+        _watcher?.Dispose();
+        await base.DisposeAsync().ConfigureAwait(false);
+        _disposeCts.Dispose();
     }
 }

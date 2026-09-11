@@ -22,6 +22,7 @@ public enum FalvSubOption
 /// /falv 命令 — 结构化推理（三权分立 + 有限视锥 + 5维客观权重）
 /// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Falv, Description = "结构化推理引擎（假定→验证→事实）", Usage = "/falv <假定内容> | /falv --status | /falv --judge | /falv --evidence | /falv --continue [rounds|tokens|both|default] | /falv --budget | /falv --cone | /falv --conflict | /falv --reset", Category = ChatCommandCategory.Law, ArgumentHint = "<假定内容|--status|--judge|--evidence|--continue|--budget|--cone|--conflict|--reset>")]
+[ChatCommandArg("action", Type = "string", Description = "推理操作: 默认为假定内容(自由文本),或 --status/--judge/--evidence/--continue/--budget/--cone/--conflict/--reset 子命令", Enum = new[] { "--status", "--judge", "--evidence", "--continue", "--budget", "--cone", "--conflict", "--reset" })]
 public sealed class FalvCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

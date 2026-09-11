@@ -1,29 +1,48 @@
 namespace Infrastructure.Shell;
 
 /// <summary>
-/// Shell 进程看护服务 — 周期性检测僵尸进程
-/// 在 Windows 上额外监听系统睡眠/唤醒事件，唤醒后立即检查
+/// Shell 进程看护命令 — Actor 消息类型
+/// </summary>
+public interface IShellWatchdogCommand;
+
+public sealed record ShellRegisterCmd(int ProcessId, Action<int> OnProcessDied) : IShellWatchdogCommand;
+
+public sealed record ShellUnregisterCmd(int ProcessId) : IShellWatchdogCommand;
+
+public sealed record ShellCheckAllTickCmd : IShellWatchdogCommand;
+
+public sealed record ShellSystemResumedCmd : IShellWatchdogCommand;
+
+/// <summary>
+/// Shell 进程看护服务 — Actor 化：Consumer 线程独占 _callbacks，消除 ConcurrentDictionary。
+/// <para>Timer 周期检查改为 TrySend(ShellCheckAllTickCmd) 自消息，Consumer 串行处理。</para>
+/// <para>系统唤醒通知改为 TrySend(ShellSystemResumedCmd)，Consumer 内部延迟 2s 后检查。</para>
 /// </summary>
 [Register(typeof(IShellProcessWatchdog), ServiceLifetime.Singleton)]
-public sealed class ShellProcessWatchdog : ServiceEntity, IShellProcessWatchdog
+public sealed class ShellProcessWatchdog : ActorBase<IShellWatchdogCommand, Unit>, IShellProcessWatchdog
 {
-    private readonly ConcurrentDictionary<int, Action<int>> _callbacks = new();
-    private Timer? _healthCheckTimer;
+    private readonly Timer _timer;
+    private readonly ILogger? _logger;
+    private int _disposed;
 
-    public ShellProcessWatchdog()
+    private readonly Dictionary<int, Action<int>> _callbacks = new();
+
+    public ShellProcessWatchdog(ILogger? logger = null)
+        : base()
     {
-        _healthCheckTimer = new Timer(CheckAllProcesses, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+        _logger = logger;
+        _timer = new Timer(_ => TrySend(new ShellCheckAllTickCmd()), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
     }
 
     public void Register(int processId, Action<int> onProcessDied)
     {
         ArgumentNullException.ThrowIfNull(onProcessDied);
-        _callbacks[processId] = onProcessDied;
+        TrySend(new ShellRegisterCmd(processId, onProcessDied));
     }
 
     public void Unregister(int processId)
     {
-        _callbacks.TryRemove(processId, out _);
+        TrySend(new ShellUnregisterCmd(processId));
     }
 
     /// <summary>
@@ -31,22 +50,48 @@ public sealed class ShellProcessWatchdog : ServiceEntity, IShellProcessWatchdog
     /// </summary>
     public void NotifySystemResumed()
     {
-        _ = Task.Run(async () =>
-        {
-            await Task.Delay(2000).ConfigureAwait(false);
-            CheckAllProcesses(null);
-        });
+        TrySend(new ShellSystemResumedCmd());
     }
 
-    private void CheckAllProcesses(object? state)
+    protected override async ValueTask HandleAsync(IShellWatchdogCommand command, CancellationToken ct)
     {
+        switch (command)
+        {
+            case ShellRegisterCmd reg:
+                _callbacks[reg.ProcessId] = reg.OnProcessDied;
+                break;
+            case ShellUnregisterCmd unreg:
+                _callbacks.Remove(unreg.ProcessId);
+                break;
+            case ShellCheckAllTickCmd:
+                CheckAllProcesses();
+                break;
+            case ShellSystemResumedCmd:
+                await Task.Delay(2000, ct).ConfigureAwait(false);
+                CheckAllProcesses();
+                break;
+        }
+    }
+
+    protected override void OnConsumerError(Exception ex)
+    {
+        _logger?.LogWarning(ex, "[ShellWatchdog] 消费者异常");
+    }
+
+    private void CheckAllProcesses()
+    {
+        var deadPids = new List<int>();
         foreach (var (pid, callback) in _callbacks)
         {
             if (!IsProcessAlive(pid))
             {
-                _callbacks.TryRemove(pid, out _);
+                deadPids.Add(pid);
                 callback(pid);
             }
+        }
+        foreach (var pid in deadPids)
+        {
+            _callbacks.Remove(pid);
         }
     }
 
@@ -67,10 +112,18 @@ public sealed class ShellProcessWatchdog : ServiceEntity, IShellProcessWatchdog
         }
     }
 
-    protected override void OnDispose()
+    public void Dispose()
     {
-        _healthCheckTimer?.Dispose();
-        _healthCheckTimer = null;
-        _callbacks.Clear();
+        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+        _timer.Change(Timeout.Infinite, Timeout.Infinite);
+        _timer.Dispose();
+        try
+        {
+            DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(5));
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "[ShellWatchdog] Dispose 超时");
+        }
     }
 }

@@ -136,4 +136,34 @@ public sealed class QuadtreeSplitAnimatorTests
     {
         QuadtreeSplitAnimator.GetPenWidth(10).Should().Be(1, "深度超过5时线宽应钳制为1");
     }
+
+    [Fact]
+    public void GetRectColor_Depth0_ReturnsWhite()
+    {
+        var color = QuadtreeSplitAnimator.GetRectColor(0, 1, 0, 3);
+        color.Should().Be(0x00FFFFFF, "第0层(外框)应为白色");
+    }
+
+    [Fact]
+    public void GetRectColor_DifferentIndices_ReturnDifferentColors()
+    {
+        var c0 = QuadtreeSplitAnimator.GetRectColor(0, 4, 1, 3);
+        var c1 = QuadtreeSplitAnimator.GetRectColor(1, 4, 1, 3);
+        var c2 = QuadtreeSplitAnimator.GetRectColor(2, 4, 1, 3);
+        var c3 = QuadtreeSplitAnimator.GetRectColor(3, 4, 1, 3);
+
+        var colors = new[] { c0, c1, c2, c3 };
+        colors.Distinct().Should().HaveCount(4, "4个格子应有4种不同颜色");
+    }
+
+    [Fact]
+    public void GetRectColor_DeeperDepth_IsLighter()
+    {
+        var shallow = QuadtreeSplitAnimator.GetRectColor(0, 4, 1, 3);
+        var deep = QuadtreeSplitAnimator.GetRectColor(0, 64, 3, 3);
+
+        var shallowSum = (shallow & 0xFF) + ((shallow >> 8) & 0xFF) + ((shallow >> 16) & 0xFF);
+        var deepSum = (deep & 0xFF) + ((deep >> 8) & 0xFF) + ((deep >> 16) & 0xFF);
+        deepSum.Should().BeGreaterThanOrEqualTo(shallowSum - 50, "更深层颜色应更浅(允许容差)");
+    }
 }

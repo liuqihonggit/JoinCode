@@ -52,6 +52,47 @@ internal static class QuadtreeSplitAnimator
 
     /// <summary>计算指定深度的线宽(外层粗内层细,最小1px)</summary>
     public static int GetPenWidth(int depth) => Math.Max(1, 5 - depth);
+
+    /// <summary>根据格子索引计算独特颜色(色相轮 + 深度淡化),每个格子不同色相</summary>
+    /// <param name="index">格子在当前层的索引(0 到 totalRects-1)</param>
+    /// <param name="totalRects">当前层格子总数</param>
+    /// <param name="depth">当前层深度</param>
+    /// <param name="maxDepth">最大层深度</param>
+    /// <returns>独特颜色的 COLORREF</returns>
+    public static uint GetRectColor(int index, int totalRects, int depth, int maxDepth)
+    {
+        if (depth == 0) return 0x00FFFFFF;
+        if (totalRects <= 0) return 0x00FFFFFF;
+
+        var hue = (double)index / totalRects * 360.0;
+        var saturation = 0.85 - 0.25 * (double)depth / Math.Max(1, maxDepth);
+        var value = 0.9 - 0.3 * (double)depth / Math.Max(1, maxDepth);
+
+        return HsvToColorRef(hue, saturation, value);
+    }
+
+    /// <summary>HSV → Win32 COLORREF (0x00BBGGRR)</summary>
+    private static uint HsvToColorRef(double h, double s, double v)
+    {
+        h = h % 360;
+        if (h < 0) h += 360;
+        var c = v * s;
+        var x = c * (1 - Math.Abs(h / 60 % 2 - 1));
+        var m = v - c;
+
+        double r, g, b;
+        if (h < 60) { r = c; g = x; b = 0; }
+        else if (h < 120) { r = x; g = c; b = 0; }
+        else if (h < 180) { r = 0; g = c; b = x; }
+        else if (h < 240) { r = 0; g = x; b = c; }
+        else if (h < 300) { r = x; g = 0; b = c; }
+        else { r = c; g = 0; b = x; }
+
+        var ri = (uint)Math.Round((r + m) * 255);
+        var gi = (uint)Math.Round((g + m) * 255);
+        var bi = (uint)Math.Round((b + m) * 255);
+        return ri | (gi << 8) | (bi << 16);
+    }
 }
 
 /// <summary>屏幕矩形坐标(X,Y=左上角,Width/Height=尺寸)</summary>

@@ -14,6 +14,10 @@ internal sealed class QuadtreeSplitOverlay : IDisposable
     private bool _disposed;
 
     private const int NullBrush = 5;
+    private const uint HighlightFill = 0x0000A5FF;
+    private const uint HighlightLine = 0x000064C8;
+    private const uint NormalFill = 0x00505050;
+    private const uint NormalLine = 0x00808080;
 
     /// <summary>启动透明窗口 + 消息循环(阻塞当前线程直到窗口关闭)</summary>
     /// <param name="screenW">屏幕宽度</param>
@@ -151,17 +155,13 @@ internal sealed class QuadtreeSplitOverlay : IDisposable
 
             for (var d = 0; d <= _state.CurrentDepth; d++)
             {
-                var layerColor = QuadtreeSplitAnimator.FadeColor(_state.BaseColor, d, _state.MaxDepth);
-                DrawLayer(hdc, _state.Layers[d], layerColor, d);
+                DrawLayer(hdc, _state.Layers[d], d, _state.HighlightRect);
             }
 
             if (_state.CurrentDepth < _state.MaxDepth && _state.LayerProgress > 0.3)
             {
-                var nextDepth = _state.CurrentDepth + 1;
-                var nextColor = QuadtreeSplitAnimator.FadeColor(_state.BaseColor, nextDepth, _state.MaxDepth);
-                var parents = _state.Layers[_state.CurrentDepth];
                 var splitProgress = (_state.LayerProgress - 0.3) / 0.7;
-                DrawSplitLines(hdc, parents, splitProgress, nextColor);
+                DrawSplitLines(hdc, _state.Layers[_state.CurrentDepth], splitProgress);
             }
 
             if (_state.HighlightRect.HasValue && _state.CurrentDepth >= _state.MaxDepth)
@@ -173,36 +173,44 @@ internal sealed class QuadtreeSplitOverlay : IDisposable
         }
     }
 
-    /// <summary>绘制一层:半透明区块填充 + 微细线条</summary>
-    private static void DrawLayer(IntPtr hdc, List<QuadtreeRect> rects, uint colorRef, int depth)
+    /// <summary>绘制一层:鼠标格子橙色半透明填充,其他格子淡灰色</summary>
+    private static void DrawLayer(IntPtr hdc, List<QuadtreeRect> rects, int depth, QuadtreeRect? highlightRect)
     {
-        var hBrush = PulseNativeMethods.CreateSolidBrush(colorRef);
-        foreach (var r in rects)
+        for (var i = 0; i < rects.Count; i++)
         {
-            var rect = new PulseOverlay.RECT { Left = r.X, Top = r.Y, Right = r.X + r.Width, Bottom = r.Y + r.Height };
-            PulseNativeMethods.FillRect(hdc, ref rect, hBrush);
+            var r = rects[i];
+            var isHighlight = highlightRect.HasValue && r == highlightRect.Value;
+            var fill = isHighlight ? HighlightFill : NormalFill;
+            var line = isHighlight ? HighlightLine : NormalLine;
+            var penWidth = isHighlight ? 4 : Math.Max(1, 3 - depth);
+            DrawSingleRect(hdc, r, fill, line, penWidth);
         }
+    }
+
+    /// <summary>绘制单个格子:半透明填充 + 边框线条</summary>
+    private static void DrawSingleRect(IntPtr hdc, QuadtreeRect r, uint fillColor, uint lineColor, int penWidth)
+    {
+        var hBrush = PulseNativeMethods.CreateSolidBrush(fillColor);
+        var fillRect = new PulseOverlay.RECT { Left = r.X, Top = r.Y, Right = r.X + r.Width, Bottom = r.Y + r.Height };
+        PulseNativeMethods.FillRect(hdc, ref fillRect, hBrush);
         PulseNativeMethods.DeleteObject(hBrush);
 
-        var lineColor = DarkenColor(colorRef, 0.6);
-        var penWidth = Math.Max(1, 3 - depth);
         var hPen = PulseNativeMethods.CreatePen(NativeConstants.PS_SOLID, penWidth, lineColor);
         var oldPen = PulseNativeMethods.SelectObject(hdc, hPen);
         var nullBrush = PulseNativeMethods.GetStockObject(NullBrush);
         var oldBrush = PulseNativeMethods.SelectObject(hdc, nullBrush);
 
-        foreach (var r in rects)
-            Gdi32NativeMethods.Rectangle(hdc, r.X, r.Y, r.X + r.Width, r.Y + r.Height);
+        Gdi32NativeMethods.Rectangle(hdc, r.X, r.Y, r.X + r.Width, r.Y + r.Height);
 
         PulseNativeMethods.SelectObject(hdc, oldPen);
         PulseNativeMethods.SelectObject(hdc, oldBrush);
         PulseNativeMethods.DeleteObject(hPen);
     }
 
-    /// <summary>绘制分裂分割线 — 从每个父框中心向外延伸</summary>
-    private static void DrawSplitLines(IntPtr hdc, List<QuadtreeRect> parents, double progress, uint colorRef)
+    /// <summary>绘制分裂分割线 — 从每个父框中心向外延伸,淡灰色</summary>
+    private static void DrawSplitLines(IntPtr hdc, List<QuadtreeRect> parents, double progress)
     {
-        var hPen = PulseNativeMethods.CreatePen(0, 1, colorRef);
+        var hPen = PulseNativeMethods.CreatePen(NativeConstants.PS_SOLID, 1, NormalLine);
         var oldPen = PulseNativeMethods.SelectObject(hdc, hPen);
 
         foreach (var p in parents)
@@ -225,8 +233,7 @@ internal sealed class QuadtreeSplitOverlay : IDisposable
     /// <summary>高亮特定格子(鼠标指向识别时用)</summary>
     private static void DrawHighlight(IntPtr hdc, QuadtreeRect r)
     {
-        const uint highlightColor = 0x0000FFFF;
-        var hPen = PulseNativeMethods.CreatePen(0, 4, highlightColor);
+        var hPen = PulseNativeMethods.CreatePen(NativeConstants.PS_SOLID, 5, HighlightLine);
         var oldPen = PulseNativeMethods.SelectObject(hdc, hPen);
         var nullBrush = PulseNativeMethods.GetStockObject(NullBrush);
         var oldBrush = PulseNativeMethods.SelectObject(hdc, nullBrush);
@@ -236,15 +243,6 @@ internal sealed class QuadtreeSplitOverlay : IDisposable
         PulseNativeMethods.SelectObject(hdc, oldPen);
         PulseNativeMethods.SelectObject(hdc, oldBrush);
         PulseNativeMethods.DeleteObject(hPen);
-    }
-
-    /// <summary>加深颜色(factor&lt;1变深, factor&gt;1变浅)</summary>
-    private static uint DarkenColor(uint color, double factor)
-    {
-        var r = (uint)Math.Min(255, (color & 0xFF) * factor);
-        var g = (uint)Math.Min(255, ((color >> 8) & 0xFF) * factor);
-        var b = (uint)Math.Min(255, ((color >> 16) & 0xFF) * factor);
-        return r | (g << 8) | (b << 16);
     }
 
     public void Dispose()

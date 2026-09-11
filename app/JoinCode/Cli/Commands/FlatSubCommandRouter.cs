@@ -11,6 +11,13 @@ internal static class FlatSubCommandRouter
     /// </summary>
     public static async Task<int?> TryExecuteAsync(CliSubCommand subCommand, string[] args, CancellationToken ct)
     {
+        var unknownError = DetectUnknownOptions(args);
+        if (unknownError is not null)
+        {
+            TerminalHelper.WriteError(unknownError);
+            return (int)ExitCode.ArgumentParseError;
+        }
+
         switch (subCommand)
         {
             case CliSubCommand.McpCall:
@@ -42,19 +49,13 @@ internal static class FlatSubCommandRouter
 
     private static async Task<int?> ExecuteMcpCallAsync(string[] args, CancellationToken ct)
     {
-        var unknownError = DetectUnknownOptions(args);
-        if (unknownError is not null)
-        {
-            TerminalHelper.WriteError(unknownError);
-            return 1;
-        }
         var toolName = GetPositional(args, 0);
         if (string.IsNullOrEmpty(toolName))
         {
             TerminalHelper.WriteError("用法: jcc mcp_call <tool> [key=value ... | <argsJson> | --args-file <path> | --args-stdin] [--json]");
             return 1;
         }
-        var json = HasFlag(args, CliArgConstants.JsonLongName);
+        var json = ShouldOutputJson(args);
         var argsFile = GetOptionValue(args, CliArgConstants.ArgsFileLongName);
         var argsStdin = HasFlag(args, CliArgConstants.ArgsStdinLongName);
         var vendor = GetOptionValue(args, CliArgConstants.VendorLongName);
@@ -80,8 +81,9 @@ internal static class FlatSubCommandRouter
     private static async Task<int?> ExecuteMcpListAsync(string[] args, CancellationToken ct)
     {
         var category = GetOptionValue(args, CliArgConstants.CategoryLongName);
-        var json = HasFlag(args, CliArgConstants.JsonLongName);
-        return await McpCliCommand.ExecuteListAsync(category, json, ct).ConfigureAwait(false);
+        var json = ShouldOutputJson(args);
+        var brief = HasFlag(args, CliArgConstants.BriefLongName);
+        return await McpCliCommand.ExecuteListAsync(category, json, brief, ct).ConfigureAwait(false);
     }
 
     private static async Task<int?> ExecuteMcpSchemaAsync(string[] args, CancellationToken ct)
@@ -92,8 +94,9 @@ internal static class FlatSubCommandRouter
             TerminalHelper.WriteError("用法: jcc mcp_schema <tool> [--json]");
             return 1;
         }
-        var json = HasFlag(args, CliArgConstants.JsonLongName);
-        return await McpCliCommand.ExecuteSchemaAsync(toolName!, json, ct).ConfigureAwait(false);
+        var json = ShouldOutputJson(args);
+        var brief = HasFlag(args, CliArgConstants.BriefLongName);
+        return await McpCliCommand.ExecuteSchemaAsync(toolName!, json, brief, ct).ConfigureAwait(false);
     }
 
     private static async Task<int?> ExecuteMcpSearchAsync(string[] args, CancellationToken ct)
@@ -104,8 +107,9 @@ internal static class FlatSubCommandRouter
             TerminalHelper.WriteError("用法: jcc mcp_search <query> [--json]");
             return 1;
         }
-        var json = HasFlag(args, CliArgConstants.JsonLongName);
-        return await McpCliCommand.ExecuteSearchAsync(query!, json, ct).ConfigureAwait(false);
+        var json = ShouldOutputJson(args);
+        var brief = HasFlag(args, CliArgConstants.BriefLongName);
+        return await McpCliCommand.ExecuteSearchAsync(query!, json, brief, ct).ConfigureAwait(false);
     }
 
     private static async Task<int?> ExecuteMcpServeAsync(string[] args, CancellationToken ct)
@@ -225,4 +229,17 @@ internal static class FlatSubCommandRouter
 
     internal static bool HasFlag(string[] args, string flagName)
         => Array.IndexOf(args, flagName) >= 0;
+
+    /// <summary>
+    /// 统一判断是否输出 JSON — 默认 JSON 输出,--format text 显式请求彩色文本。
+    /// <para>ADR 0069 决策6 + 统一返回结构: 所有子命令默认输出 JSON(结构化),
+    /// --format text 显式请求彩色文本,--json 保持作为别名(默认即 JSON)。</para>
+    /// </summary>
+    internal static bool ShouldOutputJson(string[] args)
+    {
+        var formatValue = GetOptionValue(args, CliArgConstants.FormatLongName);
+        if (string.Equals(formatValue, "text", StringComparison.OrdinalIgnoreCase))
+            return false;
+        return true;
+    }
 }

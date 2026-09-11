@@ -4,7 +4,7 @@ namespace Services.SystemActuator;
 /// Bash 系统执行器 — 合并原 BashShellProvider + BashCapabilityProvider
 /// 含：能力检测（静态缓存）+ 命令构建（含环境快照）+ 环境变量注入
 /// </summary>
-public sealed class BashSystemActuator : SystemActuatorBase
+public sealed partial class BashSystemActuator : SystemActuatorBase
 {
     public const string GitBashPathEnvVar = "JCC_GIT_BASH_PATH";
     public const string ShellPrefixEnvVar = "JCC_SHELL_PREFIX";
@@ -213,11 +213,33 @@ public sealed class BashSystemActuator : SystemActuatorBase
         return "shopt -u extglob 2>/dev/null || true";
     }
 
-    private static string RewriteWindowsNullRedirect(string command)
+    /// <summary>
+    /// 改写 Windows NUL 设备重定向为 Unix /dev/null — bash 不识别 nul 特殊设备名,会创建普通文件。
+    /// 处理所有变体: &gt;nul 1&gt;nul 2&gt;nul &amp;&gt;nul &gt;&gt;nul 2&gt;&gt;nul &lt;nul 0&lt;nul 等。
+    /// </summary>
+    internal static string RewriteWindowsNullRedirect(string command)
     {
         if (!OperatingSystem.IsWindows()) return command;
-        return Regex.Replace(command, @"2>\s*nul\b", "2>/dev/null", RegexOptions.IgnoreCase);
+        if (!command.Contains("nul", StringComparison.OrdinalIgnoreCase)) return command;
+
+        var rewritten = NullRedirectRegex().Replace(command, m =>
+        {
+            var fd = m.Groups["fd"].Value;
+            var op = m.Groups["op"].Value;
+            return $"{fd}{op}/dev/null";
+        });
+
+        if (rewritten != command)
+            Diag.WriteLine($"[BashActuator] 检测到 Windows NUL 重定向,已改写为 /dev/null: {command} → {rewritten}");
+
+        return rewritten;
     }
+
+    /// <summary>
+    /// 匹配 Windows NUL 重定向: [fd]op nul — fd 可选(0/1/2/&amp;), op 为 &gt;, &gt;&gt;, &gt;|, &amp;&gt;, &lt; 等
+    /// </summary>
+    [GeneratedRegex(@"(?<fd>\d*[<>]|\&)?(?<op>>\>?\|?|<)\s*nul\b", RegexOptions.IgnoreCase)]
+    private static partial Regex NullRedirectRegex();
 
     private static string ShellQuote(string s) => "'" + s.Replace("'", "'\\''") + "'";
 

@@ -164,3 +164,24 @@ C# LSP 服务器从 OmniSharp 切换为 csharp-ls（`dotnet tool install -g csha
 | AI 限流 | 10 | sensenova 无 API 额度 | 切换到有额度的 AI 提供商 |
 | GitHub 清理 | 4 | token 缺 `delete_repo` scope | 添加 scope 或手动删除 |
 | Anthropic 依赖 | 1 | web_search 需 Anthropic API | 配置 Anthropic 提供商 |
+
+### 启动参数系统测试（w2 分支，2026-09-12）
+
+> 测试记录文档：[docs/tasks/启动参数测试记录.md](../tasks/启动参数测试记录.md)
+
+系统测试 ~40 个启动参数，发现 10 个问题（BUG#1-10），全部已修复：
+
+| # | Commit | 修复内容 | 根因 |
+|---|--------|----------|------|
+| 1 | `94df26085` | `--json` ≡ `--format json` 别名统一 | `HasFlag("--json")` 纯字符串匹配,不检查 `--format` 值 |
+| 2 | `626b47b69` | `--brief` 子命令精简 JSON | 子命令路由未检查 `--brief` 标志 |
+| 3 | `626b47b69` | `--quiet` 抑制 ILogger 警告 | `--quiet` 仅存 `CommandLineOptions`,未设置 `JCC_LOG_LEVEL` |
+| 4 | `c4d7f6684` | `--await` 无效值返回 exit=3 | 三处解析点静默降级,无 `ArgumentParseError` 路径 |
+| 5 | `cdb6a4da2` | `--permission-mode` 无效值返回 exit=3 | 缺少早期验证 |
+| 6 | `cdb6a4da2` | `--format` 无效值返回 exit=3 | 缺少早期验证 |
+| 7 | `a180cd510` | 未知参数返回 exit=3 | `DetectUnknownOptions` 仅在 `ExecuteMcpCallAsync` 调用 |
+| 8 | `05eee4423` | 退出码 210 修复 | `host.Dispose()` 内部调用 `Environment.Exit(210)` 覆盖返回值 |
+| 9 | — | 帮助信息已清理参数自然修复 | 帮助从 `CliArg` 枚举生成,已清理参数不在枚举中 |
+| 10 | `a4c426d97` | `2>nul` 全变体改写为 `/dev/null` | 仅处理 `2>nul`,未覆盖 `>nul`/`1>nul`/`&>nul`/`>>nul`/`<nul` 等 |
+
+**统一返回结构为 JSON**（ADR 0069 决策6）：所有子命令默认输出 JSON，`--format text` 显式请求彩色文本，`--json` 作为别名（默认即 JSON）。

@@ -18,7 +18,7 @@ public sealed class GhCommandResolverTests
         resolved.Group.Should().Be("pr");
         resolved.Action.Should().Be("view");
         resolved.Tail.Should().BeEquivalentTo(new[] { "123" });
-        resolved.Json.Should().BeFalse();
+        resolved.Json.Should().BeTrue(); // 默认 JSON 输出 (ADR 0069 决策6)
     }
 
     /// <summary>jcc gh api &lt;path&gt; 是单级命令 → gh_api，无 action</summary>

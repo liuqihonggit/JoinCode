@@ -33,7 +33,7 @@ public sealed class McpCliCommand
         }, vendor, model, ct);
     }
 
-    internal static Task<int> ExecuteListAsync(string? category, bool json, CancellationToken ct)
+    internal static Task<int> ExecuteListAsync(string? category, bool json, bool brief = false, CancellationToken ct = default)
         => WithHostAsync(async services =>
         {
             var registry = services.GetRequiredService<IMcpToolRegistry>();
@@ -41,12 +41,26 @@ public sealed class McpCliCommand
 
             if (json)
             {
-                var items = tools.Values
+                var filtered = tools.Values
                     .Where(t => string.IsNullOrEmpty(category) || string.Equals(t.Category, category, StringComparison.OrdinalIgnoreCase))
-                    .Select(t => new Cli.Output.CliToolListItem(t.Name, t.Description, t.Category, t.GroupName, t.Kind.ToString()))
                     .ToList();
-                var envelope = Cli.Output.CliOutputEnvelope.Success(items, new Cli.Output.CliOutputMeta { TotalCount = items.Count });
-                System.Console.WriteLine(RelaxedJsonSerializer.Serialize(envelope, JsonCtx));
+                var count = filtered.Count;
+                string jsonText;
+                if (brief)
+                {
+                    // --brief: 精简 JSON — 只输出工具名数组
+                    var names = filtered.Select(t => t.Name).OrderBy(n => n).ToList();
+                    jsonText = $$"""{"ok":true,"data":{{RelaxedJsonSerializer.Serialize(names, JsonCtx)}},"meta":{"totalCount":{{count}}},"schemaVersion":"1"}""";
+                }
+                else
+                {
+                    var items = filtered
+                        .Select(t => new Cli.Output.CliToolListItem(t.Name, t.Description, t.Category, t.GroupName, t.Kind.ToString()))
+                        .ToList();
+                    var envelope = Cli.Output.CliOutputEnvelope.Success(items, new Cli.Output.CliOutputMeta { TotalCount = count });
+                    jsonText = RelaxedJsonSerializer.Serialize(envelope, JsonCtx);
+                }
+                System.Console.WriteLine(jsonText);
             }
             else
             {
@@ -59,7 +73,12 @@ public sealed class McpCliCommand
                 {
                     TerminalHelper.WriteLine($"{TerminalColors.Info}{g.Key}{AnsiStyleConstants.Reset} ({g.Count()} 个):");
                     foreach (var t in g.OrderBy(t => t.Name))
-                        TerminalHelper.WriteLine($"  {t.Name,-40} {t.Description}");
+                    {
+                        if (brief)
+                            TerminalHelper.WriteLine($"  {t.Name}");
+                        else
+                            TerminalHelper.WriteLine($"  {t.Name,-40} {t.Description}");
+                    }
                     TerminalHelper.NewLine();
                 }
                 TerminalHelper.WriteLine($"总计: {tools.Count} 个工具");
@@ -67,7 +86,7 @@ public sealed class McpCliCommand
             return 0;
         }, ct: ct);
 
-    internal static Task<int> ExecuteSearchAsync(string query, bool json, CancellationToken ct)
+    internal static Task<int> ExecuteSearchAsync(string query, bool json, bool brief = false, CancellationToken ct = default)
         => WithHostAsync(async services =>
         {
             var registry = services.GetRequiredService<IMcpToolRegistry>();
@@ -81,19 +100,33 @@ public sealed class McpCliCommand
 
         if (json)
         {
-            var items = result.MatchedToolNames.Select(name => new Cli.Output.CliToolSearchItem(
-                name,
-                allTools.TryGetValue(name, out var t) ? t.Description : null,
-                allTools.TryGetValue(name, out var t2) ? t2.Category : null)).ToList();
-            var envelope = Cli.Output.CliOutputEnvelope.Success(items, new Cli.Output.CliOutputMeta { TotalCount = items.Count });
-            System.Console.WriteLine(RelaxedJsonSerializer.Serialize(envelope, JsonCtx));
+            var count = result.MatchedToolNames.Count;
+            string jsonText;
+            if (brief)
+            {
+                // --brief: 精简 JSON — 只输出工具名数组
+                var names = result.MatchedToolNames.ToList();
+                jsonText = $$"""{"ok":true,"data":{{RelaxedJsonSerializer.Serialize(names, JsonCtx)}},"meta":{"totalCount":{{count}}},"schemaVersion":"1"}""";
+            }
+            else
+            {
+                var items = result.MatchedToolNames.Select(name => new Cli.Output.CliToolSearchItem(
+                    name,
+                    allTools.TryGetValue(name, out var t) ? t.Description : null,
+                    allTools.TryGetValue(name, out var t2) ? t2.Category : null)).ToList();
+                var envelope = Cli.Output.CliOutputEnvelope.Success(items, new Cli.Output.CliOutputMeta { TotalCount = count });
+                jsonText = RelaxedJsonSerializer.Serialize(envelope, JsonCtx);
+            }
+            System.Console.WriteLine(jsonText);
         }
         else
         {
             TerminalHelper.WriteLine($"搜索 '{query}' 结果 ({result.MatchedToolNames.Count}/{allTools.Count}):");
             foreach (var name in result.MatchedToolNames)
             {
-                if (allTools.TryGetValue(name, out var t))
+                if (brief)
+                    TerminalHelper.WriteLine($"  {name}");
+                else if (allTools.TryGetValue(name, out var t))
                     TerminalHelper.WriteLine($"  [{t.Category ?? "?"}] {name}: {t.Description}");
                 else
                     TerminalHelper.WriteLine($"  {name}");
@@ -102,7 +135,7 @@ public sealed class McpCliCommand
         return 0;
     }, ct: ct);
 
-    internal static Task<int> ExecuteSchemaAsync(string toolName, bool json, CancellationToken ct)
+    internal static Task<int> ExecuteSchemaAsync(string toolName, bool json, bool brief = false, CancellationToken ct = default)
         => WithHostAsync(async services =>
         {
             var registry = services.GetRequiredService<IMcpToolRegistry>();
@@ -120,17 +153,32 @@ public sealed class McpCliCommand
 
         if (json)
         {
-            System.Console.WriteLine(RelaxedJsonSerializer.Serialize(info.InputSchema, ContractsJsonContext.Default));
+            if (brief)
+            {
+                // --brief: 精简 JSON — 只输出工具名和描述
+                var nameJson = RelaxedJsonSerializer.Serialize(info.Name, JsonCtx);
+                var descJson = RelaxedJsonSerializer.Serialize(info.Description, JsonCtx);
+                var catJson = RelaxedJsonSerializer.Serialize(info.Category, JsonCtx);
+                System.Console.WriteLine($"{{\"ok\":true,\"data\":{{\"name\":{nameJson},\"description\":{descJson},\"category\":{catJson}}},\"meta\":{{\"totalCount\":1}},\"schemaVersion\":\"1\"}}");
+            }
+            else
+            {
+                var schemaJson = RelaxedJsonSerializer.Serialize(info.InputSchema, ContractsJsonContext.Default);
+                System.Console.WriteLine($"{{\"ok\":true,\"data\":{schemaJson},\"meta\":{{\"totalCount\":1}},\"schemaVersion\":\"1\"}}");
+            }
         }
         else
         {
             TerminalHelper.WriteLine($"工具: {info.Name}");
             TerminalHelper.WriteLine($"描述: {info.Description}");
-            TerminalHelper.WriteLine($"分类: {info.Category ?? "(无)"}");
-            TerminalHelper.WriteLine($"参数 Schema:");
-            System.Console.WriteLine(RelaxedJsonSerializer.Serialize(info.InputSchema, ContractsJsonContext.Default));
-            TerminalHelper.NewLine();
-            TerminalHelper.WriteLine(LlmJsonHelper.BuildShellCallExamples(info.Name, info.InputSchema));
+            if (!brief)
+            {
+                TerminalHelper.WriteLine($"分类: {info.Category ?? "(无)"}");
+                TerminalHelper.WriteLine($"参数 Schema:");
+                System.Console.WriteLine(RelaxedJsonSerializer.Serialize(info.InputSchema, ContractsJsonContext.Default));
+                TerminalHelper.NewLine();
+                TerminalHelper.WriteLine(LlmJsonHelper.BuildShellCallExamples(info.Name, info.InputSchema));
+            }
         }
         return 0;
     }, ct: ct);
@@ -248,7 +296,9 @@ public sealed class McpCliCommand
 
     internal static async Task<int> WithHostAsync(Func<IServiceProvider, Task<int>> action, string? vendor = null, string? model = null, CancellationToken ct = default)
     {
-        using var host = await BuildHostAsync(vendor, model, ct).ConfigureAwait(false);
+        // 注意:不使用 using var host,因为 host.Dispose() 内部会调用 Environment.Exit(210) 导致退出码被覆盖。
+        // CLI 子命令进程很快退出,host 资源由 OS 自动回收,无需显式释放。
+        var host = await BuildHostAsync(vendor, model, ct).ConfigureAwait(false);
         return await action(host.Services).ConfigureAwait(false);
     }
 

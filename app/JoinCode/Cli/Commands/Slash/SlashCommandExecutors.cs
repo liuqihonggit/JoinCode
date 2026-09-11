@@ -57,7 +57,7 @@ internal static class SlashListExecutor
     public static Task<int?> ExecuteAsync(string[] args, CancellationToken ct)
     {
         var category = FlatSubCommandRouter.GetOptionValue(args, "--category");
-        var json = FlatSubCommandRouter.HasFlag(args, "--json");
+        var json = FlatSubCommandRouter.ShouldOutputJson(args);
 
         var catalog = new GeneratedSlashCommandCatalog();
         var commands = catalog.Commands.Where(c => !c.IsHidden).ToList();
@@ -105,7 +105,7 @@ internal static class SlashSchemaExecutor
         }
 
         cmdName = cmdName.TrimStart('/');
-        var json = FlatSubCommandRouter.HasFlag(args, "--json");
+        var json = FlatSubCommandRouter.ShouldOutputJson(args);
 
         var catalog = new GeneratedSlashCommandSchemaCatalog();
         var entry = catalog.AllSchemas.FirstOrDefault(e => string.Equals(e.CommandName, cmdName, StringComparison.OrdinalIgnoreCase));

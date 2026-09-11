@@ -23,6 +23,29 @@ class Program
         using var globalJob = CreateGlobalJobObject();
 
         // --await N: 全局超时计时器 — 在子命令路由之前启动，确保所有路径（mcp_call/slash_call 等）都有超时保护
+        // --await 值验证 — 无效值(非数字/零/负数)直接报错,避免静默降级导致无超时保护(BUG#4)
+        var awaitError = ValidateAwaitArg(args);
+        if (awaitError is not null)
+        {
+            Cli.TerminalHelper.Init();
+            App.ErrorConsole.Warning(awaitError);
+            return (int)ExitCode.ArgumentParseError;
+        }
+
+        // --permission-mode / --format 值验证 — 无效值直接报错,避免静默接受(BUG#5/BUG#6)
+        var enumError = ValidateEnumArgs(args);
+        if (enumError is not null)
+        {
+            Cli.TerminalHelper.Init();
+            App.ErrorConsole.Warning(enumError);
+            return (int)ExitCode.ArgumentParseError;
+        }
+
+        // --quiet / -q: 静默模式 — 抑制 Warning 和 Info 输出(BUG#3)
+        var isQuiet = Array.IndexOf(args, "--quiet") >= 0 || Array.IndexOf(args, "-q") >= 0;
+        App.ErrorConsole.IsQuiet = isQuiet;
+        if (isQuiet)
+            Environment.SetEnvironmentVariable("JCC_LOG_LEVEL", "Error");
         using var earlyAwaitTimer = StartEarlyAwaitTimer(args);
 
         Cli.TerminalHelper.Init();
@@ -274,6 +297,53 @@ class Program
             state: null,
             dueTime: TimeSpan.FromSeconds(seconds),
             period: System.Threading.Timeout.InfiniteTimeSpan);
+    }
+
+    /// <summary>
+    /// 验证 --await 参数值 — 无效值(非数字/零/负数)返回错误消息,避免静默降级导致无超时保护。
+    /// </summary>
+    private static string? ValidateAwaitArg(string[] args)
+    {
+        for (var i = 0; i < args.Length - 1; i++)
+        {
+            if (args[i] == "--await")
+            {
+                var value = args[i + 1];
+                if (!int.TryParse(value, out var seconds))
+                    return $"--await 的值 '{value}' 不是有效整数，请使用正整数（如 --await 10）";
+                if (seconds <= 0)
+                    return $"--await 的值 {seconds} 必须为正整数，请使用大于 0 的值（如 --await 10）";
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// 验证 --permission-mode 和 --format 参数值 — 无效值返回错误消息,避免静默接受。
+    /// <para>BUG#5: --permission-mode 有效值 plan/auto/ask/bypass</para>
+    /// <para>BUG#6: --format 有效值 text/json/ndjson</para>
+    /// </summary>
+    private static string? ValidateEnumArgs(string[] args)
+    {
+        var validPermissionModes = new[] { "plan", "auto", "ask", "bypass" };
+        var validFormats = new[] { "text", "json", "ndjson" };
+
+        for (var i = 0; i < args.Length - 1; i++)
+        {
+            if (args[i] == "--permission-mode")
+            {
+                var value = args[i + 1];
+                if (!validPermissionModes.Contains(value, StringComparer.OrdinalIgnoreCase))
+                    return $"--permission-mode 的值 '{value}' 无效，有效值为: {string.Join(", ", validPermissionModes)}";
+            }
+            if (args[i] == "--format")
+            {
+                var value = args[i + 1];
+                if (!validFormats.Contains(value, StringComparer.OrdinalIgnoreCase))
+                    return $"--format 的值 '{value}' 无效，有效值为: {string.Join(", ", validFormats)}";
+            }
+        }
+        return null;
     }
 
     /// <summary>

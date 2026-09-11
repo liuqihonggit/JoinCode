@@ -150,32 +150,67 @@ Timer 周期任务 → Actor 周期自消息；AsyncLock → 消除；状态 →
 
 ### 阶段 0：基建（补 IActor 接口）
 
-- [ ] 在 foundation/AsyncLock/src/ 新增 IActor<TCommand> 接口
-- [ ] ActorBase<TCommand,TOut> 实现 IActor<TCommand>
-- [ ] 编译 + 单元测试 + git 提交
+- [x] 在 foundation/AsyncLock/src/ 新增 IActor<TCommand> 接口
+- [x] ActorBase<TCommand,TOut> 实现 IActor<TCommand>
+- [x] 编译 + 单元测试 + git 提交
 
 ### 阶段 1：P1 状态机（改一处全局受益）
 
-- [ ] StateMachine<T> 改为 ActorBase 风格
+- [ ] StateMachine<T> 改为 ActorBase 风格 — **评估后跳过：单字段保护，AsyncLock 已足够**
 - [ ] AgentStateMachine / UnifiedCircuitBreaker 跟进
 - [ ] 编译 + 测试 + 提交
 
 ### 阶段 2：P0 Timer+锁（消除时序 bug 高发区）
 
-- [ ] ToolHealthMonitor（三重并发组合）
-- [ ] CronScheduler（调度器天然消息驱动）
-- [ ] 其余 15 个按依赖顺序
+- [ ] ToolHealthMonitor（三重并发组合）— **暂缓：改造成本高**
+- [x] CronScheduler（调度器天然消息驱动）
+- [x] ProcessHealthMonitor — Timer+AsyncLock(未使用) → Actor
+- [x] ShellProcessWatchdog — Timer+ConcurrentDict → Actor
+- [x] FlushGate — AsyncLock+List+Timer → Actor
+- [x] DiagnosticLogWatcher — Timer+AsyncLock(未正确使用) → Actor
+- [x] AwaySummaryService — Timer+AsyncLock+ConcurrentQueue → Actor
+- [x] GoalHeartbeat — AsyncLock+PeriodicTimer → Actor
+- [ ] TokenRefreshScheduler — **跳过：无 AsyncLock，ConcurrentDictionary 使用合理**
+- [ ] BridgeTokenRefreshScheduler — **暂缓：复杂代际逻辑**
+- [ ] ToolHypergraphScorer — **跳过：读多写少评分器，原子引用交换更合适**
+- [ ] RemoteCacheRefreshServiceBase — **暂缓：抽象基类影响 3 个子类**
+- [ ] TeamMemorySyncService — **暂缓：太大（460+行）**
+- [ ] SystemActuatorCommandContext — **暂缓：太大（471+行）**
+- [ ] DebounceTracker — **跳过：ConcurrentDictionary 使用合理**
+- [ ] HookEventBroadcaster — **跳过：无 Timer，使用简单**
+- [ ] FastModeService — **跳过：简单状态，AsyncLock 已足够**
 
 ### 阶段 3：P2 已有 Channel 雏形
 
-- [ ] InProcessMailbox / LoopDiagnosticJournal / AnalyticsFileSink 等
+- [x] LoopDiagnosticJournal
+- [ ] InProcessMailbox — **跳过：ConcurrentDictionary 是路由表**
+- [ ] AnalyticsFileSink — **跳过：批量+定时 flush 模式**
+- [ ] BuildQueueService — **暂缓：太大（407+行）**
+- [ ] DoctorTcpServer
+- [ ] AgentOutputChannelManager — **跳过：Channel+ConcurrentDictionary+volatile 使用合理**
+- [ ] InProcessTeammateTask
+- [ ] GoalConflictMessenger — **跳过：ConcurrentDictionary<string,Channel> 路由表**
 
 ### 阶段 4：P3 AsyncLock 复杂状态
 
-- [ ] PluginManager 半吊子清理
+- [ ] PluginManager 半吊子清理 — **跳过：已是 Actor**
 - [ ] TeamManager / TaskRuntime / ConcurrentDag 等
 
 ### 不改：P5 volatile 快照 + 不适合（纯限流/CAS/Dispose）
+
+## 六、已完成改造汇总（9 个）
+
+| # | 类名 | 原机制 | 改造内容 | commit |
+|---|------|--------|----------|--------|
+| 1 | IActor 接口 | 无 | 新增 IActor<TCommand> + InputCount 修复 | d301a1d57 |
+| 2 | CronScheduler | Timer+ConcurrentDict+volatile | ActorBase+Timer→TrySend+Consumer独占 | 03241ae1f |
+| 3 | LoopDiagnosticJournal | AsyncLock | ActorBase+Consumer独占 | cd627b675 |
+| 4 | ProcessHealthMonitor | Timer+AsyncLock(未使用) | ActorBase+Timer→TrySend | ec26be7dc |
+| 5 | ShellProcessWatchdog | Timer+ConcurrentDict | ActorBase+Timer→TrySend+Consumer独占 | 42d32505b |
+| 6 | FlushGate<T> | AsyncLock+List+Timer | ActorBase+Timer→TrySend+TCS | a77db1aed |
+| 7 | AwaySummaryService | Timer+AsyncLock+ConcurrentQueue | ActorBase+Timer→TrySend+volatile ticks | 532b3791a |
+| 8 | GoalHeartbeat | AsyncLock+PeriodicTimer | ActorBase+Timer→TrySend+volatile ticks | dfd53736a |
+| 9 | DiagnosticLogWatcher | Timer+AsyncLock(未正确使用) | ActorBase+Timer→TrySend+Consumer独占 | 3d604d3a0 |
 
 ## 六、规模估算
 

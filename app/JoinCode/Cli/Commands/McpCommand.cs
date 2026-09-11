@@ -248,7 +248,9 @@ public sealed class McpCliCommand
 
     internal static async Task<int> WithHostAsync(Func<IServiceProvider, Task<int>> action, string? vendor = null, string? model = null, CancellationToken ct = default)
     {
-        using var host = await BuildHostAsync(vendor, model, ct).ConfigureAwait(false);
+        // 注意:不使用 using var host,因为 host.Dispose() 内部会调用 Environment.Exit(210) 导致退出码被覆盖。
+        // CLI 子命令进程很快退出,host 资源由 OS 自动回收,无需显式释放。
+        var host = await BuildHostAsync(vendor, model, ct).ConfigureAwait(false);
         return await action(host.Services).ConfigureAwait(false);
     }
 

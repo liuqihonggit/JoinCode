@@ -171,7 +171,7 @@ Timer 周期任务 → Actor 周期自消息；AsyncLock → 消除；状态 →
 - [x] AwaySummaryService — Timer+AsyncLock+ConcurrentQueue → Actor
 - [x] GoalHeartbeat — AsyncLock+PeriodicTimer → Actor
 - [ ] TokenRefreshScheduler — **跳过：无 AsyncLock，ConcurrentDictionary 使用合理**
-- [ ] BridgeTokenRefreshScheduler — **暂缓：复杂代际逻辑**
+- [x] BridgeTokenRefreshScheduler — AsyncLock+Dict<string,Timer> → Actor+Consumer 独占三个字典+TCS
 - [ ] ToolHypergraphScorer — **跳过：读多写少评分器，原子引用交换更合适**
 - [ ] RemoteCacheRefreshServiceBase — **暂缓：抽象基类影响 3 个子类**
 - [ ] TeamMemorySyncService — **暂缓：太大（460+行）**
@@ -198,7 +198,7 @@ Timer 周期任务 → Actor 周期自消息；AsyncLock → 消除；状态 →
 
 ### 不改：P5 volatile 快照 + 不适合（纯限流/CAS/Dispose）
 
-## 六、已完成改造汇总（10 个）
+## 六、已完成改造汇总（13 个）
 
 | # | 类名 | 原机制 | 改造内容 | commit |
 |---|------|--------|----------|--------|
@@ -212,6 +212,9 @@ Timer 周期任务 → Actor 周期自消息；AsyncLock → 消除；状态 →
 | 8 | GoalHeartbeat | AsyncLock+PeriodicTimer | ActorBase+Timer→TrySend+volatile ticks | dfd53736a |
 | 9 | DiagnosticLogWatcher | Timer+AsyncLock(未正确使用) | ActorBase+Timer→TrySend+Consumer独占 | 3d604d3a0 |
 | 10 | ToolHealthMonitor | Timer+AsyncLock+volatile+Dict | ActorBase+Timer→TrySend+ConcurrentDict保留+TCS | 37c23f61c |
+| 11 | TokenBudgetManager | AsyncLock | ActorBase+TCS, 所有方法已async | d453ebd |
+| 12 | UsdBudgetManager | AsyncLock | ActorBase+TCS, 所有方法已async | 6c19d2ab3 |
+| 13 | BridgeTokenRefreshScheduler | AsyncLock+Dict<string,Timer> | ActorBase+Consumer独占三个字典+Timer→TrySend+TCS | 58b949cd3 |
 
 ## 六、规模估算
 

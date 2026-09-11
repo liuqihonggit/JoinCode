@@ -23,6 +23,14 @@ class Program
         using var globalJob = CreateGlobalJobObject();
 
         // --await N: 全局超时计时器 — 在子命令路由之前启动，确保所有路径（mcp_call/slash_call 等）都有超时保护
+        // --await 值验证 — 无效值(非数字/零/负数)直接报错,避免静默降级导致无超时保护(BUG#4)
+        var awaitError = ValidateAwaitArg(args);
+        if (awaitError is not null)
+        {
+            Cli.TerminalHelper.Init();
+            App.ErrorConsole.Warning(awaitError);
+            return (int)ExitCode.ArgumentParseError;
+        }
         using var earlyAwaitTimer = StartEarlyAwaitTimer(args);
 
         Cli.TerminalHelper.Init();
@@ -274,6 +282,25 @@ class Program
             state: null,
             dueTime: TimeSpan.FromSeconds(seconds),
             period: System.Threading.Timeout.InfiniteTimeSpan);
+    }
+
+    /// <summary>
+    /// 验证 --await 参数值 — 无效值(非数字/零/负数)返回错误消息,避免静默降级导致无超时保护。
+    /// </summary>
+    private static string? ValidateAwaitArg(string[] args)
+    {
+        for (var i = 0; i < args.Length - 1; i++)
+        {
+            if (args[i] == "--await")
+            {
+                var value = args[i + 1];
+                if (!int.TryParse(value, out var seconds))
+                    return $"--await 的值 '{value}' 不是有效整数，请使用正整数（如 --await 10）";
+                if (seconds <= 0)
+                    return $"--await 的值 {seconds} 必须为正整数，请使用大于 0 的值（如 --await 10）";
+            }
+        }
+        return null;
     }
 
     /// <summary>

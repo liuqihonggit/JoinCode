@@ -1,58 +1,43 @@
 namespace Tools;
 
 /// <summary>
-/// 环境探测服务 — 探测运行环境能力，为Shell工具提供执行器选择依据
+/// 环境探测 Actor 命令 — Channel 中的消息类型
+/// </summary>
+public interface IEnvProbeCommand;
+
+internal sealed record ProbeEnvCmd(bool ForceRescan, CancellationToken Ct, TaskCompletionSource<EnvironmentReport> Tcs) : IEnvProbeCommand;
+
+/// <summary>
+/// 环境探测服务 — Actor 化：继承 ActorBase，Consumer 线程独占 _cachedReport/_lastProbeTime，
+/// 消除 AsyncLock。进程探测由 Consumer 串行执行，不再阻塞其他调用方 5s 超时。
 /// 5分钟缓存，IFileSystem抽象，路径归一化
 /// </summary>
 [Register(typeof(IEnvironmentProbeService), ServiceLifetime.Singleton)]
-public sealed class EnvironmentProbeService : ServiceEntity, IEnvironmentProbeService
+public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>, IEnvironmentProbeService
 {
     private readonly ILogger<EnvironmentProbeService>? _logger;
     private readonly IToolHealthMonitor _healthMonitor;
     private EnvironmentReport? _cachedReport;
     private DateTime _lastProbeTime = DateTime.MinValue;
-    private readonly AsyncLock _lock = new();
 
     public EnvironmentProbeService(IToolHealthMonitor healthMonitor, ILogger<EnvironmentProbeService>? logger = null)
+        : base()
     {
         _healthMonitor = healthMonitor;
         _logger = logger;
     }
 
+    private static TaskCompletionSource<T> CreateTcs<T>() => new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <inheritdoc/>
     public async Task<EnvironmentReport> ProbeEnvironmentAsync(bool forceRescan = false, CancellationToken ct = default)
     {
-        if (!forceRescan && _cachedReport is not null && _lastProbeTime > DateTime.UtcNow.AddMinutes(-5))
-            return _cachedReport;
-
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
-        if (!forceRescan && _cachedReport is not null && _lastProbeTime > DateTime.UtcNow.AddMinutes(-5))
-            return _cachedReport;
-
-        var components = new List<ComponentScore>
-        {
-            await ProbeComponentAsync("git", "Git", ["--version"], "git version"),
-            await ProbeComponentAsync("powershell", "PowerShell", ["-Command", "$PSVersionTable.PSVersion.ToString()"], null),
-            await ProbeComponentAsync("python", "Python", ["--version"], "Python"),
-            await ProbeComponentAsync("dotnet", ".NET SDK", ["--version"], null),
-            await ProbeComponentAsync("node", "Node.js", ["--version"], null),
-            await ProbeComponentAsync("wsl", "WSL2", ["--status"], null),
-            await ProbeComponentAsync("docker", "Docker", ["--version"], "Docker version"),
-        };
-
-        var report = new EnvironmentReport
-        {
-            ProbeTime = DateTime.UtcNow,
-            Components = components,
-            RecommendedShell = GetRecommendedShell(components)
-        };
-
-        _cachedReport = report;
-        _lastProbeTime = DateTime.UtcNow;
-        return report;
-    
+        var tcs = CreateTcs<EnvironmentReport>();
+        await SendAsync(new ProbeEnvCmd(forceRescan, ct, tcs), ct).ConfigureAwait(false);
+        return await tcs.Task.ConfigureAwait(false);
     }
 
+    /// <inheritdoc/>
     public async Task<IReadOnlyDictionary<string, ExecutorScore>> GetExecutorScoresAsync(CancellationToken ct = default)
     {
         var report = await ProbeEnvironmentAsync(false, ct).ConfigureAwait(false);
@@ -78,7 +63,7 @@ public sealed class EnvironmentProbeService : ServiceEntity, IEnvironmentProbeSe
             Score = (ps?.IsInstalled == true ? 40 : 0) + (dotnet?.IsInstalled == true ? 15 : 0) + (ps?.Score ?? 0),
             FailCount = healthRecords.GetValueOrDefault("powershell_fail")?.FailCount ?? 0,
             SuccessCount = healthRecords.GetValueOrDefault("powershell_success")?.SuccessCount ?? 0,
-            Reason = ps?.IsInstalled == true ? "Windows原生PowerShell" : "无PowerShell"
+            Reason = ps?.IsInstalled == true ? "Windows原生PowerShell" : "无PowerShellD"
         };
 
         scores["cmd"] = new ExecutorScore
@@ -120,6 +105,48 @@ public sealed class EnvironmentProbeService : ServiceEntity, IEnvironmentProbeSe
         };
 
         return scores.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Actor Consumer — 线程独占 _cachedReport/_lastProbeTime，串行处理命令，无需锁。
+    /// </summary>
+    protected override async ValueTask HandleAsync(IEnvProbeCommand command, CancellationToken ct)
+    {
+        if (command is ProbeEnvCmd cmd)
+        {
+            if (!cmd.ForceRescan && _cachedReport is not null && _lastProbeTime > DateTime.UtcNow.AddMinutes(-5))
+            {
+                cmd.Tcs.TrySetResult(_cachedReport);
+                return;
+            }
+
+            var components = new List<ComponentScore>
+            {
+                await ProbeComponentAsync("git", "Git", ["--version"], "git version"),
+                await ProbeComponentAsync("powershell", "PowerShell", ["-Command", "$PSVersionTable.PSVersion.ToString()"], null),
+                await ProbeComponentAsync("python", "Python", ["--version"], "Python"),
+                await ProbeComponentAsync("dotnet", ".NET SDK", ["--version"], null),
+                await ProbeComponentAsync("node", "Node.js", ["--version"], null),
+                await ProbeComponentAsync("wsl", "WSL2", ["--status"], null),
+                await ProbeComponentAsync("docker", "Docker", ["--version"], "Docker version"),
+            };
+
+            var report = new EnvironmentReport
+            {
+                ProbeTime = DateTime.UtcNow,
+                Components = components,
+                RecommendedShell = GetRecommendedShell(components)
+            };
+
+            _cachedReport = report;
+            _lastProbeTime = DateTime.UtcNow;
+            cmd.Tcs.TrySetResult(report);
+        }
+    }
+
+    protected override void OnConsumerError(Exception ex)
+    {
+        _logger?.LogWarning(ex, "EnvironmentProbe Actor Consumer 命令处理异常");
     }
 
     private async Task<ComponentScore> ProbeComponentAsync(string command, string name, string[] args, string? versionPrefix)
@@ -183,6 +210,4 @@ public sealed class EnvironmentProbeService : ServiceEntity, IEnvironmentProbeSe
         var ps = components.FirstOrDefault(c => c.Id == "powershell");
         return ps?.IsInstalled == true ? "powershell" : "cmd";
     }
-
-    protected override void OnDispose() => _lock.Dispose();
 }

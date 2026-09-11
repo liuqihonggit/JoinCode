@@ -2,6 +2,18 @@
 namespace Core.Scheduling.Cron;
 
 /// <summary>
+/// Cron 调度器命令 — Actor 消息类型
+/// </summary>
+public interface ICronSchedulerCommand;
+
+public sealed record CronStartCmd : ICronSchedulerCommand;
+public sealed record CronStopCmd : ICronSchedulerCommand;
+public sealed record CronCheckTickCmd : ICronSchedulerCommand;
+public sealed record CronNotifyChangedCmd : ICronSchedulerCommand;
+public sealed record CronGetNextFireCmd(TaskCompletionSource<long?> Tcs) : ICronSchedulerCommand;
+public sealed record CronRemoveInFlightCmd(string TaskId) : ICronSchedulerCommand;
+
+/// <summary>
 /// Cron 调度器接口
 /// </summary>
 public interface ICronScheduler
@@ -65,31 +77,32 @@ public sealed record CronSchedulerOptions
 }
 
 /// <summary>
-/// Cron 调度器实现
+/// Cron 调度器实现 — Actor 化：Consumer 线程独占 _nextFireAt/_inFlight，消除 ConcurrentDictionary。
+/// <para>Timer 周期检查改为 TrySend(CronCheckTickCmd) 自消息，Consumer 串行处理。</para>
 /// </summary>
 [Register(typeof(ICronScheduler), ServiceLifetime.Singleton)]
 [Register(typeof(ICronSchedulerRef), ServiceLifetime.Singleton)]
-public sealed partial class CronScheduler : ICronScheduler, ICronSchedulerRef, IAsyncDisposable
+public sealed partial class CronScheduler : ActorBase<ICronSchedulerCommand, Unit>, ICronScheduler, ICronSchedulerRef
 {
     private readonly CronSchedulerOptions _options;
     private readonly ICronTaskStore _taskStore;
     private readonly IClockService _clock;
     private readonly ILogger<CronScheduler>? _logger;
-    private readonly ConcurrentDictionary<string, long> _nextFireAt = new();
-    private readonly ConcurrentDictionary<string, byte> _inFlight = new();
     private readonly Timer _timer;
-    private volatile bool _refreshNeeded;
+    private int _disposed;
 
-    private volatile bool _started;
-    private volatile bool _disposed;
+    private readonly Dictionary<string, long> _nextFireAt = new();
+    private readonly HashSet<string> _inFlight = new();
+    private bool _started;
 
     public CronScheduler(CronSchedulerOptions options, ICronTaskStore taskStore, IClockService? clock = null, ILogger<CronScheduler>? logger = null)
+        : base()
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _taskStore = taskStore ?? throw new ArgumentNullException(nameof(taskStore));
         _clock = clock ?? SystemClockService.Instance;
         _logger = logger;
-        _timer = new Timer(Check, null, Timeout.Infinite, Timeout.Infinite);
+        _timer = new Timer(_ => TrySend(new CronCheckTickCmd()), null, Timeout.Infinite, Timeout.Infinite);
     }
 
     /// <summary>
@@ -110,97 +123,115 @@ public sealed partial class CronScheduler : ICronScheduler, ICronSchedulerRef, I
     /// </summary>
     public void NotifyTaskChanged()
     {
-        _refreshNeeded = true;
-        _nextFireAt.Clear();
+        TrySend(new CronNotifyChangedCmd());
     }
 
     public Task StartAsync(CancellationToken ct = default)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-
-        if (_started) return Task.CompletedTask;
-
-        _started = true;
-        _timer.Change(0, _options.CheckIntervalMs);
-        return Task.CompletedTask;
+        if (Volatile.Read(ref _disposed) != 0) throw new ObjectDisposedException(nameof(CronScheduler));
+        return SendAsync(new CronStartCmd(), ct).AsTask();
     }
 
     public Task StopAsync(CancellationToken ct = default)
     {
-        if (!_started) return Task.CompletedTask;
-
-        _started = false;
-        _timer.Change(Timeout.Infinite, Timeout.Infinite);
-        return Task.CompletedTask;
+        return SendAsync(new CronStopCmd(), ct).AsTask();
     }
 
-    public Task<long?> GetNextFireTimeAsync(CancellationToken ct = default)
+    public async Task<long?> GetNextFireTimeAsync(CancellationToken ct = default)
     {
-        long min = long.MaxValue;
-        foreach (var time in _nextFireAt.Values)
+        var tcs = new TaskCompletionSource<long?>();
+        await SendAsync(new CronGetNextFireCmd(tcs), ct).ConfigureAwait(false);
+        return await tcs.Task.WaitAsync(ct).ConfigureAwait(false);
+    }
+
+    protected override async ValueTask HandleAsync(ICronSchedulerCommand command, CancellationToken ct)
+    {
+        switch (command)
         {
-            if (time < min) min = time;
+            case CronStartCmd:
+                if (_started) return;
+                _started = true;
+                _timer.Change(0, _options.CheckIntervalMs);
+                _logger?.LogInformation("[CronScheduler] 已启动，检查间隔: {IntervalMs}ms", _options.CheckIntervalMs);
+                break;
+
+            case CronStopCmd:
+                if (!_started) return;
+                _started = false;
+                _timer.Change(Timeout.Infinite, Timeout.Infinite);
+                break;
+
+            case CronCheckTickCmd:
+                await CheckAsync(ct).ConfigureAwait(false);
+                break;
+
+            case CronNotifyChangedCmd:
+                _nextFireAt.Clear();
+                break;
+
+            case CronGetNextFireCmd(var tcs):
+                long min = long.MaxValue;
+                foreach (var time in _nextFireAt.Values)
+                {
+                    if (time < min) min = time;
+                }
+                tcs.SetResult(min == long.MaxValue ? null : min);
+                break;
+
+            case CronRemoveInFlightCmd(var taskId):
+                _inFlight.Remove(taskId);
+                break;
         }
-        long? result = min == long.MaxValue ? null : min;
-        return Task.FromResult(result);
     }
 
-    private void Check(object? state)
+    protected override void OnConsumerError(Exception ex)
     {
-        if (!_started || _disposed) return;
+        _logger?.LogError(ex, "[CronScheduler] 命令处理异常");
+    }
 
-        // 对齐 TS: NotifyTaskChanged 设置 _refreshNeeded，Check 时清除缓存
-        _ = Interlocked.Exchange(ref _refreshNeeded, false);
+    private async Task CheckAsync(CancellationToken ct)
+    {
+        if (!_started || Volatile.Read(ref _disposed) != 0) return;
 
-        // 使用 Task.Run 避免在 Timer 线程上同步等待异步操作
-        _ = Task.Run(async () =>
+        var now = _clock.GetUtcNowOffset().ToUnixTimeMilliseconds();
+        var tasks = await _taskStore.GetAllTasksAsync().ConfigureAwait(false);
+        var seen = new HashSet<string>();
+        var firedRecurring = new List<string>();
+
+        foreach (var task in tasks)
         {
-            var now = 0L;
-            var firedRecurring = new List<string>();
+            if (_options.Filter != null && !_options.Filter(task)) continue;
+
+            seen.Add(task.Id);
+
+            if (_inFlight.Contains(task.Id)) continue;
+
+            var next = GetNextFireTime(task, now);
+            if (next == null) continue;
+
+            if (now >= next)
+            {
+                FireTask(task, now, firedRecurring);
+            }
+        }
+
+        var toRemove = _nextFireAt.Keys.Where(id => !seen.Contains(id)).ToList();
+        foreach (var id in toRemove)
+        {
+            _nextFireAt.Remove(id);
+        }
+
+        if (firedRecurring.Count > 0)
+        {
             try
             {
-                now = _clock.GetUtcNowOffset().ToUnixTimeMilliseconds();
-                var tasks = await _taskStore.GetAllTasksAsync().ConfigureAwait(false);
-                var seen = new HashSet<string>();
-
-                foreach (var task in tasks)
-                {
-                    if (_options.Filter != null && !_options.Filter(task)) continue;
-
-                    seen.Add(task.Id);
-
-                    if (_inFlight.ContainsKey(task.Id)) continue;
-
-                    var next = GetNextFireTime(task, now);
-                    if (next == null) continue;
-
-                    if (now >= next)
-                    {
-                        FireTask(task, now, firedRecurring);
-                    }
-                }
-
-                // 清理已不存在的任务
-                var toRemove = _nextFireAt.Keys.Where(id => !seen.Contains(id)).ToList();
-                foreach (var id in toRemove)
-                {
-                    _nextFireAt.TryRemove(id, out _);
-                }
+                await _taskStore.MarkTasksFiredAsync(firedRecurring, now).ConfigureAwait(false);
             }
-            catch (Exception ex)
+            catch (Exception markEx)
             {
-                _logger?.LogError(ex, "[CronScheduler] Check 失败");
+                _logger?.LogWarning(markEx, "[CronScheduler] MarkTasksFiredAsync 失败");
             }
-            finally
-            {
-                // 批量更新重复任务的 lastFiredAt — 放在 finally 确保异常时也标记已触发，避免重复触发
-                if (firedRecurring.Count > 0)
-                {
-                    try { await _taskStore.MarkTasksFiredAsync(firedRecurring, now).ConfigureAwait(false); }
-                    catch (Exception markEx) { _logger?.LogWarning(markEx, "[CronScheduler] MarkTasksFiredAsync 失败"); }
-                }
-            }
-        });
+        }
     }
 
     private long? GetNextFireTime(CronTask task, long now)
@@ -244,19 +275,16 @@ public sealed partial class CronScheduler : ICronScheduler, ICronSchedulerRef, I
 
             if (task.IsRecurring && !task.IsExpired(now, _options.JitterConfig.RecurringMaxAgeMs))
             {
-                // 重复任务：重新调度
                 var newNext = CronJitterHelper.JitteredNextCronRunMs(
                     task.CronExpression, now, task.Id, _options.JitterConfig);
 
                 _nextFireAt[task.Id] = newNext ?? long.MaxValue;
-
                 firedRecurring.Add(task.Id);
             }
             else
             {
-                // 一次性任务或过期任务：删除
-                _inFlight[task.Id] = 1;
-                _nextFireAt.TryRemove(task.Id, out _);
+                _inFlight.Add(task.Id);
+                _nextFireAt.Remove(task.Id);
 
                 _ = Task.Run(async () =>
                 {
@@ -266,7 +294,7 @@ public sealed partial class CronScheduler : ICronScheduler, ICronSchedulerRef, I
                     }
                     finally
                     {
-                        _inFlight.TryRemove(task.Id, out _);
+                        TrySend(new CronRemoveInFlightCmd(task.Id));
                     }
                 });
             }
@@ -277,12 +305,12 @@ public sealed partial class CronScheduler : ICronScheduler, ICronSchedulerRef, I
         }
     }
 
-    public async ValueTask DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
-        if (_disposed) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
-        _disposed = true;
-        await StopAsync().ConfigureAwait(false);
+        _timer.Change(Timeout.Infinite, Timeout.Infinite);
+        await base.DisposeAsync().ConfigureAwait(false);
         _timer.Dispose();
     }
 }

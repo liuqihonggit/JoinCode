@@ -15,56 +15,118 @@ internal sealed record SummaryTemplateData(
     string ErrorDetailsText,
     string PendingText);
 
+/// <summary>
+/// 离开摘要命令 — Actor 消息类型
+/// </summary>
+public interface IAwaySummaryCommand;
+
+public sealed record MarkAwayCmd(TaskCompletionSource Tcs) : IAwaySummaryCommand;
+public sealed record GenerateSummaryCmd(TaskCompletionSource<AwaySummaryResult> Tcs) : IAwaySummaryCommand;
+public sealed record TrackEventCmd(AwayEvent Event) : IAwaySummaryCommand;
+public sealed record AutoSaveTickCmd : IAwaySummaryCommand;
+
 [Register(typeof(IAwaySummaryService), ServiceLifetime.Singleton)]
-public sealed partial class AwaySummaryService : ServiceEntity, IAwaySummaryService, IDisposable
+public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, Unit>, IAwaySummaryService, IDisposable
 {
     private readonly AwaySummaryOptions _options;
     private readonly ILogger<AwaySummaryService>? _logger;
     private readonly IClockService _clock;
-    private readonly AsyncLock _eventLock = new();
-    private readonly ConcurrentQueue<AwayEvent> _events = new();
-    private readonly CancellationTokenSource _disposeCts = new();
     private int _disposed;
 
-    private DateTime? _awaySince;
+    private long _awaySinceTicks;
     private Timer? _autoSaveTimer;
+    private readonly Queue<AwayEvent> _events = new();
 
-    public bool IsAway => _awaySince.HasValue;
-    public DateTime? AwaySince => _awaySince;
+    public bool IsAway => Volatile.Read(ref _awaySinceTicks) != 0;
+    public DateTime? AwaySince => Volatile.Read(ref _awaySinceTicks) is { } ticks && ticks != 0 ? new DateTime(ticks, DateTimeKind.Utc) : null;
 
     public AwaySummaryService(
         AwaySummaryOptions? options = null,
         ILogger<AwaySummaryService>? logger = null,
         IClockService? clock = null)
+        : base()
     {
         _options = options ?? new AwaySummaryOptions();
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
     }
 
+    private static TaskCompletionSource CreateTcs() => new(TaskCreationOptions.RunContinuationsAsynchronously);
+
     public async Task MarkAwayAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = await _eventLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_eventLock.Name}' 等待超时");
-
-        _awaySince = _clock.GetUtcNow();
-        _events.Clear();
-
-        _autoSaveTimer = new Timer(
-            _ => { if (_disposed == 0) _ = AutoSaveEventsAsync(_disposeCts.Token).WaitAsync(TimeSpan.FromSeconds(10), _disposeCts.Token).ConfigureAwait(false); },
-            null,
-            _options.AutoSaveInterval,
-            _options.AutoSaveInterval);
-
-        _logger?.LogInformation("用户离开标记: {Time}", _awaySince.Value);
-    
+        var tcs = CreateTcs();
+        await SendAsync(new MarkAwayCmd(tcs), cancellationToken).ConfigureAwait(false);
+        await tcs.Task.ConfigureAwait(false);
     }
 
     public async Task<AwaySummaryResult> GenerateSummaryAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = await _eventLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_eventLock.Name}' 等待超时");
+        var tcs = new TaskCompletionSource<AwaySummaryResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await SendAsync(new GenerateSummaryCmd(tcs), cancellationToken).ConfigureAwait(false);
+        return await tcs.Task.ConfigureAwait(false);
+    }
+
+    public async Task TrackEventAsync(AwayEvent awayEvent, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(awayEvent);
+        if (Volatile.Read(ref _awaySinceTicks) == 0) return;
+        await SendAsync(new TrackEventCmd(awayEvent), cancellationToken).ConfigureAwait(false);
+    }
+
+    protected override async ValueTask HandleAsync(IAwaySummaryCommand command, CancellationToken ct)
+    {
+        switch (command)
+        {
+            case MarkAwayCmd mark:
+                {
+                    var now = _clock.GetUtcNow();
+                    Volatile.Write(ref _awaySinceTicks, now.Ticks);
+                    _events.Clear();
+
+                    _autoSaveTimer?.Dispose();
+                    _autoSaveTimer = new Timer(_ => TrySend(new AutoSaveTickCmd()), null, _options.AutoSaveInterval, _options.AutoSaveInterval);
+
+                    _logger?.LogInformation("用户离开标记: {Time}", now);
+                    mark.Tcs.TrySetResult();
+                }
+                break;
+
+            case GenerateSummaryCmd gen:
+                {
+                    var result = GenerateSummaryCore();
+                    gen.Tcs.TrySetResult(result);
+                }
+                break;
+
+            case TrackEventCmd track:
+                {
+                    if (Volatile.Read(ref _awaySinceTicks) == 0) return;
+                    while (_events.Count >= _options.MaxEventsToTrack)
+                    {
+                        _events.Dequeue();
+                    }
+                    _events.Enqueue(track.Event);
+                }
+                break;
+
+            case AutoSaveTickCmd:
+                await AutoSaveEventsAsync(ct).ConfigureAwait(false);
+                break;
+        }
+    }
+
+    protected override void OnConsumerError(Exception ex)
+    {
+        _logger?.LogError(ex, "[AwaySummary] 消费者异常");
+    }
+
+    private AwaySummaryResult GenerateSummaryCore()
+    {
         try
         {
-            if (!_awaySince.HasValue)
+            var awayTicks = Volatile.Read(ref _awaySinceTicks);
+            if (awayTicks == 0)
             {
                 return new AwaySummaryResult
                 {
@@ -81,8 +143,9 @@ public sealed partial class AwaySummaryService : ServiceEntity, IAwaySummaryServ
                 };
             }
 
+            var awayTime = new DateTime(awayTicks, DateTimeKind.Utc);
             var returnTime = _clock.GetUtcNow();
-            var duration = returnTime - _awaySince.Value;
+            var duration = returnTime - awayTime;
             var events = _events.ToArray();
 
             var toolCallCount = events.Count(e => e.Type == AwayEventType.ToolCall);
@@ -101,7 +164,7 @@ public sealed partial class AwaySummaryService : ServiceEntity, IAwaySummaryServ
                 .ToList();
 
             var summary = BuildSummary(
-                _awaySince.Value,
+                awayTime,
                 returnTime,
                 duration,
                 toolCallCount,
@@ -112,7 +175,7 @@ public sealed partial class AwaySummaryService : ServiceEntity, IAwaySummaryServ
 
             _autoSaveTimer?.Dispose();
             _autoSaveTimer = null;
-            _awaySince = null;
+            Volatile.Write(ref _awaySinceTicks, 0);
 
             _logger?.LogInformation(
                 "离开摘要已生成: 时长={Duration}, 事件数={Total}, 工具调用={Tools}, 消息={Msgs}, 错误={Errors}",
@@ -122,7 +185,7 @@ public sealed partial class AwaySummaryService : ServiceEntity, IAwaySummaryServ
             {
                 Success = true,
                 Summary = summary,
-                AwayTime = _awaySince ?? returnTime,
+                AwayTime = awayTime,
                 ReturnTime = returnTime,
                 Duration = duration,
                 TotalEvents = events.Length,
@@ -140,8 +203,8 @@ public sealed partial class AwaySummaryService : ServiceEntity, IAwaySummaryServ
             {
                 Success = false,
                 Summary = string.Empty,
-                    AwayTime = _awaySince ?? _clock.GetUtcNow(),
-                    ReturnTime = _clock.GetUtcNow(),
+                AwayTime = AwaySince ?? _clock.GetUtcNow(),
+                ReturnTime = _clock.GetUtcNow(),
                 Duration = TimeSpan.Zero,
                 TotalEvents = 0,
                 ToolCallCount = 0,
@@ -150,24 +213,6 @@ public sealed partial class AwaySummaryService : ServiceEntity, IAwaySummaryServ
                 ErrorMessage = ex.Message
             };
         }
-
-    }
-
-    public async Task TrackEventAsync(AwayEvent awayEvent, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(awayEvent);
-
-        if (!_awaySince.HasValue) return;
-
-        using var guard = await _eventLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_eventLock.Name}' 等待超时");
-
-        while (_events.Count >= _options.MaxEventsToTrack)
-        {
-            _events.TryDequeue(out _);
-        }
-
-        _events.Enqueue(awayEvent);
-    
     }
 
     private string BuildSummary(
@@ -241,12 +286,18 @@ public sealed partial class AwaySummaryService : ServiceEntity, IAwaySummaryServ
         }
     }
 
-    protected override void OnDispose()
+    public void Dispose()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
-        _disposeCts.Cancel();
+        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
         _autoSaveTimer?.Dispose();
-        _eventLock.Dispose();
-        _disposeCts.Dispose();
+        _autoSaveTimer = null;
+        try
+        {
+            DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(5));
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "[AwaySummary] Dispose 超时");
+        }
     }
 }

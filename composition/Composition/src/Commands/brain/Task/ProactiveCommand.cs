@@ -1,6 +1,7 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Proactive, Description = "主动执行模式", Usage = "/proactive [on|off|pause|resume|status]", Category = ChatCommandCategory.Task)]
+[ChatCommandArg("action", Type = "string", Description = "主动模式动作(别名: on=activate/1, off=deactivate/0, status=s, pause=p, resume=r),省略时等同 status", Default = "status", Enum = new[] { "on", "off", "pause", "resume", "status" })]
 public sealed class ProactiveCommand : ToggleCommandBase
 {
     public override string Name => ChatCommandNameConstants.Proactive;

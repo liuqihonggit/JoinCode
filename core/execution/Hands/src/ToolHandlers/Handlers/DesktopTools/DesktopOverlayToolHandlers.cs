@@ -35,13 +35,23 @@ public class DesktopOverlayToolHandlers
         if (hdc == IntPtr.Zero)
             return ToolResultBuilder.Error().WithText("[OVL102] 无法获取桌面设备上下文").Build();
 
+        var cancelled = false;
         try
         {
             var hPen = Gdi32NativeMethods.CreatePen(0, 4, colorRef);
             var hBrush = Gdi32NativeMethods.GetStockObject(5);
             var oldPen = Gdi32NativeMethods.SelectObject(hdc, hPen);
             var oldBrush = Gdi32NativeMethods.SelectObject(hdc, hBrush);
-            Gdi32NativeMethods.Rectangle(hdc, x, y, x + width, y + height);
+
+            // 定期重画防止 DWM 合成擦掉(DWM 下 GDI 直接画桌面 DC 非持久,一帧后消失)
+            var intervals = Math.Max(1, durationMs / 50);
+            for (var i = 0; i < intervals; i++)
+            {
+                Gdi32NativeMethods.Rectangle(hdc, x, y, x + width, y + height);
+                try { await Task.Delay(50, ct).ConfigureAwait(false); }
+                catch (TaskCanceledException) { cancelled = true; break; }
+            }
+
             Gdi32NativeMethods.SelectObject(hdc, oldPen);
             Gdi32NativeMethods.SelectObject(hdc, oldBrush);
             Gdi32NativeMethods.DeleteObject(hPen);
@@ -53,19 +63,11 @@ public class DesktopOverlayToolHandlers
 
         _logger?.LogInformation("桌面高亮框已绘制: ({X},{Y}) {Width}x{Height} 颜色={Color} 时长={Duration}ms", x, y, width, height, color, durationMs);
 
-        try
-        {
-            await Task.Delay(durationMs, ct).ConfigureAwait(false);
-        }
-        catch (TaskCanceledException)
-        {
-            ClearOverlay();
-            return ToolResultBuilder.Success().WithText($"桌面高亮框已取消: ({x},{y}) {width}x{height}").Build();
-        }
-
         ClearOverlay();
 
-        return ToolResultBuilder.Success().WithText($"桌面高亮框已显示 {durationMs}ms 后自动清除: ({x},{y}) {width}x{height} 颜色={color}").Build();
+        return cancelled
+            ? ToolResultBuilder.Success().WithText($"桌面高亮框已取消: ({x},{y}) {width}x{height}").Build()
+            : ToolResultBuilder.Success().WithText($"桌面高亮框已显示 {durationMs}ms 后自动清除: ({x},{y}) {width}x{height} 颜色={color}").Build();
     }
 
     /// <summary>清除桌面高亮框 — 触发桌面重绘</summary>

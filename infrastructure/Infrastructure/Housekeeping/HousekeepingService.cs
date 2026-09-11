@@ -24,7 +24,7 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
     private readonly IEntityReaper? _entityReaper;
     private readonly ILogger<HousekeepingService>? _logger;
 
-    private static readonly string JccDir = WorkflowConstants.Paths.JccDirectory;
+    private static readonly string JccDir = AppDataConstants.Paths.JccDirectory;
 
     public async Task<int> RunAllCleanupAsync(string currentSessionId = "", CancellationToken cancellationToken = default)
     {

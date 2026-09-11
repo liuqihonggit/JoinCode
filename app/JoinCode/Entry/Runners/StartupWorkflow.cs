@@ -15,7 +15,7 @@ internal sealed class StartupWorkflow
     /// </summary>
     internal async Task EnsureConfigFilesExistAsync(IFileSystem fs)
     {
-        var appDataPath = WorkflowConstants.Paths.JccDirectory;
+        var appDataPath = AppDataConstants.Paths.JccDirectory;
         var settingsPath = Path.Combine(appDataPath, AppDataConstants.SettingsFileName);
         var authPath = Path.Combine(appDataPath, AppDataConstants.AuthFileName);
 

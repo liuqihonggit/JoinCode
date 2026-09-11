@@ -47,7 +47,7 @@ public sealed class RenameCommand : ChatCommandBase
     private static async Task RenameViaFileAsync(ChatCommandContext context, string newName)
     {
         var sessionsDir = Path.Combine(
-            WorkflowConstants.Paths.JccDirectory,
+            AppDataConstants.Paths.JccDirectory,
             "sessions");
 
         var sessionFile = Path.Combine(sessionsDir, $"{context.SessionId}.json");

@@ -41,7 +41,7 @@ public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScann
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _sessionsDirectory = sessionsDirectory
             ?? Path.Combine(
-                WorkflowConstants.Paths.JccDirectory,
+                AppDataConstants.Paths.JccDirectory,
                 AppDataConstants.SessionsFolderName);
         _logger = logger;
     }

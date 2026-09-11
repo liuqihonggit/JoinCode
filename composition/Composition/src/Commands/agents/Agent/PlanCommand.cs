@@ -217,7 +217,7 @@ public sealed class PlanCommand : ChatCommandBase
     private static string? GetPlanFilePath()
     {
         var appDataPath = Path.Combine(
-            WorkflowConstants.Paths.JccDirectory,
+            AppDataConstants.Paths.JccDirectory,
             "plan.md");
         return appDataPath;
     }

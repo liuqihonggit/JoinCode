@@ -116,7 +116,7 @@ public sealed partial class KeywordInjectionMiddleware : ServiceEntity, IAnalyze
 
         try
         {
-            var dir = WorkflowConstants.Paths.SessionsDirectory;
+            var dir = AppDataConstants.Paths.SessionsDirectory;
             var filePath = Path.Combine(dir, MissLogFileName);
 
             if (!_fs.DirectoryExists(dir))

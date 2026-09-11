@@ -9,7 +9,7 @@ namespace JoinCode.ChatCommands;
 [ChatCommand(Name = ChatCommandNameConstants.Logout, Description = "登出 AI 服务", Usage = "/logout [provider]", Category = ChatCommandCategory.Auth)]
 public sealed class LogoutCommand : ChatCommandBase
 {
-    private static readonly string AuthPath = WorkflowConstants.Paths.AuthFilePath;
+    private static readonly string AuthPath = AppDataConstants.Paths.AuthFilePath;
 
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {

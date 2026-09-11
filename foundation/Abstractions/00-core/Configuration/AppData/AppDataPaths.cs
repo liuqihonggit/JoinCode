@@ -129,6 +129,11 @@ public sealed record AppDataPaths(
     /// </summary>
     public string LocalSettingsRelativePath => $"{AppDataFolder}/settings.local.json";
 
+    /// <summary>
+    /// 项目级 worktree 目录名 — WorktreeFolderName 别名，对齐 WorkflowConstants.Paths.WorktreeFolderName
+    /// </summary>
+    public string WorktreeFolderName => WorktreesFolderName;
+
     // === 用户级路径 (~/.jcc/) — 跨项目共享、用户全局状态 ===
 
     /// <summary>用户级 cron 定时任务目录: ~/.jcc/cron-tasks/</summary>

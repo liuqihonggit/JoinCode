@@ -188,7 +188,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
                 return 0;
             }
 
-            var worktreesDir = _fileOperationService.CombinePath(gitRoot, WorkflowConstants.Paths.ProjectConfigFolderName, WorkflowConstants.Paths.WorktreeFolderName);
+            var worktreesDir = _fileOperationService.CombinePath(gitRoot, AppDataConstants.Paths.ProjectConfigFolderName, AppDataConstants.Paths.WorktreeFolderName);
             if (!_fileOperationService.DirectoryExists(worktreesDir)) {
                 return 0;
             }
@@ -347,7 +347,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     private async Task PersistActiveWorktreeSessionAsync(AgentWorktreeSession session) {
         try {
             var gitRoot = session.GitRootPath;
-            var localSettingsPath = _fileOperationService.CombinePath(gitRoot, WorkflowConstants.Paths.LocalSettingsRelativePath);
+            var localSettingsPath = _fileOperationService.CombinePath(gitRoot, AppDataConstants.Paths.LocalSettingsRelativePath);
 
             var readResult = await _fileOperationService.ReadFileAsync(localSettingsPath).ConfigureAwait(false);
             var jsonStr = readResult.Success ? readResult.Content : "{}";
@@ -393,7 +393,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
             var gitRoot = await FindGitRootAsync(cwd).ConfigureAwait(false);
             if (string.IsNullOrEmpty(gitRoot)) return;
 
-            var localSettingsPath = _fileOperationService.CombinePath(gitRoot, WorkflowConstants.Paths.LocalSettingsRelativePath);
+            var localSettingsPath = _fileOperationService.CombinePath(gitRoot, AppDataConstants.Paths.LocalSettingsRelativePath);
             if (!_fileOperationService.FileExists(localSettingsPath)) return;
 
             var readResult = await _fileOperationService.ReadFileAsync(localSettingsPath).ConfigureAwait(false);

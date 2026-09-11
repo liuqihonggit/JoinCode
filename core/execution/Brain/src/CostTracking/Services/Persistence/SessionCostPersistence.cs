@@ -34,7 +34,7 @@ public sealed partial class SessionCostPersistence : ServiceEntity, ISessionCost
     {
         _costTracker = costTracker ?? throw new ArgumentNullException(nameof(costTracker));
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
-        _storageDirectory = WorkflowConstants.Paths.JccDirectory;
+        _storageDirectory = AppDataConstants.Paths.JccDirectory;
         _logger = logger;
         _telemetryService = telemetryService;
         _clock = clock ?? SystemClockService.Instance;

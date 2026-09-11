@@ -18,9 +18,9 @@ public sealed class BackgroundHousekeepingService : PeriodicBackgroundServiceBas
     protected override ILogger? Logger => _logger;
     protected override string ServiceName => "后台家政清理服务";
 
-    private static readonly string JccDir = WorkflowConstants.Paths.JccDirectory;
+    private static readonly string JccDir = AppDataConstants.Paths.JccDirectory;
     private static readonly string MarkerFilePath = Path.Combine(
-        WorkflowConstants.Paths.JccDirectory, ".housekeeping-last-run");
+        AppDataConstants.Paths.JccDirectory, ".housekeeping-last-run");
 
     private static readonly TimeSpan MarkerValidity = TimeSpan.FromHours(24);
 

@@ -53,7 +53,7 @@ public sealed partial class JsonFileDreamTaskPersistence : IDreamTaskPersistence
         ILogger<JsonFileDreamTaskPersistence>? logger = null)
     {
         var storageDir = Path.Combine(
-            config?.AutoMemoryPath ?? WorkflowConstants.Paths.JccDirectory,
+            config?.AutoMemoryPath ?? AppDataConstants.Paths.JccDirectory,
             "tasks");
         _baseStorageDir = storageDir ?? throw new ArgumentNullException(nameof(storageDir));
         _storageDir = _baseStorageDir;

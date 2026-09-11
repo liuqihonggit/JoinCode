@@ -275,7 +275,7 @@ public sealed class InsightsCommand : ChatCommandBase
 
             // Step 7: 保存到文件
             var reportDir = Path.Combine(
-                WorkflowConstants.Paths.JccDirectory,
+                AppDataConstants.Paths.JccDirectory,
                 "usage-data");
             var fs = context.GetCommandServices().FileSystem;
             DirectoryHelper.EnsureDirectoryExists(fs, reportDir);

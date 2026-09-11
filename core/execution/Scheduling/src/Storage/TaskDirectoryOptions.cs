@@ -10,7 +10,7 @@ public sealed class TaskDirectoryOptions
     /// 任务目录路径，默认为 .jcc/tasks
     /// </summary>
     public string TaskDirectoryPath { get; set; } = Path.Combine(
-        WorkflowConstants.Paths.JccDirectory,
+        AppDataConstants.Paths.JccDirectory,
         "tasks");
 
     /// <summary>
@@ -71,7 +71,7 @@ public sealed class TaskDirectoryOptions
 public sealed class TaskDirectoryOptionsBuilder
 {
     private string _taskDirectoryPath = Path.Combine(
-        WorkflowConstants.Paths.JccDirectory,
+        AppDataConstants.Paths.JccDirectory,
         "tasks");
 
     private TaskDirectoryOptionsBuilder()
@@ -98,7 +98,7 @@ public sealed class TaskDirectoryOptionsBuilder
     public TaskDirectoryOptionsBuilder UseUserProfileDirectory()
     {
         _taskDirectoryPath = Path.Combine(
-            WorkflowConstants.Paths.JccDirectory,
+            AppDataConstants.Paths.JccDirectory,
             "tasks");
         return this;
     }
@@ -121,7 +121,7 @@ public sealed class TaskDirectoryOptionsBuilder
     public TaskDirectoryOptionsBuilder UseAppDataDirectory()
     {
         _taskDirectoryPath = Path.Combine(
-            WorkflowConstants.Paths.JccDirectory,
+            AppDataConstants.Paths.JccDirectory,
             "tasks");
         return this;
     }

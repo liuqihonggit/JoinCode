@@ -282,7 +282,7 @@ public static class SettingsLoader
     /// </summary>
     public static string GetUserSettingsPath()
     {
-        return Path.Combine(WorkflowConstants.Paths.JccDirectory, AppDataConstants.SettingsFileName);
+        return Path.Combine(AppDataConstants.Paths.JccDirectory, AppDataConstants.SettingsFileName);
     }
 
     /// <summary>

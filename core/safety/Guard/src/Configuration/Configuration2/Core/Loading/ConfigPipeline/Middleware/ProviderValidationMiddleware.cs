@@ -23,7 +23,7 @@ public sealed partial class ProviderValidationMiddleware : ServiceEntity, IConfi
             throw new ConfigurationException(
                 $"Provider '{config.Provider.Vendor}' 配置无效: 缺少 API Key。" +
                 $"请设置环境变量 {definition.ApiKeyEnvironmentVariable ?? "供应商专属变量"}" +
-                $" 或在 {WorkflowConstants.Paths.AuthFilePath} 中添加 '{config.Provider.Vendor}' 键。");
+                $" 或在 {AppDataConstants.Paths.AuthFilePath} 中添加 '{config.Provider.Vendor}' 键。");
         }
 
         context.Result = config;

@@ -129,7 +129,7 @@ public sealed partial class DiagnosticLogRecorder : ServiceEntity, IChatMiddlewa
 
     private static string BuildLogPath(string sessionId)
     {
-        return Path.Combine(WorkflowConstants.Paths.SessionsDirectory, sessionId, "diag", $"{DateTimeOffset.UtcNow:yyyyMMdd_HHmmss}.json");
+        return Path.Combine(AppDataConstants.Paths.SessionsDirectory, sessionId, "diag", $"{DateTimeOffset.UtcNow:yyyyMMdd_HHmmss}.json");
     }
 
     private async Task EnsureDiagDirectoryAsync(string logPath)

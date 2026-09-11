@@ -46,7 +46,7 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 文件级缓存目录 — {projectDir}/.jcc/gh_cache/,跨进程共享
     /// </summary>
-    private const string CacheDirName = ".jcc/gh_cache";
+    private static readonly string CacheDirName = Path.Combine(AppDataConstants.AppDataFolder, "gh_cache");
 
     public GitHubToolHandlers(
         IDownloader downloader,
@@ -285,9 +285,7 @@ public partial class GitHubToolHandlers
     /// </summary>
     private string? TryGetGhCache(string cacheKey)
     {
-        var cacheDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".jcc", "gh_cache");
+        var cacheDir = GetCacheDir(null);
 #pragma warning disable JCC9001
         var cachePath = Path.Combine(cacheDir, cacheKey);
         if (!File.Exists(cachePath))
@@ -309,9 +307,7 @@ public partial class GitHubToolHandlers
     /// </summary>
     private void SaveGhCache(string cacheKey, string json)
     {
-        var cacheDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".jcc", "gh_cache");
+        var cacheDir = GetCacheDir(null);
 #pragma warning disable JCC9001
         Directory.CreateDirectory(cacheDir);
         var cachePath = Path.Combine(cacheDir, cacheKey);

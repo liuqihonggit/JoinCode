@@ -14,10 +14,7 @@ public sealed partial class OnboardingStatePersistence : ServiceEntity
     {
         _fs = fs;
         _clock = clock ?? SystemClockService.Instance;
-        var appDataPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            AppDataConstants.AppDataFolder);
-        _filePath = Path.Combine(appDataPath, "onboarding_complete.json");
+        _filePath = AppDataConstants.Paths.OnboardingCompleteFilePath;
     }
 
     internal OnboardingStatePersistence(IFileSystem fs, string filePath, IClockService? clock = null)

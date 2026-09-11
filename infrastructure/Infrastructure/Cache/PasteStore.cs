@@ -16,8 +16,7 @@ public sealed partial class PasteStore : ServiceEntity, JoinCode.Abstractions.In
     private readonly IFileSystem _fs;
     private readonly ILogger<PasteStore>? _logger;
 
-    private static readonly string PasteCacheDir = Path.Combine(
-        WorkflowConstants.Paths.JccDirectory, "paste-cache");
+    private static readonly string PasteCacheDir = AppDataConstants.Paths.PasteCacheDirectory;
 
     /// <summary>
     /// 计算粘贴文本的内容哈希 — 对齐 TS hashPastedText

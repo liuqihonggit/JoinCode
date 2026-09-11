@@ -54,7 +54,7 @@ public sealed partial class SessionCostPersistence : ServiceEntity, ISessionCost
                 SavedAt = _clock.GetUtcNow()
             };
 
-            var costsDir = Path.Combine(_storageDirectory, "costs");
+            var costsDir = AppDataConstants.Paths.CostsDirectory;
             if (!_fileOperationService.DirectoryExists(costsDir))
             {
                 _fileOperationService.CreateDirectory(costsDir);
@@ -88,7 +88,7 @@ public sealed partial class SessionCostPersistence : ServiceEntity, ISessionCost
 
         try
         {
-            var filePath = Path.Combine(_storageDirectory, "costs", $"{sessionId}.json");
+            var filePath = Path.Combine(AppDataConstants.Paths.CostsDirectory, $"{sessionId}.json");
 
             if (!_fileOperationService.FileExists(filePath))
             {
@@ -127,7 +127,7 @@ public sealed partial class SessionCostPersistence : ServiceEntity, ISessionCost
     {
         try
         {
-            var costsDir = Path.Combine(_storageDirectory, "costs");
+            var costsDir = AppDataConstants.Paths.CostsDirectory;
 
             if (!_fileOperationService.DirectoryExists(costsDir))
             {
@@ -161,7 +161,7 @@ public sealed partial class SessionCostPersistence : ServiceEntity, ISessionCost
 
         try
         {
-            var filePath = Path.Combine(_storageDirectory, "costs", $"{sessionId}.json");
+            var filePath = Path.Combine(AppDataConstants.Paths.CostsDirectory, $"{sessionId}.json");
 
             if (_fileOperationService.FileExists(filePath))
             {

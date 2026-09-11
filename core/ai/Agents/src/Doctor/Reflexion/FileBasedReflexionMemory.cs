@@ -13,7 +13,7 @@ public sealed class FileBasedReflexionMemory : IReflexionMemory
     public FileBasedReflexionMemory(IFileSystem fs, string? baseDir = null)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
-        _baseDir = baseDir ?? Path.Combine(_fs.GetCurrentDirectory(), ".jcc", "reflexion");
+        _baseDir = baseDir ?? AppDataConstants.Paths.ReflexionDirectory;
     }
 
     public async Task StoreAsync(

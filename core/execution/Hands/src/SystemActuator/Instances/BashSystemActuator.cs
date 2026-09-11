@@ -12,9 +12,7 @@ public sealed class BashSystemActuator : SystemActuatorBase
     private readonly IEnvironmentProbeService? _probeService;
     private string? _snapshotFilePath;
 
-    private static readonly string SnapshotDir = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-        AppDataConstants.AppDataFolder, "shell-snapshots");
+    private static readonly string SnapshotDir = AppDataConstants.Paths.ShellSnapshotsDirectory;
 
     private const int MaxSnapshotCount = 200;
 

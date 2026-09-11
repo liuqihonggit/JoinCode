@@ -126,9 +126,7 @@ public partial class AgentToolHandlers
     {
         var agentId = $"agent-dryrun-{Guid.NewGuid():N}"[..^16];
         var now = _clock.GetUtcNow();
-        var stateDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".jcc", "agents");
+        var stateDir = AppDataConstants.Paths.AgentsDirectory;
 #pragma warning disable JCC9001
         Directory.CreateDirectory(stateDir);
 #pragma warning restore JCC9001
@@ -160,8 +158,7 @@ public partial class AgentToolHandlers
     private DryRunAgentState? TryLoadDryRunState(string agentId)
     {
         var statePath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".jcc", "agents", $"{agentId}.json");
+            AppDataConstants.Paths.AgentsDirectory, $"{agentId}.json");
 #pragma warning disable JCC9001
         if (!File.Exists(statePath))
             return null;
@@ -183,9 +180,7 @@ public partial class AgentToolHandlers
     /// </summary>
     private List<DryRunAgentState> ListDryRunAgents()
     {
-        var stateDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".jcc", "agents");
+        var stateDir = AppDataConstants.Paths.AgentsDirectory;
 #pragma warning disable JCC9001
         if (!Directory.Exists(stateDir))
             return [];
@@ -215,9 +210,7 @@ public partial class AgentToolHandlers
     /// </summary>
     private void TrySaveDryRunState(DryRunAgentState state)
     {
-        var stateDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".jcc", "agents");
+        var stateDir = AppDataConstants.Paths.AgentsDirectory;
 #pragma warning disable JCC9001
         Directory.CreateDirectory(stateDir);
         var statePath = Path.Combine(stateDir, $"{state.Id}.json");
@@ -237,9 +230,7 @@ public partial class AgentToolHandlers
     /// </summary>
     private void AppendDryRunMessage(string agentId, string content, string? summary)
     {
-        var msgDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".jcc", "agents");
+        var msgDir = AppDataConstants.Paths.AgentsDirectory;
 #pragma warning disable JCC9001
         Directory.CreateDirectory(msgDir);
         var msgPath = Path.Combine(msgDir, $"{agentId}.messages.json");
@@ -276,8 +267,7 @@ public partial class AgentToolHandlers
     private List<DryRunAgentMessage>? TryLoadDryRunMessages(string agentId)
     {
         var msgPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".jcc", "agents", $"{agentId}.messages.json");
+            AppDataConstants.Paths.AgentsDirectory, $"{agentId}.messages.json");
 #pragma warning disable JCC9001
         if (!File.Exists(msgPath))
             return null;

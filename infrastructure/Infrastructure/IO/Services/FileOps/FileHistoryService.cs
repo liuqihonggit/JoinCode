@@ -20,8 +20,7 @@ public sealed partial class FileHistoryService : ServiceEntity, IFileHistoryServ
         _logger = logger;
         _sessionId = Environment.ProcessId.ToString();
 
-        var homeDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        _baseDir = Path.Combine(homeDir, AppDataConstants.AppDataFolder, AppDataConstants.FileHistoryFolderName);
+        _baseDir = AppDataConstants.Paths.FileHistoryDirectory;
     }
 
     /// <inheritdoc />

@@ -129,7 +129,7 @@ public sealed record AppDataPaths(
     /// </summary>
     public string LocalSettingsRelativePath => $"{AppDataFolder}/settings.local.json";
 
-    // === 用户级路径 (~/.jcc/) ===
+    // === 用户级路径 (~/.jcc/) — 跨项目共享、用户全局状态 ===
 
     /// <summary>用户级 cron 定时任务目录: ~/.jcc/cron-tasks/</summary>
     public string CronTasksDirectory => Path.Combine(JccDirectory, "cron-tasks");
@@ -140,10 +140,55 @@ public sealed record AppDataPaths(
     /// <summary>用户级成本跟踪文件: ~/.jcc/cost-tracking.json</summary>
     public string CostTrackingFilePath => Path.Combine(JccDirectory, "cost-tracking.json");
 
-    /// <summary>用户级转储目录: ~/.jcc/dumps/</summary>
-    public string DumpsDirectory => Path.Combine(JccDirectory, "dumps");
+    /// <summary>用户级成本跟踪目录: ~/.jcc/costs/</summary>
+    public string CostsDirectory => Path.Combine(JccDirectory, "costs");
 
-    // === 项目级路径 ({cwd}/.jcc/) ===
+    /// <summary>用户级会话历史目录: ~/.jcc/sessions/</summary>
+    public string SessionsDirectory => Path.Combine(JccDirectory, SessionsFolderName);
+
+    /// <summary>用户级文件编辑历史目录: ~/.jcc/file-history/</summary>
+    public string FileHistoryDirectory => Path.Combine(JccDirectory, FileHistoryFolderName);
+
+    /// <summary>用户级大文本粘贴缓存目录: ~/.jcc/paste-cache/</summary>
+    public string PasteCacheDirectory => Path.Combine(JccDirectory, "paste-cache");
+
+    /// <summary>用户级 Shell 快照目录: ~/.jcc/shell-snapshots/</summary>
+    public string ShellSnapshotsDirectory => Path.Combine(JccDirectory, "shell-snapshots");
+
+    /// <summary>用户级计划文件目录: ~/.jcc/plans/</summary>
+    public string PlansDirectory => Path.Combine(JccDirectory, PlansFolderName);
+
+    /// <summary>用户级任务存储目录: ~/.jcc/tasks/</summary>
+    public string TasksDirectory => Path.Combine(JccDirectory, TasksFolderName);
+
+    /// <summary>用户级团队配置目录: ~/.jcc/teams/</summary>
+    public string TeamsDirectory => Path.Combine(JccDirectory, TeamsFolderName);
+
+    /// <summary>用户级 MCP 配置目录: ~/.jcc/mcp/</summary>
+    public string McpDirectory => Path.Combine(JccDirectory, McpFolderName);
+
+    /// <summary>用户级工具模板目录: ~/.jcc/tool-templates/</summary>
+    public string ToolTemplatesDirectory => Path.Combine(JccDirectory, "tool-templates");
+
+    /// <summary>用户级 Agent 状态目录: ~/.jcc/agents/</summary>
+    public string AgentsDirectory => Path.Combine(JccDirectory, AgentsFolderName);
+
+    /// <summary>用户级源代码克隆目录: ~/.jcc/source/</summary>
+    public string SourceDirectory => Path.Combine(JccDirectory, "source");
+
+    /// <summary>用户级关键词配置文件: ~/.jcc/keyword-sections.json</summary>
+    public string KeywordSectionsFilePath => Path.Combine(JccDirectory, "keyword-sections.json");
+
+    /// <summary>用户级 LSP 服务器配置文件: ~/.jcc/lsp-servers.json</summary>
+    public string LspServersFilePath => Path.Combine(JccDirectory, "lsp-servers.json");
+
+    /// <summary>用户级 GUI 偏好文件: ~/.jcc/gui-preferences.json</summary>
+    public string GuiPreferencesFilePath => Path.Combine(JccDirectory, "gui-preferences.json");
+
+    /// <summary>用户级引导完成标记文件: ~/.jcc/onboarding_complete.json</summary>
+    public string OnboardingCompleteFilePath => Path.Combine(JccDirectory, "onboarding_complete.json");
+
+    // === 项目级路径 ({cwd}/.jcc/) — 项目隔离、随项目走 ===
 
     /// <summary>项目级 .jcc 目录: {cwd}/.jcc/</summary>
     public string ProjectJccDirectory => Path.Combine(Environment.CurrentDirectory, AppDataFolder);
@@ -162,6 +207,44 @@ public sealed record AppDataPaths(
 
     /// <summary>项目级更新内容目录: {cwd}/.jcc/UpdateContent/</summary>
     public string UpdateContentDirectory => Path.Combine(ProjectJccDirectory, "UpdateContent");
+
+    /// <summary>项目级转储目录: {cwd}/.jcc/dumps/</summary>
+    public string DumpsDirectory => Path.Combine(ProjectJccDirectory, "dumps");
+
+    /// <summary>项目级 GitHub API 缓存目录: {cwd}/.jcc/gh_cache/</summary>
+    public string GhCacheDirectory => Path.Combine(ProjectJccDirectory, "gh_cache");
+
+    /// <summary>项目级反思记忆目录: {cwd}/.jcc/reflexion/</summary>
+    public string ReflexionDirectory => Path.Combine(ProjectJccDirectory, "reflexion");
+
+    /// <summary>项目级诊断目录: {cwd}/.jcc/diag/</summary>
+    public string DiagDirectory => Path.Combine(ProjectJccDirectory, "diag");
+
+    /// <summary>项目级团队记忆目录: {cwd}/.jcc/memory/</summary>
+    public string MemoryDirectory => Path.Combine(ProjectJccDirectory, "memory");
+
+    /// <summary>项目级 TODO 目录: {cwd}/.jcc/todo/</summary>
+    public string TodoDirectory => Path.Combine(ProjectJccDirectory, "todo");
+
+    /// <summary>项目级模式目录: {cwd}/.jcc/mode/</summary>
+    public string ModeDirectory => Path.Combine(ProjectJccDirectory, "mode");
+
+    /// <summary>项目级权限规则目录: {cwd}/.jcc/permission/</summary>
+    public string PermissionDirectory => Path.Combine(ProjectJccDirectory, "permission");
+
+    /// <summary>项目级结构化输出目录: {cwd}/.jcc/structured-output/</summary>
+    public string StructuredOutputDirectory => Path.Combine(ProjectJccDirectory, "structured-output");
+
+    /// <summary>项目级代码索引目录: {cwd}/.jcc/code-index/</summary>
+    public string CodeIndexDirectory => Path.Combine(ProjectJccDirectory, "code-index");
+
+    /// <summary>项目级 worktree 目录: {cwd}/.jcc/worktrees/</summary>
+    public string WorktreesDirectory => Path.Combine(ProjectJccDirectory, WorktreesFolderName);
+
+    // === exe级路径 (AppContext.BaseDirectory) — 跟 exe 走,exe 升级时同步 ===
+
+    /// <summary>exe级 native DLL 目录: {AppContext.BaseDirectory}/runtime/</summary>
+    public string RuntimeDirectory => Path.Combine(AppContext.BaseDirectory, "runtime");
 
     private static string ResolveEnv(JccEnvVar envVar, string defaultValue)
     {

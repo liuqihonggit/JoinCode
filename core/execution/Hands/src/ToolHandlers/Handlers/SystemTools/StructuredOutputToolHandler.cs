@@ -21,7 +21,7 @@ public sealed class StructuredOutputToolHandler
     private readonly IFileSystem? _fs;
     private readonly ILogger<StructuredOutputToolHandler>? _logger;
     private int _schemasLoaded;
-    private const string SchemasSubDir = ".jcc" + "/" + "structured-output";
+    private static readonly string SchemasSubDir = Path.Combine(AppDataConstants.AppDataFolder, "structured-output");
     private const string SchemasFileName = "schemas.json";
 
     public StructuredOutputToolHandler(

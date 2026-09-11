@@ -287,7 +287,7 @@ public sealed class SourceCodeEngine : ISourceCodeEngine
         var homeDir = Environment.GetEnvironmentVariable("USERPROFILE")
             ?? Environment.GetEnvironmentVariable("HOME")
             ?? AppContext.BaseDirectory;
-        var cloneDir = Path.Combine(homeDir, ".jcc", "source");
+        var cloneDir = AppDataConstants.Paths.SourceDirectory;
 
         try
         {

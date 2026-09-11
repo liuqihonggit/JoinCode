@@ -7,6 +7,9 @@ class Program
 {
     static async Task<int> Main(string[] args)
     {
+        // 原生 DLL 引导 — 从嵌入资源释放到临时目录并注册搜索路径（必须在任何 P-Invoke 之前）
+        Entry.Startup.NativeDllBootstrapper.Initialize();
+
         // 密钥红线检查 — 禁止在命令行参数中传递 API Key
         var secretWarning = Cli.Output.ApiKeyRedLine.CheckArgsForSecrets(args);
         if (secretWarning is not null)

@@ -120,7 +120,8 @@ public sealed class McpCliCommand
 
         if (json)
         {
-            System.Console.WriteLine(RelaxedJsonSerializer.Serialize(info.InputSchema, ContractsJsonContext.Default));
+            var schemaJson = RelaxedJsonSerializer.Serialize(info.InputSchema, ContractsJsonContext.Default);
+            System.Console.WriteLine($"{{\"ok\":true,\"data\":{schemaJson},\"meta\":{{\"totalCount\":1}},\"schemaVersion\":\"1\"}}");
         }
         else
         {

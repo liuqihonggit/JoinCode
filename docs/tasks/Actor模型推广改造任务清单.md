@@ -1,0 +1,196 @@
+# Actor 模型推广改造任务清单
+
+> 检查日期: 2026-09-12
+> 背景: ADR 0091 已确认 ActorBase 双工改造完成（8 个直接派生+3 个生态类），但项目中仍有大量并发状态未用 Actor 模型
+> 相关 ADR: 0074（监督树）、0091（双工就地升级）、0068（统一持久化管道 Actor）
+> 基类位置: `foundation/AsyncLock/src/ActorBase.cs` — `ActorBase<TCommand, TOut> : IAsyncDisposable`
+
+## 一、已覆盖清单（11 个）
+
+### 直接继承 ActorBase（8 个）
+
+| Actor | 位置 | TCommand | TOut | 用途 |
+|-------|------|----------|------|------|
+| `SupervisedActor<T>` | foundation/AsyncLock/src/SupervisedActor.cs:197 | T | SupervisorEvent | 监督树抽象基类 |
+| `RouterActor<T>` | foundation/AsyncLock/src/RouterActor.cs:71 | IRouterCommand | RouterEvent<T> | 多 Worker 负载分发 |
+| `GatewayActor<TReq,TResp>` | foundation/AsyncLock/src/GatewayActor.cs:63 | IGatewayCommand | GatewayEvent | 限流/重试/熔断 |
+| `StreamingToolExecutorActor` | core/execution/Brain/.../StreamingToolExecutorActor.cs:34 | IToolCommand | StreamingToolResult | 流式工具执行 |
+| `McpRequestRegistryActor` | services/Mcp/.../McpRequestRegistryActor.cs:8 | IRequestCommand | JsonRpcResponse | MCP 请求注册 |
+| `PersistencePipeline` | infrastructure/IO/PersistencePipeline.cs:10 | PersistRequest | Unit | 统一持久化管道 |
+| `BuildWorker` | core/execution/Hands/.../BuildQueueRouter.cs:252 | ICommand | BuildEvent | 编译 Worker |
+| `BuildQueueRouterActor` | core/execution/Hands/.../BuildQueueRouter.cs:237 | IRouterCommand | RouterEvent | 编译队列路由 |
+
+### 生态类（3 个，不直接继承 ActorBase）
+
+| 类 | 位置 | 模式 |
+|----|------|------|
+| `PersistentMailbox<T,T>` | foundation/AsyncLock/src/PersistentMailbox.cs:53 | 装饰器，包装 ActorBase |
+| `PriorityMailbox<T>` | foundation/AsyncLock/src/PriorityMailbox.cs:41 | 独立基类，三通道优先级 |
+| `BuildQueueRouter` | core/execution/Hands/.../BuildQueueRouter.cs:9 | 组合，内部用 BuildQueueRouterActor |
+
+## 二、未覆盖清单（按优先级排序）
+
+### P0 — 强烈推荐改（Timer + AsyncLock + 复杂状态）17 个
+
+Timer 周期任务 → Actor 周期自消息；AsyncLock → 消除；状态 → Consumer 独占。
+
+| # | 类名 | 文件路径 | 当前机制 | 难度 |
+|---|------|----------|---------|------|
+| 1 | ToolHealthMonitor | core/execution/McpToolDispatch/src/Core/Execution/ToolHealthMonitor.cs | Timer+AsyncLock+volatile+Dict | 中 |
+| 2 | CronScheduler | core/execution/Scheduling/src/Cron/CronScheduler.cs | Timer+ConcurrentDict+volatile | 中 |
+| 3 | SystemActuatorCommandContext | core/execution/Hands/.../SystemActuatorCommandContext.cs | 3×Timer+状态 | 中 |
+| 4 | ToolHypergraphScorer | core/execution/McpToolDispatch/src/Core/Execution/ToolHypergraphScorer.cs | Timer+状态 | 中 |
+| 5 | ProcessHealthMonitor | infrastructure/Infrastructure/Process/ProcessHealthMonitor.cs | Timer+AsyncLock | 中 |
+| 6 | ShellProcessWatchdog | infrastructure/Infrastructure/Shell/ShellProcessWatchdog.cs | Timer+状态 | 低 |
+| 7 | TokenRefreshScheduler | core/safety/Guard/src/OAuth/TokenRefreshScheduler.cs | ConcurrentDict<string,Timer> | 中 |
+| 8 | BridgeTokenRefreshScheduler | infrastructure/Transport.Impl/.../BridgeTokenRefreshScheduler.cs | AsyncLock+Dict<string,Timer> | 中 |
+| 9 | FlushGate | infrastructure/Transport.Impl/.../FlushGate.cs | AsyncLock+List+Timer | 低 |
+| 10 | DiagnosticLogWatcher | core/ai/Agents/src/Doctor/DiagnosticLogWatcher.cs | Timer+AsyncLock+Dict | 中 |
+| 11 | FastModeService | core/safety/Guard/.../FastModeService.cs | Timer+AsyncLock | 低 |
+| 12 | RemoteCacheRefreshServiceBase | foundation/Abstractions/.../RemoteCacheRefreshServiceBase.cs | Timer+AsyncLock+ConcurrentDict | 中 |
+| 13 | TeamMemorySyncService | core/safety/Vault/src/Memdir/Sync/TeamMemorySyncService.cs | Timer+AsyncLock+ConcurrentDict | 中 |
+| 14 | AwaySummaryService | core/execution/Brain/.../AwaySummaryService.cs | Timer+AsyncLock+ConcurrentQueue | 低 |
+| 15 | GoalHeartbeat | composition/Clock/src/Goal/Core/GoalHeartbeat.cs | AsyncLock+PeriodicTimer | 低 |
+| 16 | HookEventBroadcaster | core/safety/Guard/.../HookEventBroadcaster.cs | Timer+状态 | 低 |
+| 17 | DebounceTracker | infrastructure/Infrastructure/Utils/IO/DebounceTracker.cs | ConcurrentDict<string,Timer> | 低 |
+
+### P1 — 推荐改（状态机 + AsyncLock，天然 = Actor）5 个
+
+| # | 类名 | 文件路径 | 难度 | 备注 |
+|---|------|----------|------|------|
+| 18 | **StateMachine<T>** | foundation/Abstractions/00-core/Core/Utils/State/StateMachine.cs | 低 | **通用基类，改一处全局受益** |
+| 19 | AgentStateMachine | core/ai/Agents/.../AgentStateMachine.cs | 中 | ConcurrentDict+AsyncLock+StateMachine |
+| 20 | UnifiedCircuitBreaker | infrastructure/Infrastructure/Utils/Resilience/UnifiedCircuitBreaker.cs | 低 | 熔断器=经典 Actor |
+| 21 | ConnectionManager | infrastructure/Transport.Impl/.../ConnectionManager.cs | 中 | 连接生命周期=命令 |
+| 22 | NetworkConnectivityService | infrastructure/Infrastructure/Network/NetworkConnectivityService.cs | 中 | 网络事件=命令 |
+
+### P2 — 推荐改（已有 Channel 雏形，离 Actor 一步之遥）7 个
+
+| # | 类名 | 文件路径 | 难度 |
+|---|------|----------|------|
+| 23 | **InProcessMailbox** | core/ai/Agents/.../InProcessMailbox.cs | 低 |
+| 24 | BuildQueueService | core/execution/Hands/.../BuildQueueService.cs | 低 |
+| 25 | DoctorTcpServer | core/ai/Agents/src/Doctor/DoctorTcpServer.cs | 中 |
+| 26 | **LoopDiagnosticJournal** | core/execution/Brain/.../LoopDiagnosticJournal.cs | 低 |
+| 27 | AgentOutputChannelManager | core/ai/Agents/.../AgentOutputChannelManager.cs | 低 |
+| 28 | InProcessTeammateTask | core/execution/Scheduling/.../InProcessTeammateTask.cs | 中 |
+| 29 | GoalConflictMessenger | composition/Clock/src/Goal/Core/GoalConflictMessenger.cs | 低 |
+
+### P3 — 适合改（AsyncLock 保护复杂共享状态）45 个
+
+高价值代表：
+- TeamManager（7 张表+AsyncLock，高难度高收益）
+- TaskRuntime（AsyncLock+ConcurrentDag，任务运行时）
+- ChatContextManager（对话上下文表）
+- **PluginManager（已是 Actor 但内部还有 ConcurrentDictionary，半吊子）**
+- DynamicPluginRegistry（ConcurrentDict+lock+Interlocked）
+- ConcurrentDag（AsyncLock+Dag，拓扑排序）
+- McpServerStateManager / McpClientToolHandlers
+- TokenBudgetManager / UsdBudgetManager（串行扣减无锁）
+- AgentWorktreeService / AgentTranscriptService
+- LocalToolRegistry / SkillService
+- 其余 36 个（见原始探索记录）
+
+### P4 — 可选改（lock/Monitor）6 个
+
+部分适合，UI 线程同步的不适合（如 OutputBufferImpl/AnsiResponseParserBase）。
+
+### P5 — 不推荐改（volatile 不可变快照交换）17 个
+
+已是无锁最佳实践，Actor 化收益小、改造成本高。包括：
+- ToolTemplateService、SandboxManager、ModelConfigLoader、FileContextTracker、SearchScopeValidator、MtlsService、RateLimitTracker 等
+
+### 不适合改 6+ 个
+
+纯限流（SemaphoreSlim 无共享状态）、无锁 CAS（MemorySearchHistory）、Dispose 幂等模式。
+
+## 三、独立用 Channel 但未封装 Actor（13 处）
+
+| # | 文件 | 当前用途 | 改造潜力 |
+|---|------|----------|---------|
+| 1 | AnalyticsFileSink.cs | 遥测事件缓冲 | 高（与 PersistencePipeline 同构） |
+| 2 | LoopDiagnosticJournal.cs | 循环诊断日志 | 高（命令模式+单消费者） |
+| 3 | DoctorTcpServer.cs | TCP 诊断事件流 | 中 |
+| 4 | DoctorStdioTransport.cs | stdio 诊断事件流 | 中 |
+| 5 | BuildQueueService.cs | 串行编译队列 | 已有 Router 替代 |
+| 6 | InProcessMailbox.cs | Agent 消息邮箱 | 高（典型 Actor 邮箱） |
+| 7 | InProcessTeammateTask.cs | 队友任务消息 | 中 |
+| 8 | TeammateRegistrationMiddleware.cs | 队友注册中间件 | 中 |
+| 9 | GoalConflictMessenger.cs | 目标冲突消息 | 中 |
+| 10 | AgentOutputChannelManager.cs | Agent 输出通道管理 | 高 |
+| 11 | AgentInputForwardQueue.cs | Agent 输入转发 | 中 |
+| 12 | McpStdioClient.cs | MCP stdio 写通道 | 低（底层传输） |
+| 13 | SandboxIpcClient.cs | 沙箱 IPC 写通道 | 低（底层传输） |
+
+## 四、不舒服 / 想升级（主观判断）
+
+### 最不舒服 Top 5
+
+1. **PluginManager 半吊子 Actor** — 已是 `Actor<PluginManagerCommand,PluginManagerOutput>` 但内部残留 ConcurrentDictionary。Consumer 线程本应独占状态，现在却还有并发字典。建议：彻底移入 Consumer 独占。
+
+2. **StateMachine<T> 通用基类用 AsyncLock** — 状态机数学上就是 Actor。被 AgentStateMachine/UnifiedCircuitBreaker 等多处继承，改一处全局受益。
+
+3. **ToolHealthMonitor 三重并发组合** — Timer+AsyncLock+volatile+Dict，时序推理极难。Timer 周期衰减和外部健康报告交错访问同一批状态。
+
+4. **InProcessMailbox 离 Actor 一步之遥** — 已用 ConcurrentDictionary<string,Channel> 做消息路由，但路由表本身是并发字典。
+
+5. **独立用 Channel 但没封装 Actor 的 13 处** — AnalyticsFileSink/LoopDiagnosticJournal 与 PersistencePipeline 同构，却没复用 ActorBase 的背压+水位线+Id 监控。
+
+### 想升级的 3 处
+
+1. **CronScheduler** — 6 个并发字段可全部收敛到 Consumer 独占。
+2. **TeamManager 7 张表** — Actor 化后所有团队操作变成串行命令，推理复杂度骤降。
+3. **ConcurrentDag** — Actor 化后消除 AsyncLock，且与 TaskRuntime 联动。
+
+### 架构级建议
+
+当前 Actor 基类缺少 `IActor` 接口和 `ActorRef`。大规模改造（80 个候选）时，外部调用方需要类型安全的"发消息不关心具体 Actor 类型"能力。建议补最小 `IActor<TCommand>` 接口（只暴露 SendAsync/TrySend/Id），不需要完整 ActorRef 位置透明性。
+
+## 五、改造计划（基建先行）
+
+### 阶段 0：基建（补 IActor 接口）
+
+- [ ] 在 foundation/AsyncLock/src/ 新增 IActor<TCommand> 接口
+- [ ] ActorBase<TCommand,TOut> 实现 IActor<TCommand>
+- [ ] 编译 + 单元测试 + git 提交
+
+### 阶段 1：P1 状态机（改一处全局受益）
+
+- [ ] StateMachine<T> 改为 ActorBase 风格
+- [ ] AgentStateMachine / UnifiedCircuitBreaker 跟进
+- [ ] 编译 + 测试 + 提交
+
+### 阶段 2：P0 Timer+锁（消除时序 bug 高发区）
+
+- [ ] ToolHealthMonitor（三重并发组合）
+- [ ] CronScheduler（调度器天然消息驱动）
+- [ ] 其余 15 个按依赖顺序
+
+### 阶段 3：P2 已有 Channel 雏形
+
+- [ ] InProcessMailbox / LoopDiagnosticJournal / AnalyticsFileSink 等
+
+### 阶段 4：P3 AsyncLock 复杂状态
+
+- [ ] PluginManager 半吊子清理
+- [ ] TeamManager / TaskRuntime / ConcurrentDag 等
+
+### 不改：P5 volatile 快照 + 不适合（纯限流/CAS/Dispose）
+
+## 六、规模估算
+
+| 优先级 | 数量 | 收益 |
+|--------|------|------|
+| P0 强烈推荐 | 17 | 消除 Timer+锁双重复杂度 |
+| P1 推荐 | 5 | StateMachine 改一处全局受益 |
+| P2 推荐 | 7 | 离 Actor 一步之遥 |
+| P3 适合 | 45 | 消除 AsyncLock，状态独占 |
+| P4 可选 | 6 | 部分适合 |
+| P5 不推荐 | 17 | volatile 快照已是最优，别动 |
+| 不适合 | 6+ | 纯限流/CAS/Dispose，别动 |
+
+<!-- Auto Decision: 2026-09-12 -->
+<!-- 决策: 先补 IActor 接口基建，再按 P1->P0->P2->P3 顺序改造 -->
+<!-- 原因: 80 个候选改造需要类型安全的"发消息不关心具体 Actor 类型"能力；P1 StateMachine 是通用基类改一处全局受益 -->
+<!-- 替代方案: 直接从 P0 ToolHealthMonitor 开始（放弃: 缺少 IActor 接口会导致大规模改造时调用方类型不安全）-->
+<!-- 验证: 待基建完成后编译验证 -->

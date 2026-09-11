@@ -12,7 +12,7 @@ namespace Core.Utils;
 /// </summary>
 /// <typeparam name="TCommand">命令类型 — 建议用 record 或 sealed class,实现标记接口以约束合法命令</typeparam>
 /// <typeparam name="TOut">输出消息类型 — 建议用 record 或 sealed class</typeparam>
-public abstract class ActorBase<TCommand, TOut> : IAsyncDisposable
+public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDisposable
 {
     private readonly Channel<TCommand> _inputChannel;
     private readonly Channel<TOut> _outputChannel;
@@ -20,6 +20,7 @@ public abstract class ActorBase<TCommand, TOut> : IAsyncDisposable
     private readonly CancellationTokenSource _cts = new();
     private readonly ActorBackpressure? _backpressure;
     private int _disposed;
+    private int _inputCount;
     private int _outputCount;
 
     /// <summary>
@@ -101,7 +102,7 @@ public abstract class ActorBase<TCommand, TOut> : IAsyncDisposable
     protected internal Task ConsumerTask => _consumerTask;
 
     /// <summary>当前输入邮箱消息数 — 用于监控背压状态</summary>
-    public int InputCount => _inputChannel.Reader.Count;
+    public int InputCount => Volatile.Read(ref _inputCount);
 
     /// <summary>当前输出通道消息数 — 用于监控堆积</summary>
     public int OutputCount => Volatile.Read(ref _outputCount);
@@ -125,7 +126,7 @@ public abstract class ActorBase<TCommand, TOut> : IAsyncDisposable
     /// <param name="ct">取消令牌</param>
     /// <exception cref="ObjectDisposedException">Actor 已释放</exception>
     /// <exception cref="TimeoutException">发送超时(背压配置了 SendTimeout 且通道满)</exception>
-    protected internal async ValueTask SendAsync(TCommand cmd, CancellationToken ct = default)
+    public async ValueTask SendAsync(TCommand cmd, CancellationToken ct = default)
     {
         ThrowIfDisposed();
         CheckInputWatermark();
@@ -148,6 +149,7 @@ public abstract class ActorBase<TCommand, TOut> : IAsyncDisposable
         {
             await _inputChannel.Writer.WriteAsync(cmd, ct).ConfigureAwait(false);
         }
+        Interlocked.Increment(ref _inputCount);
     }
 
     /// <summary>
@@ -155,11 +157,15 @@ public abstract class ActorBase<TCommand, TOut> : IAsyncDisposable
     /// </summary>
     /// <param name="cmd">命令实例</param>
     /// <returns>true 表示已入队,false 表示未入队</returns>
-    protected internal bool TrySend(TCommand cmd)
+    public bool TrySend(TCommand cmd)
     {
         if (Volatile.Read(ref _disposed) != 0) return false;
         var written = _inputChannel.Writer.TryWrite(cmd);
-        if (written) CheckInputWatermark();
+        if (written)
+        {
+            Interlocked.Increment(ref _inputCount);
+            CheckInputWatermark();
+        }
         return written;
     }
 
@@ -223,6 +229,7 @@ public abstract class ActorBase<TCommand, TOut> : IAsyncDisposable
         {
             await foreach (var cmd in _inputChannel.Reader.ReadAllAsync(_cts.Token).ConfigureAwait(false))
             {
+                Interlocked.Decrement(ref _inputCount);
                 try
                 {
                     await HandleAsync(cmd, _cts.Token).ConfigureAwait(false);

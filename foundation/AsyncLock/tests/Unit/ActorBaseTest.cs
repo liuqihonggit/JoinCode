@@ -187,6 +187,27 @@ public class ActorBaseTest
         await act.Should().ThrowAsync<TimeoutException>();
     }
 
+    [Fact]
+    public async Task IActorInterface_SendAsync_CommandProcessed()
+    {
+        IActor<string> actor = new TestActor();
+        await actor.SendAsync("via-interface");
+        var concrete = (TestActor)actor;
+        await WaitUntilAsync(() => concrete.ProcessedCommands.Count >= 1, TimeSpan.FromSeconds(5));
+        concrete.ProcessedCommands.Should().Contain("via-interface");
+        await actor.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task IActorInterface_TrySend_Id_InputCount_Accessible()
+    {
+        IActor<string> actor = new TestActor();
+        actor.Id.Should().NotBeNullOrEmpty();
+        actor.InputCount.Should().Be(0);
+        actor.TrySend("test").Should().BeTrue();
+        await actor.DisposeAsync();
+    }
+
     private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan timeout)
     {
         var sw = Stopwatch.StartNew();

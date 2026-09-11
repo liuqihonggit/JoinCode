@@ -1,13 +1,10 @@
 namespace Services.SystemActuator;
 
-/// <summary>
-/// 系统执行器命令上下文实现 — 封装正在运行的进程，支持前台转后台、输出溢出到磁盘
-/// </summary>
 public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext, ISystemActuatorLifecycle, IAsyncDisposable
 {
     private readonly Process _process;
-    private readonly StringBuilder _stdoutBuilder = new();
-    private readonly StringBuilder _stderrBuilder = new();
+    private readonly ProcessOutputCollector _outputCollector;
+    private readonly CwdTracker _cwdTracker;
     private readonly CancellationTokenSource _processCts;
     private readonly TaskCompletionSource<SystemActuatorExecutionResult> _resultTcs = new();
     private readonly System.Diagnostics.Stopwatch _stopwatch = new();
@@ -16,7 +13,6 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
     private readonly int? _timeoutMs;
     private readonly ILogger? _logger;
     private readonly IFileSystem _fs;
-    private readonly string? _cwdFilePath;
     private readonly bool _detached;
 
     private int _isDisposed;
@@ -25,41 +21,17 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
     private Timer? _timeoutTimer;
     private Timer? _assistantTimer;
     private Timer? _sizeWatchdogTimer;
-
-    /// <summary>
-    /// 后台化后输出溢出文件路径
-    /// </summary>
-    private string? _spillFilePath;
-
-    /// <summary>
-    /// 是否为前台任务
-    /// </summary>
     private bool _isForeground = true;
 
     private const int SizeWatchdogIntervalMs = 5_000;
-    private const int SpillThresholdChars = 100_000;
 
-    /// <inheritdoc />
     public string TaskId { get; } = TaskIdGenerator.GenerateTaskId(TaskType.LocalBash);
-
-    /// <inheritdoc />
     public SystemActuatorCommandStatus Status => _status;
-
-    /// <inheritdoc />
     public Task<SystemActuatorExecutionResult> ResultTask => _resultTcs.Task;
-
-    /// <inheritdoc />
     public string Command => _command;
-
-    /// <inheritdoc />
-    public string? OutputFilePath => _spillFilePath;
-
-    /// <inheritdoc />
+    public string? OutputFilePath => _outputCollector.SpillFilePath;
     public bool ShouldAutoBackground { get; }
 
-    /// <summary>
-    /// 后台化事件 — 当命令被后台化时触发
-    /// </summary>
     public event Action<SystemActuatorCommandContext, string>? Backgrounded;
 
     private SystemActuatorCommandContext(
@@ -79,36 +51,21 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
         _timeoutMs = timeoutMs;
         _logger = logger;
         _fs = fs;
-        _cwdFilePath = cwdFilePath;
         _detached = detached;
         _processCts = new CancellationTokenSource();
         _stopwatch.Start();
-
         ShouldAutoBackground = shouldAutoBackground;
+
+        _outputCollector = new ProcessOutputCollector(fs, logger, TaskId);
+        _cwdTracker = new CwdTracker(fs, logger, cwdFilePath, workingDirectory);
 
         process.OutputDataReceived += (_, e) =>
         {
-            if (e.Data != null)
-            {
-                if (_spillFilePath is not null)
-                {
-                    try { _fs.AppendAllText(_spillFilePath, e.Data + Environment.NewLine); }
-                    catch (Exception ex) { _logger?.LogDebug(ex, "追加溢出输出失败"); }
-                }
-                else
-                {
-                    _stdoutBuilder.AppendLine(e.Data);
-
-                    if (_stdoutBuilder.Length > SpillThresholdChars)
-                    {
-                        SpillToDisk();
-                    }
-                }
-            }
+            if (e.Data != null) _outputCollector.OnOutputDataReceived(e.Data);
         };
         process.ErrorDataReceived += (_, e) =>
         {
-            if (e.Data != null) _stderrBuilder.AppendLine(e.Data);
+            if (e.Data != null) _outputCollector.OnErrorDataReceived(e.Data);
         };
 
         if (timeoutMs.HasValue && timeoutMs.Value > 0)
@@ -125,9 +82,6 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
         StartSizeWatchdog();
     }
 
-    /// <summary>
-    /// 创建并启动执行上下文
-    /// </summary>
     public static async Task<SystemActuatorCommandContext> StartAsync(
         string command,
         string workingDirectory,
@@ -187,7 +141,6 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
             shouldAutoBackground, logger, fs, execResult.CwdFilePath, actuator.Detached);
     }
 
-    /// <inheritdoc />
     public bool Background(string taskId)
     {
         if (_status != SystemActuatorCommandStatus.Running) return false;
@@ -201,8 +154,8 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
         _assistantTimer?.Dispose();
         _assistantTimer = null;
 
-        SpillToDisk();
-        CleanupCwdTrackingFile();
+        _outputCollector.SpillToDisk();
+        _cwdTracker.CleanupCwdTrackingFile();
 
         _logger?.LogInformation("命令已转后台: {TaskId}, 命令: {Command}", taskId, _command);
 
@@ -211,47 +164,8 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
         return true;
     }
 
-    /// <summary>
-    /// 将内存中的输出溢出到磁盘
-    /// </summary>
-    private void SpillToDisk()
-    {
-        if (_spillFilePath is not null) return;
-
-        try
-        {
-            var tempDir = JoinCode.Abstractions.Configuration.AppData.AppDataConstants.UserRuntimeToolResultsDirectory;
-            DirectoryHelper.EnsureDirectoryExists(_fs, tempDir);
-
-            _spillFilePath = Path.Combine(tempDir, $"spill-{TaskId}.txt");
-
-            if (_stdoutBuilder.Length > 0)
-            {
-                _fs.WriteAllText(_spillFilePath, _stdoutBuilder.ToString());
-                _stdoutBuilder.Clear();
-            }
-
-            _logger?.LogDebug("任务输出已溢出到磁盘: {Path}", _spillFilePath);
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogDebug(ex, "输出溢出到磁盘失败，保留内存缓冲区");
-        }
-    }
-
-    /// <inheritdoc />
-    public string GetCurrentStdout()
-    {
-        if (_spillFilePath is not null && _fs.FileExists(_spillFilePath))
-        {
-            try { return _fs.ReadAllText(_spillFilePath); }
-            catch { return _stdoutBuilder.ToString(); }
-        }
-        return _stdoutBuilder.ToString();
-    }
-
-    /// <inheritdoc />
-    public string GetCurrentStderr() => _stderrBuilder.ToString();
+    public string GetCurrentStdout() => _outputCollector.GetCurrentStdout();
+    public string GetCurrentStderr() => _outputCollector.GetCurrentStderr();
 
     private void StartSizeWatchdog()
     {
@@ -260,35 +174,25 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
             var ctx = (SystemActuatorCommandContext)(state ?? throw new InvalidOperationException("Timer state is null."));
             if (ctx._status is not (SystemActuatorCommandStatus.Running or SystemActuatorCommandStatus.Backgrounded)) return;
 
-            if (ctx._spillFilePath is not null && ctx._fs.FileExists(ctx._spillFilePath))
+            var outputLength = ctx._outputCollector.GetCurrentStdoutLength();
+            if (outputLength > SystemActuatorExecutionResult.MaxPersistedSizeBytes)
             {
-                var fileSize = ctx._fs.GetFileLength(ctx._spillFilePath);
-                if (fileSize > SystemActuatorExecutionResult.MaxPersistedSizeBytes)
-                {
-                    ctx._logger?.LogWarning("任务输出文件超过硬上限，强制杀死: {TaskId}, Size={Size}", ctx._backgroundTaskId ?? ctx.TaskId, fileSize);
-                    ctx.Kill();
-                }
-            }
-            else if (ctx._stdoutBuilder.Length > SystemActuatorExecutionResult.MaxPersistedSizeBytes)
-            {
-                ctx._logger?.LogWarning("任务输出超过硬上限，强制杀死: {TaskId}, Size={Size}", ctx._backgroundTaskId ?? ctx.TaskId, ctx._stdoutBuilder.Length);
+                ctx._logger?.LogWarning("任务输出超过硬上限，强制杀死: {TaskId}, Size={Size}", ctx._backgroundTaskId ?? ctx.TaskId, outputLength);
                 ctx.Kill();
             }
         }, this, TimeSpan.FromMilliseconds(SizeWatchdogIntervalMs), TimeSpan.FromMilliseconds(SizeWatchdogIntervalMs));
     }
 
-    /// <inheritdoc />
     public void Kill()
     {
         if (_status is not (SystemActuatorCommandStatus.Running or SystemActuatorCommandStatus.Backgrounded)) return;
 
-        try { KillProcessTree(_process); }
+        try { ProcessKillHelper.KillProcessTree(_process, _logger); }
         catch (Exception ex) { _logger?.LogWarning(ex, "杀进程树失败"); }
 
         _status = SystemActuatorCommandStatus.Killed;
     }
 
-    /// <inheritdoc />
     public bool Interrupt()
     {
         if (_status != SystemActuatorCommandStatus.Running) return false;
@@ -300,43 +204,6 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
         return true;
     }
 
-    private void KillProcessTree(Process process)
-    {
-        if (OperatingSystem.IsWindows())
-        {
-            try
-            {
-                var killerPsi = SystemActuatorBase.SharedBuilder.Build(new ProcessOptions
-                {
-                    FileName = "taskkill.exe",
-                    ArgumentList = ["/T", "/F", "/PID", process.Id.ToString()],
-                });
-                using var killer = new Process { StartInfo = killerPsi };
-                killer.Start();
-                killer.WaitForExit(5000);
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogDebug(ex, "taskkill.exe 终止进程树失败，尝试直接 Kill PID {Pid}", process.Id);
-                TryKillSafely(process);
-            }
-        }
-        else
-        {
-            TryKillSafely(process);
-        }
-    }
-
-    private void TryKillSafely(Process process)
-    {
-        try { process.Kill(); }
-        catch (Exception killEx)
-        {
-            _logger?.LogDebug(killEx, "直接 Kill PID {Pid} 失败（可能已退出或无权限）", process.Id);
-        }
-    }
-
-    /// <inheritdoc />
     public void StartAssistantAutoBackgroundTimer()
     {
         if (!ShouldAutoBackground || _status != SystemActuatorCommandStatus.Running) return;
@@ -359,7 +226,6 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
             Timeout.Infinite);
     }
 
-    /// <inheritdoc />
     public SystemActuatorLifecycleState LifecycleState => _status switch
     {
         SystemActuatorCommandStatus.Running => SystemActuatorLifecycleState.Active,
@@ -369,7 +235,6 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
         _ => SystemActuatorLifecycleState.Active,
     };
 
-    /// <inheritdoc />
     public Task CompactAsync(CancellationToken cancellationToken = default)
     {
         if (_status == SystemActuatorCommandStatus.Running)
@@ -378,20 +243,22 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
             Background(taskId);
         }
 
-        if (_status is SystemActuatorCommandStatus.Backgrounded && _spillFilePath is null
-            && _stdoutBuilder.Length > SystemActuatorExecutionResult.PreviewSizeBytes)
+        if (_status is SystemActuatorCommandStatus.Backgrounded && _outputCollector.SpillFilePath is null)
         {
-            SpillToDisk();
-            if (_spillFilePath is null)
+            var currentLen = _outputCollector.GetCurrentStdoutLength();
+            if (currentLen > SystemActuatorExecutionResult.PreviewSizeBytes)
             {
-                _stdoutBuilder.Remove(SystemActuatorExecutionResult.PreviewSizeBytes, _stdoutBuilder.Length - SystemActuatorExecutionResult.PreviewSizeBytes);
+                _outputCollector.SpillToDisk();
+                if (_outputCollector.SpillFilePath is null)
+                {
+                    _outputCollector.TruncateStdout(SystemActuatorExecutionResult.PreviewSizeBytes);
+                }
             }
         }
 
         return Task.CompletedTask;
     }
 
-    /// <inheritdoc />
     public Task TerminateAsync(CancellationToken cancellationToken = default)
     {
         Kill();
@@ -427,23 +294,23 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
         {
             _resultTcs.TrySetResult(SystemActuatorExecutionResult.FailureResult(
                 "Process killed",
-                GetCurrentStdout(),
-                _stderrBuilder.ToString()) with { ExecutionTime = _stopwatch.Elapsed });
+                _outputCollector.GetCurrentStdout(),
+                _outputCollector.GetCurrentStderr()) with { ExecutionTime = _stopwatch.Elapsed });
             return;
         }
 
-        var stdout = GetCurrentStdout();
-        var stderr = _stderrBuilder.ToString();
+        var stdout = _outputCollector.GetCurrentStdout();
+        var stderr = _outputCollector.GetCurrentStderr();
 
         string? persistedPath = null;
         long? persistedSize = null;
         if (stdout.Length > SystemActuatorExecutionResult.MaxInlineOutputChars)
         {
-            (persistedPath, persistedSize) = await PersistLargeOutputAsync(stdout).ConfigureAwait(false);
+            (persistedPath, persistedSize) = await OutputPersister.PersistLargeOutputAsync(stdout, _fs, _logger).ConfigureAwait(false);
             stdout = stdout[..Math.Min(stdout.Length, SystemActuatorExecutionResult.PreviewSizeBytes)];
         }
 
-        var cwdWasReset = _isForeground ? TryUpdateCwdFromTrackingFile() : CleanupCwdTrackingFile();
+        var cwdWasReset = _isForeground ? _cwdTracker.TryUpdateCwdFromTrackingFile() : _cwdTracker.CleanupCwdTrackingFile();
 
         var result = SystemActuatorExecutionResult.SuccessResult(stdout, stderr, _process.ExitCode) with
         {
@@ -458,101 +325,9 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
         _resultTcs.TrySetResult(result);
     }
 
-    private bool TryUpdateCwdFromTrackingFile()
+    public async ValueTask DisposeAsync()
     {
-        if (string.IsNullOrEmpty(_cwdFilePath)) return false;
-
-        try
-        {
-            if (!_fs.FileExists(_cwdFilePath)) return false;
-
-            var newCwd = _fs.ReadAllText(_cwdFilePath).Trim();
-            if (string.IsNullOrEmpty(newCwd)) return false;
-
-            try { _fs.DeleteFile(_cwdFilePath); }
-            catch (Exception ex) { _logger?.LogDebug(ex, "清理 CWD 追踪文件失败: {Path}", _cwdFilePath); }
-
-            if (!string.Equals(newCwd, _workingDirectory, StringComparison.OrdinalIgnoreCase))
-            {
-                try
-                {
-                    _fs.SetCurrentDirectory(newCwd);
-                    return true;
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogDebug(ex, "设置工作目录失败: {Cwd}，回退到原始目录", newCwd);
-                    try { _fs.SetCurrentDirectory(_workingDirectory); }
-                    catch (Exception innerEx) { _logger?.LogDebug(innerEx, "回退到原始目录也失败: {Cwd}", _workingDirectory); }
-                    return false;
-                }
-            }
-
-            return false;
-        }
-        catch (Exception ex) { _logger?.LogDebug(ex, "读取 CWD 追踪文件失败: {Path}", _cwdFilePath); return false; }
-    }
-
-    private bool CleanupCwdTrackingFile()
-    {
-        if (string.IsNullOrEmpty(_cwdFilePath)) return false;
-
-        try
-        {
-            if (_fs.FileExists(_cwdFilePath))
-            {
-                _fs.DeleteFile(_cwdFilePath);
-            }
-        }
-        catch (Exception ex) { _logger?.LogDebug(ex, "清理 CWD 追踪文件失败: {Path}", _cwdFilePath); }
-
-        return false;
-    }
-
-    private async Task<(string? Path, long? Size)> PersistLargeOutputAsync(string output)
-    {
-        try
-        {
-            var tempDir = JoinCode.Abstractions.Configuration.AppData.AppDataConstants.UserRuntimeToolResultsDirectory;
-            DirectoryHelper.EnsureDirectoryExists(_fs, tempDir);
-
-            var filePath = Path.Combine(tempDir, $"{Guid.NewGuid():N}"[..^20] + ".txt");
-            await _fs.WriteAllTextAsync(filePath, output).ConfigureAwait(false);
-
-            var fileSize = _fs.GetFileLength(filePath);
-            if (fileSize > SystemActuatorExecutionResult.MaxPersistedSizeBytes)
-            {
-                var truncated = output[..(int)SystemActuatorExecutionResult.MaxPersistedSizeBytes];
-                await _fs.WriteAllTextAsync(filePath, truncated).ConfigureAwait(false);
-                fileSize = SystemActuatorExecutionResult.MaxPersistedSizeBytes;
-            }
-
-            return (filePath, fileSize);
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "大输出持久化失败，尝试重试一次");
-            try
-            {
-                var retryDir = JoinCode.Abstractions.Configuration.AppData.AppDataConstants.UserRuntimeToolResultsDirectory;
-                DirectoryHelper.EnsureDirectoryExists(_fs, retryDir);
-                var retryPath = Path.Combine(retryDir, $"{Guid.NewGuid():N}"[..^20] + ".txt");
-                await _fs.WriteAllTextAsync(retryPath, output).ConfigureAwait(false);
-                var retrySize = _fs.GetFileLength(retryPath);
-                return (retryPath, retrySize);
-            }
-            catch (Exception retryEx)
-            {
-                _logger?.LogError(retryEx, "大输出持久化重试也失败，数据将丢失");
-                return (null, null);
-            }
-        }
-    }
-
-    /// <inheritdoc />
-    public ValueTask DisposeAsync()
-    {
-        if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return ValueTask.CompletedTask;
+        if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return;
 
         _timeoutTimer?.Dispose();
         _assistantTimer?.Dispose();
@@ -562,18 +337,13 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
 
         try
         {
-            if (!_process.HasExited) KillProcessTree(_process);
+            if (!_process.HasExited) ProcessKillHelper.KillProcessTree(_process, _logger);
         }
         catch (Exception ex) { _logger?.LogDebug(ex, "DisposeAsync 时终止进程失败"); }
 
         _process.Dispose();
 
-        if (_spillFilePath is not null)
-        {
-            try { if (_fs.FileExists(_spillFilePath)) _fs.DeleteFile(_spillFilePath); }
-            catch (Exception ex) { _logger?.LogDebug(ex, "清理溢出文件失败: {Path}", _spillFilePath); }
-        }
-
-        return ValueTask.CompletedTask;
+        await _outputCollector.DisposeAsync().ConfigureAwait(false);
+        await _cwdTracker.DisposeAsync().ConfigureAwait(false);
     }
 }

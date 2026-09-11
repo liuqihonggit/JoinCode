@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Mcp.UniqueTests</RootNamespace>
+    <AssemblyName>JoinCode.Mcp.UniqueTests</AssemblyName>
+    <Description>JoinCode Mcp 独特测试类（ToolInterventionManager，ADR 0100 避免与项目内测试同名冲突）</Description>
+    <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)foundation\Abstractions\Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)services\Mcp\src\Mcp.csproj" />
+    <ProjectReference Include="$(RepoRoot)infrastructure\Infrastructure\Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
+  </ItemGroup>
+
+</Project>

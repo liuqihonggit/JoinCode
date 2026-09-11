@@ -19,43 +19,60 @@ public sealed partial class PluginReloadEventArgs : EventArgs
 [JsonConverter(typeof(JsonStringEnumConverter<ReloadReason>))]
 public enum ReloadReason { FileChanged, FileCreated, FileDeleted, Manual }
 
+/// <summary>
+/// PluginHotReloader Actor 命令 — Channel 中的消息类型
+/// </summary>
+public interface IPluginReloadCommand;
+
+internal sealed record ReloadPluginCmd(string PluginName, string FilePath, ReloadReason Reason) : IPluginReloadCommand;
+internal sealed record ReloadPluginAndWaitCmd(string PluginName, string FilePath, ReloadReason Reason, TaskCompletionSource Tcs) : IPluginReloadCommand;
+internal sealed record StartWatchingCmd(string PluginDirectory, CancellationToken Ct, TaskCompletionSource Tcs) : IPluginReloadCommand;
+internal sealed record StopWatchingCmd(CancellationToken Ct, TaskCompletionSource Tcs) : IPluginReloadCommand;
+
+/// <summary>
+/// 插件热重载服务 — Actor 化：继承 ActorBase，Consumer 线程独占 _watcher 和重载逻辑，
+/// 消除 AsyncLock。插件加载/卸载（可能 >5s）由 Consumer 串行执行，不再阻塞文件 watcher 事件。
+/// 文件 watcher 事件通过 TrySend fire-and-forget 投递，不阻塞 watcher 线程。
+/// </summary>
 [Register(typeof(IPluginHotReloader), ServiceLifetime.Singleton)]
-public sealed partial class PluginHotReloader : IPluginHotReloader
+public sealed partial class PluginHotReloader : ActorBase<IPluginReloadCommand, Unit>, IPluginHotReloader
 {
     private readonly IPluginManager _pluginManager;
     private readonly ILogger<PluginHotReloader>? _logger;
     private readonly ITelemetryService? _telemetryService;
     private readonly IFileSystem _fs;
     private IFileSystemWatcher? _watcher;
-    private readonly AsyncLock _reloadLock;
-    private volatile bool _isWatching;
+    private volatile int _isWatchingInt;
 
     public PluginHotReloader(
         IPluginManager pluginManager,
         IFileSystem fs,
         ILogger<PluginHotReloader>? logger = null,
         ITelemetryService? telemetryService = null)
+        : base()
     {
         _pluginManager = pluginManager ?? throw new ArgumentNullException(nameof(pluginManager));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _logger = logger;
         _telemetryService = telemetryService;
-        _reloadLock = new AsyncLock(nameof(PluginHotReloader));
     }
 
-    public bool IsWatching => _isWatching;
+    public bool IsWatching => _isWatchingInt != 0;
 
     public event EventHandler<PluginReloadEventArgs>? PluginReloading;
     public event EventHandler<PluginReloadEventArgs>? PluginReloaded;
 
-    public Task StartWatchingAsync(string pluginDirectory, CancellationToken ct = default)
+    /// <summary>
+    /// 启动监控 — 发命令到 Consumer，由 Consumer 线程设置 _watcher 和 _isWatching。
+    /// </summary>
+    public async Task StartWatchingAsync(string pluginDirectory, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(pluginDirectory);
 
-        if (_isWatching)
+        if (IsWatching)
         {
             _logger?.LogWarning("[PluginHotReloader] 已在监控中，忽略重复启动请求");
-            return Task.CompletedTask;
+            return;
         }
 
         if (!_fs.DirectoryExists(pluginDirectory))
@@ -63,62 +80,118 @@ public sealed partial class PluginHotReloader : IPluginHotReloader
             throw new DirectoryNotFoundException(PluginErrors.DirectoryNotFound(pluginDirectory));
         }
 
-        _watcher = _fs.Watch(pluginDirectory);
-        _watcher.IncludeSubdirectories = true;
-        _watcher.NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size;
-        _watcher.Filter = "*.*";
-
-        _watcher.DebouncedChanged += OnFileChanged;
-        _watcher.DebouncedCreated += OnFileCreated;
-        _watcher.DebouncedDeleted += OnFileDeleted;
-        _watcher.EnableRaisingEvents = true;
-
-        _isWatching = true;
-
-        _logger?.LogInformation("[PluginHotReloader] 开始监控插件目录: {Directory}", pluginDirectory);
-
-        return Task.CompletedTask;
+        var tcs = CreateTcs();
+        await SendAsync(new StartWatchingCmd(pluginDirectory, ct, tcs), ct).ConfigureAwait(false);
+        await tcs.Task.ConfigureAwait(false);
     }
 
-    public Task StopWatchingAsync(CancellationToken ct = default)
+    /// <summary>
+    /// 停止监控 — 发命令到 Consumer，由 Consumer 线程释放 _watcher 和清除 _isWatching。
+    /// </summary>
+    public async Task StopWatchingAsync(CancellationToken ct = default)
     {
-        if (!_isWatching)
+        if (!IsWatching)
         {
-            return Task.CompletedTask;
+            return;
         }
 
-        if (_watcher is not null)
-        {
-            _watcher.EnableRaisingEvents = false;
-            _watcher.Dispose();
-            _watcher = null;
-        }
-
-        _isWatching = false;
-
-        _logger?.LogInformation("[PluginHotReloader] 已停止监控");
-
-        return Task.CompletedTask;
+        var tcs = CreateTcs();
+        await SendAsync(new StopWatchingCmd(ct, tcs), ct).ConfigureAwait(false);
+        await tcs.Task.ConfigureAwait(false);
     }
 
     private void OnFileChanged(object? sender, FileChangedEventArgs e)
     {
-        _ = ReloadPluginAsync(Path.GetFileNameWithoutExtension(e.FullPath), e.FullPath, ReloadReason.FileChanged);
+        TrySend(new ReloadPluginCmd(Path.GetFileNameWithoutExtension(e.FullPath), e.FullPath, ReloadReason.FileChanged));
     }
 
     private void OnFileCreated(object? sender, FileChangedEventArgs e)
     {
-        _ = ReloadPluginAsync(Path.GetFileNameWithoutExtension(e.FullPath), e.FullPath, ReloadReason.FileCreated);
+        TrySend(new ReloadPluginCmd(Path.GetFileNameWithoutExtension(e.FullPath), e.FullPath, ReloadReason.FileCreated));
     }
 
     private void OnFileDeleted(object? sender, FileChangedEventArgs e)
     {
-        _ = ReloadPluginAsync(Path.GetFileNameWithoutExtension(e.FullPath), e.FullPath, ReloadReason.FileDeleted);
+        TrySend(new ReloadPluginCmd(Path.GetFileNameWithoutExtension(e.FullPath), e.FullPath, ReloadReason.FileDeleted));
     }
 
+    /// <summary>
+    /// 手动触发重载 — 发命令到 Consumer，等待处理完成。
+    /// </summary>
     internal async Task ReloadPluginAsync(string pluginName, string filePath, ReloadReason reason)
     {
-        using var guard = await _reloadLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_reloadLock.Name}' 等待超时");
+        var tcs = CreateTcs();
+        await SendAsync(new ReloadPluginAndWaitCmd(pluginName, filePath, reason, tcs), CancellationToken.None).ConfigureAwait(false);
+        await tcs.Task.ConfigureAwait(false);
+    }
+
+    private static TaskCompletionSource CreateTcs() => new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <summary>
+    /// Actor Consumer — 线程独占 _watcher 和重载逻辑，串行处理命令，无需锁。
+    /// </summary>
+    protected override async ValueTask HandleAsync(IPluginReloadCommand command, CancellationToken ct)
+    {
+        switch (command)
+        {
+            case StartWatchingCmd cmd:
+            {
+                if (_isWatchingInt != 0)
+                {
+                    cmd.Tcs.TrySetResult();
+                    break;
+                }
+
+                _watcher = _fs.Watch(cmd.PluginDirectory);
+                _watcher.IncludeSubdirectories = true;
+                _watcher.NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size;
+                _watcher.Filter = "*.*";
+
+                _watcher.DebouncedChanged += OnFileChanged;
+                _watcher.DebouncedCreated += OnFileCreated;
+                _watcher.DebouncedDeleted += OnFileDeleted;
+                _watcher.EnableRaisingEvents = true;
+
+                _isWatchingInt = 1;
+
+                _logger?.LogInformation("[PluginHotReloader] 开始监控插件目录: {Directory}", cmd.PluginDirectory);
+                cmd.Tcs.TrySetResult();
+                break;
+            }
+
+            case StopWatchingCmd cmd:
+            {
+                if (_isWatchingInt == 0)
+                {
+                    cmd.Tcs.TrySetResult();
+                    break;
+                }
+
+                StopWatcherCore();
+                cmd.Tcs.TrySetResult();
+                break;
+            }
+
+            case ReloadPluginCmd cmd:
+            {
+                await ReloadPluginCoreAsync(cmd.PluginName, cmd.FilePath, cmd.Reason).ConfigureAwait(false);
+                break;
+            }
+
+            case ReloadPluginAndWaitCmd cmd:
+            {
+                await ReloadPluginCoreAsync(cmd.PluginName, cmd.FilePath, cmd.Reason).ConfigureAwait(false);
+                cmd.Tcs.TrySetResult();
+                break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 重载插件核心逻辑 — 由 Consumer 线程独占调用，无需锁。
+    /// </summary>
+    private async Task ReloadPluginCoreAsync(string pluginName, string filePath, ReloadReason reason)
+    {
         var args = new PluginReloadEventArgs
         {
             PluginName = pluginName,
@@ -150,6 +223,19 @@ public sealed partial class PluginHotReloader : IPluginHotReloader
         NotifyReloaded(args);
 
         _telemetryService?.RecordCount("plugin.hotreload.count", new Dictionary<string, string> { ["reason"] = reason.ToString(), ["success"] = true.ToString() }, "count", "Plugin hot reload count");
+    }
+
+    private void StopWatcherCore()
+    {
+        if (_watcher is not null)
+        {
+            _watcher.EnableRaisingEvents = false;
+            _watcher.Dispose();
+            _watcher = null;
+        }
+
+        _isWatchingInt = 0;
+        _logger?.LogInformation("[PluginHotReloader] 已停止监控");
     }
 
     /// <summary>
@@ -188,10 +274,14 @@ public sealed partial class PluginHotReloader : IPluginHotReloader
         }
     }
 
-    public async ValueTask DisposeAsync()
+    protected override void OnConsumerError(Exception ex)
     {
-        await StopWatchingAsync().ConfigureAwait(false);
-        _reloadLock.Dispose();
+        _logger?.LogError(ex, "[PluginHotReloader] Actor Consumer 异常");
     }
 
+    public async override ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync().ConfigureAwait(false);
+        StopWatcherCore();
+    }
 }

@@ -1,5 +1,6 @@
 global using IO;
 global using IO.FileSystem;
+global using JoinCode.Abstractions.Configuration.AppData;
 global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.Utils;
 global using Microsoft.AspNetCore.Builder;

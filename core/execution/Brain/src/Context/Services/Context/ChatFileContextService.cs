@@ -37,7 +37,7 @@ public sealed partial class ChatFileContextService : ServiceEntity, IChatFileCon
     /// <summary>
     /// 将每轮对话发送给 API 的完整消息列表转储到 TXT 文件。
     /// 受环境变量 JCC_DUMP_MESSAGES=1 控制，默认不输出。
-    /// 文件路径：.x/chat_{sessionId}_turn{N}_iter{M}.txt
+    /// 文件路径：dumps/chat_{sessionId}_turn{N}_iter{M}.txt
     /// turn=用户对话轮次, iter=工具调用迭代次数
     /// </summary>
     public void DumpMessageList(IList<ApiMessage> messages, string sessionId, int conversationTurn, int toolCallIteration)
@@ -46,7 +46,7 @@ public sealed partial class ChatFileContextService : ServiceEntity, IChatFileCon
 
         try
         {
-            var dir = _fs.CombinePath(AppContext.BaseDirectory, ".x");
+            var dir = AppDataConstants.Paths.DumpsDirectory;
             if (!_fs.DirectoryExists(dir)) _fs.CreateDirectory(dir);
 
             var filePath = _fs.CombinePath(dir, $"chat_{sessionId}_turn{conversationTurn}_iter{toolCallIteration}.txt");

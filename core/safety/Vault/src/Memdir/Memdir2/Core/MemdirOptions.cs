@@ -9,7 +9,7 @@ public sealed partial class MemdirOptions : ServiceEntity
     /// <summary>
     /// 存储根路径
     /// </summary>
-    public string StoragePath { get; set; } = Path.Combine(AppContext.BaseDirectory, "memdir");
+    public string StoragePath { get; set; } = AppDataConstants.Paths.MemdirDirectory;
 
     public MemdirOptions() { }
 
@@ -18,6 +18,6 @@ public sealed partial class MemdirOptions : ServiceEntity
     /// </summary>
     public MemdirOptions(WorkflowConfig? config)
     {
-        StoragePath = config?.MemdirPath ?? Path.Combine(AppContext.BaseDirectory, "memdir");
+        StoragePath = config?.MemdirPath ?? AppDataConstants.Paths.MemdirDirectory;
     }
 }

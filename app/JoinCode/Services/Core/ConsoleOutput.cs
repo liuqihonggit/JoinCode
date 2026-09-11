@@ -51,7 +51,7 @@ public sealed partial class ConsoleOutput : ServiceEntity, IConsoleOutput
             return null;
         }
         System.Console.Write(message);
-        var response = System.Console.ReadLine();
+        var response = Cli.TerminalHelper.ReadLine();
         _logger?.LogDebug("Prompt: {Message}, Response: {Response}", message, response);
         return response;
     }
@@ -64,7 +64,7 @@ public sealed partial class ConsoleOutput : ServiceEntity, IConsoleOutput
             return false;
         }
         System.Console.Write($"{message} (y/N) ");
-        var response = System.Console.ReadLine();
+        var response = Cli.TerminalHelper.ReadLine();
         var confirmed = response?.ToLowerInvariant() == "y";
         _logger?.LogDebug("Confirm: {Message}, Result: {Result}", message, confirmed);
         return confirmed;
@@ -90,9 +90,7 @@ public sealed partial class ConsoleOutput : ServiceEntity, IConsoleOutput
         ConsoleKeyInfo key;
         do
         {
-#pragma warning disable JCC2002 // ReadKey is intentional for password masking
-            key = System.Console.ReadKey(true);
-#pragma warning restore JCC2002
+            key = Cli.TerminalHelper.ReadKey(true);
             if (key.Key == ConsoleKey.Backspace && secret.Length > 0)
             {
                 secret.Length--;

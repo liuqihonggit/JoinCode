@@ -73,7 +73,7 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
                     string? input;
                     try
                     {
-                        input = await System.Console.In.ReadLineAsync(ct).ConfigureAwait(false);
+                        input = await Task.Run(() => Cli.TerminalHelper.ReadLineOrNull(), ct).ConfigureAwait(false);
                     }
                     catch (OperationCanceledException)
                     {

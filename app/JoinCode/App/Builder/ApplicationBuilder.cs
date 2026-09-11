@@ -86,14 +86,15 @@ public sealed class ApplicationBuilder
             })
             .ConfigureLogging(logging =>
             {
-                logging.AddConsole(options =>
-                {
-                    options.FormatterName = "simple";
-                });
-                logging.AddSimpleConsole(options =>
-                {
-                    options.IncludeScopes = true;
-                });
+                // ADR 0100: 清除 Host.CreateDefaultBuilder() 的默认 AddConsole，用 ConsoleActorLoggerProvider 替代
+                // 默认 AddConsole 的 AnsiLogConsole 直接写 Console.Out，绕过 Actor 串行化
+                logging.ClearProviders();
+                var consoleActor = Cli.TerminalHelper.GetConsoleActor();
+                if (consoleActor is not null)
+                    logging.AddProvider(new Cli.Display.ConsoleActorLoggerProvider(consoleActor));
+                else
+                    logging.AddConsole(options => { options.FormatterName = "simple"; });
+
                 var minLevelStr = Environment.GetEnvironmentVariable("JCC_LOG_LEVEL");
                 var minLevel = minLevelStr switch
                 {

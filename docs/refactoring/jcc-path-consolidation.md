@@ -126,4 +126,6 @@
 <!-- 决策: 路径全部收归 AppDataPaths.cs 单一入口类 -->
 <!-- 原因: 用户要求"日后好改",单一入口改一处即生效,支持环境变量覆盖 -->
 <!-- 替代方案: 扩展 WorkflowConstants.Paths(已有部分路径,但与 AppDataPaths 重复) -->
-<!-- 验证: 待编译验证 -->
+<!-- 验证: 编译通过(Abstractions+Infrastructure+Core+Services+App 全部0错误0警告),单元测试通过 ✅ -->
+<!-- 提交: a659194e8 — 23文件改动,249增65删 -->
+<!-- 遗留: runtime/ 作用域改exe级暂缓(涉及DLL加载风险); NativeDllBootstrapper 用 XdgPathResolver 不直接硬编码.jcc -->

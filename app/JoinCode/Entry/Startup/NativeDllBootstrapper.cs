@@ -36,7 +36,7 @@ internal static class NativeDllBootstrapper
             if (nativeDlls.Length == 0)
                 return;
 
-            var targetDir = Path.Combine(XdgPathResolver.GetConfigDirectory(), RuntimeSubDir);
+            var targetDir = AppDataConstants.Paths.RuntimeDirectory;
             Directory.CreateDirectory(targetDir);
 
             foreach (var resourceName in nativeDlls)

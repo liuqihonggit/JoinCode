@@ -1,6 +1,8 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Skills, Description = "查看可用技能（自定义命令）", Usage = "/skills [info <skill-name>]", Category = ChatCommandCategory.Tools)]
+[ChatCommandArg("action", Type = "string", Description = "操作,目前仅支持 info(查看技能详情)", Enum = new[] { "info" })]
+[ChatCommandArg("skill-name", Type = "string", Description = "技能名称,仅在 action=info 时使用")]
 public sealed class SkillsCommand : IChatCommand
 {
     public string Name => ChatCommandNameConstants.Skills;

@@ -186,14 +186,42 @@ public class DesktopOverlayToolHandlers
             await runTask.ConfigureAwait(false);
         }
 
+        var path = GetQuadtreePath(pt.X, pt.Y, screenW, screenH, d);
+
         var base64 = await _capture.CaptureRegionAsync(cellX, cellY, cellW, cellH, ct).ConfigureAwait(false);
         if (string.IsNullOrEmpty(base64))
             return ToolResultBuilder.Error().WithText("[CUR105] 截图失败").Build();
 
-        _logger?.LogInformation("鼠标指向识别: 鼠标({Mx},{My}) 格子({Cx},{Cy}) {W}x{H} 深度={Depth}", pt.X, pt.Y, cellX, cellY, cellW, cellH, d);
+        _logger?.LogInformation("鼠标指向识别: 鼠标({Mx},{My}) 格子({Cx},{Cy}) {W}x{H} 深度={Depth} 编码={Path}", pt.X, pt.Y, cellX, cellY, cellW, cellH, d, path);
 
-        var text = $"鼠标位置: ({pt.X},{pt.Y})\n截图范围: ({cellX},{cellY}) {cellW}x{cellH}\n四叉树深度: {d}";
+        var text = $"鼠标位置: ({pt.X},{pt.Y})\n四叉树编码: {path}\n截图范围: ({cellX},{cellY}) {cellW}x{cellH}\n四叉树深度: {d}";
         return ToolResultBuilder.Success().WithImage(base64, "image/png").WithText(text).Build();
+    }
+
+    /// <summary>计算鼠标位置的四叉树编码路径(如 L0.2.1),象限 SW=0/SE=1/NW=2/NE=3</summary>
+    private static string GetQuadtreePath(int mx, int my, int screenW, int screenH, int depth)
+    {
+        if (depth == 0) return "L0";
+        var sb = new StringBuilder("L0");
+        var curX = 0; var curY = 0; var curW = screenW; var curH = screenH;
+        for (var i = 0; i < depth; i++)
+        {
+            var halfW = curW / 2;
+            var halfH = curH / 2;
+            int quadrant;
+            if (mx < curX + halfW && my < curY + halfH) quadrant = 2;
+            else if (mx >= curX + halfW && my < curY + halfH) quadrant = 3;
+            else if (mx < curX + halfW && my >= curY + halfH) quadrant = 0;
+            else quadrant = 1;
+
+            sb.Append('.').Append(quadrant);
+
+            if (quadrant == 2) { curW = halfW; curH = halfH; }
+            else if (quadrant == 3) { curX += halfW; curW -= halfW; curH = halfH; }
+            else if (quadrant == 0) { curY += halfH; curW = halfW; curH -= halfH; }
+            else { curX += halfW; curY += halfH; curW -= halfW; curH -= halfH; }
+        }
+        return sb.ToString();
     }
 
     /// <summary>颜色名称 → Win32 COLORREF (0x00BBGGRR)</summary>

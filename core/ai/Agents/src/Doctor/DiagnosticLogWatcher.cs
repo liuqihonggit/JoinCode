@@ -2,19 +2,28 @@ namespace Core.Agents.Doctor;
 
 
 /// <summary>
-/// 诊断日志文件监控器 — 定期扫描 .jcc/diag/ 目录，将新日志行转为 DiagnosticEvent
+/// 诊断日志文件监控命令 — Actor 消息类型
+/// </summary>
+public interface IDiagnosticLogWatcherCommand;
+
+public sealed record LogWatcherStartCmd : IDiagnosticLogWatcherCommand;
+public sealed record LogWatcherStopCmd : IDiagnosticLogWatcherCommand;
+public sealed record LogWatcherPollTickCmd : IDiagnosticLogWatcherCommand;
+
+/// <summary>
+/// 诊断日志文件监控器 — Actor 化：Consumer 线程独占 _filePositions，消除 AsyncLock。
+/// <para>Timer 周期扫描改为 TrySend(LogWatcherPollTickCmd) 自消息，Consumer 串行处理。</para>
 /// 作为 IPC 遥测的补充数据源，当 IPC 断连时仍可从日志文件恢复诊断信息
 /// </summary>
-public sealed class DiagnosticLogWatcher : IAsyncDisposable
+public sealed class DiagnosticLogWatcher : ActorBase<IDiagnosticLogWatcherCommand, Unit>, IAsyncDisposable
 {
     private readonly IFileSystem _fs;
     private readonly DiagnosticEngine _diagnosticEngine;
     private readonly string _diagDirectory;
     private readonly TimeSpan _pollInterval;
     private readonly Dictionary<string, long> _filePositions = new(StringComparer.OrdinalIgnoreCase);
-    private readonly AsyncLock _lock = new();
     private Timer? _pollTimer;
-    private int _isStarted;
+    private bool _isStarted;
     private int _isDisposed;
 
     public event EventHandler<DiagnosticEvent>? EventDetected;
@@ -24,6 +33,7 @@ public sealed class DiagnosticLogWatcher : IAsyncDisposable
         DiagnosticEngine diagnosticEngine,
         string? diagDirectory = null,
         TimeSpan? pollInterval = null)
+        : base()
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _diagnosticEngine = diagnosticEngine ?? throw new ArgumentNullException(nameof(diagnosticEngine));
@@ -35,28 +45,44 @@ public sealed class DiagnosticLogWatcher : IAsyncDisposable
     {
         if (_isDisposed == 1)
             throw new ObjectDisposedException(nameof(DiagnosticLogWatcher));
-
-        if (Interlocked.Exchange(ref _isStarted, 1) == 1)
-            return;
-
-        _pollTimer = new Timer(
-            callback: async _ => await PollOnceAsync().ConfigureAwait(false),
-            state: null,
-            dueTime: _pollInterval,
-            period: _pollInterval);
-
-        DoctorDiag.Write($"[LogWatcher] 开始监控: {_diagDirectory}");
+        TrySend(new LogWatcherStartCmd());
     }
 
     public void Stop()
     {
-        _pollTimer?.Dispose();
-        _pollTimer = null;
-        Interlocked.Exchange(ref _isStarted, 0);
-        DoctorDiag.Write("[LogWatcher] 停止监控");
+        TrySend(new LogWatcherStopCmd());
     }
 
-    internal async Task PollOnceAsync()
+    protected override async ValueTask HandleAsync(IDiagnosticLogWatcherCommand command, CancellationToken ct)
+    {
+        switch (command)
+        {
+            case LogWatcherStartCmd:
+                if (_isStarted) return;
+                _isStarted = true;
+                _pollTimer = new Timer(_ => TrySend(new LogWatcherPollTickCmd()), null, _pollInterval, _pollInterval);
+                DoctorDiag.Write($"[LogWatcher] 开始监控: {_diagDirectory}");
+                break;
+
+            case LogWatcherStopCmd:
+                _pollTimer?.Dispose();
+                _pollTimer = null;
+                _isStarted = false;
+                DoctorDiag.Write("[LogWatcher] 停止监控");
+                break;
+
+            case LogWatcherPollTickCmd:
+                await PollOnceCoreAsync(ct).ConfigureAwait(false);
+                break;
+        }
+    }
+
+    protected override void OnConsumerError(Exception ex)
+    {
+        DoctorDiag.WriteError($"[LogWatcher] 消费者异常: {ex.Message}");
+    }
+
+    private async Task PollOnceCoreAsync(CancellationToken ct)
     {
         if (!_fs.DirectoryExists(_diagDirectory))
             return;
@@ -204,11 +230,10 @@ public sealed class DiagnosticLogWatcher : IAsyncDisposable
         return null;
     }
 
-    public async ValueTask DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return;
         Stop();
-        using var guard = await _lock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
- _filePositions.Clear(); 
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }

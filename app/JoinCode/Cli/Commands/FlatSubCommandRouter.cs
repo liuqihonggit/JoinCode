@@ -11,6 +11,13 @@ internal static class FlatSubCommandRouter
     /// </summary>
     public static async Task<int?> TryExecuteAsync(CliSubCommand subCommand, string[] args, CancellationToken ct)
     {
+        var unknownError = DetectUnknownOptions(args);
+        if (unknownError is not null)
+        {
+            TerminalHelper.WriteError(unknownError);
+            return (int)ExitCode.ArgumentParseError;
+        }
+
         switch (subCommand)
         {
             case CliSubCommand.McpCall:
@@ -42,12 +49,6 @@ internal static class FlatSubCommandRouter
 
     private static async Task<int?> ExecuteMcpCallAsync(string[] args, CancellationToken ct)
     {
-        var unknownError = DetectUnknownOptions(args);
-        if (unknownError is not null)
-        {
-            TerminalHelper.WriteError(unknownError);
-            return 1;
-        }
         var toolName = GetPositional(args, 0);
         if (string.IsNullOrEmpty(toolName))
         {

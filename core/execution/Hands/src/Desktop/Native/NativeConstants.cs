@@ -46,4 +46,10 @@ internal static class NativeConstants
 
     // GetDIBits 颜色格式
     public const uint DIB_RGB_COLORS = 0;
+
+    // GDI 画笔样式
+    public const int PS_SOLID = 0;
+
+    // GDI 库存对象
+    public const int NULL_BRUSH = 5;
 }

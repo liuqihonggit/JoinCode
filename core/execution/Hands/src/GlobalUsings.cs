@@ -85,6 +85,7 @@ global using Services.SystemPower;
 global using JoinCode.Hands.Desktop;
 global using JoinCode.Hands.Desktop.Native;
 global using JoinCode.Hands.Desktop.PulseOverlay;
+global using JoinCode.Hands.Desktop.QuadtreeOverlay;
 global using Services.Build;
 global using Services.Voice;
 global using Services.Web;

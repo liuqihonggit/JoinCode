@@ -46,4 +46,28 @@ public sealed class DesktopOverlayToolHandlersTests
         result.IsError.Should().BeTrue();
         result.Content[0].Text.Should().Contain("[OVL200]");
     }
+
+    [Fact]
+    public async Task ShowQuadtreeSplit_DepthTooSmall_ShouldReturnError()
+    {
+        var result = await _handlers.ShowQuadtreeSplitAsync(maxDepth: 0);
+        result.IsError.Should().BeTrue();
+        result.Content[0].Text.Should().Contain("[OVL300]");
+    }
+
+    [Fact]
+    public async Task ShowQuadtreeSplit_DepthTooLarge_ShouldReturnError()
+    {
+        var result = await _handlers.ShowQuadtreeSplitAsync(maxDepth: 6);
+        result.IsError.Should().BeTrue();
+        result.Content[0].Text.Should().Contain("[OVL300]");
+    }
+
+    [Fact]
+    public async Task ShowQuadtreeSplit_InvalidDuration_ShouldReturnError()
+    {
+        var result = await _handlers.ShowQuadtreeSplitAsync(durationMs: 0);
+        result.IsError.Should().BeTrue();
+        result.Content[0].Text.Should().Contain("[OVL301]");
+    }
 }

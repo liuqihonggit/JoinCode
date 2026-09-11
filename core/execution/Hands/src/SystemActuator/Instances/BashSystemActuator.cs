@@ -217,7 +217,7 @@ public sealed partial class BashSystemActuator : SystemActuatorBase
     /// 改写 Windows NUL 设备重定向为 Unix /dev/null — bash 不识别 nul 特殊设备名,会创建普通文件。
     /// 处理所有变体: &gt;nul 1&gt;nul 2&gt;nul &amp;&gt;nul &gt;&gt;nul 2&gt;&gt;nul &lt;nul 0&lt;nul 等。
     /// </summary>
-    private static string RewriteWindowsNullRedirect(string command)
+    internal static string RewriteWindowsNullRedirect(string command)
     {
         if (!OperatingSystem.IsWindows()) return command;
         if (!command.Contains("nul", StringComparison.OrdinalIgnoreCase)) return command;

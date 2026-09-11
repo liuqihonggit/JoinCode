@@ -173,9 +173,9 @@ Timer 周期任务 → Actor 周期自消息；AsyncLock → 消除；状态 →
 - [ ] TokenRefreshScheduler — **跳过：无 AsyncLock，ConcurrentDictionary 使用合理**
 - [x] BridgeTokenRefreshScheduler — AsyncLock+Dict<string,Timer> → Actor+Consumer 独占三个字典+TCS
 - [ ] ToolHypergraphScorer — **跳过：读多写少评分器，原子引用交换更合适**
-- [ ] RemoteCacheRefreshServiceBase — **暂缓：抽象基类影响 3 个子类**
-- [ ] TeamMemorySyncService — **暂缓：太大（460+行）**
-- [ ] SystemActuatorCommandContext — **暂缓：太大（471+行）**
+- [x] RemoteCacheRefreshServiceBase — AsyncLock+Timer+ConcurrentDict → Actor+volatile ticks, _cache 保留 ConcurrentDictionary
+- [x] TeamMemorySyncService — AsyncLock+Timer+文件监听 → Actor+TrySend 命令, ServiceEntity 改 ActorBase
+- [x] SystemActuatorCommandContext — 拆分为 4 小类: ProcessOutputCollector+CwdTracker+OutputPersister+ProcessKillHelper
 - [ ] DebounceTracker — **跳过：ConcurrentDictionary 使用合理**
 - [ ] HookEventBroadcaster — **跳过：无 Timer，使用简单**
 - [ ] FastModeService — **跳过：简单状态，AsyncLock 已足够**
@@ -185,7 +185,7 @@ Timer 周期任务 → Actor 周期自消息；AsyncLock → 消除；状态 →
 - [x] LoopDiagnosticJournal
 - [ ] InProcessMailbox — **跳过：ConcurrentDictionary 是路由表**
 - [ ] AnalyticsFileSink — **跳过：批量+定时 flush 模式**
-- [ ] BuildQueueService — **暂缓：太大（407+行）**
+- [x] BuildQueueService — 拆分为 3 小类: CrossProcessBuildLock+SourceFingerprintCache(消除AsyncLock)+BuildResultBuffer
 - [ ] DoctorTcpServer
 - [ ] AgentOutputChannelManager — **跳过：Channel+ConcurrentDictionary+volatile 使用合理**
 - [ ] InProcessTeammateTask
@@ -198,7 +198,7 @@ Timer 周期任务 → Actor 周期自消息；AsyncLock → 消除；状态 →
 
 ### 不改：P5 volatile 快照 + 不适合（纯限流/CAS/Dispose）
 
-## 六、已完成改造汇总（13 个）
+## 六、已完成改造汇总（16 个）
 
 | # | 类名 | 原机制 | 改造内容 | commit |
 |---|------|--------|----------|--------|
@@ -215,6 +215,10 @@ Timer 周期任务 → Actor 周期自消息；AsyncLock → 消除；状态 →
 | 11 | TokenBudgetManager | AsyncLock | ActorBase+TCS, 所有方法已async | d453ebd |
 | 12 | UsdBudgetManager | AsyncLock | ActorBase+TCS, 所有方法已async | 6c19d2ab3 |
 | 13 | BridgeTokenRefreshScheduler | AsyncLock+Dict<string,Timer> | ActorBase+Consumer独占三个字典+Timer→TrySend+TCS | 58b949cd3 |
+| 14 | RemoteCacheRefreshServiceBase | AsyncLock+Timer+ConcurrentDict | ActorBase+volatile ticks, _cache 保留 ConcurrentDictionary | 71ed932ae |
+| 15 | TeamMemorySyncService | AsyncLock+Timer+文件监听 | ActorBase+TrySend 命令, ServiceEntity 改 ActorBase | f3857b06b |
+| 16a | SystemActuatorCommandContext | 3×Timer+进程管理 | 拆分4小类: ProcessOutputCollector+CwdTracker+OutputPersister+ProcessKillHelper | 3b39b4baa |
+| 16b | BuildQueueService | Channel+3×ConcurrentDict+AsyncLock+跨进程锁 | 拆分3小类: CrossProcessBuildLock+SourceFingerprintCache(消除AsyncLock)+BuildResultBuffer | 5ffe5d3e3 |
 
 ## 六、规模估算
 

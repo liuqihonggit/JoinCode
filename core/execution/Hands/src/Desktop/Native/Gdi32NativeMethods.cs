@@ -47,4 +47,12 @@ internal static class Gdi32NativeMethods
 
     [DllImport("gdi32.dll")]
     public static extern IntPtr GetStockObject(int fnObject);
+
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool MoveToEx(IntPtr hdc, int x, int y, IntPtr lpPoint);
+
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool LineTo(IntPtr hdc, int x, int y);
 }

@@ -1,11 +1,11 @@
 namespace Hands.Tests.ToolHandlers;
 
 /// <summary>
-/// DesktopOverlayToolHandlers 单元测试 — 验证 show_desktop_overlay / show_desktop_pulse 参数校验
+/// DesktopOverlayToolHandlers 单元测试 — 验证 show_desktop_overlay / show_desktop_pulse / look_at_cursor 参数校验
 /// </summary>
 public sealed class DesktopOverlayToolHandlersTests
 {
-    private readonly DesktopOverlayToolHandlers _handlers = new();
+    private readonly DesktopOverlayToolHandlers _handlers = new(Mock.Of<IScreenCaptureService>());
 
     [Fact]
     public async Task ShowDesktopOverlay_InvalidDimensions_ShouldReturnError()
@@ -45,5 +45,29 @@ public sealed class DesktopOverlayToolHandlersTests
         var result = await _handlers.ShowDesktopPulseAsync(500, 500, durationMs: 0);
         result.IsError.Should().BeTrue();
         result.Content[0].Text.Should().Contain("[OVL200]");
+    }
+
+    [Fact]
+    public async Task LookAtCursor_DepthTooSmall_ShouldReturnError()
+    {
+        var result = await _handlers.LookAtCursorAsync(depth: -1);
+        result.IsError.Should().BeTrue();
+        result.Content[0].Text.Should().Contain("[CUR100]");
+    }
+
+    [Fact]
+    public async Task LookAtCursor_DepthTooLarge_ShouldReturnError()
+    {
+        var result = await _handlers.LookAtCursorAsync(depth: 6);
+        result.IsError.Should().BeTrue();
+        result.Content[0].Text.Should().Contain("[CUR100]");
+    }
+
+    [Fact]
+    public async Task LookAtCursor_InvalidMinPixels_ShouldReturnError()
+    {
+        var result = await _handlers.LookAtCursorAsync(minPixels: 0);
+        result.IsError.Should().BeTrue();
+        result.Content[0].Text.Should().Contain("[CUR101]");
     }
 }

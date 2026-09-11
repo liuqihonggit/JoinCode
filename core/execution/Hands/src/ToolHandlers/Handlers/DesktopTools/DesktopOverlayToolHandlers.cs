@@ -7,10 +7,14 @@ namespace Tools.Handlers;
 [McpToolDispatch(ToolCategory.DesktopControl)]
 public class DesktopOverlayToolHandlers
 {
+    private readonly IScreenCaptureService _capture;
     private readonly ILogger<DesktopOverlayToolHandlers>? _logger;
 
-    public DesktopOverlayToolHandlers(ILogger<DesktopOverlayToolHandlers>? logger = null)
+    public DesktopOverlayToolHandlers(
+        IScreenCaptureService capture,
+        ILogger<DesktopOverlayToolHandlers>? logger = null)
     {
+        _capture = capture;
         _logger = logger;
     }
 
@@ -35,13 +39,23 @@ public class DesktopOverlayToolHandlers
         if (hdc == IntPtr.Zero)
             return ToolResultBuilder.Error().WithText("[OVL102] 无法获取桌面设备上下文").Build();
 
+        var cancelled = false;
         try
         {
-            var hPen = Gdi32NativeMethods.CreatePen(0, 4, colorRef);
-            var hBrush = Gdi32NativeMethods.GetStockObject(5);
+            var hPen = Gdi32NativeMethods.CreatePen(NativeConstants.PS_SOLID, 4, colorRef);
+            var hBrush = Gdi32NativeMethods.GetStockObject(NativeConstants.NULL_BRUSH);
             var oldPen = Gdi32NativeMethods.SelectObject(hdc, hPen);
             var oldBrush = Gdi32NativeMethods.SelectObject(hdc, hBrush);
-            Gdi32NativeMethods.Rectangle(hdc, x, y, x + width, y + height);
+
+            // 定期重画防止 DWM 合成擦掉(DWM 下 GDI 直接画桌面 DC 非持久,一帧后消失)
+            var intervals = Math.Max(1, durationMs / 50);
+            for (var i = 0; i < intervals; i++)
+            {
+                Gdi32NativeMethods.Rectangle(hdc, x, y, x + width, y + height);
+                try { await Task.Delay(50, ct).ConfigureAwait(false); }
+                catch (TaskCanceledException) { cancelled = true; break; }
+            }
+
             Gdi32NativeMethods.SelectObject(hdc, oldPen);
             Gdi32NativeMethods.SelectObject(hdc, oldBrush);
             Gdi32NativeMethods.DeleteObject(hPen);
@@ -53,19 +67,11 @@ public class DesktopOverlayToolHandlers
 
         _logger?.LogInformation("桌面高亮框已绘制: ({X},{Y}) {Width}x{Height} 颜色={Color} 时长={Duration}ms", x, y, width, height, color, durationMs);
 
-        try
-        {
-            await Task.Delay(durationMs, ct).ConfigureAwait(false);
-        }
-        catch (TaskCanceledException)
-        {
-            ClearOverlay();
-            return ToolResultBuilder.Success().WithText($"桌面高亮框已取消: ({x},{y}) {width}x{height}").Build();
-        }
-
         ClearOverlay();
 
-        return ToolResultBuilder.Success().WithText($"桌面高亮框已显示 {durationMs}ms 后自动清除: ({x},{y}) {width}x{height} 颜色={color}").Build();
+        return cancelled
+            ? ToolResultBuilder.Success().WithText($"桌面高亮框已取消: ({x},{y}) {width}x{height}").Build()
+            : ToolResultBuilder.Success().WithText($"桌面高亮框已显示 {durationMs}ms 后自动清除: ({x},{y}) {width}x{height} 颜色={color}").Build();
     }
 
     /// <summary>清除桌面高亮框 — 触发桌面重绘</summary>
@@ -120,6 +126,102 @@ public class DesktopOverlayToolHandlers
         await runTask.ConfigureAwait(false);
 
         return ToolResultBuilder.Success().WithText($"桌面脉冲圆已显示 {duration}ms: 中心({centerX},{centerY}) 半径{minR}-{maxR} 颜色={color}").Build();
+    }
+
+    /// <summary>鼠标指向识别 — 获取鼠标位置,四叉树递归确定范围,截图返回给LLM分析。可选显示四叉树分裂动画</summary>
+    [McpTool("look_at_cursor", "获取鼠标位置,四叉树递归截图,让LLM看见鼠标指向的内容。以鼠标所在格子为截图范围,depth控制粒度(depth=0全屏,depth=1四分之一屏)。可选显示四叉树分裂动画。如果截图太小,返回提示建议减小depth重试", "desktop")]
+    public async Task<ToolResult> LookAtCursorAsync(
+        [McpToolParameter("四叉树深度(0-5),depth=0截全屏,depth=1截1/4屏,默认1", Required = false)] int? depth = 1,
+        [McpToolParameter("最小截图像素(宽或高),默认100,小于此值返回提示", Required = false)] int? minPixels = 100,
+        [McpToolParameter("是否显示四叉树分裂动画,默认true", Required = false)] bool? showAnimation = true,
+        [McpToolParameter("动画时长(毫秒),默认2000", Required = false)] int? animationDurationMs = 2000,
+        [McpToolParameter("基础颜色: red/green/blue/yellow/cyan/magenta,默认cyan", Required = false)] string baseColor = "cyan",
+        CancellationToken ct = default)
+    {
+        var d = depth ?? 1;
+        var minP = minPixels ?? 100;
+        var showAnim = showAnimation ?? true;
+        var animDuration = animationDurationMs ?? 2000;
+
+        if (d < 0 || d > 5)
+            return ToolResultBuilder.Error().WithText("[CUR100] 深度必须在0-5之间").Build();
+        if (minP <= 0)
+            return ToolResultBuilder.Error().WithText("[CUR101] 最小像素必须为正").Build();
+
+        if (!User32NativeMethods.GetCursorPos(out var pt))
+            return ToolResultBuilder.Error().WithText("[CUR102] 无法获取鼠标位置").Build();
+
+        var screenW = User32NativeMethods.GetSystemMetrics(NativeConstants.SM_CXSCREEN);
+        var screenH = User32NativeMethods.GetSystemMetrics(NativeConstants.SM_CYSCREEN);
+        if (screenW <= 0 || screenH <= 0)
+            return ToolResultBuilder.Error().WithText("[CUR103] 无法获取屏幕尺寸").Build();
+
+        var cellW = screenW >> d;
+        var cellH = screenH >> d;
+        var cellX = (pt.X / Math.Max(1, cellW)) * cellW;
+        var cellY = (pt.Y / Math.Max(1, cellH)) * cellH;
+
+        if (cellW < minP || cellH < minP)
+            return ToolResultBuilder.Error()
+                .WithText($"[CUR104] 截图范围太小({cellW}x{cellH}),小于最小像素{minP}。建议减小depth重试(当前depth={d},尝试depth={Math.Max(0, d - 1)})")
+                .Build();
+
+        if (showAnim && d > 0)
+        {
+            var colorRef = ParseColor(baseColor);
+            var highlightRect = new QuadtreeRect(cellX, cellY, cellW, cellH);
+
+            using var overlay = new QuadtreeSplitOverlay();
+            var runTask = Task.Run(() => overlay.Run(screenW, screenH, d, animDuration, 33, colorRef, highlightRect), ct);
+
+            try { await Task.Delay(animDuration, ct).ConfigureAwait(false); }
+            catch (OperationCanceledException)
+            {
+                overlay.Close();
+                await runTask.ConfigureAwait(false);
+                return ToolResultBuilder.Success().WithText($"鼠标指向识别已取消: 鼠标({pt.X},{pt.Y}) 深度={d}").Build();
+            }
+
+            overlay.Close();
+            await runTask.ConfigureAwait(false);
+        }
+
+        var path = GetQuadtreePath(pt.X, pt.Y, screenW, screenH, d);
+
+        var base64 = await _capture.CaptureRegionAsync(cellX, cellY, cellW, cellH, ct).ConfigureAwait(false);
+        if (string.IsNullOrEmpty(base64))
+            return ToolResultBuilder.Error().WithText("[CUR105] 截图失败").Build();
+
+        _logger?.LogInformation("鼠标指向识别: 鼠标({Mx},{My}) 格子({Cx},{Cy}) {W}x{H} 深度={Depth} 编码={Path}", pt.X, pt.Y, cellX, cellY, cellW, cellH, d, path);
+
+        var text = $"鼠标位置: ({pt.X},{pt.Y})\n四叉树编码: {path}\n截图范围: ({cellX},{cellY}) {cellW}x{cellH}\n四叉树深度: {d}";
+        return ToolResultBuilder.Success().WithImage(base64, "image/png").WithText(text).Build();
+    }
+
+    /// <summary>计算鼠标位置的四叉树编码路径(如 L0.2.1),象限 SW=0/SE=1/NW=2/NE=3</summary>
+    private static string GetQuadtreePath(int mx, int my, int screenW, int screenH, int depth)
+    {
+        if (depth == 0) return "L0";
+        var sb = new StringBuilder("L0");
+        var curX = 0; var curY = 0; var curW = screenW; var curH = screenH;
+        for (var i = 0; i < depth; i++)
+        {
+            var halfW = curW / 2;
+            var halfH = curH / 2;
+            int quadrant;
+            if (mx < curX + halfW && my < curY + halfH) quadrant = 2;
+            else if (mx >= curX + halfW && my < curY + halfH) quadrant = 3;
+            else if (mx < curX + halfW && my >= curY + halfH) quadrant = 0;
+            else quadrant = 1;
+
+            sb.Append('.').Append(quadrant);
+
+            if (quadrant == 2) { curW = halfW; curH = halfH; }
+            else if (quadrant == 3) { curX += halfW; curW -= halfW; curH = halfH; }
+            else if (quadrant == 0) { curY += halfH; curW = halfW; curH -= halfH; }
+            else { curX += halfW; curY += halfH; curW -= halfW; curH -= halfH; }
+        }
+        return sb.ToString();
     }
 
     /// <summary>颜色名称 → Win32 COLORREF (0x00BBGGRR)</summary>

@@ -54,6 +54,7 @@ global using Core.Telemetry;
 global using Core;
 global using Core.CostTracking.FeatureFlags;
 global using JoinCode.Hands.ToolHandlers.Handlers.SystemTools;
+global using JoinCode.Hands.Desktop.QuadtreeOverlay;
 
 global using FluentAssertions;
 global using JoinCode.Abstractions.Pipeline;

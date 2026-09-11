@@ -79,3 +79,20 @@ public sealed record QuadtreeZoomResult(
 public sealed record QuadtreeRenderResult(
     string RenderedBase64,
     string MediaType);
+
+/// <summary>
+/// 桌面叠加矩形 — 四叉树格子转换后的屏幕绝对坐标(ADR 0032 延伸应用)
+/// </summary>
+/// <param name="CellCode">源格子编码(如 L0.2.1),用于颜色/标签映射</param>
+/// <param name="ScreenX">屏幕绝对 X 坐标(左上角)</param>
+/// <param name="ScreenY">屏幕绝对 Y 坐标(左上角)</param>
+/// <param name="Width">矩形宽度(像素)</param>
+/// <param name="Height">矩形高度(像素)</param>
+/// <param name="Alpha">标注强度(0..1),用于 GDI 半透明画刷近似</param>
+public sealed record QuadtreeDesktopRect(
+    [property: JsonPropertyName("cellCode")] string CellCode,
+    [property: JsonPropertyName("screenX")] int ScreenX,
+    [property: JsonPropertyName("screenY")] int ScreenY,
+    [property: JsonPropertyName("width")] int Width,
+    [property: JsonPropertyName("height")] int Height,
+    [property: JsonPropertyName("alpha")] double Alpha);

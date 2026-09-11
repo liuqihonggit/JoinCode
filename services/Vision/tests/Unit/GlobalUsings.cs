@@ -1,4 +1,5 @@
 global using FluentAssertions;
+global using System.Text.Json;
 global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.LLM;
 global using JoinCode.Abstractions.LLM.Chat;

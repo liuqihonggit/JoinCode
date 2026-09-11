@@ -126,7 +126,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0029](0029-analyzer-rules-jcc5002-jcc9006.md) | 分析器铁律 JCC5002/JCC9006 | accepted | 2026-08-29 |
 | [0030](0030-e2e-real-service-strategy.md) | E2E 真实服务策略 | accepted | 2026-08-29 |
 | [0031](0031-http-connection-pool-dns.md) | HTTP 连接池 DNS 刷新 | accepted | 2026-08-29 |
-| [0032](0032-computeruse-win32-pinvoke.md) | ComputerUse P0 纯 Win32 P/Invoke | accepted | 2026-08-29 |
+| [0032](0032-computeruse-win32-pinvoke.md) | Win32 P/Invoke 桌面能力总览(ComputerUse P0 + 四叉树叠加延伸) | accepted | 2026-08-29 |
 | [0033](0033-transport-fallback-chain-priority.md) | 传输层 Fallback 链优先级 | accepted | 2026-08-29 |
 | [0034](0034-command-interception-layered.md) | 命令拦截分层 Guard+Interceptor+Dispatcher | superseded by 0039 | 2026-08-29 |
 | [0035](0035-tool-progressive-exposure.md) | 工具渐进式暴露 | accepted | 2026-08-29 |
@@ -256,7 +256,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 
 | 编号 | 标题 | 状态 | 日期 |
 |------|------|------|------|
-| [0032](0032-computeruse-win32-pinvoke.md) | ComputerUse P0 纯 Win32 P/Invoke | accepted | 2026-08-29 |
+| [0032](0032-computeruse-win32-pinvoke.md) | Win32 P/Invoke 桌面能力总览(ComputerUse P0 + 四叉树叠加延伸) | accepted | 2026-08-29 |
 | [0033](0033-transport-fallback-chain-priority.md) | 传输层 Fallback 链优先级 | accepted | 2026-08-29 |
 | [0034](0034-command-interception-layered.md) | 命令拦截分层 Guard+Interceptor+Dispatcher | superseded by 0039 | 2026-08-29 |
 | [0035](0035-tool-progressive-exposure.md) | 工具渐进式暴露 | accepted | 2026-08-29 |

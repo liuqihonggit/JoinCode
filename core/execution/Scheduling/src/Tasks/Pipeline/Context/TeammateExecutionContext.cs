@@ -29,8 +29,6 @@ public sealed class TeammateExecutionContext : IPipelineContext
 
     public ConcurrentDictionary<string, Channel<CoordinatorMessage>> PendingMessages { get; set; } = new();
 
-    public AsyncLock? TeammateLock { get; set; }
-
     bool IPipelineContext.Failed { get; set; }
     string? IPipelineContext.ErrorMessage { get; set; }
     void IPipelineContext.Fail(string message)

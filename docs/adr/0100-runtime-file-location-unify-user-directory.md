@@ -84,14 +84,41 @@ jcc.exe 运行时会在多个位置创建文件：用户目录 `~/.jcc/`、项�
 
 ## 验证
 
-- [ ] P0：`XdgPathResolver.GetRuntimeDirectory()` 返回 `~/.jcc/runtime/`
-- [ ] P0：`GetErrorLogPath()` / `GetAwaitTimeoutLogPath()` 返回 `~/.jcc/runtime/` 下
-- [ ] P0：`ReplLoopStep` / `NonInteractiveExecuteStep` 用 `XdgPathResolver` 而非硬编码 `%TEMP%`
-- [ ] P0：`JoinCodeTui` 诊断日志落 `~/.jcc/runtime/jcctui_diag/`
-- [ ] P0：`SystemActuatorCommandContext` 工具结果溢出落 `~/.jcc/runtime/tool-results/`
-- [ ] P0：`BridgeSubprocessManager` 日志落 `~/.jcc/runtime/`
-- [ ] P0：`CopyCommand` 回退落 `~/.jcc/runtime/clipboard/`
-- [ ] P1：`ToolInterventionManager` / `ToolHealthMonitor` 落 `~/.jcc/`
-- [ ] P2：`PerfTap` 性能日志落 `~/.jcc/runtime/`
-- [ ] P3：`AnalyticsFileSink` 默认路径为 `~/.jcc/analytics/`（绝对）
-- [ ] 编译通过 + 单元测试通过
+- [x] P0：`XdgPathResolver.GetRuntimeDirectory()` 返回 `~/.jcc/runtime/`
+- [x] P0：`GetErrorLogPath()` / `GetAwaitTimeoutLogPath()` 返回 `~/.jcc/runtime/` 下
+- [x] P0：`ReplLoopStep` / `NonInteractiveExecuteStep` 用 `XdgPathResolver` 而非硬编码 `%TEMP%`
+- [x] P0：`JoinCodeTui` 诊断日志落 `~/.jcc/runtime/jcctui_diag/`
+- [x] P0：`SystemActuatorCommandContext` 工具结果溢出落 `~/.jcc/runtime/tool-results/`
+- [x] P0：`BridgeSubprocessManager` 日志落 `~/.jcc/runtime/`
+- [x] P0：`CopyCommand` 回退落 `~/.jcc/runtime/clipboard/`
+- [x] P1：`ToolInterventionManager` / `ToolHealthMonitor` 落 `~/.jcc/`
+- [x] P2：`PerfTap` 性能日志落 `~/.jcc/runtime/`
+- [x] P3：`AnalyticsFileSink` 默认路径为 `~/.jcc/analytics/`（绝对）
+- [x] 编译通过（`dotnet build JoinCode.slnx --no-incremental` 0 警告 0 错误）
+- [x] 单元测试通过（Infra.Services.Tests 490 + Mcp.Tests 27 + McpToolDispatch.Tests 60）
+
+## 修复过程中发现的预存问题：同名 csproj 导致 sln 编译冲突
+
+### 根因
+
+`JoinCode.slnx` 包含两对同名 csproj：
+
+| 项目内测试 | tests/Unit 下测试 | 冲突点 |
+|------------|-------------------|--------|
+| `services/Mcp/tests/Unit/Mcp.Tests.csproj` | `tests/Unit/Mcp.Tests/Mcp.Tests.csproj` | `$(MSBuildProjectName)` = `Mcp.Tests` |
+| `core/execution/McpToolDispatch/tests/Unit/McpToolDispatch.Tests.csproj` | `tests/Unit/McpToolDispatch.Tests/McpToolDispatch.Tests.csproj` | `$(MSBuildProjectName)` = `McpToolDispatch.Tests` |
+
+`Directory.Build.props` 用 `$(MSBuildProjectName)` 定义 `OutputPath` 和 `BaseIntermediateOutputPath`，同名项目的中间/输出目录相同，sln 编译时中间产物互相覆盖。单独编译各项目成功（无竞争），sln 全量编译失败（55+ 错误，GlobalUsings 找不到 `JoinCode.Abstractions.*` 等命名空间）。
+
+### 修复
+
+重命名 `tests/Unit/` 下两个 csproj 文件，从根源消除 `$(MSBuildProjectName)` 同名冲突：
+
+- `tests/Unit/Mcp.Tests/Mcp.Tests.csproj` → `Mcp.UniqueTests.csproj`
+- `tests/Unit/McpToolDispatch.Tests/McpToolDispatch.Tests.csproj` → `McpToolDispatch.UniqueTests.csproj`
+
+同步更新 `JoinCode.slnx`、`ci-build.yml`、`ci-unit-tests.yml` 中的引用路径。
+
+### 为什么改文件名而非覆盖 OutputPath
+
+覆盖 `OutputPath`/`BaseIntermediateOutputPath` 是特例 hack，破坏全局统一目录设计（所有项目都用 `$(MSBuildProjectName)` 作为目录名）。改 csproj 文件名让 `$(MSBuildProjectName)` 自然不同，输出/中间目录自动区分，零特例代码。

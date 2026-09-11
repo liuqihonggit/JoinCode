@@ -31,6 +31,15 @@ class Program
             App.ErrorConsole.Warning(awaitError);
             return (int)ExitCode.ArgumentParseError;
         }
+
+        // --permission-mode / --format 值验证 — 无效值直接报错,避免静默接受(BUG#5/BUG#6)
+        var enumError = ValidateEnumArgs(args);
+        if (enumError is not null)
+        {
+            Cli.TerminalHelper.Init();
+            App.ErrorConsole.Warning(enumError);
+            return (int)ExitCode.ArgumentParseError;
+        }
         using var earlyAwaitTimer = StartEarlyAwaitTimer(args);
 
         Cli.TerminalHelper.Init();
@@ -298,6 +307,34 @@ class Program
                     return $"--await 的值 '{value}' 不是有效整数，请使用正整数（如 --await 10）";
                 if (seconds <= 0)
                     return $"--await 的值 {seconds} 必须为正整数，请使用大于 0 的值（如 --await 10）";
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// 验证 --permission-mode 和 --format 参数值 — 无效值返回错误消息,避免静默接受。
+    /// <para>BUG#5: --permission-mode 有效值 plan/auto/ask/bypass</para>
+    /// <para>BUG#6: --format 有效值 text/json/ndjson</para>
+    /// </summary>
+    private static string? ValidateEnumArgs(string[] args)
+    {
+        var validPermissionModes = new[] { "plan", "auto", "ask", "bypass" };
+        var validFormats = new[] { "text", "json", "ndjson" };
+
+        for (var i = 0; i < args.Length - 1; i++)
+        {
+            if (args[i] == "--permission-mode")
+            {
+                var value = args[i + 1];
+                if (!validPermissionModes.Contains(value, StringComparer.OrdinalIgnoreCase))
+                    return $"--permission-mode 的值 '{value}' 无效，有效值为: {string.Join(", ", validPermissionModes)}";
+            }
+            if (args[i] == "--format")
+            {
+                var value = args[i + 1];
+                if (!validFormats.Contains(value, StringComparer.OrdinalIgnoreCase))
+                    return $"--format 的值 '{value}' 无效，有效值为: {string.Join(", ", validFormats)}";
             }
         }
         return null;

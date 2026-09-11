@@ -2,6 +2,7 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Thinkback, Description = "回放 AI 的思考过程", Usage = "/thinkback [count]", Category = ChatCommandCategory.Model, ArgumentHint = "[count]")]
+[ChatCommandArg("count", Type = "number", Description = "回放最近 N 条思考记录,省略或非法时默认 1", Default = "1")]
 public sealed class ThinkbackCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

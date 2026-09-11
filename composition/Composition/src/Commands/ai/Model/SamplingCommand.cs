@@ -1,6 +1,8 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Sampling, Description = "查看或设置采样参数（温度/最大Token）", Usage = "/sampling [温度] [最大Token|unset]", Category = ChatCommandCategory.Model, ArgumentHint = "[温度 0-2] [最大Token]|unset")]
+[ChatCommandArg("temperature", Type = "number", Description = "采样温度,范围 0-2;单独传 unset 则重置温度与最大Token为引擎默认")]
+[ChatCommandArg("maxTokens", Type = "number", Description = "最大输出 Token 数,须为正整数;仅在 temperature 之后位置传入")]
 public sealed class SamplingCommand : ChatCommandBase
 {
     /// <summary>温度合法上界 — 主流 LLM API 约定 0-2</summary>

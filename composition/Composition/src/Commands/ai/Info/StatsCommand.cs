@@ -6,6 +6,7 @@ namespace JoinCode.ChatCommands;
 /// 对齐内容：活动热力图、Streaks、PeakActivity、FunFactoid、FavoriteModel、日期范围
 /// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Stats, Description = "查看会话统计", Usage = "/stats [--today|--total|--7d|--30d|--all|--session]", Category = ChatCommandCategory.Info, Aliases = ["stat"], ExposeToMcp = true)]
+[ChatCommandArg("scope", Type = "string", Description = "统计范围: today=今日, total=累计, session=当前会话, 7d=近7天, 30d=近30天, all=全部", Enum = new[] { "today", "total", "7d", "30d", "all", "session" }, Default = "today")]
 public sealed class StatsCommand : ChatCommandBase
 {
     private readonly IClockService _clock = SystemClockService.Instance;

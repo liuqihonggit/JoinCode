@@ -162,7 +162,7 @@ Timer 周期任务 → Actor 周期自消息；AsyncLock → 消除；状态 →
 
 ### 阶段 2：P0 Timer+锁（消除时序 bug 高发区）
 
-- [ ] ToolHealthMonitor（三重并发组合）— **暂缓：改造成本高**
+- [x] ToolHealthMonitor（三重并发组合）— 混合方案: AsyncLock改Actor命令, _records保留ConcurrentDictionary
 - [x] CronScheduler（调度器天然消息驱动）
 - [x] ProcessHealthMonitor — Timer+AsyncLock(未使用) → Actor
 - [x] ShellProcessWatchdog — Timer+ConcurrentDict → Actor
@@ -198,7 +198,7 @@ Timer 周期任务 → Actor 周期自消息；AsyncLock → 消除；状态 →
 
 ### 不改：P5 volatile 快照 + 不适合（纯限流/CAS/Dispose）
 
-## 六、已完成改造汇总（9 个）
+## 六、已完成改造汇总（10 个）
 
 | # | 类名 | 原机制 | 改造内容 | commit |
 |---|------|--------|----------|--------|
@@ -211,6 +211,7 @@ Timer 周期任务 → Actor 周期自消息；AsyncLock → 消除；状态 →
 | 7 | AwaySummaryService | Timer+AsyncLock+ConcurrentQueue | ActorBase+Timer→TrySend+volatile ticks | 532b3791a |
 | 8 | GoalHeartbeat | AsyncLock+PeriodicTimer | ActorBase+Timer→TrySend+volatile ticks | dfd53736a |
 | 9 | DiagnosticLogWatcher | Timer+AsyncLock(未正确使用) | ActorBase+Timer→TrySend+Consumer独占 | 3d604d3a0 |
+| 10 | ToolHealthMonitor | Timer+AsyncLock+volatile+Dict | ActorBase+Timer→TrySend+ConcurrentDict保留+TCS | 37c23f61c |
 
 ## 六、规模估算
 

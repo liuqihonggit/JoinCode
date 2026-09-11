@@ -1,16 +1,19 @@
 
 namespace JoinCode.Abstractions.Services;
 
-public abstract class RemoteCacheRefreshServiceBase<TItem> : IDisposable
+public interface IRemoteCacheRefreshCommand;
+
+public sealed record RefreshCacheCmd(TaskCompletionSource? Tcs) : IRemoteCacheRefreshCommand;
+
+public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCacheRefreshCommand, Unit>, IDisposable
 {
     private readonly HttpClient _httpClient;
     private readonly ITelemetryService? _telemetryService;
-    private readonly AsyncLock _refreshLock = new();
     private readonly Timer _refreshTimer;
-    private readonly ConcurrentDictionary<string, TItem> _cache = new(StringComparer.OrdinalIgnoreCase);
     private readonly CancellationTokenSource _disposeCts = new();
     private readonly IClockService _clock;
-    private DateTime _lastFetchTime = DateTime.MinValue;
+    private readonly ConcurrentDictionary<string, TItem> _cache = new(StringComparer.OrdinalIgnoreCase);
+    private long _lastFetchTicks;
     private int _disposed;
 
     protected HttpClient Http => _httpClient;
@@ -29,6 +32,7 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : IDisposable
         ILogger? logger,
         ITelemetryService? telemetryService,
         IClockService? clock)
+        : base()
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         RefreshOptions = options;
@@ -39,7 +43,7 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : IDisposable
         if (!string.IsNullOrEmpty(options.ApiEndpoint))
         {
             _refreshTimer = new Timer(
-                _ => { if (_disposed == 0) _ = RefreshAsync(_disposeCts.Token).WaitAsync(TimeSpan.FromSeconds(10), _disposeCts.Token).ConfigureAwait(false); },
+                _ => { if (Volatile.Read(ref _disposed) == 0) TrySend(new RefreshCacheCmd(null)); },
                 null,
                 options.RefreshInterval,
                 options.RefreshInterval);
@@ -58,7 +62,32 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : IDisposable
             return;
         }
 
-        using var guard = await _refreshLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_refreshLock.Name}' 等待超时");
+        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await SendAsync(new RefreshCacheCmd(tcs), cancellationToken).ConfigureAwait(false);
+        await tcs.Task.ConfigureAwait(false);
+    }
+
+    protected async Task EnsureCacheAsync(CancellationToken cancellationToken)
+    {
+        var lastTicks = Volatile.Read(ref _lastFetchTicks);
+        var lastFetch = lastTicks == 0 ? DateTime.MinValue : new DateTime(lastTicks, DateTimeKind.Utc);
+        if (_cache.IsEmpty || (RefreshOptions.EnableCache && _clock.GetUtcNow() - lastFetch > RefreshOptions.CacheExpiration))
+        {
+            await RefreshAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    protected void RecordMetrics(string operation, bool isSuccess)
+        => ToolTelemetryHelper.RecordToolCount(_telemetryService, $"{MetricsPrefix}.count", operation, isSuccess);
+
+    private async Task DoRefreshAsync(CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(RefreshOptions.ApiEndpoint))
+        {
+            Logger?.LogDebug("未配置{Label} API 端点，跳过刷新", RefreshLogLabel);
+            return;
+        }
+
         try
         {
             Logger?.LogDebug("正在刷新{Label}配置", RefreshLogLabel);
@@ -80,7 +109,7 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : IDisposable
                     _cache[kvp.Key] = kvp.Value;
                 }
 
-                _lastFetchTime = _clock.GetUtcNow();
+                Volatile.Write(ref _lastFetchTicks, _clock.GetUtcNow().Ticks);
                 Logger?.LogInformation("已刷新 {Count} 条{Label}", result.Items.Count, RefreshLogLabel);
                 RecordMetrics("refresh", true);
             }
@@ -90,26 +119,38 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : IDisposable
             Logger?.LogError(ex, "刷新{Label}失败", RefreshLogLabel);
             RecordMetrics("refresh", false);
         }
-
     }
 
-    protected async Task EnsureCacheAsync(CancellationToken cancellationToken)
+    protected override async ValueTask HandleAsync(IRemoteCacheRefreshCommand command, CancellationToken ct)
     {
-        if (_cache.IsEmpty || (RefreshOptions.EnableCache && _clock.GetUtcNow() - _lastFetchTime > RefreshOptions.CacheExpiration))
+        switch (command)
         {
-            await RefreshAsync(cancellationToken).ConfigureAwait(false);
+            case RefreshCacheCmd refresh:
+                await DoRefreshAsync(ct).ConfigureAwait(false);
+                refresh.Tcs?.TrySetResult();
+                break;
         }
     }
 
-    protected void RecordMetrics(string operation, bool isSuccess)
-        => ToolTelemetryHelper.RecordToolCount(_telemetryService, $"{MetricsPrefix}.count", operation, isSuccess);
+    protected override void OnConsumerError(Exception ex)
+    {
+    }
 
     public void Dispose()
     {
         if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0) return;
         _disposeCts.Cancel();
         _refreshTimer.Dispose();
-        _refreshLock.Dispose();
+        DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(5));
+        _disposeCts.Dispose();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0) return;
+        _disposeCts.Cancel();
+        _refreshTimer.Dispose();
+        await base.DisposeAsync().ConfigureAwait(false);
         _disposeCts.Dispose();
     }
 }

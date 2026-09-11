@@ -46,8 +46,8 @@ internal static class GhCommandResolver
             return null;
         }
 
-        // --json 可能出现在任意位置，先全局扫描，不参与位置参数计数
-        var json = Array.IndexOf(args, CliArgConstants.JsonLongName) >= 0;
+        // --json 或 --format json 可能出现在任意位置，先全局扫描，不参与位置参数计数
+        var json = FlatSubCommandRouter.ShouldOutputJson(args);
 
         // api 组是单级命令: jcc gh api <path> → gh_api
         if (string.Equals(group, "api", StringComparison.OrdinalIgnoreCase))

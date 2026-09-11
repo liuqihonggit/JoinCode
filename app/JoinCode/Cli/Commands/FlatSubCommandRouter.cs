@@ -54,7 +54,7 @@ internal static class FlatSubCommandRouter
             TerminalHelper.WriteError("用法: jcc mcp_call <tool> [key=value ... | <argsJson> | --args-file <path> | --args-stdin] [--json]");
             return 1;
         }
-        var json = HasFlag(args, CliArgConstants.JsonLongName);
+        var json = ShouldOutputJson(args);
         var argsFile = GetOptionValue(args, CliArgConstants.ArgsFileLongName);
         var argsStdin = HasFlag(args, CliArgConstants.ArgsStdinLongName);
         var vendor = GetOptionValue(args, CliArgConstants.VendorLongName);
@@ -80,7 +80,7 @@ internal static class FlatSubCommandRouter
     private static async Task<int?> ExecuteMcpListAsync(string[] args, CancellationToken ct)
     {
         var category = GetOptionValue(args, CliArgConstants.CategoryLongName);
-        var json = HasFlag(args, CliArgConstants.JsonLongName);
+        var json = ShouldOutputJson(args);
         return await McpCliCommand.ExecuteListAsync(category, json, ct).ConfigureAwait(false);
     }
 
@@ -92,7 +92,7 @@ internal static class FlatSubCommandRouter
             TerminalHelper.WriteError("用法: jcc mcp_schema <tool> [--json]");
             return 1;
         }
-        var json = HasFlag(args, CliArgConstants.JsonLongName);
+        var json = ShouldOutputJson(args);
         return await McpCliCommand.ExecuteSchemaAsync(toolName!, json, ct).ConfigureAwait(false);
     }
 
@@ -104,7 +104,7 @@ internal static class FlatSubCommandRouter
             TerminalHelper.WriteError("用法: jcc mcp_search <query> [--json]");
             return 1;
         }
-        var json = HasFlag(args, CliArgConstants.JsonLongName);
+        var json = ShouldOutputJson(args);
         return await McpCliCommand.ExecuteSearchAsync(query!, json, ct).ConfigureAwait(false);
     }
 
@@ -225,4 +225,17 @@ internal static class FlatSubCommandRouter
 
     internal static bool HasFlag(string[] args, string flagName)
         => Array.IndexOf(args, flagName) >= 0;
+
+    /// <summary>
+    /// 统一判断是否输出 JSON — 检查 --json 标志或 --format json 值(别名展开对子命令路径生效)。
+    /// <para>ADR 0069 决策6: --json 是 --format json 的别名,子命令路径绕过 CliArgParser.Parse,
+    /// 需在此显式展开别名,否则 --format json 在子命令上不生效。</para>
+    /// </summary>
+    internal static bool ShouldOutputJson(string[] args)
+    {
+        if (HasFlag(args, CliArgConstants.JsonLongName))
+            return true;
+        var formatValue = GetOptionValue(args, CliArgConstants.FormatLongName);
+        return string.Equals(formatValue, "json", StringComparison.OrdinalIgnoreCase);
+    }
 }

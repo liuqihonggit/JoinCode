@@ -66,6 +66,6 @@ UI 元素语义检测留给 P1（截图 + 多模态 LLM）。
 ### 实现状态
 
 - [x] 转换层:四叉树编码 → 屏幕坐标(`QuadtreeDesktopOverlayMapper`,7 测试通过)
-- [ ] MCP 工具/桥接 API(待设计)
-- [ ] 单元测试(待编写)
+- [x] MCP 工具:`quadtree_to_screen_rects`(`QuadtreeDesktopOverlayToolHandlers`,返回屏幕坐标 JSON,LLM 调 show_desktop_overlay 画框)
+- [x] 单元测试:13 测试通过(7 转换层 + 6 工具处理器)
 - ADR 0032 范围扩展:从"ComputerUse P0 桌面输入"→"Win32 P/Invoke 桌面能力总览(含四叉树叠加延伸应用)"

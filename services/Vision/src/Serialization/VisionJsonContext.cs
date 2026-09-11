@@ -12,4 +12,5 @@ namespace JoinCode.Vision.Serialization;
 [JsonSerializable(typeof(List<ImageLabel>))]
 [JsonSerializable(typeof(List<ImageAttribute>))]
 [JsonSerializable(typeof(List<string>))]
+[JsonSerializable(typeof(List<QuadtreeDesktopRect>))]
 public sealed partial class VisionJsonContext : JsonSerializerContext;

@@ -90,9 +90,9 @@ public sealed record QuadtreeRenderResult(
 /// <param name="Height">矩形高度(像素)</param>
 /// <param name="Alpha">标注强度(0..1),用于 GDI 半透明画刷近似</param>
 public sealed record QuadtreeDesktopRect(
-    string CellCode,
-    int ScreenX,
-    int ScreenY,
-    int Width,
-    int Height,
-    double Alpha);
+    [property: JsonPropertyName("cellCode")] string CellCode,
+    [property: JsonPropertyName("screenX")] int ScreenX,
+    [property: JsonPropertyName("screenY")] int ScreenY,
+    [property: JsonPropertyName("width")] int Width,
+    [property: JsonPropertyName("height")] int Height,
+    [property: JsonPropertyName("alpha")] double Alpha);

@@ -87,12 +87,12 @@ public static class XdgPathResolver
     public static string GetTrustedFoldersPath() =>
         System.IO.Path.Combine(GetConfigDirectory(), "trusted_folders.json");
 
-    // ── 运行时 / 临时路径（XDG_RUNTIME_DIR 或 %TEMP%） ──
+    // ── 运行时路径（委托到 AppDataConstants 集中定义，ADR 0100） ──
 
     /// <summary>
-    /// 获取运行时目录 — XDG_RUNTIME_DIR/jcc/ 或 %TEMP%/jcc/
-    /// XDG_RUNTIME_DIR 要求: 属于当前用户、存在、权限 0700
-    /// 回退: %TEMP% (Windows) 或 /tmp (Linux)
+    /// 获取运行时目录 — ~/.jcc/runtime/
+    /// 优先级: XDG_RUNTIME_DIR/jcc/ → ~/.jcc/runtime/
+    /// ADR 0100: 从 %TEMP%/jcc/ 改为 ~/.jcc/runtime/，持久性日志不随 OS 清理临时目录丢失
     /// </summary>
     public static string GetRuntimeDirectory()
     {
@@ -100,24 +100,18 @@ public static class XdgPathResolver
         if (!string.IsNullOrEmpty(xdgRuntimeDir))
             return System.IO.Path.Combine(xdgRuntimeDir, AppName);
 
-        return System.IO.Path.Combine(System.IO.Path.GetTempPath(), AppName);
+        return JoinCode.Abstractions.Configuration.AppData.AppDataConstants.UserRuntimeDirectory;
     }
 
-    /// <summary>
-    /// 获取崩溃快照目录 — %TEMP%/jcc/crash-dumps/
-    /// </summary>
+    /// <summary>获取崩溃快照目录 — ~/.jcc/runtime/crash-dumps/（ADR 0100）</summary>
     public static string GetCrashDumpsDirectory() =>
-        System.IO.Path.Combine(GetRuntimeDirectory(), "crash-dumps");
+        JoinCode.Abstractions.Configuration.AppData.AppDataConstants.UserRuntimeCrashDumpsDirectory;
 
-    /// <summary>
-    /// 获取错误日志路径 — %TEMP%/jcc_error.log
-    /// </summary>
+    /// <summary>获取错误日志路径 — ~/.jcc/runtime/jcc_error.log（ADR 0100）</summary>
     public static string GetErrorLogPath() =>
-        System.IO.Path.Combine(System.IO.Path.GetTempPath(), "jcc_error.log");
+        JoinCode.Abstractions.Configuration.AppData.AppDataConstants.UserRuntimeErrorLogPath;
 
-    /// <summary>
-    /// 获取 --await 超时日志路径 — %TEMP%/jcc_await_timeout.log
-    /// </summary>
+    /// <summary>获取 --await 超时日志路径 — ~/.jcc/runtime/jcc_await_timeout.log（ADR 0100）</summary>
     public static string GetAwaitTimeoutLogPath() =>
-        System.IO.Path.Combine(System.IO.Path.GetTempPath(), "jcc_await_timeout.log");
+        JoinCode.Abstractions.Configuration.AppData.AppDataConstants.UserRuntimeAwaitTimeoutLogPath;
 }

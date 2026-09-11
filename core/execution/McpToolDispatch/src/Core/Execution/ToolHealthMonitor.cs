@@ -40,8 +40,7 @@ public sealed class ToolHealthMonitor : ServiceEntity, IToolHealthMonitor, IDisp
         };
         _penalties = penalties ?? new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         _configPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "JoinCode",
+            JoinCode.Abstractions.Configuration.AppData.AppDataConstants.JccDirectory,
             "tool-health.json");
         LoadFromDisk();
 

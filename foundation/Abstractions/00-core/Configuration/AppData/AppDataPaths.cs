@@ -193,6 +193,36 @@ public sealed record AppDataPaths(
     /// <summary>用户级引导完成标记文件: ~/.jcc/onboarding_complete.json</summary>
     public string OnboardingCompleteFilePath => Path.Combine(JccDirectory, "onboarding_complete.json");
 
+    /// <summary>用户级运行时目录: ~/.jcc/runtime/ — 持久性运行日志、崩溃快照、工具结果溢出等（ADR 0100）</summary>
+    public string UserRuntimeDirectory => Path.Combine(JccDirectory, "runtime");
+
+    /// <summary>用户级运行时错误日志: ~/.jcc/runtime/jcc_error.log（ADR 0100）</summary>
+    public string UserRuntimeErrorLogPath => Path.Combine(UserRuntimeDirectory, "jcc_error.log");
+
+    /// <summary>用户级运行时 --await 超时日志: ~/.jcc/runtime/jcc_await_timeout.log（ADR 0100）</summary>
+    public string UserRuntimeAwaitTimeoutLogPath => Path.Combine(UserRuntimeDirectory, "jcc_await_timeout.log");
+
+    /// <summary>用户级运行时崩溃快照目录: ~/.jcc/runtime/crash-dumps/（ADR 0100）</summary>
+    public string UserRuntimeCrashDumpsDirectory => Path.Combine(UserRuntimeDirectory, "crash-dumps");
+
+    /// <summary>用户级运行时工具结果溢出目录: ~/.jcc/runtime/tool-results/（ADR 0100）</summary>
+    public string UserRuntimeToolResultsDirectory => Path.Combine(UserRuntimeDirectory, "tool-results");
+
+    /// <summary>用户级运行时 TUI 诊断目录: ~/.jcc/runtime/jcctui_diag/（ADR 0100）</summary>
+    public string UserRuntimeJccTuiDiagDirectory => Path.Combine(UserRuntimeDirectory, "jcctui_diag");
+
+    /// <summary>用户级运行时剪贴板回退目录: ~/.jcc/runtime/clipboard/（ADR 0100）</summary>
+    public string UserRuntimeClipboardDirectory => Path.Combine(UserRuntimeDirectory, "clipboard");
+
+    /// <summary>用户级运行时宏文件目录: ~/.jcc/runtime/macros/（ADR 0100）</summary>
+    public string UserRuntimeMacrosDirectory => Path.Combine(UserRuntimeDirectory, "macros");
+
+    /// <summary>用户级运行时性能埋点日志: ~/.jcc/runtime/perf.log（ADR 0100）</summary>
+    public string UserRuntimePerfLogPath => Path.Combine(UserRuntimeDirectory, "perf.log");
+
+    /// <summary>用户级遥测分析目录: ~/.jcc/analytics/ — 遥测事件 JSONL 文件（ADR 0100）</summary>
+    public string AnalyticsDirectory => Path.Combine(JccDirectory, "analytics");
+
     // === 项目级路径 ({cwd}/.jcc/) — 项目隔离、随项目走 ===
 
     /// <summary>项目级 .jcc 目录: {cwd}/.jcc/</summary>

@@ -220,7 +220,7 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
 
         try
         {
-            var tempDir = Path.Combine(Path.GetTempPath(), "jcc-tool-results");
+            var tempDir = JoinCode.Abstractions.Configuration.AppData.AppDataConstants.UserRuntimeToolResultsDirectory;
             DirectoryHelper.EnsureDirectoryExists(_fs, tempDir);
 
             _spillFilePath = Path.Combine(tempDir, $"spill-{TaskId}.txt");
@@ -513,7 +513,7 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
     {
         try
         {
-            var tempDir = Path.Combine(Path.GetTempPath(), "jcc-tool-results");
+            var tempDir = JoinCode.Abstractions.Configuration.AppData.AppDataConstants.UserRuntimeToolResultsDirectory;
             DirectoryHelper.EnsureDirectoryExists(_fs, tempDir);
 
             var filePath = Path.Combine(tempDir, $"{Guid.NewGuid():N}"[..^20] + ".txt");
@@ -534,7 +534,7 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
             _logger?.LogWarning(ex, "大输出持久化失败，尝试重试一次");
             try
             {
-                var retryDir = Path.Combine(Path.GetTempPath(), "jcc-tool-results");
+                var retryDir = JoinCode.Abstractions.Configuration.AppData.AppDataConstants.UserRuntimeToolResultsDirectory;
                 DirectoryHelper.EnsureDirectoryExists(_fs, retryDir);
                 var retryPath = Path.Combine(retryDir, $"{Guid.NewGuid():N}"[..^20] + ".txt");
                 await _fs.WriteAllTextAsync(retryPath, output).ConfigureAwait(false);

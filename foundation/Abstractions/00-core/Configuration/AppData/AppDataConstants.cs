@@ -242,6 +242,9 @@ public static class AppDataConstants
 
     // === 完整路径属性（委托到 AppDataPaths 计算属性） ===
 
+    /// <summary>用户级 .jcc 根目录: ~/.jcc/</summary>
+    public static string JccDirectory => _paths.JccDirectory;
+
     /// <summary>用户级成本跟踪目录: ~/.jcc/costs/</summary>
     public static string CostsDirectory => _paths.CostsDirectory;
 
@@ -289,6 +292,36 @@ public static class AppDataConstants
 
     /// <summary>用户级引导完成标记文件: ~/.jcc/onboarding_complete.json</summary>
     public static string OnboardingCompleteFilePath => _paths.OnboardingCompleteFilePath;
+
+    /// <summary>用户级运行时目录: ~/.jcc/runtime/ — 持久性运行日志、崩溃快照等（ADR 0100）</summary>
+    public static string UserRuntimeDirectory => _paths.UserRuntimeDirectory;
+
+    /// <summary>用户级运行时错误日志: ~/.jcc/runtime/jcc_error.log（ADR 0100）</summary>
+    public static string UserRuntimeErrorLogPath => _paths.UserRuntimeErrorLogPath;
+
+    /// <summary>用户级运行时 --await 超时日志: ~/.jcc/runtime/jcc_await_timeout.log（ADR 0100）</summary>
+    public static string UserRuntimeAwaitTimeoutLogPath => _paths.UserRuntimeAwaitTimeoutLogPath;
+
+    /// <summary>用户级运行时崩溃快照目录: ~/.jcc/runtime/crash-dumps/（ADR 0100）</summary>
+    public static string UserRuntimeCrashDumpsDirectory => _paths.UserRuntimeCrashDumpsDirectory;
+
+    /// <summary>用户级运行时工具结果溢出目录: ~/.jcc/runtime/tool-results/（ADR 0100）</summary>
+    public static string UserRuntimeToolResultsDirectory => _paths.UserRuntimeToolResultsDirectory;
+
+    /// <summary>用户级运行时 TUI 诊断目录: ~/.jcc/runtime/jcctui_diag/（ADR 0100）</summary>
+    public static string UserRuntimeJccTuiDiagDirectory => _paths.UserRuntimeJccTuiDiagDirectory;
+
+    /// <summary>用户级运行时剪贴板回退目录: ~/.jcc/runtime/clipboard/（ADR 0100）</summary>
+    public static string UserRuntimeClipboardDirectory => _paths.UserRuntimeClipboardDirectory;
+
+    /// <summary>用户级运行时宏文件目录: ~/.jcc/runtime/macros/（ADR 0100）</summary>
+    public static string UserRuntimeMacrosDirectory => _paths.UserRuntimeMacrosDirectory;
+
+    /// <summary>用户级运行时性能埋点日志: ~/.jcc/runtime/perf.log（ADR 0100）</summary>
+    public static string UserRuntimePerfLogPath => _paths.UserRuntimePerfLogPath;
+
+    /// <summary>用户级遥测分析目录: ~/.jcc/analytics/（ADR 0100）</summary>
+    public static string AnalyticsDirectory => _paths.AnalyticsDirectory;
 
     /// <summary>项目级转储目录: {cwd}/.jcc/dumps/</summary>
     public static string DumpsDirectory => _paths.DumpsDirectory;

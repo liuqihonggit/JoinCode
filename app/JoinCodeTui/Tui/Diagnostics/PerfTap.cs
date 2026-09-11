@@ -1,14 +1,12 @@
 namespace JoinCode.Tui.Diagnostics;
 
 /// <summary>
-/// 性能埋点 — 在关键路径测量耗时，写入 .jcctui_perf/perf.log。
+/// 性能埋点 — 在关键路径测量耗时，写入 ~/.jcc/runtime/perf.log（ADR 0100）。
 /// 用法: using var _ = PerfTap.Measure("OutputView.AppendLine");
 /// </summary>
 public static class PerfTap
 {
-    private static readonly string PerfDir = System.IO.Path.Combine(
-        System.IO.Directory.GetCurrentDirectory(), ".jcctui_perf");
-    private static readonly string PerfLog = System.IO.Path.Combine(PerfDir, "perf.log");
+    private static readonly string PerfLog = JoinCode.Abstractions.Configuration.AppData.AppDataConstants.UserRuntimePerfLogPath;
     private static long _seq;
 
     /// <summary>
@@ -26,7 +24,7 @@ public static class PerfTap
     {
         try
         {
-            System.IO.Directory.CreateDirectory(PerfDir);
+            System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(PerfLog)!);
             var seq = Interlocked.Increment(ref _seq);
             var line = $"[{DateTime.Now:HH:mm:ss.fff}] #{seq:D6} {label} {elapsedMs}ms";
             if (extra is not null) line += $" | {extra}";

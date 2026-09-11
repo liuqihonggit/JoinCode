@@ -113,21 +113,21 @@ public sealed partial class AnalyticsFileSink : IAnalyticsFileSink, IAsyncDispos
     /// <param name="logger">日志器</param>
     /// <param name="flushInterval">flush 间隔（默认 5s）</param>
     /// <param name="batchSize">批量写入大小（默认 100）</param>
-    /// <param name="outputDirectory">输出目录（默认 .jcc/analytics）</param>
+    /// <param name="outputDirectory">输出目录（默认 ~/.jcc/analytics/，ADR 0100）</param>
     public AnalyticsFileSink(
         IFileSystem? fileSystem = null,
         AnalyticsSinkKillswitch? killswitch = null,
         ILogger<AnalyticsFileSink>? logger = null,
         TimeSpan? flushInterval = null,
         int batchSize = 100,
-        string outputDirectory = ".jcc/analytics")
+        string? outputDirectory = null)
     {
         _fileSystem = fileSystem;
         _killswitch = killswitch ?? new AnalyticsSinkKillswitch();
         _logger = logger;
         _flushInterval = flushInterval ?? TimeSpan.FromSeconds(5);
         _batchSize = batchSize;
-        _outputDirectory = outputDirectory;
+        _outputDirectory = outputDirectory ?? JoinCode.Abstractions.Configuration.AppData.AppDataConstants.AnalyticsDirectory;
         _channel = Channel.CreateBounded<AnalyticsEvent>(new BoundedChannelOptions(1000)
         {
             FullMode = BoundedChannelFullMode.DropOldest,

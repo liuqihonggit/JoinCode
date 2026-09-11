@@ -23,7 +23,7 @@ public partial class BriefModeService : ServiceEntity, IBriefModeService
     private readonly IClockService _clock;
     private readonly IFileSystem? _fs;
     private readonly ILogger<BriefModeService>? _logger;
-    private const string ModeSubDir = ".jcc" + "/" + "mode";
+    private static readonly string ModeSubDir = Path.Combine(AppDataConstants.AppDataFolder, "mode");
     private const string ModeFileName = "brief.json";
 
     public bool IsEnabled => _isEnabled;

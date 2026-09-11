@@ -41,8 +41,7 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
     /// </summary>
     private string GetConfigFilePath()
     {
-        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        return Path.Combine(userProfile, AppDataConstants.AppDataFolder, ConfigFileName);
+        return AppDataConstants.Paths.KeywordSectionsFilePath;
     }
 
     /// <summary>

@@ -160,7 +160,7 @@ public sealed class MemoryCommand : ChatCommandBase
 
     private static async Task OpenMemoryDirectoryAsync(IFileSystem fs, IProcessService processService)
     {
-        var memDir = Path.Combine(WorkflowConstants.Paths.JccDirectory, "memories");
+        var memDir = Path.Combine(AppDataConstants.Paths.JccDirectory, "memories");
         DirectoryHelper.EnsureDirectoryExists(fs, memDir);
 
         if (Core.Utils.TestEnvironmentDetector.IsNonInteractive)
@@ -219,7 +219,7 @@ public sealed class MemoryCommand : ChatCommandBase
 
     private static List<(string Label, string Path, string Description, bool Exists)> GetMemoryFilePaths(IFileSystem fs)
     {
-        var homeDir = WorkflowConstants.Paths.JccDirectory;
+        var homeDir = AppDataConstants.Paths.JccDirectory;
         var cwd = Environment.CurrentDirectory;
         var files = new List<(string Label, string Path, string Description, bool Exists)>();
 

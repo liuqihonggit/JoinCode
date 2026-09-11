@@ -29,17 +29,41 @@ public static class TerminalHelper
     /// </summary>
     public static bool ForceInteractive { get; set; }
 
-    public static bool IsHeadless => !ForceInteractive && (System.Console.IsOutputRedirected || System.Console.IsInputRedirected);
+    /// <summary>
+    /// ConsoleActor 实例 — 串行化所有 Console I/O，消除后台输出与 ReadLine 竞态（ADR 0100）
+    /// </summary>
+    private static ConsoleActor? _consoleActor;
+
+    /// <summary>
+    /// 获取 ConsoleActor 实例 — 供 ApplicationBuilder 注册 ConsoleActorLoggerProvider
+    /// </summary>
+    internal static ConsoleActor? GetConsoleActor() => _consoleActor;
+
+    /// <summary>
+    /// ConsoleActor 是否激活 — SetOut 重定向后 IsOutputRedirected 会变 true，用此标志修正
+    /// </summary>
+    private static bool _isActorActive;
+
+    /// <summary>
+    /// Init 时捕获的原始 IsOutputRedirected 状态（SetOut 之前）
+    /// </summary>
+    private static bool _originalIsOutputRedirected;
+
+    public static bool IsHeadless => !ForceInteractive && (IsOutputRedirected || System.Console.IsInputRedirected);
 
     public static bool IsInputRedirected => System.Console.IsInputRedirected;
 
-    public static bool IsOutputRedirected => System.Console.IsOutputRedirected;
+    /// <summary>
+    /// 是否输出重定向 — Actor 激活时返回 Init 时捕获的原始状态，避免 SetOut 导致误判
+    /// </summary>
+    public static bool IsOutputRedirected => _isActorActive ? _originalIsOutputRedirected : System.Console.IsOutputRedirected;
 
     public static void Init()
     {
         if (_isInitialized) return;
 
         _realOut = System.Console.Out;
+        _originalIsOutputRedirected = System.Console.IsOutputRedirected;
 
         // NO_COLOR 标准 — https://no-color.org/
         // 检测到 NO_COLOR 环境变量时禁用所有颜色输出
@@ -53,6 +77,16 @@ public static class TerminalHelper
 
         System.Console.OutputEncoding = System.Text.Encoding.UTF8;
         System.Console.InputEncoding = System.Text.Encoding.UTF8;
+
+        // 安装 ConsoleActor — 串行化所有 Console I/O，消除后台输出与 ReadLine 竞态（ADR 0100）
+        // 仅在非重定向场景启用（E2E 管道场景 In/Out 是不同句柄，无竞态）
+        if (!_originalIsOutputRedirected)
+        {
+            _consoleActor = new ConsoleActor(_realOut);
+            System.Console.SetOut(new ConsoleActorTextWriter(_consoleActor));
+            _isActorActive = true;
+        }
+
         _isInitialized = true;
     }
 
@@ -79,39 +113,69 @@ public static class TerminalHelper
 
     public static void WriteLine(string? text = null)
     {
-        if (text is null) System.Console.WriteLine();
-        else System.Console.WriteLine(text);
-        if (System.Console.IsOutputRedirected) System.Console.Out.Flush();
+        if (_consoleActor is not null)
+            _consoleActor.WriteLine(text);
+        else
+        {
+            if (text is null) System.Console.WriteLine();
+            else System.Console.WriteLine(text);
+            if (System.Console.IsOutputRedirected) System.Console.Out.Flush();
+        }
     }
 
     public static void NewLine()
     {
-        System.Console.WriteLine();
-        if (System.Console.IsOutputRedirected) System.Console.Out.Flush();
+        if (_consoleActor is not null)
+            _consoleActor.WriteLine();
+        else
+        {
+            System.Console.WriteLine();
+            if (System.Console.IsOutputRedirected) System.Console.Out.Flush();
+        }
     }
 
     public static void WriteRaw(string text)
     {
-        System.Console.Write(text);
-        if (System.Console.IsOutputRedirected) System.Console.Out.Flush();
+        if (_consoleActor is not null)
+            _consoleActor.WriteRaw(text);
+        else
+        {
+            System.Console.Write(text);
+            if (System.Console.IsOutputRedirected) System.Console.Out.Flush();
+        }
     }
 
     public static void WriteRaw(char c)
     {
-        System.Console.Write(c);
-        if (System.Console.IsOutputRedirected) System.Console.Out.Flush();
+        if (_consoleActor is not null)
+            _consoleActor.WriteRaw(new string(c, 1));
+        else
+        {
+            System.Console.Write(c);
+            if (System.Console.IsOutputRedirected) System.Console.Out.Flush();
+        }
     }
 
     public static void WriteRaw(StringBuilder sb)
     {
-        System.Console.Write(sb);
-        if (System.Console.IsOutputRedirected) System.Console.Out.Flush();
+        if (_consoleActor is not null)
+            _consoleActor.WriteRaw(sb.ToString());
+        else
+        {
+            System.Console.Write(sb);
+            if (System.Console.IsOutputRedirected) System.Console.Out.Flush();
+        }
     }
 
     public static void WriteRaw(ReadOnlySpan<char> span)
     {
-        System.Console.Write(span);
-        if (System.Console.IsOutputRedirected) System.Console.Out.Flush();
+        if (_consoleActor is not null)
+            _consoleActor.WriteRaw(new string(span));
+        else
+        {
+            System.Console.Write(span);
+            if (System.Console.IsOutputRedirected) System.Console.Out.Flush();
+        }
     }
 
     public static string ReadLine()
@@ -122,7 +186,9 @@ public static class TerminalHelper
             return string.Empty;
         }
         Diag.WriteLifecycle("[DIAG-TERM] ReadLine: calling Console.ReadLine()...");
-        var result = System.Console.ReadLine() ?? string.Empty;
+        var result = _consoleActor is not null
+            ? _consoleActor.ReadLine()
+            : (System.Console.ReadLine() ?? string.Empty);
         Diag.WriteLifecycle($"[DIAG-TERM] ReadLine: returned '{(result.Length > 60 ? result[..60] + "..." : result)}'");
         return result;
     }
@@ -130,7 +196,24 @@ public static class TerminalHelper
     public static ConsoleKeyInfo ReadKey(bool intercept = false)
     {
         if (System.Console.IsInputRedirected && !ForceInteractive) return default;
-        return System.Console.ReadKey(intercept);
+        return _consoleActor is not null
+            ? _consoleActor.ReadKey(intercept)
+            : System.Console.ReadKey(intercept);
+    }
+
+    /// <summary>
+    /// 读取一行（保留 null EOF 语义）— 经过 ConsoleActor 串行化。
+    /// <para>返回 null 表示 EOF（管道关闭），与 Console.ReadLine() 语义一致。</para>
+    /// </summary>
+    public static string? ReadLineOrNull()
+    {
+        if (System.Console.IsInputRedirected && !ForceInteractive)
+        {
+            return null;
+        }
+        return _consoleActor is not null
+            ? _consoleActor.ReadLineOrNull()
+            : System.Console.ReadLine();
     }
 
     public static bool KeyAvailable => System.Console.KeyAvailable;
@@ -149,17 +232,32 @@ public static class TerminalHelper
 
     public static void ResetColor() => System.Console.ResetColor();
 
-    public static IDisposable SetColor(ConsoleColor color) => _noColor ? NoOpDisposable.Instance : new ColorScope(color);
+    public static IDisposable SetColor(ConsoleColor color) => _noColor ? NoOpDisposable.Instance : new ColorScope(color, _consoleActor);
 
     private sealed class ColorScope : IDisposable
     {
         private readonly ConsoleColor _prev;
-        public ColorScope(ConsoleColor color)
+        private readonly ConsoleActor? _actor;
+
+        public ColorScope(ConsoleColor color, ConsoleActor? actor)
         {
-            _prev = System.Console.ForegroundColor;
-            System.Console.ForegroundColor = color;
+            _actor = actor;
+            if (actor is not null)
+                _prev = actor.SetColor(color);
+            else
+            {
+                _prev = System.Console.ForegroundColor;
+                System.Console.ForegroundColor = color;
+            }
         }
-        public void Dispose() => System.Console.ForegroundColor = _prev;
+
+        public void Dispose()
+        {
+            if (_actor is not null)
+                _actor.ResetColor();
+            else
+                System.Console.ForegroundColor = _prev;
+        }
     }
 
     private sealed class NoOpDisposable : IDisposable
@@ -170,16 +268,25 @@ public static class TerminalHelper
 
     public static void ClearScreen()
     {
-        if (!System.Console.IsOutputRedirected)
+        if (!IsOutputRedirected)
         {
-            System.Console.Clear();
+            if (_consoleActor is not null)
+                _consoleActor.ClearScreen();
+            else
+                System.Console.Clear();
         }
     }
 
     public static int CursorTop => System.Console.CursorTop;
     public static int CursorLeft => System.Console.CursorLeft;
 
-    public static void SetCursorPosition(int left, int top) => System.Console.SetCursorPosition(left, top);
+    public static void SetCursorPosition(int left, int top)
+    {
+        if (_consoleActor is not null)
+            _consoleActor.SetCursorPosition(left, top);
+        else
+            System.Console.SetCursorPosition(left, top);
+    }
 
     public static void SetOut(System.IO.TextWriter writer) => System.Console.SetOut(writer);
 
@@ -190,13 +297,20 @@ public static class TerminalHelper
     /// </summary>
     public static void WriteLineReal(string? text = null)
     {
-        if (System.Console.IsOutputRedirected)
+        if (System.Console.IsOutputRedirected && !_isActorActive)
         {
             System.Console.Error.WriteLine($"[TerminalHelper] 警告: WriteLineReal 在 stdout 重定向时被调用，E2E 测试将捕获不到此输出。请改用 WriteLine。 text={text}");
         }
-        if (text is null) RealOut.WriteLine();
-        else RealOut.WriteLine(text);
-        RealOut.Flush();
+        if (_consoleActor is not null)
+        {
+            _consoleActor.WriteLine(text);
+        }
+        else
+        {
+            if (text is null) RealOut.WriteLine();
+            else RealOut.WriteLine(text);
+            RealOut.Flush();
+        }
     }
 
     /// <summary>
@@ -206,12 +320,19 @@ public static class TerminalHelper
     /// </summary>
     public static void WriteRawReal(string text)
     {
-        if (System.Console.IsOutputRedirected)
+        if (System.Console.IsOutputRedirected && !_isActorActive)
         {
             System.Console.Error.WriteLine($"[TerminalHelper] 警告: WriteRawReal 在 stdout 重定向时被调用，E2E 测试将捕获不到此输出。请改用 Write。 text={text}");
         }
-        RealOut.Write(text);
-        RealOut.Flush();
+        if (_consoleActor is not null)
+        {
+            _consoleActor.WriteRaw(text);
+        }
+        else
+        {
+            RealOut.Write(text);
+            RealOut.Flush();
+        }
     }
 
     public static System.IO.TextWriter Out => System.Console.Out;

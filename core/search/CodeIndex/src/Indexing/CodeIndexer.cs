@@ -21,7 +21,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     private int _disposed;
     private int _autoLoadState;
     private string? _autoDiscoveredWorkspaceRoot;
-    private const string AutoLoadSubDir = ".jcc" + "/" + "code-index";
+    private static readonly string AutoLoadSubDir = Path.Combine(AppDataConstants.AppDataFolder, "code-index");
 
     public CodeIndexer(InMemoryIndexStore store, IFileSystem fs, ILogger<CodeIndexer>? logger = null)
     {

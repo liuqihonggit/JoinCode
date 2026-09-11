@@ -18,8 +18,7 @@ public sealed class ToolInterventionManager : ServiceEntity
         _fs = fs;
         _logger = logger;
         _configPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "JoinCode",
+            JoinCode.Abstractions.Configuration.AppData.AppDataConstants.JccDirectory,
             "tool-interventions.json");
         LoadFromDisk();
     }

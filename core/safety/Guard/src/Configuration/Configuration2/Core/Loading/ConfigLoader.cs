@@ -123,7 +123,7 @@ public class ConfigLoader {
                 throw new ConfigurationException(
                     $"Provider '{config.Provider.Vendor}' 配置无效: 缺少 API Key。" +
                     $"请设置环境变量 {definition.ApiKeyEnvironmentVariable ?? "供应商专属变量"}" +
-                    $" 或在 {WorkflowConstants.Paths.AuthFilePath} 中添加 '{config.Provider.Vendor}' 键。");
+                    $" 或在 {AppDataConstants.Paths.AuthFilePath} 中添加 '{config.Provider.Vendor}' 键。");
             }
 
             return config;
@@ -138,7 +138,7 @@ public class ConfigLoader {
     public static async Task<SettingsJson?> LoadSettingsJsonAsync(IFileSystem fs, CancellationToken cancellationToken = default)
     {
         var settingsPath = Path.Combine(
-            WorkflowConstants.Paths.JccDirectory,
+            AppDataConstants.Paths.JccDirectory,
             AppDataConstants.SettingsFileName);
 
         if (!fs.FileExists(settingsPath))
@@ -161,7 +161,7 @@ public class ConfigLoader {
     public static async Task SaveSettingsJsonAsync(SettingsJson settings, IFileSystem fs, CancellationToken cancellationToken = default)
     {
         var settingsPath = Path.Combine(
-            WorkflowConstants.Paths.JccDirectory,
+            AppDataConstants.Paths.JccDirectory,
             AppDataConstants.SettingsFileName);
 
         var directory = Path.GetDirectoryName(settingsPath);
@@ -251,7 +251,7 @@ public class ConfigLoader {
     /// </summary>
     private static async Task<Dictionary<string, string>?> LoadAuthFileAsync(IFileSystem fs, CancellationToken cancellationToken)
     {
-        var authPath = WorkflowConstants.Paths.AuthFilePath;
+        var authPath = AppDataConstants.Paths.AuthFilePath;
         if (!fs.FileExists(authPath)) return null;
         try
         {
@@ -299,7 +299,7 @@ public class ConfigLoader {
     /// </summary>
     public static async Task SaveApiKeyToJccAsync(string provider, string apiKey, IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null)
     {
-        var authPath = WorkflowConstants.Paths.AuthFilePath;
+        var authPath = AppDataConstants.Paths.AuthFilePath;
         var directory = Path.GetDirectoryName(authPath);
 
         if (!string.IsNullOrEmpty(directory) && !fs.DirectoryExists(directory))
@@ -339,7 +339,7 @@ public class ConfigLoader {
     public static async Task<string?> LoadSettingFromSettingsJsonAsync(string key, IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null)
     {
         var settingsPath = Path.Combine(
-            WorkflowConstants.Paths.JccDirectory,
+            AppDataConstants.Paths.JccDirectory,
             AppDataConstants.SettingsFileName);
 
         if (!fs.FileExists(settingsPath))
@@ -366,7 +366,7 @@ public class ConfigLoader {
     public static string? LoadSettingFromSettingsJson(string key, IFileSystem fs, ILogger? logger = null)
     {
         var settingsPath = Path.Combine(
-            WorkflowConstants.Paths.JccDirectory,
+            AppDataConstants.Paths.JccDirectory,
             AppDataConstants.SettingsFileName);
 
         if (!fs.FileExists(settingsPath))
@@ -408,7 +408,7 @@ public class ConfigLoader {
     public static async Task SaveSettingToSettingsJsonAsync(string key, string? value, IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null)
     {
         var settingsPath = Path.Combine(
-            WorkflowConstants.Paths.JccDirectory,
+            AppDataConstants.Paths.JccDirectory,
             AppDataConstants.SettingsFileName);
 
         var directory = Path.GetDirectoryName(settingsPath);
@@ -452,7 +452,7 @@ public class ConfigLoader {
     public static async Task<string?> LoadSettingFromGlobalConfigAsync(string key, IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null)
     {
         var globalPath = Path.Combine(
-            WorkflowConstants.Paths.JccDirectory,
+            AppDataConstants.Paths.JccDirectory,
             AppDataConstants.GlobalConfigFileName);
 
         if (!fs.FileExists(globalPath))
@@ -489,7 +489,7 @@ public class ConfigLoader {
     public static async Task SaveSettingToGlobalConfigAsync(string key, string? value, IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null)
     {
         var globalPath = Path.Combine(
-            WorkflowConstants.Paths.JccDirectory,
+            AppDataConstants.Paths.JccDirectory,
             AppDataConstants.GlobalConfigFileName);
 
         var directory = Path.GetDirectoryName(globalPath);

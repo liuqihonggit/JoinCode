@@ -2,19 +2,19 @@
 
 > 此文档从 README 摘出，详细描述项目目录结构、组件依赖图和内部结构。
 
-> 📖 **架构决策记录（ADR）**：重要的"为什么这样选"决策收编在 [docs/adr/](../adr/README.md)，共 40+ 条。AGENTS.md 各规则处标注了对应 ADR 编号，可二次打开查看完整决策上下文与替代方案。
+> 📖 **架构决策记录（ADR）**：重要的"为什么这样选"决策收编在 [docs/adr/](../adr/README.md)。AGENTS.md 各规则处标注了对应 ADR 编号，可二次打开查看完整决策上下文与替代方案。
 
 ## 1. 顶层目录
 
 ```
 JoinCode/
-├── generators/          ★ 9 个源码生成器（netstandard2.0）
-├── foundation/          ★ 基础抽象（Abstractions + Structura + Transport.Contracts）
-├── infrastructure/      ★ 基础设施（Infrastructure + Transport.Impl）
+├── generators/          ★ 源码生成器（netstandard2.0）
+├── foundation/          ★ 基础抽象与工具（Abstractions/AsyncLock/Plugins/Structura/Transport.Contracts）
+├── infrastructure/      ★ 基础设施（Infrastructure/Transport.Impl）
 ├── core/                ★ 核心组件（ai/execution/safety/search 四个子域）
-├── services/            ★ 服务组件（Mcp + Dream + Eyes + Bridge + SandboxSatellite）
-├── composition/         ★ 组合层（Composition + Clock）
-├── app/                 ★ 主工程（JoinCode.exe + Sdk）
+├── services/            ★ 服务组件（Mcp/Dream/Eyes/Bridge/Vision/Update/SandboxSatellite）
+├── composition/         ★ 组合层（Composition/Clock/Pipelines）
+├── app/                 ★ 主工程（JoinCode CLI/TUI/GUI + Sdk）
 ├── tests/               ★ 单元/集成/MockServer/基准/AOT兼容测试
 ├── tools/               ★ 辅助工具（AST审计）
 ├── docs/                ★ 文档
@@ -30,7 +30,7 @@ JoinCode/
 
 > **💡 `JoinCode.slnx`（全量聚合解决方案）**
 >
-> 根目录还有 `JoinCode.slnx`，聚合了上述七层的**全部 89 个项目**（含 src + tests + tools + MockServers + Benchmarks + AotCompatibility）。
+> 根目录还有 `JoinCode.slnx`，聚合了上述七层的**全部项目**（含 src + tests + tools + MockServers + Benchmarks + AotCompatibility）。
 >
 > | 用途 | 说明 |
 > |------|------|
@@ -216,7 +216,9 @@ DependencyInjection/ DI注册
 |--------|------|------|---------|
 | AotSafety.Generator | `generators/AotSafety.Generator/` | AOT 安全分析器 + 代码组织规则（JCC9006 强制 `FileShare.ReadWrite`、JCC5002 禁止循环内 `+=` 拼字符串、层依赖审计、抽象层绕过检测） | 全局（根 Directory.Build.props） |
 | CodeFixes | `generators/CodeFixes/` | JCC 代码修复 | 全局（根 Directory.Build.props） |
+| DangerCommand.Generator | `generators/DangerCommand.Generator/` | 扫描 `[DangerCommand]` 特性生成危险命令目录 | Guard, Hands |
 | EnumMetadata.Generator | `generators/EnumMetadata.Generator/` | 枚举元数据（[EnumValue] → XxxConstants + XxxExtensions）+ SettingsMerge | 几乎所有组件 |
+| Fsm.Generator | `generators/Fsm.Generator/` | 有限状态机生成（[StateMachine]+[Transition]+[Guard] → partial class，ADR 0041） | Vault, Agents 等状态机组件 |
 | McpToolDispatch.Generator | `generators/McpToolDispatch.Generator/` | MCP 工具处理器注册 + [Register] DI 注册 + Command 注册 | McpToolDispatch, Agents, Composition, Dream, JoinCode 及所有用 [Register] 的组件 |
 | PromptSection.Generator | `generators/PromptSection.Generator/` | 提示词段落生成 | Brain |
 | PromptTemplate.Generator | `generators/PromptTemplate.Generator/` | 提示词模板生成 | Brain |
@@ -253,28 +255,10 @@ Program.cs      主入口
 ```
 tests/
 ├── AotCompatibility/            AOT 兼容性测试
-├── Unit/
-│   ├── Abs.Tests/               Abstractions 单元测试
-│   ├── Hands.Tests/             Hands 单元测试
-│   ├── Host.Tests/              Host 单元测试
-│   ├── Infra.Tests/             Infrastructure 单元测试
-│   ├── Mcp.Tests/               Mcp 单元测试
-│   ├── McpToolDispatch.Tests/   McpToolDispatch 单元测试
-│   └── Testing.Common/          测试公共库
-├── Integration/
-│   └── Integration.Tests/       集成测试
-├── MockServers/
-│   ├── MockServer.Core/         Mock 核心库
-│   ├── OpenAI.MockServer/       OpenAI 模拟服务
-│   ├── Anthropic.MockServer/    Anthropic 模拟服务
-│   ├── DeepSeek.MockServer/     DeepSeek 模拟服务
-│   ├── Mcp.MockServer/          MCP 模拟服务
-│   ├── MockServer.Core.Tests/   Mock 核心测试
-│   ├── MockServer.E2E.Tests/    E2E 测试
-│   ├── Sync.Integration.Tests/  同步集成测试
-│   └── scripts/                 测试脚本
-└── Benchmarks/
-    └── Eyes.Benchmarks/         性能基准
+├── Unit/                        跨层单元测试（Abs/Hands/Host/Infra/Mcp/McpToolDispatch/JoinCodeGui/Tui/…）
+├── Integration/                 集成测试
+├── MockServers/                 Mock 服务 + E2E + 同步集成测试
+└── Benchmarks/                  性能基准
 ```
 
 **组件测试**：每个组件有 `tests/` 子目录，如 `services/Mcp/tests/Unit/Mcp.Tests.csproj`
@@ -346,6 +330,8 @@ dotnet test "services/Mcp/tests/Unit/Mcp.Tests.csproj" -c Debug --filter "Catego
 | 组件名 | 路径 |
 |--------|------|
 | Abstractions | `foundation/Abstractions/` |
+| AsyncLock | `foundation/AsyncLock/` |
+| Plugins | `foundation/Plugins/` |
 | Structura | `foundation/Structura/` |
 | Transport.Contracts | `foundation/Transport.Contracts/` |
 | Infrastructure | `infrastructure/Infrastructure/` |
@@ -365,8 +351,13 @@ dotnet test "services/Mcp/tests/Unit/Mcp.Tests.csproj" -c Debug --filter "Catego
 | Dream | `services/Dream/` |
 | Eyes | `services/Eyes/` |
 | Bridge | `services/Bridge/` |
+| Vision | `services/Vision/` |
+| Update | `services/Update/` |
 | SandboxSatellite | `services/SandboxSatellite/` |
 | Composition | `composition/Composition/` |
 | Clock | `composition/Clock/` |
+| Pipelines | `composition/Pipelines/` |
 | JoinCode | `app/JoinCode/` |
+| JoinCodeTui | `app/JoinCodeTui/` |
+| JoinCodeGui | `app/JoinCodeGui/` |
 | Sdk | `app/Sdk/` |

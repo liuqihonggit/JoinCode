@@ -315,7 +315,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     private readonly IPersistencePipeline? _persistencePipeline;
     private readonly IFileSystem? _fs;
     private int _teamPathsLoaded;
-    private const string TeamPathsSubDir = ".jcc" + "/" + "memory";
+    private static readonly string TeamPathsSubDir = Path.Combine(AppDataConstants.AppDataFolder, "memory");
     private const string TeamPathsFileName = "team-paths.json";
 
     public MemoryManagementService(

@@ -16,7 +16,7 @@ public sealed class ResumeCommand : ChatCommandBase
     public override string ArgumentHint => "[conversation id or search term]";
 
     private static readonly string SessionsPath = Path.Combine(
-        WorkflowConstants.Paths.JccDirectory,
+        AppDataConstants.Paths.JccDirectory,
         "sessions");
 
     public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

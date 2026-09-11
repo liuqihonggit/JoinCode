@@ -73,7 +73,7 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
                     string? input;
                     try
                     {
-                        input = await System.Console.In.ReadLineAsync(ct).ConfigureAwait(false);
+                        input = await Task.Run(() => Cli.TerminalHelper.ReadLineOrNull(), ct).ConfigureAwait(false);
                     }
                     catch (OperationCanceledException)
                     {
@@ -315,11 +315,11 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
     }
 
     /// <summary>
-    /// 写入错误日志到临时目录的 jcc_error.log — 与 Program.WriteErrorLog 一致
+    /// 写入错误日志到 ~/.jcc/runtime/jcc_error.log — 与 Program.WriteErrorLog 一致（ADR 0100）
     /// </summary>
     private static void WriteErrorLog(Exception ex, ILogger? logger = null)
     {
-        var errorLog = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "jcc_error.log");
+        var errorLog = Cli.Output.XdgPathResolver.GetErrorLogPath();
         var errorContent = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}";
         try
         {

@@ -13,7 +13,7 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
     private readonly IFileSystem? _fs;
     private readonly ILogger<AgentPermissionManager>? _logger;
     private int _rulesLoaded;
-    private const string RulesSubDir = ".jcc" + "/" + "permission";
+    private static readonly string RulesSubDir = Path.Combine(AppDataConstants.AppDataFolder, "permission");
     private const string RulesFileName = "rules.json";
     private int _disposed;
 

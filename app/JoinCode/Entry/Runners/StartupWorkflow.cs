@@ -15,7 +15,7 @@ internal sealed class StartupWorkflow
     /// </summary>
     internal async Task EnsureConfigFilesExistAsync(IFileSystem fs)
     {
-        var appDataPath = WorkflowConstants.Paths.JccDirectory;
+        var appDataPath = AppDataConstants.Paths.JccDirectory;
         var settingsPath = Path.Combine(appDataPath, AppDataConstants.SettingsFileName);
         var authPath = Path.Combine(appDataPath, AppDataConstants.AuthFileName);
 
@@ -246,7 +246,7 @@ internal sealed class StartupWorkflow
             return true;
         }
 
-        // 纯 CLI 模式的信任确认 — 简单的 y/n 提示
+        // 纯 CLI 模式的信任确认 — 循环直到用户输入有效值（y/N），防止无效输入后卡死
         Cli.TerminalHelper.WriteLine($"工作目录 {workspacePath} 尚未被信任。");
         Cli.TerminalHelper.WriteRaw("是否信任此目录? (y/N): ");
 
@@ -256,14 +256,25 @@ internal sealed class StartupWorkflow
             return false;
         }
 
-        var response = Cli.TerminalHelper.ReadLine();
-        if (response?.ToLowerInvariant() == "y")
+        while (true)
         {
-            trustManager.Trust(workspacePath);
-            return true;
-        }
+            var response = Cli.TerminalHelper.ReadLine();
+            var lower = response?.ToLowerInvariant();
 
-        return false;
+            if (lower == "y")
+            {
+                trustManager.Trust(workspacePath);
+                return true;
+            }
+
+            if (lower == "n" || string.IsNullOrEmpty(response))
+            {
+                return false;
+            }
+
+            Cli.TerminalHelper.WriteLine("无效输入，请输入 y 或 N。");
+            Cli.TerminalHelper.WriteRaw("是否信任此目录? (y/N): ");
+        }
     }
 
     private string BuildDefaultSettingsTemplate()

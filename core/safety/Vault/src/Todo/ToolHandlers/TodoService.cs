@@ -21,7 +21,7 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
     private readonly ILogger<TodoService>? _logger;
     private readonly ConcurrentDag<TodoItem> _todoDag = new();
     private int _todosLoaded;
-    private const string TodosSubDir = ".jcc" + "/" + "todo";
+    private static readonly string TodosSubDir = Path.Combine(AppDataConstants.AppDataFolder, "todo");
     private const string TodosFileName = "todos.json";
 
     public async Task<TodoServiceResult> WriteTodosAsync(List<TodoItemInput> todos, CancellationToken cancellationToken = default)

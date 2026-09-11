@@ -45,7 +45,7 @@ public sealed class DefaultSessionScannerTests
         var config = new AutoDreamConfig { ProjectDir = "/project" };
         var scanner = new DefaultSessionScanner(config, fs);
 
-        var sessionsDir = "/project/.jcc/sessions";
+        var sessionsDir = AppDataConstants.Paths.SessionsDirectory;
         fs.WriteAllText($"{sessionsDir}/session1.json", "data");
         fs.WriteAllText($"{sessionsDir}/session2.json", "data");
         fs.SetLastWriteTimeUtc($"{sessionsDir}/session1.json", DateTime.UtcNow.AddHours(1));
@@ -66,7 +66,7 @@ public sealed class DefaultSessionScannerTests
         var config = new AutoDreamConfig { ProjectDir = "/project" };
         var scanner = new DefaultSessionScanner(config, fs);
 
-        var sessionsDir = "/project/.jcc/sessions";
+        var sessionsDir = AppDataConstants.Paths.SessionsDirectory;
         fs.WriteAllText($"{sessionsDir}/session1.json", "data");
         fs.SetLastWriteTimeUtc($"{sessionsDir}/session1.json", DateTime.UtcNow.AddDays(-2));
 
@@ -83,7 +83,7 @@ public sealed class DefaultSessionScannerTests
         var config = new AutoDreamConfig { ProjectDir = "/project" };
         var scanner = new DefaultSessionScanner(config, fs);
 
-        var sessionsDir = "/project/.jcc/sessions";
+        var sessionsDir = AppDataConstants.Paths.SessionsDirectory;
         fs.WriteAllText($"{sessionsDir}/session1.json", "data");
         fs.WriteAllText($"{sessionsDir}/notes.txt", "data");
         fs.SetLastWriteTimeUtc($"{sessionsDir}/session1.json", DateTime.UtcNow.AddHours(1));
@@ -103,7 +103,7 @@ public sealed class DefaultSessionScannerTests
         var config = new AutoDreamConfig { ProjectDir = "/project" };
         var scanner = new DefaultSessionScanner(config, fs);
 
-        var sessionsDir = "/project/.jcc/sessions";
+        var sessionsDir = AppDataConstants.Paths.SessionsDirectory;
         fs.WriteAllText($"{sessionsDir}/.json", "data");
         fs.SetLastWriteTimeUtc($"{sessionsDir}/.json", DateTime.UtcNow.AddHours(1));
 

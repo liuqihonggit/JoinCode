@@ -29,7 +29,7 @@ public class WorktreeConfig {
     /// <summary>
     /// 要复制的配置文件列表
     /// </summary>
-    public List<string> ConfigFilesToCopy { get; set; } = new() { WorkflowConstants.Paths.LocalSettingsRelativePath };
+    public List<string> ConfigFilesToCopy { get; set; } = new() { AppDataConstants.Paths.LocalSettingsRelativePath };
 
     /// <summary>
     /// 是否检查未提交更改（默认 true）

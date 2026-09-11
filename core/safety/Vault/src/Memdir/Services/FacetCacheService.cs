@@ -15,7 +15,7 @@ public sealed partial class FacetCacheService : ServiceEntity, IFacetCacheServic
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _facetsDirectory = facetsDirectory
-            ?? WorkflowConstants.Paths.SessionsDirectory;
+            ?? AppDataConstants.Paths.SessionsDirectory;
         _logger = logger;
     }
 

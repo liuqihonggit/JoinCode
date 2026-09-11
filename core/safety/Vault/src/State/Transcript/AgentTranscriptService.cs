@@ -14,7 +14,7 @@ public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abs
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _sessionsDirectory = sessionsDirectory
             ?? Path.Combine(
-                WorkflowConstants.Paths.JccDirectory,
+                AppDataConstants.Paths.JccDirectory,
                 AppDataConstants.SessionsFolderName);
         _logger = logger;
         _writer = new TranscriptFileWriter(_fs, _sessionsDirectory, logger, pasteStore);

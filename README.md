@@ -308,7 +308,7 @@ jcc --debuglog -p "hello"
 ### Native Performance
 
 - NativeAOT single-file native binary, zero runtime dependencies
-- 9 source generators eliminate runtime reflection
+- Source generators eliminate runtime reflection
 - Seven-layer slnx isolation, strict dependency-ordered builds, zero circular
   dependencies
 - 14 middleware pipelines (Chat/Permission/Shell/Web/Skill…), onion model with
@@ -322,16 +322,13 @@ JoinCode uses a **seven-layer solution isolation** architecture with strict
 dependency ordering:
 
 ```
-① Generators      →  Source generators (netstandard2.0)
-② Foundation      →  Abstractions, Structura, Transport.Contracts
-③ Infrastructure  →  Infrastructure, Transport.Impl
-④ Core            →  ai/ (Llm, Agents, Reasoning)
-│                    execution/ (Brain, Hands, Scheduling, McpToolDispatch)
-│                    safety/ (Guard, Vault)
-│                    search/ (CodeIndex, Browser)
-⑤ Services        →  Mcp, Dream, Eyes, Bridge
-⑥ Composition     →  Composition, Clock
-⑦ App             →  JoinCode.exe, Sdk, integration tests, MockServers
+① Generators      →  generators/*/ (source generators, netstandard2.0)
+② Foundation      →  foundation/*/ (abstractions, async lock, plugins, transport contracts)
+③ Infrastructure  →  infrastructure/*/ (infrastructure, transport impl)
+④ Core            →  core/{ai,execution,safety,search}/*/
+⑤ Services        →  services/*/ (MCP, vision, bridge, dream, eyes, …)
+⑥ Composition     →  composition/*/ (composition, clock, pipelines)
+⑦ App             →  app/*/ (JoinCode CLI, TUI, GUI, Sdk) + tests/
 ```
 
 ### Key Design Decisions
@@ -348,7 +345,7 @@ dependency ordering:
 | Archive to `.xxx/`, never delete | [0008](docs/adr/0008-archive-to-xxx-not-delete.md) |
 | Defense-in-depth L1–L10 | [0036](docs/adr/0036-defense-in-depth-l1-l10.md) |
 
-See [docs/adr/README.md](docs/adr/README.md) for all 40+ ADRs.
+See [docs/adr/README.md](docs/adr/README.md) for the full ADR index.
 
 ### Source Generators
 
@@ -385,31 +382,31 @@ See [docs/adr/README.md](docs/adr/README.md) for all 40+ ADRs.
 
 ### Test Architecture
 
-**49 test projects** across 7 solution layers + cross-layer test center:
+Test projects across 7 solution layers + cross-layer test center:
 
-| Layer | Count | Location |
-|-------|-------|----------|
-| ① Generators | 2 | `generators/*/tests/` (AotSafety, Fsm.Generator) |
-| ② Foundation | 2 | `foundation/*/tests/Unit/` (AsyncLock, Structura) |
-| ③ Infrastructure | 3 | `tests/Unit/Infra.Tests/{IO,Services,Utils}/` |
-| ④ Core | 20 | `core/*/tests/` (ai, execution, safety, search) |
-| ⑤ Services | 5 | `services/*/tests/Unit/` (Bridge, Dream, Eyes, Mcp, Vision) |
-| ⑥ Composition | 2 | `composition/*/tests/Unit/` (Composition, Clock) |
-| ⑦ App | 2 | `tests/Unit/Host.Tests/`, `tools/*/tests/` |
-| Cross-layer | 13 | `tests/Unit/{Abs,Hands,JoinCodeGui,Tui}.Tests/`, `tests/Integration/`, `tests/MockServers/` |
+| Layer | Location |
+|-------|----------|
+| ① Generators | `generators/*/tests/` |
+| ② Foundation | `foundation/*/tests/Unit/` |
+| ③ Infrastructure | `tests/Unit/Infra.Tests/*/` |
+| ④ Core | `core/*/tests/` |
+| ⑤ Services | `services/*/tests/Unit/` |
+| ⑥ Composition | `composition/*/tests/Unit/` |
+| ⑦ App | `tests/Unit/Host.Tests/`, `tools/*/tests/` |
+| Cross-layer | `tests/Unit/*.Tests/`, `tests/Integration/`, `tests/MockServers/` |
 
 ### CI Pipeline
 
 CI is split into reusable workflows under `.github/workflows/` (PR → `main`):
 
-| Workflow | Jobs | Description |
-|----------|------|-------------|
-| `ci.yml` | 4 | Main entry — calls sub-workflows |
-| `ci-build.yml` | 1 | 7-layer ordered build + component tests + satellite projects |
-| `ci-unit-tests.yml` | 40 (matrix) | Each csproj = 1 independent job, `--filter "Category!=Integration&Category!=Benchmark"` |
-| `ci-integration.yml` | 5 | `Integration.Tests` (64 .cs) + App.slnx filter groups (Brain/Clock, Guard/Vault, Hands/Host/Mcp, PrefixCache) |
-| `ci-e2e.yml` | 14 | MockServer.E2E.Tests + Sync.Integration.Tests + CodeIndex.E2E.Tests + smoke tests |
-| `mutation-testing.yml` | matrix | Stryker.NET, scheduled daily |
+| Workflow | Description |
+|----------|-------------|
+| `ci.yml` | Main entry — calls sub-workflows |
+| `ci-build.yml` | 7-layer ordered build + component tests + satellite projects |
+| `ci-unit-tests.yml` | Each csproj = 1 independent matrix job, `--filter "Category!=Integration&Category!=Benchmark"` |
+| `ci-integration.yml` | `Integration.Tests` + App.slnx filter groups |
+| `ci-e2e.yml` | MockServer.E2E.Tests + Sync.Integration.Tests + CodeIndex.E2E.Tests + smoke tests |
+| `mutation-testing.yml` | Stryker.NET, scheduled daily |
 
 ---
 
@@ -463,7 +460,7 @@ From low to high:
 | [Technical Details](docs/design/technical-details.md) | Fault tolerance / prefix caching / loop intervention / parallel load / serial build |
 | [Small Model Strategy](docs/design/small-model-strategy.md) | Engineering strategies for small model scenarios (synonyms / prohibitions / counterexamples / match) |
 | [Architecture Index](docs/design/architecture-index.md) | Component dependency graph / detail table / internal structure / middleware pipelines / build commands |
-| [Architecture Decision Records](docs/adr/README.md) | 40+ ADRs: *why* choice A over B |
+| [Architecture Decision Records](docs/adr/README.md) | ADRs: *why* choice A over B |
 
 ---
 

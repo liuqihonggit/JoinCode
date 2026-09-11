@@ -15,7 +15,7 @@ public sealed class GuiSessionStore
     public GuiSessionStore(IFileSystem fs, string? sessionsDir = null, ITranscriptService? transcriptService = null)
     {
         _fs = fs;
-        _sessionsDir = sessionsDir ?? WorkflowConstants.Paths.SessionsDirectory;
+        _sessionsDir = sessionsDir ?? AppDataConstants.Paths.SessionsDirectory;
         _transcriptService = transcriptService;
     }
 

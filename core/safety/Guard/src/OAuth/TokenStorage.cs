@@ -152,5 +152,5 @@ public sealed partial class TokenStorage : ServiceEntity, ITokenStorage
         => DirectoryHelper.EnsureDirectoryExists(_fs, _storagePath);
 
     private static string GetDefaultStoragePath()
-        => WorkflowConstants.Paths.TokensDirectory;
+        => AppDataConstants.Paths.TokensDirectory;
 }

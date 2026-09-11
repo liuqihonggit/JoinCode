@@ -152,47 +152,29 @@ public static class WorkflowConstants
         public const int DefaultBridgePort = 3456;
 
         /// <summary>
-        /// 获取 .jcc 目录的完整路径 — 统一使用 UserProfile（~/.jcc/）
-        /// 优先使用 JCC_APP_DATA_FOLDER 环境变量覆盖（测试隔离场景）
-        /// 其次检查 AppDataConstants.AppDataFolder 是否为绝对路径（backing field 覆盖场景）
+        /// 获取 .jcc 目录的完整路径 — 委托到 AppDataConstants.Paths,消除重复定义
         /// </summary>
-        public static string JccDirectory
-        {
-            get
-            {
-                var envDir = Environment.GetEnvironmentVariable(JccEnvVarConstants.AppDataFolder);
-                if (!string.IsNullOrEmpty(envDir) && Path.IsPathRooted(envDir))
-                    return envDir;
-
-                var appDataFolder = AppDataConstants.AppDataFolder;
-                if (Path.IsPathRooted(appDataFolder))
-                    return appDataFolder;
-
-                return Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                    appDataFolder);
-            }
-        }
+        public static string JccDirectory => AppDataConstants.Paths.JccDirectory;
 
         /// <summary>
         /// 获取 auth.json 的完整路径
         /// </summary>
-        public static string AuthFilePath => Path.Combine(JccDirectory, AppDataConstants.AuthFileName);
+        public static string AuthFilePath => AppDataConstants.Paths.AuthFilePath;
 
         /// <summary>
         /// 获取 tokens 目录的完整路径
         /// </summary>
-        public static string TokensDirectory => Path.Combine(JccDirectory, "tokens");
+        public static string TokensDirectory => AppDataConstants.Paths.TokensDirectory;
 
         /// <summary>
         /// 获取 sessions 目录的完整路径 — 存储 /resume 和 --resume/--continue 恢复的会话文件
         /// </summary>
-        public static string SessionsDirectory => Path.Combine(JccDirectory, "sessions");
+        public static string SessionsDirectory => AppDataConstants.Paths.SessionsDirectory;
 
         /// <summary>
         /// 项目级配置目录名（如 .jcc）
         /// </summary>
-        public static string ProjectConfigFolderName => AppDataConstants.AppDataFolder;
+        public static string ProjectConfigFolderName => AppDataConstants.Paths.ProjectConfigFolderName;
 
         /// <summary>
         /// 项目级 worktree 目录名
@@ -202,7 +184,7 @@ public static class WorkflowConstants
         /// <summary>
         /// 项目级本地设置文件相对路径
         /// </summary>
-        public static string LocalSettingsRelativePath => $"{AppDataConstants.AppDataFolder}/settings.local.json";
+        public static string LocalSettingsRelativePath => AppDataConstants.Paths.LocalSettingsRelativePath;
 
         /// <summary>
         /// 获取项目级 worktree 目录的完整路径

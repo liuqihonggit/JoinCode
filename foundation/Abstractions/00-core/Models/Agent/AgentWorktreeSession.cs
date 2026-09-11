@@ -131,7 +131,7 @@ public sealed record WorktreeOptions {
     /// </summary>
     public IReadOnlyList<string>? ConfigFilesToCopy { get; init; } =
     [
-        WorkflowConstants.Paths.LocalSettingsRelativePath
+        AppDataConstants.Paths.LocalSettingsRelativePath
     ];
 
     /// <summary>

@@ -239,4 +239,123 @@ public static class AppDataConstants
         get => _paths.McpAuthFileName;
         set => _paths = _paths with { McpAuthFileName = value };
     }
+
+    // === 完整路径属性（委托到 AppDataPaths 计算属性） ===
+
+    /// <summary>用户级 .jcc 根目录: ~/.jcc/</summary>
+    public static string JccDirectory => _paths.JccDirectory;
+
+    /// <summary>用户级成本跟踪目录: ~/.jcc/costs/</summary>
+    public static string CostsDirectory => _paths.CostsDirectory;
+
+    /// <summary>用户级会话历史目录: ~/.jcc/sessions/</summary>
+    public static string SessionsDirectory => _paths.SessionsDirectory;
+
+    /// <summary>用户级文件编辑历史目录: ~/.jcc/file-history/</summary>
+    public static string FileHistoryDirectory => _paths.FileHistoryDirectory;
+
+    /// <summary>用户级大文本粘贴缓存目录: ~/.jcc/paste-cache/</summary>
+    public static string PasteCacheDirectory => _paths.PasteCacheDirectory;
+
+    /// <summary>用户级 Shell 快照目录: ~/.jcc/shell-snapshots/</summary>
+    public static string ShellSnapshotsDirectory => _paths.ShellSnapshotsDirectory;
+
+    /// <summary>用户级计划文件目录: ~/.jcc/plans/</summary>
+    public static string PlansDirectory => _paths.PlansDirectory;
+
+    /// <summary>用户级任务存储目录: ~/.jcc/tasks/</summary>
+    public static string TasksDirectory => _paths.TasksDirectory;
+
+    /// <summary>用户级团队配置目录: ~/.jcc/teams/</summary>
+    public static string TeamsDirectory => _paths.TeamsDirectory;
+
+    /// <summary>用户级 MCP 配置目录: ~/.jcc/mcp/</summary>
+    public static string McpDirectory => _paths.McpDirectory;
+
+    /// <summary>用户级工具模板目录: ~/.jcc/tool-templates/</summary>
+    public static string ToolTemplatesDirectory => _paths.ToolTemplatesDirectory;
+
+    /// <summary>用户级 Agent 状态目录: ~/.jcc/agents/</summary>
+    public static string AgentsDirectory => _paths.AgentsDirectory;
+
+    /// <summary>用户级源代码克隆目录: ~/.jcc/source/</summary>
+    public static string SourceDirectory => _paths.SourceDirectory;
+
+    /// <summary>用户级关键词配置文件: ~/.jcc/keyword-sections.json</summary>
+    public static string KeywordSectionsFilePath => _paths.KeywordSectionsFilePath;
+
+    /// <summary>用户级 LSP 服务器配置文件: ~/.jcc/lsp-servers.json</summary>
+    public static string LspServersFilePath => _paths.LspServersFilePath;
+
+    /// <summary>用户级 GUI 偏好文件: ~/.jcc/gui-preferences.json</summary>
+    public static string GuiPreferencesFilePath => _paths.GuiPreferencesFilePath;
+
+    /// <summary>用户级引导完成标记文件: ~/.jcc/onboarding_complete.json</summary>
+    public static string OnboardingCompleteFilePath => _paths.OnboardingCompleteFilePath;
+
+    /// <summary>用户级运行时目录: ~/.jcc/runtime/ — 持久性运行日志、崩溃快照等（ADR 0100）</summary>
+    public static string UserRuntimeDirectory => _paths.UserRuntimeDirectory;
+
+    /// <summary>用户级运行时错误日志: ~/.jcc/runtime/jcc_error.log（ADR 0100）</summary>
+    public static string UserRuntimeErrorLogPath => _paths.UserRuntimeErrorLogPath;
+
+    /// <summary>用户级运行时 --await 超时日志: ~/.jcc/runtime/jcc_await_timeout.log（ADR 0100）</summary>
+    public static string UserRuntimeAwaitTimeoutLogPath => _paths.UserRuntimeAwaitTimeoutLogPath;
+
+    /// <summary>用户级运行时崩溃快照目录: ~/.jcc/runtime/crash-dumps/（ADR 0100）</summary>
+    public static string UserRuntimeCrashDumpsDirectory => _paths.UserRuntimeCrashDumpsDirectory;
+
+    /// <summary>用户级运行时工具结果溢出目录: ~/.jcc/runtime/tool-results/（ADR 0100）</summary>
+    public static string UserRuntimeToolResultsDirectory => _paths.UserRuntimeToolResultsDirectory;
+
+    /// <summary>用户级运行时 TUI 诊断目录: ~/.jcc/runtime/jcctui_diag/（ADR 0100）</summary>
+    public static string UserRuntimeJccTuiDiagDirectory => _paths.UserRuntimeJccTuiDiagDirectory;
+
+    /// <summary>用户级运行时剪贴板回退目录: ~/.jcc/runtime/clipboard/（ADR 0100）</summary>
+    public static string UserRuntimeClipboardDirectory => _paths.UserRuntimeClipboardDirectory;
+
+    /// <summary>用户级运行时宏文件目录: ~/.jcc/runtime/macros/（ADR 0100）</summary>
+    public static string UserRuntimeMacrosDirectory => _paths.UserRuntimeMacrosDirectory;
+
+    /// <summary>用户级运行时性能埋点日志: ~/.jcc/runtime/perf.log（ADR 0100）</summary>
+    public static string UserRuntimePerfLogPath => _paths.UserRuntimePerfLogPath;
+
+    /// <summary>用户级遥测分析目录: ~/.jcc/analytics/（ADR 0100）</summary>
+    public static string AnalyticsDirectory => _paths.AnalyticsDirectory;
+
+    /// <summary>项目级转储目录: {cwd}/.jcc/dumps/</summary>
+    public static string DumpsDirectory => _paths.DumpsDirectory;
+
+    /// <summary>项目级 GitHub API 缓存目录: {cwd}/.jcc/gh_cache/</summary>
+    public static string GhCacheDirectory => _paths.GhCacheDirectory;
+
+    /// <summary>项目级反思记忆目录: {cwd}/.jcc/reflexion/</summary>
+    public static string ReflexionDirectory => _paths.ReflexionDirectory;
+
+    /// <summary>项目级诊断目录: {cwd}/.jcc/diag/</summary>
+    public static string DiagDirectory => _paths.DiagDirectory;
+
+    /// <summary>项目级团队记忆目录: {cwd}/.jcc/memory/</summary>
+    public static string MemoryDirectory => _paths.MemoryDirectory;
+
+    /// <summary>项目级 TODO 目录: {cwd}/.jcc/todo/</summary>
+    public static string TodoDirectory => _paths.TodoDirectory;
+
+    /// <summary>项目级模式目录: {cwd}/.jcc/mode/</summary>
+    public static string ModeDirectory => _paths.ModeDirectory;
+
+    /// <summary>项目级权限规则目录: {cwd}/.jcc/permission/</summary>
+    public static string PermissionDirectory => _paths.PermissionDirectory;
+
+    /// <summary>项目级结构化输出目录: {cwd}/.jcc/structured-output/</summary>
+    public static string StructuredOutputDirectory => _paths.StructuredOutputDirectory;
+
+    /// <summary>项目级代码索引目录: {cwd}/.jcc/code-index/</summary>
+    public static string CodeIndexDirectory => _paths.CodeIndexDirectory;
+
+    /// <summary>项目级 worktree 目录: {cwd}/.jcc/worktrees/</summary>
+    public static string WorktreesDirectory => _paths.WorktreesDirectory;
+
+    /// <summary>exe级 native DLL 目录: {AppContext.BaseDirectory}/runtime/</summary>
+    public static string RuntimeDirectory => _paths.RuntimeDirectory;
 }

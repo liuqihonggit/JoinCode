@@ -82,6 +82,6 @@ public sealed partial class BinaryContentStorage : ServiceEntity, IBinaryContent
     {
         var sessionId = SubAgentContext.Current?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;
         var safeId = sessionId.Replace('/', '_').Replace('\\', '_');
-        return Path.Combine(WorkflowConstants.Paths.SessionsDirectory, safeId, AppDataConstants.ToolResultsFolderName);
+        return Path.Combine(AppDataConstants.Paths.SessionsDirectory, safeId, AppDataConstants.ToolResultsFolderName);
     }
 }

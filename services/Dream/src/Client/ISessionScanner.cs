@@ -47,7 +47,7 @@ public sealed partial class DefaultSessionScanner : ServiceEntity, ISessionScann
 
         try
         {
-            var sessionsDir = Path.Combine(_projectDir, AppDataConstants.AppDataFolder, "sessions");
+            var sessionsDir = AppDataConstants.Paths.SessionsDirectory;
             if (!_fs.DirectoryExists(sessionsDir))
             {
                 return Task.FromResult<IReadOnlyList<string>>(sessions);

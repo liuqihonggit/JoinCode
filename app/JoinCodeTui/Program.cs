@@ -42,7 +42,7 @@ internal static class Program
     {
         try
         {
-            var dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "jcctui_diag");
+            var dir = AppDataConstants.UserRuntimeJccTuiDiagDirectory;
             System.IO.Directory.CreateDirectory(dir);
             SafeFileIO.AppendAllText(
                 System.IO.Path.Combine(dir, "run.log"),

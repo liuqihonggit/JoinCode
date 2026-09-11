@@ -6,7 +6,7 @@ namespace JoinCode.Entry.Tests;
 /// </summary>
 public class SessionResumeStepTests
 {
-    private static readonly string SessionsDir = WorkflowConstants.Paths.SessionsDirectory;
+    private static readonly string SessionsDir = AppDataConstants.Paths.SessionsDirectory;
 
     private static StartupContext CreateContext(CommandLineOptions options, IFileSystem fs)
     {

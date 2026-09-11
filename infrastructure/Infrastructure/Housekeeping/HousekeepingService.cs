@@ -24,7 +24,7 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
     private readonly IEntityReaper? _entityReaper;
     private readonly ILogger<HousekeepingService>? _logger;
 
-    private static readonly string JccDir = WorkflowConstants.Paths.JccDirectory;
+    private static readonly string JccDir = AppDataConstants.Paths.JccDirectory;
 
     public async Task<int> RunAllCleanupAsync(string currentSessionId = "", CancellationToken cancellationToken = default)
     {
@@ -61,7 +61,7 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
     /// </summary>
     public int CleanupOldSessionFiles(int maxAgeDays = 30)
     {
-        var sessionsDir = Path.Combine(JccDir, AppDataConstants.SessionsFolderName);
+        var sessionsDir = AppDataConstants.Paths.SessionsDirectory;
 
         var total = CleanupFilesInDirectory(
             sessionsDir,
@@ -110,7 +110,7 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
     public int CleanupOldFileHistoryBackups(int maxAgeDays = 30)
     {
         return CleanupDirectoryChildren(
-            Path.Combine(JccDir, AppDataConstants.FileHistoryFolderName),
+            AppDataConstants.Paths.FileHistoryDirectory,
             maxAgeDays);
     }
 
@@ -447,7 +447,7 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
     /// </summary>
     public int CleanupOldPastes(int maxAgeDays = 30)
     {
-        var pasteCacheDir = Path.Combine(JccDir, "paste-cache");
+        var pasteCacheDir = AppDataConstants.Paths.PasteCacheDirectory;
 
         if (!_fs.DirectoryExists(pasteCacheDir)) return 0;
 

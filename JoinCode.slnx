@@ -98,8 +98,8 @@
     <Project Path="tests/Unit/JoinCodeGui.Tests/JoinCodeGui.Tests.csproj" />
     <Project Path="tests/Unit/Hands.Tests/Hands.Tests.csproj" />
     <Project Path="tests/Unit/Abs.Tests/Abs.Tests.csproj" />
-    <Project Path="tests/Unit/Mcp.Tests/Mcp.Tests.csproj" />
-    <Project Path="tests/Unit/McpToolDispatch.Tests/McpToolDispatch.Tests.csproj" />
+    <Project Path="tests/Unit/Mcp.Tests/Mcp.UniqueTests.csproj" />
+    <Project Path="tests/Unit/McpToolDispatch.Tests/McpToolDispatch.UniqueTests.csproj" />
   </Folder>
   <Folder Name="/tests/Integration/">
     <Project Path="tests/Integration/Integration.Tests/Integration.Tests.csproj" />

@@ -182,10 +182,7 @@ public sealed partial class LspConfigLoader : ServiceEntity, ILspConfigLoader
     /// <inheritdoc />
     public string GetDefaultConfigPath()
     {
-        return Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            AppDataConstants.AppDataFolder,
-            "lsp-servers.json");
+        return AppDataConstants.Paths.LspServersFilePath;
     }
 
     /// <summary>

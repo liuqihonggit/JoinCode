@@ -17,10 +17,7 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
     {
         _fs = fs;
         _logger = logger;
-        _templatesDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".jcc",
-            "tool-templates");
+        _templatesDir = AppDataConstants.Paths.ToolTemplatesDirectory;
 
         EnsureTemplatesDir();
         _ = LoadTemplatesAsync(_disposeCts.Token);

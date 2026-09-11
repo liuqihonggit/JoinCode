@@ -10,7 +10,7 @@ namespace JoinCode.ChatCommands;
 [ChatCommand(Name = ChatCommandNameConstants.Login, Description = "登录到 AI 服务", Usage = "/login [provider] [--oauth]", Category = ChatCommandCategory.Auth)]
 public sealed class LoginCommand : ChatCommandBase
 {
-    private static readonly string AuthPath = WorkflowConstants.Paths.AuthFilePath;
+    private static readonly string AuthPath = AppDataConstants.Paths.AuthFilePath;
 
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {

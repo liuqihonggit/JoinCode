@@ -102,9 +102,9 @@ jobs:
           - name: HandsGoal
             csproj: tests/Unit/Hands.Tests/Hands.Tests.csproj
           - name: McpIntervention
-            csproj: tests/Unit/Mcp.Tests/Mcp.Tests.csproj
+            csproj: tests/Unit/Mcp.Tests/Mcp.UniqueTests.csproj
           - name: McpToolDispatchHealth
-            csproj: tests/Unit/McpToolDispatch.Tests/McpToolDispatch.Tests.csproj
+            csproj: tests/Unit/McpToolDispatch.Tests/McpToolDispatch.UniqueTests.csproj
           # MockServer
           - name: MockServerCore
             csproj: tests/MockServers/MockServer.Core.Tests/MockServer.Core.Tests.csproj

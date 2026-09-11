@@ -13,7 +13,7 @@ public sealed class GuiPreferencesStore
     public GuiPreferencesStore(IFileSystem fs, string? filePath = null)
     {
         _fs = fs;
-        _filePath = filePath ?? _fs.CombinePath(WorkflowConstants.Paths.JccDirectory, "gui-preferences.json");
+        _filePath = filePath ?? AppDataConstants.Paths.GuiPreferencesFilePath;
     }
 
     /// <summary>偏好文件完整路径</summary>

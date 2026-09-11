@@ -19,7 +19,7 @@ public sealed class FeedbackCommand : ChatCommandBase
             return ChatCommandResult.Continue();
         }
 
-        var appDataPath = WorkflowConstants.Paths.JccDirectory;
+        var appDataPath = AppDataConstants.Paths.JccDirectory;
         var feedbackDir = Path.Combine(appDataPath, "feedback");
         var fs = context.GetCommandServices().FileSystem;
         DirectoryHelper.EnsureDirectoryExists(fs, feedbackDir);

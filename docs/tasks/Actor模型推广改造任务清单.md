@@ -186,9 +186,9 @@ Timer 周期任务 → Actor 周期自消息；AsyncLock → 消除；状态 →
 - [ ] InProcessMailbox — **跳过：ConcurrentDictionary 是路由表**
 - [ ] AnalyticsFileSink — **跳过：批量+定时 flush 模式**
 - [x] BuildQueueService — 拆分为 3 小类: CrossProcessBuildLock+SourceFingerprintCache(消除AsyncLock)+BuildResultBuffer
-- [ ] DoctorTcpServer
-- [ ] AgentOutputChannelManager — **跳过：Channel+ConcurrentDictionary+volatile 使用合理**
-- [ ] InProcessTeammateTask
+- [ ] DoctorTcpServer — **跳过：锁极短+瓶颈在 TCP I/O，AsyncLock 已最优**
+- [ ] AgentOutputChannelManager — **跳过：Channel+ConcurrentDictionary+volatile 已线程安全，无锁可消除**
+- [x] InProcessTeammateTask — 拆分为 2 小类: TeammateLoopRunner(循环逻辑)+TeammateCleanupHelper(清理逻辑), 主类 ActorBase 消除 AsyncLock
 - [ ] GoalConflictMessenger — **跳过：ConcurrentDictionary<string,Channel> 路由表**
 
 ### 阶段 4：P3 AsyncLock 复杂状态
@@ -198,7 +198,7 @@ Timer 周期任务 → Actor 周期自消息；AsyncLock → 消除；状态 →
 
 ### 不改：P5 volatile 快照 + 不适合（纯限流/CAS/Dispose）
 
-## 六、已完成改造汇总（16 个）
+## 六、已完成改造汇总（19 个）
 
 | # | 类名 | 原机制 | 改造内容 | commit |
 |---|------|--------|----------|--------|
@@ -216,9 +216,19 @@ Timer 周期任务 → Actor 周期自消息；AsyncLock → 消除；状态 →
 | 12 | UsdBudgetManager | AsyncLock | ActorBase+TCS, 所有方法已async | 6c19d2ab3 |
 | 13 | BridgeTokenRefreshScheduler | AsyncLock+Dict<string,Timer> | ActorBase+Consumer独占三个字典+Timer→TrySend+TCS | 58b949cd3 |
 | 14 | RemoteCacheRefreshServiceBase | AsyncLock+Timer+ConcurrentDict | ActorBase+volatile ticks, _cache 保留 ConcurrentDictionary | 71ed932ae |
-| 15 | TeamMemorySyncService | AsyncLock+Timer+文件监听 | ActorBase+TrySend 命令, ServiceEntity 改 ActorBase | f3857b06b |
-| 16a | SystemActuatorCommandContext | 3×Timer+进程管理 | 拆分4小类: ProcessOutputCollector+CwdTracker+OutputPersister+ProcessKillHelper | 3b39b4baa |
-| 16b | BuildQueueService | Channel+3×ConcurrentDict+AsyncLock+跨进程锁 | 拆分3小类: CrossProcessBuildLock+SourceFingerprintCache(消除AsyncLock)+BuildResultBuffer | 5ffe5d3e3 |
+| 15 | TeamMemorySyncService | AsyncLock+Timer+文件监听 | 拆分4小类+ActorBase, 757→280行 | 54130d27d |
+| 16 | SystemActuatorCommandContext | 3×Timer+进程管理 | 拆分4小类: ProcessOutputCollector+CwdTracker+OutputPersister+ProcessKillHelper, 579→280行 | 3b39b4baa |
+| 17 | BuildQueueService | Channel+3×ConcurrentDict+AsyncLock+跨进程锁 | 拆分3小类: CrossProcessBuildLock+SourceFingerprintCache+BuildResultBuffer, 676→300行 | 5ffe5d3e3 |
+| 18 | InProcessTeammateTaskExecutor | AsyncLock+ConcurrentDict×2 | 拆分2小类: TeammateLoopRunner+TeammateCleanupHelper, ActorBase+7命令+读操作直接读, 944→680行 | c0d503f79 |
+
+## 七、评估后跳过的候选（4 个）
+
+| 类名 | 原因 |
+|------|------|
+| UnifiedCircuitBreaker | 锁持有极短(纯内存操作)+属性频繁同步读取+无定时器，AsyncLock 已最优 |
+| AgentOutputChannelManager | 无锁可消除（Channel+ConcurrentDictionary+volatile 已线程安全） |
+| DoctorTcpServer | 锁持有极短(Dictionary操作)+瓶颈在 TCP I/O 而非锁竞争 |
+| InProcessMailbox/GoalConflictMessenger | ConcurrentDictionary 路由表模式，Channel 已线程安全 |
 
 ## 六、规模估算
 
@@ -237,3 +247,15 @@ Timer 周期任务 → Actor 周期自消息；AsyncLock → 消除；状态 →
 <!-- 原因: 80 个候选改造需要类型安全的"发消息不关心具体 Actor 类型"能力；P1 StateMachine 是通用基类改一处全局受益 -->
 <!-- 替代方案: 直接从 P0 ToolHealthMonitor 开始（放弃: 缺少 IActor 接口会导致大规模改造时调用方类型不安全）-->
 <!-- 验证: 待基建完成后编译验证 -->
+
+<!-- Auto Decision: 2026-09-12 -->
+<!-- 决策: UnifiedCircuitBreaker/AgentOutputChannelManager/DoctorTcpServer 跳过 Actor 改造 -->
+<!-- 原因: 锁持有时间极短或无锁可消除，改 Actor 增加复杂度但收益为零 -->
+<!-- 替代方案: 保持 AsyncLock/ConcurrentDictionary 现有实现 -->
+<!-- 验证: 编译通过，282 个 Scheduling 测试全部通过 -->
+
+<!-- Auto Decision: 2026-09-12 -->
+<!-- 决策: InProcessTeammateTaskExecutor 拆分 2 小类再改 Actor -->
+<!-- 原因: 944 行大类，先提取 TeammateLoopRunner(循环逻辑)+TeammateCleanupHelper(清理逻辑)，主类 680 行改 Actor -->
+<!-- 替代方案: 直接改 Actor（放弃: 违反 400+行先拆小类规则）-->
+<!-- 验证: 编译通过，282 个 Scheduling 测试全部通过 ✅ -->

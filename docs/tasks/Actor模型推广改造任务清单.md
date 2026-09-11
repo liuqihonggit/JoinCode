@@ -198,7 +198,7 @@ Timer 周期任务 → Actor 周期自消息；AsyncLock → 消除；状态 →
 
 ### 不改：P5 volatile 快照 + 不适合（纯限流/CAS/Dispose）
 
-## 六、已完成改造汇总（19 个）
+## 六、已完成改造汇总（22 个）
 
 | # | 类名 | 原机制 | 改造内容 | commit |
 |---|------|--------|----------|--------|
@@ -220,6 +220,9 @@ Timer 周期任务 → Actor 周期自消息；AsyncLock → 消除；状态 →
 | 16 | SystemActuatorCommandContext | 3×Timer+进程管理 | 拆分4小类: ProcessOutputCollector+CwdTracker+OutputPersister+ProcessKillHelper, 579→280行 | 3b39b4baa |
 | 17 | BuildQueueService | Channel+3×ConcurrentDict+AsyncLock+跨进程锁 | 拆分3小类: CrossProcessBuildLock+SourceFingerprintCache+BuildResultBuffer, 676→300行 | 5ffe5d3e3 |
 | 18 | InProcessTeammateTaskExecutor | AsyncLock+ConcurrentDict×2 | 拆分2小类: TeammateLoopRunner+TeammateCleanupHelper, ActorBase+7命令+读操作直接读, 944→680行 | c0d503f79 |
+| 19 | VoiceService | AsyncLock(锁内网络调用) | ActorBase+3命令(Start/Stop/WriteAudio)+volatile int, 消除 RecordLoop 跨线程锁竞争 | 723b70bda |
+| 20 | FileCronTaskStore | AsyncLock(锁内文件I/O) | ActorBase+6命令, 文件I/O由Consumer串行执行, 修正注释与实现不符 | d479830d8 |
+| 21 | EnvironmentProbeService | AsyncLock(锁内进程启动) | ActorBase+1命令(ProbeEnv), 7进程探测由Consumer串行执行不再阻塞35s | fac56c9c8 |
 
 ## 七、评估后跳过的候选（4 个）
 

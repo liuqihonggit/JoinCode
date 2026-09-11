@@ -8,6 +8,11 @@ public static class ErrorConsole
 {
     private static readonly object Lock = new();
 
+    /// <summary>
+    /// 静默模式标志 — --quiet / -q 设置，抑制 Warning 和 Info 输出（Fatal/ApiError/StructuredError 仍显示）
+    /// </summary>
+    public static bool IsQuiet { get; set; }
+
     /// <summary>渲染致命错误（红色标题 + 消息 + 堆栈）</summary>
     public static void Fatal(string message, Exception? ex = null)
     {
@@ -36,9 +41,10 @@ public static class ErrorConsole
         }
     }
 
-    /// <summary>渲染警告（黄色标题 + 消息）</summary>
+    /// <summary>渲染警告（黄色标题 + 消息）— 静默模式下抑制</summary>
     public static void Warning(string message)
     {
+        if (IsQuiet) return;
         lock (Lock)
         {
             Colored("  ⚠ 警告: ", System.ConsoleColor.Yellow);
@@ -66,9 +72,10 @@ public static class ErrorConsole
         }
     }
 
-    /// <summary>渲染信息提示（灰色）</summary>
+    /// <summary>渲染信息提示（灰色）— 静默模式下抑制</summary>
     public static void Info(string message)
     {
+        if (IsQuiet) return;
         lock (Lock)
         {
             Colored("  ℹ ", System.ConsoleColor.DarkGray);

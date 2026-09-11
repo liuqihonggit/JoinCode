@@ -40,6 +40,12 @@ class Program
             App.ErrorConsole.Warning(enumError);
             return (int)ExitCode.ArgumentParseError;
         }
+
+        // --quiet / -q: 静默模式 — 抑制 Warning 和 Info 输出(BUG#3)
+        var isQuiet = Array.IndexOf(args, "--quiet") >= 0 || Array.IndexOf(args, "-q") >= 0;
+        App.ErrorConsole.IsQuiet = isQuiet;
+        if (isQuiet)
+            Environment.SetEnvironmentVariable("JCC_LOG_LEVEL", "Error");
         using var earlyAwaitTimer = StartEarlyAwaitTimer(args);
 
         Cli.TerminalHelper.Init();

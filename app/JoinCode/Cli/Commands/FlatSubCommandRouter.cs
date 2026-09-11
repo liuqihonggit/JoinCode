@@ -82,7 +82,8 @@ internal static class FlatSubCommandRouter
     {
         var category = GetOptionValue(args, CliArgConstants.CategoryLongName);
         var json = ShouldOutputJson(args);
-        return await McpCliCommand.ExecuteListAsync(category, json, ct).ConfigureAwait(false);
+        var brief = HasFlag(args, CliArgConstants.BriefLongName);
+        return await McpCliCommand.ExecuteListAsync(category, json, brief, ct).ConfigureAwait(false);
     }
 
     private static async Task<int?> ExecuteMcpSchemaAsync(string[] args, CancellationToken ct)
@@ -94,7 +95,8 @@ internal static class FlatSubCommandRouter
             return 1;
         }
         var json = ShouldOutputJson(args);
-        return await McpCliCommand.ExecuteSchemaAsync(toolName!, json, ct).ConfigureAwait(false);
+        var brief = HasFlag(args, CliArgConstants.BriefLongName);
+        return await McpCliCommand.ExecuteSchemaAsync(toolName!, json, brief, ct).ConfigureAwait(false);
     }
 
     private static async Task<int?> ExecuteMcpSearchAsync(string[] args, CancellationToken ct)
@@ -106,7 +108,8 @@ internal static class FlatSubCommandRouter
             return 1;
         }
         var json = ShouldOutputJson(args);
-        return await McpCliCommand.ExecuteSearchAsync(query!, json, ct).ConfigureAwait(false);
+        var brief = HasFlag(args, CliArgConstants.BriefLongName);
+        return await McpCliCommand.ExecuteSearchAsync(query!, json, brief, ct).ConfigureAwait(false);
     }
 
     private static async Task<int?> ExecuteMcpServeAsync(string[] args, CancellationToken ct)

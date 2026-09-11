@@ -228,15 +228,15 @@ internal static class FlatSubCommandRouter
         => Array.IndexOf(args, flagName) >= 0;
 
     /// <summary>
-    /// 统一判断是否输出 JSON — 检查 --json 标志或 --format json 值(别名展开对子命令路径生效)。
-    /// <para>ADR 0069 决策6: --json 是 --format json 的别名,子命令路径绕过 CliArgParser.Parse,
-    /// 需在此显式展开别名,否则 --format json 在子命令上不生效。</para>
+    /// 统一判断是否输出 JSON — 默认 JSON 输出,--format text 显式请求彩色文本。
+    /// <para>ADR 0069 决策6 + 统一返回结构: 所有子命令默认输出 JSON(结构化),
+    /// --format text 显式请求彩色文本,--json 保持作为别名(默认即 JSON)。</para>
     /// </summary>
     internal static bool ShouldOutputJson(string[] args)
     {
-        if (HasFlag(args, CliArgConstants.JsonLongName))
-            return true;
         var formatValue = GetOptionValue(args, CliArgConstants.FormatLongName);
-        return string.Equals(formatValue, "json", StringComparison.OrdinalIgnoreCase);
+        if (string.Equals(formatValue, "text", StringComparison.OrdinalIgnoreCase))
+            return false;
+        return true;
     }
 }

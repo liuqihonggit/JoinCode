@@ -1,16 +1,18 @@
 namespace Core.Skills.Discovery;
 
+/// <summary>
+/// 技能发现服务 Actor — 基于 FileWatcherActorBase,监控技能目录变更触发技能重新加载。
+/// <para>对齐 ADR 0101: 消除 _watcher/_isDisposed 手动管理,Actor Consumer 串行化文件变更处理。</para>
+/// <para>死循环防护: MarkInternalWrite 继承基类,通过 Actor 邮箱串行化,无窗口竞态。</para>
+/// </summary>
 [Register(typeof(ISkillDiscoveryService), ServiceLifetime.Singleton)]
-public sealed partial class SkillDiscoveryService : ServiceEntity, ISkillDiscoveryService
+public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkillDiscoveryService
 {
     private readonly SkillDiscoveryOptions _options;
     private readonly IFileOperationService _files;
-    private readonly IFileSystem _fs;
     private readonly ILogger<SkillDiscoveryService>? _logger;
     private readonly ConcurrentDictionary<string, DiscoveredSkill> _discoveredSkills;
     private readonly AsyncLock _discoveryLock = new();
-    private IFileSystemWatcher? _watcher;
-    private bool _isDisposed;
 
     public event EventHandler<SkillDiscoveredEventArgs>? SkillDiscovered;
     public event EventHandler<SkillChangedEventArgs>? SkillChanged;
@@ -21,13 +23,12 @@ public sealed partial class SkillDiscoveryService : ServiceEntity, ISkillDiscove
         IFileOperationService files,
         IFileSystem fs,
         ILogger<SkillDiscoveryService>? logger = null)
+        : base(fs, 1000)
     {
         _options = options;
         _files = files;
-        _fs = fs;
         _logger = logger;
         _discoveredSkills = new ConcurrentDictionary<string, DiscoveredSkill>(StringComparer.OrdinalIgnoreCase);
-
     }
 
     public async Task<IReadOnlyList<DiscoveredSkill>> DiscoverAsync(CancellationToken cancellationToken = default)
@@ -67,7 +68,6 @@ public sealed partial class SkillDiscoveryService : ServiceEntity, ISkillDiscove
 
         _logger?.LogInformation(L.T(StringKey.SkillDiscoveryFoundCount), results.Count);
         return results;
-    
     }
 
     public async Task<DiscoveredSkill?> LoadSkillAsync(string skillName, CancellationToken cancellationToken = default)
@@ -155,9 +155,10 @@ public sealed partial class SkillDiscoveryService : ServiceEntity, ISkillDiscove
                 : SkillValidationResult.Failure(filePath, [L.T(StringKey.SkillDiscoveryUnsupportedExtension, extension)], warnings);
     }
 
+    /// <summary>启动技能目录监控 — 投递 FileWatcherStartCmd 到 Actor 邮箱</summary>
     public Task StartWatchingAsync(CancellationToken cancellationToken = default)
     {
-        if (!_options.EnableFileWatching || _watcher != null)
+        if (!_options.EnableFileWatching)
         {
             return Task.CompletedTask;
         }
@@ -167,44 +168,62 @@ public sealed partial class SkillDiscoveryService : ServiceEntity, ISkillDiscove
             _files.CreateDirectory(_options.SkillsDirectory);
         }
 
-        _watcher = _fs.Watch(_options.SkillsDirectory);
-        _watcher.IncludeSubdirectories = true;
-        _watcher.NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.DirectoryName;
-        _watcher.Filter = "*.*";
-
-        _watcher.DebouncedCreated += OnFileChanged;
-        _watcher.DebouncedChanged += OnFileChanged;
-        _watcher.DebouncedDeleted += OnFileDeleted;
-        _watcher.DebouncedRenamed += OnFileRenamed;
-
-        _watcher.EnableRaisingEvents = true;
+        TrySend(new FileWatcherStartCmd(
+            _options.SkillsDirectory, "*.*", TimeSpan.FromMilliseconds(500),
+            IncludeSubdirectories: true,
+            NotifyFilter: NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.DirectoryName
+        ));
 
         _logger?.LogInformation("[SkillDiscovery] 开始监视技能目录: {Dir}", _options.SkillsDirectory);
 
         return Task.CompletedTask;
     }
 
+    /// <summary>停止技能目录监控 — 投递 FileWatcherStopCmd 到 Actor 邮箱</summary>
     public void StopWatching()
+        => TrySend(new FileWatcherStopCmd());
+
+    /// <summary>文件变更处理 — 由 Actor Consumer 串行调用,过滤技能文件后处理变更/删除</summary>
+    protected override async ValueTask HandleFileChangedAsync(string filePath, WatcherChangeTypes kind, DateTimeOffset timestamp, CancellationToken ct)
     {
-        // P1-11: 移除死代码 — 之前 _watcher?.Dispose() 和 _watcher = null 在 if 块后永不执行有效操作
-        if (_watcher != null)
+        if (!IsSkillFile(filePath)) return;
+
+        if (kind == WatcherChangeTypes.Deleted)
         {
-            _watcher.EnableRaisingEvents = false;
-            _watcher.Dispose();
-            _watcher = null;
+            HandleFileDeleted(filePath);
+            return;
         }
 
-        _logger?.LogInformation("[SkillDiscovery] 停止监视技能目录");
+        await ProcessFileChangeAsync(filePath, ct).ConfigureAwait(false);
     }
 
-    protected override void OnDispose()
+    /// <summary>文件重命名处理 — 旧路径按删除处理,新路径按变更处理</summary>
+    protected override async ValueTask HandleFileRenamedAsync(string oldPath, string newPath, DateTimeOffset timestamp, CancellationToken ct)
     {
-        if (!_isDisposed)
-        {
-            _isDisposed = true;
-            StopWatching();
-            _discoveryLock.Dispose();
-        }
+        if (IsSkillFile(oldPath))
+            HandleFileDeleted(oldPath);
+        if (IsSkillFile(newPath))
+            await ProcessFileChangeAsync(newPath, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>同步释放 — IDisposable 接口实现,委托给 DisposeAsync</summary>
+    public void Dispose()
+    {
+        DisposeAsync().AsTask().GetAwaiter().GetResult();
+        _discoveryLock.Dispose();
+    }
+
+    /// <summary>异步释放 — 先停 watcher(基类),再释放 discoveryLock</summary>
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync().ConfigureAwait(false);
+        _discoveryLock.Dispose();
+    }
+
+    private static bool IsSkillFile(string filePath)
+    {
+        var extension = Path.GetExtension(filePath).ToLowerInvariant();
+        return extension == ".json" || filePath.EndsWith("SKILL.md", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task<DiscoveredSkill?> LoadAndValidateFileAsync(string filePath, CancellationToken cancellationToken)
@@ -367,25 +386,11 @@ public sealed partial class SkillDiscoveryService : ServiceEntity, ISkillDiscove
         }
     }
 
-    private void OnFileChanged(object? sender, FileChangedEventArgs e)
-    {
-        var extension = Path.GetExtension(e.FullPath).ToLowerInvariant();
-        if (extension != ".json" && !e.FullPath.EndsWith("SKILL.md", StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
-        // P1-11: 添加异常观察，避免 fire-and-forget 触发 UnobservedTaskException
-        _ = ProcessFileChangeAsync(e.FullPath).ContinueWith(
-            t => _logger?.LogError(t.Exception, "[SkillDiscovery] OnFileChanged 未观察异常: {Path}", e.FullPath),
-            TaskContinuationOptions.OnlyOnFaulted);
-    }
-
-    private async Task ProcessFileChangeAsync(string filePath)
+    private async Task ProcessFileChangeAsync(string filePath, CancellationToken ct)
     {
         try
         {
-            var skill = await LoadAndValidateFileAsync(filePath, CancellationToken.None).ConfigureAwait(false);
+            var skill = await LoadAndValidateFileAsync(filePath, ct).ConfigureAwait(false);
             if (skill != null)
             {
                 var wasExisting = _discoveredSkills.ContainsKey(skill.Name);
@@ -409,10 +414,10 @@ public sealed partial class SkillDiscoveryService : ServiceEntity, ISkillDiscove
         }
     }
 
-    private void OnFileDeleted(object? sender, FileChangedEventArgs e)
+    private void HandleFileDeleted(string filePath)
     {
         var removedSkills = _discoveredSkills
-            .Where(kvp => kvp.Value.SourcePath.Equals(e.FullPath, StringComparison.OrdinalIgnoreCase))
+            .Where(kvp => kvp.Value.SourcePath.Equals(filePath, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
         foreach (var (name, skill) in removedSkills)
@@ -421,22 +426,5 @@ public sealed partial class SkillDiscoveryService : ServiceEntity, ISkillDiscove
             SkillRemoved?.Invoke(this, new SkillRemovedEventArgs { SkillName = name, SourcePath = skill.SourcePath });
             _logger?.LogInformation("[SkillDiscovery] 技能已移除: {Name}", name);
         }
-    }
-
-    private void OnFileRenamed(object? sender, FileRenamedEventArgs e)
-    {
-        OnFileDeleted(sender, new FileChangedEventArgs
-        {
-            ChangeType = WatcherChangeTypes.Deleted,
-            FullPath = e.OldFullPath,
-            Name = Path.GetFileName(e.OldFullPath)
-        });
-
-        OnFileChanged(sender, new FileChangedEventArgs
-        {
-            ChangeType = WatcherChangeTypes.Created,
-            FullPath = e.FullPath,
-            Name = Path.GetFileName(e.FullPath)
-        });
     }
 }

@@ -152,13 +152,13 @@ jobs:
           DOTNET_EnableDiagnostics: 0
         run: |
           $projectMap = @{
-            'Guard-Config'         = @{ Dir = '01_shared\shared_guard\tests\Config';   Src = 'Guard.csproj';           Mutate = @('Configuration/**','DependencyInjection/**','Policy/**','OAuth/**') }
-            'Guard-Security-Services'   = @{ Dir = '01_shared\shared_guard\tests\Security'; Src = 'Guard.csproj'; Mutate = @('Security/Services/**') }
-            'Guard-Security-PowerShell' = @{ Dir = '01_shared\shared_guard\tests\Security'; Src = 'Guard.csproj'; Mutate = @('Security/PowerShell/**') }
-            'Guard-Security-Other'      = @{ Dir = '01_shared\shared_guard\tests\Security'; Src = 'Guard.csproj'; Mutate = @('Security/DangerClassification/**','Security/Sandbox/**','Security/Shell/**','Security/Scanners/**','Security/Interceptors/**','Security/Constants/**') }
-            'Guard-Hooks'          = @{ Dir = '01_shared\shared_guard\tests\Hooks';    Src = 'Guard.csproj';           Mutate = @('Hooks/**','Permission/**') }
-            'Vault-Memdir'         = @{ Dir = '01_shared\shared_vault\tests\Memdir';   Src = 'Vault.csproj';           Mutate = @('Memdir/**') }
-            'Vault-Other'          = @{ Dir = '01_shared\shared_vault\tests\Other';    Src = 'Vault.csproj';           Mutate = @('State/**','Todo/**','UserInteraction/**','StepEvidence/**','Notification/**','DependencyInjection/**') }
+            'Guard-Config'         = @{ Dir = 'lib\guard.config.tests';   Src = 'Guard.csproj';           Mutate = @('Configuration/**','DependencyInjection/**','Policy/**','OAuth/**') }
+            'Guard-Security-Services'   = @{ Dir = 'lib\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('Security/Services/**') }
+            'Guard-Security-PowerShell' = @{ Dir = 'lib\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('Security/PowerShell/**') }
+            'Guard-Security-Other'      = @{ Dir = 'lib\guard.security.tests'; Src = 'Guard.csproj'; Mutate = @('Security/DangerClassification/**','Security/Sandbox/**','Security/Shell/**','Security/Scanners/**','Security/Interceptors/**','Security/Constants/**') }
+            'Guard-Hooks'          = @{ Dir = 'lib\guard.hooks.tests';    Src = 'Guard.csproj';           Mutate = @('Hooks/**','Permission/**') }
+            'Vault-Memdir'         = @{ Dir = 'lib\vault.memdir.tests';   Src = 'Vault.csproj';           Mutate = @('Memdir/**') }
+            'Vault-Other'          = @{ Dir = 'lib\vault.other.tests';    Src = 'Vault.csproj';           Mutate = @('State/**','Todo/**','UserInteraction/**','StepEvidence/**','Notification/**','DependencyInjection/**') }
             'Brain-CtxAdmin'       = @{ Dir = 'kit\brain.context.tests'; Src = 'Brain.csproj';         Mutate = @('Context/Services/Admin/**') }
             'Brain-CtxChat'        = @{ Dir = 'kit\brain.context.tests'; Src = 'Brain.csproj';         Mutate = @('Context/Services/Chat/**','Context/Services/ChatInit/**') }
             'Brain-CtxOther'       = @{ Dir = 'kit\brain.context.tests'; Src = 'Brain.csproj';         Mutate = @('Context/Services/Preprocess/**','Context/Services/Context/**','Context/Services/Processor/**','Context/Services/Prompt/**','Context/Services/Idle/**','Context/Services/Loop/**') }

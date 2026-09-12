@@ -1,4 +1,5 @@
 global using Core.Utils;
+global using IO.FileSystem;
 global using System.Collections.Frozen;
 global using System.Diagnostics.CodeAnalysis;
 global using System.Text.RegularExpressions;

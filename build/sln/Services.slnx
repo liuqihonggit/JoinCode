@@ -1,7 +1,7 @@
 <Solution>
   <Folder Name="/services/">
-    <Project Path="../../04_mcp_service/src/Mcp.csproj" />
-    <Project Path="../../04_mcp_service/tests/unit/Mcp.Tests.csproj" />
+    <Project Path="../../kit/mcp/Mcp.csproj" />
+    <Project Path="../../kit/mcp.tests/Mcp.Tests.csproj" />
     <Project Path="../../05_server_dream/src/Dream.csproj" />
     <Project Path="../../05_server_dream/tests/unit/Dream.Tests.csproj" />
     <Project Path="../../05_server_eyes/src/Eyes.csproj" />

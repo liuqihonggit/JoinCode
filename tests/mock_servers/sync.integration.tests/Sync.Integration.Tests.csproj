@@ -8,8 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)08_composition/src/Composition.csproj" />
-    <ProjectReference Include="$(RepoRoot)08_pipelines/src/Pipelines.csproj" />
+    <ProjectReference Include="$(RepoRoot)kit/composition/Composition.csproj" />
+    <ProjectReference Include="$(RepoRoot)kit/pipelines/Pipelines.csproj" />
     <ProjectReference Include="$(RepoRoot)05_server_dream/src/Dream.csproj" />
     <ProjectReference Include="$(RepoRoot)tests/unit/testing.common/Testing.Common.csproj" />
   </ItemGroup>

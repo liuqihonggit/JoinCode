@@ -9,10 +9,10 @@
 
   <!-- 聚合所有子系统的依赖 -->
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)08_brain/src/Brain.csproj" />
-    <ProjectReference Include="$(RepoRoot)03_builtin/src/Hands.csproj" />
-    <ProjectReference Include="$(RepoRoot)08_composition/src/Composition.csproj" />
-    <ProjectReference Include="$(RepoRoot)08_pipelines/src/Pipelines.csproj" />
+    <ProjectReference Include="$(RepoRoot)kit/brain/Brain.csproj" />
+    <ProjectReference Include="$(RepoRoot)kit/hands/Hands.csproj" />
+    <ProjectReference Include="$(RepoRoot)kit/composition/Composition.csproj" />
+    <ProjectReference Include="$(RepoRoot)kit/pipelines/Pipelines.csproj" />
     <ProjectReference Include="$(RepoRoot)lib/guard/Guard.csproj" />
     <ProjectReference Include="$(RepoRoot)lib/clock/Clock.csproj" />
     <ProjectReference Include="$(RepoRoot)lib/vault/Vault.csproj" />
@@ -20,7 +20,7 @@
     <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
 
     <ProjectReference Include="$(RepoRoot)lib/abstractions/Abstractions.csproj" />
-    <ProjectReference Include="$(RepoRoot)04_mcp_service/src/Mcp.csproj" />
+    <ProjectReference Include="$(RepoRoot)kit/mcp/Mcp.csproj" />
     <ProjectReference Include="$(RepoRoot)05_server_dream/src/Dream.csproj" />
     <ProjectReference Include="$(RepoRoot)05_server_eyes/src/Eyes.csproj" />
     <ProjectReference Include="$(RepoRoot)05_server_codeindex/src/CodeIndex.csproj" />

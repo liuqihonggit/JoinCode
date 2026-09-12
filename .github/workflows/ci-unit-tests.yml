@@ -45,23 +45,23 @@ jobs:
             csproj: llm/reasoning.tests/Reasoning.Tests.csproj
           # Core - Execution
           - name: BrainPrompts
-            csproj: 08_brain/tests/Prompts/Brain.Prompts.Tests.csproj
+            csproj: kit/brain.prompts.tests/Brain.Prompts.Tests.csproj
           - name: BrainContext
-            csproj: 08_brain/tests/context/Brain.Context.Tests.csproj
+            csproj: kit/brain.context.tests/Brain.Context.Tests.csproj
           - name: BrainOther
-            csproj: 08_brain/tests/other/Brain.Other.Tests.csproj
+            csproj: kit/brain.other.tests/Brain.Other.Tests.csproj
           - name: HandsToolHandlers
-            csproj: 03_builtin/tests/tool_handlers/Hands.ToolHandlers.Tests.csproj
+            csproj: kit/hands.tool_handlers.tests/Hands.ToolHandlers.Tests.csproj
           - name: HandsSkills
-            csproj: 03_builtin/tests/skills/Hands.Skills.Tests.csproj
+            csproj: kit/hands.skills.tests/Hands.Skills.Tests.csproj
           - name: HandsShell
-            csproj: 03_builtin/tests/shell/Hands.Shell.Tests.csproj
+            csproj: kit/hands.shell.tests/Hands.Shell.Tests.csproj
           - name: HandsApi
-            csproj: 03_builtin/tests/api/Hands.Api.Tests.csproj
+            csproj: kit/hands.api.tests/Hands.Api.Tests.csproj
           - name: Scheduling
             csproj: lib/scheduling.tests/Scheduling.Tests.csproj
           - name: McpToolDispatch
-            csproj: 04_mcp_dispatch/tests/unit/McpToolDispatch.Tests.csproj
+            csproj: kit/mcp_tool_dispatch.tests/McpToolDispatch.Tests.csproj
           # Core - Search
           - name: CodeIndex
             csproj: 05_server_codeindex/tests/unit/CodeIndex.Tests.csproj
@@ -80,7 +80,7 @@ jobs:
             csproj: lib/vault.memdir.tests/Vault.Memdir.Tests.csproj
           # Services
           - name: Mcp
-            csproj: 04_mcp_service/tests/unit/Mcp.Tests.csproj
+            csproj: kit/mcp.tests/Mcp.Tests.csproj
           - name: Dream
             csproj: 05_server_dream/tests/unit/Dream.Tests.csproj
           - name: Eyes
@@ -91,7 +91,7 @@ jobs:
             csproj: 05_server_vision/tests/unit/Vision.Tests.csproj
           # Composition
           - name: Composition
-            csproj: 08_composition/tests/unit/Composition.Tests.csproj
+            csproj: kit/composition.tests/Composition.Tests.csproj
           - name: Clock
             csproj: lib/clock.tests/Clock.Tests.csproj
           # App / Cross-layer

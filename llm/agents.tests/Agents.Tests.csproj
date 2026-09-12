@@ -9,10 +9,10 @@
 
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)llm/agents/Agents.csproj" />
-    <ProjectReference Include="$(RepoRoot)08_brain/src/Brain.csproj" />
+    <ProjectReference Include="$(RepoRoot)kit/brain/Brain.csproj" />
     <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
     <ProjectReference Include="$(RepoRoot)tests/unit/testing.common/Testing.Common.csproj" />
-    <ProjectReference Include="$(RepoRoot)04_mcp_service/src/Mcp.csproj" />
+    <ProjectReference Include="$(RepoRoot)kit/mcp/Mcp.csproj" />
   </ItemGroup>
 
   <ItemGroup>

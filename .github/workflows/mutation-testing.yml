@@ -159,31 +159,31 @@ jobs:
             'Guard-Hooks'          = @{ Dir = '01_shared\shared_guard\tests\Hooks';    Src = 'Guard.csproj';           Mutate = @('Hooks/**','Permission/**') }
             'Vault-Memdir'         = @{ Dir = '01_shared\shared_vault\tests\Memdir';   Src = 'Vault.csproj';           Mutate = @('Memdir/**') }
             'Vault-Other'          = @{ Dir = '01_shared\shared_vault\tests\Other';    Src = 'Vault.csproj';           Mutate = @('State/**','Todo/**','UserInteraction/**','StepEvidence/**','Notification/**','DependencyInjection/**') }
-            'Brain-CtxAdmin'       = @{ Dir = '08_brain\tests\Context'; Src = 'Brain.csproj';         Mutate = @('Context/Services/Admin/**') }
-            'Brain-CtxChat'        = @{ Dir = '08_brain\tests\Context'; Src = 'Brain.csproj';         Mutate = @('Context/Services/Chat/**','Context/Services/ChatInit/**') }
-            'Brain-CtxOther'       = @{ Dir = '08_brain\tests\Context'; Src = 'Brain.csproj';         Mutate = @('Context/Services/Preprocess/**','Context/Services/Context/**','Context/Services/Processor/**','Context/Services/Prompt/**','Context/Services/Idle/**','Context/Services/Loop/**') }
-            'Brain-CtxNonServicesA' = @{ Dir = '08_brain\tests\Context'; Src = 'Brain.csproj';         Mutate = @('Context/Compact/**','Context/Compression/**') }
-            'Brain-CtxNonServicesB' = @{ Dir = '08_brain\tests\Context'; Src = 'Brain.csproj';         Mutate = @('Context/Collapse/**','Context/Core/**','Context/Resolution/**') }
-            'Brain-PromptsSections'= @{ Dir = '08_brain\tests\Prompts'; Src = 'Brain.csproj';         Mutate = @('Prompts/Sections/**') }
-            'Brain-PromptsOther'   = @{ Dir = '08_brain\tests\Prompts'; Src = 'Brain.csproj';         Mutate = @('Prompts/Services/**','Prompts/Testing/**','Prompts/Templates/**','Prompts/Utils/**','Prompts/Core/**') }
-            'Brain-OtherA'         = @{ Dir = '08_brain\tests\Other';  Src = 'Brain.csproj';           Mutate = @('Context/**','Prompts/**') }
-            'Brain-OtherB'         = @{ Dir = '08_brain\tests\Other';  Src = 'Brain.csproj';           Mutate = @('Query/**','Planning/**','CostTracking/**','ContextFold/**','Summary/**','Cache/**','DependencyInjection/**') }
-            'Hands-SysTools'       = @{ Dir = '03_builtin\tests\ToolHandlers'; Src = 'Hands.csproj';   Mutate = @('ToolHandlers/Handlers/SystemTools/**') }
-            'Hands-CoreHandlers'   = @{ Dir = '03_builtin\tests\ToolHandlers'; Src = 'Hands.csproj';   Mutate = @('ToolHandlers/Handlers/Core/**') }
-            'Hands-DevTools'       = @{ Dir = '03_builtin\tests\ToolHandlers'; Src = 'Hands.csproj';   Mutate = @('ToolHandlers/Handlers/DevTools/**') }
-            'Hands-SkillServices'  = @{ Dir = '03_builtin\tests\Skills'; Src = 'Hands.csproj';         Mutate = @('Skills/Services/**','Skills/Mcp/**','Skills/Plugin/**') }
-            'Hands-SkillBuiltIn'   = @{ Dir = '03_builtin\tests\Skills'; Src = 'Hands.csproj';         Mutate = @('Skills/BuiltIn/**','Skills/Skills/**') }
-            'Hands-SkillOther'     = @{ Dir = '03_builtin\tests\Skills'; Src = 'Hands.csproj';         Mutate = @('Skills/Discovery/**','Skills/Search/**','Skills/Utils/**') }
-            'Hands-Api'            = @{ Dir = '03_builtin\tests\Api';    Src = 'Hands.csproj';           Mutate = @('Api/**','Web/**','Network/**','Integration/**') }
-            'Hands-Shell'          = @{ Dir = '03_builtin\tests\Shell';  Src = 'Hands.csproj';           Mutate = @('Shell/**','FileOps/**','System/**','Voice/**','Notebook/**','Serialization/**','Build/**','Cache/**','DependencyInjection/**') }
+            'Brain-CtxAdmin'       = @{ Dir = 'kit\brain.context.tests'; Src = 'Brain.csproj';         Mutate = @('Context/Services/Admin/**') }
+            'Brain-CtxChat'        = @{ Dir = 'kit\brain.context.tests'; Src = 'Brain.csproj';         Mutate = @('Context/Services/Chat/**','Context/Services/ChatInit/**') }
+            'Brain-CtxOther'       = @{ Dir = 'kit\brain.context.tests'; Src = 'Brain.csproj';         Mutate = @('Context/Services/Preprocess/**','Context/Services/Context/**','Context/Services/Processor/**','Context/Services/Prompt/**','Context/Services/Idle/**','Context/Services/Loop/**') }
+            'Brain-CtxNonServicesA' = @{ Dir = 'kit\brain.context.tests'; Src = 'Brain.csproj';         Mutate = @('Context/Compact/**','Context/Compression/**') }
+            'Brain-CtxNonServicesB' = @{ Dir = 'kit\brain.context.tests'; Src = 'Brain.csproj';         Mutate = @('Context/Collapse/**','Context/Core/**','Context/Resolution/**') }
+            'Brain-PromptsSections'= @{ Dir = 'kit\brain.prompts.tests'; Src = 'Brain.csproj';         Mutate = @('Prompts/Sections/**') }
+            'Brain-PromptsOther'   = @{ Dir = 'kit\brain.prompts.tests'; Src = 'Brain.csproj';         Mutate = @('Prompts/Services/**','Prompts/Testing/**','Prompts/Templates/**','Prompts/Utils/**','Prompts/Core/**') }
+            'Brain-OtherA'         = @{ Dir = 'kit\brain.other.tests';  Src = 'Brain.csproj';           Mutate = @('Context/**','Prompts/**') }
+            'Brain-OtherB'         = @{ Dir = 'kit\brain.other.tests';  Src = 'Brain.csproj';           Mutate = @('Query/**','Planning/**','CostTracking/**','ContextFold/**','Summary/**','Cache/**','DependencyInjection/**') }
+            'Hands-SysTools'       = @{ Dir = 'kit\hands.tool_handlers.tests'; Src = 'Hands.csproj';   Mutate = @('ToolHandlers/Handlers/SystemTools/**') }
+            'Hands-CoreHandlers'   = @{ Dir = 'kit\hands.tool_handlers.tests'; Src = 'Hands.csproj';   Mutate = @('ToolHandlers/Handlers/Core/**') }
+            'Hands-DevTools'       = @{ Dir = 'kit\hands.tool_handlers.tests'; Src = 'Hands.csproj';   Mutate = @('ToolHandlers/Handlers/DevTools/**') }
+            'Hands-SkillServices'  = @{ Dir = 'kit\hands.skills.tests'; Src = 'Hands.csproj';         Mutate = @('Skills/Services/**','Skills/Mcp/**','Skills/Plugin/**') }
+            'Hands-SkillBuiltIn'   = @{ Dir = 'kit\hands.skills.tests'; Src = 'Hands.csproj';         Mutate = @('Skills/BuiltIn/**','Skills/Skills/**') }
+            'Hands-SkillOther'     = @{ Dir = 'kit\hands.skills.tests'; Src = 'Hands.csproj';         Mutate = @('Skills/Discovery/**','Skills/Search/**','Skills/Utils/**') }
+            'Hands-Api'            = @{ Dir = 'kit\hands.api.tests';    Src = 'Hands.csproj';           Mutate = @('Api/**','Web/**','Network/**','Integration/**') }
+            'Hands-Shell'          = @{ Dir = 'kit\hands.shell.tests';  Src = 'Hands.csproj';           Mutate = @('Shell/**','FileOps/**','System/**','Voice/**','Notebook/**','Serialization/**','Build/**','Cache/**','DependencyInjection/**') }
             'Scheduling'           = @{ Dir = '01_shared\shared_scheduling\tests\Unit';     Src = 'Scheduling.csproj';      Mutate = @() }
-            'McpToolDispatch'      = @{ Dir = '04_mcp_dispatch\tests\Unit'; Src = 'McpToolDispatch.csproj'; Mutate = @() }
+            'McpToolDispatch'      = @{ Dir = 'kit\mcp_tool_dispatch.tests'; Src = 'McpToolDispatch.csproj'; Mutate = @() }
             'Llm'                  = @{ Dir = 'llm\llm.tests';                         Src = 'Llm.csproj';             Mutate = @() }
             'Agents'               = @{ Dir = 'llm\agents.tests';                      Src = 'Agents.csproj';          Mutate = @() }
             'Reasoning'            = @{ Dir = 'llm\reasoning.tests';                   Src = 'Reasoning.csproj';       Mutate = @() }
             'CodeIndex'            = @{ Dir = '05_server_codeindex\tests\Unit';        Src = 'CodeIndex.csproj';       Mutate = @() }
             'Browser'              = @{ Dir = '05_server_browser\tests\Unit';          Src = 'Browser.csproj';         Mutate = @() }
-            'Mcp'                  = @{ Dir = '04_mcp_service\tests\Unit';                 Src = 'Mcp.csproj';             Mutate = @() }
+            'Mcp'                  = @{ Dir = 'kit\mcp.tests';                 Src = 'Mcp.csproj';             Mutate = @() }
             'Eyes'                 = @{ Dir = '05_server_eyes\tests\Unit';                Src = 'Eyes.csproj';            Mutate = @() }
             'Dream'                = @{ Dir = '05_server_dream\tests\Unit';               Src = 'Dream.csproj';            Mutate = @() }
             'Bridge-SessionA'     = @{ Dir = '05_server_bridge\tests\Unit'; Src = 'Bridge.csproj'; Mutate = @('Session/Main/**'); Concurrency = 2 }
@@ -193,7 +193,7 @@ jobs:
             'Bridge-CoreOther'    = @{ Dir = '05_server_bridge\tests\Unit'; Src = 'Bridge.csproj'; Mutate = @('Core/**','!Core/Runtime/**'); Concurrency = 2 }
             'Bridge-Messaging'    = @{ Dir = '05_server_bridge\tests\Unit'; Src = 'Bridge.csproj'; Mutate = @('Messaging/**'); Concurrency = 2 }
             'Bridge-ClientServer' = @{ Dir = '05_server_bridge\tests\Unit'; Src = 'Bridge.csproj'; Mutate = @('Client/**','Server/**','Config/**','Security/**'); Concurrency = 2 }
-            'Composition'          = @{ Dir = '08_composition\tests\Unit';      Src = 'Composition.csproj';     Mutate = @() }
+            'Composition'          = @{ Dir = 'kit\composition.tests';      Src = 'Composition.csproj';     Mutate = @() }
             'Clock'                = @{ Dir = '01_shared\shared_clock\tests\Unit';            Src = 'Clock.csproj';           Mutate = @() }
             'Infra-IO-FileOps'       = @{ Dir = 'tests\Unit\Infra.Tests\IO';                 Src = 'Infrastructure.csproj';      Test = 'Infra.IO.Tests.csproj';      Mutate = @('IO/Services/FileOps/**') }
             'Infra-IO-FsAndConfig'   = @{ Dir = 'tests\Unit\Infra.Tests\IO';                 Src = 'Infrastructure.csproj';      Test = 'Infra.IO.Tests.csproj';      Mutate = @('IO/FileSystem/**','IO/Configuration/**','IO/Services/Throttle/**') }

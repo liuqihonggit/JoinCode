@@ -1,16 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>JoinCode.Brain</RootNamespace>
-    <AssemblyName>JoinCode.Brain</AssemblyName>
-    <PackageId>JoinCode.Brain</PackageId>
-    <Description>JoinCode Brain 子系统 — 查询引擎、上下文管理、提示词构建、计划模式、成本追踪</Description>
+    <RootNamespace>JoinCode.Brain.Prompts</RootNamespace>
+    <AssemblyName>JoinCode.Brain.Prompts</AssemblyName>
+    <PackageId>JoinCode.Brain.Prompts</PackageId>
+    <Description>JoinCode Brain Prompts 子系统 — 系统提示词构建、段落管理、模板、测试触发、计划提示词</Description>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)01_shared\shared_abstractions\Abstractions.csproj" />
     <ProjectReference Include="$(RepoRoot)01_shared\shared_infrastructure\Infrastructure.csproj" />
-    <ProjectReference Include="$(RepoRoot)06_prompts\src\Prompts\Prompts.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -18,17 +17,18 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="JoinCode.Dream.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Brain.Prompts.Tests" />
     <InternalsVisibleTo Include="JoinCode.Brain.Tests" />
     <InternalsVisibleTo Include="JoinCode.Brain.Context.Tests" />
-    <InternalsVisibleTo Include="JoinCode.Brain.Prompts.Tests" />
     <InternalsVisibleTo Include="JoinCode.Brain.Other.Tests" />
   </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)00_generators/EnumMetadata.Generator\src\EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="$(RepoRoot)00_generators/Fsm.Generator\src\Fsm.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)00_generators/PromptSection.Generator\src\PromptSection.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)00_generators/PromptTemplate.Generator\src\PromptTemplate.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="$(RepoRoot)00_generators/McpToolDispatch.Generator\src\McpToolDispatch.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
-
-  </Project>
+</Project>

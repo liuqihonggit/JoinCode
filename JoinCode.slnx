@@ -33,11 +33,14 @@
     <Project Path="02_llm/Reasoning/src/Reasoning.csproj" />
     <Project Path="02_llm/Reasoning/tests/Unit/Reasoning.Tests.csproj" />
   </Folder>
+  <Folder Name="/06_prompts/">
+    <Project Path="06_prompts/src/Prompts/Prompts.csproj" />
+    <Project Path="06_prompts/tests/Prompts/Brain.Prompts.Tests.csproj" />
+  </Folder>
   <Folder Name="/core/execution/">
     <Project Path="08_brain/src/Brain.csproj" />
     <Project Path="08_brain/tests/Context/Brain.Context.Tests.csproj" />
     <Project Path="08_brain/tests/Other/Brain.Other.Tests.csproj" />
-    <Project Path="08_brain/tests/Prompts/Brain.Prompts.Tests.csproj" />
     <Project Path="03_builtin/src/Hands.csproj" />
     <Project Path="03_builtin/tests/Api/Hands.Api.Tests.csproj" />
     <Project Path="03_builtin/tests/Shell/Hands.Shell.Tests.csproj" />

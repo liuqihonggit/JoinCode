@@ -1,8 +1,8 @@
 <Solution>
   <Folder Name="/app/">
-    <Project Path="app/Sdk/Sdk.csproj" />
-    <Project Path="app/JoinCode/JoinCode.csproj" />
-    <Project Path="composition/Pipelines/src/Pipelines.csproj" />
+    <Project Path="09_app_sdk/Sdk.csproj" />
+    <Project Path="09_app_cli/JoinCode.csproj" />
+    <Project Path="08_pipelines/src/Pipelines.csproj" />
   </Folder>
   <Folder Name="/tests/Unit/">
     <Project Path="tests/Unit/Host.Tests/Host.Tests.csproj" />

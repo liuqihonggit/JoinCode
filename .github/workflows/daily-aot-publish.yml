@@ -21,9 +21,9 @@ jobs:
       fail-fast: false
       matrix:
         project:
-          - { name: 'jcc', path: 'app/JoinCode/JoinCode.csproj', artifact: 'jcc-aot' }
-          - { name: 'jcctui', path: 'app/JoinCodeTui/JoinCodeTui.csproj', artifact: 'jcctui-aot' }
-          - { name: 'jccgui', path: 'app/JoinCodeGui/JoinCodeGui.csproj', artifact: 'jccgui-aot' }
+          - { name: 'jcc', path: '09_app_cli/JoinCode.csproj', artifact: 'jcc-aot' }
+          - { name: 'jcctui', path: '09_app_tui/JoinCodeTui.csproj', artifact: 'jcctui-aot' }
+          - { name: 'jccgui', path: '09_app_gui/JoinCodeGui.csproj', artifact: 'jccgui-aot' }
 
     steps:
       - name: Checkout

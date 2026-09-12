@@ -45,28 +45,28 @@ jobs:
             csproj: 02_llm/Reasoning/tests/Unit/Reasoning.Tests.csproj
           # Core - Execution
           - name: BrainPrompts
-            csproj: core/execution/Brain/tests/Prompts/Brain.Prompts.Tests.csproj
+            csproj: 08_brain/tests/Prompts/Brain.Prompts.Tests.csproj
           - name: BrainContext
-            csproj: core/execution/Brain/tests/Context/Brain.Context.Tests.csproj
+            csproj: 08_brain/tests/Context/Brain.Context.Tests.csproj
           - name: BrainOther
-            csproj: core/execution/Brain/tests/Other/Brain.Other.Tests.csproj
+            csproj: 08_brain/tests/Other/Brain.Other.Tests.csproj
           - name: HandsToolHandlers
-            csproj: core/execution/Hands/tests/ToolHandlers/Hands.ToolHandlers.Tests.csproj
+            csproj: 03_builtin/tests/ToolHandlers/Hands.ToolHandlers.Tests.csproj
           - name: HandsSkills
-            csproj: core/execution/Hands/tests/Skills/Hands.Skills.Tests.csproj
+            csproj: 03_builtin/tests/Skills/Hands.Skills.Tests.csproj
           - name: HandsShell
-            csproj: core/execution/Hands/tests/Shell/Hands.Shell.Tests.csproj
+            csproj: 03_builtin/tests/Shell/Hands.Shell.Tests.csproj
           - name: HandsApi
-            csproj: core/execution/Hands/tests/Api/Hands.Api.Tests.csproj
+            csproj: 03_builtin/tests/Api/Hands.Api.Tests.csproj
           - name: Scheduling
             csproj: 01_shared/shared_scheduling/tests/Unit/Scheduling.Tests.csproj
           - name: McpToolDispatch
-            csproj: core/execution/McpToolDispatch/tests/Unit/McpToolDispatch.Tests.csproj
+            csproj: 04_mcp_dispatch/tests/Unit/McpToolDispatch.Tests.csproj
           # Core - Search
           - name: CodeIndex
-            csproj: core/search/CodeIndex/tests/Unit/CodeIndex.Tests.csproj
+            csproj: 05_server_codeindex/tests/Unit/CodeIndex.Tests.csproj
           - name: Browser
-            csproj: core/search/Browser/tests/Unit/Browser.Tests.csproj
+            csproj: 05_server_browser/tests/Unit/Browser.Tests.csproj
           # Core - Safety
           - name: GuardSecurity
             csproj: 01_shared/shared_guard/tests/Security/Guard.Security.Tests.csproj
@@ -80,18 +80,18 @@ jobs:
             csproj: 01_shared/shared_vault/tests/Memdir/Vault.Memdir.Tests.csproj
           # Services
           - name: Mcp
-            csproj: services/Mcp/tests/Unit/Mcp.Tests.csproj
+            csproj: 04_mcp_service/tests/Unit/Mcp.Tests.csproj
           - name: Dream
-            csproj: services/Dream/tests/Unit/Dream.Tests.csproj
+            csproj: 05_server_dream/tests/Unit/Dream.Tests.csproj
           - name: Eyes
-            csproj: services/Eyes/tests/Unit/Eyes.Tests.csproj
+            csproj: 05_server_eyes/tests/Unit/Eyes.Tests.csproj
           - name: Bridge
-            csproj: services/Bridge/tests/Unit/Bridge.Tests.csproj
+            csproj: 05_server_bridge/tests/Unit/Bridge.Tests.csproj
           - name: Vision
-            csproj: services/Vision/tests/Unit/Vision.Tests.csproj
+            csproj: 05_server_vision/tests/Unit/Vision.Tests.csproj
           # Composition
           - name: Composition
-            csproj: composition/Composition/tests/Unit/Composition.Tests.csproj
+            csproj: 08_composition/tests/Unit/Composition.Tests.csproj
           - name: Clock
             csproj: 01_shared/shared_clock/tests/Unit/Clock.Tests.csproj
           # App / Cross-layer

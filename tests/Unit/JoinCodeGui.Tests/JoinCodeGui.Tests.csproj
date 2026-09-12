@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)app\JoinCodeGui\JoinCodeGui.csproj" />
+    <ProjectReference Include="$(RepoRoot)09_app_gui\JoinCodeGui.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -48,7 +48,7 @@ jobs:
             nuget-${{ runner.os }}-
 
       - name: Build jcc (Debug)
-        run: dotnet build app/JoinCode/JoinCode.csproj -c Debug --nologo
+        run: dotnet build 09_app_cli/JoinCode.csproj -c Debug --nologo
         shell: pwsh
 
       - name: Run Command Tests

@@ -1,17 +1,17 @@
 <Solution>
   <Folder Name="/services/">
-    <Project Path="services/Mcp/src/Mcp.csproj" />
-    <Project Path="services/Mcp/tests/Unit/Mcp.Tests.csproj" />
-    <Project Path="services/Dream/src/Dream.csproj" />
-    <Project Path="services/Dream/tests/Unit/Dream.Tests.csproj" />
-    <Project Path="services/Eyes/src/Eyes.csproj" />
-    <Project Path="services/Vision/src/Vision.csproj" />
-    <Project Path="services/Vision/tests/Unit/Vision.Tests.csproj" />
-    <Project Path="services/Eyes/tests/Unit/Eyes.Tests.csproj" />
-    <Project Path="services/Bridge/src/Bridge.csproj" />
-    <Project Path="services/Bridge/tests/Unit/Bridge.Tests.csproj" />
-    <Project Path="services/SandboxSatellite/src/SandboxSatellite.csproj" />
-    <Project Path="services/Update/src/Update.csproj" />
+    <Project Path="04_mcp_service/src/Mcp.csproj" />
+    <Project Path="04_mcp_service/tests/Unit/Mcp.Tests.csproj" />
+    <Project Path="05_server_dream/src/Dream.csproj" />
+    <Project Path="05_server_dream/tests/Unit/Dream.Tests.csproj" />
+    <Project Path="05_server_eyes/src/Eyes.csproj" />
+    <Project Path="05_server_vision/src/Vision.csproj" />
+    <Project Path="05_server_vision/tests/Unit/Vision.Tests.csproj" />
+    <Project Path="05_server_eyes/tests/Unit/Eyes.Tests.csproj" />
+    <Project Path="05_server_bridge/src/Bridge.csproj" />
+    <Project Path="05_server_bridge/tests/Unit/Bridge.Tests.csproj" />
+    <Project Path="05_server_sandbox/src/SandboxSatellite.csproj" />
+    <Project Path="05_server_update/src/Update.csproj" />
   </Folder>
   <Folder Name="/01_shared/">
     <Project Path="01_shared/shared_abstractions/Abstractions.csproj" />

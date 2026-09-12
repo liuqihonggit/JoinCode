@@ -34,19 +34,19 @@
     <Project Path="02_llm/Reasoning/tests/Unit/Reasoning.Tests.csproj" />
   </Folder>
   <Folder Name="/core/execution/">
-    <Project Path="core/execution/Brain/src/Brain.csproj" />
-    <Project Path="core/execution/Brain/tests/Context/Brain.Context.Tests.csproj" />
-    <Project Path="core/execution/Brain/tests/Other/Brain.Other.Tests.csproj" />
-    <Project Path="core/execution/Brain/tests/Prompts/Brain.Prompts.Tests.csproj" />
-    <Project Path="core/execution/Hands/src/Hands.csproj" />
-    <Project Path="core/execution/Hands/tests/Api/Hands.Api.Tests.csproj" />
-    <Project Path="core/execution/Hands/tests/Shell/Hands.Shell.Tests.csproj" />
-    <Project Path="core/execution/Hands/tests/Skills/Hands.Skills.Tests.csproj" />
-    <Project Path="core/execution/Hands/tests/ToolHandlers/Hands.ToolHandlers.Tests.csproj" />
+    <Project Path="08_brain/src/Brain.csproj" />
+    <Project Path="08_brain/tests/Context/Brain.Context.Tests.csproj" />
+    <Project Path="08_brain/tests/Other/Brain.Other.Tests.csproj" />
+    <Project Path="08_brain/tests/Prompts/Brain.Prompts.Tests.csproj" />
+    <Project Path="03_builtin/src/Hands.csproj" />
+    <Project Path="03_builtin/tests/Api/Hands.Api.Tests.csproj" />
+    <Project Path="03_builtin/tests/Shell/Hands.Shell.Tests.csproj" />
+    <Project Path="03_builtin/tests/Skills/Hands.Skills.Tests.csproj" />
+    <Project Path="03_builtin/tests/ToolHandlers/Hands.ToolHandlers.Tests.csproj" />
     <Project Path="01_shared/shared_scheduling/src/Scheduling.csproj" />
     <Project Path="01_shared/shared_scheduling/tests/Unit/Scheduling.Tests.csproj" />
-    <Project Path="core/execution/McpToolDispatch/src/McpToolDispatch.csproj" />
-    <Project Path="core/execution/McpToolDispatch/tests/Unit/McpToolDispatch.Tests.csproj" />
+    <Project Path="04_mcp_dispatch/src/McpToolDispatch.csproj" />
+    <Project Path="04_mcp_dispatch/tests/Unit/McpToolDispatch.Tests.csproj" />
   </Folder>
   <Folder Name="/core/safety/">
     <Project Path="01_shared/shared_guard/src/Guard.csproj" />
@@ -59,35 +59,35 @@
     <Project Path="01_shared/shared_vault/tests/Shared/Vault.Testing.Common.csproj" />
   </Folder>
   <Folder Name="/core/search/">
-    <Project Path="core/search/CodeIndex/src/CodeIndex.csproj" />
-    <Project Path="core/search/CodeIndex/tests/Unit/CodeIndex.Tests.csproj" />
-    <Project Path="core/search/CodeIndex/tests/E2E/CodeIndex.E2E.Tests.csproj" />
-    <Project Path="core/search/Browser/src/Browser.csproj" />
-    <Project Path="core/search/Browser/tests/Unit/Browser.Tests.csproj" />
+    <Project Path="05_server_codeindex/src/CodeIndex.csproj" />
+    <Project Path="05_server_codeindex/tests/Unit/CodeIndex.Tests.csproj" />
+    <Project Path="05_server_codeindex/tests/E2E/CodeIndex.E2E.Tests.csproj" />
+    <Project Path="05_server_browser/src/Browser.csproj" />
+    <Project Path="05_server_browser/tests/Unit/Browser.Tests.csproj" />
   </Folder>
   <Folder Name="/services/">
-    <Project Path="services/Mcp/src/Mcp.csproj" />
-    <Project Path="services/Mcp/tests/Unit/Mcp.Tests.csproj" />
-    <Project Path="services/Dream/src/Dream.csproj" />
-    <Project Path="services/Dream/tests/Unit/Dream.Tests.csproj" />
-    <Project Path="services/Eyes/src/Eyes.csproj" />
-    <Project Path="services/Eyes/tests/Unit/Eyes.Tests.csproj" />
-    <Project Path="services/Bridge/src/Bridge.csproj" />
-    <Project Path="services/Bridge/tests/Unit/Bridge.Tests.csproj" />
-    <Project Path="services/SandboxSatellite/src/SandboxSatellite.csproj" />
+    <Project Path="04_mcp_service/src/Mcp.csproj" />
+    <Project Path="04_mcp_service/tests/Unit/Mcp.Tests.csproj" />
+    <Project Path="05_server_dream/src/Dream.csproj" />
+    <Project Path="05_server_dream/tests/Unit/Dream.Tests.csproj" />
+    <Project Path="05_server_eyes/src/Eyes.csproj" />
+    <Project Path="05_server_eyes/tests/Unit/Eyes.Tests.csproj" />
+    <Project Path="05_server_bridge/src/Bridge.csproj" />
+    <Project Path="05_server_bridge/tests/Unit/Bridge.Tests.csproj" />
+    <Project Path="05_server_sandbox/src/SandboxSatellite.csproj" />
   </Folder>
   <Folder Name="/composition/">
-    <Project Path="composition/Composition/src/Composition.csproj" />
-    <Project Path="composition/Composition/tests/Unit/Composition.Tests.csproj" />
+    <Project Path="08_composition/src/Composition.csproj" />
+    <Project Path="08_composition/tests/Unit/Composition.Tests.csproj" />
     <Project Path="01_shared/shared_clock/src/Clock.csproj" />
     <Project Path="01_shared/shared_clock/tests/Unit/Clock.Tests.csproj" />
-    <Project Path="composition/Pipelines/src/Pipelines.csproj" />
+    <Project Path="08_pipelines/src/Pipelines.csproj" />
   </Folder>
   <Folder Name="/app/">
-    <Project Path="app/JoinCode/JoinCode.csproj" />
-    <Project Path="app/JoinCodeTui/JoinCodeTui.csproj" />
-    <Project Path="app/Sdk/Sdk.csproj" />
-    <Project Path="app/JoinCodeGui/JoinCodeGui.csproj" />
+    <Project Path="09_app_cli/JoinCode.csproj" />
+    <Project Path="09_app_tui/JoinCodeTui.csproj" />
+    <Project Path="09_app_sdk/Sdk.csproj" />
+    <Project Path="09_app_gui/JoinCodeGui.csproj" />
   </Folder>
   <Folder Name="/tests/Unit/">
     <Project Path="tests/Unit/Host.Tests/Host.Tests.csproj" />

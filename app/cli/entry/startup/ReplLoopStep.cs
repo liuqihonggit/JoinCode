@@ -315,7 +315,7 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
     }
 
     /// <summary>
-    /// 写入错误日志到 ~/.jcc/runtime/jcc_error.log — 与 Program.WriteErrorLog 一致（ADR 0100）
+    /// 写入错误日志到 ~/.jcc/runtime/jcc_error.log — 与 Program.WriteErrorLog 一致（ADR 0055）
     /// </summary>
     private static void WriteErrorLog(Exception ex, ILogger? logger = null)
     {

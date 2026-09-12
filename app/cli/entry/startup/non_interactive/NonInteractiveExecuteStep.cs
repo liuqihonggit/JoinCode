@@ -70,7 +70,7 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
     }
 
     /// <summary>
-    /// 写入错误日志到 ~/.jcc/runtime/jcc_error.log（ADR 0100）
+    /// 写入错误日志到 ~/.jcc/runtime/jcc_error.log（ADR 0055）
     /// </summary>
     private static string WriteErrorLog(Exception ex, ILogger? logger = null)
     {

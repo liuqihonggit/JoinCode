@@ -1,7 +1,7 @@
 namespace JoinCode.Tui.Diagnostics;
 
 /// <summary>
-/// 性能埋点 — 在关键路径测量耗时，写入 ~/.jcc/runtime/perf.log（ADR 0100）。
+/// 性能埋点 — 在关键路径测量耗时，写入 ~/.jcc/runtime/perf.log（ADR 0055）。
 /// 用法: using var _ = PerfTap.Measure("OutputView.AppendLine");
 /// </summary>
 public static class PerfTap

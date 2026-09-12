@@ -113,7 +113,7 @@ public sealed partial class AnalyticsFileSink : IAnalyticsFileSink, IAsyncDispos
     /// <param name="logger">日志器</param>
     /// <param name="flushInterval">flush 间隔（默认 5s）</param>
     /// <param name="batchSize">批量写入大小（默认 100）</param>
-    /// <param name="outputDirectory">输出目录（默认 ~/.jcc/analytics/，ADR 0100）</param>
+    /// <param name="outputDirectory">输出目录（默认 ~/.jcc/analytics/，ADR 0055）</param>
     public AnalyticsFileSink(
         IFileSystem? fileSystem = null,
         AnalyticsSinkKillswitch? killswitch = null,

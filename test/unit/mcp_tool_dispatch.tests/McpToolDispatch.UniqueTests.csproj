@@ -3,7 +3,7 @@
   <PropertyGroup>
     <RootNamespace>McpToolDispatch.UniqueTests</RootNamespace>
     <AssemblyName>JoinCode.McpToolDispatch.UniqueTests</AssemblyName>
-    <Description>JoinCode McpToolDispatch 独特测试类（ToolHealthMonitor/Scorer/Template/ScoreDebug，ADR 0100 避免与项目内测试同名冲突）</Description>
+    <Description>JoinCode McpToolDispatch 独特测试类（ToolHealthMonitor/Scorer/Template/ScoreDebug，ADR 0055 避免与项目内测试同名冲突）</Description>
     <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>
   </PropertyGroup>
 

@@ -87,12 +87,12 @@ public static class XdgPathResolver
     public static string GetTrustedFoldersPath() =>
         System.IO.Path.Combine(GetConfigDirectory(), "trusted_folders.json");
 
-    // ── 运行时路径（委托到 AppDataConstants 集中定义，ADR 0100） ──
+    // ── 运行时路径（委托到 AppDataConstants 集中定义，ADR 0055） ──
 
     /// <summary>
     /// 获取运行时目录 — ~/.jcc/runtime/
     /// 优先级: XDG_RUNTIME_DIR/jcc/ → ~/.jcc/runtime/
-    /// ADR 0100: 从 %TEMP%/jcc/ 改为 ~/.jcc/runtime/，持久性日志不随 OS 清理临时目录丢失
+    /// ADR 0055: 从 %TEMP%/jcc/ 改为 ~/.jcc/runtime/，持久性日志不随 OS 清理临时目录丢失
     /// </summary>
     public static string GetRuntimeDirectory()
     {
@@ -103,15 +103,15 @@ public static class XdgPathResolver
         return JoinCode.Abstractions.Configuration.AppData.AppDataConstants.UserRuntimeDirectory;
     }
 
-    /// <summary>获取崩溃快照目录 — ~/.jcc/runtime/crash-dumps/（ADR 0100）</summary>
+    /// <summary>获取崩溃快照目录 — ~/.jcc/runtime/crash-dumps/（ADR 0055）</summary>
     public static string GetCrashDumpsDirectory() =>
         JoinCode.Abstractions.Configuration.AppData.AppDataConstants.UserRuntimeCrashDumpsDirectory;
 
-    /// <summary>获取错误日志路径 — ~/.jcc/runtime/jcc_error.log（ADR 0100）</summary>
+    /// <summary>获取错误日志路径 — ~/.jcc/runtime/jcc_error.log（ADR 0055）</summary>
     public static string GetErrorLogPath() =>
         JoinCode.Abstractions.Configuration.AppData.AppDataConstants.UserRuntimeErrorLogPath;
 
-    /// <summary>获取 --await 超时日志路径 — ~/.jcc/runtime/jcc_await_timeout.log（ADR 0100）</summary>
+    /// <summary>获取 --await 超时日志路径 — ~/.jcc/runtime/jcc_await_timeout.log（ADR 0055）</summary>
     public static string GetAwaitTimeoutLogPath() =>
         JoinCode.Abstractions.Configuration.AppData.AppDataConstants.UserRuntimeAwaitTimeoutLogPath;
 }

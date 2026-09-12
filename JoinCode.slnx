@@ -25,13 +25,13 @@
     <Project Path="01_shared/shared_transport_impl/Transport.Impl.csproj" />
   </Folder>
   <Folder Name="/core/" />
-  <Folder Name="/core/ai/">
-    <Project Path="core/ai/Llm/src/Llm.csproj" />
-    <Project Path="core/ai/Llm/tests/Unit/Llm.Tests.csproj" />
-    <Project Path="core/ai/Agents/src/Agents.csproj" />
-    <Project Path="core/ai/Agents/tests/Unit/Agents.Tests.csproj" />
-    <Project Path="core/ai/Reasoning/src/Reasoning.csproj" />
-    <Project Path="core/ai/Reasoning/tests/Unit/Reasoning.Tests.csproj" />
+  <Folder Name="/02_llm/">
+    <Project Path="02_llm/Llm/src/Llm.csproj" />
+    <Project Path="02_llm/Llm/tests/Unit/Llm.Tests.csproj" />
+    <Project Path="02_llm/Agents/src/Agents.csproj" />
+    <Project Path="02_llm/Agents/tests/Unit/Agents.Tests.csproj" />
+    <Project Path="02_llm/Reasoning/src/Reasoning.csproj" />
+    <Project Path="02_llm/Reasoning/tests/Unit/Reasoning.Tests.csproj" />
   </Folder>
   <Folder Name="/core/execution/">
     <Project Path="core/execution/Brain/src/Brain.csproj" />

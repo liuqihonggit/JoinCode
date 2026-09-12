@@ -38,11 +38,11 @@ jobs:
             csproj: tests/Unit/Infra.Tests/Utils/Infra.Utils.Tests.csproj
           # Core - AI
           - name: Llm
-            csproj: core/ai/Llm/tests/Unit/Llm.Tests.csproj
+            csproj: 02_llm/Llm/tests/Unit/Llm.Tests.csproj
           - name: Agents
-            csproj: core/ai/Agents/tests/Unit/Agents.Tests.csproj
+            csproj: 02_llm/Agents/tests/Unit/Agents.Tests.csproj
           - name: Reasoning
-            csproj: core/ai/Reasoning/tests/Unit/Reasoning.Tests.csproj
+            csproj: 02_llm/Reasoning/tests/Unit/Reasoning.Tests.csproj
           # Core - Execution
           - name: BrainPrompts
             csproj: core/execution/Brain/tests/Prompts/Brain.Prompts.Tests.csproj

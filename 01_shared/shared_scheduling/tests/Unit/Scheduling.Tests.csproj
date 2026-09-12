@@ -13,7 +13,7 @@
     <ProjectReference Include="$(RepoRoot)01_shared\shared_infrastructure\Infrastructure.csproj" />
     <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
     <ProjectReference Include="$(RepoRoot)services\Mcp\src\Mcp.csproj" />
-    <ProjectReference Include="$(RepoRoot)core\ai\Agents\src\Agents.csproj" />
+    <ProjectReference Include="$(RepoRoot)02_llm\Agents\src\Agents.csproj" />
   </ItemGroup>
 
   <ItemGroup>

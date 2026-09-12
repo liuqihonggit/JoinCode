@@ -22,7 +22,7 @@
     <ProjectReference Include="$(RepoRoot)01_shared\shared_transport_contracts\Transport.Contracts.csproj" />
     <ProjectReference Include="$(RepoRoot)01_shared\shared_transport_impl\Transport.Impl.csproj" />
     <ProjectReference Include="$(RepoRoot)01_shared\shared_infrastructure\Infrastructure.csproj" />
-    <ProjectReference Include="$(RepoRoot)core\ai\Llm\src\Llm.csproj" />
+    <ProjectReference Include="$(RepoRoot)02_llm\Llm\src\Llm.csproj" />
   </ItemGroup>
 
   <!-- Shared 目录下的文件仅供其他测试项目链接使用，不参与本项目编译 -->

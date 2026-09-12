@@ -20,9 +20,9 @@
     <ProjectReference Include="$(RepoRoot)01_shared\shared_vault\src\Vault.csproj" />
     <ProjectReference Include="$(RepoRoot)01_shared\shared_scheduling\src\Scheduling.csproj" />
     <ProjectReference Include="$(RepoRoot)core\execution\McpToolDispatch\src\McpToolDispatch.csproj" />
-    <ProjectReference Include="$(RepoRoot)core\ai\Agents\src\Agents.csproj" />
+    <ProjectReference Include="$(RepoRoot)02_llm\Agents\src\Agents.csproj" />
     <ProjectReference Include="$(RepoRoot)01_shared\shared_transport_impl\Transport.Impl.csproj" />
-    <ProjectReference Include="$(RepoRoot)core\ai\Reasoning\src\Reasoning.csproj" />
+    <ProjectReference Include="$(RepoRoot)02_llm\Reasoning\src\Reasoning.csproj" />
   </ItemGroup>
 
   <ItemGroup>

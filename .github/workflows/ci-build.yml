@@ -77,7 +77,7 @@ jobs:
             '01_shared/shared_vault/tests/Other/Vault.Other.Tests.csproj',
             '01_shared/shared_vault/tests/Memdir/Vault.Memdir.Tests.csproj',
             'composition/Composition/tests/Unit/Composition.Tests.csproj',
-            'core/ai/Agents/tests/Unit/Agents.Tests.csproj',
+            '02_llm/Agents/tests/Unit/Agents.Tests.csproj',
             '01_shared/shared_scheduling/tests/Unit/Scheduling.Tests.csproj',
             'core/execution/McpToolDispatch/tests/Unit/McpToolDispatch.Tests.csproj',
             '01_shared/shared_clock/tests/Unit/Clock.Tests.csproj',

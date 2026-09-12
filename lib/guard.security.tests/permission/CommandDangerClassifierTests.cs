@@ -212,6 +212,65 @@ public class CommandDangerClassifierTests
 
     #endregion
 
+    #region robocopy /MIR 和 /PURGE 拦截测试 — ADR 0012
+
+    [Theory]
+    [InlineData("robocopy src dst /MIR")]
+    [InlineData("robocopy src dst /PURGE")]
+    [InlineData("robocopy src dst /mir")]
+    [InlineData("robocopy src dst /purge")]
+    [InlineData("robocopy src dst /MIR /R:0 /W:0")]
+    [InlineData("robocopy src dst /PURGE /E")]
+    public void Robocopy_Mirror_Purge_Should_Return_Dangerous(string command)
+    {
+        var result = _classifier.Classify(command);
+
+        result.Level.Should().Be(CommandDangerLevel.Dangerous);
+        result.IsDangerous.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("robocopy src dst /E")]
+    [InlineData("robocopy src dst /COPY:DAT")]
+    [InlineData("robocopy src dst")]
+    public void Robocopy_Normal_Copy_Should_Return_Execution(string command)
+    {
+        var result = _classifier.Classify(command);
+
+        result.Level.Should().Be(CommandDangerLevel.Execution);
+        result.IsDangerous.Should().BeFalse();
+    }
+
+    #endregion
+
+    #region \\?\ 长路径前缀拦截测试 — ADR 0012
+
+    [Theory]
+    [InlineData("del \\\\?\\D:\\path\\nul")]
+    [InlineData("del \\\\?\\D:\\project\\file")]
+    [InlineData("Remove-Item \\\\?\\D:\\path\\nul")]
+    [InlineData("Remove-Item -Force \\\\?\\D:\\path\\nul")]
+    [InlineData("Remove-Item \\\\?\\C:\\temp")]
+    public void LongPath_Prefix_With_Delete_Should_Return_Dangerous(string command)
+    {
+        var result = _classifier.Classify(command);
+
+        result.Level.Should().Be(CommandDangerLevel.Dangerous);
+        result.IsDangerous.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("robocopy src \\\\?\\D:\\path /E")]
+    [InlineData("copy file \\\\?\\D:\\dest")]
+    public void LongPath_Prefix_Alone_Should_Return_AtLeast_Execution(string command)
+    {
+        var result = _classifier.Classify(command);
+
+        ((int)result.Level).Should().BeGreaterThanOrEqualTo((int)CommandDangerLevel.Execution);
+    }
+
+    #endregion
+
     #region DangerLevelPromptParser 测试 — 确认提示解析
 
     [Theory]

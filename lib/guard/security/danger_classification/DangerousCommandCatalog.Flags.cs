@@ -36,6 +36,11 @@ public static partial class DangerousCommandCatalog
             ["*"] = new("*", CommandRisk.FileDeletion, CommandDangerLevel.Execution, "通配符删除 — 不可撤回"),
             ["*."] = new("*.", CommandRisk.FileDeletion, CommandDangerLevel.Execution, "通配符删除 — 不可撤回"),
             ["*.*"] = new("*.*", CommandRisk.FileDeletion, CommandDangerLevel.Execution, "通配符删除 — 不可撤回"),
+
+            // robocopy 镜像/清除参数 — Dangerous（直接拒绝）— ADR 0012
+            // /MIR = /E + /PURGE 镜像覆盖, /PURGE 删除目标中多余文件, 等价批量 rm -rf, 不可逆
+            ["/MIR"] = new("/MIR", CommandRisk.DirectoryDeletion, CommandDangerLevel.Dangerous, "镜像同步会清空目标目录中所有不存在于源的文件 — 直接拒绝"),
+            ["/PURGE"] = new("/PURGE", CommandRisk.DirectoryDeletion, CommandDangerLevel.Dangerous, "删除目标目录中所有不存在于源的文件/子目录 — 直接拒绝"),
         };
 
         return entries.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
@@ -69,6 +74,14 @@ public static partial class DangerousCommandCatalog
             new(["rm", "-rf"], CommandRisk.RecursiveOperation, CommandDangerLevel.Execution, "递归强制删除 — 不可撤回"),
             new(["taskkill", "/f"], CommandRisk.DataModification, CommandDangerLevel.Execution, "强制终止进程 — 不可撤回"),
             new(["kill", "-9"], CommandRisk.DataModification, CommandDangerLevel.Execution, "强制终止进程 — 不可撤回"),
+
+            // === Dangerous（直接拒绝）— robocopy 镜像覆盖 — ADR 0012 ===
+            new(["robocopy", "/mir"], CommandRisk.DirectoryDeletion, CommandDangerLevel.Dangerous, "镜像同步会清空目标目录中所有不存在于源的文件，等价批量rm -rf"),
+            new(["robocopy", "/purge"], CommandRisk.DirectoryDeletion, CommandDangerLevel.Dangerous, "删除目标目录中所有不存在于源的文件/子目录，不可逆"),
+
+            // === Dangerous（直接拒绝）— 长路径前缀绕过 Win32 解析 — ADR 0012 ===
+            new(["del", "\\?\\"], CommandRisk.FileDeletion, CommandDangerLevel.Dangerous, "长路径前缀+del，绕过Win32路径解析删除保留名文件"),
+            new(["remove-item", "\\?\\"], CommandRisk.FileDeletion, CommandDangerLevel.Dangerous, "长路径前缀+Remove-Item，绕过Win32路径解析删除保留名文件"),
         ];
     }
 
@@ -97,6 +110,10 @@ public static partial class DangerousCommandCatalog
             [".."] = CommandDangerLevel.LightValidation,
             ["../"] = CommandDangerLevel.LightValidation,
             ["..\\"] = CommandDangerLevel.LightValidation,
+
+            // Execution — Win32 长路径前缀（绕过 Win32 路径解析直接走 NT API）— ADR 0012
+            ["\\\\?\\"] = CommandDangerLevel.Execution,
+            ["\\\\.\\"] = CommandDangerLevel.Execution,
         };
 
         return entries.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);

@@ -267,6 +267,12 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
         if (DangerousCommandCatalog.DangerousPaths.TryGetValue(arg, out var level))
             return level;
 
+        // Win32 长路径前缀直接检测 — \\?\ 和 \\.\ 绕过 Win32 路径解析（ADR 0012）
+        // 现有前缀匹配逻辑不适合这种前缀（\\?\D:\path 不匹配 \\?\ + \），需单独检测
+        if (arg.StartsWith("\\\\?\\", StringComparison.OrdinalIgnoreCase) ||
+            arg.StartsWith("\\\\.\\", StringComparison.OrdinalIgnoreCase))
+            return CommandDangerLevel.Execution;
+
         foreach (var (path, pathLevel) in DangerousCommandCatalog.DangerousPaths)
         {
             if (arg.StartsWith(path + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||

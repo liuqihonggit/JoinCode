@@ -21,13 +21,13 @@
     <Project Path="../../lib/infrastructure/Infrastructure.csproj" />
     <Project Path="../../lib/transport.impl/Transport.Impl.csproj" />
   </Folder>
-  <Folder Name="/02_llm/">
-    <Project Path="../../02_llm/llm/src/Llm.csproj" />
-    <Project Path="../../02_llm/llm/tests/unit/Llm.Tests.csproj" />
-    <Project Path="../../02_llm/agents/src/Agents.csproj" />
-    <Project Path="../../02_llm/agents/tests/unit/Agents.Tests.csproj" />
-    <Project Path="../../02_llm/reasoning/src/Reasoning.csproj" />
-    <Project Path="../../02_llm/reasoning/tests/unit/Reasoning.Tests.csproj" />
+  <Folder Name="/llm/">
+    <Project Path="../../llm/llm/Llm.csproj" />
+    <Project Path="../../llm/llm.tests/Llm.Tests.csproj" />
+    <Project Path="../../llm/agents/Agents.csproj" />
+    <Project Path="../../llm/agents.tests/Agents.Tests.csproj" />
+    <Project Path="../../llm/reasoning/Reasoning.csproj" />
+    <Project Path="../../llm/reasoning.tests/Reasoning.Tests.csproj" />
   </Folder>
   <Folder Name="/core/execution/">
     <Project Path="../../08_brain/src/Brain.csproj" />

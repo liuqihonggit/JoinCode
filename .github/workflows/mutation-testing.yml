@@ -178,9 +178,9 @@ jobs:
             'Hands-Shell'          = @{ Dir = '03_builtin\tests\Shell';  Src = 'Hands.csproj';           Mutate = @('Shell/**','FileOps/**','System/**','Voice/**','Notebook/**','Serialization/**','Build/**','Cache/**','DependencyInjection/**') }
             'Scheduling'           = @{ Dir = '01_shared\shared_scheduling\tests\Unit';     Src = 'Scheduling.csproj';      Mutate = @() }
             'McpToolDispatch'      = @{ Dir = '04_mcp_dispatch\tests\Unit'; Src = 'McpToolDispatch.csproj'; Mutate = @() }
-            'Llm'                  = @{ Dir = '02_llm\Llm\tests\Unit';                  Src = 'Llm.csproj';             Mutate = @() }
-            'Agents'               = @{ Dir = '02_llm\Agents\tests\Unit';               Src = 'Agents.csproj';          Mutate = @() }
-            'Reasoning'            = @{ Dir = '02_llm\Reasoning\tests\Unit';            Src = 'Reasoning.csproj';       Mutate = @() }
+            'Llm'                  = @{ Dir = 'llm\llm.tests';                         Src = 'Llm.csproj';             Mutate = @() }
+            'Agents'               = @{ Dir = 'llm\agents.tests';                      Src = 'Agents.csproj';          Mutate = @() }
+            'Reasoning'            = @{ Dir = 'llm\reasoning.tests';                   Src = 'Reasoning.csproj';       Mutate = @() }
             'CodeIndex'            = @{ Dir = '05_server_codeindex\tests\Unit';        Src = 'CodeIndex.csproj';       Mutate = @() }
             'Browser'              = @{ Dir = '05_server_browser\tests\Unit';          Src = 'Browser.csproj';         Mutate = @() }
             'Mcp'                  = @{ Dir = '04_mcp_service\tests\Unit';                 Src = 'Mcp.csproj';             Mutate = @() }

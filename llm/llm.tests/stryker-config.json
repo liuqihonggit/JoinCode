@@ -1,7 +1,7 @@
 {
   "stryker-config": {
-    "solution": "../../../../../build/sln/Core.slnx",
-    "project": "Agents.csproj",
+    "solution": "../../build/sln/Core.slnx",
+    "project": "Llm.csproj",
     "thresholds": {
       "break": 0,
       "high": 80,
@@ -10,7 +10,7 @@
     "reporters": [
       "html",
       "progress",
-      "clear-text"
+      "dots"
     ],
     "coverage-analysis": "perTest",
     "mutate": [

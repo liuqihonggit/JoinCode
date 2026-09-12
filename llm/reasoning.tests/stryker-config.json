@@ -1,6 +1,6 @@
 {
   "stryker-config": {
-    "solution": "../../../../../build/sln/Core.slnx",
+    "solution": "../../build/sln/Core.slnx",
     "project": "Reasoning.csproj",
     "thresholds": {
       "break": 0,

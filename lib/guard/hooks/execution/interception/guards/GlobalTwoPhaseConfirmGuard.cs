@@ -43,9 +43,11 @@ public sealed partial class GlobalTwoPhaseConfirmGuard : ICommandGuard
         return new CommandDecision.Deny(
             ToolDiagnostic.Create(
                 "JCC9006",
-                "防丢字符二次确认 — 请再次输入同样命令确认执行",
+                $"防丢字符二次确认 — MTP 加速推理可能丢字符/乱入字符导致命令变形。" +
+                $"请再次输入完全相同的命令以确认执行：\n{command}",
                 "命令", command,
-                "MTP 加速推理可能丢字符/乱入字符导致命令变形，请再次输入同样命令以确认"));
+                "MTP（Multi-Token Prediction）加速推理时草稿预测/验证环节可能引入字符级错误，" +
+                "导致命令字符串被截断或混入乱码。请再次输入同样命令以确认字符串完整无误。"));
     }
 
     private static bool IsEnabled(IReadOnlyDictionary<string, object> context) =>

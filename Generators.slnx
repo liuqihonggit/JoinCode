@@ -1,18 +1,18 @@
 <Solution>
-  <Folder Name="/generators/">
-    <Project Path="generators/AotSafety.Generator/src/AotSafety.Generator.csproj" />
-    <Project Path="generators/AppModule.Generator/src/AppModule.Generator.csproj" />
-    <Project Path="generators/CodeFixes/src/CodeFixes.csproj" />
-    <Project Path="generators/CliOption.Generator/src/CliOption.Generator.csproj" />
-    <Project Path="generators/EnumMetadata.Generator/src/EnumMetadata.Generator.csproj" />
-    <Project Path="generators/Fsm.Generator/src/Fsm.Generator.csproj" />
-    <Project Path="generators/McpToolDispatch.Generator/src/McpToolDispatch.Generator.csproj" />
-    <Project Path="generators/PromptSection.Generator/src/PromptSection.Generator.csproj" />
-    <Project Path="generators/PromptTemplate.Generator/src/PromptTemplate.Generator.csproj" />
-    <Project Path="generators/ToolPrompt.Generator/src/ToolPrompt.Generator.csproj" />
+  <Folder Name="/00_generators/">
+    <Project Path="00_generators/AotSafety.Generator/src/AotSafety.Generator.csproj" />
+    <Project Path="00_generators/AppModule.Generator/src/AppModule.Generator.csproj" />
+    <Project Path="00_generators/CodeFixes/src/CodeFixes.csproj" />
+    <Project Path="00_generators/CliOption.Generator/src/CliOption.Generator.csproj" />
+    <Project Path="00_generators/EnumMetadata.Generator/src/EnumMetadata.Generator.csproj" />
+    <Project Path="00_generators/Fsm.Generator/src/Fsm.Generator.csproj" />
+    <Project Path="00_generators/McpToolDispatch.Generator/src/McpToolDispatch.Generator.csproj" />
+    <Project Path="00_generators/PromptSection.Generator/src/PromptSection.Generator.csproj" />
+    <Project Path="00_generators/PromptTemplate.Generator/src/PromptTemplate.Generator.csproj" />
+    <Project Path="00_generators/ToolPrompt.Generator/src/ToolPrompt.Generator.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="generators/AotSafety.Generator/tests/AotSafety.Tests.csproj" />
-    <Project Path="generators/Fsm.Generator/tests/Fsm.Generator.Tests.csproj" />
+    <Project Path="00_generators/AotSafety.Generator/tests/AotSafety.Tests.csproj" />
+    <Project Path="00_generators/Fsm.Generator/tests/Fsm.Generator.Tests.csproj" />
   </Folder>
 </Solution>

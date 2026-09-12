@@ -2,7 +2,7 @@
 
 > ADR: [0101](../adr/0101-file-watcher-unified-actor.md) — 架构决策详情
 > 日期: 2026-09-12
-> 状态: 进行中
+> 状态: 已完成
 
 ## 目标
 
@@ -43,45 +43,45 @@
 - [x] ADR 0101 proposed
 - [x] 工作文档
 
-### 阶段1: 修复 MainViewModel 违规
-- [ ] 改用 IFileSystem.Watch,移除 pragma
-- [ ] 编译+测试+提交
+### 阶段1: 修复 MainViewModel 违规 ✅
+- [x] 改用 IFileSystem.Watch,移除 pragma
+- [x] 编译+测试+提交
 
-### 阶段2: 统一防抖配置 FileWatcherOptions
-- [ ] 新增 FileWatcherOptions
-- [ ] 各消费方从 options 读取
-- [ ] 编译+测试+提交
+### 阶段2: 统一防抖配置 FileWatcherOptions ✅
+- [x] 新增 FileWatcherOptions
+- [x] 各消费方从 options 读取
+- [x] 编译+测试+提交
 
-### 阶段3: FileWatcherActorBase 基类
-- [ ] 新增 FileWatcherActorBase<TCommand>
-- [ ] 封装 watcher/防抖/MarkInternalWrite/事件→命令
-- [ ] 单元测试
-- [ ] 编译+测试+提交
+### 阶段3: FileWatcherActorBase 基类 ✅
+- [x] 新增 FileWatcherActorBase<TCommand>
+- [x] 封装 watcher/防抖/MarkInternalWrite/事件→命令
+- [x] 单元测试
+- [x] 编译+测试+提交
 
-### 阶段4: Actor 化 ConfigChangeNotifier
-- [ ] 编译+测试+提交
+### 阶段4: Actor 化 ConfigChangeNotifier ✅
+- [x] 编译+测试+提交
 
-### 阶段5: Actor 化 SettingsChangeApplier
-- [ ] 编译+测试+提交
+### 阶段5: Actor 化 SettingsChangeApplier ✅
+- [x] 编译+测试+提交
 
-### 阶段6: Actor 化 FileWatcherIntegration
-- [ ] 编译+测试+提交
+### 阶段6: Actor 化 FileWatcherIntegration ✅
+- [x] 编译+测试+提交
 
-### 阶段7: Actor 化 PluginHotReloader
-- [ ] 编译+测试+提交
+### 阶段7: Actor 化 PluginHotReloader ✅ (跳过 — 已 Actor 化)
+- [x] 编译+测试+提交
 
-### 阶段8: Actor 化 SkillDiscoveryService
-- [ ] 编译+测试+提交
+### 阶段8: Actor 化 SkillDiscoveryService ✅
+- [x] 编译+测试+提交
 
-### 阶段9: 已 Actor 化实现补防抖
-- [ ] FileCronTaskStore 改用 Debounced* 事件
-- [ ] TeamMemorySyncService 改用 Debounced* 事件
-- [ ] 编译+测试+提交
+### 阶段9: 已 Actor 化实现补防抖 ✅
+- [x] FileCronTaskStore 改用 Debounced* 事件
+- [x] TeamMemorySyncService 改用 Debounced* 事件
+- [x] 编译+测试+提交
 
-### 阶段10: ADR 0101 accepted + 全量验证
-- [ ] dotnet build --no-incremental
-- [ ] 全量测试
-- [ ] ADR 状态改 accepted
+### 阶段10: ADR 0101 accepted + 全量验证 ✅
+- [x] dotnet build --no-incremental (Infrastructure/Hands/Guard/CodeIndex/Scheduling/Vault 全部 0 错误 0 警告)
+- [x] 全量测试 (FileWatcherActorBase 4 + Config 1119 + CodeIndex 379 + Hands.Skills 109 + Scheduling 282 + Vault.Memdir 143 全通过)
+- [x] ADR 状态改 accepted
 
 ## 进度日志
 

@@ -1,6 +1,6 @@
 # 0101. 文件监控全面 Actor 化统一
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-09-12
 - 决策者：项目架构组
 - 关联 ADR：[0074](0074-actor-supervisor-tree.md)、[0086](0086-core-tech-selection-lock-design.md)、[0093](0093-resource-management-exception-style.md)、[0015](0015-config-hotreload-dual-variable.md)

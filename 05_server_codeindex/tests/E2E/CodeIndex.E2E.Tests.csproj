@@ -9,7 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)05_server_codeindex/src/CodeIndex.csproj" />
-    <ProjectReference Include="$(RepoRoot)01_shared/shared_infrastructure/Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

@@ -9,9 +9,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)01_shared/shared_abstractions/Abstractions.csproj" />
-    <ProjectReference Include="$(RepoRoot)01_shared/shared_infrastructure/Infrastructure.csproj" />
-    <ProjectReference Include="$(RepoRoot)01_shared/shared_guard/src/Guard.csproj" />
+    <ProjectReference Include="$(RepoRoot)lib/abstractions/Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)lib/guard/Guard.csproj" />
   </ItemGroup>
 
   <ItemGroup>

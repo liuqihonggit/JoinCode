@@ -14,7 +14,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)01_shared/shared_abstractions/Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)lib/abstractions/Abstractions.csproj" />
     <ProjectReference Include="$(RepoRoot)tests/mock_servers/mock_server.core/MockServer.Core.csproj" />
   </ItemGroup>
 

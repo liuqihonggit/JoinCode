@@ -18,10 +18,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)01_shared/shared_abstractions/Abstractions.csproj" />
-    <ProjectReference Include="$(RepoRoot)01_shared/shared_transport_contracts/Transport.Contracts.csproj" />
-    <ProjectReference Include="$(RepoRoot)01_shared/shared_transport_impl/Transport.Impl.csproj" />
-    <ProjectReference Include="$(RepoRoot)01_shared/shared_infrastructure/Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)lib/abstractions/Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)lib/transport.contracts/Transport.Contracts.csproj" />
+    <ProjectReference Include="$(RepoRoot)lib/transport.impl/Transport.Impl.csproj" />
+    <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
     <ProjectReference Include="$(RepoRoot)02_llm/llm/src/Llm.csproj" />
   </ItemGroup>
 

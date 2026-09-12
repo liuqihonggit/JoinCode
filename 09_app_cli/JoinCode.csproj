@@ -10,7 +10,7 @@
 
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)08_composition/src/Composition.csproj" />
-    <ProjectReference Include="$(RepoRoot)01_shared/shared_clock/src/Clock.csproj" />
+    <ProjectReference Include="$(RepoRoot)lib/clock/Clock.csproj" />
     <ProjectReference Include="$(RepoRoot)05_server_dream/src/Dream.csproj" />
     <ProjectReference Include="$(RepoRoot)05_server_browser/src/Browser.csproj" />
     <ProjectReference Include="$(RepoRoot)08_pipelines/src/Pipelines.csproj" />

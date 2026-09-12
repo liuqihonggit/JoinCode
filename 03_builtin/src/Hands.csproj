@@ -8,11 +8,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)01_shared/shared_abstractions/Abstractions.csproj" />
-    <ProjectReference Include="$(RepoRoot)01_shared/shared_infrastructure/Infrastructure.csproj" />
-    <ProjectReference Include="$(RepoRoot)01_shared/shared_plugins/plugins.infrastructure/Plugins.Infrastructure.csproj" />
-    <ProjectReference Include="$(RepoRoot)01_shared/shared_guard/src/Guard.csproj" />
-    <ProjectReference Include="$(RepoRoot)01_shared/shared_scheduling/src/Scheduling.csproj" />
+    <ProjectReference Include="$(RepoRoot)lib/abstractions/Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)lib/plugins.infrastructure/Plugins.Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)lib/guard/Guard.csproj" />
+    <ProjectReference Include="$(RepoRoot)lib/scheduling/Scheduling.csproj" />
   </ItemGroup>
 
   <ItemGroup>

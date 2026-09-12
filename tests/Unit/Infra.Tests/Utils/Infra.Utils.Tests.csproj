@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)01_shared/shared_infrastructure/Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
     <ProjectReference Include="$(RepoRoot)08_composition/src/Composition.csproj" />
     <ProjectReference Include="$(RepoRoot)tests/unit/testing.common/Testing.Common.csproj" />
   </ItemGroup>

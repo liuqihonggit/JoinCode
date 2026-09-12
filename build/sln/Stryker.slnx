@@ -12,14 +12,14 @@
     <Project Path="../../gen/tool_prompt.generator/ToolPrompt.Generator.csproj" />
   </Folder>
   <Folder Name="/01_shared/">
-    <Project Path="../../01_shared/shared_abstractions/Abstractions.csproj" />
-    <Project Path="../../01_shared/shared_structura/Structura.csproj" />
-    <Project Path="../../01_shared/shared_structura/tests/unit/Structura.Tests.csproj" />
-    <Project Path="../../01_shared/shared_transport_contracts/Transport.Contracts.csproj" />
+    <Project Path="../../lib/abstractions/Abstractions.csproj" />
+    <Project Path="../../lib/structura/Structura.csproj" />
+    <Project Path="../../lib/structura.tests/Structura.Tests.csproj" />
+    <Project Path="../../lib/transport.contracts/Transport.Contracts.csproj" />
   </Folder>
   <Folder Name="/infrastructure/">
-    <Project Path="../../01_shared/shared_infrastructure/Infrastructure.csproj" />
-    <Project Path="../../01_shared/shared_transport_impl/Transport.Impl.csproj" />
+    <Project Path="../../lib/infrastructure/Infrastructure.csproj" />
+    <Project Path="../../lib/transport.impl/Transport.Impl.csproj" />
   </Folder>
   <Folder Name="/02_llm/">
     <Project Path="../../02_llm/llm/src/Llm.csproj" />
@@ -39,20 +39,20 @@
     <Project Path="../../03_builtin/tests/shell/Hands.Shell.Tests.csproj" />
     <Project Path="../../03_builtin/tests/skills/Hands.Skills.Tests.csproj" />
     <Project Path="../../03_builtin/tests/tool_handlers/Hands.ToolHandlers.Tests.csproj" />
-    <Project Path="../../01_shared/shared_scheduling/src/Scheduling.csproj" />
-    <Project Path="../../01_shared/shared_scheduling/tests/unit/Scheduling.Tests.csproj" />
+    <Project Path="../../lib/scheduling/Scheduling.csproj" />
+    <Project Path="../../lib/scheduling.tests/Scheduling.Tests.csproj" />
     <Project Path="../../04_mcp_dispatch/src/McpToolDispatch.csproj" />
     <Project Path="../../04_mcp_dispatch/tests/unit/McpToolDispatch.Tests.csproj" />
   </Folder>
   <Folder Name="/core/safety/">
-    <Project Path="../../01_shared/shared_guard/src/Guard.csproj" />
-    <Project Path="../../01_shared/shared_guard/tests/config/Guard.Config.Tests.csproj" />
-    <Project Path="../../01_shared/shared_guard/tests/hooks/Guard.Hooks.Tests.csproj" />
-    <Project Path="../../01_shared/shared_guard/tests/security/Guard.Security.Tests.csproj" />
-    <Project Path="../../01_shared/shared_vault/src/Vault.csproj" />
-    <Project Path="../../01_shared/shared_vault/tests/memdir/Vault.Memdir.Tests.csproj" />
-    <Project Path="../../01_shared/shared_vault/tests/other/Vault.Other.Tests.csproj" />
-    <Project Path="../../01_shared/shared_vault/tests/shared/Vault.Testing.Common.csproj" />
+    <Project Path="../../lib/guard/Guard.csproj" />
+    <Project Path="../../lib/guard.config.tests/Guard.Config.Tests.csproj" />
+    <Project Path="../../lib/guard.hooks.tests/Guard.Hooks.Tests.csproj" />
+    <Project Path="../../lib/guard.security.tests/Guard.Security.Tests.csproj" />
+    <Project Path="../../lib/vault/Vault.csproj" />
+    <Project Path="../../lib/vault.memdir.tests/Vault.Memdir.Tests.csproj" />
+    <Project Path="../../lib/vault.other.tests/Vault.Other.Tests.csproj" />
+    <Project Path="../../lib/vault.testing.common/Vault.Testing.Common.csproj" />
   </Folder>
   <Folder Name="/core/search/">
     <Project Path="../../05_server_codeindex/src/CodeIndex.csproj" />
@@ -75,8 +75,8 @@
   <Folder Name="/composition/">
     <Project Path="../../08_composition/src/Composition.csproj" />
     <Project Path="../../08_composition/tests/unit/Composition.Tests.csproj" />
-    <Project Path="../../01_shared/shared_clock/src/Clock.csproj" />
-    <Project Path="../../01_shared/shared_clock/tests/unit/Clock.Tests.csproj" />
+    <Project Path="../../lib/clock/Clock.csproj" />
+    <Project Path="../../lib/clock.tests/Clock.Tests.csproj" />
     <Project Path="../../08_pipelines/src/Pipelines.csproj" />
   </Folder>
   <Folder Name="/app/">

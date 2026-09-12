@@ -615,10 +615,17 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
         foreach (var redirect in redirections)
         {
             // /dev/null 始终安全
-            if (redirect.Target.Equals("/dev/null", StringComparison.OrdinalIgnoreCase)
-                || redirect.Target.Equals("NUL", StringComparison.OrdinalIgnoreCase))
+            if (redirect.Target.Equals("/dev/null", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
+            }
+
+            // NUL 重定向需确认 — git bash 中会创建名为 nul 的文件（Windows 保留设备名）— ADR 0012
+            if (redirect.Target.Equals("NUL", StringComparison.OrdinalIgnoreCase))
+            {
+                return new PathConstraintResult(
+                    PermissionBehavior.Ask,
+                    "检测到 NUL 重定向 — 在 git bash 中会创建名为 nul 的文件（Windows 保留设备名）。若本意是丢弃输出，请改用 /dev/null");
             }
 
             // 检查路径是否在工作区内

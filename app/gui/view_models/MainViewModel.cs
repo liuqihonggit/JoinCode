@@ -61,6 +61,14 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [ObservableProperty]
     private bool _doubleEscStop = true;
 
+    /// <summary>无人值守模式 — AI 持续推进长任务，红灯自动执行+审计，黑灯仍拒绝 — ADR 0012</summary>
+    [ObservableProperty]
+    private bool _isUnattendedMode = false;
+
+    /// <summary>防丢字符二次确认 — 防止 MTP 加速推理时丢字符/乱入字符导致命令变形 — ADR 0012</summary>
+    [ObservableProperty]
+    private bool _isAntiCharLossConfirm = false;
+
     /// <summary>输入栏占位提示 — 随发送键位偏好联动</summary>
     public string SendHintText => EnterSends
         ? "输入消息，Enter 发送 / Shift+Enter 换行…"
@@ -996,6 +1004,8 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
         _persistActions[nameof(StreamingEnabled)] = SavePreferences;
         _persistActions[nameof(EnterSends)] = SavePreferences;
         _persistActions[nameof(DoubleEscStop)] = SavePreferences;
+        _persistActions[nameof(IsUnattendedMode)] = SavePreferences;
+        _persistActions[nameof(IsAntiCharLossConfirm)] = SavePreferences;
     }
 
     /// <summary>

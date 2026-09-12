@@ -7,9 +7,9 @@ namespace Core.Hooks.Execution.Interception.Guards;
 /// <list type="bullet">
 /// <item>本质是通信可靠性保障，不是权限控制</item>
 /// <item>所有命令第一轮返回 <see cref="CommandDecision.Deny"/> 要求再次输入</item>
-/// <item>第二轮（context 含 ConfirmedCommand 且匹配）放行</item>
-/// <item>通过 context["AntiCharLossConfirm"] = true 启用</item>
-/// <item>通过 context["ConfirmedCommand"] = command 传递已确认命令</item>
+/// <item>第二轮（context.ConfirmedCommand 匹配）放行</item>
+/// <item>通过 <see cref="GuardContext.ConfirmMode"/> = <see cref="GuardConfirmMode.AntiCharLossConfirm"/> 启用</item>
+/// <item>通过 <see cref="GuardContext.ConfirmedCommand"/> 传递已确认命令</item>
 /// </list>
 /// </para>
 /// </summary>
@@ -23,7 +23,7 @@ public sealed partial class GlobalTwoPhaseConfirmGuard : ICommandGuard
     public int Priority => 900;
 
     /// <inheritdoc/>
-    public bool CanHandle(string command, IReadOnlyDictionary<string, object> context)
+    public bool CanHandle(string command, GuardContext context)
     {
         if (string.IsNullOrWhiteSpace(command))
             return false;
@@ -32,7 +32,7 @@ public sealed partial class GlobalTwoPhaseConfirmGuard : ICommandGuard
     }
 
     /// <inheritdoc/>
-    public CommandDecision Evaluate(string command, IReadOnlyDictionary<string, object> context)
+    public CommandDecision Evaluate(string command, GuardContext context)
     {
         if (!IsEnabled(context))
             return new CommandDecision.Allow();
@@ -50,11 +50,9 @@ public sealed partial class GlobalTwoPhaseConfirmGuard : ICommandGuard
                 "导致命令字符串被截断或混入乱码。请再次输入同样命令以确认字符串完整无误。"));
     }
 
-    private static bool IsEnabled(IReadOnlyDictionary<string, object> context) =>
-        context.TryGetValue("AntiCharLossConfirm", out var value) && value is true;
+    private static bool IsEnabled(GuardContext context) =>
+        context.ConfirmMode == GuardConfirmMode.AntiCharLossConfirm;
 
-    private static bool IsConfirmed(string command, IReadOnlyDictionary<string, object> context) =>
-        context.TryGetValue("ConfirmedCommand", out var value) &&
-        value is string confirmed &&
-        confirmed == command;
+    private static bool IsConfirmed(string command, GuardContext context) =>
+        context.ConfirmedCommand == command;
 }

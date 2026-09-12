@@ -11,12 +11,8 @@ public class RobocopyMirrorGuardTests
 {
     private readonly RobocopyMirrorGuard _guard = new();
 
-    private IReadOnlyDictionary<string, object> CreateContext(string workingDir = "D:\\project\\w2")
-    {
-#pragma warning disable JCC1001 // context 字典仅运行时传参,不参与 AOT 序列化
-        return new Dictionary<string, object> { ["WorkingDirectory"] = workingDir };
-#pragma warning restore JCC1001
-    }
+    private static GuardContext CreateContext(string workingDir = "D:\\project\\w2") =>
+        new(SystemActuatorKind.Bash, workingDir);
 
     #region CanHandle 测试
 

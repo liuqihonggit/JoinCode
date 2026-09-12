@@ -34,7 +34,7 @@ public sealed partial class CmdIndirectCallGuard : ICommandGuard
     public int Priority => 800;
 
     /// <inheritdoc/>
-    public bool CanHandle(string command, IReadOnlyDictionary<string, object> context)
+    public bool CanHandle(string command, GuardContext context)
     {
         if (string.IsNullOrWhiteSpace(command))
             return false;
@@ -43,7 +43,7 @@ public sealed partial class CmdIndirectCallGuard : ICommandGuard
     }
 
     /// <inheritdoc/>
-    public CommandDecision Evaluate(string command, IReadOnlyDictionary<string, object> context)
+    public CommandDecision Evaluate(string command, GuardContext context)
     {
         var innerCommand = ExtractInnerCommand(command);
         if (innerCommand is null)

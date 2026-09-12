@@ -5,8 +5,7 @@ namespace Guard.Tests.Hooks.Execution.Interception;
 /// </summary>
 public sealed class GitCommitGuardTests
 {
-    private static readonly IReadOnlyDictionary<string, object> EmptyContext =
-        FrozenDictionary<string, object>.Empty;
+    private static readonly GuardContext EmptyContext = new(SystemActuatorKind.Bash, "");
 
     // === CanHandle 命中 ===
 

@@ -28,7 +28,7 @@ public sealed partial class RobocopyMirrorGuard : ICommandGuard
     public int Priority => 500;
 
     /// <inheritdoc/>
-    public bool CanHandle(string command, IReadOnlyDictionary<string, object> context)
+    public bool CanHandle(string command, GuardContext context)
     {
         if (string.IsNullOrWhiteSpace(command))
             return false;
@@ -42,7 +42,7 @@ public sealed partial class RobocopyMirrorGuard : ICommandGuard
     }
 
     /// <inheritdoc/>
-    public CommandDecision Evaluate(string command, IReadOnlyDictionary<string, object> context)
+    public CommandDecision Evaluate(string command, GuardContext context)
     {
         var shellCmd = ShellCommand.Parse(command);
 

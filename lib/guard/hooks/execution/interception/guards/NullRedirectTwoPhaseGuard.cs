@@ -30,7 +30,7 @@ public sealed partial class NullRedirectTwoPhaseGuard : ICommandGuard
     public int Priority => 700;
 
     /// <inheritdoc/>
-    public bool CanHandle(string command, IReadOnlyDictionary<string, object> context)
+    public bool CanHandle(string command, GuardContext context)
     {
         if (string.IsNullOrWhiteSpace(command))
             return false;
@@ -39,7 +39,7 @@ public sealed partial class NullRedirectTwoPhaseGuard : ICommandGuard
     }
 
     /// <inheritdoc/>
-    public CommandDecision Evaluate(string command, IReadOnlyDictionary<string, object> context)
+    public CommandDecision Evaluate(string command, GuardContext context)
     {
         if (!RetainedDeviceRedirectRegex().IsMatch(command))
             return new CommandDecision.Allow();

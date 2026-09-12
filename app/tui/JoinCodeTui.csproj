@@ -10,7 +10,7 @@
 
   <ItemGroup>
     <!-- 引用 JoinCode 复用 EngineSessionFactory + Abstractions 门面；TUI 不走 CLI 管道，用 CreateGuiSessionAsync 组装 DI -->
-    <ProjectReference Include="$(RepoRoot)09_app_cli/JoinCode.csproj" />
+    <ProjectReference Include="$(RepoRoot)app/cli/JoinCode.csproj" />
   </ItemGroup>
 
   <ItemGroup>

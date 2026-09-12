@@ -1,7 +1,7 @@
 <Solution>
   <Folder Name="/app/">
-    <Project Path="../../09_app_sdk/Sdk.csproj" />
-    <Project Path="../../09_app_cli/JoinCode.csproj" />
+    <Project Path="../../app/sdk/Sdk.csproj" />
+    <Project Path="../../app/cli/JoinCode.csproj" />
     <Project Path="../../kit/pipelines/Pipelines.csproj" />
   </Folder>
   <Folder Name="/tests/Unit/">

@@ -16,7 +16,7 @@
     <ProjectReference Include="$(RepoRoot)lib/guard/Guard.csproj" />
     <ProjectReference Include="$(RepoRoot)lib/clock/Clock.csproj" />
     <ProjectReference Include="$(RepoRoot)lib/vault/Vault.csproj" />
-    <ProjectReference Include="$(RepoRoot)09_app_cli/JoinCode.csproj" />
+    <ProjectReference Include="$(RepoRoot)app/cli/JoinCode.csproj" />
     <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
 
     <ProjectReference Include="$(RepoRoot)lib/abstractions/Abstractions.csproj" />

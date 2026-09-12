@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)09_app_cli/JoinCode.csproj" />
+    <ProjectReference Include="$(RepoRoot)app/cli/JoinCode.csproj" />
     <ProjectReference Include="$(RepoRoot)llm/llm/Llm.csproj" />
     <ProjectReference Include="$(RepoRoot)kit/composition/Composition.csproj" />
     <ProjectReference Include="$(RepoRoot)tests/unit/testing.common/Testing.Common.csproj" />

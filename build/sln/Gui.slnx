@@ -1,6 +1,6 @@
 <Solution>
-  <Folder Name="/09_app_gui/">
-    <Project Path="../../09_app_gui/JoinCodeGui.csproj" />
+  <Folder Name="/app/">
+    <Project Path="../../app/gui/JoinCodeGui.csproj" />
   </Folder>
   <Folder Name="/tests/JoinCodeGui.Tests/">
     <Project Path="../../tests/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj" />

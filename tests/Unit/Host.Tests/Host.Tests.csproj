@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)09_app_cli/JoinCode.csproj" />
+    <ProjectReference Include="$(RepoRoot)app/cli/JoinCode.csproj" />
   </ItemGroup>
 
   <!-- Core.Tests.Terminal 依赖（去重：JoinCode 已在上面） -->

@@ -8,8 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)09_app_cli/JoinCode.csproj" />
-    <ProjectReference Include="$(RepoRoot)09_app_tui/JoinCodeTui.csproj" />
+    <ProjectReference Include="$(RepoRoot)app/cli/JoinCode.csproj" />
+    <ProjectReference Include="$(RepoRoot)app/tui/JoinCodeTui.csproj" />
   </ItemGroup>
 
   <ItemGroup>

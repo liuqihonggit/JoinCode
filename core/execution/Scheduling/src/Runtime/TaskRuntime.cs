@@ -9,7 +9,7 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
     private readonly ILogger<TaskRuntime>? _logger;
     private readonly IClockService _clock;
     private readonly TaskRuntimeDeps _deps;
-    private readonly AsyncLock _persistLock = new();
+    private readonly TaskPersistActor _persistActor;
     private int _taskCounter;
 
     public TaskRuntime(
@@ -24,6 +24,7 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
         }
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
+        _persistActor = new TaskPersistActor(this, _logger);
     }
 
     public Task<OperationResult<RuntimeTask?>> CreateTaskAsync(RuntimeTaskInput input, CancellationToken cancellationToken = default)
@@ -284,36 +285,38 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
         {
             return;
         }
+        await _persistActor.PersistAsync(cancellationToken).ConfigureAwait(false);
+    }
 
-                using (await _persistLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_persistLock.Name}' 等待超时"))
+    internal async Task PersistCoreAsync(CancellationToken cancellationToken)
+    {
+        var persistenceDir = _deps.PersistenceDirectory!;
+        if (!_deps.FileOperationService!.DirectoryExists(persistenceDir))
         {
-            if (!_deps.FileOperationService.DirectoryExists(_deps.PersistenceDirectory))
-            {
-                _deps.FileOperationService.CreateDirectory(_deps.PersistenceDirectory);
-            }
-
-            var durableTasks = _tasks.Values.Where(t => t.IsDurable).ToList();
-            var filePath = Path.Combine(_deps.PersistenceDirectory, "runtime-tasks.json");
-            var json = RelaxedJsonSerializer.Serialize(durableTasks, SchedulingTasksJsonContext.Default);
-
-            var tempPath = filePath + ".tmp";
-            try
-            {
-                await _deps.FileOperationService.WriteFileAsync(tempPath, json, cancellationToken).ConfigureAwait(false);
-                await _deps.FileOperationService.MoveFileAsync(tempPath, filePath, overwrite: true, cancellationToken).ConfigureAwait(false);
-            }
-            catch
-            {
-                if (_deps.FileOperationService.FileExists(tempPath))
-                {
-                    try { await _deps.FileOperationService.DeleteFileAsync(tempPath, cancellationToken).ConfigureAwait(false); }
-                    catch (Exception cleanupEx) { _logger?.LogWarning(cleanupEx, "清理临时文件失败: {TempPath}", tempPath); }
-                }
-                throw;
-            }
-
-            _logger?.LogDebug(L.T(StringKey.PersistTasksLog), durableTasks.Count);
+            _deps.FileOperationService.CreateDirectory(persistenceDir);
         }
+
+        var durableTasks = _tasks.Values.Where(t => t.IsDurable).ToList();
+        var filePath = Path.Combine(persistenceDir, "runtime-tasks.json");
+        var json = RelaxedJsonSerializer.Serialize(durableTasks, SchedulingTasksJsonContext.Default);
+
+        var tempPath = filePath + ".tmp";
+        try
+        {
+            await _deps.FileOperationService.WriteFileAsync(tempPath, json, cancellationToken).ConfigureAwait(false);
+            await _deps.FileOperationService.MoveFileAsync(tempPath, filePath, overwrite: true, cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            if (_deps.FileOperationService.FileExists(tempPath))
+            {
+                try { await _deps.FileOperationService.DeleteFileAsync(tempPath, cancellationToken).ConfigureAwait(false); }
+                catch (Exception cleanupEx) { _logger?.LogWarning(cleanupEx, "清理临时文件失败: {TempPath}", tempPath); }
+            }
+            throw;
+        }
+
+        _logger?.LogDebug(L.T(StringKey.PersistTasksLog), durableTasks.Count);
     }
 
     public async Task<IReadOnlyList<RuntimeTask>> RecoverTasksAsync(string? goalId = null, CancellationToken cancellationToken = default)
@@ -322,77 +325,77 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
         {
             return Array.Empty<RuntimeTask>();
         }
+        return await _persistActor.RecoverTasksAsync(goalId, cancellationToken).ConfigureAwait(false);
+    }
 
-                using (await _persistLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_persistLock.Name}' 等待超时"))
+    internal async Task<IReadOnlyList<RuntimeTask>> RecoverTasksCoreAsync(string? goalId, CancellationToken cancellationToken)
+    {
+        var filePath = Path.Combine(_deps.PersistenceDirectory!, "runtime-tasks.json");
+        if (!_deps.FileOperationService!.FileExists(filePath))
         {
-            var filePath = Path.Combine(_deps.PersistenceDirectory, "runtime-tasks.json");
-            if (!_deps.FileOperationService.FileExists(filePath))
-            {
-                return Array.Empty<RuntimeTask>();
-            }
-
-            var readResult = await _deps.FileOperationService.ReadFileAsync(filePath, cancellationToken: cancellationToken).ConfigureAwait(false);
-            if (!readResult.Success)
-            {
-                _logger?.LogWarning(L.T(StringKey.RecoverTasksCorruptFileLog), filePath, readResult.ErrorMessage ?? "读取失败");
-                return Array.Empty<RuntimeTask>();
-            }
-
-            List<RuntimeTask>? tasks;
-            try
-            {
-                tasks = RelaxedJsonSerializer.Deserialize(readResult.Content, SchedulingTasksJsonContext.Default.ListRuntimeTask);
-            }
-            catch (JsonException ex)
-            {
-                // 损坏的持久化文件 — 隔离而非崩溃，保留进程内已加载任务，等待下次持久化覆盖
-                _logger?.LogWarning(ex, L.T(StringKey.RecoverTasksCorruptFileLog), filePath, ex.Message);
-                await QuarantineCorruptFileAsync(filePath, cancellationToken).ConfigureAwait(false);
-                return Array.Empty<RuntimeTask>();
-            }
-
-            if (tasks is null || tasks.Count == 0)
-            {
-                return Array.Empty<RuntimeTask>();
-            }
-
-            var recovered = new List<RuntimeTask>();
-            foreach (var task in tasks)
-            {
-                if (goalId is not null && task.GoalId != goalId)
-                {
-                    continue;
-                }
-
-                if (task.Status == TaskExecutionStatus.Running)
-                {
-                    task.Status = TaskExecutionStatus.Pending;
-                    task.ErrorMessage = L.T(StringKey.CrashRecoveryMsg);
-                }
-
-                _tasks[task.Id] = task;
-
-                if (task.Dependencies is { Count: > 0 })
-                {
-                    _dag.AddNode(new DagNode<string> { Id = task.Id, Payload = task.Id });
-                    foreach (var depId in task.Dependencies)
-                    {
-                        if (!_dag.Nodes.ContainsKey(depId))
-                            _dag.AddNode(new DagNode<string> { Id = depId, Payload = depId });
-                        _dag.TryAddEdge(new DagEdge { FromId = depId, ToId = task.Id, Label = "DEPENDS_ON" });
-                    }
-                }
-                else
-                {
-                    _dag.AddNode(new DagNode<string> { Id = task.Id, Payload = task.Id });
-                }
-
-                recovered.Add(task);
-            }
-
-            _logger?.LogInformation(L.T(StringKey.RecoverTasksLog), recovered.Count);
-            return recovered;
+            return Array.Empty<RuntimeTask>();
         }
+
+        var readResult = await _deps.FileOperationService.ReadFileAsync(filePath, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (!readResult.Success)
+        {
+            _logger?.LogWarning(L.T(StringKey.RecoverTasksCorruptFileLog), filePath, readResult.ErrorMessage ?? "读取失败");
+            return Array.Empty<RuntimeTask>();
+        }
+
+        List<RuntimeTask>? tasks;
+        try
+        {
+            tasks = RelaxedJsonSerializer.Deserialize(readResult.Content, SchedulingTasksJsonContext.Default.ListRuntimeTask);
+        }
+        catch (JsonException ex)
+        {
+            _logger?.LogWarning(ex, L.T(StringKey.RecoverTasksCorruptFileLog), filePath, ex.Message);
+            await QuarantineCorruptFileAsync(filePath, cancellationToken).ConfigureAwait(false);
+            return Array.Empty<RuntimeTask>();
+        }
+
+        if (tasks is null || tasks.Count == 0)
+        {
+            return Array.Empty<RuntimeTask>();
+        }
+
+        var recovered = new List<RuntimeTask>();
+        foreach (var task in tasks)
+        {
+            if (goalId is not null && task.GoalId != goalId)
+            {
+                continue;
+            }
+
+            if (task.Status == TaskExecutionStatus.Running)
+            {
+                task.Status = TaskExecutionStatus.Pending;
+                task.ErrorMessage = L.T(StringKey.CrashRecoveryMsg);
+            }
+
+            _tasks[task.Id] = task;
+
+            if (task.Dependencies is { Count: > 0 })
+            {
+                _dag.AddNode(new DagNode<string> { Id = task.Id, Payload = task.Id });
+                foreach (var depId in task.Dependencies)
+                {
+                    if (!_dag.Nodes.ContainsKey(depId))
+                        _dag.AddNode(new DagNode<string> { Id = depId, Payload = depId });
+                    _dag.TryAddEdge(new DagEdge { FromId = depId, ToId = task.Id, Label = "DEPENDS_ON" });
+                }
+            }
+            else
+            {
+                _dag.AddNode(new DagNode<string> { Id = task.Id, Payload = task.Id });
+            }
+
+            recovered.Add(task);
+        }
+
+        _logger?.LogInformation(L.T(StringKey.RecoverTasksLog), recovered.Count);
+        return recovered;
     }
 
     /// <summary>
@@ -466,6 +469,6 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
     protected override void OnDispose()
     {
         _dag.Dispose();
-        _persistLock.Dispose();
+        _ = _persistActor.DisposeAsync();
     }
 }

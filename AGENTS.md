@@ -523,6 +523,8 @@ chcp 65001
 
 > **详细架构索引见 [README.md](README.md#项目架构索引)**，包含：组件依赖图、组件详情表、内部结构、源码生成器、中间件管道清单、测试结构、构建命令速查、组件名→路径映射
 
+> ⚠️ **架构迁移中** — [ADR 0103](docs/adr/0103-folder-restructure-semantic-grouping-flat.md) 将从数字前缀(`00_generators/`~`09_app_*`)改为语义分组(`build/ gen/ lib/ llm/ kit/ server/ app/ test/ tool/`)+ 组内扁平(消除 src/+tests/ 双层)。详见 [docs/design/flatten-restructure-plan.md](docs/design/flatten-restructure-plan.md)。迁移完成前,下方路径引用仍为当前数字前缀结构。
+
 ## 测试项目地图
 
 按七层解决方案 + 跨层测试中心组织：

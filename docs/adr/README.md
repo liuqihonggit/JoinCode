@@ -91,7 +91,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 
 ## 统计
 
-- 总数：**98** | accepted：**90** | superseded：**5** | proposed：**3**
+- 总数：**100** | accepted：**90** | superseded：**6** | proposed：**4**
 
 ## 完整索引（按编号）
 
@@ -192,6 +192,8 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0097](0097-workflow-checkpoint-resume.md) | Workflow 级断点续跑持久化策略 | accepted | 2026-09-09 |
 | [0098](0098-plugin-system-fusion-actor-effectscope.md) | 插件系统融合 — Actor+EffectScope+动态拓扑+弱事件+ALC | accepted | 2026-09-10 |
 | [0101](0101-file-watcher-unified-actor.md) | 文件监控全面 Actor 化统一 | proposed | 2026-09-12 |
+| [0102](0102-folder-restructure-functional-driven.md) | 文件夹整理改革 — 从领域驱动到功能驱动 | superseded by 0103 | 2026-09-12 |
+| [0103](0103-folder-restructure-semantic-grouping-flat.md) | 文件夹扁平化重组 — 语义分组 + 组内扁平 | proposed | 2026-09-13 |
 
 ## 主题索引（按议题）
 
@@ -214,6 +216,8 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0011](0011-data-container-aot-gc.md) | 数据容器 AOT+GC 选型 | accepted | 2026-08-29 |
 | [0081](0081-seven-layer-build-strategy.md) | 七层解决方案架构与编译策略 | accepted | 2026-09-08 |
 | [0098](0098-plugin-system-fusion-actor-effectscope.md) | 插件系统融合 — Actor+EffectScope+动态拓扑+弱事件+ALC | accepted | 2026-09-10 |
+| [0102](0102-folder-restructure-functional-driven.md) | 文件夹整理改革 — 从领域驱动到功能驱动 | superseded by 0103 | 2026-09-12 |
+| [0103](0103-folder-restructure-semantic-grouping-flat.md) | 文件夹扁平化重组 — 语义分组 + 组内扁平 | proposed | 2026-09-13 |
 
 ### 组件策略与方法论
 
@@ -371,6 +375,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0034](0034-command-interception-layered.md) | 命令拦截分层 Guard+Interceptor+Dispatcher | [0039](0039-command-interception-state-machine.md) |
 | [0059](0059-asynclock-reentrancy-detection.md) | AsyncLock 同步重入检测 — LockReentrancyException 提早暴露死锁 | [0060](0060-asynclock-sync-trylock-fireandforget-deadlock.md) |
 | [0065](0065-jcc-mcp-subcommand.md) | jcc mcp CLI 子命令 — bash 直调内部 MCP 工具 | [0069](0069-cli-args-full-refactor.md) |
+| [0102](0102-folder-restructure-functional-driven.md) | 文件夹整理改革 — 从领域驱动到功能驱动 | [0103](0103-folder-restructure-semantic-grouping-flat.md) |
 
 ## 反例与工程约束（高频查阅）
 

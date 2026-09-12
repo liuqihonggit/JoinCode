@@ -1,6 +1,8 @@
 # ADR 0102: 文件夹整理改革 — 从领域驱动到功能驱动
 
-> 状态: proposed
+> ⚠️ **已被 [0103](0103-folder-restructure-semantic-grouping-flat.md) 取代** — 数字前缀方案改为语义分组+组内扁平,消除数字撞车和 src/+tests/ 双层
+
+> 状态: superseded by 0103
 > 创建: 2026-09-12
 > 决策者: 用户主导
 > 影响: 全量迁移，废弃七层架构和脑/眼/手分类

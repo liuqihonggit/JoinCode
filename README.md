@@ -318,6 +318,8 @@ jcc --debuglog -p "hello"
 
 ## Architecture
 
+> ⚠️ **Architecture migration in progress** — [ADR 0103](docs/adr/0103-folder-restructure-semantic-grouping-flat.md) will restructure from numeric prefixes (`00_generators/`~`09_app_*`) to semantic grouping (`build/ gen/ lib/ llm/ kit/ server/ app/ test/ tool/`) with flat internals (eliminating `src/`+`tests/` double layer). See [docs/design/flatten-restructure-plan.md](docs/design/flatten-restructure-plan.md). Until migration completes, paths below reflect the current numeric-prefix structure.
+
 JoinCode uses a **seven-layer solution isolation** architecture with strict
 dependency ordering:
 

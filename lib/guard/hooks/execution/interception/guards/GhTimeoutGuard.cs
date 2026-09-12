@@ -27,7 +27,7 @@ public sealed partial class GhTimeoutGuard : ICommandGuard
     public int Priority => 50;
 
     /// <inheritdoc/>
-    public bool CanHandle(string command, IReadOnlyDictionary<string, object> context)
+    public bool CanHandle(string command, GuardContext context)
     {
         var normalized = command.TrimStart();
         return normalized.StartsWith("gh ", StringComparison.OrdinalIgnoreCase)
@@ -35,7 +35,7 @@ public sealed partial class GhTimeoutGuard : ICommandGuard
     }
 
     /// <inheritdoc/>
-    public CommandDecision Evaluate(string command, IReadOnlyDictionary<string, object> context)
+    public CommandDecision Evaluate(string command, GuardContext context)
     {
         _logger?.LogDebug("gh 命令超时控制: {Command}", command);
         return new CommandDecision.Allow();

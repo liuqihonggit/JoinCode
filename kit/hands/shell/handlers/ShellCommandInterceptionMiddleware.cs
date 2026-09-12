@@ -45,13 +45,9 @@ public sealed partial class ShellCommandInterceptionMiddleware : ServiceEntity, 
             return;
         }
 
-#pragma warning disable JCC1001 // context 字典仅运行时传参,不参与 AOT 序列化
-        var dispatchContext = new Dictionary<string, object>
-        {
-            ["ShellKind"] = context.Provider.Kind,
-            ["WorkingDirectory"] = context.WorkingDirectory ?? string.Empty,
-        };
-#pragma warning restore JCC1001
+        var dispatchContext = new GuardContext(
+            context.Provider.Kind,
+            context.WorkingDirectory ?? string.Empty);
 
         var outcome = await _dispatcher.DispatchAsync(context.Command, dispatchContext, ct).ConfigureAwait(false);
 

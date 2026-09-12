@@ -34,19 +34,19 @@ public interface ICommandInterceptor
     /// 是否处理该命令 — 快速过滤
     /// </summary>
     /// <param name="command">待处理的命令</param>
-    /// <param name="context">执行上下文</param>
+    /// <param name="context">执行上下文(强类型)</param>
     /// <returns>处理该命令返回 true,否则 false</returns>
-    bool CanHandle(string command, IReadOnlyDictionary<string, object> context);
+    bool CanHandle(string command, GuardContext context);
 
     /// <summary>
     /// 处理命令 — 可异步、可有状态、可短路
     /// </summary>
     /// <param name="command">待处理的命令</param>
-    /// <param name="context">执行上下文</param>
+    /// <param name="context">执行上下文(强类型)</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>处理结果(Handled 短路 / Continue 继续)</returns>
     Task<InterceptResult> HandleAsync(
         string command,
-        IReadOnlyDictionary<string, object> context,
+        GuardContext context,
         CancellationToken cancellationToken);
 }

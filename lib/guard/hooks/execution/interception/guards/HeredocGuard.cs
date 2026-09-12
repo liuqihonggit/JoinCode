@@ -44,13 +44,13 @@ public sealed partial class HeredocGuard : ICommandGuard
     public int Priority => 200;
 
     /// <inheritdoc/>
-    public bool CanHandle(string command, IReadOnlyDictionary<string, object> context)
+    public bool CanHandle(string command, GuardContext context)
     {
         return command.Contains("<<");
     }
 
     /// <inheritdoc/>
-    public CommandDecision Evaluate(string command, IReadOnlyDictionary<string, object> context)
+    public CommandDecision Evaluate(string command, GuardContext context)
     {
         // Bash 原生支持 HEREDOC,不需要转换
         if (IsBashShell(context))
@@ -93,11 +93,9 @@ public sealed partial class HeredocGuard : ICommandGuard
     /// <summary>
     /// 判断当前 shell 是否为 Bash — Bash 原生支持 HEREDOC,无需转换
     /// </summary>
-    private static bool IsBashShell(IReadOnlyDictionary<string, object> context)
+    private static bool IsBashShell(GuardContext context)
     {
-        return context.TryGetValue("ShellKind", out var kindObj)
-            && kindObj is SystemActuatorKind kind
-            && kind == SystemActuatorKind.Bash;
+        return context.ShellKind == SystemActuatorKind.Bash;
     }
 
     /// <summary>

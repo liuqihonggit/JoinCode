@@ -5,8 +5,7 @@ namespace Guard.Tests.Hooks.Execution.Interception;
 /// </summary>
 public sealed class CommandInterceptionDispatcherTests
 {
-    private static readonly IReadOnlyDictionary<string, object> EmptyContext =
-        FrozenDictionary<string, object>.Empty;
+    private static readonly GuardContext EmptyContext = new(SystemActuatorKind.Bash, "");
 
     // === 空集合 ===
 
@@ -226,9 +225,9 @@ public sealed class CommandInterceptionDispatcherTests
         public string Name { get; }
         public int Priority { get; }
 
-        public bool CanHandle(string command, IReadOnlyDictionary<string, object> context) => true;
+        public bool CanHandle(string command, GuardContext context) => true;
 
-        public CommandDecision Evaluate(string command, IReadOnlyDictionary<string, object> context)
+        public CommandDecision Evaluate(string command, GuardContext context)
         {
             EvaluateCallCount++;
             return _decision;
@@ -260,9 +259,9 @@ public sealed class CommandInterceptionDispatcherTests
         public string Name { get; }
         public int Priority { get; }
 
-        public bool CanHandle(string command, IReadOnlyDictionary<string, object> context) => true;
+        public bool CanHandle(string command, GuardContext context) => true;
 
-        public Task<InterceptResult> HandleAsync(string command, IReadOnlyDictionary<string, object> context, CancellationToken cancellationToken)
+        public Task<InterceptResult> HandleAsync(string command, GuardContext context, CancellationToken cancellationToken)
         {
             HandleCallCount++;
             if (_throwOnHandle) throw new InvalidOperationException("stub throw");

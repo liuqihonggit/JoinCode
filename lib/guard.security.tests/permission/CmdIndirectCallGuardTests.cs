@@ -12,12 +12,8 @@ public class CmdIndirectCallGuardTests
 {
     private readonly CmdIndirectCallGuard _guard = new(new CommandDangerClassifier());
 
-    private IReadOnlyDictionary<string, object> CreateContext()
-    {
-#pragma warning disable JCC1001
-        return new Dictionary<string, object> { ["WorkingDirectory"] = "D:\\project\\w2" };
-#pragma warning restore JCC1001
-    }
+    private static GuardContext CreateContext() =>
+        new(SystemActuatorKind.Bash, "D:\\project\\w2");
 
     #region CanHandle 测试
 

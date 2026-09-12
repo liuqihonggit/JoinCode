@@ -11,15 +11,12 @@ public class GlobalTwoPhaseConfirmGuardTests
 {
     private readonly GlobalTwoPhaseConfirmGuard _guard = new();
 
-    private IReadOnlyDictionary<string, object> CreateContext(bool enabled = false, string? confirmedCommand = null)
-    {
-#pragma warning disable JCC1001
-        var dict = new Dictionary<string, object> { ["WorkingDirectory"] = "D:\\project\\w2" };
-        if (enabled) dict["AntiCharLossConfirm"] = true;
-        if (confirmedCommand is not null) dict["ConfirmedCommand"] = confirmedCommand;
-        return dict;
-#pragma warning restore JCC1001
-    }
+    private static GuardContext CreateContext(bool enabled = false, string? confirmedCommand = null) =>
+        new(
+            SystemActuatorKind.Bash,
+            "D:\\project\\w2",
+            ConfirmMode: enabled ? GuardConfirmMode.AntiCharLossConfirm : GuardConfirmMode.None,
+            ConfirmedCommand: confirmedCommand);
 
     #region 未启用时放行
 

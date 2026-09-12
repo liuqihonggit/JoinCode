@@ -5,18 +5,14 @@ using Core.Hooks.Execution.Interception.Guards;
 
 /// <summary>
 /// NullRedirectTwoPhaseGuard 单元测试 — ADR 0012 阶段5
-/// 验证 > <保留设备名> 重定向拦截（nul/con/prn/aux/com1-9/lpt1-9）
+/// 验证 &gt; &lt;保留设备名&gt; 重定向拦截（nul/con/prn/aux/com1-9/lpt1-9）
 /// </summary>
 public class NullRedirectTwoPhaseGuardTests
 {
     private readonly NullRedirectTwoPhaseGuard _guard = new();
 
-    private IReadOnlyDictionary<string, object> CreateContext()
-    {
-#pragma warning disable JCC1001
-        return new Dictionary<string, object> { ["WorkingDirectory"] = "D:\\project\\w2" };
-#pragma warning restore JCC1001
-    }
+    private static GuardContext CreateContext() =>
+        new(SystemActuatorKind.Bash, "D:\\project\\w2");
 
     #region CanHandle 测试 — 重定向到保留设备名
 

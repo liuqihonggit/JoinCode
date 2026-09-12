@@ -54,12 +54,12 @@ public sealed partial class CommandInterceptionDispatcher : ServiceEntity
     /// 调度命令 — 守卫链 → 拦截器链 → 放行
     /// </summary>
     /// <param name="command">待调度的命令</param>
-    /// <param name="context">执行上下文(如 ShellKind 等,透传给守卫和拦截器)</param>
+    /// <param name="context">执行上下文(强类型,透传给守卫和拦截器)</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>调度结果 — ShortCircuitResult 为 null 表示放行,非 null 表示短路</returns>
     public async Task<DispatchOutcome> DispatchAsync(
         string command,
-        IReadOnlyDictionary<string, object> context,
+        GuardContext context,
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(command);

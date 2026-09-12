@@ -13,7 +13,7 @@
     <Project Path="../../server/sandbox_satellite/SandboxSatellite.csproj" />
     <Project Path="../../server/update/Update.csproj" />
   </Folder>
-  <Folder Name="/01_shared/">
+  <Folder Name="/lib/">
     <Project Path="../../lib/abstractions/Abstractions.csproj" />
     <Project Path="../../lib/structura/Structura.csproj" />
     <Project Path="../../lib/transport.contracts/Transport.Contracts.csproj" />

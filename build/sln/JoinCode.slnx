@@ -11,7 +11,7 @@
     <Project Path="../../gen/prompt_template.generator/PromptTemplate.Generator.csproj" />
     <Project Path="../../gen/tool_prompt.generator/ToolPrompt.Generator.csproj" />
   </Folder>
-  <Folder Name="/01_shared/">
+  <Folder Name="/lib/">
     <Project Path="../../lib/abstractions/Abstractions.csproj" />
     <Project Path="../../lib/structura/Structura.csproj" />
     <Project Path="../../lib/structura.tests/Structura.Tests.csproj" />

@@ -6,7 +6,7 @@
     <Project Path="../../lib/clock.tests/Clock.Tests.csproj" />
     <Project Path="../../kit/pipelines/Pipelines.csproj" />
   </Folder>
-  <Folder Name="/01_shared/">
+  <Folder Name="/lib/">
     <Project Path="../../lib/abstractions/Abstractions.csproj" />
     <Project Path="../../lib/structura/Structura.csproj" />
     <Project Path="../../lib/transport.contracts/Transport.Contracts.csproj" />

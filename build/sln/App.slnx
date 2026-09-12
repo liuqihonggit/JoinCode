@@ -26,7 +26,7 @@
     <Project Path="../../test/mock/responses.mock_server/Responses.MockServer.csproj" />
     <Project Path="../../test/mock/mcp.mock_server/Mcp.MockServer.csproj" />
   </Folder>
-  <Folder Name="/01_shared/">
+  <Folder Name="/lib/">
     <Project Path="../../lib/abstractions/Abstractions.csproj" />
     <Project Path="../../lib/structura/Structura.csproj" />
     <Project Path="../../lib/transport.contracts/Transport.Contracts.csproj" />

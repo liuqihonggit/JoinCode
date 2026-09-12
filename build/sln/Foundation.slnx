@@ -1,5 +1,5 @@
 <Solution>
-  <Folder Name="/01_shared/">
+  <Folder Name="/lib/">
     <Project Path="../../lib/abstractions/Abstractions.csproj" />
     <Project Path="../../lib/async_lock/AsyncLock.csproj" />
     <Project Path="../../lib/structura/Structura.csproj" />

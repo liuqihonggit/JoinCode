@@ -1,11 +1,21 @@
 
 namespace Core.Ssh;
 
+/// <summary>
+/// SshSessionManager Actor 命令 — Channel 中的消息类型
+/// </summary>
+public interface ISshCommand;
+
+internal sealed record CreateSessionCmd(SshSessionConfig Config, CancellationToken Ct, TaskCompletionSource<ISshSession> Tcs) : ISshCommand;
+internal sealed record DestroySessionCmd(string SessionId, CancellationToken Ct, TaskCompletionSource Tcs) : ISshCommand;
+internal sealed record CleanupSessionsCmd(TaskCompletionSource Tcs) : ISshCommand;
+
 [Register(typeof(ISshSessionManager), ServiceLifetime.Singleton)]
-public sealed partial class SshSessionManager : ISshSessionManager
+public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, ISshSessionManager
 {
 
     public SshSessionManager(IFileSystem fs, ILogger<SshSessionManager>? logger = null, ITelemetryService? telemetryService = null)
+        : base()
     {
         _fs = fs;
         _logger = logger;
@@ -15,31 +25,23 @@ public sealed partial class SshSessionManager : ISshSessionManager
     private readonly ILogger<SshSessionManager>? _logger;
     private readonly IFileSystem _fs;
     private readonly ITelemetryService? _telemetryService;
-    private readonly AsyncLock _stateLock = new();
     private int _isDisposed;
 
     public event EventHandler<SshSessionStateChangedEventArgs>? SessionStateChanged;
+
+    private static TaskCompletionSource<T> CreateTcs<T>() => new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private static TaskCompletionSource CreateTcs() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public async Task<ISshSession> CreateSessionAsync(
         SshSessionConfig config,
         CancellationToken ct = default)
     {
         DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
-
         ArgumentNullException.ThrowIfNull(config);
 
-        using var guard = await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
-
-        var session = new SshSession(config, _fs, _logger);
-        _sessions[session.SessionId] = session;
-        session.ConnectionStateChanged += OnSessionConnectionStateChanged;
-
-        _logger?.LogInformation("SSH 会话已创建: {SessionId} -> {Username}@{Host}:{Port}",
-            session.SessionId, config.Username, config.Host, config.Port);
-
-        RecordSessionMetrics("create", true);
-        return session;
-    
+        var tcs = CreateTcs<ISshSession>();
+        await SendAsync(new CreateSessionCmd(config, ct, tcs), ct).ConfigureAwait(false);
+        return await tcs.Task.ConfigureAwait(false);
     }
 
     public ISshSession? GetSession(string sessionId)
@@ -59,16 +61,9 @@ public sealed partial class SshSessionManager : ISshSessionManager
     {
         DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
 
-        using var guard = await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
-
-        if (_sessions.TryRemove(sessionId, out var session))
-        {
-            session.ConnectionStateChanged -= OnSessionConnectionStateChanged;
-            await session.DisposeAsync().ConfigureAwait(false);
-            _logger?.LogInformation("SSH 会话已销毁: {SessionId}", sessionId);
-            RecordSessionMetrics("destroy", true);
-        }
-    
+        var tcs = CreateTcs();
+        await SendAsync(new DestroySessionCmd(sessionId, ct, tcs), ct).ConfigureAwait(false);
+        await tcs.Task.ConfigureAwait(false);
     }
 
     private void RecordSessionMetrics(string operation, bool isSuccess) =>
@@ -85,29 +80,84 @@ public sealed partial class SshSessionManager : ISshSessionManager
         });
     }
 
-    public async ValueTask DisposeAsync()
+    /// <summary>
+    /// Actor Consumer — 线程独占 _sessions，串行处理命令，无需锁。
+    /// </summary>
+    protected override async ValueTask HandleAsync(ISshCommand command, CancellationToken ct)
+    {
+        switch (command)
+        {
+            case CreateSessionCmd cmd:
+            {
+                try
+                {
+                    var session = new SshSession(cmd.Config, _fs, _logger);
+                    _sessions[session.SessionId] = session;
+                    session.ConnectionStateChanged += OnSessionConnectionStateChanged;
+
+                    _logger?.LogInformation("SSH 会话已创建: {SessionId} -> {Username}@{Host}:{Port}",
+                        session.SessionId, cmd.Config.Username, cmd.Config.Host, cmd.Config.Port);
+
+                    RecordSessionMetrics("create", true);
+                    cmd.Tcs.TrySetResult(session);
+                }
+                catch (Exception ex) { cmd.Tcs.TrySetException(ex); }
+                break;
+            }
+
+            case DestroySessionCmd cmd:
+            {
+                if (_sessions.TryRemove(cmd.SessionId, out var session))
+                {
+                    session.ConnectionStateChanged -= OnSessionConnectionStateChanged;
+                    await session.DisposeAsync().ConfigureAwait(false);
+                    _logger?.LogInformation("SSH 会话已销毁: {SessionId}", cmd.SessionId);
+                    RecordSessionMetrics("destroy", true);
+                }
+                cmd.Tcs.TrySetResult();
+                break;
+            }
+
+            case CleanupSessionsCmd cmd:
+            {
+                var sessions = _sessions.Values.ToList();
+                foreach (var session in sessions)
+                {
+                    session.ConnectionStateChanged -= OnSessionConnectionStateChanged;
+                }
+
+                await Task.WhenAll(sessions.Select(s => s.DisposeAsync().AsTask())).ConfigureAwait(false);
+
+                _sessions.Clear();
+                cmd.Tcs.TrySetResult();
+                break;
+            }
+        }
+    }
+
+    protected override void OnConsumerError(Exception ex)
+    {
+        _logger?.LogError(ex, "[SshSessionManager] Actor Consumer 异常");
+    }
+
+    public async override ValueTask DisposeAsync()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _isDisposed))
         {
             return;
         }
 
-        await CleanupSessionsAsync().ConfigureAwait(false);
-        _stateLock.Dispose();
-    }
-
-    /// <summary>清理所有 SSH 会话（在锁保护下执行）</summary>
-    private async Task CleanupSessionsAsync()
-    {
-        using var guard = await _stateLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
-        var sessions = _sessions.Values;
-        foreach (var session in sessions)
+        var tcs = CreateTcs();
+        await SendAsync(new CleanupSessionsCmd(tcs), CancellationToken.None).ConfigureAwait(false);
+        try
         {
-            session.ConnectionStateChanged -= OnSessionConnectionStateChanged;
+            await tcs.Task.ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "[SshSessionManager] 清理会话异常");
         }
 
-        await Task.WhenAll(sessions.Select(s => s.DisposeAsync().AsTask())).ConfigureAwait(false);
-
-        _sessions.Clear();
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }

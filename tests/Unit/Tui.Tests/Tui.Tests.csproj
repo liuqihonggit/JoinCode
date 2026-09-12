@@ -8,20 +8,20 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)09_app_cli\JoinCode.csproj" />
-    <ProjectReference Include="$(RepoRoot)09_app_tui\JoinCodeTui.csproj" />
+    <ProjectReference Include="$(RepoRoot)09_app_cli/JoinCode.csproj" />
+    <ProjectReference Include="$(RepoRoot)09_app_tui/JoinCodeTui.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)08_composition\src\Composition.csproj" />
-    <ProjectReference Include="$(RepoRoot)01_shared\shared_clock\src\Clock.csproj" />
-    <ProjectReference Include="$(RepoRoot)08_brain\src\Brain.csproj" />
-    <ProjectReference Include="$(RepoRoot)01_shared\shared_guard\src\Guard.csproj" />
-    <ProjectReference Include="$(RepoRoot)01_shared\shared_vault\src\Vault.csproj" />
-    <ProjectReference Include="$(RepoRoot)03_builtin\src\Hands.csproj" />
-    <ProjectReference Include="$(RepoRoot)01_shared\shared_infrastructure\Infrastructure.csproj" />
-    <ProjectReference Include="$(RepoRoot)05_server_dream\src\Dream.csproj" />
-    <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
+    <ProjectReference Include="$(RepoRoot)08_composition/src/Composition.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared/shared_clock/src/Clock.csproj" />
+    <ProjectReference Include="$(RepoRoot)08_brain/src/Brain.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared/shared_guard/src/Guard.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared/shared_vault/src/Vault.csproj" />
+    <ProjectReference Include="$(RepoRoot)03_builtin/src/Hands.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared/shared_infrastructure/Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)05_server_dream/src/Dream.csproj" />
+    <ProjectReference Include="$(RepoRoot)tests/unit/testing.common/Testing.Common.csproj" />
   </ItemGroup>
 
   <ItemGroup>

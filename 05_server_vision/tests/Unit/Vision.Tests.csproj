@@ -7,9 +7,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)01_shared\shared_abstractions\Abstractions.csproj" />
-    <ProjectReference Include="$(RepoRoot)05_server_vision\src\Vision.csproj" />
-    <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared/shared_abstractions/Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)05_server_vision/src/Vision.csproj" />
+    <ProjectReference Include="$(RepoRoot)tests/unit/testing.common/Testing.Common.csproj" />
   </ItemGroup>
 
 </Project>

@@ -5,10 +5,10 @@
     <Description>JoinCode LLM 适配器单元测试</Description>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)02_llm\Llm\src\Llm.csproj" />
-    <ProjectReference Include="$(RepoRoot)01_shared\shared_abstractions\Abstractions.csproj" />
-    <ProjectReference Include="$(RepoRoot)01_shared\shared_infrastructure\Infrastructure.csproj" />
-    <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
+    <ProjectReference Include="$(RepoRoot)02_llm/llm/src/Llm.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared/shared_abstractions/Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared/shared_infrastructure/Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)tests/unit/testing.common/Testing.Common.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(RepoRoot)02_llm\Llm\tests\GlobalUsings.cs" Link="GlobalUsings.cs" />

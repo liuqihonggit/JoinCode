@@ -14,18 +14,18 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)01_shared\shared_async_lock\AsyncLock.csproj" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)01_shared/shared_async_lock/AsyncLock.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.AsyncLock" Version="$(JccComponentPackageVersion)" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)01_shared\shared_structura\Structura.csproj" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)01_shared/shared_structura/Structura.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="Structura" Version="$(JccComponentPackageVersion)" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)00_generators/EnumMetadata.Generator\src\EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="$(RepoRoot)00_generators/ToolPrompt.Generator\src\ToolPrompt.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)00_generators/enum_metadata.generator/src/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)00_generators/tool_prompt.generator/src/ToolPrompt.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>

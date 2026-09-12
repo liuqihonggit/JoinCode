@@ -8,11 +8,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)01_shared\shared_abstractions\Abstractions.csproj" />
-    <ProjectReference Include="$(RepoRoot)01_shared\shared_infrastructure\Infrastructure.csproj" />
-    <ProjectReference Include="$(RepoRoot)01_shared\shared_plugins\Plugins.Infrastructure\Plugins.Infrastructure.csproj" />
-    <ProjectReference Include="$(RepoRoot)01_shared\shared_guard\src\Guard.csproj" />
-    <ProjectReference Include="$(RepoRoot)01_shared\shared_scheduling\src\Scheduling.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared/shared_abstractions/Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared/shared_infrastructure/Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared/shared_plugins/plugins.infrastructure/Plugins.Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared/shared_guard/src/Guard.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared/shared_scheduling/src/Scheduling.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -46,7 +46,7 @@
 
   
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)00_generators/PromptTemplate.Generator/src/PromptTemplate.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="$(RepoRoot)00_generators/McpToolDispatch.Generator\src\McpToolDispatch.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)00_generators/prompt_template.generator/src/PromptTemplate.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)00_generators/mcp_tool_dispatch.generator/src/McpToolDispatch.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>

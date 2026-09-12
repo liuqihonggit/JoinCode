@@ -8,11 +8,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)01_shared\shared_abstractions\Abstractions.csproj" />
-    <ProjectReference Include="$(RepoRoot)01_shared\shared_infrastructure\Infrastructure.csproj" />
-    <ProjectReference Include="$(RepoRoot)05_server_bridge\src\Bridge.csproj" />
-    <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
-    <ProjectReference Include="$(RepoRoot)01_shared\shared_transport_contracts\Transport.Contracts.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared/shared_abstractions/Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared/shared_infrastructure/Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)05_server_bridge/src/Bridge.csproj" />
+    <ProjectReference Include="$(RepoRoot)tests/unit/testing.common/Testing.Common.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared/shared_transport_contracts/Transport.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>

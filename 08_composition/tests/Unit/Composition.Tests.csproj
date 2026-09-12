@@ -9,11 +9,11 @@
 
   <ItemGroup>
     <!-- From Core.Tests.Agents -->
-    <ProjectReference Include="$(RepoRoot)08_composition\src\Composition.csproj" />
+    <ProjectReference Include="$(RepoRoot)08_composition/src/Composition.csproj" />
 
-    <ProjectReference Include="$(RepoRoot)01_shared\shared_infrastructure\Infrastructure.csproj" />
-    <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
-    <ProjectReference Include="$(RepoRoot)04_mcp_service\src\Mcp.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared/shared_infrastructure/Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)tests/unit/testing.common/Testing.Common.csproj" />
+    <ProjectReference Include="$(RepoRoot)04_mcp_service/src/Mcp.csproj" />
   </ItemGroup>
 
   <ItemGroup>

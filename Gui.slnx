@@ -3,6 +3,6 @@
     <Project Path="09_app_gui/JoinCodeGui.csproj" />
   </Folder>
   <Folder Name="/tests/JoinCodeGui.Tests/">
-    <Project Path="tests/Unit/JoinCodeGui.Tests/JoinCodeGui.Tests.csproj" />
+    <Project Path="tests/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj" />
   </Folder>
 </Solution>

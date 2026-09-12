@@ -12,8 +12,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)generators\Fsm.Generator\src\Fsm.Generator.csproj" />
-    <ProjectReference Include="$(RepoRoot)01_shared\shared_abstractions\Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)00_generators/fsm.generator/src/Fsm.Generator.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared/shared_abstractions/Abstractions.csproj" />
   </ItemGroup>
 
   <ItemGroup>

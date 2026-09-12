@@ -9,18 +9,18 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)08_composition\src\Composition.csproj" />
-    <ProjectReference Include="$(RepoRoot)01_shared\shared_clock\src\Clock.csproj" />
-    <ProjectReference Include="$(RepoRoot)05_server_dream\src\Dream.csproj" />
-    <ProjectReference Include="$(RepoRoot)05_server_browser\src\Browser.csproj" />
-    <ProjectReference Include="$(RepoRoot)08_pipelines\src\Pipelines.csproj" />
+    <ProjectReference Include="$(RepoRoot)08_composition/src/Composition.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared/shared_clock/src/Clock.csproj" />
+    <ProjectReference Include="$(RepoRoot)05_server_dream/src/Dream.csproj" />
+    <ProjectReference Include="$(RepoRoot)05_server_browser/src/Browser.csproj" />
+    <ProjectReference Include="$(RepoRoot)08_pipelines/src/Pipelines.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)00_generators/McpToolDispatch.Generator\src\McpToolDispatch.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="$(RepoRoot)00_generators/EnumMetadata.Generator\src\EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="$(RepoRoot)00_generators/CliOption.Generator\src\CliOption.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="$(RepoRoot)00_generators/AppModule.Generator\src\AppModule.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)00_generators/mcp_tool_dispatch.generator/src/McpToolDispatch.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)00_generators/enum_metadata.generator/src/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)00_generators/cli_option.generator/src/CliOption.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)00_generators/app_module.generator/src/AppModule.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>

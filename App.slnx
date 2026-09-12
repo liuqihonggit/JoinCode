@@ -5,26 +5,26 @@
     <Project Path="08_pipelines/src/Pipelines.csproj" />
   </Folder>
   <Folder Name="/tests/Unit/">
-    <Project Path="tests/Unit/Host.Tests/Host.Tests.csproj" />
-    <Project Path="tests/Unit/Tui.Tests/Tui.Tests.csproj" />
-    <Project Path="tests/Unit/Infra.Tests/IO/Infra.IO.Tests.csproj" />
-    <Project Path="tests/Unit/Infra.Tests/Utils/Infra.Utils.Tests.csproj" />
-    <Project Path="tests/Unit/Infra.Tests/Services/Infra.Services.Tests.csproj" />
-    <Project Path="tests/Unit/Testing.Common/Testing.Common.csproj" />
+    <Project Path="tests/unit/host.tests/Host.Tests.csproj" />
+    <Project Path="tests/unit/tui.tests/Tui.Tests.csproj" />
+    <Project Path="tests/unit/infra.tests/io/Infra.IO.Tests.csproj" />
+    <Project Path="tests/unit/infra.tests/utils/Infra.Utils.Tests.csproj" />
+    <Project Path="tests/unit/infra.tests/services/Infra.Services.Tests.csproj" />
+    <Project Path="tests/unit/testing.common/Testing.Common.csproj" />
   </Folder>
   <Folder Name="/tests/Integration/">
-    <Project Path="tests/Integration/Integration.Tests/Integration.Tests.csproj" />
+    <Project Path="tests/integration/integration.tests/Integration.Tests.csproj" />
   </Folder>
   <Folder Name="/tests/MockServers/">
-    <Project Path="tests/MockServers/MockServer.Core/MockServer.Core.csproj" />
-    <Project Path="tests/MockServers/MockServer.Core.Tests/MockServer.Core.Tests.csproj" />
-    <Project Path="tests/MockServers/OpenAI.MockServer/OpenAI.MockServer.csproj" />
-    <Project Path="tests/MockServers/MockServer.E2E.Tests/MockServer.E2E.Tests.csproj" />
-    <Project Path="tests/MockServers/Sync.Integration.Tests/Sync.Integration.Tests.csproj" />
-    <Project Path="tests/MockServers/Anthropic.MockServer/Anthropic.MockServer.csproj" />
-    <Project Path="tests/MockServers/DeepSeek.MockServer/DeepSeek.MockServer.csproj" />
-    <Project Path="tests/MockServers/Responses.MockServer/Responses.MockServer.csproj" />
-    <Project Path="tests/MockServers/Mcp.MockServer/Mcp.MockServer.csproj" />
+    <Project Path="tests/mock_servers/mock_server.core/MockServer.Core.csproj" />
+    <Project Path="tests/mock_servers/mock_server.core.tests/MockServer.Core.Tests.csproj" />
+    <Project Path="tests/mock_servers/open_ai.mock_server/OpenAI.MockServer.csproj" />
+    <Project Path="tests/mock_servers/mock_server.e2e.tests/MockServer.E2E.Tests.csproj" />
+    <Project Path="tests/mock_servers/sync.integration.tests/Sync.Integration.Tests.csproj" />
+    <Project Path="tests/mock_servers/anthropic.mock_server/Anthropic.MockServer.csproj" />
+    <Project Path="tests/mock_servers/deep_seek.mock_server/DeepSeek.MockServer.csproj" />
+    <Project Path="tests/mock_servers/responses.mock_server/Responses.MockServer.csproj" />
+    <Project Path="tests/mock_servers/mcp.mock_server/Mcp.MockServer.csproj" />
   </Folder>
   <Folder Name="/01_shared/">
     <Project Path="01_shared/shared_abstractions/Abstractions.csproj" />

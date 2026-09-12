@@ -9,25 +9,25 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)01_shared\shared_infrastructure\Infrastructure.csproj" />
-    <ProjectReference Include="$(RepoRoot)05_server_bridge\src\Bridge.csproj" />
-    <ProjectReference Include="$(RepoRoot)04_mcp_service\src\Mcp.csproj" />
-    <ProjectReference Include="$(RepoRoot)08_brain\src\Brain.csproj" />
-    <ProjectReference Include="$(RepoRoot)01_shared\shared_guard\src\Guard.csproj" />
-    <ProjectReference Include="$(RepoRoot)03_builtin\src\Hands.csproj" />
-    <ProjectReference Include="$(RepoRoot)05_server_eyes\src\Eyes.csproj" />
-    <ProjectReference Include="$(RepoRoot)05_server_vision\src\Vision.csproj" />
-    <ProjectReference Include="$(RepoRoot)01_shared\shared_vault\src\Vault.csproj" />
-    <ProjectReference Include="$(RepoRoot)01_shared\shared_scheduling\src\Scheduling.csproj" />
-    <ProjectReference Include="$(RepoRoot)04_mcp_dispatch\src\McpToolDispatch.csproj" />
-    <ProjectReference Include="$(RepoRoot)02_llm\Agents\src\Agents.csproj" />
-    <ProjectReference Include="$(RepoRoot)01_shared\shared_transport_impl\Transport.Impl.csproj" />
-    <ProjectReference Include="$(RepoRoot)02_llm\Reasoning\src\Reasoning.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared/shared_infrastructure/Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)05_server_bridge/src/Bridge.csproj" />
+    <ProjectReference Include="$(RepoRoot)04_mcp_service/src/Mcp.csproj" />
+    <ProjectReference Include="$(RepoRoot)08_brain/src/Brain.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared/shared_guard/src/Guard.csproj" />
+    <ProjectReference Include="$(RepoRoot)03_builtin/src/Hands.csproj" />
+    <ProjectReference Include="$(RepoRoot)05_server_eyes/src/Eyes.csproj" />
+    <ProjectReference Include="$(RepoRoot)05_server_vision/src/Vision.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared/shared_vault/src/Vault.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared/shared_scheduling/src/Scheduling.csproj" />
+    <ProjectReference Include="$(RepoRoot)04_mcp_dispatch/src/McpToolDispatch.csproj" />
+    <ProjectReference Include="$(RepoRoot)02_llm/agents/src/Agents.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared/shared_transport_impl/Transport.Impl.csproj" />
+    <ProjectReference Include="$(RepoRoot)02_llm/reasoning/src/Reasoning.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)00_generators/EnumMetadata.Generator\src\EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="$(RepoRoot)00_generators/McpToolDispatch.Generator\src\McpToolDispatch.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)00_generators/enum_metadata.generator/src/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)00_generators/mcp_tool_dispatch.generator/src/McpToolDispatch.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>

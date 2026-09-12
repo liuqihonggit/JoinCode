@@ -21,99 +21,99 @@ jobs:
         include:
           # Foundation
           - name: AsyncLock
-            csproj: 01_shared/shared_async_lock/tests/Unit/AsyncLock.Tests.csproj
+            csproj: 01_shared/shared_async_lock/tests/unit/AsyncLock.Tests.csproj
           - name: Structura
-            csproj: 01_shared/shared_structura/tests/Unit/Structura.Tests.csproj
+            csproj: 01_shared/shared_structura/tests/unit/Structura.Tests.csproj
           # Generators
           - name: AotSafety
-            csproj: 00_generators/AotSafety.Generator/tests/AotSafety.Tests.csproj
+            csproj: 00_generators/aot_safety.generator/tests/AotSafety.Tests.csproj
           - name: FsmGenerator
-            csproj: 00_generators/Fsm.Generator/tests/Fsm.Generator.Tests.csproj
+            csproj: 00_generators/fsm.generator/tests/Fsm.Generator.Tests.csproj
           # Infrastructure
           - name: InfraIO
-            csproj: tests/Unit/Infra.Tests/IO/Infra.IO.Tests.csproj
+            csproj: tests/unit/infra.tests/io/Infra.IO.Tests.csproj
           - name: InfraServices
-            csproj: tests/Unit/Infra.Tests/Services/Infra.Services.Tests.csproj
+            csproj: tests/unit/infra.tests/services/Infra.Services.Tests.csproj
           - name: InfraUtils
-            csproj: tests/Unit/Infra.Tests/Utils/Infra.Utils.Tests.csproj
+            csproj: tests/unit/infra.tests/utils/Infra.Utils.Tests.csproj
           # Core - AI
           - name: Llm
-            csproj: 02_llm/Llm/tests/Unit/Llm.Tests.csproj
+            csproj: 02_llm/llm/tests/unit/Llm.Tests.csproj
           - name: Agents
-            csproj: 02_llm/Agents/tests/Unit/Agents.Tests.csproj
+            csproj: 02_llm/agents/tests/unit/Agents.Tests.csproj
           - name: Reasoning
-            csproj: 02_llm/Reasoning/tests/Unit/Reasoning.Tests.csproj
+            csproj: 02_llm/reasoning/tests/unit/Reasoning.Tests.csproj
           # Core - Execution
           - name: BrainPrompts
             csproj: 08_brain/tests/Prompts/Brain.Prompts.Tests.csproj
           - name: BrainContext
-            csproj: 08_brain/tests/Context/Brain.Context.Tests.csproj
+            csproj: 08_brain/tests/context/Brain.Context.Tests.csproj
           - name: BrainOther
-            csproj: 08_brain/tests/Other/Brain.Other.Tests.csproj
+            csproj: 08_brain/tests/other/Brain.Other.Tests.csproj
           - name: HandsToolHandlers
-            csproj: 03_builtin/tests/ToolHandlers/Hands.ToolHandlers.Tests.csproj
+            csproj: 03_builtin/tests/tool_handlers/Hands.ToolHandlers.Tests.csproj
           - name: HandsSkills
-            csproj: 03_builtin/tests/Skills/Hands.Skills.Tests.csproj
+            csproj: 03_builtin/tests/skills/Hands.Skills.Tests.csproj
           - name: HandsShell
-            csproj: 03_builtin/tests/Shell/Hands.Shell.Tests.csproj
+            csproj: 03_builtin/tests/shell/Hands.Shell.Tests.csproj
           - name: HandsApi
-            csproj: 03_builtin/tests/Api/Hands.Api.Tests.csproj
+            csproj: 03_builtin/tests/api/Hands.Api.Tests.csproj
           - name: Scheduling
-            csproj: 01_shared/shared_scheduling/tests/Unit/Scheduling.Tests.csproj
+            csproj: 01_shared/shared_scheduling/tests/unit/Scheduling.Tests.csproj
           - name: McpToolDispatch
-            csproj: 04_mcp_dispatch/tests/Unit/McpToolDispatch.Tests.csproj
+            csproj: 04_mcp_dispatch/tests/unit/McpToolDispatch.Tests.csproj
           # Core - Search
           - name: CodeIndex
-            csproj: 05_server_codeindex/tests/Unit/CodeIndex.Tests.csproj
+            csproj: 05_server_codeindex/tests/unit/CodeIndex.Tests.csproj
           - name: Browser
-            csproj: 05_server_browser/tests/Unit/Browser.Tests.csproj
+            csproj: 05_server_browser/tests/unit/Browser.Tests.csproj
           # Core - Safety
           - name: GuardSecurity
-            csproj: 01_shared/shared_guard/tests/Security/Guard.Security.Tests.csproj
+            csproj: 01_shared/shared_guard/tests/security/Guard.Security.Tests.csproj
           - name: GuardHooks
-            csproj: 01_shared/shared_guard/tests/Hooks/Guard.Hooks.Tests.csproj
+            csproj: 01_shared/shared_guard/tests/hooks/Guard.Hooks.Tests.csproj
           - name: GuardConfig
-            csproj: 01_shared/shared_guard/tests/Config/Guard.Config.Tests.csproj
+            csproj: 01_shared/shared_guard/tests/config/Guard.Config.Tests.csproj
           - name: VaultOther
-            csproj: 01_shared/shared_vault/tests/Other/Vault.Other.Tests.csproj
+            csproj: 01_shared/shared_vault/tests/other/Vault.Other.Tests.csproj
           - name: VaultMemdir
-            csproj: 01_shared/shared_vault/tests/Memdir/Vault.Memdir.Tests.csproj
+            csproj: 01_shared/shared_vault/tests/memdir/Vault.Memdir.Tests.csproj
           # Services
           - name: Mcp
-            csproj: 04_mcp_service/tests/Unit/Mcp.Tests.csproj
+            csproj: 04_mcp_service/tests/unit/Mcp.Tests.csproj
           - name: Dream
-            csproj: 05_server_dream/tests/Unit/Dream.Tests.csproj
+            csproj: 05_server_dream/tests/unit/Dream.Tests.csproj
           - name: Eyes
-            csproj: 05_server_eyes/tests/Unit/Eyes.Tests.csproj
+            csproj: 05_server_eyes/tests/unit/Eyes.Tests.csproj
           - name: Bridge
-            csproj: 05_server_bridge/tests/Unit/Bridge.Tests.csproj
+            csproj: 05_server_bridge/tests/unit/Bridge.Tests.csproj
           - name: Vision
-            csproj: 05_server_vision/tests/Unit/Vision.Tests.csproj
+            csproj: 05_server_vision/tests/unit/Vision.Tests.csproj
           # Composition
           - name: Composition
-            csproj: 08_composition/tests/Unit/Composition.Tests.csproj
+            csproj: 08_composition/tests/unit/Composition.Tests.csproj
           - name: Clock
-            csproj: 01_shared/shared_clock/tests/Unit/Clock.Tests.csproj
+            csproj: 01_shared/shared_clock/tests/unit/Clock.Tests.csproj
           # App / Cross-layer
           - name: Host
-            csproj: tests/Unit/Host.Tests/Host.Tests.csproj
+            csproj: tests/unit/host.tests/Host.Tests.csproj
           - name: Abs
-            csproj: tests/Unit/Abs.Tests/Abs.Tests.csproj
+            csproj: tests/unit/abs.tests/Abs.Tests.csproj
           - name: HandsGoal
-            csproj: tests/Unit/Hands.Tests/Hands.Tests.csproj
+            csproj: tests/unit/hands.tests/Hands.Tests.csproj
           - name: McpIntervention
-            csproj: tests/Unit/Mcp.Tests/Mcp.UniqueTests.csproj
+            csproj: tests/unit/mcp.tests/Mcp.UniqueTests.csproj
           - name: McpToolDispatchHealth
-            csproj: tests/Unit/McpToolDispatch.Tests/McpToolDispatch.UniqueTests.csproj
+            csproj: tests/unit/mcp_tool_dispatch.tests/McpToolDispatch.UniqueTests.csproj
           # MockServer
           - name: MockServerCore
-            csproj: tests/MockServers/MockServer.Core.Tests/MockServer.Core.Tests.csproj
+            csproj: tests/mock_servers/mock_server.core.tests/MockServer.Core.Tests.csproj
           # GUI / TUI
           - name: JoinCodeGui
-            csproj: tests/Unit/JoinCodeGui.Tests/JoinCodeGui.Tests.csproj
+            csproj: tests/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj
             build_first: true
           - name: Tui
-            csproj: tests/Unit/Tui.Tests/Tui.Tests.csproj
+            csproj: tests/unit/tui.tests/Tui.Tests.csproj
 
     steps:
       - name: Checkout

@@ -1,20 +1,20 @@
 <Solution>
   <Folder Name="/00_generators/">
-    <Project Path="00_generators/AotSafety.Generator/src/AotSafety.Generator.csproj" />
-    <Project Path="00_generators/AotSafety.Generator/tests/AotSafety.Tests.csproj" />
-    <Project Path="00_generators/AppModule.Generator/src/AppModule.Generator.csproj" />
-    <Project Path="00_generators/CodeFixes/src/CodeFixes.csproj" />
-    <Project Path="00_generators/CliOption.Generator/src/CliOption.Generator.csproj" />
-    <Project Path="00_generators/EnumMetadata.Generator/src/EnumMetadata.Generator.csproj" />
-    <Project Path="00_generators/McpToolDispatch.Generator/src/McpToolDispatch.Generator.csproj" />
-    <Project Path="00_generators/PromptSection.Generator/src/PromptSection.Generator.csproj" />
-    <Project Path="00_generators/PromptTemplate.Generator/src/PromptTemplate.Generator.csproj" />
-    <Project Path="00_generators/ToolPrompt.Generator/src/ToolPrompt.Generator.csproj" />
+    <Project Path="00_generators/aot_safety.generator/src/AotSafety.Generator.csproj" />
+    <Project Path="00_generators/aot_safety.generator/tests/AotSafety.Tests.csproj" />
+    <Project Path="00_generators/app_module.generator/src/AppModule.Generator.csproj" />
+    <Project Path="00_generators/code_fixes/src/CodeFixes.csproj" />
+    <Project Path="00_generators/cli_option.generator/src/CliOption.Generator.csproj" />
+    <Project Path="00_generators/enum_metadata.generator/src/EnumMetadata.Generator.csproj" />
+    <Project Path="00_generators/mcp_tool_dispatch.generator/src/McpToolDispatch.Generator.csproj" />
+    <Project Path="00_generators/prompt_section.generator/src/PromptSection.Generator.csproj" />
+    <Project Path="00_generators/prompt_template.generator/src/PromptTemplate.Generator.csproj" />
+    <Project Path="00_generators/tool_prompt.generator/src/ToolPrompt.Generator.csproj" />
   </Folder>
   <Folder Name="/01_shared/">
     <Project Path="01_shared/shared_abstractions/Abstractions.csproj" />
     <Project Path="01_shared/shared_structura/Structura.csproj" />
-    <Project Path="01_shared/shared_structura/tests/Unit/Structura.Tests.csproj" />
+    <Project Path="01_shared/shared_structura/tests/unit/Structura.Tests.csproj" />
     <Project Path="01_shared/shared_transport_contracts/Transport.Contracts.csproj" />
   </Folder>
   <Folder Name="/infrastructure/">
@@ -22,61 +22,61 @@
     <Project Path="01_shared/shared_transport_impl/Transport.Impl.csproj" />
   </Folder>
   <Folder Name="/02_llm/">
-    <Project Path="02_llm/Llm/src/Llm.csproj" />
-    <Project Path="02_llm/Llm/tests/Unit/Llm.Tests.csproj" />
-    <Project Path="02_llm/Agents/src/Agents.csproj" />
-    <Project Path="02_llm/Agents/tests/Unit/Agents.Tests.csproj" />
-    <Project Path="02_llm/Reasoning/src/Reasoning.csproj" />
-    <Project Path="02_llm/Reasoning/tests/Unit/Reasoning.Tests.csproj" />
+    <Project Path="02_llm/llm/src/Llm.csproj" />
+    <Project Path="02_llm/llm/tests/unit/Llm.Tests.csproj" />
+    <Project Path="02_llm/agents/src/Agents.csproj" />
+    <Project Path="02_llm/agents/tests/unit/Agents.Tests.csproj" />
+    <Project Path="02_llm/reasoning/src/Reasoning.csproj" />
+    <Project Path="02_llm/reasoning/tests/unit/Reasoning.Tests.csproj" />
   </Folder>
   <Folder Name="/core/execution/">
     <Project Path="08_brain/src/Brain.csproj" />
-    <Project Path="08_brain/tests/Context/Brain.Context.Tests.csproj" />
-    <Project Path="08_brain/tests/Other/Brain.Other.Tests.csproj" />
-    <Project Path="08_brain/tests/Prompts/Brain.Prompts.Tests.csproj" />
+    <Project Path="08_brain/tests/context/Brain.Context.Tests.csproj" />
+    <Project Path="08_brain/tests/other/Brain.Other.Tests.csproj" />
+    <Project Path="06_prompts/tests/prompts/Brain.Prompts.Tests.csproj" />
     <Project Path="03_builtin/src/Hands.csproj" />
-    <Project Path="03_builtin/tests/Api/Hands.Api.Tests.csproj" />
-    <Project Path="03_builtin/tests/Shell/Hands.Shell.Tests.csproj" />
-    <Project Path="03_builtin/tests/Skills/Hands.Skills.Tests.csproj" />
-    <Project Path="03_builtin/tests/ToolHandlers/Hands.ToolHandlers.Tests.csproj" />
+    <Project Path="03_builtin/tests/api/Hands.Api.Tests.csproj" />
+    <Project Path="03_builtin/tests/shell/Hands.Shell.Tests.csproj" />
+    <Project Path="03_builtin/tests/skills/Hands.Skills.Tests.csproj" />
+    <Project Path="03_builtin/tests/tool_handlers/Hands.ToolHandlers.Tests.csproj" />
     <Project Path="01_shared/shared_scheduling/src/Scheduling.csproj" />
-    <Project Path="01_shared/shared_scheduling/tests/Unit/Scheduling.Tests.csproj" />
+    <Project Path="01_shared/shared_scheduling/tests/unit/Scheduling.Tests.csproj" />
     <Project Path="04_mcp_dispatch/src/McpToolDispatch.csproj" />
-    <Project Path="04_mcp_dispatch/tests/Unit/McpToolDispatch.Tests.csproj" />
+    <Project Path="04_mcp_dispatch/tests/unit/McpToolDispatch.Tests.csproj" />
   </Folder>
   <Folder Name="/core/safety/">
     <Project Path="01_shared/shared_guard/src/Guard.csproj" />
-    <Project Path="01_shared/shared_guard/tests/Config/Guard.Config.Tests.csproj" />
-    <Project Path="01_shared/shared_guard/tests/Hooks/Guard.Hooks.Tests.csproj" />
-    <Project Path="01_shared/shared_guard/tests/Security/Guard.Security.Tests.csproj" />
+    <Project Path="01_shared/shared_guard/tests/config/Guard.Config.Tests.csproj" />
+    <Project Path="01_shared/shared_guard/tests/hooks/Guard.Hooks.Tests.csproj" />
+    <Project Path="01_shared/shared_guard/tests/security/Guard.Security.Tests.csproj" />
     <Project Path="01_shared/shared_vault/src/Vault.csproj" />
-    <Project Path="01_shared/shared_vault/tests/Memdir/Vault.Memdir.Tests.csproj" />
-    <Project Path="01_shared/shared_vault/tests/Other/Vault.Other.Tests.csproj" />
-    <Project Path="01_shared/shared_vault/tests/Shared/Vault.Testing.Common.csproj" />
+    <Project Path="01_shared/shared_vault/tests/memdir/Vault.Memdir.Tests.csproj" />
+    <Project Path="01_shared/shared_vault/tests/other/Vault.Other.Tests.csproj" />
+    <Project Path="01_shared/shared_vault/tests/shared/Vault.Testing.Common.csproj" />
   </Folder>
   <Folder Name="/core/search/">
     <Project Path="05_server_codeindex/src/CodeIndex.csproj" />
-    <Project Path="05_server_codeindex/tests/Unit/CodeIndex.Tests.csproj" />
-    <Project Path="05_server_codeindex/tests/E2E/CodeIndex.E2E.Tests.csproj" />
+    <Project Path="05_server_codeindex/tests/unit/CodeIndex.Tests.csproj" />
+    <Project Path="05_server_codeindex/tests/e2e/CodeIndex.E2E.Tests.csproj" />
     <Project Path="05_server_browser/src/Browser.csproj" />
-    <Project Path="05_server_browser/tests/Unit/Browser.Tests.csproj" />
+    <Project Path="05_server_browser/tests/unit/Browser.Tests.csproj" />
   </Folder>
   <Folder Name="/services/">
     <Project Path="04_mcp_service/src/Mcp.csproj" />
-    <Project Path="04_mcp_service/tests/Unit/Mcp.Tests.csproj" />
+    <Project Path="04_mcp_service/tests/unit/Mcp.Tests.csproj" />
     <Project Path="05_server_dream/src/Dream.csproj" />
-    <Project Path="05_server_dream/tests/Unit/Dream.Tests.csproj" />
+    <Project Path="05_server_dream/tests/unit/Dream.Tests.csproj" />
     <Project Path="05_server_eyes/src/Eyes.csproj" />
-    <Project Path="05_server_eyes/tests/Unit/Eyes.Tests.csproj" />
+    <Project Path="05_server_eyes/tests/unit/Eyes.Tests.csproj" />
     <Project Path="05_server_bridge/src/Bridge.csproj" />
-    <Project Path="05_server_bridge/tests/Unit/Bridge.Tests.csproj" />
+    <Project Path="05_server_bridge/tests/unit/Bridge.Tests.csproj" />
     <Project Path="05_server_sandbox/src/SandboxSatellite.csproj" />
   </Folder>
   <Folder Name="/composition/">
     <Project Path="08_composition/src/Composition.csproj" />
-    <Project Path="08_composition/tests/Unit/Composition.Tests.csproj" />
+    <Project Path="08_composition/tests/unit/Composition.Tests.csproj" />
     <Project Path="01_shared/shared_clock/src/Clock.csproj" />
-    <Project Path="01_shared/shared_clock/tests/Unit/Clock.Tests.csproj" />
+    <Project Path="01_shared/shared_clock/tests/unit/Clock.Tests.csproj" />
     <Project Path="08_pipelines/src/Pipelines.csproj" />
   </Folder>
   <Folder Name="/app/">
@@ -84,38 +84,38 @@
     <Project Path="09_app_sdk/Sdk.csproj" />
   </Folder>
   <Folder Name="/tests/Unit/">
-    <Project Path="tests/Unit/Host.Tests/Host.Tests.csproj" />
-    <Project Path="tests/Unit/Infra.Tests/IO/Infra.IO.Tests.csproj" />
-    <Project Path="tests/Unit/Infra.Tests/Utils/Infra.Utils.Tests.csproj" />
-    <Project Path="tests/Unit/Infra.Tests/Services/Infra.Services.Tests.csproj" />
-    <Project Path="tests/Unit/Testing.Common/Testing.Common.csproj" />
-    <Project Path="tests/Unit/Hands.Tests/Hands.Tests.csproj" />
-    <Project Path="tests/Unit/Abs.Tests/Abs.Tests.csproj" />
+    <Project Path="tests/unit/host.tests/Host.Tests.csproj" />
+    <Project Path="tests/unit/infra.tests/io/Infra.IO.Tests.csproj" />
+    <Project Path="tests/unit/infra.tests/utils/Infra.Utils.Tests.csproj" />
+    <Project Path="tests/unit/infra.tests/services/Infra.Services.Tests.csproj" />
+    <Project Path="tests/unit/testing.common/Testing.Common.csproj" />
+    <Project Path="tests/unit/hands.tests/Hands.Tests.csproj" />
+    <Project Path="tests/unit/abs.tests/Abs.Tests.csproj" />
   </Folder>
   <Folder Name="/tests/Integration/">
-    <Project Path="tests/Integration/Integration.Tests/Integration.Tests.csproj" />
+    <Project Path="tests/integration/integration.tests/Integration.Tests.csproj" />
   </Folder>
   <Folder Name="/tests/MockServers/">
-    <Project Path="tests/MockServers/MockServer.Core/MockServer.Core.csproj" />
-    <Project Path="tests/MockServers/MockServer.Core.Tests/MockServer.Core.Tests.csproj" />
-    <Project Path="tests/MockServers/OpenAI.MockServer/OpenAI.MockServer.csproj" />
-    <Project Path="tests/MockServers/MockServer.E2E.Tests/MockServer.E2E.Tests.csproj" />
-    <Project Path="tests/MockServers/Sync.Integration.Tests/Sync.Integration.Tests.csproj" />
-    <Project Path="tests/MockServers/Anthropic.MockServer/Anthropic.MockServer.csproj" />
-    <Project Path="tests/MockServers/DeepSeek.MockServer/DeepSeek.MockServer.csproj" />
-    <Project Path="tests/MockServers/Mcp.MockServer/Mcp.MockServer.csproj" />
+    <Project Path="tests/mock_servers/mock_server.core/MockServer.Core.csproj" />
+    <Project Path="tests/mock_servers/mock_server.core.tests/MockServer.Core.Tests.csproj" />
+    <Project Path="tests/mock_servers/open_ai.mock_server/OpenAI.MockServer.csproj" />
+    <Project Path="tests/mock_servers/mock_server.e2e.tests/MockServer.E2E.Tests.csproj" />
+    <Project Path="tests/mock_servers/sync.integration.tests/Sync.Integration.Tests.csproj" />
+    <Project Path="tests/mock_servers/anthropic.mock_server/Anthropic.MockServer.csproj" />
+    <Project Path="tests/mock_servers/deep_seek.mock_server/DeepSeek.MockServer.csproj" />
+    <Project Path="tests/mock_servers/mcp.mock_server/Mcp.MockServer.csproj" />
   </Folder>
   <Folder Name="/tests/Benchmarks/">
-    <Project Path="tests/Benchmarks/Eyes.Benchmarks/Eyes.Benchmarks.csproj" />
+    <Project Path="tests/benchmarks/eyes.benchmarks/Eyes.Benchmarks.csproj" />
   </Folder>
   <Folder Name="/tests/AotCompatibility/">
-    <Project Path="tests/AotCompatibility/aot-browser-test/aot-browser-test.csproj" />
-    <Project Path="tests/AotCompatibility/aot-httpclientfactory-test/aot-httpclientfactory-test.csproj" />
-    <Project Path="tests/AotCompatibility/pptr-api-check/PptrApiCheck.csproj" />
+    <Project Path="tests/aot_compatibility/aot-browser-test/aot-browser-test.csproj" />
+    <Project Path="tests/aot_compatibility/aot-httpclientfactory-test/aot-httpclientfactory-test.csproj" />
+    <Project Path="tests/aot_compatibility/pptr-api-check/PptrApiCheck.csproj" />
   </Folder>
   <Folder Name="/non_deliverables_tools/">
-    <Project Path="non_deliverables_tools/JccAuditAstCli/JccAuditCli.csproj" />
-    <Project Path="non_deliverables_tools/JccAuditAstCli/tests/JccAuditCli.Tests.csproj" />
-    <Project Path="non_deliverables_tools/InjectMigration/InjectMigration.csproj" />
+    <Project Path="non_deliverables_tools/jcc_audit_ast_cli/JccAuditCli.csproj" />
+    <Project Path="non_deliverables_tools/jcc_audit_ast_cli/tests/JccAuditCli.Tests.csproj" />
+    <Project Path="non_deliverables_tools/inject_migration/InjectMigration.csproj" />
   </Folder>
 </Solution>

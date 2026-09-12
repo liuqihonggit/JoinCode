@@ -1,15 +1,15 @@
 <Solution>
   <Folder Name="/services/">
     <Project Path="04_mcp_service/src/Mcp.csproj" />
-    <Project Path="04_mcp_service/tests/Unit/Mcp.Tests.csproj" />
+    <Project Path="04_mcp_service/tests/unit/Mcp.Tests.csproj" />
     <Project Path="05_server_dream/src/Dream.csproj" />
-    <Project Path="05_server_dream/tests/Unit/Dream.Tests.csproj" />
+    <Project Path="05_server_dream/tests/unit/Dream.Tests.csproj" />
     <Project Path="05_server_eyes/src/Eyes.csproj" />
     <Project Path="05_server_vision/src/Vision.csproj" />
-    <Project Path="05_server_vision/tests/Unit/Vision.Tests.csproj" />
-    <Project Path="05_server_eyes/tests/Unit/Eyes.Tests.csproj" />
+    <Project Path="05_server_vision/tests/unit/Vision.Tests.csproj" />
+    <Project Path="05_server_eyes/tests/unit/Eyes.Tests.csproj" />
     <Project Path="05_server_bridge/src/Bridge.csproj" />
-    <Project Path="05_server_bridge/tests/Unit/Bridge.Tests.csproj" />
+    <Project Path="05_server_bridge/tests/unit/Bridge.Tests.csproj" />
     <Project Path="05_server_sandbox/src/SandboxSatellite.csproj" />
     <Project Path="05_server_update/src/Update.csproj" />
   </Folder>

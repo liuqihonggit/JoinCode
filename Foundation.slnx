@@ -4,17 +4,17 @@
     <Project Path="01_shared/shared_async_lock/AsyncLock.csproj" />
     <Project Path="01_shared/shared_structura/Structura.csproj" />
     <Project Path="01_shared/shared_transport_contracts/Transport.Contracts.csproj" />
-    <Project Path="01_shared/shared_plugins/Plugins.Contracts/Plugins.Contracts.csproj" />
-    <Project Path="01_shared/shared_plugins/Plugins.Infrastructure/Plugins.Infrastructure.csproj" />
-    <Project Path="01_shared/shared_plugins/Plugins.Tests/Plugins.Tests.csproj" />
+    <Project Path="01_shared/shared_plugins/plugins.contracts/Plugins.Contracts.csproj" />
+    <Project Path="01_shared/shared_plugins/plugins.infrastructure/Plugins.Infrastructure.csproj" />
+    <Project Path="01_shared/shared_plugins/plugins.tests/Plugins.Tests.csproj" />
   </Folder>
   <Folder Name="/01_shared/shared_async_lock/tests/" />
   <Folder Name="/01_shared/shared_async_lock/tests/Unit/">
-    <Project Path="01_shared/shared_async_lock/tests/Unit/AsyncLock.Tests.csproj" />
+    <Project Path="01_shared/shared_async_lock/tests/unit/AsyncLock.Tests.csproj" />
   </Folder>
   <Folder Name="/01_shared/shared_structura/" />
   <Folder Name="/01_shared/shared_structura/tests/" />
   <Folder Name="/01_shared/shared_structura/tests/Unit/">
-    <Project Path="01_shared/shared_structura/tests/Unit/Structura.Tests.csproj" />
+    <Project Path="01_shared/shared_structura/tests/unit/Structura.Tests.csproj" />
   </Folder>
 </Solution>

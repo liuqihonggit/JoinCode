@@ -5,6 +5,6 @@
     <Description>JoinCode Structura 单元测试</Description>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)01_shared\shared_structura\Structura.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared/shared_structura/Structura.csproj" />
   </ItemGroup>
 </Project>

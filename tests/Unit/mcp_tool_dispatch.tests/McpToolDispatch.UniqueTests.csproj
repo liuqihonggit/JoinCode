@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>McpToolDispatch.UniqueTests</RootNamespace>
+    <AssemblyName>JoinCode.McpToolDispatch.UniqueTests</AssemblyName>
+    <Description>JoinCode McpToolDispatch 独特测试类（ToolHealthMonitor/Scorer/Template/ScoreDebug，ADR 0100 避免与项目内测试同名冲突）</Description>
+    <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)04_mcp_dispatch/src/McpToolDispatch.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared/shared_infrastructure/Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)tests/unit/testing.common/Testing.Common.csproj" />
+    <ProjectReference Include="$(RepoRoot)04_mcp_service/src/Mcp.csproj" />
+    <ProjectReference Include="$(RepoRoot)03_builtin/src/Hands.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared/shared_guard/src/Guard.csproj" />
+  </ItemGroup>
+
+</Project>

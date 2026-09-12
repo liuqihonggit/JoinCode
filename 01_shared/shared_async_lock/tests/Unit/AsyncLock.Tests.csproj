@@ -6,7 +6,7 @@
     <NoWarn>$(NoWarn);JCC3010</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)01_shared\shared_async_lock\AsyncLock.csproj" />
-    <ProjectReference Include="$(RepoRoot)01_shared\shared_abstractions\Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared/shared_async_lock/AsyncLock.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared/shared_abstractions/Abstractions.csproj" />
   </ItemGroup>
 </Project>

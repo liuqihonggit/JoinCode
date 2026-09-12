@@ -9,8 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)08_composition\src\Composition.csproj" />
-    <ProjectReference Include="$(RepoRoot)05_server_dream\src\Dream.csproj" />
+    <ProjectReference Include="$(RepoRoot)08_composition/src/Composition.csproj" />
+    <ProjectReference Include="$(RepoRoot)05_server_dream/src/Dream.csproj" />
   </ItemGroup>
 
   <ItemGroup>

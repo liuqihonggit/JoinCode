@@ -1,0 +1,22 @@
+{
+  "port": 18090,
+  "default_response": "Responses Mock default response.",
+  "scripted_turns": [
+    {
+      "text_response": "Hello from Responses API! This is a test response."
+    },
+    {
+      "text_response": "I will read a file for you.",
+      "tool_calls": [
+        {
+          "tool_name": "read",
+          "arguments": "{\"file_path\":\"D:\\\\JoinCode\\\\README.md\"}",
+          "tool_call_id": "call_resp_001"
+        }
+      ]
+    },
+    {
+      "text_response": "I have read the file. The Responses API task is complete."
+    }
+  ]
+}

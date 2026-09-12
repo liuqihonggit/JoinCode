@@ -1,9 +1,9 @@
 <Solution>
   <Folder Name="/composition/">
     <Project Path="08_composition/src/Composition.csproj" />
-    <Project Path="08_composition/tests/Unit/Composition.Tests.csproj" />
+    <Project Path="08_composition/tests/unit/Composition.Tests.csproj" />
     <Project Path="01_shared/shared_clock/src/Clock.csproj" />
-    <Project Path="01_shared/shared_clock/tests/Unit/Clock.Tests.csproj" />
+    <Project Path="01_shared/shared_clock/tests/unit/Clock.Tests.csproj" />
     <Project Path="08_pipelines/src/Pipelines.csproj" />
   </Folder>
   <Folder Name="/01_shared/">

@@ -8,7 +8,7 @@ namespace JoinCode.Gui.Tests.Views;
 /// <summary>
 /// Slash 补全面板截图测试 —— 触发斜杠补全后捕获主窗口渲染帧：
 /// ① 面板必须渲染在主窗口帧内（旧 Popup 独立弹层截不到 → 红）；② 面板出现在窗口下部、紧贴输入栏上方（从底部弹出）；
-/// ③ 暗/亮主题帧图保存到 dumps/gui-slash/ 供人工核对。
+/// ③ 暗/亮主题帧图保存到 dumps/gui_slash/ 供人工核对。
 /// </summary>
 [Collection("GuiUiSequential")]
 public sealed class SlashPaletteRenderTests
@@ -20,14 +20,14 @@ public sealed class SlashPaletteRenderTests
         new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"),
         new JoinCode.Gui.Persistence.GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
 
-    /// <summary>定位仓库根目录（向上找 Gui.slnx），dumps 输出到 {root}/dumps/gui-slash/</summary>
+    /// <summary>定位仓库根目录（向上找 Gui.slnx），dumps 输出到 {root}/dumps/gui_slash/</summary>
     private static string DumpDir()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "Gui.slnx")))
             dir = dir.Parent;
         var root = dir?.FullName ?? AppContext.BaseDirectory;
-        var dump = Path.Combine(root, "dumps", "gui-slash");
+        var dump = Path.Combine(root, "dumps", "gui_slash");
         Directory.CreateDirectory(dump);
         return dump;
     }
@@ -258,6 +258,6 @@ public sealed class SlashPaletteRenderTests
         var dump = DumpDir();
         var (_, openFrame) = await CapturePairAsync(dark: false);
         SavePng(openFrame, Path.Combine(dump, "slash-open-light.png"));
-        Assert.True(File.Exists(Path.Combine(dump, "slash-open-light.png")), "亮色主题帧图应已保存到 dumps/gui-slash/");
+        Assert.True(File.Exists(Path.Combine(dump, "slash-open-light.png")), "亮色主题帧图应已保存到 dumps/gui_slash/");
     }
 }

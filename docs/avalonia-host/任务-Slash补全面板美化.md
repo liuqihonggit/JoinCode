@@ -33,7 +33,7 @@
 | 3 | VM：SlashModeLabel 计算属性 + NotifySlashPanelChanged 归纳 4 处通知 | ✅ |
 | 4 | View：SlashPaletteView 独立组件 + MainWindow 覆盖层 + 动画 | ✅ |
 | 5 | 编译 + 绿测试 + 全量 GUI 测试（334 全绿） | ✅ |
-| 6 | 暗/亮主题截图人工核对（dumps/gui-slash/*.png） | ✅ |
+| 6 | 暗/亮主题截图人工核对（dumps/gui_slash/*.png） | ✅ |
 | 7 | 设计文档更新 + git 提交 | ✅ |
 
 ## 踩坑记录

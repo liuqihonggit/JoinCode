@@ -8,7 +8,7 @@ namespace JoinCode.Gui.Tests.Views;
 /// <summary>
 /// 对话框与主题切换截图测试：
 /// ① 主题切换按钮图标随主题切换（暗=☾ / 亮=☀）；
-/// ② 三类对话框（确认/权限/提问）主题化渲染，暗色帧保存 dumps/gui-beautify/ 供人工核对。
+/// ② 三类对话框（确认/权限/提问）主题化渲染，暗色帧保存 dumps/gui_beautify/ 供人工核对。
 /// </summary>
 [Collection("GuiUiSequential")]
 public sealed class DialogRenderTests
@@ -19,14 +19,14 @@ public sealed class DialogRenderTests
         new GuiSessionStore(new IO.FileSystem.InMemoryFileSystem(), "mem/sessions"),
         new JoinCode.Gui.Persistence.GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
 
-    /// <summary>定位仓库根目录，dumps 输出到 {root}/dumps/gui-beautify/</summary>
+    /// <summary>定位仓库根目录，dumps 输出到 {root}/dumps/gui_beautify/</summary>
     private static string DumpDir()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "Gui.slnx")))
             dir = dir.Parent;
         var root = dir?.FullName ?? AppContext.BaseDirectory;
-        var dump = Path.Combine(root, "dumps", "gui-beautify");
+        var dump = Path.Combine(root, "dumps", "gui_beautify");
         Directory.CreateDirectory(dump);
         return dump;
     }

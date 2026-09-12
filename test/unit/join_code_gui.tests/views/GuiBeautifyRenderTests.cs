@@ -7,7 +7,7 @@ namespace JoinCode.Gui.Tests.Views;
 
 /// <summary>
 /// GUI 美化截图基线 —— 注入四类样例消息（用户/AI 正文/工具调用/工具结果）后捕获主窗口渲染帧，
-/// 断言角色色条真实渲染（用户蓝条像素存在），暗/亮主题帧图保存到 dumps/gui-beautify/ 供人工核对。
+/// 断言角色色条真实渲染（用户蓝条像素存在），暗/亮主题帧图保存到 dumps/gui_beautify/ 供人工核对。
 /// </summary>
 [Collection("GuiUiSequential")]
 public sealed class GuiBeautifyRenderTests
@@ -44,13 +44,13 @@ public sealed class GuiBeautifyRenderTests
         });
     }
 
-    /// <summary>定位仓库根目录，dumps 输出到 {root}/dumps/gui-beautify/</summary>
+    /// <summary>定位仓库根目录，dumps 输出到 {root}/dumps/gui_beautify/</summary>
     private static string DumpDir()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "Gui.slnx")))
             dir = dir.Parent;
-        var dump = Path.Combine(dir?.FullName ?? AppContext.BaseDirectory, "dumps", "gui-beautify");
+        var dump = Path.Combine(dir?.FullName ?? AppContext.BaseDirectory, "dumps", "gui_beautify");
         Directory.CreateDirectory(dump);
         return dump;
     }

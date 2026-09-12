@@ -31,7 +31,7 @@
 1. **无后向兼容** — 项目不需要任何后向兼容，遇到相关字样直接删除，大修大改
 2. **JSON 宽容** — 已实现 JSON 宽容解析（RelaxedJsonSerializer），无需重复实现
 3. **Rust 风格报错** — 已实现 Rust 编译器风格报错（带行列指示+代码片段+箭头），面向参数错误必须用此风格
-4. **BitMask 位掩码工具类** — 已实现 `BitMask` 静态工具类（`Abstractions/00-core/Core/Utils/BitMask.cs`），类似 BitArray/Bitmap，减少 hash 查找、降低内存使用、提高性能。枚举集合优先用 `BitMask.Of()` + `BitMask.Contains()`，替代 `FrozenSet<Enum>`
+4. **BitMask 位掩码工具类** — 已实现 `BitMask` 静态工具类（`lib/abstractions/abs_core/core_utils/BitMask.cs`），类似 BitArray/Bitmap，减少 hash 查找、降低内存使用、提高性能。枚举集合优先用 `BitMask.Of()` + `BitMask.Contains()`，替代 `FrozenSet<Enum>`
 5. **字符串处理优先级** — 首选用 `Span<char>`（0-GC）、SIMD、mmap、`AsParallel()` 链式编程风格
 
 ***
@@ -147,7 +147,7 @@ d,手动验证,通过设置启动参数,通过bash调用来实际运行,真实�
       - **完整示例**：
         ```powershell
         New-Item -ItemType Directory -Force -Path "D:\project\w3\.xxx" | Out-Null
-        Move-Item "core/safety/Guard/src/Hooks/Execution/ICommandRewriter.cs" "D:\project\w3\.xxx\ICommandRewriter.cs.20260824.del"
+        Move-Item "lib/guard/hooks/execution/ICommandRewriter.cs" "D:\project\w3\.xxx\ICommandRewriter.cs.20260824.del"
         ```
    
 2. **❌ 禁止使用命令行文本工具直接修改源码文件**
@@ -428,7 +428,7 @@ public void Dispose() {
 
 ### 规则3：`DisposeSafe` 扩展方法（消除 Dispose 样板）
 
-`Abstractions/00-core` 提供 `DisposeSafeExtensions`：
+`lib/abstractions/abs_core` 提供 `DisposeSafeExtensions`：
 - `obj.DisposeSafe(logger)` — 吞 `ObjectDisposedException`（幂等），其他异常可选日志
 - `cts.CancelAndDisposeSafe(logger)` — Cancel + Dispose 合并
 
@@ -570,7 +570,7 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 | **InvariantGlobalization** | `true`，Release 模式 Exe 项目强制 |
 | **全球化策略** | 渐进式双语（中英文），遇到全球化问题时逐步实现，不必一次性处理完 |
 | **IsAotCompatible** | 所有源码项目已标记 |
-| **MCP 协议版本** | `2025-11-25`（Streamable HTTP）— 旧 `2024-11-05` + SseClientTransport/SseTransport 已归档到 `services/Mcp/.xxx/`；客户端 `HttpTransport` + 服务端 `McpHttpServer`（HttpListener，无状态/有状态双模式）；`MCP-Protocol-Version` 头握手协商，`MCP-Session-Id` 不分配=无状态 |
+| **MCP 协议版本** | `2025-11-25`（Streamable HTTP）— 旧 `2024-11-05` + SseClientTransport/SseTransport 已归档到 `server/mcp/.xxx/`；客户端 `HttpTransport` + 服务端 `McpHttpServer`（HttpListener，无状态/有状态双模式）；`MCP-Protocol-Version` 头握手协商，`MCP-Session-Id` 不分配=无状态 |
 | **Workflow 断点续跑** | DAG 模式每层完成后原子保存快照 `workflow_{id}.state.json`，启动时加载跳过已完成步骤；`IWorkflowStateStore` 可选注入（> ADR: [0097](docs/adr/0097-workflow-checkpoint-resume.md)） |
 
 ### 核心技术选型

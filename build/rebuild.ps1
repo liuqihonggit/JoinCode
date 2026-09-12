@@ -7,7 +7,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$rootDir = $PSScriptRoot
+$rootDir = Split-Path $PSScriptRoot -Parent
 
 Write-Host "=== Step 0: Shutdown MSBuild Build Server ===" -ForegroundColor Cyan
 dotnet build-server shutdown 2>&1 | Out-Null
@@ -25,13 +25,13 @@ if ($CleanAll) {
 
     # 用 dotnet clean 清理编译输出（比递归删除 obj/bin 快得多）
     Write-Host "  dotnet clean..." -ForegroundColor Yellow
-    dotnet clean "$rootDir\JoinCode.slnx" -c $Configuration --nologo 2>&1 | Out-Null
+    dotnet clean "$rootDir\build\sln\JoinCode.slnx" -c $Configuration --nologo 2>&1 | Out-Null
     Write-Host "  clean 完成" -ForegroundColor Green
 }
 
 Write-Host "=== Step 2: Build solution ===" -ForegroundColor Cyan
 $env:MSBUILDDISABLENODEREUSE = "1"
-dotnet build "$rootDir\JoinCode.slnx" -c $Configuration --nologo
+dotnet build "$rootDir\build\sln\JoinCode.slnx" -c $Configuration --nologo
 if ($LASTEXITCODE -ne 0) {
     Write-Host "FAILED: build" -ForegroundColor Red
     exit 1
@@ -39,7 +39,7 @@ if ($LASTEXITCODE -ne 0) {
 
 if (-not $SkipTests) {
     Write-Host "=== Step 3: Run tests ===" -ForegroundColor Cyan
-    dotnet test "$rootDir\JoinCode.slnx" -c $Configuration --no-build --nologo --filter "Category!=Integration"
+    dotnet test "$rootDir\build\sln\JoinCode.slnx" -c $Configuration --no-build --nologo --filter "Category!=Integration"
     if ($LASTEXITCODE -ne 0) {
         Write-Host "FAILED: tests" -ForegroundColor Red
         exit 1
@@ -54,7 +54,7 @@ if (-not $SkipAudit) {
     } else {
         $auditOutput = Join-Path $rootDir "audit-full.json"
         dotnet run --project "$rootDir\tools\JccAuditCli\JccAuditCli.csproj" -c $Configuration --no-build -- `
-            "$rootDir\JoinCode.slnx" --skip-tests --format json --output $auditOutput
+            "$rootDir\build\sln\JoinCode.slnx" --skip-tests --format json --output $auditOutput
         if ($LASTEXITCODE -eq 0) {
             Write-Host "Audit completed: $auditOutput" -ForegroundColor Green
         } else {

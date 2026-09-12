@@ -1,6 +1,6 @@
 {
   "stryker-config": {
-    "solution": "../../../../../Core.slnx",
+    "solution": "../../../../../build/sln/Core.slnx",
     "project": "Scheduling.csproj",
     "thresholds": {
       "break": 0,

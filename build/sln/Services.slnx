@@ -1,0 +1,25 @@
+<Solution>
+  <Folder Name="/services/">
+    <Project Path="../../04_mcp_service/src/Mcp.csproj" />
+    <Project Path="../../04_mcp_service/tests/unit/Mcp.Tests.csproj" />
+    <Project Path="../../05_server_dream/src/Dream.csproj" />
+    <Project Path="../../05_server_dream/tests/unit/Dream.Tests.csproj" />
+    <Project Path="../../05_server_eyes/src/Eyes.csproj" />
+    <Project Path="../../05_server_vision/src/Vision.csproj" />
+    <Project Path="../../05_server_vision/tests/unit/Vision.Tests.csproj" />
+    <Project Path="../../05_server_eyes/tests/unit/Eyes.Tests.csproj" />
+    <Project Path="../../05_server_bridge/src/Bridge.csproj" />
+    <Project Path="../../05_server_bridge/tests/unit/Bridge.Tests.csproj" />
+    <Project Path="../../05_server_sandbox/src/SandboxSatellite.csproj" />
+    <Project Path="../../05_server_update/src/Update.csproj" />
+  </Folder>
+  <Folder Name="/01_shared/">
+    <Project Path="../../01_shared/shared_abstractions/Abstractions.csproj" />
+    <Project Path="../../01_shared/shared_structura/Structura.csproj" />
+    <Project Path="../../01_shared/shared_transport_contracts/Transport.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/infrastructure/">
+    <Project Path="../../01_shared/shared_infrastructure/Infrastructure.csproj" />
+    <Project Path="../../01_shared/shared_transport_impl/Transport.Impl.csproj" />
+  </Folder>
+</Solution>

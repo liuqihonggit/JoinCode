@@ -1,6 +1,0 @@
-<Solution>
-  <Folder Name="/infrastructure/">
-    <Project Path="01_shared/shared_infrastructure/Infrastructure.csproj" />
-    <Project Path="01_shared/shared_transport_impl/Transport.Impl.csproj" />
-  </Folder>
-</Solution>

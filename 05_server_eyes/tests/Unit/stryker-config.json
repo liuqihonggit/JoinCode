@@ -1,6 +1,6 @@
 {
   "stryker-config": {
-    "solution": "../../../../Services.slnx",
+    "solution": "../../../../build/sln/Services.slnx",
     "project": "Eyes.csproj",
     "thresholds": {
       "break": 0,

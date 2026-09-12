@@ -1,6 +1,6 @@
 {
   "stryker-config": {
-    "solution": "../../../../../Core.slnx",
+    "solution": "../../../../../build/sln/Core.slnx",
     "project": "CodeIndex.csproj",
     "thresholds": {
       "break": 0,

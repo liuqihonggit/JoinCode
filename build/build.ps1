@@ -74,10 +74,10 @@ if ($CI -and -not $PSBoundParameters.ContainsKey('Configuration')) {
 }
 
 $ErrorActionPreference = 'Stop'
-$rootDir = $PSScriptRoot
-$slnx = "$rootDir\App.slnx"
-$compSlnx = "$rootDir\Core.slnx"
-$genSlnx = "$rootDir\Generators.slnx"
+$rootDir = Split-Path $PSScriptRoot -Parent
+$slnx = "$rootDir\build\sln\App.slnx"
+$compSlnx = "$rootDir\build\sln\Core.slnx"
+$genSlnx = "$rootDir\build\sln\Generators.slnx"
 
 # ── 模式 → MSBuild 属性 ──
 $modeProps = if ($Mode -eq 'Fast') {

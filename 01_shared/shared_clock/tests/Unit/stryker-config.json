@@ -1,6 +1,6 @@
 {
   "stryker-config": {
-    "solution": "../../../../Composition.slnx",
+    "solution": "../../../../build/sln/Composition.slnx",
     "project": "Clock.csproj",
     "thresholds": {
       "break": 0,

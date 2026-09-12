@@ -9,7 +9,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$rootDir = $PSScriptRoot
+$rootDir = Split-Path $PSScriptRoot -Parent
 $mainProject = "$rootDir\src\JoinCode\JoinCode.csproj"
 $dreamProject = "$rootDir\plugins\Dream\Dream.csproj"
 

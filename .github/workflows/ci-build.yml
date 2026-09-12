@@ -36,25 +36,25 @@ jobs:
             nuget-${{ runner.os }}-
 
       - name: Build - ① Generators
-        run: dotnet build Generators.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+        run: dotnet build build/sln/Generators.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
 
       - name: Build - ② Foundation
-        run: dotnet build Foundation.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+        run: dotnet build build/sln/Foundation.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
 
       - name: Build - ③ Infrastructure
-        run: dotnet build Infrastructure.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+        run: dotnet build build/sln/Infrastructure.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
 
       - name: Build - ④ Core
-        run: dotnet build Core.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+        run: dotnet build build/sln/Core.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
 
       - name: Build - ⑤ Services
-        run: dotnet build Services.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+        run: dotnet build build/sln/Services.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
 
       - name: Build - ⑥ Composition
-        run: dotnet build Composition.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+        run: dotnet build build/sln/Composition.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
 
       - name: Build - ⑦ App
-        run: dotnet build App.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
+        run: dotnet build build/sln/App.slnx -c Release --no-incremental --nologo -m /p:SkipLocalPack=true /p:JccAnalyzers=true /p:EnableNETAnalyzers=true /p:AnalysisLevel=latest
 
       - name: Build - Component Tests
         run: |

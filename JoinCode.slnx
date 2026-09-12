@@ -79,6 +79,9 @@
     <Project Path="05_server_bridge/tests/Unit/Bridge.Tests.csproj" />
     <Project Path="05_server_sandbox/src/SandboxSatellite.csproj" />
   </Folder>
+  <Folder Name="/07_slash/">
+    <Project Path="07_slash/src/Slash/Slash.csproj" />
+  </Folder>
   <Folder Name="/composition/">
     <Project Path="08_composition/src/Composition.csproj" />
     <Project Path="08_composition/tests/Unit/Composition.Tests.csproj" />

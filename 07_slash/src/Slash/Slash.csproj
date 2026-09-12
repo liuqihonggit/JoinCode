@@ -1,11 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>JoinCode.Composition</RootNamespace>
-    <AssemblyName>JoinCode.Composition</AssemblyName>
-    <PackageId>JoinCode.Composition</PackageId>
-    <Description>JoinCode Composition 子系统 — 系统集成层，负责协调所有组件的依赖注入注册和桥接服务</Description>
-    <NoWarn>$(NoWarn);IL2026;IL3050;NU5104</NoWarn>
+    <RootNamespace>JoinCode.ChatCommands</RootNamespace>
+    <AssemblyName>JoinCode.Slash</AssemblyName>
+    <PackageId>JoinCode.Slash</PackageId>
+    <Description>JoinCode 斜杠命令子系统 — 所有 /xxx 命令的实现与注册</Description>
+    <NoWarn>$(NoWarn);IL2026;IL3050;IL2066;IL2075;NU5104</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -23,7 +23,6 @@
     <ProjectReference Include="$(RepoRoot)02_llm\Agents\src\Agents.csproj" />
     <ProjectReference Include="$(RepoRoot)01_shared\shared_transport_impl\Transport.Impl.csproj" />
     <ProjectReference Include="$(RepoRoot)02_llm\Reasoning\src\Reasoning.csproj" />
-    <ProjectReference Include="$(RepoRoot)07_slash\src\Slash\Slash.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -39,13 +38,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="JoinCode.Core.Tests" />
-    <InternalsVisibleTo Include="JoinCode.Core.Tests.Terminal" />
-    <InternalsVisibleTo Include="JoinCode.Core.Tests.Permission" />
-    <InternalsVisibleTo Include="JoinCode.Core.Tests.Services" />
-    <InternalsVisibleTo Include="JoinCode.Dream.Tests" />
-    <InternalsVisibleTo Include="JoinCode.Core.Tests.Agents" />
-    <InternalsVisibleTo Include="JoinCode.Core.Tests.Context" />
+    <InternalsVisibleTo Include="JoinCode.Composition" />
     <InternalsVisibleTo Include="JoinCode.Composition.Tests" />
     <InternalsVisibleTo Include="JoinCode.Host.Tests" />
     <InternalsVisibleTo Include="JoinCode.Integration.Tests" />

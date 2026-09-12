@@ -88,6 +88,17 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
         var command = cmdEl.GetString()!;
         var (riskContext, dangerResult) = DetectRisks(context.ToolName, command);
 
+        // 保留名清理场景降级 — robocopy /MIR/PURGE + 目标含保留名文件 → Dangerous 降级为 Execution（ADR 0012）
+        // 保留名文件（nul/con/prn 等）只能用 robocopy /MIR 绕过 Win32 路径解析删除，属合法清理场景
+        if (dangerResult is { Level: CommandDangerLevel.Dangerous } dr &&
+            RobocopyMirrorGuard.IsRobocopyMirrorRetainedNameCleanup(command))
+        {
+            dangerResult = new DangerClassificationResult(
+                CommandDangerLevel.Execution,
+                dr.RiskType,
+                dr.Details);
+        }
+
         if (riskContext is null || riskContext.Risks.Count == 0)
             return next(context, ct);
 

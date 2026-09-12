@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Vision.Tests</RootNamespace>
+    <AssemblyName>JoinCode.Vision.Tests</AssemblyName>
+    <Description>JoinCode.Vision 单元测试</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)lib/abstractions/Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)server/vision/Vision.csproj" />
+    <ProjectReference Include="$(RepoRoot)tests/unit/testing.common/Testing.Common.csproj" />
+  </ItemGroup>
+
+</Project>

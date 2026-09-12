@@ -64,9 +64,9 @@ jobs:
             csproj: kit/mcp_tool_dispatch.tests/McpToolDispatch.Tests.csproj
           # Core - Search
           - name: CodeIndex
-            csproj: 05_server_codeindex/tests/unit/CodeIndex.Tests.csproj
+            csproj: server/code_index.tests/CodeIndex.Tests.csproj
           - name: Browser
-            csproj: 05_server_browser/tests/unit/Browser.Tests.csproj
+            csproj: server/browser.tests/Browser.Tests.csproj
           # Core - Safety
           - name: GuardSecurity
             csproj: lib/guard.security.tests/Guard.Security.Tests.csproj
@@ -82,13 +82,13 @@ jobs:
           - name: Mcp
             csproj: kit/mcp.tests/Mcp.Tests.csproj
           - name: Dream
-            csproj: 05_server_dream/tests/unit/Dream.Tests.csproj
+            csproj: server/dream.tests/Dream.Tests.csproj
           - name: Eyes
-            csproj: 05_server_eyes/tests/unit/Eyes.Tests.csproj
+            csproj: server/eyes.tests/Eyes.Tests.csproj
           - name: Bridge
-            csproj: 05_server_bridge/tests/unit/Bridge.Tests.csproj
+            csproj: server/bridge.tests/Bridge.Tests.csproj
           - name: Vision
-            csproj: 05_server_vision/tests/unit/Vision.Tests.csproj
+            csproj: server/vision.tests/Vision.Tests.csproj
           # Composition
           - name: Composition
             csproj: kit/composition.tests/Composition.Tests.csproj

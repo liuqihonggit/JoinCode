@@ -10,7 +10,7 @@
     <ProjectReference Include="$(RepoRoot)kit/brain/Brain.csproj" />
     <ProjectReference Include="$(RepoRoot)lib/guard/Guard.csproj" />
     <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
-    <ProjectReference Include="$(RepoRoot)05_server_update/src/Update.csproj" />
+    <ProjectReference Include="$(RepoRoot)server/update/Update.csproj" />
     <ProjectReference Include="$(RepoRoot)tests/unit/testing.common/Testing.Common.csproj" />
   </ItemGroup>
   <ItemGroup>

@@ -10,13 +10,13 @@
 
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
-    <ProjectReference Include="$(RepoRoot)05_server_bridge/src/Bridge.csproj" />
+    <ProjectReference Include="$(RepoRoot)server/bridge/Bridge.csproj" />
     <ProjectReference Include="$(RepoRoot)kit/mcp/Mcp.csproj" />
     <ProjectReference Include="$(RepoRoot)kit/brain/Brain.csproj" />
     <ProjectReference Include="$(RepoRoot)lib/guard/Guard.csproj" />
     <ProjectReference Include="$(RepoRoot)kit/hands/Hands.csproj" />
-    <ProjectReference Include="$(RepoRoot)05_server_eyes/src/Eyes.csproj" />
-    <ProjectReference Include="$(RepoRoot)05_server_vision/src/Vision.csproj" />
+    <ProjectReference Include="$(RepoRoot)server/eyes/Eyes.csproj" />
+    <ProjectReference Include="$(RepoRoot)server/vision/Vision.csproj" />
     <ProjectReference Include="$(RepoRoot)lib/vault/Vault.csproj" />
     <ProjectReference Include="$(RepoRoot)lib/scheduling/Scheduling.csproj" />
     <ProjectReference Include="$(RepoRoot)kit/mcp_tool_dispatch/McpToolDispatch.csproj" />

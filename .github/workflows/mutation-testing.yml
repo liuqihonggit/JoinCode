@@ -181,18 +181,18 @@ jobs:
             'Llm'                  = @{ Dir = 'llm\llm.tests';                         Src = 'Llm.csproj';             Mutate = @() }
             'Agents'               = @{ Dir = 'llm\agents.tests';                      Src = 'Agents.csproj';          Mutate = @() }
             'Reasoning'            = @{ Dir = 'llm\reasoning.tests';                   Src = 'Reasoning.csproj';       Mutate = @() }
-            'CodeIndex'            = @{ Dir = '05_server_codeindex\tests\Unit';        Src = 'CodeIndex.csproj';       Mutate = @() }
-            'Browser'              = @{ Dir = '05_server_browser\tests\Unit';          Src = 'Browser.csproj';         Mutate = @() }
+            'CodeIndex'            = @{ Dir = 'server\code_index.tests';        Src = 'CodeIndex.csproj';       Mutate = @() }
+            'Browser'              = @{ Dir = 'server\browser.tests';          Src = 'Browser.csproj';         Mutate = @() }
             'Mcp'                  = @{ Dir = 'kit\mcp.tests';                 Src = 'Mcp.csproj';             Mutate = @() }
-            'Eyes'                 = @{ Dir = '05_server_eyes\tests\Unit';                Src = 'Eyes.csproj';            Mutate = @() }
-            'Dream'                = @{ Dir = '05_server_dream\tests\Unit';               Src = 'Dream.csproj';            Mutate = @() }
-            'Bridge-SessionA'     = @{ Dir = '05_server_bridge\tests\Unit'; Src = 'Bridge.csproj'; Mutate = @('Session/Main/**'); Concurrency = 2 }
-            'Bridge-SessionB'     = @{ Dir = '05_server_bridge\tests\Unit'; Src = 'Bridge.csproj'; Mutate = @('Session/**','!Session/Main/**'); Concurrency = 2 }
-            'Bridge-Transport'    = @{ Dir = '05_server_bridge\tests\Unit'; Src = 'Bridge.csproj'; Mutate = @('Transport/**'); Concurrency = 2 }
-            'Bridge-CoreRuntime'  = @{ Dir = '05_server_bridge\tests\Unit'; Src = 'Bridge.csproj'; Mutate = @('Core/Runtime/**'); Concurrency = 2 }
-            'Bridge-CoreOther'    = @{ Dir = '05_server_bridge\tests\Unit'; Src = 'Bridge.csproj'; Mutate = @('Core/**','!Core/Runtime/**'); Concurrency = 2 }
-            'Bridge-Messaging'    = @{ Dir = '05_server_bridge\tests\Unit'; Src = 'Bridge.csproj'; Mutate = @('Messaging/**'); Concurrency = 2 }
-            'Bridge-ClientServer' = @{ Dir = '05_server_bridge\tests\Unit'; Src = 'Bridge.csproj'; Mutate = @('Client/**','Server/**','Config/**','Security/**'); Concurrency = 2 }
+            'Eyes'                 = @{ Dir = 'server\eyes.tests';                Src = 'Eyes.csproj';            Mutate = @() }
+            'Dream'                = @{ Dir = 'server\dream.tests';               Src = 'Dream.csproj';            Mutate = @() }
+            'Bridge-SessionA'     = @{ Dir = 'server\bridge.tests'; Src = 'Bridge.csproj'; Mutate = @('Session/Main/**'); Concurrency = 2 }
+            'Bridge-SessionB'     = @{ Dir = 'server\bridge.tests'; Src = 'Bridge.csproj'; Mutate = @('Session/**','!Session/Main/**'); Concurrency = 2 }
+            'Bridge-Transport'    = @{ Dir = 'server\bridge.tests'; Src = 'Bridge.csproj'; Mutate = @('Transport/**'); Concurrency = 2 }
+            'Bridge-CoreRuntime'  = @{ Dir = 'server\bridge.tests'; Src = 'Bridge.csproj'; Mutate = @('Core/Runtime/**'); Concurrency = 2 }
+            'Bridge-CoreOther'    = @{ Dir = 'server\bridge.tests'; Src = 'Bridge.csproj'; Mutate = @('Core/**','!Core/Runtime/**'); Concurrency = 2 }
+            'Bridge-Messaging'    = @{ Dir = 'server\bridge.tests'; Src = 'Bridge.csproj'; Mutate = @('Messaging/**'); Concurrency = 2 }
+            'Bridge-ClientServer' = @{ Dir = 'server\bridge.tests'; Src = 'Bridge.csproj'; Mutate = @('Client/**','Server/**','Config/**','Security/**'); Concurrency = 2 }
             'Composition'          = @{ Dir = 'kit\composition.tests';      Src = 'Composition.csproj';     Mutate = @() }
             'Clock'                = @{ Dir = '01_shared\shared_clock\tests\Unit';            Src = 'Clock.csproj';           Mutate = @() }
             'Infra-IO-FileOps'       = @{ Dir = 'tests\Unit\Infra.Tests\IO';                 Src = 'Infrastructure.csproj';      Test = 'Infra.IO.Tests.csproj';      Mutate = @('IO/Services/FileOps/**') }

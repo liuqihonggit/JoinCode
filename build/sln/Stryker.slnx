@@ -55,22 +55,22 @@
     <Project Path="../../lib/vault.testing.common/Vault.Testing.Common.csproj" />
   </Folder>
   <Folder Name="/core/search/">
-    <Project Path="../../05_server_codeindex/src/CodeIndex.csproj" />
-    <Project Path="../../05_server_codeindex/tests/unit/CodeIndex.Tests.csproj" />
-    <Project Path="../../05_server_codeindex/tests/e2e/CodeIndex.E2E.Tests.csproj" />
-    <Project Path="../../05_server_browser/src/Browser.csproj" />
-    <Project Path="../../05_server_browser/tests/unit/Browser.Tests.csproj" />
+    <Project Path="../../server/code_index/CodeIndex.csproj" />
+    <Project Path="../../server/code_index.tests/CodeIndex.Tests.csproj" />
+    <Project Path="../../server/code_index.e2e.tests/CodeIndex.E2E.Tests.csproj" />
+    <Project Path="../../server/browser/Browser.csproj" />
+    <Project Path="../../server/browser.tests/Browser.Tests.csproj" />
   </Folder>
   <Folder Name="/services/">
     <Project Path="../../kit/mcp/Mcp.csproj" />
     <Project Path="../../kit/mcp.tests/Mcp.Tests.csproj" />
-    <Project Path="../../05_server_dream/src/Dream.csproj" />
-    <Project Path="../../05_server_dream/tests/unit/Dream.Tests.csproj" />
-    <Project Path="../../05_server_eyes/src/Eyes.csproj" />
-    <Project Path="../../05_server_eyes/tests/unit/Eyes.Tests.csproj" />
-    <Project Path="../../05_server_bridge/src/Bridge.csproj" />
-    <Project Path="../../05_server_bridge/tests/unit/Bridge.Tests.csproj" />
-    <Project Path="../../05_server_sandbox/src/SandboxSatellite.csproj" />
+    <Project Path="../../server/dream/Dream.csproj" />
+    <Project Path="../../server/dream.tests/Dream.Tests.csproj" />
+    <Project Path="../../server/eyes/Eyes.csproj" />
+    <Project Path="../../server/eyes.tests/Eyes.Tests.csproj" />
+    <Project Path="../../server/bridge/Bridge.csproj" />
+    <Project Path="../../server/bridge.tests/Bridge.Tests.csproj" />
+    <Project Path="../../server/sandbox_satellite/SandboxSatellite.csproj" />
   </Folder>
   <Folder Name="/composition/">
     <Project Path="../../kit/composition/Composition.csproj" />

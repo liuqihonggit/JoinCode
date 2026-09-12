@@ -21,9 +21,9 @@
 
     <ProjectReference Include="$(RepoRoot)lib/abstractions/Abstractions.csproj" />
     <ProjectReference Include="$(RepoRoot)kit/mcp/Mcp.csproj" />
-    <ProjectReference Include="$(RepoRoot)05_server_dream/src/Dream.csproj" />
-    <ProjectReference Include="$(RepoRoot)05_server_eyes/src/Eyes.csproj" />
-    <ProjectReference Include="$(RepoRoot)05_server_codeindex/src/CodeIndex.csproj" />
+    <ProjectReference Include="$(RepoRoot)server/dream/Dream.csproj" />
+    <ProjectReference Include="$(RepoRoot)server/eyes/Eyes.csproj" />
+    <ProjectReference Include="$(RepoRoot)server/code_index/CodeIndex.csproj" />
     <ProjectReference Include="$(RepoRoot)tests/unit/testing.common/Testing.Common.csproj" />
   </ItemGroup>
 

@@ -2,16 +2,16 @@
   <Folder Name="/services/">
     <Project Path="../../kit/mcp/Mcp.csproj" />
     <Project Path="../../kit/mcp.tests/Mcp.Tests.csproj" />
-    <Project Path="../../05_server_dream/src/Dream.csproj" />
-    <Project Path="../../05_server_dream/tests/unit/Dream.Tests.csproj" />
-    <Project Path="../../05_server_eyes/src/Eyes.csproj" />
-    <Project Path="../../05_server_vision/src/Vision.csproj" />
-    <Project Path="../../05_server_vision/tests/unit/Vision.Tests.csproj" />
-    <Project Path="../../05_server_eyes/tests/unit/Eyes.Tests.csproj" />
-    <Project Path="../../05_server_bridge/src/Bridge.csproj" />
-    <Project Path="../../05_server_bridge/tests/unit/Bridge.Tests.csproj" />
-    <Project Path="../../05_server_sandbox/src/SandboxSatellite.csproj" />
-    <Project Path="../../05_server_update/src/Update.csproj" />
+    <Project Path="../../server/dream/Dream.csproj" />
+    <Project Path="../../server/dream.tests/Dream.Tests.csproj" />
+    <Project Path="../../server/eyes/Eyes.csproj" />
+    <Project Path="../../server/vision/Vision.csproj" />
+    <Project Path="../../server/vision.tests/Vision.Tests.csproj" />
+    <Project Path="../../server/eyes.tests/Eyes.Tests.csproj" />
+    <Project Path="../../server/bridge/Bridge.csproj" />
+    <Project Path="../../server/bridge.tests/Bridge.Tests.csproj" />
+    <Project Path="../../server/sandbox_satellite/SandboxSatellite.csproj" />
+    <Project Path="../../server/update/Update.csproj" />
   </Folder>
   <Folder Name="/01_shared/">
     <Project Path="../../lib/abstractions/Abstractions.csproj" />

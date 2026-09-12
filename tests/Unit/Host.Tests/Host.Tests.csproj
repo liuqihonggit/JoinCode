@@ -20,7 +20,7 @@
     <ProjectReference Include="$(RepoRoot)lib/vault/Vault.csproj" />
     <ProjectReference Include="$(RepoRoot)kit/hands/Hands.csproj" />
     <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
-    <ProjectReference Include="$(RepoRoot)05_server_dream/src/Dream.csproj" />
+    <ProjectReference Include="$(RepoRoot)server/dream/Dream.csproj" />
     <ProjectReference Include="$(RepoRoot)tests/unit/testing.common/Testing.Common.csproj" />
   </ItemGroup>
 

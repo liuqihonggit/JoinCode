@@ -14,7 +14,7 @@
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
-    <ProjectReference Include="$(RepoRoot)05_server_update/src/Update.csproj" />
+    <ProjectReference Include="$(RepoRoot)server/update/Update.csproj" />
   </ItemGroup>
 
 </Project>

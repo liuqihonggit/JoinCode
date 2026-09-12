@@ -10,7 +10,7 @@
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)kit/composition/Composition.csproj" />
     <ProjectReference Include="$(RepoRoot)kit/pipelines/Pipelines.csproj" />
-    <ProjectReference Include="$(RepoRoot)05_server_dream/src/Dream.csproj" />
+    <ProjectReference Include="$(RepoRoot)server/dream/Dream.csproj" />
     <ProjectReference Include="$(RepoRoot)tests/unit/testing.common/Testing.Common.csproj" />
   </ItemGroup>
 

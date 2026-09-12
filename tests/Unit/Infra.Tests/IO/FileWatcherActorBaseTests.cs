@@ -13,12 +13,13 @@ public class FileWatcherActorBaseTests
         fs.CreateDirectory(dir);
         var actor = new TestFileWatcherActor(fs);
         await actor.SendAsync(new FileWatcherStartCmd(dir, "*.txt", TimeSpan.FromMilliseconds(50)));
+        await WaitForActorReadyAsync(actor).ConfigureAwait(true);
 
         fs.WriteAllText($"{dir}/a.txt", "hello");
-        await Task.Delay(300);
-
-        var changes = actor.GetChanges();
-        changes.Any(c => c.FilePath.EndsWith("a.txt")).Should().BeTrue();
+        var found = await WaitForAsync(
+            () => actor.GetChanges().Any(c => c.FilePath.EndsWith("a.txt")),
+            TimeSpan.FromSeconds(3)).ConfigureAwait(true);
+        found.Should().BeTrue("a.txt 变更事件应在 3s 内被捕获");
         await actor.DisposeAsync();
     }
 
@@ -30,6 +31,7 @@ public class FileWatcherActorBaseTests
         fs.CreateDirectory(dir);
         var actor = new TestFileWatcherActor(fs);
         await actor.SendAsync(new FileWatcherStartCmd(dir, "*.txt", TimeSpan.FromMilliseconds(50)));
+        await WaitForActorReadyAsync(actor).ConfigureAwait(true);
 
         actor.MarkInternalWrite($"{dir}/b.txt");
         fs.WriteAllText($"{dir}/b.txt", "data");
@@ -47,8 +49,10 @@ public class FileWatcherActorBaseTests
         var actor = new TestFileWatcherActor(fs);
         await actor.SendAsync(new TestCustomCmd("test-data"));
 
-        await Task.Delay(100);
-        actor.CustomCommands.Should().Contain("test-data");
+        var found = await WaitForAsync(
+            () => actor.CustomCommands.Contains("test-data"),
+            TimeSpan.FromSeconds(3)).ConfigureAwait(true);
+        found.Should().BeTrue("自定义命令应在 3s 内被处理");
         await actor.DisposeAsync();
     }
 
@@ -60,8 +64,9 @@ public class FileWatcherActorBaseTests
         fs.CreateDirectory(dir);
         var actor = new TestFileWatcherActor(fs);
         await actor.SendAsync(new FileWatcherStartCmd(dir, "*.txt", TimeSpan.FromMilliseconds(50)));
+        await WaitForActorReadyAsync(actor).ConfigureAwait(true);
         await actor.SendAsync(new FileWatcherStopCmd());
-        await Task.Delay(100);
+        await WaitForActorReadyAsync(actor).ConfigureAwait(true);
 
         fs.WriteAllText($"{dir}/c.txt", "after-stop");
         await Task.Delay(300);
@@ -69,6 +74,26 @@ public class FileWatcherActorBaseTests
         var changes = actor.GetChanges();
         changes.Any(c => c.FilePath.EndsWith("c.txt")).Should().BeFalse();
         await actor.DisposeAsync();
+    }
+
+    private static async Task WaitForActorReadyAsync(TestFileWatcherActor actor)
+    {
+        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await actor.SendAsync(new ReadyCmd(tcs)).ConfigureAwait(true);
+        await tcs.Task.ConfigureAwait(true);
+    }
+
+    private static async Task<bool> WaitForAsync(Func<bool> condition, TimeSpan timeout, TimeSpan? interval = null)
+    {
+        var intervalMs = (int)(interval ?? TimeSpan.FromMilliseconds(50)).TotalMilliseconds;
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            if (condition())
+                return true;
+            await Task.Delay(intervalMs).ConfigureAwait(true);
+        }
+        return condition();
     }
 
     private sealed class TestFileWatcherActor : FileWatcherActorBase
@@ -86,8 +111,15 @@ public class FileWatcherActorBaseTests
 
         protected override ValueTask HandleCustomCommandAsync(FileWatcherCommand cmd, CancellationToken ct)
         {
-            if (cmd is TestCustomCmd c)
-                lock (_customCommands) _customCommands.Add(c.Data);
+            switch (cmd)
+            {
+                case ReadyCmd r:
+                    r.Tcs.TrySetResult();
+                    break;
+                case TestCustomCmd c:
+                    lock (_customCommands) _customCommands.Add(c.Data);
+                    break;
+            }
             return ValueTask.CompletedTask;
         }
 
@@ -96,4 +128,5 @@ public class FileWatcherActorBaseTests
     }
 
     private sealed record TestCustomCmd(string Data) : FileWatcherCommand;
+    private sealed record ReadyCmd(TaskCompletionSource Tcs) : FileWatcherCommand;
 }

@@ -7,7 +7,7 @@ public sealed class PdfPageRendererTests
     private static string GetTestPdfPath()
     {
         // 使用预生成的 3 页测试 PDF（QuestPDF 生成，PDFium 可正确解析）
-        var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TestData", "test-3page.pdf");
+        var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "test_data", "test-3page.pdf");
         return PhysicalFs.FileExists(path) ? path : throw new FileNotFoundException($"Test PDF not found: {path}");
     }
 

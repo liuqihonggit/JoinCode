@@ -23,9 +23,9 @@
     <Compile Include="..\Http\**\*.cs" />
     <Compile Include="..\Subprocess\**\*.cs" />
     <Compile Include="..\GlobalUsings.cs" Link="GlobalUsings.cs" />
-    <None Include="..\TestData\**\*">
+    <None Include="..\test_data\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Link>TestData\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <Link>test_data\%(RecursiveDir)%(Filename)%(Extension)</Link>
     </None>
   </ItemGroup>
 

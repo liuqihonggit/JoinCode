@@ -136,7 +136,7 @@ public sealed class KestrelMockServer : IHttpMockServer
 
             DumpConversationToFile(requestIndex, body, cacheStats);
 
-            var releaser = await _lock.TryLockAsync(ctx.RequestAborted).ConfigureAwait(false)
+            var releaser = await _lock.TryLockAsync(ctx.RequestAborted).ConfigureAwait(true)
                 ?? throw new TimeoutException($"锁 '{_lock.Name}' 等待超时");
             using (releaser)
             {
@@ -282,7 +282,7 @@ public sealed class KestrelMockServer : IHttpMockServer
             try
             {
                 Log($"[{_serverName}] Calling _app.RunAsync()...");
-                await _app.RunAsync().ConfigureAwait(false);
+                await _app.RunAsync().ConfigureAwait(true);
                 Log($"[{_serverName}] _app.RunAsync() completed normally");
             }
             catch (Exception ex)

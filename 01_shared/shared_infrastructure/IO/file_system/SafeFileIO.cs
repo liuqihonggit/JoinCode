@@ -4,6 +4,7 @@ namespace IO.FileSystem;
 /// 文件读写辅助类 — 所有方法用 FileShare.ReadWrite，避免跨进程/同进程读-写冲突
 /// 适用于无法注入 IFileSystem 的静态上下文（如 Program.Main、诊断日志、崩溃处理）
 /// </summary>
+#pragma warning disable JCC9002 // 静态上下文无法注入 IFileSystem，此处直接使用 FileStream 是设计意图
 public static class SafeFileIO
 {
     /// <summary>读取全部文本 — FileShare.ReadWrite 允许并发写入者</summary>

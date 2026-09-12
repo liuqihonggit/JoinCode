@@ -79,7 +79,7 @@ public sealed class HttpListenerMockServer : IHttpMockServer
         {
             try
             {
-                var ctx = await _listener.GetContextAsync().ConfigureAwait(false);
+                var ctx = await _listener.GetContextAsync().ConfigureAwait(true);
                 if (ct.IsCancellationRequested) break;
 
                 var path = ctx.Request.Url?.AbsolutePath ?? "";
@@ -89,7 +89,7 @@ public sealed class HttpListenerMockServer : IHttpMockServer
                     ctx.Response.StatusCode = 200;
                     ctx.Response.ContentType = "application/json";
                     var shutdownBytes = Encoding.UTF8.GetBytes("{\"status\":\"shutting_down\"}");
-                    await ctx.Response.OutputStream.WriteAsync(shutdownBytes, ct).ConfigureAwait(false);
+                    await ctx.Response.OutputStream.WriteAsync(shutdownBytes, ct).ConfigureAwait(true);
                     ctx.Response.Close();
                     ShutdownRequested?.Invoke();
                     break;
@@ -100,13 +100,13 @@ public sealed class HttpListenerMockServer : IHttpMockServer
                     ctx.Response.StatusCode = 200;
                     ctx.Response.ContentType = "application/json";
                     var healthBytes = Encoding.UTF8.GetBytes("{\"status\":\"ok\"}");
-                    await ctx.Response.OutputStream.WriteAsync(healthBytes, ct).ConfigureAwait(false);
+                    await ctx.Response.OutputStream.WriteAsync(healthBytes, ct).ConfigureAwait(true);
                     ctx.Response.Close();
                     continue;
                 }
 
                 using var reader = new StreamReader(ctx.Request.InputStream, Encoding.UTF8);
-                var body = await reader.ReadToEndAsync(ct).ConfigureAwait(false);
+                var body = await reader.ReadToEndAsync(ct).ConfigureAwait(true);
 
                 var captured = new CapturedRequest
                 {
@@ -122,7 +122,7 @@ public sealed class HttpListenerMockServer : IHttpMockServer
                 var requestJson = JsonDocument.Parse(body);
                 var cacheStats = _cacheSimulator.ComputeCacheStats(requestJson.RootElement);
 
-                await _lock.WaitAsync(ct).ConfigureAwait(false);
+                await _lock.WaitAsync(ct).ConfigureAwait(true);
                 try
                 {
                     _capturedRequests.Add(captured);
@@ -145,7 +145,7 @@ public sealed class HttpListenerMockServer : IHttpMockServer
                     ctx.Response.ContentType = "application/json";
                     var errorBody = _responseStrategy.BuildResponse(requestJson.RootElement, cacheStats);
                     var errorBytes = Encoding.UTF8.GetBytes(errorBody);
-                    await ctx.Response.OutputStream.WriteAsync(errorBytes, ct).ConfigureAwait(false);
+                    await ctx.Response.OutputStream.WriteAsync(errorBytes, ct).ConfigureAwait(true);
                     ctx.Response.Close();
                     continue;
                 }
@@ -167,8 +167,8 @@ public sealed class HttpListenerMockServer : IHttpMockServer
                     if (!string.IsNullOrEmpty(preamble))
                     {
                         var preambleBytes = Encoding.UTF8.GetBytes(preamble);
-                        await ctx.Response.OutputStream.WriteAsync(preambleBytes, ct).ConfigureAwait(false);
-                        await ctx.Response.OutputStream.FlushAsync(ct).ConfigureAwait(false);
+                        await ctx.Response.OutputStream.WriteAsync(preambleBytes, ct).ConfigureAwait(true);
+                        await ctx.Response.OutputStream.FlushAsync(ct).ConfigureAwait(true);
                     }
 
                     var words = _responseStrategy.GetContentChunks();
@@ -176,15 +176,15 @@ public sealed class HttpListenerMockServer : IHttpMockServer
                     {
                         var chunk = _responseStrategy.BuildStreamChunk(id, word, false);
                         var chunkBytes = Encoding.UTF8.GetBytes(chunk);
-                        await ctx.Response.OutputStream.WriteAsync(chunkBytes, ct).ConfigureAwait(false);
-                        await ctx.Response.OutputStream.FlushAsync(ct).ConfigureAwait(false);
-                        await Task.Delay(20, ct).ConfigureAwait(false);
+                        await ctx.Response.OutputStream.WriteAsync(chunkBytes, ct).ConfigureAwait(true);
+                        await ctx.Response.OutputStream.FlushAsync(ct).ConfigureAwait(true);
+                        await Task.Delay(20, ct).ConfigureAwait(true);
                     }
 
                     // 发送结束 chunk
                     var lastChunk = _responseStrategy.BuildStreamChunk(id, "", true);
                     var lastBytes = Encoding.UTF8.GetBytes(lastChunk);
-                    await ctx.Response.OutputStream.WriteAsync(lastBytes, ct).ConfigureAwait(false);
+                    await ctx.Response.OutputStream.WriteAsync(lastBytes, ct).ConfigureAwait(true);
                     ctx.Response.Close();
                 }
                 else
@@ -194,7 +194,7 @@ public sealed class HttpListenerMockServer : IHttpMockServer
                     ctx.Response.StatusCode = 200;
                     ctx.Response.ContentType = "application/json";
                     var responseBytes = Encoding.UTF8.GetBytes(responseBody);
-                    await ctx.Response.OutputStream.WriteAsync(responseBytes, ct).ConfigureAwait(false);
+                    await ctx.Response.OutputStream.WriteAsync(responseBytes, ct).ConfigureAwait(true);
                     ctx.Response.Close();
                 }
             }
@@ -247,7 +247,7 @@ public sealed class HttpListenerMockServer : IHttpMockServer
         if (_listenTask is not null)
         {
             try { 
-                await _listenTask.ConfigureAwait(false); 
+                await _listenTask.ConfigureAwait(true); 
             } 
             catch (Exception ex) { 
                 System.Diagnostics.Trace.WriteLine($"Listen task failed during disposal: {ex.Message}"); 

@@ -23,11 +23,11 @@ public sealed class Program
 
         await using var server = new KestrelMockServer(strategy, cacheSimulator, port, serverName: "Anthropic");
         server.ShutdownRequested += () => ShutdownEvent.Set();
-        await server.StartAsync().ConfigureAwait(false);
+        await server.StartAsync().ConfigureAwait(true);
 
         ShutdownEvent.Wait(TimeSpan.FromMinutes(30));
 
-        await server.StopAsync().ConfigureAwait(false);
+        await server.StopAsync().ConfigureAwait(true);
     }
 
     private static string? ParseArgument(string[] args, string name)

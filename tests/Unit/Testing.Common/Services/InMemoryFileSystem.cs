@@ -190,16 +190,16 @@ public sealed class InMemoryFileSystem : IFileSystem
     {
         var normalizedPath = NormalizePath(path);
         var editLock = _editLocks.GetOrAdd(normalizedPath, p => new AsyncLock($"EditFile:{p}"));
-        var releaser = await editLock.TryLockAsync(cancellationToken).ConfigureAwait(false);
+        var releaser = await editLock.TryLockAsync(cancellationToken).ConfigureAwait(true);
         if (releaser is null)
             throw new TimeoutException($"编辑文件锁超时: {path}");
         using (releaser)
         {
-            var bytes = await ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(false);
-            var (newContent, result) = await transform(bytes, cancellationToken).ConfigureAwait(false);
+            var bytes = await ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(true);
+            var (newContent, result) = await transform(bytes, cancellationToken).ConfigureAwait(true);
             if (newContent is not null)
             {
-                await WriteAllBytesAsync(path, newContent, cancellationToken).ConfigureAwait(false);
+                await WriteAllBytesAsync(path, newContent, cancellationToken).ConfigureAwait(true);
             }
             return result;
         }

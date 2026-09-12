@@ -21,8 +21,8 @@ public sealed partial class StreamingResponseE2ETests : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        await KillProcessAsync(_jccProcess).ConfigureAwait(false);
-        await KillProcessAsync(_mockServerProcess).ConfigureAwait(false);
+        await KillProcessAsync(_jccProcess).ConfigureAwait(true);
+        await KillProcessAsync(_mockServerProcess).ConfigureAwait(true);
     }
 
     /// <summary>
@@ -288,7 +288,7 @@ public sealed partial class StreamingResponseE2ETests : IAsyncLifetime
         try
         {
             process.Kill(entireProcessTree: true);
-            await process.WaitForExitAsync().ConfigureAwait(false);
+            await process.WaitForExitAsync().ConfigureAwait(true);
         }
         catch (InvalidOperationException ex) { Debug.WriteLine($"[KillProcess] InvalidOperationException: {ex.Message}"); }
         catch (System.ComponentModel.Win32Exception ex) { Debug.WriteLine($"[KillProcess] Win32Exception: {ex.Message}"); }

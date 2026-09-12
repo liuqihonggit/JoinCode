@@ -35,14 +35,14 @@ public sealed class Program
                 LogMain("[OpenAI.MockServer] Shutdown requested");
                 ShutdownEvent.Set();
             };
-            await server.StartAsync().ConfigureAwait(false);
+            await server.StartAsync().ConfigureAwait(true);
 
             LogMain($"[OpenAI.MockServer] Server started, URL={server.Url}, waiting for requests...");
 
             ShutdownEvent.Wait(TimeSpan.FromMinutes(30));
 
             LogMain("[OpenAI.MockServer] ShutdownEvent released, stopping...");
-            await server.StopAsync().ConfigureAwait(false);
+            await server.StopAsync().ConfigureAwait(true);
         }
         catch (Exception ex)
         {

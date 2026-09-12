@@ -21,8 +21,8 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        await KillProcessAsync(_jccProcess).ConfigureAwait(false);
-        await KillProcessAsync(_mockServerProcess).ConfigureAwait(false);
+        await KillProcessAsync(_jccProcess).ConfigureAwait(true);
+        await KillProcessAsync(_mockServerProcess).ConfigureAwait(true);
     }
 
     /// <summary>
@@ -180,7 +180,7 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime
             var code = await exitTcs.Task.WaitAsync(cts.Token).ConfigureAwait(true);
             sw.Stop();
 
-            await Task.Delay(500, CancellationToken.None).ConfigureAwait(false);
+            await Task.Delay(500, CancellationToken.None).ConfigureAwait(true);
 
             return (code, sw.Elapsed, stdoutBuilder.ToString(), stderrBuilder.ToString());
         }
@@ -335,7 +335,7 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime
         try
         {
             process.Kill(entireProcessTree: true);
-            await process.WaitForExitAsync().ConfigureAwait(false);
+            await process.WaitForExitAsync().ConfigureAwait(true);
         }
         catch (InvalidOperationException ex) { Debug.WriteLine($"[KillProcess] InvalidOperationException: {ex.Message}"); }
         catch (System.ComponentModel.Win32Exception ex) { Debug.WriteLine($"[KillProcess] Win32Exception: {ex.Message}"); }

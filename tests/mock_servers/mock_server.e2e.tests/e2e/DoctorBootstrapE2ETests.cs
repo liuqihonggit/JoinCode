@@ -22,8 +22,8 @@ public sealed partial class DoctorBootstrapE2ETests : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        await KillProcessAsync(_jccProcess).ConfigureAwait(false);
-        await KillProcessAsync(_mockServerProcess).ConfigureAwait(false);
+        await KillProcessAsync(_jccProcess).ConfigureAwait(true);
+        await KillProcessAsync(_mockServerProcess).ConfigureAwait(true);
     }
 
     [Fact]
@@ -294,7 +294,7 @@ public sealed partial class DoctorBootstrapE2ETests : IAsyncLifetime
         try
         {
             process.Kill(entireProcessTree: true);
-            await process.WaitForExitAsync().ConfigureAwait(false);
+            await process.WaitForExitAsync().ConfigureAwait(true);
         }
         catch (Exception) { _ = process.HasExited; }
     }

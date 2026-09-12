@@ -2,6 +2,7 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.ResetConfig, Description = "重置配置文件到默认状态", Usage = "/reset-config [all|auth|settings|trust|onboarding]", Category = ChatCommandCategory.Config, ArgumentHint = "[all|auth|settings|trust|onboarding]")]
+[ChatCommandArg("scope", Type = "string", Description = "重置范围", Enum = new[] { "all", "auth", "settings", "trust", "onboarding" }, Default = "all")]
 public sealed class ResetConfigCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

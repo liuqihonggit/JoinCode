@@ -1,6 +1,8 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Diag, Description = "查看崩溃快照和诊断信息", Usage = "/diag [recent|fence <name>|ack <id>|clear]", Category = ChatCommandCategory.System, IsHidden = true)]
+[ChatCommandArg("action", Type = "string", Description = "诊断操作", Enum = new[] { "recent", "fence", "ack", "detail", "clear" })]
+[ChatCommandArg("name", Type = "string", Description = "fence 围栏名 / ack|detail 快照 ID")]
 public sealed class DiagCommand : ChatCommandBase
 {
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

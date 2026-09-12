@@ -1,6 +1,8 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Agents, Description = "查看和管理代理", Usage = "/agents [list|info <name>]", Category = ChatCommandCategory.Agent, ArgumentHint = "[list|info <name>]")]
+[ChatCommandArg("action", Type = "string", Description = "操作: list=列出代理, info=查看详情", Enum = new[] { "list", "info" }, Default = "list")]
+[ChatCommandArg("name", Type = "string", Description = "代理名称,仅在 action=info 时使用")]
 public sealed class AgentsCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

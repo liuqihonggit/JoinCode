@@ -1,6 +1,7 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Trust, Description = "管理工作区信任目录", Usage = "/trust [add|remove|list|clear]", Category = ChatCommandCategory.Auth, ArgumentHint = "[add|remove|list|clear]")]
+[ChatCommandArg("action", Type = "string", Description = "信任目录操作", Enum = new[] { "add", "remove", "list", "clear" }, Default = "list")]
 public sealed class TrustCommand : ChatCommandBase
 {
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

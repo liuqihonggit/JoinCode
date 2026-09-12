@@ -2,6 +2,7 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Advisor, Description = "配置顾问模型", Usage = "/advisor [model|off]", Category = ChatCommandCategory.Agent, ArgumentHint = "[model|off]")]
+[ChatCommandArg("model", Type = "string", Description = "顾问模型名称,或 off 关闭顾问模式", Enum = new[] { "off" })]
 public sealed class AdvisorCommand(IModelConfigLoader? modelConfigLoader = null) : ChatCommandBase
 {
     private readonly IModelConfigLoader? _modelConfigLoader = modelConfigLoader;

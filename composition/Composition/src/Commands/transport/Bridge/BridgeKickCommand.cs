@@ -1,6 +1,7 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.BridgeKick, Description = "断开指定Bridge连接", Usage = "/bridge-kick [session-id]", Category = ChatCommandCategory.Bridge, ArgumentHint = "[session-id]")]
+[ChatCommandArg("session-id", Type = "string", Description = "要断开的 Bridge 会话 ID", Required = true)]
 public sealed class BridgeKickCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

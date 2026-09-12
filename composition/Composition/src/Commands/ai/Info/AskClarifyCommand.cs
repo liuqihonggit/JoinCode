@@ -12,6 +12,7 @@ namespace JoinCode.ChatCommands;
     Category = ChatCommandCategory.Info,
     Aliases = ["ask"],
     ArgumentHint = "[需求描述]")]
+[ChatCommandArg("description", Type = "string", Description = "需求描述文本,作为澄清循环的初始输入")]
 public sealed class AskClarifyCommand : ChatCommandBase
 {
     /// <summary>

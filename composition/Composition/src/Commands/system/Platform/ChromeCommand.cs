@@ -8,6 +8,7 @@ namespace JoinCode.ChatCommands;
 /// 架构差异：TS 有 React 交互式浏览器控制面板，C# 为命令行操作
 /// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Chrome, Description = "Chrome 浏览器集成", Usage = "/chrome [connect|disconnect|install|toggle|status]", Category = ChatCommandCategory.Platform, ArgumentHint = "connect|disconnect|install|toggle|status", IsHidden = true)]
+[ChatCommandArg("action", Type = "string", Description = "Chrome 操作", Enum = new[] { "connect", "disconnect", "install", "toggle", "status" })]
 public sealed class ChromeCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

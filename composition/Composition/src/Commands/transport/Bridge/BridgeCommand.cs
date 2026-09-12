@@ -8,6 +8,7 @@ namespace JoinCode.ChatCommands;
 /// 架构差异：TS 有 React QR 码渲染，C# 使用终端 ASCII QR
 /// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Bridge, Description = "Bridge 远程控制管理", Usage = "/bridge [qr|sessions|status|connect|disconnect]", Category = ChatCommandCategory.Bridge, Aliases = ["rc"])]
+[ChatCommandArg("action", Type = "string", Description = "Bridge 操作: qr=显示二维码, sessions=列出会话, status=状态, connect=连接, disconnect=断开", Enum = new[] { "qr", "sessions", "status", "connect", "disconnect" })]
 public sealed class BridgeCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

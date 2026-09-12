@@ -2,6 +2,8 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Hooks, Description = "管理 Hook 配置", Usage = "/hooks [list|add|remove|test] [args]", Category = ChatCommandCategory.Tools, ArgumentHint = "[list|add|remove|test]")]
+[ChatCommandArg("action", Type = "string", Description = "Hook 操作", Enum = new[] { "list", "add", "remove", "test" })]
+[ChatCommandArg("args", Type = "string", Description = "操作特定参数,如 add 的 Hook 配置")]
 public sealed class HooksCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

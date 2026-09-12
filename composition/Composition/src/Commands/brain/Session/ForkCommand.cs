@@ -1,6 +1,7 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Fork, Description = "创建当前对话的分支", Usage = "/fork [name]", Category = ChatCommandCategory.Session, Aliases = ["branch"], ArgumentHint = "[name]")]
+[ChatCommandArg("name", Type = "string", Description = "分支名称,省略时从首条用户消息推导")]
 public sealed class ForkCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

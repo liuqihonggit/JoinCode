@@ -1,6 +1,7 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Assistant, Description = "长期助手模式", Usage = "/assistant [on|off|status]", Category = ChatCommandCategory.Agent)]
+[ChatCommandArg("action", Type = "string", Description = "助手模式动作", Enum = new[] { "on", "off", "status" }, Default = "status")]
 public sealed class AssistantCommand : ToggleCommandBase
 {
     public override string Name => ChatCommandNameConstants.Assistant;

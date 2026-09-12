@@ -7,6 +7,7 @@ namespace JoinCode.ChatCommands;
 /// 架构差异：TS 有实时预览+语法高亮切换，C# 是直接切换
 /// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Theme, Description = "切换控制台主题", Usage = "/theme [dark|light|auto|dark-daltonized|light-daltonized|dark-ansi|light-ansi]", Category = ChatCommandCategory.Config)]
+[ChatCommandArg("theme", Type = "string", Description = "主题名称", Enum = new[] { "dark", "light", "auto", "dark-daltonized", "light-daltonized", "dark-ansi", "light-ansi" })]
 public sealed class ThemeCommand : ChatCommandBase
 {
     /// <summary>

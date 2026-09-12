@@ -8,6 +8,9 @@ namespace JoinCode.ChatCommands;
 /// 待办：需要 PlanService 扩展支持多步骤执行器
 /// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Ultraplan, Description = "超级计划模式：深度规划+执行", Usage = "/ultraplan [goal] [--steps N] [--execute]", Category = ChatCommandCategory.Agent, Aliases = ["up"], ArgumentHint = "[goal]")]
+[ChatCommandArg("goal", Type = "string", Description = "规划目标描述")]
+[ChatCommandArg("steps", Type = "number", Description = "规划步骤数")]
+[ChatCommandArg("execute", Type = "boolean", Description = "是否自动执行计划", Default = "false")]
 public sealed class UltraplanCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

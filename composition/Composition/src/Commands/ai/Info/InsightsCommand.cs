@@ -1,6 +1,7 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Insights, Description = "AI生成会话洞察分析", Usage = "/insights [stats|deep|report]", Category = ChatCommandCategory.Info, ArgumentHint = "[stats|deep|report]")]
+[ChatCommandArg("mode", Type = "string", Description = "洞察模式: stats=跨会话统计, deep=深度洞察, report=HTML报告; 省略=AI基础洞察", Enum = new[] { "stats", "deep", "report" })]
 public sealed class InsightsCommand : ChatCommandBase
 {
     private readonly IClockService _clock = SystemClockService.Instance;

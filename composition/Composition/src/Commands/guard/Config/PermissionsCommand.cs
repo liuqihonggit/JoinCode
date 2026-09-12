@@ -1,6 +1,8 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Permissions, Description = "管理权限规则和工作区目录", Usage = "/permissions [list|add|remove|clear|workspace] [args]", Category = ChatCommandCategory.Config, Aliases = ["perm"], ArgumentHint = "[list|add|remove|clear|workspace]")]
+[ChatCommandArg("action", Type = "string", Description = "权限操作", Enum = new[] { "list", "add", "remove", "clear", "workspace" }, Default = "list")]
+[ChatCommandArg("args", Type = "string", Description = "操作特定参数,如 add 的权限规则")]
 public sealed class PermissionsCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

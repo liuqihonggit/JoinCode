@@ -12,6 +12,7 @@ namespace JoinCode.ChatCommands;
     Usage = "/switch [agentName|all]",
     Category = ChatCommandCategory.Agent,
     ArgumentHint = "[agentName|all]")]
+[ChatCommandArg("target", Type = "string", Description = "切换目标: agentName=只看指定子代理输出, all=切回显示全部, 省略=显示当前模式")]
 public sealed class SwitchCommand : ChatCommandBase
 {
     public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

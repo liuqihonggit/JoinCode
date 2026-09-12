@@ -7,6 +7,7 @@ namespace JoinCode.ChatCommands;
 /// 架构差异：TS 有 React 交互式确认，C# 为直接发送
 /// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Install, Description = "让 AI 执行安装任务", Usage = "/install <package-or-command>", Category = ChatCommandCategory.Tools, ArgumentHint = "<package-or-command>")]
+[ChatCommandArg("package", Type = "string", Description = "要安装的包名或命令", Required = true)]
 public sealed class InstallCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

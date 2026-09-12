@@ -2,6 +2,11 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Goal, Description = "目标自主循环引擎 — GoalSpec 收集模式（LLM 询问 6 字段后自主工作）", Usage = "/goal [初始提示] [--constraint '约束'] [--budget <token数>] | /goal pause | /goal resume | /goal clear | /goal --cron <表达式> <描述>", Category = ChatCommandCategory.Task, ArgumentHint = "[初始提示|子命令]")]
+[ChatCommandArg("subcommand", Type = "string", Description = "生命周期子命令,省略时进入 GoalSpec 收集模式或显示状态", Enum = new[] { "pause", "resume", "clear", "stop", "off", "reset", "cancel" })]
+[ChatCommandArg("objective", Type = "string", Description = "目标描述/初始提示,作为自主循环的目标")]
+[ChatCommandArg("constraint", Type = "array", Description = "约束条件,可多次指定 --constraint", ItemsType = "string", ItemsDescription = "单条约束文本")]
+[ChatCommandArg("budget", Type = "number", Description = "Token 预算上限")]
+[ChatCommandArg("cron", Type = "string", Description = "Cron 表达式(5 字段),启用定时目标模式")]
 public sealed partial class GoalCommand : ChatCommandBase
 {
     private readonly ILogger<GoalCommand>? _logger;

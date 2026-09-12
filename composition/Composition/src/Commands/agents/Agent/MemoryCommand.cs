@@ -1,6 +1,7 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Memory, Description = "编辑记忆文件", Usage = "/memory [edit|open|add|search|db|stats|health|cleanup]", Category = ChatCommandCategory.Agent, Aliases = ["mem"])]
+[ChatCommandArg("action", Type = "string", Description = "记忆操作", Enum = new[] { "edit", "open", "add", "search", "db", "stats", "health", "cleanup" })]
 public sealed class MemoryCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

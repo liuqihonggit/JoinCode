@@ -2,6 +2,8 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Worktree, Description = "管理智能体 Git Worktree", Usage = "/worktree [list|cleanup|remove|create|status] [options]", Category = ChatCommandCategory.Code)]
+[ChatCommandArg("action", Type = "string", Description = "Worktree 操作", Enum = new[] { "list", "cleanup", "remove", "create", "status" })]
+[ChatCommandArg("options", Type = "string", Description = "操作特定参数,如 create 的分支名")]
 public sealed class WorktreeCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

@@ -198,7 +198,7 @@ Timer 周期任务 → Actor 周期自消息；AsyncLock → 消除；状态 →
 
 ### 不改：P5 volatile 快照 + 不适合（纯限流/CAS/Dispose）
 
-## 六、已完成改造汇总（22 个）
+## 六、已完成改造汇总（30 个）
 
 | # | 类名 | 原机制 | 改造内容 | commit |
 |---|------|--------|----------|--------|
@@ -217,12 +217,21 @@ Timer 周期任务 → Actor 周期自消息；AsyncLock → 消除；状态 →
 | 13 | BridgeTokenRefreshScheduler | AsyncLock+Dict<string,Timer> | ActorBase+Consumer独占三个字典+Timer→TrySend+TCS | 58b949cd3 |
 | 14 | RemoteCacheRefreshServiceBase | AsyncLock+Timer+ConcurrentDict | ActorBase+volatile ticks, _cache 保留 ConcurrentDictionary | 71ed932ae |
 | 15 | TeamMemorySyncService | AsyncLock+Timer+文件监听 | 拆分4小类+ActorBase, 757→280行 | 54130d27d |
-| 16 | SystemActuatorCommandContext | 3×Timer+进程管理 | 拆分4小类: ProcessOutputCollector+CwdTracker+OutputPersister+ProcessKillHelper, 579→280行 | 3b39b4baa |
-| 17 | BuildQueueService | Channel+3×ConcurrentDict+AsyncLock+跨进程锁 | 拆分3小类: CrossProcessBuildLock+SourceFingerprintCache+BuildResultBuffer, 676→300行 | 5ffe5d3e3 |
+| 16 | SystemActuatorCommandContext | 3×Timer+进程管理 | 拆分4小类, 579→280行 | 3b39b4baa |
+| 17 | BuildQueueService | Channel+3×ConcurrentDict+AsyncLock+跨进程锁 | 拆分3小类, 676→300行 | 5ffe5d3e3 |
 | 18 | InProcessTeammateTaskExecutor | AsyncLock+ConcurrentDict×2 | 拆分2小类: TeammateLoopRunner+TeammateCleanupHelper, ActorBase+7命令+读操作直接读, 944→680行 | c0d503f79 |
 | 19 | VoiceService | AsyncLock(锁内网络调用) | ActorBase+3命令(Start/Stop/WriteAudio)+volatile int, 消除 RecordLoop 跨线程锁竞争 | 723b70bda |
 | 20 | FileCronTaskStore | AsyncLock(锁内文件I/O) | ActorBase+6命令, 文件I/O由Consumer串行执行, 修正注释与实现不符 | d479830d8 |
 | 21 | EnvironmentProbeService | AsyncLock(锁内进程启动) | ActorBase+1命令(ProbeEnv), 7进程探测由Consumer串行执行不再阻塞35s | fac56c9c8 |
+| 22 | 文档更新 | — | 任务清单更新至22个改造 | 7a4e7e392 |
+| 23 | PluginHotReloader | AsyncLock(锁内插件加载/卸载>5s) | ActorBase+watcher TrySend fire-and-forget+手动重载带TCS等待 | eab3e4260 |
+| 24 | SandboxManager | AsyncLock(锁内容器创建/销毁>5s) | 组合SandboxLifecycleActor, Enter/Exit/Switch发命令, 查询通过volatile读 | c948371fa |
+| 25 | BridgeClient | AsyncLock(锁内停止操作>5s) | 继承ActorBase, Start/Stop/GetState发命令串行执行 | 88e3ca947 |
+| 26 | MemoryManagementService | AsyncLock(6方法竞争同一锁) | 组合MemoryMgmtActor, 6锁方法发命令, core方法internal供Consumer调用 | 29edf3da5 |
+| 27 | SshSessionManager | AsyncLock(锁内SSH连接关闭) | 继承ActorBase, Create/Destroy/Cleanup发命令串行执行 | ebd2ef5c7 |
+| 28 | LspManager | AsyncLock(锁内停止所有LSP服务器>5s) | 组合LspInitActor, _extensionMap改ConcurrentDictionary保证读安全 | f43a775cb |
+| 29 | WorkflowStateStore | AsyncLock(锁内原子写+移动) | 组合WorkflowStateActor, Save/Load发命令串行执行 | 60dbc6db8 |
+| 30 | TaskRuntime | AsyncLock(锁内原子写+移动) | 组合TaskPersistActor, Persist/Recover发命令串行执行 | aa77e42ee |
 
 ## 七、评估后跳过的候选（4 个）
 

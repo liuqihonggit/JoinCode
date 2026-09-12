@@ -9,7 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)app/cli/JoinCode.csproj" />
-    <ProjectReference Include="$(RepoRoot)llm/llm/Llm.csproj" />
+    <ProjectReference Include="$(RepoRoot)llm/core/Llm.csproj" />
     <ProjectReference Include="$(RepoRoot)kit/composition/Composition.csproj" />
     <ProjectReference Include="$(RepoRoot)test/unit/testing.common/Testing.Common.csproj" />
   </ItemGroup>

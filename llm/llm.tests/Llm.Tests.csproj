@@ -5,7 +5,7 @@
     <Description>JoinCode LLM 适配器单元测试</Description>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)llm/llm/Llm.csproj" />
+    <ProjectReference Include="$(RepoRoot)llm/core/Llm.csproj" />
     <ProjectReference Include="$(RepoRoot)lib/abstractions/Abstractions.csproj" />
     <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
     <ProjectReference Include="$(RepoRoot)test/unit/testing.common/Testing.Common.csproj" />

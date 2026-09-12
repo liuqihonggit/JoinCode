@@ -1,7 +1,7 @@
 <Solution>
   <Folder Name="/core/" />
   <Folder Name="/llm/">
-    <Project Path="../../llm/llm/Llm.csproj" />
+    <Project Path="../../llm/core/Llm.csproj" />
     <Project Path="../../llm/llm.tests/Llm.Tests.csproj" />
     <Project Path="../../llm/agents/Agents.csproj" />
     <Project Path="../../llm/agents.tests/Agents.Tests.csproj" />

@@ -1,7 +1,7 @@
 namespace JoinCode.Abstractions.Security;
 
 /// <summary>
-/// 权限模式枚举 — 4个核心模式
+/// 权限模式枚举 — 5个核心模式
 /// 旧值已废弃: Default→Auto, AcceptEdits→Auto, DontAsk→Bypass, BypassPermissions→Bypass, Deny→Ask
 /// </summary>
 public enum PermissionMode
@@ -24,5 +24,10 @@ public enum PermissionMode
     /// <summary>
     /// 全放行模式：所有操作自动批准（需环境变量或--permission-mode启用）
     /// </summary>
-    [EnumValue("bypass")] Bypass
+    [EnumValue("bypass")] Bypass,
+
+    /// <summary>
+    /// 无人值守模式：AI 持续推进长任务，红灯自动执行+审计日志，黑灯仍拒绝 — ADR 0012
+    /// </summary>
+    [EnumValue("unattended")] Unattended
 }

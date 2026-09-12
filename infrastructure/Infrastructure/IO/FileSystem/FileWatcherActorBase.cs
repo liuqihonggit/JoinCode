@@ -11,9 +11,11 @@ namespace IO.FileSystem;
 public abstract class FileWatcherActorBase : ActorBase<FileWatcherCommand, Unit>
 {
     private IFileSystemWatcher? _watcher;
-    private readonly IFileSystem _fileSystem;
     private readonly Dictionary<string, DateTimeOffset> _internalWrites = new(StringComparer.Ordinal);
     private TimeSpan _internalWriteWindow = TimeSpan.FromSeconds(5);
+
+    /// <summary>文件系统抽象 — 子类可访问用于路径检查等</summary>
+    protected readonly IFileSystem FileSystem;
 
     /// <summary>
     /// 构造文件监控 Actor。
@@ -23,7 +25,7 @@ public abstract class FileWatcherActorBase : ActorBase<FileWatcherCommand, Unit>
     protected FileWatcherActorBase(IFileSystem fileSystem, int mailboxCapacity = 1000)
         : base(new ActorBackpressure(mailboxCapacity, BoundedChannelFullMode.DropOldest), null)
     {
-        _fileSystem = fileSystem;
+        FileSystem = fileSystem;
     }
 
     /// <summary>内部写入过滤窗口 — 窗口内的变更视为自身写入回声,丢弃(默认 5s)</summary>
@@ -57,7 +59,7 @@ public abstract class FileWatcherActorBase : ActorBase<FileWatcherCommand, Unit>
             FileChangedCmd c => HandleFileChangedCoreAsync(c, ct),
             FileRenamedCmd c => HandleFileRenamedAsync(c.OldPath, c.NewPath, c.Timestamp, ct),
             MarkInternalWriteCmd c => HandleMarkInternalWriteCore(c.FilePath),
-            FileWatcherStartCmd c => StartWatcherCoreAsync(c.Path, c.Filter, c.DebounceInterval),
+            FileWatcherStartCmd c => StartWatcherCoreAsync(c.Path, c.Filter, c.DebounceInterval, c.IncludeSubdirectories, c.NotifyFilter),
             FileWatcherStopCmd => StopWatcherCoreAsync(),
             _ => HandleCustomCommandAsync(cmd, ct)
         };
@@ -107,10 +109,12 @@ public abstract class FileWatcherActorBase : ActorBase<FileWatcherCommand, Unit>
             _internalWrites.Remove(key);
     }
 
-    private ValueTask StartWatcherCoreAsync(string path, string? filter, TimeSpan debounceInterval)
+    private ValueTask StartWatcherCoreAsync(string path, string? filter, TimeSpan debounceInterval, bool includeSubdirectories, NotifyFilters notifyFilter)
     {
         _watcher?.Dispose();
-        _watcher = _fileSystem.Watch(path, filter ?? "*.*");
+        _watcher = FileSystem.Watch(path, filter ?? "*.*");
+        _watcher.IncludeSubdirectories = includeSubdirectories;
+        _watcher.NotifyFilter = notifyFilter;
         _watcher.DebounceInterval = debounceInterval;
         _watcher.EnableRaisingEvents = true;
         _watcher.DebouncedChanged += OnWatcherChanged;

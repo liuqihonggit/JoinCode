@@ -65,6 +65,7 @@ global using Infrastructure.IO.Services.FileOps;
 global using Infrastructure.Utils.IO;
 global using Infrastructure.Utils.Text;
 global using IO;
+global using IO.FileSystem;
 global using Microsoft.Extensions.DependencyInjection.Extensions;
 global using Microsoft.Extensions.DependencyInjection;
 global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;

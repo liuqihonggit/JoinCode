@@ -23,7 +23,13 @@ public sealed record FileRenamedCmd(string OldPath, string NewPath, DateTimeOffs
 public sealed record MarkInternalWriteCmd(string FilePath) : FileWatcherCommand;
 
 /// <summary>启动文件监控命令 — Consumer 创建 IFileSystemWatcher 并订阅防抖事件</summary>
-public sealed record FileWatcherStartCmd(string Path, string? Filter, TimeSpan DebounceInterval) : FileWatcherCommand;
+public sealed record FileWatcherStartCmd(
+    string Path,
+    string? Filter,
+    TimeSpan DebounceInterval,
+    bool IncludeSubdirectories = false,
+    NotifyFilters NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.CreationTime
+) : FileWatcherCommand;
 
 /// <summary>停止文件监控命令 — Consumer 释放 IFileSystemWatcher</summary>
 public sealed record FileWatcherStopCmd : FileWatcherCommand;

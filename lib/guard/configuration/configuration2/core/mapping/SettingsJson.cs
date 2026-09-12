@@ -204,6 +204,20 @@ public sealed partial class CurrentSettings
     public Dictionary<string, string> Env { get; init; } = [];
 
     /// <summary>
+    /// 无人值守模式 — AI 持续推进长任务，红灯自动执行+审计日志，黑灯仍拒绝 — ADR 0012
+    /// </summary>
+    [JsonPropertyName("isUnattendedMode")]
+    [SettingsProperty(SettingsMergeStrategy.Override)]
+    public bool? IsUnattendedMode { get; init; }
+
+    /// <summary>
+    /// 防丢字符二次确认 — 防止 MTP 加速推理时丢字符/乱入字符导致命令变形 — ADR 0012
+    /// </summary>
+    [JsonPropertyName("isAntiCharLossConfirm")]
+    [SettingsProperty(SettingsMergeStrategy.Override)]
+    public bool? IsAntiCharLossConfirm { get; init; }
+
+    /// <summary>
     /// 权限配置 — 对齐 TS 版 PermissionsSchema
     /// </summary>
     [JsonPropertyName("permissions")]

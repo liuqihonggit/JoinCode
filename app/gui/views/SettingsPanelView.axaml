@@ -142,6 +142,29 @@
           </StackPanel>
         </Border>
 
+        <!-- 安全与确认 — ADR 0012 -->
+        <Border Classes="settingsCard">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="cardTitle" Text="安全与确认" />
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="2">
+                <TextBlock Text="无人值守模式" FontSize="11.5" Foreground="{DynamicResource GuiPrimaryText}" />
+                <TextBlock Text="AI 持续推进长任务，红灯自动执行+审计日志，黑灯仍拒绝" FontSize="10.5"
+                           Foreground="{DynamicResource GuiMutedText}" TextWrapping="Wrap" />
+              </StackPanel>
+              <ToggleSwitch Grid.Column="1" IsChecked="{Binding IsUnattendedMode}" MinHeight="0" Padding="0" />
+            </Grid>
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="2">
+                <TextBlock Text="防丢字符二次确认" FontSize="11.5" Foreground="{DynamicResource GuiPrimaryText}" />
+                <TextBlock Text="防止 MTP 加速推理时丢字符/乱入字符导致命令变形，每条命令需二次确认" FontSize="10.5"
+                           Foreground="{DynamicResource GuiMutedText}" TextWrapping="Wrap" />
+              </StackPanel>
+              <ToggleSwitch Grid.Column="1" IsChecked="{Binding IsAntiCharLossConfirm}" MinHeight="0" Padding="0" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
         <!-- 网络切换（需求7） — Local=直连 / Proxy=走代理 / Auto=自动检测 -->
         <Border Classes="settingsCard">
           <StackPanel Spacing="8">

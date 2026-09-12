@@ -130,16 +130,17 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
         _watcher = _fs.Watch(_options.WatchPath);
         _watcher.NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size;
         _watcher.IncludeSubdirectories = true;
+        _watcher.DebounceInterval = TimeSpan.FromMilliseconds(300);
 
         foreach (var pattern in _options.FilePatterns)
         {
             _watcher.Filters.Add(pattern);
         }
 
-        _watcher.Changed += OnFileChanged;
-        _watcher.Created += OnFileChanged;
-        _watcher.Deleted += OnFileDeleted;
-        _watcher.Renamed += OnFileRenamed;
+        _watcher.DebouncedChanged += OnFileChanged;
+        _watcher.DebouncedCreated += OnFileChanged;
+        _watcher.DebouncedDeleted += OnFileDeleted;
+        _watcher.DebouncedRenamed += OnFileRenamed;
         _watcher.EnableRaisingEvents = true;
     }
 
@@ -195,10 +196,11 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
         if (ctx.Watcher is not null)
         {
             _watcher = ctx.Watcher;
-            _watcher.Changed += OnFileChanged;
-            _watcher.Created += OnFileChanged;
-            _watcher.Deleted += OnFileDeleted;
-            _watcher.Renamed += OnFileRenamed;
+            _watcher.DebounceInterval = TimeSpan.FromMilliseconds(300);
+            _watcher.DebouncedChanged += OnFileChanged;
+            _watcher.DebouncedCreated += OnFileChanged;
+            _watcher.DebouncedDeleted += OnFileDeleted;
+            _watcher.DebouncedRenamed += OnFileRenamed;
         }
     }
 

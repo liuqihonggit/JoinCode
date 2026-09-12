@@ -79,10 +79,11 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
 
         _watcher = _fs.Watch(directory, Path.GetFileName(_filePath));
         _watcher.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.CreationTime;
+        _watcher.DebounceInterval = TimeSpan.FromMilliseconds(300);
 
-        _watcher.Changed += OnFileChanged;
-        _watcher.Created += OnFileChanged;
-        _watcher.Deleted += OnFileDeleted;
+        _watcher.DebouncedChanged += OnFileChanged;
+        _watcher.DebouncedCreated += OnFileChanged;
+        _watcher.DebouncedDeleted += OnFileDeleted;
         _watcher.EnableRaisingEvents = true;
     }
 

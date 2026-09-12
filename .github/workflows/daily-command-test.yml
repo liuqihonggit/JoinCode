@@ -1,0 +1,64 @@
+name: Daily Command Test
+
+on:
+  schedule:
+    - cron: '0 20 * * *'
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Limit number of tools/commands (0=all)'
+        required: false
+        default: '0'
+        type: string
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: true
+  NUGET_XMLDOC_MODE: skip
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+  Configuration: Debug
+
+jobs:
+  command-test:
+    name: All MCP + Slash Command Test
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: 'global.json'
+
+      - name: Cache NuGet Packages
+        uses: actions/cache@v5
+        with:
+          path: ${{ github.workspace }}/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Build.props') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: Build jcc (Debug)
+        run: dotnet build app/JoinCode/JoinCode.csproj -c Debug --nologo
+        shell: pwsh
+
+      - name: Run Command Tests
+        run: |
+          $limit = '${{ github.event.inputs.limit }}'
+          if ([string]::IsNullOrWhiteSpace($limit) -or $limit -eq '0') { $limit = '0' }
+          powershell -ExecutionPolicy Bypass -File tools/scripts/Invoke-AllCommandTests.ps1 -Limit ([int]$limit) -ReportPath artifacts/command-test-report.md
+        shell: pwsh
+
+      - name: Upload Report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: command-test-report-${{ github.run_number }}
+          path: artifacts/command-test-report.md
+          retention-days: 30
+          if-no-files-found: warn

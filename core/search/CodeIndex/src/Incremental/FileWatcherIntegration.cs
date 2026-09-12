@@ -1,20 +1,19 @@
 namespace JoinCode.CodeIndex;
 
+/// <summary>
+/// 代码索引增量更新 Actor — 基于 FileWatcherActorBase,监控 *.cs 文件变更触发索引更新。
+/// <para>对齐 ADR 0101: 消除 _pendingLock/_pendingUpdates,Actor Consumer 串行化索引更新。</para>
+/// <para>排除目录: bin, obj, .git, .x — 用 Span&lt;char&gt; 零 GC 检查。</para>
+/// </summary>
 [Register(typeof(FileWatcherIntegration), ServiceLifetime.Singleton)]
-public sealed partial class FileWatcherIntegration : IAsyncDisposable
+public sealed partial class FileWatcherIntegration : FileWatcherActorBase
 {
     private readonly ICodeIndexer _indexer;
-    private readonly IFileSystem? _fs;
     private readonly string _workspaceRoot;
     private readonly HashSet<string> _excludedDirs;
     private readonly TimeSpan _debounceInterval;
     private readonly Action<Exception>? _onError;
-    private readonly List<Task> _pendingUpdates = [];
-    private readonly AsyncLock _pendingLock = new();
-    private CancellationTokenSource? _updateCts;
-    private IFileSystemWatcher? _watcher;
     private readonly ILogger<FileWatcherIntegration>? _logger;
-    private int _disposed;
 
     private static readonly string[] DefaultExcludedDirs = new[] { "bin", "obj", ".git", ".x" };
 
@@ -29,23 +28,20 @@ public sealed partial class FileWatcherIntegration : IAsyncDisposable
     }
 
     public FileWatcherIntegration(ICodeIndexer indexer, string workspaceRoot, IFileSystem? fs, Action<Exception>? onError, TimeSpan? debounceInterval = null, ILogger<FileWatcherIntegration>? logger = null)
+        : base(fs ?? new PhysicalFileSystem(), 1000)
     {
         ArgumentNullException.ThrowIfNull(indexer);
         ArgumentNullException.ThrowIfNull(workspaceRoot);
 
         _indexer = indexer;
-        _fs = fs;
         _workspaceRoot = workspaceRoot;
         _onError = onError;
         _logger = logger;
         _debounceInterval = debounceInterval ?? TimeSpan.FromMilliseconds(500);
         _excludedDirs = new HashSet<string>(DefaultExcludedDirs, StringComparer.OrdinalIgnoreCase);
-        _updateCts = new CancellationTokenSource();
     }
 
-    /// <summary>
-    /// DI 构造函数 — 从 CodeIndexOptions 获取 workspaceRoot，注入 IFileSystem
-    /// </summary>
+    /// <summary>DI 构造函数 — 从 CodeIndexOptions 获取 workspaceRoot,注入 IFileSystem</summary>
     public FileWatcherIntegration(ICodeIndexer indexer, CodeIndexOptions options, IFileSystem fs)
         : this(indexer, options.WorkspaceRoot, fs, null)
     {
@@ -53,141 +49,34 @@ public sealed partial class FileWatcherIntegration : IAsyncDisposable
 
     public Task StartAsync(CancellationToken ct)
     {
-        ObjectDisposedException.ThrowIf(_disposed != 0, this);
-        ArgumentNullException.ThrowIfNull(_fs);
-
-        _watcher = _fs.Watch(_workspaceRoot, "*.cs");
-        _watcher.IncludeSubdirectories = true;
-        _watcher.NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size;
-        _watcher.DebounceInterval = _debounceInterval;
-
-        _watcher.DebouncedCreated += OnFileChanged;
-        _watcher.DebouncedChanged += OnFileChanged;
-        _watcher.DebouncedDeleted += OnFileDeleted;
-        _watcher.DebouncedRenamed += OnFileRenamed;
-
-        _watcher.EnableRaisingEvents = true;
-
+        TrySend(new FileWatcherStartCmd(
+            _workspaceRoot, "*.cs", _debounceInterval,
+            IncludeSubdirectories: true,
+            NotifyFilter: NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size
+        ));
         return Task.CompletedTask;
     }
 
     public async Task StopAsync(CancellationToken ct = default)
     {
-        ObjectDisposedException.ThrowIf(_disposed != 0, this);
-
-        await StopCoreAsync(ct).ConfigureAwait(false);
+        await SendAsync(new FileWatcherStopCmd(), ct).ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// 停止核心逻辑 — 不检查 _disposed，供 StopAsync 和 DisposeAsync 共用
-    /// </summary>
-    private async Task StopCoreAsync(CancellationToken ct)
+    protected override async ValueTask HandleFileChangedAsync(string filePath, WatcherChangeTypes kind, DateTimeOffset timestamp, CancellationToken ct)
     {
-        if (_watcher is not null)
-        {
-            _watcher.EnableRaisingEvents = false;
-            _watcher.Dispose();
-            _watcher = null;
-        }
-
-        _updateCts?.Cancel();
-
-        Task[] pending;
-        using var guard = await _pendingLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_pendingLock.Name}' 等待超时");
-
-        pending = [.. _pendingUpdates];
-    
-
-        if (pending.Length > 0)
-        {
-            try
-            {
-                await Task.WhenAll(pending).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogWarning(ex, "FileWatcherIntegration: 停止期间等待待处理更新失败");
-            }
-        }
+        if (!IsCsFile(filePath) || IsInExcludedDirectory(filePath)) return;
+        await SafeUpdateAsync(filePath, ct).ConfigureAwait(false);
     }
 
-    private void OnFileChanged(object? sender, FileChangedEventArgs e)
+    protected override async ValueTask HandleFileRenamedAsync(string oldPath, string newPath, DateTimeOffset timestamp, CancellationToken ct)
     {
-        if (!IsCsFile(e.FullPath) || IsInExcludedDirectory(e.FullPath))
-        {
-            return;
-        }
-
-        _ = ProcessFileChangeAsync(e.FullPath);
+        if (IsCsFile(oldPath) && !IsInExcludedDirectory(oldPath))
+            await SafeUpdateAsync(oldPath, ct).ConfigureAwait(false);
+        if (IsCsFile(newPath) && !IsInExcludedDirectory(newPath))
+            await SafeUpdateAsync(newPath, ct).ConfigureAwait(false);
     }
 
-    private void OnFileDeleted(object? sender, FileChangedEventArgs e)
-    {
-        if (!IsCsFile(e.FullPath) || IsInExcludedDirectory(e.FullPath))
-        {
-            return;
-        }
-
-        _ = ProcessFileChangeAsync(e.FullPath);
-    }
-
-    private void OnFileRenamed(object? sender, FileRenamedEventArgs e)
-    {
-        if (IsCsFile(e.OldFullPath) && !IsInExcludedDirectory(e.OldFullPath))
-        {
-            _ = ProcessFileChangeAsync(e.OldFullPath);
-        }
-
-        if (IsCsFile(e.FullPath) && !IsInExcludedDirectory(e.FullPath))
-        {
-            _ = ProcessFileChangeAsync(e.FullPath);
-        }
-    }
-
-    /// <summary>
-    /// 处理文件变更 — 异步更新索引，异常在内部捕获，不会终止进程
-    /// </summary>
-    private async Task ProcessFileChangeAsync(string filePath)
-    {
-        try
-        {
-            var ct = _updateCts?.Token ?? CancellationToken.None;
-            var task = SafeUpdateAsync(filePath, ct);
-            using var guard = await _pendingLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_pendingLock.Name}' 等待超时");
-
-            _pendingUpdates.Add(task);
-        
-
-            _ = WatchTaskAsync(task);
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "FileWatcherIntegration: ProcessFileChangeAsync 处理失败");
-        }
-    }
-
-    private async Task WatchTaskAsync(Task task)
-    {
-        try
-        {
-#pragma warning disable VSTHRD003 // 任务由调用方启动，此处仅等待完成
-            await task.ConfigureAwait(false);
-#pragma warning restore VSTHRD003
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "FileWatcherIntegration: 监视任务完成时出错");
-        }
-        finally
-        {
-            using var guard = await _pendingLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_pendingLock.Name}' 等待超时");
-
-            _pendingUpdates.Remove(task);
-        
-        }
-    }
-
-    private async Task SafeUpdateAsync(string filePath, CancellationToken ct)
+    private async ValueTask SafeUpdateAsync(string filePath, CancellationToken ct)
     {
         try
         {
@@ -199,6 +88,7 @@ public sealed partial class FileWatcherIntegration : IAsyncDisposable
         catch (Exception ex)
         {
             _onError?.Invoke(ex);
+            _logger?.LogWarning(ex, "FileWatcherIntegration: 更新索引失败 {Path}", filePath);
         }
     }
 
@@ -226,18 +116,5 @@ public sealed partial class FileWatcherIntegration : IAsyncDisposable
         }
 
         return false;
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (!DisposableHelper.TryMarkDisposed(ref _disposed))
-        {
-            return;
-        }
-
-        await StopCoreAsync(CancellationToken.None).ConfigureAwait(false);
-        _updateCts?.Dispose();
-        _updateCts = null;
-        _pendingLock.Dispose();
     }
 }

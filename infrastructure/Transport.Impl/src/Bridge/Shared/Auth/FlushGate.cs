@@ -33,22 +33,32 @@ public sealed class FlushGateOptions
 }
 
 /// <summary>
-/// 刷新门控 - 批量收集条目并定期或满批时刷新
-/// 用于消息批处理，减少频繁 IO 操作
+/// 刷新门控命令 — Actor 消息类型
 /// </summary>
-public sealed class FlushGate<T> : IFlushGate<T>
+public interface IFlushGateCommand<T>;
+
+public sealed record FlushAddCmd<T>(T Item, TaskCompletionSource Tcs) : IFlushGateCommand<T>;
+public sealed record FlushManualCmd<T>(TaskCompletionSource Tcs) : IFlushGateCommand<T>;
+public sealed record FlushStartCmd<T>(TaskCompletionSource Tcs) : IFlushGateCommand<T>;
+public sealed record FlushStopCmd<T>(TaskCompletionSource Tcs) : IFlushGateCommand<T>;
+public sealed record FlushTickCmd<T> : IFlushGateCommand<T>;
+public sealed record FlushGetSizeCmd<T>(TaskCompletionSource<int> Tcs) : IFlushGateCommand<T>;
+
+/// <summary>
+/// 刷新门控 - Actor 化：Consumer 线程独占 _currentBatch/_batchAgeStopwatch，消除 AsyncLock。
+/// <para>定时刷新循环改为 Timer + TrySend(FlushTickCmd) 自消息，Consumer 串行处理。</para>
+/// <para>发送方通过 TaskCompletionSource 等待 Consumer 处理完成，保证命令语义同步。</para>
+/// </summary>
+public sealed class FlushGate<T> : ActorBase<IFlushGateCommand<T>, Unit>, IFlushGate<T>
 {
     private readonly FlushGateOptions _options;
     private readonly ILogger? _logger;
-    private readonly AsyncLock _batchLock = new();
-    private readonly List<T> _currentBatch;
+    private readonly Timer _flushTimer;
     private readonly Stopwatch _batchAgeStopwatch;
-    private readonly TimeProvider _timeProvider;
-
-    private CancellationTokenSource? _flushCts;
-    private Task? _flushLoopTask;
-    private int _isRunning;
     private int _isDisposed;
+
+    private readonly List<T> _currentBatch;
+    private bool _isRunning;
 
     public event EventHandler<BatchFlushedEventArgs<T>>? BatchFlushed;
 
@@ -56,115 +66,135 @@ public sealed class FlushGate<T> : IFlushGate<T>
         FlushGateOptions? options = null,
         ILogger? logger = null,
         TimeProvider? timeProvider = null)
+        : base()
     {
         _options = options ?? FlushGateOptions.CreateDefault();
         _logger = logger;
-
         _currentBatch = new List<T>(_options.MaxBatchSize);
         _batchAgeStopwatch = new Stopwatch();
-        _timeProvider = timeProvider ?? TimeProvider.System;
+        _flushTimer = new Timer(_ => TrySend(new FlushTickCmd<T>()), null, Timeout.Infinite, Timeout.Infinite);
     }
+
+    private static TaskCompletionSource CreateTcs() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>
     /// 当前批次中的条目数量
     /// </summary>
     public async Task<int> GetCurrentBatchSizeAsync(CancellationToken ct = default)
     {
-        using var guard = await _batchLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_batchLock.Name}' 等待超时");
-
-        return _currentBatch.Count;
-    
+        var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await SendAsync(new FlushGetSizeCmd<T>(tcs), ct).ConfigureAwait(false);
+        return await tcs.Task.ConfigureAwait(false);
     }
 
     /// <summary>
     /// 启动定时刷新循环
     /// </summary>
-    /// <param name="ct">取消令牌</param>
     public async Task StartAsync(CancellationToken ct = default)
     {
-        using var guard = await _batchLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_batchLock.Name}' 等待超时");
-
-        if (Interlocked.CompareExchange(ref _isRunning, 1, 0) != 0)
-        {
-            _logger?.LogWarning("[FlushGate] 已在运行中");
-            return;
-        }
-
-        _flushCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        _flushLoopTask = RunFlushLoopAsync(_flushCts.Token);
-        _batchAgeStopwatch.Start();
-
-        _logger?.LogInformation(
-            "[FlushGate] 已启动，刷新间隔: {IntervalMs}ms，最大批次: {MaxBatch}",
-            _options.FlushIntervalMs, _options.MaxBatchSize);
-    
+        ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
+        var tcs = CreateTcs();
+        await SendAsync(new FlushStartCmd<T>(tcs), ct).ConfigureAwait(false);
+        await tcs.Task.ConfigureAwait(false);
     }
 
     /// <summary>
     /// 停止定时刷新循环，并刷新剩余条目
     /// </summary>
-    /// <param name="ct">取消令牌</param>
     public async Task StopAsync(CancellationToken ct = default)
     {
-        if (Interlocked.Exchange(ref _isRunning, 0) == 0)
-        {
-            return;
-        }
-
-        await (_flushCts?.CancelAsync() ?? Task.CompletedTask).ConfigureAwait(false);
-
-        if (_flushLoopTask is not null)
-        {
-            try
-            {
-                await _flushLoopTask.WaitAsync(ct).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-            }
-        }
-
-        // 刷新剩余条目
-        await FlushAsync(ct).ConfigureAwait(false);
-
-        _batchAgeStopwatch.Stop();
-        _logger?.LogInformation("[FlushGate] 已停止");
+        var tcs = CreateTcs();
+        await SendAsync(new FlushStopCmd<T>(tcs), ct).ConfigureAwait(false);
+        await tcs.Task.ConfigureAwait(false);
     }
 
     /// <summary>
     /// 添加条目到当前批次
     /// 当批次满或超过最大等待时间时自动触发刷新
     /// </summary>
-    /// <param name="item">要添加的条目</param>
-    /// <param name="ct">取消令牌</param>
     public async Task AddAsync(T item, CancellationToken ct = default)
     {
         ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
-
-        using var guard = await _batchLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_batchLock.Name}' 等待超时");
-
-        _currentBatch.Add(item);
-
-        // 批次满或超过最大等待时间，立即刷新（持锁调用 Core，不重入锁）
-        if (_currentBatch.Count >= _options.MaxBatchSize ||
-            _batchAgeStopwatch.ElapsedMilliseconds >= _options.MaxWaitMs)
-        {
-            FlushCore();
-        }
+        var tcs = CreateTcs();
+        await SendAsync(new FlushAddCmd<T>(item, tcs), ct).ConfigureAwait(false);
+        await tcs.Task.ConfigureAwait(false);
     }
 
     /// <summary>
     /// 手动触发刷新
     /// </summary>
-    /// <param name="ct">取消令牌</param>
     public async Task FlushAsync(CancellationToken ct = default)
     {
-        using var guard = await _batchLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_batchLock.Name}' 等待超时");
-        FlushCore();
+        var tcs = CreateTcs();
+        await SendAsync(new FlushManualCmd<T>(tcs), ct).ConfigureAwait(false);
+        await tcs.Task.ConfigureAwait(false);
+    }
+
+    protected override async ValueTask HandleAsync(IFlushGateCommand<T> command, CancellationToken ct)
+    {
+        switch (command)
+        {
+            case FlushStartCmd<T> start:
+                if (_isRunning)
+                {
+                    _logger?.LogWarning("[FlushGate] 已在运行中");
+                    start.Tcs.TrySetResult();
+                    return;
+                }
+                _isRunning = true;
+                _batchAgeStopwatch.Start();
+                _flushTimer.Change(TimeSpan.FromMilliseconds(_options.FlushIntervalMs), TimeSpan.FromMilliseconds(_options.FlushIntervalMs));
+                _logger?.LogInformation("[FlushGate] 已启动，刷新间隔: {IntervalMs}ms，最大批次: {MaxBatch}",
+                    _options.FlushIntervalMs, _options.MaxBatchSize);
+                start.Tcs.TrySetResult();
+                break;
+
+            case FlushStopCmd<T> stop:
+                if (!_isRunning)
+                {
+                    stop.Tcs.TrySetResult();
+                    return;
+                }
+                _isRunning = false;
+                _flushTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                FlushCore();
+                _batchAgeStopwatch.Stop();
+                _logger?.LogInformation("[FlushGate] 已停止");
+                stop.Tcs.TrySetResult();
+                break;
+
+            case FlushAddCmd<T> add:
+                _currentBatch.Add(add.Item);
+                if (_currentBatch.Count >= _options.MaxBatchSize ||
+                    _batchAgeStopwatch.ElapsedMilliseconds >= _options.MaxWaitMs)
+                {
+                    FlushCore();
+                }
+                add.Tcs.TrySetResult();
+                break;
+
+            case FlushManualCmd<T> flush:
+                FlushCore();
+                flush.Tcs.TrySetResult();
+                break;
+
+            case FlushTickCmd<T>:
+                FlushCore();
+                break;
+
+            case FlushGetSizeCmd<T> getSize:
+                getSize.Tcs.TrySetResult(_currentBatch.Count);
+                break;
+        }
+    }
+
+    protected override void OnConsumerError(Exception ex)
+    {
+        _logger?.LogError(ex, "[FlushGate] 消费者异常");
     }
 
     /// <summary>
-    /// 刷新核心逻辑（调用方须已持有 _batchLock）
+    /// 刷新核心逻辑（Consumer 线程独占，无需锁）
     /// </summary>
     private void FlushCore()
     {
@@ -182,39 +212,26 @@ public sealed class FlushGate<T> : IFlushGate<T>
         BatchFlushed?.Invoke(this, new BatchFlushedEventArgs<T>(batchToFlush));
     }
 
-    /// <summary>
-    /// 定时刷新循环
-    /// </summary>
-    private async Task RunFlushLoopAsync(CancellationToken cancellationToken)
-    {
-        while (!cancellationToken.IsCancellationRequested)
-        {
-            try
-            {
-                await Task.Delay(TimeSpan.FromMilliseconds(_options.FlushIntervalMs), _timeProvider, cancellationToken).ConfigureAwait(false);
-                await FlushAsync(cancellationToken).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "[FlushGate] 定时刷新失败");
-            }
-        }
-    }
-
-    public async ValueTask DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) == 1)
         {
             return;
         }
 
-        await StopAsync().ConfigureAwait(false);
-        _flushCts?.Dispose();
-        _batchLock.Dispose();
+        _flushTimer.Change(Timeout.Infinite, Timeout.Infinite);
+        _flushTimer.Dispose();
+
+        try
+        {
+            await StopAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "[FlushGate] Dispose 时停止失败");
+        }
+
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }
 

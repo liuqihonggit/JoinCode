@@ -1,17 +1,25 @@
 namespace Infrastructure.Subprocess;
 
-public sealed class ProcessHealthMonitor : IDisposable
+/// <summary>
+/// 进程健康监控命令 — Actor 消息类型
+/// </summary>
+public interface IProcessHealthCommand;
+
+public sealed record HealthCheckTickCmd : IProcessHealthCommand;
+
+public sealed class ProcessHealthMonitor : ActorBase<IProcessHealthCommand, Unit>, IDisposable
 {
     private readonly IInteractiveProcess _process;
     private readonly HealthCheckConfig _config;
     private readonly ILogger? _logger;
     private readonly Timer _timer;
-    private readonly AsyncLock _lock = new();
-    private int _consecutiveFailures;
-    private DateTimeOffset _lastCheckTime = DateTimeOffset.MinValue;
     private int _isDisposed;
 
-    public bool IsHealthy { get; private set; } = true;
+    private int _consecutiveFailures;
+    private DateTimeOffset _lastCheckTime = DateTimeOffset.MinValue;
+    private bool _isHealthy = true;
+
+    public bool IsHealthy => Volatile.Read(ref _isHealthy);
 
     public DateTimeOffset? LastCheckTime
     {
@@ -30,16 +38,31 @@ public sealed class ProcessHealthMonitor : IDisposable
         IInteractiveProcess process,
         HealthCheckConfig config,
         ILogger? logger = null)
+        : base()
     {
         _process = process ?? throw new ArgumentNullException(nameof(process));
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _logger = logger;
 
         _timer = new Timer(
-            _ => PerformCheck(),
+            _ => TrySend(new HealthCheckTickCmd()),
             null,
             _config.Interval,
             _config.Interval);
+    }
+
+    protected override ValueTask HandleAsync(IProcessHealthCommand command, CancellationToken ct)
+    {
+        if (command is HealthCheckTickCmd)
+        {
+            PerformCheck();
+        }
+        return ValueTask.CompletedTask;
+    }
+
+    protected override void OnConsumerError(Exception ex)
+    {
+        _logger?.LogWarning(ex, "[ProcessHealth] 健康检查异常");
     }
 
     private void PerformCheck()
@@ -53,9 +76,9 @@ public sealed class ProcessHealthMonitor : IDisposable
 
             if (isAlive)
             {
-                var wasUnhealthy = !IsHealthy;
+                var wasUnhealthy = !_isHealthy;
                 Volatile.Write(ref _consecutiveFailures, 0);
-                IsHealthy = true;
+                Volatile.Write(ref _isHealthy, true);
 
                 if (wasUnhealthy)
                 {
@@ -65,7 +88,7 @@ public sealed class ProcessHealthMonitor : IDisposable
             else
             {
                 Interlocked.Increment(ref _consecutiveFailures);
-                IsHealthy = false;
+                Volatile.Write(ref _isHealthy, false);
 
                 _logger?.LogWarning("[ProcessHealth] 进程 {Pid} 已退出 (consecutiveFailures={Failures})",
                     _process.Id, ConsecutiveFailures);
@@ -91,8 +114,16 @@ public sealed class ProcessHealthMonitor : IDisposable
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return;
+        _timer.Change(Timeout.Infinite, Timeout.Infinite);
         _timer.Dispose();
-        _lock.Dispose();
+        try
+        {
+            DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(5));
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "[ProcessHealth] Dispose 超时");
+        }
     }
 }
 

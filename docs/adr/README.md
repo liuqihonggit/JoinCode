@@ -91,7 +91,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 
 ## 统计
 
-- 总数：**97** | accepted：**90** | superseded：**5** | proposed：**2**
+- 总数：**98** | accepted：**90** | superseded：**5** | proposed：**3**
 
 ## 完整索引（按编号）
 
@@ -191,6 +191,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0096](0096-shell-path-error-auto-retry.md) | Shell 路径处理策略 — 去掉执行前自动转换 + 执行后失败重试 | accepted | 2026-09-09 |
 | [0097](0097-workflow-checkpoint-resume.md) | Workflow 级断点续跑持久化策略 | accepted | 2026-09-09 |
 | [0098](0098-plugin-system-fusion-actor-effectscope.md) | 插件系统融合 — Actor+EffectScope+动态拓扑+弱事件+ALC | accepted | 2026-09-10 |
+| [0101](0101-file-watcher-unified-actor.md) | 文件监控全面 Actor 化统一 | proposed | 2026-09-12 |
 
 ## 主题索引（按议题）
 
@@ -339,6 +340,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0067](0067-ci-log-structured-drill-down.md) | CI 日志结构化逐级展开（Section 级 drill down） | accepted | 2026-09-06 |
 | [0068](0068-unified-persistence-pipeline-actor.md) | 统一持久化管道（Actor 模型） | accepted | 2026-09-06 |
 | [0074](0074-actor-supervisor-tree.md) | Actor 监督树 — Router/Gateway/Supervisor/PersistentMailbox 四层扩展 | accepted | 2026-09-08 |
+| [0101](0101-file-watcher-unified-actor.md) | 文件监控全面 Actor 化统一 | proposed | 2026-09-12 |
 
 ### 文件 I/O 与 Span 优化
 

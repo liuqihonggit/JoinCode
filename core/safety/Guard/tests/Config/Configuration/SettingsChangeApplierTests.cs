@@ -24,7 +24,7 @@ public sealed class SettingsChangeApplierTests
 
         // Assert — ConfigLoader.LoadSettingsJsonAsync 需要文件系统，
         // 这里只验证不抛异常（实际 EffortLevel 更新依赖 ConfigLoader 返回值）
-        applier.Dispose();
+        await applier.DisposeAsync().ConfigureAwait(true);
     }
 
     /// <summary>
@@ -44,7 +44,7 @@ public sealed class SettingsChangeApplierTests
         await applier.ApplySettingsChangeAsync().ConfigureAwait(true);
 
         // Assert — 同上，Hook 缓存刷新依赖 ConfigLoader
-        applier.Dispose();
+        await applier.DisposeAsync().ConfigureAwait(true);
     }
 
     /// <summary>
@@ -76,7 +76,7 @@ public sealed class SettingsChangeApplierTests
         await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(true);
 
         // Assert — 不抛异常即可
-        applier.Dispose();
+        await applier.DisposeAsync().ConfigureAwait(true);
     }
 
     /// <summary>
@@ -89,7 +89,7 @@ public sealed class SettingsChangeApplierTests
         var applier = CreateApplier();
 
         // Act
-        applier.Dispose();
+        await applier.DisposeAsync().ConfigureAwait(true);
 
         var eventArgs = new ConfigChangeEventArgs
         {
@@ -109,11 +109,11 @@ public sealed class SettingsChangeApplierTests
     /// 多次 Dispose 不应抛异常
     /// </summary>
     [Fact]
-    public void Dispose_MultipleTimes_NoException()
+    public async Task Dispose_MultipleTimes_NoException()
     {
         var applier = CreateApplier();
-        applier.Dispose();
-        applier.Dispose(); // 第二次不应抛异常
+        await applier.DisposeAsync().ConfigureAwait(true);
+        await applier.DisposeAsync().ConfigureAwait(true); // 第二次不应抛异常
     }
 
     /// <summary>
@@ -134,7 +134,7 @@ public sealed class SettingsChangeApplierTests
         // Act & Assert — 不应抛异常
         await applier.ApplySettingsChangeAsync().ConfigureAwait(true);
 
-        applier.Dispose();
+        await applier.DisposeAsync().ConfigureAwait(true);
     }
 
     private SettingsChangeApplier CreateApplier()

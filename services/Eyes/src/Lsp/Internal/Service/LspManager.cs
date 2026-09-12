@@ -33,18 +33,19 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
         _processService = processService;
         _fileOperationService = fileOperationService;
         _passiveFeedback = passiveFeedback;
+        _initActor = new LspInitActor(this, _logger);
     }
     private const int MaxLspFileSizeBytes = 10_000_000;
 
     private readonly ConcurrentDictionary<string, LspServerInstance> _servers = new();
-    private readonly Dictionary<string, List<string>> _extensionMap = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, List<string>> _extensionMap = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, string> _openedFiles = new();
     private readonly ILogger<LspManager> _logger;
     private readonly IFileOperationService? _fileOperationService;
     private readonly ILspPassiveFeedback? _passiveFeedback;
     private readonly IFileSystem _fs;
     private readonly IProcessService _processService;
-    private readonly AsyncLock _initLock = new();
+    private readonly LspInitActor _initActor;
     private int _isInitialized;
     private int _asyncDisposed;
 
@@ -52,8 +53,11 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
 
     public async Task InitializeAsync(IEnumerable<LspInstanceConfig> configs, CancellationToken cancellationToken = default)
     {
-        using var guard = await _initLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_initLock.Name}' 等待超时");
+        await _initActor.InitializeAsync(configs.ToList(), cancellationToken).ConfigureAwait(false);
+    }
 
+    internal async Task InitializeCoreAsync(List<LspInstanceConfig> configs, CancellationToken cancellationToken)
+    {
         if (IsInitialized) return;
 
         foreach (var config in configs)
@@ -64,11 +68,7 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
 
             foreach (var kvp in config.ExtensionToLanguage)
             {
-                if (!_extensionMap.TryGetValue(kvp.Key, out var serverNames))
-                {
-                    serverNames = [];
-                    _extensionMap[kvp.Key] = serverNames;
-                }
+                var serverNames = _extensionMap.GetOrAdd(kvp.Key, _ => []);
                 serverNames.Add(config.Name);
             }
 
@@ -83,13 +83,15 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
         {
             _passiveFeedback.RegisterNotificationHandlers(this);
         }
-    
     }
 
     public async Task ShutdownAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = await _initLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_initLock.Name}' 等待超时");
+        await _initActor.ShutdownAsync(cancellationToken).ConfigureAwait(false);
+    }
 
+    internal async Task ShutdownCoreAsync(CancellationToken cancellationToken)
+    {
         if (!IsInitialized) return;
 
         var tasks = _servers.Values.Select(s => s.StopAsync(cancellationToken).ContinueWith(_ => { }, TaskContinuationOptions.OnlyOnFaulted));
@@ -99,7 +101,6 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
         _extensionMap.Clear();
         _openedFiles.Clear();
         Volatile.Write(ref _isInitialized, 0);
-    
     }
 
     public ILspServerInstance? GetServerForFile(string filePath)
@@ -287,6 +288,6 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
     protected override void OnDispose()
     {
         if (_asyncDisposed == 1) return;
-        _initLock.Dispose();
+        _ = _initActor.DisposeAsync();
     }
 }

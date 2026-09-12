@@ -1,198 +1,164 @@
 
 namespace Core.Goal;
 
-public sealed partial class GoalHeartbeat : IGoalHeartbeat
+/// <summary>
+/// 目标心跳命令 — Actor 消息类型
+/// </summary>
+public interface IGoalHeartbeatCommand;
+
+public sealed record StartActivityCmd(SessionActivityReason Reason, TaskCompletionSource Tcs) : IGoalHeartbeatCommand;
+public sealed record StopActivityCmd(SessionActivityReason Reason, TaskCompletionSource Tcs) : IGoalHeartbeatCommand;
+public sealed record ResetHeartbeatCmd(TaskCompletionSource Tcs) : IGoalHeartbeatCommand;
+public sealed record RegisterCallbackCmd(Func<CancellationToken, ValueTask> Callback) : IGoalHeartbeatCommand;
+public sealed record HeartbeatTickCmd : IGoalHeartbeatCommand;
+
+public sealed partial class GoalHeartbeat : ActorBase<IGoalHeartbeatCommand, Unit>, IGoalHeartbeat
 {
-    private int _refcount;
     private int _disposed;
-    private readonly Dictionary<SessionActivityReason, int> _activeReasons = new();
-    private PeriodicTimer? _heartbeatTimer;
-    private Func<CancellationToken, ValueTask>? _heartbeatCallback;
-    private CancellationTokenSource? _cts;
-    private Task? _heartbeatLoop;
+    private readonly Timer _heartbeatTimer;
     private readonly TimeSpan _heartbeatInterval;
-    private readonly AsyncLock _stateLock = new();
     private readonly ILogger<GoalHeartbeat>? _logger;
     private readonly IClockService _clock;
 
+    private int _refcount;
+    private readonly Dictionary<SessionActivityReason, int> _activeReasons = new();
+    private Func<CancellationToken, ValueTask>? _heartbeatCallback;
+    private long _lastActivityTicks;
+    private bool _timerActive;
+
     public int RefCount => Volatile.Read(ref _refcount);
     public bool IsActive => Volatile.Read(ref _refcount) > 0;
-    public DateTime? LastActivityAt { get; private set; }
+    public DateTime? LastActivityAt => Volatile.Read(ref _lastActivityTicks) is { } ticks && ticks != 0 ? new DateTime(ticks, DateTimeKind.Utc) : null;
     public TimeSpan? IdleDuration => LastActivityAt.HasValue ? _clock.GetUtcNow() - LastActivityAt.Value : null;
 
-    public GoalHeartbeat( TimeSpan? heartbeatInterval = null, ILogger<GoalHeartbeat>? logger = null, IClockService? clock = null)
+    public GoalHeartbeat(TimeSpan? heartbeatInterval = null, ILogger<GoalHeartbeat>? logger = null, IClockService? clock = null)
+        : base()
     {
-
         _heartbeatInterval = heartbeatInterval ?? TimeSpan.FromSeconds(30);
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
+        _heartbeatTimer = new Timer(_ => TrySend(new HeartbeatTickCmd()), null, Timeout.Infinite, Timeout.Infinite);
     }
+
+    private static TaskCompletionSource CreateTcs() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public void RegisterCallback(Func<CancellationToken, ValueTask> callback)
     {
         ArgumentNullException.ThrowIfNull(callback);
-        _heartbeatCallback = callback;
+        TrySend(new RegisterCallbackCmd(callback));
     }
 
     public async Task StartActivityAsync(SessionActivityReason reason)
     {
-        using var guard = await _stateLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
-
-        _refcount++;
-        _activeReasons[reason] = _activeReasons.GetValueOrDefault(reason) + 1;
-        LastActivityAt = _clock.GetUtcNow();
-
-        if (_refcount == 1)
-        {
-            StartHeartbeatTimer();
-        }
-    
-
-        _logger?.LogDebug(L.T(StringKey.GoalHeartbeatActivityStarted), reason, _refcount);
+        var tcs = CreateTcs();
+        await SendAsync(new StartActivityCmd(reason, tcs)).ConfigureAwait(false);
+        await tcs.Task.ConfigureAwait(false);
     }
 
     public async Task StopActivityAsync(SessionActivityReason reason)
     {
-        using var guard = await _stateLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
-
-        if (_refcount > 0) _refcount--;
-
-        if (_activeReasons.GetValueOrDefault(reason) > 0)
-        {
-            _activeReasons[reason]--;
-        }
-
-        if (_refcount == 0 && _heartbeatTimer != null)
-        {
-            StopHeartbeatTimer();
-            LastActivityAt = _clock.GetUtcNow();
-        }
-    
-
-        _logger?.LogDebug(L.T(StringKey.GoalHeartbeatActivityStopped), reason, _refcount);
+        var tcs = CreateTcs();
+        await SendAsync(new StopActivityCmd(reason, tcs)).ConfigureAwait(false);
+        await tcs.Task.ConfigureAwait(false);
     }
 
     public async Task ResetAsync()
     {
-        using var guard = await _stateLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
-
-        StopHeartbeatTimer();
-        _refcount = 0;
-        _activeReasons.Clear();
-        LastActivityAt = null;
-    
-
-        _logger?.LogDebug(L.T(StringKey.GoalHeartbeatReset));
+        var tcs = CreateTcs();
+        await SendAsync(new ResetHeartbeatCmd(tcs)).ConfigureAwait(false);
+        await tcs.Task.ConfigureAwait(false);
     }
 
-    private void StartHeartbeatTimer()
+    protected override async ValueTask HandleAsync(IGoalHeartbeatCommand command, CancellationToken ct)
     {
-        _cts = new CancellationTokenSource();
-        _heartbeatTimer = new PeriodicTimer(_heartbeatInterval);
-        _heartbeatLoop = Task.Run(() => RunHeartbeatLoopAsync(_cts.Token));
+        switch (command)
+        {
+            case RegisterCallbackCmd reg:
+                _heartbeatCallback = reg.Callback;
+                break;
+
+            case StartActivityCmd start:
+                _refcount++;
+                _activeReasons[start.Reason] = _activeReasons.GetValueOrDefault(start.Reason) + 1;
+                Volatile.Write(ref _lastActivityTicks, _clock.GetUtcNow().Ticks);
+
+                if (_refcount == 1 && !_timerActive)
+                {
+                    _timerActive = true;
+                    _heartbeatTimer.Change(_heartbeatInterval, _heartbeatInterval);
+                }
+
+                _logger?.LogDebug(L.T(StringKey.GoalHeartbeatActivityStarted), start.Reason, _refcount);
+                start.Tcs.TrySetResult();
+                break;
+
+            case StopActivityCmd stop:
+                if (_refcount > 0) _refcount--;
+
+                if (_activeReasons.GetValueOrDefault(stop.Reason) > 0)
+                {
+                    _activeReasons[stop.Reason]--;
+                }
+
+                if (_refcount == 0 && _timerActive)
+                {
+                    _timerActive = false;
+                    _heartbeatTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                    Volatile.Write(ref _lastActivityTicks, _clock.GetUtcNow().Ticks);
+                }
+
+                _logger?.LogDebug(L.T(StringKey.GoalHeartbeatActivityStopped), stop.Reason, _refcount);
+                stop.Tcs.TrySetResult();
+                break;
+
+            case ResetHeartbeatCmd reset:
+                _timerActive = false;
+                _heartbeatTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                _refcount = 0;
+                _activeReasons.Clear();
+                Volatile.Write(ref _lastActivityTicks, 0);
+
+                _logger?.LogDebug(L.T(StringKey.GoalHeartbeatReset));
+                reset.Tcs.TrySetResult();
+                break;
+
+            case HeartbeatTickCmd:
+                {
+                    var callback = _heartbeatCallback;
+                    if (callback != null)
+                    {
+                        try
+                        {
+                            await callback(ct).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                        {
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger?.LogWarning(ex, L.T(StringKey.GoalHeartbeatCallbackFailed));
+                        }
+                    }
+                }
+                break;
+        }
     }
 
-    private void StopHeartbeatTimer()
+    protected override void OnConsumerError(Exception ex)
     {
-        _cts?.Cancel();
-        // 不在此处 Dispose timer，避免 RunHeartbeatLoopAsync 中 WaitForNextTickAsync
-        // 抛出 InvalidOperationException。timer 将在 DisposeAsync 中等待循环结束后清理。
+        _logger?.LogError(ex, "[GoalHeartbeat] 消费者异常");
     }
 
-    private async Task RunHeartbeatLoopAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            while (!cancellationToken.IsCancellationRequested)
-            {
-                var timer = _heartbeatTimer;
-                if (timer == null) break;
-
-                bool ticked;
-                try
-                {
-                    ticked = await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false);
-                }
-                catch (ObjectDisposedException)
-                {
-                    break;
-                }
-                catch (InvalidOperationException)
-                {
-                    break;
-                }
-
-                if (!ticked) break;
-
-                var callback = _heartbeatCallback;
-                if (callback != null)
-                {
-                    try
-                    {
-                        await callback(cancellationToken).ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                    {
-                        break;
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger?.LogWarning(ex, L.T(StringKey.GoalHeartbeatCallbackFailed));
-                    }
-                }
-            }
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-        }
-        catch (NullReferenceException ex)
-        {
-            _logger?.LogError(ex, "GoalHeartbeat loop NullReference");
-        }
-    }
-
-    public async ValueTask DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1)
         {
             return;
         }
 
-        await CleanupHeartbeatAsync().ConfigureAwait(false);
-        _stateLock.Dispose();
-    }
+        _heartbeatTimer.Change(Timeout.Infinite, Timeout.Infinite);
+        _heartbeatTimer.Dispose();
 
-    /// <summary>清理心跳状态（在锁保护下执行）</summary>
-    private async Task CleanupHeartbeatAsync()
-    {
-        using var guard = await _stateLock.TryLockAsync(CancellationToken.None).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
-
-        _cts?.Cancel();
-    
-
-        if (_heartbeatLoop != null)
-        {
-            try
-            {
-#pragma warning disable VSTHRD003
-                await _heartbeatLoop.ConfigureAwait(false);
-#pragma warning restore VSTHRD003
-            }
-            catch (OperationCanceledException)
-            {
-            }
-            catch (NullReferenceException ex)
-            {
-                _logger?.LogError(ex, "GoalHeartbeat.DisposeAsync NullReference");
-            }
-        }
-
-        _heartbeatTimer?.Dispose();
-        _heartbeatTimer = null;
-        _cts?.Dispose();
-        _cts = null;
-
-        _refcount = 0;
-        _activeReasons.Clear();
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }

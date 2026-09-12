@@ -3,11 +3,11 @@ namespace Core.Context;
 /// <summary>
 /// 日志簿命令 — Channel 中的消息类型
 /// </summary>
-internal interface IJournalCommand;
+public interface IJournalCommand;
 
-internal sealed record JournalRecordCommand(JournalEntry Entry) : IJournalCommand;
-internal sealed record JournalAnomalyCommand(LoopAnomalyRecord Anomaly) : IJournalCommand;
-internal sealed record JournalResetCommand() : IJournalCommand;
+public sealed record JournalRecordCommand(JournalEntry Entry) : IJournalCommand;
+public sealed record JournalAnomalyCommand(LoopAnomalyRecord Anomaly) : IJournalCommand;
+public sealed record JournalResetCommand() : IJournalCommand;
 
 /// <summary>
 /// 循环诊断日志簿 — 信息熵检测器的日志伙伴
@@ -17,34 +17,21 @@ internal sealed record JournalResetCommand() : IJournalCommand;
 ///   3. 写一条 loop_anomaly 诊断日志，包含：触发层、对话轮次、工具调用次数、追踪链、熵值等
 /// 医生模式读取 loop_anomaly 日志，用追踪链回溯完整上下文来优化代码
 ///
-/// 后台 Channel 化：前台只入队命令（纳秒级），后台线程消费处理（滑动窗口维护 + ILogger 写入）
+/// Actor 化：继承 ActorBase&lt;IJournalCommand, Unit&gt;，Consumer 线程独占滑动窗口，消除 AsyncLock。
 /// </summary>
-public sealed class LoopDiagnosticJournal : IDisposable
+public sealed class LoopDiagnosticJournal : ActorBase<IJournalCommand, Unit>, IDisposable
 {
     private readonly int _traceWindowCapacity;
-    private readonly LinkedList<JournalEntry> _traceWindow;
+    private readonly LinkedList<JournalEntry> _traceWindow = [];
     private readonly ILogger? _logger;
-    private readonly Channel<IJournalCommand> _channel;
-    private readonly Task _consumerTask;
-    private readonly CancellationTokenSource _cts;
-    private readonly AsyncLock _windowLock = new();
-
-    private volatile int _windowCount;
+    private int _windowCount;
 
     public LoopDiagnosticJournal(int traceWindowCapacity = 50, ILogger? logger = null)
+        : base(new ActorBackpressure(Capacity: 256, FullMode: BoundedChannelFullMode.DropOldest))
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(traceWindowCapacity, 5);
         _traceWindowCapacity = traceWindowCapacity;
-        _traceWindow = [];
         _logger = logger;
-        _channel = Channel.CreateBounded<IJournalCommand>(new BoundedChannelOptions(256)
-        {
-            FullMode = BoundedChannelFullMode.DropOldest,
-            SingleReader = true,
-            SingleWriter = false
-        });
-        _cts = new CancellationTokenSource();
-        _consumerTask = Task.Run(ConsumeLoopAsync);
     }
 
     /// <summary>
@@ -64,7 +51,7 @@ public sealed class LoopDiagnosticJournal : IDisposable
             Data = data ?? new Dictionary<string, string>()
         };
 
-        _channel.Writer.TryWrite(new JournalRecordCommand(entry));
+        TrySend(new JournalRecordCommand(entry));
         return entry;
     }
 
@@ -100,7 +87,7 @@ public sealed class LoopDiagnosticJournal : IDisposable
             Timestamp = DateTimeOffset.UtcNow
         };
 
-        _channel.Writer.TryWrite(new JournalAnomalyCommand(anomaly));
+        TrySend(new JournalAnomalyCommand(anomaly));
 
         return anomaly;
     }
@@ -110,74 +97,56 @@ public sealed class LoopDiagnosticJournal : IDisposable
     /// </summary>
     public void Reset()
     {
-        _channel.Writer.TryWrite(new JournalResetCommand());
+        TrySend(new JournalResetCommand());
     }
 
     /// <summary>
     /// 当前窗口内追踪条目数（近似值，后台线程更新）
     /// </summary>
-    public int WindowCount => _windowCount;
+    public int WindowCount => Volatile.Read(ref _windowCount);
 
+    /// <summary>
+    /// 同步释放 — 保留 IDisposable 兼容现有 using 调用方。内部调 DisposeAsync 并等待 Consumer 退出。
+    /// </summary>
     public void Dispose()
     {
-        _cts.Cancel();
-        _channel.Writer.TryComplete();
         try
         {
-            _consumerTask.Wait(TimeSpan.FromSeconds(5));
+            DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(5));
         }
         catch (Exception ex)
         {
-            _logger?.LogWarning(ex, "[LoopDiagnosticJournal] 后台消费者关闭超时");
+            _logger?.LogWarning(ex, "[LoopDiagnosticJournal] Dispose 超时");
         }
-        _cts.Dispose();
-        _windowLock.Dispose();
     }
 
-    private async Task ConsumeLoopAsync()
+    protected override async ValueTask HandleAsync(IJournalCommand command, CancellationToken ct)
     {
-        try
+        switch (command)
         {
-            await foreach (var cmd in _channel.Reader.ReadAllAsync(_cts.Token).ConfigureAwait(false))
-            {
-                switch (cmd)
-                {
-                    case JournalRecordCommand(var entry):
-                        await AddToWindowAsync(entry).ConfigureAwait(false);
-                        break;
+            case JournalRecordCommand(var entry):
+                AddToWindowCore(entry);
+                break;
 
-                    case JournalAnomalyCommand(var anomaly):
-                        await ProcessAnomalyAsync(anomaly).ConfigureAwait(false);
-                        break;
+            case JournalAnomalyCommand(var anomaly):
+                await ProcessAnomalyAsync(anomaly).ConfigureAwait(false);
+                break;
 
-                    case JournalResetCommand:
-                    {
-                        using var guard = await _windowLock.TryLockAsync(_cts.Token).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_windowLock.Name}' 等待超时");
+            case JournalResetCommand:
+                _traceWindow.Clear();
+                Volatile.Write(ref _windowCount, 0);
+                break;
+        }
+    }
 
-                        _traceWindow.Clear();
-                        _windowCount = 0;
-                        break;
-                    }
-                }
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // 正常关闭
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "[LoopDiagnosticJournal] 后台消费者异常退出");
-        }
+    protected override void OnConsumerError(Exception ex)
+    {
+        _logger?.LogWarning(ex, "[LoopDiagnosticJournal] 后台消费者异常");
     }
 
     private async Task ProcessAnomalyAsync(LoopAnomalyRecord anomaly)
     {
-        List<string> traceChain;
-        using var guard = await _windowLock.TryLockAsync(_cts.Token).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_windowLock.Name}' 等待超时");
-
-        traceChain = _traceWindow.Select(e => e.TraceId).ToList();
-    
+        var traceChain = _traceWindow.Select(e => e.TraceId).ToList();
 
         var fullAnomaly = anomaly with { TraceChain = traceChain };
 
@@ -201,13 +170,6 @@ public sealed class LoopDiagnosticJournal : IDisposable
         AddToWindowCore(anomalyEntry);
     }
 
-    private async Task AddToWindowAsync(JournalEntry entry)
-    {
-        using var guard = await _windowLock.TryLockAsync(_cts.Token).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_windowLock.Name}' 等待超时");
-
-        AddToWindowCore(entry);
-    }
-
     private void AddToWindowCore(JournalEntry entry)
     {
         _traceWindow.AddLast(entry);
@@ -215,7 +177,7 @@ public sealed class LoopDiagnosticJournal : IDisposable
         {
             _traceWindow.RemoveFirst();
         }
-        _windowCount = _traceWindow.Count;
+        Volatile.Write(ref _windowCount, _traceWindow.Count);
     }
 }
 

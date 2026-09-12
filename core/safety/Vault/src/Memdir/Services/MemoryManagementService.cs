@@ -308,7 +308,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
 {
     private readonly MemoryStore _memoryStore;
     private readonly Dictionary<(string TeamId, string Path), TeamMemoryPath> _teamMemoryPaths = new();
-    private readonly AsyncLock _skillLock = new();
+    private readonly MemoryMgmtActor _mgmtActor;
     private readonly ILogger<MemoryManagementService>? _logger;
     private readonly IClockService _clock;
     private readonly MemoryOptionalServices? _optional;
@@ -332,6 +332,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
         _optional = optional;
         _persistencePipeline = persistencePipeline;
         _fs = fs;
+        _mgmtActor = new MemoryMgmtActor(this, _logger);
     }
 
     #region Async Methods Implementation
@@ -358,7 +359,11 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     public async Task<MemoryScanResult> ScanMemoriesAsync(string query, string? category = null, int limit = 10, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        using var guard = await _skillLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_skillLock.Name}' 等待超时");
+        return await _mgmtActor.ScanMemoriesAsync(query, category, limit, ct).ConfigureAwait(false);
+    }
+
+    internal async Task<MemoryScanResult> ScanMemoriesCoreAsync(string query, string? category, int limit, CancellationToken ct)
+    {
         _logger?.LogInformation(L.T(StringKey.VaultLogScanMemory), query, category ?? L.T(StringKey.VaultAllCategory));
 
         // 将字符串 category 转换为 MemoryType
@@ -455,7 +460,11 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     public async Task<List<MemoryAgeInfo>> GetMemoryAgeInfoAsync(CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        using var guard = await _skillLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_skillLock.Name}' 等待超时");
+        return await _mgmtActor.GetMemoryAgeInfoAsync(ct).ConfigureAwait(false);
+    }
+
+    internal async Task<List<MemoryAgeInfo>> GetMemoryAgeInfoCoreAsync(CancellationToken ct)
+    {
         var stats = _memoryStore.GetStatistics();
 
         var memories = stats.RecentlyAdded
@@ -531,7 +540,11 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     public async Task AddTeamMemoryPathAsync(string teamId, string path, bool isShared = true, List<string>? allowedAgents = null, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        using var guard = await _skillLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_skillLock.Name}' 等待超时");
+        await _mgmtActor.AddTeamMemoryPathAsync(teamId, path, isShared, allowedAgents, ct).ConfigureAwait(false);
+    }
+
+    internal async Task AddTeamMemoryPathCoreAsync(string teamId, string path, bool isShared, List<string>? allowedAgents, CancellationToken ct)
+    {
         await EnsureTeamPathsLoadedAsync(ct).ConfigureAwait(false);
         // 移除已存在的相同路径
         _teamMemoryPaths.Remove((teamId, path));
@@ -552,7 +565,11 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     public async Task<List<TeamMemoryPath>> GetTeamMemoryPathsAsync(string? teamId = null, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        using var guard = await _skillLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_skillLock.Name}' 等待超时");
+        return await _mgmtActor.GetTeamMemoryPathsAsync(teamId, ct).ConfigureAwait(false);
+    }
+
+    internal async Task<List<TeamMemoryPath>> GetTeamMemoryPathsCoreAsync(string? teamId, CancellationToken ct)
+    {
         await EnsureTeamPathsLoadedAsync(ct).ConfigureAwait(false);
         return GetTeamMemoryPathsCore(teamId);
     }
@@ -573,7 +590,11 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     public async Task<bool> RemoveTeamMemoryPathAsync(string teamId, string path, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        using var guard = await _skillLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_skillLock.Name}' 等待超时");
+        return await _mgmtActor.RemoveTeamMemoryPathAsync(teamId, path, ct).ConfigureAwait(false);
+    }
+
+    internal async Task<bool> RemoveTeamMemoryPathCoreAsync(string teamId, string path, CancellationToken ct)
+    {
         await EnsureTeamPathsLoadedAsync(ct).ConfigureAwait(false);
         var removed = _teamMemoryPaths.Remove((teamId, path));
         if (removed)
@@ -639,8 +660,11 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     public async Task<MemoryScanResult> ScanTeamMemoriesAsync(string teamId, string query, int limit = 10, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
+        return await _mgmtActor.ScanTeamMemoriesAsync(teamId, query, limit, ct).ConfigureAwait(false);
+    }
 
-        using var guard = await _skillLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_skillLock.Name}' 等待超时");
+    internal async Task<MemoryScanResult> ScanTeamMemoriesCoreAsync(string teamId, string query, int limit, CancellationToken ct)
+    {
         var teamPaths = GetTeamMemoryPathsCore(teamId);
 
         if (teamPaths.Count == 0)
@@ -963,5 +987,8 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
 
     #endregion
 
-    protected override void OnDispose() => _skillLock.Dispose();
+    protected override void OnDispose()
+    {
+        _ = _mgmtActor.DisposeAsync();
+    }
 }

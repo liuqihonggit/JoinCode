@@ -37,6 +37,7 @@ global using Infrastructure.Utils.IO;
 global using Infrastructure.Utils.Text;
 global using IO;
 global using Memdir.Sync;
+global using Memdir.Sync.Helpers;
 global using Microsoft.Extensions.DependencyInjection;
 global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using Microsoft.Extensions.Options;

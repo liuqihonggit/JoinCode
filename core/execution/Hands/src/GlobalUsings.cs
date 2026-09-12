@@ -62,6 +62,7 @@ global using Infrastructure.Utils.Text;
 global using Infrastructure.IO.Services.FileOps;
 global using IO.ProcessService;
 global using IO;
+global using IO.FileSystem;
 global using ICostTracker = JoinCode.Abstractions.Interfaces.ICostTracker;
 global using Core.Configuration;
 global using Core.Plugins;

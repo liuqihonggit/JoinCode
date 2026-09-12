@@ -1,10 +1,5 @@
 namespace Services.Build;
 
-
-/// <summary>
-/// 编译队列服务 — 编译请求串行化 + 结果缓冲区
-/// 核心特性：串行执行 + 结果缓冲区（源码指纹失效）+ 防睡眠
-/// </summary>
 [Register(typeof(IBuildQueueService), ServiceLifetime.Singleton)]
 public sealed partial class BuildQueueService : IBuildQueueService
 {
@@ -13,34 +8,19 @@ public sealed partial class BuildQueueService : IBuildQueueService
     private readonly IPreventSleepService? _preventSleepService;
     private readonly ILogger<BuildQueueService>? _logger;
 
-    private const string DefaultCrossProcessLockFileName = "JoinCode.Build.lock";
-    private const string GitDirName = ".git";
-    private static readonly string GitWorktreesMarker = $"{GitDirName}{Path.DirectorySeparatorChar}worktrees{Path.DirectorySeparatorChar}";
-    private static readonly TimeSpan CrossProcessLockPollInterval = TimeSpan.FromMilliseconds(100);
-
     private readonly Channel<BuildQueueEntry> _queue = Channel.CreateUnbounded<BuildQueueEntry>();
     private readonly ConcurrentDictionary<string, BuildQueueEntry> _entries = new();
     private readonly ConcurrentDictionary<string, TaskCompletionSource<BuildQueueResult>> _waitHandles = new();
     private readonly CancellationTokenSource _shutdownCts = new();
     private readonly Task _processingTask;
 
-    /// <summary>
-    /// 跨进程构建锁文件路径 — 多个 subAgent 进程（不同 git worktree）通过此文件串行编译
-    /// 默认放在 git 仓库的 .git/ 目录下（所有 worktree 共享），通过 IFileSystem.CreateStream + FileShare.None 实现跨进程互斥
-    /// </summary>
-    private readonly string _crossProcessLockPath;
-    private Stream? _crossProcessLockFile;
+    private readonly CrossProcessBuildLock _crossProcessLock;
+    private readonly BuildResultBuffer _resultBuffer;
 
     private int _buildCounter;
     private BuildQueueEntry? _currentBuild;
     private CancellationTokenSource? _currentBuildCts;
     private int _disposed;
-
-    private readonly ConcurrentDictionary<string, BuildBufferEntry> _resultBuffer = new();
-
-    private long _lastFingerprintTicks;
-    private DateTimeOffset _fingerprintComputedAt = DateTimeOffset.MinValue;
-    private readonly AsyncLock _fingerprintLock = new("BuildQueueService");
 
     public BuildQueueService(
         ISystemActuatorRegistry actuatorRegistry,
@@ -53,87 +33,19 @@ public sealed partial class BuildQueueService : IBuildQueueService
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _preventSleepService = preventSleepService;
         _logger = logger;
-        _crossProcessLockPath = crossProcessLockPath
-            ?? ResolveDefaultLockPath(_fs);
+
+        var fingerprintCache = new SourceFingerprintCache(logger);
+        _resultBuffer = new BuildResultBuffer(fingerprintCache, logger);
+        _crossProcessLock = new CrossProcessBuildLock(fs, logger, crossProcessLockPath);
+
         _processingTask = ProcessQueueAsync(_shutdownCts.Token);
     }
 
-    /// <summary>
-    /// 解析默认锁文件路径 — 优先放在 git 仓库的 .git/ 目录下（所有 worktree 共享同一锁）
-    /// <para>主 worktree: .git 是目录 → {repo-root}/.git/JoinCode.Build.lock</para>
-    /// <para>链接 worktree: .git 是文件 → 解析 gitdir 得到公共 .git 目录 → {common-git-dir}/JoinCode.Build.lock</para>
-    /// <para>非 git 仓库: 回退到 %TEMP%/JoinCode.Build.lock</para>
-    /// </summary>
-    private static string ResolveDefaultLockPath(IFileSystem fs)
-    {
-        var currentDir = fs.GetCurrentDirectory();
-        while (!string.IsNullOrEmpty(currentDir))
-        {
-            var gitPath = fs.CombinePath(currentDir, GitDirName);
-
-            // 主 worktree — .git 是目录,所有 worktree 共享
-            if (fs.DirectoryExists(gitPath))
-                return fs.CombinePath(gitPath, DefaultCrossProcessLockFileName);
-
-            // 链接 worktree — .git 是文件,解析得到公共 .git 目录
-            if (fs.FileExists(gitPath))
-            {
-                var commonGitDir = ResolveCommonGitDir(fs, gitPath, currentDir);
-                if (commonGitDir is not null && fs.DirectoryExists(commonGitDir))
-                    return fs.CombinePath(commonGitDir, DefaultCrossProcessLockFileName);
-            }
-
-            var parent = fs.GetParentPath(currentDir);
-            if (parent is null || parent == currentDir) break;
-            currentDir = parent;
-        }
-
-        // 不在 git 仓库内 — 回退到 TEMP
-        return fs.CombinePath(Path.GetTempPath(), DefaultCrossProcessLockFileName);
-    }
-
-    /// <summary>
-    /// 解析链接 worktree 的 .git 文件,得到公共 .git 目录路径
-    /// .git 文件内容格式: "gitdir: /path/to/main/.git/worktrees/{name}"
-    /// 公共 .git 目录: /path/to/main/.git
-    /// </summary>
-    private static string? ResolveCommonGitDir(IFileSystem fs, string gitFilePath, string worktreePath)
-    {
-        try
-        {
-            var content = fs.ReadAllText(gitFilePath).Trim();
-            const string prefix = "gitdir:";
-            if (!content.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                return null;
-
-            var gitdirRelative = content[prefix.Length..].Trim();
-            var gitdirAbs = fs.CombinePath(worktreePath, gitdirRelative);
-            var normalizedGitdir = fs.GetFullPath(gitdirAbs);
-
-            // 查找 .git/worktrees/ 标记,提取公共 .git 目录
-            var markerIdx = normalizedGitdir.IndexOf(GitWorktreesMarker, StringComparison.OrdinalIgnoreCase);
-            if (markerIdx < 0) return null;
-
-            var commonGitDir = normalizedGitdir[..(markerIdx + GitDirName.Length)];
-            return commonGitDir;
-        }
-        catch (IOException)
-        {
-            // .git 文件读取失败,回退到 TEMP
-            return null;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return null;
-        }
-    }
-
-    /// <inheritdoc />
     public Task<string> SubmitAsync(BuildRequest request, CancellationToken ct)
     {
-        var bufferKey = BuildBufferKey(request.Command, request.WorkingDirectory);
+        var bufferKey = BuildResultBuffer.BuildBufferKey(request.Command, request.WorkingDirectory);
 
-        if (TryGetBufferedResult(bufferKey, out var bufferedResult))
+        if (_resultBuffer.TryGet(bufferKey, out var bufferedResult))
         {
             _logger?.LogInformation("Build result buffer hit: {BufferKey}", bufferKey);
             var buildId = CreateCompletedEntry(request, bufferedResult);
@@ -223,7 +135,6 @@ public sealed partial class BuildQueueService : IBuildQueueService
     public Task ClearCacheAsync(CancellationToken ct)
     {
         _resultBuffer.Clear();
-        _logger?.LogInformation("Build result buffer cleared");
         return Task.CompletedTask;
     }
 
@@ -251,14 +162,6 @@ public sealed partial class BuildQueueService : IBuildQueueService
         return string.Join('\n', selected);
     }
 
-    /// <summary>
-    /// 构建结果缓冲区 key — 原始命令 + 工作目录
-    /// </summary>
-    internal static string BuildBufferKey(string command, string? workingDirectory)
-    {
-        return $"{workingDirectory ?? ""}|{command}";
-    }
-
     private string CreateCompletedEntry(BuildRequest request, BuildQueueResult result)
     {
         var buildId = $"b-{Interlocked.Increment(ref _buildCounter):D4}";
@@ -274,94 +177,6 @@ public sealed partial class BuildQueueService : IBuildQueueService
         _waitHandles[buildId] = new TaskCompletionSource<BuildQueueResult>();
         _waitHandles[buildId].TrySetResult(entry.Result ?? throw new InvalidOperationException("Build result not set."));
         return buildId;
-    }
-
-    /// <summary>
-    /// 检查结果缓冲区 — 源码指纹未变则命中
-    /// </summary>
-    private bool TryGetBufferedResult(string bufferKey, [NotNullWhen(true)] out BuildQueueResult? result)
-    {
-        result = null;
-
-        if (!_resultBuffer.TryGetValue(bufferKey, out var bufferEntry))
-            return false;
-
-        var currentFingerprint = ComputeSourceFingerprint(bufferEntry.WorkingDirectory);
-        if (currentFingerprint != 0 && bufferEntry.SourceFingerprint != 0 && currentFingerprint != bufferEntry.SourceFingerprint)
-        {
-            _resultBuffer.TryRemove(bufferKey, out _);
-            _logger?.LogDebug("Result buffer invalidated by source fingerprint: {BufferKey}", bufferKey);
-            return false;
-        }
-
-        result = bufferEntry.Result;
-        return true;
-    }
-
-    /// <summary>
-    /// 将编译结果写入缓冲区
-    /// </summary>
-    private void BufferResult(string bufferKey, BuildQueueResult result, string? workingDirectory)
-    {
-        var fingerprint = ComputeSourceFingerprint(workingDirectory);
-
-        _resultBuffer[bufferKey] = new BuildBufferEntry
-        {
-            Result = result,
-            WorkingDirectory = workingDirectory,
-            SourceFingerprint = fingerprint,
-        };
-
-        _logger?.LogInformation("Build result buffered: {BufferKey}", bufferKey);
-    }
-
-    /// <summary>
-    /// 计算源码指纹 — 工作目录下 .cs/.csproj 文件的最大 LastWriteTime ticks
-    /// 结果缓存 1 秒避免频繁 IO
-    /// </summary>
-    private long ComputeSourceFingerprint(string? workingDirectory)
-    {
-        if (string.IsNullOrEmpty(workingDirectory)) return 0;
-
-        using (_fingerprintLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_fingerprintLock.Name}' 等待超时"))
-        {
-            if (DateTimeOffset.UtcNow - _fingerprintComputedAt < TimeSpan.FromSeconds(1) && _lastFingerprintTicks != 0)
-                return _lastFingerprintTicks;
-        }
-
-        long maxTicks = 0;
-        try
-        {
-            var dir = new DirectoryInfo(workingDirectory ?? string.Empty);
-            if (!dir.Exists) return 0;
-
-            foreach (var file in dir.EnumerateFiles("*.cs", SearchOption.AllDirectories))
-            {
-                if (file.LastWriteTimeUtc.Ticks > maxTicks)
-                    maxTicks = file.LastWriteTimeUtc.Ticks;
-            }
-            foreach (var file in dir.EnumerateFiles("*.csproj", SearchOption.AllDirectories))
-            {
-                if (file.LastWriteTimeUtc.Ticks > maxTicks)
-                    maxTicks = file.LastWriteTimeUtc.Ticks;
-            }
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            _logger?.LogDebug(ex, "Access denied scanning source files in {Directory}", workingDirectory);
-        }
-        catch (DirectoryNotFoundException ex)
-        {
-            _logger?.LogDebug(ex, "Directory not found scanning source files: {Directory}", workingDirectory);
-        }
-
-        using (_fingerprintLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_fingerprintLock.Name}' 等待超时"))
-        {
-            _lastFingerprintTicks = maxTicks;
-            _fingerprintComputedAt = DateTimeOffset.UtcNow;
-        }
-
-        return maxTicks;
     }
 
     private async Task ProcessQueueAsync(CancellationToken ct)
@@ -391,8 +206,8 @@ public sealed partial class BuildQueueService : IBuildQueueService
                         ? BuildQueueEntryStatus.Completed
                         : BuildQueueEntryStatus.Failed;
 
-                var bufferKey = BuildBufferKey(entry.Request.Command, entry.Request.WorkingDirectory);
-                BufferResult(bufferKey, result, entry.Request.WorkingDirectory);
+                var bufferKey = BuildResultBuffer.BuildBufferKey(entry.Request.Command, entry.Request.WorkingDirectory);
+                _resultBuffer.Add(bufferKey, result, entry.Request.WorkingDirectory);
 
                 _waitHandles.TryGetValue(entry.BuildId, out var tcs);
                 tcs?.TrySetResult(result);
@@ -441,91 +256,26 @@ public sealed partial class BuildQueueService : IBuildQueueService
         }
     }
 
-    /// <summary>
-    /// 异步获取跨进程构建锁 — 以独占方式打开锁文件，其他进程尝试打开将抛 IOException
-    /// 异步轮询避免阻塞调用线程，支持取消令牌
-    /// </summary>
-    private async Task AcquireCrossProcessLockAsync(CancellationToken ct)
-    {
-        while (true)
-        {
-            ct.ThrowIfCancellationRequested();
-            try
-            {
-                _crossProcessLockFile = _fs.CreateStream(
-                    _crossProcessLockPath,
-                    FileMode.OpenOrCreate,
-                    FileAccess.ReadWrite,
-                    FileShare.None);
-                return;
-            }
-            catch (IOException ex)
-            {
-                // 文件被其他进程锁定，等待后重试
-                _logger?.LogDebug(ex, "Build lock file is held by another process, retrying: {LockPath}", _crossProcessLockPath);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                // 路径权限不足，等待后重试（罕见情况）
-                _logger?.LogDebug(ex, "Build lock file access denied, retrying: {LockPath}", _crossProcessLockPath);
-            }
-
-            await Task.Delay(CrossProcessLockPollInterval, ct).ConfigureAwait(false);
-        }
-    }
-
-    /// <summary>
-    /// 释放跨进程构建锁 — 关闭文件流即释放文件锁
-    /// </summary>
-    private void ReleaseCrossProcessLock()
-    {
-        _crossProcessLockFile?.Dispose();
-        _crossProcessLockFile = null;
-    }
-
     private async Task<BuildQueueResult> ExecuteBuildAsync(BuildQueueEntry entry, CancellationToken ct)
     {
         await using var sleepScope = await PreventSleepScope.CreateAsync(_preventSleepService, cancellationToken: CancellationToken.None).ConfigureAwait(false);
         await using var scope = new BuildExecutionScope(this, ct);
         var buildCt = scope.Token;
 
-        // 跨进程构建锁 — FileStream + FileShare.None 实现进程间互斥
-        // 多个 subAgent 进程（不同 git worktree）通过此锁串行编译，避免并行编译冲突
-        // 异步轮询获取锁，无线程亲和性，可安全跨 await 使用（修复原 Mutex 死锁问题）
         if (buildCt.IsCancellationRequested)
         {
-            return new BuildQueueResult
-            {
-                BuildId = entry.BuildId,
-                ExitCode = -1,
-                Output = string.Empty,
-                ErrorOutput = "Build cancelled while waiting for build lock",
-                WaitDuration = TimeSpan.Zero,
-                BuildDuration = TimeSpan.Zero,
-                QueuePosition = entry.QueuePosition,
-                Cancelled = true,
-            };
+            return CancelledResult(entry, "Build cancelled while waiting for build lock");
         }
 
         try
         {
             await scope.AcquireLockAsync(buildCt).ConfigureAwait(false);
             _logger?.LogInformation("Build lock acquired for {BuildId} via {LockPath}",
-                entry.BuildId, _crossProcessLockPath);
+                entry.BuildId, _crossProcessLock.LockPath);
         }
         catch (OperationCanceledException)
         {
-            return new BuildQueueResult
-            {
-                BuildId = entry.BuildId,
-                ExitCode = -1,
-                Output = string.Empty,
-                ErrorOutput = "Build cancelled while waiting for build lock",
-                WaitDuration = TimeSpan.Zero,
-                BuildDuration = TimeSpan.Zero,
-                QueuePosition = entry.QueuePosition,
-                Cancelled = true,
-            };
+            return CancelledResult(entry, "Build cancelled while waiting for build lock");
         }
 
         var sw = Stopwatch.StartNew();
@@ -560,6 +310,21 @@ public sealed partial class BuildQueueService : IBuildQueueService
             QueuePosition = entry.QueuePosition,
             SleepDetected = sleepDetected,
             Cancelled = buildCt.IsCancellationRequested
+        };
+    }
+
+    private static BuildQueueResult CancelledResult(BuildQueueEntry entry, string message)
+    {
+        return new BuildQueueResult
+        {
+            BuildId = entry.BuildId,
+            ExitCode = -1,
+            Output = string.Empty,
+            ErrorOutput = message,
+            WaitDuration = TimeSpan.Zero,
+            BuildDuration = TimeSpan.Zero,
+            QueuePosition = entry.QueuePosition,
+            Cancelled = true,
         };
     }
 
@@ -604,23 +369,9 @@ public sealed partial class BuildQueueService : IBuildQueueService
 
         _shutdownCts.Dispose();
         _currentBuildCts?.Dispose();
-        _crossProcessLockFile?.Dispose();
-        _crossProcessLockFile = null;
+        await _crossProcessLock.DisposeAsync().ConfigureAwait(false);
     }
 
-    private sealed class BuildBufferEntry
-    {
-        public required BuildQueueResult Result { get; init; }
-        public string? WorkingDirectory { get; init; }
-        public long SourceFingerprint { get; init; }
-    }
-
-    /// <summary>
-    /// 构建执行作用域 — 封装单次构建的 CTS 生命周期 + 跨进程锁获取/释放
-    /// <para>构造:创建 linked CTS 并注册到 owner._currentBuildCts(供 CancelAsync 调用)</para>
-    /// <para>AcquireLockAsync:获取跨进程构建锁</para>
-    /// <para>DisposeAsync:释放锁 + 清空 owner._currentBuildCts + Dispose CTS(修复原 CTS 泄漏 bug)</para>
-    /// </summary>
     private sealed class BuildExecutionScope : IAsyncDisposable
     {
         private readonly BuildQueueService _owner;
@@ -628,9 +379,6 @@ public sealed partial class BuildQueueService : IBuildQueueService
         private bool _lockAcquired;
         private int _disposed;
 
-        /// <summary>
-        /// 创建构建执行作用域 — linked CTS 关联外部取消令牌,并注册到 owner 供 CancelAsync 使用
-        /// </summary>
         public BuildExecutionScope(BuildQueueService owner, CancellationToken externalCt)
         {
             _owner = owner;
@@ -638,30 +386,21 @@ public sealed partial class BuildQueueService : IBuildQueueService
             _owner._currentBuildCts = _cts;
         }
 
-        /// <summary>
-        /// 构建取消令牌 — 关联外部 ct + CancelAsync 的取消
-        /// </summary>
         public CancellationToken Token => _cts.Token;
 
-        /// <summary>
-        /// 异步获取跨进程构建锁 — 成功后 DisposeAsync 时自动释放
-        /// </summary>
         public async Task AcquireLockAsync(CancellationToken ct)
         {
-            await _owner.AcquireCrossProcessLockAsync(ct).ConfigureAwait(false);
+            await _owner._crossProcessLock.AcquireAsync(ct).ConfigureAwait(false);
             _lockAcquired = true;
         }
 
-        /// <summary>
-        /// 释放构建作用域 — 释放跨进程锁 + 清空 owner 引用 + Dispose CTS
-        /// </summary>
         public ValueTask DisposeAsync()
         {
             if (Interlocked.Exchange(ref _disposed, 1) != 0) return default;
 
             if (_lockAcquired)
             {
-                _owner.ReleaseCrossProcessLock();
+                _owner._crossProcessLock.Release();
             }
 
             if (_owner._currentBuildCts == _cts)

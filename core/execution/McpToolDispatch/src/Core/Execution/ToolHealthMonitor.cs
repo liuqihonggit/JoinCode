@@ -1,24 +1,34 @@
 namespace McpToolDispatch;
 
 /// <summary>
-/// 工具健康监控服务 — 追踪工具执行成功率、评分状态
-/// 持久化到 AppData JSON 文件，支持热更新
-/// 支持黑名单（用户主动禁用）、降权（额外扣分）配置
+/// 工具健康监控命令 — Actor 消息类型
+/// </summary>
+public interface IToolHealthCommand;
+
+public sealed record RecordSuccessCmd(string ToolName, TaskCompletionSource<ToolHealthRecord> Tcs) : IToolHealthCommand;
+public sealed record RecordFailureCmd(string ToolName, string? ErrorMessage, TaskCompletionSource<ToolHealthRecord> Tcs) : IToolHealthCommand;
+public sealed record ResetToolCmd(string ToolName, TaskCompletionSource Tcs) : IToolHealthCommand;
+public sealed record DecayTickCmd : IToolHealthCommand;
+
+/// <summary>
+/// 工具健康监控服务 — Actor 化：复合操作（RecordSuccess/RecordFailure/Decay）由 Consumer 串行处理，消除 AsyncLock。
+/// <para>_records 保留 ConcurrentDictionary 供 GetEffectiveScore 等读多写少方法直接读取（最终一致性）。</para>
+/// <para>_blacklistSnapshot/_penalties 保留 volatile 双变量切换。</para>
 /// 设计原则：永远不禁用工具，连续失败只注入提示词提醒LLM换策略
 /// </summary>
 [Register(typeof(IToolHealthMonitor), ServiceLifetime.Singleton)]
-public sealed class ToolHealthMonitor : ServiceEntity, IToolHealthMonitor, IDisposable
+public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, IToolHealthMonitor, IDisposable
 {
     private readonly ILogger<ToolHealthMonitor>? _logger;
     private readonly IFileSystem _fs;
     private readonly ToolScoreConfig _config;
     internal ToolScoreConfig Config => _config;
-    private readonly Dictionary<string, ToolHealthRecord> _records = new(StringComparer.OrdinalIgnoreCase);
-    private readonly AsyncLock _lock = new();
+    private readonly ConcurrentDictionary<string, ToolHealthRecord> _records = new(StringComparer.OrdinalIgnoreCase);
     private readonly string _configPath;
     private readonly Timer? _decayTimer;
     private volatile BlacklistSnapshot _blacklistSnapshot;
     private volatile Dictionary<string, int> _penalties;
+    private int _disposed;
 
     private sealed record BlacklistSnapshot
     {
@@ -28,6 +38,7 @@ public sealed class ToolHealthMonitor : ServiceEntity, IToolHealthMonitor, IDisp
 
     public ToolHealthMonitor(IFileSystem fs, ILogger<ToolHealthMonitor>? logger = null, ToolScoreConfig? config = null,
         HashSet<string>? blacklist = null, Dictionary<string, int>? penalties = null)
+        : base()
     {
         _fs = fs;
         _logger = logger;
@@ -44,8 +55,11 @@ public sealed class ToolHealthMonitor : ServiceEntity, IToolHealthMonitor, IDisp
             "tool-health.json");
         LoadFromDisk();
 
-        _decayTimer = new Timer(_ => ApplyTimeDecay(), null, TimeSpan.FromHours(1), TimeSpan.FromHours(1));
+        _decayTimer = new Timer(_ => TrySend(new DecayTickCmd()), null, TimeSpan.FromHours(1), TimeSpan.FromHours(1));
     }
+
+    private static TaskCompletionSource<T> CreateTcs<T>() => new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private static TaskCompletionSource CreateTcs() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>
     /// 热更新黑名单 — 双变量切换模式：构建新快照 → 原子替换引用
@@ -86,7 +100,6 @@ public sealed class ToolHealthMonitor : ServiceEntity, IToolHealthMonitor, IDisp
 
     /// <summary>
     /// 简单通配符匹配 — 支持 * 通配任意字符
-    /// 例如: "shell_*" 匹配 "shell_check", "shell_background_get"
     /// </summary>
     private static bool MatchesPattern(string pattern, string toolName)
     {
@@ -124,93 +137,112 @@ public sealed class ToolHealthMonitor : ServiceEntity, IToolHealthMonitor, IDisp
     public int GetEffectiveScore(string toolName)
     {
         if (IsBlacklisted(toolName)) return _config.ScoreMin;
-        var record = _records.GetValueOrDefault(toolName);
+        _records.TryGetValue(toolName, out var record);
         var baseScore = record?.Score ?? 0;
         return Math.Clamp(baseScore + GetPenalty(toolName), _config.ScoreMin, _config.ScoreMax);
     }
 
     public async Task<ToolHealthRecord> RecordSuccessAsync(string toolName, CancellationToken ct = default)
     {
-        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
-        var record = GetOrCreate(toolName);
-        record.Score = Math.Clamp(record.Score + _config.SuccessDelta, _config.ScoreMin, _config.ScoreMax);
-        record.SuccessCount++;
-        record.ConsecutiveFailures = 0;
-        record.LastAdjusted = DateTime.UtcNow;
-        record.LastErrorMessage = null;
-
-        SaveToDisk();
-        return record;
-    
+        var tcs = CreateTcs<ToolHealthRecord>();
+        await SendAsync(new RecordSuccessCmd(toolName, tcs), ct).ConfigureAwait(false);
+        return await tcs.Task.ConfigureAwait(false);
     }
 
     public async Task<ToolHealthRecord> RecordFailureAsync(string toolName, string? errorMessage, CancellationToken ct = default)
     {
-        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
-        var record = GetOrCreate(toolName);
-        record.Score = Math.Clamp(record.Score + _config.FailDelta, _config.ScoreMin, _config.ScoreMax);
-        record.FailCount++;
-        record.ConsecutiveFailures++;
-        record.LastAdjusted = DateTime.UtcNow;
-        record.LastErrorMessage = errorMessage;
-
-        if (record.ConsecutiveFailures >= _config.WarningThreshold)
-        {
-            _logger?.LogWarning("工具 {ToolName} 连续失败 {Count} 次，评分 {Score}，将在下次调用时注入提示词",
-                toolName, record.ConsecutiveFailures, record.Score);
-        }
-
-        SaveToDisk();
-        return record;
-    
+        var tcs = CreateTcs<ToolHealthRecord>();
+        await SendAsync(new RecordFailureCmd(toolName, errorMessage, tcs), ct).ConfigureAwait(false);
+        return await tcs.Task.ConfigureAwait(false);
     }
 
-    public async Task<ToolHealthRecord?> GetRecordAsync(string toolName, CancellationToken ct = default)
+    public Task<ToolHealthRecord?> GetRecordAsync(string toolName, CancellationToken ct = default)
     {
-        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
-        return _records.GetValueOrDefault(toolName);
-    
+        _records.TryGetValue(toolName, out var record);
+        return Task.FromResult(record);
     }
 
-    public async Task<IReadOnlyDictionary<string, ToolHealthRecord>> GetAllRecordsAsync(CancellationToken ct = default)
+    public Task<IReadOnlyDictionary<string, ToolHealthRecord>> GetAllRecordsAsync(CancellationToken ct = default)
     {
-        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
-        return _records.ToFrozenDictionary();
-    
+        return Task.FromResult<IReadOnlyDictionary<string, ToolHealthRecord>>(_records.ToFrozenDictionary());
     }
 
     public async Task ResetToolAsync(string toolName, CancellationToken ct = default)
     {
-        using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
+        var tcs = CreateTcs();
+        await SendAsync(new ResetToolCmd(toolName, tcs), ct).ConfigureAwait(false);
+        await tcs.Task.ConfigureAwait(false);
+    }
 
-        if (_records.TryGetValue(toolName, out var record))
+    protected override async ValueTask HandleAsync(IToolHealthCommand command, CancellationToken ct)
+    {
+        switch (command)
         {
-            record.Score = 0;
-            record.ConsecutiveFailures = 0;
-            record.IsEnabled = true;
-            record.LastAdjusted = DateTime.UtcNow;
-            SaveToDisk();
+            case RecordSuccessCmd success:
+                {
+                    var record = GetOrCreate(success.ToolName);
+                    record.Score = Math.Clamp(record.Score + _config.SuccessDelta, _config.ScoreMin, _config.ScoreMax);
+                    record.SuccessCount++;
+                    record.ConsecutiveFailures = 0;
+                    record.LastAdjusted = DateTime.UtcNow;
+                    record.LastErrorMessage = null;
+                    SaveToDisk();
+                    success.Tcs.TrySetResult(record);
+                }
+                break;
+
+            case RecordFailureCmd failure:
+                {
+                    var record = GetOrCreate(failure.ToolName);
+                    record.Score = Math.Clamp(record.Score + _config.FailDelta, _config.ScoreMin, _config.ScoreMax);
+                    record.FailCount++;
+                    record.ConsecutiveFailures++;
+                    record.LastAdjusted = DateTime.UtcNow;
+                    record.LastErrorMessage = failure.ErrorMessage;
+
+                    if (record.ConsecutiveFailures >= _config.WarningThreshold)
+                    {
+                        _logger?.LogWarning("工具 {ToolName} 连续失败 {Count} 次，评分 {Score}，将在下次调用时注入提示词",
+                            failure.ToolName, record.ConsecutiveFailures, record.Score);
+                    }
+
+                    SaveToDisk();
+                    failure.Tcs.TrySetResult(record);
+                }
+                break;
+
+            case ResetToolCmd reset:
+                {
+                    if (_records.TryGetValue(reset.ToolName, out var record))
+                    {
+                        record.Score = 0;
+                        record.ConsecutiveFailures = 0;
+                        record.IsEnabled = true;
+                        record.LastAdjusted = DateTime.UtcNow;
+                        SaveToDisk();
+                    }
+                    reset.Tcs.TrySetResult();
+                }
+                break;
+
+            case DecayTickCmd:
+                ApplyTimeDecay();
+                break;
         }
-    
+    }
+
+    protected override void OnConsumerError(Exception ex)
+    {
+        _logger?.LogError(ex, "[ToolHealthMonitor] 消费者异常");
     }
 
     private ToolHealthRecord GetOrCreate(string toolName)
     {
-        if (!_records.TryGetValue(toolName, out var record))
-        {
-            record = new ToolHealthRecord { ToolName = toolName };
-            _records[toolName] = record;
-        }
-        return record;
+        return _records.GetOrAdd(toolName, _ => new ToolHealthRecord { ToolName = toolName });
     }
 
     private void ApplyTimeDecay()
     {
-        using var guard = _lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
         var now = DateTime.UtcNow;
         foreach (var record in _records.Values)
         {
@@ -253,7 +285,8 @@ public sealed class ToolHealthMonitor : ServiceEntity, IToolHealthMonitor, IDisp
         {
             var dir = Path.GetDirectoryName(_configPath)!;
             if (!_fs.DirectoryExists(dir)) _fs.CreateDirectory(dir);
-            var json = JsonSerializer.Serialize(_records, ToolHealthJsonContext.Default.DictionaryStringToolHealthRecord);
+            var dict = _records.ToDictionary();
+            var json = JsonSerializer.Serialize(dict, ToolHealthJsonContext.Default.DictionaryStringToolHealthRecord);
             _fs.WriteAllText(_configPath, json);
         }
         catch (Exception ex)
@@ -262,10 +295,18 @@ public sealed class ToolHealthMonitor : ServiceEntity, IToolHealthMonitor, IDisp
         }
     }
 
-    protected override void OnDispose()
+    public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
         _decayTimer?.Dispose();
-        _lock.Dispose();
+        try
+        {
+            DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(5));
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "[ToolHealthMonitor] Dispose 超时");
+        }
     }
 }
 

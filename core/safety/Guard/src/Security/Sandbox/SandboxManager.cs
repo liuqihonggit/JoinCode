@@ -5,13 +5,10 @@ namespace Core.Security.Sandbox;
 public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDisposable
 {
     private readonly ConcurrentDictionary<SandboxType, ISandboxProvider> _providers;
-    private readonly AsyncLock _lock = new();
+    private readonly SandboxLifecycleActor _lifecycleActor;
     private readonly ILogger<SandboxManager>? _logger;
     private readonly IFileSystem _fs;
     private readonly SandboxIpcClient? _ipcClient;
-    private volatile ISandboxProvider? _activeProvider;
-    private volatile string? _activeSandboxId;
-    private volatile SandboxHealthState _healthState = SandboxHealthState.Healthy;
     private readonly ConcurrentDictionary<string, SandboxActiveExecution> _activeExecutions = new();
 
     public SandboxManager(
@@ -27,6 +24,8 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
             providers
                 .Where(p => p.IsAvailable)
                 .ToDictionary(p => p.SandboxType, p => p));
+
+        _lifecycleActor = new SandboxLifecycleActor(_providers, _logger);
 
         _logger?.LogInformation("[SandboxManager] 可用沙箱类型: {Types}", string.Join(", ", _providers.Keys.Select(k => k.ToValue())));
     }
@@ -59,125 +58,34 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
         return removed;
     }
 
-    public ISandboxProvider? ActiveProvider => _activeProvider;
+    public ISandboxProvider? ActiveProvider => _lifecycleActor.ActiveProvider;
 
-    public SandboxType ActiveSandboxType => _activeProvider?.SandboxType ?? SandboxType.None;
+    public SandboxType ActiveSandboxType => _lifecycleActor.ActiveProvider?.SandboxType ?? SandboxType.None;
 
-    public bool IsInSandbox => _activeProvider is not null && _activeSandboxId is not null && _activeProvider.GetSandboxInfo(_activeSandboxId) is not null;
+    public bool IsInSandbox => _lifecycleActor.IsInSandbox;
 
-    public SandboxInfo? CurrentSandbox => _activeSandboxId is not null ? _activeProvider?.GetSandboxInfo(_activeSandboxId) : null;
+    public SandboxInfo? CurrentSandbox => _lifecycleActor.CurrentSandbox;
 
-    public string? CurrentSandboxId => _activeSandboxId;
+    public string? CurrentSandboxId => _lifecycleActor.ActiveSandboxId;
 
-    public SandboxHealthState HealthState => _healthState;
+    public SandboxHealthState HealthState => _lifecycleActor.HealthState;
 
     public IEnumerable<SandboxType> AvailableTypes => _providers.Keys;
 
     public async Task<SandboxInfo> EnterSandboxAsync(SandboxOptions options, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(options);
-
-        using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
-            if (IsInSandbox)
-            {
-                throw new InvalidOperationException($"[GRD008] 已在 {_activeProvider!.SandboxType} 沙箱中，请先退出再进入新沙箱");
-            }
-
-            var (provider, fallbackUsed) = ResolveProviderWithFallback(options.Type);
-
-            try
-            {
-                var info = await provider.CreateSandboxAsync(options, ct).ConfigureAwait(false);
-
-                _activeProvider = provider;
-                _activeSandboxId = info.SandboxId;
-                _healthState = SandboxHealthState.Healthy;
-
-                _logger?.LogInformation("[SandboxManager] 沙箱已激活 - 类型: {Type}, Id: {Id}, 降级: {Fallback}", info.Type, info.SandboxId, fallbackUsed);
-
-                return info;
-            }
-            catch (Exception) when (fallbackUsed)
-            {
-                _healthState = SandboxHealthState.Fallback;
-                throw;
-            }
-        }
+        return await _lifecycleActor.EnterAsync(options, ct).ConfigureAwait(false);
     }
 
     public async Task ExitSandboxAsync(CancellationToken ct = default)
     {
-        using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
-            if (_activeProvider is null || _activeSandboxId is null)
-            {
-                _logger?.LogDebug("[SandboxManager] 不在沙箱中，无需退出");
-                return;
-            }
-
-            var provider = _activeProvider;
-            var sandboxId = _activeSandboxId;
-
-            try
-            {
-                await provider.DestroySandboxAsync(sandboxId, ct).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogWarning(ex, "[SandboxManager] 销毁沙箱异常，强制清理 - Id: {Id}", sandboxId);
-                _healthState = SandboxHealthState.Degraded;
-            }
-
-            _activeProvider = null;
-            _activeSandboxId = null;
-
-            _logger?.LogInformation("[SandboxManager] 沙箱已退出 - 类型: {Type}", provider.SandboxType);
-        }
+        await _lifecycleActor.ExitAsync(ct).ConfigureAwait(false);
     }
 
     public async Task SwitchProviderAsync(SandboxType type, CancellationToken ct = default)
     {
-        using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
-            var previousType = _activeProvider?.SandboxType ?? SandboxType.None;
-            var previousInfo = CurrentSandbox;
-
-            if (_activeProvider is not null && _activeSandboxId is not null)
-            {
-                try
-                {
-                    await _activeProvider.DestroySandboxAsync(_activeSandboxId, ct).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogWarning(ex, "[SandboxManager] 切换时销毁旧沙箱异常 - Id: {Id}", _activeSandboxId);
-                }
-            }
-
-            var (newProvider, fallbackUsed) = ResolveProviderWithFallback(type);
-
-            var newOptions = new SandboxOptions
-            {
-                Type = newProvider.SandboxType,
-                RestrictNetwork = previousInfo?.RestrictNetwork ?? true,
-                RestrictFileSystem = previousInfo?.RestrictFileSystem ?? true,
-                AllowedPaths = previousInfo?.AllowedPaths ?? [],
-                SandboxRoot = previousInfo?.RootPath,
-                MemoryLimitMb = 0,
-                CpuLimitPercent = 0,
-                TimeLimitSeconds = 0
-            };
-
-            var newInfo = await newProvider.CreateSandboxAsync(newOptions, ct).ConfigureAwait(false);
-
-            _activeProvider = newProvider;
-            _activeSandboxId = newInfo.SandboxId;
-            _healthState = fallbackUsed ? SandboxHealthState.Fallback : SandboxHealthState.Healthy;
-
-            _logger?.LogInformation("[SandboxManager] 沙箱切换: {From} → {To}, 新 Id: {Id}, 降级: {Fallback}",
-                previousType.ToValue(), newProvider.SandboxType.ToValue(), newInfo.SandboxId, fallbackUsed);
-        }
+        await _lifecycleActor.SwitchAsync(type, ct).ConfigureAwait(false);
     }
 
     public async Task<SandboxDegradationResult> TryEnterWithFallbackAsync(SandboxOptions options, CancellationToken ct = default)
@@ -232,7 +140,7 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
                 };
 
                 var info = await EnterSandboxAsync(fallbackOptions, ct).ConfigureAwait(false);
-                _healthState = SandboxHealthState.Fallback;
+                _lifecycleActor.SetHealthState(SandboxHealthState.Fallback);
 
                 return new SandboxDegradationResult
                 {
@@ -266,12 +174,14 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
 
     public string ResolvePath(string path)
     {
-        if (_activeProvider is null || _activeSandboxId is null)
+        var activeProvider = _lifecycleActor.ActiveProvider;
+        var activeSandboxId = _lifecycleActor.ActiveSandboxId;
+        if (activeProvider is null || activeSandboxId is null)
         {
             return Path.GetFullPath(path);
         }
 
-        return _activeProvider.ResolvePath(path, _activeSandboxId);
+        return activeProvider.ResolvePath(path, activeSandboxId);
     }
 
     public async Task<SandboxInfo> CreateSandboxAsync(SandboxType type, SandboxOptions options, CancellationToken ct = default)
@@ -386,9 +296,9 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
             {
                 await _ipcClient.StartAsync(ct: ct).ConfigureAwait(false);
 
-                if (_ipcClient.SatelliteProcessId is int satellitePid && _activeProvider is ProcessSandboxProvider psp && _activeSandboxId is not null)
+                if (_ipcClient.SatelliteProcessId is int satellitePid && _lifecycleActor.ActiveProvider is ProcessSandboxProvider psp && _lifecycleActor.ActiveSandboxId is not null)
                 {
-                    if (!psp.TryAssignProcessToJobObject(_activeSandboxId, satellitePid))
+                    if (!psp.TryAssignProcessToJobObject(_lifecycleActor.ActiveSandboxId!, satellitePid))
                     {
                         _logger?.LogWarning("[SandboxManager] 将卫星进程 {Pid} 加入 JobObject 失败", satellitePid);
                     }
@@ -419,14 +329,17 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
         var configuredTimeout = TimeSpan.FromSeconds(timeoutSeconds);
         var stopwatch = Stopwatch.StartNew();
 
-        var workingDir = _activeProvider is not null && _activeSandboxId is not null
-            ? _activeProvider.ResolvePath(".", _activeSandboxId)
+        var activeProvider = _lifecycleActor.ActiveProvider;
+        var activeSandboxId = _lifecycleActor.ActiveSandboxId;
+
+        var workingDir = activeProvider is not null && activeSandboxId is not null
+            ? activeProvider.ResolvePath(".", activeSandboxId)
             : _fs.GetCurrentDirectory();
 
         var envVars = new Dictionary<string, string>();
-        if (_activeProvider is not null && _activeSandboxId is not null)
+        if (activeProvider is not null && activeSandboxId is not null)
         {
-            var sandboxInfo = _activeProvider.GetSandboxInfo(_activeSandboxId);
+            var sandboxInfo = activeProvider.GetSandboxInfo(activeSandboxId);
             if (sandboxInfo is not null)
             {
                 if (sandboxInfo.RestrictFileSystem)
@@ -525,17 +438,20 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
         var configuredTimeout = TimeSpan.FromSeconds(timeoutSeconds);
         var stopwatch = Stopwatch.StartNew();
 
-        if (_activeProvider is not null && _activeSandboxId is not null)
+        var activeProvider = _lifecycleActor.ActiveProvider;
+        var activeSandboxId = _lifecycleActor.ActiveSandboxId;
+
+        if (activeProvider is not null && activeSandboxId is not null)
         {
-            var sandboxInfo = _activeProvider.GetSandboxInfo(_activeSandboxId);
+            var sandboxInfo = activeProvider.GetSandboxInfo(activeSandboxId);
             if (sandboxInfo is not null && sandboxInfo.RestrictNetwork
-                && !_activeProvider.Capabilities.HasFlag(SandboxCapabilities.NetworkIsolation))
+                && !activeProvider.Capabilities.HasFlag(SandboxCapabilities.NetworkIsolation))
             {
-                _logger?.LogWarning("[SandboxManager] 网络隔离已请求但当前沙箱类型 {Type} 不支持内核级网络隔离，仅通过环境变量建议性限制", _activeProvider.SandboxType.ToValue());
+                _logger?.LogWarning("[SandboxManager] 网络隔离已请求但当前沙箱类型 {Type} 不支持内核级网络隔离，仅通过环境变量建议性限制", activeProvider.SandboxType.ToValue());
             }
 
-            var providerResult = await _activeProvider.ExecuteAsync(
-                _activeSandboxId, command, null, (int)configuredTimeout.TotalMilliseconds, ct).ConfigureAwait(false);
+            var providerResult = await activeProvider.ExecuteAsync(
+                activeSandboxId, command, null, (int)configuredTimeout.TotalMilliseconds, ct).ConfigureAwait(false);
 
             if (providerResult is not null)
             {
@@ -556,8 +472,8 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
             }
         }
 
-        var workingDir = _activeProvider is not null && _activeSandboxId is not null
-            ? _activeProvider.ResolvePath(".", _activeSandboxId)
+        var workingDir = activeProvider is not null && activeSandboxId is not null
+            ? activeProvider.ResolvePath(".", activeSandboxId)
             : _fs.GetCurrentDirectory();
 
         var builder = new IO.ProcessService.ProcessStartInfoBuilder(new IO.ProcessService.ProcessEncodingProvider());
@@ -824,7 +740,10 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
         execution.Stopwatch.Stop();
     }
 
-    protected override void OnDispose() => _lock.Dispose();
+    protected override void OnDispose()
+    {
+        _ = _lifecycleActor.DisposeAsync();
+    }
 }
 
 internal sealed class SandboxActiveExecution

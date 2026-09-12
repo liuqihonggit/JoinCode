@@ -156,7 +156,10 @@ public class PriorityMailboxTest
         actor.SetGate(gateTcs);
 
         actor.TrySend(1, MessagePriority.High).Should().BeTrue();
-        actor.TrySend(2, MessagePriority.High).Should().BeFalse();
+        await WaitUntilAsync(() => actor.MailboxCountByPriority(MessagePriority.High) == 0, TimeSpan.FromSeconds(5));
+
+        actor.TrySend(2, MessagePriority.High).Should().BeTrue();
+        actor.TrySend(3, MessagePriority.High).Should().BeFalse();
 
         gateTcs.SetResult();
         await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 1, TimeSpan.FromSeconds(5));

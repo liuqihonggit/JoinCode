@@ -17,8 +17,8 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private bool _isPreferencesLoaded;
     private bool _isRefreshingConfig;
     private bool _isApplyingExternalTheme;
-    private System.IO.FileSystemWatcher? _modelConfigWatcher;
-    private DateTime _lastConfigReload = DateTime.MinValue;
+    private IFileSystemWatcher? _modelConfigWatcher;
+    private readonly IFileSystem _fileSystem;
 
     /// <summary>异步操作硬超时（防止命令续体在单线程上下文死锁）</summary>
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(5);
@@ -535,7 +535,8 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
         _realSession = session;
         // 配置服务的文件系统跟随 preferencesStore：生产传 null → PhysicalFileSystem；
         // 测试传 InMemory store → 全程密闭，不读写真实 ~/.jcc/settings.json（防并行测试互扰+污染用户配置）
-        _configService = new Core.Configuration.ConfigurationService(preferencesStore?.FileSystem ?? new IO.FileSystem.PhysicalFileSystem());
+        _fileSystem = preferencesStore?.FileSystem ?? new IO.FileSystem.PhysicalFileSystem();
+        _configService = new Core.Configuration.ConfigurationService(_fileSystem);
         _session = session ?? new Hosting.PlaceholderChatSession(_configService, _modelConfigLoader);
         _sessionStore = store ?? new Persistence.GuiSessionStore(new IO.FileSystem.PhysicalFileSystem());
         _preferencesStore = preferencesStore ?? new Persistence.GuiPreferencesStore(new IO.FileSystem.PhysicalFileSystem());
@@ -681,28 +682,21 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
     {
         var path = AppDataConstants.Paths.SettingsFilePath;
         var dir = System.IO.Path.GetDirectoryName(path);
-        if (string.IsNullOrEmpty(dir) || !System.IO.Directory.Exists(dir))
+        if (string.IsNullOrEmpty(dir) || !_fileSystem.DirectoryExists(dir))
             return;
 
         _modelConfigWatcher?.Dispose();
-#pragma warning disable JCC9005
-        _modelConfigWatcher = new System.IO.FileSystemWatcher(dir, System.IO.Path.GetFileName(path))
-        {
-            NotifyFilter = System.IO.NotifyFilters.FileName | System.IO.NotifyFilters.LastWrite,
-            EnableRaisingEvents = true
-        };
-#pragma warning restore JCC9005
-        _modelConfigWatcher.Changed += OnModelConfigChanged;
-        _modelConfigWatcher.Created += OnModelConfigChanged;
+        _modelConfigWatcher = _fileSystem.Watch(dir, System.IO.Path.GetFileName(path));
+        _modelConfigWatcher.NotifyFilter = System.IO.NotifyFilters.FileName | System.IO.NotifyFilters.LastWrite;
+        _modelConfigWatcher.DebounceInterval = TimeSpan.FromSeconds(1);
+        _modelConfigWatcher.EnableRaisingEvents = true;
+        _modelConfigWatcher.DebouncedChanged += OnModelConfigChanged;
+        _modelConfigWatcher.DebouncedCreated += OnModelConfigChanged;
     }
 
-    /// <summary>settings.json 变更事件 — 防抖 1s 后在 UI 线程刷新配置</summary>
-    private void OnModelConfigChanged(object sender, System.IO.FileSystemEventArgs e)
+    /// <summary>settings.json 变更事件 — 在 UI 线程刷新配置（防抖由 IFileSystemWatcher.DebouncedChanged 接管）</summary>
+    private void OnModelConfigChanged(object? sender, FileChangedEventArgs e)
     {
-        var now = DateTime.UtcNow;
-        if ((now - _lastConfigReload).TotalMilliseconds < 1000)
-            return;
-        _lastConfigReload = now;
         Avalonia.Threading.Dispatcher.UIThread.Post(RefreshModelOptionsFromConfig);
     }
 

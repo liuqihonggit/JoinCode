@@ -47,7 +47,7 @@ $projectMap = @{
     'Infra'         = @{ Dir = 'tests\Unit\Infra.Tests';                Src = 'Infrastructure.csproj' }
     'Host'          = @{ Dir = 'tests\Unit\Host.Tests';                 Src = 'JoinCode.csproj' }
     'AotSafety'     = @{ Dir = 'generators\AotSafety.Generator\tests';  Src = 'AotSafety.Generator.csproj' }
-    'JccAuditCli'   = @{ Dir = 'tools\JccAuditAstCli\tests';           Src = 'JccAuditCli.csproj' }
+    'JccAuditCli'   = @{ Dir = 'tools\jcc_audit_ast_cli\tests';           Src = 'JccAuditCli.csproj' }
 }
 
 function Run-Stryker {

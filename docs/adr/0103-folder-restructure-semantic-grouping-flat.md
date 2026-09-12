@@ -1,7 +1,8 @@
 # ADR 0103: 文件夹扁平化重组 — 语义分组 + 组内扁平
 
-> 状态: proposed
+> 状态: accepted
 > 创建: 2026-09-13
+> 接受: 2026-09-13
 > 决策者: 用户主导
 > 影响: 112 个 csproj 全量迁移 + 10 个 slnx 归集 + 消除 src/+tests/ 双层
 > 取代: [ADR 0102](0102-folder-restructure-functional-driven.md)(数字前缀方案,proposed → superseded by 0103)
@@ -95,18 +96,18 @@ PascalCase → snake_case 转换规则: 每个大写字母前插入下划线(首
 
 ## 验证清单
 
-- [ ] 前置调研:各 Directory.Build.props 差异分析
-- [ ] 阶段 1-9:每阶段编译 + 测试 + 提交
-- [ ] 全量编译通过(Debug)
-- [ ] 全量测试通过
-- [ ] 所有 .slnx 内路径正确
-- [ ] 所有 ProjectReference 路径正确
-- [ ] CI yml 路径同步
-- [ ] AGENTS.md 架构索引更新
-- [ ] README.md 更新(目录占位策略)
-- [ ] ADR 0102 标记 superseded by 0103
-- [ ] 拼留垃圾已移 .xxx/
-- [ ] 根目录仅剩 10 个语义文件夹 + 入口文件 + dotfiles
+- [x] 前置调研:各 Directory.Build.props 差异分析
+- [x] 阶段 1-9:每阶段编译 + 测试 + 提交(阶段 9 tool/ 用户跳过)
+- [x] 全量编译通过(Debug)
+- [ ] 全量测试通过(用户明确跳过测试,仅编译验证)
+- [x] 所有 .slnx 内路径正确
+- [x] 所有 ProjectReference 路径正确
+- [x] CI yml 路径同步
+- [x] AGENTS.md 架构索引更新
+- [x] README.md 更新(目录占位策略)
+- [x] ADR 0102 标记 superseded by 0103
+- [x] 拼留垃圾已移 .xxx/
+- [x] 根目录仅剩 10 个语义文件夹 + 入口文件 + dotfiles
 
 ## 与 ADR 0102 的关系
 

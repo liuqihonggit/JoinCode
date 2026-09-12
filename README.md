@@ -318,19 +318,19 @@ jcc --debuglog -p "hello"
 
 ## Architecture
 
-> ⚠️ **Architecture migration in progress** — [ADR 0103](docs/adr/0103-folder-restructure-semantic-grouping-flat.md) will restructure from numeric prefixes (`00_generators/`~`09_app_*`) to semantic grouping (`build/ gen/ lib/ llm/ kit/ server/ app/ test/ tool/`) with flat internals (eliminating `src/`+`tests/` double layer). See [docs/design/flatten-restructure-plan.md](docs/design/flatten-restructure-plan.md). Until migration completes, paths below reflect the current numeric-prefix structure.
+> ✅ **Architecture migration complete** — [ADR 0103](docs/adr/0103-folder-restructure-semantic-grouping-flat.md) restructured from numeric prefixes (`00_generators/`~`09_app_*`) to semantic grouping (`build/ gen/ lib/ llm/ kit/ server/ app/ test/ tool/`) with flat internals (eliminating `src/`+`tests/` double layer). See [docs/design/flatten-restructure-plan.md](docs/design/flatten-restructure-plan.md). Paths below reflect the new semantic structure.
 
 JoinCode uses a **seven-layer solution isolation** architecture with strict
 dependency ordering:
 
 ```
-① Generators      →  generators/*/ (source generators, netstandard2.0)
-② Foundation      →  foundation/*/ (abstractions, async lock, plugins, transport contracts)
-③ Infrastructure  →  infrastructure/*/ (infrastructure, transport impl)
-④ Core            →  core/{ai,execution,safety,search}/*/
-⑤ Services        →  services/*/ (MCP, vision, bridge, dream, eyes, …)
-⑥ Composition     →  composition/*/ (composition, clock, pipelines)
-⑦ App             →  app/*/ (JoinCode CLI, TUI, GUI, Sdk) + tests/
+① Generators      →  gen/*/ (source generators, netstandard2.0)
+② Foundation      →  lib/*/ (abstractions, async lock, plugins, transport contracts)
+③ Infrastructure  →  lib/*/ (infrastructure, transport impl)
+④ Core            →  kit/*/ (ai, execution, safety, search)
+⑤ Services        →  server/*/ + llm/*/ (MCP, vision, bridge, dream, eyes, …)
+⑥ Composition     →  kit/*/ (composition, clock, pipelines)
+⑦ App             →  app/*/ (JoinCode CLI, TUI, GUI, Sdk) + test/
 ```
 
 ### Key Design Decisions

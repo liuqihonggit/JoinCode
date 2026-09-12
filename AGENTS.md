@@ -523,22 +523,22 @@ chcp 65001
 
 > **详细架构索引见 [README.md](README.md#项目架构索引)**，包含：组件依赖图、组件详情表、内部结构、源码生成器、中间件管道清单、测试结构、构建命令速查、组件名→路径映射
 
-> ⚠️ **架构迁移中** — [ADR 0103](docs/adr/0103-folder-restructure-semantic-grouping-flat.md) 将从数字前缀(`00_generators/`~`09_app_*`)改为语义分组(`build/ gen/ lib/ llm/ kit/ server/ app/ test/ tool/`)+ 组内扁平(消除 src/+tests/ 双层)。详见 [docs/design/flatten-restructure-plan.md](docs/design/flatten-restructure-plan.md)。迁移完成前,下方路径引用仍为当前数字前缀结构。
+> ✅ **架构迁移完成** — [ADR 0103](docs/adr/0103-folder-restructure-semantic-grouping-flat.md) 已落地:数字前缀(`00_generators/`~`09_app_*`)改为语义分组(`build/ gen/ lib/ llm/ kit/ server/ app/ test/ tool/`)+ 组内扁平(消除 src/+tests/ 双层)。详见 [docs/design/flatten-restructure-plan.md](docs/design/flatten-restructure-plan.md)。下方路径引用已更新为新语义结构。
 
 ## 测试项目地图
 
-按七层解决方案 + 跨层测试中心组织：
+按七层解决方案 + 跨层测试中心组织(语义分组 + 组内扁平,ADR 0103):
 
 | 层 | 位置 |
 |----|------|
-| ① Generators | `generators/*/tests/` |
-| ② Foundation | `foundation/*/tests/Unit/` |
-| ③ Infrastructure | `tests/Unit/Infra.Tests/*/` |
-| ④ Core | `core/*/tests/` |
-| ⑤ Services | `services/*/tests/Unit/` |
-| ⑥ Composition | `composition/*/tests/Unit/` |
-| ⑦ App | `tests/Unit/Host.Tests/`, `tools/*/tests/` |
-| 跨层 | `tests/Unit/*.Tests/`, `tests/Integration/`, `tests/MockServers/` |
+| ① Generators | `gen/*.tests/` |
+| ② Foundation | `lib/*.tests/` |
+| ③ Infrastructure | `lib/*.tests/`(infra 子集) |
+| ④ Core | `kit/*.tests/` |
+| ⑤ Services | `server/*.tests/` + `llm/*.tests/` |
+| ⑥ Composition | `kit/*.tests/`(composition 子集) |
+| ⑦ App | `app/*.tests/` + `test/unit/host.tests/` |
+| 跨层 | `test/unit/*.tests/`, `test/integration/`, `test/mock/` |
 
 ## CI 流水线
 

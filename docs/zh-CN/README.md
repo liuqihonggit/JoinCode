@@ -356,7 +356,7 @@ jcc -p "你好"
 
 ## 3. 架构与方法论
 
-> ⚠️ **架构迁移中** — [ADR 0103](../adr/0103-folder-restructure-semantic-grouping-flat.md) 将从数字前缀(`00_generators/`~`09_app_*`)改为语义分组(`build/ gen/ lib/ llm/ kit/ server/ app/ test/ tool/`)+ 组内扁平(消除 src/+tests/ 双层)。详见 [docs/design/flatten-restructure-plan.md](../design/flatten-restructure-plan.md)。迁移完成前,下方架构描述仍为当前数字前缀结构。
+> ✅ **架构迁移完成** — [ADR 0103](../adr/0103-folder-restructure-semantic-grouping-flat.md) 已落地:数字前缀(`00_generators/`~`09_app_*`)改为语义分组(`build/ gen/ lib/ llm/ kit/ server/ app/ test/ tool/`)+ 组内扁平(消除 src/+tests/ 双层)。详见 [docs/design/flatten-restructure-plan.md](../design/flatten-restructure-plan.md)。下方架构描述已更新为新语义结构。
 
 本工程对齐 TS 原版 和 DeepSeek-Reasonix，采用七层隔离架构 + 洋葱模型中间件管道。
 

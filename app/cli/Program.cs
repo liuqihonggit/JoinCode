@@ -265,7 +265,7 @@ class Program
     /// ⚠️ Timer 回调中禁止在 <see cref="Environment.Exit(int)"/> 之前写 Console.Error：
     /// 当 stderr 被重定向到未读取的 pipe（如 PowerShell <c>Start-Process -RedirectStandardError</c>）时，
     /// Console.Error.WriteLine 会阻塞，导致 <see cref="Environment.Exit(int)"/> 永远不执行，
-    /// 进程卡死。详见 <c>docs/AI交互文档/MockServer测试问题清单.md</c> P2-1。
+    /// 进程卡死。详见 <c>docs/ai_interaction_docs/MockServer测试问题清单.md</c> P2-1。
     /// 启动时的日志 + ExitCode=AwaitTimeout 已足够诊断超时触发。
     /// </remarks>
     private static System.Threading.Timer? StartAwaitTimer(CommandLineOptions options, ILogger? logger = null)

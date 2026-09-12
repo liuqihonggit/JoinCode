@@ -80,6 +80,6 @@ app/JoinCodeGui/
 tests/Unit/JoinCodeGui.Tests/
 └── Views/
     └── SlashPaletteRenderTests.cs [新] 截图红测试 → 绿
-docs/avalonia-host/
+docs/avalonia_host/
 └── 任务-Slash补全面板美化.md      [新] 本文档
 ```

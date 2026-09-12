@@ -50,8 +50,8 @@
 
 > ADR: [0022](0022-csharp-ast-cli-over-regex.md)（C# AST CLI 优先于正则）
 
-1. **C# AST CLI 优先**：涉及 C# 源码的批量分析/重构/检测，优先使用 `tools/JccAuditAstCli`（基于 Roslyn 的 AST 分析工具），而非正则或文本替换
-   - 构建命令：`dotnet build tools/JccAuditAstCli/JccAuditCli.csproj -c Release`
+1. **C# AST CLI 优先**：涉及 C# 源码的批量分析/重构/检测，优先使用 `tools/jcc_audit_ast_cli`（基于 Roslyn 的 AST 分析工具），而非正则或文本替换
+   - 构建命令：`dotnet build tools/jcc_audit_ast_cli/JccAuditCli.csproj -c Release`
    - 输出路径：`artifacts/bin/JccAuditCli/Release/net10.0/jcc-audit.exe`
    - 适用场景：Nullable 抑制检测、using 组织分析、命名规范检查、DI 注册验证等需要语义理解的场景
    - **子命令按功能分三组**（`jcc-audit --help` 查看完整用法）：

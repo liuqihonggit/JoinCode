@@ -7,6 +7,7 @@ namespace JoinCode.ChatCommands;
 /// 架构差异：TS 有多智能体颜色管理（AgentColorManager），C# 为终端颜色主题设置
 /// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Color, Description = "设置终端颜色主题或测试颜色支持", Usage = "/color [theme|test|reset]", Category = ChatCommandCategory.Config, ArgumentHint = "[theme|test|reset]")]
+[ChatCommandArg("action", Type = "string", Description = "颜色操作: theme=设置主题, test=测试颜色支持, reset=重置默认", Enum = new[] { "theme", "test", "reset" })]
 public sealed class ColorCommand : ChatCommandBase
 {
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

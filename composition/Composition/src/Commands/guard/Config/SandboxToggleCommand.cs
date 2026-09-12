@@ -2,6 +2,7 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.SandboxToggle, Description = "切换沙箱模式", Usage = "/sandbox-toggle [on|off|status|exclude|switch]", Category = ChatCommandCategory.Config, Aliases = ["sandbox"], ArgumentHint = "[on|off|status|exclude|switch]", IsHidden = true)]
+[ChatCommandArg("action", Type = "string", Description = "沙箱操作", Enum = new[] { "on", "off", "status", "exclude", "switch" }, Default = "status")]
 public sealed class SandboxToggleCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

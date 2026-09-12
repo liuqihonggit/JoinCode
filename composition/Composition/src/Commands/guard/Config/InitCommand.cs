@@ -2,6 +2,7 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Init, Description = "AI驱动初始化项目配置文件", Usage = "/init [quick]", Category = ChatCommandCategory.Config, ArgumentHint = "[quick]")]
+[ChatCommandArg("mode", Type = "string", Description = "初始化模式: quick=快速模式", Enum = new[] { "quick" })]
 public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : ChatCommandBase
 {
     private readonly IModelConfigLoader? _modelConfigLoader = modelConfigLoader;

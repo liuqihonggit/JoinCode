@@ -1,6 +1,7 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Vim, Description = "切换 Vim 输入模式 (无参数时 toggle)", Usage = "/vim [on|off]", Category = ChatCommandCategory.Config)]
+[ChatCommandArg("action", Type = "string", Description = "Vim 模式动作,省略时 toggle", Enum = new[] { "on", "off" })]
 public sealed class VimCommand : ToggleCommandBase
 {
     public override string Name => ChatCommandNameConstants.Vim;

@@ -7,6 +7,7 @@ namespace JoinCode.ChatCommands;
 /// 架构差异：TS 未实现，C# 扩展实现了过滤和格式化
 /// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Env, Description = "显示环境变量", Usage = "/env [filter]", Category = ChatCommandCategory.Config, ArgumentHint = "[filter]")]
+[ChatCommandArg("filter", Type = "string", Description = "环境变量名过滤关键词")]
 public sealed class EnvCommand : ChatCommandBase
 {
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

@@ -8,6 +8,8 @@ namespace JoinCode.ChatCommands;
 /// 架构差异：TS 有 trustedDevice/growthbook/policyLimits 等 Anthropic 专有刷新，C# 为多 Provider 架构
 /// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Login, Description = "登录到 AI 服务", Usage = "/login [provider] [--oauth]", Category = ChatCommandCategory.Auth)]
+[ChatCommandArg("provider", Type = "string", Description = "AI 服务供应商名称")]
+[ChatCommandArg("oauth", Type = "boolean", Description = "使用 OAuth 登录而非 API Key", Default = "false")]
 public sealed class LoginCommand : ChatCommandBase
 {
     private static readonly string AuthPath = AppDataConstants.Paths.AuthFilePath;

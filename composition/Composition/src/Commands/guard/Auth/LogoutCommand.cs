@@ -7,6 +7,7 @@ namespace JoinCode.ChatCommands;
 /// 架构差异：TS 有 trustedDevice/growthbook/policyLimits 等 Anthropic 专有缓存，C# 为多 Provider 架构
 /// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Logout, Description = "登出 AI 服务", Usage = "/logout [provider]", Category = ChatCommandCategory.Auth)]
+[ChatCommandArg("provider", Type = "string", Description = "要登出的供应商名称,省略则登出当前")]
 public sealed class LogoutCommand : ChatCommandBase
 {
     private static readonly string AuthPath = AppDataConstants.Paths.AuthFilePath;

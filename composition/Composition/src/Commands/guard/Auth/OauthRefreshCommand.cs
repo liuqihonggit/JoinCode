@@ -2,6 +2,7 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.OauthRefresh, Description = "刷新 OAuth Token", Usage = "/oauth-refresh [provider]", Category = ChatCommandCategory.Auth, ArgumentHint = "[provider]", IsHidden = true)]
+[ChatCommandArg("provider", Type = "string", Description = "要刷新 Token 的供应商名称")]
 public sealed class OauthRefreshCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

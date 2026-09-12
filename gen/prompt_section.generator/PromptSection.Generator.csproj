@@ -5,7 +5,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="$(MSBuildThisFileDirectory)..\..\shared\AttributeScanner.cs" Link="shared\AttributeScanner.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)..\shared\AttributeScanner.cs" Link="shared\AttributeScanner.cs" />
   </ItemGroup>
 
 </Project>

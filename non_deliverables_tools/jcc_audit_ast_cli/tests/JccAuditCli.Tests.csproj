@@ -15,7 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)non_deliverables_tools/jcc_audit_ast_cli/JccAuditCli.csproj" />
-    <ProjectReference Include="$(RepoRoot)00_generators/aot_safety.generator/src/AotSafety.Generator.csproj" />
+    <ProjectReference Include="$(RepoRoot)gen/aot_safety.generator/AotSafety.Generator.csproj" />
   </ItemGroup>
 
   <ItemGroup>

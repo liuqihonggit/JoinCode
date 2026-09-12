@@ -15,7 +15,7 @@
 
   <ItemGroup>
     <!-- [EnumValue] 源码生成器 — TUI 枚举(ToolBarAction/FooterTab等)生成 XxxConstants -->
-    <ProjectReference Include="$(RepoRoot)00_generators/enum_metadata.generator/src/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)gen/enum_metadata.generator/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>

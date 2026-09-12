@@ -26,9 +26,9 @@ jobs:
             csproj: 01_shared/shared_structura/tests/unit/Structura.Tests.csproj
           # Generators
           - name: AotSafety
-            csproj: 00_generators/aot_safety.generator/tests/AotSafety.Tests.csproj
+            csproj: gen/aot_safety.tests/AotSafety.Tests.csproj
           - name: FsmGenerator
-            csproj: 00_generators/fsm.generator/tests/Fsm.Generator.Tests.csproj
+            csproj: gen/fsm.generator.tests/Fsm.Generator.Tests.csproj
           # Infrastructure
           - name: InfraIO
             csproj: tests/unit/infra.tests/io/Infra.IO.Tests.csproj

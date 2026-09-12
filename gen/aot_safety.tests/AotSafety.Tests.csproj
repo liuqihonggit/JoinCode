@@ -12,8 +12,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)00_generators/aot_safety.generator/src/AotSafety.Generator.csproj" />
-    <ProjectReference Include="$(RepoRoot)00_generators/code_fixes/src/CodeFixes.csproj" />
+    <ProjectReference Include="$(RepoRoot)gen/aot_safety.generator/AotSafety.Generator.csproj" />
+    <ProjectReference Include="$(RepoRoot)gen/code_fixes/CodeFixes.csproj" />
   </ItemGroup>
 
   <ItemGroup>

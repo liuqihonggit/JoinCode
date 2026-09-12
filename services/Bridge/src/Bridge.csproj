@@ -6,12 +6,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)foundation\Abstractions\Abstractions.csproj" />
-    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)infrastructure\Infrastructure\Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared\shared_abstractions\Abstractions.csproj" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)01_shared\shared_infrastructure\Infrastructure.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Infrastructure" Version="$(JccComponentPackageVersion)" />
-    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)foundation\Transport.Contracts\Transport.Contracts.csproj" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)01_shared\shared_transport_contracts\Transport.Contracts.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Transport.Contracts" Version="$(JccComponentPackageVersion)" />
-    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)infrastructure\Transport.Impl\Transport.Impl.csproj" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)01_shared\shared_transport_impl\Transport.Impl.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Transport.Impl" Version="$(JccComponentPackageVersion)" />
   </ItemGroup>
 

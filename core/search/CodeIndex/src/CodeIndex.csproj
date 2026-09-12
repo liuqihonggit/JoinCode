@@ -13,11 +13,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)foundation\Abstractions\Abstractions.csproj" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)01_shared\shared_abstractions\Abstractions.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions" Version="$(JccComponentPackageVersion)" />
-    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)infrastructure\Infrastructure\Infrastructure.csproj" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)01_shared\shared_infrastructure\Infrastructure.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Infrastructure" Version="$(JccComponentPackageVersion)" />
-    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)foundation\Structura\Structura.csproj" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)01_shared\shared_structura\Structura.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Structura" Version="$(JccComponentPackageVersion)" />
   </ItemGroup>
 

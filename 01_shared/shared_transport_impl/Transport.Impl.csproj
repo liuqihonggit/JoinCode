@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AllowPack>true</AllowPack>
+    <PackageId>JoinCode.Transport.Impl</PackageId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)01_shared\shared_transport_contracts\Transport.Contracts.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Transport.Contracts" Version="$(JccComponentPackageVersion)" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)01_shared\shared_abstractions\Abstractions.csproj" />
+    <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions" Version="$(JccComponentPackageVersion)" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)01_shared\shared_infrastructure\Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="JoinCode.Infra.Transport.Tests" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+  </ItemGroup>
+</Project>

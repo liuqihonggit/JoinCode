@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <RootNamespace>Mcp.UniqueTests</RootNamespace>
@@ -8,9 +8,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(RepoRoot)foundation\Abstractions\Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared\shared_abstractions\Abstractions.csproj" />
     <ProjectReference Include="$(RepoRoot)services\Mcp\src\Mcp.csproj" />
-    <ProjectReference Include="$(RepoRoot)infrastructure\Infrastructure\Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared\shared_infrastructure\Infrastructure.csproj" />
     <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
   </ItemGroup>
 

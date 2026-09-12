@@ -11,15 +11,15 @@
     <Project Path="00_generators/PromptTemplate.Generator/src/PromptTemplate.Generator.csproj" />
     <Project Path="00_generators/ToolPrompt.Generator/src/ToolPrompt.Generator.csproj" />
   </Folder>
-  <Folder Name="/foundation/">
-    <Project Path="foundation/Abstractions/Abstractions.csproj" />
-    <Project Path="foundation/Structura/Structura.csproj" />
-    <Project Path="foundation/Structura/tests/Unit/Structura.Tests.csproj" />
-    <Project Path="foundation/Transport.Contracts/Transport.Contracts.csproj" />
+  <Folder Name="/01_shared/">
+    <Project Path="01_shared/shared_abstractions/Abstractions.csproj" />
+    <Project Path="01_shared/shared_structura/Structura.csproj" />
+    <Project Path="01_shared/shared_structura/tests/Unit/Structura.Tests.csproj" />
+    <Project Path="01_shared/shared_transport_contracts/Transport.Contracts.csproj" />
   </Folder>
   <Folder Name="/infrastructure/">
-    <Project Path="infrastructure/Infrastructure/Infrastructure.csproj" />
-    <Project Path="infrastructure/Transport.Impl/Transport.Impl.csproj" />
+    <Project Path="01_shared/shared_infrastructure/Infrastructure.csproj" />
+    <Project Path="01_shared/shared_transport_impl/Transport.Impl.csproj" />
   </Folder>
   <Folder Name="/core/ai/">
     <Project Path="core/ai/Llm/src/Llm.csproj" />
@@ -39,20 +39,20 @@
     <Project Path="core/execution/Hands/tests/Shell/Hands.Shell.Tests.csproj" />
     <Project Path="core/execution/Hands/tests/Skills/Hands.Skills.Tests.csproj" />
     <Project Path="core/execution/Hands/tests/ToolHandlers/Hands.ToolHandlers.Tests.csproj" />
-    <Project Path="core/execution/Scheduling/src/Scheduling.csproj" />
-    <Project Path="core/execution/Scheduling/tests/Unit/Scheduling.Tests.csproj" />
+    <Project Path="01_shared/shared_scheduling/src/Scheduling.csproj" />
+    <Project Path="01_shared/shared_scheduling/tests/Unit/Scheduling.Tests.csproj" />
     <Project Path="core/execution/McpToolDispatch/src/McpToolDispatch.csproj" />
     <Project Path="core/execution/McpToolDispatch/tests/Unit/McpToolDispatch.Tests.csproj" />
   </Folder>
   <Folder Name="/core/safety/">
-    <Project Path="core/safety/Guard/src/Guard.csproj" />
-    <Project Path="core/safety/Guard/tests/Config/Guard.Config.Tests.csproj" />
-    <Project Path="core/safety/Guard/tests/Hooks/Guard.Hooks.Tests.csproj" />
-    <Project Path="core/safety/Guard/tests/Security/Guard.Security.Tests.csproj" />
-    <Project Path="core/safety/Vault/src/Vault.csproj" />
-    <Project Path="core/safety/Vault/tests/Memdir/Vault.Memdir.Tests.csproj" />
-    <Project Path="core/safety/Vault/tests/Other/Vault.Other.Tests.csproj" />
-    <Project Path="core/safety/Vault/tests/Shared/Vault.Testing.Common.csproj" />
+    <Project Path="01_shared/shared_guard/src/Guard.csproj" />
+    <Project Path="01_shared/shared_guard/tests/Config/Guard.Config.Tests.csproj" />
+    <Project Path="01_shared/shared_guard/tests/Hooks/Guard.Hooks.Tests.csproj" />
+    <Project Path="01_shared/shared_guard/tests/Security/Guard.Security.Tests.csproj" />
+    <Project Path="01_shared/shared_vault/src/Vault.csproj" />
+    <Project Path="01_shared/shared_vault/tests/Memdir/Vault.Memdir.Tests.csproj" />
+    <Project Path="01_shared/shared_vault/tests/Other/Vault.Other.Tests.csproj" />
+    <Project Path="01_shared/shared_vault/tests/Shared/Vault.Testing.Common.csproj" />
   </Folder>
   <Folder Name="/core/search/">
     <Project Path="core/search/CodeIndex/src/CodeIndex.csproj" />
@@ -75,8 +75,8 @@
   <Folder Name="/composition/">
     <Project Path="composition/Composition/src/Composition.csproj" />
     <Project Path="composition/Composition/tests/Unit/Composition.Tests.csproj" />
-    <Project Path="composition/Clock/src/Clock.csproj" />
-    <Project Path="composition/Clock/tests/Unit/Clock.Tests.csproj" />
+    <Project Path="01_shared/shared_clock/src/Clock.csproj" />
+    <Project Path="01_shared/shared_clock/tests/Unit/Clock.Tests.csproj" />
     <Project Path="composition/Pipelines/src/Pipelines.csproj" />
   </Folder>
   <Folder Name="/app/">

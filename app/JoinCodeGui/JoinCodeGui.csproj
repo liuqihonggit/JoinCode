@@ -33,7 +33,7 @@
          引擎组装收敛在 Hosting/ 触碰处，故此处引入 Composition + Pipelines 仅供 Hosting 使用 -->
     <ProjectReference Include="$(RepoRoot)app\JoinCode\JoinCode.csproj" />
     <!-- Hosting 层（JccChatSession）读取 teammate 子会话列表，需直接引用 Scheduling -->
-    <ProjectReference Include="$(RepoRoot)core\execution\Scheduling\src\Scheduling.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared\shared_scheduling\src\Scheduling.csproj" />
   </ItemGroup>
 
   <ItemGroup>

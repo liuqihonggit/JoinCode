@@ -8,8 +8,8 @@
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)core\execution\Hands\src\Hands.csproj" />
     <ProjectReference Include="$(RepoRoot)core\execution\Brain\src\Brain.csproj" />
-    <ProjectReference Include="$(RepoRoot)core\safety\Guard\src\Guard.csproj" />
-    <ProjectReference Include="$(RepoRoot)infrastructure\Infrastructure\Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared\shared_guard\src\Guard.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared\shared_infrastructure\Infrastructure.csproj" />
     <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
   </ItemGroup>
   <ItemGroup>

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <RootNamespace>JoinCode.Agents.Tests</RootNamespace>
@@ -10,7 +10,7 @@
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)core\ai\Agents\src\Agents.csproj" />
     <ProjectReference Include="$(RepoRoot)core\execution\Brain\src\Brain.csproj" />
-    <ProjectReference Include="$(RepoRoot)infrastructure\Infrastructure\Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared\shared_infrastructure\Infrastructure.csproj" />
     <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
     <ProjectReference Include="$(RepoRoot)services\Mcp\src\Mcp.csproj" />
   </ItemGroup>

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <RootNamespace>CodeIndex.E2E.Tests</RootNamespace>
@@ -9,7 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)core\search\CodeIndex\src\CodeIndex.csproj" />
-    <ProjectReference Include="$(RepoRoot)infrastructure\Infrastructure\Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared\shared_infrastructure\Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

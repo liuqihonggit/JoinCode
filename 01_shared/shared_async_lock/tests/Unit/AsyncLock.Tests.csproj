@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>AsyncLock.Tests</RootNamespace>
+    <AssemblyName>JoinCode.AsyncLock.Tests</AssemblyName>
+    <Description>JoinCode AsyncLock + LockRegistry 诊断锁单元测试</Description>
+    <NoWarn>$(NoWarn);JCC3010</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)01_shared\shared_async_lock\AsyncLock.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared\shared_abstractions\Abstractions.csproj" />
+  </ItemGroup>
+</Project>

@@ -9,9 +9,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)foundation\Abstractions\Abstractions.csproj" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)01_shared\shared_abstractions\Abstractions.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Abstractions" Version="$(JccComponentPackageVersion)" />
-    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)infrastructure\Infrastructure\Infrastructure.csproj" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)01_shared\shared_infrastructure\Infrastructure.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Infrastructure" Version="$(JccComponentPackageVersion)" />
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)core\ai\Llm\src\Llm.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Llm" Version="$(JccComponentPackageVersion)" />
@@ -19,15 +19,15 @@
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Brain" Version="$(JccComponentPackageVersion)" />
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)core\execution\Hands\src\Hands.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Hands" Version="$(JccComponentPackageVersion)" />
-    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)core\safety\Guard\src\Guard.csproj" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)01_shared\shared_guard\src\Guard.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Guard" Version="$(JccComponentPackageVersion)" />
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)services\Mcp\src\Mcp.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Mcp" Version="$(JccComponentPackageVersion)" />
-    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)core\safety\Vault\src\Vault.csproj" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)01_shared\shared_vault\src\Vault.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Vault" Version="$(JccComponentPackageVersion)" />
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)composition\Composition\src\Composition.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Composition" Version="$(JccComponentPackageVersion)" />
-    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)composition\Clock\src\Clock.csproj" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)01_shared\shared_clock\src\Clock.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Clock" Version="$(JccComponentPackageVersion)" />
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)core\ai\Agents\src\Agents.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Agents" Version="$(JccComponentPackageVersion)" />
@@ -37,7 +37,7 @@
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Bridge" Version="$(JccComponentPackageVersion)" />
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)core\search\CodeIndex\src\CodeIndex.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.CodeIndex" Version="$(JccComponentPackageVersion)" />
-    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)core\execution\Scheduling\src\Scheduling.csproj" />
+    <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)01_shared\shared_scheduling\src\Scheduling.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.Scheduling" Version="$(JccComponentPackageVersion)" />
     <ProjectReference Condition="'$(UsePackedComponents)' != 'true'" Include="$(RepoRoot)core\execution\McpToolDispatch\src\McpToolDispatch.csproj" />
     <PackageReference Condition="'$(UsePackedComponents)' == 'true'" Include="JoinCode.McpToolDispatch" Version="$(JccComponentPackageVersion)" />

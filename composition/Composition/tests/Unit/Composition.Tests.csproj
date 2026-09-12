@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <RootNamespace>Composition.Tests</RootNamespace>
@@ -11,7 +11,7 @@
     <!-- From Core.Tests.Agents -->
     <ProjectReference Include="$(RepoRoot)composition\Composition\src\Composition.csproj" />
 
-    <ProjectReference Include="$(RepoRoot)infrastructure\Infrastructure\Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared\shared_infrastructure\Infrastructure.csproj" />
     <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
     <ProjectReference Include="$(RepoRoot)services\Mcp\src\Mcp.csproj" />
   </ItemGroup>

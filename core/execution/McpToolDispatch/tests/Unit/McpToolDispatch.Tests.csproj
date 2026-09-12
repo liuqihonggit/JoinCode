@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <RootNamespace>JoinCode.McpToolDispatch.Tests</RootNamespace>
@@ -9,11 +9,11 @@
 
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)core\execution\McpToolDispatch\src\McpToolDispatch.csproj" />
-    <ProjectReference Include="$(RepoRoot)infrastructure\Infrastructure\Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared\shared_infrastructure\Infrastructure.csproj" />
     <ProjectReference Include="$(RepoRoot)tests\Unit\Testing.Common\Testing.Common.csproj" />
     <ProjectReference Include="$(RepoRoot)services\Mcp\src\Mcp.csproj" />
     <ProjectReference Include="$(RepoRoot)core\execution\Hands\src\Hands.csproj" />
-    <ProjectReference Include="$(RepoRoot)core\safety\Guard\src\Guard.csproj" />
+    <ProjectReference Include="$(RepoRoot)01_shared\shared_guard\src\Guard.csproj" />
   </ItemGroup>
 
   <ItemGroup>

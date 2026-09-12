@@ -21,9 +21,9 @@ jobs:
         include:
           # Foundation
           - name: AsyncLock
-            csproj: foundation/AsyncLock/tests/Unit/AsyncLock.Tests.csproj
+            csproj: 01_shared/shared_async_lock/tests/Unit/AsyncLock.Tests.csproj
           - name: Structura
-            csproj: foundation/Structura/tests/Unit/Structura.Tests.csproj
+            csproj: 01_shared/shared_structura/tests/Unit/Structura.Tests.csproj
           # Generators
           - name: AotSafety
             csproj: 00_generators/AotSafety.Generator/tests/AotSafety.Tests.csproj
@@ -59,7 +59,7 @@ jobs:
           - name: HandsApi
             csproj: core/execution/Hands/tests/Api/Hands.Api.Tests.csproj
           - name: Scheduling
-            csproj: core/execution/Scheduling/tests/Unit/Scheduling.Tests.csproj
+            csproj: 01_shared/shared_scheduling/tests/Unit/Scheduling.Tests.csproj
           - name: McpToolDispatch
             csproj: core/execution/McpToolDispatch/tests/Unit/McpToolDispatch.Tests.csproj
           # Core - Search
@@ -69,15 +69,15 @@ jobs:
             csproj: core/search/Browser/tests/Unit/Browser.Tests.csproj
           # Core - Safety
           - name: GuardSecurity
-            csproj: core/safety/Guard/tests/Security/Guard.Security.Tests.csproj
+            csproj: 01_shared/shared_guard/tests/Security/Guard.Security.Tests.csproj
           - name: GuardHooks
-            csproj: core/safety/Guard/tests/Hooks/Guard.Hooks.Tests.csproj
+            csproj: 01_shared/shared_guard/tests/Hooks/Guard.Hooks.Tests.csproj
           - name: GuardConfig
-            csproj: core/safety/Guard/tests/Config/Guard.Config.Tests.csproj
+            csproj: 01_shared/shared_guard/tests/Config/Guard.Config.Tests.csproj
           - name: VaultOther
-            csproj: core/safety/Vault/tests/Other/Vault.Other.Tests.csproj
+            csproj: 01_shared/shared_vault/tests/Other/Vault.Other.Tests.csproj
           - name: VaultMemdir
-            csproj: core/safety/Vault/tests/Memdir/Vault.Memdir.Tests.csproj
+            csproj: 01_shared/shared_vault/tests/Memdir/Vault.Memdir.Tests.csproj
           # Services
           - name: Mcp
             csproj: services/Mcp/tests/Unit/Mcp.Tests.csproj
@@ -93,7 +93,7 @@ jobs:
           - name: Composition
             csproj: composition/Composition/tests/Unit/Composition.Tests.csproj
           - name: Clock
-            csproj: composition/Clock/tests/Unit/Clock.Tests.csproj
+            csproj: 01_shared/shared_clock/tests/Unit/Clock.Tests.csproj
           # App / Cross-layer
           - name: Host
             csproj: tests/Unit/Host.Tests/Host.Tests.csproj

@@ -13,13 +13,13 @@
     <Project Path="services/SandboxSatellite/src/SandboxSatellite.csproj" />
     <Project Path="services/Update/src/Update.csproj" />
   </Folder>
-  <Folder Name="/foundation/">
-    <Project Path="foundation/Abstractions/Abstractions.csproj" />
-    <Project Path="foundation/Structura/Structura.csproj" />
-    <Project Path="foundation/Transport.Contracts/Transport.Contracts.csproj" />
+  <Folder Name="/01_shared/">
+    <Project Path="01_shared/shared_abstractions/Abstractions.csproj" />
+    <Project Path="01_shared/shared_structura/Structura.csproj" />
+    <Project Path="01_shared/shared_transport_contracts/Transport.Contracts.csproj" />
   </Folder>
   <Folder Name="/infrastructure/">
-    <Project Path="infrastructure/Infrastructure/Infrastructure.csproj" />
-    <Project Path="infrastructure/Transport.Impl/Transport.Impl.csproj" />
+    <Project Path="01_shared/shared_infrastructure/Infrastructure.csproj" />
+    <Project Path="01_shared/shared_transport_impl/Transport.Impl.csproj" />
   </Folder>
 </Solution>

@@ -152,13 +152,13 @@ jobs:
           DOTNET_EnableDiagnostics: 0
         run: |
           $projectMap = @{
-            'Guard-Config'         = @{ Dir = 'core\safety\Guard\tests\Config';   Src = 'Guard.csproj';           Mutate = @('Configuration/**','DependencyInjection/**','Policy/**','OAuth/**') }
-            'Guard-Security-Services'   = @{ Dir = 'core\safety\Guard\tests\Security'; Src = 'Guard.csproj'; Mutate = @('Security/Services/**') }
-            'Guard-Security-PowerShell' = @{ Dir = 'core\safety\Guard\tests\Security'; Src = 'Guard.csproj'; Mutate = @('Security/PowerShell/**') }
-            'Guard-Security-Other'      = @{ Dir = 'core\safety\Guard\tests\Security'; Src = 'Guard.csproj'; Mutate = @('Security/DangerClassification/**','Security/Sandbox/**','Security/Shell/**','Security/Scanners/**','Security/Interceptors/**','Security/Constants/**') }
-            'Guard-Hooks'          = @{ Dir = 'core\safety\Guard\tests\Hooks';    Src = 'Guard.csproj';           Mutate = @('Hooks/**','Permission/**') }
-            'Vault-Memdir'         = @{ Dir = 'core\safety\Vault\tests\Memdir';   Src = 'Vault.csproj';           Mutate = @('Memdir/**') }
-            'Vault-Other'          = @{ Dir = 'core\safety\Vault\tests\Other';    Src = 'Vault.csproj';           Mutate = @('State/**','Todo/**','UserInteraction/**','StepEvidence/**','Notification/**','DependencyInjection/**') }
+            'Guard-Config'         = @{ Dir = '01_shared\shared_guard\tests\Config';   Src = 'Guard.csproj';           Mutate = @('Configuration/**','DependencyInjection/**','Policy/**','OAuth/**') }
+            'Guard-Security-Services'   = @{ Dir = '01_shared\shared_guard\tests\Security'; Src = 'Guard.csproj'; Mutate = @('Security/Services/**') }
+            'Guard-Security-PowerShell' = @{ Dir = '01_shared\shared_guard\tests\Security'; Src = 'Guard.csproj'; Mutate = @('Security/PowerShell/**') }
+            'Guard-Security-Other'      = @{ Dir = '01_shared\shared_guard\tests\Security'; Src = 'Guard.csproj'; Mutate = @('Security/DangerClassification/**','Security/Sandbox/**','Security/Shell/**','Security/Scanners/**','Security/Interceptors/**','Security/Constants/**') }
+            'Guard-Hooks'          = @{ Dir = '01_shared\shared_guard\tests\Hooks';    Src = 'Guard.csproj';           Mutate = @('Hooks/**','Permission/**') }
+            'Vault-Memdir'         = @{ Dir = '01_shared\shared_vault\tests\Memdir';   Src = 'Vault.csproj';           Mutate = @('Memdir/**') }
+            'Vault-Other'          = @{ Dir = '01_shared\shared_vault\tests\Other';    Src = 'Vault.csproj';           Mutate = @('State/**','Todo/**','UserInteraction/**','StepEvidence/**','Notification/**','DependencyInjection/**') }
             'Brain-CtxAdmin'       = @{ Dir = 'core\execution\Brain\tests\Context'; Src = 'Brain.csproj';         Mutate = @('Context/Services/Admin/**') }
             'Brain-CtxChat'        = @{ Dir = 'core\execution\Brain\tests\Context'; Src = 'Brain.csproj';         Mutate = @('Context/Services/Chat/**','Context/Services/ChatInit/**') }
             'Brain-CtxOther'       = @{ Dir = 'core\execution\Brain\tests\Context'; Src = 'Brain.csproj';         Mutate = @('Context/Services/Preprocess/**','Context/Services/Context/**','Context/Services/Processor/**','Context/Services/Prompt/**','Context/Services/Idle/**','Context/Services/Loop/**') }
@@ -176,7 +176,7 @@ jobs:
             'Hands-SkillOther'     = @{ Dir = 'core\execution\Hands\tests\Skills'; Src = 'Hands.csproj';         Mutate = @('Skills/Discovery/**','Skills/Search/**','Skills/Utils/**') }
             'Hands-Api'            = @{ Dir = 'core\execution\Hands\tests\Api';    Src = 'Hands.csproj';           Mutate = @('Api/**','Web/**','Network/**','Integration/**') }
             'Hands-Shell'          = @{ Dir = 'core\execution\Hands\tests\Shell';  Src = 'Hands.csproj';           Mutate = @('Shell/**','FileOps/**','System/**','Voice/**','Notebook/**','Serialization/**','Build/**','Cache/**','DependencyInjection/**') }
-            'Scheduling'           = @{ Dir = 'core\execution\Scheduling\tests\Unit';     Src = 'Scheduling.csproj';      Mutate = @() }
+            'Scheduling'           = @{ Dir = '01_shared\shared_scheduling\tests\Unit';     Src = 'Scheduling.csproj';      Mutate = @() }
             'McpToolDispatch'      = @{ Dir = 'core\execution\McpToolDispatch\tests\Unit'; Src = 'McpToolDispatch.csproj'; Mutate = @() }
             'Llm'                  = @{ Dir = 'core\ai\Llm\tests\Unit';                  Src = 'Llm.csproj';             Mutate = @() }
             'Agents'               = @{ Dir = 'core\ai\Agents\tests\Unit';               Src = 'Agents.csproj';          Mutate = @() }
@@ -194,7 +194,7 @@ jobs:
             'Bridge-Messaging'    = @{ Dir = 'services\Bridge\tests\Unit'; Src = 'Bridge.csproj'; Mutate = @('Messaging/**'); Concurrency = 2 }
             'Bridge-ClientServer' = @{ Dir = 'services\Bridge\tests\Unit'; Src = 'Bridge.csproj'; Mutate = @('Client/**','Server/**','Config/**','Security/**'); Concurrency = 2 }
             'Composition'          = @{ Dir = 'composition\Composition\tests\Unit';      Src = 'Composition.csproj';     Mutate = @() }
-            'Clock'                = @{ Dir = 'composition\Clock\tests\Unit';            Src = 'Clock.csproj';           Mutate = @() }
+            'Clock'                = @{ Dir = '01_shared\shared_clock\tests\Unit';            Src = 'Clock.csproj';           Mutate = @() }
             'Infra-IO-FileOps'       = @{ Dir = 'tests\Unit\Infra.Tests\IO';                 Src = 'Infrastructure.csproj';      Test = 'Infra.IO.Tests.csproj';      Mutate = @('IO/Services/FileOps/**') }
             'Infra-IO-FsAndConfig'   = @{ Dir = 'tests\Unit\Infra.Tests\IO';                 Src = 'Infrastructure.csproj';      Test = 'Infra.IO.Tests.csproj';      Mutate = @('IO/FileSystem/**','IO/Configuration/**','IO/Services/Throttle/**') }
             'Infra-IO-ProcessAndOther' = @{ Dir = 'tests\Unit\Infra.Tests\IO';               Src = 'Infrastructure.csproj';      Test = 'Infra.IO.Tests.csproj';      Mutate = @('IO/Process/**','IO/Console/**','IO/Services/Terminal/**','IO/Services/Diff/**','Http/**','Process/**','Ssh/**','Windows/**','Shell/**') }

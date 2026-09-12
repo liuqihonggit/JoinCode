@@ -11,8 +11,8 @@
   <Folder Name="/core/execution/">
     <Project Path="core/execution/Brain/src/Brain.csproj" />
     <Project Path="core/execution/Hands/src/Hands.csproj" />
-    <Project Path="core/execution/Scheduling/src/Scheduling.csproj" />
-    <Project Path="core/execution/Scheduling/tests/Unit/Scheduling.Tests.csproj" />
+    <Project Path="01_shared/shared_scheduling/src/Scheduling.csproj" />
+    <Project Path="01_shared/shared_scheduling/tests/Unit/Scheduling.Tests.csproj" />
     <Project Path="core/execution/McpToolDispatch/src/McpToolDispatch.csproj" />
     <Project Path="core/execution/McpToolDispatch/tests/Unit/McpToolDispatch.Tests.csproj" />
   </Folder>
@@ -42,30 +42,30 @@
     <Project Path="core/execution/Hands/tests/ToolHandlers/Hands.ToolHandlers.Tests.csproj" />
   </Folder>
   <Folder Name="/core/safety/">
-    <Project Path="core/safety/Guard/src/Guard.csproj" />
-    <Project Path="core/safety/Vault/src/Vault.csproj" />
+    <Project Path="01_shared/shared_guard/src/Guard.csproj" />
+    <Project Path="01_shared/shared_vault/src/Vault.csproj" />
   </Folder>
-  <Folder Name="/core/safety/Guard/" />
-  <Folder Name="/core/safety/Guard/tests/" />
-  <Folder Name="/core/safety/Guard/tests/Config/">
-    <Project Path="core/safety/Guard/tests/Config/Guard.Config.Tests.csproj" />
+  <Folder Name="/01_shared/shared_guard/" />
+  <Folder Name="/01_shared/shared_guard/tests/" />
+  <Folder Name="/01_shared/shared_guard/tests/Config/">
+    <Project Path="01_shared/shared_guard/tests/Config/Guard.Config.Tests.csproj" />
   </Folder>
-  <Folder Name="/core/safety/Guard/tests/Hooks/">
-    <Project Path="core/safety/Guard/tests/Hooks/Guard.Hooks.Tests.csproj" />
+  <Folder Name="/01_shared/shared_guard/tests/Hooks/">
+    <Project Path="01_shared/shared_guard/tests/Hooks/Guard.Hooks.Tests.csproj" />
   </Folder>
-  <Folder Name="/core/safety/Guard/tests/Security/">
-    <Project Path="core/safety/Guard/tests/Security/Guard.Security.Tests.csproj" />
+  <Folder Name="/01_shared/shared_guard/tests/Security/">
+    <Project Path="01_shared/shared_guard/tests/Security/Guard.Security.Tests.csproj" />
   </Folder>
-  <Folder Name="/core/safety/Vault/" />
-  <Folder Name="/core/safety/Vault/tests/" />
-  <Folder Name="/core/safety/Vault/tests/Memdir/">
-    <Project Path="core/safety/Vault/tests/Memdir/Vault.Memdir.Tests.csproj" />
+  <Folder Name="/01_shared/shared_vault/" />
+  <Folder Name="/01_shared/shared_vault/tests/" />
+  <Folder Name="/01_shared/shared_vault/tests/Memdir/">
+    <Project Path="01_shared/shared_vault/tests/Memdir/Vault.Memdir.Tests.csproj" />
   </Folder>
-  <Folder Name="/core/safety/Vault/tests/Other/">
-    <Project Path="core/safety/Vault/tests/Other/Vault.Other.Tests.csproj" />
+  <Folder Name="/01_shared/shared_vault/tests/Other/">
+    <Project Path="01_shared/shared_vault/tests/Other/Vault.Other.Tests.csproj" />
   </Folder>
-  <Folder Name="/core/safety/Vault/tests/Shared/">
-    <Project Path="core/safety/Vault/tests/Shared/Vault.Testing.Common.csproj" />
+  <Folder Name="/01_shared/shared_vault/tests/Shared/">
+    <Project Path="01_shared/shared_vault/tests/Shared/Vault.Testing.Common.csproj" />
   </Folder>
   <Folder Name="/core/search/">
     <Project Path="core/search/CodeIndex/src/CodeIndex.csproj" />
@@ -74,13 +74,13 @@
     <Project Path="core/search/Browser/src/Browser.csproj" />
     <Project Path="core/search/Browser/tests/Unit/Browser.Tests.csproj" />
   </Folder>
-  <Folder Name="/foundation/">
-    <Project Path="foundation/Abstractions/Abstractions.csproj" />
-    <Project Path="foundation/Structura/Structura.csproj" />
-    <Project Path="foundation/Transport.Contracts/Transport.Contracts.csproj" />
+  <Folder Name="/01_shared/">
+    <Project Path="01_shared/shared_abstractions/Abstractions.csproj" />
+    <Project Path="01_shared/shared_structura/Structura.csproj" />
+    <Project Path="01_shared/shared_transport_contracts/Transport.Contracts.csproj" />
   </Folder>
   <Folder Name="/infrastructure/">
-    <Project Path="infrastructure/Infrastructure/Infrastructure.csproj" />
-    <Project Path="infrastructure/Transport.Impl/Transport.Impl.csproj" />
+    <Project Path="01_shared/shared_infrastructure/Infrastructure.csproj" />
+    <Project Path="01_shared/shared_transport_impl/Transport.Impl.csproj" />
   </Folder>
 </Solution>

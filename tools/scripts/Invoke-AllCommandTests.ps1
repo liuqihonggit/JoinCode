@@ -2,12 +2,13 @@
 .SYNOPSIS
     覆盖全部 MCP 工具 + 斜杠命令的全参数填充总测试
 .DESCRIPTION
-    遍历所有 MCP 工具(382) + 斜杠命令(97),对每个:
+    遍历所有 MCP 工具(394) + 斜杠命令(97),对每个:
     1. 获取参数 schema(mcp_schema / slash_schema)
     2. 生成全参数填充(启发式映射 + 可选参数也填)
     3. 调用(mcp_call / slash_call --debuglog)
-    4. 记录: ok | isError | 步骤追踪 | 退出原因
-    5. 生成 Markdown 报告
+    4. 记录: ok | isError | 步骤追踪 | 退出原因 | 耗时
+    5. 生成 Markdown 报告(含慢命令列表,>10s 需针对性优化)
+    > ADR: [0080](docs/adr/0080-manual-exe-testing-guide.md) — 手动测试 exe 功能(非mock操作)
 .PARAMETER JccDll
     jcc.dll 路径
 .PARAMETER Limit
@@ -246,7 +247,10 @@ function Test-McpTools {
 
         $toolArgs = Generate-FullArgs -Schema $schema
         $callArgs = @("mcp_call", $tool) + $toolArgs + @("--json", "--debuglog")
+        $cmdStart = [System.Diagnostics.Stopwatch]::StartNew()
         $callResult = Invoke-Jcc -CmdArgs $callArgs -Timeout $TimeoutSec
+        $cmdStart.Stop()
+        $cmdDuration = [math]::Round($cmdStart.Elapsed.TotalSeconds, 1)
 
         $isError = $false
         $contentText = ""
@@ -285,7 +289,7 @@ function Test-McpTools {
 
         $stepSummary = if ($steps.Count -gt 0) { "$($steps.Count) steps" } else { "no steps" }
 
-        Write-Host " -> $status ($stepSummary)" -ForegroundColor $(switch ($status) { "OK" { "Green" } "ERROR" { "Yellow" } default { "Red" } })
+        Write-Host " -> $status ($stepSummary) ${cmdDuration}s" -ForegroundColor $(switch ($status) { "OK" { "Green" } "ERROR" { "Yellow" } default { "Red" } })
 
         $results += [PSCustomObject]@{
             Category = "MCP"
@@ -295,6 +299,7 @@ function Test-McpTools {
             Steps    = $stepSummary
             Reason   = $exitReason
             Content  = $contentText
+            Duration = $cmdDuration
         }
     }
     return $results
@@ -329,7 +334,10 @@ function Test-SlashCommands {
 
         $toolArgs = Generate-FullArgs -Schema $schema
         $callArgs = @("slash_call", $cmd) + $toolArgs + @("--debuglog")
+        $cmdStart = [System.Diagnostics.Stopwatch]::StartNew()
         $callResult = Invoke-Jcc -CmdArgs $callArgs -Timeout $TimeoutSec
+        $cmdStart.Stop()
+        $cmdDuration = [math]::Round($cmdStart.Elapsed.TotalSeconds, 1)
 
         $contentText = $callResult.stdout.Trim()
         $steps = Extract-Steps -Stderr $callResult.stderr
@@ -350,7 +358,7 @@ function Test-SlashCommands {
 
         $stepSummary = if ($steps.Count -gt 0) { "$($steps.Count) steps" } else { "no steps" }
 
-        Write-Host " -> $status ($stepSummary)" -ForegroundColor $(switch ($status) { "OK" { "Green" } "SKIP" { "DarkGray" } "ERROR" { "Yellow" } default { "Red" } })
+        Write-Host " -> $status ($stepSummary) ${cmdDuration}s" -ForegroundColor $(switch ($status) { "OK" { "Green" } "SKIP" { "DarkGray" } "ERROR" { "Yellow" } default { "Red" } })
 
         $results += [PSCustomObject]@{
             Category = "Slash"
@@ -360,6 +368,7 @@ function Test-SlashCommands {
             Steps    = $stepSummary
             Reason   = $exitReason
             Content  = $contentText
+            Duration = $cmdDuration
         }
     }
     return $results
@@ -395,13 +404,25 @@ $report = [System.Text.StringBuilder]::new()
 [void]$report.AppendLine()
 [void]$report.AppendLine("## 详细结果")
 [void]$report.AppendLine()
-[void]$report.AppendLine("| 类别 | 名称 | 状态 | 参数 | 步骤 | 退出原因 |")
-[void]$report.AppendLine("|------|------|------|------|------|----------|")
+[void]$report.AppendLine("| 类别 | 名称 | 状态 | 耗时(s) | 参数 | 步骤 | 退出原因 |")
+[void]$report.AppendLine("|------|------|------|---------|------|------|----------|")
 
 foreach ($r in $allResults) {
     $argsShort = if ($r.Args.Length -gt 60) { $r.Args.Substring(0, 57) + "..." } else { $r.Args }
     $reasonShort = if ($r.Reason.Length -gt 80) { $r.Reason.Substring(0, 77) + "..." } else { $r.Reason }
-    [void]$report.AppendLine("| $($r.Category) | $($r.Name) | $($r.Status) | $argsShort | $($r.Steps) | $reasonShort |")
+    [void]$report.AppendLine("| $($r.Category) | $($r.Name) | $($r.Status) | $($r.Duration) | $argsShort | $($r.Steps) | $reasonShort |")
+}
+
+$slowCommands = $allResults | Where-Object { $_.Duration -gt 10 } | Sort-Object Duration -Descending
+if ($slowCommands) {
+    [void]$report.AppendLine()
+    [void]$report.AppendLine("## 慢命令(>10s,可针对性优化)")
+    [void]$report.AppendLine()
+    [void]$report.AppendLine("| 类别 | 名称 | 耗时(s) | 状态 |")
+    [void]$report.AppendLine("|------|------|---------|------|")
+    foreach ($r in $slowCommands) {
+        [void]$report.AppendLine("| $($r.Category) | $($r.Name) | $($r.Duration) | $($r.Status) |")
+    }
 }
 
 if ($crashCount -gt 0 -or $timeoutCount -gt 0) {

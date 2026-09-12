@@ -1,5 +1,9 @@
 name: Daily Command Test
 
+# > ADR: [0080](docs/adr/0080-manual-exe-testing-guide.md) — 手动测试 exe 功能(非mock操作)
+# 每日定时遍历全部 MCP 工具 + 斜杠命令,全参数填充调用,验证功能正常
+# 报告含每个命令耗时,可针对性优化(>30s 的命令需备注,见 ADR 0080)
+
 on:
   schedule:
     - cron: '0 20 * * *'

@@ -24,7 +24,7 @@ jobs:
       - uses: ./.github/actions/setup-test-env
       - name: Integration Tests
         run: >
-          dotnet test tests/Integration/Integration.Tests/Integration.Tests.csproj
+          dotnet test test/integration/integration.tests/Integration.Tests.csproj
           -c Release --no-build --nologo
           --filter "Category!=Benchmark"
           --logger "console;verbosity=detailed"

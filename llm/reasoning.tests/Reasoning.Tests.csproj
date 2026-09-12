@@ -9,7 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)llm/reasoning/Reasoning.csproj" />
-    <ProjectReference Include="$(RepoRoot)tests/unit/testing.common/Testing.Common.csproj" />
+    <ProjectReference Include="$(RepoRoot)test/unit/testing.common/Testing.Common.csproj" />
   </ItemGroup>
 
   <ItemGroup>

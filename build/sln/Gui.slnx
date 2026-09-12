@@ -2,7 +2,7 @@
   <Folder Name="/app/">
     <Project Path="../../app/gui/JoinCodeGui.csproj" />
   </Folder>
-  <Folder Name="/tests/JoinCodeGui.Tests/">
-    <Project Path="../../tests/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj" />
+  <Folder Name="/test/JoinCodeGui.Tests/">
+    <Project Path="../../test/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj" />
   </Folder>
 </Solution>

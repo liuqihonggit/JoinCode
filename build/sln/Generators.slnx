@@ -11,7 +11,7 @@
     <Project Path="../../gen/prompt_template.generator/PromptTemplate.Generator.csproj" />
     <Project Path="../../gen/tool_prompt.generator/ToolPrompt.Generator.csproj" />
   </Folder>
-  <Folder Name="/tests/">
+  <Folder Name="/test/">
     <Project Path="../../gen/aot_safety.tests/AotSafety.Tests.csproj" />
     <Project Path="../../gen/fsm.generator.tests/Fsm.Generator.Tests.csproj" />
   </Folder>

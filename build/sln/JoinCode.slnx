@@ -93,39 +93,39 @@
     <Project Path="../../app/sdk/Sdk.csproj" />
     <Project Path="../../app/gui/JoinCodeGui.csproj" />
   </Folder>
-  <Folder Name="/tests/Unit/">
-    <Project Path="../../tests/unit/host.tests/Host.Tests.csproj" />
-    <Project Path="../../tests/unit/infra.tests/io/Infra.IO.Tests.csproj" />
-    <Project Path="../../tests/unit/infra.tests/utils/Infra.Utils.Tests.csproj" />
-    <Project Path="../../tests/unit/infra.tests/services/Infra.Services.Tests.csproj" />
-    <Project Path="../../tests/unit/testing.common/Testing.Common.csproj" />
-    <Project Path="../../tests/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj" />
-    <Project Path="../../tests/unit/hands.tests/Hands.Tests.csproj" />
-    <Project Path="../../tests/unit/abs.tests/Abs.Tests.csproj" />
-    <Project Path="../../tests/unit/mcp.tests/Mcp.UniqueTests.csproj" />
-    <Project Path="../../tests/unit/mcp_tool_dispatch.tests/McpToolDispatch.UniqueTests.csproj" />
+  <Folder Name="/test/unit/">
+    <Project Path="../../test/unit/host.tests/Host.Tests.csproj" />
+    <Project Path="../../test/unit/infra.tests/io/Infra.IO.Tests.csproj" />
+    <Project Path="../../test/unit/infra.tests/utils/Infra.Utils.Tests.csproj" />
+    <Project Path="../../test/unit/infra.tests/services/Infra.Services.Tests.csproj" />
+    <Project Path="../../test/unit/testing.common/Testing.Common.csproj" />
+    <Project Path="../../test/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj" />
+    <Project Path="../../test/unit/hands.tests/Hands.Tests.csproj" />
+    <Project Path="../../test/unit/abs.tests/Abs.Tests.csproj" />
+    <Project Path="../../test/unit/mcp.tests/Mcp.UniqueTests.csproj" />
+    <Project Path="../../test/unit/mcp_tool_dispatch.tests/McpToolDispatch.UniqueTests.csproj" />
   </Folder>
-  <Folder Name="/tests/Integration/">
-    <Project Path="../../tests/integration/integration.tests/Integration.Tests.csproj" />
+  <Folder Name="/test/integration/">
+    <Project Path="../../test/integration/integration.tests/Integration.Tests.csproj" />
   </Folder>
-  <Folder Name="/tests/MockServers/">
-    <Project Path="../../tests/mock_servers/mock_server.core/MockServer.Core.csproj" />
-    <Project Path="../../tests/mock_servers/mock_server.core.tests/MockServer.Core.Tests.csproj" />
-    <Project Path="../../tests/mock_servers/open_ai.mock_server/OpenAI.MockServer.csproj" />
-    <Project Path="../../tests/mock_servers/mock_server.e2e.tests/MockServer.E2E.Tests.csproj" />
-    <Project Path="../../tests/mock_servers/sync.integration.tests/Sync.Integration.Tests.csproj" />
-    <Project Path="../../tests/mock_servers/anthropic.mock_server/Anthropic.MockServer.csproj" />
-    <Project Path="../../tests/mock_servers/deep_seek.mock_server/DeepSeek.MockServer.csproj" />
-    <Project Path="../../tests/mock_servers/mcp.mock_server/Mcp.MockServer.csproj" />
+  <Folder Name="/test/mock/">
+    <Project Path="../../test/mock/mock_server.core/MockServer.Core.csproj" />
+    <Project Path="../../test/mock/mock_server.core.tests/MockServer.Core.Tests.csproj" />
+    <Project Path="../../test/mock/open_ai.mock_server/OpenAI.MockServer.csproj" />
+    <Project Path="../../test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj" />
+    <Project Path="../../test/mock/sync.integration.tests/Sync.Integration.Tests.csproj" />
+    <Project Path="../../test/mock/anthropic.mock_server/Anthropic.MockServer.csproj" />
+    <Project Path="../../test/mock/deep_seek.mock_server/DeepSeek.MockServer.csproj" />
+    <Project Path="../../test/mock/mcp.mock_server/Mcp.MockServer.csproj" />
   </Folder>
-  <Folder Name="/tests/Benchmarks/">
-    <Project Path="../../tests/benchmarks/eyes.benchmarks/Eyes.Benchmarks.csproj" />
+  <Folder Name="/test/benchmarks/">
+    <Project Path="../../test/benchmarks/eyes.benchmarks/Eyes.Benchmarks.csproj" />
   </Folder>
-  <Folder Name="/tests/" />
-  <Folder Name="/tests/AotCompatibility/">
-    <Project Path="../../tests/aot_compatibility/aot-browser-test/aot-browser-test.csproj" />
-    <Project Path="../../tests/aot_compatibility/aot-httpclientfactory-test/aot-httpclientfactory-test.csproj" />
-    <Project Path="../../tests/aot_compatibility/pptr-api-check/PptrApiCheck.csproj" />
+  <Folder Name="/test/" />
+  <Folder Name="/test/aot/">
+    <Project Path="../../test/aot/aot_browser_test/aot-browser-test.csproj" />
+    <Project Path="../../test/aot/aot_httpclientfactory_test/aot-httpclientfactory-test.csproj" />
+    <Project Path="../../test/aot/pptr_api_check/PptrApiCheck.csproj" />
   </Folder>
   <Folder Name="/non_deliverables_tools/">
     <Project Path="../../non_deliverables_tools/jcc_audit_ast_cli/JccAuditCli.csproj" />

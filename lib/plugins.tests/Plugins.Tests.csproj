@@ -11,7 +11,7 @@
     <ProjectReference Include="$(RepoRoot)lib/plugins.infrastructure/Plugins.Infrastructure.csproj" />
     <ProjectReference Include="$(RepoRoot)lib/plugins.contracts/Plugins.Contracts.csproj" />
     <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
-    <ProjectReference Include="$(RepoRoot)tests/unit/testing.common/Testing.Common.csproj" />
+    <ProjectReference Include="$(RepoRoot)test/unit/testing.common/Testing.Common.csproj" />
   </ItemGroup>
 
 </Project>

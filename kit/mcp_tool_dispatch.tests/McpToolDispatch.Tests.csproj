@@ -10,7 +10,7 @@
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)kit/mcp_tool_dispatch/McpToolDispatch.csproj" />
     <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
-    <ProjectReference Include="$(RepoRoot)tests/unit/testing.common/Testing.Common.csproj" />
+    <ProjectReference Include="$(RepoRoot)test/unit/testing.common/Testing.Common.csproj" />
     <ProjectReference Include="$(RepoRoot)kit/mcp/Mcp.csproj" />
     <ProjectReference Include="$(RepoRoot)kit/hands/Hands.csproj" />
     <ProjectReference Include="$(RepoRoot)lib/guard/Guard.csproj" />

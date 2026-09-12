@@ -59,9 +59,9 @@ jobs:
       - name: Build - Component Tests
         run: |
           $projects = @(
-            'tests/Unit/Infra.Tests/Services/Infra.Services.Tests.csproj',
-            'tests/Unit/Infra.Tests/Utils/Infra.Utils.Tests.csproj',
-            'tests/Unit/Infra.Tests/IO/Infra.IO.Tests.csproj',
+            'test/unit/infra.tests/services/Infra.Services.Tests.csproj',
+            'test/unit/infra.tests/utils/Infra.Utils.Tests.csproj',
+            'test/unit/infra.tests/io/Infra.IO.Tests.csproj',
             'kit/brain.prompts.tests/Brain.Prompts.Tests.csproj',
             'kit/brain.context.tests/Brain.Context.Tests.csproj',
             'kit/brain.other.tests/Brain.Other.Tests.csproj',
@@ -78,17 +78,17 @@ jobs:
             '01_shared/shared_vault/tests/Memdir/Vault.Memdir.Tests.csproj',
             'kit/composition.tests/Composition.Tests.csproj',
             'llm/agents.tests/Agents.Tests.csproj',
-            '01_shared/shared_scheduling/tests/Unit/Scheduling.Tests.csproj',
+            'lib/scheduling.tests/Scheduling.Tests.csproj',
             'kit/mcp_tool_dispatch.tests/McpToolDispatch.Tests.csproj',
-            '01_shared/shared_clock/tests/Unit/Clock.Tests.csproj',
+            'lib/clock.tests/Clock.Tests.csproj',
             'server/eyes.tests/Eyes.Tests.csproj',
             'server/code_index.tests/CodeIndex.Tests.csproj',
             'server/dream.tests/Dream.Tests.csproj',
             'server/code_index.e2e.tests/CodeIndex.E2E.Tests.csproj',
-            'tests/Unit/Abs.Tests/Abs.Tests.csproj',
-            'tests/Unit/Hands.Tests/Hands.Tests.csproj',
-            'tests/Unit/Mcp.Tests/Mcp.UniqueTests.csproj',
-            'tests/Unit/McpToolDispatch.Tests/McpToolDispatch.UniqueTests.csproj'
+            'test/unit/abs.tests/Abs.Tests.csproj',
+            'test/unit/hands.tests/Hands.Tests.csproj',
+            'test/unit/mcp.tests/Mcp.UniqueTests.csproj',
+            'test/unit/mcp_tool_dispatch.tests/McpToolDispatch.UniqueTests.csproj'
           )
           foreach ($p in $projects) {
             Write-Host "Building $p ..."
@@ -100,7 +100,7 @@ jobs:
       - name: Build - Satellite Projects
         run: |
           $projects = @(
-            'tests/Benchmarks/Eyes.Benchmarks/Eyes.Benchmarks.csproj',
+            'test/benchmarks/eyes.benchmarks/Eyes.Benchmarks.csproj',
             'tests/AotCompatibility/aot-browser-test/aot-browser-test.csproj',
             'tests/AotCompatibility/aot-httpclientfactory-test/aot-httpclientfactory-test.csproj',
             'tests/AotCompatibility/pptr-api-check/PptrApiCheck.csproj'

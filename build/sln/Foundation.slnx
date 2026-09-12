@@ -8,13 +8,13 @@
     <Project Path="../../lib/plugins.infrastructure/Plugins.Infrastructure.csproj" />
     <Project Path="../../lib/plugins.tests/Plugins.Tests.csproj" />
   </Folder>
-  <Folder Name="/lib/async_lock/tests/" />
-  <Folder Name="/lib/async_lock/tests/Unit/">
+  <Folder Name="/lib/async_lock/test/" />
+  <Folder Name="/lib/async_lock/test/unit/">
     <Project Path="../../lib/async_lock.tests/AsyncLock.Tests.csproj" />
   </Folder>
   <Folder Name="/lib/structura/" />
-  <Folder Name="/lib/structura/tests/" />
-  <Folder Name="/lib/structura/tests/Unit/">
+  <Folder Name="/lib/structura/test/" />
+  <Folder Name="/lib/structura/test/unit/">
     <Project Path="../../lib/structura.tests/Structura.Tests.csproj" />
   </Folder>
 </Solution>

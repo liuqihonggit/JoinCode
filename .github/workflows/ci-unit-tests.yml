@@ -107,7 +107,7 @@ jobs:
             csproj: tests/unit/mcp_tool_dispatch.tests/McpToolDispatch.UniqueTests.csproj
           # MockServer
           - name: MockServerCore
-            csproj: tests/mock_servers/mock_server.core.tests/MockServer.Core.Tests.csproj
+            csproj: test/mock/mock_server.core.tests/MockServer.Core.Tests.csproj
           # GUI / TUI
           - name: JoinCodeGui
             csproj: tests/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj

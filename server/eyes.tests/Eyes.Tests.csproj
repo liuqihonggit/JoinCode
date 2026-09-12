@@ -12,7 +12,7 @@
     <ProjectReference Include="$(RepoRoot)server/code_index/CodeIndex.csproj" />
     <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
     <ProjectReference Include="$(RepoRoot)server/eyes/Eyes.csproj" />
-    <ProjectReference Include="$(RepoRoot)tests/unit/testing.common/Testing.Common.csproj" />
+    <ProjectReference Include="$(RepoRoot)test/unit/testing.common/Testing.Common.csproj" />
   </ItemGroup>
 
 </Project>

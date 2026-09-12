@@ -42,6 +42,7 @@ public enum DebugLogFlag
 [ChatCommand(Name = ChatCommandNameConstants.DebugLog, Description = "显示运行流程全貌（初始化|警告|错误|日志|系统提示词）",
     Usage = "/debuglog [-a|-e|-w|-i|-p|-l|-c]",
     Category = ChatCommandCategory.System, ArgumentHint = "[-a|--all|-e|--error|-w|--warn|-i|--init|-p|--prompt|-l|--log|-c|--clear]")]
+[ChatCommandArg("flags", Type = "string", Description = "显示标志（可组合）", Enum = new[] { "-a", "--all", "-e", "--error", "-w", "--warn", "-i", "--init", "-p", "--prompt", "-l", "--log", "-c", "--clear" })]
 public sealed class DebugLogCommand : ChatCommandBase
 {
     public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

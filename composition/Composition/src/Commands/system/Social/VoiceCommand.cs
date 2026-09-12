@@ -1,6 +1,7 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Voice, Description = "切换语音输入模式", Usage = "/voice [on|off|status]", Category = ChatCommandCategory.Social)]
+[ChatCommandArg("action", Type = "string", Description = "语音操作", Enum = new[] { "on", "off", "status", "start", "stop", "record" })]
 public sealed class VoiceCommand : ToggleCommandBase
 {
     public override string Name => ChatCommandNameConstants.Voice;

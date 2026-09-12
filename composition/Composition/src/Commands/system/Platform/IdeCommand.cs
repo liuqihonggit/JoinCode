@@ -8,6 +8,8 @@ namespace JoinCode.ChatCommands;
 /// 架构差异：TS 有 React 交互式 IDE 选择器，C# 为命令行交互
 /// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Ide, Description = "IDE 集成管理", Usage = "/ide [detect|connect|disconnect|status|open]", Category = ChatCommandCategory.Platform, ArgumentHint = "detect|connect|disconnect|status|open", IsHidden = true)]
+[ChatCommandArg("action", Type = "string", Description = "IDE 操作", Enum = new[] { "detect", "connect", "disconnect", "status", "open" })]
+[ChatCommandArg("file_path", Type = "string", Description = "open 操作时打开的文件路径（可附 :行号）")]
 public sealed class IdeCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

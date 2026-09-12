@@ -7,6 +7,7 @@ namespace JoinCode.ChatCommands;
 /// 架构差异：TS 有 React 侧边栏渲染，C# 为终端文本输出
 /// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Btw, Description = "快速向 AI 提一个侧边问题", Usage = "/btw <question>", Category = ChatCommandCategory.Social, ArgumentHint = "<question>")]
+[ChatCommandArg("question", Type = "string", Description = "侧边问题内容", Required = true)]
 public sealed class BtwCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

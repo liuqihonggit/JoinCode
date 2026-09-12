@@ -1,6 +1,8 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Workflows, Description = "管理工作流", Usage = "/workflows [list|run|status] [name]", Category = ChatCommandCategory.System, ArgumentHint = "[list|run|status]")]
+[ChatCommandArg("action", Type = "string", Description = "工作流操作", Enum = new[] { "list", "run", "status" })]
+[ChatCommandArg("name", Type = "string", Description = "run 工作流名 / status 工作流 ID")]
 public sealed class WorkflowsCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

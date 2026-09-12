@@ -2,6 +2,7 @@
 namespace JoinCode.ChatCommands;
 
 [ChatCommand(Name = ChatCommandNameConstants.Mobile, Description = "移动端连接", Usage = "/mobile [start|stop|url]", Category = ChatCommandCategory.Platform, Aliases = ["ios", "android"], ArgumentHint = "start|stop|url", IsHidden = true)]
+[ChatCommandArg("action", Type = "string", Description = "移动端操作", Enum = new[] { "start", "stop", "url" })]
 public sealed class MobileCommand : ChatCommandBase
 {
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)

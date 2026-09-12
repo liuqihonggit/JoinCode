@@ -101,9 +101,9 @@ jobs:
         run: |
           $projects = @(
             'test/benchmarks/eyes.benchmarks/Eyes.Benchmarks.csproj',
-            'tests/AotCompatibility/aot-browser-test/aot-browser-test.csproj',
-            'tests/AotCompatibility/aot-httpclientfactory-test/aot-httpclientfactory-test.csproj',
-            'tests/AotCompatibility/pptr-api-check/PptrApiCheck.csproj'
+            'test/aot/aot_browser_test/aot-browser-test.csproj',
+            'test/aot/aot_httpclientfactory_test/aot-httpclientfactory-test.csproj',
+            'test/aot/pptr_api_check/PptrApiCheck.csproj'
           )
           foreach ($p in $projects) {
             Write-Host "Building $p ..."

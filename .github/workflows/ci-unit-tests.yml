@@ -31,11 +31,11 @@ jobs:
             csproj: gen/fsm.generator.tests/Fsm.Generator.Tests.csproj
           # Infrastructure
           - name: InfraIO
-            csproj: tests/unit/infra.tests/io/Infra.IO.Tests.csproj
+            csproj: test/unit/infra.tests/io/Infra.IO.Tests.csproj
           - name: InfraServices
-            csproj: tests/unit/infra.tests/services/Infra.Services.Tests.csproj
+            csproj: test/unit/infra.tests/services/Infra.Services.Tests.csproj
           - name: InfraUtils
-            csproj: tests/unit/infra.tests/utils/Infra.Utils.Tests.csproj
+            csproj: test/unit/infra.tests/utils/Infra.Utils.Tests.csproj
           # Core - AI
           - name: Llm
             csproj: llm/llm.tests/Llm.Tests.csproj
@@ -96,24 +96,24 @@ jobs:
             csproj: lib/clock.tests/Clock.Tests.csproj
           # App / Cross-layer
           - name: Host
-            csproj: tests/unit/host.tests/Host.Tests.csproj
+            csproj: test/unit/host.tests/Host.Tests.csproj
           - name: Abs
-            csproj: tests/unit/abs.tests/Abs.Tests.csproj
+            csproj: test/unit/abs.tests/Abs.Tests.csproj
           - name: HandsGoal
-            csproj: tests/unit/hands.tests/Hands.Tests.csproj
+            csproj: test/unit/hands.tests/Hands.Tests.csproj
           - name: McpIntervention
-            csproj: tests/unit/mcp.tests/Mcp.UniqueTests.csproj
+            csproj: test/unit/mcp.tests/Mcp.UniqueTests.csproj
           - name: McpToolDispatchHealth
-            csproj: tests/unit/mcp_tool_dispatch.tests/McpToolDispatch.UniqueTests.csproj
+            csproj: test/unit/mcp_tool_dispatch.tests/McpToolDispatch.UniqueTests.csproj
           # MockServer
           - name: MockServerCore
             csproj: test/mock/mock_server.core.tests/MockServer.Core.Tests.csproj
           # GUI / TUI
           - name: JoinCodeGui
-            csproj: tests/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj
+            csproj: test/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj
             build_first: true
           - name: Tui
-            csproj: tests/unit/tui.tests/Tui.Tests.csproj
+            csproj: test/unit/tui.tests/Tui.Tests.csproj
 
     steps:
       - name: Checkout

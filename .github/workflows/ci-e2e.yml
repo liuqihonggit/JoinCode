@@ -357,7 +357,7 @@ jobs:
         if: always()
         shell: pwsh
         run: |
-          $config = (Get-Content smoke-test.json -Raw | ConvertFrom-Json).ci
+          $config = (Get-Content build/smoke-test.json -Raw | ConvertFrom-Json).ci
           $awaitSec = $config.awaitSeconds
           $waitMs = $config.waitForExitMs
           Write-Host "Smoke Test config (ci): await=${awaitSec}s, waitForExit=${waitMs}ms - $($config.description)"
@@ -465,7 +465,7 @@ jobs:
         if: always()
         shell: pwsh
         run: |
-          $config = (Get-Content smoke-test.json -Raw | ConvertFrom-Json).ci
+          $config = (Get-Content build/smoke-test.json -Raw | ConvertFrom-Json).ci
           $awaitSec = $config.awaitSeconds
           $waitMs = $config.waitForExitMs
           Write-Host "Smoke Test config (ci): await=${awaitSec}s, waitForExit=${waitMs}ms - $($config.description)"

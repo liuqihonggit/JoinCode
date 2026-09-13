@@ -20,7 +20,7 @@ public sealed partial class NullRedirectTwoPhaseGuard : ICommandGuard
     /// <para>fd 可选(0/1/2/&amp;), op 为 &gt;, &gt;&gt;, &gt;|, &amp;&gt;, &lt; 等</para>
     /// <para>保留设备名: nul, con, prn, aux, com1-9, lpt1-9</para>
     /// </summary>
-    [GeneratedRegex(@"(?<fd>\d*[<>]|\&)?(?<op>>\>?\|?|<)\s*(nul|con|prn|aux|com[1-9]|lpt[1-9])\b", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"(?<fd>\d*[<>]|\&)?(?<op>>\>?\|?|<)\s*(?<device>nul|con|prn|aux|com[1-9]|lpt[1-9])\b", RegexOptions.IgnoreCase)]
     private static partial Regex RetainedDeviceRedirectRegex();
 
     /// <inheritdoc/>
@@ -45,13 +45,13 @@ public sealed partial class NullRedirectTwoPhaseGuard : ICommandGuard
             return new CommandDecision.Allow();
 
         var match = RetainedDeviceRedirectRegex().Match(command);
-        var deviceName = match.Groups[3].Value;
+        var deviceName = match.Groups["device"].Value;
 
         return new CommandDecision.Deny(
             ToolDiagnostic.Create(
                 "JCC9005",
                 $"检测到重定向到 Windows 保留设备名 '{deviceName}' — 在 git bash 中会创建名为 '{deviceName}' 的文件。" +
-                "若本意是丢弃输出，请改用 > /dev/null。若确需创建名为 '{deviceName}' 的文件，请使用 touch {deviceName}。",
+                $"若本意是丢弃输出，请改用 > /dev/null。若确需创建名为 '{deviceName}' 的文件，请使用 touch {deviceName}。",
                 "设备名", deviceName,
                 "请改用 > /dev/null 丢弃输出，或使用 touch 创建文件"));
     }

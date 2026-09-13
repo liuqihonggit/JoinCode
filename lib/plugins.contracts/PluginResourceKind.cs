@@ -6,8 +6,23 @@ namespace JoinCode.Abstractions.Interfaces;
 /// </summary>
 public enum PluginResourceKind
 {
+    /// <summary>
+    /// 命令资源
+    /// </summary>
     [EnumValue("command")] Command,
+
+    /// <summary>
+    /// 钩子资源
+    /// </summary>
     [EnumValue("hook")] Hook,
+
+    /// <summary>
+    /// 技能资源
+    /// </summary>
     [EnumValue("skill")] Skill,
+
+    /// <summary>
+    /// 智能体资源
+    /// </summary>
     [EnumValue("agent")] Agent,
 }

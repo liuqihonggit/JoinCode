@@ -8,6 +8,16 @@ namespace Core.Security.DangerClassification;
 public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDangerClassifier
 {
     /// <summary>
+    /// 解释器命令集合 — 管道传入这些命令可执行任意代码,升级为 Execution(红灯)
+    /// </summary>
+    private static readonly FrozenSet<string> InterpreterCommands = FrozenSet.Create(
+        StringComparer.OrdinalIgnoreCase,
+        "bash", "sh", "zsh", "ksh", "dash",
+        "python", "python3", "python2",
+        "perl", "ruby", "node", "nodejs", "deno",
+        "powershell", "pwsh", "cmd");
+
+    /// <summary>
     /// AC 自动机 — 展平所有危险组合模式，一次扫描命中全部模式串
     /// </summary>
     private static readonly AhoCorasick<string> CombinationPatternAc = AhoCorasick.Create(
@@ -42,7 +52,7 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
             if (commandEntry.Level == CommandDangerLevel.LightValidation &&
                 IsGitReadOnlySubcommand(command))
             {
-                return DangerClassificationResult.SafeResult;
+                return ClassifyGitPipeRedirect(command);
             }
 
             // git 远程不可撤回子命令升级为 Execution（git push/stash drop/tag -d 等远程或删除操作）
@@ -351,4 +361,40 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
 
         return risks[0];
     }
+
+    /// <summary>
+    /// 检查 git 只读命令的管道/重定向 — 管道传入解释器可执行任意代码(Execution),其他管道/重定向需确认(LightValidation)
+    /// </summary>
+    private static DangerClassificationResult ClassifyGitPipeRedirect(ShellCommand command)
+    {
+        if (!command.HasPipe && !command.HasRedirection)
+            return DangerClassificationResult.SafeResult;
+
+        if (command.HasPipe && GetPipeTargetCommands(command.Arguments).Any(IsInterpreter))
+        {
+            return new DangerClassificationResult(
+                CommandDangerLevel.Execution,
+                CommandRisk.RemoteExecution,
+                "git 只读命令通过管道传入解释器 — 管道目标可执行任意代码,禁止自动放行");
+        }
+
+        return new DangerClassificationResult(
+            CommandDangerLevel.LightValidation,
+            CommandRisk.None,
+            "git 命令含管道/重定向 — 需确认后方可执行");
+    }
+
+    /// <summary>
+    /// 从参数列表中提取所有管道目标命令名(| 后面的第一个参数)
+    /// </summary>
+    private static IEnumerable<string> GetPipeTargetCommands(IReadOnlyList<string> arguments)
+        => Enumerable.Range(0, arguments.Count - 1)
+            .Where(i => arguments[i] == "|")
+            .Select(i => arguments[i + 1]);
+
+    /// <summary>
+    /// 判断命令名是否为解释器(可执行任意代码)
+    /// </summary>
+    private static bool IsInterpreter(string commandName)
+        => InterpreterCommands.Contains(commandName);
 }

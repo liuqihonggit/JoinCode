@@ -34,7 +34,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
         {
             new BypassPermissionMiddleware(),
             new Core.Permission.AgentRestrictionMiddleware(),
-            new DangerousCommandProtectionMiddleware(destructiveCommandDetector: new DestructiveCommandDetector()),
+            new DangerousCommandProtectionMiddleware(dangerClassifier: new CommandDangerClassifier()),
             new AutoClassifierMiddleware(),
             new ConfigGetOperationMiddleware(),
             new WebFetchPermissionMiddleware(),

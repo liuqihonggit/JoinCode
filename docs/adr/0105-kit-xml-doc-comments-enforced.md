@@ -99,6 +99,14 @@ llm/ 工程不在 kit/ 范围内，但沿用本 ADR 决策强制 XML 注释完�
 - ✅ llm/agents — 662 处缺漏全部补全，编译 0 错误 0 警告（commit 685e9138b）。4 子代理并行补全 613 处 + 主代理兜底 58 处（含 override/protected 字段/枚举值，子代理分析脚本漏掉的类别）
 - ✅ llm/reasoning — 152 处缺漏全部补全，编译 0 错误 0 警告（commit 9f8467bb7）。8 子代理并行补全 128 处 + 主代理兜底 24 处枚举值（EvidenceCategory/DataState/TrustLevel/VerdictDecision）
 
+### server/ 工程（沿用本决策，2026-09-14）
+
+server/ 工程沿用本 ADR 决策。`server/Directory.Build.props` 配置 `GenerateDocumentationFile=true` + 移除 CS1591 屏蔽 + 升级为错误（对所有 src 工程生效）。
+
+- ✅ bridge — 10 子代理并行补全 + 生成器模板补类级注释 + 主代理修正 4 处注释位置（commit 0dc54db9c）
+- ✅ browser/code_index/dream/eyes/sandbox_satellite/vision/update — 同批补全，编译 0 错误 0 警告
+- 生成器 `CliOptionGenerator` 模板补类级 `/// <summary>` 注释（对齐 `EnumMetadataGenerator`），消除 102 个生成代码 CS1591 错误
+
 ### lib/ 工程（沿用本决策，2026-09-14）
 
 lib/ 工程不在 kit/ 范围内，但沿用本 ADR 决策强制 XML 注释完整。各 csproj 通过 `NoWarn.Replace` 移除继承的 CS1591 屏蔽并升级为错误。

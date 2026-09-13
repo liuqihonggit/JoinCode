@@ -6,6 +6,9 @@
     <PackageId>JoinCode.Reasoning</PackageId>
     <Description>JoinCode Reasoning 子系统 — 结构化推理引擎、三权分立Agent、证据验证</Description>
     <NoWarn>$(NoWarn);IL2026;IL3050;NU5104</NoWarn>
+    <!-- 强制 XML 文档注释完整：从继承的 NoWarn 中移除 CS1591，并升级为错误 -->
+    <NoWarn>$(NoWarn.Replace(';CS1591', '').Replace('CS1591;', '').Replace('CS1591', ''))</NoWarn>
+    <WarningsAsErrors>$(WarningsAsErrors);CS1591</WarningsAsErrors>
   </PropertyGroup>
 
   <ItemGroup>

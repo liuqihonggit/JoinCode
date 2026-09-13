@@ -5,15 +5,31 @@ namespace JoinCode.Reasoning.Agents;
 /// </summary>
 public sealed class ProsecutorAgent : ReasoningAgent
 {
+    /// <summary>
+    /// 系统提示词 — 检察官角色设定
+    /// </summary>
     public override string SystemPrompt =>
         "你是一个严谨的检察官。你的职责是为每个假定寻找支持证据。" +
         "审查所有假定，对每个假定提出至少一条支持证据。" +
         "证据必须包含：内容描述、来源、信任度(DirectEvidence|StrongCorroboration|Moderate|Weak|Hearsay|Unreliable)、权重(0.1-10.0)。" +
         "输出JSON格式：{\"evidence\":[{\"content\":\"...\",\"source\":\"...\",\"trustLevel\":\"Moderate\",\"weight\":1.0}]}";
 
+    /// <summary>
+    /// 构造函数
+    /// </summary>
+    /// <param name="queryEngine">查询引擎</param>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="chatClient">聊天客户端（可选）</param>
+    /// <param name="messageBroker">消息代理（可选）</param>
     public ProsecutorAgent(IQueryEngine queryEngine, ILogger<ProsecutorAgent> logger, IChatClient? chatClient = null, IMailbox? messageBroker = null)
         : base(queryEngine, logger, AgentRole.Prosecutor, "控方Agent", chatClient, messageBroker) { }
 
+    /// <summary>
+    /// 推理异步方法 — 为未验证假定寻找支持证据
+    /// </summary>
+    /// <param name="context">推理上下文</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>Agent 动作结果</returns>
     public override async Task<AgentAction> ReasonAsync(ReasoningContext context, CancellationToken ct)
     {
         var action = new AgentAction { AgentRole = Role, ActionType = "提出证据" };

@@ -15,7 +15,8 @@ public sealed record FileToolHandlersContext(
     IFileWriteListenerRegistry? FileWriteListenerRegistry = null,
     ILspDiagnosticProvider? LspDiagnosticProvider = null,
     ApplyPatchLogic? ApplyPatchLogic = null,
-    ISubAgentContextAccessor? SubAgentContextAccessor = null)
+    ISubAgentContextAccessor? SubAgentContextAccessor = null,
+    WriteDefenseService? WriteDefenseService = null)
 {
     public static FileToolHandlersContext FromServiceProvider(IServiceProvider sp) => new(
         SandboxManager: sp.GetService<ISandboxManager>(),
@@ -31,5 +32,6 @@ public sealed record FileToolHandlersContext(
         FileWriteListenerRegistry: sp.GetService<IFileWriteListenerRegistry>(),
         LspDiagnosticProvider: sp.GetService<ILspDiagnosticProvider>(),
         ApplyPatchLogic: sp.GetService<ApplyPatchLogic>(),
-        SubAgentContextAccessor: sp.GetService<ISubAgentContextAccessor>());
+        SubAgentContextAccessor: sp.GetService<ISubAgentContextAccessor>(),
+        WriteDefenseService: sp.GetService<WriteDefenseService>());
 }

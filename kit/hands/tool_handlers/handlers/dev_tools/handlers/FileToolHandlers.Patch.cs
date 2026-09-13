@@ -32,14 +32,14 @@ public partial class FileToolHandlers
                 var defenses = await Task.WhenAll(
                     targetPaths.Select(async path =>
                     {
-                        var safety = await WriteDefense
+                        var safety = await _writeDefense
                             .Begin(path, patch, FileOperationType.Edit, "patching")
-                            .Then(RejectUncPath)           // UNC 路径拒绝
-                            .Then(ResolveSandboxAsync)     // 沙箱路径解析
-                            .Then(CheckTeamMemSecrets)     // 团队密钥检测（patch 内容可能含密钥）
-                            .Then(RequireReadBeforeWrite)  // 写前读校验
-                            .Then(GuardStaleWriteAsync)    // 脏写保护
-                            .Then(BackupBeforeWriteAsync)  // 写前备份
+                            .Then(_writeDefense.RejectUncPath)           // UNC 路径拒绝
+                            .Then(_writeDefense.ResolveSandboxAsync)     // 沙箱路径解析
+                            .Then(_writeDefense.CheckTeamMemSecrets)     // 团队密钥检测（patch 内容可能含密钥）
+                            .Then(_writeDefense.RequireReadBeforeWrite)  // 写前读校验
+                            .Then(_writeDefense.GuardStaleWriteAsync)    // 脏写保护
+                            .Then(_writeDefense.BackupBeforeWriteAsync)  // 写前备份
                             .ExecuteAsync(cancellationToken).ConfigureAwait(false);
                         return (Path: path, Safety: safety);
                     })).ConfigureAwait(false);
@@ -71,7 +71,7 @@ public partial class FileToolHandlers
         // ── 统一写入后通知（每个修改的文件） ──
         foreach (var modifiedPath in result.ModifiedFilePaths)
         {
-            NotifyWriteComplete(modifiedPath, null, "apply-patch", FileOperationType.Edit);
+            _writeDefense.NotifyWriteComplete(modifiedPath, null, "apply-patch", FileOperationType.Edit);
         }
 
         return ToolResultBuilder.Success().WithText(summary + detailText).Build();

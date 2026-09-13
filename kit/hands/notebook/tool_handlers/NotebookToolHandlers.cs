@@ -8,14 +8,16 @@ public class NotebookToolHandlers
     private readonly IFileStateCache _fileStateCache;
     private readonly IFileSystem _fs;
     private readonly IToolPermissionManager? _permissionManager;
+    private readonly WriteDefenseService? _writeDefense;
 
-    public NotebookToolHandlers(INotebookService notebookService, IFileOperationService fileOperationService, IFileStateCache fileStateCache, IFileSystem fs, IToolPermissionManager? permissionManager = null)
+    public NotebookToolHandlers(INotebookService notebookService, IFileOperationService fileOperationService, IFileStateCache fileStateCache, IFileSystem fs, IToolPermissionManager? permissionManager = null, WriteDefenseService? writeDefense = null)
     {
         _notebookService = notebookService ?? throw new ArgumentNullException(nameof(notebookService));
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _fileStateCache = fileStateCache ?? throw new ArgumentNullException(nameof(fileStateCache));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _permissionManager = permissionManager;
+        _writeDefense = writeDefense;
     }
 
     [McpTool(NotebookToolNameConstants.NotebookEdit, "Replace the contents of a specific cell in a Jupyter notebook (.ipynb)", "notebook")]
@@ -189,6 +191,17 @@ public class NotebookToolHandlers
             notebook = editResult.GetNotebook();
         }
 
+        // ── 团队密钥检测 + 写前备份 — 对齐 FileWriteTool/FileEditTool 防御链 ──
+        if (_writeDefense is not null)
+        {
+            var safety = await _writeDefense
+                .Begin(notebook_path, new_source, FileOperationType.Edit, "notebook-editing")
+                .Then(_writeDefense.CheckTeamMemSecrets)     // 团队密钥检测（new_source 可能含密钥）
+                .Then(_writeDefense.BackupBeforeWriteAsync)  // 写前备份
+                .ExecuteAsync(cancellationToken).ConfigureAwait(false);
+            if (safety.Rejection is not null) return safety.Rejection;
+        }
+
         var saved = await _notebookService.SaveAsync(notebook_path, notebook, cancellationToken).ConfigureAwait(false);
         if (!saved)
         {
@@ -202,6 +215,9 @@ public class NotebookToolHandlers
             var postWriteMs = new DateTimeOffset(_fs.GetLastWriteTimeUtc(notebook_path)).ToUnixTimeMilliseconds();
             _fileStateCache.RecordRead(notebook_path, "", postWriteMs);
         }
+
+        // ── LSP 通知 + 遥测 + 写入监听器 — 对齐 FileWriteTool/FileEditTool 通知链 ──
+        _writeDefense?.NotifyWriteComplete(notebook_path, null, "notebook-edit", FileOperationType.Edit);
 
         var outputMessage = mode switch
         {

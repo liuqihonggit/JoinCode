@@ -44,6 +44,7 @@ public partial class FileToolHandlers : IDisposable
     private readonly IFileSystem _fs;
     private readonly ApplyPatchLogic? _applyPatchLogic;
     private readonly ISubAgentContextAccessor? _subAgentContextAccessor;
+    private readonly WriteDefenseService _writeDefense;
     private readonly ILogger<FileToolHandlers>? _logger;
 
     /// <summary>
@@ -74,6 +75,11 @@ public partial class FileToolHandlers : IDisposable
         _lspDiagnosticProvider = context?.LspDiagnosticProvider;
         _applyPatchLogic = context?.ApplyPatchLogic;
         _subAgentContextAccessor = context?.SubAgentContextAccessor;
+        // WriteDefenseService — 优先从 DI 获取，否则用当前依赖现场构造（测试场景）
+        _writeDefense = context?.WriteDefenseService
+            ?? new WriteDefenseService(_fs, _sandboxManager, _telemetryService, _fileStateCache,
+                _fileHistoryService, _lspFileSync, _teamMemSecretGuard, _fileWriteListenerRegistry,
+                _lspDiagnosticProvider, _subAgentContextAccessor);
     }
 
     /// <summary>

@@ -19,11 +19,11 @@ public partial class FileToolHandlers
 
         // ── 统一写入防御链 — 删除是销毁操作：UNC 拒绝 + 沙箱解析 + 删除前备份 ──
         // 不需要密钥检测（删除不引入内容）、写前读、脏写保护
-        var safety = await WriteDefense
+        var safety = await _writeDefense
             .Begin(file_path, null, FileOperationType.Delete, "deleting")
-            .Then(RejectUncPath)           // UNC 路径拒绝
-            .Then(ResolveSandboxAsync)     // 沙箱路径解析
-            .Then(BackupBeforeWriteAsync)  // 删除前备份（支持恢复）
+            .Then(_writeDefense.RejectUncPath)           // UNC 路径拒绝
+            .Then(_writeDefense.ResolveSandboxAsync)     // 沙箱路径解析
+            .Then(_writeDefense.BackupBeforeWriteAsync)  // 删除前备份（支持恢复）
             .ExecuteAsync(cancellationToken).ConfigureAwait(false);
 
         if (safety.Rejection is not null) return safety.Rejection;
@@ -51,7 +51,7 @@ public partial class FileToolHandlers
         }
 
         // ── 统一写入后通知 ──
-        NotifyWriteComplete(file_path, null, "delete", FileOperationType.Delete);
+        _writeDefense.NotifyWriteComplete(file_path, null, "delete", FileOperationType.Delete);
         return ToolResultBuilder.Success().WithText($"File deleted: {file_path}").Build();
     }
 }

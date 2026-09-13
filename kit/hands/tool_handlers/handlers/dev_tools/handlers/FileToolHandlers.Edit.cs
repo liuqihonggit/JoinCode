@@ -21,19 +21,19 @@ public partial class FileToolHandlers
         }
 
         // ── 统一写入防御链 — FileEdit 独有校验全部进链按需调用 ──
-        var safety = await WriteDefense
+        var safety = await _writeDefense
             .Begin(file_path, new_string, FileOperationType.Edit, "editing", old_string, new_string, replace_all)
-            .Then(RejectUncPath)              // UNC 路径拒绝（防凭据泄露）
-            .Then(RejectNotebookEdit)         // .ipynb 拒绝（引导用 NotebookEdit）
-            .Then(RejectIdenticalStrings)     // old==new 无变化拒绝
-            .Then(ResolveSandboxAsync)        // 沙箱路径解析
-            .Then(CheckTeamMemSecrets)        // 团队密钥检测
-            .Then(ValidateSettingsEditAsync)  // settings 文件合法性校验
-            .Then(ValidateKeywordSectionsEdit)// keyword-sections.json 权限校验
-            .Then(ValidateDoctorAgentEdit)    // doctor Agent 路径范围校验
-            .Then(RequireReadBeforeWrite)     // 写前读校验
-            .Then(GuardStaleWriteAsync)       // 脏写保护
-            .Then(BackupBeforeWriteAsync)     // 写前备份
+            .Then(_writeDefense.RejectUncPath)              // UNC 路径拒绝（防凭据泄露）
+            .Then(_writeDefense.RejectNotebookEdit)         // .ipynb 拒绝（引导用 NotebookEdit）
+            .Then(_writeDefense.RejectIdenticalStrings)     // old==new 无变化拒绝
+            .Then(_writeDefense.ResolveSandboxAsync)        // 沙箱路径解析
+            .Then(_writeDefense.CheckTeamMemSecrets)        // 团队密钥检测
+            .Then(_writeDefense.ValidateSettingsEditAsync)  // settings 文件合法性校验
+            .Then(_writeDefense.ValidateKeywordSectionsEdit)// keyword-sections.json 权限校验
+            .Then(_writeDefense.ValidateDoctorAgentEdit)    // doctor Agent 路径范围校验
+            .Then(_writeDefense.RequireReadBeforeWrite)     // 写前读校验
+            .Then(_writeDefense.GuardStaleWriteAsync)       // 脏写保护
+            .Then(_writeDefense.BackupBeforeWriteAsync)     // 写前备份
             .ExecuteAsync(cancellationToken).ConfigureAwait(false);
 
         if (safety.Rejection is not null) return safety.Rejection;
@@ -89,7 +89,7 @@ public partial class FileToolHandlers
         }
 
         // ── 统一写入后通知 — LSP 诊断清除 + LSP 文件变更 + 遥测 + 写入监听器 ──
-        NotifyWriteComplete(result.FilePath, null, "edit", FileOperationType.Edit);
+        _writeDefense.NotifyWriteComplete(result.FilePath, null, "edit", FileOperationType.Edit);
         return toolResult;
     }
 
@@ -118,15 +118,15 @@ public partial class FileToolHandlers
         }
 
         // ── 统一写入防御链 — replacement 可能含密钥，必须检测 ──
-        var safety = await WriteDefense
+        var safety = await _writeDefense
             .Begin(file_path, replacement, FileOperationType.EditRegex, "editing")
-            .Then(RejectUncPath)           // UNC 路径拒绝
-            .Then(RejectNotebookEdit)      // .ipynb 拒绝
-            .Then(ResolveSandboxAsync)     // 沙箱路径解析
-            .Then(CheckTeamMemSecrets)     // 团队密钥检测（replacement 可能含密钥）
-            .Then(RequireReadBeforeWrite)  // 写前读校验
-            .Then(GuardStaleWriteAsync)    // 脏写保护
-            .Then(BackupBeforeWriteAsync)  // 写前备份
+            .Then(_writeDefense.RejectUncPath)           // UNC 路径拒绝
+            .Then(_writeDefense.RejectNotebookEdit)      // .ipynb 拒绝
+            .Then(_writeDefense.ResolveSandboxAsync)     // 沙箱路径解析
+            .Then(_writeDefense.CheckTeamMemSecrets)     // 团队密钥检测（replacement 可能含密钥）
+            .Then(_writeDefense.RequireReadBeforeWrite)  // 写前读校验
+            .Then(_writeDefense.GuardStaleWriteAsync)    // 脏写保护
+            .Then(_writeDefense.BackupBeforeWriteAsync)  // 写前备份
             .ExecuteAsync(cancellationToken).ConfigureAwait(false);
 
         if (safety.Rejection is not null) return safety.Rejection;
@@ -171,7 +171,7 @@ public partial class FileToolHandlers
         response.AppendLine($"({regexFileSize}, {regexLineCount} lines)");
 
         // ── 统一写入后通知 ──
-        NotifyWriteComplete(result.FilePath, null, "edit-regex", FileOperationType.EditRegex);
+        _writeDefense.NotifyWriteComplete(result.FilePath, null, "edit-regex", FileOperationType.EditRegex);
         return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
@@ -200,15 +200,15 @@ public partial class FileToolHandlers
         }
 
         // ── 统一写入防御链 — new_content 可能含密钥，必须检测 ──
-        var safety = await WriteDefense
+        var safety = await _writeDefense
             .Begin(file_path, new_content, FileOperationType.InsertLines, "inserting")
-            .Then(RejectUncPath)           // UNC 路径拒绝
-            .Then(RejectNotebookEdit)      // .ipynb 拒绝
-            .Then(ResolveSandboxAsync)     // 沙箱路径解析
-            .Then(CheckTeamMemSecrets)     // 团队密钥检测（new_content 可能含密钥）
-            .Then(RequireReadBeforeWrite)  // 写前读校验
-            .Then(GuardStaleWriteAsync)    // 脏写保护
-            .Then(BackupBeforeWriteAsync)  // 写前备份
+            .Then(_writeDefense.RejectUncPath)           // UNC 路径拒绝
+            .Then(_writeDefense.RejectNotebookEdit)      // .ipynb 拒绝
+            .Then(_writeDefense.ResolveSandboxAsync)     // 沙箱路径解析
+            .Then(_writeDefense.CheckTeamMemSecrets)     // 团队密钥检测（new_content 可能含密钥）
+            .Then(_writeDefense.RequireReadBeforeWrite)  // 写前读校验
+            .Then(_writeDefense.GuardStaleWriteAsync)    // 脏写保护
+            .Then(_writeDefense.BackupBeforeWriteAsync)  // 写前备份
             .ExecuteAsync(cancellationToken).ConfigureAwait(false);
 
         if (safety.Rejection is not null) return safety.Rejection;
@@ -253,7 +253,7 @@ public partial class FileToolHandlers
         response.AppendLine($"({insFileSize}, {insLineCount} lines)");
 
         // ── 统一写入后通知 ──
-        NotifyWriteComplete(result.FilePath, null, "insert-lines", FileOperationType.InsertLines);
+        _writeDefense.NotifyWriteComplete(result.FilePath, null, "insert-lines", FileOperationType.InsertLines);
         return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
@@ -282,14 +282,14 @@ public partial class FileToolHandlers
         }
 
         // ── 统一写入防御链 — 删除行不引入新内容，跳过密钥检测（ContentToCheck=null） ──
-        var safety = await WriteDefense
+        var safety = await _writeDefense
             .Begin(file_path, null, FileOperationType.DeleteLines, "deleting lines")
-            .Then(RejectUncPath)           // UNC 路径拒绝
-            .Then(RejectNotebookEdit)      // .ipynb 拒绝
-            .Then(ResolveSandboxAsync)     // 沙箱路径解析
-            .Then(RequireReadBeforeWrite)  // 写前读校验
-            .Then(GuardStaleWriteAsync)    // 脏写保护
-            .Then(BackupBeforeWriteAsync)  // 写前备份
+            .Then(_writeDefense.RejectUncPath)           // UNC 路径拒绝
+            .Then(_writeDefense.RejectNotebookEdit)      // .ipynb 拒绝
+            .Then(_writeDefense.ResolveSandboxAsync)     // 沙箱路径解析
+            .Then(_writeDefense.RequireReadBeforeWrite)  // 写前读校验
+            .Then(_writeDefense.GuardStaleWriteAsync)    // 脏写保护
+            .Then(_writeDefense.BackupBeforeWriteAsync)  // 写前备份
             .ExecuteAsync(cancellationToken).ConfigureAwait(false);
 
         if (safety.Rejection is not null) return safety.Rejection;
@@ -334,7 +334,7 @@ public partial class FileToolHandlers
         response.AppendLine($"({delFileSize}, {delLineCount} lines)");
 
         // ── 统一写入后通知 ──
-        NotifyWriteComplete(result.FilePath, null, "delete-lines", FileOperationType.DeleteLines);
+        _writeDefense.NotifyWriteComplete(result.FilePath, null, "delete-lines", FileOperationType.DeleteLines);
         return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
@@ -372,13 +372,13 @@ public partial class FileToolHandlers
             {
                 var safety = await WriteDefense
                     .Begin(path, new_string, FileOperationType.BatchEdit, "batch-editing", old_string, new_string, replace_all)
-                    .Then(RejectUncPath)           // UNC 路径拒绝
-                    .Then(RejectNotebookEdit)      // .ipynb 拒绝
-                    .Then(ResolveSandboxAsync)     // 沙箱路径解析
-                    .Then(CheckTeamMemSecrets)     // 团队密钥检测（new_string 可能含密钥）
-                    .Then(RequireReadBeforeWrite)  // 写前读校验
-                    .Then(GuardStaleWriteAsync)    // 脏写保护
-                    .Then(BackupBeforeWriteAsync)  // 写前备份
+                    .Then(_writeDefense.RejectUncPath)           // UNC 路径拒绝
+                    .Then(_writeDefense.RejectNotebookEdit)      // .ipynb 拒绝
+                    .Then(_writeDefense.ResolveSandboxAsync)     // 沙箱路径解析
+                    .Then(_writeDefense.CheckTeamMemSecrets)     // 团队密钥检测（new_string 可能含密钥）
+                    .Then(_writeDefense.RequireReadBeforeWrite)  // 写前读校验
+                    .Then(_writeDefense.GuardStaleWriteAsync)    // 脏写保护
+                    .Then(_writeDefense.BackupBeforeWriteAsync)  // 写前备份
                     .ExecuteAsync(cancellationToken).ConfigureAwait(false);
                 return (OriginalPath: path, Safety: safety);
             })).ConfigureAwait(false);
@@ -444,7 +444,7 @@ public partial class FileToolHandlers
             {
                 successCount++;
                 // ── 统一写入后通知（每个成功文件） ──
-                NotifyWriteComplete(item.FilePath, null, "batch-edit", FileOperationType.BatchEdit);
+                _writeDefense.NotifyWriteComplete(item.FilePath, null, "batch-edit", FileOperationType.BatchEdit);
                 var batchSize = ContentReplacementConstants.FormatFileSize(item.Result.UpdatedContent.Length);
                 response.AppendLine($"  {StatusSymbol.Tick.ToValue()} {item.FilePath} ({item.Result.ReplaceCount} replacement(s), {batchSize})");
             }

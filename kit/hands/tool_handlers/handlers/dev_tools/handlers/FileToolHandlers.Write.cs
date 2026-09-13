@@ -21,12 +21,12 @@ public partial class FileToolHandlers
         // ── 统一写入防御链 — 每步有名函数，链式编排，任一失败短路 ──
         var safety = await WriteDefense
             .Begin(file_path, content, FileOperationType.Write, "writing")
-            .Then(RejectUncPath)           // UNC 路径拒绝（防凭据泄露）
-            .Then(ResolveSandboxAsync)     // 沙箱路径解析
-            .Then(CheckTeamMemSecrets)     // 团队密钥检测
-            .Then(RequireReadBeforeWrite)  // 写前读校验
-            .Then(GuardStaleWriteAsync)    // 脏写保护
-            .Then(BackupBeforeWriteAsync)  // 写前备份
+            .Then(_writeDefense.RejectUncPath)           // UNC 路径拒绝（防凭据泄露）
+            .Then(_writeDefense.ResolveSandboxAsync)     // 沙箱路径解析
+            .Then(_writeDefense.CheckTeamMemSecrets)     // 团队密钥检测
+            .Then(_writeDefense.RequireReadBeforeWrite)  // 写前读校验
+            .Then(_writeDefense.GuardStaleWriteAsync)    // 脏写保护
+            .Then(_writeDefense.BackupBeforeWriteAsync)  // 写前备份
             .ExecuteAsync(cancellationToken).ConfigureAwait(false);
 
         if (safety.Rejection is not null) return safety.Rejection;
@@ -78,7 +78,7 @@ public partial class FileToolHandlers
         }
 
         // ── 统一写入后通知 — LSP 诊断清除 + LSP 文件变更 + 遥测 + 写入监听器 ──
-        NotifyWriteComplete(result.FilePath, content, "write", FileOperationType.Write);
+        _writeDefense.NotifyWriteComplete(result.FilePath, content, "write", FileOperationType.Write);
         return toolResult;
     }
 }

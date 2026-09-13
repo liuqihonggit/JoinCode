@@ -48,11 +48,12 @@ public sealed class FileSystemSnapshotService : IFileSystemSnapshotService
     private FrozenDictionary<string, FileSnapshotEntry> CaptureEntries(string directoryPath, CancellationToken ct)
     {
         var builder = new Dictionary<string, FileSnapshotEntry>(StringComparer.Ordinal);
+        var normalizedDir = directoryPath.Replace('/', '\\').Trim('\\');
 
         foreach (var filePath in _fs.EnumerateFiles(directoryPath, "*", SearchOption.AllDirectories))
         {
             ct.ThrowIfCancellationRequested();
-            var relativePath = Path.GetRelativePath(directoryPath, filePath).Replace('\\', '/');
+            var relativePath = Path.GetRelativePath(normalizedDir, filePath).Replace('\\', '/');
             var size = _fs.GetFileLength(filePath);
             var lastWrite = _fs.GetLastWriteTimeUtc(filePath);
             builder[relativePath] = new FileSnapshotEntry(relativePath, size, lastWrite);

@@ -6,7 +6,12 @@ namespace Core.Security.Auditing;
 [JsonSourceGenerationOptions(
     WriteIndented = false,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
-    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    Converters = [
+        typeof(JsonStringEnumConverter<CommandDangerLevel>),
+        typeof(JsonStringEnumConverter<PermissionMode>),
+        typeof(JsonStringEnumConverter<FileChangeType>)
+    ])]
 [JsonSerializable(typeof(CommandExecutionAuditEntry))]
 [JsonSerializable(typeof(FileChangeRecord))]
 [JsonSerializable(typeof(List<FileChangeRecord>))]

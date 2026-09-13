@@ -75,11 +75,17 @@ public partial class FileToolHandlers : IDisposable
         _lspDiagnosticProvider = context?.LspDiagnosticProvider;
         _applyPatchLogic = context?.ApplyPatchLogic;
         _subAgentContextAccessor = context?.SubAgentContextAccessor;
-        // WriteDefenseService — 优先从 DI 获取，否则用当前依赖现场构造（测试场景）
+        // WriteDefenseService — 优先从 DI 获取，否则用当前依赖现场构造 node 再注入（测试场景）
         _writeDefense = context?.WriteDefenseService
-            ?? new WriteDefenseService(_fs, _sandboxManager, _telemetryService, _fileStateCache,
-                _fileHistoryService, _lspFileSync, _teamMemSecretGuard, _fileWriteListenerRegistry,
-                _lspDiagnosticProvider, _subAgentContextAccessor);
+            ?? new WriteDefenseService(
+                new SecretGuardNode(_teamMemSecretGuard),
+                new FileBackupNode(_fs, _fileHistoryService),
+                new WriteNotifyNode(_fs, _lspFileSync, _lspDiagnosticProvider, _telemetryService,
+                    _fileWriteListenerRegistry, _subAgentContextAccessor),
+                new SandboxGuardNode(_sandboxManager),
+                new FileStateGuardNode(_fs, _fileStateCache),
+                new FormatValidatorNode(_fs, _subAgentContextAccessor),
+                _telemetryService);
     }
 
     /// <summary>

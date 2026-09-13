@@ -31,6 +31,7 @@ global using JoinCode.Abstractions.Models.Vcr;
 global using JoinCode.Abstractions.Models.Voice;
 global using JoinCode.Abstractions.Prompts;
 global using JoinCode.Abstractions.Security;
+global using JoinCode.Abstractions.Security.Sandbox;
 global using JoinCode.Abstractions.Security.Shell;
 global using JoinCode.Abstractions.Security.Shell.PowerShell;
 global using JoinCode.Abstractions.State;

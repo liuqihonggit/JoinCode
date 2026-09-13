@@ -1,10 +1,20 @@
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /permissions 命令 — 管理权限规则和工作区目录
+/// 支持列出、添加、移除、清除权限规则,以及管理工作区额外目录
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Permissions, Description = "管理权限规则和工作区目录", Usage = "/permissions [list|add|remove|clear|workspace] [args]", Category = ChatCommandCategory.Config, Aliases = ["perm"], ArgumentHint = "[list|add|remove|clear|workspace]")]
 [ChatCommandArg("action", Type = "string", Description = "权限操作", Enum = new[] { "list", "add", "remove", "clear", "workspace" }, Default = "list")]
 [ChatCommandArg("args", Type = "string", Description = "操作特定参数,如 add 的权限规则")]
 public sealed class PermissionsCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /permissions 命令 — 根据子命令分发到对应权限或工作区操作
+    /// 支持 list/add/remove/clear/workspace 五种操作,默认 list
+    /// </summary>
+    /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
+    /// <returns>命令执行结果,始终返回 Continue 表示继续会话</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetSplitArgs(context);

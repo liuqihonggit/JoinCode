@@ -73,6 +73,17 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
     /// </summary>
     protected ShellExecutionConfig? Config => _config;
 
+    /// <summary>
+    /// 构造系统执行器基类 — 从静态缓存读取能力描述并初始化各依赖字段
+    /// </summary>
+    /// <param name="kind">执行器种类</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="sandboxManager">沙箱管理器</param>
+    /// <param name="preventSleepService">防休眠服务</param>
+    /// <param name="config">Shell 执行配置</param>
+    /// <param name="toolUseId">工具使用 ID（用于追踪）</param>
+    /// <param name="spanId">跨度 ID（用于链路追踪）</param>
     protected SystemActuatorBase(
         SystemActuatorKind kind,
         IFileSystem fs,

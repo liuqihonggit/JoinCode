@@ -7,6 +7,10 @@ namespace Core.Configuration;
 public sealed partial class EffortLevelMiddleware : ServiceEntity, ISettingsMiddleware
 {
 
+    /// <summary>
+    /// 初始化 EffortLevel 更新中间件
+    /// </summary>
+    /// <param name="executionSettingsProvider">可选的执行设置提供者</param>
     public EffortLevelMiddleware(IExecutionSettingsProvider? executionSettingsProvider = null)
     {
         _executionSettingsProvider = executionSettingsProvider;

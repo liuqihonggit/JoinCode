@@ -1,17 +1,31 @@
 
 namespace Core.Context.Collapse;
 
+/// <summary>
+/// 上下文折叠服务实现：识别并折叠内容中的可折叠段，生成摘要以降低 token 用量
+/// </summary>
 [Register(typeof(IContextCollapseService), ServiceLifetime.Singleton)]
 public sealed partial class ContextCollapseService : ServiceEntity, IContextCollapseService
 {
     private readonly ILogger<ContextCollapseService>? _logger;
     private readonly AsyncLock _collapseLock = new();
 
+    /// <summary>
+    /// 构造上下文折叠服务
+    /// </summary>
+    /// <param name="logger">可选的日志记录器</param>
     public ContextCollapseService(ILogger<ContextCollapseService>? logger = null)
     {
         _logger = logger;
     }
 
+    /// <summary>
+    /// 折叠指定内容中的可折叠段
+    /// </summary>
+    /// <param name="content">待折叠的原始内容</param>
+    /// <param name="options">折叠选项，为 null 时使用平衡策略</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>折叠结果</returns>
     public async Task<ContextCollapseResult> CollapseAsync(
         string content,
         ContextCollapseOptions? options = null,
@@ -124,6 +138,13 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
 
     }
 
+    /// <summary>
+    /// 识别内容中所有可折叠的段
+    /// </summary>
+    /// <param name="content">原始内容</param>
+    /// <param name="options">折叠选项，为 null 时使用平衡策略</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>可折叠段列表，按起始偏移升序排列</returns>
     public async Task<IReadOnlyList<CollapsibleSegment>> IdentifyCollapsibleSegmentsAsync(
         string content,
         ContextCollapseOptions? options = null,
@@ -202,6 +223,13 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
         return segments.OrderBy(s => s.StartOffset).ToList();
     }
 
+    /// <summary>
+    /// 为指定段生成摘要
+    /// </summary>
+    /// <param name="segment">待生成摘要的可折叠段</param>
+    /// <param name="options">折叠选项，为 null 时使用平衡策略</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>段摘要文本</returns>
     public async Task<string> GenerateSummaryAsync(
         CollapsibleSegment segment,
         ContextCollapseOptions? options = null,
@@ -488,6 +516,9 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
         return offset;
     }
 
+    /// <summary>
+    /// 释放资源
+    /// </summary>
     protected override void OnDispose() => _collapseLock.Dispose();
 
     private sealed class PatternRange

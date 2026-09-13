@@ -11,6 +11,10 @@ public class CodeAnalysisToolHandlers
 {
     private readonly IQueryEngine _queryEngine;
 
+    /// <summary>
+    /// 初始化 <see cref="CodeAnalysisToolHandlers"/> 实例
+    /// </summary>
+    /// <param name="queryEngine">查询引擎</param>
     public CodeAnalysisToolHandlers(IQueryEngine queryEngine)
     {
         _queryEngine = queryEngine ?? throw new ArgumentNullException(nameof(queryEngine));

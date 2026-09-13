@@ -8,6 +8,10 @@ namespace Core.Context;
 public sealed partial class SessionSaveMiddleware : ServiceEntity, IChatAdminMiddleware
 {
 
+    /// <summary>
+    /// 初始化 <see cref="SessionSaveMiddleware"/> 实例
+    /// </summary>
+    /// <param name="logger">可选的日志记录器</param>
     public SessionSaveMiddleware(ILogger<SessionSaveMiddleware>? logger = null)
     {
         _logger = logger;

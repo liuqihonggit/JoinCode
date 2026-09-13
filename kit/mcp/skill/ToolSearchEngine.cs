@@ -1,14 +1,27 @@
 namespace McpClient;
 
+/// <summary>
+/// 工具搜索引擎 — 提供 select 精确选择、map 分组下钻、list_groups 列出分组、关键词模糊搜索等渐进式查询能力
+/// </summary>
 public sealed class ToolSearchEngine
 {
     private readonly List<DeferredToolInfo> _deferredTools;
 
+    /// <summary>
+    /// 初始化 <see cref="ToolSearchEngine"/> 实例
+    /// </summary>
+    /// <param name="deferredTools">延迟加载的工具信息列表（可选）</param>
     public ToolSearchEngine(IReadOnlyList<DeferredToolInfo> deferredTools)
     {
         _deferredTools = deferredTools != null ? [.. deferredTools] : [];
     }
 
+    /// <summary>
+    /// 渐进式查询 — 优先级：select 精确选择 → map 分组下钻 → list_groups 列出分组 → 关键词搜索
+    /// </summary>
+    /// <param name="query">查询字符串</param>
+    /// <param name="maxResults">最大结果数（默认 10）</param>
+    /// <returns>工具搜索结果</returns>
     public ToolSearchResult Search(string query, int maxResults = 10)
     {
         ArgumentException.ThrowIfNullOrEmpty(query);

@@ -10,11 +10,22 @@ public sealed partial class ToolExecutionMiddleware : ServiceEntity, IToolExecut
 
     private readonly ILogger<ToolExecutionMiddleware> _logger;
 
+    /// <summary>
+    /// 构造函数 — 注入日志记录器
+    /// </summary>
+    /// <param name="logger">日志记录器实例</param>
     public ToolExecutionMiddleware(ILogger<ToolExecutionMiddleware> logger)
     {
         _logger = logger;
     }
 
+    /// <summary>
+    /// 实际调用工具处理器执行；若 Handler 为空则返回未找到错误，执行成功设置遥测状态 Ok，异常被捕获并转为错误结果
+    /// </summary>
+    /// <param name="context">工具执行上下文</param>
+    /// <param name="next">下一层中间件委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task InvokeAsync(
         ToolExecutionContext context,
         MiddlewareDelegate<ToolExecutionContext> next,

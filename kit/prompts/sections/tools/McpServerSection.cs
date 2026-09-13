@@ -6,6 +6,10 @@ namespace Core.Prompts.Sections;
 /// </summary>
 [PromptSection(Name = "mcp_server", Order = 76, IsDynamic = true)]
 public static class McpServerSection {
+    /// <summary>
+    /// 获取 MCP 服务器部分的提示词内容。当无已连接服务器时返回 null。
+    /// </summary>
+    /// <returns>MCP 服务器说明文本；若无已连接服务器则返回 null。</returns>
     public static string? GetContent() {
         var servers = PromptConfigSnapshot.Current.McpServers.ToList();
 
@@ -28,6 +32,10 @@ public static class McpServerSection {
         return result.ToString().TrimEnd();
     }
 
+    /// <summary>
+    /// 创建 MCP 服务器 Section 实例（动态内容，每次重新生成）。
+    /// </summary>
+    /// <returns>MCP 服务器 Section 实例。</returns>
     public static SystemPromptSection Create() =>
         SystemPromptSection.Dynamic("mcp_servers", GetContent);
 }

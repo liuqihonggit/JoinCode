@@ -181,6 +181,14 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
     private readonly IClockService _clock;
     private readonly AsyncLock _writeLock = new();
 
+    /// <summary>
+    /// 构造助手日志服务
+    /// </summary>
+    /// <param name="memoryStore">记忆存储，用于查询关联记忆</param>
+    /// <param name="memoryPaths">记忆路径解析器</param>
+    /// <param name="fileOperationService">文件操作服务</param>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="clock">时钟服务（可选，默认使用系统时钟，便于测试注入）</param>
     public AssistantDailyLogService(
         MemoryStore memoryStore,
         IMemoryPaths memoryPaths,
@@ -367,6 +375,9 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
         }
     }
 
+    /// <summary>
+    /// 释放日志写入锁资源。
+    /// </summary>
     protected override void OnDispose() => _writeLock.Dispose();
 }
 

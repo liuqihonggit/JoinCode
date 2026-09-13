@@ -10,6 +10,11 @@ public sealed class HighWaterMarkManager
     private readonly IFileSystem _fs;
     private readonly string _highWaterMarkPath;
 
+    /// <summary>
+    /// 初始化高水位标记管理器
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="options">任务目录配置选项</param>
     public HighWaterMarkManager(IFileSystem fs, TaskDirectoryOptions options)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));

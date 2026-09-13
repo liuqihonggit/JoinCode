@@ -5,24 +5,45 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 public enum DebugLogFlag
 {
+    /// <summary>
+    /// 仅显示错误
+    /// </summary>
     [EnumValue("--error")]
     [EnumValue("-e")]
     Error,
+    /// <summary>
+    /// 显示警告与错误
+    /// </summary>
     [EnumValue("--warn")]
     [EnumValue("-w")]
     Warn,
+    /// <summary>
+    /// 仅显示初始化信息
+    /// </summary>
     [EnumValue("--init")]
     [EnumValue("-i")]
     Init,
+    /// <summary>
+    /// 仅显示系统提示词
+    /// </summary>
     [EnumValue("--prompt")]
     [EnumValue("-p")]
     Prompt,
+    /// <summary>
+    /// 仅显示诊断日志
+    /// </summary>
     [EnumValue("--log")]
     [EnumValue("-l")]
     Log,
+    /// <summary>
+    /// 显示全部信息
+    /// </summary>
     [EnumValue("--all")]
     [EnumValue("-a")]
     All,
+    /// <summary>
+    /// 清空日志缓冲区
+    /// </summary>
     [EnumValue("--clear")]
     [EnumValue("-c")]
     Clear,
@@ -45,6 +66,11 @@ public enum DebugLogFlag
 [ChatCommandArg("flags", Type = "string", Description = "显示标志（可组合）", Enum = new[] { "-a", "--all", "-e", "--error", "-w", "--warn", "-i", "--init", "-p", "--prompt", "-l", "--log", "-c", "--clear" })]
 public sealed class DebugLogCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /debuglog 命令 — 根据标志位渲染对应的诊断信息或清空日志缓冲区
+    /// </summary>
+    /// <param name="context">命令执行上下文，包含参数与服务容器</param>
+    /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
     public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = GetSplitArgs(context);

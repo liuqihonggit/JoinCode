@@ -1,16 +1,24 @@
 namespace Infrastructure.Pipeline;
 
+/// <summary>
+/// 代理通知队列实现 — 子代理完成后入队通知，主代理或父代理出队消费
+/// </summary>
 [Register(typeof(JoinCode.Abstractions.Interfaces.IAgentNotificationQueue), ServiceLifetime.Singleton)]
 public sealed partial class AgentNotificationQueue : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentNotificationQueue
 {
     private readonly ConcurrentQueue<JoinCode.Abstractions.Interfaces.QueuedNotification> _queue = new();
     private readonly ILogger<AgentNotificationQueue>? _logger;
 
+    /// <summary>
+    /// 构造函数 — 注入可选日志记录器
+    /// </summary>
+    /// <param name="logger">日志记录器，可为 null</param>
     public AgentNotificationQueue(ILogger<AgentNotificationQueue>? logger = null)
     {
         _logger = logger;
     }
 
+    /// <inheritdoc/>
     public void Enqueue(string? parentAgentId, string notificationXml)
     {
         var notification = new JoinCode.Abstractions.Interfaces.QueuedNotification
@@ -23,6 +31,7 @@ public sealed partial class AgentNotificationQueue : ServiceEntity, JoinCode.Abs
             parentAgentId ?? "(main)", notificationXml.Length);
     }
 
+    /// <inheritdoc/>
     public IReadOnlyList<JoinCode.Abstractions.Interfaces.QueuedNotification> DequeueAll(string? currentAgentId = null)
     {
         var results = new List<JoinCode.Abstractions.Interfaces.QueuedNotification>();
@@ -45,5 +54,6 @@ public sealed partial class AgentNotificationQueue : ServiceEntity, JoinCode.Abs
         return results;
     }
 
+    /// <inheritdoc/>
     public bool HasPendingNotifications => !_queue.IsEmpty;
 }

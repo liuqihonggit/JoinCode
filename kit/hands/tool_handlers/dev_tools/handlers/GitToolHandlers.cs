@@ -3,6 +3,9 @@
 
 namespace Tools.Handlers;
 
+/// <summary>
+/// Git 工具处理器 — 提供 git status/add/commit/push/pull/log/diff/branch 等子命令
+/// </summary>
 [McpToolDispatch(ToolCategory.Git)]
 public partial class GitToolHandlers
 {
@@ -13,6 +16,13 @@ public partial class GitToolHandlers
     private readonly IFileSystem _fs;
     private string? _currentWorkingDirectory;
 
+    /// <summary>
+    /// 构造 Git 工具处理器（无安全拦截器）
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="gitRunner">Git 命令执行器</param>
+    /// <param name="logger">可选日志记录器</param>
+    /// <param name="telemetryService">可选遥测服务</param>
     public GitToolHandlers(IFileSystem fs, IGitCommandRunner gitRunner, ILogger<GitToolHandlers>? logger = null, ITelemetryService? telemetryService = null)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
@@ -21,6 +31,14 @@ public partial class GitToolHandlers
         _telemetryService = telemetryService;
     }
 
+    /// <summary>
+    /// 构造 Git 工具处理器 — 带安全拦截器，用于提交前密钥扫描
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="gitRunner">Git 命令执行器</param>
+    /// <param name="securityInterceptor">Git 安全拦截器，提交前扫描密钥</param>
+    /// <param name="logger">可选日志记录器</param>
+    /// <param name="telemetryService">可选遥测服务</param>
     public GitToolHandlers(IFileSystem fs, IGitCommandRunner gitRunner, IGitSecurityInterceptor securityInterceptor, ILogger<GitToolHandlers>? logger = null, ITelemetryService? telemetryService = null)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
@@ -30,11 +48,16 @@ public partial class GitToolHandlers
         _telemetryService = telemetryService;
     }
 
+    /// <summary>
+    /// 设置当前工作目录 — 后续 Git 命令在此目录下执行
+    /// </summary>
+    /// <param name="directory">工作目录路径</param>
     public void SetWorkingDirectory(string directory)
     {
         _currentWorkingDirectory = directory;
     }
 
+    /// <summary>查看 Git 仓库状态（git status --porcelain -b）</summary>
     [McpTool(GitToolNameConstants.GitStatus, "Check Git repository status", "git", ConcurrencySafe = true)]
     public async Task<ToolResult> GitStatusAsync(
         [McpToolParameter("Working directory path (optional, defaults to current directory)", Required = false)] string? working_dir = null,
@@ -77,6 +100,7 @@ public partial class GitToolHandlers
         }
     }
 
+    /// <summary>添加文件到暂存区（git add）</summary>
     [McpTool(GitToolNameConstants.GitAdd, "Add files to staging area", "git")]
     public async Task<ToolResult> GitAddAsync(
         [McpToolParameter("File path (supports wildcards *, use . for all files)")] string path,
@@ -120,6 +144,7 @@ public partial class GitToolHandlers
         }
     }
 
+    /// <summary>提交暂存区变更（git commit -m）</summary>
     [McpTool(GitToolNameConstants.GitCommit, "Commit staged changes", "git")]
     public async Task<ToolResult> GitCommitAsync(
         [McpToolParameter("Commit message")] string message,
@@ -170,6 +195,7 @@ public partial class GitToolHandlers
         }
     }
 
+    /// <summary>推送到远程仓库（git push）</summary>
     [McpTool(GitToolNameConstants.GitPush, "Push to remote repository", "git")]
     public async Task<ToolResult> GitPushAsync(
         [McpToolParameter("Remote name (optional, defaults to origin)", Required = false)] string? remote = "origin",
@@ -211,6 +237,7 @@ public partial class GitToolHandlers
         }
     }
 
+    /// <summary>从远程仓库拉取（git pull）</summary>
     [McpTool(GitToolNameConstants.GitPull, "Pull from remote repository", "git")]
     public async Task<ToolResult> GitPullAsync(
         [McpToolParameter("Remote name (optional, defaults to origin)", Required = false)] string? remote = "origin",
@@ -248,6 +275,7 @@ public partial class GitToolHandlers
         }
     }
 
+    /// <summary>查看提交历史（git log）</summary>
     [McpTool(GitToolNameConstants.GitLog, "View commit history", "git", ConcurrencySafe = true)]
     public async Task<ToolResult> GitLogAsync(
         [McpToolParameter("Number of entries (optional, defaults to 10)", Required = false)] int? count = 10,
@@ -302,6 +330,7 @@ public partial class GitToolHandlers
         }
     }
 
+    /// <summary>查看文件差异（git diff）</summary>
     [McpTool(GitToolNameConstants.GitDiff, "View file differences", "git", ConcurrencySafe = true)]
     public async Task<ToolResult> GitDiffAsync(
         [McpToolParameter("File path (optional, defaults to all files)", Required = false)] string? path = null,
@@ -353,6 +382,7 @@ public partial class GitToolHandlers
         }
     }
 
+    /// <summary>创建或切换分支（git branch/checkout）</summary>
     [McpTool(GitToolNameConstants.GitBranch, "Create or switch branch", "git")]
     public async Task<ToolResult> GitBranchAsync(
         [McpToolParameter("Branch name")] string branch_name,
@@ -425,6 +455,7 @@ public partial class GitToolHandlers
         }
     }
 
+    /// <summary>克隆远程仓库（git clone）</summary>
     [McpTool(GitToolNameConstants.GitClone, "Clone remote repository", "git")]
     public async Task<ToolResult> GitCloneAsync(
         [McpToolParameter("Repository URL")] string url,

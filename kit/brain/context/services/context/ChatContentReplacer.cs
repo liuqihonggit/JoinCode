@@ -29,6 +29,12 @@ public sealed record ContentReplacementResult
 public sealed partial class ChatContentReplacer : ServiceEntity, IChatContentReplacer
 {
 
+    /// <summary>
+    /// 初始化聊天内容替换处理器
+    /// </summary>
+    /// <param name="contentReplacementService">内容替换服务（可选，null 时禁用替换）</param>
+    /// <param name="transcriptService">transcript 持久化服务（可选）</param>
+    /// <param name="logger">可选日志记录器</param>
     public ChatContentReplacer(IContentReplacementService? contentReplacementService = null, ITranscriptService? transcriptService = null, ILogger<ChatContentReplacer>? logger = null)
     {
         _contentReplacementService = contentReplacementService;

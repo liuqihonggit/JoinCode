@@ -5,6 +5,10 @@ namespace Core.Prompts.Sections;
 /// </summary>
 [PromptSection(Name = "tone", Order = 16)]
 public static class ToneSection {
+    /// <summary>
+    /// 创建语气和风格提示词部分。
+    /// </summary>
+    /// <returns>缓存系统提示词部分。</returns>
     public static SystemPromptSection Create() {
         return SystemPromptSection.Cached("tone", () => {
             var items = new[] {

@@ -17,6 +17,9 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
     private const string RulesFileName = "rules.json";
     private int _disposed;
 
+    /// <summary>
+    /// 构造代理权限管理器
+    /// </summary>
     public AgentPermissionManager(
         ITelemetryService? telemetryService = null,
         IPersistencePipeline? persistencePipeline = null,

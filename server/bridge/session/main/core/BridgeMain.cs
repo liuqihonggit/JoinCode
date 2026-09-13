@@ -63,6 +63,17 @@ public sealed partial class BridgeMain : ServiceEntity
 
     private readonly INetworkConnectivityService? _networkService;
 
+    /// <summary>
+    /// 构造 Bridge 主编排器
+    /// </summary>
+    /// <param name="deps">BridgeMain 依赖包</param>
+    /// <param name="handleWorkPipeline">工作处理中间件管道（可选）</param>
+    /// <param name="shutdownPipeline">关闭中间件管道（可选）</param>
+    /// <param name="runPipeline">运行中间件管道（可选）</param>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="clock">时钟服务（可选，默认系统时钟）</param>
+    /// <param name="networkService">网络连通性服务（可选）</param>
+    /// <param name="giveUpThreshold">退避放弃阈值（可选）</param>
     public BridgeMain(
         BridgeMainDeps deps,
         MiddlewarePipeline<HandleWorkContext>? handleWorkPipeline = null,

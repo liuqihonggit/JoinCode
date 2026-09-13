@@ -7,9 +7,13 @@ namespace Core.Bridge;
 /// </summary>
 public sealed class BridgeInitState
 {
+    /// <summary>刷新闸门 — 对齐 TS 端 flushGate，批量发送消息</summary>
     public required BridgeFlushGate<string> FlushGate { get; init; }
+    /// <summary>已发布 UUID 去重集合 — 对齐 TS 端 recentPostedUUIDs</summary>
     public required BoundedUUIDSet RecentPostedUUIDs { get; init; }
+    /// <summary>已入站 UUID 去重集合 — 对齐 TS 端 recentInboundUUIDs</summary>
     public required BoundedUUIDSet RecentInboundUUIDs { get; init; }
+    /// <summary>初始化取消令牌源 — 对齐 TS 端 initCts</summary>
     public required CancellationTokenSource InitCts { get; init; }
 
     /// <summary>初始历史刷新是否已完成</summary>
@@ -52,11 +56,21 @@ public sealed class BridgeInitState
 /// </summary>
 internal sealed class V1ReconnectState
 {
+    /// <summary>环境 ID</summary>
     public string EnvironmentId;
+    /// <summary>环境密钥</summary>
     public string EnvironmentSecret;
+    /// <summary>会话 ID</summary>
     public string SessionId;
+    /// <summary>环境重建次数</summary>
     public int EnvironmentRecreations;
 
+    /// <summary>
+    /// 构造 v1 重连状态
+    /// </summary>
+    /// <param name="environmentId">环境 ID</param>
+    /// <param name="environmentSecret">环境密钥</param>
+    /// <param name="sessionId">会话 ID</param>
     public V1ReconnectState(string environmentId, string environmentSecret, string sessionId)
     {
         EnvironmentId = environmentId;

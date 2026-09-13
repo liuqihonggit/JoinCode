@@ -12,6 +12,9 @@ public sealed class InMemoryFileSystem : IFileSystem
     private readonly ConcurrentDictionary<string, AsyncLock> _editLocks = new();
     private string _currentDirectory = "/test";
 
+    /// <summary>
+    /// 构造内存文件系统，初始化根目录和默认当前目录
+    /// </summary>
     public InMemoryFileSystem()
     {
         _directories[string.Empty] = new InMemoryDirectoryEntry { FullPath = string.Empty };
@@ -619,6 +622,11 @@ public sealed class InMemoryFileSystem : IFileSystem
         }
     }
 
+    /// <summary>
+    /// 规范化路径 — 反斜杠转正斜杠并去除首尾分隔符，用于内部统一路径比较
+    /// </summary>
+    /// <param name="path">原始路径</param>
+    /// <returns>规范化后的路径</returns>
     internal static string NormalizePath(string path)
         => path?.Replace('\\', '/').Trim('/') ?? string.Empty;
 

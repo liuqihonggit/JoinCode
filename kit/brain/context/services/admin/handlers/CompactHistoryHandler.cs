@@ -12,6 +12,14 @@ public sealed partial class CompactHistoryHandler : ServiceEntity, IChatAdminOpe
     private readonly ITodoService? _todoService;
     private readonly ILogger<CompactHistoryHandler>? _logger;
 
+    /// <summary>
+    /// 初始化 <see cref="CompactHistoryHandler"/> 实例
+    /// </summary>
+    /// <param name="promptManager">聊天提示词管理器，用于获取静态前缀和清理提醒</param>
+    /// <param name="hookHelper">会话 Hook 辅助服务，用于执行 SessionStart Hook</param>
+    /// <param name="fs">可选的文件系统，用于构建最近读取文件附件</param>
+    /// <param name="todoService">可选的 TODO 服务，用于压缩后恢复任务进度</param>
+    /// <param name="logger">可选的日志记录器</param>
     public CompactHistoryHandler(
         IChatPromptManager promptManager,
         SessionHookHelper hookHelper,
@@ -26,8 +34,17 @@ public sealed partial class CompactHistoryHandler : ServiceEntity, IChatAdminOpe
         _logger = logger;
     }
 
+    /// <summary>
+    /// 获取该处理器负责的管理操作类型
+    /// </summary>
     public ChatAdminOperation Operation => ChatAdminOperation.CompactHistory;
 
+    /// <summary>
+    /// 执行压缩历史操作：清空消息后写入静态前缀、压缩摘要、最近读取文件附件，恢复 TODO 进度，并触发 SessionStart Hook
+    /// </summary>
+    /// <param name="context">管理操作上下文，需提供 Summary 和 ToolUseContext</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task ExecuteAsync(ChatAdminContext context, CancellationToken ct)
     {
         try

@@ -10,6 +10,9 @@ namespace Core.Prompts.Sections;
     Order = 55)]
 public static class CompetitiveEdgeSection
 {
+    /// <summary>
+    /// 获取 competitive_edge 部分内容；竞争性驱动协议文本。
+    /// </summary>
     public static string GetContent()
     {
         return """
@@ -50,6 +53,9 @@ public static class CompetitiveEdgeSection
 """;
     }
 
+    /// <summary>
+    /// 创建 competitive_edge 提示词部分。
+    /// </summary>
     public static SystemPromptSection Create()
     {
         return SystemPromptSection.Cached("competitive_edge", GetContent);

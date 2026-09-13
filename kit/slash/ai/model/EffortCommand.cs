@@ -1,5 +1,9 @@
+
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /effort 命令 — 调整推理力度
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Effort, Description = "调整推理力度", Usage = "/effort [low|medium|high|max|auto|unset]", Category = ChatCommandCategory.Model, ArgumentHint = "[low|medium|high|max|auto|unset]")]
 [ChatCommandArg("level", Type = "string", Description = "推理力度级别", Enum = new[] { "low", "medium", "high", "max", "auto", "unset" })]
 public sealed class EffortCommand : ChatCommandBase
@@ -7,6 +11,11 @@ public sealed class EffortCommand : ChatCommandBase
     // 对齐 TS: COMMON_HELP_ARGS
     // 对齐 TS: current/status 关键字
 
+    /// <summary>
+    /// 执行推理力度命令,根据参数显示帮助、当前级别或更新 effort 并持久化
+    /// </summary>
+    /// <param name="context">命令执行上下文,提供参数与状态栏数据</param>
+    /// <returns>表示命令执行结果的任务,始终返回 Continue 以继续会话</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();

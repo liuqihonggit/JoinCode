@@ -1,5 +1,9 @@
 namespace McpClient;
 
+/// <summary>
+/// 交互式 Elicitation 处理器 — 通过用户交互服务（IUserInteractionService）将服务器的 elicitation 请求转发给终端用户,
+/// 支持 Form 与 Url 两种模式,串行处理请求队列。
+/// </summary>
 [Register(typeof(IElicitationHandler), ServiceLifetime.Singleton)]
 public sealed partial class InteractiveElicitationHandler : ServiceEntity, IElicitationHandler
 {
@@ -7,6 +11,11 @@ public sealed partial class InteractiveElicitationHandler : ServiceEntity, IElic
     private readonly ILogger<InteractiveElicitationHandler>? _logger;
     private readonly AsyncLock _queueLock = new();
 
+    /// <summary>
+    /// 构造 InteractiveElicitationHandler 实例。
+    /// </summary>
+    /// <param name="userInteraction">用户交互服务,用于向终端用户提问与确认。</param>
+    /// <param name="logger">日志记录器。</param>
     public InteractiveElicitationHandler(
         IUserInteractionService userInteraction,
         ILogger<InteractiveElicitationHandler>? logger = null)
@@ -15,6 +24,14 @@ public sealed partial class InteractiveElicitationHandler : ServiceEntity, IElic
         _logger = logger;
     }
 
+    /// <summary>
+    /// 处理 Elicitation 请求 — 依据请求模式分发到 Form 或 Url 处理流程,串行执行以避免并发冲突。
+    /// </summary>
+    /// <param name="serverName">发起请求的服务器名称。</param>
+    /// <param name="requestId">JSON-RPC 请求标识。</param>
+    /// <param name="params">Elicitation 请求参数,包含模式、消息与 schema。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>Elicitation 处理结果,包含 Accept/Decline/Cancel 动作与内容。</returns>
     public async Task<ElicitResult> HandleElicitationAsync(
         string serverName,
         JsonRpcId requestId,
@@ -148,5 +165,6 @@ public sealed partial class InteractiveElicitationHandler : ServiceEntity, IElic
         };
     }
 
+    /// <summary>释放资源 — 释放请求队列锁。</summary>
     protected override void OnDispose() => _queueLock.Dispose();
 }

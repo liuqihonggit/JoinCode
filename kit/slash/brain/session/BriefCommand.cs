@@ -1,13 +1,22 @@
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /brief 命令 — 切换简要消息模式，启用后 LLM 通过 SendUserMessage 工具回复用户。
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Brief, Description = "切换简要消息模式", Usage = "/brief [on|off]", Category = ChatCommandCategory.Session)]
 [ChatCommandArg("state", Type = "string", Description = "开关状态", Enum = new[] { "on", "off" })]
 public sealed class BriefCommand : ToggleCommandBase
 {
+    /// <summary>命令名称。</summary>
     public override string Name => ChatCommandNameConstants.Brief;
+    /// <summary>命令描述。</summary>
     public override string Description => "切换简要消息模式";
+    /// <summary>命令用法提示。</summary>
     public override string Usage => "/brief [on|off]";
 
+    /// <summary>
+    /// 获取简要模式当前是否启用，优先读取环境变量覆盖值。
+    /// </summary>
     public override bool IsEnabled
     {
         get
@@ -22,6 +31,11 @@ public sealed class BriefCommand : ToggleCommandBase
         }
     }
 
+    /// <summary>
+    /// 启用简要消息模式时的处理逻辑，含权限校验和状态提醒注入。
+    /// </summary>
+    /// <param name="context">命令执行上下文。</param>
+    /// <returns>表示异步操作的任务。</returns>
     protected override async Task OnEnabledAsync(ChatCommandContext context)
     {
         var briefModeService = context.GetCommandServices().BriefModeService;
@@ -44,6 +58,11 @@ public sealed class BriefCommand : ToggleCommandBase
         }
     }
 
+    /// <summary>
+    /// 停用简要消息模式时的处理逻辑，含状态提醒注入。
+    /// </summary>
+    /// <param name="context">命令执行上下文。</param>
+    /// <returns>表示异步操作的任务。</returns>
     protected override async Task OnDisabledAsync(ChatCommandContext context)
     {
         var briefModeService = context.GetCommandServices().BriefModeService;
@@ -59,6 +78,11 @@ public sealed class BriefCommand : ToggleCommandBase
         }
     }
 
+    /// <summary>
+    /// 切换简要消息模式时的处理逻辑，含权限校验和状态提醒注入。
+    /// </summary>
+    /// <param name="context">命令执行上下文。</param>
+    /// <returns>表示异步操作的任务。</returns>
     protected override async Task OnToggleAsync(ChatCommandContext context)
     {
         var briefModeService = context.GetCommandServices().BriefModeService;
@@ -85,6 +109,11 @@ public sealed class BriefCommand : ToggleCommandBase
         }
     }
 
+    /// <summary>
+    /// 输出简要消息模式当前启用状态及提示信息。
+    /// </summary>
+    /// <param name="context">命令执行上下文。</param>
+    /// <returns>表示异步操作的任务。</returns>
     protected override Task PrintStatusAsync(ChatCommandContext context)
     {
         var service = context.GetCommandServices().BriefModeService;

@@ -1,6 +1,9 @@
 
 namespace Core.Bridge;
 
+/// <summary>
+/// Bridge 远程核心（v2 回调分部类） — 注册 v2 传输回调、URL 转换、环境重连策略
+/// </summary>
 public static partial class BridgeRemoteCore
 {
     /// <summary>

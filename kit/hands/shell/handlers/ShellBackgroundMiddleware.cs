@@ -9,6 +9,11 @@ namespace Tools.Shell;
 public sealed partial class ShellBackgroundMiddleware : ServiceEntity, IShellMiddleware
 {
 
+    /// <summary>
+    /// 构造后台任务中间件
+    /// </summary>
+    /// <param name="registry">系统执行器注册表</param>
+    /// <param name="telemetryService">遥测服务（可选）</param>
     public ShellBackgroundMiddleware(ISystemActuatorRegistry registry, ITelemetryService? telemetryService = null)
     {
         _registry = registry;

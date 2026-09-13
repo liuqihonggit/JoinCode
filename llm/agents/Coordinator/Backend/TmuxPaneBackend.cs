@@ -1,10 +1,13 @@
 namespace Core.Agents.Coordinator;
 
+/// <summary>
+/// tmux 终端面板后端 — 通过 tmux CLI 创建并管理队友面板，支持在 tmux 会话内嵌套或外部独立会话两种模式
+/// </summary>
 [Register(typeof(JoinCode.Abstractions.Interfaces.IPaneBackend), ServiceLifetime.Singleton)]
 public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractions.Interfaces.IPaneBackend
 {
     private static readonly string[] TmuxColorMap =
-    new[] { 
+    new[] {
         "red", "blue", "green", "yellow", "magenta", "colour208", "colour205", "cyan",
         "colour131", "colour75", "colour114", "colour221"
      };
@@ -18,10 +21,17 @@ public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractio
     private string? _windowTarget;
     private string? _leaderPaneId;
 
+    /// <summary>后端类型标识，固定为 Tmux</summary>
     public JoinCode.Abstractions.Interfaces.BackendType BackendType => JoinCode.Abstractions.Interfaces.BackendType.Tmux;
 
+    /// <summary>当前环境是否可用 tmux 后端（tmux CLI 可调用即视为可用）</summary>
     public bool IsAvailable { get; }
 
+    /// <summary>
+    /// 构造 tmux 面板后端实例
+    /// </summary>
+    /// <param name="processService">进程执行服务，用于调用 tmux CLI</param>
+    /// <param name="logger">可选日志记录器</param>
     public TmuxPaneBackend(IProcessService processService, ILogger<TmuxPaneBackend>? logger = null)
     {
         _processService = processService ?? throw new ArgumentNullException(nameof(processService));
@@ -36,6 +46,13 @@ public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractio
         }
     }
 
+    /// <summary>
+    /// 为队友创建一个 tmux 面板并启动指定命令
+    /// </summary>
+    /// <param name="teammateId">队友标识</param>
+    /// <param name="command">面板启动时执行的命令</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>面板创建结果，包含面板 ID 与后端类型</returns>
     public async Task<JoinCode.Abstractions.Interfaces.CreatePaneResult> CreateTeammatePaneAsync(
         string teammateId, string command, CancellationToken cancellationToken = default)
     {
@@ -45,9 +62,15 @@ public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractio
             return await CreatePaneInsideTmuxAsync(teammateId, command, cancellationToken).ConfigureAwait(false);
         else
             return await CreatePaneExternalSessionAsync(teammateId, command, cancellationToken).ConfigureAwait(false);
-    
+
     }
 
+    /// <summary>
+    /// 向指定 tmux 面板发送命令文本并按回车
+    /// </summary>
+    /// <param name="paneId">目标面板 ID</param>
+    /// <param name="command">要发送的命令文本</param>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task SendCommandToPaneAsync(string paneId, string command, CancellationToken cancellationToken = default)
     {
         var args = GetTmuxArgs("send-keys", "-t", paneId, command, "Enter");
@@ -56,6 +79,12 @@ public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractio
             throw new InvalidOperationException($"Failed to send command to pane {paneId}: {result.Error}");
     }
 
+    /// <summary>
+    /// 设置 tmux 面板边框颜色（含 pane-border-style 与 pane-active-border-style）
+    /// </summary>
+    /// <param name="paneId">目标面板 ID</param>
+    /// <param name="colorHex">十六进制颜色值，自动转换为 tmux colour256 颜色名</param>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task SetPaneBorderColorAsync(string paneId, string colorHex, CancellationToken cancellationToken = default)
     {
         var tmuxColor = HexToTmuxColor(colorHex);
@@ -65,11 +94,22 @@ public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractio
         await RunTmuxAsync(GetTmuxArgs("set-option", "-p", "-t", paneId, "pane-active-border-style", $"fg={tmuxColor}"), cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 设置 tmux 面板标题
+    /// </summary>
+    /// <param name="paneId">目标面板 ID</param>
+    /// <param name="title">面板标题文本</param>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task SetPaneTitleAsync(string paneId, string title, CancellationToken cancellationToken = default)
     {
         await RunTmuxAsync(GetTmuxArgs("select-pane", "-t", paneId, "-T", title), cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 关闭指定 tmux 面板并从受管集合中移除
+    /// </summary>
+    /// <param name="paneId">目标面板 ID</param>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task KillPaneAsync(string paneId, CancellationToken cancellationToken = default)
     {
         var result = await RunTmuxAsync(GetTmuxArgs("kill-pane", "-t", paneId), cancellationToken).ConfigureAwait(false);
@@ -79,6 +119,10 @@ public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractio
             _logger?.LogWarning("Failed to kill pane {PaneId}: {Error}", paneId, result.Error);
     }
 
+    /// <summary>
+    /// 重新平衡 tmux 面板布局；会话内模式使用 main-vertical 并固定主面板宽度，外部会话模式使用 tiled 布局
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task RebalancePanesAsync(CancellationToken cancellationToken = default)
     {
         if (_insideTmux && _leaderPaneId is not null && _windowTarget is not null)
@@ -223,5 +267,6 @@ public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractio
         return (result.ExitCode, result.StandardOutput, result.StandardError);
     }
 
+    /// <summary>释放资源 — 释放 tmux 会话创建锁</summary>
     protected override void OnDispose() => _creationLock.Dispose();
 }

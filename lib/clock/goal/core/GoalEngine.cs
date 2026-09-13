@@ -3,6 +3,9 @@ namespace Core.Goal;
 
 // IGoalEngine 接口已移至 JoinCode.Abstractions.Interfaces.Scheduling
 
+/// <summary>
+/// 目标引擎 — 驱动目标循环（评估→续行→完成），支持生命周期中间件管道与 Graph 模式
+/// </summary>
 [Register(typeof(IGoalEngine), ServiceLifetime.Singleton)]
 [Register(typeof(IAgentRunner), ServiceLifetime.Singleton)]
 public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDisposable
@@ -30,8 +33,11 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     private string? _sessionId;
     private int _disposed;
 
+    /// <summary>当前目标状态，未启动时为 null</summary>
     public GoalState? CurrentState => _state;
+    /// <summary>目标是否正在运行（状态为 Pursuing）</summary>
     public bool IsRunning => _state?.Status == GoalStatus.Pursuing;
+    /// <summary>是否已定义 Goal Graph（Graph 模式）</summary>
     public bool HasGraphDefinition => _goalGraph is not null;
 
     /// <summary>
@@ -160,6 +166,19 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         return message;
     }
 
+    /// <summary>
+    /// 构造 GoalEngine — 注入聊天客户端、评估器及各类可选依赖
+    /// </summary>
+    /// <param name="kernel">聊天客户端</param>
+    /// <param name="evaluator">目标评估器</param>
+    /// <param name="logger">可选日志记录器</param>
+    /// <param name="loggerFactory">可选日志工厂，用于构建管道日志作用域</param>
+    /// <param name="permissionManager">可选权限管理器</param>
+    /// <param name="lifecycleMiddlewares">可选生命周期中间件集合</param>
+    /// <param name="heartbeat">可选心跳服务</param>
+    /// <param name="clock">可选时钟服务，缺省使用系统时钟</param>
+    /// <param name="serviceProvider">可选服务提供器</param>
+    /// <param name="stateStore">可选目标状态持久化存储</param>
     public GoalEngine(
         IChatClient kernel,
         IGoalEvaluator evaluator,
@@ -197,6 +216,15 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         }
     }
 
+    /// <summary>
+    /// 异步启动目标 — 设置状态为 Pursuing 并进入目标循环
+    /// </summary>
+    /// <param name="objective">目标描述</param>
+    /// <param name="constraints">约束条件列表，可选</param>
+    /// <param name="tokenBudget">Token 预算上限，可选</param>
+    /// <param name="systemPrompt">系统提示词，可选</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>初始目标状态</returns>
     public async Task<GoalState> StartAsync(
         string objective,
         List<string>? constraints = null,
@@ -401,6 +429,10 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         return _state;
     }
 
+    /// <summary>
+    /// 异步暂停目标 — 状态转为 Paused 并停止引擎循环
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task PauseAsync(CancellationToken cancellationToken = default)
     {
         if (_lifecyclePipeline is not null)
@@ -463,6 +495,10 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         _logger?.LogInformation(L.T(StringKey.GoalEnginePaused), _state?.GoalId);
     }
 
+    /// <summary>
+    /// 异步恢复目标 — 状态转为 Pursuing 并重启引擎循环
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task ResumeAsync(CancellationToken cancellationToken = default)
     {
         if (_lifecyclePipeline is not null)
@@ -551,6 +587,10 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         _logger?.LogInformation(L.T(StringKey.GoalEngineResumed), _state?.GoalId);
     }
 
+    /// <summary>
+    /// 异步清除目标 — 状态转为 Unmet 并停止引擎循环
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task ClearAsync(CancellationToken cancellationToken = default)
     {
         if (_lifecyclePipeline is not null)
@@ -691,6 +731,11 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         }
     }
 
+    /// <summary>
+    /// 异步标记目标完成 — 状态转为 Achieved 并设置完成信号
+    /// </summary>
+    /// <param name="reason">完成原因</param>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task MarkCompletedAsync(string reason, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(reason);
@@ -774,6 +819,11 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         _logger?.LogInformation(L.T(StringKey.GoalEngineCompletedByModel), _state?.GoalId, reason);
     }
 
+    /// <summary>
+    /// 异步标记目标未完成 — 状态转为 Unmet 并设置完成信号
+    /// </summary>
+    /// <param name="reason">未完成原因</param>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task MarkUnmetAsync(string reason, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(reason);
@@ -932,6 +982,9 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
             _state.GoalId, elapsedSeconds, _state.TurnsCompleted);
     }
 
+    /// <summary>
+    /// 异步释放 — 取消引擎循环、重置心跳并释放资源
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;

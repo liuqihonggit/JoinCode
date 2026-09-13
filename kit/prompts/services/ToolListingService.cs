@@ -9,6 +9,14 @@ namespace Core.Prompts.Services;
 public sealed partial class ToolListingService : ServiceEntity
 {
 
+    /// <summary>
+    /// 构造工具列表注入服务。
+    /// </summary>
+    /// <param name="reminderManager">系统提醒管理器。</param>
+    /// <param name="agentProvider">Agent 定义提供者，可选。</param>
+    /// <param name="roleRegistry">Agent 角色注册表，可选。</param>
+    /// <param name="skillService">技能服务，可选。</param>
+    /// <param name="logger">日志记录器，可选。</param>
     public ToolListingService(ISystemReminderManager reminderManager, IAgentDefinitionProvider? agentProvider = null, JoinCode.Abstractions.Interfaces.IAgentRoleRegistry? roleRegistry = null, ISkillService? skillService = null, ILogger<ToolListingService>? logger = null)
     {
         _reminderManager = reminderManager;

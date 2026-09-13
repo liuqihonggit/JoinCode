@@ -14,6 +14,13 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable
     private readonly IFileOperationService _fileOperationService;
     private readonly CancellationTokenSource _disposeCts = new();
 
+    /// <summary>
+    /// 创建内存存储实例
+    /// </summary>
+    /// <param name="options">Memdir 配置选项,提供存储路径</param>
+    /// <param name="fileOperationService">文件操作服务,用于持久化记忆</param>
+    /// <param name="logger">可选的日志记录器</param>
+    /// <param name="clock">可选的时钟服务,默认使用系统时钟</param>
     public MemoryStore(IOptions<MemdirOptions> options, IFileOperationService fileOperationService, ILogger<MemoryStore>? logger = null, IClockService? clock = null)
     {
         _storagePath = options?.Value?.StoragePath ?? throw new ArgumentNullException(nameof(options));
@@ -383,6 +390,9 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable
         }
     }
 
+    /// <summary>
+    /// 取消并释放取消令牌源。
+    /// </summary>
     protected override void OnDispose()
     {
         _disposeCts.Cancel();
@@ -395,11 +405,18 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable
 /// </summary>
 public sealed partial class MemoryStatistics
 {
+    /// <summary>记忆总数</summary>
     public int TotalCount { get; init; }
+    /// <summary>按记忆类型分组的计数</summary>
     public Dictionary<MemoryType, int> TypeCounts { get; init; } = new();
+    /// <summary>按标签分组的计数</summary>
     public Dictionary<string, int> TagCounts { get; init; } = new();
+    /// <summary>访问频率最高的记忆列表</summary>
     public IReadOnlyList<MemoryEntry> MostAccessed { get; init; } = Array.Empty<MemoryEntry>();
+    /// <summary>最近添加的记忆列表</summary>
     public IReadOnlyList<MemoryEntry> RecentlyAdded { get; init; } = Array.Empty<MemoryEntry>();
+    /// <summary>已归档记忆数</summary>
     public int ArchivedCount { get; init; }
+    /// <summary>已过期记忆数</summary>
     public int ExpiredCount { get; init; }
 }

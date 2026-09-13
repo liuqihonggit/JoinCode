@@ -10,6 +10,12 @@ namespace Core.Configuration;
 public partial class BriefModeService : ServiceEntity, IBriefModeService
 {
 
+    /// <summary>
+    /// 构造简要模式服务 — 初始化时钟、文件系统与日志,并从文件加载已持久化的状态
+    /// </summary>
+    /// <param name="clock">时钟服务,用于获取启用时间</param>
+    /// <param name="fs">文件系统抽象(可选),为 null 时不进行文件持久化</param>
+    /// <param name="logger">日志记录器(可选)</param>
     public BriefModeService(IClockService clock, IFileSystem? fs = null, ILogger<BriefModeService>? logger = null)
     {
         _clock = clock;
@@ -26,8 +32,10 @@ public partial class BriefModeService : ServiceEntity, IBriefModeService
     private static readonly string ModeSubDir = Path.Combine(AppDataConstants.AppDataFolder, "mode");
     private const string ModeFileName = "brief.json";
 
+    /// <summary>是否已启用简要模式</summary>
     public bool IsEnabled => _isEnabled;
 
+    /// <summary>启用时间(本地时区);未启用时为 null</summary>
     public DateTime? EnabledAt => _enabledAt;
 
     /// <summary>
@@ -39,6 +47,7 @@ public partial class BriefModeService : ServiceEntity, IBriefModeService
         set => _userMsgOptIn = value;
     }
 
+    /// <inheritdoc/>
     public void Enable()
     {
         _isEnabled = true;
@@ -47,6 +56,7 @@ public partial class BriefModeService : ServiceEntity, IBriefModeService
         SaveToFile();
     }
 
+    /// <inheritdoc/>
     public void Disable()
     {
         _isEnabled = false;
@@ -55,6 +65,7 @@ public partial class BriefModeService : ServiceEntity, IBriefModeService
         SaveToFile();
     }
 
+    /// <inheritdoc/>
     public bool Toggle()
     {
         if (_isEnabled)
@@ -68,6 +79,7 @@ public partial class BriefModeService : ServiceEntity, IBriefModeService
         return _isEnabled;
     }
 
+    /// <inheritdoc/>
     public BriefModeStatus GetStatus()
     {
         return _isEnabled

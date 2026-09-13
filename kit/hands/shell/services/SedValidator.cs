@@ -9,6 +9,9 @@ public static partial class SedValidator
     /// <summary>
     /// 检查 sed 命令约束 — 对齐 TS checkSedConstraints
     /// </summary>
+    /// <param name="command">待检查的 sed 命令</param>
+    /// <param name="allowFileWrites">是否允许文件写入（-i 标志）</param>
+    /// <returns>验证结果，包含权限行为和拒绝原因</returns>
     public static SedValidationResult CheckSedConstraints(string command, bool allowFileWrites = false)
     {
         if (string.IsNullOrWhiteSpace(command)) return new(PermissionBehavior.Passthrough);

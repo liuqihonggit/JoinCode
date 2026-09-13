@@ -17,6 +17,11 @@ public sealed class CliStructuredError
     /// <summary>是否可重试（如网络超时=true，认证失败=false）</summary>
     public bool Retryable { get; init; }
 
+    /// <summary>构造函数</summary>
+    /// <param name="code">机器可读错误码</param>
+    /// <param name="message">人类可读错误描述</param>
+    /// <param name="hint">修复建议（可选）</param>
+    /// <param name="retryable">是否可重试</param>
     public CliStructuredError(string code, string message, string? hint = null, bool retryable = false)
     {
         Code = code ?? throw new ArgumentNullException(nameof(code));

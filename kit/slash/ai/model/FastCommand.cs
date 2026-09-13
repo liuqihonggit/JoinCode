@@ -1,13 +1,25 @@
+
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /fast 命令 — 切换快速模式(使用更小/更快的模型)
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Fast, Description = "切换快速模式（使用更小/更快的模型）", Usage = "/fast [on|off]", Category = ChatCommandCategory.Model)]
 [ChatCommandArg("state", Type = "string", Description = "开关状态", Enum = new[] { "on", "off" })]
 public sealed class FastCommand : ToggleCommandBase
 {
+    /// <summary>命令名称</summary>
     public override string Name => ChatCommandNameConstants.Fast;
+    /// <summary>命令描述</summary>
     public override string Description => "切换快速模式（使用更小/更快的模型）";
+    /// <summary>命令用法</summary>
     public override string Usage => "/fast [on|off]";
 
+    /// <summary>
+    /// 解析开关动作,支持 enable/disable/1/0 以及 on/off 别名
+    /// </summary>
+    /// <param name="args">用户输入的参数</param>
+    /// <returns>解析得到的开关动作,无法识别时返回 null</returns>
     protected override ToggleAction? ResolveToggleAction(string args)
     {
         var lower = args.ToLowerInvariant();
@@ -19,8 +31,14 @@ public sealed class FastCommand : ToggleCommandBase
         };
     }
 
+    /// <summary>无参数时的默认动作 — 显示当前状态</summary>
     protected override ToggleNullAction NullAction => ToggleNullAction.Status;
 
+    /// <summary>
+    /// 启用快速模式,激活 FastModeService 或设置 WorkflowConfig.FastMode 标志
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <returns>表示启用操作的任务</returns>
     protected override Task OnEnabledAsync(ChatCommandContext context)
     {
         var fastModeService = GetService<IFastModeService>(context, typeof(IFastModeService));
@@ -41,6 +59,11 @@ public sealed class FastCommand : ToggleCommandBase
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// 禁用快速模式,停用 FastModeService 或清除 WorkflowConfig.FastMode 标志
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <returns>表示禁用操作的任务</returns>
     protected override Task OnDisabledAsync(ChatCommandContext context)
     {
         var fastModeService = GetService<IFastModeService>(context, typeof(IFastModeService));
@@ -61,6 +84,11 @@ public sealed class FastCommand : ToggleCommandBase
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// 输出快速模式当前状态,包括是否启用与当前使用的模型
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <returns>表示状态输出操作的任务</returns>
     protected override Task PrintStatusAsync(ChatCommandContext context)
     {
         var fastModeService = GetService<IFastModeService>(context, typeof(IFastModeService));

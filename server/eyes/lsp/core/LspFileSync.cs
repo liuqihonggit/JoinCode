@@ -10,6 +10,13 @@ namespace Services.Lsp.Internal;
 public sealed partial class LspFileSync : ServiceEntity, ILspFileSync
 {
 
+    /// <summary>
+    /// 构造 LSP 文件同步器
+    /// </summary>
+    /// <param name="lspManager">LSP 管理器</param>
+    /// <param name="clock">时钟服务</param>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="telemetryService">遥测服务（可选）</param>
     public LspFileSync(ILspManager lspManager, IClockService clock, ILogger<LspFileSync>? logger = null, ITelemetryService? telemetryService = null)
     {
         _lspManager = lspManager;
@@ -23,6 +30,7 @@ public sealed partial class LspFileSync : ServiceEntity, ILspFileSync
     private readonly IClockService _clock;
     private readonly ConcurrentDictionary<string, OpenDocumentInfo> _openDocuments = new();
 
+    /// <summary>文档变更事件 — 当文档打开/关闭/修改/保存时触发</summary>
     public event EventHandler<DocumentChangedEventArgs>? DocumentChanged;
 
     /// <inheritdoc />

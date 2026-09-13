@@ -8,6 +8,8 @@ public sealed partial class GdiScreenCaptureService : ServiceEntity, IScreenCapt
 {
     private readonly ILogger<GdiScreenCaptureService>? _logger;
 
+    /// <summary>构造屏幕截图服务实例。</summary>
+    /// <param name="logger">可选的日志记录器，传入 null 时静默运行。</param>
     public GdiScreenCaptureService(ILogger<GdiScreenCaptureService>? logger = null) => _logger = logger;
 
     /// <summary>全屏截图</summary>
@@ -33,6 +35,7 @@ public sealed partial class GdiScreenCaptureService : ServiceEntity, IScreenCapt
         return Task.FromResult(CaptureRegionCore(x, y, width, height));
     }
 
+    /// <summary>释放屏幕截图服务资源 — 无外部资源需释放。</summary>
     protected override void OnDispose()
     {
     }

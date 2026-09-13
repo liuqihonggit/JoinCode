@@ -1,5 +1,6 @@
 namespace IO.Services;
 
+/// <summary>远程触发器服务 — 通过 HTTP 调用 JCC API 端点，执行触发器的列表、获取、创建、更新与运行操作。</summary>
 [Register(typeof(IRemoteTriggerService), ServiceLifetime.Singleton)]
 public sealed partial class RemoteTriggerService : ServiceEntity, IRemoteTriggerService
 {
@@ -7,6 +8,10 @@ public sealed partial class RemoteTriggerService : ServiceEntity, IRemoteTrigger
     private readonly IConfigurationService? _configService;
     private readonly ILogger<RemoteTriggerService>? _logger;
 
+    /// <summary>构造远程触发器服务实例。</summary>
+    /// <param name="httpClient">用于发送 HTTP 请求的客户端。</param>
+    /// <param name="configService">可选的配置服务，用于读取 API 端点与认证令牌。</param>
+    /// <param name="logger">可选的日志记录器，传入 null 时静默运行。</param>
     public RemoteTriggerService(HttpClient httpClient, IConfigurationService? configService = null, ILogger<RemoteTriggerService>? logger = null)
     {
         _httpClient = httpClient;
@@ -14,6 +19,12 @@ public sealed partial class RemoteTriggerService : ServiceEntity, IRemoteTrigger
         _logger = logger;
     }
 
+    /// <summary>异步执行远程触发器操作，依据动作类型构造请求并附带认证令牌与超时控制。</summary>
+    /// <param name="action">要执行的触发器动作类型。</param>
+    /// <param name="triggerId">触发器标识，获取、更新、运行动作时必需。</param>
+    /// <param name="body">请求体 JSON，创建与更新动作时使用。</param>
+    /// <param name="ct">可取消令牌。</param>
+    /// <returns>包含状态码与响应体的触发器结果。</returns>
     public async Task<TriggerResult> ExecuteAsync(TriggerAction action, string? triggerId = null, string? body = null, CancellationToken ct = default)
     {
         var baseUrl = await GetApiBaseUrlAsync(ct).ConfigureAwait(false);

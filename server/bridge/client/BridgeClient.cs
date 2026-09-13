@@ -41,11 +41,17 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
     private long _totalDuplicatesFiltered;
     private DateTime _startedAt;
 
+    /// <summary>客户端是否正在运行（原子读取）</summary>
     public bool IsRunning => Interlocked.CompareExchange(ref _isRunning, 0, 0) != 0;
 
     private static TaskCompletionSource<T> CreateTcs<T>() => new(TaskCreationOptions.RunContinuationsAsynchronously);
     private static TaskCompletionSource CreateTcs() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+    /// <summary>
+    /// 获取客户端当前状态快照（发命令到 Actor Consumer 串行执行）
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>客户端状态快照</returns>
     public async ValueTask<BridgeClientState> GetStateAsync(CancellationToken ct = default)
     {
         var tcs = CreateTcs<BridgeClientState>();
@@ -53,13 +59,28 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
         return await tcs.Task.ConfigureAwait(false);
     }
 
+    /// <summary>接收到原始消息事件（去重/Echo 过滤前）</summary>
     public event EventHandler<BridgeMessageReceivedEventArgs>? MessageReceived;
+    /// <summary>消息处理完成事件</summary>
     public event EventHandler<BridgeMessageProcessedEventArgs>? MessageProcessed;
+    /// <summary>客户端错误事件</summary>
     public event EventHandler<BridgeClientErrorEventArgs>? ErrorOccurred;
+    /// <summary>连接状态变更事件</summary>
     public event EventHandler<StateChangedEventArgs<TransportConnectionState>>? ConnectionStateChanged;
+    /// <summary>客户端已启动事件</summary>
     public event EventHandler? Started;
+    /// <summary>客户端已停止事件</summary>
     public event EventHandler? Stopped;
 
+    /// <summary>
+    /// 构造 BridgeClient — 订阅传输层事件，初始化去重集合与可选依赖
+    /// </summary>
+    /// <param name="transportManager">传输管理器</param>
+    /// <param name="messageHandler">消息处理协调器</param>
+    /// <param name="clientSession">可选客户端会话聚合（提供 JWT/轮询/会话/API 依赖）</param>
+    /// <param name="options">可选客户端选项，默认使用默认配置</param>
+    /// <param name="logger">可选日志记录器</param>
+    /// <param name="clock">可选时钟服务，默认系统时钟</param>
     public BridgeClient(
         ITransportManager transportManager,
         MessageHandlerCoordinator messageHandler,
@@ -174,6 +195,13 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
         /// <summary>响应任务 — await 此 Task 获取响应</summary>
         public Task<BridgeMessage?> ResponseTask => _tcs.Task;
 
+        /// <summary>
+        /// 构造 BridgeRequestScope — 创建链接取消令牌、注册消息事件订阅
+        /// </summary>
+        /// <param name="client">所属 BridgeClient</param>
+        /// <param name="requestId">请求标识，用于匹配响应</param>
+        /// <param name="timeout">请求超时</param>
+        /// <param name="cancellationToken">外部取消令牌</param>
         public BridgeRequestScope(BridgeClient client, string requestId, TimeSpan timeout, CancellationToken cancellationToken)
         {
             _client = client;
@@ -191,6 +219,9 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
             client.MessageProcessed += _onMessageReceived;
         }
 
+        /// <summary>
+        /// 释放作用域 — 注销事件订阅并释放全部取消令牌
+        /// </summary>
         public void Dispose()
         {
             if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
@@ -566,11 +597,18 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
         }
     }
 
+    /// <summary>
+    /// Actor Consumer 异常回调 — 记录日志
+    /// </summary>
+    /// <param name="ex">异常</param>
     protected override void OnConsumerError(Exception ex)
     {
         _logger?.LogError(ex, "[BridgeClient] Actor Consumer 异常");
     }
 
+    /// <summary>
+    /// 异步释放资源 — 停止客户端、释放轮询令牌并调用基类释放
+    /// </summary>
     public async override ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) == 1)
@@ -599,10 +637,15 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
 public partial class BridgeClientOptions 
 {
     // 默认配置常量
+    /// <summary>默认轮询间隔（毫秒）</summary>
     public const int DefaultPollingIntervalMs = 100;
+    /// <summary>默认错误重试延迟（毫秒）</summary>
     public const int DefaultErrorRetryDelayMs = 1000;
+    /// <summary>默认心跳间隔（毫秒）</summary>
     public const int DefaultHeartbeatIntervalMs = 30000;
+    /// <summary>默认消息去重容量</summary>
     public const int DefaultMessageDeduplicationCapacity = 1000;
+    /// <summary>默认请求超时（秒）</summary>
     public const int DefaultRequestTimeoutSeconds = 30;
 
     /// <summary>轮询间隔（毫秒）</summary>
@@ -631,16 +674,29 @@ public partial class BridgeClientOptions
 /// </summary>
 public partial class BridgeClientState
 {
+    /// <summary>是否正在运行</summary>
     public bool IsRunning { get; init; }
+    /// <summary>传输连接状态</summary>
     public TransportConnectionState ConnectionState { get; init; }
+    /// <summary>累计接收消息数</summary>
     public long TotalMessagesReceived { get; init; }
+    /// <summary>累计处理消息数</summary>
     public long TotalMessagesProcessed { get; init; }
+    /// <summary>累计过滤 Echo 消息数</summary>
     public long TotalEchoFiltered { get; init; }
+    /// <summary>累计过滤重复消息数</summary>
     public long TotalDuplicatesFiltered { get; init; }
+    /// <summary>运行时长</summary>
     public TimeSpan Uptime { get; init; }
+    /// <summary>是否持有 JWT Token</summary>
     public bool HasJwtToken { get; init; }
+    /// <summary>是否有活跃会话</summary>
     public bool HasActiveSession { get; init; }
 
+    /// <summary>
+    /// 返回状态摘要字符串
+    /// </summary>
+    /// <returns>状态摘要</returns>
     public override string ToString()
     {
         return $"BridgeClientState[Running={IsRunning}, Connection={ConnectionState}, " +
@@ -652,12 +708,24 @@ public partial class BridgeClientState
 
 #region 事件参数
 
+/// <summary>
+/// 消息处理完成事件参数
+/// </summary>
 public partial class BridgeMessageProcessedEventArgs : EventArgs
 {
+    /// <summary>原始消息</summary>
     public BridgeMessage Message { get; }
+    /// <summary>响应消息，无响应为 null</summary>
     public BridgeMessage? Response { get; }
+    /// <summary>处理耗时（毫秒）</summary>
     public long ProcessingTimeMs { get; }
 
+    /// <summary>
+    /// 构造消息处理完成事件参数
+    /// </summary>
+    /// <param name="message">原始消息</param>
+    /// <param name="response">响应消息，无响应为 null</param>
+    /// <param name="processingTimeMs">处理耗时（毫秒）</param>
     public BridgeMessageProcessedEventArgs(BridgeMessage message, BridgeMessage? response, long processingTimeMs)
     {
         Message = message;
@@ -666,11 +734,21 @@ public partial class BridgeMessageProcessedEventArgs : EventArgs
     }
 }
 
+/// <summary>
+/// 客户端错误事件参数
+/// </summary>
 public partial class BridgeClientErrorEventArgs : EventArgs
 {
+    /// <summary>异常对象</summary>
     public Exception Exception { get; }
+    /// <summary>错误消息</summary>
     public string Message { get; }
 
+    /// <summary>
+    /// 构造客户端错误事件参数
+    /// </summary>
+    /// <param name="exception">异常对象</param>
+    /// <param name="message">错误消息</param>
     public BridgeClientErrorEventArgs(Exception exception, string message)
     {
         Exception = exception;

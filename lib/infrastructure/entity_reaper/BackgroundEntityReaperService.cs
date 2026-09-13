@@ -11,12 +11,24 @@ public sealed class BackgroundEntityReaperService : PeriodicBackgroundServiceBas
     private readonly EntityReaperConfig _config;
     private readonly ILogger<BackgroundEntityReaperService>? _logger;
 
+    /// <inheritdoc/>
     protected override TimeSpan InitialDelay => TimeSpan.FromSeconds(30);
+    /// <inheritdoc/>
     protected override TimeSpan Interval => _config.ScanInterval;
+    /// <inheritdoc/>
     protected override IClockService Clock => _clock;
+    /// <inheritdoc/>
     protected override ILogger? Logger => _logger;
+    /// <inheritdoc/>
     protected override string ServiceName => "后台实体回收服务";
 
+    /// <summary>
+    /// 构造函数 — 注入实体回收器、时钟服务、配置和日志
+    /// </summary>
+    /// <param name="reaper">实体回收器</param>
+    /// <param name="clock">时钟服务</param>
+    /// <param name="config">回收配置，为 null 时使用默认配置</param>
+    /// <param name="logger">日志记录器，可为 null</param>
     public BackgroundEntityReaperService(
         IEntityReaper reaper,
         IClockService clock,
@@ -29,6 +41,7 @@ public sealed class BackgroundEntityReaperService : PeriodicBackgroundServiceBas
         _logger = logger;
     }
 
+    /// <inheritdoc/>
     protected override Task ExecuteAsync(CancellationToken cancellationToken)
     {
         _reaper.ScanOnce();

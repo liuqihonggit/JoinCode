@@ -10,6 +10,10 @@ public partial class SleepToolHandlers
 {
     private readonly ILogger<SleepToolHandlers>? _logger;
 
+    /// <summary>
+    /// 初始化 <see cref="SleepToolHandlers"/> 实例
+    /// </summary>
+    /// <param name="logger">日志记录器（可选）</param>
     public SleepToolHandlers(ILogger<SleepToolHandlers>? logger = null)
     {
         _logger = logger;

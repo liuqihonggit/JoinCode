@@ -1,17 +1,31 @@
 namespace IO.Services;
 
+/// <summary>
+/// 剪贴板服务 — 跨平台读写系统剪贴板（Windows/MacOS/Linux），通过外部进程调用原生剪贴板命令
+/// </summary>
 [Register(typeof(IClipboardService), ServiceLifetime.Singleton)]
 public sealed partial class ClipboardService : ServiceEntity, IClipboardService
 {
     private readonly ILogger<ClipboardService>? _logger;
     private readonly IProcessService _processService;
 
+    /// <summary>
+    /// 构造函数 — 注入进程服务与可选日志
+    /// </summary>
+    /// <param name="processService">进程服务，用于启动剪贴板原生命令</param>
+    /// <param name="logger">日志记录器，可选</param>
     public ClipboardService(IProcessService processService, ILogger<ClipboardService>? logger = null)
     {
         _processService = processService ?? throw new ArgumentNullException(nameof(processService));
         _logger = logger;
     }
 
+    /// <summary>
+    /// 设置剪贴板文本 — 根据当前平台调用对应原生命令
+    /// </summary>
+    /// <param name="text">要写入剪贴板的文本</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task SetTextAsync(string text, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(text);
@@ -34,6 +48,11 @@ public sealed partial class ClipboardService : ServiceEntity, IClipboardService
         }
     }
 
+    /// <summary>
+    /// 读取剪贴板文本 — 根据当前平台调用对应原生命令
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>剪贴板文本，若为空或不支持平台则返回 null</returns>
     public async Task<string?> GetTextAsync(CancellationToken cancellationToken = default)
     {
         if (OperatingSystem.IsWindows())

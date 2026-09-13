@@ -1,10 +1,18 @@
 
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /release-notes 命令 — 查看版本发布说明
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.ReleaseNotes, Description = "查看版本发布说明", Usage = "/release-notes [version]", Category = ChatCommandCategory.Info, ArgumentHint = "[version]", IsHidden = true)]
 [ChatCommandArg("version", Type = "string", Description = "要查看的版本号,省略则显示最近 5 个版本的发布说明")]
 public sealed class ReleaseNotesCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行发布说明命令,从发布说明服务获取最近 5 个版本并输出到终端
+    /// </summary>
+    /// <param name="context">命令执行上下文,提供参数与取消令牌</param>
+    /// <returns>表示命令执行结果的任务,始终返回 Continue 以继续会话</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var releaseNotesService = ChatCommandBase.GetService<IReleaseNotesService>(context);

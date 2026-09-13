@@ -7,6 +7,11 @@ namespace Core.Context;
 public sealed partial class SessionStartHookMiddleware : ServiceEntity, IChatInitMiddleware
 {
 
+    /// <summary>
+    /// 初始化 <see cref="SessionStartHookMiddleware"/> 实例
+    /// </summary>
+    /// <param name="sessionStartHookManager">可选的会话启动 Hook 管理器</param>
+    /// <param name="logger">可选的日志记录器</param>
     public SessionStartHookMiddleware(ISessionStartHookManager? sessionStartHookManager = null, ILogger<SessionStartHookMiddleware>? logger = null)
     {
         _sessionStartHookManager = sessionStartHookManager;

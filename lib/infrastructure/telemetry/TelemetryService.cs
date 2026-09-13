@@ -1,6 +1,10 @@
 
 namespace Core.Telemetry;
 
+/// <summary>
+/// 遥测服务 — 提供 Span 追踪与 Counter/Histogram/Gauge 指标采集能力
+/// <para>基于 System.Diagnostics.ActivitySource 与 Meter 实现,支持控制台导出器插件化加载</para>
+/// </summary>
 [Register(typeof(ITelemetryService), ServiceLifetime.Singleton)]
 public sealed partial class TelemetryService : ITelemetryService
 {
@@ -16,10 +20,19 @@ public sealed partial class TelemetryService : ITelemetryService
     private readonly ConcurrentDictionary<string, TelemetrySpan> _activeSpans = new();
     private int _isDisposed;
 
+    /// <summary>遥测配置快照</summary>
     public TelemetryConfig Config => _config;
+    /// <summary>是否启用链路追踪</summary>
     public bool IsTracingEnabled => _config.TracingEnabled;
+    /// <summary>是否启用指标采集</summary>
     public bool IsMetricsEnabled => _config.MetricsEnabled;
 
+    /// <summary>
+    /// 构造遥测服务
+    /// </summary>
+    /// <param name="config">遥测配置,定义服务名、采样策略与默认标签</param>
+    /// <param name="logger">可选日志记录器</param>
+    /// <param name="analyticsSink">可选分析文件下沉器,用于将指标写入文件</param>
     public TelemetryService(TelemetryConfig config, ILogger? logger = null, IAnalyticsFileSink? analyticsSink = null)
     {
         ArgumentNullException.ThrowIfNull(config);
@@ -40,6 +53,7 @@ public sealed partial class TelemetryService : ITelemetryService
     /// <summary>
     /// 启用控制台导出器 — 插件加载时调用(ADR 0098 万物皆插件)
     /// </summary>
+    /// <param name="logger">可选日志记录器</param>
     public void EnableConsoleExporter(ILogger? logger)
     {
         _consoleExporter?.Dispose();
@@ -55,6 +69,7 @@ public sealed partial class TelemetryService : ITelemetryService
         _consoleExporter = null;
     }
 
+    /// <inheritdoc/>
     public ITelemetrySpan StartSpan(
         string name,
         TelemetrySpanKind kind = TelemetrySpanKind.Internal,
@@ -89,6 +104,7 @@ public sealed partial class TelemetryService : ITelemetryService
         return span;
     }
 
+    /// <inheritdoc/>
     public ITelemetryCounter GetCounter(string name, string? unit = null, string? description = null)
     {
         return _counters.GetOrAdd(name, n =>
@@ -103,6 +119,7 @@ public sealed partial class TelemetryService : ITelemetryService
         });
     }
 
+    /// <inheritdoc/>
     public ITelemetryHistogram GetHistogram(string name, string? unit = null, string? description = null)
     {
         return _histograms.GetOrAdd(name, n =>
@@ -117,6 +134,7 @@ public sealed partial class TelemetryService : ITelemetryService
         });
     }
 
+    /// <inheritdoc/>
     public ITelemetryGauge GetGauge(string name, string? unit = null, string? description = null)
     {
         return _gauges.GetOrAdd(name, n =>
@@ -131,12 +149,14 @@ public sealed partial class TelemetryService : ITelemetryService
         });
     }
 
+    /// <inheritdoc/>
     public IEnumerable<TelemetrySpanData> GetActiveSpans()
     {
         return _activeSpans.Values
             .Select(s => s.ToSpanData());
     }
 
+    /// <inheritdoc/>
     public IEnumerable<string> GetRegisteredMetrics()
     {
         var names = new List<string>();
@@ -146,11 +166,18 @@ public sealed partial class TelemetryService : ITelemetryService
         return names;
     }
 
+    /// <summary>
+    /// 从活动 Span 表中移除指定 Span — 由 TelemetrySpan.DisposeAsync 调用
+    /// </summary>
+    /// <param name="spanId">要移除的 Span 标识</param>
     internal void RemoveActiveSpan(string spanId)
     {
         _activeSpans.TryRemove(spanId, out _);
     }
 
+    /// <summary>
+    /// 异步释放遥测服务 — 关闭所有活动 Span、导出器、监听器、ActivitySource 与 Meter
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _isDisposed))

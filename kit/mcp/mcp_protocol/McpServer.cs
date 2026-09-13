@@ -1,5 +1,9 @@
 namespace McpProtocol;
 
+/// <summary>
+/// MCP 协议服务端核心 — 处理 JSON-RPC 请求分发,管理资源/提示处理器,
+/// 支持 stdio 行协议与 LSP 风格 Content-Length 框架协议两种传输形态。
+/// </summary>
 public class McpServer
 {
     private readonly ConcurrentDictionary<string, IResourceHandler> _resources = new(StringComparer.Ordinal);
@@ -11,8 +15,15 @@ public class McpServer
     private readonly TextWriter? _outputWriter;
     private string _logLevel = "info";
 
+    /// <summary>服务端通知接收事件 — 当客户端发送通知(无 Id 请求)时触发</summary>
     public event EventHandler<McpServerNotificationEventArgs>? NotificationReceived;
 
+    /// <summary>
+    /// 创建 MCP 服务端实例
+    /// </summary>
+    /// <param name="serverName">服务端名称,默认 "McpServer"</param>
+    /// <param name="serverVersion">服务端版本,默认 "1.0.0"</param>
+    /// <param name="instructions">服务端说明,作为 initialize 响应返回给客户端</param>
     public McpServer(string serverName = "McpServer", string? serverVersion = null, string? instructions = null)
     {
         _serverName = serverName;
@@ -27,18 +38,32 @@ public class McpServer
         _outputWriter = outputWriter;
     }
 
+    /// <summary>
+    /// 注册资源处理器 — 以资源 Uri 为键登记,后续 resources/read 请求按 Uri 派发
+    /// </summary>
+    /// <param name="handler">资源处理器实例</param>
     public void RegisterResourceHandler(IResourceHandler handler)
     {
         ArgumentNullException.ThrowIfNull(handler);
         _resources[handler.Uri] = handler;
     }
 
+    /// <summary>
+    /// 注册提示处理器 — 以提示 Name 为键登记,后续 prompts/get 请求按 Name 派发
+    /// </summary>
+    /// <param name="handler">提示处理器实例</param>
     public void RegisterPromptHandler(IPromptHandler handler)
     {
         ArgumentNullException.ThrowIfNull(handler);
         _prompts[handler.Name] = handler;
     }
 
+    /// <summary>
+    /// 运行服务端主循环 — 从输入流逐行读取 JSON-RPC 消息,处理后写入输出流。
+    /// 支持 stdio 行协议(直接 JSON)与 LSP 风格 Content-Length 框架协议两种形态。
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌,触发后退出主循环</param>
+    /// <returns>表示异步运行操作的任务</returns>
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
         // Console 标准流生命周期 = 进程，不应释放（Dispose 会连带关闭底层 Console 流）。
@@ -373,8 +398,13 @@ public class McpServer
     }
 }
 
+/// <summary>
+/// 服务端通知事件参数 — 携带通知方法名与参数
+/// </summary>
 public sealed class McpServerNotificationEventArgs : EventArgs
 {
+    /// <summary>通知方法名(如 "notifications/cancelled")</summary>
     public required string Method { get; init; }
+    /// <summary>通知参数的 JSON 元素,可为 null</summary>
     public JsonElement? Params { get; init; }
 }

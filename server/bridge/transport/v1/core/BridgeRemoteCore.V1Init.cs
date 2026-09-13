@@ -9,6 +9,14 @@ public static partial class BridgeRemoteCore
     /// 初始化 v1 env-based 桥核心 — 对齐 TS 端 initBridgeCore
     /// 通过中间件管道执行，消除 try-catch 样板代码
     /// </summary>
+    /// <param name="parameters">桥核心参数</param>
+    /// <param name="httpClient">HTTP 客户端</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="transportFactory">桥传输工厂</param>
+    /// <param name="pipeline">中间件管道</param>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>桥句柄，失败返回 null</returns>
     public static async Task<IReplBridgeHandle?> InitBridgeCoreAsync(
         BridgeCoreParams parameters,
         HttpClient httpClient,

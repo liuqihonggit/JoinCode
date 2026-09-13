@@ -1,5 +1,8 @@
 namespace JoinCode.Dream.Pipeline;
 
+/// <summary>
+/// Dream 会话扫描中间件 — 扫描需要处理的会话列表，按配置过滤后传递给后续中间件
+/// </summary>
 [Register(typeof(IDreamMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class DreamSessionScanMiddleware : ServiceEntity, IDreamMiddleware
 {
@@ -7,6 +10,12 @@ public sealed partial class DreamSessionScanMiddleware : ServiceEntity, IDreamMi
     private readonly AutoDreamConfig _config;
     private readonly ILogger<DreamSessionScanMiddleware>? _logger;
 
+    /// <summary>
+    /// 构造 DreamSessionScan 中间件
+    /// </summary>
+    /// <param name="sessionScanner">会话扫描器</param>
+    /// <param name="config">Dream 自动配置</param>
+    /// <param name="logger">可选日志记录器</param>
     public DreamSessionScanMiddleware(ISessionScanner sessionScanner, AutoDreamConfig config, ILogger<DreamSessionScanMiddleware>? logger = null)
     {
         _sessionScanner = sessionScanner;
@@ -14,6 +23,12 @@ public sealed partial class DreamSessionScanMiddleware : ServiceEntity, IDreamMi
         _logger = logger;
     }
 
+    /// <summary>
+    /// 执行会话扫描中间件 — 按请求 SessionIds 或扫描最近会话，不足最小数量时跳过
+    /// </summary>
+    /// <param name="ctx">Dream 管道上下文</param>
+    /// <param name="next">管道下一个委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(DreamContext ctx, MiddlewareDelegate<DreamContext> next, CancellationToken ct)
     {
         if (ctx.Request.SessionIds?.Count > 0)

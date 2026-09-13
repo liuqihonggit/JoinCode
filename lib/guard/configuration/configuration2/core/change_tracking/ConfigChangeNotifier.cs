@@ -11,6 +11,12 @@ public sealed partial class ConfigChangeNotifier : FileWatcherActorBase, IConfig
     private readonly ILogger<ConfigChangeNotifier>? _logger;
     private readonly ITelemetryService? _telemetryService;
 
+    /// <summary>
+    /// 构造配置变更通知器
+    /// </summary>
+    /// <param name="fs">文件系统抽象,用于检测配置文件存在性</param>
+    /// <param name="logger">日志记录器(可选)</param>
+    /// <param name="telemetryService">遥测服务(可选)</param>
     public ConfigChangeNotifier(IFileSystem fs, ILogger<ConfigChangeNotifier>? logger = null, ITelemetryService? telemetryService = null)
         : base(fs, 1000)
     {
@@ -48,6 +54,9 @@ public sealed partial class ConfigChangeNotifier : FileWatcherActorBase, IConfig
         AppDataConstants.AuthFileName
      };
 
+    /// <summary>
+    /// 配置变更事件 — 当被监控的配置文件发生变更或重命名时触发
+    /// </summary>
     public event EventHandler<ConfigChangeEventArgs>? ConfigChanged;
 
     private sealed record StartMonitoringCmd(string WorkingDirectory) : FileWatcherCommand;

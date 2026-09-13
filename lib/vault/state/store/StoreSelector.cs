@@ -124,6 +124,9 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) == 1, typeof(StoreSelector<TState, TSelected>));
     }
 
+    /// <summary>
+    /// 释放选择器 — 取消 Store 订阅并清空所有订阅者,确保幂等。
+    /// </summary>
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
@@ -141,6 +144,9 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
         private readonly Action<TSelected> _handler;
         private int _disposed;
 
+        /// <summary>
+        /// 构造函数 — 绑定选择器与订阅处理器。
+        /// </summary>
         public SelectorSubscriptionDisposable(
             StoreSelector<TState, TSelected> selector,
             Action<TSelected> handler)
@@ -149,6 +155,9 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
             _handler = handler;
         }
 
+        /// <summary>
+        /// 释放时取消订阅。
+        /// </summary>
         public void Dispose()
         {
             if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
@@ -218,11 +227,25 @@ public static class SelectorComposition
 /// </summary>
 public sealed class ReferenceEqualityComparer : IEqualityComparer<object>
 {
+    /// <summary>
+    /// 单例实例。
+    /// </summary>
     public static ReferenceEqualityComparer Instance { get; } = new();
 
     private ReferenceEqualityComparer() { }
 
+    /// <summary>
+    /// 使用引用相等比较两个对象。
+    /// </summary>
+    /// <param name="x">第一个对象。</param>
+    /// <param name="y">第二个对象。</param>
+    /// <returns>若两者引用相同则返回 true。</returns>
     public new bool Equals(object? x, object? y) => ReferenceEquals(x, y);
 
+    /// <summary>
+    /// 基于 RuntimeHelpers 获取对象哈希码,确保与引用相等语义一致。
+    /// </summary>
+    /// <param name="obj">待计算哈希的对象。</param>
+    /// <returns>对象哈希码。</returns>
     public int GetHashCode(object? obj) => RuntimeHelpers.GetHashCode(obj);
 }

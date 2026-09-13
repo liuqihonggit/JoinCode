@@ -9,11 +9,23 @@ public sealed class LlmCodePatchGenerator : ICodePatchGenerator
 {
     private readonly IQueryService _queryService;
 
+    /// <summary>
+    /// 构造 LLM 代码补丁生成器
+    /// </summary>
+    /// <param name="queryService">查询服务（LLM 调用）</param>
     public LlmCodePatchGenerator(IQueryService queryService)
     {
         _queryService = queryService ?? throw new ArgumentNullException(nameof(queryService));
     }
 
+    /// <summary>
+    /// 生成源码补丁 — 调用 LLM 分析诊断并输出修改后的完整文件内容
+    /// </summary>
+    /// <param name="diagnostic">诊断报告</param>
+    /// <param name="sourceContext">源码上下文（当前文件内容、相关片段、编译错误）</param>
+    /// <param name="historicalPatches">历史类似补丁（可选，作为 LLM 参考）</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>生成的代码补丁（含置信度和推理）</returns>
     public async Task<CodePatch> GeneratePatchAsync(
         DiagnosticReport diagnostic,
         SourceCodeContext sourceContext,
@@ -46,6 +58,13 @@ public sealed class LlmCodePatchGenerator : ICodePatchGenerator
         };
     }
 
+    /// <summary>
+    /// 构建 LLM 提示词 — 包含诊断报告、当前源码、相关上下文、编译错误、历史修复
+    /// </summary>
+    /// <param name="diagnostic">诊断报告</param>
+    /// <param name="sourceContext">源码上下文</param>
+    /// <param name="historicalPatches">历史补丁（可选）</param>
+    /// <returns>组装完成的提示词文本</returns>
     internal static string BuildPrompt(
         DiagnosticReport diagnostic,
         SourceCodeContext sourceContext,
@@ -112,6 +131,12 @@ public sealed class LlmCodePatchGenerator : ICodePatchGenerator
         return sb.ToString();
     }
 
+    /// <summary>
+    /// 从 LLM 响应中提取指定语言的代码块
+    /// </summary>
+    /// <param name="response">LLM 响应文本</param>
+    /// <param name="language">代码块语言标识（csharp/reasoning 等）</param>
+    /// <returns>代码块内容（未找到则返回原文）</returns>
     internal static string ExtractCodeBlock(string response, string language)
     {
         var marker = $"```{language}";
@@ -125,6 +150,12 @@ public sealed class LlmCodePatchGenerator : ICodePatchGenerator
         return response[contentStart..endIdx].Trim();
     }
 
+    /// <summary>
+    /// 计算补丁置信度 — 基于变更行数比例，变更越小置信度越高
+    /// </summary>
+    /// <param name="originalContent">原始内容</param>
+    /// <param name="patchedContent">补丁后内容</param>
+    /// <returns>置信度（0.0-1.0）</returns>
     internal static double ComputeConfidence(string originalContent, string patchedContent)
     {
         if (string.IsNullOrWhiteSpace(patchedContent)) return 0.0;

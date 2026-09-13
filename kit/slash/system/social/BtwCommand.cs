@@ -10,6 +10,11 @@ namespace JoinCode.ChatCommands;
 [ChatCommandArg("question", Type = "string", Description = "侧边问题内容", Required = true)]
 public sealed class BtwCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /btw 命令 — 将侧边问题发送给 AI，不影响主对话上下文
+    /// </summary>
+    /// <param name="context">命令执行上下文，包含问题文本与取消令牌</param>
+    /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var question = ChatCommandBase.GetNormalizedArgs(context);

@@ -11,6 +11,10 @@ public partial class CompressionStrategyFactory : ServiceEntity, ICompressionStr
     private readonly Dictionary<ContentType, List<ICompressionStrategy>> _strategiesByType;
     private readonly ITelemetryService? _telemetryService;
 
+    /// <summary>
+    /// 构造压缩策略工厂，并注册默认策略
+    /// </summary>
+    /// <param name="telemetryService">可选的遥测服务</param>
     public CompressionStrategyFactory(ITelemetryService? telemetryService = null)
     {
         _telemetryService = telemetryService;
@@ -25,6 +29,12 @@ public partial class CompressionStrategyFactory : ServiceEntity, ICompressionStr
         RegisterDefaultStrategies();
     }
 
+    /// <summary>
+    /// 获取适合指定内容的策略
+    /// </summary>
+    /// <param name="content">内容</param>
+    /// <param name="contentType">内容类型</param>
+    /// <returns>压缩策略，如果没有找到则返回 null</returns>
     public ICompressionStrategy? GetStrategy(string content, ContentType contentType)
     {
         if (!_strategiesByType.TryGetValue(contentType, out var strategies))
@@ -56,6 +66,11 @@ public partial class CompressionStrategyFactory : ServiceEntity, ICompressionStr
         return selected;
     }
 
+    /// <summary>
+    /// 获取指定类型的所有策略，按优先级降序排列
+    /// </summary>
+    /// <param name="contentType">内容类型</param>
+    /// <returns>策略列表</returns>
     public IEnumerable<ICompressionStrategy> GetStrategiesForType(ContentType contentType)
     {
         return _strategiesByType.TryGetValue(contentType, out var strategies)
@@ -63,12 +78,21 @@ public partial class CompressionStrategyFactory : ServiceEntity, ICompressionStr
             : Enumerable.Empty<ICompressionStrategy>();
     }
 
+    /// <summary>
+    /// 检查指定类型是否存在已注册的策略
+    /// </summary>
+    /// <param name="contentType">内容类型</param>
+    /// <returns>是否存在策略</returns>
     public bool HasStrategyFor(ContentType contentType)
     {
         return _strategiesByType.TryGetValue(contentType, out var strategies) &&
                strategies.Count > 0;
     }
 
+    /// <summary>
+    /// 注册压缩策略
+    /// </summary>
+    /// <param name="strategy">策略实例</param>
     public void RegisterStrategy(ICompressionStrategy strategy)
     {
         ArgumentNullException.ThrowIfNull(strategy);
@@ -90,6 +114,11 @@ public partial class CompressionStrategyFactory : ServiceEntity, ICompressionStr
         }
     }
 
+    /// <summary>
+    /// 按名称注销策略
+    /// </summary>
+    /// <param name="strategyName">策略名称</param>
+    /// <returns>是否成功注销</returns>
     public bool UnregisterStrategy(string strategyName)
     {
         if (!_strategies.TryGetValue(strategyName, out var strategy))
@@ -110,6 +139,10 @@ public partial class CompressionStrategyFactory : ServiceEntity, ICompressionStr
         return true;
     }
 
+    /// <summary>
+    /// 获取所有已注册的策略，按名称升序排列
+    /// </summary>
+    /// <returns>所有策略</returns>
     public IEnumerable<ICompressionStrategy> GetAllStrategies()
     {
         return _strategies.Values.OrderBy(s => s.Name);

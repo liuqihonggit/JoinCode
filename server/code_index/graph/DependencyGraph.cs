@@ -9,17 +9,30 @@ public sealed class DependencyGraph : IDependencyGraph
     private readonly InMemoryIndexStore _store;
     private int _cacheVersion;
 
+    /// <summary>
+    /// 构造依赖图
+    /// </summary>
+    /// <param name="store">内存索引存储（维护 DepsBySource/DepsByTarget/DepsByFile 索引）</param>
     public DependencyGraph(InMemoryIndexStore store)
     {
         ArgumentNullException.ThrowIfNull(store);
         _store = store;
     }
 
+    /// <summary>
+    /// 使缓存失效 — 递增版本号强制下次查询重新读取
+    /// </summary>
     internal void InvalidateCache()
     {
         Interlocked.Increment(ref _cacheVersion);
     }
 
+    /// <summary>
+    /// 使指定文件的缓存失效
+    /// </summary>
+    /// <param name="filePath">文件路径</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     internal Task InvalidateCacheForFileAsync(string filePath, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(filePath);
@@ -27,6 +40,12 @@ public sealed class DependencyGraph : IDependencyGraph
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// 获取指定符号的所有继承者（Inherits/Implements 依赖）
+    /// </summary>
+    /// <param name="symbolName">符号完全限定名</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>继承边列表</returns>
     public Task<IReadOnlyList<DependencyEdge>> GetInheritorsAsync(string symbolName, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(symbolName);
@@ -42,6 +61,12 @@ public sealed class DependencyGraph : IDependencyGraph
         return Task.FromResult<IReadOnlyList<DependencyEdge>>(Array.Empty<DependencyEdge>());
     }
 
+    /// <summary>
+    /// 获取指定符号的所有依赖
+    /// </summary>
+    /// <param name="symbolName">符号完全限定名</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>依赖边列表</returns>
     public Task<IReadOnlyList<DependencyEdge>> GetDependenciesAsync(string symbolName, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(symbolName);
@@ -54,6 +79,12 @@ public sealed class DependencyGraph : IDependencyGraph
         return Task.FromResult<IReadOnlyList<DependencyEdge>>(Array.Empty<DependencyEdge>());
     }
 
+    /// <summary>
+    /// 获取受指定文件变更影响的所有文件 — BFS 反向查找所有依赖这些符号的源符号所在文件
+    /// </summary>
+    /// <param name="filePath">触发变更的文件路径</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>受影响文件路径列表（含输入文件本身）</returns>
     public Task<IReadOnlyList<string>> GetAffectedFilesAsync(string filePath, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(filePath);

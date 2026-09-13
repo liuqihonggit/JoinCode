@@ -15,6 +15,13 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
     private readonly IHttpClientProvider? _httpClientProvider;
     private int _disposed;
 
+    /// <summary>
+    /// 初始化 MCP 认证工具处理器，可选地从磁盘加载已保存的认证配置
+    /// </summary>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="persistenceService">认证持久化服务（可选）</param>
+    /// <param name="httpClientProvider">HTTP 客户端提供者（可选，OAuth2 使用）</param>
+    /// <param name="fileSystem">文件系统抽象（可选，传入则启用磁盘持久化）</param>
     public McpAuthToolHandlers(ILogger? logger = null, IMcpAuthPersistenceService? persistenceService = null, IHttpClientProvider? httpClientProvider = null, IFileSystem? fileSystem = null)
     {
         _logger = logger;
@@ -406,6 +413,7 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
         }
     }
 
+    /// <summary>释放资源 — 释放所有认证提供者并清理锁。</summary>
     public void Dispose()
     {
         foreach (var provider in _authProviders.Values.OfType<IDisposable>())

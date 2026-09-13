@@ -1,10 +1,20 @@
 
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /sandbox-toggle 命令 — 切换沙箱模式
+/// 支持启用、禁用、查看状态、管理排除路径、切换沙箱类型
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.SandboxToggle, Description = "切换沙箱模式", Usage = "/sandbox-toggle [on|off|status|exclude|switch]", Category = ChatCommandCategory.Config, Aliases = ["sandbox"], ArgumentHint = "[on|off|status|exclude|switch]", IsHidden = true)]
 [ChatCommandArg("action", Type = "string", Description = "沙箱操作", Enum = new[] { "on", "off", "status", "exclude", "switch" }, Default = "status")]
 public sealed class SandboxToggleCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /sandbox-toggle 命令 — 根据子命令分发到对应沙箱操作
+    /// 支持 on/off/status/exclude/switch 五种操作,默认 status
+    /// </summary>
+    /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
+    /// <returns>命令执行结果,始终返回 Continue 表示继续会话</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var sandboxManager = ChatCommandBase.GetService<ISandboxManager>(context);

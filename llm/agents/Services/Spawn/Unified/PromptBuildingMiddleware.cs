@@ -8,6 +8,9 @@ namespace Core.Agents;
 public sealed partial class PromptBuildingMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 
+    /// <summary>
+    /// 构造 PromptBuildingMiddleware 实例，注入提示构建器、可选的记忆服务与日志器
+    /// </summary>
     public PromptBuildingMiddleware(IAgentPromptBuilder promptBuilder, IAgentMemoryService? agentMemoryService = null, ILogger<PromptBuildingMiddleware>? logger = null)
     {
         _promptBuilder = promptBuilder;
@@ -18,8 +21,15 @@ public sealed partial class PromptBuildingMiddleware : ServiceEntity, IUnifiedSp
     private readonly IAgentMemoryService? _agentMemoryService;
     private readonly ILogger<PromptBuildingMiddleware>? _logger;
 
+    /// <summary>中间件错误处理策略：向上传播</summary>
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
+    /// <summary>
+    /// 执行提示构建：主代理或无 SpawnOptions 跳过；否则构建系统提示词并加载记忆
+    /// </summary>
+    /// <param name="context">统一 Spawn 上下文</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct)
     {
         if (context.IsMainAgent || context.SpawnOptions is null)

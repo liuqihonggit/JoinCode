@@ -1,5 +1,8 @@
 namespace JoinCode;
 
+/// <summary>
+/// 命令行选项 — 解析并承载 jcc CLI 全部启动参数（帮助/版本/管道/模型/权限/医生等）
+/// </summary>
 public class CommandLineOptions {
     /// <summary>
     /// 显示帮助信息（--help / -h）

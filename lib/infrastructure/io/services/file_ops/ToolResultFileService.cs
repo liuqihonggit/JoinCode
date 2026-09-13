@@ -1,5 +1,10 @@
 namespace Infrastructure.IO;
 
+/// <summary>
+/// 工具结果文件服务 — 将超大工具调用结果持久化到磁盘,避免上下文膨胀
+/// <para>对齐 TS 实现: 使用 FileMode.CreateNew 排他创建消除 TOCTOU 竞态</para>
+/// <para>预览在换行符处截断,保留可读结构</para>
+/// </summary>
 [Register(typeof(JoinCode.Abstractions.LLM.Chat.IToolResultFileService), ServiceLifetime.Singleton)]
 public sealed partial class ToolResultFileService : ServiceEntity, JoinCode.Abstractions.LLM.Chat.IToolResultFileService
 {
@@ -7,6 +12,11 @@ public sealed partial class ToolResultFileService : ServiceEntity, JoinCode.Abst
     private readonly IFileSystem _fs;
     private readonly string _baseDir;
 
+    /// <summary>
+    /// 构造工具结果文件服务
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">可选日志记录器</param>
     public ToolResultFileService(IFileSystem fs, ILogger<ToolResultFileService>? logger = null)
     {
         _fs = fs;
@@ -16,6 +26,13 @@ public sealed partial class ToolResultFileService : ServiceEntity, JoinCode.Abst
             AppDataConstants.ToolResultsFolderName);
     }
 
+    /// <summary>
+    /// 同步持久化工具结果 — 使用排他创建,已存在则跳过
+    /// </summary>
+    /// <param name="sessionId">会话标识,作为子目录名</param>
+    /// <param name="toolUseId">工具调用标识,作为文件名</param>
+    /// <param name="content">工具结果内容</param>
+    /// <returns>持久化结果,包含文件路径、原始大小、预览与是否截断标志</returns>
     public JoinCode.Abstractions.LLM.Chat.PersistedToolResult PersistToolResult(string sessionId, string toolUseId, string content)
     {
         var dir = Path.Combine(_baseDir, sessionId);
@@ -57,6 +74,11 @@ public sealed partial class ToolResultFileService : ServiceEntity, JoinCode.Abst
     /// <summary>
     /// 异步持久化工具结果 — 对齐 TS Promise.all 并发持久化
     /// </summary>
+    /// <param name="sessionId">会话标识,作为子目录名</param>
+    /// <param name="toolUseId">工具调用标识,作为文件名</param>
+    /// <param name="content">工具结果内容</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>持久化结果,包含文件路径、原始大小、预览与是否截断标志</returns>
     public async Task<JoinCode.Abstractions.LLM.Chat.PersistedToolResult> PersistToolResultAsync(
         string sessionId, string toolUseId, string content, CancellationToken cancellationToken = default)
     {
@@ -92,6 +114,12 @@ public sealed partial class ToolResultFileService : ServiceEntity, JoinCode.Abst
         };
     }
 
+    /// <summary>
+    /// 读取已持久化的工具结果
+    /// </summary>
+    /// <param name="sessionId">会话标识</param>
+    /// <param name="toolUseId">工具调用标识</param>
+    /// <returns>工具结果内容;文件不存在或读取失败返回 null</returns>
     public string? ReadToolResult(string sessionId, string toolUseId)
     {
         var dir = Path.Combine(_baseDir, sessionId);

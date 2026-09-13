@@ -1,9 +1,15 @@
 namespace Services.Todo;
 
+/// <summary>
+/// Todo 服务实现 — 基于 DAG 维护 Todo 项的依赖关系,支持持久化、加载、拓扑排序与就绪项查询。
+/// </summary>
 [Register(typeof(ITodoService), ServiceLifetime.Singleton)]
 public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposable
 {
 
+    /// <summary>
+    /// 构造函数 — 注入时钟、任务运行时、遥测、持久化管道、文件系统与日志等依赖。
+    /// </summary>
     public TodoService(IClockService clock, ITaskRuntime? taskRuntime = null, ITelemetryService? telemetryService = null, IPersistencePipeline? persistencePipeline = null, IFileSystem? fs = null, ILogger<TodoService>? logger = null)
     {
         _clock = clock;
@@ -24,6 +30,7 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
     private static readonly string TodosSubDir = Path.Combine(AppDataConstants.AppDataFolder, "todo");
     private const string TodosFileName = "todos.json";
 
+    /// <inheritdoc />
     public async Task<TodoServiceResult> WriteTodosAsync(List<TodoItemInput> todos, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(todos);
@@ -145,6 +152,7 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
         return new TodoServiceResult(true, createdCount, updatedCount, deletedCount, allTodos);
     }
 
+    /// <inheritdoc />
     public async Task<TodoListResult> ListTodosAsync(string? status = null, string? priority = null, bool includeCompleted = false, CancellationToken cancellationToken = default)
     {
         await EnsureTodosLoadedAsync(cancellationToken).ConfigureAwait(false);
@@ -170,6 +178,7 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
         return new TodoListResult(true, result);
     }
 
+    /// <inheritdoc />
     public async Task<OperationResult<TodoItem?>> UpdateTodoAsync(string todoId, string? content = null, string? status = null, string? priority = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(todoId);
@@ -215,6 +224,7 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
         return OperationResult<TodoItem?>.Ok(updatedTodo);
     }
 
+    /// <inheritdoc />
     public async Task ClearTodosAsync(CancellationToken cancellationToken = default)
     {
         _todoDag.Clear();
@@ -223,6 +233,7 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
         await SaveTodosAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public async Task<IReadOnlyList<TodoItem>> GetTopologicalOrderAsync(CancellationToken cancellationToken = default)
     {
         await EnsureTodosLoadedAsync(cancellationToken).ConfigureAwait(false);
@@ -230,6 +241,7 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
         return sorted;
     }
 
+    /// <inheritdoc />
     public async Task<IReadOnlyList<TodoItem>> GetReadyTodosAsync(CancellationToken cancellationToken = default)
     {
         await EnsureTodosLoadedAsync(cancellationToken).ConfigureAwait(false);
@@ -340,6 +352,9 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
         _telemetryService?.RecordHistogram("todo.operation.items", count, new Dictionary<string, string> { ["operation"] = operation }, "items", "Todo items affected");
     }
 
+    /// <summary>
+    /// 释放 Todo DAG 资源。
+    /// </summary>
     protected override void OnDispose()
     {
         _todoDag.Dispose();

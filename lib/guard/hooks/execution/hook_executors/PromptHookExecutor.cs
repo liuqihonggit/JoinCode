@@ -10,6 +10,9 @@ public sealed partial class PromptHookExecutor : HookExecutorBase<PromptHook>
 {
     private readonly ILLMService? _llmService;
 
+    /// <summary>
+    /// 构造 LLM 提示钩子执行器
+    /// </summary>
     public PromptHookExecutor(
         ILLMService? llmService = null,
         ILogger<PromptHookExecutor>? logger = null)

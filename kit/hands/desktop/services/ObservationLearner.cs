@@ -15,6 +15,9 @@ public sealed partial class ObservationLearner : ServiceEntity, IObservationLear
         MaxTokens = 4000
     };
 
+    /// <summary>构造观察学习器实例。</summary>
+    /// <param name="queryService">LLM 查询服务，用于调用多模态模型进行操作抽象、复现与优化。</param>
+    /// <param name="logger">可选的日志记录器，传入 null 时静默运行。</param>
     public ObservationLearner(IQueryService queryService, ILogger<ObservationLearner>? logger = null)
     {
         _queryService = queryService ?? throw new ArgumentNullException(nameof(queryService));

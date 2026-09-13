@@ -10,13 +10,19 @@ public sealed class MetricsMiddleware<TContext> : IMiddleware<TContext>
 {
     private readonly ITelemetryService? _telemetryService;
 
+    /// <summary>
+    /// 构造指标中间件
+    /// </summary>
+    /// <param name="telemetryService">可选遥测服务,为 null 时不记录指标</param>
     public MetricsMiddleware(ITelemetryService? telemetryService = null)
     {
         _telemetryService = telemetryService;
     }
 
+    /// <inheritdoc/>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
+    /// <inheritdoc/>
     public async Task InvokeAsync(TContext context, MiddlewareDelegate<TContext> next, CancellationToken ct)
     {
         await next(context, ct).ConfigureAwait(false);

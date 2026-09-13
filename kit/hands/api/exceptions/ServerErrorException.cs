@@ -9,6 +9,9 @@ public sealed class ServerErrorException : ApiException
     /// <summary>
     /// 创建 ServerErrorException
     /// </summary>
+    /// <param name="endpoint">API 端点</param>
+    /// <param name="statusCode">HTTP 状态码</param>
+    /// <param name="responseContent">原始响应内容</param>
     public ServerErrorException(
         string endpoint,
         int statusCode,

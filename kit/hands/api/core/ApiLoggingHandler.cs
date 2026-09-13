@@ -86,6 +86,11 @@ public sealed partial class ApiLoggingHandler : DelegatingHandler
     private readonly ILogger<ApiLoggingHandler> _logger;
     private readonly ApiLoggingOptions _options;
 
+    /// <summary>
+    /// 构造 ApiLoggingHandler
+    /// </summary>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="options">可选日志配置；为 null 时使用默认配置</param>
     public ApiLoggingHandler(
         ILogger<ApiLoggingHandler> logger,
         ApiLoggingOptions? options = null)
@@ -94,6 +99,12 @@ public sealed partial class ApiLoggingHandler : DelegatingHandler
         _options = options ?? ApiLoggingOptions.Default;
     }
 
+    /// <summary>
+    /// 拦截 HTTP 请求记录请求/响应日志后传递给内部处理器
+    /// </summary>
+    /// <param name="request">HTTP 请求消息</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>HTTP 响应消息</returns>
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
         CancellationToken cancellationToken)

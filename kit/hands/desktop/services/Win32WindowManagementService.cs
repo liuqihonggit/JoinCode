@@ -8,6 +8,8 @@ public sealed partial class Win32WindowManagementService : ServiceEntity, IWindo
 {
     private readonly ILogger<Win32WindowManagementService>? _logger;
 
+    /// <summary>构造窗口管理服务实例。</summary>
+    /// <param name="logger">可选的日志记录器，传入 null 时静默运行。</param>
     public Win32WindowManagementService(ILogger<Win32WindowManagementService>? logger = null)
     {
         _logger = logger;
@@ -86,6 +88,7 @@ public sealed partial class Win32WindowManagementService : ServiceEntity, IWindo
         return Task.FromResult(ok);
     }
 
+    /// <summary>释放窗口管理服务资源 — 无外部资源需释放。</summary>
     protected override void OnDispose()
     {
     }

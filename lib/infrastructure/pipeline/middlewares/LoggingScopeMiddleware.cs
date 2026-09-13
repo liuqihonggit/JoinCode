@@ -12,6 +12,7 @@ public sealed class LoggingScopeMiddleware<TContext>(
     private readonly Func<TContext, ObjectId> _objectIdSelector =
         objectIdSelector ?? (ctx => ctx is Entity e ? e.ObjectId : ObjectId.Empty);
 
+    /// <inheritdoc/>
     public async Task InvokeAsync(TContext context, MiddlewareDelegate<TContext> next, CancellationToken ct)
     {
         var activity = Activity.Current;
@@ -34,6 +35,7 @@ public sealed class StreamLoggingScopeMiddleware<TContext, TEvent>(
     private readonly Func<TContext, ObjectId> _objectIdSelector =
         objectIdSelector ?? (ctx => ctx is Entity e ? e.ObjectId : ObjectId.Empty);
 
+    /// <inheritdoc/>
     public async IAsyncEnumerable<TEvent> InvokeAsync(
         TContext context,
         StreamMiddlewareDelegate<TContext, TEvent> next,

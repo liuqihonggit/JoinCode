@@ -1,17 +1,30 @@
 namespace Core.Hooks.ToolPermission.Handlers;
 
+/// <summary>Swarm Worker 权限处理参数</summary>
 public sealed record SwarmWorkerPermissionParams
 {
+    /// <summary>权限上下文</summary>
     public required PermissionContext Context { get; init; }
+    /// <summary>权限请求描述</summary>
     public required string Description { get; init; }
+    /// <summary>待分类器检查的挂起对象</summary>
     public object? PendingClassifierCheck { get; init; }
+    /// <summary>更新后的输入参数</summary>
     public Dictionary<string, JsonElement>? UpdatedInput { get; init; }
+    /// <summary>权限更新建议列表</summary>
     public List<PermissionUpdate>? Suggestions { get; init; }
+    /// <summary>是否为 Swarm Worker 调用</summary>
     public required bool IsSwarmWorker { get; init; }
+    /// <summary>Swarm 权限回调接口</summary>
     public ISwarmPermissionCallbacks? SwarmCallbacks { get; init; }
+    /// <summary>命令分类器</summary>
     public ICommandClassifier? Classifier { get; init; }
 }
 
+/// <summary>
+/// Swarm Worker 权限处理器 — 当子代理为 Swarm Worker 时,优先用分类器自动决策,否则转发到 Leader 审批
+/// 带 30 秒 Leader 响应超时,超时后取消并中止
+/// </summary>
 [Register(typeof(SwarmWorkerHandler), ServiceLifetime.Singleton)]
 public sealed partial class SwarmWorkerHandler : ServiceEntity
 {
@@ -20,6 +33,9 @@ public sealed partial class SwarmWorkerHandler : ServiceEntity
 
     private static readonly TimeSpan LeaderResponseTimeout = TimeSpan.FromSeconds(30);
 
+    /// <summary>
+    /// 构造函数 — 注入可选的日志器和 Swarm 权限回调
+    /// </summary>
     public SwarmWorkerHandler(
         ILogger<SwarmWorkerHandler>? logger = null,
         ISwarmPermissionCallbacks? swarmCallbacks = null)
@@ -28,6 +44,11 @@ public sealed partial class SwarmWorkerHandler : ServiceEntity
         _injectedCallbacks = swarmCallbacks;
     }
 
+    /// <summary>
+    /// 处理 Swarm Worker 权限请求 — 非 Swarm Worker 返回 null,Swarm Worker 时先尝试分类器自动决策,再转发到 Leader
+    /// </summary>
+    /// <param name="params">权限处理参数</param>
+    /// <returns>权限决策;null 表示回退到本地处理</returns>
     public async Task<PermissionDecision?> HandleAsync(SwarmWorkerPermissionParams @params)
     {
         if (!@params.IsSwarmWorker)

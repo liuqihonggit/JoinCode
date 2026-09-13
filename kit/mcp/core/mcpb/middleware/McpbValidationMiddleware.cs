@@ -7,6 +7,11 @@ namespace McpClient.Mcpb;
 public sealed partial class McpbValidationMiddleware : ServiceEntity, IMcpbMiddleware
 {
 
+    /// <summary>
+    /// 初始化 MCPB 参数验证中间件
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public McpbValidationMiddleware(IFileSystem fs, ILogger<McpbValidationMiddleware>? logger = null)
     {
         _fs = fs;
@@ -16,6 +21,13 @@ public sealed partial class McpbValidationMiddleware : ServiceEntity, IMcpbMiddl
     private readonly ILogger<McpbValidationMiddleware>? _logger;
 
 
+    /// <summary>
+    /// 执行验证中间件：检查源路径有效性，URL 源时下载到临时文件，完成后清理
+    /// </summary>
+    /// <param name="context">MCPB 加载上下文</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task InvokeAsync(McpbLoadContext context, MiddlewareDelegate<McpbLoadContext> next, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(context.Source))

@@ -1,14 +1,29 @@
 namespace Services.Lsp.Internal;
 
+/// <summary>
+/// LSP 被动反馈接口 — 注册 LSP 服务器的通知和请求处理器
+/// </summary>
 public interface ILspPassiveFeedback
 {
+    /// <summary>
+    /// 注册通知处理器 — 为所有 LSP 服务器注册诊断发布和 workspace/configuration 处理器
+    /// </summary>
+    /// <param name="manager">LSP 管理器</param>
     void RegisterNotificationHandlers(ILspManager manager);
 }
 
+/// <summary>
+/// LSP 被动反馈实现 — 处理 textDocument/publishDiagnostics 通知和 workspace/configuration 请求
+/// </summary>
 [Register(typeof(ILspPassiveFeedback), ServiceLifetime.Singleton)]
 public sealed partial class LspPassiveFeedback : ServiceEntity, ILspPassiveFeedback
 {
 
+    /// <summary>
+    /// 构造 LSP 被动反馈处理器
+    /// </summary>
+    /// <param name="diagnosticRegistry">诊断注册表</param>
+    /// <param name="logger">可选日志记录器</param>
     public LspPassiveFeedback(ILspDiagnosticRegistry diagnosticRegistry, ILogger<LspPassiveFeedback>? logger = null)
     {
         _diagnosticRegistry = diagnosticRegistry;
@@ -17,6 +32,10 @@ public sealed partial class LspPassiveFeedback : ServiceEntity, ILspPassiveFeedb
     private readonly ILspDiagnosticRegistry _diagnosticRegistry;
     private readonly ILogger<LspPassiveFeedback>? _logger;
 
+    /// <summary>
+    /// 注册通知处理器 — 为所有 LSP 服务器注册诊断发布和 workspace/configuration 处理器
+    /// </summary>
+    /// <param name="manager">LSP 管理器</param>
     public void RegisterNotificationHandlers(ILspManager manager)
     {
         var servers = manager.GetAllServers();

@@ -1,18 +1,27 @@
 
 namespace Core.Goal;
 
+/// <summary>
+/// 目标评估器默认实现 — 调用 LLM 判断目标是否已完成
+/// </summary>
 [Register(typeof(IGoalEvaluator), ServiceLifetime.Singleton)]
 public sealed partial class GoalEvaluator : ServiceEntity, IGoalEvaluator
 {
     private readonly IChatClient _kernel;
     private readonly ILogger<GoalEvaluator>? _logger;
 
+    /// <summary>
+    /// 构造 GoalEvaluator — 注入聊天客户端与可选日志记录器
+    /// </summary>
+    /// <param name="kernel">聊天客户端</param>
+    /// <param name="logger">可选日志记录器</param>
     public GoalEvaluator(IChatClient kernel, ILogger<GoalEvaluator>? logger = null)
     {
         _kernel = kernel;
         _logger = logger;
     }
 
+    /// <inheritdoc />
     public async Task<GoalEvaluationResult> EvaluateAsync(
         string objective,
         IReadOnlyList<string> constraints,

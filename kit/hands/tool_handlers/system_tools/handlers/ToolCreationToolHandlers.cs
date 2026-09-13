@@ -12,6 +12,12 @@ public class ToolCreationToolHandlers
     private readonly IToolRegistry _registry;
     private readonly ILogger<ToolCreationToolHandlers>? _logger;
 
+    /// <summary>
+    /// 构造工具创建处理器
+    /// </summary>
+    /// <param name="templateService">工具模板服务，负责模板的保存与加载</param>
+    /// <param name="registry">工具注册表，用于将新工具注册到当前会话</param>
+    /// <param name="logger">可选日志记录器</param>
     public ToolCreationToolHandlers(
         IToolTemplateService templateService,
         IToolRegistry registry,

@@ -10,12 +10,19 @@ public sealed class CliPermissionConfirmationHandler : IPermissionConfirmationHa
     private readonly IToolPermissionManager? _permissionManager;
     private readonly IConfirmationGate? _confirmationGate;
 
+    /// <summary>初始化 <see cref="CliPermissionConfirmationHandler"/> 实例</summary>
+    /// <param name="permissionManager">可选的工具权限管理器，用于临时批准工具或危险等级</param>
+    /// <param name="confirmationGate">可选的确认门，用于在 REPL 单通道中路由用户输入</param>
     public CliPermissionConfirmationHandler(IToolPermissionManager? permissionManager = null, IConfirmationGate? confirmationGate = null)
     {
         _permissionManager = permissionManager;
         _confirmationGate = confirmationGate;
     }
 
+    /// <summary>在控制台显示权限确认提示并解析用户响应，按结果临时批准工具或等级</summary>
+    /// <param name="toolName">待确认的工具名称</param>
+    /// <param name="confirmationPrompt">展示给用户的确认提示文本</param>
+    /// <returns>用户选择的确认动作（允许/始终允许/拒绝）；非交互环境自动拒绝</returns>
     public PermissionConfirmAction Confirm(string toolName, string confirmationPrompt)
     {
         Cli.TerminalHelper.WriteLine();

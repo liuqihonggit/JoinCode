@@ -10,17 +10,31 @@ public sealed partial class ClearCommand : ChatCommandBase
 {
     private readonly ILogger<ClearCommand>? _logger;
 
+    /// <summary>命令名称。</summary>
     public override string Name => ChatCommandNameConstants.Clear;
+    /// <summary>命令描述。</summary>
     public override string Description => "清空聊天历史并释放上下文";
+    /// <summary>命令用法提示。</summary>
     public override string Usage => "/clear";
+    /// <summary>命令别名列表。</summary>
     public override string[] Aliases => new[] { "reset", "new", "cls" };
+    /// <summary>命令参数提示文本。</summary>
     public override string ArgumentHint => string.Empty;
 
+    /// <summary>
+    /// 构造清空命令实例。
+    /// </summary>
+    /// <param name="logger">可选的日志记录器。</param>
     public ClearCommand(ILogger<ClearCommand>? logger = null)
     {
         _logger = logger;
     }
 
+    /// <summary>
+    /// 执行 /clear 命令，清空聊天历史、清屏并释放会话相关缓存与上下文资源。
+    /// </summary>
+    /// <param name="context">命令执行上下文。</param>
+    /// <returns>表示异步操作的任务，承载命令执行结果。</returns>
     public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         // 对齐 TS: clearConversation — 直接清除，无需确认

@@ -5,6 +5,12 @@ namespace JoinCode.Abstractions.State;
 /// </summary>
 public static class AppStateConverter
 {
+    /// <summary>
+    /// 将 AppState 转换为可持久化的 AppStateDocument
+    /// </summary>
+    /// <param name="state">应用状态</param>
+    /// <param name="savedAt">保存时间戳（可选，默认为当前 UTC 时间）</param>
+    /// <returns>转换后的文档模型</returns>
     public static AppStateDocument ToDocument(AppState state, DateTime? savedAt = null)
     {
         return new AppStateDocument
@@ -75,6 +81,11 @@ public static class AppStateConverter
         };
     }
 
+    /// <summary>
+    /// 将 AppStateDocument 还原为 AppState
+    /// </summary>
+    /// <param name="doc">文档模型</param>
+    /// <returns>还原后的应用状态</returns>
     public static AppState FromDocument(AppStateDocument doc)
     {
         return new AppState

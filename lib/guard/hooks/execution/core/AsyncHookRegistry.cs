@@ -150,8 +150,11 @@ public interface IAsyncHookProcess
 /// </summary>
 public enum AsyncHookProcessStatus
 {
+    /// <summary>运行中 — 进程仍在执行</summary>
     [EnumValue("running")] Running,
+    /// <summary>已完成 — 进程正常退出</summary>
     [EnumValue("completed")] Completed,
+    /// <summary>已杀死 — 进程被强制终止</summary>
     [EnumValue("killed")] Killed
 }
 
@@ -220,6 +223,9 @@ public sealed partial class AsyncHookRegistry : MapRegistry<string, PendingAsync
 {
     private readonly ILogger<AsyncHookRegistry>? _logger;
 
+    /// <summary>
+    /// 构造异步钩子注册表
+    /// </summary>
     public AsyncHookRegistry(ILogger<AsyncHookRegistry>? logger = null) => _logger = logger;
 
     /// <inheritdoc />

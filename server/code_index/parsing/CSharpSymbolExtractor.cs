@@ -1,5 +1,9 @@
 namespace JoinCode.CodeIndex.Ast;
 
+/// <summary>
+/// C# 符号提取器 — 基于 Tree-sitter 解析 C# 源码,提取符号、调用、依赖信息
+/// 实现 ILanguagePlugin 接口,支持增量解析与并行提取
+/// </summary>
 public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable
 {
     private static readonly FrozenDictionary<string, SymbolKind> NodeTypeToKind = new Dictionary<string, SymbolKind>()
@@ -27,8 +31,10 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable
         "public", "private", "protected", "internal",
         "private_protected", "protected_internal");
 
+    /// <summary>语言标识符 — 用于匹配文件扩展名对应的语言插件</summary>
     public string LanguageId => "c-sharp";
 
+    /// <summary>支持的文件扩展名列表 — 仅 .cs 文件</summary>
     public IReadOnlyList<string> FileExtensions => [".cs"];
 
     private readonly CSharpCallExtractor _callExtractor = new();
@@ -44,6 +50,10 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable
         _logger?.LogDebug(message);
     }
 
+    /// <summary>
+    /// 构造 C# 符号提取器 — 使用内部树缓存与解析锁
+    /// </summary>
+    /// <param name="logger">日志记录器(可选)</param>
     public CSharpSymbolExtractor(ILogger? logger = null)
     {
         _logger = logger;
@@ -51,6 +61,11 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable
         _parseLock = new Threading.TimeoutLock("CSharpExtractor.Parse", TimeSpan.FromSeconds(30), Log);
     }
 
+    /// <summary>
+    /// 内部构造 — 注入自定义树缓存,用于测试场景
+    /// </summary>
+    /// <param name="treeCache">树缓存实例</param>
+    /// <param name="logger">日志记录器(可选)</param>
     internal CSharpSymbolExtractor(TreeCache treeCache, ILogger? logger = null)
     {
         _logger = logger;
@@ -73,6 +88,12 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable
         _dedicatedParser = dedicatedParser;
     }
 
+    /// <summary>
+    /// 同步提取全部信息 — 符号、调用、依赖,在解析锁内执行
+    /// </summary>
+    /// <param name="sourceCode">源代码文本</param>
+    /// <param name="filePath">文件路径,用于增量解析缓存键</param>
+    /// <returns>提取结果,含符号、调用边、依赖边</returns>
     public ExtractionResult ExtractAll(string sourceCode, string filePath)
     {
         ArgumentNullException.ThrowIfNull(sourceCode);
@@ -82,6 +103,13 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable
         return ExtractAllCore(sourceCode, filePath);
     }
 
+    /// <summary>
+    /// 异步提取全部信息 — 符号、调用、依赖,在解析锁内执行
+    /// </summary>
+    /// <param name="sourceCode">源代码文本</param>
+    /// <param name="filePath">文件路径,用于增量解析缓存键</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>提取结果,含符号、调用边、依赖边</returns>
     public async Task<ExtractionResult> ExtractAllAsync(string sourceCode, string filePath, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(sourceCode);
@@ -116,6 +144,12 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable
         }
     }
 
+    /// <summary>
+    /// 同步提取符号列表 — 仅符号,不含调用与依赖
+    /// </summary>
+    /// <param name="sourceCode">源代码文本</param>
+    /// <param name="filePath">文件路径,用于增量解析缓存键</param>
+    /// <returns>符号信息列表</returns>
     public IReadOnlyList<SymbolInfo> ExtractSymbols(string sourceCode, string filePath)
     {
         ArgumentNullException.ThrowIfNull(sourceCode);
@@ -125,6 +159,13 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable
         return ExtractSymbolsCore(sourceCode, filePath);
     }
 
+    /// <summary>
+    /// 异步提取符号列表 — 仅符号,不含调用与依赖
+    /// </summary>
+    /// <param name="sourceCode">源代码文本</param>
+    /// <param name="filePath">文件路径,用于增量解析缓存键</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>符号信息列表</returns>
     public async Task<IReadOnlyList<SymbolInfo>> ExtractSymbolsAsync(string sourceCode, string filePath, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(sourceCode);
@@ -171,6 +212,9 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable
         return parser.Parse(sourceCode);
     }
 
+    /// <summary>
+    /// 释放内部资源 — 树缓存与专用解析器(如有)
+    /// </summary>
     public void Dispose()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
@@ -179,11 +223,25 @@ public sealed class CSharpSymbolExtractor : ILanguagePlugin, IDisposable
         _dedicatedParser?.Dispose();
     }
 
+    /// <summary>
+    /// 提取调用边 — 委托给 CSharpCallExtractor
+    /// </summary>
+    /// <param name="sourceCode">源代码文本</param>
+    /// <param name="filePath">文件路径</param>
+    /// <param name="symbols">已提取的符号列表,用于解析调用方与被调用方</param>
+    /// <returns>调用边列表</returns>
     public IReadOnlyList<CallEdge> ExtractCalls(string sourceCode, string filePath, IReadOnlyList<SymbolInfo> symbols)
     {
         return _callExtractor.ExtractCalls(sourceCode, filePath, symbols);
     }
 
+    /// <summary>
+    /// 提取依赖边 — 委托给 CSharpDependencyExtractor
+    /// </summary>
+    /// <param name="sourceCode">源代码文本</param>
+    /// <param name="filePath">文件路径</param>
+    /// <param name="symbols">已提取的符号列表,用于解析依赖源与目标</param>
+    /// <returns>依赖边列表</returns>
     public IReadOnlyList<DependencyEdge> ExtractDependencies(string sourceCode, string filePath, IReadOnlyList<SymbolInfo> symbols)
     {
         return _dependencyExtractor.ExtractDependencies(sourceCode, filePath, symbols);

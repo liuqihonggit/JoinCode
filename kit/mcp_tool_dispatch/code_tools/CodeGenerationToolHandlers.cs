@@ -11,6 +11,10 @@ public class CodeGenerationToolHandlers
 {
     private readonly IQueryEngine _queryEngine;
 
+    /// <summary>
+    /// 初始化 <see cref="CodeGenerationToolHandlers"/> 实例
+    /// </summary>
+    /// <param name="queryEngine">查询引擎</param>
     public CodeGenerationToolHandlers(IQueryEngine queryEngine)
     {
         _queryEngine = queryEngine ?? throw new ArgumentNullException(nameof(queryEngine));

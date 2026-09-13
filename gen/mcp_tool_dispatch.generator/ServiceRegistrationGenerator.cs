@@ -271,8 +271,16 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine("namespace Core.DependencyInjection;");
         sb.AppendLine();
+        sb.AppendLine("/// <summary>");
+        sb.AppendLine("/// DI 服务注册入口（由源码生成器 McpToolDispatchGenerator.ServiceRegistrationGenerator 生成）");
+        sb.AppendLine("/// </summary>");
         sb.AppendLine("public static partial class ServiceRegistration");
         sb.AppendLine("{");
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine($"    /// 自动注册 {sanitizedAssemblyName} 程序集中扫描到的服务（由源码生成器 McpToolDispatchGenerator.ServiceRegistrationGenerator 生成）。");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine("    /// <param name=\"services\">DI 容器。</param>");
+        sb.AppendLine("    /// <returns>已注册服务的 <see cref=\"IServiceCollection\"/> 实例。</returns>");
         sb.AppendLine($"    public static IServiceCollection {methodName}(this IServiceCollection services)");
         sb.AppendLine("    {");
 
@@ -672,8 +680,16 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine("namespace Core.DependencyInjection;");
         sb.AppendLine();
+        sb.AppendLine("/// <summary>");
+        sb.AppendLine("/// DI Options 配置注册入口（由源码生成器 McpToolDispatchGenerator.ServiceRegistrationGenerator 生成）");
+        sb.AppendLine("/// </summary>");
         sb.AppendLine("public static partial class ServiceRegistration");
         sb.AppendLine("{");
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine($"    /// 自动注册 {sanitizedAssemblyName} 程序集中扫描到的 Options 配置（由源码生成器 McpToolDispatchGenerator.ServiceRegistrationGenerator 生成）。");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine("    /// <param name=\"services\">DI 容器。</param>");
+        sb.AppendLine("    /// <returns>已注册服务的 <see cref=\"IServiceCollection\"/> 实例。</returns>");
         sb.AppendLine($"    public static IServiceCollection {methodName}(this IServiceCollection services)");
         sb.AppendLine("    {");
 

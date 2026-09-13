@@ -12,6 +12,12 @@ public class DownloadToolHandlers
     private readonly IFileSystem? _fs;
     private readonly ITelemetryService? _telemetryService;
 
+    /// <summary>
+    /// 初始化 <see cref="DownloadToolHandlers"/> 实例。
+    /// </summary>
+    /// <param name="downloader">下载器抽象，提供多线程并发与断点续传能力。</param>
+    /// <param name="fs">可选的文件系统抽象，用于计算下载文件 MD5。</param>
+    /// <param name="telemetryService">可选的遥测服务，用于记录下载指标。</param>
     public DownloadToolHandlers(IDownloader downloader, IFileSystem? fs = null, ITelemetryService? telemetryService = null)
     {
         _downloader = downloader ?? throw new ArgumentNullException(nameof(downloader));
@@ -19,6 +25,15 @@ public class DownloadToolHandlers
         _telemetryService = telemetryService;
     }
 
+    /// <summary>
+    /// 异步下载文件到指定路径，支持多线程并发与断点续传。
+    /// </summary>
+    /// <param name="url">下载 URL。</param>
+    /// <param name="file_path">目标文件保存路径。</param>
+    /// <param name="max_threads">最大并发线程数（1-32，默认 4）。</param>
+    /// <param name="resume">是否启用断点续传（默认 true）。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>包含下载结果与诊断信息的工具结果。</returns>
     [McpTool(WebToolNameConstants.DownloadFile, "下载文件到指定路径(支持多线程并发+断点续传)", "web", ConcurrencySafe = true)]
     public async Task<ToolResult> DownloadFileAsync(
         [McpToolParameter("下载 URL")] string url,

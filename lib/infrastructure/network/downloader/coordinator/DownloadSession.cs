@@ -30,6 +30,7 @@ internal sealed class DownloadSession : IDownloadSession
     /// <summary>当前状态(线程安全读取)</summary>
     public DownloadState State => _stateMachine.State;
 
+    /// <summary>构造下载会话,注入 HTTP 客户端、文件系统、URL、目标路径及下载选项</summary>
     internal DownloadSession(
         HttpClient httpClient,
         IFileSystem fs,

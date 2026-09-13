@@ -13,6 +13,11 @@ namespace JoinCode.ChatCommands;
 [ChatCommandArg("execute", Type = "boolean", Description = "是否自动执行计划", Default = "false")]
 public sealed class UltraplanCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /ultraplan 命令，深度规划目标并可选自动执行计划步骤
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <returns>命令执行结果</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetSplitArgs(context);

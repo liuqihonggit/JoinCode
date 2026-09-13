@@ -142,9 +142,28 @@ public sealed class ConeOrchestrator
 /// </summary>
 public sealed class ConeConflictResult
 {
+    /// <summary>
+    /// 冲突检测的角色 A
+    /// </summary>
     public required AgentRole RoleA { get; init; }
+
+    /// <summary>
+    /// 冲突检测的角色 B
+    /// </summary>
     public required AgentRole RoleB { get; init; }
+
+    /// <summary>
+    /// 角色 A 的活跃结论集合
+    /// </summary>
     public IEnumerable<string> RoleAConclusions { get; init; } = [];
+
+    /// <summary>
+    /// 角色 B 的活跃结论集合
+    /// </summary>
     public IEnumerable<string> RoleBConclusions { get; init; } = [];
+
+    /// <summary>
+    /// 是否存在视锥冲突
+    /// </summary>
     public bool HasConflict { get; init; }
 }

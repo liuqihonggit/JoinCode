@@ -13,6 +13,11 @@ public sealed class LongRunningTaskRegistry
 
     private const int MaxRetries = 5;
 
+    /// <summary>
+    /// 构造长时间任务注册表
+    /// </summary>
+    /// <param name="actuatorRegistry">系统执行器注册表，用于获取 Bash/PowerShell 执行器</param>
+    /// <param name="logger">可选日志记录器</param>
     public LongRunningTaskRegistry(ISystemActuatorRegistry actuatorRegistry, ILogger<LongRunningTaskRegistry>? logger = null)
     {
         _actuatorRegistry = actuatorRegistry ?? throw new ArgumentNullException(nameof(actuatorRegistry));
@@ -176,24 +181,38 @@ public sealed class LongRunningTaskRegistry
 /// <summary>长时间任务状态</summary>
 public enum LongRunningTaskState
 {
+    /// <summary>运行中</summary>
     Running,
+    /// <summary>已完成</summary>
     Completed,
+    /// <summary>失败</summary>
     Failed,
+    /// <summary>已超时</summary>
     TimedOut,
+    /// <summary>已停止</summary>
     Stopped,
+    /// <summary>任务不存在</summary>
     NotFound,
+    /// <summary>已达到最大续期次数</summary>
     MaxRetriesExceeded,
 }
 
 /// <summary>长时间任务结果</summary>
 public sealed record LongRunningTaskResult
 {
+    /// <summary>任务ID</summary>
     public required string TaskId { get; init; }
+    /// <summary>任务最终状态</summary>
     public required LongRunningTaskState State { get; init; }
+    /// <summary>标准输出</summary>
     public string Stdout { get; init; } = string.Empty;
+    /// <summary>标准错误输出</summary>
     public string Stderr { get; init; } = string.Empty;
+    /// <summary>退出码（未执行时为 null）</summary>
     public int? ExitCode { get; init; }
+    /// <summary>实际耗时</summary>
     public TimeSpan Elapsed { get; init; }
+    /// <summary>续期次数</summary>
     public int RetryCount { get; init; }
 }
 

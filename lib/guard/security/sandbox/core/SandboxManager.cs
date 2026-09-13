@@ -1,6 +1,9 @@
 namespace Core.Security.Sandbox;
 
 
+/// <summary>
+/// 沙箱管理器 — 管理多个沙箱提供器,提供沙箱进入/退出/切换/降级/执行等生命周期能力
+/// </summary>
 [Register(typeof(ISandboxManager), ServiceLifetime.Singleton)]
 public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDisposable
 {
@@ -11,6 +14,9 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
     private readonly SandboxIpcClient? _ipcClient;
     private readonly ConcurrentDictionary<string, SandboxActiveExecution> _activeExecutions = new();
 
+    /// <summary>
+    /// 初始化沙箱管理器实例
+    /// </summary>
     public SandboxManager(
         IEnumerable<ISandboxProvider> providers,
         IFileSystem fs,
@@ -58,36 +64,47 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
         return removed;
     }
 
+    /// <inheritdoc/>
     public ISandboxProvider? ActiveProvider => _lifecycleActor.ActiveProvider;
 
+    /// <inheritdoc/>
     public SandboxType ActiveSandboxType => _lifecycleActor.ActiveProvider?.SandboxType ?? SandboxType.None;
 
+    /// <inheritdoc/>
     public bool IsInSandbox => _lifecycleActor.IsInSandbox;
 
+    /// <inheritdoc/>
     public SandboxInfo? CurrentSandbox => _lifecycleActor.CurrentSandbox;
 
+    /// <inheritdoc/>
     public string? CurrentSandboxId => _lifecycleActor.ActiveSandboxId;
 
+    /// <inheritdoc/>
     public SandboxHealthState HealthState => _lifecycleActor.HealthState;
 
+    /// <inheritdoc/>
     public IEnumerable<SandboxType> AvailableTypes => _providers.Keys;
 
+    /// <inheritdoc/>
     public async Task<SandboxInfo> EnterSandboxAsync(SandboxOptions options, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(options);
         return await _lifecycleActor.EnterAsync(options, ct).ConfigureAwait(false);
     }
 
+    /// <inheritdoc/>
     public async Task ExitSandboxAsync(CancellationToken ct = default)
     {
         await _lifecycleActor.ExitAsync(ct).ConfigureAwait(false);
     }
 
+    /// <inheritdoc/>
     public async Task SwitchProviderAsync(SandboxType type, CancellationToken ct = default)
     {
         await _lifecycleActor.SwitchAsync(type, ct).ConfigureAwait(false);
     }
 
+    /// <inheritdoc/>
     public async Task<SandboxDegradationResult> TryEnterWithFallbackAsync(SandboxOptions options, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -167,11 +184,13 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
         };
     }
 
+    /// <inheritdoc/>
     public ISandboxProvider? GetProvider(SandboxType type)
     {
         return _providers.TryGetValue(type, out var provider) ? provider : null;
     }
 
+    /// <inheritdoc/>
     public string ResolvePath(string path)
     {
         var activeProvider = _lifecycleActor.ActiveProvider;
@@ -184,6 +203,7 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
         return activeProvider.ResolvePath(path, activeSandboxId);
     }
 
+    /// <inheritdoc/>
     public async Task<SandboxInfo> CreateSandboxAsync(SandboxType type, SandboxOptions options, CancellationToken ct = default)
     {
         var (provider, _) = ResolveProviderWithFallback(type);
@@ -203,6 +223,7 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
         return await provider.CreateSandboxAsync(effectiveOptions, ct).ConfigureAwait(false);
     }
 
+    /// <inheritdoc/>
     public async Task DestroySandboxAsync(string sandboxId, CancellationToken ct = default)
     {
         foreach (var provider in _providers.Values)
@@ -217,6 +238,7 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
         _logger?.LogWarning("[SandboxManager] 沙箱 '{Id}' 不存在于任何 Provider 中", sandboxId);
     }
 
+    /// <inheritdoc/>
     public SandboxInfo? GetSandboxInfo(string sandboxId)
     {
         foreach (var provider in _providers.Values)
@@ -231,6 +253,7 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
         return null;
     }
 
+    /// <inheritdoc/>
     public string ResolvePath(string path, string sandboxId)
     {
         foreach (var provider in _providers.Values)
@@ -285,6 +308,7 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
         throw new InvalidOperationException($"[GRD009] 沙箱类型 '{type.ToValue()}' 不可用且无降级选项。可用类型: {string.Join(", ", _providers.Keys.Select(k => k.ToValue()))}");
     }
 
+    /// <inheritdoc/>
     public async Task<AbstractionsSandboxExecutionResult> ExecuteInSandboxAsync(string command, SandboxExecutionOptions options, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(command);
@@ -632,6 +656,7 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
         }
     }
 
+    /// <inheritdoc/>
     public async Task<AbstractionsSandboxExecutionResult> ContinueExecutionAsync(string executionId, string action, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(executionId);
@@ -740,6 +765,7 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
         execution.Stopwatch.Stop();
     }
 
+    /// <inheritdoc />
     protected override void OnDispose()
     {
         _ = _lifecycleActor.DisposeAsync();

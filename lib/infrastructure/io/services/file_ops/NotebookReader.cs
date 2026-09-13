@@ -32,9 +32,20 @@ public sealed record NotebookReadResult
     public string GetText() =>
         Text ?? throw new InvalidOperationException("Text is not available. Check Success before calling this method.");
 
+    /// <summary>
+    /// 构造成功结果
+    /// </summary>
+    /// <param name="text">格式化文本</param>
+    /// <param name="images">提取的图像列表</param>
+    /// <returns>成功状态的结果对象</returns>
     public static NotebookReadResult Ok(string text, List<NotebookImage> images) =>
         new() { Success = true, Text = text, Images = images };
 
+    /// <summary>
+    /// 构造失败结果
+    /// </summary>
+    /// <param name="message">错误消息</param>
+    /// <returns>失败状态的结果对象</returns>
     public static NotebookReadResult Fail(string message) =>
         new() { Success = false, ErrorMessage = message };
 }

@@ -1,6 +1,9 @@
 
 namespace Core.Ssh;
 
+/// <summary>
+/// SSH 会话实现 — 通过 ssh 子进程建立连接，提供命令执行、端口转发、保活与自动重连能力
+/// </summary>
 public sealed class SshSession : ISshSession
 {
     private static readonly FrozenDictionary<SshConnectionState, FrozenSet<SshConnectionState>> SshTransitions = CreateTransitionTable();
@@ -15,12 +18,22 @@ public sealed class SshSession : ISshSession
     private int _reconnectAttempts;
     private CancellationTokenSource? _keepAliveCts;
 
+    /// <summary>获取本次会话的唯一标识符</summary>
     public string SessionId { get; }
+    /// <summary>获取 SSH 会话配置</summary>
     public SshSessionConfig Config { get; }
+    /// <summary>获取当前连接状态</summary>
     public SshConnectionState ConnectionState => _stateMachine.CurrentState;
 
+    /// <summary>连接状态发生变更时触发，参数携带新旧状态信息</summary>
     public event EventHandler<SshConnectionStateChangedEventArgs>? ConnectionStateChanged;
 
+    /// <summary>
+    /// 构造 SSH 会话
+    /// </summary>
+    /// <param name="config">SSH 会话配置</param>
+    /// <param name="fs">文件系统抽象，用于写入私钥等临时文件</param>
+    /// <param name="logger">可选日志记录器</param>
     public SshSession(SshSessionConfig config, IFileSystem fs, ILogger? logger = null)
     {
         Config = config;
@@ -32,6 +45,11 @@ public sealed class SshSession : ISshSession
         _stateMachine.StateChanged += OnStateChanged;
     }
 
+    /// <summary>
+    /// 建立 SSH 连接 — 启动 ssh 子进程并切换状态机到 Connected，启动保活循环
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步连接操作的任务</returns>
     public async Task ConnectAsync(CancellationToken ct = default)
     {
         DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
@@ -83,6 +101,11 @@ public sealed class SshSession : ISshSession
 
     }
 
+    /// <summary>
+    /// 主动断开 SSH 连接 — 停止保活、停止所有端口转发并终止 ssh 子进程
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步断开操作的任务</returns>
     public async Task DisconnectAsync(CancellationToken ct = default)
     {
         DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
@@ -105,6 +128,11 @@ public sealed class SshSession : ISshSession
     
     }
 
+    /// <summary>
+    /// 重新连接 — 先断开再重置重连计数后建立新连接
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步重连操作的任务</returns>
     public async Task ReconnectAsync(CancellationToken ct = default)
     {
         DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
@@ -114,6 +142,12 @@ public sealed class SshSession : ISshSession
         await ConnectAsync(ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 检查会话保活状态 — 进程已退出时切换状态机到 Disconnected 并返回 false
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>会话存活返回 true，否则返回 false</returns>
+    /// <exception cref="InvalidOperationException">会话未处于 Connected 状态时抛出</exception>
     public Task<bool> KeepAliveAsync(CancellationToken ct = default)
     {
         if (_stateMachine.CurrentState != SshConnectionState.Connected)
@@ -130,6 +164,13 @@ public sealed class SshSession : ISshSession
         return Task.FromResult(true);
     }
 
+    /// <summary>
+    /// 在远端执行指定命令并捕获标准输出、标准错误与退出码
+    /// </summary>
+    /// <param name="command">待在远端执行的 shell 命令</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>命令执行结果，包含退出码、输出、错误与耗时</returns>
+    /// <exception cref="InvalidOperationException">会话未处于 Connected 状态或无法启动 ssh 进程时抛出</exception>
     public async Task<SshCommandResult> ExecuteCommandAsync(
         string command,
         CancellationToken ct = default)
@@ -177,6 +218,15 @@ public sealed class SshSession : ISshSession
         };
     }
 
+    /// <summary>
+    /// 建立本地端口转发 — 将本地端口映射到远端主机端口
+    /// </summary>
+    /// <param name="localPort">本地监听端口</param>
+    /// <param name="remoteHost">远程目标主机</param>
+    /// <param name="remotePort">远程目标端口</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>已启动的本地端口转发实例</returns>
+    /// <exception cref="InvalidOperationException">会话未处于 Connected 状态时抛出</exception>
     public async Task<ISshForwardedPort> ForwardLocalPortAsync(
         int localPort,
         string remoteHost,
@@ -194,6 +244,15 @@ public sealed class SshSession : ISshSession
             SessionId, Config, localPort, remoteHost, remotePort, ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 建立远程端口转发 — 将远端端口映射回本地端口
+    /// </summary>
+    /// <param name="remotePort">远程监听端口</param>
+    /// <param name="localHost">本地绑定主机</param>
+    /// <param name="localPort">本地目标端口</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>已启动的远程端口转发实例</returns>
+    /// <exception cref="InvalidOperationException">会话未处于 Connected 状态时抛出</exception>
     public async Task<ISshForwardedPort> ForwardRemotePortAsync(
         int remotePort,
         string localHost,
@@ -211,11 +270,19 @@ public sealed class SshSession : ISshSession
             SessionId, Config, remotePort, localHost, localPort, ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 获取本会话所有处于活动状态的端口转发
+    /// </summary>
+    /// <returns>活动端口转发的集合</returns>
     public IEnumerable<ISshForwardedPort> GetActiveForwards()
     {
         return _portForwardManager.GetActiveForwards();
     }
 
+    /// <summary>
+    /// 异步释放资源 — 停止保活、释放端口转发管理器并终止 ssh 子进程
+    /// </summary>
+    /// <returns>表示异步释放操作的任务</returns>
     public async ValueTask DisposeAsync()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _isDisposed))

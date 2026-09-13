@@ -14,6 +14,12 @@ public sealed partial class SessionMemoryExtractionCallback : ServiceEntity, IPo
     private readonly IForkSubAgentManager? _forkManager;
     private readonly ILogger<SessionMemoryExtractionCallback>? _logger;
 
+    /// <summary>
+    /// 初始化 <see cref="SessionMemoryExtractionCallback"/> 实例
+    /// </summary>
+    /// <param name="extractionService">会话记忆提取服务</param>
+    /// <param name="forkManager">可选的子代理派生管理器，为 null 时跳过 fork 执行</param>
+    /// <param name="logger">可选日志记录器</param>
     public SessionMemoryExtractionCallback(
         ISessionMemoryExtractionService extractionService,
         IForkSubAgentManager? forkManager = null,
@@ -24,6 +30,10 @@ public sealed partial class SessionMemoryExtractionCallback : ServiceEntity, IPo
         _logger = logger;
     }
 
+    /// <summary>
+    /// 采样后回调：判断是否需要提取会话记忆，必要时派生子代理更新记忆文件
+    /// </summary>
+    /// <param name="context">采样后上下文，包含 token 估算、会话 ID 等</param>
     public async Task OnPostSamplingAsync(PostSamplingContext context)
     {
         if (context.QuerySource != "repl_main_thread") return;

@@ -2,6 +2,7 @@ namespace Tools.Handlers;
 
 public partial class FileToolHandlers
 {
+    /// <summary>应用 unified diff patch 到一个或多个文件</summary>
     [McpTool(FileToolNameConstants.FileApplyPatch, "Apply a unified diff patch to one or more files", "file")]
     public async Task<ToolResult> FileApplyPatchAsync(
         [McpToolParameter("The unified diff patch content")] string patch,

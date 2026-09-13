@@ -6,13 +6,21 @@ namespace IO.Configuration;
 /// </summary>
 public sealed class IOThrottleOptions
 {
+    /// <summary>默认最大并发读操作数</summary>
     public const int DefaultMaxConcurrentReads = 10;
+    /// <summary>默认最大并发写操作数</summary>
     public const int DefaultMaxConcurrentWrites = 5;
+    /// <summary>默认最大并发删除操作数</summary>
     public const int DefaultMaxConcurrentDeletes = 3;
+    /// <summary>默认令牌桶容量</summary>
     public const int DefaultTokenBucketCapacity = 100;
+    /// <summary>默认令牌填充速率（每秒令牌数）</summary>
     public const double DefaultTokenRefillRatePerSecond = 50;
+    /// <summary>默认读操作令牌消耗</summary>
     public const double DefaultReadTokenCost = 1;
+    /// <summary>默认写操作令牌消耗</summary>
     public const double DefaultWriteTokenCost = 3;
+    /// <summary>默认删除操作令牌消耗</summary>
     public const double DefaultDeleteTokenCost = 5;
 
     /// <summary>
@@ -82,6 +90,8 @@ public sealed class IOThrottleOptions
     /// <summary>
     /// 获取操作类型的并发限制
     /// </summary>
+    /// <param name="operationType">IO 操作类型</param>
+    /// <returns>对应操作类型的最大并发数</returns>
     public int GetConcurrencyLimit(IOOperationType operationType) => operationType switch
     {
         IOOperationType.Read => MaxConcurrentReads,
@@ -93,6 +103,8 @@ public sealed class IOThrottleOptions
     /// <summary>
     /// 获取操作类型的令牌消耗
     /// </summary>
+    /// <param name="operationType">IO 操作类型</param>
+    /// <returns>对应操作类型消耗的令牌数</returns>
     public double GetTokenCost(IOOperationType operationType) => operationType switch
     {
         IOOperationType.Read => ReadTokenCost,

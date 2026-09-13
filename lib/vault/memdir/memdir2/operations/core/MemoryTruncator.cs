@@ -54,6 +54,10 @@ public sealed partial class MemoryTruncator : ServiceEntity, IMemoryTruncator
 {
     private readonly ILogger<MemoryTruncator>? _logger;
 
+    /// <summary>
+    /// 创建记忆截断器实例
+    /// </summary>
+    /// <param name="logger">可选的日志记录器</param>
     public MemoryTruncator(ILogger<MemoryTruncator>? logger = null)
     {
         _logger = logger;

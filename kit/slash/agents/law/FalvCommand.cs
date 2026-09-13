@@ -1,19 +1,43 @@
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /falv 命令子选项枚举 — 对应推理引擎的各类操作开关
+/// </summary>
 public enum FalvSubOption
 {
+    /// <summary>
+    /// 查看当前推理状态
+    /// </summary>
     [EnumValue("--status")]
     Status,
+    /// <summary>
+    /// 触发三权裁决流程
+    /// </summary>
     [EnumValue("--judge")]
     Judge,
+    /// <summary>
+    /// 查看证据链
+    /// </summary>
     [EnumValue("--evidence")]
     Evidence,
+    /// <summary>
+    /// 查看预算状态
+    /// </summary>
     [EnumValue("--budget")]
     Budget,
+    /// <summary>
+    /// 查看有限视锥状态
+    /// </summary>
     [EnumValue("--cone")]
     Cone,
+    /// <summary>
+    /// 检测视锥冲突
+    /// </summary>
     [EnumValue("--conflict")]
     Conflict,
+    /// <summary>
+    /// 重置推理引擎
+    /// </summary>
     [EnumValue("--reset")]
     Reset,
 }
@@ -25,6 +49,11 @@ public enum FalvSubOption
 [ChatCommandArg("action", Type = "string", Description = "推理操作: 默认为假定内容(自由文本),或 --status/--judge/--evidence/--continue/--budget/--cone/--conflict/--reset 子命令", Enum = new[] { "--status", "--judge", "--evidence", "--continue", "--budget", "--cone", "--conflict", "--reset" })]
 public sealed class FalvCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /falv 命令，根据参数分派到对应的推理操作（添加假定、查看状态、裁决、续费等）
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <returns>命令执行结果</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context);

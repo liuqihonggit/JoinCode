@@ -8,6 +8,9 @@ namespace McpToolDispatch;
 /// </summary>
 public partial class GitHubToolHandlers
 {
+    /// <summary>
+    /// 通用 GitHub REST API 调用 — 直调 api.github.com，输出完整 JSON（截断到 max_lines 行）
+    /// </summary>
     [McpTool(GitHubToolNameConstants.GhApi, "通用 GitHub REST API 调用(直调 api.github.com,输出完整 JSON)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhApiAsync(
         [McpToolParameter("API 路径(如 repos/owner/repo/issues)", Required = true)] string path,

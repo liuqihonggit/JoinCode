@@ -1,7 +1,19 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
+/// <summary>
+/// 上下文折叠决策器，根据 token 使用比例与阈值决定折叠动作、计算保护区边界与 token 估算
+/// </summary>
 public static class ContextFoldDecider
 {
+    /// <summary>
+    /// 根据本次请求的 token 使用情况决定后续折叠动作
+    /// </summary>
+    /// <param name="usage">本次请求的 token 使用情况</param>
+    /// <param name="ctxMax">上下文窗口大小</param>
+    /// <param name="alreadyFoldedThisTurn">本轮是否已折叠过</param>
+    /// <param name="thresholds">折叠阈值（可选，默认使用 Default）</param>
+    /// <param name="deferralCount">已延迟折叠次数</param>
+    /// <returns>折叠决策结果</returns>
     public static ContextFoldDecision DecideAfterUsage(
         TokenUsage usage,
         int ctxMax,
@@ -37,6 +49,14 @@ public static class ContextFoldDecider
         return action;
     }
 
+    /// <summary>
+    /// 在发起请求前预估 token 占用，判断是否需要紧急折叠
+    /// </summary>
+    /// <param name="messages">消息列表</param>
+    /// <param name="toolSpecs">工具规格列表</param>
+    /// <param name="ctxMax">上下文窗口大小</param>
+    /// <param name="thresholds">折叠阈值（可选，默认使用 Default）</param>
+    /// <returns>预检决策结果</returns>
     public static PreflightDecision DecidePreflight(
         IReadOnlyList<ApiMessage> messages,
         IReadOnlyList<ToolSpec> toolSpecs,
@@ -58,6 +78,13 @@ public static class ContextFoldDecider
         };
     }
 
+    /// <summary>
+    /// 估算消息列表与工具规格占用的 token 数
+    /// </summary>
+    /// <param name="messages">消息列表</param>
+    /// <param name="toolSpecs">工具规格列表</param>
+    /// <param name="thresholds">折叠阈值（可选，默认使用 Default）</param>
+    /// <returns>估算的 token 数</returns>
     public static int EstimateTokenCount(
         IReadOnlyList<ApiMessage> messages,
         IReadOnlyList<ToolSpec> toolSpecs,
@@ -84,6 +111,14 @@ public static class ContextFoldDecider
         return totalChars / t.CharsPerToken;
     }
 
+    /// <summary>
+    /// 计算尾部保护区的起始边界索引，边界之前的消息可参与折叠
+    /// </summary>
+    /// <param name="messages">消息列表</param>
+    /// <param name="ctxMax">上下文窗口大小</param>
+    /// <param name="aggressive">是否使用激进折叠比例</param>
+    /// <param name="thresholds">折叠阈值（可选，默认使用 Default）</param>
+    /// <returns>保护区边界索引</returns>
     public static int ComputeTailBoundary(
         IReadOnlyList<ApiMessage> messages,
         int ctxMax,
@@ -128,6 +163,15 @@ public static class ContextFoldDecider
         return boundary;
     }
 
+    /// <summary>
+    /// 判断头部区域占比是否足够大，值得执行折叠
+    /// </summary>
+    /// <param name="messages">消息列表</param>
+    /// <param name="headStart">头部起始索引</param>
+    /// <param name="headEnd">头部结束索引（不含）</param>
+    /// <param name="ctxMax">上下文窗口大小</param>
+    /// <param name="thresholds">折叠阈值（可选，默认使用 Default）</param>
+    /// <returns>头部占比达到最小节省比例返回 true；否则返回 false</returns>
     public static bool ShouldFold(
         IReadOnlyList<ApiMessage> messages,
         int headStart,
@@ -174,6 +218,11 @@ public static class ContextFoldDecider
         return consecutiveNoProgressFolds >= limit;
     }
 
+    /// <summary>
+    /// 裁剪日志末尾的纯工具调用助手消息，保留其文本内容（若有）
+    /// </summary>
+    /// <param name="log">会话消息日志，原地改写</param>
+    /// <returns>裁剪成功返回 true；末条非工具调用助手消息或日志为空返回 false</returns>
     public static bool TrimTrailingToolCalls(AppendOnlyLog log)
     {
         ArgumentNullException.ThrowIfNull(log);

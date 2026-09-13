@@ -1,9 +1,15 @@
 
 namespace Core.Prompts.Sections;
 
+/// <summary>
+/// 始终应用的外部规则的提示词部分。
+/// </summary>
 [PromptSection(Name = "external_rules", Order = 8)]
 public static class ExternalRulesSection
 {
+    /// <summary>
+    /// 获取 external_rules 部分内容；始终应用的外部规则，无规则时返回 null。
+    /// </summary>
     public static string? GetContent()
     {
         var externalRules = PromptConfigSnapshot.Current.ExternalRules;
@@ -36,6 +42,9 @@ public static class ExternalRulesSection
         return sb.ToString();
     }
 
+    /// <summary>
+    /// 创建 external_rules 提示词部分。
+    /// </summary>
     public static SystemPromptSection Create() =>
         SystemPromptSection.Cached("external_rules", GetContent);
 }

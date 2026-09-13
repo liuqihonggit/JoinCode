@@ -116,6 +116,11 @@ public sealed record LspServerConfigEntry
 public sealed partial class LspConfigLoader : ServiceEntity, ILspConfigLoader
 {
 
+    /// <summary>
+    /// 构造 LSP 配置加载器
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">可选日志记录器</param>
     public LspConfigLoader(IFileSystem fs, ILogger<LspConfigLoader>? logger = null)
     {
         _fs = fs;

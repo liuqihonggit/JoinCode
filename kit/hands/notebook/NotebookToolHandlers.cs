@@ -1,5 +1,10 @@
 namespace Services.Notebook.ToolHandlers;
 
+/// <summary>
+/// Jupyter Notebook (.ipynb) 工具处理器集合 — 提供创建、读取、编辑、删除、移动单元格、
+/// 更改单元格类型、清除输出、获取单元格内容等 MCP 工具能力，并集成权限校验、
+/// Read-before-Edit 校验、并发修改检测、团队密钥检测与写前备份等防御链。
+/// </summary>
 [McpToolDispatch(ToolCategory.Notebook, Optional = true)]
 public class NotebookToolHandlers
 {
@@ -10,6 +15,15 @@ public class NotebookToolHandlers
     private readonly IToolPermissionManager? _permissionManager;
     private readonly WriteDefenseService? _writeDefense;
 
+    /// <summary>
+    /// 构造 Notebook 工具处理器。
+    /// </summary>
+    /// <param name="notebookService">Notebook 服务（加载/保存/单元格操作）。</param>
+    /// <param name="fileOperationService">文件操作服务（读取/写入/元数据）。</param>
+    /// <param name="fileStateCache">文件状态缓存（Read-before-Edit 校验）。</param>
+    /// <param name="fs">文件系统抽象。</param>
+    /// <param name="permissionManager">权限管理器（可选，Plan 模式拦截）。</param>
+    /// <param name="writeDefense">写入防御服务（可选，团队密钥检测与写前备份）。</param>
     public NotebookToolHandlers(INotebookService notebookService, IFileOperationService fileOperationService, IFileStateCache fileStateCache, IFileSystem fs, IToolPermissionManager? permissionManager = null, WriteDefenseService? writeDefense = null)
     {
         _notebookService = notebookService ?? throw new ArgumentNullException(nameof(notebookService));
@@ -20,6 +34,16 @@ public class NotebookToolHandlers
         _writeDefense = writeDefense;
     }
 
+    /// <summary>
+    /// 替换、插入或删除 Jupyter notebook 中指定单元格的内容。
+    /// </summary>
+    /// <param name="notebook_path">Jupyter notebook 文件的绝对路径。</param>
+    /// <param name="new_source">单元格的新源内容。</param>
+    /// <param name="cell_id">目标单元格 ID（insert 模式可选，其余模式必填）。</param>
+    /// <param name="cell_type">单元格类型 code 或 markdown（insert 模式必填）。</param>
+    /// <param name="edit_mode">编辑模式：replace、insert 或 delete（默认 replace）。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>工具执行结果。</returns>
     [McpTool(NotebookToolNameConstants.NotebookEdit, "Replace the contents of a specific cell in a Jupyter notebook (.ipynb)", "notebook")]
     public async Task<ToolResult> NotebookEditAsync(
         [McpToolParameter("The absolute path to the Jupyter notebook file to edit")] string notebook_path,
@@ -278,6 +302,14 @@ public class NotebookToolHandlers
         return sb.ToString();
     }
 
+    /// <summary>
+    /// 创建新的 Jupyter Notebook 文件。
+    /// </summary>
+    /// <param name="file_path">文件路径（若不以 .ipynb 结尾则自动追加）。</param>
+    /// <param name="kernel_name">内核名称（如 python3，可选）。</param>
+    /// <param name="language">编程语言（如 python，可选）。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>工具执行结果。</returns>
     [McpTool(NotebookToolNameConstants.NotebookCreate, "Create a new Jupyter Notebook file", "notebook")]
     public async Task<ToolResult> NotebookCreateAsync(
         [McpToolParameter("File path")] string file_path,
@@ -328,6 +360,10 @@ public class NotebookToolHandlers
     /// <summary>
     /// 加载并查看Notebook
     /// </summary>
+    /// <param name="file_path">Notebook 文件路径。</param>
+    /// <param name="show_content">是否显示各单元格的完整内容（默认 false）。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>工具执行结果。</returns>
     [McpTool(NotebookToolNameConstants.NotebookRead, "Read a Jupyter Notebook file", "notebook", ConcurrencySafe = true)]
     public async Task<ToolResult> NotebookReadAsync(
         [McpToolParameter("File path")] string file_path,
@@ -405,6 +441,12 @@ public class NotebookToolHandlers
     /// <summary>
     /// 添加单元格
     /// </summary>
+    /// <param name="file_path">Notebook 文件路径。</param>
+    /// <param name="cell_type">单元格类型（code/markdown/raw）。</param>
+    /// <param name="content">单元格内容。</param>
+    /// <param name="index">插入位置索引（可选，默认追加到末尾）。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>工具执行结果。</returns>
     [McpTool(NotebookToolNameConstants.NotebookAddCell, "Add a cell to a notebook", "notebook")]
     public async Task<ToolResult> NotebookAddCellAsync(
         [McpToolParameter("File path")] string file_path,
@@ -465,6 +507,10 @@ public class NotebookToolHandlers
     /// <summary>
     /// 删除单元格
     /// </summary>
+    /// <param name="file_path">Notebook 文件路径。</param>
+    /// <param name="index">单元格索引。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>工具执行结果。</returns>
     [McpTool(NotebookToolNameConstants.NotebookDeleteCell, "Delete a cell from a notebook", "notebook")]
     public async Task<ToolResult> NotebookDeleteCellAsync(
         [McpToolParameter("File path")] string file_path,
@@ -516,6 +562,11 @@ public class NotebookToolHandlers
     /// <summary>
     /// 编辑单元格内容
     /// </summary>
+    /// <param name="file_path">Notebook 文件路径。</param>
+    /// <param name="index">单元格索引。</param>
+    /// <param name="content">新内容。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>工具执行结果。</returns>
     [McpTool(NotebookToolNameConstants.NotebookEditCell, "Edit a notebook cell's content", "notebook")]
     public async Task<ToolResult> NotebookEditCellAsync(
         [McpToolParameter("File path")] string file_path,
@@ -568,6 +619,11 @@ public class NotebookToolHandlers
     /// <summary>
     /// 移动单元格
     /// </summary>
+    /// <param name="file_path">Notebook 文件路径。</param>
+    /// <param name="from_index">源位置索引。</param>
+    /// <param name="to_index">目标位置索引。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>工具执行结果。</returns>
     [McpTool(NotebookToolNameConstants.NotebookMoveCell, "Move a notebook cell to a new position", "notebook")]
     public async Task<ToolResult> NotebookMoveCellAsync(
         [McpToolParameter("File path")] string file_path,
@@ -620,6 +676,11 @@ public class NotebookToolHandlers
     /// <summary>
     /// 更改单元格类型
     /// </summary>
+    /// <param name="file_path">Notebook 文件路径。</param>
+    /// <param name="index">单元格索引。</param>
+    /// <param name="new_type">新类型（code/markdown/raw）。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>工具执行结果。</returns>
     [McpTool(NotebookToolNameConstants.NotebookChangeCellType, "Change a notebook cell's type", "notebook")]
     public async Task<ToolResult> NotebookChangeCellTypeAsync(
         [McpToolParameter("File path")] string file_path,
@@ -679,6 +740,9 @@ public class NotebookToolHandlers
     /// <summary>
     /// 清除所有输出
     /// </summary>
+    /// <param name="file_path">Notebook 文件路径。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>工具执行结果。</returns>
     [McpTool(NotebookToolNameConstants.NotebookClearOutputs, "Clear outputs of all notebook cells", "notebook")]
     public async Task<ToolResult> NotebookClearOutputsAsync(
         [McpToolParameter("File path")] string file_path,
@@ -729,6 +793,10 @@ public class NotebookToolHandlers
     /// <summary>
     /// 获取单元格内容
     /// </summary>
+    /// <param name="file_path">Notebook 文件路径。</param>
+    /// <param name="index">单元格索引。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>工具执行结果。</returns>
     [McpTool(NotebookToolNameConstants.NotebookGetCell, "Get the content of a specific notebook cell", "notebook", ConcurrencySafe = true)]
     public async Task<ToolResult> NotebookGetCellAsync(
         [McpToolParameter("File path")] string file_path,

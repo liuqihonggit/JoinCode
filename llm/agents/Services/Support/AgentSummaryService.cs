@@ -7,6 +7,9 @@ namespace Core.Agents;
 public sealed partial class AgentSummaryService : ServiceEntity, IAgentSummaryService
 {
 
+    /// <summary>
+    /// 构造 AgentSummaryService 实例，注入时钟服务、日志器及可选的遥测服务
+    /// </summary>
     public AgentSummaryService(IClockService clock, ILogger<AgentSummaryService>? logger = null, ITelemetryService? telemetryService = null)
     {
         _clock = clock;
@@ -292,14 +295,22 @@ public sealed partial class AgentSummaryService : ServiceEntity, IAgentSummarySe
 
     #region Private Classes
 
+    /// <summary>代理指标累加器 — 在汇总周期内累加单代理的执行/工具调用指标，用于生成汇总报告</summary>
     private class AgentMetricsAccumulator
     {
+        /// <summary>总执行次数</summary>
         public int TotalExecutions { get; set; }
+        /// <summary>成功执行次数</summary>
         public int SuccessfulExecutions { get; set; }
+        /// <summary>失败执行次数</summary>
         public int FailedExecutions { get; set; }
+        /// <summary>累计执行耗时</summary>
         public TimeSpan TotalExecutionTime { get; set; }
+        /// <summary>总工具调用次数</summary>
         public int TotalToolCalls { get; set; }
+        /// <summary>首次执行时间（UTC），未执行过为 null</summary>
         public DateTime? FirstExecutionAt { get; set; }
+        /// <summary>最近一次执行时间（UTC），未执行过为 null</summary>
         public DateTime? LastExecutionAt { get; set; }
     }
 

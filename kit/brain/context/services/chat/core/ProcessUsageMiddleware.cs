@@ -8,6 +8,11 @@ namespace Core.Context;
 public sealed partial class ProcessUsageMiddleware : ServiceEntity, IChatMiddleware
 {
 
+    /// <summary>
+    /// 初始化用量处理中间件
+    /// </summary>
+    /// <param name="usageProcessor">聊天用量处理器</param>
+    /// <param name="logger">可选日志记录器</param>
     public ProcessUsageMiddleware(IChatUsageProcessor usageProcessor, ILogger<ProcessUsageMiddleware>? logger = null)
     {
         _usageProcessor = usageProcessor;
@@ -16,6 +21,7 @@ public sealed partial class ProcessUsageMiddleware : ServiceEntity, IChatMiddlew
     private readonly IChatUsageProcessor _usageProcessor;
     private readonly ILogger<ProcessUsageMiddleware>? _logger;
 
+    /// <summary>错误行为策略：继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
     /// <summary>

@@ -1,6 +1,9 @@
 
 namespace Core.Bridge;
 
+/// <summary>
+/// Bridge JSON 序列化上下文 — 源码生成器为 Bridge 消息类型生成 AOT 兼容的元数据
+/// </summary>
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, WriteIndented = false, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(BridgeMessage))]
 [JsonSerializable(typeof(InitializeRequest))]

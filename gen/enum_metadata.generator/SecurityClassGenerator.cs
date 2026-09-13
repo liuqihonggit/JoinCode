@@ -111,33 +111,35 @@ public sealed class SecurityClassGenerator : IIncrementalGenerator
         sb.AppendLine("public static class ToolSecuritySets");
         sb.AppendLine("{");
 
-        GenerateClassificationSet(sb, "ReadOnlyTools", tools, "readonly");
-        GenerateClassificationSet(sb, "SafeWriteTools", tools, "safe-write");
-        GenerateClassificationSet(sb, "SensitiveTools", tools, "sensitive");
+        GenerateClassificationSet(sb, "ReadOnlyTools", "只读工具集合 — 不修改系统状态的工具", tools, "readonly");
+        GenerateClassificationSet(sb, "SafeWriteTools", "安全写入工具集合 — 低风险写入操作", tools, "safe-write");
+        GenerateClassificationSet(sb, "SensitiveTools", "敏感工具集合 — 需要额外审查的工具", tools, "sensitive");
 
-        GeneratePermissionSet(sb, "AutoAllowedTools", tools, t => t.AutoAllowed);
-        GeneratePermissionSet(sb, "PlanAllowedTools", tools, t => t.PlanAllowed);
-        GeneratePermissionSet(sb, "AskAllowedTools", tools, t => t.AskAllowed);
-        GeneratePermissionSet(sb, "AutoDeniedTools", tools, t => t.AutoDenied);
-        GeneratePermissionSet(sb, "PlanDeniedTools", tools, t => t.PlanDenied);
-        GeneratePermissionSet(sb, "AskDeniedTools", tools, t => t.AskDenied);
-        GeneratePermissionSet(sb, "AgentDestructiveTools", tools, t => t.AgentDestructive);
+        GeneratePermissionSet(sb, "AutoAllowedTools", "自动模式允许的工具集合", tools, t => t.AutoAllowed);
+        GeneratePermissionSet(sb, "PlanAllowedTools", "计划模式允许的工具集合", tools, t => t.PlanAllowed);
+        GeneratePermissionSet(sb, "AskAllowedTools", "询问模式允许的工具集合", tools, t => t.AskAllowed);
+        GeneratePermissionSet(sb, "AutoDeniedTools", "自动模式拒绝的工具集合", tools, t => t.AutoDenied);
+        GeneratePermissionSet(sb, "PlanDeniedTools", "计划模式拒绝的工具集合", tools, t => t.PlanDenied);
+        GeneratePermissionSet(sb, "AskDeniedTools", "询问模式拒绝的工具集合", tools, t => t.AskDenied);
+        GeneratePermissionSet(sb, "AgentDestructiveTools", "代理破坏性工具集合 — 子代理禁止使用的工具", tools, t => t.AgentDestructive);
 
         sb.AppendLine("}");
 
         context.AddSource("ToolSecuritySets.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
     }
 
-    private static void GenerateClassificationSet(StringBuilder sb, string setName, ImmutableArray<ToolSecurityInfo> tools, string classification)
+    private static void GenerateClassificationSet(StringBuilder sb, string setName, string description, ImmutableArray<ToolSecurityInfo> tools, string classification)
     {
         var matching = tools.Where(t => t.Classification == classification).ToList();
         if (matching.Count == 0)
         {
+            sb.AppendLine($"    /// <summary>{description}</summary>");
             sb.AppendLine($"    public static readonly FrozenSet<string> {setName} = FrozenSet<string>.Empty;");
             sb.AppendLine();
             return;
         }
 
+        sb.AppendLine($"    /// <summary>{description}</summary>");
         sb.AppendLine($"    public static readonly FrozenSet<string> {setName} = new HashSet<string>(StringComparer.OrdinalIgnoreCase)");
         sb.AppendLine("    {");
         for (int i = 0; i < matching.Count; i++)
@@ -149,16 +151,18 @@ public sealed class SecurityClassGenerator : IIncrementalGenerator
         sb.AppendLine();
     }
 
-    private static void GeneratePermissionSet(StringBuilder sb, string setName, ImmutableArray<ToolSecurityInfo> tools, Func<ToolSecurityInfo, bool> predicate)
+    private static void GeneratePermissionSet(StringBuilder sb, string setName, string description, ImmutableArray<ToolSecurityInfo> tools, Func<ToolSecurityInfo, bool> predicate)
     {
         var matching = tools.Where(predicate).ToList();
         if (matching.Count == 0)
         {
+            sb.AppendLine($"    /// <summary>{description}</summary>");
             sb.AppendLine($"    public static readonly FrozenSet<string> {setName} = FrozenSet<string>.Empty;");
             sb.AppendLine();
             return;
         }
 
+        sb.AppendLine($"    /// <summary>{description}</summary>");
         sb.AppendLine($"    public static readonly FrozenSet<string> {setName} = new HashSet<string>(StringComparer.OrdinalIgnoreCase)");
         sb.AppendLine("    {");
         for (int i = 0; i < matching.Count; i++)

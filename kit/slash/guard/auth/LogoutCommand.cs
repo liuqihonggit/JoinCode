@@ -12,6 +12,12 @@ public sealed class LogoutCommand : ChatCommandBase
 {
     private static readonly string AuthPath = AppDataConstants.Paths.AuthFilePath;
 
+    /// <summary>
+    /// 执行 /logout 命令 — 登出指定或全部 AI 服务
+    /// 清除 API Key、OAuth Token 及认证相关缓存,登出全部服务后退出应用
+    /// </summary>
+    /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
+    /// <returns>命令执行结果,登出全部返回 Exit,其余返回 Continue</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var services = context.GetCommandServices();

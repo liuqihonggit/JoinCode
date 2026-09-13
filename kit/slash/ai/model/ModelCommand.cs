@@ -1,9 +1,18 @@
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /model 命令 — 切换或查看模型
+/// 支持通过模型 ID 直接切换、查看当前模型信息、恢复默认模型,无参数时进入交互式选择器
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Model, Description = "切换或查看模型", Usage = "/model [model-id|default|info]", Category = ChatCommandCategory.Model, ArgumentHint = "[model-id|default|info]")]
 [ChatCommandArg("model_id", Type = "string", Description = "模型 ID、default 或 info")]
 public sealed class ModelCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /model 命令 — 根据参数分派到模型选择器、模型信息展示、默认模型切换或直接切换模型
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <returns>表示命令执行完成的任务,结果为继续会话</returns>
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context);

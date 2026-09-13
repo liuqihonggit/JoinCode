@@ -161,12 +161,18 @@ public sealed class WorktreeLifecycleGuard : IAsyncDisposable
 /// </summary>
 public sealed record WorktreeGuardResult
 {
+    /// <summary>是否成功</summary>
     public required bool Success { get; init; }
+    /// <summary>错误信息（失败时填充）</summary>
     public string? ErrorMessage { get; init; }
+    /// <summary>是否强制删除</summary>
     public bool Forced { get; init; }
+    /// <summary>失败根因</summary>
     public RemovalFailureReason Reason { get; init; } = RemovalFailureReason.None;
 
+    /// <summary>构造成功结果</summary>
     public static WorktreeGuardResult Ok(bool forced = false) => new() { Success = true, Forced = forced };
+    /// <summary>构造失败结果</summary>
     public static WorktreeGuardResult Fail(string error, RemovalFailureReason reason = RemovalFailureReason.Unknown) =>
         new() { Success = false, ErrorMessage = error, Reason = reason };
 }

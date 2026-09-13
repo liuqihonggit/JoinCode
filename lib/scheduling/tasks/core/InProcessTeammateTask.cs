@@ -1,15 +1,75 @@
 namespace Core.Scheduling.Tasks;
 
+/// <summary>
+/// 进程内 Teammate 任务执行器接口 — 提供 teammate 的执行、消息通信、状态查询、停止/终止/中断能力。
+/// </summary>
 public interface IInProcessTeammateTaskExecutor
 {
+    /// <summary>
+    /// 异步执行一个 teammate 任务。
+    /// </summary>
+    /// <param name="definition">teammate 定义,包含任务描述、Agent 配置与执行选项。</param>
+    /// <param name="ct">取消令牌。</param>
+    /// <returns>teammate 任务执行结果。</returns>
     Task<AgentTaskResult> ExecuteTeammateAsync(InProcessTeammateDefinition definition, CancellationToken ct = default);
+
+    /// <summary>
+    /// 异步向指定 teammate 发送协调消息。
+    /// </summary>
+    /// <param name="teammateId">teammate 唯一标识。</param>
+    /// <param name="message">协调消息。</param>
+    /// <param name="ct">取消令牌。</param>
+    /// <returns>是否成功投递到消息总线。</returns>
     Task<bool> SendMessageToTeammateAsync(string teammateId, CoordinatorMessage message, CancellationToken ct = default);
+
+    /// <summary>
+    /// 异步获取所有活跃 teammate 的标识列表。
+    /// </summary>
+    /// <param name="ct">取消令牌。</param>
+    /// <returns>活跃 teammate 标识集合。</returns>
     Task<IEnumerable<string>> GetActiveTeammatesAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// 异步获取所有活跃 teammate 的状态快照,供 GUI 渲染子会话树。
+    /// </summary>
+    /// <param name="ct">取消令牌。</param>
+    /// <returns>活跃 teammate 状态快照集合。</returns>
     Task<IEnumerable<TeammateStateSnapshot>> GetActiveTeammateSnapshotsAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// 异步停止指定 teammate — 取消生命周期并清理资源。
+    /// </summary>
+    /// <param name="teammateId">teammate 唯一标识。</param>
+    /// <param name="ct">取消令牌。</param>
     Task StopTeammateAsync(string teammateId, CancellationToken ct = default);
+
+    /// <summary>
+    /// 异步终止指定 teammate — 发送 ShutdownRequest 消息,teammate 自行退出。
+    /// </summary>
+    /// <param name="teammateId">teammate 唯一标识。</param>
+    /// <param name="reason">终止原因,可选。</param>
+    /// <param name="ct">取消令牌。</param>
     Task TerminateTeammateAsync(string teammateId, string? reason = null, CancellationToken ct = default);
+
+    /// <summary>
+    /// 异步查询指定 teammate 是否处于空闲状态。
+    /// </summary>
+    /// <param name="teammateId">teammate 唯一标识。</param>
+    /// <param name="ct">取消令牌。</param>
+    /// <returns>是否空闲。</returns>
     Task<bool> IsTeammateIdleAsync(string teammateId, CancellationToken ct = default);
+
+    /// <summary>
+    /// 异步中断指定 teammate 的当前 per-turn work — 不杀生命周期,teammate 进入 idle 等待下一轮。
+    /// </summary>
+    /// <param name="teammateId">teammate 唯一标识。</param>
+    /// <param name="ct">取消令牌。</param>
+    /// <returns>是否成功中断(不存在或无活跃 work 时返回 false)。</returns>
     Task<bool> InterruptTeammateAsync(string teammateId, CancellationToken ct = default);
+
+    /// <summary>
+    /// teammate 完成事件 — teammate 正常完成或被终止时触发。
+    /// </summary>
     event EventHandler<TeammateCompletedEventArgs>? TeammateCompleted;
 }
 
@@ -29,43 +89,77 @@ public sealed record TeammateStateSnapshot(
 /// </summary>
 public sealed class TeammateCompletedEventArgs : EventArgs
 {
+    /// <summary>teammate 唯一标识。</summary>
     public required string TeammateId { get; init; }
+    /// <summary>任务描述。</summary>
     public required string Task { get; init; }
+    /// <summary>teammate 输出内容,可选。</summary>
     public string? Output { get; init; }
+    /// <summary>是否成功完成。</summary>
     public bool IsSuccess { get; init; }
+    /// <summary>错误信息,失败时填充。</summary>
     public string? Error { get; init; }
+    /// <summary>对话轮次计数。</summary>
     public int TurnCount { get; init; }
 }
 
+/// <summary>
+/// 进程内 Teammate 定义 — 描述一个 teammate 的任务、Agent 配置与执行选项。
+/// </summary>
 public sealed partial class InProcessTeammateDefinition
 {
+    /// <summary>任务唯一标识。</summary>
     public required string TaskId { get; init; }
+    /// <summary>teammate 唯一标识。</summary>
     public required string TeammateId { get; init; }
+    /// <summary>任务描述。</summary>
     public required string Task { get; init; }
+    /// <summary>系统提示词,可选,覆盖默认 Agent 系统提示。</summary>
     public string? SystemPrompt { get; init; }
+    /// <summary>Agent 类型标识,可选。</summary>
     public string? AgentType { get; init; }
+    /// <summary>Agent 角色,默认 Executor。</summary>
     public AgentRole Role { get; init; } = AgentRole.Executor;
+    /// <summary>执行器变体,可选,用于细分 Agent 执行策略。</summary>
     public ExecutorVariant? Variant { get; init; }
+    /// <summary>附加指令,可选,拼接到任务描述后。</summary>
     public string? AdditionalInstructions { get; init; }
+    /// <summary>最大迭代次数,默认 50。</summary>
     public int MaxIterations { get; init; } = 50;
+    /// <summary>初始上下文列表,可选,在 Agent 启动前注入。</summary>
     public List<string> InitialContext { get; init; } = [];
+    /// <summary>团队名称,可选。</summary>
     public string? TeamName { get; init; }
+    /// <summary>团队唯一标识,可选。</summary>
     public string? TeamId { get; init; }
+    /// <summary>父会话标识,可选,用于关联子会话树。</summary>
     public string? ParentSessionId { get; init; }
+    /// <summary>UI 显示颜色,可选。</summary>
     public string? Color { get; init; }
+    /// <summary>是否要求 Plan 模式 — 为 true 时自动进入 Plan 模式。</summary>
     public bool PlanModeRequired { get; init; }
+    /// <summary>是否连续模式 — 为 true 时后台循环执行,等待消息驱动。</summary>
     public bool ContinuousMode { get; init; }
     /// <summary>隔离模式 — Worktree 时 teammate 在独立工作树中执行（供 mainAgent 接手分析 diff）</summary>
     public AgentIsolationMode IsolationMode { get; init; } = AgentIsolationMode.None;
 }
 
+/// <summary>
+/// teammate 运行时状态 — 持有 Agent 实例、生命周期 CTS、上下文与运行时计数。
+/// </summary>
 public sealed class TeammateState
 {
+    /// <summary>Agent 实例。</summary>
     public required IAgent Agent { get; init; }
+    /// <summary>生命周期取消令牌源 — 控制 teammate 整体生命周期。</summary>
     public required CancellationTokenSource LifecycleCts { get; init; }
+    /// <summary>teammate 上下文 — 团队、颜色、会话等元数据。</summary>
     public required TeammateContext Context { get; init; }
+    /// <summary>是否空闲。</summary>
     public bool IsIdle { get; set; }
+    /// <summary>最后一次结果,可选。</summary>
     public string? LastResult { get; set; }
+    /// <summary>对话轮次计数。</summary>
     public int TurnCount { get; set; }
     /// <summary>
     /// 任务描述 — 来自 <see cref="InProcessTeammateDefinition.Task"/>，供 snapshot 暴露给 GUI 渲染子会话标题。
@@ -136,7 +230,27 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
     private readonly TeammateCleanupHelper _cleanupHelper;
     private readonly TeammateLoopRunner _loopRunner;
 
-    public event EventHandler<TeammateCompletedEventArgs>? TeammateCompleted;    public InProcessTeammateTaskExecutor(
+    /// <summary>
+    /// teammate 完成事件 — teammate 正常完成或被终止时触发。
+    /// </summary>
+    public event EventHandler<TeammateCompletedEventArgs>? TeammateCompleted;
+
+    /// <summary>
+    /// 构造进程内 Teammate 任务执行器。
+    /// </summary>
+    /// <param name="agentLifecycleManager">Agent 生命周期管理器,用于 spawn/执行/销毁 Agent。</param>
+    /// <param name="messageBroker">消息总线,用于 teammate 间通信。</param>
+    /// <param name="logger">日志记录器,可选。</param>
+    /// <param name="loggerFactory">日志工厂,可选,用于构建中间件管道日志作用域。</param>
+    /// <param name="telemetryService">遥测服务,可选,用于记录执行指标。</param>
+    /// <param name="mailboxPoller">邮箱轮询器,可选,用于启动消息轮询。</param>
+    /// <param name="planModeManager">Plan 模式管理器,可选,PlanModeRequired 时自动进入 Plan 模式。</param>
+    /// <param name="executeMiddlewares">执行中间件集合,可选,构建执行管道。</param>
+    /// <param name="subAgentContextAccessor">子 Agent 上下文访问器,可选,默认使用 SubAgentContextAccessor。</param>
+    /// <param name="clock">时钟服务,可选,默认使用系统时钟。</param>
+    /// <param name="worktreeService">Agent 工作树服务,可选,Worktree 隔离模式时使用。</param>
+    /// <param name="worktreeManager">Agent 工作树管理器,可选,优先于 worktreeService 使用。</param>
+    public InProcessTeammateTaskExecutor(
         IAgentLifecycleManager agentLifecycleManager,
         IMailbox messageBroker,
         ILogger<InProcessTeammateTaskExecutor>? logger = null,
@@ -416,6 +530,8 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
         }
     }
 
+    /// <summary>命令消费者发生异常时的回调处理，记录警告日志。</summary>
+    /// <param name="ex">消费者抛出的异常。</param>
     protected override void OnConsumerError(Exception ex)
     {
         _logger?.LogWarning(ex, "Teammate Actor Consumer 命令处理异常");

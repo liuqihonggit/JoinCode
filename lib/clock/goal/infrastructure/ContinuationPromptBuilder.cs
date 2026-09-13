@@ -7,6 +7,15 @@ namespace Core.Goal;
 [PromptTemplate(Name = "continuation", Category = PromptTemplateCategory.Goal, Description = "目标续行和预算超限提示词", HasParameters = true)]
 public static class ContinuationPromptBuilder
 {
+    /// <summary>
+    /// 构建续行提示词 — 引导 LLM 在预算内继续推进目标，并执行完成审计
+    /// </summary>
+    /// <param name="objective">目标描述</param>
+    /// <param name="constraints">约束条件列表</param>
+    /// <param name="tokensUsed">已用 Token 数</param>
+    /// <param name="tokenBudget">Token 预算上限，可为空</param>
+    /// <param name="evaluatorReason">评估器反馈原因</param>
+    /// <returns>续行提示词文本</returns>
     public static string BuildContinuationPrompt(
         string objective,
         IReadOnlyList<string> constraints,
@@ -50,6 +59,14 @@ public static class ContinuationPromptBuilder
             """;
     }
 
+    /// <summary>
+    /// 构建预算超限提示词 — 通知 LLM 已达预算上限，要求总结进展并给出下一步
+    /// </summary>
+    /// <param name="objective">目标描述</param>
+    /// <param name="tokensUsed">已用 Token 数</param>
+    /// <param name="tokenBudget">Token 预算上限</param>
+    /// <param name="elapsedSeconds">已耗时秒数</param>
+    /// <returns>预算超限提示词文本</returns>
     public static string BuildBudgetLimitPrompt(
         string objective,
         int tokensUsed,
@@ -72,6 +89,13 @@ public static class ContinuationPromptBuilder
             """;
     }
 
+    /// <summary>
+    /// 构建停滞告警提示词 — 提示 LLM 上一轮可能空闲或低产，要求重新评估
+    /// </summary>
+    /// <param name="objective">目标描述</param>
+    /// <param name="elapsedSeconds">已耗时秒数</param>
+    /// <param name="turnsCompleted">已完成轮数</param>
+    /// <returns>停滞告警提示词文本</returns>
     public static string BuildStagnationAlertPrompt(
         string objective,
         int elapsedSeconds,

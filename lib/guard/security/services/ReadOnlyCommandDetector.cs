@@ -119,6 +119,9 @@ public sealed partial class ReadOnlyCommandDetector : ServiceEntity, IReadOnlyCo
         return false;
     }
 
+    /// <summary>
+    /// 检查命令是否为只读命令 — 委托给 <see cref="CheckReadOnlyConstraints"/> 并判断结果是否为 Allow
+    /// </summary>
     public bool IsReadOnly(ShellCommand command)
     {
         var result = CheckReadOnlyConstraints(command.RawCommand);

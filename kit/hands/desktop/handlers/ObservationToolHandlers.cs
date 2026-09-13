@@ -10,6 +10,10 @@ public class ObservationToolHandlers
     private readonly IObservationLearner _learner;
     private readonly ILogger<ObservationToolHandlers>? _logger;
 
+    /// <summary>构造观察学习工具处理器实例。</summary>
+    /// <param name="recorder">宏录制器，用于录制用户演示操作序列。</param>
+    /// <param name="learner">观察学习器，用于从演示中抽象操作逻辑并优化。</param>
+    /// <param name="logger">可选的日志记录器，传入 null 时静默运行。</param>
     public ObservationToolHandlers(
         IMacroRecorder recorder,
         IObservationLearner learner,

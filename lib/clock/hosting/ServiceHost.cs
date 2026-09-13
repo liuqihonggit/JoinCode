@@ -13,6 +13,10 @@ public sealed partial class ServiceHost : IAsyncDisposable
     private bool _isRunning;
     private int _disposed;
 
+    /// <summary>
+    /// 构造 ServiceHost — 注入可选日志记录器
+    /// </summary>
+    /// <param name="logger">可选日志记录器</param>
     public ServiceHost(ILogger<ServiceHost>? logger = null)
     {
         _logger = logger;
@@ -226,6 +230,9 @@ public sealed partial class ServiceHost : IAsyncDisposable
         });
     }
 
+    /// <summary>
+    /// 异步释放 — 停止所有服务并释放主机取消令牌
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;

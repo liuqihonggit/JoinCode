@@ -299,6 +299,10 @@ public sealed class RetryConfigBuilder
 {
     private readonly RetryConfig _config;
 
+    /// <summary>
+    /// 初始化 <see cref="RetryConfigBuilder"/> 实例，基于给定初始配置创建副本
+    /// </summary>
+    /// <param name="initial">初始重试配置，作为构建起点</param>
     public RetryConfigBuilder(RetryConfig initial)
     {
         _config = new RetryConfig
@@ -358,6 +362,10 @@ public sealed class CostTrackingConfigBuilder
 {
     private readonly CostTrackingConfig _config;
 
+    /// <summary>
+    /// 初始化 <see cref="CostTrackingConfigBuilder"/> 实例，基于给定初始配置创建副本
+    /// </summary>
+    /// <param name="initial">初始成本追踪配置，作为构建起点</param>
     public CostTrackingConfigBuilder(CostTrackingConfig initial)
     {
         _config = new CostTrackingConfig

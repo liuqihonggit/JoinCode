@@ -1,6 +1,9 @@
 
 namespace Core.Bridge;
 
+/// <summary>
+/// 桥远程核心 — flushHistory 和 drainFlushGate 实现，对齐 TS 端 BridgeRemoteCore
+/// </summary>
 public static partial class BridgeRemoteCore
 {
     #region flushHistory + drainFlushGate

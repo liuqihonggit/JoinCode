@@ -1,10 +1,20 @@
 
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /oauth-refresh 命令 — 刷新 OAuth Token
+/// 使用已存储的 Refresh Token 获取新的 Access Token,延长登录会话有效期
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.OauthRefresh, Description = "刷新 OAuth Token", Usage = "/oauth-refresh [provider]", Category = ChatCommandCategory.Auth, ArgumentHint = "[provider]", IsHidden = true)]
 [ChatCommandArg("provider", Type = "string", Description = "要刷新 Token 的供应商名称")]
 public sealed class OauthRefreshCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /oauth-refresh 命令 — 刷新指定供应商的 OAuth Token
+    /// 未指定供应商时刷新第一个已存储 Token 的供应商
+    /// </summary>
+    /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
+    /// <returns>命令执行结果,始终返回 Continue 表示继续会话</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var services = context.GetCommandServices();

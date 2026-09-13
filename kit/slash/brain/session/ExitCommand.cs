@@ -7,6 +7,11 @@ namespace JoinCode.ChatCommands;
 [ChatCommand(Name = ChatCommandNameConstants.Exit, Description = "退出程序", Usage = "/exit", Category = ChatCommandCategory.Session, Aliases = ["x"])]
 public sealed class ExitCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /exit 命令，弹出确认对话框后退出程序；非交互环境直接退出。
+    /// </summary>
+    /// <param name="context">命令执行上下文。</param>
+    /// <returns>表示异步操作的任务，承载命令执行结果。</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         // T9：UI 注入确认回调优先（GUI 弹窗/TUI 对话框），回退 CLI 终端 y/N。

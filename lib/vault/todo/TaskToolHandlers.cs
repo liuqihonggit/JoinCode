@@ -9,6 +9,10 @@ public class TaskToolHandlers
 {
     private readonly ITaskService _taskService;
 
+    /// <summary>
+    /// 构造函数 — 注入任务服务依赖。
+    /// </summary>
+    /// <param name="taskService">任务服务实例。</param>
     public TaskToolHandlers(ITaskService taskService)
     {
         _taskService = taskService ?? throw new ArgumentNullException(nameof(taskService));

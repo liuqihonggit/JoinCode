@@ -22,6 +22,19 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
     private volatile SubAgentConcurrencyOptions _concurrencyOptions;
     private readonly Dictionary<string, Func<NodeContext, Task<NodeResult>>> _functionRegistry = new(StringComparer.Ordinal);
 
+    /// <summary>
+    /// 构造 GoalGraphEngine — 注入聊天客户端、评估器、服务提供器及各类可选依赖
+    /// </summary>
+    /// <param name="kernel">聊天客户端</param>
+    /// <param name="evaluator">目标评估器</param>
+    /// <param name="serviceProvider">服务提供器，用于解析可选依赖</param>
+    /// <param name="logger">可选日志记录器</param>
+    /// <param name="heartbeat">可选心跳服务，缺省创建新实例</param>
+    /// <param name="clock">可选时钟服务，缺省使用系统时钟</param>
+    /// <param name="userInteraction">可选用户交互服务</param>
+    /// <param name="nodeInspector">可选节点检查器</param>
+    /// <param name="conflictMessenger">可选冲突消息队列</param>
+    /// <param name="concurrencyOptions">可选并发选项，缺省从服务提供器解析或使用默认值</param>
     public GoalGraphEngine(
         IChatClient kernel,
         IGoalEvaluator evaluator,
@@ -49,6 +62,11 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
         _concurrencyOptions = concurrencyOptions ?? serviceProvider.GetService<SubAgentConcurrencyOptions>() ?? new SubAgentConcurrencyOptions();
     }
 
+    /// <summary>
+    /// 注册自定义节点函数 — 将节点 ID 映射到执行委托
+    /// </summary>
+    /// <param name="nodeId">节点 ID</param>
+    /// <param name="fn">节点执行委托</param>
     public void RegisterFunction(string nodeId, Func<NodeContext, Task<NodeResult>> fn)
     {
         _functionRegistry[nodeId] = fn;
@@ -63,6 +81,14 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
         _logger?.LogInformation("execute 并发上限已热重载为 {Limit}", options.MaxConcurrentExecutions);
     }
 
+    /// <summary>
+    /// 异步执行 Goal Graph — 事件驱动队列推进节点执行，直到抵达终止节点或取消
+    /// </summary>
+    /// <param name="graph">目标图定义</param>
+    /// <param name="goalState">目标状态</param>
+    /// <param name="chatHistory">聊天历史</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>最终目标状态</returns>
     public async Task<GoalState> ExecuteAsync(
         GoalGraph graph,
         GoalState goalState,

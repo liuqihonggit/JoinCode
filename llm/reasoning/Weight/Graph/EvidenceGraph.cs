@@ -5,8 +5,19 @@ namespace JoinCode.Reasoning.Weight.Graph;
 /// </summary>
 public sealed class EvidenceGraphNode
 {
+    /// <summary>
+    /// 证据标识
+    /// </summary>
     public required string EvidenceId { get; init; }
+
+    /// <summary>
+    /// 初始权重
+    /// </summary>
     public double InitialWeight { get; set; }
+
+    /// <summary>
+    /// 当前权重（消息传递后动态更新）
+    /// </summary>
     public double CurrentWeight { get; set; }
 }
 
@@ -15,9 +26,24 @@ public sealed class EvidenceGraphNode
 /// </summary>
 public sealed class EvidenceGraphEdge
 {
+    /// <summary>
+    /// 源节点标识
+    /// </summary>
     public required string SourceId { get; init; }
+
+    /// <summary>
+    /// 目标节点标识
+    /// </summary>
     public required string TargetId { get; init; }
+
+    /// <summary>
+    /// 关系强度，默认 1.0
+    /// </summary>
     public double RelationshipStrength { get; init; } = 1.0;
+
+    /// <summary>
+    /// 边标签；可选
+    /// </summary>
     public string? Label { get; init; }
 }
 

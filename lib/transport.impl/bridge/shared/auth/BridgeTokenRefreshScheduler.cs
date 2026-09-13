@@ -20,6 +20,12 @@ public sealed class BridgeTokenRefreshScheduler : ActorBase<IBridgeTokenRefreshC
     private const int FallbackRefreshIntervalMs = 30 * 60 * 1000;
     private int _disposed;
 
+    /// <summary>
+    /// 构造 Bridge Token 刷新调度器
+    /// </summary>
+    /// <param name="options">刷新选项</param>
+    /// <param name="timeProvider">时间提供者（可选，默认系统时间）</param>
+    /// <param name="clock">时钟服务（可选，默认系统时钟）</param>
     public BridgeTokenRefreshScheduler(
         TokenRefreshOptions options,
         TimeProvider? timeProvider = null,
@@ -86,6 +92,11 @@ public sealed class BridgeTokenRefreshScheduler : ActorBase<IBridgeTokenRefreshC
         TrySend(new CancelAllCmd());
     }
 
+    /// <summary>
+    /// 处理命令的核心逻辑 — Consumer 线程独占
+    /// </summary>
+    /// <param name="command">待处理命令</param>
+    /// <param name="ct">取消令牌</param>
     protected override async ValueTask HandleAsync(IBridgeTokenRefreshCommand command, CancellationToken ct)
     {
         switch (command)
@@ -115,6 +126,10 @@ public sealed class BridgeTokenRefreshScheduler : ActorBase<IBridgeTokenRefreshC
         }
     }
 
+    /// <summary>
+    /// 消费者线程异常回调 — 记录日志
+    /// </summary>
+    /// <param name="ex">捕获的异常</param>
     protected override void OnConsumerError(Exception ex)
     {
         _options.Logger?.LogWarning(ex, "[{Label}] BridgeTokenRefresh 消费者异常", _options.Label);
@@ -217,6 +232,9 @@ public sealed class BridgeTokenRefreshScheduler : ActorBase<IBridgeTokenRefreshC
         }
     }
 
+    /// <summary>
+    /// 异步释放资源，取消所有刷新定时器
+    /// </summary>
     public override async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
@@ -230,7 +248,11 @@ public sealed class BridgeTokenRefreshScheduler : ActorBase<IBridgeTokenRefreshC
 /// </summary>
 public interface IBridgeTokenRefreshCommand;
 
+/// <summary>按延迟调度刷新命令</summary>
 public sealed record ScheduleFromDelayCmd(string SessionId, long DelayMs) : IBridgeTokenRefreshCommand;
+/// <summary>立即执行刷新命令</summary>
 public sealed record DoRefreshCmd(string SessionId) : IBridgeTokenRefreshCommand;
+/// <summary>取消指定会话刷新命令</summary>
 public sealed record CancelCmd(string SessionId) : IBridgeTokenRefreshCommand;
+/// <summary>取消所有会话刷新命令</summary>
 public sealed record CancelAllCmd : IBridgeTokenRefreshCommand;

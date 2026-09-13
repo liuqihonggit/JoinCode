@@ -8,6 +8,9 @@ namespace Core.Agents;
 public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 
+    /// <summary>
+    /// 构造 ContextSetupMiddleware 实例，注入子代理上下文访问器及可选依赖
+    /// </summary>
     public ContextSetupMiddleware(ISubAgentContextAccessor subAgentContextAccessor, IFileStateCache? fileStateCache = null, ISkillService? skillService = null, IModelConfigLoader? modelConfigLoader = null, ILogger<ContextSetupMiddleware>? logger = null)
     {
         _subAgentContextAccessor = subAgentContextAccessor;
@@ -22,8 +25,15 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
     private readonly IModelConfigLoader? _modelConfigLoader;
     private readonly ILogger<ContextSetupMiddleware>? _logger;
 
+    /// <summary>中间件错误处理策略：向上传播</summary>
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
+    /// <summary>
+    /// 执行上下文构建：主代理或路径 B 跳过；路径 A 组装 SubAgentOptions 并设置到上下文
+    /// </summary>
+    /// <param name="context">统一 Spawn 上下文</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct)
     {
         if (context.IsMainAgent || context.SpawnOptions is null || context.SubOptions is not null)

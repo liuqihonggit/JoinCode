@@ -4,17 +4,31 @@ namespace Infrastructure.Windows.JobObject;
 // Directory.*/File.Exists 保留直接调用（cgroup 是内核接口，不适合 IFileSystem 抽象）
 #pragma warning disable JCC9001, JCC9002
 
+/// <summary>
+/// Linux cgroup 沙箱 — 通过 cgroup v2 限制子进程内存与进程数，并在释放时终止全部子进程
+/// </summary>
 public sealed class LinuxCgroupSandbox : IAsyncDisposable
 {
     private readonly ILogger? _logger;
     private string? _cgroupPath;
     private bool _ownsCgroup;
 
+    /// <summary>
+    /// 构造 Linux cgroup 沙箱
+    /// </summary>
+    /// <param name="logger">日志记录器</param>
     public LinuxCgroupSandbox(ILogger? logger = null)
     {
         _logger = logger;
     }
 
+    /// <summary>
+    /// 创建 cgroup 并可选设置内存与进程数限制
+    /// </summary>
+    /// <param name="name">cgroup 名称，省略时按进程 ID 自动生成</param>
+    /// <param name="memoryLimitBytes">内存上限（字节），null 或 &lt;=0 表示不限制</param>
+    /// <param name="pidsMax">进程数上限，null 或 &lt;=0 表示不限制</param>
+    /// <returns>创建成功返回 true；非 Linux 或无可写 cgroup 路径返回 false</returns>
     public bool CreateCgroup(string? name = null, long? memoryLimitBytes = null, int? pidsMax = null)
     {
         if (!OperatingSystem.IsLinux())
@@ -59,6 +73,11 @@ public sealed class LinuxCgroupSandbox : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// 将指定进程加入当前 cgroup
+    /// </summary>
+    /// <param name="processId">进程 ID</param>
+    /// <returns>加入成功返回 true；非 Linux 或未创建 cgroup 返回 false</returns>
     public bool AssignProcess(int processId)
     {
         if (!OperatingSystem.IsLinux() || _cgroupPath is null)
@@ -79,6 +98,10 @@ public sealed class LinuxCgroupSandbox : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// 终止当前 cgroup 中的所有进程
+    /// </summary>
+    /// <returns>终止成功返回 true；非 Linux 或未创建 cgroup 返回 false</returns>
     public bool KillAllProcesses()
     {
         if (!OperatingSystem.IsLinux() || _cgroupPath is null)
@@ -152,6 +175,10 @@ public sealed class LinuxCgroupSandbox : IAsyncDisposable
         return null;
     }
 
+    /// <summary>
+    /// 异步释放资源 — 终止 cgroup 内所有进程并删除 cgroup 目录
+    /// </summary>
+    /// <returns>表示异步操作的任务</returns>
     public async ValueTask DisposeAsync()
     {
         if (_cgroupPath is not null && _ownsCgroup)

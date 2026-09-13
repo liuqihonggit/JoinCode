@@ -1,6 +1,9 @@
 
 namespace Core.Skills.Mcp;
 
+/// <summary>
+/// MCP 技能提供者 — 管理多个 MCP 客户端，聚合远程技能并按命名空间隔离
+/// </summary>
 [Register(typeof(IMcpSkillProvider), ServiceLifetime.Singleton)]
 public sealed partial class McpSkillProvider : IMcpSkillProvider
 {
@@ -11,6 +14,10 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider
     private readonly AsyncLock _refreshLock = new();
     private bool _isDisposed;
 
+    /// <summary>
+    /// 创建 MCP 技能提供者
+    /// </summary>
+    /// <param name="logger">日志记录器</param>
     public McpSkillProvider(ILogger<McpSkillProvider>? logger = null)
     {
         _clients = new ConcurrentDictionary<string, IMcpClient>(StringComparer.OrdinalIgnoreCase);
@@ -20,6 +27,11 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider
 
     }
 
+    /// <summary>
+    /// 注册 MCP 客户端 — 同时创建对应的适配器
+    /// </summary>
+    /// <param name="serverName">服务器名称</param>
+    /// <param name="client">MCP 客户端实例</param>
     public void RegisterClient(string serverName, IMcpClient client)
     {
         ArgumentException.ThrowIfNullOrEmpty(serverName);
@@ -31,6 +43,11 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider
         _logger?.LogInformation("[McpSkillProvider] 注册 MCP 客户端: {ServerName}", serverName);
     }
 
+    /// <summary>
+    /// 注销 MCP 客户端 — 同时移除该服务器提供的所有技能
+    /// </summary>
+    /// <param name="serverName">服务器名称</param>
+    /// <returns>注销成功返回 true，否则返回 false</returns>
     public bool UnregisterClient(string serverName)
     {
         ArgumentException.ThrowIfNullOrEmpty(serverName);
@@ -57,6 +74,11 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider
         return removed;
     }
 
+    /// <summary>
+    /// 异步获取所有 MCP 技能 — 首次调用会触发刷新
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>MCP 技能定义列表</returns>
     public async Task<IReadOnlyList<SkillDefinition>> GetMcpSkillsAsync(CancellationToken cancellationToken = default)
     {
         if (_mcpSkills.Count == 0)
@@ -67,6 +89,14 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider
         return _mcpSkills.Values.ToList();
     }
 
+    /// <summary>
+    /// 异步执行 MCP 远程技能 — 通过适配器转发到对应 MCP 客户端
+    /// </summary>
+    /// <param name="skillName">技能名称</param>
+    /// <param name="parameters">调用参数</param>
+    /// <param name="ctx">执行上下文</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>技能执行结果</returns>
     public async Task<SkillResult> ExecuteMcpSkillAsync(
         string skillName,
         Dictionary<string, JsonElement>? parameters,
@@ -89,6 +119,11 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider
         return await adapter.ExecuteToolAsync(skillName, parameters, ctx, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 异步刷新所有 MCP 服务器的技能列表 — 清空缓存后重新拉取
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
         using var guard = await _refreshLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_refreshLock.Name}' 等待超时");
@@ -139,12 +174,21 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider
     
     }
 
+    /// <summary>
+    /// 判断指定名称的 MCP 技能是否可用
+    /// </summary>
+    /// <param name="skillName">技能名称</param>
+    /// <returns>可用返回 true，否则返回 false</returns>
     public bool IsSkillAvailable(string skillName)
     {
         ArgumentException.ThrowIfNullOrEmpty(skillName);
         return _mcpSkills.ContainsKey(skillName);
     }
 
+    /// <summary>
+    /// 异步释放资源 — 释放所有 MCP 客户端并清空缓存
+    /// </summary>
+    /// <returns>表示异步释放操作的任务</returns>
     public async ValueTask DisposeAsync()
     {
         if (_isDisposed)

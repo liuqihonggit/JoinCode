@@ -21,6 +21,12 @@ public sealed class ReasoningEngine : IReasoningEngine
     private readonly BayesianEvidenceUpdater _bayesianUpdater = new();
     private EvidenceUrlVerifier? _urlVerifier;
 
+    /// <summary>
+    /// 初始化推理引擎实例
+    /// </summary>
+    /// <param name="agents">参与推理的 Agent 集合（控方、辩方、法官）</param>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="options">推理配置选项，默认使用 Panda 预设</param>
     public ReasoningEngine(
         IEnumerable<ReasoningAgent> agents,
         ILogger<ReasoningEngine> logger,
@@ -60,6 +66,12 @@ public sealed class ReasoningEngine : IReasoningEngine
         _urlVerifier = verifier;
     }
 
+    /// <summary>
+    /// 异步添加假定数据项并触发对抗推理流程
+    /// </summary>
+    /// <param name="assumptions">待添加的假定数据项列表</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task AddAssumptionsAsync(IReadOnlyList<DataItem> assumptions, CancellationToken ct)
     {
         foreach (var item in assumptions)
@@ -104,12 +116,20 @@ public sealed class ReasoningEngine : IReasoningEngine
         await RunAdversarialProcessAsync(ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 获取 DAG 中所有数据项
+    /// </summary>
+    /// <returns>所有数据项的可枚举集合</returns>
     public IEnumerable<DataItem> GetAllItems()
     {
         return _dag.Nodes.Values
             .Select(n => PayloadToDataItem(n.Payload));
     }
 
+    /// <summary>
+    /// 获取 DAG 中所有证据记录
+    /// </summary>
+    /// <returns>所有证据记录的可枚举集合</returns>
     public IEnumerable<EvidenceRecord> GetAllEvidence()
     {
         return _dag.Nodes.Values
@@ -117,6 +137,10 @@ public sealed class ReasoningEngine : IReasoningEngine
             .Select(n => PayloadToEvidence(n.Payload));
     }
 
+    /// <summary>
+    /// 获取已确认为事实状态的数据项
+    /// </summary>
+    /// <returns>事实状态数据项的可枚举集合</returns>
     public IEnumerable<DataItem> GetFacts()
     {
         return _dag.Nodes.Values
@@ -124,6 +148,11 @@ public sealed class ReasoningEngine : IReasoningEngine
             .Select(n => PayloadToDataItem(n.Payload));
     }
 
+    /// <summary>
+    /// 向指定假定添加证据，建立证据边并更新贝叶斯信念
+    /// </summary>
+    /// <param name="evidence">证据记录</param>
+    /// <param name="claimId">目标假定节点标识</param>
     public void AddEvidence(EvidenceRecord evidence, string claimId)
     {
         if (_options.IsNodeLimitReached(_dag.Nodes.Count))
@@ -198,11 +227,21 @@ public sealed class ReasoningEngine : IReasoningEngine
         _bayesianUpdater.UpdateFromEvidence(evidence);
     }
 
+    /// <summary>
+    /// 向指定假定添加反证（委托给 AddEvidence，由提交者角色决定边的 SUPPORTS/REFUTES 标签）
+    /// </summary>
+    /// <param name="evidence">反证证据记录</param>
+    /// <param name="claimId">目标假定节点标识</param>
     public void AddCounterEvidence(EvidenceRecord evidence, string claimId)
     {
         AddEvidence(evidence, claimId);
     }
 
+    /// <summary>
+    /// 执行一轮完整的对抗推理流程：控方推理 → 视锥传递 → 辩方推理 → 视锥传递 → 法官裁决 → 证据URL验证
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task RunAdversarialProcessAsync(CancellationToken ct)
     {
         if (IsBudgetExhausted())
@@ -292,6 +331,14 @@ public sealed class ReasoningEngine : IReasoningEngine
         _lastRunAt = DateTime.UtcNow;
     }
 
+    /// <summary>
+    /// 续费预算并继续执行对抗推理流程
+    /// </summary>
+    /// <param name="refillMode">预算续费模式，默认使用配置中的 DefaultRefillMode</param>
+    /// <param name="extraRounds">额外轮次预算，默认使用配置中的 DefaultRefillRounds</param>
+    /// <param name="extraTokens">额外 Token 预算，默认使用配置中的 DefaultRefillTokens</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task ContinueAsync(BudgetRefillMode? refillMode = null, int? extraRounds = null, int? extraTokens = null, CancellationToken ct = default)
     {
         var mode = refillMode ?? _options.DefaultRefillMode;
@@ -332,6 +379,10 @@ public sealed class ReasoningEngine : IReasoningEngine
         await RunAdversarialProcessAsync(ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 获取推理引擎当前状态的汇总信息
+    /// </summary>
+    /// <returns>包含各类节点计数、最后运行时间和预算状态的汇总对象</returns>
     public ReasoningSummary GetSummary() => new()
     {
         TotalAssumptions = _dag.Nodes.Values.Count(n => n.Payload.State == DataState.Assumption),
@@ -344,6 +395,10 @@ public sealed class ReasoningEngine : IReasoningEngine
         Budget = GetBudgetStatus(),
     };
 
+    /// <summary>
+    /// 获取当前预算使用状态
+    /// </summary>
+    /// <returns>包含已用轮次、轮次预算、已用 Token 和 Token 预算的状态对象</returns>
     public BudgetStatus GetBudgetStatus() => new()
     {
         RoundsUsed = _adversarialRoundCount,
@@ -558,6 +613,9 @@ public sealed class ReasoningEngine : IReasoningEngine
         Weight = p.Weight,
     };
 
+    /// <summary>
+    /// 重置推理引擎 — 清空 DAG、恢复预算、重置视锥
+    /// </summary>
     public void Reset()
     {
         var nodeIds = _dag.Nodes.Keys.ToList();

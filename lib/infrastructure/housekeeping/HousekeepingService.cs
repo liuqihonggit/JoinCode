@@ -8,6 +8,15 @@ namespace Infrastructure.Housekeeping;
 public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingService
 {
 
+    /// <summary>
+    /// 构造家政清理服务
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="clock">时钟服务</param>
+    /// <param name="planModeManager">计划模式管理器</param>
+    /// <param name="worktreeService">Agent Worktree 服务</param>
+    /// <param name="entityReaper">实体回收器</param>
+    /// <param name="logger">日志记录器</param>
     public HousekeepingService(IFileSystem fs, IClockService clock, IPlanModeManager planModeManager, IAgentWorktreeService worktreeService, IEntityReaper? entityReaper = null, ILogger<HousekeepingService>? logger = null)
     {
         _fs = fs;
@@ -26,6 +35,12 @@ public sealed partial class HousekeepingService : ServiceEntity, IHousekeepingSe
 
     private static readonly string JccDir = AppDataConstants.Paths.JccDirectory;
 
+    /// <summary>
+    /// 执行所有清理任务并返回清理总数
+    /// </summary>
+    /// <param name="currentSessionId">当前会话 ID，用于保留当前会话的图片缓存</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>清理的文件/目录总数</returns>
     public async Task<int> RunAllCleanupAsync(string currentSessionId = "", CancellationToken cancellationToken = default)
     {
         var total = 0;

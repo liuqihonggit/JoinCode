@@ -7,8 +7,17 @@ public partial class SystemPromptProviderOptions
 {
     #region 运行模式
 
+    /// <summary>
+    /// 是否启用 Agent 模式。
+    /// </summary>
     public bool IsAgentMode { get; init; }
+    /// <summary>
+    /// 是否启用 Coordinator（协调者）模式。
+    /// </summary>
     public bool IsCoordinatorMode { get; init; }
+    /// <summary>
+    /// 是否启用 REPL 交互模式。
+    /// </summary>
     public bool IsReplMode { get; init; }
 
     /// <summary>
@@ -70,60 +79,150 @@ public partial class SystemPromptProviderOptions
 
     #region 环境信息
 
+    /// <summary>
+    /// 附加环境信息文本（追加到环境部分输出）。
+    /// </summary>
     public string? AdditionalEnvInfo { get; init; }
+    /// <summary>
+    /// 语言偏好（如"简体中文"），驱动回复语言。
+    /// </summary>
     public string? LanguagePreference { get; init; }
+    /// <summary>
+    /// 当前模型 ID。
+    /// </summary>
     public string? ModelId { get; init; }
+    /// <summary>
+    /// 当前模型显示名称。
+    /// </summary>
     public string? ModelName { get; init; }
+    /// <summary>
+    /// 应用版本号。
+    /// </summary>
     public string? Version { get; init; }
+    /// <summary>
+    /// 应用构建时间。
+    /// </summary>
     public string? BuildTime { get; init; }
+    /// <summary>
+    /// 是否运行在 Git worktree 中。
+    /// </summary>
     public bool IsGitWorktree { get; init; }
+    /// <summary>
+    /// 额外工作目录列表。
+    /// </summary>
     public IEnumerable<string> AdditionalWorkdirs { get; init; } = [];
 
     #endregion
 
     #region 工具可用性
 
+    /// <summary>
+    /// 已启用的工具名称集合。
+    /// </summary>
     public IEnumerable<string> EnabledTools { get; init; } = [];
+    /// <summary>
+    /// 是否拥有 Todo 工具。
+    /// </summary>
     public bool HasTodoTool { get; init; }
+    /// <summary>
+    /// 是否拥有 Task 工具。
+    /// </summary>
     public bool HasTaskTool { get; init; }
+    /// <summary>
+    /// 是否拥有 Team 工具集。
+    /// </summary>
     public bool HasTeamTools { get; init; }
+    /// <summary>
+    /// 是否拥有 SendMessage 工具。
+    /// </summary>
     public bool HasSendMessage { get; init; }
+    /// <summary>
+    /// 是否启用数字长度限制部分。
+    /// </summary>
     public bool EnableNumericLength { get; init; }
+    /// <summary>
+    /// 是否拥有 Token 预算信息。
+    /// </summary>
     public bool HasTokenBudget { get; init; }
 
     #endregion
 
     #region 规则与上下文
 
+    /// <summary>
+    /// 项目规则文本（如 AGENTS.md 内容）。
+    /// </summary>
     public string? ProjectRules { get; init; }
+    /// <summary>
+    /// 外部规则条目列表。
+    /// </summary>
     public IReadOnlyList<ExternalRuleEntry> ExternalRules { get; init; } = [];
+    /// <summary>
+    /// 文件上下文跟踪器。
+    /// </summary>
     public FileContextTracker? FileContext { get; init; }
+    /// <summary>
+    /// MCP 服务器名称集合。
+    /// </summary>
     public IEnumerable<string> McpServers { get; init; } = [];
+    /// <summary>
+    /// 问题解释器文本。
+    /// </summary>
     public string? IssuesExplainer { get; init; }
+    /// <summary>
+    /// 反馈渠道说明文本。
+    /// </summary>
     public string? FeedbackChannel { get; init; }
 
     #endregion
 
     #region 记忆与草稿
 
+    /// <summary>
+    /// 草稿本文件路径。
+    /// </summary>
     public string? ScratchpadPath { get; init; }
+    /// <summary>
+    /// 离开期间的摘要文本。
+    /// </summary>
     public string? AwaySummary { get; init; }
+    /// <summary>
+    /// 日常日志提示词构建委托。
+    /// </summary>
     public Func<Task<string>>? DailyLogPromptBuilder { get; init; }
+    /// <summary>
+    /// 搜索历史提示词构建委托，参数为查询关键字。
+    /// </summary>
     public Func<string, Task<string>>? SearchHistoryPromptBuilder { get; init; }
 
     #endregion
 
     #region Agent 相关
 
+    /// <summary>
+    /// 伙伴名称。
+    /// </summary>
     public string? CompanionName { get; init; }
+    /// <summary>
+    /// 伙伴物种。
+    /// </summary>
     public string? CompanionSpecies { get; init; }
+    /// <summary>
+    /// Agent 定义列表。
+    /// </summary>
     public IReadOnlyList<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition> AgentDefinitions { get; init; } = [];
 
     #endregion
 
     #region 服务注入
 
+    /// <summary>
+    /// 简短模式服务（可选）。
+    /// </summary>
     public IBriefModeService? BriefModeService { get; init; }
+    /// <summary>
+    /// 文件系统抽象（可选）。
+    /// </summary>
     public IFileSystem? FileSystem { get; init; }
 
     /// <summary>
@@ -147,12 +246,25 @@ public partial class SystemPromptProviderOptions
 
     #region 自定义
 
+    /// <summary>
+    /// 自定义引言文本。
+    /// </summary>
     public string? CustomIntro { get; init; }
 
     #endregion
 
+    /// <summary>
+    /// 获取默认配置实例。
+    /// </summary>
     public static SystemPromptProviderOptions Default => new();
 
+    /// <summary>
+    /// 创建 Agent 模式配置实例。
+    /// </summary>
+    /// <param name="projectRules">项目规则文本。</param>
+    /// <param name="enabledTools">已启用的工具集合。</param>
+    /// <param name="languagePreference">语言偏好。</param>
+    /// <returns>标记为 Agent 模式的配置实例。</returns>
     public static SystemPromptProviderOptions ForAgentMode(
         string? projectRules = null,
         IEnumerable<string>? enabledTools = null,
@@ -167,6 +279,14 @@ public partial class SystemPromptProviderOptions
         };
     }
 
+    /// <summary>
+    /// 创建 Coordinator（协调者）模式配置实例。
+    /// </summary>
+    /// <param name="agentDefinitions">Agent 定义列表。</param>
+    /// <param name="projectRules">项目规则文本。</param>
+    /// <param name="enabledTools">已启用的工具集合。</param>
+    /// <param name="languagePreference">语言偏好。</param>
+    /// <returns>标记为 Coordinator 模式的配置实例。</returns>
     public static SystemPromptProviderOptions ForCoordinatorMode(
         IReadOnlyList<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>? agentDefinitions = null,
         string? projectRules = null,

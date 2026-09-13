@@ -18,6 +18,16 @@ public sealed partial class HotSpotSpawnIntegration : IHotSpotSpawnIntegration
     private string? _registeredCaptainId;
     private readonly AsyncLock _registerLock = new("HotSpotSpawnIntegration");
 
+    /// <summary>
+    /// 构造热点 spawn 集成服务
+    /// </summary>
+    /// <param name="registry">文件写入监听器注册表</param>
+    /// <param name="intentCollector">意图收集器</param>
+    /// <param name="hotFileDetector">热文件检测器</param>
+    /// <param name="broadcaster">契约变更广播器</param>
+    /// <param name="hotSpotTracker">热点追踪器</param>
+    /// <param name="router">契约变更通知路由器</param>
+    /// <param name="logger">日志记录器</param>
     public HotSpotSpawnIntegration(
         IFileWriteListenerRegistry registry,
         IIntentCollector intentCollector,

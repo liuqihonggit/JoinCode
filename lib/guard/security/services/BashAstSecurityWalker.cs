@@ -1,5 +1,8 @@
 namespace JoinCode.Abstractions.Security.Shell;
 
+/// <summary>
+/// Bash AST 安全步行器实现 — 基于 TreeSitter 解析 Bash 命令并提取简单命令列表,FAIL-CLOSED 设计
+/// </summary>
 [Register(typeof(IBashAstSecurityWalker), ServiceLifetime.Singleton)]
 public sealed partial class BashAstSecurityWalker : ServiceEntity, IBashAstSecurityWalker, IDisposable
 {
@@ -13,12 +16,16 @@ public sealed partial class BashAstSecurityWalker : ServiceEntity, IBashAstSecur
     private readonly TreeSitter.Parser _parser;
     private int _disposed;
 
+    /// <summary>
+    /// 构造 Bash AST 安全步行器,初始化 TreeSitter Bash 语言解析器
+    /// </summary>
     public BashAstSecurityWalker()
     {
         _language = new TreeSitter.Language("bash");
         _parser = new TreeSitter.Parser(_language);
     }
 
+    /// <inheritdoc />
     public BashAstSecurityResult ParseForSecurity(string command)
     {
         if (string.IsNullOrEmpty(command))
@@ -63,6 +70,7 @@ public sealed partial class BashAstSecurityWalker : ServiceEntity, IBashAstSecur
         return new BashAstSecurityResult.Simple([.. commands]);
     }
 
+    /// <inheritdoc />
     protected override void OnDispose()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;

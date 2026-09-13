@@ -1,6 +1,9 @@
 
 namespace Core.Plugins;
 
+/// <summary>
+/// 插件管理器 — 基于 Actor 模型串行处理插件加载/卸载，管理工作流插件、外部进程插件和 native DLL 插件的生命周期
+/// </summary>
 [Register(typeof(IPluginManager), ServiceLifetime.Singleton)]
 #pragma warning disable JCC9102 // IPluginManager: IDisposable + ActorBase: IAsyncDisposable 接口冲突
 public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManagerOutput>, IPluginManager
@@ -48,7 +51,9 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     private PluginResourceScanner ResourceScanner => _resourceScanner ??= new(_loggerFactory?.CreateLogger<PluginResourceScanner>());
     private IAppEventBus? EventBus => _eventBus ??= _serviceProvider?.GetService<IAppEventBus>();
 
+    /// <summary>插件加载完成事件 — 参数为插件名称</summary>
     public event EventHandler<string>? PluginLoaded;
+    /// <summary>插件卸载开始事件 — 参数为插件名称</summary>
     public event EventHandler<string>? PluginUnloading;
 
     /// <summary>插件诊断事件 — 撤销失败/ALC泄漏等(ADR 0098 维度11)</summary>
@@ -57,13 +62,28 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// <summary>诊断历史记录(Consumer 线程独占)</summary>
     private readonly List<PluginDiagnostic> _diagnostics = new();
 
+    /// <summary>已加载的全部插件名称（工作流 + 外部 + native）</summary>
     public IReadOnlyCollection<string> LoadedPluginNames =>
         _workflowPlugins.Keys.Concat(_externalPlugins.Keys).Concat(_nativePlugins.Keys).ToList();
 
+    /// <summary>已加载的工作流插件名称</summary>
     public IReadOnlyCollection<string> LoadedWorkflowPluginNames => (IReadOnlyCollection<string>)_workflowPlugins.Keys;
+    /// <summary>已加载的外部进程插件名称</summary>
     public IReadOnlyCollection<string> LoadedExternalPluginNames => (IReadOnlyCollection<string>)_externalPlugins.Keys;
+    /// <summary>已加载的 native DLL 插件名称</summary>
     public IReadOnlyCollection<string> LoadedNativePluginNames => (IReadOnlyCollection<string>)_nativePlugins.Keys;
 
+    /// <summary>
+    /// 构造插件管理器
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="kernel">可选聊天客户端</param>
+    /// <param name="loggerFactory">可选日志工厂</param>
+    /// <param name="fileOperationService">可选文件操作服务</param>
+    /// <param name="commandRegistry">可选命令注册表</param>
+    /// <param name="logger">可选日志器</param>
+    /// <param name="serviceProvider">可选服务提供者（用于按需获取热重载、钩子注入器等）</param>
+    /// <param name="telemetryService">可选遥测服务</param>
     public PluginManager(
         IFileSystem fs,
         IChatClient? kernel = null,
@@ -92,6 +112,12 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
 
     #region Internal Workflow Plugin (AOT Compatible)
 
+    /// <summary>
+    /// 加载编译时已知的内部工作流插件（AOT兼容）— 通过 Actor mailbox 串行处理
+    /// </summary>
+    /// <typeparam name="TPlugin">工作流插件类型（须有无参构造）</typeparam>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工作流插件宿主</returns>
     public async Task<WorkflowPluginHost> LoadWorkflowPluginAsync<TPlugin>(CancellationToken cancellationToken = default) where TPlugin : class, IWorkflowPlugin, new()
     {
         ThrowIfDisposed();
@@ -217,12 +243,23 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         }
     }
 
+    /// <summary>
+    /// 获取工作流插件宿主
+    /// </summary>
+    /// <param name="pluginName">插件名称</param>
+    /// <returns>插件宿主，未加载返回 null</returns>
     public WorkflowPluginHost? GetWorkflowPlugin(string pluginName)
     {
         ThrowIfDisposed();
         return _workflowPlugins.TryGetValue(pluginName, out var host) ? host : null;
     }
 
+    /// <summary>
+    /// 获取工作流插件实例（按指定类型转换）
+    /// </summary>
+    /// <typeparam name="T">目标插件类型</typeparam>
+    /// <param name="pluginName">插件名称</param>
+    /// <returns>插件实例，未加载或类型不匹配返回 null</returns>
     public T? GetWorkflowPlugin<T>(string pluginName) where T : class, IWorkflowPlugin
     {
         ThrowIfDisposed();
@@ -233,6 +270,13 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
 
     #region External Process Plugin (AOT Compatible)
 
+    /// <summary>
+    /// 加载外部 exe 进程插件（AOT兼容，通过 stdio 通信）— 通过 Actor mailbox 串行处理
+    /// </summary>
+    /// <param name="exePath">可执行文件路径</param>
+    /// <param name="pluginName">插件名称</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>外部插件宿主</returns>
     public async Task<ExternalPluginHost> LoadExternalPluginAsync(
         string exePath,
         string pluginName,
@@ -312,6 +356,11 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         }
     }
 
+    /// <summary>
+    /// 获取 native DLL 插件宿主
+    /// </summary>
+    /// <param name="pluginName">插件名称</param>
+    /// <returns>插件宿主，未加载返回 null</returns>
     public NativePluginHost? GetNativePlugin(string pluginName)
     {
         return _nativePlugins.TryGetValue(pluginName, out var host) ? host : null;
@@ -404,6 +453,11 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         }
     }
 
+    /// <summary>
+    /// 获取外部插件宿主
+    /// </summary>
+    /// <param name="pluginName">插件名称</param>
+    /// <returns>插件宿主，未加载返回 null</returns>
     public ExternalPluginHost? GetExternalPlugin(string pluginName)
     {
         ThrowIfDisposed();
@@ -414,6 +468,12 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
 
     #region Unload
 
+    /// <summary>
+    /// 卸载指定插件 — 使用给定的卸载选项（超时、是否强制卸载 ALC）
+    /// </summary>
+    /// <param name="pluginName">插件名称</param>
+    /// <param name="options">卸载选项，null 使用默认</param>
+    /// <returns>卸载结果</returns>
     public async Task<PluginUnloadResult> UnloadPluginAsync(string pluginName, PluginUnloadOptions? options = null)
     {
         var opts = options ?? PluginUnloadOptions.Default;
@@ -421,6 +481,12 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         return await UnloadPluginAsync(pluginName, cts.Token).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 卸载指定插件 — 使用给定的取消令牌控制协作卸载
+    /// </summary>
+    /// <param name="pluginName">插件名称</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>卸载结果</returns>
     public async Task<PluginUnloadResult> UnloadPluginAsync(string pluginName, CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
@@ -478,6 +544,12 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         return PluginUnloadResult.AlreadyUnloaded(pluginName);
     }
 
+    /// <summary>
+    /// 卸载全部已加载插件 — 通过 Actor mailbox 串行处理
+    /// </summary>
+    /// <param name="options">卸载选项，null 使用默认</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>每个插件的卸载结果列表</returns>
     public async Task<IReadOnlyList<PluginUnloadResult>> UnloadAllPluginsAsync(PluginUnloadOptions? options = null, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
@@ -739,6 +811,11 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         }
     }
 
+    /// <summary>
+    /// 启动插件热重载监控 — 若热重载服务可用且未在监控则启动
+    /// </summary>
+    /// <param name="pluginDirectory">插件目录</param>
+    /// <param name="ct">取消令牌</param>
     public async Task StartHotReloadAsync(string pluginDirectory, CancellationToken ct = default)
     {
         if (HotReloader != null && !HotReloader.IsWatching)
@@ -751,14 +828,19 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
 
     #region Query
 
+    /// <summary>查询指定名称的插件是否已加载（任意类型）</summary>
     public bool IsPluginLoaded(string pluginName)
     {
         ThrowIfDisposed();
         return _workflowPlugins.ContainsKey(pluginName) || _externalPlugins.ContainsKey(pluginName) || _nativePlugins.ContainsKey(pluginName);
     }
 
+    /// <summary>查询指定名称的工作流插件是否已加载</summary>
     public bool IsWorkflowPluginLoaded(string pluginName) => _workflowPlugins.ContainsKey(pluginName);
+
+    /// <summary>查询指定名称的外部进程插件是否已加载</summary>
     public bool IsExternalPluginLoaded(string pluginName) => _externalPlugins.ContainsKey(pluginName);
+    /// <summary>查询指定名称的 native DLL 插件是否已加载</summary>
     public bool IsNativePluginLoaded(string pluginName) => _nativePlugins.ContainsKey(pluginName);
 
     #endregion
@@ -867,6 +949,9 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     private void RecordPluginMetrics(string kind, string operation, bool isSuccess) =>
         _telemetryService?.RecordCount("plugin.operation.count", new Dictionary<string, string> { ["kind"] = kind, ["operation"] = operation, ["success"] = isSuccess.ToString() }, "count", "Plugin operation count");
 
+    /// <summary>
+    /// 同步释放 — 标记已释放并等待异步释放完成
+    /// </summary>
     public void Dispose()
     {
         if (_isDisposed) return;
@@ -874,6 +959,9 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         DisposeAsync().GetAwaiter().GetResult();
     }
 
+    /// <summary>
+    /// 异步释放 — 标记已释放，调用基类释放并清理全部插件
+    /// </summary>
     public override async ValueTask DisposeAsync()
     {
         if (_isDisposed) return;
@@ -922,6 +1010,10 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         _workflowPlugins.Clear();
     }
 
+    /// <summary>
+    /// Actor Consumer 异常回调 — 记录日志
+    /// </summary>
+    /// <param name="ex">Consumer 抛出的异常</param>
     protected override void OnConsumerError(Exception ex)
     {
         _logger?.LogError(ex, "PluginManager Actor Consumer 异常");

@@ -7,6 +7,7 @@ namespace Core.Configuration.ConfigPipeline;
 public sealed partial class EnvInjectMiddleware : ServiceEntity, IConfigLoadMiddleware
 {
 
+    /// <inheritdoc />
     public Task InvokeAsync(ConfigLoadContext context, MiddlewareDelegate<ConfigLoadContext> next, CancellationToken ct)
     {
         SettingsMapper.InjectEnvFromSettings(context.Settings);

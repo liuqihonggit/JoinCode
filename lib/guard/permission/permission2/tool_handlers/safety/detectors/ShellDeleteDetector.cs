@@ -21,6 +21,9 @@ public sealed partial class ShellDeleteDetector : ServiceEntity, IDeleteOperatio
 
     private readonly IDestructiveCommandDetector? _destructiveCommandDetector;
 
+    /// <summary>
+    /// 构造函数 — 注入可选的破坏性命令检测器,缺失时降级为命令名匹配
+    /// </summary>
     public ShellDeleteDetector(IDestructiveCommandDetector? destructiveCommandDetector = null)
     {
         _destructiveCommandDetector = destructiveCommandDetector;

@@ -3,6 +3,12 @@ namespace Core.DependencyInjection;
 
 public static partial class ServiceRegistration
 {
+    /// <summary>
+    /// 连接插件-技能桥：订阅 <see cref="PluginManager"/> 的 PluginLoaded/PluginUnloading 事件，
+    /// 在插件加载时注册其技能、卸载时取消注册。
+    /// <para>含细粒度诊断：逐步解析依赖链以定位卡死点。</para>
+    /// </summary>
+    /// <param name="serviceProvider">已构建的 DI 服务提供者。</param>
     public static void WirePluginSkillBridge(this IServiceProvider serviceProvider)
     {
         var logger = serviceProvider.GetService<ILoggerFactory>()?.CreateLogger("ServiceRegistration.Skills");

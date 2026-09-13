@@ -9,6 +9,12 @@ namespace Core.Bridge.Init.V1;
 internal sealed partial class V1WorkPollSetupMiddleware : ServiceEntity, IMiddleware<V1BridgeInitContext>
 {
 
+    /// <summary>
+    /// 执行工作轮询设置中间件 — 初始化去重集合、创建轮询循环、订阅工作接收与心跳事件、构造句柄
+    /// </summary>
+    /// <param name="ctx">V1 Bridge 初始化上下文</param>
+    /// <param name="next">管道下一个委托</param>
+    /// <param name="ct">取消令牌</param>
     public Task InvokeAsync(V1BridgeInitContext ctx, MiddlewareDelegate<V1BridgeInitContext> next, CancellationToken ct)
     {
         var parameters = ctx.Parameters;

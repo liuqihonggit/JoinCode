@@ -8,6 +8,11 @@ namespace Core.Scheduling;
 public sealed partial class TaskFileWriter : ServiceEntity, ITaskFileWriter
 {
 
+    /// <summary>
+    /// 初始化任务文件写入器
+    /// </summary>
+    /// <param name="fileOperationService">文件操作服务</param>
+    /// <param name="logger">日志记录器</param>
     public TaskFileWriter(IFileOperationService fileOperationService, ILogger<TaskFileWriter>? logger = null)
     {
         _fileOperationService = fileOperationService;

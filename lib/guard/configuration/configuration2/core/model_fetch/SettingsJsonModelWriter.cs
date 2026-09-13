@@ -11,6 +11,9 @@ public sealed class SettingsJsonModelWriter
     private readonly IConfigChangeNotifier? _changeNotifier;
     private readonly ILogger<SettingsJsonModelWriter>? _logger;
 
+    /// <summary>
+    /// 构造函数 — 注入文件系统、可选的配置变更通知器和日志器
+    /// </summary>
     public SettingsJsonModelWriter(IFileSystem fs, IConfigChangeNotifier? changeNotifier = null, ILogger<SettingsJsonModelWriter>? logger = null)
     {
         _fs = fs;

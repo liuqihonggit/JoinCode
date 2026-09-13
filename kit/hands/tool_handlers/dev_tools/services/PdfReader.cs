@@ -39,16 +39,27 @@ public sealed record PdfReadResult
     public string? ErrorMessage { get; init; }
 
     /// <summary>获取 Base64，操作失败时抛出异常</summary>
+    /// <returns>Base64 编码的 PDF 数据</returns>
     public string GetBase64() =>
         Base64 ?? throw new InvalidOperationException("Base64 is not available. Check Success before calling this method.");
 
     /// <summary>获取 OriginalSize，操作失败时抛出异常</summary>
+    /// <returns>原始文件大小（字节）</returns>
     public long GetOriginalSize() =>
         OriginalSize ?? throw new InvalidOperationException("OriginalSize is not available. Check Success before calling this method.");
 
+    /// <summary>构造成功结果</summary>
+    /// <param name="base64">Base64 编码的 PDF 数据</param>
+    /// <param name="originalSize">原始文件大小（字节）</param>
+    /// <param name="pageCount">PDF 页数（可选）</param>
+    /// <returns>成功的 PdfReadResult</returns>
     public static PdfReadResult Ok(string base64, long originalSize, int? pageCount = null) =>
         new() { Success = true, Base64 = base64, OriginalSize = originalSize, PageCount = pageCount };
 
+    /// <summary>构造失败结果</summary>
+    /// <param name="reason">错误原因标识</param>
+    /// <param name="message">错误消息</param>
+    /// <returns>失败的 PdfReadResult</returns>
     public static PdfReadResult Fail(string reason, string message) =>
         new() { Success = false, ErrorReason = reason, ErrorMessage = message };
 }
@@ -85,6 +96,8 @@ public static class PdfReader
     /// 判断文件扩展名是否为 PDF
     /// 对齐 TS: isPDFExtension
     /// </summary>
+    /// <param name="filePath">文件路径</param>
+    /// <returns>扩展名为 .pdf 时返回 true</returns>
     public static bool IsPdfExtension(string filePath)
     {
         var ext = Path.GetExtension(filePath.AsSpan());
@@ -95,6 +108,10 @@ public static class PdfReader
     /// 读取 PDF 文件为 base64
     /// 对齐 TS: readPDF — 检查大小限制、验证 %PDF- 头、返回 base64
     /// </summary>
+    /// <param name="filePath">PDF 文件路径</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>PDF 读取结果，包含 base64 数据或错误信息</returns>
     public static async Task<PdfReadResult> ReadPdfAsync(string filePath, IFileSystem fs, CancellationToken cancellationToken = default)
     {
         try
@@ -154,6 +171,8 @@ public static class PdfReader
     /// 对齐 TS: parsePDFPageRange
     /// 支持格式: "5" → 第5页, "1-10" → 第1到10页, "3-" → 第3页到末尾
     /// </summary>
+    /// <param name="pages">页面范围字符串</param>
+    /// <returns>解析成功返回页面范围，格式无效时返回 null</returns>
     public static PdfPageRange? ParsePageRange(string pages)
     {
         var trimmed = pages.Trim();
@@ -192,6 +211,9 @@ public static class PdfReader
     /// 获取 PDF 文件页数（不读取完整文件内容为 base64）
     /// 对齐 TS: getPDFPageCount — TS 使用 pdfinfo 命令，C# 直接解析 PDF 结构
     /// </summary>
+    /// <param name="filePath">PDF 文件路径</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <returns>页数；文件不存在或解析失败时返回 null</returns>
     public static int? GetPdfPageCount(string filePath, IFileSystem fs)
     {
         try

@@ -7,6 +7,9 @@ namespace Core.Agents.Worktree;
 public sealed partial class WorktreeGitRootMiddleware : ServiceEntity, IWorktreeCreateMiddleware
 {
 
+    /// <summary>
+    /// 构造 WorktreeGitRootMiddleware 实例，注入文件操作服务、文件系统及日志器
+    /// </summary>
     public WorktreeGitRootMiddleware(IFileOperationService fs, IFileSystem fileSystem, ILogger<WorktreeGitRootMiddleware>? logger = null)
     {
         _fs = fs;
@@ -18,6 +21,12 @@ public sealed partial class WorktreeGitRootMiddleware : ServiceEntity, IWorktree
     private readonly ILogger<WorktreeGitRootMiddleware>? _logger;
 
 
+    /// <summary>
+    /// 执行 Git 根查找：若上下文已有 GitRoot 则跳过；否则从 GitRootPath 或当前目录向上查找 git 根目录
+    /// </summary>
+    /// <param name="context">worktree 创建上下文</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct)
     {
         if (!string.IsNullOrEmpty(context.GitRoot))

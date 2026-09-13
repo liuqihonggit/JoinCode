@@ -11,6 +11,12 @@ public sealed partial class FacetCacheService : ServiceEntity, IFacetCacheServic
     private readonly ILogger<FacetCacheService>? _logger;
     private readonly IFileSystem _fs;
 
+    /// <summary>
+    /// 构造 Facet 缓存服务
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="facetsDirectory">缓存根目录（可选，默认使用应用数据目录下的 sessions 目录）</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public FacetCacheService(IFileSystem fs, string? facetsDirectory = null, ILogger<FacetCacheService>? logger = null)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));

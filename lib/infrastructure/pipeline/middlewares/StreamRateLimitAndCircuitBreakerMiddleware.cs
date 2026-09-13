@@ -1,5 +1,8 @@
 namespace Infrastructure.Pipeline.Middlewares;
 
+/// <summary>
+/// 固定窗口速率限制流式中间件 — 超出窗口配额时抛出 RateLimitExceededException
+/// </summary>
 public sealed class FixedStreamRateLimitMiddleware<TContext, TEvent>(
     int maxRequests,
     TimeSpan window) : IStreamMiddleware<TContext, TEvent>
@@ -7,6 +10,14 @@ public sealed class FixedStreamRateLimitMiddleware<TContext, TEvent>(
     private readonly FixedWindowRateLimiter _limiter = new(maxRequests, window);
 
 
+    /// <summary>
+    /// 申请速率配额后透传下一中间件事件流
+    /// </summary>
+    /// <param name="context">中间件上下文</param>
+    /// <param name="next">下一中间件委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>下游事件流</returns>
+    /// <exception cref="RateLimitExceededException">超出速率限制时抛出</exception>
     public async IAsyncEnumerable<TEvent> InvokeAsync(
         TContext context,
         StreamMiddlewareDelegate<TContext, TEvent> next,
@@ -24,6 +35,9 @@ public sealed class FixedStreamRateLimitMiddleware<TContext, TEvent>(
     }
 }
 
+/// <summary>
+/// 固定阈值断路器流式中间件 — 连续失败达阈值时开启断路，开启期间请求直接抛出异常
+/// </summary>
 public sealed class FixedStreamCircuitBreakerMiddleware<TContext, TEvent>(
     int failureThreshold,
     TimeSpan openDuration) : IStreamMiddleware<TContext, TEvent>
@@ -31,6 +45,14 @@ public sealed class FixedStreamCircuitBreakerMiddleware<TContext, TEvent>(
     private readonly CircuitBreakerState _state = new(failureThreshold, openDuration);
 
 
+    /// <summary>
+    /// 检查断路器状态后透传下一中间件事件流，依据成败更新断路器计数
+    /// </summary>
+    /// <param name="context">中间件上下文</param>
+    /// <param name="next">下一中间件委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>下游事件流</returns>
+    /// <exception cref="CircuitBreakerOpenException">断路器开启时抛出</exception>
     public async IAsyncEnumerable<TEvent> InvokeAsync(
         TContext context,
         StreamMiddlewareDelegate<TContext, TEvent> next,

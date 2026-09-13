@@ -1,9 +1,15 @@
 namespace JoinCode.Abstractions.Security.Shell;
 
+/// <summary>
+/// Bash 工具权限检查器实现 — 组合安全验证、路径约束与只读约束,对齐 TS bashPermissions.ts
+/// </summary>
 [Register(typeof(IBashPermissionChecker), ServiceLifetime.Singleton)]
 public sealed partial class BashPermissionChecker : ServiceEntity, IBashPermissionChecker
 {
 
+    /// <summary>
+    /// 构造 Bash 权限检查器
+    /// </summary>
     public BashPermissionChecker(IBashSecurityValidator securityValidator, IPathConstraintValidator pathConstraintValidator, IReadOnlyCommandDetector readOnlyDetector)
     {
         _securityValidator = securityValidator;
@@ -35,6 +41,7 @@ public sealed partial class BashPermissionChecker : ServiceEntity, IBashPermissi
     private static readonly Regex BinaryHijackVarsPattern = new(
         @"^(LD_|DYLD_|PATH$)", RegexOptions.Compiled);
 
+    /// <inheritdoc />
     public BashPermissionResult CheckPermission(
         string command,
         string workingDirectory)

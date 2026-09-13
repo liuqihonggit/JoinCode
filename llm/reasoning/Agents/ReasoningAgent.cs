@@ -8,8 +8,19 @@ namespace JoinCode.Reasoning.Agents;
 /// </summary>
 public abstract class ReasoningAgent : AgentBase
 {
+    /// <summary>
+    /// 日志记录器
+    /// </summary>
     protected new readonly ILogger _logger;
+
+    /// <summary>
+    /// 聊天客户端，用于 LLM 调用；为 null 时表示不使用 LLM
+    /// </summary>
     protected readonly IChatClient? _chatClient;
+
+    /// <summary>
+    /// 消息邮箱，用于 Agent 间通信；为 null 时表示不进行消息通信
+    /// </summary>
     protected readonly IMailbox? _messageBroker;
 
     /// <summary>
@@ -22,6 +33,15 @@ public abstract class ReasoningAgent : AgentBase
     /// </summary>
     public abstract Task<AgentAction> ReasonAsync(ReasoningContext context, CancellationToken ct);
 
+    /// <summary>
+    /// 初始化 ReasoningAgent 实例
+    /// </summary>
+    /// <param name="queryEngine">查询引擎，用于知识检索</param>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="role">Agent 角色</param>
+    /// <param name="name">Agent 名称</param>
+    /// <param name="chatClient">聊天客户端，可选；为 null 时不使用 LLM</param>
+    /// <param name="messageBroker">消息邮箱，可选；为 null 时不进行 Agent 间通信</param>
     protected ReasoningAgent(
         IQueryEngine queryEngine,
         ILogger logger,

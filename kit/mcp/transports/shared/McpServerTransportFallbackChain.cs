@@ -1,5 +1,9 @@
 namespace McpClient.Transports;
 
+/// <summary>
+/// MCP 服务端传输降级链 — 按优先级依次尝试多个服务端传输,
+/// 运行时错误时降级到下一个传输(无熔断器/健康检查,轻量版)。
+/// </summary>
 public sealed class McpServerTransportFallbackChain : IMcpTransport
 {
     private readonly IMcpTransport[] _transports;
@@ -9,14 +13,25 @@ public sealed class McpServerTransportFallbackChain : IMcpTransport
     private readonly AsyncLock _switchLock = new();
     private int _disposed;
 
+    /// <summary>收到 JSON-RPC 消息事件</summary>
     public event EventHandler<McpMessageReceivedEventArgs>? MessageReceived;
+    /// <summary>传输错误事件</summary>
     public event EventHandler<McpTransportErrorEventArgs>? ErrorOccurred;
+    /// <summary>降级切换事件 — 当活跃传输失败并切换到备用传输时触发</summary>
     public event EventHandler<TransportFallbackEventArgs>? FallbackOccurred;
 
+    /// <summary>当前是否运行中</summary>
     public bool IsRunning => _activeTransport?.IsRunning ?? false;
+    /// <summary>当前活跃传输的类型名</summary>
     public string ActiveTransportType => _activeTransport?.GetType().Name ?? "none";
+    /// <summary>当前活跃传输在传输数组中的索引,无活跃传输时为 -1</summary>
     public int ActiveTransportIndex => _activeIndex;
 
+    /// <summary>
+    /// 创建服务端传输降级链
+    /// </summary>
+    /// <param name="transports">按优先级降序排列的传输数组,至少一个</param>
+    /// <param name="logger">日志记录器,可为 null</param>
     public McpServerTransportFallbackChain(
         IMcpTransport[] transports,
         ILogger? logger = null)
@@ -28,6 +43,12 @@ public sealed class McpServerTransportFallbackChain : IMcpTransport
             throw new ArgumentException("At least one transport is required", nameof(transports));
     }
 
+    /// <summary>
+    /// 启动服务端降级链 — 按优先级依次尝试传输,首个启动成功的传输成为活跃传输。
+    /// 全部失败时抛出 InvalidOperationException。
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步启动操作的任务</returns>
     public async Task StartAsync(CancellationToken ct = default)
     {
         if (IsRunning) return;
@@ -58,6 +79,11 @@ public sealed class McpServerTransportFallbackChain : IMcpTransport
         throw new InvalidOperationException("All server transports failed to start");
     }
 
+    /// <summary>
+    /// 停止活跃传输并解绑事件
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步停止操作的任务</returns>
     public async Task StopAsync(CancellationToken ct = default)
     {
         if (_activeTransport is not null)
@@ -69,6 +95,12 @@ public sealed class McpServerTransportFallbackChain : IMcpTransport
         }
     }
 
+    /// <summary>
+    /// 通过活跃传输发送 JSON-RPC 消息
+    /// </summary>
+    /// <param name="message">JSON-RPC 消息</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>表示异步发送操作的任务</returns>
     public async Task SendMessageAsync(JsonRpcMessage message, CancellationToken cancellationToken = default)
     {
         if (_activeTransport is null)
@@ -152,6 +184,10 @@ public sealed class McpServerTransportFallbackChain : IMcpTransport
         }
     }
 
+    /// <summary>
+    /// 异步释放资源 — 停止活跃传输、释放切换锁、释放全部传输
+    /// </summary>
+    /// <returns>表示异步释放操作的任务</returns>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1) return;

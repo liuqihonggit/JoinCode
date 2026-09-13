@@ -14,6 +14,15 @@ public sealed class BootstrapLoop
     private readonly IReflexionMemory? _memory;
     private readonly IFileSystem _fs;
 
+    /// <summary>
+    /// 构造自举闭环
+    /// </summary>
+    /// <param name="sourceEngine">源码工程引擎</param>
+    /// <param name="worktreeMgr">worktree 管理器</param>
+    /// <param name="patchGenerator">代码补丁生成器</param>
+    /// <param name="guard">安全守卫</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="memory">反思记忆（可选）</param>
     public BootstrapLoop(
         ISourceCodeEngine sourceEngine,
         IBootstrapWorktreeManager worktreeMgr,
@@ -30,6 +39,13 @@ public sealed class BootstrapLoop
         _memory = memory;
     }
 
+    /// <summary>
+    /// 执行自举闭环 — 诊断 → 定位源码 → worktree 隔离 → 生成 patch → Guard 审核 → 编译 → 落盘
+    /// </summary>
+    /// <param name="diagnostic">诊断报告</param>
+    /// <param name="workingDirectory">工作目录（可选）</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>自举结果</returns>
     public async Task<BootstrapResult> ExecuteAsync(
         DiagnosticReport diagnostic,
         string? workingDirectory = null,

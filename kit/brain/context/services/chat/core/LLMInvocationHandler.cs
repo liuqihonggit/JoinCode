@@ -37,6 +37,14 @@ public sealed partial class LLMInvocationHandler : ServiceEntity, ILLMInvocation
     private readonly QueryLoopServices? _services;
     private readonly ILogger<LLMInvocationHandler>? _logger;
 
+    /// <summary>
+    /// 初始化 LLM 调用处理器
+    /// </summary>
+    /// <param name="kernel">聊天客户端</param>
+    /// <param name="chunkProcessor">流式块处理器</param>
+    /// <param name="contextManager">聊天上下文管理器</param>
+    /// <param name="services">查询循环可选服务聚合</param>
+    /// <param name="logger">可选日志记录器</param>
     public LLMInvocationHandler(
         IChatClient kernel,
         IChatStreamChunkProcessor chunkProcessor,

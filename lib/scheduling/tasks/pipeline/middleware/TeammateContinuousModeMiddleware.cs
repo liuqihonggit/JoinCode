@@ -1,10 +1,18 @@
 namespace Core.Scheduling.Tasks;
 
 
+/// <summary>
+/// Teammate 连续模式中间件 — 当定义启用连续模式时，启动运行循环并标记已处理
+/// </summary>
 [Register(typeof(ITeammateExecutionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class TeammateContinuousModeMiddleware : ServiceEntity, ITeammateExecutionMiddleware
 {
 
+    /// <summary>
+    /// 初始化 Teammate 连续模式中间件
+    /// </summary>
+    /// <param name="clock">时钟服务</param>
+    /// <param name="logger">日志记录器</param>
     public TeammateContinuousModeMiddleware(IClockService clock, ILogger<TeammateContinuousModeMiddleware>? logger = null)
     {
         _clock = clock;
@@ -14,6 +22,7 @@ public sealed partial class TeammateContinuousModeMiddleware : ServiceEntity, IT
     private readonly IClockService _clock;
 
 
+    /// <inheritdoc/>
     public Task InvokeAsync(TeammateExecutionContext ctx, MiddlewareDelegate<TeammateExecutionContext> next, CancellationToken ct)
     {
         if (!ctx.Definition.ContinuousMode)

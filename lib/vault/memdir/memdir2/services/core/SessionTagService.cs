@@ -1,6 +1,9 @@
 
 namespace Core.Memdir;
 
+/// <summary>
+/// 会话标签服务 — 管理会话的标签集合,支持增删查与持久化
+/// </summary>
 [Register(typeof(ISessionTagService), ServiceLifetime.Singleton)]
 public sealed partial class SessionTagService : ServiceEntity, ISessionTagService, IDisposable
 {
@@ -11,6 +14,12 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
     private readonly AsyncLock _saveLock = new();
     private readonly CancellationTokenSource _disposeCts = new();
 
+    /// <summary>
+    /// 创建会话标签服务实例
+    /// </summary>
+    /// <param name="options">Memdir 配置选项,提供存储路径</param>
+    /// <param name="fileOperationService">文件操作服务,用于持久化标签</param>
+    /// <param name="logger">可选的日志记录器</param>
     public SessionTagService(IOptions<MemdirOptions> options, IFileOperationService fileOperationService, ILogger<SessionTagService>? logger = null)
     {
         var storagePath = options?.Value?.StoragePath ?? throw new ArgumentNullException(nameof(options));
@@ -19,6 +28,7 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
         _logger = logger;
     }
 
+    /// <inheritdoc />
     public bool AddTag(string sessionId, string tag)
     {
         ArgumentNullException.ThrowIfNull(sessionId);
@@ -37,6 +47,7 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
         }
     }
 
+    /// <inheritdoc />
     public bool RemoveTag(string sessionId, string tag)
     {
         ArgumentNullException.ThrowIfNull(sessionId);
@@ -60,6 +71,7 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
         }
     }
 
+    /// <inheritdoc />
     public IEnumerable<string> GetTags(string sessionId)
     {
         ArgumentNullException.ThrowIfNull(sessionId);
@@ -72,6 +84,7 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
         }
     }
 
+    /// <inheritdoc />
     public IReadOnlyDictionary<string, IReadOnlyList<string>> GetAllTags()
     {
         var result = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
@@ -88,6 +101,7 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
         return result;
     }
 
+    /// <inheritdoc />
     public async Task LoadAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -135,6 +149,9 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
         catch (OperationCanceledException) { }
     }
 
+    /// <summary>
+    /// 释放取消令牌、保存锁等资源。
+    /// </summary>
     protected override void OnDispose()
     {
         _disposeCts.Cancel();

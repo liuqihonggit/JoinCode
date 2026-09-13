@@ -11,6 +11,12 @@ public sealed partial class ConfigToolHandlers
     private readonly ITelemetryService? _telemetryService;
     private readonly ILogger<ConfigToolHandlers>? _logger;
 
+    /// <summary>
+    /// 构造 Config 工具处理器
+    /// </summary>
+    /// <param name="configService">配置服务，提供设置的读写能力</param>
+    /// <param name="telemetryService">可选遥测服务</param>
+    /// <param name="logger">可选日志记录器</param>
     public ConfigToolHandlers(IConfigurationService configService, ITelemetryService? telemetryService = null, ILogger<ConfigToolHandlers>? logger = null)
     {
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));

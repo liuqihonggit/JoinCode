@@ -1,7 +1,14 @@
 namespace Core.Skills.BuiltIn;
 
+/// <summary>
+/// 更新配置技能 — 修改 jcc 配置文件（settings.json）的权限、环境变量、钩子、模型设置等
+/// </summary>
 public sealed class UpdateConfigSkill
 {
+    /// <summary>
+    /// 创建技能定义
+    /// </summary>
+    /// <returns>更新配置技能的技能定义</returns>
     public static SkillDefinition CreateDefinition()
     {
         return new SkillDefinition

@@ -8,6 +8,8 @@ public class ProcessToolHandlers
 {
     private readonly ILogger<ProcessToolHandlers>? _logger;
 
+    /// <summary>构造进程干预工具处理器实例。</summary>
+    /// <param name="logger">可选的日志记录器，传入 null 时静默运行。</param>
     public ProcessToolHandlers(ILogger<ProcessToolHandlers>? logger = null) => _logger = logger;
 
     /// <summary>枚举运行中进程（S-01）</summary>

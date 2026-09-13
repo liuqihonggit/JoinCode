@@ -1,5 +1,8 @@
 namespace Core.Prompts.Sections;
 
+/// <summary>
+/// 性能审计规则的提示词部分；关键词触发注入。
+/// </summary>
 [PromptSection(
     Name = "performance_audit",
     Keywords = new[] { "GC压力", "字符串GC", "性能优化", "性能问题", "零分配", "技术债", "LINQ链式", "字符串拼接", "AsParallel", "Task.WhenAll", "GC", "Span", "性能瓶颈", "内存泄漏", "基准测试", "performance", "benchmark", "memory leak", "optimize" },
@@ -7,6 +10,9 @@ namespace Core.Prompts.Sections;
     Order = 60)]
 public static class PerformanceAuditSection
 {
+    /// <summary>
+    /// 获取 performance_audit 部分内容；性能审计规则文本。
+    /// </summary>
     public static string GetContent()
     {
         return """
@@ -61,6 +67,9 @@ public static class PerformanceAuditSection
 """;
     }
 
+    /// <summary>
+    /// 创建 performance_audit 提示词部分。
+    /// </summary>
     public static SystemPromptSection Create()
     {
         return SystemPromptSection.Cached("performance_audit", GetContent);

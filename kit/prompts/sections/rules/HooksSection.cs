@@ -5,6 +5,9 @@ namespace Core.Prompts.Sections;
 /// </summary>
 [PromptSection(Name = "hooks", Order = 5)]
 public static class HooksSection {
+    /// <summary>
+    /// 创建 hooks 提示词部分。
+    /// </summary>
     public static SystemPromptSection Create() {
         return SystemPromptSection.Cached("hooks", () => {
             return """

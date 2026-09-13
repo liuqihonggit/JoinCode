@@ -28,9 +28,26 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     private readonly MiddlewarePipeline<UnifiedSpawnContext> _spawnPipeline;
     private volatile AsyncLock _spawnSemaphore;
 
+    /// <summary>Agent 任务状态变更事件，参数携带 Agent ID 与新旧状态</summary>
     public event EventHandler<AgentTaskStatusChangedEventArgs>? TaskStatusChanged;
+    /// <summary>队友变更事件，参数携带 Agent ID 与新旧状态（按 AgentStatus 映射）</summary>
     public event EventHandler<TeammateChangedEventArgs>? TeammateChanged;
 
+    /// <summary>
+    /// 构造 Agent 协调器实例
+    /// </summary>
+    /// <param name="core">核心依赖包，包含生命周期、Worktree、消息邮箱、执行引擎与状态机</param>
+    /// <param name="clock">时钟服务，用于记录执行时间</param>
+    /// <param name="disposePipeline">Agent 释放管道</param>
+    /// <param name="spawnPipeline">Agent 生成管道</param>
+    /// <param name="permission">可选权限依赖包，包含 Swarm 权限桥接</param>
+    /// <param name="team">可选团队依赖包，包含队友重连服务</param>
+    /// <param name="forkManager">可选 Fork 子代理管理器</param>
+    /// <param name="logger">可选日志记录器</param>
+    /// <param name="subAgentContextAccessor">可选子代理上下文访问器，缺省时使用默认实现</param>
+    /// <param name="subagentStopHookManager">可选子代理停止 Hook 管理器</param>
+    /// <param name="concurrencyOptions">可选并发选项，控制 spawn 并发上限</param>
+    /// <param name="autoRebaseService">可选自动 rebase 服务，用于 SubagentStop 时同步主干</param>
     public AgentCoordinator(
         AgentCoreDependencies core,
         IClockService clock,
@@ -101,6 +118,14 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
 
     #region Agent 生命周期管理（含协调逻辑）
 
+    /// <summary>
+    /// 生成单个子 Agent — 通过 spawn 信号量限流后委托 spawn 管道执行
+    /// </summary>
+    /// <param name="task">子 Agent 任务描述</param>
+    /// <param name="options">子 Agent 选项</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <param name="parentSessionId">可选父会话 ID，用于生成自定义唯一标识</param>
+    /// <returns>已生成的子 Agent 实例</returns>
     public async Task<IAgent> SpawnSubAgentAsync(string task, SubAgentOptions? options = null, CancellationToken cancellationToken = default, string? parentSessionId = null)
     {
         var sem = _spawnSemaphore;
@@ -147,6 +172,13 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         }
     }
 
+    /// <summary>
+    /// 批量生成子 Agent — 并行调用 SpawnSubAgentAsync
+    /// </summary>
+    /// <param name="tasks">子 Agent 任务描述集合</param>
+    /// <param name="options">共享的子 Agent 选项</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>已生成的子 Agent 列表</returns>
     public async Task<IReadOnlyList<IAgent>> SpawnSubAgentsAsync(IEnumerable<string> tasks, SubAgentOptions? options = null, CancellationToken cancellationToken = default)
     {
         var taskList = tasks.ToList();
@@ -206,6 +238,12 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     /// </summary>
     public string? GetSecretaryId(string ownerId) => _secretaries.TryGetValue(ownerId, out var id) ? id : null;
 
+    /// <summary>
+    /// 执行单个 Agent — 记录执行起止时间与结果到执行上下文
+    /// </summary>
+    /// <param name="agent">要执行的 Agent</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>执行结果</returns>
     public async Task<SubAgentResult> ExecuteAsync(IAgent agent, CancellationToken cancellationToken = default)
     {
         if (!_executionContexts.TryGetValue(agent.ObjectId.UniqueId, out var context))
@@ -249,18 +287,36 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         }
     }
 
+    /// <summary>
+    /// 暂停指定 Agent，委托给生命周期管理器
+    /// </summary>
+    /// <param name="agentId">目标 Agent 标识</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>是否成功暂停</returns>
     public Task<bool> PauseAgentAsync(string agentId, CancellationToken ct = default)
     {
         _logger?.LogInformation("[AgentCoordinator] 暂停Agent {AgentId}", agentId);
         return _lifecycleManager.PauseAgentAsync(agentId, ct);
     }
 
+    /// <summary>
+    /// 恢复指定 Agent，委托给生命周期管理器
+    /// </summary>
+    /// <param name="agentId">目标 Agent 标识</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>是否成功恢复</returns>
     public Task<bool> ResumeAgentAsync(string agentId, CancellationToken ct = default)
     {
         _logger?.LogInformation("[AgentCoordinator] 恢复Agent {AgentId}", agentId);
         return _lifecycleManager.ResumeAgentAsync(agentId, ct);
     }
 
+    /// <summary>
+    /// 取消指定 Agent，同时标记执行上下文为已取消
+    /// </summary>
+    /// <param name="agentId">目标 Agent 标识</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>是否成功取消</returns>
     public async Task<bool> CancelAgentAsync(string agentId, CancellationToken ct = default)
     {
         _logger?.LogInformation("[AgentCoordinator] 取消Agent {AgentId}", agentId);
@@ -273,6 +329,10 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         return await _lifecycleManager.CancelAgentAsync(agentId, ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 取消所有 Agent，同时将所有执行上下文标记为已取消
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
     public async Task CancelAllAsync(CancellationToken ct = default)
     {
         _logger?.LogInformation("[AgentCoordinator] 取消所有Agent");
@@ -285,6 +345,12 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         await _lifecycleManager.CancelAllAsync(ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 使用默认重试策略重试指定 Agent
+    /// </summary>
+    /// <param name="agentId">目标 Agent 标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>重试结果；找不到上下文或达到最大重试次数时返回 null</returns>
     public async Task<SubAgentResult?> RetryAsync(string agentId, CancellationToken cancellationToken = default)
     {
         return await RetryWithPolicyAsync(agentId, RetryPolicy.Default, cancellationToken).ConfigureAwait(false);
@@ -366,6 +432,11 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         return result;
     }
 
+    /// <summary>
+    /// 释放指定 Agent 资源 — 触发 SubagentStop Hook 后执行释放管道并清理执行上下文
+    /// </summary>
+    /// <param name="agentId">目标 Agent 标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task DisposeAgentAsync(string agentId, CancellationToken cancellationToken = default)
     {
         _logger?.LogInformation("[AgentCoordinator] 释放Agent {AgentId} 资源", agentId);
@@ -387,6 +458,14 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
 
     #region 执行策略（含协调逻辑）
 
+    /// <summary>
+    /// 并行执行多个 Agent，委托给执行引擎
+    /// </summary>
+    /// <param name="agents">要执行的 Agent 集合</param>
+    /// <param name="options">并行执行选项</param>
+    /// <param name="clusterOptions">集群执行选项</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>各 Agent 的执行结果列表</returns>
     public async Task<IReadOnlyList<SubAgentResult>> ExecuteParallelAsync(
         IEnumerable<IAgent> agents,
         ParallelOptions? options = null,
@@ -407,6 +486,12 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         return await _executionEngine.ExecuteParallelAsync(agentList, options, clusterOptions, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 串行执行多个 Agent，委托给执行引擎
+    /// </summary>
+    /// <param name="agents">要执行的 Agent 集合</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>各 Agent 的执行结果列表</returns>
     public async Task<IReadOnlyList<SubAgentResult>> ExecuteSequentialAsync(
         IEnumerable<IAgent> agents,
         CancellationToken cancellationToken = default)
@@ -491,6 +576,13 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
 
     #region 消息通信（含协调逻辑）
 
+    /// <summary>
+    /// 向指定 Agent 发送消息；Agent 不存在或已终止时返回 false
+    /// </summary>
+    /// <param name="agentId">目标 Agent 标识</param>
+    /// <param name="message">要发送的消息</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>是否成功投递</returns>
     public async Task<bool> SendMessageAsync(string agentId, CoordinatorAgentMessage message, CancellationToken cancellationToken = default)
     {
         var agent = await _lifecycleManager.GetAgentAsync(agentId, cancellationToken).ConfigureAwait(false);
@@ -509,6 +601,11 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         return await _messageBroker.SendAsync(agentId, message, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 向所有活跃 Agent 广播消息
+    /// </summary>
+    /// <param name="message">要广播的消息</param>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task BroadcastAsync(CoordinatorAgentMessage message, CancellationToken cancellationToken = default)
     {
         var allAgents = await _lifecycleManager.GetAllAgentsAsync(cancellationToken).ConfigureAwait(false);
@@ -519,6 +616,12 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         await _messageBroker.BroadcastAsync(message, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 读取指定 Agent 的消息流
+    /// </summary>
+    /// <param name="agentId">目标 Agent 标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>消息异步枚举流</returns>
     public IAsyncEnumerable<CoordinatorAgentMessage> ReadMessagesAsync(string agentId, CancellationToken cancellationToken = default)
     {
         return _messageBroker.ReceiveAsync(agentId, cancellationToken);
@@ -528,23 +631,48 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
 
     #region 查询和报告（含协调逻辑）
 
+    /// <summary>
+    /// 获取指定 Agent 的执行结果
+    /// </summary>
+    /// <param name="agentId">目标 Agent 标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>执行结果；不存在时返回 null</returns>
     public async Task<SubAgentResult?> GetResultAsync(string agentId, CancellationToken cancellationToken = default)
     {
         return await _lifecycleManager.GetResultAsync(agentId, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 获取所有 Agent 的执行结果字典
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>Agent ID 到执行结果的映射</returns>
     public async Task<IReadOnlyDictionary<string, SubAgentResult>> GetAllResultsAsync(CancellationToken cancellationToken = default)
     {
         return await _lifecycleManager.GetAllResultsAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 等待所有 Agent 进入终态
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
     public Task WaitAllAsync(CancellationToken cancellationToken = default) => _lifecycleManager.WaitAllAsync(cancellationToken);
 
+    /// <summary>
+    /// 获取 Agent 状态报告
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>状态报告</returns>
     public async Task<AgentStateReport> GetStateReportAsync(CancellationToken cancellationToken = default)
     {
         return await _lifecycleManager.GetStateReportAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 获取协调器综合报告 — 包含状态统计、平均执行时间与重试统计
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>协调器报告</returns>
     public async Task<CoordinatorReport> GetCoordinatorReportAsync(CancellationToken cancellationToken = default)
     {
         var stateReport = await _lifecycleManager.GetStateReportAsync(cancellationToken).ConfigureAwait(false);
@@ -572,11 +700,22 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         };
     }
 
+    /// <summary>
+    /// 获取指定 Agent 的 Worktree 会话
+    /// </summary>
+    /// <param name="agentId">目标 Agent 标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>Worktree 会话；不存在时返回 null</returns>
     public Task<AgentWorktreeSession?> GetWorktreeSessionAsync(string agentId, CancellationToken cancellationToken = default)
     {
         return _worktreeManager.GetWorktreeSessionAsync(agentId, cancellationToken);
     }
 
+    /// <summary>
+    /// 获取所有 Worktree 会话
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>Agent ID 到 Worktree 会话的映射</returns>
     public Task<IReadOnlyDictionary<string, AgentWorktreeSession>> GetAllWorktreeSessionsAsync(CancellationToken cancellationToken = default)
     {
         return _worktreeManager.GetAllWorktreeSessionsAsync(cancellationToken);
@@ -613,6 +752,12 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
 
     #region Agent 协调功能（原 IAgentCoordinator，已合并到 IAgentService）
 
+    /// <summary>
+    /// 停止指定 Agent — 取消其令牌并标记为已取消状态
+    /// </summary>
+    /// <param name="agentId">目标 Agent 标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>是否成功停止</returns>
     public async Task<bool> StopAgentAsync(string agentId, CancellationToken cancellationToken = default)
     {
         var agent = await _lifecycleManager.GetAgentAsync(agentId, cancellationToken).ConfigureAwait(false);
@@ -641,11 +786,20 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         return await _lifecycleManager.CancelAgentAsync(agentId, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 获取正在运行的 Agent 列表
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>运行中 Agent 信息集合</returns>
     public Task<IEnumerable<RunningAgentInfo>> GetRunningAgentsAsync(CancellationToken cancellationToken = default)
     {
         return _lifecycleManager.GetRunningAgentsAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// 获取正在运行或暂停的队友列表
+    /// </summary>
+    /// <returns>队友信息列表</returns>
     public async Task<IReadOnlyList<TeammateInfo>> GetRunningTeammatesAsync()
     {
         var report = await _lifecycleManager.GetStateReportAsync(CancellationToken.None).ConfigureAwait(false);
@@ -716,6 +870,12 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
 
     #region Fork 与权限同步
 
+    /// <summary>
+    /// Fork 子代理 — 委托给 Fork 子代理管理器
+    /// </summary>
+    /// <param name="options">Fork 选项</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>Fork 结果</returns>
     public Task<ForkResult> ForkSubAgentAsync(ForkOptions options, CancellationToken ct = default)
     {
         if (_forkManager == null)
@@ -723,6 +883,12 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         return _forkManager.ForkAsync(options, ct);
     }
 
+    /// <summary>
+    /// 同步 Agent 权限 — 委托给 Swarm 权限桥接
+    /// </summary>
+    /// <param name="agentId">目标 Agent 标识</param>
+    /// <param name="request">权限同步请求</param>
+    /// <param name="ct">取消令牌</param>
     public Task SyncAgentPermissionsAsync(string agentId, PermissionSyncRequest request, CancellationToken ct = default)
     {
         if (_permissionBridge == null)
@@ -734,6 +900,13 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
 
     #region 私有方法
 
+    /// <summary>
+    /// 重连已断开的队友 — 委托给队友重连服务
+    /// </summary>
+    /// <param name="teamId">团队标识</param>
+    /// <param name="agentId">目标队友标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>重连结果；服务未注册或重连失败时返回 null</returns>
     public async Task<JoinCode.Abstractions.Interfaces.ReconnectResult?> ReconnectDisconnectedTeammateAsync(string teamId, string agentId, CancellationToken cancellationToken = default)
     {
         if (_reconnectService is null)
@@ -753,6 +926,12 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         }
     }
 
+    /// <summary>
+    /// 批量重连团队中所有已断开的队友 — 委托给队友重连服务
+    /// </summary>
+    /// <param name="teamId">团队标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>重连结果列表；服务未注册时返回空列表</returns>
     public async Task<IReadOnlyList<JoinCode.Abstractions.Interfaces.ReconnectResult>> ReconnectAllDisconnectedAsync(string teamId, CancellationToken cancellationToken = default)
     {
         if (_reconnectService is null)

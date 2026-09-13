@@ -10,6 +10,7 @@ public sealed partial class AgentRolesPlugin : WorkflowPluginBase
 {
     private AgentRoleProfileRegistry? _registry;
 
+    /// <summary>构造 Agent 角色插件</summary>
     public AgentRolesPlugin() : base("AgentRoles") { }
 
     /// <summary>插件名称</summary>

@@ -134,6 +134,9 @@ public sealed partial class SessionHookManager : ServiceEntity, ISessionHookMana
     private readonly ConcurrentDictionary<string, SessionHookStore> _sessionStores = new();
     private readonly ILogger<SessionHookManager>? _logger;
 
+    /// <summary>
+    /// 初始化会话钩子管理器实例
+    /// </summary>
     public SessionHookManager(ILogger<SessionHookManager>? logger = null)
     {
         _logger = logger;

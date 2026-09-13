@@ -1,10 +1,18 @@
 
 namespace Core.Security.Services;
 
+/// <summary>
+/// Git Diff 提供者 — 通过 git 命令获取暂存区文件名与差异内容
+/// </summary>
 [Register(typeof(IGitDiffProvider), ServiceLifetime.Singleton)]
 public sealed partial class GitDiffProvider : ServiceEntity, IGitDiffProvider
 {
 
+    /// <summary>
+    /// 构造函数 — 注入日志记录器与 Git 命令执行器
+    /// </summary>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="gitRunner">Git 命令执行器</param>
     public GitDiffProvider(ILogger<GitDiffProvider> logger, IGitCommandRunner gitRunner)
     {
         _logger = logger;
@@ -13,6 +21,7 @@ public sealed partial class GitDiffProvider : ServiceEntity, IGitDiffProvider
     private readonly ILogger<GitDiffProvider> _logger;
     private readonly IGitCommandRunner _gitRunner;
 
+    /// <inheritdoc />
     public async Task<IReadOnlyList<string>> GetStagedFileNamesAsync(string workingDirectory, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(workingDirectory);
@@ -27,6 +36,7 @@ public sealed partial class GitDiffProvider : ServiceEntity, IGitDiffProvider
             .ToList();
     }
 
+    /// <inheritdoc />
     public async Task<string> GetStagedDiffAsync(string workingDirectory, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(workingDirectory);

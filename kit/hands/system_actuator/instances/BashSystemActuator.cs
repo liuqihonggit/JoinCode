@@ -6,7 +6,9 @@ namespace Services.SystemActuator;
 /// </summary>
 public sealed partial class BashSystemActuator : SystemActuatorBase
 {
+    /// <summary>指定 Git Bash 可执行文件路径的环境变量名</summary>
     public const string GitBashPathEnvVar = "JCC_GIT_BASH_PATH";
+    /// <summary>Shell 命令前缀的环境变量名 — 用于在执行命令前注入额外 shell 指令</summary>
     public const string ShellPrefixEnvVar = "JCC_SHELL_PREFIX";
 
     private readonly IEnvironmentProbeService? _probeService;
@@ -16,6 +18,17 @@ public sealed partial class BashSystemActuator : SystemActuatorBase
 
     private const int MaxSnapshotCount = 200;
 
+    /// <summary>
+    /// 构造 Bash 系统执行器实例 — 同时创建登录 shell 环境快照以加速后续命令执行
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="probeService">环境探测服务（可选，用于能力检测）</param>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="sandboxManager">沙箱管理器</param>
+    /// <param name="preventSleepService">防休眠服务</param>
+    /// <param name="config">Shell 执行配置</param>
+    /// <param name="toolUseId">工具使用 ID（用于追踪）</param>
+    /// <param name="spanId">跨度 ID（用于链路追踪）</param>
     public BashSystemActuator(
         IFileSystem fs,
         IEnvironmentProbeService? probeService = null,

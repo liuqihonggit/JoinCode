@@ -21,6 +21,11 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
         return SessionRouter.GetScope(sessionId.Value)?.Cache;
     }
 
+    /// <summary>
+    /// 创建状态服务实例
+    /// </summary>
+    /// <param name="clock">时钟服务,用于获取时间戳</param>
+    /// <param name="logger">可选的日志记录器</param>
     public StateService(IClockService clock, ILogger<StateService>? logger = null)
     {
         _clock = clock;
@@ -30,6 +35,7 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
 
     #region IStateService Implementation
 
+    /// <inheritdoc />
     public void SaveState(string systemPrompt, MessageList chatHistory)
     {
         var chatHistoryList = chatHistory
@@ -78,12 +84,14 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
         return dict;
     }
 
+    /// <inheritdoc />
     public Task SaveStateAsync(string systemPrompt, MessageList chatHistory, CancellationToken cancellationToken = default)
     {
         SaveState(systemPrompt, chatHistory);
         return Task.CompletedTask;
     }
 
+    /// <inheritdoc />
     public (string SystemPrompt, MessageList MessageList) LoadState()
     {
         try
@@ -146,11 +154,13 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
         }
     }
 
+    /// <inheritdoc />
     public Task<(string SystemPrompt, MessageList MessageList)> LoadStateAsync(CancellationToken cancellationToken = default)
     {
         return Task.FromResult(LoadState());
     }
 
+    /// <inheritdoc />
     public bool ClearState()
     {
         var cache = GetCurrentCache();
@@ -160,6 +170,7 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
         return result;
     }
 
+    /// <inheritdoc />
     public Task<bool> ClearStateAsync(CancellationToken cancellationToken = default)
     {
         return Task.FromResult(ClearState());
@@ -167,5 +178,8 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
 
     #endregion
 
+    /// <summary>
+    /// 清空回退存储中的所有会话状态。
+    /// </summary>
     protected override void OnDispose() => _fallbackStorage.Clear();
 }

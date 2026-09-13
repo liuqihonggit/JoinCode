@@ -8,6 +8,10 @@ namespace Core.Goal;
 public sealed partial class GoalStateTransitionMiddleware : ServiceEntity, IGoalLifecycleMiddleware
 {
 
+    /// <summary>
+    /// 构造 GoalStateTransitionMiddleware — 注入时钟服务用于记录状态变更时间
+    /// </summary>
+    /// <param name="clock">时钟服务</param>
     public GoalStateTransitionMiddleware(IClockService clock)
     {
         _clock = clock;
@@ -15,6 +19,7 @@ public sealed partial class GoalStateTransitionMiddleware : ServiceEntity, IGoal
     private readonly IClockService _clock;
 
 
+    /// <inheritdoc />
     public Task InvokeAsync(GoalLifecycleContext ctx, MiddlewareDelegate<GoalLifecycleContext> next, CancellationToken ct)
     {
         switch (ctx.Operation)

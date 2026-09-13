@@ -1,6 +1,10 @@
 
 namespace McpClient;
 
+/// <summary>
+/// MCP PKCE 认证提供者 — 对齐 TS ClaudeAuthProvider
+/// 实现 OAuth 2.0 PKCE 授权流程：元数据发现 → DCR → 授权码交换 → 令牌刷新
+/// </summary>
 public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDisposable
 {
     private readonly McpOAuthOptions _options;
@@ -20,7 +24,14 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
     private string? _resolvedTokenUrl; // 对齐 TS ClaudeAuthProvider._pendingStepUpScope
     private int _disposed;
 
+    /// <summary>
+    /// 认证类型 — 固定为 OAuth2
+    /// </summary>
     public McpAuthType AuthType => McpAuthType.OAuth2;
+
+    /// <summary>
+    /// 是否已认证 — 访问令牌非空且未过期
+    /// </summary>
     public bool IsAuthenticated => !string.IsNullOrEmpty(_authContext.AccessToken) && !_authContext.IsExpired;
 
     /// <summary>
@@ -63,6 +74,13 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
         _pendingStepUpScope = null;
     }
 
+    /// <summary>
+    /// 创建 McpPkceAuthProvider 实例
+    /// </summary>
+    /// <param name="options">OAuth 选项</param>
+    /// <param name="fs">文件系统抽象（用于令牌持久化）</param>
+    /// <param name="httpClient">HTTP 客户端（为 null 时走 HttpClientProviderFactory fallback）</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public McpPkceAuthProvider(
         McpOAuthOptions options,
         IFileSystem fs,
@@ -87,6 +105,11 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
         }
     }
 
+    /// <summary>
+    /// 异步获取认证头 — Step-Up 待处理时返回空字典触发 401 重新授权
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>认证头字典（含 Authorization: Bearer xxx）</returns>
     public async Task<Dictionary<string, string>> GetAuthHeadersAsync(CancellationToken cancellationToken = default)
     {
         // 对齐 TS ClaudeAuthProvider.tokens(): Step-Up 时省略 refresh_token 触发重新授权
@@ -106,12 +129,22 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
         };
     }
 
+    /// <summary>
+    /// 异步获取访问令牌 — 必要时自动刷新
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>访问令牌；获取失败抛出 InvalidOperationException</returns>
     public async Task<string?> GetAccessTokenAsync(CancellationToken cancellationToken = default)
     {
         await EnsureAuthenticatedAsync(cancellationToken).ConfigureAwait(false);
         return _authContext.AccessToken;
     }
 
+    /// <summary>
+    /// 异步刷新认证 — 有 refresh_token 走令牌刷新，否则走 PKCE 重新授权
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>刷新成功返回 true；失败返回 false</returns>
     public async Task<bool> RefreshAsync(CancellationToken cancellationToken = default)
     {
         using var guard = await _refreshLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_refreshLock.Name}' 等待超时");
@@ -132,6 +165,11 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
 
     }
 
+    /// <summary>
+    /// 异步生成 PKCE 授权 URL — 生成 code_verifier/code_challenge 后拼接授权端点查询参数
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>授权 URL（含 response_type、client_id、redirect_uri、code_challenge 等）</returns>
     public async Task<string> GetAuthorizationUrlAsync(CancellationToken cancellationToken = default)
     {
         await EnsureClientConfiguredAsync(cancellationToken).ConfigureAwait(false);
@@ -161,6 +199,12 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
         return url;
     }
 
+    /// <summary>
+    /// 异步交换授权码为访问令牌 — 对齐 OAuth 2.0 authorization_code grant
+    /// </summary>
+    /// <param name="authorizationCode">从授权回调获取的授权码</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>交换成功返回 true；失败返回 false</returns>
     public async Task<bool> ExchangeCodeAsync(string authorizationCode, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(authorizationCode);
@@ -434,12 +478,18 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
         }
     }
 
+    /// <summary>
+    /// 释放同步资源 — HttpClient 和刷新锁
+    /// </summary>
     public void Dispose()
     {
         _httpClient.Dispose();
         _refreshLock.Dispose();
     }
 
+    /// <summary>
+    /// 释放异步资源 — 幂等，多次调用安全
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
@@ -448,14 +498,26 @@ public sealed partial class McpPkceAuthProvider : IMcpAuthProvider, IAsyncDispos
     }
 }
 
+/// <summary>
+/// PKCE 令牌持久化存储 — 序列化到本地文件的令牌三元组
+/// </summary>
 public sealed partial class PkceTokenStorage
 {
+    /// <summary>
+    /// 访问令牌
+    /// </summary>
     [JsonPropertyName("access_token")]
     public string? AccessToken { get; set; }
 
+    /// <summary>
+    /// 刷新令牌
+    /// </summary>
     [JsonPropertyName("refresh_token")]
     public string? RefreshToken { get; set; }
 
+    /// <summary>
+    /// 过期时间（UTC）
+    /// </summary>
     [JsonPropertyName("expires_at")]
     public DateTime? ExpiresAt { get; set; }
 }

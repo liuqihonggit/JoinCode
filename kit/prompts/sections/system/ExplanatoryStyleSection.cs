@@ -6,6 +6,10 @@ namespace Core.Prompts.Sections;
 [PromptSection(Name = "output_style_explanatory", Keywords = new[] { "解释", "explanatory", "教学", "educational", "说明", "详解", "讲解", "explain", "tutorial" }, InjectOn = PromptSectionInject.Keyword, Order = 80)]
 public static class ExplanatoryStyleSection
 {
+    /// <summary>
+    /// 获取解释性输出样式部分的内容。
+    /// </summary>
+    /// <returns>解释性样式提示词文本。</returns>
     public static string GetContent()
     {
         return $"""
@@ -26,6 +30,10 @@ public static class ExplanatoryStyleSection
 """;
     }
 
+    /// <summary>
+    /// 创建解释性输出样式提示词部分。
+    /// </summary>
+    /// <returns>缓存系统提示词部分。</returns>
     public static SystemPromptSection Create() =>
         SystemPromptSection.Cached("output_style_explanatory", GetContent);
 }

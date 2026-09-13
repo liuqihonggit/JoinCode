@@ -1,12 +1,20 @@
 
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /advisor 命令 — 配置顾问模型，设置或关闭顾问审查模式
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Advisor, Description = "配置顾问模型", Usage = "/advisor [model|off]", Category = ChatCommandCategory.Agent, ArgumentHint = "[model|off]")]
 [ChatCommandArg("model", Type = "string", Description = "顾问模型名称,或 off 关闭顾问模式", Enum = new[] { "off" })]
 public sealed class AdvisorCommand(IModelConfigLoader? modelConfigLoader = null) : ChatCommandBase
 {
     private readonly IModelConfigLoader? _modelConfigLoader = modelConfigLoader;
 
+    /// <summary>
+    /// 执行 /advisor 命令，设置顾问模型或关闭顾问模式
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <returns>命令执行结果</returns>
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var advisorService = ChatCommandBase.GetService<IAdvisorService>(context);

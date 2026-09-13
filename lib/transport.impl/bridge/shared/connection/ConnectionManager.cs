@@ -22,8 +22,14 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
     private int _asyncDisposed;
     private readonly INetworkConnectivityService? _networkService;
 
+    /// <summary>当前连接状态</summary>
     public TransportConnectionState ConnectionState => _connectionState;
 
+    /// <summary>
+    /// 异步获取当前连接状态（加锁读取）
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>当前连接状态</returns>
     public async ValueTask<TransportConnectionState> GetConnectionStateAsync(CancellationToken ct = default)
     {
         using var guard = await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
@@ -46,15 +52,28 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
     
     }
 
+    /// <summary>当前传输协议</summary>
     public TransportProtocol CurrentProtocol => _currentProtocol;
+    /// <summary>是否已连接</summary>
     public bool IsConnected => _connectionState == TransportConnectionState.Connected;
+    /// <summary>当前重连尝试次数</summary>
     public int ReconnectAttemptCount => _reconnectAttemptCount;
 
+    /// <summary>连接状态变更事件</summary>
     public event EventHandler<StateChangedEventArgs<TransportConnectionState>>? ConnectionStateChanged;
+    /// <summary>开始重连事件</summary>
     public event EventHandler? Reconnecting;
+    /// <summary>重连成功事件</summary>
     public event EventHandler? Reconnected;
+    /// <summary>发生错误事件</summary>
     public event EventHandler<TransportErrorEventArgs>? ErrorOccurred;
 
+    /// <summary>
+    /// 构造连接管理器
+    /// </summary>
+    /// <param name="config">传输配置</param>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="networkService">网络连通性服务（可选）</param>
     public ConnectionManager(
         TransportConfiguration config,
         ILogger? logger = null,
@@ -317,6 +336,9 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
                 _config.MaxReconnectDelayMs));
     }
 
+    /// <summary>
+    /// 异步释放资源，停止连接
+    /// </summary>
     public override async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1)
@@ -328,6 +350,9 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
         Dispose();
     }
 
+    /// <summary>
+    /// 释放托管资源（重连令牌和锁）
+    /// </summary>
     protected override void OnDispose()
     {
         if (_asyncDisposed == 1) return;

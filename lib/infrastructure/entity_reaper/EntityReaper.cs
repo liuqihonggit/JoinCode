@@ -12,6 +12,12 @@ public sealed partial class EntityReaper : IEntityReaper, IScanStrategy
 
     private readonly EntityReaperConfig _config;
 
+    /// <summary>
+    /// 构造实体回收器
+    /// </summary>
+    /// <param name="clock">时钟服务，用于获取当前时间</param>
+    /// <param name="config">回收器配置；null 时使用默认配置</param>
+    /// <param name="logger">日志记录器</param>
     public EntityReaper(IClockService clock, EntityReaperConfig? config = null, ILogger<EntityReaper>? logger = null)
     {
         _clock = clock;
@@ -19,6 +25,10 @@ public sealed partial class EntityReaper : IEntityReaper, IScanStrategy
         _logger = logger;
     }
 
+    /// <summary>
+    /// 执行一次全量扫描，回收可回收 Entity 并报告超时/泄漏
+    /// </summary>
+    /// <returns>本次回收的 Entity 数量</returns>
     public int ScanOnce()
     {
         var reclaimedCount = 0;
@@ -66,6 +76,10 @@ public sealed partial class EntityReaper : IEntityReaper, IScanStrategy
         return reclaimedCount;
     }
 
+    /// <summary>
+    /// 获取疑似泄漏的 Entity 列表（未 Dispose 且超过最大年龄）
+    /// </summary>
+    /// <returns>疑似泄漏的 Entity 列表</returns>
     public IReadOnlyList<JoinCode.Abstractions.Entity.Entity> GetLeakedEntities()
     {
         var now = _clock.GetUtcNow();
@@ -74,6 +88,10 @@ public sealed partial class EntityReaper : IEntityReaper, IScanStrategy
             .ToList();
     }
 
+    /// <summary>
+    /// 获取已超时但未 Dispose 的 Entity 列表
+    /// </summary>
+    /// <returns>已超时的 Entity 列表</returns>
     public IReadOnlyList<JoinCode.Abstractions.Entity.Entity> GetTimedOutEntities()
     {
         return GetAllEntities()
@@ -81,8 +99,19 @@ public sealed partial class EntityReaper : IEntityReaper, IScanStrategy
             .ToList();
     }
 
+    /// <summary>
+    /// Entity 被回收时触发
+    /// </summary>
     public event EventHandler<JoinCode.Abstractions.Entity.Entity>? EntityReclaimed;
+
+    /// <summary>
+    /// Entity 超时时触发
+    /// </summary>
     public event EventHandler<JoinCode.Abstractions.Entity.Entity>? EntityTimeout;
+
+    /// <summary>
+    /// 检测到疑似泄漏的 Entity 时触发
+    /// </summary>
     public event EventHandler<JoinCode.Abstractions.Entity.Entity>? EntityLeakDetected;
 
     private bool IsLeaked(JoinCode.Abstractions.Entity.Entity entity, DateTime now)

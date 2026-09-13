@@ -9,6 +9,11 @@ namespace JoinCode.ChatCommands;
 public sealed class CostCommand(IModelConfigLoader? modelConfigLoader = null) : ChatCommandBase
 {
     private readonly IModelConfigLoader? _modelConfigLoader = modelConfigLoader;
+    /// <summary>
+    /// 执行成本统计命令,根据 scope 参数选择今日/会话/累计范围并输出格式化成本报告
+    /// </summary>
+    /// <param name="context">命令执行上下文,提供参数与成本追踪器</param>
+    /// <returns>表示命令执行结果的任务,始终返回 Continue 以继续会话</returns>
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var services = context.GetCommandServices();

@@ -1,13 +1,43 @@
 namespace Core.Prompts;
 
+/// <summary>
+/// 工具空闲提醒配置 — 描述单个工具的空闲检测阈值与提醒文案。
+/// </summary>
 public sealed partial class ToolIdleReminderConfig
 {
+    /// <summary>
+    /// 工具名称。
+    /// </summary>
     public string ToolName { get; }
+
+    /// <summary>
+    /// 触发提醒所需的最小空闲回合数。
+    /// </summary>
     public int TurnsSinceUse { get; }
+
+    /// <summary>
+    /// 两次提醒之间的最小回合间隔。
+    /// </summary>
     public int TurnsBetweenReminders { get; }
+
+    /// <summary>
+    /// 提醒文案。
+    /// </summary>
     public string ReminderMessage { get; }
+
+    /// <summary>
+    /// 状态提供者 — 可选，用于附加当前工具状态到提醒文案。
+    /// </summary>
     public Func<CancellationToken, ValueTask<string>>? StateProvider { get; }
 
+    /// <summary>
+    /// 构造工具空闲提醒配置。
+    /// </summary>
+    /// <param name="toolName">工具名称。</param>
+    /// <param name="turnsSinceUse">触发提醒所需的最小空闲回合数。</param>
+    /// <param name="turnsBetweenReminders">两次提醒之间的最小回合间隔。</param>
+    /// <param name="reminderMessage">提醒文案。</param>
+    /// <param name="stateProvider">状态提供者，可选。</param>
     public ToolIdleReminderConfig(
         string toolName,
         int turnsSinceUse,
@@ -23,6 +53,9 @@ public sealed partial class ToolIdleReminderConfig
     }
 }
 
+/// <summary>
+/// 工具空闲提醒服务 — 监控工具调用间隔，超时触发提醒。
+/// </summary>
 [Register(typeof(IToolIdleReminderService), ServiceLifetime.Singleton)]
 public sealed partial class ToolIdleReminderService : ServiceEntity, IToolIdleReminderService
 {
@@ -100,6 +133,10 @@ public sealed partial class ToolIdleReminderService : ServiceEntity, IToolIdleRe
         ];
     }
 
+    /// <summary>
+    /// 记录一回合助手交互，更新各工具的空闲计数。
+    /// </summary>
+    /// <param name="toolNameUsed">本回合使用的工具名称，未使用则为 null。</param>
     public void RecordAssistantTurn(string? toolNameUsed = null)
     {
         foreach (var config in _configs)
@@ -117,6 +154,10 @@ public sealed partial class ToolIdleReminderService : ServiceEntity, IToolIdleRe
         }
     }
 
+    /// <summary>
+    /// 记录已向用户发送指定工具的提醒，重置其提醒间隔计数。
+    /// </summary>
+    /// <param name="toolName">工具名称。</param>
     public void RecordReminderSent(string toolName)
     {
         if (_turnsSinceLastReminder.ContainsKey(toolName))
@@ -125,6 +166,11 @@ public sealed partial class ToolIdleReminderService : ServiceEntity, IToolIdleRe
         }
     }
 
+    /// <summary>
+    /// 检查各工具空闲状态并生成提醒列表。
+    /// </summary>
+    /// <param name="ct">取消令牌。</param>
+    /// <returns>本次生成的提醒结果列表。</returns>
     public async Task<IReadOnlyList<ToolIdleReminderResult>> CheckAndGenerateRemindersAsync(
         CancellationToken ct = default)
     {
@@ -167,6 +213,9 @@ public sealed partial class ToolIdleReminderService : ServiceEntity, IToolIdleRe
         return results;
     }
 
+    /// <summary>
+    /// 重置所有工具的空闲计数与提醒间隔计数。
+    /// </summary>
     public void Reset()
     {
         foreach (var config in _configs)

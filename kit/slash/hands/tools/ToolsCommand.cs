@@ -7,6 +7,11 @@ namespace JoinCode.ChatCommands;
 [ChatCommand(Name = ChatCommandNameConstants.Tools, Description = "显示可用工具列表", Usage = "/tools", Category = ChatCommandCategory.Tools, ExposeToMcp = true)]
 public sealed class ToolsCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 异步执行 /tools 命令，显示可用工具列表及参数
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <returns>命令执行结果</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var services = context.GetCommandServices();

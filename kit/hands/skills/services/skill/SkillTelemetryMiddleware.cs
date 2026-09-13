@@ -7,6 +7,10 @@ namespace Core.Skills;
 public sealed partial class SkillTelemetryMiddleware : ServiceEntity, ISkillMiddleware
 {
 
+    /// <summary>
+    /// 创建 SkillTelemetryMiddleware
+    /// </summary>
+    /// <param name="telemetryService">遥测服务</param>
     public SkillTelemetryMiddleware(ITelemetryService? telemetryService = null)
     {
         _telemetryService = telemetryService;

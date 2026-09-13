@@ -5,7 +5,10 @@ namespace Services.Lsp.Internal;
 /// </summary>
 internal interface ILspCommand;
 
+/// <summary>初始化命令 — 携带配置列表、取消令牌和完成源</summary>
 internal sealed record InitializeCmd(List<LspInstanceConfig> Configs, CancellationToken Ct, TaskCompletionSource Tcs) : ILspCommand;
+
+/// <summary>关闭命令 — 携带取消令牌和完成源</summary>
 internal sealed record ShutdownCmd(CancellationToken Ct, TaskCompletionSource Tcs) : ILspCommand;
 
 /// <summary>
@@ -16,6 +19,11 @@ internal sealed class LspInitActor : ActorBase<ILspCommand, Unit>
     private readonly LspManager _owner;
     private readonly ILogger<LspManager> _logger;
 
+    /// <summary>
+    /// 构造 LSP 初始化 Actor
+    /// </summary>
+    /// <param name="owner">所属的 LSP 管理器</param>
+    /// <param name="logger">日志记录器</param>
     public LspInitActor(LspManager owner, ILogger<LspManager> logger)
         : base()
     {
@@ -25,6 +33,11 @@ internal sealed class LspInitActor : ActorBase<ILspCommand, Unit>
 
     private static TaskCompletionSource CreateTcs() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+    /// <summary>
+    /// 异步初始化 — 通过 Actor 邮箱序列化 InitializeCmd 执行
+    /// </summary>
+    /// <param name="configs">LSP 实例配置列表</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InitializeAsync(List<LspInstanceConfig> configs, CancellationToken ct)
     {
         var tcs = CreateTcs();
@@ -32,6 +45,10 @@ internal sealed class LspInitActor : ActorBase<ILspCommand, Unit>
         await tcs.Task.ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 异步关闭 — 通过 Actor 邮箱序列化 ShutdownCmd 执行
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
     public async Task ShutdownAsync(CancellationToken ct)
     {
         var tcs = CreateTcs();
@@ -39,6 +56,11 @@ internal sealed class LspInitActor : ActorBase<ILspCommand, Unit>
         await tcs.Task.ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 处理 Actor 命令 — 分发到 InitializeCoreAsync 或 ShutdownCoreAsync
+    /// </summary>
+    /// <param name="command">待处理的 LSP 命令</param>
+    /// <param name="ct">取消令牌</param>
     protected override async ValueTask HandleAsync(ILspCommand command, CancellationToken ct)
     {
         switch (command)
@@ -66,6 +88,10 @@ internal sealed class LspInitActor : ActorBase<ILspCommand, Unit>
         }
     }
 
+    /// <summary>
+    /// 消费者异常钩子 — 记录 Actor 消费循环中的未处理异常
+    /// </summary>
+    /// <param name="ex">捕获的异常</param>
     protected override void OnConsumerError(Exception ex)
     {
         _logger.LogError(ex, "[LspManager] Init Actor Consumer 异常");

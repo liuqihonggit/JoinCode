@@ -10,6 +10,10 @@ public class MacroToolHandlers
     private readonly IFileSystem _fileSystem;
     private readonly ILogger<MacroToolHandlers>? _logger;
 
+    /// <summary>构造宏录制工具处理器实例。</summary>
+    /// <param name="recorder">宏录制器，负责录制、回放与持久化操作序列。</param>
+    /// <param name="fileSystem">文件系统抽象，用于列举宏文件。</param>
+    /// <param name="logger">可选的日志记录器，传入 null 时静默运行。</param>
     public MacroToolHandlers(IMacroRecorder recorder, IFileSystem fileSystem, ILogger<MacroToolHandlers>? logger = null)
     {
         _recorder = recorder;

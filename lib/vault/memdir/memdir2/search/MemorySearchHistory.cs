@@ -134,6 +134,12 @@ public sealed partial class MemorySearchHistoryService : ServiceEntity, IMemoryS
     /// </summary>
     private ImmutableList<SearchHistoryEntry> _searchHistory = ImmutableList<SearchHistoryEntry>.Empty;
 
+    /// <summary>
+    /// 创建记忆搜索历史服务实例
+    /// </summary>
+    /// <param name="memoryStore">记忆存储,用于检索过往对话记忆</param>
+    /// <param name="logger">可选的日志记录器</param>
+    /// <param name="clock">可选的时钟服务,默认使用系统时钟</param>
     public MemorySearchHistoryService(
         MemoryStore memoryStore,
         ILogger<MemorySearchHistoryService>? logger = null,
@@ -341,5 +347,8 @@ public sealed partial class MemorySearchHistoryService : ServiceEntity, IMemoryS
         return (double)overlap / minCount > 0.3;
     }
 
+    /// <summary>
+    /// 释放资源 — 搜索历史为内存不可变快照,无需显式释放。
+    /// </summary>
     protected override void OnDispose() { }
 }

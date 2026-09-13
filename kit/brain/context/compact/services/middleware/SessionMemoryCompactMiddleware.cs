@@ -7,6 +7,11 @@ namespace Core.Context.Compact;
 public sealed partial class SessionMemoryCompactMiddleware : ServiceEntity, ICompactMiddleware
 {
 
+    /// <summary>
+    /// 初始化 <see cref="SessionMemoryCompactMiddleware"/> 实例
+    /// </summary>
+    /// <param name="sessionMemoryCompactService">会话记忆压缩服务</param>
+    /// <param name="logger">可选日志记录器</param>
     public SessionMemoryCompactMiddleware(ISessionMemoryCompactService sessionMemoryCompactService, ILogger<SessionMemoryCompactMiddleware>? logger = null)
     {
         _sessionMemoryCompactService = sessionMemoryCompactService;
@@ -15,6 +20,7 @@ public sealed partial class SessionMemoryCompactMiddleware : ServiceEntity, ICom
     private readonly ISessionMemoryCompactService _sessionMemoryCompactService;
     private readonly ILogger<SessionMemoryCompactMiddleware>? _logger;
 
+    /// <summary>中间件异常时的行为：继续传递给下一个中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
     /// <inheritdoc/>

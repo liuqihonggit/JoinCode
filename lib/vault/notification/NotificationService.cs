@@ -1,6 +1,9 @@
 
 namespace Services.Notification;
 
+/// <summary>
+/// 通知服务 — 在 Windows 上弹出系统通知,其他平台输出日志
+/// </summary>
 [Register(typeof(INotificationService), ServiceLifetime.Singleton)]
 public partial class NotificationService : ServiceEntity, INotificationService
 {
@@ -9,8 +12,16 @@ public partial class NotificationService : ServiceEntity, INotificationService
     private readonly bool _isWindows;
     private readonly bool _isTestEnvironment;
 
+    /// <summary>
+    /// 通知发送事件 — 在通知发送后触发
+    /// </summary>
     public event EventHandler<NotificationSentEventArgs>? NotificationSent;
 
+    /// <summary>
+    /// 创建通知服务实例
+    /// </summary>
+    /// <param name="logger">可选的日志记录器</param>
+    /// <param name="telemetryService">可选的遥测服务</param>
     public NotificationService(ILogger<NotificationService>? logger = null, ITelemetryService? telemetryService = null)
     {
         _logger = logger;
@@ -19,6 +30,7 @@ public partial class NotificationService : ServiceEntity, INotificationService
         _isTestEnvironment = IsTestEnvironment();
     }
 
+    /// <inheritdoc />
     public bool IsAvailable => _isWindows;
 
     private static bool IsTestEnvironment()
@@ -26,6 +38,7 @@ public partial class NotificationService : ServiceEntity, INotificationService
         return TestEnvironmentDetector.IsTestEnvironment;
     }
 
+    /// <inheritdoc />
     public async Task NotifyAsync(string title, string message, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(message))
@@ -49,6 +62,7 @@ public partial class NotificationService : ServiceEntity, INotificationService
         }
     }
 
+    /// <inheritdoc />
     public async Task NotifyTaskCompletedAsync(string taskId, string description, bool success, CancellationToken cancellationToken = default)
     {
         var title = success ? L.T(StringKey.VaultTaskCompleted) : L.T(StringKey.VaultTaskFailed);
@@ -56,6 +70,7 @@ public partial class NotificationService : ServiceEntity, INotificationService
         await NotifyAsync(title, msg, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public async Task NotifyAgentMessageAsync(string agentId, string agentName, string message, CancellationToken cancellationToken = default)
     {
         var title = L.T(StringKey.VaultAgentMessage, agentName);
@@ -108,10 +123,19 @@ public partial class NotificationService : ServiceEntity, INotificationService
 /// </summary>
 public sealed partial class NotificationSentEventArgs : EventArgs
 {
+    /// <summary>通知标题</summary>
     public string Title { get; }
+    /// <summary>通知正文</summary>
     public string Message { get; }
+    /// <summary>通知级别(如 Info、Warning、Error)</summary>
     public string Level { get; }
 
+    /// <summary>
+    /// 创建通知发送事件参数
+    /// </summary>
+    /// <param name="title">通知标题</param>
+    /// <param name="message">通知正文</param>
+    /// <param name="level">通知级别</param>
     public NotificationSentEventArgs(string title, string message, string level)
     {
         Title = title;
@@ -127,19 +151,26 @@ public partial class ConsoleNotificationService : INotificationService
 {
     private readonly ILogger<ConsoleNotificationService>? _logger;
 
+    /// <summary>
+    /// 创建控制台通知服务实例
+    /// </summary>
+    /// <param name="logger">可选的日志记录器</param>
     public ConsoleNotificationService(ILogger<ConsoleNotificationService>? logger = null)
     {
         _logger = logger;
     }
 
+    /// <inheritdoc />
     public bool IsAvailable => true;
 
+    /// <inheritdoc />
     public Task NotifyAsync(string title, string message, CancellationToken cancellationToken = default)
     {
         _logger?.LogInformation("[{Timestamp}] {Title}: {Message}", DateTime.Now.ToString("HH:mm:ss"), title, message);
         return Task.CompletedTask;
     }
 
+    /// <inheritdoc />
     public Task NotifyTaskCompletedAsync(string taskId, string description, bool success, CancellationToken cancellationToken = default)
     {
         var title = success ? L.T(StringKey.VaultTaskCompleted) : L.T(StringKey.VaultTaskFailed);
@@ -147,6 +178,7 @@ public partial class ConsoleNotificationService : INotificationService
         return NotifyAsync(title, message, cancellationToken);
     }
 
+    /// <inheritdoc />
     public Task NotifyAgentMessageAsync(string agentId, string agentName, string message, CancellationToken cancellationToken = default)
     {
         var title = L.T(StringKey.VaultAgentMessage, agentName);

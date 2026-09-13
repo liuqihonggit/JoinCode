@@ -1,6 +1,9 @@
 
 namespace Core.CostTracking;
 
+/// <summary>
+/// 分析服务 — 跟踪工具调用、代理执行等分析事件，支持持久化、查询与导出
+/// </summary>
 [Register(typeof(IAnalyticsService), ServiceLifetime.Singleton)]
 public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService, IDisposable
 {
@@ -14,6 +17,14 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
     private readonly CancellationTokenSource _disposeCts = new();
     private int _disposed;
 
+    /// <summary>
+    /// 构造分析服务实例
+    /// </summary>
+    /// <param name="fileOperationService">文件操作服务（可选，提供时启用历史持久化）</param>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="storagePath">历史数据存储路径（可选）</param>
+    /// <param name="telemetryService">遥测服务（可选）</param>
+    /// <param name="clock">时钟服务（可选，默认使用系统时钟）</param>
     public AnalyticsService(
         IFileOperationService? fileOperationService = null,
         ILogger<AnalyticsService>? logger = null,
@@ -33,6 +44,13 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
         }
     }
 
+    /// <summary>
+    /// 跟踪分析事件
+    /// </summary>
+    /// <param name="type">事件类型</param>
+    /// <param name="name">事件名称</param>
+    /// <param name="data">事件附加数据字典（可选）</param>
+    /// <param name="agentName">代理名称（可选）</param>
     public void TrackEvent(AnalyticsEventType type, string name, Dictionary<string, JsonElement>? data = null, string? agentName = null)
     {
         if (_disposed != 0) return;
@@ -61,6 +79,14 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
         TrimEventsIfNeeded();
     }
 
+    /// <summary>
+    /// 跟踪工具调用事件 — 记录调用结果与耗时，并上报遥测指标
+    /// </summary>
+    /// <param name="toolName">工具名称</param>
+    /// <param name="success">是否调用成功</param>
+    /// <param name="durationMs">调用耗时（毫秒）</param>
+    /// <param name="data">附加数据字典（可选）</param>
+    /// <param name="agentName">代理名称（可选）</param>
     public void TrackToolCall(string toolName, bool success, double durationMs, Dictionary<string, JsonElement>? data = null, string? agentName = null)
     {
         TrackEvent(
@@ -83,6 +109,13 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
         }
     }
 
+    /// <summary>
+    /// 跟踪工具调用错误事件
+    /// </summary>
+    /// <param name="toolName">工具名称</param>
+    /// <param name="errorMessage">错误消息</param>
+    /// <param name="data">附加数据字典（可选）</param>
+    /// <param name="agentName">代理名称（可选）</param>
     public void TrackToolError(string toolName, string errorMessage, Dictionary<string, JsonElement>? data = null, string? agentName = null)
     {
         TrackEvent(
@@ -101,6 +134,11 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
         }
     }
 
+    /// <summary>
+    /// 跟踪代理启动事件 — 同时在遥测服务中开启代理执行 span
+    /// </summary>
+    /// <param name="agentName">代理名称</param>
+    /// <param name="sessionId">会话标识（可选）</param>
     public void TrackAgentStart(string agentName, string? sessionId = null)
     {
         TrackEvent(
@@ -125,6 +163,14 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
         }
     }
 
+    /// <summary>
+    /// 异步跟踪代理完成事件 — 结束对应遥测 span 并记录执行耗时
+    /// </summary>
+    /// <param name="agentName">代理名称</param>
+    /// <param name="success">是否执行成功</param>
+    /// <param name="durationMs">执行耗时（毫秒）</param>
+    /// <param name="sessionId">会话标识（可选）</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task TrackAgentCompleteAsync(string agentName, bool success, double durationMs, string? sessionId = null)
     {
         TrackEvent(
@@ -153,6 +199,11 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
         }
     }
 
+    /// <summary>
+    /// 获取工具使用统计信息
+    /// </summary>
+    /// <param name="days">统计天数（可选，默认统计全部历史）</param>
+    /// <returns>按调用次数降序排列的工具使用统计列表</returns>
     public List<ToolUsageStatistics> GetToolUsageStatistics(int? days = null)
     {
         var cutoffDate = days.HasValue ? _clock.GetUtcNow().AddDays(-days.Value) : DateTime.MinValue;
@@ -181,6 +232,11 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
         return grouped;
     }
 
+    /// <summary>
+    /// 获取使用情况综合报告 — 包含事件总数、工具调用成功率、日均统计等
+    /// </summary>
+    /// <param name="days">统计天数（可选，默认统计全部历史）</param>
+    /// <returns>使用情况综合报告</returns>
     public UsageStatisticsReport GetUsageReport(int? days = null)
     {
         var cutoffDate = days.HasValue ? _clock.GetUtcNow().AddDays(-days.Value) : DateTime.MinValue;
@@ -221,6 +277,12 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
         };
     }
 
+    /// <summary>
+    /// 获取事件历史列表
+    /// </summary>
+    /// <param name="type">事件类型过滤（可选，默认不过滤）</param>
+    /// <param name="limit">返回条数上限</param>
+    /// <returns>按时间降序排列的事件列表</returns>
     public List<AnalyticsEvent> GetEventHistory(AnalyticsEventType? type = null, int limit = WorkflowConstants.Analytics.DefaultEventHistoryLimit)
     {
         var events = _events.AsEnumerable();
@@ -236,6 +298,10 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
             .ToList();
     }
 
+    /// <summary>
+    /// 清除历史事件 — 可指定仅清除指定天数之前的数据
+    /// </summary>
+    /// <param name="olderThanDays">清除该天数之前的数据（可选，默认清除全部）</param>
     public void ClearHistory(int? olderThanDays = null)
     {
         if (olderThanDays.HasValue)
@@ -269,6 +335,13 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
         }
     }
 
+    /// <summary>
+    /// 异步导出分析数据为 JSON 字符串
+    /// </summary>
+    /// <param name="startDate">起始时间过滤（可选）</param>
+    /// <param name="endDate">结束时间过滤（可选）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>缩进格式化的 JSON 字符串</returns>
     public async Task<string> ExportDataAsync(DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default)
     {
         var events = _events.AsEnumerable();
@@ -359,6 +432,9 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
 
     #endregion
 
+    /// <summary>
+    /// 释放资源 — 取消内部令牌并释放遥测 span
+    /// </summary>
     protected override void OnDispose()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;

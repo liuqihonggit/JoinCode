@@ -5,6 +5,10 @@ namespace Core.Prompts.Sections;
 /// </summary>
 [PromptSection(Name = "system_reminders", Order = 4)]
 public static class SystemRemindersSection {
+    /// <summary>
+    /// 创建系统提醒提示词部分。
+    /// </summary>
+    /// <returns>缓存系统提示词部分。</returns>
     public static SystemPromptSection Create() {
         return SystemPromptSection.Cached("system_reminders", () => {
             return """

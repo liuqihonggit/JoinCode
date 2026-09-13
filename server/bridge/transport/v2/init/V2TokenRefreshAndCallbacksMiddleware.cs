@@ -8,6 +8,13 @@ namespace Core.Bridge.Init.V2;
 internal sealed partial class V2TokenRefreshAndCallbacksMiddleware : ServiceEntity, IMiddleware<V2BridgeInitContext>
 {
 
+    /// <summary>
+    /// 执行 V2 JWT 刷新调度器装配、传输回调挂接与连接 — 顺序: 装配状态 → 调度刷新 → 挂接回调 → 连接传输 → 设置全局句柄
+    /// </summary>
+    /// <param name="ctx">V2 Bridge 初始化上下文</param>
+    /// <param name="next">下一管道委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public Task InvokeAsync(V2BridgeInitContext ctx, MiddlewareDelegate<V2BridgeInitContext> next, CancellationToken ct)
     {
         var sessionId = ctx.SessionId ?? throw new InvalidOperationException("SessionId is not set. Ensure TokenValidationMiddleware runs first.");

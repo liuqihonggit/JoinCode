@@ -10,13 +10,27 @@ public sealed partial class CrashSnapshotMiddleware : ServiceEntity, IToolExecut
 {
     private readonly ICrashSnapshotStore _store;
 
+    /// <summary>
+    /// 构造函数 — 注入崩溃快照存储
+    /// </summary>
+    /// <param name="store">崩溃快照存储实例，用于持久化工具执行失败快照</param>
     public CrashSnapshotMiddleware(ICrashSnapshotStore store)
     {
         _store = store;
     }
 
+    /// <summary>
+    /// 错误处理行为 — Continue 表示记录快照后不中断管道，异常继续向外层传播
+    /// </summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
+    /// <summary>
+    /// 调用下一层中间件；若结果为错误则构造 CrashSnapshot 并写入存储，实现零侵入异常记录
+    /// </summary>
+    /// <param name="context">工具执行上下文</param>
+    /// <param name="next">下一层中间件委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task InvokeAsync(ToolExecutionContext context, MiddlewareDelegate<ToolExecutionContext> next, CancellationToken ct)
     {
         await next(context, ct).ConfigureAwait(false);

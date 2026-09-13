@@ -1,15 +1,30 @@
 namespace Tools.Handlers;
 
+/// <summary>
+/// ApplyPatch 应用逻辑,解析 unified diff 补丁并按 hunk 上下文逐文件应用修改。
+/// </summary>
 [Register(typeof(ApplyPatchLogic), ServiceLifetime.Singleton)]
 public sealed partial class ApplyPatchLogic : ServiceEntity
 {
 
+    /// <summary>
+    /// 初始化 ApplyPatchLogic 的新实例。
+    /// </summary>
+    /// <param name="fs">文件系统抽象。</param>
     public ApplyPatchLogic(IFileSystem fs)
     {
         _fs = fs;
     }
     private readonly IFileSystem _fs;
 
+    /// <summary>
+    /// 异步应用 unified diff 补丁到工作目录,支持 dry-run 预演模式。
+    /// </summary>
+    /// <param name="patch">unified diff 补丁文本。</param>
+    /// <param name="dryRun">是否仅预演不实际写入。</param>
+    /// <param name="workingDirectory">工作目录,用于解析补丁中的相对路径;null 表示当前目录。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>包含修改统计、详情与已修改文件路径的应用结果。</returns>
     public async Task<ApplyPatchResult> ApplyAsync(
         string patch,
         bool dryRun,

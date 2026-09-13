@@ -7,6 +7,9 @@ namespace McpToolDispatch;
 /// </summary>
 public partial class GitHubToolHandlers
 {
+    /// <summary>
+    /// 列出 Release — 调 REST API 获取 Release 列表，精简输出（含 asset 摘要）
+    /// </summary>
     [McpTool(GitHubToolNameConstants.GhReleaseList, "列出 Release", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhReleaseListAsync(
         [McpToolParameter("数量限制(默认 30)", Required = false)] int? limit = null,
@@ -72,6 +75,9 @@ public partial class GitHubToolHandlers
         }
     }
 
+    /// <summary>
+    /// 查看 Release 详情 — 调 REST API 获取 Release 信息（含 asset 列表）
+    /// </summary>
     [McpTool(GitHubToolNameConstants.GhReleaseView, "查看 Release 详情(含 asset 列表)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhReleaseViewAsync(
         [McpToolParameter("Release tag 名称", Required = true)] string tag,
@@ -88,6 +94,9 @@ public partial class GitHubToolHandlers
         return result.Success ? Ok(result.Body) : Fail(result.Error);
     }
 
+    /// <summary>
+    /// 创建 Release — 支持 draft/prerelease、目标 commit/branch，调 REST API POST
+    /// </summary>
     [McpTool(GitHubToolNameConstants.GhReleaseCreate, "创建 Release(支持 draft/prerelease)", "github")]
     public async Task<ToolResult> GhReleaseCreateAsync(
         [McpToolParameter("Release tag 名称", Required = true)] string tag,
@@ -119,6 +128,9 @@ public partial class GitHubToolHandlers
         return result.Success ? Ok(result.Body, $"已创建 Release {tag}") : Fail(result.Error);
     }
 
+    /// <summary>
+    /// 下载 Release asset — 复用 IDownloader 多线程分片 + 断点续传，支持 asset 名称过滤和并发数控制
+    /// </summary>
     [McpTool(GitHubToolNameConstants.GhReleaseDownload, "下载 Release asset(复用多线程分片+断点续传,解决下载失败)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhReleaseDownloadAsync(
         [McpToolParameter("Release tag 名称", Required = true)] string tag,
@@ -213,6 +225,9 @@ public partial class GitHubToolHandlers
             : ToolResultBuilder.Error().WithText(sb.ToString()).Build();
     }
 
+    /// <summary>
+    /// 上传 asset 到 Release — 走 uploads.github.com 二进制上传，支持多文件逗号分隔
+    /// </summary>
     [McpTool(GitHubToolNameConstants.GhReleaseUpload, "上传 asset 到 Release", "github")]
     public async Task<ToolResult> GhReleaseUploadAsync(
         [McpToolParameter("Release tag 名称", Required = true)] string tag,
@@ -273,6 +288,9 @@ public partial class GitHubToolHandlers
             : ToolResultBuilder.Error().WithText(sb.ToString()).Build();
     }
 
+    /// <summary>
+    /// 删除 Release — 调 REST API DELETE
+    /// </summary>
     [McpTool(GitHubToolNameConstants.GhReleaseDelete, "删除 Release", "github")]
     public async Task<ToolResult> GhReleaseDeleteAsync(
         [McpToolParameter("Release tag 名称", Required = true)] string tag,

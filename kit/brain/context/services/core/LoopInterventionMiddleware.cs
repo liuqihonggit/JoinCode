@@ -35,6 +35,15 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
     private readonly ILogger<LoopInterventionMiddleware>? _logger;
 
 
+    /// <summary>
+    /// 初始化循环干预中间件
+    /// </summary>
+    /// <param name="kernel">聊天客户端</param>
+    /// <param name="contextManager">聊天上下文管理器</param>
+    /// <param name="chunkProcessor">流式块处理器</param>
+    /// <param name="progressTracker">任务进度追踪器（可选）</param>
+    /// <param name="options">循环干预选项（可选）</param>
+    /// <param name="logger">可选日志记录器</param>
     public LoopInterventionMiddleware(
         IChatClient kernel,
         IChatContextManager contextManager,
@@ -51,6 +60,13 @@ public sealed partial class LoopInterventionMiddleware : ServiceEntity, IChatMid
         _logger = logger;
     }
 
+    /// <summary>
+    /// 拦截 LoopDetected 事件，按漏斗级别执行软干预/硬截断/上下文压缩策略
+    /// </summary>
+    /// <param name="context">中间件共享上下文</param>
+    /// <param name="next">下游中间件委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>聊天流事件异步枚举</returns>
     public async IAsyncEnumerable<ChatStreamEvent> InvokeAsync(
         ChatMiddlewareContext context,
         StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,

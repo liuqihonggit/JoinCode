@@ -2,6 +2,9 @@
 
 namespace Tools.Handlers;
 
+/// <summary>
+/// 文件工具处理器 — 提供 Read/Write/Edit/List/Patch/Snip/Delete/Diagnostics 等文件操作工具
+/// </summary>
 [McpToolDispatch(ToolCategory.File)]
 public partial class FileToolHandlers : IDisposable
 {
@@ -52,6 +55,13 @@ public partial class FileToolHandlers : IDisposable
     /// </summary>
     private const int DefaultMaxReadTokens = 25000;
 
+    /// <summary>
+    /// 构造文件工具处理器
+    /// </summary>
+    /// <param name="fileOperationService">文件操作服务，提供读写编辑等基础能力</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="context">可选依赖上下文，聚合各服务和逻辑组件</param>
+    /// <param name="logger">可选日志记录器</param>
     public FileToolHandlers(
         IFileOperationService fileOperationService,
         IFileSystem fs,
@@ -169,6 +179,9 @@ public partial class FileToolHandlers : IDisposable
         }, ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 释放资源 — 取消所有待处理的 LSP 通知并释放信号量
+    /// </summary>
     public void Dispose()
     {
         _disposeCts.CancelAndDisposeSafe(_logger);

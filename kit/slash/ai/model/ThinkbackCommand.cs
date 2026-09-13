@@ -1,10 +1,18 @@
 
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /thinkback 命令 — 回放 AI 的思考过程记录
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Thinkback, Description = "回放 AI 的思考过程", Usage = "/thinkback [count]", Category = ChatCommandCategory.Model, ArgumentHint = "[count]")]
 [ChatCommandArg("count", Type = "number", Description = "回放最近 N 条思考记录,省略或非法时默认 1", Default = "1")]
 public sealed class ThinkbackCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行回放命令,从思考存储中读取最近 N 条记录并输出到终端
+    /// </summary>
+    /// <param name="context">命令执行上下文,提供会话 ID、取消令牌与命令服务</param>
+    /// <returns>表示命令执行结果的任务,始终返回 Continue 以继续会话</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var services = context.GetCommandServices();

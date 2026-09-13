@@ -5,6 +5,10 @@ namespace Core.Prompts.Sections;
 /// </summary>
 [PromptSection(Name = "coding_philosophy", Order = 5)]
 public static class CodingPhilosophySection {
+    /// <summary>
+    /// 创建编码哲学 Section 实例（内容缓存）。
+    /// </summary>
+    /// <returns>编码哲学 Section 实例。</returns>
     public static SystemPromptSection Create() {
         return SystemPromptSection.Cached("coding_philosophy", () => {
             return """

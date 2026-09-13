@@ -49,8 +49,14 @@ public static class TerminalHelper
     /// </summary>
     private static bool _originalIsOutputRedirected;
 
+    /// <summary>
+    /// 是否为无头模式 — 未强制交互且（输出重定向或输入重定向）时为 true
+    /// </summary>
     public static bool IsHeadless => !ForceInteractive && (IsOutputRedirected || System.Console.IsInputRedirected);
 
+    /// <summary>
+    /// 标准输入是否被重定向
+    /// </summary>
     public static bool IsInputRedirected => System.Console.IsInputRedirected;
 
     /// <summary>
@@ -58,6 +64,9 @@ public static class TerminalHelper
     /// </summary>
     public static bool IsOutputRedirected => _isActorActive ? _originalIsOutputRedirected : System.Console.IsOutputRedirected;
 
+    /// <summary>
+    /// 初始化终端 — 捕获真实 stdout、检测 NO_COLOR、Windows 下启用虚拟终端处理、安装 ConsoleActor 串行化 I/O
+    /// </summary>
     public static void Init()
     {
         if (_isInitialized) return;
@@ -95,6 +104,10 @@ public static class TerminalHelper
     /// </summary>
     public static bool NoColor => _noColor;
 
+    /// <summary>
+    /// 获取终端宽度（列数）— 优先 WindowWidth，失败回退 BufferWidth，再失败回退 80
+    /// </summary>
+    /// <returns>终端列数</returns>
     public static int GetWidth()
     {
         try { return System.Console.WindowWidth; }
@@ -105,12 +118,20 @@ public static class TerminalHelper
         }
     }
 
+    /// <summary>
+    /// 获取终端高度（行数）— 优先 WindowHeight，失败回退 24
+    /// </summary>
+    /// <returns>终端行数</returns>
     public static int GetHeight()
     {
         try { return System.Console.WindowHeight; }
         catch { return 24; }
     }
 
+    /// <summary>
+    /// 写入一行文本并换行 — 经过 ConsoleActor 串行化
+    /// </summary>
+    /// <param name="text">要写入的文本，null 时仅换行</param>
     public static void WriteLine(string? text = null)
     {
         if (_consoleActor is not null)
@@ -123,6 +144,9 @@ public static class TerminalHelper
         }
     }
 
+    /// <summary>
+    /// 写入空行 — 经过 ConsoleActor 串行化
+    /// </summary>
     public static void NewLine()
     {
         if (_consoleActor is not null)
@@ -134,6 +158,10 @@ public static class TerminalHelper
         }
     }
 
+    /// <summary>
+    /// 原始写入字符串（不换行）— 经过 ConsoleActor 串行化
+    /// </summary>
+    /// <param name="text">要写入的文本</param>
     public static void WriteRaw(string text)
     {
         if (_consoleActor is not null)
@@ -145,6 +173,10 @@ public static class TerminalHelper
         }
     }
 
+    /// <summary>
+    /// 原始写入字符（不换行）— 经过 ConsoleActor 串行化
+    /// </summary>
+    /// <param name="c">要写入的字符</param>
     public static void WriteRaw(char c)
     {
         if (_consoleActor is not null)
@@ -156,6 +188,10 @@ public static class TerminalHelper
         }
     }
 
+    /// <summary>
+    /// 原始写入 StringBuilder 内容（不换行）— 经过 ConsoleActor 串行化
+    /// </summary>
+    /// <param name="sb">要写入的 StringBuilder</param>
     public static void WriteRaw(StringBuilder sb)
     {
         if (_consoleActor is not null)
@@ -167,6 +203,10 @@ public static class TerminalHelper
         }
     }
 
+    /// <summary>
+    /// 原始写入字符跨度（不换行）— 经过 ConsoleActor 串行化
+    /// </summary>
+    /// <param name="span">要写入的字符跨度</param>
     public static void WriteRaw(ReadOnlySpan<char> span)
     {
         if (_consoleActor is not null)
@@ -178,6 +218,10 @@ public static class TerminalHelper
         }
     }
 
+    /// <summary>
+    /// 读取一行输入 — 输入重定向且未强制交互时返回空字符串，经过 ConsoleActor 串行化
+    /// </summary>
+    /// <returns>读取到的行（EOF 时为空字符串）</returns>
     public static string ReadLine()
     {
         if (System.Console.IsInputRedirected && !ForceInteractive)
@@ -193,6 +237,11 @@ public static class TerminalHelper
         return result;
     }
 
+    /// <summary>
+    /// 读取按键 — 输入重定向且未强制交互时返回默认值，经过 ConsoleActor 串行化
+    /// </summary>
+    /// <param name="intercept">是否拦截按键（不显示到输出）</param>
+    /// <returns>按键信息</returns>
     public static ConsoleKeyInfo ReadKey(bool intercept = false)
     {
         if (System.Console.IsInputRedirected && !ForceInteractive) return default;
@@ -216,22 +265,39 @@ public static class TerminalHelper
             : System.Console.ReadLine();
     }
 
+    /// <summary>
+    /// 是否有按键可读
+    /// </summary>
     public static bool KeyAvailable => System.Console.KeyAvailable;
 
+    /// <summary>
+    /// 前景色 — 转发到 Console.ForegroundColor
+    /// </summary>
     public static ConsoleColor ForegroundColor
     {
         get => System.Console.ForegroundColor;
         set => System.Console.ForegroundColor = value;
     }
 
+    /// <summary>
+    /// 背景色 — 转发到 Console.BackgroundColor
+    /// </summary>
     public static ConsoleColor BackgroundColor
     {
         get => System.Console.BackgroundColor;
         set => System.Console.BackgroundColor = value;
     }
 
+    /// <summary>
+    /// 重置控制台颜色到默认值
+    /// </summary>
     public static void ResetColor() => System.Console.ResetColor();
 
+    /// <summary>
+    /// 设置前景色并返回作用域 — NO_COLOR 模式返回空操作，离开作用域时自动恢复原色
+    /// </summary>
+    /// <param name="color">要设置的前景色</param>
+    /// <returns>颜色作用域，Dispose 时恢复原色</returns>
     public static IDisposable SetColor(ConsoleColor color) => _noColor ? NoOpDisposable.Instance : new ColorScope(color, _consoleActor);
 
     private sealed class ColorScope : IDisposable
@@ -266,6 +332,9 @@ public static class TerminalHelper
         public void Dispose() { }
     }
 
+    /// <summary>
+    /// 清屏 — 输出重定向时不执行
+    /// </summary>
     public static void ClearScreen()
     {
         if (!IsOutputRedirected)
@@ -277,9 +346,21 @@ public static class TerminalHelper
         }
     }
 
+    /// <summary>
+    /// 光标行位置（顶部坐标）
+    /// </summary>
     public static int CursorTop => System.Console.CursorTop;
+
+    /// <summary>
+    /// 光标列位置（左侧坐标）
+    /// </summary>
     public static int CursorLeft => System.Console.CursorLeft;
 
+    /// <summary>
+    /// 设置光标位置 — 经过 ConsoleActor 串行化
+    /// </summary>
+    /// <param name="left">列坐标</param>
+    /// <param name="top">行坐标</param>
     public static void SetCursorPosition(int left, int top)
     {
         if (_consoleActor is not null)
@@ -288,6 +369,10 @@ public static class TerminalHelper
             System.Console.SetCursorPosition(left, top);
     }
 
+    /// <summary>
+    /// 重定向标准输出到指定写入器
+    /// </summary>
+    /// <param name="writer">目标写入器</param>
     public static void SetOut(System.IO.TextWriter writer) => System.Console.SetOut(writer);
 
     /// <summary>
@@ -335,24 +420,49 @@ public static class TerminalHelper
         }
     }
 
+    /// <summary>
+    /// 标准输出写入器
+    /// </summary>
     public static System.IO.TextWriter Out => System.Console.Out;
+
+    /// <summary>
+    /// 标准输入读取器
+    /// </summary>
     public static System.IO.TextReader In => System.Console.In;
+
+    /// <summary>
+    /// 标准错误写入器
+    /// </summary>
     public static System.IO.TextWriter Error => System.Console.Error;
 
+    /// <summary>
+    /// 写入一行错误文本并换行
+    /// </summary>
+    /// <param name="text">要写入的错误文本，null 时仅换行</param>
     public static void WriteError(string? text = null)
     {
         if (text is null) System.Console.Error.WriteLine();
         else System.Console.Error.WriteLine(text);
     }
 
+    /// <summary>
+    /// 原始写入错误流（不换行）
+    /// </summary>
+    /// <param name="text">要写入的错误文本</param>
     public static void WriteErrorRaw(string text) => System.Console.Error.Write(text);
 
+    /// <summary>
+    /// 控制台输出编码
+    /// </summary>
     public static System.Text.Encoding OutputEncoding
     {
         get => System.Console.OutputEncoding;
         set => System.Console.OutputEncoding = value;
     }
 
+    /// <summary>
+    /// 取消按键事件（Ctrl+C）— 转发到 Console.CancelKeyPress
+    /// </summary>
     public static event ConsoleCancelEventHandler CancelKeyPress
     {
         add => System.Console.CancelKeyPress += value;

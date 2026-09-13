@@ -1,6 +1,9 @@
 
 namespace Core.Skills.Search;
 
+/// <summary>
+/// 技能搜索服务 — 基于关键词、标签、类别和上下文进行技能检索和推荐
+/// </summary>
 [Register(typeof(ISkillSearchService), ServiceLifetime.Singleton)]
 [Register(typeof(JoinCode.Abstractions.Interfaces.ISkillSearchService), ServiceLifetime.Singleton)]
 public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchService, JoinCode.Abstractions.Interfaces.ISkillSearchService
@@ -12,6 +15,11 @@ public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchServ
     private DateTime _lastIndexTime = DateTime.MinValue;
     private readonly AsyncLock _indexLock = new();
 
+    /// <summary>
+    /// 创建技能搜索服务
+    /// </summary>
+    /// <param name="skillService">技能服务</param>
+    /// <param name="logger">日志记录器</param>
     public SkillSearchService(
         ISkillService skillService,
         ILogger<SkillSearchService>? logger = null)
@@ -21,6 +29,12 @@ public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchServ
         _logger = logger;
     }
 
+    /// <summary>
+    /// 异步搜索技能 — 按关键词、标签、类别匹配并分页返回
+    /// </summary>
+    /// <param name="query">搜索查询</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>搜索结果列表</returns>
     public async Task<IReadOnlyList<SkillSearchResult>> SearchAsync(
         SkillSearchQuery query,
         CancellationToken cancellationToken = default)
@@ -63,6 +77,13 @@ public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchServ
         return sorted;
     }
 
+    /// <summary>
+    /// 基于上下文异步推荐技能 — 提取上下文关键词后按相关性排序
+    /// </summary>
+    /// <param name="context">上下文描述</param>
+    /// <param name="maxResults">最大返回结果数</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>推荐结果列表</returns>
     public async Task<IReadOnlyList<SkillSearchResult>> RecommendAsync(
         string context,
         int maxResults = 5,
@@ -100,6 +121,12 @@ public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchServ
             .ToList();
     }
 
+    /// <summary>
+    /// 流式搜索技能 — 逐项产出匹配的技能结果
+    /// </summary>
+    /// <param name="query">搜索查询</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>搜索结果异步枚举</returns>
     public async IAsyncEnumerable<SkillSearchResult> SearchStreamAsync(
         SkillSearchQuery query,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
@@ -324,6 +351,9 @@ public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchServ
             .ToList();
     }
 
+    /// <summary>
+    /// 释放资源 — 释放索引锁
+    /// </summary>
     protected override void OnDispose() => _indexLock.Dispose();
 
 }

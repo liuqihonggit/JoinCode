@@ -14,8 +14,15 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     private readonly ConcurrentDictionary<string, SubAgentResult> _results;
     private int _agentCounter;
 
+    /// <summary>暴露给同程序集内部使用的状态机引用，用于直接查询或驱动状态转换</summary>
     internal AgentStateMachine StateMachine => _stateMachine;
 
+    /// <summary>
+    /// 构造 Agent 生命周期管理器实例
+    /// </summary>
+    /// <param name="queryEngine">查询引擎，用于创建子代理</param>
+    /// <param name="stateMachine">Agent 状态机，负责跟踪各 Agent 的执行状态</param>
+    /// <param name="logger">可选日志记录器</param>
     public AgentLifecycleManager(IQueryEngine queryEngine,  AgentStateMachine stateMachine, ILogger? logger = null)
     {
         _queryEngine = queryEngine ?? throw new ArgumentNullException(nameof(queryEngine));

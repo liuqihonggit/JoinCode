@@ -103,6 +103,12 @@ public sealed partial class WorkSecretStore : ServiceEntity, IWorkSecretStore, I
     private const int TagSizeBytes = 16;
     private const int KeySizeBytes = 32; // AES-256
 
+    /// <summary>
+    /// 构造工作密钥存储 — 从配置加载加密密钥或生成随机密钥
+    /// </summary>
+    /// <param name="config">桥接配置 — null 表示使用随机加密密钥</param>
+    /// <param name="logger">日志器 — null 表示不记录日志</param>
+    /// <param name="clock">时钟服务 — null 使用系统时钟</param>
     public WorkSecretStore(BridgeConfig? config = null, ILogger<WorkSecretStore>? logger = null, IClockService? clock = null)
     {
         var keyBytes = string.IsNullOrEmpty(config?.EncryptionKeyBase64)
@@ -315,6 +321,9 @@ public sealed partial class WorkSecretStore : ServiceEntity, IWorkSecretStore, I
         return Encoding.UTF8.GetString(plainBytes);
     }
 
+    /// <summary>
+    /// 释放资源 — 清零加密密钥
+    /// </summary>
     protected override void OnDispose()
     {
         Array.Clear(_encryptionKey);

@@ -18,6 +18,12 @@ public sealed class BridgeDeviceTokenService
     /// <summary>受信设备令牌环境变量名</summary>
     private static readonly string TrustedDeviceTokenEnvVar = JccEnvVar.TrustedDeviceToken.ToValue();
 
+    /// <summary>
+    /// 构造 BridgeDeviceTokenService — 使用默认 auth.json 路径
+    /// </summary>
+    /// <param name="httpClient">HTTP 客户端</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public BridgeDeviceTokenService(HttpClient httpClient, IFileSystem fs, ILogger? logger = null)
         : this(httpClient, fs, logger, authFilePath: null)
     {
@@ -26,6 +32,10 @@ public sealed class BridgeDeviceTokenService
     /// <summary>
     /// 可注入 authFilePath 用于测试
     /// </summary>
+    /// <param name="httpClient">HTTP 客户端</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="authFilePath">认证文件路径（null 时使用默认路径）</param>
     internal BridgeDeviceTokenService(HttpClient httpClient, IFileSystem fs, ILogger? logger, string? authFilePath)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
@@ -41,6 +51,8 @@ public sealed class BridgeDeviceTokenService
     /// 获取受信设备令牌 — 对齐 TS 端 getTrustedDeviceToken
     /// 优先级: 缓存 > 环境变量 > 安全存储
     /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>设备令牌；获取失败返回 null</returns>
     public async Task<string?> GetTrustedDeviceTokenAsync(CancellationToken ct = default)
     {
         // 1. 返回缓存
@@ -90,6 +102,8 @@ public sealed class BridgeDeviceTokenService
     /// 删除设备令牌 — 对齐 TS 端 clearTrustedDeviceToken
     /// 登录前调用，避免旧账号令牌残留
     /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task ClearTokenAsync(CancellationToken ct = default)
     {
         ClearCache();
@@ -113,6 +127,9 @@ public sealed class BridgeDeviceTokenService
     /// POST /api/auth/trusted_devices，获取 device_token 持久化
     /// 服务端限制注册必须在登录后10分钟内
     /// </summary>
+    /// <param name="accessToken">访问令牌</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task EnrollTrustedDeviceAsync(string accessToken, CancellationToken ct = default)
     {
         try

@@ -1,10 +1,25 @@
 namespace Core.Agents.ToolHandlers;
 
+/// <summary>
+/// 内置 Agent 工具处理器 — 提供 Plan/Explore/Verification/General/Guide/ListAgents 等 MCP 工具
+/// </summary>
 [McpToolDispatch(ToolCategory.Agent, Optional = true)]
 [Register(typeof(BuiltInAgentToolHandlers), ServiceLifetime.Singleton)]
 public partial class BuiltInAgentToolHandlers : ServiceEntity
 {
 
+    /// <summary>
+    /// 构造内置 Agent 工具处理器
+    /// </summary>
+    /// <param name="agentService">Agent 服务</param>
+    /// <param name="roleRegistry">角色注册表</param>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="telemetryService">遥测服务（可选）</param>
+    /// <param name="outputTruncator">子智能体输出截断器（可选）</param>
+    /// <param name="summaryGenerator">子智能体摘要生成器（可选）</param>
+    /// <param name="subAgentConfig">子智能体配置（可选）</param>
+    /// <param name="contextManager">聊天上下文管理器（可选）</param>
+    /// <param name="promptBuilder">Agent 提示词构建器（可选）</param>
     public BuiltInAgentToolHandlers(
         IAgentService agentService,
         IAgentRoleRegistry roleRegistry,
@@ -38,6 +53,14 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
 
     private const int DefaultOutputTokenBudget = 50_000;
 
+    /// <summary>
+    /// Plan Agent 工具 — 调用计划智能体为指定目标制定执行计划
+    /// </summary>
+    /// <param name="goal">任务目标或需求描述</param>
+    /// <param name="context">上下文信息（可选）</param>
+    /// <param name="constraints">约束条件 JSON 数组（可选）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(AgentToolNameConstants.PlanAgent, "Use Plan Agent to create task execution plan", AgentToolNameConstants.Agent)]
     public async Task<ToolResult> PlanAgentAsync(
         [McpToolParameter("Task goal or requirement description")] string goal,
@@ -82,6 +105,14 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
         }
     }
 
+    /// <summary>
+    /// Explore Agent 工具 — 调用探索智能体分析代码库结构
+    /// </summary>
+    /// <param name="target_path">目标路径或目录</param>
+    /// <param name="focus_area">关注领域（可选）</param>
+    /// <param name="depth">探索深度 overview/standard/detailed，默认 standard</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(AgentToolNameConstants.ExploreAgent, "Use Explore Agent to analyze codebase structure", AgentToolNameConstants.Agent)]
     public async Task<ToolResult> ExploreAgentAsync(
         [McpToolParameter("Target path or directory to explore")] string target_path,
@@ -126,6 +157,14 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
         }
     }
 
+    /// <summary>
+    /// Verification Agent 工具 — 调用验证智能体检查代码正确性
+    /// </summary>
+    /// <param name="code">代码内容</param>
+    /// <param name="language">编程语言（可选）</param>
+    /// <param name="aspect">验证方面 security/performance/maintainability/correctness/style（可选）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(AgentToolNameConstants.VerificationAgent, "Use Verification Agent to check code correctness", AgentToolNameConstants.Agent)]
     public async Task<ToolResult> VerificationAgentAsync(
         [McpToolParameter("Code content")] string code,
@@ -170,6 +209,13 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
         }
     }
 
+    /// <summary>
+    /// General Agent 工具 — 调用通用智能体处理各类任务
+    /// </summary>
+    /// <param name="task">任务描述</param>
+    /// <param name="input">输入内容（可选）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(AgentToolNameConstants.GeneralAgent, "Use General Agent to handle various tasks", AgentToolNameConstants.Agent)]
     public async Task<ToolResult> GeneralAgentAsync(
         [McpToolParameter("Task description")] string task,
@@ -213,6 +259,13 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
         }
     }
 
+    /// <summary>
+    /// Guide Agent 工具 — 调用使用向导智能体获取帮助信息
+    /// </summary>
+    /// <param name="question">问题或帮助需求</param>
+    /// <param name="feature">功能名称（可选）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(AgentToolNameConstants.GuideAgent, "Use " + BrandConstants.ProductName + " Guide Agent to get usage help", AgentToolNameConstants.Agent)]
     public async Task<ToolResult> GuideAgentAsync(
         [McpToolParameter("Question or help needed")] string question,
@@ -265,6 +318,11 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
         }
     }
 
+    /// <summary>
+    /// 列出所有可用的内置 Agent — 汇总角色注册表中的全部 Profile
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>包含所有内置 Agent 列表的工具结果</returns>
     [McpTool(AgentToolNameConstants.ListAgents, "List all available built-in agents", AgentToolNameConstants.Agent)]
     public Task<ToolResult> ListAgentsAsync(CancellationToken cancellationToken = default)
     {

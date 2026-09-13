@@ -9,6 +9,11 @@ public partial class BuildOutputToolHandlers
     private readonly IBuildQueueService? _buildQueueService;
     private readonly ILogger<BuildOutputToolHandlers>? _logger;
 
+    /// <summary>
+    /// 构造编译输出工具处理器
+    /// </summary>
+    /// <param name="buildQueueService">构建队列服务（可选）</param>
+    /// <param name="logger">日志器（可选）</param>
     public BuildOutputToolHandlers(
         IBuildQueueService? buildQueueService = null,
         ILogger<BuildOutputToolHandlers>? logger = null)

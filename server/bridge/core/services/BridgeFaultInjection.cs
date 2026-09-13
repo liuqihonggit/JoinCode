@@ -116,6 +116,10 @@ public sealed class FaultInjectionBridgeApiClient : IDisposable
 {
     private readonly BridgeApiClient _inner;
 
+    /// <summary>
+    /// 构造故障注入装饰器
+    /// </summary>
+    /// <param name="inner">被包装的真实 Bridge API 客户端</param>
     public FaultInjectionBridgeApiClient(BridgeApiClient inner)
     {
         _inner = inner ?? throw new ArgumentNullException(nameof(inner));
@@ -137,12 +141,25 @@ public sealed class FaultInjectionBridgeApiClient : IDisposable
             null, System.Net.HttpStatusCode.InternalServerError);
     }
 
+    /// <summary>
+    /// 轮询工作项 — 委托给内部客户端,调用前检查故障注入
+    /// </summary>
+    /// <param name="environmentId">环境标识</param>
+    /// <param name="ct">取消令牌</param>
+    /// <param name="reclaimOlderThanMs">回收超过此毫秒的旧工作项(可选)</param>
+    /// <returns>工作项,无工作时返回 null</returns>
     public Task<BridgeWorkItem?> PollForWorkAsync(string environmentId, CancellationToken ct, int? reclaimOlderThanMs = null)
     {
         CheckFault("pollForWork");
         return _inner.PollForWorkAsync(environmentId, ct, reclaimOlderThanMs);
     }
 
+    /// <summary>
+    /// 注册桥接环境 — 委托给内部客户端,调用前检查故障注入
+    /// </summary>
+    /// <param name="registration">环境注册信息</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>注册响应,失败时返回 null</returns>
     public Task<BridgeEnvironmentRegistrationResponse?> RegisterBridgeEnvironmentAsync(
         BridgeEnvironmentRegistration registration, CancellationToken ct)
     {
@@ -150,12 +167,27 @@ public sealed class FaultInjectionBridgeApiClient : IDisposable
         return _inner.RegisterBridgeEnvironmentAsync(registration, ct);
     }
 
+    /// <summary>
+    /// 重连会话 — 委托给内部客户端,调用前检查故障注入
+    /// </summary>
+    /// <param name="environmentId">环境标识</param>
+    /// <param name="sessionId">会话标识</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>重连响应,失败时返回 null</returns>
     public Task<BridgeReconnectResponse?> ReconnectSessionAsync(string environmentId, string sessionId, CancellationToken ct)
     {
         CheckFault("reconnectSession");
         return _inner.ReconnectSessionAsync(environmentId, sessionId, ct);
     }
 
+    /// <summary>
+    /// 心跳保活 — 委托给内部客户端,调用前检查故障注入
+    /// </summary>
+    /// <param name="environmentId">环境标识</param>
+    /// <param name="workId">工作项标识</param>
+    /// <param name="sessionToken">会话令牌(可选)</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>心跳响应,失败时返回 null</returns>
     public Task<BridgeHeartbeatResponse?> HeartbeatWorkAsync(
         string environmentId, string workId, string? sessionToken = null, CancellationToken ct = default)
     {
@@ -163,5 +195,8 @@ public sealed class FaultInjectionBridgeApiClient : IDisposable
         return _inner.HeartbeatWorkAsync(environmentId, workId, sessionToken, ct);
     }
 
+    /// <summary>
+    /// 释放内部客户端资源
+    /// </summary>
     public void Dispose() => _inner.Dispose();
 }

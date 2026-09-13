@@ -12,6 +12,13 @@ public sealed class IntentReporter : IIntentReporter
     private readonly IMailbox _mailbox;
     private readonly IDeferredMailService _deferredMailService;
 
+    /// <summary>
+    /// 构造意图上报器
+    /// </summary>
+    /// <param name="intentCollector">意图收集器</param>
+    /// <param name="hotFileDetector">热文件检测器</param>
+    /// <param name="mailbox">实时邮箱（用于热文件契约改通知）</param>
+    /// <param name="deferredMailService">延迟邮件服务（用于测试冲突/资源引用变更）</param>
     public IntentReporter(IIntentCollector intentCollector, IHotFileDetector hotFileDetector, IMailbox mailbox, IDeferredMailService deferredMailService)
     {
         _intentCollector = intentCollector ?? throw new ArgumentNullException(nameof(intentCollector));
@@ -20,6 +27,14 @@ public sealed class IntentReporter : IIntentReporter
         _deferredMailService = deferredMailService ?? throw new ArgumentNullException(nameof(deferredMailService));
     }
 
+    /// <summary>
+    /// 异步上报修改意图 — 收集到 IntentCollector，热文件契约改实时通过 IMailbox 通知队长，测试冲突/资源引用变更延迟投递
+    /// </summary>
+    /// <param name="workerId">上报的 Worker ID</param>
+    /// <param name="captainId">队长 ID，接收通知</param>
+    /// <param name="intents">文件修改意图列表</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task ReportModifyIntentsAsync(string workerId, string captainId, IReadOnlyList<FileModifyIntent> intents, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(workerId);

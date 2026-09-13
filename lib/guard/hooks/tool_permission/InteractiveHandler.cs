@@ -1,35 +1,68 @@
 namespace Core.Hooks.ToolPermission.Handlers;
 
+/// <summary>
+/// 权限持久化接口 — 将用户授权产生的权限更新写入持久存储
+/// </summary>
 public interface IPermissionPersistence
 {
+    /// <summary>
+    /// 异步持久化权限更新列表
+    /// </summary>
+    /// <param name="updates">权限更新列表</param>
+    /// <param name="cancellationToken">取消令牌</param>
     Task PersistPermissionUpdatesAsync(List<PermissionUpdate> updates, CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// 交互式权限请求参数 — 描述一次需要用户交互确认的权限决策上下文
+/// </summary>
 public sealed record InteractivePermissionParams
 {
+    /// <summary>权限上下文</summary>
     public required PermissionContext Context { get; init; }
+    /// <summary>展示给用户的描述文本</summary>
     public required string Description { get; init; }
+    /// <summary>权限询问决策结果</summary>
     public required PermissionAskDecision Result { get; init; }
+    /// <summary>是否在弹出对话框前等待自动化检查完成</summary>
     public bool AwaitAutomatedChecksBeforeDialog { get; init; }
+    /// <summary>桥接回调（与前端通信），可为空</summary>
     public IPermissionCallbacks? BridgeCallbacks { get; init; }
+    /// <summary>权限持久化器，可为空</summary>
     public IPermissionPersistence? PermissionPersistence { get; init; }
+    /// <summary>权限钩子执行器</summary>
     public required IPermissionHookExecutor HookExecutor { get; init; }
+    /// <summary>命令分类器，可为空</summary>
     public ICommandClassifier? Classifier { get; init; }
+    /// <summary>自动模式分类器，可为空</summary>
     public IAutoModeClassifier? AutoModeClassifier { get; init; }
 }
 
+/// <summary>
+/// 交互式权限处理器 — 将权限询问推入队列并编排钩子、分类器、桥接回调的并行执行
+/// </summary>
 [Register(typeof(InteractiveHandler), ServiceLifetime.Singleton)]
 public sealed partial class InteractiveHandler : ServiceEntity
 {
     private readonly ILogger<InteractiveHandler>? _logger;
     private readonly IClockService _clock;
 
+    /// <summary>
+    /// 构造交互式权限处理器
+    /// </summary>
+    /// <param name="logger">日志器，可为空</param>
+    /// <param name="clock">时钟服务，可为空则使用系统时钟</param>
     public InteractiveHandler(ILogger<InteractiveHandler>? logger = null, IClockService? clock = null)
     {
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
     }
 
+    /// <summary>
+    /// 处理交互式权限请求 — 推入队列、设置桥接回调、并行触发钩子与分类器检查
+    /// </summary>
+    /// <param name="params">交互式权限参数</param>
+    /// <param name="resolve">权限决策回调</param>
     public void Handle(InteractivePermissionParams @params, Action<PermissionDecision> resolve)
     {
         var ctx = @params.Context;

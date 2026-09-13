@@ -6,6 +6,10 @@ namespace McpToolDispatch;
 /// </summary>
 public static class ToolHypergraphPresets
 {
+    /// <summary>
+    /// 获取预设工具链超边数组 — 包含文件操作、Shell 执行、搜索、Git、代码分析等领域的工具关联与链路顺序定义
+    /// </summary>
+    /// <returns>预设超边数组</returns>
     public static ToolHyperedge[] GetPresets() =>
     [
         new()

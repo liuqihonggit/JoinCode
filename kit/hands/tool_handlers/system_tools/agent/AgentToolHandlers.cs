@@ -5,30 +5,39 @@ namespace Tools.Handlers;
 /// </summary>
 public sealed record AgentCreateOptions
 {
+    /// <summary>代理描述（3-5 个词）</summary>
     [McpToolParameter("Agent description (3-5 words)")]
     public required string Description { get; init; }
 
+    /// <summary>任务提示词/指令</summary>
     [McpToolParameter("Task prompt/instructions")]
     public required string Prompt { get; init; }
 
+    /// <summary>代理类型（可选）</summary>
     [McpToolParameter("Agent type (optional)", Required = false)]
     public string? SubagentType { get; init; }
 
+    /// <summary>模型覆盖: sonnet/opus/haiku（可选）</summary>
     [McpToolParameter("Model override: sonnet/opus/haiku (optional)", Required = false)]
     public string? Model { get; init; }
 
+    /// <summary>代理名称，用于 SendMessage 寻址（可选）</summary>
     [McpToolParameter("Agent name for SendMessage addressing (optional)", Required = false)]
     public string? Name { get; init; }
 
+    /// <summary>是否在后台运行（可选，默认 false）</summary>
     [McpToolParameter("Run in background", Required = false)]
     public bool? RunInBackground { get; init; } = false;
 
+    /// <summary>隔离模式: none/worktree（可选，默认 none）</summary>
     [McpToolParameter("Isolation mode: none/worktree (optional)", Required = false)]
     public string? Isolation { get; init; } = "none";
 
+    /// <summary>工作目录覆盖（可选）</summary>
     [McpToolParameter("Working directory override (optional)", Required = false)]
     public string? Cwd { get; init; }
 
+    /// <summary>记忆作用域: user/project/local（可选，启用代理记忆）</summary>
     [McpToolParameter("Memory scope: user/project/local (optional, enables agent memory)", Required = false)]
     public string? Memory { get; init; }
 
@@ -56,6 +65,18 @@ public partial class AgentToolHandlers
     private readonly ITeamManager? _teamManager;
     private readonly IClockService _clock;
 
+    /// <summary>
+    /// 构造 Agent 工具处理器
+    /// </summary>
+    /// <param name="pipeline">中间件管道，处理验证、fork、spawn、执行、handoff 等阶段</param>
+    /// <param name="agentService">代理服务，负责代理的创建和管理</param>
+    /// <param name="coordinator">可选协调者代理服务，用于多代理协调</param>
+    /// <param name="logger">可选日志记录器</param>
+    /// <param name="telemetryService">可选遥测服务</param>
+    /// <param name="serviceProvider">可选服务提供者</param>
+    /// <param name="subAgentContextAccessor">子代理上下文访问器，默认创建新实例</param>
+    /// <param name="clock">时钟服务，默认使用系统时钟</param>
+    /// <param name="teamManager">可选团队管理器</param>
     public AgentToolHandlers(
         MiddlewarePipeline<AgentToolContext> pipeline,
         IAgentService agentService,
@@ -440,6 +461,9 @@ public partial class AgentToolHandlers
             .Build();
     }
 
+    /// <summary>
+    /// 列出所有运行中的代理 — 同时包含 dry-run 模式的代理
+    /// </summary>
     [McpTool(AgentToolNameConstants.AgentRunning, "List all running agents", AgentToolNameConstants.Agent, ConcurrencySafe = true)]
     public async Task<ToolResult> AgentListAsync(
         CancellationToken cancellationToken = default)
@@ -767,6 +791,9 @@ public partial class AgentToolHandlers
         }
     }
 
+    /// <summary>
+    /// 获取代理的待处理消息
+    /// </summary>
     [McpTool(AgentToolNameConstants.AgentGetMessages, "Get pending messages for an agent", AgentToolNameConstants.Agent, ConcurrencySafe = true)]
     public async Task<ToolResult> GetMessagesAsync(
         [McpToolParameter("Agent ID")] string agent_id,
@@ -1031,11 +1058,17 @@ public partial class AgentToolHandlers
 /// </summary>
 public sealed class DryRunAgentState
 {
+    /// <summary>代理ID</summary>
     public required string Id { get; set; }
+    /// <summary>代理描述</summary>
     public required string Description { get; set; }
+    /// <summary>代理状态（running/stopped/completed）</summary>
     public required string Status { get; set; }
+    /// <summary>启动时间</summary>
     public DateTime StartedAt { get; set; }
+    /// <summary>完成时间（未完成时为 null）</summary>
     public DateTime? CompletedAt { get; set; }
+    /// <summary>任务提示词</summary>
     public string? Prompt { get; set; }
 }
 
@@ -1044,8 +1077,11 @@ public sealed class DryRunAgentState
 /// </summary>
 public sealed class DryRunAgentMessage
 {
+    /// <summary>消息内容</summary>
     public required string Content { get; set; }
+    /// <summary>消息摘要预览</summary>
     public string? Summary { get; set; }
+    /// <summary>消息时间戳</summary>
     public DateTime Timestamp { get; set; }
 }
 

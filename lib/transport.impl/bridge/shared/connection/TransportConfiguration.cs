@@ -23,12 +23,20 @@ public class TransportConfiguration : ServiceEntity
     /// <summary>默认重试延迟（毫秒）</summary>
     public const int DefaultRetryDelayMs = 1000;
 
+    /// <summary>首选传输协议，默认 WebSocket</summary>
     public TransportProtocol PreferredProtocol { get; init; } = TransportProtocol.WebSocket;
+    /// <summary>WebSocket 端点 URL</summary>
     public string WebSocketEndpoint { get; init; } = DefaultWebSocketEndpoint;
+    /// <summary>SSE 端点 URL</summary>
     public string SseEndpoint { get; init; } = DefaultSseEndpoint;
+    /// <summary>是否启用自动重连，默认 true</summary>
     public bool AutoReconnect { get; init; } = true;
+    /// <summary>最大重连次数，默认 10</summary>
     public int MaxReconnectAttempts { get; init; } = DefaultMaxReconnectAttempts;
+    /// <summary>初始重连延迟（毫秒），默认 1000</summary>
     public int ReconnectDelayMs { get; init; } = DefaultReconnectDelayMs;
+    /// <summary>最大重连延迟（毫秒），默认 30000</summary>
     public int MaxReconnectDelayMs { get; init; } = DefaultMaxReconnectDelayMs;
+    /// <summary>消息去重容量（最近 N 条消息 ID），默认 1000</summary>
     public int MessageDeduplicationCapacity { get; init; } = DefaultMessageDeduplicationCapacity;
 }

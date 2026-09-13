@@ -15,6 +15,9 @@ public static class ToolResultTruncator
     /// 从 StringBuilder 构建带大小限制的结果
     /// 对齐 TS maxResultSizeChars — 仅截断，持久化由 ContentReplacementService 统一处理
     /// </summary>
+    /// <param name="response">待截断的响应内容构建器</param>
+    /// <param name="maxResultSizeChars">最大允许字符数</param>
+    /// <returns>构建好的工具结果，超出限制时附带截断提示</returns>
     public static ToolResult BuildWithSizeLimit(StringBuilder response, int maxResultSizeChars)
     {
         var text = response.ToString();
@@ -30,6 +33,9 @@ public static class ToolResultTruncator
     /// <summary>
     /// 对齐 TS generatePreview: 在换行符处截断，避免切断行内容
     /// </summary>
+    /// <param name="text">待截断的文本</param>
+    /// <param name="maxResultSizeChars">最大允许字符数</param>
+    /// <returns>截断后的文本，超出时在换行处切并追加截断提示</returns>
     public static string TruncateAtNewline(string text, int maxResultSizeChars)
     {
         if (text.Length <= maxResultSizeChars)

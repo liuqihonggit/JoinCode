@@ -9,6 +9,11 @@ namespace State;
 public sealed partial class AppStateSelectors : ServiceEntity
 {
 
+    /// <summary>
+    /// 构造 AppState 选择器
+    /// </summary>
+    /// <param name="store">应用状态存储</param>
+    /// <param name="telemetryService">遥测服务（可选，用于记录选择器调用指标）</param>
     public AppStateSelectors(IStore<AppState> store, ITelemetryService? telemetryService = null)
     {
         _store = store;
@@ -366,10 +371,19 @@ public sealed record WorkloadOverview(
 /// </summary>
 public sealed class SessionOverviewComparer : IEqualityComparer<SessionOverview>
 {
+    /// <summary>
+    /// 单例实例
+    /// </summary>
     public static SessionOverviewComparer Instance { get; } = new();
 
     private SessionOverviewComparer() { }
 
+    /// <summary>
+    /// 判断两个会话概览是否相等
+    /// </summary>
+    /// <param name="x">第一个概览</param>
+    /// <param name="y">第二个概览</param>
+    /// <returns>相等返回 true，否则返回 false</returns>
     public bool Equals(SessionOverview? x, SessionOverview? y)
     {
         if (ReferenceEquals(x, y)) return true;
@@ -380,6 +394,11 @@ public sealed class SessionOverviewComparer : IEqualityComparer<SessionOverview>
                x.IsPlanMode == y.IsPlanMode;
     }
 
+    /// <summary>
+    /// 计算会话概览的哈希码
+    /// </summary>
+    /// <param name="obj">会话概览</param>
+    /// <returns>哈希码</returns>
     public int GetHashCode(SessionOverview obj)
     {
         return HashCode.Combine(obj.SessionId, obj.CurrentModel, obj.MessageCount, obj.IsPlanMode);
@@ -391,10 +410,19 @@ public sealed class SessionOverviewComparer : IEqualityComparer<SessionOverview>
 /// </summary>
 public sealed class WorkloadOverviewComparer : IEqualityComparer<WorkloadOverview>
 {
+    /// <summary>
+    /// 单例实例
+    /// </summary>
     public static WorkloadOverviewComparer Instance { get; } = new();
 
     private WorkloadOverviewComparer() { }
 
+    /// <summary>
+    /// 判断两个工作负载概览是否相等
+    /// </summary>
+    /// <param name="x">第一个概览</param>
+    /// <param name="y">第二个概览</param>
+    /// <returns>相等返回 true，否则返回 false</returns>
     public bool Equals(WorkloadOverview? x, WorkloadOverview? y)
     {
         if (ReferenceEquals(x, y)) return true;
@@ -404,6 +432,11 @@ public sealed class WorkloadOverviewComparer : IEqualityComparer<WorkloadOvervie
                x.PendingTasks == y.PendingTasks;
     }
 
+    /// <summary>
+    /// 计算工作负载概览的哈希码
+    /// </summary>
+    /// <param name="obj">工作负载概览</param>
+    /// <returns>哈希码</returns>
     public int GetHashCode(WorkloadOverview obj)
     {
         return HashCode.Combine(obj.RunningAgents, obj.RunningTasks, obj.PendingTasks);

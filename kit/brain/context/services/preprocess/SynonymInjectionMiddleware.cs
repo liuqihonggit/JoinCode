@@ -10,8 +10,15 @@ public sealed partial class SynonymInjectionMiddleware : ServiceEntity, IAnalyze
     private readonly ISystemReminderManager _reminderManager;
     private readonly ILogger<SynonymInjectionMiddleware>? _logger;
 
+    /// <summary>错误行为策略：继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
+    /// <summary>
+    /// 初始化同义词注入中间件
+    /// </summary>
+    /// <param name="synonymMap">同义词映射表</param>
+    /// <param name="reminderManager">系统提醒管理器</param>
+    /// <param name="logger">可选日志记录器</param>
     public SynonymInjectionMiddleware(
         ISynonymMap synonymMap,
         ISystemReminderManager reminderManager,

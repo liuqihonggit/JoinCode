@@ -1,17 +1,26 @@
 namespace IO.Services;
 
+/// <summary>文件传输服务 — 校验本地文件存在性后生成发送摘要与本地下载链接，供移动端或对等端消费。</summary>
 [Register(typeof(IFileTransferService), ServiceLifetime.Singleton)]
 public sealed partial class FileTransferService : ServiceEntity, IFileTransferService
 {
     private readonly ILogger<FileTransferService>? _logger;
     private readonly IFileSystem _fs;
 
+    /// <summary>构造文件传输服务实例。</summary>
+    /// <param name="fs">用于访问本地文件系统的抽象。</param>
+    /// <param name="logger">可选的日志记录器，传入 null 时静默运行。</param>
     public FileTransferService(IFileSystem fs, ILogger<FileTransferService>? logger = null)
     {
         _fs = fs;
         _logger = logger;
     }
 
+    /// <summary>异步发送指定文件，生成包含文件名、路径、大小与修改时间的摘要文本。</summary>
+    /// <param name="filePath">要发送的本地文件路径。</param>
+    /// <param name="description">可选的附加说明，非空时追加到摘要末尾。</param>
+    /// <param name="ct">可取消令牌。</param>
+    /// <returns>描述发送结果的文本摘要。</returns>
     public async Task<string> SendFileAsync(string filePath, string? description = null, CancellationToken ct = default)
     {
         if (!_fs.FileExists(filePath))
@@ -33,6 +42,10 @@ public sealed partial class FileTransferService : ServiceEntity, IFileTransferSe
         return response.ToString();
     }
 
+    /// <summary>异步为指定文件生成本地下载链接，并返回包含链接与文件信息的文本。</summary>
+    /// <param name="filePath">要生成下载链接的本地文件路径。</param>
+    /// <param name="ct">可取消令牌。</param>
+    /// <returns>包含下载链接与文件信息的文本描述。</returns>
     public async Task<string> GenerateDownloadLinkAsync(string filePath, CancellationToken ct = default)
     {
         if (!_fs.FileExists(filePath))

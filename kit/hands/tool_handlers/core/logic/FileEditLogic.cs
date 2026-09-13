@@ -1,18 +1,39 @@
 namespace Tools.Handlers;
 
+/// <summary>
+/// 批量编辑单文件结果,携带文件路径与其对应的编辑结果。
+/// </summary>
+/// <param name="FilePath">文件路径。</param>
+/// <param name="Result">编辑结果。</param>
 public record BatchEditResult(string FilePath, FileEditResult Result);
 
+/// <summary>
+/// 文件编辑逻辑,提供正则替换、行插入、行删除与批量编辑能力。
+/// </summary>
 [Register(typeof(FileEditLogic), ServiceLifetime.Singleton)]
 public sealed partial class FileEditLogic : ServiceEntity
 {
 
     private readonly IFileSystem _fs;
 
+    /// <summary>
+    /// 初始化 FileEditLogic 的新实例。
+    /// </summary>
+    /// <param name="fs">文件系统抽象。</param>
     public FileEditLogic(IFileSystem fs)
     {
         _fs = fs;
     }
 
+    /// <summary>
+    /// 使用正则表达式异步编辑文件内容,可选全部替换或仅替换首个匹配。
+    /// </summary>
+    /// <param name="filePath">文件路径。</param>
+    /// <param name="pattern">正则表达式模式。</param>
+    /// <param name="replacement">替换字符串。</param>
+    /// <param name="replaceAll">是否替换全部匹配,默认 true;false 时仅替换首个。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>包含替换计数与诊断信息的编辑结果。</returns>
     public async Task<FileEditResult> EditWithRegexAsync(
         string filePath,
         string pattern,
@@ -69,6 +90,14 @@ public sealed partial class FileEditLogic : ServiceEntity
         }
     }
 
+    /// <summary>
+    /// 在指定行号之后异步插入新内容,按换行符分割为多行。
+    /// </summary>
+    /// <param name="filePath">文件路径。</param>
+    /// <param name="afterLine">目标行号(0 表示文件开头插入,等于行数表示末尾追加)。</param>
+    /// <param name="newContent">要插入的新内容,按 '\n' 分割为多行。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>包含插入行范围与受影响行数的行编辑结果。</returns>
     public async Task<FileLineEditResult> InsertLinesAfterAsync(
         string filePath,
         int afterLine,
@@ -122,6 +151,14 @@ public sealed partial class FileEditLogic : ServiceEntity
         }
     }
 
+    /// <summary>
+    /// 异步删除文件中指定起止行号范围内的行。
+    /// </summary>
+    /// <param name="filePath">文件路径。</param>
+    /// <param name="startLine">起始行号(从 1 开始)。</param>
+    /// <param name="endLine">结束行号(从 1 开始,超出总行数时自动截断)。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>包含实际删除行范围与删除行数的行编辑结果。</returns>
     public async Task<FileLineEditResult> DeleteLinesAsync(
         string filePath,
         int startLine,
@@ -179,6 +216,15 @@ public sealed partial class FileEditLogic : ServiceEntity
         }
     }
 
+    /// <summary>
+    /// 对多个文件批量执行字符串替换,逐文件独立处理并汇总结果。
+    /// </summary>
+    /// <param name="filePaths">要编辑的文件路径列表。</param>
+    /// <param name="oldString">要查找的原始字符串。</param>
+    /// <param name="newString">替换后的新字符串。</param>
+    /// <param name="replaceAll">是否替换全部匹配,默认 true;false 时仅替换首个。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>每个文件对应的批量编辑结果列表。</returns>
     public async Task<IReadOnlyList<BatchEditResult>> BatchEditAsync(
         IReadOnlyList<string> filePaths,
         string oldString,

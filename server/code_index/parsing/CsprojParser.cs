@@ -1,17 +1,37 @@
 namespace JoinCode.CodeIndex.Ast;
 
+/// <summary>
+/// csproj 文件解析结果
+/// </summary>
 internal sealed class CsprojParseResult
 {
+    /// <summary>项目名称</summary>
     public required string Name { get; init; }
+    /// <summary>项目文件路径</summary>
     public required string FilePath { get; init; }
+    /// <summary>目标框架</summary>
     public string? TargetFramework { get; init; }
+    /// <summary>输出类型</summary>
     public string? OutputType { get; init; }
+    /// <summary>项目引用列表</summary>
     public required List<string> ProjectReferences { get; init; }
+    /// <summary>包引用列表（名称+版本）</summary>
     public required List<(string Name, string? Version)> PackageReferences { get; init; }
 }
 
+/// <summary>
+/// csproj 文件解析器 — 解析 .csproj 提取项目引用与包引用
+/// </summary>
 internal sealed class CsprojParser
 {
+    /// <summary>
+    /// 解析 csproj 文件
+    /// </summary>
+    /// <param name="filePath">csproj 文件路径</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="workspaceRoot">工作区根目录（可选）</param>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <returns>解析结果</returns>
     internal static CsprojParseResult Parse(string filePath, IFileSystem fs, string? workspaceRoot = null, ILogger? logger = null)
     {
         ArgumentNullException.ThrowIfNull(filePath);

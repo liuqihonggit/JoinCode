@@ -25,9 +25,13 @@ public enum BridgeSessionStatus
 /// </summary>
 public sealed class BridgeSessionSnapshot
 {
+    /// <summary>会话唯一标识</summary>
     public required string SessionId { get; init; }
+    /// <summary>客户端标识</summary>
     public required string ClientId { get; init; }
+    /// <summary>会话状态</summary>
     public required BridgeSessionStatus State { get; init; }
+    /// <summary>快照捕获时间（UTC）</summary>
     public required DateTimeOffset CapturedAt { get; init; }
 }
 
@@ -78,8 +82,13 @@ public sealed partial class BridgeSessionConfiguration
     /// <summary>最大活跃会话数</summary>
     public int MaxActiveSessions { get; init; } = 100;
 
+    /// <summary>默认构造函数，使用默认配置值</summary>
     public BridgeSessionConfiguration() { }
 
+    /// <summary>
+    /// 从 BridgeConfig 构造会话配置
+    /// </summary>
+    /// <param name="config">Bridge 配置</param>
     public BridgeSessionConfiguration(BridgeConfig config)
     {
         SessionTimeout = TimeSpan.FromMinutes(config.SessionTimeoutMinutes);
@@ -95,6 +104,10 @@ public sealed partial class BridgeSessionFactory
 {
     private readonly TimeProvider _timeProvider;
 
+    /// <summary>
+    /// 构造 BridgeSessionFactory
+    /// </summary>
+    /// <param name="timeProvider">可选时间提供者，默认系统时间</param>
     public BridgeSessionFactory(TimeProvider? timeProvider = null)
     {
         _timeProvider = timeProvider ?? TimeProvider.System;
@@ -148,6 +161,13 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// <summary>会话过期事件</summary>
     public event EventHandler<BridgeSessionExpiredEventArgs>? SessionExpired;
 
+    /// <summary>
+    /// 构造 BridgeSessionRunner
+    /// </summary>
+    /// <param name="sessionFactory">会话工厂</param>
+    /// <param name="configuration">可选会话配置，默认使用默认配置</param>
+    /// <param name="logger">可选日志记录器</param>
+    /// <param name="timeProvider">可选时间提供者，默认系统时间</param>
     public BridgeSessionRunner(
         BridgeSessionFactory sessionFactory,
         BridgeSessionConfiguration? configuration = null,
@@ -290,6 +310,8 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// <summary>
     /// 挂起一个会话（暂停但可恢复）
     /// </summary>
+    /// <param name="sessionId">会话标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task SuspendSessionAsync(string sessionId, CancellationToken cancellationToken = default)
     {
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
@@ -321,6 +343,8 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// <summary>
     /// 恢复一个挂起的会话
     /// </summary>
+    /// <param name="sessionId">会话标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task ResumeSessionAsync(string sessionId, CancellationToken cancellationToken = default)
     {
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
@@ -374,6 +398,8 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// <summary>
     /// 创建会话快照（用于崩溃恢复）
     /// </summary>
+    /// <param name="sessionId">会话标识</param>
+    /// <returns>会话快照，会话不存在返回 null</returns>
     public BridgeSessionSnapshot? CreateSnapshot(string sessionId)
     {
         var session = GetSession(sessionId);
@@ -391,6 +417,9 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// <summary>
     /// 从快照恢复会话状态
     /// </summary>
+    /// <param name="snapshot">会话快照</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>恢复后的会话，会话不存在或不可恢复返回 null</returns>
     public async ValueTask<BridgeSession?> RestoreFromSnapshotAsync(
         BridgeSessionSnapshot snapshot,
         CancellationToken ct = default)
@@ -579,6 +608,9 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
         Dispose();
     }
 
+    /// <summary>
+    /// 释放资源时的清理回调 — 释放异步锁
+    /// </summary>
     protected override void OnDispose()
     {
         if (_asyncDisposed == 1) return;
@@ -591,10 +623,19 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
 /// </summary>
 public sealed class BridgeSessionStateChangedEventArgs : EventArgs
 {
+    /// <summary>会话标识</summary>
     public string SessionId { get; }
+    /// <summary>新状态</summary>
     public BridgeSessionStatus NewStatus { get; }
+    /// <summary>前一状态，首次创建为 null</summary>
     public BridgeSessionStatus? PreviousStatus { get; }
 
+    /// <summary>
+    /// 构造会话状态变更事件参数
+    /// </summary>
+    /// <param name="sessionId">会话标识</param>
+    /// <param name="newStatus">新状态</param>
+    /// <param name="previousStatus">前一状态，首次创建为 null</param>
     public BridgeSessionStateChangedEventArgs(
         string sessionId,
         BridgeSessionStatus newStatus,
@@ -611,9 +652,16 @@ public sealed class BridgeSessionStateChangedEventArgs : EventArgs
 /// </summary>
 public sealed class BridgeSessionExpiredEventArgs : EventArgs
 {
+    /// <summary>会话标识</summary>
     public string SessionId { get; }
+    /// <summary>客户端标识</summary>
     public string ClientId { get; }
 
+    /// <summary>
+    /// 构造会话过期事件参数
+    /// </summary>
+    /// <param name="sessionId">会话标识</param>
+    /// <param name="clientId">客户端标识</param>
     public BridgeSessionExpiredEventArgs(string sessionId, string clientId)
     {
         SessionId = sessionId;

@@ -10,6 +10,9 @@ public sealed partial class CSharpLanguagePlugin : WorkflowPluginBase
 {
     private CodeIndexer? _indexer;
 
+    /// <summary>
+    /// 构造 C# 语言索引插件
+    /// </summary>
     public CSharpLanguagePlugin() : base("CSharpLanguage") { }
 
     /// <summary>插件名称</summary>

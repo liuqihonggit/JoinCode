@@ -1,5 +1,8 @@
 namespace Core.Memdir;
 
+/// <summary>
+/// 思考记录存储实现 — 按会话 ID 维护思考条目列表,支持加载、保存、查询最近/最新条目与清空操作。
+/// </summary>
 [Register(typeof(IThinkingStore), ServiceLifetime.Singleton)]
 public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisposable
 {
@@ -12,6 +15,9 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
     private readonly AsyncLock _saveLock = new();
     private readonly CancellationTokenSource _disposeCts = new();
 
+    /// <summary>
+    /// 构造函数 — 注入存储路径选项、文件操作服务、文件系统、日志与时钟等依赖。
+    /// </summary>
     public ThinkingStore(IOptions<MemdirOptions> options, IFileOperationService fileOperationService, IFileSystem fs, ILogger<ThinkingStore>? logger = null, IClockService? clock = null)
     {
         _storagePath = options?.Value?.StoragePath ?? throw new ArgumentNullException(nameof(options));
@@ -21,11 +27,13 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
         _clock = clock ?? SystemClockService.Instance;
     }
 
+    /// <inheritdoc />
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
         await LoadAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public Task StoreAsync(string sessionId, string content, string? modelId, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(sessionId)) throw new ArgumentNullException(nameof(sessionId));
@@ -51,6 +59,7 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
         return Task.CompletedTask;
     }
 
+    /// <inheritdoc />
     public Task<IReadOnlyList<ThinkingEntry>> GetRecentAsync(string sessionId, int count, CancellationToken cancellationToken = default)
     {
         if (!_entries.TryGetValue(sessionId, out var entries))
@@ -65,6 +74,7 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
         }
     }
 
+    /// <inheritdoc />
     public Task<ThinkingEntry?> GetLatestAsync(string sessionId, CancellationToken cancellationToken = default)
     {
         if (!_entries.TryGetValue(sessionId, out var entries))
@@ -78,6 +88,7 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
         }
     }
 
+    /// <inheritdoc />
     public Task ClearAsync(string sessionId, CancellationToken cancellationToken = default)
     {
         _entries.TryRemove(sessionId, out _);
@@ -138,6 +149,9 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
         }
     }
 
+    /// <summary>
+    /// 释放取消令牌、保存锁等资源。
+    /// </summary>
     protected override void OnDispose()
     {
         _disposeCts.Cancel();

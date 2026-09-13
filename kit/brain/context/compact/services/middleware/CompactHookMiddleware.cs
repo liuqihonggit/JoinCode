@@ -7,6 +7,11 @@ namespace Core.Context.Compact;
 public sealed partial class CompactHookMiddleware : ServiceEntity, ICompactMiddleware
 {
 
+    /// <summary>
+    /// 初始化 <see cref="CompactHookMiddleware"/> 实例
+    /// </summary>
+    /// <param name="microcompactService">微压缩服务，用于估算消息 token 数</param>
+    /// <param name="compactHookManager">可选的压缩钩子管理器，为 null 时跳过钩子执行</param>
     public CompactHookMiddleware(IMicrocompactService microcompactService, ICompactHookManager? compactHookManager = null)
     {
         _microcompactService = microcompactService;
@@ -15,6 +20,7 @@ public sealed partial class CompactHookMiddleware : ServiceEntity, ICompactMiddl
     private readonly IMicrocompactService _microcompactService;
     private readonly ICompactHookManager? _compactHookManager;
 
+    /// <summary>中间件异常时的行为：继续传递给下一个中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
     /// <inheritdoc/>

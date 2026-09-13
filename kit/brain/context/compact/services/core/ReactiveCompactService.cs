@@ -1,6 +1,10 @@
 
 namespace Core.Context.Compact;
 
+/// <summary>
+/// 响应式压缩服务实现 — 对齐 TS reactiveCompact.ts
+/// 处理 prompt-too-long 等错误触发的压缩，按 API 轮次分组丢弃最旧的若干组
+/// </summary>
 [Register(typeof(IReactiveCompactService), ServiceLifetime.Singleton)]
 public sealed partial class ReactiveCompactService : ServiceEntity, IReactiveCompactService
 {
@@ -10,6 +14,11 @@ public sealed partial class ReactiveCompactService : ServiceEntity, IReactiveCom
     private readonly IMicrocompactService _microcompactService;
     private readonly IMessageGroupingService _groupingService;
 
+    /// <summary>
+    /// 初始化 <see cref="ReactiveCompactService"/> 实例
+    /// </summary>
+    /// <param name="microcompactService">微压缩服务，用于 token 估算</param>
+    /// <param name="groupingService">可选消息分组服务，null 时使用默认实现</param>
     public ReactiveCompactService(
         IMicrocompactService microcompactService,
         IMessageGroupingService? groupingService = null)
@@ -18,6 +27,13 @@ public sealed partial class ReactiveCompactService : ServiceEntity, IReactiveCom
         _groupingService = groupingService ?? new MessageGroupingService();
     }
 
+    /// <summary>
+    /// 执行响应式压缩 — 当错误为 prompt-too-long 时按 API 轮次分组丢弃最旧消息组
+    /// </summary>
+    /// <param name="messages">原始消息列表</param>
+    /// <param name="errorMessage">触发压缩的错误消息</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>压缩结果，包含丢弃组数、节省 token 数等元数据</returns>
     public Task<CompactResult> RunReactiveCompactAsync(
         IReadOnlyList<ApiMessage> messages,
         string errorMessage,
@@ -98,6 +114,11 @@ public sealed partial class ReactiveCompactService : ServiceEntity, IReactiveCom
         });
     }
 
+    /// <summary>
+    /// 判断错误消息是否为 prompt-too-long 类型
+    /// </summary>
+    /// <param name="errorMessage">错误消息文本</param>
+    /// <returns>是 prompt-too-long 错误返回 true，否则 false</returns>
     public bool IsPromptTooLongError(string errorMessage)
     {
         return !string.IsNullOrEmpty(errorMessage)
@@ -105,6 +126,11 @@ public sealed partial class ReactiveCompactService : ServiceEntity, IReactiveCom
                 || errorMessage.StartsWith(PromptTooLongErrorPrefix, StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>
+    /// 从 prompt-too-long 错误消息中解析超出 token 数
+    /// </summary>
+    /// <param name="errorMessage">错误消息文本</param>
+    /// <returns>超出的 token 数；无法解析时返回 null</returns>
     public int? GetPromptTooLongTokenGap(string errorMessage)
     {
         if (string.IsNullOrEmpty(errorMessage))

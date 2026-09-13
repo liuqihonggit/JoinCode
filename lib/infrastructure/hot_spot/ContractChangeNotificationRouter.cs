@@ -11,6 +11,10 @@ public sealed class ContractChangeNotificationRouter : IContractChangeNotificati
     private readonly ConcurrentDictionary<string, ConcurrentQueue<string>> _queues = new(StringComparer.OrdinalIgnoreCase);
     private readonly ILogger<ContractChangeNotificationRouter>? _logger;
 
+    /// <summary>
+    /// 构造函数 — 注入可选日志记录器
+    /// </summary>
+    /// <param name="logger">日志记录器，可为 null</param>
     public ContractChangeNotificationRouter(ILogger<ContractChangeNotificationRouter>? logger = null)
     {
         _logger = logger;

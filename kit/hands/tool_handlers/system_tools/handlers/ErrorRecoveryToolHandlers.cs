@@ -12,6 +12,12 @@ public class ErrorRecoveryToolHandlers
     private readonly IGitCommandRunner _gitRunner;
     private readonly ILogger<ErrorRecoveryToolHandlers>? _logger;
 
+    /// <summary>
+    /// 构造错误修复处理器
+    /// </summary>
+    /// <param name="fs">文件系统抽象，用于检查文件和目录状态</param>
+    /// <param name="gitRunner">Git 命令执行器，用于检测合并冲突</param>
+    /// <param name="logger">可选日志记录器</param>
     public ErrorRecoveryToolHandlers(IFileSystem fs, IGitCommandRunner gitRunner, ILogger<ErrorRecoveryToolHandlers>? logger = null)
     {
         _fs = fs;

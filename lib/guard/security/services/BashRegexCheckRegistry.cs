@@ -1,12 +1,21 @@
 namespace JoinCode.Abstractions.Security.Shell;
 
+/// <summary>
+/// Bash 正则检查项 — 包含检查标识、描述消息与验证函数
+/// </summary>
 public sealed record BashRegexCheckItem(
     BashSecurityCheckId CheckId,
     string Message,
     Func<string, BashSecurityResult> Validate);
 
+/// <summary>
+/// Bash 正则检查注册表 — 汇总所有基于正则/模式匹配的 Bash 安全检查项
+/// </summary>
 public static class BashRegexCheckRegistry
 {
+    /// <summary>
+    /// 全部已注册的 Bash 正则检查项数组
+    /// </summary>
     public static readonly BashRegexCheckItem[] All =
     [
         new(BashSecurityCheckId.ControlCharacters,
@@ -860,6 +869,9 @@ public static class BashRegexCheckRegistry
         return result.ToString();
     }
 
+    /// <summary>
+    /// 判断命令是否为安全的 heredoc 形式 — 仅当命令为 $((cat &lt;&lt; ...)) 且 body 仅含安全字符时返回 true
+    /// </summary>
     public static bool IsSafeHeredoc(string command)
     {
         if (!command.Contains("$(", StringComparison.Ordinal) || !command.Contains("<<", StringComparison.Ordinal))

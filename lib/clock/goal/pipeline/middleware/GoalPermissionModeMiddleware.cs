@@ -8,14 +8,20 @@ namespace Core.Goal;
 public sealed partial class GoalPermissionModeMiddleware : ServiceEntity, IGoalLifecycleMiddleware
 {
 
+    /// <summary>
+    /// 构造 GoalPermissionModeMiddleware — 注入可选日志记录器
+    /// </summary>
+    /// <param name="logger">可选日志记录器</param>
     public GoalPermissionModeMiddleware(ILogger<GoalPermissionModeMiddleware>? logger = null)
     {
         _logger = logger;
     }
     private readonly ILogger<GoalPermissionModeMiddleware>? _logger;
 
+    /// <inheritdoc />
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
+    /// <inheritdoc />
     public async Task InvokeAsync(GoalLifecycleContext ctx, MiddlewareDelegate<GoalLifecycleContext> next, CancellationToken ct)
     {
         if (ctx.PermissionManager is null)

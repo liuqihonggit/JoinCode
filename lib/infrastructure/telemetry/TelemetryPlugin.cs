@@ -10,6 +10,7 @@ public sealed partial class TelemetryPlugin : WorkflowPluginBase
 {
     private TelemetryService? _telemetryService;
 
+    /// <summary>构造遥测插件</summary>
     public TelemetryPlugin() : base("Telemetry") { }
 
     /// <summary>插件名称</summary>

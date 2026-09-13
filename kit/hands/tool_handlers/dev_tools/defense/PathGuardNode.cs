@@ -8,19 +8,27 @@ namespace Tools.Handlers;
 public sealed class PathGuardNode
 {
     /// <summary>是否为 UNC 路径（以 \\ 或 // 开头）— 可能导致 NTLM 凭据泄露。</summary>
+    /// <param name="filePath">文件路径</param>
+    /// <returns>UNC 路径返回 true，否则返回 false</returns>
     public static bool IsUncPath(string filePath)
         => filePath.StartsWith("\\\\", StringComparison.Ordinal) || filePath.StartsWith("//", StringComparison.Ordinal);
 
     /// <summary>是否为 Jupyter Notebook 文件（.ipynb）— 必须用 NotebookEdit 工具编辑。</summary>
+    /// <param name="filePath">文件路径</param>
+    /// <returns>Notebook 文件返回 true，否则返回 false</returns>
     public static bool IsNotebookPath(string filePath)
         => filePath.EndsWith(".ipynb", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>是否为 keyword-sections.json — 仅 keywordMaintenance Agent 可编辑。</summary>
+    /// <param name="filePath">文件路径</param>
+    /// <returns>keyword-sections.json 返回 true，否则返回 false</returns>
     public static bool IsKeywordSectionsPath(string filePath)
         => !string.IsNullOrEmpty(filePath)
            && Path.GetFileName(filePath).Equals("keyword-sections.json", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>doctor Agent 允许编辑的路径 — .jcc/diag/、.jcc/reflexion/、worktree 内文件。</summary>
+    /// <param name="filePath">文件路径</param>
+    /// <returns>允许编辑的路径返回 true，否则返回 false</returns>
     public static bool IsDoctorAllowedEditPath(string filePath)
     {
         if (string.IsNullOrEmpty(filePath)) return false;

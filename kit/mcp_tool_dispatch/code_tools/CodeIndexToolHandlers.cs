@@ -1,18 +1,32 @@
 
 namespace McpToolDispatch;
 
+/// <summary>
+/// 代码索引工具处理器 - 提供 C# AST 符号搜索、定义/引用查找、调用图与依赖图分析等功能
+/// </summary>
 [McpToolDispatch(ToolCategory.CodeIndex, Optional = true)]
 public sealed class CodeIndexToolHandlers
 {
     private readonly ICodeIndexer _indexer;
     private readonly IProgressiveDisclosure? _disclosure;
 
+    /// <summary>
+    /// 初始化 <see cref="CodeIndexToolHandlers"/> 实例
+    /// </summary>
+    /// <param name="indexer">代码索引器</param>
+    /// <param name="disclosure">渐进式披露器（可选）</param>
     public CodeIndexToolHandlers(ICodeIndexer indexer, IProgressiveDisclosure? disclosure = null)
     {
         _indexer = indexer ?? throw new ArgumentNullException(nameof(indexer));
         _disclosure = disclosure;
     }
 
+    /// <summary>
+    /// 搜索 C# AST 符号（类、方法、属性等），仅搜索已解析的 .cs 文件
+    /// </summary>
+    /// <param name="query">搜索查询（支持 FTS5 全文搜索语法）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>包含匹配符号列表的工具结果</returns>
     [McpTool(CodeToolNameConstants.CodeIndexSearch, "C# AST symbol search ONLY. Searches indexed C# code symbols (classes, methods, properties, etc.) from parsed .cs files. Do NOT use for config files, docs, JSON, YAML, or non-C# content - use grep/glob instead.", "code_index")]
     public async Task<ToolResult> SearchAsync(
         [McpToolParameter("Search query (supports FTS5 full-text search syntax)")] string query,
@@ -69,6 +83,14 @@ public sealed class CodeIndexToolHandlers
         }
     }
 
+    /// <summary>
+    /// 综合检索 C# 符号：模糊匹配符号后 AST 提取引用及调用方/被调用方
+    /// </summary>
+    /// <param name="pattern">匹配符号名称/全限定名的正则模式（rg 风格）</param>
+    /// <param name="max_token_budget">结果的最大 token 预算</param>
+    /// <param name="include_ast">是否包含 AST 展开（引用及调用方/被调用方）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>包含匹配符号、引用、调用方和被调用方的综合检索结果</returns>
     [McpTool(CodeToolNameConstants.CodeIndexSearchComprehensive, "C# AST comprehensive search ONLY. Fuzzy match C# symbols then AST-extract references + callers/callees. Do NOT use for config, docs, JSON, YAML, or non-C# content - use grep/glob instead.", "code_index")]
     public async Task<ToolResult> SearchComprehensiveAsync(
         [McpToolParameter("Regex pattern to fuzzy match symbol name/FQN (rg-style, e.g. 'User*' or 'Get.*Name')")] string pattern,
@@ -175,6 +197,12 @@ public sealed class CodeIndexToolHandlers
         }
     }
 
+    /// <summary>
+    /// 查找指定 C# 符号的定义位置
+    /// </summary>
+    /// <param name="symbol_name">符号名称</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>包含符号定义位置信息的工具结果</returns>
     [McpTool(CodeToolNameConstants.CodeIndexFindDefinition, "Find the definition location of a C# symbol in AST index", "code_index")]
     public async Task<ToolResult> FindDefinitionAsync(
         [McpToolParameter("Symbol name")] string symbol_name,
@@ -223,6 +251,12 @@ public sealed class CodeIndexToolHandlers
         }
     }
 
+    /// <summary>
+    /// 查找指定 C# 符号的所有引用
+    /// </summary>
+    /// <param name="symbol_name">符号名称</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>包含符号所有引用位置的工具结果</returns>
     [McpTool(CodeToolNameConstants.CodeIndexFindReferences, "Find all references to a C# symbol in AST index", "code_index")]
     public async Task<ToolResult> FindReferencesAsync(
         [McpToolParameter("Symbol name")] string symbol_name,
@@ -269,6 +303,12 @@ public sealed class CodeIndexToolHandlers
         }
     }
 
+    /// <summary>
+    /// 查找指定 C# 符号的所有调用方
+    /// </summary>
+    /// <param name="symbol_name">符号名称</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>包含所有调用方信息的工具结果</returns>
     [McpTool(CodeToolNameConstants.CodeIndexGetCallers, "Find all callers of a specified C# symbol in AST index", "code_index")]
     public async Task<ToolResult> GetCallersAsync(
         [McpToolParameter("Symbol name")] string symbol_name,
@@ -309,6 +349,12 @@ public sealed class CodeIndexToolHandlers
         }
     }
 
+    /// <summary>
+    /// 查找指定 C# 符号调用的所有被调用方
+    /// </summary>
+    /// <param name="symbol_name">符号名称</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>包含所有被调用方信息的工具结果</returns>
     [McpTool(CodeToolNameConstants.CodeIndexGetCallees, "Find all callees invoked by a specified C# symbol in AST index", "code_index")]
     public async Task<ToolResult> GetCalleesAsync(
         [McpToolParameter("Symbol name")] string symbol_name,
@@ -349,6 +395,13 @@ public sealed class CodeIndexToolHandlers
         }
     }
 
+    /// <summary>
+    /// 查找两个符号之间的调用链
+    /// </summary>
+    /// <param name="from">起始符号名称</param>
+    /// <param name="to">目标符号名称</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>包含调用链路径的工具结果</returns>
     [McpTool(CodeToolNameConstants.CodeIndexGetCallChain, "Find the call chain between two symbols", "code_index")]
     public async Task<ToolResult> GetCallChainAsync(
         [McpToolParameter("Source symbol name")] string from,
@@ -395,6 +448,12 @@ public sealed class CodeIndexToolHandlers
         }
     }
 
+    /// <summary>
+    /// 分析修改指定符号的影响范围
+    /// </summary>
+    /// <param name="symbol_name">符号名称</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>包含受影响符号列表的工具结果</returns>
     [McpTool(CodeToolNameConstants.CodeIndexGetImpactScope, "Analyze the impact scope of modifying a symbol", "code_index")]
     public async Task<ToolResult> GetImpactScopeAsync(
         [McpToolParameter("Symbol name")] string symbol_name,
@@ -432,6 +491,12 @@ public sealed class CodeIndexToolHandlers
         }
     }
 
+    /// <summary>
+    /// 查找继承或实现指定符号的所有类型
+    /// </summary>
+    /// <param name="symbol_name">符号名称</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>包含所有继承者信息的工具结果</returns>
     [McpTool(CodeToolNameConstants.CodeIndexGetInheritors, "Find types that inherit or implement a specified symbol", "code_index")]
     public async Task<ToolResult> GetInheritorsAsync(
         [McpToolParameter("Symbol name")] string symbol_name,
@@ -471,6 +536,12 @@ public sealed class CodeIndexToolHandlers
         }
     }
 
+    /// <summary>
+    /// 查找指定符号的依赖项
+    /// </summary>
+    /// <param name="symbol_name">符号名称</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>包含所有依赖项信息的工具结果</returns>
     [McpTool(CodeToolNameConstants.CodeIndexGetDependencies, "Find dependencies of a specified symbol", "code_index")]
     public async Task<ToolResult> GetDependenciesAsync(
         [McpToolParameter("Symbol name")] string symbol_name,
@@ -510,6 +581,12 @@ public sealed class CodeIndexToolHandlers
         }
     }
 
+    /// <summary>
+    /// 分析修改指定文件后受影响的文件
+    /// </summary>
+    /// <param name="file_path">文件路径</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>包含受影响文件列表的工具结果</returns>
     [McpTool(CodeToolNameConstants.CodeIndexGetAffectedFiles, "Analyze files affected by modifying a specified file", "code_index")]
     public async Task<ToolResult> GetAffectedFilesAsync(
         [McpToolParameter("File path")] string file_path,
@@ -547,6 +624,12 @@ public sealed class CodeIndexToolHandlers
         }
     }
 
+    /// <summary>
+    /// 重建代码索引
+    /// </summary>
+    /// <param name="workspace_root">工作区根目录路径</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>包含重建统计信息的工具结果</returns>
     [McpTool(CodeToolNameConstants.CodeIndexRebuild, "Rebuild the code index", "code_index")]
     public async Task<ToolResult> RebuildAsync(
         [McpToolParameter("Workspace root directory path")] string workspace_root,
@@ -587,6 +670,11 @@ public sealed class CodeIndexToolHandlers
         }
     }
 
+    /// <summary>
+    /// 获取代码索引统计信息
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>包含索引统计信息的工具结果</returns>
     [McpTool(CodeToolNameConstants.CodeIndexStats, "Get code index statistics", "code_index")]
     public async Task<ToolResult> GetStatsAsync(
         CancellationToken cancellationToken = default)
@@ -613,6 +701,13 @@ public sealed class CodeIndexToolHandlers
         }
     }
 
+    /// <summary>
+    /// 渐进式探索 C# 代码：符号索引 → 调用关系 → 源代码
+    /// </summary>
+    /// <param name="query">搜索查询（符号名称或关键字）</param>
+    /// <param name="level">披露级别：index=仅符号索引，relationships=含调用图，source=含源代码</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>包含渐进式探索结果的工具结果</returns>
     [McpTool(CodeToolNameConstants.CodeIndexExplore, "Progressively explore C# code: symbol index -> call relationships -> source code. AST index only.", "code_index")]
     public async Task<ToolResult> ExploreAsync(
         [McpToolParameter("Search query (symbol name or keyword)")] string query,
@@ -661,6 +756,12 @@ public sealed class CodeIndexToolHandlers
         }
     }
 
+    /// <summary>
+    /// 查找指定项目的项目依赖
+    /// </summary>
+    /// <param name="project_path">项目文件路径（.csproj）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>包含项目依赖列表的工具结果</returns>
     [McpTool(CodeToolNameConstants.CodeIndexGetProjectDeps, "Find project dependencies of a specified project", "code_index")]
     public async Task<ToolResult> GetProjectDependenciesAsync(
         [McpToolParameter("Project file path (.csproj)")] string project_path,
@@ -698,6 +799,12 @@ public sealed class CodeIndexToolHandlers
         }
     }
 
+    /// <summary>
+    /// 查找依赖于指定项目的所有项目
+    /// </summary>
+    /// <param name="project_path">项目文件路径（.csproj）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>包含项目被依赖列表的工具结果</returns>
     [McpTool(CodeToolNameConstants.CodeIndexGetProjectDependents, "Find projects that depend on a specified project", "code_index")]
     public async Task<ToolResult> GetProjectDependentsAsync(
         [McpToolParameter("Project file path (.csproj)")] string project_path,
@@ -735,6 +842,12 @@ public sealed class CodeIndexToolHandlers
         }
     }
 
+    /// <summary>
+    /// 分析修改指定文件后受影响的项目
+    /// </summary>
+    /// <param name="file_path">文件路径</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>包含受影响项目列表的工具结果</returns>
     [McpTool(CodeToolNameConstants.CodeIndexGetAffectedProjects, "Analyze projects affected by modifying a specified file", "code_index")]
     public async Task<ToolResult> GetAffectedProjectsAsync(
         [McpToolParameter("File path")] string file_path,
@@ -772,6 +885,12 @@ public sealed class CodeIndexToolHandlers
         }
     }
 
+    /// <summary>
+    /// 查找指定项目引用的 NuGet 包
+    /// </summary>
+    /// <param name="project_path">项目文件路径（.csproj）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>包含 NuGet 包列表的工具结果</returns>
     [McpTool(CodeToolNameConstants.CodeIndexGetProjectNuGets, "Find NuGet packages referenced by a specified project", "code_index")]
     public async Task<ToolResult> GetProjectNuGetPackagesAsync(
         [McpToolParameter("Project file path (.csproj)")] string project_path,
@@ -810,6 +929,12 @@ public sealed class CodeIndexToolHandlers
         }
     }
 
+    /// <summary>
+    /// 查找引用指定 NuGet 包的所有项目
+    /// </summary>
+    /// <param name="package_name">NuGet 包名称</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>包含项目列表的工具结果</returns>
     [McpTool(CodeToolNameConstants.CodeIndexGetNuGetProjects, "Find all projects referencing a specified NuGet package", "code_index")]
     public async Task<ToolResult> GetProjectsUsingNuGetPackageAsync(
         [McpToolParameter("NuGet package name")] string package_name,
@@ -847,6 +972,11 @@ public sealed class CodeIndexToolHandlers
         }
     }
 
+    /// <summary>
+    /// 列出工作区中的所有项目
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>包含所有项目列表的工具结果</returns>
     [McpTool(CodeToolNameConstants.CodeIndexGetAllProjects, "List all projects in the workspace", "code_index")]
     public async Task<ToolResult> GetAllProjectsAsync(
         CancellationToken cancellationToken = default)

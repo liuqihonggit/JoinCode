@@ -11,6 +11,11 @@ namespace JoinCode.ChatCommands;
 [ChatCommandArg("action", Type = "string", Description = "Bridge 操作: qr=显示二维码, sessions=列出会话, status=状态, connect=连接, disconnect=断开", Enum = new[] { "qr", "sessions", "status", "connect", "disconnect" })]
 public sealed class BridgeCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /bridge 命令，根据子操作分发到 QR 码显示、会话列表、状态查询或连接切换
+    /// </summary>
+    /// <param name="context">命令执行上下文，提供子操作参数与服务提供者</param>
+    /// <returns>表示命令执行结果的 <see cref="ChatCommandResult"/>，始终为 Continue</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetSplitArgs(context);

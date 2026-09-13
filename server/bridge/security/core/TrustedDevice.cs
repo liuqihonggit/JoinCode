@@ -82,6 +82,10 @@ public sealed partial class TrustedDeviceStore : ServiceEntity, ITrustedDeviceSt
     private readonly ConcurrentDictionary<string, TrustedDeviceEntry> _devices;
     private readonly ILogger<TrustedDeviceStore>? _logger;
 
+    /// <summary>
+    /// 构造受信任设备存储
+    /// </summary>
+    /// <param name="logger">可选日志记录器</param>
     public TrustedDeviceStore(ILogger<TrustedDeviceStore>? logger = null)
     {
         _devices = new ConcurrentDictionary<string, TrustedDeviceEntry>(StringComparer.Ordinal);

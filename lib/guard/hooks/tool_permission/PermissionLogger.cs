@@ -9,6 +9,9 @@ namespace Core.Hooks.ToolPermission;
 public sealed partial class PermissionLogger : ServiceEntity, IPermissionLogger
 {
 
+    /// <summary>
+    /// 构造权限日志记录器
+    /// </summary>
     public PermissionLogger(ILogger<PermissionLogger>? logger = null, ITelemetryService? telemetryService = null)
     {
         _logger = logger;

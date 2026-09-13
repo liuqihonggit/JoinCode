@@ -9,6 +9,13 @@ namespace Tools.Handlers;
 public sealed partial class AgentHandoffMiddleware : ServiceEntity, IAgentToolMiddleware
 {
 
+    /// <summary>
+    /// 构造 Agent Handoff 安全审查中间件
+    /// </summary>
+    /// <param name="handoffClassifier">可选交接安全分类器，审查子智能体操作</param>
+    /// <param name="worktreeManager">可选 worktree 管理器，用于输出 worktree 隔离信息</param>
+    /// <param name="telemetryService">可选遥测服务</param>
+    /// <param name="logger">可选日志记录器</param>
     public AgentHandoffMiddleware(IHandoffClassifier? handoffClassifier = null, JoinCode.Abstractions.Interfaces.IAgentWorktreeManager? worktreeManager = null, ITelemetryService? telemetryService = null, ILogger<AgentHandoffMiddleware>? logger = null)
     {
         _handoffClassifier = handoffClassifier;

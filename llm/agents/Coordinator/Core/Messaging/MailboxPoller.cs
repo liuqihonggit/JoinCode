@@ -1,5 +1,8 @@
 namespace Core.Agents.Coordinator;
 
+/// <summary>
+/// 邮箱轮询器 — 周期性从文件邮箱拉取未读消息并投递到进程内邮箱或消息接收器
+/// </summary>
 [Register(typeof(IMailboxPoller), ServiceLifetime.Singleton)]
 public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable
 {
@@ -11,6 +14,14 @@ public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable
     private readonly TimeSpan _pollInterval;
     private int _isDisposed;
 
+    /// <summary>
+    /// 构造邮箱轮询器实例
+    /// </summary>
+    /// <param name="mailboxService">队友邮箱服务，提供未读消息读取与标记已读能力</param>
+    /// <param name="messageBroker">进程内消息邮箱，用于将拉取到的消息投递给 Agent</param>
+    /// <param name="logger">可选日志记录器</param>
+    /// <param name="pollInterval">可选轮询间隔，缺省 500 毫秒</param>
+    /// <param name="messageSink">可选消息接收器，优先于 messageBroker 投递</param>
     public MailboxPoller(
         ITeammateMailboxService mailboxService,
         IMailbox messageBroker,
@@ -26,6 +37,11 @@ public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable
         _messageSink = messageSink;
     }
 
+    /// <summary>
+    /// 启动指定 Agent 在指定会话下的邮箱轮询；同一键重复调用将被忽略
+    /// </summary>
+    /// <param name="agentId">Agent 标识</param>
+    /// <param name="sessionId">会话标识</param>
     public void StartPolling(string agentId, string sessionId)
     {
         var key = GetPollingKey(agentId, sessionId);
@@ -47,6 +63,11 @@ public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable
         _logger?.LogInformation("Mailbox polling started for {AgentId} in session {SessionId}", agentId, sessionId);
     }
 
+    /// <summary>
+    /// 停止指定 Agent 在指定会话下的邮箱轮询
+    /// </summary>
+    /// <param name="agentId">Agent 标识</param>
+    /// <param name="sessionId">会话标识</param>
     public void StopPolling(string agentId, string sessionId)
     {
         var key = GetPollingKey(agentId, sessionId);
@@ -129,6 +150,9 @@ public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable
         return $"{sessionId}:{agentId}";
     }
 
+    /// <summary>
+    /// 异步释放轮询器，取消所有活跃轮询任务并清理资源
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return;

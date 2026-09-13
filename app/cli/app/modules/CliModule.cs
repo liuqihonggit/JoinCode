@@ -6,8 +6,12 @@ namespace JoinCode.App.Modules;
 [AppModule(Order = 80)]
 public sealed class CliModule : IAppModule
 {
+    /// <summary>模块排序权重（80，CLI 专属服务在基础设施之后注册）</summary>
     public int Order => 80;
 
+    /// <summary>注册 CLI 专属服务（交互服务、斜杠命令注册表、命令门面、命令服务聚合）</summary>
+    /// <param name="services">服务集合</param>
+    /// <param name="context">模块上下文（含命令行选项和配置）</param>
     public void ConfigureServices(IServiceCollection services, AppModuleContext context)
     {
         services.AddSingleton<IInteractiveService, TerminalInteractiveService>();
@@ -71,6 +75,10 @@ public sealed class CliModule : IAppModule
         });
     }
 
+    /// <summary>模块异步初始化 — 将 ExposeToMcp=true 的斜杠命令注册为 MCP 工具（通过 SlashToMcpAdapter 包装）</summary>
+    /// <param name="services">已构建的服务提供者</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步初始化操作的任务</returns>
     public async Task ConfigureAsync(IServiceProvider services, CancellationToken ct)
     {
         // 将 ExposeToMcp=true 的斜杠命令注册为 MCP 工具（通过 SlashToMcpAdapter 包装）

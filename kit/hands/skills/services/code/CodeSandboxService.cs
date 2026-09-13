@@ -1,6 +1,9 @@
 
 namespace Core.Skills;
 
+/// <summary>
+/// 代码沙箱服务 — 在临时目录中编译并执行 C# 代码，捕获输出和错误
+/// </summary>
 [Register(typeof(ICodeSandboxService), ServiceLifetime.Singleton)]
 public sealed partial class CodeSandboxService : ServiceEntity, ICodeSandboxService
 {
@@ -10,6 +13,14 @@ public sealed partial class CodeSandboxService : ServiceEntity, ICodeSandboxServ
     private readonly ITelemetryService? _telemetryService;
     private readonly ILogger<CodeSandboxService>? _logger;
 
+    /// <summary>
+    /// 创建代码沙箱服务
+    /// </summary>
+    /// <param name="fileOperationService">文件操作服务</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="processService">进程执行服务</param>
+    /// <param name="telemetryService">遥测服务</param>
+    /// <param name="logger">日志记录器</param>
     public CodeSandboxService(IFileOperationService fileOperationService, IFileSystem fs, IProcessService processService, ITelemetryService? telemetryService = null, ILogger<CodeSandboxService>? logger = null)
     {
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
@@ -19,6 +30,13 @@ public sealed partial class CodeSandboxService : ServiceEntity, ICodeSandboxServ
         _logger = logger;
     }
 
+    /// <summary>
+    /// 异步执行 C# 代码 — 在临时目录中编译并运行，返回标准输出和标准错误的合并文本
+    /// </summary>
+    /// <param name="code">要执行的 C# 代码</param>
+    /// <param name="timeoutMs">执行超时毫秒数</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>执行输出（标准输出 + 标准错误 + 退出码）</returns>
     public async Task<string> ExecuteAsync(string code, int timeoutMs, CancellationToken cancellationToken = default)
     {
         await using var span = _telemetryService?.StartSpan("sandbox.execute", TelemetrySpanKind.Server);
@@ -121,6 +139,13 @@ public sealed partial class CodeSandboxService : ServiceEntity, ICodeSandboxServ
         }
     }
 
+    /// <summary>
+    /// 异步求值 C# 表达式 — 将表达式包装为完整 Program 后调用 <see cref="ExecuteAsync"/>
+    /// </summary>
+    /// <param name="expression">要求值的 C# 表达式</param>
+    /// <param name="variables">变量声明代码；为 null 则不添加</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>表达式求值结果文本</returns>
     public async Task<string> EvaluateExpressionAsync(string expression, string? variables, CancellationToken cancellationToken = default)
     {
         var codeBuilder = new StringBuilder(512);

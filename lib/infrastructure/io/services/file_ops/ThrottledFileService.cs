@@ -12,6 +12,13 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
     private readonly ILogger<ThrottledFileService>? _logger;
     private readonly ITelemetryService? _telemetryService;
 
+    /// <summary>
+    /// 构造限流文件服务
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="throttleService">IO 限流服务,所有读写删除操作均需先获取租约</param>
+    /// <param name="logger">可选日志记录器</param>
+    /// <param name="telemetryService">可选遥测服务,用于记录文件操作指标</param>
     public ThrottledFileService(
         IFileSystem fs,
         IIOThrottleService throttleService,
@@ -627,6 +634,9 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
         return Path.GetFullPath(path);
     }
 
+    /// <summary>
+    /// 释放服务 — 不拥有 ThrottleService 生命周期,仅空实现满足 IDisposable 契约
+    /// </summary>
     public void Dispose()
     {
         // ThrottledFileService 不拥有 ThrottleService 的生命周期

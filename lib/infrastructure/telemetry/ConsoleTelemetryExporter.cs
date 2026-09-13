@@ -11,6 +11,11 @@ public sealed class ConsoleTelemetryExporter : IDisposable
     private readonly ActivityListener _listener;
     private int _isDisposed;
 
+    /// <summary>
+    /// 构造函数 — 监听指定服务名的 Activity 完成事件并输出到日志
+    /// </summary>
+    /// <param name="serviceName">要监听的 ActivitySource 名称</param>
+    /// <param name="logger">日志记录器，可为 null</param>
     public ConsoleTelemetryExporter(string serviceName, ILogger? logger = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(serviceName);
@@ -81,6 +86,7 @@ public sealed class ConsoleTelemetryExporter : IDisposable
         }
     }
 
+    /// <inheritdoc/>
     public void Dispose()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _isDisposed)) return;

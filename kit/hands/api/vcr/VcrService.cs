@@ -1,6 +1,9 @@
 
 namespace Services.Api.Vcr;
 
+/// <summary>
+/// VCR（录像/回放）服务实现，负责 cassette 加载、保存、交互录制与回放匹配
+/// </summary>
 [Register(typeof(IVcrService), ServiceLifetime.Singleton)]
 [Register(typeof(JoinCode.Abstractions.Interfaces.IVcrService), ServiceLifetime.Singleton)]
 public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Abstractions.Interfaces.IVcrService, IDisposable
@@ -13,9 +16,22 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
 
     private VcrMode _currentMode;
 
+    /// <summary>
+    /// 当前 VCR 模式
+    /// </summary>
     public VcrMode CurrentMode => _currentMode;
+
+    /// <summary>
+    /// cassette 默认存放目录
+    /// </summary>
     public string CassettesDirectory => _options.CassettesDirectory;
 
+    /// <summary>
+    /// 构造 VcrService
+    /// </summary>
+    /// <param name="options">VCR 配置选项</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">可选日志记录器</param>
     public VcrService(VcrOptions options, IFileSystem fs, ILogger<VcrService>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -26,6 +42,13 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
         _currentMode = options.Mode;
     }
 
+    /// <summary>
+    /// 异步加载 cassette，若文件不存在则创建空 cassette；命中缓存直接返回
+    /// </summary>
+    /// <param name="name">cassette 名称</param>
+    /// <param name="directory">可选目录覆盖</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>加载到的 cassette 实例</returns>
     public async Task<VcrCassette> LoadCassetteAsync(string name, string? directory = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(name);
@@ -59,6 +82,13 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
     
     }
 
+    /// <summary>
+    /// 异步保存 cassette 到磁盘并更新缓存
+    /// </summary>
+    /// <param name="cassette">cassette 实例</param>
+    /// <param name="directory">可选目录覆盖</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>表示异步保存操作的任务</returns>
     public async Task SaveCassetteAsync(VcrCassette cassette, string? directory = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(cassette);
@@ -78,6 +108,15 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
     
     }
 
+    /// <summary>
+    /// 录制一次 HTTP 交互；仅在录制模式下生效，根据配置决定是否保留头与体
+    /// </summary>
+    /// <param name="cassetteName">cassette 名称</param>
+    /// <param name="request">请求记录</param>
+    /// <param name="response">响应记录</param>
+    /// <param name="directory">可选目录覆盖</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>表示异步录制操作的任务</returns>
     public async Task RecordInteractionAsync(string cassetteName, VcrRequest request, VcrResponse response, string? directory = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(cassetteName);
@@ -111,6 +150,14 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
         _logger?.LogDebug("录制交互: {Method} {Uri} -> {Status}", request.Method, request.Uri, response.Status);
     }
 
+    /// <summary>
+    /// 在回放模式下查找匹配的录制交互；严格模式未匹配时抛出异常
+    /// </summary>
+    /// <param name="cassetteName">cassette 名称</param>
+    /// <param name="request">待匹配的请求</param>
+    /// <param name="directory">可选目录覆盖</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>匹配到的响应；非回放模式或未匹配时返回 null</returns>
     public async Task<VcrResponse?> FindMatchingInteractionAsync(string cassetteName, VcrRequest request, string? directory = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(cassetteName);
@@ -142,12 +189,22 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
         return null;
     }
 
+    /// <summary>
+    /// 切换 VCR 运行模式
+    /// </summary>
+    /// <param name="mode">目标模式</param>
     public void SetMode(VcrMode mode)
     {
         _currentMode = mode;
         _logger?.LogInformation("VCR 模式切换为: {Mode}", mode);
     }
 
+    /// <summary>
+    /// 获取 cassette 文件完整路径，并对路径越界做安全校验
+    /// </summary>
+    /// <param name="name">cassette 名称</param>
+    /// <param name="directory">可选目录覆盖，为 null 时使用默认目录</param>
+    /// <returns>cassette 文件绝对路径</returns>
     public string GetCassettePath(string name, string? directory = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(name);
@@ -175,16 +232,35 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
         return true;
     }
 
+    /// <summary>
+    /// 释放文件锁资源
+    /// </summary>
     protected override void OnDispose()
     {
         _fileLock.Dispose();
     }
 
+    /// <summary>
+    /// 显式接口实现：获取 cassette 文件路径
+    /// </summary>
+    /// <param name="name">cassette 名称</param>
+    /// <param name="directory">可选目录覆盖</param>
+    /// <returns>cassette 文件绝对路径</returns>
     string JoinCode.Abstractions.Interfaces.IVcrService.GetCassettePath(string name, string? directory)
         => GetCassettePath(name, directory);
 
+    /// <summary>
+    /// 显式接口实现：cassette 默认存放目录
+    /// </summary>
     string JoinCode.Abstractions.Interfaces.IVcrService.CassettesDirectory => CassettesDirectory;
 
+    /// <summary>
+    /// 显式接口实现：异步加载 cassette 并映射为抽象层模型
+    /// </summary>
+    /// <param name="name">cassette 名称</param>
+    /// <param name="directory">可选目录覆盖</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>抽象层 cassette 模型</returns>
     async Task<JoinCode.Abstractions.Models.Vcr.VcrCassette> JoinCode.Abstractions.Interfaces.IVcrService.LoadCassetteAsync(string name, string? directory, CancellationToken cancellationToken)
     {
         var cassette = await LoadCassetteAsync(name, directory, cancellationToken).ConfigureAwait(false);
@@ -197,9 +273,16 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
         };
     }
 
+    /// <summary>
+    /// 显式接口实现：当前 VCR 模式（映射为抽象层枚举）
+    /// </summary>
     JoinCode.Abstractions.Models.Vcr.VcrMode JoinCode.Abstractions.Interfaces.IVcrService.CurrentMode =>
         (JoinCode.Abstractions.Models.Vcr.VcrMode)CurrentMode;
 
+    /// <summary>
+    /// 显式接口实现：切换 VCR 模式
+    /// </summary>
+    /// <param name="mode">抽象层模式</param>
     void JoinCode.Abstractions.Interfaces.IVcrService.SetMode(JoinCode.Abstractions.Models.Vcr.VcrMode mode)
     {
         SetMode((VcrMode)mode);

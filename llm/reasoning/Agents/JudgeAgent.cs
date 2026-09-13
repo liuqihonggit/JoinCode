@@ -5,6 +5,9 @@ namespace JoinCode.Reasoning.Agents;
 /// </summary>
 public sealed class JudgeAgent : ReasoningAgent
 {
+    /// <summary>
+    /// 法官 Agent 的系统提示词 — 指示 LLM 基于控辩双方证据链做出 Accept/Reject/PartiallyAccept/Pending 裁决
+    /// </summary>
     public override string SystemPrompt =>
         "你是一个公正的法官。你的职责是基于控辩双方的证据链做出裁决。" +
         "对每个假定，根据证据权重和信任度，做出接受(Accept)、驳回(Reject)、部分接受(PartiallyAccept)或待补充(Pending)的裁决。" +
@@ -12,9 +15,22 @@ public sealed class JudgeAgent : ReasoningAgent
 
     private readonly WeightedDecisionSystem _decisionSystem = new();
 
+    /// <summary>
+    /// 初始化法官 Agent 实例
+    /// </summary>
+    /// <param name="queryEngine">查询引擎</param>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="chatClient">聊天客户端，可选</param>
+    /// <param name="messageBroker">消息代理邮箱，可选</param>
     public JudgeAgent(IQueryEngine queryEngine, ILogger<JudgeAgent> logger, IChatClient? chatClient = null, IMailbox? messageBroker = null)
         : base(queryEngine, logger, AgentRole.Judge, "法官Agent", chatClient, messageBroker) { }
 
+    /// <summary>
+    /// 执行法官裁决推理 — 对可见的已验证/假定数据项，先用加权决策系统裁决，再调用 LLM 补充裁决
+    /// </summary>
+    /// <param name="context">推理上下文</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>包含裁决列表和 Token 使用量的 Agent 动作</returns>
     public override async Task<AgentAction> ReasonAsync(ReasoningContext context, CancellationToken ct)
     {
         var action = new AgentAction { AgentRole = Role, ActionType = "裁决" };

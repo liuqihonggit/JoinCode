@@ -6,6 +6,10 @@ namespace Core.Goal;
 /// </summary>
 public static class GoalGraphTemplates
 {
+    /// <summary>
+    /// 注册全部预定义 Graph 模板到注册表
+    /// </summary>
+    /// <param name="registry">模板注册表</param>
     public static void RegisterAll(IGoalGraphTemplateRegistry registry)
     {
         registry.Register(RefactorTemplate);
@@ -17,6 +21,7 @@ public static class GoalGraphTemplates
         registry.Register(ClusterTemplate);
     }
 
+    /// <summary>重构模板 — explore → implement → review → {PASS: commit, FAIL: implement}</summary>
     public static GoalGraphTemplate RefactorTemplate => new()
     {
         Name = "refactor",
@@ -25,6 +30,7 @@ public static class GoalGraphTemplates
         BuildGraph = BuildRefactorGraph,
     };
 
+    /// <summary>修 Bug 模板 — reproduce → locate → fix → verify → {PASS: done, FAIL: fix}</summary>
     public static GoalGraphTemplate BugFixTemplate => new()
     {
         Name = "bugfix",
@@ -33,6 +39,7 @@ public static class GoalGraphTemplates
         BuildGraph = BuildBugFixGraph,
     };
 
+    /// <summary>调研模板 — start → [research_a ∥ research_b] → gather → synthesize → review</summary>
     public static GoalGraphTemplate ResearchTemplate => new()
     {
         Name = "research",
@@ -41,6 +48,7 @@ public static class GoalGraphTemplates
         BuildGraph = BuildResearchGraph,
     };
 
+    /// <summary>代码审查模板 — read → analyze → {PASS: approve, FAIL: suggest_fixes}</summary>
     public static GoalGraphTemplate CodeReviewTemplate => new()
     {
         Name = "code_review",
@@ -49,6 +57,7 @@ public static class GoalGraphTemplates
         BuildGraph = BuildCodeReviewGraph,
     };
 
+    /// <summary>测试生成模板 — analyze → write_tests → run_tests → {PASS: done, FAIL: write_tests}</summary>
     public static GoalGraphTemplate TestGenTemplate => new()
     {
         Name = "test_gen",
@@ -367,6 +376,7 @@ public static class GoalGraphTemplates
 """;
     }
 
+    /// <summary>集群模板 — cluster_analyze → [动态展开并行Worker] → gather → merge → review</summary>
     public static GoalGraphTemplate ClusterTemplate => new()
     {
         Name = "cluster",

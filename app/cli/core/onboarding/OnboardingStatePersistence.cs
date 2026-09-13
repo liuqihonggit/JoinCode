@@ -10,6 +10,11 @@ public sealed partial class OnboardingStatePersistence : ServiceEntity
     private readonly IFileSystem _fs;
     private readonly IClockService _clock;
 
+    /// <summary>
+    /// 构造 Onboarding 状态持久化实例，使用默认应用数据路径
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="clock">时钟服务，为空时使用系统默认时钟</param>
     public OnboardingStatePersistence(IFileSystem fs, IClockService? clock = null)
     {
         _fs = fs;
@@ -90,6 +95,9 @@ public sealed class OnboardingCompletionData
     public DateTimeOffset CompletedAt { get; set; }
 }
 
+/// <summary>
+/// Onboarding 持久化的 JSON 序列化上下文，为 NativeAOT 提供源码生成支持
+/// </summary>
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true)]
 [JsonSerializable(typeof(OnboardingCompletionData))]
 public sealed partial class OnboardingPersistenceContext : JsonSerializerContext;

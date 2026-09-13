@@ -7,6 +7,7 @@ namespace Core.Configuration.ConfigPipeline;
 public sealed partial class RulesAssignMiddleware : ServiceEntity, IConfigLoadMiddleware
 {
 
+    /// <inheritdoc/>
     public Task InvokeAsync(ConfigLoadContext context, MiddlewareDelegate<ConfigLoadContext> next, CancellationToken ct)
     {
         var config = context.Config;

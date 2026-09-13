@@ -10,6 +10,12 @@ public class QuadtreeDesktopOverlayToolHandlers
     private readonly IQuadtreeDesktopOverlayMapper _mapper;
     private readonly ILogger<QuadtreeDesktopOverlayToolHandlers>? _logger;
 
+    /// <summary>
+    /// 构造四叉树桌面叠加工具处理器
+    /// </summary>
+    /// <param name="annotator">四叉树标注器</param>
+    /// <param name="mapper">四叉树到屏幕坐标映射器</param>
+    /// <param name="logger">日志记录器(可选)</param>
     public QuadtreeDesktopOverlayToolHandlers(
         IQuadtreeAnnotator annotator,
         IQuadtreeDesktopOverlayMapper mapper,

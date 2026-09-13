@@ -1,5 +1,8 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
+/// <summary>
+/// 上下文折叠执行器，调用摘要器对头部可折叠消息生成摘要并原地重写日志
+/// </summary>
 public sealed partial class ContextFoldExecutor
 {
     private const string HistoryFoldMarker =
@@ -8,12 +11,26 @@ public sealed partial class ContextFoldExecutor
     private readonly IFoldSummarizer _summarizer;
     private readonly ILogger<ContextFoldExecutor>? _logger;
 
+    /// <summary>
+    /// 构造函数
+    /// </summary>
+    /// <param name="summarizer">折叠摘要器</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public ContextFoldExecutor(IFoldSummarizer summarizer, ILogger<ContextFoldExecutor>? logger = null)
     {
         _summarizer = summarizer ?? throw new ArgumentNullException(nameof(summarizer));
         _logger = logger;
     }
 
+    /// <summary>
+    /// 执行上下文折叠：计算边界、分区可折叠消息、生成摘要并原地重写日志
+    /// </summary>
+    /// <param name="log">会话消息日志，原地改写</param>
+    /// <param name="ctxMax">上下文窗口大小</param>
+    /// <param name="aggressive">是否使用激进折叠比例</param>
+    /// <param name="thresholds">折叠阈值（可选，默认使用 Default）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>折叠结果，包含是否折叠、原始/头部/尾部消息数与摘要</returns>
     public async Task<ContextFoldResult> FoldAsync(
         AppendOnlyLog log,
         int ctxMax,
@@ -112,6 +129,11 @@ public sealed partial class ContextFoldExecutor
         };
     }
 
+    /// <summary>
+    /// 裁剪末尾工具调用并准备以摘要退出
+    /// </summary>
+    /// <param name="log">会话消息日志，原地改写</param>
+    /// <returns>折叠结果，标记为 ExitWithSummary 决策</returns>
     public ContextFoldResult TrimTrailingAndPrepareExit(AppendOnlyLog log)
     {
         ArgumentNullException.ThrowIfNull(log);

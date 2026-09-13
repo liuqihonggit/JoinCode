@@ -37,6 +37,11 @@ public sealed class TriggerConditionMapper
         };
     }
 
+    /// <summary>
+    /// 根据参数名获取对应的触发条件。
+    /// </summary>
+    /// <param name="parameterName">参数名。</param>
+    /// <returns>匹配的触发条件；若未找到则返回 null。</returns>
     public TriggerCondition? GetCondition(string parameterName)
     {
         return ParameterMappings.GetValueOrDefault(parameterName);

@@ -54,6 +54,13 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
         [".yaml"] = ["*.yaml", "*.yml"]
     }.ToFrozenDictionary();
 
+    /// <summary>
+    /// 构造函数
+    /// </summary>
+    /// <param name="searchService">搜索服务</param>
+    /// <param name="fileOperationService">文件操作服务</param>
+    /// <param name="codeIndexer">代码索引器（可选）</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public ReferenceResolver(ISearchService searchService, IFileOperationService fileOperationService, ICodeIndexer? codeIndexer = null, ILogger<ReferenceResolver>? logger = null)
     {
         _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));

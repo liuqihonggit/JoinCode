@@ -19,6 +19,11 @@ public sealed class CommandServiceProvider : IServiceProvider
         _fallback = fallback ?? commandServices.ServiceProvider;
     }
 
+    /// <summary>
+    /// 获取指定类型的服务实例 — 优先返回 CommandServices，其余转发到 fallback provider
+    /// </summary>
+    /// <param name="serviceType">请求的服务类型</param>
+    /// <returns>服务实例，若无法解析则返回 null</returns>
     public object? GetService(Type serviceType)
     {
         if (serviceType == typeof(CommandServices))

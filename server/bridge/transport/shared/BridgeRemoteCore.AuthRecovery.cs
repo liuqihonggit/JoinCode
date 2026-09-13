@@ -1,6 +1,9 @@
 
 namespace Core.Bridge;
 
+/// <summary>
+/// Bridge 远程核心 — 认证恢复相关逻辑（partial）
+/// </summary>
 public static partial class BridgeRemoteCore
 {
     #region recoverFromAuthFailure
@@ -9,6 +12,16 @@ public static partial class BridgeRemoteCore
     /// 401 认证恢复 — 对齐 TS 端 recoverFromAuthFailure
     /// SSE 401 时自动刷新 OAuth → 重新获取凭证 → 重建传输
     /// </summary>
+    /// <param name="sessionId">会话 ID</param>
+    /// <param name="parameters">Bridge v2 参数</param>
+    /// <param name="httpClient">HTTP 客户端</param>
+    /// <param name="config">Bridge v2 配置</param>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="oldTransport">旧传输实例</param>
+    /// <param name="transportFactory">传输工厂</param>
+    /// <param name="state">初始化状态</param>
+    /// <param name="refresh">令牌刷新调度器</param>
+    /// <param name="ct">取消令牌</param>
     internal static async Task RecoverFromAuthFailureAsync(
         string sessionId,
         V2BridgeParams parameters,
@@ -93,6 +106,16 @@ public static partial class BridgeRemoteCore
     /// 重建传输 — 对齐 TS 端 rebuildTransport
     /// 关闭旧传输 → 创建新传输 → 重新注册回调 → 连接
     /// </summary>
+    /// <param name="fresh">新的远程凭证</param>
+    /// <param name="sessionId">会话 ID</param>
+    /// <param name="parameters">Bridge v2 参数</param>
+    /// <param name="config">Bridge v2 配置</param>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="oldTransport">旧传输实例</param>
+    /// <param name="transportFactory">传输工厂</param>
+    /// <param name="state">初始化状态</param>
+    /// <param name="refresh">令牌刷新调度器</param>
+    /// <param name="ct">取消令牌</param>
     internal static async Task RebuildTransportAsync(
         BridgeRemoteCredentials fresh,
         string sessionId,
@@ -147,6 +170,15 @@ public static partial class BridgeRemoteCore
     /// 注册传输回调 — 对齐 TS 端 wireTransportCallbacks
     /// 提取为独立方法以便 rebuildTransport 重新注册
     /// </summary>
+    /// <param name="transport">传输实例</param>
+    /// <param name="sessionId">会话 ID</param>
+    /// <param name="parameters">Bridge v2 参数</param>
+    /// <param name="config">Bridge v2 配置</param>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="state">初始化状态</param>
+    /// <param name="transportFactory">传输工厂</param>
+    /// <param name="refresh">令牌刷新调度器</param>
+    /// <param name="ct">取消令牌</param>
     internal static void WireTransportCallbacks(
         IReplBridgeTransport transport,
         string sessionId,

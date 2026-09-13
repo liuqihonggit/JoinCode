@@ -7,6 +7,15 @@ namespace McpToolRegistry;
 /// </summary>
 public static class ToolExecutionEntityFactory
 {
+    /// <summary>
+    /// 创建工具执行实体 — 按工具名分派到对应子类（Bash/Web/Sleep/Repl/AskUser），其余创建基类实例
+    /// </summary>
+    /// <param name="toolName">工具名称（大小写不敏感）</param>
+    /// <param name="toolUseId">工具使用 ID，可为空</param>
+    /// <param name="spanId">遥测跨度 ID，可为空</param>
+    /// <param name="arguments">工具参数字典，用于填充子类特有字段</param>
+    /// <param name="sessionId">会话 ID，默认从 SessionContext.Current 继承</param>
+    /// <returns>对应工具的执行实体实例</returns>
     public static ToolExecutionEntity Create(
         string toolName,
         string? toolUseId = null,

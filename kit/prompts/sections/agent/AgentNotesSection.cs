@@ -5,6 +5,9 @@ namespace Core.Prompts.Sections;
 /// </summary>
 [PromptSection(Name = "agent_notes", Order = 31, InjectOn = PromptSectionInject.AgentMode)]
 public static class AgentNotesSection {
+    /// <summary>
+    /// 创建 agent_notes 提示词部分。
+    /// </summary>
     public static SystemPromptSection Create() {
         return SystemPromptSection.Cached("agent_notes", () => {
             return """

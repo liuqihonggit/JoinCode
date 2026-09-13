@@ -1,9 +1,15 @@
 namespace Core.Agents;
 
+/// <summary>
+/// 代理定义提供者 — 加载内置、用户、项目及插件代理定义，支持缓存与变更刷新
+/// </summary>
 [Register(typeof(JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider), ServiceLifetime.Singleton)]
 public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider
 {
 
+    /// <summary>
+    /// 构造 AgentDefinitionProvider 实例，注入文件系统、日志器及可选的插件代理加载器
+    /// </summary>
     public AgentDefinitionProvider(IFileSystem fs, ILogger<AgentDefinitionProvider>? logger = null, IPluginAgentLoader? pluginAgentLoader = null)
     {
         _fs = fs;
@@ -28,6 +34,12 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         Path.Combine(".claude", "agents")
      };
 
+    /// <summary>
+    /// 获取所有代理定义列表，合并内置、用户、项目及插件定义并去重，结果缓存
+    /// </summary>
+    /// <param name="workingDirectory">工作目录（用于加载项目级定义，可选）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>去重后的代理定义列表</returns>
     public async Task<List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>> GetAgentDefinitionsAsync(
         string? workingDirectory = null,
         CancellationToken cancellationToken = default)
@@ -67,6 +79,14 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
     
     }
 
+    /// <summary>
+    /// 按角色与变体获取单个代理定义
+    /// </summary>
+    /// <param name="role">代理角色</param>
+    /// <param name="variant">执行变体（可选）</param>
+    /// <param name="workingDirectory">工作目录（可选）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>匹配的代理定义；未找到时返回 null</returns>
     public async Task<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition?> GetAgentDefinitionAsync(
         JoinCode.Abstractions.Models.Agent.AgentRole role,
         JoinCode.Abstractions.Models.Agent.ExecutorVariant? variant = null,
@@ -85,6 +105,10 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         _logger?.LogDebug("代理定义缓存已清除");
     }
 
+    /// <summary>
+    /// 获取内置代理定义列表 — 对齐 TS builtInAgents.ts，包含 Coordinator/Executor 各变体
+    /// </summary>
+    /// <returns>内置代理定义列表</returns>
     internal static List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition> GetBuiltInDefinitions()
     {
         // 对齐 TS builtInAgents.ts — Explore/Plan 禁止 Agent/FileEdit/FileWrite/NotebookEdit
@@ -290,6 +314,12 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         }
     }
 
+    /// <summary>
+    /// 解析代理定义文件内容 — 从 frontmatter 与正文提取角色、变体、工具、模型等字段
+    /// </summary>
+    /// <param name="content">文件内容</param>
+    /// <param name="sourcePath">源文件路径</param>
+    /// <returns>解析后的代理定义；解析失败时返回 null</returns>
     internal static JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition? ParseDefinitionFile(string content, string sourcePath)
     {
         var result = FrontmatterParser.Parse(content);
@@ -689,5 +719,6 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         return (AgentRole.Executor, null);
     }
 
+    /// <summary>释放资源 — 释放定义缓存锁</summary>
     protected override void OnDispose() => _cacheLock.Dispose();
 }

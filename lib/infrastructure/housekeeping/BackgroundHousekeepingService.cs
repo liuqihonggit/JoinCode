@@ -12,10 +12,15 @@ public sealed class BackgroundHousekeepingService : PeriodicBackgroundServiceBas
     private readonly IClockService _clock;
     private readonly ILogger<BackgroundHousekeepingService>? _logger;
 
+    /// <inheritdoc/>
     protected override TimeSpan InitialDelay => TimeSpan.FromMinutes(10);
+    /// <inheritdoc/>
     protected override TimeSpan Interval => TimeSpan.FromHours(24);
+    /// <inheritdoc/>
     protected override IClockService Clock => _clock;
+    /// <inheritdoc/>
     protected override ILogger? Logger => _logger;
+    /// <inheritdoc/>
     protected override string ServiceName => "后台家政清理服务";
 
     private static readonly string JccDir = AppDataConstants.Paths.JccDirectory;
@@ -24,6 +29,13 @@ public sealed class BackgroundHousekeepingService : PeriodicBackgroundServiceBas
 
     private static readonly TimeSpan MarkerValidity = TimeSpan.FromHours(24);
 
+    /// <summary>
+    /// 构造函数 — 注入家政清理服务、文件系统、时钟和日志
+    /// </summary>
+    /// <param name="housekeeping">家政清理服务</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="clock">时钟服务</param>
+    /// <param name="logger">日志记录器，可为 null</param>
     public BackgroundHousekeepingService(
         IHousekeepingService housekeeping,
         IFileSystem fs,
@@ -36,6 +48,7 @@ public sealed class BackgroundHousekeepingService : PeriodicBackgroundServiceBas
         _logger = logger;
     }
 
+    /// <inheritdoc/>
     protected override async Task ExecuteAsync(CancellationToken cancellationToken)
     {
         if (IsRecentlyRun()) return;

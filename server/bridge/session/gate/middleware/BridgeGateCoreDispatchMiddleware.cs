@@ -1,14 +1,27 @@
 namespace Core.Bridge.Gate;
 
+/// <summary>
+/// 桥门控核心分发中间件 — 根据配置分发到 V1 或 V2 桥核心初始化路径
+/// </summary>
 public sealed class BridgeGateCoreDispatchMiddleware : IBridgeInitGateMiddleware
 {
     private readonly INetworkConnectivityService? _networkService;
 
+    /// <summary>
+    /// 构造桥门控核心分发中间件
+    /// </summary>
+    /// <param name="networkService">网络连通性服务（可选）</param>
     public BridgeGateCoreDispatchMiddleware(INetworkConnectivityService? networkService = null)
     {
         _networkService = networkService;
     }
 
+    /// <summary>
+    /// 执行门控分发 — 派生会话标题、解析 BaseUrl、等待网络就绪，按 CCR V2 开关分发到对应初始化路径
+    /// </summary>
+    /// <param name="ctx">桥初始化门控上下文</param>
+    /// <param name="next">下一中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(BridgeInitGateContext ctx, MiddlewareDelegate<BridgeInitGateContext> next, CancellationToken ct)
     {
         var title = BridgeInit.DeriveSessionTitle(ctx.Options);

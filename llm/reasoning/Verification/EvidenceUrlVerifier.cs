@@ -14,6 +14,11 @@ public sealed class EvidenceUrlVerifier
     /// </summary>
     public int TimeoutSeconds { get; init; } = 10;
 
+    /// <summary>
+    /// 构造URL验证器
+    /// </summary>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="httpClient">可选的HTTP客户端，未提供时按超时配置内部创建</param>
     public EvidenceUrlVerifier(ILogger<EvidenceUrlVerifier> logger, HttpClient? httpClient = null)
     {
         _logger = logger;

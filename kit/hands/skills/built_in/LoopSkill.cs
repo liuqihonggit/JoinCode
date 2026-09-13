@@ -1,8 +1,15 @@
 
 namespace Core.Skills.BuiltIn;
 
+/// <summary>
+/// 循环技能 — 循环调度执行任务，支持终止条件和最大迭代次数
+/// </summary>
 public sealed class LoopSkill
 {
+    /// <summary>
+    /// 创建技能定义
+    /// </summary>
+    /// <returns>循环技能的技能定义</returns>
     public static SkillDefinition CreateDefinition()
     {
         return new SkillDefinition

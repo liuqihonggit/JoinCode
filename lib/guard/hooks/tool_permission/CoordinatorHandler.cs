@@ -55,6 +55,10 @@ public sealed partial class CoordinatorHandler : ServiceEntity
 {
     private readonly ILogger<CoordinatorHandler>? _logger;
 
+    /// <summary>
+    /// 初始化协调器权限处理器
+    /// </summary>
+    /// <param name="logger">可选的日志记录器</param>
     public CoordinatorHandler(ILogger<CoordinatorHandler>? logger = null)
     {
         _logger = logger;

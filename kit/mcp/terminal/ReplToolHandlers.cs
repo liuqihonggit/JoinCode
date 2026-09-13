@@ -2,18 +2,35 @@
 
 namespace McpToolDispatch;
 
+/// <summary>
+/// REPL 工具处理器 — 提供 REPL 交互式代码执行功能（支持 csharp/powershell/python）
+/// </summary>
 [McpToolDispatch(ToolCategory.Repl, Optional = true)]
 public partial class ReplToolHandlers : LongRunningGroup
 {
     private readonly ILogger<ReplToolHandlers>? _logger;
     private readonly IReplService? _replService;
 
+    /// <summary>
+    /// 初始化 REPL 工具处理器
+    /// </summary>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="replService">REPL 服务（可选）</param>
     public ReplToolHandlers(ILogger<ReplToolHandlers>? logger = null, IReplService? replService = null)
     {
         _logger = logger;
         _replService = replService;
     }
 
+    /// <summary>
+    /// 在 REPL 交互式模式下执行代码 — 支持 execute/enable/disable/status 四种操作
+    /// </summary>
+    /// <param name="language">REPL 语言：csharp/powershell/python（默认 csharp）</param>
+    /// <param name="code">要执行的代码（可选，不提供则显示 REPL 状态）</param>
+    /// <param name="timeout_seconds">超时秒数（可选，默认 30）</param>
+    /// <param name="action">操作：execute/enable/disable/status（默认 execute）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>包含执行结果的工具执行结果</returns>
     [McpTool(SystemToolNameConstants.Repl, "Execute code in REPL interactive mode", "execution")]
     public async Task<ToolResult> ReplAsync(
         [McpToolParameter("REPL language: csharp/powershell/python (default: csharp)", Required = false)] string language = "csharp",

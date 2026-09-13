@@ -1,9 +1,19 @@
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /trust 命令 — 管理工作区信任目录
+/// 支持添加、移除、列出、清除信任目录,信任的工作区可执行受限操作
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Trust, Description = "管理工作区信任目录", Usage = "/trust [add|remove|list|clear]", Category = ChatCommandCategory.Auth, ArgumentHint = "[add|remove|list|clear]")]
 [ChatCommandArg("action", Type = "string", Description = "信任目录操作", Enum = new[] { "add", "remove", "list", "clear" }, Default = "list")]
 public sealed class TrustCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /trust 命令 — 管理工作区信任目录
+    /// 根据子命令执行对应操作:status 显示状态、add 添加信任、remove 移除信任、list 列出全部、clear 清除全部
+    /// </summary>
+    /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
+    /// <returns>命令执行结果,始终返回 Continue 表示继续会话</returns>
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var manager = ChatCommandBase.GetService<ITrustFolderManager>(context, typeof(ITrustFolderManager));

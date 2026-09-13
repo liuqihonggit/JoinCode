@@ -26,8 +26,16 @@ public sealed class HotFileDetector : IHotFileDetector
         "node_modules", "__pycache__", ".gradle", "build", "dist", "target",
         "artifacts", ".codegraph", ".jcc");
 
+    /// <summary>
+    /// 构造热文件检测器(使用默认规则)
+    /// </summary>
     public HotFileDetector() : this(null, null) { }
 
+    /// <summary>
+    /// 构造热文件检测器，支持追加额外热文件和匹配模式
+    /// </summary>
+    /// <param name="extraHotFiles">额外的热文件名/路径集合</param>
+    /// <param name="extraPatterns">额外的匹配模式字符串集合</param>
     public HotFileDetector(
         IReadOnlyCollection<string>? extraHotFiles = null,
         IReadOnlyCollection<string>? extraPatterns = null)
@@ -40,6 +48,11 @@ public sealed class HotFileDetector : IHotFileDetector
         _extraPatterns = extraPatterns?.ToArray() ?? [];
     }
 
+    /// <summary>
+    /// 判断指定文件是否为热文件
+    /// </summary>
+    /// <param name="filePath">文件路径</param>
+    /// <returns>是热文件返回 true，否则 false</returns>
     public bool IsHotFile(string filePath)
     {
         if (string.IsNullOrWhiteSpace(filePath))
@@ -71,6 +84,11 @@ public sealed class HotFileDetector : IHotFileDetector
         return false;
     }
 
+    /// <summary>
+    /// 从文件路径集合中检测所有热文件
+    /// </summary>
+    /// <param name="filePaths">待检测的文件路径集合</param>
+    /// <returns>被判定为热文件的路径集合</returns>
     public IReadOnlySet<string> DetectHotFiles(IEnumerable<string> filePaths)
     {
         var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

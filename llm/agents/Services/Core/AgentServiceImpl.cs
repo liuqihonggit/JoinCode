@@ -13,6 +13,9 @@ public sealed record AgentServiceDependencies(
     JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? OutputChannelManager = null,
     JoinCode.Abstractions.Interfaces.IAgentWorktreeManager? WorktreeManager = null);
 
+/// <summary>
+/// Agent 服务实现 — 负责子代理的生成、执行、消息路由、进度跟踪与生命周期管理
+/// </summary>
 [Register(typeof(JoinCode.Abstractions.Interfaces.IAgentService), ServiceLifetime.Singleton)]
 public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentService, IDisposable
 {
@@ -40,8 +43,12 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     private readonly CancellationTokenSource _disposeCts = new();
     private int _disposed;
 
+    /// <summary>子代理完成时触发的事件，携带执行结果与统计信息</summary>
     public event EventHandler<JoinCode.Abstractions.Interfaces.AgentCompletedEventArgs>? AgentCompleted;
 
+    /// <summary>
+    /// 构造 AgentServiceImpl 实例，注入生命周期管理器、定义提供者、角色注册表、生成管道及可选依赖
+    /// </summary>
     public AgentServiceImpl(
         IAgentLifecycleManager lifecycleManager,
         JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider definitionProvider,
@@ -102,6 +109,12 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         return new SubAgentInitResult(context.Agent, context.SystemPrompt, context.Definition);
     }
 
+    /// <summary>
+    /// 生成子代理并执行任务，返回代理信息；支持后台运行模式
+    /// </summary>
+    /// <param name="options">代理生成选项</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>代理信息，包含 ID、角色、状态等</returns>
     public async Task<JoinCode.Abstractions.Interfaces.AgentInfo> SpawnAgentAsync(JoinCode.Abstractions.Interfaces.AgentSpawnOptions options, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -151,6 +164,12 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         }
     }
 
+    /// <summary>
+    /// 以流式方式运行代理，逐块产出 AgentStreamChunk；完成后聚合为最终结果
+    /// </summary>
+    /// <param name="options">代理生成选项</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>代理输出流的异步枚举</returns>
     public async IAsyncEnumerable<AgentStreamChunk> RunAgentStreamAsync(
         AgentSpawnOptions options, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
@@ -217,6 +236,12 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         FireAgentCompleted(init.SubAgent, agentResult);
     }
 
+    /// <summary>
+    /// 等待指定代理完成并返回其执行结果
+    /// </summary>
+    /// <param name="agentId">代理唯一标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>代理执行结果</returns>
     public async Task<JoinCode.Abstractions.Interfaces.AgentResult> WaitForAgentAsync(string agentId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
@@ -244,6 +269,12 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         return MapToResult(result);
     }
 
+    /// <summary>
+    /// 获取指定代理的当前信息
+    /// </summary>
+    /// <param name="agentId">代理唯一标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>代理信息；代理不存在时返回 null</returns>
     public async Task<JoinCode.Abstractions.Interfaces.AgentInfo?> GetAgentAsync(string agentId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
@@ -253,6 +284,12 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         return subAgent is null ? null : MapToAgentInfo(subAgent);
     }
 
+    /// <summary>
+    /// 停止指定代理，清理关联的 MCP 服务器与 worktree
+    /// </summary>
+    /// <param name="agentId">代理唯一标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>是否成功取消</returns>
     public async Task<bool> StopAgentAsync(string agentId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
@@ -340,6 +377,12 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         _outputChannelManager?.Unregister(subAgent.ObjectId.UniqueId);
     }
 
+    /// <summary>
+    /// 获取指定代理的执行进度
+    /// </summary>
+    /// <param name="agentId">代理唯一标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>代理进度；代理不存在时返回 null</returns>
     public Task<JoinCode.Abstractions.Interfaces.AgentProgress?> GetAgentProgressAsync(string agentId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
@@ -350,6 +393,11 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         return Task.FromResult<JoinCode.Abstractions.Interfaces.AgentProgress?>(null);
     }
 
+    /// <summary>
+    /// 获取所有可用的代理类型信息，基于角色注册表
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>代理类型信息列表</returns>
     public Task<List<JoinCode.Abstractions.Interfaces.AgentTypeInfo>> GetAvailableAgentTypesAsync(CancellationToken cancellationToken = default)
     {
         var profiles = _roleRegistry.GetAllProfiles();
@@ -364,6 +412,12 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         return Task.FromResult(result);
     }
 
+    /// <summary>
+    /// 从历史会话恢复代理执行，加载对话记录并追加新提示继续运行
+    /// </summary>
+    /// <param name="options">代理恢复选项</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>恢复后代理的信息</returns>
     public async Task<JoinCode.Abstractions.Interfaces.AgentInfo> ResumeAgentAsync(JoinCode.Abstractions.Interfaces.AgentResumeOptions options, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -442,6 +496,13 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         return MapToAgentInfo(subAgent, result);
     }
 
+    /// <summary>
+    /// 向指定代理发送消息，通过消息代理路由并记录到 transcript
+    /// </summary>
+    /// <param name="agentId">目标代理唯一标识</param>
+    /// <param name="message">消息内容</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>是否发送成功</returns>
     public async Task<bool> SendMessageToAgentAsync(string agentId, string message, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
@@ -532,6 +593,12 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         return sent;
     }
 
+    /// <summary>
+    /// 获取指定代理接收到的所有消息
+    /// </summary>
+    /// <param name="agentId">代理唯一标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>代理消息信息集合</returns>
     public async Task<IEnumerable<JoinCode.Abstractions.Interfaces.AgentMessageInfo>> GetAgentMessagesAsync(string agentId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
@@ -802,6 +869,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         };
     }
 
+    /// <summary>释放资源 — 取消活动任务、释放服务锁与依赖句柄</summary>
     protected override void OnDispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1) return;

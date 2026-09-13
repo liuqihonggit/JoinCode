@@ -11,6 +11,9 @@ public sealed partial class BashCommandHookExecutor : HookExecutorBase<BashComma
 
     private readonly IProcessService _processService;
 
+    /// <summary>
+    /// 构造 Bash 命令钩子执行器
+    /// </summary>
     public BashCommandHookExecutor(IProcessService processService, ILogger<BashCommandHookExecutor>? logger = null)
         : base(logger)
     {

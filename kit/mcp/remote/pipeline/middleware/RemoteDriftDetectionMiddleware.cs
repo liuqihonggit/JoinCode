@@ -8,6 +8,10 @@ namespace McpToolRegistry;
 public sealed partial class RemoteDriftDetectionMiddleware : ServiceEntity, IRemoteSyncMiddleware
 {
 
+    /// <summary>
+    /// 初始化 <see cref="RemoteDriftDetectionMiddleware"/> 实例
+    /// </summary>
+    /// <param name="logger">日志记录器</param>
     public RemoteDriftDetectionMiddleware(ILogger<RemoteDriftDetectionMiddleware> logger)
     {
         _logger = logger;
@@ -15,6 +19,13 @@ public sealed partial class RemoteDriftDetectionMiddleware : ServiceEntity, IRem
     private readonly ILogger<RemoteDriftDetectionMiddleware> _logger;
 
 
+    /// <summary>
+    /// 执行中间件逻辑 — 仅 Tools 操作时检测工具漂移并决策重连策略
+    /// </summary>
+    /// <param name="ctx">远程同步上下文</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>异步任务</returns>
     public Task InvokeAsync(RemoteSyncContext ctx, MiddlewareDelegate<RemoteSyncContext> next, CancellationToken ct)
     {
         if (ctx.Operation != RemoteSyncOperation.Tools)

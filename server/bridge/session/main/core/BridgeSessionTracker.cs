@@ -169,13 +169,22 @@ public sealed class BridgeSessionTracker
 
     /// <summary>暴露给 HandleWorkContext 的中间件兼容属性</summary>
     internal ConcurrentDictionary<string, BridgeSubprocessHandle> ActiveSessions => _activeSessions;
+    /// <summary>会话启动时间表（中间件兼容）</summary>
     internal ConcurrentDictionary<string, DateTime> SessionStartTimes => _sessionStartTimes;
+    /// <summary>会话工作 ID 表（中间件兼容）</summary>
     internal ConcurrentDictionary<string, string> SessionWorkIds => _sessionWorkIds;
+    /// <summary>会话 ingress token 表（中间件兼容）</summary>
     internal ConcurrentDictionary<string, string> SessionIngressTokens => _sessionIngressTokens;
+    /// <summary>会话工作目录表（中间件兼容）</summary>
     internal ConcurrentDictionary<string, string> SessionWorktrees => _sessionWorktrees;
+    /// <summary>已完成工作 ID 集合（中间件兼容）</summary>
     internal ConcurrentDictionary<string, byte> CompletedWorkIds => _completedWorkIds;
+    /// <summary>V2 会话集合（中间件兼容）</summary>
     internal ConcurrentDictionary<string, byte> V2Sessions => _v2Sessions;
+    /// <summary>超时会话集合（中间件兼容）</summary>
     internal ConcurrentDictionary<string, byte> TimedOutSessions => _timedOutSessions;
+    /// <summary>已获取标题会话集合（中间件兼容）</summary>
     internal ConcurrentDictionary<string, byte> TitledSessions => _titledSessions;
+    /// <summary>会话兼容 ID 表（中间件兼容）</summary>
     internal ConcurrentDictionary<string, string> SessionCompatIds => _sessionCompatIds;
 }

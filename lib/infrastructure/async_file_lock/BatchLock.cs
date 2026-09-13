@@ -13,6 +13,10 @@ public sealed class BatchLock : IAsyncDisposable
     /// </summary>
     public IReadOnlyList<string> FilePaths { get; }
 
+    /// <summary>
+    /// 内部构造函数 — 由 FileLockService.AcquireBatchAsync 在成功获取所有锁后调用
+    /// </summary>
+    /// <param name="locks">已获取的文件锁列表</param>
     internal BatchLock(IReadOnlyList<FileLock> locks)
     {
         _locks = locks;
@@ -63,16 +67,19 @@ public sealed class BatchLockResult
         AcquisitionTime = acquisitionTime;
     }
 
+    /// <summary>构造成功结果</summary>
     internal static BatchLockResult SuccessResult(BatchLock batchLock, TimeSpan acquisitionTime)
     {
         return new BatchLockResult(true, batchLock, null, acquisitionTime);
     }
 
+    /// <summary>构造错误结果</summary>
     internal static BatchLockResult ErrorResult(string errorMessage)
     {
         return new BatchLockResult(false, null, errorMessage, null);
     }
 
+    /// <summary>构造超时结果，记录超时文件路径与已耗时</summary>
     internal static BatchLockResult TimeoutResult(string filePath, TimeSpan elapsed)
     {
         return new BatchLockResult(false, null, $"Timeout acquiring lock for '{filePath}' after {elapsed.TotalSeconds}s", elapsed);

@@ -6,6 +6,9 @@ namespace Core.Prompts.Sections;
 /// </summary>
 [PromptSection(Name = "session_guidance", Order = 74, IsDynamic = true)]
 public static class SessionGuidanceSection {
+    /// <summary>
+    /// 获取 session_guidance 部分内容；根据已启用工具动态拼接的会话指导，无内容时返回 null。
+    /// </summary>
     public static string? GetContent() {
         var tools = PromptConfigSnapshot.Current.EnabledTools.ToHashSet();
         var items = new List<string>();
@@ -39,6 +42,9 @@ public static class SessionGuidanceSection {
         return result.ToString().TrimEnd();
     }
 
+    /// <summary>
+    /// 创建 session_guidance 提示词部分。
+    /// </summary>
     public static SystemPromptSection Create() =>
         SystemPromptSection.Dynamic("session_guidance", GetContent);
 }

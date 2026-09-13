@@ -1,5 +1,9 @@
 namespace Core.Hooks.Lifecycle;
 
+/// <summary>
+/// 子代理停止 Hook 管理器实现 — 在子代理停止前执行 SubagentStop Hook,支持阻止释放
+/// 带 60 秒超时保护,超时后自动放行避免阻塞释放
+/// </summary>
 [Register(typeof(ISubagentStopHookManager), ServiceLifetime.Singleton)]
 public sealed partial class SubagentStopHookManager : ServiceEntity, ISubagentStopHookManager
 {
@@ -8,6 +12,9 @@ public sealed partial class SubagentStopHookManager : ServiceEntity, ISubagentSt
     private readonly ITelemetryService? _telemetryService;
     private static readonly TimeSpan HookTimeout = TimeSpan.FromSeconds(60);
 
+    /// <summary>
+    /// 构造函数 — 注入 Hook 编排器、可选的日志器和遥测服务
+    /// </summary>
     public SubagentStopHookManager(IHookOrchestrator orchestrator, ILogger<SubagentStopHookManager>? logger = null, ITelemetryService? telemetryService = null)
     {
         _orchestrator = orchestrator ?? throw new ArgumentNullException(nameof(orchestrator));
@@ -15,6 +22,7 @@ public sealed partial class SubagentStopHookManager : ServiceEntity, ISubagentSt
         _telemetryService = telemetryService;
     }
 
+    /// <inheritdoc />
     public async Task<SubagentStopHookResult> OnSubagentStopAsync(SubagentStopHookContext context, CancellationToken ct = default)
     {
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);

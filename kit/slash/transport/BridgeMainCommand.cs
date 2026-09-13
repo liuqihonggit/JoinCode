@@ -21,6 +21,16 @@ public sealed class BridgeMainCommand
     private readonly IConfigurationService? _configService;
     private readonly ILogger<BridgeMainCommand>? _logger;
 
+    /// <summary>
+    /// 构造 BridgeMainCommand 实例，注入依赖服务
+    /// </summary>
+    /// <param name="services">DI 服务提供者，可为空（用于解耦测试）</param>
+    /// <param name="fs">文件系统抽象，不可为空</param>
+    /// <param name="processService">进程服务抽象，不可为空</param>
+    /// <param name="policyService">远程控制策略服务，可为空时 fail-open</param>
+    /// <param name="tokenStorage">OAuth 令牌存储，可为空时回退到环境变量</param>
+    /// <param name="configService">本地配置服务，可为空时跳过 remoteDialogSeen 读写</param>
+    /// <param name="logger">日志记录器，可为空时静默</param>
     public BridgeMainCommand(
         IServiceProvider? services,
         IFileSystem fs,
@@ -43,6 +53,9 @@ public sealed class BridgeMainCommand
     /// 执行 remote-control 命令 — 对齐 TS 端 cli.tsx bridge 快速路径
     /// 流程: feature gate → 版本检查 → 策略检查 → bridgeMain(args)
     /// </summary>
+    /// <param name="args">命令行参数数组</param>
+    /// <param name="ct">取消令牌，用于取消 Bridge 运行</param>
+    /// <returns>进程退出码：0 表示成功，1 表示失败或被策略拒绝</returns>
     public async Task<int> ExecuteAsync(string[] args, CancellationToken ct = default)
     {
         // 1. 解析参数

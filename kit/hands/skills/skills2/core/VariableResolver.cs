@@ -355,7 +355,14 @@ internal sealed record ParsedVariable
 /// </summary>
 public sealed class VariableValidationResult
 {
+    /// <summary>
+    /// 是否验证通过
+    /// </summary>
     public bool IsValid { get; set; }
+
+    /// <summary>
+    /// 缺失的变量名列表
+    /// </summary>
     public List<string> MissingVariables { get; set; } = new();
 }
 
@@ -364,9 +371,18 @@ public sealed class VariableValidationResult
 /// </summary>
 public class VariableResolutionException : WorkflowException
 {
+    /// <summary>
+    /// 初始化变量解析异常
+    /// </summary>
+    /// <param name="message">异常消息</param>
     public VariableResolutionException(string message)
         : base(message, errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.ValidationVariableResolution.ToValue(), category: ErrorCategory.Validation) { }
 
+    /// <summary>
+    /// 初始化变量解析异常
+    /// </summary>
+    /// <param name="message">异常消息</param>
+    /// <param name="inner">引发此异常的内部异常</param>
     public VariableResolutionException(string message, Exception inner)
         : base(message, inner, errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.ValidationVariableResolution.ToValue(), category: ErrorCategory.Validation) { }
 }

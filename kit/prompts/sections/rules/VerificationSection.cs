@@ -5,6 +5,9 @@ namespace Core.Prompts.Sections;
 /// </summary>
 [PromptSection(Name = "verification", Order = 21)]
 public static class VerificationSection {
+    /// <summary>
+    /// 创建 verification 提示词部分。
+    /// </summary>
     public static SystemPromptSection Create() {
         return SystemPromptSection.Cached("verification", () => {
             return """

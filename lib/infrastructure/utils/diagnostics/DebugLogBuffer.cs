@@ -9,6 +9,10 @@ public sealed partial class DebugLogBuffer : IDebugLogBuffer
     private readonly ConcurrentQueue<DebugLogEntry> _entries = new();
     private readonly int _maxCapacity;
 
+    /// <summary>
+    /// 构造调试日志缓冲区并订阅 Diag.DiagnosticLineWritten 事件
+    /// </summary>
+    /// <param name="maxCapacity">最大容量，超出后淘汰最旧条目</param>
     public DebugLogBuffer(int maxCapacity = 2000)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxCapacity);
@@ -17,26 +21,49 @@ public sealed partial class DebugLogBuffer : IDebugLogBuffer
         Diag.DiagnosticLineWritten += OnDiagnosticLineWritten;
     }
 
+    /// <summary>
+    /// 当前缓冲区条目数
+    /// </summary>
     public int Count => _entries.Count;
 
+    /// <summary>
+    /// 获取最近的若干条日志（按时间倒序）
+    /// </summary>
+    /// <param name="count">要获取的条数</param>
+    /// <returns>日志条目列表（最新在前）</returns>
     public IReadOnlyList<DebugLogEntry> GetRecent(int count = 100)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
         return _entries.Reverse().Take(count).ToList();
     }
 
+    /// <summary>
+    /// 按日志级别筛选最近条目
+    /// </summary>
+    /// <param name="level">日志级别</param>
+    /// <param name="count">要获取的条数</param>
+    /// <returns>匹配的日志条目列表（最新在前）</returns>
     public IReadOnlyList<DebugLogEntry> GetByLevel(DebugLogLevel level, int count = 100)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
         return _entries.Where(e => e.Level == level).Reverse().Take(count).ToList();
     }
 
+    /// <summary>
+    /// 按最低日志级别筛选最近条目
+    /// </summary>
+    /// <param name="minLevel">最低日志级别（含）</param>
+    /// <param name="count">要获取的条数</param>
+    /// <returns>匹配的日志条目列表（最新在前）</returns>
     public IReadOnlyList<DebugLogEntry> GetByMinLevel(DebugLogLevel minLevel, int count = 100)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
         return _entries.Where(e => e.Level >= minLevel).Reverse().Take(count).ToList();
     }
 
+    /// <summary>
+    /// 清空所有缓冲区条目
+    /// </summary>
     public void Clear()
     {
         while (_entries.TryDequeue(out _)) { }

@@ -15,31 +15,42 @@ public sealed partial class InMemoryIndexStore : ServiceEntity, IDisposable
     /// 符号索引 — 替代 SQLite 的 symbols + symbols_fts 表
     /// </summary>
     internal readonly Dictionary<string, SymbolInfo> SymbolsByFqn = new(StringComparer.Ordinal);
+    /// <summary>按符号名索引 — 支持同名符号多重匹配检索</summary>
     internal readonly Dictionary<string, List<SymbolInfo>> SymbolsByName = new(StringComparer.Ordinal);
+    /// <summary>按文件路径索引 — 支持按文件检索其包含的全部符号</summary>
     internal readonly Dictionary<string, List<SymbolInfo>> SymbolsByFile = new(StringComparer.Ordinal);
+    /// <summary>按符号种类索引 — 支持按 Class/Method/Property 等类别检索</summary>
     internal readonly Dictionary<SymbolKind, List<SymbolInfo>> SymbolsByKind = new();
 
     /// <summary>
     /// 调用图边 — 替代 call_edges 表
     /// </summary>
     internal readonly List<CallEdge> CallEdges = new();
+    /// <summary>按调用方符号索引 — 支持查询某符号调用了哪些其他符号</summary>
     internal readonly Dictionary<string, List<CallEdge>> CallsByCaller = new(StringComparer.Ordinal);
+    /// <summary>按被调用方符号索引 — 支持查询某符号被哪些符号调用</summary>
     internal readonly Dictionary<string, List<CallEdge>> CallsByCallee = new(StringComparer.Ordinal);
+    /// <summary>按调用点文件索引 — 支持按文件检索其包含的全部调用边</summary>
     internal readonly Dictionary<string, List<CallEdge>> CallsByFile = new(StringComparer.Ordinal);
 
     /// <summary>
     /// 依赖图边 — 替代 dependency_edges 表
     /// </summary>
     internal readonly List<DependencyEdge> DepEdges = new();
+    /// <summary>按依赖源符号索引 — 支持查询某符号依赖了哪些其他符号</summary>
     internal readonly Dictionary<string, List<DependencyEdge>> DepsBySource = new(StringComparer.Ordinal);
+    /// <summary>按依赖目标符号索引 — 支持查询某符号被哪些符号依赖</summary>
     internal readonly Dictionary<string, List<DependencyEdge>> DepsByTarget = new(StringComparer.Ordinal);
+    /// <summary>按依赖源文件索引 — 支持按文件检索其包含的全部依赖边</summary>
     internal readonly Dictionary<string, List<DependencyEdge>> DepsByFile = new(StringComparer.Ordinal);
 
     /// <summary>
     /// 项目依赖 — 替代 projects/project_references/nuget_references 表
     /// </summary>
     internal readonly Dictionary<string, ProjectInfo> Projects = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>项目引用边 — 按源项目路径索引,记录项目间引用关系</summary>
     internal readonly Dictionary<string, List<ProjectReferenceEdge>> ProjectRefs = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>NuGet 包引用 — 按项目路径索引,记录每个项目的 NuGet 依赖</summary>
     internal readonly Dictionary<string, List<NuGetPackageReference>> NuGetRefs = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
@@ -53,6 +64,7 @@ public sealed partial class InMemoryIndexStore : ServiceEntity, IDisposable
     /// </summary>
     internal readonly Dictionary<string, FileTrackingEntry> FileTracking = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>索引最后更新时间 — 用于判断索引新鲜度</summary>
     internal DateTimeOffset LastUpdated = DateTimeOffset.MinValue;
 
     /// <summary>
@@ -108,6 +120,9 @@ public sealed partial class InMemoryIndexStore : ServiceEntity, IDisposable
         LastUpdated = DateTimeOffset.MinValue;
     }
 
+    /// <summary>
+    /// 释放内部读写锁资源 — 派生类可重写以追加自定义释放逻辑
+    /// </summary>
     protected override void OnDispose()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
@@ -156,8 +171,12 @@ public sealed partial class InMemoryIndexStore : ServiceEntity, IDisposable
 /// </summary>
 internal sealed class FileTrackingEntry
 {
+    /// <summary>文件路径 — 规范化后的唯一键</summary>
     public required string FilePath { get; init; }
+    /// <summary>文件内容哈希 — 用于判断文件是否变更</summary>
     public required string Hash { get; set; }
+    /// <summary>文件中提取的符号数量 — 用于快速统计</summary>
     public required int SymbolCount { get; set; }
+    /// <summary>最后一次索引修改时间</summary>
     public required DateTimeOffset LastModified { get; set; }
 }

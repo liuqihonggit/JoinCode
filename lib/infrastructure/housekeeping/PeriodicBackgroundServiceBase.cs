@@ -9,12 +9,26 @@ public abstract class PeriodicBackgroundServiceBase : IHostedService, IAsyncDisp
     private CancellationTokenSource? _cts;
     private Task? _loopTask;
 
+    /// <summary>首次执行前的初始延迟</summary>
     protected abstract TimeSpan InitialDelay { get; }
+
+    /// <summary>每次执行之间的间隔</summary>
     protected abstract TimeSpan Interval { get; }
+
+    /// <summary>时钟服务,用于基于 TimeProvider 的延迟</summary>
     protected abstract IClockService Clock { get; }
+
+    /// <summary>可选日志记录器</summary>
     protected abstract ILogger? Logger { get; }
+
+    /// <summary>服务名称,用于日志标识</summary>
     protected abstract string ServiceName { get; }
 
+    /// <summary>
+    /// 启动周期性后台服务,创建取消令牌并启动循环任务
+    /// </summary>
+    /// <param name="cancellationToken">启动取消令牌</param>
+    /// <returns>表示启动完成的任务</returns>
     public Task StartAsync(CancellationToken cancellationToken)
     {
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -23,6 +37,11 @@ public abstract class PeriodicBackgroundServiceBase : IHostedService, IAsyncDisp
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// 停止周期性后台服务,取消循环任务并等待其退出
+    /// </summary>
+    /// <param name="cancellationToken">停止取消令牌</param>
+    /// <returns>表示停止完成的任务</returns>
     public async Task StopAsync(CancellationToken cancellationToken)
     {
         _cts?.Cancel();
@@ -43,6 +62,10 @@ public abstract class PeriodicBackgroundServiceBase : IHostedService, IAsyncDisp
         Logger?.LogDebug("{ServiceName}已停止", ServiceName);
     }
 
+    /// <summary>
+    /// 释放资源,取消并释放取消令牌
+    /// </summary>
+    /// <returns>表示释放完成的任务</returns>
     public ValueTask DisposeAsync()
     {
         _cts?.Cancel();
@@ -74,5 +97,10 @@ public abstract class PeriodicBackgroundServiceBase : IHostedService, IAsyncDisp
         }
     }
 
+    /// <summary>
+    /// 子类实现的周期执行逻辑
+    /// </summary>
+    /// <param name="cancellationToken">循环取消令牌</param>
+    /// <returns>表示单次执行完成的任务</returns>
     protected abstract Task ExecuteAsync(CancellationToken cancellationToken);
 }

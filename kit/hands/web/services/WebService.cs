@@ -16,6 +16,16 @@ public sealed partial class WebService : ServiceEntity, IWebService
     private readonly ILogger<WebService>? _logger;
     private readonly IClockService _clock;
 
+    /// <summary>
+    /// 初始化 <see cref="WebService"/> 实例。
+    /// </summary>
+    /// <param name="pipeline">Web 中间件管道，用于执行抓取流程。</param>
+    /// <param name="cache">Web 抓取缓存。</param>
+    /// <param name="telemetryService">可选的遥测服务，用于记录 Web 操作指标。</param>
+    /// <param name="logger">可选的日志记录器。</param>
+    /// <param name="queryService">可选的查询服务，用于执行 Web 搜索。</param>
+    /// <param name="providerConfig">可选的供应商配置，用于判断是否支持 Web 搜索。</param>
+    /// <param name="clock">可选的时钟服务，用于生成搜索提示词中的当前日期。</param>
     public WebService(
         MiddlewarePipeline<WebContext> pipeline,
         IWebFetchCache cache,
@@ -34,6 +44,14 @@ public sealed partial class WebService : ServiceEntity, IWebService
         _clock = clock ?? SystemClockService.Instance;
     }
 
+    /// <summary>
+    /// 异步执行 Web 搜索，返回匹配查询的搜索结果列表。
+    /// </summary>
+    /// <param name="query">搜索查询字符串。</param>
+    /// <param name="allowedDomains">可选的允许域名白名单。</param>
+    /// <param name="blockedDomains">可选的屏蔽域名黑名单。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>包含搜索结果列表与耗时信息的搜索结果。</returns>
     public async Task<WebSearchResult> SearchAsync(string query, string[]? allowedDomains = null, string[]? blockedDomains = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(query))
@@ -237,6 +255,12 @@ public sealed partial class WebService : ServiceEntity, IWebService
         }
     }
 
+    /// <summary>
+    /// 异步抓取指定 URL 内容，通过中间件管道执行完整流程。
+    /// </summary>
+    /// <param name="url">待抓取的 URL。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>包含内容、状态、字节数等信息的抓取结果。</returns>
     public async Task<WebFetchResult> FetchAsync(string url, CancellationToken cancellationToken = default)
     {
         var context = new WebContext

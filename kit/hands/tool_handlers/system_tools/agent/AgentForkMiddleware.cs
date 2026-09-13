@@ -8,6 +8,13 @@ namespace Tools.Handlers;
 public sealed partial class AgentForkMiddleware : ServiceEntity, IAgentToolMiddleware
 {
 
+    /// <summary>
+    /// 构造 Agent Fork 判断中间件
+    /// </summary>
+    /// <param name="subAgentContextAccessor">子代理上下文访问器，获取当前会话和缓存参数</param>
+    /// <param name="forkManager">可选 fork 管理器，用于 fork 当前代理</param>
+    /// <param name="telemetryService">可选遥测服务</param>
+    /// <param name="teammateExecutor">可选进程内 teammate 执行器，优先于 fork 路径</param>
     public AgentForkMiddleware(ISubAgentContextAccessor subAgentContextAccessor, IForkSubAgentManager? forkManager = null, ITelemetryService? telemetryService = null, IInProcessTeammateTaskExecutor? teammateExecutor = null)
     {
         _subAgentContextAccessor = subAgentContextAccessor;

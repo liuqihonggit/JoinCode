@@ -12,6 +12,12 @@ public sealed class GoalStateStore : IGoalStateStore
     private readonly IFileSystem _fs;
     private readonly ILogger<GoalStateStore>? _logger = null;
 
+    /// <summary>
+    /// 构造 GoalStateStore — 指定文件系统、基目录与日志记录器
+    /// </summary>
+    /// <param name="fs">抽象文件系统</param>
+    /// <param name="baseDir">状态文件根目录，缺省使用 AppDataConstants.Paths.GoalStateDirectory</param>
+    /// <param name="logger">可选日志记录器</param>
     public GoalStateStore(IFileSystem fs, string? baseDir = null, ILogger<GoalStateStore>? logger = null)
     {
         _fs = fs;

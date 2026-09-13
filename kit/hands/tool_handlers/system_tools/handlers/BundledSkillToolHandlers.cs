@@ -13,6 +13,14 @@ public partial class BundledSkillToolHandlers
     private readonly WriteDefenseService? _writeDefense;
     private readonly ILogger<BundledSkillToolHandlers>? _logger;
 
+    /// <summary>
+    /// 构造内置技能工具处理器
+    /// </summary>
+    /// <param name="actuatorRegistry">系统执行器注册表，用于执行 shell 命令</param>
+    /// <param name="fileOperationService">文件操作服务，用于读写文件</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="writeDefense">可选写入防御服务</param>
+    /// <param name="logger">可选日志记录器</param>
     public BundledSkillToolHandlers(
         ISystemActuatorRegistry actuatorRegistry,
         IFileOperationService fileOperationService,

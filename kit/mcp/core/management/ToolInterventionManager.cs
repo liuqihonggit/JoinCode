@@ -13,6 +13,11 @@ public sealed class ToolInterventionManager : ServiceEntity
     private readonly AsyncLock _lock = new();
     private readonly string _configPath;
 
+    /// <summary>
+    /// 初始化工具干预管理器，从磁盘加载已保存的干预规则
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public ToolInterventionManager(IFileSystem fs, ILogger<ToolInterventionManager>? logger = null)
     {
         _fs = fs;
@@ -23,6 +28,15 @@ public sealed class ToolInterventionManager : ServiceEntity
         LoadFromDisk();
     }
 
+    /// <summary>
+    /// 异步添加干预规则。Downgrade 类型自动扣 50 分；Redirect 类型自动推断默认重定向目标。
+    /// </summary>
+    /// <param name="toolName">工具名称</param>
+    /// <param name="type">干预类型（Blacklist/Downgrade/Redirect）</param>
+    /// <param name="reason">干预原因</param>
+    /// <param name="duration">干预持续时间（可选，null 表示永久）</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task AddRuleAsync(string toolName, InterventionType type, string reason, TimeSpan? duration = null, CancellationToken ct = default)
     {
         using (var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
@@ -42,6 +56,12 @@ public sealed class ToolInterventionManager : ServiceEntity
 
     }
 
+    /// <summary>
+    /// 异步移除指定工具的干预规则
+    /// </summary>
+    /// <param name="toolName">工具名称</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task RemoveRuleAsync(string toolName, CancellationToken ct = default)
     {
         using (var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
@@ -53,6 +73,12 @@ public sealed class ToolInterventionManager : ServiceEntity
 
     }
 
+    /// <summary>
+    /// 异步获取指定工具的干预规则（已过期的规则返回 null）
+    /// </summary>
+    /// <param name="toolName">工具名称</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>干预规则；若不存在或已过期则返回 null</returns>
     public async Task<InterventionRule?> GetRuleAsync(string toolName, CancellationToken ct = default)
     {
         using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
@@ -63,6 +89,11 @@ public sealed class ToolInterventionManager : ServiceEntity
     
     }
 
+    /// <summary>
+    /// 异步获取所有未过期的活跃干预规则
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>以工具名为键的只读干预规则字典</returns>
     public async Task<IReadOnlyDictionary<string, InterventionRule>> GetActiveRulesAsync(CancellationToken ct = default)
     {
         using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
@@ -73,12 +104,22 @@ public sealed class ToolInterventionManager : ServiceEntity
     
     }
 
+    /// <summary>
+    /// 判断指定工具是否被列入黑名单（且规则未过期）
+    /// </summary>
+    /// <param name="toolName">工具名称</param>
+    /// <returns>若被黑名单禁用返回 true；否则 false</returns>
     public bool IsBlacklisted(string toolName)
     {
         if (!_rules.TryGetValue(toolName, out var rule)) return false;
         return rule.Type == InterventionType.Blacklist && !rule.IsExpired;
     }
 
+    /// <summary>
+    /// 获取指定工具的评分惩罚值（仅 Downgrade 类型且未过期）
+    /// </summary>
+    /// <param name="toolName">工具名称</param>
+    /// <returns>评分惩罚值；若不存在或非 Downgrade 类型则返回 null</returns>
     public int? GetScorePenalty(string toolName)
     {
         if (!_rules.TryGetValue(toolName, out var rule) || rule.IsExpired) return null;
@@ -127,6 +168,7 @@ public sealed class ToolInterventionManager : ServiceEntity
         }
     }
 
+    /// <summary>释放资源 — 释放异步锁。</summary>
     protected override void OnDispose() => _lock.Dispose();
 }
 

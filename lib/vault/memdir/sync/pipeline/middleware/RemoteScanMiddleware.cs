@@ -8,14 +8,20 @@ namespace Memdir.Sync;
 public sealed partial class RemoteScanMiddleware : ServiceEntity, ISyncStartMiddleware
 {
 
+    /// <summary>
+    /// 创建远程文件扫描中间件实例
+    /// </summary>
+    /// <param name="logger">可选的日志记录器</param>
     public RemoteScanMiddleware(ILogger<RemoteScanMiddleware>? logger = null)
     {
         _logger = logger;
     }
     private readonly ILogger<RemoteScanMiddleware>? _logger;
 
+    /// <inheritdoc />
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
+    /// <inheritdoc />
     public async Task InvokeAsync(SyncStartContext ctx, MiddlewareDelegate<SyncStartContext> next, CancellationToken ct)
     {
         if (string.IsNullOrEmpty(ctx.Options.RemoteStoragePath))

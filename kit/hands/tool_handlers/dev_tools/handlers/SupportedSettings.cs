@@ -6,6 +6,9 @@ namespace Core.Configuration;
 /// </summary>
 public static class SupportedSettings
 {
+    /// <summary>
+    /// 所有支持的配置设置字典 — 键为设置名，值为配置定义
+    /// </summary>
     public static FrozenDictionary<string, ConfigSetting> All { get; }
 
     static SupportedSettings()
@@ -125,12 +128,23 @@ public static class SupportedSettings
         All = settings.ToFrozenDictionary(StringComparer.Ordinal);
     }
 
+    /// <summary>检查指定设置键是否受支持</summary>
+    /// <param name="key">设置键名</param>
+    /// <returns>受支持返回 true，否则返回 false</returns>
     public static bool IsSupported(string key) => All.ContainsKey(key);
 
+    /// <summary>获取指定设置键的配置定义</summary>
+    /// <param name="key">设置键名</param>
+    /// <returns>配置定义；键不存在时返回 null</returns>
     public static ConfigSetting? GetConfig(string key) => All.GetValueOrDefault(key);
 
+    /// <summary>获取所有受支持的设置键名</summary>
+    /// <returns>设置键名数组</returns>
     public static string[] GetAllKeys() => [.. All.Keys];
 
+    /// <summary>获取指定设置的可选值列表</summary>
+    /// <param name="key">设置键名</param>
+    /// <returns>可选值数组；设置不存在或无可选值时返回 null</returns>
     public static string[]? GetOptionsForSetting(string key)
     {
         if (!All.TryGetValue(key, out var config))
@@ -145,6 +159,9 @@ public static class SupportedSettings
         return null;
     }
 
+    /// <summary>获取指定设置键的配置路径段数组</summary>
+    /// <param name="key">设置键名</param>
+    /// <returns>路径段数组；无显式路径时按 '.' 分割键名</returns>
     public static string[] GetPath(string key)
     {
         if (All.TryGetValue(key, out var config) && config.Path is not null)

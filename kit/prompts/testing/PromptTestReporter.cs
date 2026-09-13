@@ -9,6 +9,11 @@ public sealed partial class PromptTestReporter
     private readonly ILogger<PromptTestReporter>? _logger;
     private readonly IFileSystem _fs;
 
+    /// <summary>
+    /// 初始化 <see cref="PromptTestReporter"/> 的新实例。
+    /// </summary>
+    /// <param name="fs">文件系统抽象，不可为 null。</param>
+    /// <param name="logger">可选的日志记录器。</param>
     public PromptTestReporter(IFileSystem fs, ILogger<PromptTestReporter>? logger = null)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));

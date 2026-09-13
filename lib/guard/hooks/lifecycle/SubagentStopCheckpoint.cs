@@ -1,8 +1,11 @@
 namespace Core.Hooks.Lifecycle;
 
-
+/// <summary>子代理停止检查点内部接口 — 扩展 ISubagentStopCheckpoint 供内部注册</summary>
 public interface ISubagentStopCheckpointInternal : ISubagentStopCheckpoint;
 
+/// <summary>
+/// 子代理停止检查点实现 — 在子代理停止前扫描密钥泄露并验证编译通过
+/// </summary>
 [Register(typeof(ISubagentStopCheckpointInternal), ServiceLifetime.Singleton)]
 public sealed partial class SubagentStopCheckpoint : ServiceEntity, ISubagentStopCheckpointInternal
 {
@@ -11,6 +14,9 @@ public sealed partial class SubagentStopCheckpoint : ServiceEntity, ISubagentSto
     private readonly IBuildQueueService _buildQueue;
     private readonly ILogger<SubagentStopCheckpoint>? _logger;
 
+    /// <summary>
+    /// 构造函数 — 注入密钥扫描器、Git diff 提供者、编译队列服务和可选的日志器
+    /// </summary>
     public SubagentStopCheckpoint(
         IGitSecretScanner secretScanner,
         IGitDiffProvider diffProvider,
@@ -23,6 +29,7 @@ public sealed partial class SubagentStopCheckpoint : ServiceEntity, ISubagentSto
         _logger = logger;
     }
 
+    /// <inheritdoc />
     public async Task<CheckpointResult> ExecuteAsync(CheckpointContext context, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(context);

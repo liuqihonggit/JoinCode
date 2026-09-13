@@ -13,6 +13,11 @@ public sealed partial class McpOutputStorage : ServiceEntity, JoinCode.Abstracti
     private readonly IFileSystem _fs;
     private readonly string _baseDir;
 
+    /// <summary>
+    /// 构造 MCP 输出存储服务
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">可选日志记录器</param>
     public McpOutputStorage(IFileSystem fs, ILogger<McpOutputStorage>? logger = null)
     {
         _fs = fs;
@@ -23,6 +28,13 @@ public sealed partial class McpOutputStorage : ServiceEntity, JoinCode.Abstracti
             "mcp-output");
     }
 
+    /// <summary>
+    /// 将二进制内容持久化到磁盘,返回包含路径/大小/扩展名的结果
+    /// </summary>
+    /// <param name="bytes">二进制内容</param>
+    /// <param name="mimeType">可选 MIME 类型,用于推断扩展名</param>
+    /// <param name="persistId">持久化标识,用于生成文件名</param>
+    /// <returns>持久化成功时返回结果对象,失败时返回 null</returns>
     public JoinCode.Abstractions.LLM.Chat.PersistBinaryResult? PersistBinaryContent(ReadOnlySpan<byte> bytes, string? mimeType, string persistId)
     {
         var ext = ExtensionForMimeType(mimeType);

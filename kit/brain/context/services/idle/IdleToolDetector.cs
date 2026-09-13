@@ -1,5 +1,8 @@
 namespace Core.Context;
 
+/// <summary>
+/// 空闲工具检测器 — 追踪连续未使用工具的轮次，达到阈值时触发提醒
+/// </summary>
 [Register(typeof(IdleToolDetector), ServiceLifetime.Singleton)]
 public sealed partial class IdleToolDetector : ServiceEntity
 {

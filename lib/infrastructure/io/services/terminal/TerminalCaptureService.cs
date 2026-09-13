@@ -1,5 +1,10 @@
 namespace IO.Services;
 
+/// <summary>
+/// 终端屏幕捕获服务 — 跨平台捕获终端屏幕内容与缓冲区
+/// <para>Windows 通过 ReadConsoleOutput P/Invoke 读取控制台缓冲区</para>
+/// <para>Unix 优先尝试 tmux/screen,失败则回退到 /dev/tty ANSI 查询</para>
+/// </summary>
 [Register(typeof(ITerminalCaptureService), ServiceLifetime.Singleton)]
 public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCaptureService
 {
@@ -7,6 +12,12 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
     private readonly ILogger<TerminalCaptureService>? _logger;
     private readonly IClockService _clock;
 
+    /// <summary>
+    /// 构造终端捕获服务
+    /// </summary>
+    /// <param name="fs">文件系统抽象,用于 Unix screen hardcopy 临时文件读写</param>
+    /// <param name="logger">可选日志记录器</param>
+    /// <param name="clock">可选时钟服务,默认使用系统时钟,用于测试注入</param>
     public TerminalCaptureService(IFileSystem fs, ILogger<TerminalCaptureService>? logger = null, IClockService? clock = null)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
@@ -14,6 +25,7 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
         _clock = clock ?? SystemClockService.Instance;
     }
 
+    /// <inheritdoc/>
     public TerminalSnapshot CaptureScreen()
     {
         var (width, height) = GetTerminalDimensions(_logger);
@@ -40,6 +52,7 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
         };
     }
 
+    /// <inheritdoc/>
     public TerminalSnapshot? CaptureBuffer(int maxLines = 50)
     {
         var (width, height) = GetTerminalBufferDimensions(_logger);

@@ -5,6 +5,10 @@ namespace Core.Prompts.Sections;
 /// </summary>
 [PromptSection(Name = "actions", Order = 10)]
 public static class ActionsSection {
+    /// <summary>
+    /// 创建谨慎执行操作 Section 实例（内容缓存）。
+    /// </summary>
+    /// <returns>谨慎执行操作 Section 实例。</returns>
     public static SystemPromptSection Create() {
         return SystemPromptSection.Cached("actions", () => {
             return """

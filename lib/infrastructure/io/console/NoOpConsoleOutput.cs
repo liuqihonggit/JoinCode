@@ -6,12 +6,20 @@ namespace Infrastructure.IO;
 /// </summary>
 public sealed class NoOpConsoleOutput : IConsoleOutput
 {
+    /// <inheritdoc/>
     public void WriteLine(string message) { }
+    /// <inheritdoc/>
     public void WriteError(string message) { }
+    /// <inheritdoc/>
     public void WriteSuccess(string message) { }
+    /// <inheritdoc/>
     public void WriteWarning(string message) { }
+    /// <inheritdoc/>
     public string? Prompt(string message) => null;
+    /// <inheritdoc/>
     public bool Confirm(string message) => false;
+    /// <inheritdoc/>
     public void WriteLine(string message, ConsoleColor color) { }
+    /// <inheritdoc/>
     public string ReadPassword(string prompt) => string.Empty;
 }

@@ -6,8 +6,14 @@ namespace JoinCode.App.Modules;
 [AppModule(Order = 30)]
 public sealed class CoreModule : IAppModule
 {
+    /// <summary>模块加载顺序，值为 30</summary>
     public int Order => 30;
 
+    /// <summary>
+    /// 配置核心服务 — 注册 AI 工作流服务、JoinCode 自动注册服务及全部管道
+    /// </summary>
+    /// <param name="services">服务集合</param>
+    /// <param name="context">应用模块上下文，提供配置信息</param>
     public void ConfigureServices(IServiceCollection services, AppModuleContext context)
     {
         services.AddAiWorkflowServices(context.Config);
@@ -25,6 +31,12 @@ public sealed class CoreModule : IAppModule
         services.AddAllPipelines();
     }
 
+    /// <summary>
+    /// 异步配置 — 核心模块无需异步初始化，直接返回完成
+    /// </summary>
+    /// <param name="services">服务提供者</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>已完成的任务</returns>
     public Task ConfigureAsync(IServiceProvider services, CancellationToken ct)
         => Task.CompletedTask;
 }

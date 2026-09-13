@@ -7,6 +7,9 @@ namespace Core.Agents.Worktree;
 public sealed partial class WorktreeSessionSaveMiddleware : ServiceEntity, IWorktreeCreateMiddleware
 {
 
+    /// <summary>
+    /// 构造 WorktreeSessionSaveMiddleware 实例，注入延迟加载的管道操作、时钟服务、遥测服务及日志器
+    /// </summary>
     public WorktreeSessionSaveMiddleware(Lazy<IWorktreePipelineOperations> worktreeService, IClockService clock, ITelemetryService? telemetryService = null, ILogger<WorktreeSessionSaveMiddleware>? logger = null)
     {
         _worktreeService = worktreeService;
@@ -19,8 +22,15 @@ public sealed partial class WorktreeSessionSaveMiddleware : ServiceEntity, IWork
     private readonly ILogger<WorktreeSessionSaveMiddleware>? _logger;
     private readonly IClockService _clock;
 
+    /// <summary>中间件错误处理策略：继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
+    /// <summary>
+    /// 执行会话保存：恢复模式跳过；否则构建会话对象、保存并记录遥测，设置上下文结果
+    /// </summary>
+    /// <param name="context">worktree 创建上下文</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct)
     {
         if (context.IsRecovery)

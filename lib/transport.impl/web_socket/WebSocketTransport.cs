@@ -11,15 +11,26 @@ public sealed class WebSocketTransport : IBridgeTransport
     private CancellationTokenSource? _cts;
     private Task? _receiveTask;
 
+    /// <summary>接收到消息时触发</summary>
     public event EventHandler<TransportMessageReceivedEventArgs>? MessageReceived;
+    /// <summary>发生错误时触发</summary>
     public event EventHandler<TransportErrorEventArgs>? ErrorOccurred;
 
+    /// <summary>
+    /// 构造 WebSocket 传输
+    /// </summary>
+    /// <param name="endpoint">WebSocket 端点 URL</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public WebSocketTransport(string endpoint, ILogger? logger = null)
     {
         _endpoint = endpoint;
         _logger = logger;
     }
 
+    /// <summary>
+    /// 启动 WebSocket 连接并开始接收循环
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         _webSocket = new ClientWebSocket();
@@ -33,6 +44,10 @@ public sealed class WebSocketTransport : IBridgeTransport
         _receiveTask = ReceiveLoopAsync(_cts.Token);
     }
 
+    /// <summary>
+    /// 停止 WebSocket 连接并释放资源
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         await (_cts?.CancelAsync() ?? Task.CompletedTask).ConfigureAwait(false);
@@ -61,6 +76,12 @@ public sealed class WebSocketTransport : IBridgeTransport
         _logger?.LogDebug("[WebSocketTransport] 已断开连接");
     }
 
+    /// <summary>
+    /// 发送文本消息到对端
+    /// </summary>
+    /// <param name="message">消息文本</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <exception cref="InvalidOperationException">WebSocket 未连接时抛出</exception>
     public async Task SendAsync(string message, CancellationToken cancellationToken = default)
     {
         if (_webSocket?.State != WebSocketState.Open)

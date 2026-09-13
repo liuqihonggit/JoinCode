@@ -65,6 +65,10 @@ public sealed partial class SystemReminderManager : ISystemReminderManager, IAsy
         return result.ToString().TrimEnd();
     }
 
+    /// <summary>
+    /// 异步释放资源。
+    /// </summary>
+    /// <returns>表示异步释放操作的任务。</returns>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;

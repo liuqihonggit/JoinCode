@@ -13,6 +13,15 @@ public sealed class ContractChangeBroadcastListener : IFileWriteListener
     private readonly string _captainId;
     private readonly ILogger<ContractChangeBroadcastListener>? _logger;
 
+    /// <summary>
+    /// 构造函数 — 注入广播器、热文件检测器、热点跟踪器、通知路由器和队长 ID
+    /// </summary>
+    /// <param name="broadcaster">契约变更广播器</param>
+    /// <param name="hotFileDetector">热文件检测器</param>
+    /// <param name="hotSpotTracker">热点跟踪器</param>
+    /// <param name="router">契约变更通知路由器</param>
+    /// <param name="captainId">队长代理 ID</param>
+    /// <param name="logger">日志记录器，可为 null</param>
     public ContractChangeBroadcastListener(
         IContractChangeBroadcaster broadcaster,
         IHotFileDetector hotFileDetector,
@@ -29,6 +38,7 @@ public sealed class ContractChangeBroadcastListener : IFileWriteListener
         _logger = logger;
     }
 
+    /// <inheritdoc/>
     public void OnFileWrite(FileWriteEventArgs e)
     {
         ArgumentNullException.ThrowIfNull(e);

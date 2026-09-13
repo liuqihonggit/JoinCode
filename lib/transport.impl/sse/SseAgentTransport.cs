@@ -43,8 +43,10 @@ public sealed partial class SseAgentTransport : IAgentTransport
     private int _reconnectAttempts;
     private int _disposed;
 
+    /// <inheritdoc/>
     public string TransportType => "sse";
 
+    /// <inheritdoc/>
     public TransportState State
     {
         get => _state;
@@ -58,11 +60,19 @@ public sealed partial class SseAgentTransport : IAgentTransport
         }
     }
 
+    /// <inheritdoc/>
     public event EventHandler<TransportMessageEventArgs>? OnMessage;
+    /// <inheritdoc/>
     public event EventHandler<TransportState>? OnStateChanged;
 
     private readonly IClockService _clock;
 
+    /// <summary>
+    /// 构造 SSE 代理传输
+    /// </summary>
+    /// <param name="config">SSE 传输配置</param>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="clock">时钟服务（可选，默认系统时钟）</param>
     public SseAgentTransport(
         SseTransportConfig config,
         ILogger<SseAgentTransport>? logger = null,
@@ -75,6 +85,7 @@ public sealed partial class SseAgentTransport : IAgentTransport
         _state = TransportState.Disconnected;
     }
 
+    /// <inheritdoc/>
     public async Task ConnectAsync(CancellationToken ct = default)
     {
         if (State == TransportState.Connected) return;
@@ -94,6 +105,7 @@ public sealed partial class SseAgentTransport : IAgentTransport
         }
     }
 
+    /// <inheritdoc/>
     public Task DisconnectAsync(CancellationToken ct = default)
     {
         _disposeCts.Cancel();
@@ -103,6 +115,7 @@ public sealed partial class SseAgentTransport : IAgentTransport
         return Task.CompletedTask;
     }
 
+    /// <inheritdoc/>
     public async Task SendMessageAsync(string message, CancellationToken ct = default)
     {
         if (State != TransportState.Connected)
@@ -125,6 +138,7 @@ public sealed partial class SseAgentTransport : IAgentTransport
         });
     }
 
+    /// <inheritdoc/>
     public async Task<string> WaitForOutputAsync(Func<string, bool> predicate, TimeSpan? timeout = null, CancellationToken ct = default)
     {
         timeout ??= TimeSpan.FromSeconds(30);
@@ -145,6 +159,7 @@ public sealed partial class SseAgentTransport : IAgentTransport
         throw new TimeoutException($"[TRN018] 等待SSE输出超时 (>{timeout.Value.TotalSeconds}s)");
     }
 
+    /// <inheritdoc/>
     public async Task<string> WaitForErrorAsync(Func<string, bool> predicate, TimeSpan? timeout = null, CancellationToken ct = default)
     {
         timeout ??= TimeSpan.FromSeconds(30);
@@ -165,21 +180,27 @@ public sealed partial class SseAgentTransport : IAgentTransport
         throw new TimeoutException($"[TRN019] 等待SSE错误超时 (>{timeout.Value.TotalSeconds}s)");
     }
 
+    /// <inheritdoc/>
     public Task<string> GetOutputAsync() =>
         _outputChannel.GetAllAsync(TimeSpan.FromSeconds(5));
 
+    /// <inheritdoc/>
     public Task<string> GetOutputIncrementalAsync() =>
         _outputChannel.GetIncrementalAsync(TimeSpan.FromSeconds(5));
 
+    /// <inheritdoc/>
     public Task<string> GetErrorAsync() =>
         _errorChannel.GetAllAsync(TimeSpan.FromSeconds(5));
 
+    /// <inheritdoc/>
     public Task<string> GetErrorIncrementalAsync() =>
         _errorChannel.GetIncrementalAsync(TimeSpan.FromSeconds(5));
 
+    /// <inheritdoc/>
     public Task ClearOutputAsync() =>
         _outputChannel.ClearAsync(TimeSpan.FromSeconds(5));
 
+    /// <inheritdoc/>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;

@@ -12,6 +12,12 @@ public class QuadtreeToolHandlers
     private readonly IQuadtreeRenderer _renderer;
     private readonly ILogger<QuadtreeToolHandlers>? _logger;
 
+    /// <summary>
+    /// 构造四叉树标注工具处理器
+    /// </summary>
+    /// <param name="annotator">四叉树标注器</param>
+    /// <param name="renderer">四叉树渲染器</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public QuadtreeToolHandlers(
         IQuadtreeAnnotator annotator,
         IQuadtreeRenderer renderer,
@@ -23,6 +29,10 @@ public class QuadtreeToolHandlers
     }
 
     /// <summary>构建四叉树网格 — 返回所有格子的编码/坐标/方位，供 LLM 规划标注策略</summary>
+    /// <param name="imageBase64">图片 base64 PNG/JPG 编码</param>
+    /// <param name="depth">四叉树层数（1=4格, 2=16格, 3=64格），默认2</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>工具结果</returns>
     [McpTool("quadtree_build", "在图片上构建四叉树网格，返回所有格子的编码(L0.2.1格式)/坐标/方位/象限。depth=1为4格，2为16格，3为64格", "vision")]
     public Task<ToolResult> QuadtreeBuildAsync(
         [McpToolParameter("图片 base64 PNG/JPG 编码", Required = true)] string imageBase64,
@@ -43,6 +53,12 @@ public class QuadtreeToolHandlers
     }
 
     /// <summary>聚焦格子 — 裁剪子图并重新构建四叉树编码，用于递归深挖细节</summary>
+    /// <param name="imageBase64">原图 base64</param>
+    /// <param name="cellCode">要聚焦的格子编码（如 L0.2.1）</param>
+    /// <param name="sourceDepth">源格子所在的四叉树层数</param>
+    /// <param name="targetDepth">子图新网格层数，默认2</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>工具结果</returns>
     [McpTool("quadtree_zoom", "聚焦指定格子，裁剪子图并重新构建四叉树网格。返回子图base64+新网格（编码重置L0起算）", "vision")]
     public async Task<ToolResult> QuadtreeZoomAsync(
         [McpToolParameter("原图 base64", Required = true)] string imageBase64,
@@ -77,6 +93,12 @@ public class QuadtreeToolHandlers
     }
 
     /// <summary>批量染色格子 — 更新 alpha 值，返回更新后的网格状态</summary>
+    /// <param name="imageWidth">原图宽度（像素）</param>
+    /// <param name="imageHeight">原图高度（像素）</param>
+    /// <param name="depth">四叉树层数</param>
+    /// <param name="paintsJson">染色映射JSON: {"格子编码":alpha}，alpha范围0..1</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>工具结果</returns>
     [McpTool("quadtree_paint", "批量染色格子（设置alpha强度），返回更新后的网格。paintsJson格式: {\"L0.0\":0.5,\"L0.1\":0.8}，alpha范围0..1", "vision")]
     public Task<ToolResult> QuadtreePaintAsync(
         [McpToolParameter("原图宽度（像素）", Required = true)] int imageWidth,
@@ -109,6 +131,13 @@ public class QuadtreeToolHandlers
     }
 
     /// <summary>渲染虚线网格叠加到原图 — 返回标注后的图片 base64</summary>
+    /// <param name="imageBase64">原图 base64</param>
+    /// <param name="imageWidth">原图宽度（像素）</param>
+    /// <param name="imageHeight">原图高度（像素）</param>
+    /// <param name="depth">四叉树层数</param>
+    /// <param name="paintsJson">染色映射JSON（可选），不传则显示全部网格线</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>工具结果</returns>
     [McpTool("quadtree_render", "渲染虚线网格叠加到原图，返回标注图片base64。不传paintsJson时显示全部网格线(alpha=0.3)", "vision")]
     public async Task<ToolResult> QuadtreeRenderAsync(
         [McpToolParameter("原图 base64", Required = true)] string imageBase64,
@@ -164,6 +193,13 @@ public class QuadtreeToolHandlers
     }
 
     /// <summary>八方位邻居查询 — 返回相邻格子编码，辅助 LLM 方位导航</summary>
+    /// <param name="cellCode">源格子编码（如 L0.2.1）</param>
+    /// <param name="direction">方位方向（N/S/W/E/NW/NE/SW/SE）</param>
+    /// <param name="imageWidth">原图宽度（像素）</param>
+    /// <param name="imageHeight">原图高度（像素）</param>
+    /// <param name="depth">四叉树层数</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>工具结果</returns>
     [McpTool("quadtree_neighbor", "查询格子的八方位邻居编码（同层）。方向: N/S/W/E/NW/NE/SW/SE，边界外返回null", "vision")]
     public Task<ToolResult> QuadtreeNeighborAsync(
         [McpToolParameter("源格子编码（如 L0.2.1）", Required = true)] string cellCode,
@@ -189,6 +225,13 @@ public class QuadtreeToolHandlers
     }
 
     /// <summary>高亮当前观察区域 — 在图片上标注指定格子并返回标注图片base64（不修改桌面）</summary>
+    /// <param name="imageBase64">原图 base64</param>
+    /// <param name="cellCode">要高亮的格子编码（如 L0.2.1）</param>
+    /// <param name="imageWidth">原图宽度（像素）</param>
+    /// <param name="imageHeight">原图高度（像素）</param>
+    /// <param name="depth">四叉树层数</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>工具结果</returns>
     [McpTool("screen_indicate", "在图片上标注指定格子，返回标注后的图片base64。注意:此工具只在图片上画框返回,不在桌面上实际高亮。如需桌面实际高亮请用show_desktop_overlay。前置:需先screenshot获取imageBase64+quadtree_build获取cellCode", "vision")]
     public async Task<ToolResult> ScreenIndicateAsync(
         [McpToolParameter("原图 base64", Required = true)] string imageBase64,

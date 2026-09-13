@@ -16,6 +16,11 @@ public sealed partial class StringMessageRouter : IMessageRouter
     /// </summary>
     public event EventHandler<StringMessageReceivedEventArgs>? MessageReceived;
 
+    /// <summary>
+    /// 构造字符串消息路由器
+    /// </summary>
+    /// <param name="config">传输配置，提供消息去重容量</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public StringMessageRouter(
         TransportConfiguration config,
         ILogger? logger = null)
@@ -61,6 +66,9 @@ public sealed partial class StringMessageRouter : IMessageRouter
         }
     }
 
+    /// <summary>
+    /// 异步释放资源
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;

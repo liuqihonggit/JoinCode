@@ -5,6 +5,10 @@ namespace Core.Prompts.Sections;
 /// </summary>
 [PromptSection(Name = "doing_tasks", Order = 9)]
 public static class DoingTasksSection {
+    /// <summary>
+    /// 创建任务执行 Section 实例（内容缓存）。
+    /// </summary>
+    /// <returns>任务执行 Section 实例。</returns>
     public static SystemPromptSection Create() {
         return SystemPromptSection.Cached("doing_tasks", () => {
             var codeStyleItems = new[] {

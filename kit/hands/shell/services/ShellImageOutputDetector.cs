@@ -15,6 +15,8 @@ public static class ShellImageOutputDetector
     /// 检测 stdout 是否为 Data URI 格式的图片输出 — 对齐 TS isImageOutput
     /// 格式: data:image/xxx;base64,...
     /// </summary>
+    /// <param name="stdout">命令标准输出文本</param>
+    /// <returns>若为 Data URI 格式图片返回 true，否则返回 false</returns>
     public static bool IsImageOutput(string stdout)
     {
         if (string.IsNullOrEmpty(stdout))
@@ -36,6 +38,8 @@ public static class ShellImageOutputDetector
     /// 解析 Data URI — 对齐 TS parseDataUri
     /// 返回 (mediaType, base64Data) 或 null
     /// </summary>
+    /// <param name="dataUri">Data URI 格式字符串</param>
+    /// <returns>解析成功的 (媒体类型, base64 数据) 元组；格式不合法则返回 null</returns>
     public static (string MediaType, string Base64Data)? ParseDataUri(string dataUri)
     {
         if (string.IsNullOrEmpty(dataUri))
@@ -67,6 +71,9 @@ public static class ShellImageOutputDetector
     /// 压缩过大的图片输出 — 对齐 TS resizeShellImageOutput
     /// 超过 20MB 时降低质量/尺寸，防止超出 API 限制
     /// </summary>
+    /// <param name="mediaType">图片媒体类型（如 image/png）</param>
+    /// <param name="base64Data">图片 base64 编码数据</param>
+    /// <returns>压缩后的 (媒体类型, base64 数据)；若未超限或压缩失败则返回原始数据</returns>
     public static (string MediaType, string Base64Data)? ResizeIfOversized(string mediaType, string base64Data)
     {
         var bytes = Convert.FromBase64String(base64Data);

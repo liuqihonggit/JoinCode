@@ -13,6 +13,12 @@ public sealed partial class TranscriptPersistMiddleware : ServiceEntity, IChatMi
     private readonly IChatContextManager _contextManager;
     private readonly ILogger<TranscriptPersistMiddleware>? _logger;
 
+    /// <summary>
+    /// 初始化 Transcript 持久化中间件
+    /// </summary>
+    /// <param name="transcriptService">transcript 持久化服务（可选，null 时禁用持久化）</param>
+    /// <param name="contextManager">聊天上下文管理器</param>
+    /// <param name="logger">可选日志记录器</param>
     public TranscriptPersistMiddleware(
         ITranscriptService? transcriptService,
         IChatContextManager contextManager,
@@ -23,6 +29,7 @@ public sealed partial class TranscriptPersistMiddleware : ServiceEntity, IChatMi
         _logger = logger;
     }
 
+    /// <summary>错误行为策略：继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
     /// <summary>

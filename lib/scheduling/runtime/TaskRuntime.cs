@@ -1,6 +1,9 @@
 namespace Core.Scheduling.Runtime;
 
 
+/// <summary>
+/// 任务运行时 — 管理运行时任务的创建、依赖、调度、持久化与恢复,基于 DAG 检测循环依赖
+/// </summary>
 [Register(typeof(ITaskRuntime), ServiceLifetime.Singleton)]
 public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposable
 {
@@ -12,6 +15,12 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
     private readonly TaskPersistActor _persistActor;
     private int _taskCounter;
 
+    /// <summary>
+    /// 初始化任务运行时实例
+    /// </summary>
+    /// <param name="deps">运行时依赖(持久化目录、文件服务、各类任务执行器)</param>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="clock">时钟服务,为 null 时使用系统时钟</param>
     public TaskRuntime(
         TaskRuntimeDeps? deps = null,
         ILogger<TaskRuntime>? logger = null,
@@ -27,6 +36,7 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
         _persistActor = new TaskPersistActor(this, _logger);
     }
 
+    /// <inheritdoc/>
     public Task<OperationResult<RuntimeTask?>> CreateTaskAsync(RuntimeTaskInput input, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
@@ -68,6 +78,7 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
         return Task.FromResult(OperationResult<RuntimeTask?>.Ok(task));
     }
 
+    /// <inheritdoc/>
     public Task<OperationResult<RuntimeTask?>> UpdateTaskAsync(string taskId, RuntimeTaskUpdate update, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(update);
@@ -99,6 +110,7 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
         return Task.FromResult(OperationResult<RuntimeTask?>.Ok(task));
     }
 
+    /// <inheritdoc/>
     public Task<RuntimeTaskListResult> ListTasksAsync(RuntimeTaskQuery query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
@@ -141,6 +153,7 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
         return Task.FromResult(RuntimeTaskListResult.Ok(tasks, totalCount));
     }
 
+    /// <inheritdoc/>
     public Task<OperationResult<RuntimeTask?>> GetTaskAsync(string taskId, CancellationToken cancellationToken = default)
     {
         if (!_tasks.TryGetValue(taskId, out var task))
@@ -151,6 +164,7 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
         return Task.FromResult(OperationResult<RuntimeTask?>.Ok(task));
     }
 
+    /// <inheritdoc/>
     public async Task<OperationResult<RuntimeTask?>> SetDependencyAsync(string taskId, string dependsOnTaskId, CancellationToken cancellationToken = default)
     {
         if (!_tasks.ContainsKey(taskId))
@@ -189,6 +203,7 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
         return OperationResult<RuntimeTask?>.Ok(task ?? throw new InvalidOperationException($"Task {taskId} not found after TryGetValue succeeded."));
     }
 
+    /// <inheritdoc/>
     public async Task<OperationResult<RuntimeTask?>> RemoveDependencyAsync(string taskId, string dependsOnTaskId, CancellationToken cancellationToken = default)
     {
         var edgeToRemove = _dag.Edges.Values
@@ -212,6 +227,7 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
         return OperationResult<RuntimeTask?>.Ok(task ?? throw new InvalidOperationException($"Task {taskId} not found after TryGetValue succeeded."));
     }
 
+    /// <inheritdoc/>
     public Task<bool> CanExecuteTaskAsync(string taskId, CancellationToken cancellationToken = default)
     {
         if (!_tasks.TryGetValue(taskId, out var task))
@@ -247,6 +263,7 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
         return Task.FromResult(true);
     }
 
+    /// <inheritdoc/>
     public Task<IReadOnlyList<RuntimeTask>> DequeueReadyTasksAsync(CancellationToken cancellationToken = default)
     {
         var completedIds = new HashSet<string>(
@@ -279,6 +296,7 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
         return Task.FromResult<IReadOnlyList<RuntimeTask>>(ordered);
     }
 
+    /// <inheritdoc/>
     public async Task PersistAsync(CancellationToken cancellationToken = default)
     {
         if (_deps.FileOperationService is null || _deps.PersistenceDirectory is null)
@@ -319,6 +337,7 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
         _logger?.LogDebug(L.T(StringKey.PersistTasksLog), durableTasks.Count);
     }
 
+    /// <inheritdoc/>
     public async Task<IReadOnlyList<RuntimeTask>> RecoverTasksAsync(string? goalId = null, CancellationToken cancellationToken = default)
     {
         if (_deps.FileOperationService is null || _deps.PersistenceDirectory is null)
@@ -416,6 +435,7 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
         }
     }
 
+    /// <inheritdoc/>
     public void Clear()
     {
         _tasks.Clear();
@@ -423,6 +443,13 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
         Volatile.Write(ref _taskCounter, 0);
     }
 
+    /// <summary>
+    /// 异步执行远程智能体任务 — 委托给已注册的 RemoteAgentTaskExecutor
+    /// </summary>
+    /// <param name="definition">远程智能体任务定义</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>智能体任务执行结果</returns>
+    /// <exception cref="InvalidOperationException">未注册 RemoteAgentTaskExecutor 时抛出</exception>
     public Task<AgentTaskResult> ExecuteRemoteAgentTaskAsync(RemoteAgentTaskDefinition definition, CancellationToken ct = default)
     {
         if (_deps.RemoteAgentTaskExecutor == null)
@@ -430,6 +457,13 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
         return _deps.RemoteAgentTaskExecutor.ExecuteRemoteAsync(definition, ct);
     }
 
+    /// <summary>
+    /// 异步执行工作流任务 — 委托给已注册的 WorkflowTaskExecutor
+    /// </summary>
+    /// <param name="definition">工作流定义</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>工作流执行结果</returns>
+    /// <exception cref="InvalidOperationException">未注册 WorkflowTaskExecutor 时抛出</exception>
     public Task<WorkflowResult> ExecuteWorkflowTaskAsync(WorkflowDefinition definition, CancellationToken ct = default)
     {
         if (_deps.WorkflowTaskExecutor == null)
@@ -437,6 +471,13 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
         return _deps.WorkflowTaskExecutor.ExecuteWorkflowAsync(definition, ct);
     }
 
+    /// <summary>
+    /// 启动 MCP 监控任务 — 委托给已注册的 MonitorMcpTaskExecutor
+    /// </summary>
+    /// <param name="config">MCP 监控配置</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>监控会话 ID</returns>
+    /// <exception cref="InvalidOperationException">未注册 MonitorMcpTaskExecutor 时抛出</exception>
     public Task<string> StartMcpMonitoringAsync(McpMonitorConfig config, CancellationToken ct = default)
     {
         if (_deps.MonitorMcpTaskExecutor == null)
@@ -444,6 +485,13 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
         return _deps.MonitorMcpTaskExecutor.StartMonitoringAsync(config, ct);
     }
 
+    /// <summary>
+    /// 异步执行本地 Shell 任务 — 根据 UsePowerShell 标志选择 Bash 或 PowerShell 执行器
+    /// </summary>
+    /// <param name="definition">本地 Shell 任务定义</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>智能体任务执行结果</returns>
+    /// <exception cref="InvalidOperationException">未注册 LocalShellTaskExecutor 时抛出</exception>
     public Task<AgentTaskResult> ExecuteLocalShellTaskAsync(LocalShellTaskDefinition definition, CancellationToken ct = default)
     {
         if (_deps.LocalShellTaskExecutor == null)
@@ -453,6 +501,13 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
             : _deps.LocalShellTaskExecutor.ExecuteShellAsync(definition, ct);
     }
 
+    /// <summary>
+    /// 异步执行 In-Process 队友任务 — 委托给已注册的 InProcessTeammateTaskExecutor
+    /// </summary>
+    /// <param name="definition">In-Process 队友定义</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>智能体任务执行结果</returns>
+    /// <exception cref="InvalidOperationException">未注册 InProcessTeammateTaskExecutor 时抛出</exception>
     public Task<AgentTaskResult> ExecuteInProcessTeammateAsync(InProcessTeammateDefinition definition, CancellationToken ct = default)
     {
         if (_deps.InProcessTeammateTaskExecutor == null)
@@ -466,6 +521,7 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
         return $"rtask_{counter:D4}";
     }
 
+    /// <summary>释放资源时回调，释放内部 DAG 并异步释放持久化 Actor。</summary>
     protected override void OnDispose()
     {
         _dag.Dispose();

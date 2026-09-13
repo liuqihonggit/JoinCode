@@ -16,6 +16,13 @@ public sealed class ModalityValidationMiddleware : IChatMiddleware
     private readonly MediaIntentDetector _detector;
     private readonly ILogger<ModalityValidationMiddleware>? _logger;
 
+    /// <summary>
+    /// 初始化模态验证中间件
+    /// </summary>
+    /// <param name="modelConfigLoader">模型配置加载器</param>
+    /// <param name="config">工作流配置</param>
+    /// <param name="detector">媒介意图检测器</param>
+    /// <param name="logger">可选日志记录器</param>
     public ModalityValidationMiddleware(
         IModelConfigLoader modelConfigLoader,
         WorkflowConfig config,
@@ -28,6 +35,13 @@ public sealed class ModalityValidationMiddleware : IChatMiddleware
         _logger = logger;
     }
 
+    /// <summary>
+    /// 检测用户消息媒介意图与模型模态能力是否匹配，不匹配时注入引导文本
+    /// </summary>
+    /// <param name="context">中间件共享上下文</param>
+    /// <param name="next">下游中间件委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>聊天流事件异步枚举</returns>
     public async IAsyncEnumerable<ChatStreamEvent> InvokeAsync(
         ChatMiddlewareContext context,
         StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,

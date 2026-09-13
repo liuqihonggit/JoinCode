@@ -1,10 +1,20 @@
 
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /copy 命令 — 复制最近的 AI 回复到剪贴板
+/// 支持参数：N=复制第 N 条助手消息（1=最新），code/c=复制最近代码块
+/// 对齐 TS clipboard/ 实现，同时写入临时文件作为 OSC52 回退
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Copy, Description = "复制最近的 AI 回复到剪贴板（/copy N 复制第N条）", Usage = "/copy [N|code]", Category = ChatCommandCategory.System, ArgumentHint = "[N|code]")]
 [ChatCommandArg("target", Type = "string", Description = "复制目标：N=第N条助手消息(1=最新)，code=最近代码块", Enum = new[] { "code", "c", "1", "2", "3" })]
 public sealed class CopyCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /copy 命令 — 根据参数复制指定助手消息或最近代码块到剪贴板
+    /// </summary>
+    /// <param name="context">命令执行上下文，包含参数、会话 ID、取消令牌等</param>
+    /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var clipboardService = context.GetCommandServices().ClipboardService;

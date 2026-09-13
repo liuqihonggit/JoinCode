@@ -9,12 +9,22 @@ namespace JoinCode.ChatCommands;
 [ChatCommandArg("instructions", Type = "string", Description = "自定义压缩摘要指令")]
 public sealed class CompactCommand : ChatCommandBase
 {
+    /// <summary>命令名称。</summary>
     public override string Name => ChatCommandNameConstants.Compact;
+    /// <summary>命令描述。</summary>
     public override string Description => "压缩对话上下文以节省 Token，可选自定义摘要指令";
+    /// <summary>命令用法提示。</summary>
     public override string Usage => "/compact [自定义摘要指令]";
+    /// <summary>命令别名列表。</summary>
     public override string[] Aliases => new[] { "comp" };
+    /// <summary>命令参数提示文本。</summary>
     public override string ArgumentHint => "<optional custom summarization instructions>";
 
+    /// <summary>
+    /// 执行 /compact 命令，生成对话摘要并压缩上下文，遇到 prompt_too_long 自动回滚重试。
+    /// </summary>
+    /// <param name="context">命令执行上下文。</param>
+    /// <returns>表示异步操作的任务，承载命令执行结果。</returns>
     public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         // 对齐 TS: customInstructions = args.trim()

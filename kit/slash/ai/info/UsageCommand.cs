@@ -10,6 +10,11 @@ namespace JoinCode.ChatCommands;
 public sealed class UsageCommand : ChatCommandBase
 {
     private readonly IClockService _clock = SystemClockService.Instance;
+    /// <summary>
+    /// 执行 /usage 命令 — 通过 TabPanel 展示 Rate Limits(速率限制用量)和 Token Usage(今日 Token 用量)两个标签页
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <returns>表示命令执行完成的任务,结果为继续会话</returns>
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var services = context.GetCommandServices();

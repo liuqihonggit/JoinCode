@@ -19,18 +19,23 @@ public enum PeerSessionStatus
 /// </summary>
 public sealed partial class PeerSession
 {
+    /// <summary>会话 ID</summary>
     [JsonPropertyName("sessionId")]
     public required string SessionId { get; init; }
 
+    /// <summary>本地节点 ID</summary>
     [JsonPropertyName("localPeerId")]
     public required string LocalPeerId { get; init; }
 
+    /// <summary>远程节点 ID</summary>
     [JsonPropertyName("remotePeerId")]
     public required string RemotePeerId { get; init; }
 
+    /// <summary>会话状态</summary>
     [JsonPropertyName("status")]
     public PeerSessionStatus Status { get; set; } = PeerSessionStatus.Connecting;
 
+    /// <summary>创建时间戳（Unix 毫秒）</summary>
     [JsonPropertyName("createdAt")]
     public required long CreatedAt { get; init; }
 }
@@ -46,10 +51,17 @@ public sealed partial class PeerSessionManager : ServiceEntity
     private readonly AsyncLock _stateLock = new();
     private int _asyncDisposed;
 
+    /// <summary>对等会话已连接事件</summary>
     public event EventHandler<PeerSessionEventArgs>? PeerSessionConnected;
+    /// <summary>对等会话已断开事件</summary>
     public event EventHandler<PeerSessionEventArgs>? PeerSessionDisconnected;
+    /// <summary>对等消息已发送事件</summary>
     public event EventHandler<PeerMessageEventArgs>? PeerMessageSent;
 
+    /// <summary>
+    /// 构造对等会话管理器
+    /// </summary>
+    /// <param name="logger">日志记录器（可选）</param>
     public PeerSessionManager(ILogger<PeerSessionManager>? logger = null)
         : base(nameof(PeerSessionManager))
     {
@@ -202,6 +214,10 @@ public sealed partial class PeerSessionManager : ServiceEntity
         await Task.CompletedTask.ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 异步释放管理器，关闭所有对等会话
+    /// </summary>
+    /// <returns>表示异步释放操作的任务</returns>
     public override async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1)
@@ -220,6 +236,9 @@ public sealed partial class PeerSessionManager : ServiceEntity
         _logger?.LogInformation("[PeerSessionManager] 已释放所有对等会话");
     }
 
+    /// <summary>
+    /// 释放托管资源
+    /// </summary>
     protected override void OnDispose()
     {
         if (_asyncDisposed == 1) return;
@@ -232,8 +251,13 @@ public sealed partial class PeerSessionManager : ServiceEntity
 /// </summary>
 public sealed partial class PeerSessionEventArgs : EventArgs
 {
+    /// <summary>对等会话</summary>
     public PeerSession Session { get; }
 
+    /// <summary>
+    /// 构造对等会话事件参数
+    /// </summary>
+    /// <param name="session">对等会话</param>
     public PeerSessionEventArgs(PeerSession session)
     {
         Session = session;
@@ -251,6 +275,11 @@ public sealed partial class PeerMessageEventArgs : EventArgs
     /// <summary>发送的 Bridge 消息</summary>
     public BridgeMessage Message { get; }
 
+    /// <summary>
+    /// 构造对等消息事件参数
+    /// </summary>
+    /// <param name="sessionId">会话 ID</param>
+    /// <param name="message">Bridge 消息</param>
     public PeerMessageEventArgs(string sessionId, BridgeMessage message)
     {
         SessionId = sessionId;
@@ -265,8 +294,14 @@ public sealed partial class PeerSessionRouter
 {
     private readonly ConcurrentDictionary<string, string> _routes = new(StringComparer.Ordinal);
 
+    /// <summary>当前路由数量</summary>
     public int RouteCount => _routes.Count;
 
+    /// <summary>
+    /// 注册节点路由
+    /// </summary>
+    /// <param name="peerId">对等节点 ID</param>
+    /// <param name="endpoint">端点地址</param>
     public void RegisterRoute(string peerId, string endpoint)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(peerId);
@@ -274,20 +309,41 @@ public sealed partial class PeerSessionRouter
         _routes[peerId] = endpoint;
     }
 
+    /// <summary>
+    /// 注销节点路由
+    /// </summary>
+    /// <param name="peerId">对等节点 ID</param>
     public void UnregisterRoute(string peerId)
     {
         _routes.TryRemove(peerId, out _);
     }
 
+    /// <summary>
+    /// 获取节点路由端点
+    /// </summary>
+    /// <param name="peerId">对等节点 ID</param>
+    /// <returns>端点地址，不存在则返回 null</returns>
     public string? GetRoute(string peerId)
     {
         _routes.TryGetValue(peerId, out var endpoint);
         return endpoint;
     }
 
+    /// <summary>
+    /// 判断是否存在指定节点的路由
+    /// </summary>
+    /// <param name="peerId">对等节点 ID</param>
+    /// <returns>存在返回 true，否则 false</returns>
     public bool HasRoute(string peerId) => _routes.ContainsKey(peerId);
 
+    /// <summary>
+    /// 获取所有对等节点 ID
+    /// </summary>
+    /// <returns>节点 ID 集合</returns>
     public IEnumerable<string> GetAllPeerIds() => _routes.Keys;
 
+    /// <summary>
+    /// 清除所有路由
+    /// </summary>
     public void Clear() => _routes.Clear();
 }

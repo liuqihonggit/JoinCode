@@ -9,6 +9,10 @@ namespace Services.Web;
 public sealed partial class WebSsrfGuardMiddleware : ServiceEntity, IWebMiddleware
 {
 
+    /// <summary>
+    /// 初始化 <see cref="WebSsrfGuardMiddleware"/> 实例。
+    /// </summary>
+    /// <param name="logger">可选的日志记录器。</param>
     public WebSsrfGuardMiddleware(ILogger<WebSsrfGuardMiddleware>? logger = null)
     {
         _logger = logger;

@@ -9,6 +9,7 @@ internal sealed class RangeSupportProbe
 {
     private readonly HttpClient _httpClient;
 
+    /// <summary>构造 Range 支持探测器,注入 HTTP 客户端</summary>
     internal RangeSupportProbe(HttpClient httpClient)
     {
         _httpClient = httpClient;

@@ -6,12 +6,26 @@ namespace JoinCode.App.Modules;
 [AppModule(Order = 90)]
 public sealed class McpInitModule : IAppModule
 {
+    /// <summary>
+    /// 获取模块加载顺序 — 固定为 90，确保在其他基础模块之后加载
+    /// </summary>
     public int Order => 90;
 
+    /// <summary>
+    /// 注册模块所需的服务到 DI 容器
+    /// </summary>
+    /// <param name="services">服务集合</param>
+    /// <param name="context">模块配置上下文</param>
     public void ConfigureServices(IServiceCollection services, AppModuleContext context)
     {
     }
 
+    /// <summary>
+    /// 异步配置模块 — 初始化 MCP 桥接、加载插件、刷新 kernel.Plugins
+    /// </summary>
+    /// <param name="services">已构建的服务提供者</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task ConfigureAsync(IServiceProvider services, CancellationToken ct)
     {
         var logger = services.GetService<ILogger<McpInitModule>>();

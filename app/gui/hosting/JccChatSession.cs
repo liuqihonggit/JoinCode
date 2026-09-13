@@ -643,7 +643,7 @@ internal sealed class JccChatSession : IJccChatSession
         var catalog = _services.GetService<ISlashCommandCatalog>();
         if (catalog is null)
             return [];
-        return catalog.Commands.Where(c => !c.IsHidden).ToList();
+        return catalog.ByCategory.SelectMany(g => g.Value).Where(c => !c.IsHidden).ToList();
     }
 
     /// <summary>

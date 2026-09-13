@@ -6,6 +6,11 @@ namespace JoinCode.Agents.DependencyInjection;
 /// </summary>
 public static partial class ServiceRegistration
 {
+    /// <summary>
+    /// 注册 Agents 子系统核心服务 — 反思记忆等基础依赖
+    /// </summary>
+    /// <param name="services">服务集合</param>
+    /// <returns>服务集合（链式调用）</returns>
     public static IServiceCollection AddAgentServices(this IServiceCollection services)
     {
         services.AddSingleton<Lazy<IWorktreePipelineOperations>>(sp => new Lazy<IWorktreePipelineOperations>(sp.GetRequiredService<IWorktreePipelineOperations>));
@@ -13,6 +18,11 @@ public static partial class ServiceRegistration
         return services;
     }
 
+    /// <summary>
+    /// 注册 Release 模式下的 Agent 服务 — 包含协调器全部依赖
+    /// </summary>
+    /// <param name="services">服务集合</param>
+    /// <returns>服务集合（链式调用）</returns>
     public static IServiceCollection AddReleaseModeAgentServices(this IServiceCollection services)
     {
         services.AddAgentCoordinatorServices();
@@ -20,6 +30,11 @@ public static partial class ServiceRegistration
         return services;
     }
 
+    /// <summary>
+    /// 注册 Agent 协调器服务 — Spawn/Fork 管道、权限、团队等依赖（大部分由 [Register] 源码生成器自动注册）
+    /// </summary>
+    /// <param name="services">服务集合</param>
+    /// <returns>服务集合（链式调用）</returns>
     public static IServiceCollection AddAgentCoordinatorServices(this IServiceCollection services)
     {
         // IAgentWorktreeManager — [Register] 自动注册

@@ -23,20 +23,33 @@ public static class ChatCommandContextExtensions
     }
 }
 
+/// <summary>
+/// 聊天命令抽象基类 — 从 ChatCommandAttribute 特性读取命令元数据（名称、描述、用法、别名等），
+/// 子类只需 override ExecuteAsync 实现具体逻辑，可选 override 各属性实现动态门控
+/// </summary>
 public abstract class ChatCommandBase : IChatCommand
 {
     private readonly ChatCommandAttribute? _attr;
 
+    /// <summary>
+    /// 构造 — 反射读取类型上的 ChatCommandAttribute 特性缓存到 _attr
+    /// </summary>
     protected ChatCommandBase()
     {
         _attr = GetType().GetCustomAttributes(typeof(ChatCommandAttribute), false).Cast<ChatCommandAttribute>().FirstOrDefault();
     }
 
+    /// <summary>命令名称 — 从特性读取</summary>
     public virtual string Name => _attr?.Name ?? string.Empty;
+    /// <summary>命令描述 — 从特性读取</summary>
     public virtual string Description => _attr?.Description ?? string.Empty;
+    /// <summary>命令用法 — 从特性读取</summary>
     public virtual string Usage => _attr?.Usage ?? string.Empty;
+    /// <summary>命令别名 — 从特性读取</summary>
     public virtual string[] Aliases => _attr?.Aliases ?? [];
+    /// <summary>参数提示文本 — 从特性读取</summary>
     public virtual string ArgumentHint => _attr?.ArgumentHint ?? string.Empty;
+    /// <summary>是否隐藏命令 — 从特性读取</summary>
     public virtual bool IsHidden => _attr?.IsHidden ?? false;
 
     /// <summary>
@@ -55,6 +68,11 @@ public abstract class ChatCommandBase : IChatCommand
     /// </summary>
     public virtual bool IsEnabled => _attr?.IsEnabled ?? true;
 
+    /// <summary>
+    /// 执行命令 — 子类实现具体逻辑
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <returns>命令执行结果</returns>
     public abstract Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context);
 
     /// <summary>

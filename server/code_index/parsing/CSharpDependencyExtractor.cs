@@ -1,5 +1,8 @@
 namespace JoinCode.CodeIndex.Ast;
 
+/// <summary>
+/// C# 依赖关系提取器 — 基于 Tree-sitter AST 提取类型声明、基类、泛型参数、特性、using 等依赖边
+/// </summary>
 public sealed class CSharpDependencyExtractor
 {
     private static readonly FrozenSet<string> BclTypes = new HashSet<string>(StringComparer.Ordinal)
@@ -64,6 +67,13 @@ public sealed class CSharpDependencyExtractor
         "using_directive", "base_list"
     }.ToFrozenSet();
 
+    /// <summary>
+    /// 从源代码提取依赖关系 — 解析源码为 AST 后委托至 ExtractDependenciesFromTree
+    /// </summary>
+    /// <param name="sourceCode">C# 源代码文本</param>
+    /// <param name="filePath">文件路径</param>
+    /// <param name="symbols">已知符号列表</param>
+    /// <returns>依赖边列表</returns>
     public IReadOnlyList<DependencyEdge> ExtractDependencies(string sourceCode, string filePath, IReadOnlyList<SymbolInfo> symbols)
     {
         ArgumentNullException.ThrowIfNull(sourceCode);
@@ -76,6 +86,13 @@ public sealed class CSharpDependencyExtractor
         return ExtractDependenciesFromTree(tree.RootNode, filePath, symbols);
     }
 
+    /// <summary>
+    /// 从 AST 根节点提取依赖关系 — 遍历类型声明、using 指令收集依赖边
+    /// </summary>
+    /// <param name="rootNode">AST 根节点</param>
+    /// <param name="filePath">文件路径</param>
+    /// <param name="symbols">已知符号列表</param>
+    /// <returns>依赖边列表</returns>
     public IReadOnlyList<DependencyEdge> ExtractDependenciesFromTree(Node rootNode, string filePath, IReadOnlyList<SymbolInfo> symbols)
     {
         var deps = new List<DependencyEdge>();

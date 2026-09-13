@@ -11,14 +11,27 @@ public sealed class ConsoleActorLoggerProvider : ILoggerProvider
     private readonly ConsoleActor _actor;
     private readonly LogLevel _minLevel;
 
+    /// <summary>
+    /// 构造 LoggerProvider — 绑定到指定 ConsoleActor 并按最低级别过滤
+    /// </summary>
+    /// <param name="actor">ConsoleActor 实例，logger 输出将经过其串行化</param>
+    /// <param name="minLevel">最低日志级别，低于此级别的日志被丢弃</param>
     public ConsoleActorLoggerProvider(ConsoleActor actor, LogLevel minLevel = LogLevel.Warning)
     {
         _actor = actor;
         _minLevel = minLevel;
     }
 
+    /// <summary>
+    /// 创建指定分类名称的 logger 实例
+    /// </summary>
+    /// <param name="name">logger 分类名称</param>
+    /// <returns>绑定到 ConsoleActor 的 logger 实例</returns>
     public ILogger CreateLogger(string name) => new ConsoleActorLogger(name, _actor, _minLevel);
 
+    /// <summary>
+    /// 释放资源 — 无托管资源需要释放
+    /// </summary>
     public void Dispose() { }
 }
 

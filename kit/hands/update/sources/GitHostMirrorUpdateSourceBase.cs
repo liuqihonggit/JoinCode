@@ -7,10 +7,27 @@ namespace IO.Services.Update;
 /// </summary>
 public abstract class GitHostMirrorUpdateSourceBase : IUpdateSource
 {
+    /// <summary>
+    /// HTTP 客户端
+    /// </summary>
     protected readonly HttpClient HttpClient;
+
+    /// <summary>
+    /// 镜像基础 URL（已去除尾部斜杠）
+    /// </summary>
     protected readonly string MirrorBaseUrl;
+
+    /// <summary>
+    /// 日志器
+    /// </summary>
     protected readonly ILogger? Logger;
 
+    /// <summary>
+    /// 构造 Git 托管平台镜像更新源基类
+    /// </summary>
+    /// <param name="httpClient">HTTP 客户端</param>
+    /// <param name="mirrorBaseUrl">镜像基础 URL</param>
+    /// <param name="logger">日志器（可选）</param>
     protected GitHostMirrorUpdateSourceBase(
         HttpClient httpClient,
         string mirrorBaseUrl,
@@ -21,6 +38,9 @@ public abstract class GitHostMirrorUpdateSourceBase : IUpdateSource
         Logger = logger;
     }
 
+    /// <summary>
+    /// 更新源类型 — 子类实现
+    /// </summary>
     public abstract UpdateSourceType Type { get; }
 
     /// <summary>
@@ -33,6 +53,11 @@ public abstract class GitHostMirrorUpdateSourceBase : IUpdateSource
     /// </summary>
     protected abstract UpdateManifest ParseRelease(string json);
 
+    /// <summary>
+    /// 拉取最新 Release 并解析为更新清单
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>更新清单；拉取或解析失败时返回 null</returns>
     public virtual async Task<UpdateManifest?> GetManifestAsync(CancellationToken ct = default)
     {
         try
@@ -56,6 +81,13 @@ public abstract class GitHostMirrorUpdateSourceBase : IUpdateSource
         }
     }
 
+    /// <summary>
+    /// 下载指定清单条目的文件流
+    /// </summary>
+    /// <param name="entry">清单条目</param>
+    /// <param name="progress">下载进度回调（可选）</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>文件流</returns>
     public virtual async Task<Stream> DownloadAsync(
         UpdateManifestEntry entry,
         IProgress<UpdateDownloadProgress>? progress = null,

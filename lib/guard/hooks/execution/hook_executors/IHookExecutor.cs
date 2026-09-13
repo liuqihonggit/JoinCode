@@ -89,9 +89,18 @@ public sealed record HookExecutionContext
 /// </summary>
 public class HookExecutionException : WorkflowException
 {
+    /// <summary>
+    /// 构造钩子执行异常
+    /// </summary>
+    /// <param name="message">异常消息</param>
     public HookExecutionException(string message)
         : base(message, errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.WorkflowHookExecution.ToValue(), category: ErrorCategory.Workflow) { }
 
+    /// <summary>
+    /// 构造钩子执行异常并包含内部异常
+    /// </summary>
+    /// <param name="message">异常消息</param>
+    /// <param name="innerException">内部异常</param>
     public HookExecutionException(string message, Exception innerException)
         : base(message, innerException, errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.WorkflowHookExecution.ToValue(), category: ErrorCategory.Workflow) { }
 
@@ -116,6 +125,11 @@ public class HookExecutionException : WorkflowException
 /// </summary>
 public class HookTimeoutException : HookExecutionException
 {
+    /// <summary>
+    /// 构造钩子超时异常
+    /// </summary>
+    /// <param name="hookName">钩子名称</param>
+    /// <param name="timeout">超时时长</param>
     public HookTimeoutException(string hookName, TimeSpan timeout)
         : base($"Hook '{hookName}' timed out after {timeout.TotalSeconds}s") { }
 }

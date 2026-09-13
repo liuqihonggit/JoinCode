@@ -1,5 +1,8 @@
 namespace Infrastructure.Utils.Cpu;
 
+/// <summary>
+/// CPU 并行度计算工具 — 根据当前 CPU 负载动态推荐并行度
+/// </summary>
 public static class CpuParallelism
 {
     private static readonly int _coreCount = Environment.ProcessorCount;
@@ -16,6 +19,10 @@ public static class CpuParallelism
     private static TimeSpan _prevFallbackCpu;
     private static bool _hasFallbackBaseline;
 
+    /// <summary>
+    /// 根据当前 CPU 负载动态推荐并行度 — 负载&gt;90% 返回 1，&gt;70% 返回核数一半，否则返回核数
+    /// </summary>
+    /// <returns>推荐的并行度</returns>
     public static int GetDegree()
     {
         var load = _loadCache.GetOrRefresh();
@@ -24,6 +31,11 @@ public static class CpuParallelism
              : _coreCount;
     }
 
+    /// <summary>
+    /// 根据当前 CPU 负载推荐并行度，并限制不超过指定上限
+    /// </summary>
+    /// <param name="maxDegree">并行度上限</param>
+    /// <returns>推荐的并行度，不超过 maxDegree</returns>
     public static int GetDegree(int maxDegree)
     {
         return Math.Min(GetDegree(), maxDegree);

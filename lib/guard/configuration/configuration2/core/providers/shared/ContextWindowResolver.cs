@@ -13,6 +13,12 @@ public sealed partial class ContextWindowResolver : ServiceEntity, IContextWindo
 
     private const int DefaultContextWindow = 200_000;
 
+    /// <summary>
+    /// 构造上下文窗口解析器
+    /// </summary>
+    /// <param name="fastModeService">快速模式服务,用于解析当前模型与是否激活快速模式</param>
+    /// <param name="registry">Provider 定义注册表,用于查找模型的上下文窗口配置</param>
+    /// <param name="config">工作流配置(可选),用于读取当前供应商</param>
     public ContextWindowResolver(IFastModeService fastModeService, IProviderDefinitionRegistry registry, WorkflowConfig? config = null)
     {
         _fastModeService = fastModeService;

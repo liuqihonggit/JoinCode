@@ -36,6 +36,12 @@ public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScann
         [".xml"] = "XML",
     };
 
+    /// <summary>
+    /// 创建会话扫描器实例
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="sessionsDirectory">会话文件目录路径,默认为 ~/.jcc/sessions/</param>
+    /// <param name="logger">可选的日志记录器</param>
     public SessionScanner(IFileSystem fs, string? sessionsDirectory = null, ILogger<SessionScanner>? logger = null)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));

@@ -1,6 +1,9 @@
 
 namespace Memdir.Sync;
 
+/// <summary>
+/// 团队记忆同步模块的 JSON 序列化上下文 — 为 AOT 编译预生成 MemorySyncEvent/SyncFileEntry/TeamSyncStatus/TeamMemoryConflict 等类型的元数据。
+/// </summary>
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(MemorySyncEvent))]
 [JsonSerializable(typeof(List<MemorySyncEvent>))]

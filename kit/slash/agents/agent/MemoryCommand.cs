@@ -1,9 +1,17 @@
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /memory 命令 — 编辑和管理记忆文件，支持编辑、打开、添加、搜索、列表、统计、健康检查和清理操作
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Memory, Description = "编辑记忆文件", Usage = "/memory [edit|open|add|search|db|stats|health|cleanup]", Category = ChatCommandCategory.Agent, Aliases = ["mem"])]
 [ChatCommandArg("action", Type = "string", Description = "记忆操作", Enum = new[] { "edit", "open", "add", "search", "db", "stats", "health", "cleanup" })]
 public sealed class MemoryCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /memory 命令，根据子命令分派到对应的记忆管理操作
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <returns>命令执行结果</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetSplitArgs(context);

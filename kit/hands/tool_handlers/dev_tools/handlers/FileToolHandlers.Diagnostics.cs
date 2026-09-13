@@ -20,6 +20,7 @@ public partial class FileToolHandlers
     /// <summary>
     /// 构建 FileWrite UNC 路径拒绝的结构化诊断。
     /// </summary>
+    /// <returns>UNC 路径拒绝的结构化诊断</returns>
     public static ToolDiagnostic BuildUncPathWriteRejectedDiagnostic()
     {
         return ToolDiagnostic.Create(
@@ -44,6 +45,8 @@ public partial class FileToolHandlers
     /// <summary>
     /// 构建团队记忆密钥写入拒绝的结构化诊断。
     /// </summary>
+    /// <param name="secretError">密钥检测错误信息</param>
+    /// <returns>密钥写入拒绝的结构化诊断</returns>
     public static ToolDiagnostic BuildTeamMemSecretRejectedDiagnostic(string secretError)
     {
         return ToolDiagnostic.Create(
@@ -56,6 +59,7 @@ public partial class FileToolHandlers
     /// <summary>
     /// 构建 FileWrite 写前读校验失败的结构化诊断。
     /// </summary>
+    /// <returns>写前读校验失败的结构化诊断</returns>
     public static ToolDiagnostic BuildFileNotReadBeforeWriteDiagnostic()
     {
         return ToolDiagnostic.Create(
@@ -81,6 +85,11 @@ public partial class FileToolHandlers
     /// 构建文件自上次读取后已被修改的脏写保护诊断。
     /// 对齐 openCode 报错格式：包含具体文件路径与 Last modification/Last read ISO 时间戳，便于排查并发修改。
     /// </summary>
+    /// <param name="operation">触发脏写保护的操作名称</param>
+    /// <param name="filePath">文件路径</param>
+    /// <param name="lastWriteMs">最近写入时间戳（Unix 毫秒）</param>
+    /// <param name="readTimestampMs">上次读取时间戳（Unix 毫秒）</param>
+    /// <returns>脏写保护的结构化诊断</returns>
     public static ToolDiagnostic BuildFileModifiedSinceReadDiagnostic(string operation, string filePath, long lastWriteMs, long readTimestampMs)
     {
         var lastModification = FormatIsoUtc(lastWriteMs);
@@ -101,6 +110,7 @@ public partial class FileToolHandlers
     /// <summary>
     /// 构建 Notebook 文件编辑拒绝的结构化诊断。
     /// </summary>
+    /// <returns>Notebook 编辑拒绝的结构化诊断</returns>
     public static ToolDiagnostic BuildNotebookEditRejectedDiagnostic()
     {
         return ToolDiagnostic.Create(
@@ -113,6 +123,7 @@ public partial class FileToolHandlers
     /// <summary>
     /// 构建 old_string 与 new_string 相同的诊断。
     /// </summary>
+    /// <returns>字符串相同的结构化诊断</returns>
     public static ToolDiagnostic BuildIdenticalStringsDiagnostic()
     {
         return ToolDiagnostic.Create(
@@ -125,6 +136,8 @@ public partial class FileToolHandlers
     /// <summary>
     /// 构建 settings 文件编辑校验失败的结构化诊断。
     /// </summary>
+    /// <param name="settingsError">settings 校验错误信息</param>
+    /// <returns>settings 编辑拒绝的结构化诊断</returns>
     public static ToolDiagnostic BuildSettingsEditRejectedDiagnostic(string settingsError)
     {
         return ToolDiagnostic.Create(
@@ -137,6 +150,7 @@ public partial class FileToolHandlers
     /// <summary>
     /// 构建 keyword-sections.json 编辑权限拒绝的结构化诊断。
     /// </summary>
+    /// <returns>keyword-sections 编辑拒绝的结构化诊断</returns>
     public static ToolDiagnostic BuildKeywordSectionsEditRejectedDiagnostic()
     {
         return ToolDiagnostic.Create(
@@ -149,6 +163,7 @@ public partial class FileToolHandlers
     /// <summary>
     /// 构建 doctor Agent 编辑路径拒绝的结构化诊断。
     /// </summary>
+    /// <returns>doctor Agent 编辑拒绝的结构化诊断</returns>
     public static ToolDiagnostic BuildDoctorAgentEditRejectedDiagnostic()
     {
         return ToolDiagnostic.Create(

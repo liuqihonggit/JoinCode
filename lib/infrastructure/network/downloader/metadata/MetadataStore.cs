@@ -10,6 +10,7 @@ internal sealed class MetadataStore
 {
     private readonly IFileSystem _fs;
 
+    /// <summary>构造元数据存储,注入文件系统抽象</summary>
     internal MetadataStore(IFileSystem fs)
     {
         _fs = fs;

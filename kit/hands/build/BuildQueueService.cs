@@ -1,5 +1,9 @@
 namespace Services.Build;
 
+/// <summary>
+/// 编译队列服务 — 串行处理编译请求，集成跨进程编译锁、结果缓冲（源指纹校验）、
+/// 防睡眠、取消与状态查询能力。通过 Channel 实现单消费者串行执行。
+/// </summary>
 [Register(typeof(IBuildQueueService), ServiceLifetime.Singleton)]
 public sealed partial class BuildQueueService : IBuildQueueService
 {
@@ -22,6 +26,14 @@ public sealed partial class BuildQueueService : IBuildQueueService
     private CancellationTokenSource? _currentBuildCts;
     private int _disposed;
 
+    /// <summary>
+    /// 构造编译队列服务，启动后台串行处理任务。
+    /// </summary>
+    /// <param name="actuatorRegistry">系统执行器注册表（获取 Bash 执行编译）。</param>
+    /// <param name="fs">文件系统抽象。</param>
+    /// <param name="preventSleepService">防睡眠服务（可选）。</param>
+    /// <param name="logger">日志记录器（可选）。</param>
+    /// <param name="crossProcessLockPath">跨进程锁文件路径（可选，默认自动定位 .git 目录）。</param>
     public BuildQueueService(
         ISystemActuatorRegistry actuatorRegistry,
         IFileSystem fs,
@@ -41,6 +53,12 @@ public sealed partial class BuildQueueService : IBuildQueueService
         _processingTask = ProcessQueueAsync(_shutdownCts.Token);
     }
 
+    /// <summary>
+    /// 提交编译请求到队列。若结果缓冲命中（源指纹未变）则直接返回已完成的构建 ID。
+    /// </summary>
+    /// <param name="request">编译请求。</param>
+    /// <param name="ct">取消令牌。</param>
+    /// <returns>构建 ID。</returns>
     public Task<string> SubmitAsync(BuildRequest request, CancellationToken ct)
     {
         var bufferKey = BuildResultBuffer.BuildBufferKey(request.Command, request.WorkingDirectory);
@@ -349,6 +367,11 @@ public sealed partial class BuildQueueService : IBuildQueueService
         tcs?.TrySetResult(result);
     }
 
+    /// <summary>
+    /// 异步释放编译队列服务资源：取消后台处理、完成队列、释放等待句柄、
+    /// 释放跨进程锁。幂等，多次调用安全。
+    /// </summary>
+    /// <returns>表示异步释放操作的任务。</returns>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;

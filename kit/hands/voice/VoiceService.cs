@@ -31,10 +31,29 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
     private CancellationTokenSource? _recordingCts;
     private DateTime _recordingStartTime;
 
+    /// <summary>
+    /// 获取当前是否正在录制音频。
+    /// </summary>
     public bool IsRecording => (VoiceRecordingState)_stateInt == VoiceRecordingState.Recording;
+
+    /// <summary>
+    /// 获取当前语音录制状态。
+    /// </summary>
     public VoiceRecordingState State => (VoiceRecordingState)_stateInt;
+
+    /// <summary>
+    /// 录制状态变更事件 — 状态切换时触发，参数为新的状态值。
+    /// </summary>
     public event EventHandler<VoiceRecordingState>? StateChanged;
 
+    /// <summary>
+    /// 初始化 <see cref="VoiceService"/> 实例。
+    /// </summary>
+    /// <param name="options">语音服务配置选项。</param>
+    /// <param name="fs">文件系统抽象，用于读写音频文件。</param>
+    /// <param name="resilientProvider">弹性 HTTP 客户端提供程序，用于调用 Whisper API。</param>
+    /// <param name="logger">可选的日志记录器。</param>
+    /// <param name="clock">可选的时钟服务，用于测试时间控制。</param>
     public VoiceService(
         VoiceOptions options,
         IFileSystem fs,
@@ -205,6 +224,10 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
         }
     }
 
+    /// <summary>
+    /// Actor Consumer 错误回调 — 记录消费者线程未捕获异常。
+    /// </summary>
+    /// <param name="ex">消费者线程抛出的异常。</param>
     protected override void OnConsumerError(Exception ex)
     {
         _logger?.LogWarning(ex, "Voice Actor Consumer 命令处理异常");
@@ -292,6 +315,9 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
         StateChanged?.Invoke(this, newState);
     }
 
+    /// <summary>
+    /// 释放录制流和取消令牌等资源。
+    /// </summary>
     public void Dispose()
     {
         _recordingCts?.Cancel();
@@ -302,17 +328,32 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
 
 }
 
+/// <summary>
+/// Whisper API 转录响应 — 反序列化 Whisper 接口返回的 JSON。
+/// </summary>
 public sealed partial class WhisperTranscriptionResponse
 {
+    /// <summary>
+    /// 转录得到的文本内容。
+    /// </summary>
     [JsonPropertyName("text")]
     public string Text { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// Whisper API 转录请求 — 序列化发送至 Whisper 接口的 JSON。
+/// </summary>
 public sealed partial class WhisperTranscriptionRequest
 {
+    /// <summary>
+    /// 使用的 Whisper 模型名称，默认 "whisper-1"。
+    /// </summary>
     [JsonPropertyName("model")]
     public string Model { get; set; } = "whisper-1";
 
+    /// <summary>
+    /// 音频语言代码（如 "zh"），为 null 时由 Whisper 自动检测。
+    /// </summary>
     [JsonPropertyName("language")]
     public string? Language { get; set; }
 }

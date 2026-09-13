@@ -1,5 +1,8 @@
 namespace Core.Utils;
 
+/// <summary>
+/// 代理工具限制器 — 按权限模式(Auto/Plan/Ask)提供允许/拒绝工具集合,支持配置覆盖
+/// </summary>
 [Register(typeof(IAgentToolRestrictions), ServiceLifetime.Singleton)]
 public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRestrictions
 {
@@ -10,6 +13,9 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
     private readonly FrozenSet<string> _planDenied;
     private readonly FrozenSet<string> _askDenied;
 
+    /// <summary>
+    /// 构造代理工具限制器,合并默认安全集合与配置覆盖
+    /// </summary>
     public AgentToolRestrictions(
         IOptions<PermissionConfig>? configOptions = null,
         ITelemetryService? telemetryService = null)
@@ -26,6 +32,7 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
 
     private readonly ITelemetryService? _telemetryService;
 
+    /// <inheritdoc />
     public IReadOnlySet<string> GetAllowedTools(PermissionMode mode)
     {
         return mode switch
@@ -38,6 +45,7 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
         };
     }
 
+    /// <inheritdoc />
     public IReadOnlySet<string> GetDeniedTools(PermissionMode mode)
     {
         return mode switch
@@ -50,6 +58,7 @@ public sealed partial class AgentToolRestrictions : ServiceEntity, IAgentToolRes
         };
     }
 
+    /// <inheritdoc />
     public bool IsToolAllowedForMode(string toolName, PermissionMode mode)
     {
         if (mode == PermissionMode.Bypass)

@@ -1,5 +1,8 @@
 namespace Core.Bridge;
 
+/// <summary>
+/// Bridge 客户端托管服务 — 作为 IHostedService 管理 BridgeClient 生命周期，随宿主启动/停止
+/// </summary>
 [Register(typeof(IHostedService), ServiceLifetime.Singleton)]
 public sealed partial class BridgeClientHostedService : IHostedService, IAsyncDisposable
 {
@@ -9,6 +12,12 @@ public sealed partial class BridgeClientHostedService : IHostedService, IAsyncDi
     private readonly CancellationTokenSource _cts = new();
     private int _disposed;
 
+    /// <summary>
+    /// 构造 BridgeClientHostedService
+    /// </summary>
+    /// <param name="bridgeClient">Bridge 客户端实例</param>
+    /// <param name="config">Bridge 配置</param>
+    /// <param name="logger">可选日志记录器</param>
     public BridgeClientHostedService(
         BridgeClient bridgeClient,
         BridgeConfig config,
@@ -19,6 +28,10 @@ public sealed partial class BridgeClientHostedService : IHostedService, IAsyncDi
         _logger = logger;
     }
 
+    /// <summary>
+    /// 启动托管服务 — 配置禁用时直接返回，否则启动 BridgeClient
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         if (!_config.Enabled)
@@ -43,6 +56,10 @@ public sealed partial class BridgeClientHostedService : IHostedService, IAsyncDi
         }
     }
 
+    /// <summary>
+    /// 停止托管服务 — 取消内部令牌并停止 BridgeClient
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task StopAsync(CancellationToken cancellationToken)
     {
         if (!_config.Enabled)
@@ -65,6 +82,9 @@ public sealed partial class BridgeClientHostedService : IHostedService, IAsyncDi
         }
     }
 
+    /// <summary>
+    /// 异步释放资源 — 取消内部令牌并释放 BridgeClient
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;

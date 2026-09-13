@@ -9,6 +9,9 @@ namespace Core.Prompts.Sections;
 public static class AgentToolSection {
     internal const string SubagentUsageGuidance = "Subagent对于并行化独立查询或保护主上下文窗口免受过多结果的影响很有价值，但在不需要时不应过度使用。重要的是，避免重复Subagent已经在做的工作——如果您将研究委托给Subagent，请不要自己也执行相同的搜索。";
 
+    /// <summary>
+    /// 获取 agent_tool 部分内容；协调者模式返回工作者调度提示，否则返回 Agent 工具使用指南。
+    /// </summary>
     public static string? GetContent() {
         var isCoordinator = PromptConfigSnapshot.Current.IsCoordinatorMode;
         if (isCoordinator)
@@ -26,6 +29,9 @@ public static class AgentToolSection {
 """;
     }
 
+    /// <summary>
+    /// 创建 agent_tool 提示词部分。
+    /// </summary>
     public static SystemPromptSection Create() =>
         SystemPromptSection.Dynamic("agent_tool", GetContent);
 

@@ -1,24 +1,60 @@
 
 namespace Core.Scheduling.Tasks;
 
+/// <summary>
+/// MCP 监控任务执行器接口 — 提供 MCP 服务器监控的启动、停止、查询与事件订阅能力。
+/// </summary>
 public interface IMonitorMcpTaskExecutor
 {
+    /// <summary>
+    /// 异步启动对指定 MCP 服务器的监控。
+    /// </summary>
+    /// <param name="config">监控配置,包含服务器名、轮询间隔、事件过滤等。</param>
+    /// <param name="ct">取消令牌。</param>
+    /// <returns>监控会话唯一标识。</returns>
     Task<string> StartMonitoringAsync(McpMonitorConfig config, CancellationToken ct = default);
+
+    /// <summary>
+    /// 异步停止指定监控会话。
+    /// </summary>
+    /// <param name="monitorId">监控会话唯一标识。</param>
+    /// <param name="ct">取消令牌。</param>
     Task StopMonitoringAsync(string monitorId, CancellationToken ct = default);
+
+    /// <summary>
+    /// 异步获取所有活跃监控会话的状态列表。
+    /// </summary>
+    /// <param name="ct">取消令牌。</param>
+    /// <returns>活跃监控状态只读列表。</returns>
     Task<IReadOnlyList<McpMonitorStatus>> GetActiveMonitorsAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// 监控事件 — 当 MCP 服务器发生 tools_update/resources_update 等事件时触发。
+    /// </summary>
     event EventHandler<McpMonitorEventArgs>? MonitorEvent;
 }
 
+/// <summary>
+/// MCP 监控配置 — 描述监控的服务器名、轮询间隔、事件过滤与重连策略。
+/// </summary>
 public sealed partial class McpMonitorConfig
 {
+    /// <summary>目标 MCP 服务器名称。</summary>
     public required string ServerName { get; init; }
+    /// <summary>事件过滤器列表,为空表示接收所有事件。</summary>
     public List<string> EventFilters { get; init; } = [];
+    /// <summary>轮询间隔,默认 5 秒。</summary>
     public TimeSpan PollInterval { get; init; } = TimeSpan.FromSeconds(5);
+    /// <summary>最大事件数,达到上限后停止上报,默认 100。</summary>
     public int MaxEvents { get; init; } = 100;
+    /// <summary>是否自动重连,默认 true。</summary>
     public bool AutoReconnect { get; init; } = true;
 
     private FrozenSet<string> _eventFilterSet = FrozenSet<string>.Empty;
     private bool _eventFilterSetInitialized;
+    /// <summary>
+    /// 事件过滤器集合 — 延迟初始化的 FrozenSet,供 O(1) 查询。
+    /// </summary>
     public FrozenSet<string> EventFilterSet
     {
         get
@@ -33,17 +69,39 @@ public sealed partial class McpMonitorConfig
     }
 }
 
+/// <summary>
+/// MCP 监控状态 — 描述单个监控会话的当前状态与统计信息。
+/// </summary>
 public sealed partial class McpMonitorStatus
 {
+    /// <summary>监控会话唯一标识。</summary>
     public required string MonitorId { get; init; }
+    /// <summary>监控的 MCP 服务器名称。</summary>
     public required string ServerName { get; init; }
+    /// <summary>监控会话当前状态。</summary>
     public required MonitorState State { get; init; }
+    /// <summary>监控启动时间。</summary>
     public DateTime StartedAt { get; init; }
+    /// <summary>已接收事件数。</summary>
     public int EventsReceived { get; init; }
+    /// <summary>最近一次事件时间,可选。</summary>
     public DateTime? LastEventAt { get; init; }
 }
 
-public enum MonitorState { [EnumValue("starting")] Starting = 0, [EnumValue("running")] Running = 1, [EnumValue("stopped")] Stopped = 3, [EnumValue("error")] Error = 4 }
+/// <summary>
+/// MCP 监控会话状态枚举。
+/// </summary>
+public enum MonitorState
+{
+    /// <summary>启动中 — 尚未完成首次连接。</summary>
+    [EnumValue("starting")] Starting = 0,
+    /// <summary>运行中 — 正常轮询中。</summary>
+    [EnumValue("running")] Running = 1,
+    /// <summary>已停止 — 主动停止或异常退出。</summary>
+    [EnumValue("stopped")] Stopped = 3,
+    /// <summary>错误 — 连接失败或运行异常。</summary>
+    [EnumValue("error")] Error = 4
+}
 
 /// <summary>
 /// 监控会话事件 — 触发状态转换的事件（ADR 0040 事件枚举）
@@ -60,15 +118,27 @@ internal enum MonitorSessionEvent
     Stop,
 }
 
+/// <summary>
+/// MCP 监控事件参数 — 当监控检测到 tools_update/resources_update 等事件时触发。
+/// </summary>
 public sealed partial class McpMonitorEventArgs : EventArgs
 {
+    /// <summary>监控会话唯一标识。</summary>
     public required string MonitorId { get; init; }
+    /// <summary>监控的 MCP 服务器名称。</summary>
     public required string ServerName { get; init; }
+    /// <summary>事件类型,如 tools_update、resources_update。</summary>
     public required string EventType { get; init; }
+    /// <summary>事件数据字典,键为数据名,值为 JSON 元素。</summary>
     public required Dictionary<string, JsonElement> Data { get; init; }
+    /// <summary>事件时间戳,默认 UTC 当前时间。</summary>
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
 }
 
+/// <summary>
+/// MCP 监控任务执行器 — 轮询 MCP 服务器的 tools/resources 变更,通过状态机管理会话生命周期(Starting→Running→Stopped/Error),
+/// 支持自动重连、事件过滤与遥测上报。
+/// </summary>
 [Register(typeof(IMonitorMcpTaskExecutor), ServiceLifetime.Singleton)]
 public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IAsyncDisposable
 {
@@ -81,8 +151,18 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
     private int _monitorIdCounter;
     private int _disposed;
 
+    /// <summary>
+    /// 监控事件 — 当 MCP 服务器发生 tools_update/resources_update 等事件时触发。
+    /// </summary>
     public event EventHandler<McpMonitorEventArgs>? MonitorEvent;
 
+    /// <summary>
+    /// 构造 MCP 监控任务执行器。
+    /// </summary>
+    /// <param name="mcpToolRegistry">MCP 工具注册表,用于解析远程 MCP 客户端。</param>
+    /// <param name="logger">日志记录器,可选。</param>
+    /// <param name="telemetryService">遥测服务,可选,用于记录监控操作指标。</param>
+    /// <param name="clock">时钟服务,可选,默认使用系统时钟。</param>
     public MonitorMcpTaskExecutor(IMcpToolRegistry mcpToolRegistry, ILogger<MonitorMcpTaskExecutor>? logger = null, ITelemetryService? telemetryService = null, IClockService? clock = null)
     {
         _mcpToolRegistry = mcpToolRegistry;
@@ -91,6 +171,7 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
         _clock = clock ?? SystemClockService.Instance;
     }
 
+    /// <inheritdoc/>
     public async Task<string> StartMonitoringAsync(McpMonitorConfig config, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(config);
@@ -109,6 +190,7 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
         return monitorId;
     }
 
+    /// <inheritdoc/>
     public async Task StopMonitoringAsync(string monitorId, CancellationToken ct = default)
     {
         using var guard = await _sessionLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_sessionLock.Name}' 等待超时");
@@ -121,6 +203,7 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
     
     }
 
+    /// <inheritdoc/>
     public async Task<IReadOnlyList<McpMonitorStatus>> GetActiveMonitorsAsync(CancellationToken ct = default)
     {
         using var guard = await _sessionLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_sessionLock.Name}' 等待超时");
@@ -129,6 +212,9 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
     
     }
 
+    /// <summary>
+    /// 异步释放所有监控会话与锁资源。
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         // 防止重复释放 — ServiceProvider 清理时可能多次调用 DisposeAsync

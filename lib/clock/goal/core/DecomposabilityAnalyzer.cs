@@ -1,18 +1,27 @@
 namespace Core.Goal;
 
 
+/// <summary>
+/// 可分解性分析器默认实现 — 调用 LLM 判断目标是否可分解为并行子任务
+/// </summary>
 [Register(typeof(IDecomposabilityAnalyzer), ServiceLifetime.Singleton)]
 public sealed partial class DecomposabilityAnalyzer : ServiceEntity, IDecomposabilityAnalyzer
 {
     private readonly IChatClient _kernel;
     private readonly ILogger<DecomposabilityAnalyzer>? _logger;
 
+    /// <summary>
+    /// 构造 DecomposabilityAnalyzer — 注入聊天客户端与可选日志记录器
+    /// </summary>
+    /// <param name="kernel">聊天客户端</param>
+    /// <param name="logger">可选日志记录器</param>
     public DecomposabilityAnalyzer(IChatClient kernel, ILogger<DecomposabilityAnalyzer>? logger = null)
     {
         _kernel = kernel;
         _logger = logger;
     }
 
+    /// <inheritdoc />
     public async Task<DecompositionResult> AnalyzeAsync(
         string objective,
         IReadOnlyList<string> constraints,

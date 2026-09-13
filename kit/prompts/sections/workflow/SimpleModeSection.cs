@@ -6,6 +6,10 @@ namespace Core.Prompts.Sections;
 [PromptSection(Name = "simple_mode", Order = 24, IsDynamic = true)]
 public static class SimpleModeSection
 {
+    /// <summary>
+    /// 获取简化模式的提示词内容。当文件系统不可用时返回 null。
+    /// </summary>
+    /// <returns>极简系统提示词文本；若文件系统不可用则返回 null。</returns>
     public static string? GetContent()
     {
         var snapshot = PromptConfigSnapshot.Current;
@@ -24,6 +28,10 @@ public static class SimpleModeSection
             """;
     }
 
+    /// <summary>
+    /// 创建简化模式 Section 实例（动态内容，每次重新生成）。
+    /// </summary>
+    /// <returns>简化模式 Section 实例。</returns>
     public static SystemPromptSection Create() =>
         SystemPromptSection.Dynamic("simple_mode", GetContent);
 }

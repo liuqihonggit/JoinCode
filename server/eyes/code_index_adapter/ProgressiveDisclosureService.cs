@@ -1,5 +1,8 @@
 namespace Services.CodeIndex;
 
+/// <summary>
+/// 渐进式信息披露服务 — 根据披露级别（索引/关系/源码）逐步返回符号信息
+/// </summary>
 [Register(typeof(IProgressiveDisclosure), ServiceLifetime.Singleton)]
 public sealed partial class ProgressiveDisclosureService : ServiceEntity, IProgressiveDisclosure
 {
@@ -7,6 +10,12 @@ public sealed partial class ProgressiveDisclosureService : ServiceEntity, IProgr
     private readonly ILogger<ProgressiveDisclosureService>? _logger;
     private readonly IFileSystem _fs;
 
+    /// <summary>
+    /// 构造渐进式信息披露服务
+    /// </summary>
+    /// <param name="indexer">代码索引器</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">日志记录器</param>
     public ProgressiveDisclosureService(ICodeIndexer indexer, IFileSystem fs, ILogger<ProgressiveDisclosureService>? logger = null)
     {
         _indexer = indexer ?? throw new ArgumentNullException(nameof(indexer));
@@ -14,6 +23,13 @@ public sealed partial class ProgressiveDisclosureService : ServiceEntity, IProgr
         _logger = logger;
     }
 
+    /// <summary>
+    /// 根据查询和披露级别异步披露符号信息
+    /// </summary>
+    /// <param name="query">搜索查询</param>
+    /// <param name="level">披露级别（索引/关系/源码）</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>披露结果</returns>
     public async Task<DisclosureResult> DiscloseAsync(string query, DisclosureLevel level, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
@@ -33,6 +49,12 @@ public sealed partial class ProgressiveDisclosureService : ServiceEntity, IProgr
         };
     }
 
+    /// <summary>
+    /// 展开上一级披露结果到下一级别
+    /// </summary>
+    /// <param name="previous">上一次的披露结果</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>展开后的披露结果</returns>
     public async Task<DisclosureResult> ExpandAsync(DisclosureResult previous, CancellationToken ct)
     {
         if (!previous.HasMoreDetails)

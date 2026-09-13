@@ -14,6 +14,9 @@ public sealed partial class SettingsChangeApplier : ActorBase<SettingsChangeAppl
     private readonly ILogger<SettingsChangeApplier>? _logger;
     private readonly ITelemetryService? _telemetryService;
 
+    /// <summary>
+    /// 构造函数 — 注入配置变更通知器、设置管道、文件系统和可选的日志/遥测服务
+    /// </summary>
     public SettingsChangeApplier(
         IConfigChangeNotifier configChangeNotifier,
         MiddlewarePipeline<SettingsContext> pipeline,
@@ -67,6 +70,7 @@ public sealed partial class SettingsChangeApplier : ActorBase<SettingsChangeAppl
         TrySend(new ApplySettingsCmd());
     }
 
+    /// <inheritdoc />
     protected override async ValueTask HandleAsync(SettingsChangeCommand cmd, CancellationToken ct)
     {
         if (cmd is not ApplySettingsCmd apply) return;
@@ -93,6 +97,7 @@ public sealed partial class SettingsChangeApplier : ActorBase<SettingsChangeAppl
         }
     }
 
+    /// <inheritdoc />
     public override async ValueTask DisposeAsync()
     {
         _configChangeNotifier.ConfigChanged -= OnConfigChanged;

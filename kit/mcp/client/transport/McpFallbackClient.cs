@@ -1,10 +1,20 @@
 namespace McpClient;
 
+/// <summary>
+/// MCP 回退客户端 — 基于传输回退链管理多个备用传输,主传输故障时自动切换到健康备用传输。
+/// </summary>
 public sealed class McpFallbackClient : McpClientBase
 {
     private readonly McpServerConnectionConfig _config;
     private readonly McpTransportFallbackChain _chain;
 
+    /// <summary>
+    /// 构造 McpFallbackClient 实例。
+    /// </summary>
+    /// <param name="config">服务器连接配置。</param>
+    /// <param name="chainSpec">回退链规格,包含传输数组与健康检查数组。</param>
+    /// <param name="fallbackConfig">回退策略配置,为 null 时从环境变量读取。</param>
+    /// <param name="logger">日志记录器。</param>
     public McpFallbackClient(
         McpServerConnectionConfig config,
         (IMcpTransport[] Transports, ITransportHealthCheck[] HealthChecks) chainSpec,
@@ -24,8 +34,14 @@ public sealed class McpFallbackClient : McpClientBase
         _chain.FallbackOccurred += OnChainFallback;
     }
 
+    /// <summary>底层传输回退链实例 — 暴露用于诊断与事件订阅。</summary>
     public McpTransportFallbackChain Chain => _chain;
 
+    /// <summary>
+    /// 异步连接到 MCP 服务器 — 启动回退链并执行 MCP 握手。
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>表示异步连接操作的任务。</returns>
     public override async Task ConnectAsync(CancellationToken cancellationToken = default)
     {
         if (IsConnected)
@@ -52,6 +68,11 @@ public sealed class McpFallbackClient : McpClientBase
         }
     }
 
+    /// <summary>
+    /// 异步断开与 MCP 服务器的连接 — 停止回退链并取消所有 pending 请求。
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>表示异步断开操作的任务。</returns>
     public override async Task DisconnectAsync(CancellationToken cancellationToken = default)
     {
         if (!IsConnected) return;
@@ -62,6 +83,10 @@ public sealed class McpFallbackClient : McpClientBase
         await CancelPendingRequestsAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>异步发送 JSON-RPC 请求 — 通过回退链发送,注册 pending request 并等待响应或超时。</summary>
+    /// <param name="request">JSON-RPC 请求对象。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>服务器返回的 JSON-RPC 响应。</returns>
     protected override async Task<JsonRpcResponse> SendRequestAsync(JsonRpcRequest request, CancellationToken cancellationToken)
     {
         var tcs = new TaskCompletionSource<JsonRpcResponse>();
@@ -83,6 +108,10 @@ public sealed class McpFallbackClient : McpClientBase
         }
     }
 
+    /// <summary>异步发送 JSON-RPC 通知 — 通过回退链发送,无需响应。</summary>
+    /// <param name="notification">JSON-RPC 通知对象。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>表示异步操作的任务。</returns>
     protected override async Task SendNotificationAsync(JsonRpcNotification notification, CancellationToken cancellationToken)
     {
         await _chain.SendMessageAsync(notification, cancellationToken).ConfigureAwait(false);
@@ -129,6 +158,10 @@ public sealed class McpFallbackClient : McpClientBase
             e.FromTransportType, e.ToTransportType, e.Reason, e.IsServerSide);
     }
 
+    /// <summary>
+    /// 异步释放客户端资源 — 断开连接、解绑回退链事件并释放回退链与请求注册表。
+    /// </summary>
+    /// <returns>表示异步释放操作的任务。</returns>
     public override async ValueTask DisposeAsync()
     {
         await DisconnectAsync().ConfigureAwait(false);

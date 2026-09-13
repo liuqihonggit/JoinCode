@@ -7,6 +7,10 @@ namespace Core.Prompts.Sections;
 [PromptSection(Name = "repl_mode", Order = 27)]
 public static class ReplModeSection
 {
+    /// <summary>
+    /// 获取 REPL 模式部分的提示词内容。当未启用 REPL 模式时返回 null。
+    /// </summary>
+    /// <returns>REPL 模式说明文本；若未启用 REPL 模式则返回 null。</returns>
     public static string? GetContent()
     {
         var isReplMode = PromptConfigSnapshot.Current.IsReplMode;
@@ -29,6 +33,10 @@ public static class ReplModeSection
 """;
     }
 
+    /// <summary>
+    /// 创建 REPL 模式 Section 实例（内容缓存）。
+    /// </summary>
+    /// <returns>REPL 模式 Section 实例。</returns>
     public static SystemPromptSection Create() =>
         SystemPromptSection.Cached("repl_mode", GetContent);
 }

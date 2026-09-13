@@ -5,12 +5,18 @@ namespace Infrastructure.Shell;
 /// </summary>
 public interface IShellWatchdogCommand;
 
+/// <summary>
+/// 注册进程看护命令 — 携带进程标识与死亡回调
+/// </summary>
 public sealed record ShellRegisterCmd(int ProcessId, Action<int> OnProcessDied) : IShellWatchdogCommand;
 
+/// <summary>取消注册进程看护命令 — 携带进程标识</summary>
 public sealed record ShellUnregisterCmd(int ProcessId) : IShellWatchdogCommand;
 
+/// <summary>周期检查所有注册进程的时钟消息</summary>
 public sealed record ShellCheckAllTickCmd : IShellWatchdogCommand;
 
+/// <summary>系统从睡眠恢复通知消息</summary>
 public sealed record ShellSystemResumedCmd : IShellWatchdogCommand;
 
 /// <summary>
@@ -27,6 +33,10 @@ public sealed class ShellProcessWatchdog : ActorBase<IShellWatchdogCommand, Unit
 
     private readonly Dictionary<int, Action<int>> _callbacks = new();
 
+    /// <summary>
+    /// 构造看护服务，启动 30 秒周期检查定时器
+    /// </summary>
+    /// <param name="logger">可选日志记录器</param>
     public ShellProcessWatchdog(ILogger? logger = null)
         : base()
     {
@@ -34,12 +44,21 @@ public sealed class ShellProcessWatchdog : ActorBase<IShellWatchdogCommand, Unit
         _timer = new Timer(_ => TrySend(new ShellCheckAllTickCmd()), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
     }
 
+    /// <summary>
+    /// 注册进程看护 — 当进程死亡时调用指定回调
+    /// </summary>
+    /// <param name="processId">待看护进程的系统标识符</param>
+    /// <param name="onProcessDied">进程死亡时调用的回调，参数为进程标识</param>
     public void Register(int processId, Action<int> onProcessDied)
     {
         ArgumentNullException.ThrowIfNull(onProcessDied);
         TrySend(new ShellRegisterCmd(processId, onProcessDied));
     }
 
+    /// <summary>
+    /// 取消注册进程看护 — 移除对应进程的死亡回调
+    /// </summary>
+    /// <param name="processId">待取消看护进程的系统标识符</param>
     public void Unregister(int processId)
     {
         TrySend(new ShellUnregisterCmd(processId));
@@ -53,6 +72,9 @@ public sealed class ShellProcessWatchdog : ActorBase<IShellWatchdogCommand, Unit
         TrySend(new ShellSystemResumedCmd());
     }
 
+    /// <summary>处理 Shell 进程监控命令</summary>
+    /// <param name="command">监控命令</param>
+    /// <param name="ct">取消令牌</param>
     protected override async ValueTask HandleAsync(IShellWatchdogCommand command, CancellationToken ct)
     {
         switch (command)
@@ -73,6 +95,8 @@ public sealed class ShellProcessWatchdog : ActorBase<IShellWatchdogCommand, Unit
         }
     }
 
+    /// <summary>消费者异常回调 — 记录日志</summary>
+    /// <param name="ex">异常对象</param>
     protected override void OnConsumerError(Exception ex)
     {
         _logger?.LogWarning(ex, "[ShellWatchdog] 消费者异常");
@@ -112,6 +136,9 @@ public sealed class ShellProcessWatchdog : ActorBase<IShellWatchdogCommand, Unit
         }
     }
 
+    /// <summary>
+    /// 释放资源 — 停止定时器并等待消费者清理
+    /// </summary>
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1) return;

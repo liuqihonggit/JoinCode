@@ -10,12 +10,24 @@ public sealed class BootstrapWorktreeManager : IBootstrapWorktreeManager
     private readonly IGitCommandRunner _gitRunner;
     private BootstrapWorktree? _current;
 
+    /// <summary>
+    /// 构造自举 worktree 管理器
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="gitRunner">Git 命令执行器</param>
     public BootstrapWorktreeManager(IFileSystem fs, IGitCommandRunner gitRunner)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _gitRunner = gitRunner ?? throw new ArgumentNullException(nameof(gitRunner));
     }
 
+    /// <summary>
+    /// 创建隔离 worktree — 在 .jcc/worktrees/doctor-bootstrap 下创建新分支的工作树
+    /// </summary>
+    /// <param name="gitRoot">Git 仓库根目录</param>
+    /// <param name="baseRef">基线引用（可选，默认 HEAD）</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>创建的 worktree 信息</returns>
     public async Task<BootstrapWorktree> CreateAsync(
         string gitRoot,
         string? baseRef = null,
@@ -62,11 +74,22 @@ public sealed class BootstrapWorktreeManager : IBootstrapWorktreeManager
         return _current;
     }
 
+    /// <summary>
+    /// 获取当前活跃的 worktree
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>当前 worktree（无则 null）</returns>
     public Task<BootstrapWorktree?> GetCurrentAsync(CancellationToken ct = default)
     {
         return Task.FromResult(_current);
     }
 
+    /// <summary>
+    /// 提交 worktree 中的修改 — git add -A + commit，返回变更文件列表和 diff
+    /// </summary>
+    /// <param name="message">提交消息</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>提交结果</returns>
     public async Task<WorktreeCommitResult> CommitChangesAsync(
         string message,
         CancellationToken ct = default)
@@ -121,6 +144,10 @@ public sealed class BootstrapWorktreeManager : IBootstrapWorktreeManager
         }
     }
 
+    /// <summary>
+    /// 清理 worktree — 移除工作树并删除分支（非致命，失败仅记录日志）
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
     public async Task CleanupAsync(CancellationToken ct = default)
     {
         if (_current is null) return;

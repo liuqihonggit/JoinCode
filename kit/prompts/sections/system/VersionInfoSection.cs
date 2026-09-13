@@ -7,6 +7,10 @@ namespace Core.Prompts.Sections;
 [PromptSection(Name = "version_info", Order = 68, IsDynamic = true)]
 public static class VersionInfoSection
 {
+    /// <summary>
+    /// 获取版本信息部分的内容。
+    /// </summary>
+    /// <returns>版本信息文本；未设置版本时返回 <c>null</c>。</returns>
     public static string? GetContent()
     {
         var version = PromptConfigSnapshot.Current.Version;
@@ -28,6 +32,10 @@ public static class VersionInfoSection
         return result.ToString().TrimEnd();
     }
 
+    /// <summary>
+    /// 创建版本信息提示词部分。
+    /// </summary>
+    /// <returns>动态系统提示词部分。</returns>
     public static SystemPromptSection Create() =>
         SystemPromptSection.Dynamic("version_info", GetContent);
 }

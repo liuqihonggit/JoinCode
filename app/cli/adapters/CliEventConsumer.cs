@@ -12,18 +12,23 @@ public sealed class CliEventConsumer : IResettableEventConsumer
     private readonly Cli.Output.CliOutputJsonContext _jsonContext;
     private readonly JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? _outputChannelManager;
 
+    /// <summary>默认构造函数 — DX 模式（彩色终端输出）</summary>
     public CliEventConsumer()
     {
         _agentMode = false;
         _jsonContext = Cli.Output.CliOutputJsonContext.Default;
     }
 
+    /// <summary>指定模式构造函数</summary>
+    /// <param name="agentMode">true 表示 AX 模式（NDJSON 事件流），false 表示 DX 模式（彩色输出）</param>
     public CliEventConsumer(bool agentMode)
     {
         _agentMode = agentMode;
         _jsonContext = Cli.Output.CliOutputJsonContext.Default;
     }
 
+    /// <summary>指定输出通道管理器构造函数 — DX 模式，通过通道管理器分发输出</summary>
+    /// <param name="outputChannelManager">输出通道管理器（null 时退化为直接终端输出）</param>
     public CliEventConsumer(JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? outputChannelManager)
     {
         _agentMode = false;

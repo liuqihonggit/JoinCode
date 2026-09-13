@@ -1,19 +1,38 @@
 namespace JoinCode.CodeIndex.Ast;
 
+/// <summary>
+/// 解决方案项目条目 — 描述 .sln/.slnx 中单个项目的名称、相对路径与 GUID
+/// </summary>
 internal sealed class SolutionProjectEntry
 {
+    /// <summary>项目名称</summary>
     public required string Name { get; init; }
+    /// <summary>项目相对路径（已规范化）</summary>
     public required string RelativePath { get; init; }
+    /// <summary>项目 GUID</summary>
     public required string ProjectGuid { get; init; }
 }
 
+/// <summary>
+/// 解决方案解析结果 — 包含解决方案中所有项目条目
+/// </summary>
 internal sealed class SolutionParseResult
 {
+    /// <summary>项目条目列表</summary>
     public required List<SolutionProjectEntry> Projects { get; init; }
 }
 
+/// <summary>
+/// 解决方案解析器 — 解析 .sln 与 .slnx 文件提取项目条目
+/// </summary>
 internal static class SolutionParser
 {
+    /// <summary>
+    /// 解析 .sln 文件 — 逐行扫描 Project(...) 条目
+    /// </summary>
+    /// <param name="filePath">.sln 文件路径</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <returns>解决方案解析结果</returns>
     internal static SolutionParseResult ParseSln(string filePath, IFileSystem fs)
     {
         ArgumentNullException.ThrowIfNull(filePath);
@@ -41,6 +60,12 @@ internal static class SolutionParser
         return new SolutionParseResult { Projects = projects };
     }
 
+    /// <summary>
+    /// 解析 .slnx 文件 — 基于 XML 提取 Project 元素的 Path/Id 属性
+    /// </summary>
+    /// <param name="filePath">.slnx 文件路径</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <returns>解决方案解析结果</returns>
     internal static SolutionParseResult ParseSlnx(string filePath, IFileSystem fs)
     {
         ArgumentNullException.ThrowIfNull(filePath);

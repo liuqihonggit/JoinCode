@@ -7,6 +7,10 @@ namespace Core.Prompts.Sections;
 [PromptSection(Name = "todo_task", Order = 28)]
 public static class TodoTaskSection
 {
+    /// <summary>
+    /// 获取任务管理部分的提示词内容。当未启用 Todo/Task 工具时返回 null。
+    /// </summary>
+    /// <returns>任务管理指导文本；若未启用任何任务工具则返回 null。</returns>
     public static string? GetContent()
     {
         var hasTodoTool = PromptConfigSnapshot.Current.HasTodoTool;
@@ -32,6 +36,10 @@ public static class TodoTaskSection
 """;
     }
 
+    /// <summary>
+    /// 创建任务管理 Section 实例（内容缓存）。
+    /// </summary>
+    /// <returns>任务管理 Section 实例。</returns>
     public static SystemPromptSection Create() =>
         SystemPromptSection.Cached("todo_task", GetContent);
 }

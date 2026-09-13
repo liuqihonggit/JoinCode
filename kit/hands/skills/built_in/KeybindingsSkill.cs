@@ -1,7 +1,14 @@
 namespace Core.Skills.BuiltIn;
 
+/// <summary>
+/// 键绑定管理技能 — 重绑定、解绑、添加组合键到 keybindings.json
+/// </summary>
 public sealed class KeybindingsSkill
 {
+    /// <summary>
+    /// 创建技能定义
+    /// </summary>
+    /// <returns>键绑定管理技能的技能定义</returns>
     public static SkillDefinition CreateDefinition()
     {
         return new SkillDefinition

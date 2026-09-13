@@ -12,13 +12,18 @@ public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeServic
     private readonly IBriefModeService? _briefModeService;
     private readonly ILogger<SimpleModeService>? _logger;
 
+    /// <summary>是否已启用精简模式</summary>
     public bool IsSimpleMode
     {
         get { using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) return _isSimpleMode; }
     }
 
+    /// <summary>精简模式状态变更事件 — 启用/禁用/配置更新时触发</summary>
     public event EventHandler<SimpleModeChangedEventArgs>? SimpleModeChanged;
 
+    /// <summary>
+    /// 构造函数 — 注入可选的简要模式服务和日志器
+    /// </summary>
     public SimpleModeService(
         IBriefModeService? briefModeService = null,
         ILogger<SimpleModeService>? logger = null)
@@ -28,6 +33,7 @@ public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeServic
         _config = SimpleModeConfig.Default;
     }
 
+    /// <inheritdoc />
     public void Enable()
     {
         using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
@@ -48,6 +54,7 @@ public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeServic
         });
     }
 
+    /// <inheritdoc />
     public void Disable()
     {
         using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
@@ -68,6 +75,7 @@ public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeServic
         });
     }
 
+    /// <inheritdoc />
     public bool Toggle()
     {
         bool newState;
@@ -93,11 +101,13 @@ public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeServic
         return newState;
     }
 
+    /// <inheritdoc />
     public SimpleModeConfig GetCurrentConfig()
     {
         using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) return _config;
     }
 
+    /// <inheritdoc />
     public void UpdateConfig(SimpleModeConfig config)
     {
         ArgumentNullException.ThrowIfNull(config);

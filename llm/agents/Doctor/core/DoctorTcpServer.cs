@@ -44,6 +44,11 @@ public sealed class DoctorTcpServer : IDoctorTransport
     /// <inheritdoc/>
     public event EventHandler<string>? PatientDisconnected;
 
+    /// <summary>
+    /// 构造医生 TCP 服务器
+    /// </summary>
+    /// <param name="port">监听端口</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public DoctorTcpServer(int port, ILogger<DoctorTcpServer>? logger = null)
     {
         _port = port;
@@ -260,6 +265,12 @@ public sealed class DoctorTcpServer : IDoctorTransport
         await WriteHttpResponseAsync(stream, 202, "text/plain", "Accepted"u8.ToArray(), ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 从 JSON 文本解析诊断事件 — 宽容解析，提取 type 字段和全部属性
+    /// </summary>
+    /// <param name="json">JSON 文本</param>
+    /// <param name="patientId">病人标识</param>
+    /// <returns>解析出的诊断事件（解析失败则 null）</returns>
     internal static DiagnosticEvent? ParseEventFromJson(string json, string patientId)
     {
         if (string.IsNullOrWhiteSpace(json)) return null;
@@ -338,6 +349,12 @@ public sealed class DoctorTcpServer : IDoctorTransport
         return null;
     }
 
+    /// <summary>
+    /// 解析 HTTP 请求头和正文为 HttpRequestInfo — 提取方法、路径、查询参数、Content-Length
+    /// </summary>
+    /// <param name="headerText">HTTP 请求头文本</param>
+    /// <param name="body">HTTP 请求正文</param>
+    /// <returns>解析结果（解析失败则 null）</returns>
     internal static HttpRequestInfo? ParseHttpRequest(string headerText, string body)
     {
         var lines = headerText.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
@@ -425,6 +442,10 @@ public sealed class DoctorTcpServer : IDoctorTransport
         return data.Replace("\n", "\\n").Replace("\r", "");
     }
 
+    /// <summary>
+    /// 异步释放资源 — 取消监听、清理所有病人连接、停止 TcpListener
+    /// </summary>
+    /// <returns>表示异步释放操作的任务</returns>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return;
@@ -471,9 +492,18 @@ internal sealed class DoctorTcpPatient : IAsyncDisposable
     private readonly ILogger? _logger;
     private bool _disposed;
 
+    /// <summary>病人标识</summary>
     public string PatientId { get; }
+
+    /// <summary>病人 SSE 输出网络流</summary>
     public NetworkStream Stream { get; }
 
+    /// <summary>
+    /// 构造 TCP 病人连接
+    /// </summary>
+    /// <param name="patientId">病人标识</param>
+    /// <param name="stream">网络流</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public DoctorTcpPatient(string patientId, NetworkStream stream, ILogger? logger = null)
     {
         PatientId = patientId;
@@ -481,6 +511,12 @@ internal sealed class DoctorTcpPatient : IAsyncDisposable
         _logger = logger;
     }
 
+    /// <summary>
+    /// 异步发送字节数据到病人 — 加锁保证写入串行化
+    /// </summary>
+    /// <param name="data">待发送字节数组</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>表示异步发送操作的任务</returns>
     public async Task SendAsync(byte[] data, CancellationToken cancellationToken)
     {
         if (_disposed) throw new ObjectDisposedException(nameof(DoctorTcpPatient));
@@ -492,6 +528,10 @@ internal sealed class DoctorTcpPatient : IAsyncDisposable
     
     }
 
+    /// <summary>
+    /// 异步释放资源 — 释放写入锁和网络流
+    /// </summary>
+    /// <returns>表示异步释放操作的任务</returns>
     public async ValueTask DisposeAsync()
     {
         if (_disposed) return;
@@ -508,12 +548,29 @@ internal sealed class DoctorTcpPatient : IAsyncDisposable
 /// </summary>
 internal sealed class HttpRequestInfo
 {
+    /// <summary>HTTP 方法（GET/POST 等）</summary>
     public string Method { get; }
+
+    /// <summary>请求路径（不含查询字符串）</summary>
     public string Path { get; }
+
+    /// <summary>查询参数字典</summary>
     public Dictionary<string, string> QueryParams { get; }
+
+    /// <summary>请求正文</summary>
     public string Body { get; }
+
+    /// <summary>Content-Length 头部值</summary>
     public int ContentLength { get; }
 
+    /// <summary>
+    /// 构造 HTTP 请求信息
+    /// </summary>
+    /// <param name="method">HTTP 方法</param>
+    /// <param name="path">请求路径</param>
+    /// <param name="queryParams">查询参数字典</param>
+    /// <param name="body">请求正文</param>
+    /// <param name="contentLength">Content-Length 值</param>
     public HttpRequestInfo(string method, string path, Dictionary<string, string> queryParams, string body, int contentLength)
     {
         Method = method;
@@ -524,6 +581,9 @@ internal sealed class HttpRequestInfo
     }
 }
 
+/// <summary>
+/// DoctorTcpServer 专用 JSON 序列化上下文 — AOT 源码生成
+/// </summary>
 [JsonSerializable(typeof(Dictionary<string, JsonElement>))]
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 internal sealed partial class DoctorTcpJsonContext : JsonSerializerContext;

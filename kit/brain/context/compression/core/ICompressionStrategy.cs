@@ -59,16 +59,41 @@ public interface ICompressionStrategy
 /// </summary>
 public abstract class CompressionStrategyBase : ICompressionStrategy
 {
+    /// <summary>
+    /// 策略名称
+    /// </summary>
     public abstract string Name { get; }
+    /// <summary>
+    /// 策略描述
+    /// </summary>
     public abstract string Description { get; }
+    /// <summary>
+    /// 支持的内容类型
+    /// </summary>
     public abstract IReadOnlySet<ContentType> SupportedContentTypes { get; }
+    /// <summary>
+    /// 策略优先级（数值越高优先级越高）
+    /// </summary>
     public virtual int Priority { get; } = 0;
 
+    /// <summary>
+    /// 压缩内容
+    /// </summary>
+    /// <param name="content">原始内容</param>
+    /// <param name="options">压缩选项</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>压缩后的内容</returns>
     public abstract Task<string> CompressAsync(
         string content,
         CompressionOptions options,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// 判断是否可以处理指定内容
+    /// </summary>
+    /// <param name="content">内容</param>
+    /// <param name="contentType">内容类型</param>
+    /// <returns>是否可以处理</returns>
     public virtual bool CanHandle(string content, ContentType contentType)
     {
         return SupportedContentTypes.Contains(contentType) &&
@@ -76,6 +101,12 @@ public abstract class CompressionStrategyBase : ICompressionStrategy
                content.Length >= GetMinLengthThreshold();
     }
 
+    /// <summary>
+    /// 获取预估的压缩比率
+    /// </summary>
+    /// <param name="content">内容</param>
+    /// <param name="options">压缩选项</param>
+    /// <returns>预估压缩比率 (0-1)</returns>
     public abstract double EstimateCompressionRatio(string content, CompressionOptions options);
 
     /// <summary>

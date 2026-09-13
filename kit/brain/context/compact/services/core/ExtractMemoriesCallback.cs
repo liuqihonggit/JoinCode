@@ -17,6 +17,12 @@ public sealed partial class ExtractMemoriesCallback : ServiceEntity, IPostSampli
     private int _turnsSinceLastExtraction;
     private bool _inProgress;
 
+    /// <summary>
+    /// 初始化 <see cref="ExtractMemoriesCallback"/> 实例
+    /// </summary>
+    /// <param name="fileSystem">文件系统抽象</param>
+    /// <param name="forkManager">可选的子代理派生管理器，为 null 时跳过 fork 执行</param>
+    /// <param name="logger">可选日志记录器</param>
     public ExtractMemoriesCallback(
         IFileSystem fileSystem,
         IForkSubAgentManager? forkManager = null,
@@ -27,6 +33,10 @@ public sealed partial class ExtractMemoriesCallback : ServiceEntity, IPostSampli
         _logger = logger;
     }
 
+    /// <summary>
+    /// 采样后回调：按轮次触发后台记忆提取，派生子代理读取并更新记忆文件
+    /// </summary>
+    /// <param name="context">采样后上下文，包含 token 估算、会话 ID 等</param>
     public async Task OnPostSamplingAsync(PostSamplingContext context)
     {
         if (context.QuerySource != "repl_main_thread") return;

@@ -5,6 +5,9 @@ namespace Core.Prompts.Sections;
 /// </summary>
 [PromptSection(Name = "default_agent_prompt", Order = 30, InjectOn = PromptSectionInject.AgentMode)]
 public static class DefaultAgentPromptSection {
+    /// <summary>
+    /// 创建 default_agent_prompt 提示词部分。
+    /// </summary>
     public static SystemPromptSection Create() {
         return SystemPromptSection.Cached("default_agent_prompt", () => {
             return """

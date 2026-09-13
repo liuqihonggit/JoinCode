@@ -1,13 +1,29 @@
 namespace Core.Skills;
 
+/// <summary>
+/// 技能服务配置选项
+/// </summary>
 [Register(typeof(SkillOptions), ServiceLifetime.Singleton)]
 public sealed record SkillOptions
 {
+    /// <summary>
+    /// 技能目录路径
+    /// </summary>
     public string SkillsDirectory { get; init; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), AppDataConstants.AppDataFolder, "skills");
+    /// <summary>
+    /// 缓存过期时间
+    /// </summary>
     public TimeSpan CacheExpiration { get; init; } = TimeSpan.FromMinutes(5);
 
+    /// <summary>
+    /// 创建默认配置
+    /// </summary>
     public SkillOptions() { }
 
+    /// <summary>
+    /// 从工作流配置创建技能选项
+    /// </summary>
+    /// <param name="config">工作流配置；为 null 则使用默认值</param>
     public SkillOptions(WorkflowConfig? config)
     {
         SkillsDirectory = config is not null && !string.IsNullOrEmpty(config.SkillsDirectory)
@@ -15,9 +31,17 @@ public sealed record SkillOptions
             : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), AppDataConstants.AppDataFolder, "skills");
     }
 
+    /// <summary>
+    /// 从工作流配置创建技能选项
+    /// </summary>
+    /// <param name="config">工作流配置</param>
+    /// <returns>技能选项实例</returns>
     public static SkillOptions FromConfig(WorkflowConfig? config) => new(config);
 }
 
+/// <summary>
+/// 技能服务 — 管理技能注册、查找、执行和重载，集成 MCP 远程技能
+/// </summary>
 [Register(typeof(ISkillService), ServiceLifetime.Singleton)]
 public sealed partial class SkillService : ServiceEntity, ISkillService, IDisposable
 {
@@ -31,6 +55,15 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
     private readonly ILogger<SkillService>? _logger;
     private DateTime _lastReloadTime = DateTime.MinValue;
 
+    /// <summary>
+    /// 创建技能服务
+    /// </summary>
+    /// <param name="options">技能选项</param>
+    /// <param name="files">文件操作服务</param>
+    /// <param name="pipeline">中间件管道</param>
+    /// <param name="discoveryService">技能发现服务</param>
+    /// <param name="mcpSkillProvider">MCP 技能提供者</param>
+    /// <param name="logger">日志记录器</param>
     public SkillService(
         SkillOptions options,
         IFileOperationService files,
@@ -55,6 +88,14 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
         Diag.WriteLine("[SKILL-CTOR] 3 done");
     }
 
+    /// <summary>
+    /// 异步执行指定技能 — 优先查找本地技能，未命中时尝试 MCP 远程技能
+    /// </summary>
+    /// <param name="skillName">技能名称</param>
+    /// <param name="parameters">调用参数</param>
+    /// <param name="ctx">执行上下文</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>技能执行结果</returns>
     public async Task<SkillResult> ExecuteAsync(
         string skillName,
         Dictionary<string, JsonElement>? parameters,
@@ -91,6 +132,11 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
         return context.Result ?? SkillResult.FailureResult(skillName, "Pipeline completed without result");
     }
 
+    /// <summary>
+    /// 异步获取所有可用技能 — 合并本地技能和 MCP 远程技能
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>所有可用技能定义列表</returns>
     public async Task<IReadOnlyList<SkillDefinition>> GetAvailableSkillsAsync(CancellationToken cancellationToken = default)
     {
         var localSkills = _skills.Values;
@@ -111,6 +157,12 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
         return localSkills.ToList();
     }
 
+    /// <summary>
+    /// 按名称异步获取技能定义 — 先查本地，未命中再查 MCP 远程技能
+    /// </summary>
+    /// <param name="skillName">技能名称</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>技能定义；不存在则返回 null</returns>
     public async Task<SkillDefinition?> GetSkillAsync(string skillName, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(skillName);
@@ -127,6 +179,11 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
         return null;
     }
 
+    /// <summary>
+    /// 判断指定名称的技能是否存在 — 包含本地技能和 MCP 远程技能
+    /// </summary>
+    /// <param name="skillName">技能名称</param>
+    /// <returns>存在返回 true，否则返回 false</returns>
     public bool SkillExists(string skillName)
     {
         ArgumentException.ThrowIfNullOrEmpty(skillName);
@@ -136,6 +193,13 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
         return _mcpSkillProvider is not null && _mcpSkillProvider.IsSkillAvailable(skillName);
     }
 
+    /// <summary>
+    /// 异步重载技能 — 指定名称则重载单个技能，否则重载全部
+    /// </summary>
+    /// <param name="skillName">技能名称；为 null 则重载全部</param>
+    /// <param name="ctx">执行上下文</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>重载成功返回 true，否则返回 false</returns>
     public async Task<bool> ReloadAsync(string? skillName, ExecutionContext ctx, CancellationToken cancellationToken = default)
     {
         using var guard = await _reloadLock.TryLockAsync(ctx.CancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_reloadLock.Name}' 等待超时");
@@ -168,12 +232,21 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
 
     }
 
+    /// <summary>
+    /// 注册技能定义
+    /// </summary>
+    /// <param name="skill">技能定义</param>
     public void RegisterSkill(SkillDefinition skill)
     {
         ArgumentNullException.ThrowIfNull(skill);
         _skills[skill.Name] = skill;
     }
 
+    /// <summary>
+    /// 注销指定名称的技能
+    /// </summary>
+    /// <param name="skillName">技能名称</param>
+    /// <returns>注销成功返回 true，否则返回 false</returns>
     public bool UnregisterSkill(string skillName)
     {
         ArgumentException.ThrowIfNullOrEmpty(skillName);
@@ -399,5 +472,8 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
 
     #endregion
 
+    /// <summary>
+    /// 释放资源 — 释放重载锁
+    /// </summary>
     protected override void OnDispose() => _reloadLock.Dispose();
 }

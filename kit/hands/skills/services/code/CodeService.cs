@@ -82,7 +82,16 @@ public sealed partial class CodeService : ServiceEntity, ICodeService
     }
 }
 
+/// <summary>
+/// 缓存键生成器 — 基于内容哈希生成缓存键
+/// </summary>
 public static class CacheKeyGenerator {
+    /// <summary>
+    /// 生成缓存键 — 将内容通过 XxHash3 哈希后与前缀拼接
+    /// </summary>
+    /// <param name="prefix">缓存键前缀</param>
+    /// <param name="content">用于生成哈希的内容</param>
+    /// <returns>格式为 {prefix}:{hash} 的缓存键</returns>
     public static string GenerateCacheKey(string prefix, ReadOnlySpan<char> content) {
         var utf8Bytes = Encoding.UTF8.GetBytes(content.ToArray());
         var hash = XxHash3.Hash(utf8Bytes);

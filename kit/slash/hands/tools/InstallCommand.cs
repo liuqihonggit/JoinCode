@@ -10,6 +10,11 @@ namespace JoinCode.ChatCommands;
 [ChatCommandArg("package", Type = "string", Description = "要安装的包名或命令", Required = true)]
 public sealed class InstallCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 异步执行 /install 命令，将安装任务发送给 AI 执行
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <returns>命令执行结果</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var target = ChatCommandBase.GetNormalizedArgs(context);

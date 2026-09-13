@@ -109,6 +109,10 @@ internal sealed class CrossProcessBuildLock : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// 异步释放跨进程编译锁，关闭并释放锁文件句柄。幂等，多次调用安全。
+    /// </summary>
+    /// <returns>表示异步释放操作的任务。</returns>
     public ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;

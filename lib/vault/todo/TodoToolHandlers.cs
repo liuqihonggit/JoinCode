@@ -1,16 +1,29 @@
 
 namespace Services.Todo.ToolHandlers;
 
+/// <summary>
+/// Todo 工具处理器 — 通过 MCP 协议暴露 TodoWrite/TodoList/TodoUpdate 工具,委托 ITodoService 完成实际操作。
+/// </summary>
 [McpToolDispatch(ToolCategory.Todo)]
 public class TodoToolHandlers
 {
     private readonly ITodoService _todoService;
 
+    /// <summary>
+    /// 构造函数 — 注入 Todo 服务依赖。
+    /// </summary>
+    /// <param name="todoService">Todo 服务实例。</param>
     public TodoToolHandlers(ITodoService todoService)
     {
         _todoService = todoService ?? throw new ArgumentNullException(nameof(todoService));
     }
 
+    /// <summary>
+    /// 更新当前会话的 Todo 列表。校验输入后委托 ITodoService 持久化,并在全部完成时清空列表。
+    /// </summary>
+    /// <param name="todos">待写入的 Todo 列表,缺省时视为空列表。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>工具执行结果,包含成功消息或结构化诊断。</returns>
     [McpTool(TodoToolNameConstants.TodoWrite, "Update the todo list for the current session. To be used proactively and often to track progress and pending tasks. Make sure that at least one task is in_progress at all times. Always provide both content (imperative) and activeForm (present continuous) for each task. Supports dependsOn (list of todo IDs this task depends on) and ownedFiles (list of file paths this task owns) for DAG-based task planning.", "todo")]
     public async Task<ToolResult> TodoWriteAsync(
         [McpToolParameter("The updated todo list. Each item has: content (required), status (pending/in_progress/completed, required), activeForm (required, present tense like 'Implementing feature'), priority (high/medium/low, optional), id (optional, auto-generated if omitted), dependsOn (optional, list of todo IDs this task depends on), ownedFiles (optional, list of file paths this task owns)", Required = false)] List<TodoItemInput>? todos = null,
@@ -93,6 +106,14 @@ public class TodoToolHandlers
         return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
+    /// <summary>
+    /// 列出 Todo 项,支持按状态、优先级筛选及是否包含已完成项。
+    /// </summary>
+    /// <param name="status">状态筛选:pending/in_progress/completed。</param>
+    /// <param name="priority">优先级筛选:low/medium/high。</param>
+    /// <param name="include_completed">是否包含已完成项,默认 false。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>工具执行结果,包含统计信息与 Todo 列表。</returns>
     [McpTool(TodoToolNameConstants.TodoList, "List todo items with optional filtering", "todo")]
     public async Task<ToolResult> TodoListAsync(
         [McpToolParameter("Filter by status: pending, in_progress, completed", Required = false)] string? status = null,
@@ -149,6 +170,15 @@ public class TodoToolHandlers
         return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
+    /// <summary>
+    /// 更新单个 Todo 项的内容/状态/优先级。
+    /// </summary>
+    /// <param name="todo_id">待更新 Todo 的 ID。</param>
+    /// <param name="content">新内容(可选)。</param>
+    /// <param name="status">新状态:pending/in_progress/completed(可选)。</param>
+    /// <param name="priority">新优先级:low/medium/high(可选)。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>工具执行结果,包含更新后的 Todo 摘要。</returns>
     [McpTool(TodoToolNameConstants.TodoUpdate, "Update a single todo item", "todo")]
     public async Task<ToolResult> TodoUpdateAsync(
         [McpToolParameter("The ID of the todo item to update")] string todo_id,

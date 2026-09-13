@@ -1,5 +1,8 @@
 namespace Core.Scheduling;
 
+/// <summary>
+/// 调度任务 JSON 序列化上下文 — 紧凑格式（不缩进），覆盖 Workflow、Step、RemoteAgent、Teammate、McpMonitor 等类型
+/// </summary>
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(RemoteAgentExecuteRequest))]
 [JsonSerializable(typeof(RemoteAgentExecuteResponse))]
@@ -19,6 +22,9 @@ namespace Core.Scheduling;
 [JsonSerializable(typeof(WorkflowSnapshot))]
 public partial class SchedulingTasksJsonContext : JsonSerializerContext;
 
+/// <summary>
+/// 调度任务 JSON 序列化上下文 — 缩进格式，覆盖任务分配计划相关类型
+/// </summary>
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(TaskAssignmentPlan))]
 [JsonSerializable(typeof(TaskAgentAssignment))]

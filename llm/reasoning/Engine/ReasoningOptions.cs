@@ -272,19 +272,102 @@ public sealed class ReasoningOptionsBuilder
         _ => CreatePanda(),
     };
 
+    /// <summary>
+    /// 设置 DAG 最大节点数
+    /// </summary>
+    /// <param name="maxNodes">DAG 最大节点数</param>
+    /// <returns>当前构建器实例（支持链式调用）</returns>
     public ReasoningOptionsBuilder WithMaxNodes(int maxNodes) { _maxNodes = maxNodes; return this; }
+
+    /// <summary>
+    /// 设置每个假定最大证据数
+    /// </summary>
+    /// <param name="max">每个假定最大证据数（控方 + 辩方合计）</param>
+    /// <returns>当前构建器实例（支持链式调用）</returns>
     public ReasoningOptionsBuilder WithMaxEvidencePerClaim(int max) { _maxEvidencePerClaim = max; return this; }
+
+    /// <summary>
+    /// 设置 DAG 最大深度
+    /// </summary>
+    /// <param name="maxDepth">DAG 最大深度（从根节点到叶节点的最长路径）</param>
+    /// <returns>当前构建器实例（支持链式调用）</returns>
     public ReasoningOptionsBuilder WithMaxDepth(int maxDepth) { _maxDepth = maxDepth; return this; }
+
+    /// <summary>
+    /// 设置对抗流程最大轮次预算
+    /// </summary>
+    /// <param name="rounds">对抗流程最大轮次</param>
+    /// <returns>当前构建器实例（支持链式调用）</returns>
     public ReasoningOptionsBuilder WithMaxAdversarialRounds(int rounds) { _maxAdversarialRounds = rounds; return this; }
+
+    /// <summary>
+    /// 设置 Token 预算上限
+    /// </summary>
+    /// <param name="maxTokens">Token 预算上限</param>
+    /// <returns>当前构建器实例（支持链式调用）</returns>
     public ReasoningOptionsBuilder WithMaxTokens(int maxTokens) { _maxTokens = maxTokens; return this; }
+
+    /// <summary>
+    /// 设置续费时默认增加的轮次数
+    /// </summary>
+    /// <param name="rounds">续费时默认增加的轮次数</param>
+    /// <returns>当前构建器实例（支持链式调用）</returns>
     public ReasoningOptionsBuilder WithDefaultRefillRounds(int rounds) { _defaultRefillRounds = rounds; return this; }
+
+    /// <summary>
+    /// 设置续费时默认增加的 token 数
+    /// </summary>
+    /// <param name="tokens">续费时默认增加的 token 数</param>
+    /// <returns>当前构建器实例（支持链式调用）</returns>
     public ReasoningOptionsBuilder WithDefaultRefillTokens(int tokens) { _defaultRefillTokens = tokens; return this; }
+
+    /// <summary>
+    /// 设置续费方式默认值
+    /// </summary>
+    /// <param name="mode">续费方式</param>
+    /// <returns>当前构建器实例（支持链式调用）</returns>
     public ReasoningOptionsBuilder WithDefaultRefillMode(BudgetRefillMode mode) { _defaultRefillMode = mode; return this; }
+
+    /// <summary>
+    /// 设置法官裁决阈值 — 控方权重达到此值且超过辩方指定倍数时接受
+    /// </summary>
+    /// <param name="threshold">法官裁决阈值</param>
+    /// <returns>当前构建器实例（支持链式调用）</returns>
     public ReasoningOptionsBuilder WithAcceptThreshold(double threshold) { _acceptThreshold = threshold; return this; }
+
+    /// <summary>
+    /// 设置法官裁决倍率 — 控方权重需超过辩方权重的此倍数才接受
+    /// </summary>
+    /// <param name="multiplier">法官裁决接受倍率</param>
+    /// <returns>当前构建器实例（支持链式调用）</returns>
     public ReasoningOptionsBuilder WithAcceptMultiplier(double multiplier) { _acceptMultiplier = multiplier; return this; }
+
+    /// <summary>
+    /// 设置法官裁决倍率 — 辩方权重超过控方权重的此倍数时驳回
+    /// </summary>
+    /// <param name="multiplier">法官裁决驳回倍率</param>
+    /// <returns>当前构建器实例（支持链式调用）</returns>
     public ReasoningOptionsBuilder WithRejectMultiplier(double multiplier) { _rejectMultiplier = multiplier; return this; }
+
+    /// <summary>
+    /// 设置势均力敌判定阈值 — 控辩双方权重差值小于此值时判定为势均力敌
+    /// </summary>
+    /// <param name="delta">权重差值阈值</param>
+    /// <returns>当前构建器实例（支持链式调用）</returns>
     public ReasoningOptionsBuilder WithPendingWeightDelta(double delta) { _pendingWeightDelta = delta; return this; }
+
+    /// <summary>
+    /// 设置辩方质疑阈值 — 控方证据数低于此值时辩方提出质疑
+    /// </summary>
+    /// <param name="threshold">辩方质疑阈值</param>
+    /// <returns>当前构建器实例（支持链式调用）</returns>
     public ReasoningOptionsBuilder WithDefenderDoubtThreshold(int threshold) { _defenderDoubtThreshold = threshold; return this; }
+
+    /// <summary>
+    /// 设置证据默认权重
+    /// </summary>
+    /// <param name="weight">证据默认权重</param>
+    /// <returns>当前构建器实例（支持链式调用）</returns>
     public ReasoningOptionsBuilder WithDefaultEvidenceWeight(double weight) { _defaultEvidenceWeight = weight; return this; }
 
     /// <summary>

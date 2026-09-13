@@ -2,6 +2,7 @@ namespace Tools.Handlers;
 
 public partial class FileToolHandlers
 {
+    /// <summary>从本地文件系统读取文件，支持文本/图像/PDF/Notebook 等格式</summary>
     [McpTool(FileToolNameConstants.FileRead, "Read a file from the local filesystem", "file", ConcurrencySafe = true)]
     public async Task<ToolResult> FileReadAsync(
         [McpToolParameter("The absolute path to the file to read")] string file_path,

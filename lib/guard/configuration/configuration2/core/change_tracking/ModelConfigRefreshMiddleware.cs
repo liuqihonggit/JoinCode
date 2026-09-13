@@ -10,6 +10,10 @@ public sealed partial class ModelConfigRefreshMiddleware : ServiceEntity, ISetti
 {
     private readonly IModelConfigLoader _modelConfigLoader;
 
+    /// <summary>
+    /// 构造模型配置刷新中间件
+    /// </summary>
+    /// <param name="modelConfigLoader">模型配置加载器</param>
     public ModelConfigRefreshMiddleware(IModelConfigLoader modelConfigLoader)
     {
         _modelConfigLoader = modelConfigLoader;

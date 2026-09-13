@@ -10,6 +10,9 @@ public sealed partial class SandboxProvidersPlugin : WorkflowPluginBase
 {
     private ISandboxManager? _sandboxManager;
 
+    /// <summary>
+    /// 初始化沙箱提供器插件实例
+    /// </summary>
     public SandboxProvidersPlugin() : base("SandboxProviders") { }
 
     /// <summary>插件名称</summary>

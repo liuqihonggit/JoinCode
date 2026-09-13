@@ -1,5 +1,9 @@
 namespace Core.Memdir;
 
+/// <summary>
+/// 配置持久化服务基类 — 提供从配置服务加载/保存值的通用机制，子类通过重写抽象成员定义序列化行为
+/// </summary>
+/// <typeparam name="TValue">配置值的类型</typeparam>
 public abstract class ConfigPersistentServiceBase<TValue> : IDisposable
 {
     private TValue _value;
@@ -8,8 +12,17 @@ public abstract class ConfigPersistentServiceBase<TValue> : IDisposable
     private int _disposed;
     private bool _initialized;
     private readonly AsyncLock _initLock = new();
+    /// <summary>
+    /// 日志记录器（可选）
+    /// </summary>
     protected readonly ILogger? _logger;
 
+    /// <summary>
+    /// 构造配置持久化服务基类
+    /// </summary>
+    /// <param name="defaultValue">默认值</param>
+    /// <param name="configService">配置服务（可选，用于持久化）</param>
+    /// <param name="logger">日志记录器（可选）</param>
     protected ConfigPersistentServiceBase(TValue defaultValue, IConfigurationService? configService = null, ILogger? logger = null)
     {
         _value = defaultValue;
@@ -17,10 +30,27 @@ public abstract class ConfigPersistentServiceBase<TValue> : IDisposable
         _logger = logger;
     }
 
+    /// <summary>
+    /// 配置键名 — 子类指定持久化使用的键
+    /// </summary>
     protected abstract string ConfigKey { get; }
+    /// <summary>
+    /// 尝试将原始配置字符串解析为配置值
+    /// </summary>
+    /// <param name="raw">原始配置字符串</param>
+    /// <param name="result">解析结果</param>
+    /// <returns>解析是否成功</returns>
     protected abstract bool TryParseConfigValue(string? raw, out TValue result);
+    /// <summary>
+    /// 将配置值格式化为可持久化的字符串
+    /// </summary>
+    /// <param name="value">配置值</param>
+    /// <returns>格式化后的字符串</returns>
     protected abstract string FormatConfigValue(TValue value);
 
+    /// <summary>
+    /// 当前配置值（首次访问时延迟初始化）
+    /// </summary>
     protected TValue Value
     {
         get
@@ -30,6 +60,10 @@ public abstract class ConfigPersistentServiceBase<TValue> : IDisposable
         }
     }
 
+    /// <summary>
+    /// 设置配置值并异步持久化
+    /// </summary>
+    /// <param name="value">新值</param>
     protected void SetValue(TValue value)
     {
         _value = value;
@@ -82,6 +116,9 @@ public abstract class ConfigPersistentServiceBase<TValue> : IDisposable
         }
     }
 
+    /// <summary>
+    /// 释放资源，取消待处理的持久化操作
+    /// </summary>
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1) return;

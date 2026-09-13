@@ -2,6 +2,7 @@ namespace Tools.Handlers;
 
 public partial class FileToolHandlers
 {
+    /// <summary>通过搜索替换编辑文件内容，经过统一写入防御链</summary>
     [McpTool(FileToolNameConstants.FileEdit, "Edit file contents by search-and-replace", "file")]
     public async Task<ToolResult> FileEditAsync(
         [McpToolParameter("File path, relative or absolute")] string file_path,
@@ -93,6 +94,7 @@ public partial class FileToolHandlers
         return toolResult;
     }
 
+    /// <summary>使用正则模式编辑文件，替换匹配的文本</summary>
     [McpTool(FileToolNameConstants.FileEditRegex, "Edit file using regex pattern to replace matched text", "file")]
     public async Task<ToolResult> FileEditRegexAsync(
         [McpToolParameter("File path, relative or absolute")] string file_path,
@@ -175,6 +177,7 @@ public partial class FileToolHandlers
         return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
+    /// <summary>在文件指定行后插入新内容</summary>
     [McpTool(FileToolNameConstants.FileInsertLines, "Insert new content after a specified line in the file", "file")]
     public async Task<ToolResult> FileInsertLinesAfterAsync(
         [McpToolParameter("File path, relative or absolute")] string file_path,
@@ -257,6 +260,7 @@ public partial class FileToolHandlers
         return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
+    /// <summary>删除文件中指定行范围</summary>
     [McpTool(FileToolNameConstants.FileDeleteLines, "Delete a range of lines from the file", "file")]
     public async Task<ToolResult> FileDeleteLinesAsync(
         [McpToolParameter("File path, relative or absolute")] string file_path,
@@ -338,6 +342,15 @@ public partial class FileToolHandlers
         return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
+    /// <summary>
+    /// 批量编辑多个文件 — 对每个文件执行相同的搜索替换操作。
+    /// </summary>
+    /// <param name="old_string">要替换的字符串（必须精确匹配）。</param>
+    /// <param name="new_string">替换后的字符串。</param>
+    /// <param name="file_paths">文件路径列表。</param>
+    /// <param name="replace_all">是否替换所有匹配，默认 true。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>批量编辑结果。</returns>
     [McpTool(FileToolNameConstants.FileBatchEdit, "Batch edit multiple files with the same search-and-replace", "file")]
     public async Task<ToolResult> FileBatchEditAsync(
         [McpToolParameter("String to replace (must match exactly)")] string old_string,

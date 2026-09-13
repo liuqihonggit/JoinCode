@@ -1,17 +1,29 @@
 
 namespace Core.Configuration.Remote;
 
+/// <summary>
+/// 远程托管设置服务 — 从远程端点拉取托管设置，提供本地与远程设置合并、变更通知能力
+/// </summary>
 [Register(typeof(RemoteCacheRefreshServiceBase<ManagedSetting>), ServiceLifetime.Singleton)]
 [Register(typeof(IRemoteSettingsService), ServiceLifetime.Singleton)]
 public sealed partial class RemoteManagedSettingsService : RemoteCacheRefreshServiceBase<ManagedSetting>, IRemoteSettingsService
 {
     private static readonly RemoteSettingsJsonContext JsonContext = RemoteSettingsJsonContext.Default;
 
+    /// <inheritdoc />
     protected override string MetricsPrefix => "settings.remote";
+
+    /// <inheritdoc />
     protected override string RefreshLogLabel => "远程托管设置";
 
+    /// <summary>
+    /// 设置变更事件 — 当远程设置的值发生新增、修改或删除时触发
+    /// </summary>
     public event EventHandler<SettingChangedEventArgs>? SettingChanged;
 
+    /// <summary>
+    /// 构造远程托管设置服务
+    /// </summary>
     public RemoteManagedSettingsService(
         HttpClient httpClient,
         IOptions<RemoteSettingsOptions>? options = null,
@@ -22,6 +34,7 @@ public sealed partial class RemoteManagedSettingsService : RemoteCacheRefreshSer
     {
     }
 
+    /// <inheritdoc />
     protected override async Task<RemoteRefreshResult<ManagedSetting>> FetchAndDeserializeAsync(string requestUrl, CancellationToken cancellationToken)
     {
         var response = await Http.GetAsync(requestUrl, cancellationToken).ConfigureAwait(false);
@@ -36,6 +49,7 @@ public sealed partial class RemoteManagedSettingsService : RemoteCacheRefreshSer
         };
     }
 
+    /// <inheritdoc />
     public override async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
         var previousSettings = new Dictionary<string, ManagedSetting>(Cache);
@@ -45,6 +59,9 @@ public sealed partial class RemoteManagedSettingsService : RemoteCacheRefreshSer
         NotifyChanges(previousSettings);
     }
 
+    /// <summary>
+    /// 异步获取指定键的设置值 — 首次调用会触发缓存加载
+    /// </summary>
     public async Task<string?> GetSettingAsync(string key, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(key);
@@ -54,6 +71,9 @@ public sealed partial class RemoteManagedSettingsService : RemoteCacheRefreshSer
         return Cache.TryGetValue(key, out var setting) ? setting.Value : null;
     }
 
+    /// <summary>
+    /// 异步获取指定键的强类型设置值 — 支持 string/bool/int/double 类型转换，转换失败返回默认值
+    /// </summary>
     public async Task<T?> GetSettingAsync<T>(string key, T? defaultValue = default, CancellationToken cancellationToken = default)
     {
         var value = await GetSettingAsync(key, cancellationToken).ConfigureAwait(false);
@@ -76,12 +96,18 @@ public sealed partial class RemoteManagedSettingsService : RemoteCacheRefreshSer
         }
     }
 
+    /// <summary>
+    /// 异步获取所有远程托管设置的只读快照
+    /// </summary>
     public async Task<IReadOnlyDictionary<string, ManagedSetting>> GetAllSettingsAsync(CancellationToken cancellationToken = default)
     {
         await EnsureCacheAsync(cancellationToken).ConfigureAwait(false);
         return Cache.ToFrozenDictionary();
     }
 
+    /// <summary>
+    /// 异步合并本地与远程设置 — 只读/System/Organization 级远程设置强制覆盖本地，其余仅填补本地缺失
+    /// </summary>
     public async Task<IReadOnlyDictionary<string, string>> GetMergedSettingsAsync(Dictionary<string, string> localSettings, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(localSettings);

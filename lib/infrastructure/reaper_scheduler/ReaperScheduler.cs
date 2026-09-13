@@ -15,9 +15,15 @@ public sealed partial class ReaperScheduler : IDisposable
     private readonly ILogger<ReaperScheduler>? _logger;
     private int _totalScans;
 
+    /// <summary>累计扫描次数</summary>
     public int TotalScans => _totalScans;
+    /// <summary>已注册的扫描策略数量</summary>
     public int StrategyCount => _strategies.Count;
 
+    /// <summary>
+    /// 构造回收调度器
+    /// </summary>
+    /// <param name="logger">日志记录器（可选）</param>
     public ReaperScheduler(ILogger<ReaperScheduler>? logger = null)
     {
         _logger = logger;
@@ -86,6 +92,9 @@ public sealed partial class ReaperScheduler : IDisposable
         _logger?.LogDebug("ReaperScheduler 后台线程退出");
     }
 
+    /// <summary>
+    /// 释放调度器 — 取消后台线程并等待其退出
+    /// </summary>
     public void Dispose()
     {
         _cts.Cancel();

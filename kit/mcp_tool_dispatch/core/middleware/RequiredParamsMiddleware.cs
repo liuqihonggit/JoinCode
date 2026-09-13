@@ -10,11 +10,22 @@ public sealed partial class RequiredParamsMiddleware : ServiceEntity, IToolExecu
 
     private readonly ILogger<RequiredParamsMiddleware> _logger;
 
+    /// <summary>
+    /// 构造函数 — 注入日志记录器
+    /// </summary>
+    /// <param name="logger">日志记录器实例</param>
     public RequiredParamsMiddleware(ILogger<RequiredParamsMiddleware> logger)
     {
         _logger = logger;
     }
 
+    /// <summary>
+    /// 检查工具调用是否提供全部必填参数；缺失则设置遥测错误状态并返回带参数说明的错误结果，否则调用下一层中间件
+    /// </summary>
+    /// <param name="context">工具执行上下文</param>
+    /// <param name="next">下一层中间件委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task InvokeAsync(
         ToolExecutionContext context,
         MiddlewareDelegate<ToolExecutionContext> next,

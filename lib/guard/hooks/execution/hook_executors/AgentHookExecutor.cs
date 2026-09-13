@@ -11,6 +11,9 @@ public sealed partial class AgentHookExecutor : HookExecutorBase<AgentHook>
     private readonly IAgentService? _agentService;
     private readonly IModelConfigLoader _modelConfigLoader;
 
+    /// <summary>
+    /// 构造代理验证钩子执行器
+    /// </summary>
     public AgentHookExecutor(
         IAgentService? agentService = null,
         IModelConfigLoader? modelConfigLoader = null,
@@ -222,9 +225,14 @@ public interface IAgentService
 /// </summary>
 public sealed record AgentResponse
 {
+    /// <summary>是否执行成功</summary>
     public required bool Success { get; init; }
+    /// <summary>响应内容</summary>
     public string? Content { get; init; }
+    /// <summary>错误信息</summary>
     public string? Error { get; init; }
+    /// <summary>消耗的 Token 数量</summary>
     public int? TokensUsed { get; init; }
+    /// <summary>执行耗时</summary>
     public TimeSpan? Duration { get; init; }
 }

@@ -14,6 +14,11 @@ public abstract class ShellToolBase : OneShotCommandGroup
     private readonly IShellToolGateService? _gateService;
     private readonly IShellProcessWatchdog? _watchdog;
 
+    /// <summary>
+    /// 构造 Shell 工具基类
+    /// </summary>
+    /// <param name="gateService">Shell 工具门控服务（可选）</param>
+    /// <param name="watchdog">进程看护（可选）</param>
     protected ShellToolBase(
         IShellToolGateService? gateService = null,
         IShellProcessWatchdog? watchdog = null)

@@ -1,20 +1,43 @@
 namespace JoinCode.Transport;
 
+/// <summary>
+/// 传输健康检查接口 — 检测传输是否可用
+/// </summary>
 public interface ITransportHealthCheck
 {
+    /// <summary>传输类型名称</summary>
     string TransportType { get; }
 
+    /// <summary>
+    /// 执行健康检查
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>健康检查结果</returns>
     Task<TransportHealthResult> CheckAsync(CancellationToken ct = default);
 }
 
+/// <summary>
+/// 传输健康检查结果
+/// </summary>
 public sealed class TransportHealthResult
 {
+    /// <summary>是否可用</summary>
     public required bool IsAvailable { get; init; }
+    /// <summary>传输类型名称</summary>
     public required string TransportType { get; init; }
+    /// <summary>不可用原因描述（可用时为 null）</summary>
     public string? UnavailableReason { get; init; }
+    /// <summary>检查耗时</summary>
     public TimeSpan CheckDuration { get; init; }
+    /// <summary>不可用分类（可用时为 null）</summary>
     public TransportUnavailabilityCategory? Category { get; init; }
 
+    /// <summary>
+    /// 创建可用结果
+    /// </summary>
+    /// <param name="transportType">传输类型名称</param>
+    /// <param name="duration">检查耗时</param>
+    /// <returns>表示可用的健康检查结果</returns>
     public static TransportHealthResult Available(string transportType, TimeSpan duration) => new()
     {
         IsAvailable = true,
@@ -22,6 +45,14 @@ public sealed class TransportHealthResult
         CheckDuration = duration,
     };
 
+    /// <summary>
+    /// 创建不可用结果
+    /// </summary>
+    /// <param name="transportType">传输类型名称</param>
+    /// <param name="category">不可用分类</param>
+    /// <param name="reason">不可用原因描述</param>
+    /// <param name="duration">检查耗时</param>
+    /// <returns>表示不可用的健康检查结果</returns>
     public static TransportHealthResult Unavailable(
         string transportType,
         TransportUnavailabilityCategory category,
@@ -36,28 +67,46 @@ public sealed class TransportHealthResult
     };
 }
 
+/// <summary>
+/// 传输不可用分类 — 描述传输不可用的具体原因类别
+/// </summary>
 public enum TransportUnavailabilityCategory
 {
+    /// <summary>网络不可达</summary>
     NetworkUnreachable,
+    /// <summary>沙箱拦截</summary>
     SandboxBlocked,
+    /// <summary>配置缺失</summary>
     ConfigMissing,
+    /// <summary>端口冲突</summary>
     PortConflict,
+    /// <summary>依赖缺失</summary>
     DependencyMissing,
 }
 
+/// <summary>
+/// Stdio 传输健康检查 — 检测命令是否配置且可执行
+/// </summary>
 public sealed class StdioHealthCheck : ITransportHealthCheck
 {
     private readonly string? _command;
     private readonly IFileSystem _fs;
 
+    /// <inheritdoc/>
     public string TransportType => "stdio";
 
+    /// <summary>
+    /// 构造 Stdio 健康检查器
+    /// </summary>
+    /// <param name="command">可执行命令路径或名称，null 表示未配置</param>
+    /// <param name="fs">文件系统抽象</param>
     public StdioHealthCheck(string? command, IFileSystem fs)
     {
         _command = command;
         _fs = fs;
     }
 
+    /// <inheritdoc/>
     public Task<TransportHealthResult> CheckAsync(CancellationToken ct = default)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -84,14 +133,22 @@ public sealed class StdioHealthCheck : ITransportHealthCheck
     }
 }
 
+/// <summary>
+/// HTTP 监听器健康检查 — 通过 TCP 连接检测端口是否可达
+/// </summary>
 public sealed class HttpListenerHealthCheck : ITransportHealthCheck
 {
     private readonly string _prefix;
     private readonly string _host;
     private readonly int _port;
 
+    /// <inheritdoc/>
     public string TransportType => "http";
 
+    /// <summary>
+    /// 构造 HTTP 监听器健康检查器
+    /// </summary>
+    /// <param name="prefix">HTTP 监听前缀 URL</param>
     public HttpListenerHealthCheck(string prefix)
     {
         _prefix = prefix;
@@ -112,6 +169,8 @@ public sealed class HttpListenerHealthCheck : ITransportHealthCheck
     /// 通过 TCP 连接检测端口是否可达 — 端口被占用说明服务正在运行（可用），而非不可用
     /// 旧逻辑（HttpListener.Start）在端口被占用时抛异常导致误判为 Unavailable，已修复
     /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>健康检查结果</returns>
     public async Task<TransportHealthResult> CheckAsync(CancellationToken ct = default)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -139,14 +198,24 @@ public sealed class HttpListenerHealthCheck : ITransportHealthCheck
     }
 }
 
+/// <summary>
+/// TCP 端口健康检查 — 通过 TCP 连接检测指定主机端口是否可达
+/// </summary>
 public sealed class TcpPortHealthCheck : ITransportHealthCheck
 {
     private readonly string _host;
     private readonly int _port;
     private readonly string _transportType;
 
+    /// <inheritdoc/>
     public string TransportType => _transportType;
 
+    /// <summary>
+    /// 构造 TCP 端口健康检查器
+    /// </summary>
+    /// <param name="host">目标主机</param>
+    /// <param name="port">目标端口</param>
+    /// <param name="transportType">传输类型名称，默认 "tcp"</param>
     public TcpPortHealthCheck(string host, int port, string transportType = "tcp")
     {
         _host = host;
@@ -154,6 +223,7 @@ public sealed class TcpPortHealthCheck : ITransportHealthCheck
         _transportType = transportType;
     }
 
+    /// <inheritdoc/>
     public async Task<TransportHealthResult> CheckAsync(CancellationToken ct = default)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();

@@ -1,17 +1,24 @@
 
 namespace Core.Memdir;
 
+/// <summary>
+/// 工作区服务实现 — 维护额外的 Memdir 工作目录集合,支持添加、移除、枚举与清空。
+/// </summary>
 [Register(typeof(IWorkspaceService), ServiceLifetime.Singleton)]
 public sealed partial class WorkspaceService : ServiceEntity, IWorkspaceService
 {
     private readonly HashSet<string> _directories = new(StringComparer.OrdinalIgnoreCase);
     private readonly ILogger<WorkspaceService>? _logger;
 
+    /// <summary>
+    /// 构造函数 — 注入日志器。
+    /// </summary>
     public WorkspaceService(ILogger<WorkspaceService>? logger = null)
     {
         _logger = logger;
     }
 
+    /// <inheritdoc />
     public bool AddDirectory(string path)
     {
         ArgumentNullException.ThrowIfNull(path);
@@ -29,6 +36,7 @@ public sealed partial class WorkspaceService : ServiceEntity, IWorkspaceService
         return true;
     }
 
+    /// <inheritdoc />
     public bool RemoveDirectory(string path)
     {
         ArgumentNullException.ThrowIfNull(path);
@@ -46,11 +54,13 @@ public sealed partial class WorkspaceService : ServiceEntity, IWorkspaceService
         return false;
     }
 
+    /// <inheritdoc />
     public IEnumerable<string> GetAdditionalDirectories()
     {
         return _directories;
     }
 
+    /// <inheritdoc />
     public void Clear()
     {
         _directories.Clear();

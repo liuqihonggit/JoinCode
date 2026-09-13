@@ -1,7 +1,16 @@
 namespace JoinCode.CodeIndex.Ast;
 
+/// <summary>
+/// 源码差异计算 — 基于公共前后缀计算最小编辑区间，用于增量解析
+/// </summary>
 public static class SourceDiff
 {
+    /// <summary>
+    /// 计算从旧源码到新源码的最小编辑 — 公共前缀/后缀外的中间部分为变更区间
+    /// </summary>
+    /// <param name="oldSource">旧源码</param>
+    /// <param name="newSource">新源码</param>
+    /// <returns>编辑描述，含字节偏移和行列位置</returns>
     public static Edit ComputeEdit(string oldSource, string newSource)
     {
         ArgumentNullException.ThrowIfNull(oldSource);
@@ -46,6 +55,12 @@ public static class SourceDiff
         };
     }
 
+    /// <summary>
+    /// 将字符偏移转换为 UTF-8 字节偏移 — Tree-sitter 使用字节偏移
+    /// </summary>
+    /// <param name="source">源码字符串</param>
+    /// <param name="charOffset">字符偏移</param>
+    /// <returns>对应的 UTF-8 字节偏移</returns>
     public static int CharToByteOffset(string source, int charOffset)
     {
         ArgumentNullException.ThrowIfNull(source);

@@ -5,6 +5,9 @@ namespace Core.Prompts.Sections;
 /// </summary>
 [PromptSection(Name = "cyber_risk", Order = 2)]
 public static class CyberRiskSection {
+    /// <summary>
+    /// 创建 cyber_risk 提示词部分。
+    /// </summary>
     public static SystemPromptSection Create() {
         return SystemPromptSection.Cached("cyber_risk", () => {
             return """

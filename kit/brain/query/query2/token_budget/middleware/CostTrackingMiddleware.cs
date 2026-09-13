@@ -9,8 +9,15 @@ public sealed partial class CostTrackingMiddleware : ServiceEntity, IQueryMiddle
     private readonly ITokenCostTracker _costTracker;
 
 
+    /// <summary>
+    /// 错误处理策略 — 继续执行
+    /// </summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
+    /// <summary>
+    /// 构造函数 — 注入 Token 成本追踪器（可选，缺省使用空追踪器）
+    /// </summary>
+    /// <param name="costTracker">Token 成本追踪器</param>
     public CostTrackingMiddleware(ITokenCostTracker? costTracker = null)
     {
         _costTracker = costTracker ?? new NullTokenCostTracker();
@@ -19,6 +26,10 @@ public sealed partial class CostTrackingMiddleware : ServiceEntity, IQueryMiddle
     /// <summary>
     /// 注册 LLM 调用后钩子追踪成本
     /// </summary>
+    /// <param name="context">中间件上下文</param>
+    /// <param name="next">下一委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public Task InvokeAsync(QueryMiddlewareContext context, MiddlewareDelegate<QueryMiddlewareContext> next, CancellationToken ct)
     {
         context.AfterLlmCallHooks.Add(TrackCostAsync);

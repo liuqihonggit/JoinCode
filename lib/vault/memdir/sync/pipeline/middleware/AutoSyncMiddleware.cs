@@ -8,6 +8,7 @@ namespace Memdir.Sync;
 public sealed partial class AutoSyncMiddleware : ServiceEntity, ISyncStartMiddleware
 {
 
+    /// <inheritdoc/>
     public Task InvokeAsync(SyncStartContext ctx, MiddlewareDelegate<SyncStartContext> next, CancellationToken ct)
     {
         if (ctx.Options.EnableAutoSync && ctx.SyncTimer is not null)

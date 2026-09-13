@@ -7,6 +7,12 @@ namespace Core.Agents.Worktree;
 public sealed partial class WorktreeValidationMiddleware : ServiceEntity, IWorktreeCreateMiddleware
 {
 
+    /// <summary>
+    /// 执行参数验证：检查 AgentId 非空、长度不超限、不含非法字符（路径遍历/分隔符/控制字符）
+    /// </summary>
+    /// <param name="context">worktree 创建上下文</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct)
     {
         var agentId = context.AgentId;

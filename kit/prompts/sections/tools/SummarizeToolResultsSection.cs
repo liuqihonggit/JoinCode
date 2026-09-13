@@ -5,6 +5,10 @@ namespace Core.Prompts.Sections;
 /// </summary>
 [PromptSection(Name = "summarize_tool_results", Order = 20)]
 public static class SummarizeToolResultsSection {
+    /// <summary>
+    /// 创建工具结果总结 Section 实例（内容缓存）。
+    /// </summary>
+    /// <returns>工具结果总结 Section 实例。</returns>
     public static SystemPromptSection Create() {
         return SystemPromptSection.Cached("summarize_tool_results", () => {
             return """

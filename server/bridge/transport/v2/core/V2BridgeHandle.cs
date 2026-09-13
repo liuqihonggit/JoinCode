@@ -16,11 +16,21 @@ internal sealed class V2BridgeHandle : IReplBridgeHandle
     private readonly BridgeTokenRefreshScheduler _refresh;
     private volatile BridgeState _bridgeState;
 
+    /// <summary>会话 ID</summary>
     public string SessionId { get; }
+    /// <summary>环境 ID</summary>
     public string EnvironmentId { get; }
+    /// <summary>会话入口 URL</summary>
     public string SessionIngressUrl { get; }
+    /// <summary>桥状态</summary>
     public BridgeState State => _bridgeState;
 
+    /// <summary>
+    /// 构造 V2 桥句柄
+    /// </summary>
+    /// <param name="sessionContext">会话上下文</param>
+    /// <param name="transportContext">传输上下文</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public V2BridgeHandle(
         V2BridgeSessionContext sessionContext,
         V2BridgeTransportContext transportContext,
@@ -40,6 +50,7 @@ internal sealed class V2BridgeHandle : IReplBridgeHandle
     }
 
     /// <summary>写入消息 — 对齐 TS 端 writeMessages: FlushGate + dedup + titleDerivation + toSDKMessages</summary>
+    /// <param name="messages">消息数组</param>
     public void WriteMessages(string[] messages)
     {
         if (_state.TornDown || messages.Length == 0) return;
@@ -128,6 +139,7 @@ internal sealed class V2BridgeHandle : IReplBridgeHandle
     }
 
     /// <summary>写入 SDK 消息 — 对齐 TS 端 writeSdkMessages</summary>
+    /// <param name="messages">SDK 消息数组</param>
     public void WriteSdkMessages(string[] messages)
     {
         if (_state.TornDown || messages.Length == 0) return;
@@ -135,6 +147,7 @@ internal sealed class V2BridgeHandle : IReplBridgeHandle
     }
 
     /// <summary>发送控制请求 — 对齐 TS 端 sendControlRequest</summary>
+    /// <param name="requestJson">请求 JSON</param>
     public void SendControlRequest(string requestJson)
     {
         if (_state.TornDown) return;
@@ -149,6 +162,7 @@ internal sealed class V2BridgeHandle : IReplBridgeHandle
     }
 
     /// <summary>发送控制响应 — 对齐 TS 端 sendControlResponse</summary>
+    /// <param name="responseJson">响应 JSON</param>
     public void SendControlResponse(string responseJson)
     {
         if (_state.TornDown) return;
@@ -160,6 +174,7 @@ internal sealed class V2BridgeHandle : IReplBridgeHandle
     }
 
     /// <summary>发送取消控制请求 — 对齐 TS 端 sendControlCancelRequest</summary>
+    /// <param name="requestId">请求 ID</param>
     public void SendControlCancelRequest(string requestId)
     {
         if (_state.TornDown) return;
@@ -215,6 +230,7 @@ internal sealed class V2BridgeHandle : IReplBridgeHandle
     }
 
     /// <summary>优雅关闭 — 对齐 TS 端 teardown</summary>
+    /// <param name="ct">取消令牌</param>
     public async Task TeardownAsync(CancellationToken ct = default)
     {
         // 对齐 TS 端: teardownStarted 防重入
@@ -264,6 +280,7 @@ internal sealed class V2BridgeHandle : IReplBridgeHandle
     }
 
     /// <summary>刷新待发消息</summary>
+    /// <param name="ct">取消令牌</param>
     public async Task FlushAsync(CancellationToken ct = default)
     {
         await _transport.FlushAsync(ct).ConfigureAwait(false);
@@ -273,6 +290,7 @@ internal sealed class V2BridgeHandle : IReplBridgeHandle
     /// 获取当前 SSE 序列号高水位 — 对齐 TS 端 BridgeCoreHandle.getSSESequenceNum()
     /// 合并已关闭传输的检查点和当前活跃传输的实时值
     /// </summary>
+    /// <returns>SSE 序列号高水位</returns>
     public int GetSSESequenceNum()
     {
         var live = _transport.GetLastSequenceNum();

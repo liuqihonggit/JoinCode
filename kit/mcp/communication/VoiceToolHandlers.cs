@@ -2,12 +2,20 @@
 
 namespace McpToolDispatch;
 
+/// <summary>
+/// 语音工具处理器 — 提供语音录制、停止、转写、状态查询功能
+/// </summary>
 [McpToolDispatch(ToolCategory.Voice, Optional = true)]
 public sealed partial class VoiceToolHandlers
 {
     private readonly IVoiceService _voiceService;
     private readonly ILogger<VoiceToolHandlers>? _logger;
 
+    /// <summary>
+    /// 初始化语音工具处理器
+    /// </summary>
+    /// <param name="voiceService">语音服务实例</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public VoiceToolHandlers(IVoiceService voiceService, ILogger<VoiceToolHandlers>? logger = null)
     {
         _voiceService = voiceService ?? throw new ArgumentNullException(nameof(voiceService));
@@ -20,6 +28,11 @@ public sealed partial class VoiceToolHandlers
     private static bool IsCliSingleCallMode
         => Array.IndexOf(Environment.GetCommandLineArgs(), "mcp_call") >= 0;
 
+    /// <summary>
+    /// 启动语音录制 — 需在交互式会话（jcc chat）中使用，CLI 单次调用模式下录制状态不跨进程持久化
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(SystemToolNameConstants.VoiceStartRecording, "Start voice recording", "voice")]
     public async Task<ToolResult> VoiceStartRecordingAsync(
         CancellationToken cancellationToken = default)
@@ -57,6 +70,11 @@ public sealed partial class VoiceToolHandlers
         }
     }
 
+    /// <summary>
+    /// 停止语音录制并返回录制结果（时长、音频大小、转写文本、音频文件路径）
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>包含录制结果的工具执行结果</returns>
     [McpTool(SystemToolNameConstants.VoiceStopRecording, "Stop voice recording and return result", "voice")]
     public async Task<ToolResult> VoiceStopRecordingAsync(
         CancellationToken cancellationToken = default)
@@ -104,6 +122,13 @@ public sealed partial class VoiceToolHandlers
         }
     }
 
+    /// <summary>
+    /// 转写音频文件为文本
+    /// </summary>
+    /// <param name="file_path">音频文件路径</param>
+    /// <param name="language">语言代码（可选，如 zh/en）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>包含转写文本的工具执行结果</returns>
     [McpTool(SystemToolNameConstants.VoiceTranscribe, "Transcribe audio file", "voice")]
     public async Task<ToolResult> VoiceTranscribeAsync(
         [McpToolParameter("Audio file path")] string file_path,
@@ -141,6 +166,11 @@ public sealed partial class VoiceToolHandlers
         }
     }
 
+    /// <summary>
+    /// 查询语音服务当前状态（状态、是否正在录制）
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>包含语音服务状态的工具执行结果</returns>
     [McpTool(SystemToolNameConstants.VoiceStatus, "Get voice service status", "voice")]
     public Task<ToolResult> VoiceStatusAsync(
         CancellationToken cancellationToken = default)

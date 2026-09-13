@@ -8,6 +8,11 @@ namespace Services.Web;
 public sealed partial class WebCacheCheckMiddleware : ServiceEntity, IWebMiddleware
 {
 
+    /// <summary>
+    /// 初始化 <see cref="WebCacheCheckMiddleware"/> 实例。
+    /// </summary>
+    /// <param name="cache">Web 抓取缓存，用于查询缓存命中。</param>
+    /// <param name="telemetryService">可选的遥测服务，用于记录缓存命中指标。</param>
     public WebCacheCheckMiddleware(IWebFetchCache cache, ITelemetryService? telemetryService = null)
     {
         _cache = cache;

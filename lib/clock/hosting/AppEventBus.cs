@@ -11,6 +11,11 @@ public sealed class AppEventBus : IAppEventBus
     private readonly object _lock = new();
     private readonly ILogger<AppEventBus>? _logger;
 
+    /// <summary>
+    /// 构造 AppEventBus — 绑定底层消息总线并订阅其 MessageReceived 事件
+    /// </summary>
+    /// <param name="messageBus">底层服务消息总线</param>
+    /// <param name="logger">可选日志记录器</param>
     public AppEventBus(ServiceMessageBus messageBus, ILogger<AppEventBus>? logger = null)
     {
         _messageBus = messageBus;

@@ -1,6 +1,9 @@
 
 namespace Core.Ssh;
 
+/// <summary>
+/// SSH 端口转发实现 — 通过启动 ssh 子进程建立本地或远程端口转发
+/// </summary>
 public sealed class SshForwardedPort : ISshForwardedPort
 {
     private readonly string _sessionId;
@@ -9,12 +12,26 @@ public sealed class SshForwardedPort : ISshForwardedPort
     private Process? _forwardProcess;
     private int _isDisposed;
 
+    /// <summary>获取本次转发的唯一标识符</summary>
     public string ForwardId { get; }
+    /// <summary>获取转发类型（本地或远程）</summary>
     public SshForwardType ForwardType { get; }
+    /// <summary>获取本地端点地址（host:port 形式）</summary>
     public string LocalEndpoint { get; }
+    /// <summary>获取远程端点地址（host:port 形式）</summary>
     public string RemoteEndpoint { get; }
+    /// <summary>获取端口转发是否处于活动状态</summary>
     public bool IsForwarding { get; private set; }
 
+    /// <summary>
+    /// 构造 SSH 端口转发实例
+    /// </summary>
+    /// <param name="forwardType">转发类型</param>
+    /// <param name="localEndpoint">本地端点地址</param>
+    /// <param name="remoteEndpoint">远程端点地址</param>
+    /// <param name="sessionId">所属 SSH 会话标识</param>
+    /// <param name="config">SSH 会话配置</param>
+    /// <param name="logger">可选日志记录器</param>
     public SshForwardedPort(
         SshForwardType forwardType,
         string localEndpoint,
@@ -32,6 +49,11 @@ public sealed class SshForwardedPort : ISshForwardedPort
         _logger = logger;
     }
 
+    /// <summary>
+    /// 启动端口转发 — 拉起 ssh 子进程并按转发类型构造参数
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步启动操作的任务</returns>
     public Task StartAsync(CancellationToken ct = default)
     {
         DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
@@ -97,6 +119,11 @@ public sealed class SshForwardedPort : ISshForwardedPort
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// 停止端口转发 — 终止 ssh 子进程并标记为非活动
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步停止操作的任务</returns>
     public Task StopAsync(CancellationToken ct = default)
     {
         DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
@@ -115,6 +142,10 @@ public sealed class SshForwardedPort : ISshForwardedPort
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// 异步释放资源 — 停止转发并销毁底层 ssh 子进程
+    /// </summary>
+    /// <returns>表示异步释放操作的任务</returns>
     public async ValueTask DisposeAsync()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _isDisposed))

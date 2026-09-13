@@ -8,6 +8,10 @@ namespace Core.Scheduling;
 public sealed partial class TaskFileReader : ServiceEntity, ITaskFileReader
 {
 
+    /// <summary>
+    /// 初始化任务文件读取器
+    /// </summary>
+    /// <param name="fileOperationService">文件操作服务</param>
     public TaskFileReader(IFileOperationService fileOperationService)
     {
         _fileOperationService = fileOperationService;

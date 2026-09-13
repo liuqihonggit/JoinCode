@@ -8,6 +8,11 @@ namespace Memdir.Sync;
 public sealed partial class StartCompletionMiddleware : ServiceEntity, ISyncStartMiddleware
 {
 
+    /// <summary>
+    /// 创建启动完成中间件实例
+    /// </summary>
+    /// <param name="logger">可选的日志记录器</param>
+    /// <param name="telemetryService">可选的遥测服务</param>
     public StartCompletionMiddleware(ILogger<StartCompletionMiddleware>? logger = null, ITelemetryService? telemetryService = null)
     {
         _logger = logger;
@@ -17,6 +22,7 @@ public sealed partial class StartCompletionMiddleware : ServiceEntity, ISyncStar
     private readonly ITelemetryService? _telemetryService;
 
 
+    /// <inheritdoc />
     public Task InvokeAsync(SyncStartContext ctx, MiddlewareDelegate<SyncStartContext> next, CancellationToken ct)
     {
         if (ctx.Failed)

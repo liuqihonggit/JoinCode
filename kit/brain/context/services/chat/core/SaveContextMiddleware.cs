@@ -8,6 +8,11 @@ namespace Core.Context;
 public sealed partial class SaveContextMiddleware : ServiceEntity, IChatMiddleware
 {
 
+    /// <summary>
+    /// 初始化保存上下文中间件
+    /// </summary>
+    /// <param name="contextManager">聊天上下文管理器</param>
+    /// <param name="logger">可选日志记录器</param>
     public SaveContextMiddleware(IChatContextManager contextManager, ILogger<SaveContextMiddleware>? logger = null)
     {
         _contextManager = contextManager;
@@ -16,6 +21,7 @@ public sealed partial class SaveContextMiddleware : ServiceEntity, IChatMiddlewa
     private readonly IChatContextManager _contextManager;
     private readonly ILogger<SaveContextMiddleware>? _logger;
 
+    /// <summary>错误行为策略：继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
     /// <summary>

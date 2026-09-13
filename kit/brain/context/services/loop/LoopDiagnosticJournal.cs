@@ -5,8 +5,19 @@ namespace Core.Context;
 /// </summary>
 public interface IJournalCommand;
 
+/// <summary>
+/// 记入一条日志簿条目的命令
+/// </summary>
 public sealed record JournalRecordCommand(JournalEntry Entry) : IJournalCommand;
+
+/// <summary>
+/// 计入一条循环异常记录的命令
+/// </summary>
 public sealed record JournalAnomalyCommand(LoopAnomalyRecord Anomaly) : IJournalCommand;
+
+/// <summary>
+/// 重置日志簿状态的命令
+/// </summary>
 public sealed record JournalResetCommand() : IJournalCommand;
 
 /// <summary>
@@ -26,6 +37,11 @@ public sealed class LoopDiagnosticJournal : ActorBase<IJournalCommand, Unit>, ID
     private readonly ILogger? _logger;
     private int _windowCount;
 
+    /// <summary>
+    /// 初始化循环诊断日志簿，指定追踪窗口容量和可选日志记录器
+    /// </summary>
+    /// <param name="traceWindowCapacity">追踪窗口最大容量（最少 5）</param>
+    /// <param name="logger">可选日志记录器</param>
     public LoopDiagnosticJournal(int traceWindowCapacity = 50, ILogger? logger = null)
         : base(new ActorBackpressure(Capacity: 256, FullMode: BoundedChannelFullMode.DropOldest))
     {
@@ -120,6 +136,11 @@ public sealed class LoopDiagnosticJournal : ActorBase<IJournalCommand, Unit>, ID
         }
     }
 
+    /// <summary>
+    /// 处理日志簿命令 — Consumer 线程独占，按命令类型分派到对应处理逻辑
+    /// </summary>
+    /// <param name="command">日志簿命令</param>
+    /// <param name="ct">取消令牌</param>
     protected override async ValueTask HandleAsync(IJournalCommand command, CancellationToken ct)
     {
         switch (command)
@@ -139,6 +160,10 @@ public sealed class LoopDiagnosticJournal : ActorBase<IJournalCommand, Unit>, ID
         }
     }
 
+    /// <summary>
+    /// Consumer 线程发生异常时的回调 — 记录警告日志
+    /// </summary>
+    /// <param name="ex">异常对象</param>
     protected override void OnConsumerError(Exception ex)
     {
         _logger?.LogWarning(ex, "[LoopDiagnosticJournal] 后台消费者异常");
@@ -186,12 +211,19 @@ public sealed class LoopDiagnosticJournal : ActorBase<IJournalCommand, Unit>, ID
 /// </summary>
 public sealed record JournalEntry
 {
+    /// <summary>追踪标识，用于关联同一逻辑链路上的日志条目</summary>
     public required string TraceId { get; init; }
+    /// <summary>事件类型，如 loop_anomaly、guardian_detect 等</summary>
     public required string EventType { get; init; }
+    /// <summary>会话标识</summary>
     public required string SessionId { get; init; }
+    /// <summary>时间戳</summary>
     public required DateTimeOffset Timestamp { get; init; }
+    /// <summary>对话轮次</summary>
     public required int ConversationTurn { get; init; }
+    /// <summary>工具调用次数</summary>
     public required int ToolCallCount { get; init; }
+    /// <summary>附加诊断数据键值对</summary>
     public required Dictionary<string, string> Data { get; init; }
 }
 
@@ -201,16 +233,27 @@ public sealed record JournalEntry
 /// </summary>
 public sealed record LoopAnomalyRecord
 {
+    /// <summary>异常追踪标识</summary>
     public required string TraceId { get; init; }
+    /// <summary>触发检测器层名（OutputLoop、LogicFingerprint、ToolCallSequence、ShannonEntropy）</summary>
     public required string DetectorLayer { get; init; }
+    /// <summary>会话标识</summary>
     public required string SessionId { get; init; }
+    /// <summary>对话轮次</summary>
     public required int ConversationTurn { get; init; }
+    /// <summary>工具调用次数</summary>
     public required int ToolCallCount { get; init; }
+    /// <summary>累计触发次数</summary>
     public required int TriggerCount { get; init; }
+    /// <summary>触发原因描述</summary>
     public required string Reason { get; init; }
+    /// <summary>触发时的 Shannon 熵值（若由 Shannon 检测器触发）</summary>
     public required double? Entropy { get; init; }
+    /// <summary>触发时的文本片段（截断到 200 字符以内）</summary>
     public required string? TextSnippet { get; init; }
+    /// <summary>追踪链 — 触发前窗口内所有日志条目的 TraceId 列表</summary>
     public required IReadOnlyList<string> TraceChain { get; init; }
+    /// <summary>时间戳</summary>
     public required DateTimeOffset Timestamp { get; init; }
 
     /// <summary>

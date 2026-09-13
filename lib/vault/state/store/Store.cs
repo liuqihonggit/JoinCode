@@ -205,6 +205,9 @@ public partial class Store<TState> : IStore<TState>, IDisposable where TState : 
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) == 1, typeof(Store<TState>));
     }
 
+    /// <summary>
+    /// 释放资源,取消所有订阅并清理内部状态
+    /// </summary>
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1) return;

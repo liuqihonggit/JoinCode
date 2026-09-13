@@ -1,6 +1,9 @@
 
 namespace Core.Prompts.Templates.Memory;
 
+/// <summary>
+/// 上下文压缩提示词模板 — 生成对话摘要以在保留关键上下文的同时压缩历史消息。
+/// </summary>
 [PromptTemplate(Name = "compact", Category = PromptTemplateCategory.Memory, Description = "上下文压缩提示词模板，生成对话摘要", HasParameters = true)]
 public static class CompactPromptTemplate
 {
@@ -316,6 +319,11 @@ public static class CompactPromptTemplate
 请根据此对话提供你的摘要，遵循这个结构并确保精确性和彻底性。
 ";
 
+    /// <summary>
+    /// 获取完整压缩提示词 — 用于对整段对话生成摘要。
+    /// </summary>
+    /// <param name="customInstructions">自定义压缩说明，追加到提示词末尾；为空时不追加。</param>
+    /// <returns>组装完成的压缩提示词。</returns>
     public static string GetCompactPrompt(string? customInstructions = null)
     {
         var prompt = NoToolsPreamble + BaseCompactPrompt.Replace("{{DETAILED_ANALYSIS}}", DetailedAnalysisInstructionBase);
@@ -329,6 +337,12 @@ public static class CompactPromptTemplate
         return prompt;
     }
 
+    /// <summary>
+    /// 获取部分压缩提示词 — 用于对对话的最近片段或保留早期上下文后的剩余部分生成摘要。
+    /// </summary>
+    /// <param name="customInstructions">自定义压缩说明，追加到提示词末尾；为空时不追加。</param>
+    /// <param name="direction">压缩方向，决定使用 UpTo 模板还是 From 模板。</param>
+    /// <returns>组装完成的部分压缩提示词。</returns>
     public static string GetPartialCompactPrompt(
         string? customInstructions = null,
         CompactDirection direction = CompactDirection.From)
@@ -356,6 +370,11 @@ public static class CompactPromptTemplate
     private static readonly Regex SummaryTagRegex = new(@"<summary>([\u0000-\uffff]*?)</summary>", RegexOptions.Singleline);
     private static readonly Regex MultipleBlankLinesRegex = new(@"\n\n+");
 
+    /// <summary>
+    /// 格式化压缩摘要 — 移除 &lt;analysis&gt; 块，提取 &lt;summary&gt; 内容并以"摘要："前缀输出，合并多余空行。
+    /// </summary>
+    /// <param name="summary">模型返回的原始摘要文本，包含 &lt;analysis&gt; 与 &lt;summary&gt; 标签。</param>
+    /// <returns>清理并格式化后的摘要文本。</returns>
     public static string FormatCompactSummary(string summary)
     {
         var formattedSummary = AnalysisTagRegex.Replace(summary, "");
@@ -375,6 +394,15 @@ public static class CompactPromptTemplate
         return formattedSummary.Trim();
     }
 
+    /// <summary>
+    /// 生成压缩后回注入用户会话的摘要消息 — 包含摘要正文、可选的记录路径提示、保留消息说明及自主模式续跑指令。
+    /// </summary>
+    /// <param name="summary">模型返回的原始摘要文本。</param>
+    /// <param name="suppressFollowUpQuestions">是否抑制后续追问；为 true 时追加"直接恢复"续跑指令。</param>
+    /// <param name="transcriptPath">压缩前完整对话记录路径，提供时追加读取记录的提示；为 null 时不追加。</param>
+    /// <param name="recentMessagesPreserved">最近消息是否被逐字保留；为 true 时追加保留说明。</param>
+    /// <param name="isAutonomousMode">是否处于自主模式；为 true 且抑制追问时追加自主续跑指令。</param>
+    /// <returns>用于注入会话上下文的摘要消息文本。</returns>
     public static string GetCompactUserSummaryMessage(
         string summary,
         bool suppressFollowUpQuestions = false,

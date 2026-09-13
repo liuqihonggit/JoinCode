@@ -1,11 +1,20 @@
 
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /tag 命令 — 为当前会话添加或管理标签
+/// 通过 ISessionTagService 执行 add、remove、list 操作
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Tag, Description = "为当前会话添加或管理标签", Usage = "/tag [add|remove|list] [tag_name]", Category = ChatCommandCategory.System, ArgumentHint = "[add|remove|list] [tag]")]
 [ChatCommandArg("action", Type = "string", Description = "标签操作", Enum = new[] { "add", "remove", "list" })]
 [ChatCommandArg("tag_name", Type = "string", Description = "标签名称")]
 public sealed class TagCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /tag 命令 — 根据子操作分发添加、移除、列出标签
+    /// </summary>
+    /// <param name="context">命令执行上下文，包含参数、会话 ID 等</param>
+    /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context);

@@ -24,12 +24,15 @@ public enum BridgePointerSource
 /// </summary>
 public sealed class BridgePointer
 {
+    /// <summary>会话 ID</summary>
     [JsonPropertyName("sessionId")]
     public required string SessionId { get; init; }
 
+    /// <summary>环境 ID</summary>
     [JsonPropertyName("environmentId")]
     public required string EnvironmentId { get; init; }
 
+    /// <summary>指针来源（BridgePointerSource.ToValue()）</summary>
     [JsonPropertyName("source")]
     public required string Source { get; init; } // BridgePointerSource.ToValue()
 }
@@ -39,7 +42,9 @@ public sealed class BridgePointer
 /// </summary>
 public sealed class BridgePointerWithAge
 {
+    /// <summary>崩溃恢复指针</summary>
     public required BridgePointer Pointer { get; init; }
+    /// <summary>指针年龄（毫秒）</summary>
     public long AgeMs { get; init; }
 }
 
@@ -57,6 +62,12 @@ public sealed class BridgePointerService
     private readonly IFileSystem _fs;
     private readonly IClockService _clock;
 
+    /// <summary>
+    /// 构造崩溃恢复指针服务
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="clock">时钟服务（可选，默认系统时钟）</param>
     public BridgePointerService(IFileSystem fs, ILogger? logger = null, IClockService? clock = null)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
@@ -68,6 +79,8 @@ public sealed class BridgePointerService
     /// 获取指针文件路径 — 对齐 TS 端 getBridgePointerPath
     /// ~/.jcc/projects/{dir}/bridge-pointer.json
     /// </summary>
+    /// <param name="dir">项目目录</param>
+    /// <returns>指针文件路径</returns>
     public static string GetPointerPath(string dir)
     {
         ArgumentNullException.ThrowIfNull(dir);
@@ -82,6 +95,9 @@ public sealed class BridgePointerService
     /// 写入指针 — 对齐 TS 端 writeBridgePointer
     /// 也用于刷新 mtime（保持指针新鲜度）
     /// </summary>
+    /// <param name="dir">项目目录</param>
+    /// <param name="pointer">崩溃恢复指针</param>
+    /// <param name="ct">取消令牌</param>
     public async Task WriteAsync(string dir, BridgePointer pointer, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(dir);
@@ -105,6 +121,9 @@ public sealed class BridgePointerService
     /// 读取指针 — 对齐 TS 端 readBridgePointer
     /// 包含 mtime 新鲜度检查（4 小时 TTL）
     /// </summary>
+    /// <param name="dir">项目目录</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>带年龄的指针，不存在或过期则返回 null</returns>
     public async Task<BridgePointerWithAge?> ReadAsync(string dir, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(dir);
@@ -145,6 +164,9 @@ public sealed class BridgePointerService
     /// 跨 worktree 查找指针 — 对齐 TS 端 readBridgePointerAcrossWorktrees
     /// 并行搜索 worktree 目录，选择最新的有效指针
     /// </summary>
+    /// <param name="baseDir">基础目录</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>最新的指针与所在目录，无则返回 null</returns>
     public async Task<(BridgePointerWithAge Pointer, string Dir)?> ReadAcrossWorktreesAsync(
         string baseDir, CancellationToken ct = default)
     {
@@ -197,6 +219,8 @@ public sealed class BridgePointerService
     /// <summary>
     /// 清除指针 — 对齐 TS 端 clearBridgePointer
     /// </summary>
+    /// <param name="dir">项目目录</param>
+    /// <param name="ct">取消令牌</param>
     public Task ClearAsync(string dir, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(dir);

@@ -36,8 +36,14 @@ public sealed class AgentToolContext
     /// </summary>
     public IReadOnlyList<string> AllowedAgentTypes { get; set; } = [];
 
+    /// <summary>
+    /// 子代理角色，默认为执行器
+    /// </summary>
     public AgentRole SubagentRole { get; init; } = AgentRole.Executor;
 
+    /// <summary>
+    /// 执行器变体（可选）
+    /// </summary>
     public ExecutorVariant? SubagentVariant { get; init; }
 
     /// <summary>

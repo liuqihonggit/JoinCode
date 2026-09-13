@@ -19,6 +19,14 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
     // P1-8: 信号量等待超时 — 防止持有方异常未释放导致永久阻塞
     private static readonly TimeSpan SemaphoreWaitTimeout = TimeSpan.FromSeconds(5);
 
+    /// <summary>
+    /// 构造 MagicDocs 管理服务。
+    /// </summary>
+    /// <param name="fileSystem">文件系统抽象。</param>
+    /// <param name="fileReadListenerRegistry">FileRead 监听器注册表，可选。</param>
+    /// <param name="postSamplingCallbacks">采样后回调注册表，可选。</param>
+    /// <param name="forkManager">子智能体分叉管理器，可选。</param>
+    /// <param name="logger">日志记录器，可选。</param>
     public MagicDocsManager(
         IFileSystem fileSystem,
         IFileReadListenerRegistry? fileReadListenerRegistry = null,
@@ -180,5 +188,8 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
         _trackedDocs.Clear();
     }
 
+    /// <summary>
+    /// 释放信号量资源。
+    /// </summary>
     protected override void OnDispose() => _semaphore.Dispose();
 }

@@ -6,6 +6,10 @@ namespace Core.Prompts.Sections;
 [PromptSection(Name = "output_style_learning", Keywords = new[] { "学习", "learning", "边做边学", "教程", "tutorial", "guide" }, InjectOn = PromptSectionInject.Keyword, Order = 81)]
 public static class LearningStyleSection
 {
+    /// <summary>
+    /// 获取学习模式输出样式部分的内容。
+    /// </summary>
+    /// <returns>学习模式样式提示词文本。</returns>
     public static string GetContent()
     {
         return $"""
@@ -50,6 +54,10 @@ public static class LearningStyleSection
 """;
     }
 
+    /// <summary>
+    /// 创建学习模式输出样式提示词部分。
+    /// </summary>
+    /// <returns>缓存系统提示词部分。</returns>
     public static SystemPromptSection Create() =>
         SystemPromptSection.Cached("output_style_learning", GetContent);
 }

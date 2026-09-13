@@ -1,13 +1,28 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
+/// <summary>
+/// 只追加消息日志，封装对话消息列表，支持追加、整体压缩与尾部撤回
+/// </summary>
 public sealed class AppendOnlyLog
 {
     private readonly List<ApiMessage> _entries = [];
 
+    /// <summary>
+    /// 当前日志条目数量
+    /// </summary>
     public int Count => _entries.Count;
 
+    /// <summary>
+    /// 按索引获取消息条目
+    /// </summary>
+    /// <param name="index">条目索引</param>
+    /// <returns>指定索引处的消息</returns>
     public ApiMessage this[int index] => _entries[index];
 
+    /// <summary>
+    /// 追加一条消息
+    /// </summary>
+    /// <param name="message">待追加的消息</param>
     public void Append(ApiMessage message)
     {
         ArgumentNullException.ThrowIfNull(message);
@@ -16,6 +31,10 @@ public sealed class AppendOnlyLog
         _entries.Add(message);
     }
 
+    /// <summary>
+    /// 批量追加消息
+    /// </summary>
+    /// <param name="messages">待追加的消息列表</param>
     public void Extend(IReadOnlyList<ApiMessage> messages)
     {
         ArgumentNullException.ThrowIfNull(messages);
@@ -32,6 +51,10 @@ public sealed class AppendOnlyLog
         return _entries;
     }
 
+    /// <summary>
+    /// 原地替换全部条目，用于上下文折叠/压缩后重写日志
+    /// </summary>
+    /// <param name="replacement">替换后的消息列表</param>
     public void CompactInPlace(IReadOnlyList<ApiMessage> replacement)
     {
         ArgumentNullException.ThrowIfNull(replacement);

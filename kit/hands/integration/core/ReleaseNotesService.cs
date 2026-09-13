@@ -1,5 +1,8 @@
 namespace IO.Services;
 
+/// <summary>
+/// Release Notes 服务 — 拉取 GitHub Releases 并提供本地缓存
+/// </summary>
 [Register(typeof(IReleaseNotesService), ServiceLifetime.Singleton)]
 public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesService, IDisposable
 {
@@ -15,6 +18,15 @@ public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesSe
     private DateTimeOffset _cacheTimestamp;
     private readonly AsyncLock _cacheLock = new();
 
+    /// <summary>
+    /// 构造 Release Notes 服务实例
+    /// </summary>
+    /// <param name="httpClient">用于访问 GitHub API 的 HTTP 客户端</param>
+    /// <param name="repoOwner">GitHub 仓库所有者，缺省回退到默认仓库</param>
+    /// <param name="repoName">GitHub 仓库名称，缺省回退到默认仓库</param>
+    /// <param name="requestTimeout">请求超时时间，缺省 5 秒</param>
+    /// <param name="cacheDuration">缓存有效期，缺省 1 小时</param>
+    /// <param name="timeProvider">时间提供器，用于测试注入</param>
     public ReleaseNotesService(HttpClient httpClient, string? repoOwner = null, string? repoName = null,
         TimeSpan? requestTimeout = null, TimeSpan? cacheDuration = null, TimeProvider? timeProvider = null)
     {
@@ -26,6 +38,12 @@ public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesSe
         _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
+    /// <summary>
+    /// 异步获取最近的 Release 列表 — 优先走缓存，缓存失效时拉取 GitHub Releases API
+    /// </summary>
+    /// <param name="count">要获取的 Release 数量，缺省 5</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>Release 信息列表；拉取失败且无缓存时返回空列表</returns>
     public async Task<IReadOnlyList<ReleaseInfo>> GetRecentReleasesAsync(int count = 5, CancellationToken ct = default)
     {
         if (TryGetCachedReleases(count, out var cached))

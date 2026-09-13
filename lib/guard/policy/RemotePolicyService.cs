@@ -1,6 +1,9 @@
 
 namespace Core.Policy;
 
+/// <summary>
+/// 远程策略服务 — 从远程端点拉取策略规则并缓存,提供策略评估能力
+/// </summary>
 [Register(typeof(RemoteCacheRefreshServiceBase<PolicyRule>), ServiceLifetime.Singleton)]
 [Register(typeof(JoinCode.Abstractions.Interfaces.IRemotePolicyService), ServiceLifetime.Singleton)]
 public sealed partial class RemotePolicyService : RemoteCacheRefreshServiceBase<PolicyRule>, JoinCode.Abstractions.Interfaces.IRemotePolicyService
@@ -10,11 +13,19 @@ public sealed partial class RemotePolicyService : RemoteCacheRefreshServiceBase<
     private readonly ConcurrentDictionary<string, int> _usageCounters = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, DateTime> _windowStartTimes = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <inheritdoc/>
     protected override string MetricsPrefix => "policy.remote";
+    /// <inheritdoc/>
     protected override string RefreshLogLabel => "远程策略";
 
+    /// <summary>
+    /// 策略违规事件 — 当评估结果为拒绝且启用通知时触发
+    /// </summary>
     public event EventHandler<PolicyEvaluationResult>? PolicyViolated;
 
+    /// <summary>
+    /// 初始化远程策略服务实例
+    /// </summary>
     public RemotePolicyService(
         HttpClient httpClient,
         IOptions<RemotePolicyOptions>? options = null,
@@ -25,6 +36,7 @@ public sealed partial class RemotePolicyService : RemoteCacheRefreshServiceBase<
     {
     }
 
+    /// <inheritdoc/>
     protected override async Task<RemoteRefreshResult<PolicyRule>> FetchAndDeserializeAsync(string requestUrl, CancellationToken cancellationToken)
     {
         var response = await Http.GetAsync(requestUrl, cancellationToken).ConfigureAwait(false);
@@ -39,6 +51,7 @@ public sealed partial class RemotePolicyService : RemoteCacheRefreshServiceBase<
         };
     }
 
+    /// <inheritdoc/>
     public async Task<PolicyEvaluationResult> EvaluateAsync(string action, Dictionary<string, string>? context = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(action);
@@ -80,12 +93,14 @@ public sealed partial class RemotePolicyService : RemoteCacheRefreshServiceBase<
         };
     }
 
+    /// <inheritdoc/>
     public async Task<IReadOnlyList<PolicyRule>> GetActiveRulesAsync(CancellationToken cancellationToken = default)
     {
         await EnsureCacheAsync(cancellationToken).ConfigureAwait(false);
         return Cache.Values.Where(r => r.Enabled).OrderByDescending(r => r.Priority).ToList();
     }
 
+    /// <inheritdoc/>
     public async Task<IReadOnlyList<PolicyEvaluationResult>> EvaluateAllAsync(string action, Dictionary<string, string>? context = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(action);

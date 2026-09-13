@@ -8,6 +8,9 @@ public static class StructuredMessageParser
     /// <summary>
     /// 尝试将 message 字符串解析为结构化协议消息
     /// </summary>
+    /// <param name="message">待解析的消息字符串，可为 null</param>
+    /// <param name="data">解析成功时输出结构化消息数据，失败时为 null</param>
+    /// <returns>解析成功返回 true，否则返回 false</returns>
     public static bool TryParse(string? message, out StructuredMessageData? data)
     {
         data = null;

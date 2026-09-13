@@ -132,28 +132,42 @@ internal static class SlashListExecutor
         var json = FlatSubCommandRouter.ShouldOutputJson(args);
 
         var catalog = new GeneratedSlashCommandCatalog();
-        var commands = catalog.Commands.Where(c => !c.IsHidden).ToList();
+        var byCat = catalog.ByCategory;
 
+        KeyValuePair<string, IReadOnlyList<SlashCommandMetadata>>[] selectedGroups;
         if (!string.IsNullOrEmpty(category))
-            commands = commands.Where(c => string.Equals(c.Category, category, StringComparison.OrdinalIgnoreCase)).ToList();
+        {
+            selectedGroups = byCat.TryGetValue(category, out var catList)
+                ? [new(category, catList)]
+                : [];
+        }
+        else
+        {
+            selectedGroups = byCat.OrderBy(g => g.Key).ToArray();
+        }
+
+        var visibleCommands = selectedGroups
+            .SelectMany(g => g.Value.Where(c => !c.IsHidden))
+            .ToList();
 
         if (json)
         {
-            var items = commands.Select(c => new Cli.Output.CliSlashCommandListItem(c.Name, c.Description, c.Usage, c.Category, c.Aliases)).ToList();
+            var items = visibleCommands.Select(c => new Cli.Output.CliSlashCommandListItem(c.Name, c.Description, c.Usage, c.Category, c.Aliases)).ToList();
             var envelope = Cli.Output.CliOutputEnvelope.Success(items, new Cli.Output.CliOutputMeta { TotalCount = items.Count });
             System.Console.WriteLine(RelaxedJsonSerializer.Serialize(envelope, Cli.Output.CliOutputJsonContext.Default));
         }
         else
         {
-            var grouped = commands.GroupBy(c => c.Category).OrderBy(g => g.Key);
-            foreach (var g in grouped)
+            foreach (var g in selectedGroups)
             {
-                TerminalHelper.WriteLine($"{TerminalColors.Info}{g.Key}{AnsiStyleConstants.Reset} ({g.Count()} 个):");
-                foreach (var cmd in g.OrderBy(c => c.Name))
+                var visible = g.Value.Where(c => !c.IsHidden).OrderBy(c => c.Name).ToList();
+                if (visible.Count == 0) continue;
+                TerminalHelper.WriteLine($"{TerminalColors.Info}{g.Key}{AnsiStyleConstants.Reset} ({visible.Count} 个):");
+                foreach (var cmd in visible)
                     TerminalHelper.WriteLine($"  {cmd.Name,-30} {cmd.Description}");
                 TerminalHelper.NewLine();
             }
-            TerminalHelper.WriteLine($"总计: {commands.Count} 个命令");
+            TerminalHelper.WriteLine($"总计: {visibleCommands.Count} 个命令");
         }
 
         return Task.FromResult<int?>(0);
@@ -180,7 +194,7 @@ internal static class SlashSchemaExecutor
         var json = FlatSubCommandRouter.ShouldOutputJson(args);
 
         var catalog = new GeneratedSlashCommandSchemaCatalog();
-        var entry = catalog.AllSchemas.FirstOrDefault(e => string.Equals(e.CommandName, cmdName, StringComparison.OrdinalIgnoreCase));
+        var entry = catalog.GetEntry(cmdName);
 
         if (entry is null)
         {

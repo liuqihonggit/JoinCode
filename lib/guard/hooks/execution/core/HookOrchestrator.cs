@@ -32,6 +32,16 @@ public sealed partial class HookOrchestrator : ServiceEntity, IHookOrchestratorI
     private readonly IHookConditionEvaluator _conditionEvaluator;
     private readonly ILogger<HookOrchestrator>? _logger;
 
+    /// <summary>
+    /// 构造函数 — 注入配置管理器、执行器工厂、会话钩子管理器、事件广播器、异步钩子注册表、条件求值器与日志记录器
+    /// </summary>
+    /// <param name="configurationManager">钩子配置管理器</param>
+    /// <param name="executorFactory">钩子执行器工厂</param>
+    /// <param name="sessionHookManager">会话钩子管理器</param>
+    /// <param name="eventBroadcaster">钩子事件广播器</param>
+    /// <param name="asyncHookRegistry">异步钩子注册表</param>
+    /// <param name="conditionEvaluator">钩子条件求值器</param>
+    /// <param name="logger">可选的日志记录器</param>
     public HookOrchestrator(
         IHookConfigurationManager configurationManager,
         IHookExecutorFactory executorFactory,

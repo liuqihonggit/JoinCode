@@ -45,21 +45,27 @@ public enum SessionStatus
 /// </summary>
 public sealed class ConcurrentSessionRecord
 {
+    /// <summary>进程 ID</summary>
     [JsonPropertyName("pid")]
     public int Pid { get; init; }
 
+    /// <summary>会话 ID</summary>
     [JsonPropertyName("sessionId")]
     public string? SessionId { get; set; }
 
+    /// <summary>工作目录</summary>
     [JsonPropertyName("cwd")]
     public string? Cwd { get; init; }
 
+    /// <summary>启动时间（Unix 毫秒）</summary>
     [JsonPropertyName("startedAt")]
     public long StartedAt { get; init; }
 
+    /// <summary>会话类型</summary>
     [JsonPropertyName("kind")]
     public string? Kind { get; init; }
 
+    /// <summary>入口点</summary>
     [JsonPropertyName("entrypoint")]
     public string? Entrypoint { get; init; }
 
@@ -97,6 +103,12 @@ public sealed class ConcurrentSessionService
     private readonly string _sessionsDir;
     private readonly IClockService _clock;
 
+    /// <summary>
+    /// 构造并发会话服务
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="clock">时钟服务（可选，默认使用系统时钟）</param>
     public ConcurrentSessionService(IFileSystem fs, ILogger? logger = null, IClockService? clock = null)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));

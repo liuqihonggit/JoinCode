@@ -17,6 +17,19 @@ public sealed partial class ForkSpawnMiddleware : ServiceEntity, IForkMiddleware
     private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     private readonly IClockService _clock;
 
+    /// <summary>
+    /// 初始化 Fork Spawn 中间件
+    /// </summary>
+    /// <param name="lifecycleManager">智能体生命周期管理器</param>
+    /// <param name="messageBroker">消息邮箱</param>
+    /// <param name="worktreeManager">工作树管理器</param>
+    /// <param name="mailboxPoller">邮箱轮询器</param>
+    /// <param name="fileStateCache">文件状态缓存</param>
+    /// <param name="hotSpotIntegration">热点 Spawn 集成</param>
+    /// <param name="deferredMailService">延迟邮件服务</param>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="subAgentContextAccessor">子智能体上下文访问器</param>
+    /// <param name="clock">时钟服务</param>
     public ForkSpawnMiddleware(
         IAgentLifecycleManager lifecycleManager,
         IMailbox messageBroker,
@@ -45,6 +58,13 @@ public sealed partial class ForkSpawnMiddleware : ServiceEntity, IForkMiddleware
 
     /// <summary>Spawn 失败应中断管道</summary>
 
+    /// <summary>
+    /// 异步执行 Spawn 逻辑：构建子智能体选项、Spawn、注册消息代理、Worktree 隔离与邮箱轮询
+    /// </summary>
+    /// <param name="context">Fork 上下文</param>
+    /// <param name="next">下一中间件委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task InvokeAsync(ForkContext context, MiddlewareDelegate<ForkContext> next, CancellationToken ct)
     {
         var forkDirective = ForkMessageBuilder.BuildChildMessage(context.Options.TaskDescription);

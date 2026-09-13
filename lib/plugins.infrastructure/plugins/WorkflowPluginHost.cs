@@ -13,13 +13,26 @@ public sealed class WorkflowPluginHost : PluginResourceBase
     private readonly ILogger? _logger;
     private readonly ICommandRegistry? _sharedCommandRegistry;
 
+    /// <summary>插件名称</summary>
     public string PluginName => _plugin.Name;
+    /// <summary>插件版本</summary>
     public string Version => _plugin.Version;
+    /// <summary>工作流插件实例</summary>
     public IWorkflowPlugin Plugin => _plugin;
 
     /// <summary>LoadAsync 构造的 PluginContext — PluginManager 用于收集异步撤销链</summary>
     internal PluginContext? Context { get; private set; }
 
+    /// <summary>
+    /// 构造工作流插件宿主
+    /// </summary>
+    /// <param name="plugin">工作流插件实例</param>
+    /// <param name="kernel">可选聊天客户端</param>
+    /// <param name="loggerFactory">可选日志工厂</param>
+    /// <param name="fileOperationService">可选文件操作服务</param>
+    /// <param name="commandRegistry">可选命令注册表</param>
+    /// <param name="logger">可选日志器</param>
+    /// <param name="rootServiceProvider">可选根服务提供者</param>
     public WorkflowPluginHost(
         IWorkflowPlugin plugin,
         IChatClient? kernel = null,
@@ -184,6 +197,9 @@ public sealed class WorkflowPluginHost : PluginResourceBase
         return _pluginServiceProvider.GetRequiredService<T>();
     }
 
+    /// <summary>
+    /// 资源释放回调 — 释放插件实例和插件服务容器
+    /// </summary>
     protected override void OnResourceDispose()
     {
         if (_plugin is IDisposable disposable)

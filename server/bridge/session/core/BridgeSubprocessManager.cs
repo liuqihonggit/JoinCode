@@ -73,6 +73,7 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
     }
 
     /// <summary>设置 transcript 流 — 用于对齐 TS 端 transcript 写入</summary>
+    /// <param name="stream">transcript 写入流</param>
     public void SetTranscriptStream(StreamWriter stream)
     {
         _transcriptStream = stream;
@@ -104,6 +105,11 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
     /// <summary>
     /// 异步工厂方法 — 通过 IProcessService 创建子进程
     /// </summary>
+    /// <param name="options">子进程选项</param>
+    /// <param name="processService">进程服务</param>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>创建好的子进程句柄</returns>
     public static async Task<BridgeSubprocessHandle> CreateAsync(
         BridgeSubprocessOptions options,
         IProcessService processService,
@@ -171,6 +177,9 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
     /// <summary>
     /// 向子进程 stdin 写入数据 — 对齐 TS 端 writeStdin
     /// </summary>
+    /// <param name="data">写入的数据字符串</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task WriteStdinAsync(string data, CancellationToken ct = default)
     {
         if (_resilientSubprocess is not null)
@@ -209,6 +218,9 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
     /// 刷新访问令牌 — 对齐 TS 端 updateAccessToken
     /// 通过 stdin 发送 update_environment_variables 消息
     /// </summary>
+    /// <param name="newToken">新的访问令牌</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task UpdateAccessTokenAsync(string newToken, CancellationToken ct = default)
     {
         AccessToken = newToken;
@@ -347,6 +359,8 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
     /// 从 NDJSON 行提取用户消息文本 — 对齐 TS 端 extractUserMessageText
     /// 跳过 tool-result、synthetic、replay 消息，只保留真实人类输入
     /// </summary>
+    /// <param name="ndjsonLine">NDJSON 行字符串</param>
+    /// <returns>用户消息文本；非用户消息返回 null</returns>
     internal static string? ExtractUserMessageText(string ndjsonLine)
     {
         if (string.IsNullOrWhiteSpace(ndjsonLine)) return null;
@@ -437,6 +451,10 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
         queue.Enqueue(item);
     }
 
+    /// <summary>
+    /// 异步释放子进程资源 — 取消读取、终止进程、等待任务完成、释放锁和 transcript 流
+    /// </summary>
+    /// <returns>表示异步释放操作的 ValueTask</returns>
     public override async ValueTask DisposeAsync()
     {
         if (_asyncDisposed) return;
@@ -511,6 +529,9 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
         Dispose();
     }
 
+    /// <summary>
+    /// 同步释放资源 — best-effort 清理：取消读取、终止进程、释放锁和 transcript 流
+    /// </summary>
     protected override void OnResourceDispose()
     {
         if (_asyncDisposed) return; // 异步释放已完成，跳过同步清理
@@ -550,6 +571,12 @@ public sealed class BridgeSubprocessSpawner
     /// <summary>关闭等待超时（毫秒）</summary>
     public int ShutdownGraceMs { get; init; } = 30000;
 
+    /// <summary>
+    /// 构造 BridgeSubprocessSpawner
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="processService">进程服务</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public BridgeSubprocessSpawner(IFileSystem fs, IProcessService processService, ILogger? logger = null)
     {
         _fs = fs;
@@ -562,6 +589,9 @@ public sealed class BridgeSubprocessSpawner
     /// BridgeSubprocessHandle 内部创建 ProcessStartInfo + 消费 StandardError/StandardOutput
     /// 包含 transcript 文件写入、safeFilenameId 净化、debugFile 解析
     /// </summary>
+    /// <param name="options">子进程选项</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>创建好的子进程句柄</returns>
     public async Task<BridgeSubprocessHandle> SpawnAsync(BridgeSubprocessOptions options, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -697,6 +727,8 @@ public sealed class BridgeSubprocessSpawner
     }
 
     /// <summary>对齐 TS 端: safeFilenameId — 去除非法文件名字符</summary>
+    /// <param name="id">原始 ID</param>
+    /// <returns>净化后的安全文件名 ID</returns>
     public static string SafeFilenameId(string id)
     {
         return System.Text.RegularExpressions.Regex.Replace(id, @"[^a-zA-Z0-9_-]", "_");
@@ -817,6 +849,9 @@ public sealed class BridgeSubprocessSpawner
     /// <summary>
     /// 优雅关闭所有子进程 — 对齐 TS 端 runBridgeLoop 的关闭流程
     /// </summary>
+    /// <param name="handles">子进程句柄列表</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task ShutdownAllAsync(
         IReadOnlyList<BridgeSubprocessHandle> handles,
         CancellationToken ct = default)

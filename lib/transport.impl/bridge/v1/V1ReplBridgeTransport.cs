@@ -53,10 +53,17 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
     private Action<int, int>? _onBatchDroppedCallback;
     private int _disposed;
 
+    /// <summary>因 maxConsecutiveFailures 丢弃的批次计数</summary>
     public int DroppedBatchCount => _uploader.DroppedBatchCount;
 
     private readonly IClockService _clock;
 
+    /// <summary>
+    /// 构造 v1 传输适配器
+    /// </summary>
+    /// <param name="options">v1 传输选项</param>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="clock">时钟服务（可选，默认系统时钟）</param>
     public V1ReplBridgeTransport(V1TransportOptions options, ILogger? logger = null, IClockService? clock = null)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
@@ -90,6 +97,11 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
 
     #region IReplBridgeTransport
 
+    /// <summary>
+    /// 写入单条消息 — stream_event 类型走延迟缓冲，其他类型直接入队
+    /// </summary>
+    /// <param name="message">消息内容</param>
+    /// <param name="ct">取消令牌</param>
     public async Task WriteAsync(string message, CancellationToken ct = default)
     {
         if (_isClosed != 0) return;
@@ -119,6 +131,11 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
         await _uploader.FlushAsync(ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 批量写入消息 — 先刷出缓冲的 stream_event，再入队当前批次
+    /// </summary>
+    /// <param name="messages">消息列表</param>
+    /// <param name="ct">取消令牌</param>
     public async Task WriteBatchAsync(IReadOnlyList<string> messages, CancellationToken ct = default)
     {
         if (_isClosed != 0) return;
@@ -200,8 +217,10 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
     public void Close()
         => CloseAsync(_disposeCts.Token).GetAwaiter().GetResult();
 
+    /// <summary>获取连接状态布尔值</summary>
     public bool IsConnectedStatus() => _isConnected != 0;
 
+    /// <summary>获取状态标签字符串（closed/connected/reconnecting/disconnected）</summary>
     public string GetStateLabel()
     {
         if (_isClosed != 0) return "closed";
@@ -210,11 +229,16 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
         return "disconnected";
     }
 
+    /// <summary>设置数据接收回调</summary>
     public void SetOnData(Action<string> callback) => _onDataCallback = callback;
+    /// <summary>设置关闭回调</summary>
     public void SetOnClose(Action<int?> callback) => _onCloseCallback = callback;
+    /// <summary>设置连接成功回调</summary>
     public void SetOnConnect(Action callback) => _onConnectCallback = callback;
+    /// <summary>设置批次丢弃回调</summary>
     public void SetOnBatchDropped(Action<int, int> callback) => _onBatchDroppedCallback = callback;
 
+    /// <summary>启动连接（火并忘，异步建立 WS 连接）</summary>
     public void Connect()
     {
         _ = ConnectAsync();
@@ -243,6 +267,9 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
         await _uploader.FlushAsync(ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 异步释放资源，关闭传输
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;

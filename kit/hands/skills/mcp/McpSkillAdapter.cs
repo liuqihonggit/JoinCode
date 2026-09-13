@@ -1,17 +1,31 @@
 
 namespace Core.Skills.Mcp;
 
+/// <summary>
+/// MCP 技能适配器 — 将 MCP 工具适配为技能定义，并转发工具调用到 MCP 客户端
+/// </summary>
 public sealed partial class McpSkillAdapter
 {
     private readonly IMcpClient _client;
     private readonly ILogger<McpSkillAdapter>? _logger;
 
+    /// <summary>
+    /// 创建 McpSkillAdapter
+    /// </summary>
+    /// <param name="client">MCP 客户端实例</param>
+    /// <param name="logger">日志记录器</param>
     public McpSkillAdapter(IMcpClient client, ILogger<McpSkillAdapter>? logger = null)
     {
         _client = client;
         _logger = logger;
     }
 
+    /// <summary>
+    /// 异步适配 MCP 工具为技能定义 — 将工具输入模式转换为技能参数，构建调用步骤
+    /// </summary>
+    /// <param name="toolInfo">MCP 工具信息</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>适配后的技能定义；适配失败返回 null</returns>
     public async Task<SkillDefinition?> AdaptToolAsync(JoinCode.Abstractions.Tools.ToolInfo toolInfo, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(toolInfo);
@@ -59,6 +73,14 @@ public sealed partial class McpSkillAdapter
         }
     }
 
+    /// <summary>
+    /// 异步执行 MCP 工具 — 转发调用到 MCP 客户端并包装结果
+    /// </summary>
+    /// <param name="toolName">工具名称</param>
+    /// <param name="arguments">调用参数</param>
+    /// <param name="ctx">执行上下文</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>技能执行结果</returns>
     public async Task<SkillResult> ExecuteToolAsync(
         string toolName,
         Dictionary<string, JsonElement>? arguments,

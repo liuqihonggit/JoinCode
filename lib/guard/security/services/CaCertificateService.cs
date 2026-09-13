@@ -1,19 +1,49 @@
 namespace Core.Security.Services;
 
+/// <summary>
+/// CA 证书服务接口 — 提供 CA 证书配置、加载与验证能力,支持系统证书存储、CA Bundle 与额外证书文件
+/// </summary>
 public interface ICaCertificateService
 {
+    /// <summary>
+    /// 异步配置 CA 证书 — 按选项加载系统证书、CA Bundle 与额外证书文件
+    /// </summary>
+    /// <param name="options">CA 证书配置选项</param>
+    /// <param name="ct">取消令牌</param>
     Task ConfigureCaCertificatesAsync(CaCertificateOptions options, CancellationToken ct = default);
+
+    /// <summary>
+    /// 从指定路径加载证书,可选密码用于 PKCS12 格式
+    /// </summary>
+    /// <param name="path">证书文件路径</param>
+    /// <param name="password">证书密码(可选,仅 PKCS12 格式需要)</param>
+    /// <returns>加载成功的证书实例;失败时返回 null</returns>
     X509Certificate2? LoadCertificate(string path, string? password = null);
+
+    /// <summary>
+    /// 验证证书是否可信 — 基于已加载的 CA 证书构建证书链并校验
+    /// </summary>
+    /// <param name="certificate">待验证的证书</param>
+    /// <returns>验证通过返回 true;否则返回 false</returns>
     bool ValidateCertificate(X509Certificate2 certificate);
 }
 
+/// <summary>
+/// CA 证书配置选项 — 描述 CA Bundle 路径、额外证书路径与是否使用系统证书存储
+/// </summary>
 public sealed partial class CaCertificateOptions
 {
+    /// <summary>CA Bundle 文件路径(可选)</summary>
     public string? CaBundlePath { get; init; }
+    /// <summary>额外 CA 证书文件路径列表</summary>
     public List<string> AdditionalCaPaths { get; init; } = [];
+    /// <summary>是否使用系统证书存储,默认为 true</summary>
     public bool UseSystemStore { get; init; } = true;
 }
 
+/// <summary>
+/// CA 证书服务实现 — 基于系统存储、CA Bundle 与额外证书文件加载并验证证书链
+/// </summary>
 [Register(typeof(ICaCertificateService), ServiceLifetime.Singleton)]
 public sealed partial class CaCertificateService : ServiceEntity, ICaCertificateService
 {
@@ -22,6 +52,12 @@ public sealed partial class CaCertificateService : ServiceEntity, ICaCertificate
     private readonly ITelemetryService? _telemetryService;
     private readonly List<X509Certificate2> _loadedCertificates;
 
+    /// <summary>
+    /// 构造 CA 证书服务
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">日志记录器(可选)</param>
+    /// <param name="telemetryService">遥测服务(可选)</param>
     public CaCertificateService(IFileSystem fs, ILogger<CaCertificateService>? logger = null, ITelemetryService? telemetryService = null)
     {
         _fs = fs;
@@ -30,6 +66,7 @@ public sealed partial class CaCertificateService : ServiceEntity, ICaCertificate
         _loadedCertificates = new List<X509Certificate2>();
     }
 
+    /// <inheritdoc/>
     public async Task ConfigureCaCertificatesAsync(CaCertificateOptions options, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -67,6 +104,7 @@ public sealed partial class CaCertificateService : ServiceEntity, ICaCertificate
         await Task.CompletedTask.ConfigureAwait(false);
     }
 
+    /// <inheritdoc/>
     public X509Certificate2? LoadCertificate(string path, string? password = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -94,6 +132,7 @@ public sealed partial class CaCertificateService : ServiceEntity, ICaCertificate
         }
     }
 
+    /// <inheritdoc/>
     public bool ValidateCertificate(X509Certificate2 certificate)
     {
         ArgumentNullException.ThrowIfNull(certificate);

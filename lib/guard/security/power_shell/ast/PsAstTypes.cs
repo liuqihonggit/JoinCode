@@ -42,7 +42,10 @@ public sealed class PsParsedCommand
 /// </summary>
 public sealed class PsParseError
 {
+    /// <summary>错误消息</summary>
     public string Message { get; init; } = string.Empty;
+
+    /// <summary>错误标识符</summary>
     public string ErrorId { get; init; } = string.Empty;
 }
 
@@ -75,9 +78,16 @@ public sealed class PsStatement
 /// </summary>
 public sealed class PsSecurityPatterns
 {
+    /// <summary>是否包含成员调用（.NET 方法调用）</summary>
     public bool HasMemberInvocations { get; init; }
+
+    /// <summary>是否包含子表达式 $(...) / @(...) / (...)</summary>
     public bool HasSubExpressions { get; init; }
+
+    /// <summary>是否包含可展开字符串 "..."</summary>
     public bool HasExpandableStrings { get; init; }
+
+    /// <summary>是否包含脚本块 { ... }</summary>
     public bool HasScriptBlocks { get; init; }
 }
 
@@ -151,12 +161,25 @@ public sealed record PsRedirection(string Operator, string Target, bool IsMergin
 /// </summary>
 public sealed class PsSecurityFlags
 {
+    /// <summary>是否包含子表达式</summary>
     public bool HasSubExpressions { get; init; }
+
+    /// <summary>是否包含脚本块</summary>
     public bool HasScriptBlocks { get; init; }
+
+    /// <summary>是否包含 splatting 变量 @var</summary>
     public bool HasSplatting { get; init; }
+
+    /// <summary>是否包含可展开字符串</summary>
     public bool HasExpandableStrings { get; init; }
+
+    /// <summary>是否包含成员调用</summary>
     public bool HasMemberInvocations { get; init; }
+
+    /// <summary>是否包含赋值语句</summary>
     public bool HasAssignments { get; init; }
+
+    /// <summary>是否包含 stop-parsing token (--%)</summary>
     public bool HasStopParsing { get; init; }
 }
 

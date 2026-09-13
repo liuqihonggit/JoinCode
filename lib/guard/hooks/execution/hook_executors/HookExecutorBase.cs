@@ -6,8 +6,13 @@ namespace Core.Hooks.Execution;
 /// </summary>
 public abstract class HookExecutorBase<THook> : OneShotCommandGroup, IHookExecutor<THook> where THook : HookCommand
 {
+    /// <summary>日志记录器，可为空</summary>
     protected readonly ILogger? Logger;
 
+    /// <summary>
+    /// 构造函数 — 注入可选的日志记录器
+    /// </summary>
+    /// <param name="logger">可选的日志记录器</param>
     protected HookExecutorBase(ILogger? logger = null)
     {
         Logger = logger;
@@ -288,6 +293,10 @@ public partial class HookExecutorFactory : IHookExecutorFactory
     private readonly Dictionary<string, IHookExecutor> _executors = new();
     private readonly ILogger<HookExecutorFactory>? _logger;
 
+    /// <summary>
+    /// 构造函数 — 注入可选的日志记录器
+    /// </summary>
+    /// <param name="logger">可选的日志记录器</param>
     public HookExecutorFactory(ILogger<HookExecutorFactory>? logger = null)
     {
         _logger = logger;

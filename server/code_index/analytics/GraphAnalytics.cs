@@ -10,24 +10,44 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics
 {
     private readonly InMemoryIndexStore _store;
 
+    /// <summary>
+    /// 构造图分析器
+    /// </summary>
+    /// <param name="store">内存索引存储</param>
     public GraphAnalytics(InMemoryIndexStore store)
     {
         ArgumentNullException.ThrowIfNull(store);
         _store = store;
     }
 
+    /// <summary>
+    /// 检测代码社区 — 基于标签传播算法聚类相关符号
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>社区信息列表</returns>
     public Task<IReadOnlyList<CommunityInfo>> DetectCommunitiesAsync(CancellationToken ct)
     {
         using var scope = _store.EnterReadLock();
         return Task.FromResult<IReadOnlyList<CommunityInfo>>(DetectCommunities(_store));
     }
 
+    /// <summary>
+    /// 检测代码社区 — 内部静态方法，基于标签传播算法
+    /// </summary>
+    /// <param name="store">内存索引存储</param>
+    /// <returns>社区信息列表</returns>
     internal static List<CommunityInfo> DetectCommunities(InMemoryIndexStore store)
     {
         var labels = LabelPropagation(store.CallsByCaller, store.CallsByCallee);
         return BuildCommunities(labels, store.CallsByCaller, store.CallsByCallee);
     }
 
+    /// <summary>
+    /// 获取枢纽节点 — 按总度数（入度+出度）降序排列取前 N 个
+    /// </summary>
+    /// <param name="topN">返回的节点数量</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>枢纽节点信息列表</returns>
     public Task<IReadOnlyList<HubNodeInfo>> GetHubNodesAsync(int topN, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(topN < 1 ? null : nameof(topN));
@@ -65,6 +85,11 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics
         return Task.FromResult<IReadOnlyList<HubNodeInfo>>(hubs);
     }
 
+    /// <summary>
+    /// 检测死代码 — 查找无调用方的非公开方法/局部函数
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>死代码条目列表</returns>
     public Task<IReadOnlyList<DeadCodeEntry>> DetectDeadCodeAsync(CancellationToken ct)
     {
         using var scope = _store.EnterReadLock();
@@ -98,6 +123,13 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics
         return Task.FromResult<IReadOnlyList<DeadCodeEntry>>(dead);
     }
 
+    /// <summary>
+    /// 提取子图 — 以指定符号为中心，按跳数扩展收集相关节点与边
+    /// </summary>
+    /// <param name="centerSymbol">中心符号全限定名</param>
+    /// <param name="hops">扩展跳数</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>子图结果</returns>
     public Task<SubgraphResult> ExtractSubgraphAsync(string centerSymbol, int hops, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(centerSymbol);
@@ -149,6 +181,12 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics
         });
     }
 
+    /// <summary>
+    /// 分析变更影响 — 沿调用图反向传播，找出受影响的所有符号、文件和项目
+    /// </summary>
+    /// <param name="changedFiles">变更文件列表</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>变更影响结果</returns>
     public Task<ChangeImpactResult> AnalyzeChangeImpactAsync(IReadOnlyList<string> changedFiles, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(changedFiles);
@@ -203,6 +241,11 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics
         });
     }
 
+    /// <summary>
+    /// 检测环 — 分别检测调用环和依赖环
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>环检测结果</returns>
     public Task<CycleDetectionResult> DetectCyclesAsync(CancellationToken ct)
     {
         using var scope = _store.EnterReadLock();
@@ -222,6 +265,11 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics
         });
     }
 
+    /// <summary>
+    /// 按层级拓扑排序 — 返回每层可并行执行的符号列表
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>按层分组的符号列表</returns>
     public Task<IReadOnlyList<IReadOnlyList<string>>> TopologicalSortByLevelsAsync(CancellationToken ct)
     {
         using var scope = _store.EnterReadLock();
@@ -293,6 +341,12 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics
         return dag;
     }
 
+    /// <summary>
+    /// 标签传播算法 — 基于调用关系迭代传播社区标签
+    /// </summary>
+    /// <param name="byCaller">按调用方分组的调用边</param>
+    /// <param name="byCallee">按被调用方分组的调用边</param>
+    /// <returns>符号到社区标签的映射</returns>
     internal static Dictionary<string, int> LabelPropagation(
         Dictionary<string, List<CallEdge>> byCaller,
         Dictionary<string, List<CallEdge>> byCallee)
@@ -333,6 +387,13 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics
         return labels;
     }
 
+    /// <summary>
+    /// 构建社区列表 — 按标签分组并统计内部/外部边数
+    /// </summary>
+    /// <param name="labels">符号到社区标签的映射</param>
+    /// <param name="byCaller">按调用方分组的调用边</param>
+    /// <param name="byCallee">按被调用方分组的调用边</param>
+    /// <returns>社区信息列表</returns>
     internal static List<CommunityInfo> BuildCommunities(
         Dictionary<string, int> labels,
         Dictionary<string, List<CallEdge>> byCaller,
@@ -382,6 +443,13 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics
         return null;
     }
 
+    /// <summary>
+    /// 查询图 — 按关键词匹配符号名/全限定名/文件路径/命名空间并评分排序
+    /// </summary>
+    /// <param name="query">查询字符串 — 空格分词</param>
+    /// <param name="maxResults">最大返回结果数</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>图查询结果</returns>
     public Task<GraphQueryResult> QueryAsync(string query, int maxResults, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
@@ -469,6 +537,13 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics
         });
     }
 
+    /// <summary>
+    /// 查找符号间路径 — 双向 BFS 搜索调用图
+    /// </summary>
+    /// <param name="fromSymbol">起始符号全限定名</param>
+    /// <param name="toSymbol">目标符号全限定名</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>路径查找结果</returns>
     public Task<GraphPathResult> FindPathAsync(string fromSymbol, string toSymbol, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(fromSymbol);
@@ -559,6 +634,12 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics
         });
     }
 
+    /// <summary>
+    /// 解释符号 — 汇总调用方、被调用方、同文件、同社区等上下文信息
+    /// </summary>
+    /// <param name="symbolName">符号名或全限定名</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>符号解释结果</returns>
     public Task<GraphExplainResult> ExplainAsync(string symbolName, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(symbolName);

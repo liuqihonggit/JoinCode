@@ -7,6 +7,11 @@ namespace Core.Context.Compact;
 public sealed partial class ReactiveCompactMiddleware : ServiceEntity, ICompactMiddleware
 {
 
+    /// <summary>
+    /// 初始化 <see cref="ReactiveCompactMiddleware"/> 实例
+    /// </summary>
+    /// <param name="reactiveCompactService">响应式压缩服务</param>
+    /// <param name="logger">可选日志记录器</param>
     public ReactiveCompactMiddleware(IReactiveCompactService reactiveCompactService, ILogger<ReactiveCompactMiddleware>? logger = null)
     {
         _reactiveCompactService = reactiveCompactService;
@@ -15,6 +20,7 @@ public sealed partial class ReactiveCompactMiddleware : ServiceEntity, ICompactM
     private readonly IReactiveCompactService _reactiveCompactService;
     private readonly ILogger<ReactiveCompactMiddleware>? _logger;
 
+    /// <summary>中间件异常时的行为：继续传递给下一个中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
     /// <inheritdoc/>

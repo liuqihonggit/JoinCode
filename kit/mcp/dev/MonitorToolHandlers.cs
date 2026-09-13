@@ -2,18 +2,33 @@
 
 namespace McpToolDispatch;
 
+/// <summary>
+/// MCP 监控工具处理器 — 提供 MCP 服务器状态、工具列表、客户端列表、健康检查等监控功能
+/// </summary>
 [McpToolDispatch(ToolCategory.Monitor, Optional = true)]
 public partial class MonitorToolHandlers
 {
     private readonly IMcpToolRegistry _toolRegistry;
     private readonly ILogger<MonitorToolHandlers>? _logger;
 
+    /// <summary>
+    /// 初始化 <see cref="MonitorToolHandlers"/> 实例
+    /// </summary>
+    /// <param name="toolRegistry">MCP 工具注册表</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public MonitorToolHandlers(IMcpToolRegistry toolRegistry, ILogger<MonitorToolHandlers>? logger = null)
     {
         _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
         _logger = logger;
     }
 
+    /// <summary>
+    /// 监控 MCP 服务器状态和工具调用
+    /// </summary>
+    /// <param name="monitor_type">监控类型：status/tools/clients/health（默认 status）</param>
+    /// <param name="client_id">客户端 ID（可选，用于指定客户端）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(SystemToolNameConstants.Monitor, "Monitor MCP server status and tool calls", "mcp")]
     public async Task<ToolResult> MonitorMcpAsync(
         [McpToolParameter("Monitor type: status/tools/clients/health (default status)", Required = false)] string monitor_type = "status",

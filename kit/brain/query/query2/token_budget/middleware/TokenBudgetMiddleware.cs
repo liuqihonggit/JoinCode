@@ -6,7 +6,10 @@ namespace Core.Query;
 [Register(typeof(IQueryMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class TokenBudgetMiddleware : ServiceEntity, IQueryMiddleware
 {
-
+    /// <summary>
+    /// 构造函数 — 注入 Token 预算管理器（可选）
+    /// </summary>
+    /// <param name="tokenBudgetManager">Token 预算管理器</param>
     public TokenBudgetMiddleware(ITokenBudgetManager? tokenBudgetManager = null)
     {
         _tokenBudgetManager = tokenBudgetManager;
@@ -14,11 +17,18 @@ public sealed partial class TokenBudgetMiddleware : ServiceEntity, IQueryMiddlew
     private readonly ITokenBudgetManager? _tokenBudgetManager;
 
 
+    /// <summary>
+    /// 错误处理策略 — 继续执行
+    /// </summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
     /// <summary>
     /// 注册 LLM 调用后钩子消耗 Token 预算
     /// </summary>
+    /// <param name="context">中间件上下文</param>
+    /// <param name="next">下一委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public Task InvokeAsync(QueryMiddlewareContext context, MiddlewareDelegate<QueryMiddlewareContext> next, CancellationToken ct)
     {
         if (_tokenBudgetManager is not null)

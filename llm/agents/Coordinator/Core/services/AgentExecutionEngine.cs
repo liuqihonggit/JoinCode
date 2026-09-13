@@ -10,6 +10,11 @@ public sealed partial class AgentExecutionEngine : ServiceEntity, IAgentExecutio
     private readonly IAgentLifecycleManager _lifecycleManager;
     private readonly ILogger? _logger;
 
+    /// <summary>
+    /// 构造 Agent 执行引擎实例
+    /// </summary>
+    /// <param name="lifecycleManager">Agent 生命周期管理器，用于执行单个 Agent</param>
+    /// <param name="logger">可选日志记录器</param>
     public AgentExecutionEngine(IAgentLifecycleManager lifecycleManager, ILogger? logger = null)
     {
         _lifecycleManager = lifecycleManager ?? throw new ArgumentNullException(nameof(lifecycleManager));

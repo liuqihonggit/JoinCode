@@ -1,5 +1,8 @@
 namespace JoinCode.CodeIndex;
 
+/// <summary>
+/// 代码索引器 — 统一管理符号索引、调用图、依赖图、项目索引和增量更新
+/// </summary>
 [Register(typeof(ICodeIndexer), ServiceLifetime.Singleton)]
 public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposable
 {
@@ -23,6 +26,12 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     private string? _autoDiscoveredWorkspaceRoot;
     private static readonly string AutoLoadSubDir = Path.Combine(AppDataConstants.AppDataFolder, "code-index");
 
+    /// <summary>
+    /// 构造代码索引器
+    /// </summary>
+    /// <param name="store">内存索引存储</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">可选日志记录器</param>
     public CodeIndexer(InMemoryIndexStore store, IFileSystem fs, ILogger<CodeIndexer>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(store);
@@ -58,14 +67,34 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         _updater = new IncrementalUpdater(_symbolIndex, _store, _fs, _pluginFactory);
     }
 
+    /// <summary>符号搜索器 — 支持模糊匹配和引用查找</summary>
     public ISymbolSearcher Searcher => _searcher;
+
+    /// <summary>调用图 — 查询函数调用关系</summary>
     public ICallGraph CallGraph => _callGraph;
+
+    /// <summary>依赖图 — 查询符号间依赖关系</summary>
     public IDependencyGraph DependencyGraph => _dependencyGraph;
+
+    /// <summary>项目依赖图 — 查询项目间依赖关系</summary>
     public IProjectDependencyGraph ProjectDependencyGraph => _projectDependencyGraph;
+
+    /// <summary>图分析器 — 提供图算法和统计</summary>
     public IGraphAnalytics Analytics => _analytics;
+
+    /// <summary>图持久化 — 索引的加载和保存</summary>
     public IGraphPersistence Persistence => _persistence;
+
+    /// <summary>图可视化 — 生成图的可视化输出</summary>
     public IGraphVisualization Visualization => _visualization;
 
+    /// <summary>
+    /// 构建工作区索引 — 索引项目依赖 → 扫描 .cs 文件 → 并行读+哈希 → 并行提取符号 → 批量写入 → 删除已移除文件
+    /// </summary>
+    /// <param name="options">索引选项，含工作区根和排除模式</param>
+    /// <param name="ct">取消令牌</param>
+    /// <param name="progress">可选进度报告器</param>
+    /// <returns>构建结果，含更新/跳过/删除计数</returns>
     public async Task<BuildIndexResult> BuildIndexAsync(CodeIndexOptions options, CancellationToken ct, IProgress<IndexProgress>? progress = null)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -229,6 +258,11 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         return [.. results];
     }
 
+    /// <summary>
+    /// 增量更新单个文件 — 通过 IncrementalUpdater 处理变更并失效相关图缓存
+    /// </summary>
+    /// <param name="filePath">文件路径</param>
+    /// <param name="ct">取消令牌</param>
     public async Task UpdateFileAsync(string filePath, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(filePath);
@@ -238,6 +272,11 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         await InvalidateGraphCachesForFileAsync(filePath, ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 从索引中移除文件 — 删除符号记录并失效图缓存
+    /// </summary>
+    /// <param name="filePath">文件路径</param>
+    /// <param name="ct">取消令牌</param>
     public async Task RemoveFileAsync(string filePath, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(filePath);
@@ -260,6 +299,11 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         await _dependencyGraph.InvalidateCacheForFileAsync(filePath, ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 获取索引统计信息
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>索引统计快照</returns>
     public async Task<IndexStats> GetStatsAsync(CancellationToken ct)
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
@@ -492,6 +536,10 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
             .ToList();
     }
 
+    /// <summary>
+    /// 确保索引已加载 — 自动发现 .git 工作区，加载持久化索引或按需重建
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
     public async Task EnsureIndexLoadedAsync(CancellationToken ct)
     {
         if (Interlocked.CompareExchange(ref _autoLoadState, 1, 0) != 0) return;
@@ -619,6 +667,9 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         return null;
     }
 
+    /// <summary>
+    /// 释放资源 — 释放增量更新器和符号索引
+    /// </summary>
     protected override void OnDispose()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _disposed))

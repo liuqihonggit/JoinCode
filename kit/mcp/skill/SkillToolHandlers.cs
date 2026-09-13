@@ -15,6 +15,12 @@ public class SkillToolHandlers
     private readonly ArgumentSubstitutor _argumentSubstitutor = new();
     private readonly ILogger<SkillToolHandlers>? _logger;
 
+    /// <summary>
+    /// 初始化 <see cref="SkillToolHandlers"/> 实例
+    /// </summary>
+    /// <param name="skillService">技能服务</param>
+    /// <param name="agentService">智能体服务（可选，用于 fork 模式执行）</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public SkillToolHandlers(ISkillService skillService, IAgentService? agentService = null, ILogger<SkillToolHandlers>? logger = null)
     {
         _skillService = skillService ?? throw new ArgumentNullException(nameof(skillService));

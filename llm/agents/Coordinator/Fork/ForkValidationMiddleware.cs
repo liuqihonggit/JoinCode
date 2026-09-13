@@ -7,6 +7,10 @@ namespace Core.Agents.Coordinator;
 public sealed partial class ForkValidationMiddleware : ServiceEntity, IForkMiddleware
 {
 
+    /// <summary>
+    /// 初始化 Fork 验证中间件
+    /// </summary>
+    /// <param name="logger">日志记录器</param>
     public ForkValidationMiddleware(ILogger<ForkValidationMiddleware>? logger = null)
     {
         _logger = logger;
@@ -17,6 +21,13 @@ public sealed partial class ForkValidationMiddleware : ServiceEntity, IForkMiddl
 
     /// <summary>验证失败应中断管道</summary>
 
+    /// <summary>
+    /// 异步执行验证逻辑：递归防护与深度限制检查，验证通过则调用下一中间件
+    /// </summary>
+    /// <param name="context">Fork 上下文</param>
+    /// <param name="next">下一中间件委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public Task InvokeAsync(ForkContext context, MiddlewareDelegate<ForkContext> next, CancellationToken ct)
     {
         // 递归防护: 检查是否已在 fork 子代理上下文中

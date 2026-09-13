@@ -11,12 +11,18 @@ public sealed partial class HandoffClassifier : ServiceEntity, IHandoffClassifie
     private readonly IAutoModeClassifier _autoModeClassifier;
     private readonly ILogger<HandoffClassifier>? _logger;
 
+    /// <summary>
+    /// 构造函数 — 注入自动模式分类器与日志记录器
+    /// </summary>
+    /// <param name="autoModeClassifier">自动模式分类器实例</param>
+    /// <param name="logger">可选的日志记录器</param>
     public HandoffClassifier(IAutoModeClassifier autoModeClassifier, ILogger<HandoffClassifier>? logger = null)
     {
         _autoModeClassifier = autoModeClassifier;
         _logger = logger;
     }
 
+    /// <inheritdoc />
     public async Task<HandoffClassificationResult?> ClassifyAsync(HandoffClassificationRequest request, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(request);

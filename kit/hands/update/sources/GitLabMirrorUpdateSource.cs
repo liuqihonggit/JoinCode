@@ -7,15 +7,33 @@ namespace IO.Services.Update;
 /// </summary>
 public sealed class GitLabMirrorUpdateSource : GitHostMirrorUpdateSourceBase
 {
+    /// <summary>
+    /// 构造 GitLab 镜像更新源
+    /// </summary>
+    /// <param name="httpClient">HTTP 客户端</param>
+    /// <param name="mirrorBaseUrl">镜像基础 URL</param>
+    /// <param name="logger">日志器（可选）</param>
     public GitLabMirrorUpdateSource(HttpClient httpClient, string mirrorBaseUrl, ILogger<GitLabMirrorUpdateSource>? logger = null)
         : base(httpClient, mirrorBaseUrl, logger)
     {
     }
 
+    /// <summary>
+    /// 更新源类型 — GitLabMirror
+    /// </summary>
     public override UpdateSourceType Type => UpdateSourceType.GitLabMirror;
 
+    /// <summary>
+    /// 获取最新 Release 的 API URL — GitLab /releases 端点
+    /// </summary>
+    /// <returns>最新 Release 的 API URL</returns>
     protected override string GetLatestReleaseUrl() => $"{MirrorBaseUrl}/releases";
 
+    /// <summary>
+    /// 解析 GitLab Release JSON 为更新清单
+    /// </summary>
+    /// <param name="json">Release JSON 文本</param>
+    /// <returns>更新清单</returns>
     protected override UpdateManifest ParseRelease(string json)
     {
         using var doc = JsonDocument.Parse(json);

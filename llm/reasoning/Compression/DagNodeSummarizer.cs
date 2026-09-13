@@ -8,6 +8,10 @@ public sealed class DagNodeSummarizer
 {
     private readonly IContextCompressor? _compressor;
 
+    /// <summary>
+    /// 构造 DAG 节点摘要器
+    /// </summary>
+    /// <param name="compressor">上下文压缩器实例，为 null 时使用截断 fallback 策略</param>
     public DagNodeSummarizer(IContextCompressor? compressor = null)
     {
         _compressor = compressor;

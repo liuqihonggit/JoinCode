@@ -10,6 +10,12 @@ internal sealed class ProjectIndex
     private readonly IFileSystem _fs;
     private readonly ILogger? _logger;
 
+    /// <summary>
+    /// 构造项目索引器
+    /// </summary>
+    /// <param name="store">内存索引存储</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public ProjectIndex(InMemoryIndexStore store, IFileSystem fs, ILogger? logger = null)
     {
         ArgumentNullException.ThrowIfNull(store);
@@ -19,6 +25,12 @@ internal sealed class ProjectIndex
         _logger = logger;
     }
 
+    /// <summary>
+    /// 索引单个 csproj 项目
+    /// </summary>
+    /// <param name="csprojPath">csproj 文件路径</param>
+    /// <param name="workspaceRoot">工作区根路径</param>
+    /// <param name="ct">取消令牌</param>
     internal async Task IndexProjectAsync(string csprojPath, string workspaceRoot, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(csprojPath);
@@ -38,6 +50,11 @@ internal sealed class ProjectIndex
         InsertNuGetReferencesInternal(parseResult);
     }
 
+    /// <summary>
+    /// 索引解决方案文件（.sln 或 .slnx）
+    /// </summary>
+    /// <param name="solutionPath">解决方案文件路径</param>
+    /// <param name="ct">取消令牌</param>
     internal async Task IndexSolutionAsync(string solutionPath, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(solutionPath);
@@ -68,6 +85,11 @@ internal sealed class ProjectIndex
         }
     }
 
+    /// <summary>
+    /// 移除指定项目的索引
+    /// </summary>
+    /// <param name="csprojPath">csproj 文件路径</param>
+    /// <param name="ct">取消令牌</param>
     internal Task RemoveProjectAsync(string csprojPath, CancellationToken ct)
     {
         using var scope = _store.EnterWriteLock();
@@ -75,6 +97,10 @@ internal sealed class ProjectIndex
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// 清空所有索引数据
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
     internal Task ClearAsync(CancellationToken ct)
     {
         using var scope = _store.EnterWriteLock();
@@ -84,6 +110,11 @@ internal sealed class ProjectIndex
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// 获取已索引项目数量
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>项目数量</returns>
     internal Task<int> GetProjectCountAsync(CancellationToken ct)
     {
         using var scope = _store.EnterReadLock();

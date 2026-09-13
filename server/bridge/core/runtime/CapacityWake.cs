@@ -7,10 +7,19 @@ namespace Core.Bridge;
 [Register(typeof(CapacityWakeOptions), ServiceLifetime.Singleton)]
 public sealed partial class CapacityWakeOptions 
 {
+    /// <summary>默认最小实例数</summary>
     public const int DefaultMinInstances = 1;
+
+    /// <summary>默认最大实例数</summary>
     public const int DefaultMaxInstances = 5;
+
+    /// <summary>默认扩容阈值百分比</summary>
     public const int DefaultScaleUpThresholdPercent = 80;
+
+    /// <summary>默认缩容阈值百分比</summary>
     public const int DefaultScaleDownThresholdPercent = 20;
+
+    /// <summary>默认检查间隔（毫秒）</summary>
     public const int DefaultCheckIntervalMs = 5000;
 
     /// <summary>最小实例数</summary>
@@ -33,8 +42,13 @@ public sealed partial class CapacityWakeOptions
     [JsonPropertyName("checkIntervalMs")]
     public int CheckIntervalMs { get; init; } = DefaultCheckIntervalMs;
 
+    /// <summary>默认构造函数</summary>
     public CapacityWakeOptions() { }
 
+    /// <summary>
+    /// 从 Bridge 配置构造容量唤醒选项
+    /// </summary>
+    /// <param name="config">Bridge 配置</param>
     public CapacityWakeOptions(BridgeConfig config)
     {
         MinInstances = config.CapacityMinInstances;
@@ -79,10 +93,21 @@ public sealed partial class LoadMetrics
 /// </summary>
 public sealed partial class CapacityChangedEventArgs : EventArgs
 {
+    /// <summary>变更前的实例数</summary>
     public int OldInstanceCount { get; }
+
+    /// <summary>变更后的实例数</summary>
     public int NewInstanceCount { get; }
+
+    /// <summary>触发变更的负载指标快照</summary>
     public LoadMetrics LoadMetrics { get; }
 
+    /// <summary>
+    /// 构造容量变更事件参数
+    /// </summary>
+    /// <param name="oldInstanceCount">变更前的实例数</param>
+    /// <param name="newInstanceCount">变更后的实例数</param>
+    /// <param name="loadMetrics">触发变更的负载指标</param>
     public CapacityChangedEventArgs(int oldInstanceCount, int newInstanceCount, LoadMetrics loadMetrics)
     {
         OldInstanceCount = oldInstanceCount;
@@ -114,6 +139,11 @@ public sealed partial class CapacityWakeService : IAsyncDisposable
     /// <summary>容量变更事件</summary>
     public event EventHandler<CapacityChangedEventArgs>? CapacityChanged;
 
+    /// <summary>
+    /// 构造容量唤醒服务
+    /// </summary>
+    /// <param name="options">容量唤醒选项</param>
+    /// <param name="logger">日志记录器</param>
     public CapacityWakeService(
         CapacityWakeOptions? options = null,
         ILogger<CapacityWakeService>? logger = null)
@@ -280,6 +310,10 @@ public sealed partial class CapacityWakeService : IAsyncDisposable
         _logger?.LogDebug("[CapacityWake] 监控循环已退出");
     }
 
+    /// <summary>
+    /// 异步释放资源 — 停止监控并释放锁与唤醒信号
+    /// </summary>
+    /// <returns>表示异步释放操作的任务</returns>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) == 1)

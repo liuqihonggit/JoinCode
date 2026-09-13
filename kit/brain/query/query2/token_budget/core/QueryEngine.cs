@@ -3,6 +3,10 @@ namespace Core.Query;
 /// <summary>
 /// QueryEngine.Create 方法的参数封装
 /// </summary>
+/// <param name="Kernel">LLM 客户端</param>
+/// <param name="ToolRegistry">工具注册表</param>
+/// <param name="Config">查询引擎配置（可选）</param>
+/// <param name="Logger">日志记录器（可选）</param>
 public sealed record QueryEngineOptions(
     IChatClient Kernel,
     IToolRegistry ToolRegistry,
@@ -33,6 +37,13 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
     /// （IdleReminderMiddleware → IToolIdleReminderService → ITodoService →
     ///   ITaskRuntime → IWorkflowTaskExecutor → IAgentLifecycleManager → IQueryEngine → ♾️）
     /// </summary>
+    /// <param name="kernel">LLM 客户端</param>
+    /// <param name="toolRegistry">工具注册表</param>
+    /// <param name="configOptions">查询引擎配置选项</param>
+    /// <param name="serviceProvider">服务提供者（用于延迟解析中间件）</param>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="loggerFactory">日志工厂</param>
+    /// <param name="toolExecutionGateway">工具执行网关（可选）</param>
     public QueryEngine(
         IChatClient kernel,
         IToolRegistry toolRegistry,
@@ -81,6 +92,8 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
     /// <summary>
     /// 创建带默认配置的QueryEngine（无 DI 中间件，用于测试/非 DI 场景）
     /// </summary>
+    /// <param name="options">创建参数</param>
+    /// <returns>QueryEngine 实例</returns>
     public static QueryEngine Create(QueryEngineOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -96,6 +109,10 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
     /// <summary>
     /// 执行查询
     /// </summary>
+    /// <param name="userInput">用户输入</param>
+    /// <param name="chatHistory">对话历史</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>查询流块异步枚举</returns>
     public async IAsyncEnumerable<QueryStreamChunk> QueryAsync(
         string userInput,
         MessageList chatHistory,
@@ -110,6 +127,11 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
     /// <summary>
     /// 执行查询（带工具过滤选项）
     /// </summary>
+    /// <param name="userInput">用户输入</param>
+    /// <param name="chatHistory">对话历史</param>
+    /// <param name="options">查询选项</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>查询流块异步枚举</returns>
     public async IAsyncEnumerable<QueryStreamChunk> QueryAsync(
         string userInput,
         MessageList chatHistory,
@@ -603,6 +625,12 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
     }
 
     // IQueryEngine 接口实现
+    /// <summary>
+    /// 执行查询并返回完整字符串结果（阻塞枚举）
+    /// </summary>
+    /// <param name="query">用户查询</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>完整响应字符串</returns>
     public Task<string> ExecuteQueryAsync(string query, CancellationToken cancellationToken = default)
     {
         var chatHistory = new MessageList();
@@ -619,11 +647,19 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
         return Task.FromResult(result.ToString());
     }
 
+    /// <summary>
+    /// 获取聊天补全服务
+    /// </summary>
+    /// <returns>查询服务接口</returns>
     public IQueryService GetChatCompletionService()
     {
         return _kernel.GetChatCompletionService();
     }
 
+    /// <summary>
+    /// 获取 LLM 客户端
+    /// </summary>
+    /// <returns>聊天客户端</returns>
     public IChatClient GetKernel()
     {
         return _kernel;
@@ -656,8 +692,19 @@ public sealed partial class QueryEngine : ServiceEntity, IQueryEngine
         private readonly QueryEngine _engine;
 
 
+        /// <summary>
+        /// 构造函数 — 绑定所属引擎
+        /// </summary>
+        /// <param name="engine">查询引擎</param>
         public QueryCoreMiddleware(QueryEngine engine) => _engine = engine;
 
+        /// <summary>
+        /// 执行核心循环 — 不调用 next()，作为管道终端
+        /// </summary>
+        /// <param name="context">中间件上下文</param>
+        /// <param name="next">下一委托（不调用）</param>
+        /// <param name="ct">取消令牌</param>
+        /// <returns>表示异步操作的任务</returns>
         public Task InvokeAsync(QueryMiddlewareContext context, MiddlewareDelegate<QueryMiddlewareContext> next, CancellationToken ct)
         {
             // 核心中间件不调用 next() — 它是管道的终端
@@ -696,8 +743,23 @@ internal sealed class QueryIterationResult
 /// </summary>
 public interface ITokenCostTracker
 {
+    /// <summary>
+    /// 追踪一次 Token 使用
+    /// </summary>
+    /// <param name="inputTokens">输入 Token 数</param>
+    /// <param name="outputTokens">输出 Token 数</param>
     void TrackUsage(int inputTokens, int outputTokens);
+
+    /// <summary>
+    /// 获取总成本（美元）
+    /// </summary>
+    /// <returns>总成本</returns>
     decimal GetTotalCost();
+
+    /// <summary>
+    /// 获取累计使用情况
+    /// </summary>
+    /// <returns>输入 Token 数、输出 Token 数、成本</returns>
     (int InputTokens, int OutputTokens, decimal Cost) GetUsage();
 }
 
@@ -706,8 +768,23 @@ public interface ITokenCostTracker
 /// </summary>
 public partial class NullTokenCostTracker : ITokenCostTracker
 {
+    /// <summary>
+    /// 空实现 — 不追踪任何使用
+    /// </summary>
+    /// <param name="inputTokens">输入 Token 数</param>
+    /// <param name="outputTokens">输出 Token 数</param>
     public void TrackUsage(int inputTokens, int outputTokens) { }
+
+    /// <summary>
+    /// 返回零成本
+    /// </summary>
+    /// <returns>零</returns>
     public decimal GetTotalCost() => 0m;
+
+    /// <summary>
+    /// 返回零使用
+    /// </summary>
+    /// <returns>零使用元组</returns>
     public (int InputTokens, int OutputTokens, decimal Cost) GetUsage() => (0, 0, 0m);
 }
 
@@ -720,11 +797,20 @@ public partial class TokenCostTracker : ITokenCostTracker
     private int _totalInputTokens;
     private int _totalOutputTokens;
 
+    /// <summary>
+    /// 构造函数 — 注入成本追踪配置
+    /// </summary>
+    /// <param name="config">成本追踪配置</param>
     public TokenCostTracker(CostTrackingConfig config)
     {
         _config = config;
     }
 
+    /// <summary>
+    /// 追踪一次 Token 使用 — 累加到总计数
+    /// </summary>
+    /// <param name="inputTokens">输入 Token 数</param>
+    /// <param name="outputTokens">输出 Token 数</param>
     public void TrackUsage(int inputTokens, int outputTokens)
     {
         if (!_config.Enabled) return;
@@ -733,6 +819,10 @@ public partial class TokenCostTracker : ITokenCostTracker
         Interlocked.Add(ref _totalOutputTokens, outputTokens);
     }
 
+    /// <summary>
+    /// 获取总成本（美元）— 按输入/输出单价计算
+    /// </summary>
+    /// <returns>总成本</returns>
     public decimal GetTotalCost()
     {
         if (!_config.Enabled) return 0m;
@@ -742,6 +832,10 @@ public partial class TokenCostTracker : ITokenCostTracker
         return inputCost + outputCost;
     }
 
+    /// <summary>
+    /// 获取累计使用情况
+    /// </summary>
+    /// <returns>输入 Token 数、输出 Token 数、成本</returns>
     public (int InputTokens, int OutputTokens, decimal Cost) GetUsage()
     {
         var cost = GetTotalCost();

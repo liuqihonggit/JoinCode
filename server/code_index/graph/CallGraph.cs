@@ -10,6 +10,10 @@ public sealed class CallGraph : ICallGraph
     private readonly InMemoryIndexStore _store;
     private int _cacheVersion;
 
+    /// <summary>
+    /// 构造调用图
+    /// </summary>
+    /// <param name="store">内存索引存储，提供调用关系索引</param>
     public CallGraph(InMemoryIndexStore store)
     {
         ArgumentNullException.ThrowIfNull(store);
@@ -34,6 +38,12 @@ public sealed class CallGraph : ICallGraph
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// 获取指定符号的所有调用方 — 对齐 ICallGraph.GetCallersAsync
+    /// </summary>
+    /// <param name="symbolName">符号名（支持简单名和完全限定名）</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>调用方边列表</returns>
     public Task<IReadOnlyList<CallEdge>> GetCallersAsync(string symbolName, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(symbolName);
@@ -50,6 +60,12 @@ public sealed class CallGraph : ICallGraph
         return Task.FromResult<IReadOnlyList<CallEdge>>(result);
     }
 
+    /// <summary>
+    /// 获取指定符号的所有被调用方 — 对齐 ICallGraph.GetCalleesAsync
+    /// </summary>
+    /// <param name="symbolName">符号名（支持简单名和完全限定名）</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>被调用方边列表</returns>
     public Task<IReadOnlyList<CallEdge>> GetCalleesAsync(string symbolName, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(symbolName);
@@ -82,6 +98,13 @@ public sealed class CallGraph : ICallGraph
         return fqns;
     }
 
+    /// <summary>
+    /// 查询两符号间的调用链路 — BFS 搜索最短路径
+    /// </summary>
+    /// <param name="from">起始符号名</param>
+    /// <param name="to">目标符号名</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>调用边路径，不存在时返回空列表</returns>
     public Task<IReadOnlyList<CallEdge>> GetCallChainAsync(string from, string to, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(from);
@@ -92,6 +115,12 @@ public sealed class CallGraph : ICallGraph
         return Task.FromResult<IReadOnlyList<CallEdge>>(path);
     }
 
+    /// <summary>
+    /// 获取符号的影响范围 — 反向 BFS 收集所有直接和间接调用方
+    /// </summary>
+    /// <param name="symbolName">起始符号名</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>受影响的调用方符号名列表（不含起始符号）</returns>
     public Task<IReadOnlyList<string>> GetImpactScopeAsync(string symbolName, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(symbolName);

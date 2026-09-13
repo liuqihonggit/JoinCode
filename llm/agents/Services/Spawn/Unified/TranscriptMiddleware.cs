@@ -9,6 +9,9 @@ namespace Core.Agents;
 public sealed partial class TranscriptMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 
+    /// <summary>
+    /// 构造 TranscriptMiddleware 实例，注入时钟服务及可选的上下文管理器、transcript 服务与日志器
+    /// </summary>
     public TranscriptMiddleware(IClockService clock, IChatContextManager? contextManager = null, IAgentTranscriptService? transcriptService = null, ILogger<TranscriptMiddleware>? logger = null)
     {
         _clock = clock;
@@ -21,8 +24,15 @@ public sealed partial class TranscriptMiddleware : ServiceEntity, IUnifiedSpawnM
     private readonly ILogger<TranscriptMiddleware>? _logger;
     private readonly IClockService _clock;
 
+    /// <summary>中间件错误处理策略：继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
+    /// <summary>
+    /// 执行转录记录：主代理或无 transcript 服务跳过；否则记录系统提示词与用户输入到 transcript
+    /// </summary>
+    /// <param name="context">统一 Spawn 上下文</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct)
     {
         if (context.IsMainAgent || _transcriptService is null || context.Agent is null)

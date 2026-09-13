@@ -8,6 +8,12 @@ namespace Core.Bridge.Init.V1;
 internal sealed partial class V1EnvRegistrationMiddleware : ServiceEntity, IMiddleware<V1BridgeInitContext>
 {
 
+    /// <summary>
+    /// 执行 V1 环境注册 — 创建 API 客户端、注册 Bridge 环境并将结果写入上下文
+    /// </summary>
+    /// <param name="ctx">V1 桥初始化上下文</param>
+    /// <param name="next">下一中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(V1BridgeInitContext ctx, MiddlewareDelegate<V1BridgeInitContext> next, CancellationToken ct)
     {
         var apiClient = new BridgeApiClient(ctx.HttpClient, new BridgeApiOptions

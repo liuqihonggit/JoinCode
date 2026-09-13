@@ -2,6 +2,13 @@ namespace Core.DependencyInjection;
 
 public static partial class ServiceRegistration
 {
+    /// <summary>
+    /// 注册 Bridge 服务：BridgeConfig、TransportConfiguration、BridgeApiClient 工厂、
+    /// V1/V2 初始化管道、HandleWork 管道、Shutdown 管道、Run 管道等。
+    /// <para>大部分 Bridge 服务通过 [Register] 自动注册，本方法补充需从 WorkflowConfig 提取的配置和中间件管道组装。</para>
+    /// </summary>
+    /// <param name="services">DI 容器。</param>
+    /// <returns>已注册服务的 <see cref="IServiceCollection"/> 实例。</returns>
     public static IServiceCollection AddBridgeServices(this IServiceCollection services)
     {
         // 以下服务已通过 [Register] 自动注册，无需手动注册：

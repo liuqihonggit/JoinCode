@@ -2,6 +2,7 @@ namespace Tools.Handlers;
 
 public partial class FileToolHandlers
 {
+    /// <summary>列出目录内容，包括文件和子目录</summary>
     [McpTool(FileToolNameConstants.DirectoryList, "List directory contents including files and subdirectories", "file", ConcurrencySafe = true)]
     public async Task<ToolResult> DirectoryListAsync(
         [McpToolParameter("Directory path, relative or absolute")] string directory_path,

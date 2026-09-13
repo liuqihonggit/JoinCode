@@ -1,6 +1,9 @@
 namespace Core.Security.Sandbox;
 
 
+/// <summary>
+/// 沙箱提供器抽象基类 — 封装沙箱创建/销毁/路径解析的通用逻辑,子类通过钩子方法扩展特定行为
+/// </summary>
 public abstract class SandboxProviderBase : ISandboxProvider
 {
     private protected readonly IFileSystem Fs;
@@ -10,10 +13,16 @@ public abstract class SandboxProviderBase : ISandboxProvider
     private readonly ConcurrentDictionary<string, SandboxInfo> _sandboxes = new();
     private int _disposed;
 
+    /// <inheritdoc/>
     public abstract SandboxType SandboxType { get; }
+    /// <inheritdoc/>
     public abstract SandboxCapabilities Capabilities { get; }
+    /// <inheritdoc/>
     public IReadOnlyCollection<SandboxInfo> ActiveSandboxes => (IReadOnlyCollection<SandboxInfo>)_sandboxes.Values;
 
+    /// <summary>
+    /// 初始化沙箱提供器基类
+    /// </summary>
     protected SandboxProviderBase(IFileSystem fs, ILogger? logger, IClockService clock, ITelemetryService? telemetryService)
     {
         Fs = fs;
@@ -22,8 +31,10 @@ public abstract class SandboxProviderBase : ISandboxProvider
         TelemetryService = telemetryService;
     }
 
+    /// <inheritdoc/>
     public virtual bool IsAvailable => true;
 
+    /// <inheritdoc/>
     public async Task<SandboxInfo> CreateSandboxAsync(SandboxOptions options, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -59,6 +70,7 @@ public abstract class SandboxProviderBase : ISandboxProvider
         return info;
     }
 
+    /// <inheritdoc/>
     public async Task DestroySandboxAsync(string sandboxId, CancellationToken ct = default)
     {
         if (!_sandboxes.TryRemove(sandboxId, out var info))
@@ -80,11 +92,13 @@ public abstract class SandboxProviderBase : ISandboxProvider
         }
     }
 
+    /// <inheritdoc/>
     public SandboxInfo? GetSandboxInfo(string sandboxId)
     {
         return _sandboxes.TryGetValue(sandboxId, out var info) ? info : null;
     }
 
+    /// <inheritdoc/>
     public string ResolvePath(string path, string sandboxId)
     {
         if (!_sandboxes.TryGetValue(sandboxId, out var info))
@@ -100,6 +114,7 @@ public abstract class SandboxProviderBase : ISandboxProvider
         return OnResolvePath(path, info);
     }
 
+    /// <inheritdoc/>
     public Task<bool> IsPathInSandboxAsync(string path, string sandboxId, CancellationToken ct = default)
     {
         if (!_sandboxes.TryGetValue(sandboxId, out var info))
@@ -121,6 +136,9 @@ public abstract class SandboxProviderBase : ISandboxProvider
         return Task.FromResult(isInSandbox);
     }
 
+    /// <summary>
+    /// 异步释放提供器,销毁所有活跃沙箱
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
@@ -203,6 +221,7 @@ public abstract class SandboxProviderBase : ISandboxProvider
     private protected void RecordMetrics(string operation, string type)
         => TelemetryService?.RecordCount("sandbox.operation.count", new Dictionary<string, string> { ["operation"] = operation, ["type"] = type }, description: "Sandbox operation count");
 
+    /// <inheritdoc/>
     public virtual Task<ProviderExecutionResult?> ExecuteAsync(string sandboxId, string command, string? workingDirectory, int timeoutMs, CancellationToken ct)
         => Task.FromResult<ProviderExecutionResult?>(null);
 }

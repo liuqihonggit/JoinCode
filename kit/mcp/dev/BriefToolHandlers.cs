@@ -1,5 +1,8 @@
 namespace McpToolDispatch;
 
+/// <summary>
+/// 简洁模式工具处理器 — 提供简洁模式开关、状态查询和用户消息发送功能
+/// </summary>
 [McpToolDispatch(ToolCategory.Brief)]
 public class BriefToolHandlers
 {
@@ -7,6 +10,12 @@ public class BriefToolHandlers
     private readonly IBriefService? _briefService;
     private readonly IEntitlementService? _entitlementService;
 
+    /// <summary>
+    /// 初始化 <see cref="BriefToolHandlers"/> 实例
+    /// </summary>
+    /// <param name="briefModeService">简洁模式服务</param>
+    /// <param name="briefService">简洁消息服务（可选）</param>
+    /// <param name="entitlementService">权益服务（可选）</param>
     public BriefToolHandlers(IBriefModeService briefModeService, IBriefService? briefService = null, IEntitlementService? entitlementService = null)
     {
         _briefModeService = briefModeService ?? throw new ArgumentNullException(nameof(briefModeService));
@@ -14,6 +23,12 @@ public class BriefToolHandlers
         _entitlementService = entitlementService;
     }
 
+    /// <summary>
+    /// 启用或禁用简洁模式（紧凑输出）
+    /// </summary>
+    /// <param name="enabled">true 启用，false 禁用</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(SystemToolNameConstants.BriefMode, "Enable or disable brief mode (compact output)", "mode")]
     public Task<ToolResult> BriefModeAsync(
         [McpToolParameter("true to enable, false to disable")] bool enabled,
@@ -43,6 +58,11 @@ public class BriefToolHandlers
         return Task.FromResult(ToolResultBuilder.Success().WithText(sb.ToString()).Build());
     }
 
+    /// <summary>
+    /// 获取当前简洁模式状态
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(SystemToolNameConstants.BriefStatus, "Get current brief mode status", "mode")]
     public Task<ToolResult> BriefStatusAsync(
         CancellationToken cancellationToken = default)
@@ -57,6 +77,14 @@ public class BriefToolHandlers
         return Task.FromResult(ToolResultBuilder.Success().WithText(sb.ToString()).Build());
     }
 
+    /// <summary>
+    /// 向用户发送消息，支持 markdown 格式和文件附件
+    /// </summary>
+    /// <param name="message">发送给用户的消息内容，支持 markdown 格式</param>
+    /// <param name="attachments">可选的文件附件路径（图片、截图、diff、日志等）</param>
+    /// <param name="status">消息状态：'proactive' 表示主动更新，'normal' 表示回复</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(SystemToolNameConstants.SendUserMessage, "Send a message to the user, supports markdown and file attachments", "messaging")]
     public Task<ToolResult> SendUserMessageAsync(
         [McpToolParameter("The message for the user. Supports markdown formatting.")] string message,

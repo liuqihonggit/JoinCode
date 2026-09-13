@@ -9,6 +9,9 @@ namespace Services.UserInteraction;
 public sealed partial class UserInteractionService : ServiceEntity, IUserInteractionService
 {
 
+    /// <summary>
+    /// 构造函数 — 注入日志与遥测服务。
+    /// </summary>
     public UserInteractionService(ILogger<UserInteractionService>? logger = null, ITelemetryService? telemetryService = null)
     {
         _logger = logger;
@@ -36,6 +39,9 @@ public sealed partial class UserInteractionService : ServiceEntity, IUserInterac
         return Task.FromResult(new UserInteractionResult(true, "headless-auto-approved"));
     }
 
+    /// <summary>
+    /// 向用户发送消息,根据消息类型选择日志级别。
+    /// </summary>
     public Task SendMessageAsync(string message, MessageType messageType = MessageType.Info, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(message);

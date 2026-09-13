@@ -9,11 +9,21 @@ namespace JoinCode.ChatCommands;
 public sealed partial class GenerateCommand : ChatCommandBase
 {
     private readonly ILogger<GenerateCommand>? _logger;
+
+    /// <summary>
+    /// 构造 GenerateCommand 实例
+    /// </summary>
+    /// <param name="logger">可选的日志记录器</param>
     public GenerateCommand(ILogger<GenerateCommand>? logger = null)
     {
         _logger = logger;
     }
 
+    /// <summary>
+    /// 执行 /generate 命令，根据描述生成代码
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <returns>命令执行结果</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         Diag.WriteLine($"[GenerateCommand] ExecuteAsync entry, Arguments='{context.Arguments}'");

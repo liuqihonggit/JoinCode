@@ -93,10 +93,16 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine("namespace Core.Prompts.Utils;");
         sb.AppendLine();
+        sb.AppendLine("/// <summary>");
+        sb.AppendLine("/// 用户提示词关键词类型枚举 — 由 PromptSectionGenerator 从 [PromptSection] 特性自动生成。");
+        sb.AppendLine("/// </summary>");
         sb.AppendLine("public enum UserPromptKeywordType");
         sb.AppendLine("{");
+        sb.AppendLine("    /// <summary>无匹配关键词。</summary>");
         sb.AppendLine("    [EnumValue(\"none\")] None,");
+        sb.AppendLine("    /// <summary>负面情绪关键词（如 wtf、awful 等）。</summary>");
         sb.AppendLine("    [EnumValue(\"negative\")] Negative,");
+        sb.AppendLine("    /// <summary>继续指令关键词（如 keep going、go on 等）。</summary>");
         sb.AppendLine("    [EnumValue(\"keepGoing\")] KeepGoing,");
 
         for (var i = 0; i < keywordSections.Count; i++)
@@ -105,6 +111,7 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator
             var enumValue = ToCamelCase(s.SectionName);
             var enumName = ToPascalCase(s.SectionName);
             var comma = i < keywordSections.Count - 1 ? "," : "";
+            sb.AppendLine($"    /// <summary>{s.SectionName} 关键词类型。</summary>");
             sb.AppendLine($"    [EnumValue(\"{enumValue}\")]{enumName}{comma}");
         }
 
@@ -121,11 +128,18 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine("namespace Core.Prompts.Utils;");
         sb.AppendLine();
+        sb.AppendLine("/// <summary>");
+        sb.AppendLine("/// 用户提示词关键词分析结果 — 由 PromptSectionGenerator 自动生成。");
+        sb.AppendLine("/// </summary>");
         sb.AppendLine("public sealed class UserPromptKeywordResult");
         sb.AppendLine("{");
+        sb.AppendLine("    /// <summary>匹配到的关键词类型。</summary>");
         sb.AppendLine("    public UserPromptKeywordType Type { get; init; }");
+        sb.AppendLine("    /// <summary>匹配到的原始关键词文本。</summary>");
         sb.AppendLine("    public string MatchedKeyword { get; init; } = \"\";");
+        sb.AppendLine("    /// <summary>针对该关键词建议的提示词内容。</summary>");
         sb.AppendLine("    public string SuggestedPrompt { get; init; } = \"\";");
+        sb.AppendLine("    /// <summary>是否检测到提示词注入（Type 非 None 时为 true）。</summary>");
         sb.AppendLine("    public bool HasPromptInjection => Type != UserPromptKeywordType.None;");
         sb.AppendLine("}");
 
@@ -149,6 +163,10 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine("namespace Core.Prompts.Utils;");
         sb.AppendLine();
+        sb.AppendLine("/// <summary>");
+        sb.AppendLine("/// 用户提示词关键词分析器 — 由 PromptSectionGenerator 从 [PromptSection] 特性自动生成。");
+        sb.AppendLine("/// 提供正则匹配与分词匹配，识别用户输入中的关键词并返回对应提示词。");
+        sb.AppendLine("/// </summary>");
         sb.AppendLine("public static partial class UserPromptKeywordAnalyzer");
         sb.AppendLine("{");
 
@@ -189,6 +207,11 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator
         sb.AppendLine("    };");
         sb.AppendLine();
 
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// 分析用户输入，检测是否包含已知关键词，返回匹配结果。");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine("    /// <param name=\"input\">用户原始输入文本。</param>");
+        sb.AppendLine("    /// <returns>关键词分析结果，无匹配时 Type 为 None。</returns>");
         sb.AppendLine("    public static UserPromptKeywordResult AnalyzeInput(string input)");
         sb.AppendLine("    {");
         sb.AppendLine("        if (string.IsNullOrWhiteSpace(input))");
@@ -241,6 +264,11 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator
         {
             var methodName = $"Matches{ToPascalCase(s.SectionName)}Keyword";
             var dictFieldName = $"s_{ToCamelCase(s.SectionName)}Keywords";
+            sb.AppendLine($"    /// <summary>");
+            sb.AppendLine($"    /// 判断输入是否包含 {s.SectionName} 关键词。");
+            sb.AppendLine($"    /// </summary>");
+            sb.AppendLine($"    /// <param name=\"input\">待检测文本。</param>");
+            sb.AppendLine($"    /// <returns>包含返回 true，否则 false。</returns>");
             sb.AppendLine($"    public static bool {methodName}(string input)");
             sb.AppendLine($"    {{");
             sb.AppendLine($"        if (string.IsNullOrWhiteSpace(input)) return false;");
@@ -299,8 +327,16 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine("namespace Core.Prompts.Utils;");
         sb.AppendLine();
+        sb.AppendLine("/// <summary>");
+        sb.AppendLine("/// 关键词到 Section 内容的映射器 — 由 PromptSectionGenerator 自动生成。");
+        sb.AppendLine("/// </summary>");
         sb.AppendLine("public static class KeywordSectionMapper");
         sb.AppendLine("{");
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// 按关键词类型获取对应的 Section 内容。");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine("    /// <param name=\"type\">关键词类型。</param>");
+        sb.AppendLine("    /// <returns>Section 内容字符串，无匹配时为 null。</returns>");
         sb.AppendLine("    public static string? GetSectionContentForKeywordType(UserPromptKeywordType type) => type switch");
         sb.AppendLine("    {");
 
@@ -313,6 +349,11 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator
         sb.AppendLine("        _ => null");
         sb.AppendLine("    };");
         sb.AppendLine();
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// 按 Section 名称获取对应的 Section 内容。");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine("    /// <param name=\"name\">Section 名称（大小写不敏感）。</param>");
+        sb.AppendLine("    /// <returns>Section 内容字符串，无匹配时为 null。</returns>");
         sb.AppendLine("    public static string? GetSectionContentForName(string name) => name.ToLowerInvariant() switch");
         sb.AppendLine("    {");
 
@@ -344,11 +385,19 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine("namespace Core.Prompts;");
         sb.AppendLine();
+        sb.AppendLine("/// <summary>");
+        sb.AppendLine("/// 提示词 Section 注册表 — 由 PromptSectionGenerator 从 [PromptSection] 特性自动生成。");
+        sb.AppendLine("/// 按注入模式（Always/Agent/Coordinator）分组提供 Section 序列。");
+        sb.AppendLine("/// </summary>");
         sb.AppendLine("public static partial class PromptSectionRegistration");
         sb.AppendLine("{");
 
         if (alwaysSections.Count > 0)
         {
+            sb.AppendLine("    /// <summary>");
+            sb.AppendLine("    /// 获取始终注入的 Section 集合（InjectOn=0 且无关键词）。");
+            sb.AppendLine("    /// </summary>");
+            sb.AppendLine("    /// <returns>始终注入的 Section 序列。</returns>");
             sb.AppendLine("    public static IEnumerable<SystemPromptSection> GetAlwaysSections()");
             sb.AppendLine("    {");
             foreach (var s in alwaysSections)
@@ -364,6 +413,10 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator
 
         if (agentModeSections.Count > 0)
         {
+            sb.AppendLine("    /// <summary>");
+            sb.AppendLine("    /// 获取 Agent 模式下注入的 Section 集合（InjectOn 含位 2）。");
+            sb.AppendLine("    /// </summary>");
+            sb.AppendLine("    /// <returns>Agent 模式 Section 序列。</returns>");
             sb.AppendLine("    public static IEnumerable<SystemPromptSection> GetAgentModeSections()");
             sb.AppendLine("    {");
             foreach (var s in agentModeSections)
@@ -379,6 +432,10 @@ public sealed class PromptSectionGenerator : IIncrementalGenerator
 
         if (coordinatorModeSections.Count > 0)
         {
+            sb.AppendLine("    /// <summary>");
+            sb.AppendLine("    /// 获取 Coordinator 模式下注入的 Section 集合（InjectOn 含位 4）。");
+            sb.AppendLine("    /// </summary>");
+            sb.AppendLine("    /// <returns>Coordinator 模式 Section 序列。</returns>");
             sb.AppendLine("    public static IEnumerable<SystemPromptSection> GetCoordinatorModeSections()");
             sb.AppendLine("    {");
             foreach (var s in coordinatorModeSections)

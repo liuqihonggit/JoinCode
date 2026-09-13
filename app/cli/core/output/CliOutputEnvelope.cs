@@ -21,9 +21,17 @@ public sealed class CliOutputEnvelope
     /// <summary>Schema 版本 — 保证向后兼容，消费者可据此选择解析路径</summary>
     public string SchemaVersion { get; init; } = "1";
 
+    /// <summary>构造成功响应信封</summary>
+    /// <param name="data">成功时的数据负载</param>
+    /// <param name="meta">可选的元数据</param>
+    /// <returns>Ok 为 true 的 <see cref="CliOutputEnvelope"/> 实例</returns>
     public static CliOutputEnvelope Success(object? data, CliOutputMeta? meta = null) =>
         new() { Ok = true, Data = data, Meta = meta };
 
+    /// <summary>构造失败响应信封</summary>
+    /// <param name="error">结构化错误</param>
+    /// <param name="meta">可选的元数据</param>
+    /// <returns>Ok 为 false 的 <see cref="CliOutputEnvelope"/> 实例</returns>
     public static CliOutputEnvelope Fail(CliStructuredError error, CliOutputMeta? meta = null) =>
         new() { Ok = false, Error = error, Meta = meta };
 }

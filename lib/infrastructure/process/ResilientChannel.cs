@@ -1,5 +1,8 @@
 namespace Infrastructure.Subprocess;
 
+/// <summary>
+/// 韧性通道 — 在异步锁和熔断器保护下执行操作，超时或失败时记录熔断器失败，成功时记录成功
+/// </summary>
 public sealed class ResilientChannel : IDisposable
 {
     private readonly AsyncLock _lock = new();
@@ -8,6 +11,13 @@ public sealed class ResilientChannel : IDisposable
     private readonly TimeSpan _timeout;
     private readonly ILogger? _logger;
 
+    /// <summary>
+    /// 构造韧性通道
+    /// </summary>
+    /// <param name="channelName">通道名称（用于日志和异常标识）</param>
+    /// <param name="circuitBreaker">熔断器（可选，null 表示不启用熔断保护）</param>
+    /// <param name="timeout">单次操作超时时长</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public ResilientChannel(
         string channelName,
         UnifiedCircuitBreaker? circuitBreaker,
@@ -20,6 +30,13 @@ public sealed class ResilientChannel : IDisposable
         _logger = logger;
     }
 
+    /// <summary>
+    /// 在熔断器和锁保护下执行操作 — 超时抛 TimeoutException，失败记录熔断器失败
+    /// </summary>
+    /// <typeparam name="T">操作返回类型</typeparam>
+    /// <param name="operation">待执行的操作</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>操作结果</returns>
     public async Task<T> ExecuteAsync<T>(Func<CancellationToken, Task<T>> operation, CancellationToken ct = default)
     {
         ProbeCircuitBreaker();
@@ -49,6 +66,12 @@ public sealed class ResilientChannel : IDisposable
 
     }
 
+    /// <summary>
+    /// 在熔断器和锁保护下执行无返回值操作 — 委托给泛型版本
+    /// </summary>
+    /// <param name="operation">待执行的操作</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public Task ExecuteAsync(Func<CancellationToken, Task> operation, CancellationToken ct = default) =>
         ExecuteAsync<object?>(async ct =>
         {
@@ -64,5 +87,8 @@ public sealed class ResilientChannel : IDisposable
         }
     }
 
+    /// <summary>
+    /// 释放通道 — 释放内部异步锁
+    /// </summary>
     public void Dispose() => _lock.Dispose();
 }

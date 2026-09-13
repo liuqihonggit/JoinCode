@@ -20,6 +20,13 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
 
     private int _currentConcurrentOperations;
 
+    /// <summary>
+    /// 构造 IO 限流服务
+    /// </summary>
+    /// <param name="options">IO 限流配置选项</param>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="telemetryService">遥测服务</param>
+    /// <param name="clock">时钟服务，默认使用系统时钟</param>
     public IOThrottleService(
         IOptions<IOThrottleOptions> options,
         ILogger<IOThrottleService>? logger = null,
@@ -52,10 +59,22 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
             _options.TokenRefillRatePerSecond);
     }
 
+    /// <summary>
+    /// 获取当前并发执行中的 IO 操作数
+    /// </summary>
     public int CurrentConcurrentOperations => Interlocked.CompareExchange(ref _currentConcurrentOperations, 0, 0);
 
+    /// <summary>
+    /// 获取令牌桶当前可用令牌数
+    /// </summary>
     public double CurrentTokens => _tokenBucket.CurrentTokens;
 
+    /// <summary>
+    /// 异步获取 IO 执行许可，等待令牌桶和并发槽可用
+    /// </summary>
+    /// <param name="operationType">IO 操作类型</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>IO 执行许可，使用完毕需 Dispose</returns>
     public async Task<IIOExecutionLease> AcquireAsync(
         IOOperationType operationType = IOOperationType.Read,
         CancellationToken cancellationToken = default)
@@ -97,6 +116,12 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
         }
     }
 
+    /// <summary>
+    /// 尝试同步获取 IO 执行许可，不阻塞等待
+    /// </summary>
+    /// <param name="operationType">IO 操作类型</param>
+    /// <param name="lease">获取成功时输出执行许可，失败时输出 null</param>
+    /// <returns>获取成功返回 true，否则返回 false</returns>
     public bool TryAcquire(
         IOOperationType operationType,
         out IIOExecutionLease? lease)
@@ -136,6 +161,10 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
         }
     }
 
+    /// <summary>
+    /// 释放指定操作类型的执行许可，递减当前并发计数
+    /// </summary>
+    /// <param name="operationType">IO 操作类型</param>
     internal void Release(IOOperationType operationType)
     {
         Interlocked.Decrement(ref _currentConcurrentOperations);
@@ -160,6 +189,9 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
             _telemetryService?.RecordHistogram("io.throttle.acquire.duration", elapsedMs, new Dictionary<string, string> { ["operation"] = operationType.ToString() }, "ms", "IO throttle acquire wait duration");
     }
 
+    /// <summary>
+    /// 释放限流服务持有的所有资源
+    /// </summary>
     public void Dispose()
     {
         _readSemaphore.Dispose();
@@ -178,9 +210,18 @@ internal sealed class IOExecutionLease : IIOExecutionLease
     private readonly IDisposable? _releaser;
     private bool _disposed;
 
+    /// <summary>获取许可的时间戳</summary>
     public DateTime AcquiredAt { get; }
+    /// <summary>获取许可对应的 IO 操作类型</summary>
     public IOOperationType OperationType { get; }
 
+    /// <summary>
+    /// 构造 IO 执行许可
+    /// </summary>
+    /// <param name="service">所属限流服务</param>
+    /// <param name="operationType">IO 操作类型</param>
+    /// <param name="clock">时钟服务</param>
+    /// <param name="releaser">并发锁释放器</param>
     public IOExecutionLease(IOThrottleService service, IOOperationType operationType, IClockService clock, IDisposable? releaser = null)
     {
         _service = service;
@@ -189,6 +230,9 @@ internal sealed class IOExecutionLease : IIOExecutionLease
         _releaser = releaser;
     }
 
+    /// <summary>
+    /// 释放许可，归还并发槽
+    /// </summary>
     public void Dispose()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;

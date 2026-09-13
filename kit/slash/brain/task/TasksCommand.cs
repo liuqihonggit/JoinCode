@@ -1,9 +1,17 @@
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /tasks 命令 — 列出和管理后台任务，支持 kill/detail/create/update/complete/todo 等操作。
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Tasks, Description = "列出和管理后台任务", Usage = "/tasks [kill|detail|create|update|complete|todo]", Category = ChatCommandCategory.Task, Aliases = ["task", "bashes"], ExposeToMcp = true)]
 [ChatCommandArg("action", Type = "string", Description = "任务操作", Enum = new[] { "kill", "detail", "create", "update", "complete", "todo" })]
 public sealed class TasksCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /tasks 命令，根据子操作分发到对应的后台任务管理逻辑。
+    /// </summary>
+    /// <param name="context">命令执行上下文。</param>
+    /// <returns>命令执行结果。</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetSplitArgs(context);

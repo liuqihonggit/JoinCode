@@ -19,6 +19,10 @@ public sealed partial class TelemetryRecorder : ServiceEntity, ITelemetryRecorde
 {
     private readonly ITelemetryService? _telemetryService;
 
+    /// <summary>
+    /// 初始化遥测记录器
+    /// </summary>
+    /// <param name="services">查询循环可选服务聚合（从中提取遥测服务）</param>
     public TelemetryRecorder(QueryLoopServices? services = null)
     {
         _telemetryService = services?.TelemetryService;

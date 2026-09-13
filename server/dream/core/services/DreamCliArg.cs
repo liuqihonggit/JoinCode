@@ -6,12 +6,15 @@ namespace JoinCode.Dream;
 /// </summary>
 public enum DreamCliArg
 {
+    /// <summary>显示帮助</summary>
     [CliOption(JccCliArgConstants.Help, "-h", "显示帮助")]
     Help,
 
+    /// <summary>项目目录</summary>
     [CliOption(JccCliArgConstants.Project, "-p", "项目目录", AcceptsValue = true)]
     Project,
 
+    /// <summary>强制执行</summary>
     [CliOption(JccCliArgConstants.Force, "-f", "强制执行")]
     Force,
 }

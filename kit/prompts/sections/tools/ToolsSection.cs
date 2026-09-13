@@ -5,6 +5,10 @@ namespace Core.Prompts.Sections;
 /// </summary>
 [PromptSection(Name = "tools", Order = 11)]
 public static class ToolsSection {
+    /// <summary>
+    /// 获取工具使用部分的提示词内容。根据启用的工具列表拼接工具使用指导。
+    /// </summary>
+    /// <returns>工具使用指导文本。</returns>
     public static string? GetContent() {
         var enabledTools = PromptConfigSnapshot.Current.EnabledTools;
         var tools = enabledTools?.ToList() ?? new List<string>();
@@ -37,6 +41,10 @@ public static class ToolsSection {
         return result.ToString().TrimEnd();
     }
 
+    /// <summary>
+    /// 创建工具使用 Section 实例（内容缓存）。
+    /// </summary>
+    /// <returns>工具使用 Section 实例。</returns>
     public static SystemPromptSection Create() =>
         SystemPromptSection.Cached("tools", GetContent);
 }

@@ -1,6 +1,9 @@
 
 namespace Core.Planning;
 
+/// <summary>
+/// 计划服务 — 通过 LLM 创建并执行任务计划
+/// </summary>
 [Register(typeof(IPlanService), ServiceLifetime.Singleton)]
 public partial class PlanService : ServiceEntity, IPlanService {
     private readonly IChatClient _kernel;
@@ -10,6 +13,15 @@ public partial class PlanService : ServiceEntity, IPlanService {
     private readonly IToolCategoryProvider _toolCategoryProvider;
     private readonly ITelemetryService? _telemetryService;
 
+    /// <summary>
+    /// 初始化计划服务
+    /// </summary>
+    /// <param name="kernel">聊天客户端内核</param>
+    /// <param name="exceptionService">异常服务</param>
+    /// <param name="toolCategoryProvider">工具分类提供者</param>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="telemetryService">遥测服务（可选）</param>
+    /// <param name="clock">时钟服务（可选，默认使用系统时钟）</param>
     public PlanService(IChatClient kernel, IExceptionService exceptionService, IToolCategoryProvider toolCategoryProvider, ILogger<PlanService>? logger = null, ITelemetryService? telemetryService = null, IClockService? clock = null) {
         _kernel = kernel;
         _exceptionService = exceptionService;
@@ -19,11 +31,23 @@ public partial class PlanService : ServiceEntity, IPlanService {
         _clock = clock ?? SystemClockService.Instance;
     }
 
+    /// <summary>
+    /// 执行计划并返回结果文本
+    /// </summary>
+    /// <param name="userPrompt">用户任务提示</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>计划执行的结果文本</returns>
     public async Task<string> ExecutePlanAsync(string userPrompt, CancellationToken cancellationToken = default) {
         var result = await ExecutePlanWithResultAsync(userPrompt, cancellationToken).ConfigureAwait(false);
         return result.Result;
     }
 
+    /// <summary>
+    /// 执行计划并返回包含执行详情的完整结果
+    /// </summary>
+    /// <param name="userPrompt">用户任务提示</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>计划执行结果，包含成功状态、耗时、token 用量等详情</returns>
     public async Task<PlanExecutionResult> ExecutePlanWithResultAsync(string userPrompt, CancellationToken cancellationToken = default) {
         var stopwatch = Stopwatch.StartNew();
         var executionResult = new PlanExecutionResult {

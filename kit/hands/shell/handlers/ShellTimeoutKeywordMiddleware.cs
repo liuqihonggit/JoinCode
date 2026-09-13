@@ -12,6 +12,11 @@ public sealed partial class ShellTimeoutKeywordMiddleware : ServiceEntity, IShel
     private readonly ShellExecutionConfig _config;
     private readonly ILogger<ShellTimeoutKeywordMiddleware>? _logger;
 
+    /// <summary>
+    /// 构造超时关键字中间件
+    /// </summary>
+    /// <param name="config">Shell 执行配置</param>
+    /// <param name="logger">日志器（可选）</param>
     public ShellTimeoutKeywordMiddleware(ShellExecutionConfig config, ILogger<ShellTimeoutKeywordMiddleware>? logger = null)
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));

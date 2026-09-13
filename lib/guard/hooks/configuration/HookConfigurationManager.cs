@@ -66,6 +66,11 @@ public sealed partial class HookConfigurationManager : IHookConfigurationManager
     private const string CacheKey = "all_hooks";
     private int _disposed;
 
+    /// <summary>
+    /// 构造函数 — 注入文件系统与可选的日志记录器
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">可选的日志记录器</param>
     public HookConfigurationManager(
         IFileSystem fs,
         ILogger<HookConfigurationManager>? logger = null)
@@ -277,6 +282,13 @@ public partial class JsonFileHookConfigurationProvider : IHookConfigurationProvi
     private readonly IFileSystem _fs;
     private readonly ILogger? _logger;
 
+    /// <summary>
+    /// 构造函数 — 注入文件路径、配置来源、文件系统与可选的日志记录器
+    /// </summary>
+    /// <param name="filePath">钩子配置 JSON 文件路径</param>
+    /// <param name="source">配置来源标识</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">可选的日志记录器</param>
     public JsonFileHookConfigurationProvider(
         string filePath,
         HookSource source,
@@ -446,5 +458,8 @@ public partial class JsonFileHookConfigurationProvider : IHookConfigurationProvi
 /// </summary>
 public partial class HookSettingsFile
 {
+    /// <summary>
+    /// 钩子配置表 — 键为事件名称,值为该事件下的匹配器列表
+    /// </summary>
     public Dictionary<string, List<HookMatcher>> Hooks { get; set; } = new();
 }

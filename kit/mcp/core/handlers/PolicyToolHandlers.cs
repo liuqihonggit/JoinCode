@@ -2,18 +2,29 @@
 
 namespace McpToolDispatch;
 
+/// <summary>
+/// 策略工具处理器 — 提供远程策略检查与规则列表查询能力
+/// </summary>
 [McpToolDispatch(ToolCategory.Policy, Optional = true)]
 public sealed partial class PolicyToolHandlers
 {
     private readonly IRemotePolicyService _policyService;
     private readonly ILogger<PolicyToolHandlers>? _logger;
 
+    /// <summary>
+    /// 初始化策略工具处理器
+    /// </summary>
+    /// <param name="policyService">远程策略服务</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public PolicyToolHandlers(IRemotePolicyService policyService, ILogger<PolicyToolHandlers>? logger = null)
     {
         _policyService = policyService ?? throw new ArgumentNullException(nameof(policyService));
         _logger = logger;
     }
 
+    /// <summary>
+    /// 检查指定动作是否符合策略规则
+    /// </summary>
     [McpTool(InteractionToolNameConstants.PolicyCheck, "Check if an action complies with policy rules", "policy")]
     public async Task<ToolResult> PolicyCheckAsync(
         [McpToolParameter("Action name")] string action,
@@ -56,6 +67,9 @@ public sealed partial class PolicyToolHandlers
         }, _logger, L.T(StringKey.PolicyCheckFailedLog)).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 列出所有活跃的策略规则
+    /// </summary>
     [McpTool(InteractionToolNameConstants.PolicyList, "List all active policy rules", "policy")]
     public async Task<ToolResult> PolicyListAsync(
         CancellationToken cancellationToken = default)

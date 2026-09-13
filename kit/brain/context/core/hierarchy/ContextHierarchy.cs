@@ -322,5 +322,8 @@ public sealed partial class ContextHierarchy : ServiceEntity, IContextHierarchy,
         }
     }
 
+    /// <summary>
+    /// 释放内部异步锁
+    /// </summary>
     protected override void OnDispose() => _lock.Dispose();
 }

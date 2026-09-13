@@ -16,6 +16,16 @@ public sealed partial class UpgradeService : ServiceEntity, IUpgradeService
     private readonly ILogger<UpgradeService>? _logger;
     private Version? _cachedLatest;
 
+    /// <summary>
+    /// 构造升级服务实例
+    /// </summary>
+    /// <param name="httpClient">用于访问 GitHub API 的 HTTP 客户端</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="repoOwner">GitHub 仓库所有者，缺省回退到默认仓库</param>
+    /// <param name="repoName">GitHub 仓库名称，缺省回退到默认仓库</param>
+    /// <param name="updateSource">更新源，缺省时从配置或环境变量创建</param>
+    /// <param name="updateSourceConfig">更新源配置，缺省时从环境变量读取</param>
+    /// <param name="logger">日志记录器</param>
     public UpgradeService(
         HttpClient httpClient,
         IFileSystem fs,
@@ -71,11 +81,20 @@ public sealed partial class UpgradeService : ServiceEntity, IUpgradeService
         };
     }
 
+    /// <summary>
+    /// 获取当前应用程序版本号
+    /// </summary>
+    /// <returns>当前程序集版本，无法解析时回退到 0.1.0</returns>
     public Version GetCurrentVersion()
     {
         return typeof(UpgradeService).Assembly.GetName().Version ?? new Version(0, 1, 0);
     }
 
+    /// <summary>
+    /// 异步获取最新版本号 — 优先走 IUpdateSource，回退到 GitHub Releases API
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>最新版本号；获取失败或无法解析时返回 null</returns>
     public async Task<Version?> GetLatestVersionAsync(CancellationToken ct = default)
     {
         if (_cachedLatest != null) return _cachedLatest;
@@ -120,6 +139,11 @@ public sealed partial class UpgradeService : ServiceEntity, IUpgradeService
         return null;
     }
 
+    /// <summary>
+    /// 判断是否有可用更新 — 最新版本号大于当前版本号时返回 true
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>有更新返回 true；否则返回 false</returns>
     public async Task<bool> IsUpdateAvailableAsync(CancellationToken ct = default)
     {
         var latest = await GetLatestVersionAsync(ct).ConfigureAwait(false);

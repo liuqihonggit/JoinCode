@@ -10,6 +10,14 @@ public sealed class StreamMiddlewarePipeline<TContext, TEvent>
     private readonly PipelinePreHookDelegate<TContext>? _onPreExecute;
     private readonly PipelinePostHookDelegate<TContext>? _onPostExecute;
 
+    /// <summary>
+    /// 构造流式中间件管道
+    /// </summary>
+    /// <param name="middlewares">按顺序执行的中间件集合</param>
+    /// <param name="onError">中间件异常处理器（OnError=Continue 时生效）</param>
+    /// <param name="onPreExecute">执行前钩子，返回 false 时短路</param>
+    /// <param name="onPostExecute">执行后钩子，无论成败均执行</param>
+    /// <param name="shortCircuitPredicate">短路谓词，返回 true 时跳过中间件</param>
     public StreamMiddlewarePipeline(
         IEnumerable<IStreamMiddleware<TContext, TEvent>> middlewares,
         Action<TContext, Exception>? onError = null,

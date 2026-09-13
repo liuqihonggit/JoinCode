@@ -5,8 +5,12 @@ namespace Core.Bridge;
 // BridgeErrorData, BridgeFileContentData, BridgeSelectionSetData, BridgeCommandExecutedData
 // 已迁移到 JoinCode.Transport 命名空间 (Transport.Contracts)
 
+/// <summary>
+/// 桥接会话列表数据 — /sessions 端点响应
+/// </summary>
 public sealed partial class BridgeSessionListData
 {
+    /// <summary>会话列表</summary>
     [JsonPropertyName("sessions")]
     public required List<BridgeSession> Sessions { get; init; }
 }
@@ -36,6 +40,17 @@ public sealed partial class BridgeServer : ServiceEntity, IDisposable
     private volatile int _gateActive;
     private readonly ConcurrentDictionary<string, Func<HttpListenerContext, CancellationToken, Task>> _customRoutes = new();
 
+    /// <summary>
+    /// 构造桥接服务器
+    /// </summary>
+    /// <param name="fileOperationService">文件操作服务</param>
+    /// <param name="security">安全配置 — null 表示不启用 JWT/设备信任</param>
+    /// <param name="session">会话配置 — null 表示不启用会话管理</param>
+    /// <param name="port">监听端口</param>
+    /// <param name="logger">日志器 — null 表示不记录日志</param>
+    /// <param name="clock">时钟服务 — null 使用系统时钟</param>
+    /// <param name="actuatorRegistry">系统执行器注册表 — null 表示不支持 executeCommand</param>
+    /// <param name="ideService">IDE 集成服务 — null 表示不支持 setSelection</param>
     public BridgeServer(
         IFileOperationService fileOperationService,
         BridgeServerSecurity? security = null,
@@ -609,6 +624,9 @@ public sealed partial class BridgeServer : ServiceEntity, IDisposable
     /// <summary>
     /// 发送消息到客户端
     /// </summary>
+    /// <param name="clientId">客户端 ID</param>
+    /// <param name="message">消息内容</param>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task SendMessageAsync(string clientId, BridgeServerMessage message, CancellationToken cancellationToken)
     {
         if (!_clients.TryGetValue(clientId, out var webSocket))
@@ -644,6 +662,8 @@ public sealed partial class BridgeServer : ServiceEntity, IDisposable
     /// <summary>
     /// 广播消息到所有客户端 - 通过 FlushGate 批量发送
     /// </summary>
+    /// <param name="message">消息内容</param>
+    /// <param name="cancellationToken">取消令牌</param>
     public Task BroadcastAsync(BridgeServerMessage message, CancellationToken cancellationToken)
     {
         // 如果 FlushGate 正在运行，将消息入队等待批量刷新
@@ -714,6 +734,9 @@ public sealed partial class BridgeServer : ServiceEntity, IDisposable
         response.Close();
     }
 
+    /// <summary>
+    /// 释放资源 — 停止服务器并关闭监听器
+    /// </summary>
     protected override void OnDispose()
     {
         _ = StopAsync(_cts.Token);

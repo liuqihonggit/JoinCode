@@ -8,8 +8,15 @@ namespace Core.Bridge.Init.V1;
 [Register(typeof(IMiddleware<V1BridgeInitContext>), ServiceLifetime.Singleton)]
 internal sealed partial class V1PerpetualSessionValidationMiddleware : ServiceEntity, IMiddleware<V1BridgeInitContext>
 {
+    /// <summary>错误行为策略 — 验证失败不阻塞主流程，继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
+    /// <summary>
+    /// 执行 Perpetual 会话验证中间件 — 当存在 PriorPointer 且启用 Perpetual 模式时，验证已有会话是否存活
+    /// </summary>
+    /// <param name="ctx">V1 Bridge 初始化上下文</param>
+    /// <param name="next">管道下一个委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(V1BridgeInitContext ctx, MiddlewareDelegate<V1BridgeInitContext> next, CancellationToken ct)
     {
         if (ctx.PriorPointer is not null && ctx.Parameters.Perpetual)

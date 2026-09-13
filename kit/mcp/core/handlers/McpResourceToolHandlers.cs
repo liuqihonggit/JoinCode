@@ -3,12 +3,20 @@
 
 namespace McpToolDispatch;
 
+/// <summary>
+/// MCP 资源工具处理器 — 提供远程 MCP 资源、提示模板和客户端列表查询能力
+/// </summary>
 [McpToolDispatch(ToolCategory.McpResource)]
 public class McpResourceToolHandlers
 {
     private readonly IMcpToolRegistry _toolRegistry;
     private readonly ILogger<McpResourceToolHandlers>? _logger;
 
+    /// <summary>
+    /// 初始化 MCP 资源工具处理器
+    /// </summary>
+    /// <param name="toolRegistry">MCP 工具注册表</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public McpResourceToolHandlers(IMcpToolRegistry toolRegistry, ILogger<McpResourceToolHandlers>? logger = null)
     {
         _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));

@@ -8,6 +8,11 @@ namespace Core.Context;
 public sealed partial class ContextLoadMiddleware : ServiceEntity, IChatInitMiddleware
 {
 
+    /// <summary>
+    /// 初始化 <see cref="ContextLoadMiddleware"/> 实例
+    /// </summary>
+    /// <param name="contentReplacer">聊天内容替换器，用于初始化内容替换状态</param>
+    /// <param name="logger">可选的日志记录器</param>
     public ContextLoadMiddleware(IChatContentReplacer contentReplacer, ILogger<ContextLoadMiddleware>? logger = null)
     {
         _contentReplacer = contentReplacer;

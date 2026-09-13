@@ -13,6 +13,11 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
     private readonly CancellationTokenSource _disposeCts = new();
     private volatile List<ToolTemplate> _cache = [];
 
+    /// <summary>
+    /// 构造工具模板服务 — 确保模板目录存在并异步加载已有模板
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">可选日志记录器</param>
     public ToolTemplateService(IFileSystem fs, ILogger<ToolTemplateService>? logger = null)
     {
         _fs = fs;
@@ -23,6 +28,11 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
         _ = LoadTemplatesAsync(_disposeCts.Token);
     }
 
+    /// <summary>
+    /// 从模板目录加载所有 JSON 模板文件 — 并行读取、失败容忍，结果缓存到内存
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>已加载的工具模板只读列表</returns>
     public async Task<IReadOnlyList<ToolTemplate>> LoadTemplatesAsync(CancellationToken ct = default)
     {
         try
@@ -78,6 +88,13 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
         }
     }
 
+    /// <summary>
+    /// 根据模板创建工具处理器并注册到工具注册表 — 由模板参数构建 Schema，执行委托绑定到模板执行逻辑
+    /// </summary>
+    /// <param name="template">工具模板定义</param>
+    /// <param name="registry">工具注册表</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>已注册的工具处理器实例</returns>
     public async Task<IToolHandler> CreateAndRegisterAsync(ToolTemplate template, IToolRegistry registry, CancellationToken ct = default)
     {
         var schema = BuildSchema(template);
@@ -94,6 +111,12 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
         return handler;
     }
 
+    /// <summary>
+    /// 保存工具模板到模板目录 — 文件名为 <c>{模板Id}.json</c>
+    /// </summary>
+    /// <param name="template">工具模板定义</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task SaveTemplateAsync(ToolTemplate template, CancellationToken ct = default)
     {
         EnsureTemplatesDir();
@@ -103,6 +126,11 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
         _logger?.LogInformation("已保存工具模板 {TemplateId}", template.Id);
     }
 
+    /// <summary>
+    /// 列出当前缓存的全部工具模板 — 不触发磁盘读取，直接返回内存缓存
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>工具模板只读列表</returns>
     public Task<IReadOnlyList<ToolTemplate>> ListTemplatesAsync(CancellationToken ct = default)
     {
         return Task.FromResult<IReadOnlyList<ToolTemplate>>(_cache);
@@ -251,6 +279,9 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
         }
     }
 
+    /// <summary>
+    /// 释放取消令牌资源。
+    /// </summary>
     protected override void OnDispose()
     {
         _disposeCts.Cancel();

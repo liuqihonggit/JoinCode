@@ -1,5 +1,8 @@
 namespace Core.Security.Services;
 
+/// <summary>
+/// 双向 TLS (mTLS) 服务 — 管理客户端证书并提供 mTLS 配置
+/// </summary>
 [Register(typeof(IMtlsService), ServiceLifetime.Singleton)]
 public sealed partial class MtlsService : ServiceEntity, IMtlsService
 {
@@ -9,6 +12,13 @@ public sealed partial class MtlsService : ServiceEntity, IMtlsService
     private readonly ITelemetryService? _telemetryService;
     private volatile MtlsConfiguration? _currentConfiguration;
 
+    /// <summary>
+    /// 构造 mTLS 服务
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">日志器，可为空</param>
+    /// <param name="caCertificateService">CA 证书服务，可为空</param>
+    /// <param name="telemetryService">遥测服务，可为空</param>
     public MtlsService(IFileSystem fs, ILogger<MtlsService>? logger = null, ICaCertificateService? caCertificateService = null, ITelemetryService? telemetryService = null)
     {
         _fs = fs;
@@ -17,8 +27,17 @@ public sealed partial class MtlsService : ServiceEntity, IMtlsService
         _telemetryService = telemetryService;
     }
 
+    /// <summary>
+    /// 获取当前是否已成功配置 mTLS
+    /// </summary>
     public bool IsMtlsConfigured => _currentConfiguration?.IsConfigured == true;
 
+    /// <summary>
+    /// 异步配置 mTLS — 加载客户端证书与可选 CA 证书，验证后缓存配置
+    /// </summary>
+    /// <param name="options">mTLS 配置选项</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>mTLS 配置结果，失败时 IsConfigured 为 false</returns>
     public async Task<MtlsConfiguration> ConfigureMtlsAsync(MtlsOptions options, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -85,6 +104,11 @@ public sealed partial class MtlsService : ServiceEntity, IMtlsService
         }
     }
 
+    /// <summary>
+    /// 创建带 mTLS 客户端证书与服务器 CA 校验回调的 HTTP 处理器
+    /// </summary>
+    /// <param name="config">mTLS 配置</param>
+    /// <returns>配置好客户端证书的 HttpClientHandler</returns>
     public HttpClientHandler CreateMtlsHandler(MtlsConfiguration config)
     {
         ArgumentNullException.ThrowIfNull(config);

@@ -18,6 +18,12 @@ public sealed partial class GoalNodeInspector : ServiceEntity, IGoalNodeInspecto
     private readonly ILogger<GoalNodeInspector>? _logger;
     private readonly IClockService _clock;
 
+    /// <summary>
+    /// 构造 GoalNodeInspector — 注入可选日志、时钟与聊天客户端
+    /// </summary>
+    /// <param name="logger">可选日志记录器</param>
+    /// <param name="clock">可选时钟服务，缺省使用系统时钟</param>
+    /// <param name="kernel">可选聊天客户端，用于质量评分</param>
     public GoalNodeInspector(ILogger<GoalNodeInspector>? logger = null, IClockService? clock = null, IChatClient? kernel = null)
     {
         _logger = logger;

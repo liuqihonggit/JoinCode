@@ -1,10 +1,18 @@
 namespace Core.Bridge;
 
 
+/// <summary>
+/// 工作健康检查中间件 — 拦截 healthcheck 工作类型并短路返回，同时更新已存在会话的访问令牌
+/// </summary>
 [Register(typeof(IHandleWorkMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class WorkHealthcheckMiddleware : ServiceEntity, IHandleWorkMiddleware
 {
 
+    /// <summary>
+    /// 构造工作健康检查中间件
+    /// </summary>
+    /// <param name="apiClient">桥接 API 客户端</param>
+    /// <param name="logger">日志器 — null 表示不记录日志</param>
     public WorkHealthcheckMiddleware(BridgeApiClient apiClient, ILogger<WorkHealthcheckMiddleware>? logger = null)
     {
         _apiClient = apiClient;
@@ -14,6 +22,12 @@ public sealed partial class WorkHealthcheckMiddleware : ServiceEntity, IHandleWo
     private readonly BridgeApiClient _apiClient;
 
 
+    /// <summary>
+    /// 处理工作项 — healthcheck 类型短路确认，已存在会话更新令牌后短路，否则传递给下游中间件
+    /// </summary>
+    /// <param name="ctx">工作处理上下文</param>
+    /// <param name="next">下游中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(HandleWorkContext ctx, MiddlewareDelegate<HandleWorkContext> next, CancellationToken ct)
     {
         if (string.Equals(ctx.Work.WorkType, "healthcheck", StringComparison.OrdinalIgnoreCase))

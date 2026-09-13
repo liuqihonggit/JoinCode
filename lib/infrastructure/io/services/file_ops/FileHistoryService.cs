@@ -14,6 +14,11 @@ public sealed partial class FileHistoryService : ServiceEntity, IFileHistoryServ
     private readonly string _sessionId;
     private readonly AsyncLockedDictionary<string, int> _versionTracker = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// 构造文件历史备份服务
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">可选日志记录器</param>
     public FileHistoryService(IFileSystem fs, ILogger<FileHistoryService>? logger = null)
     {
         _fs = fs;

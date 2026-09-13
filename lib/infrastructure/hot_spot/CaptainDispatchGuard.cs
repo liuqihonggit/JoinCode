@@ -9,11 +9,16 @@ public sealed class CaptainDispatchGuard : ICaptainDispatchGuard
 {
     private readonly IHotSpotTracker _hotSpotTracker;
 
+    /// <summary>
+    /// 构造函数 — 注入热点跟踪器
+    /// </summary>
+    /// <param name="hotSpotTracker">热点跟踪器</param>
     public CaptainDispatchGuard(IHotSpotTracker hotSpotTracker)
     {
         _hotSpotTracker = hotSpotTracker ?? throw new ArgumentNullException(nameof(hotSpotTracker));
     }
 
+    /// <inheritdoc/>
     public DispatchDecision CheckBeforeDispatch(IReadOnlyList<string> taskFiles)
     {
         ArgumentNullException.ThrowIfNull(taskFiles);

@@ -12,6 +12,12 @@ public sealed class ModelListFetcher : IModelListFetcher
     private readonly IFileSystem _fs;
     private readonly ILogger<ModelListFetcher>? _logger;
 
+    /// <summary>
+    /// 构造模型列表远程拉取器
+    /// </summary>
+    /// <param name="httpClientProvider">HTTP 客户端提供者</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">日志器，可为空</param>
     public ModelListFetcher(IHttpClientProvider httpClientProvider, IFileSystem fs, ILogger<ModelListFetcher>? logger = null)
     {
         _httpClientProvider = httpClientProvider;

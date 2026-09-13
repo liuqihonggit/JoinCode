@@ -6,9 +6,11 @@ namespace Core.Bridge;
 /// </summary>
 public sealed class BridgeInboundAttachment
 {
+    /// <summary>文件 UUID — 服务端附件标识</summary>
     [JsonPropertyName("file_uuid")]
     public required string FileUuid { get; init; }
 
+    /// <summary>文件名 — 上传时的原始文件名</summary>
     [JsonPropertyName("file_name")]
     public required string FileName { get; init; }
 }

@@ -7,6 +7,12 @@ namespace Core.Context;
 public sealed partial class LspDiagnosticMiddleware : ServiceEntity, IPreparePreprocessMiddleware
 {
 
+    /// <summary>
+    /// 初始化 LSP 诊断注入中间件
+    /// </summary>
+    /// <param name="reminderManager">系统提醒管理器</param>
+    /// <param name="contextManager">聊天上下文管理器</param>
+    /// <param name="lspDiagnosticProvider">可选 LSP 诊断提供者，null 时跳过 LSP 诊断注入</param>
     public LspDiagnosticMiddleware(ISystemReminderManager reminderManager, IChatContextManager contextManager, JoinCode.Abstractions.Interfaces.Lsp.ILspDiagnosticProvider? lspDiagnosticProvider = null)
     {
         _reminderManager = reminderManager;
@@ -17,6 +23,7 @@ public sealed partial class LspDiagnosticMiddleware : ServiceEntity, IPreparePre
     private readonly ISystemReminderManager _reminderManager;
     private readonly IChatContextManager _contextManager;
 
+    /// <summary>错误行为策略：继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
     /// <inheritdoc/>

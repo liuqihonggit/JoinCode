@@ -8,6 +8,9 @@ namespace Core.Agents;
 public sealed partial class RegisterMessageMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 
+    /// <summary>
+    /// 构造 RegisterMessageMiddleware 实例，注入消息代理、子代理上下文访问器、日志器及可选的队友初始化服务
+    /// </summary>
     public RegisterMessageMiddleware(IMailbox messageBroker, ISubAgentContextAccessor subAgentContextAccessor, ILogger<RegisterMessageMiddleware> logger, ITeammateInitService? teammateInitService = null, IServiceProvider? serviceProvider = null)
     {
         _messageBroker = messageBroker;
@@ -24,8 +27,15 @@ public sealed partial class RegisterMessageMiddleware : ServiceEntity, IUnifiedS
 
     private ITeammateInitService? ResolvedTeammateInitService => _teammateInitService ?? _serviceProvider?.GetService(typeof(ITeammateInitService)) as ITeammateInitService;
 
+    /// <summary>中间件错误处理策略：继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
+    /// <summary>
+    /// 执行消息通道注册：主代理或无代理跳过；否则注册消息通道并初始化 Teammate 钩子
+    /// </summary>
+    /// <param name="context">统一 Spawn 上下文</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct)
     {
         if (context.IsMainAgent || context.Agent is null)

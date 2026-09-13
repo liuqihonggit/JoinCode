@@ -119,8 +119,19 @@ public sealed record MemoryScanResult
 /// </summary>
 public sealed record DetailedScoredMemory
 {
+    /// <summary>
+    /// 记忆条目
+    /// </summary>
     public required MemoryEntry Memory { get; init; }
+
+    /// <summary>
+    /// 相关性分数
+    /// </summary>
     public double RelevanceScore { get; init; }
+
+    /// <summary>
+    /// 匹配原因描述
+    /// </summary>
     public string? MatchReason { get; init; }
 }
 
@@ -318,6 +329,15 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     private static readonly string TeamPathsSubDir = Path.Combine(AppDataConstants.AppDataFolder, "memory");
     private const string TeamPathsFileName = "team-paths.json";
 
+    /// <summary>
+    /// 构造内存管理服务
+    /// </summary>
+    /// <param name="memoryStore">记忆存储</param>
+    /// <param name="optional">可选的辅助服务集合</param>
+    /// <param name="logger">可选的日志记录器</param>
+    /// <param name="clock">可选的时钟服务,为 null 则使用系统时钟</param>
+    /// <param name="persistencePipeline">可选的持久化管道</param>
+    /// <param name="fs">可选的文件系统抽象</param>
     public MemoryManagementService(
         MemoryStore memoryStore,
         MemoryOptionalServices? optional = null,
@@ -987,6 +1007,9 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
 
     #endregion
 
+    /// <summary>
+    /// 释放内存管理 Actor 资源。
+    /// </summary>
     protected override void OnDispose()
     {
         _ = _mgmtActor.DisposeAsync();

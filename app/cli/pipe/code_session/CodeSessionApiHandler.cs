@@ -1,43 +1,63 @@
 namespace JoinCode.Pipe;
 
+/// <summary>代码会话 API 响应体 — 统一封装创建/查询/删除/列表等接口的返回结果</summary>
 public sealed class CodeSessionApiResponse
 {
+    /// <summary>操作是否成功</summary>
     [JsonPropertyName("success")]
     public bool Success { get; init; }
 
+    /// <summary>会话标识符</summary>
     [JsonPropertyName("sessionId")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? SessionId { get; init; }
 
+    /// <summary>项目名称</summary>
     [JsonPropertyName("projectName")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ProjectName { get; init; }
 
+    /// <summary>工作目录路径</summary>
     [JsonPropertyName("workDirectory")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? WorkDirectory { get; init; }
 
+    /// <summary>会话状态</summary>
     [JsonPropertyName("status")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Status { get; init; }
 
+    /// <summary>错误信息</summary>
     [JsonPropertyName("error")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Error { get; init; }
 }
 
+/// <summary>代码会话 API 处理器 — 提供创建/查询/删除/列表等 HTTP 接口，可选 JWT 鉴权</summary>
 [Register(typeof(CodeSessionApiHandler), ServiceLifetime.Singleton)]
 public sealed partial class CodeSessionApiHandler : ServiceEntity
 {
     private readonly CodeSessionManager _manager;
     private readonly Core.Bridge.BridgeJwtService? _jwtService;
 
+    /// <summary>
+    /// 构造函数 — 注入会话管理器与可选的 JWT 服务
+    /// </summary>
+    /// <param name="manager">代码会话管理器</param>
+    /// <param name="jwtService">JWT 鉴权服务，为 null 时跳过鉴权</param>
     public CodeSessionApiHandler(CodeSessionManager manager, Core.Bridge.BridgeJwtService? jwtService = null)
     {
         _manager = manager ?? throw new ArgumentNullException(nameof(manager));
         _jwtService = jwtService;
     }
 
+    /// <summary>
+    /// 创建新的代码会话
+    /// </summary>
+    /// <param name="projectName">项目名称</param>
+    /// <param name="workDirectory">工作目录路径</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>包含新会话信息的 API 响应</returns>
     public async ValueTask<CodeSessionApiResponse> HandleCreateAsync(
         string projectName,
         string workDirectory,
@@ -61,6 +81,12 @@ public sealed partial class CodeSessionApiHandler : ServiceEntity
         }
     }
 
+    /// <summary>
+    /// 根据会话标识符查询会话详情
+    /// </summary>
+    /// <param name="sessionId">会话标识符</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>包含会话信息的 API 响应；不存在时 Success 为 false</returns>
     public async ValueTask<CodeSessionApiResponse> HandleGetAsync(
         string sessionId,
         CancellationToken ct = default)
@@ -88,6 +114,12 @@ public sealed partial class CodeSessionApiHandler : ServiceEntity
         }
     }
 
+    /// <summary>
+    /// 根据会话标识符删除会话
+    /// </summary>
+    /// <param name="sessionId">会话标识符</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>删除成功时 Success 为 true；会话不存在时为 false</returns>
     public async ValueTask<CodeSessionApiResponse> HandleDeleteAsync(
         string sessionId,
         CancellationToken ct = default)
@@ -107,6 +139,11 @@ public sealed partial class CodeSessionApiHandler : ServiceEntity
         }
     }
 
+    /// <summary>
+    /// 列出全部代码会话
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>会话响应只读列表</returns>
     public async ValueTask<IReadOnlyList<CodeSessionApiResponse>> HandleListAsync(
         CancellationToken ct = default)
     {
@@ -121,6 +158,12 @@ public sealed partial class CodeSessionApiHandler : ServiceEntity
         }).ToList();
     }
 
+    /// <summary>
+    /// 处理 HTTP 请求 — 根据路径与方法分发到对应的会话操作路由
+    /// </summary>
+    /// <param name="context">HTTP 监听上下文</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task HandleHttpRequestAsync(HttpListenerContext context, CancellationToken ct)
     {
         var path = context.Request.Url?.AbsolutePath ?? "/";

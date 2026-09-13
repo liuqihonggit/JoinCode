@@ -8,6 +8,11 @@ namespace Infrastructure.Cache;
 public sealed partial class PasteStore : ServiceEntity, JoinCode.Abstractions.Interfaces.Cache.IPasteStore
 {
 
+    /// <summary>
+    /// 构造粘贴内容缓存
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">可选日志记录器</param>
     public PasteStore(IFileSystem fs, ILogger<PasteStore>? logger = null)
     {
         _fs = fs;

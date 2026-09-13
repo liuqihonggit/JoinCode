@@ -24,6 +24,10 @@ public sealed partial class MacroRecorder : ServiceEntity, IMacroRecorder
     private string _macroName = string.Empty;
     private readonly List<DesktopOperation> _recordedOperations = new();
 
+    /// <summary>构造宏录制器实例。</summary>
+    /// <param name="input">桌面输入服务，回放时用于执行实际鼠标键盘操作。</param>
+    /// <param name="fileSystem">文件系统抽象，用于保存与加载宏文件。</param>
+    /// <param name="logger">可选的日志记录器，传入 null 时静默运行。</param>
     public MacroRecorder(IDesktopInputService input, IFileSystem fileSystem, ILogger<MacroRecorder>? logger = null)
     {
         _input = input;

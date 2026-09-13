@@ -11,6 +11,12 @@ public partial class WebBrowserToolHandlers
     private readonly IBrowserAutomationService _browserService;
     private readonly ILogger<WebBrowserToolHandlers>? _logger;
 
+    /// <summary>
+    /// 初始化 <see cref="WebBrowserToolHandlers"/> 实例。
+    /// </summary>
+    /// <param name="webService">Web 服务，用于 open 操作抓取页面内容。</param>
+    /// <param name="browserService">浏览器自动化服务，用于 screenshot/evaluate 操作。</param>
+    /// <param name="logger">可选的日志记录器。</param>
     public WebBrowserToolHandlers(
         IWebService webService,
         IBrowserAutomationService browserService,
@@ -21,6 +27,15 @@ public partial class WebBrowserToolHandlers
         _logger = logger;
     }
 
+    /// <summary>
+    /// 异步执行浏览器操作（open/screenshot/evaluate），返回工具结果。
+    /// </summary>
+    /// <param name="target">目标 URL 或 JavaScript 表达式。</param>
+    /// <param name="action">操作类型：open/screenshot/evaluate，默认 open。</param>
+    /// <param name="wait_ms">页面加载等待时长（毫秒），默认 3000。</param>
+    /// <param name="url">evaluate 操作时的页面上下文 URL（可选）。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>包含操作结果与诊断信息的工具结果。</returns>
     [McpTool(WebToolNameConstants.WebBrowser, "Open a URL in the browser or perform browser actions", "web")]
     public async Task<ToolResult> WebBrowserActionAsync(
         [McpToolParameter("URL to open/screenshot, or JavaScript expression to evaluate")] string target,

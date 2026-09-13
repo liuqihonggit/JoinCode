@@ -6,9 +6,24 @@ namespace JoinCode.Reasoning.Agents;
 /// </summary>
 public sealed class ReasoningContext
 {
+    /// <summary>
+    /// 当前推理轮次可见的全部数据项
+    /// </summary>
     public required IEnumerable<DataItem> AllItems { get; init; }
+
+    /// <summary>
+    /// 当前推理轮次已收集的全部证据记录
+    /// </summary>
     public required IEnumerable<EvidenceRecord> AllEvidence { get; init; }
+
+    /// <summary>
+    /// 推理 DAG — 承载节点间依赖与拓扑结构（内部信任边界，Agent 不应修改）
+    /// </summary>
     public required Dag<ReasoningPayload> Dag { get; init; }
+
+    /// <summary>
+    /// 当前推理轮次的配置选项
+    /// </summary>
     public required ReasoningOptions Options { get; init; }
 
     /// <summary>

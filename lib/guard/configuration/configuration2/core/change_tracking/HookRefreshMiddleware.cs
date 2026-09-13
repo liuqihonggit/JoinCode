@@ -7,13 +7,15 @@ namespace Core.Configuration;
 public sealed partial class HookRefreshMiddleware : ServiceEntity, ISettingsMiddleware
 {
 
+    /// <summary>
+    /// 构造函数 — 注入可选的钩子配置管理器
+    /// </summary>
+    /// <param name="hookConfigurationManager">可选的钩子配置管理器</param>
     public HookRefreshMiddleware(IHookConfigurationManager? hookConfigurationManager = null)
     {
         _hookConfigurationManager = hookConfigurationManager;
     }
     private readonly IHookConfigurationManager? _hookConfigurationManager;
-
-    /// <inheritdoc />
 
     /// <inheritdoc />
     public ErrorBehavior OnError => ErrorBehavior.Continue;

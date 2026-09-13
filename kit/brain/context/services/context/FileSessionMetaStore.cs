@@ -1,5 +1,8 @@
 namespace Core.Context;
 
+/// <summary>
+/// 基于文件系统的会话元数据存储 — 将会话元数据序列化为 JSON 文件持久化
+/// </summary>
 [Register(typeof(ISessionMetaStore), ServiceLifetime.Singleton)]
 public sealed partial class FileSessionMetaStore : ServiceEntity, ISessionMetaStore
 {

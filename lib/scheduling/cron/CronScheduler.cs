@@ -6,11 +6,34 @@ namespace Core.Scheduling.Cron;
 /// </summary>
 public interface ICronSchedulerCommand;
 
+/// <summary>
+/// 启动调度器命令
+/// </summary>
 public sealed record CronStartCmd : ICronSchedulerCommand;
+
+/// <summary>
+/// 停止调度器命令
+/// </summary>
 public sealed record CronStopCmd : ICronSchedulerCommand;
+
+/// <summary>
+/// 检查周期 tick 命令 — 由 Timer 触发自消息
+/// </summary>
 public sealed record CronCheckTickCmd : ICronSchedulerCommand;
+
+/// <summary>
+/// 通知任务变更命令 — 清除下次触发时间缓存
+/// </summary>
 public sealed record CronNotifyChangedCmd : ICronSchedulerCommand;
+
+/// <summary>
+/// 查询下次触发时间命令 — 通过 TaskCompletionSource 返回结果
+/// </summary>
 public sealed record CronGetNextFireCmd(TaskCompletionSource<long?> Tcs) : ICronSchedulerCommand;
+
+/// <summary>
+/// 移除在飞任务标记命令 — 任务执行完成后释放占位
+/// </summary>
 public sealed record CronRemoveInFlightCmd(string TaskId) : ICronSchedulerCommand;
 
 /// <summary>
@@ -95,6 +118,13 @@ public sealed partial class CronScheduler : ActorBase<ICronSchedulerCommand, Uni
     private readonly HashSet<string> _inFlight = new();
     private bool _started;
 
+    /// <summary>
+    /// 初始化 Cron 调度器实例 — 使用指定选项、任务存储与时钟
+    /// </summary>
+    /// <param name="options">调度器选项</param>
+    /// <param name="taskStore">Cron 任务存储</param>
+    /// <param name="clock">时钟服务,为 null 时使用系统时钟</param>
+    /// <param name="logger">日志记录器</param>
     public CronScheduler(CronSchedulerOptions options, ICronTaskStore taskStore, IClockService? clock = null, ILogger<CronScheduler>? logger = null)
         : base()
     {
@@ -126,17 +156,20 @@ public sealed partial class CronScheduler : ActorBase<ICronSchedulerCommand, Uni
         TrySend(new CronNotifyChangedCmd());
     }
 
+    /// <inheritdoc/>
     public Task StartAsync(CancellationToken ct = default)
     {
         if (Volatile.Read(ref _disposed) != 0) throw new ObjectDisposedException(nameof(CronScheduler));
         return SendAsync(new CronStartCmd(), ct).AsTask();
     }
 
+    /// <inheritdoc/>
     public Task StopAsync(CancellationToken ct = default)
     {
         return SendAsync(new CronStopCmd(), ct).AsTask();
     }
 
+    /// <inheritdoc/>
     public async Task<long?> GetNextFireTimeAsync(CancellationToken ct = default)
     {
         var tcs = new TaskCompletionSource<long?>();
@@ -144,6 +177,9 @@ public sealed partial class CronScheduler : ActorBase<ICronSchedulerCommand, Uni
         return await tcs.Task.WaitAsync(ct).ConfigureAwait(false);
     }
 
+    /// <summary>处理调度器命令，根据命令类型执行启动、停止、检查、通知变更等操作。</summary>
+    /// <param name="command">要处理的调度器命令。</param>
+    /// <param name="ct">取消令牌。</param>
     protected override async ValueTask HandleAsync(ICronSchedulerCommand command, CancellationToken ct)
     {
         switch (command)
@@ -184,6 +220,8 @@ public sealed partial class CronScheduler : ActorBase<ICronSchedulerCommand, Uni
         }
     }
 
+    /// <summary>命令消费者发生异常时的回调处理，记录错误日志。</summary>
+    /// <param name="ex">消费者抛出的异常。</param>
     protected override void OnConsumerError(Exception ex)
     {
         _logger?.LogError(ex, "[CronScheduler] 命令处理异常");
@@ -305,6 +343,7 @@ public sealed partial class CronScheduler : ActorBase<ICronSchedulerCommand, Uni
         }
     }
 
+    /// <inheritdoc/>
     public override async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;

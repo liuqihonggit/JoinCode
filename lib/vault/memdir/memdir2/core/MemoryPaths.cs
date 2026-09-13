@@ -46,6 +46,10 @@ public sealed partial class MemoryPaths : ServiceEntity, IMemoryPaths
     private readonly string? _currentUserId;
     private readonly string? _currentProjectId;
 
+    /// <summary>
+    /// 构造记忆路径管理器
+    /// </summary>
+    /// <param name="options">Memdir 配置选项,为 null 则使用默认基础目录</param>
     public MemoryPaths(IOptions<MemdirOptions> options)
     {
         _baseDirectory = options?.Value?.StoragePath ?? GetDefaultBaseDirectory();
@@ -136,6 +140,10 @@ public sealed partial class TeamMemoryPaths : ServiceEntity, ITeamMemoryPaths
 {
     private readonly string _baseDirectory;
 
+    /// <summary>
+    /// 构造团队记忆路径管理器
+    /// </summary>
+    /// <param name="options">Memdir 配置选项,为 null 则使用默认团队基础目录</param>
     public TeamMemoryPaths(IOptions<MemdirOptions> options)
     {
         var storagePath = options?.Value?.StoragePath;

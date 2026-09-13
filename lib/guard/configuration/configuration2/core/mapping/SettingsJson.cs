@@ -8,6 +8,7 @@ namespace Core.Configuration;
 /// </summary>
 public sealed class SettingsJson
 {
+    /// <summary>初始化空的 SettingsJson 实例</summary>
     public SettingsJson() { }
 
     /// <summary>
@@ -87,6 +88,7 @@ public sealed class SettingsJson
 [SettingsMerge]
 public sealed partial class CurrentSettings
 {
+    /// <summary>初始化空的 CurrentSettings 实例</summary>
     public CurrentSettings() { }
 
     /// <summary>
@@ -501,12 +503,15 @@ public sealed partial class CurrentSettings
 /// </summary>
 public sealed class PermissionsSettings
 {
+    /// <summary>允许的工具匹配规则列表</summary>
     [JsonPropertyName("allow")]
     public List<string> Allow { get; init; } = [];
 
+    /// <summary>拒绝的工具匹配规则列表</summary>
     [JsonPropertyName("deny")]
     public List<string> Deny { get; init; } = [];
 
+    /// <summary>需要询问确认的工具匹配规则列表</summary>
     [JsonPropertyName("ask")]
     public List<string> Ask { get; init; } = [];
 
@@ -541,9 +546,11 @@ public sealed class PermissionsSettings
 /// </summary>
 public sealed class ToolOverrideEntry
 {
+    /// <summary>该模式下额外允许的工具列表</summary>
     [JsonPropertyName("allow")]
     public List<string> Allow { get; init; } = [];
 
+    /// <summary>该模式下额外拒绝的工具列表</summary>
     [JsonPropertyName("deny")]
     public List<string> Deny { get; init; } = [];
 }
@@ -553,21 +560,27 @@ public sealed class ToolOverrideEntry
 /// </summary>
 public sealed class HookSettings
 {
+    /// <summary>Hook 类型（如 command）</summary>
     [JsonPropertyName("type")]
     public string? Type { get; init; }
 
+    /// <summary>Hook 执行命令</summary>
     [JsonPropertyName("command")]
     public string? Command { get; init; }
 
+    /// <summary>工具名匹配器（正则或通配符）</summary>
     [JsonPropertyName("matcher")]
     public string? Matcher { get; init; }
 
+    /// <summary>超时时间（毫秒）</summary>
     [JsonPropertyName("timeout")]
     public int? Timeout { get; init; }
 
+    /// <summary>执行期间显示的状态消息</summary>
     [JsonPropertyName("statusMessage")]
     public string? StatusMessage { get; init; }
 
+    /// <summary>是否仅执行一次</summary>
     [JsonPropertyName("once")]
     public bool? Once { get; init; }
 }
@@ -577,21 +590,27 @@ public sealed class HookSettings
 /// </summary>
 public sealed class McpServerSettings
 {
+    /// <summary>服务器类型（stdio/sse/http）</summary>
     [JsonPropertyName("type")]
     public string? Type { get; init; }
 
+    /// <summary>启动命令（stdio 类型时使用）</summary>
     [JsonPropertyName("command")]
     public string? Command { get; init; }
 
+    /// <summary>启动命令参数列表</summary>
     [JsonPropertyName("args")]
     public List<string> Args { get; init; } = [];
 
+    /// <summary>HTTP/SSE 端点 URL</summary>
     [JsonPropertyName("url")]
     public string? Url { get; init; }
 
+    /// <summary>环境变量注入</summary>
     [JsonPropertyName("env")]
     public Dictionary<string, string> Env { get; init; } = [];
 
+    /// <summary>HTTP 请求头注入</summary>
     [JsonPropertyName("headers")]
     public Dictionary<string, string> Headers { get; init; } = [];
 }
@@ -601,21 +620,27 @@ public sealed class McpServerSettings
 /// </summary>
 public sealed class SandboxSettings
 {
+    /// <summary>是否启用沙箱</summary>
     [JsonPropertyName("enabled")]
     public bool? Enabled { get; init; }
 
+    /// <summary>沙箱模式</summary>
     [JsonPropertyName("mode")]
     public string? Mode { get; init; }
 
+    /// <summary>沙箱镜像名</summary>
     [JsonPropertyName("image")]
     public string? Image { get; init; }
 
+    /// <summary>允许访问的路径白名单</summary>
     [JsonPropertyName("allowedPaths")]
     public List<string> AllowedPaths { get; init; } = [];
 
+    /// <summary>是否限制网络访问</summary>
     [JsonPropertyName("restrictNetwork")]
     public bool? RestrictNetwork { get; init; }
 
+    /// <summary>内存上限（MB）</summary>
     [JsonPropertyName("memoryLimitMb")]
     public int? MemoryLimitMb { get; init; }
 }
@@ -625,9 +650,11 @@ public sealed class SandboxSettings
 /// </summary>
 public sealed class PluginSettings
 {
+    /// <summary>是否启用该插件</summary>
     [JsonPropertyName("enabled")]
     public bool? Enabled { get; init; }
 
+    /// <summary>插件自定义配置键值对</summary>
     [JsonPropertyName("config")]
     public Dictionary<string, string> Config { get; init; } = [];
 }
@@ -637,9 +664,11 @@ public sealed class PluginSettings
 /// </summary>
 public sealed class WorktreeSettings
 {
+    /// <summary>需要符号链接到新 worktree 的目录列表</summary>
     [JsonPropertyName("symlinkDirectories")]
     public List<string> SymlinkDirectories { get; init; } = [];
 
+    /// <summary>稀疏检出的路径列表</summary>
     [JsonPropertyName("sparsePaths")]
     public List<string> SparsePaths { get; init; } = [];
 }
@@ -649,33 +678,43 @@ public sealed class WorktreeSettings
 /// </summary>
 public sealed class ActiveWorktreeSessionJson
 {
+    /// <summary>原始工作目录</summary>
     [JsonPropertyName("originalCwd")]
     public string? OriginalCwd { get; init; }
 
+    /// <summary>worktree 路径</summary>
     [JsonPropertyName("worktreePath")]
     public string? WorktreePath { get; init; }
 
+    /// <summary>worktree 名称</summary>
     [JsonPropertyName("worktreeName")]
     public string? WorktreeName { get; init; }
 
+    /// <summary>worktree 分支名</summary>
     [JsonPropertyName("worktreeBranch")]
     public string? WorktreeBranch { get; init; }
 
+    /// <summary>原始分支名</summary>
     [JsonPropertyName("originalBranch")]
     public string? OriginalBranch { get; init; }
 
+    /// <summary>原始 HEAD 提交哈希</summary>
     [JsonPropertyName("originalHeadCommit")]
     public string? OriginalHeadCommit { get; init; }
 
+    /// <summary>会话 ID</summary>
     [JsonPropertyName("sessionId")]
     public string? SessionId { get; init; }
 
+    /// <summary>是否基于 Hook 创建</summary>
     [JsonPropertyName("hookBased")]
     public bool? HookBased { get; init; }
 
+    /// <summary>创建耗时（毫秒）</summary>
     [JsonPropertyName("creationDurationMs")]
     public long? CreationDurationMs { get; init; }
 
+    /// <summary>是否使用了稀疏检出路径</summary>
     [JsonPropertyName("usedSparsePaths")]
     public bool? UsedSparsePaths { get; init; }
 }
@@ -685,12 +724,15 @@ public sealed class ActiveWorktreeSessionJson
 /// </summary>
 public sealed class StatusLineSettings
 {
+    /// <summary>状态栏类型（如 command）</summary>
     [JsonPropertyName("type")]
     public string? Type { get; init; }
 
+    /// <summary>状态栏执行命令</summary>
     [JsonPropertyName("command")]
     public string? Command { get; init; }
 
+    /// <summary>状态栏内边距</summary>
     [JsonPropertyName("padding")]
     public int? Padding { get; init; }
 }
@@ -700,24 +742,31 @@ public sealed class StatusLineSettings
 /// </summary>
 public sealed class ToolScoreSettingsJson
 {
+    /// <summary>工具成功时的评分增量</summary>
     [JsonPropertyName("successDelta")]
     public int? SuccessDelta { get; init; }
 
+    /// <summary>工具失败时的评分扣减量</summary>
     [JsonPropertyName("failDelta")]
     public int? FailDelta { get; init; }
 
+    /// <summary>工具告警阈值分数</summary>
     [JsonPropertyName("warningThreshold")]
     public int? WarningThreshold { get; init; }
 
+    /// <summary>评分下限</summary>
     [JsonPropertyName("scoreMin")]
     public int? ScoreMin { get; init; }
 
+    /// <summary>评分上限</summary>
     [JsonPropertyName("scoreMax")]
     public int? ScoreMax { get; init; }
 
+    /// <summary>每小时评分衰减率</summary>
     [JsonPropertyName("decayRatePerHour")]
     public double? DecayRatePerHour { get; init; }
 
+    /// <summary>衰减后恢复到的基准分数</summary>
     [JsonPropertyName("decayRecoveryScore")]
     public int? DecayRecoveryScore { get; init; }
 }

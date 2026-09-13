@@ -12,6 +12,8 @@ public sealed partial class SimpleJsonSchemaValidator : ServiceEntity, IJsonSche
     /// 验证JSON Schema本身是否合法 — 对齐 TS ajv.validateSchema()
     /// 检查Schema结构是否符合JSON Schema规范的基本要求
     /// </summary>
+    /// <param name="schemaJson">待验证的 Schema JSON 字符串</param>
+    /// <returns>验证结果，包含是否合法与错误列表</returns>
     public SchemaValidationResult ValidateSchema(string schemaJson)
     {
         ArgumentNullException.ThrowIfNull(schemaJson);

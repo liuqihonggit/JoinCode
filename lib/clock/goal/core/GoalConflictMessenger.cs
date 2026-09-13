@@ -11,6 +11,10 @@ public sealed partial class GoalConflictMessenger : ServiceEntity, IGoalConflict
 
     private readonly ILogger<GoalConflictMessenger>? _logger;
 
+    /// <summary>
+    /// 构造 GoalConflictMessenger — 注入可选日志记录器
+    /// </summary>
+    /// <param name="logger">可选日志记录器</param>
     public GoalConflictMessenger(ILogger<GoalConflictMessenger>? logger = null)
     {
         _logger = logger;

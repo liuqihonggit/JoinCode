@@ -8,12 +8,22 @@ namespace JoinCode.ChatCommands;
 [ChatCommandArg("target", Type = "string", Description = "撤回目标: last=最后一轮(默认), all=全部历史, <n>=撤回到第 n 条消息索引", Default = "last", Enum = new[] { "last", "all" })]
 public sealed class RewindCommand : ChatCommandBase
 {
+    /// <summary>命令名称。</summary>
     public override string Name => ChatCommandNameConstants.Rewind;
+    /// <summary>命令描述。</summary>
     public override string Description => "恢复代码和/或对话到之前的状态";
+    /// <summary>命令用法提示。</summary>
     public override string Usage => "/rewind [last|<n>|all]";
+    /// <summary>命令别名列表。</summary>
     public override string[] Aliases => new[] { "checkpoint" };
+    /// <summary>参数提示文本。</summary>
     public override string ArgumentHint => "[last|<n>|all]";
 
+    /// <summary>
+    /// 执行 /rewind 命令，根据参数撤回到最后一轮、指定索引或全部清空对话历史。
+    /// </summary>
+    /// <param name="context">命令执行上下文。</param>
+    /// <returns>命令执行结果。</returns>
     public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var arg = GetNormalizedArgs(context).ToLowerInvariant();

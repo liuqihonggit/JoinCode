@@ -11,6 +11,12 @@ public class MemoryExtensionToolHandlers
     private readonly global::Memdir.Sync.ITeamMemorySyncService? _teamMemorySyncService;
     private readonly IClockService _clock;
 
+    /// <summary>
+    /// 构造记忆扩展工具处理器
+    /// </summary>
+    /// <param name="memoryManagementService">内存管理服务</param>
+    /// <param name="teamMemorySyncService">可选的团队记忆同步服务</param>
+    /// <param name="clock">可选的时钟服务,为 null 则使用系统时钟</param>
     public MemoryExtensionToolHandlers(
         IMemoryManagementService memoryManagementService,
         global::Memdir.Sync.ITeamMemorySyncService? teamMemorySyncService = null,

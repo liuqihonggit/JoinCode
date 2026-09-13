@@ -37,8 +37,12 @@ public interface IToolFixHook
 /// </summary>
 public sealed class ToolFixResult
 {
+    /// <summary>修正是否成功</summary>
     public required bool Success { get; init; }
+    /// <summary>修正后的命令，失败时为空</summary>
     public string? FixedCommand { get; init; }
+    /// <summary>修正描述说明</summary>
     public string? Description { get; init; }
+    /// <summary>错误信息，成功时为空</summary>
     public string? Error { get; init; }
 }

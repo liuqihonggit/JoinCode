@@ -63,11 +63,34 @@ public sealed record DangerousCommandAnalysis
 /// </summary>
 public sealed record DangerousCommandDefinition
 {
+    /// <summary>
+    /// 命令匹配模式（正则表达式或字面量）
+    /// </summary>
     public required string Pattern { get; init; }
+
+    /// <summary>
+    /// 危险级别
+    /// </summary>
     public required DangerLevel Level { get; init; }
+
+    /// <summary>
+    /// 命令描述
+    /// </summary>
     public required string Description { get; init; }
+
+    /// <summary>
+    /// 警告消息
+    /// </summary>
     public required string WarningMessage { get; init; }
+
+    /// <summary>
+    /// 建议操作
+    /// </summary>
     public string? Suggestion { get; init; }
+
+    /// <summary>
+    /// 是否为正则表达式模式
+    /// </summary>
     public bool IsRegex { get; init; }
 }
 

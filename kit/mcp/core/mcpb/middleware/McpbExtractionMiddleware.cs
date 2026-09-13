@@ -8,6 +8,11 @@ namespace McpClient.Mcpb;
 public sealed partial class McpbExtractionMiddleware : ServiceEntity, IMcpbMiddleware
 {
 
+    /// <summary>
+    /// 初始化 MCPB 解压中间件
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public McpbExtractionMiddleware(IFileSystem fs, ILogger<McpbExtractionMiddleware>? logger = null)
     {
         _fs = fs;
@@ -20,6 +25,13 @@ public sealed partial class McpbExtractionMiddleware : ServiceEntity, IMcpbMiddl
     private const int MaxTotalSizeBytes = 1024 * 1024 * 1024;
 
 
+    /// <summary>
+    /// 执行解压中间件：缓存命中时跳过，否则安全解压 MCPB 包（含路径遍历检测、文件大小限制）
+    /// </summary>
+    /// <param name="context">MCPB 加载上下文</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task InvokeAsync(McpbLoadContext context, MiddlewareDelegate<McpbLoadContext> next, CancellationToken ct)
     {
         if (context.IsCacheHit)

@@ -3,18 +3,32 @@
 
 namespace McpToolDispatch;
 
+/// <summary>
+/// 用户交互工具处理器 — 向用户提出多选问题以收集信息、澄清歧义或做出决策
+/// </summary>
 [McpToolDispatch(ToolCategory.Interaction)]
 public class UserInteractionToolHandlers
 {
     private readonly IInteractiveService _interactiveService;
     private readonly ILogger<UserInteractionToolHandlers>? _logger;
 
+    /// <summary>
+    /// 初始化用户交互工具处理器
+    /// </summary>
+    /// <param name="interactiveService">交互式服务实例</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public UserInteractionToolHandlers(IInteractiveService interactiveService, ILogger<UserInteractionToolHandlers>? logger = null)
     {
         _interactiveService = interactiveService ?? throw new ArgumentNullException(nameof(interactiveService));
         _logger = logger;
     }
 
+    /// <summary>
+    /// 向用户提出多选问题以收集信息、澄清歧义或做出决策
+    /// </summary>
+    /// <param name="questions">问题 JSON 数组（1-4 个问题），每个问题包含 question/header/options/multiSelect 字段</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>包含用户回答的工具执行结果</returns>
     [McpTool(InteractionToolNameConstants.AskUserQuestion, "Ask the user multiple choice questions to gather information, clarify ambiguity, or make decisions", "interaction")]
     public async Task<ToolResult> AskUserQuestionAsync(
         [McpToolParameter("Questions to ask the user (JSON array, 1-4 questions). Each: {question, header, options:[{label,description,preview?}], multiSelect?}")] string questions,

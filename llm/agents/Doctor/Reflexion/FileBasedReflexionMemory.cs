@@ -10,12 +10,24 @@ public sealed class FileBasedReflexionMemory : IReflexionMemory
     private readonly IFileSystem _fs;
     private readonly string _baseDir;
 
+    /// <summary>
+    /// 构造基于文件的反思记忆
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="baseDir">存储基目录（可选，默认使用 AppDataConstants.Paths.ReflexionDirectory）</param>
     public FileBasedReflexionMemory(IFileSystem fs, string? baseDir = null)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _baseDir = baseDir ?? AppDataConstants.Paths.ReflexionDirectory;
     }
 
+    /// <summary>
+    /// 存储修复经验 — 按 RuleId 分目录序列化为 JSON 文件
+    /// </summary>
+    /// <param name="patch">代码补丁</param>
+    /// <param name="diagnostic">诊断报告</param>
+    /// <param name="wasSuccessful">本次修复是否成功</param>
+    /// <param name="ct">取消令牌</param>
     public async Task StoreAsync(
         CodePatch patch,
         DiagnosticReport diagnostic,
@@ -48,6 +60,13 @@ public sealed class FileBasedReflexionMemory : IReflexionMemory
         await _fs.WriteAllTextAsync(filePath, json, ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 检索与当前诊断相似的历史补丁 — 按 RuleId 匹配，优先返回最近成功的补丁
+    /// </summary>
+    /// <param name="diagnostic">当前诊断报告</param>
+    /// <param name="maxResults">最大返回数量（默认 3）</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>相似历史补丁列表</returns>
     public async Task<IReadOnlyList<CodePatch>> RetrieveSimilarPatchesAsync(
         DiagnosticReport diagnostic,
         int maxResults = 3,
@@ -93,6 +112,11 @@ public sealed class FileBasedReflexionMemory : IReflexionMemory
         return results;
     }
 
+    /// <summary>
+    /// 获取所有规则的反思统计 — 汇总每个 RuleId 的尝试次数、成功/失败数、最后尝试时间
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>规则统计列表</returns>
     public async Task<IReadOnlyList<ReflexionRuleStats>> GetStatisticsAsync(CancellationToken ct = default)
     {
         if (!_fs.DirectoryExists(_baseDir))
@@ -166,21 +190,42 @@ public sealed class FileBasedReflexionMemory : IReflexionMemory
     }
 }
 
+/// <summary>
+/// 反思记忆条目 — 单次修复经验的序列化记录
+/// </summary>
 internal sealed record ReflexionEntry
 {
+    /// <summary>代码补丁</summary>
     public required CodePatch Patch { get; init; }
+
+    /// <summary>诊断摘要</summary>
     public required ReflexionDiagnosticSummary Diagnostic { get; init; }
+
+    /// <summary>本次修复是否成功</summary>
     public required bool WasSuccessful { get; init; }
+
+    /// <summary>存储时间</summary>
     public required DateTimeOffset StoredAt { get; init; }
 }
 
+/// <summary>
+/// 反思诊断摘要 — 诊断报告的精简序列化形式
+/// </summary>
 internal sealed record ReflexionDiagnosticSummary
 {
+    /// <summary>诊断规则 ID</summary>
     public required DiagnosticRuleId RuleId { get; init; }
+
+    /// <summary>严重级别</summary>
     public required DiagnosticSeverity Severity { get; init; }
+
+    /// <summary>诊断描述</summary>
     public required string Description { get; init; }
 }
 
+/// <summary>
+/// ReflexionEntry 专用 JSON 序列化上下文 — AOT 源码生成
+/// </summary>
 [JsonSerializable(typeof(ReflexionEntry))]
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 internal sealed partial class ReflexionEntryJsonContext : JsonSerializerContext;

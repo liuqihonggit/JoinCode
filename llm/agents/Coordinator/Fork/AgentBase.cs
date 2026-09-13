@@ -8,57 +8,87 @@ namespace Core.Agents.Coordinator;
 /// </summary>
 public class AgentBase : Entity, IAgent
 {
+    /// <summary>LLM 查询引擎，用于发起对话请求</summary>
     protected readonly IQueryEngine _queryEngine;
+    /// <summary>日志记录器（可选），为 null 时不记录日志</summary>
     protected readonly ILogger? _logger;
+    /// <summary>时钟服务，用于获取当前时间（便于测试注入）</summary>
     protected readonly IClockService _clock;
+    /// <summary>上下文消息列表，累积对话上下文</summary>
     protected readonly List<string> _context;
+    /// <summary>取消令牌源，控制 Agent 执行的取消</summary>
     protected readonly CancellationTokenSource _cts;
-#pragma warning disable JCC4005 // SemaphoreSlim 在 OnDispose() 中释放，分析器无法追踪间接调用路径
+    /// <summary>暂停锁，用于实现 Agent 暂停/恢复机制</summary>
+    #pragma warning disable JCC4005 // SemaphoreSlim 在 OnDispose() 中释放，分析器无法追踪间接调用路径
     protected readonly AsyncLock _pauseLock;
-#pragma warning restore JCC4005
+    #pragma warning restore JCC4005
+    /// <summary>上次缓存安全参数（可选），用于 LLM 缓存复用</summary>
     protected JoinCode.Abstractions.LLM.Chat.CacheSafeParams? _lastCacheSafeParams;
 
     // === 身份（ObjectId/UniqueId/CreatedAt 继承自 Entity）===
+    /// <summary>智能体名称</summary>
     public string Name { get; }
+    /// <summary>智能体角色</summary>
     public AgentRole Role { get; }
+    /// <summary>执行器变体</summary>
     public ExecutorVariant? Variant { get; }
+    /// <summary>父智能体 ObjectId</summary>
     public ObjectId? ParentObjectId { get; init; }
 
     // === 任务 ===
+    /// <summary>任务描述</summary>
     public string Task { get; }
     /// <summary>
     /// 当前用户输入 — 主代理每轮对话前设置，优先于 Task 作为 prompt
     /// 子代理不设置（用 Task）
     /// </summary>
     public string? CurrentInput { get; set; }
+    /// <summary>子代理选项</summary>
     public SubAgentOptions Options { get; }
+    /// <summary>子代理上下文</summary>
     public SubAgentContext? Context { get; }
+    /// <summary>任务执行状态</summary>
     public TaskExecutionStatus Status { get; set; }
+    /// <summary>任务执行状态（别名，对齐命名）</summary>
     public TaskExecutionStatus State { get; set; }
+    /// <summary>取消令牌源</summary>
     public CancellationTokenSource? CancellationTokenSource { get; set; }
 
     // === 上下文 ===
+    /// <summary>聊天历史消息列表</summary>
     public MessageList ChatHistory { get; } = new();
+    /// <summary>是否使用全新上下文（不继承父代理历史）</summary>
     public bool FreshContext { get; init; }
 
     // === 配置 ===
+    /// <summary>系统提示词</summary>
     public string? SystemPrompt { get; init; }
+    /// <summary>额外指令</summary>
     public string? Instruction { get; set; }
 
     // === 预算 ===
+    /// <summary>Token 预算上限</summary>
     public int? TokenBudget { get; init; }
+    /// <summary>已使用 Token 数</summary>
     public int TokensUsed { get; set; }
+    /// <summary>已完成的对话轮数</summary>
     public int TurnsCompleted { get; set; }
 
     // === Goal绑定 ===
+    /// <summary>Goal 标识</summary>
     public string? GoalId { get; init; }
+    /// <summary>图节点标识</summary>
     public string? GraphNodeId { get; init; }
 
     // === 输出 ===
+    /// <summary>执行输出</summary>
     public string? Output { get; set; }
+    /// <summary>错误消息</summary>
     public string? ErrorMessage { get; set; }
+    /// <summary>路由列表</summary>
     public string[]? Routes { get; set; }
 
+    /// <summary>执行计数器，记录 Agent 已执行的对话轮数</summary>
     protected int _executionCount;
 
     /// <summary>

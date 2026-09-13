@@ -7,6 +7,12 @@ namespace Core.Context;
 public sealed partial class ReminderInjectionMiddleware : ServiceEntity, IPreparePreprocessMiddleware
 {
 
+    /// <summary>
+    /// 初始化提醒注入中间件
+    /// </summary>
+    /// <param name="toolIdleReminder">工具空闲提醒服务</param>
+    /// <param name="reminderManager">系统提醒管理器</param>
+    /// <param name="contextManager">聊天上下文管理器</param>
     public ReminderInjectionMiddleware(ToolIdleReminderService toolIdleReminder, ISystemReminderManager reminderManager, IChatContextManager contextManager)
     {
         _toolIdleReminder = toolIdleReminder;
@@ -17,6 +23,7 @@ public sealed partial class ReminderInjectionMiddleware : ServiceEntity, IPrepar
     private readonly ISystemReminderManager _reminderManager;
     private readonly IChatContextManager _contextManager;
 
+    /// <summary>错误行为策略：继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
     /// <inheritdoc/>

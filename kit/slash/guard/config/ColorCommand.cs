@@ -10,6 +10,12 @@ namespace JoinCode.ChatCommands;
 [ChatCommandArg("action", Type = "string", Description = "颜色操作: theme=设置主题, test=测试颜色支持, reset=重置默认", Enum = new[] { "theme", "test", "reset" })]
 public sealed class ColorCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /color 命令 — 设置终端颜色主题或测试颜色支持
+    /// 无参数或 test 时显示颜色测试,reset 时重置默认,其余视为主题名
+    /// </summary>
+    /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
+    /// <returns>命令执行结果,始终返回 Continue 表示继续会话</returns>
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();

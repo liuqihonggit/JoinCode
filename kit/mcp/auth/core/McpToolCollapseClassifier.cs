@@ -11,13 +11,18 @@ public static partial class McpToolCollapseClassifier
     /// </summary>
     public sealed class CollapseClassification
     {
+        /// <summary>是否为搜索类工具</summary>
         public bool IsSearch { get; init; }
+
+        /// <summary>是否为读取类工具</summary>
         public bool IsRead { get; init; }
     }
 
     /// <summary>
     /// 对工具名进行分类 — 对齐 TS classifyMcpToolForCollapse
     /// </summary>
+    /// <param name="toolName">工具名称（camelCase/kebab-case/snake_case 均可）</param>
+    /// <returns>分类结果（IsSearch/IsRead 互不排斥，可同时为 true）</returns>
     public static CollapseClassification Classify(string toolName)
     {
         ArgumentException.ThrowIfNullOrEmpty(toolName);

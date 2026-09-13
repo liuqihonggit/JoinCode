@@ -1,5 +1,8 @@
 namespace Core.Hooks.Lifecycle;
 
+/// <summary>
+/// 会话启动钩子管理器 — 在会话启动时编排 SessionStart 钩子,聚合阻断决策与附加配置
+/// </summary>
 [Register(typeof(ISessionStartHookManager), ServiceLifetime.Singleton)]
 public sealed partial class SessionStartHookManager : ServiceEntity, ISessionStartHookManager
 {
@@ -7,6 +10,9 @@ public sealed partial class SessionStartHookManager : ServiceEntity, ISessionSta
     private readonly ILogger<SessionStartHookManager>? _logger;
     private readonly ITelemetryService? _telemetryService;
 
+    /// <summary>
+    /// 初始化会话启动钩子管理器实例
+    /// </summary>
     public SessionStartHookManager(IHookOrchestrator orchestrator, ILogger<SessionStartHookManager>? logger = null, ITelemetryService? telemetryService = null)
     {
         _orchestrator = orchestrator ?? throw new ArgumentNullException(nameof(orchestrator));
@@ -14,6 +20,7 @@ public sealed partial class SessionStartHookManager : ServiceEntity, ISessionSta
         _telemetryService = telemetryService;
     }
 
+    /// <inheritdoc/>
     public async Task<SessionStartHookResult> OnSessionStartAsync(SessionStartHookContext context, CancellationToken ct = default)
     {
         var payload = new Dictionary<string, JsonElement>

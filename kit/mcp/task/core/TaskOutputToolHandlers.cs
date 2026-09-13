@@ -2,18 +2,34 @@
 
 namespace McpToolDispatch;
 
+/// <summary>
+/// 任务输出工具处理器 — 提供获取后台任务输出结果的功能
+/// </summary>
 [McpToolDispatch(ToolCategory.Task, Optional = true)]
 public partial class TaskOutputToolHandlers
 {
     private readonly ITaskService _taskService;
     private readonly ILogger<TaskOutputToolHandlers>? _logger;
 
+    /// <summary>
+    /// 初始化 <see cref="TaskOutputToolHandlers"/> 实例
+    /// </summary>
+    /// <param name="taskService">任务服务</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public TaskOutputToolHandlers(ITaskService taskService, ILogger<TaskOutputToolHandlers>? logger = null)
     {
         _taskService = taskService ?? throw new ArgumentNullException(nameof(taskService));
         _logger = logger;
     }
 
+    /// <summary>
+    /// 获取后台任务的输出结果
+    /// </summary>
+    /// <param name="task_id">任务 ID</param>
+    /// <param name="output_type">输出类型：stdout/stderr/all（可选，默认 all）</param>
+    /// <param name="max_lines">最大输出行数（可选，默认 100）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(SystemToolNameConstants.TaskOutput, "Get output result of a background task", "task")]
     public async Task<ToolResult> GetTaskOutputAsync(
         [McpToolParameter("Task ID")] string task_id,

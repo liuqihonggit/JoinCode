@@ -8,6 +8,9 @@ namespace Core.Agents;
 public sealed partial class MetadataMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 
+    /// <summary>
+    /// 构造 MetadataMiddleware 实例，注入可选的 transcript 服务与日志器
+    /// </summary>
     public MetadataMiddleware(IAgentTranscriptService? transcriptService = null, ILogger<MetadataMiddleware>? logger = null)
     {
         _transcriptService = transcriptService;
@@ -16,8 +19,15 @@ public sealed partial class MetadataMiddleware : ServiceEntity, IUnifiedSpawnMid
     private readonly IAgentTranscriptService? _transcriptService;
     private readonly ILogger<MetadataMiddleware>? _logger;
 
+    /// <summary>中间件错误处理策略：继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
+    /// <summary>
+    /// 执行元数据保存：代理已创建时将代理元数据持久化到 transcript 服务
+    /// </summary>
+    /// <param name="context">统一 Spawn 上下文</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct)
     {
         if (_transcriptService is not null && context.Agent is not null)

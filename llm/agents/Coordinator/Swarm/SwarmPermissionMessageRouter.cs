@@ -1,6 +1,7 @@
 
 namespace Core.Agents.Coordinator;
 
+/// <summary>Swarm 权限消息路由器 — 在邮箱与权限回调服务/请求处理器之间路由权限消息，驱动权限审批流程</summary>
 [Register(typeof(SwarmPermissionMessageRouter), ServiceLifetime.Singleton)]
 public sealed partial class SwarmPermissionMessageRouter : ServiceEntity
 {
@@ -11,6 +12,13 @@ public sealed partial class SwarmPermissionMessageRouter : ServiceEntity
     private CancellationTokenSource? _cts;
     private Task? _routingTask;
 
+    /// <summary>
+    /// 初始化 Swarm 权限消息路由器
+    /// </summary>
+    /// <param name="messageBroker">消息邮箱</param>
+    /// <param name="callbackService">权限回调服务</param>
+    /// <param name="requestProcessor">权限请求处理器</param>
+    /// <param name="logger">日志记录器</param>
     public SwarmPermissionMessageRouter(
         IMailbox messageBroker,
         SwarmPermissionCallbackService callbackService,
@@ -23,6 +31,10 @@ public sealed partial class SwarmPermissionMessageRouter : ServiceEntity
         _logger = logger;
     }
 
+    /// <summary>
+    /// 启动 Leader 侧消息路由，监听权限请求
+    /// </summary>
+    /// <param name="coordinatorAgentId">协调器智能体标识</param>
     public void StartRouting(string coordinatorAgentId)
     {
         if (_cts != null) return;
@@ -33,6 +45,10 @@ public sealed partial class SwarmPermissionMessageRouter : ServiceEntity
         _logger?.LogInformation("Swarm 权限消息路由已启动: CoordinatorId={CoordinatorId}", coordinatorAgentId);
     }
 
+    /// <summary>
+    /// 异步停止消息路由并释放相关资源
+    /// </summary>
+    /// <returns>表示异步操作的任务</returns>
     public async Task StopRoutingAsync()
     {
         if (_cts == null) return;
@@ -56,6 +72,10 @@ public sealed partial class SwarmPermissionMessageRouter : ServiceEntity
         _logger?.LogInformation("Swarm 权限消息路由已停止");
     }
 
+    /// <summary>
+    /// 启动 Worker 侧响应路由，监听权限响应消息
+    /// </summary>
+    /// <param name="workerAgentId">Worker 智能体标识</param>
     public void StartWorkerResponseRouting(string workerAgentId)
     {
         _ = RouteWorkerResponsesAsync(workerAgentId);

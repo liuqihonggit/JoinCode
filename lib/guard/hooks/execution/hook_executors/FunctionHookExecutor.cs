@@ -7,6 +7,10 @@ namespace Core.Hooks.Execution;
 [Register(typeof(IHookExecutor), ServiceLifetime.Singleton)]
 public sealed partial class FunctionHookExecutor : HookExecutorBase<FunctionHook>
 {
+    /// <summary>
+    /// 初始化函数回调钩子执行器
+    /// </summary>
+    /// <param name="logger">可选的日志记录器</param>
     public FunctionHookExecutor(ILogger<FunctionHookExecutor>? logger = null)
         : base(logger)
     {
@@ -69,6 +73,10 @@ public sealed partial class FunctionHookExecutor : HookExecutorBase<FunctionHook
 [Register(typeof(IHookExecutor), ServiceLifetime.Singleton)]
 public sealed partial class CallbackHookExecutor : HookExecutorBase<CallbackHook>
 {
+    /// <summary>
+    /// 初始化回调钩子执行器
+    /// </summary>
+    /// <param name="logger">可选的日志记录器</param>
     public CallbackHookExecutor(ILogger<CallbackHookExecutor>? logger = null)
         : base(logger)
     {

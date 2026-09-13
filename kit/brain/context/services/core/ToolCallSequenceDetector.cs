@@ -14,6 +14,12 @@ public sealed class ToolCallSequenceDetector
     private readonly RingBuffer<string> _nameSequence;
     private readonly RingBuffer<string?> _fingerprintSequence;
 
+    /// <summary>
+    /// 初始化工具调用序列检测器
+    /// </summary>
+    /// <param name="windowSize">滑动窗口大小</param>
+    /// <param name="minPatternLength">最小模式长度</param>
+    /// <param name="requiredRepeats">触发所需的最少重复次数</param>
     public ToolCallSequenceDetector(
         int windowSize = 6,
         int minPatternLength = 3,
@@ -65,6 +71,7 @@ public sealed class ToolCallSequenceDetector
         return ToolCallSequenceResult.NoLoop;
     }
 
+    /// <summary>重置检测器状态，清空所有序列</summary>
     public void Reset()
     {
         _nameSequence.Clear();
@@ -120,12 +127,20 @@ public sealed class ToolCallSequenceDetector
     }
 }
 
+/// <summary>
+/// 工具调用序列检测结果
+/// </summary>
+/// <param name="IsLoopDetected">是否检测到循环</param>
+/// <param name="RepeatedPattern">重复的模式文本，未检测到时为 null</param>
+/// <param name="RepeatCount">重复次数</param>
+/// <param name="ArgsMatched">参数指纹是否全部匹配</param>
 public sealed record ToolCallSequenceResult(
     bool IsLoopDetected,
     string? RepeatedPattern,
     int RepeatCount,
     bool ArgsMatched = false)
 {
+    /// <summary>未检测到循环的空结果</summary>
     public static readonly ToolCallSequenceResult NoLoop = new(false, null, 0);
 
     /// <summary>

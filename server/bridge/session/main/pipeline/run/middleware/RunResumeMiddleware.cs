@@ -1,9 +1,17 @@
 namespace Core.Bridge;
 
+/// <summary>
+/// 会话恢复中间件 — 处理 --continue 与 --session-id 参数,从指针或 API 恢复会话上下文
+/// </summary>
 [Register(typeof(IBridgeRunMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class RunResumeMiddleware : ServiceEntity, IBridgeRunMiddleware
 {
 
+    /// <summary>
+    /// 构造会话恢复中间件
+    /// </summary>
+    /// <param name="deps">桥接主依赖集合</param>
+    /// <param name="logger">日志记录器</param>
     public RunResumeMiddleware(BridgeMainDeps deps, ILogger<RunResumeMiddleware> logger)
     {
         _deps = deps;
@@ -12,6 +20,13 @@ public sealed partial class RunResumeMiddleware : ServiceEntity, IBridgeRunMiddl
     private readonly BridgeMainDeps _deps;
     private readonly ILogger<RunResumeMiddleware> _logger;
 
+    /// <summary>
+    /// 执行中间件 — 根据 --continue 或 --session-id 恢复会话,填充上下文恢复字段
+    /// </summary>
+    /// <param name="ctx">桥接运行上下文</param>
+    /// <param name="next">后续中间件委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>异步任务</returns>
     public async Task InvokeAsync(BridgeRunContext ctx, MiddlewareDelegate<BridgeRunContext> next, CancellationToken ct)
     {
         if (ctx.Args.ContinueSession)

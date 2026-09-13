@@ -12,6 +12,9 @@ public sealed class TurnDiffService : ITurnDiffProvider
     private DateTimeOffset _currentTimestamp;
     private readonly IClockService _clock = SystemClockService.Instance;
 
+    /// <summary>
+    /// 构造 Turn Diff 服务实例
+    /// </summary>
     public TurnDiffService()
     {
         _currentTimestamp = _clock.GetUtcNowOffset();

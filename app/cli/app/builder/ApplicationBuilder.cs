@@ -7,6 +7,7 @@ public sealed class ApplicationBuilder
 {
     private readonly List<IAppModule> _modules = [];
 
+    /// <summary>默认构造函数 — 初始化空模块列表</summary>
     public ApplicationBuilder() { }
 
     /// <summary>

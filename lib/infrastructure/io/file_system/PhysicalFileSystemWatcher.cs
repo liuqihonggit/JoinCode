@@ -9,6 +9,11 @@ public sealed class PhysicalFileSystemWatcher : IFileSystemWatcher
     private readonly DebounceTracker _debounce = new();
     private bool _disposed;
 
+    /// <summary>
+    /// 构造物理文件系统监视器
+    /// </summary>
+    /// <param name="path">监视目录路径</param>
+    /// <param name="filter">文件名筛选器,默认 "*.*"</param>
     public PhysicalFileSystemWatcher(string path, string filter = "*.*")
     {
         _inner = new FileSystemWatcher(path, filter);
@@ -18,60 +23,77 @@ public sealed class PhysicalFileSystemWatcher : IFileSystemWatcher
         _inner.Renamed += OnRenamed;
     }
 
+    /// <inheritdoc/>
     public string Path
     {
         get => _inner.Path;
         set => _inner.Path = value;
     }
 
+    /// <inheritdoc/>
     public string Filter
     {
         get => _inner.Filter;
         set => _inner.Filter = value;
     }
 
+    /// <inheritdoc/>
     public ICollection<string> Filters => _inner.Filters;
 
+    /// <inheritdoc/>
     public bool IncludeSubdirectories
     {
         get => _inner.IncludeSubdirectories;
         set => _inner.IncludeSubdirectories = value;
     }
 
+    /// <inheritdoc/>
     public NotifyFilters NotifyFilter
     {
         get => _inner.NotifyFilter;
         set => _inner.NotifyFilter = value;
     }
 
+    /// <inheritdoc/>
     public bool EnableRaisingEvents
     {
         get => _inner.EnableRaisingEvents;
         set => _inner.EnableRaisingEvents = value;
     }
 
+    /// <inheritdoc/>
     public TimeSpan DebounceInterval
     {
         get => _debounce.DebounceInterval;
         set => _debounce.DebounceInterval = value;
     }
 
+    /// <inheritdoc/>
     public int InternalWriteWindowMs
     {
         get => _debounce.InternalWriteWindowMs;
         set => _debounce.InternalWriteWindowMs = value;
     }
 
+    /// <inheritdoc/>
     public event EventHandler<FileChangedEventArgs>? Changed;
+    /// <inheritdoc/>
     public event EventHandler<FileChangedEventArgs>? Created;
+    /// <inheritdoc/>
     public event EventHandler<FileChangedEventArgs>? Deleted;
+    /// <inheritdoc/>
     public event EventHandler<FileRenamedEventArgs>? Renamed;
 
+    /// <inheritdoc/>
     public event EventHandler<FileChangedEventArgs>? DebouncedChanged;
+    /// <inheritdoc/>
     public event EventHandler<FileChangedEventArgs>? DebouncedCreated;
+    /// <inheritdoc/>
     public event EventHandler<FileChangedEventArgs>? DebouncedDeleted;
+    /// <inheritdoc/>
     public event EventHandler<FileRenamedEventArgs>? DebouncedRenamed;
 
+    /// <inheritdoc/>
     public void MarkInternalWrite(string filePath) => _debounce.MarkInternalWrite(filePath);
 
     private void OnChanged(object sender, FileSystemEventArgs e)
@@ -119,6 +141,9 @@ public sealed class PhysicalFileSystemWatcher : IFileSystemWatcher
             OldName = e.OldName ?? string.Empty
         };
 
+    /// <summary>
+    /// 释放内部 FileSystemWatcher 与防抖跟踪器资源
+    /// </summary>
     public void Dispose()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;

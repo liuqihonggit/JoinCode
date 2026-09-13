@@ -1,5 +1,8 @@
 namespace JoinCode.CodeIndex.Threading;
 
+/// <summary>
+/// 带超时的异步锁包装 — 包装 AsyncLock 提供超时获取与死锁检测
+/// </summary>
 internal sealed class TimeoutLock : IDisposable
 {
     private readonly AsyncLock _semaphore = new();
@@ -8,6 +11,12 @@ internal sealed class TimeoutLock : IDisposable
     private readonly Action<string>? _log;
     private int _disposed;
 
+    /// <summary>
+    /// 构造超时锁
+    /// </summary>
+    /// <param name="lockName">锁名（用于日志与异常消息）</param>
+    /// <param name="defaultTimeout">默认超时（未指定时使用 5 秒）</param>
+    /// <param name="log">日志回调</param>
     public TimeoutLock(string lockName, TimeSpan? defaultTimeout = null, Action<string>? log = null)
     {
         ArgumentNullException.ThrowIfNull(lockName);
@@ -18,6 +27,12 @@ internal sealed class TimeoutLock : IDisposable
         _log = log;
     }
 
+    /// <summary>
+    /// 异步获取锁 — 超时则抛出 TimeoutException 并标记可能死锁
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <param name="timeout">本次获取超时（未指定使用默认超时）</param>
+    /// <returns>释放器，释放时归还锁</returns>
     public async Task<IDisposable> AcquireAsync(CancellationToken ct, TimeSpan? timeout = null)
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
@@ -38,6 +53,11 @@ internal sealed class TimeoutLock : IDisposable
         return new Releaser(_lockName, guard, _log);
     }
 
+    /// <summary>
+    /// 同步获取锁 — 超时则抛出 TimeoutException 并标记可能死锁
+    /// </summary>
+    /// <param name="timeout">本次获取超时（未指定使用默认超时）</param>
+    /// <returns>释放器，释放时归还锁</returns>
     public IDisposable Acquire(TimeSpan? timeout = null)
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
@@ -58,12 +78,18 @@ internal sealed class TimeoutLock : IDisposable
         return new Releaser(_lockName, guard, _log);
     }
 
+    /// <summary>
+    /// 释放锁资源
+    /// </summary>
     public void Dispose()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
         _semaphore.Dispose();
     }
 
+    /// <summary>
+    /// 锁释放器 — Dispose 时归还底层锁并记录日志
+    /// </summary>
     private sealed class Releaser : IDisposable
     {
         private readonly IDisposable _guard;
@@ -71,6 +97,12 @@ internal sealed class TimeoutLock : IDisposable
         private readonly Action<string>? _log;
         private int _disposed;
 
+        /// <summary>
+        /// 构造释放器
+        /// </summary>
+        /// <param name="name">锁名（用于日志）</param>
+        /// <param name="guard">底层锁守卫</param>
+        /// <param name="log">日志回调</param>
         public Releaser(string name, IDisposable guard, Action<string>? log)
         {
             _name = name;
@@ -78,6 +110,9 @@ internal sealed class TimeoutLock : IDisposable
             _log = log;
         }
 
+        /// <summary>
+        /// 释放底层锁并记录日志
+        /// </summary>
         public void Dispose()
         {
             if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;

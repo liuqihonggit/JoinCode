@@ -16,6 +16,12 @@ public sealed partial class PersistentGoalRegistry : IGoalRegistry
     private string? _currentGoalId;
     private string? _sessionId;
 
+    /// <summary>
+    /// 构造 PersistentGoalRegistry — 注入服务提供器、可选状态存储与日志记录器
+    /// </summary>
+    /// <param name="serviceProvider">服务提供器，用于按需创建 GoalEngine 实例</param>
+    /// <param name="stateStore">可选目标状态持久化存储</param>
+    /// <param name="logger">可选日志记录器</param>
     public PersistentGoalRegistry(
         IServiceProvider serviceProvider,
         IGoalStateStore? stateStore = null,

@@ -1,9 +1,15 @@
 namespace Core.Agents;
 
+/// <summary>
+/// 代理系统提示词构建器 — 根据代理定义、上下文、团队信息组装系统提示词
+/// </summary>
 [Register(typeof(JoinCode.Abstractions.Interfaces.IAgentPromptBuilder), ServiceLifetime.Singleton)]
 public sealed partial class AgentPromptBuilder : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentPromptBuilder
 {
 
+    /// <summary>
+    /// 构造 AgentPromptBuilder 实例，注入定义提供者、子代理上下文访问器、服务提供者及日志器
+    /// </summary>
     public AgentPromptBuilder(JoinCode.Abstractions.Interfaces.IAgentDefinitionProvider definitionProvider, ISubAgentContextAccessor subAgentContextAccessor, IServiceProvider? serviceProvider = null, ILogger<AgentPromptBuilder>? logger = null)
     {
         _definitionProvider = definitionProvider;
@@ -23,6 +29,14 @@ public sealed partial class AgentPromptBuilder : ServiceEntity, JoinCode.Abstrac
     private ITeammateInitService? ResolvedTeammateInitService =>
         _serviceProvider?.GetService(typeof(ITeammateInitService)) as ITeammateInitService;
 
+    /// <summary>
+    /// 构建代理系统提示词，合并定义中的系统提示、角色描述、工具列表、上下文与团队信息
+    /// </summary>
+    /// <param name="agentType">代理类型标识（可选）</param>
+    /// <param name="task">任务描述</param>
+    /// <param name="context">上下文信息列表（可选）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>组装后的系统提示词</returns>
     public async Task<string> BuildSystemPromptAsync(
         string? agentType,
         string task,

@@ -1,19 +1,50 @@
 namespace Tools.Shell;
 
+/// <summary>
+/// Shell 插件提示 — 从命令输出中提取的插件提示信息
+/// </summary>
 public sealed class ShellPluginHint
 {
+    /// <summary>
+    /// 提示格式版本
+    /// </summary>
     public required int V { get; init; }
+
+    /// <summary>
+    /// 提示类型（如 plugin）
+    /// </summary>
     public required string Type { get; init; }
+
+    /// <summary>
+    /// 提示值
+    /// </summary>
     public required string Value { get; init; }
+
+    /// <summary>
+    /// 来源命令的首个 token
+    /// </summary>
     public required string SourceCommand { get; init; }
 }
 
+/// <summary>
+/// Shell 插件提示提取结果 — 包含提取到的提示列表和剥离提示标签后的输出
+/// </summary>
 public sealed class ShellPluginHintExtractionResult
 {
+    /// <summary>
+    /// 提取到的插件提示列表
+    /// </summary>
     public required IReadOnlyList<ShellPluginHint> Hints { get; init; }
+
+    /// <summary>
+    /// 剥离提示标签后的输出文本
+    /// </summary>
     public required string StrippedOutput { get; init; }
 }
 
+/// <summary>
+/// Shell 插件提示提取器 — 从命令输出中检测并剥离 Claude Code 兼容的插件提示标签
+/// </summary>
 public static class ShellPluginHintExtractor
 {
     private static readonly FrozenSet<int> SupportedVersions = new[] { 1 }.ToFrozenSet();
@@ -27,6 +58,12 @@ public static class ShellPluginHintExtractor
         @"(\w+)=(?:""([^""]*)""|([^\s/>]+))",
         RegexOptions.Compiled);
 
+    /// <summary>
+    /// 从命令输出中提取插件提示，并剥离提示标签
+    /// </summary>
+    /// <param name="output">命令输出文本</param>
+    /// <param name="command">来源命令（用于提取首个 token 作为 SourceCommand）</param>
+    /// <returns>提取结果，包含提示列表和剥离标签后的输出</returns>
     public static ShellPluginHintExtractionResult Extract(string output, string command)
     {
         if (string.IsNullOrEmpty(output) || !output.Contains(ClaudeCompatConstants.XmlClaudeCodeHint, StringComparison.Ordinal))

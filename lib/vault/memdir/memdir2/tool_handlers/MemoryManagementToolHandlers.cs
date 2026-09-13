@@ -9,6 +9,10 @@ public class MemoryManagementToolHandlers
 {
     private readonly IMemoryManagementService _memoryManagementService;
 
+    /// <summary>
+    /// 构造内存管理工具处理器
+    /// </summary>
+    /// <param name="memoryManagementService">内存管理服务</param>
     public MemoryManagementToolHandlers(IMemoryManagementService memoryManagementService)
     {
         _memoryManagementService = memoryManagementService ?? throw new ArgumentNullException(nameof(memoryManagementService));

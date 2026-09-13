@@ -5,5 +5,8 @@ namespace Core.Scheduling.Cron;
 /// </summary>
 public sealed record CronTaskFile
 {
+    /// <summary>
+    /// 文件中包含的 Cron 任务列表
+    /// </summary>
     public List<CronTask> Tasks { get; init; } = new();
 }

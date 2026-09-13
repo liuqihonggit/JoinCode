@@ -13,6 +13,12 @@ public class CodeExecutionToolHandlers
     private readonly ICodeSecurityValidator _codeSecurityValidator;
     private readonly ITelemetryService? _telemetryService;
 
+    /// <summary>
+    /// 构造代码执行工具处理器
+    /// </summary>
+    /// <param name="codeSandboxService">代码沙箱服务，提供隔离的代码执行环境</param>
+    /// <param name="codeSecurityValidator">代码安全验证器，执行前检查危险操作</param>
+    /// <param name="telemetryService">可选遥测服务</param>
     public CodeExecutionToolHandlers(
         ICodeSandboxService codeSandboxService,
         ICodeSecurityValidator codeSecurityValidator,

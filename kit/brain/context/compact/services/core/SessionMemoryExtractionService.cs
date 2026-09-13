@@ -13,6 +13,12 @@ public sealed partial class SessionMemoryExtractionService : ServiceEntity, ISes
     private readonly SessionMemoryCompactConfig _config;
     private int _tokensAtLastExtraction;
 
+    /// <summary>
+    /// 初始化 <see cref="SessionMemoryExtractionService"/> 实例
+    /// </summary>
+    /// <param name="compactService">会话记忆压缩服务</param>
+    /// <param name="fileSystem">文件系统抽象</param>
+    /// <param name="config">可选配置选项，null 时使用默认配置</param>
     public SessionMemoryExtractionService(
         ISessionMemoryCompactService compactService,
         IFileSystem fileSystem,

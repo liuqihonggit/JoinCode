@@ -5,6 +5,9 @@ namespace Core.Prompts.Sections;
 /// </summary>
 [PromptSection(Name = "skill", Order = 14)]
 public static class SkillSection {
+    /// <summary>
+    /// 创建 skill 提示词部分。
+    /// </summary>
     public static SystemPromptSection Create() {
         return SystemPromptSection.Cached("skill", () => {
             return $"""

@@ -9,6 +9,8 @@ internal static class MimeTypeExtensionMapper
     /// <summary>
     /// 根据MIME类型获取文件扩展名（不含点号）
     /// </summary>
+    /// <param name="mimeType">MIME 类型字符串，可包含 charset 参数。</param>
+    /// <returns>对应的文件扩展名（不含点号），未知类型返回 "bin"。</returns>
     public static string GetExtension(string? mimeType)
     {
         if (string.IsNullOrEmpty(mimeType)) return "bin";

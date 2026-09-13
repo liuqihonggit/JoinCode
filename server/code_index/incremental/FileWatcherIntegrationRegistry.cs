@@ -15,6 +15,12 @@ public sealed class FileWatcherIntegrationRegistry : IAsyncDisposable
     private readonly ILogger<FileWatcherIntegrationRegistry>? _logger;
     private int _disposed;
 
+    /// <summary>
+    /// 构造函数 — 注入索引注册表、文件系统与日志器，并订阅仓库注册/注销事件
+    /// </summary>
+    /// <param name="registry">代码索引注册表</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">日志器（可选）</param>
     public FileWatcherIntegrationRegistry(ICodeIndexerRegistry registry, IFileSystem fs, ILogger<FileWatcherIntegrationRegistry>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(registry);
@@ -105,6 +111,10 @@ public sealed class FileWatcherIntegrationRegistry : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// 异步释放资源 — 解除事件订阅、停止并释放所有 watcher、释放锁
+    /// </summary>
+    /// <returns>表示异步释放操作的任务</returns>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;

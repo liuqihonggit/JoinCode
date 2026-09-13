@@ -30,6 +30,13 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
     private volatile int _disposed;
 
 
+    /// <summary>
+    /// 初始化文件 Cron 任务存储
+    /// </summary>
+    /// <param name="fileOperationService">文件操作服务</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="directory">任务文件存储目录，为 null 时使用应用数据目录下的 CronTasks 子目录</param>
+    /// <param name="clock">时钟服务，为 null 时使用系统时钟</param>
     public FileCronTaskStore(
         IFileOperationService fileOperationService,
         IFileSystem fs,
@@ -288,6 +295,8 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
         }
     }
 
+    /// <summary>命令消费者发生异常时的回调处理，输出诊断日志。</summary>
+    /// <param name="ex">消费者抛出的异常。</param>
     protected override void OnConsumerError(Exception ex)
     {
         Diag.WriteLine($"[FileCronTaskStore] Actor Consumer 异常: {ex.Message}");
@@ -348,6 +357,9 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
         return Guid.NewGuid().ToString("N")[..8];
     }
 
+    /// <summary>
+    /// 释放文件 watcher 和 Actor 资源
+    /// </summary>
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;

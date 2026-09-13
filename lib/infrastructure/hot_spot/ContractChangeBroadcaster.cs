@@ -10,12 +10,18 @@ public sealed class ContractChangeBroadcaster : IContractChangeBroadcaster
     private readonly IHotFileDetector _hotFileDetector;
     private readonly IMailbox _mailbox;
 
+    /// <summary>
+    /// 构造函数 — 注入热文件检测器和邮箱
+    /// </summary>
+    /// <param name="hotFileDetector">热文件检测器</param>
+    /// <param name="mailbox">代理间邮箱</param>
     public ContractChangeBroadcaster(IHotFileDetector hotFileDetector, IMailbox mailbox)
     {
         _hotFileDetector = hotFileDetector ?? throw new ArgumentNullException(nameof(hotFileDetector));
         _mailbox = mailbox ?? throw new ArgumentNullException(nameof(mailbox));
     }
 
+    /// <inheritdoc/>
     public async Task<int> BroadcastContractChangeAsync(string captainId, string filePath, IReadOnlyList<string> dependentWorkers, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(captainId);

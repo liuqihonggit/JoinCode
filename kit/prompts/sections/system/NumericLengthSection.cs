@@ -7,6 +7,10 @@ namespace Core.Prompts.Sections;
 [PromptSection(Name = "numeric_length", Order = 29)]
 public static class NumericLengthSection
 {
+    /// <summary>
+    /// 获取数字长度限制部分的内容。
+    /// </summary>
+    /// <returns>长度限制提示词文本；未启用时返回 <c>null</c>。</returns>
     public static string? GetContent()
     {
         var enableNumericLength = PromptConfigSnapshot.Current.EnableNumericLength;
@@ -22,6 +26,10 @@ public static class NumericLengthSection
 """;
     }
 
+    /// <summary>
+    /// 创建数字长度限制提示词部分。
+    /// </summary>
+    /// <returns>缓存系统提示词部分。</returns>
     public static SystemPromptSection Create() =>
         SystemPromptSection.Cached("numeric_length", GetContent);
 }

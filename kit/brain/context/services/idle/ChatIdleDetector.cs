@@ -8,6 +8,14 @@ namespace Core.Context;
 public sealed partial class ChatIdleDetector : ServiceEntity, IChatIdleDetector
 {
 
+    /// <summary>
+    /// 初始化聊天空闲检测器
+    /// </summary>
+    /// <param name="contextManager">聊天上下文管理器</param>
+    /// <param name="reminderManager">系统提醒管理器</param>
+    /// <param name="toolIdleReminder">工具空闲提醒服务</param>
+    /// <param name="idleDetector">空闲工具检测器</param>
+    /// <param name="logger">可选日志记录器</param>
     public ChatIdleDetector(IChatContextManager contextManager, ISystemReminderManager reminderManager, ToolIdleReminderService toolIdleReminder, IdleToolDetector idleDetector, ILogger<ChatIdleDetector>? logger = null)
     {
         _contextManager = contextManager;

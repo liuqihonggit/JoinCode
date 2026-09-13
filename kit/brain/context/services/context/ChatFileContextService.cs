@@ -8,6 +8,12 @@ namespace Core.Context;
 public sealed partial class ChatFileContextService : ServiceEntity, IChatFileContextService
 {
 
+    /// <summary>
+    /// 初始化聊天文件上下文服务
+    /// </summary>
+    /// <param name="fileContext">文件上下文追踪器</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">可选日志记录器</param>
     public ChatFileContextService(FileContextTracker fileContext, IFileSystem fs, ILogger<ChatFileContextService>? logger = null)
     {
         _fileContext = fileContext;

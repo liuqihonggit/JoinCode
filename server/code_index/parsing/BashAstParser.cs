@@ -11,12 +11,20 @@ public sealed partial class BashAstParser : IDisposable
     private readonly Parser _parser;
     private int _disposed;
 
+    /// <summary>
+    /// 构造 BashAstParser — 初始化 TreeSitter bash 语言和解析器
+    /// </summary>
     public BashAstParser()
     {
         _language = new Language("bash");
         _parser = new Parser(_language);
     }
 
+    /// <summary>
+    /// 解析 bash 命令为 AST 根节点
+    /// </summary>
+    /// <param name="command">bash 命令字符串（超过 10000 字符返回 null）</param>
+    /// <returns>AST 根节点；解析失败或空命令返回 null</returns>
     public Node? Parse(string command)
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
@@ -35,6 +43,11 @@ public sealed partial class BashAstParser : IDisposable
         }
     }
 
+    /// <summary>
+    /// 从 AST 根节点提取所有简单命令信息
+    /// </summary>
+    /// <param name="root">AST 根节点</param>
+    /// <returns>简单命令信息列表</returns>
     public static List<BashSimpleCommandInfo> ExtractSimpleCommands(Node root)
     {
         var commands = new List<BashSimpleCommandInfo>();
@@ -42,6 +55,11 @@ public sealed partial class BashAstParser : IDisposable
         return commands;
     }
 
+    /// <summary>
+    /// 安全解析 — 解析 bash 命令并提取简单命令用于安全检查
+    /// </summary>
+    /// <param name="command">bash 命令字符串</param>
+    /// <returns>安全解析结果（Simple/ParseUnavailable/TooComplex）</returns>
     public BashAstSecurityResult ParseForSecurity(string command)
     {
         var root = Parse(command);
@@ -58,6 +76,11 @@ public sealed partial class BashAstParser : IDisposable
         return new BashAstSecurityResult.Simple([.. commands]);
     }
 
+    /// <summary>
+    /// 语义检查 — 委托给 BashSemanticChecker 检查命令语义
+    /// </summary>
+    /// <param name="commands">简单命令数组</param>
+    /// <returns>语义检查结果</returns>
     public static BashSemanticCheckResult CheckSemantics(BashSimpleCommandInfo[] commands)
         => BashSemanticChecker.CheckSemantics(commands);
 
@@ -240,6 +263,9 @@ public sealed partial class BashAstParser : IDisposable
         return text;
     }
 
+    /// <summary>
+    /// 释放 TreeSitter 解析器和语言资源
+    /// </summary>
     public void Dispose()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;

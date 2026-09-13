@@ -1,6 +1,9 @@
 
 namespace Core.Agents;
 
+/// <summary>
+/// Agent Worktree 服务实现 — 管理子代理的 git worktree 创建、清理、会话持久化与稀疏检出
+/// </summary>
 [Register(typeof(IAgentWorktreeService), ServiceLifetime.Singleton)]
 [Register(typeof(IWorktreePipelineOperations), ServiceLifetime.Singleton)]
 public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorktreePipelineOperations, IAsyncDisposable {
@@ -16,6 +19,9 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     private readonly MiddlewarePipeline<WorktreeCreateContext>? _createPipeline;
     private int _disposed;
 
+    /// <summary>
+    /// 构造 AgentWorktreeService 实例，注入文件操作服务、git 命令运行器、文件系统及可选的创建中间件、日志器等
+    /// </summary>
     public AgentWorktreeService(
         IFileOperationService fileOperationService,
         IGitCommandRunner gitRunner,
@@ -47,6 +53,14 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         }
     }
 
+    /// <summary>
+    /// 为指定代理创建 git worktree，通过创建管道执行；失败时返回失败结果
+    /// </summary>
+    /// <param name="agentId">代理唯一标识</param>
+    /// <param name="gitRootPath">git 根目录（可选）</param>
+    /// <param name="options">worktree 选项（可选）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>worktree 创建结果</returns>
     public async Task<WorktreeCreateResult> CreateAgentWorktreeAsync(
         string agentId,
         string? gitRootPath = null,
@@ -95,6 +109,13 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         throw new InvalidOperationException("[AGT010] Worktree 创建管道未初始化");
     }
 
+    /// <summary>
+    /// 移除指定代理的 worktree 及关联分支；非强制模式下有未提交变更或未推送提交时阻止移除
+    /// </summary>
+    /// <param name="agentId">代理唯一标识</param>
+    /// <param name="force">是否强制移除（忽略未提交/未推送检查）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>清理结果</returns>
     public async Task<WorktreeCleanupResult> RemoveAgentWorktreeAsync(
         string agentId,
         bool force = false,
@@ -154,6 +175,12 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         }
     }
 
+    /// <summary>
+    /// 获取指定代理的 worktree 会话
+    /// </summary>
+    /// <param name="agentId">代理唯一标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>worktree 会话；不存在时返回 null</returns>
     public async Task<AgentWorktreeSession?> GetSessionAsync(string agentId, CancellationToken cancellationToken = default) {
         using var guard = await _sessionLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_sessionLock.Name}' 等待超时");
 
@@ -161,6 +188,12 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     
     }
 
+    /// <summary>
+    /// 判断指定代理是否有活跃的 worktree（会话存在且目录存在）
+    /// </summary>
+    /// <param name="agentId">代理唯一标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>是否有活跃 worktree</returns>
     public async Task<bool> HasActiveWorktreeAsync(string agentId, CancellationToken cancellationToken = default) {
         var session = await GetSessionAsync(agentId).ConfigureAwait(false);
         if (session == null) {
@@ -169,6 +202,11 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         return _fileOperationService.DirectoryExists(session.WorktreePath);
     }
 
+    /// <summary>
+    /// 获取所有代理的 worktree 会话
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>所有 worktree 会话集合</returns>
     public async Task<IEnumerable<AgentWorktreeSession>> GetAllSessionsAsync(CancellationToken cancellationToken = default) {
         using var guard = await _sessionLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_sessionLock.Name}' 等待超时");
 
@@ -176,6 +214,12 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     
     }
 
+    /// <summary>
+    /// 清理过期的临时 worktree，按最后写入时间与未提交/未推送检查筛选
+    /// </summary>
+    /// <param name="options">worktree 选项（可选）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>清理的 worktree 数量</returns>
     public async Task<int> CleanupStaleWorktreesAsync(
         WorktreeOptions? options = null,
         CancellationToken cancellationToken = default) {
@@ -248,10 +292,23 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         return cleanedCount;
     }
 
+    /// <summary>
+    /// 检查指定 worktree 路径是否有未提交的变更
+    /// </summary>
+    /// <param name="worktreePath">worktree 路径</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>是否有未提交变更</returns>
     public async Task<bool> HasUncommittedChangesAsync(string worktreePath, CancellationToken cancellationToken = default) {
         return await _gitRunner.HasUncommittedChangesAsync(worktreePath, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 检查指定 worktree 是否有未推送的提交，可指定基准提交 SHA 进行比较
+    /// </summary>
+    /// <param name="worktreePath">worktree 路径</param>
+    /// <param name="baseCommitSha">基准提交 SHA（可选，未指定时比较所有远程）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>是否有未推送提交</returns>
     public async Task<bool> HasUnpushedCommitsAsync(
         string worktreePath,
         string? baseCommitSha = null,
@@ -269,10 +326,21 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         return count > 0;
     }
 
+    /// <summary>
+    /// 从指定路径向上查找 git 仓库根目录
+    /// </summary>
+    /// <param name="startPath">起始搜索路径</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>git 根目录路径；未找到时返回 null</returns>
     public async Task<string?> FindGitRootAsync(string startPath, CancellationToken cancellationToken = default) {
         return await GitWorkspaceResolver.FindGitRootAsync(startPath, _fs, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 保留指定代理的 worktree（仅移除会话记录，不删除 worktree 目录与分支）
+    /// </summary>
+    /// <param name="agentId">代理唯一标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task KeepWorktreeAsync(string agentId, CancellationToken cancellationToken = default) {
         var session = await GetSessionAsync(agentId, cancellationToken).ConfigureAwait(false);
         if (session is null) return;
@@ -284,6 +352,12 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         await RemoveSessionAsync(agentId).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 列出 git 仓库下所有 worktree 路径
+    /// </summary>
+    /// <param name="gitRootPath">git 根目录（可选，默认自动查找）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>worktree 路径列表</returns>
     public async Task<IReadOnlyList<string>> ListWorktreesAsync(
         string? gitRootPath = null,
         CancellationToken cancellationToken = default) {
@@ -326,6 +400,10 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
 
     #region Private Methods
 
+    /// <summary>
+    /// 保存 worktree 会话到内存并持久化到本地设置文件
+    /// </summary>
+    /// <param name="session">要保存的 worktree 会话</param>
     public async Task SaveSessionAsync(AgentWorktreeSession session) {
         using var guard = await _sessionLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_sessionLock.Name}' 等待超时");
 
@@ -335,6 +413,10 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         await PersistActiveWorktreeSessionAsync(session).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 移除指定代理的会话记录并清除持久化的活跃会话
+    /// </summary>
+    /// <param name="agentId">代理唯一标识</param>
     internal async Task RemoveSessionAsync(string agentId) {
         using var guard = await _sessionLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_sessionLock.Name}' 等待超时");
 
@@ -413,6 +495,9 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         }
     }
 
+    /// <summary>
+    /// 异步释放资源，强制移除所有活跃 worktree 会话
+    /// </summary>
     public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         foreach (var kvp in _sessions)
@@ -424,6 +509,12 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         _sessionLock.Dispose();
     }
 
+    /// <summary>
+    /// 验证指定路径是否为有效 worktree
+    /// </summary>
+    /// <param name="worktreePath">待验证的 worktree 路径</param>
+    /// <param name="gitRoot">git 根目录</param>
+    /// <returns>是否为有效 worktree</returns>
     public async Task<bool> IsValidWorktreeAsync(string worktreePath, string gitRoot) {
         var result = await ExecuteGitCommandAsync(gitRoot, "worktree list --porcelain").ConfigureAwait(false);
         if (!result.Success) {
@@ -458,16 +549,31 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         return false;
     }
 
+    /// <summary>
+    /// 获取 git 仓库的当前分支名称
+    /// </summary>
+    /// <param name="gitRoot">git 根目录</param>
+    /// <returns>当前分支名称；失败时返回 null</returns>
     public async Task<string?> GetCurrentBranchAsync(string gitRoot) {
         var result = await ExecuteGitCommandAsync(gitRoot, "branch --show-current").ConfigureAwait(false);
         return result.Success ? result.Output.Trim() : null;
     }
 
+    /// <summary>
+    /// 获取 git 仓库 HEAD 的提交 SHA
+    /// </summary>
+    /// <param name="gitRoot">git 根目录</param>
+    /// <returns>HEAD 提交 SHA；失败时返回 null</returns>
     public async Task<string?> GetHeadCommitShaAsync(string gitRoot) {
         var result = await ExecuteGitCommandAsync(gitRoot, $"{GitSubCommand.RevParse.ToValue()} HEAD").ConfigureAwait(false);
         return result.Success ? result.Output.Trim() : null;
     }
 
+    /// <summary>
+    /// 获取 git 仓库的默认分支，优先从 origin/HEAD 解析，回退到 main 再到 master
+    /// </summary>
+    /// <param name="gitRoot">git 根目录</param>
+    /// <returns>默认分支名称；未找到时返回 null</returns>
     public async Task<string?> GetDefaultBranchAsync(string gitRoot) {
         var result = await ExecuteGitCommandAsync(gitRoot, "symbolic-ref refs/remotes/origin/HEAD --short").ConfigureAwait(false);
         if (result.Success && !string.IsNullOrWhiteSpace(result.Output)) {
@@ -482,17 +588,37 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         return masterResult.Success ? "master" : null;
     }
 
+    /// <summary>
+    /// 解析 git 引用为提交 SHA
+    /// </summary>
+    /// <param name="gitRoot">git 根目录</param>
+    /// <param name="refName">引用名称</param>
+    /// <returns>提交 SHA；失败时返回 null</returns>
     public async Task<string?> ResolveRefAsync(string gitRoot, string refName) {
         var result = await ExecuteGitCommandAsync(gitRoot, $"{GitSubCommand.RevParse.ToValue()} {refName}").ConfigureAwait(false);
         return result.Success ? result.Output.Trim() : null;
     }
 
+    /// <summary>
+    /// 检查 git 仓库是否存在指定的本地分支
+    /// </summary>
+    /// <param name="gitRoot">git 根目录</param>
+    /// <param name="branchName">分支名称</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>是否存在本地分支</returns>
     public async Task<bool> HasLocalBranchAsync(string gitRoot, string branchName, CancellationToken cancellationToken) {
         var result = await ExecuteGitCommandAsync(
             gitRoot, $"{GitSubCommand.RevParse.ToValue()} --verify refs/heads/{branchName}", cancellationToken).ConfigureAwait(false);
         return result.Success;
     }
 
+    /// <summary>
+    /// 对指定 worktree 应用稀疏检出，仅检出指定路径下的文件
+    /// </summary>
+    /// <param name="worktreePath">worktree 路径</param>
+    /// <param name="sparsePaths">稀疏检出路径列表</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>是否应用成功</returns>
     public async Task<bool> ApplySparseCheckoutAsync(
         string worktreePath,
         IReadOnlyList<string> sparsePaths,
@@ -675,6 +801,13 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         });
     }
 
+    /// <summary>
+    /// 在指定工作目录执行 git 命令
+    /// </summary>
+    /// <param name="workingDirectory">工作目录</param>
+    /// <param name="arguments">git 命令参数</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>git 命令执行结果</returns>
     public Task<GitCommandResult> ExecuteGitCommandAsync(
         string workingDirectory,
         string arguments,

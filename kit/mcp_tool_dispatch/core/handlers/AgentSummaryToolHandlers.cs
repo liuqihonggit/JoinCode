@@ -11,6 +11,10 @@ public class AgentSummaryToolHandlers
 {
     private readonly IAgentSummaryService _agentSummaryService;
 
+    /// <summary>
+    /// 初始化代理摘要工具处理器
+    /// </summary>
+    /// <param name="agentSummaryService">代理摘要服务</param>
     public AgentSummaryToolHandlers(IAgentSummaryService agentSummaryService)
     {
         _agentSummaryService = agentSummaryService ?? throw new ArgumentNullException(nameof(agentSummaryService));
@@ -19,6 +23,8 @@ public class AgentSummaryToolHandlers
     /// <summary>
     /// 获取系统整体统计
     /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(AgentToolNameConstants.AgentSystemStats, "Get overall agent execution statistics", "analytics")]
     public Task<ToolResult> AgentSystemStatsAsync(
         CancellationToken cancellationToken = default)
@@ -43,6 +49,8 @@ public class AgentSummaryToolHandlers
     /// <summary>
     /// 获取所有代理统计
     /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(AgentToolNameConstants.AgentListStats, "List statistics for all agents", "analytics")]
     public Task<ToolResult> AgentListStatsAsync(
         CancellationToken cancellationToken = default)
@@ -88,6 +96,9 @@ public class AgentSummaryToolHandlers
     /// <summary>
     /// 获取指定代理的统计
     /// </summary>
+    /// <param name="agent_name">代理名称</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(AgentToolNameConstants.AgentStats, "Get detailed statistics for a specific agent", "analytics")]
     public Task<ToolResult> AgentStatsAsync(
         [McpToolParameter("Agent name")] string agent_name,
@@ -126,6 +137,10 @@ public class AgentSummaryToolHandlers
     /// <summary>
     /// 获取代理执行历史
     /// </summary>
+    /// <param name="agent_name">代理名称</param>
+    /// <param name="limit">返回记录数量上限（可选，默认 10）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(AgentToolNameConstants.AgentHistory, "Get execution history for an agent", "analytics")]
     public Task<ToolResult> AgentHistoryAsync(
         [McpToolParameter("Agent name")] string agent_name,
@@ -188,6 +203,8 @@ public class AgentSummaryToolHandlers
     /// <summary>
     /// 获取正在运行的执行
     /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(AgentToolNameConstants.AgentRunningStats, "Get currently running agent executions", "analytics")]
     public Task<ToolResult> AgentRunningAsync(
         CancellationToken cancellationToken = default)
@@ -241,6 +258,9 @@ public class AgentSummaryToolHandlers
     /// <summary>
     /// 获取执行详情
     /// </summary>
+    /// <param name="execution_id">执行 ID</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(AgentToolNameConstants.AgentExecutionDetail, "Get detailed information about a specific execution", "analytics")]
     public Task<ToolResult> AgentExecutionDetailAsync(
         [McpToolParameter("Execution ID")] string execution_id,
@@ -315,6 +335,10 @@ public class AgentSummaryToolHandlers
     /// <summary>
     /// 清除历史记录
     /// </summary>
+    /// <param name="older_than_days">仅清除早于 N 天的记录（可选）</param>
+    /// <param name="confirm">确认清除，输入 "yes" 确认</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(AgentToolNameConstants.AgentClearHistory, "Clear agent execution history", "analytics")]
     public Task<ToolResult> AgentClearHistoryAsync(
         [McpToolParameter("Clear records older than N days (optional)", Required = false)] int? older_than_days = null,

@@ -31,7 +31,7 @@ public sealed partial class GhPrBodyGuard : ICommandGuard
     public int Priority => 100;
 
     /// <inheritdoc/>
-    public bool CanHandle(string command, IReadOnlyDictionary<string, object> context)
+    public bool CanHandle(string command, GuardContext context)
     {
         var normalized = command.TrimStart();
         return normalized.StartsWith("gh pr create", StringComparison.OrdinalIgnoreCase)
@@ -39,7 +39,7 @@ public sealed partial class GhPrBodyGuard : ICommandGuard
     }
 
     /// <inheritdoc/>
-    public CommandDecision Evaluate(string command, IReadOnlyDictionary<string, object> context)
+    public CommandDecision Evaluate(string command, GuardContext context)
     {
         if (HasBodyParameter(command))
         {
@@ -72,28 +72,18 @@ public sealed partial class GhPrBodyGuard : ICommandGuard
     /// <summary>
     /// 从上下文获取 body 内容
     /// </summary>
-    private static string? GetBodyFromContext(IReadOnlyDictionary<string, object> context)
+    private static string? GetBodyFromContext(GuardContext context)
     {
-        if (context.TryGetValue("pr_body", out var bodyObj))
-        {
-            return bodyObj?.ToString();
-        }
-
-        if (context.TryGetValue("body", out var genericBody))
-        {
-            return genericBody?.ToString();
-        }
-
-        return null;
+        return context.PrBody;
     }
 
     /// <summary>
     /// 生成默认 body 模板
     /// </summary>
-    private static string GenerateDefaultBody(IReadOnlyDictionary<string, object> context)
+    private static string GenerateDefaultBody(GuardContext context)
     {
-        var title = context.TryGetValue("pr_title", out var titleObj) && titleObj is string t ? t : "变更内容";
-        var branch = context.TryGetValue("head_branch", out var branchObj) && branchObj is string b ? $"分支: `{b}`" : null;
+        var title = context.PrTitle ?? "变更内容";
+        var branch = context.HeadBranch is not null ? $"分支: `{context.HeadBranch}`" : null;
         var description = branch;
         return IO.ProcessService.PrBodyGenerator.GenerateWithTemplate(title, description);
     }

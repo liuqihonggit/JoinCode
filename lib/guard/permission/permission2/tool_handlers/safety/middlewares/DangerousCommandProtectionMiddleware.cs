@@ -18,6 +18,7 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
     private readonly IReadOnlyList<IDeleteOperationDetector> _deleteDetectors;
     private readonly IRealPathResolver? _realPathResolver;
     private readonly PathCaseSensitiveGuard _caseGuard = new();
+    private readonly ILogger<DangerousCommandProtectionMiddleware>? _logger;
 
     /// <inheritdoc />
 
@@ -31,13 +32,15 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
         IDestructiveCommandDetector? destructiveCommandDetector = null,
         IEnumerable<IDeleteOperationDetector>? deleteDetectors = null,
         ICommandDangerClassifier? dangerClassifier = null,
-        IRealPathResolver? realPathResolver = null)
+        IRealPathResolver? realPathResolver = null,
+        ILogger<DangerousCommandProtectionMiddleware>? logger = null)
     {
         _destructiveCommandDetector = destructiveCommandDetector;
         _dangerClassifier = dangerClassifier;
         _riskHandlers = (riskHandlers ?? []).ToFrozenDictionary(h => h.RiskType);
         _deleteDetectors = (deleteDetectors ?? []).ToList();
         _realPathResolver = realPathResolver;
+        _logger = logger;
     }
 
     /// <inheritdoc />
@@ -87,6 +90,17 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
 
         var command = cmdEl.GetString()!;
         var (riskContext, dangerResult) = DetectRisks(context.ToolName, command);
+
+        // 保留名清理场景降级 — robocopy /MIR/PURGE + 目标含保留名文件 → Dangerous 降级为 Execution（ADR 0012）
+        // 保留名文件（nul/con/prn 等）只能用 robocopy /MIR 绕过 Win32 路径解析删除，属合法清理场景
+        if (dangerResult is { Level: CommandDangerLevel.Dangerous } dr &&
+            RobocopyMirrorGuard.IsRobocopyMirrorRetainedNameCleanup(command))
+        {
+            dangerResult = new DangerClassificationResult(
+                CommandDangerLevel.Execution,
+                dr.RiskType,
+                dr.Details);
+        }
 
         if (riskContext is null || riskContext.Risks.Count == 0)
             return next(context, ct);
@@ -338,6 +352,14 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
                 }
                 context.Result = ToolPermissionCheckResult.Rejected(
                     $"Plan 模式下禁止不可撤回操作（{riskContext.Details}）");
+                break;
+
+            case PermissionMode.Unattended:
+                // 无人值守模式：红灯/绿灯/黄灯自动执行+审计日志，黑灯已拒绝（ADR 0012）
+                // 不弹确认，AI 持续推进长任务
+                _logger?.LogInformation(
+                    "无人值守模式自动执行: {Level} {Tool} ({Details})",
+                    level, context.ToolName, riskContext.Details);
                 break;
 
             default:

@@ -487,9 +487,10 @@ public static partial class SecurityPatterns
     private static partial Regex TrailingDotOrSpaceRegex();
 
     /// <summary>
-    /// DOS 设备名正则 (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
+    /// DOS 设备名正则 (CON, PRN, AUX, NUL, COM1-9, LPT1-9) — ADR 0012 阶段2
+    /// 匹配裸设备名作为完整文件名（nul/con/prn）和扩展名位置（foo.NUL）和路径组件（path/nul）
     /// </summary>
-    [GeneratedRegex(@"\.(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$", RegexOptions.Compiled | RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"(^|[/\\.])(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])([/\\.]|$)", RegexOptions.Compiled | RegexOptions.IgnoreCase)]
     private static partial Regex DosDeviceNameRegex();
 
     /// <summary>

@@ -1,6 +1,6 @@
 # 0012. robocopy /MIR 与 /PURGE 红色命令拦截
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-09-13
 
 ## 背景

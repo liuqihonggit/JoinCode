@@ -13,9 +13,9 @@ public static class InterceptionFlagDetector
     /// 检测命令的拦截属性组合
     /// </summary>
     /// <param name="command">待检测的命令</param>
-    /// <param name="context">执行上下文(如 proxy_url 等)</param>
+    /// <param name="context">执行上下文(强类型,含 ProxyUrl 等)</param>
     /// <returns>属性标志组合(位运算表达多个属性)</returns>
-    public static InterceptionFlags Detect(string command, IReadOnlyDictionary<string, object> context)
+    public static InterceptionFlags Detect(string command, GuardContext context)
     {
         var flags = InterceptionFlags.None;
         if (string.IsNullOrWhiteSpace(command))
@@ -53,6 +53,6 @@ public static class InterceptionFlagDetector
     private static bool IsGhWithTimeout(ReadOnlySpan<char> span)
         => span.StartsWith("gh ") && span.IndexOf("--timeout") < 0;
 
-    private static bool NeedVpnProxy(IReadOnlyDictionary<string, object> context)
-        => context.TryGetValue("proxy_url", out var proxy) && proxy is string s && !string.IsNullOrWhiteSpace(s);
+    private static bool NeedVpnProxy(GuardContext context)
+        => !string.IsNullOrWhiteSpace(context.ProxyUrl);
 }

@@ -170,7 +170,7 @@ public sealed class LlmAutoModeClassifierTests
         return new ClassificationRequest
         {
             ToolName = "bash",
-            Parameters = new Dictionary<string, JsonElement> { ["command"] = JsonSerializer.SerializeToElement(command) },
+            Parameters = new Dictionary<string, JsonElement> { ["command"] = JsonSerializer.SerializeToElement(command, HooksJsonContext.Default.String) },
             OperationType = OperationType.Execute
         };
     }

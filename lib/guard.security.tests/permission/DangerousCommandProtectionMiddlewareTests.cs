@@ -16,7 +16,7 @@ public class DangerousCommandProtectionMiddlewareTests
         var config = PermissionConfig.CreateDefault();
         var args = new Dictionary<string, JsonElement>
         {
-            ["command"] = JsonSerializer.SerializeToElement(command)
+            ["command"] = JsonSerializer.SerializeToElement(command, HooksJsonContext.Default.String)
         };
         return new PermissionCheckContext
         {

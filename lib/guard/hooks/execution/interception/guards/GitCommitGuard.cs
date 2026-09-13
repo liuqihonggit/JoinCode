@@ -29,13 +29,13 @@ public sealed partial class GitCommitGuard : ICommandGuard
     public int Priority => 1000;
 
     /// <inheritdoc/>
-    public bool CanHandle(string command, IReadOnlyDictionary<string, object> context)
+    public bool CanHandle(string command, GuardContext context)
     {
         return IsGitCommitCommand(command);
     }
 
     /// <inheritdoc/>
-    public CommandDecision Evaluate(string command, IReadOnlyDictionary<string, object> context)
+    public CommandDecision Evaluate(string command, GuardContext context)
     {
         return new CommandDecision.Redirect("/commit", RedirectHint);
     }

@@ -31,15 +31,15 @@ public interface ICommandGuard
     /// 是否处理该命令 — 快速过滤,避免对无关命令调用 <see cref="Evaluate"/>
     /// </summary>
     /// <param name="command">待评估的命令</param>
-    /// <param name="context">执行上下文(如 ShellKind 等)</param>
+    /// <param name="context">执行上下文(强类型,含 ShellKind 等)</param>
     /// <returns>处理该命令返回 true,否则 false</returns>
-    bool CanHandle(string command, IReadOnlyDictionary<string, object> context);
+    bool CanHandle(string command, GuardContext context);
 
     /// <summary>
     /// 评估决策 — 纯函数,无副作用,不执行任何实际操作
     /// </summary>
     /// <param name="command">待评估的命令</param>
-    /// <param name="context">执行上下文</param>
+    /// <param name="context">执行上下文(强类型)</param>
     /// <returns>干预决策(Allow/Rewrite/Deny/Redirect/Handoff)</returns>
-    CommandDecision Evaluate(string command, IReadOnlyDictionary<string, object> context);
+    CommandDecision Evaluate(string command, GuardContext context);
 }

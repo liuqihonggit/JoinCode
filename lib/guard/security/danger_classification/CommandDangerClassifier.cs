@@ -8,16 +8,6 @@ namespace Core.Security.DangerClassification;
 public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDangerClassifier
 {
     /// <summary>
-    /// 解释器命令集合 — 管道传入这些命令可执行任意代码,升级为 Execution(红灯)
-    /// </summary>
-    private static readonly FrozenSet<string> InterpreterCommands = FrozenSet.Create(
-        StringComparer.OrdinalIgnoreCase,
-        "bash", "sh", "zsh", "ksh", "dash",
-        "python", "python3", "python2",
-        "perl", "ruby", "node", "nodejs", "deno",
-        "powershell", "pwsh", "cmd");
-
-    /// <summary>
     /// AC 自动机 — 展平所有危险组合模式，一次扫描命中全部模式串
     /// </summary>
     private static readonly AhoCorasick<string> CombinationPatternAc = AhoCorasick.Create(
@@ -393,8 +383,8 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
             .Select(i => arguments[i + 1]);
 
     /// <summary>
-    /// 判断命令名是否为解释器(可执行任意代码)
+    /// 判断命令名是否为解释器(可执行任意代码) — 引用 DangerousCommandCatalog.InterpreterCommands 唯一数据源
     /// </summary>
     private static bool IsInterpreter(string commandName)
-        => InterpreterCommands.Contains(commandName);
+        => DangerousCommandCatalog.InterpreterCommands.Contains(commandName);
 }

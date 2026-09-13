@@ -7,6 +7,7 @@ public sealed partial class VcrHttpHandler : DelegatingHandler
     private readonly VcrOptions _options;
     private readonly ILogger<VcrHttpHandler>? _logger;
     private string _currentCassetteName = string.Empty;
+    private string? _currentCassetteDirectory;
 
     public VcrHttpHandler(
         IVcrService vcrService,
@@ -20,11 +21,12 @@ public sealed partial class VcrHttpHandler : DelegatingHandler
         _logger = logger;
     }
 
-    public void SetCassette(string name)
+    public void SetCassette(string name, string? directory = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(name);
         _currentCassetteName = name;
-        _logger?.LogDebug("VCR cassette 设置为: {Name}", name);
+        _currentCassetteDirectory = directory;
+        _logger?.LogDebug("VCR cassette 设置为: {Name} (目录: {Directory})", name, directory ?? "(默认)");
     }
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -36,7 +38,7 @@ public sealed partial class VcrHttpHandler : DelegatingHandler
         if (_vcrService.CurrentMode == VcrMode.Playback && !string.IsNullOrEmpty(_currentCassetteName))
         {
             var recordedResponse = await _vcrService.FindMatchingInteractionAsync(
-                _currentCassetteName, vcrRequest, cancellationToken).ConfigureAwait(false);
+                _currentCassetteName, vcrRequest, _currentCassetteDirectory, cancellationToken).ConfigureAwait(false);
 
             if (recordedResponse != null)
             {
@@ -62,7 +64,7 @@ public sealed partial class VcrHttpHandler : DelegatingHandler
         {
             var vcrResponse = await ConvertToVcrResponseAsync(response).ConfigureAwait(false);
             await _vcrService.RecordInteractionAsync(
-                _currentCassetteName, vcrRequest, vcrResponse, cancellationToken).ConfigureAwait(false);
+                _currentCassetteName, vcrRequest, vcrResponse, _currentCassetteDirectory, cancellationToken).ConfigureAwait(false);
         }
 
         return response;

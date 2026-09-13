@@ -14,6 +14,7 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
     private VcrMode _currentMode;
 
     public VcrMode CurrentMode => _currentMode;
+    public string CassettesDirectory => _options.CassettesDirectory;
 
     public VcrService(VcrOptions options, IFileSystem fs, ILogger<VcrService>? logger = null)
     {
@@ -25,22 +26,23 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
         _currentMode = options.Mode;
     }
 
-    public async Task<VcrCassette> LoadCassetteAsync(string name, CancellationToken cancellationToken = default)
+    public async Task<VcrCassette> LoadCassetteAsync(string name, string? directory = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(name);
 
-        if (_cassetteCache.TryGetValue(name, out var cached))
+        var cacheKey = GetCassettePath(name, directory);
+        if (_cassetteCache.TryGetValue(cacheKey, out var cached))
         {
             return cached;
         }
 
         using var guard = await _fileLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_fileLock.Name}' 等待超时");
 
-        var filePath = GetCassettePath(name);
+        var filePath = cacheKey;
         if (!_fs.FileExists(filePath))
         {
             var cassette = new VcrCassette { Name = name };
-            _cassetteCache[name] = cassette;
+            _cassetteCache[cacheKey] = cassette;
             _logger?.LogDebug("创建新 cassette: {Name}", name);
             return cassette;
         }
@@ -51,32 +53,32 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
             loaded = new VcrCassette { Name = name };
         }
 
-        _cassetteCache[name] = loaded;
+        _cassetteCache[cacheKey] = loaded;
         _logger?.LogDebug("加载 cassette: {Name}, 交互数={Count}", name, loaded.Interactions.Count);
         return loaded;
     
     }
 
-    public async Task SaveCassetteAsync(VcrCassette cassette, CancellationToken cancellationToken = default)
+    public async Task SaveCassetteAsync(VcrCassette cassette, string? directory = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(cassette);
         ArgumentException.ThrowIfNullOrEmpty(cassette.Name);
 
         using var guard = await _fileLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_fileLock.Name}' 等待超时");
 
-        var filePath = GetCassettePath(cassette.Name);
-        var directory = Path.GetDirectoryName(filePath);
-        DirectoryHelper.EnsureDirectoryExists(_fs, directory);
+        var filePath = GetCassettePath(cassette.Name, directory);
+        var dir = Path.GetDirectoryName(filePath);
+        DirectoryHelper.EnsureDirectoryExists(_fs, dir);
 
         var json = JsonSerializer.Serialize(cassette, VcrJsonContext.Default.VcrCassette);
         await _fs.WriteAllTextAsync(filePath, json, cancellationToken).ConfigureAwait(false);
 
-        _cassetteCache[cassette.Name] = cassette;
+        _cassetteCache[filePath] = cassette;
         _logger?.LogDebug("保存 cassette: {Name}, 交互数={Count}", cassette.Name, cassette.Interactions.Count);
     
     }
 
-    public async Task RecordInteractionAsync(string cassetteName, VcrRequest request, VcrResponse response, CancellationToken cancellationToken = default)
+    public async Task RecordInteractionAsync(string cassetteName, VcrRequest request, VcrResponse response, string? directory = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(cassetteName);
         ArgumentNullException.ThrowIfNull(request);
@@ -88,7 +90,7 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
             return;
         }
 
-        var cassette = await LoadCassetteAsync(cassetteName, cancellationToken).ConfigureAwait(false);
+        var cassette = await LoadCassetteAsync(cassetteName, directory, cancellationToken).ConfigureAwait(false);
 
         var interaction = new VcrInteraction
         {
@@ -104,12 +106,12 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
         }
 
         cassette.Interactions.Add(interaction);
-        await SaveCassetteAsync(cassette, cancellationToken).ConfigureAwait(false);
+        await SaveCassetteAsync(cassette, directory, cancellationToken).ConfigureAwait(false);
 
         _logger?.LogDebug("录制交互: {Method} {Uri} -> {Status}", request.Method, request.Uri, response.Status);
     }
 
-    public async Task<VcrResponse?> FindMatchingInteractionAsync(string cassetteName, VcrRequest request, CancellationToken cancellationToken = default)
+    public async Task<VcrResponse?> FindMatchingInteractionAsync(string cassetteName, VcrRequest request, string? directory = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(cassetteName);
         ArgumentNullException.ThrowIfNull(request);
@@ -120,7 +122,7 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
             return null;
         }
 
-        var cassette = await LoadCassetteAsync(cassetteName, cancellationToken).ConfigureAwait(false);
+        var cassette = await LoadCassetteAsync(cassetteName, directory, cancellationToken).ConfigureAwait(false);
 
         foreach (var interaction in cassette.Interactions)
         {
@@ -146,12 +148,14 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
         _logger?.LogInformation("VCR 模式切换为: {Mode}", mode);
     }
 
-    private string GetCassettePath(string name)
+    public string GetCassettePath(string name, string? directory = null)
     {
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        var baseDir = directory ?? _options.CassettesDirectory;
         var safeName = string.Join("_", name.Split(Path.GetInvalidFileNameChars()));
-        var fullPath = Path.GetFullPath(Path.Combine(_options.CassettesDirectory, $"{safeName}.json"));
-        var baseDir = Path.GetFullPath(_options.CassettesDirectory);
-        if (!fullPath.StartsWith(baseDir, StringComparison.OrdinalIgnoreCase))
+        var fullPath = Path.GetFullPath(Path.Combine(baseDir, $"{safeName}.json"));
+        var baseFull = Path.GetFullPath(baseDir);
+        if (!fullPath.StartsWith(baseFull, StringComparison.OrdinalIgnoreCase))
             throw new UnauthorizedAccessException($"Cassette path escapes directory: {name}");
         return fullPath;
     }
@@ -176,9 +180,14 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
         _fileLock.Dispose();
     }
 
-    async Task<JoinCode.Abstractions.Models.Vcr.VcrCassette> JoinCode.Abstractions.Interfaces.IVcrService.LoadCassetteAsync(string name, CancellationToken cancellationToken)
+    string JoinCode.Abstractions.Interfaces.IVcrService.GetCassettePath(string name, string? directory)
+        => GetCassettePath(name, directory);
+
+    string JoinCode.Abstractions.Interfaces.IVcrService.CassettesDirectory => CassettesDirectory;
+
+    async Task<JoinCode.Abstractions.Models.Vcr.VcrCassette> JoinCode.Abstractions.Interfaces.IVcrService.LoadCassetteAsync(string name, string? directory, CancellationToken cancellationToken)
     {
-        var cassette = await LoadCassetteAsync(name, cancellationToken).ConfigureAwait(false);
+        var cassette = await LoadCassetteAsync(name, directory, cancellationToken).ConfigureAwait(false);
         return new JoinCode.Abstractions.Models.Vcr.VcrCassette
         {
             Name = cassette.Name,

@@ -6,6 +6,9 @@
   <PropertyGroup Condition="!$(MSBuildProjectName.Contains('.Tests')) AND '$(Configuration)' != 'Release'">
     <IsPackable>true</IsPackable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- 强制 XML 文档注释完整：移除继承的 CS1591 屏蔽并升级为错误 -->
+    <NoWarn>$(NoWarn.Replace(';CS1591', '').Replace('CS1591;', '').Replace('CS1591', ''))</NoWarn>
+    <WarningsAsErrors>$(WarningsAsErrors);CS1591</WarningsAsErrors>
   </PropertyGroup>
 
   <PropertyGroup Condition="!$(MSBuildProjectName.Contains('.Tests')) AND '$(Configuration)' == 'Release'">

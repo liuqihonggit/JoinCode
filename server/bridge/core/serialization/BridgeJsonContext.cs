@@ -86,4 +86,7 @@ namespace Core.Bridge;
 [JsonSerializable(typeof(BridgeRemoteCredentials))]
 [JsonSerializable(typeof(ConcurrentSessionRecord))]
 // BridgeNdjsonActivity, BridgeNdjsonActivityType 已迁移到 JoinCode.Transport.Bridge (NdjsonActivity, NdjsonActivityType)
+/// <summary>
+/// Bridge JSON 序列化上下文 — 源码生成器为 Bridge 消息类型生成 AOT 兼容的元数据
+/// </summary>
 internal partial class BridgeJsonContext : JsonSerializerContext;

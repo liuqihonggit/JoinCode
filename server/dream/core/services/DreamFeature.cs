@@ -14,6 +14,15 @@ public sealed partial class DreamFeature : ServiceEntity, IDreamFeature
     private readonly MiddlewarePipeline<DreamContext>? _pipeline;
     private readonly ILogger<DreamFeature>? _logger;
 
+    /// <summary>
+    /// 构造做梦功能实例
+    /// </summary>
+    /// <param name="chatCompletionClient">聊天补全客户端</param>
+    /// <param name="sessionScanner">会话扫描器</param>
+    /// <param name="taskRegistry">梦境任务注册表</param>
+    /// <param name="config">自动做梦配置</param>
+    /// <param name="pipeline">中间件管道（可选）</param>
+    /// <param name="logger">日志记录器</param>
     public DreamFeature(
         IChatCompletionClient chatCompletionClient,
         ISessionScanner sessionScanner,

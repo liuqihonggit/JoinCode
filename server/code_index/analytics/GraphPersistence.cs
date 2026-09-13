@@ -11,6 +11,12 @@ public sealed class GraphPersistence : ServiceEntity, IGraphPersistence
     private readonly IPersistencePipeline? _pipeline;
     private const int CurrentVersion = 1;
 
+    /// <summary>
+    /// 构造 GraphPersistence
+    /// </summary>
+    /// <param name="store">内存索引存储</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="pipeline">可选持久化管道，无则直接写文件</param>
     public GraphPersistence(InMemoryIndexStore store, IFileSystem fs, IPersistencePipeline? pipeline = null)
     {
         ArgumentNullException.ThrowIfNull(store);
@@ -20,6 +26,11 @@ public sealed class GraphPersistence : ServiceEntity, IGraphPersistence
         _pipeline = pipeline;
     }
 
+    /// <summary>
+    /// 将索引存储序列化保存到指定目录的 code-index.json 文件
+    /// </summary>
+    /// <param name="directory">目标目录</param>
+    /// <param name="ct">取消令牌</param>
     public async Task SaveAsync(string directory, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(directory);
@@ -75,6 +86,12 @@ public sealed class GraphPersistence : ServiceEntity, IGraphPersistence
         }
     }
 
+    /// <summary>
+    /// 从指定目录加载 code-index.json 并重建索引存储
+    /// </summary>
+    /// <param name="directory">源目录</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>加载成功返回 true；文件不存在或版本不匹配返回 false</returns>
     public async Task<bool> LoadAsync(string directory, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(directory);
@@ -208,6 +225,12 @@ public sealed class GraphPersistence : ServiceEntity, IGraphPersistence
         return true;
     }
 
+    /// <summary>
+    /// 检查指定目录是否存在持久化索引文件
+    /// </summary>
+    /// <param name="directory">目标目录</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>存在返回 true，否则 false</returns>
     public Task<bool> ExistsAsync(string directory, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(directory);

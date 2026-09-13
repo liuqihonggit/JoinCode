@@ -41,14 +41,28 @@ public sealed class BridgeWorkPollLoop : ServiceEntity
     // 传输代次 — 对齐 TS 端 v2Generation，防止并发 handshake 竞态
     private int _transportGeneration;
 
+    /// <summary>获取轮询循环是否正在运行</summary>
     public bool IsRunning => _isRunning != 0;
+
+    /// <summary>当前已注册的 Bridge 环境标识</summary>
     public string? CurrentEnvironmentId => _environmentId;
+
+    /// <summary>当前工作项关联的会话标识</summary>
     public string? CurrentSessionId => _currentSessionId;
+
+    /// <summary>当前正在处理的工作项标识</summary>
     public string? CurrentWorkId => _currentWorkId;
+
+    /// <summary>当前活跃的桥传输实例</summary>
     public IReplBridgeTransport? CurrentTransport => _currentTransport;
 
+    /// <summary>收到工作项时触发 — 对齐 TS 端 onWorkReceived</summary>
     public event EventHandler<BridgeWorkReceivedEventArgs>? WorkReceived;
+
+    /// <summary>轮询状态变更时触发（registered/working/error/stopped）</summary>
     public event EventHandler<BridgePollStateEventArgs>? StateChanged;
+
+    /// <summary>致命错误时触发，调用方应停止循环并清理资源</summary>
     public event EventHandler<BridgePollErrorEventArgs>? FatalError;
 
     /// <summary>
@@ -60,6 +74,15 @@ public sealed class BridgeWorkPollLoop : ServiceEntity
 
     private readonly INetworkConnectivityService? _networkService;
 
+    /// <summary>
+    /// 构造 Bridge 工作轮询循环
+    /// </summary>
+    /// <param name="apiClient">Bridge API 客户端</param>
+    /// <param name="options">轮询选项，为 null 时使用默认值</param>
+    /// <param name="logger">可选日志记录器</param>
+    /// <param name="capacityWake">容量唤醒服务，用于 at-capacity 心跳模式</param>
+    /// <param name="clock">时钟服务，用于测试注入可控时间</param>
+    /// <param name="networkService">网络连通性服务，用于网络可用性检测</param>
     public BridgeWorkPollLoop(
         BridgeApiClient apiClient,
         BridgeWorkPollOptions? options = null,
@@ -653,6 +676,9 @@ public sealed class BridgeWorkPollLoop : ServiceEntity
 
     #endregion
 
+    /// <summary>
+    /// 异步释放资源 — 停止轮询、释放传输和去重集合
+    /// </summary>
     public override async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1)
@@ -703,12 +729,24 @@ public sealed class BridgeWorkPollOptions
 
 #region 事件参数
 
+/// <summary>
+/// 收到工作项事件参数 — 对齐 TS 端 onWorkReceived 回调参数
+/// </summary>
 public sealed class BridgeWorkReceivedEventArgs : EventArgs
 {
+    /// <summary>会话标识</summary>
     public string SessionId { get; }
+
+    /// <summary>会话入口令牌</summary>
     public string? IngressToken { get; }
+
+    /// <summary>工作项标识</summary>
     public string WorkId { get; }
+
+    /// <summary>SDK URL</summary>
     public string? SdkUrl { get; }
+
+    /// <summary>API 基础 URL</summary>
     public string? ApiBaseUrl { get; }
 
     /// <summary>
@@ -717,6 +755,15 @@ public sealed class BridgeWorkReceivedEventArgs : EventArgs
     /// </summary>
     public bool UseCcrV2 { get; }
 
+    /// <summary>
+    /// 构造工作项事件参数
+    /// </summary>
+    /// <param name="sessionId">会话标识</param>
+    /// <param name="ingressToken">会话入口令牌</param>
+    /// <param name="workId">工作项标识</param>
+    /// <param name="sdkUrl">SDK URL</param>
+    /// <param name="apiBaseUrl">API 基础 URL</param>
+    /// <param name="useCcrV2">是否使用 CCR v2 协议</param>
     public BridgeWorkReceivedEventArgs(
         string sessionId,
         string? ingressToken,
@@ -734,21 +781,40 @@ public sealed class BridgeWorkReceivedEventArgs : EventArgs
     }
 }
 
+/// <summary>
+/// 轮询状态变更事件参数 — 状态值: registered/working/error/stopped
+/// </summary>
 public sealed class BridgePollStateEventArgs : EventArgs
 {
+    /// <summary>当前轮询状态字符串</summary>
     public string State { get; }
 
+    /// <summary>
+    /// 构造状态变更事件参数
+    /// </summary>
+    /// <param name="state">状态字符串</param>
     public BridgePollStateEventArgs(string state)
     {
         State = state;
     }
 }
 
+/// <summary>
+/// 轮询错误事件参数 — 携带异常对象和错误类型标识
+/// </summary>
 public sealed class BridgePollErrorEventArgs : EventArgs
 {
+    /// <summary>触发的异常对象</summary>
     public Exception Exception { get; }
+
+    /// <summary>错误类型标识（如 poll_fatal/heartbeat_fatal/env_lost/poll_give_up）</summary>
     public string ErrorType { get; }
 
+    /// <summary>
+    /// 构造错误事件参数
+    /// </summary>
+    /// <param name="exception">异常对象</param>
+    /// <param name="errorType">错误类型标识</param>
     public BridgePollErrorEventArgs(Exception exception, string errorType)
     {
         Exception = exception;

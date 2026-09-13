@@ -6,13 +6,20 @@ namespace JoinCode.Dream;
 [PromptTemplate(Name = "consolidation", Category = PromptTemplateCategory.Dream, Description = "记忆整合4阶段提示词", HasParameters = true)]
 public static class ConsolidationPrompt
 {
+    /// <summary>记忆入口文件名</summary>
     public const string EntrypointName = "MEMORY.md";
+    /// <summary>入口文件最大行数</summary>
     public const int MaxEntrypointLines = 200;
+    /// <summary>目录不存在时的引导提示</summary>
     public const string DirExistsGuidance = "如果目录不存在，请先创建它。";
 
     /// <summary>
     /// 构建整合提示词
     /// </summary>
+    /// <param name="memoryRoot">记忆根目录</param>
+    /// <param name="transcriptDir">会话转录目录</param>
+    /// <param name="extra">额外上下文（可选）</param>
+    /// <returns>构建好的整合提示词字符串</returns>
     public static string BuildPrompt(
         string memoryRoot,
         string transcriptDir,
@@ -80,6 +87,9 @@ Return a brief summary of what you consolidated, updated, or pruned. If nothing 
     /// <summary>
     /// 构建带有会话列表的额外上下文
     /// </summary>
+    /// <param name="sessionIds">会话 ID 集合</param>
+    /// <param name="toolConstraints">工具约束说明</param>
+    /// <returns>额外上下文字符串</returns>
     public static string BuildExtraContext(IEnumerable<string> sessionIds, string toolConstraints)
     {
         var sessionList = sessionIds.ToList();

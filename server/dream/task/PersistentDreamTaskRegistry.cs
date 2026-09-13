@@ -15,6 +15,11 @@ public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IA
     private readonly Dictionary<string, DreamTaskState> _activeTasks = new();
     private int _disposed;
 
+    /// <summary>
+    /// 构造 PersistentDreamTaskRegistry
+    /// </summary>
+    /// <param name="persistence">任务持久化层</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public PersistentDreamTaskRegistry(
         IDreamTaskPersistence persistence,
         
@@ -206,6 +211,8 @@ public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IA
     /// <summary>
     /// 加载活跃任务（服务启动时调用）
     /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task LoadActiveTasksAsync(CancellationToken ct = default)
     {
         var allTasks = await _persistence.LoadAllAsync(ct).ConfigureAwait(false);
@@ -227,6 +234,8 @@ public sealed partial class PersistentDreamTaskRegistry : IDreamTaskRegistry, IA
     /// <summary>
     /// 清理已完成的任务
     /// </summary>
+    /// <param name="keepCount">保留的已完成任务数量</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task CleanupAsync(int keepCount = 10)
     {
         await _persistence.CleanupCompletedAsync(keepCount).ConfigureAwait(false);

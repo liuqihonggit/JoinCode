@@ -11,6 +11,12 @@ public sealed partial class DreamCommand : PluginResourceBase, ICommand
     private readonly IDreamFeature _dreamFeature;
     private readonly ILogger<DreamCommand>? _logger;
 
+    /// <summary>
+    /// 构造 /dream 命令
+    /// </summary>
+    /// <param name="ownerPluginName">所属插件名</param>
+    /// <param name="dreamFeature">做梦功能接口</param>
+    /// <param name="logger">日志记录器</param>
     public DreamCommand(
         string ownerPluginName,
         IDreamFeature dreamFeature,
@@ -21,10 +27,21 @@ public sealed partial class DreamCommand : PluginResourceBase, ICommand
         _logger = logger;
     }
 
+    /// <summary>命令名</summary>
     public string Name => "dream";
+
+    /// <summary>命令描述</summary>
     public string Description => "手动触发记忆整合（做梦）";
+
+    /// <summary>命令用法</summary>
     public string Usage => "/dream [force]";
 
+    /// <summary>
+    /// 异步执行 /dream 命令
+    /// </summary>
+    /// <param name="context">命令上下文</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>表示异步执行操作的任务</returns>
     public async Task ExecuteAsync(ICommandContext context, CancellationToken cancellationToken = default)
     {
         var force = context.Arguments.Length > 0 &&
@@ -90,6 +107,12 @@ public sealed partial class DreamTasksCommand : PluginResourceBase, ICommand
     private readonly IDreamFeature _dreamFeature;
     private readonly ILogger<DreamTasksCommand>? _logger;
 
+    /// <summary>
+    /// 构造 /dream-tasks 命令
+    /// </summary>
+    /// <param name="ownerPluginName">所属插件名</param>
+    /// <param name="dreamFeature">做梦功能接口</param>
+    /// <param name="logger">日志记录器</param>
     public DreamTasksCommand(
         string ownerPluginName,
         IDreamFeature dreamFeature,
@@ -100,10 +123,21 @@ public sealed partial class DreamTasksCommand : PluginResourceBase, ICommand
         _logger = logger;
     }
 
+    /// <summary>命令名</summary>
     public string Name => "dream-tasks";
+
+    /// <summary>命令描述</summary>
     public string Description => "查看做梦任务状态";
+
+    /// <summary>命令用法</summary>
     public string Usage => "/dream-tasks [list|kill <taskId>]";
 
+    /// <summary>
+    /// 异步执行 /dream-tasks 命令
+    /// </summary>
+    /// <param name="context">命令上下文</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>表示异步执行操作的任务</returns>
     public async Task ExecuteAsync(ICommandContext context, CancellationToken cancellationToken = default)
     {
         var action = context.Arguments.Length > 0 ? context.Arguments[0].ToLowerInvariant() : "list";

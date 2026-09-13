@@ -1,5 +1,8 @@
 namespace Services.Lsp;
 
+/// <summary>
+/// LSP 服务 — 封装语言服务器协议操作，提供定义跳转、引用查找、悬停、补全等能力
+/// </summary>
 [Register(typeof(ILspService), ServiceLifetime.Singleton)]
 public sealed partial class LspService : ServiceEntity, ILspService
 {
@@ -90,6 +93,9 @@ public sealed partial class LspService : ServiceEntity, ILspService
     /// <summary>
     /// 检查指定文件对应的 LSP 服务器是否可用（已安装且能启动）
     /// </summary>
+    /// <param name="filePath">文件路径</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>服务器可用返回 true，否则 false</returns>
     public async Task<bool> IsServerAvailableAsync(string filePath, CancellationToken cancellationToken = default)
     {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
@@ -97,6 +103,14 @@ public sealed partial class LspService : ServiceEntity, ILspService
         return server is not null;
     }
 
+    /// <summary>
+    /// 跳转到定义 — 对齐 LSP textDocument/definition
+    /// </summary>
+    /// <param name="filePath">文件路径</param>
+    /// <param name="line">行号（0-based）</param>
+    /// <param name="character">列号（0-based）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>定义位置列表</returns>
     public async Task<List<LspLocation>> GotoDefinitionAsync(string filePath, int line, int character, CancellationToken cancellationToken = default)
     {
         await EnsureFileOpenAsync(filePath, cancellationToken).ConfigureAwait(false);
@@ -113,6 +127,14 @@ public sealed partial class LspService : ServiceEntity, ILspService
         return DeserializeLocations(result);
     }
 
+    /// <summary>
+    /// 查找引用 — 对齐 LSP textDocument/references
+    /// </summary>
+    /// <param name="filePath">文件路径</param>
+    /// <param name="line">行号（0-based）</param>
+    /// <param name="character">列号（0-based）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>引用位置列表</returns>
     public async Task<List<LspLocation>> FindReferencesAsync(string filePath, int line, int character, CancellationToken cancellationToken = default)
     {
         await EnsureFileOpenAsync(filePath, cancellationToken).ConfigureAwait(false);
@@ -130,6 +152,14 @@ public sealed partial class LspService : ServiceEntity, ILspService
         return DeserializeLocations(result);
     }
 
+    /// <summary>
+    /// 悬停信息 — 对齐 LSP textDocument/hover
+    /// </summary>
+    /// <param name="filePath">文件路径</param>
+    /// <param name="line">行号（0-based）</param>
+    /// <param name="character">列号（0-based）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>悬停结果；无信息返回 null</returns>
     public async Task<LspHoverResult?> HoverAsync(string filePath, int line, int character, CancellationToken cancellationToken = default)
     {
         await EnsureFileOpenAsync(filePath, cancellationToken).ConfigureAwait(false);
@@ -146,6 +176,14 @@ public sealed partial class LspService : ServiceEntity, ILspService
         return result != null ? RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.LspHoverResult) : null;
     }
 
+    /// <summary>
+    /// 获取补全项 — 对齐 LSP textDocument/completion
+    /// </summary>
+    /// <param name="filePath">文件路径</param>
+    /// <param name="line">行号（0-based）</param>
+    /// <param name="character">列号（0-based）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>补全项列表</returns>
     public async Task<List<LspCompletionItem>> GetCompletionsAsync(string filePath, int line, int character, CancellationToken cancellationToken = default)
     {
         await EnsureFileOpenAsync(filePath, cancellationToken).ConfigureAwait(false);
@@ -162,6 +200,12 @@ public sealed partial class LspService : ServiceEntity, ILspService
         return DeserializeCompletions(result);
     }
 
+    /// <summary>
+    /// 获取文档符号 — 对齐 LSP textDocument/documentSymbol
+    /// </summary>
+    /// <param name="filePath">文件路径</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>文档符号列表</returns>
     public async Task<List<LspDocumentSymbol>> GetDocumentSymbolsAsync(string filePath, CancellationToken cancellationToken = default)
     {
         await EnsureFileOpenAsync(filePath, cancellationToken).ConfigureAwait(false);
@@ -182,6 +226,14 @@ public sealed partial class LspService : ServiceEntity, ILspService
         return [];
     }
 
+    /// <summary>
+    /// 工作区符号搜索 — 对齐 LSP workspace/symbol
+    /// </summary>
+    /// <param name="query">搜索查询字符串</param>
+    /// <param name="workspacePath">工作区路径（可选，用于自动检测服务器）</param>
+    /// <param name="serverName">指定服务器名称（可选，跳过自动检测）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>匹配的符号信息列表</returns>
     public async Task<List<LspSymbolInformation>> SearchWorkspaceSymbolsAsync(string query, string? workspacePath = null, string? serverName = null, CancellationToken cancellationToken = default)
     {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
@@ -244,6 +296,14 @@ public sealed partial class LspService : ServiceEntity, ILspService
         return [];
     }
 
+    /// <summary>
+    /// 跳转到实现 — 对齐 LSP textDocument/implementation
+    /// </summary>
+    /// <param name="filePath">文件路径</param>
+    /// <param name="line">行号（0-based）</param>
+    /// <param name="character">列号（0-based）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>实现位置列表</returns>
     public async Task<List<LspLocation>> GotoImplementationAsync(string filePath, int line, int character, CancellationToken cancellationToken = default)
     {
         await EnsureFileOpenAsync(filePath, cancellationToken).ConfigureAwait(false);
@@ -260,6 +320,14 @@ public sealed partial class LspService : ServiceEntity, ILspService
         return DeserializeLocations(result);
     }
 
+    /// <summary>
+    /// 准备调用层次结构 — 对齐 LSP textDocument/prepareCallHierarchy
+    /// </summary>
+    /// <param name="filePath">文件路径</param>
+    /// <param name="line">行号（0-based）</param>
+    /// <param name="character">列号（0-based）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>调用层次项列表</returns>
     public async Task<List<LspCallHierarchyItem>> PrepareCallHierarchyAsync(string filePath, int line, int character, CancellationToken cancellationToken = default)
     {
         await EnsureFileOpenAsync(filePath, cancellationToken).ConfigureAwait(false);
@@ -281,6 +349,12 @@ public sealed partial class LspService : ServiceEntity, ILspService
         return [];
     }
 
+    /// <summary>
+    /// 调用层次 incoming calls — 对齐 LSP callHierarchy/incomingCalls
+    /// </summary>
+    /// <param name="item">调用层次项</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>incoming call 列表</returns>
     public async Task<List<LspCallHierarchyIncomingCall>> CallHierarchyIncomingCallsAsync(LspCallHierarchyItem item, CancellationToken cancellationToken = default)
     {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
@@ -301,6 +375,12 @@ public sealed partial class LspService : ServiceEntity, ILspService
         return [];
     }
 
+    /// <summary>
+    /// 调用层次 outgoing calls — 对齐 LSP callHierarchy/outgoingCalls
+    /// </summary>
+    /// <param name="item">调用层次项</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>outgoing call 列表</returns>
     public async Task<List<LspCallHierarchyOutgoingCall>> CallHierarchyOutgoingCallsAsync(LspCallHierarchyItem item, CancellationToken cancellationToken = default)
     {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
@@ -321,11 +401,21 @@ public sealed partial class LspService : ServiceEntity, ILspService
         return [];
     }
 
+    /// <summary>
+    /// 关闭文件对应的 LSP 客户端
+    /// </summary>
+    /// <param name="filePath">文件路径</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task CloseClientAsync(string filePath, CancellationToken cancellationToken = default)
     {
         await _lspManager.CloseFileAsync(filePath, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 异步释放 LspService 资源
+    /// </summary>
+    /// <returns>表示异步释放操作的 ValueTask</returns>
     public override async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1) return;
@@ -334,6 +424,9 @@ public sealed partial class LspService : ServiceEntity, ILspService
         Dispose();
     }
 
+    /// <summary>
+    /// 同步释放资源 — 释放初始化锁
+    /// </summary>
     protected override void OnDispose()
     {
         if (_asyncDisposed == 1) return;

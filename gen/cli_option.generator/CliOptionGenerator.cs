@@ -131,6 +131,7 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
 
     private static void GenerateResultClass(StringBuilder sb, CliEnumInfo enumInfo)
     {
+        sb.AppendLine($"/// <summary>{enumInfo.Name} 命令行参数解析结果 — 由 CliOptionGenerator 自动生成</summary>");
         sb.AppendLine($"public sealed class {enumInfo.Name}ParseResult");
         sb.AppendLine("{");
 
@@ -170,6 +171,7 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
 
     private static void GenerateParserClass(StringBuilder sb, CliEnumInfo enumInfo)
     {
+        sb.AppendLine($"/// <summary>{enumInfo.Name} 命令行参数解析器 — 由 CliOptionGenerator 自动生成</summary>");
         sb.AppendLine($"public static class {enumInfo.Name}Parser");
         sb.AppendLine("{");
 
@@ -520,23 +522,34 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
     /// </summary>
     private static void GenerateSchemaClass(StringBuilder sb, CliEnumInfo enumInfo)
     {
+        sb.AppendLine($"/// <summary>{enumInfo.Name} CLI 参数 schema 属性定义 — 由 CliOptionGenerator 自动生成</summary>");
         sb.AppendLine($"public sealed class {enumInfo.Name}SchemaProperty");
         sb.AppendLine("{");
+        sb.AppendLine("    /// <summary>参数长名（如 --debug）</summary>");
         sb.AppendLine("    public string Name { get; init; } = \"\";");
+        sb.AppendLine("    /// <summary>参数短名（如 -d），无短名时为空字符串</summary>");
         sb.AppendLine("    public string ShortName { get; init; } = \"\";");
+        sb.AppendLine("    /// <summary>参数描述文本</summary>");
         sb.AppendLine("    public string Description { get; init; } = \"\";");
+        sb.AppendLine("    /// <summary>参数类型（boolean 或 string）</summary>");
         sb.AppendLine("    public string Type { get; init; } = \"boolean\";");
+        sb.AppendLine("    /// <summary>是否接受值参数</summary>");
         sb.AppendLine("    public bool AcceptsValue { get; init; }");
+        sb.AppendLine("    /// <summary>风险等级（可选），用于权限管控</summary>");
         sb.AppendLine("    public string? RiskLevel { get; init; }");
+        sb.AppendLine("    /// <summary>参数分类（可选），用于帮助文本分组</summary>");
         sb.AppendLine("    public string? Category { get; init; }");
+        sb.AppendLine("    /// <summary>用法示例（可选）</summary>");
         sb.AppendLine("    public string? Example { get; init; }");
         sb.AppendLine("}");
         sb.AppendLine();
 
+        sb.AppendLine($"/// <summary>{enumInfo.Name} CLI 参数 schema 定义集合 — 由 CliOptionGenerator 自动生成</summary>");
         sb.AppendLine($"public static class {enumInfo.Name}Schema");
         sb.AppendLine("{");
 
         // 生成 Properties 数组
+        sb.AppendLine($"    /// <summary>所有参数属性定义数组</summary>");
         sb.AppendLine($"    public static readonly {enumInfo.Name}SchemaProperty[] Properties =");
         sb.AppendLine("    {");
         foreach (var opt in enumInfo.Options.Where(o => !o.IsNegation))
@@ -587,17 +600,20 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
 
     private static void GenerateConstantsClass(StringBuilder sb, CliEnumInfo enumInfo)
     {
+        sb.AppendLine($"/// <summary>{enumInfo.Name} 选项名常量定义 — 由 CliOptionGenerator 自动生成</summary>");
         sb.AppendLine($"public static class {enumInfo.Name}Constants");
         sb.AppendLine("{");
 
         foreach (var opt in enumInfo.Options)
         {
             var constName = opt.Name + "LongName";
+            sb.AppendLine($"    /// <summary>{opt.Description} 长选项名</summary>");
             sb.AppendLine($"    public const string {constName} = \"{EscapeString(opt.LongName)}\";");
 
             if (!string.IsNullOrEmpty(opt.ShortName))
             {
                 var shortConstName = opt.Name + "ShortName";
+                sb.AppendLine($"    /// <summary>{opt.Description} 短选项名</summary>");
                 sb.AppendLine($"    public const string {shortConstName} = \"{EscapeString(opt.ShortName)}\";");
             }
         }

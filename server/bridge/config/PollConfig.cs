@@ -53,6 +53,11 @@ public sealed partial class PollConfigManager : ServiceEntity, IDisposable
     private PollConfig _currentConfig;
     private int _consecutiveErrors;
 
+    /// <summary>
+    /// 构造轮询配置管理器
+    /// </summary>
+    /// <param name="initialConfig">初始配置，为 null 时使用默认配置</param>
+    /// <param name="logger">可选日志记录器</param>
     public PollConfigManager(
         PollConfig? initialConfig = null,
         ILogger<PollConfigManager>? logger = null)
@@ -165,5 +170,8 @@ public sealed partial class PollConfigManager : ServiceEntity, IDisposable
         }
     }
 
+    /// <summary>
+    /// 释放资源 — 释放配置锁
+    /// </summary>
     protected override void OnDispose() => _configLock.Dispose();
 }

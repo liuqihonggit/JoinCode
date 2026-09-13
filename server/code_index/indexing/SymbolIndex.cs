@@ -13,6 +13,13 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable
     private readonly IClockService _clock;
     private int _disposed;
 
+    /// <summary>
+    /// 构造符号索引器 — 基于内存索引存储
+    /// </summary>
+    /// <param name="store">内存索引存储</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="plugin">语言插件,用于源码解析</param>
+    /// <param name="clock">时钟服务(可选),默认使用系统时钟</param>
     public SymbolIndex(InMemoryIndexStore store, IFileSystem fs, ILanguagePlugin plugin, IClockService? clock = null)
     {
         ArgumentNullException.ThrowIfNull(store);
@@ -25,6 +32,12 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable
         _clock = clock ?? SystemClockService.Instance;
     }
 
+    /// <summary>
+    /// 索引单个文件 — 读取文件内容并计算哈希后索引
+    /// </summary>
+    /// <param name="filePath">文件路径</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>异步任务</returns>
     public async Task IndexFileAsync(string filePath, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(filePath);
@@ -38,6 +51,14 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable
         await IndexFileWithContentAsync(filePath, sourceCode, contentHash, ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 索引文件内容 — 先提取符号/调用/依赖,再写入索引
+    /// </summary>
+    /// <param name="filePath">文件路径</param>
+    /// <param name="sourceCode">源代码文本</param>
+    /// <param name="contentHash">内容哈希,用于变更检测</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>异步任务</returns>
     public async Task IndexFileWithContentAsync(string filePath, string sourceCode, string contentHash, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(filePath);
@@ -48,6 +69,15 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable
         await IndexFileWithContentAsync(filePath, sourceCode, contentHash, extraction, ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 索引文件内容 — 使用已提取的结果,在写锁内原子完成 移除旧→插入新→更新追踪
+    /// </summary>
+    /// <param name="filePath">文件路径</param>
+    /// <param name="sourceCode">源代码文本</param>
+    /// <param name="contentHash">内容哈希,用于变更检测</param>
+    /// <param name="extraction">已提取的符号/调用/依赖结果</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>已完成的任务</returns>
     public Task IndexFileWithContentAsync(string filePath, string sourceCode, string contentHash, ExtractionResult extraction, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(filePath);
@@ -102,6 +132,12 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// 批量索引文件列表 — 逐个文件读取并索引
+    /// </summary>
+    /// <param name="filePaths">文件路径列表</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>异步任务</returns>
     public async Task IndexFilesAsync(IReadOnlyList<string> filePaths, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(filePaths);
@@ -113,6 +149,12 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable
         }
     }
 
+    /// <summary>
+    /// 移除文件相关所有索引数据 — 符号、调用边、依赖边、文件追踪
+    /// </summary>
+    /// <param name="filePath">文件路径</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>已完成的任务</returns>
     public Task RemoveFileAsync(string filePath, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(filePath);
@@ -122,12 +164,22 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// 清空所有索引数据
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>已完成的任务</returns>
     public Task ClearAsync(CancellationToken ct)
     {
         _store.Clear();
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// 获取索引统计信息 — 文件数、符号数、调用边数、依赖边数、项目数、最后更新时间
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>索引统计快照</returns>
     public Task<IndexStats> GetStatsAsync(CancellationToken ct)
     {
         using var scope = _store.EnterReadLock();
@@ -392,6 +444,9 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable
         }
     }
 
+    /// <summary>
+    /// 释放索引器资源 — 标记已释放状态
+    /// </summary>
     public void Dispose()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _disposed))

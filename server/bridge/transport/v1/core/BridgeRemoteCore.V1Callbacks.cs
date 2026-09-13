@@ -1,6 +1,9 @@
 
 namespace Core.Bridge;
 
+/// <summary>
+/// 桥接远程核心(v1) — partial 类,负责注册 v1 传输回调
+/// </summary>
 public static partial class BridgeRemoteCore
 {
     /// <summary>

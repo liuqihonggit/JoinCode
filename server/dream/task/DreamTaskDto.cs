@@ -6,42 +6,55 @@ namespace JoinCode.Dream;
 /// </summary>
 public sealed class DreamTaskDto
 {
+    /// <summary>任务 ID</summary>
     [JsonPropertyName("id")]
     public string Id { get; set; } = string.Empty;
 
+    /// <summary>任务状态</summary>
     [JsonPropertyName("status")]
     public string Status { get; set; } = string.Empty;
 
+    /// <summary>任务描述</summary>
     [JsonPropertyName("description")]
     public string Description { get; set; } = string.Empty;
 
+    /// <summary>开始时间</summary>
     [JsonPropertyName("startTime")]
     public DateTime StartTime { get; set; }
 
+    /// <summary>结束时间（可空）</summary>
     [JsonPropertyName("endTime")]
     public DateTime? EndTime { get; set; }
 
+    /// <summary>是否已通知</summary>
     [JsonPropertyName("notified")]
     public bool Notified { get; set; }
 
+    /// <summary>当前阶段</summary>
     [JsonPropertyName("phase")]
     public string Phase { get; set; } = string.Empty;
 
+    /// <summary>正在审查的会话数</summary>
     [JsonPropertyName("sessionsReviewing")]
     public int SessionsReviewing { get; set; }
 
+    /// <summary>触及的文件列表</summary>
     [JsonPropertyName("filesTouched")]
     public List<string> FilesTouched { get; set; } = new();
 
+    /// <summary>回合列表</summary>
     [JsonPropertyName("turns")]
     public List<DreamTurnDto> Turns { get; set; } = new();
 
+    /// <summary>先前修改时间</summary>
     [JsonPropertyName("priorMtime")]
     public long PriorMtime { get; set; }
 
     /// <summary>
     /// 从状态创建DTO
     /// </summary>
+    /// <param name="state">做梦任务状态对象</param>
+    /// <returns>对应的 DTO 实例</returns>
     public static DreamTaskDto FromState(DreamTaskState state)
     {
         return new DreamTaskDto
@@ -67,6 +80,7 @@ public sealed class DreamTaskDto
     /// <summary>
     /// 转换为状态对象
     /// </summary>
+    /// <returns>对应的状态对象</returns>
     public DreamTaskState ToState()
     {
         var state = new DreamTaskState
@@ -113,9 +127,11 @@ public sealed class DreamTaskDto
 /// </summary>
 public sealed class DreamTurnDto
 {
+    /// <summary>回合文本</summary>
     [JsonPropertyName("text")]
     public string Text { get; set; } = string.Empty;
 
+    /// <summary>工具使用次数</summary>
     [JsonPropertyName("toolUseCount")]
     public int ToolUseCount { get; set; }
 }

@@ -1,11 +1,20 @@
 namespace Core.Bridge;
 
+/// <summary>
+/// Bridge 运行验证中间件 — 对齐 TS 端 RunAsync 早期参数验证
+/// 检查帮助标志、参数错误、权限模式、访问令牌、远程控制确认、HTTPS URL
+/// </summary>
 [Register(typeof(IBridgeRunMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class RunValidationMiddleware : ServiceEntity, IBridgeRunMiddleware
 {
     private static readonly FrozenSet<string> ValidPermissionModes = FrozenSet.Create(
         StringComparer.OrdinalIgnoreCase, "default", "plan", "auto-accept", "bubble");
 
+    /// <summary>
+    /// 构造运行验证中间件
+    /// </summary>
+    /// <param name="deps">BridgeMain 依赖包</param>
+    /// <param name="logger">日志记录器</param>
     public RunValidationMiddleware(BridgeMainDeps deps, ILogger<RunValidationMiddleware> logger)
     {
         _deps = deps;
@@ -15,6 +24,13 @@ public sealed partial class RunValidationMiddleware : ServiceEntity, IBridgeRunM
     private readonly ILogger<RunValidationMiddleware> _logger;
 
 
+    /// <summary>
+    /// 执行验证中间件 — 依次检查帮助、参数错误、权限模式、Token、远程确认、HTTPS
+    /// </summary>
+    /// <param name="ctx">Bridge 运行上下文</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task InvokeAsync(BridgeRunContext ctx, MiddlewareDelegate<BridgeRunContext> next, CancellationToken ct)
     {
         if (ctx.Args.Help)

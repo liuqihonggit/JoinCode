@@ -12,33 +12,48 @@ public sealed partial class TransportManager : ITransportManager
     private readonly ILogger<TransportManager>? _logger;
     private int _disposed;
 
+    /// <summary>当前连接状态</summary>
     public TransportConnectionState ConnectionState => _connectionManager.ConnectionState;
+    /// <summary>当前传输协议</summary>
     public TransportProtocol CurrentProtocol => _connectionManager.CurrentProtocol;
+    /// <summary>是否已连接</summary>
     public bool IsConnected => _connectionManager.IsConnected;
+    /// <summary>重连尝试次数</summary>
     public int ReconnectAttemptCount => _connectionManager.ReconnectAttemptCount;
 
+    /// <summary>接收到 Bridge 消息时触发</summary>
     public event EventHandler<BridgeMessageReceivedEventArgs>? MessageReceived;
+    /// <summary>连接状态变更时触发</summary>
     public event EventHandler<StateChangedEventArgs<TransportConnectionState>>? ConnectionStateChanged
     {
         add => _connectionManager.ConnectionStateChanged += value;
         remove => _connectionManager.ConnectionStateChanged -= value;
     }
+    /// <summary>传输错误发生时触发</summary>
     public event EventHandler<TransportErrorEventArgs>? ErrorOccurred
     {
         add => _connectionManager.ErrorOccurred += value;
         remove => _connectionManager.ErrorOccurred -= value;
     }
+    /// <summary>开始重连时触发</summary>
     public event EventHandler? Reconnecting
     {
         add => _connectionManager.Reconnecting += value;
         remove => _connectionManager.Reconnecting -= value;
     }
+    /// <summary>重连成功时触发</summary>
     public event EventHandler? Reconnected
     {
         add => _connectionManager.Reconnected += value;
         remove => _connectionManager.Reconnected -= value;
     }
 
+    /// <summary>
+    /// 构造传输管理器 — 连接 ConnectionManager 消息流到 StringMessageRouter 去重管道
+    /// </summary>
+    /// <param name="connectionManager">连接管理器</param>
+    /// <param name="messageRouter">消息路由器</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public TransportManager(
         IConnectionManager connectionManager,
         IMessageRouter messageRouter,
@@ -139,6 +154,10 @@ public sealed partial class TransportManager : ITransportManager
         }
     }
 
+    /// <summary>
+    /// 异步释放传输管理器资源
+    /// </summary>
+    /// <returns>表示异步释放操作的任务</returns>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;

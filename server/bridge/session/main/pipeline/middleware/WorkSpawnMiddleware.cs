@@ -1,10 +1,18 @@
 namespace Core.Bridge;
 
 
+/// <summary>
+/// 工作生成中间件 — 负责生成子进程处理工作项，失败时清理 worktree 并终止工作
+/// </summary>
 [Register(typeof(IHandleWorkMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class WorkSpawnMiddleware : ServiceEntity, IHandleWorkMiddleware
 {
 
+    /// <summary>
+    /// 构造工作生成中间件
+    /// </summary>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="worktreeService">Agent worktree 服务（可选）</param>
     public WorkSpawnMiddleware(ILogger<WorkSpawnMiddleware>? logger = null, IAgentWorktreeService? worktreeService = null)
     {
         _logger = logger;
@@ -13,8 +21,16 @@ public sealed partial class WorkSpawnMiddleware : ServiceEntity, IHandleWorkMidd
     private readonly ILogger<WorkSpawnMiddleware>? _logger;
     private readonly IAgentWorktreeService? _worktreeService;
 
+    /// <summary>错误行为：继续执行</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
+    /// <summary>
+    /// 执行子进程生成 — 构建 spawn 选项并调用 Spawner，失败时回滚 worktree 并标记短路
+    /// </summary>
+    /// <param name="ctx">工作处理上下文</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task InvokeAsync(HandleWorkContext ctx, MiddlewareDelegate<HandleWorkContext> next, CancellationToken ct)
     {
         var accessTokenForSpawn = ctx.SessionIngressToken ?? ctx.GetAccessToken?.Invoke();

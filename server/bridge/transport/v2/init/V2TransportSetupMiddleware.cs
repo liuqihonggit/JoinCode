@@ -8,6 +8,13 @@ namespace Core.Bridge.Init.V2;
 internal sealed partial class V2TransportSetupMiddleware : ServiceEntity, IMiddleware<V2BridgeInitContext>
 {
 
+    /// <summary>
+    /// 执行中间件 — 校验凭据/会话/令牌后创建 v2 传输,失败时归档会话并终止
+    /// </summary>
+    /// <param name="ctx">v2 桥接初始化上下文</param>
+    /// <param name="next">后续中间件委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>异步任务</returns>
     public async Task InvokeAsync(V2BridgeInitContext ctx, MiddlewareDelegate<V2BridgeInitContext> next, CancellationToken ct)
     {
         var credentials = ctx.Credentials ?? throw new InvalidOperationException("Credentials is not set. Ensure V2CredentialsMiddleware runs first.");

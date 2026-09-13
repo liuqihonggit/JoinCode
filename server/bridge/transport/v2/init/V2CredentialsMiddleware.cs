@@ -8,6 +8,12 @@ namespace Core.Bridge.Init.V2;
 internal sealed partial class V2CredentialsMiddleware : ServiceEntity, IMiddleware<V2BridgeInitContext>
 {
 
+    /// <summary>
+    /// 执行中间件 — 通过设备令牌获取 bridge 凭证，失败时归档会话并终止管道
+    /// </summary>
+    /// <param name="ctx">V2 桥初始化上下文</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(V2BridgeInitContext ctx, MiddlewareDelegate<V2BridgeInitContext> next, CancellationToken ct)
     {
         var sessionId = ctx.SessionId ?? throw new InvalidOperationException("SessionId is not set.");

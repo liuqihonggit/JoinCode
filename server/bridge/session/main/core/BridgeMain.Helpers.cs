@@ -409,6 +409,9 @@ public sealed partial class BridgeMain
     [GeneratedRegex(@"\s+")]
     private static partial Regex WhitespaceRegex();
 
+    /// <summary>
+    /// 异步释放 — 执行优雅关闭后释放同步资源
+    /// </summary>
     public override async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1)
@@ -420,6 +423,9 @@ public sealed partial class BridgeMain
         Dispose();
     }
 
+    /// <summary>
+    /// 释放同步资源 — 取消循环令牌、刷新定时器、令牌刷新器和清理锁
+    /// </summary>
     protected override void OnDispose()
     {
         if (_asyncDisposed == 1) return;

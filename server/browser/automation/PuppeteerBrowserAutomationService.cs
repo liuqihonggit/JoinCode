@@ -14,6 +14,10 @@ public sealed partial class PuppeteerBrowserAutomationService : IBrowserAutomati
     private bool _initializing;
     private readonly AsyncLock _initLock = new();
 
+    /// <summary>
+    /// 构造 Puppeteer 浏览器自动化服务
+    /// </summary>
+    /// <param name="logger">日志器</param>
     public PuppeteerBrowserAutomationService(ILogger<PuppeteerBrowserAutomationService> logger)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -25,6 +29,13 @@ public sealed partial class PuppeteerBrowserAutomationService : IBrowserAutomati
     /// </summary>
     public bool IsAvailable => _initialized && _browser is not null;
 
+    /// <summary>
+    /// 截图 — 导航到指定 URL 后截取页面 PNG 图片
+    /// </summary>
+    /// <param name="url">目标 URL</param>
+    /// <param name="waitMs">导航等待超时（毫秒）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>截图结果 — 成功包含 PNG 字节数据，失败包含错误信息</returns>
     public async Task<OperationResult<byte[]?>> ScreenshotAsync(string url, int waitMs = 3000, CancellationToken cancellationToken = default)
     {
         await EnsureInitializedAsync().ConfigureAwait(false);
@@ -64,6 +75,14 @@ public sealed partial class PuppeteerBrowserAutomationService : IBrowserAutomati
         }
     }
 
+    /// <summary>
+    /// 执行 JavaScript 表达 — 导航到指定 URL 后在页面上下文中执行脚本
+    /// </summary>
+    /// <param name="url">目标 URL — "about:blank" 表示不导航</param>
+    /// <param name="script">JavaScript 表达式</param>
+    /// <param name="waitMs">导航等待超时（毫秒）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>求值结果 — 成功包含表达式返回值字符串，失败包含错误信息</returns>
     public async Task<OperationResult<string?>> EvaluateAsync(string url, string script, int waitMs = 3000, CancellationToken cancellationToken = default)
     {
         await EnsureInitializedAsync().ConfigureAwait(false);
@@ -144,6 +163,9 @@ public sealed partial class PuppeteerBrowserAutomationService : IBrowserAutomati
     
     }
 
+    /// <summary>
+    /// 异步释放 — 关闭浏览器实例并释放锁
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         if (_browser is not null)

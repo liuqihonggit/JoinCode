@@ -12,6 +12,13 @@ public sealed partial class BridgeServerHostedService : IHostedService, IAsyncDi
     private readonly ILogger<BridgeServerHostedService>? _logger;
     private int _disposed;
 
+    /// <summary>
+    /// 构造桥接服务器托管服务
+    /// </summary>
+    /// <param name="bridgeServer">桥接服务器实例</param>
+    /// <param name="config">桥接配置</param>
+    /// <param name="capacityWakeService">容量唤醒服务(可选)</param>
+    /// <param name="logger">日志记录器(可选)</param>
     public BridgeServerHostedService(
         BridgeServer bridgeServer,
         BridgeConfig config,

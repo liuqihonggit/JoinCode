@@ -30,7 +30,9 @@ public enum BridgeStatusState
 /// </summary>
 public sealed class BridgeStatusInfo
 {
+    /// <summary>状态标签文本</summary>
     public required string Label { get; init; }
+    /// <summary>状态颜色（"error" | "warning" | "success"）</summary>
     public required string Color { get; init; } // "error" | "warning" | "success"
 }
 

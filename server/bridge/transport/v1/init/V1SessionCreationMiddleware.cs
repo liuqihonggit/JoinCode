@@ -8,6 +8,13 @@ namespace Core.Bridge.Init.V1;
 internal sealed partial class V1SessionCreationMiddleware : ServiceEntity, IMiddleware<V1BridgeInitContext>
 {
 
+    /// <summary>
+    /// 处理 V1 会话创建 — 调用 CreateSession 创建会话并设置上下文
+    /// </summary>
+    /// <param name="ctx">V1 Bridge 初始化上下文</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task InvokeAsync(V1BridgeInitContext ctx, MiddlewareDelegate<V1BridgeInitContext> next, CancellationToken ct)
     {
         var sessionId = await ctx.Parameters.CreateSession(

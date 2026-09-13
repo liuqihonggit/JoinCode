@@ -66,22 +66,39 @@ public interface IBridgeLogger
 /// </summary>
 public sealed class NullBridgeLogger : IBridgeLogger
 {
+    /// <summary>打印启动横幅 — 空实现</summary>
     public void PrintBanner(BridgeConfig config, string environmentId) { }
+    /// <summary>更新空闲状态 — 空实现</summary>
     public void UpdateIdleStatus() { }
+    /// <summary>更新重连中状态 — 空实现</summary>
     public void UpdateReconnectingStatus(string delayStr, string elapsedStr) { }
+    /// <summary>更新会话状态 — 空实现</summary>
     public void UpdateSessionStatus(string sessionId, string elapsed, BridgeSessionActivity activity, IReadOnlyList<string> trail) { }
+    /// <summary>清除状态 — 空实现</summary>
     public void ClearStatus() { }
+    /// <summary>设置仓库信息 — 空实现</summary>
     public void SetRepoInfo(string repoName, string branch) { }
+    /// <summary>设置调试日志路径 — 空实现</summary>
     public void SetDebugLogPath(string path) { }
+    /// <summary>设置已附加状态 — 空实现</summary>
     public void SetAttached(string sessionId) { }
+    /// <summary>更新失败状态 — 空实现</summary>
     public void UpdateFailedStatus(string error) { }
+    /// <summary>切换 QR 码显示 — 空实现</summary>
     public void ToggleQr() { }
+    /// <summary>更新会话计数 — 空实现</summary>
     public void UpdateSessionCount(int active, int max, BridgeSpawnMode mode) { }
+    /// <summary>设置生成模式显示 — 空实现</summary>
     public void SetSpawnModeDisplay(BridgeSpawnMode? mode) { }
+    /// <summary>添加会话 — 空实现</summary>
     public void AddSession(string sessionId, string url) { }
+    /// <summary>更新会话活动 — 空实现</summary>
     public void UpdateSessionActivity(string sessionId, BridgeSessionActivity activity) { }
+    /// <summary>设置会话标题 — 空实现</summary>
     public void SetSessionTitle(string sessionId, string title) { }
+    /// <summary>移除会话 — 空实现</summary>
     public void RemoveSession(string sessionId) { }
+    /// <summary>刷新显示 — 空实现</summary>
     public void RefreshDisplay() { }
 }
 

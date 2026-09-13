@@ -20,6 +20,12 @@ public sealed partial class BridgeJwtService : ServiceEntity
     private static readonly string StaticHeaderJson = $"{{\"alg\":\"{Algorithm}\",\"typ\":\"{TokenType}\"}}";
     private static readonly byte[] StaticHeaderBytes = Encoding.UTF8.GetBytes(StaticHeaderJson);
 
+    /// <summary>
+    /// 构造 BridgeJwtService
+    /// </summary>
+    /// <param name="config">Bridge 配置（提供密钥），为空则随机生成</param>
+    /// <param name="logger">可选日志记录器</param>
+    /// <param name="timeProvider">可选时间提供者</param>
     public BridgeJwtService(BridgeConfig? config = null, ILogger? logger = null, TimeProvider? timeProvider = null)
     {
         var secretKey = string.IsNullOrEmpty(config?.JwtSecretKey)
@@ -205,6 +211,8 @@ public sealed partial class BridgeJwtService : ServiceEntity
     /// <summary>
     /// 检查 Token 是否已被撤销
     /// </summary>
+    /// <param name="token">JWT Token 字符串</param>
+    /// <returns>已撤销返回 true，否则 false</returns>
     public bool IsTokenRevoked(string token)
     {
         return !string.IsNullOrEmpty(token) && _revokedTokens.ContainsKey(token);
@@ -213,6 +221,7 @@ public sealed partial class BridgeJwtService : ServiceEntity
     /// <summary>
     /// 清理已过期的撤销记录（定期调用以防止内存泄漏）
     /// </summary>
+    /// <returns>已清理的过期撤销记录数</returns>
     public int CleanupExpiredRevocations()
     {
         var expiredTokens = new List<string>();
@@ -321,15 +330,19 @@ public sealed partial class BridgeJwtService : ServiceEntity
 /// </summary>
 public sealed class BridgeJwtPayload
 {
+    /// <summary>主题（客户端标识）</summary>
     [JsonPropertyName("sub")]
     public required string Sub { get; init; }
 
+    /// <summary>签发时间（Unix 秒）</summary>
     [JsonPropertyName("iat")]
     public required long Iat { get; init; }
 
+    /// <summary>过期时间（Unix 秒）</summary>
     [JsonPropertyName("exp")]
     public required long Exp { get; init; }
 
+    /// <summary>签发者</summary>
     [JsonPropertyName("iss")]
     public required string Iss { get; init; }
 }
@@ -339,16 +352,30 @@ public sealed class BridgeJwtPayload
 /// </summary>
 public sealed class BridgeJwtValidationResult
 {
+    /// <summary>是否验证通过</summary>
     public bool IsValid { get; init; }
+    /// <summary>错误信息，验证失败时填充</summary>
     public string? Error { get; init; }
+    /// <summary>Payload，验证成功或部分失败时填充</summary>
     public BridgeJwtPayload? Payload { get; init; }
 
+    /// <summary>
+    /// 构造验证成功结果
+    /// </summary>
+    /// <param name="payload">Payload</param>
+    /// <returns>成功结果</returns>
     internal static BridgeJwtValidationResult Ok(BridgeJwtPayload payload) => new()
     {
         IsValid = true,
         Payload = payload
     };
 
+    /// <summary>
+    /// 构造验证失败结果
+    /// </summary>
+    /// <param name="error">错误信息</param>
+    /// <param name="payload">可选 Payload</param>
+    /// <returns>失败结果</returns>
     internal static BridgeJwtValidationResult Fail(string error, BridgeJwtPayload? payload = null) => new()
     {
         IsValid = false,
@@ -362,8 +389,11 @@ public sealed class BridgeJwtValidationResult
 /// </summary>
 public sealed class BridgeJwtRefreshResult
 {
+    /// <summary>刷新是否成功</summary>
     public bool Success { get; init; }
+    /// <summary>新 Token，成功时填充</summary>
     public string? NewToken { get; init; }
+    /// <summary>错误信息，失败时填充</summary>
     public string? Error { get; init; }
 }
 

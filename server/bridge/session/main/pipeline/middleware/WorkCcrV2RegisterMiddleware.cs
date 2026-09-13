@@ -1,10 +1,18 @@
 namespace Core.Bridge;
 
 
+/// <summary>
+/// CCR v2 工作注册中间件 — 当密钥启用 CodeSessions 或强制启用 CCR v2 时,注册 worker 并构建 SDK URL
+/// </summary>
 [Register(typeof(IHandleWorkMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class WorkCcrV2RegisterMiddleware : ServiceEntity, IHandleWorkMiddleware
 {
 
+    /// <summary>
+    /// 构造 CCR v2 注册中间件
+    /// </summary>
+    /// <param name="apiClient">桥接 API 客户端</param>
+    /// <param name="logger">日志记录器(可选)</param>
     public WorkCcrV2RegisterMiddleware(BridgeApiClient apiClient, ILogger<WorkCcrV2RegisterMiddleware>? logger = null)
     {
         _apiClient = apiClient;
@@ -13,8 +21,16 @@ public sealed partial class WorkCcrV2RegisterMiddleware : ServiceEntity, IHandle
     private readonly ILogger<WorkCcrV2RegisterMiddleware>? _logger;
     private readonly BridgeApiClient _apiClient;
 
+    /// <summary>错误处理行为 — 遇错继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
+    /// <summary>
+    /// 执行中间件 — 根据密钥配置决定 CCR v2 注册路径或回退到 v1 SDK URL 构建
+    /// </summary>
+    /// <param name="ctx">工作处理上下文</param>
+    /// <param name="next">后续中间件委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>异步任务</returns>
     public async Task InvokeAsync(HandleWorkContext ctx, MiddlewareDelegate<HandleWorkContext> next, CancellationToken ct)
     {
         var forceCcrV2 = Environment.GetEnvironmentVariable(JccEnvVar.BridgeUseCcrV2.ToValue()) is "1" or "true";

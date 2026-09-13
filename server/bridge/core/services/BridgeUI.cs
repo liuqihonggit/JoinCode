@@ -6,15 +6,19 @@ namespace Core.Bridge;
 /// </summary>
 public sealed partial class BridgeQRCodeData
 {
+    /// <summary>会话 ID</summary>
     [JsonPropertyName("sessionId")]
     public required string SessionId { get; init; }
 
+    /// <summary>连接端点</summary>
     [JsonPropertyName("endpoint")]
     public required string Endpoint { get; init; }
 
+    /// <summary>认证令牌</summary>
     [JsonPropertyName("token")]
     public required string Token { get; init; }
 
+    /// <summary>过期时间（Unix 毫秒）</summary>
     [JsonPropertyName("expiresAt")]
     public required long ExpiresAt { get; init; }
 }
@@ -24,15 +28,19 @@ public sealed partial class BridgeQRCodeData
 /// </summary>
 public sealed partial class BridgeSessionDisplay
 {
+    /// <summary>会话 ID</summary>
     [JsonPropertyName("sessionId")]
     public required string SessionId { get; init; }
 
+    /// <summary>客户端名称</summary>
     [JsonPropertyName("clientName")]
     public string? ClientName { get; init; }
 
+    /// <summary>会话状态</summary>
     [JsonPropertyName("status")]
     public required string Status { get; init; }
 
+    /// <summary>连接时间（Unix 毫秒）</summary>
     [JsonPropertyName("connectedAt")]
     public required long ConnectedAt { get; init; }
 }
@@ -48,6 +56,11 @@ public sealed partial class BridgeUIService : ServiceEntity
     private readonly IClockService _clock;
     private readonly ConcurrentDictionary<string, BridgeSessionDisplay> _activeSessions;
 
+    /// <summary>
+    /// 构造 BridgeUIService
+    /// </summary>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="clock">时钟服务（可选，默认使用系统时钟）</param>
     public BridgeUIService(
         ILogger<BridgeUIService>? logger = null,
         IClockService? clock = null)

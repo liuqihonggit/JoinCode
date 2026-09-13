@@ -1,43 +1,94 @@
 namespace Services.Lsp.Internal;
 
+/// <summary>
+/// LSP 诊断项 — 单条诊断消息（含严重级别、范围、来源、代码）
+/// </summary>
 public sealed class LspDiagnosticItem
 {
+    /// <summary>诊断消息文本</summary>
     public required string Message { get; init; }
+    /// <summary>严重级别（Error/Warning/Info/Hint）</summary>
     public string? Severity { get; init; }
+    /// <summary>诊断范围（起止位置）</summary>
     public LspRange? Range { get; init; }
+    /// <summary>诊断来源（如服务器名）</summary>
     public string? Source { get; init; }
+    /// <summary>诊断代码</summary>
     public string? Code { get; init; }
 }
 
+/// <summary>
+/// LSP 诊断文件 — 单个文件 URI 下的诊断列表
+/// </summary>
 public sealed class LspDiagnosticFile
 {
+    /// <summary>文件 URI</summary>
     public required string Uri { get; init; }
+    /// <summary>该文件的诊断列表</summary>
     public required List<LspDiagnosticItem> Diagnostics { get; set; } = [];
 }
 
+/// <summary>
+/// LSP 待处理诊断 — 来自某服务器的待发送诊断批次
+/// </summary>
 public sealed class LspPendingDiagnostic
 {
+    /// <summary>服务器名称</summary>
     public required string ServerName { get; init; }
+    /// <summary>待发送的文件诊断列表</summary>
     public required List<LspDiagnosticFile> Files { get; init; }
+    /// <summary>时间戳（毫秒）</summary>
     public long Timestamp { get; init; }
+    /// <summary>是否已作为附件发送</summary>
     public bool AttachmentSent { get; set; }
 }
 
+/// <summary>
+/// LSP 诊断注册表接口 — 管理待处理诊断的注册、检查、清理与重置
+/// </summary>
 public interface ILspDiagnosticRegistry : IRegistry
 {
+    /// <summary>
+    /// 注册待处理诊断
+    /// </summary>
+    /// <param name="serverName">服务器名称</param>
+    /// <param name="files">文件诊断列表</param>
     void RegisterPending(string serverName, List<LspDiagnosticFile> files);
+
+    /// <summary>
+    /// 检查并取出待处理诊断 — 返回服务器名与文件诊断列表的元组
+    /// </summary>
+    /// <returns>待处理诊断列表</returns>
     List<(string ServerName, List<LspDiagnosticFile> Files)> CheckPending();
+
+    /// <summary>清空所有待处理诊断</summary>
     void ClearAll();
+
+    /// <summary>重置所有状态（待处理与已投递）</summary>
     void ResetAll();
+
+    /// <summary>
+    /// 清除指定文件的已投递记录
+    /// </summary>
+    /// <param name="fileUri">文件 URI</param>
     void ClearDeliveredForFile(string fileUri);
+
+    /// <summary>待处理诊断数量</summary>
     int PendingCount { get; }
 }
 
+/// <summary>
+/// LSP 诊断注册表实现 — 维护待处理诊断、已投递去重与 LRU 容量限制
+/// </summary>
 [Register(typeof(ILspDiagnosticRegistry), ServiceLifetime.Singleton)]
 [Register(typeof(JoinCode.Abstractions.Interfaces.Lsp.ILspDiagnosticProvider), ServiceLifetime.Singleton)]
 public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosticRegistry, JoinCode.Abstractions.Interfaces.Lsp.ILspDiagnosticProvider
 {
 
+    /// <summary>
+    /// 构造函数 — 注入时钟服务
+    /// </summary>
+    /// <param name="clock">时钟服务</param>
     public LspDiagnosticRegistry(IClockService clock)
     {
         _clock = clock;
@@ -52,6 +103,7 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
     private readonly LinkedList<string> _deliveredLru = new();
     private readonly Dictionary<string, HashSet<string>> _delivered = new();
 
+    /// <summary>待处理诊断数量</summary>
     public int PendingCount
     {
         get
@@ -60,6 +112,11 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
         }
     }
 
+    /// <summary>
+    /// 注册待处理诊断
+    /// </summary>
+    /// <param name="serverName">服务器名称</param>
+    /// <param name="files">文件诊断列表</param>
     public void RegisterPending(string serverName, List<LspDiagnosticFile> files)
     {
         if (files.Count == 0) return;
@@ -79,6 +136,10 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
         }
     }
 
+    /// <summary>
+    /// 检查并取出待处理诊断 — 去重、容量限制、追踪已投递
+    /// </summary>
+    /// <returns>服务器名与文件诊断列表的元组列表</returns>
     public List<(string ServerName, List<LspDiagnosticFile> Files)> CheckPending()
     {
         List<LspDiagnosticFile> allFiles;
@@ -138,6 +199,7 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
         ];
     }
 
+    /// <summary>清空所有待处理诊断</summary>
     public void ClearAll()
     {
         using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
@@ -146,6 +208,7 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
         }
     }
 
+    /// <summary>重置所有状态（待处理与已投递）</summary>
     public void ResetAll()
     {
         using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
@@ -156,6 +219,10 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
         }
     }
 
+    /// <summary>
+    /// 清除指定文件的已投递记录
+    /// </summary>
+    /// <param name="fileUri">文件 URI</param>
     public void ClearDeliveredForFile(string fileUri)
     {
         using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
@@ -167,6 +234,10 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
         }
     }
 
+    /// <summary>
+    /// 检查并取出待处理诊断摘要 — 转换为 LspDiagnosticSummary 形式
+    /// </summary>
+    /// <returns>服务器名与诊断摘要列表的元组列表</returns>
     public List<(string ServerName, List<JoinCode.Abstractions.Interfaces.Lsp.LspDiagnosticSummary> Files)> CheckPendingDiagnostics()
     {
         var pending = CheckPending();

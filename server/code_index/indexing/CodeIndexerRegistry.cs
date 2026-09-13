@@ -14,6 +14,11 @@ public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, I
     private readonly ReaderWriterLockSlim _lock = new();
     private int _disposed;
 
+    /// <summary>
+    /// 构造代码索引仓库注册表
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="defaultIndexer">默认索引器实例</param>
     public CodeIndexerRegistry(IFileSystem fs, ICodeIndexer defaultIndexer)
     {
         ArgumentNullException.ThrowIfNull(fs);
@@ -22,11 +27,22 @@ public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, I
         _defaultIndexer = defaultIndexer;
     }
 
+    /// <summary>默认索引器实例</summary>
     public ICodeIndexer? DefaultIndexer => _defaultIndexer;
 
+    /// <summary>仓库注册成功时触发 — 携带仓库标识、工作区根和索引器实例</summary>
     public event EventHandler<RepoRegisteredEventArgs>? RepoRegistered;
+
+    /// <summary>仓库注销成功时触发 — 携带仓库标识</summary>
     public event EventHandler<RepoUnregisteredEventArgs>? RepoUnregistered;
 
+    /// <summary>
+    /// 注册新仓库 — 创建独立的 InMemoryIndexStore + CodeIndexer 并触发 RepoRegistered 事件
+    /// </summary>
+    /// <param name="repoId">仓库标识</param>
+    /// <param name="workspaceRoot">工作区根路径</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>仓库注册信息</returns>
     public Task<RepoRegistration> RegisterAsync(string repoId, string workspaceRoot, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(repoId);
@@ -64,6 +80,12 @@ public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, I
         return Task.FromResult(registration);
     }
 
+    /// <summary>
+    /// 注销仓库 — 释放索引器和存储，并触发 RepoUnregistered 事件
+    /// </summary>
+    /// <param name="repoId">仓库标识</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>注销成功返回 true，仓库不存在返回 false</returns>
     public Task<bool> UnregisterAsync(string repoId, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(repoId);
@@ -85,6 +107,11 @@ public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, I
         return Task.FromResult(true);
     }
 
+    /// <summary>
+    /// 列出所有已注册仓库 — 包含默认仓库和所有动态注册的仓库
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>仓库注册信息只读列表</returns>
     public Task<IReadOnlyList<RepoRegistration>> ListReposAsync(CancellationToken ct)
     {
         using var scope = _lock.EnterReadScope();
@@ -107,6 +134,11 @@ public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, I
         return Task.FromResult<IReadOnlyList<RepoRegistration>>(list);
     }
 
+    /// <summary>
+    /// 根据仓库标识获取索引器 — "default" 返回默认索引器
+    /// </summary>
+    /// <param name="repoId">仓库标识</param>
+    /// <returns>索引器实例，不存在时返回 null</returns>
     public ICodeIndexer? GetIndexer(string repoId)
     {
         ArgumentNullException.ThrowIfNull(repoId);
@@ -118,6 +150,9 @@ public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, I
         return _repos.TryGetValue(repoId, out var repo) ? repo.Indexer : null;
     }
 
+    /// <summary>
+    /// 释放资源 — 释放所有仓库的索引器和存储，并释放锁
+    /// </summary>
     protected override void OnDispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;

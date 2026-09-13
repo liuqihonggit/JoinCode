@@ -6,7 +6,9 @@ namespace JoinCode.Dream;
 /// </summary>
 public sealed record DreamTurn
 {
+    /// <summary>助手回复文本</summary>
     public required string Text { get; init; }
+    /// <summary>工具使用次数</summary>
     public required int ToolUseCount { get; init; }
 }
 
@@ -16,16 +18,24 @@ public sealed record DreamTurn
 public sealed class DreamTaskState
 {
     // 基础任务字段
+    /// <summary>任务 ID</summary>
     public required string Id { get; init; }
+    /// <summary>任务类型（固定为 Dream）</summary>
     public TaskType Type => TaskType.Dream;
+    /// <summary>任务状态</summary>
     public DreamTaskStatus Status { get; set; } = DreamTaskStatus.Running;
+    /// <summary>任务描述</summary>
     public required string Description { get; init; }
+    /// <summary>开始时间</summary>
     public required DateTime StartTime { get; init; }
+    /// <summary>结束时间</summary>
     public DateTime? EndTime { get; set; }
+    /// <summary>是否已通知</summary>
     public bool Notified { get; set; }
 
-    // 做梦特有字段
+    /// <summary>Dream 阶段</summary>
     public DreamPhase Phase { get; set; } = DreamPhase.Starting;
+    /// <summary>正在审查的会话数</summary>
     public int SessionsReviewing { get; init; }
 
     /// <summary>
@@ -57,6 +67,8 @@ public sealed class DreamTaskState
     /// <summary>
     /// 添加新的回合记录
     /// </summary>
+    /// <param name="turn">回合记录</param>
+    /// <param name="touchedPaths">被修改的文件路径列表</param>
     public void AddTurn(DreamTurn turn, IReadOnlyList<string> touchedPaths)
     {
         // 更新阶段：如果有文件被修改，进入updating阶段
@@ -125,6 +137,11 @@ public sealed class DreamTaskState
 /// </summary>
 public static class DreamTaskGuards
 {
+    /// <summary>
+    /// 判断任务是否为 Dream 任务
+    /// </summary>
+    /// <param name="task">任务对象</param>
+    /// <returns>是 Dream 任务返回 true，否则 false</returns>
     public static bool IsDreamTask(object? task) =>
         task is DreamTaskState;
 }

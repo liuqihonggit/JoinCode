@@ -36,6 +36,13 @@ public sealed class IncrementalUpdater : IDisposable
         return false;
     }
 
+    /// <summary>
+    /// 构造增量更新器
+    /// </summary>
+    /// <param name="index">符号索引</param>
+    /// <param name="store">内存索引存储</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="pluginFactory">语言插件工厂</param>
     public IncrementalUpdater(SymbolIndex index, InMemoryIndexStore store, IFileSystem fs, Func<ILanguagePlugin> pluginFactory)
     {
         ArgumentNullException.ThrowIfNull(index);
@@ -49,6 +56,12 @@ public sealed class IncrementalUpdater : IDisposable
         _pluginFactory = pluginFactory;
     }
 
+    /// <summary>
+    /// 增量更新单个文件 — 根据哈希判断是否需要重新索引
+    /// </summary>
+    /// <param name="filePath">文件路径</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>增量更新结果</returns>
     public async Task<IncrementalUpdateResult> UpdateAsync(string filePath, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(filePath);
@@ -80,6 +93,12 @@ public sealed class IncrementalUpdater : IDisposable
         return new IncrementalUpdateResult { WasUpdated = true };
     }
 
+    /// <summary>
+    /// 增量更新目录下所有 .cs 文件 — 并行提取符号，清理已删除文件
+    /// </summary>
+    /// <param name="directoryPath">目录路径</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>目录更新结果</returns>
     public async Task<DirectoryUpdateResult> UpdateDirectoryAsync(string directoryPath, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(directoryPath);
@@ -220,6 +239,9 @@ public sealed class IncrementalUpdater : IDisposable
             .ToList();
     }
 
+    /// <summary>
+    /// 释放资源
+    /// </summary>
     public void Dispose()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _disposed))

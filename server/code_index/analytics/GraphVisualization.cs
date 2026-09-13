@@ -8,24 +8,45 @@ public sealed class GraphVisualization : ServiceEntity, IGraphVisualization
 {
     private readonly InMemoryIndexStore _store;
 
+    /// <summary>
+    /// 构造图可视化器
+    /// </summary>
+    /// <param name="store">内存索引存储</param>
     public GraphVisualization(InMemoryIndexStore store)
     {
         ArgumentNullException.ThrowIfNull(store);
         _store = store;
     }
 
+    /// <summary>
+    /// 导出调用图为 DOT（Graphviz）格式
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>DOT 格式字符串</returns>
     public Task<string> ExportDotAsync(CancellationToken ct)
     {
         using var scope = _store.EnterReadLock();
         return Task.FromResult(BuildDot(_store.CallEdges, "CallGraph"));
     }
 
+    /// <summary>
+    /// 导出调用图为 HTML（D3.js 力导向图）格式
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>HTML 格式字符串</returns>
     public Task<string> ExportHtmlAsync(CancellationToken ct)
     {
         using var scope = _store.EnterReadLock();
         return Task.FromResult(BuildHtml(_store.CallEdges));
     }
 
+    /// <summary>
+    /// 导出以指定符号为中心的子图为 DOT 格式 — 按跳数 BFS 扩展
+    /// </summary>
+    /// <param name="centerSymbol">中心符号完全限定名</param>
+    /// <param name="hops">BFS 跳数</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>DOT 格式字符串</returns>
     public Task<string> ExportSubgraphDotAsync(string centerSymbol, int hops, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(centerSymbol);
@@ -59,6 +80,11 @@ public sealed class GraphVisualization : ServiceEntity, IGraphVisualization
         return Task.FromResult(BuildDot(edges, $"Subgraph_{centerSymbol}"));
     }
 
+    /// <summary>
+    /// 导出代码架构 Wiki — 包含社区检测、符号分组、依赖关系
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>Markdown Wiki 格式字符串</returns>
     public Task<string> ExportWikiAsync(CancellationToken ct)
     {
         using var scope = _store.EnterReadLock();

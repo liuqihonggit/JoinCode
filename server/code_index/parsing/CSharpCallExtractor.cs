@@ -33,13 +33,26 @@ internal sealed record ResolveCalleeOptions(
 /// </summary>
 internal sealed class MethodLookupEntry(string fqn, int startLine, int endLine)
 {
+    /// <summary>方法全限定名</summary>
     public string Fqn { get; } = fqn;
+    /// <summary>起始行号</summary>
     public int StartLine { get; } = startLine;
+    /// <summary>结束行号</summary>
     public int EndLine { get; } = endLine;
 }
 
+/// <summary>
+/// C# 调用关系提取器 — 基于 TreeSitter AST 解析调用表达式、对象创建、构造初始化器和事件处理器赋值
+/// </summary>
 public sealed class CSharpCallExtractor
 {
+    /// <summary>
+    /// 从源码提取调用关系
+    /// </summary>
+    /// <param name="sourceCode">C# 源代码</param>
+    /// <param name="filePath">文件路径</param>
+    /// <param name="symbols">已索引的符号列表</param>
+    /// <returns>调用边列表</returns>
     public IReadOnlyList<CallEdge> ExtractCalls(string sourceCode, string filePath, IReadOnlyList<SymbolInfo> symbols)
     {
         ArgumentNullException.ThrowIfNull(sourceCode);
@@ -52,6 +65,13 @@ public sealed class CSharpCallExtractor
         return ExtractCallsFromTree(tree.RootNode, filePath, symbols);
     }
 
+    /// <summary>
+    /// 从 AST 根节点提取调用关系
+    /// </summary>
+    /// <param name="rootNode">AST 根节点</param>
+    /// <param name="filePath">文件路径</param>
+    /// <param name="symbols">已索引的符号列表</param>
+    /// <returns>调用边列表</returns>
     public IReadOnlyList<CallEdge> ExtractCallsFromTree(Node rootNode, string filePath, IReadOnlyList<SymbolInfo> symbols)
     {
         var classNameSet = BuildClassNameSet(symbols);

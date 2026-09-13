@@ -9,12 +9,22 @@ public sealed class SymbolSearcher : ISymbolSearcher
 {
     private readonly InMemoryIndexStore _store;
 
+    /// <summary>
+    /// 构造函数 — 注入内存索引存储
+    /// </summary>
+    /// <param name="store">内存索引存储</param>
     public SymbolSearcher(InMemoryIndexStore store)
     {
         ArgumentNullException.ThrowIfNull(store);
         _store = store;
     }
 
+    /// <summary>
+    /// 异步搜索符号 — 基于 token 化的 AND/OR 查询匹配符号 Name/FQN
+    /// </summary>
+    /// <param name="query">查询字符串（空格分隔 token，支持 * 前缀匹配）</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>符号搜索结果</returns>
     public Task<SearchResult<SymbolInfo>> SearchAsync(string query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
@@ -51,6 +61,12 @@ public sealed class SymbolSearcher : ISymbolSearcher
         });
     }
 
+    /// <summary>
+    /// 按符号种类异步搜索 — 返回指定 SymbolKind 的全部符号
+    /// </summary>
+    /// <param name="kind">符号种类</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>符号搜索结果</returns>
     public Task<SearchResult<SymbolInfo>> SearchByKindAsync(SymbolKind kind, CancellationToken ct)
     {
         var sw = Stopwatch.StartNew();
@@ -74,6 +90,12 @@ public sealed class SymbolSearcher : ISymbolSearcher
         });
     }
 
+    /// <summary>
+    /// 查找符号定义 — 按名称返回首个匹配符号
+    /// </summary>
+    /// <param name="symbolName">符号名称</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>匹配的符号定义；未找到返回 null</returns>
     public Task<SymbolInfo?> FindDefinitionAsync(string symbolName, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(symbolName);
@@ -138,6 +160,13 @@ public sealed class SymbolSearcher : ISymbolSearcher
         return fqns;
     }
 
+    /// <summary>
+    /// 按正则模式异步搜索符号 — 大小写不敏感匹配 Name/FQN，限制最大返回数
+    /// </summary>
+    /// <param name="pattern">正则表达式模式</param>
+    /// <param name="maxResults">最大返回结果数</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>符号搜索结果（TotalCount 为全部匹配数，Items 受 maxResults 限制）</returns>
     public Task<SearchResult<SymbolInfo>> SearchByPatternAsync(string pattern, int maxResults, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(pattern);

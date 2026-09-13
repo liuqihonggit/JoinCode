@@ -9,6 +9,10 @@ public sealed partial class ChatCompletionClient : ServiceEntity, IChatCompletio
 {
     private readonly IChatClient _kernel;
 
+    /// <summary>
+    /// 构造聊天完成客户端
+    /// </summary>
+    /// <param name="kernel">聊天客户端内核</param>
     public ChatCompletionClient(IChatClient kernel)
     {
         _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));

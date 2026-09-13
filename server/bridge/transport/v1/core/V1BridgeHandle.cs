@@ -24,11 +24,27 @@ internal sealed class V1BridgeHandle : IReplBridgeHandle
     /// <summary>指针刷新定时器 — 对齐 TS 端 pointerRefreshTimer (perpetual 模式, 1h)</summary>
     private Timer? _pointerRefreshTimer;
 
+    /// <summary>会话标识</summary>
     public string SessionId { get; }
+
+    /// <summary>环境标识</summary>
     public string EnvironmentId { get; }
+
+    /// <summary>会话入口 URL</summary>
     public string SessionIngressUrl { get; }
+
+    /// <summary>当前桥连接状态</summary>
     public BridgeState State => _bridgeState;
 
+    /// <summary>
+    /// 构造 v1 桥句柄 — 启动 keep-alive 和指针刷新定时器
+    /// </summary>
+    /// <param name="session">会话信息</param>
+    /// <param name="coreContext">桥核心上下文</param>
+    /// <param name="transportContext">桥传输上下文</param>
+    /// <param name="state">桥初始化状态</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">可选日志记录器</param>
     public V1BridgeHandle(
         BridgeSessionInfo session,
         BridgeCoreContext coreContext,
@@ -195,6 +211,8 @@ internal sealed class V1BridgeHandle : IReplBridgeHandle
         _ = transport.WriteBatchAsync(messages, _disposeCts.Token);
     }
 
+    /// <summary>发送控制请求 — 对齐 TS 端 sendControlRequest，鉴权恢复期间跳过</summary>
+    /// <param name="requestJson">请求 JSON 字符串</param>
     public void SendControlRequest(string requestJson)
     {
         var transport = _coreContext.PollLoop.CurrentTransport;
@@ -204,6 +222,8 @@ internal sealed class V1BridgeHandle : IReplBridgeHandle
         _ = transport.WriteAsync(requestJson, _disposeCts.Token);
     }
 
+    /// <summary>发送控制响应 — 对齐 TS 端 sendControlResponse，鉴权恢复期间跳过</summary>
+    /// <param name="responseJson">响应 JSON 字符串</param>
     public void SendControlResponse(string responseJson)
     {
         var transport = _coreContext.PollLoop.CurrentTransport;
@@ -213,6 +233,8 @@ internal sealed class V1BridgeHandle : IReplBridgeHandle
         _ = transport.WriteAsync(responseJson, _disposeCts.Token);
     }
 
+    /// <summary>发送取消控制请求 — 对齐 TS 端 sendControlCancelRequest，鉴权恢复期间跳过</summary>
+    /// <param name="requestId">待取消的请求标识</param>
     public void SendControlCancelRequest(string requestId)
     {
         var transport = _coreContext.PollLoop.CurrentTransport;
@@ -223,6 +245,7 @@ internal sealed class V1BridgeHandle : IReplBridgeHandle
         _ = transport.WriteAsync(json, _disposeCts.Token);
     }
 
+    /// <summary>发送结果消息 — 对齐 TS 端 sendResult，通知服务器工作已完成</summary>
     public void SendResult()
     {
         var transport = _coreContext.PollLoop.CurrentTransport;
@@ -276,6 +299,11 @@ internal sealed class V1BridgeHandle : IReplBridgeHandle
         return result;
     }
 
+    /// <summary>
+    /// 拆卸桥句柄 — 对齐 TS 端 teardown 序列
+    /// Perpetual 模式仅本地清理保留服务器状态；非 Perpetual 模式执行完整拆卸
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
     public async Task TeardownAsync(CancellationToken ct = default)
     {
         // 对齐 TS 端: teardownStarted 防重入
@@ -383,6 +411,10 @@ internal sealed class V1BridgeHandle : IReplBridgeHandle
         BridgeHandle.SetHandle(null);
     }
 
+    /// <summary>
+    /// 刷新传输缓冲区 — 对齐 TS 端 flush
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
     public async Task FlushAsync(CancellationToken ct = default)
     {
         var transport = _coreContext.PollLoop.CurrentTransport;

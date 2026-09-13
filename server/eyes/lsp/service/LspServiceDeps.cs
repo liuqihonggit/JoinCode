@@ -16,8 +16,14 @@ public sealed partial class LspEngineContext : ServiceEntity
     /// </summary>
     public ILspConfigLoader? ConfigLoader { get; init; }
 
+    /// <summary>默认构造函数</summary>
     public LspEngineContext() { }
 
+    /// <summary>
+    /// 构造 LSP 引擎上下文
+    /// </summary>
+    /// <param name="lspManager">LSP 管理器</param>
+    /// <param name="configLoader">LSP 配置加载器</param>
     public LspEngineContext(ILspManager lspManager, ILspConfigLoader configLoader)
     {
         LspManager = lspManager;

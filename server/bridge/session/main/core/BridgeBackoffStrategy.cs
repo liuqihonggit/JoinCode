@@ -19,6 +19,12 @@ public sealed class BridgeBackoffStrategy
     private bool _lastErrorWasConnError;
     private readonly TimeSpan _giveUpThreshold;
 
+    /// <summary>
+    /// 构造桥双轨退避策略
+    /// </summary>
+    /// <param name="clock">时钟服务</param>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="giveUpThreshold">放弃阈值（可选，默认 24h）</param>
     public BridgeBackoffStrategy(IClockService clock, ILogger? logger = null, TimeSpan? giveUpThreshold = null)
     {
         _clock = clock;

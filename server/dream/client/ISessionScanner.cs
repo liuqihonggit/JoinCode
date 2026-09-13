@@ -29,6 +29,12 @@ public sealed partial class DefaultSessionScanner : ServiceEntity, ISessionScann
     private readonly IFileSystem _fs;
     private readonly ILogger<DefaultSessionScanner>? _logger;
 
+    /// <summary>
+    /// 构造默认会话扫描器
+    /// </summary>
+    /// <param name="config">自动做梦配置</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">日志记录器</param>
     public DefaultSessionScanner(AutoDreamConfig config, IFileSystem fs, ILogger<DefaultSessionScanner>? logger = null)
     {
         _projectDir = config?.ProjectDir ?? fs.GetCurrentDirectory();

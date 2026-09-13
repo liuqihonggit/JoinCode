@@ -46,6 +46,12 @@ public sealed partial class JsonFileDreamTaskPersistence : IDreamTaskPersistence
     private readonly ILogger<JsonFileDreamTaskPersistence>? _logger;
     private readonly IFileOperationService _fileOperationService;
 
+    /// <summary>
+    /// 构造 JSON 文件持久化实现
+    /// </summary>
+    /// <param name="config">Dream 自动配置</param>
+    /// <param name="fileOperationService">文件操作服务</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public JsonFileDreamTaskPersistence(
         AutoDreamConfig config,
         IFileOperationService fileOperationService,
@@ -184,6 +190,10 @@ public sealed partial class JsonFileDreamTaskPersistence : IDreamTaskPersistence
         return Path.Combine(_storageDir, $"{taskId}.json");
     }
 
+    /// <summary>
+    /// 异步释放资源
+    /// </summary>
+    /// <returns>表示异步释放操作的任务</returns>
     public ValueTask DisposeAsync()
     {
         return ValueTask.CompletedTask;

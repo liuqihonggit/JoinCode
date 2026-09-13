@@ -1,6 +1,9 @@
 namespace JoinCode.SandboxSatellite;
 
 
+/// <summary>
+/// 沙箱卫星进程宿主 — 通过 stdin/stdout IPC 接收沙箱执行请求，在隔离环境（Windows JobObject / Linux cgroup）中执行命令
+/// </summary>
 public sealed class SandboxSatelliteHost : IAsyncDisposable
 {
     private readonly IFileSystem _fs;
@@ -9,11 +12,20 @@ public sealed class SandboxSatelliteHost : IAsyncDisposable
     private LinuxCgroupSandbox? _innerCgroup;
     private int _disposed;
 
+    /// <summary>
+    /// 构造函数 — 注入文件系统抽象
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
     public SandboxSatelliteHost(IFileSystem fs)
     {
         _fs = fs;
     }
 
+    /// <summary>
+    /// 运行宿主 — 循环读取 stdin 的 IPC 请求行并分发处理，直到收到 shutdown 或 EOF
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task RunAsync(CancellationToken ct = default)
     {
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, _cts.Token);
@@ -269,6 +281,10 @@ public sealed class SandboxSatelliteHost : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// 异步释放资源 — 取消运行循环、终止并释放内部 JobObject/cgroup
+    /// </summary>
+    /// <returns>表示异步释放操作的任务</returns>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;

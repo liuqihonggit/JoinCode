@@ -5,6 +5,12 @@ namespace Core.Bridge.Models;
 /// </summary>
 public static class BridgeMessageSerialization
 {
+    /// <summary>
+    /// 将 BridgeMessage 序列化为 JSON 字符串 — 按消息运行时类型分派到 BridgeJsonContext 对应的 JsonTypeInfo
+    /// </summary>
+    /// <param name="message">待序列化的 Bridge 消息</param>
+    /// <returns>JSON 字符串</returns>
+    /// <exception cref="InvalidOperationException">遇到未知消息类型时抛出</exception>
     public static string ToJson(this BridgeMessage message)
     {
         return message switch
@@ -28,6 +34,11 @@ public static class BridgeMessageSerialization
         };
     }
 
+    /// <summary>
+    /// 从 JSON 字符串反序列化为 BridgeMessage — 按 type 字段分派到 BridgeJsonContext 对应的 JsonTypeInfo
+    /// </summary>
+    /// <param name="json">JSON 字符串</param>
+    /// <returns>反序列化的 Bridge 消息；type 字段缺失或未知时返回 null</returns>
     public static BridgeMessage? FromJson(string json)
     {
         var node = JsonNode.Parse(json);

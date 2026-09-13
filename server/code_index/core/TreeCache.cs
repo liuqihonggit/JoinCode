@@ -17,6 +17,11 @@ public sealed class TreeCache : IDisposable
         _logger?.LogDebug(message);
     }
 
+    /// <summary>
+    /// 构造 TreeCache
+    /// </summary>
+    /// <param name="maxEntries">最大缓存条目数</param>
+    /// <param name="logger">可选日志记录器</param>
     public TreeCache(int maxEntries = 1000, ILogger? logger = null)
     {
         if (maxEntries < 1) throw new ArgumentOutOfRangeException(nameof(maxEntries));
@@ -25,8 +30,15 @@ public sealed class TreeCache : IDisposable
         _logger = logger;
     }
 
+    /// <summary>当前缓存条目数</summary>
     public int Count => _entries.Count;
 
+    /// <summary>
+    /// 尝试获取指定文件路径的解析树
+    /// </summary>
+    /// <param name="filePath">文件路径</param>
+    /// <param name="tree">输出解析树</param>
+    /// <returns>存在返回 true，否则 false</returns>
     public bool TryGet(string filePath, out Tree? tree)
     {
         ArgumentNullException.ThrowIfNull(filePath);
@@ -42,6 +54,11 @@ public sealed class TreeCache : IDisposable
         return false;
     }
 
+    /// <summary>
+    /// 获取指定文件路径的源代码文本
+    /// </summary>
+    /// <param name="filePath">文件路径</param>
+    /// <returns>源代码文本，不存在返回 null</returns>
     public string? GetSource(string filePath)
     {
         ArgumentNullException.ThrowIfNull(filePath);
@@ -85,6 +102,10 @@ public sealed class TreeCache : IDisposable
         }
     }
 
+    /// <summary>
+    /// 移除指定文件路径的缓存条目并释放解析树
+    /// </summary>
+    /// <param name="filePath">文件路径</param>
     public void Remove(string filePath)
     {
         ArgumentNullException.ThrowIfNull(filePath);
@@ -96,6 +117,9 @@ public sealed class TreeCache : IDisposable
         }
     }
 
+    /// <summary>
+    /// 清空所有缓存条目并释放全部解析树
+    /// </summary>
     public void Clear()
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
@@ -108,6 +132,9 @@ public sealed class TreeCache : IDisposable
         _entries.Clear();
     }
 
+    /// <summary>
+    /// 释放缓存资源 — 清空所有条目并释放全部解析树
+    /// </summary>
     public void Dispose()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;

@@ -8,27 +8,35 @@ namespace Core.Bridge;
 /// </summary>
 public sealed partial class BridgeEnvironmentRegistration
 {
+    /// <summary>Bridge ID — 对齐 TS 端 bridge_id</summary>
     [JsonPropertyName("bridge_id")]
     public required string BridgeId { get; init; }
 
+    /// <summary>机器名 — 对齐 TS 端 machine_name</summary>
     [JsonPropertyName("machine_name")]
     public string? MachineName { get; init; }
 
+    /// <summary>工作目录 — 对齐 TS 端 dir</summary>
     [JsonPropertyName("dir")]
     public string? Dir { get; init; }
 
+    /// <summary>Git 分支 — 对齐 TS 端 branch</summary>
     [JsonPropertyName("branch")]
     public string? Branch { get; init; }
 
+    /// <summary>Git 仓库 URL — 对齐 TS 端 git_repo_url</summary>
     [JsonPropertyName("git_repo_url")]
     public string? GitRepoUrl { get; init; }
 
+    /// <summary>最大会话数 — 对齐 TS 端 max_sessions</summary>
     [JsonPropertyName("max_sessions")]
     public int MaxSessions { get; init; }
 
+    /// <summary>派生模式 — 对齐 TS 端 spawn_mode</summary>
     [JsonPropertyName("spawn_mode")]
     public string? SpawnMode { get; init; }
 
+    /// <summary>工作者类型 — 对齐 TS 端 worker_type</summary>
     [JsonPropertyName("worker_type")]
     public string? WorkerType { get; init; }
 
@@ -45,12 +53,15 @@ public sealed partial class BridgeEnvironmentRegistration
 /// </summary>
 public sealed partial class BridgeEnvironmentRegistrationResponse
 {
+    /// <summary>环境 ID</summary>
     [JsonPropertyName("environment_id")]
     public required string EnvironmentId { get; init; }
 
+    /// <summary>Bridge ID</summary>
     [JsonPropertyName("bridge_id")]
     public required string BridgeId { get; init; }
 
+    /// <summary>会话入口 URL</summary>
     [JsonPropertyName("session_ingress_url")]
     public string? SessionIngressUrl { get; init; }
 }
@@ -60,24 +71,31 @@ public sealed partial class BridgeEnvironmentRegistrationResponse
 /// </summary>
 public sealed partial class BridgeWorkItem
 {
+    /// <summary>工作 ID</summary>
     [JsonPropertyName("work_id")]
     public required string WorkId { get; init; }
 
+    /// <summary>会话 ID</summary>
     [JsonPropertyName("session_id")]
     public required string SessionId { get; init; }
 
+    /// <summary>SDK URL</summary>
     [JsonPropertyName("sdk_url")]
     public string? SdkUrl { get; init; }
 
+    /// <summary>会话入口令牌</summary>
     [JsonPropertyName("session_ingress_token")]
     public string? SessionIngressToken { get; init; }
 
+    /// <summary>API 基础 URL</summary>
     [JsonPropertyName("api_base_url")]
     public string? ApiBaseUrl { get; init; }
 
+    /// <summary>工作标题</summary>
     [JsonPropertyName("title")]
     public string? Title { get; init; }
 
+    /// <summary>工作类型</summary>
     [JsonPropertyName("work_type")]
     public string? WorkType { get; init; }
 
@@ -94,15 +112,19 @@ public sealed partial class BridgeWorkItem
 /// </summary>
 public sealed partial class BridgePermissionResponseEvent
 {
+    /// <summary>事件类型</summary>
     [JsonPropertyName("event_type")]
     public required string EventType { get; init; }
 
+    /// <summary>行为</summary>
     [JsonPropertyName("behavior")]
     public required string Behavior { get; init; }
 
+    /// <summary>更新后的输入</summary>
     [JsonPropertyName("updated_input")]
     public string? UpdatedInput { get; init; }
 
+    /// <summary>消息</summary>
     [JsonPropertyName("message")]
     public string? Message { get; init; }
 }
@@ -112,9 +134,11 @@ public sealed partial class BridgePermissionResponseEvent
 /// </summary>
 public sealed partial class BridgeReconnectRequest
 {
+    /// <summary>环境 ID</summary>
     [JsonPropertyName("environment_id")]
     public required string EnvironmentId { get; init; }
 
+    /// <summary>会话 ID</summary>
     [JsonPropertyName("session_id")]
     public required string SessionId { get; init; }
 }
@@ -124,12 +148,15 @@ public sealed partial class BridgeReconnectRequest
 /// </summary>
 public sealed partial class BridgeReconnectResponse
 {
+    /// <summary>SDK URL</summary>
     [JsonPropertyName("sdk_url")]
     public string? SdkUrl { get; init; }
 
+    /// <summary>会话入口令牌</summary>
     [JsonPropertyName("session_ingress_token")]
     public string? SessionIngressToken { get; init; }
 
+    /// <summary>API 基础 URL</summary>
     [JsonPropertyName("api_base_url")]
     public string? ApiBaseUrl { get; init; }
 }
@@ -139,9 +166,11 @@ public sealed partial class BridgeReconnectResponse
 /// </summary>
 public sealed partial class BridgeHeartbeatResponse
 {
+    /// <summary>是否已确认</summary>
     [JsonPropertyName("acknowledged")]
     public required bool Acknowledged { get; init; }
 
+    /// <summary>租约延长截止时间（ISO 8601 字符串）</summary>
     [JsonPropertyName("lease_extended_until")]
     public string? LeaseExtendedUntil { get; init; }
 }
@@ -154,9 +183,18 @@ public sealed partial class BridgeHeartbeatResponse
 /// </summary>
 public sealed partial class BridgeFatalError : Exception
 {
+    /// <summary>HTTP 状态码</summary>
     public int? StatusCode { get; init; }
+
+    /// <summary>错误类型</summary>
     public string? ErrorType { get; init; }
 
+    /// <summary>
+    /// 构造 Bridge 致命错误
+    /// </summary>
+    /// <param name="message">错误消息</param>
+    /// <param name="statusCode">HTTP 状态码</param>
+    /// <param name="errorType">错误类型</param>
     public BridgeFatalError(string message, int? statusCode = null, string? errorType = null)
         : base(message)
     {
@@ -234,8 +272,13 @@ public sealed partial class BridgeApiOptions : ServiceEntity
     [JsonIgnore]
     public Func<string?>? GetTrustedDeviceToken { get; init; }
 
+    /// <summary>默认构造函数</summary>
     public BridgeApiOptions() { }
 
+    /// <summary>
+    /// 从 Bridge 配置构造 API 选项
+    /// </summary>
+    /// <param name="config">Bridge 配置</param>
     public BridgeApiOptions(BridgeConfig config)
     {
         BaseUrl = string.IsNullOrEmpty(config.ApiBaseUrl) ? JccEndpoints.DefaultBridgeLocal : config.ApiBaseUrl;
@@ -1260,6 +1303,9 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
 
     #endregion
 
+    /// <summary>
+    /// 释放资源 — 释放内部 HttpClient
+    /// </summary>
     protected override void OnDispose()
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) == 1)

@@ -87,9 +87,9 @@ kit/mcp（131 文件、1462 个错误）等大规模工程，主代理先编译�
 - ✅ kit/prompts — 编译 0 错误 0 警告（commit 2b15d0fa0）
 - ✅ kit/mcp_tool_dispatch — 编译 0 错误 0 警告（commit 74eb34c45）
 - ✅ kit/mcp — 编译 0 错误 0 警告（commit b596f5aee）
-- ⏳ kit/slash — 待处理
-- ⏳ kit/brain — 待处理
-- ⏳ kit/hands — 待处理
+- ✅ kit/slash — 10 子代理并行补全 + 生成器模板补注释，编译 0 错误 0 警告（commit 42a4943）
+- ✅ kit/brain — 编译 0 错误 0 警告（commit 2db1ba22d）
+- ✅ kit/hands — 编译 0 错误 0 警告（commit ec7ee545d）
 
 ### llm/ 工程（沿用本决策，2026-09-14）
 

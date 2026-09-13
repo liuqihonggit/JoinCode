@@ -12,6 +12,11 @@ namespace JoinCode.ChatCommands;
 [ChatCommandArg("name", Type = "string", Description = "插件名称")]
 public sealed class PluginCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 异步执行 /plugin 命令，管理插件列表/安装/卸载/启用/禁用
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <returns>命令执行结果</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var pluginManager = context.GetCommandServices().PluginManager;

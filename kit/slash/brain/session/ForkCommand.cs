@@ -1,9 +1,17 @@
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /fork 命令 — 创建当前对话的分支，复制主对话消息到新会话 ID。
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Fork, Description = "创建当前对话的分支", Usage = "/fork [name]", Category = ChatCommandCategory.Session, Aliases = ["branch"], ArgumentHint = "[name]")]
 [ChatCommandArg("name", Type = "string", Description = "分支名称,省略时从首条用户消息推导")]
 public sealed class ForkCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /fork 命令，复制当前会话主对话消息到新分支会话。
+    /// </summary>
+    /// <param name="context">命令执行上下文。</param>
+    /// <returns>命令执行结果。</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var transcriptService = ChatCommandBase.GetService<JoinCode.Abstractions.Interfaces.ITranscriptService>(context, typeof(JoinCode.Abstractions.Interfaces.ITranscriptService));

@@ -1,10 +1,18 @@
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /agents 命令 — 查看和管理代理，支持列出代理列表和查看代理详情
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Agents, Description = "查看和管理代理", Usage = "/agents [list|info <name>]", Category = ChatCommandCategory.Agent, ArgumentHint = "[list|info <name>]")]
 [ChatCommandArg("action", Type = "string", Description = "操作: list=列出代理, info=查看详情", Enum = new[] { "list", "info" }, Default = "list")]
 [ChatCommandArg("name", Type = "string", Description = "代理名称,仅在 action=info 时使用")]
 public sealed class AgentsCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /agents 命令，根据操作类型列出代理或显示代理详情
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <returns>命令执行结果</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetSplitArgs(context);

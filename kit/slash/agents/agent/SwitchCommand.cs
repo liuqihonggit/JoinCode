@@ -15,6 +15,11 @@ namespace JoinCode.ChatCommands;
 [ChatCommandArg("target", Type = "string", Description = "切换目标: agentName=只看指定子代理输出, all=切回显示全部, 省略=显示当前模式")]
 public sealed class SwitchCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /switch 命令，切换前台输出显示模式或显示当前模式
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <returns>命令执行结果</returns>
     public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var outputManager = GetService<JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager>(context);

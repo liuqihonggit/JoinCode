@@ -10,6 +10,12 @@ namespace JoinCode.ChatCommands;
 [ChatCommandArg("filter", Type = "string", Description = "环境变量名过滤关键词")]
 public sealed class EnvCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /env 命令 — 显示环境变量列表
+    /// 支持按名称或值过滤,超长值自动截断显示
+    /// </summary>
+    /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
+    /// <returns>命令执行结果,始终返回 Continue 表示继续会话</returns>
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var filter = ChatCommandBase.GetNormalizedArgs(context);

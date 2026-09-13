@@ -1,17 +1,31 @@
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /skills 命令 — 查看可用技能（自定义命令），支持列表浏览和详情查看
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Skills, Description = "查看可用技能（自定义命令）", Usage = "/skills [info <skill-name>]", Category = ChatCommandCategory.Tools)]
 [ChatCommandArg("action", Type = "string", Description = "操作,目前仅支持 info(查看技能详情)", Enum = new[] { "info" })]
 [ChatCommandArg("skill-name", Type = "string", Description = "技能名称,仅在 action=info 时使用")]
 public sealed class SkillsCommand : IChatCommand
 {
+    /// <summary>命令名称</summary>
     public string Name => ChatCommandNameConstants.Skills;
+    /// <summary>命令描述</summary>
     public string Description => "查看可用技能（自定义命令）";
+    /// <summary>命令用法</summary>
     public string Usage => "/skills [info <skill-name>]";
+    /// <summary>命令别名</summary>
     public string[] Aliases => new[] { "skill" };
+    /// <summary>参数提示</summary>
     public string ArgumentHint => "[info <skill-name>]";
+    /// <summary>是否隐藏命令</summary>
     public bool IsHidden => false;
 
+    /// <summary>
+    /// 异步执行 /skills 命令
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <returns>命令执行结果</returns>
     public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetSplitArgs(context);

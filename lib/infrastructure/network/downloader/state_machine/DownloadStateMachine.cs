@@ -23,6 +23,7 @@ internal sealed partial class DownloadStateMachine
 {
     private readonly Fsm<DownloadState, DownloadOperation> _fsm;
 
+    /// <summary>构造下载状态机,初始状态为 Idle,绑定状态变更事件分发</summary>
     public DownloadStateMachine()
     {
         _fsm = new Fsm<DownloadState, DownloadOperation>(_fsmSortedKeys, _fsmRules, DownloadState.Idle);

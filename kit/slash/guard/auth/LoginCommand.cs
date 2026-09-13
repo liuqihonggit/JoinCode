@@ -14,6 +14,12 @@ public sealed class LoginCommand : ChatCommandBase
 {
     private static readonly string AuthPath = AppDataConstants.Paths.AuthFilePath;
 
+    /// <summary>
+    /// 执行 /login 命令 — 登录到指定 AI 服务供应商
+    /// 支持 API Key 登录和 OAuth 登录两种方式,登录成功后刷新成本与速率限制状态
+    /// </summary>
+    /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
+    /// <returns>命令执行结果,始终返回 Continue 表示继续会话</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetSplitArgs(context);

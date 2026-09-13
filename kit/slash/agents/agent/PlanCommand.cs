@@ -1,10 +1,18 @@
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /plan 命令 — 计划模式管理，支持进入/退出/查看状态/打开计划文件
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Plan, Description = "计划模式管理", Usage = "/plan [on|off|status|open] [描述]", Category = ChatCommandCategory.Agent, ArgumentHint = "[on|off|status|open]", ExposeToMcp = true)]
 [ChatCommandArg("action", Type = "string", Description = "计划操作", Enum = new[] { "on", "off", "status", "open" })]
 [ChatCommandArg("description", Type = "string", Description = "计划描述（on/open 时可选）")]
 public sealed class PlanCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /plan 命令，根据子命令进入/退出/查看/打开计划模式
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <returns>命令执行结果</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context);

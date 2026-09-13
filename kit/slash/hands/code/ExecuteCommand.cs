@@ -9,11 +9,20 @@ namespace JoinCode.ChatCommands;
 public sealed partial class ExecuteCommand : ChatCommandBase
 {
     private readonly ILogger<ExecuteCommand>? _logger;
+    /// <summary>
+    /// 构造执行命令实例
+    /// </summary>
+    /// <param name="logger">可选的日志记录器</param>
     public ExecuteCommand(ILogger<ExecuteCommand>? logger = null)
     {
         _logger = logger;
     }
 
+    /// <summary>
+    /// 异步执行 /execute 命令，执行给定代码
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <returns>命令执行结果</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         if (string.IsNullOrWhiteSpace(context.Arguments))

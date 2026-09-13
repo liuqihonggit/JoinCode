@@ -1,9 +1,18 @@
 
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /heapdump 命令 — 生成堆转储用于诊断
+/// 输出当前托管内存、GC 集合次数、线程池、进程内存与句柄数等运行时诊断信息
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Heapdump, Description = "生成堆转储用于诊断", Usage = "/heapdump", Category = ChatCommandCategory.System, IsHidden = true)]
 public sealed class HeapdumpCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /heapdump 命令 — 输出 GC 内存、集合次数、线程池、进程内存等运行时诊断信息
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         TerminalHelper.WriteLine("堆转储 / 运行时诊断:");

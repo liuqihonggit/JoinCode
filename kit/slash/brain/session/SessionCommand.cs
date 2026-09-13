@@ -12,6 +12,11 @@ namespace JoinCode.ChatCommands;
 [ChatCommandArg("id", Type = "string", Description = "会话 ID（resume/delete 时需要）")]
 public sealed class SessionCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /session 命令，根据子操作分发到 list/resume/delete 会话管理逻辑。
+    /// </summary>
+    /// <param name="context">命令执行上下文。</param>
+    /// <returns>命令执行结果。</returns>
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetSplitArgs(context);

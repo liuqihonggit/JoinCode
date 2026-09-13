@@ -12,6 +12,11 @@ namespace JoinCode.ChatCommands;
 [ChatCommandArg("name", Type = "string", Description = "分支名称")]
 public sealed class BranchCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /branch 命令，按子操作分发到对应分支处理流程。
+    /// </summary>
+    /// <param name="context">命令执行上下文。</param>
+    /// <returns>表示异步操作的任务，承载命令执行结果。</returns>
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetSplitArgs(context);

@@ -1,8 +1,16 @@
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /security-review 命令 — 对当前分支变更进行安全审查
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.SecurityReview, Description = "对当前分支变更进行安全审查", Usage = "/security-review", Category = ChatCommandCategory.Code, ExposeToMcp = true)]
 public sealed class SecurityReviewCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 异步执行 /security-review 命令，对当前分支变更进行安全审查
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <returns>命令执行结果</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         Diag.WriteLifecycle("[DIAG-SEC-REVIEW] ExecuteAsync entry");

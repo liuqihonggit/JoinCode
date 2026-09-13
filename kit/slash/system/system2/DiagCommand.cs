@@ -1,10 +1,20 @@
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /diag 命令 — 查看崩溃快照和诊断信息
+/// 通过 ICrashSnapshotStore 查询最近崩溃、按围栏过滤、确认快照、查看详情
+/// 支持子操作：recent、fence、ack、detail、clear
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Diag, Description = "查看崩溃快照和诊断信息", Usage = "/diag [recent|fence <name>|ack <id>|clear]", Category = ChatCommandCategory.System, IsHidden = true)]
 [ChatCommandArg("action", Type = "string", Description = "诊断操作", Enum = new[] { "recent", "fence", "ack", "detail", "clear" })]
 [ChatCommandArg("name", Type = "string", Description = "fence 围栏名 / ack|detail 快照 ID")]
 public sealed class DiagCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /diag 命令 — 根据子操作分发最近记录、按围栏查询、确认、详情查询
+    /// </summary>
+    /// <param name="context">命令执行上下文，包含参数与服务容器</param>
+    /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var store = context.Services.GetService<ICrashSnapshotStore>();

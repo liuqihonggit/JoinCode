@@ -166,6 +166,10 @@ public sealed partial class TelemetryService : ITelemetryService
         return names;
     }
 
+    /// <summary>
+    /// 从活动 Span 表中移除指定 Span — 由 TelemetrySpan.DisposeAsync 调用
+    /// </summary>
+    /// <param name="spanId">要移除的 Span 标识</param>
     internal void RemoveActiveSpan(string spanId)
     {
         _activeSpans.TryRemove(spanId, out _);

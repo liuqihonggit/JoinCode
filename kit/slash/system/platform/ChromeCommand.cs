@@ -11,6 +11,11 @@ namespace JoinCode.ChatCommands;
 [ChatCommandArg("action", Type = "string", Description = "Chrome 操作", Enum = new[] { "connect", "disconnect", "install", "toggle", "status" })]
 public sealed class ChromeCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /chrome 命令 — 根据子参数分发连接、断开、安装、切换、状态操作
+    /// </summary>
+    /// <param name="context">命令执行上下文，包含参数、会话 ID、取消令牌等</param>
+    /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var chromeService = ChatCommandBase.GetService<IChromeIntegrationService>(context);

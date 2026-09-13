@@ -622,6 +622,11 @@ public sealed class InMemoryFileSystem : IFileSystem
         }
     }
 
+    /// <summary>
+    /// 规范化路径 — 反斜杠转正斜杠并去除首尾分隔符，用于内部统一路径比较
+    /// </summary>
+    /// <param name="path">原始路径</param>
+    /// <returns>规范化后的路径</returns>
     internal static string NormalizePath(string path)
         => path?.Replace('\\', '/').Trim('/') ?? string.Empty;
 

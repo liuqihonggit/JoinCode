@@ -12,6 +12,11 @@ namespace JoinCode.ChatCommands;
 [ChatCommandArg("template", Type = "string", Description = "format 操作时的模板（变量: {model} {tokens} {cost} {mode} {time}）")]
 public sealed class StatuslineCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /statusline 命令 — 根据子参数切换状态栏启用状态或设置格式模板
+    /// </summary>
+    /// <param name="context">命令执行上下文，包含参数、取消令牌等</param>
+    /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var configService = ChatCommandBase.GetService<IConfigurationService>(context);

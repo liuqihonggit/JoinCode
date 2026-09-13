@@ -1,10 +1,20 @@
 
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /reset-config 命令 — 重置配置文件到默认状态
+/// 支持按范围重置:all(全部)、auth(认证)、settings(设置)、trust(信任)、onboarding(引导)
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.ResetConfig, Description = "重置配置文件到默认状态", Usage = "/reset-config [all|auth|settings|trust|onboarding]", Category = ChatCommandCategory.Config, ArgumentHint = "[all|auth|settings|trust|onboarding]")]
 [ChatCommandArg("scope", Type = "string", Description = "重置范围", Enum = new[] { "all", "auth", "settings", "trust", "onboarding" }, Default = "all")]
 public sealed class ResetConfigCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /reset-config 命令 — 根据范围参数重置对应配置文件
+    /// 未指定范围时默认重置全部配置
+    /// </summary>
+    /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
+    /// <returns>命令执行结果,始终返回 Continue 表示继续会话</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();

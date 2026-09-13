@@ -10,16 +10,26 @@ namespace JoinCode.ChatCommands;
 public sealed class ResumeCommand : ChatCommandBase
 {
     private readonly IClockService _clock = SystemClockService.Instance;
+    /// <summary>命令名称。</summary>
     public override string Name => ChatCommandNameConstants.Resume;
+    /// <summary>命令描述。</summary>
     public override string Description => "恢复之前的会话";
+    /// <summary>命令用法提示。</summary>
     public override string Usage => "/resume [session-id]";
+    /// <summary>命令别名列表。</summary>
     public override string[] Aliases => new[] { "continue" };
+    /// <summary>参数提示文本。</summary>
     public override string ArgumentHint => "[conversation id or search term]";
 
     private static readonly string SessionsPath = Path.Combine(
         AppDataConstants.Paths.JccDirectory,
         "sessions");
 
+    /// <summary>
+    /// 执行 /resume 命令，有参数时按 UUID 精确匹配或标题搜索恢复会话，无参数时列出可恢复会话列表。
+    /// </summary>
+    /// <param name="context">命令执行上下文。</param>
+    /// <returns>命令执行结果。</returns>
     public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var fs = context.GetCommandServices().FileSystem;
@@ -553,12 +563,20 @@ internal sealed record CrossProjectResumeResult
     internal static CrossProjectResumeResult DifferentProject(string projectPath) => new() { IsCrossProject = true, IsSameRepoWorktree = false, ProjectPath = projectPath };
 }
 
+/// <summary>
+/// 完整会话数据，包含会话元信息与全部消息记录。
+/// </summary>
 public sealed class SessionData
 {
+    /// <summary>会话唯一标识。</summary>
     public string Id { get; set; } = string.Empty;
+    /// <summary>会话所属项目路径。</summary>
     public string ProjectPath { get; set; } = string.Empty;
+    /// <summary>用户自定义会话标题。</summary>
     public string CustomTitle { get; set; } = string.Empty;
+    /// <summary>会话创建时间。</summary>
     public DateTime CreatedAt { get; set; }
+    /// <summary>会话全部消息列表。</summary>
     public List<SessionMessage> Messages { get; set; } = new();
 }
 
@@ -569,14 +587,23 @@ public sealed class SessionData
 /// </summary>
 public sealed class SessionLiteData
 {
+    /// <summary>会话唯一标识。</summary>
     public string Id { get; set; } = string.Empty;
+    /// <summary>会话所属项目路径。</summary>
     public string ProjectPath { get; set; } = string.Empty;
+    /// <summary>用户自定义会话标题。</summary>
     public string CustomTitle { get; set; } = string.Empty;
+    /// <summary>会话创建时间。</summary>
     public DateTime CreatedAt { get; set; }
+    /// <summary>会话最后修改时间。</summary>
     public DateTime LastModified { get; set; }
+    /// <summary>会话文件存储路径。</summary>
     public string FilePath { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// 会话消息记录，继承自聊天消息基类。
+/// </summary>
 public sealed class SessionMessage : ChatMessage
 {
 }

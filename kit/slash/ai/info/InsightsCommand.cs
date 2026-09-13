@@ -1,10 +1,19 @@
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /insights 命令 — AI 生成会话洞察分析
+/// 支持 stats(跨会话统计)、deep(深度洞察)、report(HTML 报告) 三种模式,省略时为 AI 基础洞察
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Insights, Description = "AI生成会话洞察分析", Usage = "/insights [stats|deep|report]", Category = ChatCommandCategory.Info, ArgumentHint = "[stats|deep|report]")]
 [ChatCommandArg("mode", Type = "string", Description = "洞察模式: stats=跨会话统计, deep=深度洞察, report=HTML报告; 省略=AI基础洞察", Enum = new[] { "stats", "deep", "report" })]
 public sealed class InsightsCommand : ChatCommandBase
 {
     private readonly IClockService _clock = SystemClockService.Instance;
+    /// <summary>
+    /// 执行 /insights 命令 — 根据参数分派到 stats/deep/report 或基础 AI 洞察模式
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <returns>表示命令执行完成的任务,结果为继续会话</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();

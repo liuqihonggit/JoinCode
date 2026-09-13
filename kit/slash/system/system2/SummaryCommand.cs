@@ -1,9 +1,18 @@
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /summary 命令 — 显示当前会话摘要
+/// 输出会话 ID、持续时间、消息统计及最近 6 条对话预览
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Summary, Description = "显示当前会话摘要", Usage = "/summary", Category = ChatCommandCategory.System)]
 public sealed class SummaryCommand : ChatCommandBase
 {
     private readonly IClockService _clock = SystemClockService.Instance;
+    /// <summary>
+    /// 执行 /summary 命令 — 收集对话历史并输出会话统计与最近消息预览
+    /// </summary>
+    /// <param name="context">命令执行上下文，包含会话 ID、开始时间、取消令牌等</param>
+    /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         TerminalHelper.WriteLine($"{TerminalColors.Primary}会话摘要{AnsiStyleConstants.Reset}");

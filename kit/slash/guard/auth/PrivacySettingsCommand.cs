@@ -1,11 +1,21 @@
 
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /privacy-settings 命令 — 管理隐私设置
+/// 支持查看和修改遥测、分析、崩溃报告三项隐私开关
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.PrivacySettings, Description = "管理隐私设置", Usage = "/privacy-settings [show|telemetry on|off|analytics on|off|crash-reports on|off]", Category = ChatCommandCategory.Auth, ArgumentHint = "[show|telemetry|analytics|crash-reports]")]
 [ChatCommandArg("action", Type = "string", Description = "隐私设置操作", Enum = new[] { "show", "telemetry", "analytics", "crash-reports" }, Default = "show")]
 [ChatCommandArg("value", Type = "string", Description = "设置值 on/off,仅在 action=telemetry/analytics/crash-reports 时使用", Enum = new[] { "on", "off" })]
 public sealed class PrivacySettingsCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /privacy-settings 命令 — 查看或修改隐私设置
+    /// 无参数或 show 时显示当前设置,telemetry/analytics/crash-reports 后跟 on/off 切换开关
+    /// </summary>
+    /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
+    /// <returns>命令执行结果,始终返回 Continue 表示继续会话</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var configService = ChatCommandBase.GetService<IConfigurationService>(context);

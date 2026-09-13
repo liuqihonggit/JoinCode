@@ -1,11 +1,18 @@
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// MCP 服务器配置存储实现 — 管理用户级和项目级 MCP 服务器配置的增删查
+/// </summary>
 [Register(typeof(IMcpServerConfigStore), ServiceLifetime.Singleton)]
 public sealed partial class McpServerConfigStore : ServiceEntity, IMcpServerConfigStore
 {
     private readonly string _userConfigDir = AppDataConstants.Paths.JccDirectory;
     private readonly IFileSystem _fs;
 
+    /// <summary>
+    /// 构造 MCP 服务器配置存储实例
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
     public McpServerConfigStore(IFileSystem fs)
     {
         _fs = fs;
@@ -13,6 +20,11 @@ public sealed partial class McpServerConfigStore : ServiceEntity, IMcpServerConf
 
     private string UserConfigPath => Path.Combine(_userConfigDir, "mcp_servers.json");
 
+    /// <summary>
+    /// 获取指定作用域的配置文件路径
+    /// </summary>
+    /// <param name="scope">作用域（user 或 project）</param>
+    /// <returns>配置文件完整路径</returns>
     public string GetConfigPath(string scope)
     {
         var scopeEnum = AgentMemoryScopeExtensions.FromValue(scope);
@@ -23,6 +35,12 @@ public sealed partial class McpServerConfigStore : ServiceEntity, IMcpServerConf
         };
     }
 
+    /// <summary>
+    /// 异步加载指定作用域的 MCP 配置
+    /// </summary>
+    /// <param name="scope">作用域（user 或 project）</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>MCP 配置文件对象，文件不存在或解析失败时返回空配置</returns>
     public async Task<McpConfigFile> LoadAsync(string scope, CancellationToken ct = default)
     {
         var path = GetConfigPath(scope);
@@ -41,6 +59,13 @@ public sealed partial class McpServerConfigStore : ServiceEntity, IMcpServerConf
         }
     }
 
+    /// <summary>
+    /// 异步保存指定作用域的 MCP 配置（原子写入）
+    /// </summary>
+    /// <param name="scope">作用域（user 或 project）</param>
+    /// <param name="config">MCP 配置文件对象</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步保存操作的任务</returns>
     public async Task SaveAsync(string scope, McpConfigFile config, CancellationToken ct = default)
     {
         var path = GetConfigPath(scope);
@@ -53,6 +78,14 @@ public sealed partial class McpServerConfigStore : ServiceEntity, IMcpServerConf
         _fs.MoveFile(tmpPath, path, overwrite: true);
     }
 
+    /// <summary>
+    /// 异步添加 MCP 服务器到指定作用域配置
+    /// </summary>
+    /// <param name="name">服务器名称（仅允许字母、数字、下划线和连字符）</param>
+    /// <param name="entry">服务器配置条目</param>
+    /// <param name="scope">作用域（user 或 project）</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步添加操作的任务</returns>
     public async Task AddServerAsync(string name, McpServerConfigEntry entry, string scope, CancellationToken ct = default)
     {
         ValidateServerName(name);
@@ -93,6 +126,13 @@ public sealed partial class McpServerConfigStore : ServiceEntity, IMcpServerConf
         }
     }
 
+    /// <summary>
+    /// 异步从指定作用域移除 MCP 服务器
+    /// </summary>
+    /// <param name="name">服务器名称</param>
+    /// <param name="scope">作用域（user 或 project）</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>是否成功移除；服务器不存在时返回 false</returns>
     public async Task<bool> RemoveServerAsync(string name, string scope, CancellationToken ct = default)
     {
         var path = GetConfigPath(scope);
@@ -126,6 +166,11 @@ public sealed partial class McpServerConfigStore : ServiceEntity, IMcpServerConf
         }
     }
 
+    /// <summary>
+    /// 异步获取所有作用域（用户级 + 项目级）的 MCP 服务器，用户级优先
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>服务器名到（作用域, 配置条目）的字典</returns>
     public async Task<Dictionary<string, (string Scope, McpServerConfigEntry Entry)>> GetAllServersAsync(CancellationToken ct = default)
     {
         var result = new Dictionary<string, (string Scope, McpServerConfigEntry Entry)>(StringComparer.OrdinalIgnoreCase);

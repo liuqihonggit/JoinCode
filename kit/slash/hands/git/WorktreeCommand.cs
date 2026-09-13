@@ -1,11 +1,19 @@
 
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /worktree 命令 — 管理智能体 Git Worktree，支持 list/cleanup/remove/create/status 操作
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Worktree, Description = "管理智能体 Git Worktree", Usage = "/worktree [list|cleanup|remove|create|status] [options]", Category = ChatCommandCategory.Code)]
 [ChatCommandArg("action", Type = "string", Description = "Worktree 操作", Enum = new[] { "list", "cleanup", "remove", "create", "status" })]
 [ChatCommandArg("options", Type = "string", Description = "操作特定参数,如 create 的分支名")]
 public sealed class WorktreeCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 异步执行 /worktree 命令
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <returns>命令执行结果</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         if (context.GetCommandServices().WorktreeService is not { } worktreeService)

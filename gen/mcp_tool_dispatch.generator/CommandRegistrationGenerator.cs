@@ -165,6 +165,9 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine("namespace JoinCode;");
         sb.AppendLine();
+        sb.AppendLine("/// <summary>");
+        sb.AppendLine("/// 源码生成器自动生成的命令注册类 — 从 [ChatCommand] 特性提取所有命令并统一注册到 ChatCommandRegistry。");
+        sb.AppendLine("/// </summary>");
         sb.AppendLine("public static partial class GeneratedCommandRegistration");
         sb.AppendLine("{");
 
@@ -183,6 +186,10 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
 
     private static void GenerateRegisterChatCommandsMethod(StringBuilder sb, List<CommandInfo> commands)
     {
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// 将所有由源码生成器发现的 ChatCommand 实例注册到注册表,并设置各自的分类。");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine("    /// <param name=\"registry\">命令注册表,注册的命令将在此表中可供查找与分发。</param>");
         sb.AppendLine("    public static void RegisterAllChatCommands(ChatCommandRegistry registry)");
         sb.AppendLine("    {");
 
@@ -221,6 +228,9 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
         sb.AppendLine("/// </summary>");
         sb.AppendLine("public sealed class GeneratedSlashCommandCatalog : ISlashCommandCatalog");
         sb.AppendLine("{");
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// 所有斜杠命令的元数据列表,由源码生成器在编译时从 [ChatCommand] 特性自动提取。");
+        sb.AppendLine("    /// </summary>");
         sb.AppendLine("    public IReadOnlyList<SlashCommandMetadata> Commands { get; } =");
         sb.AppendLine("    [");
 
@@ -258,6 +268,9 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
         sb.AppendLine("/// </summary>");
         sb.AppendLine("public sealed class GeneratedSlashCommandSchemaCatalog : ISlashCommandSchemaCatalog");
         sb.AppendLine("{");
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// 所有斜杠命令的参数 schema 列表,由源码生成器在编译时从 [ChatCommandArg] 特性自动提取。");
+        sb.AppendLine("    /// </summary>");
         sb.AppendLine("    public IReadOnlyList<SlashCommandSchemaEntry> AllSchemas { get; } =");
         sb.AppendLine("    [");
 
@@ -276,6 +289,11 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
 
         sb.AppendLine("    ];");
         sb.AppendLine();
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// 按命令名查找参数 schema,找不到返回 null。");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine("    /// <param name=\"commandName\">命令名(不含斜杠前缀)。</param>");
+        sb.AppendLine("    /// <returns>匹配的参数 schema;若命令不存在或无参数则返回 null。</returns>");
         sb.AppendLine("    public ToolSchema? GetSchema(string commandName)");
         sb.AppendLine("    {");
         sb.AppendLine("        foreach (var entry in AllSchemas)");

@@ -1,10 +1,20 @@
 
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /mobile 命令 — 移动端连接管理
+/// 通过 IMobileConnectService 启动/停止连接服务并生成连接 URL
+/// 支持别名 /ios、/android
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Mobile, Description = "移动端连接", Usage = "/mobile [start|stop|url]", Category = ChatCommandCategory.Platform, Aliases = ["ios", "android"], ArgumentHint = "start|stop|url", IsHidden = true)]
 [ChatCommandArg("action", Type = "string", Description = "移动端操作", Enum = new[] { "start", "stop", "url" })]
 public sealed class MobileCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /mobile 命令 — 根据子参数分发启动、停止、查看 URL、状态操作
+    /// </summary>
+    /// <param name="context">命令执行上下文，包含参数、会话 ID、取消令牌等</param>
+    /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var mobileService = ChatCommandBase.GetService<IMobileConnectService>(context);

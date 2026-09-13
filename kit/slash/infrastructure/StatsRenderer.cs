@@ -5,6 +5,12 @@ namespace JoinCode.Cli;
 /// </summary>
 public sealed class StatsRenderer
 {
+    /// <summary>
+    /// 渲染统计数据为纯文本终端输出
+    /// </summary>
+    /// <param name="data">统计数据源</param>
+    /// <param name="tab">当前激活的标签页（默认 Overview）</param>
+    /// <returns>渲染后的纯文本字符串</returns>
     public string Render(StatsData data, StatsTab tab = StatsTab.Overview)
     {
         var sb = new StringBuilder();

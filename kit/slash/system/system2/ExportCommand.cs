@@ -1,10 +1,20 @@
 
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /export 命令 — 导出对话到文件或剪贴板
+/// 支持参数：文件名直接写文件，--clipboard 复制到剪贴板，无参数进入交互选择
+/// 对齐 TS ExportDialog 实现，自动从首条用户消息提取智能文件名
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Export, Description = "导出对话到文件或剪贴板", Usage = "/export [filename|--clipboard]", Category = ChatCommandCategory.System, ArgumentHint = "[filename|--clipboard]")]
 [ChatCommandArg("target", Type = "string", Description = "导出目标：文件名或 --clipboard", Enum = new[] { "--clipboard" })]
 public sealed class ExportCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /export 命令 — 根据参数选择导出到剪贴板、指定文件或交互式选择
+    /// </summary>
+    /// <param name="context">命令执行上下文，包含参数、会话 ID、取消令牌等</param>
+    /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var history = await context.GetCommandServices().ChatService.GetMessageListAsync(context.CancellationToken).ConfigureAwait(false);

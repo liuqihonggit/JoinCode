@@ -203,6 +203,9 @@ public sealed class AhoCorasick<TValue>
         return null;
     }
 
+    /// <summary>
+    /// 自动机内部输出项 — 记录匹配模式串长度与关联值
+    /// </summary>
     internal readonly record struct AcOutput(int Length, TValue Value);
 }
 

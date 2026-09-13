@@ -6,6 +6,11 @@ namespace JoinCode.ChatCommands;
 [ChatCommand(Name = ChatCommandNameConstants.Help, Description = "显示可用命令帮助", Usage = "/help", Category = ChatCommandCategory.Info, Aliases = ["?"], ExposeToMcp = true)]
 public sealed class HelpCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /help 命令 — 按分类分组展示所有可用命令的用法和描述,通过 TabPanel 提供分类切换
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <returns>表示命令执行完成的任务,结果为继续会话</returns>
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var services = context.GetCommandServices();

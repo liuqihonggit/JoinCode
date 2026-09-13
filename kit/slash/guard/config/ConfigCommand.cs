@@ -1,5 +1,9 @@
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /config 命令 — 管理配置设置
+/// 支持获取、设置、列出、移除配置项,提供已知配置项的元数据描述
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Config, Description = "管理配置设置", Usage = "/config [get|set|list|remove] [key] [value]", Category = ChatCommandCategory.Config, ArgumentHint = "[get|set|list|remove]")]
 [ChatCommandArg("action", Type = "string", Description = "配置操作", Enum = new[] { "get", "set", "list", "remove" })]
 [ChatCommandArg("key", Type = "string", Description = "配置键名")]
@@ -28,6 +32,12 @@ public sealed class ConfigCommand : ChatCommandBase
         [ConfigKey.OutputStyle]              = "输出风格 (concise/verbose/normal)",
     }.ToFrozenDictionary();
 
+    /// <summary>
+    /// 执行 /config 命令 — 根据子命令分发到对应配置操作
+    /// 支持 get/set/list/remove 四种操作,默认 list
+    /// </summary>
+    /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
+    /// <returns>命令执行结果,始终返回 Continue 表示继续会话</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetSplitArgs(context);

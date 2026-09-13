@@ -1,9 +1,18 @@
+
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /vendor 命令 — 查看或切换 LLM 供应商
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Vendor, Description = "查看或切换 LLM 供应商", Usage = "/vendor [名称|list]", Category = ChatCommandCategory.Model, ArgumentHint = "[openai|anthropic|deepseek|azure|agnes|sensenova|bedrock|list]")]
 [ChatCommandArg("name", Type = "string", Description = "供应商名称或 list", Enum = new[] { "openai", "anthropic", "deepseek", "azure", "agnes", "sensenova", "bedrock", "list" })]
 public sealed class VendorCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行供应商命令,无参或 list 时列出全部供应商,否则切换到目标供应商并同步默认模型与持久化配置
+    /// </summary>
+    /// <param name="context">命令执行上下文,提供参数与工作流配置</param>
+    /// <returns>表示命令执行结果的任务,始终返回 Continue 以继续会话</returns>
     public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();

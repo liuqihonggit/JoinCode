@@ -9,6 +9,12 @@ namespace JoinCode.ChatCommands;
 [ChatCommand(Name = ChatCommandNameConstants.Doctor, Description = "诊断环境配置和依赖", Usage = "/doctor", Category = ChatCommandCategory.Config, Aliases = ["dr"])]
 public sealed class DoctorCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /doctor 命令 — 收集并展示环境诊断信息
+    /// 检查项包括:应用版本、.NET 运行时、Git、常用工具、搜索工具、环境变量、磁盘空间、网络状态、API 连接、权限配置、MCP 服务
+    /// </summary>
+    /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
+    /// <returns>命令执行结果,始终返回 Continue 表示继续会话</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var sb = new StringBuilder();

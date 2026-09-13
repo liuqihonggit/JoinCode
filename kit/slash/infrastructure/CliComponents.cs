@@ -10,18 +10,36 @@ public sealed class Selector<T>
     private readonly string _title;
     private readonly (T Item, string DisplayText, string SearchKey)[] _items;
 
+    /// <summary>
+    /// 构造选择器实例，使用预格式化的项元组数组
+    /// </summary>
+    /// <param name="title">选择器标题</param>
+    /// <param name="items">项元组数组，每项包含原始对象、显示文本、搜索键</param>
     public Selector(string title, (T Item, string DisplayText, string SearchKey)[] items)
     {
         _title = title;
         _items = items;
     }
 
+    /// <summary>
+    /// 构造选择器实例，使用显示选择器和可选搜索选择器从原始项数组生成项元组
+    /// </summary>
+    /// <param name="title">选择器标题</param>
+    /// <param name="items">原始项数组</param>
+    /// <param name="displaySelector">将项转换为显示文本的委托</param>
+    /// <param name="searchSelector">将项转换为搜索键的可选委托，缺省时使用显示文本</param>
+    /// <param name="enableSearch">是否启用搜索功能（保留参数，CLI 简化版未实现）</param>
     public Selector(string title, T[] items, Func<T, string> displaySelector, Func<T, string>? searchSelector = null, bool enableSearch = false)
     {
         _title = title;
         _items = items.Select(i => (i, displaySelector(i), searchSelector?.Invoke(i) ?? displaySelector(i))).ToArray();
     }
 
+    /// <summary>
+    /// 异步显示选择器并等待用户输入
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>选择结果，包含选中项或取消标志</returns>
     public async Task<SelectorResult<T>> ShowAsync(CancellationToken ct = default)
     {
         await Task.CompletedTask.ConfigureAwait(false);
@@ -70,7 +88,14 @@ public sealed class Selector<T>
 /// </summary>
 public sealed class SelectorResult<T>
 {
+    /// <summary>
+    /// 选中的项，取消时为默认值
+    /// </summary>
     public T Selected { get; init; } = default!;
+
+    /// <summary>
+    /// 是否已取消选择
+    /// </summary>
     public required bool Cancelled { get; init; }
 }
 
@@ -85,6 +110,12 @@ public sealed class Dialog
     private readonly string _content;
     private readonly string[] _buttons;
 
+    /// <summary>
+    /// 构造对话框实例
+    /// </summary>
+    /// <param name="title">对话框标题</param>
+    /// <param name="content">对话框正文内容</param>
+    /// <param name="buttons">按钮标签数组</param>
     public Dialog(string title, string content, string[] buttons)
     {
         _title = title;
@@ -92,6 +123,11 @@ public sealed class Dialog
         _buttons = buttons;
     }
 
+    /// <summary>
+    /// 异步显示对话框并等待用户选择按钮
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>对话框结果，包含是否取消和选中按钮索引</returns>
     public async Task<DialogResult> ShowAsync(CancellationToken ct = default)
     {
         await Task.CompletedTask.ConfigureAwait(false);
@@ -136,6 +172,12 @@ public sealed class Dialog
         }
     }
 
+    /// <summary>
+    /// 异步显示确认提示并等待用户输入 y/N
+    /// </summary>
+    /// <param name="message">确认提示消息</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>用户输入 y 返回 true，否则返回 false</returns>
     public static async Task<bool> ConfirmAsync(string message, CancellationToken ct = default)
     {
         await Task.CompletedTask.ConfigureAwait(false);
@@ -160,6 +202,12 @@ public sealed class Dialog
         }
     }
 
+    /// <summary>
+    /// 异步显示输入提示并等待用户输入文本
+    /// </summary>
+    /// <param name="message">输入提示消息</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>用户输入的文本，取消或非交互环境返回 null</returns>
     public static async Task<string?> PromptAsync(string message, CancellationToken ct = default)
     {
         await Task.CompletedTask.ConfigureAwait(false);
@@ -185,7 +233,14 @@ public sealed class Dialog
 /// </summary>
 public sealed class DialogResult
 {
+    /// <summary>
+    /// 是否已取消对话框
+    /// </summary>
     public required bool Cancelled { get; init; }
+
+    /// <summary>
+    /// 选中按钮的从零开始的索引，取消时为 -1
+    /// </summary>
     public required int SelectedIndex { get; init; }
 }
 
@@ -196,11 +251,23 @@ public sealed class DialogResult
 /// </summary>
 public static class Confirmation
 {
+    /// <summary>
+    /// 异步显示确认提示，委托给 Dialog.ConfirmAsync
+    /// </summary>
+    /// <param name="message">确认提示消息</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>用户确认返回 true，否则返回 false</returns>
     public static Task<bool> ConfirmAsync(string message, CancellationToken ct = default)
     {
         return Dialog.ConfirmAsync(message, ct);
     }
 
+    /// <summary>
+    /// 异步显示确认提示，语义同 ConfirmAsync
+    /// </summary>
+    /// <param name="message">确认提示消息</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>用户确认返回 true，否则返回 false</returns>
     public static Task<bool> ShowAsync(string message, CancellationToken ct = default)
     {
         return Dialog.ConfirmAsync(message, ct);
@@ -217,12 +284,21 @@ public sealed class TabPanel
     private readonly string[] _tabNames;
     private readonly Func<int, string> _contentProvider;
 
+    /// <summary>
+    /// 构造 Tab 面板实例
+    /// </summary>
+    /// <param name="tabNames">Tab 名称数组</param>
+    /// <param name="contentProvider">根据 Tab 索引返回该 Tab 内容的委托</param>
     public TabPanel(string[] tabNames, Func<int, string> contentProvider)
     {
         _tabNames = tabNames;
         _contentProvider = contentProvider;
     }
 
+    /// <summary>
+    /// 异步显示 Tab 面板，顺序输出每个 Tab 的名称和内容
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
     public async Task ShowAsync(CancellationToken ct = default)
     {
         await Task.CompletedTask.ConfigureAwait(false);
@@ -260,6 +336,13 @@ public sealed class PaginatedList<T>
     private readonly Func<T, string> _displaySelector;
     private readonly int _pageSize;
 
+    /// <summary>
+    /// 构造分页列表实例
+    /// </summary>
+    /// <param name="title">列表标题</param>
+    /// <param name="items">项只读列表</param>
+    /// <param name="displaySelector">将项转换为显示文本的委托</param>
+    /// <param name="pageSize">每页显示项数，默认 20</param>
     public PaginatedList(string title, IReadOnlyList<T> items, Func<T, string> displaySelector, int pageSize = 20)
     {
         _title = title;
@@ -268,6 +351,10 @@ public sealed class PaginatedList<T>
         _pageSize = pageSize;
     }
 
+    /// <summary>
+    /// 异步显示分页列表，超出每页大小的项以省略形式提示
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
     public async Task ShowAsync(CancellationToken ct = default)
     {
         await Task.CompletedTask.ConfigureAwait(false);
@@ -300,17 +387,31 @@ public sealed class StepFlow
     private readonly Step[] _steps;
     private readonly string? _title;
 
+    /// <summary>
+    /// 构造步骤流程实例，不带标题
+    /// </summary>
+    /// <param name="steps">步骤数组</param>
     public StepFlow(Step[] steps)
     {
         _steps = steps;
     }
 
+    /// <summary>
+    /// 构造步骤流程实例，带标题
+    /// </summary>
+    /// <param name="title">流程标题</param>
+    /// <param name="steps">步骤数组</param>
     public StepFlow(string title, Step[] steps)
     {
         _title = title;
         _steps = steps;
     }
 
+    /// <summary>
+    /// 异步显示并执行所有步骤，依次输出标题与描述并执行动作
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>已执行的步骤总数</returns>
     public async Task<int> ShowAsync(CancellationToken ct = default)
     {
         if (_title is not null)
@@ -341,6 +442,10 @@ public sealed class StepFlow
         return _steps.Length;
     }
 
+    /// <summary>
+    /// 异步运行整个步骤流程，等价于 ShowAsync 但不返回步骤数
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
     public async Task RunAsync(CancellationToken ct = default)
     {
         await ShowAsync(ct).ConfigureAwait(false);
@@ -352,10 +457,26 @@ public sealed class StepFlow
 /// </summary>
 public sealed class Step
 {
+    /// <summary>
+    /// 步骤标题
+    /// </summary>
     public string Title { get; init; }
+
+    /// <summary>
+    /// 步骤描述，可选
+    /// </summary>
     public string? Description { get; init; }
+
+    /// <summary>
+    /// 步骤执行动作的异步委托，可选
+    /// </summary>
     public Func<CancellationToken, Task>? Action { get; init; }
 
+    /// <summary>
+    /// 构造步骤实例
+    /// </summary>
+    /// <param name="title">步骤标题</param>
+    /// <param name="description">步骤描述，可选</param>
     public Step(string title, string? description = null)
     {
         Title = title;
@@ -370,6 +491,14 @@ public sealed class Step
 /// </summary>
 public sealed class ProviderPicker
 {
+    /// <summary>
+    /// 显示供应商选择列表并等待用户输入
+    /// </summary>
+    /// <param name="defaultProvider">默认供应商名称，回车时使用</param>
+    /// <param name="title">选择标题</param>
+    /// <param name="hint">提示文本</param>
+    /// <param name="registry">供应商定义注册表</param>
+    /// <returns>选中的供应商名称，失败时返回默认供应商</returns>
     public static string? Show(string defaultProvider, string title, string hint, IProviderDefinitionRegistry registry)
     {
         TerminalHelper.WriteLine();
@@ -423,13 +552,44 @@ public sealed class ProviderPicker
 /// </summary>
 public sealed class ContextData
 {
+    /// <summary>
+    /// 模型名称
+    /// </summary>
     public string Model { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 已使用的总 Token 数
+    /// </summary>
     public int TotalTokens { get; set; }
+
+    /// <summary>
+    /// 模型上下文窗口最大 Token 数
+    /// </summary>
     public int MaxTokens { get; set; }
+
+    /// <summary>
+    /// 上下文类别名称
+    /// </summary>
     public string Category { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 上下文项名称
+    /// </summary>
     public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 该上下文项的 Token 数
+    /// </summary>
     public int TokenCount { get; set; }
+
+    /// <summary>
+    /// 占最大 Token 数的百分比
+    /// </summary>
     public double Percentage { get; set; }
+
+    /// <summary>
+    /// 上下文类别列表
+    /// </summary>
     public List<ContextCategory> Categories { get; set; } = [];
 }
 
@@ -438,10 +598,27 @@ public sealed class ContextData
 /// </summary>
 public sealed class ContextCategory
 {
+    /// <summary>
+    /// 类别名称
+    /// </summary>
     public string Name { get; }
+
+    /// <summary>
+    /// 该类别的 Token 数
+    /// </summary>
     public int TokenCount { get; }
+
+    /// <summary>
+    /// 排序序号，越小越靠前
+    /// </summary>
     public int SortOrder { get; }
 
+    /// <summary>
+    /// 构造上下文类别实例
+    /// </summary>
+    /// <param name="name">类别名称</param>
+    /// <param name="tokenCount">该类别的 Token 数</param>
+    /// <param name="sortOrder">排序序号，默认 0</param>
     public ContextCategory(string name, int tokenCount, int sortOrder = 0)
     {
         Name = name;
@@ -455,6 +632,11 @@ public sealed class ContextCategory
 /// </summary>
 public sealed class ContextVisualizer
 {
+    /// <summary>
+    /// 渲染单个上下文数据为带类别条形图的文本
+    /// </summary>
+    /// <param name="data">上下文数据</param>
+    /// <returns>渲染后的文本</returns>
     public string Render(ContextData data)
     {
         var sb = new StringBuilder();
@@ -476,6 +658,11 @@ public sealed class ContextVisualizer
         return sb.ToString();
     }
 
+    /// <summary>
+    /// 渲染多个上下文数据为按 Token 数降序排列的条形图文本
+    /// </summary>
+    /// <param name="data">上下文数据只读列表</param>
+    /// <returns>渲染后的文本</returns>
     public static string Render(IReadOnlyList<ContextData> data)
     {
         var sb = new StringBuilder();
@@ -499,8 +686,19 @@ public sealed class ContextVisualizer
 /// </summary>
 public sealed class FeedbackState
 {
+    /// <summary>
+    /// 当前反馈步骤
+    /// </summary>
     public FeedbackStep Step { get; init; }
+
+    /// <summary>
+    /// 反馈描述内容
+    /// </summary>
     public string Description { get; init; } = string.Empty;
+
+    /// <summary>
+    /// 是否反馈成功
+    /// </summary>
     public bool IsSuccess { get; init; }
 }
 
@@ -509,10 +707,29 @@ public sealed class FeedbackState
 /// </summary>
 public enum FeedbackStep
 {
+    /// <summary>
+    /// 用户输入阶段
+    /// </summary>
     UserInput,
+
+    /// <summary>
+    /// 评分阶段
+    /// </summary>
     Rating,
+
+    /// <summary>
+    /// 评论阶段
+    /// </summary>
     Comment,
+
+    /// <summary>
+    /// 确认阶段
+    /// </summary>
     Confirm,
+
+    /// <summary>
+    /// 完成阶段
+    /// </summary>
     Done
 }
 
@@ -521,6 +738,11 @@ public enum FeedbackStep
 /// </summary>
 public sealed class FeedbackRenderer
 {
+    /// <summary>
+    /// 根据反馈状态渲染对应文本
+    /// </summary>
+    /// <param name="state">反馈状态</param>
+    /// <returns>渲染后的文本</returns>
     public string Render(FeedbackState state)
     {
         var sb = new StringBuilder();
@@ -553,12 +775,20 @@ public sealed class FeedbackRenderer
         return sb.ToString();
     }
 
+    /// <summary>
+    /// 显示星级评分，5 星制
+    /// </summary>
+    /// <param name="rating">评分值，0 到 5</param>
     public static void ShowRating(int rating)
     {
         var stars = new string('★', rating) + new string('☆', 5 - rating);
         TerminalHelper.WriteLine($"  评分: {TerminalColors.Warning}{stars}{AnsiStyleConstants.Reset}");
     }
 
+    /// <summary>
+    /// 显示评论内容，空白时不输出
+    /// </summary>
+    /// <param name="comment">评论文本</param>
     public static void ShowComment(string comment)
     {
         if (!string.IsNullOrWhiteSpace(comment))
@@ -573,6 +803,11 @@ public sealed class FeedbackRenderer
 /// </summary>
 public static class FeedbackRedactor
 {
+    /// <summary>
+    /// 对文本进行脱敏处理，当前实现原样返回
+    /// </summary>
+    /// <param name="text">待脱敏文本</param>
+    /// <returns>脱敏后的文本</returns>
     public static string Redact(string text)
     {
         return text;
@@ -586,10 +821,29 @@ public static class FeedbackRedactor
 /// </summary>
 public enum BridgeConnectionState
 {
+    /// <summary>
+    /// 空闲状态
+    /// </summary>
     Idle,
+
+    /// <summary>
+    /// 未连接
+    /// </summary>
     Disconnected,
+
+    /// <summary>
+    /// 连接中
+    /// </summary>
     Connecting,
+
+    /// <summary>
+    /// 已连接
+    /// </summary>
     Connected,
+
+    /// <summary>
+    /// 错误状态
+    /// </summary>
     Error
 }
 
@@ -598,8 +852,18 @@ public enum BridgeConnectionState
 /// </summary>
 public static class BridgeStatusIndicator
 {
+    /// <summary>
+    /// 渲染连接状态为带颜色的状态文本
+    /// </summary>
+    /// <param name="state">连接状态</param>
+    /// <returns>带 ANSI 颜色的状态文本</returns>
     public static string Render(BridgeConnectionState state) => GetStatusText(state);
 
+    /// <summary>
+    /// 获取连接状态对应的文本描述
+    /// </summary>
+    /// <param name="state">连接状态</param>
+    /// <returns>带 ANSI 颜色的状态文本</returns>
     public static string GetStatusText(BridgeConnectionState state) => state switch
     {
         BridgeConnectionState.Connected => $"{TerminalColors.Success}● 已连接{AnsiStyleConstants.Reset}",
@@ -617,10 +881,29 @@ public static class BridgeStatusIndicator
 /// </summary>
 public enum DiffViewMode
 {
+    /// <summary>
+    /// 列表视图
+    /// </summary>
     List,
+
+    /// <summary>
+    /// 详情视图
+    /// </summary>
     Detail,
+
+    /// <summary>
+    /// 统一格式视图
+    /// </summary>
     Unified,
+
+    /// <summary>
+    /// 分屏视图
+    /// </summary>
     Split,
+
+    /// <summary>
+    /// 文件列表视图
+    /// </summary>
     FileList
 }
 
@@ -629,13 +912,31 @@ public enum DiffViewMode
 /// </summary>
 public abstract class DiffSource
 {
+    /// <summary>
+    /// 当前工作区 Diff 来源
+    /// </summary>
     public sealed class Current : DiffSource { }
 
+    /// <summary>
+    /// 指定历史轮次的 Diff 来源
+    /// </summary>
     public sealed class Turn : DiffSource
     {
+        /// <summary>
+        /// 轮次索引
+        /// </summary>
         public int TurnIndex { get; }
+
+        /// <summary>
+        /// 该轮次的提示词预览，可选
+        /// </summary>
         public string? PromptPreview { get; }
 
+        /// <summary>
+        /// 构造轮次 Diff 来源实例
+        /// </summary>
+        /// <param name="turnIndex">轮次索引</param>
+        /// <param name="promptPreview">提示词预览，可选</param>
         public Turn(int turnIndex, string? promptPreview)
         {
             TurnIndex = turnIndex;
@@ -649,11 +950,34 @@ public abstract class DiffSource
 /// </summary>
 public sealed record DiffDialogState
 {
+    /// <summary>
+    /// Diff 数据
+    /// </summary>
     public required DiffData DiffData { get; init; }
+
+    /// <summary>
+    /// 当前 Diff 视图模式
+    /// </summary>
     public required DiffViewMode ViewMode { get; init; }
+
+    /// <summary>
+    /// 当前选中项索引
+    /// </summary>
     public int SelectedIndex { get; init; }
+
+    /// <summary>
+    /// 当前 Diff 来源索引
+    /// </summary>
     public int SourceIndex { get; init; }
+
+    /// <summary>
+    /// 可选的 Diff 来源列表
+    /// </summary>
     public IReadOnlyList<DiffSource> Sources { get; init; } = [];
+
+    /// <summary>
+    /// 滚动偏移量
+    /// </summary>
     public int ScrollOffset { get; init; }
 }
 
@@ -665,12 +989,22 @@ public sealed class GitDiffService
     private readonly IFileSystem _fs;
     private readonly IGitCommandRunner? _gitRunner;
 
+    /// <summary>
+    /// 构造 Git Diff 服务实例
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="gitRunner">Git 命令执行器，可选，为 null 时返回空 Diff</param>
     public GitDiffService(IFileSystem fs, IGitCommandRunner? gitRunner = null)
     {
         _fs = fs;
         _gitRunner = gitRunner;
     }
 
+    /// <summary>
+    /// 异步获取当前工作区的 Git diff 数据
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>解析后的 Diff 数据，失败时返回空 Diff</returns>
     public async Task<DiffData> FetchDiffDataAsync(CancellationToken ct = default)
     {
         try
@@ -722,6 +1056,11 @@ public sealed class GitDiffService
 /// </summary>
 public sealed class DiffDialogRenderer
 {
+    /// <summary>
+    /// 渲染 Diff 对话框状态为文本，包含统计信息和文件列表
+    /// </summary>
+    /// <param name="state">Diff 对话框状态</param>
+    /// <returns>渲染后的文本</returns>
     public string Render(DiffDialogState state)
     {
         var sb = new StringBuilder();
@@ -752,6 +1091,11 @@ public sealed class DiffDialogRenderer
 /// </summary>
 public sealed class DiffFileListRenderer
 {
+    /// <summary>
+    /// 渲染变更文件列表为带增删行数标记的文本
+    /// </summary>
+    /// <param name="data">Diff 数据</param>
+    /// <returns>渲染后的文本</returns>
     public string Render(DiffData data)
     {
         var sb = new StringBuilder();
@@ -763,6 +1107,13 @@ public sealed class DiffFileListRenderer
         return sb.ToString();
     }
 
+    /// <summary>
+    /// 计算滚动偏移量，CLI 简化版直接返回当前偏移
+    /// </summary>
+    /// <param name="selectedIndex">当前选中项索引</param>
+    /// <param name="totalItems">总项数</param>
+    /// <param name="currentOffset">当前滚动偏移</param>
+    /// <returns>新的滚动偏移量</returns>
     public int ComputeScrollOffset(int selectedIndex, int totalItems, int currentOffset)
     {
         return currentOffset;
@@ -774,11 +1125,21 @@ public sealed class DiffFileListRenderer
 /// </summary>
 public sealed class DiffViewRenderer
 {
+    /// <summary>
+    /// 将 Diff 行文本直接输出到终端
+    /// </summary>
+    /// <param name="diffLines">Diff 行文本</param>
     public void Render(string diffLines)
     {
         TerminalHelper.WriteLine(diffLines);
     }
 
+    /// <summary>
+    /// 根据 Diff 数据和视图模式渲染文件列表文本
+    /// </summary>
+    /// <param name="data">Diff 数据</param>
+    /// <param name="mode">Diff 视图模式</param>
+    /// <returns>渲染后的文本</returns>
     public static string Render(DiffData data, DiffViewMode mode)
     {
         var renderer = new DiffFileListRenderer();
@@ -798,6 +1159,13 @@ public sealed class UsageBar
     private readonly string _filledColor;
     private readonly string _emptyColor;
 
+    /// <summary>
+    /// 构造使用量进度条实例
+    /// </summary>
+    /// <param name="percentage">百分比，0 到 1</param>
+    /// <param name="width">进度条宽度，默认 20</param>
+    /// <param name="filledColor">已填充部分颜色，可选，默认使用主色</param>
+    /// <param name="emptyColor">未填充部分颜色，可选，默认使用弱化色</param>
     public UsageBar(double percentage, int width = 20, string? filledColor = null, string? emptyColor = null)
     {
         _percentage = percentage;
@@ -806,6 +1174,10 @@ public sealed class UsageBar
         _emptyColor = emptyColor ?? TerminalColors.Muted;
     }
 
+    /// <summary>
+    /// 渲染进度条为带颜色的文本
+    /// </summary>
+    /// <returns>带 ANSI 颜色的进度条文本</returns>
     public string Render()
     {
         var filled = (int)Math.Round(_percentage * _width);
@@ -815,6 +1187,12 @@ public sealed class UsageBar
         return bar;
     }
 
+    /// <summary>
+    /// 静态渲染进度条，百分比超过 80 时使用警告色
+    /// </summary>
+    /// <param name="percentage">百分比，0 到 100</param>
+    /// <param name="width">进度条宽度，默认 20</param>
+    /// <returns>带 ANSI 颜色和百分比的进度条文本</returns>
     public static string Render(double percentage, int width = 20)
     {
         var filled = (int)Math.Round(percentage / 100 * width);
@@ -833,12 +1211,39 @@ public sealed class UsageBar
 /// </summary>
 public sealed class CompactSummaryData
 {
+    /// <summary>
+    /// 压缩前消息数
+    /// </summary>
     public int MessagesBefore { get; init; }
+
+    /// <summary>
+    /// 压缩后消息数
+    /// </summary>
     public int MessagesAfter { get; init; }
+
+    /// <summary>
+    /// 节省的 Token 数
+    /// </summary>
     public int TokensSaved { get; init; }
+
+    /// <summary>
+    /// 已摘要的消息数
+    /// </summary>
     public int MessagesSummarized { get; init; }
+
+    /// <summary>
+    /// 压缩方向
+    /// </summary>
     public CompactDirection Direction { get; init; }
+
+    /// <summary>
+    /// 原始 Token 数
+    /// </summary>
     public int OriginalTokens { get; init; }
+
+    /// <summary>
+    /// 压缩后 Token 数
+    /// </summary>
     public int CompressedTokens { get; init; }
 }
 
@@ -847,6 +1252,11 @@ public sealed class CompactSummaryData
 /// </summary>
 public sealed class CompactSummaryRenderer
 {
+    /// <summary>
+    /// 渲染压缩摘要数据为多行文本
+    /// </summary>
+    /// <param name="data">压缩摘要数据</param>
+    /// <returns>渲染后的文本</returns>
     public string Render(CompactSummaryData data)
     {
         var sb = new StringBuilder();
@@ -856,6 +1266,11 @@ public sealed class CompactSummaryRenderer
         return sb.ToString();
     }
 
+    /// <summary>
+    /// 静态渲染压缩摘要为单行简短文本
+    /// </summary>
+    /// <param name="data">压缩摘要数据</param>
+    /// <returns>渲染后的单行文本</returns>
     public static string RenderStatic(CompactSummaryData data)
     {
         return $"上下文已压缩: {data.MessagesBefore} → {data.MessagesAfter} 消息, 节省 {data.TokensSaved:N0} tokens";
@@ -869,6 +1284,16 @@ public sealed class CompactSummaryRenderer
 /// </summary>
 public sealed class ModelPicker
 {
+    /// <summary>
+    /// 渲染模型选择列表为带选中标记和操作提示的文本
+    /// </summary>
+    /// <param name="models">可选模型数组</param>
+    /// <param name="selectedIndex">当前选中索引</param>
+    /// <param name="currentModelId">当前模型 ID</param>
+    /// <param name="providerName">供应商名称</param>
+    /// <param name="effortLevel">推理努力级别</param>
+    /// <param name="isFastModeActive">是否启用快速模式</param>
+    /// <returns>渲染后的文本</returns>
     public string Render(ModelEntry[] models, int selectedIndex, string currentModelId, string providerName, EffortLevel effortLevel, bool isFastModeActive)
     {
         var sb = new StringBuilder();
@@ -890,6 +1315,12 @@ public sealed class ModelPicker
         return sb.ToString();
     }
 
+    /// <summary>
+    /// 在 Low、Medium、High、Max 之间循环切换推理努力级别
+    /// </summary>
+    /// <param name="current">当前努力级别</param>
+    /// <param name="forward">true 向前循环，false 向后循环</param>
+    /// <returns>切换后的努力级别</returns>
     public static EffortLevel CycleEffort(EffortLevel current, bool forward)
     {
         var values = new[] { EffortLevel.Low, EffortLevel.Medium, EffortLevel.High, EffortLevel.Max };
@@ -908,6 +1339,14 @@ public sealed class ModelPicker
         return values[idx];
     }
 
+    /// <summary>
+    /// 异步显示模型选择列表并等待用户输入
+    /// </summary>
+    /// <param name="currentModel">当前模型 ID</param>
+    /// <param name="catalog">模型目录</param>
+    /// <param name="provider">供应商名称</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>选中的模型 ID，失败时返回当前模型</returns>
     public static async Task<string?> ShowAsync(string currentModel, IModelCatalog catalog, string provider, CancellationToken ct = default)
     {
         await Task.CompletedTask.ConfigureAwait(false);
@@ -954,11 +1393,42 @@ public sealed class ModelPicker
 /// </summary>
 public static class AnsiEscape
 {
+    /// <summary>
+    /// 生成光标上移 ANSI 转义序列
+    /// </summary>
+    /// <param name="count">上移行数</param>
+    /// <returns>ANSI 转义序列，count 小于等于 0 时返回空字符串</returns>
     public static string CursorUp(int count) => count > 0 ? $"\x1b[{count}A" : "";
+
+    /// <summary>
+    /// 生成光标下移 ANSI 转义序列
+    /// </summary>
+    /// <param name="count">下移行数</param>
+    /// <returns>ANSI 转义序列，count 小于等于 0 时返回空字符串</returns>
     public static string CursorDown(int count) => count > 0 ? $"\x1b[{count}B" : "";
+
+    /// <summary>
+    /// 生成光标左移 ANSI 转义序列
+    /// </summary>
+    /// <param name="count">左移列数</param>
+    /// <returns>ANSI 转义序列，count 小于等于 0 时返回空字符串</returns>
     public static string CursorLeft(int count) => count > 0 ? $"\x1b[{count}D" : "";
+
+    /// <summary>
+    /// 生成光标右移 ANSI 转义序列
+    /// </summary>
+    /// <param name="count">右移列数</param>
+    /// <returns>ANSI 转义序列，count 小于等于 0 时返回空字符串</returns>
     public static string CursorRight(int count) => count > 0 ? $"\x1b[{count}C" : "";
+
+    /// <summary>
+    /// 从光标位置清除到屏幕末尾的 ANSI 转义序列
+    /// </summary>
     public static string ClearScreenFromCursor => "\x1b[J";
+
+    /// <summary>
+    /// 清除当前行的 ANSI 转义序列
+    /// </summary>
     public static string ClearLine => "\x1b[2K";
 }
 
@@ -969,6 +1439,12 @@ public static class AnsiEscape
 /// </summary>
 public static class TerminalCharts
 {
+    /// <summary>
+    /// 渲染每日活动热力图为竖直方块条形图
+    /// </summary>
+    /// <param name="activities">每日活动只读列表</param>
+    /// <param name="title">可选标题</param>
+    /// <returns>渲染后的文本，无活动时返回空文本或仅标题</returns>
     public static string ActivityHeatmap(IReadOnlyList<DailyActivity> activities, string? title = null)
     {
         var sb = new StringBuilder();
@@ -998,6 +1474,13 @@ public static class TerminalCharts
         return sb.ToString();
     }
 
+    /// <summary>
+    /// 根据总 Token 数生成趣味事实文本，Token 不足百万时返回空字符串
+    /// </summary>
+    /// <param name="totalTokens">总 Token 数</param>
+    /// <param name="daysActive">活跃天数</param>
+    /// <param name="totalHours">总小时数</param>
+    /// <returns>趣味事实文本，不满足条件时返回空字符串</returns>
     public static string FunFactoid(long totalTokens, int daysActive, double totalHours)
     {
         if (totalTokens < 1000) return "";

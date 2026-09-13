@@ -112,6 +112,11 @@ public static class InsightDataAggregator
 /// </summary>
 public static class FacetAggregator
 {
+    /// <summary>
+    /// 聚合多个会话的 Facet 信息为汇总结果
+    /// </summary>
+    /// <param name="facets">会话 Facet 列表</param>
+    /// <returns>聚合后的 Facet 汇总，空列表返回 null</returns>
     public static FacetSummary? Aggregate(IReadOnlyList<SessionFacets> facets)
     {
         if (facets.Count == 0) return null;
@@ -163,6 +168,11 @@ public static class FacetAggregator
 /// </summary>
 public static class MultiClaudingDetector
 {
+    /// <summary>
+    /// 检测多会话并行（Multi-Clauding）现象 — 查找时间重叠的会话
+    /// </summary>
+    /// <param name="sessions">会话元数据列表</param>
+    /// <returns>多会话并行检测结果</returns>
     public static MultiClaudingResult Detect(IReadOnlyList<InsightSessionMeta> sessions)
     {
         // 简化检测：查找时间重叠的会话
@@ -206,6 +216,13 @@ public static class MultiClaudingDetector
 /// </summary>
 public static class InsightPrompts
 {
+    /// <summary>
+    /// 构建洞察数据上下文文本 — 将聚合数据、Facet 汇总与多会话检测结果拼接为上下文
+    /// </summary>
+    /// <param name="aggregated">聚合后的洞察数据</param>
+    /// <param name="facetSummary">Facet 汇总，可为 null</param>
+    /// <param name="multiClauding">多会话并行检测结果</param>
+    /// <returns>上下文文本字符串</returns>
     public static string BuildInsightDataContext(AggregatedInsightData aggregated, FacetSummary? facetSummary, MultiClaudingResult multiClauding)
     {
         var sb = new StringBuilder();
@@ -227,11 +244,21 @@ public static class InsightPrompts
         return sb.ToString();
     }
 
+    /// <summary>
+    /// 构建 Facet 提取提示词 — 引导模型从对话记录中提取关键主题、技术栈和模式
+    /// </summary>
+    /// <param name="transcriptText">对话记录文本</param>
+    /// <returns>Facet 提取提示词</returns>
     public static string BuildFacetExtractionPrompt(string transcriptText)
     {
         return $"请分析以下对话记录，提取关键主题、技术栈和模式:\n\n{transcriptText}";
     }
 
+    /// <summary>
+    /// 构建对话片段摘要提示词 — 引导模型总结片段的关键信息
+    /// </summary>
+    /// <param name="chunk">对话片段文本</param>
+    /// <returns>摘要提示词</returns>
     public static string BuildTranscriptSummaryPrompt(string chunk)
     {
         return $"请总结以下对话片段的关键信息:\n\n{chunk}";
@@ -243,6 +270,14 @@ public static class InsightPrompts
 /// </summary>
 public static class InsightHtmlReport
 {
+    /// <summary>
+    /// 生成洞察 HTML 报告 — 将聚合数据、Facet 汇总、多会话检测结果与 AI 洞察文本渲染为 HTML
+    /// </summary>
+    /// <param name="aggregated">聚合后的洞察数据</param>
+    /// <param name="facetSummary">Facet 汇总，可为 null</param>
+    /// <param name="multiClauding">多会话并行检测结果</param>
+    /// <param name="insightsText">AI 生成的洞察文本</param>
+    /// <returns>HTML 报告字符串</returns>
     public static string Generate(AggregatedInsightData aggregated, FacetSummary? facetSummary, MultiClaudingResult multiClauding, string insightsText)
     {
         var sb = new StringBuilder();

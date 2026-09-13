@@ -161,6 +161,10 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
         }
     }
 
+    /// <summary>
+    /// 释放指定操作类型的执行许可，递减当前并发计数
+    /// </summary>
+    /// <param name="operationType">IO 操作类型</param>
     internal void Release(IOOperationType operationType)
     {
         Interlocked.Decrement(ref _currentConcurrentOperations);

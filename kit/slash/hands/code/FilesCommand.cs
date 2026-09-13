@@ -1,9 +1,17 @@
 
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /files 命令 — 列出当前上下文中已操作的文件
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Files, Description = "列出当前上下文中的文件", Usage = "/files", Category = ChatCommandCategory.Code, ExposeToMcp = true)]
 public sealed class FilesCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /files 命令，列出当前上下文中的文件及其操作记录
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <returns>命令执行结果</returns>
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var tracker = context.GetCommandServices().FileOperationTracker;

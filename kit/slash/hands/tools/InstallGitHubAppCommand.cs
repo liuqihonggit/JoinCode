@@ -10,12 +10,22 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
     private readonly IGitHubCommandRunner? _gitHubRunner;
     private readonly IGitHubApiClient? _apiClient;
 
+    /// <summary>
+    /// 构造 install-github-app 命令实例
+    /// </summary>
+    /// <param name="gitHubRunner">可选的 GitHub 命令执行器</param>
+    /// <param name="gitHubApiClient">可选的 GitHub API 客户端</param>
     public InstallGitHubAppCommand(IGitHubCommandRunner? gitHubRunner = null, IGitHubApiClient? gitHubApiClient = null)
     {
         _gitHubRunner = gitHubRunner;
         _apiClient = gitHubApiClient;
     }
 
+    /// <summary>
+    /// 异步执行 /install-github-app 命令，设置 GitHub Actions 工作流
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <returns>命令执行结果</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var ct = context.CancellationToken;

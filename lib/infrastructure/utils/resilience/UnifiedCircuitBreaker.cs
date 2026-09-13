@@ -39,14 +39,23 @@ public enum CircuitBreakerEvent
 /// </summary>
 internal sealed class CircuitBreakerContext : FsmContext
 {
+    /// <summary>连续失败次数</summary>
     public int ConsecutiveFailures;
+    /// <summary>累计失败次数</summary>
     public int TotalFailures;
+    /// <summary>累计成功次数</summary>
     public int TotalSuccesses;
+    /// <summary>半开态已放行的探针请求计数</summary>
     public int HalfOpenProbeCount;
+    /// <summary>熔断开启时间</summary>
     public DateTimeOffset OpenedAt;
+    /// <summary>最近一次失败时间</summary>
     public DateTimeOffset LastFailureTime;
+    /// <summary>当前时间（由调用方注入，用于守卫判定）</summary>
     public DateTimeOffset Now;
+    /// <summary>连续失败熔断阈值</summary>
     public int FailureThreshold;
+    /// <summary>半开态最大探针请求数</summary>
     public int HalfOpenMaxProbe;
 }
 

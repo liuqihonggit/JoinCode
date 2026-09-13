@@ -1,6 +1,9 @@
 
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /goal 命令 — 目标自主循环引擎，支持 GoalSpec 收集模式、生命周期管理（pause/resume/clear）和定时目标模式。
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Goal, Description = "目标自主循环引擎 — GoalSpec 收集模式（LLM 询问 6 字段后自主工作）", Usage = "/goal [初始提示] [--constraint '约束'] [--budget <token数>] | /goal pause | /goal resume | /goal clear | /goal --cron <表达式> <描述>", Category = ChatCommandCategory.Task, ArgumentHint = "[初始提示|子命令]")]
 [ChatCommandArg("subcommand", Type = "string", Description = "生命周期子命令,省略时进入 GoalSpec 收集模式或显示状态", Enum = new[] { "pause", "resume", "clear", "stop", "off", "reset", "cancel" })]
 [ChatCommandArg("objective", Type = "string", Description = "目标描述/初始提示,作为自主循环的目标")]
@@ -10,11 +13,20 @@ namespace JoinCode.ChatCommands;
 public sealed partial class GoalCommand : ChatCommandBase
 {
     private readonly ILogger<GoalCommand>? _logger;
+    /// <summary>
+    /// 构造 GoalCommand 实例。
+    /// </summary>
+    /// <param name="logger">可选的日志器。</param>
     public GoalCommand(ILogger<GoalCommand>? logger = null)
     {
         _logger = logger;
     }
 
+    /// <summary>
+    /// 执行 /goal 命令，根据参数分发到生命周期管理、GoalSpec 收集或定时目标模式。
+    /// </summary>
+    /// <param name="context">命令执行上下文。</param>
+    /// <returns>命令执行结果。</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var registry = context.GetCommandServices().GoalRegistry;

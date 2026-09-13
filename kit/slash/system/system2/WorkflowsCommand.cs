@@ -1,10 +1,19 @@
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /workflows 命令 — 管理工作流
+/// 通过 IPluginManager 与 IWorkflowTaskExecutor 执行 list、run、status 操作
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Workflows, Description = "管理工作流", Usage = "/workflows [list|run|status] [name]", Category = ChatCommandCategory.System, ArgumentHint = "[list|run|status]")]
 [ChatCommandArg("action", Type = "string", Description = "工作流操作", Enum = new[] { "list", "run", "status" })]
 [ChatCommandArg("name", Type = "string", Description = "run 工作流名 / status 工作流 ID")]
 public sealed class WorkflowsCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /workflows 命令 — 根据子操作分发列出、运行、查询状态
+    /// </summary>
+    /// <param name="context">命令执行上下文，包含参数、服务容器、取消令牌等</param>
+    /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context);

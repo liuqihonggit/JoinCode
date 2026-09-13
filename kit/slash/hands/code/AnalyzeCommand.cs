@@ -9,11 +9,20 @@ namespace JoinCode.ChatCommands;
 public sealed partial class AnalyzeCommand : ChatCommandBase
 {
     private readonly ILogger<AnalyzeCommand>? _logger;
+    /// <summary>
+    /// 构造分析命令实例
+    /// </summary>
+    /// <param name="logger">可选的日志记录器</param>
     public AnalyzeCommand(ILogger<AnalyzeCommand>? logger = null)
     {
         _logger = logger;
     }
 
+    /// <summary>
+    /// 异步执行 /analyze 命令，分析给定代码
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <returns>命令执行结果</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         if (string.IsNullOrWhiteSpace(context.Arguments))

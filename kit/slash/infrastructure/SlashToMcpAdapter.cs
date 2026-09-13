@@ -20,11 +20,17 @@ public sealed class SlashToMcpAdapter : IToolHandler
         _kind = kind;
     }
 
+    /// <summary>工具名称 — 透传斜杠命令名</summary>
     public string Name => _command.Name;
+    /// <summary>工具描述 — 透传斜杠命令描述</summary>
     public string Description => _command.Description;
+    /// <summary>工具种类 — 构造时指定</summary>
     public ToolKind Kind => _kind;
+    /// <summary>工具分组名 — 固定为 "slash"</summary>
     public string? GroupName => "slash";
+    /// <summary>工具分类 — 固定为 "skill"</summary>
     public string? Category => "skill";
+    /// <summary>超时策略 — 固定为 None</summary>
     public ToolTimeoutPolicy TimeoutPolicy => ToolTimeoutPolicy.None;
 
     /// <summary>

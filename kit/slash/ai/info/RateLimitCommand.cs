@@ -1,10 +1,18 @@
 
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /rate-limit-options 命令 — 配置速率限制选项
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.RateLimitOptions, Description = "配置速率限制选项", Usage = "/rate-limit-options [show]", Category = ChatCommandCategory.Model, Aliases = ["rate-limit"], ArgumentHint = "[show]", IsHidden = true)]
 [ChatCommandArg("action", Type = "string", Description = "操作类型,目前仅支持 show(显示速率限制快照)", Enum = new[] { "show" }, Default = "show")]
 public sealed class RateLimitCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行速率限制命令,显示当前速率限制快照(请求/Token 的限制、剩余与重置时间)
+    /// </summary>
+    /// <param name="context">命令执行上下文,提供参数与速率限制追踪器</param>
+    /// <returns>表示命令执行结果的任务,始终返回 Continue 以继续会话</returns>
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context);

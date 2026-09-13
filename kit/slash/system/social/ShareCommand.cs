@@ -9,6 +9,11 @@ namespace JoinCode.ChatCommands;
 [ChatCommand(Name = ChatCommandNameConstants.Share, Description = "生成可分享的对话内容", Usage = "/share", Category = ChatCommandCategory.Social)]
 public sealed class ShareCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /share 命令 — 收集对话历史生成 Markdown 分享内容并保存到 shares 目录
+    /// </summary>
+    /// <param name="context">命令执行上下文，包含会话 ID 与取消令牌</param>
+    /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         TerminalHelper.WriteLine($"{TerminalColors.Primary}生成分享内容...{AnsiStyleConstants.Reset}");

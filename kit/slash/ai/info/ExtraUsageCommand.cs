@@ -1,9 +1,17 @@
 
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /extra-usage 命令 — 查看额外用量信息(隐藏命令)
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.ExtraUsage, Description = "查看额外用量信息", Usage = "/extra-usage", Category = ChatCommandCategory.Model, IsHidden = true)]
 public sealed class ExtraUsageCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /extra-usage 命令 — 输出今日和累计的请求数、Token 用量与估算成本
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <returns>表示命令执行完成的任务,结果为继续会话</returns>
     public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var usageTracker = context.GetCommandServices().UsageTracker;

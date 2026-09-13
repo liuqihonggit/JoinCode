@@ -1,9 +1,17 @@
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /rename 命令 — 重命名当前会话，通过 TranscriptService 追加 custom-title 元数据。
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Rename, Description = "重命名当前会话", Usage = "/rename <new-name>", Category = ChatCommandCategory.Session, ArgumentHint = "<new-name>")]
 [ChatCommandArg("new_name", Type = "string", Description = "新的会话名称", Required = true)]
 public sealed class RenameCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /rename 命令，为当前会话设置新的自定义标题。
+    /// </summary>
+    /// <param name="context">命令执行上下文。</param>
+    /// <returns>命令执行结果。</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var newName = ChatCommandBase.GetNormalizedArgs(context);

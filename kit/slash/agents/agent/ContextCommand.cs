@@ -1,10 +1,18 @@
 
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /context 命令 — 显示当前会话上下文统计信息
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Context, Description = "显示当前会话上下文统计", Usage = "/context", Category = ChatCommandCategory.Info)]
 public sealed class ContextCommand : ChatCommandBase
 {
     private readonly IClockService _clock = SystemClockService.Instance;
+    /// <summary>
+    /// 执行 /context 命令，统计并可视化当前会话的上下文占用情况
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <returns>命令执行结果</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var history = await context.GetCommandServices().ChatService.GetMessageListAsync(context.CancellationToken);

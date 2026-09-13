@@ -14,6 +14,7 @@ internal sealed class ChunkDownloader
     private readonly HttpClient _httpClient;
     private readonly IFileSystem _fs;
 
+    /// <summary>构造单分片下载器,注入 HTTP 客户端和文件系统抽象</summary>
     internal ChunkDownloader(HttpClient httpClient, IFileSystem fs)
     {
         _httpClient = httpClient;

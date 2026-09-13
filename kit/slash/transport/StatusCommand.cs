@@ -6,10 +6,19 @@ internal record class RenderOverviewContext(
     string ProviderName, string CurrentModel, bool IsFastMode, string EffortLevel,
     string ApiStatus, string McpStatus, string MessageInfo);
 
+/// <summary>
+/// /status 命令 — 显示当前会话状态概览与 Token 用量
+/// 渲染包含版本、工作目录、会话信息、Provider、模型、API 密钥、MCP 工具等信息的双标签面板
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Status, Description = "显示版本、模型、账户、API连接和工具状态", Usage = "/status", Category = ChatCommandCategory.Info, ExposeToMcp = true)]
 public sealed class StatusCommand : ChatCommandBase
 {
     private readonly IClockService _clock = SystemClockService.Instance;
+    /// <summary>
+    /// 执行 /status 命令，渲染概览与 Token 用量双标签面板
+    /// </summary>
+    /// <param name="context">命令执行上下文，提供会话、服务与取消令牌</param>
+    /// <returns>表示命令执行结果的 <see cref="ChatCommandResult"/>，始终为 Continue</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var services = context.GetCommandServices();

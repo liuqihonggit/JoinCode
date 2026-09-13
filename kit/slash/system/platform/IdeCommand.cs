@@ -12,6 +12,11 @@ namespace JoinCode.ChatCommands;
 [ChatCommandArg("file_path", Type = "string", Description = "open 操作时打开的文件路径（可附 :行号）")]
 public sealed class IdeCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /ide 命令 — 根据子参数分发检测、连接、断开、打开文件、状态操作
+    /// </summary>
+    /// <param name="context">命令执行上下文，包含参数、会话 ID、取消令牌等</param>
+    /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var ideService = ChatCommandBase.GetService<IIdeIntegrationService>(context);

@@ -1,11 +1,21 @@
 
 namespace JoinCode.ChatCommands;
 
+/// <summary>
+/// /init 命令 — AI 驱动初始化项目配置文件
+/// 支持快速模式(骨架配置)和 AI 驱动模式(分析代码库生成详细规则)
+/// </summary>
 [ChatCommand(Name = ChatCommandNameConstants.Init, Description = "AI驱动初始化项目配置文件", Usage = "/init [quick]", Category = ChatCommandCategory.Config, ArgumentHint = "[quick]")]
 [ChatCommandArg("mode", Type = "string", Description = "初始化模式: quick=快速模式", Enum = new[] { "quick" })]
 public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : ChatCommandBase
 {
     private readonly IModelConfigLoader? _modelConfigLoader = modelConfigLoader;
+
+    /// <summary>
+    /// 执行 /init 命令 — 根据参数选择快速模式或 AI 驱动模式初始化项目配置
+    /// </summary>
+    /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
+    /// <returns>命令执行结果,始终返回 Continue 表示继续会话</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();

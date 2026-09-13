@@ -44,6 +44,12 @@ public sealed class ThemeCommand : ChatCommandBase
             .ToArray();
     }
 
+    /// <summary>
+    /// 执行 /theme 命令 — 切换控制台主题
+    /// 指定主题名时直接切换,show 或无参数时显示交互式主题选择器
+    /// </summary>
+    /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
+    /// <returns>命令执行结果,始终返回 Continue 表示继续会话</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetSplitArgs(context);

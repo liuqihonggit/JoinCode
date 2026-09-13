@@ -8,6 +8,11 @@ namespace JoinCode.ChatCommands;
 [ChatCommandArg("action", Type = "string", Description = "升级操作", Enum = new[] { "check", "force", "download", "apply", "auto" })]
 public sealed class UpgradeCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 执行 /upgrade 命令 — 根据子参数分发检查、强制检查、下载、应用、自动更新操作
+    /// </summary>
+    /// <param name="context">命令执行上下文，包含参数、服务容器、取消令牌等</param>
+    /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var upgradeService = context.Services?.GetService<IUpgradeService>();

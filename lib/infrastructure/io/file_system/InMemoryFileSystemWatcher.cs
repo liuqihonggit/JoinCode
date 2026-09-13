@@ -72,6 +72,11 @@ public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher
     /// <param name="filePath">文件路径</param>
     public void MarkInternalWrite(string filePath) => _debounce.MarkInternalWrite(filePath);
 
+    /// <summary>
+    /// 触发文件变更事件 — 由 InMemoryFileSystem 在文件变更时调用，经防抖和过滤后投递给订阅者
+    /// </summary>
+    /// <param name="fullPath">文件完整路径</param>
+    /// <param name="changeType">变更类型</param>
     internal void OnFileChanged(string fullPath, WatcherChangeTypes changeType)
     {
         if (!EnableRaisingEvents || _disposed) return;
@@ -98,6 +103,11 @@ public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher
         }
     }
 
+    /// <summary>
+    /// 触发文件重命名事件 — 由 InMemoryFileSystem 在文件重命名时调用，经防抖和过滤后投递给订阅者
+    /// </summary>
+    /// <param name="oldFullPath">原文件完整路径</param>
+    /// <param name="newFullPath">新文件完整路径</param>
     internal void OnFileRenamed(string oldFullPath, string newFullPath)
     {
         if (!EnableRaisingEvents || _disposed) return;

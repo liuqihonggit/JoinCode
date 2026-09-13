@@ -32,6 +32,12 @@ public sealed class TelemetrySpan : ITelemetrySpan
     /// <summary>是否仍在记录</summary>
     public bool IsRecording => !DisposableHelper.IsDisposed(ref _isDisposed) && _activity.IsAllDataRequested;
 
+    /// <summary>
+    /// 内部构造 — 由 TelemetryService.StartSpan 工厂调用
+    /// </summary>
+    /// <param name="activity">底层 Activity 实例</param>
+    /// <param name="kind">Span 类型</param>
+    /// <param name="service">所属遥测服务,用于释放时从活动 Span 表中移除</param>
     internal TelemetrySpan(Activity activity, TelemetrySpanKind kind, TelemetryService service)
     {
         _activity = activity;

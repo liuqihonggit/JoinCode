@@ -56,6 +56,7 @@ public sealed class RetryConfig
     /// </summary>
     public bool PauseBudgetOnNetworkUnavailable { get; init; } = true;
 
+    /// <summary>默认重试配置实例</summary>
     internal static readonly RetryConfig Default = new();
 }
 
@@ -73,6 +74,7 @@ public sealed class CircuitBreakerConfig
     /// <summary>半开状态最大探测请求数，默认 1</summary>
     public int HalfOpenMaxProbe { get; init; } = 1;
 
+    /// <summary>默认熔断器配置实例</summary>
     internal static readonly CircuitBreakerConfig Default = new();
 }
 
@@ -93,6 +95,7 @@ public sealed class HealthCheckConfig
     /// <summary>不健康处置动作，默认杀死并重启</summary>
     public UnhealthyAction Action { get; init; } = UnhealthyAction.KillAndRestart;
 
+    /// <summary>默认健康检查配置实例</summary>
     internal static readonly HealthCheckConfig Default = new();
 }
 

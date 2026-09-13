@@ -10,6 +10,11 @@ namespace JoinCode.ChatCommands;
 public sealed class StatsCommand : ChatCommandBase
 {
     private readonly IClockService _clock = SystemClockService.Instance;
+    /// <summary>
+    /// 执行统计命令,根据 scope 参数选择今日/累计/会话/7天/30天/全部统计模式并渲染输出
+    /// </summary>
+    /// <param name="context">命令执行上下文,提供参数、会话 ID 与命令服务</param>
+    /// <returns>表示命令执行结果的任务,始终返回 Continue 以继续会话</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetSplitArgs(context);

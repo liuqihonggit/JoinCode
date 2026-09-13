@@ -7,6 +7,11 @@ namespace JoinCode.ChatCommands;
 [ChatCommandArg("scope", Type = "string", Description = "差异范围", Enum = new[] { "files", "cached" })]
 public sealed class DiffCommand : ChatCommandBase
 {
+    /// <summary>
+    /// 异步执行 /diff 命令，浏览未提交变更或按轮次差异
+    /// </summary>
+    /// <param name="context">命令执行上下文</param>
+    /// <returns>命令执行结果</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         Diag.WriteLifecycle("[DIAG-DIFF] ExecuteAsync entry");

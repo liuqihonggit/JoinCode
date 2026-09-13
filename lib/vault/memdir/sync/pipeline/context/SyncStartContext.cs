@@ -54,6 +54,9 @@ public sealed class SyncStartContext : PipelineContextBase, INullCheckContext, I
 
     // === INullCheckContext ===
 
+    /// <summary>
+    /// 必填参数枚举 — 用于空检查中间件校验 FileSystem/FileOperationService/Options 是否非空。
+    /// </summary>
     public IEnumerable<(string Name, object? Value)> RequiredParameters =>
     [
         (nameof(FileSystem), FileSystem),
@@ -63,10 +66,17 @@ public sealed class SyncStartContext : PipelineContextBase, INullCheckContext, I
 
     // === IMetricsContext ===
 
+    /// <summary>指标前缀。</summary>
     public string MetricsPrefix => "sync.memory";
+    /// <summary>是否为成功指标。</summary>
     public bool IsMetricsSuccess => !Failed;
+    /// <summary>指标耗时(毫秒),此处未采集。</summary>
     public long? MetricsDurationMs => null;
 
+    /// <summary>
+    /// 构建指标标签字典。
+    /// </summary>
+    /// <returns>包含 operation 与 success 标签的字典。</returns>
     public Dictionary<string, string> BuildMetricsTags() => new()
     {
         ["operation"] = "start",

@@ -22,6 +22,12 @@ public sealed partial class AppStateSettingSyncService : ServiceEntity, IDisposa
         ["MainLoopModel"] = (state, value) => state with { Session = state.Session with { CurrentModel = value } },
     };
 
+    /// <summary>
+    /// 构造配置变更同步服务
+    /// </summary>
+    /// <param name="configurationService">配置服务，订阅其 SettingChanged 事件</param>
+    /// <param name="store">应用状态存储</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public AppStateSettingSyncService(
         IConfigurationService configurationService,
         IStore<AppState> store,
@@ -56,6 +62,9 @@ public sealed partial class AppStateSettingSyncService : ServiceEntity, IDisposa
         });
     }
 
+    /// <summary>
+    /// 取消订阅配置变更事件。
+    /// </summary>
     protected override void OnDispose()
     {
         _configurationService.SettingChanged -= OnSettingChanged;

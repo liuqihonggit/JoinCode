@@ -39,6 +39,12 @@ public sealed partial class MemoryRelevanceSelector : ServiceEntity, IMemoryRele
     private readonly ILogger<MemoryRelevanceSelector>? _logger;
     private readonly IClockService _clock;
 
+    /// <summary>
+    /// 构造记忆相关性选择器
+    /// </summary>
+    /// <param name="ageCalculator">记忆老化计算器</param>
+    /// <param name="logger">可选的日志记录器</param>
+    /// <param name="clock">可选的时钟服务,为 null 则使用系统时钟</param>
     public MemoryRelevanceSelector(
         IMemoryAgeCalculator ageCalculator,
         ILogger<MemoryRelevanceSelector>? logger = null,

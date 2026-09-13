@@ -8,6 +8,10 @@ namespace Memdir.Sync;
 public sealed partial class LocalScanMiddleware : ServiceEntity, ISyncStartMiddleware
 {
 
+    /// <summary>
+    /// 构造本地文件扫描中间件
+    /// </summary>
+    /// <param name="logger">可选的日志记录器</param>
     public LocalScanMiddleware(ILogger<LocalScanMiddleware>? logger = null)
     {
         _logger = logger;
@@ -15,6 +19,7 @@ public sealed partial class LocalScanMiddleware : ServiceEntity, ISyncStartMiddl
     private readonly ILogger<LocalScanMiddleware>? _logger;
 
 
+    /// <inheritdoc />
     public Task InvokeAsync(SyncStartContext ctx, MiddlewareDelegate<SyncStartContext> next, CancellationToken ct)
     {
         if (string.IsNullOrEmpty(ctx.Options.WatchPath) || !ctx.FileSystem.DirectoryExists(ctx.Options.WatchPath))

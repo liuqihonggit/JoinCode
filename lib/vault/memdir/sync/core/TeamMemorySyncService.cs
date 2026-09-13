@@ -1,23 +1,43 @@
 namespace Memdir.Sync;
 
+/// <summary>
+/// 团队记忆同步命令标记接口 — 所有同步管道命令实现此接口,由 Actor 邮箱串行处理。
+/// </summary>
 public interface ITeamMemorySyncCommand;
 
+/// <summary>启动同步命令。</summary>
 public sealed record StartSyncCmd(TaskCompletionSource Tcs) : ITeamMemorySyncCommand;
+/// <summary>停止同步命令。</summary>
 public sealed record StopSyncCmd(TaskCompletionSource Tcs) : ITeamMemorySyncCommand;
+/// <summary>同步指定文件或全部文件的命令。</summary>
 public sealed record SyncCmd(string? FilePath, TaskCompletionSource Tcs) : ITeamMemorySyncCommand;
+/// <summary>解决冲突命令 — 对指定文件应用给定解决策略。</summary>
 public sealed record ResolveConflictCmd(string FilePath, SyncConflictResolution Resolution, TaskCompletionSource<SyncConflictResolution> Tcs) : ITeamMemorySyncCommand;
+/// <summary>文件变更命令。</summary>
 public sealed record FileChangedCmd(string FilePath) : ITeamMemorySyncCommand;
+/// <summary>文件删除命令。</summary>
 public sealed record FileDeletedCmd(string FilePath) : ITeamMemorySyncCommand;
+/// <summary>文件重命名命令。</summary>
 public sealed record FileRenamedCmd(string OldPath, string NewPath) : ITeamMemorySyncCommand;
 
+/// <summary>
+/// 同步文件条目 — 描述文件路径、内容哈希、最后修改时间与来源(本地/远程)。
+/// </summary>
 public sealed partial class SyncFileEntry
 {
+    /// <summary>文件路径。</summary>
     public required string FilePath { get; init; }
+    /// <summary>内容哈希。</summary>
     public required string ContentHash { get; init; }
+    /// <summary>最后修改时间。</summary>
     public required DateTime LastModified { get; init; }
+    /// <summary>来源标识(local/remote)。</summary>
     public required string Source { get; init; }
 }
 
+/// <summary>
+/// 团队记忆同步服务实现 — 基于 Actor 邮箱模型串行处理同步命令,支持文件监控、自动同步、冲突解决与团队级状态查询。
+/// </summary>
 [Register(typeof(ITeamMemorySyncService), ServiceLifetime.Singleton)]
 public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCommand, Unit>, ITeamMemorySyncService
 {
@@ -42,6 +62,9 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
     private static TaskCompletionSource CreateTcs() => new(TaskCreationOptions.RunContinuationsAsynchronously);
     private static TaskCompletionSource<T> CreateTcs<T>() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+    /// <summary>
+    /// 构造函数 — 注入文件系统、文件操作服务、同步选项、日志、遥测、启动中间件链与时钟等依赖。
+    /// </summary>
     public TeamMemorySyncService(
         IFileSystem fs,
         IFileOperationService fileOperationService,
@@ -79,8 +102,10 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
         }
     }
 
+    /// <inheritdoc />
     public bool IsRunning => _isRunning;
 
+    /// <inheritdoc />
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         var tcs = CreateTcs();
@@ -88,6 +113,7 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
         await tcs.Task.ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         var tcs = CreateTcs();
@@ -95,6 +121,7 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
         await tcs.Task.ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public async Task SyncAsync(string? filePath = null, CancellationToken cancellationToken = default)
     {
         var tcs = CreateTcs();
@@ -102,9 +129,11 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
         await tcs.Task.ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public Task<IEnumerable<MemorySyncEvent>> GetSyncHistoryAsync(int limit = 100, CancellationToken cancellationToken = default)
         => Task.FromResult(_eventLog.GetRecent(limit));
 
+    /// <inheritdoc />
     public async Task<SyncConflictResolution> ResolveConflictAsync(string filePath, SyncConflictResolution resolution, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(filePath);
@@ -316,6 +345,9 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
         };
     }
 
+    /// <summary>
+    /// 处理同步命令 — 根据命令类型分发到启动、停止、同步、冲突解决与文件变更等处理分支。
+    /// </summary>
     protected override async ValueTask HandleAsync(ITeamMemorySyncCommand command, CancellationToken ct)
     {
         switch (command)
@@ -384,8 +416,14 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
         }
     }
 
+    /// <summary>
+    /// 处理消费者异常 — 空实现,异常由 Actor 基硎记录日志,不中断邮箱处理。
+    /// </summary>
     protected override void OnConsumerError(Exception ex) { }
 
+    /// <summary>
+    /// 释放同步服务 — 取消令牌、释放定时器与文件监控器,并等待异步释放完成。
+    /// </summary>
     public void Dispose()
     {
         if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0) return;
@@ -396,6 +434,9 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
         _disposeCts.Dispose();
     }
 
+    /// <summary>
+    /// 异步释放同步服务 — 取消令牌、释放定时器、文件监控器与文件传输器。
+    /// </summary>
     public override async ValueTask DisposeAsync()
     {
         if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0) return;

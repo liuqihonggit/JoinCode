@@ -11,6 +11,9 @@ public sealed partial class MemdirOptions : ServiceEntity
     /// </summary>
     public string StoragePath { get; set; } = AppDataConstants.Paths.MemdirDirectory;
 
+    /// <summary>
+    /// 默认构造函数 — 使用默认存储路径
+    /// </summary>
     public MemdirOptions() { }
 
     /// <summary>

@@ -32,6 +32,10 @@ public sealed partial class MemoryAgeCalculator : ServiceEntity, IMemoryAgeCalcu
 {
     private readonly MemoryAgeOptions _options;
 
+    /// <summary>
+    /// 构造记忆老化计算器
+    /// </summary>
+    /// <param name="options">老化计算选项,为 null 则使用默认选项</param>
     public MemoryAgeCalculator(MemoryAgeOptions? options = null)
     {
         _options = options ?? MemoryAgeOptions.Default;

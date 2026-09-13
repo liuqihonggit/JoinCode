@@ -1,5 +1,8 @@
 namespace State;
 
+/// <summary>
+/// 会话转录服务实现 — 负责将 TranscriptEntry 持久化到每会话子目录,支持加载、列表、删除、自定义标题与旧格式迁移。
+/// </summary>
 [Register(typeof(ITranscriptService), ServiceLifetime.Singleton)]
 public sealed partial class TranscriptService : ServiceEntity, ITranscriptService, IDisposable
 {
@@ -9,6 +12,14 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
     private readonly TranscriptFileWriter _writer;
     private readonly IFileSystem _fs;
 
+    /// <summary>
+    /// 构造函数 — 注入文件系统、会话目录、日志、时钟与粘贴存储等依赖。
+    /// </summary>
+    /// <param name="fs">文件系统抽象。</param>
+    /// <param name="sessionsDirectory">会话根目录,缺省时使用 AppData 下的 sessions 目录。</param>
+    /// <param name="logger">日志器。</param>
+    /// <param name="clock">时钟服务,缺省时使用系统时钟。</param>
+    /// <param name="pasteStore">粘贴内容存储。</param>
     public TranscriptService(IFileSystem fs, string? sessionsDirectory = null, ILogger<TranscriptService>? logger = null, IClockService? clock = null, IPasteStore? pasteStore = null)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
@@ -21,6 +32,7 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
         _writer = new TranscriptFileWriter(_fs, _sessionsDirectory, logger, pasteStore);
     }
 
+    /// <inheritdoc />
     public async Task AppendEntryAsync(string sessionId, TranscriptEntry entry, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
@@ -32,6 +44,7 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
         _logger?.LogDebug("Transcript entry appended for session {SessionId}", sessionId);
     }
 
+    /// <inheritdoc />
     public async Task AppendEntriesAsync(string sessionId, IReadOnlyList<TranscriptEntry> entries, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
@@ -44,6 +57,7 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
         await _writer.AppendEntriesAsync(filePath, entriesWithSessionId, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public async Task<IReadOnlyList<TranscriptEntry>> LoadTranscriptAsync(string sessionId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
@@ -51,6 +65,7 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
         return await _writer.LoadTranscriptAsync(filePath, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
     public async Task<IReadOnlyList<TranscriptSummary>> ListTranscriptsAsync(int limit = 20, CancellationToken cancellationToken = default)
     {
         if (!_fs.DirectoryExists(_sessionsDirectory))
@@ -135,6 +150,7 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
         }
     }
 
+    /// <inheritdoc />
     public Task<bool> DeleteTranscriptAsync(string sessionId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
@@ -158,6 +174,7 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
         }
     }
 
+    /// <inheritdoc />
     public Task<bool> TranscriptExistsAsync(string sessionId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
@@ -165,6 +182,7 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
         return Task.FromResult(_fs.FileExists(filePath));
     }
 
+    /// <inheritdoc />
     public async Task SaveCustomTitleAsync(string sessionId, string customTitle, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
@@ -184,6 +202,7 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
         _logger?.LogDebug("Custom title saved for session {SessionId}: {Title}", sessionId, customTitle);
     }
 
+    /// <inheritdoc />
     public async Task<string?> GetCustomTitleAsync(string sessionId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
@@ -374,5 +393,8 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
         }
     }
 
+    /// <summary>
+    /// 释放转录文件写入器资源。
+    /// </summary>
     protected override void OnDispose() => _writer.Dispose();
 }

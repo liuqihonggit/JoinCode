@@ -16,6 +16,15 @@ public class CompleteStepToolHandlers
         StepEvidenceKindConstants.Manual,
     ], StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// 记录一个已批准计划步骤的证据背书完成 — 强制模型在标记步骤完成时提供证据
+    /// </summary>
+    /// <param name="step">所完成的计划步骤标题或编号，需与任务列表匹配</param>
+    /// <param name="result">步骤完成后成立的事实或变更</param>
+    /// <param name="evidence">步骤完成的证据列表（至少一项，每项含 kind 与 summary，verification 需 command，diff/files 需 paths）</param>
+    /// <param name="notes">可选的注意事项、后续跟进或延期说明</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果，包含签收摘要或参数验证失败的诊断信息</returns>
     [McpTool(CompleteStepToolNameConstants.CompleteStep,
         "Record the evidence-backed completion of ONE step of an approved plan. Call it as you finish each step instead of silently moving on: it signs the step off with PROOF it is done — the verification you ran (command + result), the diff/files you changed, or a manual check. A completion with no evidence is REJECTED, so don't claim a step is done until you can show why. The host advances the task list for you when you sign off — it marks this step completed and moves the next to in_progress, so you don't need a separate TodoWrite to mark completions.",
         "todo")]

@@ -6,6 +6,13 @@
     <Description>JoinCode Vault 子系统 — 记忆目录、状态持久化、待办事项、通知、用户交互</Description>
   </PropertyGroup>
 
+  <!-- 强制 XML 文档注释完整:开启文档生成 + CS1591(缺少公开成员注释)升为错误 -->
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <DocumentationFile>$(OutputPath)$(AssemblyName).xml</DocumentationFile>
+    <NoWarn>$(NoWarn.Replace('CS1591;', '').Replace(';CS1591', '').Replace('CS1591', ''))</NoWarn>
+  </PropertyGroup>
+
   <PropertyGroup>
     <NoWarn>$(NoWarn);NU5104</NoWarn>
     <PackageId>JoinCode.Vault</PackageId>

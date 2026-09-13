@@ -1,5 +1,8 @@
 namespace State;
 
+/// <summary>
+/// Agent 转录服务 — 管理子 Agent 的转录条目与元数据的追加式读写
+/// </summary>
 [Register(typeof(JoinCode.Abstractions.Interfaces.IAgentTranscriptService), ServiceLifetime.Singleton)]
 public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentTranscriptService, IDisposable
 {
@@ -9,6 +12,13 @@ public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abs
     private readonly AsyncLock _metaLock = new();
     private readonly IFileSystem _fs;
 
+    /// <summary>
+    /// 构造 Agent 转录服务
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="sessionsDirectory">会话目录（可选，默认使用应用数据目录下的 sessions 子目录）</param>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="pasteStore">粘贴存储（可选，用于大内容外置存储）</param>
     public AgentTranscriptService(IFileSystem fs, string? sessionsDirectory = null, ILogger<AgentTranscriptService>? logger = null, IPasteStore? pasteStore = null)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
@@ -20,6 +30,7 @@ public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abs
         _writer = new TranscriptFileWriter(_fs, _sessionsDirectory, logger, pasteStore);
     }
 
+    /// <inheritdoc/>
     public async Task AppendEntryAsync(string sessionId, string agentId, TranscriptEntry entry, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
@@ -31,6 +42,7 @@ public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abs
         await _writer.AppendEntryAsync(filePath, entryWithMeta, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc/>
     public async Task AppendEntriesAsync(string sessionId, string agentId, IEnumerable<TranscriptEntry> entries, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
@@ -44,6 +56,7 @@ public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abs
         await _writer.AppendEntriesAsync(filePath, entriesWithMeta, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc/>
     public async Task<IEnumerable<TranscriptEntry>> LoadTranscriptAsync(string sessionId, string agentId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
@@ -53,6 +66,7 @@ public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abs
         return await _writer.LoadTranscriptAsync(filePath, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc/>
     public async Task SaveMetadataAsync(string sessionId, JoinCode.Abstractions.Interfaces.AgentMetadata metadata, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
@@ -72,6 +86,7 @@ public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abs
         }
     }
 
+    /// <inheritdoc/>
     public async Task<JoinCode.Abstractions.Interfaces.AgentMetadata?> LoadMetadataAsync(string sessionId, string agentId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
@@ -94,6 +109,7 @@ public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abs
         }
     }
 
+    /// <inheritdoc/>
     public async Task<IEnumerable<JoinCode.Abstractions.Interfaces.AgentMetadata>> ListMetadataAsync(string sessionId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
@@ -158,6 +174,7 @@ public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abs
         DirectoryHelper.EnsureDirectoryExists(_fs, dir);
     }
 
+    /// <inheritdoc/>
     protected override void OnDispose()
     {
         _writer.Dispose();

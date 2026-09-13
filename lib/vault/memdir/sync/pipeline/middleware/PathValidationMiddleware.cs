@@ -8,6 +8,7 @@ namespace Memdir.Sync;
 public sealed partial class PathValidationMiddleware : ServiceEntity, ISyncStartMiddleware
 {
 
+    /// <inheritdoc />
     public Task InvokeAsync(SyncStartContext ctx, MiddlewareDelegate<SyncStartContext> next, CancellationToken ct)
     {
         if (string.IsNullOrEmpty(ctx.Options.WatchPath))

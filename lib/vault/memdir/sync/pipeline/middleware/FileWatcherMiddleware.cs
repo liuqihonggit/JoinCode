@@ -8,6 +8,7 @@ namespace Memdir.Sync;
 public sealed partial class FileWatcherMiddleware : ServiceEntity, ISyncStartMiddleware
 {
 
+    /// <inheritdoc />
     public Task InvokeAsync(SyncStartContext ctx, MiddlewareDelegate<SyncStartContext> next, CancellationToken ct)
     {
         if (!ctx.Options.EnableFileWatching)

@@ -6,9 +6,21 @@ namespace State;
 /// </summary>
 public sealed class StateChangedEventArgs<TState> where TState : notnull
 {
+    /// <summary>
+    /// 变更前的旧状态
+    /// </summary>
     public TState OldState { get; }
+
+    /// <summary>
+    /// 变更后的新状态
+    /// </summary>
     public TState NewState { get; }
 
+    /// <summary>
+    /// 构造状态变更事件参数
+    /// </summary>
+    /// <param name="oldState">变更前的旧状态</param>
+    /// <param name="newState">变更后的新状态</param>
     public StateChangedEventArgs(TState oldState, TState newState)
     {
         OldState = oldState;
@@ -21,6 +33,10 @@ public sealed class StateChangedEventArgs<TState> where TState : notnull
 /// </summary>
 public interface IStateSubscriber<TState> where TState : notnull
 {
+    /// <summary>
+    /// 状态变更回调方法
+    /// </summary>
+    /// <param name="args">状态变更事件参数</param>
     void OnStateChanged(StateChangedEventArgs<TState> args);
 }
 

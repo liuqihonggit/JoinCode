@@ -41,6 +41,12 @@ public sealed partial class MemoryScanner : ServiceEntity, IMemoryScanner
     private readonly ILogger<MemoryScanner>? _logger;
     private readonly IFileSystem _fs;
 
+    /// <summary>
+    /// 创建记忆扫描器实例
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="memoryPaths">记忆路径解析器</param>
+    /// <param name="logger">可选的日志记录器</param>
     public MemoryScanner(IFileSystem fs, IMemoryPaths memoryPaths, ILogger<MemoryScanner>? logger = null)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
@@ -141,8 +147,10 @@ public sealed partial class MemoryScanner : ServiceEntity, IMemoryScanner
     }
 
     /// <summary>
-    /// 索引记忆（建立快速查找索引）
+    /// 索引记忆(建立快速查找索引)
     /// </summary>
+    /// <param name="memories">待索引的记忆条目集合</param>
+    /// <returns>构建完成的记忆索引</returns>
     public MemoryIndex BuildIndex(IEnumerable<MemoryEntry> memories)
     {
         var index = new MemoryIndex();

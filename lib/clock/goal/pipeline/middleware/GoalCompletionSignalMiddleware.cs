@@ -8,6 +8,7 @@ namespace Core.Goal;
 public sealed partial class GoalCompletionSignalMiddleware : ServiceEntity, IGoalLifecycleMiddleware
 {
 
+    /// <inheritdoc />
     public Task InvokeAsync(GoalLifecycleContext ctx, MiddlewareDelegate<GoalLifecycleContext> next, CancellationToken ct)
     {
         switch (ctx.Operation)

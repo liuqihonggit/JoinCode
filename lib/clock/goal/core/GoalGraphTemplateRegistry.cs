@@ -8,12 +8,14 @@ public sealed class GoalGraphTemplateRegistry : ServiceEntity, IGoalGraphTemplat
 {
     private readonly ConcurrentDictionary<string, GoalGraphTemplate> _templates = new(StringComparer.Ordinal);
 
+    /// <inheritdoc />
     public void Register(GoalGraphTemplate template)
     {
         ArgumentNullException.ThrowIfNull(template);
         _templates.TryAdd(template.Name, template);
     }
 
+    /// <inheritdoc />
     public GoalGraphTemplate? FindMatch(string objective)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(objective);
@@ -25,5 +27,6 @@ public sealed class GoalGraphTemplateRegistry : ServiceEntity, IGoalGraphTemplat
         return null;
     }
 
+    /// <inheritdoc />
     public IEnumerable<GoalGraphTemplate> GetAll() => _templates.Values;
 }

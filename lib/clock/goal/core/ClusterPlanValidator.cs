@@ -1,12 +1,16 @@
 namespace Core.Goal;
 
 
+/// <summary>
+/// 集群计划校验器 — 校验分解计划的子任务数量、依赖关系、文件归属等合法性
+/// </summary>
 [Register(typeof(IClusterPlanValidator), ServiceLifetime.Singleton)]
 public sealed partial class ClusterPlanValidator : ServiceEntity, IClusterPlanValidator
 {
     private const int MaxSubTasks = 8;
     private const int MaxFileOverlap = 2;
 
+    /// <inheritdoc />
     public ClusterPlanValidationResult Validate(ClusterPlan plan)
     {
         ArgumentNullException.ThrowIfNull(plan);

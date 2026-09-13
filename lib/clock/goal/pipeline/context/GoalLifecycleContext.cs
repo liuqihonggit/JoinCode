@@ -6,11 +6,17 @@ namespace Core.Goal;
 /// </summary>
 public enum GoalOperation
 {
+    /// <summary>启动目标</summary>
     Start,
+    /// <summary>暂停目标</summary>
     Pause,
+    /// <summary>恢复目标</summary>
     Resume,
+    /// <summary>清除目标</summary>
     Clear,
+    /// <summary>标记目标完成</summary>
     MarkCompleted,
+    /// <summary>标记目标未完成</summary>
     MarkUnmet
 }
 

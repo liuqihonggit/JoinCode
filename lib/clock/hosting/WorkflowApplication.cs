@@ -16,6 +16,15 @@ public sealed partial class WorkflowApplication : IAsyncDisposable
     private DateTime _startedAt;
     private int _disposed;
 
+    /// <summary>
+    /// 构造 WorkflowApplication — 注入可选日志、Cron 任务存储、通知服务与时钟
+    /// </summary>
+    /// <param name="hostLogger">服务主机日志记录器，可选</param>
+    /// <param name="cronTaskStore">Cron 任务存储，可选</param>
+    /// <param name="notificationService">通知服务，可选</param>
+    /// <param name="cronLogger">Cron 调度器日志记录器，可选</param>
+    /// <param name="logger">应用程序日志记录器，可选</param>
+    /// <param name="clock">时钟服务，可选，缺省使用系统时钟</param>
     public WorkflowApplication(
         ILogger<ServiceHost>? hostLogger = null,
         ICronTaskStore? cronTaskStore = null,
@@ -173,6 +182,9 @@ public sealed partial class WorkflowApplication : IAsyncDisposable
             }), CancellationToken.None);
     }
 
+    /// <summary>
+    /// 异步释放 — 停止应用、解绑事件并释放服务主机与消息总线
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
@@ -188,11 +200,17 @@ public sealed partial class WorkflowApplication : IAsyncDisposable
 /// </summary>
 public sealed record ApplicationStatusReport
 {
+    /// <summary>应用是否正在运行</summary>
     public required bool IsRunning { get; init; }
+    /// <summary>服务总数</summary>
     public required int ServiceCount { get; init; }
+    /// <summary>运行中服务数</summary>
     public required int RunningServices { get; init; }
+    /// <summary>失败服务数</summary>
     public required int FailedServices { get; init; }
+    /// <summary>各服务状态名称字典</summary>
     public required Dictionary<string, string> ServiceStatuses { get; init; }
+    /// <summary>启动时间</summary>
     public DateTime Uptime { get; init; }
 }
 
@@ -201,9 +219,14 @@ public sealed record ApplicationStatusReport
 /// </summary>
 public sealed partial class ServiceStatusChangePayload
 {
+    /// <summary>服务名称</summary>
     public required string ServiceName { get; init; }
+    /// <summary>旧状态名称</summary>
     public required string OldStatus { get; init; }
+    /// <summary>新状态名称</summary>
     public required string NewStatus { get; init; }
+    /// <summary>附加消息，可选</summary>
     public string? Message { get; init; }
+    /// <summary>错误消息，可选</summary>
     public string? ErrorMessage { get; init; }
 }

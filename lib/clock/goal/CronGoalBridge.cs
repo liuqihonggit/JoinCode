@@ -1,6 +1,9 @@
 
 namespace Core.Goal;
 
+/// <summary>
+/// Cron 任务与 Goal 引擎的桥接服务 — 将定时任务触发转换为 Goal 引擎启动
+/// </summary>
 public sealed partial class CronGoalBridge : IAsyncDisposable
 {
     private readonly IGoalEngine _goalEngine;
@@ -10,8 +13,16 @@ public sealed partial class CronGoalBridge : IAsyncDisposable
     private readonly CronScheduler _scheduler;
     private int _disposed;
 
+    /// <summary>桥接服务是否已启动</summary>
     public bool IsStarted { get; private set; }
 
+    /// <summary>
+    /// 构造 CronGoalBridge — 注入任务存储、目标引擎、可选 Agent 定义提供器与日志记录器
+    /// </summary>
+    /// <param name="taskStore">Cron 任务存储</param>
+    /// <param name="goalEngine">目标引擎</param>
+    /// <param name="agentDefinitionProvider">可选 Agent 定义提供器，用于自动注册后台 Agent 的 Cron 任务</param>
+    /// <param name="logger">可选日志记录器</param>
     public CronGoalBridge(ICronTaskStore taskStore, IGoalEngine goalEngine, IAgentDefinitionProvider? agentDefinitionProvider = null, ILogger<CronGoalBridge>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(taskStore);
@@ -52,6 +63,10 @@ public sealed partial class CronGoalBridge : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// 启动桥接服务 — 注册后台 Agent Cron 任务并启动调度器
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
     public async Task StartAsync(CancellationToken ct = default)
     {
         if (IsStarted) return;
@@ -113,6 +128,10 @@ public sealed partial class CronGoalBridge : IAsyncDisposable
     private static string BuildBackgroundAgentPrompt(JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition agent) =>
         $"使用 {agent.DisplayId} Agent 执行后台维护任务：{agent.WhenToUse}";
 
+    /// <summary>
+    /// 停止桥接服务 — 停止调度器并标记为未启动
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
     public async Task StopAsync(CancellationToken ct = default)
     {
         if (!IsStarted) return;
@@ -122,6 +141,9 @@ public sealed partial class CronGoalBridge : IAsyncDisposable
         _logger?.LogInformation("[CronGoal] 桥接服务已停止");
     }
 
+    /// <summary>
+    /// 异步释放 — 释放调度器并标记为未启动
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;

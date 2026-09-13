@@ -11,12 +11,18 @@ public sealed class GoalUserInteractionService : ServiceEntity, IGoalUserInterac
     private readonly IInteractiveService _interactiveService;
     private readonly ILogger<GoalUserInteractionService>? _logger;
 
+    /// <summary>
+    /// 构造 GoalUserInteractionService — 注入交互服务与可选日志记录器
+    /// </summary>
+    /// <param name="interactiveService">底层用户交互服务</param>
+    /// <param name="logger">可选日志记录器</param>
     public GoalUserInteractionService(IInteractiveService interactiveService, ILogger<GoalUserInteractionService>? logger = null)
     {
         _interactiveService = interactiveService;
         _logger = logger;
     }
 
+    /// <inheritdoc />
     public async Task<GoalUserDecision> AskToContinueAsync(
         string question,
         int negativeReviewCount,

@@ -14,10 +14,19 @@ public sealed partial class CronSchedulerService : IWorkflowService, IAsyncDispo
     private CancellationTokenSource? _cts;
     private int _disposed;
 
+    /// <summary>服务名称</summary>
     public string ServiceName => "CronScheduler";
 
+    /// <summary>服务当前状态</summary>
     public ServiceStatus Status { get; private set; } = ServiceStatus.Stopped;
 
+    /// <summary>
+    /// 构造 CronSchedulerService — 注入任务存储、消息总线、可选通知服务与日志记录器
+    /// </summary>
+    /// <param name="taskStore">Cron 任务存储</param>
+    /// <param name="messageBus">服务消息总线</param>
+    /// <param name="notificationService">可选通知服务</param>
+    /// <param name="logger">可选日志记录器</param>
     public CronSchedulerService(
         ICronTaskStore taskStore,
         ServiceMessageBus messageBus,
@@ -31,6 +40,10 @@ public sealed partial class CronSchedulerService : IWorkflowService, IAsyncDispo
         _logger = logger;
     }
 
+    /// <summary>
+    /// 启动 Cron 调度服务 — 初始化调度器并开始后台调度
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         if (Status == ServiceStatus.Running)
@@ -77,6 +90,10 @@ public sealed partial class CronSchedulerService : IWorkflowService, IAsyncDispo
         _logger?.LogInformation(L.T(StringKey.CronSchedulerStarted));
     }
 
+    /// <summary>
+    /// 停止 Cron 调度服务 — 停止并释放调度器
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (Status != ServiceStatus.Running)
@@ -101,6 +118,9 @@ public sealed partial class CronSchedulerService : IWorkflowService, IAsyncDispo
         _logger?.LogInformation(L.T(StringKey.CronSchedulerStopped));
     }
 
+    /// <summary>
+    /// 异步释放 — 停止服务并释放取消令牌
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
@@ -122,7 +142,10 @@ public sealed partial class CronSchedulerService : IWorkflowService, IAsyncDispo
 /// </summary>
 public sealed record CronTaskFiredEvent
 {
+    /// <summary>任务 ID</summary>
     public required string TaskId { get; init; }
+    /// <summary>任务提示词</summary>
     public required string Prompt { get; init; }
+    /// <summary>Cron 表达式</summary>
     public required string CronExpression { get; init; }
 }

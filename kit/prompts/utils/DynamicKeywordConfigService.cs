@@ -19,6 +19,11 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
     /// </summary>
     private const string ConfigFileName = "keyword-sections.json";
 
+    /// <summary>
+    /// 构造动态关键词配置服务 — 加载配置文件并启动文件变更监控。
+    /// </summary>
+    /// <param name="fs">文件系统抽象。</param>
+    /// <param name="logger">日志记录器，可为 null。</param>
     public DynamicKeywordConfigService(IFileSystem fs, ILogger<DynamicKeywordConfigService>? logger = null)
     {
         _fs = fs;
@@ -111,6 +116,9 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
     
     }
 
+    /// <summary>
+    /// 释放托管资源，停止文件监听并清理配置缓存。
+    /// </summary>
     protected override void OnDispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1)

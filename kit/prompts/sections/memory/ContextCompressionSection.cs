@@ -5,6 +5,9 @@ namespace Core.Prompts.Sections;
 /// </summary>
 [PromptSection(Name = "context_compression", Order = 6)]
 public static class ContextCompressionSection {
+    /// <summary>
+    /// 创建 context_compression 提示词部分。
+    /// </summary>
     public static SystemPromptSection Create() {
         return SystemPromptSection.Cached("context_compression", () => {
             return """

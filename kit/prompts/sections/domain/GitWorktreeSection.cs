@@ -7,6 +7,9 @@ namespace Core.Prompts.Sections;
 [PromptSection(Name = "git_worktree", Order = 72)]
 public static class GitWorktreeSection
 {
+    /// <summary>
+    /// 获取 git_worktree 部分内容；工作树隔离说明，非 worktree 时返回 null。
+    /// </summary>
     public static string? GetContent()
     {
         var isWorktree = PromptConfigSnapshot.Current.IsGitWorktree;
@@ -24,6 +27,9 @@ public static class GitWorktreeSection
 """;
     }
 
+    /// <summary>
+    /// 创建 git_worktree 提示词部分。
+    /// </summary>
     public static SystemPromptSection Create() =>
         SystemPromptSection.Dynamic("git_worktree", GetContent);
 }

@@ -8,11 +8,19 @@ public sealed class ModelInfoSection
 {
     private readonly IModelConfigLoader _modelConfigLoader;
 
+    /// <summary>
+    /// 初始化 <see cref="ModelInfoSection"/> 实例。
+    /// </summary>
+    /// <param name="modelConfigLoader">模型配置加载器。</param>
     public ModelInfoSection(IModelConfigLoader modelConfigLoader)
     {
         _modelConfigLoader = modelConfigLoader;
     }
 
+    /// <summary>
+    /// 获取模型信息部分的内容。
+    /// </summary>
+    /// <returns>模型信息文本；未设置模型 ID 时返回 <c>null</c>。</returns>
     public string? GetContent()
     {
         var modelId = PromptConfigSnapshot.Current.ModelId;
@@ -36,6 +44,10 @@ public sealed class ModelInfoSection
             """;
     }
 
+    /// <summary>
+    /// 创建模型信息提示词部分。
+    /// </summary>
+    /// <returns>动态系统提示词部分。</returns>
     public static SystemPromptSection Create() =>
         SystemPromptSection.Dynamic("model_info", () => new ModelInfoSection(new ModelConfigLoader()).GetContent());
 

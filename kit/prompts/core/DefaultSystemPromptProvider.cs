@@ -8,6 +8,14 @@ public sealed partial class DefaultSystemPromptProvider : ServiceEntity, ISystem
 {
     private readonly SystemPromptProviderOptions _options;
 
+    /// <summary>
+    /// 初始化 <see cref="DefaultSystemPromptProvider"/> 实例。
+    /// </summary>
+    /// <param name="fs">文件系统抽象。</param>
+    /// <param name="options">系统提示词提供者配置选项。</param>
+    /// <param name="briefModeService">简短模式服务（可选，已被 options.BriefModeService 覆盖）。</param>
+    /// <param name="clock">时钟服务（可选，已被 options.Clock 覆盖）。</param>
+    /// <param name="logger">日志器。</param>
     public DefaultSystemPromptProvider(IFileSystem fs, SystemPromptProviderOptions options, IBriefModeService? briefModeService = null, IClockService? clock = null, ILogger<DefaultSystemPromptProvider>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(fs);
@@ -52,6 +60,10 @@ public sealed partial class DefaultSystemPromptProvider : ServiceEntity, ISystem
         };
     }
 
+    /// <summary>
+    /// 获取所有系统提示词部分，按运行模式组合返回。
+    /// </summary>
+    /// <returns>系统提示词部分的可枚举序列。</returns>
     public IEnumerable<SystemPromptSection> GetSections()
     {
         PromptConfigSnapshot.SetCurrent(_options);

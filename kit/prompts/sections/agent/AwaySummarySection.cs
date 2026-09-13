@@ -1,8 +1,14 @@
 namespace Core.Prompts.Sections;
 
+/// <summary>
+/// 用户离开期间活动摘要的提示词部分。
+/// </summary>
 [PromptSection(Name = "away_summary", Order = 51)]
 public static class AwaySummarySection
 {
+    /// <summary>
+    /// 获取 away_summary 部分内容；用户离开期间的活动摘要，无摘要时返回 null。
+    /// </summary>
     public static string? GetContent()
     {
         var summary = PromptConfigSnapshot.Current.AwaySummary;
@@ -16,6 +22,9 @@ public static class AwaySummarySection
 """;
     }
 
+    /// <summary>
+    /// 创建 away_summary 提示词部分。
+    /// </summary>
     public static SystemPromptSection Create() =>
         SystemPromptSection.Dynamic("away_summary", GetContent);
 }

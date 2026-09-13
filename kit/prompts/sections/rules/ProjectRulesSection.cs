@@ -6,6 +6,9 @@ namespace Core.Prompts.Sections;
 /// </summary>
 [PromptSection(Name = "project_rules", Order = 7)]
 public static class ProjectRulesSection {
+    /// <summary>
+    /// 获取 project_rules 部分内容；项目配置文件加载的规则，未配置时返回 null。
+    /// </summary>
     public static string? GetContent() {
         var projectRules = PromptConfigSnapshot.Current.ProjectRules;
         if (string.IsNullOrWhiteSpace(projectRules)) {
@@ -23,6 +26,9 @@ public static class ProjectRulesSection {
 """;
     }
 
+    /// <summary>
+    /// 创建 project_rules 提示词部分。
+    /// </summary>
     public static SystemPromptSection Create() =>
         SystemPromptSection.Cached("project_rules", GetContent);
 }

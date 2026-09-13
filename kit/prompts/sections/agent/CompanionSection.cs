@@ -37,6 +37,9 @@ public static class CompanionSection
 ";
     }
 
+    /// <summary>
+    /// 创建 companion 提示词部分。
+    /// </summary>
     public static SystemPromptSection Create() =>
         SystemPromptSection.Dynamic("companion", GetContent);
 }

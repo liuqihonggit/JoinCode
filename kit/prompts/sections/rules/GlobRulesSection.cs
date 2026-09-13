@@ -1,8 +1,14 @@
 namespace Core.Prompts.Sections;
 
+/// <summary>
+/// 基于 glob 模式匹配的文件相关规则的提示词部分。
+/// </summary>
 [PromptSection(Name = "glob_rules", Order = 78, IsDynamic = true)]
 public static class GlobRulesSection
 {
+    /// <summary>
+    /// 获取 glob_rules 部分内容；基于 glob 模式匹配的文件相关规则，无匹配时返回 null。
+    /// </summary>
     public static string? GetContent()
     {
         var externalRules = PromptConfigSnapshot.Current.ExternalRules;
@@ -64,6 +70,9 @@ public static class GlobRulesSection
         return sb.ToString();
     }
 
+    /// <summary>
+    /// 创建 glob_rules 提示词部分。
+    /// </summary>
     public static SystemPromptSection Create() =>
         SystemPromptSection.Dynamic("glob_rules", GetContent);
 

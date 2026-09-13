@@ -12,6 +12,11 @@ public sealed partial class PromptSuggestionCallback : ServiceEntity, IPostSampl
     private readonly IForkSubAgentManager? _forkManager;
     private readonly ILogger<PromptSuggestionCallback>? _logger;
 
+    /// <summary>
+    /// 构造提示词建议回调。
+    /// </summary>
+    /// <param name="forkManager">子智能体分叉管理器，可选。</param>
+    /// <param name="logger">日志记录器，可选。</param>
     public PromptSuggestionCallback(
         IForkSubAgentManager? forkManager = null,
         ILogger<PromptSuggestionCallback>? logger = null)
@@ -20,6 +25,11 @@ public sealed partial class PromptSuggestionCallback : ServiceEntity, IPostSampl
         _logger = logger;
     }
 
+    /// <summary>
+    /// 采样后回调入口 — 在主线程查询结束后生成提示词建议。
+    /// </summary>
+    /// <param name="context">采样后上下文。</param>
+    /// <returns>表示异步操作的任务。</returns>
     public async Task OnPostSamplingAsync(PostSamplingContext context)
     {
         if (context.QuerySource != "repl_main_thread") return;

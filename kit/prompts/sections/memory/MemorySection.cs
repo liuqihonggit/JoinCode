@@ -6,6 +6,9 @@ namespace Core.Prompts.Sections;
 [PromptSection(Name = "memory", Order = 77, IsDynamic = true)]
 public static class MemorySection
 {
+    /// <summary>
+    /// 异步获取 memory 部分内容；包含记忆、助手日志与搜索历史。
+    /// </summary>
     public static async Task<string?> GetContentAsync()
     {
         var fs = PromptConfigSnapshot.Current.FileSystem;
@@ -86,6 +89,9 @@ public static class MemorySection
         return sb.ToString();
     }
 
+    /// <summary>
+    /// 创建 memory 提示词部分。
+    /// </summary>
     public static SystemPromptSection Create() =>
         SystemPromptSection.Dynamic("memory", GetContentAsync);
 

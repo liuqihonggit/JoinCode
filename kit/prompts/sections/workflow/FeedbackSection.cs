@@ -5,6 +5,10 @@ namespace Core.Prompts.Sections;
 /// </summary>
 [PromptSection(Name = "feedback", Order = 26)]
 public static class FeedbackSection {
+    /// <summary>
+    /// 获取反馈部分的提示词内容。根据配置拼接反馈渠道与默认指导。
+    /// </summary>
+    /// <returns>反馈指导文本；若无任何反馈项则返回 null。</returns>
     public static string? GetContent() {
         var issuesExplainer = PromptConfigSnapshot.Current.IssuesExplainer;
         var feedbackChannel = PromptConfigSnapshot.Current.FeedbackChannel;
@@ -35,6 +39,10 @@ public static class FeedbackSection {
         return result.ToString().TrimEnd();
     }
 
+    /// <summary>
+    /// 创建反馈 Section 实例（内容缓存）。
+    /// </summary>
+    /// <returns>反馈 Section 实例。</returns>
     public static SystemPromptSection Create() =>
         SystemPromptSection.Cached("feedback", GetContent);
 }

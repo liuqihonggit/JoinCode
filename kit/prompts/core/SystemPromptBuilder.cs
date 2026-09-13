@@ -10,6 +10,11 @@ public sealed partial class SystemPromptBuilder : ServiceEntity {
     private readonly Dictionary<string, string?> _dynamicCache = [];
     private readonly ILogger<SystemPromptBuilder>? _logger;
 
+    /// <summary>
+    /// 初始化 <see cref="SystemPromptBuilder"/> 实例。
+    /// </summary>
+    /// <param name="logger">可选日志器。</param>
+    /// <param name="provider">可选系统提示词提供者，非空时自动追加其全部部分。</param>
     public SystemPromptBuilder(ILogger<SystemPromptBuilder>? logger = null, ISystemPromptProvider? provider = null) {
         _logger = logger;
         if (provider is not null)

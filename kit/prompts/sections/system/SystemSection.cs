@@ -5,6 +5,10 @@ namespace Core.Prompts.Sections;
 /// </summary>
 [PromptSection(Name = "system", Order = 3)]
 public static class SystemSection {
+    /// <summary>
+    /// 创建核心系统规则提示词部分。
+    /// </summary>
+    /// <returns>缓存系统提示词部分。</returns>
     public static SystemPromptSection Create() {
         return SystemPromptSection.Cached("system", () => {
             var items = new[] {

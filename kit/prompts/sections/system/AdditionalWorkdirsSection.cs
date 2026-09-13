@@ -7,6 +7,10 @@ namespace Core.Prompts.Sections;
 [PromptSection(Name = "additional_workdirs", Order = 73, IsDynamic = true)]
 public static class AdditionalWorkdirsSection
 {
+    /// <summary>
+    /// 获取额外工作目录部分的内容。
+    /// </summary>
+    /// <returns>额外工作目录说明文本；无额外目录时返回 <c>null</c>。</returns>
     public static string? GetContent()
     {
         var dirs = PromptConfigSnapshot.Current.AdditionalWorkdirs.ToList();
@@ -26,6 +30,10 @@ public static class AdditionalWorkdirsSection
         return result.ToString().TrimEnd();
     }
 
+    /// <summary>
+    /// 创建额外工作目录提示词部分。
+    /// </summary>
+    /// <returns>动态系统提示词部分。</returns>
     public static SystemPromptSection Create() =>
         SystemPromptSection.Dynamic("additional_workdirs", GetContent);
 }

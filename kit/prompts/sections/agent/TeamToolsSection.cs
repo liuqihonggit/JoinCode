@@ -6,6 +6,9 @@ namespace Core.Prompts.Sections;
 [PromptSection(Name = "team_tools", Order = 13)]
 public static class TeamToolsSection
 {
+    /// <summary>
+    /// 获取 team_tools 部分内容；拼接团队创建/删除与消息发送工具的使用指南。
+    /// </summary>
     public static string? GetContent()
     {
         var hasTeamTools = PromptConfigSnapshot.Current.HasTeamTools;
@@ -32,6 +35,9 @@ public static class TeamToolsSection
         return sb.ToString();
     }
 
+    /// <summary>
+    /// 创建 team_tools 提示词部分。
+    /// </summary>
     public static SystemPromptSection Create() =>
         SystemPromptSection.Dynamic("team_tools", GetContent);
 }

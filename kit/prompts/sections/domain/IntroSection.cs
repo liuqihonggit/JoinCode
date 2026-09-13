@@ -5,6 +5,9 @@ namespace Core.Prompts.Sections;
 /// </summary>
 [PromptSection(Name = "intro", Order = 1)]
 public static class IntroSection {
+    /// <summary>
+    /// 获取 intro 部分内容；AI 助手身份定义，有自定义介绍时返回自定义内容。
+    /// </summary>
     public static string? GetContent() {
         var customIntro = PromptConfigSnapshot.Current.CustomIntro;
         if (!string.IsNullOrWhiteSpace(customIntro)) {
@@ -18,6 +21,9 @@ public static class IntroSection {
 """;
     }
 
+    /// <summary>
+    /// 创建 intro 提示词部分。
+    /// </summary>
     public static SystemPromptSection Create() =>
         SystemPromptSection.Cached("intro", GetContent);
 }

@@ -7,6 +7,10 @@ namespace Core.Prompts.Sections;
 [PromptSection(Name = "token_budget", Order = 50)]
 public static class TokenBudgetSection
 {
+    /// <summary>
+    /// 获取 Token 预算部分的提示词内容。
+    /// </summary>
+    /// <returns>Token 预算指导文本；始终非空。</returns>
     public static string? GetContent()
     {
         // 即使没有活跃的预算，也保留这个section，因为"当用户指定..."的措辞使其在没有预算时成为无操作
@@ -19,6 +23,10 @@ public static class TokenBudgetSection
 """;
     }
 
+    /// <summary>
+    /// 创建 Token 预算 Section 实例（内容缓存）。
+    /// </summary>
+    /// <returns>Token 预算 Section 实例。</returns>
     public static SystemPromptSection Create() =>
         SystemPromptSection.Cached("token_budget", GetContent);
 }

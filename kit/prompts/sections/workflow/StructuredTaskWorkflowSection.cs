@@ -1,5 +1,8 @@
 namespace Core.Prompts.Sections;
 
+/// <summary>
+/// 结构化任务工作流部分 — 当用户输入包含任务关键词时注入，指导按五步工作流执行任务。
+/// </summary>
 [PromptSection(
     Name = "structured_task_workflow",
     Keywords = new[] { "修改", "实现", "重构", "修复", "添加", "更改", "变更", "改造", "改动", "调整", "modify", "implement", "refactor", "fix", "add", "change" },
@@ -7,6 +10,10 @@ namespace Core.Prompts.Sections;
     Order = 64)]
 public static class StructuredTaskWorkflowSection
 {
+    /// <summary>
+    /// 获取结构化任务工作流的提示词内容。
+    /// </summary>
+    /// <returns>结构化任务工作流提示词文本。</returns>
     public static string GetContent()
     {
         return """
@@ -53,6 +60,10 @@ b. 每一个小任务都写入git提交，并且要把自主决策写入提交�
 """;
     }
 
+    /// <summary>
+    /// 创建结构化任务工作流 Section 实例（内容缓存）。
+    /// </summary>
+    /// <returns>结构化任务工作流 Section 实例。</returns>
     public static SystemPromptSection Create()
     {
         return SystemPromptSection.Cached("structured_task_workflow", GetContent);

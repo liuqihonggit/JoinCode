@@ -8,6 +8,10 @@ public sealed class PromptTriggerTester
     private readonly TriggerConditionMapper _conditionMapper = new();
     private readonly IFileSystem _fs;
 
+    /// <summary>
+    /// 初始化 <see cref="PromptTriggerTester"/> 的新实例。
+    /// </summary>
+    /// <param name="fs">文件系统抽象。</param>
     public PromptTriggerTester(IFileSystem fs)
     {
         _fs = fs;

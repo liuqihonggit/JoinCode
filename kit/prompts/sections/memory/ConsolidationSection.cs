@@ -1,5 +1,8 @@
 namespace Core.Prompts.Sections;
 
+/// <summary>
+/// 归纳整合指导的提示词部分；关键词触发注入。
+/// </summary>
 [PromptSection(
     Name = "consolidation",
     Keywords = new[] { "归纳", "合并", "整理", "整合", "统一", "合并到", "归类", "收拢", "consolidate", "merge", "unify", "integrate" },
@@ -7,6 +10,9 @@ namespace Core.Prompts.Sections;
     Order = 63)]
 public static class ConsolidationSection
 {
+    /// <summary>
+    /// 获取 consolidation 部分内容；归纳整合指导文本。
+    /// </summary>
     public static string GetContent()
     {
         return """
@@ -18,6 +24,9 @@ public static class ConsolidationSection
 """;
     }
 
+    /// <summary>
+    /// 创建 consolidation 提示词部分。
+    /// </summary>
     public static SystemPromptSection Create()
     {
         return SystemPromptSection.Cached("consolidation", GetContent);

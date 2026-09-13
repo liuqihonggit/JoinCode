@@ -5,6 +5,10 @@ namespace Core.Prompts.Sections;
 /// </summary>
 [PromptSection(Name = "environment", Order = 70, IsDynamic = true)]
 public static class EnvironmentSection {
+    /// <summary>
+    /// 获取环境信息部分的内容。
+    /// </summary>
+    /// <returns>环境信息文本；文件系统不可用时返回 <c>null</c>。</returns>
     public static string? GetContent() {
         var config = PromptConfigSnapshot.Current;
         var fs = config.FileSystem;
@@ -49,6 +53,10 @@ public static class EnvironmentSection {
         return result.ToString().TrimEnd();
     }
 
+    /// <summary>
+    /// 创建环境信息提示词部分。
+    /// </summary>
+    /// <returns>动态系统提示词部分。</returns>
     public static SystemPromptSection Create() =>
         SystemPromptSection.Dynamic("environment", GetContent);
 

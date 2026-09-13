@@ -5,6 +5,10 @@ namespace Core.Prompts.Sections;
 /// </summary>
 [PromptSection(Name = "output_efficiency", Order = 17)]
 public static class OutputEfficiencySection {
+    /// <summary>
+    /// 创建输出效率提示词部分。
+    /// </summary>
+    /// <returns>缓存系统提示词部分。</returns>
     public static SystemPromptSection Create() {
         return SystemPromptSection.Cached("output_efficiency", () => {
             return """

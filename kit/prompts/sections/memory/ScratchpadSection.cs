@@ -6,6 +6,9 @@ namespace Core.Prompts.Sections;
 /// </summary>
 [PromptSection(Name = "scratchpad", Order = 71, IsDynamic = true)]
 public static class ScratchpadSection {
+    /// <summary>
+    /// 获取 scratchpad 部分内容；临时工作区说明，未配置时返回 null。
+    /// </summary>
     public static string? GetContent() {
         var scratchpadPath = PromptConfigSnapshot.Current.ScratchpadPath;
         if (string.IsNullOrWhiteSpace(scratchpadPath)) {
@@ -26,6 +29,9 @@ public static class ScratchpadSection {
 """;
     }
 
+    /// <summary>
+    /// 创建 scratchpad 提示词部分。
+    /// </summary>
     public static SystemPromptSection Create() =>
         SystemPromptSection.Dynamic("scratchpad", GetContent);
 }

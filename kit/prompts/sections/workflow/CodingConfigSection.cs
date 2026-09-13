@@ -13,6 +13,10 @@ namespace Core.Prompts.Sections;
         "AOT", "GC", "SIMD", "NativeAOT", "LRU", "0-GC", "多线程"
     })]
 public static class CodingConfigSection {
+    /// <summary>
+    /// 获取编码推荐配置部分的提示词内容。
+    /// </summary>
+    /// <returns>编码推荐配置文本（架构选型/效率/编译）。</returns>
     public static string GetContent() {
         return """
 # 编码推荐配置

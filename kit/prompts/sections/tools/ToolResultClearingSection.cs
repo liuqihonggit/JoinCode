@@ -6,6 +6,10 @@ namespace Core.Prompts.Sections;
 [PromptSection(Name = "tool_result_clearing", Order = 19)]
 public static class ToolResultClearingSection
 {
+    /// <summary>
+    /// 获取工具结果清除部分的提示词内容。
+    /// </summary>
+    /// <returns>工具结果清除说明文本；始终非空。</returns>
     public static string? GetContent()
     {
         return $"""
@@ -17,6 +21,10 @@ public static class ToolResultClearingSection
 """;
     }
 
+    /// <summary>
+    /// 创建工具结果清除 Section 实例（内容缓存）。
+    /// </summary>
+    /// <returns>工具结果清除 Section 实例。</returns>
     public static SystemPromptSection Create() =>
         SystemPromptSection.Cached("tool_result_clearing", GetContent);
 }

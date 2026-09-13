@@ -7,6 +7,10 @@ namespace Core.Prompts.Sections;
 [PromptSection(Name = "shell_info", Order = 69, IsDynamic = true)]
 public static class ShellInfoSection
 {
+    /// <summary>
+    /// 创建 Shell 信息提示词部分。
+    /// </summary>
+    /// <returns>动态系统提示词部分。</returns>
     public static SystemPromptSection Create()
     {
         return SystemPromptSection.Dynamic("shell_info", () =>

@@ -5,6 +5,10 @@ namespace Core.Prompts.Sections;
 /// </summary>
 [PromptSection(Name = "proactive", Order = 22)]
 public static class ProactiveSection {
+    /// <summary>
+    /// 创建自主工作 Section 实例（内容缓存）。
+    /// </summary>
+    /// <returns>自主工作 Section 实例。</returns>
     public static SystemPromptSection Create() {
         return SystemPromptSection.Cached("proactive", () => {
             return $"""

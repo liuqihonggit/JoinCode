@@ -1,10 +1,16 @@
 namespace Core.Prompts.Sections;
 
+/// <summary>
+/// 基于描述关键词匹配的场景相关规则的提示词部分。
+/// </summary>
 [PromptSection(Name = "description_rules", Order = 79, IsDynamic = true)]
 public static class DescriptionRulesSection
 {
     private static readonly char[] DescriptionSeparators = [' ', ',', '，', '、', ';', '；', '|', '\t', '\n', '\r'];
 
+    /// <summary>
+    /// 获取 description_rules 部分内容；基于描述关键词匹配的场景相关规则，无匹配时返回 null。
+    /// </summary>
     public static string? GetContent()
     {
         var externalRules = PromptConfigSnapshot.Current.ExternalRules;
@@ -58,6 +64,9 @@ public static class DescriptionRulesSection
         return sb.ToString();
     }
 
+    /// <summary>
+    /// 创建 description_rules 提示词部分。
+    /// </summary>
     public static SystemPromptSection Create() =>
         SystemPromptSection.Dynamic("description_rules", GetContent);
 

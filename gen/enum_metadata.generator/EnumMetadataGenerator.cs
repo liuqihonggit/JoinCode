@@ -130,13 +130,18 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator
         sb.AppendLine();
 
         // 生成 const string 常量类 — 替代手写的 XxxConstants 类
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine($"    /// {enumInfo.Name} 枚举成员的字符串值常量（由源码生成器 EnumMetadataGenerator 生成）");
+        sb.AppendLine("    /// </summary>");
         sb.AppendLine($"public static class {enumInfo.Name}Constants");
         sb.AppendLine("{");
         foreach (var member in enumInfo.Members)
         {
+            sb.AppendLine("    /// <summary>枚举成员的字符串值</summary>");
             sb.AppendLine($"    public const string {member.Name} = \"{EscapeString(member.Value)}\";");
             foreach (var alias in member.Aliases)
             {
+                sb.AppendLine("    /// <summary>枚举成员的别名常量</summary>");
                 sb.AppendLine($"    public const string {member.Name}Alias_{EscapeIdentifier(alias)} = \"{EscapeString(alias)}\";");
             }
         }
@@ -144,6 +149,9 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator
         sb.AppendLine();
 
         // 生成扩展方法类
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine($"    /// {enumInfo.Name} 枚举的扩展方法（由源码生成器 EnumMetadataGenerator 生成）");
+        sb.AppendLine("    /// </summary>");
         sb.AppendLine($"public static class {enumInfo.Name}Extensions");
         sb.AppendLine("{");
 
@@ -212,10 +220,14 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator
     private static void GenerateSubCommandHelpText(StringBuilder sb, EnumInfo enumInfo, List<EnumMemberInfo> subCmdMembers)
     {
         sb.AppendLine();
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine($"    /// {enumInfo.Name} 子命令的渐进式帮助文本（由源码生成器 EnumMetadataGenerator 生成）");
+        sb.AppendLine("    /// </summary>");
         sb.AppendLine($"public static class {enumInfo.Name}HelpText");
         sb.AppendLine("{");
 
         // 生成 SubCommandEntry 记录
+        sb.AppendLine("    /// <summary>子命令条目 — 包含命令名、描述、分类、示例、别名、废弃状态</summary>");
         sb.AppendLine("    public sealed record SubCommandEntry(string Command, string Description, string Category, string? Example, bool IsAlias, string? AliasOf, bool IsDeprecated);");
         sb.AppendLine();
 
@@ -235,7 +247,7 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator
         sb.AppendLine();
 
         // GetCategories 方法 — 列出所有分类及数量
-        sb.AppendLine("    // 列出所有分类及命令数量 — jcc -h 的第一级展开");
+        sb.AppendLine("    /// <summary>列出所有分类及命令数量 — jcc -h 的第一级展开</summary>");
         sb.AppendLine("    public static string GetCategories()");
         sb.AppendLine("    {");
         sb.AppendLine("        var sb = new System.Text.StringBuilder(256);");
@@ -251,7 +263,9 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator
         sb.AppendLine();
 
         // GetByCategory 方法 — 列出某分类下的所有命令
-        sb.AppendLine("    // 列出指定分类下的所有命令 — jcc -h <分类> 的第二级展开");
+        sb.AppendLine("    /// <summary>列出指定分类下的所有命令 — jcc -h &lt;分类&gt; 的第二级展开</summary>");
+        sb.AppendLine("    /// <param name=\"category\">分类名称</param>");
+        sb.AppendLine("    /// <returns>该分类下所有命令的格式化文本</returns>");
         sb.AppendLine("    public static string GetByCategory(string category)");
         sb.AppendLine("    {");
         sb.AppendLine("        var sb = new System.Text.StringBuilder(512);");
@@ -271,7 +285,9 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator
         sb.AppendLine();
 
         // GetByCommand 方法 — 显示某命令的详细帮助
-        sb.AppendLine("    // 显示指定命令的详细帮助 — jcc -h <命令名> 的第二级展开");
+        sb.AppendLine("    /// <summary>显示指定命令的详细帮助 — jcc -h &lt;命令名&gt; 的第二级展开</summary>");
+        sb.AppendLine("    /// <param name=\"command\">命令名称</param>");
+        sb.AppendLine("    /// <returns>命令详情的格式化文本</returns>");
         sb.AppendLine("    public static string GetByCommand(string command)");
         sb.AppendLine("    {");
         sb.AppendLine("        if (!__byCommand.TryGetValue(command, out var entry))");
@@ -291,8 +307,9 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator
         sb.AppendLine();
 
         // GetHelp 方法 — 统一入口, 按 topic 分发
-        sb.AppendLine("    // 统一帮助入口 — 按 topic 分发到不同级别");
-        sb.AppendLine("    // null/empty -> 分类概览, 分类名 -> 该分类命令列表, 命令名 -> 命令详情");
+        sb.AppendLine("    /// <summary>统一帮助入口 — 按 topic 分发到不同级别</summary>");
+        sb.AppendLine("    /// <param name=\"topic\">null/empty → 分类概览; 分类名 → 该分类命令列表; 命令名 → 命令详情</param>");
+        sb.AppendLine("    /// <returns>对应级别的帮助文本</returns>");
         sb.AppendLine("    public static string GetHelp(string? topic = null)");
         sb.AppendLine("    {");
         sb.AppendLine("        if (string.IsNullOrWhiteSpace(topic)) return GetCategories();");

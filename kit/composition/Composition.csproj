@@ -8,6 +8,14 @@
     <NoWarn>$(NoWarn);IL2026;IL3050;NU5104</NoWarn>
   </PropertyGroup>
 
+  <!-- 强制 XML 文档注释完整:开启文档生成 + CS1591(缺少公开成员注释)升为错误 -->
+  <!-- GenerateDocumentationFile 生成 .xml 文档输出文件;NoWarn 移除 CS1591 让其报错,配合全局 TreatWarningsAsErrors=true 升为编译错误 -->
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <DocumentationFile>$(OutputPath)$(AssemblyName).xml</DocumentationFile>
+    <NoWarn>$(NoWarn.Replace('CS1591;', '').Replace(';CS1591', '').Replace('CS1591', ''))</NoWarn>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
     <ProjectReference Include="$(RepoRoot)server/bridge/Bridge.csproj" />

@@ -11,6 +11,11 @@ public sealed partial class SubAgentSummaryClient : ServiceEntity, ISubAgentSumm
     private readonly ILogger<SubAgentSummaryClient>? _logger;
     private readonly IChatClient _kernel;
 
+    /// <summary>
+    /// 初始化 <see cref="SubAgentSummaryClient"/> 实例。
+    /// </summary>
+    /// <param name="kernel">聊天客户端（用于调 LLM 生成摘要）。</param>
+    /// <param name="logger">可选的日志记录器。</param>
     public SubAgentSummaryClient(IChatClient kernel, ILogger<SubAgentSummaryClient>? logger = null)
     {
         _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));

@@ -1,8 +1,18 @@
 
 namespace Core.DependencyInjection;
 
+/// <summary>
+/// 核心服务注册器 — 注册 Composition 层的核心服务（API 客户端、代码安全、提示、文件操作、工具、基础设施）。
+/// <para>本类为 partial，与 <see cref="ServiceRegistration"/> 的其他 partial 定义（Kernel/NewServices/Brain/Bridge/CodeIndex/Mcp/Skills）共同组成完整的 DI 注册入口。</para>
+/// </summary>
 public static partial class ServiceRegistration
 {
+    /// <summary>
+    /// 注册核心服务：API 客户端、代码安全、提示服务、系统提示提供者等。
+    /// <para>大部分服务通过 [Register] 特性自动注册，本方法仅补充未被自动注册覆盖的部分。</para>
+    /// </summary>
+    /// <param name="services">DI 容器。</param>
+    /// <returns>已注册服务的 <see cref="IServiceCollection"/> 实例。</returns>
     public static IServiceCollection AddCoreServices(this IServiceCollection services)
     {
         // HttpClient — [Register] 自动注册（SharedHttpClient）
@@ -31,6 +41,12 @@ public static partial class ServiceRegistration
         return services;
     }
 
+    /// <summary>
+    /// 注册文件操作服务：根据 <c>JCC_FILE_SYSTEM_MODE</c> 环境变量切换 IFileSystem 后端（默认 Physical，InMemory=纯内存），
+    /// 并绑定 <see cref="FileOperationConfig"/> 配置（含验证）。
+    /// </summary>
+    /// <param name="services">DI 容器。</param>
+    /// <returns>已注册服务的 <see cref="IServiceCollection"/> 实例。</returns>
     public static IServiceCollection AddFileOperationServices(this IServiceCollection services)
     {
         // IFileSystem — 根据 JCC_FILE_SYSTEM_MODE 环境变量决定后端
@@ -64,6 +80,12 @@ public static partial class ServiceRegistration
         return services;
     }
 
+    /// <summary>
+    /// 注册工具服务：绑定 <see cref="ShellExecutionConfig"/> 配置（含验证），支持环境变量覆盖超时参数，
+    /// 并注册 <see cref="LongRunningTaskRegistry"/>（超时续期任务注册表）。
+    /// </summary>
+    /// <param name="services">DI 容器。</param>
+    /// <returns>已注册服务的 <see cref="IServiceCollection"/> 实例。</returns>
     public static IServiceCollection AddToolServices(this IServiceCollection services)
     {
         services.AddOptions<ShellExecutionConfig>()
@@ -104,6 +126,13 @@ public static partial class ServiceRegistration
         return services;
     }
 
+    /// <summary>
+    /// 注册基础设施服务：HttpClientFactory、IHttpClientProvider（含 Mock/Real 切换）、
+    /// 韧性层（ResilientHttpClientProvider）、INotificationService、IBrowserAutomationService、
+    /// ITaskService、IClockService、IProcessService、IConsoleOutput 等环境切换服务。
+    /// </summary>
+    /// <param name="services">DI 容器。</param>
+    /// <returns>已注册服务的 <see cref="IServiceCollection"/> 实例。</returns>
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services)
     {
         // TelemetryConfig — [Register] 自动注册（无参构造函数从环境变量初始化）

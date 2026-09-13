@@ -11,6 +11,11 @@ public sealed partial class FoldSummarizer : ServiceEntity, IFoldSummarizer
     private readonly ILogger<FoldSummarizer>? _logger;
     private readonly IChatClient _kernel;
 
+    /// <summary>
+    /// 初始化 <see cref="FoldSummarizer"/> 实例。
+    /// </summary>
+    /// <param name="kernel">聊天客户端（用于调 LLM 生成摘要）。</param>
+    /// <param name="logger">可选的日志记录器。</param>
     public FoldSummarizer(IChatClient kernel, ILogger<FoldSummarizer>? logger = null)
     {
         _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));

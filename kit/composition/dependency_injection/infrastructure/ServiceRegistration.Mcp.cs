@@ -3,6 +3,13 @@ namespace Core.DependencyInjection;
 
 public static partial class ServiceRegistration
 {
+    /// <summary>
+    /// 注册 MCP 服务：MemoryCache、工具注册表、工具评分配置、超图自定义超边、
+    /// Agent 工具管道（<see cref="MiddlewarePipeline{AgentToolContext}"/>）、
+    /// 工具执行管道（<see cref="MiddlewarePipeline{ToolExecutionContext}"/>，含 14 个中间件）。
+    /// </summary>
+    /// <param name="services">DI 容器。</param>
+    /// <returns>已注册服务的 <see cref="IServiceCollection"/> 实例。</returns>
     public static IServiceCollection AddMcpServices(this IServiceCollection services)
     {
         services.AddMemoryCache();
@@ -84,6 +91,11 @@ public static partial class ServiceRegistration
         return services;
     }
 
+    /// <summary>
+    /// 连接 MCP 工具同步桥：订阅 <see cref="RemoteClientManager"/> 的 ToolsListChanged/ResourcesListChanged/PromptsListChanged 事件，
+    /// 转发到 <see cref="McpToolSyncBridge"/> 同步到 ChatContextManager。
+    /// </summary>
+    /// <param name="serviceProvider">已构建的 DI 服务提供者。</param>
     public static void WireMcpToolSyncBridge(this IServiceProvider serviceProvider)
     {
         var remoteClientManager = serviceProvider.GetRequiredService<RemoteClientManager>();

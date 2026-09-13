@@ -8,6 +8,13 @@ namespace Core.Agents.Coordinator;
 public sealed partial class ForkExecutionMiddleware : ServiceEntity, IForkMiddleware
 {
 
+    /// <summary>
+    /// 初始化 Fork 执行中间件
+    /// </summary>
+    /// <param name="lifecycleManager">智能体生命周期管理器</param>
+    /// <param name="telemetryService">遥测服务</param>
+    /// <param name="worktreeManager">工作树管理器</param>
+    /// <param name="logger">日志记录器</param>
     public ForkExecutionMiddleware(IAgentLifecycleManager lifecycleManager, ITelemetryService? telemetryService = null, IAgentWorktreeManager? worktreeManager = null, ILogger<ForkExecutionMiddleware>? logger = null)
     {
         _lifecycleManager = lifecycleManager;
@@ -24,6 +31,13 @@ public sealed partial class ForkExecutionMiddleware : ServiceEntity, IForkMiddle
 
     /// <summary>执行失败应传播异常</summary>
 
+    /// <summary>
+    /// 异步执行 Fork 子智能体；后台模式仅标记，同步模式执行并处理结果与 worktree 清理
+    /// </summary>
+    /// <param name="context">Fork 上下文</param>
+    /// <param name="next">下一中间件委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task InvokeAsync(ForkContext context, MiddlewareDelegate<ForkContext> next, CancellationToken ct)
     {
         if (context.Agent is null)

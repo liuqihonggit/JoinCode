@@ -1,6 +1,7 @@
 
 namespace Core.Agents.Coordinator;
 
+/// <summary>队友初始化服务 — 负责新队友的创建、会话挂钩注册与初始消息分发</summary>
 [Register(typeof(ITeammateInitService), ServiceLifetime.Singleton)]
 public sealed partial class TeammateInitService : ServiceEntity, ITeammateInitService
 {
@@ -10,6 +11,14 @@ public sealed partial class TeammateInitService : ServiceEntity, ITeammateInitSe
     private readonly ILogger? _logger;
     private readonly IClockService _clock;
 
+    /// <summary>
+    /// 初始化 Teammate 初始化服务
+    /// </summary>
+    /// <param name="teamManager">团队管理器</param>
+    /// <param name="sessionHookManager">会话钩子管理器</param>
+    /// <param name="messageBroker">消息邮箱</param>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="clock">时钟服务</param>
     public TeammateInitService(
         ITeamManager teamManager,
         ISessionHookManager? sessionHookManager = null,
@@ -24,6 +33,13 @@ public sealed partial class TeammateInitService : ServiceEntity, ITeammateInitSe
         _clock = clock ?? SystemClockService.Instance;
     }
 
+    /// <summary>
+    /// 异步构建 Teammate 初始化上下文，包含团队成员、协调器与允许路径等信息
+    /// </summary>
+    /// <param name="teamId">团队标识</param>
+    /// <param name="agentId">智能体标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>初始化上下文，团队不存在则返回 null</returns>
     public async Task<TeammateInitContext?> BuildInitContextAsync(string teamId, string agentId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(teamId);
@@ -53,6 +69,14 @@ public sealed partial class TeammateInitService : ServiceEntity, ITeammateInitSe
         };
     }
 
+    /// <summary>
+    /// 异步为 Teammate 注册 Stop 钩子，在会话停止时触发空闲通知
+    /// </summary>
+    /// <param name="teamId">团队标识</param>
+    /// <param name="agentId">智能体标识</param>
+    /// <param name="sessionId">会话标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task InitializeTeammateHooksAsync(string teamId, string agentId, string sessionId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(teamId);

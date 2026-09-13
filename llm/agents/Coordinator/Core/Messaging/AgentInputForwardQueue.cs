@@ -10,6 +10,10 @@ public sealed partial class AgentInputForwardQueue : ServiceEntity, JoinCode.Abs
     private readonly ConcurrentDictionary<string, Channel<string>> _queues;
     private readonly ILogger? _logger;
 
+    /// <summary>
+    /// 构造子代理用户输入转发队列实例
+    /// </summary>
+    /// <param name="logger">可选日志记录器</param>
     public AgentInputForwardQueue(ILogger? logger = null)
     {
         _queues = new ConcurrentDictionary<string, Channel<string>>();

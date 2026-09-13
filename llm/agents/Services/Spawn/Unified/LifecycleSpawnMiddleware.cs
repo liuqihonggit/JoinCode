@@ -10,6 +10,9 @@ namespace Core.Agents;
 public sealed partial class LifecycleSpawnMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 
+    /// <summary>
+    /// 构造 LifecycleSpawnMiddleware 实例，注入生命周期管理器、子代理上下文访问器及日志器
+    /// </summary>
     public LifecycleSpawnMiddleware(IAgentLifecycleManager lifecycleManager, ISubAgentContextAccessor subAgentContextAccessor, ILogger<LifecycleSpawnMiddleware>? logger = null)
     {
         _lifecycleManager = lifecycleManager;
@@ -20,8 +23,15 @@ public sealed partial class LifecycleSpawnMiddleware : ServiceEntity, IUnifiedSp
     private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     private readonly ILogger<LifecycleSpawnMiddleware>? _logger;
 
+    /// <summary>中间件错误处理策略：向上传播</summary>
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
+    /// <summary>
+    /// 执行生命周期 Spawn：代理已存在则跳过；否则用 ResolvedSubOptions 或 SubOptions 调用 SpawnSubAgentAsync
+    /// </summary>
+    /// <param name="context">统一 Spawn 上下文</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct)
     {
         if (context.Agent is not null)

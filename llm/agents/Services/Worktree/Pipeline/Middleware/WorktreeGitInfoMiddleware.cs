@@ -8,6 +8,9 @@ namespace Core.Agents.Worktree;
 public sealed partial class WorktreeGitInfoMiddleware : ServiceEntity, IWorktreeCreateMiddleware
 {
 
+    /// <summary>
+    /// 构造 WorktreeGitInfoMiddleware 实例，注入延迟加载的管道操作及日志器
+    /// </summary>
     public WorktreeGitInfoMiddleware(Lazy<IWorktreePipelineOperations> worktreeService, ILogger<WorktreeGitInfoMiddleware>? logger = null)
     {
         _worktreeService = worktreeService;
@@ -17,6 +20,12 @@ public sealed partial class WorktreeGitInfoMiddleware : ServiceEntity, IWorktree
     private readonly ILogger<WorktreeGitInfoMiddleware>? _logger;
 
 
+    /// <summary>
+    /// 执行 Git 信息获取：获取当前分支、HEAD commit SHA，并按 PR 号/基准分支/默认分支解析基础引用
+    /// </summary>
+    /// <param name="context">worktree 创建上下文</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct)
     {
         var gitRoot = context.GitRoot;

@@ -11,6 +11,7 @@ public sealed record ForkManagerDependencies(
     IMailboxPoller? MailboxPoller = null,
     ITelemetryService? TelemetryService = null);
 
+/// <summary>Fork 子代理管理器 — 管理子代理的创建、状态跟踪、共享缓存与并发控制，实现 IAsyncDisposable 释放资源</summary>
 [Register(typeof(IForkSubAgentManager), ServiceLifetime.Singleton)]
 public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDisposable, ISubAgentConcurrencyUpdater
 {
@@ -33,11 +34,17 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
             }
         }
 
+        /// <summary>Fork 子代理执行结果文本（完成后填充，未完成为 null）</summary>
         public string? Result;
+        /// <summary>父会话标识（必填），发起 Fork 的主代理会话 ID</summary>
         public required string ParentSessionId;
+        /// <summary>子代理标识（分配后填充，未分配为 null）</summary>
         public string? AgentId;
+        /// <summary>进度跟踪器实例（可选），用于上报子代理执行进度</summary>
         public ProgressTracker? ProgressTracker = null;
+        /// <summary>取消令牌源，用于外部取消该 Fork 子代理的执行</summary>
         public CancellationTokenSource? Cts;
+        /// <summary>Fork 条目创建时间（UTC），用于超时检测与统计</summary>
         public DateTime CreatedAt;
     }
 
@@ -51,8 +58,19 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
     private volatile AsyncLock? _forkSemaphore;
     private int _disposed;
 
+    /// <summary>
+    /// Fork 完成事件 — Fork 进入终态（Completed/Failed/Cancelled/Merged）时触发
+    /// </summary>
     public event EventHandler<ForkCompletedEventArgs>? ForkCompleted;
 
+    /// <summary>
+    /// 初始化 Fork 子智能体管理器
+    /// </summary>
+    /// <param name="pipeline">中间件管道</param>
+    /// <param name="deps">Fork 管理器依赖项</param>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="clock">时钟服务</param>
+    /// <param name="concurrencyOptions">子智能体并发选项</param>
     public ForkSubAgentManager(
         MiddlewarePipeline<ForkContext> pipeline,
         ForkManagerDependencies deps,
@@ -74,6 +92,12 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
             : null;
     }
 
+    /// <summary>
+    /// 异步执行 Fork 操作：通过中间件管道创建子智能体，支持同步与后台模式
+    /// </summary>
+    /// <param name="options">Fork 选项</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>Fork 结果</returns>
     public async Task<ForkResult> ForkAsync(ForkOptions options, CancellationToken ct = default)
     {
         var sem = _forkSemaphore;
@@ -247,6 +271,11 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
         _sharedCache.TryRemove(forkId, out _);
     }
 
+    /// <summary>
+    /// 异步获取所有活跃 Fork 子智能体列表
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>活跃 Fork 子智能体只读列表</returns>
     public async Task<IReadOnlyList<ForkSubAgent>> GetActiveForksAsync(CancellationToken ct = default)
     {
         using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
@@ -267,6 +296,12 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
     
     }
 
+    /// <summary>
+    /// 异步合并指定 Fork 的共享缓存到父会话，要求 Fork 处于 Completed 状态
+    /// </summary>
+    /// <param name="forkId">Fork 标识</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>合并结果</returns>
     public async Task<ForkResult> MergeForkAsync(string forkId, CancellationToken ct = default)
     {
         using var guard = _lock.TryLock(ct) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
@@ -324,6 +359,12 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
         };
     }
 
+    /// <summary>
+    /// 异步取消指定 Fork，停止邮箱轮询并取消子智能体执行
+    /// </summary>
+    /// <param name="forkId">Fork 标识</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task CancelForkAsync(string forkId, CancellationToken ct = default)
     {
         ForkEntry? entry;
@@ -542,6 +583,10 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
         _logger?.LogInformation("fork 并发上限已热重载为 {Limit}", maxForks);
     }
 
+    /// <summary>
+    /// 异步释放管理器资源，清理所有 Fork 条目与信号量
+    /// </summary>
+    /// <returns>表示异步操作的任务</returns>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;

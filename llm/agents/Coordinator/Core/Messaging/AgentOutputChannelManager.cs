@@ -14,6 +14,10 @@ public sealed partial class AgentOutputChannelManager : ServiceEntity, JoinCode.
     private volatile string? _displayModeTarget;
     private readonly ILogger? _logger;
 
+    /// <summary>
+    /// 构造 Agent 输出 channel 管理器实例
+    /// </summary>
+    /// <param name="logger">可选日志记录器</param>
     public AgentOutputChannelManager(ILogger? logger = null)
     {
         _logger = logger;

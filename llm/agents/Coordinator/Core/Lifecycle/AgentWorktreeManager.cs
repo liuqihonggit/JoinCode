@@ -17,9 +17,21 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
     private readonly IFileOperationService? _fileOperationService;
     private readonly IGitCommandRunner? _gitRunner;
 
+    /// <summary>Worktree 创建完成事件，参数携带 Agent ID、Worktree 路径与分支名</summary>
     public event EventHandler<WorktreeEventArgs>? WorktreeCreated;
+    /// <summary>Worktree 清理完成事件，参数携带 Agent ID、Worktree 路径与分支名</summary>
     public event EventHandler<WorktreeEventArgs>? WorktreeCleaned;
 
+    /// <summary>
+    /// 构造 Agent Worktree 管理器实例
+    /// </summary>
+    /// <param name="worktreeService">可选 Worktree 服务，缺省时不启用隔离</param>
+    /// <param name="hookOrchestrator">可选 Hook 编排器，用于触发 WorktreeCreate/WorktreeRemove 事件</param>
+    /// <param name="logger">可选日志记录器</param>
+    /// <param name="enableWorktreeIsolation">是否启用全局 Worktree 隔离</param>
+    /// <param name="clock">可选时钟服务，缺省时使用系统时钟</param>
+    /// <param name="fileOperationService">可选文件操作服务，用于构造生命周期守卫</param>
+    /// <param name="gitRunner">可选 Git 命令执行器，用于守卫内的分支清理</param>
     public AgentWorktreeManager(
         IAgentWorktreeService? worktreeService = null,
         IHookOrchestrator? hookOrchestrator = null,
@@ -428,6 +440,7 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
         Dispose();
     }
 
+    /// <summary>释放资源 — 清理 worktree 会话集合并释放锁</summary>
     protected override void OnDispose()
     {
         _worktreeSessions.Clear();

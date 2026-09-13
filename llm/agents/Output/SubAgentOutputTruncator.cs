@@ -16,6 +16,12 @@ public sealed partial class SubAgentOutputTruncator : ServiceEntity
     private readonly IFileSystem _fs;
     private readonly string _archiveDir;
 
+    /// <summary>
+    /// 构造子智能体输出截断器
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="archiveDir">存档目录（可选，默认 .xxx/subagent）</param>
     public SubAgentOutputTruncator(IFileSystem fs, ILogger<SubAgentOutputTruncator> logger, string? archiveDir = null)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));

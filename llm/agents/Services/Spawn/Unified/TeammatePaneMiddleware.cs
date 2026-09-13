@@ -9,6 +9,9 @@ namespace Core.Agents;
 public sealed partial class TeammatePaneMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 
+    /// <summary>
+    /// 构造 TeammatePaneMiddleware 实例，注入子代理上下文访问器、日志器及可选的布局管理器
+    /// </summary>
     public TeammatePaneMiddleware(ISubAgentContextAccessor subAgentContextAccessor, ILogger<TeammatePaneMiddleware> logger, ITeammateLayoutManager? layoutManager = null)
     {
         _subAgentContextAccessor = subAgentContextAccessor;
@@ -19,8 +22,15 @@ public sealed partial class TeammatePaneMiddleware : ServiceEntity, IUnifiedSpaw
     private readonly ITeammateLayoutManager? _layoutManager;
     private readonly ILogger<TeammatePaneMiddleware> _logger;
 
+    /// <summary>中间件错误处理策略：继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
+    /// <summary>
+    /// 执行 Teammate Pane 创建：非主代理且布局管理器可用时创建 UI Pane
+    /// </summary>
+    /// <param name="context">统一 Spawn 上下文</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct)
     {
         if (!context.IsMainAgent && _layoutManager is not null && context.Agent is not null)

@@ -32,6 +32,15 @@ public sealed class ModelCoordinator : IModelCoordinator
 
     private const string ExecutorHandoffMarker = "JoinCode executor handoff";
 
+    /// <summary>
+    /// 构造双模型协调器实例
+    /// </summary>
+    /// <param name="queryEngine">查询引擎，用于创建子代理会话</param>
+    /// <param name="plannerModelId">Planner 使用的模型 ID</param>
+    /// <param name="executorModelId">Executor 使用的模型 ID</param>
+    /// <param name="plannerAllowedTools">Planner 允许使用的只读工具列表，缺省时使用 <see cref="DefaultPlannerTools"/></param>
+    /// <param name="shouldPlan">可选谓词，判定给定目标是否需要规划阶段；返回 false 时直接进入执行</param>
+    /// <param name="logger">可选日志记录器</param>
     public ModelCoordinator(
         IQueryEngine queryEngine,
         string plannerModelId,

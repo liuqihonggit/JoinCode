@@ -11,6 +11,11 @@ public class TeamToolHandlers
     private readonly ITeamManager _teamManager;
     private readonly ITelemetryService? _telemetryService;
 
+    /// <summary>
+    /// 构造团队工具处理器
+    /// </summary>
+    /// <param name="teamManager">团队管理器</param>
+    /// <param name="telemetryService">遥测服务（可选）</param>
     public TeamToolHandlers(ITeamManager teamManager, ITelemetryService? telemetryService = null)
     {
         _teamManager = teamManager ?? throw new ArgumentNullException(nameof(teamManager));
@@ -362,6 +367,12 @@ public class TeamToolHandlers
 
     #region Diagnostics
 
+    /// <summary>
+    /// 构建参数校验失败的结构化诊断
+    /// </summary>
+    /// <param name="toolName">工具名称</param>
+    /// <param name="validationError">校验错误消息</param>
+    /// <returns>结构化工具诊断</returns>
     internal static ToolDiagnostic BuildValidationDiagnostic(string toolName, string validationError)
     {
         return ToolDiagnostic.Create(
@@ -378,6 +389,12 @@ public class TeamToolHandlers
             ]);
     }
 
+    /// <summary>
+    /// 构建操作失败的结构化诊断
+    /// </summary>
+    /// <param name="toolName">工具名称</param>
+    /// <param name="errorMessage">错误消息</param>
+    /// <returns>结构化工具诊断</returns>
     internal static ToolDiagnostic BuildOperationFailedDiagnostic(string toolName, string errorMessage)
     {
         return ToolDiagnostic.Create(
@@ -394,6 +411,11 @@ public class TeamToolHandlers
             ]);
     }
 
+    /// <summary>
+    /// 构建团队不存在的结构化诊断
+    /// </summary>
+    /// <param name="teamId">团队 ID</param>
+    /// <returns>结构化工具诊断</returns>
     internal static ToolDiagnostic BuildTeamNotFoundDiagnostic(string teamId)
     {
         var message = L.T(StringKey.TeamNotFound, teamId);

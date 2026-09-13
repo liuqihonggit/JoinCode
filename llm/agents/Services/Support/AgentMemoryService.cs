@@ -30,6 +30,9 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
     private readonly string _memoryBase;   // ~/.jcc
     private readonly string _cwd;          // 当前工作目录
 
+    /// <summary>
+    /// 构造 AgentMemoryService 实例，注入日志器、文件系统及可选的记忆基目录与工作目录
+    /// </summary>
     public AgentMemoryService(ILogger<AgentMemoryService> logger, IFileSystem fs, string? memoryBase = null, string? cwd = null)
     {
         _logger = logger;
@@ -487,6 +490,7 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
     /// </summary>
     private sealed class SnapshotMeta
     {
+        /// <summary>快照最后更新时间戳（必填，UTC ISO 8601 字符串）</summary>
         public required string UpdatedAt { get; init; }
     }
 
@@ -495,6 +499,7 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
     /// </summary>
     private sealed class SyncedMeta
     {
+        /// <summary>同步来源标识（必填），记录快照从哪个节点/会话同步而来</summary>
         public required string SyncedFrom { get; init; }
     }
 

@@ -32,6 +32,16 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     private ITeammateObserver? ResolvedTeammateObserver =>
         _serviceProvider?.GetService(typeof(ITeammateObserver)) as ITeammateObserver;
 
+    /// <summary>
+    /// 初始化团队管理器，可选加载持久化状态
+    /// </summary>
+    /// <param name="clock">时钟服务</param>
+    /// <param name="telemetryService">遥测服务</param>
+    /// <param name="mailboxService">邮箱服务</param>
+    /// <param name="serviceProvider">服务提供者（用于延迟解析 ITeammateObserver）</param>
+    /// <param name="subAgentContextAccessor">子智能体上下文访问器</param>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="fileSystem">文件系统（提供则启用持久化）</param>
     public TeamManager(IClockService clock, ITelemetryService? telemetryService = null, ITeammateMailboxService? mailboxService = null, IServiceProvider? serviceProvider = null, ISubAgentContextAccessor? subAgentContextAccessor = null, ILogger<TeamManager>? logger = null, IFileSystem? fileSystem = null)
     {
 
@@ -46,6 +56,14 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         LoadState();
     }
 
+    /// <summary>
+    /// 异步创建团队，校验名称唯一性与单团队限制后写入状态
+    /// </summary>
+    /// <param name="teamName">团队名称</param>
+    /// <param name="description">团队描述</param>
+    /// <param name="initialMembers">初始成员列表</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>创建结果（成功包含团队信息，失败包含错误消息）</returns>
     public async Task<OperationResult<TeamInfo?>> CreateTeamAsync(
         string teamName,
         string? description = null,
@@ -118,6 +136,12 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         return OperationResult<TeamInfo?>.Ok(team);
     }
 
+    /// <summary>
+    /// 异步删除团队，要求无活跃成员才能删除
+    /// </summary>
+    /// <param name="teamId">团队标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>删除结果（成功包含已删除团队信息）</returns>
     public async Task<OperationResult<TeamInfo?>> DeleteTeamAsync(
         string teamId,
         CancellationToken cancellationToken = default)
@@ -156,6 +180,12 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         return OperationResult<TeamInfo?>.Ok(team);
     }
 
+    /// <summary>
+    /// 异步获取指定团队信息
+    /// </summary>
+    /// <param name="teamId">团队标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>团队信息，不存在则返回 null</returns>
     public Task<TeamInfo?> GetTeamAsync(
         string teamId,
         CancellationToken cancellationToken = default)
@@ -164,6 +194,11 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         return Task.FromResult(team);
     }
 
+    /// <summary>
+    /// 异步列出所有团队
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>团队信息只读列表</returns>
     public Task<IReadOnlyList<TeamInfo>> ListTeamsAsync(
         CancellationToken cancellationToken = default)
     {
@@ -171,6 +206,13 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         return Task.FromResult<IReadOnlyList<TeamInfo>>(teams);
     }
 
+    /// <summary>
+    /// 异步向团队添加成员
+    /// </summary>
+    /// <param name="teamId">团队标识</param>
+    /// <param name="agentId">智能体标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>添加结果（成功包含更新后的团队信息）</returns>
     public async Task<OperationResult<TeamInfo?>> AddTeamMemberAsync(
         string teamId,
         string agentId,
@@ -208,6 +250,13 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         return OperationResult<TeamInfo?>.Ok(_teams[teamId]);
     }
 
+    /// <summary>
+    /// 异步从团队移除成员
+    /// </summary>
+    /// <param name="teamId">团队标识</param>
+    /// <param name="agentId">智能体标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>移除结果（成功包含更新后的团队信息）</returns>
     public async Task<OperationResult<TeamInfo?>> RemoveTeamMemberAsync(
         string teamId,
         string agentId,
@@ -248,6 +297,12 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         return OperationResult<TeamInfo?>.Ok(_teams[teamId]);
     }
 
+    /// <summary>
+    /// 异步获取团队成员列表
+    /// </summary>
+    /// <param name="teamId">团队标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>成员标识只读列表</returns>
     public Task<IReadOnlyList<string>> GetTeamMembersAsync(
         string teamId,
         CancellationToken cancellationToken = default)
@@ -260,6 +315,15 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         return Task.FromResult<IReadOnlyList<string>>(members.ToList());
     }
 
+    /// <summary>
+    /// 异步向团队发送消息，要求发送者是团队成员
+    /// </summary>
+    /// <param name="teamId">团队标识</param>
+    /// <param name="senderId">发送者标识</param>
+    /// <param name="content">消息内容</param>
+    /// <param name="messageType">消息类型（默认 broadcast）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>发送结果（成功包含更新后的团队信息）</returns>
     public async Task<OperationResult<TeamInfo?>> SendMessageAsync(
         string teamId,
         string senderId,
@@ -302,6 +366,15 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         return OperationResult<TeamInfo?>.Ok(_teams[teamId]);
     }
 
+    /// <summary>
+    /// 异步向团队中指定智能体发送私信
+    /// </summary>
+    /// <param name="targetAgentId">目标智能体标识</param>
+    /// <param name="senderId">发送者标识</param>
+    /// <param name="content">消息内容</param>
+    /// <param name="messageType">消息类型（默认 direct）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>发送结果（成功包含团队信息）</returns>
     public async Task<OperationResult<TeamInfo?>> SendMessageToAgentAsync(
         string targetAgentId,
         string senderId,
@@ -347,6 +420,13 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         return OperationResult<TeamInfo?>.Ok(team);
     }
 
+    /// <summary>
+    /// 异步获取团队消息列表，按时间倒序返回指定条数
+    /// </summary>
+    /// <param name="teamId">团队标识</param>
+    /// <param name="limit">返回消息上限（默认 50）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>团队消息只读列表</returns>
     public async Task<IReadOnlyList<TeamMessage>> GetTeamMessagesAsync(
         string teamId,
         int limit = 50,
@@ -366,6 +446,15 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     
     }
 
+    /// <summary>
+    /// 异步广播消息到团队所有成员，要求发送者是团队成员
+    /// </summary>
+    /// <param name="teamId">团队标识</param>
+    /// <param name="senderId">发送者标识</param>
+    /// <param name="content">消息内容</param>
+    /// <param name="messageType">消息类型（默认 broadcast）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>广播结果（成功包含更新后的团队信息）</returns>
     public async Task<OperationResult<TeamInfo?>> BroadcastMessageAsync(
         string teamId,
         string senderId,
@@ -474,6 +563,14 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         }
     }
 
+    /// <summary>
+    /// 异步设置团队成员的活跃状态
+    /// </summary>
+    /// <param name="teamId">团队标识</param>
+    /// <param name="agentId">智能体标识</param>
+    /// <param name="isActive">是否活跃</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>设置结果（成功包含更新后的团队信息）</returns>
     public async Task<OperationResult<TeamInfo?>> SetMemberActiveAsync(
         string teamId,
         string agentId,
@@ -507,6 +604,12 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         return OperationResult<TeamInfo?>.Ok(_teams[teamId]);
     }
 
+    /// <summary>
+    /// 异步获取团队允许的路径列表
+    /// </summary>
+    /// <param name="teamId">团队标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>允许路径只读列表</returns>
     public Task<IReadOnlyList<TeamAllowedPath>> GetTeamAllowedPathsAsync(
         string teamId,
         CancellationToken cancellationToken = default)
@@ -519,6 +622,14 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         return Task.FromResult<IReadOnlyList<TeamAllowedPath>>(paths.Values.ToList());
     }
 
+    /// <summary>
+    /// 异步向团队添加允许路径，已存在则更新访问级别
+    /// </summary>
+    /// <param name="teamId">团队标识</param>
+    /// <param name="path">路径</param>
+    /// <param name="accessLevel">访问级别（默认 Read）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>添加结果（成功包含更新后的团队信息）</returns>
     public async Task<OperationResult<TeamInfo?>> AddTeamAllowedPathAsync(
         string teamId,
         string path,
@@ -559,6 +670,12 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         return OperationResult<TeamInfo?>.Ok(_teams[teamId]);
     }
 
+    /// <summary>
+    /// 异步获取指定团队所有 Teammate 的状态，合并运行时观察器数据
+    /// </summary>
+    /// <param name="teamId">团队标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>Teammate 状态只读列表</returns>
     public async Task<IReadOnlyList<TeammateStatus>> GetTeammateStatusesAsync(
         string teamId,
         CancellationToken cancellationToken = default)
@@ -585,6 +702,11 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         return statuses;
     }
 
+    /// <summary>
+    /// 异步获取所有团队的所有 Teammate 状态，合并运行时观察器数据
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>所有 Teammate 状态只读列表</returns>
     public async Task<IReadOnlyList<TeammateStatus>> GetAllTeammateStatusesAsync(
         CancellationToken cancellationToken = default)
     {
@@ -634,5 +756,6 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         };
     }
 
+    /// <summary>释放资源 — 释放团队管理锁</summary>
     protected override void OnDispose() => _lock.Dispose();
 }

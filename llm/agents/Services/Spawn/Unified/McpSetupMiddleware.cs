@@ -8,6 +8,9 @@ namespace Core.Agents;
 public sealed partial class McpSetupMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 
+    /// <summary>
+    /// 构造 McpSetupMiddleware 实例，注入可选的 MCP 服务器管理器与日志器
+    /// </summary>
     public McpSetupMiddleware(IAgentMcpServerManager? mcpServerManager = null, ILogger<McpSetupMiddleware>? logger = null)
     {
         _mcpServerManager = mcpServerManager;
@@ -16,8 +19,15 @@ public sealed partial class McpSetupMiddleware : ServiceEntity, IUnifiedSpawnMid
     private readonly IAgentMcpServerManager? _mcpServerManager;
     private readonly ILogger<McpSetupMiddleware>? _logger;
 
+    /// <summary>中间件错误处理策略：继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
+    /// <summary>
+    /// 执行 MCP 服务器初始化：代理已创建且定义中包含 McpServers 时初始化连接
+    /// </summary>
+    /// <param name="context">统一 Spawn 上下文</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct)
     {
         if (_mcpServerManager is not null && context.Agent is not null)

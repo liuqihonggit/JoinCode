@@ -27,6 +27,12 @@ public sealed class DoctorSseClient : IAsyncDisposable
     /// <summary>收到医生指令事件</summary>
     public event EventHandler<string>? CommandReceived;
 
+    /// <summary>
+    /// 构造医生 SSE 客户端
+    /// </summary>
+    /// <param name="endpoint">医生 SSE 服务器端点 URL</param>
+    /// <param name="patientId">病人 ID（可选，默认自动生成）</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public DoctorSseClient(string endpoint, string? patientId = null, ILogger<DoctorSseClient>? logger = null)
     {
         _endpoint = endpoint.TrimEnd('/');
@@ -209,6 +215,10 @@ public sealed class DoctorSseClient : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// 异步释放资源 — 取消 SSE 监听并释放 HTTP 客户端
+    /// </summary>
+    /// <returns>表示异步释放操作的任务</returns>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return;
@@ -226,6 +236,9 @@ public sealed class DoctorSseClient : IAsyncDisposable
     }
 }
 
+/// <summary>
+/// DoctorSseClient 专用 JSON 序列化上下文 — AOT 源码生成
+/// </summary>
 [JsonSerializable(typeof(Dictionary<string, string?>))]
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 internal sealed partial class DoctorSseClientJsonContext : JsonSerializerContext;

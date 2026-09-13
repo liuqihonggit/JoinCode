@@ -36,6 +36,12 @@ public sealed class DoctorStdioTransport : IDoctorTransport
     /// <inheritdoc/>
     public event EventHandler<string>? PatientDisconnected;
 
+    /// <summary>
+    /// 构造医生 stdio 传输
+    /// </summary>
+    /// <param name="patientManager">病人进程管理器</param>
+    /// <param name="patientId">绑定的病人标识</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public DoctorStdioTransport(PatientProcessManager patientManager, string patientId, ILogger<DoctorStdioTransport>? logger = null)
     {
         _patientManager = patientManager ?? throw new ArgumentNullException(nameof(patientManager));
@@ -122,6 +128,13 @@ public sealed class DoctorStdioTransport : IDoctorTransport
         }
     }
 
+    /// <summary>
+    /// 解析病人 stdout 行为诊断事件 — 通过前缀关键字或 NDJSON 识别事件类型
+    /// </summary>
+    /// <param name="line">stdout 行文本</param>
+    /// <param name="patientId">病人标识</param>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <returns>解析出的诊断事件（无法识别则 null）</returns>
     internal static DiagnosticEvent? ParseDiagnosticEvent(string line, string patientId, ILogger? logger = null)
     {
         if (string.IsNullOrWhiteSpace(line)) return null;
@@ -172,6 +185,10 @@ public sealed class DoctorStdioTransport : IDoctorTransport
         return null;
     }
 
+    /// <summary>
+    /// 异步释放资源 — 解除事件订阅并关闭事件通道
+    /// </summary>
+    /// <returns>表示异步释放操作的任务</returns>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return;
@@ -186,6 +203,9 @@ public sealed class DoctorStdioTransport : IDoctorTransport
     }
 }
 
+/// <summary>
+/// DoctorStdioTransport 专用 JSON 序列化上下文 — AOT 源码生成
+/// </summary>
 [JsonSerializable(typeof(Dictionary<string, JsonElement>))]
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 internal sealed partial class DoctorStdioJsonContext : JsonSerializerContext;

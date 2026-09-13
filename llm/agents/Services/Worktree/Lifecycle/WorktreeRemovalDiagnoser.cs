@@ -44,13 +44,20 @@ public enum RemovalFailureReason
 /// </summary>
 public sealed record WorktreeRemovalResult
 {
+    /// <summary>状态机当前状态</summary>
     public required RemovalState State { get; init; }
+    /// <summary>失败根因</summary>
     public RemovalFailureReason Reason { get; init; } = RemovalFailureReason.None;
+    /// <summary>错误信息（失败时填充）</summary>
     public string? ErrorMessage { get; init; }
+    /// <summary>是否成功（状态为 Succeeded 时为 true）</summary>
     public bool Success => State == RemovalState.Succeeded;
 
+    /// <summary>构造成功结果</summary>
     public static WorktreeRemovalResult SucceededResult() => new() { State = RemovalState.Succeeded };
+    /// <summary>构造失败结果</summary>
     public static WorktreeRemovalResult FailedResult(string error) => new() { State = RemovalState.Failed, ErrorMessage = error };
+    /// <summary>构造诊断完成结果</summary>
     public static WorktreeRemovalResult DiagnosedResult(RemovalFailureReason reason, string? error = null) =>
         new() { State = RemovalState.Diagnosed, Reason = reason, ErrorMessage = error };
 }
@@ -63,6 +70,9 @@ public sealed class WorktreeRemovalDiagnoser
 {
     private readonly IFileOperationService _fileSystem;
 
+    /// <summary>
+    /// 构造 WorktreeRemovalDiagnoser 实例，注入文件系统抽象
+    /// </summary>
     public WorktreeRemovalDiagnoser(IFileOperationService fileSystem) => _fileSystem = fileSystem;
 
     /// <summary>

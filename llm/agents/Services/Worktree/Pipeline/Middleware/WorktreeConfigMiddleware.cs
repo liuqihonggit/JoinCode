@@ -7,6 +7,9 @@ namespace Core.Agents.Worktree;
 public sealed partial class WorktreeConfigMiddleware : ServiceEntity, IWorktreeCreateMiddleware
 {
 
+    /// <summary>
+    /// 构造 WorktreeConfigMiddleware 实例，注入文件操作服务、延迟加载的管道操作及日志器
+    /// </summary>
     public WorktreeConfigMiddleware(IFileOperationService fs, Lazy<IWorktreePipelineOperations> worktreeService, ILogger<WorktreeConfigMiddleware>? logger = null)
     {
         _fs = fs;
@@ -17,8 +20,15 @@ public sealed partial class WorktreeConfigMiddleware : ServiceEntity, IWorktreeC
     private readonly Lazy<IWorktreePipelineOperations> _worktreeService;
     private readonly ILogger<WorktreeConfigMiddleware>? _logger;
 
+    /// <summary>中间件错误处理策略：继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
+    /// <summary>
+    /// 执行配置复制：复制配置文件、.worktreeinclude 文件、hooks 路径与符号链接（全部 best-effort）
+    /// </summary>
+    /// <param name="context">worktree 创建上下文</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct)
     {
         var opts = context.Options ?? new WorktreeOptions();

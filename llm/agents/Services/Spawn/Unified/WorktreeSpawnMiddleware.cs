@@ -9,6 +9,9 @@ namespace Core.Agents;
 public sealed partial class WorktreeSpawnMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 
+    /// <summary>
+    /// 构造 WorktreeSpawnMiddleware 实例，注入可选的 worktree 服务、管理器与日志器
+    /// </summary>
     public WorktreeSpawnMiddleware(
         IAgentWorktreeService? worktreeService = null,
         IAgentWorktreeManager? worktreeManager = null,
@@ -22,8 +25,15 @@ public sealed partial class WorktreeSpawnMiddleware : ServiceEntity, IUnifiedSpa
     private readonly IAgentWorktreeManager? _worktreeManager;
     private readonly ILogger<WorktreeSpawnMiddleware>? _logger;
 
+    /// <summary>中间件错误处理策略：继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
+    /// <summary>
+    /// 执行 Worktree 创建：非主代理且代理已创建时按隔离模式创建 per-agent 或全局 worktree，失败降级为普通模式
+    /// </summary>
+    /// <param name="context">统一 Spawn 上下文</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct)
     {
         if (!context.IsMainAgent && context.Agent is not null)

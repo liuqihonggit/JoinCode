@@ -1,5 +1,6 @@
 namespace Core.Agents.Coordinator;
 
+/// <summary>队友重连服务 — 监控断连队友并按指数退避策略自动重连，最大重试次数与退避上限可配置</summary>
 [Register(typeof(JoinCode.Abstractions.Interfaces.ITeammateReconnectService), ServiceLifetime.Singleton)]
 public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.Abstractions.Interfaces.ITeammateReconnectService
 {
@@ -12,6 +13,12 @@ public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.A
     private readonly ILogger<TeammateReconnectService>? _logger;
     private readonly ConcurrentDictionary<string, int> _reconnectAttempts = new(StringComparer.Ordinal);
 
+    /// <summary>
+    /// 初始化 Teammate 重连服务
+    /// </summary>
+    /// <param name="teamManager">团队管理器</param>
+    /// <param name="lifecycleManager">智能体生命周期管理器</param>
+    /// <param name="logger">日志记录器</param>
     public TeammateReconnectService(
         ITeamManager teamManager,
         IAgentLifecycleManager lifecycleManager,
@@ -22,6 +29,13 @@ public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.A
         _logger = logger;
     }
 
+    /// <summary>
+    /// 异步从持久化状态恢复团队上下文
+    /// </summary>
+    /// <param name="teamName">团队名称</param>
+    /// <param name="agentName">当前智能体名称（Leader 为 null）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>恢复的团队上下文，团队不存在则返回 null</returns>
     public async Task<JoinCode.Abstractions.Interfaces.TeamContext?> RestoreTeamContextAsync(
         string teamName, string? agentName = null, CancellationToken cancellationToken = default)
     {
@@ -68,6 +82,12 @@ public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.A
         };
     }
 
+    /// <summary>
+    /// 异步从会话转录恢复团队上下文（暂未实现，返回 null）
+    /// </summary>
+    /// <param name="sessionId">会话标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>团队上下文（当前实现始终返回 null）</returns>
     public Task<JoinCode.Abstractions.Interfaces.TeamContext?> RestoreFromTranscriptAsync(
         string sessionId, CancellationToken cancellationToken = default)
     {
@@ -75,6 +95,13 @@ public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.A
         return Task.FromResult<JoinCode.Abstractions.Interfaces.TeamContext?>(null);
     }
 
+    /// <summary>
+    /// 异步重连指定 Teammate，使用指数退避策略，超过最大重试次数则放弃
+    /// </summary>
+    /// <param name="teamId">团队标识</param>
+    /// <param name="agentId">智能体标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>重连结果</returns>
     public async Task<JoinCode.Abstractions.Interfaces.ReconnectResult> ReconnectTeammateAsync(
         string teamId, string agentId, CancellationToken cancellationToken = default)
     {
@@ -160,6 +187,12 @@ public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.A
         }
     }
 
+    /// <summary>
+    /// 异步重连团队中所有已断开的 Teammate，返回最差状态聚合结果
+    /// </summary>
+    /// <param name="teamId">团队标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>聚合重连结果</returns>
     public async Task<JoinCode.Abstractions.Interfaces.ReconnectResult> ReconnectAllDisconnectedAsync(
         string teamId, CancellationToken cancellationToken = default)
     {

@@ -5,7 +5,9 @@ namespace Core.Agents;
 /// </summary>
 public enum SubAgentEnvelopeState
 {
+    /// <summary>子智能体执行完成</summary>
     Completed,
+    /// <summary>子智能体执行出错</summary>
     Error,
 }
 

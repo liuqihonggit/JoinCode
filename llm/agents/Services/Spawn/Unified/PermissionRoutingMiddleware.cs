@@ -9,6 +9,9 @@ namespace Core.Agents;
 public sealed partial class PermissionRoutingMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 
+    /// <summary>
+    /// 构造 PermissionRoutingMiddleware 实例，注入消息代理、子代理上下文访问器、日志器及可选路由器
+    /// </summary>
     public PermissionRoutingMiddleware(IMailbox messageBroker, ISubAgentContextAccessor subAgentContextAccessor, ILogger<PermissionRoutingMiddleware> logger, SwarmPermissionMessageRouter? permissionRouter = null, PlanApprovalMessageRouter? planApprovalRouter = null)
     {
         _messageBroker = messageBroker;
@@ -23,8 +26,15 @@ public sealed partial class PermissionRoutingMiddleware : ServiceEntity, IUnifie
     private readonly SwarmPermissionMessageRouter? _permissionRouter;
     private readonly PlanApprovalMessageRouter? _planApprovalRouter;
 
+    /// <summary>中间件错误处理策略：继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
+    /// <summary>
+    /// 执行权限路由启动：代理已创建时启动 Leader 权限路由与 Plan 审批路由
+    /// </summary>
+    /// <param name="context">统一 Spawn 上下文</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct)
     {
         if (context.Agent is null)

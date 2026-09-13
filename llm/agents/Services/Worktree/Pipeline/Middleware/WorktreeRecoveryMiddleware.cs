@@ -8,6 +8,9 @@ namespace Core.Agents.Worktree;
 public sealed partial class WorktreeRecoveryMiddleware : ServiceEntity, IWorktreeCreateMiddleware
 {
 
+    /// <summary>
+    /// 构造 WorktreeRecoveryMiddleware 实例，注入文件操作服务、延迟加载的管道操作、时钟服务及日志器
+    /// </summary>
     public WorktreeRecoveryMiddleware(IFileOperationService fs, Lazy<IWorktreePipelineOperations> worktreeService, IClockService clock, ILogger<WorktreeRecoveryMiddleware>? logger = null)
     {
         _fs = fs;
@@ -20,8 +23,15 @@ public sealed partial class WorktreeRecoveryMiddleware : ServiceEntity, IWorktre
     private readonly Lazy<IWorktreePipelineOperations> _worktreeService;
     private readonly IClockService _clock;
 
+    /// <summary>中间件错误处理策略：继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
+    /// <summary>
+    /// 执行 worktree 恢复检查：若现有 worktree 可恢复则短路并设置恢复会话；否则填充默认路径与分支后继续
+    /// </summary>
+    /// <param name="context">worktree 创建上下文</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct)
     {
         var worktreePath = AgentWorktreeSession.GenerateWorktreePath(context.GitRoot, context.AgentId);

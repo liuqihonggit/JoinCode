@@ -5,17 +5,31 @@ namespace Core.Agents;
 /// </summary>
 public sealed class TeammateInitContext
 {
+    /// <summary>团队唯一标识</summary>
     public required string TeamId { get; init; }
+    /// <summary>团队名称</summary>
     public required string TeamName { get; init; }
+    /// <summary>当前队友的 Agent 唯一标识</summary>
     public required string AgentId { get; init; }
+    /// <summary>当前队友的角色名称（可选）</summary>
     public string? AgentRole { get; init; }
+    /// <summary>团队中其他成员的标识列表</summary>
     public IReadOnlyList<string> OtherMembers { get; init; } = [];
+    /// <summary>团队描述（可选）</summary>
     public string? TeamDescription { get; init; }
+    /// <summary>协调器 Agent 标识（可选）</summary>
     public string? CoordinatorId { get; init; }
+    /// <summary>Leader Agent 标识（可选）</summary>
     public string? LeadAgentId { get; init; }
+    /// <summary>团队允许访问的路径及访问级别列表</summary>
     public IReadOnlyList<TeamAllowedPath> AllowedPaths { get; init; } = [];
+    /// <summary>队友加入团队的时间戳（UTC）</summary>
     public DateTime JoinedAt { get; init; } = DateTime.UtcNow;
 
+    /// <summary>
+    /// 将上下文转换为环境变量字典，供子进程注入团队信息
+    /// </summary>
+    /// <returns>包含团队相关环境变量的字典</returns>
     public Dictionary<string, string> ToEnvironmentVariables()
     {
         var env = new Dictionary<string, string>
@@ -40,6 +54,10 @@ public sealed class TeammateInitContext
         return env;
     }
 
+    /// <summary>
+    /// 构建可读的上下文摘要文本，用于向队友展示团队信息
+    /// </summary>
+    /// <returns>包含团队、角色、成员、允许路径等信息的摘要字符串</returns>
     public string BuildContextSummary()
     {
         var sb = new System.Text.StringBuilder();

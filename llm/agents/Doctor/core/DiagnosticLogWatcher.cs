@@ -6,8 +6,13 @@ namespace Core.Agents.Doctor;
 /// </summary>
 public interface IDiagnosticLogWatcherCommand;
 
+/// <summary>启动监控命令</summary>
 public sealed record LogWatcherStartCmd : IDiagnosticLogWatcherCommand;
+
+/// <summary>停止监控命令</summary>
 public sealed record LogWatcherStopCmd : IDiagnosticLogWatcherCommand;
+
+/// <summary>轮询触发命令 — Timer 周期发送的自消息</summary>
 public sealed record LogWatcherPollTickCmd : IDiagnosticLogWatcherCommand;
 
 /// <summary>
@@ -26,8 +31,16 @@ public sealed class DiagnosticLogWatcher : ActorBase<IDiagnosticLogWatcherComman
     private bool _isStarted;
     private int _isDisposed;
 
+    /// <summary>检测到诊断事件 — 从日志文件解析出事件时触发</summary>
     public event EventHandler<DiagnosticEvent>? EventDetected;
 
+    /// <summary>
+    /// 构造诊断日志监控器
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="diagnosticEngine">诊断引擎（接收解析出的事件）</param>
+    /// <param name="diagDirectory">监控目录（可选，默认 ~/.jcc/diag）</param>
+    /// <param name="pollInterval">轮询间隔（可选，默认 5 秒）</param>
     public DiagnosticLogWatcher(
         IFileSystem fs,
         DiagnosticEngine diagnosticEngine,
@@ -41,6 +54,7 @@ public sealed class DiagnosticLogWatcher : ActorBase<IDiagnosticLogWatcherComman
         _pollInterval = pollInterval ?? TimeSpan.FromSeconds(5);
     }
 
+    /// <summary>启动日志监控 — 发送启动命令到 Actor 消费者</summary>
     public void Start()
     {
         if (_isDisposed == 1)
@@ -48,11 +62,15 @@ public sealed class DiagnosticLogWatcher : ActorBase<IDiagnosticLogWatcherComman
         TrySend(new LogWatcherStartCmd());
     }
 
+    /// <summary>停止日志监控 — 发送停止命令到 Actor 消费者</summary>
     public void Stop()
     {
         TrySend(new LogWatcherStopCmd());
     }
 
+    /// <summary>处理日志监控命令 — 根据命令类型分发到启动/停止/轮询等子处理逻辑</summary>
+    /// <param name="command">日志监控命令</param>
+    /// <param name="ct">取消令牌</param>
     protected override async ValueTask HandleAsync(IDiagnosticLogWatcherCommand command, CancellationToken ct)
     {
         switch (command)
@@ -77,6 +95,8 @@ public sealed class DiagnosticLogWatcher : ActorBase<IDiagnosticLogWatcherComman
         }
     }
 
+    /// <summary>消费者异常回调 — 记录错误日志，由基类在消费者抛异常时调用</summary>
+    /// <param name="ex">消费者抛出的异常</param>
     protected override void OnConsumerError(Exception ex)
     {
         DoctorDiag.WriteError($"[LogWatcher] 消费者异常: {ex.Message}");
@@ -104,6 +124,10 @@ public sealed class DiagnosticLogWatcher : ActorBase<IDiagnosticLogWatcherComman
         }
     }
 
+    /// <summary>
+    /// 处理单个日志文件 — 读取增量内容并解析为诊断事件
+    /// </summary>
+    /// <param name="filePath">日志文件路径</param>
     internal async Task ProcessFileAsync(string filePath)
     {
         if (!_fs.FileExists(filePath))
@@ -152,6 +176,12 @@ public sealed class DiagnosticLogWatcher : ActorBase<IDiagnosticLogWatcherComman
         return lines;
     }
 
+    /// <summary>
+    /// 解析单行日志为诊断事件 — 通过关键字匹配识别事件类型
+    /// </summary>
+    /// <param name="line">日志行文本</param>
+    /// <param name="sourceFile">来源文件路径</param>
+    /// <returns>解析出的诊断事件（无法识别则 null）</returns>
     internal static DiagnosticEvent? ParseLogLine(string line, string sourceFile)
     {
         if (string.IsNullOrWhiteSpace(line))
@@ -230,6 +260,7 @@ public sealed class DiagnosticLogWatcher : ActorBase<IDiagnosticLogWatcherComman
         return null;
     }
 
+    /// <summary>异步释放资源 — 取消轮询任务、分离日志文件监控、释放内部句柄</summary>
     public override async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return;

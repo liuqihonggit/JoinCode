@@ -17,6 +17,12 @@ public sealed partial class PlanApprovalMessageRouter : ServiceEntity
     private CancellationTokenSource? _leaderCts;
     private Task? _leaderRoutingTask;
 
+    /// <summary>初始化计划审批消息路由器</summary>
+    /// <param name="messageBroker">消息邮箱，用于订阅/发布审批消息</param>
+    /// <param name="planModeManager">计划模式管理器，控制计划模式的启用与退出</param>
+    /// <param name="permissionManager">工具权限管理器（可选），用于审批期间约束工具调用</param>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="clock">时钟服务（可选），默认使用系统时钟</param>
     public PlanApprovalMessageRouter(
         IMailbox messageBroker,
         IPlanModeManager planModeManager,

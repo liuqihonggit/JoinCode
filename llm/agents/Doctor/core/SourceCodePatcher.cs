@@ -1,14 +1,29 @@
 namespace Core.Agents.Doctor;
 
+/// <summary>
+/// 源码补丁应用器 — 安全地应用源码修改并支持回滚
+/// </summary>
 public sealed class SourceCodePatcher
 {
     private readonly IFileSystem _fs;
 
+    /// <summary>
+    /// 构造源码补丁应用器
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
     public SourceCodePatcher(IFileSystem fs)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
     }
 
+    /// <summary>
+    /// 应用源码补丁 — 校验原内容匹配后写入新内容，支持安全回滚
+    /// </summary>
+    /// <param name="filePath">目标源码文件路径</param>
+    /// <param name="originalContent">预期原始内容（用于安全校验，null 跳过校验）</param>
+    /// <param name="patchedContent">补丁后的新内容</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>补丁应用结果</returns>
     public async Task<SourceCodePatchResult> ApplyPatchAsync(
         string filePath,
         string originalContent,
@@ -76,6 +91,13 @@ public sealed class SourceCodePatcher
         }
     }
 
+    /// <summary>
+    /// 回滚源码补丁 — 将文件内容恢复为原始内容
+    /// </summary>
+    /// <param name="filePath">目标源码文件路径</param>
+    /// <param name="originalContent">要恢复的原始内容</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>回滚结果</returns>
     public async Task<SourceCodePatchResult> RollbackAsync(
         string filePath,
         string originalContent,
@@ -116,12 +138,26 @@ public sealed class SourceCodePatcher
     }
 }
 
+/// <summary>
+/// 源码补丁应用结果
+/// </summary>
 public sealed record SourceCodePatchResult
 {
+    /// <summary>是否操作成功</summary>
     public required bool Success { get; init; }
+
+    /// <summary>目标文件路径</summary>
     public required string FilePath { get; init; }
+
+    /// <summary>结果描述</summary>
     public string? Description { get; init; }
+
+    /// <summary>原始内容</summary>
     public string? OriginalContent { get; init; }
+
+    /// <summary>补丁后内容</summary>
     public string? PatchedContent { get; init; }
+
+    /// <summary>操作耗时</summary>
     public TimeSpan Duration { get; init; }
 }

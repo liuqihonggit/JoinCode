@@ -6,6 +6,9 @@
     <PackageId>JoinCode.Agents</PackageId>
     <Description>JoinCode Agents 子系统 — Agent 协调、生命周期管理、多模型协作、Fork/Team/Swarm</Description>
     <NoWarn>$(NoWarn);IL2026;IL3050;NU5104</NoWarn>
+    <!-- 强制 XML 文档注释完整：从继承的 NoWarn 中移除 CS1591，并升级为错误 -->
+    <NoWarn>$(NoWarn.Replace(';CS1591', '').Replace('CS1591;', '').Replace('CS1591', ''))</NoWarn>
+    <WarningsAsErrors>$(WarningsAsErrors);CS1591</WarningsAsErrors>
   </PropertyGroup>
 
   <ItemGroup>

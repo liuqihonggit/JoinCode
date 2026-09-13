@@ -8,6 +8,9 @@ namespace Core.Agents;
 public sealed partial class DefinitionResolutionMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 
+    /// <summary>
+    /// 构造 DefinitionResolutionMiddleware 实例，注入角色注册表及可选的定义提供者
+    /// </summary>
     public DefinitionResolutionMiddleware(IAgentRoleRegistry roleRegistry, IAgentDefinitionProvider? definitionProvider = null)
     {
         _roleRegistry = roleRegistry;
@@ -16,8 +19,15 @@ public sealed partial class DefinitionResolutionMiddleware : ServiceEntity, IUni
     private readonly IAgentRoleRegistry _roleRegistry;
     private readonly IAgentDefinitionProvider? _definitionProvider;
 
+    /// <summary>中间件错误处理策略：向上传播</summary>
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
+    /// <summary>
+    /// 执行定义解析：主代理或无 SpawnOptions 跳过；否则从角色注册表或定义提供者获取定义
+    /// </summary>
+    /// <param name="context">统一 Spawn 上下文</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct)
     {
         if (context.IsMainAgent || context.SpawnOptions is null)

@@ -1,9 +1,17 @@
 namespace Core.Agents.Coordinator;
 
+/// <summary>
+/// Worktree 清理中间件 — 在 Agent 释放管道中清理该 Agent 关联的 Git Worktree
+/// </summary>
 [Register(typeof(IAgentDisposeMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class DisposeWorktreeCleanupMiddleware : ServiceEntity, IAgentDisposeMiddleware
 {
 
+    /// <summary>
+    /// 构造 Worktree 清理中间件实例
+    /// </summary>
+    /// <param name="worktreeManager">Agent Worktree 管理器</param>
+    /// <param name="logger">日志记录器</param>
     public DisposeWorktreeCleanupMiddleware(IAgentWorktreeManager worktreeManager, ILogger<DisposeWorktreeCleanupMiddleware> logger)
     {
         _worktreeManager = worktreeManager;
@@ -12,6 +20,12 @@ public sealed partial class DisposeWorktreeCleanupMiddleware : ServiceEntity, IA
     private readonly IAgentWorktreeManager _worktreeManager;
     private readonly ILogger<DisposeWorktreeCleanupMiddleware> _logger;
 
+    /// <summary>
+    /// 执行中间件逻辑：清理指定 Agent 的 Worktree 后继续管道
+    /// </summary>
+    /// <param name="ctx">Agent 释放上下文</param>
+    /// <param name="next">管道下一步委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(AgentDisposeContext ctx, MiddlewareDelegate<AgentDisposeContext> next, CancellationToken ct)
     {
         try

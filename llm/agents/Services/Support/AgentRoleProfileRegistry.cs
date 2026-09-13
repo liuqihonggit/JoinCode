@@ -18,6 +18,9 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
     private Dictionary<AgentRole, List<AgentRoleProfile>> _roleIndex;
     private volatile bool _customLoaded;
 
+    /// <summary>
+    /// 构造 AgentRoleProfileRegistry 实例，注入可选的定义提供者与日志器
+    /// </summary>
     public AgentRoleProfileRegistry(
         IAgentDefinitionProvider? definitionProvider = null,
         ILogger<AgentRoleProfileRegistry>? logger = null)
@@ -52,6 +55,10 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
         _roleIndex = BuildRoleIndex(_profiles);
     }
 
+    /// <summary>
+    /// 注册单个角色 Profile，更新索引映射
+    /// </summary>
+    /// <param name="profile">要注册的角色 Profile</param>
     public void Register(AgentRoleProfile profile)
     {
         using var guard = _loadLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_loadLock.Name}' 等待超时");
@@ -65,24 +72,43 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
         list.Add(profile);
     }
 
+    /// <summary>
+    /// 按角色与变体获取角色 Profile
+    /// </summary>
+    /// <param name="role">代理角色</param>
+    /// <param name="variant">执行变体（可选）</param>
+    /// <returns>匹配的角色 Profile；未找到时返回 null</returns>
     public AgentRoleProfile? GetProfile(AgentRole role, ExecutorVariant? variant = null)
     {
         EnsureCustomLoaded();
         return _profileMap.TryGetValue((role, variant), out var profile) ? profile : null;
     }
 
+    /// <summary>
+    /// 获取所有已注册的角色 Profile
+    /// </summary>
+    /// <returns>角色 Profile 集合</returns>
     public IEnumerable<AgentRoleProfile> GetAllProfiles()
     {
         EnsureCustomLoaded();
         return _profiles;
     }
 
+    /// <summary>
+    /// 按角色获取其下所有变体的 Profile
+    /// </summary>
+    /// <param name="role">代理角色</param>
+    /// <returns>该角色下的所有 Profile</returns>
     public IEnumerable<AgentRoleProfile> GetProfilesByRole(AgentRole role)
     {
         EnsureCustomLoaded();
         return _roleIndex.GetValueOrDefault(role) ?? [];
     }
 
+    /// <summary>
+    /// 获取所有可用的执行变体
+    /// </summary>
+    /// <returns>去重并排序后的执行变体集合</returns>
     public IEnumerable<ExecutorVariant> GetAvailableVariants()
     {
         EnsureCustomLoaded();
@@ -93,6 +119,9 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
             .OrderBy(v => v);
     }
 
+    /// <summary>
+    /// 清除自定义 Profile 缓存，重置为内置 Profile
+    /// </summary>
     public void ClearCache()
     {
         using var guard = _loadLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_loadLock.Name}' 等待超时");
@@ -197,6 +226,10 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
         return value is "1" or "true" or "True" or "TRUE";
     }
 
+    /// <summary>
+    /// 构建内置角色 Profile 列表 — 包含 Coordinator 及 Executor 各变体（Code/Search/Explore/Plan/Doctor/Verification 等）
+    /// </summary>
+    /// <returns>内置角色 Profile 列表</returns>
     internal static List<AgentRoleProfile> BuildBuiltInProfiles()
     {
         var readOnlyDisallowedTools = new List<string>

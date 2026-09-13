@@ -12,6 +12,13 @@ public sealed partial class AgentMcpServerManager : ServiceEntity, JoinCode.Abst
     private readonly IMcpAuthConfigProvider? _authConfigProvider;
     private readonly IMcpClientFactory? _mcpClientFactory;
 
+    /// <summary>
+    /// 构造 Agent MCP 服务器管理器实例
+    /// </summary>
+    /// <param name="remoteClientManager">远程客户端管理器，负责 MCP 客户端的注册与工具同步</param>
+    /// <param name="logger">可选日志记录器</param>
+    /// <param name="authConfigProvider">可选 MCP 认证配置提供者，用于按名称解析认证信息</param>
+    /// <param name="mcpClientFactory">可选 MCP 客户端工厂，用于创建内联配置对应的客户端实例</param>
     public AgentMcpServerManager(
         IRemoteClientManager remoteClientManager,
         ILogger<AgentMcpServerManager>? logger = null,
@@ -24,6 +31,13 @@ public sealed partial class AgentMcpServerManager : ServiceEntity, JoinCode.Abst
         _mcpClientFactory = mcpClientFactory;
     }
 
+    /// <summary>
+    /// 为指定 Agent 初始化 MCP 服务器集合 — 连接 Agent 自身声明的 MCP 服务器并继承父级客户端
+    /// </summary>
+    /// <param name="agentDefinition">Agent 定义，包含 MCP 服务器声明</param>
+    /// <param name="parentClientIds">可选父级客户端 ID 列表；缺省时自动取当前所有已注册客户端</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>初始化结果，包含已连接服务器列表与同步得到的工具名称集合</returns>
     public async Task<JoinCode.Abstractions.Interfaces.AgentMcpServerResult> InitializeAgentMcpServersAsync(
         JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition agentDefinition,
         IReadOnlyList<string>? parentClientIds = null,
@@ -125,6 +139,11 @@ public sealed partial class AgentMcpServerManager : ServiceEntity, JoinCode.Abst
         return result;
     }
 
+    /// <summary>
+    /// 清理指定 Agent 的所有 MCP 客户端 — 从远程客户端管理器注销并释放资源
+    /// </summary>
+    /// <param name="agentId">目标 Agent 标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task CleanupAgentMcpServersAsync(string agentId, CancellationToken cancellationToken = default)
     {
         if (!_agentClients.TryRemove(agentId, out var clientIds))

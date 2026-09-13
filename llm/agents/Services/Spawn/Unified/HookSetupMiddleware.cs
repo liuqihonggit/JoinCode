@@ -8,6 +8,9 @@ namespace Core.Agents;
 public sealed partial class HookSetupMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 
+    /// <summary>
+    /// 构造 HookSetupMiddleware 实例，注入可选的会话钩子管理器与日志器
+    /// </summary>
     public HookSetupMiddleware(ISessionHookManager? sessionHookManager = null, ILogger<HookSetupMiddleware>? logger = null)
     {
         _sessionHookManager = sessionHookManager;
@@ -16,8 +19,15 @@ public sealed partial class HookSetupMiddleware : ServiceEntity, IUnifiedSpawnMi
     private readonly ISessionHookManager? _sessionHookManager;
     private readonly ILogger<HookSetupMiddleware>? _logger;
 
+    /// <summary>中间件错误处理策略：继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
+    /// <summary>
+    /// 执行 Hook 注册：若代理已创建且定义中包含 Hooks，则注册到会话钩子管理器
+    /// </summary>
+    /// <param name="context">统一 Spawn 上下文</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct)
     {
         if (_sessionHookManager is not null && context.Agent is not null)

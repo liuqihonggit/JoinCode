@@ -6,6 +6,8 @@ namespace Core.Agents.Doctor;
 /// </summary>
 internal static class DoctorDiag
 {
+    /// <summary>写入诊断消息到 Console.Error</summary>
+    /// <param name="message">诊断消息文本</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static void Write(string message)
     {
@@ -13,6 +15,8 @@ internal static class DoctorDiag
         Console.Error.Flush();
     }
 
+    /// <summary>写入错误级别诊断消息到 Console.Error（带 [ERROR] 前缀）</summary>
+    /// <param name="message">错误消息文本</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static void WriteError(string message)
     {

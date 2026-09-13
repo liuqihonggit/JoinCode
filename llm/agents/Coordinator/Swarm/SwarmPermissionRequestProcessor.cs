@@ -1,11 +1,21 @@
 
 namespace Core.Agents.Coordinator;
 
+/// <summary>
+/// Swarm 权限请求处理器接口 — 处理 Worker 子智能体发起的工具权限请求
+/// </summary>
 public interface ISwarmPermissionRequestProcessor
 {
+    /// <summary>
+    /// 异步处理权限请求，评估并回复允许或拒绝
+    /// </summary>
+    /// <param name="requestData">权限请求数据</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     Task ProcessRequestAsync(SwarmPermissionRequestData requestData, CancellationToken ct = default);
 }
 
+/// <summary>Swarm 权限请求处理器 — 处理权限请求的核心逻辑，与权限管理器和回调服务协作完成权限审批</summary>
 [Register(typeof(ISwarmPermissionRequestProcessor), ServiceLifetime.Singleton)]
 public sealed partial class SwarmPermissionRequestProcessor : ServiceEntity, ISwarmPermissionRequestProcessor
 {
@@ -15,6 +25,14 @@ public sealed partial class SwarmPermissionRequestProcessor : ServiceEntity, ISw
     private readonly ILogger<SwarmPermissionRequestProcessor>? _logger;
     private readonly ISubAgentContextAccessor _subAgentContextAccessor;
 
+    /// <summary>
+    /// 初始化权限请求处理器
+    /// </summary>
+    /// <param name="messageBroker">消息邮箱</param>
+    /// <param name="permissionManager">权限管理器</param>
+    /// <param name="callbackService">权限回调服务</param>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="subAgentContextAccessor">子智能体上下文访问器</param>
     public SwarmPermissionRequestProcessor(
         IMailbox messageBroker,
         IAgentPermissionManager permissionManager,
@@ -29,6 +47,12 @@ public sealed partial class SwarmPermissionRequestProcessor : ServiceEntity, ISw
         _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
     }
 
+    /// <summary>
+    /// 异步处理权限请求，评估后通过邮箱回复 Worker 允许或拒绝
+    /// </summary>
+    /// <param name="requestData">权限请求数据</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task ProcessRequestAsync(SwarmPermissionRequestData requestData, CancellationToken ct = default)
     {
         _logger?.LogInformation(

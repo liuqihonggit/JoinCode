@@ -10,11 +10,21 @@ public sealed class DefaultBootstrapGuard : IBootstrapGuard
     private readonly Dictionary<string, DateTimeOffset> _lastModificationByFile = new();
     private readonly TimeSpan _rateLimitInterval = TimeSpan.FromMinutes(10);
 
+    /// <summary>
+    /// 构造默认自举安全守卫
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
     public DefaultBootstrapGuard(IFileSystem fs)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
     }
 
+    /// <summary>
+    /// 审核修改请求 — 依次执行 6 条安全规则：守卫文件保护、变更行数告警、Register 特性保护、频率限制、配置文件保护、基本语法检查
+    /// </summary>
+    /// <param name="request">修改请求</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>审核决策</returns>
     public Task<GuardDecision> ReviewAsync(
         BootstrapModificationRequest request,
         CancellationToken ct = default)
@@ -83,6 +93,11 @@ public sealed class DefaultBootstrapGuard : IBootstrapGuard
         });
     }
 
+    /// <summary>
+    /// 判断路径是否为安全守卫或保险库相关文件
+    /// </summary>
+    /// <param name="path">文件路径</param>
+    /// <returns>是守卫/保险库文件返回 true</returns>
     internal static bool IsGuardOrVaultFile(string path)
     {
         return path.Contains("Guard", StringComparison.OrdinalIgnoreCase)
@@ -90,6 +105,12 @@ public sealed class DefaultBootstrapGuard : IBootstrapGuard
             || path.Contains("BootstrapGuard", StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// 统计原始内容与修改后内容之间的变更行数
+    /// </summary>
+    /// <param name="original">原始内容</param>
+    /// <param name="proposed">修改后内容</param>
+    /// <returns>变更行数</returns>
     internal static int CountChangedLines(string original, string proposed)
     {
         var originalLines = original.Split('\n');
@@ -107,6 +128,12 @@ public sealed class DefaultBootstrapGuard : IBootstrapGuard
         return changed;
     }
 
+    /// <summary>
+    /// 检测是否删除了 [Register] 特性 — 删除会破坏 DI 注册
+    /// </summary>
+    /// <param name="original">原始内容</param>
+    /// <param name="proposed">修改后内容</param>
+    /// <returns>删除了 Register 特性返回 true</returns>
     internal static bool RemovedRegisterAttribute(string original, string proposed)
     {
         var originalRegisters = CountOccurrences(original, "[Register");
@@ -114,6 +141,11 @@ public sealed class DefaultBootstrapGuard : IBootstrapGuard
         return proposedRegisters < originalRegisters;
     }
 
+    /// <summary>
+    /// 判断路径是否为项目配置文件（.csproj/.props/.targets/Directory.Build）
+    /// </summary>
+    /// <param name="path">文件路径</param>
+    /// <returns>是配置文件返回 true</returns>
     internal static bool IsProjectConfigFile(string path)
     {
         return path.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)
@@ -122,6 +154,11 @@ public sealed class DefaultBootstrapGuard : IBootstrapGuard
             || path.Contains("Directory.Build", StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// 基本语法检查 — 校验大括号配对等简单规则
+    /// </summary>
+    /// <param name="content">待检查代码内容</param>
+    /// <returns>通过基本检查返回 true</returns>
     internal static bool BasicSyntaxCheck(string content)
     {
         if (string.IsNullOrWhiteSpace(content)) return false;

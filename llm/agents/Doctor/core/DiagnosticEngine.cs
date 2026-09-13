@@ -14,6 +14,7 @@ public sealed class DiagnosticEngine
     private readonly List<DiagnosticReport> _reports = [];
     private readonly AsyncLock _lock = new("DiagnosticEngine");
 
+    /// <summary>已生成的诊断报告列表（线程安全快照）</summary>
     public IReadOnlyList<DiagnosticReport> Reports
     {
         get
@@ -22,10 +23,17 @@ public sealed class DiagnosticEngine
         }
     }
 
+    /// <summary>诊断报告生成事件 — 每次生成新报告时触发</summary>
     public event EventHandler<DiagnosticReport>? DiagnosticReportGenerated;
 
+    /// <summary>构造诊断引擎，初始化所有计数器</summary>
     public DiagnosticEngine() { }
 
+    /// <summary>
+    /// 评估诊断事件 — 根据事件类型路由到对应评估器，可能生成诊断报告
+    /// </summary>
+    /// <param name="evt">诊断事件</param>
+    /// <returns>生成的诊断报告（无报告则 null）</returns>
     public DiagnosticReport? Evaluate(DiagnosticEvent evt)
     {
         ArgumentNullException.ThrowIfNull(evt);
@@ -101,6 +109,11 @@ public sealed class DiagnosticEngine
         return null;
     }
 
+    /// <summary>
+    /// 评估病人进程卡死 — 当病人状态为 Hung 时生成关键级别诊断报告
+    /// </summary>
+    /// <param name="patientInfo">病人信息</param>
+    /// <returns>卡死诊断报告（未卡死则 null）</returns>
     public DiagnosticReport? EvaluateProcessHung(PatientInfo patientInfo)
     {
         ArgumentNullException.ThrowIfNull(patientInfo);
@@ -123,6 +136,7 @@ public sealed class DiagnosticEngine
         return report;
     }
 
+    /// <summary>重置所有诊断状态 — 清空全部计数器、报告缓存</summary>
     public void Reset()
     {
         using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
@@ -136,6 +150,10 @@ public sealed class DiagnosticEngine
         }
     }
 
+    /// <summary>
+    /// 重置指定病人的诊断状态 — 仅清空该病人相关计数器
+    /// </summary>
+    /// <param name="patientId">病人标识</param>
     public void ResetPatient(string patientId)
     {
         using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))

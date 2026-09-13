@@ -1,5 +1,6 @@
 namespace Core.Agents.Coordinator;
 
+/// <summary>队友邮箱服务 — 管理各队友邮箱目录的读写、消息投递与持久化，实现 IDisposable 释放写锁</summary>
 [Register(typeof(ITeammateMailboxService), ServiceLifetime.Singleton)]
 public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMailboxService, IDisposable
 {
@@ -12,6 +13,13 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
     private readonly ConcurrentDictionary<string, MailboxReadCursor> _cursors;
     private int _messageCounter;
 
+    /// <summary>
+    /// 初始化 Teammate 邮箱服务
+    /// </summary>
+    /// <param name="fs">文件系统</param>
+    /// <param name="mailboxRoot">邮箱根目录（默认用户目录下 jcc/mailbox）</param>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="clock">时钟服务</param>
     public TeammateMailboxService(
         IFileSystem fs,
         string? mailboxRoot = null,
@@ -31,6 +39,12 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
         _cursors = new ConcurrentDictionary<string, MailboxReadCursor>();
     }
 
+    /// <summary>
+    /// 异步发送邮箱消息到指定智能体，追加写入邮箱文件
+    /// </summary>
+    /// <param name="request">发送请求</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>已发送的邮箱消息</returns>
     public async Task<MailboxMessage> SendAsync(MailboxSendRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(request.ToAgentId);
@@ -68,6 +82,13 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
         return message;
     }
 
+    /// <summary>
+    /// 异步读取指定智能体的未读消息，基于游标位置增量读取
+    /// </summary>
+    /// <param name="agentId">智能体标识</param>
+    /// <param name="sessionId">会话标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>未读消息只读列表</returns>
     public async Task<IReadOnlyList<MailboxMessage>> ReadUnreadAsync(
         string agentId, string sessionId, CancellationToken cancellationToken = default)
     {
@@ -75,6 +96,14 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
         return await ReadSinceAsync(agentId, sessionId, cursor.LastReadLineIndex, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 异步读取自指定行索引之后的所有消息
+    /// </summary>
+    /// <param name="agentId">智能体标识</param>
+    /// <param name="sessionId">会话标识</param>
+    /// <param name="sinceLineIndex">起始行索引</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>消息只读列表</returns>
     public async Task<IReadOnlyList<MailboxMessage>> ReadSinceAsync(
         string agentId, string sessionId, int sinceLineIndex, CancellationToken cancellationToken = default)
     {
@@ -89,6 +118,14 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
         return await ReadMessagesFromFileAsync(filePath, sinceLineIndex, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 异步将指定消息标记为已读，并更新游标位置
+    /// </summary>
+    /// <param name="agentId">智能体标识</param>
+    /// <param name="sessionId">会话标识</param>
+    /// <param name="messageIds">需标记为已读的消息标识集合</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task MarkAsReadAsync(
         string agentId, string sessionId, IEnumerable<string> messageIds,
         CancellationToken cancellationToken = default)
@@ -133,6 +170,13 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
         }
     }
 
+    /// <summary>
+    /// 异步获取指定智能体的未读消息数量
+    /// </summary>
+    /// <param name="agentId">智能体标识</param>
+    /// <param name="sessionId">会话标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>未读消息数量</returns>
     public async Task<int> GetUnreadCountAsync(
         string agentId, string sessionId, CancellationToken cancellationToken = default)
     {
@@ -140,6 +184,13 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
         return messages.Count(m => !m.IsRead);
     }
 
+    /// <summary>
+    /// 异步获取或创建指定智能体与会话的邮箱读取游标
+    /// </summary>
+    /// <param name="agentId">智能体标识</param>
+    /// <param name="sessionId">会话标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>邮箱读取游标</returns>
     public Task<MailboxReadCursor> GetOrCreateCursorAsync(
         string agentId, string sessionId, CancellationToken cancellationToken = default)
     {
@@ -161,6 +212,13 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
         return Task.FromResult(cursor);
     }
 
+    /// <summary>
+    /// 异步读取指定智能体的全部消息
+    /// </summary>
+    /// <param name="agentId">智能体标识</param>
+    /// <param name="sessionId">会话标识</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>消息只读列表</returns>
     public async Task<IReadOnlyList<MailboxMessage>> ReadAllAsync(
         string agentId, string sessionId, CancellationToken cancellationToken = default)
     {
@@ -257,6 +315,7 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
         }
     }
 
+    /// <summary>释放资源 — 释放邮箱写锁</summary>
     protected override void OnDispose()
     {
         _writeLock.Dispose();

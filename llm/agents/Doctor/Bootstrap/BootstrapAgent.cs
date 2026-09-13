@@ -26,7 +26,10 @@ public sealed class BootstrapAgent : IAsyncDisposable
     private readonly Func<string, string, Task<bool>> _confirmCallback;
     private int _isDisposed;
 
+    /// <summary>IPC 传输层 — 用于接收病人遥测事件</summary>
     public IDoctorTransport Transport => _transport;
+
+    /// <summary>待处理的诊断报告集合（线程安全快照）</summary>
     public IEnumerable<DiagnosticReport> PendingReports
     {
         get
@@ -40,6 +43,20 @@ public sealed class BootstrapAgent : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// 构造自举后台 Agent
+    /// </summary>
+    /// <param name="chatClient">聊天客户端（LLM 判断）</param>
+    /// <param name="sourceEngine">源码工程引擎</param>
+    /// <param name="worktreeMgr">worktree 管理器</param>
+    /// <param name="patchGenerator">代码补丁生成器</param>
+    /// <param name="guard">安全守卫</param>
+    /// <param name="patientManager">病人进程管理器</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="transport">IPC 传输（可选，默认 TCP 9902）</param>
+    /// <param name="memory">反思记忆（可选）</param>
+    /// <param name="confirmCallback">用户确认回调（可选，默认控制台交互）</param>
+    /// <param name="logWatcher">日志文件监控器（可选）</param>
     public BootstrapAgent(
         IChatClient chatClient,
         ISourceCodeEngine sourceEngine,
@@ -375,6 +392,12 @@ public sealed class BootstrapAgent : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// 解析 LLM 判断 JSON 响应为 BootstrapJudgment 对象
+    /// </summary>
+    /// <param name="llmResponse">LLM 返回的 JSON 文本</param>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <returns>解析后的判断结果，解析失败返回 NeedsFix=false 的默认值</returns>
     internal static BootstrapJudgment ParseJudgment(string llmResponse, ILogger? logger = null)
     {
         var result = LlmJsonHelper.Deserialize(llmResponse, AgentsJsonContext.Default.BootstrapJudgmentJson, out var repairHint, logger);
@@ -450,6 +473,10 @@ public sealed class BootstrapAgent : IAsyncDisposable
         DoctorDiag.Write($"[Bootstrap] 收到诊断报告: {report.RuleId} - {report.Description}");
     }
 
+    /// <summary>
+    /// 异步释放资源 — 解除事件订阅并释放传输、日志监控器
+    /// </summary>
+    /// <returns>表示异步释放操作的任务</returns>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return;

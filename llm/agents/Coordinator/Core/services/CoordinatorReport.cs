@@ -5,13 +5,21 @@ namespace Core.Agents.Coordinator;
 /// </summary>
 public sealed class CoordinatorReport
 {
+    /// <summary>Agent 总数</summary>
     public int TotalAgents { get; init; }
+    /// <summary>待执行 Agent 数量</summary>
     public int PendingCount { get; init; }
+    /// <summary>运行中 Agent 数量</summary>
     public int RunningCount { get; init; }
+    /// <summary>已暂停 Agent 数量</summary>
     public int PausedCount { get; init; }
+    /// <summary>已完成 Agent 数量</summary>
     public int CompletedCount { get; init; }
+    /// <summary>失败 Agent 数量</summary>
     public int FailedCount { get; init; }
+    /// <summary>已取消 Agent 数量</summary>
     public int CancelledCount { get; init; }
+    /// <summary>Agent 信息列表</summary>
     public List<AgentInfo> Agents { get; init; } = new();
 
     /// <summary>
@@ -66,13 +74,21 @@ public sealed class FallbackExecutionResult
 /// </summary>
 public sealed class ExecutionStatistics
 {
+    /// <summary>Agent 总数</summary>
     public int TotalAgents { get; init; }
+    /// <summary>成功 Agent 数量</summary>
     public int SuccessfulAgents { get; init; }
+    /// <summary>失败 Agent 数量</summary>
     public int FailedAgents { get; init; }
+    /// <summary>已取消 Agent 数量</summary>
     public int CancelledAgents { get; init; }
+    /// <summary>总重试次数</summary>
     public int TotalRetries { get; init; }
+    /// <summary>平均执行时间（毫秒）</summary>
     public long? AverageExecutionTimeMs { get; init; }
+    /// <summary>并行执行次数</summary>
     public int ParallelExecutions { get; init; }
+    /// <summary>串行执行次数</summary>
     public int SequentialExecutions { get; init; }
 
     /// <summary>
@@ -86,9 +102,13 @@ public sealed class ExecutionStatistics
 /// </summary>
 public sealed class AgentInfo
 {
+    /// <summary>Agent 标识</summary>
     public required string Id { get; init; }
+    /// <summary>任务描述</summary>
     public required string Task { get; init; }
+    /// <summary>当前执行状态</summary>
     public required TaskExecutionStatus State { get; init; }
+    /// <summary>执行耗时（毫秒）</summary>
     public long? ExecutionTimeMs { get; init; }
 }
 

@@ -7,6 +7,9 @@ namespace Core.Agents.Worktree;
 public sealed partial class WorktreeCreateMiddleware : ServiceEntity, IWorktreeCreateMiddleware
 {
 
+    /// <summary>
+    /// 构造 WorktreeCreateMiddleware 实例，注入延迟加载的管道操作、文件操作服务、时钟服务及日志器
+    /// </summary>
     public WorktreeCreateMiddleware(Lazy<IWorktreePipelineOperations> worktreeService, IFileOperationService fs, IClockService clock, ILogger<WorktreeCreateMiddleware>? logger = null)
     {
         _worktreeService = worktreeService;
@@ -20,6 +23,12 @@ public sealed partial class WorktreeCreateMiddleware : ServiceEntity, IWorktreeC
     private readonly IClockService _clock;
 
 
+    /// <summary>
+    /// 执行 worktree 创建：git worktree add + 可选稀疏检出，失败时回滚已创建的 worktree 与分支
+    /// </summary>
+    /// <param name="context">worktree 创建上下文</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct)
     {
         var opts = context.Options ?? new WorktreeOptions();

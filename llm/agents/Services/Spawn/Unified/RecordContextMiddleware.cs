@@ -8,14 +8,24 @@ namespace Core.Agents;
 public sealed partial class RecordContextMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
 {
 
+    /// <summary>
+    /// 构造 RecordContextMiddleware 实例，注入时钟服务
+    /// </summary>
     public RecordContextMiddleware(IClockService clock)
     {
         _clock = clock;
     }
     private readonly IClockService _clock;
 
+    /// <summary>中间件错误处理策略：向上传播</summary>
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
+    /// <summary>
+    /// 执行上下文记录：代理已创建时记录 SpawnedAt 时间戳并创建执行上下文
+    /// </summary>
+    /// <param name="context">统一 Spawn 上下文</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
     public Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct)
     {
         if (context.Agent is not null)

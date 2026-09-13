@@ -21,12 +21,23 @@ public sealed class SourceCodeEngine : ISourceCodeEngine
         (7, "App.slnx")
     ];
 
+    /// <summary>
+    /// 构造源码工程引擎
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="gitRunner">Git 命令执行器</param>
     public SourceCodeEngine(IFileSystem fs, IGitCommandRunner gitRunner)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _gitRunner = gitRunner ?? throw new ArgumentNullException(nameof(gitRunner));
     }
 
+    /// <summary>
+    /// 定位源码仓库 — 依次尝试 JCC_SOURCE_DIR 环境变量、hintPath、exe 目录、当前目录
+    /// </summary>
+    /// <param name="hintPath">提示路径（可选）</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>源码位置信息</returns>
     public async Task<SourceCodeLocation> LocateSourceRepositoryAsync(
         string? hintPath = null,
         CancellationToken ct = default)
@@ -61,6 +72,13 @@ public sealed class SourceCodeEngine : ISourceCodeEngine
         };
     }
 
+    /// <summary>
+    /// 全量编译项目 — 按七层解决方案顺序编译各 slnx，返回每层结果和产物 exe 路径
+    /// </summary>
+    /// <param name="worktreePath">worktree 根目录</param>
+    /// <param name="configuration">编译配置（Debug/Release），默认 Debug</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>全量编译结果</returns>
     public async Task<FullBuildResult> BuildFullProjectAsync(
         string worktreePath,
         string configuration = "Debug",
@@ -167,6 +185,13 @@ public sealed class SourceCodeEngine : ISourceCodeEngine
         };
     }
 
+    /// <summary>
+    /// 获取产物 exe 路径 — 拼接 artifacts/bin/JoinCode/{configuration}/net10.0/jcc.exe
+    /// </summary>
+    /// <param name="worktreePath">worktree 根目录</param>
+    /// <param name="configuration">编译配置（Debug/Release），默认 Debug</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>exe 路径</returns>
     public Task<string> GetArtifactExePathAsync(
         string worktreePath,
         string configuration = "Debug",
@@ -176,6 +201,14 @@ public sealed class SourceCodeEngine : ISourceCodeEngine
         return Task.FromResult(exePath);
     }
 
+    /// <summary>
+    /// 替换当前 exe — 备份当前 exe，用新 exe 覆盖，失败自动回滚
+    /// </summary>
+    /// <param name="currentExePath">当前 exe 路径</param>
+    /// <param name="newExePath">新 exe 路径</param>
+    /// <param name="patientId">病人标识（用于日志）</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>替换结果</returns>
     public async Task<ExeSwapResult> SwapExeAsync(
         string currentExePath,
         string newExePath,
@@ -239,6 +272,12 @@ public sealed class SourceCodeEngine : ISourceCodeEngine
         }
     }
 
+    /// <summary>
+    /// 确保源码可用 — 依次尝试环境变量、exe 目录、当前目录、git clone
+    /// </summary>
+    /// <param name="repoUrl">仓库 URL（可选，用于 git clone 兜底）</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>源码位置信息</returns>
     public async Task<SourceCodeLocation> EnsureSourceAvailableAsync(
         string? repoUrl = null,
         CancellationToken ct = default)

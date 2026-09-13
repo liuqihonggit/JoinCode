@@ -54,6 +54,12 @@ public sealed partial class SubAgentSummaryGenerator : ServiceEntity
     private readonly ISubAgentSummaryClient? _client;
     private readonly SubAgentSummaryConfig _config;
 
+    /// <summary>
+    /// 构造子智能体摘要生成器
+    /// </summary>
+    /// <param name="client">摘要客户端（可选，null 则跳过 L2）</param>
+    /// <param name="config">摘要配置（可选，默认自动开启）</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public SubAgentSummaryGenerator(
         ISubAgentSummaryClient? client = null,
         SubAgentSummaryConfig? config = null,

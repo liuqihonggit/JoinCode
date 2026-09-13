@@ -32,6 +32,10 @@ public sealed class PatientProcessManager : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// 构造病人进程管理器
+    /// </summary>
+    /// <param name="processService">进程服务抽象</param>
     public PatientProcessManager(IProcessService processService)
     {
         _processService = processService ?? throw new ArgumentNullException(nameof(processService));
@@ -236,6 +240,10 @@ public sealed class PatientProcessManager : IAsyncDisposable
         ProcessExited?.Invoke(this, info);
     }
 
+    /// <summary>
+    /// 异步释放资源 — 终止所有病人进程并清理句柄
+    /// </summary>
+    /// <returns>表示异步释放操作的任务</returns>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return;
@@ -277,10 +285,14 @@ public sealed class PatientProcessManager : IAsyncDisposable
 
         private const int MaxStderrLines = 50;
 
+        /// <summary>病人标识（只读），唯一标识该病人进程</summary>
         public string PatientId => _patientId;
+        /// <summary>病人信息快照（含状态、退出码、退出时间），状态变更时整体替换</summary>
         public PatientInfo Info { get; private set; }
+        /// <summary>标准输入流写入器（只读），用于向病人进程发送输入；进程未启动时为 null</summary>
         public System.IO.StreamWriter? StandardInput => _process.StandardInput;
 
+        /// <summary>病人进程是否仍在运行（只读属性），进程已退出或未启动时返回 false</summary>
         public bool IsRunning
         {
             get
@@ -290,10 +302,18 @@ public sealed class PatientProcessManager : IAsyncDisposable
             }
         }
 
+        /// <summary>标准输出行接收事件，每读取一行标准输出即触发，参数为 (病人标识, 行内容)</summary>
         public event EventHandler<(string PatientId, string Line)>? OutputLineReceived;
+        /// <summary>标准错误行接收事件，每读取一行标准错误即触发，参数为 (病人标识, 行内容)</summary>
         public event EventHandler<(string PatientId, string Line)>? ErrorLineReceived;
+        /// <summary>进程退出事件，病人进程退出时触发，参数为最终的病人信息快照</summary>
         public event EventHandler<PatientInfo>? ProcessExited;
 
+        /// <summary>初始化病人句柄，启动标准输出读取与退出监控任务</summary>
+        /// <param name="patientId">病人标识</param>
+        /// <param name="info">初始病人信息</param>
+        /// <param name="process">交互式进程实例</param>
+        /// <param name="resilientSubprocess">弹性子进程包装（可选），用于增强进程容错</param>
         public PatientHandle(string patientId, PatientInfo info, IInteractiveProcess process, ResilientSubprocess? resilientSubprocess = null)
         {
             _patientId = patientId;
@@ -308,6 +328,7 @@ public sealed class PatientProcessManager : IAsyncDisposable
             _monitorExitTask = MonitorExitAsync(_readCts.Token);
         }
 
+        /// <summary>强制终止病人进程；进程已退出或未启动时直接返回</summary>
         public void Kill()
         {
             if (_process is null || _process.HasExited) return;
@@ -323,6 +344,9 @@ public sealed class PatientProcessManager : IAsyncDisposable
             }
         }
 
+        /// <summary>异步等待病人进程退出，根据退出码更新病人状态并触发 ProcessExited 事件</summary>
+        /// <param name="cancellationToken">取消令牌，用于取消等待</param>
+        /// <returns>退出后的病人信息快照（含最终状态、退出码、退出时间）</returns>
         public async Task<PatientInfo> WaitForExitAsync(CancellationToken cancellationToken = default)
         {
             await _process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
@@ -413,6 +437,7 @@ public sealed class PatientProcessManager : IAsyncDisposable
             }
         }
 
+        /// <summary>异步释放句柄资源：取消读取任务、分离事件、释放进程与取消令牌</summary>
         public async ValueTask DisposeAsync()
         {
             if (_isDisposed) return;

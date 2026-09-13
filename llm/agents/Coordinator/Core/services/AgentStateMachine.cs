@@ -14,8 +14,14 @@ public sealed partial class AgentStateMachine
     private readonly ConcurrentDictionary<string, AgentStateContext> _states;
     private readonly IClockService _clock;
 
+    /// <summary>Agent 状态变更事件，参数携带 Agent ID 与新旧状态</summary>
     internal event EventHandler<AgentStateChangedEventArgs>? StateChanged;
 
+    /// <summary>
+    /// 构造 Agent 状态机实例
+    /// </summary>
+    /// <param name="logger">可选日志记录器</param>
+    /// <param name="clock">可选时钟服务，缺省时使用系统时钟</param>
     public AgentStateMachine(ILogger? logger = null, IClockService? clock = null)
     {
         _logger = logger;
@@ -183,6 +189,8 @@ public sealed partial class AgentStateMachine
         return state.IsTerminal();
     }
 
+    /// <summary>获取任务执行状态转换表（只读快照），键为当前状态，值为可转换到的目标状态集合</summary>
+    /// <returns>状态转换表的冻结字典快照</returns>
     internal static FrozenDictionary<TaskExecutionStatus, FrozenSet<TaskExecutionStatus>> GetTransitions() => Transitions;
 
     private static FrozenDictionary<TaskExecutionStatus, FrozenSet<TaskExecutionStatus>> CreateTransitionTable()
@@ -215,20 +223,40 @@ public sealed class AgentStateContext : IAsyncDisposable
     private readonly StateMachine<TaskExecutionStatus> _stateMachine;
     private int _disposed;
 
+    /// <summary>Agent 标识</summary>
     public string AgentId { get; }
+    /// <summary>任务描述</summary>
     public string Task { get; }
+    /// <summary>子 Agent 选项</summary>
     public SubAgentOptions Options { get; }
+    /// <summary>当前执行状态</summary>
     public TaskExecutionStatus CurrentState => _stateMachine.CurrentState;
+    /// <summary>上下文创建时间</summary>
     public DateTime CreatedAt { get; }
+    /// <summary>Agent 开始执行时间</summary>
     public DateTime? StartedAt { get; set; }
+    /// <summary>Agent 完成时间（成功/失败/取消）</summary>
     public DateTime? CompletedAt { get; set; }
+    /// <summary>最近一次状态转换时间</summary>
     public DateTime LastTransitionTime { get; set; }
+    /// <summary>状态转换历史记录列表</summary>
     public List<StateTransition> TransitionHistory { get; }
+    /// <summary>异步锁，保护状态转换的并发安全</summary>
     public AsyncLock Lock { get; }
+    /// <summary>最近一次状态转换的源状态</summary>
     internal TaskExecutionStatus LastTransitionFrom { get; private set; }
 
+    /// <summary>暴露给同程序集内部使用的状态机引用</summary>
     internal StateMachine<TaskExecutionStatus> StateMachine => _stateMachine;
 
+    /// <summary>
+    /// 构造 Agent 状态上下文实例
+    /// </summary>
+    /// <param name="agentId">Agent 标识</param>
+    /// <param name="task">任务描述</param>
+    /// <param name="options">子 Agent 选项，缺省时使用默认选项</param>
+    /// <param name="createdAt">上下文创建时间</param>
+    /// <param name="clock">可选时钟服务</param>
     public AgentStateContext(string agentId, string task, SubAgentOptions? options, DateTime createdAt, IClockService? clock = null)
     {
         AgentId = agentId;
@@ -249,6 +277,9 @@ public sealed class AgentStateContext : IAsyncDisposable
         LastTransitionFrom = e.OldState;
     }
 
+    /// <summary>
+    /// 异步释放上下文，释放内部锁资源
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
@@ -265,10 +296,16 @@ public sealed record StateTransition(
     DateTime Timestamp,
     string? Reason);
 
+/// <summary>
+/// Agent 状态变更事件参数
+/// </summary>
 public sealed class AgentStateChangedEventArgs(string agentId, TaskExecutionStatus oldState, TaskExecutionStatus newState) : EventArgs
 {
+    /// <summary>Agent 标识</summary>
     public string AgentId { get; } = agentId;
+    /// <summary>变更前的状态</summary>
     public TaskExecutionStatus OldState { get; } = oldState;
+    /// <summary>变更后的状态</summary>
     public TaskExecutionStatus NewState { get; } = newState;
 }
 

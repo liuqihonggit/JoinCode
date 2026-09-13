@@ -1,9 +1,15 @@
 namespace Core.Agents;
 
+/// <summary>
+/// Worktree 合并服务 — 将源 worktree 的变更合并到目标 worktree，支持 patch 与分支合并策略
+/// </summary>
 [Register(typeof(IWorktreeMergeService), ServiceLifetime.Singleton)]
 public sealed partial class WorktreeMergeService : ServiceEntity, IWorktreeMergeService
 {
 
+    /// <summary>
+    /// 构造 WorktreeMergeService 实例，注入 git 命令运行器、文件系统及日志器
+    /// </summary>
     public WorktreeMergeService(IGitCommandRunner gitRunner, IFileSystem fileSystem, ILogger<WorktreeMergeService>? logger = null)
     {
         _gitRunner = gitRunner;
@@ -14,6 +20,14 @@ public sealed partial class WorktreeMergeService : ServiceEntity, IWorktreeMerge
     private readonly IGitCommandRunner _gitRunner;
     private readonly IFileSystem _fileSystem;
 
+    /// <summary>
+    /// 将源 worktree 的变更合并到目标 worktree；无冲突时用 git apply patch，有冲突时用分支合并
+    /// </summary>
+    /// <param name="sourceWorktreePath">源 worktree 路径</param>
+    /// <param name="targetWorktreePath">目标 worktree 路径</param>
+    /// <param name="strategy">冲突合并策略（默认 Fail）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>合并结果</returns>
     public async Task<WorktreeMergeResult> MergeToTargetAsync(
         string sourceWorktreePath,
         string targetWorktreePath,

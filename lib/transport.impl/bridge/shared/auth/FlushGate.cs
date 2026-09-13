@@ -37,11 +37,17 @@ public sealed class FlushGateOptions
 /// </summary>
 public interface IFlushGateCommand<T>;
 
+/// <summary>添加条目到批次命令</summary>
 public sealed record FlushAddCmd<T>(T Item, TaskCompletionSource Tcs) : IFlushGateCommand<T>;
+/// <summary>手动触发刷新命令</summary>
 public sealed record FlushManualCmd<T>(TaskCompletionSource Tcs) : IFlushGateCommand<T>;
+/// <summary>启动定时刷新循环命令</summary>
 public sealed record FlushStartCmd<T>(TaskCompletionSource Tcs) : IFlushGateCommand<T>;
+/// <summary>停止定时刷新循环命令</summary>
 public sealed record FlushStopCmd<T>(TaskCompletionSource Tcs) : IFlushGateCommand<T>;
+/// <summary>定时刷新触发命令</summary>
 public sealed record FlushTickCmd<T> : IFlushGateCommand<T>;
+/// <summary>获取当前批次大小命令</summary>
 public sealed record FlushGetSizeCmd<T>(TaskCompletionSource<int> Tcs) : IFlushGateCommand<T>;
 
 /// <summary>
@@ -60,8 +66,15 @@ public sealed class FlushGate<T> : ActorBase<IFlushGateCommand<T>, Unit>, IFlush
     private readonly List<T> _currentBatch;
     private bool _isRunning;
 
+    /// <summary>批次刷新完成事件</summary>
     public event EventHandler<BatchFlushedEventArgs<T>>? BatchFlushed;
 
+    /// <summary>
+    /// 构造刷新门控
+    /// </summary>
+    /// <param name="options">配置选项（可选，使用默认值）</param>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="timeProvider">时间提供者（可选，默认系统时间）</param>
     public FlushGate(
         FlushGateOptions? options = null,
         ILogger? logger = null,
@@ -130,6 +143,11 @@ public sealed class FlushGate<T> : ActorBase<IFlushGateCommand<T>, Unit>, IFlush
         await tcs.Task.ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 处理命令的核心逻辑 — Consumer 线程独占
+    /// </summary>
+    /// <param name="command">待处理命令</param>
+    /// <param name="ct">取消令牌</param>
     protected override async ValueTask HandleAsync(IFlushGateCommand<T> command, CancellationToken ct)
     {
         switch (command)
@@ -188,6 +206,10 @@ public sealed class FlushGate<T> : ActorBase<IFlushGateCommand<T>, Unit>, IFlush
         }
     }
 
+    /// <summary>
+    /// 消费者线程异常回调 — 记录日志
+    /// </summary>
+    /// <param name="ex">捕获的异常</param>
     protected override void OnConsumerError(Exception ex)
     {
         _logger?.LogError(ex, "[FlushGate] 消费者异常");
@@ -212,6 +234,9 @@ public sealed class FlushGate<T> : ActorBase<IFlushGateCommand<T>, Unit>, IFlush
         BatchFlushed?.Invoke(this, new BatchFlushedEventArgs<T>(batchToFlush));
     }
 
+    /// <summary>
+    /// 异步释放资源，停止定时器并刷新剩余条目
+    /// </summary>
     public override async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) == 1)

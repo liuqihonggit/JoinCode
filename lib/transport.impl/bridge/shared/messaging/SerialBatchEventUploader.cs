@@ -9,6 +9,11 @@ public sealed class RetryableError : Exception
     /// <summary>服务端建议的重试等待时间（毫秒），覆盖指数退避</summary>
     public int? RetryAfterMs { get; }
 
+    /// <summary>
+    /// 构造可重试错误
+    /// </summary>
+    /// <param name="message">错误消息</param>
+    /// <param name="retryAfterMs">服务端建议的重试等待时间（毫秒），覆盖指数退避</param>
     public RetryableError(string message, int? retryAfterMs = null)
         : base(message)
     {
@@ -147,6 +152,9 @@ public sealed class SerialBatchEventUploader : IDisposable
         _flushResolvers.Clear();
     }
 
+    /// <summary>
+    /// 释放资源，关闭上传器并释放锁
+    /// </summary>
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return;

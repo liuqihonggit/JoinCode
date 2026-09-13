@@ -36,8 +36,16 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
     private Action? _onConnectCallback;
     private int _disposed;
 
+    /// <summary>因 maxConsecutiveFailures 丢弃的批次计数（v2 写路径不设置 maxConsecutiveFailures，始终返回 0）</summary>
     public int DroppedBatchCount => 0; // v2 写路径不设置 maxConsecutiveFailures
 
+    /// <summary>
+    /// 构造 v2 传输适配器
+    /// </summary>
+    /// <param name="options">v2 传输选项</param>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="writeClient">自定义写入 HTTP 客户端（可选，默认新建）</param>
+    /// <param name="sseClient">自定义 SSE 读流 HTTP 客户端（可选，默认新建）</param>
     public V2ReplBridgeTransport(V2TransportOptions options, ILogger? logger = null, HttpClient? writeClient = null, HttpClient? sseClient = null)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
@@ -80,6 +88,11 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
             logger);
     }
 
+    /// <summary>
+    /// 写入单条消息到事件上传器
+    /// </summary>
+    /// <param name="message">消息内容</param>
+    /// <param name="ct">取消令牌</param>
     public async Task WriteAsync(string message, CancellationToken ct = default)
     {
         if (_isClosed != 0)
@@ -96,6 +109,11 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
         await _eventUploader.EnqueueAsync(message, ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 批量写入消息
+    /// </summary>
+    /// <param name="messages">消息列表</param>
+    /// <param name="ct">取消令牌</param>
     public async Task WriteBatchAsync(IReadOnlyList<string> messages, CancellationToken ct = default)
     {
         foreach (var msg in messages)
@@ -105,6 +123,9 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
         }
     }
 
+    /// <summary>
+    /// 关闭传输 — 取消心跳、释放上传器和 HTTP 客户端
+    /// </summary>
     public void Close()
     {
         if (Interlocked.Exchange(ref _isClosed, 1) == 1)
@@ -129,12 +150,14 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
         return Task.CompletedTask;
     }
 
+    /// <summary>获取写就绪状态（非读就绪）</summary>
     public bool IsConnectedStatus()
     {
         // 写就绪状态，非读就绪 — 对齐 TS 端 ccrInitialized
         return _isInitialized != 0;
     }
 
+    /// <summary>获取状态标签字符串（closed/connected/init）</summary>
     public string GetStateLabel()
     {
         if (_isClosed != 0) return "closed";
@@ -142,11 +165,16 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
         return "init";
     }
 
+    /// <summary>设置数据接收回调</summary>
     public void SetOnData(Action<string> callback) => _onDataCallback = callback;
+    /// <summary>设置关闭回调</summary>
     public void SetOnClose(Action<int?> callback) => _onCloseCallback = callback;
+    /// <summary>设置连接成功回调</summary>
     public void SetOnConnect(Action callback) => _onConnectCallback = callback;
+    /// <summary>设置批次丢弃回调（v2 不使用 maxConsecutiveFailures，no-op）</summary>
     public void SetOnBatchDropped(Action<int, int> callback) { /* v2 不使用 maxConsecutiveFailures，no-op */ }
 
+    /// <summary>启动连接 — 并行启动 SSE 读流和 CCRClient 初始化</summary>
     public void Connect()
     {
         // 对齐 TS 端: SSE 读流和 CCRClient 初始化并行启动
@@ -161,8 +189,14 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
         _ = InitializeCcrAsync();
     }
 
+    /// <summary>获取最近 SSE 序列号</summary>
     public int GetLastSequenceNum() => _lastSequenceNum;
 
+    /// <summary>
+    /// 上报 worker 状态 — PUT /worker，409 Conflict 触发 epoch 不匹配处理
+    /// </summary>
+    /// <param name="state">会话活动状态</param>
+    /// <param name="ct">取消令牌</param>
     public async Task ReportStateAsync(BridgeSessionActivity state, CancellationToken ct = default)
     {
         if (_isClosed != 0 || _isInitialized == 0) return;
@@ -187,6 +221,11 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
         }
     }
 
+    /// <summary>
+    /// 上报 worker 元数据 — PUT /worker
+    /// </summary>
+    /// <param name="metadata">元数据字典</param>
+    /// <param name="ct">取消令牌</param>
     public async Task ReportMetadataAsync(Dictionary<string, JsonElement> metadata, CancellationToken ct = default)
     {
         if (_isClosed != 0 || _isInitialized == 0) return;
@@ -204,6 +243,12 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
         }
     }
 
+    /// <summary>
+    /// 上报事件投递状态 — 入队到投递确认上传器
+    /// </summary>
+    /// <param name="eventId">事件 ID</param>
+    /// <param name="status">投递状态</param>
+    /// <param name="ct">取消令牌</param>
     public async Task ReportDeliveryAsync(string eventId, string status, CancellationToken ct = default)
     {
         if (_isClosed != 0 || _isInitialized == 0) return;
@@ -212,6 +257,10 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
         await _deliveryUploader.EnqueueAsync(payload, ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 排空写队列 — 等待事件上传器和投递上传器都排空
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
     public async Task FlushAsync(CancellationToken ct = default)
     {
         // 对齐 TS 端: 等待事件上传器排空
@@ -463,6 +512,9 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
 
     #endregion
 
+    /// <summary>
+    /// 异步释放资源 — 关闭传输、释放心跳和锁
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;

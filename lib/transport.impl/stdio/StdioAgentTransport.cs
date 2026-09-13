@@ -11,8 +11,10 @@ public sealed partial class StdioAgentTransport : IAgentTransport
     private TransportState _state;
     private int _disposed;
 
+    /// <inheritdoc/>
     public string TransportType => "stdio";
 
+    /// <inheritdoc/>
     public TransportState State
     {
         get => _state;
@@ -26,9 +28,16 @@ public sealed partial class StdioAgentTransport : IAgentTransport
         }
     }
 
+    /// <inheritdoc/>
     public event EventHandler<TransportMessageEventArgs>? OnMessage;
+    /// <inheritdoc/>
     public event EventHandler<TransportState>? OnStateChanged;
 
+    /// <summary>
+    /// 构造 Stdio 代理传输
+    /// </summary>
+    /// <param name="config">Stdio 进程配置</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public StdioAgentTransport(
         StdioProcessConfig config,
         ILogger<StdioAgentTransport>? logger = null)
@@ -39,6 +48,7 @@ public sealed partial class StdioAgentTransport : IAgentTransport
         _state = TransportState.Disconnected;
     }
 
+    /// <inheritdoc/>
     public async Task ConnectAsync(CancellationToken ct = default)
     {
         if (State == TransportState.Connected) return;
@@ -58,6 +68,7 @@ public sealed partial class StdioAgentTransport : IAgentTransport
         }
     }
 
+    /// <inheritdoc/>
     public async Task DisconnectAsync(CancellationToken ct = default)
     {
         if (State != TransportState.Connected) return;
@@ -76,6 +87,7 @@ public sealed partial class StdioAgentTransport : IAgentTransport
         }
     }
 
+    /// <inheritdoc/>
     public async Task SendMessageAsync(string message, CancellationToken ct = default)
     {
         if (State != TransportState.Connected)
@@ -89,6 +101,7 @@ public sealed partial class StdioAgentTransport : IAgentTransport
         });
     }
 
+    /// <inheritdoc/>
     public async Task<string> WaitForOutputAsync(Func<string, bool> predicate, TimeSpan? timeout = null, CancellationToken ct = default)
     {
         if (State != TransportState.Connected)
@@ -103,6 +116,7 @@ public sealed partial class StdioAgentTransport : IAgentTransport
         return result;
     }
 
+    /// <inheritdoc/>
     public async Task<string> WaitForErrorAsync(Func<string, bool> predicate, TimeSpan? timeout = null, CancellationToken ct = default)
     {
         if (State != TransportState.Connected)
@@ -117,16 +131,22 @@ public sealed partial class StdioAgentTransport : IAgentTransport
         return result;
     }
 
+    /// <inheritdoc/>
     public Task<string> GetOutputAsync() => _processManager.GetOutputAsync();
 
+    /// <inheritdoc/>
     public Task<string> GetOutputIncrementalAsync() => _processManager.GetOutputIncrementalAsync();
 
+    /// <inheritdoc/>
     public Task<string> GetErrorAsync() => _processManager.GetErrorAsync();
 
+    /// <inheritdoc/>
     public Task<string> GetErrorIncrementalAsync() => _processManager.GetErrorIncrementalAsync();
 
+    /// <inheritdoc/>
     public Task ClearOutputAsync() => _processManager.ClearOutputAsync();
 
+    /// <inheritdoc/>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;

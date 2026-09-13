@@ -20,6 +20,11 @@ public sealed partial class StdioProcessManager : IAsyncDisposable
     private readonly IClockService _clock;
     private int _disposed;
 
+    /// <summary>
+    /// 构造 Stdio 进程管理器
+    /// </summary>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="clock">时钟服务（可选，默认系统时钟）</param>
     public StdioProcessManager(ILogger<StdioProcessManager>? logger = null, IClockService? clock = null)
     {
         _logger = logger;
@@ -108,21 +113,33 @@ public sealed partial class StdioProcessManager : IAsyncDisposable
         throw new TimeoutException($"[TRN020] 等待输出超时 (>{timeout.Value.TotalSeconds}s)");
     }
 
+    /// <summary>清空 stdout 缓冲区</summary>
     public Task ClearOutputAsync() =>
         _outputChannel.ClearAsync(TimeSpan.FromSeconds(5));
 
+    /// <summary>获取 stdout 全部内容（用换行符连接）</summary>
     public Task<string> GetOutputAsync() =>
         _outputChannel.GetAllAsync(TimeSpan.FromSeconds(5));
 
+    /// <summary>获取 stdout 自上次以来的增量内容</summary>
     public Task<string> GetOutputIncrementalAsync() =>
         _outputChannel.GetIncrementalAsync(TimeSpan.FromSeconds(5));
 
+    /// <summary>获取 stderr 全部内容（用换行符连接）</summary>
     public Task<string> GetErrorAsync() =>
         _errorChannel.GetAllAsync(TimeSpan.FromSeconds(5));
 
+    /// <summary>获取 stderr 自上次以来的增量内容</summary>
     public Task<string> GetErrorIncrementalAsync() =>
         _errorChannel.GetIncrementalAsync(TimeSpan.FromSeconds(5));
 
+    /// <summary>
+    /// 等待并读取 stderr，直到满足条件或超时
+    /// </summary>
+    /// <param name="predicate">谓词函数</param>
+    /// <param name="timeout">超时时间（可选，默认 30 秒）</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>满足谓词时的 stderr 全部内容</returns>
     public async Task<string> WaitForErrorAsync(
         Func<string, bool> predicate,
         TimeSpan? timeout = null,
@@ -251,6 +268,9 @@ public sealed partial class StdioProcessManager : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// 异步释放资源，停止进程
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
@@ -263,12 +283,16 @@ public sealed partial class StdioProcessManager : IAsyncDisposable
 /// </summary>
 public sealed record StdioProcessConfig
 {
+    /// <summary>可执行文件路径</summary>
     public required string ExecutablePath { get; init; }
+    /// <summary>命令行参数字符串</summary>
     public string Arguments { get; init; } = "";
     /// <summary>
     /// 参数化启动列表 — 优先于 <see cref="Arguments"/>，消除字符串拼接注入风险
     /// </summary>
     public IReadOnlyList<string>? ArgumentList { get; init; }
+    /// <summary>工作目录（可选）</summary>
     public string? WorkingDirectory { get; init; }
+    /// <summary>环境变量字典（可选）</summary>
     public Dictionary<string, string>? EnvironmentVariables { get; init; }
 }

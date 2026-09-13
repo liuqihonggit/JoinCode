@@ -13,9 +13,17 @@ public sealed class SseBridgeTransport : IBridgeTransport
     private string? _messageEndpoint;
     private volatile int _isStopped;
 
+    /// <summary>接收到消息时触发</summary>
     public event EventHandler<TransportMessageReceivedEventArgs>? MessageReceived;
+    /// <summary>发生错误时触发</summary>
     public event EventHandler<TransportErrorEventArgs>? ErrorOccurred;
 
+    /// <summary>
+    /// 构造 SSE 传输
+    /// </summary>
+    /// <param name="endpoint">SSE 端点 URL</param>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="httpClient">自定义 HTTP 客户端（可选，默认新建）</param>
     public SseBridgeTransport(string endpoint, ILogger? logger = null, HttpClient? httpClient = null)
     {
         _endpoint = endpoint;
@@ -23,6 +31,10 @@ public sealed class SseBridgeTransport : IBridgeTransport
         _httpClient = httpClient ?? new HttpClient();
     }
 
+    /// <summary>
+    /// 启动 SSE 连接并开始接收循环
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -32,6 +44,10 @@ public sealed class SseBridgeTransport : IBridgeTransport
         _logger?.LogDebug("[SseBridgeTransport] 已启动 SSE 连接");
     }
 
+    /// <summary>
+    /// 停止 SSE 连接并释放资源
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         Interlocked.Exchange(ref _isStopped, 1);
@@ -55,6 +71,12 @@ public sealed class SseBridgeTransport : IBridgeTransport
         _logger?.LogDebug("[SseBridgeTransport] 已停止");
     }
 
+    /// <summary>
+    /// 通过 HTTP POST 发送消息到对端
+    /// </summary>
+    /// <param name="message">消息内容</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <exception cref="InvalidOperationException">传输未就绪时抛出</exception>
     public async Task SendAsync(string message, CancellationToken cancellationToken = default)
     {
         if (_isStopped != 0 || string.IsNullOrEmpty(_messageEndpoint))

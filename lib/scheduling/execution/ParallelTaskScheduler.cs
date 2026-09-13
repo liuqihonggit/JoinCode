@@ -18,11 +18,24 @@ public sealed class ParallelTaskScheduler
     /// </summary>
     public event EventHandler<TaskStatusChangedEventArgs>? TaskStatusChanged;
 
+    /// <summary>
+    /// 初始化并行任务调度器
+    /// </summary>
+    /// <param name="clock">时钟服务,用于获取当前时间;为空时使用系统默认时钟</param>
     public ParallelTaskScheduler(IClockService? clock = null)
     {
         _clock = clock ?? SystemClockService.Instance;
     }
 
+    /// <summary>
+    /// 注册一个新任务到调度器
+    /// </summary>
+    /// <param name="taskName">任务名称</param>
+    /// <param name="description">任务描述</param>
+    /// <param name="requiredAgents">执行该任务所需的智能体数量</param>
+    /// <param name="priority">任务优先级</param>
+    /// <param name="dependencies">依赖的任务Id列表,为空表示无依赖</param>
+    /// <returns>已注册的任务对象</returns>
     public ScheduledTask RegisterTask(
         string taskName,
         string description,
@@ -215,16 +228,27 @@ public sealed class ParallelTaskScheduler
 /// </summary>
 public sealed record ScheduledTask
 {
+    /// <summary>任务唯一标识</summary>
     public required string Id { get; init; }
+    /// <summary>任务名称</summary>
     public required string Name { get; init; }
+    /// <summary>任务描述</summary>
     public required string Description { get; init; }
+    /// <summary>执行该任务所需的智能体数量</summary>
     public required int RequiredAgents { get; init; }
+    /// <summary>任务优先级</summary>
     public required TodoPriority Priority { get; init; }
+    /// <summary>任务当前状态,默认为待执行</summary>
     public ScheduledTaskStatus Status { get; init; } = ScheduledTaskStatus.Pending;
+    /// <summary>依赖的任务Id列表</summary>
     public List<string> Dependencies { get; init; } = new();
+    /// <summary>任务创建时间</summary>
     public DateTime CreatedAt { get; init; }
+    /// <summary>任务最后更新时间</summary>
     public DateTime? UpdatedAt { get; init; }
+    /// <summary>任务完成时间</summary>
     public DateTime? CompletedAt { get; init; }
+    /// <summary>任务最后消息,用于记录状态变更时的附加信息</summary>
     public string? LastMessage { get; init; }
 }
 
@@ -233,10 +257,15 @@ public sealed record ScheduledTask
 /// </summary>
 public enum ScheduledTaskStatus
 {
+    /// <summary>待执行</summary>
     [EnumValue("pending")] Pending,
+    /// <summary>执行中</summary>
     [EnumValue("inProgress")] InProgress,
+    /// <summary>已完成</summary>
     [EnumValue("completed")] Completed,
+    /// <summary>执行失败</summary>
     [EnumValue("failed")] Failed,
+    /// <summary>已取消</summary>
     [EnumValue("cancelled")] Cancelled
 }
 
@@ -245,10 +274,19 @@ public enum ScheduledTaskStatus
 /// </summary>
 public sealed class TaskStatusChangedEventArgs : EventArgs
 {
+    /// <summary>状态变更关联的任务</summary>
     public ScheduledTask Task { get; }
+    /// <summary>变更前的旧状态</summary>
     public ScheduledTaskStatus OldStatus { get; }
+    /// <summary>状态变更附加消息</summary>
     public string? Message { get; }
 
+    /// <summary>
+    /// 初始化任务状态变更事件参数
+    /// </summary>
+    /// <param name="task">关联的任务对象</param>
+    /// <param name="oldStatus">变更前的旧状态</param>
+    /// <param name="message">状态变更附加消息</param>
     public TaskStatusChangedEventArgs(ScheduledTask task, ScheduledTaskStatus oldStatus, string? message = null)
     {
         Task = task;
@@ -267,14 +305,22 @@ public sealed record TaskCompletionEvent(string TaskId, DateTime CompletedAt);
 /// </summary>
 public sealed record SchedulerReport
 {
+    /// <summary>任务总数</summary>
     public int TotalTasks { get; init; }
+    /// <summary>待执行任务数</summary>
     public int PendingCount { get; init; }
+    /// <summary>执行中任务数</summary>
     public int InProgressCount { get; init; }
+    /// <summary>已完成任务数</summary>
     public int CompletedCount { get; init; }
+    /// <summary>失败任务数</summary>
     public int FailedCount { get; init; }
+    /// <summary>所有任务列表</summary>
     public List<ScheduledTask> Tasks { get; init; } = new();
 
+    /// <summary>是否全部任务已完成(无待执行且无执行中)</summary>
     public bool IsComplete => PendingCount == 0 && InProgressCount == 0;
+    /// <summary>完成百分比(0-100)</summary>
     public double CompletionPercentage => TotalTasks > 0
         ? (double)CompletedCount / TotalTasks * 100
         : 0;

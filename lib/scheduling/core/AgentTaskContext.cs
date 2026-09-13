@@ -1,32 +1,46 @@
 
 namespace Core.Scheduling;
 
+/// <summary>
+/// 智能体任务上下文 — 封装单个智能体执行任务所需的元数据、结构化子任务与取消控制
+/// </summary>
 public sealed class AgentTaskContext : IAgentTaskContext
 {
     private readonly ConcurrentDictionary<string, JsonElement> _metadata = new();
     private readonly Dictionary<int, StructuredTaskEntry> _structuredTasks = new();
     private readonly AsyncLock _structuredTasksSemaphore = new();
 
+    /// <inheritdoc/>
     public required string TaskId { get; init; }
 
+    /// <inheritdoc/>
     public required int AgentIndex { get; init; }
 
+    /// <inheritdoc/>
     public required int TotalAgents { get; init; }
 
+    /// <inheritdoc/>
     public required string WorkScope { get; init; }
 
+    /// <inheritdoc/>
     public required string TaskName { get; init; }
 
+    /// <inheritdoc/>
     public required string Description { get; init; }
 
+    /// <inheritdoc/>
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
 
+    /// <inheritdoc/>
     public int Priority { get; init; } = 0;
 
+    /// <inheritdoc/>
     public string? ParentTaskId { get; init; }
 
+    /// <inheritdoc/>
     public Dictionary<string, JsonElement> GetMetadata() => new(_metadata);
 
+    /// <inheritdoc/>
     public async Task<IReadOnlyList<StructuredTaskEntry>> GetStructuredTasksAsync(CancellationToken cancellationToken = default)
     {
         using var guard = _structuredTasksSemaphore.TryLock(cancellationToken) ?? throw new System.TimeoutException($"锁 '{_structuredTasksSemaphore.Name}' 等待超时");
@@ -35,6 +49,7 @@ public sealed class AgentTaskContext : IAgentTaskContext
     
     }
 
+    /// <inheritdoc/>
     public async Task AddStructuredTaskAsync(StructuredTaskEntry task, CancellationToken cancellationToken = default)
     {
         using var guard = _structuredTasksSemaphore.TryLock(cancellationToken) ?? throw new System.TimeoutException($"锁 '{_structuredTasksSemaphore.Name}' 等待超时");
@@ -43,6 +58,7 @@ public sealed class AgentTaskContext : IAgentTaskContext
     
     }
 
+    /// <inheritdoc/>
     public async Task UpdateStructuredTaskAsync(int order, string? result = null, string? status = null, CancellationToken cancellationToken = default)
     {
         using var guard = _structuredTasksSemaphore.TryLock(cancellationToken) ?? throw new System.TimeoutException($"锁 '{_structuredTasksSemaphore.Name}' 等待超时");
@@ -57,6 +73,7 @@ public sealed class AgentTaskContext : IAgentTaskContext
     
     }
 
+    /// <inheritdoc/>
     public async Task ExcludePossibilityAsync(int taskOrder, int possibilityIndex, string reason, CancellationToken cancellationToken = default)
     {
         using var guard = _structuredTasksSemaphore.TryLock(cancellationToken) ?? throw new System.TimeoutException($"锁 '{_structuredTasksSemaphore.Name}' 等待超时");
@@ -76,10 +93,20 @@ public sealed class AgentTaskContext : IAgentTaskContext
     
     }
 
+    /// <summary>取消令牌,用于协作式取消任务执行</summary>
     public CancellationToken CancellationToken { get; init; }
 
+    /// <summary>取消令牌源,为空时无法主动取消;非空时可触发取消信号</summary>
     public CancellationTokenSource? CancellationTokenSource { get; init; }
 
+    /// <summary>
+    /// 创建子任务上下文 — 继承当前上下文的元数据、结构化任务与取消控制
+    /// </summary>
+    /// <param name="subTaskId">子任务Id</param>
+    /// <param name="subTaskName">子任务名称</param>
+    /// <param name="subDescription">子任务描述</param>
+    /// <param name="subWorkScope">子任务工作范围</param>
+    /// <returns>新的子任务上下文</returns>
     public AgentTaskContext CreateSubContext(
         string subTaskId,
         string subTaskName,
@@ -116,6 +143,7 @@ public sealed class AgentTaskContext : IAgentTaskContext
         return subContext;
     }
 
+    /// <inheritdoc/>
     public T? GetMetadataValue<T>(string key, T? defaultValue = default)
     {
         if (!_metadata.TryGetValue(key, out var element))
@@ -138,28 +166,41 @@ public sealed class AgentTaskContext : IAgentTaskContext
         }
     }
 
+    /// <inheritdoc/>
     public void SetMetadataValue<T>(string key, T value)
     {
         _metadata[key] = JsonElementHelper.FromPrimitives(value);
     }
 
+    /// <summary>是否已请求取消任务</summary>
     public bool IsCancellationRequested => CancellationToken.IsCancellationRequested;
 
+    /// <summary>若已请求取消则抛出取消异常</summary>
     public void ThrowIfCancellationRequested()
     {
         CancellationToken.ThrowIfCancellationRequested();
     }
 
+    /// <summary>触发取消信号,通知协作方停止执行</summary>
     public void Cancel()
     {
         CancellationTokenSource?.Cancel();
     }
 
+    /// <summary>
+    /// 在指定延迟后触发取消信号
+    /// </summary>
+    /// <param name="delay">延迟时长</param>
     public void CancelAfter(TimeSpan delay)
     {
         CancellationTokenSource?.CancelAfter(delay);
     }
 
+    /// <summary>
+    /// 创建与额外令牌链接的取消令牌,任一令牌取消时新令牌即取消
+    /// </summary>
+    /// <param name="additionalToken">要链接的额外取消令牌</param>
+    /// <returns>链接后的取消令牌</returns>
     public CancellationToken CreateLinkedToken(CancellationToken additionalToken)
     {
         if (CancellationTokenSource == null)

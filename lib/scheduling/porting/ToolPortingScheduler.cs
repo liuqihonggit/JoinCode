@@ -8,6 +8,10 @@ public sealed partial class ToolPortingScheduler
     private readonly ParallelTaskScheduler _scheduler;
     private readonly ILogger<ToolPortingScheduler>? _logger;
 
+    /// <summary>
+    /// 初始化工具移植调度器实例
+    /// </summary>
+    /// <param name="logger">日志记录器</param>
     public ToolPortingScheduler(ILogger<ToolPortingScheduler>? logger = null)
     {
         _logger = logger;
@@ -238,13 +242,25 @@ public sealed partial class ToolPortingScheduler
 }
 
 /// <summary>
-/// 依赖满足事件参数
+/// 依赖满足事件参数 — 包含可启动的任务与刚完成的依赖任务 ID
 /// </summary>
 public sealed partial class DependencyMetEventArgs : EventArgs
 {
+    /// <summary>
+    /// 现在可启动的任务
+    /// </summary>
     public ScheduledTask Task { get; }
+
+    /// <summary>
+    /// 刚完成的依赖任务 ID — 此任务完成解除了对 Task 的阻塞
+    /// </summary>
     public string CompletedDependencyId { get; }
 
+    /// <summary>
+    /// 初始化依赖满足事件参数
+    /// </summary>
+    /// <param name="task">现在可启动的任务</param>
+    /// <param name="completedDependencyId">刚完成的依赖任务 ID</param>
     public DependencyMetEventArgs(ScheduledTask task, string completedDependencyId)
     {
         Task = task;
@@ -257,12 +273,29 @@ public sealed partial class DependencyMetEventArgs : EventArgs
 /// </summary>
 public sealed partial class TaskExecutionContext
 {
+    /// <summary>任务 ID</summary>
     public string TaskId { get; }
+
+    /// <summary>任务名称</summary>
     public string TaskName { get; }
+
+    /// <summary>当前智能体索引(从 0 开始)</summary>
     public int AgentIndex { get; }
+
+    /// <summary>参与该任务的智能体总数</summary>
     public int TotalAgents { get; }
+
+    /// <summary>取消令牌</summary>
     public CancellationToken CancellationToken { get; }
 
+    /// <summary>
+    /// 初始化任务执行上下文实例
+    /// </summary>
+    /// <param name="taskId">任务 ID</param>
+    /// <param name="taskName">任务名称</param>
+    /// <param name="agentIndex">当前智能体索引</param>
+    /// <param name="totalAgents">智能体总数</param>
+    /// <param name="cancellationToken">取消令牌</param>
     public TaskExecutionContext(
         string taskId,
         string taskName,

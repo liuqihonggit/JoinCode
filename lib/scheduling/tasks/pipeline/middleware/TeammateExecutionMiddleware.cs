@@ -1,10 +1,20 @@
 namespace Core.Scheduling.Tasks;
 
 
+/// <summary>
+/// Teammate 执行中间件 — 调用智能体生命周期管理器执行 Teammate 任务，记录遥测指标并处理清理逻辑
+/// </summary>
 [Register(typeof(ITeammateExecutionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class TeammateExecutionMiddleware : ServiceEntity, ITeammateExecutionMiddleware
 {
 
+    /// <summary>
+    /// 初始化 Teammate 执行中间件
+    /// </summary>
+    /// <param name="agentLifecycleManager">智能体生命周期管理器</param>
+    /// <param name="clock">时钟服务</param>
+    /// <param name="telemetryService">遥测服务，为 null 时不记录指标</param>
+    /// <param name="logger">日志记录器</param>
     public TeammateExecutionMiddleware(IAgentLifecycleManager agentLifecycleManager, IClockService clock, ITelemetryService? telemetryService = null, ILogger<TeammateExecutionMiddleware>? logger = null)
     {
         _agentLifecycleManager = agentLifecycleManager;
@@ -18,6 +28,7 @@ public sealed partial class TeammateExecutionMiddleware : ServiceEntity, ITeamma
     private readonly IClockService _clock;
 
 
+    /// <inheritdoc/>
     public async Task InvokeAsync(TeammateExecutionContext ctx, MiddlewareDelegate<TeammateExecutionContext> next, CancellationToken ct)
     {
         if (ctx.ContinuousModeHandled)

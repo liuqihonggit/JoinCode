@@ -1,8 +1,16 @@
 
 namespace Core.Scheduling;
 
+/// <summary>
+/// 结构化任务 Markdown 写入器 — 将任务上下文序列化为 Markdown 格式字符串
+/// </summary>
 public sealed class StructuredTaskMarkdownWriter
 {
+    /// <summary>
+    /// 将任务上下文转换为 Markdown 格式字符串
+    /// </summary>
+    /// <param name="context">任务上下文</param>
+    /// <returns>Markdown 格式的任务字符串</returns>
     public static async Task<string> ToMarkdownAsync(IAgentTaskContext context)
     {
         var sb = new StringBuilder();
@@ -77,12 +85,20 @@ public sealed class StructuredTaskMarkdownWriter
     }
 }
 
+/// <summary>
+/// 结构化任务 Markdown 读取器 — 从 Markdown 文本解析出结构化任务条目列表
+/// </summary>
 public sealed class StructuredTaskMarkdownReader
 {
     private static readonly string[] StatusPrefixes = new[] { "- **Status**: ", "- **状态**: " };
     private static readonly string[] ResultPrefixes = new[] { "- **Result**: ", "- **结果**: " };
     private static readonly string[] ExclusionReasonPrefixes = new[] { "← Exclusion reason: ", "← 排除原因: " };
 
+    /// <summary>
+    /// 从 Markdown 文本解析结构化任务条目列表
+    /// </summary>
+    /// <param name="markdown">Markdown 格式文本</param>
+    /// <returns>解析得到的结构化任务条目列表</returns>
     public static List<StructuredTaskEntry> ParseTasks(string markdown)
     {
         var tasks = new List<StructuredTaskEntry>();

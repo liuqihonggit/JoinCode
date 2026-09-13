@@ -1,10 +1,18 @@
 namespace Core.Scheduling.Tasks;
 
 
+/// <summary>
+/// Teammate 派生中间件 — 根据定义创建子智能体并注入初始上下文
+/// </summary>
 [Register(typeof(ITeammateExecutionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class TeammateSpawnMiddleware : ServiceEntity, ITeammateExecutionMiddleware
 {
 
+    /// <summary>
+    /// 初始化 Teammate 派生中间件
+    /// </summary>
+    /// <param name="agentLifecycleManager">智能体生命周期管理器</param>
+    /// <param name="subAgentContextAccessor">子智能体上下文访问器</param>
     public TeammateSpawnMiddleware(IAgentLifecycleManager agentLifecycleManager, ISubAgentContextAccessor subAgentContextAccessor)
     {
         _agentLifecycleManager = agentLifecycleManager;
@@ -14,6 +22,7 @@ public sealed partial class TeammateSpawnMiddleware : ServiceEntity, ITeammateEx
     private readonly ISubAgentContextAccessor _subAgentContextAccessor;
 
 
+    /// <inheritdoc/>
     public async Task InvokeAsync(TeammateExecutionContext ctx, MiddlewareDelegate<TeammateExecutionContext> next, CancellationToken ct)
     {
         var definition = ctx.Definition;

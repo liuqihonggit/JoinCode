@@ -9,6 +9,10 @@ namespace Core.Scheduling;
 public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposable
 {
 
+    /// <summary>
+    /// 初始化内存任务服务实例
+    /// </summary>
+    /// <param name="telemetryService">遥测服务,用于记录任务操作指标</param>
     public TaskService(ITelemetryService? telemetryService = null)
     {
         _telemetryService = telemetryService;
@@ -19,6 +23,7 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
     private readonly ITelemetryService? _telemetryService;
     private int _taskCounter;
 
+    /// <inheritdoc/>
     public Task<OperationResult<TaskItem?>> CreateTaskAsync(
         string title,
         string? description,
@@ -46,6 +51,7 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
         return Task.FromResult(OperationResult<TaskItem?>.Ok(task));
     }
 
+    /// <inheritdoc/>
     public Task<TaskListResult> ListTasksAsync(
         string? status,
         string? assignee,
@@ -85,6 +91,7 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
         return Task.FromResult(new TaskListResult(true, tasks, totalCount));
     }
 
+    /// <inheritdoc/>
     public Task<OperationResult<TaskItem?>> UpdateTaskAsync(
         UpdateTaskRequest request,
         CancellationToken cancellationToken = default)
@@ -110,6 +117,7 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
         return Task.FromResult(OperationResult<TaskItem?>.Ok(updatedTask));
     }
 
+    /// <inheritdoc/>
     public Task<OperationResult<TaskItem?>> StopTaskAsync(
         string taskId,
         string? reason,
@@ -130,12 +138,14 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
         return Task.FromResult(OperationResult<TaskItem?>.Ok(updatedTask));
     }
 
+    /// <inheritdoc/>
     public Task<TaskItem?> GetTaskAsync(string taskId, CancellationToken cancellationToken = default)
     {
         _tasks.TryGetValue(taskId, out var task);
         return Task.FromResult(task);
     }
 
+    /// <inheritdoc/>
     public Task<IReadOnlyList<TaskDependency>> GetTaskDependenciesAsync(string taskId, CancellationToken cancellationToken = default)
     {
         var dependencies = _dag.Edges.Values
@@ -150,6 +160,7 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
         return Task.FromResult<IReadOnlyList<TaskDependency>>(dependencies);
     }
 
+    /// <inheritdoc/>
     public async Task<OperationResult<TaskItem?>> SetTaskDependencyAsync(
         string taskId,
         string dependsOnTaskId,
@@ -201,6 +212,7 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
         return OperationResult<TaskItem?>.Ok(task);
     }
 
+    /// <inheritdoc/>
     public async Task<OperationResult<TaskItem?>> RemoveTaskDependencyAsync(
         string taskId,
         string dependsOnTaskId,
@@ -225,6 +237,7 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
         return OperationResult<TaskItem?>.Ok(task);
     }
 
+    /// <inheritdoc/>
     public Task<bool> CanExecuteTaskAsync(string taskId, CancellationToken cancellationToken = default)
     {
         if (!_tasks.TryGetValue(taskId, out var task))
@@ -282,6 +295,7 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
         }
     }
 
+    /// <inheritdoc/>
     public Task<bool> StopTaskAsync(string taskId, bool force, CancellationToken cancellationToken = default)
     {
         if (!_tasks.TryGetValue(taskId, out var task))
@@ -309,6 +323,7 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
         return Task.FromResult(true);
     }
 
+    /// <inheritdoc/>
     public Task<IReadOnlyList<RunningTaskInfo>> GetRunningTasksAsync(CancellationToken cancellationToken = default)
     {
         var runningTasks = _tasks.Values
@@ -337,6 +352,7 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
         return TaskDependencyTypeExtensions.FromValue(label) ?? TaskDependencyType.Blocks;
     }
 
+    /// <summary>释放资源时回调，释放内部 DAG。</summary>
     protected override void OnDispose()
     {
         _dag.Dispose();

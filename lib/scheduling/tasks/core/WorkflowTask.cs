@@ -1,77 +1,200 @@
 
 namespace Core.Scheduling.Tasks;
 
+/// <summary>
+/// 工作流任务执行器接口 — 提供工作流的执行、状态查询与取消能力。
+/// </summary>
 public interface IWorkflowTaskExecutor
 {
+    /// <summary>
+    /// 异步执行指定工作流定义。
+    /// </summary>
+    /// <param name="definition">工作流定义,包含步骤列表与执行模式。</param>
+    /// <param name="ct">取消令牌。</param>
+    /// <returns>工作流执行结果,包含各步骤产物与最终状态。</returns>
     Task<WorkflowResult> ExecuteWorkflowAsync(WorkflowDefinition definition, CancellationToken ct = default);
+
+    /// <summary>
+    /// 异步查询指定工作流的当前状态。
+    /// </summary>
+    /// <param name="workflowId">工作流唯一标识。</param>
+    /// <param name="ct">取消令牌。</param>
+    /// <returns>工作流状态快照,包含各步骤状态与完成进度。</returns>
     Task<WorkflowStatus> GetWorkflowStatusAsync(string workflowId, CancellationToken ct = default);
+
+    /// <summary>
+    /// 异步取消指定工作流的执行。
+    /// </summary>
+    /// <param name="workflowId">工作流唯一标识。</param>
+    /// <param name="ct">取消令牌。</param>
     Task CancelWorkflowAsync(string workflowId, CancellationToken ct = default);
 }
 
+/// <summary>
+/// 工作流定义 — 描述一个工作流的标识、步骤集合、执行模式与变量。
+/// </summary>
 public sealed partial class WorkflowDefinition
 {
+    /// <summary>工作流唯一标识。</summary>
     public required string WorkflowId { get; init; }
+    /// <summary>工作流步骤列表,按声明顺序或依赖关系执行。</summary>
     public required List<WorkflowStep> Steps { get; init; }
+    /// <summary>执行模式 — 顺序、并行或 DAG 拓扑排序,默认 Sequential。</summary>
     public WorkflowExecutionMode ExecutionMode { get; init; } = WorkflowExecutionMode.Sequential;
+    /// <summary>工作流级变量字典,供步骤间共享数据。</summary>
     public Dictionary<string, string> Variables { get; init; } = [];
 }
 
+/// <summary>
+/// 工作流步骤定义 — 描述单个步骤的类型、参数、依赖与失败处理策略。
+/// </summary>
 public sealed partial class WorkflowStep
 {
+    /// <summary>步骤唯一标识。</summary>
     public required string StepId { get; init; }
+    /// <summary>步骤显示名称。</summary>
     public required string Name { get; init; }
+    /// <summary>步骤描述,可选。</summary>
     public string? Description { get; init; }
+    /// <summary>依赖的步骤标识列表,DAG 模式下用于拓扑排序。</summary>
     public List<string> DependsOn { get; init; } = [];
+    /// <summary>步骤参数字典,键为参数名,值为 JSON 元素。</summary>
     public Dictionary<string, JsonElement> Parameters { get; init; } = [];
+    /// <summary>步骤类型 — 工具调用、Agent 任务、子工作流或条件判断。</summary>
     public WorkflowStepType StepType { get; init; }
+    /// <summary>工具名称,StepType 为 ToolCall 时必填。</summary>
     public string? ToolName { get; init; }
+    /// <summary>Agent 类型标识,StepType 为 AgentTask 时使用。</summary>
     public string? AgentType { get; init; }
+    /// <summary>Agent 角色,默认 Executor。</summary>
     public AgentRole Role { get; init; } = AgentRole.Executor;
+    /// <summary>执行器变体,可选,用于细分 Agent 执行策略。</summary>
     public ExecutorVariant? Variant { get; init; }
+    /// <summary>步骤失败时的处理策略,默认 Stop。</summary>
     public WorkflowStepOnFailure OnFailure { get; init; } = WorkflowStepOnFailure.Stop;
+    /// <summary>最大重试次数,OnFailure 为 Retry 时生效,默认 3。</summary>
     public int? MaxRetries { get; init; }
 }
 
+/// <summary>
+/// 工作流执行模式枚举。
+/// </summary>
 public enum WorkflowExecutionMode
 {
+    /// <summary>顺序执行 — 按声明顺序依次执行步骤。</summary>
     [EnumValue("sequential")] Sequential,
+    /// <summary>并行执行 — 所有步骤同时执行。</summary>
     [EnumValue("parallel")] Parallel,
+    /// <summary>DAG 执行 — 按依赖关系拓扑分层并行执行。</summary>
     [EnumValue("dag")] Dag
 }
-public enum WorkflowStepType { ToolCall, AgentTask, SubWorkflow, Conditional }
-public enum WorkflowStepOnFailure { Stop, Skip, Retry, Continue }
 
+/// <summary>
+/// 工作流步骤类型枚举。
+/// </summary>
+public enum WorkflowStepType
+{
+    /// <summary>工具调用步骤。</summary>
+    ToolCall,
+    /// <summary>Agent 任务步骤。</summary>
+    AgentTask,
+    /// <summary>子工作流步骤。</summary>
+    SubWorkflow,
+    /// <summary>条件判断步骤。</summary>
+    Conditional
+}
+
+/// <summary>
+/// 工作流步骤失败处理策略枚举。
+/// </summary>
+public enum WorkflowStepOnFailure
+{
+    /// <summary>停止 — 失败即终止整个工作流。</summary>
+    Stop,
+    /// <summary>跳过 — 标记为 Skipped 并继续后续步骤。</summary>
+    Skip,
+    /// <summary>重试 — 按指数退避重试,达到上限后停止。</summary>
+    Retry,
+    /// <summary>继续 — 忽略失败,继续执行后续步骤。</summary>
+    Continue
+}
+
+/// <summary>
+/// 工作流执行结果 — 包含最终状态、各步骤产物与耗时。
+/// </summary>
 public sealed partial class WorkflowResult
 {
+    /// <summary>工作流唯一标识。</summary>
     public required string WorkflowId { get; init; }
+    /// <summary>工作流最终执行状态。</summary>
     public required TaskExecutionStatus Status { get; init; }
+    /// <summary>各步骤结果字典,键为步骤标识,值为 JSON 元素。</summary>
     public Dictionary<string, JsonElement> StepResults { get; init; } = new();
+    /// <summary>错误信息,失败时填充。</summary>
     public string? ErrorMessage { get; init; }
+    /// <summary>工作流总耗时。</summary>
     public TimeSpan Duration { get; init; }
 }
 
+/// <summary>
+/// 工作流状态快照 — 描述工作流当前执行进度与各步骤状态。
+/// </summary>
 public sealed partial class WorkflowStatus
 {
+    /// <summary>工作流唯一标识。</summary>
     public required string WorkflowId { get; init; }
+    /// <summary>工作流当前执行状态。</summary>
     public required TaskExecutionStatus State { get; init; }
+    /// <summary>各步骤状态字典,键为步骤标识。</summary>
     public Dictionary<string, StepStatus> StepStatuses { get; init; } = new();
+    /// <summary>已完成(含跳过)的步骤数。</summary>
     public int CompletedSteps { get; init; }
+    /// <summary>总步骤数。</summary>
     public int TotalSteps { get; init; }
 }
 
-public enum StepState { [EnumValue("pending")] Pending, [EnumValue("running")] Running, [EnumValue("completed")] Completed, [EnumValue("failed")] Failed, [EnumValue("skipped")] Skipped }
+/// <summary>
+/// 工作流步骤状态枚举。
+/// </summary>
+public enum StepState
+{
+    /// <summary>待执行。</summary>
+    [EnumValue("pending")] Pending,
+    /// <summary>执行中。</summary>
+    [EnumValue("running")] Running,
+    /// <summary>已完成。</summary>
+    [EnumValue("completed")] Completed,
+    /// <summary>执行失败。</summary>
+    [EnumValue("failed")] Failed,
+    /// <summary>已跳过。</summary>
+    [EnumValue("skipped")] Skipped
+}
 
+/// <summary>
+/// 工作流步骤状态记录 — 描述单个步骤的执行结果与错误信息。
+/// </summary>
 public sealed partial class StepStatus
 {
+    /// <summary>步骤唯一标识。</summary>
     public required string StepId { get; init; }
+    /// <summary>步骤当前状态。</summary>
     public required StepState State { get; init; }
+    /// <summary>步骤执行结果,以 JSON 元素表示。</summary>
     public JsonElement Result { get; init; }
+    /// <summary>错误消息,失败时填充。</summary>
     public string? Error { get; init; }
+    /// <summary>错误代码,失败时填充。</summary>
     public string? ErrorCode { get; init; }
+    /// <summary>错误详情(含堆栈),失败时填充。</summary>
     public string? ErrorDetail { get; init; }
+    /// <summary>步骤执行耗时,可选。</summary>
     public TimeSpan? Duration { get; init; }
 }
 
+/// <summary>
+/// 工作流任务执行器 — 支持顺序、并行、DAG 三种执行模式,提供断点续跑、失败重试与进度上报能力。
+/// 通过 Actor 化的 ConcurrentDictionary 管理活跃工作流,AsyncLock 保护取消操作。
+/// </summary>
 [Register(typeof(IWorkflowTaskExecutor), ServiceLifetime.Singleton)]
 public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskExecutor
 {
@@ -86,6 +209,17 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
     private readonly ConcurrentDictionary<string, WorkflowRunState> _activeWorkflows = new();
     private readonly AsyncLock _stateLock = new();
 
+    /// <summary>
+    /// 构造工作流任务执行器。
+    /// </summary>
+    /// <param name="toolExecutionGateway">工具执行网关,ToolCall 步骤通过它调用工具。</param>
+    /// <param name="agentLifecycleManager">Agent 生命周期管理器,AgentTask 步骤通过它 spawn/执行 Agent。</param>
+    /// <param name="logger">日志记录器,可选。</param>
+    /// <param name="telemetryService">遥测服务,可选,用于记录执行指标。</param>
+    /// <param name="subAgentContextAccessor">子 Agent 上下文访问器,可选,默认使用 SubAgentContextAccessor。</param>
+    /// <param name="clock">时钟服务,可选,默认使用系统时钟,用于测试时间控制。</param>
+    /// <param name="stateStore">工作流状态存储,可选,提供断点续跑能力。</param>
+    /// <param name="progressSink">进度上报接收器,可选,用于通知步骤启动/完成/失败/跳过/重试事件。</param>
     public WorkflowTaskExecutor(
         IToolExecutionGateway toolExecutionGateway,
         IAgentLifecycleManager agentLifecycleManager,
@@ -106,6 +240,7 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
         _progressSink = progressSink;
     }
 
+    /// <inheritdoc/>
     public async Task<WorkflowResult> ExecuteWorkflowAsync(WorkflowDefinition definition, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(definition);
@@ -142,6 +277,7 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
         }
     }
 
+    /// <inheritdoc/>
     public Task<WorkflowStatus> GetWorkflowStatusAsync(string workflowId, CancellationToken ct = default)
     {
         if (_activeWorkflows.TryGetValue(workflowId, out var runState))
@@ -158,6 +294,7 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
         });
     }
 
+    /// <inheritdoc/>
     public async Task CancelWorkflowAsync(string workflowId, CancellationToken ct = default)
     {
         if (_activeWorkflows.TryGetValue(workflowId, out var runState))
@@ -537,6 +674,7 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
         };
     }
 
+    /// <summary>释放资源时回调，释放状态锁。</summary>
     protected override void OnDispose() => _stateLock.Dispose();
 
 }

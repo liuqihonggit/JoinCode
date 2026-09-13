@@ -261,7 +261,10 @@ public sealed partial class ParallelExecutionEngine : IAsyncDisposable
 /// </summary>
 public sealed partial class ExecutionResult
 {
+    /// <summary>执行是否成功(无失败任务)</summary>
     public required bool Success { get; init; }
+
+    /// <summary>执行报告</summary>
     public required ExecutionReport Report { get; init; }
 }
 
@@ -270,14 +273,28 @@ public sealed partial class ExecutionResult
 /// </summary>
 public sealed partial class ExecutionReport
 {
+    /// <summary>总任务数</summary>
     public int TotalTasks { get; init; }
+
+    /// <summary>已完成的任务列表</summary>
     public List<ScheduledTask> CompletedTasks { get; init; } = new();
+
+    /// <summary>失败的任务列表</summary>
     public List<ScheduledTask> FailedTasks { get; init; } = new();
+
+    /// <summary>待处理的任务列表</summary>
     public List<ScheduledTask> PendingTasks { get; init; } = new();
+
+    /// <summary>完成百分比(0-100)</summary>
     public double CompletionPercentage { get; init; }
+
+    /// <summary>执行总持续时间</summary>
     public TimeSpan ExecutionDuration { get; init; }
+
+    /// <summary>每个任务的执行详情列表</summary>
     public List<TaskExecutionDetail> TaskDetails { get; init; } = new();
 
+    /// <summary>是否所有任务均已完成(完成百分比达到 100)</summary>
     public bool AllTasksCompleted => CompletionPercentage >= 100;
 }
 
@@ -286,11 +303,24 @@ public sealed partial class ExecutionReport
 /// </summary>
 public sealed partial class TaskExecutionDetail
 {
+    /// <summary>任务 ID</summary>
     public required string TaskId { get; init; }
+
+    /// <summary>任务名称</summary>
     public required string TaskName { get; init; }
+
+    /// <summary>任务最终状态</summary>
     public required ScheduledTaskStatus Status { get; init; }
+
+    /// <summary>所需的智能体数量</summary>
     public required int RequiredAgents { get; init; }
+
+    /// <summary>任务开始时间</summary>
     public DateTime? StartedAt { get; init; }
+
+    /// <summary>任务完成时间</summary>
     public DateTime? CompletedAt { get; init; }
+
+    /// <summary>任务执行耗时</summary>
     public TimeSpan? Duration { get; init; }
 }

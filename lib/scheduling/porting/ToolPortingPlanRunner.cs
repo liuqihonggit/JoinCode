@@ -13,6 +13,12 @@ public sealed partial class ToolPortingPlanRunner : ServiceEntity
     private readonly StringBuilder _executionLog = new();
     private readonly ConcurrentQueue<PlanExecutionRecord> _executionHistory = new();
 
+    /// <summary>
+    /// 初始化工具移植计划运行器
+    /// </summary>
+    /// <param name="executionEngine">并行执行引擎</param>
+    /// <param name="logger">日志记录器,为空时不记录日志</param>
+    /// <param name="clock">时钟服务,为空时使用系统默认时钟</param>
     public ToolPortingPlanRunner(ParallelExecutionEngine executionEngine, ILogger<ToolPortingPlanRunner>? logger = null, IClockService? clock = null)
     {
         ArgumentNullException.ThrowIfNull(executionEngine);
@@ -381,8 +387,11 @@ public sealed partial class PlanOptions
 /// </summary>
 public sealed partial class ToolPortingExecutionResult
 {
+    /// <summary>执行是否成功</summary>
     public required bool Success { get; init; }
+    /// <summary>执行报告,包含任务详情与统计信息</summary>
     public required ExecutionReport Report { get; init; }
+    /// <summary>执行过程日志文本</summary>
     public required string ExecutionLog { get; init; }
 }
 
@@ -391,11 +400,17 @@ public sealed partial class ToolPortingExecutionResult
 /// </summary>
 public sealed partial class TaskAssignmentPlan
 {
+    /// <summary>任务总数</summary>
     public int TotalTasks { get; init; }
+    /// <summary>第一波(无依赖)任务数</summary>
     public int FirstWaveCount { get; init; }
+    /// <summary>第二波(有依赖)任务数</summary>
     public int SecondWaveCount { get; init; }
+    /// <summary>所需智能体总数</summary>
     public int TotalAgentsRequired { get; init; }
+    /// <summary>各任务的智能体分配详情列表</summary>
     public List<TaskAgentAssignment> Assignments { get; init; } = new();
+    /// <summary>执行阶段顺序列表</summary>
     public List<ExecutionPhase> ExecutionOrder { get; init; } = new();
 }
 
@@ -404,13 +419,21 @@ public sealed partial class TaskAssignmentPlan
 /// </summary>
 public sealed partial class TaskAgentAssignment
 {
+    /// <summary>任务唯一标识</summary>
     public required string TaskId { get; init; }
+    /// <summary>任务名称</summary>
     public required string TaskName { get; init; }
+    /// <summary>任务描述</summary>
     public required string Description { get; init; }
+    /// <summary>执行该任务所需的智能体数量</summary>
     public required int RequiredAgents { get; init; }
+    /// <summary>任务优先级</summary>
     public required TodoPriority Priority { get; init; }
+    /// <summary>依赖的任务Id列表</summary>
     public required List<string> Dependencies { get; init; }
+    /// <summary>是否属于第一波(无依赖)任务</summary>
     public required bool IsFirstWave { get; init; }
+    /// <summary>各智能体的工作范围列表</summary>
     public required List<string> AgentWorkScopes { get; init; }
 }
 
@@ -419,8 +442,11 @@ public sealed partial class TaskAgentAssignment
 /// </summary>
 public sealed partial class ExecutionPhase
 {
+    /// <summary>阶段编号(从 1 开始)</summary>
     public required int PhaseNumber { get; init; }
+    /// <summary>阶段描述</summary>
     public required string Description { get; init; }
+    /// <summary>该阶段包含的任务名称列表</summary>
     public required List<string> TaskNames { get; init; }
 }
 

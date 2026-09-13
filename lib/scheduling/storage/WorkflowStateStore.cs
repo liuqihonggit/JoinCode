@@ -13,6 +13,12 @@ public sealed partial class WorkflowStateStore : ServiceEntity, IWorkflowStateSt
     private readonly ILogger<WorkflowStateStore>? _logger;
     private readonly WorkflowStateActor _actor;
 
+    /// <summary>
+    /// 初始化 Workflow 状态存储实例
+    /// </summary>
+    /// <param name="fileOperationService">文件操作服务</param>
+    /// <param name="persistenceDirectory">持久化目录路径，默认使用应用数据目录下的 WorkflowStates 子目录</param>
+    /// <param name="logger">日志记录器</param>
     public WorkflowStateStore(
         IFileOperationService fileOperationService,
         string? persistenceDirectory = null,
@@ -24,6 +30,7 @@ public sealed partial class WorkflowStateStore : ServiceEntity, IWorkflowStateSt
         _actor = new WorkflowStateActor(this, _logger);
     }
 
+    /// <inheritdoc/>
     public async Task SaveSnapshotAsync(string workflowId, WorkflowSnapshot snapshot, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(workflowId);
@@ -60,6 +67,7 @@ public sealed partial class WorkflowStateStore : ServiceEntity, IWorkflowStateSt
         _logger?.LogDebug("已保存 workflow 快照: {WorkflowId}, 步骤数: {StepCount}", workflowId, snapshot.StepStates.Count);
     }
 
+    /// <inheritdoc/>
     public async Task<WorkflowSnapshot?> LoadSnapshotAsync(string workflowId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(workflowId);
@@ -113,6 +121,7 @@ public sealed partial class WorkflowStateStore : ServiceEntity, IWorkflowStateSt
         }
     }
 
+    /// <summary>释放资源时回调，异步释放内部 Actor。</summary>
     protected override void OnDispose()
     {
         _ = _actor.DisposeAsync();

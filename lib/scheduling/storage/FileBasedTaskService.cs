@@ -486,5 +486,6 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
         return 0;
     }
 
+    /// <summary>释放资源时回调，释放初始化锁。</summary>
     protected override void OnDispose() => _initLock.Dispose();
 }

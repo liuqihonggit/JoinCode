@@ -22,9 +22,9 @@ public sealed record SlashCommandSchemaEntry
 /// </summary>
 public interface ISlashCommandSchemaCatalog
 {
-    /// <summary>全部斜杠命令参数 schema 条目</summary>
-    IReadOnlyList<SlashCommandSchemaEntry> AllSchemas { get; }
-
     /// <summary>按命令名查询参数 schema；未找到返回 null</summary>
     ToolSchema? GetSchema(string commandName);
+
+    /// <summary>按命令名查询完整 schema 条目（含 ArgumentHint）；未找到返回 null。O(1) 字典查找。</summary>
+    SlashCommandSchemaEntry? GetEntry(string commandName);
 }

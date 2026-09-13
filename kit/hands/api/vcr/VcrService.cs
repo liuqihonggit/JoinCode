@@ -149,7 +149,11 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
     private string GetCassettePath(string name)
     {
         var safeName = string.Join("_", name.Split(Path.GetInvalidFileNameChars()));
-        return Path.Combine(_options.CassettesDirectory, $"{safeName}.json");
+        var fullPath = Path.GetFullPath(Path.Combine(_options.CassettesDirectory, $"{safeName}.json"));
+        var baseDir = Path.GetFullPath(_options.CassettesDirectory);
+        if (!fullPath.StartsWith(baseDir, StringComparison.OrdinalIgnoreCase))
+            throw new UnauthorizedAccessException($"Cassette path escapes directory: {name}");
+        return fullPath;
     }
 
     private static bool MatchesRequest(VcrRequest recorded, VcrRequest incoming)

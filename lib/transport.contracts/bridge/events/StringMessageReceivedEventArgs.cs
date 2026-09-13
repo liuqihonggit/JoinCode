@@ -15,6 +15,11 @@ public sealed class StringMessageReceivedEventArgs : EventArgs
     /// </summary>
     public string MessageId { get; }
 
+    /// <summary>
+    /// 初始化字符串消息接收事件参数
+    /// </summary>
+    /// <param name="messageJson">原始消息 JSON 字符串</param>
+    /// <param name="messageId">消息 ID（用于去重）</param>
     public StringMessageReceivedEventArgs(string messageJson, string messageId)
     {
         MessageJson = messageJson;

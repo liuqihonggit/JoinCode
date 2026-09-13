@@ -5,8 +5,11 @@ namespace JoinCode.Transport;
 /// </summary>
 public sealed class TransportMessageEventArgs : EventArgs
 {
+    /// <summary>消息内容</summary>
     public required string Message { get; init; }
+    /// <summary>消息来源通道（输出或错误）</summary>
     public required TransportChannel Channel { get; init; }
+    /// <summary>消息接收时间戳</summary>
     public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
 }
 
@@ -15,7 +18,9 @@ public sealed class TransportMessageEventArgs : EventArgs
 /// </summary>
 public enum TransportChannel
 {
+    /// <summary>标准输出通道</summary>
     Output,
+    /// <summary>标准错误通道</summary>
     Error
 }
 
@@ -24,9 +29,13 @@ public enum TransportChannel
 /// </summary>
 public enum TransportState
 {
+    /// <summary>已断开</summary>
     Disconnected,
+    /// <summary>连接中</summary>
     Connecting,
+    /// <summary>已连接</summary>
     Connected,
+    /// <summary>连接失败</summary>
     Failed
 }
 

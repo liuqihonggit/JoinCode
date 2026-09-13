@@ -5,8 +5,13 @@ namespace JoinCode.Transport.Bridge;
 /// </summary>
 public sealed class BatchFlushedEventArgs<T> : EventArgs
 {
+    /// <summary>本批次刷新的条目列表</summary>
     public IReadOnlyList<T> Items { get; }
 
+    /// <summary>
+    /// 初始化批次刷新事件参数
+    /// </summary>
+    /// <param name="items">本批次刷新的条目列表</param>
     public BatchFlushedEventArgs(IReadOnlyList<T> items)
     {
         Items = items;

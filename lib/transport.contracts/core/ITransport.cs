@@ -51,11 +51,20 @@ public sealed class TransportErrorEventArgs : EventArgs
     /// <summary>错误描述消息</summary>
     public string? Message { get; }
 
+    /// <summary>
+    /// 初始化传输错误事件参数
+    /// </summary>
+    /// <param name="exception">错误异常</param>
     public TransportErrorEventArgs(Exception exception)
     {
         Exception = exception;
     }
 
+    /// <summary>
+    /// 初始化传输错误事件参数
+    /// </summary>
+    /// <param name="exception">错误异常</param>
+    /// <param name="message">错误描述消息</param>
     public TransportErrorEventArgs(Exception exception, string message)
     {
         Exception = exception;

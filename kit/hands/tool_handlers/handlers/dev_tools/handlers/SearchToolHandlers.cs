@@ -570,7 +570,7 @@ public class SearchToolHandlers : OneShotCommandGroup
         }
 
         // 无 PathPermissionChecker 时，保留硬编码安全检查作为兜底
-        if (path.StartsWith("\\\\", StringComparison.Ordinal) || path.StartsWith("//", StringComparison.Ordinal))
+        if (PathGuardNode.IsUncPath(path))
         {
             var uncDiag = BuildUncPathDeniedDiagnostic(path);
             return ToolResultBuilder.Error().WithText(uncDiag.FormattedMessage).WithDiagnostic(uncDiag).Build();

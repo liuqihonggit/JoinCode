@@ -200,42 +200,6 @@ public partial class FileToolHandlers : IDisposable
         return false;
     }
 
-    private static bool IsUncPath(string filePath)
-    {
-        return filePath.StartsWith("\\\\", StringComparison.Ordinal)
-               || filePath.StartsWith("//", StringComparison.Ordinal);
-    }
-
-    private static bool IsKeywordSectionsPath(string filePath)
-    {
-        if (string.IsNullOrEmpty(filePath))
-            return false;
-
-        return Path.GetFileName(filePath).Equals("keyword-sections.json", StringComparison.OrdinalIgnoreCase);
-    }
-
-    /// <summary>
-    /// doctor Agent 允许编辑的路径 — .jcc/diag/、.jcc/reflexion/、worktree 内文件
-    /// </summary>
-    private static bool IsDoctorAllowedEditPath(string filePath)
-    {
-        if (string.IsNullOrEmpty(filePath))
-            return false;
-
-        var normalized = filePath.Replace('\\', '/');
-
-        if (normalized.Contains("/.jcc/diag/", StringComparison.OrdinalIgnoreCase))
-            return true;
-
-        if (normalized.Contains("/.jcc/reflexion/", StringComparison.OrdinalIgnoreCase))
-            return true;
-
-        if (normalized.Contains("/worktree/", StringComparison.OrdinalIgnoreCase))
-            return true;
-
-        return false;
-    }
-
     /// <summary>
     /// 替换字符串中第一个匹配项（用于预模拟编辑）。
     /// 对齐 TS: file.replace(actualOldString, new_string) — 非替换所有时只替换第一个匹配

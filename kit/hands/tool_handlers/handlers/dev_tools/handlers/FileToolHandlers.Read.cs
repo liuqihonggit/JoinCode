@@ -21,7 +21,7 @@ public partial class FileToolHandlers
             return ToolResultBuilder.Error().WithText(validationDiag.FormattedMessage).WithDiagnostic(validationDiag).Build();
         }
 
-        if (IsUncPath(file_path))
+        if (PathGuardNode.IsUncPath(file_path))
         {
             var uncDiagnostic = ToolDiagnostic.Create(
                 "UncPathRejected",

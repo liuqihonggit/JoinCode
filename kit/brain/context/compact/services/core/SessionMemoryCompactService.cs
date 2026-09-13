@@ -1,6 +1,10 @@
 
 namespace Core.Context.Compact;
 
+/// <summary>
+/// 会话记忆压缩服务实现 — 对齐 TS sessionMemory.ts
+/// 基于持久化的会话记忆文件生成压缩摘要，避免丢失长期上下文
+/// </summary>
 [Register(typeof(ISessionMemoryCompactService), ServiceLifetime.Singleton)]
 public sealed partial class SessionMemoryCompactService : ServiceEntity, ISessionMemoryCompactService
 {
@@ -14,6 +18,12 @@ public sealed partial class SessionMemoryCompactService : ServiceEntity, ISessio
     private string? _memoryFilePath;
     private int _tokensAtLastExtraction;
 
+    /// <summary>
+    /// 初始化 <see cref="SessionMemoryCompactService"/> 实例
+    /// </summary>
+    /// <param name="microcompactService">微压缩服务，用于 token 估算</param>
+    /// <param name="config">可选配置选项，null 时使用默认配置</param>
+    /// <param name="fileSystem">可选文件系统抽象，为 null 时仅使用内存缓存</param>
     public SessionMemoryCompactService(
         IMicrocompactService microcompactService,
         IOptions<SessionMemoryCompactConfig>? config = null,
@@ -45,6 +55,15 @@ public sealed partial class SessionMemoryCompactService : ServiceEntity, ISessio
         return Path.Combine(cwd, SessionMemorySubdir, SessionMemoryFileName);
     }
 
+    /// <summary>
+    /// 尝试基于会话记忆执行压缩 — 对齐 TS trySessionMemoryCompact
+    /// 仅当会话记忆非空且压缩后 token 数低于阈值时返回结果
+    /// </summary>
+    /// <param name="messages">原始消息列表</param>
+    /// <param name="autoCompactThreshold">自动压缩阈值，0 表示不检查</param>
+    /// <param name="transcriptPath">可选的转录文件路径</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>压缩结果；不满足条件时返回 null</returns>
     public async Task<CompactResult?> TrySessionMemoryCompactAsync(
         IReadOnlyList<ApiMessage> messages,
         int autoCompactThreshold = 0,
@@ -100,12 +119,20 @@ public sealed partial class SessionMemoryCompactService : ServiceEntity, ISessio
         };
     }
 
+    /// <summary>
+    /// 检查会话记忆是否可用（存在且非空）
+    /// </summary>
+    /// <returns>可用返回 true，否则 false</returns>
     public async Task<bool> IsSessionMemoryAvailableAsync()
     {
         var content = await GetSessionMemoryContentAsync().ConfigureAwait(false);
         return !string.IsNullOrEmpty(content) && !IsSessionMemoryEmpty(content);
     }
 
+    /// <summary>
+    /// 获取会话记忆内容 — 优先返回缓存，其次从文件读取
+    /// </summary>
+    /// <returns>会话记忆内容；不存在时返回 null</returns>
     public async Task<string?> GetSessionMemoryContentAsync()
     {
         if (_cachedMemoryContent is not null)
@@ -126,6 +153,11 @@ public sealed partial class SessionMemoryCompactService : ServiceEntity, ISessio
         return _cachedMemoryContent;
     }
 
+    /// <summary>
+    /// 更新会话记忆内容 — 同步更新缓存和持久化文件
+    /// </summary>
+    /// <param name="content">新的会话记忆内容</param>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task UpdateSessionMemoryAsync(string content, CancellationToken cancellationToken = default)
     {
         _cachedMemoryContent = content;

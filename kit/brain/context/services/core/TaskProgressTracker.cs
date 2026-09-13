@@ -7,6 +7,11 @@ namespace Core.Context;
 public sealed partial class TaskProgressTracker : ServiceEntity, ITaskProgressTracker
 {
 
+    /// <summary>
+    /// 初始化任务进度追踪器
+    /// </summary>
+    /// <param name="todoService">TODO 服务</param>
+    /// <param name="logger">可选日志记录器</param>
     public TaskProgressTracker(ITodoService todoService, ILogger<TaskProgressTracker>? logger = null)
     {
         _todoService = todoService;
@@ -18,6 +23,11 @@ public sealed partial class TaskProgressTracker : ServiceEntity, ITaskProgressTr
     private int _lastKnownCompletedCount;
     private bool _hasSnapshot;
 
+    /// <summary>
+    /// 获取当前已完成的 TODO 数量，查询失败时保留上次成功值
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>已完成的 TODO 数量</returns>
     public async Task<int> GetCompletedTodoCountAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -41,6 +51,10 @@ public sealed partial class TaskProgressTracker : ServiceEntity, ITaskProgressTr
         }
     }
 
+    /// <summary>
+    /// 快照当前 TODO 进度，作为后续进度判定的基线
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task SnapshotCurrentProgressAsync(CancellationToken cancellationToken = default)
     {
         _lastSnapshotCompletedCount = await GetCompletedTodoCountAsync(cancellationToken).ConfigureAwait(false);
@@ -48,6 +62,11 @@ public sealed partial class TaskProgressTracker : ServiceEntity, ITaskProgressTr
         _logger?.LogDebug("[TaskProgressTracker] 快照TODO进度：完成数={Count}", _lastSnapshotCompletedCount);
     }
 
+    /// <summary>
+    /// 判断自上次快照以来任务是否有推进（TODO 完成数是否增加）
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>有推进返回 true，无推进或未快照返回 false</returns>
     public async Task<bool> HasProgressedSinceLastSnapshotAsync(CancellationToken cancellationToken = default)
     {
         if (!_hasSnapshot)

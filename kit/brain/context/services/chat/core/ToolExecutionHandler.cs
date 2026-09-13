@@ -43,6 +43,13 @@ public sealed partial class ToolExecutionHandler : ServiceEntity, IToolExecution
     private readonly QueryLoopServices? _services;
     private readonly ILogger<ToolExecutionHandler>? _logger;
 
+    /// <summary>
+    /// 初始化工具执行处理器
+    /// </summary>
+    /// <param name="toolOrchestrator">工具编排器</param>
+    /// <param name="contextManager">聊天上下文管理器</param>
+    /// <param name="services">查询循环可选服务聚合</param>
+    /// <param name="logger">可选日志记录器</param>
     public ToolExecutionHandler(
         IChatToolOrchestrator toolOrchestrator,
         IChatContextManager contextManager,

@@ -10,12 +10,23 @@ public class PlanModeToolHandlers
     private readonly IPlanModeManager _planModeManager;
     private readonly IChannelStateService? _channelStateService;
 
+    /// <summary>
+    /// 初始化计划模式工具处理器
+    /// </summary>
+    /// <param name="planModeManager">计划模式管理器</param>
+    /// <param name="channelStateService">频道状态服务（可选，激活时禁用 PlanMode）</param>
     public PlanModeToolHandlers(IPlanModeManager planModeManager, IChannelStateService? channelStateService = null)
     {
         _planModeManager = planModeManager ?? throw new ArgumentNullException(nameof(planModeManager));
         _channelStateService = channelStateService;
     }
 
+    /// <summary>
+    /// 进入计划模式 — 对齐 TS EnterPlanModeTool，复杂任务需先探索和设计时使用
+    /// </summary>
+    /// <param name="description">计划描述（可选）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果，包含 plan 文件路径和探索指引</returns>
     [McpTool(PlanToolNameConstants.EnterPlanMode, "Enter plan mode for complex tasks requiring exploration and design", "plan")]
     public async Task<ToolResult> EnterPlanModeAsync(
         [McpToolParameter("Plan description (optional)", Required = false)] string? description = null,
@@ -65,6 +76,13 @@ public class PlanModeToolHandlers
         return ToolResultBuilder.Success().WithText(sb.ToString()).Build();
     }
 
+    /// <summary>
+    /// 退出计划模式并提交计划审批 — 对齐 TS ExitPlanModeV2Tool
+    /// </summary>
+    /// <param name="execute_remaining_steps">是否执行剩余已批准步骤</param>
+    /// <param name="allowed_prompts">退出后注册的语义级 Bash 权限提示</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果，包含审批状态或执行结果</returns>
     [McpTool(PlanToolNameConstants.ExitPlanMode, "Exit plan mode and present plan for approval", "plan")]
     public async Task<ToolResult> ExitPlanModeAsync(
         [McpToolParameter("Whether to execute remaining approved steps", Required = false)] bool? execute_remaining_steps = false,

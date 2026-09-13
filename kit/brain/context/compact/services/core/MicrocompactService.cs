@@ -11,6 +11,10 @@ namespace Core.Context.Compact;
 [Register(typeof(IMicrocompactService), ServiceLifetime.Singleton)]
 public sealed partial class MicrocompactService : ServiceEntity, IMicrocompactService {
 
+    /// <summary>
+    /// 初始化 <see cref="MicrocompactService"/> 实例
+    /// </summary>
+    /// <param name="clock">时钟服务，用于时间间隔压缩判断</param>
     public MicrocompactService(IClockService clock)
     {
         _clock = clock;

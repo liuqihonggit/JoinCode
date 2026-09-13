@@ -13,6 +13,13 @@ public sealed class LogicFingerprintDetector
     private readonly RingBuffer<int> _fingerprints;
     private int _triggerCount;
 
+    /// <summary>
+    /// 初始化逻辑指纹检测器
+    /// </summary>
+    /// <param name="fingerprintPrefixLen">指纹前缀长度</param>
+    /// <param name="fingerprintSuffixLen">指纹后缀长度</param>
+    /// <param name="windowSize">滑动窗口大小</param>
+    /// <param name="hitThreshold">命中阈值</param>
     public LogicFingerprintDetector(
         int fingerprintPrefixLen = 200,
         int fingerprintSuffixLen = 200,
@@ -72,6 +79,7 @@ public sealed class LogicFingerprintDetector
         _triggerCount = 0;
     }
 
+    /// <summary>累计触发次数</summary>
     public int TriggerCount => _triggerCount;
 
     private int ComputeFingerprint(string text)
@@ -90,11 +98,19 @@ public sealed class LogicFingerprintDetector
     }
 }
 
+/// <summary>
+/// 逻辑指纹检测结果
+/// </summary>
+/// <param name="IsLoopDetected">是否检测到循环</param>
+/// <param name="Fingerprint">命中的逻辑指纹值</param>
+/// <param name="HitCount">窗口内命中次数</param>
+/// <param name="TriggerCount">累计触发次数</param>
 public sealed record LogicFingerprintResult(
     bool IsLoopDetected,
     int Fingerprint,
     int HitCount,
     int TriggerCount)
 {
+    /// <summary>未检测到循环的空结果</summary>
     public static readonly LogicFingerprintResult NoLoop = new(false, 0, 0, 0);
 }

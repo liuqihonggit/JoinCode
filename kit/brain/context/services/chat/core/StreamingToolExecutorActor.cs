@@ -58,6 +58,12 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
     private sealed record GetRemainingQuery(TaskCompletionSource<List<Task<StreamingToolResult>>> Tcs) : IToolCommand;
 
     /// <summary>初始化流式工具执行器 Actor</summary>
+    /// <param name="toolHandler">工具执行处理器</param>
+    /// <param name="concurrencyClassifier">工具并发安全性分类器</param>
+    /// <param name="context">中间件共享上下文</param>
+    /// <param name="maxConcurrency">最大并发执行数</param>
+    /// <param name="logger">可选日志记录器</param>
+    /// <param name="userCancellationToken">用户取消令牌</param>
     public StreamingToolExecutorActor(
         IToolExecutionHandler toolHandler,
         IToolConcurrencyClassifier concurrencyClassifier,

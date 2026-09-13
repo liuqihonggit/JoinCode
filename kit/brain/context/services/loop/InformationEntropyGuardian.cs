@@ -25,6 +25,16 @@ public sealed class InformationEntropyGuardian : ServiceEntity, IOutputLoopDetec
     private int _toolCallCount;
     private int _lastSbCheckLength;
 
+    /// <summary>
+    /// 初始化信息熵减检测器，可注入各层检测器实例和日志簿，未提供则按选项构造默认实现
+    /// </summary>
+    /// <param name="options">循环干预选项，null 时使用默认值</param>
+    /// <param name="outputLoopDetector">输出循环检测器实例，null 时按选项构造</param>
+    /// <param name="logicFingerprintDetector">逻辑指纹检测器实例，null 时按选项构造</param>
+    /// <param name="toolCallSequenceDetector">工具调用序列检测器实例，null 时按选项构造</param>
+    /// <param name="shannonEntropyDetector">Shannon 熵检测器实例，null 时按选项构造</param>
+    /// <param name="journal">循环诊断日志簿实例，null 时构造默认实现</param>
+    /// <param name="logger">可选日志记录器</param>
     public InformationEntropyGuardian(
         LoopInterventionOptions? options = null,
         OutputLoopDetector? outputLoopDetector = null,

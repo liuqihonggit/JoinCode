@@ -9,6 +9,13 @@ namespace Core.Context;
 public sealed partial class KeywordInjectionMiddleware : ServiceEntity, IAnalyzePreprocessMiddleware
 {
 
+    /// <summary>
+    /// 初始化关键词注入中间件
+    /// </summary>
+    /// <param name="reminderManager">系统提醒管理器</param>
+    /// <param name="dynamicKeywordService">动态关键词配置服务</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">可选日志记录器</param>
     public KeywordInjectionMiddleware(ISystemReminderManager reminderManager, IDynamicKeywordConfigService dynamicKeywordService, IFileSystem fs, ILogger<KeywordInjectionMiddleware>? logger = null)
     {
         _reminderManager = reminderManager;
@@ -24,6 +31,7 @@ public sealed partial class KeywordInjectionMiddleware : ServiceEntity, IAnalyze
     private const string MissLogFileName = "keyword-misses.json";
     private const int MaxMissLogSize = 1024 * 1024;
 
+    /// <summary>错误行为策略：继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
     /// <inheritdoc/>

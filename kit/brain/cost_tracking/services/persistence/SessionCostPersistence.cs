@@ -1,20 +1,66 @@
 namespace Core.CostTracking;
 
+/// <summary>
+/// 会话成本持久化接口 — 负责保存、恢复、列举和删除会话成本数据
+/// </summary>
 public interface ISessionCostPersistence
 {
+    /// <summary>
+    /// 异步保存当前会话的成本数据到持久化存储
+    /// </summary>
+    /// <param name="sessionId">会话标识</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     Task SaveCurrentSessionCostsAsync(string sessionId, CancellationToken ct = default);
+
+    /// <summary>
+    /// 异步恢复指定会话的成本状态
+    /// </summary>
+    /// <param name="sessionId">会话标识</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>恢复的成本统计信息；若不存在或读取失败则返回 null</returns>
     Task<CostStatistics?> RestoreCostStateForSessionAsync(string sessionId, CancellationToken ct = default);
+
+    /// <summary>
+    /// 异步获取所有已保存成本数据的会话标识列表
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>已保存会话标识的只读列表</returns>
     Task<IReadOnlyList<string>> GetSavedSessionIdsAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// 异步删除指定会话的成本数据
+    /// </summary>
+    /// <param name="sessionId">会话标识</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     Task DeleteSessionCostsAsync(string sessionId, CancellationToken ct = default);
 }
 
+/// <summary>
+/// 会话成本数据传输对象 — 持久化到 JSON 文件的结构
+/// </summary>
 public sealed partial class SessionCostData
 {
+    /// <summary>
+    /// 会话标识
+    /// </summary>
     public required string SessionId { get; init; }
+
+    /// <summary>
+    /// 会话成本统计信息
+    /// </summary>
     public required CostStatistics Statistics { get; init; }
+
+    /// <summary>
+    /// 保存时间戳 (UTC)
+    /// </summary>
     public required DateTime SavedAt { get; init; }
 }
 
+/// <summary>
+/// 会话成本持久化服务 — 将会话成本数据以 JSON 文件形式存储到本地成本目录
+/// </summary>
 [Register(typeof(ISessionCostPersistence), ServiceLifetime.Singleton)]
 public sealed partial class SessionCostPersistence : ServiceEntity, ISessionCostPersistence
 {
@@ -25,6 +71,14 @@ public sealed partial class SessionCostPersistence : ServiceEntity, ISessionCost
     private readonly CostTracker _costTracker;
     private readonly ITelemetryService? _telemetryService;
 
+    /// <summary>
+    /// 构造会话成本持久化服务实例
+    /// </summary>
+    /// <param name="costTracker">成本跟踪器</param>
+    /// <param name="fileOperationService">文件操作服务</param>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="telemetryService">遥测服务（可选）</param>
+    /// <param name="clock">时钟服务（可选，默认使用系统时钟）</param>
     public SessionCostPersistence(
         CostTracker costTracker,
         IFileOperationService fileOperationService,
@@ -40,6 +94,12 @@ public sealed partial class SessionCostPersistence : ServiceEntity, ISessionCost
         _clock = clock ?? SystemClockService.Instance;
     }
 
+    /// <summary>
+    /// 异步保存当前会话的成本数据到持久化存储
+    /// </summary>
+    /// <param name="sessionId">会话标识</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task SaveCurrentSessionCostsAsync(string sessionId, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
@@ -82,6 +142,12 @@ public sealed partial class SessionCostPersistence : ServiceEntity, ISessionCost
         }
     }
 
+    /// <summary>
+    /// 异步恢复指定会话的成本状态
+    /// </summary>
+    /// <param name="sessionId">会话标识</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>恢复的成本统计信息；若不存在或读取失败则返回 null</returns>
     public async Task<CostStatistics?> RestoreCostStateForSessionAsync(string sessionId, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
@@ -123,6 +189,11 @@ public sealed partial class SessionCostPersistence : ServiceEntity, ISessionCost
         }
     }
 
+    /// <summary>
+    /// 异步获取所有已保存成本数据的会话标识列表
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>已保存会话标识的只读列表</returns>
     public async Task<IReadOnlyList<string>> GetSavedSessionIdsAsync(CancellationToken ct = default)
     {
         try
@@ -155,6 +226,12 @@ public sealed partial class SessionCostPersistence : ServiceEntity, ISessionCost
         }
     }
 
+    /// <summary>
+    /// 异步删除指定会话的成本数据
+    /// </summary>
+    /// <param name="sessionId">会话标识</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task DeleteSessionCostsAsync(string sessionId, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);

@@ -28,13 +28,21 @@ public sealed class ChatTiming
     /// <summary>LLM 调用次数（工具调用迭代）</summary>
     public int LlmCallCount { get; set; }
 
+    /// <summary>开始总计时</summary>
     public void StartTotal() => _total.Restart();
+    /// <summary>停止总计时</summary>
     public void StopTotal() => _total.Stop();
+    /// <summary>开始预处理计时</summary>
     public void StartPreprocess() => _preprocess.Restart();
+    /// <summary>停止预处理计时</summary>
     public void StopPreprocess() => _preprocess.Stop();
+    /// <summary>开始 LLM 调用计时</summary>
     public void StartLlmCall() => _llmCall.Restart();
+    /// <summary>停止 LLM 调用计时</summary>
     public void StopLlmCall() => _llmCall.Stop();
+    /// <summary>开始后处理计时</summary>
     public void StartPostProcess() => _postProcess.Restart();
+    /// <summary>停止后处理计时</summary>
     public void StopPostProcess() => _postProcess.Stop();
 
     /// <summary>

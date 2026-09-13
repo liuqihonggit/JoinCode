@@ -7,6 +7,11 @@ namespace Core.Context.Compact;
 public sealed partial class ContextCollapseMiddleware : ServiceEntity, ICompactMiddleware
 {
 
+    /// <summary>
+    /// 初始化 <see cref="ContextCollapseMiddleware"/> 实例
+    /// </summary>
+    /// <param name="contextCollapseService">上下文折叠服务（可选，为 null 时中间件直接透传）</param>
+    /// <param name="logger">可选日志记录器</param>
     public ContextCollapseMiddleware(IContextCollapseService? contextCollapseService = null, ILogger<ContextCollapseMiddleware>? logger = null)
     {
         _contextCollapseService = contextCollapseService;
@@ -15,6 +20,7 @@ public sealed partial class ContextCollapseMiddleware : ServiceEntity, ICompactM
     private readonly IContextCollapseService? _contextCollapseService;
     private readonly ILogger<ContextCollapseMiddleware>? _logger;
 
+    /// <summary>中间件异常时的行为：继续传递给下一个中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
     /// <inheritdoc/>

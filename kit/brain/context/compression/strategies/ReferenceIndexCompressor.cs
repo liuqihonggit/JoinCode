@@ -7,8 +7,17 @@ namespace Core.Context.Compression;
 [Register(typeof(ICompressionStrategy), ServiceLifetime.Transient)]
 public sealed partial class ReferenceIndexCompressor : CompressionStrategyBase
 {
+    /// <summary>
+    /// 策略名称
+    /// </summary>
     public override string Name => "ReferenceIndexCompressor";
+    /// <summary>
+    /// 策略描述
+    /// </summary>
     public override string Description => "Compresses code reference index by generating compact index while preserving file paths and key identifiers";
+    /// <summary>
+    /// 策略优先级
+    /// </summary>
     public override int Priority => 100;
 
     private static readonly HashSet<ContentType> _supportedTypes = new()
@@ -16,8 +25,18 @@ public sealed partial class ReferenceIndexCompressor : CompressionStrategyBase
         ContentType.ReferenceIndex
     };
 
+    /// <summary>
+    /// 支持的内容类型
+    /// </summary>
     public override IReadOnlySet<ContentType> SupportedContentTypes => _supportedTypes;
 
+    /// <summary>
+    /// 压缩引用索引：生成紧凑索引同时保留文件路径与关键标识
+    /// </summary>
+    /// <param name="content">原始引用索引内容</param>
+    /// <param name="options">压缩选项</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>压缩后的引用索引</returns>
     public override Task<string> CompressAsync(
         string content,
         CompressionOptions options,
@@ -72,6 +91,12 @@ public sealed partial class ReferenceIndexCompressor : CompressionStrategyBase
         return Task.FromResult(result.ToString().TrimEnd());
     }
 
+    /// <summary>
+    /// 预估引用索引的压缩比率
+    /// </summary>
+    /// <param name="content">原始内容</param>
+    /// <param name="options">压缩选项</param>
+    /// <returns>预估压缩比率 (0-1)</returns>
     public override double EstimateCompressionRatio(string content, CompressionOptions options)
     {
         if (string.IsNullOrWhiteSpace(content))

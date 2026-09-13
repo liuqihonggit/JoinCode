@@ -7,6 +7,11 @@ namespace Core.Context;
 public sealed partial class SystemPromptMiddleware : ServiceEntity, IPreparePreprocessMiddleware
 {
 
+    /// <summary>
+    /// 初始化系统提示构建中间件
+    /// </summary>
+    /// <param name="systemPromptBuilder">系统提示构建器</param>
+    /// <param name="contextManager">聊天上下文管理器</param>
     public SystemPromptMiddleware(SystemPromptBuilder systemPromptBuilder, IChatContextManager contextManager)
     {
         _systemPromptBuilder = systemPromptBuilder;

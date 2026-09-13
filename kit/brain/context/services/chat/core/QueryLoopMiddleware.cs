@@ -29,6 +29,20 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
     private readonly ToolExecutionSettings? _toolExecutionSettings;
     private readonly ILogger<QueryLoopMiddleware>? _logger;
 
+    /// <summary>
+    /// 初始化查询循环中间件，注入各处理器和可选服务
+    /// </summary>
+    /// <param name="notificationHandler">后台通知处理器</param>
+    /// <param name="llmHandler">LLM 调用处理器</param>
+    /// <param name="toolHandler">工具执行处理器</param>
+    /// <param name="telemetryRecorder">遥测记录器</param>
+    /// <param name="contextManager">聊天上下文管理器</param>
+    /// <param name="emptyResponseTracker">空响应追踪器</param>
+    /// <param name="services">查询循环可选服务聚合</param>
+    /// <param name="loopDetectionStrategy">循环检测策略，null 时使用 InformationEntropyGuardian</param>
+    /// <param name="concurrencyClassifier">工具并发安全性分类器（可选）</param>
+    /// <param name="toolExecutionSettings">工具执行设置（可选）</param>
+    /// <param name="logger">可选日志记录器</param>
     public QueryLoopMiddleware(
         IBackgroundNotificationHandler notificationHandler,
         ILLMInvocationHandler llmHandler,

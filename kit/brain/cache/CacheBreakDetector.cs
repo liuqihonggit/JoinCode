@@ -1,5 +1,9 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
+/// <summary>
+/// 缓存破坏检测器，对比前后两次请求的不变前缀与 token 使用情况，
+/// 识别系统提示、工具规格、动态内容、对话历史、模型、快模式等变更导致的缓存失效
+/// </summary>
 public class CacheBreakDetector
 {
     private const double CacheEvictionRelativeThreshold = 0.95;
@@ -14,6 +18,10 @@ public class CacheBreakDetector
     private int? _prevCacheReadTokens;
     private DateTimeOffset? _lastCallTimestamp;
 
+    /// <summary>
+    /// 构造函数
+    /// </summary>
+    /// <param name="clock">时钟函数（可选，默认使用 UTC 当前时间）</param>
     public CacheBreakDetector(Func<DateTimeOffset>? clock = null)
     {
         _clock = clock;
@@ -54,6 +62,15 @@ public class CacheBreakDetector
         _lastCallTimestamp = null;
     }
 
+    /// <summary>
+    /// 记录当前请求的不变前缀与动态内容状态，生成用于后续比对的快照
+    /// </summary>
+    /// <param name="prefix">不变前缀（系统提示与工具规格）</param>
+    /// <param name="dynamicContent">动态内容</param>
+    /// <param name="conversation">对话消息序列（可选）</param>
+    /// <param name="modelId">模型 ID（可选）</param>
+    /// <param name="fastMode">是否启用快速模式（可选）</param>
+    /// <returns>当前请求的状态快照</returns>
     public PromptStateSnapshot RecordPromptState(
         ImmutablePrefix prefix,
         string dynamicContent,
@@ -80,6 +97,17 @@ public class CacheBreakDetector
         };
     }
 
+    /// <summary>
+    /// 检测当前请求相对上次快照是否发生缓存破坏，并返回破坏类型与详情
+    /// </summary>
+    /// <param name="snapshot">上次记录的状态快照</param>
+    /// <param name="currentPrefix">当前不变前缀</param>
+    /// <param name="currentDynamicContent">当前动态内容</param>
+    /// <param name="usage">本次请求的 token 使用情况</param>
+    /// <param name="currentConversation">当前对话消息序列（可选）</param>
+    /// <param name="currentModelId">当前模型 ID（可选）</param>
+    /// <param name="currentFastMode">当前是否启用快速模式（可选）</param>
+    /// <returns>缓存破坏检测结果</returns>
     public CacheBreakResult CheckCacheBreak(
         PromptStateSnapshot snapshot,
         ImmutablePrefix currentPrefix,
@@ -202,6 +230,12 @@ public class CacheBreakDetector
         return new CacheBreakResult { BreakDetected = false, Kind = CacheBreakKind.None, ToolDrift = toolDrift?.WithSanitizedNames() };
     }
 
+    /// <summary>
+    /// 判断工具规格漂移是否应上报为缓存破坏
+    /// </summary>
+    /// <param name="drift">工具列表漂移报告</param>
+    /// <param name="usage">本次请求的 token 使用情况</param>
+    /// <returns>需要上报返回 true；否则返回 false</returns>
     protected virtual bool ShouldReportToolSpecsBreak(ToolDriftReport drift, TokenUsage usage)
     {
         if (!drift.IsCacheSafe) return true;
@@ -209,6 +243,13 @@ public class CacheBreakDetector
         return usage.CacheReadInputTokens == 0;
     }
 
+    /// <summary>
+    /// 判断是否应将缓存未命中上报为缓存驱逐
+    /// </summary>
+    /// <param name="usage">本次请求的 token 使用情况</param>
+    /// <param name="allHashesMatch">所有前缀哈希是否一致</param>
+    /// <param name="prevCacheRead">上次请求的缓存读取 token 数</param>
+    /// <returns>需要上报返回 true；否则返回 false</returns>
     protected virtual bool ShouldReportCacheEviction(TokenUsage usage, bool allHashesMatch, int? prevCacheRead)
     {
         if (!_hasPreviousCacheHit) return false;

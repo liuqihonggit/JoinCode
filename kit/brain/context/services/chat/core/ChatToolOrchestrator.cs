@@ -55,6 +55,11 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
     /// <summary>
     /// 初始化工具编排器
     /// </summary>
+    /// <param name="toolRegistry">工具注册表（可选）</param>
+    /// <param name="toolExecutionGateway">工具执行网关（可选）</param>
+    /// <param name="cmdMap">斜杠命令映射表（可选）</param>
+    /// <param name="serviceProvider">DI 服务提供者（可选，斜杠命令执行时使用）</param>
+    /// <param name="logger">可选日志记录器</param>
     public ChatToolOrchestrator(
         IToolRegistry? toolRegistry = null,
         IToolExecutionGateway? toolExecutionGateway = null,

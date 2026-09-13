@@ -7,12 +7,17 @@ namespace Core.Context.Compact;
 public sealed partial class MicrocompactMiddleware : ServiceEntity, ICompactMiddleware
 {
 
+    /// <summary>
+    /// 初始化 <see cref="MicrocompactMiddleware"/> 实例
+    /// </summary>
+    /// <param name="microcompactService">微压缩服务</param>
     public MicrocompactMiddleware(IMicrocompactService microcompactService)
     {
         _microcompactService = microcompactService;
     }
     private readonly IMicrocompactService _microcompactService;
 
+    /// <summary>中间件异常时的行为：继续传递给下一个中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
     /// <inheritdoc/>

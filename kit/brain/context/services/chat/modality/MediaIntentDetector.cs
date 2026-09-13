@@ -7,6 +7,8 @@ namespace Core.Context.Modality;
 public sealed class MediaIntentDetector
 {
     /// <summary>检测结果 — 检测到的媒介类型和匹配的关键词</summary>
+    /// <param name="DetectedModalities">检测到的模态能力位掩码</param>
+    /// <param name="MatchedKeywords">匹配到的关键词列表</param>
     public sealed record DetectionResult(
         ModelModalityKind DetectedModalities,
         IReadOnlyList<string> MatchedKeywords);
@@ -43,6 +45,8 @@ public sealed class MediaIntentDetector
     /// <summary>
     /// 从消息文本中检测媒介意图
     /// </summary>
+    /// <param name="message">用户消息文本</param>
+    /// <returns>检测结果，包含检测到的模态能力和匹配的关键词</returns>
     public DetectionResult Detect(string message)
     {
         if (string.IsNullOrWhiteSpace(message))

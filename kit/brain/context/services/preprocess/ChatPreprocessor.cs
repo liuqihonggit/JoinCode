@@ -20,7 +20,9 @@ public sealed record PreprocessResult
 /// </summary>
 public sealed record ChatPreprocessorDependencies
 {
+    /// <summary>工具列表服务（可选）</summary>
     public Prompts.Services.ToolListingService? ToolListingService { get; init; }
+    /// <summary>LSP 诊断提供者（可选）</summary>
     public JoinCode.Abstractions.Interfaces.Lsp.ILspDiagnosticProvider? LspDiagnosticProvider { get; init; }
 }
 
@@ -35,6 +37,14 @@ public sealed partial class ChatPreprocessor : IChatPreprocessor
     private readonly IChatContextManager _contextManager;
     private readonly ILogger<ChatPreprocessor>? _logger;
 
+    /// <summary>
+    /// 初始化聊天预处理器，注入分析和准备两个中间件管道
+    /// </summary>
+    /// <param name="analyzePipeline">分析阶段中间件管道（关键词/同义词注入）</param>
+    /// <param name="preparePipeline">准备阶段中间件管道（系统提示/提醒注入）</param>
+    /// <param name="reminderManager">系统提醒管理器</param>
+    /// <param name="contextManager">聊天上下文管理器</param>
+    /// <param name="logger">可选日志记录器</param>
     public ChatPreprocessor(
         MiddlewarePipeline<PreprocessContext> analyzePipeline,
         MiddlewarePipeline<PreprocessContext> preparePipeline,

@@ -9,6 +9,15 @@ namespace Core.Context;
 public sealed partial class PreChatMiddleware : ServiceEntity, IChatMiddleware
 {
 
+    /// <summary>
+    /// 初始化预处理中间件
+    /// </summary>
+    /// <param name="contextManager">聊天上下文管理器</param>
+    /// <param name="preprocessor">聊天预处理器</param>
+    /// <param name="fileContextService">文件上下文服务</param>
+    /// <param name="optionsFactory">聊天选项工厂</param>
+    /// <param name="emptyResponseTracker">空响应追踪器</param>
+    /// <param name="logger">可选日志记录器</param>
     public PreChatMiddleware(IChatContextManager contextManager, IChatPreprocessor preprocessor, IChatFileContextService fileContextService, IChatOptionsFactory optionsFactory, IEmptyResponseTracker emptyResponseTracker, ILogger<PreChatMiddleware>? logger = null)
     {
         _contextManager = contextManager;

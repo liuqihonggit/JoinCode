@@ -8,6 +8,11 @@ namespace Core.Context;
 public sealed partial class CleanupInjectionsMiddleware : ServiceEntity, IChatMiddleware
 {
 
+    /// <summary>
+    /// 初始化清理注入中间件
+    /// </summary>
+    /// <param name="preprocessor">聊天预处理器</param>
+    /// <param name="logger">可选日志记录器</param>
     public CleanupInjectionsMiddleware(IChatPreprocessor preprocessor, ILogger<CleanupInjectionsMiddleware>? logger = null)
     {
         _preprocessor = preprocessor;
@@ -16,6 +21,7 @@ public sealed partial class CleanupInjectionsMiddleware : ServiceEntity, IChatMi
     private readonly IChatPreprocessor _preprocessor;
     private readonly ILogger<CleanupInjectionsMiddleware>? _logger;
 
+    /// <summary>错误行为策略：继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
     /// <summary>

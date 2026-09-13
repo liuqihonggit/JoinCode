@@ -7,8 +7,17 @@ namespace Core.Context.Compression;
 [Register(typeof(ICompressionStrategy), ServiceLifetime.Transient)]
 public sealed partial class CodeContentCompressor : CompressionStrategyBase
 {
+    /// <summary>
+    /// 策略名称
+    /// </summary>
     public override string Name => "CodeContentCompressor";
+    /// <summary>
+    /// 策略描述
+    /// </summary>
     public override string Description => "Compresses code content by removing method bodies while preserving signatures and key structures";
+    /// <summary>
+    /// 策略优先级
+    /// </summary>
     public override int Priority => 100;
 
     private static readonly FrozenSet<ContentType> _supportedTypes = FrozenSet.Create(ContentType.Code);
@@ -37,8 +46,18 @@ public sealed partial class CodeContentCompressor : CompressionStrategyBase
         new(@"^\s*(get|set|async)\s+\w+\s*\(", RegexOptions.IgnoreCase | RegexOptions.Compiled),
     ];
 
+    /// <summary>
+    /// 支持的内容类型
+    /// </summary>
     public override IReadOnlySet<ContentType> SupportedContentTypes => _supportedTypes;
 
+    /// <summary>
+    /// 压缩代码内容：移除方法体同时保留签名与关键结构
+    /// </summary>
+    /// <param name="content">原始代码内容</param>
+    /// <param name="options">压缩选项</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>压缩后的代码内容</returns>
     public override Task<string> CompressAsync(
         string content,
         CompressionOptions options,
@@ -169,6 +188,12 @@ public sealed partial class CodeContentCompressor : CompressionStrategyBase
         return Task.FromResult(compressed);
     }
 
+    /// <summary>
+    /// 预估代码内容的压缩比率
+    /// </summary>
+    /// <param name="content">原始内容</param>
+    /// <param name="options">压缩选项</param>
+    /// <returns>预估压缩比率 (0-1)</returns>
     public override double EstimateCompressionRatio(string content, CompressionOptions options)
     {
         if (string.IsNullOrWhiteSpace(content))

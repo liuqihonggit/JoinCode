@@ -1,5 +1,8 @@
 namespace Core.Context;
 
+/// <summary>
+/// 输出循环检测器接口 — 检测累积输出文本是否存在重复模式循环
+/// </summary>
 public interface IOutputLoopDetector
 {
     /// <summary>

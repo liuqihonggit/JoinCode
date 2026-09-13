@@ -20,11 +20,32 @@ internal sealed record SummaryTemplateData(
 /// </summary>
 public interface IAwaySummaryCommand;
 
+/// <summary>
+/// 标记用户离开命令
+/// </summary>
+/// <param name="Tcs">完成信号源，用于异步等待命令处理完成。</param>
 public sealed record MarkAwayCmd(TaskCompletionSource Tcs) : IAwaySummaryCommand;
+
+/// <summary>
+/// 生成离开摘要命令
+/// </summary>
+/// <param name="Tcs">完成信号源，携带生成的离开摘要结果。</param>
 public sealed record GenerateSummaryCmd(TaskCompletionSource<AwaySummaryResult> Tcs) : IAwaySummaryCommand;
+
+/// <summary>
+/// 跟踪事件命令
+/// </summary>
+/// <param name="Event">要跟踪的离开事件。</param>
 public sealed record TrackEventCmd(AwayEvent Event) : IAwaySummaryCommand;
+
+/// <summary>
+/// 自动保存定时触发命令
+/// </summary>
 public sealed record AutoSaveTickCmd : IAwaySummaryCommand;
 
+/// <summary>
+/// 离开摘要服务 — 基于 Actor 模型管理用户离开期间的摘要生成与事件跟踪
+/// </summary>
 [Register(typeof(IAwaySummaryService), ServiceLifetime.Singleton)]
 public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, Unit>, IAwaySummaryService, IDisposable
 {
@@ -37,9 +58,22 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
     private Timer? _autoSaveTimer;
     private readonly Queue<AwayEvent> _events = new();
 
+    /// <summary>
+    /// 获取一个值，指示用户当前是否处于离开状态。
+    /// </summary>
     public bool IsAway => Volatile.Read(ref _awaySinceTicks) != 0;
+
+    /// <summary>
+    /// 获取用户离开时刻；若用户未离开，返回 <c>null</c>。
+    /// </summary>
     public DateTime? AwaySince => Volatile.Read(ref _awaySinceTicks) is { } ticks && ticks != 0 ? new DateTime(ticks, DateTimeKind.Utc) : null;
 
+    /// <summary>
+    /// 初始化 <see cref="AwaySummaryService"/> 的新实例。
+    /// </summary>
+    /// <param name="options">离开摘要配置选项；为 <c>null</c> 时使用默认配置。</param>
+    /// <param name="logger">日志记录器；为 <c>null</c> 时不记录日志。</param>
+    /// <param name="clock">时钟服务；为 <c>null</c> 时使用系统时钟。</param>
     public AwaySummaryService(
         AwaySummaryOptions? options = null,
         ILogger<AwaySummaryService>? logger = null,
@@ -53,6 +87,11 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
 
     private static TaskCompletionSource CreateTcs() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+    /// <summary>
+    /// 异步标记用户离开，启动离开期间的事件跟踪与自动保存。
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>表示异步操作的任务。</returns>
     public async Task MarkAwayAsync(CancellationToken cancellationToken = default)
     {
         var tcs = CreateTcs();
@@ -60,6 +99,11 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
         await tcs.Task.ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 异步生成离开摘要，汇总离开期间的事件、错误与待处理事项。
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>包含汇总结果的 <see cref="AwaySummaryResult"/> 任务。</returns>
     public async Task<AwaySummaryResult> GenerateSummaryAsync(CancellationToken cancellationToken = default)
     {
         var tcs = new TaskCompletionSource<AwaySummaryResult>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -67,6 +111,12 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
         return await tcs.Task.ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 异步跟踪一个离开事件；若用户未处于离开状态则忽略。
+    /// </summary>
+    /// <param name="awayEvent">要跟踪的离开事件。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>表示异步操作的任务。</returns>
     public async Task TrackEventAsync(AwayEvent awayEvent, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(awayEvent);
@@ -74,6 +124,12 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
         await SendAsync(new TrackEventCmd(awayEvent), cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 处理 Actor 收到的离开摘要命令。
+    /// </summary>
+    /// <param name="command">要处理的命令。</param>
+    /// <param name="ct">取消令牌。</param>
+    /// <returns>表示异步操作的值任务。</returns>
     protected override async ValueTask HandleAsync(IAwaySummaryCommand command, CancellationToken ct)
     {
         switch (command)
@@ -116,6 +172,10 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
         }
     }
 
+    /// <summary>
+    /// 消费者发生异常时的回调处理，记录错误日志。
+    /// </summary>
+    /// <param name="ex">消费者抛出的异常。</param>
     protected override void OnConsumerError(Exception ex)
     {
         _logger?.LogError(ex, "[AwaySummary] 消费者异常");
@@ -286,6 +346,9 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
         }
     }
 
+    /// <summary>
+    /// 释放本服务持有的资源，包括自动保存定时器与 Actor 异步释放。
+    /// </summary>
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1) return;

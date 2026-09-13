@@ -9,6 +9,11 @@ namespace Core.Context;
 public sealed partial class DiagnosticLogRecorder : ServiceEntity, IChatMiddleware
 {
 
+    /// <summary>
+    /// 初始化诊断日志记录中间件
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">可选日志记录器</param>
     public DiagnosticLogRecorder(IFileSystem fs, ILogger<DiagnosticLogRecorder>? logger = null)
     {
         _fs = fs;
@@ -17,8 +22,16 @@ public sealed partial class DiagnosticLogRecorder : ServiceEntity, IChatMiddlewa
     private readonly IFileSystem _fs;
     private readonly ILogger<DiagnosticLogRecorder>? _logger;
 
+    /// <summary>错误行为策略：继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
+    /// <summary>
+    /// 记录管道各阶段事件到 JSONL 诊断日志文件
+    /// </summary>
+    /// <param name="context">中间件共享上下文</param>
+    /// <param name="next">下游中间件委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>聊天流事件异步枚举</returns>
     public async IAsyncEnumerable<ChatStreamEvent> InvokeAsync(
         ChatMiddlewareContext context,
         StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,
@@ -154,8 +167,11 @@ public sealed partial class DiagnosticLogRecorder : ServiceEntity, IChatMiddlewa
 /// </summary>
 public sealed record DiagnosticLogEntry
 {
+    /// <summary>事件类型标识（如 turn_start、tool_start、tool_end、loop_detected 等）</summary>
     public required string EventType { get; init; }
+    /// <summary>时间戳</summary>
     public required DateTimeOffset Timestamp { get; init; }
+    /// <summary>会话标识</summary>
     public required string SessionId { get; init; }
 
     /// <summary>
@@ -163,7 +179,9 @@ public sealed record DiagnosticLogEntry
     /// </summary>
     public string TraceId { get; init; } = Guid.NewGuid().ToString("N")[..12];
 
+    /// <summary>是否为异常事件（如工具错误、循环检测触发）</summary>
     public bool IsAnomaly { get; init; }
+    /// <summary>附加事件数据键值对</summary>
     public Dictionary<string, string> Data { get; init; } = new();
 }
 

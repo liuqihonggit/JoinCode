@@ -8,6 +8,12 @@ namespace Core.Context;
 public sealed partial class ChatPromptManager : ServiceEntity, IChatPromptManager
 {
 
+    /// <summary>
+    /// 初始化聊天提示词管理器
+    /// </summary>
+    /// <param name="systemPromptBuilder">系统提示词构建器</param>
+    /// <param name="reminderManager">系统提醒管理器</param>
+    /// <param name="logger">可选日志记录器</param>
     public ChatPromptManager(SystemPromptBuilder systemPromptBuilder, ISystemReminderManager reminderManager, ILogger<ChatPromptManager>? logger = null)
     {
         _systemPromptBuilder = systemPromptBuilder;

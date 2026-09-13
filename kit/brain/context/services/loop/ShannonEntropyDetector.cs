@@ -149,6 +149,7 @@ public sealed partial class ShannonEntropyDetector
     /// <summary>当前状态机状态</summary>
     public EntropyDetectionState State => _fsm.CurrentState;
 
+    /// <summary>累计确认死循环触发次数</summary>
     public int TriggerCount => _ctx.TriggerCount;
 
     private static EntropyEvent? SelectEvent(EntropyDetectionState state, EntropyFsmContext ctx)
@@ -245,6 +246,11 @@ public sealed partial class ShannonEntropyDetector
 /// <summary>
 /// Shannon 熵减检测结果 — 携带状态机当前状态
 /// </summary>
+/// <param name="State">状态机当前状态</param>
+/// <param name="IsLoopDetected">是否确认死循环（仅 Confirmed 状态为 true）</param>
+/// <param name="CurrentEntropy">当前文本的 Shannon 熵值</param>
+/// <param name="DeclineStreak">连续下降轮数</param>
+/// <param name="TriggerCount">累计触发次数</param>
 public sealed record ShannonEntropyResult(
     EntropyDetectionState State,
     bool IsLoopDetected,

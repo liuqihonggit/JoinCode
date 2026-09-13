@@ -9,6 +9,10 @@ public sealed partial class SessionAdminMiddleware : ServiceEntity, IChatAdminMi
 {
     private readonly Dictionary<ChatAdminOperation, IChatAdminOperationHandler> _handlers;
 
+    /// <summary>
+    /// 初始化 <see cref="SessionAdminMiddleware"/> 实例，按操作类型构建处理器分派表
+    /// </summary>
+    /// <param name="handlers">所有已注册的管理操作处理器集合</param>
     public SessionAdminMiddleware(IEnumerable<IChatAdminOperationHandler> handlers)
     {
         _handlers = handlers.ToDictionary(h => h.Operation);

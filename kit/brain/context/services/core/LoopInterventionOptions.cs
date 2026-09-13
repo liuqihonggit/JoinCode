@@ -6,15 +6,25 @@ namespace Core.Context;
 [RegisterOptions]
 public sealed partial class LoopInterventionOptions : ServiceEntity
 {
+    /// <summary>硬截断触发阈值（达到此次数进入 Level 2）</summary>
     public int HardTruncateThreshold { get; set; } = 3;
+    /// <summary>上下文压缩触发阈值（达到此次数进入 Level 3）</summary>
     public int CompactThreshold { get; set; } = 5;
+    /// <summary>Level 2 重连最大重试次数</summary>
     public int MaxRetryAttempts { get; set; } = 2;
+    /// <summary>重连时的 LLM 采样温度</summary>
     public float RetryTemperature { get; set; } = 0.6f;
+    /// <summary>Level 1 软干预注入的提示词</summary>
     public string SoftIntervenePrompt { get; set; } = "\n\n[系统提示：检测到输出可能陷入循环，请用序号→箭头方式总结当前回答再继续推理。]\n\n";
+    /// <summary>Level 2 硬截断注入的提示词</summary>
     public string HardTruncatePrompt { get; set; } = "\n\n⚠️ 检测到循环输出，已自动截断。";
+    /// <summary>Level 3 上下文压缩开始时的提示词</summary>
     public string CompactPrompt { get; set; } = "\n\n⚠️ 多次重连仍检测到循环，正在压缩上下文...";
+    /// <summary>上下文压缩成功后的提示词</summary>
     public string CompactSuccessPrompt { get; set; } = "\n\n上下文已压缩，请继续。";
+    /// <summary>上下文压缩失败后的兜底提示词</summary>
     public string CompactFallbackPrompt { get; set; } = "\n\n上下文已重置，请重新描述你的需求。";
+    /// <summary>Level 3 上下文压缩使用的折叠决策类型</summary>
     public ContextFoldDecision CompactFoldDecision { get; set; } = ContextFoldDecision.FoldAggressive;
 
     /// <summary>
@@ -139,6 +149,9 @@ public sealed class ToolCallSequenceConfig
     public int RequiredRepeats { get; set; } = 4;
 }
 
+/// <summary>
+/// 循环干预选项构建器 — 链式配置 LoopInterventionOptions
+/// </summary>
 public sealed class LoopInterventionOptionsBuilder
 {
     private readonly LoopInterventionOptions _options;
@@ -148,73 +161,110 @@ public sealed class LoopInterventionOptionsBuilder
         _options = new LoopInterventionOptions();
     }
 
+    /// <summary>创建构建器实例</summary>
+    /// <returns>新的构建器实例</returns>
     public static LoopInterventionOptionsBuilder Create() => new();
 
+    /// <summary>设置硬截断阈值</summary>
+    /// <param name="threshold">硬截断触发阈值</param>
+    /// <returns>当前构建器实例</returns>
     public LoopInterventionOptionsBuilder WithHardTruncateThreshold(int threshold)
     {
         _options.HardTruncateThreshold = threshold;
         return this;
     }
 
+    /// <summary>设置上下文压缩阈值</summary>
+    /// <param name="threshold">压缩触发阈值</param>
+    /// <returns>当前构建器实例</returns>
     public LoopInterventionOptionsBuilder WithCompactThreshold(int threshold)
     {
         _options.CompactThreshold = threshold;
         return this;
     }
 
+    /// <summary>设置最大重试次数</summary>
+    /// <param name="attempts">最大重试次数</param>
+    /// <returns>当前构建器实例</returns>
     public LoopInterventionOptionsBuilder WithMaxRetryAttempts(int attempts)
     {
         _options.MaxRetryAttempts = attempts;
         return this;
     }
 
+    /// <summary>设置重连温度</summary>
+    /// <param name="temperature">采样温度</param>
+    /// <returns>当前构建器实例</returns>
     public LoopInterventionOptionsBuilder WithRetryTemperature(float temperature)
     {
         _options.RetryTemperature = temperature;
         return this;
     }
 
+    /// <summary>设置软干预提示词</summary>
+    /// <param name="prompt">软干预提示词</param>
+    /// <returns>当前构建器实例</returns>
     public LoopInterventionOptionsBuilder WithSoftIntervenePrompt(string prompt)
     {
         _options.SoftIntervenePrompt = prompt;
         return this;
     }
 
+    /// <summary>设置压缩折叠决策</summary>
+    /// <param name="decision">折叠决策类型</param>
+    /// <returns>当前构建器实例</returns>
     public LoopInterventionOptionsBuilder WithCompactFoldDecision(ContextFoldDecision decision)
     {
         _options.CompactFoldDecision = decision;
         return this;
     }
 
+    /// <summary>设置任务推进折扣</summary>
+    /// <param name="discount">推进折扣值</param>
+    /// <returns>当前构建器实例</returns>
     public LoopInterventionOptionsBuilder WithProgressDiscount(int discount)
     {
         _options.ProgressDiscount = discount;
         return this;
     }
 
+    /// <summary>设置第二次机会温度</summary>
+    /// <param name="temperature">第二次机会采样温度</param>
+    /// <returns>当前构建器实例</returns>
     public LoopInterventionOptionsBuilder WithSecondChanceTemperature(float temperature)
     {
         _options.SecondChanceTemperature = temperature;
         return this;
     }
 
+    /// <summary>设置是否插入撤回审计标记</summary>
+    /// <param name="enable">是否启用</param>
+    /// <returns>当前构建器实例</returns>
     public LoopInterventionOptionsBuilder WithInsertRewindAuditMark(bool enable)
     {
         _options.InsertRewindAuditMark = enable;
         return this;
     }
 
+    /// <summary>设置是否保留最近用户消息</summary>
+    /// <param name="enable">是否启用</param>
+    /// <returns>当前构建器实例</returns>
     public LoopInterventionOptionsBuilder WithPreserveLastUserMessageOnReset(bool enable)
     {
         _options.PreserveLastUserMessageOnReset = enable;
         return this;
     }
 
+    /// <summary>设置最大连续空响应次数</summary>
+    /// <param name="max">最大连续空响应次数</param>
+    /// <returns>当前构建器实例</returns>
     public LoopInterventionOptionsBuilder WithMaxConsecutiveEmptyResponse(int max)
     {
         _options.MaxConsecutiveEmptyResponse = max;
         return this;
     }
 
+    /// <summary>构建选项实例</summary>
+    /// <returns>配置好的 LoopInterventionOptions 实例</returns>
     public LoopInterventionOptions Build() => _options;
 }

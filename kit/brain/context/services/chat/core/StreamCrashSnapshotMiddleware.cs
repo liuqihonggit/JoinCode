@@ -10,13 +10,25 @@ public sealed partial class StreamCrashSnapshotMiddleware : ServiceEntity, IChat
 {
     private readonly ICrashSnapshotStore _store;
 
+    /// <summary>
+    /// 初始化聊天流崩溃快照中间件
+    /// </summary>
+    /// <param name="store">崩溃快照存储</param>
     public StreamCrashSnapshotMiddleware(ICrashSnapshotStore store)
     {
         _store = store;
     }
 
+    /// <summary>错误行为策略：记录快照后异常继续传播</summary>
     public ErrorBehavior OnError => ErrorBehavior.Propagate;
 
+    /// <summary>
+    /// 捕获管道异常并记录 CrashSnapshot，然后重新抛出异常
+    /// </summary>
+    /// <param name="context">中间件共享上下文</param>
+    /// <param name="next">下游中间件委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>聊天流事件异步枚举</returns>
     public async IAsyncEnumerable<ChatStreamEvent> InvokeAsync(
         ChatMiddlewareContext context,
         StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,

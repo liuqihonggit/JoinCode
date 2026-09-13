@@ -22,6 +22,12 @@ public sealed partial class BackgroundNotificationHandler : ServiceEntity, IBack
     private readonly IChatContextManager _contextManager;
     private readonly ILogger<BackgroundNotificationHandler>? _logger;
 
+    /// <summary>
+    /// 初始化后台通知处理器
+    /// </summary>
+    /// <param name="contextManager">聊天上下文管理器</param>
+    /// <param name="notificationQueue">代理通知队列（可选，null 时跳过通知注入）</param>
+    /// <param name="logger">可选日志记录器</param>
     public BackgroundNotificationHandler(
         IChatContextManager contextManager,
         IAgentNotificationQueue? notificationQueue = null,

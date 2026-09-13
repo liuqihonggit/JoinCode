@@ -15,6 +15,12 @@ public sealed partial class AutoCompactService : ServiceEntity, ICompactService
     private int _consecutiveFailures;
     private bool _softCompactNoticed;
 
+    /// <summary>
+    /// 初始化 <see cref="AutoCompactService"/> 实例
+    /// </summary>
+    /// <param name="compactPipeline">压缩中间件管道</param>
+    /// <param name="microcompactService">微压缩服务，用于 token 估算</param>
+    /// <param name="thresholds">可选阈值配置，null 时使用默认配置</param>
     public AutoCompactService(
         MiddlewarePipeline<CompactContext> compactPipeline,
         IMicrocompactService microcompactService,
@@ -25,6 +31,12 @@ public sealed partial class AutoCompactService : ServiceEntity, ICompactService
         _microcompactService = microcompactService;
     }
 
+    /// <summary>
+    /// 执行自动压缩 — 通过中间件管道调度压缩策略
+    /// </summary>
+    /// <param name="request">压缩请求</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>压缩结果；所有策略均失败时返回未压缩兜底结果</returns>
     public async Task<CompactResult> CompactAsync(CompactRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -70,6 +82,12 @@ public sealed partial class AutoCompactService : ServiceEntity, ICompactService
         };
     }
 
+    /// <summary>
+    /// 执行部分压缩 — 根据枢轴索引和方向对消息子集生成摘要提示
+    /// </summary>
+    /// <param name="request">部分压缩请求，包含消息、枢轴索引和方向</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>压缩结果，包含摘要提示和保留消息统计</returns>
     public async Task<CompactResult> PartialCompactAsync(PartialCompactRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -141,6 +159,12 @@ public sealed partial class AutoCompactService : ServiceEntity, ICompactService
         };
     }
 
+    /// <summary>
+    /// 判断是否应触发自动压缩 — 基于当前 token 数与上下文窗口阈值的比较
+    /// </summary>
+    /// <param name="currentTokenCount">当前 token 数</param>
+    /// <param name="contextWindowTokens">上下文窗口大小</param>
+    /// <returns>应触发返回 true；连续失败超限或未达阈值时返回 false</returns>
     public bool ShouldAutoCompact(int currentTokenCount, int contextWindowTokens)
     {
         if (_consecutiveFailures >= _thresholds.MaxConsecutiveAutoCompactFailures)
@@ -154,6 +178,12 @@ public sealed partial class AutoCompactService : ServiceEntity, ICompactService
         return currentTokenCount >= threshold;
     }
 
+    /// <summary>
+    /// 判断是否应展示软压缩提示 — 在软阈值与硬阈值之间首次进入时触发一次
+    /// </summary>
+    /// <param name="currentTokenCount">当前 token 数</param>
+    /// <param name="contextWindowTokens">上下文窗口大小</param>
+    /// <returns>应展示提示返回 true；已提示过或未达阈值时返回 false</returns>
     public bool ShouldSoftCompactNotice(int currentTokenCount, int contextWindowTokens)
     {
         var softThreshold = (int)(contextWindowTokens * _thresholds.SoftCompactRatio);
@@ -180,6 +210,12 @@ public sealed partial class AutoCompactService : ServiceEntity, ICompactService
         return true;
     }
 
+    /// <summary>
+    /// 计算压缩警告状态 — 返回剩余百分比及各阈值越界标志
+    /// </summary>
+    /// <param name="currentTokenCount">当前 token 数</param>
+    /// <param name="contextWindowTokens">上下文窗口大小</param>
+    /// <returns>压缩警告状态，包含百分比和各级阈值越界信息</returns>
     public CompactWarningState CalculateWarningState(int currentTokenCount, int contextWindowTokens)
     {
         var effectiveWindow = contextWindowTokens - _thresholds.MaxOutputTokensForSummary;

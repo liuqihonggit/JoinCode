@@ -1,9 +1,17 @@
 
 namespace Core.Context.Compact;
 
+/// <summary>
+/// 消息分组服务实现 — 按 API 轮次将消息分组，以助手消息 ID 为边界切分
+/// </summary>
 [Register(typeof(IMessageGroupingService), ServiceLifetime.Singleton)]
 public sealed partial class MessageGroupingService : ServiceEntity, IMessageGroupingService
 {
+    /// <summary>
+    /// 按 API 轮次分组消息 — 以助手消息 ID 变化为边界切分
+    /// </summary>
+    /// <param name="messages">原始消息列表</param>
+    /// <returns>分组后的消息列表，每组对应一个 API 轮次</returns>
     public IReadOnlyList<IReadOnlyList<ApiMessage>> GroupMessagesByApiRound(IReadOnlyList<ApiMessage> messages)
     {
         ArgumentNullException.ThrowIfNull(messages);

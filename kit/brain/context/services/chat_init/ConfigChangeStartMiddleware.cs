@@ -8,6 +8,13 @@ namespace Core.Context;
 public sealed partial class ConfigChangeStartMiddleware : IChatInitMiddleware, IAsyncDisposable
 {
 
+    /// <summary>
+    /// 初始化 <see cref="ConfigChangeStartMiddleware"/> 实例
+    /// </summary>
+    /// <param name="fs">文件系统，用于获取工作目录</param>
+    /// <param name="configChangeNotifier">可选的配置变更通知器</param>
+    /// <param name="settingsChangeApplier">可选的设置变更应用器，用于热重载</param>
+    /// <param name="logger">可选的日志记录器</param>
     public ConfigChangeStartMiddleware(IFileSystem fs, IConfigChangeNotifier? configChangeNotifier = null, ISettingsChangeApplier? settingsChangeApplier = null, ILogger<ConfigChangeStartMiddleware>? logger = null)
     {
         _fs = fs;

@@ -6,7 +6,10 @@ namespace Core.Query;
 [Register(typeof(IQueryMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class IdleReminderMiddleware : ServiceEntity, IQueryMiddleware
 {
-
+    /// <summary>
+    /// 构造函数 — 注入工具空闲提醒服务（可选）
+    /// </summary>
+    /// <param name="toolIdleReminder">工具空闲提醒服务</param>
     public IdleReminderMiddleware(IToolIdleReminderService? toolIdleReminder = null)
     {
         _toolIdleReminder = toolIdleReminder;
@@ -14,11 +17,18 @@ public sealed partial class IdleReminderMiddleware : ServiceEntity, IQueryMiddle
     private readonly IToolIdleReminderService? _toolIdleReminder;
 
 
+    /// <summary>
+    /// 错误处理策略 — 继续执行
+    /// </summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
     /// <summary>
     /// 注册工具调用后钩子和查询完成钩子记录助手轮次
     /// </summary>
+    /// <param name="context">中间件上下文</param>
+    /// <param name="next">下一委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public Task InvokeAsync(QueryMiddlewareContext context, MiddlewareDelegate<QueryMiddlewareContext> next, CancellationToken ct)
     {
         if (_toolIdleReminder is not null)

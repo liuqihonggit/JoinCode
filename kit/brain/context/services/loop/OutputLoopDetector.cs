@@ -1,5 +1,9 @@
 namespace Core.Context;
 
+/// <summary>
+/// 输出循环检测器 — 检测累积文本尾部是否存在重复模式循环
+/// 通过尾部子串重复次数判定循环，配合冷却期避免重复触发
+/// </summary>
 public sealed partial class OutputLoopDetector : IOutputLoopDetector
 {
     private readonly int _windowSize;
@@ -39,6 +43,11 @@ public sealed partial class OutputLoopDetector : IOutputLoopDetector
         _cooldownChars = cooldownChars;
     }
 
+    /// <summary>
+    /// 检测累积文本尾部是否存在重复模式循环
+    /// </summary>
+    /// <param name="accumulatedText">累积的输出文本</param>
+    /// <returns>循环检测结果，包含是否触发、重复模式、重复次数等</returns>
     public LoopDetectionResult Detect(string accumulatedText)
     {
         if (string.IsNullOrEmpty(accumulatedText))

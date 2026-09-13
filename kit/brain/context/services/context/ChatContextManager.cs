@@ -14,17 +14,30 @@ internal sealed class DefaultContextWindowResolver : IContextWindowResolver
 /// </summary>
 public sealed record ChatContextOptions
 {
+    /// <summary>上下文折叠执行器（可选，null 时禁用折叠）</summary>
     public ContextFoldExecutor? FoldExecutor { get; init; }
+    /// <summary>上下文折叠阈值配置（可选，null 时使用默认值）</summary>
     public ContextFoldThresholds? Thresholds { get; init; }
+    /// <summary>上下文窗口解析器（可选，null 时使用默认 200K 窗口）</summary>
     public IContextWindowResolver? ContextWindowResolver { get; init; }
+    /// <summary>会话元数据存储（可选，null 时不持久化会话统计）</summary>
     public ISessionMetaStore? MetaStore { get; init; }
+    /// <summary>会话统计追踪器（可选）</summary>
     public SessionStats? SessionStats { get; init; }
+    /// <summary>会话标识（可选，null 时使用进程主 ID）</summary>
     public string? SessionId { get; init; }
+    /// <summary>遥测服务（可选）</summary>
     public ITelemetryService? TelemetryService { get; init; }
+    /// <summary>时钟服务（可选，null 时使用系统时钟）</summary>
     public IClockService? Clock { get; init; }
+    /// <summary>供应商 BaseUrl（用于解析缓存 TTL）</summary>
     public string? ProviderBaseUrl { get; init; }
 }
 
+/// <summary>
+/// 聊天上下文管理器 — 管理系统提示词、对话历史、工具规格、上下文折叠和缓存失效检测
+/// 按 SessionId 隔离对话历史，支持多会话切换；通过 AsyncLock 保证线程安全
+/// </summary>
 [Register(typeof(IChatContextManager), ServiceLifetime.Singleton)]
 public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
 {
@@ -94,6 +107,12 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     private int _deferredFoldCount;
     private int _consecutiveNoProgressFolds;
 
+    /// <summary>
+    /// 初始化聊天上下文管理器，注入状态服务和可选依赖聚合
+    /// </summary>
+    /// <param name="stateService">状态持久化服务</param>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="options">可选依赖聚合，null 时使用默认值</param>
     public ChatContextManager(
         IStateService stateService,
         ILogger<ChatContextManager> logger,
@@ -247,6 +266,9 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         _logger.LogDebug("已添加用户消息，当前对话数: {Count}", Log.Count);
     }
 
+    /// <summary>
+    /// 添加压缩摘要消息到对话日志（标记 isCompactSummary 元数据）
+    /// </summary>
     public async Task AddCompactSummaryMessageAsync(string content, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(content);
@@ -373,6 +395,9 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
 
     /// <summary>
     /// 更新静态系统提示词
+    /// </summary>
+    /// <summary>
+    /// 更新静态系统提示词，清空缓存
     /// </summary>
     public async Task UpdateSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default)
     {

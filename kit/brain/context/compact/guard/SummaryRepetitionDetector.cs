@@ -1,21 +1,42 @@
 namespace Core.Context.Compact.Guard;
 
+/// <summary>
+/// 摘要重复检测选项
+/// </summary>
 public sealed class SummaryRepetitionOptions
 {
+    /// <summary>重复段落占比阈值，超过则判定为重复</summary>
     public double RepetitionRatioThreshold { get; init; } = 0.4;
+    /// <summary>滑动窗口大小，比较当前段落前后 N 个段落</summary>
     public int WindowSize { get; init; } = 3;
+    /// <summary>段落相似度阈值，基于 Jaccard 相似度</summary>
     public double SimilarityThreshold { get; init; } = 0.8;
 }
 
+/// <summary>
+/// 摘要重复检测结果
+/// </summary>
 public sealed class SummaryRepetitionResult
 {
+    /// <summary>是否检测到重复</summary>
     public required bool IsRepetition { get; init; }
+    /// <summary>重复段落占比</summary>
     public double RepetitionRatio { get; init; }
+    /// <summary>诊断原因</summary>
     public string? Reason { get; init; }
 }
 
+/// <summary>
+/// 摘要重复检测器 — 基于段落 Jaccard 相似度和滑动窗口检测重复内容
+/// </summary>
 public static class SummaryRepetitionDetector
 {
+    /// <summary>
+    /// 检测摘要中是否存在重复段落
+    /// </summary>
+    /// <param name="summary">待检测的摘要文本</param>
+    /// <param name="options">可选检测选项，null 时使用默认值</param>
+    /// <returns>检测结果，包含是否重复、重复占比和原因</returns>
     public static SummaryRepetitionResult Detect(string summary, SummaryRepetitionOptions? options = null)
     {
         options ??= new SummaryRepetitionOptions();

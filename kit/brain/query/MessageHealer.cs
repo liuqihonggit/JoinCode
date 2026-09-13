@@ -1,10 +1,19 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
+/// <summary>
+/// 消息修复器 — 修复对话历史中悬空的工具调用与超长工具结果
+/// </summary>
 public static class MessageHealer
 {
     private const int DefaultMaxToolResultChars = 50000;
     private const string SyntheticToolResultPlaceholder = "<tool_use_error>Tool call was interrupted or its result was lost. Please retry if needed.</tool_use_error>";
 
+    /// <summary>
+    /// 修复消息列表 — 为悬空的工具调用补充合成结果，截断超长工具结果
+    /// </summary>
+    /// <param name="messages">原始消息列表</param>
+    /// <param name="maxToolResultChars">工具结果最大字符数</param>
+    /// <returns>修复后的消息列表</returns>
     public static IReadOnlyList<ApiMessage> Heal(
         IReadOnlyList<ApiMessage> messages,
         int maxToolResultChars = DefaultMaxToolResultChars)

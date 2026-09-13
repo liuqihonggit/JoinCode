@@ -53,6 +53,16 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     /// </summary>
     private readonly ConcurrentDictionary<string, TaskCompletionSource<PlanApprovalResponseMessage>> _pendingApprovals = new();
 
+    /// <summary>
+    /// 初始化计划模式管理器
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="clock">时钟服务</param>
+    /// <param name="telemetryService">遥测服务（可选）</param>
+    /// <param name="permissionManager">权限管理器（可选，用于进入/退出 Plan 模式时切换权限）</param>
+    /// <param name="mailboxService">队友邮箱服务（可选，用于 teammate 审批流程）</param>
+    /// <param name="subAgentContextAccessor">子 Agent 上下文访问器（可选）</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public PlanModeManager(IFileSystem fs, IClockService clock, ITelemetryService? telemetryService = null, IToolPermissionManager? permissionManager = null, ITeammateMailboxService? mailboxService = null, ISubAgentContextAccessor? subAgentContextAccessor = null, ILogger<PlanModeManager>? logger = null)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));

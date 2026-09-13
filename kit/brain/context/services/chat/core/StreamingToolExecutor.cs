@@ -5,9 +5,13 @@ namespace Core.Context;
 /// </summary>
 public sealed class StreamingToolResult
 {
+    /// <summary>工具名称</summary>
     public required string ToolName { get; init; }
+    /// <summary>工具调用 ID</summary>
     public required string? ToolCallId { get; init; }
+    /// <summary>工具执行结果</summary>
     public required ToolCallResult Result { get; init; }
+    /// <summary>原始顺序索引</summary>
     public required int OriginalIndex { get; init; }
 
     /// <summary>
@@ -196,6 +200,9 @@ public sealed class StreamingToolExecutor : IStreamingToolExecutor
         }
     }
 
+    /// <summary>
+    /// 异步释放资源，取消所有进行中工具并释放信号量
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;

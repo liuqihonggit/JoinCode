@@ -17,6 +17,12 @@ public sealed partial class ChatUsageProcessor : ServiceEntity, IChatUsageProces
     /// <summary>
     /// 初始化用量处理器
     /// </summary>
+    /// <param name="sessionStats">会话统计追踪器</param>
+    /// <param name="contextManager">聊天上下文管理器</param>
+    /// <param name="costTracker">成本追踪器（可选）</param>
+    /// <param name="rateLimitTracker">费率限制追踪器（可选）</param>
+    /// <param name="modelConfigLoader">模型配置加载器（可选，null 时使用默认加载器）</param>
+    /// <param name="logger">可选日志记录器</param>
     public ChatUsageProcessor(
         ISessionStats sessionStats,
         IChatContextManager contextManager,

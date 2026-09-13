@@ -1,6 +1,9 @@
 
 namespace Core.Context;
 
+/// <summary>
+/// 聊天服务 — 通过中间件管道执行聊天和管理操作，支持流式/事件/同步三种发送模式
+/// </summary>
 [Register(typeof(IChatService), ServiceLifetime.Singleton)]
 public partial class ChatService : IChatService {
     private readonly IChatContextManager _contextManager;
@@ -30,6 +33,14 @@ public partial class ChatService : IChatService {
     /// </summary>
     private IDisposable? _fileReadListenerSubscription;
 
+    /// <summary>
+    /// 初始化聊天服务，注入上下文管理器、中间件管道和可选文件读取监听器
+    /// </summary>
+    /// <param name="contextManager">聊天上下文管理器</param>
+    /// <param name="middlewarePipeline">聊天中间件管道</param>
+    /// <param name="adminPipeline">管理操作中间件管道</param>
+    /// <param name="fileReadListenerRegistry">文件读取监听器注册表（可选）</param>
+    /// <param name="logger">可选日志记录器</param>
     public ChatService(
         IChatContextManager contextManager,
         StreamMiddlewarePipeline<ChatMiddlewareContext, ChatStreamEvent> middlewarePipeline,

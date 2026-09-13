@@ -7,8 +7,17 @@ namespace Core.Context.Compression;
 [Register(typeof(ICompressionStrategy), ServiceLifetime.Transient)]
 public sealed partial class DialogueCompressor : CompressionStrategyBase
 {
+    /// <summary>
+    /// 策略名称
+    /// </summary>
     public override string Name => "DialogueCompressor";
+    /// <summary>
+    /// 策略描述
+    /// </summary>
     public override string Description => "Compresses dialogue history by summarizing older messages while preserving recent context and key decisions";
+    /// <summary>
+    /// 策略优先级
+    /// </summary>
     public override int Priority => 100;
 
     private static readonly HashSet<ContentType> _supportedTypes = new()
@@ -58,8 +67,18 @@ public sealed partial class DialogueCompressor : CompressionStrategyBase
         new(@"(?i)(修复|fixed?)\s+(.+?)(?:\n|$)", RegexOptions.Compiled),
     ];
 
+    /// <summary>
+    /// 支持的内容类型
+    /// </summary>
     public override IReadOnlySet<ContentType> SupportedContentTypes => _supportedTypes;
 
+    /// <summary>
+    /// 压缩对话历史：摘要旧消息同时保留近期上下文与关键决策
+    /// </summary>
+    /// <param name="content">原始对话内容</param>
+    /// <param name="options">压缩选项</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>压缩后的对话内容</returns>
     public override Task<string> CompressAsync(
         string content,
         CompressionOptions options,
@@ -131,6 +150,12 @@ public sealed partial class DialogueCompressor : CompressionStrategyBase
         return Task.FromResult(resultSpan.ToString());
     }
 
+    /// <summary>
+    /// 预估对话历史的压缩比率
+    /// </summary>
+    /// <param name="content">原始内容</param>
+    /// <param name="options">压缩选项</param>
+    /// <returns>预估压缩比率 (0-1)</returns>
     public override double EstimateCompressionRatio(string content, CompressionOptions options)
     {
         if (string.IsNullOrWhiteSpace(content))

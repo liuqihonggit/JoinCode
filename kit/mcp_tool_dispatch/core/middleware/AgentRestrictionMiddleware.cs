@@ -13,6 +13,12 @@ public sealed partial class AgentRestrictionMiddleware : ServiceEntity, IToolExe
     private readonly IToolFilterPolicy? _toolFilterPolicy;
     private readonly ILogger<AgentRestrictionMiddleware> _logger;
 
+    /// <summary>
+    /// 构造函数 — 注入 Agent 工具限制策略、日志记录器和工具过滤策略
+    /// </summary>
+    /// <param name="agentToolRestrictions">Agent 工具限制策略实例，为 null 则跳过限制检查</param>
+    /// <param name="logger">日志记录器实例</param>
+    /// <param name="toolFilterPolicy">工具过滤策略实例，为 null 则回退到 IsToolAllowedForMode 简单判断</param>
     public AgentRestrictionMiddleware(
         IAgentToolRestrictions? agentToolRestrictions,
         ILogger<AgentRestrictionMiddleware> logger,
@@ -23,6 +29,13 @@ public sealed partial class AgentRestrictionMiddleware : ServiceEntity, IToolExe
         _toolFilterPolicy = toolFilterPolicy;
     }
 
+    /// <summary>
+    /// Bypass 模式直接放行；否则按 IToolFilterPolicy 三层过滤（或回退到 IsToolAllowedForMode）检查当前 Agent 模式是否允许使用该工具，不允许则拒绝并返回原因
+    /// </summary>
+    /// <param name="context">工具执行上下文</param>
+    /// <param name="next">下一层中间件委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task InvokeAsync(
         ToolExecutionContext context,
         MiddlewareDelegate<ToolExecutionContext> next,

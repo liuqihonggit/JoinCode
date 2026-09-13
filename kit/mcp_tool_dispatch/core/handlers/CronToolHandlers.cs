@@ -1,6 +1,9 @@
 
 namespace McpToolDispatch;
 
+/// <summary>
+/// 定时任务工具处理器 — 提供 cron 表达式驱动的定时任务创建、列表、删除和校验能力
+/// </summary>
 [McpToolDispatch(ToolCategory.Cron)]
 public class CronToolHandlers
 {
@@ -34,6 +37,13 @@ public class CronToolHandlers
     private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     private readonly IClockService _clock;
 
+    /// <summary>
+    /// 初始化定时任务工具处理器
+    /// </summary>
+    /// <param name="taskStore">定时任务存储</param>
+    /// <param name="schedulerRef">调度器引用，用于创建/删除任务后通知刷新（可选）</param>
+    /// <param name="subAgentContextAccessor">子代理上下文访问器，用于获取当前 teammate 的 agentId（可选）</param>
+    /// <param name="clock">时钟服务，用于计算下次运行时间（可选，默认系统时钟）</param>
     public CronToolHandlers(ICronTaskStore taskStore, ICronSchedulerRef? schedulerRef = null, ISubAgentContextAccessor? subAgentContextAccessor = null, IClockService? clock = null)
     {
         _taskStore = taskStore ?? throw new ArgumentNullException(nameof(taskStore));
@@ -42,6 +52,15 @@ public class CronToolHandlers
         _clock = clock ?? SystemClockService.Instance;
     }
 
+    /// <summary>
+    /// 创建按 cron 表达式指定间隔运行的定时任务
+    /// </summary>
+    /// <param name="cron">cron 表达式（5 字段：分 时 日 月 周，如 "0 9 * * *" 表示每天 9 点）</param>
+    /// <param name="prompt">任务触发时执行的提示/指令</param>
+    /// <param name="recurring">是否为循环任务（默认 true），设为 false 则为一次性任务</param>
+    /// <param name="durable">是否持久化到磁盘（默认 false），会话级任务在会话结束后丢失</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(CronToolNameConstants.CronCreate, "Create a scheduled task that runs at specified intervals using cron syntax", "cron")]
     public async Task<ToolResult> CreateCronTaskAsync(
         [McpToolParameter("Cron expression (5 fields: minute hour day month weekday, e.g. \"0 9 * * *\" for daily at 9am)")] string cron,
@@ -134,6 +153,11 @@ public class CronToolHandlers
         return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
+    /// <summary>
+    /// 列出所有定时任务
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(CronToolNameConstants.CronList, "List all scheduled tasks", "cron")]
     public async Task<ToolResult> ListCronTasksAsync(
         CancellationToken cancellationToken = default)
@@ -171,6 +195,12 @@ public class CronToolHandlers
         return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
+    /// <summary>
+    /// 按 ID 删除定时任务
+    /// </summary>
+    /// <param name="task_id">要删除的定时任务 ID</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(CronToolNameConstants.CronDelete, "Delete a scheduled task by ID", "cron")]
     public async Task<ToolResult> DeleteCronTaskAsync(
         [McpToolParameter("The ID of the scheduled task to delete")] string task_id,
@@ -210,6 +240,12 @@ public class CronToolHandlers
             .Build();
     }
 
+    /// <summary>
+    /// 校验 cron 表达式并显示解析后的各字段
+    /// </summary>
+    /// <param name="cron">要校验的 cron 表达式</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(CronToolNameConstants.CronValidate, "Validate a cron expression and show its parsed fields", "cron")]
     public Task<ToolResult> ValidateCronExpressionAsync(
         [McpToolParameter("Cron expression to validate")] string cron,

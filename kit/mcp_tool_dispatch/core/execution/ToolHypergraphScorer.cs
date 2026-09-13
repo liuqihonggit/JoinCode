@@ -13,6 +13,11 @@ public sealed class ToolHypergraphScorer : ServiceEntity, IHyperedgeReloadable, 
     private ToolHypergraph _graph;
     private readonly Timer? _syncTimer;
 
+    /// <summary>
+    /// 构造超图评分器 — 从预设加载超边并构建工具到超边的映射，若提供监控器则启动每小时共享评分同步定时器
+    /// </summary>
+    /// <param name="logger">可选日志记录器</param>
+    /// <param name="monitor">可选工具健康监控器，用于定时同步超边共享评分</param>
     public ToolHypergraphScorer(ILogger<ToolHypergraphScorer>? logger = null, IToolHealthMonitor? monitor = null)
     {
         _logger = logger;
@@ -49,6 +54,10 @@ public sealed class ToolHypergraphScorer : ServiceEntity, IHyperedgeReloadable, 
             customEdges.Count, presets.Length - customEdges.Count, merged.Length);
     }
 
+    /// <summary>
+    /// 重新加载超边定义 — 用给定超边数组重建工具到超边的映射图
+    /// </summary>
+    /// <param name="edges">新的超边数组</param>
     public void ReloadHyperedges(ToolHyperedge[] edges)
     {
         _graph = BuildGraph(edges);
@@ -172,6 +181,9 @@ public sealed class ToolHypergraphScorer : ServiceEntity, IHyperedgeReloadable, 
         };
     }
 
+    /// <summary>
+    /// 释放同步定时器资源。
+    /// </summary>
     protected override void OnDispose()
     {
         _syncTimer?.Dispose();

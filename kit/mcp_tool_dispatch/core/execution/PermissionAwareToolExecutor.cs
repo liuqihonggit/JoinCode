@@ -20,6 +20,15 @@ public sealed partial class PermissionAwareToolExecutor : ServiceEntity, IToolEx
     /// </summary>
     public event EventHandler<ToolExecutionCompletedEventArgs>? ToolExecutionCompleted;
 
+    /// <summary>
+    /// 构造权限感知工具执行器 — 绑定工具注册表、中间件管道与权限管理器
+    /// </summary>
+    /// <param name="toolRegistry">工具注册表，用于按名查找工具处理器</param>
+    /// <param name="pipeline">中间件管道，按序执行参数修复、校验、权限检查等中间件</param>
+    /// <param name="permissionManager">工具权限管理器，提供当前权限模式</param>
+    /// <param name="telemetryService">可选遥测服务，用于记录工具执行跨度</param>
+    /// <param name="confirmationHandler">可选权限确认处理器，用于处理待确认权限</param>
+    /// <param name="logger">日志记录器</param>
     public PermissionAwareToolExecutor(
         IToolRegistry toolRegistry,
         MiddlewarePipeline<ToolExecutionContext> pipeline,

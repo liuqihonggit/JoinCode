@@ -15,6 +15,11 @@ public sealed partial class PreToolUseHookMiddleware : ServiceEntity, IToolExecu
     private readonly IHookOrchestrator? _hookOrchestrator;
     private readonly ILogger<PreToolUseHookMiddleware>? _logger;
 
+    /// <summary>
+    /// 构造函数 — 注入 Hook 编排器和日志记录器，两者均为可选
+    /// </summary>
+    /// <param name="hookOrchestrator">Hook 编排器实例，为 null 则跳过 Hook 触发</param>
+    /// <param name="logger">日志记录器实例，为 null 则不记录日志</param>
     public PreToolUseHookMiddleware(
         IHookOrchestrator? hookOrchestrator = null,
         ILogger<PreToolUseHookMiddleware>? logger = null)
@@ -23,6 +28,13 @@ public sealed partial class PreToolUseHookMiddleware : ServiceEntity, IToolExecu
         _logger = logger;
     }
 
+    /// <summary>
+    /// 触发 PreToolUse Hook，若 Hook 返回 Blocking 则拒绝工具执行；否则调用下一层中间件
+    /// </summary>
+    /// <param name="context">工具执行上下文</param>
+    /// <param name="next">下一层中间件委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task InvokeAsync(
         ToolExecutionContext context,
         MiddlewareDelegate<ToolExecutionContext> next,
@@ -63,6 +75,11 @@ public sealed partial class PostToolUseHookMiddleware : ServiceEntity, IToolExec
     private readonly IHookOrchestrator? _hookOrchestrator;
     private readonly ILogger<PostToolUseHookMiddleware>? _logger;
 
+    /// <summary>
+    /// 构造函数 — 注入 Hook 编排器和日志记录器，两者均为可选
+    /// </summary>
+    /// <param name="hookOrchestrator">Hook 编排器实例，为 null 则跳过 Hook 触发</param>
+    /// <param name="logger">日志记录器实例，为 null 则不记录日志</param>
     public PostToolUseHookMiddleware(
         IHookOrchestrator? hookOrchestrator = null,
         ILogger<PostToolUseHookMiddleware>? logger = null)
@@ -71,6 +88,13 @@ public sealed partial class PostToolUseHookMiddleware : ServiceEntity, IToolExec
         _logger = logger;
     }
 
+    /// <summary>
+    /// 先调用下一层中间件完成工具执行，再触发 PostToolUse Hook 通知后置处理逻辑
+    /// </summary>
+    /// <param name="context">工具执行上下文</param>
+    /// <param name="next">下一层中间件委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task InvokeAsync(
         ToolExecutionContext context,
         MiddlewareDelegate<ToolExecutionContext> next,

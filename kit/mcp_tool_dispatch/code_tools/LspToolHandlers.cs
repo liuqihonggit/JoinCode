@@ -11,6 +11,13 @@ public class LspToolHandlers {
     private readonly IGitCommandRunner _gitRunner;
     private readonly ILogger<LspToolHandlers>? _logger;
 
+    /// <summary>
+    /// 初始化 <see cref="LspToolHandlers"/> 实例
+    /// </summary>
+    /// <param name="lspService">LSP 服务</param>
+    /// <param name="fileOperationService">文件操作服务</param>
+    /// <param name="gitRunner">Git 命令执行器</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public LspToolHandlers(ILspService lspService, IFileOperationService fileOperationService, IGitCommandRunner gitRunner, ILogger<LspToolHandlers>? logger = null) {
         _lspService = lspService ?? throw new ArgumentNullException(nameof(lspService));
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));

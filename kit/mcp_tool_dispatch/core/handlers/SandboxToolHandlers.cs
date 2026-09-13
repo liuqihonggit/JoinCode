@@ -1,16 +1,35 @@
 namespace McpToolDispatch;
 
 
+/// <summary>
+/// 沙箱工具处理器 — 提供沙箱进入、退出、切换、状态查询和命令执行等隔离能力
+/// </summary>
 [McpToolDispatch(ToolCategory.Sandbox)]
 public sealed class SandboxToolHandlers
 {
     private readonly ISandboxManager _sandboxManager;
 
+    /// <summary>
+    /// 初始化沙箱工具处理器
+    /// </summary>
+    /// <param name="sandboxManager">沙箱管理器</param>
     public SandboxToolHandlers(ISandboxManager sandboxManager)
     {
         _sandboxManager = sandboxManager ?? throw new ArgumentNullException(nameof(sandboxManager));
     }
 
+    /// <summary>
+    /// 进入指定隔离类型的沙箱；若请求类型不可用则自动降级到较低隔离级别
+    /// </summary>
+    /// <param name="sandboxType">沙箱类型：soft、process、docker 或 bubblewrap</param>
+    /// <param name="restrictFileSystem">是否限制文件系统访问</param>
+    /// <param name="restrictNetwork">是否限制网络访问</param>
+    /// <param name="sandboxRoot">自定义沙箱根路径</param>
+    /// <param name="memoryLimitMb">内存上限（MB，仅 process/docker 生效）</param>
+    /// <param name="cpuLimitPercent">CPU 限额百分比 1-100（仅 process/docker 生效）</param>
+    /// <param name="allowFallback">请求类型不可用时是否允许自动降级到较低隔离级别</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(SandboxToolNameConstants.SandboxEnter, "Enter a sandbox with the specified isolation type. If the requested type is unavailable, automatically falls back to a lower isolation level. Available types: soft (path redirection), process (OS-level process isolation), docker (container isolation), bubblewrap (Linux namespace isolation).", "sandbox")]
     public async Task<ToolResult> SandboxEnterAsync(
         [McpToolParameter("Sandbox type: soft, process, docker, or bubblewrap", Required = true, EnumValues = new[] { SandboxTypeConstants.Soft, SandboxTypeConstants.Process, SandboxTypeConstants.Docker, SandboxTypeConstants.Bubblewrap })] string sandboxType,
@@ -83,6 +102,11 @@ public sealed class SandboxToolHandlers
         }
     }
 
+    /// <summary>
+    /// 退出当前沙箱并恢复正常访问
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(SandboxToolNameConstants.SandboxExit, "Exit the current sandbox and restore normal access.", "sandbox")]
     public async Task<ToolResult> SandboxExitAsync(
         CancellationToken cancellationToken = default)
@@ -112,6 +136,12 @@ public sealed class SandboxToolHandlers
         }
     }
 
+    /// <summary>
+    /// 切换到不同的沙箱类型，保留隔离设置；可用于提升或降低隔离级别
+    /// </summary>
+    /// <param name="sandboxType">目标沙箱类型：soft、process、docker 或 bubblewrap</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(SandboxToolNameConstants.SandboxSwitch, "Switch to a different sandbox type while preserving isolation settings. Useful for escalating or de-escalating isolation level. If the target type is unavailable, automatically falls back.", "sandbox")]
     public async Task<ToolResult> SandboxSwitchAsync(
         [McpToolParameter("Target sandbox type: soft, process, docker, or bubblewrap", Required = true, EnumValues = new[] { SandboxTypeConstants.Soft, SandboxTypeConstants.Process, SandboxTypeConstants.Docker, SandboxTypeConstants.Bubblewrap })] string sandboxType,
@@ -158,6 +188,11 @@ public sealed class SandboxToolHandlers
         }
     }
 
+    /// <summary>
+    /// 获取当前沙箱状态，包括类型、隔离级别、可用类型和健康状态
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(SandboxToolNameConstants.SandboxStatus, "Get the current sandbox status including type, isolation level, available types, and health state.", "sandbox")]
     public Task<ToolResult> SandboxStatusAsync(
         CancellationToken cancellationToken = default)
@@ -203,6 +238,14 @@ public sealed class SandboxToolHandlers
             .Build());
     }
 
+    /// <summary>
+    /// 在沙箱内执行命令，带防卡死超时保护；超时不中断命令，而是交由 LLM 决定继续等待或强行终止
+    /// </summary>
+    /// <param name="command">要在沙箱内执行的命令</param>
+    /// <param name="timeout">超时预设：2min（默认）、4min、8min 或 custom</param>
+    /// <param name="customTimeoutSeconds">自定义超时秒数（仅在 timeout=custom 时生效）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(SandboxToolNameConstants.SandboxExec, "Execute a command inside the sandbox with anti-stuck timeout protection. When timeout is reached, the command is NOT interrupted - instead you (LLM) are asked to decide: continue waiting or force stop. Default timeout is 2 minutes.", "sandbox")]
     public async Task<ToolResult> SandboxExecAsync(
         [McpToolParameter("Command to execute in the sandbox", Required = true)] string command,
@@ -252,6 +295,13 @@ public sealed class SandboxToolHandlers
         }
     }
 
+    /// <summary>
+    /// 继续已超时的沙箱执行，可选择继续等待或强行终止命令
+    /// </summary>
+    /// <param name="executionId">来自 sandbox_exec 超时响应的执行 ID</param>
+    /// <param name="action">操作：wait（继续等待一个超时周期）或 stop（强行终止进程）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(SandboxToolNameConstants.SandboxExecContinue, "Continue a timed-out sandbox execution. Choose to wait longer or force stop the command.", "sandbox")]
     public async Task<ToolResult> SandboxExecContinueAsync(
         [McpToolParameter("Execution ID from sandbox_exec timeout response", Required = true)] string executionId,

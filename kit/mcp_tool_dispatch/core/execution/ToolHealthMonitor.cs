@@ -5,9 +5,31 @@ namespace McpToolDispatch;
 /// </summary>
 public interface IToolHealthCommand;
 
+/// <summary>
+/// 记录工具成功执行命令 — Actor 消息
+/// </summary>
+/// <param name="ToolName">工具名称</param>
+/// <param name="Tcs">用于回传健康记录的任务完成源</param>
 public sealed record RecordSuccessCmd(string ToolName, TaskCompletionSource<ToolHealthRecord> Tcs) : IToolHealthCommand;
+
+/// <summary>
+/// 记录工具执行失败命令 — Actor 消息
+/// </summary>
+/// <param name="ToolName">工具名称</param>
+/// <param name="ErrorMessage">错误消息（可为空）</param>
+/// <param name="Tcs">用于回传健康记录的任务完成源</param>
 public sealed record RecordFailureCmd(string ToolName, string? ErrorMessage, TaskCompletionSource<ToolHealthRecord> Tcs) : IToolHealthCommand;
+
+/// <summary>
+/// 重置工具健康记录命令 — Actor 消息
+/// </summary>
+/// <param name="ToolName">工具名称</param>
+/// <param name="Tcs">用于通知完成的重置任务完成源</param>
 public sealed record ResetToolCmd(string ToolName, TaskCompletionSource Tcs) : IToolHealthCommand;
+
+/// <summary>
+/// 时间衰减周期命令 — Actor 消息，触发所有工具评分的时间衰减
+/// </summary>
 public sealed record DecayTickCmd : IToolHealthCommand;
 
 /// <summary>
@@ -36,6 +58,14 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
         public required FrozenSet<string> Patterns { get; init; }
     }
 
+    /// <summary>
+    /// 构造工具健康监控器 — 加载持久化记录并启动每小时衰减定时器
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">可选日志记录器</param>
+    /// <param name="config">可选评分配置，默认使用 <see cref="ToolScoreConfig"/> 默认值</param>
+    /// <param name="blacklist">初始黑名单集合，可含通配符</param>
+    /// <param name="penalties">初始降权配置字典</param>
     public ToolHealthMonitor(IFileSystem fs, ILogger<ToolHealthMonitor>? logger = null, ToolScoreConfig? config = null,
         HashSet<string>? blacklist = null, Dictionary<string, int>? penalties = null)
         : base()
@@ -85,6 +115,11 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
         _logger?.LogInformation("降权配置已热更新: {Count} 条规则", newPenalties.Count);
     }
 
+    /// <summary>
+    /// 判断工具是否在黑名单中 — 支持精确匹配与通配符模式匹配
+    /// </summary>
+    /// <param name="toolName">工具名称</param>
+    /// <returns>命中黑名单返回 true，否则返回 false</returns>
     public bool IsBlacklisted(string toolName)
     {
         var snapshot = _blacklistSnapshot;
@@ -120,6 +155,11 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
         return true;
     }
 
+    /// <summary>
+    /// 获取工具降权分值 — 精确匹配优先，其次通配符模式匹配
+    /// </summary>
+    /// <param name="toolName">工具名称</param>
+    /// <returns>降权分值，未命中返回 0</returns>
     public int GetPenalty(string toolName)
     {
         var penalties = _penalties;
@@ -134,6 +174,11 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
         return 0;
     }
 
+    /// <summary>
+    /// 获取工具有效评分 — 黑名单返回最低分，否则为独立评分加降权后钳制到配置范围
+    /// </summary>
+    /// <param name="toolName">工具名称</param>
+    /// <returns>有效评分值，范围 [<see cref="ToolScoreConfig.ScoreMin"/>, <see cref="ToolScoreConfig.ScoreMax"/>]</returns>
     public int GetEffectiveScore(string toolName)
     {
         if (IsBlacklisted(toolName)) return _config.ScoreMin;
@@ -142,6 +187,12 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
         return Math.Clamp(baseScore + GetPenalty(toolName), _config.ScoreMin, _config.ScoreMax);
     }
 
+    /// <summary>
+    /// 异步记录工具成功执行 — 通过 Actor 邮箱投递，串行处理以消除锁竞争
+    /// </summary>
+    /// <param name="toolName">工具名称</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>更新后的工具健康记录</returns>
     public async Task<ToolHealthRecord> RecordSuccessAsync(string toolName, CancellationToken ct = default)
     {
         var tcs = CreateTcs<ToolHealthRecord>();
@@ -149,6 +200,13 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
         return await tcs.Task.ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 异步记录工具执行失败 — 通过 Actor 邮箱投递，连续失败达阈值时记录警告
+    /// </summary>
+    /// <param name="toolName">工具名称</param>
+    /// <param name="errorMessage">错误消息（可为空）</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>更新后的工具健康记录</returns>
     public async Task<ToolHealthRecord> RecordFailureAsync(string toolName, string? errorMessage, CancellationToken ct = default)
     {
         var tcs = CreateTcs<ToolHealthRecord>();
@@ -156,17 +214,34 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
         return await tcs.Task.ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 异步获取单个工具的健康记录 — 直接读取并发字典，无 Actor 投递
+    /// </summary>
+    /// <param name="toolName">工具名称</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>工具健康记录，不存在则返回 null</returns>
     public Task<ToolHealthRecord?> GetRecordAsync(string toolName, CancellationToken ct = default)
     {
         _records.TryGetValue(toolName, out var record);
         return Task.FromResult(record);
     }
 
+    /// <summary>
+    /// 异步获取所有工具的健康记录快照 — 冻结字典保证调用方持有不可变视图
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>工具名到健康记录的只读字典</returns>
     public Task<IReadOnlyDictionary<string, ToolHealthRecord>> GetAllRecordsAsync(CancellationToken ct = default)
     {
         return Task.FromResult<IReadOnlyDictionary<string, ToolHealthRecord>>(_records.ToFrozenDictionary());
     }
 
+    /// <summary>
+    /// 异步重置指定工具的健康记录 — 评分归零、连续失败清零、重新启用
+    /// </summary>
+    /// <param name="toolName">工具名称</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task ResetToolAsync(string toolName, CancellationToken ct = default)
     {
         var tcs = CreateTcs();
@@ -174,6 +249,11 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
         await tcs.Task.ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 处理工具健康命令，按命令类型更新健康记录。
+    /// </summary>
+    /// <param name="command">健康监控命令。</param>
+    /// <param name="ct">取消令牌。</param>
     protected override async ValueTask HandleAsync(IToolHealthCommand command, CancellationToken ct)
     {
         switch (command)
@@ -231,6 +311,10 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
         }
     }
 
+    /// <summary>
+    /// 消费者异常回调，记录错误日志。
+    /// </summary>
+    /// <param name="ex">发生的异常。</param>
     protected override void OnConsumerError(Exception ex)
     {
         _logger?.LogError(ex, "[ToolHealthMonitor] 消费者异常");
@@ -295,6 +379,9 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
         }
     }
 
+    /// <summary>
+    /// 释放监控器资源 — 停止衰减定时器并等待异步释放完成（最多 5 秒）
+    /// </summary>
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1) return;

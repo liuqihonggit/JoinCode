@@ -11,6 +11,11 @@ public sealed partial class SchemaValidationMiddleware : ServiceEntity, IToolExe
     private readonly IJsonSchemaValidator? _schemaValidator;
     private readonly ILogger<SchemaValidationMiddleware> _logger;
 
+    /// <summary>
+    /// 构造函数 — 注入 JSON Schema 校验器和日志记录器
+    /// </summary>
+    /// <param name="schemaValidator">JSON Schema 校验器实例，为 null 则跳过校验</param>
+    /// <param name="logger">日志记录器实例</param>
     public SchemaValidationMiddleware(
         IJsonSchemaValidator? schemaValidator,
         ILogger<SchemaValidationMiddleware> logger)
@@ -19,6 +24,13 @@ public sealed partial class SchemaValidationMiddleware : ServiceEntity, IToolExe
         _logger = logger;
     }
 
+    /// <summary>
+    /// 校验工具参数是否符合 Handler 的 InputSchema；校验失败则设置遥测错误状态并返回带格式化错误信息的错误结果，否则调用下一层中间件
+    /// </summary>
+    /// <param name="context">工具执行上下文</param>
+    /// <param name="next">下一层中间件委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task InvokeAsync(
         ToolExecutionContext context,
         MiddlewareDelegate<ToolExecutionContext> next,

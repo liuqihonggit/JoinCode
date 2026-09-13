@@ -30,6 +30,11 @@ public sealed partial class ToolCacheManager : ServiceEntity
     private readonly IMemoryCache _cache;
     private readonly WorkflowConfig _config;
 
+    /// <summary>
+    /// 构造工具缓存管理器 — 绑定内存缓存与工作流配置
+    /// </summary>
+    /// <param name="cache">内存缓存实例</param>
+    /// <param name="config">工作流配置，提供缓存过期时间等参数</param>
     public ToolCacheManager(IMemoryCache cache, WorkflowConfig config)
     {
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));

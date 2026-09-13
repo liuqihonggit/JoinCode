@@ -9,6 +9,10 @@ public sealed class GoalToolHandlers
 {
     private readonly IGoalEngine _goalEngine;
 
+    /// <summary>
+    /// 初始化目标工具处理器
+    /// </summary>
+    /// <param name="goalEngine">目标引擎</param>
     public GoalToolHandlers(IGoalEngine goalEngine)
     {
         _goalEngine = goalEngine ?? throw new ArgumentNullException(nameof(goalEngine));
@@ -17,6 +21,8 @@ public sealed class GoalToolHandlers
     /// <summary>
     /// 获取当前目标状态 — 模型可调用此工具查询正在执行的目标信息
     /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(SystemToolNameConstants.GoalGet, "Get the current goal status including objective, progress, and evaluation results. Returns null if no goal is active.", "goal")]
     public Task<ToolResult> GetGoalAsync(
         CancellationToken cancellationToken = default)
@@ -56,6 +62,10 @@ public sealed class GoalToolHandlers
     /// 更新目标状态 — 模型可标记目标为已完成或无法完成
 /// 仅允许 achieved/unmet，通过引擎方法安全更新（线程安全）
     /// </summary>
+    /// <param name="status">目标新状态，必须为 achieved 或 unmet</param>
+    /// <param name="reason">状态变更原因</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(SystemToolNameConstants.GoalUpdate, "Update the current goal status. The model can mark a goal as achieved or unmet. Only 'achieved' and 'unmet' statuses are allowed via this tool.", "goal")]
     public async Task<ToolResult> UpdateGoalAsync(
         [McpToolParameter("New status for the goal. Must be 'achieved' or 'unmet'.", Required = true, EnumValues = new[] { GoalStatusConstants.Achieved, GoalStatusConstants.Unmet })] string status,
@@ -112,6 +122,12 @@ public sealed class GoalToolHandlers
     /// <summary>
     /// 定义 Goal Graph — 协调者 Agent 调研后调用此工具定义执行图结构
     /// </summary>
+    /// <param name="nodes">节点 JSON 数组，每个节点：{id, kind, name, systemPrompt?, instruction?, freshContext?}，kind 为 agent/function/join</param>
+    /// <param name="edges">边 JSON 数组，每条边：{id?, fromId, toId, label?}，空 label 为无条件，非空为条件路由键</param>
+    /// <param name="start_node_id">起始节点 ID</param>
+    /// <param name="end_node_ids">结束节点 ID，逗号分隔</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(SystemToolNameConstants.GoalGraphDefine, "Define a goal execution graph with nodes and edges. The coordinator agent uses this after investigating the task to create an optimal execution plan. Each node is an agent loop, edges define execution flow and conditional routing.", "goal")]
     public Task<ToolResult> DefineGraphAsync(
         [McpToolParameter("JSON array of nodes. Each node: {id, kind, name, systemPrompt?, instruction?, freshContext?}. kind: agent/function/join", Required = true)] string nodes,

@@ -11,6 +11,12 @@ public class ToolScoreDebugToolHandlers
     private readonly ToolHypergraphScorer _scorer;
     private readonly ILogger<ToolScoreDebugToolHandlers>? _logger;
 
+    /// <summary>
+    /// 初始化超图调试工具处理器
+    /// </summary>
+    /// <param name="monitor">工具健康监控器</param>
+    /// <param name="scorer">工具超图评分器</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public ToolScoreDebugToolHandlers(
         IToolHealthMonitor monitor,
         ToolHypergraphScorer scorer,
@@ -24,6 +30,9 @@ public class ToolScoreDebugToolHandlers
     /// <summary>
     /// 查看工具评分 — 显示独立评分、超图评分、有效评分、黑名单/降权状态
     /// </summary>
+    /// <param name="toolName">工具名称（留空则显示所有工具）</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool("tool_score", "查看工具的评分状态（独立评分+超图评分+有效评分+黑名单/降权）", "tool_debug",
         ConcurrencySafe = true)]
     public async Task<ToolResult> GetToolScoreAsync(
@@ -75,6 +84,8 @@ public class ToolScoreDebugToolHandlers
     /// <summary>
     /// 查看超图结构 — 显示所有超边及其成员工具的评分
     /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool("tool_hypergraph", "查看工具链超图结构（所有超边+成员评分+链路顺序）", "tool_debug",
         ConcurrencySafe = true)]
     public async Task<ToolResult> GetHypergraphAsync(CancellationToken ct = default)
@@ -109,6 +120,9 @@ public class ToolScoreDebugToolHandlers
     /// <summary>
     /// 重置工具评分 — 清除指定工具的健康记录，恢复到初始状态
     /// </summary>
+    /// <param name="toolName">工具名称</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool("tool_score_reset", "重置工具评分（清除健康记录，恢复初始状态）", "tool_debug")]
     public async Task<ToolResult> ResetToolScoreAsync(
         [McpToolParameter("工具名称", Required = true)] string toolName,

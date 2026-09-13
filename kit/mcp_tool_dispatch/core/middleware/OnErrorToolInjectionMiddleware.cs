@@ -13,6 +13,13 @@ public sealed partial class OnErrorToolInjectionMiddleware : ServiceEntity, IToo
     private readonly ToolHypergraphScorer _scorer;
     private readonly ILogger<OnErrorToolInjectionMiddleware> _logger;
 
+    /// <summary>
+    /// 构造函数 — 注入工具注册表、健康监控器、超图评分器和日志记录器
+    /// </summary>
+    /// <param name="registry">工具注册表，用于查询 OnError 类型修复工具</param>
+    /// <param name="monitor">工具健康监控器，用于历史修复分析</param>
+    /// <param name="scorer">超图评分器，用于关联工具链路推荐</param>
+    /// <param name="logger">日志记录器实例</param>
     public OnErrorToolInjectionMiddleware(
         IToolRegistry registry,
         IToolHealthMonitor monitor,
@@ -25,8 +32,18 @@ public sealed partial class OnErrorToolInjectionMiddleware : ServiceEntity, IToo
         _logger = logger;
     }
 
+    /// <summary>
+    /// 错误处理行为 — Continue 表示注入失败不中断管道
+    /// </summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
+    /// <summary>
+    /// 调用下一层中间件；若结果为错误则构建历史修复分析、注入相关 OnError 工具完整 schema、推荐超图关联替代链路，并将提示词注入到结果的 InjectedMessages 中
+    /// </summary>
+    /// <param name="context">工具执行上下文</param>
+    /// <param name="next">下一层中间件委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task InvokeAsync(ToolExecutionContext context, MiddlewareDelegate<ToolExecutionContext> next, CancellationToken ct)
     {
         try

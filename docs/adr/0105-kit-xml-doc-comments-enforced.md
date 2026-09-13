@@ -97,4 +97,4 @@ llm/ 工程不在 kit/ 范围内，但沿用本 ADR 决策强制 XML 注释完�
 
 - ✅ llm/core — 0 缺漏（原有注释已完整）
 - ✅ llm/agents — 662 处缺漏全部补全，编译 0 错误 0 警告（commit 685e9138b）。4 子代理并行补全 613 处 + 主代理兜底 58 处（含 override/protected 字段/枚举值，子代理分析脚本漏掉的类别）
-- ⏳ llm/reasoning — 304 处缺漏，待处理
+- ✅ llm/reasoning — 152 处缺漏全部补全，编译 0 错误 0 警告（commit 9f8467bb7）。8 子代理并行补全 128 处 + 主代理兜底 24 处枚举值（EvidenceCategory/DataState/TrustLevel/VerdictDecision）

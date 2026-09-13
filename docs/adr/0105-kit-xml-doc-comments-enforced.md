@@ -149,3 +149,12 @@ lib/ 工程不在 kit/ 范围内，但沿用本 ADR 决策强制 XML 注释完�
 - 编译验证统一由主代理执行
 - aborted 组单独补处理而非整体重跑
 - 主代理兜底修复残留 CS1591（子代理常遗漏枚举值、protected override 成员、record 属性等）
+
+### app/ 工程（沿用本决策，2026-09-14）
+
+app/ 工程沿用本 ADR 决策。`app/Directory.Build.props` 配置 `GenerateDocumentationFile=true` + 移除 CS1591 屏蔽 + 升级为错误（对所有 src 工程生效）。
+
+- ✅ app/cli — 788 处缺漏全部补全，编译 0 错误 0 警告（commit bba3237f5）。10 子代理并行补全 + 主代理兜底 2 处显式接口实现（IStreamingOutputWriter.Write/WriteLine）
+- ✅ app/sdk — 0 缺漏（依赖 cli 修好后自动通过）
+- ✅ app/gui — 0 缺漏（依赖 cli 修好后自动通过）
+- ✅ app/tui — 0 缺漏（依赖 cli 修好后自动通过）

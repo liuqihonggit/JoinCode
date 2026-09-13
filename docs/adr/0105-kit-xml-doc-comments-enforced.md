@@ -98,3 +98,46 @@ llm/ 工程不在 kit/ 范围内，但沿用本 ADR 决策强制 XML 注释完�
 - ✅ llm/core — 0 缺漏（原有注释已完整）
 - ✅ llm/agents — 662 处缺漏全部补全，编译 0 错误 0 警告（commit 685e9138b）。4 子代理并行补全 613 处 + 主代理兜底 58 处（含 override/protected 字段/枚举值，子代理分析脚本漏掉的类别）
 - ✅ llm/reasoning — 152 处缺漏全部补全，编译 0 错误 0 警告（commit 9f8467bb7）。8 子代理并行补全 128 处 + 主代理兜底 24 处枚举值（EvidenceCategory/DataState/TrustLevel/VerdictDecision）
+
+### lib/ 工程（沿用本决策，2026-09-14）
+
+lib/ 工程不在 kit/ 范围内，但沿用本 ADR 决策强制 XML 注释完整。各 csproj 通过 `NoWarn.Replace` 移除继承的 CS1591 屏蔽并升级为错误。
+
+#### 已完成工程（10/11）
+
+| 工程 | 文件数 | 补全注释数 | 提交 SHA | 备注 |
+|------|--------|-----------|----------|------|
+| structura | 9 | ~50 | 3f57e7ffe | |
+| plugins.infrastructure | 13 | 107 | 8f2366b3d | 含生成器模板补注释 |
+| transport.contracts | 23 | 292 | ce41d1395 | |
+| transport.impl | 35 | 432 | d7360e09c | |
+| plugins.contracts | 40 | 23 | 793736d56 | |
+| clock | 43 | 231 | 7c8bf405f | |
+| scheduling | 52 | ~410 | 4515e2caf | |
+| vault | 75 | ~284 | 28dbbbf90 | |
+| infrastructure | 212 | ~752 | 07038adc8 | |
+| guard | 239 | ~1031 | f681f402e | 10 组并行子代理 + 主代理兜底 15 文件 30 处残留 |
+
+#### 放弃工程（1/11）
+
+| 工程 | 文件数 | CS1591 错误数 | 决策 |
+|------|--------|-------------|------|
+| abstractions | 963 | 15892 | ❌ 放弃 CS1591 强制（commit 3da91e509 回滚） |
+
+**abstractions 放弃理由**：纯接口 + DTO + 管道契约 + 特性标记层，963 个文件全是公开成员（接口方法/属性、DTO 字段、枚举值），15892 个错误平均每文件约 28 个。投入产出比低——接口层注释价值低于实现层，且工作量是其他 lib 工程总和的数倍。保留全局 NoWarn 中的 CS1591 抑制。
+
+#### 生成器模板修改
+
+源码生成器生成的 public 代码需在生成模板中加 `/// <summary>` 注释，否则消费方工程编译报 CS1591。
+
+- ✅ `ServiceRegistrationGenerator` — 生成 ServiceRegistration 类和方法补注释（commit 8f2366b3d）
+- ✅ `EnumMetadataGenerator` — 生成的 Constants/Extensions/HelpText 类、常量字段、GetCategories/GetByCategory/GetByCommand/GetHelp 方法补注释（commit 8f2366b3d）
+- ✅ `SecurityClassGenerator` — 生成的 ToolSecuritySets 静态属性补注释，模板加 description 参数输出 `/// <summary>`（commit 133f99e1b）
+
+#### 并行子代理处理模式
+
+大规模工程（guard 239 文件、infrastructure 212 文件等）按目录分组切 N 组（N≤10）并行子代理：
+- 子代理只编辑不编译（避免文件锁冲突）
+- 编译验证统一由主代理执行
+- aborted 组单独补处理而非整体重跑
+- 主代理兜底修复残留 CS1591（子代理常遗漏枚举值、protected override 成员、record 属性等）

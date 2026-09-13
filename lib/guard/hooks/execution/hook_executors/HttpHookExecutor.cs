@@ -11,6 +11,12 @@ public sealed partial class HttpHookExecutor : HookExecutorBase<HttpHook>
     private readonly IHttpClientFactory? _httpClientFactory;
     private readonly IClockService _clock;
 
+    /// <summary>
+    /// 构造 HTTP 钩子执行器
+    /// </summary>
+    /// <param name="httpClientFactory">HTTP 客户端工厂，可为空则执行时返回非阻塞错误</param>
+    /// <param name="logger">日志器，可为空</param>
+    /// <param name="clock">时钟服务，可为空则使用系统时钟</param>
     public HttpHookExecutor(
         IHttpClientFactory? httpClientFactory = null,
         ILogger<HttpHookExecutor>? logger = null,
@@ -218,12 +224,20 @@ public sealed partial class HttpHookExecutor : HookExecutorBase<HttpHook>
 /// </summary>
 public sealed record HookHttpPayload
 {
+    /// <summary>钩子事件标识</summary>
     public required string Event { get; init; }
+    /// <summary>钩子事件名称</summary>
     public required string EventName { get; init; }
+    /// <summary>工具名称，可为空</summary>
     public string? ToolName { get; init; }
+    /// <summary>工具调用 ID，可为空</summary>
     public string? ToolUseId { get; init; }
+    /// <summary>会话 ID，可为空</summary>
     public string? SessionId { get; init; }
+    /// <summary>事件匹配器，可为空</summary>
     public string? Matcher { get; init; }
+    /// <summary>事件负载</summary>
     public Dictionary<string, JsonElement> Payload { get; init; } = new();
+    /// <summary>时间戳</summary>
     public DateTimeOffset Timestamp { get; init; }
 }

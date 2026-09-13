@@ -60,8 +60,17 @@ public sealed partial class TokenRefreshScheduler : ServiceEntity, ITokenRefresh
     private readonly ConcurrentDictionary<string, TokenMonitor> _monitors = new();
     private readonly TimeSpan _refreshBuffer;
 
+    /// <summary>
+    /// Token 即将过期事件
+    /// </summary>
     public event EventHandler<TokenRefreshEventArgs>? TokenRefreshRequired;
 
+    /// <summary>
+    /// 构造 Token 刷新调度器
+    /// </summary>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="refreshBuffer">刷新缓冲时间,在 Token 过期前提前刷新,默认 5 分钟</param>
+    /// <param name="clock">时钟服务,用于测试时间控制</param>
     public TokenRefreshScheduler(ILogger<TokenRefreshScheduler>? logger = null, TimeSpan? refreshBuffer = null, IClockService? clock = null)
     {
         _logger = logger;
@@ -146,6 +155,7 @@ public sealed partial class TokenRefreshScheduler : ServiceEntity, ITokenRefresh
         _monitors.TryRemove(provider, out _);
     }
 
+    /// <inheritdoc />
     protected override void OnDispose()
     {
         foreach (var monitor in _monitors.Values)

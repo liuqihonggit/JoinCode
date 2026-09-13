@@ -10,6 +10,9 @@ public class PermissionToolHandlers
     private readonly IAgentPermissionManager _permissionManager;
     private static readonly char[] CommaSeparator = [','];
 
+    /// <summary>
+    /// 构造权限管理工具处理器
+    /// </summary>
     public PermissionToolHandlers(IAgentPermissionManager permissionManager)
     {
         _permissionManager = permissionManager ?? throw new ArgumentNullException(nameof(permissionManager));

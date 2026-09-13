@@ -7,6 +7,7 @@ namespace Core.Configuration.ConfigPipeline;
 public sealed partial class SettingsLoadMiddleware : ServiceEntity, IConfigLoadMiddleware
 {
 
+    /// <summary>构造函数 — 注入文件系统</summary>
     public SettingsLoadMiddleware(IFileSystem fs)
     {
         _fs = fs;
@@ -14,6 +15,7 @@ public sealed partial class SettingsLoadMiddleware : ServiceEntity, IConfigLoadM
     private readonly IFileSystem _fs;
 
 
+    /// <inheritdoc />
     public async Task InvokeAsync(ConfigLoadContext context, MiddlewareDelegate<ConfigLoadContext> next, CancellationToken ct)
     {
         var projectDir = context.ProjectDirectory ?? _fs.GetCurrentDirectory();

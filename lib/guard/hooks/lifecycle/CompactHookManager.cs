@@ -1,5 +1,8 @@
 namespace Core.Hooks.Lifecycle;
 
+/// <summary>
+/// 紧凑模式钩子管理器实现 — 在上下文压缩前后触发已注册的 PreCompact/PostCompact 钩子,支持阻塞、延迟与自定义动作
+/// </summary>
 [Register(typeof(ICompactHookManager), ServiceLifetime.Singleton)]
 public sealed partial class CompactHookManager : ServiceEntity, ICompactHookManager
 {
@@ -7,6 +10,12 @@ public sealed partial class CompactHookManager : ServiceEntity, ICompactHookMana
     private readonly ILogger<CompactHookManager>? _logger;
     private readonly ITelemetryService? _telemetryService;
 
+    /// <summary>
+    /// 构造紧凑模式钩子管理器
+    /// </summary>
+    /// <param name="orchestrator">钩子编排器,用于执行匹配的钩子</param>
+    /// <param name="logger">日志记录器(可选)</param>
+    /// <param name="telemetryService">遥测服务(可选)</param>
     public CompactHookManager(IHookOrchestrator orchestrator, ILogger<CompactHookManager>? logger = null, ITelemetryService? telemetryService = null)
     {
         _orchestrator = orchestrator ?? throw new ArgumentNullException(nameof(orchestrator));
@@ -14,6 +23,7 @@ public sealed partial class CompactHookManager : ServiceEntity, ICompactHookMana
         _telemetryService = telemetryService;
     }
 
+    /// <inheritdoc/>
     public async Task<CompactHookResult> OnPreCompactAsync(CompactHookContext context, CancellationToken ct = default)
     {
         var payload = new Dictionary<string, JsonElement>
@@ -78,6 +88,7 @@ public sealed partial class CompactHookManager : ServiceEntity, ICompactHookMana
         return new CompactHookResult();
     }
 
+    /// <inheritdoc/>
     public async Task OnPostCompactAsync(CompactHookContext context, PostCompactData result, CancellationToken ct = default)
     {
         RecordCompactMetrics(context.Trigger, result.Compacted, result.PreCompactTokenCount - result.PostCompactTokenCount);

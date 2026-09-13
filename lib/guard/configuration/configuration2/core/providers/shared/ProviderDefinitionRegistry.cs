@@ -10,6 +10,9 @@ public sealed class ProviderDefinitionRegistry : IProviderDefinitionRegistry
 {
     private readonly FrozenDictionary<string, IProviderDefinition> _definitions;
 
+    /// <summary>
+    /// 构造供应商定义注册表 — 从 settings.json 的 vendor 节点构建，并始终保留 Azure 供应商
+    /// </summary>
     public ProviderDefinitionRegistry(IModelConfigLoader modelConfigLoader, IFileSystem? fs = null)
     {
         var dict = new Dictionary<string, IProviderDefinition>(StringComparer.OrdinalIgnoreCase);
@@ -22,11 +25,17 @@ public sealed class ProviderDefinitionRegistry : IProviderDefinitionRegistry
         _definitions = dict.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// 按名称获取供应商定义 — 未注册返回 null
+    /// </summary>
     public IProviderDefinition? TryGet(string providerName)
     {
         return _definitions.GetValueOrDefault(providerName);
     }
 
+    /// <summary>
+    /// 已注册的供应商名称集合
+    /// </summary>
     public IReadOnlyCollection<string> RegisteredProviders => _definitions.Keys;
 
     private static void ApplyVendorFromSettings(Dictionary<string, IProviderDefinition> dict, IModelConfigLoader modelConfigLoader, IFileSystem? fs)

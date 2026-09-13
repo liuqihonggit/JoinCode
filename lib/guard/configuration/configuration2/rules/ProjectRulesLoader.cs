@@ -1,6 +1,9 @@
 
 namespace Core.Configuration;
 
+/// <summary>
+/// 项目规则加载器 — 从工作目录向上递归扫描 AGENTS.md 等规则文件，并合并用户级规则
+/// </summary>
 [Register(typeof(ProjectRulesLoader), ServiceLifetime.Singleton)]
 public sealed partial class ProjectRulesLoader : ServiceEntity {
     private readonly IFileSystem _fs;
@@ -35,6 +38,9 @@ public sealed partial class ProjectRulesLoader : ServiceEntity {
         Path.Combine(".codex", "rules")
      };
 
+    /// <summary>
+    /// 构造项目规则加载器
+    /// </summary>
     public ProjectRulesLoader(
         IFileSystem fs,
         ILogger<ProjectRulesLoader>? logger = null,
@@ -44,6 +50,9 @@ public sealed partial class ProjectRulesLoader : ServiceEntity {
         _telemetryService = telemetryService;
     }
 
+    /// <summary>
+    /// 异步加载项目规则 — 从工作目录向上递归扫描规则文件并合并内容
+    /// </summary>
     public async Task<string?> LoadRulesAsync(string? workingDirectory = null, CancellationToken cancellationToken = default) {
         var basePath = workingDirectory ?? _fs.GetCurrentDirectory();
         var result = await LoadRulesFromDirectoryAsync(basePath, cancellationToken).ConfigureAwait(false);
@@ -205,6 +214,9 @@ public sealed partial class ProjectRulesLoader : ServiceEntity {
         }
     }
 
+    /// <summary>
+    /// 判断指定工作目录（或当前目录）是否存在项目规则文件
+    /// </summary>
     public bool HasRulesFile(string? workingDirectory = null) {
         var basePath = workingDirectory ?? _fs.GetCurrentDirectory();
         var currentDirPath = _fs.GetFullPath(basePath);
@@ -245,6 +257,9 @@ public sealed partial class ProjectRulesLoader : ServiceEntity {
         return false;
     }
 
+    /// <summary>
+    /// 获取首个命中的规则文件完整路径 — 未找到返回 null
+    /// </summary>
     public string? GetRulesFilePath(string? workingDirectory = null) {
         var basePath = workingDirectory ?? _fs.GetCurrentDirectory();
         var currentDirPath = _fs.GetFullPath(basePath);

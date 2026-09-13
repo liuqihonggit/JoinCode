@@ -9,6 +9,10 @@ public sealed partial class EntitlementService : ServiceEntity, IEntitlementServ
 {
     private readonly IBriefModeService _briefModeService;
 
+    /// <summary>
+    /// 初始化功能权限服务
+    /// </summary>
+    /// <param name="briefModeService">Brief 模式服务</param>
     public EntitlementService(IBriefModeService briefModeService)
     {
         _briefModeService = briefModeService ?? throw new ArgumentNullException(nameof(briefModeService));

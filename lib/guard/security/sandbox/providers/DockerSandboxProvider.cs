@@ -1,15 +1,28 @@
 namespace Core.Security.Sandbox.Providers;
 
 
+/// <summary>
+/// Docker 沙箱提供者 — 通过 Docker 容器实现完全隔离的命令执行环境
+/// </summary>
 [Register(typeof(SandboxProviderBase), ServiceLifetime.Singleton)]
 public sealed partial class DockerSandboxProvider : SandboxProviderBase
 {
     private readonly IProcessService _processService;
     private readonly ConcurrentDictionary<string, string> _containerIds = new();
 
+    /// <summary>沙箱类型为 Docker</summary>
     public override SandboxType SandboxType => SandboxType.Docker;
+    /// <summary>能力为完全隔离</summary>
     public override SandboxCapabilities Capabilities => SandboxCapabilities.FullIsolation;
 
+    /// <summary>
+    /// 初始化 Docker 沙箱提供者
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="processService">进程执行服务</param>
+    /// <param name="logger">可选的日志记录器</param>
+    /// <param name="clock">可选的时钟服务</param>
+    /// <param name="telemetryService">可选的遥测服务</param>
     public DockerSandboxProvider(
         IFileSystem fs,
         IProcessService processService,
@@ -21,6 +34,9 @@ public sealed partial class DockerSandboxProvider : SandboxProviderBase
         _processService = processService;
     }
 
+    /// <summary>
+    /// Docker 是否可用 — 检查 PATH 中是否存在 docker/docker.exe 可执行文件
+    /// </summary>
     public override bool IsAvailable
     {
         get
@@ -129,6 +145,14 @@ public sealed partial class DockerSandboxProvider : SandboxProviderBase
         await base.OnDestroyAsync(info, ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 在指定 Docker 容器内执行命令
+    /// </summary>
+    /// <param name="sandboxId">沙箱标识</param>
+    /// <param name="command">要执行的 shell 命令</param>
+    /// <param name="timeoutMs">超时毫秒数</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>容器内执行结果</returns>
     public async Task<ProviderExecutionResult> ExecuteInContainerAsync(
         string sandboxId,
         string command,

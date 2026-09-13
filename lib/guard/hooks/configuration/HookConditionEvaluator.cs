@@ -1,18 +1,37 @@
 namespace Core.Hooks.Configuration;
 
+/// <summary>
+/// 钩子输入字段名常量
+/// </summary>
 public static class InputFieldNames
 {
+    /// <summary>
+    /// command 字段名
+    /// </summary>
     public const string Command = "command";
 }
 
+/// <summary>
+/// 钩子条件求值器接口 — 对钩子配置中的 if 条件表达式进行求值
+/// </summary>
 public interface IHookConditionEvaluator
 {
+    /// <summary>
+    /// 异步求值条件表达式
+    /// </summary>
+    /// <param name="condition">条件表达式,支持 &amp;&amp; / || / ! / event: / matcher: / input. 等语法</param>
+    /// <param name="input">钩子输入</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>条件成立返回 true,否则返回 false;空条件默认返回 true</returns>
     Task<bool> EvaluateAsync(
         string? condition,
         HookInput input,
         CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// 钩子条件求值器 — 解析并求值 if 条件表达式,支持逻辑组合、事件/匹配器/输入字段匹配与正则模式
+/// </summary>
 [Register(typeof(IHookConditionEvaluator), ServiceLifetime.Singleton)]
 public sealed partial class HookConditionEvaluator : ServiceEntity, IHookConditionEvaluator
 {
@@ -20,11 +39,16 @@ public sealed partial class HookConditionEvaluator : ServiceEntity, IHookConditi
 
     private static readonly ConcurrentDictionary<string, Regex> ConditionPatternCache = new(StringComparer.Ordinal);
 
+    /// <summary>
+    /// 构造函数 — 注入可选的日志记录器
+    /// </summary>
+    /// <param name="logger">可选的日志记录器</param>
     public HookConditionEvaluator(ILogger<HookConditionEvaluator>? logger = null)
     {
         _logger = logger;
     }
 
+    /// <inheritdoc />
     public Task<bool> EvaluateAsync(
         string? condition,
         HookInput input,
@@ -247,14 +271,33 @@ public sealed partial class HookConditionEvaluator : ServiceEntity, IHookConditi
     }
 }
 
+/// <summary>
+/// 条件求值异常 — 在钩子条件表达式求值过程中发生错误时抛出
+/// </summary>
 public partial class ConditionEvaluationException : WorkflowException
 {
+    /// <summary>
+    /// 构造函数 — 使用指定错误消息初始化
+    /// </summary>
+    /// <param name="message">错误消息</param>
     public ConditionEvaluationException(string message)
         : base(message, errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.WorkflowConditionEvaluation.ToValue(), category: ErrorCategory.Workflow) { }
 
+    /// <summary>
+    /// 构造函数 — 使用指定错误消息与内部异常初始化
+    /// </summary>
+    /// <param name="message">错误消息</param>
+    /// <param name="innerException">内部异常</param>
     public ConditionEvaluationException(string message, Exception innerException)
         : base(message, innerException, errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.WorkflowConditionEvaluation.ToValue(), category: ErrorCategory.Workflow) { }
 
+    /// <summary>
+    /// 触发异常的条件表达式
+    /// </summary>
     public string? Condition { get; init; }
+
+    /// <summary>
+    /// 触发异常时的输入事件名称
+    /// </summary>
     public string? InputEvent { get; init; }
 }

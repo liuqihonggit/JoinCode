@@ -32,6 +32,9 @@ public enum PermissionDecisionSourceType
 /// </summary>
 public sealed record PermissionApprovalSource
 {
+    /// <summary>
+    /// 决策来源类型
+    /// </summary>
     public required PermissionDecisionSourceType Type { get; init; }
 
     /// <summary>
@@ -50,6 +53,9 @@ public sealed record PermissionApprovalSource
 /// </summary>
 public sealed record PermissionRejectionSource
 {
+    /// <summary>
+    /// 决策来源类型
+    /// </summary>
     public required PermissionDecisionSourceType Type { get; init; }
 
     /// <summary>
@@ -73,6 +79,9 @@ public sealed record PermissionRejectionSource
 /// </summary>
 public sealed record ClassifierDecisionReason
 {
+    /// <summary>
+    /// 决策类型标识
+    /// </summary>
     public required string Type { get; init; }
 
     /// <summary>
@@ -91,6 +100,9 @@ public sealed record ClassifierDecisionReason
 /// </summary>
 public abstract record PermissionDecisionReason
 {
+    /// <summary>
+    /// 决策类型标识
+    /// </summary>
     public abstract string Type { get; }
 }
 
@@ -99,8 +111,19 @@ public abstract record PermissionDecisionReason
 /// </summary>
 public sealed record HookDecisionReason : PermissionDecisionReason
 {
+    /// <summary>
+    /// 决策类型标识 — 固定为 "hook"
+    /// </summary>
     public override string Type => "hook";
+
+    /// <summary>
+    /// Hook 名称
+    /// </summary>
     public required string HookName { get; init; }
+
+    /// <summary>
+    /// 决策原因描述
+    /// </summary>
     public string? Reason { get; init; }
 }
 
@@ -109,7 +132,18 @@ public sealed record HookDecisionReason : PermissionDecisionReason
 /// </summary>
 public sealed record ClassifierPermissionDecisionReason : PermissionDecisionReason
 {
+    /// <summary>
+    /// 决策类型标识 — 固定为 "classifier"
+    /// </summary>
     public override string Type => "classifier";
+
+    /// <summary>
+    /// 分类器类型
+    /// </summary>
     public required string Classifier { get; init; }
+
+    /// <summary>
+    /// 决策原因描述
+    /// </summary>
     public string? Reason { get; init; }
 }

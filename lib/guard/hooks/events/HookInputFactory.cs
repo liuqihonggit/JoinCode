@@ -5,6 +5,15 @@ namespace Core.Hooks.Events;
 /// </summary>
 public static class HookInputFactory
 {
+    /// <summary>
+    /// 构造工具使用事件的 HookInput
+    /// </summary>
+    /// <param name="hookEvent">钩子事件类型</param>
+    /// <param name="toolName">工具名称</param>
+    /// <param name="toolUseId">工具调用唯一标识</param>
+    /// <param name="input">工具输入参数</param>
+    /// <param name="sessionId">可选的会话标识</param>
+    /// <returns>组装完成的 HookInput 实例</returns>
     public static HookInput ForToolUse(
         HookEvent hookEvent,
         string toolName,
@@ -28,6 +37,14 @@ public static class HookInputFactory
         };
     }
 
+    /// <summary>
+    /// 构造会话级事件的 HookInput
+    /// </summary>
+    /// <param name="hookEvent">钩子事件类型</param>
+    /// <param name="source">触发来源</param>
+    /// <param name="additionalPayload">附加负载,可选</param>
+    /// <param name="sessionId">可选的会话标识</param>
+    /// <returns>组装完成的 HookInput 实例</returns>
     public static HookInput ForSession(
         HookEvent hookEvent,
         string source,
@@ -55,6 +72,16 @@ public static class HookInputFactory
         };
     }
 
+    /// <summary>
+    /// 构造权限请求事件的 HookInput
+    /// </summary>
+    /// <param name="toolName">工具名称</param>
+    /// <param name="toolUseId">工具调用唯一标识</param>
+    /// <param name="input">工具输入参数</param>
+    /// <param name="permissionMode">可选的权限模式</param>
+    /// <param name="suggestions">可选的权限建议列表</param>
+    /// <param name="sessionId">可选的会话标识</param>
+    /// <returns>组装完成的 HookInput 实例</returns>
     public static HookInput ForPermissionRequest(
         string toolName,
         string toolUseId,

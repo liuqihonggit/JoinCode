@@ -1,8 +1,12 @@
 namespace JoinCode.Guard.Security.PowerShell;
 
+/// <summary>
+/// PowerShell 权限检查器 — 委托给 <see cref="PsPermissions"/> 执行命令权限决策
+/// </summary>
 [Register(typeof(IPsPermissionChecker), ServiceLifetime.Singleton)]
 public sealed partial class PsPermissionChecker : ServiceEntity, IPsPermissionChecker
 {
+    /// <inheritdoc />
     PsSecurityResult IPsPermissionChecker.CheckPermission(
         string command,
         string workingDirectory,

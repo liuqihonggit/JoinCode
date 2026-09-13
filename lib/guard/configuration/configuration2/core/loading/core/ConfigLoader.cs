@@ -1,11 +1,22 @@
 namespace Core.Configuration;
 
+/// <summary>
+/// 配置加载器 — 通过中间件管道或直接方法加载多源配置并合并为 WorkflowConfig,提供 settings.json/global.json/auth.json 的读写入口
+/// </summary>
 public class ConfigLoader {
     private readonly MiddlewarePipeline<ConfigLoadContext>? _pipeline;
     private readonly IProviderDefinitionRegistry _registry;
     private readonly SettingsMapper _settingsMapper;
     private readonly IModelConfigLoader? _modelConfigLoader;
 
+    /// <summary>
+    /// 构造配置加载器
+    /// </summary>
+    /// <param name="middlewares">配置加载中间件序列(可选),非 null 时启用管道化加载</param>
+    /// <param name="loggerFactory">日志工厂(可选),启用管道日志作用域</param>
+    /// <param name="registry">Provider 定义注册表(可选),默认创建内置注册表</param>
+    /// <param name="settingsMapper">Settings 映射器(可选),默认创建内置映射器</param>
+    /// <param name="modelConfigLoader">模型配置加载器(可选),用于灌入 vendor 模型数据</param>
     public ConfigLoader(IEnumerable<IConfigLoadMiddleware>? middlewares = null, ILoggerFactory? loggerFactory = null, IProviderDefinitionRegistry? registry = null, SettingsMapper? settingsMapper = null, IModelConfigLoader? modelConfigLoader = null)
     {
         _registry = registry ?? new ProviderDefinitionRegistry(modelConfigLoader ?? new ModelConfigLoader());

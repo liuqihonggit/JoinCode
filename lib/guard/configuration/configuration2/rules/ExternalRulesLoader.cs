@@ -1,5 +1,8 @@
 namespace Core.Configuration;
 
+/// <summary>
+/// 外部规则加载器 — 从项目目录(.trae/.claude/.codex/rules)和用户目录加载 markdown 规则文件
+/// </summary>
 public sealed partial class ExternalRulesLoader
 {
     private readonly IFileSystem _fs;
@@ -16,12 +19,23 @@ public sealed partial class ExternalRulesLoader
         Path.Combine(".codex", "rules")
      };
 
+    /// <summary>
+    /// 初始化外部规则加载器
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">可选的日志记录器</param>
     public ExternalRulesLoader(IFileSystem fs, ILogger<ExternalRulesLoader>? logger = null)
     {
         _fs = fs;
         _logger = logger;
     }
 
+    /// <summary>
+    /// 加载项目级规则 — 从工作目录向上逐级扫描各项目规则目录及用户规则目录
+    /// </summary>
+    /// <param name="workingDirectory">工作目录起点</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>去重后的规则文件列表</returns>
     public async Task<List<RuleFile>> LoadProjectRulesAsync(string workingDirectory, CancellationToken cancellationToken = default)
     {
         var rules = new Dictionary<string, RuleFile>(StringComparer.OrdinalIgnoreCase);
@@ -74,11 +88,22 @@ public sealed partial class ExternalRulesLoader
         return rules.Values.ToList();
     }
 
+    /// <summary>
+    /// 筛选 AlwaysApply 匹配策略的规则
+    /// </summary>
+    /// <param name="rules">规则列表</param>
+    /// <returns>匹配策略为 Always 的规则列表</returns>
     public List<RuleFile> FilterAlwaysApply(List<RuleFile> rules)
     {
         return rules.Where(r => r.MatchStrategy == RuleMatchStrategy.Always).ToList();
     }
 
+    /// <summary>
+    /// 按 glob 模式筛选规则 — 匹配文件名或完整路径
+    /// </summary>
+    /// <param name="rules">规则列表</param>
+    /// <param name="filePath">要匹配的文件路径</param>
+    /// <returns>匹配的规则列表</returns>
     public List<RuleFile> FilterByGlobs(List<RuleFile> rules, string filePath)
     {
         if (string.IsNullOrEmpty(filePath)) return [];
@@ -102,6 +127,11 @@ public sealed partial class ExternalRulesLoader
         return result;
     }
 
+    /// <summary>
+    /// 筛选 Description 匹配策略的规则
+    /// </summary>
+    /// <param name="rules">规则列表</param>
+    /// <returns>匹配策略为 Description 的规则列表</returns>
     public List<RuleFile> FilterByDescription(List<RuleFile> rules)
     {
         return rules.Where(r => r.MatchStrategy == RuleMatchStrategy.Description).ToList();

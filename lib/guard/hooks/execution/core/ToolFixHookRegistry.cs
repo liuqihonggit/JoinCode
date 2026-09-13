@@ -18,6 +18,12 @@ public sealed partial class ToolFixHookRegistry : ServiceEntity
     private readonly ILogger<ToolFixHookRegistry>? _logger;
     private readonly int _threshold;
 
+    /// <summary>
+    /// 构造工具修正 Hook 注册表
+    /// </summary>
+    /// <param name="healthMonitor">工具健康监控器,提供错误计数与自动修正判定</param>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="threshold">触发自动修正的连续失败次数阈值,默认 3 次</param>
     public ToolFixHookRegistry(
         IToolHealthMonitor healthMonitor,
         ILogger<ToolFixHookRegistry>? logger = null,

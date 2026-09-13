@@ -13,8 +13,18 @@ public sealed partial class ConfigurationService : ServiceEntity, IConfiguration
     private readonly IConfigChangeNotifier? _configChangeNotifier;
     private readonly ILogger<ConfigurationService>? _logger;
 
+    /// <summary>
+    /// 设置变更事件 — 当设置被添加、更新或删除时触发
+    /// </summary>
     public event EventHandler<SettingChangeEventArgs>? SettingChanged;
 
+    /// <summary>
+    /// 构造配置服务
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="remoteSettingsService">远程设置服务(可选),用于读取与合并远程设置</param>
+    /// <param name="configChangeNotifier">配置变更通知器(可选),用于标记内部写以避免回声</param>
+    /// <param name="logger">日志记录器(可选)</param>
     public ConfigurationService(IFileSystem fs, IRemoteSettingsService? remoteSettingsService = null, IConfigChangeNotifier? configChangeNotifier = null, ILogger<ConfigurationService>? logger = null)
     {
         _fs = fs;
@@ -23,9 +33,11 @@ public sealed partial class ConfigurationService : ServiceEntity, IConfiguration
         _logger = logger;
     }
 
+    /// <inheritdoc/>
     public Task<string?> GetAsync(string key, CancellationToken cancellationToken = default)
         => GetAsync(key, SettingSource.UserSettings, cancellationToken);
 
+    /// <inheritdoc/>
     public async Task<string?> GetAsync(string key, SettingSource source, CancellationToken cancellationToken = default)
     {
         // 1. 先查内存缓存
@@ -66,12 +78,15 @@ public sealed partial class ConfigurationService : ServiceEntity, IConfiguration
         return value;
     }
 
+    /// <inheritdoc/>
     public Task<bool> SetAsync(string key, string value, CancellationToken cancellationToken = default)
         => SetAsync(key, value, SettingSource.UserSettings, null, cancellationToken);
 
+    /// <inheritdoc/>
     public Task<bool> SetAsync(string key, string value, SettingSource source, CancellationToken cancellationToken = default)
         => SetAsync(key, value, source, null, cancellationToken);
 
+    /// <inheritdoc/>
     public async Task<bool> SetAsync(string key, string value, SettingSource source, string? appStateKey, CancellationToken cancellationToken = default)
     {
         // 获取旧值用于变更通知
@@ -108,6 +123,7 @@ public sealed partial class ConfigurationService : ServiceEntity, IConfiguration
         return true;
     }
 
+    /// <inheritdoc/>
     public async Task<bool> RemoveAsync(string key, CancellationToken cancellationToken = default)
     {
         var oldValue = _configurations.TryGetValue(key, out var existing) ? existing : null;
@@ -133,6 +149,7 @@ public sealed partial class ConfigurationService : ServiceEntity, IConfiguration
         return true;
     }
 
+    /// <inheritdoc/>
     public async Task<Dictionary<string, string>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         var localConfigurations = new Dictionary<string, string>(_configurations);

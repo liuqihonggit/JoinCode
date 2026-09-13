@@ -48,6 +48,7 @@ public sealed partial class SearchScopeValidator : ServiceEntity, ISearchScopeVa
     private volatile FrozenDictionary<string, FrozenSet<string>> _mergedDangerousFlags = BuiltInDangerousFlags;
     private volatile FrozenSet<string> _mergedExcessivePathPrefixes = BuiltInExcessivePathPrefixes;
 
+    /// <inheritdoc/>
     public SearchScopeValidationResult? Validate(ShellCommand command, string workingDirectory)
     {
         if (!_enabled)

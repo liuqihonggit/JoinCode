@@ -332,6 +332,9 @@ public static partial class PsAstParser
     private static readonly FrozenSet<char> AltParamPrefixes = FrozenSet.ToFrozenSet(
         ['/', '\u2013', '\u2014', '\u2015']);
 
+    /// <summary>
+    /// 检查参数是否匹配指定参数名（支持缩写与替代前缀 /、–、—、―）
+    /// </summary>
     public static bool PsHasParamAbbreviation(PsCommandElement cmd, string fullParam, string minPrefix)
     {
         if (CommandHasArgAbbreviation(cmd, fullParam, minPrefix))

@@ -10,6 +10,9 @@ public sealed partial class TeamMemSecretGuard : ServiceEntity, ITeamMemSecretGu
 {
     private readonly string? _teamMemDirectory;
 
+    /// <summary>
+    /// 构造函数 — 注入可选的团队记忆目录路径,未配置时跳过所有检查
+    /// </summary>
     public TeamMemSecretGuard(string? teamMemDirectory = null)
     {
         _teamMemDirectory = teamMemDirectory;

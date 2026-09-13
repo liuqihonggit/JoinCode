@@ -1,5 +1,8 @@
 namespace JoinCode.Abstractions.Security.Shell;
 
+/// <summary>
+/// 命令分类器实现 — 综合只读检测、破坏性检测、路径校验与搜索范围校验对 Shell 命令进行分类
+/// </summary>
 [Register(typeof(ICommandClassifier), ServiceLifetime.Singleton)]
 public sealed partial class CommandClassifier : ServiceEntity, ICommandClassifier
 {
@@ -8,6 +11,13 @@ public sealed partial class CommandClassifier : ServiceEntity, ICommandClassifie
     private readonly IReadOnlyCommandDetector _readOnlyDetector;
     private readonly ISearchScopeValidator? _searchScopeValidator;
 
+    /// <summary>
+    /// 构造命令分类器
+    /// </summary>
+    /// <param name="pathValidator">路径校验器,用于检测命令路径是否越界</param>
+    /// <param name="destructiveDetector">破坏性命令检测器</param>
+    /// <param name="readOnlyDetector">只读命令检测器</param>
+    /// <param name="searchScopeValidator">搜索范围校验器(可选),用于检测搜索命令的作用域是否过大</param>
     public CommandClassifier(
         IPathValidator pathValidator,
         IDestructiveCommandDetector destructiveDetector,
@@ -20,6 +30,7 @@ public sealed partial class CommandClassifier : ServiceEntity, ICommandClassifie
         _searchScopeValidator = searchScopeValidator;
     }
 
+    /// <inheritdoc/>
     public CommandClassification Classify(ShellCommand command, string workingDirectory)
     {
         var risks = new List<CommandRisk>();

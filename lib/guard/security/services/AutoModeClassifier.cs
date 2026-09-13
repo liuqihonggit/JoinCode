@@ -1,31 +1,77 @@
 namespace Core.Security.Services;
 
+/// <summary>
+/// 自动模式分类器接口 — 对工具调用进行安全分类,决定自动批准/需确认/需审批/阻断
+/// </summary>
 public interface IAutoModeClassifier
 {
+    /// <summary>
+    /// 对工具调用请求进行安全分类
+    /// </summary>
     Task<ClassificationResult> ClassifyAsync(ClassificationRequest request, CancellationToken ct = default);
 }
 
+/// <summary>
+/// 分类请求 — 描述待分类的工具调用
+/// </summary>
 public sealed partial class ClassificationRequest
 {
+    /// <summary>工具名称</summary>
     public required string ToolName { get; init; }
+    /// <summary>工具调用参数</summary>
     public required Dictionary<string, JsonElement> Parameters { get; init; }
+    /// <summary>操作类型</summary>
     public required OperationType OperationType { get; init; }
 }
 
+/// <summary>
+/// 分类结果 — 包含安全级别、置信度、原因与建议动作
+/// </summary>
 public sealed partial class ClassificationResult
 {
+    /// <summary>安全分类级别</summary>
     public required SecurityClassification Classification { get; init; }
+    /// <summary>置信度(0.0-1.0)</summary>
     public required double Confidence { get; init; }
+    /// <summary>分类原因</summary>
     public string? Reason { get; init; }
+    /// <summary>建议的安全动作</summary>
     public required SecurityAction Action { get; init; }
 }
 
+/// <summary>
+/// 安全分类级别 — 从安全到危险递增
+/// </summary>
 [JsonConverter(typeof(JsonStringEnumConverter<SecurityClassification>))]
-public enum SecurityClassification { [EnumValue("safe")] Safe, [EnumValue("lowRisk")] LowRisk, [EnumValue("mediumRisk")] MediumRisk, [EnumValue("highRisk")] HighRisk, [EnumValue("dangerous")] Dangerous }
+public enum SecurityClassification {
+    /// <summary>安全 — 无风险操作</summary>
+    [EnumValue("safe")] Safe,
+    /// <summary>低风险 — 可自动批准</summary>
+    [EnumValue("lowRisk")] LowRisk,
+    /// <summary>中风险 — 需确认</summary>
+    [EnumValue("mediumRisk")] MediumRisk,
+    /// <summary>高风险 — 需审批</summary>
+    [EnumValue("highRisk")] HighRisk,
+    /// <summary>危险 — 直接阻止</summary>
+    [EnumValue("dangerous")] Dangerous }
 
+/// <summary>
+/// 安全动作 — 分类器建议的处置方式
+/// </summary>
 [JsonConverter(typeof(JsonStringEnumConverter<SecurityAction>))]
-public enum SecurityAction { [EnumValue("autoApprove")] AutoApprove, [EnumValue("requireConfirmation")] RequireConfirmation, [EnumValue("requireApproval")] RequireApproval, [EnumValue("block")] Block }
+public enum SecurityAction {
+    /// <summary>自动批准 — 无需用户介入</summary>
+    [EnumValue("autoApprove")] AutoApprove,
+    /// <summary>需要确认 — 运行前提示用户确认</summary>
+    [EnumValue("requireConfirmation")] RequireConfirmation,
+    /// <summary>需要审批 — 提交审批流程</summary>
+    [EnumValue("requireApproval")] RequireApproval,
+    /// <summary>阻止 — 拒绝执行</summary>
+    [EnumValue("block")] Block }
 
+/// <summary>
+/// 自动模式分类器实现 — 基于工具名、操作类型、危险命令模式与敏感路径的综合判定
+/// </summary>
 [Register(typeof(IAutoModeClassifier), ServiceLifetime.Singleton)]
 public sealed partial class AutoModeClassifier : ServiceEntity, IAutoModeClassifier
 {
@@ -61,12 +107,16 @@ public sealed partial class AutoModeClassifier : ServiceEntity, IAutoModeClassif
     private readonly ILogger<AutoModeClassifier>? _logger;
     private readonly ITelemetryService? _telemetryService;
 
+    /// <summary>
+    /// 构造自动模式分类器
+    /// </summary>
     public AutoModeClassifier(ILogger<AutoModeClassifier>? logger = null, ITelemetryService? telemetryService = null)
     {
         _logger = logger;
         _telemetryService = telemetryService;
     }
 
+    /// <inheritdoc />
     public Task<ClassificationResult> ClassifyAsync(ClassificationRequest request, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(request);

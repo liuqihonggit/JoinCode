@@ -65,6 +65,10 @@ public sealed partial class HookEventBroadcaster : ServiceEntity, IHookEventBroa
         HookEvent.SessionStart,
         HookEvent.Setup);
 
+    /// <summary>
+    /// 构造函数 — 注入可选的日志记录器
+    /// </summary>
+    /// <param name="logger">可选的日志记录器</param>
     public HookEventBroadcaster(ILogger<HookEventBroadcaster>? logger = null)
     {
         _logger = logger;
@@ -267,6 +271,16 @@ public sealed partial class HookProgressReporter : IHookProgressReporter, IDispo
     private string _lastEmittedOutput = "";
     private bool _disposed;
 
+    /// <summary>
+    /// 构造函数 — 注入广播器、钩子标识、钩子名称、钩子事件、输出获取函数、采样间隔与日志记录器
+    /// </summary>
+    /// <param name="broadcaster">钩子事件广播器</param>
+    /// <param name="hookId">钩子唯一标识</param>
+    /// <param name="hookName">钩子名称</param>
+    /// <param name="hookEvent">钩子事件类型</param>
+    /// <param name="getOutput">获取当前 (stdout, stderr) 输出的函数</param>
+    /// <param name="interval">采样间隔,默认 1 秒</param>
+    /// <param name="logger">可选的日志记录器</param>
     public HookProgressReporter(
         IHookEventBroadcaster broadcaster,
         string hookId,
@@ -349,13 +363,40 @@ public sealed partial class HookProgressReporter : IHookProgressReporter, IDispo
 /// </summary>
 public sealed record BroadcastContext
 {
+    /// <summary>
+    /// 钩子唯一标识
+    /// </summary>
     public required string HookId { get; init; }
+    /// <summary>
+    /// 钩子名称
+    /// </summary>
     public required string HookName { get; init; }
+    /// <summary>
+    /// 钩子事件类型
+    /// </summary>
     public required HookEvent HookEvent { get; init; }
+    /// <summary>
+    /// 可选的聚合输出
+    /// </summary>
     public string? Output { get; init; }
+    /// <summary>
+    /// 标准输出
+    /// </summary>
     public string? Stdout { get; init; }
+    /// <summary>
+    /// 标准错误
+    /// </summary>
     public string? Stderr { get; init; }
+    /// <summary>
+    /// 退出码
+    /// </summary>
     public int? ExitCode { get; init; }
+    /// <summary>
+    /// 执行结果
+    /// </summary>
     public required HookExecutionOutcome Outcome { get; init; }
+    /// <summary>
+    /// 执行耗时
+    /// </summary>
     public required TimeSpan Duration { get; init; }
 }

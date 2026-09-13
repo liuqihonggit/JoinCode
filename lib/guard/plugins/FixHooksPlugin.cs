@@ -10,6 +10,7 @@ public sealed partial class FixHooksPlugin : WorkflowPluginBase
 {
     private ToolFixHookRegistry? _registry;
 
+    /// <summary>初始化工具修正钩子插件</summary>
     public FixHooksPlugin() : base("FixHooks") { }
 
     /// <summary>插件名称</summary>

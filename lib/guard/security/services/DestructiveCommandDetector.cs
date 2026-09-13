@@ -10,6 +10,10 @@ public sealed partial class DestructiveCommandDetector : ServiceEntity, IDestruc
 {
     private readonly ICommandDangerClassifier _classifier;
 
+    /// <summary>
+    /// 初始化破坏性命令检测器
+    /// </summary>
+    /// <param name="classifier">命令危险分类器</param>
     public DestructiveCommandDetector(ICommandDangerClassifier classifier)
     {
         _classifier = classifier;

@@ -11,6 +11,13 @@ public sealed class ModelFetchStartupService
     private readonly ISettingsChangeApplier? _settingsChangeApplier;
     private readonly ILogger<ModelFetchStartupService>? _logger;
 
+    /// <summary>
+    /// 构造模型拉取启动服务
+    /// </summary>
+    /// <param name="fetcher">模型列表拉取器</param>
+    /// <param name="writer">settings.json 模型写入器</param>
+    /// <param name="settingsChangeApplier">设置变更应用器，可为空</param>
+    /// <param name="logger">日志器，可为空</param>
     public ModelFetchStartupService(
         IModelListFetcher fetcher,
         SettingsJsonModelWriter writer,

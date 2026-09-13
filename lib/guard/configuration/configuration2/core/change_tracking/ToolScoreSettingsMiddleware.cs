@@ -8,6 +8,13 @@ namespace Core.Configuration;
 public sealed partial class ToolScoreSettingsMiddleware : ServiceEntity, ISettingsMiddleware
 {
 
+    /// <summary>
+    /// 构造工具评分热重载中间件
+    /// </summary>
+    /// <param name="healthMonitor">工具健康监控器,用于更新黑名单与降权配置</param>
+    /// <param name="hyperedgeReloadable">超图热重载接口,用于更新自定义超边</param>
+    /// <param name="searchScopeReloadable">搜索范围热重载接口,用于更新安全配置</param>
+    /// <param name="logger">日志记录器</param>
     public ToolScoreSettingsMiddleware(IToolHealthMonitor? healthMonitor = null, IHyperedgeReloadable? hyperedgeReloadable = null, ISearchScopeReloadable? searchScopeReloadable = null, ILogger<ToolScoreSettingsMiddleware>? logger = null)
     {
         _healthMonitor = healthMonitor;

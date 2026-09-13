@@ -1,12 +1,21 @@
 namespace Core.Security.Sandbox.Providers;
 
 
+/// <summary>
+/// 软沙箱提供者 — 通过路径重定向实现文件系统隔离,不依赖容器/虚拟化
+/// 沙箱外路径自动重定向到沙箱根目录下,符号链接逃逸时降级重定向
+/// </summary>
 [Register(typeof(SandboxProviderBase), ServiceLifetime.Singleton)]
 public sealed partial class SoftSandboxProvider : SandboxProviderBase
 {
+    /// <inheritdoc />
     public override SandboxType SandboxType => SandboxType.Soft;
+    /// <inheritdoc />
     public override SandboxCapabilities Capabilities => SandboxCapabilities.PathRedirection | SandboxCapabilities.FileSystemIsolation;
 
+    /// <summary>
+    /// 构造函数 — 注入文件系统、可选的日志器、时钟服务和遥测服务
+    /// </summary>
     public SoftSandboxProvider(IFileSystem fs, ILogger<SoftSandboxProvider>? logger = null, IClockService? clock = null, ITelemetryService? telemetryService = null)
         : base(fs, logger, clock ?? SystemClockService.Instance, telemetryService)
     {

@@ -7,6 +7,10 @@ public sealed class GhPrBodyFixHook : IToolFixHook
 {
     private readonly ILogger<GhPrBodyFixHook>? _logger;
 
+    /// <summary>
+    /// 构造 GitHub PR Body 修正 Hook
+    /// </summary>
+    /// <param name="logger">日志记录器</param>
     public GhPrBodyFixHook(ILogger<GhPrBodyFixHook>? logger = null)
     {
         _logger = logger;
@@ -46,6 +50,10 @@ public sealed class JsonFixHook : IToolFixHook
 {
     private readonly ILogger<JsonFixHook>? _logger;
 
+    /// <summary>
+    /// 构造 JSON 格式修正 Hook
+    /// </summary>
+    /// <param name="logger">日志记录器</param>
     public JsonFixHook(ILogger<JsonFixHook>? logger = null)
     {
         _logger = logger;
@@ -85,6 +93,10 @@ public sealed class GhTimeoutFixHook : IToolFixHook
 {
     private readonly ILogger<GhTimeoutFixHook>? _logger;
 
+    /// <summary>
+    /// 构造 GitHub 超时修正 Hook
+    /// </summary>
+    /// <param name="logger">日志记录器</param>
     public GhTimeoutFixHook(ILogger<GhTimeoutFixHook>? logger = null)
     {
         _logger = logger;

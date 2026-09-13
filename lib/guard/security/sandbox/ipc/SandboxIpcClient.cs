@@ -1,6 +1,9 @@
 namespace Core.Security.Sandbox.Ipc;
 
 
+/// <summary>
+/// 沙箱 IPC 客户端 — 通过 stdin/stdout 与沙箱卫星进程进行 JSON 行协议通信,转发执行请求并等待响应
+/// </summary>
 public sealed class SandboxIpcClient : IAsyncDisposable
 {
     private readonly IProcessService _processService;
@@ -18,6 +21,9 @@ public sealed class SandboxIpcClient : IAsyncDisposable
     private Task? _writeConsumerTask;
     private int _disposed;
 
+    /// <summary>
+    /// 初始化沙箱 IPC 客户端实例
+    /// </summary>
     public SandboxIpcClient(IProcessService processService, IFileSystem fs, ILogger<SandboxIpcClient>? logger = null, Func<int, Task>? onSatelliteStarted = null)
     {
         _processService = processService;
@@ -26,10 +32,19 @@ public sealed class SandboxIpcClient : IAsyncDisposable
         _onSatelliteStarted = onSatelliteStarted;
     }
 
+    /// <summary>
+    /// 卫星进程是否正在运行
+    /// </summary>
     public bool IsRunning => _process is not null && !_process.HasExited;
 
+    /// <summary>
+    /// 卫星进程 ID;若未运行则返回 null
+    /// </summary>
     public int? SatelliteProcessId => _process is not null && !_process.HasExited ? _process.Id : null;
 
+    /// <summary>
+    /// 启动沙箱卫星进程并建立读写循环
+    /// </summary>
     public async Task StartAsync(string? satelliteExePath = null, CancellationToken ct = default)
     {
         using (await _startLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_startLock.Name}' 等待超时"))
@@ -70,6 +85,9 @@ public sealed class SandboxIpcClient : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// 通过 IPC 向卫星进程发送执行请求并等待响应
+    /// </summary>
     public async Task<SandboxExecuteResponse> ExecuteAsync(SandboxExecuteRequest request, CancellationToken ct = default)
     {
         EnsureRunning();
@@ -95,6 +113,9 @@ public sealed class SandboxIpcClient : IAsyncDisposable
             ?? throw new InvalidOperationException("Failed to parse execute response");
     }
 
+    /// <summary>
+    /// 向卫星进程发送 ping 请求以检测连通性
+    /// </summary>
     public async Task PingAsync(CancellationToken ct = default)
     {
         EnsureRunning();
@@ -114,6 +135,9 @@ public sealed class SandboxIpcClient : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// 向卫星进程发送 shutdown 请求并关闭读写通道与进程
+    /// </summary>
     public async Task ShutdownAsync(CancellationToken ct = default)
     {
         if (_process is null || _process.HasExited)
@@ -281,6 +305,9 @@ public sealed class SandboxIpcClient : IAsyncDisposable
         throw new FileNotFoundException($"[GRD011] 找不到沙箱卫星程序: {exeName}");
     }
 
+    /// <summary>
+    /// 异步释放客户端,关闭卫星进程并释放所有资源
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;

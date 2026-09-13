@@ -8,12 +8,18 @@ public sealed partial class ProviderValidationMiddleware : ServiceEntity, IConfi
 {
     private readonly IProviderDefinitionRegistry _registry;
 
+    /// <summary>
+    /// 构造供应商验证中间件
+    /// </summary>
     public ProviderValidationMiddleware(IProviderDefinitionRegistry registry)
     {
         _registry = registry;
     }
 
 
+    /// <summary>
+    /// 执行中间件 — 验证当前 Provider 配置是否有效（如必须包含 API Key），通过后调用下一管道
+    /// </summary>
     public Task InvokeAsync(ConfigLoadContext context, MiddlewareDelegate<ConfigLoadContext> next, CancellationToken ct)
     {
         var config = context.Config;

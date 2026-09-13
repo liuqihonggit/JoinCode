@@ -46,6 +46,7 @@ public sealed partial class PathValidator : ServiceEntity, IPathValidator
         "/dev/"
     }.ToFrozenSet();
 
+    /// <inheritdoc />
     public ValidationResult ValidatePaths(ShellCommand command, string workingDirectory)
     {
         if (string.IsNullOrWhiteSpace(workingDirectory))
@@ -85,6 +86,7 @@ public sealed partial class PathValidator : ServiceEntity, IPathValidator
         return ValidationResult.Valid();
     }
 
+    /// <inheritdoc />
     public bool IsPathWithinWorkspace(string path, string workingDirectory)
     {
         if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(workingDirectory))

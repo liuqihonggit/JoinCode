@@ -1,15 +1,28 @@
 namespace Core.Security.Sandbox.Providers;
 
 
+/// <summary>
+/// 进程沙箱提供者 — 基于 Windows JobObject 或 Linux 进程组实现进程级隔离沙箱
+/// </summary>
 [Register(typeof(SandboxProviderBase), ServiceLifetime.Singleton)]
 public sealed partial class ProcessSandboxProvider : SandboxProviderBase
 {
     private readonly IProcessService _processService;
     private readonly ConcurrentDictionary<string, WindowsJobObjectSandbox> _jobObjects = new();
 
+    /// <summary>
+    /// 沙箱类型 — 始终为 <see cref="SandboxType.Process"/>
+    /// </summary>
     public override SandboxType SandboxType => SandboxType.Process;
+
+    /// <summary>
+    /// 沙箱能力 — 支持路径重定向、文件系统隔离、进程隔离、时间限制和内存限制
+    /// </summary>
     public override SandboxCapabilities Capabilities => SandboxCapabilities.PathRedirection | SandboxCapabilities.FileSystemIsolation | SandboxCapabilities.ProcessIsolation | SandboxCapabilities.TimeLimit | SandboxCapabilities.MemoryLimit;
 
+    /// <summary>
+    /// 构造进程沙箱提供者
+    /// </summary>
     public ProcessSandboxProvider(
         IFileSystem fs,
         IProcessService processService,
@@ -21,6 +34,9 @@ public sealed partial class ProcessSandboxProvider : SandboxProviderBase
         _processService = processService;
     }
 
+    /// <summary>
+    /// 当前平台是否支持进程沙箱 — Windows 始终可用，Linux 需检测 cgroup 支持
+    /// </summary>
     public override bool IsAvailable
     {
         get
@@ -63,6 +79,9 @@ public sealed partial class ProcessSandboxProvider : SandboxProviderBase
         await base.OnDestroyAsync(info, ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 在指定沙箱内执行命令 — 通过 cmd.exe/sh -c 执行，注入沙箱环境变量
+    /// </summary>
     public async Task<ProviderExecutionResult> ExecuteInSandboxAsync(
         string sandboxId,
         string command,
@@ -140,8 +159,14 @@ public sealed partial class ProcessSandboxProvider : SandboxProviderBase
         }
     }
 
+    /// <summary>
+    /// 判断指定沙箱是否已关联 Windows JobObject
+    /// </summary>
     internal bool HasJobObject(string sandboxId) => _jobObjects.ContainsKey(sandboxId);
 
+    /// <summary>
+    /// 尝试将外部进程分配到指定沙箱的 JobObject — 仅 Windows 平台有效
+    /// </summary>
     public bool TryAssignProcessToJobObject(string sandboxId, int processId)
     {
         if (_jobObjects.TryGetValue(sandboxId, out var jobObject))
@@ -151,6 +176,7 @@ public sealed partial class ProcessSandboxProvider : SandboxProviderBase
         return false;
     }
 
+    /// <inheritdoc />
     public override Task<ProviderExecutionResult?> ExecuteAsync(string sandboxId, string command, string? workingDirectory, int timeoutMs, CancellationToken ct)
     {
         return ExecuteInSandboxAsync(sandboxId, command, workingDirectory, timeoutMs, ct)

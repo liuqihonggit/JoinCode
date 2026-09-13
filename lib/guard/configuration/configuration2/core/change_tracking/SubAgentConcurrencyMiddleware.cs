@@ -10,6 +10,9 @@ public sealed partial class SubAgentConcurrencyMiddleware : ServiceEntity, ISett
     private readonly ISubAgentConcurrencyUpdater[] _updaters;
     private readonly ILogger<SubAgentConcurrencyMiddleware>? _logger;
 
+    /// <summary>
+    /// 构造函数 — 注入可选的并发更新器集合和日志器
+    /// </summary>
     public SubAgentConcurrencyMiddleware(
         IEnumerable<ISubAgentConcurrencyUpdater>? updaters = null,
         ILogger<SubAgentConcurrencyMiddleware>? logger = null)

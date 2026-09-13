@@ -1,7 +1,15 @@
 namespace Core.Configuration;
 
+/// <summary>
+/// 规则前置元数据解析器 — 从规则原始内容中解析 YAML 风格的前置元数据(alwaysApply/globs/description)
+/// </summary>
 public static class RuleFrontmatterParser
 {
+    /// <summary>
+    /// 解析规则原始内容,分离前置元数据与正文
+    /// </summary>
+    /// <param name="rawContent">规则原始内容,可能包含以 --- 分隔的前置元数据</param>
+    /// <returns>元组: 正文内容、是否总是应用、glob 匹配模式、描述</returns>
     public static (string Content, bool AlwaysApply, string Globs, string Description) Parse(string rawContent)
     {
         if (!rawContent.StartsWith("---", StringComparison.Ordinal))

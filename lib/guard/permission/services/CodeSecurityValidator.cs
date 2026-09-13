@@ -1,6 +1,9 @@
 
 namespace Core.Permission;
 
+/// <summary>
+/// 代码安全验证器实现 — 综合 Shell 命令分类与代码内容危险模式检测,阻止破坏性命令与危险 API 调用
+/// </summary>
 [Register(typeof(ICodeSecurityValidator), ServiceLifetime.Singleton)]
 public sealed partial class CodeSecurityValidator : ServiceEntity, ICodeSecurityValidator
 {
@@ -58,6 +61,12 @@ public sealed partial class CodeSecurityValidator : ServiceEntity, ICodeSecurity
         "System.Convert",
         nameof(System.Console));
 
+    /// <summary>
+    /// 构造代码安全验证器
+    /// </summary>
+    /// <param name="commandClassifier">命令分类器,用于判定 Shell 命令的类别</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="workingDirectory">工作目录(可选),默认使用文件系统当前目录</param>
     public CodeSecurityValidator(
         ICommandClassifier commandClassifier,
         IFileSystem fs,
@@ -68,6 +77,7 @@ public sealed partial class CodeSecurityValidator : ServiceEntity, ICodeSecurity
         _workingDirectory = workingDirectory ?? _fs.GetCurrentDirectory();
     }
 
+    /// <inheritdoc/>
     public ValidationResult Validate(string code, bool allowExternalLibs)
     {
         if (string.IsNullOrWhiteSpace(code))

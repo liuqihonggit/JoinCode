@@ -1,5 +1,8 @@
 namespace Core.Configuration;
 
+/// <summary>
+/// 自定义命令加载器 — 从项目目录(.trae/.claude/.codex/commands)和用户目录加载 markdown 命令文件
+/// </summary>
 public sealed partial class CustomCommandLoader
 {
     private readonly IFileSystem _fs;
@@ -11,12 +14,23 @@ public sealed partial class CustomCommandLoader
         Path.Combine(".codex", "commands")
      };
 
+    /// <summary>
+    /// 初始化自定义命令加载器
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">可选的日志记录器</param>
     public CustomCommandLoader(IFileSystem fs, ILogger<CustomCommandLoader>? logger = null)
     {
         _fs = fs;
         _logger = logger;
     }
 
+    /// <summary>
+    /// 加载项目级自定义命令 — 从工作目录向上逐级扫描各项目命令目录
+    /// </summary>
+    /// <param name="workingDirectory">工作目录起点</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>去重后的自定义命令列表</returns>
     public async Task<List<CustomCommand>> LoadProjectCommandsAsync(string workingDirectory, CancellationToken cancellationToken = default)
     {
         var commands = new List<CustomCommand>();
@@ -46,6 +60,11 @@ public sealed partial class CustomCommandLoader
         return Deduplicate(commands);
     }
 
+    /// <summary>
+    /// 加载用户级自定义命令 — 从用户配置目录扫描命令文件
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>去重后的自定义命令列表</returns>
     public async Task<List<CustomCommand>> LoadUserCommandsAsync(CancellationToken cancellationToken = default)
     {
         var appDataRoot = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);

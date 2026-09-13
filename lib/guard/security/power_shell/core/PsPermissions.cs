@@ -1,8 +1,15 @@
 namespace JoinCode.Guard.Security.PowerShell;
 
+/// <summary>
+/// PowerShell 权限检查核心 — 多阶段决策管道：预解析规则 → AST 解析 → 安全检查 → 子命令规则 → 路径约束 → allow 规则 → 只读白名单 → acceptEdits
+/// </summary>
 public static partial class PsPermissions
 {
     private static readonly ConcurrentDictionary<string, Regex> PrefixPatternCache = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// 检查 PowerShell 命令的权限 — 按 deny &gt; ask &gt; allow &gt; passthrough 优先级归约决策
+    /// </summary>
     public static PsSecurityResult CheckPermission(
         string command,
         string workingDirectory,

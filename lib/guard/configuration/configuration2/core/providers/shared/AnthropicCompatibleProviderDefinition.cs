@@ -19,6 +19,9 @@ public sealed class AnthropicCompatibleProviderDefinition : IProviderDefinition
     /// </summary>
     private const string DefaultAnthropicBeta = "prompt-caching-2024-07-31,prompt-caching-scope-2026-01-05,context-management-2025-06-27";
 
+    /// <summary>
+    /// 构造 Anthropic 兼容协议供应商定义
+    /// </summary>
     public AnthropicCompatibleProviderDefinition(IModelConfigLoader modelConfigLoader, string providerName = VendorKindConstants.Anthropic, string? apiKeyEnvVar = null, string? anthropicBeta = null)
     {
         _modelConfigLoader = modelConfigLoader;
@@ -38,14 +41,23 @@ public sealed class AnthropicCompatibleProviderDefinition : IProviderDefinition
         return null;
     }
 
+    /// <inheritdoc />
     public VendorKind Vendor => VendorKindExtensions.FromValue(_providerName) ?? VendorKind.Anthropic;
+    /// <inheritdoc />
     public ProtocolKind Protocol => ProtocolKind.Anthropic;
+    /// <inheritdoc />
     public string ProviderName => _providerName;
+    /// <inheritdoc />
     public string DisplayName => _providerName;
+    /// <inheritdoc />
     public string DefaultModelId => _modelConfigLoader.GetDefaultModelId(_providerName);
+    /// <inheritdoc />
     public string DefaultFastModelId => _modelConfigLoader.GetDefaultFastModelId(_providerName);
+    /// <inheritdoc />
     public string? DefaultEndpoint => null;
+    /// <inheritdoc />
     public string? ApiKeyEnvironmentVariable => _apiKeyEnvVar ?? ProviderEnvVar.AnthropicApiKey.ToValue();
+    /// <inheritdoc />
     public string? EndpointEnvironmentVariable => null;
 
     /// <summary>
@@ -63,6 +75,7 @@ public sealed class AnthropicCompatibleProviderDefinition : IProviderDefinition
             $"(如 DeepSeek 为 https://api.deepseek.com/anthropic)。");
     }
 
+    /// <inheritdoc />
     public string GetChatEndpoint(ProviderConfig config) => "v1/messages";
 
     /// <summary>
@@ -90,17 +103,27 @@ public sealed class AnthropicCompatibleProviderDefinition : IProviderDefinition
         return Environment.GetEnvironmentVariable(ProviderEnvVar.AnthropicApiKey.ToValue());
     }
 
+    /// <inheritdoc />
     public bool IsValid(ProviderConfig config)
         => !string.IsNullOrWhiteSpace(config.ApiKey) || config.EnableOAuthTokenSupport;
 
+    /// <inheritdoc />
     public bool SupportsWebSearch => true;
 
+    /// <inheritdoc />
     public IEnumerable<ModelEntry> AvailableModels => _modelConfigLoader.GetModels(_providerName);
+    /// <inheritdoc />
     public string? ResolveAlias(string input) => _modelConfigLoader.ResolveAlias(_providerName, input);
+    /// <inheritdoc />
     public bool SupportsFastMode(string modelId) => _modelConfigLoader.SupportsFastMode(_providerName, modelId);
+    /// <inheritdoc />
     public bool SupportsEffort(string modelId) => _modelConfigLoader.SupportsEffort(_providerName, modelId);
+    /// <inheritdoc />
     public bool SupportsMaxEffort(string modelId) => _modelConfigLoader.SupportsMaxEffort(_providerName, modelId);
+    /// <inheritdoc />
     public bool SupportsThinkingMode(string modelId) => _modelConfigLoader.SupportsThinkingMode(_providerName, modelId);
+    /// <inheritdoc />
     public bool SupportsModality(string modelId, ModelModalityKind modality) => _modelConfigLoader.SupportsModality(_providerName, modelId, modality);
+    /// <inheritdoc />
     public ModelModalityKind GetModalities(string modelId) => _modelConfigLoader.GetModalities(_providerName, modelId);
 }

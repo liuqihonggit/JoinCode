@@ -173,6 +173,9 @@ public class OperationPattern : DescribedRule
     /// </summary>
     public string Pattern { get => Value; set => Value = value; }
 
+    /// <summary>
+    /// 匹配类型
+    /// </summary>
     public PatternType PatternType { get; set; } = PatternType.Contains;
 }
 
@@ -186,6 +189,9 @@ public class SensitivePathPattern : DescribedRule
     /// </summary>
     public string Path { get => Value; set => Value = value; }
 
+    /// <summary>
+    /// 路径匹配类型
+    /// </summary>
     public PathType PathType { get; set; } = PathType.Contains;
 }
 
@@ -205,10 +211,15 @@ public class DangerousCommandPattern : DescribedRule
 /// </summary>
 public enum PatternType
 {
+    /// <summary>包含匹配 — 模式出现在目标中即匹配</summary>
     [EnumValue("contains")] Contains,
+    /// <summary>前缀匹配 — 目标以模式开头</summary>
     [EnumValue("startsWith")] StartsWith,
+    /// <summary>后缀匹配 — 目标以模式结尾</summary>
     [EnumValue("endsWith")] EndsWith,
+    /// <summary>精确匹配 — 目标与模式完全相同</summary>
     [EnumValue("exact")] Exact,
+    /// <summary>正则匹配 — 使用正则表达式</summary>
     [EnumValue("regex")] Regex
 }
 
@@ -217,8 +228,11 @@ public enum PatternType
 /// </summary>
 public enum PathType
 {
+    /// <summary>包含匹配 — 路径包含模式串</summary>
     [EnumValue("contains")] Contains,
+    /// <summary>前缀匹配 — 路径以模式开头</summary>
     [EnumValue("startsWith")] StartsWith,
+    /// <summary>特殊文件夹 — 系统特殊文件夹路径</summary>
     [EnumValue("specialFolder")] SpecialFolder
 }
 

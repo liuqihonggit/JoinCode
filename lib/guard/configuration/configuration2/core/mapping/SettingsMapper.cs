@@ -10,6 +10,7 @@ public sealed partial class SettingsMapper : ServiceEntity
 {
     private readonly IProviderDefinitionRegistry _registry;
 
+    /// <summary>构造函数 — 注入 Provider 定义注册表</summary>
     public SettingsMapper(IProviderDefinitionRegistry registry)
     {
         _registry = registry;

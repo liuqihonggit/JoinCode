@@ -8,6 +8,9 @@ namespace Core.Configuration;
 public sealed partial class PermissionCacheMiddleware : ServiceEntity, ISettingsMiddleware
 {
 
+    /// <summary>
+    /// 构造权限缓存清除中间件
+    /// </summary>
     public PermissionCacheMiddleware(IToolPermissionManager? toolPermissionManager = null)
     {
         _toolPermissionManager = toolPermissionManager;

@@ -1,16 +1,24 @@
 
 namespace Core.Security.Scanners;
 
+/// <summary>
+/// Git 密钥扫描器 — 检测暂存文件名与差异内容中的敏感信息与密钥泄露
+/// </summary>
 [Register(typeof(IGitSecretScanner), ServiceLifetime.Singleton)]
 public sealed partial class GitSecretScanner : ServiceEntity, IGitSecretScanner
 {
 
+    /// <summary>
+    /// 构造函数 — 注入日志记录器
+    /// </summary>
+    /// <param name="logger">日志记录器</param>
     public GitSecretScanner(ILogger<GitSecretScanner> logger)
     {
         _logger = logger;
     }
     private readonly ILogger<GitSecretScanner> _logger;
 
+    /// <inheritdoc />
     public Task<ScanResult> ScanFileNamesAsync(IReadOnlyList<string> stagedFiles, CancellationToken ct = default)
     {
         var findings = new List<SecretFinding>();
@@ -38,6 +46,7 @@ public sealed partial class GitSecretScanner : ServiceEntity, IGitSecretScanner
         return Task.FromResult(ScanResult.Blocked(findings));
     }
 
+    /// <inheritdoc />
     public Task<ScanResult> ScanContentAsync(string diffOutput, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(diffOutput))

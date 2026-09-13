@@ -253,20 +253,9 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
         sb.AppendLine("        }.ToFrozenDictionary();");
         sb.AppendLine();
         sb.AppendLine("    /// <summary>");
-        sb.AppendLine("    /// 所有斜杠命令的元数据列表,从 ByCategory 派生并缓存(不单独维护冗余列表)。");
-        sb.AppendLine("    /// </summary>");
-        sb.AppendLine("    private static readonly IReadOnlyList<SlashCommandMetadata> _commands =");
-        sb.AppendLine("        _byCategory.SelectMany(g => g.Value).OrderBy(c => c.Name).ToArray();");
-        sb.AppendLine();
-        sb.AppendLine("    /// <summary>");
         sb.AppendLine("    /// 按 Category 预分组的命令字典,编译时生成,O(1) 查找。");
         sb.AppendLine("    /// </summary>");
         sb.AppendLine("    public IReadOnlyDictionary<string, IReadOnlyList<SlashCommandMetadata>> ByCategory => _byCategory;");
-        sb.AppendLine();
-        sb.AppendLine("    /// <summary>");
-        sb.AppendLine("    /// 所有斜杠命令的元数据列表。");
-        sb.AppendLine("    /// </summary>");
-        sb.AppendLine("    public IReadOnlyList<SlashCommandMetadata> Commands => _commands;");
         sb.AppendLine("}");
 
         context.AddSource("GeneratedSlashCommandCatalog.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));

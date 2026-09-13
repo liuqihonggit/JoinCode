@@ -84,7 +84,8 @@ internal static class TuiModeRunner
         // Tab 补全命令列表 — 从 ISlashCommandCatalog 获取（源码生成器生成的命令元数据）
         // 斜杠命令执行链路已收敛到共享 SlashCommandRunner（按需自行解析/注册命令表）
         var slashCatalog = services.GetService<ISlashCommandCatalog>();
-        var slashCommands = slashCatalog?.Commands
+        var slashCommands = slashCatalog?.ByCategory
+            .SelectMany(g => g.Value)
             .Where(c => !c.IsHidden && c.IsEnabled)
             .Select(c => c.Name)
             .OrderBy(n => n)

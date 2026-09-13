@@ -34,9 +34,6 @@ public sealed record SlashCommandMetadata
 /// </summary>
 public interface ISlashCommandCatalog
 {
-    /// <summary>全部斜杠命令元数据（含隐藏命令；消费方按 IsHidden 自行过滤）</summary>
-    IReadOnlyList<SlashCommandMetadata> Commands { get; }
-
     /// <summary>按 Category 预分组的命令字典（编译时生成,O(1) 查找）;消费方按分类取列表无需每次 GroupBy。</summary>
     IReadOnlyDictionary<string, IReadOnlyList<SlashCommandMetadata>> ByCategory { get; }
 }

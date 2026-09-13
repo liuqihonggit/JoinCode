@@ -1,9 +1,15 @@
 namespace Core.Plugins;
 
+/// <summary>
+/// 插件卸载选项 — 控制协作卸载超时和超时后是否强制卸载 ALC
+/// </summary>
 public sealed class PluginUnloadOptions {
+    /// <summary>协作卸载超时时间 — 等待插件自清理的最长时间</summary>
     public TimeSpan CooperativeTimeout { get; init; } = TimeSpan.FromSeconds(5);
+    /// <summary>超时后是否强制卸载 ALC（AssemblyLoadContext）</summary>
     public bool ForceAlcUnloadOnTimeout { get; init; } = true;
 
+    /// <summary>默认卸载选项（5秒超时，强制卸载）</summary>
     public static readonly PluginUnloadOptions Default = new();
 
     /// <summary>

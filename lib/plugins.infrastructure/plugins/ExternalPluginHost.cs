@@ -12,14 +12,25 @@ public sealed class ExternalPluginHost : PluginResourceBase
     private bool _isUnloaded;
     private bool _wasForceKilled;
 
+    /// <summary>插件名称</summary>
     public string PluginName => _pluginName;
+    /// <summary>外部进程 ID</summary>
     public int ProcessId => _process.Id;
+    /// <summary>外部进程是否仍在运行</summary>
     public bool IsRunning => !_process.HasExited;
+    /// <summary>外部插件可执行文件路径</summary>
     public string ExePath { get; }
 
     /// <summary>是否被强制终止 — 卸载泄漏信号,用于黑名单判定</summary>
     public bool WasForceKilled => _wasForceKilled;
 
+    /// <summary>
+    /// 构造外部插件宿主
+    /// </summary>
+    /// <param name="pluginName">插件名称</param>
+    /// <param name="process">外部插件进程（已启动）</param>
+    /// <param name="exePath">可执行文件路径</param>
+    /// <param name="logger">可选日志器</param>
     public ExternalPluginHost(string pluginName, Process process, string exePath, ILogger? logger = null)
         : base(pluginName, PluginResourceKind.Hook, pluginName)
     {
@@ -124,6 +135,9 @@ public sealed class ExternalPluginHost : PluginResourceBase
         }
     }
 
+    /// <summary>
+    /// 资源释放回调 — 若尚未卸载则执行卸载，并关闭进程句柄
+    /// </summary>
     protected override void OnResourceDispose()
     {
         if (!_isUnloaded)

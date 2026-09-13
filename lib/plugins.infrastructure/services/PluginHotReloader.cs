@@ -1,23 +1,49 @@
 namespace Core.Plugins;
 
+/// <summary>
+/// 插件热重载服务接口 — 监控插件目录变更，自动卸载并重新加载插件
+/// </summary>
 public interface IPluginHotReloader : IAsyncDisposable
 {
+    /// <summary>启动对指定插件目录的监控</summary>
     Task StartWatchingAsync(string pluginDirectory, CancellationToken ct = default);
+    /// <summary>停止监控</summary>
     Task StopWatchingAsync(CancellationToken ct = default);
+    /// <summary>是否正在监控</summary>
     bool IsWatching { get; }
+    /// <summary>插件重载开始事件</summary>
     event EventHandler<PluginReloadEventArgs>? PluginReloading;
+    /// <summary>插件重载完成事件</summary>
     event EventHandler<PluginReloadEventArgs>? PluginReloaded;
 }
 
+/// <summary>
+/// 插件重载事件参数 — 包含插件名称、路径和重载原因
+/// </summary>
 public sealed partial class PluginReloadEventArgs : EventArgs
 {
+    /// <summary>插件名称</summary>
     public required string PluginName { get; init; }
+    /// <summary>插件文件路径</summary>
     public required string PluginPath { get; init; }
+    /// <summary>重载原因</summary>
     public required ReloadReason Reason { get; init; }
 }
 
+/// <summary>
+/// 插件重载原因 — 文件变更、创建、删除或手动触发
+/// </summary>
 [JsonConverter(typeof(JsonStringEnumConverter<ReloadReason>))]
-public enum ReloadReason { FileChanged, FileCreated, FileDeleted, Manual }
+public enum ReloadReason {
+    /// <summary>文件内容变更</summary>
+    FileChanged,
+    /// <summary>文件创建</summary>
+    FileCreated,
+    /// <summary>文件删除</summary>
+    FileDeleted,
+    /// <summary>手动触发</summary>
+    Manual
+}
 
 /// <summary>
 /// PluginHotReloader Actor 命令 — Channel 中的消息类型
@@ -44,6 +70,13 @@ public sealed partial class PluginHotReloader : ActorBase<IPluginReloadCommand, 
     private IFileSystemWatcher? _watcher;
     private volatile int _isWatchingInt;
 
+    /// <summary>
+    /// 构造插件热重载服务
+    /// </summary>
+    /// <param name="pluginManager">插件管理器</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">可选日志器</param>
+    /// <param name="telemetryService">可选遥测服务</param>
     public PluginHotReloader(
         IPluginManager pluginManager,
         IFileSystem fs,
@@ -57,9 +90,12 @@ public sealed partial class PluginHotReloader : ActorBase<IPluginReloadCommand, 
         _telemetryService = telemetryService;
     }
 
+    /// <summary>是否正在监控</summary>
     public bool IsWatching => _isWatchingInt != 0;
 
+    /// <summary>插件重载开始事件</summary>
     public event EventHandler<PluginReloadEventArgs>? PluginReloading;
+    /// <summary>插件重载完成事件</summary>
     public event EventHandler<PluginReloadEventArgs>? PluginReloaded;
 
     /// <summary>
@@ -274,11 +310,18 @@ public sealed partial class PluginHotReloader : ActorBase<IPluginReloadCommand, 
         }
     }
 
+    /// <summary>
+    /// Actor Consumer 异常回调 — 记录日志
+    /// </summary>
+    /// <param name="ex">Consumer 抛出的异常</param>
     protected override void OnConsumerError(Exception ex)
     {
         _logger?.LogError(ex, "[PluginHotReloader] Actor Consumer 异常");
     }
 
+    /// <summary>
+    /// 异步释放 — 停止监控并释放资源
+    /// </summary>
     public async override ValueTask DisposeAsync()
     {
         await base.DisposeAsync().ConfigureAwait(false);

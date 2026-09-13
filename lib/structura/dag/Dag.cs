@@ -11,8 +11,11 @@ public sealed class Dag<T>
     private readonly Dictionary<string, HashSet<string>> _reverseAdjacency = new(StringComparer.Ordinal);
     private int _version;
 
+    /// <summary>所有节点的只读视图(键=节点 ID)</summary>
     public IReadOnlyDictionary<string, DagNode<T>> Nodes => _nodes;
+    /// <summary>所有边的只读视图(键=边 ID)</summary>
     public IReadOnlyDictionary<string, DagEdge> Edges => _edges;
+    /// <summary>图版本号,每次结构变更(增删节点/边)递增</summary>
     public int Version => _version;
 
     /// <summary>

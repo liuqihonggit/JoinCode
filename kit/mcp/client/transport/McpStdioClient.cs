@@ -20,6 +20,15 @@ public sealed class McpStdioClient : McpClientBase
     private CancellationTokenSource? _writeCts;
     private Task? _writeConsumerTask;
 
+    /// <summary>
+    /// 构造 McpStdioClient 实例。
+    /// </summary>
+    /// <param name="config">服务器连接配置,Endpoint 指定可执行命令行。</param>
+    /// <param name="options">客户端选项,为 null 时使用默认值。</param>
+    /// <param name="logger">日志记录器。</param>
+    /// <param name="telemetryService">遥测服务,用于记录连接与请求指标。</param>
+    /// <param name="clock">时钟服务,为 null 时使用系统时钟。</param>
+    /// <param name="processService">进程服务,为 null 时使用默认工厂创建。</param>
     public McpStdioClient(McpServerConnectionConfig config, McpClientOptions? options = null, ILogger? logger = null, ITelemetryService? telemetryService = null, IClockService? clock = null, IProcessService? processService = null)
         : base(options ?? new McpClientOptions(), logger)
     {
@@ -30,6 +39,11 @@ public sealed class McpStdioClient : McpClientBase
         ServerName = _config.Name;
     }
 
+    /// <summary>
+    /// 异步连接到 MCP 服务器 — 启动子进程、建立读写循环并执行 MCP 握手。
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>表示异步连接操作的任务。</returns>
     public override async Task ConnectAsync(CancellationToken cancellationToken = default)
     {
         if (IsConnected)
@@ -136,6 +150,11 @@ public sealed class McpStdioClient : McpClientBase
         return (endpoint[..firstSpace], endpoint[(firstSpace + 1)..]);
     }
 
+    /// <summary>
+    /// 异步断开与 MCP 服务器的连接 — 清理读写循环、子进程与所有资源。
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>表示异步断开操作的任务。</returns>
     public override async Task DisconnectAsync(CancellationToken cancellationToken = default)
     {
         if (!IsConnected)
@@ -311,6 +330,10 @@ public sealed class McpStdioClient : McpClientBase
         });
     }
 
+    /// <summary>异步发送 JSON-RPC 请求 — 通过写通道排队发送,等待响应或超时,并记录遥测指标。</summary>
+    /// <param name="request">JSON-RPC 请求对象。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>服务器返回的 JSON-RPC 响应。</returns>
     protected override async Task<JsonRpcResponse> SendRequestAsync(JsonRpcRequest request, CancellationToken cancellationToken)
     {
         if (_stdinWriter == null)
@@ -356,6 +379,10 @@ public sealed class McpStdioClient : McpClientBase
         }
     }
 
+    /// <summary>异步发送 JSON-RPC 通知 — 通过写通道排队发送,无需响应。</summary>
+    /// <param name="notification">JSON-RPC 通知对象。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>表示异步操作的任务。</returns>
     protected override async Task SendNotificationAsync(JsonRpcNotification notification, CancellationToken cancellationToken)
     {
         if (_stdinWriter == null)
@@ -377,6 +404,10 @@ public sealed class McpStdioClient : McpClientBase
         _telemetryService?.RecordCount("mcp.request.count", tags, "count", "MCP request count");
     }
 
+    /// <summary>
+    /// 异步释放客户端资源 — 断开连接、释放遥测 span 与请求注册表。
+    /// </summary>
+    /// <returns>表示异步释放操作的任务。</returns>
     public override async ValueTask DisposeAsync()
     {
         await DisconnectAsync();

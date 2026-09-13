@@ -7,6 +7,7 @@ namespace JoinCode.Mcp.Plugins;
 [Register(typeof(IWorkflowPlugin), ServiceLifetime.Singleton)]
 public sealed partial class McpInitPlugin : WorkflowPluginBase
 {
+    /// <summary>构造 McpInitPlugin 实例 — 基类命名为 "McpInit"。</summary>
     public McpInitPlugin() : base("McpInit") { }
 
     /// <summary>插件名称</summary>

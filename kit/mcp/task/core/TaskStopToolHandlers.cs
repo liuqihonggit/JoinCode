@@ -1,5 +1,8 @@
 namespace McpToolDispatch;
 
+/// <summary>
+/// 任务停止工具处理器 — 提供停止后台任务、批量停止、列出运行中任务等功能
+/// </summary>
 [McpToolDispatch(ToolCategory.Task, Optional = true)]
 public partial class TaskStopToolHandlers
 {
@@ -7,6 +10,12 @@ public partial class TaskStopToolHandlers
     private readonly IAgentService _agentCoordinator;
     private readonly ILogger<TaskStopToolHandlers>? _logger;
 
+    /// <summary>
+    /// 初始化 <see cref="TaskStopToolHandlers"/> 实例
+    /// </summary>
+    /// <param name="taskService">任务服务</param>
+    /// <param name="agentCoordinator">智能体协调服务</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public TaskStopToolHandlers(
         ITaskService taskService,
         IAgentService agentCoordinator,
@@ -17,6 +26,13 @@ public partial class TaskStopToolHandlers
         _logger = logger;
     }
 
+    /// <summary>
+    /// 按 ID 停止运行中的后台任务
+    /// </summary>
+    /// <param name="task_id">要停止的后台任务 ID</param>
+    /// <param name="shell_id">已废弃：请使用 task_id（KillShell 兼容）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(TaskToolNameConstants.TaskStop, "Stop a running background task by ID", "task")]
     public async Task<ToolResult> StopTaskAsync(
         [McpToolParameter("The ID of the background task to stop")] string? task_id = null,
@@ -76,6 +92,12 @@ public partial class TaskStopToolHandlers
         }
     }
 
+    /// <summary>
+    /// 批量停止多个运行中任务
+    /// </summary>
+    /// <param name="task_ids">逗号分隔的任务 ID 列表</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(TaskToolNameConstants.TaskStopBatch, "Stop multiple running tasks", "task")]
     public async Task<ToolResult> StopTasksBatchAsync(
         [McpToolParameter("Comma-separated task IDs")] string task_ids,
@@ -120,6 +142,12 @@ public partial class TaskStopToolHandlers
         return builder.WithText(sb.ToString()).Build();
     }
 
+    /// <summary>
+    /// 列出所有运行中任务
+    /// </summary>
+    /// <param name="type">类型过滤：task/agent/all（默认 all）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(TaskToolNameConstants.TaskListRunning, "List all running tasks", "task")]
     public async Task<ToolResult> ListRunningTasksAsync(
         [McpToolParameter("Filter by type: task/agent/all", Required = false)] string? type = "all",

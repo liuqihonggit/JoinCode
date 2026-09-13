@@ -1,9 +1,22 @@
 namespace McpClient;
 
+/// <summary>
+/// MCP 请求头辅助方法 — 提供动态请求头获取和请求头合并功能
+/// </summary>
 public static class McpHeadersHelper
 {
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(10);
 
+    /// <summary>
+    /// 执行 headersHelper 命令获取动态请求头 — 通过子进程执行命令，解析 JSON 输出为请求头字典
+    /// </summary>
+    /// <param name="serverName">MCP 服务器名称</param>
+    /// <param name="serverUrl">MCP 服务器 URL</param>
+    /// <param name="headersHelper">获取请求头的命令</param>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <param name="processService">进程服务（可选，默认使用工厂创建）</param>
+    /// <returns>动态请求头字典；执行失败或返回空时为 null</returns>
     public static async Task<Dictionary<string, string>?> GetDynamicHeadersAsync(
         string serverName,
         string serverUrl,
@@ -81,6 +94,12 @@ public static class McpHeadersHelper
         }
     }
 
+    /// <summary>
+    /// 合并静态请求头和动态请求头 — 动态请求头优先级高于静态请求头
+    /// </summary>
+    /// <param name="staticHeaders">静态请求头（可选）</param>
+    /// <param name="dynamicHeaders">动态请求头（可选）</param>
+    /// <returns>合并后的请求头字典</returns>
     public static Dictionary<string, string> CombineHeaders(
         Dictionary<string, string>? staticHeaders,
         Dictionary<string, string>? dynamicHeaders)

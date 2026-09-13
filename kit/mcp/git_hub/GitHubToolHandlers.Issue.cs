@@ -5,6 +5,9 @@ namespace McpToolDispatch;
 /// </summary>
 public partial class GitHubToolHandlers
 {
+    /// <summary>
+    /// 列出 Issue — 支持状态/标签/指派人过滤，表格格式输出
+    /// </summary>
     [McpTool(GitHubToolNameConstants.GhIssueList, "列出 Issue(支持状态/标签/指派人过滤)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhIssueListAsync(
         [McpToolParameter("状态(open/closed/all,默认 open)", Required = false)] string? state = null,
@@ -29,6 +32,9 @@ public partial class GitHubToolHandlers
         return Ok(SummarizeIssueList(result.Body));
     }
 
+    /// <summary>
+    /// 查看 Issue 详情 — 调 REST API 获取 Issue 信息，verbose=true 返回完整 JSON（从缓存读），默认精简输出
+    /// </summary>
     [McpTool(GitHubToolNameConstants.GhIssueView, "查看 Issue 详情", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhIssueViewAsync(
         [McpToolParameter("Issue 编号或 URL", Required = true)] string issue_number,
@@ -59,6 +65,9 @@ public partial class GitHubToolHandlers
         return Ok(verbose == true ? result.Body : SummarizeIssue(result.Body));
     }
 
+    /// <summary>
+    /// 创建 Issue — 支持标签/指派人，调 REST API POST
+    /// </summary>
     [McpTool(GitHubToolNameConstants.GhIssueCreate, "创建 Issue(支持标签/指派人)", "github")]
     public async Task<ToolResult> GhIssueCreateAsync(
         [McpToolParameter("Issue 标题", Required = true)] string title,
@@ -97,6 +106,9 @@ public partial class GitHubToolHandlers
         return result.Success ? Ok(result.Body, "Issue 创建成功") : Fail(result.Error);
     }
 
+    /// <summary>
+    /// 关闭 Issue — 可选附评论，调 REST API PATCH state=closed
+    /// </summary>
     [McpTool(GitHubToolNameConstants.GhIssueClose, "关闭 Issue(可附评论)", "github")]
     public async Task<ToolResult> GhIssueCloseAsync(
         [McpToolParameter("Issue 编号或 URL", Required = true)] string issue_number,
@@ -122,6 +134,9 @@ public partial class GitHubToolHandlers
         return result.Success ? Ok(result.Body, $"已关闭 Issue {number}") : Fail(result.Error);
     }
 
+    /// <summary>
+    /// 评论 Issue — 调 REST API POST comments 端点
+    /// </summary>
     [McpTool(GitHubToolNameConstants.GhIssueComment, "评论 Issue", "github")]
     public async Task<ToolResult> GhIssueCommentAsync(
         [McpToolParameter("Issue 编号或 URL", Required = true)] string issue_number,

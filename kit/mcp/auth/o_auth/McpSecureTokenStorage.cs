@@ -1,6 +1,10 @@
 
 namespace McpClient;
 
+/// <summary>
+/// 安全令牌存储 — AES 加密持久化 OAuth 令牌到本地文件
+/// <para>密钥派生自机器名+用户名（PBKDF2-SHA256），跨机器/用户隔离</para>
+/// </summary>
 public sealed partial class McpSecureTokenStorage
 {
     private readonly IFileSystem _fs;
@@ -8,6 +12,12 @@ public sealed partial class McpSecureTokenStorage
     private readonly string _storagePath;
     private readonly byte[] _encryptionKey;
 
+    /// <summary>
+    /// 创建 McpSecureTokenStorage 实例
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="storagePath">存储文件路径</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public McpSecureTokenStorage(IFileSystem fs, string storagePath, ILogger<McpSecureTokenStorage>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(fs);
@@ -18,6 +28,12 @@ public sealed partial class McpSecureTokenStorage
         _encryptionKey = DeriveKey();
     }
 
+    /// <summary>
+    /// 异步保存键值对（值经 AES 加密后持久化）
+    /// </summary>
+    /// <param name="key">键名</param>
+    /// <param name="value">明文值</param>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task SaveAsync(string key, string value, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
@@ -37,6 +53,12 @@ public sealed partial class McpSecureTokenStorage
         _logger?.LogDebug("安全存储已保存: {Key}", key);
     }
 
+    /// <summary>
+    /// 异步加载并解密指定键的值
+    /// </summary>
+    /// <param name="key">键名</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>解密后的明文值；键不存在或解密失败返回 null</returns>
     public async Task<string?> LoadAsync(string key, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
@@ -58,6 +80,12 @@ public sealed partial class McpSecureTokenStorage
         }
     }
 
+    /// <summary>
+    /// 异步删除指定键值对
+    /// </summary>
+    /// <param name="key">键名</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>删除成功返回 true；键不存在返回 false</returns>
     public async Task<bool> DeleteAsync(string key, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);

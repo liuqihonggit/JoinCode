@@ -6,8 +6,11 @@ namespace McpToolRegistry;
 /// </summary>
 public enum RemoteSyncOperation
 {
+    /// <summary>工具同步</summary>
     Tools,
+    /// <summary>资源同步</summary>
     Resources,
+    /// <summary>提示模板同步</summary>
     Prompts
 }
 

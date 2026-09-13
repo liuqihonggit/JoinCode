@@ -32,6 +32,12 @@ public sealed partial class HttpTransport : TransportBase, IMcpTransport
     /// <summary>运行时是否无状态(StatelessMode 显式开启 或 服务器未分配 MCP-Session-Id)</summary>
     public bool IsStateless => _options.StatelessMode || string.IsNullOrEmpty(_sessionId);
 
+    /// <summary>
+    /// 创建 HTTP 传输实例
+    /// </summary>
+    /// <param name="options">HTTP 传输选项(端点、请求头、协议版本等)</param>
+    /// <param name="authProvider">认证提供者,用于获取认证令牌;可为 null</param>
+    /// <param name="logger">日志记录器,可为 null</param>
     public HttpTransport(HttpTransportOptions options, IMcpAuthProvider? authProvider = null, ILogger<HttpTransport>? logger = null)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
@@ -51,6 +57,12 @@ public sealed partial class HttpTransport : TransportBase, IMcpTransport
             ErrorOccurred?.Invoke(this, new McpTransportErrorEventArgs { Exception = e.Exception });
     }
 
+    /// <summary>
+    /// 从服务器连接配置创建 HTTP 传输实例 — 自动将 Auth 配置转换为请求头
+    /// </summary>
+    /// <param name="config">服务器连接配置</param>
+    /// <param name="authProvider">认证提供者,用于获取认证令牌;可为 null</param>
+    /// <param name="logger">日志记录器,可为 null</param>
     public HttpTransport(McpServerConnectionConfig config, IMcpAuthProvider? authProvider = null, ILogger<HttpTransport>? logger = null)
         : this(CreateOptionsFromConfig(config), authProvider, logger)
     {

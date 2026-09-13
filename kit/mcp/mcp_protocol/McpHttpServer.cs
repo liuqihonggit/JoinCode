@@ -264,6 +264,7 @@ public sealed class McpHttpServer : ServiceEntity
         return await reader.ReadToEndAsync(ct).ConfigureAwait(false);
     }
 
+    /// <summary>释放资源 — 停止监听器、释放取消令牌并关闭 HttpListener。</summary>
     protected override void OnDispose()
     {
         Stop();

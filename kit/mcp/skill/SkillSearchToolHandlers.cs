@@ -2,18 +2,35 @@
 
 namespace McpToolDispatch;
 
+/// <summary>
+/// 技能搜索处理器 — 提供技能搜索、推荐和发现功能
+/// </summary>
 [McpToolDispatch(ToolCategory.Skill, Optional = true)]
 public sealed partial class SkillSearchToolHandlers
 {
     private readonly JoinCode.Abstractions.Interfaces.ISkillSearchService _searchService;
     private readonly ILogger<SkillSearchToolHandlers>? _logger;
 
+    /// <summary>
+    /// 初始化 <see cref="SkillSearchToolHandlers"/> 实例
+    /// </summary>
+    /// <param name="searchService">技能搜索服务</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public SkillSearchToolHandlers(JoinCode.Abstractions.Interfaces.ISkillSearchService searchService, ILogger<SkillSearchToolHandlers>? logger = null)
     {
         _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
         _logger = logger;
     }
 
+    /// <summary>
+    /// 搜索可用技能
+    /// </summary>
+    /// <param name="keyword">搜索关键词（可选）</param>
+    /// <param name="tags">标签过滤（逗号分隔）</param>
+    /// <param name="category">分类过滤</param>
+    /// <param name="max_results">最大结果数（默认 10）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(SkillToolNameConstants.SkillSearch, "Search available skills", "skill")]
     public async Task<ToolResult> SkillSearchAsync(
         [McpToolParameter("Search keyword", Required = false)] string? keyword = null,
@@ -65,6 +82,13 @@ public sealed partial class SkillSearchToolHandlers
         }
     }
 
+    /// <summary>
+    /// 基于上下文推荐技能
+    /// </summary>
+    /// <param name="context">上下文描述</param>
+    /// <param name="max_results">最大结果数（默认 5）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(SkillToolNameConstants.SkillRecommend, "Recommend skills based on context", "skill")]
     public async Task<ToolResult> SkillRecommendAsync(
         [McpToolParameter("Context description")] string context,

@@ -1,29 +1,53 @@
 
 namespace McpClient;
 
+/// <summary>
+/// MCP Channel 通知处理器 — 接收并分发 Channel 消息和权限响应通知
+/// </summary>
 public sealed partial class McpChannelNotificationHandler
 {
     private readonly ILogger<McpChannelNotificationHandler>? _logger;
     private readonly ConcurrentDictionary<string, TaskCompletionSource<ChannelPermissionResponse>> _pendingRequests = new();
 
+    /// <summary>接收到 Channel 消息时触发</summary>
     public event EventHandler<McpChannelMessageEventArgs>? ChannelMessageReceived;
+    /// <summary>接收到 Channel 权限响应时触发</summary>
     public event EventHandler<McpChannelPermissionResponseEventArgs>? PermissionResponseReceived;
 
+    /// <summary>
+    /// 初始化 MCP Channel 通知处理器
+    /// </summary>
+    /// <param name="logger">日志记录器（可选）</param>
     public McpChannelNotificationHandler(ILogger<McpChannelNotificationHandler>? logger = null)
     {
         _logger = logger;
     }
 
+    /// <summary>
+    /// 判断服务器能力是否支持 Channel（基于 ServerCapabilities）
+    /// </summary>
+    /// <param name="capabilities">服务器能力声明</param>
+    /// <returns>当前实现始终返回 false（保留接口）</returns>
     public static bool SupportsChannel(ServerCapabilities? capabilities)
     {
         return false;
     }
 
+    /// <summary>
+    /// 判断服务器能力是否支持 Channel 权限（基于 ServerCapabilities）
+    /// </summary>
+    /// <param name="capabilities">服务器能力声明</param>
+    /// <returns>当前实现始终返回 false（保留接口）</returns>
     public static bool SupportsChannelPermission(ServerCapabilities? capabilities)
     {
         return false;
     }
 
+    /// <summary>
+    /// 判断服务器能力是否支持 Channel（基于 experimental 扩展字段）
+    /// </summary>
+    /// <param name="capabilitiesExperimental">experimental 能力 JSON 元素</param>
+    /// <returns>若存在 "claude/channel" 字段返回 true；否则 false</returns>
     public static bool SupportsChannel(JsonElement? capabilitiesExperimental)
     {
         if (capabilitiesExperimental == null) return false;
@@ -41,6 +65,11 @@ public sealed partial class McpChannelNotificationHandler
         }
     }
 
+    /// <summary>
+    /// 判断服务器能力是否支持 Channel 权限（基于 experimental 扩展字段）
+    /// </summary>
+    /// <param name="capabilitiesExperimental">experimental 能力 JSON 元素</param>
+    /// <returns>若存在 "claude/channel/permission" 字段返回 true；否则 false</returns>
     public static bool SupportsChannelPermission(JsonElement? capabilitiesExperimental)
     {
         if (capabilitiesExperimental == null) return false;
@@ -58,6 +87,11 @@ public sealed partial class McpChannelNotificationHandler
         }
     }
 
+    /// <summary>
+    /// 处理 Channel 消息通知，解析 content 和 meta 后触发 <see cref="ChannelMessageReceived"/> 事件
+    /// </summary>
+    /// <param name="serverName">来源服务器名称</param>
+    /// <param name="Params">通知参数 JSON 元素</param>
     public void HandleChannelNotification(string serverName, JsonElement? Params)
     {
         if (Params == null) return;
@@ -97,6 +131,11 @@ public sealed partial class McpChannelNotificationHandler
         });
     }
 
+    /// <summary>
+    /// 处理 Channel 权限响应通知，完成对应的等待任务并触发 <see cref="PermissionResponseReceived"/> 事件
+    /// </summary>
+    /// <param name="serverName">来源服务器名称</param>
+    /// <param name="Params">通知参数 JSON 元素（含 request_id 和 behavior）</param>
     public void HandleChannelPermissionNotification(string serverName, JsonElement? Params)
     {
         if (Params == null) return;
@@ -136,6 +175,13 @@ public sealed partial class McpChannelNotificationHandler
         });
     }
 
+    /// <summary>
+    /// 异步等待指定请求 ID 的权限响应，超时或取消时返回 null
+    /// </summary>
+    /// <param name="requestId">请求标识</param>
+    /// <param name="timeout">等待超时时间</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>权限响应；超时或取消时返回 null</returns>
     public async Task<ChannelPermissionResponse?> WaitForPermissionResponseAsync(string requestId, TimeSpan timeout, CancellationToken cancellationToken = default)
     {
         var tcs = new TaskCompletionSource<ChannelPermissionResponse>();
@@ -153,6 +199,13 @@ public sealed partial class McpChannelNotificationHandler
         }
     }
 
+    /// <summary>
+    /// 将 Channel 消息包装为 XML 格式字符串，meta 字段作为 XML 属性输出
+    /// </summary>
+    /// <param name="serverName">来源服务器名称</param>
+    /// <param name="content">消息内容</param>
+    /// <param name="meta">元数据键值对（可选，仅合法 XML 属性名会被输出）</param>
+    /// <returns>包装后的 XML 字符串</returns>
     public static string WrapChannelMessage(string serverName, string content, Dictionary<string, string>? meta)
     {
         var sb = new System.Text.StringBuilder();
@@ -195,23 +248,41 @@ public sealed partial class McpChannelNotificationHandler
     }
 }
 
+/// <summary>
+/// Channel 消息事件参数
+/// </summary>
 public sealed partial class McpChannelMessageEventArgs : EventArgs
 {
+    /// <summary>来源服务器名称</summary>
     public required string ServerName { get; init; }
+    /// <summary>消息内容</summary>
     public required string Content { get; init; }
+    /// <summary>消息元数据</summary>
     public Dictionary<string, string> Meta { get; init; } = [];
+    /// <summary>包装后的 XML 消息</summary>
     public required string XmlMessage { get; init; }
 }
 
+/// <summary>
+/// Channel 权限响应事件参数
+/// </summary>
 public sealed partial class McpChannelPermissionResponseEventArgs : EventArgs
 {
+    /// <summary>请求标识</summary>
     public required string RequestId { get; init; }
+    /// <summary>权限行为（allow/deny 等）</summary>
     public required string Behavior { get; init; }
+    /// <summary>来源服务器名称</summary>
     public required string FromServer { get; init; }
 }
 
+/// <summary>
+/// Channel 权限响应数据
+/// </summary>
 public sealed partial class ChannelPermissionResponse
 {
+    /// <summary>权限行为（allow/deny 等）</summary>
     public required string Behavior { get; init; }
+    /// <summary>来源服务器名称</summary>
     public required string FromServer { get; init; }
 }

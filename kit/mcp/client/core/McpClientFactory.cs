@@ -1,9 +1,18 @@
 
 namespace McpClient;
 
+/// <summary>
+/// MCP 客户端工厂 — 根据连接配置创建对应传输类型的 MCP 客户端实例,支持回退链构建。
+/// </summary>
 [Register(typeof(IMcpClientFactory), ServiceLifetime.Singleton)]
 public sealed partial class McpClientFactory : ServiceEntity, IMcpClientFactory
 {
+    /// <summary>
+    /// 根据连接配置创建 MCP 客户端实例 — 按 TransportType 选择 Stdio/Http/WebSocket 客户端。
+    /// </summary>
+    /// <param name="config">服务器连接配置。</param>
+    /// <param name="logger">日志记录器。</param>
+    /// <returns>对应传输类型的 IMcpClient 实例。</returns>
     public IMcpClient CreateClient(McpServerConnectionConfig config, ILogger? logger = null)
     {
         ArgumentNullException.ThrowIfNull(config);
@@ -17,11 +26,25 @@ public sealed partial class McpClientFactory : ServiceEntity, IMcpClientFactory
         };
     }
 
+    /// <summary>
+    /// 根据连接配置创建 MCP 客户端实例 — 可选启用回退链。
+    /// </summary>
+    /// <param name="config">服务器连接配置。</param>
+    /// <param name="enableFallback">是否启用回退链,true 时创建带回退的客户端。</param>
+    /// <param name="logger">日志记录器。</param>
+    /// <returns>对应传输类型的 IMcpClient 实例。</returns>
     public IMcpClient CreateClient(McpServerConnectionConfig config, bool enableFallback, ILogger? logger = null)
     {
         return enableFallback ? CreateClientWithFallback(config, logger: logger) : CreateClient(config, logger);
     }
 
+    /// <summary>
+    /// 创建带传输回退链的 MCP 客户端 — 主传输故障时自动切换到健康备用传输。
+    /// </summary>
+    /// <param name="config">服务器连接配置。</param>
+    /// <param name="fallbackConfig">回退策略配置,为 null 时从环境变量读取。</param>
+    /// <param name="logger">日志记录器。</param>
+    /// <returns>带回退链的 McpFallbackClient 实例。</returns>
     public IMcpClient CreateClientWithFallback(
         McpServerConnectionConfig config,
         TransportFallbackConfig? fallbackConfig = null,

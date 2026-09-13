@@ -2,18 +2,32 @@
 
 namespace McpToolDispatch;
 
+/// <summary>
+/// 上下文检查工具处理器 — 提供当前上下文窗口使用情况的检查功能
+/// </summary>
 [McpToolDispatch(ToolCategory.Context, Optional = true)]
 public partial class CtxInspectToolHandlers
 {
     private readonly IChatContextManager _contextManager;
     private readonly ILogger<CtxInspectToolHandlers>? _logger;
 
+    /// <summary>
+    /// 初始化 <see cref="CtxInspectToolHandlers"/> 实例
+    /// </summary>
+    /// <param name="contextManager">聊天上下文管理器</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public CtxInspectToolHandlers(IChatContextManager contextManager, ILogger<CtxInspectToolHandlers>? logger = null)
     {
         _contextManager = contextManager ?? throw new ArgumentNullException(nameof(contextManager));
         _logger = logger;
     }
 
+    /// <summary>
+    /// 检查当前上下文窗口使用情况
+    /// </summary>
+    /// <param name="inspect_type">检查类型：summary/detailed/layers（可选，默认 summary）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(SystemToolNameConstants.CtxInspect, "Inspect current context window usage", "context")]
     public async Task<ToolResult> InspectContextAsync(
         [McpToolParameter("Inspection type: summary/detailed/layers (optional, default summary)", Required = false)] string? inspect_type = "summary",

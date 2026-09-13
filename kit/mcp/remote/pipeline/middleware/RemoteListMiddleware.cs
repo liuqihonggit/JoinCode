@@ -8,14 +8,26 @@ namespace McpToolRegistry;
 public sealed partial class RemoteListMiddleware : ServiceEntity, IRemoteSyncMiddleware
 {
 
+    /// <summary>
+    /// 初始化 <see cref="RemoteListMiddleware"/> 实例
+    /// </summary>
+    /// <param name="logger">日志记录器</param>
     public RemoteListMiddleware(ILogger<RemoteListMiddleware> logger)
     {
         _logger = logger;
     }
     private readonly ILogger<RemoteListMiddleware> _logger;
 
+    /// <summary>错误行为：继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
+    /// <summary>
+    /// 执行中间件逻辑 — 调用 ListTools/ListResources/ListPrompts 获取远程列表
+    /// </summary>
+    /// <param name="ctx">远程同步上下文</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>异步任务</returns>
     public async Task InvokeAsync(RemoteSyncContext ctx, MiddlewareDelegate<RemoteSyncContext> next, CancellationToken ct)
     {
         if (ctx.Client is null)

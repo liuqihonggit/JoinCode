@@ -1,7 +1,16 @@
 namespace McpToolRegistry;
 
+/// <summary>
+/// MCP 重连策略 — 根据工具漂移报告和接受级别决策是否接受同步结果
+/// </summary>
 public static class McpReconnectPolicy
 {
+    /// <summary>
+    /// 根据漂移报告和接受级别决策是否接受同步
+    /// </summary>
+    /// <param name="driftReport">工具漂移报告</param>
+    /// <param name="acceptLevel">重连接受级别</param>
+    /// <returns>重连决策结果</returns>
     public static McpReconnectResult Decide(ToolDriftReport driftReport, McpReconnectAcceptLevel acceptLevel)
     {
         ArgumentNullException.ThrowIfNull(driftReport);

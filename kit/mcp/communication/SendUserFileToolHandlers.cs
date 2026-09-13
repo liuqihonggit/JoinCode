@@ -2,6 +2,9 @@
 
 namespace McpToolDispatch;
 
+/// <summary>
+/// 发送用户文件工具处理器 — 提供文件发送、预览、下载链接生成功能
+/// </summary>
 [McpToolDispatch(ToolCategory.FileTransfer, Optional = true)]
 public partial class SendUserFileToolHandlers
 {
@@ -9,6 +12,12 @@ public partial class SendUserFileToolHandlers
     private readonly IFileTransferService? _transferService;
     private readonly IFileSystem _fs;
 
+    /// <summary>
+    /// 初始化发送用户文件工具处理器
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="transferService">文件传输服务（可选）</param>
     public SendUserFileToolHandlers(IFileSystem fs, ILogger<SendUserFileToolHandlers>? logger = null, IFileTransferService? transferService = null)
     {
         ArgumentNullException.ThrowIfNull(fs);
@@ -17,6 +26,15 @@ public partial class SendUserFileToolHandlers
         _fs = fs;
     }
 
+    /// <summary>
+    /// 发送文件供用户查看或下载 — 支持终端预览、下载链接生成
+    /// </summary>
+    /// <param name="file_path">文件路径</param>
+    /// <param name="description">发送描述（可选）</param>
+    /// <param name="preview">是否在终端预览（可选，默认 true）</param>
+    /// <param name="generate_link">是否生成下载链接（可选，默认 false）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(SystemToolNameConstants.SendUserFile, "Send file for user to view or download", "file")]
     public async Task<ToolResult> SendUserFileAsync(
         [McpToolParameter("File path")] string file_path,

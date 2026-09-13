@@ -16,6 +16,11 @@ public sealed partial class McpOAuthMetadataDiscovery
     // RFC 8414: Authorization Server Metadata well-known 路径
     private const string AsWellKnownPath = "/.well-known/oauth-authorization-server";
 
+    /// <summary>
+    /// 创建 McpOAuthMetadataDiscovery 实例
+    /// </summary>
+    /// <param name="httpClient">HTTP 客户端（为 null 时走 HttpClientProviderFactory fallback）</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public McpOAuthMetadataDiscovery(HttpClient? httpClient = null, ILogger<McpOAuthMetadataDiscovery>? logger = null)
     {
         // P1-6: fallback 走 HttpClientProviderFactory（支持 JCC_HTTP_MODE=Mock 切换，对齐主程序 IHttpClientProvider 抽象）
@@ -27,6 +32,10 @@ public sealed partial class McpOAuthMetadataDiscovery
     /// 发现 OAuth 授权服务器元数据 — 对齐 TS fetchAuthServerMetadata
     /// 优先级: 用户配置 URL > RFC 9728→8414 链式发现 > 回退路径
     /// </summary>
+    /// <param name="serverUrl">服务器 URL</param>
+    /// <param name="configuredMetadataUrl">用户配置的元数据 URL（可选，最高优先级）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>授权服务器元数据；发现失败返回 null</returns>
     public async Task<OAuthAuthorizationServerMetadata?> DiscoverAsync(
         string serverUrl,
         string? configuredMetadataUrl = null,
@@ -60,6 +69,9 @@ public sealed partial class McpOAuthMetadataDiscovery
     /// 发现 Protected Resource Metadata — 对齐 TS discoverProtectedResource
     /// RFC 9728: GET /.well-known/oauth-protected-resource
     /// </summary>
+    /// <param name="serverUrl">受保护资源的服务器 URL</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>PRM 元数据；发现失败或 resource 不匹配返回 null</returns>
     public async Task<OAuthProtectedResourceMetadata?> DiscoverProtectedResourceAsync(
         string serverUrl,
         CancellationToken cancellationToken = default)
@@ -108,6 +120,9 @@ public sealed partial class McpOAuthMetadataDiscovery
     /// 发现 Authorization Server Metadata — 对齐 TS discoverAuthorizationServer
     /// RFC 8414: GET /.well-known/oauth-authorization-server
     /// </summary>
+    /// <param name="asUrl">授权服务器 URL</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>AS 元数据；发现失败、issuer 不匹配或 token_endpoint 非 HTTPS 返回 null</returns>
     public async Task<OAuthAuthorizationServerMetadata?> DiscoverAuthorizationServerAsync(
         string asUrl,
         CancellationToken cancellationToken = default)

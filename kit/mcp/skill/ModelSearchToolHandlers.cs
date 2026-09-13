@@ -12,12 +12,24 @@ public partial class ModelSearchToolHandlers
     private readonly IModelConfigLoader _modelConfigLoader;
     private readonly ILogger<ModelSearchToolHandlers>? _logger;
 
+    /// <summary>
+    /// 初始化 <see cref="ModelSearchToolHandlers"/> 实例
+    /// </summary>
+    /// <param name="modelConfigLoader">模型配置加载器</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public ModelSearchToolHandlers(IModelConfigLoader modelConfigLoader, ILogger<ModelSearchToolHandlers>? logger = null)
     {
         _modelConfigLoader = modelConfigLoader ?? throw new ArgumentNullException(nameof(modelConfigLoader));
         _logger = logger;
     }
 
+    /// <summary>
+    /// 按功能→型号渐进式查找模型表，用于模态不匹配时寻找支持目标功能的模型
+    /// </summary>
+    /// <param name="query">查找查询：'list_groups' 列出功能分组；'map[功能Key]' 列出支持该功能的模型；'map[功能Key][vendor]' 按 vendor 过滤；关键词模糊搜索模型名/显示名</param>
+    /// <param name="max_results">最大结果数（可选，默认 20）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(SystemToolNameConstants.ModelSearch, "按功能→型号渐进式查找模型表，用于模态不匹配时寻找支持目标功能的模型", "system")]
     public Task<ToolResult> SearchModelsAsync(
         [McpToolParameter("查找查询：'list_groups' 列出功能分组；'map[功能Key]' 列出支持该功能的模型（如 map[generateImage]）；'map[功能Key][vendor]' 按 vendor 过滤；关键词模糊搜索模型名/显示名")] string query,

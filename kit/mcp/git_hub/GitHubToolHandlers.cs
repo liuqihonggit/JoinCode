@@ -48,6 +48,15 @@ public partial class GitHubToolHandlers
     /// </summary>
     private static readonly string CacheDirName = Path.Combine(AppDataConstants.AppDataFolder, "gh_cache");
 
+    /// <summary>
+    /// 创建 GitHubToolHandlers 实例
+    /// </summary>
+    /// <param name="downloader">文件下载器（Release asset 下载用）</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="pipeline">统一持久化管道（异步写缓存文件）</param>
+    /// <param name="apiClient">GitHub REST API 客户端（可选，未注入时 API 工具返回未配置错误）</param>
+    /// <param name="git">git 命令执行器（可选，未注入时 clone/checkout 等本地 git 工具返回错误）</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public GitHubToolHandlers(
         IDownloader downloader,
         IFileSystem fs,

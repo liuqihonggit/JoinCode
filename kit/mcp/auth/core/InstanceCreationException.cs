@@ -22,6 +22,10 @@ public sealed class InstanceCreationException : WorkflowException
     /// <summary>
     /// 创建 InstanceCreationException
     /// </summary>
+    /// <param name="message">异常消息</param>
+    /// <param name="targetType">目标类型（可选）</param>
+    /// <param name="strategy">创建策略（可选）</param>
+    /// <param name="context">异常上下文（可选）</param>
     public InstanceCreationException(
         string message,
         Type? targetType = null,
@@ -36,6 +40,11 @@ public sealed class InstanceCreationException : WorkflowException
     /// <summary>
     /// 创建 InstanceCreationException（带内部异常）
     /// </summary>
+    /// <param name="message">异常消息</param>
+    /// <param name="innerException">内部异常</param>
+    /// <param name="targetType">目标类型（可选）</param>
+    /// <param name="strategy">创建策略（可选）</param>
+    /// <param name="context">异常上下文（可选）</param>
     public InstanceCreationException(
         string message,
         Exception innerException,
@@ -51,6 +60,8 @@ public sealed class InstanceCreationException : WorkflowException
     /// <summary>
     /// 创建抽象类或接口实例化异常
     /// </summary>
+    /// <param name="type">无法实例化的类型</param>
+    /// <returns>InstanceCreationException 实例</returns>
     public static InstanceCreationException AbstractOrInterface(Type type)
     {
         return new InstanceCreationException(
@@ -62,6 +73,9 @@ public sealed class InstanceCreationException : WorkflowException
     /// <summary>
     /// 创建缺少构造函数异常
     /// </summary>
+    /// <param name="type">目标类型</param>
+    /// <param name="strategy">使用的创建策略</param>
+    /// <returns>InstanceCreationException 实例</returns>
     public static InstanceCreationException MissingConstructor(Type type, InstanceCreationStrategy strategy)
     {
         return new InstanceCreationException(
@@ -73,6 +87,9 @@ public sealed class InstanceCreationException : WorkflowException
     /// <summary>
     /// 创建构造函数调用失败异常
     /// </summary>
+    /// <param name="type">目标类型</param>
+    /// <param name="innerException">构造函数抛出的异常</param>
+    /// <returns>InstanceCreationException 实例</returns>
     public static InstanceCreationException ConstructorFailed(Type type, Exception innerException)
     {
         return new InstanceCreationException(

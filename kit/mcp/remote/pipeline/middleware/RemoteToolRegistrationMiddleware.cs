@@ -8,6 +8,11 @@ namespace McpToolRegistry;
 public sealed partial class RemoteToolRegistrationMiddleware : ServiceEntity, IRemoteSyncMiddleware
 {
 
+    /// <summary>
+    /// 初始化 <see cref="RemoteToolRegistrationMiddleware"/> 实例
+    /// </summary>
+    /// <param name="toolRegistry">工具注册表</param>
+    /// <param name="logger">日志记录器</param>
     public RemoteToolRegistrationMiddleware(IToolRegistry toolRegistry, ILogger<RemoteToolRegistrationMiddleware> logger)
     {
         _toolRegistry = toolRegistry;
@@ -16,8 +21,16 @@ public sealed partial class RemoteToolRegistrationMiddleware : ServiceEntity, IR
     private readonly IToolRegistry _toolRegistry;
     private readonly ILogger<RemoteToolRegistrationMiddleware> _logger;
 
+    /// <summary>错误行为：继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
+    /// <summary>
+    /// 执行中间件逻辑 — 仅 Tools 操作时注册工具到注册表并更新缓存
+    /// </summary>
+    /// <param name="ctx">远程同步上下文</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>异步任务</returns>
     public async Task InvokeAsync(RemoteSyncContext ctx, MiddlewareDelegate<RemoteSyncContext> next, CancellationToken ct)
     {
         if (ctx.Operation != RemoteSyncOperation.Tools || ctx.Client is null || ctx.ToolsResult is null)

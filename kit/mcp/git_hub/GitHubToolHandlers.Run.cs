@@ -6,6 +6,9 @@ namespace McpToolDispatch;
 /// </summary>
 public partial class GitHubToolHandlers
 {
+    /// <summary>
+    /// 列出 Actions Run — 支持状态/分支过滤，发现失败 run 时附排障步骤提示
+    /// </summary>
     [McpTool(GitHubToolNameConstants.GhRunList, "列出 Actions Run(支持状态/分支过滤)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRunListAsync(
         [McpToolParameter("数量限制(默认 20)", Required = false)] int? limit = null,
@@ -75,6 +78,9 @@ public partial class GitHubToolHandlers
         }
     }
 
+    /// <summary>
+    /// 查看 Run 详情/日志 — 支持 expand 按步骤展开（两级缓存跨进程）、filter 按标记过滤、skip_lines 分页续读、refresh 强制刷新
+    /// </summary>
     [McpTool(GitHubToolNameConstants.GhRunView, "查看 Run 详情/日志(expand 按步骤展开+文件级缓存跨进程,filter 按标记过滤,skip_lines 分页续读,refresh 强制刷新)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRunViewAsync(
         [McpToolParameter("Run ID", Required = true)] string run_id,
@@ -1391,6 +1397,9 @@ public partial class GitHubToolHandlers
         return first.Length <= 60 ? first : first[..60] + "...";
     }
 
+    /// <summary>
+    /// 重跑 Actions Run — 默认只重跑失败的 job，调 REST API POST rerun-failed-jobs 或 rerun
+    /// </summary>
     [McpTool(GitHubToolNameConstants.GhRunRerun, "重跑 Actions Run(默认只重跑失败的 job)", "github")]
     public async Task<ToolResult> GhRunRerunAsync(
         [McpToolParameter("Run ID", Required = true)] string run_id,
@@ -1411,6 +1420,9 @@ public partial class GitHubToolHandlers
         return result.Success ? Ok(result.Body, $"已重跑 Run {run_id}") : Fail(result.Error);
     }
 
+    /// <summary>
+    /// 取消 Actions Run — 调 REST API POST cancel
+    /// </summary>
     [McpTool(GitHubToolNameConstants.GhRunCancel, "取消 Actions Run", "github")]
     public async Task<ToolResult> GhRunCancelAsync(
         [McpToolParameter("Run ID", Required = true)] string run_id,

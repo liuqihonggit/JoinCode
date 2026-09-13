@@ -1,5 +1,8 @@
 namespace McpToolRegistry;
 
+/// <summary>
+/// 远程 MCP 客户端管理器 — 管理远程客户端的注册、注销、同步、重连等生命周期，并通过中间件管道编排同步流程
+/// </summary>
 [Register(typeof(IRemoteClientManager), ServiceLifetime.Singleton)]
 public sealed partial class RemoteClientManager : IRemoteClientManager
 {
@@ -18,10 +21,23 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
     private readonly INetworkConnectivityService? _networkService;
     private int _disposed;
 
+    /// <summary>工具列表变更通知事件</summary>
     public event EventHandler<ToolsListChangedEventArgs>? ToolsListChanged;
+    /// <summary>资源列表变更通知事件</summary>
     public event EventHandler<ResourcesListChangedEventArgs>? ResourcesListChanged;
+    /// <summary>提示模板列表变更通知事件</summary>
     public event EventHandler<PromptsListChangedEventArgs>? PromptsListChanged;
 
+    /// <summary>
+    /// 初始化 <see cref="RemoteClientManager"/> 实例
+    /// </summary>
+    /// <param name="toolRegistry">工具注册表</param>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="loggerFactory">日志工厂（可选，用于管道日志作用域）</param>
+    /// <param name="acceptLevel">重连接受级别（默认 IdentityOnly）</param>
+    /// <param name="syncMiddlewares">同步中间件集合（可选）</param>
+    /// <param name="clock">时钟服务（可选，默认系统时钟）</param>
+    /// <param name="networkService">网络连通性服务（可选）</param>
     public RemoteClientManager(
         IToolRegistry toolRegistry,
         ILogger<RemoteClientManager> logger,
@@ -348,6 +364,12 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
             _remoteClients.ToFrozenDictionary(kvp => kvp.Key, kvp => kvp.Value.Client));
     }
 
+    /// <summary>
+    /// 从远程客户端同步工具列表（异步）
+    /// </summary>
+    /// <param name="clientId">客户端 ID</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具同步结果</returns>
     public async Task<RemoteToolsSyncResult> SyncToolsAsync(
         string clientId,
         CancellationToken cancellationToken = default)

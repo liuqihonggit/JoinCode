@@ -16,11 +16,21 @@ public sealed partial class StdioTransport : TransportBase, IMcpTransport
     /// <summary>IMcpTransport: 传输错误（隐藏基类同名事件，使用 MCP 专用参数类型）</summary>
     public new event EventHandler<McpTransportErrorEventArgs>? ErrorOccurred;
 
+    /// <summary>
+    /// 创建 Stdio 传输实例 — 使用 Console 标准输入输出流
+    /// </summary>
+    /// <param name="logger">日志记录器,可为 null</param>
     public StdioTransport(ILogger<StdioTransport>? logger = null)
         : this(new StreamReader(System.Console.OpenStandardInput()), new StreamWriter(System.Console.OpenStandardOutput()) { AutoFlush = true }, logger)
     {
     }
 
+    /// <summary>
+    /// 创建 Stdio 传输实例 — 注入自定义输入输出流(用于测试或子进程管道)
+    /// </summary>
+    /// <param name="input">输入文本读取器</param>
+    /// <param name="output">输出文本写入器</param>
+    /// <param name="logger">日志记录器,可为 null</param>
     public StdioTransport(TextReader input, TextWriter output, ILogger<StdioTransport>? logger = null)
     {
         _input = input ?? throw new ArgumentNullException(nameof(input));

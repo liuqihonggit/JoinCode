@@ -5,6 +5,9 @@ namespace McpToolDispatch;
 /// </summary>
 public partial class GitHubToolHandlers
 {
+    /// <summary>
+    /// 查看 PR 详情 — 调 REST API 获取 PR 信息，verbose=true 返回完整 JSON（从缓存读），默认精简输出
+    /// </summary>
     [McpTool(GitHubToolNameConstants.GhPrView, "查看 PR 详情(号/标题/状态/URL/body/变更统计)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhPrViewAsync(
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
@@ -35,6 +38,9 @@ public partial class GitHubToolHandlers
         return Ok(verbose == true ? result.Body : SummarizePr(result.Body));
     }
 
+    /// <summary>
+    /// 列出 PR — 支持状态/数量/作者过滤，表格格式输出
+    /// </summary>
     [McpTool(GitHubToolNameConstants.GhPrList, "列出 PR(支持状态/数量/作者过滤)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhPrListAsync(
         [McpToolParameter("状态(open/closed/merged/all,默认 open)", Required = false)] string? state = null,
@@ -57,6 +63,9 @@ public partial class GitHubToolHandlers
         return Ok(SummarizePrList(result.Body));
     }
 
+    /// <summary>
+    /// 查看 PR diff — 调 REST API 获取 PR 的 diff_url 后下载 patch 文本
+    /// </summary>
     [McpTool(GitHubToolNameConstants.GhPrDiff, "查看 PR diff(patch 文本)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhPrDiffAsync(
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
@@ -91,6 +100,9 @@ public partial class GitHubToolHandlers
         return diffResult.Success ? Ok(diffResult.Body) : Fail(diffResult.Error);
     }
 
+    /// <summary>
+    /// 查看 PR 的 CI 检查状态 — 调 REST API 获取 check-runs，正确处理 skipping 语义（非失败）
+    /// </summary>
     [McpTool(GitHubToolNameConstants.GhPrChecks, "查看 PR 的 CI 检查状态(pass/fail/pending/skipping,skipping 非失败)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhPrChecksAsync(
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
@@ -147,6 +159,9 @@ public partial class GitHubToolHandlers
         return Ok(sb.ToString());
     }
 
+    /// <summary>
+    /// 合并 PR — 支持 squash/merge/rebase 方式和 auto-merge（CI 通过后自动合并），可选删除分支
+    /// </summary>
     [McpTool(GitHubToolNameConstants.GhPrMerge, "合并 PR(支持 squash/merge/rebase + auto-merge)", "github")]
     public async Task<ToolResult> GhPrMergeAsync(
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
@@ -205,6 +220,9 @@ public partial class GitHubToolHandlers
         return Ok(result.Body, "PR 合并成功");
     }
 
+    /// <summary>
+    /// 检出 PR 分支到本地 — 走 git fetch + checkout，分支名格式 pr-{number}
+    /// </summary>
     [McpTool(GitHubToolNameConstants.GhPrCheckout, "检出 PR 分支到本地", "github")]
     public async Task<ToolResult> GhPrCheckoutAsync(
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
@@ -222,6 +240,9 @@ public partial class GitHubToolHandlers
         return checkoutResult.Success ? Ok(checkoutResult.Output, $"已检出 PR {number}") : Fail(checkoutResult.Error);
     }
 
+    /// <summary>
+    /// 关闭 PR — 可选附评论，调 REST API PATCH state=closed
+    /// </summary>
     [McpTool(GitHubToolNameConstants.GhPrClose, "关闭 PR(可附评论)", "github")]
     public async Task<ToolResult> GhPrCloseAsync(
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
@@ -247,6 +268,9 @@ public partial class GitHubToolHandlers
         return result.Success ? Ok(result.Body, $"已关闭 PR {number}") : Fail(result.Error);
     }
 
+    /// <summary>
+    /// 重新打开 PR — 调 REST API PATCH state=open
+    /// </summary>
     [McpTool(GitHubToolNameConstants.GhPrReopen, "重新打开 PR", "github")]
     public async Task<ToolResult> GhPrReopenAsync(
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
@@ -265,6 +289,9 @@ public partial class GitHubToolHandlers
         return result.Success ? Ok(result.Body, $"已重开 PR {number}") : Fail(result.Error);
     }
 
+    /// <summary>
+    /// 创建 PR — 支持 title/head/base/body/draft，调 REST API POST
+    /// </summary>
     [McpTool(GitHubToolNameConstants.GhPrCreate, "创建 PR(支持 title/head/base/body/draft)", "github")]
     public async Task<ToolResult> GhPrCreateAsync(
         [McpToolParameter("PR 标题", Required = true)] string title,

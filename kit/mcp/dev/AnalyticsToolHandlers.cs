@@ -10,6 +10,10 @@ public class AnalyticsToolHandlers
 {
     private readonly IAnalyticsService _analyticsService;
 
+    /// <summary>
+    /// 初始化 <see cref="AnalyticsToolHandlers"/> 实例
+    /// </summary>
+    /// <param name="analyticsService">分析服务</param>
     public AnalyticsToolHandlers(IAnalyticsService analyticsService)
     {
         _analyticsService = analyticsService ?? throw new ArgumentNullException(nameof(analyticsService));

@@ -7,6 +7,10 @@ namespace McpClient.Mcpb;
 public sealed partial class McpbManifestMiddleware : ServiceEntity, IMcpbMiddleware
 {
 
+    /// <summary>
+    /// 初始化 MCPB 清单解析中间件
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
     public McpbManifestMiddleware(IFileSystem fs)
     {
         _fs = fs;
@@ -14,6 +18,13 @@ public sealed partial class McpbManifestMiddleware : ServiceEntity, IMcpbMiddlew
     private readonly IFileSystem _fs;
 
 
+    /// <summary>
+    /// 执行清单解析中间件：读取并解析 manifest.json，构建最终加载结果
+    /// </summary>
+    /// <param name="context">MCPB 加载上下文</param>
+    /// <param name="next">下一个中间件委托</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task InvokeAsync(McpbLoadContext context, MiddlewareDelegate<McpbLoadContext> next, CancellationToken ct)
     {
         var extractPath = context.ExtractPath;

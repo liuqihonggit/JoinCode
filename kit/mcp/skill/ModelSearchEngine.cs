@@ -14,10 +14,19 @@ public sealed record ModelSearchEntry(
 /// </summary>
 public sealed class ModelSearchResult
 {
+    /// <summary>输出行列表</summary>
     public IReadOnlyList<string> Lines { get; }
+    /// <summary>是否为分组列表结果</summary>
     public bool IsGroupList { get; }
+    /// <summary>是否为模型列表结果</summary>
     public bool IsModelList { get; }
 
+    /// <summary>
+    /// 初始化 <see cref="ModelSearchResult"/> 实例
+    /// </summary>
+    /// <param name="lines">输出行列表</param>
+    /// <param name="isGroupList">是否为分组列表结果</param>
+    /// <param name="isModelList">是否为模型列表结果</param>
     public ModelSearchResult(IReadOnlyList<string> lines, bool isGroupList = false, bool isModelList = false)
     {
         Lines = lines;
@@ -25,6 +34,7 @@ public sealed class ModelSearchResult
         IsModelList = isModelList;
     }
 
+    /// <summary>空结果单例</summary>
     public static ModelSearchResult Empty => new([]);
 }
 
@@ -130,6 +140,10 @@ public sealed class ModelSearchEngine
         return dict.ToFrozenDictionary();
     }
 
+    /// <summary>
+    /// 初始化 <see cref="ModelSearchEngine"/> 实例并构建索引
+    /// </summary>
+    /// <param name="models">模型搜索条目列表（可选）</param>
     public ModelSearchEngine(IReadOnlyList<ModelSearchEntry>? models)
     {
         _models = models != null ? [.. models] : [];

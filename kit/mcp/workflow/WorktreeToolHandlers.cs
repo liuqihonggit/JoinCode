@@ -13,6 +13,12 @@ public class WorktreeToolHandlers
     private readonly IWorktreeMergeService _mergeService;
     private readonly IFileSystem _fs;
 
+    /// <summary>
+    /// 初始化 Worktree 工具处理器
+    /// </summary>
+    /// <param name="worktreeService">Worktree 服务实例</param>
+    /// <param name="mergeService">Worktree 合并服务实例</param>
+    /// <param name="fs">文件系统抽象</param>
     public WorktreeToolHandlers(IAgentWorktreeService worktreeService, IWorktreeMergeService mergeService, IFileSystem fs)
     {
         ArgumentNullException.ThrowIfNull(worktreeService);
@@ -302,6 +308,14 @@ public class WorktreeToolHandlers
         return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
 
+    /// <summary>
+    /// 将源 Worktree 的变更合并到目标 Worktree
+    /// </summary>
+    /// <param name="source_worktree_path">源 worktree 路径（要合并变更的 worktree）</param>
+    /// <param name="target_worktree_path">目标 worktree 路径（接收变更的 worktree）</param>
+    /// <param name="strategy">合并策略：fail/ours/theirs/auto_merge（可选）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(WorktreeToolNameConstants.WorktreeMerge, "Merge a source Worktree changes into a target Worktree", "worktree")]
     public async Task<ToolResult> WorktreeMergeAsync(
         [McpToolParameter("Source worktree path (the worktree whose changes will be merged)")] string source_worktree_path,

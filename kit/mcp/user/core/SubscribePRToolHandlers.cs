@@ -2,18 +2,34 @@
 
 namespace McpToolDispatch;
 
+/// <summary>
+/// PR 订阅工具处理器 — 提供 Pull Request 订阅/取消订阅/列表查询功能
+/// </summary>
 [McpToolDispatch(ToolCategory.PrSubscription, Optional = true)]
 public partial class SubscribePRToolHandlers
 {
     private readonly ILogger<SubscribePRToolHandlers>? _logger;
     private readonly IGitHubService? _gitHubService;
 
+    /// <summary>
+    /// 初始化 PR 订阅工具处理器
+    /// </summary>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="gitHubService">GitHub 服务（可选）</param>
     public SubscribePRToolHandlers(ILogger<SubscribePRToolHandlers>? logger = null, IGitHubService? gitHubService = null)
     {
         _logger = logger;
         _gitHubService = gitHubService;
     }
 
+    /// <summary>
+    /// 管理 PR 订阅 — 支持 subscribe/unsubscribe/list 三种操作
+    /// </summary>
+    /// <param name="action">操作类型：subscribe/unsubscribe/list（默认 list）</param>
+    /// <param name="pr_ref">PR 引用（subscribe/unsubscribe 时必填）</param>
+    /// <param name="events">订阅事件类型（可选，默认 all）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具执行结果</returns>
     [McpTool(SystemToolNameConstants.SubscribePR, StringKey.SubscribePRDesc, "github")]
     public async Task<ToolResult> SubscribePRAsync(
         [McpToolParameter(StringKey.SubscribePRActionDesc, Required = false)] string action = "list",

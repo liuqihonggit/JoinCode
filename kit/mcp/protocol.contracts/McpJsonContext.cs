@@ -1,5 +1,8 @@
 namespace McpProtocol.Contracts;
 
+/// <summary>
+/// MCP 协议 JSON 序列化上下文 — 为 MCP 协议相关类型提供源码生成的 JSON 序列化支持
+/// </summary>
 [JsonSerializable(typeof(JsonRpcId))]
 [JsonSerializable(typeof(JsonRpcRequest))]
 [JsonSerializable(typeof(JsonRpcResponse))]

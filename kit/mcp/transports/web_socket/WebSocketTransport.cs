@@ -18,6 +18,12 @@ public sealed partial class WebSocketTransport : TransportBase, IMcpTransport
     /// <summary>IMcpTransport: 传输错误（隐藏基类同名事件，使用 MCP 专用参数类型）</summary>
     public new event EventHandler<McpTransportErrorEventArgs>? ErrorOccurred;
 
+    /// <summary>
+    /// 创建 WebSocket 传输实例
+    /// </summary>
+    /// <param name="config">服务器连接配置(端点、请求头等)</param>
+    /// <param name="authProvider">认证提供者,用于获取 Bearer 令牌;可为 null</param>
+    /// <param name="logger">日志记录器,可为 null</param>
     public WebSocketTransport(
         McpServerConnectionConfig config,
         IMcpAuthProvider? authProvider = null,

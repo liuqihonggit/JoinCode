@@ -1,10 +1,17 @@
 
 namespace McpBridge;
 
+/// <summary>
+/// MCP 工具桥接器 — 从 IToolRegistry 提取工具并按 ToolKind 分组为工具组
+/// </summary>
 public sealed class McpToolBridge
 {
     private readonly IToolRegistry _toolRegistry;
 
+    /// <summary>
+    /// 初始化 MCP 工具桥接器
+    /// </summary>
+    /// <param name="toolRegistry">工具注册表实例</param>
     public McpToolBridge(IToolRegistry toolRegistry)
     {
         _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));

@@ -25,12 +25,18 @@ public sealed class McpRequestRegistryActor : ActorBase<McpRequestRegistryActor.
     /// <summary>取消所有 pending requests</summary>
     private sealed record CancelAllCommand(CancellationToken CancellationToken) : IRequestCommand;
 
+    /// <summary>构造 McpRequestRegistryActor 实例 — 初始化日志记录器。</summary>
+    /// <param name="logger">日志记录器,为 null 时不记录日志。</param>
     public McpRequestRegistryActor(ILogger? logger = null)
         : base()
     {
         _logger = logger;
     }
 
+    /// <summary>处理命令 — 由 Actor 单消费者线程调用,根据命令类型操作 pending 字典。</summary>
+    /// <param name="command">待处理命令。</param>
+    /// <param name="ct">取消令牌。</param>
+    /// <returns>表示异步操作的值任务。</returns>
     protected override ValueTask HandleAsync(IRequestCommand command, CancellationToken ct)
     {
         switch (command)

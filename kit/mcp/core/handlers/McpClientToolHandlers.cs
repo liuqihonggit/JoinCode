@@ -14,6 +14,12 @@ public partial class McpClientToolHandlers : ServiceEntity
     private readonly McpClientToolDeps _deps;
     private int _asyncDisposed;
 
+    /// <summary>
+    /// 初始化 MCP 客户端工具处理器，可选地从磁盘加载并异步恢复持久化的连接配置
+    /// </summary>
+    /// <param name="deps">MCP 客户端工具依赖项（可选，null 时使用默认空依赖）</param>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="fileSystem">文件系统抽象（可选，传入则启用磁盘持久化）</param>
     public McpClientToolHandlers(McpClientToolDeps? deps = null, ILogger<McpClientToolHandlers>? logger = null, IFileSystem? fileSystem = null)
         : base(nameof(McpClientToolHandlers))
     {
@@ -256,6 +262,9 @@ public partial class McpClientToolHandlers : ServiceEntity
         }
     }
 
+    /// <summary>
+    /// 禁用指定 MCP 服务器（持久化到磁盘），并断开当前活动连接
+    /// </summary>
     [McpTool("mcp_disable_server", "Disable an MCP server (persisted to disk)", "mcp")]
     public async Task<ToolResult> McpDisableServerAsync(
         [McpToolParameter("Connection name")] string connection_name,
@@ -298,6 +307,9 @@ public partial class McpClientToolHandlers : ServiceEntity
             : ToolResultBuilder.Success().WithText($"MCP 服务器 '{connection_name}' 已处于禁用状态").Build();
     }
 
+    /// <summary>
+    /// 启用指定 MCP 服务器（持久化到磁盘），启用后可使用 mcp_connect 重新连接
+    /// </summary>
     [McpTool("mcp_enable_server", "Enable an MCP server (persisted to disk)", "mcp")]
     public async Task<ToolResult> McpEnableServerAsync(
         [McpToolParameter("Connection name")] string connection_name,
@@ -630,6 +642,10 @@ public partial class McpClientToolHandlers : ServiceEntity
         };
     }
 
+    /// <summary>
+    /// 异步释放所有 MCP 客户端连接和恢复任务资源
+    /// </summary>
+    /// <returns>表示异步释放操作的值任务</returns>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Threading", "VSTHRD003:Avoid awaiting foreign tasks", Justification = "后台恢复任务在构造函数启动，DisposeAsync 中 await 是安全的，非 UI 线程无 SynchronizationContext")]
     public override async ValueTask DisposeAsync()
     {
@@ -648,6 +664,7 @@ public partial class McpClientToolHandlers : ServiceEntity
         Dispose();
     }
 
+    /// <summary>释放资源 — 在未异步释放时释放客户端锁。</summary>
     protected override void OnDispose()
     {
         if (_asyncDisposed == 1) return;

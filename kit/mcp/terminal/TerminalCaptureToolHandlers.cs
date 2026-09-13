@@ -2,18 +2,33 @@
 
 namespace McpToolDispatch;
 
+/// <summary>
+/// 终端捕获工具处理器 — 提供终端屏幕/缓冲区内容快照捕获功能
+/// </summary>
 [McpToolDispatch(ToolCategory.Terminal, Optional = true)]
 public partial class TerminalCaptureToolHandlers
 {
     private readonly ILogger<TerminalCaptureToolHandlers>? _logger;
     private readonly ITerminalCaptureService? _captureService;
 
+    /// <summary>
+    /// 初始化终端捕获工具处理器
+    /// </summary>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="captureService">终端捕获服务（可选）</param>
     public TerminalCaptureToolHandlers(ILogger<TerminalCaptureToolHandlers>? logger = null, ITerminalCaptureService? captureService = null)
     {
         _logger = logger;
         _captureService = captureService;
     }
 
+    /// <summary>
+    /// 捕获终端屏幕内容快照
+    /// </summary>
+    /// <param name="capture_type">捕获类型：screen/buffer（默认 screen）</param>
+    /// <param name="max_lines">最大行数（可选，默认 50）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>包含终端内容快照的工具执行结果</returns>
     [McpTool(SystemToolNameConstants.TerminalCapture, "Capture terminal screen content snapshot", "terminal")]
     public async Task<ToolResult> CaptureTerminalAsync(
         [McpToolParameter("Capture type: screen/buffer (default: screen)", Required = false)] string? capture_type = "screen",

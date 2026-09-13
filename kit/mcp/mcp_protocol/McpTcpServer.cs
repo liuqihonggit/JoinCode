@@ -337,6 +337,7 @@ public sealed class McpTcpServer : ServiceEntity
         return Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
     }
 
+    /// <summary>释放资源 — 停止监听器并释放取消令牌。</summary>
     protected override void OnDispose()
     {
         Stop();

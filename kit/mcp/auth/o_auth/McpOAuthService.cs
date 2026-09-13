@@ -1,5 +1,8 @@
 namespace McpClient;
 
+/// <summary>
+/// MCP OAuth 认证服务 — 编排 PKCE 授权完整流程：生成授权 URL → 监听回调 → 交换授权码
+/// </summary>
 [Register(typeof(McpOAuthService), ServiceLifetime.Singleton)]
 public sealed partial class McpOAuthService : ServiceEntity
 {
@@ -9,6 +12,13 @@ public sealed partial class McpOAuthService : ServiceEntity
     private readonly AsyncLock _stateLock = new();
     private HttpListener? _callbackListener;
 
+    /// <summary>
+    /// 创建 McpOAuthService 实例
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="httpClientProvider">HTTP 客户端提供者</param>
+    /// <param name="options">OAuth 选项（为 null 时用空默认值）</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public McpOAuthService(
         IFileSystem fs,
         IHttpClientProvider httpClientProvider,
@@ -27,8 +37,16 @@ public sealed partial class McpOAuthService : ServiceEntity
         _authProvider = new McpPkceAuthProvider(_options, fs, httpClientProvider.GetClient(), logger: null);
     }
 
+    /// <summary>
+    /// 底层认证提供者 — 暴露给外部直接调用令牌刷新等操作
+    /// </summary>
     public IMcpAuthProvider AuthProvider => _authProvider;
 
+    /// <summary>
+    /// 启动 PKCE 授权流程 — 生成授权 URL 并监听回调接收授权码，超时由 AuthorizationTimeout 控制
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>授权成功返回 true；超时、回调错误或授权码交换失败返回 false</returns>
     public async Task<bool> StartAuthorizationFlowAsync(CancellationToken cancellationToken = default)
     {
         var authUrl = await _authProvider.GetAuthorizationUrlAsync(cancellationToken).ConfigureAwait(false);
@@ -85,16 +103,29 @@ public sealed partial class McpOAuthService : ServiceEntity
         }
     }
 
+    /// <summary>
+    /// 异步刷新令牌 — 委托给底层认证提供者
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>刷新成功返回 true；失败返回 false</returns>
     public async Task<bool> RefreshTokenAsync(CancellationToken cancellationToken = default)
     {
         return await _authProvider.RefreshAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 异步获取访问令牌 — 委托给底层认证提供者
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>访问令牌；获取失败返回 null</returns>
     public async Task<string?> GetAccessTokenAsync(CancellationToken cancellationToken = default)
     {
         return await _authProvider.GetAccessTokenAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 是否已认证 — 委托给底层认证提供者
+    /// </summary>
     public bool IsAuthenticated => _authProvider.IsAuthenticated;
 
     private static async Task SendCallbackResponseAsync(HttpListenerContext context, bool success, string? error)
@@ -126,6 +157,7 @@ public sealed partial class McpOAuthService : ServiceEntity
         _callbackListener = null;
     }
 
+    /// <summary>释放资源 — 停止回调监听器、释放认证提供者与状态锁。</summary>
     protected override void OnDispose()
     {
         StopCallbackListener();

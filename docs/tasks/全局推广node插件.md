@@ -42,15 +42,30 @@ defense/
 
 ## 进度
 
-- [ ] 1. SecretGuardNode
-- [ ] 2. FileBackupNode
-- [ ] 3. WriteNotifyNode
-- [ ] 4. SandboxGuardNode
-- [ ] 5. FileStateGuardNode
-- [ ] 6. PathGuardNode
-- [ ] 7. FormatValidatorNode
-- [ ] 8. WriteDefenseService 改为薄编排层
-- [ ] 9. 编译 + 测试 + 手动测试
+- [x] 1. SecretGuardNode ✅
+- [x] 2. FileBackupNode ✅
+- [x] 3. WriteNotifyNode ✅
+- [x] 4. SandboxGuardNode ✅
+- [x] 5. FileStateGuardNode ✅
+- [x] 6. PathGuardNode ✅
+- [x] 7. FormatValidatorNode ✅
+- [x] 8. WriteDefenseService 改为薄编排层 ✅
+- [x] 9. 编译(0警告0错误) + 单元测试(434/434通过) + 手动测试(9/9通过) ✅
+
+## 验证结果
+
+- 编译：0 警告 0 错误
+- 单元测试：434/434 通过
+- 手动测试（jcc.exe mcp_call）：
+  1. write 创建文件 ✅
+  2. read 读取确认 ✅
+  3. edit 编辑文件 ✅
+  4. read 确认编辑 ✅
+  5. UNC 路径拒绝 ✅
+  6. file_edit_regex ✅
+  7. read 确认 regex ✅
+  8. file_delete ✅
+  9. read 确认删除 ✅
 
 <!-- 🤖 Auto Decision: 2026-09-13 -->
 <!-- 决策: node 返回泛型结果 string?，不耦合 ToolResult -->

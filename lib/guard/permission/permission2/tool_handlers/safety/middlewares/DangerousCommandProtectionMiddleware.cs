@@ -12,11 +12,11 @@ namespace Core.Permission;
 [Register(typeof(IPermissionMiddleware), ServiceLifetime.Singleton)]
 public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity, IPermissionMiddleware
 {
-    private readonly IDestructiveCommandDetector? _destructiveCommandDetector;
     private readonly ICommandDangerClassifier? _dangerClassifier;
     private readonly FrozenDictionary<CommandRisk, ICommandRiskHandler> _riskHandlers;
     private readonly IReadOnlyList<IDeleteOperationDetector> _deleteDetectors;
     private readonly IRealPathResolver? _realPathResolver;
+    private readonly ICommandExecutionAuditor? _auditor;
     private readonly PathCaseSensitiveGuard _caseGuard = new();
     private readonly ILogger<DangerousCommandProtectionMiddleware>? _logger;
 
@@ -29,17 +29,17 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
     /// </summary>
     public DangerousCommandProtectionMiddleware(
         IEnumerable<ICommandRiskHandler>? riskHandlers = null,
-        IDestructiveCommandDetector? destructiveCommandDetector = null,
         IEnumerable<IDeleteOperationDetector>? deleteDetectors = null,
         ICommandDangerClassifier? dangerClassifier = null,
         IRealPathResolver? realPathResolver = null,
+        ICommandExecutionAuditor? auditor = null,
         ILogger<DangerousCommandProtectionMiddleware>? logger = null)
     {
-        _destructiveCommandDetector = destructiveCommandDetector;
         _dangerClassifier = dangerClassifier;
         _riskHandlers = (riskHandlers ?? []).ToFrozenDictionary(h => h.RiskType);
         _deleteDetectors = (deleteDetectors ?? []).ToList();
         _realPathResolver = realPathResolver;
+        _auditor = auditor;
         _logger = logger;
     }
 
@@ -254,29 +254,6 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
             return (null, null);
         }
 
-        // 回退：使用 IDestructiveCommandDetector
-        if (_destructiveCommandDetector is not null)
-        {
-            var shellCommand = ShellCommand.Parse(command);
-            var result = _destructiveCommandDetector.Detect(shellCommand);
-
-            if (!result.IsDestructive)
-                return (null, null);
-
-            var riskContext = new CommandRiskContext
-            {
-                ToolName = toolName,
-                ShellCommand = shellCommand,
-                Risks = result.Risks,
-                Details = result.Details
-            };
-            // 从 CommandRisk 推断 DangerLevel
-            var primaryRiskForInfer = SelectPrimaryRisk(result.Risks) ?? CommandRisk.None;
-            var inferredLevel = DangerousCommandCatalog.InferLevel(primaryRiskForInfer);
-            var dangerResult = new DangerClassificationResult(inferredLevel, primaryRiskForInfer, result.Details);
-            return (riskContext, dangerResult);
-        }
-
         // 降级检测 — 无检测器时使用配置中的危险命令模式
         if (PermissionCheckContext.IsDangerousCommand(command, _dangerousCommandPatterns))
         {
@@ -360,6 +337,13 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
                 _logger?.LogInformation(
                     "无人值守模式自动执行: {Level} {Tool} ({Details})",
                     level, context.ToolName, riskContext.Details);
+                _auditor?.Record(new CommandExecutionAuditEntry(
+                    DateTimeOffset.UtcNow,
+                    riskContext.ShellCommand?.ToString() ?? "",
+                    level,
+                    context.CurrentMode,
+                    "AutoExecuted",
+                    riskContext.Details));
                 break;
 
             default:

@@ -463,7 +463,8 @@ public static partial class SecurityPatterns
 
         // DOS 设备名: Windows 将其视为特殊设备
         // 示例: .git.CON, settings.json.PRN, .bashrc.AUX
-        if (DosDeviceNameRegex().IsMatch(path))
+        // 委托 RetainedDeviceNames（唯一数据源）
+        if (RetainedDeviceNames.FindInPathOrExtension(path))
             return true;
 
         // 三个或更多连续点作为路径组件
@@ -485,13 +486,6 @@ public static partial class SecurityPatterns
     /// </summary>
     [GeneratedRegex(@"[.\s]+$", RegexOptions.Compiled)]
     private static partial Regex TrailingDotOrSpaceRegex();
-
-    /// <summary>
-    /// DOS 设备名正则 (CON, PRN, AUX, NUL, COM1-9, LPT1-9) — ADR 0012 阶段2
-    /// 匹配裸设备名作为完整文件名（nul/con/prn）和扩展名位置（foo.NUL）和路径组件（path/nul）
-    /// </summary>
-    [GeneratedRegex(@"(^|[/\\.])(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])([/\\.]|$)", RegexOptions.Compiled | RegexOptions.IgnoreCase)]
-    private static partial Regex DosDeviceNameRegex();
 
     /// <summary>
     /// 三点路径正则 (路径分隔符之间的3+个点)

@@ -7,6 +7,17 @@ namespace Core.Security.DangerClassification;
 public static partial class DangerousCommandCatalog
 {
     /// <summary>
+    /// 解释器命令集合 — 管道传入这些命令可执行任意代码
+    /// <para>唯一数据源,供 CommandDangerClassifier.IsInterpreter 和 BuildCombinations 管道组合共用</para>
+    /// </summary>
+    public static readonly FrozenSet<string> InterpreterCommands = FrozenSet.Create(
+        StringComparer.OrdinalIgnoreCase,
+        "bash", "sh", "zsh", "ksh", "dash",
+        "python", "python3", "python2",
+        "perl", "ruby", "node", "nodejs", "deno",
+        "powershell", "pwsh", "cmd");
+
+    /// <summary>
     /// 命令条目 — 描述单个命令的风险类型和危险等级
     /// </summary>
     public sealed record CommandEntry(

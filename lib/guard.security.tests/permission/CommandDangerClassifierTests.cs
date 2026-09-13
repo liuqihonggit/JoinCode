@@ -271,6 +271,50 @@ public class CommandDangerClassifierTests
 
     #endregion
 
+    #region git 管道/重定向约束测试 — 防止管道注入(ADR: git 无管道无重定向约束)
+
+    [Theory]
+    [InlineData("git diff | bash")]
+    [InlineData("git log | sh")]
+    [InlineData("git show | python")]
+    [InlineData("git show | python3")]
+    [InlineData("git diff | perl")]
+    [InlineData("git log | ruby")]
+    [InlineData("git show | node")]
+    public void Git_PipeToInterpreter_Should_Return_Execution(string command)
+    {
+        var result = _classifier.Classify(command);
+
+        result.Level.Should().Be(CommandDangerLevel.Execution);
+        result.RequiresIntervention.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("git log | head")]
+    [InlineData("git diff | grep pattern")]
+    [InlineData("git log | cat")]
+    [InlineData("git log | sort")]
+    public void Git_PipeToSafeCommand_Should_Return_LightValidation(string command)
+    {
+        var result = _classifier.Classify(command);
+
+        result.Level.Should().Be(CommandDangerLevel.LightValidation);
+        result.RequiresIntervention.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("git diff > file.txt")]
+    [InlineData("git log >> output.txt")]
+    public void Git_Redirect_Should_Return_LightValidation(string command)
+    {
+        var result = _classifier.Classify(command);
+
+        result.Level.Should().Be(CommandDangerLevel.LightValidation);
+        result.RequiresIntervention.Should().BeTrue();
+    }
+
+    #endregion
+
     #region DangerLevelPromptParser 测试 — 确认提示解析
 
     [Theory]

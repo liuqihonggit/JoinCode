@@ -20,7 +20,7 @@ public partial class FileToolHandlers
     /// <summary>
     /// 构建 FileWrite UNC 路径拒绝的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildUncPathWriteRejectedDiagnostic()
+    public static ToolDiagnostic BuildUncPathWriteRejectedDiagnostic()
     {
         return ToolDiagnostic.Create(
             reason: "UncPathWriteRejected",
@@ -44,7 +44,7 @@ public partial class FileToolHandlers
     /// <summary>
     /// 构建团队记忆密钥写入拒绝的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildTeamMemSecretRejectedDiagnostic(string secretError)
+    public static ToolDiagnostic BuildTeamMemSecretRejectedDiagnostic(string secretError)
     {
         return ToolDiagnostic.Create(
             reason: "TeamMemSecretRejected",
@@ -56,7 +56,7 @@ public partial class FileToolHandlers
     /// <summary>
     /// 构建 FileWrite 写前读校验失败的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildFileNotReadBeforeWriteDiagnostic()
+    public static ToolDiagnostic BuildFileNotReadBeforeWriteDiagnostic()
     {
         return ToolDiagnostic.Create(
             reason: "FileNotReadBeforeWrite",
@@ -81,7 +81,7 @@ public partial class FileToolHandlers
     /// 构建文件自上次读取后已被修改的脏写保护诊断。
     /// 对齐 openCode 报错格式：包含具体文件路径与 Last modification/Last read ISO 时间戳，便于排查并发修改。
     /// </summary>
-    internal static ToolDiagnostic BuildFileModifiedSinceReadDiagnostic(string operation, string filePath, long lastWriteMs, long readTimestampMs)
+    public static ToolDiagnostic BuildFileModifiedSinceReadDiagnostic(string operation, string filePath, long lastWriteMs, long readTimestampMs)
     {
         var lastModification = FormatIsoUtc(lastWriteMs);
         var lastRead = FormatIsoUtc(readTimestampMs);
@@ -101,7 +101,7 @@ public partial class FileToolHandlers
     /// <summary>
     /// 构建 Notebook 文件编辑拒绝的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildNotebookEditRejectedDiagnostic()
+    public static ToolDiagnostic BuildNotebookEditRejectedDiagnostic()
     {
         return ToolDiagnostic.Create(
             reason: "NotebookEditRejected",
@@ -113,7 +113,7 @@ public partial class FileToolHandlers
     /// <summary>
     /// 构建 old_string 与 new_string 相同的诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildIdenticalStringsDiagnostic()
+    public static ToolDiagnostic BuildIdenticalStringsDiagnostic()
     {
         return ToolDiagnostic.Create(
             reason: "IdenticalStrings",
@@ -125,7 +125,7 @@ public partial class FileToolHandlers
     /// <summary>
     /// 构建 settings 文件编辑校验失败的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildSettingsEditRejectedDiagnostic(string settingsError)
+    public static ToolDiagnostic BuildSettingsEditRejectedDiagnostic(string settingsError)
     {
         return ToolDiagnostic.Create(
             reason: "SettingsEditRejected",
@@ -137,7 +137,7 @@ public partial class FileToolHandlers
     /// <summary>
     /// 构建 keyword-sections.json 编辑权限拒绝的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildKeywordSectionsEditRejectedDiagnostic()
+    public static ToolDiagnostic BuildKeywordSectionsEditRejectedDiagnostic()
     {
         return ToolDiagnostic.Create(
             reason: "KeywordSectionsEditRejected",
@@ -149,7 +149,7 @@ public partial class FileToolHandlers
     /// <summary>
     /// 构建 doctor Agent 编辑路径拒绝的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildDoctorAgentEditRejectedDiagnostic()
+    public static ToolDiagnostic BuildDoctorAgentEditRejectedDiagnostic()
     {
         return ToolDiagnostic.Create(
             reason: "DoctorAgentEditRejected",

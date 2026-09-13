@@ -44,6 +44,7 @@ public partial class FileToolHandlers : IDisposable
     private readonly IFileSystem _fs;
     private readonly ApplyPatchLogic? _applyPatchLogic;
     private readonly ISubAgentContextAccessor? _subAgentContextAccessor;
+    private readonly WriteDefenseService _writeDefense;
     private readonly ILogger<FileToolHandlers>? _logger;
 
     /// <summary>
@@ -74,6 +75,17 @@ public partial class FileToolHandlers : IDisposable
         _lspDiagnosticProvider = context?.LspDiagnosticProvider;
         _applyPatchLogic = context?.ApplyPatchLogic;
         _subAgentContextAccessor = context?.SubAgentContextAccessor;
+        // WriteDefenseService — 优先从 DI 获取，否则用当前依赖现场构造 node 再注入（测试场景）
+        _writeDefense = context?.WriteDefenseService
+            ?? new WriteDefenseService(
+                new SecretGuardNode(_teamMemSecretGuard),
+                new FileBackupNode(_fs, _fileHistoryService),
+                new WriteNotifyNode(_fs, _lspFileSync, _lspDiagnosticProvider, _telemetryService,
+                    _fileWriteListenerRegistry, _subAgentContextAccessor),
+                new SandboxGuardNode(_sandboxManager),
+                new FileStateGuardNode(_fs, _fileStateCache),
+                new FormatValidatorNode(_fs, _subAgentContextAccessor),
+                _telemetryService);
     }
 
     /// <summary>
@@ -183,42 +195,6 @@ public partial class FileToolHandlers : IDisposable
             && (filePath.EndsWith("/fd/0", StringComparison.OrdinalIgnoreCase)
                 || filePath.EndsWith("/fd/1", StringComparison.OrdinalIgnoreCase)
                 || filePath.EndsWith("/fd/2", StringComparison.OrdinalIgnoreCase)))
-            return true;
-
-        return false;
-    }
-
-    private static bool IsUncPath(string filePath)
-    {
-        return filePath.StartsWith("\\\\", StringComparison.Ordinal)
-               || filePath.StartsWith("//", StringComparison.Ordinal);
-    }
-
-    private static bool IsKeywordSectionsPath(string filePath)
-    {
-        if (string.IsNullOrEmpty(filePath))
-            return false;
-
-        return Path.GetFileName(filePath).Equals("keyword-sections.json", StringComparison.OrdinalIgnoreCase);
-    }
-
-    /// <summary>
-    /// doctor Agent 允许编辑的路径 — .jcc/diag/、.jcc/reflexion/、worktree 内文件
-    /// </summary>
-    private static bool IsDoctorAllowedEditPath(string filePath)
-    {
-        if (string.IsNullOrEmpty(filePath))
-            return false;
-
-        var normalized = filePath.Replace('\\', '/');
-
-        if (normalized.Contains("/.jcc/diag/", StringComparison.OrdinalIgnoreCase))
-            return true;
-
-        if (normalized.Contains("/.jcc/reflexion/", StringComparison.OrdinalIgnoreCase))
-            return true;
-
-        if (normalized.Contains("/worktree/", StringComparison.OrdinalIgnoreCase))
             return true;
 
         return false;

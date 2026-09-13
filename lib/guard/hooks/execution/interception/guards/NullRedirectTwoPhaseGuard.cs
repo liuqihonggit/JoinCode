@@ -11,18 +11,11 @@ namespace Core.Hooks.Execution.Interception.Guards;
 /// <item>不拦截文件创建操作（touch nul）— 只拦重定向操作</item>
 /// </list>
 /// </para>
+/// <para>设备名数据源委托 <see cref="RetainedDeviceNames"/>（唯一数据源）</para>
 /// </summary>
 [Register(typeof(ICommandGuard), ServiceLifetime.Singleton)]
 public sealed partial class NullRedirectTwoPhaseGuard : ICommandGuard
 {
-    /// <summary>
-    /// 匹配重定向到 Windows 保留设备名 — [fd]op + 保留设备名
-    /// <para>fd 可选(0/1/2/&amp;), op 为 &gt;, &gt;&gt;, &gt;|, &amp;&gt;, &lt; 等</para>
-    /// <para>保留设备名: nul, con, prn, aux, com1-9, lpt1-9</para>
-    /// </summary>
-    [GeneratedRegex(@"(?<fd>\d*[<>]|\&)?(?<op>>\>?\|?|<)\s*(nul|con|prn|aux|com[1-9]|lpt[1-9])\b", RegexOptions.IgnoreCase)]
-    private static partial Regex RetainedDeviceRedirectRegex();
-
     /// <inheritdoc/>
     public string Name => "NullRedirectTwoPhaseGuard";
 
@@ -35,23 +28,22 @@ public sealed partial class NullRedirectTwoPhaseGuard : ICommandGuard
         if (string.IsNullOrWhiteSpace(command))
             return false;
 
-        return RetainedDeviceRedirectRegex().IsMatch(command);
+        return RetainedDeviceNames.FindAfterRedirect(command) is not null;
     }
 
     /// <inheritdoc/>
     public CommandDecision Evaluate(string command, GuardContext context)
     {
-        if (!RetainedDeviceRedirectRegex().IsMatch(command))
-            return new CommandDecision.Allow();
+        var deviceName = RetainedDeviceNames.FindAfterRedirect(command);
 
-        var match = RetainedDeviceRedirectRegex().Match(command);
-        var deviceName = match.Groups[3].Value;
+        if (deviceName is null)
+            return new CommandDecision.Allow();
 
         return new CommandDecision.Deny(
             ToolDiagnostic.Create(
                 "JCC9005",
                 $"检测到重定向到 Windows 保留设备名 '{deviceName}' — 在 git bash 中会创建名为 '{deviceName}' 的文件。" +
-                "若本意是丢弃输出，请改用 > /dev/null。若确需创建名为 '{deviceName}' 的文件，请使用 touch {deviceName}。",
+                $"若本意是丢弃输出，请改用 > /dev/null。若确需创建名为 '{deviceName}' 的文件，请使用 touch {deviceName}。",
                 "设备名", deviceName,
                 "请改用 > /dev/null 丢弃输出，或使用 touch 创建文件"));
     }

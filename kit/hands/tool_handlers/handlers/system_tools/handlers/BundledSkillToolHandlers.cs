@@ -10,17 +10,20 @@ public partial class BundledSkillToolHandlers
     private readonly ISystemActuatorRegistry _actuatorRegistry;
     private readonly IFileOperationService _fileOperationService;
     private readonly IFileSystem _fs;
+    private readonly WriteDefenseService? _writeDefense;
     private readonly ILogger<BundledSkillToolHandlers>? _logger;
 
     public BundledSkillToolHandlers(
         ISystemActuatorRegistry actuatorRegistry,
         IFileOperationService fileOperationService,
         IFileSystem fs,
+        WriteDefenseService? writeDefense = null,
         ILogger<BundledSkillToolHandlers>? logger = null)
     {
         _actuatorRegistry = actuatorRegistry ?? throw new ArgumentNullException(nameof(actuatorRegistry));
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
+        _writeDefense = writeDefense;
         _logger = logger;
     }
 
@@ -722,6 +725,19 @@ public partial class BundledSkillToolHandlers
             return (false, "search parameter cannot be empty");
         }
 
+        // 写入防御：UNC 路径拒绝 + 写前备份
+        if (PathGuardNode.IsUncPath(file))
+            return (false, "Cannot edit UNC path files, this may lead to credential leakage");
+        if (_writeDefense is not null)
+        {
+            var defense = _writeDefense.Begin(file, replace, FileOperationType.Edit, "editing")
+                .Then(_writeDefense.CheckTeamMemSecrets)
+                .Then(_writeDefense.BackupBeforeWriteAsync);
+            var (_, rejection) = await defense.ExecuteAsync(cancellationToken).ConfigureAwait(false);
+            if (rejection is not null)
+                return (false, rejection.Content.Count > 0 ? rejection.Content[0].Text ?? "Defense rejected" : "Defense rejected");
+        }
+
         var editResult = await _fileOperationService.EditFileAsync(
             file,
             search,
@@ -744,6 +760,18 @@ public partial class BundledSkillToolHandlers
 
     private async Task<(bool Success, string Message)> DeleteFileAsync(string file, CancellationToken cancellationToken)
     {
+        // 写入防御：UNC 路径拒绝 + 删除前备份
+        if (PathGuardNode.IsUncPath(file))
+            return (false, "Cannot delete UNC path files, this may lead to credential leakage");
+        if (_writeDefense is not null)
+        {
+            var defense = _writeDefense.Begin(file, null, FileOperationType.Delete, "deleting")
+                .Then(_writeDefense.BackupBeforeWriteAsync);
+            var (_, rejection) = await defense.ExecuteAsync(cancellationToken).ConfigureAwait(false);
+            if (rejection is not null)
+                return (false, rejection.Content.Count > 0 ? rejection.Content[0].Text ?? "Defense rejected" : "Defense rejected");
+        }
+
         var success = await _fileOperationService.DeleteFileAsync(file, cancellationToken).ConfigureAwait(false);
         return success
             ? (true, "File deleted")

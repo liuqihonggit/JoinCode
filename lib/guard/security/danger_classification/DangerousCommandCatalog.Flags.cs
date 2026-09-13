@@ -48,8 +48,8 @@ public static partial class DangerousCommandCatalog
 
     private static IReadOnlyList<CombinationEntry> BuildCombinations()
     {
-        return
-        [
+        var hardcoded = new List<CombinationEntry>
+        {
             // === Dangerous（直接拒绝）— 格式化系统盘/直接写入块设备/清盘 ===
             // rm -rf / 的检测由 CheckRecurseForceCombination 处理（检查参数是否为根目录）
             new(["format", "c:"], CommandRisk.SystemModification, CommandDangerLevel.Dangerous, "格式化系统盘 — 直接拒绝"),
@@ -64,9 +64,6 @@ public static partial class DangerousCommandCatalog
             new(["powershell", "-enc"], CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "编码命令执行 — 不可撤回"),
             new(["powershell", "-encodedcommand"], CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "编码命令执行 — 不可撤回"),
             new(["pwsh", "-enc"], CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "编码命令执行 — 不可撤回"),
-            new(["|", "sh"], CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "管道到 shell — 不可撤回"),
-            new(["|", "bash"], CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "管道到 bash — 不可撤回"),
-            new(["|", "powershell"], CommandRisk.RemoteExecution, CommandDangerLevel.Execution, "管道到 PowerShell — 不可撤回"),
             new(["git", "reset", "--hard"], CommandRisk.DataModification, CommandDangerLevel.Execution, "破坏性 git reset — 丢失未提交更改，不可撤回"),
             new(["git", "clean", "-f"], CommandRisk.DataModification, CommandDangerLevel.Execution, "强制 git clean — 删除未跟踪文件，不可撤回"),
             new(["chmod", "777"], CommandRisk.SystemModification, CommandDangerLevel.Execution, "世界可写权限 — 不可撤回"),
@@ -82,7 +79,17 @@ public static partial class DangerousCommandCatalog
             // === Dangerous（直接拒绝）— 长路径前缀绕过 Win32 解析 — ADR 0012 ===
             new(["del", "\\?\\"], CommandRisk.FileDeletion, CommandDangerLevel.Dangerous, "长路径前缀+del，绕过Win32路径解析删除保留名文件"),
             new(["remove-item", "\\?\\"], CommandRisk.FileDeletion, CommandDangerLevel.Dangerous, "长路径前缀+Remove-Item，绕过Win32路径解析删除保留名文件"),
-        ];
+        };
+
+        var pipeToInterpreters = InterpreterCommands
+            .Select(interp => new CombinationEntry(
+                ["|", interp.ToLowerInvariant()],
+                CommandRisk.RemoteExecution,
+                CommandDangerLevel.Execution,
+                $"管道到 {interp} — 不可撤回"))
+            .ToList();
+
+        return [.. hardcoded, .. pipeToInterpreters];
     }
 
     private static FrozenDictionary<string, CommandDangerLevel> BuildDangerousPaths()

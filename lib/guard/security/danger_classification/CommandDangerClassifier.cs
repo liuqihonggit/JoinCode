@@ -14,6 +14,19 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
         DangerousCommandCatalog.Combinations.SelectMany(static c => c.LowerPatterns).Distinct(),
         ignoreCase: false);
 
+    /// <summary>
+    /// 分类信号 — 单个检查层产出的危险等级+风险类型+详情
+    /// </summary>
+    private readonly record struct Signal(CommandDangerLevel Level, CommandRisk Risk, string Detail);
+
+    /// <summary>
+    /// 信号聚合器 — 累积所有信号的危险等级/风险/详情列表
+    /// </summary>
+    private sealed record SignalAccumulator(
+        List<CommandDangerLevel> Levels,
+        List<CommandRisk> Risks,
+        List<string> Details);
+
     /// <inheritdoc />
     public DangerClassificationResult Classify(string command)
     {
@@ -26,92 +39,126 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
     /// <inheritdoc />
     public DangerClassificationResult Classify(ShellCommand command)
     {
-        var detectedLevels = new List<CommandDangerLevel>();
-        var detectedRisks = new List<CommandRisk>();
-        var details = new List<string>();
+        if (string.IsNullOrWhiteSpace(command.RawCommand))
+            return DangerClassificationResult.SafeResult;
 
-        // 1. 检查命令名是否在危险命令列表中（支持前缀匹配，如 mkfs.ext4 匹配 mkfs）
-        var commandEntry = MatchCommandEntry(command.CommandName);
-        if (commandEntry is not null)
-        {
-            detectedLevels.Add(commandEntry.Level);
-            detectedRisks.Add(commandEntry.RiskType);
-            details.Add($"命令 '{command.CommandName}': {commandEntry.Description}");
+        return ClassifyGitEarlyReturn(command)
+            ?? CollectSignals(command)
+                .Aggregate(new SignalAccumulator([], [], []), AccumulateSignal, BuildResult);
+    }
 
-            // git 只读子命令降级为 Safe（git status/log/diff 等不修改仓库）
-            if (commandEntry.Level == CommandDangerLevel.LightValidation &&
-                IsGitReadOnlySubcommand(command))
-            {
-                return DangerClassificationResult.SafeResult;
-            }
+    /// <summary>
+    /// git 子命令前置短路 — 只读子命令检查管道/重定向,不可撤回子命令升级为 Execution
+    /// </summary>
+    private static DangerClassificationResult? ClassifyGitEarlyReturn(ShellCommand command)
+    {
+        var entry = MatchCommandEntry(command.CommandName);
+        if (entry is null || entry.Level != CommandDangerLevel.LightValidation)
+            return null;
 
-            // git 远程不可撤回子命令升级为 Execution（git push/stash drop/tag -d 等远程或删除操作）
-            if (commandEntry.Level == CommandDangerLevel.LightValidation &&
-                IsGitIrreversibleSubcommand(command))
-            {
-                return new DangerClassificationResult(
-                    CommandDangerLevel.Execution,
-                    CommandRisk.RemoteExecution,
-                    $"git 不可撤回操作 — {command.Arguments[0]} 涉及远程或删除，无法回滚");
-            }
-        }
+        if (IsGitReadOnlySubcommand(command))
+            return ClassifyGitPipeRedirect(command);
+
+        if (IsGitIrreversibleSubcommand(command))
+            return new DangerClassificationResult(
+                CommandDangerLevel.Execution,
+                CommandRisk.RemoteExecution,
+                $"git 不可撤回操作 — {command.Arguments[0]} 涉及远程或删除，无法回滚");
+
+        return null;
+    }
+
+    /// <summary>
+    /// 收集所有分类信号 — 命令名 → 参数 → 组合 → 递归强制,链式拼接
+    /// </summary>
+    private static IEnumerable<Signal> CollectSignals(ShellCommand command)
+        => ClassifyByCommandName(command)
+            .Concat(ClassifyByArguments(command))
+            .Concat(ClassifyByCombinations(command))
+            .Concat(ClassifyByRecurseForce(command));
+
+    /// <summary>
+    /// 命令名查表 — 已登记命令返回条目信号,未登记返回 Unknown(黄灯)
+    /// </summary>
+    private static IEnumerable<Signal> ClassifyByCommandName(ShellCommand command)
+    {
+        var entry = MatchCommandEntry(command.CommandName);
+        if (entry is not null)
+            yield return new(entry.Level, entry.RiskType, $"命令 '{command.CommandName}': {entry.Description}");
         else
-        {
-            // 未知命令默认 Unknown（黄灯）— 安全原则: 未登记命令需用户确认，防止恶意脚本自动通过
-            detectedLevels.Add(CommandDangerLevel.Unknown);
-            details.Add($"未知命令 '{command.CommandName}' — 未在 catalog 中登记");
-        }
+            yield return new(CommandDangerLevel.Unknown, CommandRisk.None, $"未知命令 '{command.CommandName}' — 未在 catalog 中登记");
+    }
 
-        // 2. 检查危险参数
-        foreach (var arg in command.Arguments)
-        {
-            if (DangerousCommandCatalog.Flags.TryGetValue(arg, out var flagEntry))
-            {
-                detectedLevels.Add(flagEntry.Level);
-                detectedRisks.Add(flagEntry.RiskType);
-                details.Add($"危险参数 '{arg}': {flagEntry.Description}");
-            }
+    /// <summary>
+    /// 参数检查 — 遍历每个参数,检查危险标志和危险路径
+    /// </summary>
+    private static IEnumerable<Signal> ClassifyByArguments(ShellCommand command)
+        => command.Arguments.SelectMany(CheckArgumentRisk);
 
-            // 检查参数中的危险路径
-            var pathLevel = ClassifyPath(arg);
-            if (pathLevel != CommandDangerLevel.Safe)
-            {
-                detectedLevels.Add(pathLevel);
-                detectedRisks.Add(CommandRisk.PathEscape);
-                details.Add($"危险路径参数 '{arg}': {pathLevel}");
-            }
-        }
+    /// <summary>
+    /// 单个参数的风险检查 — 危险标志 + 危险路径
+    /// </summary>
+    private static IEnumerable<Signal> CheckArgumentRisk(string arg)
+    {
+        if (DangerousCommandCatalog.Flags.TryGetValue(arg, out var flagEntry))
+            yield return new(flagEntry.Level, flagEntry.RiskType, $"危险参数 '{arg}': {flagEntry.Description}");
 
-        // 3. 检查危险模式组合 — AC 自动机一次扫描命中所有模式，再检查组合
+        var pathLevel = ClassifyPath(arg);
+        if (pathLevel != CommandDangerLevel.Safe)
+            yield return new(pathLevel, CommandRisk.PathEscape, $"危险路径参数 '{arg}': {pathLevel}");
+    }
+
+    /// <summary>
+    /// 危险组合匹配 — AC 自动机一次扫描命中所有模式,再检查组合条件
+    /// </summary>
+    private static IEnumerable<Signal> ClassifyByCombinations(ShellCommand command)
+    {
         var rawLower = command.RawCommand.ToLowerInvariant();
         var hitPatterns = new HashSet<string>(
             CombinationPatternAc.FindAll(rawLower.AsSpan()).Select(static m => m.Value),
             StringComparer.Ordinal);
-        var matchedCombos = DangerousCommandCatalog.Combinations
+
+        return DangerousCommandCatalog.Combinations
             .Where(c => c.LowerPatterns.All(p => hitPatterns.Contains(p)))
-            .ToList();
-        foreach (var combo in matchedCombos)
-        {
-            detectedLevels.Add(combo.Level);
-            detectedRisks.Add(combo.RiskType);
-            details.Add($"危险组合: {combo.Description}");
-        }
+            .Select(c => new Signal(c.Level, c.RiskType, $"危险组合: {c.Description}"));
+    }
 
-        // 4. 特殊检查：Remove-Item/rm/del/erase 的 -Recurse -Force 组合（包括 -rf 组合参数）
-        var recurseForceLevel = CheckRecurseForceCombination(command);
-        if (recurseForceLevel != CommandDangerLevel.Safe)
-        {
-            detectedLevels.Add(recurseForceLevel);
-            detectedRisks.Add(CommandRisk.RecursiveOperation);
-            detectedRisks.Add(CommandRisk.ForceOperation);
-            details.Add("递归 + 强制组合 — 极度危险");
-        }
+    /// <summary>
+    /// 递归+强制组合检查 — Remove-Item/rm/del/erase 的 -Recurse -Force 组合
+    /// </summary>
+    private static IEnumerable<Signal> ClassifyByRecurseForce(ShellCommand command)
+    {
+        var level = CheckRecurseForceCombination(command);
+        if (level == CommandDangerLevel.Safe)
+            return [];
 
-        // 合并结果：取最高危险等级
-        var finalLevel = DangerousCommandCatalog.MergeLevels([.. detectedLevels]);
-        var primaryRisk = SelectPrimaryRisk(detectedRisks);
-        var detailText = details.Count > 0 ? string.Join("; ", details) : null;
+        return [
+            new(level, CommandRisk.RecursiveOperation, "递归 + 强制组合 — 极度危险"),
+            new(level, CommandRisk.ForceOperation, string.Empty),
+        ];
+    }
 
+    /// <summary>
+    /// 累积信号到聚合器
+    /// </summary>
+    private static SignalAccumulator AccumulateSignal(SignalAccumulator acc, Signal signal)
+    {
+        acc.Levels.Add(signal.Level);
+        if (signal.Risk != CommandRisk.None)
+            acc.Risks.Add(signal.Risk);
+        if (!string.IsNullOrEmpty(signal.Detail))
+            acc.Details.Add(signal.Detail);
+        return acc;
+    }
+
+    /// <summary>
+    /// 从聚合器构建最终分类结果 — 取最高等级 + 选最高优先级风险 + 拼接详情
+    /// </summary>
+    private static DangerClassificationResult BuildResult(SignalAccumulator acc)
+    {
+        var finalLevel = DangerousCommandCatalog.MergeLevels([.. acc.Levels]);
+        var primaryRisk = SelectPrimaryRisk(acc.Risks);
+        var detailText = acc.Details.Count > 0 ? string.Join("; ", acc.Details) : null;
         return new DangerClassificationResult(finalLevel, primaryRisk, detailText);
     }
 
@@ -351,4 +398,40 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
 
         return risks[0];
     }
+
+    /// <summary>
+    /// 检查 git 只读命令的管道/重定向 — 管道传入解释器可执行任意代码(Execution),其他管道/重定向需确认(LightValidation)
+    /// </summary>
+    private static DangerClassificationResult ClassifyGitPipeRedirect(ShellCommand command)
+    {
+        if (!command.HasPipe && !command.HasRedirection)
+            return DangerClassificationResult.SafeResult;
+
+        if (command.HasPipe && GetPipeTargetCommands(command.Arguments).Any(IsInterpreter))
+        {
+            return new DangerClassificationResult(
+                CommandDangerLevel.Execution,
+                CommandRisk.RemoteExecution,
+                "git 只读命令通过管道传入解释器 — 管道目标可执行任意代码,禁止自动放行");
+        }
+
+        return new DangerClassificationResult(
+            CommandDangerLevel.LightValidation,
+            CommandRisk.None,
+            "git 命令含管道/重定向 — 需确认后方可执行");
+    }
+
+    /// <summary>
+    /// 从参数列表中提取所有管道目标命令名(| 后面的第一个参数)
+    /// </summary>
+    private static IEnumerable<string> GetPipeTargetCommands(IReadOnlyList<string> arguments)
+        => Enumerable.Range(0, arguments.Count - 1)
+            .Where(i => arguments[i] == "|")
+            .Select(i => arguments[i + 1]);
+
+    /// <summary>
+    /// 判断命令名是否为解释器(可执行任意代码) — 引用 DangerousCommandCatalog.InterpreterCommands 唯一数据源
+    /// </summary>
+    private static bool IsInterpreter(string commandName)
+        => DangerousCommandCatalog.InterpreterCommands.Contains(commandName);
 }

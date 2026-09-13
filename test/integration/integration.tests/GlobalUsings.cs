@@ -54,6 +54,7 @@ global using Core.Scheduling.Runtime;
 global using Core.Scheduling.Tasks;
 global using Core.Skills;
 global using Core.Security.Constants;
+global using Core.Security.DangerClassification;
 
 global using IO.FileSystem;
 global using IO.Services;

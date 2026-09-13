@@ -1,15 +1,32 @@
 namespace Infrastructure.Windows.JobObject;
 
+/// <summary>
+/// Windows JobObject 沙箱 — 通过 Windows Job Object 限制子进程内存、CPU 与进程数,并在句柄关闭时自动终止所有子进程
+/// <para>仅支持 Windows 平台,非 Windows 调用将抛出 PlatformNotSupportedException</para>
+/// </summary>
 public sealed class WindowsJobObjectSandbox : IDisposable
 {
     private nint _jobHandle;
     private readonly ILogger? _logger;
 
+    /// <summary>
+    /// 构造 JobObject 沙箱
+    /// </summary>
+    /// <param name="logger">可选日志记录器</param>
     public WindowsJobObjectSandbox(ILogger? logger = null)
     {
         _logger = logger;
     }
 
+    /// <summary>
+    /// 创建 JobObject 并设置资源限制
+    /// </summary>
+    /// <param name="memoryLimitBytes">单进程内存上限(字节),null 表示不限制</param>
+    /// <param name="cpuLimitPercent">CPU 占用百分比上限,null 表示不限制(当前未实现)</param>
+    /// <param name="activeProcessLimit">活动进程数上限,null 表示不限制</param>
+    /// <returns>JobObject 句柄</returns>
+    /// <exception cref="PlatformNotSupportedException">非 Windows 平台</exception>
+    /// <exception cref="InvalidOperationException">创建或设置限制失败</exception>
     public nint CreateJobObject(long? memoryLimitBytes = null, int? cpuLimitPercent = null, int? activeProcessLimit = null)
     {
         if (!OperatingSystem.IsWindows())
@@ -74,6 +91,11 @@ public sealed class WindowsJobObjectSandbox : IDisposable
         return _jobHandle;
     }
 
+    /// <summary>
+    /// 将进程分配到当前 JobObject
+    /// </summary>
+    /// <param name="processId">进程 ID</param>
+    /// <returns>分配成功返回 true;非 Windows、句柄未创建或打开进程失败返回 false</returns>
     public bool AssignProcess(int processId)
     {
         if (!OperatingSystem.IsWindows())
@@ -112,6 +134,11 @@ public sealed class WindowsJobObjectSandbox : IDisposable
         return true;
     }
 
+    /// <summary>
+    /// 终止 JobObject 中所有进程
+    /// </summary>
+    /// <param name="exitCode">进程退出码,默认 1</param>
+    /// <returns>终止成功返回 true;非 Windows 或句柄未创建返回 false</returns>
     public bool TerminateAllProcesses(uint exitCode = 1)
     {
         if (!OperatingSystem.IsWindows() || _jobHandle == nint.Zero)
@@ -138,6 +165,7 @@ public sealed class WindowsJobObjectSandbox : IDisposable
         }
     }
 
+    /// <summary>释放沙箱 — 关闭 JobObject 句柄,所有子进程将被 KILL_ON_JOB_CLOSE 终止</summary>
     public void Dispose()
     {
         CloseHandle();

@@ -12,6 +12,9 @@ public sealed class InMemoryFileSystem : IFileSystem
     private readonly ConcurrentDictionary<string, AsyncLock> _editLocks = new();
     private string _currentDirectory = "/test";
 
+    /// <summary>
+    /// 构造内存文件系统，初始化根目录和默认当前目录
+    /// </summary>
     public InMemoryFileSystem()
     {
         _directories[string.Empty] = new InMemoryDirectoryEntry { FullPath = string.Empty };

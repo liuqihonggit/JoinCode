@@ -6,10 +6,13 @@ namespace Infrastructure.IO;
 [Register(typeof(IConsoleOutput), ServiceLifetime.Singleton)]
 public sealed partial class PhysicalConsoleOutput : ServiceEntity, IConsoleOutput
 {
+    /// <inheritdoc/>
     public void WriteLine(string message) => System.Console.WriteLine(message);
 
+    /// <inheritdoc/>
     public void WriteError(string message) => System.Console.Error.WriteLine(message);
 
+    /// <inheritdoc/>
     public void WriteSuccess(string message)
     {
         System.Console.ForegroundColor = ConsoleColor.Green;
@@ -17,6 +20,7 @@ public sealed partial class PhysicalConsoleOutput : ServiceEntity, IConsoleOutpu
         System.Console.ResetColor();
     }
 
+    /// <inheritdoc/>
     public void WriteWarning(string message)
     {
         System.Console.ForegroundColor = ConsoleColor.Yellow;
@@ -24,6 +28,7 @@ public sealed partial class PhysicalConsoleOutput : ServiceEntity, IConsoleOutpu
         System.Console.ResetColor();
     }
 
+    /// <inheritdoc/>
     public string? Prompt(string message)
     {
         System.Console.Write(message);
@@ -31,6 +36,7 @@ public sealed partial class PhysicalConsoleOutput : ServiceEntity, IConsoleOutpu
         return System.Console.ReadLine();
     }
 
+    /// <inheritdoc/>
     public bool Confirm(string message)
     {
         System.Console.Write($"{message} (y/N) ");
@@ -39,6 +45,7 @@ public sealed partial class PhysicalConsoleOutput : ServiceEntity, IConsoleOutpu
         return input == "y" || input == "yes";
     }
 
+    /// <inheritdoc/>
     public void WriteLine(string message, ConsoleColor color)
     {
         System.Console.ForegroundColor = color;
@@ -48,6 +55,7 @@ public sealed partial class PhysicalConsoleOutput : ServiceEntity, IConsoleOutpu
 
 #pragma warning disable JCC2002 // ReadPassword 是同步交互方法，已检查 IsInputRedirected
 #pragma warning disable JCC5001 // ReadPassword 是同步方法，无法使用 async Task.Delay
+    /// <inheritdoc/>
     public string ReadPassword(string prompt)
     {
         System.Console.Write(prompt);

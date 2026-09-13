@@ -9,6 +9,11 @@ public sealed class ResilienceTelemetryCollector
     private readonly IResilientHttpClientProvider? _httpClientProvider;
     private readonly ILogger? _logger;
 
+    /// <summary>
+    /// 构造韧性遥测收集器
+    /// </summary>
+    /// <param name="httpClientProvider">HTTP 客户端提供者（可选，用于采集 HTTP 端点韧性状态）</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public ResilienceTelemetryCollector(
         IResilientHttpClientProvider? httpClientProvider = null,
         ILogger? logger = null)
@@ -17,6 +22,10 @@ public sealed class ResilienceTelemetryCollector
         _logger = logger;
     }
 
+    /// <summary>
+    /// 采集韧性状态报告 — 从 HTTP 客户端提供者收集熔断器状态，生成遥测报告
+    /// </summary>
+    /// <returns>韧性遥测报告</returns>
     public ResilienceTelemetryReport Collect()
     {
         var httpEndpoints = new Dictionary<string, HttpResilienceStatus>();

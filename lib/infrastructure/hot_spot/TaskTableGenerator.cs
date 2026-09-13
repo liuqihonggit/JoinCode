@@ -6,6 +6,11 @@ namespace Infrastructure.HotSpot;
 [Register(typeof(ITaskTableGenerator), ServiceLifetime.Singleton)]
 public sealed class TaskTableGenerator : ITaskTableGenerator
 {
+    /// <summary>
+    /// 根据任务条目生成 Markdown 任务表，含热点标注列
+    /// </summary>
+    /// <param name="entries">任务表条目列表</param>
+    /// <returns>渲染后的 Markdown 字符串</returns>
     public string Generate(IReadOnlyList<TaskTableEntry> entries)
     {
         ArgumentNullException.ThrowIfNull(entries);
@@ -28,6 +33,13 @@ public sealed class TaskTableGenerator : ITaskTableGenerator
         return builder.Build();
     }
 
+    /// <summary>
+    /// 更新指定任务的状态并重新生成任务表
+    /// </summary>
+    /// <param name="entries">原任务表条目列表</param>
+    /// <param name="taskId">待更新任务的标识</param>
+    /// <param name="newStatus">新状态文本</param>
+    /// <returns>更新后渲染的 Markdown 字符串</returns>
     public string UpdateStatus(IReadOnlyList<TaskTableEntry> entries, string taskId, string newStatus)
     {
         ArgumentNullException.ThrowIfNull(entries);

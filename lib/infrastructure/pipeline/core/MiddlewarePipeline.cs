@@ -9,6 +9,14 @@ public sealed class MiddlewarePipeline<TContext>
     private readonly PipelinePreHookDelegate<TContext>? _onPreExecute;
     private readonly PipelinePostHookDelegate<TContext>? _onPostExecute;
 
+    /// <summary>
+    /// 构造中间件管道
+    /// </summary>
+    /// <param name="middlewares">中间件集合,按注入顺序执行</param>
+    /// <param name="onError">异常处理回调,与 ErrorBehavior.Continue 中间件配合使用</param>
+    /// <param name="onPreExecute">前置 Hook,返回 false 时短路整个管道</param>
+    /// <param name="onPostExecute">后置 Hook,无论成功或失败都执行</param>
+    /// <param name="shortCircuitPredicate">短路谓词,返回 true 时跳过当前中间件</param>
     public MiddlewarePipeline(
         IEnumerable<IMiddleware<TContext>> middlewares,
         Action<TContext, Exception>? onError = null,

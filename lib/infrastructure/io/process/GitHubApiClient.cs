@@ -21,6 +21,13 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient
     private const string UserAgent = "jcc/1.0";
     private const int MaxRateLimitRetries = 3;
 
+    /// <summary>
+    /// 构造 GitHub REST API 客户端
+    /// </summary>
+    /// <param name="httpClient">HTTP 客户端实例</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">可选日志记录器</param>
+    /// <param name="ghTokenResolver">可选自定义 token 解析器</param>
     public GitHubApiClient(
         HttpClient httpClient,
         IFileSystem fs,

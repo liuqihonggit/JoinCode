@@ -11,6 +11,11 @@ public sealed class MergeQueueService : IMergeQueueService
     private readonly Func<string, CancellationToken, Task<bool>> _compileValidator;
     private readonly Func<string, CancellationToken, Task<bool>> _mergeExecutor;
 
+    /// <summary>
+    /// 构造合并队列服务
+    /// </summary>
+    /// <param name="compileValidator">编译校验回调,接收分支名与取消令牌,返回是否通过</param>
+    /// <param name="mergeExecutor">合并执行回调,接收分支名与取消令牌,返回是否成功</param>
     public MergeQueueService(
         Func<string, CancellationToken, Task<bool>> compileValidator,
         Func<string, CancellationToken, Task<bool>> mergeExecutor)
@@ -19,6 +24,7 @@ public sealed class MergeQueueService : IMergeQueueService
         _mergeExecutor = mergeExecutor ?? throw new ArgumentNullException(nameof(mergeExecutor));
     }
 
+    /// <inheritdoc/>
     public Task EnqueueAsync(MergeQueueItem item, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(item);
@@ -27,6 +33,7 @@ public sealed class MergeQueueService : IMergeQueueService
         return Task.CompletedTask;
     }
 
+    /// <inheritdoc/>
     public async Task<MergeResult> ProcessNextAsync(CancellationToken cancellationToken = default)
     {
         if (!_queue.TryDequeue(out var item))
@@ -45,7 +52,9 @@ public sealed class MergeQueueService : IMergeQueueService
         return MergeResult.Ok(item.WorktreeBranch, item.WorkerId);
     }
 
+    /// <inheritdoc/>
     public IReadOnlyList<MergeQueueItem> GetPending() => [.. _queue];
 
+    /// <inheritdoc/>
     public int PendingCount => _queue.Count;
 }

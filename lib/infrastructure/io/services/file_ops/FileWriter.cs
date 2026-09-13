@@ -15,6 +15,12 @@ public sealed class FileWriter
     // 破坏 JSON 解析、代码编译等依赖文件首字节的逻辑。
     private static readonly Encoding s_utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 
+    /// <summary>
+    /// 构造文件写入器
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="config">文件操作配置</param>
+    /// <param name="logger">可选日志记录器</param>
     public FileWriter(IFileSystem fs, FileOperationConfig config, ILogger? logger = null)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));

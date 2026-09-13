@@ -13,6 +13,12 @@ public sealed partial class FileOperationService : ServiceEntity, IFileOperation
     private readonly FileEditor _fileEditor;
     private readonly ILogger<FileOperationService>? _logger;
 
+    /// <summary>
+    /// 构造文件操作服务，内部组装读取器、写入器、编辑器
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="config">文件操作配置</param>
+    /// <param name="logger">可选日志记录器</param>
     public FileOperationService(IFileSystem fs, FileOperationConfig config, ILogger<FileOperationService>? logger = null)
     {
         _fs = fs;

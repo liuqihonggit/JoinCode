@@ -12,6 +12,13 @@ public sealed class IntentReportFileWriteListener : IFileWriteListener
     private readonly string _captainId;
     private readonly ILogger<IntentReportFileWriteListener>? _logger;
 
+    /// <summary>
+    /// 构造文件写入监听器
+    /// </summary>
+    /// <param name="intentCollector">意图收集器</param>
+    /// <param name="hotFileDetector">热文件检测器</param>
+    /// <param name="captainId">队长（mainAgent）ID，其修改标记为 IsFromCaptain</param>
+    /// <param name="logger">日志记录器</param>
     public IntentReportFileWriteListener(
         IIntentCollector intentCollector,
         IHotFileDetector hotFileDetector,
@@ -24,6 +31,10 @@ public sealed class IntentReportFileWriteListener : IFileWriteListener
         _logger = logger;
     }
 
+    /// <summary>
+    /// 文件写入事件处理 — 根据热文件判定意图类型并上报到 IntentCollector
+    /// </summary>
+    /// <param name="e">文件写入事件参数</param>
     public void OnFileWrite(FileWriteEventArgs e)
     {
         ArgumentNullException.ThrowIfNull(e);

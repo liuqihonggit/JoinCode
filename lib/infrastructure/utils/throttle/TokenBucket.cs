@@ -1,5 +1,9 @@
 namespace Core.Utils;
 
+/// <summary>
+/// 令牌桶限流器 — 按速率持续补充令牌,消费前需获取足够令牌
+/// <para>支持同步 TryConsume 与异步 WaitForTokensAsync 两种消费方式</para>
+/// </summary>
 public sealed class TokenBucket : IDisposable
 {
     private readonly AsyncLock _gate = new();
@@ -9,6 +13,7 @@ public sealed class TokenBucket : IDisposable
     private double _tokens;
     private DateTime _lastRefillTime;
 
+    /// <summary>当前可用令牌数(读取时触发惰性补充)</summary>
     public double CurrentTokens
     {
         get
@@ -25,6 +30,12 @@ public sealed class TokenBucket : IDisposable
         }
     }
 
+    /// <summary>
+    /// 构造令牌桶
+    /// </summary>
+    /// <param name="capacity">桶容量,即最大可累积令牌数</param>
+    /// <param name="refillRatePerSecond">每秒补充令牌速率</param>
+    /// <param name="timeProvider">可选时间提供者,默认使用 DateTime.UtcNow,用于测试注入</param>
     public TokenBucket(double capacity, double refillRatePerSecond, Func<DateTime>? timeProvider = null)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(capacity);
@@ -36,6 +47,11 @@ public sealed class TokenBucket : IDisposable
         _lastRefillTime = _timeProvider();
     }
 
+    /// <summary>
+    /// 异步等待获取指定数量令牌,令牌不足时循环等待直到可用
+    /// </summary>
+    /// <param name="requiredTokens">需要的令牌数</param>
+    /// <param name="ct">取消令牌</param>
     public async Task WaitForTokensAsync(double requiredTokens, CancellationToken ct = default)
     {
         while (true)
@@ -55,6 +71,11 @@ public sealed class TokenBucket : IDisposable
         }
     }
 
+    /// <summary>
+    /// 尝试同步消费令牌,令牌不足时立即返回 false
+    /// </summary>
+    /// <param name="requiredTokens">需要的令牌数</param>
+    /// <returns>消费成功返回 true,令牌不足或锁竞争失败返回 false</returns>
     public bool TryConsume(double requiredTokens)
     {
         var guard = _gate.TryLock();
@@ -88,6 +109,7 @@ public sealed class TokenBucket : IDisposable
         }
     }
 
+    /// <summary>释放令牌桶内部锁资源</summary>
     public void Dispose() => _gate.Dispose();
 
     private static DateTime DefaultTimeProvider() => DateTime.UtcNow;

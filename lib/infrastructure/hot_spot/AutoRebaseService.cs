@@ -14,6 +14,12 @@ public sealed class AutoRebaseService : IAutoRebaseService
     private readonly IMailbox _mailbox;
     private readonly ILogger<AutoRebaseService>? _logger;
 
+    /// <summary>
+    /// 构造函数 — 注入 Git 命令执行器、邮箱和日志
+    /// </summary>
+    /// <param name="gitRunner">Git 命令执行器</param>
+    /// <param name="mailbox">代理间邮箱</param>
+    /// <param name="logger">日志记录器，可为 null</param>
     public AutoRebaseService(IGitCommandRunner gitRunner, IMailbox mailbox, ILogger<AutoRebaseService>? logger = null)
     {
         _gitRunner = gitRunner ?? throw new ArgumentNullException(nameof(gitRunner));
@@ -21,6 +27,7 @@ public sealed class AutoRebaseService : IAutoRebaseService
         _logger = logger;
     }
 
+    /// <inheritdoc/>
     public async Task<AutoRebaseResult> RebaseSyncAsync(AutoRebaseRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(request.WorktreePath);

@@ -9,6 +9,12 @@ public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher
     private readonly DebounceTracker _debounce = new();
     private bool _disposed;
 
+    /// <summary>
+    /// 构造内存文件系统监视器
+    /// </summary>
+    /// <param name="fs">所属内存文件系统</param>
+    /// <param name="path">监视路径</param>
+    /// <param name="filter">文件名筛选模式，默认 *.*</param>
     public InMemoryFileSystemWatcher(InMemoryFileSystem fs, string path, string filter = "*.*")
     {
         _fs = fs;
@@ -16,34 +22,54 @@ public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher
         Filter = filter;
     }
 
+    /// <summary>监视目录路径</summary>
     public string Path { get; set; } = string.Empty;
+    /// <summary>文件名筛选模式</summary>
     public string Filter { get; set; } = "*.*";
+    /// <summary>多文件名筛选模式集合</summary>
     public ICollection<string> Filters { get; } = new List<string>();
+    /// <summary>是否包含子目录监视</summary>
     public bool IncludeSubdirectories { get; set; }
+    /// <summary>监视变更类型过滤器</summary>
     public NotifyFilters NotifyFilter { get; set; } = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size;
+    /// <summary>是否启用事件触发</summary>
     public bool EnableRaisingEvents { get; set; }
+    /// <summary>防抖间隔</summary>
     public TimeSpan DebounceInterval
     {
         get => _debounce.DebounceInterval;
         set => _debounce.DebounceInterval = value;
     }
 
+    /// <summary>内部写入过滤窗口（毫秒），窗口内的同路径事件视为内部写入而忽略</summary>
     public int InternalWriteWindowMs
     {
         get => _debounce.InternalWriteWindowMs;
         set => _debounce.InternalWriteWindowMs = value;
     }
 
+    /// <summary>文件变更事件（防抖前）</summary>
     public event EventHandler<FileChangedEventArgs>? Changed;
+    /// <summary>文件创建事件（防抖前）</summary>
     public event EventHandler<FileChangedEventArgs>? Created;
+    /// <summary>文件删除事件（防抖前）</summary>
     public event EventHandler<FileChangedEventArgs>? Deleted;
+    /// <summary>文件重命名事件（防抖前）</summary>
     public event EventHandler<FileRenamedEventArgs>? Renamed;
 
+    /// <summary>文件变更事件（防抖后）</summary>
     public event EventHandler<FileChangedEventArgs>? DebouncedChanged;
+    /// <summary>文件创建事件（防抖后）</summary>
     public event EventHandler<FileChangedEventArgs>? DebouncedCreated;
+    /// <summary>文件删除事件（防抖后）</summary>
     public event EventHandler<FileChangedEventArgs>? DebouncedDeleted;
+    /// <summary>文件重命名事件（防抖后）</summary>
     public event EventHandler<FileRenamedEventArgs>? DebouncedRenamed;
 
+    /// <summary>
+    /// 标记指定文件为内部写入，后续事件触发时在窗口内忽略
+    /// </summary>
+    /// <param name="filePath">文件路径</param>
     public void MarkInternalWrite(string filePath) => _debounce.MarkInternalWrite(filePath);
 
     internal void OnFileChanged(string fullPath, WatcherChangeTypes changeType)
@@ -133,6 +159,9 @@ public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher
         return System.Text.RegularExpressions.Regex.IsMatch(fileName, regex, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
     }
 
+    /// <summary>
+    /// 释放监视器资源，从文件系统注销自身
+    /// </summary>
     public void Dispose()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;

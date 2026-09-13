@@ -1,5 +1,8 @@
 namespace Infrastructure.Http;
 
+/// <summary>
+/// 韧性 HTTP 执行器 — 在熔断器、总超时、操作超时和重试策略保护下执行 HTTP 操作
+/// </summary>
 public sealed class ResilientHttpExecutor
 {
     private readonly ResiliencePolicy _policy;
@@ -7,6 +10,12 @@ public sealed class ResilientHttpExecutor
     private readonly ILogger? _logger;
     private readonly INetworkConnectivityService? _networkService;
 
+    /// <summary>
+    /// 构造韧性 HTTP 执行器
+    /// </summary>
+    /// <param name="policy">韧性策略</param>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="networkService">网络连通性服务（可选，用于网络中断时暂停重试预算）</param>
     public ResilientHttpExecutor(ResiliencePolicy policy, ILogger? logger = null, INetworkConnectivityService? networkService = null)
     {
         _policy = policy ?? throw new ArgumentNullException(nameof(policy));
@@ -19,6 +28,7 @@ public sealed class ResilientHttpExecutor
         }
     }
 
+    /// <summary>熔断器实例（未配置熔断时为 null）</summary>
     public UnifiedCircuitBreaker? CircuitBreaker => _circuitBreaker;
 
     /// <summary>
@@ -29,6 +39,13 @@ public sealed class ResilientHttpExecutor
     private static bool IsUserCancellation(OperationCanceledException ex, CancellationToken ct) =>
         ct.IsCancellationRequested && (ex.CancellationToken == ct || ex.CancellationToken == CancellationToken.None);
 
+    /// <summary>
+    /// 执行 HTTP 操作 — 在熔断器、总超时、操作超时和重试策略保护下发送 HTTP 请求
+    /// </summary>
+    /// <param name="operation">待执行的 HTTP 操作（每次重试都会调用，需自行处理请求克隆）</param>
+    /// <param name="operationName">操作名称（用于日志标识）</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>HTTP 响应消息</returns>
     public async Task<HttpResponseMessage> ExecuteAsync(
         Func<CancellationToken, Task<HttpResponseMessage>> operation,
         string operationName,
@@ -79,6 +96,14 @@ public sealed class ResilientHttpExecutor
                 operationName, retry!, ct, effectiveCt).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 执行泛型操作 — 在熔断器、总超时、操作超时和重试策略保护下执行任意返回类型的操作
+    /// </summary>
+    /// <typeparam name="T">操作返回类型</typeparam>
+    /// <param name="operation">待执行的操作</param>
+    /// <param name="operationName">操作名称（用于日志标识）</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>操作结果</returns>
     public async Task<T> ExecuteAsync<T>(
         Func<CancellationToken, Task<T>> operation,
         string operationName,

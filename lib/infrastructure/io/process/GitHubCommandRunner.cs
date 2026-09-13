@@ -23,6 +23,12 @@ public sealed partial class GitHubCommandRunner : ServiceEntity, IGitHubCommandR
     private readonly TimeSpan _maxBackoff = TimeSpan.FromSeconds(10);
     private readonly TimeSpan _timeout = TimeSpan.FromSeconds(30);
 
+    /// <summary>
+    /// 构造 GitHub CLI 命令执行器
+    /// </summary>
+    /// <param name="processService">进程服务抽象</param>
+    /// <param name="prBodyGenerator">PR body 自动生成器</param>
+    /// <param name="logger">可选日志记录器</param>
     public GitHubCommandRunner(
         IProcessService processService,
         PrBodyGenerator prBodyGenerator,

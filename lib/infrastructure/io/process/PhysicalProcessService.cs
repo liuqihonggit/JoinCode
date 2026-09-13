@@ -9,6 +9,11 @@ public sealed class PhysicalProcessService : IProcessService
     private readonly ILogger<PhysicalProcessService>? _logger;
     private readonly ProcessStartInfoBuilder _builder;
 
+    /// <summary>
+    /// 构造物理进程服务
+    /// </summary>
+    /// <param name="builder">进程启动信息构建器</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public PhysicalProcessService(
         ProcessStartInfoBuilder builder,
         ILogger<PhysicalProcessService>? logger = null)
@@ -17,6 +22,7 @@ public sealed class PhysicalProcessService : IProcessService
         _logger = logger;
     }
 
+    /// <inheritdoc/>
     public async Task<ProcessResult> ExecuteAsync(ProcessOptions options, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -99,6 +105,7 @@ public sealed class PhysicalProcessService : IProcessService
         };
     }
 
+    /// <inheritdoc/>
     public Task<IInteractiveProcess> StartInteractiveAsync(InteractiveProcessOptions options, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -120,6 +127,7 @@ public sealed class PhysicalProcessService : IProcessService
         return Task.FromResult<IInteractiveProcess>(interactive);
     }
 
+    /// <inheritdoc/>
     public async Task<bool> OpenAsync(string path, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -136,6 +144,7 @@ public sealed class PhysicalProcessService : IProcessService
         }
     }
 
+    /// <inheritdoc/>
     public async Task<string?> FindExecutableAsync(string name, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
@@ -177,6 +186,7 @@ public sealed class PhysicalProcessService : IProcessService
         }
     }
 
+    /// <inheritdoc/>
     public bool IsProcessRunning(string processName)
     {
         try
@@ -190,11 +200,19 @@ public sealed class PhysicalProcessService : IProcessService
         }
     }
 
+    /// <summary>
+    /// 物理交互式进程实现 — 包装 System.Diagnostics.Process，提供标准输入/输出流和错误数据事件
+    /// </summary>
     private sealed class PhysicalInteractiveProcess : IInteractiveProcess
     {
         private readonly System.Diagnostics.Process _process;
         private readonly ILogger? _logger;
 
+        /// <summary>
+        /// 构造物理交互式进程包装
+        /// </summary>
+        /// <param name="process">底层进程实例</param>
+        /// <param name="logger">日志记录器（可选）</param>
         public PhysicalInteractiveProcess(System.Diagnostics.Process process, ILogger? logger)
         {
             _process = process;
@@ -207,10 +225,16 @@ public sealed class PhysicalProcessService : IProcessService
             };
         }
 
+        /// <inheritdoc/>
         public StreamWriter StandardInput { get; }
+
+        /// <inheritdoc/>
         public StreamReader StandardOutput { get; }
+
+        /// <inheritdoc/>
         public int Id => _process.Id;
 
+        /// <inheritdoc/>
         public bool HasExited
         {
             get
@@ -220,19 +244,24 @@ public sealed class PhysicalProcessService : IProcessService
             }
         }
 
+        /// <inheritdoc/>
         public int ExitCode => _process.HasExited ? _process.ExitCode : -1;
 
+        /// <inheritdoc/>
         public event EventHandler<string>? ErrorDataReceived;
 
+        /// <inheritdoc/>
         public Task WaitForExitAsync(CancellationToken ct = default)
             => _process.WaitForExitAsync(ct);
 
+        /// <inheritdoc/>
         public void Kill()
         {
             try { _process.Kill(); }
             catch (Exception ex) { _logger?.LogDebug(ex, "[Process] 终止进程失败: PID={Id}", _process.Id); }
         }
 
+        /// <inheritdoc/>
         public ValueTask DisposeAsync()
         {
             try

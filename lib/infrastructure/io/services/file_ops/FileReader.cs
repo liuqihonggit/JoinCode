@@ -10,6 +10,12 @@ public sealed class FileReader
     private readonly ILogger? _logger;
     private readonly FileOperationConfig _config;
 
+    /// <summary>
+    /// 构造文件读取器
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="config">文件操作配置</param>
+    /// <param name="logger">可选日志记录器</param>
     public FileReader(IFileSystem fs, FileOperationConfig config, ILogger? logger = null)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));

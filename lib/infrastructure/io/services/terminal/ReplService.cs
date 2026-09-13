@@ -1,5 +1,8 @@
 namespace IO.Services;
 
+/// <summary>
+/// REPL 服务实现 — 支持 C#/PowerShell/Python 代码执行，管理 REPL 模式开关和可用语言探测
+/// </summary>
 [Register(typeof(IReplService), ServiceLifetime.Singleton)]
 public sealed partial class ReplService : ServiceEntity, IReplService
 {
@@ -25,6 +28,13 @@ public sealed partial class ReplService : ServiceEntity, IReplService
 
     private readonly Lazy<IReadOnlyList<ReplLanguageInfo>> _availableLanguages;
 
+    /// <summary>
+    /// 构造 REPL 服务
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="processService">进程服务抽象</param>
+    /// <param name="logger">日志记录器（可选）</param>
+    /// <param name="clock">时钟服务（可选，默认系统时钟）</param>
     public ReplService(IFileSystem fs, IProcessService processService, ILogger<ReplService>? logger = null, IClockService? clock = null)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
@@ -35,20 +45,24 @@ public sealed partial class ReplService : ServiceEntity, IReplService
         _availableLanguages = new Lazy<IReadOnlyList<ReplLanguageInfo>>(DetectAvailableLanguages, LazyThreadSafetyMode.ExecutionAndPublication);
     }
 
+    /// <inheritdoc/>
     public bool IsReplModeEnabled => _replModeEnabled;
 
+    /// <inheritdoc/>
     public void EnableReplMode()
     {
         _replModeEnabled = true;
         _logger?.LogInformation("REPL 模式已启用");
     }
 
+    /// <inheritdoc/>
     public void DisableReplMode()
     {
         _replModeEnabled = false;
         _logger?.LogInformation("REPL 模式已禁用");
     }
 
+    /// <inheritdoc/>
     public async Task<ReplResult> ExecuteAsync(string code, string language = "csharp", int timeoutSeconds = 30, CancellationToken ct = default)
     {
         if (ct.IsCancellationRequested)
@@ -120,8 +134,10 @@ public sealed partial class ReplService : ServiceEntity, IReplService
         }
     }
 
+    /// <inheritdoc/>
     public IReadOnlyList<string> GetHiddenTools() => _replModeEnabled ? s_hiddenTools : Array.Empty<string>();
 
+    /// <inheritdoc/>
     public IReadOnlyList<ReplLanguageInfo> GetAvailableLanguages() => _availableLanguages.Value;
 
     private IReadOnlyList<ReplLanguageInfo> DetectAvailableLanguages()

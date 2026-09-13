@@ -9,13 +9,16 @@ public sealed class MockHttpClientProvider : IHttpClientProvider
     private readonly MockHttpMessageHandler _handler = new();
     private readonly HttpClient _client;
 
+    /// <summary>构造模拟 HTTP 客户端提供者,初始化基础地址为 http://mock.local</summary>
     public MockHttpClientProvider()
     {
         _client = new HttpClient(_handler) { BaseAddress = new Uri("http://mock.local") };
     }
 
+    /// <inheritdoc/>
     public HttpClient GetClient() => _client;
 
+    /// <inheritdoc/>
     public HttpClient GetClient(string name) => _client;
 
     /// <summary>

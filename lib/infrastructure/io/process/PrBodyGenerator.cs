@@ -14,6 +14,10 @@ public sealed class PrBodyGenerator
 {
     private readonly IGitCommandRunner _gitRunner;
 
+    /// <summary>
+    /// 构造 PR Body 生成器
+    /// </summary>
+    /// <param name="gitRunner">Git 命令执行器</param>
     public PrBodyGenerator(IGitCommandRunner gitRunner)
     {
         _gitRunner = gitRunner ?? throw new ArgumentNullException(nameof(gitRunner));

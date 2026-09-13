@@ -8,11 +8,18 @@ public sealed class ShellToolGateService : ServiceEntity, IShellToolGateService
 {
     private readonly bool _cachedResult;
 
+    /// <summary>
+    /// 构造门控服务，初始化时计算并缓存 PowerShell 工具启用结果
+    /// </summary>
     public ShellToolGateService()
     {
         _cachedResult = ComputeIsPowerShellToolEnabled();
     }
 
+    /// <summary>
+    /// 返回 PowerShell 工具是否启用的缓存结果
+    /// </summary>
+    /// <returns>启用返回 true，否则返回 false</returns>
     public bool IsPowerShellToolEnabled() => _cachedResult;
 
     /// <summary>

@@ -1,19 +1,57 @@
 namespace Infrastructure.Utils.Text;
 
+/// <summary>
+/// 时长格式化选项 — 控制是否隐藏尾零、仅显示最高位、使用缩写等
+/// </summary>
 public sealed class DurationFormatOptions
 {
+    /// <summary>
+    /// 是否隐藏尾零，默认 true
+    /// </summary>
     public bool HideTrailingZeros { get; init; } = true;
+
+    /// <summary>
+    /// 是否仅显示最高有效位，默认 false
+    /// </summary>
     public bool MostSignificantOnly { get; init; }
+
+    /// <summary>
+    /// 是否使用缩写（d/h/m/s/ms），默认 true；false 时使用中文（天/小时/分钟/秒）
+    /// </summary>
     public bool UseAbbreviations { get; init; } = true;
 
+    /// <summary>
+    /// 默认选项（缩写 + 隐藏尾零）
+    /// </summary>
     public static DurationFormatOptions Default { get; } = new();
+
+    /// <summary>
+    /// 详细选项（缩写 + 保留尾零）
+    /// </summary>
     public static DurationFormatOptions Verbose { get; } = new() { HideTrailingZeros = false };
+
+    /// <summary>
+    /// 紧凑选项（缩写 + 隐藏尾零）
+    /// </summary>
     public static DurationFormatOptions Compact { get; } = new();
+
+    /// <summary>
+    /// 仅最高位选项（缩写 + 仅显示最高位）
+    /// </summary>
     public static DurationFormatOptions MostSignificant { get; } = new() { MostSignificantOnly = true };
 }
 
+/// <summary>
+/// 时长格式化器 — 将 TimeSpan/毫秒数格式化为人类可读的时长字符串
+/// </summary>
 public static class DurationFormatter
 {
+    /// <summary>
+    /// 格式化 TimeSpan 为时长字符串
+    /// </summary>
+    /// <param name="duration">时长</param>
+    /// <param name="options">格式化选项；null 时使用 Default</param>
+    /// <returns>格式化的时长字符串</returns>
     public static string Format(TimeSpan duration, DurationFormatOptions? options = null)
     {
         options ??= DurationFormatOptions.Default;
@@ -28,6 +66,12 @@ public static class DurationFormatter
         return FormatFull(duration, options);
     }
 
+    /// <summary>
+    /// 格式化毫秒数为时长字符串
+    /// </summary>
+    /// <param name="milliseconds">毫秒数</param>
+    /// <param name="options">格式化选项；null 时使用 Default</param>
+    /// <returns>格式化的时长字符串</returns>
     public static string Format(long milliseconds, DurationFormatOptions? options = null)
     {
         return Format(TimeSpan.FromMilliseconds(milliseconds), options);

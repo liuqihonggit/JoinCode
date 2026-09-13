@@ -7,6 +7,11 @@ namespace IO.ProcessService;
 public sealed partial class GitCommandRunner : ServiceEntity, IGitCommandRunner
 {
 
+    /// <summary>
+    /// 构造 Git 命令执行器
+    /// </summary>
+    /// <param name="processService">进程服务抽象</param>
+    /// <param name="logger">可选日志记录器</param>
     public GitCommandRunner(IProcessService processService, ILogger<GitCommandRunner>? logger = null)
     {
         _processService = processService;
@@ -15,6 +20,13 @@ public sealed partial class GitCommandRunner : ServiceEntity, IGitCommandRunner
     private readonly IProcessService _processService;
     private readonly ILogger<GitCommandRunner>? _logger;
 
+    /// <summary>
+    /// 执行 git 命令并返回结果
+    /// </summary>
+    /// <param name="arguments">git 命令参数</param>
+    /// <param name="workingDirectory">可选工作目录</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>git 命令执行结果</returns>
     public async Task<GitCommandResult> ExecuteAsync(
         string arguments,
         string? workingDirectory = null,
@@ -61,6 +73,14 @@ public sealed partial class GitCommandRunner : ServiceEntity, IGitCommandRunner
         }
     }
 
+    /// <summary>
+    /// 检测两个分支合并是否会产生冲突
+    /// </summary>
+    /// <param name="branch1">第一个分支名</param>
+    /// <param name="branch2">第二个分支名</param>
+    /// <param name="workingDirectory">可选工作目录</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>合并冲突检测结果</returns>
     public async Task<MergeConflictResult> DetectMergeConflictAsync(
         string branch1,
         string branch2,
@@ -91,6 +111,12 @@ public sealed partial class GitCommandRunner : ServiceEntity, IGitCommandRunner
         return new MergeConflictResult { HasConflict = false, Error = result.Error };
     }
 
+    /// <summary>
+    /// 检测工作区中残留的过期冲突标记(&lt;&lt;&lt;&lt;&lt;&lt;&lt; / ======= / &gt;&gt;&gt;&gt;&gt;&gt;&gt;)
+    /// </summary>
+    /// <param name="workingDirectory">可选工作目录</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>过期冲突标记检测结果</returns>
     public async Task<StaleConflictMarkerResult> DetectStaleConflictMarkersAsync(
         string? workingDirectory = null,
         CancellationToken ct = default)

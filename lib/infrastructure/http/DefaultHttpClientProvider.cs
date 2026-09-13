@@ -46,6 +46,11 @@ public sealed partial class DefaultHttpClientProvider : ServiceEntity, IHttpClie
         return _sharedClient ?? throw new InvalidOperationException("Shared client not initialized.");
     }
 
+    /// <summary>
+    /// 按命名获取 HttpClient — 优先通过 IHttpClientFactory.CreateClient(name) 创建，无 factory 时返回共享实例
+    /// </summary>
+    /// <param name="name">客户端逻辑名称</param>
+    /// <returns>HttpClient 实例</returns>
     public HttpClient GetClient(string name)
     {
         ArgumentException.ThrowIfNullOrEmpty(name);

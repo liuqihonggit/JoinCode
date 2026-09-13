@@ -6,6 +6,10 @@ namespace Core.Utils;
 /// </summary>
 public sealed class CachedRegistry<TKey, TValue> : MapRegistry<TKey, TValue> where TKey : notnull
 {
+    /// <summary>
+    /// 构造函数 — 创建启用 Canonical/Alias 跟踪的注册表
+    /// </summary>
+    /// <param name="comparer">键比较器，可为 null</param>
     public CachedRegistry(IEqualityComparer<TKey>? comparer = null)
         : base(comparer, trackCanonical: true)
     {

@@ -9,11 +9,20 @@ public sealed class HotSpotResolutionPolicy : IHotSpotResolutionPolicy
 {
     private readonly IHotSpotTracker _hotSpotTracker;
 
+    /// <summary>
+    /// 构造热点处置策略
+    /// </summary>
+    /// <param name="hotSpotTracker">热点跟踪器</param>
     public HotSpotResolutionPolicy(IHotSpotTracker hotSpotTracker)
     {
         _hotSpotTracker = hotSpotTracker ?? throw new ArgumentNullException(nameof(hotSpotTracker));
     }
 
+    /// <summary>
+    /// 针对单个热点文件生成处置决策
+    /// </summary>
+    /// <param name="filePath">热点文件路径</param>
+    /// <returns>热点处置决策(是否队长接管、需通知的 Worker 列表等)</returns>
     public HotSpotResolution Resolve(string filePath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
@@ -41,6 +50,10 @@ public sealed class HotSpotResolutionPolicy : IHotSpotResolutionPolicy
         };
     }
 
+    /// <summary>
+    /// 针对所有已跟踪热点文件生成处置决策
+    /// </summary>
+    /// <returns>所有热点文件的处置决策列表</returns>
     public IReadOnlyList<HotSpotResolution> ResolveAll()
     {
         var hotSpotFiles = _hotSpotTracker.GetHotSpotFiles();

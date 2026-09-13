@@ -12,6 +12,10 @@ public sealed class ConsolePresentationAdapter : IPresentationAdapter, IStreamin
     /// <summary>是否正在运行</summary>
     public bool IsRunning { get; private set; }
 
+    /// <summary>
+    /// 构造函数 — 注入控制台输出接口
+    /// </summary>
+    /// <param name="output">控制台输出接口</param>
     public ConsolePresentationAdapter(IConsoleOutput output)
     {
         _output = output;
@@ -104,7 +108,9 @@ public sealed class ConsolePresentationAdapter : IPresentationAdapter, IStreamin
     public Task<bool> ConfirmAsync(string message, CancellationToken ct = default)
         => Task.FromResult(_output.Confirm(message));
 
+    /// <summary>写入文本（流式输出空实现）</summary>
     void IStreamingOutputWriter.Write(string text) { }
+    /// <summary>写入一行文本（流式输出空实现）</summary>
     void IStreamingOutputWriter.WriteLine(string text) { }
 
     /// <summary>标记完成</summary>
@@ -113,6 +119,7 @@ public sealed class ConsolePresentationAdapter : IPresentationAdapter, IStreamin
     /// <summary>标记失败</summary>
     public void MarkFailed(string errorMessage) { }
 
+    /// <summary>释放资源 — 标记已释放并停止表示层</summary>
     public void Dispose()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _isDisposed)) return;
@@ -125,6 +132,10 @@ public sealed class ConsolePresentationAdapter : IPresentationAdapter, IStreamin
 /// </summary>
 public interface IStreamingOutputWriter
 {
+    /// <summary>写入文本到输出流</summary>
+    /// <param name="text">要写入的文本</param>
     void Write(string text);
+    /// <summary>写入一行文本到输出流并换行</summary>
+    /// <param name="text">要写入的文本</param>
     void WriteLine(string text);
 }

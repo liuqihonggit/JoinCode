@@ -49,6 +49,10 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
     /// <inheritdoc />
     public event EventHandler<OnboardingStateChangedEventArgs>? StateChanged;
 
+    /// <summary>
+    /// 构造函数 — 注入引导状态持久化器
+    /// </summary>
+    /// <param name="persistence">用于读写引导完成状态的持久化器</param>
     public OnboardingFlowController(OnboardingStatePersistence persistence)
     {
         _persistence = persistence;
@@ -241,6 +245,9 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
         }
     }
 
+    /// <summary>
+    /// 释放资源 — 释放内部异步锁
+    /// </summary>
     protected override void OnDispose()
     {
         _lock.Dispose();

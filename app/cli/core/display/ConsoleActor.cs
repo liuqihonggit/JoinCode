@@ -17,6 +17,10 @@ public sealed class ConsoleActor : ActorBase<ConsoleCommand, Unit>
         _realOut = realOut;
     }
 
+    /// <summary>处理 Console 命令 — 按 Command 类型分派到对应 Console I/O 操作并串行化执行</summary>
+    /// <param name="command">要处理的 Console 命令</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步处理操作的任务</returns>
     protected override ValueTask HandleAsync(ConsoleCommand command, CancellationToken ct)
     {
         switch (command)

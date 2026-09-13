@@ -5,11 +5,34 @@ namespace JoinCode.Entry;
 /// </summary>
 public sealed class StartupContext
 {
+    /// <summary>
+    /// 工作流配置 — 启动各步骤共享的配置根
+    /// </summary>
     public required WorkflowConfig Config { get; init; }
+
+    /// <summary>
+    /// 命令行解析选项 — 启动各步骤读取的 CLI 参数
+    /// </summary>
     public required CommandLineOptions Options { get; init; }
+
+    /// <summary>
+    /// 主机实例 — 提供 DI 容器与服务解析
+    /// </summary>
     public required IHost Host { get; init; }
+
+    /// <summary>
+    /// 文件系统抽象 — 启动各步骤用于读写文件
+    /// </summary>
     public required IFileSystem FileSystem { get; init; }
+
+    /// <summary>
+    /// 获取或设置是否已具备 API Key
+    /// </summary>
     public bool HasApiKey { get; set; }
+
+    /// <summary>
+    /// 获取或设置 CLI 会话实例；未初始化时为 null
+    /// </summary>
     public CliSession? Session { get; set; }
 
     /// <summary>

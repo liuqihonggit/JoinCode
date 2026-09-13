@@ -46,6 +46,16 @@ public sealed class CliSession
     /// <summary>DI 服务提供者</summary>
     public IServiceProvider? ServiceProvider => _optionalServices?.ServiceProvider;
 
+    /// <summary>构造 CLI 会话 — 初始化命令注册表、会话实体、主代理与命令服务上下文</summary>
+    /// <param name="chatService">聊天服务</param>
+    /// <param name="codeService">代码服务</param>
+    /// <param name="planService">计划服务</param>
+    /// <param name="toolRegistry">工具注册表</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="optionalServices">可选服务上下文；null 时使用默认空上下文</param>
+    /// <param name="clock">时钟服务；null 时使用系统时钟</param>
+    /// <param name="logger">日志记录器；null 时不记录日志</param>
+    /// <param name="sessionId">会话 ID；null 时自动生成新会话 ID</param>
     public CliSession(
         IChatService chatService,
         ICodeService codeService,

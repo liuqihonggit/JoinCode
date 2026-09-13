@@ -9,6 +9,11 @@ public sealed class CliOutputContract
     private readonly bool _jsonMode;
     private readonly CliOutputJsonContext _jsonContext;
 
+    /// <summary>
+    /// 构造 CLI 输出契约
+    /// </summary>
+    /// <param name="jsonMode">是否启用 JSON 结构化输出模式</param>
+    /// <param name="jsonContext">JSON 序列化上下文，用于 NativeAOT 兼容的序列化</param>
     public CliOutputContract(bool jsonMode, CliOutputJsonContext jsonContext)
     {
         _jsonMode = jsonMode;

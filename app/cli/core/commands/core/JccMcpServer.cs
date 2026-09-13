@@ -9,12 +9,23 @@ public sealed class JccMcpServer : McpServer
 {
     private readonly IMcpToolRegistry _registry;
 
+    /// <summary>
+    /// 构造函数 — 注入工具注册表并初始化 MCP 服务端
+    /// </summary>
+    /// <param name="registry">MCP 工具注册表</param>
+    /// <param name="serverName">服务端名称，默认 jcc-mcp</param>
+    /// <param name="serverVersion">服务端版本，为 null 时使用默认值</param>
+    /// <param name="instructions">服务端说明信息</param>
     public JccMcpServer(IMcpToolRegistry registry, string serverName = "jcc-mcp", string? serverVersion = null, string? instructions = null)
         : base(serverName, serverVersion, instructions)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
     }
 
+    /// <summary>
+    /// 处理 tools/list 请求 — 从注册表枚举全部工具并转换为 MCP 协议定义
+    /// </summary>
+    /// <returns>工具列表结果</returns>
     protected override ListToolsResult HandleListTools()
     {
         var tools = _registry.GetAllToolsAsync(CancellationToken.None).GetAwaiter().GetResult();
@@ -33,6 +44,12 @@ public sealed class JccMcpServer : McpServer
         return new ListToolsResult { Tools = list };
     }
 
+    /// <summary>
+    /// 处理 tools/call 请求 — 根据工具名查找并执行对应处理器，返回执行结果内容
+    /// </summary>
+    /// <param name="paramsObj">调用参数 JSON 元素</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>工具调用结果</returns>
     protected override async Task<CallToolResult> HandleCallToolAsync(JsonElement? paramsObj, CancellationToken cancellationToken)
     {
         if (paramsObj is null)

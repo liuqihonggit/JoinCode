@@ -8,17 +8,23 @@ public sealed partial class ConsoleOutput : ServiceEntity, IConsoleOutput
 {
     private readonly ILogger<ConsoleOutput>? _logger;
 
+    /// <summary>初始化 <see cref="ConsoleOutput"/> 实例</summary>
+    /// <param name="logger">可选的日志记录器，为 null 时不记录日志</param>
     public ConsoleOutput(ILogger<ConsoleOutput>? logger = null)
     {
         _logger = logger;
     }
 
+    /// <summary>向标准输出写入一行消息，并记录信息日志</summary>
+    /// <param name="message">要输出的消息文本</param>
     public void WriteLine(string message)
     {
         System.Console.WriteLine(message);
         _logger?.LogInformation("{Message}", message);
     }
 
+    /// <summary>以红色输出错误消息，并记录错误日志</summary>
+    /// <param name="message">错误消息文本</param>
     public void WriteError(string message)
     {
         System.Console.ForegroundColor = ConsoleColor.Red;
@@ -27,6 +33,8 @@ public sealed partial class ConsoleOutput : ServiceEntity, IConsoleOutput
         _logger?.LogError("{Message}", message);
     }
 
+    /// <summary>以绿色输出成功消息，并记录信息日志</summary>
+    /// <param name="message">成功消息文本</param>
     public void WriteSuccess(string message)
     {
         System.Console.ForegroundColor = ConsoleColor.Green;
@@ -35,6 +43,8 @@ public sealed partial class ConsoleOutput : ServiceEntity, IConsoleOutput
         _logger?.LogInformation("{Message}", message);
     }
 
+    /// <summary>以黄色输出警告消息，并记录警告日志</summary>
+    /// <param name="message">警告消息文本</param>
     public void WriteWarning(string message)
     {
         System.Console.ForegroundColor = ConsoleColor.Yellow;
@@ -43,6 +53,9 @@ public sealed partial class ConsoleOutput : ServiceEntity, IConsoleOutput
         _logger?.LogWarning("{Message}", message);
     }
 
+    /// <summary>在控制台显示提示并等待用户输入；非交互环境返回 null</summary>
+    /// <param name="message">提示文本</param>
+    /// <returns>用户输入的响应；非交互或输入重定向时返回 null</returns>
     public string? Prompt(string message)
     {
         if (Core.Utils.TestEnvironmentDetector.IsNonInteractive || System.Console.IsInputRedirected)
@@ -56,6 +69,9 @@ public sealed partial class ConsoleOutput : ServiceEntity, IConsoleOutput
         return response;
     }
 
+    /// <summary>显示 y/N 确认提示并解析用户响应；非交互环境返回 false</summary>
+    /// <param name="message">确认提示文本</param>
+    /// <returns>用户输入 y 时返回 true，否则返回 false</returns>
     public bool Confirm(string message)
     {
         if (Core.Utils.TestEnvironmentDetector.IsNonInteractive || System.Console.IsInputRedirected)
@@ -70,6 +86,9 @@ public sealed partial class ConsoleOutput : ServiceEntity, IConsoleOutput
         return confirmed;
     }
 
+    /// <summary>以指定颜色向标准输出写入一行消息，并记录信息日志</summary>
+    /// <param name="message">要输出的消息文本</param>
+    /// <param name="color">前景色</param>
     public void WriteLine(string message, ConsoleColor color)
     {
         System.Console.ForegroundColor = color;
@@ -78,6 +97,9 @@ public sealed partial class ConsoleOutput : ServiceEntity, IConsoleOutput
         _logger?.LogInformation("{Message}", message);
     }
 
+    /// <summary>读取密码输入，按键以 * 回显，回车结束；非交互环境返回空字符串</summary>
+    /// <param name="prompt">密码输入提示文本</param>
+    /// <returns>用户输入的密码明文</returns>
     public string ReadPassword(string prompt)
     {
         if (Core.Utils.TestEnvironmentDetector.IsNonInteractive || System.Console.IsInputRedirected)

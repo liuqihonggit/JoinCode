@@ -1,5 +1,8 @@
 namespace IO.Services;
 
+/// <summary>
+/// 伙伴精灵服务 — 基于用户 ID 确定性生成专属伙伴（物种/稀有度/外观），结果按用户缓存
+/// </summary>
 [Register(typeof(IBuddyService), ServiceLifetime.Singleton)]
 public sealed partial class BuddyService : ServiceEntity, IBuddyService
 {
@@ -11,11 +14,21 @@ public sealed partial class BuddyService : ServiceEntity, IBuddyService
 
     private readonly ConcurrentDictionary<string, BuddyInfo> _cache = new();
 
+    /// <summary>
+    /// 获取用户的伙伴精灵信息 — 首次调用时按用户 ID 确定性生成并缓存
+    /// </summary>
+    /// <param name="userId">用户标识</param>
+    /// <returns>伙伴精灵信息</returns>
     public BuddyInfo GetBuddy(string userId)
     {
         return _cache.GetOrAdd(userId, GenerateBuddy);
     }
 
+    /// <summary>
+    /// 获取伙伴精灵的系统提示词 — 用于注入到对话上下文，告知模型用户拥有伙伴精灵
+    /// </summary>
+    /// <param name="userId">用户标识</param>
+    /// <returns>伙伴精灵系统提示词文本</returns>
     public string GetBuddyPrompt(string userId)
     {
         var buddy = GetBuddy(userId);

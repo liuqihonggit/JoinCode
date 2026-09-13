@@ -9,6 +9,10 @@ public sealed partial class TrustFolderManager : ServiceEntity, ITrustFolderMana
     private readonly string _trustedFoldersPath;
     private readonly IFileSystem _fs;
 
+    /// <summary>
+    /// 构造函数 — 注入文件系统，信任目录文件路径由应用数据目录派生
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
     public TrustFolderManager(IFileSystem fs)
     {
         _fs = fs;
@@ -118,6 +122,7 @@ public sealed partial class TrustFolderManager : ServiceEntity, ITrustFolderMana
 /// </summary>
 public sealed class TrustFolderEntries
 {
+    /// <summary>受信任的目录路径列表</summary>
     public List<string> Folders { get; set; } = [];
 }
 

@@ -9,6 +9,10 @@ public sealed class TerminalInteractiveService : IInteractiveService
 {
     private readonly ILogger<TerminalInteractiveService>? _logger;
 
+    /// <summary>
+    /// 构造函数 — 注入可选日志记录器
+    /// </summary>
+    /// <param name="logger">日志记录器，可选</param>
     public TerminalInteractiveService(ILogger<TerminalInteractiveService>? logger = null)
     {
         _logger = logger;

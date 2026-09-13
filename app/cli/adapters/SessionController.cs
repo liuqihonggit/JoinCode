@@ -23,6 +23,16 @@ public sealed class SessionController
     /// <summary>聊天服务</summary>
     public IChatService ChatService => _chatService;
 
+    /// <summary>
+    /// 构造函数 — 注入聊天服务、事件消费者、轮次差异服务及可选依赖
+    /// </summary>
+    /// <param name="chatService">聊天服务，用于流式事件推送</param>
+    /// <param name="consumer">事件消费者，接收文本/工具/思考等事件</param>
+    /// <param name="turnDiffService">轮次差异服务，记录文件编辑用于差异展示</param>
+    /// <param name="sessionId">会话标识，用于思考内容持久化与崩溃快照</param>
+    /// <param name="serviceProvider">服务提供者，可选，用于解析主代理路径依赖</param>
+    /// <param name="clock">时钟服务，可选，默认使用系统时钟</param>
+    /// <param name="mainAgent">主代理实例，可选，非空时走主代理执行路径</param>
     public SessionController(
         IChatService chatService,
         IEventConsumer consumer,
@@ -409,16 +419,29 @@ public sealed class SessionController
 /// </summary>
 public sealed class SessionTurnResult
 {
+    /// <summary>是否成功完成</summary>
     public bool Succeeded { get; init; }
+    /// <summary>是否因超时而终止</summary>
     public bool TimedOut { get; init; }
+    /// <summary>是否因用户取消而终止</summary>
     public bool WasCancelled { get; init; }
+    /// <summary>超时毫秒数（仅 TimedOut 时有效）</summary>
     public int TimeoutMs { get; init; }
+    /// <summary>错误消息（仅失败时有效）</summary>
     public string? ErrorMessage { get; init; }
+    /// <summary>错误代码（仅失败时有效）</summary>
     public string? ErrorCode { get; init; }
+    /// <summary>错误是否可重试</summary>
     public bool IsRetryable { get; init; }
+    /// <summary>响应文本（成功为完整响应，失败为部分响应）</summary>
     public string Response { get; init; } = string.Empty;
+    /// <summary>请求时间戳</summary>
     public DateTime RequestTimestamp { get; init; }
 
+    /// <summary>构造成功结果</summary>
+    /// <param name="response">完整响应文本</param>
+    /// <param name="requestTimestamp">请求时间戳</param>
+    /// <returns>成功的会话轮次结果</returns>
     public static SessionTurnResult Success(string response, DateTime requestTimestamp) => new()
     {
         Succeeded = true,
@@ -426,18 +449,30 @@ public sealed class SessionTurnResult
         RequestTimestamp = requestTimestamp
     };
 
+    /// <summary>构造超时结果</summary>
+    /// <param name="timeoutMs">超时毫秒数</param>
+    /// <returns>超时的会话轮次结果</returns>
     public static SessionTurnResult Timeout(int timeoutMs) => new()
     {
         TimedOut = true,
         TimeoutMs = timeoutMs
     };
 
+    /// <summary>构造取消结果</summary>
+    /// <param name="partialResponse">取消前的部分响应文本</param>
+    /// <returns>已取消的会话轮次结果</returns>
     public static SessionTurnResult FromCancellation(string partialResponse) => new()
     {
         WasCancelled = true,
         Response = partialResponse
     };
 
+    /// <summary>构造错误结果</summary>
+    /// <param name="errorMessage">错误消息</param>
+    /// <param name="partialResponse">错误前的部分响应文本</param>
+    /// <param name="errorCode">错误代码，可选</param>
+    /// <param name="isRetryable">错误是否可重试，默认 false</param>
+    /// <returns>错误的会话轮次结果</returns>
     public static SessionTurnResult Error(string errorMessage, string partialResponse, string? errorCode = null, bool isRetryable = false) => new()
     {
         ErrorMessage = errorMessage,

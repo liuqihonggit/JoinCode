@@ -16,6 +16,7 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
     private readonly FrozenDictionary<CommandRisk, ICommandRiskHandler> _riskHandlers;
     private readonly IReadOnlyList<IDeleteOperationDetector> _deleteDetectors;
     private readonly IRealPathResolver? _realPathResolver;
+    private readonly ICommandExecutionAuditor? _auditor;
     private readonly PathCaseSensitiveGuard _caseGuard = new();
     private readonly ILogger<DangerousCommandProtectionMiddleware>? _logger;
 
@@ -31,12 +32,14 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
         IEnumerable<IDeleteOperationDetector>? deleteDetectors = null,
         ICommandDangerClassifier? dangerClassifier = null,
         IRealPathResolver? realPathResolver = null,
+        ICommandExecutionAuditor? auditor = null,
         ILogger<DangerousCommandProtectionMiddleware>? logger = null)
     {
         _dangerClassifier = dangerClassifier;
         _riskHandlers = (riskHandlers ?? []).ToFrozenDictionary(h => h.RiskType);
         _deleteDetectors = (deleteDetectors ?? []).ToList();
         _realPathResolver = realPathResolver;
+        _auditor = auditor;
         _logger = logger;
     }
 
@@ -334,6 +337,13 @@ public sealed partial class DangerousCommandProtectionMiddleware : ServiceEntity
                 _logger?.LogInformation(
                     "无人值守模式自动执行: {Level} {Tool} ({Details})",
                     level, context.ToolName, riskContext.Details);
+                _auditor?.Record(new CommandExecutionAuditEntry(
+                    DateTimeOffset.UtcNow,
+                    riskContext.ShellCommand?.ToString() ?? "",
+                    level,
+                    context.CurrentMode,
+                    "AutoExecuted",
+                    riskContext.Details));
                 break;
 
             default:

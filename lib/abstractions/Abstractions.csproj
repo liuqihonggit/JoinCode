@@ -3,9 +3,6 @@
   <PropertyGroup>
     <Description>JoinCode 抽象层 — 纯接口 + DTO + 管道契约 + 特性标记，零实现代码</Description>
     <AllowPack>true</AllowPack>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <DocumentationFile>$(OutputPath)$(AssemblyName).xml</DocumentationFile>
-    <NoWarn>$(NoWarn.Replace('CS1591;', '').Replace(';CS1591', '').Replace('CS1591', ''))</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

@@ -3,7 +3,9 @@ namespace JoinCode.Abstractions.Interfaces;
 
 public interface IVcrService
 {
-    Task<VcrCassette> LoadCassetteAsync(string name, CancellationToken cancellationToken = default);
+    string GetCassettePath(string name, string? directory = null);
+    string CassettesDirectory { get; }
+    Task<VcrCassette> LoadCassetteAsync(string name, string? directory = null, CancellationToken cancellationToken = default);
     VcrMode CurrentMode { get; }
     void SetMode(VcrMode mode);
 }

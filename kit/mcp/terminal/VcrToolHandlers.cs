@@ -14,9 +14,10 @@ public sealed partial class VcrToolHandlers
         _logger = logger;
     }
 
-    [McpTool(SystemToolNameConstants.VcrRecord, "Start VCR recording, log interactions to specified cassette", "vcr")]
+    [McpTool(SystemToolNameConstants.VcrRecord, "录制 HTTP API 交互到 cassette（类似 Fiddler 抓包）。启动后拦截所有 HTTP 请求+响应保存到 JSON 文件，供测试回放用。需在交互式模式(jcc chat)单进程内使用", "vcr")]
     public async Task<ToolResult> VcrRecordAsync(
         [McpToolParameter("Cassette name")] string cassette_name,
+        [McpToolParameter("Cassette 保存目录（绝对路径或相对路径），不传则用默认 cassettes/ 目录")] string? cassette_directory = null,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(cassette_name))
@@ -28,12 +29,18 @@ public sealed partial class VcrToolHandlers
         {
             _vcrService.SetMode(VcrMode.Record);
 
-            await _vcrService.LoadCassetteAsync(cassette_name, cancellationToken).ConfigureAwait(false);
+            await _vcrService.LoadCassetteAsync(cassette_name, cassette_directory, cancellationToken).ConfigureAwait(false);
 
-            _logger?.LogInformation("VCR recording started: {CassetteName}", cassette_name);
+            var cassettePath = _vcrService.GetCassettePath(cassette_name, cassette_directory);
+
+            _logger?.LogInformation("VCR recording started: {CassetteName} -> {CassettePath}", cassette_name, cassettePath);
+
+            var response = new StringBuilder(256);
+            response.AppendLine(L.T(StringKey.VcrRecordStarted, cassette_name));
+            response.AppendLine($"  path: {cassettePath}");
 
             return ToolResultBuilder.Success()
-                .WithText(L.T(StringKey.VcrRecordStarted, cassette_name))
+                .WithText(response.ToString())
                 .Build();
         }
         catch (Exception ex)
@@ -45,9 +52,10 @@ public sealed partial class VcrToolHandlers
         }
     }
 
-    [McpTool(SystemToolNameConstants.VcrPlayback, "Playback interactions from VCR cassette", "vcr")]
+    [McpTool(SystemToolNameConstants.VcrPlayback, "回放 VCR cassette 中录制的 HTTP API 响应。启动后匹配请求返回录制的响应，不发真实 HTTP 请求。供测试/离线开发用", "vcr")]
     public async Task<ToolResult> VcrPlaybackAsync(
         [McpToolParameter("Cassette name")] string cassette_name,
+        [McpToolParameter("Cassette 所在目录（绝对路径或相对路径），不传则用默认 cassettes/ 目录")] string? cassette_directory = null,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(cassette_name))
@@ -59,13 +67,16 @@ public sealed partial class VcrToolHandlers
         {
             _vcrService.SetMode(VcrMode.Playback);
 
-            var cassette = await _vcrService.LoadCassetteAsync(cassette_name, cancellationToken).ConfigureAwait(false);
+            var cassette = await _vcrService.LoadCassetteAsync(cassette_name, cassette_directory, cancellationToken).ConfigureAwait(false);
 
-            _logger?.LogInformation("VCR playback started: {CassetteName}", cassette_name);
+            var cassettePath = _vcrService.GetCassettePath(cassette_name, cassette_directory);
+
+            _logger?.LogInformation("VCR playback started: {CassetteName} <- {CassettePath}", cassette_name, cassettePath);
 
             var response = new StringBuilder(256);
             response.AppendLine(L.T(StringKey.VcrPlaybackStarted, cassette_name));
             response.AppendLine(L.T(StringKey.VcrPlaybackLabelCassetteName, cassette.Name));
+            response.AppendLine($"  path: {cassettePath}");
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
         }
@@ -78,13 +89,14 @@ public sealed partial class VcrToolHandlers
         }
     }
 
-    [McpTool(SystemToolNameConstants.VcrStatus, "Get VCR service status", "vcr")]
+    [McpTool(SystemToolNameConstants.VcrStatus, "查询 VCR HTTP API 录制/回放服务的当前状态（模式: Off/Record/Playback + cassette 目录）", "vcr")]
     public Task<ToolResult> VcrStatusAsync(
         CancellationToken cancellationToken = default)
     {
         var response = new StringBuilder(128);
         response.AppendLine(L.T(StringKey.VcrServiceStatus));
         response.AppendLine(L.T(StringKey.VcrLabelCurrentMode, _vcrService.CurrentMode));
+        response.AppendLine($"  cassettes_dir: {Path.GetFullPath(_vcrService.CassettesDirectory)}");
 
         return Task.FromResult(ToolResultBuilder.Success().WithText(response.ToString()).Build());
     }

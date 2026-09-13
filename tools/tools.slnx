@@ -1,7 +1,0 @@
-<Solution>
-  <Folder Name="/tools/">
-    <Project Path="JccAuditAstCli/JccAuditCli.csproj" />
-    <Project Path="JccAuditAstCli/tests/JccAuditCli.Tests.csproj" />
-    <Project Path="InjectMigration/InjectMigration.csproj" />
-  </Folder>
-</Solution>

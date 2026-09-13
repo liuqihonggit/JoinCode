@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>CodeIndex.Tests</RootNamespace>
+    <AssemblyName>JoinCode.CodeIndex.Tests</AssemblyName>
+    <Description>CodeIndex 组件单元测试</Description>
+    <NoWarn>$(NoWarn);JCC3007</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)server/code_index/CodeIndex.csproj" />
+    <ProjectReference Include="$(RepoRoot)lib/abstractions/Abstractions.csproj" />
+    <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)test/unit/testing.common/Testing.Common.csproj" />
+  </ItemGroup>
+
+</Project>

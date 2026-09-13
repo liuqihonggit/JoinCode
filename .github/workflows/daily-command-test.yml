@@ -48,14 +48,14 @@ jobs:
             nuget-${{ runner.os }}-
 
       - name: Build jcc (Debug)
-        run: dotnet build app/JoinCode/JoinCode.csproj -c Debug --nologo
+        run: dotnet build app/cli/JoinCode.csproj -c Debug --nologo
         shell: pwsh
 
       - name: Run Command Tests
         run: |
           $limit = '${{ github.event.inputs.limit }}'
           if ([string]::IsNullOrWhiteSpace($limit) -or $limit -eq '0') { $limit = '0' }
-          powershell -ExecutionPolicy Bypass -File tools/scripts/Invoke-AllCommandTests.ps1 -Limit ([int]$limit) -ReportPath artifacts/command-test-report.md
+          powershell -ExecutionPolicy Bypass -File non_deliverables_tools/scripts/Invoke-AllCommandTests.ps1 -Limit ([int]$limit) -ReportPath artifacts/command-test-report.md
         shell: pwsh
 
       - name: Upload Report

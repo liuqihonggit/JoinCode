@@ -1,6 +1,0 @@
-<Solution>
-  <Folder Name="/infrastructure/">
-    <Project Path="infrastructure/Infrastructure/Infrastructure.csproj" />
-    <Project Path="infrastructure/Transport.Impl/Transport.Impl.csproj" />
-  </Folder>
-</Solution>

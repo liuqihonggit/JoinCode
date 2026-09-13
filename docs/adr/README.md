@@ -91,7 +91,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 
 ## 统计
 
-- 总数：**98** | accepted：**90** | superseded：**5** | proposed：**3**
+- 总数：**101** | accepted：**93** | superseded：**5** | proposed：**3**
 
 ## 完整索引（按编号）
 
@@ -108,6 +108,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0009](0009-mcp-streamable-http.md) | MCP Streamable HTTP 2025-11-25 | accepted | 2026-08-29 |
 | [0010](0010-global-usings.md) | GlobalUsings 统一管理 | accepted | 2026-08-29 |
 | [0011](0011-data-container-aot-gc.md) | 数据容器 AOT+GC 选型 | accepted | 2026-08-29 |
+| [0012](0012-robocopy-mir-danger-command-interception.md) | robocopy /MIR 与 /PURGE 红色命令拦截 | proposed | 2026-09-13 |
 | [0013](0013-hypergraph-vs-dag-separation.md) | 超图与 DAG 分工 | accepted | 2026-08-29 |
 | [0014](0014-mcp-tool-coverage-principle.md) | MCP 工具覆盖原则 | accepted | 2026-08-29 |
 | [0015](0015-config-hotreload-dual-variable.md) | 配置热重载双变量切换 | accepted | 2026-08-29 |
@@ -148,6 +149,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0052](0052-asynclock-unified-mutex-file-access.md) | AsyncLock 统一互斥锁 + 文件读写可剥离架构 | accepted | 2026-09-02 |
 | [0053](0053-context-compaction-layered-mechanism.md) | 上下文压缩分层机制 | accepted | 2026-09-02 |
 | [0054](0054-llm-output-loop-detection-intervention.md) | LLM 输出循环检测与分级干预机制 | accepted | 2026-09-02 |
+| [0055](0055-runtime-file-location-unify-user-directory.md) | 运行时文件落地位置统一到用户目录 | accepted | 2026-09-11 |
 | [0056](0056-cache-break-detection-enhancement.md) | 缓存破坏检测维度补齐 — 双阈值 + TTL 区分 + 多 agent 隔离 | accepted | 2026-09-02 |
 | [0057](0057-ts-p0-gap-alignment-lsp-analytics.md) | TS 原版 P0 缺口补齐 — LSP 集成 + Analytics 分析 | accepted | 2026-09-02 |
 | [0058](0058-ts-p1-gap-alignment-proactive-vim-permission-skills.md) | TS 原版 P1 缺口补齐 — Proactive + Vim + Permission LLM + Skills | accepted | 2026-09-02 |
@@ -191,7 +193,11 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0096](0096-shell-path-error-auto-retry.md) | Shell 路径处理策略 — 去掉执行前自动转换 + 执行后失败重试 | accepted | 2026-09-09 |
 | [0097](0097-workflow-checkpoint-resume.md) | Workflow 级断点续跑持久化策略 | accepted | 2026-09-09 |
 | [0098](0098-plugin-system-fusion-actor-effectscope.md) | 插件系统融合 — Actor+EffectScope+动态拓扑+弱事件+ALC | accepted | 2026-09-10 |
+| [0099](0099-native-dll-plugin-system.md) | Native DLL 插件系统 — NativeLibrary.Load + UnmanagedCallersOnly | accepted | 2026-09-11 |
+| [0100](0100-console-actor-serialize-io.md) | ConsoleActor 串行化 Console I/O 消除并发竞态 | accepted | 2026-09-11 |
 | [0101](0101-file-watcher-unified-actor.md) | 文件监控全面 Actor 化统一 | proposed | 2026-09-12 |
+| [0102](0102-folder-restructure-functional-driven.md) | 文件夹整理改革 — 从领域驱动到功能驱动 | superseded by 0103 | 2026-09-12 |
+| [0103](0103-folder-restructure-semantic-grouping-flat.md) | 文件夹扁平化重组 — 语义分组 + 组内扁平 | accepted | 2026-09-13 |
 
 ## 主题索引（按议题）
 
@@ -212,8 +218,12 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0009](0009-mcp-streamable-http.md) | MCP Streamable HTTP 2025-11-25 | accepted | 2026-08-29 |
 | [0010](0010-global-usings.md) | GlobalUsings 统一管理 | accepted | 2026-08-29 |
 | [0011](0011-data-container-aot-gc.md) | 数据容器 AOT+GC 选型 | accepted | 2026-08-29 |
+| [0012](0012-robocopy-mir-danger-command-interception.md) | robocopy /MIR 与 /PURGE 红色命令拦截 | proposed | 2026-09-13 |
 | [0081](0081-seven-layer-build-strategy.md) | 七层解决方案架构与编译策略 | accepted | 2026-09-08 |
 | [0098](0098-plugin-system-fusion-actor-effectscope.md) | 插件系统融合 — Actor+EffectScope+动态拓扑+弱事件+ALC | accepted | 2026-09-10 |
+| [0099](0099-native-dll-plugin-system.md) | Native DLL 插件系统 — NativeLibrary.Load + UnmanagedCallersOnly | accepted | 2026-09-11 |
+| [0102](0102-folder-restructure-functional-driven.md) | 文件夹整理改革 — 从领域驱动到功能驱动 | superseded by 0103 | 2026-09-12 |
+| [0103](0103-folder-restructure-semantic-grouping-flat.md) | 文件夹扁平化重组 — 语义分组 + 组内扁平 | accepted | 2026-09-13 |
 
 ### 组件策略与方法论
 
@@ -297,6 +307,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 |------|------|------|------|
 | [0053](0053-context-compaction-layered-mechanism.md) | 上下文压缩分层机制 | accepted | 2026-09-02 |
 | [0054](0054-llm-output-loop-detection-intervention.md) | LLM 输出循环检测与分级干预机制 | accepted | 2026-09-02 |
+| [0055](0055-runtime-file-location-unify-user-directory.md) | 运行时文件落地位置统一到用户目录 | accepted | 2026-09-11 |
 | [0056](0056-cache-break-detection-enhancement.md) | 缓存破坏检测维度补齐 — 双阈值 + TTL 区分 + 多 agent 隔离 | accepted | 2026-09-02 |
 
 ### TS 缺口补齐
@@ -312,6 +323,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 |------|------|------|------|
 | [0061](0061-shell-timeout-keyword-auto-capture.md) | 脚本超时关键字自动捕获机制 | accepted | 2026-09-04 |
 | [0062](0062-path-existence-precheck-and-garbled-detection.md) | 路径存在性前置检查与乱码检测 | accepted | 2026-09-04 |
+| [0055](0055-runtime-file-location-unify-user-directory.md) | 运行时文件落地位置统一到用户目录 | accepted | 2026-09-11 |
 | [0095](0095-unified-path-normalizer.md) | 统一路径归一化工具 PathNormalizer | accepted | 2026-09-09 |
 | [0096](0096-shell-path-error-auto-retry.md) | Shell 路径处理策略 — 去掉执行前自动转换 + 执行后失败重试 | accepted | 2026-09-09 |
 
@@ -340,6 +352,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0067](0067-ci-log-structured-drill-down.md) | CI 日志结构化逐级展开（Section 级 drill down） | accepted | 2026-09-06 |
 | [0068](0068-unified-persistence-pipeline-actor.md) | 统一持久化管道（Actor 模型） | accepted | 2026-09-06 |
 | [0074](0074-actor-supervisor-tree.md) | Actor 监督树 — Router/Gateway/Supervisor/PersistentMailbox 四层扩展 | accepted | 2026-09-08 |
+| [0100](0100-console-actor-serialize-io.md) | ConsoleActor 串行化 Console I/O 消除并发竞态 | accepted | 2026-09-11 |
 | [0101](0101-file-watcher-unified-actor.md) | 文件监控全面 Actor 化统一 | proposed | 2026-09-12 |
 
 ### 文件 I/O 与 Span 优化
@@ -371,6 +384,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0034](0034-command-interception-layered.md) | 命令拦截分层 Guard+Interceptor+Dispatcher | [0039](0039-command-interception-state-machine.md) |
 | [0059](0059-asynclock-reentrancy-detection.md) | AsyncLock 同步重入检测 — LockReentrancyException 提早暴露死锁 | [0060](0060-asynclock-sync-trylock-fireandforget-deadlock.md) |
 | [0065](0065-jcc-mcp-subcommand.md) | jcc mcp CLI 子命令 — bash 直调内部 MCP 工具 | [0069](0069-cli-args-full-refactor.md) |
+| [0102](0102-folder-restructure-functional-driven.md) | 文件夹整理改革 — 从领域驱动到功能驱动 | [0103](0103-folder-restructure-semantic-grouping-flat.md) |
 
 ## 反例与工程约束（高频查阅）
 

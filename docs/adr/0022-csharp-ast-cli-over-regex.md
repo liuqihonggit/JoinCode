@@ -12,8 +12,8 @@
 
 **脚本语言优先级**：
 
-1. **C# AST CLI 优先**：涉及 C# 源码的批量分析/重构/检测，优先使用 `tools/JccAuditAstCli`（基于 Roslyn 的 AST 分析工具）
-   - 构建命令：`dotnet build tools/JccAuditAstCli/JccAuditCli.csproj -c Release`
+1. **C# AST CLI 优先**：涉及 C# 源码的批量分析/重构/检测，优先使用 `tools/jcc_audit_ast_cli`（基于 Roslyn 的 AST 分析工具）
+   - 构建命令：`dotnet build tools/jcc_audit_ast_cli/JccAuditCli.csproj -c Release`
    - 输出路径：`artifacts/bin/JccAuditCli/Release/net10.0/jcc-audit.exe`
    - 适用场景：Nullable 抑制检测、using 组织分析、命名规范检查、DI 注册验证等需要语义理解的场景
 2. **Python 脚本次之**：本机 Python 3.12.10，批量文本处理/脚本检测优先用 `.py` 脚本

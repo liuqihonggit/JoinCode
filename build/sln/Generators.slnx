@@ -1,0 +1,18 @@
+<Solution>
+  <Folder Name="/gen/">
+    <Project Path="../../gen/aot_safety.generator/AotSafety.Generator.csproj" />
+    <Project Path="../../gen/app_module.generator/AppModule.Generator.csproj" />
+    <Project Path="../../gen/code_fixes/CodeFixes.csproj" />
+    <Project Path="../../gen/cli_option.generator/CliOption.Generator.csproj" />
+    <Project Path="../../gen/enum_metadata.generator/EnumMetadata.Generator.csproj" />
+    <Project Path="../../gen/fsm.generator/Fsm.Generator.csproj" />
+    <Project Path="../../gen/mcp_tool_dispatch.generator/McpToolDispatch.Generator.csproj" />
+    <Project Path="../../gen/prompt_section.generator/PromptSection.Generator.csproj" />
+    <Project Path="../../gen/prompt_template.generator/PromptTemplate.Generator.csproj" />
+    <Project Path="../../gen/tool_prompt.generator/ToolPrompt.Generator.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="../../gen/aot_safety.tests/AotSafety.Tests.csproj" />
+    <Project Path="../../gen/fsm.generator.tests/Fsm.Generator.Tests.csproj" />
+  </Folder>
+</Solution>

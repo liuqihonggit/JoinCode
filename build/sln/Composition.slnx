@@ -1,0 +1,18 @@
+<Solution>
+  <Folder Name="/composition/">
+    <Project Path="../../kit/composition/Composition.csproj" />
+    <Project Path="../../kit/composition.tests/Composition.Tests.csproj" />
+    <Project Path="../../lib/clock/Clock.csproj" />
+    <Project Path="../../lib/clock.tests/Clock.Tests.csproj" />
+    <Project Path="../../kit/pipelines/Pipelines.csproj" />
+  </Folder>
+  <Folder Name="/lib/">
+    <Project Path="../../lib/abstractions/Abstractions.csproj" />
+    <Project Path="../../lib/structura/Structura.csproj" />
+    <Project Path="../../lib/transport.contracts/Transport.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/infrastructure/">
+    <Project Path="../../lib/infrastructure/Infrastructure.csproj" />
+    <Project Path="../../lib/transport.impl/Transport.Impl.csproj" />
+  </Folder>
+</Solution>

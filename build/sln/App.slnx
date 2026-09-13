@@ -1,0 +1,38 @@
+<Solution>
+  <Folder Name="/app/">
+    <Project Path="../../app/sdk/Sdk.csproj" />
+    <Project Path="../../app/cli/JoinCode.csproj" />
+    <Project Path="../../kit/pipelines/Pipelines.csproj" />
+  </Folder>
+  <Folder Name="/test/unit/">
+    <Project Path="../../test/unit/host.tests/Host.Tests.csproj" />
+    <Project Path="../../test/unit/tui.tests/Tui.Tests.csproj" />
+    <Project Path="../../test/unit/infra.tests/io/Infra.IO.Tests.csproj" />
+    <Project Path="../../test/unit/infra.tests/utils/Infra.Utils.Tests.csproj" />
+    <Project Path="../../test/unit/infra.tests/services/Infra.Services.Tests.csproj" />
+    <Project Path="../../test/unit/testing.common/Testing.Common.csproj" />
+  </Folder>
+  <Folder Name="/test/integration/">
+    <Project Path="../../test/integration/integration.tests/Integration.Tests.csproj" />
+  </Folder>
+  <Folder Name="/test/mock/">
+    <Project Path="../../test/mock/mock_server.core/MockServer.Core.csproj" />
+    <Project Path="../../test/mock/mock_server.core.tests/MockServer.Core.Tests.csproj" />
+    <Project Path="../../test/mock/open_ai.mock_server/OpenAI.MockServer.csproj" />
+    <Project Path="../../test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj" />
+    <Project Path="../../test/mock/sync.integration.tests/Sync.Integration.Tests.csproj" />
+    <Project Path="../../test/mock/anthropic.mock_server/Anthropic.MockServer.csproj" />
+    <Project Path="../../test/mock/deep_seek.mock_server/DeepSeek.MockServer.csproj" />
+    <Project Path="../../test/mock/responses.mock_server/Responses.MockServer.csproj" />
+    <Project Path="../../test/mock/mcp.mock_server/Mcp.MockServer.csproj" />
+  </Folder>
+  <Folder Name="/lib/">
+    <Project Path="../../lib/abstractions/Abstractions.csproj" />
+    <Project Path="../../lib/structura/Structura.csproj" />
+    <Project Path="../../lib/transport.contracts/Transport.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/infrastructure/">
+    <Project Path="../../lib/infrastructure/Infrastructure.csproj" />
+    <Project Path="../../lib/transport.impl/Transport.Impl.csproj" />
+  </Folder>
+</Solution>

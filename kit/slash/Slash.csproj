@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>JoinCode.ChatCommands</RootNamespace>
+    <AssemblyName>JoinCode.Slash</AssemblyName>
+    <PackageId>JoinCode.Slash</PackageId>
+    <Description>JoinCode 斜杠命令子系统 — 所有 /xxx 命令的实现与注册</Description>
+    <NoWarn>$(NoWarn);IL2026;IL3050;IL2066;IL2075;NU5104</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />
+    <ProjectReference Include="$(RepoRoot)server/bridge/Bridge.csproj" />
+    <ProjectReference Include="$(RepoRoot)kit/mcp/Mcp.csproj" />
+    <ProjectReference Include="$(RepoRoot)kit/brain/Brain.csproj" />
+    <ProjectReference Include="$(RepoRoot)lib/guard/Guard.csproj" />
+    <ProjectReference Include="$(RepoRoot)kit/hands/Hands.csproj" />
+    <ProjectReference Include="$(RepoRoot)server/eyes/Eyes.csproj" />
+    <ProjectReference Include="$(RepoRoot)server/vision/Vision.csproj" />
+    <ProjectReference Include="$(RepoRoot)lib/vault/Vault.csproj" />
+    <ProjectReference Include="$(RepoRoot)lib/scheduling/Scheduling.csproj" />
+    <ProjectReference Include="$(RepoRoot)kit/mcp_tool_dispatch/McpToolDispatch.csproj" />
+    <ProjectReference Include="$(RepoRoot)llm/agents/Agents.csproj" />
+    <ProjectReference Include="$(RepoRoot)lib/transport.impl/Transport.Impl.csproj" />
+    <ProjectReference Include="$(RepoRoot)llm/reasoning/Reasoning.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(RepoRoot)gen/enum_metadata.generator/EnumMetadata.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(RepoRoot)gen/mcp_tool_dispatch.generator/McpToolDispatch.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="$(MicrosoftExtensionsVersion)" />
+    <PackageReference Include="ModelContextProtocol" Version="$(ModelContextProtocolVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="JoinCode.Composition" />
+    <InternalsVisibleTo Include="JoinCode.Composition.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Host.Tests" />
+    <InternalsVisibleTo Include="JoinCode.Integration.Tests" />
+  </ItemGroup>
+
+</Project>

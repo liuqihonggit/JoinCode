@@ -1,0 +1,135 @@
+<Solution>
+  <Folder Name="/gen/">
+    <Project Path="../../gen/aot_safety.generator/AotSafety.Generator.csproj" />
+    <Project Path="../../gen/aot_safety.tests/AotSafety.Tests.csproj" />
+    <Project Path="../../gen/app_module.generator/AppModule.Generator.csproj" />
+    <Project Path="../../gen/code_fixes/CodeFixes.csproj" />
+    <Project Path="../../gen/cli_option.generator/CliOption.Generator.csproj" />
+    <Project Path="../../gen/enum_metadata.generator/EnumMetadata.Generator.csproj" />
+    <Project Path="../../gen/mcp_tool_dispatch.generator/McpToolDispatch.Generator.csproj" />
+    <Project Path="../../gen/prompt_section.generator/PromptSection.Generator.csproj" />
+    <Project Path="../../gen/prompt_template.generator/PromptTemplate.Generator.csproj" />
+    <Project Path="../../gen/tool_prompt.generator/ToolPrompt.Generator.csproj" />
+  </Folder>
+  <Folder Name="/lib/">
+    <Project Path="../../lib/abstractions/Abstractions.csproj" />
+    <Project Path="../../lib/structura/Structura.csproj" />
+    <Project Path="../../lib/structura.tests/Structura.Tests.csproj" />
+    <Project Path="../../lib/transport.contracts/Transport.Contracts.csproj" />
+    <Project Path="../../lib/plugins.contracts/Plugins.Contracts.csproj" />
+    <Project Path="../../lib/plugins.infrastructure/Plugins.Infrastructure.csproj" />
+    <Project Path="../../lib/plugins.tests/Plugins.Tests.csproj" />
+  </Folder>
+  <Folder Name="/infrastructure/">
+    <Project Path="../../lib/infrastructure/Infrastructure.csproj" />
+    <Project Path="../../lib/transport.impl/Transport.Impl.csproj" />
+  </Folder>
+  <Folder Name="/core/" />
+  <Folder Name="/llm/">
+    <Project Path="../../llm/core/Llm.csproj" />
+    <Project Path="../../llm/llm.tests/Llm.Tests.csproj" />
+    <Project Path="../../llm/agents/Agents.csproj" />
+    <Project Path="../../llm/agents.tests/Agents.Tests.csproj" />
+    <Project Path="../../llm/reasoning/Reasoning.csproj" />
+    <Project Path="../../llm/reasoning.tests/Reasoning.Tests.csproj" />
+  </Folder>
+  <Folder Name="/kit/">
+    <Project Path="../../kit/prompts/Prompts.csproj" />
+    <Project Path="../../kit/brain.prompts.tests/Brain.Prompts.Tests.csproj" />
+    <Project Path="../../kit/slash/Slash.csproj" />
+  </Folder>
+  <Folder Name="/core/execution/">
+    <Project Path="../../kit/brain/Brain.csproj" />
+    <Project Path="../../kit/brain.context.tests/Brain.Context.Tests.csproj" />
+    <Project Path="../../kit/brain.other.tests/Brain.Other.Tests.csproj" />
+    <Project Path="../../kit/hands/Hands.csproj" />
+    <Project Path="../../kit/hands.api.tests/Hands.Api.Tests.csproj" />
+    <Project Path="../../kit/hands.shell.tests/Hands.Shell.Tests.csproj" />
+    <Project Path="../../kit/hands.skills.tests/Hands.Skills.Tests.csproj" />
+    <Project Path="../../kit/hands.tool_handlers.tests/Hands.ToolHandlers.Tests.csproj" />
+    <Project Path="../../lib/scheduling/Scheduling.csproj" />
+    <Project Path="../../lib/scheduling.tests/Scheduling.Tests.csproj" />
+    <Project Path="../../kit/mcp_tool_dispatch/McpToolDispatch.csproj" />
+    <Project Path="../../kit/mcp_tool_dispatch.tests/McpToolDispatch.Tests.csproj" />
+  </Folder>
+  <Folder Name="/core/safety/">
+    <Project Path="../../lib/guard/Guard.csproj" />
+    <Project Path="../../lib/guard.config.tests/Guard.Config.Tests.csproj" />
+    <Project Path="../../lib/guard.hooks.tests/Guard.Hooks.Tests.csproj" />
+    <Project Path="../../lib/guard.security.tests/Guard.Security.Tests.csproj" />
+    <Project Path="../../lib/vault/Vault.csproj" />
+    <Project Path="../../lib/vault.memdir.tests/Vault.Memdir.Tests.csproj" />
+    <Project Path="../../lib/vault.other.tests/Vault.Other.Tests.csproj" />
+    <Project Path="../../lib/vault.testing.common/Vault.Testing.Common.csproj" />
+  </Folder>
+  <Folder Name="/core/search/">
+    <Project Path="../../server/code_index/CodeIndex.csproj" />
+    <Project Path="../../server/code_index.tests/CodeIndex.Tests.csproj" />
+    <Project Path="../../server/code_index.e2e.tests/CodeIndex.E2E.Tests.csproj" />
+    <Project Path="../../server/browser/Browser.csproj" />
+    <Project Path="../../server/browser.tests/Browser.Tests.csproj" />
+  </Folder>
+  <Folder Name="/services/">
+    <Project Path="../../kit/mcp/Mcp.csproj" />
+    <Project Path="../../kit/mcp.tests/Mcp.Tests.csproj" />
+    <Project Path="../../server/dream/Dream.csproj" />
+    <Project Path="../../server/dream.tests/Dream.Tests.csproj" />
+    <Project Path="../../server/eyes/Eyes.csproj" />
+    <Project Path="../../server/eyes.tests/Eyes.Tests.csproj" />
+    <Project Path="../../server/bridge/Bridge.csproj" />
+    <Project Path="../../server/bridge.tests/Bridge.Tests.csproj" />
+    <Project Path="../../server/sandbox_satellite/SandboxSatellite.csproj" />
+  </Folder>
+  <Folder Name="/composition/">
+    <Project Path="../../kit/composition/Composition.csproj" />
+    <Project Path="../../kit/composition.tests/Composition.Tests.csproj" />
+    <Project Path="../../lib/clock/Clock.csproj" />
+    <Project Path="../../lib/clock.tests/Clock.Tests.csproj" />
+    <Project Path="../../kit/pipelines/Pipelines.csproj" />
+  </Folder>
+  <Folder Name="/app/">
+    <Project Path="../../app/cli/JoinCode.csproj" />
+    <Project Path="../../app/tui/JoinCodeTui.csproj" />
+    <Project Path="../../app/sdk/Sdk.csproj" />
+    <Project Path="../../app/gui/JoinCodeGui.csproj" />
+  </Folder>
+  <Folder Name="/test/unit/">
+    <Project Path="../../test/unit/host.tests/Host.Tests.csproj" />
+    <Project Path="../../test/unit/infra.tests/io/Infra.IO.Tests.csproj" />
+    <Project Path="../../test/unit/infra.tests/utils/Infra.Utils.Tests.csproj" />
+    <Project Path="../../test/unit/infra.tests/services/Infra.Services.Tests.csproj" />
+    <Project Path="../../test/unit/testing.common/Testing.Common.csproj" />
+    <Project Path="../../test/unit/join_code_gui.tests/JoinCodeGui.Tests.csproj" />
+    <Project Path="../../test/unit/hands.tests/Hands.Tests.csproj" />
+    <Project Path="../../test/unit/abs.tests/Abs.Tests.csproj" />
+    <Project Path="../../test/unit/mcp.tests/Mcp.UniqueTests.csproj" />
+    <Project Path="../../test/unit/mcp_tool_dispatch.tests/McpToolDispatch.UniqueTests.csproj" />
+  </Folder>
+  <Folder Name="/test/integration/">
+    <Project Path="../../test/integration/integration.tests/Integration.Tests.csproj" />
+  </Folder>
+  <Folder Name="/test/mock/">
+    <Project Path="../../test/mock/mock_server.core/MockServer.Core.csproj" />
+    <Project Path="../../test/mock/mock_server.core.tests/MockServer.Core.Tests.csproj" />
+    <Project Path="../../test/mock/open_ai.mock_server/OpenAI.MockServer.csproj" />
+    <Project Path="../../test/mock/mock_server.e2e.tests/MockServer.E2E.Tests.csproj" />
+    <Project Path="../../test/mock/sync.integration.tests/Sync.Integration.Tests.csproj" />
+    <Project Path="../../test/mock/anthropic.mock_server/Anthropic.MockServer.csproj" />
+    <Project Path="../../test/mock/deep_seek.mock_server/DeepSeek.MockServer.csproj" />
+    <Project Path="../../test/mock/mcp.mock_server/Mcp.MockServer.csproj" />
+  </Folder>
+  <Folder Name="/test/benchmarks/">
+    <Project Path="../../test/benchmarks/eyes.benchmarks/Eyes.Benchmarks.csproj" />
+  </Folder>
+  <Folder Name="/test/" />
+  <Folder Name="/test/aot/">
+    <Project Path="../../test/aot/aot_browser_test/aot-browser-test.csproj" />
+    <Project Path="../../test/aot/aot_httpclientfactory_test/aot-httpclientfactory-test.csproj" />
+    <Project Path="../../test/aot/pptr_api_check/PptrApiCheck.csproj" />
+  </Folder>
+  <Folder Name="/non_deliverables_tools/">
+    <Project Path="../../non_deliverables_tools/jcc_audit_ast_cli/JccAuditCli.csproj" />
+    <Project Path="../../non_deliverables_tools/jcc_audit_ast_cli/tests/JccAuditCli.Tests.csproj" />
+    <Project Path="../../non_deliverables_tools/inject_migration/InjectMigration.csproj" />
+  </Folder>
+</Solution>

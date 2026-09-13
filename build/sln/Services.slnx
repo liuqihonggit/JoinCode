@@ -1,0 +1,25 @@
+<Solution>
+  <Folder Name="/services/">
+    <Project Path="../../kit/mcp/Mcp.csproj" />
+    <Project Path="../../kit/mcp.tests/Mcp.Tests.csproj" />
+    <Project Path="../../server/dream/Dream.csproj" />
+    <Project Path="../../server/dream.tests/Dream.Tests.csproj" />
+    <Project Path="../../server/eyes/Eyes.csproj" />
+    <Project Path="../../server/vision/Vision.csproj" />
+    <Project Path="../../server/vision.tests/Vision.Tests.csproj" />
+    <Project Path="../../server/eyes.tests/Eyes.Tests.csproj" />
+    <Project Path="../../server/bridge/Bridge.csproj" />
+    <Project Path="../../server/bridge.tests/Bridge.Tests.csproj" />
+    <Project Path="../../server/sandbox_satellite/SandboxSatellite.csproj" />
+    <Project Path="../../server/update/Update.csproj" />
+  </Folder>
+  <Folder Name="/lib/">
+    <Project Path="../../lib/abstractions/Abstractions.csproj" />
+    <Project Path="../../lib/structura/Structura.csproj" />
+    <Project Path="../../lib/transport.contracts/Transport.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/infrastructure/">
+    <Project Path="../../lib/infrastructure/Infrastructure.csproj" />
+    <Project Path="../../lib/transport.impl/Transport.Impl.csproj" />
+  </Folder>
+</Solution>

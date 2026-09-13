@@ -1,0 +1,78 @@
+<Solution>
+  <Folder Name="/core/" />
+  <Folder Name="/llm/">
+    <Project Path="../../llm/core/Llm.csproj" />
+    <Project Path="../../llm/llm.tests/Llm.Tests.csproj" />
+    <Project Path="../../llm/agents/Agents.csproj" />
+    <Project Path="../../llm/agents.tests/Agents.Tests.csproj" />
+    <Project Path="../../llm/reasoning/Reasoning.csproj" />
+    <Project Path="../../llm/reasoning.tests/Reasoning.Tests.csproj" />
+  </Folder>
+  <Folder Name="/core/execution/">
+    <Project Path="../../kit/brain/Brain.csproj" />
+    <Project Path="../../kit/hands/Hands.csproj" />
+    <Project Path="../../lib/scheduling/Scheduling.csproj" />
+    <Project Path="../../lib/scheduling.tests/Scheduling.Tests.csproj" />
+    <Project Path="../../kit/mcp_tool_dispatch/McpToolDispatch.csproj" />
+    <Project Path="../../kit/mcp_tool_dispatch.tests/McpToolDispatch.Tests.csproj" />
+  </Folder>
+  <Folder Name="/kit/test/context/">
+    <Project Path="../../kit/brain.context.tests/Brain.Context.Tests.csproj" />
+  </Folder>
+  <Folder Name="/kit/test/other/">
+    <Project Path="../../kit/brain.other.tests/Brain.Other.Tests.csproj" />
+  </Folder>
+  <Folder Name="/kit/test/prompts/">
+    <Project Path="../../kit/brain.prompts.tests/Brain.Prompts.Tests.csproj" />
+  </Folder>
+  <Folder Name="/kit/test/api/">
+    <Project Path="../../kit/hands.api.tests/Hands.Api.Tests.csproj" />
+  </Folder>
+  <Folder Name="/kit/test/shell/">
+    <Project Path="../../kit/hands.shell.tests/Hands.Shell.Tests.csproj" />
+  </Folder>
+  <Folder Name="/kit/test/skills/">
+    <Project Path="../../kit/hands.skills.tests/Hands.Skills.Tests.csproj" />
+  </Folder>
+  <Folder Name="/kit/test/tool_handlers/">
+    <Project Path="../../kit/hands.tool_handlers.tests/Hands.ToolHandlers.Tests.csproj" />
+  </Folder>
+  <Folder Name="/core/safety/">
+    <Project Path="../../lib/guard/Guard.csproj" />
+    <Project Path="../../lib/vault/Vault.csproj" />
+  </Folder>
+  <Folder Name="/lib/guard/test/config/">
+    <Project Path="../../lib/guard.config.tests/Guard.Config.Tests.csproj" />
+  </Folder>
+  <Folder Name="/lib/guard/test/hooks/">
+    <Project Path="../../lib/guard.hooks.tests/Guard.Hooks.Tests.csproj" />
+  </Folder>
+  <Folder Name="/lib/guard/test/security/">
+    <Project Path="../../lib/guard.security.tests/Guard.Security.Tests.csproj" />
+  </Folder>
+  <Folder Name="/lib/vault/test/memdir/">
+    <Project Path="../../lib/vault.memdir.tests/Vault.Memdir.Tests.csproj" />
+  </Folder>
+  <Folder Name="/lib/vault/test/other/">
+    <Project Path="../../lib/vault.other.tests/Vault.Other.Tests.csproj" />
+  </Folder>
+  <Folder Name="/lib/vault/test/shared/">
+    <Project Path="../../lib/vault.testing.common/Vault.Testing.Common.csproj" />
+  </Folder>
+  <Folder Name="/core/search/">
+    <Project Path="../../server/code_index/CodeIndex.csproj" />
+    <Project Path="../../server/code_index.tests/CodeIndex.Tests.csproj" />
+    <Project Path="../../server/code_index.e2e.tests/CodeIndex.E2E.Tests.csproj" />
+    <Project Path="../../server/browser/Browser.csproj" />
+    <Project Path="../../server/browser.tests/Browser.Tests.csproj" />
+  </Folder>
+  <Folder Name="/lib/">
+    <Project Path="../../lib/abstractions/Abstractions.csproj" />
+    <Project Path="../../lib/structura/Structura.csproj" />
+    <Project Path="../../lib/transport.contracts/Transport.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/infrastructure/">
+    <Project Path="../../lib/infrastructure/Infrastructure.csproj" />
+    <Project Path="../../lib/transport.impl/Transport.Impl.csproj" />
+  </Folder>
+</Solution>

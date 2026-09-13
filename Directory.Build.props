@@ -112,8 +112,8 @@
   <!-- 开关: /p:JccAnalyzers=false 禁用自定义分析器，加速迭代编译 -->
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0' and '$(EnforceExtendedAnalyzerRules)' != 'true' and '$(ExcludeJccAnalyzers)' != 'true' and '$(JccAnalyzers)' == 'true'">
-    <ProjectReference Include="$(MSBuildThisFileDirectory)generators\AotSafety.Generator\src\AotSafety.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="$(MSBuildThisFileDirectory)generators\CodeFixes\src\CodeFixes.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)gen/aot_safety.generator/AotSafety.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)gen/code_fixes/CodeFixes.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>

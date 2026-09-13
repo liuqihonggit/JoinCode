@@ -19,6 +19,10 @@ public sealed class ValidationException : ApiException
     /// <summary>
     /// 创建 ValidationException
     /// </summary>
+    /// <param name="endpoint">API 端点</param>
+    /// <param name="message">错误消息</param>
+    /// <param name="errors">字段验证错误字典；为 null 时使用空字典</param>
+    /// <param name="responseContent">原始响应内容</param>
     public ValidationException(
         string endpoint,
         string message,

@@ -1,8 +1,15 @@
 
 namespace Core.Skills.BuiltIn;
 
+/// <summary>
+/// 技能化技能 — 将重复操作转化为可复用技能
+/// </summary>
 public sealed class SkillifySkill
 {
+    /// <summary>
+    /// 创建技能定义
+    /// </summary>
+    /// <returns>技能化技能的技能定义</returns>
     public static SkillDefinition CreateDefinition()
     {
         return new SkillDefinition

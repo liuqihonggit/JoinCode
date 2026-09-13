@@ -1,6 +1,9 @@
 
 namespace Core.Skills.Plugin;
 
+/// <summary>
+/// 插件技能桥接 — 将插件提供的技能注册到技能服务，管理生命周期
+/// </summary>
 [Register(typeof(IPluginSkillBridge), ServiceLifetime.Singleton)]
 public sealed partial class PluginSkillBridge : ServiceEntity, IPluginSkillBridge
 {
@@ -10,6 +13,12 @@ public sealed partial class PluginSkillBridge : ServiceEntity, IPluginSkillBridg
     private readonly ConcurrentDictionary<string, List<string>> _pluginSkillMap;
     private bool _isDisposed;
 
+    /// <summary>
+    /// 创建 PluginSkillBridge
+    /// </summary>
+    /// <param name="pluginManager">插件管理器</param>
+    /// <param name="skillService">技能服务</param>
+    /// <param name="logger">日志记录器</param>
     public PluginSkillBridge(
         IPluginManager pluginManager,
         ISkillService skillService,
@@ -23,6 +32,12 @@ public sealed partial class PluginSkillBridge : ServiceEntity, IPluginSkillBridg
         Diag.WriteLine("[BRIDGE-CTOR] done");
     }
 
+    /// <summary>
+    /// 异步注册插件技能 — 返回撤销函数，调用后注销已注册的技能
+    /// </summary>
+    /// <param name="pluginName">插件名称</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>撤销注册的函数</returns>
     public async Task<Action> RegisterPluginSkillsAsync(string pluginName, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(pluginName);
@@ -77,6 +92,12 @@ public sealed partial class PluginSkillBridge : ServiceEntity, IPluginSkillBridg
         };
     }
 
+    /// <summary>
+    /// 异步注销插件技能
+    /// </summary>
+    /// <param name="pluginName">插件名称</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task UnregisterPluginSkillsAsync(string pluginName, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(pluginName);
@@ -105,6 +126,11 @@ public sealed partial class PluginSkillBridge : ServiceEntity, IPluginSkillBridg
         await Task.CompletedTask.ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 异步获取指定插件的技能列表
+    /// </summary>
+    /// <param name="pluginName">插件名称</param>
+    /// <returns>插件技能定义列表</returns>
     public async Task<IReadOnlyList<SkillDefinition>> GetPluginSkillsAsync(string pluginName)
     {
         ArgumentException.ThrowIfNullOrEmpty(pluginName);
@@ -127,11 +153,18 @@ public sealed partial class PluginSkillBridge : ServiceEntity, IPluginSkillBridg
         return skills;
     }
 
+    /// <summary>
+    /// 获取所有已注册技能的插件名称
+    /// </summary>
+    /// <returns>插件名称可枚举集合</returns>
     public IEnumerable<string> GetPluginsWithSkills()
     {
         return _pluginSkillMap.Keys;
     }
 
+    /// <summary>
+    /// 释放资源 — 注销所有插件技能并清空映射
+    /// </summary>
     protected override void OnDispose()
     {
         if (_isDisposed)

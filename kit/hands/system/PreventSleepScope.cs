@@ -40,6 +40,11 @@ public sealed class PreventSleepScope : IAsyncDisposable
         _ = resultTask.ContinueWith(async _ => await DisposeAsyncCore().ConfigureAwait(false), TaskScheduler.Default);
     }
 
+    /// <summary>
+    /// 异步释放作用域 — 调用 AllowSleepAsync 恢复系统睡眠状态
+    /// <para>若已通过 DetachTo 绑定到后台 Task,则本次调用为 no-op</para>
+    /// </summary>
+    /// <returns>表示异步释放操作的 ValueTask</returns>
     public ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _detached, 1) == 1) return default;

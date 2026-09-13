@@ -8,6 +8,13 @@ namespace Services.Notebook;
 public sealed partial class NotebookService : ServiceEntity, INotebookService
 {
 
+    /// <summary>
+    /// 构造 Notebook 服务。
+    /// </summary>
+    /// <param name="fileOperationService">文件操作服务。</param>
+    /// <param name="fs">文件系统抽象。</param>
+    /// <param name="fileHistoryService">文件历史服务（可选，用于编辑前备份）。</param>
+    /// <param name="telemetryService">遥测服务（可选，用于记录操作指标）。</param>
     public NotebookService(IFileOperationService fileOperationService, IFileSystem fs, IFileHistoryService? fileHistoryService = null, ITelemetryService? telemetryService = null)
     {
         _fileOperationService = fileOperationService;

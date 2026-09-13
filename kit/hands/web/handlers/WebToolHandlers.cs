@@ -3,6 +3,10 @@
 
 namespace Tools.Handlers;
 
+/// <summary>
+/// Web 工具处理器 — 提供 WebFetch、WebToMarkdown、WebSearch 三种工具，
+/// 对齐 TS 版 web_fetch/web_to_markdown/web_search 工具实现。
+/// </summary>
 [McpToolDispatch(ToolCategory.Web)]
 public class WebToolHandlers
 {
@@ -11,6 +15,13 @@ public class WebToolHandlers
     private readonly ITelemetryService? _telemetryService;
     private readonly ProviderConfig? _providerConfig;
 
+    /// <summary>
+    /// 初始化 <see cref="WebToolHandlers"/> 实例。
+    /// </summary>
+    /// <param name="webService">Web 服务，用于执行抓取与搜索。</param>
+    /// <param name="queryService">可选的查询服务，用于 WebFetch 二级 LLM 调用。</param>
+    /// <param name="telemetryService">可选的遥测服务，用于记录 Web 操作指标。</param>
+    /// <param name="providerConfig">可选的供应商配置，用于获取快速模型 ID。</param>
     public WebToolHandlers(
         IWebService webService,
         JoinCode.Abstractions.LLM.IQueryService? queryService = null,
@@ -23,6 +34,13 @@ public class WebToolHandlers
         _providerConfig = providerConfig;
     }
 
+    /// <summary>
+    /// 异步抓取指定 URL 内容，并使用 AI 模型按提示词提取信息。
+    /// </summary>
+    /// <param name="url">待抓取的 URL。</param>
+    /// <param name="prompt">描述从页面提取何种信息的提示词。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>包含提取结果与诊断信息的工具结果。</returns>
     [McpTool(WebToolNameConstants.WebFetch, "Fetch web content from a URL and process with AI model", "web", ConcurrencySafe = true)]
     public async Task<ToolResult> WebFetchAsync(
         [McpToolParameter("URL to fetch")] string url,
@@ -111,6 +129,13 @@ public class WebToolHandlers
             .Build();
     }
 
+    /// <summary>
+    /// 异步抓取指定 URL 并将其 HTML 内容转换为 Markdown 格式。
+    /// </summary>
+    /// <param name="url">待抓取并转换的 URL。</param>
+    /// <param name="max_length">输出最大字符数，默认 100000。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>包含 Markdown 内容与诊断信息的工具结果。</returns>
     [McpTool(WebToolNameConstants.WebToMarkdown, "Fetch a URL and convert its HTML content to Markdown format", "web", ConcurrencySafe = true)]
     public async Task<ToolResult> WebToMarkdownAsync(
         [McpToolParameter("URL to fetch and convert to Markdown")] string url,
@@ -167,6 +192,14 @@ public class WebToolHandlers
             .Build();
     }
 
+    /// <summary>
+    /// 异步执行 Web 搜索，返回匹配查询的链接列表（需要 Anthropic 供应商支持）。
+    /// </summary>
+    /// <param name="query">搜索查询字符串。</param>
+    /// <param name="allowed_domains">可选的允许域名白名单。</param>
+    /// <param name="blocked_domains">可选的屏蔽域名黑名单。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>包含搜索结果链接列表与诊断信息的工具结果。</returns>
     [McpTool(WebToolNameConstants.WebSearch, "Search the web for up-to-date information (requires Anthropic provider)", "web", ConcurrencySafe = true)]
     public async Task<ToolResult> WebSearchAsync(
         [McpToolParameter("Search query")] string query,

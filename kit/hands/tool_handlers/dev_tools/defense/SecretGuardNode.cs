@@ -11,6 +11,11 @@ public sealed class SecretGuardNode
     private readonly ITeamMemSecretGuard? _guard;
     private readonly ILogger<SecretGuardNode>? _logger;
 
+    /// <summary>
+    /// 构造密钥检测 node
+    /// </summary>
+    /// <param name="guard">可选的团队密钥守卫</param>
+    /// <param name="logger">可选日志记录器</param>
     public SecretGuardNode(
         ITeamMemSecretGuard? guard = null,
         ILogger<SecretGuardNode>? logger = null)

@@ -8,6 +8,10 @@ namespace Services.Shell;
 public sealed partial class ForegroundTaskRegistry : MapRegistry<string, ISystemActuatorCommandContext>, IForegroundTaskRegistry
 {
 
+    /// <summary>
+    /// 构造前台任务注册表
+    /// </summary>
+    /// <param name="logger">日志器（可选）</param>
     public ForegroundTaskRegistry(ILogger<ForegroundTaskRegistry>? logger = null)
     {
         _logger = logger;

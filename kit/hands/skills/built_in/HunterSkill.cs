@@ -1,8 +1,15 @@
 
 namespace Core.Skills.BuiltIn;
 
+/// <summary>
+/// 猎人技能 — 深度搜索和追踪代码模式，支持定义、引用、关联多维度分析
+/// </summary>
 public sealed class HunterSkill
 {
+    /// <summary>
+    /// 创建技能定义
+    /// </summary>
+    /// <returns>猎人技能的技能定义</returns>
     public static SkillDefinition CreateDefinition()
     {
         return new SkillDefinition

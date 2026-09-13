@@ -1,5 +1,8 @@
 namespace Services.SystemActuator;
 
+/// <summary>
+/// 系统执行器命令上下文 — 封装单次命令执行的全生命周期：进程启动、输出收集、超时/后台化/中断/杀死、CWD 追踪与异步释放
+/// </summary>
 public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext, ISystemActuatorLifecycle, IAsyncDisposable
 {
     private readonly Process _process;
@@ -25,13 +28,20 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
 
     private const int SizeWatchdogIntervalMs = 5_000;
 
+    /// <summary>任务唯一标识（自动生成）</summary>
     public string TaskId { get; } = TaskIdGenerator.GenerateTaskId(TaskType.LocalBash);
+    /// <summary>命令当前状态</summary>
     public SystemActuatorCommandStatus Status => _status;
+    /// <summary>命令执行结果任务 — 进程退出或被杀死时完成</summary>
     public Task<SystemActuatorExecutionResult> ResultTask => _resultTcs.Task;
+    /// <summary>原始命令字符串</summary>
     public string Command => _command;
+    /// <summary>输出溢出文件路径 — 输出过大时溢出到磁盘的文件路径，未溢出时为 null</summary>
     public string? OutputFilePath => _outputCollector.SpillFilePath;
+    /// <summary>是否允许自动后台化 — 超时或 Assistant 阻塞预算耗尽时自动转后台</summary>
     public bool ShouldAutoBackground { get; }
 
+    /// <summary>命令被转后台时触发 — 参数为上下文与后台任务 ID</summary>
     public event Action<SystemActuatorCommandContext, string>? Backgrounded;
 
     private SystemActuatorCommandContext(
@@ -82,6 +92,19 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
         StartSizeWatchdog();
     }
 
+    /// <summary>
+    /// 异步启动一个命令上下文 — 构建命令、注入环境变量、启动进程并开始输出收集
+    /// </summary>
+    /// <param name="command">要执行的命令字符串</param>
+    /// <param name="workingDirectory">工作目录</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="actuator">系统执行器实例</param>
+    /// <param name="timeoutMs">超时毫秒数（null 或 ≤0 表示不超时）</param>
+    /// <param name="shouldAutoBackground">是否允许超时自动后台化</param>
+    /// <param name="useSandbox">是否使用沙箱</param>
+    /// <param name="sandboxTmpDir">沙箱临时目录路径</param>
+    /// <param name="logger">日志记录器</param>
+    /// <returns>已启动的命令上下文</returns>
     public static async Task<SystemActuatorCommandContext> StartAsync(
         string command,
         string workingDirectory,
@@ -141,6 +164,11 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
             shouldAutoBackground, logger, fs, execResult.CwdFilePath, actuator.Detached);
     }
 
+    /// <summary>
+    /// 将当前前台命令转后台 — 释放超时/Assistant 定时器，溢出输出到磁盘，清理 CWD 追踪文件
+    /// </summary>
+    /// <param name="taskId">后台任务 ID</param>
+    /// <returns>成功转后台返回 true；命令非 Running 状态返回 false</returns>
     public bool Background(string taskId)
     {
         if (_status != SystemActuatorCommandStatus.Running) return false;
@@ -164,7 +192,11 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
         return true;
     }
 
+    /// <summary>获取当前累积的标准输出（含已溢出到磁盘的内容）</summary>
+    /// <returns>当前标准输出字符串</returns>
     public string GetCurrentStdout() => _outputCollector.GetCurrentStdout();
+    /// <summary>获取当前累积的标准错误输出</summary>
+    /// <returns>当前标准错误字符串</returns>
     public string GetCurrentStderr() => _outputCollector.GetCurrentStderr();
 
     private void StartSizeWatchdog()
@@ -183,6 +215,7 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
         }, this, TimeSpan.FromMilliseconds(SizeWatchdogIntervalMs), TimeSpan.FromMilliseconds(SizeWatchdogIntervalMs));
     }
 
+    /// <summary>强制杀死进程树并将状态置为 Killed — 已非 Running/Backgrounded 状态时为空操作</summary>
     public void Kill()
     {
         if (_status is not (SystemActuatorCommandStatus.Running or SystemActuatorCommandStatus.Backgrounded)) return;
@@ -193,6 +226,10 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
         _status = SystemActuatorCommandStatus.Killed;
     }
 
+    /// <summary>
+    /// 中断当前前台命令 — 通过将其转后台实现（生成新任务 ID）
+    /// </summary>
+    /// <returns>成功转后台返回 true；命令非 Running 状态返回 false</returns>
     public bool Interrupt()
     {
         if (_status != SystemActuatorCommandStatus.Running) return false;
@@ -204,6 +241,9 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
         return true;
     }
 
+    /// <summary>
+    /// 启动 Assistant 自动后台化定时器 — 当 ShouldAutoBackground 为 true 且命令在 Assistant 阻塞预算耗尽后仍 Running 时自动转后台
+    /// </summary>
     public void StartAssistantAutoBackgroundTimer()
     {
         if (!ShouldAutoBackground || _status != SystemActuatorCommandStatus.Running) return;
@@ -226,6 +266,7 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
             Timeout.Infinite);
     }
 
+    /// <summary>生命周期状态 — 由命令状态映射而来</summary>
     public SystemActuatorLifecycleState LifecycleState => _status switch
     {
         SystemActuatorCommandStatus.Running => SystemActuatorLifecycleState.Active,
@@ -235,6 +276,11 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
         _ => SystemActuatorLifecycleState.Active,
     };
 
+    /// <summary>
+    /// 压缩命令上下文 — Running 状态先转后台；Backgrounded 状态下若输出过大且未溢出则溢出到磁盘并截断内存缓冲
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>已完成的任务</returns>
     public Task CompactAsync(CancellationToken cancellationToken = default)
     {
         if (_status == SystemActuatorCommandStatus.Running)
@@ -259,6 +305,11 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// 终止命令 — 等价于调用 Kill()
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>已完成的任务</returns>
     public Task TerminateAsync(CancellationToken cancellationToken = default)
     {
         Kill();
@@ -325,6 +376,10 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
         _resultTcs.TrySetResult(result);
     }
 
+    /// <summary>
+    /// 异步释放资源 — 释放定时器、取消令牌、杀死未退出进程、释放输出收集器与 CWD 追踪器
+    /// </summary>
+    /// <returns>已完成的值任务</returns>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return;

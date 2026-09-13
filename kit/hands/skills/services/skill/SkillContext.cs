@@ -7,9 +7,22 @@ public sealed class SkillContext : PipelineContextBase, IMetricsContext
 {
     // === IMetricsContext ===
 
+    /// <summary>
+    /// 指标前缀
+    /// </summary>
     public string MetricsPrefix => "skill.execute";
+    /// <summary>
+    /// 指标是否成功 — 结果成功标志，结果为 null 视为失败
+    /// </summary>
     public bool IsMetricsSuccess => Result?.Success ?? false;
+    /// <summary>
+    /// 指标持续时间毫秒 — 来自计时器
+    /// </summary>
     public long? MetricsDurationMs => Stopwatch?.ElapsedMilliseconds;
+    /// <summary>
+    /// 构建指标标签字典
+    /// </summary>
+    /// <returns>包含技能名称标签的字典</returns>
     public Dictionary<string, string> BuildMetricsTags() => new() { ["skill"] = SkillName };
 
     // === 输入 ===

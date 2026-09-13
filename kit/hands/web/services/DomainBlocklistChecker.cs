@@ -13,6 +13,12 @@ public sealed partial class DomainBlocklistChecker : ServiceEntity, IDomainBlock
     private readonly IWebFetchCache _cache;
     private readonly ILogger<DomainBlocklistChecker>? _logger;
 
+    /// <summary>
+    /// 初始化 <see cref="DomainBlocklistChecker"/> 实例。
+    /// </summary>
+    /// <param name="apiClient">API 客户端抽象，用于调用域名黑名单接口。</param>
+    /// <param name="cache">Web 抓取缓存，用于缓存域名预检结果。</param>
+    /// <param name="logger">可选的日志记录器。</param>
     public DomainBlocklistChecker(
         IApiClient apiClient,
         IWebFetchCache cache,
@@ -28,6 +34,9 @@ public sealed partial class DomainBlocklistChecker : ServiceEntity, IDomainBlock
     /// 仅缓存allowed状态，blocked/failed每次重查
     /// 对齐 TS 版: skipWebFetchPreflight 设置可跳过预检
     /// </summary>
+    /// <param name="domain">待检查的域名。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>域名检查结果（Allowed/Blocked/CheckFailed）。</returns>
     public async Task<DomainCheckResult> CheckAsync(string domain, CancellationToken cancellationToken = default)
     {
         // 对齐 TS 版 getSettings_DEPRECATED().skipWebFetchPreflight

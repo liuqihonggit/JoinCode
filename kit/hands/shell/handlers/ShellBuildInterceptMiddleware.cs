@@ -9,6 +9,12 @@ namespace Tools.Shell;
 public sealed partial class ShellBuildInterceptMiddleware : ServiceEntity, IShellMiddleware
 {
 
+    /// <summary>
+    /// 构造编译拦截中间件
+    /// </summary>
+    /// <param name="buildQueueService">构建队列服务</param>
+    /// <param name="subAgentContextAccessor">子代理上下文访问器</param>
+    /// <param name="clock">时钟服务</param>
     public ShellBuildInterceptMiddleware(IBuildQueueService buildQueueService, ISubAgentContextAccessor subAgentContextAccessor, IClockService clock)
     {
         _buildQueueService = buildQueueService;

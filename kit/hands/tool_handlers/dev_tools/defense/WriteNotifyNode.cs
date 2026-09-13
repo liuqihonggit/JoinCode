@@ -17,6 +17,16 @@ public sealed class WriteNotifyNode : IDisposable
     private readonly ILogger<WriteNotifyNode>? _logger;
     private readonly CancellationTokenSource _disposeCts = new();
 
+    /// <summary>
+    /// 构造写入通知 node
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="lspFileSync">可选的 LSP 文件同步服务</param>
+    /// <param name="lspDiagnosticProvider">可选的 LSP 诊断提供者</param>
+    /// <param name="telemetryService">可选遥测服务</param>
+    /// <param name="fileWriteListenerRegistry">可选的文件写入监听器注册表</param>
+    /// <param name="subAgentContextAccessor">可选的子 Agent 上下文访问器</param>
+    /// <param name="logger">可选日志记录器</param>
     public WriteNotifyNode(
         IFileSystem fs,
         ILspFileSync? lspFileSync = null,
@@ -114,5 +124,8 @@ public sealed class WriteNotifyNode : IDisposable
         }, ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 释放资源 — 取消待处理的 LSP 通知
+    /// </summary>
     public void Dispose() => _disposeCts.CancelAndDisposeSafe(_logger);
 }

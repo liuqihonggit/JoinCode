@@ -8,6 +8,10 @@ namespace Tools.Shell;
 public sealed partial class ShellClassificationMiddleware : ServiceEntity, IShellMiddleware
 {
 
+    /// <summary>
+    /// 构造命令分类中间件
+    /// </summary>
+    /// <param name="commandClassifier">命令分类器（可选，为 null 时回退到正则分析）</param>
     public ShellClassificationMiddleware(ICommandClassifier? commandClassifier = null)
     {
         _commandClassifier = commandClassifier;

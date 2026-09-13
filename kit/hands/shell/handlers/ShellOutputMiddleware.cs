@@ -8,6 +8,10 @@ namespace Tools.Shell;
 public sealed partial class ShellOutputMiddleware : ServiceEntity, IShellMiddleware
 {
 
+    /// <summary>
+    /// 构造输出格式化中间件
+    /// </summary>
+    /// <param name="telemetryService">遥测服务（可选）</param>
     public ShellOutputMiddleware(ITelemetryService? telemetryService = null)
     {
         _telemetryService = telemetryService;

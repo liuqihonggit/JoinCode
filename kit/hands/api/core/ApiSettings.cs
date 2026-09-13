@@ -78,6 +78,7 @@ public sealed class ApiSettings
     /// <summary>
     /// 转换为重试策略选项
     /// </summary>
+    /// <returns>重试策略选项</returns>
     public RetryPolicyOptions ToRetryPolicyOptions() => new()
     {
         MaxRetryCount = MaxRetryCount,
@@ -91,6 +92,7 @@ public sealed class ApiSettings
     /// <summary>
     /// 转换为 API 客户端选项
     /// </summary>
+    /// <returns>API 客户端选项</returns>
     public ApiClientOptions ToApiClientOptions() => new()
     {
         BaseUrl = BaseUrl,
@@ -103,6 +105,7 @@ public sealed class ApiSettings
     /// <summary>
     /// 转换为日志选项
     /// </summary>
+    /// <returns>日志选项</returns>
     public ApiLoggingOptions ToLoggingOptions() => LoggingLevel switch
     {
         ApiLoggingLevel.None => ApiLoggingOptions.ErrorsOnly,

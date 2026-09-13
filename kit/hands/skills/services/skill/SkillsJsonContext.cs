@@ -1,6 +1,9 @@
 
 namespace Core.Skills;
 
+/// <summary>
+/// 技能 JSON 序列化上下文 — 为技能相关类型生成源码化 JSON 序列化器
+/// </summary>
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = false, AllowTrailingCommas = true, ReadCommentHandling = JsonCommentHandling.Skip, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(SkillDefinition))]
 [JsonSerializable(typeof(Discovery.DiscoveredSkill))]

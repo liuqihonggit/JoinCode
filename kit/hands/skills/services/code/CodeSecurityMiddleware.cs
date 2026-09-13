@@ -7,6 +7,10 @@ namespace Core.Skills;
 public sealed partial class CodeSecurityMiddleware : ServiceEntity, ICodeMiddleware
 {
 
+    /// <summary>
+    /// 创建 CodeSecurityMiddleware
+    /// </summary>
+    /// <param name="securityValidator">代码安全验证器</param>
     public CodeSecurityMiddleware(ICodeSecurityValidator securityValidator)
     {
         _securityValidator = securityValidator;

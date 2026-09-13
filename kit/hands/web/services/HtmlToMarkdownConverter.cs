@@ -9,6 +9,9 @@ public sealed partial class HtmlToMarkdownConverter : ServiceEntity, IHtmlToMark
 {
     private readonly Converter _converter;
 
+    /// <summary>
+    /// 初始化 <see cref="HtmlToMarkdownConverter"/> 实例，配置对齐 TS 版 turndown 默认行为。
+    /// </summary>
     public HtmlToMarkdownConverter()
     {
         var config = new ReverseMarkdown.Config
@@ -22,6 +25,12 @@ public sealed partial class HtmlToMarkdownConverter : ServiceEntity, IHtmlToMark
         _converter = new Converter(config);
     }
 
+    /// <summary>
+    /// 将 HTML 字符串转换为 Markdown 文本，可选截断到指定最大长度。
+    /// </summary>
+    /// <param name="html">待转换的 HTML 字符串。</param>
+    /// <param name="maxLength">可选的最大长度，超出时截断。</param>
+    /// <returns>转换后的 Markdown 文本。</returns>
     public string Convert(string html, int? maxLength = null)
     {
         if (string.IsNullOrEmpty(html))

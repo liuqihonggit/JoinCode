@@ -11,6 +11,12 @@ public sealed class FormatValidatorNode
     private readonly ISubAgentContextAccessor? _subAgentContextAccessor;
     private readonly ILogger<FormatValidatorNode>? _logger;
 
+    /// <summary>
+    /// 构造格式校验 node
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="subAgentContextAccessor">可选的子 Agent 上下文访问器</param>
+    /// <param name="logger">可选日志记录器</param>
     public FormatValidatorNode(
         IFileSystem fs,
         ISubAgentContextAccessor? subAgentContextAccessor = null,
@@ -26,6 +32,11 @@ public sealed class FormatValidatorNode
     /// 预模拟编辑：用 old_string/new_string/replace_all 计算编辑后内容，再校验合法性。
     /// 对齐 TS: FileEditTool.ts L346 — validateInputForSettingsFileEdit。
     /// </summary>
+    /// <param name="filePath">文件路径</param>
+    /// <param name="oldString">旧字符串</param>
+    /// <param name="newString">新字符串</param>
+    /// <param name="replaceAll">是否替换全部</param>
+    /// <param name="ct">取消令牌</param>
     /// <returns>null 表示校验通过，错误消息表示校验失败</returns>
     public async ValueTask<string?> ValidateSettingsEditAsync(
         string filePath, string oldString, string newString, bool replaceAll, CancellationToken ct)
@@ -47,6 +58,7 @@ public sealed class FormatValidatorNode
     /// <summary>
     /// keyword-sections.json 编辑权限校验 — 仅 keywordMaintenance Agent 可编辑。
     /// </summary>
+    /// <param name="filePath">文件路径</param>
     /// <returns>null 表示允许编辑，错误消息表示权限拒绝</returns>
     public string? ValidateKeywordSectionsEdit(string filePath)
     {
@@ -63,6 +75,7 @@ public sealed class FormatValidatorNode
     /// <summary>
     /// doctor Agent 编辑路径校验 — 仅允许编辑 .jcc/diag/、.jcc/reflexion/、worktree 内文件。
     /// </summary>
+    /// <param name="filePath">文件路径</param>
     /// <returns>null 表示允许编辑，错误消息表示路径拒绝</returns>
     public string? ValidateDoctorAgentEdit(string filePath)
     {

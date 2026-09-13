@@ -8,6 +8,10 @@ namespace Tools.Shell;
 public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellMiddleware
 {
 
+    /// <summary>
+    /// 构造 sed 拦截中间件
+    /// </summary>
+    /// <param name="fs">文件系统（可选，为 null 时返回不可用诊断）</param>
     public ShellSedInterceptMiddleware(IFileSystem? fs = null)
     {
         _fs = fs;

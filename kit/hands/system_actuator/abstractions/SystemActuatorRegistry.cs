@@ -20,6 +20,16 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
     private readonly ConcurrentDictionary<string, SystemActuatorBackgroundTaskEntry> _tasks = new();
     private int _disposed;
 
+    /// <summary>
+    /// 构造系统执行器注册表 — 注入文件系统、日志、沙箱、防休眠、执行配置、遥测与通知队列等依赖
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="sandboxManager">沙箱管理器</param>
+    /// <param name="preventSleepService">防休眠服务</param>
+    /// <param name="config">Shell 执行配置</param>
+    /// <param name="telemetryService">遥测服务（用于记录后台任务指标）</param>
+    /// <param name="notificationQueue">Agent 通知队列（用于推送任务完成通知）</param>
     public SystemActuatorRegistry(
         IFileSystem fs,
         ILogger<SystemActuatorRegistry>? logger = null,

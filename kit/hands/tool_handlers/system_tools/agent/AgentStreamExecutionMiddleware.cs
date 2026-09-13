@@ -8,6 +8,13 @@ namespace Tools.Handlers;
 public sealed partial class AgentStreamExecutionMiddleware : ServiceEntity, IAgentToolMiddleware
 {
 
+    /// <summary>
+    /// 构造 Agent 流式执行中间件
+    /// </summary>
+    /// <param name="agentService">代理服务，提供流式执行能力</param>
+    /// <param name="logger">可选日志记录器</param>
+    /// <param name="telemetryService">可选遥测服务</param>
+    /// <param name="outputChannelManager">可选子代理输出通道管理器</param>
     public AgentStreamExecutionMiddleware(IAgentService agentService, ILogger<AgentStreamExecutionMiddleware>? logger = null, ITelemetryService? telemetryService = null, JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager? outputChannelManager = null)
     {
         _agentService = agentService;

@@ -5,12 +5,24 @@ namespace Services.SystemActuator;
 /// </summary>
 public sealed class PowerShellSystemActuator : SystemActuatorBase
 {
+    /// <summary>指定 PowerShell 可执行文件路径的环境变量名</summary>
     public const string PowerShellPathEnvVar = "JCC_POWERSHELL_PATH";
 
     private string? _currentSandboxTmpDir;
 
+    /// <summary>是否为 PowerShell Core（pwsh）— 否则为 Windows 自带 Desktop PowerShell</summary>
     public bool IsCore => Capability.IsPowerShellCore;
 
+    /// <summary>
+    /// 构造 PowerShell 系统执行器实例
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="sandboxManager">沙箱管理器</param>
+    /// <param name="preventSleepService">防休眠服务</param>
+    /// <param name="config">Shell 执行配置</param>
+    /// <param name="toolUseId">工具使用 ID（用于追踪）</param>
+    /// <param name="spanId">跨度 ID（用于链路追踪）</param>
     public PowerShellSystemActuator(
         IFileSystem fs,
         ILogger? logger = null,

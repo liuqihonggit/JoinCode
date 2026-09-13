@@ -16,6 +16,10 @@ public sealed partial class WebFetchCache : ServiceEntity, IWebFetchCache, IDisp
     private readonly MemoryCache _domainCheckCache;
     private readonly ILogger<WebFetchCache>? _logger;
 
+    /// <summary>
+    /// 初始化 <see cref="WebFetchCache"/> 实例，创建 URL 缓存与域名预检缓存。
+    /// </summary>
+    /// <param name="logger">可选的日志记录器。</param>
     public WebFetchCache(ILogger<WebFetchCache>? logger = null)
     {
         _logger = logger;
@@ -36,6 +40,8 @@ public sealed partial class WebFetchCache : ServiceEntity, IWebFetchCache, IDisp
     /// <summary>
     /// 尝试获取URL缓存内容
     /// </summary>
+    /// <param name="url">待查询的 URL。</param>
+    /// <returns>命中时返回缓存条目，未命中返回 null。</returns>
     public WebFetchCacheEntry? TryGet(string url)
     {
         if (_urlCache.TryGetValue(url, out WebFetchCacheEntry? entry))
@@ -49,6 +55,8 @@ public sealed partial class WebFetchCache : ServiceEntity, IWebFetchCache, IDisp
     /// <summary>
     /// 设置URL缓存内容
     /// </summary>
+    /// <param name="url">缓存键的 URL。</param>
+    /// <param name="entry">待缓存的抓取结果条目。</param>
     public void Set(string url, WebFetchCacheEntry entry)
     {
         // LRU-cache要求正整数size，空响应clamp到1
@@ -64,6 +72,8 @@ public sealed partial class WebFetchCache : ServiceEntity, IWebFetchCache, IDisp
     /// <summary>
     /// 检查域名是否已通过黑名单预检（缓存命中=allowed）
     /// </summary>
+    /// <param name="domain">待检查的域名。</param>
+    /// <returns>缓存命中返回 true，否则返回 false。</returns>
     public bool IsDomainCheckCached(string domain)
     {
         return _domainCheckCache.TryGetValue(domain, out _);
@@ -72,6 +82,7 @@ public sealed partial class WebFetchCache : ServiceEntity, IWebFetchCache, IDisp
     /// <summary>
     /// 缓存域名预检通过结果
     /// </summary>
+    /// <param name="domain">待缓存的域名。</param>
     public void CacheDomainCheck(string domain)
     {
         _domainCheckCache.Set(domain, true, new MemoryCacheEntryOptions
@@ -91,6 +102,9 @@ public sealed partial class WebFetchCache : ServiceEntity, IWebFetchCache, IDisp
         _logger?.LogInformation("WebFetch缓存已清空");
     }
 
+    /// <summary>
+    /// 释放 URL 缓存与域名预检缓存资源。
+    /// </summary>
     protected override void OnDispose()
     {
         _urlCache.Dispose();

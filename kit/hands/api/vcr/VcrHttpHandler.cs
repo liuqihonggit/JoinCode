@@ -1,6 +1,9 @@
 
 namespace Services.Api.Vcr;
 
+/// <summary>
+/// VCR HTTP 处理器，作为 DelegatingHandler 拦截 HTTP 请求实现录制/回放
+/// </summary>
 public sealed partial class VcrHttpHandler : DelegatingHandler
 {
     private readonly IVcrService _vcrService;
@@ -9,6 +12,12 @@ public sealed partial class VcrHttpHandler : DelegatingHandler
     private string _currentCassetteName = string.Empty;
     private string? _currentCassetteDirectory;
 
+    /// <summary>
+    /// 构造 VcrHttpHandler
+    /// </summary>
+    /// <param name="vcrService">VCR 服务实例</param>
+    /// <param name="options">VCR 配置选项</param>
+    /// <param name="logger">可选日志记录器</param>
     public VcrHttpHandler(
         IVcrService vcrService,
         VcrOptions options,
@@ -21,6 +30,11 @@ public sealed partial class VcrHttpHandler : DelegatingHandler
         _logger = logger;
     }
 
+    /// <summary>
+    /// 设置当前使用的 cassette 名称与目录
+    /// </summary>
+    /// <param name="name">cassette 名称</param>
+    /// <param name="directory">可选目录覆盖</param>
     public void SetCassette(string name, string? directory = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(name);
@@ -29,6 +43,12 @@ public sealed partial class VcrHttpHandler : DelegatingHandler
         _logger?.LogDebug("VCR cassette 设置为: {Name} (目录: {Directory})", name, directory ?? "(默认)");
     }
 
+    /// <summary>
+    /// 拦截 HTTP 请求：回放模式下优先匹配录制响应，录制模式下持久化交互
+    /// </summary>
+    /// <param name="request">HTTP 请求消息</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>HTTP 响应消息</returns>
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);

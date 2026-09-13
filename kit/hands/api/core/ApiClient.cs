@@ -1,23 +1,50 @@
 
 namespace Services.Api;
 
+/// <summary>
+/// API 客户端配置选项
+/// </summary>
 public sealed record ApiClientOptions
 {
+    /// <summary>
+    /// 基础 URL（必填）
+    /// </summary>
     public required string BaseUrl { get; init; }
 
+    /// <summary>
+    /// 请求超时时间
+    /// </summary>
     public TimeSpan Timeout { get; init; } = TimeSpan.FromSeconds(30);
 
+    /// <summary>
+    /// 重试策略配置；为 null 时使用默认配置
+    /// </summary>
     public RetryPolicyOptions? RetryOptions { get; init; }
 
+    /// <summary>
+    /// 默认请求头
+    /// </summary>
     public Dictionary<string, string> DefaultHeaders { get; init; } = new();
 
+    /// <summary>
+    /// 用户代理字符串
+    /// </summary>
     public string UserAgent { get; init; } = "JoinCode/1.0";
 
+    /// <summary>
+    /// 是否自动将响应体反序列化为 JSON
+    /// </summary>
     public bool AutoSerializeJson { get; init; } = true;
 
+    /// <summary>
+    /// 备用端点列表，主端点全部重试失败后依次尝试
+    /// </summary>
     public IReadOnlyList<string>? FallbackEndpoints { get; init; }
 }
 
+/// <summary>
+/// API 客户端实现，封装 HttpClient 提供重试、备用端点、VCR、mTLS、代理等能力
+/// </summary>
 [Register(typeof(IApiClient), ServiceLifetime.Singleton)]
 public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
 {
@@ -32,6 +59,14 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
     private VcrHttpHandler? _vcrHandler;
     private bool _disposed;
 
+    /// <summary>
+    /// 构造 ApiClient — 直接传入配置选项
+    /// </summary>
+    /// <param name="options">API 客户端配置选项</param>
+    /// <param name="logger">可选日志记录器</param>
+    /// <param name="mtlsService">可选 mTLS 服务</param>
+    /// <param name="httpProxyService">可选 HTTP 代理服务</param>
+    /// <param name="networkService">可选网络连通性服务</param>
     public ApiClient(ApiClientOptions options, ILogger<ApiClient>? logger = null,
         IMtlsService? mtlsService = null, IHttpProxyService? httpProxyService = null,
         INetworkConnectivityService? networkService = null)
@@ -58,6 +93,11 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
     /// <summary>
     /// DI 构造函数 — 从 IOptions&lt;ApiSettings&gt; 推导 ApiClientOptions，并设置 AuthToken
     /// </summary>
+    /// <param name="settingsOptions">API 设置选项</param>
+    /// <param name="logger">可选日志记录器</param>
+    /// <param name="mtlsService">可选 mTLS 服务</param>
+    /// <param name="httpProxyService">可选 HTTP 代理服务</param>
+    /// <param name="networkService">可选网络连通性服务</param>
     public ApiClient(
         IOptions<ApiSettings>? settingsOptions = null,
         ILogger<ApiClient>? logger = null,
@@ -81,6 +121,10 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
             : new ApiClientOptions { BaseUrl = "http://localhost:8080", Timeout = TimeSpan.FromSeconds(30) };
     }
 
+    /// <summary>
+    /// 注入 VCR 服务并重建 HttpClient 以挂载 VCR 处理器
+    /// </summary>
+    /// <param name="vcrService">VCR 服务实例</param>
     public void SetVcrService(Services.Api.Vcr.IVcrService vcrService)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -219,6 +263,12 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
         _logger?.LogInformation("[ApiClient] 网络已恢复");
     }
 
+    /// <summary>
+    /// 发送 API 请求；网络不可用时阻塞等待恢复，主端点失败时尝试备用端点
+    /// </summary>
+    /// <param name="request">API 请求</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>HTTP 响应消息</returns>
     public async Task<HttpResponseMessage> SendAsync(ApiRequest request, CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -281,6 +331,14 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
         throw primaryException;
     }
 
+    /// <summary>
+    /// 发送 API 请求并将响应反序列化为 <typeparamref name="T"/>；失败时抛出 ApiException
+    /// </summary>
+    /// <typeparam name="T">响应数据类型</typeparam>
+    /// <param name="request">API 请求</param>
+    /// <param name="jsonTypeInfo">JSON 类型信息（AOT 安全）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>API 响应包装</returns>
     public async Task<ApiResponse<T>> RequestAsync<T>(ApiRequest request, JsonTypeInfo<T> jsonTypeInfo, CancellationToken cancellationToken = default)
     {
         try
@@ -299,6 +357,14 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
         }
     }
 
+    /// <summary>
+    /// 发送 API 请求并在失败时直接抛出异常；成功时返回反序列化后的数据
+    /// </summary>
+    /// <typeparam name="T">响应数据类型</typeparam>
+    /// <param name="request">API 请求</param>
+    /// <param name="jsonTypeInfo">JSON 类型信息（AOT 安全）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>反序列化后的响应数据</returns>
     public async Task<T> RequestOrThrowAsync<T>(ApiRequest request, JsonTypeInfo<T> jsonTypeInfo, CancellationToken cancellationToken = default)
     {
         var response = await RequestAsync(request, jsonTypeInfo, cancellationToken).ConfigureAwait(false);
@@ -315,39 +381,100 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
         return response.Data ?? throw new InvalidOperationException("Response data is null.");
     }
 
+    /// <summary>
+    /// 发起 GET 请求
+    /// </summary>
+    /// <typeparam name="T">响应数据类型</typeparam>
+    /// <param name="path">请求路径</param>
+    /// <param name="jsonTypeInfo">JSON 类型信息</param>
+    /// <param name="queryParams">可选查询参数</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>API 响应包装</returns>
     public Task<ApiResponse<T>> GetAsync<T>(string path, JsonTypeInfo<T> jsonTypeInfo, Dictionary<string, string>? queryParams = null, CancellationToken cancellationToken = default)
         => RequestAsync(ApiRequest.Get(path, queryParams), jsonTypeInfo, cancellationToken);
 
+    /// <summary>
+    /// 发起 POST 请求
+    /// </summary>
+    /// <typeparam name="T">响应数据类型</typeparam>
+    /// <param name="path">请求路径</param>
+    /// <param name="body">请求体</param>
+    /// <param name="jsonTypeInfo">JSON 类型信息</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>API 响应包装</returns>
     public Task<ApiResponse<T>> PostAsync<T>(string path, string? body, JsonTypeInfo<T> jsonTypeInfo, CancellationToken cancellationToken = default)
         => RequestAsync(ApiRequest.Post(path, body), jsonTypeInfo, cancellationToken);
 
+    /// <summary>
+    /// 发起 PUT 请求
+    /// </summary>
+    /// <typeparam name="T">响应数据类型</typeparam>
+    /// <param name="path">请求路径</param>
+    /// <param name="body">请求体</param>
+    /// <param name="jsonTypeInfo">JSON 类型信息</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>API 响应包装</returns>
     public Task<ApiResponse<T>> PutAsync<T>(string path, string? body, JsonTypeInfo<T> jsonTypeInfo, CancellationToken cancellationToken = default)
         => RequestAsync(ApiRequest.Put(path, body), jsonTypeInfo, cancellationToken);
 
+    /// <summary>
+    /// 发起 PATCH 请求
+    /// </summary>
+    /// <typeparam name="T">响应数据类型</typeparam>
+    /// <param name="path">请求路径</param>
+    /// <param name="body">请求体</param>
+    /// <param name="jsonTypeInfo">JSON 类型信息</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>API 响应包装</returns>
     public Task<ApiResponse<T>> PatchAsync<T>(string path, string? body, JsonTypeInfo<T> jsonTypeInfo, CancellationToken cancellationToken = default)
         => RequestAsync(ApiRequest.Patch(path, body), jsonTypeInfo, cancellationToken);
 
+    /// <summary>
+    /// 发起 DELETE 请求
+    /// </summary>
+    /// <typeparam name="T">响应数据类型</typeparam>
+    /// <param name="path">请求路径</param>
+    /// <param name="jsonTypeInfo">JSON 类型信息</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>API 响应包装</returns>
     public Task<ApiResponse<T>> DeleteAsync<T>(string path, JsonTypeInfo<T> jsonTypeInfo, CancellationToken cancellationToken = default)
         => RequestAsync(ApiRequest.Delete(path), jsonTypeInfo, cancellationToken);
 
+    /// <summary>
+    /// 设置默认请求头
+    /// </summary>
+    /// <param name="name">头名称</param>
+    /// <param name="value">头值</param>
     public void SetDefaultHeader(string name, string value)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         _httpClient.DefaultRequestHeaders.TryAddWithoutValidation(name, value);
     }
 
+    /// <summary>
+    /// 移除默认请求头
+    /// </summary>
+    /// <param name="name">头名称</param>
     public void RemoveDefaultHeader(string name)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         _httpClient.DefaultRequestHeaders.Remove(name);
     }
 
+    /// <summary>
+    /// 设置认证令牌
+    /// </summary>
+    /// <param name="token">认证令牌</param>
+    /// <param name="scheme">认证方案，默认 Bearer</param>
     public void SetAuthorizationToken(string token, string scheme = "Bearer")
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(scheme, token);
     }
 
+    /// <summary>
+    /// 清除认证令牌
+    /// </summary>
     public void ClearAuthorization()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -479,6 +606,9 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
         return defaultMessage;
     }
 
+    /// <summary>
+    /// 释放 HttpClient 资源并解绑网络状态事件
+    /// </summary>
     protected override void OnDispose()
     {
         if (!_disposed)

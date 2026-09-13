@@ -11,6 +11,11 @@ public class TimeoutRecoveryToolHandlers
     private readonly LongRunningTaskRegistry _taskRegistry;
     private readonly ILogger<TimeoutRecoveryToolHandlers>? _logger;
 
+    /// <summary>
+    /// 构造超时续期处理器
+    /// </summary>
+    /// <param name="taskRegistry">长时间任务注册表，跟踪续期任务状态</param>
+    /// <param name="logger">可选日志记录器</param>
     public TimeoutRecoveryToolHandlers(LongRunningTaskRegistry taskRegistry, ILogger<TimeoutRecoveryToolHandlers>? logger = null)
     {
         _taskRegistry = taskRegistry ?? throw new ArgumentNullException(nameof(taskRegistry));

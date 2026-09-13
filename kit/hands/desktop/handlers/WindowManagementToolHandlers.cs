@@ -10,6 +10,10 @@ public class WindowManagementToolHandlers
     private readonly IScreenCaptureService _capture;
     private readonly ILogger<WindowManagementToolHandlers>? _logger;
 
+    /// <summary>构造窗口管理与截图工具处理器实例。</summary>
+    /// <param name="windows">窗口管理服务，用于枚举、查找、激活、移动与关闭窗口。</param>
+    /// <param name="capture">屏幕截图服务，用于截取全屏、窗口或区域。</param>
+    /// <param name="logger">可选的日志记录器，传入 null 时静默运行。</param>
     public WindowManagementToolHandlers(
         IWindowManagementService windows,
         IScreenCaptureService capture,

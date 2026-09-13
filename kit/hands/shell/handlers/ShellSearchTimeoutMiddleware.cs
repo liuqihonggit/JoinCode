@@ -15,11 +15,16 @@ public sealed partial class ShellSearchTimeoutMiddleware : ServiceEntity, IShell
 
     private readonly ShellExecutionConfig _config;
 
+    /// <summary>
+    /// 构造搜索命令超时中间件
+    /// </summary>
+    /// <param name="config">Shell 执行配置</param>
     public ShellSearchTimeoutMiddleware(ShellExecutionConfig config)
     {
         _config = config;
     }
 
+    /// <inheritdoc />
     public Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct)
     {
         if (IsSearchCommand(context.Command) && context.Timeout is null or > 30_000)

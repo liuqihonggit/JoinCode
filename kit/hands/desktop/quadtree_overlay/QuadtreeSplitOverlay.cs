@@ -245,6 +245,7 @@ internal sealed class QuadtreeSplitOverlay : IDisposable
         PulseNativeMethods.DeleteObject(hPen);
     }
 
+    /// <summary>释放覆盖层资源，若窗口仍存在则请求关闭。</summary>
     public void Dispose()
     {
         if (_disposed)

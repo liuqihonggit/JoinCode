@@ -12,6 +12,13 @@ public sealed partial class SearchService : ServiceEntity, ISearchService
     private readonly ITelemetryService? _telemetryService;
     private readonly IFileSystem _fs;
 
+    /// <summary>
+    /// 构造搜索服务
+    /// </summary>
+    /// <param name="fileOperationService">文件操作服务，提供文件枚举和读取能力</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">可选日志记录器</param>
+    /// <param name="telemetryService">可选遥测服务</param>
     public SearchService(
         IFileOperationService fileOperationService,
         IFileSystem fs,

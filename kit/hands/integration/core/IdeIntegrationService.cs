@@ -1,5 +1,8 @@
 namespace IO.Services;
 
+/// <summary>
+/// IDE 集成服务 — 检测已安装的 IDE、管理连接状态、在 IDE 中打开文件与设置选区
+/// </summary>
 [Register(typeof(IIdeIntegrationService), ServiceLifetime.Singleton)]
 public sealed partial class IdeIntegrationService : ServiceEntity, IIdeIntegrationService
 {
@@ -35,6 +38,12 @@ public sealed partial class IdeIntegrationService : ServiceEntity, IIdeIntegrati
                 ProcessNames: ["idea64.exe", "pycharm64.exe", "rider64.exe", "webstorm64.exe", "goland64.exe", "clion64.exe"])
         }.ToFrozenDictionary();
 
+    /// <summary>
+    /// 构造 IDE 集成服务实例
+    /// </summary>
+    /// <param name="fs">文件系统抽象，用于扫描 IDE 安装路径</param>
+    /// <param name="processService">进程服务抽象，用于查找可执行文件与启动 IDE</param>
+    /// <param name="logger">日志记录器</param>
     public IdeIntegrationService(IFileSystem fs, IProcessService processService, ILogger<IdeIntegrationService>? logger = null)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
@@ -42,9 +51,19 @@ public sealed partial class IdeIntegrationService : ServiceEntity, IIdeIntegrati
         _logger = logger;
     }
 
+    /// <summary>
+    /// 当前已连接的 IDE 信息，未连接时为 null
+    /// </summary>
     public IdeInfo? CurrentConnection => _currentConnection;
+    /// <summary>
+    /// 当前在 IDE 中打开的文件路径，未打开时为 null
+    /// </summary>
     public string? CurrentFilePath => _currentFilePath;
 
+    /// <summary>
+    /// 检测已安装的 IDE 列表 — 扫描安装路径与 PATH 命令
+    /// </summary>
+    /// <returns>检测到的 IDE 信息列表</returns>
     public IReadOnlyList<IdeInfo> DetectInstalledIdes()
     {
         var ides = new List<IdeInfo>();
@@ -59,6 +78,10 @@ public sealed partial class IdeIntegrationService : ServiceEntity, IIdeIntegrati
         return ides.AsReadOnly();
     }
 
+    /// <summary>
+    /// 检测已安装 IDE 的详细信息 — 含 PATH 命中、安装路径、进程运行状态、扩展安装状态
+    /// </summary>
+    /// <returns>每个 IDE 类型的详细检测结果</returns>
     public IReadOnlyList<IdeDetectionDetail> DetectInstalledIdesDetailed()
     {
         var results = new List<IdeDetectionDetail>();
@@ -83,6 +106,12 @@ public sealed partial class IdeIntegrationService : ServiceEntity, IIdeIntegrati
         return results.AsReadOnly();
     }
 
+    /// <summary>
+    /// 异步连接指定类型的 IDE — 未检测到该 IDE 时返回 false
+    /// </summary>
+    /// <param name="ideType">要连接的 IDE 类型</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>连接成功返回 true；IDE 未安装返回 false</returns>
     public Task<bool> ConnectAsync(IdeType ideType, CancellationToken ct = default)
     {
         var ides = DetectInstalledIdes();
@@ -99,6 +128,11 @@ public sealed partial class IdeIntegrationService : ServiceEntity, IIdeIntegrati
         return Task.FromResult(true);
     }
 
+    /// <summary>
+    /// 异步断开当前 IDE 连接 — 清空连接信息与当前文件路径
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public Task DisconnectAsync(CancellationToken ct = default)
     {
         if (_currentConnection != null)
@@ -110,6 +144,13 @@ public sealed partial class IdeIntegrationService : ServiceEntity, IIdeIntegrati
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// 异步在当前连接的 IDE 中打开文件 — 未连接 IDE 或 IDE 不支持时返回 false
+    /// </summary>
+    /// <param name="filePath">要打开的文件路径</param>
+    /// <param name="line">定位到的行号，缺省不定位</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>打开成功返回 true；未连接或失败返回 false</returns>
     public async Task<bool> OpenFileAsync(string filePath, int? line = null, CancellationToken ct = default)
     {
         if (_currentConnection == null)

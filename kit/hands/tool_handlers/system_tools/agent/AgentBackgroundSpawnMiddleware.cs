@@ -8,6 +8,11 @@ namespace Tools.Handlers;
 public sealed partial class AgentBackgroundSpawnMiddleware : ServiceEntity, IAgentToolMiddleware
 {
 
+    /// <summary>
+    /// 构造 Agent 后台 Spawn 中间件
+    /// </summary>
+    /// <param name="agentService">代理服务，提供后台 spawn 能力</param>
+    /// <param name="telemetryService">可选遥测服务</param>
     public AgentBackgroundSpawnMiddleware(IAgentService agentService, ITelemetryService? telemetryService = null)
     {
         _agentService = agentService;

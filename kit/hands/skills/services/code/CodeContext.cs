@@ -28,9 +28,22 @@ public sealed class CodeContext : PipelineContextBase, IMetricsContext
 {
     // === IMetricsContext ===
 
+    /// <summary>
+    /// 指标前缀
+    /// </summary>
     public string MetricsPrefix => "code.operation";
+    /// <summary>
+    /// 指标是否成功 — 安全验证未失败且结果非 null
+    /// </summary>
     public bool IsMetricsSuccess => !IsSecurityFail && Result is not null;
+    /// <summary>
+    /// 指标持续时间毫秒 — 不采集，返回 null
+    /// </summary>
     public long? MetricsDurationMs => null;
+    /// <summary>
+    /// 构建指标标签字典
+    /// </summary>
+    /// <returns>包含操作类型、缓存命中、安全失败等标签的字典</returns>
     public Dictionary<string, string> BuildMetricsTags()
     {
         var tags = new Dictionary<string, string>

@@ -17,8 +17,24 @@ public class PowerShellToolHandlers : ShellToolBase
     private readonly IPsPermissionChecker? _psPermissionChecker;
     private readonly IPsDestructiveCommandChecker? _psDestructiveCommandChecker;
 
+    /// <summary>
+    /// 工具名称 — PowerShell
+    /// </summary>
     public override string ToolName => ShellToolNameConstants.Powershell;
 
+    /// <summary>
+    /// 构造 PowerShell 工具处理器
+    /// </summary>
+    /// <param name="pipeline">中间件管道</param>
+    /// <param name="registry">系统执行器注册表</param>
+    /// <param name="fileOperationService">文件操作服务</param>
+    /// <param name="fs">文件系统</param>
+    /// <param name="logger">日志器（可选）</param>
+    /// <param name="gateService">Shell 工具门控服务（可选）</param>
+    /// <param name="watchdog">进程看护（可选）</param>
+    /// <param name="telemetryService">遥测服务（可选）</param>
+    /// <param name="psPermissionChecker">PowerShell 权限检查器（可选）</param>
+    /// <param name="psDestructiveCommandChecker">PowerShell 破坏性命令检查器（可选）</param>
     public PowerShellToolHandlers(
         MiddlewarePipeline<ShellPipelineContext> pipeline,
         ISystemActuatorRegistry registry,

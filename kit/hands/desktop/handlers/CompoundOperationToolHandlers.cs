@@ -9,6 +9,9 @@ public class CompoundOperationToolHandlers
     private readonly IDesktopInputService _input;
     private readonly ILogger<CompoundOperationToolHandlers>? _logger;
 
+    /// <summary>构造复合操作工具处理器实例。</summary>
+    /// <param name="input">桌面输入服务，用于执行鼠标点击与拖拽。</param>
+    /// <param name="logger">可选的日志记录器，传入 null 时静默运行。</param>
     public CompoundOperationToolHandlers(IDesktopInputService input, ILogger<CompoundOperationToolHandlers>? logger = null)
     {
         _input = input;

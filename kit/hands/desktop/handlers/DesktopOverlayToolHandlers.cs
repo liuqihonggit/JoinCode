@@ -10,6 +10,9 @@ public class DesktopOverlayToolHandlers
     private readonly IScreenCaptureService _capture;
     private readonly ILogger<DesktopOverlayToolHandlers>? _logger;
 
+    /// <summary>构造桌面覆盖层工具处理器实例。</summary>
+    /// <param name="capture">屏幕截图服务，用于鼠标指向识别时截取格子区域。</param>
+    /// <param name="logger">可选的日志记录器，传入 null 时静默运行。</param>
     public DesktopOverlayToolHandlers(
         IScreenCaptureService capture,
         ILogger<DesktopOverlayToolHandlers>? logger = null)

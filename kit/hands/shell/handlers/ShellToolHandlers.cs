@@ -12,8 +12,20 @@ public partial class ShellToolHandlers : ShellToolBase
     private readonly IFileSystem _fs;
     private readonly ILogger? _logger;
 
+    /// <summary>
+    /// 工具名称 — Bash
+    /// </summary>
     public override string ToolName => ShellToolNameConstants.Bash;
 
+    /// <summary>
+    /// 构造 Shell 工具处理器
+    /// </summary>
+    /// <param name="pipeline">中间件管道</param>
+    /// <param name="registry">系统执行器注册表</param>
+    /// <param name="fs">文件系统</param>
+    /// <param name="logger">日志器（可选）</param>
+    /// <param name="gateService">Shell 工具门控服务（可选）</param>
+    /// <param name="watchdog">进程看护（可选）</param>
     public ShellToolHandlers(
         MiddlewarePipeline<ShellPipelineContext> pipeline,
         ISystemActuatorRegistry registry,

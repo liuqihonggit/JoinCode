@@ -12,6 +12,11 @@ public static class PrivateNetworkGuard
     private static readonly byte[] Private172V4Prefix = { 172 };
     private static readonly byte[] Private192V4Prefix = { 192, 168 };
 
+    /// <summary>
+    /// 判断指定 IP 地址是否属于私有/保留地址（回环、链路本地、内网、组播等）。
+    /// </summary>
+    /// <param name="address">待检查的 IP 地址。</param>
+    /// <returns>属于私有/保留地址返回 true，否则返回 false。</returns>
     public static bool IsPrivateAddress(IPAddress address)
     {
         if (address.IsIPv4MappedToIPv6)

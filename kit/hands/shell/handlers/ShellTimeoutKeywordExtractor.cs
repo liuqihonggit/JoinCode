@@ -11,6 +11,8 @@ public static partial class ShellTimeoutKeywordExtractor
     /// 从命令文本中提取最大等待时间（秒）。返回 null 表示无等待关键字。
     /// 取所有匹配中的最大值（脚本可能含多个 sleep）。
     /// </summary>
+    /// <param name="command">待解析的命令文本</param>
+    /// <returns>最大等待秒数；若命令不含等待关键字则返回 null</returns>
     public static int? ExtractMaxWaitSeconds(string command)
     {
         if (string.IsNullOrWhiteSpace(command))

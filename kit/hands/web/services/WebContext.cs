@@ -7,9 +7,25 @@ public sealed class WebContext : PipelineContextBase, IMetricsContext
 {
     // === IMetricsContext ===
 
+    /// <summary>
+    /// 指标前缀，固定为 "web.operation"。
+    /// </summary>
     public string MetricsPrefix => "web.operation";
+
+    /// <summary>
+    /// 获取当前操作是否成功，依据最终结果的 Success 字段。
+    /// </summary>
     public bool IsMetricsSuccess => Result?.Success ?? false;
+
+    /// <summary>
+    /// 指标耗时（毫秒），当前未记录返回 null。
+    /// </summary>
     public long? MetricsDurationMs => null;
+
+    /// <summary>
+    /// 构建指标标签字典，包含 operation=fetch 标签。
+    /// </summary>
+    /// <returns>包含 operation 标签的字典。</returns>
     public Dictionary<string, string> BuildMetricsTags() => new() { ["operation"] = "fetch" };
 
     // === 输入 ===

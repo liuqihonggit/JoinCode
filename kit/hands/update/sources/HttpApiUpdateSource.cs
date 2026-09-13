@@ -11,6 +11,12 @@ public sealed class HttpApiUpdateSource : IUpdateSource
     private readonly string _apiBaseUrl;
     private readonly ILogger<HttpApiUpdateSource>? _logger;
 
+    /// <summary>
+    /// 构造 HTTP API 更新源
+    /// </summary>
+    /// <param name="httpClient">HTTP 客户端</param>
+    /// <param name="apiBaseUrl">API 基础 URL</param>
+    /// <param name="logger">日志器（可选）</param>
     public HttpApiUpdateSource(HttpClient httpClient, string apiBaseUrl, ILogger<HttpApiUpdateSource>? logger = null)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
@@ -18,8 +24,16 @@ public sealed class HttpApiUpdateSource : IUpdateSource
         _logger = logger;
     }
 
+    /// <summary>
+    /// 更新源类型 — HttpApi
+    /// </summary>
     public UpdateSourceType Type => UpdateSourceType.HttpApi;
 
+    /// <summary>
+    /// 调用 /api/version/check 端点获取更新清单
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>更新清单；请求失败时返回 null</returns>
     public async Task<UpdateManifest?> GetManifestAsync(CancellationToken ct = default)
     {
         try
@@ -43,6 +57,13 @@ public sealed class HttpApiUpdateSource : IUpdateSource
         }
     }
 
+    /// <summary>
+    /// 调用 /api/download/{version} 端点下载文件流
+    /// </summary>
+    /// <param name="entry">清单条目</param>
+    /// <param name="progress">下载进度回调（可选）</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>文件流</returns>
     public async Task<Stream> DownloadAsync(
         UpdateManifestEntry entry,
         IProgress<UpdateDownloadProgress>? progress = null,

@@ -24,6 +24,13 @@ public sealed class StructuredOutputToolHandler
     private static readonly string SchemasSubDir = Path.Combine(AppDataConstants.AppDataFolder, "structured-output");
     private const string SchemasFileName = "schemas.json";
 
+    /// <summary>
+    /// 构造结构化输出工具处理器
+    /// </summary>
+    /// <param name="validator">JSON Schema 验证器</param>
+    /// <param name="persistencePipeline">可选持久化管道，用于保存 Schema 到磁盘</param>
+    /// <param name="fs">可选文件系统抽象，用于加载已保存的 Schema</param>
+    /// <param name="logger">可选日志记录器</param>
     public StructuredOutputToolHandler(
         SimpleJsonSchemaValidator validator,
         IPersistencePipeline? persistencePipeline = null,

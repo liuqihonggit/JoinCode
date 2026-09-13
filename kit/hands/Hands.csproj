@@ -7,6 +7,13 @@
     <PackageId>JoinCode.Hands</PackageId>
   </PropertyGroup>
 
+  <!-- 强制 XML 文档注释完整:开启文档生成 + CS1591(缺少公开成员注释)升为错误 -->
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <DocumentationFile>$(OutputPath)$(AssemblyName).xml</DocumentationFile>
+    <NoWarn>$(NoWarn.Replace('CS1591;', '').Replace(';CS1591', '').Replace('CS1591', ''))</NoWarn>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)lib/abstractions/Abstractions.csproj" />
     <ProjectReference Include="$(RepoRoot)lib/infrastructure/Infrastructure.csproj" />

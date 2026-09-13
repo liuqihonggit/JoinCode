@@ -14,6 +14,9 @@ public sealed class RateLimitException : ApiException
     /// <summary>
     /// 创建 RateLimitException
     /// </summary>
+    /// <param name="endpoint">API 端点</param>
+    /// <param name="retryAfter">建议重试等待时间</param>
+    /// <param name="responseContent">原始响应内容</param>
     public RateLimitException(
         string endpoint,
         TimeSpan? retryAfter = null,

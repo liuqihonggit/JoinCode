@@ -16,6 +16,9 @@ public sealed partial class MultimodalUiElementDetector : ServiceEntity, IUiElem
         MaxTokens = 8000
     };
 
+    /// <summary>构造多模态 UI 元素检测器实例。</summary>
+    /// <param name="queryService">LLM 查询服务，用于调用支持 vision 的模型识别 UI 元素。</param>
+    /// <param name="logger">可选的日志记录器，传入 null 时静默运行。</param>
     public MultimodalUiElementDetector(IQueryService queryService, ILogger<MultimodalUiElementDetector>? logger = null)
     {
         _queryService = queryService ?? throw new ArgumentNullException(nameof(queryService));

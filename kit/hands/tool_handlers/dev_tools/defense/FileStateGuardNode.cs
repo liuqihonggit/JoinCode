@@ -12,6 +12,12 @@ public sealed class FileStateGuardNode
     private readonly IFileSystem _fs;
     private readonly ILogger<FileStateGuardNode>? _logger;
 
+    /// <summary>
+    /// 构造文件状态守卫 node
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="fileStateCache">可选的文件状态缓存</param>
+    /// <param name="logger">可选日志记录器</param>
     public FileStateGuardNode(
         IFileSystem fs,
         IFileStateCache? fileStateCache = null,
@@ -26,6 +32,7 @@ public sealed class FileStateGuardNode
     /// 写前读校验 — 已存在的文件必须先读取才能写入/编辑。
     /// CLI 无状态模式（mcp_call 单次调用）下 FileStateCache 永远为空，跳过校验。
     /// </summary>
+    /// <param name="filePath">文件路径</param>
     /// <returns>true 表示已读或不需要校验，false 表示未读</returns>
     public bool HasBeenRead(string filePath)
     {
@@ -39,6 +46,8 @@ public sealed class FileStateGuardNode
     /// 脏写保护（Stale-write guard）— 文件读后被外部修改则拒绝写入。
     /// Windows 时间戳误报回退：用检测编码读取文件比对内容，内容不变则放行。
     /// </summary>
+    /// <param name="filePath">文件路径</param>
+    /// <param name="ct">取消令牌</param>
     /// <returns>null 表示安全，(lastWriteMs, readTimestampMs) 表示检测到外部修改</returns>
     public async ValueTask<(long LastWriteMs, long ReadTimestampMs)?> CheckStaleWriteAsync(string filePath, CancellationToken ct)
     {

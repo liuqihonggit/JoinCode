@@ -11,6 +11,12 @@ public sealed partial class BinaryContentStorage : ServiceEntity, IBinaryContent
     private readonly IClockService _clock;
     private readonly IFileSystem _fs;
 
+    /// <summary>
+    /// 初始化 <see cref="BinaryContentStorage"/> 实例。
+    /// </summary>
+    /// <param name="fs">文件系统抽象，用于写入持久化文件。</param>
+    /// <param name="logger">可选的日志记录器。</param>
+    /// <param name="clock">可选的时钟服务，用于生成持久化 ID 时间戳。</param>
     public BinaryContentStorage(IFileSystem fs, ILogger<BinaryContentStorage>? logger = null, IClockService? clock = null)
     {
         ArgumentNullException.ThrowIfNull(fs);
@@ -66,6 +72,7 @@ public sealed partial class BinaryContentStorage : ServiceEntity, IBinaryContent
     /// <summary>
     /// 生成持久化ID — 对齐TS版: webfetch-{timestamp}-{random6chars}
     /// </summary>
+    /// <returns>格式为 webfetch-{毫秒时间戳}-{6位随机十六进制} 的持久化 ID。</returns>
     public string GeneratePersistId()
     {
         var timestamp = _clock.GetUtcNowOffset().ToUnixTimeMilliseconds();

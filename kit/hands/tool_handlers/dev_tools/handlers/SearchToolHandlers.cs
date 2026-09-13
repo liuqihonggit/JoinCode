@@ -5,42 +5,55 @@ namespace Tools.Handlers;
 /// </summary>
 public sealed record GrepSearchOptions
 {
+    /// <summary>搜索文件内容的正则表达式模式</summary>
     [McpToolParameter("The regular expression pattern to search for in file contents")]
     public required string Pattern { get; init; }
 
+    /// <summary>搜索的文件或目录路径，默认为当前工作目录</summary>
     [McpToolParameter("File or directory to search in. Defaults to current working directory.", Required = false)]
     public string? Path { get; init; }
 
+    /// <summary>过滤文件的 glob 模式（如 "*.js", "*.{ts,tsx}"），对应 rg --glob</summary>
     [McpToolParameter("Glob pattern to filter files (e.g. \"*.js\", \"*.{ts,tsx}\") - maps to rg --glob", Required = false)]
     public string? Glob { get; init; }
 
+    /// <summary>输出模式: content/files_with_matches/count，默认 files_with_matches</summary>
     [McpToolParameter("Output mode: \"content\" shows matching lines (supports -A/-B/-C context, -n line numbers, head_limit), \"files_with_matches\" shows file paths (supports head_limit), \"count\" shows match counts (supports head_limit). Defaults to \"files_with_matches\".", Required = false, DefaultValue = "files_with_matches")]
     public string OutputMode { get; init; } = "files_with_matches";
 
+    /// <summary>是否大小写不敏感（rg -i）</summary>
     [McpToolParameter("Case insensitive search (rg -i)", Required = false, DefaultValue = "false")]
     public bool CaseInsensitive { get; init; } = false;
 
+    /// <summary>是否启用多行模式（rg -U --multiline-dotall）</summary>
     [McpToolParameter("Enable multiline mode where . matches newlines and patterns can span lines (rg -U --multiline-dotall). Default: false.", Required = false, DefaultValue = "false")]
     public bool Multiline { get; init; } = false;
 
+    /// <summary>文件类型过滤（rg --type），如 js/py/rust/go/java</summary>
     [McpToolParameter("File type to search (rg --type). Common types: js, py, rust, go, java, etc. More efficient than include for standard file types.", Required = false)]
     public string? FileType { get; init; }
 
+    /// <summary>匹配行前显示的行数（rg -B），仅 content 模式有效</summary>
     [McpToolParameter("Number of lines to show before each match (rg -B). Requires output_mode: \"content\", ignored otherwise.", Required = false)]
     public int? Before { get; init; }
 
+    /// <summary>匹配行后显示的行数（rg -A），仅 content 模式有效</summary>
     [McpToolParameter("Number of lines to show after each match (rg -A). Requires output_mode: \"content\", ignored otherwise.", Required = false)]
     public int? After { get; init; }
 
+    /// <summary>匹配行前后显示的行数（rg -C），仅 content 模式有效</summary>
     [McpToolParameter("Number of lines to show before and after each match (rg -C). Requires output_mode: \"content\", ignored otherwise.", Required = false)]
     public int? Context { get; init; }
 
+    /// <summary>是否显示行号（rg -n），仅 content 模式有效，默认 true</summary>
     [McpToolParameter("Show line numbers in output (rg -n). Requires output_mode: \"content\", ignored otherwise. Defaults to true.", Required = false, DefaultValue = "true")]
     public bool LineNumbers { get; init; } = true;
 
+    /// <summary>限制输出前 N 行/条目，默认 250，0 表示不限</summary>
     [McpToolParameter("Limit output to first N lines/entries, equivalent to \"| head -N\". Works across all output modes. Defaults to 250 when unspecified. Pass 0 for unlimited.", Required = false)]
     public int? HeadLimit { get; init; }
 
+    /// <summary>跳过前 N 行/条目后再应用 head_limit，默认 0</summary>
     [McpToolParameter("Skip first N lines/entries before applying head_limit, equivalent to \"| tail -n +N | head -N\". Works across all output modes. Defaults to 0.", Required = false)]
     public int? Offset { get; init; }
 }
@@ -50,9 +63,11 @@ public sealed record GrepSearchOptions
 /// </summary>
 public sealed record SearchCodeOptions
 {
+    /// <summary>搜索查询（正则模式）</summary>
     [McpToolParameter("The search query (regex pattern) to find in code files")]
     public required string Query { get; init; }
 
+    /// <summary>搜索目录，默认为当前工作目录</summary>
     [McpToolParameter("The directory to search in. If not specified, the current working directory will be used.", Required = false)]
     public string? Path { get; init; }
 }
@@ -62,9 +77,11 @@ public sealed record SearchCodeOptions
 /// </summary>
 public sealed record SearchTextOptions
 {
+    /// <summary>搜索的文本模式（正则）</summary>
     [McpToolParameter("The text pattern (regex) to search for in file contents")]
     public required string Pattern { get; init; }
 
+    /// <summary>搜索目录，默认为当前工作目录</summary>
     [McpToolParameter("The directory to search in. If not specified, the current working directory will be used.", Required = false)]
     public string? Path { get; init; }
 }
@@ -74,9 +91,11 @@ public sealed record SearchTextOptions
 /// </summary>
 public sealed record SearchFilesOptions
 {
+    /// <summary>匹配文件的 glob 模式，如 **/*.cs, *.json</summary>
     [McpToolParameter("The glob pattern to match files, e.g. **/*.cs, *.json")]
     public required string Pattern { get; init; }
 
+    /// <summary>搜索目录，默认为当前工作目录</summary>
     [McpToolParameter("The directory to search in. If not specified, the current working directory will be used.", Required = false)]
     public string? Path { get; init; }
 }
@@ -86,9 +105,11 @@ public sealed record SearchFilesOptions
 /// </summary>
 public sealed record SearchCodebaseOptions
 {
+    /// <summary>自然语言查询或正则模式</summary>
     [McpToolParameter("Natural language query or regex pattern to search the codebase")]
     public required string Query { get; init; }
 
+    /// <summary>搜索目录，默认为当前工作目录</summary>
     [McpToolParameter("The directory to search in. If not specified, the current working directory will be used.", Required = false)]
     public string? Path { get; init; }
 }
@@ -98,9 +119,11 @@ public sealed record SearchCodebaseOptions
 /// </summary>
 public sealed record CodeSearchOptions
 {
+    /// <summary>搜索查询（正则模式）</summary>
     [McpToolParameter("The search query (regex pattern) to find in code")]
     public required string Query { get; init; }
 
+    /// <summary>搜索目录，默认为当前工作目录</summary>
     [McpToolParameter("The directory to search in. If not specified, the current working directory will be used.", Required = false)]
     public string? Path { get; init; }
 }
@@ -110,9 +133,11 @@ public sealed record CodeSearchOptions
 /// </summary>
 public sealed record SymbolSearchOptions
 {
+    /// <summary>要搜索的符号名称（如类名、方法名）</summary>
     [McpToolParameter("The symbol name to search for (e.g. class name, method name)")]
     public required string Symbol { get; init; }
 
+    /// <summary>搜索目录，默认为当前工作目录</summary>
     [McpToolParameter("The directory to search in. If not specified, the current working directory will be used.", Required = false)]
     public string? Path { get; init; }
 }
@@ -129,6 +154,13 @@ public class SearchToolHandlers : OneShotCommandGroup
     private readonly IPathPermissionChecker? _pathPermissionChecker;
     private readonly ITelemetryService? _telemetryService;
 
+    /// <summary>
+    /// 构造搜索工具处理器
+    /// </summary>
+    /// <param name="searchService">搜索服务，提供 Glob 和 Grep 能力</param>
+    /// <param name="fileOperationService">文件操作服务</param>
+    /// <param name="pathPermissionChecker">可选路径权限检查器</param>
+    /// <param name="telemetryService">可选遥测服务</param>
     public SearchToolHandlers(
         ISearchService searchService,
         IFileOperationService fileOperationService,

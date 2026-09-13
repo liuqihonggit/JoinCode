@@ -10,6 +10,10 @@ public class EnvironmentToolHandlers
     private readonly IUndoStack _undo;
     private readonly ILogger<EnvironmentToolHandlers>? _logger;
 
+    /// <summary>构造环境感知与撤销工具处理器实例。</summary>
+    /// <param name="env">环境感知服务，用于检测光标状态与弹窗。</param>
+    /// <param name="undo">撤销栈，用于回退与查询操作历史。</param>
+    /// <param name="logger">可选的日志记录器，传入 null 时静默运行。</param>
     public EnvironmentToolHandlers(
         IEnvironmentAwarenessService env,
         IUndoStack undo,

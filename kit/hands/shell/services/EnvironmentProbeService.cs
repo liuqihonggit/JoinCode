@@ -20,6 +20,11 @@ public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>,
     private EnvironmentReport? _cachedReport;
     private DateTime _lastProbeTime = DateTime.MinValue;
 
+    /// <summary>
+    /// 构造环境探测服务
+    /// </summary>
+    /// <param name="healthMonitor">工具健康监控</param>
+    /// <param name="logger">日志器（可选）</param>
     public EnvironmentProbeService(IToolHealthMonitor healthMonitor, ILogger<EnvironmentProbeService>? logger = null)
         : base()
     {
@@ -144,6 +149,10 @@ public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>,
         }
     }
 
+    /// <summary>
+    /// Actor Consumer 异常回调 — 记录警告日志，不向上抛出
+    /// </summary>
+    /// <param name="ex">Consumer 处理命令时抛出的异常</param>
     protected override void OnConsumerError(Exception ex)
     {
         _logger?.LogWarning(ex, "EnvironmentProbe Actor Consumer 命令处理异常");

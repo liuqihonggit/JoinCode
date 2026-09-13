@@ -9,6 +9,10 @@ public sealed class ToolArgumentParser
 {
     private readonly ILogger<ToolArgumentParser>? _logger;
 
+    /// <summary>
+    /// 构造工具参数解析器
+    /// </summary>
+    /// <param name="logger">可选的日志记录器</param>
     public ToolArgumentParser(ILogger<ToolArgumentParser>? logger = null)
     {
         _logger = logger;
@@ -17,6 +21,8 @@ public sealed class ToolArgumentParser
     /// <summary>
     /// 解析参数字符串为字典
     /// </summary>
+    /// <param name="arguments">参数字符串，可为 JSON 对象或键值对格式</param>
+    /// <returns>解析后的参数字典</returns>
     public Dictionary<string, JsonElement> Parse(string arguments)
     {
         if (string.IsNullOrWhiteSpace(arguments))
@@ -157,6 +163,9 @@ public sealed class ToolArgumentParser
     /// <summary>
     /// 根据模式验证参数
     /// </summary>
+    /// <param name="arguments">待验证的参数字典</param>
+    /// <param name="schema">工具参数模式</param>
+    /// <returns>验证结果，包含是否合法与错误列表</returns>
     public ValidationResult Validate(Dictionary<string, JsonElement> arguments, ToolSchema schema)
     {
         var errors = new List<string>();
@@ -216,6 +225,9 @@ public sealed class ToolArgumentParser
     /// <summary>
     /// 从命令行参数构建工具调用请求
     /// </summary>
+    /// <param name="toolName">工具名称</param>
+    /// <param name="args">命令行参数数组</param>
+    /// <returns>构建好的工具调用请求</returns>
     public ToolCallRequest BuildRequest(string toolName, string[] args)
     {
         var arguments = args.Length > 0
@@ -235,6 +247,13 @@ public sealed class ToolArgumentParser
 /// </summary>
 public class ValidationResult
 {
+    /// <summary>
+    /// 是否验证通过
+    /// </summary>
     public bool IsValid { get; init; }
+
+    /// <summary>
+    /// 验证错误信息列表
+    /// </summary>
     public IReadOnlyList<string> Errors { get; init; } = new List<string>();
 }

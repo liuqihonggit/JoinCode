@@ -8,6 +8,12 @@ namespace Tools.Shell;
 public sealed partial class ShellExecutionMiddleware : ServiceEntity, IShellMiddleware
 {
 
+    /// <summary>
+    /// 构造命令执行中间件
+    /// </summary>
+    /// <param name="registry">系统执行器注册表</param>
+    /// <param name="foregroundTaskRegistry">前台任务注册表（可选）</param>
+    /// <param name="logger">日志器（可选）</param>
     public ShellExecutionMiddleware(ISystemActuatorRegistry registry, IForegroundTaskRegistry? foregroundTaskRegistry = null, ILogger<ShellExecutionMiddleware>? logger = null)
     {
         _registry = registry;

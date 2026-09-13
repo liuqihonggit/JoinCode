@@ -9,6 +9,9 @@ public class DesktopInputToolHandlers
     private readonly IDesktopInputService _input;
     private readonly ILogger<DesktopInputToolHandlers>? _logger;
 
+    /// <summary>构造桌面输入工具处理器实例。</summary>
+    /// <param name="input">桌面输入服务，用于执行鼠标点击、移动、拖拽、按键与文本输入。</param>
+    /// <param name="logger">可选的日志记录器，传入 null 时静默运行。</param>
     public DesktopInputToolHandlers(IDesktopInputService input, ILogger<DesktopInputToolHandlers>? logger = null)
     {
         _input = input;

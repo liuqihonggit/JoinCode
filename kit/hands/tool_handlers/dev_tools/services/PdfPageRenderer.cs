@@ -43,12 +43,22 @@ public sealed class PdfExtractResult
     public string? ErrorMessage { get; init; }
 
     /// <summary>获取 Pages，操作失败时抛出异常</summary>
+    /// <returns>提取的页面图像集合</returns>
     public IEnumerable<PdfPageImage> GetPages() =>
         Pages ?? throw new InvalidOperationException("Pages is not available. Check Success before calling this method.");
 
+    /// <summary>构造成功结果</summary>
+    /// <param name="pages">提取的页面图像列表</param>
+    /// <param name="totalCount">PDF 总页数</param>
+    /// <param name="originalSize">原始文件大小</param>
+    /// <returns>成功的 PdfExtractResult</returns>
     public static PdfExtractResult Ok(IReadOnlyList<PdfPageImage> pages, int? totalCount, long originalSize) =>
         new() { Success = true, Pages = pages, TotalPageCount = totalCount, OriginalSize = originalSize };
 
+    /// <summary>构造失败结果</summary>
+    /// <param name="reason">错误原因标识</param>
+    /// <param name="message">错误消息</param>
+    /// <returns>失败的 PdfExtractResult</returns>
     public static PdfExtractResult Fail(string reason, string message) =>
         new() { Success = false, ErrorReason = reason, ErrorMessage = message };
 }
@@ -96,6 +106,7 @@ public static class PdfPageRenderer
     /// <summary>
     /// 检查 PDF 渲染功能是否可用（PDFium 原生库是否加载成功）
     /// </summary>
+    /// <returns>PDFium 原生库加载成功返回 true，否则返回 false</returns>
     public static bool IsAvailable()
     {
         try

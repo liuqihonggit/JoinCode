@@ -97,6 +97,10 @@ internal sealed class ProcessOutputCollector : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// 异步释放资源 — 清理溢出到磁盘的临时输出文件
+    /// </summary>
+    /// <returns>已完成的值任务</returns>
     public ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return ValueTask.CompletedTask;

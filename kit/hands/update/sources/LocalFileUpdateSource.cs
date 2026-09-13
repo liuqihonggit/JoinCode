@@ -11,6 +11,12 @@ public sealed class LocalFileUpdateSource : IUpdateSource
     private readonly IFileSystem _fs;
     private readonly ILogger<LocalFileUpdateSource>? _logger;
 
+    /// <summary>
+    /// 构造本地文件更新源
+    /// </summary>
+    /// <param name="manifestPath">清单文件路径</param>
+    /// <param name="fs">文件系统</param>
+    /// <param name="logger">日志器（可选）</param>
     public LocalFileUpdateSource(string manifestPath, IFileSystem fs, ILogger<LocalFileUpdateSource>? logger = null)
     {
         _manifestPath = manifestPath ?? throw new ArgumentNullException(nameof(manifestPath));
@@ -18,8 +24,16 @@ public sealed class LocalFileUpdateSource : IUpdateSource
         _logger = logger;
     }
 
+    /// <summary>
+    /// 更新源类型 — LocalFile
+    /// </summary>
     public UpdateSourceType Type => UpdateSourceType.LocalFile;
 
+    /// <summary>
+    /// 从本地路径读取清单文件
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>更新清单；读取失败时返回 null</returns>
     public async Task<UpdateManifest?> GetManifestAsync(CancellationToken ct = default)
     {
         try
@@ -40,6 +54,13 @@ public sealed class LocalFileUpdateSource : IUpdateSource
         }
     }
 
+    /// <summary>
+    /// 从本地路径打开指定清单条目的文件流
+    /// </summary>
+    /// <param name="entry">清单条目</param>
+    /// <param name="progress">下载进度回调（可选，本地文件不使用）</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>文件流</returns>
     public Task<Stream> DownloadAsync(
         UpdateManifestEntry entry,
         IProgress<UpdateDownloadProgress>? progress = null,

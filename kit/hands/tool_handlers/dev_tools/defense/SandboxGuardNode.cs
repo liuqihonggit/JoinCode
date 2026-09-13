@@ -10,6 +10,11 @@ public sealed class SandboxGuardNode
     private readonly ISandboxManager? _sandboxManager;
     private readonly ILogger<SandboxGuardNode>? _logger;
 
+    /// <summary>
+    /// 构造沙箱路径解析 node
+    /// </summary>
+    /// <param name="sandboxManager">可选的沙箱管理器</param>
+    /// <param name="logger">可选日志记录器</param>
     public SandboxGuardNode(
         ISandboxManager? sandboxManager = null,
         ILogger<SandboxGuardNode>? logger = null)

@@ -8,6 +8,10 @@ namespace Services.Web;
 public sealed partial class WebCacheWriteMiddleware : ServiceEntity, IWebMiddleware
 {
 
+    /// <summary>
+    /// 初始化 <see cref="WebCacheWriteMiddleware"/> 实例。
+    /// </summary>
+    /// <param name="cache">Web 抓取缓存，用于写入抓取结果。</param>
     public WebCacheWriteMiddleware(IWebFetchCache cache)
     {
         _cache = cache;

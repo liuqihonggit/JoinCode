@@ -11,6 +11,12 @@ public sealed class FileBackupNode
     private readonly IFileSystem _fs;
     private readonly ILogger<FileBackupNode>? _logger;
 
+    /// <summary>
+    /// 构造文件备份 node
+    /// </summary>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="historyService">可选的文件历史服务</param>
+    /// <param name="logger">可选日志记录器</param>
     public FileBackupNode(
         IFileSystem fs,
         IFileHistoryService? historyService = null,
@@ -28,6 +34,7 @@ public sealed class FileBackupNode
     /// </summary>
     /// <param name="filePath">文件路径（沙箱解析后）</param>
     /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async ValueTask BackupAsync(string filePath, CancellationToken ct)
     {
         if (_historyService is null || !_fs.FileExists(filePath))

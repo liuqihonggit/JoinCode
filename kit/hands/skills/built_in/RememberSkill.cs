@@ -1,8 +1,15 @@
 
 namespace Core.Skills.BuiltIn;
 
+/// <summary>
+/// 记忆技能 — 保存重要信息到记忆，支持分类和重要程度标记
+/// </summary>
 public sealed class RememberSkill
 {
+    /// <summary>
+    /// 创建技能定义
+    /// </summary>
+    /// <returns>记忆技能的技能定义</returns>
     public static SkillDefinition CreateDefinition()
     {
         return new SkillDefinition

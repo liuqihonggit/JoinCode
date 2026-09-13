@@ -14,10 +14,26 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
     private readonly ConcurrentDictionary<string, DiscoveredSkill> _discoveredSkills;
     private readonly AsyncLock _discoveryLock = new();
 
+    /// <summary>
+    /// 发现新技能事件
+    /// </summary>
     public event EventHandler<SkillDiscoveredEventArgs>? SkillDiscovered;
+    /// <summary>
+    /// 技能变更事件
+    /// </summary>
     public event EventHandler<SkillChangedEventArgs>? SkillChanged;
+    /// <summary>
+    /// 技能移除事件
+    /// </summary>
     public event EventHandler<SkillRemovedEventArgs>? SkillRemoved;
 
+    /// <summary>
+    /// 创建技能发现服务
+    /// </summary>
+    /// <param name="options">发现选项</param>
+    /// <param name="files">文件操作服务</param>
+    /// <param name="fs">文件系统抽象</param>
+    /// <param name="logger">日志记录器</param>
     public SkillDiscoveryService(
         SkillDiscoveryOptions options,
         IFileOperationService files,
@@ -31,6 +47,11 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
         _discoveredSkills = new ConcurrentDictionary<string, DiscoveredSkill>(StringComparer.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// 异步发现所有技能 — 扫描技能目录下的 JSON 和 SKILL.md 文件
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>已发现的技能列表</returns>
     public async Task<IReadOnlyList<DiscoveredSkill>> DiscoverAsync(CancellationToken cancellationToken = default)
     {
         using var guard = await _discoveryLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_discoveryLock.Name}' 等待超时");
@@ -70,6 +91,12 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
         return results;
     }
 
+    /// <summary>
+    /// 按技能名异步加载单个技能
+    /// </summary>
+    /// <param name="skillName">技能名称</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>发现的技能；不存在则返回 null</returns>
     public async Task<DiscoveredSkill?> LoadSkillAsync(string skillName, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(skillName);
@@ -89,6 +116,12 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
         return null;
     }
 
+    /// <summary>
+    /// 异步验证技能文件 — 支持 JSON 和 Markdown 两种格式
+    /// </summary>
+    /// <param name="filePath">技能文件路径</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>验证结果</returns>
     public async Task<SkillValidationResult> ValidateSkillAsync(string filePath, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(filePath);

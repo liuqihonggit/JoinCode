@@ -162,31 +162,44 @@ public interface IUsageTracker
     /// <summary>
     /// 记录 Token 使用
     /// </summary>
+    /// <param name="usage">Token 使用记录</param>
     void RecordUsage(TokenUsageRecord usage);
 
     /// <summary>
     /// 从 API 响应中提取并记录 Token 使用
     /// </summary>
+    /// <param name="model">模型名称</param>
+    /// <param name="endpoint">API 端点</param>
+    /// <param name="responseContent">响应内容</param>
+    /// <param name="sessionId">可选会话 ID</param>
+    /// <param name="requestId">可选请求 ID</param>
     void RecordFromResponse(string model, string endpoint, string responseContent, string? sessionId = null, string? requestId = null);
 
     /// <summary>
     /// 获取今日统计
     /// </summary>
+    /// <returns>今日 Token 使用统计</returns>
     TokenUsageStatistics GetTodayStatistics();
 
     /// <summary>
     /// 获取会话统计
     /// </summary>
+    /// <param name="sessionId">会话 ID</param>
+    /// <returns>指定会话的 Token 使用统计</returns>
     TokenUsageStatistics GetSessionStatistics(string sessionId);
 
     /// <summary>
     /// 获取总统计
     /// </summary>
+    /// <returns>累计 Token 使用统计</returns>
     TokenUsageStatistics GetTotalStatistics();
 
     /// <summary>
     /// 获取指定时间范围统计
     /// </summary>
+    /// <param name="startDate">起始时间</param>
+    /// <param name="endDate">结束时间</param>
+    /// <returns>指定时间范围内的 Token 使用统计</returns>
     TokenUsageStatistics GetStatistics(DateTime startDate, DateTime endDate);
 
     /// <summary>
@@ -207,6 +220,12 @@ public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDispos
     private readonly ICostTracker? _costTracker;
     private readonly IModelConfigLoader _modelConfigLoader;
 
+    /// <summary>
+    /// 构造 UsageTracker
+    /// </summary>
+    /// <param name="logger">可选日志记录器</param>
+    /// <param name="costTracker">可选成本追踪器</param>
+    /// <param name="modelConfigLoader">可选模型配置加载器，为 null 时使用默认加载器</param>
     public UsageTracker(ILogger<UsageTracker>? logger = null, ICostTracker? costTracker = null, IModelConfigLoader? modelConfigLoader = null)
     {
         _usageRecords = new ConcurrentBag<TokenUsageRecord>();
@@ -403,6 +422,9 @@ public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDispos
         };
     }
 
+    /// <summary>
+    /// 释放资源（ConcurrentBag 无需显式释放，仅满足接口契约）
+    /// </summary>
     protected override void OnDispose()
     {
         // ConcurrentBag 不需要显式释放，Dispose 仅为接口契约

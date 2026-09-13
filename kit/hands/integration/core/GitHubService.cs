@@ -1,5 +1,8 @@
 namespace IO.Services;
 
+/// <summary>
+/// GitHub 服务 — 管理 PR 订阅列表，支持加载、订阅、取消订阅并持久化到配置
+/// </summary>
 [Register(typeof(IGitHubService), ServiceLifetime.Singleton)]
 public sealed partial class GitHubService : ServiceEntity, IGitHubService
 {
@@ -9,6 +12,12 @@ public sealed partial class GitHubService : ServiceEntity, IGitHubService
     private readonly AsyncLock _lock = new();
     private readonly Dictionary<string, PRSubscription> _subscriptions = new(StringComparer.Ordinal);
 
+    /// <summary>
+    /// 构造 GitHub 服务实例
+    /// </summary>
+    /// <param name="httpClient">用于访问 GitHub API 的 HTTP 客户端</param>
+    /// <param name="configService">配置服务，用于持久化 PR 订阅</param>
+    /// <param name="logger">日志记录器</param>
     public GitHubService(HttpClient httpClient, IConfigurationService? configService = null, ILogger<GitHubService>? logger = null)
     {
         _httpClient = httpClient;
@@ -16,6 +25,11 @@ public sealed partial class GitHubService : ServiceEntity, IGitHubService
         _logger = logger;
     }
 
+    /// <summary>
+    /// 异步列出所有 PR 订阅 — 首次调用时从配置加载
+    /// </summary>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>当前所有 PR 订阅列表</returns>
     public async Task<IReadOnlyList<PRSubscription>> ListSubscriptionsAsync(CancellationToken ct = default)
     {
         using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
@@ -23,6 +37,13 @@ public sealed partial class GitHubService : ServiceEntity, IGitHubService
         return _subscriptions.Values.ToList();
     }
 
+    /// <summary>
+    /// 异步订阅指定 PR — PR 引用为空时抛出 ArgumentException[HND003]
+    /// </summary>
+    /// <param name="prRef">PR 引用，格式 owner/repo#number</param>
+    /// <param name="events">订阅的事件类型，缺省 all</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>新建的 PR 订阅</returns>
     public async Task<PRSubscription> SubscribeAsync(string prRef, string events = "all", CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(prRef))
@@ -47,6 +68,12 @@ public sealed partial class GitHubService : ServiceEntity, IGitHubService
         return subscription;
     }
 
+    /// <summary>
+    /// 异步取消订阅指定 PR — PR 引用为空时抛出 ArgumentException[HND004]
+    /// </summary>
+    /// <param name="prRef">PR 引用，格式 owner/repo#number</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>表示异步操作的任务</returns>
     public async Task UnsubscribeAsync(string prRef, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(prRef))
@@ -101,6 +128,9 @@ public sealed partial class GitHubService : ServiceEntity, IGitHubService
         }
     }
 
+    /// <summary>
+    /// 释放资源 — 释放异步锁
+    /// </summary>
     protected override void OnDispose() => _lock.Dispose();
 }
 

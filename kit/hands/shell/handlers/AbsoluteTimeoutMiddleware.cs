@@ -13,6 +13,11 @@ public sealed partial class AbsoluteTimeoutMiddleware : ServiceEntity, IShellMid
     private readonly ShellExecutionConfig _config;
     private readonly ILogger<AbsoluteTimeoutMiddleware>? _logger;
 
+    /// <summary>
+    /// 构造绝对超时中间件
+    /// </summary>
+    /// <param name="config">Shell 执行配置</param>
+    /// <param name="logger">日志器（可选）</param>
     public AbsoluteTimeoutMiddleware(ShellExecutionConfig config, ILogger<AbsoluteTimeoutMiddleware>? logger = null)
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));

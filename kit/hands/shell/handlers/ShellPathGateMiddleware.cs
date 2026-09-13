@@ -7,6 +7,11 @@ namespace Tools.Shell;
 public sealed partial class ShellPathGateMiddleware : ServiceEntity, IShellMiddleware
 {
 
+    /// <summary>
+    /// 构造路径门控中间件
+    /// </summary>
+    /// <param name="probeService">环境探测服务</param>
+    /// <param name="logger">日志器（可选）</param>
     public ShellPathGateMiddleware(IEnvironmentProbeService probeService, ILogger<ShellPathGateMiddleware>? logger = null)
     {
         _probeService = probeService;

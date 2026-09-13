@@ -8,6 +8,10 @@ namespace Services.Web;
 public sealed partial class WebFetchMiddleware : ServiceEntity, IWebMiddleware
 {
 
+    /// <summary>
+    /// 初始化 <see cref="WebFetchMiddleware"/> 实例。
+    /// </summary>
+    /// <param name="apiClient">API 客户端抽象，用于执行 HTTP 请求。</param>
     public WebFetchMiddleware(IApiClient apiClient)
     {
         _apiClient = apiClient;

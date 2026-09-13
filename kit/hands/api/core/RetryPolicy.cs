@@ -94,6 +94,7 @@ public sealed record RetryPolicyOptions
     /// <summary>
     /// DI 构造函数 — 从 ApiSettings 映射
     /// </summary>
+    /// <param name="settings">API 设置选项；为 null 时使用默认值</param>
     public RetryPolicyOptions(IOptions<ApiSettings>? settings = null)
     {
         if (settings?.Value is { } s)
@@ -117,6 +118,10 @@ public sealed partial class RetryPolicy : ServiceEntity
     private readonly RetryPolicyOptions _options;
     private readonly Random _random;
 
+    /// <summary>
+    /// 构造 RetryPolicy
+    /// </summary>
+    /// <param name="options">重试策略配置；为 null 时使用默认配置</param>
     public RetryPolicy(RetryPolicyOptions? options = null)
     {
         _options = options ?? RetryPolicyOptions.Default;
@@ -126,6 +131,12 @@ public sealed partial class RetryPolicy : ServiceEntity
     /// <summary>
     /// 执行带重试的异步操作
     /// </summary>
+    /// <typeparam name="T">操作返回类型</typeparam>
+    /// <param name="operation">待执行的异步操作</param>
+    /// <param name="isRetryable">自定义异常可重试判定；为 null 时使用默认规则</param>
+    /// <param name="onRetry">每次重试前的回调（重试次数、延迟、异常）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>操作成功执行后的返回值</returns>
     public async Task<T> ExecuteAsync<T>(
         Func<CancellationToken, Task<T>> operation,
         Func<Exception, bool>? isRetryable = null,
@@ -168,6 +179,11 @@ public sealed partial class RetryPolicy : ServiceEntity
     /// <summary>
     /// 执行带重试的异步操作（无返回值）
     /// </summary>
+    /// <param name="operation">待执行的异步操作</param>
+    /// <param name="isRetryable">自定义异常可重试判定；为 null 时使用默认规则</param>
+    /// <param name="onRetry">每次重试前的回调（重试次数、延迟、异常）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>表示异步操作完成的任务</returns>
     public async Task ExecuteAsync(
         Func<CancellationToken, Task> operation,
         Func<Exception, bool>? isRetryable = null,
@@ -256,6 +272,11 @@ public sealed partial class RetryPolicy : ServiceEntity
 /// </summary>
 public sealed class RetryExhaustedException : WorkflowException
 {
+    /// <summary>
+    /// 创建 RetryExhaustedException
+    /// </summary>
+    /// <param name="message">异常消息</param>
+    /// <param name="innerException">引发重试耗尽的内部异常</param>
     public RetryExhaustedException(string message, Exception innerException)
         : base(message, innerException, errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.ApiRetryExhausted.ToValue(), category: ErrorCategory.Api)
     {

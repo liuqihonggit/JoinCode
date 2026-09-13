@@ -10,6 +10,8 @@ public static class SedEditParser
     /// 解析 sed 命令为编辑信息 — 对齐 TS parseSedEditCommand
     /// 仅支持 sed -i 's/pattern/replacement/flags' file 格式
     /// </summary>
+    /// <param name="command">待解析的 sed 命令</param>
+    /// <returns>解析成功的编辑信息；若命令格式不支持则返回 null</returns>
     public static SedEditInfo? ParseSedEditCommand(string command)
     {
         if (string.IsNullOrWhiteSpace(command)) return null;
@@ -212,6 +214,9 @@ public static class SedEditParser
     /// <summary>
     /// 应用 sed 替换到文件内容 — 对齐 TS applySedSubstitution
     /// </summary>
+    /// <param name="content">原始文件内容</param>
+    /// <param name="sedInfo">sed 编辑信息（模式、替换、标志）</param>
+    /// <returns>替换后的文件内容；若正则匹配超时或无效则返回原始内容</returns>
     public static string ApplySedSubstitution(string content, SedEditInfo sedInfo)
     {
         try

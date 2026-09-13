@@ -67,6 +67,10 @@ internal sealed class CwdTracker : IAsyncDisposable
         return false;
     }
 
+    /// <summary>
+    /// 异步释放资源 — 清理 CWD 追踪文件
+    /// </summary>
+    /// <returns>已完成的值任务</returns>
     public ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return ValueTask.CompletedTask;

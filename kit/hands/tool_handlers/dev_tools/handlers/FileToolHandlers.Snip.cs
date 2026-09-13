@@ -2,6 +2,7 @@ namespace Tools.Handlers;
 
 public partial class FileToolHandlers
 {
+    /// <summary>截取文件指定行范围（snip read）</summary>
     [McpTool(FileToolNameConstants.FileSnipLines, "Read a range of lines from the file (snip read)", "file", ConcurrencySafe = true)]
     public async Task<ToolResult> FileSnipLinesAsync(
         [McpToolParameter("File path, relative or absolute")] string file_path,
@@ -65,6 +66,7 @@ public partial class FileToolHandlers
         RecordFileMetrics(FileOperationType.SnipLines, FileOperationResult.Ok);
         return ToolResultBuilder.Success().WithText(response.ToString()).Build();
     }
+    /// <summary>获取文件预览信息（大小、行数、前 N 行）</summary>
     [McpTool(FileToolNameConstants.FileSnipPreview, "Get file preview info (size, line count, first N lines)", "file", ConcurrencySafe = true)]
     public async Task<ToolResult> FileSnipPreviewAsync(
         [McpToolParameter("File path, relative or absolute")] string file_path,

@@ -10,6 +10,10 @@ public class VisionToolHandlers
     private readonly IScreenCaptureService _capture;
     private readonly ILogger<VisionToolHandlers>? _logger;
 
+    /// <summary>构造视觉理解工具处理器实例。</summary>
+    /// <param name="detector">UI 元素检测器，用于调用多模态 LLM 识别截图中的元素。</param>
+    /// <param name="capture">屏幕截图服务，用于在无传入截图时自动截取全屏。</param>
+    /// <param name="logger">可选的日志记录器，传入 null 时静默运行。</param>
     public VisionToolHandlers(
         IUiElementDetector detector,
         IScreenCaptureService capture,

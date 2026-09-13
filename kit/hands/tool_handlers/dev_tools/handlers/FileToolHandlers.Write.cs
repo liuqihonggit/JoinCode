@@ -2,6 +2,7 @@ namespace Tools.Handlers;
 
 public partial class FileToolHandlers
 {
+    /// <summary>写入文件到本地文件系统，经过统一写入防御链</summary>
     [McpTool(FileToolNameConstants.FileWrite, "Write a file to the local filesystem", "file")]
     public async Task<ToolResult> FileWriteAsync(
         [McpToolParameter("The absolute path to the file to write (must be absolute, not relative)")] string file_path,

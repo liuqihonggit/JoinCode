@@ -1,8 +1,15 @@
 
 namespace Core.Skills.BuiltIn;
 
+/// <summary>
+/// 验证技能 — 验证代码或结果的正确性，支持自动修复
+/// </summary>
 public sealed class VerifySkill
 {
+    /// <summary>
+    /// 创建技能定义
+    /// </summary>
+    /// <returns>验证技能的技能定义</returns>
     public static SkillDefinition CreateDefinition()
     {
         return new SkillDefinition

@@ -8,6 +8,10 @@ namespace Services.Web;
 public sealed partial class WebDomainCheckMiddleware : ServiceEntity, IWebMiddleware
 {
 
+    /// <summary>
+    /// 初始化 <see cref="WebDomainCheckMiddleware"/> 实例。
+    /// </summary>
+    /// <param name="domainBlocklistChecker">域名黑名单检查器，用于预检域名安全性。</param>
     public WebDomainCheckMiddleware(IDomainBlocklistChecker domainBlocklistChecker)
     {
         _domainBlocklistChecker = domainBlocklistChecker;

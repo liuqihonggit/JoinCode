@@ -1,5 +1,6 @@
 namespace IO.Services;
 
+/// <summary>移动端连接服务 — 在本机开启 TCP 监听，接受移动端发起的连接握手并返回连接确认响应。</summary>
 [Register(typeof(IMobileConnectService), ServiceLifetime.Singleton)]
 public sealed partial class MobileConnectService : ServiceEntity, IMobileConnectService, IDisposable
 {
@@ -8,13 +9,19 @@ public sealed partial class MobileConnectService : ServiceEntity, IMobileConnect
     private int _runningPort;
     private CancellationTokenSource? _cts;
 
+    /// <summary>构造移动端连接服务实例。</summary>
+    /// <param name="logger">可选的日志记录器，传入 null 时静默运行。</param>
     public MobileConnectService(ILogger<MobileConnectService>? logger = null)
     {
         _logger = logger;
     }
 
+    /// <summary>获取一个值，指示连接服务是否正在监听端口。</summary>
     public bool IsServerRunning => _tcpListener != null;
 
+    /// <summary>基于本机主机名和指定端口生成移动端可访问的连接 URL。</summary>
+    /// <param name="port">连接端口，小于等于 0 时使用当前已启动的监听端口。</param>
+    /// <returns>形如 <c>http://{host}:{port}/connect</c> 的连接 URL。</returns>
     public string GenerateConnectUrl(int port)
     {
         var host = System.Net.Dns.GetHostName();
@@ -22,6 +29,9 @@ public sealed partial class MobileConnectService : ServiceEntity, IMobileConnect
         return $"http://{host}:{p}/connect";
     }
 
+    /// <summary>异步启动连接服务，自动选取可用端口开始监听并进入接受循环。</summary>
+    /// <param name="ct">可取消令牌，用于取消启动过程。</param>
+    /// <returns>实际监听的端口号。</returns>
     public Task<int> StartConnectServerAsync(CancellationToken ct = default)
     {
         var port = FindAvailablePort();
@@ -45,6 +55,7 @@ public sealed partial class MobileConnectService : ServiceEntity, IMobileConnect
         return Task.FromResult(port);
     }
 
+    /// <summary>停止连接服务，取消监听并关闭 TCP 监听器。</summary>
     public void StopConnectServer()
     {
         _cts?.Cancel();

@@ -7,6 +7,10 @@ namespace Core.Skills;
 public sealed partial class CodeCacheMiddleware : ServiceEntity, ICodeMiddleware
 {
 
+    /// <summary>
+    /// 创建 CodeCacheMiddleware
+    /// </summary>
+    /// <param name="cacheService">缓存服务</param>
     public CodeCacheMiddleware(ICacheService cacheService)
     {
         _cacheService = cacheService;

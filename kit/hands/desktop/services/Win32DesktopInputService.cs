@@ -9,6 +9,9 @@ public sealed partial class Win32DesktopInputService : ServiceEntity, IDesktopIn
     private readonly IDesktopSafetyChecker _safetyChecker;
     private readonly ILogger<Win32DesktopInputService>? _logger;
 
+    /// <summary>构造桌面输入模拟服务实例。</summary>
+    /// <param name="safetyChecker">桌面安全检查器，用于拦截危险坐标的点击操作。</param>
+    /// <param name="logger">可选的日志记录器，传入 null 时静默运行。</param>
     public Win32DesktopInputService(
         IDesktopSafetyChecker safetyChecker,
         ILogger<Win32DesktopInputService>? logger = null)
@@ -140,6 +143,7 @@ public sealed partial class Win32DesktopInputService : ServiceEntity, IDesktopIn
         return Task.FromResult(BuildOperation(DesktopOperationKind.TypeText, x: 0, y: 0, text: text, succeeded: true));
     }
 
+    /// <summary>释放桌面输入服务资源 — 无外部资源需释放。</summary>
     protected override void OnDispose()
     {
     }

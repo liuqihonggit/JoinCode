@@ -13,6 +13,7 @@ public sealed partial class NoOpDesktopSafetyChecker : ServiceEntity, IDesktopSa
     public Task<UnsafeOperationKind> CheckWindowCloseAsync(IntPtr hWnd, CancellationToken cancellationToken = default)
         => Task.FromResult(UnsafeOperationKind.None);
 
+    /// <summary>释放 NoOp 安全检查器资源 — 无外部资源需释放。</summary>
     protected override void OnDispose()
     {
     }

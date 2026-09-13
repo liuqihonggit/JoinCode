@@ -1,6 +1,9 @@
 
 namespace Core.Skills.BuiltIn;
 
+/// <summary>
+/// 批量技能 — 研究并规划大规模变更，然后在隔离的 worktree 代理中并行执行，每个代理开一个 PR
+/// </summary>
 public sealed class BatchSkill
 {
     private const int MinAgents = 5;
@@ -13,6 +16,10 @@ public sealed class BatchSkill
 4. **Commit and push** — Commit all changes with a clear message, push the branch, and create a PR. Use a descriptive title. If push fails, note it in your final message.
 5. **Report** — End with a single line: `PR: <url>` so the coordinator can track it. If no PR was created, end with `PR: none — <reason>`.";
 
+    /// <summary>
+    /// 创建技能定义
+    /// </summary>
+    /// <returns>批量技能的技能定义</returns>
     public static SkillDefinition CreateDefinition()
     {
         return new SkillDefinition

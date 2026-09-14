@@ -7,6 +7,7 @@ public sealed class Dag<T>
 {
     private readonly Dictionary<string, DagNode<T>> _nodes = new(StringComparer.Ordinal);
     private readonly Dictionary<string, DagEdge> _edges = new(StringComparer.Ordinal);
+    private readonly Dictionary<(string FromId, string ToId), DagEdge> _edgesByEndpoints = new();
     private readonly Dictionary<string, HashSet<string>> _adjacency = new(StringComparer.Ordinal);
     private readonly Dictionary<string, HashSet<string>> _reverseAdjacency = new(StringComparer.Ordinal);
     private int _version;
@@ -17,6 +18,11 @@ public sealed class Dag<T>
     public IReadOnlyDictionary<string, DagEdge> Edges => _edges;
     /// <summary>图版本号,每次结构变更(增删节点/边)递增</summary>
     public int Version => _version;
+
+    /// <summary>
+    /// 按端点 (fromId, toId) O(1) 查找边，替代 Edges.Values 线性扫描按 FromId/ToId 过滤
+    /// </summary>
+    public bool TryGetEdge(string fromId, string toId, [MaybeNullWhen(false)] out DagEdge edge) => _edgesByEndpoints.TryGetValue((fromId, toId), out edge);
 
     /// <summary>
     /// 添加节点
@@ -398,12 +404,14 @@ public sealed class Dag<T>
         _nodes[edge.ToId].InEdgeIds.Remove(edgeId);
         _adjacency[edge.FromId].Remove(edge.ToId);
         _reverseAdjacency[edge.ToId].Remove(edge.FromId);
+        _edgesByEndpoints.Remove((edge.FromId, edge.ToId));
         _edges.Remove(edgeId);
     }
 
     private void AddEdgeInternal(DagEdge edge)
     {
         _edges[edge.Id] = edge;
+        _edgesByEndpoints[(edge.FromId, edge.ToId)] = edge;
         _nodes[edge.FromId].OutEdgeIds.Add(edge.Id);
         _nodes[edge.ToId].InEdgeIds.Add(edge.Id);
         _adjacency[edge.FromId].Add(edge.ToId);

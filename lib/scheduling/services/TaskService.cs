@@ -187,9 +187,7 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
         if (!_dag.Nodes.ContainsKey(dependsOnTaskId))
             await _dag.AddNodeAsync(new DagNode<string> { Id = dependsOnTaskId, Payload = dependsOnTaskId }, cancellationToken).ConfigureAwait(false);
 
-        var existingEdge = _dag.Edges.Values
-            .FirstOrDefault(e => e.FromId == dependsOnTaskId && e.ToId == taskId);
-        if (existingEdge is not null)
+        if (_dag.TryGetEdge(dependsOnTaskId, taskId, out var existingEdge))
         {
             return OperationResult<TaskItem?>.Fail(L.T(StringKey.DependencyAlreadyExists));
         }
@@ -218,9 +216,7 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
         string dependsOnTaskId,
         CancellationToken cancellationToken = default)
     {
-        var edgeToRemove = _dag.Edges.Values
-            .FirstOrDefault(e => e.FromId == dependsOnTaskId && e.ToId == taskId);
-        if (edgeToRemove is null)
+        if (!_dag.TryGetEdge(dependsOnTaskId, taskId, out var edgeToRemove))
         {
             return OperationResult<TaskItem?>.Fail(L.T(StringKey.DepNotExist, dependsOnTaskId));
         }

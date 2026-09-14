@@ -206,9 +206,7 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
     /// <inheritdoc/>
     public async Task<OperationResult<RuntimeTask?>> RemoveDependencyAsync(string taskId, string dependsOnTaskId, CancellationToken cancellationToken = default)
     {
-        var edgeToRemove = _dag.Edges.Values
-            .FirstOrDefault(e => e.FromId == dependsOnTaskId && e.ToId == taskId);
-        if (edgeToRemove is null)
+        if (!_dag.TryGetEdge(dependsOnTaskId, taskId, out var edgeToRemove))
         {
             return OperationResult<RuntimeTask?>.Fail(L.T(StringKey.DepNotExist, dependsOnTaskId));
         }

@@ -276,47 +276,11 @@ public sealed partial class BridgeMain : ServiceEntity
                         if (_tracker.V2Sessions.ContainsKey(sessionId))
                         {
                             _logger?.LogDebug("BridgeMain: refreshing v2 session {SessionId} via reconnectSession", sessionId);
-                            if (EnvironmentId is not null && _deps.ReconnectSession is not null)
-                            {
-                                _ = Task.Run(async () =>
-                                {
-                                    var compatId = GetCompatId(sessionId);
-                                    var infraId = SessionIdCompat.ToInfraSessionId(sessionId);
-                                    var candidates = infraId == sessionId
-                                        ? [sessionId]
-                                        : new[] { sessionId, infraId };
-                                    foreach (var candidateId in candidates)
-                                    {
-                                        try
-                                        {
-                                            await _deps.ReconnectSession(EnvironmentId, candidateId, CancellationToken.None).ConfigureAwait(false);
-                                            _logger?.LogDebug("BridgeMain: reconnectSession succeeded for {CandidateId}", candidateId);
-                                            return;
-                                        }
-                                        catch (Exception ex)
-                                        {
-                                            _logger?.LogDebug(ex, "BridgeMain: reconnectSession({CandidateId}) failed, trying next", candidateId);
-                                        }
-                                    }
-                                }, CancellationToken.None);
-                            }
+                            ReconnectV2SessionFireAndForget(sessionId);
                         }
                         else
                         {
-                            if (_tracker.ActiveSessions.TryGetValue(sessionId, out var handle))
-                            {
-                                _ = Task.Run(async () =>
-                                {
-                                    try
-                                    {
-                                        await handle.UpdateAccessTokenAsync(oauthToken, CancellationToken.None).ConfigureAwait(false);
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        _logger?.LogDebug(ex, "BridgeMain: updateAccessToken failed for {SessionId} (non-fatal)", sessionId);
-                                    }
-                                }, CancellationToken.None);
-                            }
+                            UpdateV1SessionTokenFireAndForget(sessionId, oauthToken);
                         }
                     },
                     Label = "bridge",
@@ -593,48 +557,12 @@ public sealed partial class BridgeMain : ServiceEntity
                             // 对齐 TS 端: v2 会话通过 reconnectSession 刷新 — 服务端重新派发带新 JWT 的工作项
                             // 对齐 TS 端: 双 ID 尝试 — 先 compatId(session_*), 失败再 infraId(cse_*)
                             _logger?.LogDebug("BridgeMain: refreshing v2 session {SessionId} via reconnectSession", sessionId);
-                            if (EnvironmentId is not null && _deps.ReconnectSession is not null)
-                            {
-                                _ = Task.Run(async () =>
-                                {
-                                    var compatId = GetCompatId(sessionId);
-                                    var infraId = SessionIdCompat.ToInfraSessionId(sessionId);
-                                    var candidates = infraId == sessionId
-                                        ? [sessionId]
-                                        : new[] { sessionId, infraId };
-                                    foreach (var candidateId in candidates)
-                                    {
-                                        try
-                                        {
-                                            await _deps.ReconnectSession(EnvironmentId, candidateId, CancellationToken.None).ConfigureAwait(false);
-                                            _logger?.LogDebug("BridgeMain: reconnectSession succeeded for {CandidateId}", candidateId);
-                                            return; // 成功即返回
-                                        }
-                                        catch (Exception ex)
-                                        {
-                                            _logger?.LogDebug(ex, "BridgeMain: reconnectSession({CandidateId}) failed, trying next", candidateId);
-                                        }
-                                    }
-                                }, CancellationToken.None);
-                            }
+                            ReconnectV2SessionFireAndForget(sessionId);
                         }
                         else
                         {
                             // 对齐 TS 端: v1 会话直接更新 OAuth token
-                            if (_tracker.ActiveSessions.TryGetValue(sessionId, out var handle))
-                            {
-                                _ = Task.Run(async () =>
-                                {
-                                    try
-                                    {
-                                        await handle.UpdateAccessTokenAsync(oauthToken, CancellationToken.None).ConfigureAwait(false);
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        _logger?.LogDebug(ex, "BridgeMain: updateAccessToken failed for {SessionId} (non-fatal)", sessionId);
-                                    }
-                                }, CancellationToken.None);
-                            }
+                            UpdateV1SessionTokenFireAndForget(sessionId, oauthToken);
                         }
                     },
                     Label = "bridge",

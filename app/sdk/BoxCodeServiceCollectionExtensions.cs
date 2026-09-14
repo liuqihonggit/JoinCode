@@ -1,7 +1,16 @@
 namespace JoinCode.Sdk;
 
+/// <summary>
+/// JoinCode SDK 服务注册扩展 — 提供 AddJoinCode 扩展方法将 JoinCode 服务注入外部宿主的 DI 容器。
+/// </summary>
 public static class JoinCodeServiceCollectionExtensions
 {
+    /// <summary>
+    /// 将 JoinCode 服务添加到 IHostBuilder 的 DI 容器。
+    /// </summary>
+    /// <param name="hostBuilder">宿主构建器。</param>
+    /// <param name="configure">JoinCode 选项配置委托。</param>
+    /// <returns>宿主构建器（链式调用）。</returns>
     public static IHostBuilder AddJoinCode(this IHostBuilder hostBuilder, Action<JoinCodeOptions> configure)
     {
         ArgumentNullException.ThrowIfNull(configure);
@@ -17,6 +26,12 @@ public static class JoinCodeServiceCollectionExtensions
         return hostBuilder;
     }
 
+    /// <summary>
+    /// 将 JoinCode 服务添加到 IServiceCollection。
+    /// </summary>
+    /// <param name="services">服务集合。</param>
+    /// <param name="configure">JoinCode 选项配置委托。</param>
+    /// <returns>服务集合（链式调用）。</returns>
     public static IServiceCollection AddJoinCode(this IServiceCollection services, Action<JoinCodeOptions> configure)
     {
         ArgumentNullException.ThrowIfNull(configure);

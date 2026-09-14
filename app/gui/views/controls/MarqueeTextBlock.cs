@@ -18,9 +18,11 @@ public sealed class MarqueeTextBlock : Control
     private bool _scrolling;
     private DateTime _lastStep = DateTime.UtcNow;
 
+    /// <summary>Text 依赖属性</summary>
     public static readonly StyledProperty<string> TextProperty =
         AvaloniaProperty.Register<MarqueeTextBlock, string>(nameof(Text), string.Empty);
 
+    /// <summary>Foreground 依赖属性</summary>
     public static readonly StyledProperty<IBrush> ForegroundProperty =
         AvaloniaProperty.Register<MarqueeTextBlock, IBrush>(nameof(Foreground), Brushes.Gray);
 
@@ -28,18 +30,21 @@ public sealed class MarqueeTextBlock : Control
     public static readonly StyledProperty<double> SpeedProperty =
         AvaloniaProperty.Register<MarqueeTextBlock, double>(nameof(Speed), 40);
 
+    /// <summary>显示文本</summary>
     public string Text
     {
         get => GetValue(TextProperty);
         set => SetValue(TextProperty, value);
     }
 
+    /// <summary>前景色画刷</summary>
     public IBrush Foreground
     {
         get => GetValue(ForegroundProperty);
         set => SetValue(ForegroundProperty, value);
     }
 
+    /// <summary>滚动速度（px/秒）</summary>
     public double Speed
     {
         get => GetValue(SpeedProperty);
@@ -48,6 +53,7 @@ public sealed class MarqueeTextBlock : Control
 
     private readonly DispatcherTimerStub _timer;
 
+    /// <summary>初始化走马灯文本控件并启动计时器</summary>
     public MarqueeTextBlock()
     {
         _timer = new DispatcherTimerStub(Step);
@@ -56,12 +62,14 @@ public sealed class MarqueeTextBlock : Control
         LogicalChildren.Add(_inner);
     }
 
+    /// <summary>测量布局</summary>
     protected override Size MeasureOverride(Size availableSize)
     {
         _inner.Measure(availableSize);
         return availableSize;
     }
 
+    /// <summary>排列布局</summary>
     protected override Size ArrangeOverride(Size finalSize)
     {
         _inner.Arrange(new Rect(new Point(0, 0), _inner.DesiredSize));
@@ -127,6 +135,7 @@ public sealed class MarqueeTextBlock : Control
             Interval = TimeSpan.FromMilliseconds(50)
         };
 
+        /// <summary>启动计时器</summary>
         public void Start()
         {
             _timer.Tick += (_, _) =>

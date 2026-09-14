@@ -380,16 +380,21 @@ public sealed class ApplicationBuilder
         var dotEnv = GetDotEnv();
         WorkflowConfig config;
 
+        var loader = new Core.Configuration.ConfigLoader(modelConfigLoader: modelConfigLoader)
+        {
+            SkipProviderValidation = options.SkipProviderValidation
+        };
+
         try
         {
-            config = await new Core.Configuration.ConfigLoader(modelConfigLoader: modelConfigLoader).LoadConfigAsync(fs);
+            config = await loader.LoadConfigAsync(fs);
         }
         catch (ConfigurationException ex) when (ex.Message.Contains("API Key"))
         {
             if (dotEnv is not null)
             {
                 await dotEnv.ApplyToConfigAsync(fs);
-                config = await new Core.Configuration.ConfigLoader(modelConfigLoader: modelConfigLoader).LoadConfigAsync(fs);
+                config = await loader.LoadConfigAsync(fs);
             }
             else
             {

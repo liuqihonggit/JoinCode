@@ -18,6 +18,7 @@ public sealed partial class PermissionDialog : Window
     /// <summary>始终允许命令（关闭窗口返回 AlwaysAllow）</summary>
     public System.Windows.Input.ICommand AlwaysAllowCommand { get; }
 
+    /// <summary>初始化 PermissionDialog 实例</summary>
     public PermissionDialog()
     {
         InitializeComponent();

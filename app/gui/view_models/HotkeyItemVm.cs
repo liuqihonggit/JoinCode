@@ -3,6 +3,7 @@ namespace JoinCode.Gui.ViewModels;
 /// <summary>快捷键项 VM — 快捷键面板中每行一个可配置快捷键（需求3）</summary>
 public sealed class HotkeyItemVm : INotifyPropertyChanged
 {
+    /// <summary>属性变更事件</summary>
     public event PropertyChangedEventHandler? PropertyChanged;
     private void Raise(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
@@ -28,6 +29,7 @@ public sealed class HotkeyItemVm : INotifyPropertyChanged
         set { if (_isRecording != value) { _isRecording = value; Raise(nameof(IsRecording)); } }
     }
 
+    /// <summary>初始化 HotkeyItemVm 实例</summary>
     public HotkeyItemVm(string actionLabel, string actionKey, string gesture)
     {
         ActionLabel = actionLabel;

@@ -12,6 +12,7 @@ public sealed class GuiSessionStore
     private readonly string _sessionsDir;
     private ITranscriptService? _transcriptService;
 
+    /// <summary>初始化 GuiSessionStore 实例</summary>
     public GuiSessionStore(IFileSystem fs, string? sessionsDir = null, ITranscriptService? transcriptService = null)
     {
         _fs = fs;

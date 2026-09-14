@@ -7,12 +7,15 @@ namespace JoinCode.Gui.ViewModels;
 /// </summary>
 public sealed class ChatUiMessage : INotifyPropertyChanged
 {
+    /// <summary>属性变更事件</summary>
     public event PropertyChangedEventHandler? PropertyChanged;
 
     private void Raise(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
+    /// <summary>消息角色（User/Assistant/System）</summary>
     public required MessageRole Role { get; init; }
     private string _content = string.Empty;
+    /// <summary>消息正文内容</summary>
     public required string Content
     {
         get => _content;
@@ -25,6 +28,7 @@ public sealed class ChatUiMessage : INotifyPropertyChanged
             Raise(nameof(ThinkingSummary));
         }
     }
+    /// <summary>消息时间戳</summary>
     public DateTime Timestamp { get; init; }
     /// <summary>是否流式追加中——用于 UI 显示"输出中"状态</summary>
     public bool IsStreaming { get; set; }
@@ -61,6 +65,7 @@ public sealed class ChatUiMessage : INotifyPropertyChanged
 
     /// <summary>工具是否仍在运行（驱动倒计时显示；ToolCallEnd 后置 false）</summary>
     private bool _isToolRunning;
+    /// <summary>工具是否仍在运行（驱动倒计时显示；ToolCallEnd 后置 false）</summary>
     public bool IsToolRunning
     {
         get => _isToolRunning;
@@ -75,6 +80,7 @@ public sealed class ChatUiMessage : INotifyPropertyChanged
 
     /// <summary>已运行时长展示文本（如 "⏱ 1.2s"，由 View 层计时器定期刷新）</summary>
     private string _toolElapsedText = string.Empty;
+    /// <summary>已运行时长展示文本（如 "⏱ 1.2s"，由 View 层计时器定期刷新）</summary>
     public string ToolElapsedText
     {
         get => _toolElapsedText;
@@ -128,6 +134,7 @@ public sealed class ChatUiMessage : INotifyPropertyChanged
 
     /// <summary>思考消息是否已展开（终端式默认全展开，实时可见思考流；可手动收起）</summary>
     private bool _isThinkingExpanded = true;
+    /// <summary>思考消息是否已展开（终端式默认全展开，实时可见思考流；可手动收起）</summary>
     public bool IsThinkingExpanded
     {
         get => _isThinkingExpanded;
@@ -149,6 +156,7 @@ public sealed class ChatUiMessage : INotifyPropertyChanged
 
     /// <summary>系统提示词卡片是否展开（默认折叠=false，点击展开看全文）</summary>
     private bool _isPromptExpanded;
+    /// <summary>系统提示词卡片是否展开（默认折叠=false，点击展开看全文）</summary>
     public bool IsPromptExpanded
     {
         get => _isPromptExpanded;

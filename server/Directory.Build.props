@@ -3,17 +3,12 @@
   <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
 
   <!-- === src 项目配置 === -->
-  <PropertyGroup Condition="!$(MSBuildProjectName.Contains('.Tests')) AND '$(Configuration)' != 'Release'">
+  <PropertyGroup Condition="!$(MSBuildProjectName.Contains('.Tests'))">
     <IsPackable>true</IsPackable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <!-- 强制 XML 文档注释完整：移除继承的 CS1591 屏蔽并升级为错误 -->
+    <!-- 强制 XML 文档注释完整：移除继承的 CS1591 屏蔽并升级为错误（Debug+Release 均生效，CI 能真正验证文档完整性） -->
     <NoWarn>$(NoWarn.Replace(';CS1591', '').Replace('CS1591;', '').Replace('CS1591', ''))</NoWarn>
     <WarningsAsErrors>$(WarningsAsErrors);CS1591</WarningsAsErrors>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="!$(MSBuildProjectName.Contains('.Tests')) AND '$(Configuration)' == 'Release'">
-    <IsPackable>true</IsPackable>
-    <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
 
   <!-- NuGet 包属性 -->

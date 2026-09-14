@@ -75,6 +75,7 @@ public sealed class SubAgentIdleTimer : IDisposable
         }
     }
 
+    /// <summary>释放计时器资源</summary>
     public void Dispose()
     {
         if (_disposed) return;

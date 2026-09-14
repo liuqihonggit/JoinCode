@@ -24,8 +24,10 @@ public sealed class ModelOptionItem
         ModalityTags = modalityTags;
     }
 
+    /// <summary>比较两个实例是否相等</summary>
     public override bool Equals(object? obj)
         => obj is ModelOptionItem other && string.Equals(Id, other.Id, StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>获取哈希码</summary>
     public override int GetHashCode() => StringComparer.OrdinalIgnoreCase.GetHashCode(Id);
 }

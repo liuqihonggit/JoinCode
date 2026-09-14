@@ -9,6 +9,7 @@ public sealed partial class SidebarView : UserControl
     /// <summary>当前 MainViewModel（供 XAML CompiledBindings 解析命令类型）</summary>
     public MainViewModel? ViewModel => DataContext as MainViewModel;
 
+    /// <summary>初始化 SidebarView 实例</summary>
     public SidebarView()
     {
         InitializeComponent();

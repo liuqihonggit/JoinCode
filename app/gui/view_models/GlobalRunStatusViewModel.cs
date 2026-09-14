@@ -30,6 +30,7 @@ public enum MarqueeStopReason
 /// </summary>
 public sealed class GlobalRunStatusViewModel : INotifyPropertyChanged
 {
+    /// <summary>属性变更事件</summary>
     public event PropertyChangedEventHandler? PropertyChanged;
 
     /// <summary>走马灯停止事件 — Abnormal/Stalled 时弹模态提醒，避免用户不知情（需求9）</summary>
@@ -46,12 +47,14 @@ public sealed class GlobalRunStatusViewModel : INotifyPropertyChanged
     private DateTime _turnStartedAtUtc;
     private long _totalTokens;
 
+    /// <summary>初始化 GlobalRunStatusViewModel 实例</summary>
     public GlobalRunStatusViewModel(Func<DateTime>? clock = null)
         => _clock = clock ?? (() => DateTime.UtcNow);
 
     // === 状态机 ===
 
     private StallDetectionState _stallState = StallDetectionState.Monitoring;
+    /// <summary>卡死检测状态机当前状态</summary>
     public StallDetectionState StallState
     {
         get => _stallState;
@@ -74,18 +77,23 @@ public sealed class GlobalRunStatusViewModel : INotifyPropertyChanged
     // === 绑定属性 ===
 
     private bool _isBusy;
+    /// <summary>是否处于运行忙碌态</summary>
     public bool IsBusy { get => _isBusy; private set { if (_isBusy != value) { _isBusy = value; Raise(nameof(IsBusy)); } } }
 
     private string _verb = string.Empty;
+    /// <summary>当前回合随机动词（如"推演中"）</summary>
     public string Verb { get => _verb; private set { if (_verb != value) { _verb = value; Raise(nameof(Verb)); } } }
 
     private string _elapsedText = string.Empty;
+    /// <summary>回合耗时展示文本</summary>
     public string ElapsedText { get => _elapsedText; private set { if (_elapsedText != value) { _elapsedText = value; Raise(nameof(ElapsedText)); } } }
 
     private string _tokenText = string.Empty;
+    /// <summary>token 消耗展示文本</summary>
     public string TokenText { get => _tokenText; private set { if (_tokenText != value) { _tokenText = value; Raise(nameof(TokenText)); } } }
 
     private string _backgroundPillText = string.Empty;
+    /// <summary>后台代理入口标签文本（如"2 个后台代理"）</summary>
     public string BackgroundPillText { get => _backgroundPillText; private set { if (_backgroundPillText != value) { _backgroundPillText = value; Raise(nameof(BackgroundPillText)); } } }
 
     private string? _latestActivity;

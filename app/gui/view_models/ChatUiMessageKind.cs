@@ -5,9 +5,13 @@ namespace JoinCode.Gui.ViewModels;
 /// </summary>
 public enum ChatUiMessageKind
 {
+    /// <summary>正文文本</summary>
     Text,
+    /// <summary>思考过程</summary>
     Thinking,
+    /// <summary>工具调用</summary>
     ToolCall,
+    /// <summary>工具执行结果</summary>
     ToolResult,
 
     /// <summary>子代理运行组卡片 — 内嵌多 subAgent 运行面板（D2 内嵌组合模型）</summary>

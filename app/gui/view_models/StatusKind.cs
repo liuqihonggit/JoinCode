@@ -5,7 +5,10 @@ namespace JoinCode.Gui.ViewModels;
 /// </summary>
 public enum StatusKind
 {
+    /// <summary>就绪（绿色）</summary>
     Ready,
+    /// <summary>思考中（黄色）</summary>
     Busy,
+    /// <summary>错误（红色）</summary>
     Error
 }

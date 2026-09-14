@@ -6,6 +6,7 @@ namespace JoinCode.Gui.Views;
 /// </summary>
 public sealed partial class TopBarView : UserControl
 {
+    /// <summary>初始化 TopBarView 实例</summary>
     public TopBarView()
     {
         InitializeComponent();

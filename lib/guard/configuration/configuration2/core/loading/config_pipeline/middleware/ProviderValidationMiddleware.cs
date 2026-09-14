@@ -22,6 +22,13 @@ public sealed partial class ProviderValidationMiddleware : ServiceEntity, IConfi
     /// </summary>
     public Task InvokeAsync(ConfigLoadContext context, MiddlewareDelegate<ConfigLoadContext> next, CancellationToken ct)
     {
+        // 元命令模式跳过验证 — context.SkipProviderValidation 由 ConfigLoader.SkipProviderValidation 传入
+        if (context.SkipProviderValidation)
+        {
+            context.Result = context.Config;
+            return next(context, ct);
+        }
+
         var config = context.Config;
         var definition = _registry.TryGet(config.Provider.Vendor);
         if (definition is not null && !definition.IsValid(config.Provider))

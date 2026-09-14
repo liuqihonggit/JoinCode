@@ -7,6 +7,7 @@ namespace JoinCode.Gui.ViewModels;
 /// </summary>
 public sealed class AgentRunVm : INotifyPropertyChanged
 {
+    /// <summary>属性变更事件</summary>
     public event PropertyChangedEventHandler? PropertyChanged;
 
     private void Raise(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
@@ -24,30 +25,39 @@ public sealed class AgentRunVm : INotifyPropertyChanged
     public void SetWorktreePath(string path) => WorktreePath = path;
 
     private string _stateGlyph = "●";
+    /// <summary>状态点字符（运行 ● / 完成 ✓ / 失败 ✗）</summary>
     public string StateGlyph { get => _stateGlyph; private set { if (_stateGlyph != value) { _stateGlyph = value; Raise(nameof(StateGlyph)); } } }
 
     private string _headerText = string.Empty;
+    /// <summary>卡片标题文本（名称 — 描述）</summary>
     public string HeaderText { get => _headerText; private set { if (_headerText != value) { _headerText = value; Raise(nameof(HeaderText)); } } }
 
     private string _statsText = string.Empty;
+    /// <summary>统计文本（工具调用次数/耗时）</summary>
     public string StatsText { get => _statsText; private set { if (_statsText != value) { _statsText = value; Raise(nameof(StatsText)); } } }
 
     private string _hiddenText = string.Empty;
+    /// <summary>隐藏活动数提示文本（如 "+3 更多 ▸"）</summary>
     public string HiddenText { get => _hiddenText; private set { if (_hiddenText != value) { _hiddenText = value; Raise(nameof(HiddenText)); } } }
 
     private bool _isRunning = true;
+    /// <summary>是否仍在运行</summary>
     public bool IsRunning { get => _isRunning; private set { if (_isRunning != value) { _isRunning = value; Raise(nameof(IsRunning)); } } }
 
     private bool _isCompleted;
+    /// <summary>是否已完成</summary>
     public bool IsCompleted { get => _isCompleted; private set { if (_isCompleted != value) { _isCompleted = value; Raise(nameof(IsCompleted)); } } }
 
     private bool _isFailed;
+    /// <summary>是否失败</summary>
     public bool IsFailed { get => _isFailed; private set { if (_isFailed != value) { _isFailed = value; Raise(nameof(IsFailed)); } } }
 
     /// <summary>尾部活动行（Refresh 时整体重建 — 行数固定 ≤3，重建成本可忽略）</summary>
     private ObservableCollection<string> _activityLines = [];
+    /// <summary>尾部活动行集合（Refresh 时整体重建，行数固定 ≤3）</summary>
     public ObservableCollection<string> ActivityLines => _activityLines;
 
+    /// <summary>初始化 AgentRunVm 实例</summary>
     public AgentRunVm(SubAgentRun run)
     {
         Run = run ?? throw new ArgumentNullException(nameof(run));

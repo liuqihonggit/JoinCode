@@ -10,6 +10,7 @@ public sealed class GuiPreferencesStore
     private readonly IFileSystem _fs;
     private readonly string _filePath;
 
+    /// <summary>初始化 GuiPreferencesStore 实例</summary>
     public GuiPreferencesStore(IFileSystem fs, string? filePath = null)
     {
         _fs = fs;

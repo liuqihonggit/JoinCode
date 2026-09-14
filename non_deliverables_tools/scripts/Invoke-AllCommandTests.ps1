@@ -279,6 +279,9 @@ function Test-McpTools {
         } elseif ($callJson -and $isError) {
             $status = "ERROR"
             $exitReason = if ($contentText) { $contentText.Substring(0, [Math]::Min(120, $contentText.Length)) } else { "isError=true" }
+        } elseif ($callResult.exitCode -ne 0 -and $callResult.exitCode -ne 210 -and ($callResult.stderr -match "401|Unauthorized|API Key|配置无效" -or $contentText -match "401|Unauthorized|API Key")) {
+            $status = "SKIP"
+            $exitReason = "LLM 依赖工具无 API Key (exit=$($callResult.exitCode))"
         } elseif ($callResult.exitCode -ne 0 -and $callResult.exitCode -ne 210) {
             $status = "CRASH"
             $exitReason = "exit=$($callResult.exitCode)"
@@ -345,6 +348,9 @@ function Test-SlashCommands {
         if ($callResult.timedOut) {
             $status = "TIMEOUT"
             $exitReason = "超时 ${TimeoutSec}s"
+        } elseif ($callResult.exitCode -ne 0 -and ($callResult.stderr -match "401|Unauthorized|API Key|配置无效" -or $contentText -match "401|Unauthorized|API Key")) {
+            $status = "SKIP"
+            $exitReason = "LLM 依赖命令无 API Key (exit=$($callResult.exitCode))"
         } elseif ($callResult.exitCode -ne 0) {
             $status = "CRASH"
             $exitReason = "exit=$($callResult.exitCode)"

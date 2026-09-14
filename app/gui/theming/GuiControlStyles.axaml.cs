@@ -6,6 +6,7 @@ namespace JoinCode.Gui.Theming;
 /// </summary>
 public partial class GuiControlStyles : Styles
 {
+    /// <summary>初始化 GuiControlStyles 实例并加载 XAML</summary>
     public GuiControlStyles()
         => AvaloniaXamlLoader.Load(this);
 }

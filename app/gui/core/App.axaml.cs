@@ -5,6 +5,7 @@ namespace JoinCode.Gui;
 /// </summary>
 public sealed partial class App : Application
 {
+    /// <summary>初始化应用</summary>
     public override void Initialize()
     {
         App.LogDiag("[App] Initialize begin");
@@ -13,6 +14,7 @@ public sealed partial class App : Application
         App.LogDiag("[App] Initialize end");
     }
 
+    /// <summary>框架初始化完成时处理</summary>
     public override void OnFrameworkInitializationCompleted()
     {
         App.LogDiag("[App] OnFrameworkInitializationCompleted begin");

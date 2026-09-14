@@ -11,6 +11,7 @@ public sealed partial class AskUserQuestionDialog : Window
     private readonly bool _multiSelect;
     private readonly List<int> _selectedIndices = [];
 
+    /// <summary>初始化 AskUserQuestionDialog 实例</summary>
     public AskUserQuestionDialog()
     {
         InitializeComponent();
@@ -18,6 +19,7 @@ public sealed partial class AskUserQuestionDialog : Window
         ConfirmFreeInputButton.Click += (_, _) => OnConfirmFreeInput();
     }
 
+    /// <summary>以指定问题项构建 AskUserQuestionDialog 弹窗</summary>
     public AskUserQuestionDialog(QuestionItem question) : this()
     {
         _options = question.Options;

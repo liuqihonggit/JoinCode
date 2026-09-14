@@ -19,20 +19,30 @@ public sealed class BackgroundAgentItemVm
 {
     private static readonly FrozenSet<string> RunningStates = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, "running", "pending", "paused");
 
+    /// <summary>子代理 ID</summary>
     public string AgentId { get; }
+    /// <summary>代理名称</summary>
     public string Name { get; }
+    /// <summary>代理描述</summary>
     public string Description { get; }
+    /// <summary>运行状态文本</summary>
     public string State { get; }
+    /// <summary>启动时间（null=未启动）</summary>
     public DateTime? StartedAt { get; }
+    /// <summary>工具调用次数</summary>
     public int ToolUseCount { get; }
+    /// <summary>token 消耗总量</summary>
     public long TokenCount { get; }
 
     /// <summary>是否仍在运行（驱动终止按钮可见性）</summary>
     public bool IsRunning { get; }
 
+    /// <summary>已运行时长展示文本</summary>
     public string ElapsedText { get; }
+    /// <summary>统计摘要文本（工具次数 · token 数）</summary>
     public string StatsText { get; }
 
+    /// <summary>初始化 BackgroundAgentItemVm 实例</summary>
     public BackgroundAgentItemVm(BackgroundAgentInfo info)
     {
         AgentId = info.AgentId;
@@ -76,8 +86,10 @@ public sealed partial class BackgroundAgentsPanelViewModel : ObservableObject
     [ObservableProperty]
     private string _countText = string.Empty;
 
+    /// <summary>后台代理行集合</summary>
     public System.Collections.ObjectModel.ObservableCollection<BackgroundAgentItemVm> Items { get; } = [];
 
+    /// <summary>初始化 BackgroundAgentsPanelViewModel 实例</summary>
     public BackgroundAgentsPanelViewModel(
         Func<CancellationToken, Task<IReadOnlyList<BackgroundAgentInfo>>> fetcher,
         Func<string, CancellationToken, Task<bool>> stopper)

@@ -7,12 +7,15 @@ namespace JoinCode.Gui.Markdown;
 /// </summary>
 public sealed class MarkdownView : StackPanel
 {
+    /// <summary>Markdown 依赖属性</summary>
     public static readonly StyledProperty<string?> MarkdownProperty =
         AvaloniaProperty.Register<MarkdownView, string?>(nameof(Markdown));
 
+    /// <summary>BaseFontSize 依赖属性</summary>
     public static readonly StyledProperty<double> BaseFontSizeProperty =
         AvaloniaProperty.Register<MarkdownView, double>(nameof(BaseFontSize), 14);
 
+    /// <summary>初始化 Markdown 渲染控件</summary>
     public MarkdownView()
     {
         Spacing = 6;

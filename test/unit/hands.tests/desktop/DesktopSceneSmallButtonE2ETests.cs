@@ -71,7 +71,7 @@ public sealed class DesktopSceneSmallButtonE2ETests
         {
             var zoom = await zoomService.ZoomAsync(sceneId, 1);
             var currentArea = (long)zoom.RegionWidth * zoom.RegionHeight;
-            currentArea.Should().BeLessOrEqualTo(previousArea / 4 + 1,
+            currentArea.Should().BeLessThanOrEqualTo(previousArea / 4 + 1,
                 $"zoom {i} 后面积应 ≤ 上一次/4 (上一次={previousArea}, 当前={currentArea})");
             previousArea = currentArea;
         }

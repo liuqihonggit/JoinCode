@@ -38,9 +38,6 @@ public enum JccCliArg
     [EnumValue("--trust")]
     Trust,
 
-    [EnumValue("--brief")]
-    Brief,
-
     [EnumValue("--force-interactive")]
     ForceInteractive,
 

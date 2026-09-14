@@ -13,26 +13,6 @@ namespace JoinCode.Abstractions.Utils;
 /// </summary>
 public enum CliSubCommand
 {
-    /// <summary>MCP 工具管理（旧设计，阶段4清理时移除）</summary>
-    [EnumValue("tool")]
-    [SubCommandInfo("旧设计, 阶段4清理时移除", "已废弃", IsDeprecated = true)]
-    Tool,
-
-    /// <summary>智能体管理（旧设计，阶段4清理时移除）</summary>
-    [EnumValue("agent")]
-    [SubCommandInfo("旧设计, 阶段4清理时移除", "已废弃", IsDeprecated = true)]
-    Agent,
-
-    /// <summary>代码操作（旧设计，阶段4清理时移除）</summary>
-    [EnumValue("code")]
-    [SubCommandInfo("旧设计, 阶段4清理时移除", "已废弃", IsDeprecated = true)]
-    Code,
-
-    /// <summary>MCP 子命令（旧设计，由 mcp_call/mcp_list/mcp_schema/mcp_search/mcp_serve 取代）</summary>
-    [EnumValue("mcp")]
-    [SubCommandInfo("旧设计, 由 mcp_call/mcp_list/mcp_schema/mcp_search/mcp_serve 取代", "已废弃", IsDeprecated = true)]
-    Mcp,
-
     /// <summary>Schema 自省 — 输出 CLI 参数定义 JSON，供 Agent 动态查询</summary>
     [EnumValue("schema")]
     [SubCommandInfo("输出 CLI 参数定义 JSON, 供 Agent 动态查询", "自省", Example = "jcc schema")]

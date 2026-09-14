@@ -2,13 +2,6 @@ namespace Host.Tests.Cli;
 
 public sealed class CliSubCommandEnumTests
 {
-    [Fact]
-    public void CliSubCommand_Mcp_ShouldMapToMcpString()
-    {
-        CliSubCommand.Mcp.ToValue().Should().Be("mcp");
-        CliSubCommandExtensions.FromValue("mcp").Should().Be(CliSubCommand.Mcp);
-    }
-
     [Theory]
     [InlineData(CliSubCommand.McpCall, "mcp_call")]
     [InlineData(CliSubCommand.McpList, "mcp_list")]

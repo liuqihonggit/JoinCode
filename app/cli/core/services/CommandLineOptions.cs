@@ -61,11 +61,6 @@ public class CommandLineOptions {
     public HeadlessMode DetectedHeadlessMode { get; set; } = HeadlessMode.Interactive;
 
     /// <summary>
-    /// 启动时激活简要模式 — 对齐 TS --brief CLI 标志 / maybeActivateBrief()
-    /// </summary>
-    public bool Brief { get; set; }
-
-    /// <summary>
     /// 强制交互模式（--force-interactive 参数）— 即使 stdin 重定向也启用 REPL，用于 E2E 测试
     /// </summary>
     public bool ForceInteractive { get; set; }

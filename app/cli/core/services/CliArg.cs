@@ -42,10 +42,6 @@ public enum CliArg
     [CliOption(JccCliArgConstants.Trust, "", "自动信任工作目录", Category = "权限", Example = "jcc --trust -p \"hello\"")]
     Trust,
 
-    /// <summary>简要模式</summary>
-    [CliOption(JccCliArgConstants.Brief, "", "简要模式", Category = "输出")]
-    Brief,
-
     /// <summary>强制交互模式（即使stdin重定向也启用REPL，用于E2E测试）</summary>
     [CliOption(JccCliArgConstants.ForceInteractive, "", "强制交互模式（即使stdin重定向也启用REPL，用于E2E测试）", Category = "诊断")]
     ForceInteractive,

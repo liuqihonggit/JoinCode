@@ -76,6 +76,8 @@ public sealed class PreemptiveScheduler
     /// <param name="ct">取消令牌</param>
     public async Task<PreemptResult> TryPreemptAsync(string taskDescription, CancellationToken ct = default)
     {
+        _logger?.LogDebug("[PreemptiveScheduler] 尝试抢塞任务: {Task}", taskDescription);
+
         var agent = _pool.TryAcquire(taskDescription);
         if (agent is null)
         {
@@ -88,6 +90,9 @@ public sealed class PreemptiveScheduler
         // 检查上下文窗口剩余空间
         var (usedTokens, maxTokens) = EstimateTokenUsage(agent);
         var remainingRatio = maxTokens > 0 ? 1.0 - (double)usedTokens / maxTokens : 1.0;
+
+        _logger?.LogDebug("[PreemptiveScheduler] Agent {AgentId} 窗口使用: {Used}/{Max}，剩余 {Ratio:P0}",
+            agentId, usedTokens, maxTokens, remainingRatio);
 
         var compressed = false;
         if (remainingRatio < _options.PreemptMinWindowRatio)

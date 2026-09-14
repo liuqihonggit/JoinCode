@@ -98,6 +98,7 @@ public sealed class ProgressiveCompactor
     public async Task<CompactionResult> CompactProgressiveAsync(string agentId, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(agentId);
+        _logger?.LogDebug("[ProgressiveCompactor] 开始渐进式压缩 Agent {AgentId}", agentId);
 
         // Level 1: Light 压缩
         var lightResult = await TryCompactAsync(agentId, ContextFoldDecision.FoldNormal, ct).ConfigureAwait(false);
@@ -141,6 +142,8 @@ public sealed class ProgressiveCompactor
         var messages = await _contextManager.GetMessageListAsync(ct).ConfigureAwait(false);
         var recentMessages = messages.TakeLast(10).ToList();
         var summary = string.Join("\n", recentMessages.Select(m => $"[{m.Role}] {m.Content}"));
+        _logger?.LogDebug("[ProgressiveCompactor] Agent {AgentId} 生成摘要，取最近 {Count} 条消息，摘要长度: {Length}",
+            agentId, recentMessages.Count, summary.Length);
         return $"[任务摘要 - Agent {agentId}]\n{summary}";
     }
 }

@@ -101,7 +101,8 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable
         // 终态时清理检测器
         if (e.NewState.IsTerminal())
         {
-            _detectors.TryRemove(e.AgentId, out _);
+            if (_detectors.TryRemove(e.AgentId, out _))
+                _logger?.LogDebug("[SubAgentLivenessScanner] Agent {AgentId} 进入终态 {State}，清理检测器", e.AgentId, e.NewState);
             return;
         }
 
@@ -149,7 +150,13 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable
             .Where(a => a.Status == TaskExecutionStatus.Running)
             .ToList();
 
-        if (runningAgents.Count == 0) return;
+        if (runningAgents.Count == 0)
+        {
+            _logger?.LogDebug("[SubAgentLivenessScanner] 扫描完成，无 Running 子代理");
+            return;
+        }
+
+        _logger?.LogDebug("[SubAgentLivenessScanner] 开始扫描 {Count} 个 Running 子代理", runningAgents.Count);
 
         // 获取活跃 fork，构建 ParentSessionId 集合（有活跃孙代理的父会话）
         var activeForks = await _forkManager.GetActiveForksAsync(ct).ConfigureAwait(false);
@@ -174,6 +181,18 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable
                 _clock));
 
             var result = detector.Record(lastActivity, hasGrandchildren);
+
+            if (result.Event.HasValue)
+                _logger?.LogDebug("[SubAgentLivenessScanner] Agent {AgentId} 状态转换: {Event} → {State}",
+                    agentId, result.Event, result.State);
+
+            if (hasGrandchildren)
+            {
+                var idleSpan = _clock() - lastActivity;
+                if (idleSpan > TimeSpan.FromSeconds(_options.IdleThresholdSeconds))
+                    _logger?.LogDebug("[SubAgentLivenessScanner] Agent {AgentId} 无活动 {Seconds:F0}s 但有孙代理，豁免检测",
+                        agentId, idleSpan.TotalSeconds);
+            }
 
             // 构建 parentMap（用于链路检测）
             var parentId = GetParentAgentId(agent);
@@ -215,7 +234,10 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable
     public void MarkRecovered(string agentId)
     {
         if (_detectors.TryGetValue(agentId, out var detector))
+        {
             detector.MarkRecovered();
+            _logger?.LogInformation("[SubAgentLivenessScanner] Agent {AgentId} 已标记恢复", agentId);
+        }
     }
 
     private static DateTimeOffset GetLastActivityAt(IAgent agent)
@@ -238,6 +260,7 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable
     /// </summary>
     public ValueTask DisposeAsync()
     {
+        _logger?.LogInformation("[SubAgentLivenessScanner] 停止，清理 {Count} 个检测器", _detectors.Count);
         _stateMachine.StateChanged -= OnStateChanged;
         _cts.Cancel();
         _scanTimer?.Dispose();

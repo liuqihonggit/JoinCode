@@ -51,6 +51,8 @@ public sealed class SubAgentActivator
     /// <param name="ct">取消令牌</param>
     public async Task<ActivationResult> ActivateAsync(string agentId, int idleSeconds = 30, CancellationToken ct = default)
     {
+        _logger?.LogDebug("[SubAgentActivator] 尝试激活 Agent {AgentId}，无活动 {Seconds}s", agentId, idleSeconds);
+
         var agent = await _lifecycleManager.GetAgentAsync(agentId, ct).ConfigureAwait(false);
         if (agent is null)
         {

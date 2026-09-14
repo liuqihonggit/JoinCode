@@ -49,6 +49,8 @@ public sealed partial class SubAgentPool : IAsyncDisposable
     /// </summary>
     public void Start()
     {
+        _logger?.LogInformation("[SubAgentPool] 启动，池上限: {Max}，空闲超时: {Timeout}s",
+            _options.PoolMaxSize, _options.PoolIdleTimeoutSeconds);
         _cleanupLoop = Task.Run(CleanupLoopAsync);
     }
 
@@ -61,6 +63,8 @@ public sealed partial class SubAgentPool : IAsyncDisposable
 
         if (_options.PoolMaxSize == 0)
         {
+            _logger?.LogDebug("[SubAgentPool] 代理池已禁用（PoolMaxSize=0），直接 Dispose Agent {AgentId}",
+                agent.ObjectId.UniqueId);
             agent.Dispose();
             return false;
         }
@@ -87,6 +91,8 @@ public sealed partial class SubAgentPool : IAsyncDisposable
             return true;
         }
 
+        _logger?.LogDebug("[SubAgentPool] Agent {AgentId} 回池失败（TryAdd 竞争），直接 Dispose",
+            agent.ObjectId.UniqueId);
         agent.Dispose();
         return false;
     }
@@ -134,6 +140,7 @@ public sealed partial class SubAgentPool : IAsyncDisposable
     {
         if (_pool.TryRemove(agentId, out var entry))
         {
+            _logger?.LogDebug("[SubAgentPool] Agent {AgentId} 从池中移除并 Dispose", agentId);
             entry.Agent.Dispose();
             return true;
         }
@@ -196,6 +203,7 @@ public sealed partial class SubAgentPool : IAsyncDisposable
     /// </summary>
     public ValueTask DisposeAsync()
     {
+        _logger?.LogInformation("[SubAgentPool] 释放，Dispose 池中 {Count} 个代理", _pool.Count);
         _cts.Cancel();
         _cleanupTimer?.Dispose();
         _cts.Dispose();

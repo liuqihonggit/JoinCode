@@ -16,7 +16,8 @@ public static class SubAgentStallDefenseExtensions
         services.AddSingleton<SubAgentPool>(sp =>
         {
             var options = sp.GetRequiredService<SubAgentLivenessOptions>();
-            var pool = new SubAgentPool(options);
+            var logger = sp.GetService<ILoggerFactory>()?.CreateLogger<SubAgentPool>();
+            var pool = new SubAgentPool(options, logger);
             pool.Start();
             return pool;
         });
@@ -28,21 +29,24 @@ public static class SubAgentStallDefenseExtensions
             var lifecycle = sp.GetRequiredService<IAgentLifecycleManager>();
             var fork = sp.GetRequiredService<IForkSubAgentManager>();
             var options = sp.GetRequiredService<SubAgentLivenessOptions>();
-            return new SubAgentLivenessScanner(stateMachine, lifecycle, fork, options);
+            var logger = sp.GetService<ILoggerFactory>()?.CreateLogger<SubAgentLivenessScanner>();
+            return new SubAgentLivenessScanner(stateMachine, lifecycle, fork, options, logger);
         });
 
         // SubAgentActivator — 激活动作（L3 干预）
         services.AddSingleton<SubAgentActivator>(sp =>
         {
             var lifecycle = sp.GetRequiredService<IAgentLifecycleManager>();
-            return new SubAgentActivator(lifecycle);
+            var logger = sp.GetService<ILoggerFactory>()?.CreateLogger<SubAgentActivator>();
+            return new SubAgentActivator(lifecycle, logger);
         });
 
         // ProgressiveCompactor — 渐进式压缩（L4 恢复）
         services.AddSingleton<ProgressiveCompactor>(sp =>
         {
             var contextManager = sp.GetRequiredService<IChatContextManager>();
-            return new ProgressiveCompactor(contextManager);
+            var logger = sp.GetService<ILoggerFactory>()?.CreateLogger<ProgressiveCompactor>();
+            return new ProgressiveCompactor(contextManager, logger);
         });
 
         // PreemptiveScheduler — 抢占式调度器（L3 抢塞）
@@ -51,7 +55,8 @@ public static class SubAgentStallDefenseExtensions
             var pool = sp.GetRequiredService<SubAgentPool>();
             var contextManager = sp.GetRequiredService<IChatContextManager>();
             var options = sp.GetRequiredService<SubAgentLivenessOptions>();
-            return new PreemptiveScheduler(pool, contextManager, options);
+            var logger = sp.GetService<ILoggerFactory>()?.CreateLogger<PreemptiveScheduler>();
+            return new PreemptiveScheduler(pool, contextManager, options, logger);
         });
 
         // SubAgentStallDefenseCoordinator — 纵深防御协调器（集成层）
@@ -62,7 +67,8 @@ public static class SubAgentStallDefenseExtensions
             var compactor = sp.GetRequiredService<ProgressiveCompactor>();
             var preemptive = sp.GetRequiredService<PreemptiveScheduler>();
             var options = sp.GetRequiredService<SubAgentLivenessOptions>();
-            var coordinator = new SubAgentStallDefenseCoordinator(scanner, activator, compactor, preemptive, options);
+            var logger = sp.GetService<ILoggerFactory>()?.CreateLogger<SubAgentStallDefenseCoordinator>();
+            var coordinator = new SubAgentStallDefenseCoordinator(scanner, activator, compactor, preemptive, options, logger);
             coordinator.Start();
             return coordinator;
         });

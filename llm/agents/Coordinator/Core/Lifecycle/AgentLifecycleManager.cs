@@ -113,6 +113,9 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
             _logger?.LogInformation("[AgentLifecycleManager] 开始执行Agent {AgentId}", agent.ObjectId.UniqueId);
 
             var timeoutSeconds = _livenessOptions?.AgentTimeoutSeconds ?? 0;
+            if (timeoutSeconds > 0)
+                _logger?.LogDebug("[AgentLifecycleManager] Agent {AgentId} 启用 L1 超时保护: {Timeout}s",
+                    agent.ObjectId.UniqueId, timeoutSeconds);
             var result = timeoutSeconds > 0
                 ? await ExecuteWithTimeoutAsync(agent, timeoutSeconds, cancellationToken).ConfigureAwait(false)
                 : await agent.ExecuteAsync(cancellationToken).ConfigureAwait(false);
@@ -245,13 +248,14 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
             // L3 抢塞：已完成/失败的 agent 回池等待复用，否则直接 Dispose
             if (_agentPool is not null && agent.Status is TaskExecutionStatus.Completed or TaskExecutionStatus.Failed)
             {
-                if (!_agentPool.Return(agent))
-                {
-                    // 池满或池禁用，Return 内部已 Dispose
-                }
+                if (_agentPool.Return(agent))
+                    _logger?.LogDebug("[AgentLifecycleManager] Agent {AgentId} 回池等待复用", agentId);
+                else
+                    _logger?.LogDebug("[AgentLifecycleManager] Agent {AgentId} 回池失败（池满/禁用），已 Dispose", agentId);
             }
             else
             {
+                _logger?.LogDebug("[AgentLifecycleManager] Agent {AgentId} 状态 {State}，直接 Dispose", agentId, agent.Status);
                 agent.Dispose();
             }
         }

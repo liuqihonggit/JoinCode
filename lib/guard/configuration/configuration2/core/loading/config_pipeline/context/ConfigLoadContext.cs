@@ -16,6 +16,9 @@ public sealed class ConfigLoadContext : PipelineContextBase
     /// <summary>取消令牌</summary>
     public CancellationToken CancellationToken { get; init; }
 
+    /// <summary>跳过 Provider API Key 验证 — 元命令模式（mcp_list/slash_call 等）不需要 LLM 服务</summary>
+    public bool SkipProviderValidation { get; init; }
+
     // === Step 1: SettingsLoadMiddleware 填充 ===
 
     /// <summary>合并后的设置</summary>

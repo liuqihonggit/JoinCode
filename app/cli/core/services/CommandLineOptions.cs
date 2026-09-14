@@ -222,4 +222,9 @@ public class CommandLineOptions {
     /// 跳过模型列表后台拉取（子命令模式如 mcp_call/mcp_search 不需要 LLM 服务，避免不必要的网络请求和警告）
     /// </summary>
     public bool SkipModelFetch { get; set; }
+
+    /// <summary>
+    /// 跳过 Provider API Key 验证（元命令模式如 mcp_list/slash_call/slash_list 不需要 LLM 服务，CI 环境无 API Key 时也能运行）
+    /// </summary>
+    public bool SkipProviderValidation { get; set; }
 }

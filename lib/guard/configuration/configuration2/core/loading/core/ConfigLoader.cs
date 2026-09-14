@@ -10,6 +10,11 @@ public class ConfigLoader {
     private readonly IModelConfigLoader? _modelConfigLoader;
 
     /// <summary>
+    /// 跳过 Provider API Key 验证 — 元命令模式（mcp_list/slash_call 等）不需要 LLM 服务，CI 环境无 API Key 时也能运行
+    /// </summary>
+    public bool SkipProviderValidation { get; set; }
+
+    /// <summary>
     /// 构造配置加载器
     /// </summary>
     /// <param name="middlewares">配置加载中间件序列(可选),非 null 时启用管道化加载</param>
@@ -49,7 +54,8 @@ public class ConfigLoader {
         {
             FileSystem = fs,
             ProjectDirectory = fs.GetCurrentDirectory(),
-            CancellationToken = cancellationToken
+            CancellationToken = cancellationToken,
+            SkipProviderValidation = SkipProviderValidation
         };
 
         try
@@ -128,13 +134,17 @@ public class ConfigLoader {
             config.ExternalRules = await externalRulesTask.ConfigureAwait(false);
 
             // Step 7: 验证 Provider 配置 — Provider 必须有 API Key
-            var definition = _registry.TryGet(config.Provider.Vendor);
-            if (definition is not null && !definition.IsValid(config.Provider))
+            // 元命令模式（mcp_list/slash_call 等）跳过验证，CI 环境无 API Key 时也能运行
+            if (!SkipProviderValidation)
             {
-                throw new ConfigurationException(
-                    $"Provider '{config.Provider.Vendor}' 配置无效: 缺少 API Key。" +
-                    $"请设置环境变量 {definition.ApiKeyEnvironmentVariable ?? "供应商专属变量"}" +
-                    $" 或在 {AppDataConstants.Paths.AuthFilePath} 中添加 '{config.Provider.Vendor}' 键。");
+                var definition = _registry.TryGet(config.Provider.Vendor);
+                if (definition is not null && !definition.IsValid(config.Provider))
+                {
+                    throw new ConfigurationException(
+                        $"Provider '{config.Provider.Vendor}' 配置无效: 缺少 API Key。" +
+                        $"请设置环境变量 {definition.ApiKeyEnvironmentVariable ?? "供应商专属变量"}" +
+                        $" 或在 {AppDataConstants.Paths.AuthFilePath} 中添加 '{config.Provider.Vendor}' 键。");
+                }
             }
 
             return config;

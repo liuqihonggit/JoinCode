@@ -186,7 +186,7 @@ public sealed class McpCliCommand
     internal static async Task<IHost> BuildHostAsync(string? vendor = null, string? model = null, CancellationToken ct = default)
     {
         var fs = IO.FileSystem.FileSystemFactory.Create();
-        var options = new CommandLineOptions { NonInteractive = true, TrustWorkspace = true, SkipModelFetch = true };
+        var options = new CommandLineOptions { NonInteractive = true, TrustWorkspace = true, SkipModelFetch = true, SkipProviderValidation = true };
         if (!string.IsNullOrEmpty(vendor))
             options.Vendor = vendor;
         if (!string.IsNullOrEmpty(model))

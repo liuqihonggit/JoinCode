@@ -276,7 +276,7 @@ public static partial class PsPermissions
     }
 
     /// <summary>
-    /// 精确匹配规则
+    /// 精确匹配规则 — 预建 ruleLower/ruleCanonical 字典 O(1) 查找，假设规则无重叠（实际安全配置成立）
     /// </summary>
     private static string? MatchExactRule(string command, IReadOnlyList<string> rules)
     {
@@ -286,24 +286,23 @@ public static partial class PsPermissions
         var firstWord = GetFirstWord(cmdLower);
         if (string.IsNullOrEmpty(firstWord)) return null;
 
+        var byRuleLower = new Dictionary<string, string>(rules.Count, StringComparer.OrdinalIgnoreCase);
+        var byRuleCanonical = new Dictionary<string, string>(rules.Count, StringComparer.OrdinalIgnoreCase);
         foreach (var rule in rules)
         {
             var ruleLower = rule.Trim().ToLowerInvariant();
-            if (ruleLower == cmdLower || ruleLower == firstWord)
-            {
-                return rule;
-            }
-
-            // 规范名匹配（别名解析）
-            var canonical = PsAliases.ResolveToCanonical(firstWord);
+            if (!byRuleLower.ContainsKey(ruleLower))
+                byRuleLower[ruleLower] = rule;
             var ruleCanonical = PsAliases.ResolveToCanonical(ruleLower);
-            if (canonical.Equals(ruleLower, StringComparison.OrdinalIgnoreCase)
-                || canonical.Equals(ruleCanonical, StringComparison.OrdinalIgnoreCase))
-            {
-                return rule;
-            }
+            if (!byRuleCanonical.ContainsKey(ruleCanonical))
+                byRuleCanonical[ruleCanonical] = rule;
         }
 
+        if (byRuleLower.TryGetValue(cmdLower, out var match)) return match;
+        if (byRuleLower.TryGetValue(firstWord, out match)) return match;
+        var canonical = PsAliases.ResolveToCanonical(firstWord);
+        if (byRuleLower.TryGetValue(canonical, out match)) return match;
+        if (byRuleCanonical.TryGetValue(canonical, out match)) return match;
         return null;
     }
 
@@ -350,7 +349,7 @@ public static partial class PsPermissions
     }
 
     /// <summary>
-    /// 检查子命令级别的规则
+    /// 检查子命令级别的规则 — 预建 ruleLower 字典 O(1) 查找，假设规则无重叠
     /// </summary>
     private static void CheckSubCommandRules(
         PsCommandElement cmd,
@@ -363,36 +362,27 @@ public static partial class PsPermissions
         var canonical = PsAliases.ResolveToCanonical(cmdName);
 
         // deny 规则
-        foreach (var rule in denyRules)
+        var denyByLower = BuildRuleLowerMap(denyRules);
+        if (denyByLower.TryGetValue(cmdName, out var denyRule) || denyByLower.TryGetValue(canonical, out denyRule))
         {
-            var ruleLower = rule.Trim().ToLowerInvariant();
-            if (cmdName == ruleLower || canonical == ruleLower)
-            {
-                decisions.Add(PsSecurityResult.Deny($"Sub-command '{cmd.Name}' matches deny rule: {rule}"));
-                return;
-            }
+            decisions.Add(PsSecurityResult.Deny($"Sub-command '{cmd.Name}' matches deny rule: {denyRule}"));
+            return;
         }
 
         // ask 规则
-        foreach (var rule in askRules)
+        var askByLower = BuildRuleLowerMap(askRules);
+        if (askByLower.TryGetValue(cmdName, out var askRule) || askByLower.TryGetValue(canonical, out askRule))
         {
-            var ruleLower = rule.Trim().ToLowerInvariant();
-            if (cmdName == ruleLower || canonical == ruleLower)
-            {
-                decisions.Add(PsSecurityResult.Ask($"Sub-command '{cmd.Name}' matches ask rule: {rule}"));
-                return;
-            }
+            decisions.Add(PsSecurityResult.Ask($"Sub-command '{cmd.Name}' matches ask rule: {askRule}"));
+            return;
         }
 
         // allow 规则
-        foreach (var rule in allowRules)
+        var allowByLower = BuildRuleLowerMap(allowRules);
+        if (allowByLower.TryGetValue(cmdName, out var allowRule) || allowByLower.TryGetValue(canonical, out allowRule))
         {
-            var ruleLower = rule.Trim().ToLowerInvariant();
-            if (cmdName == ruleLower || canonical == ruleLower)
-            {
-                decisions.Add(new PsSecurityResult { Behavior = PermissionBehavior.Allow, DecisionReason = "subCommandAllowRule" });
-                return;
-            }
+            decisions.Add(new PsSecurityResult { Behavior = PermissionBehavior.Allow, DecisionReason = "subCommandAllowRule" });
+            return;
         }
 
         // application 类型命令永远不能自动放行
@@ -400,6 +390,21 @@ public static partial class PsPermissions
         {
             decisions.Add(PsSecurityResult.Ask($"Command '{cmd.Name}' is an external application which cannot be automatically approved"));
         }
+    }
+
+    /// <summary>
+    /// 构建 ruleLower → rule 字典（保留首个，与 FirstOrDefault 语义一致）
+    /// </summary>
+    private static Dictionary<string, string> BuildRuleLowerMap(IReadOnlyList<string> rules)
+    {
+        var map = new Dictionary<string, string>(rules.Count, StringComparer.OrdinalIgnoreCase);
+        foreach (var rule in rules)
+        {
+            var ruleLower = rule.Trim().ToLowerInvariant();
+            if (!map.ContainsKey(ruleLower))
+                map[ruleLower] = rule;
+        }
+        return map;
     }
 
     /// <summary>

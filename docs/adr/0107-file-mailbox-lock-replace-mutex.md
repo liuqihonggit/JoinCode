@@ -96,9 +96,25 @@ VSTHRD003 是 Visual Studio SDK 的线程分析规则，为 VS 扩展设计。jc
 
 ## 影响
 
-- `lib/infrastructure/async_file_lock/` — 新增 `FileMailboxLock.cs` + `FileLockActor.cs`，修改 `FileLock.cs`
+- `lib/infrastructure/async_file_lock/` — 新增 `FileMailboxLock.cs`（public）+ 修改 `FileLock.cs`
 - `lib/infrastructure/Infrastructure.csproj` — 移除包引用
-- `lib/infrastructure/GlobalUsings.cs` — 移除 global using
+- `lib/Fusion/GlobalUsings.cs` — 移除 global using
+- `llm/agents/Coordinator/Team/core/TeammateMailboxService.cs` — 升级支持跨进程模式
 - 26 个文件 — 移除 VSTHRD003 屏蔽代码
 - 3 个 csproj — 移除 NoWarn
 - 编译产物减小（不再包含 VS Threading DLL）
+
+## 邮箱机制升级
+
+### TeammateMailboxService 双模式
+
+升级 `TeammateMailboxService` 支持跨进程和不跨进程两种模式：
+
+| 模式 | 构造参数 | 写操作锁 | 适用场景 |
+|------|---------|---------|---------|
+| 不跨进程（默认） | `crossProcess=false` | `AsyncLock`（进程内） | 单 jcc.exe 进程，零跨进程开销 |
+| 跨进程 | `crossProcess=true` | `FileMailboxLock` + `AsyncLock` | 多 jcc.exe 进程并发，文件邮箱安全读写 |
+
+- **写操作**（`SendAsync`/`RewriteMailboxFileAsync`）：`crossProcess=true` 时先获取 `FileMailboxLock` 跨进程互斥，再获取 `AsyncLock` 进程内互斥
+- **读操作**（`ReadSinceAsync`/`ReadUnreadAsync`）：仅 `AsyncLock` 进程内互斥，读是幂等的不需要跨进程锁
+- **接口兼容**：`ITeammateMailboxService` 接口不变，`crossProcess` 是构造函数可选参数

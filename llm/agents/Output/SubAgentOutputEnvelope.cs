@@ -1,4 +1,4 @@
-namespace Core.Agents;
+﻿namespace Core.Agents;
 
 /// <summary>
 /// 子智能体信封状态 — L0 XML state 属性值
@@ -6,8 +6,10 @@ namespace Core.Agents;
 public enum SubAgentEnvelopeState
 {
     /// <summary>子智能体执行完成</summary>
+    [EnumValue("completed")]
     Completed,
     /// <summary>子智能体执行出错</summary>
+    [EnumValue("error")]
     Error,
 }
 

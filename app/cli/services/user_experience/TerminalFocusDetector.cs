@@ -1,4 +1,4 @@
-namespace IO.Services;
+﻿namespace IO.Services;
 
 /// <summary>
 /// 终端焦点状态 — 对齐 TS terminal-focus-state.ts
@@ -6,10 +6,13 @@ namespace IO.Services;
 public enum TerminalFocusState
 {
     /// <summary>终端处于焦点</summary>
+    [EnumValue("focused")]
     Focused,
     /// <summary>终端失去焦点</summary>
+    [EnumValue("blurred")]
     Blurred,
     /// <summary>未知（终端不支持焦点报告，视为 Focused）</summary>
+    [EnumValue("unknown")]
     Unknown,
 }
 

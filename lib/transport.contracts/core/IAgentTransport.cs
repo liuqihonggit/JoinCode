@@ -1,4 +1,4 @@
-namespace JoinCode.Transport;
+﻿namespace JoinCode.Transport;
 
 /// <summary>
 /// 传输层事件参数
@@ -19,9 +19,11 @@ public sealed class TransportMessageEventArgs : EventArgs
 public enum TransportChannel
 {
     /// <summary>标准输出通道</summary>
+    [EnumValue("output")]
     Output,
     /// <summary>标准错误通道</summary>
-    Error
+    [EnumValue("error")]
+    Error,
 }
 
 /// <summary>

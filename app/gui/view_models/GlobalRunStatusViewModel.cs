@@ -1,25 +1,31 @@
-namespace JoinCode.Gui.ViewModels;
+﻿namespace JoinCode.Gui.ViewModels;
 
 /// <summary>卡死检测状态机状态 — 规则8风格显式枚举</summary>
 public enum StallDetectionState
 {
     /// <summary>正常监测（回合未开始或心跳新鲜/有活跃工具）</summary>
+    [EnumValue("monitoring")]
     Monitoring,
     /// <summary>疑似卡死：超过阈值无心跳且无活跃工具</summary>
-    Stalled
+    [EnumValue("stalled")]
+    Stalled,
 }
 
 /// <summary>走马灯停止原因 — 驱动弹窗策略（Normal/UserAborted 不弹，Abnormal/Stalled 弹模态）（需求9）</summary>
 public enum MarqueeStopReason
 {
     /// <summary>正常完成 — 不弹窗</summary>
+    [EnumValue("normal")]
     Normal,
     /// <summary>用户主动终止（双击 ESC）— 不弹窗（用户知情）</summary>
+    [EnumValue("userAborted")]
     UserAborted,
     /// <summary>异常/掉线 — 弹模态提醒</summary>
+    [EnumValue("abnormal")]
     Abnormal,
     /// <summary>卡死（3s 无心跳）— 弹模态提醒</summary>
-    Stalled
+    [EnumValue("stalled")]
+    Stalled,
 }
 
 /// <summary>

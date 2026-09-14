@@ -1,4 +1,4 @@
-namespace Core.Goal;
+﻿namespace Core.Goal;
 
 /// <summary>
 /// 分级重试决策
@@ -6,10 +6,13 @@ namespace Core.Goal;
 public enum RetryDecision
 {
     /// <summary>接受当前结果，不重试</summary>
+    [EnumValue("accept")]
     Accept,
     /// <summary>重试（只传错误部分，复用 GetAffectedSubgraph）</summary>
+    [EnumValue("retryWithPatch")]
     RetryWithPatch,
     /// <summary>放弃，标记为失败</summary>
+    [EnumValue("abandon")]
     Abandon,
 }
 

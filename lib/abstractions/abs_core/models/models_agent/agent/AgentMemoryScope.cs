@@ -1,4 +1,4 @@
-
+﻿
 namespace JoinCode.Abstractions.Models.Agent;
 
 /// <summary>
@@ -20,10 +20,13 @@ public enum AgentMemoryScope
 public enum AgentMemorySnapshotAction
 {
     /// <summary>无需操作</summary>
+    [EnumValue("none")]
     None,
     /// <summary>首次从快照初始化</summary>
+    [EnumValue("initialize")]
     Initialize,
     /// <summary>需要提示更新</summary>
+    [EnumValue("promptUpdate")]
     PromptUpdate,
 }
 

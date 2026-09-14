@@ -1,4 +1,4 @@
-namespace Core.Plugins;
+﻿namespace Core.Plugins;
 
 /// <summary>
 /// 插件热重载服务接口 — 监控插件目录变更，自动卸载并重新加载插件
@@ -36,13 +36,17 @@ public sealed partial class PluginReloadEventArgs : EventArgs
 [JsonConverter(typeof(JsonStringEnumConverter<ReloadReason>))]
 public enum ReloadReason {
     /// <summary>文件内容变更</summary>
+    [EnumValue("fileChanged")]
     FileChanged,
     /// <summary>文件创建</summary>
+    [EnumValue("fileCreated")]
     FileCreated,
     /// <summary>文件删除</summary>
+    [EnumValue("fileDeleted")]
     FileDeleted,
     /// <summary>手动触发</summary>
-    Manual
+    [EnumValue("manual")]
+    Manual,
 }
 
 /// <summary>

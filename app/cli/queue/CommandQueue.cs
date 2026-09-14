@@ -1,4 +1,4 @@
-namespace JoinCode.Queue;
+﻿namespace JoinCode.Queue;
 
 /// <summary>
 /// 命令队列优先级 — 对齐 TS 原版 的 QueuePriority（now > next > later）。
@@ -6,12 +6,15 @@ namespace JoinCode.Queue;
 public enum QueuePriority
 {
     /// <summary>最高优先级：权限确认响应等需立即处理。</summary>
+    [EnumValue("now")]
     Now = 0,
 
     /// <summary>默认优先级：用户输入。</summary>
+    [EnumValue("next")]
     Next = 1,
 
     /// <summary>最低优先级：任务通知（不饥饿用户输入）。</summary>
+    [EnumValue("later")]
     Later = 2,
 }
 
@@ -21,15 +24,19 @@ public enum QueuePriority
 public enum CommandOrigin
 {
     /// <summary>用户直接输入。</summary>
+    [EnumValue("user")]
     User,
 
     /// <summary>后台任务通知。</summary>
+    [EnumValue("taskNotification")]
     TaskNotification,
 
     /// <summary>权限确认响应。</summary>
+    [EnumValue("permissionResponse")]
     PermissionResponse,
 
     /// <summary>主动模式 tick（系统生成，非用户输入）。</summary>
+    [EnumValue("proactiveTick")]
     ProactiveTick,
 }
 

@@ -1,16 +1,19 @@
-namespace JoinCode.Tui.Tui;
+﻿namespace JoinCode.Tui.Tui;
 
 /// <summary>问答选择输入解析状态</summary>
 public enum AskUserSelectionStatus
 {
     /// <summary>解析成功 — Indices 携带 1-based 选中序号</summary>
+    [EnumValue("ok")]
     Ok,
 
     /// <summary>用户取消（输入 0 或空白）</summary>
+    [EnumValue("cancel")]
     Cancel,
 
     /// <summary>无效输入（越界/非数字/空 token）— 需提示后重新输入</summary>
-    Invalid
+    [EnumValue("invalid")]
+    Invalid,
 }
 
 /// <summary>

@@ -1,16 +1,22 @@
-namespace JoinCode.Abstractions.Attributes;
+﻿namespace JoinCode.Abstractions.Attributes;
 
 /// <summary>
 /// 工具提示词分类
 /// </summary>
 public enum ToolPromptCategory
 {
+    [EnumValue("agent")]
     Agent,
+    [EnumValue("file")]
     File,
+    [EnumValue("planning")]
     Planning,
+    [EnumValue("search")]
     Search,
+    [EnumValue("shell")]
     Shell,
-    System
+    [EnumValue("system")]
+    System,
 }
 
 /// <summary>

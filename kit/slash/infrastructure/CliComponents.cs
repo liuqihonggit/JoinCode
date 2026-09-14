@@ -710,26 +710,31 @@ public enum FeedbackStep
     /// <summary>
     /// 用户输入阶段
     /// </summary>
+    [EnumValue("userInput")]
     UserInput,
 
     /// <summary>
     /// 评分阶段
     /// </summary>
+    [EnumValue("rating")]
     Rating,
 
     /// <summary>
     /// 评论阶段
     /// </summary>
+    [EnumValue("comment")]
     Comment,
 
     /// <summary>
     /// 确认阶段
     /// </summary>
+    [EnumValue("confirm")]
     Confirm,
 
     /// <summary>
     /// 完成阶段
     /// </summary>
+    [EnumValue("done")]
     Done
 }
 
@@ -824,26 +829,31 @@ public enum BridgeConnectionState
     /// <summary>
     /// 空闲状态
     /// </summary>
+    [EnumValue("idle")]
     Idle,
 
     /// <summary>
     /// 未连接
     /// </summary>
+    [EnumValue("disconnected")]
     Disconnected,
 
     /// <summary>
     /// 连接中
     /// </summary>
+    [EnumValue("connecting")]
     Connecting,
 
     /// <summary>
     /// 已连接
     /// </summary>
+    [EnumValue("connected")]
     Connected,
 
     /// <summary>
     /// 错误状态
     /// </summary>
+    [EnumValue("error")]
     Error
 }
 
@@ -884,26 +894,31 @@ public enum DiffViewMode
     /// <summary>
     /// 列表视图
     /// </summary>
+    [EnumValue("list")]
     List,
 
     /// <summary>
     /// 详情视图
     /// </summary>
+    [EnumValue("detail")]
     Detail,
 
     /// <summary>
     /// 统一格式视图
     /// </summary>
+    [EnumValue("unified")]
     Unified,
 
     /// <summary>
     /// 分屏视图
     /// </summary>
+    [EnumValue("split")]
     Split,
 
     /// <summary>
     /// 文件列表视图
     /// </summary>
+    [EnumValue("fileList")]
     FileList
 }
 

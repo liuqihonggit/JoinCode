@@ -1,4 +1,4 @@
-namespace Core.Hooks.Execution.Interception;
+﻿namespace Core.Hooks.Execution.Interception;
 
 /// <summary>
 /// 守卫确认模式 — 替代 bool AntiCharLossConfirm，强类型枚举 — ADR 0012
@@ -8,12 +8,14 @@ public enum GuardConfirmMode
     /// <summary>
     /// 无确认模式 — 默认行为
     /// </summary>
+    [EnumValue("none")]
     None,
 
     /// <summary>
     /// 防丢字符二次确认 — MTP 加速推理时防止丢字符/乱入字符导致命令变形
     /// </summary>
-    AntiCharLossConfirm
+    [EnumValue("antiCharLossConfirm")]
+    AntiCharLossConfirm,
 }
 
 /// <summary>

@@ -1,4 +1,4 @@
-namespace JoinCode.Gui.ViewModels;
+﻿namespace JoinCode.Gui.ViewModels;
 
 /// <summary>
 /// 状态三态类别 — 驱动顶栏状态指示器配色（就绪绿 / 思考黄 / 错误红）。
@@ -6,9 +6,12 @@ namespace JoinCode.Gui.ViewModels;
 public enum StatusKind
 {
     /// <summary>就绪（绿色）</summary>
+    [EnumValue("ready")]
     Ready,
     /// <summary>思考中（黄色）</summary>
+    [EnumValue("busy")]
     Busy,
     /// <summary>错误（红色）</summary>
-    Error
+    [EnumValue("error")]
+    Error,
 }

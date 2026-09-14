@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.Entity;
+﻿namespace JoinCode.Abstractions.Entity;
 
 /// <summary>
 /// 插件包 ID — 自增铸造，格式 pkg-&lt;n&gt;
@@ -110,15 +110,19 @@ public enum DynamicPluginState
 public enum PluginInvokeFailure
 {
     /// <summary>插件未运行</summary>
+    [EnumValue("pluginNotRunning")]
     PluginNotRunning,
 
     /// <summary>运行版本已过期（UpdatePlugin 后旧引用失效）</summary>
+    [EnumValue("staleRun")]
     StaleRun,
 
     /// <summary>方法未找到</summary>
+    [EnumValue("methodNotFound")]
     MethodNotFound,
 
     /// <summary>handler 执行抛异常</summary>
+    [EnumValue("handlerError")]
     HandlerError,
 }
 

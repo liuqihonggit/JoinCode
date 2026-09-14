@@ -1,4 +1,4 @@
-namespace Core.Agents.Worktree;
+﻿namespace Core.Agents.Worktree;
 
 /// <summary>
 /// worktree 删除状态机 — 显式状态枚举驱动，删除失败时转入 Diagnosing 探测根因。
@@ -7,17 +7,23 @@ namespace Core.Agents.Worktree;
 public enum RemovalState
 {
     /// <summary>初始状态</summary>
+    [EnumValue("idle")]
     Idle,
     /// <summary>正在删除</summary>
+    [EnumValue("inProgress")]
     InProgress,
     /// <summary>删除成功</summary>
+    [EnumValue("succeeded")]
     Succeeded,
     /// <summary>删除失败</summary>
+    [EnumValue("failed")]
     Failed,
     /// <summary>正在诊断失败根因</summary>
+    [EnumValue("diagnosing")]
     Diagnosing,
     /// <summary>诊断完成，根因已确定</summary>
-    Diagnosed
+    [EnumValue("diagnosed")]
+    Diagnosed,
 }
 
 /// <summary>

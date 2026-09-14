@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.Attributes;
+﻿namespace JoinCode.Abstractions.Attributes;
 
 /// <summary>
 /// 标记 Settings 类 — 源码生成器据此自动生成拷贝构造函数、Merge 方法、GetSettingByKey、UpdateSettingByKey
@@ -55,25 +55,30 @@ public enum SettingsMergeStrategy
     /// <summary>
     /// 简单值覆盖: override ?? base（适用于 string?、bool?、int? 等 nullable 值类型）
     /// </summary>
+    [EnumValue("override")]
     Override,
 
     /// <summary>
     /// 字典合并: 高优先级覆盖同键（适用于 Dictionary&lt;string, T&gt;）
     /// </summary>
+    [EnumValue("dictionaryMerge")]
     DictionaryMerge,
 
     /// <summary>
     /// 列表拼接去重（适用于 List&lt;string&gt;）
     /// </summary>
+    [EnumValue("listConcatDistinct")]
     ListConcatDistinct,
 
     /// <summary>
     /// 递归对象合并（适用于嵌套 Settings 对象）
     /// </summary>
+    [EnumValue("recursiveMerge")]
     RecursiveMerge,
 
     /// <summary>
     /// 自定义合并（需指定 CustomMergeMethod）
     /// </summary>
+    [EnumValue("custom")]
     Custom,
 }

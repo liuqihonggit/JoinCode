@@ -4,6 +4,7 @@ global using System.Collections.Generic;
 global using System.Collections.ObjectModel;
 global using System.Collections.Frozen;
 global using System.Runtime.CompilerServices;
+global using JoinCode.Abstractions.Attributes;
 global using System.Text;
 global using System.Threading;
 global using System.Threading.Tasks;

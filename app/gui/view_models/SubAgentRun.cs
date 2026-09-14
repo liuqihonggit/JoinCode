@@ -1,4 +1,4 @@
-namespace JoinCode.Gui.ViewModels;
+﻿namespace JoinCode.Gui.ViewModels;
 
 /// <summary>
 /// 子代理运行态 — SubAgentRunTracker 聚合的单个 subAgent 运行记录，
@@ -74,11 +74,14 @@ public sealed record SubAgentTranscriptItem(DateTime At, string Glyph, string Te
 public enum SubAgentRunState
 {
     /// <summary>运行中</summary>
+    [EnumValue("running")]
     Running,
 
     /// <summary>已完成</summary>
+    [EnumValue("completed")]
     Completed,
 
     /// <summary>失败</summary>
-    Failed
+    [EnumValue("failed")]
+    Failed,
 }

@@ -1,4 +1,4 @@
-namespace Core.Agents;
+﻿namespace Core.Agents;
 
 /// <summary>
 /// 子智能体摘要状态 — L2 自摘要结果
@@ -8,21 +8,25 @@ public enum SubAgentSummaryStatus
     /// <summary>
     /// 输出在预算内，不需要摘要
     /// </summary>
+    [EnumValue("notNeeded")]
     NotNeeded,
 
     /// <summary>
     /// 配置关闭或客户端不可用，跳过 L2
     /// </summary>
+    [EnumValue("skipped")]
     Skipped,
 
     /// <summary>
     /// 自摘要成功，Summary 有值且在预算内
     /// </summary>
+    [EnumValue("success")]
     Success,
 
     /// <summary>
     /// 尝试失败（LLM 返回 null 或摘要仍超预算），调用方应走 L3 落盘
     /// </summary>
+    [EnumValue("failed")]
     Failed,
 }
 

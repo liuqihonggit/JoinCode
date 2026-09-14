@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="$(RepoRoot)kit/hands/Hands.csproj" />
+    <ProjectReference Include="$(RepoRoot)server/vision/Vision.csproj" />
     <ProjectReference Include="$(RepoRoot)test/unit/testing.common/Testing.Common.csproj" />
   </ItemGroup>
 

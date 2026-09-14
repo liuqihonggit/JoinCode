@@ -14,3 +14,6 @@ global using JoinCode.Abstractions.LLM;
 global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.Models.Notebook;
 global using Services.Notebook.ToolHandlers;
+global using IO.FileSystem;
+global using JoinCode.Vision.Quadtree;
+global using JoinCode.Vision.Rendering;

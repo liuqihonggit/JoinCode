@@ -2,10 +2,15 @@ namespace JoinCode.Abstractions.LLM.Chat;
 
 public enum ToolDriftKind
 {
+    [EnumValue("identity")]
     Identity,
+    [EnumValue("append")]
     Append,
+    [EnumValue("edit")]
     Edit,
+    [EnumValue("reorder")]
     Reorder,
+    [EnumValue("remove")]
     Remove
 }
 

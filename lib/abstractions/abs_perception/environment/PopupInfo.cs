@@ -6,15 +6,19 @@ namespace JoinCode.Abstractions.Interfaces;
 public enum PopupCategory
 {
     /// <summary>非弹窗</summary>
+    [EnumValue("none")]
     None,
 
     /// <summary>可自主关闭（通知/提示框）</summary>
+    [EnumValue("closeable")]
     Closeable,
 
     /// <summary>需用户决策（保存覆盖/确认删除）</summary>
+    [EnumValue("needs_decision")]
     NeedsDecision,
 
     /// <summary>可重试（网络超时/临时错误）</summary>
+    [EnumValue("retryable")]
     Retryable,
 }
 

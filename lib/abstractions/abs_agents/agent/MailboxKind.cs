@@ -7,8 +7,10 @@ namespace JoinCode.Abstractions.Interfaces;
 public enum MailboxKind
 {
     /// <summary>进程内邮箱（InProcessMailbox，内存 Channel 直传，同步 subagent）。</summary>
+    [EnumValue("in_process")]
     InProcess,
 
     /// <summary>文件邮箱（TeammateMailboxService，文件持久化，跨进程 teammate swarm）。</summary>
+    [EnumValue("file")]
     File,
 }

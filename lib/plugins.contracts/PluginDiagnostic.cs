@@ -6,16 +6,22 @@ namespace JoinCode.Abstractions.Entity;
 public enum PluginDiagnosticKind
 {
     /// <summary>撤销操作失败</summary>
+    [EnumValue("revert_failed")]
     RevertFailed,
     /// <summary>卸载超时</summary>
+    [EnumValue("unload_timeout")]
     UnloadTimeout,
     /// <summary>ALC 未被 GC 回收</summary>
+    [EnumValue("alc_leak")]
     AlcLeak,
     /// <summary>ALC 不可回收(isCollectible=false)</summary>
+    [EnumValue("alc_not_collectible")]
     AlcNotCollectible,
     /// <summary>插件激活失败</summary>
+    [EnumValue("activation_failed")]
     ActivationFailed,
     /// <summary>插件激活成功但未登记任何副作用</summary>
+    [EnumValue("empty_registration")]
     EmptyRegistration,
 }
 

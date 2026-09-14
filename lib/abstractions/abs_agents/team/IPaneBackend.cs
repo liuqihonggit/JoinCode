@@ -5,8 +5,11 @@ namespace JoinCode.Abstractions.Interfaces;
 /// </summary>
 public enum BackendType
 {
+    [EnumValue("in_process")]
     InProcess,
+    [EnumValue("tmux")]
     Tmux,
+    [EnumValue("iterm2")]
     ITerm2
 }
 

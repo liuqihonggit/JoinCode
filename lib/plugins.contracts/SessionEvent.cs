@@ -14,9 +14,11 @@ public static class SessionFormatVersion
 public enum SurfaceOpKind
 {
     /// <summary>追加</summary>
+    [EnumValue("append")]
     Append,
 
     /// <summary>替换 [startSeq, endSeq] 范围</summary>
+    [EnumValue("replace")]
     Replace,
 }
 

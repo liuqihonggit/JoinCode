@@ -67,21 +67,25 @@ public enum DocumentChangeKind
     /// <summary>
     /// 文档已打开
     /// </summary>
+    [EnumValue("opened")]
     Opened,
 
     /// <summary>
     /// 文档内容已变更
     /// </summary>
+    [EnumValue("changed")]
     Changed,
 
     /// <summary>
     /// 文档已保存
     /// </summary>
+    [EnumValue("saved")]
     Saved,
 
     /// <summary>
     /// 文档已关闭
     /// </summary>
+    [EnumValue("closed")]
     Closed
 }
 

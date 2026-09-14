@@ -5,12 +5,12 @@ namespace JoinCode.Abstractions.Interfaces;
 /// </summary>
 public enum VimMode
 {
-    Normal,
-    Insert,
-    Visual,
-    VisualLine,
-    VisualBlock,
-    Command
+    [EnumValue("normal")] Normal,
+    [EnumValue("insert")] Insert,
+    [EnumValue("visual")] Visual,
+    [EnumValue("visual_line")] VisualLine,
+    [EnumValue("visual_block")] VisualBlock,
+    [EnumValue("command")] Command
 }
 
 /// <summary>
@@ -18,10 +18,10 @@ public enum VimMode
 /// </summary>
 public enum VimRegisterName
 {
-    Unnamed,
-    Clipboard,
-    A, B, C, D, E, F, G, H, I, J, K, L, M,
-    N, O, P, Q, R, S, T, U, V, W, X, Y, Z
+    [EnumValue("unnamed")] Unnamed,
+    [EnumValue("clipboard")] Clipboard,
+    [EnumValue("a")] A, B, C, D, E, F, G, H, I, J, K, L, M,
+    [EnumValue("n")] N, O, P, Q, R, S, T, U, V, W, X, Y, Z
 }
 
 /// <summary>

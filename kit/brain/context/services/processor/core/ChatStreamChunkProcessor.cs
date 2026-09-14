@@ -6,13 +6,13 @@ namespace Core.Context;
 public enum ChunkAction
 {
     /// <summary>跳过当前块，继续处理下一个</summary>
-    Continue,
+    [EnumValue("continue")] Continue,
     /// <summary>发射事件并继续</summary>
-    Yield,
+    [EnumValue("yield")] Yield,
     /// <summary>发射事件并跳出循环（工具调用或循环输出检测）</summary>
-    Break,
+    [EnumValue("break")] Break,
     /// <summary>检测到工具调用但继续流式（用于 StreamingToolExecutor 模式）</summary>
-    ToolUseDetected
+    [EnumValue("tool_use_detected")] ToolUseDetected
 }
 
 /// <summary>

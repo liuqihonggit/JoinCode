@@ -2,7 +2,7 @@ namespace JoinCode.Abstractions.Models.Runtime;
 
 public enum RuntimeTaskPriority
 {
-    Now = 0,
-    Next = 1,
-    Later = 2
+    [EnumValue("now")] Now = 0,
+    [EnumValue("next")] Next = 1,
+    [EnumValue("later")] Later = 2
 }

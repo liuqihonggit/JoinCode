@@ -5,7 +5,10 @@ namespace JoinCode.Abstractions.Interfaces;
 /// </summary>
 public enum DomainCheckResult
 {
+    [EnumValue("allowed")]
     Allowed,
+    [EnumValue("blocked")]
     Blocked,
+    [EnumValue("check_failed")]
     CheckFailed
 }

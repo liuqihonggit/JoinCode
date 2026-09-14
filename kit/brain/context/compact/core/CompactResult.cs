@@ -7,11 +7,11 @@ namespace Core.Context.Compact;
 public enum CompactTrigger
 {
     /// <summary>手动触发</summary>
-    Manual,
+    [EnumValue("manual")] Manual,
     /// <summary>自动触发</summary>
-    Auto,
+    [EnumValue("auto")] Auto,
     /// <summary>响应式触发（错误驱动）</summary>
-    Reactive
+    [EnumValue("reactive")] Reactive
 }
 
 /// <summary>

@@ -1,6 +1,6 @@
 namespace JoinCode.Abstractions.Interfaces;
 
-public enum TriggerAction { List, Get, Create, Update, Run }
+public enum TriggerAction { [EnumValue("list")] List, Get, Create, Update, Run }
 
 public sealed class TriggerResult
 {

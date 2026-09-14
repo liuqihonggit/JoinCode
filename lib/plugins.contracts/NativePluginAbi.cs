@@ -37,24 +37,31 @@ public static class NativePluginAbi
 public enum NativePluginError : int
 {
     /// <summary>成功</summary>
+    [EnumValue("ok")]
     Ok = 0,
 
     /// <summary>通用错误</summary>
+    [EnumValue("generic")]
     Generic = -1,
 
     /// <summary>响应缓冲区不够 — 宿主应重试更大 buffer</summary>
+    [EnumValue("buffer_too_small")]
     BufferTooSmall = -2,
 
     /// <summary>方法未找到</summary>
+    [EnumValue("method_not_found")]
     MethodNotFound = -3,
 
     /// <summary>JSON 反序列化失败</summary>
+    [EnumValue("bad_request")]
     BadRequest = -4,
 
     /// <summary>插件未加载</summary>
+    [EnumValue("not_loaded")]
     NotLoaded = -5,
 
     /// <summary>内部异常</summary>
+    [EnumValue("internal_error")]
     InternalError = -6,
 }
 

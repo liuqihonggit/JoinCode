@@ -21,9 +21,12 @@ public interface IPermissionConfirmationHandler
 public enum PermissionConfirmAction
 {
     /// <summary>拒绝执行</summary>
+    [EnumValue("deny")]
     Deny,
     /// <summary>本次允许执行</summary>
+    [EnumValue("allow")]
     Allow,
     /// <summary>始终允许（加入临时批准列表）</summary>
+    [EnumValue("always_allow")]
     AlwaysAllow
 }

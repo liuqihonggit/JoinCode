@@ -12,8 +12,10 @@ public static class LineEndingDetector
     public enum LineEndingType
     {
         /// <summary>LF (\n)</summary>
+        [EnumValue("lf")]
         LF,
         /// <summary>CRLF (\r\n)</summary>
+        [EnumValue("crlf")]
         CRLF
     }
 

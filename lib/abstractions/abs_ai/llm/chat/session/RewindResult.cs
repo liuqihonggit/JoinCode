@@ -25,7 +25,10 @@ public sealed class RewindResult
 
 public enum RewindKind
 {
+    [EnumValue("trim_last_turn")]
     TrimLastTurn,
+    [EnumValue("truncate_to_index")]
     TruncateToIndex,
+    [EnumValue("clear_history")]
     ClearHistory
 }

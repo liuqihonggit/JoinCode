@@ -6,10 +6,13 @@ namespace JoinCode.Abstractions.Entity;
 public enum ServiceLookup
 {
     /// <summary>找到服务</summary>
+    [EnumValue("found")]
     Found,
     /// <summary>服务从未注册</summary>
+    [EnumValue("not_registered")]
     NotRegistered,
     /// <summary>服务曾注册但提供者已死亡</summary>
+    [EnumValue("provider_dead")]
     ProviderDead,
 }
 

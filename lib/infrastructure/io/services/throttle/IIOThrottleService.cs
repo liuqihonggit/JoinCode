@@ -60,15 +60,18 @@ public enum IOOperationType
     /// <summary>
     /// 读操作
     /// </summary>
+    [EnumValue("read")]
     Read,
 
     /// <summary>
     /// 写操作
     /// </summary>
+    [EnumValue("write")]
     Write,
 
     /// <summary>
     /// 删除操作
     /// </summary>
+    [EnumValue("delete")]
     Delete
 }

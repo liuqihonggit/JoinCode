@@ -6,16 +6,16 @@ namespace Core.Context;
 public enum InterventionLevel
 {
     /// <summary>无干预 — 透传事件流</summary>
-    None,
+    [EnumValue("none")] None,
 
     /// <summary>Level 1 软干预 — 注入提示词，流继续</summary>
-    Soft,
+    [EnumValue("soft")] Soft,
 
     /// <summary>Level 2 硬截断 — 撤回+降温度+重连</summary>
-    Hard,
+    [EnumValue("hard")] Hard,
 
     /// <summary>Level 3 上下文压缩 — 压缩或重置上下文</summary>
-    Compact
+    [EnumValue("compact")] Compact
 }
 
 /// <summary>

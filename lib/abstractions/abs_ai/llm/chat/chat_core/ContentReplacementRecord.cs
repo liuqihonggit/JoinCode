@@ -8,6 +8,7 @@ public enum ContentReplacementRecordKind
     /// <summary>
     /// 工具结果替换 — 对齐 TS kind: 'tool-result'
     /// </summary>
+    [EnumValue("tool_result")]
     ToolResult,
 }
 

@@ -50,8 +50,8 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable
     private readonly Func<DateTimeOffset> _clock;
     private readonly ConcurrentDictionary<string, SubAgentIdleDetector> _detectors = new();
     private readonly SubAgentChainStallDetector _chainDetector;
-    private readonly CancellationTokenSource _cts = new();
     private readonly PeriodicTimer? _scanTimer;
+    private volatile bool _stopping;
     private volatile bool _milestoneScanTriggered;
     private Task? _scanLoop;
 
@@ -117,7 +117,7 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable
             _milestoneScanTriggered = true;
             _logger?.LogInformation("[SubAgentLivenessScanner] 完成率 {Rate:P0} ≥ {Threshold:P0}，触发全量巡查",
                 completionRate, _options.CompletionCheckThreshold);
-            _ = Task.Run(() => ScanAllAsync(_cts.Token));
+            _ = Task.Run(() => ScanAllAsync(CancellationToken.None));
         }
     }
 
@@ -128,9 +128,10 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable
     {
         try
         {
-            while (await _scanTimer!.WaitForNextTickAsync(_cts.Token).ConfigureAwait(false))
+            while (!_stopping && await _scanTimer!.WaitForNextTickAsync(CancellationToken.None).ConfigureAwait(false))
             {
-                await ScanAllAsync(_cts.Token).ConfigureAwait(false);
+                if (_stopping) break;
+                await ScanAllAsync(CancellationToken.None).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException) { }
@@ -256,15 +257,14 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable
     }
 
     /// <summary>
-    /// 释放扫描器资源
+    /// 释放扫描器资源 — 设 _stopping 标志 + Dispose timer，PeriodicTimer.Dispose 让 WaitForNextTickAsync 返回 false，循环安全退出
     /// </summary>
     public ValueTask DisposeAsync()
     {
         _logger?.LogInformation("[SubAgentLivenessScanner] 停止，清理 {Count} 个检测器", _detectors.Count);
         _stateMachine.StateChanged -= OnStateChanged;
-        _cts.Cancel();
+        _stopping = true;
         _scanTimer?.Dispose();
-        _cts.Dispose();
         _detectors.Clear();
         return ValueTask.CompletedTask;
     }

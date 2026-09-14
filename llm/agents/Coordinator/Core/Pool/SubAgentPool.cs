@@ -24,7 +24,7 @@ public sealed partial class SubAgentPool : IAsyncDisposable
     private readonly ILogger? _logger;
     private readonly Func<DateTimeOffset> _clock;
     private readonly PeriodicTimer? _cleanupTimer;
-    private readonly CancellationTokenSource _cts = new();
+    private volatile bool _stopping;
     private Task? _cleanupLoop;
 
     /// <summary>
@@ -173,8 +173,9 @@ public sealed partial class SubAgentPool : IAsyncDisposable
     {
         try
         {
-            while (await _cleanupTimer!.WaitForNextTickAsync(_cts.Token).ConfigureAwait(false))
+            while (!_stopping && await _cleanupTimer!.WaitForNextTickAsync(CancellationToken.None).ConfigureAwait(false))
             {
+                if (_stopping) break;
                 var now = _clock();
                 foreach (var (id, entry) in _pool)
                 {
@@ -199,14 +200,13 @@ public sealed partial class SubAgentPool : IAsyncDisposable
     }
 
     /// <summary>
-    /// 释放代理池资源 — Dispose 池中所有代理
+    /// 释放代理池资源 — 设 _stopping 标志 + Dispose timer，PeriodicTimer.Dispose 让 WaitForNextTickAsync 返回 false，循环安全退出
     /// </summary>
     public ValueTask DisposeAsync()
     {
         _logger?.LogInformation("[SubAgentPool] 释放，Dispose 池中 {Count} 个代理", _pool.Count);
-        _cts.Cancel();
+        _stopping = true;
         _cleanupTimer?.Dispose();
-        _cts.Dispose();
 
         foreach (var (_, entry) in _pool)
             entry.Agent.Dispose();

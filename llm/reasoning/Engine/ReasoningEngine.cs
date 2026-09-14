@@ -572,12 +572,15 @@ public sealed class ReasoningEngine : IReasoningEngine
 
         var results = await _urlVerifier.VerifyAllAsync(evidences).ConfigureAwait(false);
 
+        var nodeByUrl = _dag.Nodes.Values
+            .Where(n => !string.IsNullOrEmpty(n.Payload.SourceUrl))
+            .ToLookup(n => n.Payload.SourceUrl!, StringComparer.Ordinal);
+
         foreach (var result in results)
         {
             if (!result.IsValid)
             {
-                var evidenceNode = _dag.Nodes.Values
-                    .FirstOrDefault(n => n.Payload.SourceUrl == result.Url);
+                var evidenceNode = nodeByUrl[result.Url].FirstOrDefault();
                 if (evidenceNode is not null)
                 {
                     evidenceNode.Payload.TrustLevel = TrustLevel.Unreliable;

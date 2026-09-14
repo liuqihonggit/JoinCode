@@ -416,6 +416,14 @@ public sealed partial class CurrentSettings
     public SubAgentConcurrencyOptions? SubAgentConcurrency { get; init; }
 
     /// <summary>
+    /// 子代理卡死防护配置 — 纵深防御四层参数（ADR 0106）
+    /// L1 预防(工具超时) + L2 检测(无输出+巡查+链路) + L3 干预(激活+抢塞) + L4 恢复(渐进式压缩)
+    /// </summary>
+    [JsonPropertyName("subAgentLiveness")]
+    [SettingsProperty(SettingsMergeStrategy.Override, SkipKeyAccess = true)]
+    public SubAgentLivenessOptions? SubAgentLiveness { get; init; }
+
+    /// <summary>
     /// Actor 模型统一配置 — 编译队列模式 + 背压预设(ADR 0074)
     /// settings.json 的 current.actor 节点,缺失时用默认值(串行模式 + 四档预设)
     /// </summary>

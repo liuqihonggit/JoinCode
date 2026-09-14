@@ -41,6 +41,9 @@ public sealed partial class SettingsMapper : ServiceEntity
         // 子代理并发控制配置（ADR 0048）
         ApplySubAgentConcurrencySettings(config, settings);
 
+        // 子代理卡死防护配置（ADR 0106）
+        ApplySubAgentLivenessSettings(config, settings);
+
         // Actor 模型配置（ADR 0074）
         ApplyActorSettings(config, settings);
 
@@ -325,6 +328,26 @@ public sealed partial class SettingsMapper : ServiceEntity
         config.SubAgentConcurrency.MaxConcurrentSpawns = sub.MaxConcurrentSpawns;
         config.SubAgentConcurrency.MaxConcurrentExecutions = sub.MaxConcurrentExecutions;
         config.SubAgentConcurrency.MaxConcurrentForks = sub.MaxConcurrentForks;
+    }
+
+    /// <summary>
+    /// 映射子代理卡死防护配置 — 纵深防御四层参数（ADR 0106）
+    /// </summary>
+    private static void ApplySubAgentLivenessSettings(WorkflowConfig config, SettingsJson? settings)
+    {
+        var sub = settings?.Current?.SubAgentLiveness;
+        if (sub is null) return;
+
+        config.SubAgentLiveness.AgentTimeoutSeconds = sub.AgentTimeoutSeconds;
+        config.SubAgentLiveness.IdleThresholdSeconds = sub.IdleThresholdSeconds;
+        config.SubAgentLiveness.CompletionCheckThreshold = sub.CompletionCheckThreshold;
+        config.SubAgentLiveness.ConfirmationWindowSeconds = sub.ConfirmationWindowSeconds;
+        config.SubAgentLiveness.ScanIntervalSeconds = sub.ScanIntervalSeconds;
+        config.SubAgentLiveness.ChainStallThreshold = sub.ChainStallThreshold;
+        config.SubAgentLiveness.PoolMaxSize = sub.PoolMaxSize;
+        config.SubAgentLiveness.PoolIdleTimeoutSeconds = sub.PoolIdleTimeoutSeconds;
+        config.SubAgentLiveness.PreemptMinWindowRatio = sub.PreemptMinWindowRatio;
+        config.SubAgentLiveness.ActivationRecoverySeconds = sub.ActivationRecoverySeconds;
     }
 
     /// <summary>

@@ -7,7 +7,7 @@ namespace AsyncFileLock;
 /// <para>进程崩溃 = 锁文件残留，超时清理（TryCleanupStaleLock）。</para>
 /// <para>等待锁 = 轮询重试（线性退避），超时抛 TimeoutException。</para>
 /// </summary>
-internal sealed class FileMailboxLock : IAsyncDisposable
+public sealed class FileMailboxLock : IAsyncDisposable
 {
     private static readonly Lazy<IFileSystem> s_fs = new(FileSystemFactory.Create);
 

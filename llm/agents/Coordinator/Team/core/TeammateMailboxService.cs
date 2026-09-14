@@ -1,6 +1,9 @@
 namespace Core.Agents.Coordinator;
 
-/// <summary>队友邮箱服务 — 管理各队友邮箱目录的读写、消息投递与持久化，实现 IDisposable 释放写锁</summary>
+/// <summary>队友邮箱服务 — 管理各队友邮箱目录的读写、消息投递与持久化，实现 IDisposable 释放写锁。
+/// <para>crossProcess=true 时，写操作用 FileMailboxLock 跨进程互斥，支持多 jcc.exe 进程并发。</para>
+/// <para>crossProcess=false 时（默认），写操作仅用 AsyncLock 进程内互斥，零跨进程开销。</para>
+/// </summary>
 [Register(typeof(ITeammateMailboxService), ServiceLifetime.Singleton)]
 public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMailboxService, IDisposable
 {
@@ -8,6 +11,7 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
     private readonly string _mailboxRoot;
     private readonly ILogger<TeammateMailboxService>? _logger;
     private readonly IClockService _clock;
+    private readonly bool _crossProcess;
     private readonly AsyncLock _writeLock = new();
     private readonly ConcurrentDictionary<string, AsyncLock> _agentLocks;
     private readonly ConcurrentDictionary<string, MailboxReadCursor> _cursors;
@@ -20,11 +24,13 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
     /// <param name="mailboxRoot">邮箱根目录（默认用户目录下 jcc/mailbox）</param>
     /// <param name="logger">日志记录器</param>
     /// <param name="clock">时钟服务</param>
+    /// <param name="crossProcess">是否启用跨进程锁（多 jcc.exe 进程并发时设为 true）</param>
     public TeammateMailboxService(
         IFileSystem fs,
         string? mailboxRoot = null,
         ILogger<TeammateMailboxService>? logger = null,
-        IClockService? clock = null)
+        IClockService? clock = null,
+        bool crossProcess = false)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _mailboxRoot = mailboxRoot
@@ -34,6 +40,7 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
                 AppDataConstants.MailboxFolderName);
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
+        _crossProcess = crossProcess;
 
         _agentLocks = new ConcurrentDictionary<string, AsyncLock>();
         _cursors = new ConcurrentDictionary<string, MailboxReadCursor>();
@@ -69,7 +76,16 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
             EnsureMailboxDirectoryExists(request.SessionId, request.ToAgentId);
             var filePath = GetMailboxFilePath(request.SessionId, request.ToAgentId);
             var line = JsonSerializer.Serialize(message, MailboxJsonContext.Default.MailboxMessage);
-            await _fs.AppendAllTextAsync(filePath, line + '\n', cancellationToken).ConfigureAwait(false);
+
+            if (_crossProcess)
+            {
+                await using var fileLock = await FileMailboxLock.AcquireAsync(filePath, TimeSpan.FromSeconds(30), cancellationToken, _logger).ConfigureAwait(false);
+                await _fs.AppendAllTextAsync(filePath, line + '\n', cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await _fs.AppendAllTextAsync(filePath, line + '\n', cancellationToken).ConfigureAwait(false);
+            }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -266,6 +282,20 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
     {
         using var guard = await _writeLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_writeLock.Name}' 等待超时");
 
+        if (_crossProcess)
+        {
+            await using var fileLock = await FileMailboxLock.AcquireAsync(filePath, TimeSpan.FromSeconds(30), cancellationToken, _logger).ConfigureAwait(false);
+            await WriteMessagesAsync(filePath, messages, cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            await WriteMessagesAsync(filePath, messages, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task WriteMessagesAsync(
+        string filePath, IReadOnlyList<MailboxMessage> messages, CancellationToken cancellationToken)
+    {
         await using var stream = _fs.CreateStream(filePath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
         await using var writer = new StreamWriter(stream);
 
@@ -274,7 +304,6 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
             var line = JsonSerializer.Serialize(messages[i], MailboxJsonContext.Default.MailboxMessage);
             await writer.WriteLineAsync(line.AsMemory(), cancellationToken).ConfigureAwait(false);
         }
-    
     }
 
     private string GetMailboxFilePath(string sessionId, string agentId)

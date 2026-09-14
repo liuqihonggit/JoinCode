@@ -30,18 +30,18 @@ public sealed record GatewayOptions(
 }
 
 /// <summary>
-/// 网关熔断状态。
+/// 网关熔断状态 — [EnumValue] 由 EnumMetadataGenerator 自动生成映射。
 /// </summary>
 public enum GatewayCircuitState : int
 {
     /// <summary>关闭(正常调用)</summary>
-    Closed,
+    [EnumValue("closed")] Closed,
 
     /// <summary>打开(熔断中,拒绝调用)</summary>
-    Open,
+    [EnumValue("open")] Open,
 
     /// <summary>半开(允许一次试探调用)</summary>
-    HalfOpen
+    [EnumValue("half_open")] HalfOpen
 }
 
 /// <summary>

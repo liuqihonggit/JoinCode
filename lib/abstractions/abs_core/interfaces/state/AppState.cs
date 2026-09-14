@@ -561,14 +561,14 @@ public sealed record McpServerState
 }
 
 /// <summary>
-/// MCP 连接状态
+/// MCP 连接状态 — [EnumValue] 由 EnumMetadataGenerator 自动生成映射
 /// </summary>
 public enum McpConnectionStatus
 {
-    Disconnected,
-    Connecting,
-    Connected,
-    Error
+    [EnumValue("disconnected")] Disconnected,
+    [EnumValue("connecting")] Connecting,
+    [EnumValue("connected")] Connected,
+    [EnumValue("error")] Error
 }
 
 /// <summary>

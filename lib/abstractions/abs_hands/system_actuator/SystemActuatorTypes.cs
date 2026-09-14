@@ -80,29 +80,29 @@ public sealed record SystemActuatorExecCommandResult
 }
 
 /// <summary>
-/// 系统执行器命令状态
+/// 系统执行器命令状态 — [EnumValue] 由 EnumMetadataGenerator 自动生成映射
 /// </summary>
 public enum SystemActuatorCommandStatus
 {
-    Running,
-    Backgrounded,
-    Completed,
-    Killed
+    [EnumValue("running")] Running,
+    [EnumValue("backgrounded")] Backgrounded,
+    [EnumValue("completed")] Completed,
+    [EnumValue("killed")] Killed
 }
 
 /// <summary>
-/// 系统执行器生命周期状态
+/// 系统执行器生命周期状态 — [EnumValue] 由 EnumMetadataGenerator 自动生成映射
 /// </summary>
 public enum SystemActuatorLifecycleState
 {
     /// <summary>活跃运行中</summary>
-    Active,
+    [EnumValue("active")] Active,
     /// <summary>已后台化，仍占用资源</summary>
-    Backgrounded,
+    [EnumValue("backgrounded")] Backgrounded,
     /// <summary>已完成，可释放</summary>
-    Completed,
+    [EnumValue("completed")] Completed,
     /// <summary>已终止</summary>
-    Terminated,
+    [EnumValue("terminated")] Terminated,
 }
 
 /// <summary>

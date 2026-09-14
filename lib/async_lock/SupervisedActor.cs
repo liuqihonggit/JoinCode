@@ -6,16 +6,16 @@ namespace Core.Utils;
 public enum SupervisorDirective
 {
     /// <summary>恢复正常,继续运行(失败是暂时的)</summary>
-    Resume,
+    [EnumValue("resume")] Resume,
 
     /// <summary>重启子 Actor(Dispose 旧实例 + 创建新实例)</summary>
-    Restart,
+    [EnumValue("restart")] Restart,
 
     /// <summary>停止子 Actor,不再重启</summary>
-    Stop,
+    [EnumValue("stop")] Stop,
 
     /// <summary>升级给父 Actor 处理(本 Actor 无法处理)</summary>
-    Escalate
+    [EnumValue("escalate")] Escalate
 }
 
 /// <summary>
@@ -45,21 +45,21 @@ public sealed record SupervisorStrategy(
 }
 
 /// <summary>
-/// 子 Actor 状态。
+/// 子 Actor 状态 — [EnumValue] 由 EnumMetadataGenerator 自动生成映射。
 /// </summary>
 public enum ChildActorState
 {
     /// <summary>运行中</summary>
-    Running,
+    [EnumValue("running")] Running,
 
     /// <summary>重启中</summary>
-    Restarting,
+    [EnumValue("restarting")] Restarting,
 
     /// <summary>已停止</summary>
-    Stopped,
+    [EnumValue("stopped")] Stopped,
 
     /// <summary>失败(超过最大重启次数)</summary>
-    Failed
+    [EnumValue("failed")] Failed
 }
 
 /// <summary>

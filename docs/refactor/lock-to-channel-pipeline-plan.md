@@ -358,7 +358,7 @@ P2 (GoalGraphEngine)       ── 依赖 GoalConflictMessenger(已 Channel 化),
 <!-- 决策: 产出锁→管道重构方案文档,不落代码 -->
 <!-- 原因: 用户要求先考察高风险点并出方案,验证方向后再动手 -->
 <!-- 替代方案: 直接开始 P0 重构(用户选择暂缓) -->
-<!-- 验证: 文档已归档至 docs/refactoring/lock-to-channel-pipeline-plan.md ✅ -->
+<!-- 验证: 文档已归档至 docs/refactor/lock-to-channel-pipeline-plan.md ✅ -->
 
 ---
 

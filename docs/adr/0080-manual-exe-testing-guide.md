@@ -167,7 +167,7 @@ C# LSP 服务器从 OmniSharp 切换为 csharp-ls（`dotnet tool install -g csha
 
 ### 启动参数系统测试（w2 分支，2026-09-12）
 
-> 测试记录文档：[docs/tasks/启动参数测试记录.md](../tasks/启动参数测试记录.md)
+> 测试记录文档：[docs/task/启动参数测试记录.md](../task/启动参数测试记录.md)
 
 系统测试 ~40 个启动参数，发现 10 个问题（BUG#1-10），全部已修复：
 

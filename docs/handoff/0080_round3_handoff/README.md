@@ -63,4 +63,4 @@ jcc mcp_call <tool_name> param=value
 - 17 个边缘场景测试全通过（commit 2d4e8ae42）
 - csharp-ls 0.27.0 替代 OmniSharp，支持 .sln + .slnx + git worktree
 
-详见 [手动测试问题清单-0080第一轮-续.md](手动测试问题清单-0080第一轮-续.md)和 [ADR 0080](../../adr/0080-manual-exe-testing-guide.md)
+详见 [手动测试问题清单-0080第一轮-续.md](../手动测试问题清单-0080第一轮-续.md)和 [ADR 0080](../../adr/0080-manual-exe-testing-guide.md)

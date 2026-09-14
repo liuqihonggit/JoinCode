@@ -151,6 +151,6 @@ tests/Unit/JoinCodeGui.Tests/
     ├── GuiBeautifyRenderTests.cs    [新] 消息卡片/设置面板/侧栏状态截图基线
     ├── SlashPaletteRenderTests.cs   [改] 几何对齐断言 + 滚动导航断言
     └── DialogRenderTests.cs         [新] 主题图标断言 + 三对话框 × 双主题帧图
-docs/avalonia_host/
+docs/task/gui/
 └── 任务-GUI全面美化.md               [新] 本文档
 ```

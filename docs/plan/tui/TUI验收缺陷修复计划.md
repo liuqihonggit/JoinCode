@@ -87,7 +87,7 @@
 - **后果**: 大输出全量重绘卡顿，无滚动定位
 
 #### P2-3: 设计文档与实现脱节
-- **位置**: `docs/plans/TUI架构与消息管道重构设计.md` 描述的 `OnAgentOutput(AgentOutputChunk)` 在 `ITuiComponent` 中未实现（仅有 `OnQueueChanged`/`OnResize`）
+- **位置**: `docs/plan/TUI架构与消息管道重构设计.md` 描述的 `OnAgentOutput(AgentOutputChunk)` 在 `ITuiComponent` 中未实现（仅有 `OnQueueChanged`/`OnResize`）
 - **后果**: 设计契约未落地，后续维护者误以为已实现
 
 ---
@@ -255,7 +255,7 @@
 <!-- 决策: 先写修复计划文档而非直接改代码 -->
 <!-- 原因: P0-P2 缺陷较多，需可跟踪的修复计划避免遗漏，且用户明确选择"先写修复计划文档" -->
 <!-- 替代方案: 直接修 P0 chunk 衔接（更快但缺全局视图）-->
-<!-- 验证: 文档落盘成功，格式与现有 docs/plans/ 一致 ✅ -->
+<!-- 验证: 文档落盘成功，格式与现有 docs/plan/ 一致 ✅ -->
 
 <!-- 🤖 Auto Decision: 2026-08-17 -->
 <!-- 决策: P0 全部修复完成（M1+M2+M3） -->

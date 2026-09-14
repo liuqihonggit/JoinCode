@@ -191,7 +191,7 @@ Consumer 处理 FileChangedCmd 时:
 
 ### 阶段0: ADR + 工作文档(本阶段)
 - [x] 写 ADR 0101 proposed
-- [ ] 记录任务到 docs/refactoring/file-watcher-unification.md
+- [ ] 记录任务到 docs/refactor/file-watcher-unification.md
 
 ### 阶段1: 修复 MainViewModel 违规(最小改动,独立)
 - [ ] 改用 IFileSystem.Watch,移除 pragma

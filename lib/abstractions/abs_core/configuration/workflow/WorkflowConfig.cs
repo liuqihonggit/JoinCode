@@ -102,6 +102,12 @@ public class WorkflowConfig {
     public SubAgentConcurrencyOptions SubAgentConcurrency { get; set; } = new();
 
     /// <summary>
+    /// 子代理卡死防护配置 — 纵深防御四层参数（ADR 0106）
+    /// 从 settings.json 的 current.subAgentLiveness 节点加载,缺失时用默认值
+    /// </summary>
+    public SubAgentLivenessOptions SubAgentLiveness { get; set; } = new();
+
+    /// <summary>
     /// Actor 模型统一配置 — 编译队列模式 + 背压预设(ADR 0074)
     /// 从 settings.json 的 current.actor 节点加载,缺失时用默认值
     /// </summary>

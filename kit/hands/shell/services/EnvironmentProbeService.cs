@@ -48,9 +48,10 @@ public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>,
         var report = await ProbeEnvironmentAsync(false, ct).ConfigureAwait(false);
         var healthRecords = await _healthMonitor.GetAllRecordsAsync(ct).ConfigureAwait(false);
         var scores = new Dictionary<string, ExecutorScore>(StringComparer.OrdinalIgnoreCase);
+        var compById = report.Components.ToLookup(c => c.Id, StringComparer.OrdinalIgnoreCase);
 
-        var git = report.Components.FirstOrDefault(c => c.Id == "git");
-        var wsl = report.Components.FirstOrDefault(c => c.Id == "wsl");
+        var git = compById["git"].FirstOrDefault();
+        var wsl = compById["wsl"].FirstOrDefault();
         scores["git_bash"] = new ExecutorScore
         {
             ExecutorId = "git_bash",
@@ -60,8 +61,8 @@ public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>,
             Reason = git?.IsInstalled == true ? "Git Bash可用" : "未安装Git"
         };
 
-        var ps = report.Components.FirstOrDefault(c => c.Id == "powershell");
-        var dotnet = report.Components.FirstOrDefault(c => c.Id == "dotnet");
+        var ps = compById["powershell"].FirstOrDefault();
+        var dotnet = compById["dotnet"].FirstOrDefault();
         scores["powershell"] = new ExecutorScore
         {
             ExecutorId = "powershell",
@@ -80,7 +81,7 @@ public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>,
             Reason = "基础CMD，兼容性强但功能有限"
         };
 
-        var python = report.Components.FirstOrDefault(c => c.Id == "python");
+        var python = compById["python"].FirstOrDefault();
         scores["python_script"] = new ExecutorScore
         {
             ExecutorId = "python_script",
@@ -99,7 +100,7 @@ public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>,
             Reason = wsl?.IsInstalled == true ? "WSL完整Linux" : "未安装WSL"
         };
 
-        var docker = report.Components.FirstOrDefault(c => c.Id == "docker");
+        var docker = compById["docker"].FirstOrDefault();
         scores["docker"] = new ExecutorScore
         {
             ExecutorId = "docker",
@@ -210,13 +211,14 @@ public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>,
 
     private static string GetRecommendedShell(List<ComponentScore> components)
     {
-        var wsl = components.FirstOrDefault(c => c.Id == "wsl");
+        var compById = components.ToLookup(c => c.Id, StringComparer.OrdinalIgnoreCase);
+        var wsl = compById["wsl"].FirstOrDefault();
         if (wsl?.IsInstalled == true && wsl.Score > 0) return "wsl-bash";
 
-        var git = components.FirstOrDefault(c => c.Id == "git");
+        var git = compById["git"].FirstOrDefault();
         if (git?.IsInstalled == true && git.Score > 0) return "git-bash";
 
-        var ps = components.FirstOrDefault(c => c.Id == "powershell");
+        var ps = compById["powershell"].FirstOrDefault();
         return ps?.IsInstalled == true ? "powershell" : "cmd";
     }
 }

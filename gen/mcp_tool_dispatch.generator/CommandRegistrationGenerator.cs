@@ -52,12 +52,13 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
                     .FirstOrDefault(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, chatCommandAttr));
                 if (attr is not null)
                 {
-                    var name = attr.NamedArguments.FirstOrDefault(n => n.Key == "Name").Value.Value as string
+                    var namedArgs = attr.NamedArguments.ToDictionary(n => n.Key, n => n.Value);
+                    var name = GetNamedArgString(namedArgs, "Name")
                         ?? attr.ConstructorArguments.ElementAtOrDefault(0).Value as string
                         ?? typeSymbol.Name;
 
                     // 提取 Category — 特性解耦，每个命令自己声明分类
-                    var categoryValue = attr.NamedArguments.FirstOrDefault(n => n.Key == "Category").Value;
+                    var categoryValue = GetNamedArg(namedArgs, "Category");
                     string? categoryEnumName = null;
                     if (!categoryValue.IsNull)
                     {
@@ -80,13 +81,13 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
                         }
                     }
 
-                    var description = attr.NamedArguments.FirstOrDefault(n => n.Key == "Description").Value.Value as string ?? "";
-                    var usage = attr.NamedArguments.FirstOrDefault(n => n.Key == "Usage").Value.Value as string ?? "";
-                    var argumentHint = attr.NamedArguments.FirstOrDefault(n => n.Key == "ArgumentHint").Value.Value as string ?? "";
-                    var isHidden = attr.NamedArguments.FirstOrDefault(n => n.Key == "IsHidden").Value.Value is bool hiddenVal && hiddenVal;
-                    var isEnabled = attr.NamedArguments.FirstOrDefault(n => n.Key == "IsEnabled").Value.Value is bool enabledVal ? enabledVal : true;
+                    var description = GetNamedArgString(namedArgs, "Description") ?? "";
+                    var usage = GetNamedArgString(namedArgs, "Usage") ?? "";
+                    var argumentHint = GetNamedArgString(namedArgs, "ArgumentHint") ?? "";
+                    var isHidden = GetNamedArg(namedArgs, "IsHidden").Value is bool hiddenVal && hiddenVal;
+                    var isEnabled = GetNamedArg(namedArgs, "IsEnabled").Value is bool enabledVal ? enabledVal : true;
                     var aliases = new List<string>();
-                    var aliasesValue = attr.NamedArguments.FirstOrDefault(n => n.Key == "Aliases").Value;
+                    var aliasesValue = GetNamedArg(namedArgs, "Aliases");
                     if (!aliasesValue.IsNull && aliasesValue.Kind == TypedConstantKind.Array)
                     {
                         foreach (var element in aliasesValue.Values)
@@ -123,19 +124,26 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
         }
     }
 
+    private static string? GetNamedArgString(IReadOnlyDictionary<string, TypedConstant> namedArgs, string key)
+        => namedArgs.TryGetValue(key, out var v) ? v.Value as string : null;
+
+    private static TypedConstant GetNamedArg(IReadOnlyDictionary<string, TypedConstant> namedArgs, string key)
+        => namedArgs.TryGetValue(key, out var v) ? v : default;
+
     private static ChatCommandArgInfo ExtractArgInfo(AttributeData a)
     {
         // Name 是构造函数参数，Type/Description/Required 等是 init 命名参数
         var argName = a.ConstructorArguments.ElementAtOrDefault(0).Value as string ?? "";
-        var argType = a.NamedArguments.FirstOrDefault(n => n.Key == "Type").Value.Value as string ?? "string";
-        var argDesc = a.NamedArguments.FirstOrDefault(n => n.Key == "Description").Value.Value as string ?? "";
-        var argRequired = a.NamedArguments.FirstOrDefault(n => n.Key == "Required").Value.Value is bool reqVal && reqVal;
-        var argDefault = a.NamedArguments.FirstOrDefault(n => n.Key == "Default").Value.Value as string;
-        var argItemsType = a.NamedArguments.FirstOrDefault(n => n.Key == "ItemsType").Value.Value as string;
-        var argItemsDesc = a.NamedArguments.FirstOrDefault(n => n.Key == "ItemsDescription").Value.Value as string;
+        var namedArgs = a.NamedArguments.ToDictionary(n => n.Key, n => n.Value);
+        var argType = GetNamedArgString(namedArgs, "Type") ?? "string";
+        var argDesc = GetNamedArgString(namedArgs, "Description") ?? "";
+        var argRequired = GetNamedArg(namedArgs, "Required").Value is bool reqVal && reqVal;
+        var argDefault = GetNamedArgString(namedArgs, "Default");
+        var argItemsType = GetNamedArgString(namedArgs, "ItemsType");
+        var argItemsDesc = GetNamedArgString(namedArgs, "ItemsDescription");
 
         string[]? argEnum = null;
-        var enumValue = a.NamedArguments.FirstOrDefault(n => n.Key == "Enum").Value;
+        var enumValue = GetNamedArg(namedArgs, "Enum");
         if (!enumValue.IsNull && enumValue.Kind == TypedConstantKind.Array)
         {
             var enumList = new List<string>();

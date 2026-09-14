@@ -24,6 +24,8 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
     private readonly ILogger<AgentDefinitionProvider>? _logger;
     private readonly IPluginAgentLoader? _pluginAgentLoader;
     private volatile List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition> _cachedDefinitions = [];
+    private volatile ILookup<(JoinCode.Abstractions.Models.Agent.AgentRole Role, JoinCode.Abstractions.Models.Agent.ExecutorVariant? Variant), JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition> _cachedDefinitionMap
+        = Array.Empty<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>().ToLookup(d => (d.Role, d.Variant));
     private volatile bool _cacheLoaded;
     private readonly AsyncLock _cacheLock = new();
 
@@ -74,6 +76,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         }
 
         _cachedDefinitions = Deduplicate(definitions);
+        _cachedDefinitionMap = _cachedDefinitions.ToLookup(d => (d.Role, d.Variant));
         _cacheLoaded = true;
         return _cachedDefinitions;
     
@@ -93,14 +96,15 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         string? workingDirectory = null,
         CancellationToken cancellationToken = default)
     {
-        var definitions = await GetAgentDefinitionsAsync(workingDirectory, cancellationToken).ConfigureAwait(false);
-        return definitions.FirstOrDefault(d => d.Role == role && d.Variant == variant);
+        await GetAgentDefinitionsAsync(workingDirectory, cancellationToken).ConfigureAwait(false);
+        return _cachedDefinitionMap[(role, variant)].FirstOrDefault();
     }
 
     /// <inheritdoc />
     public void ClearCache()
     {
         _cachedDefinitions = [];
+        _cachedDefinitionMap = Array.Empty<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>().ToLookup(d => (d.Role, d.Variant));
         _cacheLoaded = false;
         _logger?.LogDebug("代理定义缓存已清除");
     }

@@ -300,6 +300,10 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
     /// <summary>模型下拉选项缓存 — session 切换时失效重建，避免每次访问重建数组导致 ComboBox 选中项引用失效闪现</summary>
     /// <summary>模型下拉选项 — ObservableCollection 双向绑定，供应商切换时清空重填</summary>
     public ObservableCollection<ModelOptionItem> ModelOptions { get; } = [];
+    private ILookup<string, ModelOptionItem> _modelById = Array.Empty<ModelOptionItem>().ToLookup(m => m.Id);
+
+    /// <summary>按 Id O(1) 查找模型项（RefreshModelOptions 时同步重建，OrdinalIgnoreCase；null 返回 null）</summary>
+    private ModelOptionItem? GetModelById(string? id) => id is null ? null : _modelById[id].FirstOrDefault();
 
     /// <summary>刷新模型下拉 — 从 VendorModelMap 取当前供应商模型列表填充 ObservableCollection</summary>
     private void RefreshModelOptions()
@@ -335,6 +339,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
             var tags = BuildModalityTags(provider, id);
             ModelOptions.Add(new ModelOptionItem(id, $"{providerDisplay}:{id}", tags));
         }
+        _modelById = ModelOptions.ToLookup(m => m.Id, StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>根据模型模态能力生成标签文本（emoji 缩写）</summary>
@@ -576,9 +581,9 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
             RebuildConnectionOptions();
             RefreshModelOptions();
             _selectedModel = _session.CurrentModelId;
-            _selectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId);
+            _selectedModelOption = GetModelById(_session.CurrentModelId);
             _isRefreshingConfig = true;
-            SelectedConnection = _connectionOptions.FirstOrDefault(c => c.Id == session.CurrentVendor)
+            SelectedConnection = GetConnectionById(session.CurrentVendor)
                 ?? _connectionOptions.FirstOrDefault();
             _isRefreshingConfig = false;
             IsEngineLoaded = true;
@@ -595,12 +600,12 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
             RebuildConnectionOptions();
             WriteDebugLog($"Constructor else: currentVendor={_session.CurrentVendor} connectionCount={_connectionOptions.Count} ids=[{string.Join(",", _connectionOptions.Select(c => c.Id))}]");
             _isRefreshingConfig = true;
-            SelectedConnection = _connectionOptions.FirstOrDefault(c => c.Id == _session.CurrentVendor)
+            SelectedConnection = GetConnectionById(_session.CurrentVendor)
                 ?? _connectionOptions.FirstOrDefault();
             _isRefreshingConfig = false;
             WriteDebugLog($"Constructor else: SelectedConnection={SelectedConnection?.Id}");
             RefreshModelOptions();
-            _selectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId)
+            _selectedModelOption = GetModelById(_session.CurrentModelId)
                 ?? ModelOptions.FirstOrDefault();
             _selectedModel = _selectedModelOption?.Id ?? _session.CurrentModelId;
             // 引擎未就绪时仍从 settings.json 读主题（PlaceholderChatSession 持有 _configService 可读）
@@ -627,10 +632,10 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
         RebuildConnectionOptions();
         RefreshModelOptions();
         SelectedModel = _session.CurrentModelId;
-        SelectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId);
+        SelectedModelOption = GetModelById(_session.CurrentModelId);
         SelectedEffort = _session.EffortLevel.ToValue();
         _isRefreshingConfig = true;
-        SelectedConnection = _connectionOptions.FirstOrDefault(c => c.Id == session.CurrentVendor)
+        SelectedConnection = GetConnectionById(session.CurrentVendor)
             ?? _connectionOptions.FirstOrDefault();
         _isRefreshingConfig = false;
         WriteDebugLog($"AttachRealSession: SelectedConnection={SelectedConnection?.Id}");
@@ -723,15 +728,15 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
             // 恢复连接选择（RebuildConnectionOptions 重建了对象引用），用标志位绕过 OnSelectedConnectionChanged 持久化副作用避免循环
             _isRefreshingConfig = true;
-            SelectedConnection = _connectionOptions.FirstOrDefault(c => c.Id == previousConnectionId)
-                ?? _connectionOptions.FirstOrDefault(c => c.Id == _session.CurrentVendor)
+            SelectedConnection = GetConnectionById(previousConnectionId)
+                ?? GetConnectionById(_session.CurrentVendor)
                 ?? _connectionOptions.FirstOrDefault();
             _isRefreshingConfig = false;
             OnPropertyChanged(nameof(IsMockConnection));
 
             // 保留当前模型选择（若仍属于当前供应商模型列表），否则取引擎当前模型，再否则取第一个
-            SelectedModelOption = ModelOptions.FirstOrDefault(m => string.Equals(m.Id, previousModelId, StringComparison.OrdinalIgnoreCase))
-                ?? ModelOptions.FirstOrDefault(m => string.Equals(m.Id, _session.CurrentModelId, StringComparison.OrdinalIgnoreCase))
+            SelectedModelOption = GetModelById(previousModelId)
+                ?? GetModelById(_session.CurrentModelId)
                 ?? ModelOptions.FirstOrDefault();
             SelectedModel = SelectedModelOption?.Id;
             StatusText = "配置已热重载";
@@ -752,7 +757,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
         SelectedConnection = _connectionOptions.FirstOrDefault();
         RefreshModelOptions();
         SelectedModel = _session.CurrentModelId;
-        SelectedModelOption = ModelOptions.FirstOrDefault(m => m.Id == _session.CurrentModelId);
+        SelectedModelOption = GetModelById(_session.CurrentModelId);
         IsEngineLoaded = true;
         // 引擎失败回退后仍从 settings.json 读主题（PlaceholderChatSession 可读写 settings.json）
         LoadThemeFromSettings();
@@ -1134,6 +1139,10 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     /// <summary>连接下拉候选 — ObservableCollection 绑定 ComboBox，引用固定不丢失选中项</summary>
     private readonly ObservableCollection<ConnectionOptionItem> _connectionOptions = [];
+    private ILookup<string, ConnectionOptionItem> _connectionById = Array.Empty<ConnectionOptionItem>().ToLookup(c => c.Id);
+
+    /// <summary>按 Id O(1) 查找连接项（RebuildConnectionOptions 时同步重建；null 返回 null）</summary>
+    private ConnectionOptionItem? GetConnectionById(string? id) => id is null ? null : _connectionById[id].FirstOrDefault();
 
     /// <summary>连接下拉候选 — Mock 引擎 + 配置文件驱动的全部供应商（改 config 自动更新）</summary>
     public IReadOnlyList<ConnectionOptionItem> ConnectionOptions => _connectionOptions;
@@ -1152,6 +1161,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 IsMock = false
             });
         }
+        _connectionById = _connectionOptions.ToLookup(c => c.Id, StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>当前选中的连接项（切换时替换活动会话，不销毁任何会话）</summary>
@@ -1178,7 +1188,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
         RefreshModelOptions();
         OnPropertyChanged(nameof(IsMockConnection));
         // 供应商切换后 SetVendorAsync 已把 CurrentModelId 重置为新供应商默认模型，优先匹配它；找不到才取第一个
-        SelectedModelOption = ModelOptions.FirstOrDefault(m => string.Equals(m.Id, _session.CurrentModelId, StringComparison.OrdinalIgnoreCase))
+        SelectedModelOption = GetModelById(_session.CurrentModelId)
             ?? ModelOptions.FirstOrDefault();
         SelectedModel = SelectedModelOption?.Id;
         SelectedEffort = _session.EffortLevel.ToValue();
@@ -1202,7 +1212,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         RefreshModelOptions();
         OnPropertyChanged(nameof(IsMockConnection));
-        SelectedModelOption = ModelOptions.FirstOrDefault(m => string.Equals(m.Id, _session.CurrentModelId, StringComparison.OrdinalIgnoreCase))
+        SelectedModelOption = GetModelById(_session.CurrentModelId)
             ?? ModelOptions.FirstOrDefault();
         SelectedModel = SelectedModelOption?.Id;
     }

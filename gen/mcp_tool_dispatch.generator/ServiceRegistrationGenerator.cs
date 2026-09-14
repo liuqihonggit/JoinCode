@@ -653,15 +653,14 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
             return null;
 
         var typeName = typeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        var namedArgs = attr.NamedArguments.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
 
         string? configPath = null;
-        var pathArg = attr.NamedArguments.FirstOrDefault(kvp => kvp.Key == "ConfigurationPath").Value;
-        if (pathArg.Value is string pathStr)
+        if (namedArgs.TryGetValue("ConfigurationPath", out var pathArg) && pathArg.Value is string pathStr)
             configPath = pathStr;
 
         var validateOnStart = false;
-        var validateArg = attr.NamedArguments.FirstOrDefault(kvp => kvp.Key == "ValidateOnStart").Value;
-        if (validateArg.Value is bool validateBool)
+        if (namedArgs.TryGetValue("ValidateOnStart", out var validateArg) && validateArg.Value is bool validateBool)
             validateOnStart = validateBool;
 
         return new OptionsRegistration(typeName, configPath, validateOnStart);

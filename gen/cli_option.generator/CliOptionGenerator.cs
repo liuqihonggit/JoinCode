@@ -229,6 +229,7 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
         sb.AppendLine("            switch (cliArg)");
         sb.AppendLine("            {");
 
+        var positiveByLongName = enumInfo.Options.Where(o => !o.IsNegation).ToLookup(o => o.LongName);
         foreach (var opt in enumInfo.Options)
         {
             var fieldName = ToFieldName(opt.Name);
@@ -238,7 +239,7 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
 
             if (opt.IsNegation)
             {
-                var positiveOpt = enumInfo.Options.FirstOrDefault(o => !o.IsNegation && o.LongName == "--" + opt.LongName.Substring(5));
+                var positiveOpt = positiveByLongName["--" + opt.LongName.Substring(5)].FirstOrDefault();
                 var positiveCamel = positiveOpt != null ? ToCamelCase(positiveOpt.Name) : ToCamelCase(ToPascalCaseFromKebab(opt.LongName.Substring(5)));
                 sb.AppendLine($"                    {positiveCamel} = false;");
             }
@@ -385,10 +386,12 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
             return;
 
         sb.AppendLine("        // 别名展开 — AliasOf/AliasValue 自动展开（显式设置优先）");
+        var optionsByLongName = enumInfo.Options.ToLookup(o => o.LongName);
         foreach (var opt in aliasOptions)
         {
             var sourceCamel = ToCamelCase(ToFieldName(opt.Name));
-            var targetOpt = enumInfo.Options.FirstOrDefault(o => o.LongName == opt.AliasOf);
+            var aliasOf = opt.AliasOf;
+            var targetOpt = !string.IsNullOrEmpty(aliasOf) ? optionsByLongName[aliasOf!].FirstOrDefault() : null;
             if (targetOpt is null)
                 continue;
             var targetCamel = ToCamelCase(ToFieldName(targetOpt.Name));

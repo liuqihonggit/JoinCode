@@ -93,10 +93,11 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator
                             {
                                 var desc = subCmdAttr.ConstructorArguments.ElementAtOrDefault(0).Value as string ?? "";
                                 var cat = subCmdAttr.ConstructorArguments.ElementAtOrDefault(1).Value as string ?? "";
-                                var example = subCmdAttr.NamedArguments.FirstOrDefault(kvp => kvp.Key == "Example").Value.Value as string;
-                                var isAlias = subCmdAttr.NamedArguments.FirstOrDefault(kvp => kvp.Key == "IsAlias").Value.Value is true;
-                                var aliasOf = subCmdAttr.NamedArguments.FirstOrDefault(kvp => kvp.Key == "AliasOf").Value.Value as string;
-                                var isDeprecated = subCmdAttr.NamedArguments.FirstOrDefault(kvp => kvp.Key == "IsDeprecated").Value.Value is true;
+                                var namedArgs = subCmdAttr.NamedArguments.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+                                var example = namedArgs.TryGetValue("Example", out var exArg) ? exArg.Value as string : null;
+                                var isAlias = namedArgs.TryGetValue("IsAlias", out var iaArg) && iaArg.Value is true;
+                                var aliasOf = namedArgs.TryGetValue("AliasOf", out var aoArg) ? aoArg.Value as string : null;
+                                var isDeprecated = namedArgs.TryGetValue("IsDeprecated", out var idArg) && idArg.Value is true;
                                 subCmdInfo = new SubCommandInfo(desc, cat, example, isAlias, aliasOf, isDeprecated);
                             }
                         }

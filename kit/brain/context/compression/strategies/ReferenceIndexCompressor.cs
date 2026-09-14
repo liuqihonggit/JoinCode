@@ -233,15 +233,14 @@ public sealed partial class ReferenceIndexCompressor : CompressionStrategyBase
     private static List<ReferenceEntry> ParseAlternativeFormat(string content)
     {
         var entries = new List<ReferenceEntry>();
+        var seenPaths = new HashSet<string>(StringComparer.Ordinal);
         var filePathPattern = @"([a-zA-Z]:\\)?([\\/][^\\/:*?""<>|]+)+\.[a-zA-Z0-9]+";
         var matches = Regex.Matches(content, filePathPattern);
 
         foreach (Match match in matches)
         {
             var filePath = match.Value;
-            var existingEntry = entries.FirstOrDefault(e => e.FilePath == filePath);
-
-            if (existingEntry == null)
+            if (seenPaths.Add(filePath))
             {
                 entries.Add(new ReferenceEntry { FilePath = filePath });
             }

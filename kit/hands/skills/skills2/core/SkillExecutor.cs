@@ -61,6 +61,7 @@ public sealed partial class SkillExecutor
         {
             var currentStepId = skill.Steps.FirstOrDefault()?.Id;
             var executedSteps = new HashSet<string>();
+            var stepIndex = skill.BuildStepIndex();
 
             while (currentStepId != null && !cancellationToken.IsCancellationRequested)
             {
@@ -70,7 +71,7 @@ public sealed partial class SkillExecutor
                 }
 
                 executedSteps.Add(currentStepId);
-                var step = skill.Steps.FirstOrDefault(s => s.Id == currentStepId);
+                var step = stepIndex.TryGetValue(currentStepId, out var s) ? s : null;
 
                 if (step == null)
                 {

@@ -16,6 +16,11 @@ public sealed class ConcurrentDag<T> : IDisposable
     public int Version => _inner.Version;
 
     /// <summary>
+    /// 按端点 (fromId, toId) O(1) 查找边(无锁读取快照)，替代 Edges.Values 线性扫描
+    /// </summary>
+    public bool TryGetEdge(string fromId, string toId, [MaybeNullWhen(false)] out DagEdge edge) => _inner.TryGetEdge(fromId, toId, out edge);
+
+    /// <summary>
     /// 在锁保护下执行有返回值的操作；超时返回 <paramref name="timeoutResult"/>
     /// </summary>
     private TResult WithLock<TResult>(Func<TResult> action, TResult timeoutResult)

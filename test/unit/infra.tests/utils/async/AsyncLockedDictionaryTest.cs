@@ -1,6 +1,5 @@
 namespace Infra.Tests.Utils.Async;
 
-#pragma warning disable VSTHRD003
 
 /// <summary>
 /// AsyncLockedDictionary 单元测试。
@@ -198,4 +197,3 @@ public class AsyncLockedDictionaryTest
     }
 }
 
-#pragma warning restore VSTHRD003

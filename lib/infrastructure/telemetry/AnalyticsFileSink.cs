@@ -262,7 +262,6 @@ public sealed partial class AnalyticsFileSink : IAnalyticsFileSink, IAsyncDispos
     }
 
     /// <inheritdoc />
-    [SuppressMessage("Threading", "VSTHRD003:Avoid awaiting foreign tasks", Justification = "Dispose中等待后台flush任务退出,安全")]
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) != 0)

@@ -340,9 +340,7 @@ public sealed class LinkVerificationTests : IAsyncLifetime
         // 读取任务
         _ = Task.Run(async () =>
         {
-#pragma warning disable VSTHRD003 // TaskCompletionSource is a valid synchronization primitive for coordinating concurrent test tasks
             await readStarted.Task.ConfigureAwait(true);
-#pragma warning restore VSTHRD003
             await Task.Delay(100).ConfigureAwait(true);
 
             using var stream = _fs.CreateStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);

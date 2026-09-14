@@ -66,7 +66,6 @@ global using Microsoft.Extensions.FileSystemGlobbing.Abstractions;
 global using Microsoft.Extensions.Hosting;
 global using Microsoft.Extensions.Logging;
 global using Microsoft.Extensions.Options;
-global using Microsoft.VisualStudio.Threading;
 
 global using System.Buffers;
 global using System.Buffers.Text;

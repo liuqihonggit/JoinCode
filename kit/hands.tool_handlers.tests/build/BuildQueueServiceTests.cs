@@ -75,9 +75,7 @@ public class BuildQueueServiceTests
         var shellMock = new Mock<ISystemActuator>();
         shellMock.Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<int?>(),
                 It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-#pragma warning disable VSTHRD003
             .Returns(async () => await buildTcs.Task.ConfigureAwait(true));
-#pragma warning restore VSTHRD003
 
         var sut = CreateSut(actuator: shellMock.Object);
         var request = CreateRequest();
@@ -154,7 +152,6 @@ public class BuildQueueServiceTests
         var shellMock = new Mock<ISystemActuator>();
         shellMock.Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<int?>(),
                 It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-#pragma warning disable VSTHRD003
             .Returns(async () =>
             {
                 callCount++;
@@ -173,7 +170,6 @@ public class BuildQueueServiceTests
                     return result;
                 }
             });
-#pragma warning restore VSTHRD003
 
         var sut = CreateSut(actuator: shellMock.Object);
 

@@ -9,7 +9,7 @@
     <IsAotCompatible>false</IsAotCompatible>
     <PublishAot>false</PublishAot>
     <TrimMode></TrimMode>
-    <NoWarn>$(NoWarn);VSTHRD003;VSTHRD200</NoWarn>
+    <NoWarn>$(NoWarn);VSTHRD200</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

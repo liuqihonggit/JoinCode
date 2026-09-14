@@ -96,9 +96,7 @@ public class BuildQueueRouterTests
         var shellMock = new Mock<ISystemActuator>();
         shellMock.Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<int?>(),
                 It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-#pragma warning disable VSTHRD003
             .Returns(async () => await buildTcs.Task.ConfigureAwait(true));
-#pragma warning restore VSTHRD003
 
         var sut = CreateSut(actuator: shellMock.Object);
         var buildId = await sut.SubmitAsync(CreateRequest(), CancellationToken.None).ConfigureAwait(true);

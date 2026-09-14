@@ -646,7 +646,6 @@ public partial class McpClientToolHandlers : ServiceEntity
     /// 异步释放所有 MCP 客户端连接和恢复任务资源
     /// </summary>
     /// <returns>表示异步释放操作的值任务</returns>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Threading", "VSTHRD003:Avoid awaiting foreign tasks", Justification = "后台恢复任务在构造函数启动，DisposeAsync 中 await 是安全的，非 UI 线程无 SynchronizationContext")]
     public override async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1) return;

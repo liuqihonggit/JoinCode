@@ -100,7 +100,6 @@ public sealed class StreamingToolExecutorActorTests
     }
 
     [Fact]
-#pragma warning disable VSTHRD003 // TCS 由 mock 回调设置,测试仅等待完成
     public async Task Discard_MarksDiscarded_AndCompletesWithErrors()
     {
         var classifier = new ToolConcurrencyClassifier(FrozenSet<string>.Empty);
@@ -125,7 +124,6 @@ public sealed class StreamingToolExecutorActorTests
 
         await executor.DisposeAsync();
     }
-#pragma warning restore VSTHRD003
 
     [Fact]
     public async Task CombinedCancellationToken_CascadesOnShellError()

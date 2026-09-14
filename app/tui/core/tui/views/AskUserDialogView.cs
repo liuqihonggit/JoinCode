@@ -88,7 +88,6 @@ public sealed class AskUserDialogView : ITuiComponent
     /// </summary>
     /// <param name="question">问题定义（Header/Question/Options/MultiSelect）。</param>
     /// <param name="cancellationToken">取消令牌。</param>
-    [SuppressMessage("Threading", "VSTHRD003:Avoid awaiting foreign tasks", Justification = "UI问询对话框TCS,由输入事件SetResult,RunContinuationsAsynchronously避免死锁")]
     public Task<AskUserQuestionResult> ShowAsync(QuestionItem question, CancellationToken cancellationToken = default)
     {
         _currentQuestion = question;

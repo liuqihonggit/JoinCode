@@ -263,7 +263,7 @@
 | AC-05b | ✅ 完成 | `90ad601` | 单元测试 InMemoryFileSystem |
 | AC-06 | ✅ 完成 | `02ae5a7` | 单元测试纯数学 |
 | AC-07 look+zoom | ✅ 完成 | `2b92b0e` | E2E 真实桌面运行通过 |
-| AC-07 detect+click | ⏭️ 跳过 | — | 需 LLM API + 计算器窗口 |
+| AC-07 detect+click | ✅ 完成 | `5e915d8` | mock 完整链路 5 个测试 |
 | AC-08 | ✅ 测试已写 | — | E2E Integration 标记，待真实运行 |
 | AC-09 | ✅ 完成 | `e5be592` | E2E 真实桌面运行通过 |
 | AC-10 | ✅ 完成 | `43de720` | 单元测试 token 统计 |

@@ -67,6 +67,7 @@ public static partial class ServiceRegistration
 
         // 子代理卡死防护纵深防御体系 L1-L4（ADR 0106）
         services.AddSubAgentStallDefense();
+        services.AddHostedService<SubAgentStallDefenseHostedService>();
 
         // BridgeApiClient 手动工厂注册 — 覆盖 [Register] 自动注册
         // 原因: BridgeApiClient 有两个 public 构造函数（HttpClient 版和 BridgeConfig 版），DI 容器无法选择导致歧义

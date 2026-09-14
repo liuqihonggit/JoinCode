@@ -248,3 +248,35 @@
 2. **TDD 循环**：AC-01 红测试 → 实现 desktop_scene_menu → 绿测试 → 提交 → AC-02...
 3. **不重写原子工具**：复用 `IQuadtreeEncoder`/`IGdiScreenCaptureService`/`IWin32DesktopInputService`/`MultimodalUiElementDetector` 等现有服务
 4. **状态持久化复用**：agent DryRun + 文件中转模式（见 `project-agent-tool-test-mode-no-llm.md`）
+
+---
+
+## 5. 完成状态（2026-09-14）
+
+| AC | 状态 | commit | 验证方式 |
+|----|------|--------|----------|
+| AC-01 | ✅ 完成 | `42dfc4d` | 单元测试 mock |
+| AC-02 | ✅ 完成 | `b49c704` | 单元测试 mock |
+| AC-03 | ✅ 完成 | `e21ff24` | 单元测试 mock |
+| AC-04 | ✅ 完成 | `bdc749d` | 单元测试 mock |
+| AC-05a | ✅ 完成 | `7ee07f3` | 单元测试 mock |
+| AC-05b | ✅ 完成 | `90ad601` | 单元测试 InMemoryFileSystem |
+| AC-06 | ✅ 完成 | `02ae5a7` | 单元测试纯数学 |
+| AC-07 look+zoom | ✅ 完成 | `2b92b0e` | E2E 真实桌面运行通过 |
+| AC-07 detect+click | ⏭️ 跳过 | — | 需 LLM API + 计算器窗口 |
+| AC-08 | ✅ 测试已写 | — | E2E Integration 标记，待真实运行 |
+| AC-09 | ✅ 完成 | `e5be592` | E2E 真实桌面运行通过 |
+| AC-10 | ✅ 完成 | `43de720` | 单元测试 token 统计 |
+| AC-11a | ✅ 完成 | `04c8956` | 单元测试 mock CI 环境 |
+| AC-11b | ✅ 完成 | `4182e90` | 服务实现内置环境守卫 |
+| AC-12 | ✅ 完成 | `43de720` | E2E 真实桌面运行通过 |
+| AC-13 | ✅ 完成 | `02ae5a7` | 单元测试文本断言 |
+
+### 真实服务实现（`4182e90`）
+
+| 服务 | 文件 | 编排 |
+|------|------|------|
+| DesktopSceneCaptureService | `kit/hands/desktop/services/DesktopSceneCaptureService.cs` | 截图→PNG头解析→四叉树建网格→渲染叠加→存文件→存状态 |
+| DesktopSceneZoomService | `kit/hands/desktop/services/DesktopSceneZoomService.cs` | 读状态→读截图→象限裁剪→清晰度判断→存新截图→更新状态 |
+| DesktopSceneDetectService | `kit/hands/desktop/services/DesktopSceneDetectService.cs` | 读状态→读截图→多模态识别→元素类型映射 |
+| DesktopSceneStateStore | `kit/hands/desktop/services/DesktopSceneStateStore.cs` | JSON 文件持久化，DI 注册，双构造函数 |

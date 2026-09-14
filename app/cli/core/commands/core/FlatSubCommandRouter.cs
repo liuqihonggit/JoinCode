@@ -21,21 +21,21 @@ internal static class FlatSubCommandRouter
         switch (subCommand)
         {
             case CliSubCommand.McpCall:
-                return await ExecuteMcpCallAsync(args, ct).ConfigureAwait(false);
+                return await McpCallCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
             case CliSubCommand.McpList:
-                return await ExecuteMcpListAsync(args, ct).ConfigureAwait(false);
+                return await McpListCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
             case CliSubCommand.McpSchema:
-                return await ExecuteMcpSchemaAsync(args, ct).ConfigureAwait(false);
+                return await McpSchemaCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
             case CliSubCommand.McpSearch:
-                return await ExecuteMcpSearchAsync(args, ct).ConfigureAwait(false);
+                return await McpSearchCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
             case CliSubCommand.McpServe:
-                return await ExecuteMcpServeAsync(args, ct).ConfigureAwait(false);
+                return await McpServeCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
             case CliSubCommand.SlashCall:
-                return await ExecuteSlashCallAsync(args, ct).ConfigureAwait(false);
+                return await SlashCallExecutor.ExecuteAsync(args, ct).ConfigureAwait(false);
             case CliSubCommand.SlashList:
-                return await ExecuteSlashListAsync(args, ct).ConfigureAwait(false);
+                return await SlashListExecutor.ExecuteAsync(args, ct).ConfigureAwait(false);
             case CliSubCommand.SlashSchema:
-                return await ExecuteSlashSchemaAsync(args, ct).ConfigureAwait(false);
+                return await SlashSchemaExecutor.ExecuteAsync(args, ct).ConfigureAwait(false);
             case CliSubCommand.Rg:
                 return await RgSubCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
             case CliSubCommand.Gh:
@@ -44,86 +44,6 @@ internal static class FlatSubCommandRouter
                 return null;
         }
     }
-
-    private static async Task<int?> ExecuteMcpCallAsync(string[] args, CancellationToken ct)
-    {
-        var toolName = GetPositional(args, 0);
-        if (string.IsNullOrEmpty(toolName))
-        {
-            TerminalHelper.WriteError("用法: jcc mcp_call <tool> [key=value ... | <argsJson> | --args-file <path> | --args-stdin] [--json]");
-            return 1;
-        }
-        var json = ShouldOutputJson(args);
-        var argsFile = GetOptionValue(args, ToolCallArgConstants.ArgsFileLongName);
-        var argsStdin = HasFlag(args, ToolCallArgConstants.ArgsStdinLongName);
-        var vendor = GetOptionValue(args, CliArgConstants.VendorLongName);
-        var model = GetOptionValue(args, CliArgConstants.ModelLongName);
-        // 判断参数格式: JSON (以{开头) vs key=value (包含=)
-        string? argsJson = null;
-        string[]? kvArgs = null;
-        if (!argsStdin && argsFile is null)
-        {
-            var allPositional = GetAllPositional(args, 0);
-            if (allPositional is { Length: > 0 })
-            {
-                // 第一个位置参数是 toolName，跳过；剩余的按格式分发
-                if (allPositional.Length > 1 && allPositional[1].StartsWith("{"))
-                    argsJson = allPositional[1];
-                else if (allPositional.Length > 1)
-                    kvArgs = allPositional[1..];
-            }
-        }
-        return await McpCliCommand.ExecuteCallAsync(toolName!, argsJson, kvArgs, argsFile, argsStdin, json, vendor, model, ct).ConfigureAwait(false);
-    }
-
-    private static async Task<int?> ExecuteMcpListAsync(string[] args, CancellationToken ct)
-    {
-        var category = GetOptionValue(args, McpListArgConstants.CategoryLongName);
-        var json = ShouldOutputJson(args);
-        return await McpCliCommand.ExecuteListAsync(category, json, ct).ConfigureAwait(false);
-    }
-
-    private static async Task<int?> ExecuteMcpSchemaAsync(string[] args, CancellationToken ct)
-    {
-        var toolName = GetPositional(args, 0);
-        if (string.IsNullOrEmpty(toolName))
-        {
-            TerminalHelper.WriteError("用法: jcc mcp_schema <tool> [--json]");
-            return 1;
-        }
-        var json = ShouldOutputJson(args);
-        return await McpCliCommand.ExecuteSchemaAsync(toolName!, json, ct).ConfigureAwait(false);
-    }
-
-    private static async Task<int?> ExecuteMcpSearchAsync(string[] args, CancellationToken ct)
-    {
-        var query = GetPositional(args, 0);
-        if (string.IsNullOrEmpty(query))
-        {
-            TerminalHelper.WriteError("用法: jcc mcp_search <query> [--json]");
-            return 1;
-        }
-        var json = ShouldOutputJson(args);
-        return await McpCliCommand.ExecuteSearchAsync(query!, json, ct).ConfigureAwait(false);
-    }
-
-    private static async Task<int?> ExecuteMcpServeAsync(string[] args, CancellationToken ct)
-    {
-        var transport = GetOptionValue(args, McpServeArgConstants.TransportLongName) ?? "stdio";
-        var port = int.TryParse(GetOptionValue(args, McpServeArgConstants.PortLongName), out var p) ? p : 9903;
-        var host = GetOptionValue(args, McpServeArgConstants.HostLongName) ?? "localhost";
-        var awaitSeconds = int.TryParse(GetOptionValue(args, CliArgConstants.AwaitLongName), out var a) ? a : (int?)null;
-        return await McpCliCommand.ExecuteServeAsync(transport, port, host, ct, awaitSeconds).ConfigureAwait(false);
-    }
-
-    private static Task<int?> ExecuteSlashCallAsync(string[] args, CancellationToken ct)
-        => SlashCallExecutor.ExecuteAsync(args, ct);
-
-    private static Task<int?> ExecuteSlashListAsync(string[] args, CancellationToken ct)
-        => SlashListExecutor.ExecuteAsync(args, ct);
-
-    private static Task<int?> ExecuteSlashSchemaAsync(string[] args, CancellationToken ct)
-        => SlashSchemaExecutor.ExecuteAsync(args, ct);
 
     internal static string? GetPositional(string[] args, int index)
     {

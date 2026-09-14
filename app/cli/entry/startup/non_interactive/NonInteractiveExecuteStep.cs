@@ -48,7 +48,10 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
         catch (TimeoutException ex)
         {
             Diag.WriteLine($"[STEP] ExecuteStep timeout: {ex.Message}");
-            Cli.TerminalHelper.WriteLine($"错误: 请求超时 — {ex.Message}");
+            if (context.OutputContract is not null)
+                context.OutputContract.WriteError(new Cli.Output.CliStructuredError("LLM_TIMEOUT", ex.Message, null, true));
+            else
+                Cli.TerminalHelper.WriteLine($"错误: 请求超时 — {ex.Message}");
             context.ExitCode = (int)ExitCode.LlmCallTimeout;
             return;
         }
@@ -56,10 +59,18 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
         {
             Diag.WriteLine($"[STEP] ExecuteStep exception: {ex.GetType().Name}: {ex.Message}");
             var errorLog = WriteErrorLog(ex);
-            Cli.TerminalHelper.WriteLine($"错误: {ex.Message}");
-            if (ex is JoinCode.Abstractions.Exceptions.ApiException apiEx && apiEx.IsRetryable)
-                Cli.TerminalHelper.WriteLine("  此错误通常可重试，请稍后重试。");
-            Cli.TerminalHelper.WriteLine($"  详细日志: {errorLog}");
+            if (context.OutputContract is not null)
+            {
+                var retryable = ex is JoinCode.Abstractions.Exceptions.ApiException apiEx && apiEx.IsRetryable;
+                context.OutputContract.WriteError(new Cli.Output.CliStructuredError("RUNTIME_ERROR", ex.Message, $"详细日志: {errorLog}", retryable));
+            }
+            else
+            {
+                Cli.TerminalHelper.WriteLine($"错误: {ex.Message}");
+                if (ex is JoinCode.Abstractions.Exceptions.ApiException apiEx && apiEx.IsRetryable)
+                    Cli.TerminalHelper.WriteLine("  此错误通常可重试，请稍后重试。");
+                Cli.TerminalHelper.WriteLine($"  详细日志: {errorLog}");
+            }
             context.ExitCode = (int)ExitCode.GeneralError;
             return;
         }

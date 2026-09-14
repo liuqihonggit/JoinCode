@@ -20,4 +20,5 @@ namespace JoinCode.Cli.Output;
 [System.Text.Json.Serialization.JsonSerializable(typeof(List<CliSlashCommandListItem>))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(List<string>))]
 [System.Text.Json.Serialization.JsonSerializable(typeof(string))]
+[System.Text.Json.Serialization.JsonSerializable(typeof(JoinCode.Abstractions.Tools.ToolResult))]
 public partial class CliOutputJsonContext : System.Text.Json.Serialization.JsonSerializerContext;

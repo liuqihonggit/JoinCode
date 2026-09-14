@@ -168,7 +168,8 @@ public sealed class ApplicationBuilder
         // 使用生成器生成的 ToJson() 方法（Utf8JsonWriter，AOT 兼容，无需 JsonContext）
         if (subCommand == CliSubCommand.Schema)
         {
-            System.Console.WriteLine(CliArgSchema.ToJson());
+            var data = System.Text.Json.Nodes.JsonNode.Parse(CliArgSchema.ToJson());
+            System.Console.WriteLine(CliOutputEnvelope.Success(data).ToString());
             return 0;
         }
 

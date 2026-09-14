@@ -290,7 +290,15 @@ public sealed class McpCliCommand
     /// <summary>mcp_serve 退出时输出结构化 JSON 报告</summary>
     private static void WriteServeExitReport(string transport, int toolCount, int totalRequests, int totalErrors, TimeSpan uptime)
     {
-        var report = $$"""{"transport":"{{transport}}","toolCount":{{toolCount}},"totalRequests":{{totalRequests}},"totalErrors":{{totalErrors}},"uptimeSeconds":{{uptime.TotalSeconds:F2}}}""";
+        var data = new System.Text.Json.Nodes.JsonObject
+        {
+            ["transport"] = transport,
+            ["toolCount"] = toolCount,
+            ["totalRequests"] = totalRequests,
+            ["totalErrors"] = totalErrors,
+            ["uptimeSeconds"] = Math.Round(uptime.TotalSeconds, 2)
+        };
+        var report = CliOutputEnvelope.Success(data).ToString();
         TerminalHelper.WriteLine($"{TerminalColors.Info}mcp_serve 退出报告{AnsiStyleConstants.Reset}: {report}");
     }
 
@@ -497,43 +505,8 @@ public sealed class McpCliCommand
     {
         if (json)
         {
-            // json 模式: 输出完整 content 数组(包括文本和图片 base64 数据)
-            var sb = new StringBuilder();
-            sb.Append("{\"isError\":");
-            sb.Append(result.IsError ? "true" : "false");
-            sb.Append(",\"content\":[");
-            for (int i = 0; i < result.Content.Count; i++)
-            {
-                if (i > 0) sb.Append(',');
-                var c = result.Content[i];
-                sb.Append("{\"type\":\"");
-                sb.Append(c.Type switch
-                {
-                    ToolContentType.Image => "image",
-                    ToolContentType.Resource => "resource",
-                    ToolContentType.Error => "error",
-                    ToolContentType.Document => "document",
-                    _ => "text",
-                });
-                sb.Append('"');
-                if (!string.IsNullOrEmpty(c.Text))
-                {
-                    sb.Append(",\"text\":\"");
-                    AppendEscapedJson(sb, c.Text);
-                    sb.Append('"');
-                }
-                if (!string.IsNullOrEmpty(c.Data))
-                {
-                    sb.Append(",\"data\":\"");
-                    AppendEscapedJson(sb, c.Data);
-                    sb.Append("\",\"mimeType\":\"");
-                    AppendEscapedJson(sb, c.MimeType ?? "image/png");
-                    sb.Append('"');
-                }
-                sb.Append('}');
-            }
-            sb.Append("]}");
-            System.Console.WriteLine(sb.ToString());
+            var envelope = CliOutputEnvelope.Success(result);
+            System.Console.WriteLine(envelope.ToString());
         }
         else
         {
@@ -574,11 +547,8 @@ public sealed class McpCliCommand
     {
         if (json)
         {
-            var sb = new StringBuilder();
-            sb.Append("{\"isError\":true,\"text\":\"");
-            AppendEscapedJson(sb, message);
-            sb.Append("\"}");
-            System.Console.WriteLine(sb.ToString());
+            var envelope = CliOutputEnvelope.Fail(new CliStructuredError("TOOL_ERROR", message, null, false));
+            System.Console.WriteLine(envelope.ToString());
         }
         else
         {

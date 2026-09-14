@@ -34,6 +34,11 @@ public sealed class CliOutputEnvelope
     /// <returns>Ok 为 false 的 <see cref="CliOutputEnvelope"/> 实例</returns>
     public static CliOutputEnvelope Fail(CliStructuredError error, CliOutputMeta? meta = null) =>
         new() { Ok = false, Error = error, Meta = meta };
+
+    /// <summary>序列化为 JSON 字符串 — 使用 RelaxedJsonSerializer + CliOutputJsonContext(AOT 兼容)</summary>
+    /// <returns>符合 {ok, data, error, meta, schemaVersion} 结构的 JSON 字符串</returns>
+    public override string ToString() =>
+        RelaxedJsonSerializer.Serialize(this, CliOutputJsonContext.Default);
 }
 
 /// <summary>

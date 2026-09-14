@@ -79,7 +79,7 @@ internal static class RgSubCommand
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
                 TerminalHelper.WriteError($"搜索超时（{parsed.TimeoutSeconds}s）。请缩小搜索范围、用 --type/-g 过滤，或增加 --timeout。");
-                return 2;
+                return (int)ExitCode.ToolExecutionTimeout;
             }
 
             return OutputOutcome(outcome, parsed);
@@ -87,7 +87,7 @@ internal static class RgSubCommand
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
             TerminalHelper.WriteError($"搜索超时（{parsed.TimeoutSeconds}s）— 已硬终止。");
-            return 2;
+            return (int)ExitCode.ToolExecutionTimeout;
         }
     }
 
@@ -382,7 +382,10 @@ internal static class RgSubCommand
         if (outcome.Results.Count == 0)
         {
             if (opts.Json)
-                System.Console.WriteLine("{\"matches\":[]}");
+            {
+                var data = new System.Text.Json.Nodes.JsonObject { ["matches"] = new System.Text.Json.Nodes.JsonArray() };
+                System.Console.WriteLine(CliOutputEnvelope.Success(data).ToString());
+            }
             return 1;
         }
 
@@ -429,39 +432,33 @@ internal static class RgSubCommand
 
     private static void OutputJson(RgOutcome outcome)
     {
-        var sb = new StringBuilder(256);
-        sb.Append("{\"matches\":[");
-        var first = true;
+        var matches = new System.Text.Json.Nodes.JsonArray();
         foreach (var r in outcome.Results)
         {
-            if (!first) sb.Append(',');
-            first = false;
-            sb.Append("{\"file\":\"");
-            AppendEscaped(sb, r.FilePath);
-            sb.Append("\",\"count\":");
-            sb.Append(r.MatchCount);
+            var item = new System.Text.Json.Nodes.JsonObject
+            {
+                ["file"] = r.FilePath,
+                ["count"] = r.MatchCount
+            };
             if (r.ContentLines is not null && r.ContentLines.Count > 0)
             {
-                sb.Append(",\"lines\":[");
-                var firstLine = true;
+                var lines = new System.Text.Json.Nodes.JsonArray();
                 foreach (var line in r.ContentLines)
                 {
-                    if (!firstLine) sb.Append(',');
-                    firstLine = false;
-                    sb.Append("\"");
-                    AppendEscaped(sb, line);
-                    sb.Append("\"");
+                    System.Text.Json.Nodes.JsonNode? lineNode = System.Text.Json.Nodes.JsonValue.Create(line);
+                    lines.Add(lineNode);
                 }
-                sb.Append("]");
+                item["lines"] = lines;
             }
-            sb.Append("}");
+            matches.Add((System.Text.Json.Nodes.JsonNode)item);
         }
-        sb.Append("],\"totalMatches\":");
-        sb.Append(outcome.TotalMatches);
-        sb.Append(",\"fileCount\":");
-        sb.Append(outcome.Results.Count);
-        sb.Append("}");
-        System.Console.WriteLine(sb.ToString());
+        var data = new System.Text.Json.Nodes.JsonObject
+        {
+            ["matches"] = matches,
+            ["totalMatches"] = outcome.TotalMatches,
+            ["fileCount"] = outcome.Results.Count
+        };
+        System.Console.WriteLine(CliOutputEnvelope.Success(data).ToString());
     }
 
     private static void AppendEscaped(StringBuilder sb, string text)

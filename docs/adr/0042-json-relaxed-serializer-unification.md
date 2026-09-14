@@ -1,5 +1,8 @@
 # 0042. JSON 序列化统一收口 — RelaxedJsonSerializer 单一入口
 
+> 📍 **导航**: [docs/](../README.md) › [adr/](README.md)
+> 🔗 **上游索引**: [adr/README.md](README.md) — 修改本文档后须同步更新此索引
+
 - 状态：accepted
 - 日期：2026-08-30
 - 决策者：项目架构组

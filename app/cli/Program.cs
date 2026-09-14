@@ -74,39 +74,6 @@ class Program
             if (options.ShowHelp) { App.Builder.ApplicationBuilder.ShowHelp(GetHelpTopic(args)); return 0; }
             if (options.ShowVersion) { App.Builder.ApplicationBuilder.ShowVersion(); return 0; }
 
-            // 3.1 --doctor: 医生模式 — spawn jcc.exe 子进程作为病人，监控运行状态并自动修复问题
-            // 需要先构建 DI 容器以解析 IChatClient + IQueryService（LLM 服务）
-            if (options.DoctorMode)
-            {
-                var doctorFs = IO.FileSystem.FileSystemFactory.Create();
-                var doctorResult = await App.Builder.EngineSessionFactory.CreateCliSessionAsync(options, doctorFs);
-                using var doctorHost = doctorResult.Host;
-                return await Entry.DoctorModeRunner.RunAsync(options, doctorHost.Services);
-            }
-
-            // 3.2 --doctor-endpoint: 病人模式 — 连接到医生的 SSE 服务器，发送遥测事件
-            // 病人正常运行，但额外启动 DoctorSseClient 把诊断输出推送给医生
-            await using var doctorClient = options.DoctorEndpoint is not null
-                ? new Core.Agents.Doctor.DoctorSseClient(options.DoctorEndpoint)
-                : null;
-            if (doctorClient is not null)
-            {
-                await doctorClient.ConnectAsync();
-
-                Diag.DiagnosticLineWritten += async (_, line) =>
-                {
-                    try { await doctorClient.SendTextEventAsync("diag_output", line).ConfigureAwait(false); }
-                    catch (Exception ex) { logger?.LogWarning(ex, "[Doctor] 发送遥测失败"); }
-                };
-
-                doctorClient.CommandReceived += (_, command) =>
-                {
-                    Diag.WriteLifecycle($"[Doctor] 收到医生指令: {command}");
-                };
-
-                Diag.WriteLine($"[MAIN] Doctor SSE 客户端已连接: {options.DoctorEndpoint}");
-            }
-
             // 3.5 --await N: 启动超时计时器，N秒后强制退出返回 ExitCode.AwaitTimeout（用于诊断卡死）
             using var awaitTimer = StartAwaitTimer(options, logger);
 
@@ -118,25 +85,6 @@ class Program
             using var host = engineResult.Host;
 
             logger = host.Services.GetService<ILogger<Program>>();
-
-            // 3.3 工具执行遥测：订阅 PermissionAwareToolExecutor.ToolExecutionCompleted，转发给医生
-            if (doctorClient is not null)
-            {
-                var toolExecutor = host.Services.GetService<McpToolRegistry.PermissionAwareToolExecutor>();
-                if (toolExecutor is not null)
-                {
-                    toolExecutor.ToolExecutionCompleted += async (_, e) =>
-                    {
-                        try
-                        {
-                            var eventType = e.IsError ? "tool_error" : "tool_success";
-                            var data = $"{{\"tool\":\"{e.ToolName}\",\"isError\":{e.IsError.ToString().ToLowerInvariant()}}}";
-                            await doctorClient.SendTextEventAsync(eventType, data).ConfigureAwait(false);
-                        }
-                        catch (Exception ex) { logger?.LogWarning(ex, "[Doctor] 发送工具遥测失败"); }
-                    };
-                }
-            }
 
             int exitCode;
             if (options.IsNonInteractiveMode)
@@ -306,7 +254,7 @@ class Program
     {
         for (var i = 0; i < args.Length - 1; i++)
         {
-            if (args[i] == "--await")
+            if (args[i] == JccCliArgConstants.Await)
             {
                 var value = args[i + 1];
                 if (!int.TryParse(value, out var seconds))
@@ -330,13 +278,13 @@ class Program
 
         for (var i = 0; i < args.Length - 1; i++)
         {
-            if (args[i] == "--permission-mode")
+            if (args[i] == JccCliArgConstants.PermissionMode)
             {
                 var value = args[i + 1];
                 if (!validPermissionModes.Contains(value, StringComparer.OrdinalIgnoreCase))
                     return $"--permission-mode 的值 '{value}' 无效，有效值为: {string.Join(", ", validPermissionModes)}";
             }
-            if (args[i] == "--format")
+            if (args[i] == JccCliArgConstants.Format)
             {
                 var value = args[i + 1];
                 if (!validFormats.Contains(value, StringComparer.OrdinalIgnoreCase))
@@ -355,7 +303,7 @@ class Program
     {
         for (var i = 0; i < args.Length - 1; i++)
         {
-            if (args[i] == "--await" && int.TryParse(args[i + 1], out var seconds) && seconds > 0)
+            if (args[i] == JccCliArgConstants.Await && int.TryParse(args[i + 1], out var seconds) && seconds > 0)
             {
                 Diag.WriteLine($"[MAIN] --await {seconds}s 早期计时器已启动（超时返回{(int)ExitCode.AwaitTimeout}）");
                 return new System.Threading.Timer(

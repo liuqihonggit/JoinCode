@@ -4,7 +4,7 @@
 
 ## 为什么需要 ADR
 
-项目已有 `docs/design/`（怎么实现）、`docs/plans/`（什么时候做）、`docs/tasks/`（做什么），但缺少**决策文档**（为什么这样选）。决策散落在 `AGENTS.md`、各 design 文档、代码注释中，难以回溯。
+项目已有 `docs/design/`（怎么实现）、`docs/plan/`（什么时候做）、`docs/task/`（做什么），但缺少**决策文档**（为什么这样选）。决策散落在 `AGENTS.md`、各 design 文档、代码注释中，难以回溯。
 
 ADR 用固定格式收编这些决策，形成不可变的历史记录。
 
@@ -67,8 +67,8 @@ ADR 用固定格式收编这些决策，形成不可变的历史记录。
 |------|------|------|
 | `docs/adr/` | **为什么**这样决策 | 为什么用 slnx 隔离而非单 sln |
 | `docs/design/` | **怎么**实现 | 七层 slnx 的具体依赖链和编译顺序 |
-| `docs/plans/` | **什么时候**做 | 重构执行计划和里程碑 |
-| `docs/tasks/` | **做什么** | 具体任务清单 |
+| `docs/plan/` | **什么时候**做 | 重构执行计划和里程碑 |
+| `docs/task/` | **做什么** | 具体任务清单 |
 
 ADR 引用 design/plans，但不重复其内容。
 
@@ -81,7 +81,7 @@ ADR 引用 design/plans，但不重复其内容。
 ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下内容**不属于架构决策**，禁止写成 ADR：
 
 - **Bug 修复报告** — bug 修复是"修对了什么"，不是架构取舍。根因+修复+验证记录在 commit message + 测试里
-- **功能开发日志** — 新功能实现过程不是决策。用 `docs/tasks/` 或 commit message
+- **功能开发日志** — 新功能实现过程不是决策。用 `docs/task/` 或 commit message
 - **代码审查记录** — review 发现不是决策。用 PR comment
 - **排错/调试过程** — 调试过程不是决策。用 commit message 或 `docs/design/`
 

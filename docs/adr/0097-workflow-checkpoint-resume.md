@@ -1,5 +1,8 @@
 # 0097. Workflow 级断点续跑持久化策略
 
+> 📍 **导航**: [docs/](../README.md) › [adr/](README.md)
+> 🔗 **上游索引**: [adr/README.md](README.md) — 修改本文档后须同步更新此索引
+
 - 状态：accepted
 - 日期：2026-09-09
 - 决策者：AI + 用户确认
@@ -127,4 +130,4 @@ public interface IWorkflowStateStore
 - [ADR 0068](0068-unified-persistence-pipeline-actor.md) — Actor 模型统一持久化管道（异步，不适用于强一致快照）
 - [ADR 0074](0074-actor-supervisor-tree.md) — Actor 监督树（并行执行架构）
 - [ADR 0093](0093-resource-management-exception-style.md) — 资源管理（using var + DisposeSafe）
-- [工作计划](../plans/Workflow断点续跑工作计划.md) — 分阶段实现计划
+- [工作计划](../plan/Workflow断点续跑工作计划.md) — 分阶段实现计划

@@ -13,26 +13,6 @@ namespace JoinCode.Abstractions.Utils;
 /// </summary>
 public enum CliSubCommand
 {
-    /// <summary>MCP 工具管理（旧设计，阶段4清理时移除）</summary>
-    [EnumValue("tool")]
-    [SubCommandInfo("旧设计, 阶段4清理时移除", "已废弃", IsDeprecated = true)]
-    Tool,
-
-    /// <summary>智能体管理（旧设计，阶段4清理时移除）</summary>
-    [EnumValue("agent")]
-    [SubCommandInfo("旧设计, 阶段4清理时移除", "已废弃", IsDeprecated = true)]
-    Agent,
-
-    /// <summary>代码操作（旧设计，阶段4清理时移除）</summary>
-    [EnumValue("code")]
-    [SubCommandInfo("旧设计, 阶段4清理时移除", "已废弃", IsDeprecated = true)]
-    Code,
-
-    /// <summary>MCP 子命令（旧设计，由 mcp_call/mcp_list/mcp_schema/mcp_search/mcp_serve 取代）</summary>
-    [EnumValue("mcp")]
-    [SubCommandInfo("旧设计, 由 mcp_call/mcp_list/mcp_schema/mcp_search/mcp_serve 取代", "已废弃", IsDeprecated = true)]
-    Mcp,
-
     /// <summary>Schema 自省 — 输出 CLI 参数定义 JSON，供 Agent 动态查询</summary>
     [EnumValue("schema")]
     [SubCommandInfo("输出 CLI 参数定义 JSON, 供 Agent 动态查询", "自省", Example = "jcc schema")]
@@ -92,11 +72,6 @@ public enum CliSubCommand
     [EnumValue("slash_schema")]
     [SubCommandInfo("斜杠命令参数 schema — 查看命令的参数定义", "斜杠命令", Example = "jcc slash_schema /compact")]
     SlashSchema,
-
-    /// <summary>医生模式 — jcc doctor [--server] [--port &lt;n&gt;]</summary>
-    [EnumValue("doctor")]
-    [SubCommandInfo("医生模式 — 诊断和修复 jcc 运行问题", "诊断", Example = "jcc doctor")]
-    Doctor,
 
     /// <summary>ripgrep 兼容搜索 — jcc rg &lt;pattern&gt; [path...] [--type cs] [-g "!**/tests/**"] [-i] [-n] [-A N] [-B N] [-C N] [--head-limit N] [-U] [-F] [--count] [--files-with-matches] [--content] [--timeout N] [--json]</summary>
     /// <para>ADR: 0070 — 内置 rg 实现，复用 ISearchService.GrepSearchAsync，宽容处理 PowerShell 转义、缺少路径禁止扫盘、超时硬终止。</para>

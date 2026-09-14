@@ -1,10 +1,13 @@
 # 0048. 子代理并发控制统一配置入口
 
+> 📍 **导航**: [docs/](../README.md) › [adr/](README.md)
+> 🔗 **上游索引**: [adr/README.md](README.md) — 修改本文档后须同步更新此索引
+
 - 状态：accepted
 - 日期：2026-09-02
 - 决策者：项目架构组
 - 验证：Abstractions+Agents+Clock+Composition+App 编译 0 警告 0 错误，1842 测试全通过（Agents 512 + Clock 432 + Guard.Config 898），热重载链路完整 ✅
-- 关联：[refactoring/archive-dead-code.md](../refactoring/archive-dead-code.md)（归档 MaxConcurrentAgents 死配置） | [0050](docs/adr/0050-spawn-stage-concurrency-limit.md) | [0051](docs/adr/0051-fork-concurrency-limit.md)
+- 关联：[refactoring/archive-dead-code.md](../refactor/archive-dead-code.md)（归档 MaxConcurrentAgents 死配置） | [0050](docs/adr/0050-spawn-stage-concurrency-limit.md) | [0051](docs/adr/0051-fork-concurrency-limit.md)
 
 ## 背景
 

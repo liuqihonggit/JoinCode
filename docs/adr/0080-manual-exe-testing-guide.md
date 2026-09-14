@@ -1,5 +1,8 @@
 # 0080. 手动测试 exe 功能与推荐配置
 
+> 📍 **导航**: [docs/](../README.md) › [adr/](README.md)
+> 🔗 **上游索引**: [adr/README.md](README.md) — 修改本文档后须同步更新此索引
+
 - 状态：accepted
 - 日期：2026-09-08
 - 决策者：项目架构组
@@ -167,7 +170,7 @@ C# LSP 服务器从 OmniSharp 切换为 csharp-ls（`dotnet tool install -g csha
 
 ### 启动参数系统测试（w2 分支，2026-09-12）
 
-> 测试记录文档：[docs/tasks/启动参数测试记录.md](../tasks/启动参数测试记录.md)
+> 测试记录文档：[docs/task/启动参数测试记录.md](../task/启动参数测试记录.md)
 
 系统测试 ~40 个启动参数，发现 10 个问题（BUG#1-10），全部已修复：
 

@@ -1,5 +1,8 @@
 # 可用模型列表
 
+> 📍 **导航**: [docs/](../README.md) › [reference/](README.md)
+> 🔗 **上游索引**: [reference/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > 此文档从 README 摘出，详细列出所有预置模型。
 
 配置文件 `~/.jcc/settings.json` 预置了 6 个供应商共 51 个模型条目（跨供应商去重后 50 个独立模型，`deepseek-v4-flash` 在 DeepSeek 与 SenseNova 下各声明一次），按供应商分组如下：

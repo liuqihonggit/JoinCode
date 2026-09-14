@@ -1,5 +1,8 @@
 # 0065. jcc mcp CLI 子命令 — bash 直调内部 MCP 工具
 
+> 📍 **导航**: [docs/](../README.md) › [adr/](README.md)
+> 🔗 **上游索引**: [adr/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > ⚠️ **已被 [0069](0069-cli-args-full-refactor.md) 取代** — 启动参数完全重构,统一解析框架 + 斜杠命令直调取代了独立的 mcp 子命令
 
 - 状态：superseded by 0069

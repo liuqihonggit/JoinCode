@@ -149,7 +149,6 @@ global using TerminalHelper = JoinCode.Cli.TerminalHelper;
 // PipelineComposition 需要的命名空间
 global using Core.Agents;
 global using Core.Agents.Coordinator;
-global using Core.Agents.Doctor;
 global using Core.Context.Compact;
 global using Core.Permission;
 global using Core.Query;

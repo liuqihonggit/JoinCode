@@ -1,5 +1,8 @@
 # 上下文压缩机制实现设计
 
+> 📍 **导航**: [docs/](../README.md) › [design/](README.md) | **前置**: [adr/](../adr/README.md)
+> 🔗 **上游索引**: [design/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > **为什么**这样设计见 [ADR 0053](../adr/0053-context-compaction-layered-mechanism.md)。本文聚焦**怎么**实现。
 
 ## 1. 目录结构

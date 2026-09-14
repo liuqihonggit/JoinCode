@@ -1,5 +1,8 @@
 # 0032. Win32 P/Invoke 桌面能力总览(ComputerUse P0 + 四叉树叠加延伸)
 
+> 📍 **导航**: [docs/](../README.md) › [adr/](README.md)
+> 🔗 **上游索引**: [adr/README.md](README.md) — 修改本文档后须同步更新此索引
+
 - 状态：accepted
 - 日期：2026-08-29
 - 决策者：项目架构组

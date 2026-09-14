@@ -1,5 +1,8 @@
 # Computer Use 能力建设 PRD
 
+> 📍 **导航**: [docs/](../README.md) › [design/](README.md) | **前置**: [adr/](../adr/README.md)
+> 🔗 **上游索引**: [design/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > **版本**：v0.1（基线）
 > **日期**：2026-08-25
 > **状态**：草案 / 待评审

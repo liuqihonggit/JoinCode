@@ -1,5 +1,8 @@
 # 文件夹扁平化重组方案 — 语义分组 + 组内扁平
 
+> 📍 **导航**: [docs/](../README.md) › [design/](README.md) | **前置**: [adr/](../adr/README.md)
+> 🔗 **上游索引**: [design/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > 状态: 设计草案(待用户确认)
 > 创建: 2026-09-13
 > 更新: 2026-09-13(rebase 后路径同步 + 小写命名规范 + libs/Terminal.Gui 改 NuGet)

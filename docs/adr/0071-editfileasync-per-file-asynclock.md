@@ -1,5 +1,8 @@
 # 0071. IFileSystem.EditFileAsync 原子编辑接口 — per-file AsyncLock 串行化
 
+> 📍 **导航**: [docs/](../README.md) › [adr/](README.md)
+> 🔗 **上游索引**: [adr/README.md](README.md) — 修改本文档后须同步更新此索引
+
 - 状态：accepted
 - 日期：2026-09-07
 - 决策者：项目架构组

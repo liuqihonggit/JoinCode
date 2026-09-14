@@ -1,5 +1,8 @@
 # 多模态隐喻显露工具 PRD
 
+> 📍 **导航**: [docs/](../README.md) › [design/](README.md) | **前置**: [adr/](../adr/README.md)
+> 🔗 **上游索引**: [design/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > 状态：规划中（待确认思维缺陷） ｜ 创建：2026-08-28 ｜ 负责：待定
 
 ## 1. 背景与目标

@@ -1,5 +1,8 @@
 # 0092. Worktree 路径一致性 — 中间件幂等 + Guard 路径锁定
 
+> 📍 **导航**: [docs/](../README.md) › [adr/](README.md)
+> 🔗 **上游索引**: [adr/README.md](README.md) — 修改本文档后须同步更新此索引
+
 - 状态：accepted
 - 日期：2026-09-08
 - 决策者：AI 助手

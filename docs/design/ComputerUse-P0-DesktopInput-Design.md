@@ -1,5 +1,8 @@
 # P0 技术设计：桌面输入模拟底座
 
+> 📍 **导航**: [docs/](../README.md) › [design/](README.md) | **前置**: [adr/](../adr/README.md)
+> 🔗 **上游索引**: [design/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > **关联 PRD**：`ComputerUse-PRD.md` §4 P0、§5.1 架构落点
 > **里程碑**：M1
 > **范围**：Win32 桌面输入模拟（鼠标/键盘/窗口/截图采集）+ 工具暴露 + 安全护栏埋点

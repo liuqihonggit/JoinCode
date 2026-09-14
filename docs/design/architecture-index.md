@@ -1,5 +1,8 @@
 # 项目架构索引
 
+> 📍 **导航**: [docs/](../README.md) › [design/](README.md) | **前置**: [adr/](../adr/README.md)
+> 🔗 **上游索引**: [design/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > 此文档从 README 摘出，详细描述项目目录结构、组件依赖图和内部结构。
 
 > 📖 **架构决策记录（ADR）**：重要的"为什么这样选"决策收编在 [docs/adr/](../adr/README.md)。AGENTS.md 各规则处标注了对应 ADR 编号，可二次打开查看完整决策上下文与替代方案。

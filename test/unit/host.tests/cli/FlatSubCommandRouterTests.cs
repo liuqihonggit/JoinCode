@@ -156,16 +156,17 @@ public sealed class FlatSubCommandRouterTests
     }
 
     /// <summary>
-    /// CliArgConstants.BooleanFlags 应包含 --trust/--json/--args-stdin/--debuglog 等布尔标志
+    /// CliArgConstants.BooleanFlags 应包含 --trust/--json/--debuglog 等全局布尔标志
+    /// ToolCallArgConstants.BooleanFlags 应包含 --args-stdin 子命令布尔标志
     /// </summary>
     [Fact]
     public void CliArgConstants_BooleanFlags_ShouldContainKnownBooleanFlags()
     {
         CliArgConstants.BooleanFlags.Contains("--trust").Should().BeTrue();
         CliArgConstants.BooleanFlags.Contains("--json").Should().BeTrue();
-        CliArgConstants.BooleanFlags.Contains("--args-stdin").Should().BeTrue();
         CliArgConstants.BooleanFlags.Contains("--debuglog").Should().BeTrue();
         CliArgConstants.BooleanFlags.Contains("-d").Should().BeTrue();
+        ToolCallArgConstants.BooleanFlags.Contains("--args-stdin").Should().BeTrue();
     }
 
     /// <summary>
@@ -268,7 +269,7 @@ public sealed class FlatSubCommandRouterTests
     }
 
     /// <summary>
-    /// AllOptionNames 应包含所有已知选项(布尔+带值)
+    /// AllOptionNames 应包含所有已知全局选项(布尔+带值)
     /// </summary>
     [Fact]
     public void CliArgConstants_AllOptionNames_ShouldContainAllKnownOptions()
@@ -276,7 +277,6 @@ public sealed class FlatSubCommandRouterTests
         CliArgConstants.AllOptionNames.Contains("--trust").Should().BeTrue();
         CliArgConstants.AllOptionNames.Contains("--json").Should().BeTrue();
         CliArgConstants.AllOptionNames.Contains("--model").Should().BeTrue();
-        CliArgConstants.AllOptionNames.Contains("--args-file").Should().BeTrue();
         CliArgConstants.AllOptionNames.Contains("--vendor").Should().BeTrue();
         CliArgConstants.AllOptionNames.Contains("-m").Should().BeTrue();
         CliArgConstants.AllOptionNames.Contains("-d").Should().BeTrue();

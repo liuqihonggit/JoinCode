@@ -168,7 +168,8 @@ public sealed class ApplicationBuilder
         // 使用生成器生成的 ToJson() 方法（Utf8JsonWriter，AOT 兼容，无需 JsonContext）
         if (subCommand == CliSubCommand.Schema)
         {
-            System.Console.WriteLine(CliArgSchema.ToJson());
+            var data = System.Text.Json.Nodes.JsonNode.Parse(CliArgSchema.ToJson());
+            System.Console.WriteLine(CliOutputEnvelope.Success(data).ToString());
             return 0;
         }
 
@@ -178,18 +179,6 @@ public sealed class ApplicationBuilder
             var flatResult = await FlatSubCommandRouter.TryExecuteAsync(subCommand.Value, args, CancellationToken.None).ConfigureAwait(false);
             if (flatResult is not null)
                 return flatResult.Value;
-        }
-
-        // 旧子命令提示 — ADR 0069: 已由扁平元动词取代
-        if (subCommand is CliSubCommand.Mcp)
-        {
-            TerminalHelper.WriteError("jcc mcp 已由扁平元动词取代，请用 jcc mcp_call/mcp_list/mcp_schema/mcp_search/mcp_serve");
-            return 1;
-        }
-        if (subCommand is CliSubCommand.Tool or CliSubCommand.Agent or CliSubCommand.Code)
-        {
-            TerminalHelper.WriteError($"jcc {args[0]} 已废弃，请用 jcc mcp_call 或 jcc slash_call");
-            return 1;
         }
 
         TerminalHelper.WriteError($"未知子命令: {args[0]}（用 jcc --help 查看可用命令）");
@@ -289,7 +278,6 @@ public sealed class ApplicationBuilder
             NonInteractive = result.NonInteractive,
             NoConfirm = result.NoConfirm,
             TrustWorkspace = result.Trust,
-            Brief = result.Brief,
             ForceInteractive = result.ForceInteractive,
             DebugLog = result.DebugLog,
             ContinueSession = result.Continue,
@@ -300,9 +288,6 @@ public sealed class ApplicationBuilder
             DisallowedTools = ParseToolList(result.DisallowedTools),
             SystemPrompt = result.SystemPrompt,
             AppendSystemPrompt = result.AppendSystemPrompt,
-            DoctorMode = result.Doctor,
-            DoctorServerMode = result.DoctorServer,
-            DoctorEndpoint = result.DoctorEndpoint,
             JsonOutput = result.Json,
             OutputFormat = result.Format,
             DryRun = result.DryRun,
@@ -315,12 +300,6 @@ public sealed class ApplicationBuilder
         if (!string.IsNullOrWhiteSpace(result.Await) && int.TryParse(result.Await, out var awaitSeconds) && awaitSeconds > 0)
         {
             options.AwaitTimeoutSeconds = awaitSeconds;
-        }
-
-        // --doctor-port N: 医生 SSE 服务器端口
-        if (!string.IsNullOrWhiteSpace(result.DoctorPort) && int.TryParse(result.DoctorPort, out var doctorPort) && doctorPort > 0)
-        {
-            options.DoctorPort = doctorPort;
         }
 
         // 环境变量映射 — 由 CliOptionGenerator 从 [CliOption(EnvVar=...)] 声明自动生成

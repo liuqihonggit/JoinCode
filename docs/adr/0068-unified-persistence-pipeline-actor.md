@@ -1,5 +1,8 @@
 # 0068. 统一持久化管道（Actor 模型）
 
+> 📍 **导航**: [docs/](../README.md) › [adr/](README.md)
+> 🔗 **上游索引**: [adr/README.md](README.md) — 修改本文档后须同步更新此索引
+
 - 状态：accepted
 - 日期：2026-09-06
 - 决策者：AI + 用户确认
@@ -147,7 +150,7 @@ git 9 个工具（git_add/git_branch/git_clone/git_commit/git_diff/git_log/git_p
 | 文件 | 用途 |
 |------|------|
 | `core/execution/McpToolDispatch/src/**/GitToolHandlers*.cs` | git 工具 handler 实现 |
-| `docs/plans/mcp/验证交接A-组1.md` 第 145-155 行 | git 9 工具交接验证记录（已 ✅ OK，修复 1 个 bug：空字符串 working_dir 未回退默认目录） |
+| `docs/plan/mcp/验证交接A-组1.md` 第 145-155 行 | git 9 工具交接验证记录（已 ✅ OK，修复 1 个 bug：空字符串 working_dir 未回退默认目录） |
 | `docs/adr/0068-unified-persistence-pipeline-actor.md` 本节 | 持久化管道架构参考 |
 
 ### 已知 bug（交接文档记录）

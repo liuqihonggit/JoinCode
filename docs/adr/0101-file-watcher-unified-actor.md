@@ -1,5 +1,8 @@
 # 0101. 文件监控全面 Actor 化统一
 
+> 📍 **导航**: [docs/](../README.md) › [adr/](README.md)
+> 🔗 **上游索引**: [adr/README.md](README.md) — 修改本文档后须同步更新此索引
+
 - 状态：accepted
 - 日期：2026-09-12
 - 决策者：项目架构组
@@ -191,7 +194,7 @@ Consumer 处理 FileChangedCmd 时:
 
 ### 阶段0: ADR + 工作文档(本阶段)
 - [x] 写 ADR 0101 proposed
-- [ ] 记录任务到 docs/refactoring/file-watcher-unification.md
+- [ ] 记录任务到 docs/refactor/file-watcher-unification.md
 
 ### 阶段1: 修复 MainViewModel 违规(最小改动,独立)
 - [ ] 改用 IFileSystem.Watch,移除 pragma

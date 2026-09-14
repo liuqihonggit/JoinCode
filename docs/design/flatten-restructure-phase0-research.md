@@ -1,5 +1,8 @@
 # 阶段0 前置调研 — Directory.Build.props 差异分析
 
+> 📍 **导航**: [docs/](../README.md) › [design/](README.md) | **前置**: [adr/](../adr/README.md)
+> 🔗 **上游索引**: [design/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > 创建: 2026-09-13
 > 状态: completed
 > 关联: [ADR 0103](../adr/0103-folder-restructure-semantic-grouping-flat.md)

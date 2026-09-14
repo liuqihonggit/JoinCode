@@ -36,8 +36,6 @@ internal static class FlatSubCommandRouter
                 return await ExecuteSlashListAsync(args, ct).ConfigureAwait(false);
             case CliSubCommand.SlashSchema:
                 return await ExecuteSlashSchemaAsync(args, ct).ConfigureAwait(false);
-            case CliSubCommand.Doctor:
-                return await ExecuteDoctorAsync(args, ct).ConfigureAwait(false);
             case CliSubCommand.Rg:
                 return await RgSubCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
             case CliSubCommand.Gh:
@@ -56,8 +54,8 @@ internal static class FlatSubCommandRouter
             return 1;
         }
         var json = ShouldOutputJson(args);
-        var argsFile = GetOptionValue(args, CliArgConstants.ArgsFileLongName);
-        var argsStdin = HasFlag(args, CliArgConstants.ArgsStdinLongName);
+        var argsFile = GetOptionValue(args, ToolCallArgConstants.ArgsFileLongName);
+        var argsStdin = HasFlag(args, ToolCallArgConstants.ArgsStdinLongName);
         var vendor = GetOptionValue(args, CliArgConstants.VendorLongName);
         var model = GetOptionValue(args, CliArgConstants.ModelLongName);
         // 判断参数格式: JSON (以{开头) vs key=value (包含=)
@@ -80,10 +78,9 @@ internal static class FlatSubCommandRouter
 
     private static async Task<int?> ExecuteMcpListAsync(string[] args, CancellationToken ct)
     {
-        var category = GetOptionValue(args, CliArgConstants.CategoryLongName);
+        var category = GetOptionValue(args, McpListArgConstants.CategoryLongName);
         var json = ShouldOutputJson(args);
-        var brief = HasFlag(args, CliArgConstants.BriefLongName);
-        return await McpCliCommand.ExecuteListAsync(category, json, brief, ct).ConfigureAwait(false);
+        return await McpCliCommand.ExecuteListAsync(category, json, ct).ConfigureAwait(false);
     }
 
     private static async Task<int?> ExecuteMcpSchemaAsync(string[] args, CancellationToken ct)
@@ -95,8 +92,7 @@ internal static class FlatSubCommandRouter
             return 1;
         }
         var json = ShouldOutputJson(args);
-        var brief = HasFlag(args, CliArgConstants.BriefLongName);
-        return await McpCliCommand.ExecuteSchemaAsync(toolName!, json, brief, ct).ConfigureAwait(false);
+        return await McpCliCommand.ExecuteSchemaAsync(toolName!, json, ct).ConfigureAwait(false);
     }
 
     private static async Task<int?> ExecuteMcpSearchAsync(string[] args, CancellationToken ct)
@@ -108,15 +104,14 @@ internal static class FlatSubCommandRouter
             return 1;
         }
         var json = ShouldOutputJson(args);
-        var brief = HasFlag(args, CliArgConstants.BriefLongName);
-        return await McpCliCommand.ExecuteSearchAsync(query!, json, brief, ct).ConfigureAwait(false);
+        return await McpCliCommand.ExecuteSearchAsync(query!, json, ct).ConfigureAwait(false);
     }
 
     private static async Task<int?> ExecuteMcpServeAsync(string[] args, CancellationToken ct)
     {
-        var transport = GetOptionValue(args, CliArgConstants.TransportLongName) ?? "stdio";
-        var port = int.TryParse(GetOptionValue(args, CliArgConstants.PortLongName), out var p) ? p : 9903;
-        var host = GetOptionValue(args, CliArgConstants.HostLongName) ?? "localhost";
+        var transport = GetOptionValue(args, McpServeArgConstants.TransportLongName) ?? "stdio";
+        var port = int.TryParse(GetOptionValue(args, McpServeArgConstants.PortLongName), out var p) ? p : 9903;
+        var host = GetOptionValue(args, McpServeArgConstants.HostLongName) ?? "localhost";
         var awaitSeconds = int.TryParse(GetOptionValue(args, CliArgConstants.AwaitLongName), out var a) ? a : (int?)null;
         return await McpCliCommand.ExecuteServeAsync(transport, port, host, ct, awaitSeconds).ConfigureAwait(false);
     }
@@ -129,9 +124,6 @@ internal static class FlatSubCommandRouter
 
     private static Task<int?> ExecuteSlashSchemaAsync(string[] args, CancellationToken ct)
         => SlashSchemaExecutor.ExecuteAsync(args, ct);
-
-    private static async Task<int?> ExecuteDoctorAsync(string[] args, CancellationToken ct)
-        => await DoctorSubCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
 
     internal static string? GetPositional(string[] args, int index)
     {
@@ -176,11 +168,12 @@ internal static class FlatSubCommandRouter
     /// <summary>
     /// 判断 --option 是否应吞掉下一个 token 作为其值。
     /// 布尔标志（AcceptsValue=false）不吞值；key=value 形式的 token 永远不被吞（保护 MCP 工具参数）。
-    /// 双保险：① CliArgConstants.BooleanFlags 白名单（源码生成器自动维护）② key=value 格式检测
+    /// 双保险：① 全局+子命令 BooleanFlags 白名单（源码生成器自动维护）② key=value 格式检测
     /// </summary>
     private static bool ShouldConsumeNext(string[] args, int i)
     {
-        if (CliArgConstants.BooleanFlags.Contains(args[i]))
+        if (CliArgConstants.BooleanFlags.Contains(args[i])
+            || ToolCallArgConstants.BooleanFlags.Contains(args[i]))
             return false;
         if (i + 1 >= args.Length)
             return false;

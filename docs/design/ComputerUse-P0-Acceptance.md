@@ -1,5 +1,8 @@
 # P0 桌面输入模拟底座 — 验收报告
 
+> 📍 **导航**: [docs/](../README.md) › [design/](README.md) | **前置**: [adr/](../adr/README.md)
+> 🔗 **上游索引**: [design/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > **日期**：2026-08-26
 > **里程碑**：M1（PRD §4 P0）
 > **状态**：✅ 通过

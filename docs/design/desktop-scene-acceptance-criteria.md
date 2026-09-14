@@ -1,5 +1,8 @@
 # 桌面情景模式验收标准
 
+> 📍 **导航**: [docs/](../README.md) › [design/](README.md) | **前置**: [adr/](../adr/README.md)
+> 🔗 **上游索引**: [design/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > **版本**：v0.1
 > **日期**：2026-09-14
 > **状态**：待用户确认

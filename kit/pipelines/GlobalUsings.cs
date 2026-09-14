@@ -1,6 +1,5 @@
 global using Core.Agents;
 global using Core.Agents.Coordinator;
-global using Core.Agents.Doctor;
 global using Core.Configuration;
 global using Core.Context;
 global using Core.Context.Modality;

@@ -15,7 +15,6 @@ public sealed class CommandLineOptionsTests
         options.TrustWorkspace.Should().BeFalse();
         options.Prompt.Should().BeNull();
         options.Model.Should().BeNull();
-        options.Brief.Should().BeFalse();
         options.ForceInteractive.Should().BeFalse();
         options.AwaitTimeoutSeconds.Should().BeNull();
         options.DebugLog.Should().BeFalse();
@@ -133,15 +132,6 @@ public sealed class CommandLineOptionsTests
     }
 
     [Fact]
-    public void CliArgParser_ParseBrief_ShouldSetBrief()
-    {
-        var result = CliArgParser.Parse(new[] { JccCliArgConstants.Brief });
-
-        result.Brief.Should().BeTrue();
-        result.HasError.Should().BeFalse();
-    }
-
-    [Fact]
     public void CliArgParser_ParseForceInteractive_ShouldSetForceInteractive()
     {
         var result = CliArgParser.Parse(new[] { JccCliArgConstants.ForceInteractive });
@@ -180,11 +170,10 @@ public sealed class CommandLineOptionsTests
     [Fact]
     public void CliArgParser_ParseMultipleOptions_ShouldSetAll()
     {
-        var result = CliArgParser.Parse(new[] { JccCliArgConstants.Trust, JccCliArgConstants.Model, "gpt-4o", JccCliArgConstants.Brief });
+        var result = CliArgParser.Parse(new[] { JccCliArgConstants.Trust, JccCliArgConstants.Model, "gpt-4o" });
 
         result.Trust.Should().BeTrue();
         result.Model.Should().Be("gpt-4o");
-        result.Brief.Should().BeTrue();
         result.HasError.Should().BeFalse();
     }
 

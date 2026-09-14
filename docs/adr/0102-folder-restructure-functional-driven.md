@@ -1,5 +1,8 @@
 # ADR 0102: 文件夹整理改革 — 从领域驱动到功能驱动
 
+> 📍 **导航**: [docs/](../README.md) › [adr/](README.md)
+> 🔗 **上游索引**: [adr/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > ⚠️ **已被 [0103](0103-folder-restructure-semantic-grouping-flat.md) 取代** — 数字前缀方案改为语义分组+组内扁平,消除数字撞车和 src/+tests/ 双层
 
 > 状态: superseded by 0103

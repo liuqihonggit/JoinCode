@@ -42,10 +42,6 @@ public enum CliArg
     [CliOption(JccCliArgConstants.Trust, "", "自动信任工作目录", Category = "权限", Example = "jcc --trust -p \"hello\"")]
     Trust,
 
-    /// <summary>简要模式</summary>
-    [CliOption(JccCliArgConstants.Brief, "", "简要模式", Category = "输出")]
-    Brief,
-
     /// <summary>强制交互模式（即使stdin重定向也启用REPL，用于E2E测试）</summary>
     [CliOption(JccCliArgConstants.ForceInteractive, "", "强制交互模式（即使stdin重定向也启用REPL，用于E2E测试）", Category = "诊断")]
     ForceInteractive,
@@ -90,22 +86,6 @@ public enum CliArg
     [CliOption(JccCliArgConstants.AppendSystemPrompt, "", "追加系统提示词（在默认/已加载系统提示词后附加，不覆盖）", AcceptsValue = true, Category = "提示词")]
     AppendSystemPrompt,
 
-    /// <summary>医生模式：spawn jcc.exe 子进程作为病人，监控运行状态并自动修复问题</summary>
-    [CliOption(JccCliArgConstants.Doctor, "", "医生模式：spawn jcc.exe 子进程作为病人，监控运行状态并自动修复问题", Category = "医生")]
-    Doctor,
-
-    /// <summary>医生服务器模式：监听病人 SSE 连接，支持 1:N 多病人监控（需配合 --doctor）</summary>
-    [CliOption(JccCliArgConstants.DoctorServer, "", "医生服务器模式：监听病人 SSE 连接，支持 1:N 多病人监控（需配合 --doctor）", Category = "医生")]
-    DoctorServer,
-
-    /// <summary>医生 SSE 端点 URL（病人端使用，连接到医生的 SSE 服务器，如 http://localhost:9902）</summary>
-    [CliOption(JccCliArgConstants.DoctorEndpoint, "", "医生 SSE 端点 URL（病人端使用，连接到医生的 SSE 服务器，如 http://localhost:9902）", AcceptsValue = true, Category = "医生")]
-    DoctorEndpoint,
-
-    /// <summary>医生 SSE 服务器端口（医生端使用，默认 9902）</summary>
-    [CliOption(JccCliArgConstants.DoctorPort, "", "医生 SSE 服务器端口（医生端使用，默认 9902）", AcceptsValue = true, Category = "医生")]
-    DoctorPort,
-
     /// <summary>结构化 JSON 输出模式（子命令和非交互模式生效，交互模式保持彩色输出）</summary>
     [CliOption(JccCliArgConstants.Json, "", "结构化 JSON 输出模式（子命令和非交互模式生效，交互模式保持彩色输出）", Category = "输出", Example = "jcc mcp_list --json", AliasOf = JccCliArgConstants.Format, AliasValue = "json")]
     Json,
@@ -129,28 +109,4 @@ public enum CliArg
     /// <summary>静默模式：只输出错误信息，抑制正常输出</summary>
     [CliOption(JccCliArgConstants.Quiet, "-q", "静默模式：只输出错误信息，抑制正常输出", Category = "输出")]
     Quiet,
-
-    /// <summary>从 JSON 文件读取工具参数</summary>
-    [CliOption(JccCliArgConstants.ArgsFile, "", "从 JSON 文件读取工具参数", AcceptsValue = true, Category = "子命令", Example = "jcc mcp_call read_file --args-file args.json")]
-    ArgsFile,
-
-    /// <summary>从 stdin 读取工具参数（JSON）</summary>
-    [CliOption(JccCliArgConstants.ArgsStdin, "", "从 stdin 读取工具参数（JSON）", Category = "子命令", Example = "jcc mcp_call read_file --args-stdin < args.json")]
-    ArgsStdin,
-
-    /// <summary>按分类过滤工具列表</summary>
-    [CliOption(JccCliArgConstants.Category, "", "按分类过滤工具列表", AcceptsValue = true, Category = "子命令", Example = "jcc mcp_list --category Code")]
-    Category,
-
-    /// <summary>MCP 服务端传输协议 (stdio/http)</summary>
-    [CliOption(JccCliArgConstants.Transport, "", "MCP 服务端传输协议 (stdio/http)", AcceptsValue = true, Category = "子命令", Example = "jcc mcp_serve --transport http")]
-    Transport,
-
-    /// <summary>MCP 服务端监听端口</summary>
-    [CliOption(JccCliArgConstants.Port, "", "MCP 服务端监听端口", AcceptsValue = true, Category = "子命令", Example = "jcc mcp_serve --port 9903")]
-    Port,
-
-    /// <summary>MCP 服务端监听主机</summary>
-    [CliOption(JccCliArgConstants.Host, "", "MCP 服务端监听主机", AcceptsValue = true, Category = "子命令", Example = "jcc mcp_serve --host localhost")]
-    Host,
 }

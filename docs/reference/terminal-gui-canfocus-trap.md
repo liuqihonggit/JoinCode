@@ -1,5 +1,8 @@
 # Terminal.Gui v2 CanFocus 陷阱 — 键盘输入无法到达 TextField
 
+> 📍 **导航**: [docs/](../README.md) › [reference/](README.md)
+> 🔗 **上游索引**: [reference/README.md](README.md) — 修改本文档后须同步更新此索引
+
 ## 问题
 
 jcctui.exe 启动后，TextField 渲染正常（背景色变深表示有焦点），但**键盘输入打不进字**。鼠标悬停按钮也卡顿（1秒以上才响应）。

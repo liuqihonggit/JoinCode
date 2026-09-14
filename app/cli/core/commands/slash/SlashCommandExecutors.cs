@@ -59,8 +59,8 @@ internal static class SlashCallExecutor
     /// </summary>
     private static async Task<string?> ResolveArgsJsonAsync(string[] args, CancellationToken ct)
     {
-        var argsFile = FlatSubCommandRouter.GetOptionValue(args, CliArgConstants.ArgsFileLongName);
-        var argsStdin = FlatSubCommandRouter.HasFlag(args, CliArgConstants.ArgsStdinLongName);
+        var argsFile = FlatSubCommandRouter.GetOptionValue(args, ToolCallArgConstants.ArgsFileLongName);
+        var argsStdin = FlatSubCommandRouter.HasFlag(args, ToolCallArgConstants.ArgsStdinLongName);
 
         if (argsStdin)
         {
@@ -128,7 +128,7 @@ internal static class SlashListExecutor
 {
     public static Task<int?> ExecuteAsync(string[] args, CancellationToken ct)
     {
-        var category = FlatSubCommandRouter.GetOptionValue(args, "--category");
+        var category = FlatSubCommandRouter.GetOptionValue(args, JccCliArgConstants.Category);
         var json = FlatSubCommandRouter.ShouldOutputJson(args);
 
         var catalog = new GeneratedSlashCommandCatalog();
@@ -205,7 +205,11 @@ internal static class SlashSchemaExecutor
         if (entry.Schema is not null)
         {
             if (json)
-                System.Console.WriteLine(RelaxedJsonSerializer.Serialize(entry.Schema, ContractsJsonContext.Default));
+            {
+                var schemaJson = RelaxedJsonSerializer.Serialize(entry.Schema, ContractsJsonContext.Default);
+                var data = System.Text.Json.Nodes.JsonNode.Parse(schemaJson);
+                System.Console.WriteLine(CliOutputEnvelope.Success(data).ToString());
+            }
             else
             {
                 TerminalHelper.WriteLine($"命令: /{entry.CommandName}");
@@ -217,13 +221,13 @@ internal static class SlashSchemaExecutor
         {
             if (json)
             {
-                var sb = new StringBuilder();
-                sb.Append($"{{\"command\":\"{cmdName}\",\"schema\":null,\"argumentHint\":");
-                if (string.IsNullOrEmpty(entry.ArgumentHint))
-                    sb.Append("null}");
-                else
-                    sb.Append($"\"{entry.ArgumentHint}\"}}");
-                System.Console.WriteLine(sb.ToString());
+                var data = new System.Text.Json.Nodes.JsonObject
+                {
+                    ["command"] = cmdName,
+                    ["schema"] = null,
+                    ["argumentHint"] = entry.ArgumentHint
+                };
+                System.Console.WriteLine(CliOutputEnvelope.Success(data).ToString());
             }
             else
             {

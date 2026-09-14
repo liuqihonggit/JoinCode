@@ -38,9 +38,6 @@ public enum JccCliArg
     [EnumValue("--trust")]
     Trust,
 
-    [EnumValue("--brief")]
-    Brief,
-
     [EnumValue("--force-interactive")]
     ForceInteractive,
 
@@ -76,18 +73,6 @@ public enum JccCliArg
 
     [EnumValue("--append-system-prompt")]
     AppendSystemPrompt,
-
-    [EnumValue("--doctor")]
-    Doctor,
-
-    [EnumValue("--doctor-server")]
-    DoctorServer,
-
-    [EnumValue("--doctor-endpoint")]
-    DoctorEndpoint,
-
-    [EnumValue("--doctor-port")]
-    DoctorPort,
 
     [EnumValue("--json")]
     Json,

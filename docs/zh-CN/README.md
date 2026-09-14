@@ -176,7 +176,6 @@ jcc -p "你好"
 | `--non-interactive` | 强制非交互模式（从 stdin 读取，输出到 stdout） |
 | `--json` | 结构化 JSON 输出（子命令和非交互模式生效，交互模式保持彩色输出） |
 | `--format <text\|json\|ndjson>` | 输出格式（默认 text） |
-| `--brief` | 简要模式 |
 | `--quiet` / `-q` | 静默模式（只输出错误信息） |
 
 **权限：**
@@ -214,15 +213,6 @@ jcc -p "你好"
 | `--debuglog` / `-d` | 启用调试日志（输出 [WIRE] [STEP] [READY] 等，等效 `JCC_DEBUGLOG=1`） |
 | `--await <seconds>` | 非交互模式超时自动关闭（超时返回 1234，用于诊断卡死） |
 | `--force-interactive` | 强制交互模式（即使 stdin 重定向也启用 REPL，用于 E2E 测试） |
-
-**医生：**
-
-| 参数 | 说明 |
-|------|------|
-| `--doctor` | 医生模式：spawn jcc.exe 子进程作为病人，监控并自动修复 |
-| `--doctor-server` | 医生服务器模式：监听病人 SSE 连接，支持 1:N 多病人监控（需配合 `--doctor`） |
-| `--doctor-endpoint <url>` | 医生 SSE 端点 URL（病人端使用，如 `http://localhost:9902`） |
-| `--doctor-port <port>` | 医生 SSE 服务器端口（医生端使用，默认 9902） |
 
 ### 1.5 常用斜杠命令
 
@@ -313,7 +303,6 @@ jcc -p "你好"
 
 - 多层权限管道：路径权限 → 危险操作拦截 → 自动安全分类 → Agent 限制
 - OAuth 认证、Hook 系统、策略引擎
-- Doctor 模式（`--doctor`）监控病人进程，自动修复问题
 
 ### 2.6 原生性能
 

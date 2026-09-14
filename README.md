@@ -153,7 +153,6 @@ jcc --debuglog -p "hello"
 | `--non-interactive` | Force non-interactive mode (read from stdin, write to stdout) |
 | `--json` | Structured JSON output (subcommands and non-interactive mode) |
 | `--format <text\|json\|ndjson>` | Output format (default: text) |
-| `--brief` | Brief mode |
 | `--quiet` / `-q` | Quiet mode (errors only) |
 
 **Permission:**
@@ -191,15 +190,6 @@ jcc --debuglog -p "hello"
 | `--debuglog` / `-d` | Enable debug logging (equivalent to `JCC_DEBUGLOG=1`) |
 | `--await <seconds>` | Non-interactive timeout auto-close (returns 1234 on timeout) |
 | `--force-interactive` | Force interactive mode even if stdin is redirected (for E2E tests) |
-
-**Doctor:**
-
-| Flag | Description |
-|------|-------------|
-| `--doctor` | Doctor mode: spawn jcc.exe as patient, monitor and auto-fix |
-| `--doctor-server` | Doctor server mode: listen for patient SSE connections (requires `--doctor`) |
-| `--doctor-endpoint <url>` | Doctor SSE endpoint URL (patient-side, e.g. `http://localhost:9902`) |
-| `--doctor-port <port>` | Doctor SSE server port (doctor-side, default 9902) |
 
 ### Slash Commands
 

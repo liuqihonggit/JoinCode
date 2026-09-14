@@ -89,6 +89,12 @@ public enum JccCliArg
     [EnumValue("--doctor-port")]
     DoctorPort,
 
+    [EnumValue("--server")]
+    Server,
+
+    [EnumValue("--endpoint")]
+    Endpoint,
+
     [EnumValue("--json")]
     Json,
 

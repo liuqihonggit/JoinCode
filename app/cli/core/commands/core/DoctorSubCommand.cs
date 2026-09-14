@@ -10,9 +10,9 @@ internal static class DoctorSubCommand
 {
     public static async Task<int?> ExecuteAsync(string[] args, CancellationToken ct)
     {
-        var isServer = FlatSubCommandRouter.HasFlag(args, "--server");
-        var endpoint = FlatSubCommandRouter.GetOptionValue(args, "--endpoint");
-        var port = int.TryParse(FlatSubCommandRouter.GetOptionValue(args, "--port"), out var p) ? p : 9902;
+        var isServer = FlatSubCommandRouter.HasFlag(args, JccCliArgConstants.Server);
+        var endpoint = FlatSubCommandRouter.GetOptionValue(args, JccCliArgConstants.Endpoint);
+        var port = int.TryParse(FlatSubCommandRouter.GetOptionValue(args, JccCliArgConstants.Port), out var p) ? p : 9902;
 
         var options = new CommandLineOptions
         {

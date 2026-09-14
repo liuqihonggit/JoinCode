@@ -306,7 +306,7 @@ class Program
     {
         for (var i = 0; i < args.Length - 1; i++)
         {
-            if (args[i] == "--await")
+            if (args[i] == JccCliArgConstants.Await)
             {
                 var value = args[i + 1];
                 if (!int.TryParse(value, out var seconds))
@@ -330,13 +330,13 @@ class Program
 
         for (var i = 0; i < args.Length - 1; i++)
         {
-            if (args[i] == "--permission-mode")
+            if (args[i] == JccCliArgConstants.PermissionMode)
             {
                 var value = args[i + 1];
                 if (!validPermissionModes.Contains(value, StringComparer.OrdinalIgnoreCase))
                     return $"--permission-mode 的值 '{value}' 无效，有效值为: {string.Join(", ", validPermissionModes)}";
             }
-            if (args[i] == "--format")
+            if (args[i] == JccCliArgConstants.Format)
             {
                 var value = args[i + 1];
                 if (!validFormats.Contains(value, StringComparer.OrdinalIgnoreCase))
@@ -355,7 +355,7 @@ class Program
     {
         for (var i = 0; i < args.Length - 1; i++)
         {
-            if (args[i] == "--await" && int.TryParse(args[i + 1], out var seconds) && seconds > 0)
+            if (args[i] == JccCliArgConstants.Await && int.TryParse(args[i + 1], out var seconds) && seconds > 0)
             {
                 Diag.WriteLine($"[MAIN] --await {seconds}s 早期计时器已启动（超时返回{(int)ExitCode.AwaitTimeout}）");
                 return new System.Threading.Timer(

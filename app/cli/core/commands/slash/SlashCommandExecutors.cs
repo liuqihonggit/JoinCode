@@ -128,7 +128,7 @@ internal static class SlashListExecutor
 {
     public static Task<int?> ExecuteAsync(string[] args, CancellationToken ct)
     {
-        var category = FlatSubCommandRouter.GetOptionValue(args, "--category");
+        var category = FlatSubCommandRouter.GetOptionValue(args, JccCliArgConstants.Category);
         var json = FlatSubCommandRouter.ShouldOutputJson(args);
 
         var catalog = new GeneratedSlashCommandCatalog();

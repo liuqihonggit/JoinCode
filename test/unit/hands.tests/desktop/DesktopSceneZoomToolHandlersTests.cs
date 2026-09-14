@@ -10,7 +10,7 @@ public sealed class DesktopSceneZoomToolHandlersTests
     public async Task Zoom_NotClearEnough_SuggestsZoom()
     {
         var zoomMock = new Mock<IDesktopSceneZoomService>();
-        zoomMock.Setup(z => z.ZoomAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+        zoomMock.Setup(z => z.ZoomAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new DesktopSceneZoom("fake", "L0.2", 1, 960, 540, false));
         var handler = new DesktopSceneZoomToolHandlers(zoomMock.Object);
 
@@ -27,7 +27,7 @@ public sealed class DesktopSceneZoomToolHandlersTests
     public async Task Zoom_ClearEnough_SuggestsDetect()
     {
         var zoomMock = new Mock<IDesktopSceneZoomService>();
-        zoomMock.Setup(z => z.ZoomAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+        zoomMock.Setup(z => z.ZoomAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new DesktopSceneZoom("fake", "L0.2.1.3", 4, 60, 34, true));
         var handler = new DesktopSceneZoomToolHandlers(zoomMock.Object);
 

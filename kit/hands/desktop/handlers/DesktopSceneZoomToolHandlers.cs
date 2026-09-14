@@ -22,15 +22,17 @@ public sealed class DesktopSceneZoomToolHandlers
     /// </summary>
     /// <param name="sceneId">场景 ID</param>
     /// <param name="quadrant">象限编号: 1=左上 2=右上 3=左下 4=右下</param>
+    /// <param name="back">是否退回上一层（纠偏用），默认 false</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果，含子图 + 清晰度 + suggested_next(推荐 zoom 或 detect)</returns>
-    [McpTool("desktop_zoom", "选 1/2/3/4 象限缩小，返回更清晰的子图。看不清就反复 zoom，看清后调 detect。", "desktop")]
+    [McpTool("desktop_zoom", "选 1/2/3/4 象限缩小，返回更清晰的子图。看不清就反复 zoom，看清后调 detect。back=true 退回上一层纠偏。", "desktop")]
     public async Task<ToolResult> ZoomAsync(
         [McpToolParameter("场景 ID", Required = true)] string sceneId,
         [McpToolParameter("象限编号: 1=左上 2=右上 3=左下 4=右下", Required = true)] int quadrant,
+        [McpToolParameter("是否退回上一层（纠偏用），默认 false", Required = false)] bool back = false,
         CancellationToken cancellationToken = default)
     {
-        var zoom = await _zoomService.ZoomAsync(sceneId, quadrant, cancellationToken).ConfigureAwait(false);
+        var zoom = await _zoomService.ZoomAsync(sceneId, quadrant, back, cancellationToken).ConfigureAwait(false);
 
         var nextTool = zoom.IsClearEnough ? "desktop_detect" : "desktop_zoom";
         var nextReason = zoom.IsClearEnough

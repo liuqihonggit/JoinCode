@@ -74,4 +74,41 @@ public sealed class DesktopSceneE2ETests
         state.LastScreenshotPath.Should().NotBeNullOrEmpty("截图路径应更新为子图路径");
         fileSystem.FileExists(state.LastScreenshotPath!).Should().BeTrue("子图文件应存在");
     }
+
+    /// <summary>AC-09: zoom 3 层后 back 1 层，断言 depth=2 + cellCode 回退 + history 删最后一条</summary>
+    [Fact]
+    public async Task ZoomThreeLayersThenBack_DepthDecreasesAndHistoryShrinks()
+    {
+        var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
+        env.IsInteractive.Should().BeTrue($"当前环境应为交互式桌面: {env.Diagnostic}");
+
+        var fileSystem = new PhysicalFileSystem();
+        var screenCapture = new GdiScreenCaptureService();
+        var annotator = new QuadtreeEncoder();
+        var renderer = new QuadtreeRenderer(annotator);
+        var stateStore = new DesktopSceneStateStore(fileSystem);
+        var captureService = new DesktopSceneCaptureService(screenCapture, annotator, renderer, stateStore, fileSystem);
+        var zoomService = new DesktopSceneZoomService(renderer, stateStore, fileSystem);
+
+        var sceneId = $"e2e_back_{DateTimeOffset.UtcNow:yyyyMMdd_HHmmss}";
+        await captureService.CaptureWithGridAsync(sceneId, 2);
+        await zoomService.ZoomAsync(sceneId, 1);
+        await zoomService.ZoomAsync(sceneId, 2);
+        await zoomService.ZoomAsync(sceneId, 3);
+
+        var stateBeforeBack = await stateStore.LoadAsync(sceneId);
+        stateBeforeBack!.CurrentDepth.Should().Be(3, "zoom 3 次后层数为 3");
+        stateBeforeBack.ZoomHistory.Should().HaveCount(3, "zoom 历史应有 3 条");
+
+        var zoomBack = await zoomService.ZoomAsync(sceneId, 0, back: true);
+
+        zoomBack.CurrentDepth.Should().Be(2, "back 1 层后层数为 2");
+        zoomBack.CurrentCellCode.Count(c => c == '.').Should().Be(2, "第 2 层 cellCode 应有 2 个点 (L0.x.y)");
+        zoomBack.SubImageBase64.Should().NotBeNullOrEmpty("退回后子图应非空");
+
+        var stateAfterBack = await stateStore.LoadAsync(sceneId);
+        stateAfterBack!.CurrentDepth.Should().Be(2, "状态层数应为 2");
+        stateAfterBack.ZoomHistory.Should().HaveCount(2, "zoom 历史应删至 2 条");
+        stateAfterBack.LastAction.Should().Be("zoom_back", "最后动作应为 zoom_back");
+    }
 }

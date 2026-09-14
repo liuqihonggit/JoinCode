@@ -5,11 +5,12 @@ namespace JoinCode.Abstractions.Interfaces;
 /// </summary>
 public interface IDesktopSceneZoomService
 {
-    /// <summary>选象限缩小，返回子图 + 更新后的格子编码/层数 + 清晰度判断</summary>
+    /// <summary>选象限缩小或退回上一层，返回子图 + 更新后的格子编码/层数 + 清晰度判断</summary>
     /// <param name="sceneId">场景 ID</param>
-    /// <param name="quadrant">象限编号: 1=左上 2=右上 3=左下 4=右下</param>
+    /// <param name="quadrant">象限编号: 1=左上 2=右上 3=左下 4=右下（back=true 时忽略）</param>
+    /// <param name="back">true 时退回上一层（纠偏用），false 时正常缩小</param>
     /// <param name="cancellationToken">取消令牌</param>
-    Task<DesktopSceneZoom> ZoomAsync(string sceneId, int quadrant, CancellationToken cancellationToken = default);
+    Task<DesktopSceneZoom> ZoomAsync(string sceneId, int quadrant, bool back = false, CancellationToken cancellationToken = default);
 }
 
 /// <summary>

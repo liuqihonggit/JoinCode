@@ -738,7 +738,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     }
 
     private void RecordPlanMetrics(string operation, bool isSuccess)
-        => _telemetryService?.RecordCount("plan.mode.count", new() { ["operation"] = operation, ["success"] = isSuccess.ToString() }, "count", "Plan mode operation count");
+        => ToolTelemetryHelper.RecordToolCount(_telemetryService, "plan.mode.count", operation, isSuccess, "Plan mode operation count");
 
     private string ExecuteStep(PlanStep step)
     {

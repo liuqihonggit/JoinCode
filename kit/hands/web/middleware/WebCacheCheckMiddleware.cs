@@ -52,5 +52,5 @@ public sealed partial class WebCacheCheckMiddleware : ServiceEntity, IWebMiddlew
     }
 
     private void RecordWebMetrics(string operation, bool isSuccess, int size = 0)
-        => _telemetryService?.RecordCount("web.operation.count", new Dictionary<string, string> { ["operation"] = operation, ["success"] = isSuccess.ToString() }, description: "Web operation count");
+        => ToolTelemetryHelper.RecordToolCount(_telemetryService, "web.operation.count", operation, isSuccess, "Web operation count");
 }

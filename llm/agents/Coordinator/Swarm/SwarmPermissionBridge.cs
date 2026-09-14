@@ -288,7 +288,7 @@ public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermiss
     }
 
     private void RecordPermissionBridgeMetrics(string operation, bool isSuccess)
-        => _telemetryService?.RecordCount("permission.bridge.count", new Dictionary<string, string> { ["operation"] = operation, ["success"] = isSuccess.ToString() }, "count", "Permission bridge operation count");
+        => ToolTelemetryHelper.RecordToolCount(_telemetryService, "permission.bridge.count", operation, isSuccess, "Permission bridge operation count");
 
     private static Dictionary<string, JsonElement> BuildChanges(PermissionSyncState? previous, PermissionSyncState current)
     {

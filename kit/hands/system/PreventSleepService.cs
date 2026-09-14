@@ -129,5 +129,5 @@ public sealed partial class PreventSleepService : ServiceEntity, IPreventSleepSe
     private const uint ES_SYSTEM_REQUIRED = 0x00000001;
 
     private void RecordSleepMetrics(string operation, bool isSuccess)
-        => _telemetryService?.RecordCount("sleep.prevention.count", new Dictionary<string, string> { ["operation"] = operation, ["success"] = isSuccess.ToString() }, description: "Sleep prevention operation count");
+        => ToolTelemetryHelper.RecordToolCount(_telemetryService, "sleep.prevention.count", operation, isSuccess, "Sleep prevention operation count");
 }

@@ -298,7 +298,7 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
     }
 
     private void RecordSyncMetrics(string operation, bool isSuccess)
-        => _telemetryService?.RecordCount("sync.memory.count", new Dictionary<string, string> { ["operation"] = operation, ["success"] = isSuccess.ToString() }, "count", "Memory sync count");
+        => ToolTelemetryHelper.RecordToolCount(_telemetryService, "sync.memory.count", operation, isSuccess, "Memory sync count");
 
     /// <inheritdoc />
     public async Task<TeamSyncStatus> SyncTeamMemoryAsync(string teamId, CancellationToken cancellationToken = default)

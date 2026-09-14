@@ -176,7 +176,7 @@ public sealed partial class MtlsService : ServiceEntity, IMtlsService
     }
 
     private void RecordMtlsMetrics(string operation, bool isSuccess)
-        => _telemetryService?.RecordCount("mtls.operation.count", new() { ["operation"] = operation, ["success"] = isSuccess.ToString() }, description: "mTLS operation count");
+        => ToolTelemetryHelper.RecordToolCount(_telemetryService, "mtls.operation.count", operation, isSuccess, "mTLS operation count");
 
     private X509Certificate2? LoadCertificateFromFile(string path, string? password)
     {

@@ -438,7 +438,7 @@ public class TeamToolHandlers
     #region Private Methods
 
     private void RecordTeamMetrics(string operation, string result)
-        => _telemetryService?.RecordCount("team.handler.count", new Dictionary<string, string> { ["operation"] = operation, ["result"] = result }, "count", "Team handler count");
+        => ToolTelemetryHelper.RecordToolCount(_telemetryService, "team.handler.count", operation, result, "Team handler count");
 
     private static string? ValidateCommand<TCommand>(TCommand command)
     {

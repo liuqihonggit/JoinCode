@@ -32,7 +32,7 @@ public sealed partial class StartCompletionMiddleware : ServiceEntity, ISyncStar
 
         ctx.MarkAsRunning = true;
         _logger?.LogInformation(L.T(StringKey.VaultLogSyncStarted), ctx.Options.WatchPath);
-        _telemetryService?.RecordCount("sync.memory.count", new Dictionary<string, string> { ["operation"] = "start", ["success"] = "True" }, "count", "Memory sync count");
+        ToolTelemetryHelper.RecordToolCount(_telemetryService, "sync.memory.count", "start", true, "Memory sync count");
 
         return next(ctx, ct);
     }

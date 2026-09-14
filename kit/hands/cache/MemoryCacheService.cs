@@ -166,7 +166,7 @@ public partial class MemoryCacheService : ServiceEntity, ICacheService, IDisposa
     }
 
     private void RecordCacheMetrics(string operation, string result)
-        => _telemetryService?.RecordCount("cache.operation.count", new Dictionary<string, string> { ["operation"] = operation, ["result"] = result }, description: "Cache operation count");
+        => ToolTelemetryHelper.RecordToolCount(_telemetryService, "cache.operation.count", operation, result, "Cache operation count");
 
     /// <summary>
     /// 测试专用：强制触发过期扫描

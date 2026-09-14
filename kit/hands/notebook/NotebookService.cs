@@ -370,7 +370,7 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService
     }
 
     private void RecordNotebookMetrics(string operation, bool isSuccess)
-        => _telemetryService?.RecordCount("notebook.operation.count", new Dictionary<string, string> { ["operation"] = operation, ["success"] = isSuccess.ToString() }, description: "Notebook operation count");
+        => ToolTelemetryHelper.RecordToolCount(_telemetryService, "notebook.operation.count", operation, isSuccess, "Notebook operation count");
 
     private static List<string> SplitWithNewlines(string content)
     {

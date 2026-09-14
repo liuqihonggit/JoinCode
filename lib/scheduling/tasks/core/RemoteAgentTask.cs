@@ -184,7 +184,7 @@ public sealed partial class RemoteAgentTaskExecutor : ServiceEntity, IRemoteAgen
     }
 
     private void RecordRemoteMetrics(string operation, bool isSuccess)
-        => _telemetryService?.RecordCount("scheduling.remote.count", new Dictionary<string, string> { ["operation"] = operation, ["success"] = isSuccess.ToString() }, "count", "Remote agent task execution count");
+        => ToolTelemetryHelper.RecordToolCount(_telemetryService, "scheduling.remote.count", operation, isSuccess, "Remote agent task execution count");
 }
 
 /// <summary>

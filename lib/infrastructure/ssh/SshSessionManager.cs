@@ -98,7 +98,7 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
     }
 
     private void RecordSessionMetrics(string operation, bool isSuccess) =>
-        _telemetryService?.RecordCount("ssh.session.count", new Dictionary<string, string> { ["operation"] = operation, ["success"] = isSuccess.ToString() }, "count", "SSH session operation count");
+        ToolTelemetryHelper.RecordToolCount(_telemetryService, "ssh.session.count", operation, isSuccess, "SSH session operation count");
 
     private void OnSessionConnectionStateChanged(object? sender, SshConnectionStateChangedEventArgs e)
     {

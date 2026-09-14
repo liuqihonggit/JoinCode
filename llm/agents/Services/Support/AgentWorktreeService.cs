@@ -396,7 +396,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     }
 
     private void RecordWorktreeMetrics(string operation, bool isSuccess)
-        => _telemetryService?.RecordCount("worktree.operation.count", new Dictionary<string, string> { ["operation"] = operation, ["success"] = isSuccess.ToString() }, "count", "Worktree operation count");
+        => ToolTelemetryHelper.RecordToolCount(_telemetryService, "worktree.operation.count", operation, isSuccess, "Worktree operation count");
 
     #region Private Methods
 

@@ -12,10 +12,18 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     private readonly AgentStateMachine _stateMachine;
     private readonly ConcurrentDictionary<string, AgentBase> _subAgents;
     private readonly ConcurrentDictionary<string, SubAgentResult> _results;
+    private readonly SubAgentLivenessOptions? _livenessOptions;
+    private readonly SubAgentPool? _agentPool;
     private int _agentCounter;
 
     /// <summary>暴露给同程序集内部使用的状态机引用，用于直接查询或驱动状态转换</summary>
     internal AgentStateMachine StateMachine => _stateMachine;
+
+    /// <summary>暴露给同程序集内部使用的卡死防护配置，供 Scanner/Activator 等同程序集组件读取</summary>
+    internal SubAgentLivenessOptions? LivenessOptions => _livenessOptions;
+
+    /// <summary>暴露给同程序集内部使用的代理池，供 Coordinator 抢塞新任务</summary>
+    internal SubAgentPool? AgentPool => _agentPool;
 
     /// <summary>
     /// 构造 Agent 生命周期管理器实例
@@ -23,11 +31,20 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     /// <param name="queryEngine">查询引擎，用于创建子代理</param>
     /// <param name="stateMachine">Agent 状态机，负责跟踪各 Agent 的执行状态</param>
     /// <param name="logger">可选日志记录器</param>
-    public AgentLifecycleManager(IQueryEngine queryEngine,  AgentStateMachine stateMachine, ILogger? logger = null)
+    /// <param name="livenessOptions">卡死防护配置（L1 超时 + L2 检测参数），null=使用默认值</param>
+    /// <param name="agentPool">代理池（L3 抢塞），null=完成后直接 Dispose</param>
+    public AgentLifecycleManager(
+        IQueryEngine queryEngine,
+        AgentStateMachine stateMachine,
+        ILogger? logger = null,
+        SubAgentLivenessOptions? livenessOptions = null,
+        SubAgentPool? agentPool = null)
     {
         _queryEngine = queryEngine ?? throw new ArgumentNullException(nameof(queryEngine));
         _logger = logger;
         _stateMachine = stateMachine;
+        _livenessOptions = livenessOptions;
+        _agentPool = agentPool;
         _subAgents = new ConcurrentDictionary<string, AgentBase>();
         _results = new ConcurrentDictionary<string, SubAgentResult>();
     }
@@ -95,7 +112,11 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
         {
             _logger?.LogInformation("[AgentLifecycleManager] 开始执行Agent {AgentId}", agent.ObjectId.UniqueId);
 
-            var result = await agent.ExecuteAsync(cancellationToken).ConfigureAwait(false);
+            var timeoutSeconds = _livenessOptions?.AgentTimeoutSeconds ?? 0;
+            var result = timeoutSeconds > 0
+                ? await ExecuteWithTimeoutAsync(agent, timeoutSeconds, cancellationToken).ConfigureAwait(false)
+                : await agent.ExecuteAsync(cancellationToken).ConfigureAwait(false);
+
             _results[agent.ObjectId.UniqueId] = result;
 
             var finalState = result.IsSuccess ? TaskExecutionStatus.Completed : TaskExecutionStatus.Failed;
@@ -105,6 +126,12 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
                 agent.ObjectId.UniqueId, finalState);
 
             return result;
+        }
+        catch (TimeoutException ex)
+        {
+            _logger?.LogWarning("[AgentLifecycleManager] Agent {AgentId} 执行超时: {Message}", agent.ObjectId.UniqueId, ex.Message);
+            await _stateMachine.TryTransitionAsync(agent.ObjectId.UniqueId, TaskExecutionStatus.Cancelled, ex.Message, cancellationToken).ConfigureAwait(false);
+            return CreateErrorResult(agent.ObjectId.UniqueId, ex.Message);
         }
         catch (OperationCanceledException)
         {
@@ -117,6 +144,17 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
             await _stateMachine.TryTransitionAsync(agent.ObjectId.UniqueId, TaskExecutionStatus.Failed, ex.Message, cancellationToken).ConfigureAwait(false);
             return CreateErrorResult(agent.ObjectId.UniqueId, ex.Message);
         }
+    }
+
+    /// <summary>
+    /// 带超时的子代理执行 — L1 预防层（ADR 0106）
+    /// </summary>
+    private async Task<SubAgentResult> ExecuteWithTimeoutAsync(IAgent agent, int timeoutSeconds, CancellationToken ct)
+    {
+        return await TimeoutHelper.WithTimeoutAsync(
+            token => agent.ExecuteAsync(token),
+            TimeSpan.FromSeconds(timeoutSeconds),
+            ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -198,13 +236,24 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     }
 
     /// <summary>
-    /// 释放Agent资源
+    /// 释放Agent资源 — 如果有代理池且 agent 已完成，回池而非 Dispose（ADR 0106 L3 抢塞）
     /// </summary>
     public Task DisposeAgentAsync(string agentId, CancellationToken cancellationToken = default)
     {
         if (_subAgents.TryRemove(agentId, out var agent))
         {
-            agent.Dispose();
+            // L3 抢塞：已完成/失败的 agent 回池等待复用，否则直接 Dispose
+            if (_agentPool is not null && agent.Status is TaskExecutionStatus.Completed or TaskExecutionStatus.Failed)
+            {
+                if (!_agentPool.Return(agent))
+                {
+                    // 池满或池禁用，Return 内部已 Dispose
+                }
+            }
+            else
+            {
+                agent.Dispose();
+            }
         }
         _results.TryRemove(agentId, out _);
         _stateMachine.RemoveAgent(agentId);

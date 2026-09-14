@@ -198,6 +198,9 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0101](0101-file-watcher-unified-actor.md) | 文件监控全面 Actor 化统一 | proposed | 2026-09-12 |
 | [0102](0102-folder-restructure-functional-driven.md) | 文件夹整理改革 — 从领域驱动到功能驱动 | superseded by 0103 | 2026-09-12 |
 | [0103](0103-folder-restructure-semantic-grouping-flat.md) | 文件夹扁平化重组 — 语义分组 + 组内扁平 | accepted | 2026-09-13 |
+| [0104](0104-write-defense-extract-public-node.md) | 写防御 — 提取公共节点 | accepted | 2026-09-14 |
+| [0105](0105-desktop-scene-orchestration.md) | 桌面情景模式编排层 — 场景菜单+工具链路推荐+状态持久化 | accepted | 2026-09-14 |
+| [0106](0106-subagent-stall-defense-in-depth.md) | 子代理卡死防护纵深防御体系 — L1预防+L2检测+L3干预+L4恢复 | proposed | 2026-09-15 |
 
 ## 主题索引（按议题）
 

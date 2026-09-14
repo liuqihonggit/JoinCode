@@ -59,6 +59,10 @@ public static partial class ServiceRegistration
             return config.SubAgentConcurrency;
         });
 
+        // SubAgentLivenessOptions — 子代理卡死防护配置（ADR 0106）
+        // TODO: 后续从 WorkflowConfig.SubAgentLiveness 提取，暂用默认值
+        services.AddSingleton<SubAgentLivenessOptions>(_ => new SubAgentLivenessOptions());
+
         // BridgeApiClient 手动工厂注册 — 覆盖 [Register] 自动注册
         // 原因: BridgeApiClient 有两个 public 构造函数（HttpClient 版和 BridgeConfig 版），DI 容器无法选择导致歧义
         // 工厂方法明确使用 BridgeConfig 版构造函数，避免歧义

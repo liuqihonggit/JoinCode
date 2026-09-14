@@ -110,6 +110,22 @@ public sealed record SkillDefinition
 
     [JsonIgnore]
     public DateTime LastModified { get; init; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// 构建步骤 Id 索引，供 while 循环 O(1) 查找，避免每次 FirstOrDefault 线性扫描
+    /// </summary>
+    public Dictionary<string, SkillStep> BuildStepIndex()
+    {
+        var dict = new Dictionary<string, SkillStep>(Steps.Count, StringComparer.Ordinal);
+        foreach (var s in Steps)
+        {
+            if (!dict.ContainsKey(s.Id))
+            {
+                dict[s.Id] = s;
+            }
+        }
+        return dict;
+    }
 }
 
 public enum SkillSourceFormat

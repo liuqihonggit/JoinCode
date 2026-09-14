@@ -44,6 +44,7 @@ public sealed partial class SkillExecutionMiddleware : ServiceEntity, ISkillMidd
         var stepResults = new List<string>();
         var currentStepId = skill.Steps.FirstOrDefault()?.Id;
         var executedSteps = new HashSet<string>();
+        var stepIndex = skill.BuildStepIndex();
 
         while (currentStepId != null && !context.CancellationToken.IsCancellationRequested)
         {
@@ -53,7 +54,7 @@ public sealed partial class SkillExecutionMiddleware : ServiceEntity, ISkillMidd
             }
 
             executedSteps.Add(currentStepId);
-            var step = skill.Steps.FirstOrDefault(s => s.Id == currentStepId);
+            var step = stepIndex.TryGetValue(currentStepId, out var s) ? s : null;
             if (step == null)
             {
                 break;

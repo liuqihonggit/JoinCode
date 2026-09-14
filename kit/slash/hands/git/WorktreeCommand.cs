@@ -70,11 +70,12 @@ public sealed class WorktreeCommand : ChatCommandBase
         }
 
         var currentDir = context.GetCommandServices().FileSystem.GetCurrentDirectory();
+        var sessionByPath = sessions.ToLookup(s => s.WorktreePath, StringComparer.OrdinalIgnoreCase);
 
         foreach (var worktreePath in worktrees)
         {
             var isCurrent = worktreePath.Equals(currentDir, StringComparison.OrdinalIgnoreCase);
-            var session = sessions.FirstOrDefault(s => s.WorktreePath.Equals(worktreePath, StringComparison.OrdinalIgnoreCase));
+            var session = sessionByPath[worktreePath].FirstOrDefault();
 
             var prefix = isCurrent ? "* " : "  ";
             TerminalHelper.WriteLine($"{prefix}{worktreePath}");

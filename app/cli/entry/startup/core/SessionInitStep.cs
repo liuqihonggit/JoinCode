@@ -70,7 +70,16 @@ internal sealed partial class SessionInitStep : ServiceEntity, IMiddleware<Start
         await StartCodeIndexServiceAsync(host.Services, ct);
 
         // 显式激活子代理卡死防护纵深防御体系（ADR 0106）— 协调器注册为 Singleton 但无消费方注入，DI 懒创建导致 Start() 永不调用
-        host.Services.GetService<Core.Agents.Coordinator.Liveness.SubAgentStallDefenseCoordinator>();
+        try
+        {
+            host.Services.GetService<Core.Agents.Coordinator.Liveness.SubAgentStallDefenseCoordinator>();
+            Diag.WriteLine("[STEP] SubAgentStallDefenseCoordinator 激活成功");
+        }
+        catch (Exception ex)
+        {
+            Diag.WriteLine($"[STEP] SubAgentStallDefenseCoordinator 激活失败: {ex.GetType().FullName}: {ex.Message}");
+            Diag.WriteLine($"[STEP] StackTrace:\n{ex.StackTrace}");
+        }
 
         var services = Cli.CliServiceContext.FromServiceProvider(host.Services, goalEngine, cronTaskStore: cronTaskStore, workflowConfig: context.Config);
         // T6：sessionId 同源 — 复用引擎工厂生成的 ID（transcript 落盘已下沉引擎管道，双方必须一致）

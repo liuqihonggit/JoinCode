@@ -151,6 +151,12 @@ class Program
         {
             // 通用异常 — 记录日志并友好提示
             // 视角2 #27: 使用 ErrorConsole.Fatal 渲染（红色致命错误 + 图标）
+            // 诊断: 输出完整异常信息到 stderr（Type + Message + StackTrace + InnerException），供 E2E 测试捕获
+            Diag.WriteLine($"[MAIN] 未捕获异常: {ex.GetType().FullName}: {ex.Message}");
+            Diag.WriteLine($"[MAIN] StackTrace:\n{ex.StackTrace}");
+            if (ex.InnerException is not null)
+                Diag.WriteLine($"[MAIN] InnerException: {ex.InnerException.GetType().FullName}: {ex.InnerException.Message}\n{ex.InnerException.StackTrace}");
+
             var errorLog = WriteErrorLog(ex, logger: logger);
 
             Cli.TerminalHelper.Init();
@@ -181,13 +187,19 @@ class Program
     {
         var errorLog = Cli.Output.XdgPathResolver.GetErrorLogPath();
         var prefix = fatal ? "[FATAL] " : string.Empty;
-        var errorContent = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {prefix}{ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}";
+        var errorContent = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {prefix}{ex.GetType().FullName}: {ex.Message}\n{ex.StackTrace}";
+        if (ex.InnerException is not null)
+            errorContent += $"\n--- InnerException ---\n{ex.InnerException.GetType().FullName}: {ex.InnerException.Message}\n{ex.InnerException.StackTrace}";
         try
         {
+            var dir = System.IO.Path.GetDirectoryName(errorLog);
+            if (dir is not null && !System.IO.Directory.Exists(dir))
+                System.IO.Directory.CreateDirectory(dir);
             SafeFileIO.WriteAllText(errorLog, errorContent);
         }
         catch (Exception logEx)
         {
+            Diag.WriteLine($"[MAIN] WriteErrorLog 失败: {logEx.GetType().Name}: {logEx.Message}");
             logger?.LogWarning(logEx, "写入错误日志失败");
         }
         return errorLog;

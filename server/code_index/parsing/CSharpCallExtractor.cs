@@ -10,7 +10,7 @@ internal sealed record CollectCallsOptions(
     HashSet<string> InterfaceNameSet,
     Dictionary<string, string> VariableTypeMap,
     List<MethodLookupEntry> MethodLookup,
-    IReadOnlyList<SymbolInfo> Symbols,
+    SymbolIndex Symbols,
     Dictionary<string, string> ExtensionMethodMap,
     List<CallEdge> Calls);
 
@@ -25,7 +25,7 @@ internal sealed record ResolveCalleeOptions(
     HashSet<string> ClassNameSet,
     HashSet<string> InterfaceNameSet,
     Dictionary<string, string> VariableTypeMap,
-    IReadOnlyList<SymbolInfo> Symbols,
+    SymbolIndex Symbols,
     Dictionary<string, string> ExtensionMethodMap);
 
 /// <summary>
@@ -39,6 +39,35 @@ internal sealed class MethodLookupEntry(string fqn, int startLine, int endLine)
     public int StartLine { get; } = startLine;
     /// <summary>结束行号</summary>
     public int EndLine { get; } = endLine;
+}
+
+/// <summary>
+/// 符号索引 — 单一数据源，封装按全限定名和按名称查找，避免消费方线性扫描符号列表
+/// </summary>
+internal sealed class SymbolIndex
+{
+    private readonly Dictionary<string, SymbolInfo> _byFqn;
+    private readonly ILookup<string, SymbolInfo> _byName;
+
+    /// <summary>从符号列表构建索引，保留同 FQN 首个（与 FirstOrDefault 语义一致）</summary>
+    public SymbolIndex(IReadOnlyList<SymbolInfo> symbols)
+    {
+        _byFqn = new Dictionary<string, SymbolInfo>(symbols.Count, StringComparer.Ordinal);
+        foreach (var s in symbols)
+        {
+            if (!_byFqn.ContainsKey(s.FullyQualifiedName))
+            {
+                _byFqn[s.FullyQualifiedName] = s;
+            }
+        }
+        _byName = symbols.ToLookup(s => s.Name, StringComparer.Ordinal);
+    }
+
+    /// <summary>按全限定名 O(1) 查找</summary>
+    public bool TryGetByFqn(string fqn, [MaybeNullWhen(false)] out SymbolInfo symbol) => _byFqn.TryGetValue(fqn, out symbol);
+
+    /// <summary>按名称查找，返回同名符号集合（通常 ≤3 个），消费方按 Kind 二次过滤</summary>
+    public IEnumerable<SymbolInfo> GetByName(string name) => _byName[name];
 }
 
 /// <summary>
@@ -79,9 +108,10 @@ public sealed class CSharpCallExtractor
         var variableTypeMap = BuildVariableTypeMap(rootNode, classNameSet);
         var methodLookup = BuildMethodLookup(symbols);
         var extensionMethodMap = BuildExtensionMethodMap(symbols);
+        var symbolIndex = new SymbolIndex(symbols);
         var calls = new List<CallEdge>();
 
-        var options = new CollectCallsOptions(rootNode, filePath, classNameSet, interfaceNameSet, variableTypeMap, methodLookup, symbols, extensionMethodMap, calls);
+        var options = new CollectCallsOptions(rootNode, filePath, classNameSet, interfaceNameSet, variableTypeMap, methodLookup, symbolIndex, extensionMethodMap, calls);
         CollectCalls(options);
 
         return calls;
@@ -228,7 +258,7 @@ public sealed class CSharpCallExtractor
         }
     }
 
-    private static CallEdge? TryExtractEventHandlerEdge(Node assignmentNode, string filePath, List<MethodLookupEntry> methodLookup, IReadOnlyList<SymbolInfo> symbols)
+    private static CallEdge? TryExtractEventHandlerEdge(Node assignmentNode, string filePath, List<MethodLookupEntry> methodLookup, SymbolIndex symbols)
     {
         var isEventAssignment = false;
         foreach (var child in assignmentNode.Children)
@@ -268,8 +298,7 @@ public sealed class CSharpCallExtractor
         if (parentClassFqn is not null)
         {
             var candidateFqn = $"{parentClassFqn}.{handlerName}";
-            var match = symbols.FirstOrDefault(s => s.FullyQualifiedName == candidateFqn);
-            if (match is not null)
+            if (symbols.TryGetByFqn(candidateFqn, out var match))
             {
                 return new CallEdge
                 {
@@ -282,7 +311,7 @@ public sealed class CSharpCallExtractor
             }
         }
 
-        var globalMatch = symbols.FirstOrDefault(s => s.Name == handlerName && s.Kind is SymbolKind.Method);
+        var globalMatch = symbols.GetByName(handlerName).FirstOrDefault(s => s.Kind is SymbolKind.Method);
         if (globalMatch is not null)
         {
             return new CallEdge
@@ -311,7 +340,7 @@ public sealed class CSharpCallExtractor
         return funcNode?.Type == "identifier" && funcNode.Text == "nameof";
     }
 
-    private static CallEdge? TryExtractConstructorInitializerEdge(Node initializerNode, string filePath, List<MethodLookupEntry> methodLookup, IReadOnlyList<SymbolInfo> symbols)
+    private static CallEdge? TryExtractConstructorInitializerEdge(Node initializerNode, string filePath, List<MethodLookupEntry> methodLookup, SymbolIndex symbols)
     {
         var callerFqn = FindCallerFqn(initializerNode, methodLookup);
         var parentClassFqn = ExtractParentClassFqn(callerFqn);
@@ -360,7 +389,7 @@ public sealed class CSharpCallExtractor
         return null;
     }
 
-    private static CallEdge? TryExtractInvocationEdge(Node invocationNode, string filePath, HashSet<string> classNameSet, HashSet<string> interfaceNameSet, Dictionary<string, string> variableTypeMap, List<MethodLookupEntry> methodLookup, IReadOnlyList<SymbolInfo> symbols, Dictionary<string, string> extensionMethodMap)
+    private static CallEdge? TryExtractInvocationEdge(Node invocationNode, string filePath, HashSet<string> classNameSet, HashSet<string> interfaceNameSet, Dictionary<string, string> variableTypeMap, List<MethodLookupEntry> methodLookup, SymbolIndex symbols, Dictionary<string, string> extensionMethodMap)
     {
         var calleeName = ExtractCalleeName(invocationNode);
         if (calleeName is null)
@@ -493,21 +522,19 @@ public sealed class CSharpCallExtractor
             if (parentClassFqn is not null)
             {
                 var candidateFqn = $"{parentClassFqn}.{calleeName}";
-                var match = symbols.FirstOrDefault(s => s.FullyQualifiedName == candidateFqn);
-                if (match is not null)
+                if (symbols.TryGetByFqn(candidateFqn, out var match))
                 {
                     return candidateFqn;
                 }
             }
 
             var callerAsParentFqn = $"{callerFqn}.{calleeName}";
-            var callerMatch = symbols.FirstOrDefault(s => s.FullyQualifiedName == callerAsParentFqn);
-            if (callerMatch is not null)
+            if (symbols.TryGetByFqn(callerAsParentFqn, out var callerMatch))
             {
                 return callerAsParentFqn;
             }
 
-            var globalMatch = symbols.FirstOrDefault(s => s.Name == calleeName && s.Kind is SymbolKind.Method or SymbolKind.LocalFunction);
+            var globalMatch = symbols.GetByName(calleeName).FirstOrDefault(s => s.Kind is SymbolKind.Method or SymbolKind.LocalFunction);
             if (globalMatch is not null)
             {
                 return globalMatch.FullyQualifiedName;
@@ -534,9 +561,9 @@ public sealed class CSharpCallExtractor
         return methodFqn[..lastDot];
     }
 
-    private static string FindSymbolFqn(string name, IReadOnlyList<SymbolInfo> symbols)
+    private static string FindSymbolFqn(string name, SymbolIndex symbols)
     {
-        var symbol = symbols.FirstOrDefault(s => s.Name == name && s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface);
+        var symbol = symbols.GetByName(name).FirstOrDefault(s => s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface);
         return symbol?.FullyQualifiedName ?? name;
     }
 

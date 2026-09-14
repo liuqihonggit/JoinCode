@@ -12,10 +12,10 @@
 
 | 顺序 | 目录 | 职责(回答什么问题) | 文档数 | 说明 |
 |------|------|---------------------|--------|------|
-| 1 | [`adr/`](adr/README.md) | **为什么**这样决策 | 104 | 架构决策记录,不可变,已有完善双索引 |
-| 2 | [`design/`](design/) | **怎么**实现 | 22 | 技术设计文档、PRD、验收报告 |
-| 3 | [`plan/`](plan/) | **什么时候**做 | 12+6子目录 | 执行计划、里程碑、改造方案 |
-| 4 | [`task/`](task/) | **做什么** | 21+gui/13 | 具体任务清单、测试记录 |
+| 1 | [`adr/`](adr/README.md) | **为什么**这样决策 | 103 | 架构决策记录,不可变,已有完善双索引 |
+| 2 | [`design/`](design/) | **怎么**实现 | 23 | 技术设计文档、PRD、验收报告 |
+| 3 | [`plan/`](plan/) | **什么时候**做 | 6+6子目录 | 执行计划、里程碑、改造方案 |
+| 4 | [`task/`](task/) | **做什么** | 21+gui/12 | 具体任务清单、测试记录 |
 | 5 | [`fix/`](fix/) | **修了什么** | 5 | 缺陷修复记录(按需查阅) |
 | 5 | [`refactor/`](refactor/) | **怎么改** | 7 | 重构记录、迁移记录(按需查阅) |
 | 5 | [`handoff/`](handoff/) | **交接** | 3+子目录 | 手动测试交接文档(按需查阅) |
@@ -138,47 +138,47 @@ docs/README.md          ← 顶层导航(本文件):目录结构 + 规范 + 阅�
 
 > 详见 [adr/README.md](adr/README.md)(已有完善双索引:按编号 + 按主题)
 
-104 个 ADR,记录"为什么选 A 放弃 B"。不可变,只改状态(superseded/deprecated)。
+103 个 ADR,记录"为什么选 A 放弃 B"。不可变,只改状态(superseded/deprecated)。
 
 ### 2. design/ — 技术设计(怎么实现)
 
-> 详见 [design/README.md](design/)(待建)
+> 详见 [design/README.md](design/)
 
-22 个设计文档,含 PRD、技术设计、验收报告、架构索引。
+23 个设计文档,含 PRD、技术设计、验收报告、架构索引。
 
 ### 3. plan/ — 执行计划(什么时候做)
 
-> 详见 [plan/README.md](plan/)(待建)
+> 详见 [plan/README.md](plan/)
 
-12 个散落计划 + 6 个子目录:`agent/` `mcp/` `plugin/` `refactor/` `safety/` `tui/`
+6 个散落计划 + 6 个子目录:`agent/` `mcp/` `plugin/` `refactor/` `safety/` `tui/`
 
 ### 4. task/ — 任务清单(做什么)
 
-> 详见 [task/README.md](task/)(待建)
+> 详见 [task/README.md](task/)
 
-21 个任务清单 + `gui/` 子目录(13 个 Avalonia GUI 任务)
+21 个任务清单 + `gui/` 子目录(12 个 Avalonia GUI 任务)
 
 ### 5. fix/ — 缺陷修复(修了什么)
 
-> 详见 [fix/README.md](fix/)(待建)
+> 详见 [fix/README.md](fix/)
 
 5 个缺陷修复记录,按轮次组织。
 
 ### 6. refactor/ — 重构记录(怎么改)
 
-> 详见 [refactor/README.md](refactor/)(待建)
+> 详见 [refactor/README.md](refactor/)
 
 7 个重构/迁移记录。
 
 ### 7. handoff/ — 交接文档
 
-> 详见 [handoff/README.md](handoff/)(待建)
+> 详见 [handoff/README.md](handoff/)
 
 3 个手动测试记录 + `0080_round3_handoff/` 子目录(ADR 0080 第三轮交接)。
 
 ### 8. reference/ — 参考查阅
 
-> 详见 [reference/README.md](reference/)(待建)
+> 详见 [reference/README.md](reference/)
 
 4 个参考文档:模型列表、插件契约、错误编码、Terminal.Gui 陷阱。
 

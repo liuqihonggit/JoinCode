@@ -73,13 +73,13 @@ git clone <repo-url>
 cd JoinCode
 
 # Build all seven layers in order (Release enables NativeAOT)
-dotnet build Generators.slnx -c Release --no-incremental
-dotnet build Foundation.slnx -c Release --no-incremental
-dotnet build Infrastructure.slnx -c Release --no-incremental
-dotnet build Core.slnx -c Release --no-incremental
-dotnet build Services.slnx -c Release --no-incremental
-dotnet build Composition.slnx -c Release --no-incremental
-dotnet build App.slnx -c Release --no-incremental
+dotnet build build/sln/Generators.slnx -c Release --no-incremental
+dotnet build build/sln/Foundation.slnx -c Release --no-incremental
+dotnet build build/sln/Infrastructure.slnx -c Release --no-incremental
+dotnet build build/sln/Core.slnx -c Release --no-incremental
+dotnet build build/sln/Services.slnx -c Release --no-incremental
+dotnet build build/sln/Composition.slnx -c Release --no-incremental
+dotnet build build/sln/App.slnx -c Release --no-incremental
 
 # Or use the build script
 .\build.ps1 -Mode Fast -SkipTests -Configuration Release

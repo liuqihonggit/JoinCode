@@ -41,14 +41,3 @@ public sealed record SedValidationResult : ShellPermissionCheckResult
 
     public SedValidationResult(PermissionBehavior behavior, string? message = null) : base(behavior, message) { }
 }
-
-/// <summary>
-/// sed 验证行为 — 已废弃，使用 PermissionBehavior 替代
-/// </summary>
-[Obsolete("Use PermissionBehavior instead")]
-public enum SedValidationBehavior
-{
-    Passthrough,
-    Ask,
-    Deny
-}

@@ -15,7 +15,7 @@
 项目已实现桌面自动化全部原子能力：四叉树编码/缩放/渲染、GDI 截图、Win32 点击/拖拽/键盘输入、多模态 UI 元素检测、窗口枚举/聚焦、桌面叠加动画。但这些是**散落的 20+ 个细粒度 MCP 工具**，存在三个问题：
 
 1. **AI 看不见代码**：AI 只能看工具 name/description/schema。296 个工具全塞给 AI 会爆 context（~30k token），桌面场景只需 5-6 个，AI 被淹没且不知编排顺序。
-2. **夹逼进度跨调用丢失**：每次 mcp_call 是新进程（见 [project-plan-state-no-cross-process-persistence](../../C:/Users/54076/.codeartsdoer/memory/D--project-w1/project-plan-state-no-cross-process-persistence.md)），四叉树夹逼的"当前层/当前格子/历史路径"无法累积，每次从零开始。
+2. **夹逼进度跨调用丢失**：每次 mcp_call 是新进程（进程间无共享状态），四叉树夹逼的"当前层/当前格子/历史路径"无法累积，每次从零开始。
 3. **AI 遗忘下一步**：调完 screenshot 后 AI 可能不知道该调 quadtree_zoom，无链路引导。
 
 用户需求（来自聊天记录）：把"四叉树夹逼→识图→点击"做成 AI 可执行的工作，场景信息保留给 AI，**面向交互非面向数据**（AI 能逐步参与/纠偏，不是黑盒）。
@@ -31,7 +31,7 @@
 每个 `desktop_*` 工具返回 `ToolResult` 时附带 `suggested_next: [{tool, reason, params_hint}]`。调完 `desktop_look` → 推荐 `desktop_zoom` → 调完 `desktop_zoom` → 推荐 `desktop_detect` 或继续 `desktop_zoom`。**AI 自己推理决定调不调，推荐是引导非强制**。
 
 ### 3. 状态持久化（跨调用机制）
-`~/.jcc/scenarios/{scene_id}.json` 存夹逼进度（当前层/格子/历史/截图路径）。AI 每次调工具传 `scene_id`，进度跨 mcp_call 进程保留。复用 agent DryRun + 文件中转方案（见 [project-agent-tool-test-mode-no-llm](../../C:/Users/54076/.codeartsdoer/memory/D--project-w1/project-agent-tool-test-mode-no-llm.md)）。
+`~/.jcc/scenarios/{scene_id}.json` 存夹逼进度（当前层/格子/历史/截图路径）。AI 每次调工具传 `scene_id`，进度跨 mcp_call 进程保留。复用 agent DryRun + 文件中转方案。
 
 ### 工具集
 `desktop_scene_menu`（菜单）、`desktop_look`（截图+网格）、`desktop_zoom`（缩放）、`desktop_detect`（识图）、`desktop_click`（点击）、`desktop_type`（输入）、`desktop_drag`（拖拽）、`desktop_scene_status`（查进度）。现有原子工具（screenshot/quadtree_*/mouse_click 等）保留但标 `Kind=System` 按需注入，不默认暴露给 AI。

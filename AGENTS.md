@@ -464,6 +464,14 @@ public void Dispose() {
 
 > ADR: [0084](docs/adr/0084-platform-windows-env-rules.md) — 详见 ADR 文档（含 PowerShell 禁令、路径格式、命令分隔、脚本语言优先级[AST CLI/Python/PowerShell/jcc gh/Agent grep]）
 
+### ⛔ bash 中禁止 `2>nul` 重定向（强制，pre-commit hook 拦截）
+
+- **🚫 禁止**：在 bash 命令中使用 `2>nul`、`>nul`、`2>&1>nul` 等任何含 `nul` 的重定向
+- **根因**：`nul` 在 Windows cmd/PowerShell 中是空设备，但在 git bash 中是**普通文件名**，会创建名为 `nul` 的垃圾文件
+- **✅ 正确做法**：bash 中用 `2>/dev/null`（`/dev/null` 在 git bash 中是真正的空设备）
+- **自动拦截**：主仓库 `D:/project/JoinCode/.git/hooks/pre-commit` 已配置，检测到 `nul` 文件拒绝提交并提示
+- **误创建后**：立即 `rm -f nul` 删除（不适用 AGENTS.md 禁删规则，这是 AI 自己造成的垃圾）
+
 ### 🔧 gh / rg 工具使用（优先 jcc/内置，回退系统）
 
 > ADR: [0089](docs/adr/0089-jcc-builtin-tools-only-no-system-gh-rg.md) — 详见 ADR 文档（含实测证据、边缘错误提示清单）

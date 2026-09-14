@@ -42,17 +42,20 @@ public static class PerfTap
         Log(label, elapsedMs, extra);
     }
 
+    /// <summary>性能作用域 — using var scope = PerfTap.Scope("label") 自动计时到 Dispose</summary>
     public sealed class PerfScope : IDisposable
     {
         private readonly string _label;
         private readonly long _start;
 
+        /// <summary>初始化 PerfScope 实例并记录起始时间戳</summary>
         public PerfScope(string label)
         {
             _label = label;
             _start = System.Diagnostics.Stopwatch.GetTimestamp();
         }
 
+        /// <summary>释放作用域并记录耗时（超阈值时输出慢日志）</summary>
         public void Dispose()
         {
             var elapsedMs = System.Diagnostics.Stopwatch.GetElapsedTime(_start).TotalMilliseconds;

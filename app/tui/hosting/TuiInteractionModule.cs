@@ -8,13 +8,16 @@ namespace JoinCode.Tui.Hosting;
 [AppModule(Order = 80)]
 public sealed class TuiInteractionModule : IAppModule
 {
+    /// <summary>模块加载顺序（80 = TUI 交互层）</summary>
     public int Order => 80;
 
+    /// <summary>注册 TUI 交互服务到 DI 容器</summary>
     public void ConfigureServices(IServiceCollection services, AppModuleContext context)
     {
         services.AddSingleton<TerminalGuiInteractiveService>();
         services.AddSingleton<IInteractiveService>(sp => sp.GetRequiredService<TerminalGuiInteractiveService>());
     }
 
+    /// <summary>异步配置（无操作，返回已完成任务）</summary>
     public Task ConfigureAsync(IServiceProvider services, CancellationToken ct) => Task.CompletedTask;
 }

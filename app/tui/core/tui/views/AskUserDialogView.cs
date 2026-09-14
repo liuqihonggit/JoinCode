@@ -20,6 +20,7 @@ public sealed class AskUserDialogView : ITuiComponent
 
     private TaskCompletionSource<AskUserQuestionResult>? _pendingResponse;
 
+    /// <summary>初始化 AskUserDialogView 实例</summary>
     public AskUserDialogView()
     {
         _container = new View
